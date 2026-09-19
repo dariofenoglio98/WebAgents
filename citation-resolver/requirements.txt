@@ -1,0 +1,6 @@
+fastapi==0.141.1
+pydantic==2.13.5
+httpx==0.28.1
+uvicorn==0.53.0
+rapidfuzz==3.14.6
+defusedxml==0.7.1
