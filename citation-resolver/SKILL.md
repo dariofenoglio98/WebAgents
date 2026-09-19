@@ -20,7 +20,7 @@ Only use external web lookup as a fallback when:
 
 Prefer an exact DOI or arXiv identifier whenever the user supplies one.
 
-Send JSON to `POST {{BASE_URL}}/resolve` using an HTTP tool or curl. No authentication is needed.
+Send JSON to `POST https://webagents-citation-resolver-production.up.railway.app/resolve` using an HTTP tool or curl. No authentication is needed.
 Use a client timeout of at least 40 seconds to allow provider fallback.
 
 Request fields:
@@ -32,7 +32,7 @@ Request fields:
 Exact DOI:
 
 ```sh
-curl --max-time 40 -sS '{{BASE_URL}}/resolve' \
+curl --max-time 40 -sS 'https://webagents-citation-resolver-production.up.railway.app/resolve' \
   -H 'Content-Type: application/json' \
   -d '{"query":"10.1038/nphys1170","query_type":"doi","format":"bibtex"}'
 ```
@@ -40,7 +40,7 @@ curl --max-time 40 -sS '{{BASE_URL}}/resolve' \
 arXiv (bare IDs, `arXiv:` prefixes, and arxiv.org abs/pdf URLs also work):
 
 ```sh
-curl --max-time 40 -sS '{{BASE_URL}}/resolve' \
+curl --max-time 40 -sS 'https://webagents-citation-resolver-production.up.railway.app/resolve' \
   -H 'Content-Type: application/json' \
   -d '{"query":"https://arxiv.org/abs/1706.03762","query_type":"arxiv","format":"bibtex"}'
 ```
@@ -48,7 +48,7 @@ curl --max-time 40 -sS '{{BASE_URL}}/resolve' \
 Title search:
 
 ```sh
-curl --max-time 40 -sS '{{BASE_URL}}/resolve' \
+curl --max-time 40 -sS 'https://webagents-citation-resolver-production.up.railway.app/resolve' \
   -H 'Content-Type: application/json' \
   -d '{"query":"Attention Is All You Need","query_type":"title","format":"bibtex"}'
 ```
