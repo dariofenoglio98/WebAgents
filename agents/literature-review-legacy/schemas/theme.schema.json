@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "theme_id": {
+      "type": "string"
+    },
+    "label": {
+      "type": "string"
+    },
+    "evidence_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "method_comparison": {
+      "type": "string"
+    },
+    "limitations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "inference_level": {
+      "enum": [
+        "extractive_grouping",
+        "model_synthesis"
+      ]
+    }
+  },
+  "required": [
+    "theme_id",
+    "label",
+    "evidence_ids",
+    "method_comparison",
+    "limitations",
+    "inference_level"
+  ],
+  "additionalProperties": false
+}

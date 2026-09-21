@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "evidence_id": {
+      "type": "string"
+    },
+    "paper_id": {
+      "type": "string"
+    },
+    "text": {
+      "type": "string"
+    },
+    "quote": {
+      "type": "string"
+    },
+    "category": {
+      "enum": [
+        "method",
+        "finding",
+        "setup",
+        "limitation"
+      ]
+    },
+    "scope": {
+      "enum": [
+        "abstract",
+        "full_text"
+      ]
+    },
+    "support_strength": {
+      "enum": [
+        "direct_quote",
+        "model_interpretation"
+      ]
+    },
+    "location": {
+      "type": "object",
+      "properties": {
+        "page": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "section": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "page",
+        "section"
+      ],
+      "additionalProperties": false
+    },
+    "extraction_worker": {
+      "type": "string"
+    },
+    "provenance": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "type": "string"
+        },
+        "locator": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source_sha256": {
+          "type": "string"
+        },
+        "synthetic": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "source",
+        "locator",
+        "source_sha256",
+        "synthetic"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "evidence_id",
+    "paper_id",
+    "text",
+    "quote",
+    "category",
+    "scope",
+    "support_strength",
+    "location",
+    "extraction_worker",
+    "provenance"
+  ],
+  "additionalProperties": false
+}

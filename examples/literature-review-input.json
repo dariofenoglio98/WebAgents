@@ -1,0 +1,8 @@
+{
+  "question": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
+  "seeds": [],
+  "documents": {
+    "10.0000/synthetic-router": "synthetic-router-pdf"
+  },
+  "mode": "fixture"
+}

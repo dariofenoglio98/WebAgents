@@ -1,0 +1,22 @@
+{
+  "type": "object",
+  "properties": {
+    "themes": {
+      "type": "array",
+      "items": {
+        "$ref": "theme.schema.json"
+      }
+    },
+    "claims": {
+      "type": "array",
+      "items": {
+        "$ref": "claim.schema.json"
+      }
+    }
+  },
+  "required": [
+    "themes",
+    "claims"
+  ],
+  "additionalProperties": false
+}

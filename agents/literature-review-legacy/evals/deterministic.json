@@ -1,0 +1,77 @@
+{
+  "spec_version": "0.1",
+  "id": "literature-deterministic",
+  "description": "Offline synthetic fixture suite and deterministic final-output integrity checks; not a scientific quality benchmark.",
+  "cases": [
+    {
+      "id": "citation-validity",
+      "input": {
+        "mode": "fixture"
+      },
+      "assertions": [
+        "all citations resolved",
+        "no fabricated reference"
+      ]
+    },
+    {
+      "id": "ambiguity",
+      "input": {
+        "mode": "fixture"
+      },
+      "assertions": [
+        "ambiguous best_match score 1 excluded"
+      ]
+    },
+    {
+      "id": "failures",
+      "input": {
+        "mode": "fixture"
+      },
+      "assertions": [
+        "not_found and provider_error preserved"
+      ]
+    },
+    {
+      "id": "grounding",
+      "input": {
+        "mode": "fixture"
+      },
+      "assertions": [
+        "claim evidence and paper links valid",
+        "unsupported claims withheld"
+      ]
+    },
+    {
+      "id": "source-scope",
+      "input": {
+        "mode": "fixture"
+      },
+      "assertions": [
+        "abstract scope never upgraded",
+        "full-text pages preserved"
+      ]
+    },
+    {
+      "id": "deduplication",
+      "input": {
+        "mode": "fixture"
+      },
+      "assertions": [
+        "duplicate DOI merged",
+        "parallel provenance retained"
+      ]
+    },
+    {
+      "id": "runtime",
+      "input": {
+        "mode": "fixture"
+      },
+      "assertions": [
+        "budgets respected",
+        "depth at most 1",
+        "declared roles only"
+      ]
+    }
+  ],
+  "extensions": {}
+}

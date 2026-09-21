@@ -1,0 +1,427 @@
+{
+  "$defs": {
+    "Author": {
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "given": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Given"
+        },
+        "family": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Family"
+        },
+        "orcid": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Orcid"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "Author",
+      "type": "object"
+    },
+    "Candidate": {
+      "properties": {
+        "paper": {
+          "$ref": "#/$defs/Paper"
+        },
+        "match_score": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Match Score",
+          "type": "number"
+        }
+      },
+      "required": [
+        "paper",
+        "match_score"
+      ],
+      "title": "Candidate",
+      "type": "object"
+    },
+    "ErrorResponse": {
+      "properties": {
+        "status": {
+          "const": "invalid_request",
+          "default": "invalid_request",
+          "title": "Status",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "errors": {
+          "items": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "title": "Errors",
+          "type": "array"
+        }
+      },
+      "required": [
+        "message"
+      ],
+      "title": "ErrorResponse",
+      "type": "object"
+    },
+    "Paper": {
+      "properties": {
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "authors": {
+          "items": {
+            "$ref": "#/$defs/Author"
+          },
+          "title": "Authors",
+          "type": "array"
+        },
+        "year": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Year"
+        },
+        "venue": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Venue"
+        },
+        "publisher": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Publisher"
+        },
+        "doi": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Doi"
+        },
+        "arxiv_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Arxiv Id"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Url"
+        },
+        "publication_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Publication Type"
+        },
+        "abstract": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Abstract"
+        },
+        "volume": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Volume"
+        },
+        "issue": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Issue"
+        },
+        "pages": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pages"
+        },
+        "journal_reference": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Journal Reference"
+        },
+        "provider_ids": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Provider Ids",
+          "type": "object"
+        },
+        "source": {
+          "enum": [
+            "crossref",
+            "openalex",
+            "arxiv"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "bibtex": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Bibtex"
+        }
+      },
+      "required": [
+        "title",
+        "source"
+      ],
+      "title": "Paper",
+      "type": "object"
+    },
+    "ResolveResponse": {
+      "properties": {
+        "status": {
+          "enum": [
+            "resolved",
+            "ambiguous",
+            "not_found",
+            "provider_error"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "query": {
+          "title": "Query",
+          "type": "string"
+        },
+        "detected_type": {
+          "enum": [
+            "doi",
+            "arxiv",
+            "title"
+          ],
+          "title": "Detected Type",
+          "type": "string"
+        },
+        "best_match": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Paper"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "match_score": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Match Score"
+        },
+        "alternatives": {
+          "items": {
+            "$ref": "#/$defs/Candidate"
+          },
+          "title": "Alternatives",
+          "type": "array"
+        },
+        "sources": {
+          "items": {
+            "$ref": "#/$defs/SourceAttempt"
+          },
+          "title": "Sources",
+          "type": "array"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Warnings",
+          "type": "array"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "query",
+        "detected_type",
+        "message"
+      ],
+      "title": "ResolveResponse",
+      "type": "object"
+    },
+    "SourceAttempt": {
+      "properties": {
+        "provider": {
+          "enum": [
+            "crossref",
+            "openalex",
+            "arxiv"
+          ],
+          "title": "Provider",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "ok",
+            "not_found",
+            "error"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "error_code": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error Code"
+        }
+      },
+      "required": [
+        "provider",
+        "status"
+      ],
+      "title": "SourceAttempt",
+      "type": "object"
+    }
+  },
+  "anyOf": [
+    {
+      "$ref": "#/$defs/ResolveResponse"
+    },
+    {
+      "$ref": "#/$defs/ErrorResponse"
+    }
+  ],
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

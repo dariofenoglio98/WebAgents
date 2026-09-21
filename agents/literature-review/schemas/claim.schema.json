@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "claim_id": {
+      "type": "string"
+    },
+    "text": {
+      "type": "string"
+    },
+    "paper_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "evidence_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "support_type": {
+      "enum": [
+        "direct_quote",
+        "model_synthesis"
+      ]
+    },
+    "strength": {
+      "enum": [
+        "descriptive",
+        "tentative"
+      ]
+    },
+    "verification_status": {
+      "enum": [
+        "pending",
+        "supported",
+        "unsupported",
+        "overstated"
+      ]
+    },
+    "theme_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "claim_id",
+    "text",
+    "paper_ids",
+    "evidence_ids",
+    "support_type",
+    "strength",
+    "verification_status",
+    "theme_id"
+  ],
+  "additionalProperties": false
+}

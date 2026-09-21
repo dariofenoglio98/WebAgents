@@ -1,0 +1,19 @@
+{
+  "type": "object",
+  "properties": {
+    "paper": {
+      "$ref": "paper.schema.json"
+    },
+    "file_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "paper",
+    "file_id"
+  ],
+  "additionalProperties": false
+}

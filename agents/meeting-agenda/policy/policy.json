@@ -1,0 +1,54 @@
+{
+  "spec_version": "0.1",
+  "permissions": [
+    {
+      "id": "model.reasoning",
+      "kind": "model",
+      "description": "Use the host model router",
+      "required": true,
+      "resources": [
+        "host-router"
+      ]
+    },
+    {
+      "id": "memory.session",
+      "kind": "memory",
+      "description": "Use isolated session state",
+      "required": true,
+      "resources": [
+        "session"
+      ]
+    }
+  ],
+  "network": {
+    "allowed_domains": [],
+    "https_only": true,
+    "allow_redirects": false
+  },
+  "memory": {
+    "scope": "session",
+    "retention": "session",
+    "raw_documents": false,
+    "state_schema": "schemas/state.schema.json",
+    "sharing": "explicit_views"
+  },
+  "budget": {
+    "estimated_tokens": 12000,
+    "hard_tokens": 180000,
+    "max_remote_calls": 32,
+    "max_calls_per_tool": {},
+    "max_parallel_workers": 3,
+    "estimated_cost_usd": null,
+    "approval_threshold_tokens": null
+  },
+  "delegation": {
+    "max_depth": 1,
+    "approved_roles": [
+      "Planner",
+      "Perspective",
+      "Writer"
+    ],
+    "allow_remote": false
+  },
+  "extensions": {}
+}

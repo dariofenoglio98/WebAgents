@@ -1,0 +1,212 @@
+{
+  "spec_version": "0.1",
+  "package_id": "org.webagents.literature-review",
+  "name": "Literature Review Agent",
+  "version": "0.1.0",
+  "description": "A constrained coordinator-worker review with structured evidence and verified citations. Bundled demo data are synthetic.",
+  "publisher": {
+    "id": "webagents-research",
+    "name": "WebAgents Research Prototype"
+  },
+  "created_at": "2026-09-20T00:00:00Z",
+  "runtime": {
+    "api": "agentpkg-runtime-v0",
+    "minimum_version": "0.1.0"
+  },
+  "capabilities": [
+    "literature-review",
+    "evidence-extraction",
+    "citation-verification"
+  ],
+  "entrypoint": "literature.review",
+  "graph": "graph.json",
+  "policy": "policy/policy.json",
+  "skills": [
+    {
+      "id": "literature-search",
+      "version": "0.1.0",
+      "path": "skills/literature-search/SKILL.md"
+    },
+    {
+      "id": "paper-screening",
+      "version": "0.1.0",
+      "path": "skills/paper-screening/SKILL.md"
+    },
+    {
+      "id": "citation-resolution",
+      "version": "0.1.0",
+      "path": "skills/citation-resolution/SKILL.md"
+    },
+    {
+      "id": "evidence-extraction",
+      "version": "0.1.0",
+      "path": "skills/evidence-extraction/SKILL.md"
+    },
+    {
+      "id": "evidence-synthesis",
+      "version": "0.1.0",
+      "path": "skills/evidence-synthesis/SKILL.md"
+    },
+    {
+      "id": "related-work-writing",
+      "version": "0.1.0",
+      "path": "skills/related-work-writing/SKILL.md"
+    },
+    {
+      "id": "claim-and-citation-verification",
+      "version": "0.1.0",
+      "path": "skills/claim-and-citation-verification/SKILL.md"
+    }
+  ],
+  "tools": [
+    {
+      "id": "scholarly-search",
+      "path": "tools/scholarly-search.tool.json"
+    },
+    {
+      "id": "citation-resolver",
+      "path": "tools/citation-resolver.tool.json"
+    },
+    {
+      "id": "paper-reader",
+      "path": "tools/paper-reader.tool.json"
+    }
+  ],
+  "schemas": [
+    {
+      "id": "citation-record",
+      "path": "schemas/citation-record.schema.json"
+    },
+    {
+      "id": "claim",
+      "path": "schemas/claim.schema.json"
+    },
+    {
+      "id": "evidence",
+      "path": "schemas/evidence.schema.json"
+    },
+    {
+      "id": "paper",
+      "path": "schemas/paper.schema.json"
+    },
+    {
+      "id": "reader-input",
+      "path": "schemas/reader-input.schema.json"
+    },
+    {
+      "id": "reader-output",
+      "path": "schemas/reader-output.schema.json"
+    },
+    {
+      "id": "research-state",
+      "path": "schemas/research-state.schema.json"
+    },
+    {
+      "id": "resolver-input",
+      "path": "schemas/resolver-input.schema.json"
+    },
+    {
+      "id": "resolver-output",
+      "path": "schemas/resolver-output.schema.json"
+    },
+    {
+      "id": "search-input",
+      "path": "schemas/search-input.schema.json"
+    },
+    {
+      "id": "search-output",
+      "path": "schemas/search-output.schema.json"
+    },
+    {
+      "id": "theme",
+      "path": "schemas/theme.schema.json"
+    },
+    {
+      "id": "verification",
+      "path": "schemas/verification.schema.json"
+    }
+  ],
+  "model_requirements": {
+    "tasks": [
+      {
+        "id": "plan",
+        "capabilities": [
+          "structured_output",
+          "reasoning"
+        ],
+        "context_window": 16000,
+        "preferred_tier": "reasoning"
+      },
+      {
+        "id": "screen",
+        "capabilities": [
+          "structured_output",
+          "reasoning"
+        ],
+        "context_window": 16000,
+        "preferred_tier": "reasoning"
+      },
+      {
+        "id": "extract",
+        "capabilities": [
+          "structured_output",
+          "reasoning"
+        ],
+        "context_window": 16000,
+        "preferred_tier": "reasoning"
+      },
+      {
+        "id": "synthesize",
+        "capabilities": [
+          "structured_output",
+          "reasoning"
+        ],
+        "context_window": 16000,
+        "preferred_tier": "reasoning"
+      },
+      {
+        "id": "write",
+        "capabilities": [
+          "structured_output",
+          "reasoning"
+        ],
+        "context_window": 16000,
+        "preferred_tier": "reasoning"
+      },
+      {
+        "id": "verify",
+        "capabilities": [
+          "structured_output",
+          "reasoning"
+        ],
+        "context_window": 16000,
+        "preferred_tier": "reasoning"
+      }
+    ],
+    "routing": "host",
+    "fallback_policy": "deny",
+    "extensions": {}
+  },
+  "evals": [
+    {
+      "id": "literature-deterministic",
+      "kind": "deterministic",
+      "path": "evals/deterministic.json"
+    },
+    {
+      "id": "literature-semantic",
+      "kind": "model-judged",
+      "path": "evals/semantic.json"
+    }
+  ],
+  "attestations": [
+    "attestations/provenance.json",
+    "attestations/runtime-components.json"
+  ],
+  "dependencies": [],
+  "update": {
+    "channel": "local",
+    "locator": null
+  },
+  "extensions": {}
+}

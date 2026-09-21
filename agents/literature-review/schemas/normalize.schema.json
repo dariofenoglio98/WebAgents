@@ -1,0 +1,22 @@
+{
+  "type": "object",
+  "properties": {
+    "candidate_papers": {
+      "type": "array",
+      "items": {
+        "$ref": "paper.schema.json"
+      }
+    },
+    "screening_jobs": {
+      "type": "array",
+      "items": {
+        "$ref": "screen-job.schema.json"
+      }
+    }
+  },
+  "required": [
+    "candidate_papers",
+    "screening_jobs"
+  ],
+  "additionalProperties": false
+}

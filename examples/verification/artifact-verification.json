@@ -1,0 +1,19 @@
+{
+  "unsigned_reproducible": true,
+  "signed_reproducible": true,
+  "unpack_rebuild_identical": true,
+  "archive_sha256": "fb7357ebdf2e8415a32033971ba448dd21a9b20eb35a32a6ec71e1a5240cc03b",
+  "verification": {
+    "valid": true,
+    "digest": "20a35b6db17127ae52809e84e23e23994d9fbad235d91882b136f36fc4c547a5",
+    "package_id": "org.webagents.literature-review",
+    "version": "0.1.0",
+    "publisher": {
+      "id": "webagents-research",
+      "name": "WebAgents Research Prototype"
+    },
+    "key_fingerprint": "sha256:646a5b316da08e6ca0f6606a2f55efb968fa1a74fb248c7c09db05539d61d723",
+    "trust_scope": "exact externally supplied publisher key"
+  },
+  "payload_files": 32
+}

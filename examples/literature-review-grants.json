@@ -1,0 +1,7 @@
+{
+  "network.scholarly": "session",
+  "network.citations": "session",
+  "files.pdfs": "session",
+  "model.reasoning": "session",
+  "memory.session": "session"
+}

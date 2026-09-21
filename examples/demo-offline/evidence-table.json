@@ -1,0 +1,212 @@
+[
+  {
+    "evidence_id": "evidence-f8ff11d1a8bef6f5",
+    "paper_id": "paper-9787df51408912ec",
+    "text": "Dynamic agent selection routes each task to a subset of language-model agents using task features.",
+    "quote": "Dynamic agent selection routes each task to a subset of language-model agents using task features.",
+    "category": "method",
+    "scope": "full_text",
+    "support_strength": "direct_quote",
+    "location": {
+      "page": 1,
+      "section": "supplied PDF"
+    },
+    "extraction_worker": "EvidenceWorker:19",
+    "provenance": {
+      "source": "user_pdf",
+      "locator": "synthetic-router-pdf",
+      "source_sha256": "c73e4318700c670ca1858c7d603902bfd0c5287a9b25a7325cc4627758abe0a9",
+      "synthetic": true
+    },
+    "reference": 3
+  },
+  {
+    "evidence_id": "evidence-434ab9e14a2bfb3a",
+    "paper_id": "paper-9787df51408912ec",
+    "text": "The simulated experimental setup uses ten invented task families.",
+    "quote": "The simulated experimental setup uses ten invented task families.",
+    "category": "setup",
+    "scope": "full_text",
+    "support_strength": "direct_quote",
+    "location": {
+      "page": 1,
+      "section": "supplied PDF"
+    },
+    "extraction_worker": "EvidenceWorker:19",
+    "provenance": {
+      "source": "user_pdf",
+      "locator": "synthetic-router-pdf",
+      "source_sha256": "c73e4318700c670ca1858c7d603902bfd0c5287a9b25a7325cc4627758abe0a9",
+      "synthetic": true
+    },
+    "reference": 3
+  },
+  {
+    "evidence_id": "evidence-566647fe74e87f66",
+    "paper_id": "paper-9787df51408912ec",
+    "text": "The synthetic evaluation compares routed teams with a fixed all-agent baseline.",
+    "quote": "The synthetic evaluation compares routed teams with a fixed all-agent baseline.",
+    "category": "setup",
+    "scope": "full_text",
+    "support_strength": "direct_quote",
+    "location": {
+      "page": 2,
+      "section": "supplied PDF"
+    },
+    "extraction_worker": "EvidenceWorker:19",
+    "provenance": {
+      "source": "user_pdf",
+      "locator": "synthetic-router-pdf",
+      "source_sha256": "c73e4318700c670ca1858c7d603902bfd0c5287a9b25a7325cc4627758abe0a9",
+      "synthetic": true
+    },
+    "reference": 3
+  },
+  {
+    "evidence_id": "evidence-a459a7d4e643f836",
+    "paper_id": "paper-9787df51408912ec",
+    "text": "A limitation is that the simulated workload does not establish performance on real tasks.",
+    "quote": "A limitation is that the simulated workload does not establish performance on real tasks.",
+    "category": "limitation",
+    "scope": "full_text",
+    "support_strength": "direct_quote",
+    "location": {
+      "page": 2,
+      "section": "supplied PDF"
+    },
+    "extraction_worker": "EvidenceWorker:19",
+    "provenance": {
+      "source": "user_pdf",
+      "locator": "synthetic-router-pdf",
+      "source_sha256": "c73e4318700c670ca1858c7d603902bfd0c5287a9b25a7325cc4627758abe0a9",
+      "synthetic": true
+    },
+    "reference": 3
+  },
+  {
+    "evidence_id": "evidence-dda25595ed556a1b",
+    "paper_id": "paper-0b480b1da362cc50",
+    "text": "Adaptive communication topology changes message edges between language-model agents during a task.",
+    "quote": "Adaptive communication topology changes message edges between language-model agents during a task.",
+    "category": "method",
+    "scope": "abstract",
+    "support_strength": "direct_quote",
+    "location": {
+      "page": null,
+      "section": "abstract"
+    },
+    "extraction_worker": "EvidenceWorker:20",
+    "provenance": {
+      "source": "crossref",
+      "locator": "10.0000/synthetic-topology",
+      "source_sha256": "fb16738786324beeb9571536e1f0965b83d28faebe09ed637170869da77fc8b1",
+      "synthetic": true
+    },
+    "reference": 1
+  },
+  {
+    "evidence_id": "evidence-5f8d524faf326048",
+    "paper_id": "paper-0b480b1da362cc50",
+    "text": "The synthetic method uses intermediate agreement signals to choose a communication graph.",
+    "quote": "The synthetic method uses intermediate agreement signals to choose a communication graph.",
+    "category": "method",
+    "scope": "abstract",
+    "support_strength": "direct_quote",
+    "location": {
+      "page": null,
+      "section": "abstract"
+    },
+    "extraction_worker": "EvidenceWorker:20",
+    "provenance": {
+      "source": "crossref",
+      "locator": "10.0000/synthetic-topology",
+      "source_sha256": "fb16738786324beeb9571536e1f0965b83d28faebe09ed637170869da77fc8b1",
+      "synthetic": true
+    },
+    "reference": 1
+  },
+  {
+    "evidence_id": "evidence-41964da1527455b0",
+    "paper_id": "paper-0b480b1da362cc50",
+    "text": "Its abstract does not report evaluation sample sizes.",
+    "quote": "Its abstract does not report evaluation sample sizes.",
+    "category": "limitation",
+    "scope": "abstract",
+    "support_strength": "direct_quote",
+    "location": {
+      "page": null,
+      "section": "abstract"
+    },
+    "extraction_worker": "EvidenceWorker:20",
+    "provenance": {
+      "source": "crossref",
+      "locator": "10.0000/synthetic-topology",
+      "source_sha256": "fb16738786324beeb9571536e1f0965b83d28faebe09ed637170869da77fc8b1",
+      "synthetic": true
+    },
+    "reference": 1
+  },
+  {
+    "evidence_id": "evidence-7d356d6eb70edca8",
+    "paper_id": "paper-40b8ac03b20bbf20",
+    "text": "Dynamic agent selection and topology adaptation jointly choose participants and communication edges.",
+    "quote": "Dynamic agent selection and topology adaptation jointly choose participants and communication edges.",
+    "category": "method",
+    "scope": "abstract",
+    "support_strength": "direct_quote",
+    "location": {
+      "page": null,
+      "section": "abstract"
+    },
+    "extraction_worker": "EvidenceWorker:21",
+    "provenance": {
+      "source": "crossref",
+      "locator": "10.0000/synthetic-joint",
+      "source_sha256": "2d2dc3f3a2055b5efc9bf6b2a984d4ca3cfe9d9d3a4482bd922c36969a236ad4",
+      "synthetic": true
+    },
+    "reference": 2
+  },
+  {
+    "evidence_id": "evidence-a97733bb4819bd7c",
+    "paper_id": "paper-40b8ac03b20bbf20",
+    "text": "The synthetic study distinguishes selection costs from communication costs.",
+    "quote": "The synthetic study distinguishes selection costs from communication costs.",
+    "category": "method",
+    "scope": "abstract",
+    "support_strength": "direct_quote",
+    "location": {
+      "page": null,
+      "section": "abstract"
+    },
+    "extraction_worker": "EvidenceWorker:21",
+    "provenance": {
+      "source": "crossref",
+      "locator": "10.0000/synthetic-joint",
+      "source_sha256": "2d2dc3f3a2055b5efc9bf6b2a984d4ca3cfe9d9d3a4482bd922c36969a236ad4",
+      "synthetic": true
+    },
+    "reference": 2
+  },
+  {
+    "evidence_id": "evidence-f1e37fa50ea18e54",
+    "paper_id": "paper-40b8ac03b20bbf20",
+    "text": "Transfer beyond the simulated task distribution is not established.",
+    "quote": "Transfer beyond the simulated task distribution is not established.",
+    "category": "limitation",
+    "scope": "abstract",
+    "support_strength": "direct_quote",
+    "location": {
+      "page": null,
+      "section": "abstract"
+    },
+    "extraction_worker": "EvidenceWorker:21",
+    "provenance": {
+      "source": "crossref",
+      "locator": "10.0000/synthetic-joint",
+      "source_sha256": "2d2dc3f3a2055b5efc9bf6b2a984d4ca3cfe9d9d3a4482bd922c36969a236ad4",
+      "synthetic": true
+    },
+    "reference": 2
+  }
+]

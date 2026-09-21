@@ -1,0 +1,42 @@
+{
+  "passed": true,
+  "packages": {
+    "literature-review": {
+      "passed": true,
+      "digest": "b7bd37ca730ec5a156156207dc04fa5a7563e34a4373a298daa143dd9945b3eb",
+      "profile": "workflow.v0",
+      "interpreter": "agentpkg.workflow.Workflow",
+      "deterministic_build_sign_unpack": true,
+      "shipped_signature_verified": true,
+      "staged": "staged",
+      "deterministic_output_and_usage": true,
+      "node_count": 17,
+      "audit_events": 479,
+      "synthetic_token_units": 56723,
+      "declared_remote_dispatches": 9,
+      "tool_calls": {
+        "scholarly-search": 3,
+        "paper-reader": 2,
+        "citation-resolver": 6
+      },
+      "peak_parallel_workers": 3
+    },
+    "meeting-agenda": {
+      "passed": true,
+      "digest": "5aa0ec946b33346183f8313f5d3b4f82a1e9fb1d7c541b3d5d756117828aab80",
+      "profile": "workflow.v0",
+      "interpreter": "agentpkg.workflow.Workflow",
+      "deterministic_build_sign_unpack": true,
+      "shipped_signature_verified": true,
+      "staged": "staged",
+      "deterministic_output_and_usage": true,
+      "node_count": 6,
+      "audit_events": 89,
+      "synthetic_token_units": 2359,
+      "declared_remote_dispatches": 0,
+      "tool_calls": {},
+      "peak_parallel_workers": 3
+    }
+  },
+  "legacy_signature_preserved": true
+}

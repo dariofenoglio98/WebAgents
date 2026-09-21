@@ -1,0 +1,38 @@
+{
+  "agenda": [
+    {
+      "minutes": 5,
+      "owner": "Ari",
+      "topic": "Confirm goal and constraints"
+    },
+    {
+      "minutes": 15,
+      "owner": "Blair",
+      "topic": "Review perspectives and scope options"
+    },
+    {
+      "minutes": 15,
+      "owner": "Ari",
+      "topic": "Choose pilot and success measures"
+    },
+    {
+      "minutes": 10,
+      "owner": "Casey",
+      "topic": "Assign preparation and follow-up owners"
+    }
+  ],
+  "decisions": [
+    "Select the pilot team",
+    "Approve the pilot success measures"
+  ],
+  "duration": 45,
+  "goal": "Choose a launch scope for the internal documentation pilot",
+  "preparation_items": [
+    "Bring top support questions",
+    "Estimate work for one pilot team",
+    "Draft one measurable success criterion"
+  ],
+  "questions": [
+    "Who owns the two-week follow-up?"
+  ]
+}

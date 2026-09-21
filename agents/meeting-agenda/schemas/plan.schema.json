@@ -1,0 +1,35 @@
+{
+  "type": "object",
+  "properties": {
+    "focus": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "perspectives": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "role"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "focus",
+    "perspectives"
+  ],
+  "additionalProperties": false
+}

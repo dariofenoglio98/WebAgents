@@ -1,0 +1,324 @@
+{
+  "output": "examples/demo-live-final",
+  "mode": "live",
+  "usage": {
+    "tokens": 0,
+    "reserved_tokens": 0,
+    "remote_calls": 12,
+    "tool_calls": {
+      "citation-resolver": 9,
+      "scholarly-search": 3
+    },
+    "peak_parallel_workers": 3,
+    "workers": {
+      "coordinator": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      },
+      "PlanningWorker:1": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      },
+      "CitationWorker:2": {
+        "tokens": 0,
+        "remote_calls": 1,
+        "tool_calls": {
+          "citation-resolver": 1
+        }
+      },
+      "CitationWorker:3": {
+        "tokens": 0,
+        "remote_calls": 1,
+        "tool_calls": {
+          "citation-resolver": 1
+        }
+      },
+      "CitationWorker:4": {
+        "tokens": 0,
+        "remote_calls": 1,
+        "tool_calls": {
+          "citation-resolver": 1
+        }
+      },
+      "CitationWorker:5": {
+        "tokens": 0,
+        "remote_calls": 1,
+        "tool_calls": {
+          "citation-resolver": 1
+        }
+      },
+      "SearchWorker:6": {
+        "tokens": 0,
+        "remote_calls": 1,
+        "tool_calls": {
+          "scholarly-search": 1
+        }
+      },
+      "SearchWorker:7": {
+        "tokens": 0,
+        "remote_calls": 1,
+        "tool_calls": {
+          "scholarly-search": 1
+        }
+      },
+      "SearchWorker:8": {
+        "tokens": 0,
+        "remote_calls": 1,
+        "tool_calls": {
+          "scholarly-search": 1
+        }
+      },
+      "ScreeningWorker:9": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      },
+      "ScreeningWorker:10": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      },
+      "ScreeningWorker:11": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      },
+      "ScreeningWorker:12": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      },
+      "ScreeningWorker:13": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      },
+      "ScreeningWorker:14": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      },
+      "ScreeningWorker:15": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      },
+      "ScreeningWorker:16": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      },
+      "ScreeningWorker:17": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      },
+      "ScreeningWorker:18": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      },
+      "ScreeningWorker:19": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      },
+      "ScreeningWorker:20": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      },
+      "ScreeningWorker:21": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      },
+      "ScreeningWorker:22": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      },
+      "ScreeningWorker:23": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      },
+      "ScreeningWorker:24": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      },
+      "ScreeningWorker:25": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      },
+      "ScreeningWorker:26": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      },
+      "ScreeningWorker:27": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      },
+      "ScreeningWorker:28": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      },
+      "CitationWorker:29": {
+        "tokens": 0,
+        "remote_calls": 1,
+        "tool_calls": {
+          "citation-resolver": 1
+        }
+      },
+      "CitationWorker:30": {
+        "tokens": 0,
+        "remote_calls": 1,
+        "tool_calls": {
+          "citation-resolver": 1
+        }
+      },
+      "CitationWorker:31": {
+        "tokens": 0,
+        "remote_calls": 1,
+        "tool_calls": {
+          "citation-resolver": 1
+        }
+      },
+      "CitationWorker:32": {
+        "tokens": 0,
+        "remote_calls": 1,
+        "tool_calls": {
+          "citation-resolver": 1
+        }
+      },
+      "CitationWorker:33": {
+        "tokens": 0,
+        "remote_calls": 1,
+        "tool_calls": {
+          "citation-resolver": 1
+        }
+      },
+      "EvidenceWorker:34": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      },
+      "EvidenceWorker:35": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      },
+      "EvidenceWorker:36": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      },
+      "EvidenceWorker:37": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      },
+      "EvidenceWorker:38": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      },
+      "SynthesisWorker:39": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      },
+      "WritingWorker:40": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      },
+      "VerificationWorker:41": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      }
+    },
+    "limits": {
+      "approval_threshold_tokens": null,
+      "estimated_cost_usd": null,
+      "estimated_tokens": 24000,
+      "hard_tokens": 180000,
+      "max_calls_per_tool": {
+        "citation-resolver": 20,
+        "paper-reader": 10,
+        "scholarly-search": 3
+      },
+      "max_parallel_workers": 3,
+      "max_remote_calls": 45
+    }
+  },
+  "unresolved_count": 18,
+  "evals": {
+    "kind": "deterministic",
+    "passed": true,
+    "checks": [
+      {
+        "id": "citation-validity",
+        "passed": true,
+        "detail": "Bibliography contains only exact metadata from resolved records."
+      },
+      {
+        "id": "claim-source-consistency",
+        "passed": true,
+        "detail": "Retained claims have nonempty evidence, exact paper links, and resolved citations."
+      },
+      {
+        "id": "verification-coverage",
+        "passed": true,
+        "detail": "Every drafted claim has a recorded final verdict."
+      },
+      {
+        "id": "abstract-full-text-distinction",
+        "passed": true,
+        "detail": "Abstracts carry no invented page numbers; supplied PDFs retain page provenance."
+      },
+      {
+        "id": "duplicate-handling",
+        "passed": true,
+        "detail": "Candidate and evidence identifiers are unique."
+      },
+      {
+        "id": "ambiguity-preserved",
+        "passed": true,
+        "detail": "Ambiguous and failed resolutions remain visible and outside bibliography."
+      },
+      {
+        "id": "extractive-claims-verbatim",
+        "passed": true,
+        "detail": "Extractive scientific text is exactly the supporting quote."
+      },
+      {
+        "id": "budget-compliance",
+        "passed": true,
+        "detail": "Observed usage respects token, call, per-tool, and concurrency caps."
+      },
+      {
+        "id": "delegation-depth",
+        "passed": true,
+        "detail": "All execution workers were spawned directly by coordinator at depth one."
+      },
+      {
+        "id": "tool-permission-compliance",
+        "passed": true,
+        "detail": "Every tool call belongs to the declared role and permission set."
+      }
+    ],
+    "draft_rejected_claims": 0,
+    "draft_unsupported_claim_fraction": 0.0,
+    "semantic_quality": "not measured by deterministic checks",
+    "notice": "Structural checks do not establish scientific correctness, completeness, or independent certification."
+  }
+}

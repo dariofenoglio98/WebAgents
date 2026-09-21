@@ -1,0 +1,16 @@
+[
+  {
+    "file_id": "masrouter",
+    "source_url": "https://aclanthology.org/2025.acl-long.757.pdf",
+    "doi": "10.18653/v1/2025.acl-long.757",
+    "sha256": "1bf45eaa68515ae2a6d3de2e2240ac321fef37a46ba831718aacee52bb12f457",
+    "bytes": 6764646
+  },
+  {
+    "file_id": "agentdropout",
+    "source_url": "https://aclanthology.org/2025.acl-long.1170.pdf",
+    "doi": "10.18653/v1/2025.acl-long.1170",
+    "sha256": "eee2efb4169045f6144d4a103de6bc9b358ac3c5592264a45a4a96fbf0e0dbbc",
+    "bytes": 1119939
+  }
+]

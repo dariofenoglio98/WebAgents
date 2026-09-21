@@ -1,0 +1,30 @@
+{
+  "spec_version": "0.1",
+  "kind": "self-authored-provenance",
+  "publisher": "webagents-research",
+  "source_repository": "WebAgents",
+  "source_paths": [
+    "agents/literature-review",
+    "agentpkg/src/agentpkg/literature.py",
+    "citation-resolver"
+  ],
+  "primary_design_source": "Portable AI Agents and the OpenClaw Agent-Native Browser.pdf",
+  "tool_origins": {
+    "citation.resolve": "Existing WebAgents Citation Resolver API v0.1.0",
+    "scholarly.search": "Crossref REST API",
+    "paper.read": "Host-installed PDF reader"
+  },
+  "independent_review": false,
+  "certification": null,
+  "fixture_notice": "All bundled sample papers and documents are synthetic; they are test data, never verified real science.",
+  "repository_base_commit": "c2951f2de9d409251a764204c139900aa43e402c",
+  "working_tree_changes": true,
+  "reference_authored_at": "2026-09-20T00:00:00Z",
+  "workflow_migration": {
+    "runtime_version": "0.2.0",
+    "profile": "workflow.v0",
+    "independent_certification": false,
+    "fixture_origin": "Explicit synthetic replay derived from the earlier development baseline; not live inference.",
+    "canonical_graph": "graph.json"
+  }
+}

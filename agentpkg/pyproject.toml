@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agentpkg"
+version = "0.2.0"
+description = "Agent Package v0: portable declarative packages and a policy-enforcing reference runtime"
+requires-python = ">=3.11"
+dependencies = ["jsonschema>=4.23,<5", "cryptography>=44,<47", "pypdf>=6,<7", "rfc8785>=0.1.4,<0.2"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<10", "ruff>=0.11,<0.17", "build>=1.2,<2", "PyYAML>=6,<7", "setuptools>=77"]
+
+[project.scripts]
+agentpkg = "agentpkg.cli:main"
+agentpkg-legacy = "agentpkg.dev.legacy_cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+agentpkg = ["schemas/*.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]

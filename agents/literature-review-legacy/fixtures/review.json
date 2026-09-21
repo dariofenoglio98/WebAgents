@@ -1,0 +1,472 @@
+{
+  "notice": "All titles, authors, identifiers, abstracts, text, and resolver responses are SYNTHETIC TEST DATA. They are not scientific findings or real verified citations.",
+  "question": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
+  "papers": [
+    {
+      "title": "SYNTHETIC: Dynamic Agent Selection with Task Routing",
+      "doi": "10.0000/synthetic-router",
+      "arxiv_id": null,
+      "authors": [
+        {
+          "name": "Synthetic Example Author"
+        }
+      ],
+      "year": 2026,
+      "venue": "Synthetic Fixture Proceedings",
+      "abstract": "Dynamic agent selection routes each task to a subset of language-model agents using task features. The synthetic evaluation compares routed teams with a fixed all-agent baseline. Reported findings concern the simulated workload only.",
+      "url": null,
+      "source": "synthetic-fixture",
+      "provenance": [
+        {
+          "source": "synthetic-fixture",
+          "query": null,
+          "locator": "fixture:router",
+          "synthetic": true
+        }
+      ]
+    },
+    {
+      "title": "SYNTHETIC: Adaptive Communication Topology for Agent Teams",
+      "doi": "10.0000/synthetic-topology",
+      "arxiv_id": null,
+      "authors": [
+        {
+          "name": "Synthetic Example Author"
+        }
+      ],
+      "year": 2026,
+      "venue": "Synthetic Fixture Proceedings",
+      "abstract": "Adaptive communication topology changes message edges between language-model agents during a task. The synthetic method uses intermediate agreement signals to choose a communication graph. Its abstract does not report evaluation sample sizes.",
+      "url": null,
+      "source": "synthetic-fixture",
+      "provenance": [
+        {
+          "source": "synthetic-fixture",
+          "query": null,
+          "locator": "fixture:topology",
+          "synthetic": true
+        }
+      ]
+    },
+    {
+      "title": "SYNTHETIC: Joint Agent and Communication Selection",
+      "doi": "10.0000/synthetic-joint",
+      "arxiv_id": null,
+      "authors": [
+        {
+          "name": "Synthetic Example Author"
+        }
+      ],
+      "year": 2026,
+      "venue": "Synthetic Fixture Proceedings",
+      "abstract": "Dynamic agent selection and topology adaptation jointly choose participants and communication edges. The synthetic study distinguishes selection costs from communication costs. Transfer beyond the simulated task distribution is not established.",
+      "url": null,
+      "source": "synthetic-fixture",
+      "provenance": [
+        {
+          "source": "synthetic-fixture",
+          "query": null,
+          "locator": "fixture:joint",
+          "synthetic": true
+        }
+      ]
+    },
+    {
+      "title": "SYNTHETIC: Dynamic Agent Networks",
+      "doi": "10.0000/synthetic-ambiguous",
+      "arxiv_id": null,
+      "authors": [
+        {
+          "name": "Synthetic Example Author"
+        }
+      ],
+      "year": 2026,
+      "venue": "Synthetic Fixture Proceedings",
+      "abstract": "Dynamic agent networks select language-model agents and adapt communication topology. This title deliberately has multiple fixture matches.",
+      "url": null,
+      "source": "synthetic-fixture",
+      "provenance": [
+        {
+          "source": "synthetic-fixture",
+          "query": null,
+          "locator": "fixture:ambiguous",
+          "synthetic": true
+        }
+      ]
+    },
+    {
+      "title": "SYNTHETIC: Missing Agent Selection Paper",
+      "doi": "10.0000/synthetic-missing",
+      "arxiv_id": null,
+      "authors": [
+        {
+          "name": "Synthetic Example Author"
+        }
+      ],
+      "year": 2026,
+      "venue": "Synthetic Fixture Proceedings",
+      "abstract": "Dynamic language-model agent selection is discussed in this synthetic search record. Its citation is deliberately absent from fixture indexes.",
+      "url": null,
+      "source": "synthetic-fixture",
+      "provenance": [
+        {
+          "source": "synthetic-fixture",
+          "query": null,
+          "locator": "fixture:missing",
+          "synthetic": true
+        }
+      ]
+    },
+    {
+      "title": "SYNTHETIC: Unavailable Topology Provider",
+      "doi": "10.0000/synthetic-failure",
+      "arxiv_id": null,
+      "authors": [
+        {
+          "name": "Synthetic Example Author"
+        }
+      ],
+      "year": 2026,
+      "venue": "Synthetic Fixture Proceedings",
+      "abstract": "Dynamic agent selection and adaptive communication topology appear in this synthetic record. Its citation fixture simulates a provider outage.",
+      "url": null,
+      "source": "synthetic-fixture",
+      "provenance": [
+        {
+          "source": "synthetic-fixture",
+          "query": null,
+          "locator": "fixture:failure",
+          "synthetic": true
+        }
+      ]
+    },
+    {
+      "title": "SYNTHETIC: Dynamic Agent Selection Without An Abstract",
+      "doi": "10.0000/synthetic-title-only",
+      "arxiv_id": null,
+      "authors": [
+        {
+          "name": "Synthetic Example Author"
+        }
+      ],
+      "year": 2026,
+      "venue": "Synthetic Fixture Proceedings",
+      "abstract": null,
+      "url": null,
+      "source": "synthetic-fixture",
+      "provenance": [
+        {
+          "source": "synthetic-fixture",
+          "query": null,
+          "locator": "fixture:title-only",
+          "synthetic": true
+        }
+      ]
+    },
+    {
+      "title": "SYNTHETIC: Ceramic Agent Topology",
+      "doi": "10.0000/synthetic-irrelevant",
+      "arxiv_id": null,
+      "authors": [
+        {
+          "name": "Synthetic Example Author"
+        }
+      ],
+      "year": 2026,
+      "venue": "Synthetic Fixture Proceedings",
+      "abstract": "This synthetic article studies ceramic grain topology under furnace heating. Experiments measure thermal properties.",
+      "url": null,
+      "source": "synthetic-fixture",
+      "provenance": [
+        {
+          "source": "synthetic-fixture",
+          "query": null,
+          "locator": "fixture:irrelevant",
+          "synthetic": true
+        }
+      ]
+    }
+  ],
+  "resolutions": {
+    "10.0000/synthetic-router": {
+      "status": "resolved",
+      "query": "10.0000/synthetic-router",
+      "detected_type": "doi",
+      "best_match": {
+        "title": "SYNTHETIC: Dynamic Agent Selection with Task Routing",
+        "doi": "10.0000/synthetic-router",
+        "arxiv_id": null,
+        "authors": [
+          {
+            "name": "Synthetic Example Author"
+          }
+        ],
+        "year": 2026,
+        "venue": "Synthetic Fixture Proceedings",
+        "abstract": "Dynamic agent selection routes each task to a subset of language-model agents using task features. The synthetic evaluation compares routed teams with a fixed all-agent baseline. Reported findings concern the simulated workload only.",
+        "url": null,
+        "source": "crossref",
+        "bibtex": "@misc{synthetic_router,\n  title = {SYNTHETIC: Dynamic Agent Selection with Task Routing},\n  author = {Synthetic Example Author},\n  year = {2026},\n  note = {SYNTHETIC TEST DATA; NOT A REAL PUBLICATION}\n}"
+      },
+      "match_score": 1.0,
+      "alternatives": [],
+      "sources": [
+        {
+          "provider": "crossref",
+          "status": "ok",
+          "error_code": null
+        }
+      ],
+      "warnings": [
+        "SYNTHETIC FIXTURE: this is not a real bibliographic lookup."
+      ],
+      "message": "Synthetic scenario resolved"
+    },
+    "10.0000/synthetic-topology": {
+      "status": "resolved",
+      "query": "10.0000/synthetic-topology",
+      "detected_type": "doi",
+      "best_match": {
+        "title": "SYNTHETIC: Adaptive Communication Topology for Agent Teams",
+        "doi": "10.0000/synthetic-topology",
+        "arxiv_id": null,
+        "authors": [
+          {
+            "name": "Synthetic Example Author"
+          }
+        ],
+        "year": 2026,
+        "venue": "Synthetic Fixture Proceedings",
+        "abstract": "Adaptive communication topology changes message edges between language-model agents during a task. The synthetic method uses intermediate agreement signals to choose a communication graph. Its abstract does not report evaluation sample sizes.",
+        "url": null,
+        "source": "crossref",
+        "bibtex": "@misc{synthetic_topology,\n  title = {SYNTHETIC: Adaptive Communication Topology for Agent Teams},\n  author = {Synthetic Example Author},\n  year = {2026},\n  note = {SYNTHETIC TEST DATA; NOT A REAL PUBLICATION}\n}"
+      },
+      "match_score": 1.0,
+      "alternatives": [],
+      "sources": [
+        {
+          "provider": "crossref",
+          "status": "ok",
+          "error_code": null
+        }
+      ],
+      "warnings": [
+        "SYNTHETIC FIXTURE: this is not a real bibliographic lookup."
+      ],
+      "message": "Synthetic scenario resolved"
+    },
+    "10.0000/synthetic-joint": {
+      "status": "resolved",
+      "query": "10.0000/synthetic-joint",
+      "detected_type": "doi",
+      "best_match": {
+        "title": "SYNTHETIC: Joint Agent and Communication Selection",
+        "doi": "10.0000/synthetic-joint",
+        "arxiv_id": null,
+        "authors": [
+          {
+            "name": "Synthetic Example Author"
+          }
+        ],
+        "year": 2026,
+        "venue": "Synthetic Fixture Proceedings",
+        "abstract": "Dynamic agent selection and topology adaptation jointly choose participants and communication edges. The synthetic study distinguishes selection costs from communication costs. Transfer beyond the simulated task distribution is not established.",
+        "url": null,
+        "source": "crossref",
+        "bibtex": "@misc{synthetic_joint,\n  title = {SYNTHETIC: Joint Agent and Communication Selection},\n  author = {Synthetic Example Author},\n  year = {2026},\n  note = {SYNTHETIC TEST DATA; NOT A REAL PUBLICATION}\n}"
+      },
+      "match_score": 1.0,
+      "alternatives": [],
+      "sources": [
+        {
+          "provider": "crossref",
+          "status": "ok",
+          "error_code": null
+        }
+      ],
+      "warnings": [
+        "SYNTHETIC FIXTURE: this is not a real bibliographic lookup."
+      ],
+      "message": "Synthetic scenario resolved"
+    },
+    "10.0000/synthetic-ambiguous": {
+      "status": "ambiguous",
+      "query": "10.0000/synthetic-ambiguous",
+      "detected_type": "doi",
+      "best_match": {
+        "title": "SYNTHETIC: Dynamic Agent Networks",
+        "doi": "10.0000/synthetic-ambiguous",
+        "arxiv_id": null,
+        "authors": [
+          {
+            "name": "Synthetic Example Author"
+          }
+        ],
+        "year": 2026,
+        "venue": "Synthetic Fixture Proceedings",
+        "abstract": "Dynamic agent networks select language-model agents and adapt communication topology. This title deliberately has multiple fixture matches.",
+        "url": null,
+        "source": "crossref",
+        "bibtex": "@misc{synthetic_ambiguous,\n  title = {SYNTHETIC: Dynamic Agent Networks},\n  author = {Synthetic Example Author},\n  year = {2026},\n  note = {SYNTHETIC TEST DATA; NOT A REAL PUBLICATION}\n}"
+      },
+      "match_score": 1.0,
+      "alternatives": [
+        {
+          "paper": {
+            "title": "SYNTHETIC: Dynamic Agent Networks (different fixture work)",
+            "doi": "10.0000/synthetic-alternative",
+            "arxiv_id": null,
+            "authors": [
+              {
+                "name": "Synthetic Example Author"
+              }
+            ],
+            "year": 2026,
+            "venue": "Synthetic Fixture Proceedings",
+            "abstract": "Dynamic agent networks select language-model agents and adapt communication topology. This title deliberately has multiple fixture matches.",
+            "url": null,
+            "source": "crossref",
+            "bibtex": "@misc{synthetic_ambiguous,\n  title = {SYNTHETIC: Dynamic Agent Networks},\n  author = {Synthetic Example Author},\n  year = {2026},\n  note = {SYNTHETIC TEST DATA; NOT A REAL PUBLICATION}\n}"
+          },
+          "match_score": 1.0
+        }
+      ],
+      "sources": [
+        {
+          "provider": "crossref",
+          "status": "ok",
+          "error_code": null
+        }
+      ],
+      "warnings": [
+        "SYNTHETIC FIXTURE: this is not a real bibliographic lookup."
+      ],
+      "message": "Synthetic scenario ambiguous"
+    },
+    "10.0000/synthetic-missing": {
+      "status": "not_found",
+      "query": "10.0000/synthetic-missing",
+      "detected_type": "doi",
+      "best_match": null,
+      "match_score": null,
+      "alternatives": [],
+      "sources": [
+        {
+          "provider": "crossref",
+          "status": "not_found",
+          "error_code": null
+        }
+      ],
+      "warnings": [
+        "SYNTHETIC FIXTURE: this is not a real bibliographic lookup."
+      ],
+      "message": "Synthetic scenario not_found"
+    },
+    "10.0000/synthetic-failure": {
+      "status": "provider_error",
+      "query": "10.0000/synthetic-failure",
+      "detected_type": "doi",
+      "best_match": null,
+      "match_score": null,
+      "alternatives": [],
+      "sources": [
+        {
+          "provider": "crossref",
+          "status": "error",
+          "error_code": "fixture_outage"
+        }
+      ],
+      "warnings": [
+        "SYNTHETIC FIXTURE: this is not a real bibliographic lookup."
+      ],
+      "message": "Synthetic scenario provider_error"
+    },
+    "10.0000/synthetic-title-only": {
+      "status": "resolved",
+      "query": "10.0000/synthetic-title-only",
+      "detected_type": "doi",
+      "best_match": {
+        "title": "SYNTHETIC: Dynamic Agent Selection Without An Abstract",
+        "doi": "10.0000/synthetic-title-only",
+        "arxiv_id": null,
+        "authors": [
+          {
+            "name": "Synthetic Example Author"
+          }
+        ],
+        "year": 2026,
+        "venue": "Synthetic Fixture Proceedings",
+        "abstract": null,
+        "url": null,
+        "source": "crossref",
+        "bibtex": "@misc{synthetic_title_only,\n  title = {SYNTHETIC: Dynamic Agent Selection Without An Abstract},\n  author = {Synthetic Example Author},\n  year = {2026},\n  note = {SYNTHETIC TEST DATA; NOT A REAL PUBLICATION}\n}"
+      },
+      "match_score": 1.0,
+      "alternatives": [],
+      "sources": [
+        {
+          "provider": "crossref",
+          "status": "ok",
+          "error_code": null
+        }
+      ],
+      "warnings": [
+        "SYNTHETIC FIXTURE: this is not a real bibliographic lookup."
+      ],
+      "message": "Synthetic scenario resolved"
+    },
+    "10.0000/synthetic-irrelevant": {
+      "status": "resolved",
+      "query": "10.0000/synthetic-irrelevant",
+      "detected_type": "doi",
+      "best_match": {
+        "title": "SYNTHETIC: Ceramic Agent Topology",
+        "doi": "10.0000/synthetic-irrelevant",
+        "arxiv_id": null,
+        "authors": [
+          {
+            "name": "Synthetic Example Author"
+          }
+        ],
+        "year": 2026,
+        "venue": "Synthetic Fixture Proceedings",
+        "abstract": "This synthetic article studies ceramic grain topology under furnace heating. Experiments measure thermal properties.",
+        "url": null,
+        "source": "crossref",
+        "bibtex": "@misc{synthetic_irrelevant,\n  title = {SYNTHETIC: Ceramic Agent Topology},\n  author = {Synthetic Example Author},\n  year = {2026},\n  note = {SYNTHETIC TEST DATA; NOT A REAL PUBLICATION}\n}"
+      },
+      "match_score": 1.0,
+      "alternatives": [],
+      "sources": [
+        {
+          "provider": "crossref",
+          "status": "ok",
+          "error_code": null
+        }
+      ],
+      "warnings": [
+        "SYNTHETIC FIXTURE: this is not a real bibliographic lookup."
+      ],
+      "message": "Synthetic scenario resolved"
+    }
+  },
+  "documents": {
+    "synthetic-router-pdf": {
+      "pages": [
+        {
+          "page": 1,
+          "text": "SYNTHETIC FULL TEXT. Dynamic agent selection routes each task to a subset of language-model agents using task features. The simulated experimental setup uses ten invented task families."
+        },
+        {
+          "page": 2,
+          "text": "The synthetic evaluation compares routed teams with a fixed all-agent baseline. A limitation is that the simulated workload does not establish performance on real tasks."
+        }
+      ],
+      "source": "user_pdf"
+    }
+  },
+  "pdfs": {
+    "10.0000/synthetic-router": "synthetic-router-pdf"
+  }
+}

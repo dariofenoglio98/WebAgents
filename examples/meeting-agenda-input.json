@@ -1,0 +1,19 @@
+{
+  "goal": "Choose a launch scope for the internal documentation pilot",
+  "participants": [
+    {
+      "name": "Ari",
+      "role": "Product"
+    },
+    {
+      "name": "Blair",
+      "role": "Engineering"
+    },
+    {
+      "name": "Casey",
+      "role": "Support"
+    }
+  ],
+  "context": "A two-week pilot has capacity for one team; success must be measurable.",
+  "duration": 45
+}

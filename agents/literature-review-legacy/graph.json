@@ -1,0 +1,322 @@
+{
+  "spec_version": "0.1",
+  "coordinator": "LiteratureReviewCoordinator",
+  "workers": [
+    {
+      "id": "LiteratureReviewCoordinator",
+      "kind": "packaged",
+      "skills": [],
+      "tools": [],
+      "max_instances": 1,
+      "budget": {
+        "tokens": 30000,
+        "remote_calls": 15
+      },
+      "state_read": [
+        "research_question",
+        "mode",
+        "reasoning_mode",
+        "search_plan",
+        "search_queries",
+        "candidate_papers",
+        "screened_papers",
+        "citation_records",
+        "evidence_items",
+        "themes",
+        "claims",
+        "draft",
+        "verification_results",
+        "unresolved"
+      ],
+      "state_write": [
+        "research_question",
+        "mode",
+        "reasoning_mode",
+        "search_plan",
+        "search_queries",
+        "candidate_papers",
+        "screened_papers",
+        "citation_records",
+        "evidence_items",
+        "themes",
+        "claims",
+        "draft",
+        "verification_results",
+        "unresolved"
+      ]
+    },
+    {
+      "id": "PlanningWorker",
+      "kind": "packaged",
+      "skills": [
+        "literature-search"
+      ],
+      "tools": [],
+      "max_instances": 1,
+      "budget": {
+        "tokens": 30000,
+        "remote_calls": 15
+      },
+      "state_read": [
+        "research_question",
+        "seed_references"
+      ],
+      "state_write": [
+        "search_plan",
+        "search_queries"
+      ]
+    },
+    {
+      "id": "SearchWorker",
+      "kind": "packaged",
+      "skills": [
+        "literature-search"
+      ],
+      "tools": [
+        "scholarly-search"
+      ],
+      "max_instances": 3,
+      "budget": {
+        "tokens": 30000,
+        "remote_calls": 15
+      },
+      "state_read": [
+        "research_question",
+        "search_queries"
+      ],
+      "state_write": [
+        "candidate_papers",
+        "unresolved"
+      ]
+    },
+    {
+      "id": "ScreeningWorker",
+      "kind": "packaged",
+      "skills": [
+        "paper-screening"
+      ],
+      "tools": [
+        "paper-reader"
+      ],
+      "max_instances": 3,
+      "budget": {
+        "tokens": 30000,
+        "remote_calls": 15
+      },
+      "state_read": [
+        "research_question",
+        "candidate_papers",
+        "document_refs"
+      ],
+      "state_write": [
+        "screened_papers"
+      ]
+    },
+    {
+      "id": "CitationWorker",
+      "kind": "packaged",
+      "skills": [
+        "citation-resolution"
+      ],
+      "tools": [
+        "citation-resolver"
+      ],
+      "max_instances": 3,
+      "budget": {
+        "tokens": 30000,
+        "remote_calls": 15
+      },
+      "state_read": [
+        "candidate_papers"
+      ],
+      "state_write": [
+        "citation_records",
+        "unresolved",
+        "candidate_papers"
+      ]
+    },
+    {
+      "id": "EvidenceWorker",
+      "kind": "packaged",
+      "skills": [
+        "evidence-extraction"
+      ],
+      "tools": [
+        "paper-reader"
+      ],
+      "max_instances": 3,
+      "budget": {
+        "tokens": 30000,
+        "remote_calls": 15
+      },
+      "state_read": [
+        "research_question",
+        "candidate_papers",
+        "citation_records",
+        "document_refs"
+      ],
+      "state_write": [
+        "evidence_items",
+        "unresolved"
+      ]
+    },
+    {
+      "id": "SynthesisWorker",
+      "kind": "packaged",
+      "skills": [
+        "evidence-synthesis"
+      ],
+      "tools": [],
+      "max_instances": 1,
+      "budget": {
+        "tokens": 30000,
+        "remote_calls": 15
+      },
+      "state_read": [
+        "research_question",
+        "evidence_items",
+        "citation_records"
+      ],
+      "state_write": [
+        "themes",
+        "claims"
+      ]
+    },
+    {
+      "id": "WritingWorker",
+      "kind": "packaged",
+      "skills": [
+        "related-work-writing"
+      ],
+      "tools": [],
+      "max_instances": 1,
+      "budget": {
+        "tokens": 30000,
+        "remote_calls": 15
+      },
+      "state_read": [
+        "research_question",
+        "themes",
+        "claims"
+      ],
+      "state_write": [
+        "draft",
+        "claims"
+      ]
+    },
+    {
+      "id": "VerificationWorker",
+      "kind": "packaged",
+      "skills": [
+        "claim-and-citation-verification"
+      ],
+      "tools": [],
+      "max_instances": 1,
+      "budget": {
+        "tokens": 30000,
+        "remote_calls": 15
+      },
+      "state_read": [
+        "claims",
+        "evidence_items",
+        "citation_records",
+        "draft"
+      ],
+      "state_write": [
+        "claims",
+        "verification_results"
+      ]
+    }
+  ],
+  "stages": [
+    {
+      "id": "planning",
+      "worker": "PlanningWorker",
+      "depends_on": [],
+      "parallel": false,
+      "merge": "replace",
+      "extensions": {}
+    },
+    {
+      "id": "seed-discovery",
+      "worker": "CitationWorker",
+      "depends_on": [
+        "planning"
+      ],
+      "parallel": true,
+      "merge": "append",
+      "extensions": {}
+    },
+    {
+      "id": "search",
+      "worker": "SearchWorker",
+      "depends_on": [
+        "seed-discovery"
+      ],
+      "parallel": true,
+      "merge": "deduplicate",
+      "extensions": {}
+    },
+    {
+      "id": "screening",
+      "worker": "ScreeningWorker",
+      "depends_on": [
+        "search"
+      ],
+      "parallel": true,
+      "merge": "append",
+      "extensions": {}
+    },
+    {
+      "id": "citations",
+      "worker": "CitationWorker",
+      "depends_on": [
+        "screening"
+      ],
+      "parallel": true,
+      "merge": "append",
+      "extensions": {}
+    },
+    {
+      "id": "evidence",
+      "worker": "EvidenceWorker",
+      "depends_on": [
+        "citations"
+      ],
+      "parallel": true,
+      "merge": "append",
+      "extensions": {}
+    },
+    {
+      "id": "synthesis",
+      "worker": "SynthesisWorker",
+      "depends_on": [
+        "evidence"
+      ],
+      "parallel": false,
+      "merge": "replace",
+      "extensions": {}
+    },
+    {
+      "id": "writing",
+      "worker": "WritingWorker",
+      "depends_on": [
+        "synthesis"
+      ],
+      "parallel": false,
+      "merge": "replace",
+      "extensions": {}
+    },
+    {
+      "id": "verification",
+      "worker": "VerificationWorker",
+      "depends_on": [
+        "writing"
+      ],
+      "parallel": false,
+      "merge": "replace",
+      "extensions": {}
+    }
+  ],
+  "extensions": {}
+}

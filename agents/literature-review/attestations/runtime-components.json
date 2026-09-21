@@ -1,0 +1,41 @@
+{
+  "spec_version": "0.1",
+  "kind": "host-runtime-component-inventory",
+  "independent_attestation": false,
+  "runtime": "agentpkg 0.1.0",
+  "components": [
+    {
+      "name": "jsonschema",
+      "version": "4.26.0",
+      "location": "host-installed, not embedded in agent package"
+    },
+    {
+      "name": "cryptography",
+      "version": "46.0.7",
+      "location": "host-installed, not embedded in agent package"
+    },
+    {
+      "name": "pypdf",
+      "version": "6.19.0",
+      "location": "host-installed, not embedded in agent package"
+    },
+    {
+      "name": "rfc8785",
+      "version": "0.1.4",
+      "location": "host-installed, not embedded in agent package"
+    },
+    {
+      "name": "referencing",
+      "version": "0.37.0",
+      "location": "host-installed, not embedded in agent package"
+    },
+    {
+      "name": "rpds-py",
+      "version": "2026.6.3",
+      "location": "host-installed, not embedded in agent package"
+    }
+  ],
+  "note": "Not an SPDX/CycloneDX certification; exact development environment is recorded outside the package.",
+  "workflow_profile": "workflow.v0",
+  "minimum_host_runtime": "0.2.0"
+}

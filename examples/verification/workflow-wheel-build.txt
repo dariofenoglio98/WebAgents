@@ -1,0 +1,143 @@
+running egg_info
+writing src/agentpkg.egg-info/PKG-INFO
+writing dependency_links to src/agentpkg.egg-info/dependency_links.txt
+writing entry points to src/agentpkg.egg-info/entry_points.txt
+writing requirements to src/agentpkg.egg-info/requires.txt
+writing top-level names to src/agentpkg.egg-info/top_level.txt
+reading manifest file 'src/agentpkg.egg-info/SOURCES.txt'
+writing manifest file 'src/agentpkg.egg-info/SOURCES.txt'
+running bdist_wheel
+running build
+running build_py
+creating build/lib/agentpkg
+copying src/agentpkg/package.py -> build/lib/agentpkg
+copying src/agentpkg/interfaces.py -> build/lib/agentpkg
+copying src/agentpkg/signing.py -> build/lib/agentpkg
+copying src/agentpkg/workflow_assertions.py -> build/lib/agentpkg
+copying src/agentpkg/models.py -> build/lib/agentpkg
+copying src/agentpkg/tools.py -> build/lib/agentpkg
+copying src/agentpkg/__init__.py -> build/lib/agentpkg
+copying src/agentpkg/runtime.py -> build/lib/agentpkg
+copying src/agentpkg/workflow_values.py -> build/lib/agentpkg
+copying src/agentpkg/cli.py -> build/lib/agentpkg
+copying src/agentpkg/workflow_validation.py -> build/lib/agentpkg
+copying src/agentpkg/network.py -> build/lib/agentpkg
+copying src/agentpkg/errors.py -> build/lib/agentpkg
+copying src/agentpkg/workflow.py -> build/lib/agentpkg
+copying src/agentpkg/__main__.py -> build/lib/agentpkg
+copying src/agentpkg/openclaw.py -> build/lib/agentpkg
+copying src/agentpkg/fixtures.py -> build/lib/agentpkg
+copying src/agentpkg/validation.py -> build/lib/agentpkg
+creating build/lib/agentpkg/dev
+copying src/agentpkg/dev/__init__.py -> build/lib/agentpkg/dev
+copying src/agentpkg/dev/legacy_cli.py -> build/lib/agentpkg/dev
+copying src/agentpkg/dev/literature_evals.py -> build/lib/agentpkg/dev
+copying src/agentpkg/dev/literature.py -> build/lib/agentpkg/dev
+running egg_info
+writing src/agentpkg.egg-info/PKG-INFO
+writing dependency_links to src/agentpkg.egg-info/dependency_links.txt
+writing entry points to src/agentpkg.egg-info/entry_points.txt
+writing requirements to src/agentpkg.egg-info/requires.txt
+writing top-level names to src/agentpkg.egg-info/top_level.txt
+reading manifest file 'src/agentpkg.egg-info/SOURCES.txt'
+writing manifest file 'src/agentpkg.egg-info/SOURCES.txt'
+creating build/lib/agentpkg/schemas
+copying src/agentpkg/schemas/model-result.schema.json -> build/lib/agentpkg/schemas
+copying src/agentpkg/schemas/signature.schema.json -> build/lib/agentpkg/schemas
+copying src/agentpkg/schemas/graph.schema.json -> build/lib/agentpkg/schemas
+copying src/agentpkg/schemas/model-request.schema.json -> build/lib/agentpkg/schemas
+copying src/agentpkg/schemas/eval.schema.json -> build/lib/agentpkg/schemas
+copying src/agentpkg/schemas/policy.schema.json -> build/lib/agentpkg/schemas
+copying src/agentpkg/schemas/audit-event.schema.json -> build/lib/agentpkg/schemas
+copying src/agentpkg/schemas/integrity.schema.json -> build/lib/agentpkg/schemas
+copying src/agentpkg/schemas/workflow-fixture.schema.json -> build/lib/agentpkg/schemas
+copying src/agentpkg/schemas/tool.schema.json -> build/lib/agentpkg/schemas
+copying src/agentpkg/schemas/workflow.schema.json -> build/lib/agentpkg/schemas
+copying src/agentpkg/schemas/manifest.schema.json -> build/lib/agentpkg/schemas
+installing to build/bdist.macosx-15.0-arm64/wheel
+running install
+running install_lib
+creating build/bdist.macosx-15.0-arm64/wheel
+creating build/bdist.macosx-15.0-arm64/wheel/agentpkg
+copying build/lib/agentpkg/package.py -> build/bdist.macosx-15.0-arm64/wheel/./agentpkg
+copying build/lib/agentpkg/interfaces.py -> build/bdist.macosx-15.0-arm64/wheel/./agentpkg
+copying build/lib/agentpkg/signing.py -> build/bdist.macosx-15.0-arm64/wheel/./agentpkg
+copying build/lib/agentpkg/workflow_assertions.py -> build/bdist.macosx-15.0-arm64/wheel/./agentpkg
+copying build/lib/agentpkg/models.py -> build/bdist.macosx-15.0-arm64/wheel/./agentpkg
+copying build/lib/agentpkg/tools.py -> build/bdist.macosx-15.0-arm64/wheel/./agentpkg
+copying build/lib/agentpkg/__init__.py -> build/bdist.macosx-15.0-arm64/wheel/./agentpkg
+copying build/lib/agentpkg/runtime.py -> build/bdist.macosx-15.0-arm64/wheel/./agentpkg
+creating build/bdist.macosx-15.0-arm64/wheel/agentpkg/schemas
+copying build/lib/agentpkg/schemas/model-result.schema.json -> build/bdist.macosx-15.0-arm64/wheel/./agentpkg/schemas
+copying build/lib/agentpkg/schemas/signature.schema.json -> build/bdist.macosx-15.0-arm64/wheel/./agentpkg/schemas
+copying build/lib/agentpkg/schemas/graph.schema.json -> build/bdist.macosx-15.0-arm64/wheel/./agentpkg/schemas
+copying build/lib/agentpkg/schemas/model-request.schema.json -> build/bdist.macosx-15.0-arm64/wheel/./agentpkg/schemas
+copying build/lib/agentpkg/schemas/eval.schema.json -> build/bdist.macosx-15.0-arm64/wheel/./agentpkg/schemas
+copying build/lib/agentpkg/schemas/policy.schema.json -> build/bdist.macosx-15.0-arm64/wheel/./agentpkg/schemas
+copying build/lib/agentpkg/schemas/audit-event.schema.json -> build/bdist.macosx-15.0-arm64/wheel/./agentpkg/schemas
+copying build/lib/agentpkg/schemas/integrity.schema.json -> build/bdist.macosx-15.0-arm64/wheel/./agentpkg/schemas
+copying build/lib/agentpkg/schemas/workflow-fixture.schema.json -> build/bdist.macosx-15.0-arm64/wheel/./agentpkg/schemas
+copying build/lib/agentpkg/schemas/tool.schema.json -> build/bdist.macosx-15.0-arm64/wheel/./agentpkg/schemas
+copying build/lib/agentpkg/schemas/workflow.schema.json -> build/bdist.macosx-15.0-arm64/wheel/./agentpkg/schemas
+copying build/lib/agentpkg/schemas/manifest.schema.json -> build/bdist.macosx-15.0-arm64/wheel/./agentpkg/schemas
+copying build/lib/agentpkg/workflow_values.py -> build/bdist.macosx-15.0-arm64/wheel/./agentpkg
+copying build/lib/agentpkg/cli.py -> build/bdist.macosx-15.0-arm64/wheel/./agentpkg
+copying build/lib/agentpkg/workflow_validation.py -> build/bdist.macosx-15.0-arm64/wheel/./agentpkg
+copying build/lib/agentpkg/network.py -> build/bdist.macosx-15.0-arm64/wheel/./agentpkg
+creating build/bdist.macosx-15.0-arm64/wheel/agentpkg/dev
+copying build/lib/agentpkg/dev/__init__.py -> build/bdist.macosx-15.0-arm64/wheel/./agentpkg/dev
+copying build/lib/agentpkg/dev/legacy_cli.py -> build/bdist.macosx-15.0-arm64/wheel/./agentpkg/dev
+copying build/lib/agentpkg/dev/literature_evals.py -> build/bdist.macosx-15.0-arm64/wheel/./agentpkg/dev
+copying build/lib/agentpkg/dev/literature.py -> build/bdist.macosx-15.0-arm64/wheel/./agentpkg/dev
+copying build/lib/agentpkg/errors.py -> build/bdist.macosx-15.0-arm64/wheel/./agentpkg
+copying build/lib/agentpkg/workflow.py -> build/bdist.macosx-15.0-arm64/wheel/./agentpkg
+copying build/lib/agentpkg/__main__.py -> build/bdist.macosx-15.0-arm64/wheel/./agentpkg
+copying build/lib/agentpkg/openclaw.py -> build/bdist.macosx-15.0-arm64/wheel/./agentpkg
+copying build/lib/agentpkg/fixtures.py -> build/bdist.macosx-15.0-arm64/wheel/./agentpkg
+copying build/lib/agentpkg/validation.py -> build/bdist.macosx-15.0-arm64/wheel/./agentpkg
+running install_egg_info
+Copying src/agentpkg.egg-info to build/bdist.macosx-15.0-arm64/wheel/./agentpkg-0.2.0-py3.13.egg-info
+running install_scripts
+creating build/bdist.macosx-15.0-arm64/wheel/agentpkg-0.2.0.dist-info/WHEEL
+creating '/Users/dariofenoglio/Desktop/WebAgents/dist/.tmp-mnienrdk/agentpkg-0.2.0-py3-none-any.whl' and adding 'build/bdist.macosx-15.0-arm64/wheel' to it
+adding 'agentpkg/__init__.py'
+adding 'agentpkg/__main__.py'
+adding 'agentpkg/cli.py'
+adding 'agentpkg/errors.py'
+adding 'agentpkg/fixtures.py'
+adding 'agentpkg/interfaces.py'
+adding 'agentpkg/models.py'
+adding 'agentpkg/network.py'
+adding 'agentpkg/openclaw.py'
+adding 'agentpkg/package.py'
+adding 'agentpkg/runtime.py'
+adding 'agentpkg/signing.py'
+adding 'agentpkg/tools.py'
+adding 'agentpkg/validation.py'
+adding 'agentpkg/workflow.py'
+adding 'agentpkg/workflow_assertions.py'
+adding 'agentpkg/workflow_validation.py'
+adding 'agentpkg/workflow_values.py'
+adding 'agentpkg/dev/__init__.py'
+adding 'agentpkg/dev/legacy_cli.py'
+adding 'agentpkg/dev/literature.py'
+adding 'agentpkg/dev/literature_evals.py'
+adding 'agentpkg/schemas/audit-event.schema.json'
+adding 'agentpkg/schemas/eval.schema.json'
+adding 'agentpkg/schemas/graph.schema.json'
+adding 'agentpkg/schemas/integrity.schema.json'
+adding 'agentpkg/schemas/manifest.schema.json'
+adding 'agentpkg/schemas/model-request.schema.json'
+adding 'agentpkg/schemas/model-result.schema.json'
+adding 'agentpkg/schemas/policy.schema.json'
+adding 'agentpkg/schemas/signature.schema.json'
+adding 'agentpkg/schemas/tool.schema.json'
+adding 'agentpkg/schemas/workflow-fixture.schema.json'
+adding 'agentpkg/schemas/workflow.schema.json'
+adding 'agentpkg-0.2.0.dist-info/METADATA'
+adding 'agentpkg-0.2.0.dist-info/WHEEL'
+adding 'agentpkg-0.2.0.dist-info/entry_points.txt'
+adding 'agentpkg-0.2.0.dist-info/top_level.txt'
+adding 'agentpkg-0.2.0.dist-info/RECORD'
+removing build/bdist.macosx-15.0-arm64/wheel
+Successfully built agentpkg-0.2.0-py3-none-any.whl

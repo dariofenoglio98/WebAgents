@@ -1,0 +1,2285 @@
+[
+  {
+    "sequence": 1,
+    "timestamp": "2026-09-20T12:41:35.510514+00:00",
+    "action": "runtime.started",
+    "worker": "coordinator",
+    "role": "LiteratureReviewCoordinator",
+    "parent": null,
+    "depth": 0,
+    "previous_hash": null,
+    "package_id": "org.webagents.literature-review",
+    "package_version": "0.1.0",
+    "package_digest": "20a35b6db17127ae52809e84e23e23994d9fbad235d91882b136f36fc4c547a5",
+    "grant_scopes": {
+      "network.scholarly": "session",
+      "network.citations": "session",
+      "files.pdfs": "deny",
+      "model.reasoning": "deny",
+      "memory.session": "session"
+    },
+    "note": "always grants apply only to this Runtime; no persistent grant store",
+    "event_hash": "449838af0f7d5cc7e0f0d87870d23811499a366527449a38353087500dfe0eaf"
+  },
+  {
+    "sequence": 2,
+    "timestamp": "2026-09-20T12:41:35.511004+00:00",
+    "action": "worker.started",
+    "worker": "PlanningWorker:1",
+    "role": "PlanningWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "449838af0f7d5cc7e0f0d87870d23811499a366527449a38353087500dfe0eaf",
+    "skills": [
+      "literature-search"
+    ],
+    "state_keys": [
+      "research_question",
+      "seed_references"
+    ],
+    "input_hash": "f0281536864f8334e7ea92341dd0423a965c2b21fcca0598b4155f0ed72dd00a",
+    "active": 1,
+    "event_hash": "2accc28bcdc8318ae61fd4378f2b4db7deff4a1e571cc7d2b8d3eefe47363597"
+  },
+  {
+    "sequence": 3,
+    "timestamp": "2026-09-20T12:41:35.511031+00:00",
+    "action": "worker.completed",
+    "worker": "PlanningWorker:1",
+    "role": "PlanningWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "2accc28bcdc8318ae61fd4378f2b4db7deff4a1e571cc7d2b8d3eefe47363597",
+    "output_hash": "5b93047508ec378866b8f3cd8211d02b1040375ce5269f38eb84fa9c7ebc194c",
+    "state_keys": [
+      "search_plan",
+      "search_queries"
+    ],
+    "status": "ok",
+    "event_hash": "642093f4815a35189d606484584ccb8203af18dfecaf8f6f91335689b67d48b3"
+  },
+  {
+    "sequence": 4,
+    "timestamp": "2026-09-20T12:41:35.511043+00:00",
+    "action": "stage.completed",
+    "worker": "coordinator",
+    "role": "LiteratureReviewCoordinator",
+    "parent": null,
+    "depth": 0,
+    "previous_hash": "642093f4815a35189d606484584ccb8203af18dfecaf8f6f91335689b67d48b3",
+    "stage": "planning",
+    "merge": "replace",
+    "worker_count": 1,
+    "synthetic": false,
+    "event_hash": "56d8c26f8f2014dae9757db42e769a932ccbd61df3364f25055f914c50f3df9f"
+  },
+  {
+    "sequence": 5,
+    "timestamp": "2026-09-20T12:41:35.511119+00:00",
+    "action": "worker.started",
+    "worker": "CitationWorker:2",
+    "role": "CitationWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "56d8c26f8f2014dae9757db42e769a932ccbd61df3364f25055f914c50f3df9f",
+    "skills": [
+      "citation-resolution"
+    ],
+    "state_keys": [
+      "candidate_papers"
+    ],
+    "input_hash": "5f03df8a320fd8e301a7bbd95729b35367b0bc464c193f7898f5e59c6c9c8f44",
+    "active": 1,
+    "event_hash": "4244c613c19ecb9d3eb7843d13d57516c1da4d1d7ddf55dd54b8facfd73a56ff"
+  },
+  {
+    "sequence": 6,
+    "timestamp": "2026-09-20T12:41:35.511626+00:00",
+    "action": "tool.called",
+    "worker": "CitationWorker:2",
+    "role": "CitationWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "4244c613c19ecb9d3eb7843d13d57516c1da4d1d7ddf55dd54b8facfd73a56ff",
+    "tool": "citation-resolver",
+    "binding": "citation.resolve",
+    "permissions": [
+      "network.citations"
+    ],
+    "domains": [
+      "webagents-citation-resolver-production.up.railway.app"
+    ],
+    "input_hash": "dce311d5bbd6edb5672e5639eb16e572637875d9103a333af96324458a17ce81",
+    "remote_calls": 1,
+    "event_hash": "2385d73a2653268ea547689114bf3ee6b972dc136756b81d95367bc55a6bb9fe"
+  },
+  {
+    "sequence": 7,
+    "timestamp": "2026-09-20T12:41:35.511665+00:00",
+    "action": "network.requested",
+    "worker": "CitationWorker:2",
+    "role": "CitationWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "2385d73a2653268ea547689114bf3ee6b972dc136756b81d95367bc55a6bb9fe",
+    "tool": "citation-resolver",
+    "domain": "webagents-citation-resolver-production.up.railway.app",
+    "method": "POST",
+    "event_hash": "ad8bd9e60b2c572946448fe1c10a215e97e6533e2ba777a1f57fd26329474120"
+  },
+  {
+    "sequence": 8,
+    "timestamp": "2026-09-20T12:41:35.518573+00:00",
+    "action": "worker.started",
+    "worker": "CitationWorker:3",
+    "role": "CitationWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "ad8bd9e60b2c572946448fe1c10a215e97e6533e2ba777a1f57fd26329474120",
+    "skills": [
+      "citation-resolution"
+    ],
+    "state_keys": [
+      "candidate_papers"
+    ],
+    "input_hash": "3f4af69f0e9c0cbd2e1e63b9d70a48b9e46abcf0ee35d88b72cc03615226f6a7",
+    "active": 2,
+    "event_hash": "cdf084d530af87a0bbdeeb0f57d2c374a0de80fce46f9b95529ef6eedc9fa599"
+  },
+  {
+    "sequence": 9,
+    "timestamp": "2026-09-20T12:41:35.519495+00:00",
+    "action": "tool.called",
+    "worker": "CitationWorker:3",
+    "role": "CitationWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "cdf084d530af87a0bbdeeb0f57d2c374a0de80fce46f9b95529ef6eedc9fa599",
+    "tool": "citation-resolver",
+    "binding": "citation.resolve",
+    "permissions": [
+      "network.citations"
+    ],
+    "domains": [
+      "webagents-citation-resolver-production.up.railway.app"
+    ],
+    "input_hash": "dd24d4384fa60dbe7e3e980a8fb28902cb5499b402cc30600bb3959b557b271a",
+    "remote_calls": 2,
+    "event_hash": "617816f34c0ecd453ab282c29ff5cc8d1af8556456b03fdd7ae18a7fe2d49e34"
+  },
+  {
+    "sequence": 10,
+    "timestamp": "2026-09-20T12:41:35.519560+00:00",
+    "action": "network.requested",
+    "worker": "CitationWorker:3",
+    "role": "CitationWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "617816f34c0ecd453ab282c29ff5cc8d1af8556456b03fdd7ae18a7fe2d49e34",
+    "tool": "citation-resolver",
+    "domain": "webagents-citation-resolver-production.up.railway.app",
+    "method": "POST",
+    "event_hash": "31e09a79a60bae9d73cc107e28f5f7aaaf1e54cb8e9249f18d5b3ce2fed98cb8"
+  },
+  {
+    "sequence": 11,
+    "timestamp": "2026-09-20T12:41:35.520604+00:00",
+    "action": "worker.started",
+    "worker": "CitationWorker:4",
+    "role": "CitationWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "31e09a79a60bae9d73cc107e28f5f7aaaf1e54cb8e9249f18d5b3ce2fed98cb8",
+    "skills": [
+      "citation-resolution"
+    ],
+    "state_keys": [
+      "candidate_papers"
+    ],
+    "input_hash": "fdd9c7cb6cd543d20ce9e9a4a38a446a1bf4efeac98cf6abf1dc4f2e2f3f0d1e",
+    "active": 3,
+    "event_hash": "112c8542fddf81ddde0b970d449b4d0580c4e4d91457eaba0e5b881cc5073e9c"
+  },
+  {
+    "sequence": 12,
+    "timestamp": "2026-09-20T12:41:35.521411+00:00",
+    "action": "tool.called",
+    "worker": "CitationWorker:4",
+    "role": "CitationWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "112c8542fddf81ddde0b970d449b4d0580c4e4d91457eaba0e5b881cc5073e9c",
+    "tool": "citation-resolver",
+    "binding": "citation.resolve",
+    "permissions": [
+      "network.citations"
+    ],
+    "domains": [
+      "webagents-citation-resolver-production.up.railway.app"
+    ],
+    "input_hash": "3672db46437b5842268697c49588e819b6f4c9d8f9a7019e58f86fa0f6e964a2",
+    "remote_calls": 3,
+    "event_hash": "c073b26bbd2bd2a3ccd0188839010074af0fcd72930c19b648a47710ab2ea666"
+  },
+  {
+    "sequence": 13,
+    "timestamp": "2026-09-20T12:41:35.521462+00:00",
+    "action": "network.requested",
+    "worker": "CitationWorker:4",
+    "role": "CitationWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "c073b26bbd2bd2a3ccd0188839010074af0fcd72930c19b648a47710ab2ea666",
+    "tool": "citation-resolver",
+    "domain": "webagents-citation-resolver-production.up.railway.app",
+    "method": "POST",
+    "event_hash": "d2148f9b6089faf58625dc9242a338d4a3c702792824367467bbc0e619f08c4e"
+  },
+  {
+    "sequence": 14,
+    "timestamp": "2026-09-20T12:41:36.864923+00:00",
+    "action": "tool.completed",
+    "worker": "CitationWorker:2",
+    "role": "CitationWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "d2148f9b6089faf58625dc9242a338d4a3c702792824367467bbc0e619f08c4e",
+    "tool": "citation-resolver",
+    "result_hash": "e4d4338684f7a4a51140de3142baee9c7d623859e71ad11fe5b5f500a18e9736",
+    "status": "provider_error",
+    "event_hash": "9ad8c54ba86f3d3d4eda1e5eaeb4da1f8cf255abc711c10a4b25d24d6eaefe24"
+  },
+  {
+    "sequence": 15,
+    "timestamp": "2026-09-20T12:41:36.865071+00:00",
+    "action": "worker.completed",
+    "worker": "CitationWorker:2",
+    "role": "CitationWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "9ad8c54ba86f3d3d4eda1e5eaeb4da1f8cf255abc711c10a4b25d24d6eaefe24",
+    "output_hash": "e158a4322a684a654c8229b45c35504d5458e0bf54440faaaca9867fbc701b52",
+    "state_keys": [
+      "candidate_papers",
+      "citation_records",
+      "unresolved"
+    ],
+    "status": "ok",
+    "event_hash": "9ae147e150690929b394a4ec6aa7eee048bba4617d5aae3fb61a79956b369feb"
+  },
+  {
+    "sequence": 16,
+    "timestamp": "2026-09-20T12:41:36.865198+00:00",
+    "action": "worker.started",
+    "worker": "CitationWorker:5",
+    "role": "CitationWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "9ae147e150690929b394a4ec6aa7eee048bba4617d5aae3fb61a79956b369feb",
+    "skills": [
+      "citation-resolution"
+    ],
+    "state_keys": [
+      "candidate_papers"
+    ],
+    "input_hash": "3689f84f6e75dd3e5bf3eacc08294361a7327e96e5f4179f324668291cd28b2d",
+    "active": 3,
+    "event_hash": "1e7eb39a2e19145def06caa7c108b2d68de6b2f2d129877864b3ab5a4b6fa7b5"
+  },
+  {
+    "sequence": 17,
+    "timestamp": "2026-09-20T12:41:36.865985+00:00",
+    "action": "tool.called",
+    "worker": "CitationWorker:5",
+    "role": "CitationWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "1e7eb39a2e19145def06caa7c108b2d68de6b2f2d129877864b3ab5a4b6fa7b5",
+    "tool": "citation-resolver",
+    "binding": "citation.resolve",
+    "permissions": [
+      "network.citations"
+    ],
+    "domains": [
+      "webagents-citation-resolver-production.up.railway.app"
+    ],
+    "input_hash": "4058e580f837518ee50e216ae4d3e33dcc8da6d0000b91b48189da345957febf",
+    "remote_calls": 4,
+    "event_hash": "20cf753a728f394f30b305d4eb916269a31ad40f2318e8897f952f2feb5d40f6"
+  },
+  {
+    "sequence": 18,
+    "timestamp": "2026-09-20T12:41:36.866092+00:00",
+    "action": "network.requested",
+    "worker": "CitationWorker:5",
+    "role": "CitationWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "20cf753a728f394f30b305d4eb916269a31ad40f2318e8897f952f2feb5d40f6",
+    "tool": "citation-resolver",
+    "domain": "webagents-citation-resolver-production.up.railway.app",
+    "method": "POST",
+    "event_hash": "efd3b85a7149eacb2ada651314f4c986958bf22379b8b00b864c30982bfa0b37"
+  },
+  {
+    "sequence": 19,
+    "timestamp": "2026-09-20T12:41:37.006531+00:00",
+    "action": "tool.completed",
+    "worker": "CitationWorker:4",
+    "role": "CitationWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "efd3b85a7149eacb2ada651314f4c986958bf22379b8b00b864c30982bfa0b37",
+    "tool": "citation-resolver",
+    "result_hash": "73c7f3c982ec1bc0d1b9069e55250340148bda804c6a20e360fbb476a587fa7b",
+    "status": "resolved",
+    "event_hash": "d7b7080659bfedb5c934b9fef600d85da27738aea7047eabdc25142ec3c6cf89"
+  },
+  {
+    "sequence": 20,
+    "timestamp": "2026-09-20T12:41:37.006761+00:00",
+    "action": "worker.completed",
+    "worker": "CitationWorker:4",
+    "role": "CitationWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "d7b7080659bfedb5c934b9fef600d85da27738aea7047eabdc25142ec3c6cf89",
+    "output_hash": "1156e7b899acd9fa169c6ccb5771e91796d668622ad0dc0c6fd2fabfef4cfae0",
+    "state_keys": [
+      "candidate_papers",
+      "citation_records",
+      "unresolved"
+    ],
+    "status": "ok",
+    "event_hash": "2d8e90795d646b1ef7d8997e98e12c9e0a8eeccbb31ead65a21feac3e9c90577"
+  },
+  {
+    "sequence": 21,
+    "timestamp": "2026-09-20T12:41:38.031460+00:00",
+    "action": "tool.completed",
+    "worker": "CitationWorker:5",
+    "role": "CitationWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "2d8e90795d646b1ef7d8997e98e12c9e0a8eeccbb31ead65a21feac3e9c90577",
+    "tool": "citation-resolver",
+    "result_hash": "1d69b88cd0f2f50c1a218ba9ce5559539c8460b222aefc3606f14565604b4a58",
+    "status": "resolved",
+    "event_hash": "b5e1389c6afe77f719ebc496e3bdc3ec1361ea79160f4d801a18158d26918f4e"
+  },
+  {
+    "sequence": 22,
+    "timestamp": "2026-09-20T12:41:38.031620+00:00",
+    "action": "worker.completed",
+    "worker": "CitationWorker:5",
+    "role": "CitationWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "b5e1389c6afe77f719ebc496e3bdc3ec1361ea79160f4d801a18158d26918f4e",
+    "output_hash": "9dc58c2f9667647ae584e7e68bef3a48e5674d373125f4e68653507e29d8766f",
+    "state_keys": [
+      "candidate_papers",
+      "citation_records",
+      "unresolved"
+    ],
+    "status": "ok",
+    "event_hash": "58f680c7101ffd3333c75efc16825788c62c622ddbf2085fb051f944821f64f6"
+  },
+  {
+    "sequence": 23,
+    "timestamp": "2026-09-20T12:41:39.847042+00:00",
+    "action": "tool.completed",
+    "worker": "CitationWorker:3",
+    "role": "CitationWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "58f680c7101ffd3333c75efc16825788c62c622ddbf2085fb051f944821f64f6",
+    "tool": "citation-resolver",
+    "result_hash": "c07fe71a71a876fb7adece7b9f27340d1c49392c1b175cc1580683873d381b35",
+    "status": "provider_error",
+    "event_hash": "b76529dc01f79ff7e3403c9679986391644106cbb9ed66fa3a213b5a803f2bbc"
+  },
+  {
+    "sequence": 24,
+    "timestamp": "2026-09-20T12:41:39.847215+00:00",
+    "action": "worker.completed",
+    "worker": "CitationWorker:3",
+    "role": "CitationWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "b76529dc01f79ff7e3403c9679986391644106cbb9ed66fa3a213b5a803f2bbc",
+    "output_hash": "690b3867a6dcdb4664a73e4708c2c1c26cb264527f5d6d6c20f2ff7449f11765",
+    "state_keys": [
+      "candidate_papers",
+      "citation_records",
+      "unresolved"
+    ],
+    "status": "ok",
+    "event_hash": "e1b76a8bbbefef67826cdd9adb831a50868332fc9377bf5c034c19328f048b72"
+  },
+  {
+    "sequence": 25,
+    "timestamp": "2026-09-20T12:41:39.847426+00:00",
+    "action": "stage.completed",
+    "worker": "coordinator",
+    "role": "LiteratureReviewCoordinator",
+    "parent": null,
+    "depth": 0,
+    "previous_hash": "e1b76a8bbbefef67826cdd9adb831a50868332fc9377bf5c034c19328f048b72",
+    "stage": "seed-discovery",
+    "merge": "append",
+    "worker_count": 4,
+    "synthetic": false,
+    "event_hash": "1440467bde6f5c5bdb74d8df079c3fbbabba8c75f97399a2473084fac7e2e555"
+  },
+  {
+    "sequence": 26,
+    "timestamp": "2026-09-20T12:41:39.848005+00:00",
+    "action": "worker.started",
+    "worker": "SearchWorker:6",
+    "role": "SearchWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "1440467bde6f5c5bdb74d8df079c3fbbabba8c75f97399a2473084fac7e2e555",
+    "skills": [
+      "literature-search"
+    ],
+    "state_keys": [
+      "research_question",
+      "search_queries"
+    ],
+    "input_hash": "d8624fd39ac35422d0a9b4360bece45b5fb94c3787f5a27f6519b4fcc2eed617",
+    "active": 1,
+    "event_hash": "20d93c82b655030b8b165efd0908b276c0b4f1b9c027d548428009e7ff76a929"
+  },
+  {
+    "sequence": 27,
+    "timestamp": "2026-09-20T12:41:39.849142+00:00",
+    "action": "tool.called",
+    "worker": "SearchWorker:6",
+    "role": "SearchWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "20d93c82b655030b8b165efd0908b276c0b4f1b9c027d548428009e7ff76a929",
+    "tool": "scholarly-search",
+    "binding": "scholarly.search",
+    "permissions": [
+      "network.scholarly"
+    ],
+    "domains": [
+      "api.crossref.org"
+    ],
+    "input_hash": "050ad9569d9f7f807fc69c7de814d062563d52d09fa3026be5a55f1eda75fb3e",
+    "remote_calls": 5,
+    "event_hash": "56c4e73658b991e5e061ab399395921217c63a179149d5dbe5d1672b46aa4bca"
+  },
+  {
+    "sequence": 28,
+    "timestamp": "2026-09-20T12:41:39.849290+00:00",
+    "action": "network.requested",
+    "worker": "SearchWorker:6",
+    "role": "SearchWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "56c4e73658b991e5e061ab399395921217c63a179149d5dbe5d1672b46aa4bca",
+    "tool": "scholarly-search",
+    "domain": "api.crossref.org",
+    "method": "GET",
+    "event_hash": "8543edfa1db184dc22ab64e193caf07b6c224e8c73b7a9146889a1eea0945cd0"
+  },
+  {
+    "sequence": 29,
+    "timestamp": "2026-09-20T12:41:39.852492+00:00",
+    "action": "worker.started",
+    "worker": "SearchWorker:7",
+    "role": "SearchWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "8543edfa1db184dc22ab64e193caf07b6c224e8c73b7a9146889a1eea0945cd0",
+    "skills": [
+      "literature-search"
+    ],
+    "state_keys": [
+      "research_question",
+      "search_queries"
+    ],
+    "input_hash": "002e7545f9e8a32a25c490d01c62f5c156d5a40dee843b878a05ffb98b944bb9",
+    "active": 2,
+    "event_hash": "f68f6f45496121528ffd4320f167becf72f3956447fac24802c9b657ff081c3b"
+  },
+  {
+    "sequence": 30,
+    "timestamp": "2026-09-20T12:41:39.854323+00:00",
+    "action": "tool.called",
+    "worker": "SearchWorker:7",
+    "role": "SearchWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "f68f6f45496121528ffd4320f167becf72f3956447fac24802c9b657ff081c3b",
+    "tool": "scholarly-search",
+    "binding": "scholarly.search",
+    "permissions": [
+      "network.scholarly"
+    ],
+    "domains": [
+      "api.crossref.org"
+    ],
+    "input_hash": "c6a2d9b83320cd1048edcf27c01bc0f7aff342ee96f87debc3ef7e9877909d0d",
+    "remote_calls": 6,
+    "event_hash": "be0b23c25a22134248aaa2287fe1d6fc5e8e208f4adefcf71f489516c276caf5"
+  },
+  {
+    "sequence": 31,
+    "timestamp": "2026-09-20T12:41:39.854514+00:00",
+    "action": "network.requested",
+    "worker": "SearchWorker:7",
+    "role": "SearchWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "be0b23c25a22134248aaa2287fe1d6fc5e8e208f4adefcf71f489516c276caf5",
+    "tool": "scholarly-search",
+    "domain": "api.crossref.org",
+    "method": "GET",
+    "event_hash": "c05d45a41c0a29482391a050cf6c33c16f689f8076dabbec9c87ffd37567f649"
+  },
+  {
+    "sequence": 32,
+    "timestamp": "2026-09-20T12:41:39.856846+00:00",
+    "action": "worker.started",
+    "worker": "SearchWorker:8",
+    "role": "SearchWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "c05d45a41c0a29482391a050cf6c33c16f689f8076dabbec9c87ffd37567f649",
+    "skills": [
+      "literature-search"
+    ],
+    "state_keys": [
+      "research_question",
+      "search_queries"
+    ],
+    "input_hash": "4c596de923a6240db8d2f82229a7180694308d508414d8fd53324814cdca85db",
+    "active": 3,
+    "event_hash": "c10f946d7d227a509c3ca9a2ce16d8e5387a84cf916cf884f6a52212ef854d95"
+  },
+  {
+    "sequence": 33,
+    "timestamp": "2026-09-20T12:41:39.858362+00:00",
+    "action": "tool.called",
+    "worker": "SearchWorker:8",
+    "role": "SearchWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "c10f946d7d227a509c3ca9a2ce16d8e5387a84cf916cf884f6a52212ef854d95",
+    "tool": "scholarly-search",
+    "binding": "scholarly.search",
+    "permissions": [
+      "network.scholarly"
+    ],
+    "domains": [
+      "api.crossref.org"
+    ],
+    "input_hash": "492198f809750aba3989628dca74c2e19dbe243ee934d2bca6f2914679c7b8eb",
+    "remote_calls": 7,
+    "event_hash": "610bfbfa0a242793299fd273d1006c9a608a6e05db03e141f904548028daf61d"
+  },
+  {
+    "sequence": 34,
+    "timestamp": "2026-09-20T12:41:39.858553+00:00",
+    "action": "network.requested",
+    "worker": "SearchWorker:8",
+    "role": "SearchWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "610bfbfa0a242793299fd273d1006c9a608a6e05db03e141f904548028daf61d",
+    "tool": "scholarly-search",
+    "domain": "api.crossref.org",
+    "method": "GET",
+    "event_hash": "4053fa4c3ba8059af9e631ffe1a279343e5db84119c03bfcac5e8b0921b27281"
+  },
+  {
+    "sequence": 35,
+    "timestamp": "2026-09-20T12:41:42.531408+00:00",
+    "action": "tool.completed",
+    "worker": "SearchWorker:7",
+    "role": "SearchWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "4053fa4c3ba8059af9e631ffe1a279343e5db84119c03bfcac5e8b0921b27281",
+    "tool": "scholarly-search",
+    "result_hash": "916dcc2735fe2e043c43ccc0c9548b1906acedcf0086604b0dea7183950090b1",
+    "status": "ok",
+    "event_hash": "ca8524609f8c55c3b49c98920d8b18695f47545ff414f2dec2d8b206b03f6264"
+  },
+  {
+    "sequence": 36,
+    "timestamp": "2026-09-20T12:41:42.532199+00:00",
+    "action": "worker.completed",
+    "worker": "SearchWorker:7",
+    "role": "SearchWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "ca8524609f8c55c3b49c98920d8b18695f47545ff414f2dec2d8b206b03f6264",
+    "output_hash": "bd1503f3b5739cb8c8fec45eb8aa0d47de9cfd92a8a57f4941bbc15b55a6d58b",
+    "state_keys": [
+      "candidate_papers",
+      "unresolved"
+    ],
+    "status": "ok",
+    "event_hash": "d68be4e843b73a91fd052c3ba3eaf3651d25a6ff3afd8a06f57368ea0ac3669e"
+  },
+  {
+    "sequence": 37,
+    "timestamp": "2026-09-20T12:41:42.610882+00:00",
+    "action": "tool.completed",
+    "worker": "SearchWorker:6",
+    "role": "SearchWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "d68be4e843b73a91fd052c3ba3eaf3651d25a6ff3afd8a06f57368ea0ac3669e",
+    "tool": "scholarly-search",
+    "result_hash": "473025491953f0f74359f1cd3fbe9d22238caf91edfa3aee1263f2a9009d5f1e",
+    "status": "ok",
+    "event_hash": "189675839be2b94d3bceb418e91cdf76662af4dee0fbd8371c9b89de18dbbef9"
+  },
+  {
+    "sequence": 38,
+    "timestamp": "2026-09-20T12:41:42.611567+00:00",
+    "action": "worker.completed",
+    "worker": "SearchWorker:6",
+    "role": "SearchWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "189675839be2b94d3bceb418e91cdf76662af4dee0fbd8371c9b89de18dbbef9",
+    "output_hash": "50309cf510d8347c40fd8acf87886a4972d956fe9d5ad0493620ffeca46fd4ef",
+    "state_keys": [
+      "candidate_papers",
+      "unresolved"
+    ],
+    "status": "ok",
+    "event_hash": "ef6e16bdd532f4950f8fa70af7e9d74bb247d9d19be22c0d3bd49c9258b5172b"
+  },
+  {
+    "sequence": 39,
+    "timestamp": "2026-09-20T12:41:42.878637+00:00",
+    "action": "tool.completed",
+    "worker": "SearchWorker:8",
+    "role": "SearchWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "ef6e16bdd532f4950f8fa70af7e9d74bb247d9d19be22c0d3bd49c9258b5172b",
+    "tool": "scholarly-search",
+    "result_hash": "731f02f61946a580ce952e62b84ab14c8fd628f758a785c954be087d6c3509a6",
+    "status": "ok",
+    "event_hash": "1bd4dd8f1b645d36046a59ff80e2f4c067fe10667296fe7412b1741e466a3b42"
+  },
+  {
+    "sequence": 40,
+    "timestamp": "2026-09-20T12:41:42.878933+00:00",
+    "action": "worker.completed",
+    "worker": "SearchWorker:8",
+    "role": "SearchWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "1bd4dd8f1b645d36046a59ff80e2f4c067fe10667296fe7412b1741e466a3b42",
+    "output_hash": "cb81487382bfdec2e72b1521aba644d4217d49d7a5dbeefe0028538f121e5858",
+    "state_keys": [
+      "candidate_papers",
+      "unresolved"
+    ],
+    "status": "ok",
+    "event_hash": "a0f3e8c775ae4c34d26488dbe1175f9ecc99950966a5d6dafbca557d570d96f7"
+  },
+  {
+    "sequence": 41,
+    "timestamp": "2026-09-20T12:41:42.879118+00:00",
+    "action": "stage.completed",
+    "worker": "coordinator",
+    "role": "LiteratureReviewCoordinator",
+    "parent": null,
+    "depth": 0,
+    "previous_hash": "a0f3e8c775ae4c34d26488dbe1175f9ecc99950966a5d6dafbca557d570d96f7",
+    "stage": "search",
+    "merge": "deduplicate",
+    "worker_count": 3,
+    "synthetic": false,
+    "event_hash": "5729b3a309f33a48dff9b41077c1bc291bb8a13a2ac7ce562bfa35e40bd5a0da"
+  },
+  {
+    "sequence": 42,
+    "timestamp": "2026-09-20T12:41:42.880432+00:00",
+    "action": "worker.started",
+    "worker": "ScreeningWorker:9",
+    "role": "ScreeningWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "5729b3a309f33a48dff9b41077c1bc291bb8a13a2ac7ce562bfa35e40bd5a0da",
+    "skills": [
+      "paper-screening"
+    ],
+    "state_keys": [
+      "candidate_papers",
+      "document_refs",
+      "research_question"
+    ],
+    "input_hash": "42b7beb1b7d920f5ecb5072e44842cafa1e72cb7b7907b8180abedc03cf2965a",
+    "active": 1,
+    "event_hash": "db2584446d309e455f297ddfb734853dd999d2a6c43ec48d4d6728068aadcad1"
+  },
+  {
+    "sequence": 43,
+    "timestamp": "2026-09-20T12:41:42.880502+00:00",
+    "action": "worker.completed",
+    "worker": "ScreeningWorker:9",
+    "role": "ScreeningWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "db2584446d309e455f297ddfb734853dd999d2a6c43ec48d4d6728068aadcad1",
+    "output_hash": "ba006d1fff4468b43f9d962b11a8996f176a922dcefc7d0fa160c134ddfeed13",
+    "state_keys": [
+      "screened_papers"
+    ],
+    "status": "ok",
+    "event_hash": "cf9b7b6ff5865644a7be4a9117d7c06f8d71682330cdfab67082b11429599fed"
+  },
+  {
+    "sequence": 44,
+    "timestamp": "2026-09-20T12:41:42.880532+00:00",
+    "action": "worker.started",
+    "worker": "ScreeningWorker:10",
+    "role": "ScreeningWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "cf9b7b6ff5865644a7be4a9117d7c06f8d71682330cdfab67082b11429599fed",
+    "skills": [
+      "paper-screening"
+    ],
+    "state_keys": [
+      "candidate_papers",
+      "document_refs",
+      "research_question"
+    ],
+    "input_hash": "47debae2482b30a0b9858787dd36a5a8549bd566d530961470f20e1953dc67f9",
+    "active": 1,
+    "event_hash": "c94c253d34219aeb71cc704bf63adff7efd3e34d356c56f7b8a66959ed1b4670"
+  },
+  {
+    "sequence": 45,
+    "timestamp": "2026-09-20T12:41:42.880575+00:00",
+    "action": "worker.completed",
+    "worker": "ScreeningWorker:10",
+    "role": "ScreeningWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "c94c253d34219aeb71cc704bf63adff7efd3e34d356c56f7b8a66959ed1b4670",
+    "output_hash": "832ec16c0a9e71e8c2f7b60257a67f713ad65624552d6a88aff6dc780dda1b1e",
+    "state_keys": [
+      "screened_papers"
+    ],
+    "status": "ok",
+    "event_hash": "95ddda151b49d741ab8dff5be5e5c6ca2e7e87baed6fd50166c392685d391cf5"
+  },
+  {
+    "sequence": 46,
+    "timestamp": "2026-09-20T12:41:42.880610+00:00",
+    "action": "worker.started",
+    "worker": "ScreeningWorker:11",
+    "role": "ScreeningWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "95ddda151b49d741ab8dff5be5e5c6ca2e7e87baed6fd50166c392685d391cf5",
+    "skills": [
+      "paper-screening"
+    ],
+    "state_keys": [
+      "candidate_papers",
+      "document_refs",
+      "research_question"
+    ],
+    "input_hash": "335ebff2c50b4f14698362cf02891417b95d5de310bf248693feecc34437a2f1",
+    "active": 1,
+    "event_hash": "e28c0d64a719a04cd493524753d8be33c8ce6eda4e266328a1b1ee121f04a8b4"
+  },
+  {
+    "sequence": 47,
+    "timestamp": "2026-09-20T12:41:42.880723+00:00",
+    "action": "worker.completed",
+    "worker": "ScreeningWorker:11",
+    "role": "ScreeningWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "e28c0d64a719a04cd493524753d8be33c8ce6eda4e266328a1b1ee121f04a8b4",
+    "output_hash": "8b5e2a3cafdc187a39b50c96fd6f0b5dedaffbd506e3c628ad381cfb91bfe380",
+    "state_keys": [
+      "screened_papers"
+    ],
+    "status": "ok",
+    "event_hash": "9f93bdec6f1a40fe43566c936408f6ab6ed207f90df8edc05df83beb563c5fe1"
+  },
+  {
+    "sequence": 48,
+    "timestamp": "2026-09-20T12:41:42.880773+00:00",
+    "action": "worker.started",
+    "worker": "ScreeningWorker:12",
+    "role": "ScreeningWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "9f93bdec6f1a40fe43566c936408f6ab6ed207f90df8edc05df83beb563c5fe1",
+    "skills": [
+      "paper-screening"
+    ],
+    "state_keys": [
+      "candidate_papers",
+      "document_refs",
+      "research_question"
+    ],
+    "input_hash": "35ccf03bfe247ddccbeee5dd51194abb6b14829d4231a7080f722301c1aef6cb",
+    "active": 1,
+    "event_hash": "c58710c00ce5b3c9c927057b518e63b87af909efa8f090a33240b990b750a198"
+  },
+  {
+    "sequence": 49,
+    "timestamp": "2026-09-20T12:41:42.880866+00:00",
+    "action": "worker.completed",
+    "worker": "ScreeningWorker:12",
+    "role": "ScreeningWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "c58710c00ce5b3c9c927057b518e63b87af909efa8f090a33240b990b750a198",
+    "output_hash": "af4afd2f649c5b96398c4886a5f962f0f71c33c0ab694e2a209c854f64956a28",
+    "state_keys": [
+      "screened_papers"
+    ],
+    "status": "ok",
+    "event_hash": "d09de8417ed7028697929f269d0242a54228fca39a7d824845442bf348619259"
+  },
+  {
+    "sequence": 50,
+    "timestamp": "2026-09-20T12:41:42.880912+00:00",
+    "action": "worker.started",
+    "worker": "ScreeningWorker:13",
+    "role": "ScreeningWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "d09de8417ed7028697929f269d0242a54228fca39a7d824845442bf348619259",
+    "skills": [
+      "paper-screening"
+    ],
+    "state_keys": [
+      "candidate_papers",
+      "document_refs",
+      "research_question"
+    ],
+    "input_hash": "1b5d46b06c3716c89b1a5be833bb08546d0240b665135cd84e9f7f75c63d359d",
+    "active": 1,
+    "event_hash": "f1902e2d61be98342e52c654719e5ad5911bbaf68308ecb03755a125c7be7cd5"
+  },
+  {
+    "sequence": 51,
+    "timestamp": "2026-09-20T12:41:42.881006+00:00",
+    "action": "worker.completed",
+    "worker": "ScreeningWorker:13",
+    "role": "ScreeningWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "f1902e2d61be98342e52c654719e5ad5911bbaf68308ecb03755a125c7be7cd5",
+    "output_hash": "7b3a4e1a763cc94e0d621f4c7ab718ae96a56f4e5cbee318f8bef6fcba698e9a",
+    "state_keys": [
+      "screened_papers"
+    ],
+    "status": "ok",
+    "event_hash": "8fad5e0d1f2a329fbe73dd67b696450c2abb1c1a127e6abd66b50d056d27cf74"
+  },
+  {
+    "sequence": 52,
+    "timestamp": "2026-09-20T12:41:42.881048+00:00",
+    "action": "worker.started",
+    "worker": "ScreeningWorker:14",
+    "role": "ScreeningWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "8fad5e0d1f2a329fbe73dd67b696450c2abb1c1a127e6abd66b50d056d27cf74",
+    "skills": [
+      "paper-screening"
+    ],
+    "state_keys": [
+      "candidate_papers",
+      "document_refs",
+      "research_question"
+    ],
+    "input_hash": "776a6928f1c6f5c72e7b52ec0bbb92c98b4a8693f6ae6e0457b2468d77bb52af",
+    "active": 1,
+    "event_hash": "93296552d1c345382b8a76fbcfaee0fba6a4cbf952ac6b6a83ae8da49770a468"
+  },
+  {
+    "sequence": 53,
+    "timestamp": "2026-09-20T12:41:42.881352+00:00",
+    "action": "worker.completed",
+    "worker": "ScreeningWorker:14",
+    "role": "ScreeningWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "93296552d1c345382b8a76fbcfaee0fba6a4cbf952ac6b6a83ae8da49770a468",
+    "output_hash": "d581cf85f9dbe51284976523f26d357ffe52b817cd9aec6e0435b8c11f878adb",
+    "state_keys": [
+      "screened_papers"
+    ],
+    "status": "ok",
+    "event_hash": "27f690e3e76b819f2f3331a897c26e428cd7410e4c5b3b1a7c57e43e41f1bcf5"
+  },
+  {
+    "sequence": 54,
+    "timestamp": "2026-09-20T12:41:42.881394+00:00",
+    "action": "worker.started",
+    "worker": "ScreeningWorker:15",
+    "role": "ScreeningWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "27f690e3e76b819f2f3331a897c26e428cd7410e4c5b3b1a7c57e43e41f1bcf5",
+    "skills": [
+      "paper-screening"
+    ],
+    "state_keys": [
+      "candidate_papers",
+      "document_refs",
+      "research_question"
+    ],
+    "input_hash": "4a896f3e43cb01e39039fe5a3329a77a8ef7ada843ff8fca03c0b0c26488fc02",
+    "active": 1,
+    "event_hash": "a3187606de98ee4e8ec4ea9ed0f3cf5c653a16d8b96203f3c55cba410396a8bd"
+  },
+  {
+    "sequence": 55,
+    "timestamp": "2026-09-20T12:41:42.881472+00:00",
+    "action": "worker.completed",
+    "worker": "ScreeningWorker:15",
+    "role": "ScreeningWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "a3187606de98ee4e8ec4ea9ed0f3cf5c653a16d8b96203f3c55cba410396a8bd",
+    "output_hash": "0a0427e648a50ecec9dc68f39359a2d95462d062b39fd206dfc95d46622b0190",
+    "state_keys": [
+      "screened_papers"
+    ],
+    "status": "ok",
+    "event_hash": "78e470115a29e19028d16a744fad5fbc776ef28d472edd5d27c9770fadb1ff52"
+  },
+  {
+    "sequence": 56,
+    "timestamp": "2026-09-20T12:41:42.881516+00:00",
+    "action": "worker.started",
+    "worker": "ScreeningWorker:16",
+    "role": "ScreeningWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "78e470115a29e19028d16a744fad5fbc776ef28d472edd5d27c9770fadb1ff52",
+    "skills": [
+      "paper-screening"
+    ],
+    "state_keys": [
+      "candidate_papers",
+      "document_refs",
+      "research_question"
+    ],
+    "input_hash": "449a8eff2a369d8e8158a8c6bc8cfd8915c5724bed8c8978da74eb0c726deb40",
+    "active": 1,
+    "event_hash": "9474f5eff116f42ee3928ddb49115f2eab2c39d4523528fe2e4ac99fb1445225"
+  },
+  {
+    "sequence": 57,
+    "timestamp": "2026-09-20T12:41:42.881636+00:00",
+    "action": "worker.completed",
+    "worker": "ScreeningWorker:16",
+    "role": "ScreeningWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "9474f5eff116f42ee3928ddb49115f2eab2c39d4523528fe2e4ac99fb1445225",
+    "output_hash": "85801d19141aad8aa5e106db4741014caadb516523f7b92589daf04da8ea67e8",
+    "state_keys": [
+      "screened_papers"
+    ],
+    "status": "ok",
+    "event_hash": "8168cd2561243b9aabe0c8f4e68daf4857ac65494e7fb8848f2cbd802d72531c"
+  },
+  {
+    "sequence": 58,
+    "timestamp": "2026-09-20T12:41:42.881674+00:00",
+    "action": "worker.started",
+    "worker": "ScreeningWorker:17",
+    "role": "ScreeningWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "8168cd2561243b9aabe0c8f4e68daf4857ac65494e7fb8848f2cbd802d72531c",
+    "skills": [
+      "paper-screening"
+    ],
+    "state_keys": [
+      "candidate_papers",
+      "document_refs",
+      "research_question"
+    ],
+    "input_hash": "1d95ae83079b6d056694fc5f1d8de50db9b2142859533e54131e0024f95eb790",
+    "active": 1,
+    "event_hash": "18380e79361256ce774eaeb7c9a19947e8fbbc8475618e2b72e9dfd79545b98d"
+  },
+  {
+    "sequence": 59,
+    "timestamp": "2026-09-20T12:41:42.881761+00:00",
+    "action": "worker.completed",
+    "worker": "ScreeningWorker:17",
+    "role": "ScreeningWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "18380e79361256ce774eaeb7c9a19947e8fbbc8475618e2b72e9dfd79545b98d",
+    "output_hash": "da60fd87f5d529bd25ba90f4a9d484326d8f26107b28299de81d1de7dbdf130b",
+    "state_keys": [
+      "screened_papers"
+    ],
+    "status": "ok",
+    "event_hash": "3a719ef4d12f50da89d1ba07a79baf063f7c580f4a05d1716e81b1a4f480de62"
+  },
+  {
+    "sequence": 60,
+    "timestamp": "2026-09-20T12:41:42.881818+00:00",
+    "action": "worker.started",
+    "worker": "ScreeningWorker:18",
+    "role": "ScreeningWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "3a719ef4d12f50da89d1ba07a79baf063f7c580f4a05d1716e81b1a4f480de62",
+    "skills": [
+      "paper-screening"
+    ],
+    "state_keys": [
+      "candidate_papers",
+      "document_refs",
+      "research_question"
+    ],
+    "input_hash": "08d8eb226777977ade412571419d3d70b8b6148ff2b7aca062fb98365f6f7ba0",
+    "active": 1,
+    "event_hash": "58745176f4016c5041fb6e0b479446bd07dac09ea3d11800436edd2219ea70b4"
+  },
+  {
+    "sequence": 61,
+    "timestamp": "2026-09-20T12:41:42.881936+00:00",
+    "action": "worker.completed",
+    "worker": "ScreeningWorker:18",
+    "role": "ScreeningWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "58745176f4016c5041fb6e0b479446bd07dac09ea3d11800436edd2219ea70b4",
+    "output_hash": "45b9c5f336c8a7d44a5f7c94256d098b6871035527a858076aa2defdba5b1692",
+    "state_keys": [
+      "screened_papers"
+    ],
+    "status": "ok",
+    "event_hash": "45743e55a122108681702d6d613111be0eb77958928e8ad6146e6d69bbc88b7e"
+  },
+  {
+    "sequence": 62,
+    "timestamp": "2026-09-20T12:41:42.881975+00:00",
+    "action": "worker.started",
+    "worker": "ScreeningWorker:19",
+    "role": "ScreeningWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "45743e55a122108681702d6d613111be0eb77958928e8ad6146e6d69bbc88b7e",
+    "skills": [
+      "paper-screening"
+    ],
+    "state_keys": [
+      "candidate_papers",
+      "document_refs",
+      "research_question"
+    ],
+    "input_hash": "945091ea6e2f8aec5bcb5864e4efe06929402127bc470af52ed0a165a6cdd7fb",
+    "active": 1,
+    "event_hash": "a0fb2f67655dddd38d0602e2eeaa3f94e350cbb539cdb959e527054a554e5f6f"
+  },
+  {
+    "sequence": 63,
+    "timestamp": "2026-09-20T12:41:42.882076+00:00",
+    "action": "worker.completed",
+    "worker": "ScreeningWorker:19",
+    "role": "ScreeningWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "a0fb2f67655dddd38d0602e2eeaa3f94e350cbb539cdb959e527054a554e5f6f",
+    "output_hash": "28471b0fbc3dda38b53af1b3b29d948ce6eeaa3d86c6bd4c8f8ec02bab6e5a90",
+    "state_keys": [
+      "screened_papers"
+    ],
+    "status": "ok",
+    "event_hash": "8561233612b26cc88391ffbb91653b96b22e3f2b01850e869a72aaf457eaed40"
+  },
+  {
+    "sequence": 64,
+    "timestamp": "2026-09-20T12:41:42.882109+00:00",
+    "action": "worker.started",
+    "worker": "ScreeningWorker:20",
+    "role": "ScreeningWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "8561233612b26cc88391ffbb91653b96b22e3f2b01850e869a72aaf457eaed40",
+    "skills": [
+      "paper-screening"
+    ],
+    "state_keys": [
+      "candidate_papers",
+      "document_refs",
+      "research_question"
+    ],
+    "input_hash": "05fbeeee504b3aa678809146f5e9ddf55f82aa0da9f40bf10607d209290b34fc",
+    "active": 1,
+    "event_hash": "cdba125b8ba6e2013ffd1e985d848c33759b8213bd7a000a7b803a28bde49468"
+  },
+  {
+    "sequence": 65,
+    "timestamp": "2026-09-20T12:41:42.882165+00:00",
+    "action": "worker.completed",
+    "worker": "ScreeningWorker:20",
+    "role": "ScreeningWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "cdba125b8ba6e2013ffd1e985d848c33759b8213bd7a000a7b803a28bde49468",
+    "output_hash": "17e46e1dd38685070662247f1366ed49aecb5fe5a86d89744dd49a6b7c6a65ad",
+    "state_keys": [
+      "screened_papers"
+    ],
+    "status": "ok",
+    "event_hash": "5dcc2ebd2c9de35c11aa275ddba5799e0ce1423f984eae3c73188e6b63eeb4af"
+  },
+  {
+    "sequence": 66,
+    "timestamp": "2026-09-20T12:41:42.882195+00:00",
+    "action": "worker.started",
+    "worker": "ScreeningWorker:21",
+    "role": "ScreeningWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "5dcc2ebd2c9de35c11aa275ddba5799e0ce1423f984eae3c73188e6b63eeb4af",
+    "skills": [
+      "paper-screening"
+    ],
+    "state_keys": [
+      "candidate_papers",
+      "document_refs",
+      "research_question"
+    ],
+    "input_hash": "a5ed2cfc4fb20957cbfcf3a4aad1b182e35a1ab69490037cb45844c3ba05d1ff",
+    "active": 1,
+    "event_hash": "7fa54dd590826decc98269b9f8f915542aadc74856d799597f85010a4e23db03"
+  },
+  {
+    "sequence": 67,
+    "timestamp": "2026-09-20T12:41:42.882251+00:00",
+    "action": "worker.completed",
+    "worker": "ScreeningWorker:21",
+    "role": "ScreeningWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "7fa54dd590826decc98269b9f8f915542aadc74856d799597f85010a4e23db03",
+    "output_hash": "bd0fbe64db29eacae558dcf9f3c92f89aa19ceb8a7a3a6116dea493372852a36",
+    "state_keys": [
+      "screened_papers"
+    ],
+    "status": "ok",
+    "event_hash": "46e149dd3c128f9a99a16490af9ac60dfdbf3b54e1d4d278025a57942dba49bd"
+  },
+  {
+    "sequence": 68,
+    "timestamp": "2026-09-20T12:41:42.882290+00:00",
+    "action": "worker.started",
+    "worker": "ScreeningWorker:22",
+    "role": "ScreeningWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "46e149dd3c128f9a99a16490af9ac60dfdbf3b54e1d4d278025a57942dba49bd",
+    "skills": [
+      "paper-screening"
+    ],
+    "state_keys": [
+      "candidate_papers",
+      "document_refs",
+      "research_question"
+    ],
+    "input_hash": "f7aea8b295a6b106b66c2c525bd650b8079dc6432d5d75685a4ab5a02e736033",
+    "active": 1,
+    "event_hash": "1d1227777578aa1a5c5bdd45864c910235655d7440c7b909129acbc8a63a4435"
+  },
+  {
+    "sequence": 69,
+    "timestamp": "2026-09-20T12:41:42.882416+00:00",
+    "action": "worker.completed",
+    "worker": "ScreeningWorker:22",
+    "role": "ScreeningWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "1d1227777578aa1a5c5bdd45864c910235655d7440c7b909129acbc8a63a4435",
+    "output_hash": "72d6496f714200a022f88ebee3ba3e238904d8144d6aa615109b655ea854e095",
+    "state_keys": [
+      "screened_papers"
+    ],
+    "status": "ok",
+    "event_hash": "f7cc2d6af9f565ae58c78694fbfaa0cb83190a757287b0431bcd2673732fa509"
+  },
+  {
+    "sequence": 70,
+    "timestamp": "2026-09-20T12:41:42.882465+00:00",
+    "action": "worker.started",
+    "worker": "ScreeningWorker:23",
+    "role": "ScreeningWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "f7cc2d6af9f565ae58c78694fbfaa0cb83190a757287b0431bcd2673732fa509",
+    "skills": [
+      "paper-screening"
+    ],
+    "state_keys": [
+      "candidate_papers",
+      "document_refs",
+      "research_question"
+    ],
+    "input_hash": "cda6691808ebb8bd45251a0341b3f87b434802327dea83e6bdd6addcb5cd02c9",
+    "active": 1,
+    "event_hash": "46a2c64b9d248bcdd57e4ecd19a71fbc0a75ea77dcfb3683e6b5fa5bb31e4806"
+  },
+  {
+    "sequence": 71,
+    "timestamp": "2026-09-20T12:41:42.882519+00:00",
+    "action": "worker.completed",
+    "worker": "ScreeningWorker:23",
+    "role": "ScreeningWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "46a2c64b9d248bcdd57e4ecd19a71fbc0a75ea77dcfb3683e6b5fa5bb31e4806",
+    "output_hash": "05127d194bb3499026dcdf7aa754d8edbc0b6f47104504f861bfb3863a67fab1",
+    "state_keys": [
+      "screened_papers"
+    ],
+    "status": "ok",
+    "event_hash": "8a576e41a181123a0fda33a33caa84c22f04b60577b0ffaf075171485e515d43"
+  },
+  {
+    "sequence": 72,
+    "timestamp": "2026-09-20T12:41:42.882546+00:00",
+    "action": "worker.started",
+    "worker": "ScreeningWorker:24",
+    "role": "ScreeningWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "8a576e41a181123a0fda33a33caa84c22f04b60577b0ffaf075171485e515d43",
+    "skills": [
+      "paper-screening"
+    ],
+    "state_keys": [
+      "candidate_papers",
+      "document_refs",
+      "research_question"
+    ],
+    "input_hash": "6771c09ea1a976c49912b8b9c531b6331809951398d94b575c16385b75775a29",
+    "active": 1,
+    "event_hash": "b8e50e4ee144d66ec450d6202b5a56ba2cfde4a6a96e4b74acf8b50d5895832d"
+  },
+  {
+    "sequence": 73,
+    "timestamp": "2026-09-20T12:41:42.882653+00:00",
+    "action": "worker.completed",
+    "worker": "ScreeningWorker:24",
+    "role": "ScreeningWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "b8e50e4ee144d66ec450d6202b5a56ba2cfde4a6a96e4b74acf8b50d5895832d",
+    "output_hash": "aac30d57bac546a4851e4a555cb6b66a2fe2d69a7e189a9cc7928e2488175ac2",
+    "state_keys": [
+      "screened_papers"
+    ],
+    "status": "ok",
+    "event_hash": "2127f3818fb6cc0eac2b17f7bcee88409b768a227cb1fd9826532537ab9bfb2d"
+  },
+  {
+    "sequence": 74,
+    "timestamp": "2026-09-20T12:41:42.882713+00:00",
+    "action": "worker.started",
+    "worker": "ScreeningWorker:25",
+    "role": "ScreeningWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "2127f3818fb6cc0eac2b17f7bcee88409b768a227cb1fd9826532537ab9bfb2d",
+    "skills": [
+      "paper-screening"
+    ],
+    "state_keys": [
+      "candidate_papers",
+      "document_refs",
+      "research_question"
+    ],
+    "input_hash": "3c3f49a7e87d09ec65bf431db758a354f46472037db54e62a3087ca55cfa43a5",
+    "active": 1,
+    "event_hash": "8292635100aa86b9c9fdce553997214723e7554e9326d6097a463253aeea48c9"
+  },
+  {
+    "sequence": 75,
+    "timestamp": "2026-09-20T12:41:42.882845+00:00",
+    "action": "worker.completed",
+    "worker": "ScreeningWorker:25",
+    "role": "ScreeningWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "8292635100aa86b9c9fdce553997214723e7554e9326d6097a463253aeea48c9",
+    "output_hash": "bc1bd94c77661d14b00cbaf9e1955be5eb236cb73b414c018b7e428692180ddd",
+    "state_keys": [
+      "screened_papers"
+    ],
+    "status": "ok",
+    "event_hash": "d30937c3f1fa8ce89a68db7b3320e1bfe6f8bd84858b2a4d0461282b05148cb2"
+  },
+  {
+    "sequence": 76,
+    "timestamp": "2026-09-20T12:41:42.882911+00:00",
+    "action": "worker.started",
+    "worker": "ScreeningWorker:26",
+    "role": "ScreeningWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "d30937c3f1fa8ce89a68db7b3320e1bfe6f8bd84858b2a4d0461282b05148cb2",
+    "skills": [
+      "paper-screening"
+    ],
+    "state_keys": [
+      "candidate_papers",
+      "document_refs",
+      "research_question"
+    ],
+    "input_hash": "fd048bacd51e6387aa606f0204e0feeadd207d43d0bb3e683daa2c42a8f5f747",
+    "active": 1,
+    "event_hash": "163ae900ecb2aafdca73a1157c61e9d8595e7a258b33086915a502ce7e2ad53a"
+  },
+  {
+    "sequence": 77,
+    "timestamp": "2026-09-20T12:41:42.883034+00:00",
+    "action": "worker.completed",
+    "worker": "ScreeningWorker:26",
+    "role": "ScreeningWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "163ae900ecb2aafdca73a1157c61e9d8595e7a258b33086915a502ce7e2ad53a",
+    "output_hash": "e4346db440ad003886aa82339a7d7e0c965ed426ef9013e4196a61deced36b09",
+    "state_keys": [
+      "screened_papers"
+    ],
+    "status": "ok",
+    "event_hash": "a06c3113d5e534b082d389a3f9aceecf01a759edcc2be3d9e9aac4f9c6112825"
+  },
+  {
+    "sequence": 78,
+    "timestamp": "2026-09-20T12:41:42.883098+00:00",
+    "action": "worker.started",
+    "worker": "ScreeningWorker:27",
+    "role": "ScreeningWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "a06c3113d5e534b082d389a3f9aceecf01a759edcc2be3d9e9aac4f9c6112825",
+    "skills": [
+      "paper-screening"
+    ],
+    "state_keys": [
+      "candidate_papers",
+      "document_refs",
+      "research_question"
+    ],
+    "input_hash": "c1d48544c9e54d555ce7440b78b0a64a561be24f306131fa362d6d39217974ef",
+    "active": 1,
+    "event_hash": "48cb22f4b44c24414f060993bedced6da5f6f4ab476428d2a1977ee04d1a2cf6"
+  },
+  {
+    "sequence": 79,
+    "timestamp": "2026-09-20T12:41:42.883217+00:00",
+    "action": "worker.completed",
+    "worker": "ScreeningWorker:27",
+    "role": "ScreeningWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "48cb22f4b44c24414f060993bedced6da5f6f4ab476428d2a1977ee04d1a2cf6",
+    "output_hash": "dcfd6be45423569a270283dab699d67fe937c8af14a96f1344acb35dfefc77b9",
+    "state_keys": [
+      "screened_papers"
+    ],
+    "status": "ok",
+    "event_hash": "16fe4331ac2cdf49af7acf7379dcc75711af633730052126a72cdb7487af6a1a"
+  },
+  {
+    "sequence": 80,
+    "timestamp": "2026-09-20T12:41:42.883281+00:00",
+    "action": "worker.started",
+    "worker": "ScreeningWorker:28",
+    "role": "ScreeningWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "16fe4331ac2cdf49af7acf7379dcc75711af633730052126a72cdb7487af6a1a",
+    "skills": [
+      "paper-screening"
+    ],
+    "state_keys": [
+      "candidate_papers",
+      "document_refs",
+      "research_question"
+    ],
+    "input_hash": "e68cdad6d62fe7bae886059ddbc5e46f4e15c6185f94f7ef86753fe4cfefa2ed",
+    "active": 1,
+    "event_hash": "6561c9f7cc42d81a639696be67bc456a2b7b6b065551f194226adc087d8ea80a"
+  },
+  {
+    "sequence": 81,
+    "timestamp": "2026-09-20T12:41:42.883399+00:00",
+    "action": "worker.completed",
+    "worker": "ScreeningWorker:28",
+    "role": "ScreeningWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "6561c9f7cc42d81a639696be67bc456a2b7b6b065551f194226adc087d8ea80a",
+    "output_hash": "0e6e1efc48d0dc1821c7fe75dd8651852ce8a2fcbe44921e7c8565aa4aaaba23",
+    "state_keys": [
+      "screened_papers"
+    ],
+    "status": "ok",
+    "event_hash": "e11908bafb827613e5d27089d3c4a74ec83bbf8fde416dac9d3b1972f6315998"
+  },
+  {
+    "sequence": 82,
+    "timestamp": "2026-09-20T12:41:42.883494+00:00",
+    "action": "stage.completed",
+    "worker": "coordinator",
+    "role": "LiteratureReviewCoordinator",
+    "parent": null,
+    "depth": 0,
+    "previous_hash": "e11908bafb827613e5d27089d3c4a74ec83bbf8fde416dac9d3b1972f6315998",
+    "stage": "screening",
+    "merge": "append",
+    "worker_count": 20,
+    "synthetic": false,
+    "event_hash": "234fb256cb7388bb521523aadb0bb6e2aca8370ab6af58b91ea381f7483c46f0"
+  },
+  {
+    "sequence": 83,
+    "timestamp": "2026-09-20T12:41:42.884588+00:00",
+    "action": "worker.started",
+    "worker": "CitationWorker:29",
+    "role": "CitationWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "234fb256cb7388bb521523aadb0bb6e2aca8370ab6af58b91ea381f7483c46f0",
+    "skills": [
+      "citation-resolution"
+    ],
+    "state_keys": [
+      "candidate_papers"
+    ],
+    "input_hash": "078e6c27bcca4df23bdea8c0668a6b61f4ce744db8a0641a5b4a13c85abc07a3",
+    "active": 1,
+    "event_hash": "7f3d8852441f5bafaf33b62fd1d078f1b1e5d32117678f0f677dd1c4a25d0513"
+  },
+  {
+    "sequence": 84,
+    "timestamp": "2026-09-20T12:41:42.885204+00:00",
+    "action": "tool.called",
+    "worker": "CitationWorker:29",
+    "role": "CitationWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "7f3d8852441f5bafaf33b62fd1d078f1b1e5d32117678f0f677dd1c4a25d0513",
+    "tool": "citation-resolver",
+    "binding": "citation.resolve",
+    "permissions": [
+      "network.citations"
+    ],
+    "domains": [
+      "webagents-citation-resolver-production.up.railway.app"
+    ],
+    "input_hash": "b37728838f7ccef8a23a3e816badcdb48839651b89a5febf4fa6e9465344501e",
+    "remote_calls": 8,
+    "event_hash": "873bd37daed01a3236bc2fe29a0c8f296875f7a22a4b3e183710357951f6a55e"
+  },
+  {
+    "sequence": 85,
+    "timestamp": "2026-09-20T12:41:42.885252+00:00",
+    "action": "network.requested",
+    "worker": "CitationWorker:29",
+    "role": "CitationWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "873bd37daed01a3236bc2fe29a0c8f296875f7a22a4b3e183710357951f6a55e",
+    "tool": "citation-resolver",
+    "domain": "webagents-citation-resolver-production.up.railway.app",
+    "method": "POST",
+    "event_hash": "b7be7eae32693abde25ec51169b17b9d7ed2fc027cfd132cf4338615e40f8f73"
+  },
+  {
+    "sequence": 86,
+    "timestamp": "2026-09-20T12:41:42.887481+00:00",
+    "action": "worker.started",
+    "worker": "CitationWorker:30",
+    "role": "CitationWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "b7be7eae32693abde25ec51169b17b9d7ed2fc027cfd132cf4338615e40f8f73",
+    "skills": [
+      "citation-resolution"
+    ],
+    "state_keys": [
+      "candidate_papers"
+    ],
+    "input_hash": "320b271e79e96547cd14a8265c7ecf7e59b4d2dd90570faf21d1c40c3d892aad",
+    "active": 2,
+    "event_hash": "6f376c6071a1a7c99e051df34ddb0899ee90146cdcae1508c6f04d62b90c2ba3"
+  },
+  {
+    "sequence": 87,
+    "timestamp": "2026-09-20T12:41:42.888345+00:00",
+    "action": "tool.called",
+    "worker": "CitationWorker:30",
+    "role": "CitationWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "6f376c6071a1a7c99e051df34ddb0899ee90146cdcae1508c6f04d62b90c2ba3",
+    "tool": "citation-resolver",
+    "binding": "citation.resolve",
+    "permissions": [
+      "network.citations"
+    ],
+    "domains": [
+      "webagents-citation-resolver-production.up.railway.app"
+    ],
+    "input_hash": "1ed81cdc24592cdf9ad5cc155a36237c2a7080387222ad0bacc554a6ee17c6ed",
+    "remote_calls": 9,
+    "event_hash": "a7ba584e2926ca6b7a453337794b472ffb1d300a3ea26f4d4dc27e41d5ee5b05"
+  },
+  {
+    "sequence": 88,
+    "timestamp": "2026-09-20T12:41:42.888435+00:00",
+    "action": "network.requested",
+    "worker": "CitationWorker:30",
+    "role": "CitationWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "a7ba584e2926ca6b7a453337794b472ffb1d300a3ea26f4d4dc27e41d5ee5b05",
+    "tool": "citation-resolver",
+    "domain": "webagents-citation-resolver-production.up.railway.app",
+    "method": "POST",
+    "event_hash": "771247739738adb1f28a4f90e912a9ed1a4e1987e2cf892fda5238968266b1d7"
+  },
+  {
+    "sequence": 89,
+    "timestamp": "2026-09-20T12:41:42.890046+00:00",
+    "action": "worker.started",
+    "worker": "CitationWorker:31",
+    "role": "CitationWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "771247739738adb1f28a4f90e912a9ed1a4e1987e2cf892fda5238968266b1d7",
+    "skills": [
+      "citation-resolution"
+    ],
+    "state_keys": [
+      "candidate_papers"
+    ],
+    "input_hash": "d0767096faf70120be424a0f3e5a2c1c13e2288c6d34ef8e409c123033820d90",
+    "active": 3,
+    "event_hash": "8d08d7d07a4781a376829700e768deb4b6226af781b82b099d62a07a95dbb3b9"
+  },
+  {
+    "sequence": 90,
+    "timestamp": "2026-09-20T12:41:42.890869+00:00",
+    "action": "tool.called",
+    "worker": "CitationWorker:31",
+    "role": "CitationWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "8d08d7d07a4781a376829700e768deb4b6226af781b82b099d62a07a95dbb3b9",
+    "tool": "citation-resolver",
+    "binding": "citation.resolve",
+    "permissions": [
+      "network.citations"
+    ],
+    "domains": [
+      "webagents-citation-resolver-production.up.railway.app"
+    ],
+    "input_hash": "eeb48090c0cb7dccb8dd6db1e1f6acc4d8507461c4a248142513921f0195f984",
+    "remote_calls": 10,
+    "event_hash": "c4a957b9865651bbacb5f9b53f5a0ffbdeddfbb916ed584867bf7c7b16628c80"
+  },
+  {
+    "sequence": 91,
+    "timestamp": "2026-09-20T12:41:42.890931+00:00",
+    "action": "network.requested",
+    "worker": "CitationWorker:31",
+    "role": "CitationWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "c4a957b9865651bbacb5f9b53f5a0ffbdeddfbb916ed584867bf7c7b16628c80",
+    "tool": "citation-resolver",
+    "domain": "webagents-citation-resolver-production.up.railway.app",
+    "method": "POST",
+    "event_hash": "e47324ab49e9fe026bd9a6a08128bb4cc283800d040e2d4203a36ecc9bad3b94"
+  },
+  {
+    "sequence": 92,
+    "timestamp": "2026-09-20T12:41:44.159942+00:00",
+    "action": "tool.completed",
+    "worker": "CitationWorker:30",
+    "role": "CitationWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "e47324ab49e9fe026bd9a6a08128bb4cc283800d040e2d4203a36ecc9bad3b94",
+    "tool": "citation-resolver",
+    "result_hash": "b102d53ed3344d3134be208365f8de017b1f7c95e023b77e9a579d8ae419b252",
+    "status": "resolved",
+    "event_hash": "2e3c2cdd816a4084333401d95d3643be1dc19e2f4a040e03a8f220becc7da37d"
+  },
+  {
+    "sequence": 93,
+    "timestamp": "2026-09-20T12:41:44.160196+00:00",
+    "action": "worker.completed",
+    "worker": "CitationWorker:30",
+    "role": "CitationWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "2e3c2cdd816a4084333401d95d3643be1dc19e2f4a040e03a8f220becc7da37d",
+    "output_hash": "2c7288388c5dc1e3cf5d50faff00e51bc0b01ca738d8c8465b61ff5580a32f11",
+    "state_keys": [
+      "citation_records",
+      "unresolved"
+    ],
+    "status": "ok",
+    "event_hash": "5c10618318e8237cde4acd4a2dba82d6391a8601a375a3f48b50ea0a8b7d0197"
+  },
+  {
+    "sequence": 94,
+    "timestamp": "2026-09-20T12:41:44.160430+00:00",
+    "action": "worker.started",
+    "worker": "CitationWorker:32",
+    "role": "CitationWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "5c10618318e8237cde4acd4a2dba82d6391a8601a375a3f48b50ea0a8b7d0197",
+    "skills": [
+      "citation-resolution"
+    ],
+    "state_keys": [
+      "candidate_papers"
+    ],
+    "input_hash": "3cb50c4a3776c3a8a72d5352f65c34f72865dc0f686136974f1e116ee29c669c",
+    "active": 3,
+    "event_hash": "fb054932338c5f3ebd97210e41be857b1765a7dd0f73cea9899dd509437459fe"
+  },
+  {
+    "sequence": 95,
+    "timestamp": "2026-09-20T12:41:44.161407+00:00",
+    "action": "tool.called",
+    "worker": "CitationWorker:32",
+    "role": "CitationWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "fb054932338c5f3ebd97210e41be857b1765a7dd0f73cea9899dd509437459fe",
+    "tool": "citation-resolver",
+    "binding": "citation.resolve",
+    "permissions": [
+      "network.citations"
+    ],
+    "domains": [
+      "webagents-citation-resolver-production.up.railway.app"
+    ],
+    "input_hash": "676634c063fdc14c685be46583cc4804085a0bdc6aa69f1b5ba32c5c2898ae5e",
+    "remote_calls": 11,
+    "event_hash": "37d5dfda9cacbcf2d3c9304db86b3511468e3a37062f7ff3a413ec5b66c98b6d"
+  },
+  {
+    "sequence": 96,
+    "timestamp": "2026-09-20T12:41:44.161499+00:00",
+    "action": "network.requested",
+    "worker": "CitationWorker:32",
+    "role": "CitationWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "37d5dfda9cacbcf2d3c9304db86b3511468e3a37062f7ff3a413ec5b66c98b6d",
+    "tool": "citation-resolver",
+    "domain": "webagents-citation-resolver-production.up.railway.app",
+    "method": "POST",
+    "event_hash": "b842152cb39692d2952545af8b805d71bbd57b313c4b7ef5a1e927ccf0f26f10"
+  },
+  {
+    "sequence": 97,
+    "timestamp": "2026-09-20T12:41:44.166444+00:00",
+    "action": "tool.completed",
+    "worker": "CitationWorker:29",
+    "role": "CitationWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "b842152cb39692d2952545af8b805d71bbd57b313c4b7ef5a1e927ccf0f26f10",
+    "tool": "citation-resolver",
+    "result_hash": "293e1d19e4476cf53c7bfccde5aeb4640bb21579661a51cfe158b3be6fac718a",
+    "status": "resolved",
+    "event_hash": "4414132be51526de2be83bf97eeaee30f093a0d98333fbcab5312ffea7910ec2"
+  },
+  {
+    "sequence": 98,
+    "timestamp": "2026-09-20T12:41:44.166652+00:00",
+    "action": "worker.completed",
+    "worker": "CitationWorker:29",
+    "role": "CitationWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "4414132be51526de2be83bf97eeaee30f093a0d98333fbcab5312ffea7910ec2",
+    "output_hash": "30cac927dc5a5bb29ffda24fe76f056e44120e60ac81383050a39a2cdd52a83b",
+    "state_keys": [
+      "citation_records",
+      "unresolved"
+    ],
+    "status": "ok",
+    "event_hash": "cb745da9c4d1803d71c5b23c17eb80af4939f6b36d3e283d6b47e8ad2aa0b1d0"
+  },
+  {
+    "sequence": 99,
+    "timestamp": "2026-09-20T12:41:44.166894+00:00",
+    "action": "worker.started",
+    "worker": "CitationWorker:33",
+    "role": "CitationWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "cb745da9c4d1803d71c5b23c17eb80af4939f6b36d3e283d6b47e8ad2aa0b1d0",
+    "skills": [
+      "citation-resolution"
+    ],
+    "state_keys": [
+      "candidate_papers"
+    ],
+    "input_hash": "e92c885ad310ff3ff09d1dc66e7094919e05ac08bc6442465545de3ee8892b14",
+    "active": 3,
+    "event_hash": "7b3d92f21aec9716999ea5071e95dded916ef59379f87997d8bb38b7de053e0a"
+  },
+  {
+    "sequence": 100,
+    "timestamp": "2026-09-20T12:41:44.167830+00:00",
+    "action": "tool.called",
+    "worker": "CitationWorker:33",
+    "role": "CitationWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "7b3d92f21aec9716999ea5071e95dded916ef59379f87997d8bb38b7de053e0a",
+    "tool": "citation-resolver",
+    "binding": "citation.resolve",
+    "permissions": [
+      "network.citations"
+    ],
+    "domains": [
+      "webagents-citation-resolver-production.up.railway.app"
+    ],
+    "input_hash": "29f53a4cea1682a78a72f4d1911ce3835446ea1e1f8a5879c14b643a08663e81",
+    "remote_calls": 12,
+    "event_hash": "5b0a41a7a6fdcb88b55cc4210b1cff833fa9c6831271692e341c7d3cd68c8bd9"
+  },
+  {
+    "sequence": 101,
+    "timestamp": "2026-09-20T12:41:44.167922+00:00",
+    "action": "network.requested",
+    "worker": "CitationWorker:33",
+    "role": "CitationWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "5b0a41a7a6fdcb88b55cc4210b1cff833fa9c6831271692e341c7d3cd68c8bd9",
+    "tool": "citation-resolver",
+    "domain": "webagents-citation-resolver-production.up.railway.app",
+    "method": "POST",
+    "event_hash": "21dfd23a2e28a47aa1b2a5c65e44ead850ccafa6730c76cd4a3f2baae386b34d"
+  },
+  {
+    "sequence": 102,
+    "timestamp": "2026-09-20T12:41:44.172548+00:00",
+    "action": "tool.completed",
+    "worker": "CitationWorker:31",
+    "role": "CitationWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "21dfd23a2e28a47aa1b2a5c65e44ead850ccafa6730c76cd4a3f2baae386b34d",
+    "tool": "citation-resolver",
+    "result_hash": "b3ea8cfd328a4dded5255a997d76f40ea54ba55303cfdeee151c430d5363b0be",
+    "status": "resolved",
+    "event_hash": "5180d865fb64d5948f8dbd60188e376d40f20b0079b56de17f735f88e9c3751c"
+  },
+  {
+    "sequence": 103,
+    "timestamp": "2026-09-20T12:41:44.172774+00:00",
+    "action": "worker.completed",
+    "worker": "CitationWorker:31",
+    "role": "CitationWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "5180d865fb64d5948f8dbd60188e376d40f20b0079b56de17f735f88e9c3751c",
+    "output_hash": "0c5bab905ed0a9d887d3111aef6670df22ef0fec1e69698c44a90bfe5c60d2c1",
+    "state_keys": [
+      "citation_records",
+      "unresolved"
+    ],
+    "status": "ok",
+    "event_hash": "468dd02373928a99a3c7a7c4d185db6ac2be0cfeb48c4c0bd88903bed8e42e9c"
+  },
+  {
+    "sequence": 104,
+    "timestamp": "2026-09-20T12:41:45.259272+00:00",
+    "action": "tool.completed",
+    "worker": "CitationWorker:32",
+    "role": "CitationWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "468dd02373928a99a3c7a7c4d185db6ac2be0cfeb48c4c0bd88903bed8e42e9c",
+    "tool": "citation-resolver",
+    "result_hash": "d7e4b17f52d8c083ce94127811ee345f5543faecfe1649a5f5ef7d768ee5b4b5",
+    "status": "resolved",
+    "event_hash": "5ca36e76dfaf2f93ef9b182c6cc6b0073dd6c4e386c5e5be862bd261a4c98549"
+  },
+  {
+    "sequence": 105,
+    "timestamp": "2026-09-20T12:41:45.259510+00:00",
+    "action": "worker.completed",
+    "worker": "CitationWorker:32",
+    "role": "CitationWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "5ca36e76dfaf2f93ef9b182c6cc6b0073dd6c4e386c5e5be862bd261a4c98549",
+    "output_hash": "766ba42ec1960599334ce7296dc98b362a22baf865ba08ee1eea2ff2ae4d2fa2",
+    "state_keys": [
+      "citation_records",
+      "unresolved"
+    ],
+    "status": "ok",
+    "event_hash": "3a60b0a2deb8331882cadd3336dad63812693ac802172330bf268bc880de93ee"
+  },
+  {
+    "sequence": 106,
+    "timestamp": "2026-09-20T12:41:45.274801+00:00",
+    "action": "tool.completed",
+    "worker": "CitationWorker:33",
+    "role": "CitationWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "3a60b0a2deb8331882cadd3336dad63812693ac802172330bf268bc880de93ee",
+    "tool": "citation-resolver",
+    "result_hash": "cb9a312bf2b2fd12bbbc04438df6306d8608ae984ed910845c2474021c711703",
+    "status": "resolved",
+    "event_hash": "42c6bb7761eac11032ce587516611c409587df2ea6e3b149000483c19675a9fa"
+  },
+  {
+    "sequence": 107,
+    "timestamp": "2026-09-20T12:41:45.275004+00:00",
+    "action": "worker.completed",
+    "worker": "CitationWorker:33",
+    "role": "CitationWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "42c6bb7761eac11032ce587516611c409587df2ea6e3b149000483c19675a9fa",
+    "output_hash": "4f77baf484d0d67904fff5efb0be49b162710ab86b3fe5d85d6a5e243da826d8",
+    "state_keys": [
+      "citation_records",
+      "unresolved"
+    ],
+    "status": "ok",
+    "event_hash": "59e6318a9c8074a310993519d758815443f3efa9e712040eefb444bdf09dd7eb"
+  },
+  {
+    "sequence": 108,
+    "timestamp": "2026-09-20T12:41:45.275140+00:00",
+    "action": "stage.completed",
+    "worker": "coordinator",
+    "role": "LiteratureReviewCoordinator",
+    "parent": null,
+    "depth": 0,
+    "previous_hash": "59e6318a9c8074a310993519d758815443f3efa9e712040eefb444bdf09dd7eb",
+    "stage": "citations",
+    "merge": "append",
+    "worker_count": 5,
+    "synthetic": false,
+    "event_hash": "65707130eb3be093a570a3b5f8ec9fefd55b57cfe251b2839d9affd6c9afa841"
+  },
+  {
+    "sequence": 109,
+    "timestamp": "2026-09-20T12:41:45.276922+00:00",
+    "action": "worker.started",
+    "worker": "EvidenceWorker:34",
+    "role": "EvidenceWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "65707130eb3be093a570a3b5f8ec9fefd55b57cfe251b2839d9affd6c9afa841",
+    "skills": [
+      "evidence-extraction"
+    ],
+    "state_keys": [
+      "candidate_papers",
+      "citation_records",
+      "document_refs",
+      "research_question"
+    ],
+    "input_hash": "2864057273d6fcd020cb224806befca0a7490e3996eec573a085293dc2fdd2fa",
+    "active": 1,
+    "event_hash": "17e4dcdeb1dfbbb1e8da9d5bc1b06d31005f80f6255b1cf120a1def4ce4205a3"
+  },
+  {
+    "sequence": 110,
+    "timestamp": "2026-09-20T12:41:45.277505+00:00",
+    "action": "worker.completed",
+    "worker": "EvidenceWorker:34",
+    "role": "EvidenceWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "17e4dcdeb1dfbbb1e8da9d5bc1b06d31005f80f6255b1cf120a1def4ce4205a3",
+    "output_hash": "f532d17716b359a7cfb0c01e4ccf40c2e7cbb6a0659822d1f26435564e11011b",
+    "state_keys": [
+      "evidence_items",
+      "unresolved"
+    ],
+    "status": "ok",
+    "event_hash": "05b2fa0a47da6201d913d489984b4150ce6582ab057cd661b67f5beb58c32ab6"
+  },
+  {
+    "sequence": 111,
+    "timestamp": "2026-09-20T12:41:45.277687+00:00",
+    "action": "worker.started",
+    "worker": "EvidenceWorker:35",
+    "role": "EvidenceWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "05b2fa0a47da6201d913d489984b4150ce6582ab057cd661b67f5beb58c32ab6",
+    "skills": [
+      "evidence-extraction"
+    ],
+    "state_keys": [
+      "candidate_papers",
+      "citation_records",
+      "document_refs",
+      "research_question"
+    ],
+    "input_hash": "f3e251521edfd6f1e964cc69821cfa058b009c977cc40adffef725b0799b0297",
+    "active": 1,
+    "event_hash": "74610c4632a16832046b2123fcd584a66e06d8b9c10b315a5abf54187fc82131"
+  },
+  {
+    "sequence": 112,
+    "timestamp": "2026-09-20T12:41:45.278026+00:00",
+    "action": "worker.completed",
+    "worker": "EvidenceWorker:35",
+    "role": "EvidenceWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "74610c4632a16832046b2123fcd584a66e06d8b9c10b315a5abf54187fc82131",
+    "output_hash": "94ebc4ddecf3b41669a1f23f25f266f94e078f24a7d89422ba7293ff99b9f10b",
+    "state_keys": [
+      "evidence_items",
+      "unresolved"
+    ],
+    "status": "ok",
+    "event_hash": "cfbb53c3384a79a2baf7c85a7c9b5814b21ef4678607bdbc084d8a5dbcf119d4"
+  },
+  {
+    "sequence": 113,
+    "timestamp": "2026-09-20T12:41:45.278190+00:00",
+    "action": "worker.started",
+    "worker": "EvidenceWorker:36",
+    "role": "EvidenceWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "cfbb53c3384a79a2baf7c85a7c9b5814b21ef4678607bdbc084d8a5dbcf119d4",
+    "skills": [
+      "evidence-extraction"
+    ],
+    "state_keys": [
+      "candidate_papers",
+      "citation_records",
+      "document_refs",
+      "research_question"
+    ],
+    "input_hash": "83c5d419dda2615cbff96c0c9399828f72ee2c2ae4f1df6bdfe38261ac932ae7",
+    "active": 1,
+    "event_hash": "777033499b83e4b924f8ac95f99dd00ec846e812fc37ad77873e91731c691dd2"
+  },
+  {
+    "sequence": 114,
+    "timestamp": "2026-09-20T12:41:45.278481+00:00",
+    "action": "worker.completed",
+    "worker": "EvidenceWorker:36",
+    "role": "EvidenceWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "777033499b83e4b924f8ac95f99dd00ec846e812fc37ad77873e91731c691dd2",
+    "output_hash": "51cd9fe8de721519a14b45421cbccaf59d38004e378afc18f494b5df4ce59e69",
+    "state_keys": [
+      "evidence_items",
+      "unresolved"
+    ],
+    "status": "ok",
+    "event_hash": "75d432dbdcd596f4888fcf6a50d83ac39127d3b541b6f2e179e6df2f94c43651"
+  },
+  {
+    "sequence": 115,
+    "timestamp": "2026-09-20T12:41:45.278636+00:00",
+    "action": "worker.started",
+    "worker": "EvidenceWorker:37",
+    "role": "EvidenceWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "75d432dbdcd596f4888fcf6a50d83ac39127d3b541b6f2e179e6df2f94c43651",
+    "skills": [
+      "evidence-extraction"
+    ],
+    "state_keys": [
+      "candidate_papers",
+      "citation_records",
+      "document_refs",
+      "research_question"
+    ],
+    "input_hash": "473ef9b594aa8dea0a2ece9549a01c38652fbe7cacb3be5c691d68967822a203",
+    "active": 1,
+    "event_hash": "cc050d2630cc413edb3314b4dfdc5e213f362bcb93811bb2557d004df80f0bc6"
+  },
+  {
+    "sequence": 116,
+    "timestamp": "2026-09-20T12:41:45.278916+00:00",
+    "action": "worker.completed",
+    "worker": "EvidenceWorker:37",
+    "role": "EvidenceWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "cc050d2630cc413edb3314b4dfdc5e213f362bcb93811bb2557d004df80f0bc6",
+    "output_hash": "c2ebcc6f14ac1875a0148aac1d9fd7b985980e00c289254bb304819460b40ba6",
+    "state_keys": [
+      "evidence_items",
+      "unresolved"
+    ],
+    "status": "ok",
+    "event_hash": "82bf62d7813ad9047cdcbcafc3ab5af7b6185f7a954bf86f3b55fd33b9e9018f"
+  },
+  {
+    "sequence": 117,
+    "timestamp": "2026-09-20T12:41:45.279088+00:00",
+    "action": "worker.started",
+    "worker": "EvidenceWorker:38",
+    "role": "EvidenceWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "82bf62d7813ad9047cdcbcafc3ab5af7b6185f7a954bf86f3b55fd33b9e9018f",
+    "skills": [
+      "evidence-extraction"
+    ],
+    "state_keys": [
+      "candidate_papers",
+      "citation_records",
+      "document_refs",
+      "research_question"
+    ],
+    "input_hash": "d3166d7366635a96b084f8b58ef91e16a70d2079396df7e6a4ec0bace146f505",
+    "active": 1,
+    "event_hash": "73b39955d8a412e6f32424fcb0352bac23f695210d8c0fa9a7e76323df17cb38"
+  },
+  {
+    "sequence": 118,
+    "timestamp": "2026-09-20T12:41:45.279440+00:00",
+    "action": "worker.completed",
+    "worker": "EvidenceWorker:38",
+    "role": "EvidenceWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "73b39955d8a412e6f32424fcb0352bac23f695210d8c0fa9a7e76323df17cb38",
+    "output_hash": "864ba466142ae2fac9533b919b0880d39bd434365903a13e62dded6a812cb657",
+    "state_keys": [
+      "evidence_items",
+      "unresolved"
+    ],
+    "status": "ok",
+    "event_hash": "cd6f784fefcbb11d39c2ed4015e8aa3ed31993d1770655d537363f620ccfaf0f"
+  },
+  {
+    "sequence": 119,
+    "timestamp": "2026-09-20T12:41:45.279584+00:00",
+    "action": "stage.completed",
+    "worker": "coordinator",
+    "role": "LiteratureReviewCoordinator",
+    "parent": null,
+    "depth": 0,
+    "previous_hash": "cd6f784fefcbb11d39c2ed4015e8aa3ed31993d1770655d537363f620ccfaf0f",
+    "stage": "evidence",
+    "merge": "append",
+    "worker_count": 5,
+    "synthetic": false,
+    "event_hash": "34dd43e7181bc8e30ef8b7c5cfdb6386b8dd7864fc80627b0b60c127538e6a5d"
+  },
+  {
+    "sequence": 120,
+    "timestamp": "2026-09-20T12:41:45.281949+00:00",
+    "action": "worker.started",
+    "worker": "SynthesisWorker:39",
+    "role": "SynthesisWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "34dd43e7181bc8e30ef8b7c5cfdb6386b8dd7864fc80627b0b60c127538e6a5d",
+    "skills": [
+      "evidence-synthesis"
+    ],
+    "state_keys": [
+      "citation_records",
+      "evidence_items",
+      "research_question"
+    ],
+    "input_hash": "40feeb66d0325aa1dc7c44df825d371a081a5e0e654aaa879aac894071b3a640",
+    "active": 1,
+    "event_hash": "0a68af5d836f408f29dac2fca6e939b4d6793c31dfd51650d00418f6876b698c"
+  },
+  {
+    "sequence": 121,
+    "timestamp": "2026-09-20T12:41:45.282915+00:00",
+    "action": "worker.completed",
+    "worker": "SynthesisWorker:39",
+    "role": "SynthesisWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "0a68af5d836f408f29dac2fca6e939b4d6793c31dfd51650d00418f6876b698c",
+    "output_hash": "a0a34264b7d147332c18125fcdbe255cdec464891cba89b3c8c9c20e86240843",
+    "state_keys": [
+      "claims",
+      "themes"
+    ],
+    "status": "ok",
+    "event_hash": "2555ee23d3a3a3539883cc6af49d05833304933e9b5601da62e91756affe573d"
+  },
+  {
+    "sequence": 122,
+    "timestamp": "2026-09-20T12:41:45.283171+00:00",
+    "action": "stage.completed",
+    "worker": "coordinator",
+    "role": "LiteratureReviewCoordinator",
+    "parent": null,
+    "depth": 0,
+    "previous_hash": "2555ee23d3a3a3539883cc6af49d05833304933e9b5601da62e91756affe573d",
+    "stage": "synthesis",
+    "merge": "replace",
+    "worker_count": 1,
+    "synthetic": false,
+    "event_hash": "78f0f717a573de618a2fbffad4c65681678d92a51cfc1197b5ad21a5df662009"
+  },
+  {
+    "sequence": 123,
+    "timestamp": "2026-09-20T12:41:45.285110+00:00",
+    "action": "worker.started",
+    "worker": "WritingWorker:40",
+    "role": "WritingWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "78f0f717a573de618a2fbffad4c65681678d92a51cfc1197b5ad21a5df662009",
+    "skills": [
+      "related-work-writing"
+    ],
+    "state_keys": [
+      "claims",
+      "research_question",
+      "themes"
+    ],
+    "input_hash": "0cdc591ebfd176ee4e682681fb134c2bd8379a0addcec319441626755b22a947",
+    "active": 1,
+    "event_hash": "2bb40eea5a4380c7cf1ea60293e836b0833f7df3930cec3038c8ddc5b4c21e9b"
+  },
+  {
+    "sequence": 124,
+    "timestamp": "2026-09-20T12:41:45.285819+00:00",
+    "action": "worker.completed",
+    "worker": "WritingWorker:40",
+    "role": "WritingWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "2bb40eea5a4380c7cf1ea60293e836b0833f7df3930cec3038c8ddc5b4c21e9b",
+    "output_hash": "cc046230dc08b697713ad38966b60cbaac27ac3d9f0a7d7be81d26a445975225",
+    "state_keys": [
+      "claims",
+      "draft"
+    ],
+    "status": "ok",
+    "event_hash": "f8be57fcac8be222e7158a040f7da8e0c5ee1f394af27d945362e863f657a803"
+  },
+  {
+    "sequence": 125,
+    "timestamp": "2026-09-20T12:41:45.286064+00:00",
+    "action": "stage.completed",
+    "worker": "coordinator",
+    "role": "LiteratureReviewCoordinator",
+    "parent": null,
+    "depth": 0,
+    "previous_hash": "f8be57fcac8be222e7158a040f7da8e0c5ee1f394af27d945362e863f657a803",
+    "stage": "writing",
+    "merge": "replace",
+    "worker_count": 1,
+    "synthetic": false,
+    "event_hash": "17e2b26d3f2d9046c1088ebe48addf4f458252ddb6fb1e6b63c7a79d2b6639c2"
+  },
+  {
+    "sequence": 126,
+    "timestamp": "2026-09-20T12:41:45.288420+00:00",
+    "action": "worker.started",
+    "worker": "VerificationWorker:41",
+    "role": "VerificationWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "17e2b26d3f2d9046c1088ebe48addf4f458252ddb6fb1e6b63c7a79d2b6639c2",
+    "skills": [
+      "claim-and-citation-verification"
+    ],
+    "state_keys": [
+      "citation_records",
+      "claims",
+      "draft",
+      "evidence_items"
+    ],
+    "input_hash": "481fb1bf6ad22ba5829fc39887771785800ccd918d65a008e10613f7a12eda18",
+    "active": 1,
+    "event_hash": "4fcb073c231d5774a5123dfa87e09257f06dc13df7fed07fe8a57d7e0b348489"
+  },
+  {
+    "sequence": 127,
+    "timestamp": "2026-09-20T12:41:45.289599+00:00",
+    "action": "worker.completed",
+    "worker": "VerificationWorker:41",
+    "role": "VerificationWorker",
+    "parent": "coordinator",
+    "depth": 1,
+    "previous_hash": "4fcb073c231d5774a5123dfa87e09257f06dc13df7fed07fe8a57d7e0b348489",
+    "output_hash": "c0473b0099ceff7df6b9e4aa9a5bfe1e002a232af43ea805b8fcd5c03fdb0f89",
+    "state_keys": [
+      "claims",
+      "verification_results"
+    ],
+    "status": "ok",
+    "event_hash": "f414dd6763704fe53cb6d0555470fea5bac97ab14c485f9b27be0b0506cc3c21"
+  },
+  {
+    "sequence": 128,
+    "timestamp": "2026-09-20T12:41:45.289953+00:00",
+    "action": "stage.completed",
+    "worker": "coordinator",
+    "role": "LiteratureReviewCoordinator",
+    "parent": null,
+    "depth": 0,
+    "previous_hash": "f414dd6763704fe53cb6d0555470fea5bac97ab14c485f9b27be0b0506cc3c21",
+    "stage": "verification",
+    "merge": "replace",
+    "worker_count": 1,
+    "synthetic": false,
+    "event_hash": "1ceea399b8058ae7a750aa915ef0c052f2177075f0fa63925990ce6e04852f24"
+  },
+  {
+    "sequence": 129,
+    "timestamp": "2026-09-20T12:41:45.304982+00:00",
+    "action": "memory.cleared",
+    "worker": "coordinator",
+    "role": "LiteratureReviewCoordinator",
+    "parent": null,
+    "depth": 0,
+    "previous_hash": "1ceea399b8058ae7a750aa915ef0c052f2177075f0fa63925990ce6e04852f24",
+    "scope": "session",
+    "event_hash": "6daea3e093e94e4a8536198aff445f06c62e7b58204d39d2acf78acf0208cfc8"
+  }
+]

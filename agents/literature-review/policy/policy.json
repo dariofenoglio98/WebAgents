@@ -1,0 +1,93 @@
+{
+  "spec_version": "0.1",
+  "permissions": [
+    {
+      "id": "network.scholarly",
+      "kind": "network",
+      "description": "Read Crossref scholarly metadata for bounded search queries.",
+      "required": true,
+      "resources": [
+        "api.crossref.org"
+      ]
+    },
+    {
+      "id": "network.citations",
+      "kind": "network",
+      "description": "Verify references through the existing Citation Resolver service.",
+      "required": true,
+      "resources": [
+        "webagents-citation-resolver-production.up.railway.app"
+      ]
+    },
+    {
+      "id": "files.pdfs",
+      "kind": "files.read",
+      "description": "Read only individually selected local PDF files.",
+      "required": false,
+      "resources": [
+        "user-selected-pdfs"
+      ]
+    },
+    {
+      "id": "model.reasoning",
+      "kind": "model",
+      "description": "Use the host-selected reasoning router within the token cap.",
+      "required": false,
+      "resources": [
+        "host-router"
+      ]
+    },
+    {
+      "id": "memory.session",
+      "kind": "memory",
+      "description": "Read and write explicit worker state views for this session only.",
+      "required": true,
+      "resources": [
+        "session"
+      ]
+    }
+  ],
+  "network": {
+    "allowed_domains": [
+      "api.crossref.org",
+      "webagents-citation-resolver-production.up.railway.app"
+    ],
+    "https_only": true,
+    "allow_redirects": false
+  },
+  "memory": {
+    "scope": "session",
+    "retention": "session",
+    "raw_documents": false,
+    "state_schema": "schemas/research-state.schema.json",
+    "sharing": "explicit_views"
+  },
+  "budget": {
+    "estimated_tokens": 24000,
+    "hard_tokens": 180000,
+    "max_remote_calls": 45,
+    "max_calls_per_tool": {
+      "scholarly-search": 3,
+      "citation-resolver": 20,
+      "paper-reader": 10
+    },
+    "max_parallel_workers": 3,
+    "estimated_cost_usd": null,
+    "approval_threshold_tokens": null
+  },
+  "delegation": {
+    "max_depth": 1,
+    "approved_roles": [
+      "PlanningWorker",
+      "SearchWorker",
+      "ScreeningWorker",
+      "CitationWorker",
+      "EvidenceWorker",
+      "SynthesisWorker",
+      "WritingWorker",
+      "VerificationWorker"
+    ],
+    "allow_remote": false
+  },
+  "extensions": {}
+}

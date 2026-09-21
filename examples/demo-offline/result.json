@@ -1,0 +1,3551 @@
+{
+  "state": {
+    "research_question": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
+    "mode": "fixture",
+    "reasoning_mode": "extractive",
+    "search_plan": {
+      "queries": [
+        "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
+        "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
+        "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology"
+      ],
+      "rationale": "Deterministic query facets; no model-generated search strategy."
+    },
+    "search_queries": [
+      "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
+      "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
+      "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology"
+    ],
+    "candidate_papers": [
+      {
+        "paper_id": "paper-9787df51408912ec",
+        "title": "SYNTHETIC: Dynamic Agent Selection with Task Routing",
+        "doi": "10.0000/synthetic-router",
+        "arxiv_id": null,
+        "authors": [
+          {
+            "name": "Synthetic Example Author"
+          }
+        ],
+        "year": 2026,
+        "venue": "Synthetic Fixture Proceedings",
+        "abstract": "Dynamic agent selection routes each task to a subset of language-model agents using task features. The synthetic evaluation compares routed teams with a fixed all-agent baseline. Reported findings concern the simulated workload only.",
+        "url": null,
+        "source": "synthetic-fixture",
+        "provenance": [
+          {
+            "source": "synthetic-fixture",
+            "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
+            "locator": "10.0000/synthetic-router",
+            "synthetic": true
+          },
+          {
+            "source": "synthetic-fixture",
+            "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
+            "locator": "10.0000/synthetic-router",
+            "synthetic": true
+          },
+          {
+            "source": "synthetic-fixture",
+            "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
+            "locator": "10.0000/synthetic-router",
+            "synthetic": true
+          },
+          {
+            "locator": "fixture:router",
+            "query": null,
+            "source": "synthetic-fixture",
+            "synthetic": true
+          }
+        ],
+        "full_text_available": false,
+        "screening_status": "pending",
+        "screening_rationale": ""
+      },
+      {
+        "paper_id": "paper-0b480b1da362cc50",
+        "title": "SYNTHETIC: Adaptive Communication Topology for Agent Teams",
+        "doi": "10.0000/synthetic-topology",
+        "arxiv_id": null,
+        "authors": [
+          {
+            "name": "Synthetic Example Author"
+          }
+        ],
+        "year": 2026,
+        "venue": "Synthetic Fixture Proceedings",
+        "abstract": "Adaptive communication topology changes message edges between language-model agents during a task. The synthetic method uses intermediate agreement signals to choose a communication graph. Its abstract does not report evaluation sample sizes.",
+        "url": null,
+        "source": "synthetic-fixture",
+        "provenance": [
+          {
+            "source": "synthetic-fixture",
+            "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
+            "locator": "10.0000/synthetic-topology",
+            "synthetic": true
+          },
+          {
+            "source": "synthetic-fixture",
+            "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
+            "locator": "10.0000/synthetic-topology",
+            "synthetic": true
+          },
+          {
+            "source": "synthetic-fixture",
+            "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
+            "locator": "10.0000/synthetic-topology",
+            "synthetic": true
+          },
+          {
+            "locator": "fixture:topology",
+            "query": null,
+            "source": "synthetic-fixture",
+            "synthetic": true
+          }
+        ],
+        "full_text_available": false,
+        "screening_status": "pending",
+        "screening_rationale": ""
+      },
+      {
+        "paper_id": "paper-40b8ac03b20bbf20",
+        "title": "SYNTHETIC: Joint Agent and Communication Selection",
+        "doi": "10.0000/synthetic-joint",
+        "arxiv_id": null,
+        "authors": [
+          {
+            "name": "Synthetic Example Author"
+          }
+        ],
+        "year": 2026,
+        "venue": "Synthetic Fixture Proceedings",
+        "abstract": "Dynamic agent selection and topology adaptation jointly choose participants and communication edges. The synthetic study distinguishes selection costs from communication costs. Transfer beyond the simulated task distribution is not established.",
+        "url": null,
+        "source": "synthetic-fixture",
+        "provenance": [
+          {
+            "source": "synthetic-fixture",
+            "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
+            "locator": "10.0000/synthetic-joint",
+            "synthetic": true
+          },
+          {
+            "source": "synthetic-fixture",
+            "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
+            "locator": "10.0000/synthetic-joint",
+            "synthetic": true
+          },
+          {
+            "source": "synthetic-fixture",
+            "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
+            "locator": "10.0000/synthetic-joint",
+            "synthetic": true
+          },
+          {
+            "locator": "fixture:joint",
+            "query": null,
+            "source": "synthetic-fixture",
+            "synthetic": true
+          }
+        ],
+        "full_text_available": false,
+        "screening_status": "pending",
+        "screening_rationale": ""
+      },
+      {
+        "paper_id": "paper-6ca8546b03d7f153",
+        "title": "SYNTHETIC: Dynamic Agent Networks",
+        "doi": "10.0000/synthetic-ambiguous",
+        "arxiv_id": null,
+        "authors": [
+          {
+            "name": "Synthetic Example Author"
+          }
+        ],
+        "year": 2026,
+        "venue": "Synthetic Fixture Proceedings",
+        "abstract": "Dynamic agent networks select language-model agents and adapt communication topology. This title deliberately has multiple fixture matches.",
+        "url": null,
+        "source": "synthetic-fixture",
+        "provenance": [
+          {
+            "source": "synthetic-fixture",
+            "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
+            "locator": "10.0000/synthetic-ambiguous",
+            "synthetic": true
+          },
+          {
+            "source": "synthetic-fixture",
+            "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
+            "locator": "10.0000/synthetic-ambiguous",
+            "synthetic": true
+          },
+          {
+            "source": "synthetic-fixture",
+            "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
+            "locator": "10.0000/synthetic-ambiguous",
+            "synthetic": true
+          },
+          {
+            "locator": "fixture:ambiguous",
+            "query": null,
+            "source": "synthetic-fixture",
+            "synthetic": true
+          }
+        ],
+        "full_text_available": false,
+        "screening_status": "pending",
+        "screening_rationale": ""
+      },
+      {
+        "paper_id": "paper-c9fff587e292f1f3",
+        "title": "SYNTHETIC: Missing Agent Selection Paper",
+        "doi": "10.0000/synthetic-missing",
+        "arxiv_id": null,
+        "authors": [
+          {
+            "name": "Synthetic Example Author"
+          }
+        ],
+        "year": 2026,
+        "venue": "Synthetic Fixture Proceedings",
+        "abstract": "Dynamic language-model agent selection is discussed in this synthetic search record. Its citation is deliberately absent from fixture indexes.",
+        "url": null,
+        "source": "synthetic-fixture",
+        "provenance": [
+          {
+            "source": "synthetic-fixture",
+            "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
+            "locator": "10.0000/synthetic-missing",
+            "synthetic": true
+          },
+          {
+            "source": "synthetic-fixture",
+            "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
+            "locator": "10.0000/synthetic-missing",
+            "synthetic": true
+          },
+          {
+            "source": "synthetic-fixture",
+            "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
+            "locator": "10.0000/synthetic-missing",
+            "synthetic": true
+          },
+          {
+            "locator": "fixture:missing",
+            "query": null,
+            "source": "synthetic-fixture",
+            "synthetic": true
+          }
+        ],
+        "full_text_available": false,
+        "screening_status": "pending",
+        "screening_rationale": ""
+      },
+      {
+        "paper_id": "paper-ec09484d4252cc0a",
+        "title": "SYNTHETIC: Unavailable Topology Provider",
+        "doi": "10.0000/synthetic-failure",
+        "arxiv_id": null,
+        "authors": [
+          {
+            "name": "Synthetic Example Author"
+          }
+        ],
+        "year": 2026,
+        "venue": "Synthetic Fixture Proceedings",
+        "abstract": "Dynamic agent selection and adaptive communication topology appear in this synthetic record. Its citation fixture simulates a provider outage.",
+        "url": null,
+        "source": "synthetic-fixture",
+        "provenance": [
+          {
+            "source": "synthetic-fixture",
+            "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
+            "locator": "10.0000/synthetic-failure",
+            "synthetic": true
+          },
+          {
+            "source": "synthetic-fixture",
+            "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
+            "locator": "10.0000/synthetic-failure",
+            "synthetic": true
+          },
+          {
+            "source": "synthetic-fixture",
+            "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
+            "locator": "10.0000/synthetic-failure",
+            "synthetic": true
+          },
+          {
+            "locator": "fixture:failure",
+            "query": null,
+            "source": "synthetic-fixture",
+            "synthetic": true
+          }
+        ],
+        "full_text_available": false,
+        "screening_status": "pending",
+        "screening_rationale": ""
+      },
+      {
+        "paper_id": "paper-466bc780ad415433",
+        "title": "SYNTHETIC: Dynamic Agent Selection Without An Abstract",
+        "doi": "10.0000/synthetic-title-only",
+        "arxiv_id": null,
+        "authors": [
+          {
+            "name": "Synthetic Example Author"
+          }
+        ],
+        "year": 2026,
+        "venue": "Synthetic Fixture Proceedings",
+        "abstract": null,
+        "url": null,
+        "source": "synthetic-fixture",
+        "provenance": [
+          {
+            "source": "synthetic-fixture",
+            "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
+            "locator": "10.0000/synthetic-title-only",
+            "synthetic": true
+          },
+          {
+            "source": "synthetic-fixture",
+            "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
+            "locator": "10.0000/synthetic-title-only",
+            "synthetic": true
+          },
+          {
+            "source": "synthetic-fixture",
+            "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
+            "locator": "10.0000/synthetic-title-only",
+            "synthetic": true
+          },
+          {
+            "locator": "fixture:title-only",
+            "query": null,
+            "source": "synthetic-fixture",
+            "synthetic": true
+          }
+        ],
+        "full_text_available": false,
+        "screening_status": "pending",
+        "screening_rationale": ""
+      },
+      {
+        "paper_id": "paper-e35ac4234542ac58",
+        "title": "SYNTHETIC: Ceramic Agent Topology",
+        "doi": "10.0000/synthetic-irrelevant",
+        "arxiv_id": null,
+        "authors": [
+          {
+            "name": "Synthetic Example Author"
+          }
+        ],
+        "year": 2026,
+        "venue": "Synthetic Fixture Proceedings",
+        "abstract": "This synthetic article studies ceramic grain topology under furnace heating. Experiments measure thermal properties.",
+        "url": null,
+        "source": "synthetic-fixture",
+        "provenance": [
+          {
+            "source": "synthetic-fixture",
+            "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
+            "locator": "10.0000/synthetic-irrelevant",
+            "synthetic": true
+          },
+          {
+            "source": "synthetic-fixture",
+            "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
+            "locator": "10.0000/synthetic-irrelevant",
+            "synthetic": true
+          },
+          {
+            "source": "synthetic-fixture",
+            "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
+            "locator": "10.0000/synthetic-irrelevant",
+            "synthetic": true
+          },
+          {
+            "locator": "fixture:irrelevant",
+            "query": null,
+            "source": "synthetic-fixture",
+            "synthetic": true
+          }
+        ],
+        "full_text_available": false,
+        "screening_status": "pending",
+        "screening_rationale": ""
+      }
+    ],
+    "screened_papers": [
+      {
+        "paper_id": "paper-9787df51408912ec",
+        "title": "SYNTHETIC: Dynamic Agent Selection with Task Routing",
+        "doi": "10.0000/synthetic-router",
+        "arxiv_id": null,
+        "authors": [
+          {
+            "name": "Synthetic Example Author"
+          }
+        ],
+        "year": 2026,
+        "venue": "Synthetic Fixture Proceedings",
+        "abstract": "Dynamic agent selection routes each task to a subset of language-model agents using task features. The synthetic evaluation compares routed teams with a fixed all-agent baseline. Reported findings concern the simulated workload only.",
+        "url": null,
+        "source": "synthetic-fixture",
+        "provenance": [
+          {
+            "source": "synthetic-fixture",
+            "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
+            "locator": "10.0000/synthetic-router",
+            "synthetic": true
+          },
+          {
+            "source": "synthetic-fixture",
+            "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
+            "locator": "10.0000/synthetic-router",
+            "synthetic": true
+          },
+          {
+            "source": "synthetic-fixture",
+            "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
+            "locator": "10.0000/synthetic-router",
+            "synthetic": true
+          },
+          {
+            "locator": "fixture:router",
+            "query": null,
+            "source": "synthetic-fixture",
+            "synthetic": true
+          }
+        ],
+        "full_text_available": true,
+        "screening_status": "include",
+        "screening_rationale": "Extractive baseline: available source text overlaps question terms (agent, dynamic, selection); lexical heuristic, not semantic relevance or a probability."
+      },
+      {
+        "paper_id": "paper-0b480b1da362cc50",
+        "title": "SYNTHETIC: Adaptive Communication Topology for Agent Teams",
+        "doi": "10.0000/synthetic-topology",
+        "arxiv_id": null,
+        "authors": [
+          {
+            "name": "Synthetic Example Author"
+          }
+        ],
+        "year": 2026,
+        "venue": "Synthetic Fixture Proceedings",
+        "abstract": "Adaptive communication topology changes message edges between language-model agents during a task. The synthetic method uses intermediate agreement signals to choose a communication graph. Its abstract does not report evaluation sample sizes.",
+        "url": null,
+        "source": "synthetic-fixture",
+        "provenance": [
+          {
+            "source": "synthetic-fixture",
+            "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
+            "locator": "10.0000/synthetic-topology",
+            "synthetic": true
+          },
+          {
+            "source": "synthetic-fixture",
+            "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
+            "locator": "10.0000/synthetic-topology",
+            "synthetic": true
+          },
+          {
+            "source": "synthetic-fixture",
+            "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
+            "locator": "10.0000/synthetic-topology",
+            "synthetic": true
+          },
+          {
+            "locator": "fixture:topology",
+            "query": null,
+            "source": "synthetic-fixture",
+            "synthetic": true
+          }
+        ],
+        "full_text_available": false,
+        "screening_status": "include",
+        "screening_rationale": "Extractive baseline: available source text overlaps question terms (agent, topology); lexical heuristic, not semantic relevance or a probability."
+      },
+      {
+        "paper_id": "paper-40b8ac03b20bbf20",
+        "title": "SYNTHETIC: Joint Agent and Communication Selection",
+        "doi": "10.0000/synthetic-joint",
+        "arxiv_id": null,
+        "authors": [
+          {
+            "name": "Synthetic Example Author"
+          }
+        ],
+        "year": 2026,
+        "venue": "Synthetic Fixture Proceedings",
+        "abstract": "Dynamic agent selection and topology adaptation jointly choose participants and communication edges. The synthetic study distinguishes selection costs from communication costs. Transfer beyond the simulated task distribution is not established.",
+        "url": null,
+        "source": "synthetic-fixture",
+        "provenance": [
+          {
+            "source": "synthetic-fixture",
+            "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
+            "locator": "10.0000/synthetic-joint",
+            "synthetic": true
+          },
+          {
+            "source": "synthetic-fixture",
+            "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
+            "locator": "10.0000/synthetic-joint",
+            "synthetic": true
+          },
+          {
+            "source": "synthetic-fixture",
+            "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
+            "locator": "10.0000/synthetic-joint",
+            "synthetic": true
+          },
+          {
+            "locator": "fixture:joint",
+            "query": null,
+            "source": "synthetic-fixture",
+            "synthetic": true
+          }
+        ],
+        "full_text_available": false,
+        "screening_status": "include",
+        "screening_rationale": "Extractive baseline: available source text overlaps question terms (adaptation, agent, dynamic, selection, topology); lexical heuristic, not semantic relevance or a probability."
+      },
+      {
+        "paper_id": "paper-6ca8546b03d7f153",
+        "title": "SYNTHETIC: Dynamic Agent Networks",
+        "doi": "10.0000/synthetic-ambiguous",
+        "arxiv_id": null,
+        "authors": [
+          {
+            "name": "Synthetic Example Author"
+          }
+        ],
+        "year": 2026,
+        "venue": "Synthetic Fixture Proceedings",
+        "abstract": "Dynamic agent networks select language-model agents and adapt communication topology. This title deliberately has multiple fixture matches.",
+        "url": null,
+        "source": "synthetic-fixture",
+        "provenance": [
+          {
+            "source": "synthetic-fixture",
+            "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
+            "locator": "10.0000/synthetic-ambiguous",
+            "synthetic": true
+          },
+          {
+            "source": "synthetic-fixture",
+            "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
+            "locator": "10.0000/synthetic-ambiguous",
+            "synthetic": true
+          },
+          {
+            "source": "synthetic-fixture",
+            "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
+            "locator": "10.0000/synthetic-ambiguous",
+            "synthetic": true
+          },
+          {
+            "locator": "fixture:ambiguous",
+            "query": null,
+            "source": "synthetic-fixture",
+            "synthetic": true
+          }
+        ],
+        "full_text_available": false,
+        "screening_status": "include",
+        "screening_rationale": "Extractive baseline: available source text overlaps question terms (agent, dynamic, topology); lexical heuristic, not semantic relevance or a probability."
+      },
+      {
+        "paper_id": "paper-c9fff587e292f1f3",
+        "title": "SYNTHETIC: Missing Agent Selection Paper",
+        "doi": "10.0000/synthetic-missing",
+        "arxiv_id": null,
+        "authors": [
+          {
+            "name": "Synthetic Example Author"
+          }
+        ],
+        "year": 2026,
+        "venue": "Synthetic Fixture Proceedings",
+        "abstract": "Dynamic language-model agent selection is discussed in this synthetic search record. Its citation is deliberately absent from fixture indexes.",
+        "url": null,
+        "source": "synthetic-fixture",
+        "provenance": [
+          {
+            "source": "synthetic-fixture",
+            "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
+            "locator": "10.0000/synthetic-missing",
+            "synthetic": true
+          },
+          {
+            "source": "synthetic-fixture",
+            "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
+            "locator": "10.0000/synthetic-missing",
+            "synthetic": true
+          },
+          {
+            "source": "synthetic-fixture",
+            "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
+            "locator": "10.0000/synthetic-missing",
+            "synthetic": true
+          },
+          {
+            "locator": "fixture:missing",
+            "query": null,
+            "source": "synthetic-fixture",
+            "synthetic": true
+          }
+        ],
+        "full_text_available": false,
+        "screening_status": "include",
+        "screening_rationale": "Extractive baseline: available source text overlaps question terms (agent, dynamic, selection); lexical heuristic, not semantic relevance or a probability."
+      },
+      {
+        "paper_id": "paper-ec09484d4252cc0a",
+        "title": "SYNTHETIC: Unavailable Topology Provider",
+        "doi": "10.0000/synthetic-failure",
+        "arxiv_id": null,
+        "authors": [
+          {
+            "name": "Synthetic Example Author"
+          }
+        ],
+        "year": 2026,
+        "venue": "Synthetic Fixture Proceedings",
+        "abstract": "Dynamic agent selection and adaptive communication topology appear in this synthetic record. Its citation fixture simulates a provider outage.",
+        "url": null,
+        "source": "synthetic-fixture",
+        "provenance": [
+          {
+            "source": "synthetic-fixture",
+            "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
+            "locator": "10.0000/synthetic-failure",
+            "synthetic": true
+          },
+          {
+            "source": "synthetic-fixture",
+            "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
+            "locator": "10.0000/synthetic-failure",
+            "synthetic": true
+          },
+          {
+            "source": "synthetic-fixture",
+            "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
+            "locator": "10.0000/synthetic-failure",
+            "synthetic": true
+          },
+          {
+            "locator": "fixture:failure",
+            "query": null,
+            "source": "synthetic-fixture",
+            "synthetic": true
+          }
+        ],
+        "full_text_available": false,
+        "screening_status": "include",
+        "screening_rationale": "Extractive baseline: available source text overlaps question terms (agent, dynamic, selection, topology); lexical heuristic, not semantic relevance or a probability."
+      },
+      {
+        "paper_id": "paper-466bc780ad415433",
+        "title": "SYNTHETIC: Dynamic Agent Selection Without An Abstract",
+        "doi": "10.0000/synthetic-title-only",
+        "arxiv_id": null,
+        "authors": [
+          {
+            "name": "Synthetic Example Author"
+          }
+        ],
+        "year": 2026,
+        "venue": "Synthetic Fixture Proceedings",
+        "abstract": null,
+        "url": null,
+        "source": "synthetic-fixture",
+        "provenance": [
+          {
+            "source": "synthetic-fixture",
+            "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
+            "locator": "10.0000/synthetic-title-only",
+            "synthetic": true
+          },
+          {
+            "source": "synthetic-fixture",
+            "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
+            "locator": "10.0000/synthetic-title-only",
+            "synthetic": true
+          },
+          {
+            "source": "synthetic-fixture",
+            "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
+            "locator": "10.0000/synthetic-title-only",
+            "synthetic": true
+          },
+          {
+            "locator": "fixture:title-only",
+            "query": null,
+            "source": "synthetic-fixture",
+            "synthetic": true
+          }
+        ],
+        "full_text_available": false,
+        "screening_status": "maybe",
+        "screening_rationale": "Only title/metadata available; relevance cannot be established."
+      },
+      {
+        "paper_id": "paper-e35ac4234542ac58",
+        "title": "SYNTHETIC: Ceramic Agent Topology",
+        "doi": "10.0000/synthetic-irrelevant",
+        "arxiv_id": null,
+        "authors": [
+          {
+            "name": "Synthetic Example Author"
+          }
+        ],
+        "year": 2026,
+        "venue": "Synthetic Fixture Proceedings",
+        "abstract": "This synthetic article studies ceramic grain topology under furnace heating. Experiments measure thermal properties.",
+        "url": null,
+        "source": "synthetic-fixture",
+        "provenance": [
+          {
+            "source": "synthetic-fixture",
+            "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
+            "locator": "10.0000/synthetic-irrelevant",
+            "synthetic": true
+          },
+          {
+            "source": "synthetic-fixture",
+            "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
+            "locator": "10.0000/synthetic-irrelevant",
+            "synthetic": true
+          },
+          {
+            "source": "synthetic-fixture",
+            "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
+            "locator": "10.0000/synthetic-irrelevant",
+            "synthetic": true
+          },
+          {
+            "locator": "fixture:irrelevant",
+            "query": null,
+            "source": "synthetic-fixture",
+            "synthetic": true
+          }
+        ],
+        "full_text_available": false,
+        "screening_status": "exclude",
+        "screening_rationale": "Extractive baseline: available source text overlaps question terms (topology); lexical heuristic, not semantic relevance or a probability."
+      }
+    ],
+    "citation_records": [
+      {
+        "paper_id": "paper-9787df51408912ec",
+        "query": "10.0000/synthetic-router",
+        "status": "resolved",
+        "metadata": {
+          "abstract": "Dynamic agent selection routes each task to a subset of language-model agents using task features. The synthetic evaluation compares routed teams with a fixed all-agent baseline. Reported findings concern the simulated workload only.",
+          "arxiv_id": null,
+          "authors": [
+            {
+              "name": "Synthetic Example Author"
+            }
+          ],
+          "bibtex": "@misc{synthetic_router,\n  title = {SYNTHETIC: Dynamic Agent Selection with Task Routing},\n  author = {Synthetic Example Author},\n  year = {2026},\n  note = {SYNTHETIC TEST DATA; NOT A REAL PUBLICATION}\n}",
+          "doi": "10.0000/synthetic-router",
+          "source": "crossref",
+          "title": "SYNTHETIC: Dynamic Agent Selection with Task Routing",
+          "url": null,
+          "venue": "Synthetic Fixture Proceedings",
+          "year": 2026
+        },
+        "alternatives": [],
+        "sources": [
+          {
+            "error_code": null,
+            "provider": "crossref",
+            "status": "ok"
+          }
+        ],
+        "warnings": [
+          "SYNTHETIC FIXTURE: this is not a real bibliographic lookup."
+        ],
+        "message": "Synthetic scenario resolved",
+        "synthetic": true
+      },
+      {
+        "paper_id": "paper-0b480b1da362cc50",
+        "query": "10.0000/synthetic-topology",
+        "status": "resolved",
+        "metadata": {
+          "abstract": "Adaptive communication topology changes message edges between language-model agents during a task. The synthetic method uses intermediate agreement signals to choose a communication graph. Its abstract does not report evaluation sample sizes.",
+          "arxiv_id": null,
+          "authors": [
+            {
+              "name": "Synthetic Example Author"
+            }
+          ],
+          "bibtex": "@misc{synthetic_topology,\n  title = {SYNTHETIC: Adaptive Communication Topology for Agent Teams},\n  author = {Synthetic Example Author},\n  year = {2026},\n  note = {SYNTHETIC TEST DATA; NOT A REAL PUBLICATION}\n}",
+          "doi": "10.0000/synthetic-topology",
+          "source": "crossref",
+          "title": "SYNTHETIC: Adaptive Communication Topology for Agent Teams",
+          "url": null,
+          "venue": "Synthetic Fixture Proceedings",
+          "year": 2026
+        },
+        "alternatives": [],
+        "sources": [
+          {
+            "error_code": null,
+            "provider": "crossref",
+            "status": "ok"
+          }
+        ],
+        "warnings": [
+          "SYNTHETIC FIXTURE: this is not a real bibliographic lookup."
+        ],
+        "message": "Synthetic scenario resolved",
+        "synthetic": true
+      },
+      {
+        "paper_id": "paper-40b8ac03b20bbf20",
+        "query": "10.0000/synthetic-joint",
+        "status": "resolved",
+        "metadata": {
+          "abstract": "Dynamic agent selection and topology adaptation jointly choose participants and communication edges. The synthetic study distinguishes selection costs from communication costs. Transfer beyond the simulated task distribution is not established.",
+          "arxiv_id": null,
+          "authors": [
+            {
+              "name": "Synthetic Example Author"
+            }
+          ],
+          "bibtex": "@misc{synthetic_joint,\n  title = {SYNTHETIC: Joint Agent and Communication Selection},\n  author = {Synthetic Example Author},\n  year = {2026},\n  note = {SYNTHETIC TEST DATA; NOT A REAL PUBLICATION}\n}",
+          "doi": "10.0000/synthetic-joint",
+          "source": "crossref",
+          "title": "SYNTHETIC: Joint Agent and Communication Selection",
+          "url": null,
+          "venue": "Synthetic Fixture Proceedings",
+          "year": 2026
+        },
+        "alternatives": [],
+        "sources": [
+          {
+            "error_code": null,
+            "provider": "crossref",
+            "status": "ok"
+          }
+        ],
+        "warnings": [
+          "SYNTHETIC FIXTURE: this is not a real bibliographic lookup."
+        ],
+        "message": "Synthetic scenario resolved",
+        "synthetic": true
+      },
+      {
+        "paper_id": "paper-6ca8546b03d7f153",
+        "query": "10.0000/synthetic-ambiguous",
+        "status": "ambiguous",
+        "metadata": null,
+        "alternatives": [
+          {
+            "match_score": 1,
+            "paper": {
+              "abstract": "Dynamic agent networks select language-model agents and adapt communication topology. This title deliberately has multiple fixture matches.",
+              "arxiv_id": null,
+              "authors": [
+                {
+                  "name": "Synthetic Example Author"
+                }
+              ],
+              "bibtex": "@misc{synthetic_ambiguous,\n  title = {SYNTHETIC: Dynamic Agent Networks},\n  author = {Synthetic Example Author},\n  year = {2026},\n  note = {SYNTHETIC TEST DATA; NOT A REAL PUBLICATION}\n}",
+              "doi": "10.0000/synthetic-alternative",
+              "source": "crossref",
+              "title": "SYNTHETIC: Dynamic Agent Networks (different fixture work)",
+              "url": null,
+              "venue": "Synthetic Fixture Proceedings",
+              "year": 2026
+            }
+          }
+        ],
+        "sources": [
+          {
+            "error_code": null,
+            "provider": "crossref",
+            "status": "ok"
+          }
+        ],
+        "warnings": [
+          "SYNTHETIC FIXTURE: this is not a real bibliographic lookup."
+        ],
+        "message": "Synthetic scenario ambiguous",
+        "synthetic": true
+      },
+      {
+        "paper_id": "paper-c9fff587e292f1f3",
+        "query": "10.0000/synthetic-missing",
+        "status": "not_found",
+        "metadata": null,
+        "alternatives": [],
+        "sources": [
+          {
+            "error_code": null,
+            "provider": "crossref",
+            "status": "not_found"
+          }
+        ],
+        "warnings": [
+          "SYNTHETIC FIXTURE: this is not a real bibliographic lookup."
+        ],
+        "message": "Synthetic scenario not_found",
+        "synthetic": true
+      },
+      {
+        "paper_id": "paper-ec09484d4252cc0a",
+        "query": "10.0000/synthetic-failure",
+        "status": "provider_error",
+        "metadata": null,
+        "alternatives": [],
+        "sources": [
+          {
+            "error_code": "fixture_outage",
+            "provider": "crossref",
+            "status": "error"
+          }
+        ],
+        "warnings": [
+          "SYNTHETIC FIXTURE: this is not a real bibliographic lookup."
+        ],
+        "message": "Synthetic scenario provider_error",
+        "synthetic": true
+      }
+    ],
+    "evidence_items": [
+      {
+        "evidence_id": "evidence-f8ff11d1a8bef6f5",
+        "paper_id": "paper-9787df51408912ec",
+        "text": "Dynamic agent selection routes each task to a subset of language-model agents using task features.",
+        "quote": "Dynamic agent selection routes each task to a subset of language-model agents using task features.",
+        "category": "method",
+        "scope": "full_text",
+        "support_strength": "direct_quote",
+        "location": {
+          "page": 1,
+          "section": "supplied PDF"
+        },
+        "extraction_worker": "EvidenceWorker:19",
+        "provenance": {
+          "source": "user_pdf",
+          "locator": "synthetic-router-pdf",
+          "source_sha256": "c73e4318700c670ca1858c7d603902bfd0c5287a9b25a7325cc4627758abe0a9",
+          "synthetic": true
+        }
+      },
+      {
+        "evidence_id": "evidence-434ab9e14a2bfb3a",
+        "paper_id": "paper-9787df51408912ec",
+        "text": "The simulated experimental setup uses ten invented task families.",
+        "quote": "The simulated experimental setup uses ten invented task families.",
+        "category": "setup",
+        "scope": "full_text",
+        "support_strength": "direct_quote",
+        "location": {
+          "page": 1,
+          "section": "supplied PDF"
+        },
+        "extraction_worker": "EvidenceWorker:19",
+        "provenance": {
+          "source": "user_pdf",
+          "locator": "synthetic-router-pdf",
+          "source_sha256": "c73e4318700c670ca1858c7d603902bfd0c5287a9b25a7325cc4627758abe0a9",
+          "synthetic": true
+        }
+      },
+      {
+        "evidence_id": "evidence-566647fe74e87f66",
+        "paper_id": "paper-9787df51408912ec",
+        "text": "The synthetic evaluation compares routed teams with a fixed all-agent baseline.",
+        "quote": "The synthetic evaluation compares routed teams with a fixed all-agent baseline.",
+        "category": "setup",
+        "scope": "full_text",
+        "support_strength": "direct_quote",
+        "location": {
+          "page": 2,
+          "section": "supplied PDF"
+        },
+        "extraction_worker": "EvidenceWorker:19",
+        "provenance": {
+          "source": "user_pdf",
+          "locator": "synthetic-router-pdf",
+          "source_sha256": "c73e4318700c670ca1858c7d603902bfd0c5287a9b25a7325cc4627758abe0a9",
+          "synthetic": true
+        }
+      },
+      {
+        "evidence_id": "evidence-a459a7d4e643f836",
+        "paper_id": "paper-9787df51408912ec",
+        "text": "A limitation is that the simulated workload does not establish performance on real tasks.",
+        "quote": "A limitation is that the simulated workload does not establish performance on real tasks.",
+        "category": "limitation",
+        "scope": "full_text",
+        "support_strength": "direct_quote",
+        "location": {
+          "page": 2,
+          "section": "supplied PDF"
+        },
+        "extraction_worker": "EvidenceWorker:19",
+        "provenance": {
+          "source": "user_pdf",
+          "locator": "synthetic-router-pdf",
+          "source_sha256": "c73e4318700c670ca1858c7d603902bfd0c5287a9b25a7325cc4627758abe0a9",
+          "synthetic": true
+        }
+      },
+      {
+        "evidence_id": "evidence-dda25595ed556a1b",
+        "paper_id": "paper-0b480b1da362cc50",
+        "text": "Adaptive communication topology changes message edges between language-model agents during a task.",
+        "quote": "Adaptive communication topology changes message edges between language-model agents during a task.",
+        "category": "method",
+        "scope": "abstract",
+        "support_strength": "direct_quote",
+        "location": {
+          "page": null,
+          "section": "abstract"
+        },
+        "extraction_worker": "EvidenceWorker:20",
+        "provenance": {
+          "source": "crossref",
+          "locator": "10.0000/synthetic-topology",
+          "source_sha256": "fb16738786324beeb9571536e1f0965b83d28faebe09ed637170869da77fc8b1",
+          "synthetic": true
+        }
+      },
+      {
+        "evidence_id": "evidence-5f8d524faf326048",
+        "paper_id": "paper-0b480b1da362cc50",
+        "text": "The synthetic method uses intermediate agreement signals to choose a communication graph.",
+        "quote": "The synthetic method uses intermediate agreement signals to choose a communication graph.",
+        "category": "method",
+        "scope": "abstract",
+        "support_strength": "direct_quote",
+        "location": {
+          "page": null,
+          "section": "abstract"
+        },
+        "extraction_worker": "EvidenceWorker:20",
+        "provenance": {
+          "source": "crossref",
+          "locator": "10.0000/synthetic-topology",
+          "source_sha256": "fb16738786324beeb9571536e1f0965b83d28faebe09ed637170869da77fc8b1",
+          "synthetic": true
+        }
+      },
+      {
+        "evidence_id": "evidence-41964da1527455b0",
+        "paper_id": "paper-0b480b1da362cc50",
+        "text": "Its abstract does not report evaluation sample sizes.",
+        "quote": "Its abstract does not report evaluation sample sizes.",
+        "category": "limitation",
+        "scope": "abstract",
+        "support_strength": "direct_quote",
+        "location": {
+          "page": null,
+          "section": "abstract"
+        },
+        "extraction_worker": "EvidenceWorker:20",
+        "provenance": {
+          "source": "crossref",
+          "locator": "10.0000/synthetic-topology",
+          "source_sha256": "fb16738786324beeb9571536e1f0965b83d28faebe09ed637170869da77fc8b1",
+          "synthetic": true
+        }
+      },
+      {
+        "evidence_id": "evidence-7d356d6eb70edca8",
+        "paper_id": "paper-40b8ac03b20bbf20",
+        "text": "Dynamic agent selection and topology adaptation jointly choose participants and communication edges.",
+        "quote": "Dynamic agent selection and topology adaptation jointly choose participants and communication edges.",
+        "category": "method",
+        "scope": "abstract",
+        "support_strength": "direct_quote",
+        "location": {
+          "page": null,
+          "section": "abstract"
+        },
+        "extraction_worker": "EvidenceWorker:21",
+        "provenance": {
+          "source": "crossref",
+          "locator": "10.0000/synthetic-joint",
+          "source_sha256": "2d2dc3f3a2055b5efc9bf6b2a984d4ca3cfe9d9d3a4482bd922c36969a236ad4",
+          "synthetic": true
+        }
+      },
+      {
+        "evidence_id": "evidence-a97733bb4819bd7c",
+        "paper_id": "paper-40b8ac03b20bbf20",
+        "text": "The synthetic study distinguishes selection costs from communication costs.",
+        "quote": "The synthetic study distinguishes selection costs from communication costs.",
+        "category": "method",
+        "scope": "abstract",
+        "support_strength": "direct_quote",
+        "location": {
+          "page": null,
+          "section": "abstract"
+        },
+        "extraction_worker": "EvidenceWorker:21",
+        "provenance": {
+          "source": "crossref",
+          "locator": "10.0000/synthetic-joint",
+          "source_sha256": "2d2dc3f3a2055b5efc9bf6b2a984d4ca3cfe9d9d3a4482bd922c36969a236ad4",
+          "synthetic": true
+        }
+      },
+      {
+        "evidence_id": "evidence-f1e37fa50ea18e54",
+        "paper_id": "paper-40b8ac03b20bbf20",
+        "text": "Transfer beyond the simulated task distribution is not established.",
+        "quote": "Transfer beyond the simulated task distribution is not established.",
+        "category": "limitation",
+        "scope": "abstract",
+        "support_strength": "direct_quote",
+        "location": {
+          "page": null,
+          "section": "abstract"
+        },
+        "extraction_worker": "EvidenceWorker:21",
+        "provenance": {
+          "source": "crossref",
+          "locator": "10.0000/synthetic-joint",
+          "source_sha256": "2d2dc3f3a2055b5efc9bf6b2a984d4ca3cfe9d9d3a4482bd922c36969a236ad4",
+          "synthetic": true
+        }
+      }
+    ],
+    "themes": [
+      {
+        "theme_id": "theme-1",
+        "label": "Communication structure",
+        "evidence_ids": [
+          "evidence-dda25595ed556a1b",
+          "evidence-5f8d524faf326048",
+          "evidence-7d356d6eb70edca8",
+          "evidence-a97733bb4819bd7c"
+        ],
+        "method_comparison": "Extractive grouping; comparative reasoning requires the host model router.",
+        "limitations": [
+          "Grouping is lexical and is not a scientific conclusion."
+        ],
+        "inference_level": "extractive_grouping"
+      },
+      {
+        "theme_id": "theme-2",
+        "label": "Reported limitations",
+        "evidence_ids": [
+          "evidence-a459a7d4e643f836",
+          "evidence-41964da1527455b0",
+          "evidence-f1e37fa50ea18e54"
+        ],
+        "method_comparison": "Extractive grouping; comparative reasoning requires the host model router.",
+        "limitations": [
+          "Grouping is lexical and is not a scientific conclusion."
+        ],
+        "inference_level": "extractive_grouping"
+      },
+      {
+        "theme_id": "theme-3",
+        "label": "Selection and evaluation",
+        "evidence_ids": [
+          "evidence-f8ff11d1a8bef6f5",
+          "evidence-434ab9e14a2bfb3a",
+          "evidence-566647fe74e87f66"
+        ],
+        "method_comparison": "Extractive grouping; comparative reasoning requires the host model router.",
+        "limitations": [
+          "Grouping is lexical and is not a scientific conclusion."
+        ],
+        "inference_level": "extractive_grouping"
+      }
+    ],
+    "claims": [
+      {
+        "claim_id": "claim-dda25595ed556a1b",
+        "text": "Adaptive communication topology changes message edges between language-model agents during a task.",
+        "paper_ids": [
+          "paper-0b480b1da362cc50"
+        ],
+        "evidence_ids": [
+          "evidence-dda25595ed556a1b"
+        ],
+        "support_type": "direct_quote",
+        "strength": "descriptive",
+        "verification_status": "supported",
+        "theme_id": "theme-1"
+      },
+      {
+        "claim_id": "claim-5f8d524faf326048",
+        "text": "The synthetic method uses intermediate agreement signals to choose a communication graph.",
+        "paper_ids": [
+          "paper-0b480b1da362cc50"
+        ],
+        "evidence_ids": [
+          "evidence-5f8d524faf326048"
+        ],
+        "support_type": "direct_quote",
+        "strength": "descriptive",
+        "verification_status": "supported",
+        "theme_id": "theme-1"
+      },
+      {
+        "claim_id": "claim-7d356d6eb70edca8",
+        "text": "Dynamic agent selection and topology adaptation jointly choose participants and communication edges.",
+        "paper_ids": [
+          "paper-40b8ac03b20bbf20"
+        ],
+        "evidence_ids": [
+          "evidence-7d356d6eb70edca8"
+        ],
+        "support_type": "direct_quote",
+        "strength": "descriptive",
+        "verification_status": "supported",
+        "theme_id": "theme-1"
+      },
+      {
+        "claim_id": "claim-a97733bb4819bd7c",
+        "text": "The synthetic study distinguishes selection costs from communication costs.",
+        "paper_ids": [
+          "paper-40b8ac03b20bbf20"
+        ],
+        "evidence_ids": [
+          "evidence-a97733bb4819bd7c"
+        ],
+        "support_type": "direct_quote",
+        "strength": "descriptive",
+        "verification_status": "supported",
+        "theme_id": "theme-1"
+      },
+      {
+        "claim_id": "claim-a459a7d4e643f836",
+        "text": "A limitation is that the simulated workload does not establish performance on real tasks.",
+        "paper_ids": [
+          "paper-9787df51408912ec"
+        ],
+        "evidence_ids": [
+          "evidence-a459a7d4e643f836"
+        ],
+        "support_type": "direct_quote",
+        "strength": "descriptive",
+        "verification_status": "supported",
+        "theme_id": "theme-2"
+      },
+      {
+        "claim_id": "claim-41964da1527455b0",
+        "text": "Its abstract does not report evaluation sample sizes.",
+        "paper_ids": [
+          "paper-0b480b1da362cc50"
+        ],
+        "evidence_ids": [
+          "evidence-41964da1527455b0"
+        ],
+        "support_type": "direct_quote",
+        "strength": "descriptive",
+        "verification_status": "supported",
+        "theme_id": "theme-2"
+      },
+      {
+        "claim_id": "claim-f1e37fa50ea18e54",
+        "text": "Transfer beyond the simulated task distribution is not established.",
+        "paper_ids": [
+          "paper-40b8ac03b20bbf20"
+        ],
+        "evidence_ids": [
+          "evidence-f1e37fa50ea18e54"
+        ],
+        "support_type": "direct_quote",
+        "strength": "descriptive",
+        "verification_status": "supported",
+        "theme_id": "theme-2"
+      },
+      {
+        "claim_id": "claim-f8ff11d1a8bef6f5",
+        "text": "Dynamic agent selection routes each task to a subset of language-model agents using task features.",
+        "paper_ids": [
+          "paper-9787df51408912ec"
+        ],
+        "evidence_ids": [
+          "evidence-f8ff11d1a8bef6f5"
+        ],
+        "support_type": "direct_quote",
+        "strength": "descriptive",
+        "verification_status": "supported",
+        "theme_id": "theme-3"
+      },
+      {
+        "claim_id": "claim-434ab9e14a2bfb3a",
+        "text": "The simulated experimental setup uses ten invented task families.",
+        "paper_ids": [
+          "paper-9787df51408912ec"
+        ],
+        "evidence_ids": [
+          "evidence-434ab9e14a2bfb3a"
+        ],
+        "support_type": "direct_quote",
+        "strength": "descriptive",
+        "verification_status": "supported",
+        "theme_id": "theme-3"
+      },
+      {
+        "claim_id": "claim-566647fe74e87f66",
+        "text": "The synthetic evaluation compares routed teams with a fixed all-agent baseline.",
+        "paper_ids": [
+          "paper-9787df51408912ec"
+        ],
+        "evidence_ids": [
+          "evidence-566647fe74e87f66"
+        ],
+        "support_type": "direct_quote",
+        "strength": "descriptive",
+        "verification_status": "supported",
+        "theme_id": "theme-3"
+      }
+    ],
+    "draft": {
+      "title": "Related Work",
+      "claim_ids": [
+        "claim-dda25595ed556a1b",
+        "claim-5f8d524faf326048",
+        "claim-7d356d6eb70edca8",
+        "claim-a97733bb4819bd7c",
+        "claim-a459a7d4e643f836",
+        "claim-41964da1527455b0",
+        "claim-f1e37fa50ea18e54",
+        "claim-f8ff11d1a8bef6f5",
+        "claim-434ab9e14a2bfb3a",
+        "claim-566647fe74e87f66"
+      ]
+    },
+    "verification_results": [
+      {
+        "claim_id": "claim-dda25595ed556a1b",
+        "status": "supported",
+        "checks": [
+          "claim_identity",
+          "evidence_links",
+          "citation_status",
+          "source_scope",
+          "verbatim_quote"
+        ],
+        "reason": "Passed applicable structural checks and verbatim quotation check",
+        "semantic_judgment": "not_needed"
+      },
+      {
+        "claim_id": "claim-5f8d524faf326048",
+        "status": "supported",
+        "checks": [
+          "claim_identity",
+          "evidence_links",
+          "citation_status",
+          "source_scope",
+          "verbatim_quote"
+        ],
+        "reason": "Passed applicable structural checks and verbatim quotation check",
+        "semantic_judgment": "not_needed"
+      },
+      {
+        "claim_id": "claim-7d356d6eb70edca8",
+        "status": "supported",
+        "checks": [
+          "claim_identity",
+          "evidence_links",
+          "citation_status",
+          "source_scope",
+          "verbatim_quote"
+        ],
+        "reason": "Passed applicable structural checks and verbatim quotation check",
+        "semantic_judgment": "not_needed"
+      },
+      {
+        "claim_id": "claim-a97733bb4819bd7c",
+        "status": "supported",
+        "checks": [
+          "claim_identity",
+          "evidence_links",
+          "citation_status",
+          "source_scope",
+          "verbatim_quote"
+        ],
+        "reason": "Passed applicable structural checks and verbatim quotation check",
+        "semantic_judgment": "not_needed"
+      },
+      {
+        "claim_id": "claim-a459a7d4e643f836",
+        "status": "supported",
+        "checks": [
+          "claim_identity",
+          "evidence_links",
+          "citation_status",
+          "source_scope",
+          "verbatim_quote"
+        ],
+        "reason": "Passed applicable structural checks and verbatim quotation check",
+        "semantic_judgment": "not_needed"
+      },
+      {
+        "claim_id": "claim-41964da1527455b0",
+        "status": "supported",
+        "checks": [
+          "claim_identity",
+          "evidence_links",
+          "citation_status",
+          "source_scope",
+          "verbatim_quote"
+        ],
+        "reason": "Passed applicable structural checks and verbatim quotation check",
+        "semantic_judgment": "not_needed"
+      },
+      {
+        "claim_id": "claim-f1e37fa50ea18e54",
+        "status": "supported",
+        "checks": [
+          "claim_identity",
+          "evidence_links",
+          "citation_status",
+          "source_scope",
+          "verbatim_quote"
+        ],
+        "reason": "Passed applicable structural checks and verbatim quotation check",
+        "semantic_judgment": "not_needed"
+      },
+      {
+        "claim_id": "claim-f8ff11d1a8bef6f5",
+        "status": "supported",
+        "checks": [
+          "claim_identity",
+          "evidence_links",
+          "citation_status",
+          "source_scope",
+          "verbatim_quote"
+        ],
+        "reason": "Passed applicable structural checks and verbatim quotation check",
+        "semantic_judgment": "not_needed"
+      },
+      {
+        "claim_id": "claim-434ab9e14a2bfb3a",
+        "status": "supported",
+        "checks": [
+          "claim_identity",
+          "evidence_links",
+          "citation_status",
+          "source_scope",
+          "verbatim_quote"
+        ],
+        "reason": "Passed applicable structural checks and verbatim quotation check",
+        "semantic_judgment": "not_needed"
+      },
+      {
+        "claim_id": "claim-566647fe74e87f66",
+        "status": "supported",
+        "checks": [
+          "claim_identity",
+          "evidence_links",
+          "citation_status",
+          "source_scope",
+          "verbatim_quote"
+        ],
+        "reason": "Passed applicable structural checks and verbatim quotation check",
+        "semantic_judgment": "not_needed"
+      }
+    ],
+    "unresolved": [
+      {
+        "paper_id": "paper-6ca8546b03d7f153",
+        "status": "ambiguous",
+        "message": "Synthetic scenario ambiguous",
+        "alternatives": [
+          {
+            "match_score": 1,
+            "paper": {
+              "abstract": "Dynamic agent networks select language-model agents and adapt communication topology. This title deliberately has multiple fixture matches.",
+              "arxiv_id": null,
+              "authors": [
+                {
+                  "name": "Synthetic Example Author"
+                }
+              ],
+              "bibtex": "@misc{synthetic_ambiguous,\n  title = {SYNTHETIC: Dynamic Agent Networks},\n  author = {Synthetic Example Author},\n  year = {2026},\n  note = {SYNTHETIC TEST DATA; NOT A REAL PUBLICATION}\n}",
+              "doi": "10.0000/synthetic-alternative",
+              "source": "crossref",
+              "title": "SYNTHETIC: Dynamic Agent Networks (different fixture work)",
+              "url": null,
+              "venue": "Synthetic Fixture Proceedings",
+              "year": 2026
+            }
+          }
+        ]
+      },
+      {
+        "paper_id": "paper-c9fff587e292f1f3",
+        "status": "not_found",
+        "message": "Synthetic scenario not_found",
+        "alternatives": []
+      },
+      {
+        "paper_id": "paper-ec09484d4252cc0a",
+        "status": "provider_error",
+        "message": "Synthetic scenario provider_error",
+        "alternatives": []
+      },
+      {
+        "paper_id": "paper-466bc780ad415433",
+        "status": "screening_maybe",
+        "message": "Only title/metadata available; relevance cannot be established.",
+        "alternatives": []
+      }
+    ],
+    "seed_references": []
+  },
+  "related_work": "# Related Work\n\n**SYNTHETIC DEMONSTRATION — all bundled papers, identifiers, and findings are invented test data. Do not cite this as research.**\n\nThis extractive baseline groups source quotations; it does not perform semantic method comparison or establish research gaps.\n\n## Communication structure\n\nAn abstract states: “Adaptive communication topology changes message edges between language-model agents during a task.” [1] An abstract states: “The synthetic method uses intermediate agreement signals to choose a communication graph.” [1] An abstract states: “Dynamic agent selection and topology adaptation jointly choose participants and communication edges.” [2] An abstract states: “The synthetic study distinguishes selection costs from communication costs.” [2]\n\n## Reported limitations\n\nThe supplied full text states: “A limitation is that the simulated workload does not establish performance on real tasks.” [3] An abstract states: “Its abstract does not report evaluation sample sizes.” [1] An abstract states: “Transfer beyond the simulated task distribution is not established.” [2]\n\n## Selection and evaluation\n\nThe supplied full text states: “Dynamic agent selection routes each task to a subset of language-model agents using task features.” [3] The supplied full text states: “The simulated experimental setup uses ten invented task families.” [3] The supplied full text states: “The synthetic evaluation compares routed teams with a fixed all-agent baseline.” [3]\n\nEvidence coverage: 6 abstract-derived items and 4 supplied full-text items. Search coverage is bounded; this is not a systematic or exhaustive review.\n\n4 records require follow-up; ambiguous and failed citations are excluded from the prose.\n",
+  "bibliography": [
+    {
+      "reference": 1,
+      "paper_id": "paper-0b480b1da362cc50",
+      "metadata": {
+        "abstract": "Adaptive communication topology changes message edges between language-model agents during a task. The synthetic method uses intermediate agreement signals to choose a communication graph. Its abstract does not report evaluation sample sizes.",
+        "arxiv_id": null,
+        "authors": [
+          {
+            "name": "Synthetic Example Author"
+          }
+        ],
+        "bibtex": "@misc{synthetic_topology,\n  title = {SYNTHETIC: Adaptive Communication Topology for Agent Teams},\n  author = {Synthetic Example Author},\n  year = {2026},\n  note = {SYNTHETIC TEST DATA; NOT A REAL PUBLICATION}\n}",
+        "doi": "10.0000/synthetic-topology",
+        "source": "crossref",
+        "title": "SYNTHETIC: Adaptive Communication Topology for Agent Teams",
+        "url": null,
+        "venue": "Synthetic Fixture Proceedings",
+        "year": 2026
+      },
+      "bibtex": "@misc{synthetic_topology,\n  title = {SYNTHETIC: Adaptive Communication Topology for Agent Teams},\n  author = {Synthetic Example Author},\n  year = {2026},\n  note = {SYNTHETIC TEST DATA; NOT A REAL PUBLICATION}\n}",
+      "sources": [
+        {
+          "error_code": null,
+          "provider": "crossref",
+          "status": "ok"
+        }
+      ],
+      "warnings": [
+        "SYNTHETIC FIXTURE: this is not a real bibliographic lookup."
+      ],
+      "synthetic": true
+    },
+    {
+      "reference": 2,
+      "paper_id": "paper-40b8ac03b20bbf20",
+      "metadata": {
+        "abstract": "Dynamic agent selection and topology adaptation jointly choose participants and communication edges. The synthetic study distinguishes selection costs from communication costs. Transfer beyond the simulated task distribution is not established.",
+        "arxiv_id": null,
+        "authors": [
+          {
+            "name": "Synthetic Example Author"
+          }
+        ],
+        "bibtex": "@misc{synthetic_joint,\n  title = {SYNTHETIC: Joint Agent and Communication Selection},\n  author = {Synthetic Example Author},\n  year = {2026},\n  note = {SYNTHETIC TEST DATA; NOT A REAL PUBLICATION}\n}",
+        "doi": "10.0000/synthetic-joint",
+        "source": "crossref",
+        "title": "SYNTHETIC: Joint Agent and Communication Selection",
+        "url": null,
+        "venue": "Synthetic Fixture Proceedings",
+        "year": 2026
+      },
+      "bibtex": "@misc{synthetic_joint,\n  title = {SYNTHETIC: Joint Agent and Communication Selection},\n  author = {Synthetic Example Author},\n  year = {2026},\n  note = {SYNTHETIC TEST DATA; NOT A REAL PUBLICATION}\n}",
+      "sources": [
+        {
+          "error_code": null,
+          "provider": "crossref",
+          "status": "ok"
+        }
+      ],
+      "warnings": [
+        "SYNTHETIC FIXTURE: this is not a real bibliographic lookup."
+      ],
+      "synthetic": true
+    },
+    {
+      "reference": 3,
+      "paper_id": "paper-9787df51408912ec",
+      "metadata": {
+        "abstract": "Dynamic agent selection routes each task to a subset of language-model agents using task features. The synthetic evaluation compares routed teams with a fixed all-agent baseline. Reported findings concern the simulated workload only.",
+        "arxiv_id": null,
+        "authors": [
+          {
+            "name": "Synthetic Example Author"
+          }
+        ],
+        "bibtex": "@misc{synthetic_router,\n  title = {SYNTHETIC: Dynamic Agent Selection with Task Routing},\n  author = {Synthetic Example Author},\n  year = {2026},\n  note = {SYNTHETIC TEST DATA; NOT A REAL PUBLICATION}\n}",
+        "doi": "10.0000/synthetic-router",
+        "source": "crossref",
+        "title": "SYNTHETIC: Dynamic Agent Selection with Task Routing",
+        "url": null,
+        "venue": "Synthetic Fixture Proceedings",
+        "year": 2026
+      },
+      "bibtex": "@misc{synthetic_router,\n  title = {SYNTHETIC: Dynamic Agent Selection with Task Routing},\n  author = {Synthetic Example Author},\n  year = {2026},\n  note = {SYNTHETIC TEST DATA; NOT A REAL PUBLICATION}\n}",
+      "sources": [
+        {
+          "error_code": null,
+          "provider": "crossref",
+          "status": "ok"
+        }
+      ],
+      "warnings": [
+        "SYNTHETIC FIXTURE: this is not a real bibliographic lookup."
+      ],
+      "synthetic": true
+    }
+  ],
+  "evidence_table": [
+    {
+      "evidence_id": "evidence-f8ff11d1a8bef6f5",
+      "paper_id": "paper-9787df51408912ec",
+      "text": "Dynamic agent selection routes each task to a subset of language-model agents using task features.",
+      "quote": "Dynamic agent selection routes each task to a subset of language-model agents using task features.",
+      "category": "method",
+      "scope": "full_text",
+      "support_strength": "direct_quote",
+      "location": {
+        "page": 1,
+        "section": "supplied PDF"
+      },
+      "extraction_worker": "EvidenceWorker:19",
+      "provenance": {
+        "source": "user_pdf",
+        "locator": "synthetic-router-pdf",
+        "source_sha256": "c73e4318700c670ca1858c7d603902bfd0c5287a9b25a7325cc4627758abe0a9",
+        "synthetic": true
+      },
+      "reference": 3
+    },
+    {
+      "evidence_id": "evidence-434ab9e14a2bfb3a",
+      "paper_id": "paper-9787df51408912ec",
+      "text": "The simulated experimental setup uses ten invented task families.",
+      "quote": "The simulated experimental setup uses ten invented task families.",
+      "category": "setup",
+      "scope": "full_text",
+      "support_strength": "direct_quote",
+      "location": {
+        "page": 1,
+        "section": "supplied PDF"
+      },
+      "extraction_worker": "EvidenceWorker:19",
+      "provenance": {
+        "source": "user_pdf",
+        "locator": "synthetic-router-pdf",
+        "source_sha256": "c73e4318700c670ca1858c7d603902bfd0c5287a9b25a7325cc4627758abe0a9",
+        "synthetic": true
+      },
+      "reference": 3
+    },
+    {
+      "evidence_id": "evidence-566647fe74e87f66",
+      "paper_id": "paper-9787df51408912ec",
+      "text": "The synthetic evaluation compares routed teams with a fixed all-agent baseline.",
+      "quote": "The synthetic evaluation compares routed teams with a fixed all-agent baseline.",
+      "category": "setup",
+      "scope": "full_text",
+      "support_strength": "direct_quote",
+      "location": {
+        "page": 2,
+        "section": "supplied PDF"
+      },
+      "extraction_worker": "EvidenceWorker:19",
+      "provenance": {
+        "source": "user_pdf",
+        "locator": "synthetic-router-pdf",
+        "source_sha256": "c73e4318700c670ca1858c7d603902bfd0c5287a9b25a7325cc4627758abe0a9",
+        "synthetic": true
+      },
+      "reference": 3
+    },
+    {
+      "evidence_id": "evidence-a459a7d4e643f836",
+      "paper_id": "paper-9787df51408912ec",
+      "text": "A limitation is that the simulated workload does not establish performance on real tasks.",
+      "quote": "A limitation is that the simulated workload does not establish performance on real tasks.",
+      "category": "limitation",
+      "scope": "full_text",
+      "support_strength": "direct_quote",
+      "location": {
+        "page": 2,
+        "section": "supplied PDF"
+      },
+      "extraction_worker": "EvidenceWorker:19",
+      "provenance": {
+        "source": "user_pdf",
+        "locator": "synthetic-router-pdf",
+        "source_sha256": "c73e4318700c670ca1858c7d603902bfd0c5287a9b25a7325cc4627758abe0a9",
+        "synthetic": true
+      },
+      "reference": 3
+    },
+    {
+      "evidence_id": "evidence-dda25595ed556a1b",
+      "paper_id": "paper-0b480b1da362cc50",
+      "text": "Adaptive communication topology changes message edges between language-model agents during a task.",
+      "quote": "Adaptive communication topology changes message edges between language-model agents during a task.",
+      "category": "method",
+      "scope": "abstract",
+      "support_strength": "direct_quote",
+      "location": {
+        "page": null,
+        "section": "abstract"
+      },
+      "extraction_worker": "EvidenceWorker:20",
+      "provenance": {
+        "source": "crossref",
+        "locator": "10.0000/synthetic-topology",
+        "source_sha256": "fb16738786324beeb9571536e1f0965b83d28faebe09ed637170869da77fc8b1",
+        "synthetic": true
+      },
+      "reference": 1
+    },
+    {
+      "evidence_id": "evidence-5f8d524faf326048",
+      "paper_id": "paper-0b480b1da362cc50",
+      "text": "The synthetic method uses intermediate agreement signals to choose a communication graph.",
+      "quote": "The synthetic method uses intermediate agreement signals to choose a communication graph.",
+      "category": "method",
+      "scope": "abstract",
+      "support_strength": "direct_quote",
+      "location": {
+        "page": null,
+        "section": "abstract"
+      },
+      "extraction_worker": "EvidenceWorker:20",
+      "provenance": {
+        "source": "crossref",
+        "locator": "10.0000/synthetic-topology",
+        "source_sha256": "fb16738786324beeb9571536e1f0965b83d28faebe09ed637170869da77fc8b1",
+        "synthetic": true
+      },
+      "reference": 1
+    },
+    {
+      "evidence_id": "evidence-41964da1527455b0",
+      "paper_id": "paper-0b480b1da362cc50",
+      "text": "Its abstract does not report evaluation sample sizes.",
+      "quote": "Its abstract does not report evaluation sample sizes.",
+      "category": "limitation",
+      "scope": "abstract",
+      "support_strength": "direct_quote",
+      "location": {
+        "page": null,
+        "section": "abstract"
+      },
+      "extraction_worker": "EvidenceWorker:20",
+      "provenance": {
+        "source": "crossref",
+        "locator": "10.0000/synthetic-topology",
+        "source_sha256": "fb16738786324beeb9571536e1f0965b83d28faebe09ed637170869da77fc8b1",
+        "synthetic": true
+      },
+      "reference": 1
+    },
+    {
+      "evidence_id": "evidence-7d356d6eb70edca8",
+      "paper_id": "paper-40b8ac03b20bbf20",
+      "text": "Dynamic agent selection and topology adaptation jointly choose participants and communication edges.",
+      "quote": "Dynamic agent selection and topology adaptation jointly choose participants and communication edges.",
+      "category": "method",
+      "scope": "abstract",
+      "support_strength": "direct_quote",
+      "location": {
+        "page": null,
+        "section": "abstract"
+      },
+      "extraction_worker": "EvidenceWorker:21",
+      "provenance": {
+        "source": "crossref",
+        "locator": "10.0000/synthetic-joint",
+        "source_sha256": "2d2dc3f3a2055b5efc9bf6b2a984d4ca3cfe9d9d3a4482bd922c36969a236ad4",
+        "synthetic": true
+      },
+      "reference": 2
+    },
+    {
+      "evidence_id": "evidence-a97733bb4819bd7c",
+      "paper_id": "paper-40b8ac03b20bbf20",
+      "text": "The synthetic study distinguishes selection costs from communication costs.",
+      "quote": "The synthetic study distinguishes selection costs from communication costs.",
+      "category": "method",
+      "scope": "abstract",
+      "support_strength": "direct_quote",
+      "location": {
+        "page": null,
+        "section": "abstract"
+      },
+      "extraction_worker": "EvidenceWorker:21",
+      "provenance": {
+        "source": "crossref",
+        "locator": "10.0000/synthetic-joint",
+        "source_sha256": "2d2dc3f3a2055b5efc9bf6b2a984d4ca3cfe9d9d3a4482bd922c36969a236ad4",
+        "synthetic": true
+      },
+      "reference": 2
+    },
+    {
+      "evidence_id": "evidence-f1e37fa50ea18e54",
+      "paper_id": "paper-40b8ac03b20bbf20",
+      "text": "Transfer beyond the simulated task distribution is not established.",
+      "quote": "Transfer beyond the simulated task distribution is not established.",
+      "category": "limitation",
+      "scope": "abstract",
+      "support_strength": "direct_quote",
+      "location": {
+        "page": null,
+        "section": "abstract"
+      },
+      "extraction_worker": "EvidenceWorker:21",
+      "provenance": {
+        "source": "crossref",
+        "locator": "10.0000/synthetic-joint",
+        "source_sha256": "2d2dc3f3a2055b5efc9bf6b2a984d4ca3cfe9d9d3a4482bd922c36969a236ad4",
+        "synthetic": true
+      },
+      "reference": 2
+    }
+  ],
+  "unresolved": [
+    {
+      "paper_id": "paper-6ca8546b03d7f153",
+      "status": "ambiguous",
+      "message": "Synthetic scenario ambiguous",
+      "alternatives": [
+        {
+          "match_score": 1,
+          "paper": {
+            "abstract": "Dynamic agent networks select language-model agents and adapt communication topology. This title deliberately has multiple fixture matches.",
+            "arxiv_id": null,
+            "authors": [
+              {
+                "name": "Synthetic Example Author"
+              }
+            ],
+            "bibtex": "@misc{synthetic_ambiguous,\n  title = {SYNTHETIC: Dynamic Agent Networks},\n  author = {Synthetic Example Author},\n  year = {2026},\n  note = {SYNTHETIC TEST DATA; NOT A REAL PUBLICATION}\n}",
+            "doi": "10.0000/synthetic-alternative",
+            "source": "crossref",
+            "title": "SYNTHETIC: Dynamic Agent Networks (different fixture work)",
+            "url": null,
+            "venue": "Synthetic Fixture Proceedings",
+            "year": 2026
+          }
+        }
+      ]
+    },
+    {
+      "paper_id": "paper-c9fff587e292f1f3",
+      "status": "not_found",
+      "message": "Synthetic scenario not_found",
+      "alternatives": []
+    },
+    {
+      "paper_id": "paper-ec09484d4252cc0a",
+      "status": "provider_error",
+      "message": "Synthetic scenario provider_error",
+      "alternatives": []
+    },
+    {
+      "paper_id": "paper-466bc780ad415433",
+      "status": "screening_maybe",
+      "message": "Only title/metadata available; relevance cannot be established.",
+      "alternatives": []
+    }
+  ],
+  "audit": [
+    {
+      "sequence": 1,
+      "timestamp": "2026-09-20T12:44:47.861018+00:00",
+      "action": "runtime.started",
+      "worker": "coordinator",
+      "role": "LiteratureReviewCoordinator",
+      "parent": null,
+      "depth": 0,
+      "previous_hash": null,
+      "package_id": "org.webagents.literature-review",
+      "package_version": "0.1.0",
+      "package_digest": "20a35b6db17127ae52809e84e23e23994d9fbad235d91882b136f36fc4c547a5",
+      "grant_scopes": {
+        "network.scholarly": "session",
+        "network.citations": "session",
+        "files.pdfs": "session",
+        "memory.session": "session",
+        "model.reasoning": "deny"
+      },
+      "note": "always grants apply only to this Runtime; no persistent grant store",
+      "event_hash": "59d68f62c4350ab89606b483831d0baaadec77a8aae7ed985f26e413bfb41669"
+    },
+    {
+      "sequence": 2,
+      "timestamp": "2026-09-20T12:44:47.861259+00:00",
+      "action": "worker.started",
+      "worker": "PlanningWorker:1",
+      "role": "PlanningWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "59d68f62c4350ab89606b483831d0baaadec77a8aae7ed985f26e413bfb41669",
+      "skills": [
+        "literature-search"
+      ],
+      "state_keys": [
+        "research_question",
+        "seed_references"
+      ],
+      "input_hash": "4922762907fff79ef81c4883e917afd6a3ba37d4126a9fe08031630a11391eb0",
+      "active": 1,
+      "event_hash": "31d986c3789f9d7cc01cfcd4ac86f72e0b50218c5f0ecef18aadf30f5742ce32"
+    },
+    {
+      "sequence": 3,
+      "timestamp": "2026-09-20T12:44:47.861286+00:00",
+      "action": "worker.completed",
+      "worker": "PlanningWorker:1",
+      "role": "PlanningWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "31d986c3789f9d7cc01cfcd4ac86f72e0b50218c5f0ecef18aadf30f5742ce32",
+      "output_hash": "5b93047508ec378866b8f3cd8211d02b1040375ce5269f38eb84fa9c7ebc194c",
+      "state_keys": [
+        "search_plan",
+        "search_queries"
+      ],
+      "status": "ok",
+      "event_hash": "1d7939edc2044dd35bea068b787c5f6bde023aabbb384ae8a25c61f70689af2a"
+    },
+    {
+      "sequence": 4,
+      "timestamp": "2026-09-20T12:44:47.861297+00:00",
+      "action": "stage.completed",
+      "worker": "coordinator",
+      "role": "LiteratureReviewCoordinator",
+      "parent": null,
+      "depth": 0,
+      "previous_hash": "1d7939edc2044dd35bea068b787c5f6bde023aabbb384ae8a25c61f70689af2a",
+      "stage": "planning",
+      "merge": "replace",
+      "worker_count": 1,
+      "synthetic": true,
+      "event_hash": "a185fdeea752dcbb578081fe595cc6b231473b462b05ffb12e5876495ceebac2"
+    },
+    {
+      "sequence": 5,
+      "timestamp": "2026-09-20T12:44:47.861322+00:00",
+      "action": "stage.completed",
+      "worker": "coordinator",
+      "role": "LiteratureReviewCoordinator",
+      "parent": null,
+      "depth": 0,
+      "previous_hash": "a185fdeea752dcbb578081fe595cc6b231473b462b05ffb12e5876495ceebac2",
+      "stage": "seed-discovery",
+      "merge": "append",
+      "worker_count": 0,
+      "synthetic": true,
+      "event_hash": "7ae74fdc7290725de1cb464df404103f9bf0ad68bfee508177639559ed506f40"
+    },
+    {
+      "sequence": 6,
+      "timestamp": "2026-09-20T12:44:47.861386+00:00",
+      "action": "worker.started",
+      "worker": "SearchWorker:2",
+      "role": "SearchWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "7ae74fdc7290725de1cb464df404103f9bf0ad68bfee508177639559ed506f40",
+      "skills": [
+        "literature-search"
+      ],
+      "state_keys": [
+        "research_question",
+        "search_queries"
+      ],
+      "input_hash": "d8624fd39ac35422d0a9b4360bece45b5fb94c3787f5a27f6519b4fcc2eed617",
+      "active": 1,
+      "event_hash": "8f991684f06f120269a17731338a7798819160a8d250d4d888bd01c8ea63601d"
+    },
+    {
+      "sequence": 7,
+      "timestamp": "2026-09-20T12:44:47.861964+00:00",
+      "action": "tool.called",
+      "worker": "SearchWorker:2",
+      "role": "SearchWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "8f991684f06f120269a17731338a7798819160a8d250d4d888bd01c8ea63601d",
+      "tool": "scholarly-search",
+      "binding": "scholarly.search",
+      "permissions": [
+        "network.scholarly"
+      ],
+      "domains": [
+        "api.crossref.org"
+      ],
+      "input_hash": "050ad9569d9f7f807fc69c7de814d062563d52d09fa3026be5a55f1eda75fb3e",
+      "remote_calls": 1,
+      "event_hash": "d66853d745fd3c8f158f86ee578be3f54504c265efa6c190c7c43dfe094b6e6d"
+    },
+    {
+      "sequence": 8,
+      "timestamp": "2026-09-20T12:44:47.861995+00:00",
+      "action": "worker.started",
+      "worker": "SearchWorker:3",
+      "role": "SearchWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "d66853d745fd3c8f158f86ee578be3f54504c265efa6c190c7c43dfe094b6e6d",
+      "skills": [
+        "literature-search"
+      ],
+      "state_keys": [
+        "research_question",
+        "search_queries"
+      ],
+      "input_hash": "002e7545f9e8a32a25c490d01c62f5c156d5a40dee843b878a05ffb98b944bb9",
+      "active": 2,
+      "event_hash": "08432d598c3ace521ae77f8cf1e99ea764d6e689ee1fe057005c6feb4e39a3d8"
+    },
+    {
+      "sequence": 9,
+      "timestamp": "2026-09-20T12:44:47.862439+00:00",
+      "action": "tool.called",
+      "worker": "SearchWorker:3",
+      "role": "SearchWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "08432d598c3ace521ae77f8cf1e99ea764d6e689ee1fe057005c6feb4e39a3d8",
+      "tool": "scholarly-search",
+      "binding": "scholarly.search",
+      "permissions": [
+        "network.scholarly"
+      ],
+      "domains": [
+        "api.crossref.org"
+      ],
+      "input_hash": "c6a2d9b83320cd1048edcf27c01bc0f7aff342ee96f87debc3ef7e9877909d0d",
+      "remote_calls": 2,
+      "event_hash": "59e5599cd6a550fbdd2126e275f69033f073359167fe1af156018fac8bf60c45"
+    },
+    {
+      "sequence": 10,
+      "timestamp": "2026-09-20T12:44:47.862465+00:00",
+      "action": "worker.started",
+      "worker": "SearchWorker:4",
+      "role": "SearchWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "59e5599cd6a550fbdd2126e275f69033f073359167fe1af156018fac8bf60c45",
+      "skills": [
+        "literature-search"
+      ],
+      "state_keys": [
+        "research_question",
+        "search_queries"
+      ],
+      "input_hash": "4c596de923a6240db8d2f82229a7180694308d508414d8fd53324814cdca85db",
+      "active": 3,
+      "event_hash": "b6793e244c96e03197cab16e06db0bca2c1a6b22e1025dbb07a11ee8d9a30bad"
+    },
+    {
+      "sequence": 11,
+      "timestamp": "2026-09-20T12:44:47.862884+00:00",
+      "action": "tool.called",
+      "worker": "SearchWorker:4",
+      "role": "SearchWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "b6793e244c96e03197cab16e06db0bca2c1a6b22e1025dbb07a11ee8d9a30bad",
+      "tool": "scholarly-search",
+      "binding": "scholarly.search",
+      "permissions": [
+        "network.scholarly"
+      ],
+      "domains": [
+        "api.crossref.org"
+      ],
+      "input_hash": "492198f809750aba3989628dca74c2e19dbe243ee934d2bca6f2914679c7b8eb",
+      "remote_calls": 3,
+      "event_hash": "7564edb274b668eaaf6b504ae2975a91cd34aea5af6fcbe557b593966d709510"
+    },
+    {
+      "sequence": 12,
+      "timestamp": "2026-09-20T12:44:47.863778+00:00",
+      "action": "tool.completed",
+      "worker": "SearchWorker:2",
+      "role": "SearchWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "7564edb274b668eaaf6b504ae2975a91cd34aea5af6fcbe557b593966d709510",
+      "tool": "scholarly-search",
+      "result_hash": "e00cd781bf85238c08805c35ed9dbf7d88a65a920b05c2abfeae8f149827a867",
+      "status": "ok",
+      "event_hash": "bc5d0bc7f72aac67c5f663943c66b36ada99e01a6a53e8f9325cfd27d51a0171"
+    },
+    {
+      "sequence": 13,
+      "timestamp": "2026-09-20T12:44:47.864012+00:00",
+      "action": "worker.completed",
+      "worker": "SearchWorker:2",
+      "role": "SearchWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "bc5d0bc7f72aac67c5f663943c66b36ada99e01a6a53e8f9325cfd27d51a0171",
+      "output_hash": "4231b6d7b847f4c328e858d7e37fa6cbb7b79f3e6ab328ad378842f5016bbe15",
+      "state_keys": [
+        "candidate_papers",
+        "unresolved"
+      ],
+      "status": "ok",
+      "event_hash": "f0cda572c28b100d22cf9ee27dd5345e451b1853ea27e652623dd477b02b0b5e"
+    },
+    {
+      "sequence": 14,
+      "timestamp": "2026-09-20T12:44:47.864942+00:00",
+      "action": "tool.completed",
+      "worker": "SearchWorker:3",
+      "role": "SearchWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "f0cda572c28b100d22cf9ee27dd5345e451b1853ea27e652623dd477b02b0b5e",
+      "tool": "scholarly-search",
+      "result_hash": "89e6765b2f61c02fcd7d5f56665ef819b66ecf57c6789e018a78118bd0c190d5",
+      "status": "ok",
+      "event_hash": "ff4db02625deed877ec430143a93d4f530f22aa2c76ec7833592f7e4ab131356"
+    },
+    {
+      "sequence": 15,
+      "timestamp": "2026-09-20T12:44:47.865114+00:00",
+      "action": "worker.completed",
+      "worker": "SearchWorker:3",
+      "role": "SearchWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "ff4db02625deed877ec430143a93d4f530f22aa2c76ec7833592f7e4ab131356",
+      "output_hash": "a93c8e107aaa1b567ab7bd3e91489cbc0a6cdec6b01c766b2f488168b5d0c17b",
+      "state_keys": [
+        "candidate_papers",
+        "unresolved"
+      ],
+      "status": "ok",
+      "event_hash": "378d75fa3e2bb0f2ce6ec997c886e79a9757805aaa44f817c46f09d621b60f0f"
+    },
+    {
+      "sequence": 16,
+      "timestamp": "2026-09-20T12:44:47.866045+00:00",
+      "action": "tool.completed",
+      "worker": "SearchWorker:4",
+      "role": "SearchWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "378d75fa3e2bb0f2ce6ec997c886e79a9757805aaa44f817c46f09d621b60f0f",
+      "tool": "scholarly-search",
+      "result_hash": "7eb3f5966ea39e51986b4014de4f2af3bd9faf639aa6040c263e52cdb2951e7f",
+      "status": "ok",
+      "event_hash": "163538eecec8b2eeb460f66044797bad4fa07c700668cb115665a516e773a5aa"
+    },
+    {
+      "sequence": 17,
+      "timestamp": "2026-09-20T12:44:47.866306+00:00",
+      "action": "worker.completed",
+      "worker": "SearchWorker:4",
+      "role": "SearchWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "163538eecec8b2eeb460f66044797bad4fa07c700668cb115665a516e773a5aa",
+      "output_hash": "82941d6b4bf6c82cf1cbd636bc3ff32761d2cd012ae3e3c08fa2fccab0929d67",
+      "state_keys": [
+        "candidate_papers",
+        "unresolved"
+      ],
+      "status": "ok",
+      "event_hash": "dbd9d1c16664ed755f2f214ad6bf55dd8c9b9b4c9ead5c848de7a671d6f0810b"
+    },
+    {
+      "sequence": 18,
+      "timestamp": "2026-09-20T12:44:47.866467+00:00",
+      "action": "stage.completed",
+      "worker": "coordinator",
+      "role": "LiteratureReviewCoordinator",
+      "parent": null,
+      "depth": 0,
+      "previous_hash": "dbd9d1c16664ed755f2f214ad6bf55dd8c9b9b4c9ead5c848de7a671d6f0810b",
+      "stage": "search",
+      "merge": "deduplicate",
+      "worker_count": 3,
+      "synthetic": true,
+      "event_hash": "574409cd82d13867778557b4510145b446f840ae9215c67d763a5a15052605cd"
+    },
+    {
+      "sequence": 19,
+      "timestamp": "2026-09-20T12:44:47.867286+00:00",
+      "action": "worker.started",
+      "worker": "ScreeningWorker:5",
+      "role": "ScreeningWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "574409cd82d13867778557b4510145b446f840ae9215c67d763a5a15052605cd",
+      "skills": [
+        "paper-screening"
+      ],
+      "state_keys": [
+        "candidate_papers",
+        "document_refs",
+        "research_question"
+      ],
+      "input_hash": "9203c47dc4effbd11c3b65860e0b604ee2d74ec3e6d44c08f5cf64e5976f043e",
+      "active": 1,
+      "event_hash": "b9962d34f4ef8f569520e201f05c61439ea6f22718c8b33b29c32daaa8c6a6cf"
+    },
+    {
+      "sequence": 20,
+      "timestamp": "2026-09-20T12:44:47.867817+00:00",
+      "action": "tool.called",
+      "worker": "ScreeningWorker:5",
+      "role": "ScreeningWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "b9962d34f4ef8f569520e201f05c61439ea6f22718c8b33b29c32daaa8c6a6cf",
+      "tool": "paper-reader",
+      "binding": "paper.read",
+      "permissions": [
+        "files.pdfs"
+      ],
+      "domains": [],
+      "input_hash": "4e825df527b066bdbe7a3eb89a27a0221e974dc7324f2adf154538d9ff9eaf81",
+      "remote_calls": 3,
+      "event_hash": "e8747148b47fc4289b814749c846e7dbdbf70603f9ded5c67d0939aa6ddc5eb9"
+    },
+    {
+      "sequence": 21,
+      "timestamp": "2026-09-20T12:44:47.868286+00:00",
+      "action": "tool.completed",
+      "worker": "ScreeningWorker:5",
+      "role": "ScreeningWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "e8747148b47fc4289b814749c846e7dbdbf70603f9ded5c67d0939aa6ddc5eb9",
+      "tool": "paper-reader",
+      "result_hash": "23db4446acde28d51729ba2a4833db916d2c9faeccc12661bd7de70e8575a7b3",
+      "status": "ok",
+      "event_hash": "86247ae63a7e20951388e4edca66333f9a82036d46a2e387033930c055dab525"
+    },
+    {
+      "sequence": 22,
+      "timestamp": "2026-09-20T12:44:47.868361+00:00",
+      "action": "worker.completed",
+      "worker": "ScreeningWorker:5",
+      "role": "ScreeningWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "86247ae63a7e20951388e4edca66333f9a82036d46a2e387033930c055dab525",
+      "output_hash": "2892ba5a733996bbc132c093119289e34c6db86600e574c095048cccb52abf36",
+      "state_keys": [
+        "screened_papers"
+      ],
+      "status": "ok",
+      "event_hash": "002967ba721ac39a3bb216cf0eef4bbc3c1b4b7c10af7dbce0b17dcf0a4e7a89"
+    },
+    {
+      "sequence": 23,
+      "timestamp": "2026-09-20T12:44:47.868407+00:00",
+      "action": "worker.started",
+      "worker": "ScreeningWorker:6",
+      "role": "ScreeningWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "002967ba721ac39a3bb216cf0eef4bbc3c1b4b7c10af7dbce0b17dcf0a4e7a89",
+      "skills": [
+        "paper-screening"
+      ],
+      "state_keys": [
+        "candidate_papers",
+        "document_refs",
+        "research_question"
+      ],
+      "input_hash": "14480b016dd04874fe2ca7b905a0fdfcbbdc1718f300ee6f78d3f5a773a9b578",
+      "active": 1,
+      "event_hash": "ac1e788036edcd75f3f41f597235b9ab3c85e43cfb6950ba8d4a055c9af966d6"
+    },
+    {
+      "sequence": 24,
+      "timestamp": "2026-09-20T12:44:47.868487+00:00",
+      "action": "worker.completed",
+      "worker": "ScreeningWorker:6",
+      "role": "ScreeningWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "ac1e788036edcd75f3f41f597235b9ab3c85e43cfb6950ba8d4a055c9af966d6",
+      "output_hash": "fd02d07a5443a92f7965c44704ed31a658486a149bd6950b9bf576b8ac9ca27c",
+      "state_keys": [
+        "screened_papers"
+      ],
+      "status": "ok",
+      "event_hash": "13b51205748c2dd43602cd42e53a497dc644f78f8221780492d3fab611c812fe"
+    },
+    {
+      "sequence": 25,
+      "timestamp": "2026-09-20T12:44:47.868523+00:00",
+      "action": "worker.started",
+      "worker": "ScreeningWorker:7",
+      "role": "ScreeningWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "13b51205748c2dd43602cd42e53a497dc644f78f8221780492d3fab611c812fe",
+      "skills": [
+        "paper-screening"
+      ],
+      "state_keys": [
+        "candidate_papers",
+        "document_refs",
+        "research_question"
+      ],
+      "input_hash": "48fb8bae7948254bdabd002178d15dbc3e5de1785d23a5ef700cb610ba7635ac",
+      "active": 1,
+      "event_hash": "5e831b1233f91175981c3118fe02f4a429aea9c0ceacea2902847687e25da553"
+    },
+    {
+      "sequence": 26,
+      "timestamp": "2026-09-20T12:44:47.868596+00:00",
+      "action": "worker.completed",
+      "worker": "ScreeningWorker:7",
+      "role": "ScreeningWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "5e831b1233f91175981c3118fe02f4a429aea9c0ceacea2902847687e25da553",
+      "output_hash": "9254340567c76677db7659e6bca4ea0ab7aaf2ba1d4c0cd79a194dd525c6f1af",
+      "state_keys": [
+        "screened_papers"
+      ],
+      "status": "ok",
+      "event_hash": "295edc8d91453778b4f758937ec05838c0d1493b3b4dc8a178930606cdd7fba6"
+    },
+    {
+      "sequence": 27,
+      "timestamp": "2026-09-20T12:44:47.868634+00:00",
+      "action": "worker.started",
+      "worker": "ScreeningWorker:8",
+      "role": "ScreeningWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "295edc8d91453778b4f758937ec05838c0d1493b3b4dc8a178930606cdd7fba6",
+      "skills": [
+        "paper-screening"
+      ],
+      "state_keys": [
+        "candidate_papers",
+        "document_refs",
+        "research_question"
+      ],
+      "input_hash": "14a0a064ad994b8a1fdb2abb48f1c57a5b654c89530108f2d98ae6846821a183",
+      "active": 1,
+      "event_hash": "2d23c8dfa6c57c954241d5d9163115ffbf888fa1e1cd3c128cb610679e25e9af"
+    },
+    {
+      "sequence": 28,
+      "timestamp": "2026-09-20T12:44:47.868707+00:00",
+      "action": "worker.completed",
+      "worker": "ScreeningWorker:8",
+      "role": "ScreeningWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "2d23c8dfa6c57c954241d5d9163115ffbf888fa1e1cd3c128cb610679e25e9af",
+      "output_hash": "9edb2bebad561cb70235adf7385561aec671436560949eddf274fab0d114a8b7",
+      "state_keys": [
+        "screened_papers"
+      ],
+      "status": "ok",
+      "event_hash": "5e791ec2df06ee8061286b25ca4dbf11b36bb515000d2b2d8f97a6e6ce864b8b"
+    },
+    {
+      "sequence": 29,
+      "timestamp": "2026-09-20T12:44:47.868740+00:00",
+      "action": "worker.started",
+      "worker": "ScreeningWorker:9",
+      "role": "ScreeningWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "5e791ec2df06ee8061286b25ca4dbf11b36bb515000d2b2d8f97a6e6ce864b8b",
+      "skills": [
+        "paper-screening"
+      ],
+      "state_keys": [
+        "candidate_papers",
+        "document_refs",
+        "research_question"
+      ],
+      "input_hash": "0bce53179e15f140652564746c24dffb605401f56b322ee636d655780ce74f9d",
+      "active": 1,
+      "event_hash": "7a08180eba6b6eea6f75d9146d3bdab7d7d0e497e4fa6acae8623ac9749c7e12"
+    },
+    {
+      "sequence": 30,
+      "timestamp": "2026-09-20T12:44:47.868809+00:00",
+      "action": "worker.completed",
+      "worker": "ScreeningWorker:9",
+      "role": "ScreeningWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "7a08180eba6b6eea6f75d9146d3bdab7d7d0e497e4fa6acae8623ac9749c7e12",
+      "output_hash": "e0ddee3b9e3ef8bace493f4e3d40454851e395d7369a88d4ce0dc983ff8430e3",
+      "state_keys": [
+        "screened_papers"
+      ],
+      "status": "ok",
+      "event_hash": "fa686171e867488aeefcf6c6c609ed3737a97990c50de724e4d4211235de6785"
+    },
+    {
+      "sequence": 31,
+      "timestamp": "2026-09-20T12:44:47.868842+00:00",
+      "action": "worker.started",
+      "worker": "ScreeningWorker:10",
+      "role": "ScreeningWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "fa686171e867488aeefcf6c6c609ed3737a97990c50de724e4d4211235de6785",
+      "skills": [
+        "paper-screening"
+      ],
+      "state_keys": [
+        "candidate_papers",
+        "document_refs",
+        "research_question"
+      ],
+      "input_hash": "dad9359f25415abb0fd161815c1918df45050412ffdaa161e49cc3d8f7802270",
+      "active": 1,
+      "event_hash": "3aee2ec5fc43f14a07832cfdd6cfcab4f69ee90d3788985c92fd981e10943398"
+    },
+    {
+      "sequence": 32,
+      "timestamp": "2026-09-20T12:44:47.868912+00:00",
+      "action": "worker.completed",
+      "worker": "ScreeningWorker:10",
+      "role": "ScreeningWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "3aee2ec5fc43f14a07832cfdd6cfcab4f69ee90d3788985c92fd981e10943398",
+      "output_hash": "a662aaca3d61189d3b8c2c09f72b4a4e59c19a32c6e4d04e8ebe798263f6f0ac",
+      "state_keys": [
+        "screened_papers"
+      ],
+      "status": "ok",
+      "event_hash": "da6315716e1034c2e94779c2daf39e77bb947649cbe03945c9d47fce782aed96"
+    },
+    {
+      "sequence": 33,
+      "timestamp": "2026-09-20T12:44:47.868948+00:00",
+      "action": "worker.started",
+      "worker": "ScreeningWorker:11",
+      "role": "ScreeningWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "da6315716e1034c2e94779c2daf39e77bb947649cbe03945c9d47fce782aed96",
+      "skills": [
+        "paper-screening"
+      ],
+      "state_keys": [
+        "candidate_papers",
+        "document_refs",
+        "research_question"
+      ],
+      "input_hash": "c4291a1a2992a132c88e4806cc564a069d93586b533c3c9b3aed0b32cee74916",
+      "active": 1,
+      "event_hash": "195b1f43ba76a348615078d7c7b133724400c45cd02ef2605868ce05b89f2d86"
+    },
+    {
+      "sequence": 34,
+      "timestamp": "2026-09-20T12:44:47.869014+00:00",
+      "action": "worker.completed",
+      "worker": "ScreeningWorker:11",
+      "role": "ScreeningWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "195b1f43ba76a348615078d7c7b133724400c45cd02ef2605868ce05b89f2d86",
+      "output_hash": "f8b5f56dd655973b73527e2a541dd2e4d65a1b9625e98d320f16f0bb67bad1e4",
+      "state_keys": [
+        "screened_papers"
+      ],
+      "status": "ok",
+      "event_hash": "f33f18eb95af9ca7bb3f76de713b8cdbb56da1358586a169d51f2cdda0ece309"
+    },
+    {
+      "sequence": 35,
+      "timestamp": "2026-09-20T12:44:47.869046+00:00",
+      "action": "worker.started",
+      "worker": "ScreeningWorker:12",
+      "role": "ScreeningWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "f33f18eb95af9ca7bb3f76de713b8cdbb56da1358586a169d51f2cdda0ece309",
+      "skills": [
+        "paper-screening"
+      ],
+      "state_keys": [
+        "candidate_papers",
+        "document_refs",
+        "research_question"
+      ],
+      "input_hash": "e59f7908c840f0053ecbb8650bd5d09ec111d18008cc39821063d9135a779c5d",
+      "active": 1,
+      "event_hash": "5dd7db0004f32c0241db90ff028345715b9ad7ef7726ae09c5b551fe152fbf75"
+    },
+    {
+      "sequence": 36,
+      "timestamp": "2026-09-20T12:44:47.869119+00:00",
+      "action": "worker.completed",
+      "worker": "ScreeningWorker:12",
+      "role": "ScreeningWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "5dd7db0004f32c0241db90ff028345715b9ad7ef7726ae09c5b551fe152fbf75",
+      "output_hash": "ab7c8d096f72ec0f04ac578806e844ef0daf792303b2963d584bb8b816ac3153",
+      "state_keys": [
+        "screened_papers"
+      ],
+      "status": "ok",
+      "event_hash": "d63647eeef22fceb672feb31f137f233e31bbc804963bd8e01295955df1f44d3"
+    },
+    {
+      "sequence": 37,
+      "timestamp": "2026-09-20T12:44:47.869174+00:00",
+      "action": "stage.completed",
+      "worker": "coordinator",
+      "role": "LiteratureReviewCoordinator",
+      "parent": null,
+      "depth": 0,
+      "previous_hash": "d63647eeef22fceb672feb31f137f233e31bbc804963bd8e01295955df1f44d3",
+      "stage": "screening",
+      "merge": "append",
+      "worker_count": 8,
+      "synthetic": true,
+      "event_hash": "2dca9f8f6e95509afe1d3d433d58ca3ec9ad3fa1d6da70b5a489db4918382ec2"
+    },
+    {
+      "sequence": 38,
+      "timestamp": "2026-09-20T12:44:47.869444+00:00",
+      "action": "worker.started",
+      "worker": "CitationWorker:13",
+      "role": "CitationWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "2dca9f8f6e95509afe1d3d433d58ca3ec9ad3fa1d6da70b5a489db4918382ec2",
+      "skills": [
+        "citation-resolution"
+      ],
+      "state_keys": [
+        "candidate_papers"
+      ],
+      "input_hash": "b21d0cf577cc820d429cadf2f1106114222c79f2eff49938b2663ebf260ccbc3",
+      "active": 1,
+      "event_hash": "c48fdb9143dca1ce6dcbdf3909c261901f72fd12b8dfce092ed18b760ab573cf"
+    },
+    {
+      "sequence": 39,
+      "timestamp": "2026-09-20T12:44:47.869881+00:00",
+      "action": "tool.called",
+      "worker": "CitationWorker:13",
+      "role": "CitationWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "c48fdb9143dca1ce6dcbdf3909c261901f72fd12b8dfce092ed18b760ab573cf",
+      "tool": "citation-resolver",
+      "binding": "citation.resolve",
+      "permissions": [
+        "network.citations"
+      ],
+      "domains": [
+        "webagents-citation-resolver-production.up.railway.app"
+      ],
+      "input_hash": "5c1c5172ac23c454dfef09a7836d573838506833dcee733518db4e9b04988e2a",
+      "remote_calls": 4,
+      "event_hash": "38299dfcc76b08936c90a3853d0419ccbcc9fb669f9a546d4dee9bd0956a8cb9"
+    },
+    {
+      "sequence": 40,
+      "timestamp": "2026-09-20T12:44:47.870466+00:00",
+      "action": "tool.completed",
+      "worker": "CitationWorker:13",
+      "role": "CitationWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "38299dfcc76b08936c90a3853d0419ccbcc9fb669f9a546d4dee9bd0956a8cb9",
+      "tool": "citation-resolver",
+      "result_hash": "10f607ae94fa3864a98a6392afbf1190f292fc757fa84e3b3efbbaf1bbd4e766",
+      "status": "resolved",
+      "event_hash": "3b3fd5edf48127c251719e937da7247860b474e6c2fbed8e95b8463e8c20cfd7"
+    },
+    {
+      "sequence": 41,
+      "timestamp": "2026-09-20T12:44:47.870512+00:00",
+      "action": "worker.completed",
+      "worker": "CitationWorker:13",
+      "role": "CitationWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "3b3fd5edf48127c251719e937da7247860b474e6c2fbed8e95b8463e8c20cfd7",
+      "output_hash": "8fb2dd9b03832b1f79b2cae7905f1bc3388f39569d56f28daac174f18ac535f3",
+      "state_keys": [
+        "citation_records",
+        "unresolved"
+      ],
+      "status": "ok",
+      "event_hash": "e2e56aec571c2177bbdfd20a782f083e438ace9be087ca839c2db78b05fab093"
+    },
+    {
+      "sequence": 42,
+      "timestamp": "2026-09-20T12:44:47.870547+00:00",
+      "action": "worker.started",
+      "worker": "CitationWorker:14",
+      "role": "CitationWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "e2e56aec571c2177bbdfd20a782f083e438ace9be087ca839c2db78b05fab093",
+      "skills": [
+        "citation-resolution"
+      ],
+      "state_keys": [
+        "candidate_papers"
+      ],
+      "input_hash": "8ceda8ec26ffcc76751f2a7ca961ec3135a0aea882e480ed5e64d80ed09a6a40",
+      "active": 1,
+      "event_hash": "15d6cb2f42aa0505d9fb9ee516a5b8121e207be897c129b47a03ce2c457ab88f"
+    },
+    {
+      "sequence": 43,
+      "timestamp": "2026-09-20T12:44:47.870963+00:00",
+      "action": "tool.called",
+      "worker": "CitationWorker:14",
+      "role": "CitationWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "15d6cb2f42aa0505d9fb9ee516a5b8121e207be897c129b47a03ce2c457ab88f",
+      "tool": "citation-resolver",
+      "binding": "citation.resolve",
+      "permissions": [
+        "network.citations"
+      ],
+      "domains": [
+        "webagents-citation-resolver-production.up.railway.app"
+      ],
+      "input_hash": "e0c7f9ec5613bb13d33d026675344f1a3678ef3f2e83f002c4274cabba944992",
+      "remote_calls": 5,
+      "event_hash": "a5e4952f98eeee0134ad1e5977768e648d979cb739336b388e3734aac9e24301"
+    },
+    {
+      "sequence": 44,
+      "timestamp": "2026-09-20T12:44:47.871493+00:00",
+      "action": "tool.completed",
+      "worker": "CitationWorker:14",
+      "role": "CitationWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "a5e4952f98eeee0134ad1e5977768e648d979cb739336b388e3734aac9e24301",
+      "tool": "citation-resolver",
+      "result_hash": "4d408f0564f015e7978fc6766f84555097ff89d412d14a5a866108ba60f7876a",
+      "status": "resolved",
+      "event_hash": "a0f5ce015b434f28515ce2f071a26633e13483d7c2dd50a4448877c7c95a7708"
+    },
+    {
+      "sequence": 45,
+      "timestamp": "2026-09-20T12:44:47.871535+00:00",
+      "action": "worker.completed",
+      "worker": "CitationWorker:14",
+      "role": "CitationWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "a0f5ce015b434f28515ce2f071a26633e13483d7c2dd50a4448877c7c95a7708",
+      "output_hash": "43eeb3fcde88ad46175343a160ad8ae4d69f14167cad55f9d42f70b9668a9650",
+      "state_keys": [
+        "citation_records",
+        "unresolved"
+      ],
+      "status": "ok",
+      "event_hash": "19a8d518f94d7b75642658868a3c703ead95e98588b32cb715eae89bbd1f63f4"
+    },
+    {
+      "sequence": 46,
+      "timestamp": "2026-09-20T12:44:47.871569+00:00",
+      "action": "worker.started",
+      "worker": "CitationWorker:15",
+      "role": "CitationWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "19a8d518f94d7b75642658868a3c703ead95e98588b32cb715eae89bbd1f63f4",
+      "skills": [
+        "citation-resolution"
+      ],
+      "state_keys": [
+        "candidate_papers"
+      ],
+      "input_hash": "324172e586801e91f91eb51b10303489301a4e1ce2820c9c5b7e19b4f21ed5af",
+      "active": 1,
+      "event_hash": "850d6259ca862d8ee984f3e6631cf8a936da7ef5b63c3f845e9c914a2c6dddd1"
+    },
+    {
+      "sequence": 47,
+      "timestamp": "2026-09-20T12:44:47.871978+00:00",
+      "action": "tool.called",
+      "worker": "CitationWorker:15",
+      "role": "CitationWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "850d6259ca862d8ee984f3e6631cf8a936da7ef5b63c3f845e9c914a2c6dddd1",
+      "tool": "citation-resolver",
+      "binding": "citation.resolve",
+      "permissions": [
+        "network.citations"
+      ],
+      "domains": [
+        "webagents-citation-resolver-production.up.railway.app"
+      ],
+      "input_hash": "8bed43b63f857af8068317a40d981ed4bff426f91a249069f6c3be73ebbb5e8c",
+      "remote_calls": 6,
+      "event_hash": "761eeee341ee36df3f246273b2735b4658f3786f9c5150772d6d0854120e5e0c"
+    },
+    {
+      "sequence": 48,
+      "timestamp": "2026-09-20T12:44:47.872511+00:00",
+      "action": "tool.completed",
+      "worker": "CitationWorker:15",
+      "role": "CitationWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "761eeee341ee36df3f246273b2735b4658f3786f9c5150772d6d0854120e5e0c",
+      "tool": "citation-resolver",
+      "result_hash": "b498d213ea60641f6b503a14a147250c4201754f1167514e3aee6b3cfba4ad36",
+      "status": "resolved",
+      "event_hash": "6cb7608292bf793a1526fbfc54fb20a27aff8a3f0511ac9e1f40006feadcc9ba"
+    },
+    {
+      "sequence": 49,
+      "timestamp": "2026-09-20T12:44:47.872552+00:00",
+      "action": "worker.completed",
+      "worker": "CitationWorker:15",
+      "role": "CitationWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "6cb7608292bf793a1526fbfc54fb20a27aff8a3f0511ac9e1f40006feadcc9ba",
+      "output_hash": "c619cab77e67e97f597133c59ca1e0e563e202813744b71e998f7e6a7b8ef4ad",
+      "state_keys": [
+        "citation_records",
+        "unresolved"
+      ],
+      "status": "ok",
+      "event_hash": "f0db0267fa1c5dd1417444f37f7efd15f7d99804c513c3de415a8b5affa7ae3a"
+    },
+    {
+      "sequence": 50,
+      "timestamp": "2026-09-20T12:44:47.872591+00:00",
+      "action": "worker.started",
+      "worker": "CitationWorker:16",
+      "role": "CitationWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "f0db0267fa1c5dd1417444f37f7efd15f7d99804c513c3de415a8b5affa7ae3a",
+      "skills": [
+        "citation-resolution"
+      ],
+      "state_keys": [
+        "candidate_papers"
+      ],
+      "input_hash": "43ede537b5e32ddc04efe748fdf0eb6e2fb586c61e78a5427276737e0684f7ca",
+      "active": 1,
+      "event_hash": "6c593e17d8d8e54d5e5e8b0c486ab1ac6a1c24a2cc299aee90a1ac2208ae1993"
+    },
+    {
+      "sequence": 51,
+      "timestamp": "2026-09-20T12:44:47.873011+00:00",
+      "action": "tool.called",
+      "worker": "CitationWorker:16",
+      "role": "CitationWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "6c593e17d8d8e54d5e5e8b0c486ab1ac6a1c24a2cc299aee90a1ac2208ae1993",
+      "tool": "citation-resolver",
+      "binding": "citation.resolve",
+      "permissions": [
+        "network.citations"
+      ],
+      "domains": [
+        "webagents-citation-resolver-production.up.railway.app"
+      ],
+      "input_hash": "7ffee68966400dfaa89f2f6c8495417945b0d11ededb23f561044a7b0e512062",
+      "remote_calls": 7,
+      "event_hash": "f6efa51be030ba534b1043778479556d3a6afde67afa320fd00239327dc12610"
+    },
+    {
+      "sequence": 52,
+      "timestamp": "2026-09-20T12:44:47.873629+00:00",
+      "action": "tool.completed",
+      "worker": "CitationWorker:16",
+      "role": "CitationWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "f6efa51be030ba534b1043778479556d3a6afde67afa320fd00239327dc12610",
+      "tool": "citation-resolver",
+      "result_hash": "6f36ad23e13f381acd34e24882f8757fc696eed12737c63f06d4e056cbdc584e",
+      "status": "ambiguous",
+      "event_hash": "79d36c45a9e0a021bc9745d02740c4375a08b282c689b1fe7498e6d16fcab130"
+    },
+    {
+      "sequence": 53,
+      "timestamp": "2026-09-20T12:44:47.873683+00:00",
+      "action": "worker.completed",
+      "worker": "CitationWorker:16",
+      "role": "CitationWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "79d36c45a9e0a021bc9745d02740c4375a08b282c689b1fe7498e6d16fcab130",
+      "output_hash": "398f18df46f2d6685575150ea365db55730d7e7fa05404a86a56903ab1b29413",
+      "state_keys": [
+        "citation_records",
+        "unresolved"
+      ],
+      "status": "ok",
+      "event_hash": "5c6ef0ffb4edd76d61c587ba9e27546020553452a43f0ba07c04bf69b085ad45"
+    },
+    {
+      "sequence": 54,
+      "timestamp": "2026-09-20T12:44:47.873720+00:00",
+      "action": "worker.started",
+      "worker": "CitationWorker:17",
+      "role": "CitationWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "5c6ef0ffb4edd76d61c587ba9e27546020553452a43f0ba07c04bf69b085ad45",
+      "skills": [
+        "citation-resolution"
+      ],
+      "state_keys": [
+        "candidate_papers"
+      ],
+      "input_hash": "7d399fb78a1bd2a33858a7af30432a905f0a7f0277c65a5e9a4f2db644bf604e",
+      "active": 1,
+      "event_hash": "9d94d1607956b1a592930b05547af2f364f26e22f0e672fd9ecffe80498f0e9c"
+    },
+    {
+      "sequence": 55,
+      "timestamp": "2026-09-20T12:44:47.874133+00:00",
+      "action": "tool.called",
+      "worker": "CitationWorker:17",
+      "role": "CitationWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "9d94d1607956b1a592930b05547af2f364f26e22f0e672fd9ecffe80498f0e9c",
+      "tool": "citation-resolver",
+      "binding": "citation.resolve",
+      "permissions": [
+        "network.citations"
+      ],
+      "domains": [
+        "webagents-citation-resolver-production.up.railway.app"
+      ],
+      "input_hash": "9cf4faeaf3980781a393d5fa4501d29e8871d9aa6affc5eec35ecf4249a7a4fd",
+      "remote_calls": 8,
+      "event_hash": "00d7aa333be4cf6d246e3a4e58484dfa61433a3cd86b740168fce5dc3cb075a8"
+    },
+    {
+      "sequence": 56,
+      "timestamp": "2026-09-20T12:44:47.874749+00:00",
+      "action": "tool.completed",
+      "worker": "CitationWorker:17",
+      "role": "CitationWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "00d7aa333be4cf6d246e3a4e58484dfa61433a3cd86b740168fce5dc3cb075a8",
+      "tool": "citation-resolver",
+      "result_hash": "dfb98ddee765756cbf47b45b08e2d2ce7fa344c3ec58b03ccf5e11375049f1f3",
+      "status": "not_found",
+      "event_hash": "3508ec970dc1e07142ed34ee79376c8ddb91dc137f2f33cd0c793c1c7c6cba92"
+    },
+    {
+      "sequence": 57,
+      "timestamp": "2026-09-20T12:44:47.874789+00:00",
+      "action": "worker.completed",
+      "worker": "CitationWorker:17",
+      "role": "CitationWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "3508ec970dc1e07142ed34ee79376c8ddb91dc137f2f33cd0c793c1c7c6cba92",
+      "output_hash": "e2452fd7ce8a0396acb049005346f560ee9858c9dc2edfcf9ed5a41045691c7a",
+      "state_keys": [
+        "citation_records",
+        "unresolved"
+      ],
+      "status": "ok",
+      "event_hash": "dfd006016b6231b584d8db103d7e82e07a4ad5a4f98719ff8ad5bd1f4bdf84da"
+    },
+    {
+      "sequence": 58,
+      "timestamp": "2026-09-20T12:44:47.874830+00:00",
+      "action": "worker.started",
+      "worker": "CitationWorker:18",
+      "role": "CitationWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "dfd006016b6231b584d8db103d7e82e07a4ad5a4f98719ff8ad5bd1f4bdf84da",
+      "skills": [
+        "citation-resolution"
+      ],
+      "state_keys": [
+        "candidate_papers"
+      ],
+      "input_hash": "48fc836b7891875d78351f119c4184fbf807049123f3d9b80d650354786f08c6",
+      "active": 1,
+      "event_hash": "1d4b15f2436e3a7eed0dd846a6d053c26b9f6a27b012cc6eee81a90a98ffa1fd"
+    },
+    {
+      "sequence": 59,
+      "timestamp": "2026-09-20T12:44:47.875309+00:00",
+      "action": "tool.called",
+      "worker": "CitationWorker:18",
+      "role": "CitationWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "1d4b15f2436e3a7eed0dd846a6d053c26b9f6a27b012cc6eee81a90a98ffa1fd",
+      "tool": "citation-resolver",
+      "binding": "citation.resolve",
+      "permissions": [
+        "network.citations"
+      ],
+      "domains": [
+        "webagents-citation-resolver-production.up.railway.app"
+      ],
+      "input_hash": "02854905f62238b1d42ad88a67436fc30629fd6bbf9033e6c0e2144e920c2be5",
+      "remote_calls": 9,
+      "event_hash": "2fdd04f066d386338322f64def3a9198ef4a145e9736ef2f9c060c5c2697b791"
+    },
+    {
+      "sequence": 60,
+      "timestamp": "2026-09-20T12:44:47.875815+00:00",
+      "action": "tool.completed",
+      "worker": "CitationWorker:18",
+      "role": "CitationWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "2fdd04f066d386338322f64def3a9198ef4a145e9736ef2f9c060c5c2697b791",
+      "tool": "citation-resolver",
+      "result_hash": "a2b40530f4a220ad01fff0ee7732ecba663f412a40500014bb889483801f2412",
+      "status": "provider_error",
+      "event_hash": "12c982d85430baf5363fdc82014c5f4aba16094b3947836713b224c90c600276"
+    },
+    {
+      "sequence": 61,
+      "timestamp": "2026-09-20T12:44:47.875845+00:00",
+      "action": "worker.completed",
+      "worker": "CitationWorker:18",
+      "role": "CitationWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "12c982d85430baf5363fdc82014c5f4aba16094b3947836713b224c90c600276",
+      "output_hash": "ca8c9f0f8b7f8f62dd86781d3c96a0ec79bec8c426cf48bc592d2c82e9377c98",
+      "state_keys": [
+        "citation_records",
+        "unresolved"
+      ],
+      "status": "ok",
+      "event_hash": "250b9d45e7d4c33c604227c05cb95e2bcf840201186f4a0a95d060eaa5272b72"
+    },
+    {
+      "sequence": 62,
+      "timestamp": "2026-09-20T12:44:47.875903+00:00",
+      "action": "stage.completed",
+      "worker": "coordinator",
+      "role": "LiteratureReviewCoordinator",
+      "parent": null,
+      "depth": 0,
+      "previous_hash": "250b9d45e7d4c33c604227c05cb95e2bcf840201186f4a0a95d060eaa5272b72",
+      "stage": "citations",
+      "merge": "append",
+      "worker_count": 6,
+      "synthetic": true,
+      "event_hash": "663cc544981239a1506212a6544212c11664b8422cd8bec29410290cb68a48fa"
+    },
+    {
+      "sequence": 63,
+      "timestamp": "2026-09-20T12:44:47.876248+00:00",
+      "action": "worker.started",
+      "worker": "EvidenceWorker:19",
+      "role": "EvidenceWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "663cc544981239a1506212a6544212c11664b8422cd8bec29410290cb68a48fa",
+      "skills": [
+        "evidence-extraction"
+      ],
+      "state_keys": [
+        "candidate_papers",
+        "citation_records",
+        "document_refs",
+        "research_question"
+      ],
+      "input_hash": "48b1b0a227295875bf8e5f41300539d79b82425bce755e7bb1a1234ac79199ed",
+      "active": 1,
+      "event_hash": "7cfd4524b8e66c2363a39a30617e743a971fba75413fd87386ab0e4af49eb106"
+    },
+    {
+      "sequence": 64,
+      "timestamp": "2026-09-20T12:44:47.876690+00:00",
+      "action": "tool.called",
+      "worker": "EvidenceWorker:19",
+      "role": "EvidenceWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "7cfd4524b8e66c2363a39a30617e743a971fba75413fd87386ab0e4af49eb106",
+      "tool": "paper-reader",
+      "binding": "paper.read",
+      "permissions": [
+        "files.pdfs"
+      ],
+      "domains": [],
+      "input_hash": "4e825df527b066bdbe7a3eb89a27a0221e974dc7324f2adf154538d9ff9eaf81",
+      "remote_calls": 9,
+      "event_hash": "bca996130c7a2327bbac194c873ea0c29ae003eb6315b6ae79ed2952b16fef7b"
+    },
+    {
+      "sequence": 65,
+      "timestamp": "2026-09-20T12:44:47.877141+00:00",
+      "action": "tool.completed",
+      "worker": "EvidenceWorker:19",
+      "role": "EvidenceWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "bca996130c7a2327bbac194c873ea0c29ae003eb6315b6ae79ed2952b16fef7b",
+      "tool": "paper-reader",
+      "result_hash": "23db4446acde28d51729ba2a4833db916d2c9faeccc12661bd7de70e8575a7b3",
+      "status": "ok",
+      "event_hash": "8a4a7a4a79dfd057df5e58e733a5be9089a1c0cbc2c06a2a09add376dc17d7a0"
+    },
+    {
+      "sequence": 66,
+      "timestamp": "2026-09-20T12:44:47.877246+00:00",
+      "action": "worker.completed",
+      "worker": "EvidenceWorker:19",
+      "role": "EvidenceWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "8a4a7a4a79dfd057df5e58e733a5be9089a1c0cbc2c06a2a09add376dc17d7a0",
+      "output_hash": "890624a73ffd496f1f0ba69fd198dcbf0d8bdd5460f438eab4d8798997fad63f",
+      "state_keys": [
+        "evidence_items",
+        "unresolved"
+      ],
+      "status": "ok",
+      "event_hash": "df81934b5235b923790483c6680dd2a95a10e0dd553b62c6cb89eec875f38933"
+    },
+    {
+      "sequence": 67,
+      "timestamp": "2026-09-20T12:44:47.877309+00:00",
+      "action": "worker.started",
+      "worker": "EvidenceWorker:20",
+      "role": "EvidenceWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "df81934b5235b923790483c6680dd2a95a10e0dd553b62c6cb89eec875f38933",
+      "skills": [
+        "evidence-extraction"
+      ],
+      "state_keys": [
+        "candidate_papers",
+        "citation_records",
+        "document_refs",
+        "research_question"
+      ],
+      "input_hash": "6a771f98bcfafa670a45b37be2616536009898726e024d9d445a889553826498",
+      "active": 1,
+      "event_hash": "efa7610ee411794de233e95be87b5552dd6a0d3ca487103331e898e28d3e0e29"
+    },
+    {
+      "sequence": 68,
+      "timestamp": "2026-09-20T12:44:47.877385+00:00",
+      "action": "worker.completed",
+      "worker": "EvidenceWorker:20",
+      "role": "EvidenceWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "efa7610ee411794de233e95be87b5552dd6a0d3ca487103331e898e28d3e0e29",
+      "output_hash": "b11e76af72307281f3f980661fbad56f9abcc150014ea82ba87325cf66dfdfa7",
+      "state_keys": [
+        "evidence_items",
+        "unresolved"
+      ],
+      "status": "ok",
+      "event_hash": "4933dbdbaf0a1ab65ee53af4ca71f900eda70a11f34a0d9b5b711491670f7b15"
+    },
+    {
+      "sequence": 69,
+      "timestamp": "2026-09-20T12:44:47.877433+00:00",
+      "action": "worker.started",
+      "worker": "EvidenceWorker:21",
+      "role": "EvidenceWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "4933dbdbaf0a1ab65ee53af4ca71f900eda70a11f34a0d9b5b711491670f7b15",
+      "skills": [
+        "evidence-extraction"
+      ],
+      "state_keys": [
+        "candidate_papers",
+        "citation_records",
+        "document_refs",
+        "research_question"
+      ],
+      "input_hash": "0c57cb2b0bf964c233e29ffd5b7b8f50822b464355d27de314978b0e7c2b7f29",
+      "active": 1,
+      "event_hash": "f05ad9e358cc5b49dbefb81b50c0598a14e9b396c3a271dee9990db8ad4412a5"
+    },
+    {
+      "sequence": 70,
+      "timestamp": "2026-09-20T12:44:47.877504+00:00",
+      "action": "worker.completed",
+      "worker": "EvidenceWorker:21",
+      "role": "EvidenceWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "f05ad9e358cc5b49dbefb81b50c0598a14e9b396c3a271dee9990db8ad4412a5",
+      "output_hash": "07da3d9c71b7afffad57e5341df701877f667c274279e47de9b67ea6805f9336",
+      "state_keys": [
+        "evidence_items",
+        "unresolved"
+      ],
+      "status": "ok",
+      "event_hash": "013be616febd5a60860c95cac3721e3c72cc554cd0868e60a5b0eb4c890110d3"
+    },
+    {
+      "sequence": 71,
+      "timestamp": "2026-09-20T12:44:47.877561+00:00",
+      "action": "stage.completed",
+      "worker": "coordinator",
+      "role": "LiteratureReviewCoordinator",
+      "parent": null,
+      "depth": 0,
+      "previous_hash": "013be616febd5a60860c95cac3721e3c72cc554cd0868e60a5b0eb4c890110d3",
+      "stage": "evidence",
+      "merge": "append",
+      "worker_count": 3,
+      "synthetic": true,
+      "event_hash": "1b0ba5eac6b91fa6e90bc824a72d82d5747764e2080c5b4f570fafc21ff68f8e"
+    },
+    {
+      "sequence": 72,
+      "timestamp": "2026-09-20T12:44:47.877961+00:00",
+      "action": "worker.started",
+      "worker": "SynthesisWorker:22",
+      "role": "SynthesisWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "1b0ba5eac6b91fa6e90bc824a72d82d5747764e2080c5b4f570fafc21ff68f8e",
+      "skills": [
+        "evidence-synthesis"
+      ],
+      "state_keys": [
+        "citation_records",
+        "evidence_items",
+        "research_question"
+      ],
+      "input_hash": "57188103d8504199d20a44b711e07d3bff79ce66ed40e5a5aa04b7af2961e574",
+      "active": 1,
+      "event_hash": "44448df63d6462c4ab3270837e032d3c32f38fa08bfbe251c8796081592a44f4"
+    },
+    {
+      "sequence": 73,
+      "timestamp": "2026-09-20T12:44:47.878138+00:00",
+      "action": "worker.completed",
+      "worker": "SynthesisWorker:22",
+      "role": "SynthesisWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "44448df63d6462c4ab3270837e032d3c32f38fa08bfbe251c8796081592a44f4",
+      "output_hash": "a1e1a400a1ff2615b08561ea29343742e3ab56cbebdfa3526a726d922dba3226",
+      "state_keys": [
+        "claims",
+        "themes"
+      ],
+      "status": "ok",
+      "event_hash": "d744c02c54bc5343bad182a3de317426c2518e8fc257cb68374fa44cabde6dca"
+    },
+    {
+      "sequence": 74,
+      "timestamp": "2026-09-20T12:44:47.878198+00:00",
+      "action": "stage.completed",
+      "worker": "coordinator",
+      "role": "LiteratureReviewCoordinator",
+      "parent": null,
+      "depth": 0,
+      "previous_hash": "d744c02c54bc5343bad182a3de317426c2518e8fc257cb68374fa44cabde6dca",
+      "stage": "synthesis",
+      "merge": "replace",
+      "worker_count": 1,
+      "synthetic": true,
+      "event_hash": "c2aed4c09c022e105afaa8be15e02cad8b26e7d3bc7644a7073ae82c6ef5bab5"
+    },
+    {
+      "sequence": 75,
+      "timestamp": "2026-09-20T12:44:47.878605+00:00",
+      "action": "worker.started",
+      "worker": "WritingWorker:23",
+      "role": "WritingWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "c2aed4c09c022e105afaa8be15e02cad8b26e7d3bc7644a7073ae82c6ef5bab5",
+      "skills": [
+        "related-work-writing"
+      ],
+      "state_keys": [
+        "claims",
+        "research_question",
+        "themes"
+      ],
+      "input_hash": "952be1530c39a628eeafb1327212244446920bb0d44cc9069a3ecccbcee567c0",
+      "active": 1,
+      "event_hash": "abe3b3e6ea90bd498b21bb2334cbcddb3bb3dd1cb3a477561824c143a0fe81e0"
+    },
+    {
+      "sequence": 76,
+      "timestamp": "2026-09-20T12:44:47.878736+00:00",
+      "action": "worker.completed",
+      "worker": "WritingWorker:23",
+      "role": "WritingWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "abe3b3e6ea90bd498b21bb2334cbcddb3bb3dd1cb3a477561824c143a0fe81e0",
+      "output_hash": "ff636881d2c037440a7117465f380a30833df8c7b56e3fb5768f05d211553d4d",
+      "state_keys": [
+        "claims",
+        "draft"
+      ],
+      "status": "ok",
+      "event_hash": "3df9b69d09792a01c6ac4586ee55d556abc26a21e8c860cdd9277b8172c62da0"
+    },
+    {
+      "sequence": 77,
+      "timestamp": "2026-09-20T12:44:47.878783+00:00",
+      "action": "stage.completed",
+      "worker": "coordinator",
+      "role": "LiteratureReviewCoordinator",
+      "parent": null,
+      "depth": 0,
+      "previous_hash": "3df9b69d09792a01c6ac4586ee55d556abc26a21e8c860cdd9277b8172c62da0",
+      "stage": "writing",
+      "merge": "replace",
+      "worker_count": 1,
+      "synthetic": true,
+      "event_hash": "5bb8237039b3439cffe12669fe0af71fe9f19778fa3fa4db79e0601538d4b8af"
+    },
+    {
+      "sequence": 78,
+      "timestamp": "2026-09-20T12:44:47.879235+00:00",
+      "action": "worker.started",
+      "worker": "VerificationWorker:24",
+      "role": "VerificationWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "5bb8237039b3439cffe12669fe0af71fe9f19778fa3fa4db79e0601538d4b8af",
+      "skills": [
+        "claim-and-citation-verification"
+      ],
+      "state_keys": [
+        "citation_records",
+        "claims",
+        "draft",
+        "evidence_items"
+      ],
+      "input_hash": "8b698e253183e0c8d71538c27c4928b2dfdce6d0a35321d6a85fd94c6b79ec96",
+      "active": 1,
+      "event_hash": "f70ffce4028825b4bd2804f474809071f6f8f637b020bba932ea50ca071aa27b"
+    },
+    {
+      "sequence": 79,
+      "timestamp": "2026-09-20T12:44:47.879480+00:00",
+      "action": "worker.completed",
+      "worker": "VerificationWorker:24",
+      "role": "VerificationWorker",
+      "parent": "coordinator",
+      "depth": 1,
+      "previous_hash": "f70ffce4028825b4bd2804f474809071f6f8f637b020bba932ea50ca071aa27b",
+      "output_hash": "d2243e7e11e2d637876502cbd5a3aae3c8db248582211ef3c46389f7e3a2cfd2",
+      "state_keys": [
+        "claims",
+        "verification_results"
+      ],
+      "status": "ok",
+      "event_hash": "46e0bfe51a810ab370bed32ceb594c38492732f0b77c0b4cdc3faa4c0e14a6e6"
+    },
+    {
+      "sequence": 80,
+      "timestamp": "2026-09-20T12:44:47.879556+00:00",
+      "action": "stage.completed",
+      "worker": "coordinator",
+      "role": "LiteratureReviewCoordinator",
+      "parent": null,
+      "depth": 0,
+      "previous_hash": "46e0bfe51a810ab370bed32ceb594c38492732f0b77c0b4cdc3faa4c0e14a6e6",
+      "stage": "verification",
+      "merge": "replace",
+      "worker_count": 1,
+      "synthetic": true,
+      "event_hash": "914dc1f5d65b0f00cd5c2fe75195678b82470dae5b02ba0ae54d64ac85e9b6b1"
+    },
+    {
+      "sequence": 81,
+      "timestamp": "2026-09-20T12:44:47.884146+00:00",
+      "action": "memory.cleared",
+      "worker": "coordinator",
+      "role": "LiteratureReviewCoordinator",
+      "parent": null,
+      "depth": 0,
+      "previous_hash": "914dc1f5d65b0f00cd5c2fe75195678b82470dae5b02ba0ae54d64ac85e9b6b1",
+      "scope": "session",
+      "event_hash": "a3f9d0061220c4b05e978d15ff0de5b592a1394550b84651cc7216e712e30951"
+    }
+  ],
+  "usage": {
+    "tokens": 0,
+    "reserved_tokens": 0,
+    "remote_calls": 9,
+    "tool_calls": {
+      "scholarly-search": 3,
+      "paper-reader": 2,
+      "citation-resolver": 6
+    },
+    "peak_parallel_workers": 3,
+    "workers": {
+      "coordinator": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      },
+      "PlanningWorker:1": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      },
+      "SearchWorker:2": {
+        "tokens": 0,
+        "remote_calls": 1,
+        "tool_calls": {
+          "scholarly-search": 1
+        }
+      },
+      "SearchWorker:3": {
+        "tokens": 0,
+        "remote_calls": 1,
+        "tool_calls": {
+          "scholarly-search": 1
+        }
+      },
+      "SearchWorker:4": {
+        "tokens": 0,
+        "remote_calls": 1,
+        "tool_calls": {
+          "scholarly-search": 1
+        }
+      },
+      "ScreeningWorker:5": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {
+          "paper-reader": 1
+        }
+      },
+      "ScreeningWorker:6": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      },
+      "ScreeningWorker:7": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      },
+      "ScreeningWorker:8": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      },
+      "ScreeningWorker:9": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      },
+      "ScreeningWorker:10": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      },
+      "ScreeningWorker:11": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      },
+      "ScreeningWorker:12": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      },
+      "CitationWorker:13": {
+        "tokens": 0,
+        "remote_calls": 1,
+        "tool_calls": {
+          "citation-resolver": 1
+        }
+      },
+      "CitationWorker:14": {
+        "tokens": 0,
+        "remote_calls": 1,
+        "tool_calls": {
+          "citation-resolver": 1
+        }
+      },
+      "CitationWorker:15": {
+        "tokens": 0,
+        "remote_calls": 1,
+        "tool_calls": {
+          "citation-resolver": 1
+        }
+      },
+      "CitationWorker:16": {
+        "tokens": 0,
+        "remote_calls": 1,
+        "tool_calls": {
+          "citation-resolver": 1
+        }
+      },
+      "CitationWorker:17": {
+        "tokens": 0,
+        "remote_calls": 1,
+        "tool_calls": {
+          "citation-resolver": 1
+        }
+      },
+      "CitationWorker:18": {
+        "tokens": 0,
+        "remote_calls": 1,
+        "tool_calls": {
+          "citation-resolver": 1
+        }
+      },
+      "EvidenceWorker:19": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {
+          "paper-reader": 1
+        }
+      },
+      "EvidenceWorker:20": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      },
+      "EvidenceWorker:21": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      },
+      "SynthesisWorker:22": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      },
+      "WritingWorker:23": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      },
+      "VerificationWorker:24": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      }
+    },
+    "limits": {
+      "approval_threshold_tokens": null,
+      "estimated_cost_usd": null,
+      "estimated_tokens": 24000,
+      "hard_tokens": 180000,
+      "max_calls_per_tool": {
+        "citation-resolver": 20,
+        "paper-reader": 10,
+        "scholarly-search": 3
+      },
+      "max_parallel_workers": 3,
+      "max_remote_calls": 45
+    }
+  },
+  "provenance": {
+    "package_id": "org.webagents.literature-review",
+    "package_version": "0.1.0",
+    "package_digest": "20a35b6db17127ae52809e84e23e23994d9fbad235d91882b136f36fc4c547a5",
+    "mode": "fixture",
+    "reasoning_mode": "extractive",
+    "synthetic": true,
+    "semantic_evaluation": "not performed"
+  },
+  "evals": {
+    "kind": "deterministic",
+    "passed": true,
+    "checks": [
+      {
+        "id": "citation-validity",
+        "passed": true,
+        "detail": "Bibliography contains only exact metadata from resolved records."
+      },
+      {
+        "id": "claim-source-consistency",
+        "passed": true,
+        "detail": "Retained claims have nonempty evidence, exact paper links, and resolved citations."
+      },
+      {
+        "id": "verification-coverage",
+        "passed": true,
+        "detail": "Every drafted claim has a recorded final verdict."
+      },
+      {
+        "id": "abstract-full-text-distinction",
+        "passed": true,
+        "detail": "Abstracts carry no invented page numbers; supplied PDFs retain page provenance."
+      },
+      {
+        "id": "duplicate-handling",
+        "passed": true,
+        "detail": "Candidate and evidence identifiers are unique."
+      },
+      {
+        "id": "ambiguity-preserved",
+        "passed": true,
+        "detail": "Ambiguous and failed resolutions remain visible and outside bibliography."
+      },
+      {
+        "id": "extractive-claims-verbatim",
+        "passed": true,
+        "detail": "Extractive scientific text is exactly the supporting quote."
+      },
+      {
+        "id": "budget-compliance",
+        "passed": true,
+        "detail": "Observed usage respects token, call, per-tool, and concurrency caps."
+      },
+      {
+        "id": "delegation-depth",
+        "passed": true,
+        "detail": "All execution workers were spawned directly by coordinator at depth one."
+      },
+      {
+        "id": "tool-permission-compliance",
+        "passed": true,
+        "detail": "Every tool call belongs to the declared role and permission set."
+      }
+    ],
+    "draft_rejected_claims": 0,
+    "draft_unsupported_claim_fraction": 0.0,
+    "semantic_quality": "not measured by deterministic checks",
+    "notice": "Structural checks do not establish scientific correctness, completeness, or independent certification."
+  }
+}

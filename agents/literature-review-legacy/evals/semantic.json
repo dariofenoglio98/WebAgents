@@ -1,0 +1,27 @@
+{
+  "spec_version": "0.1",
+  "id": "literature-semantic",
+  "description": "Optional host-router judgments; subjective, not independent attestations.",
+  "cases": [
+    {
+      "id": "entailment",
+      "input": {
+        "task": "verify"
+      },
+      "assertions": [
+        "Every retained synthesis claim is supported by its provided quotes."
+      ]
+    },
+    {
+      "id": "synthesis-quality",
+      "input": {
+        "task": "synthesize"
+      },
+      "assertions": [
+        "Themes compare methods rather than listing papers.",
+        "Gaps and abstract-only limitations are expressed cautiously."
+      ]
+    }
+  ],
+  "extensions": {}
+}

@@ -1,0 +1,98 @@
+[
+  {
+    "paper_id": "paper-27663f0221bd546e",
+    "status": "provider_error",
+    "message": "Resolution could not complete because a provider failed. Retry later.",
+    "alternatives": []
+  },
+  {
+    "paper_id": "paper-cb0045567a353b6a",
+    "status": "provider_error",
+    "message": "Resolution could not complete because a provider failed. Retry later.",
+    "alternatives": []
+  },
+  {
+    "paper_id": "search",
+    "status": "candidate_limit",
+    "message": "Candidate set bounded to 20 works before screening; supplied seeds are retained before discovery results in query/provider order.",
+    "alternatives": []
+  },
+  {
+    "paper_id": "paper-27663f0221bd546e",
+    "status": "screening_maybe",
+    "message": "Only title/metadata available; relevance cannot be established.",
+    "alternatives": []
+  },
+  {
+    "paper_id": "paper-cb0045567a353b6a",
+    "status": "screening_maybe",
+    "message": "Only title/metadata available; relevance cannot be established.",
+    "alternatives": []
+  },
+  {
+    "paper_id": "paper-fa98edaeb7e3e14f",
+    "status": "screening_maybe",
+    "message": "Only title/metadata available; relevance cannot be established.",
+    "alternatives": []
+  },
+  {
+    "paper_id": "paper-3884ca96efb54daa",
+    "status": "screening_maybe",
+    "message": "Only title/metadata available; relevance cannot be established.",
+    "alternatives": []
+  },
+  {
+    "paper_id": "paper-b4d3d65642a7ecf1",
+    "status": "screening_maybe",
+    "message": "Only title/metadata available; relevance cannot be established.",
+    "alternatives": []
+  },
+  {
+    "paper_id": "paper-511d605ae2e19388",
+    "status": "screening_maybe",
+    "message": "Only title/metadata available; relevance cannot be established.",
+    "alternatives": []
+  },
+  {
+    "paper_id": "paper-eb1bb7721d9b478e",
+    "status": "screening_maybe",
+    "message": "Only title/metadata available; relevance cannot be established.",
+    "alternatives": []
+  },
+  {
+    "paper_id": "paper-26f070df7afccf27",
+    "status": "screening_maybe",
+    "message": "Only title/metadata available; relevance cannot be established.",
+    "alternatives": []
+  },
+  {
+    "paper_id": "paper-6373a3bea268aef7",
+    "status": "screening_maybe",
+    "message": "Only title/metadata available; relevance cannot be established.",
+    "alternatives": []
+  },
+  {
+    "paper_id": "paper-8b5d4de970d06603",
+    "status": "screening_maybe",
+    "message": "Only title/metadata available; relevance cannot be established.",
+    "alternatives": []
+  },
+  {
+    "paper_id": "paper-64d931b2f3d79063",
+    "status": "screening_maybe",
+    "message": "Only title/metadata available; relevance cannot be established.",
+    "alternatives": []
+  },
+  {
+    "paper_id": "paper-57ab055378ab2d89",
+    "status": "screening_maybe",
+    "message": "Only title/metadata available; relevance cannot be established.",
+    "alternatives": []
+  },
+  {
+    "paper_id": "paper-bebf29ae1dcbb791",
+    "status": "screening_maybe",
+    "message": "Only title/metadata available; relevance cannot be established.",
+    "alternatives": []
+  }
+]

@@ -1,0 +1,23 @@
+{
+  "type": "object",
+  "properties": {
+    "paper": {
+      "$ref": "paper.schema.json"
+    },
+    "record": {
+      "$ref": "citation-record.schema.json"
+    },
+    "file_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "paper",
+    "record",
+    "file_id"
+  ],
+  "additionalProperties": false
+}

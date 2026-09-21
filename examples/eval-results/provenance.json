@@ -1,0 +1,9 @@
+{
+  "package_id": "org.webagents.literature-review",
+  "package_digest": "20a35b6db17127ae52809e84e23e23994d9fbad235d91882b136f36fc4c547a5",
+  "executed_at": "2026-09-20T12:44:48.274105+00:00",
+  "dataset": "fixtures/review.json",
+  "synthetic": true,
+  "runner": "agentpkg.literature_evals.run_evals",
+  "independent_attestation": false
+}

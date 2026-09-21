@@ -1,0 +1,238 @@
+{
+  "output": "/private/tmp/agentpkg-final-demos-q0ybp5pq/demo-offline",
+  "mode": "fixture",
+  "usage": {
+    "tokens": 0,
+    "reserved_tokens": 0,
+    "remote_calls": 9,
+    "tool_calls": {
+      "scholarly-search": 3,
+      "paper-reader": 2,
+      "citation-resolver": 6
+    },
+    "peak_parallel_workers": 3,
+    "workers": {
+      "coordinator": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      },
+      "PlanningWorker:1": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      },
+      "SearchWorker:2": {
+        "tokens": 0,
+        "remote_calls": 1,
+        "tool_calls": {
+          "scholarly-search": 1
+        }
+      },
+      "SearchWorker:3": {
+        "tokens": 0,
+        "remote_calls": 1,
+        "tool_calls": {
+          "scholarly-search": 1
+        }
+      },
+      "SearchWorker:4": {
+        "tokens": 0,
+        "remote_calls": 1,
+        "tool_calls": {
+          "scholarly-search": 1
+        }
+      },
+      "ScreeningWorker:5": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {
+          "paper-reader": 1
+        }
+      },
+      "ScreeningWorker:6": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      },
+      "ScreeningWorker:7": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      },
+      "ScreeningWorker:8": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      },
+      "ScreeningWorker:9": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      },
+      "ScreeningWorker:10": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      },
+      "ScreeningWorker:11": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      },
+      "ScreeningWorker:12": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      },
+      "CitationWorker:13": {
+        "tokens": 0,
+        "remote_calls": 1,
+        "tool_calls": {
+          "citation-resolver": 1
+        }
+      },
+      "CitationWorker:14": {
+        "tokens": 0,
+        "remote_calls": 1,
+        "tool_calls": {
+          "citation-resolver": 1
+        }
+      },
+      "CitationWorker:15": {
+        "tokens": 0,
+        "remote_calls": 1,
+        "tool_calls": {
+          "citation-resolver": 1
+        }
+      },
+      "CitationWorker:16": {
+        "tokens": 0,
+        "remote_calls": 1,
+        "tool_calls": {
+          "citation-resolver": 1
+        }
+      },
+      "CitationWorker:17": {
+        "tokens": 0,
+        "remote_calls": 1,
+        "tool_calls": {
+          "citation-resolver": 1
+        }
+      },
+      "CitationWorker:18": {
+        "tokens": 0,
+        "remote_calls": 1,
+        "tool_calls": {
+          "citation-resolver": 1
+        }
+      },
+      "EvidenceWorker:19": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {
+          "paper-reader": 1
+        }
+      },
+      "EvidenceWorker:20": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      },
+      "EvidenceWorker:21": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      },
+      "SynthesisWorker:22": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      },
+      "WritingWorker:23": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      },
+      "VerificationWorker:24": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      }
+    },
+    "limits": {
+      "approval_threshold_tokens": null,
+      "estimated_cost_usd": null,
+      "estimated_tokens": 24000,
+      "hard_tokens": 180000,
+      "max_calls_per_tool": {
+        "citation-resolver": 20,
+        "paper-reader": 10,
+        "scholarly-search": 3
+      },
+      "max_parallel_workers": 3,
+      "max_remote_calls": 45
+    }
+  },
+  "unresolved_count": 4,
+  "evals": {
+    "kind": "deterministic",
+    "passed": true,
+    "checks": [
+      {
+        "id": "citation-validity",
+        "passed": true,
+        "detail": "Bibliography contains only exact metadata from resolved records."
+      },
+      {
+        "id": "claim-source-consistency",
+        "passed": true,
+        "detail": "Retained claims have nonempty evidence, exact paper links, and resolved citations."
+      },
+      {
+        "id": "verification-coverage",
+        "passed": true,
+        "detail": "Every drafted claim has a recorded final verdict."
+      },
+      {
+        "id": "abstract-full-text-distinction",
+        "passed": true,
+        "detail": "Abstracts carry no invented page numbers; supplied PDFs retain page provenance."
+      },
+      {
+        "id": "duplicate-handling",
+        "passed": true,
+        "detail": "Candidate and evidence identifiers are unique."
+      },
+      {
+        "id": "ambiguity-preserved",
+        "passed": true,
+        "detail": "Ambiguous and failed resolutions remain visible and outside bibliography."
+      },
+      {
+        "id": "extractive-claims-verbatim",
+        "passed": true,
+        "detail": "Extractive scientific text is exactly the supporting quote."
+      },
+      {
+        "id": "budget-compliance",
+        "passed": true,
+        "detail": "Observed usage respects token, call, per-tool, and concurrency caps."
+      },
+      {
+        "id": "delegation-depth",
+        "passed": true,
+        "detail": "All execution workers were spawned directly by coordinator at depth one."
+      },
+      {
+        "id": "tool-permission-compliance",
+        "passed": true,
+        "detail": "Every tool call belongs to the declared role and permission set."
+      }
+    ],
+    "draft_rejected_claims": 0,
+    "draft_unsupported_claim_fraction": 0.0,
+    "semantic_quality": "not measured by deterministic checks",
+    "notice": "Structural checks do not establish scientific correctness, completeness, or independent certification."
+  }
+}

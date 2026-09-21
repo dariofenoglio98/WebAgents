@@ -1,0 +1,298 @@
+{
+  "profile": "workflow.fixture.v0",
+  "input": {
+    "goal": "Choose a launch scope for the internal documentation pilot",
+    "participants": [
+      {
+        "name": "Ari",
+        "role": "Product"
+      },
+      {
+        "name": "Blair",
+        "role": "Engineering"
+      },
+      {
+        "name": "Casey",
+        "role": "Support"
+      }
+    ],
+    "context": "A two-week pilot has capacity for one team; success must be measurable.",
+    "duration": 45
+  },
+  "models": {
+    "plan": [
+      {
+        "input": {
+          "goal": "Choose a launch scope for the internal documentation pilot",
+          "participants": [
+            {
+              "name": "Ari",
+              "role": "Product"
+            },
+            {
+              "name": "Blair",
+              "role": "Engineering"
+            },
+            {
+              "name": "Casey",
+              "role": "Support"
+            }
+          ],
+          "context": "A two-week pilot has capacity for one team; success must be measurable.",
+          "duration": 45
+        },
+        "output": {
+          "focus": [
+            "Select the pilot team",
+            "Agree success measures",
+            "Assign owners"
+          ],
+          "perspectives": [
+            {
+              "name": "Ari",
+              "role": "Product"
+            },
+            {
+              "name": "Blair",
+              "role": "Engineering"
+            },
+            {
+              "name": "Casey",
+              "role": "Support"
+            }
+          ]
+        }
+      }
+    ],
+    "perspective": [
+      {
+        "input": {
+          "request": {
+            "goal": "Choose a launch scope for the internal documentation pilot",
+            "participants": [
+              {
+                "name": "Ari",
+                "role": "Product"
+              },
+              {
+                "name": "Blair",
+                "role": "Engineering"
+              },
+              {
+                "name": "Casey",
+                "role": "Support"
+              }
+            ],
+            "context": "A two-week pilot has capacity for one team; success must be measurable.",
+            "duration": 45
+          },
+          "participant": {
+            "name": "Ari",
+            "role": "Product"
+          }
+        },
+        "output": [
+          {
+            "role": "Product",
+            "priorities": [
+              "Keep the pilot bounded"
+            ],
+            "questions": [
+              "Which user group benefits first?"
+            ]
+          }
+        ]
+      },
+      {
+        "input": {
+          "request": {
+            "goal": "Choose a launch scope for the internal documentation pilot",
+            "participants": [
+              {
+                "name": "Ari",
+                "role": "Product"
+              },
+              {
+                "name": "Blair",
+                "role": "Engineering"
+              },
+              {
+                "name": "Casey",
+                "role": "Support"
+              }
+            ],
+            "context": "A two-week pilot has capacity for one team; success must be measurable.",
+            "duration": 45
+          },
+          "participant": {
+            "name": "Blair",
+            "role": "Engineering"
+          }
+        },
+        "output": [
+          {
+            "role": "Engineering",
+            "priorities": [
+              "Confirm implementation capacity"
+            ],
+            "questions": [
+              "What can we deliver in two weeks?"
+            ]
+          }
+        ]
+      },
+      {
+        "input": {
+          "request": {
+            "goal": "Choose a launch scope for the internal documentation pilot",
+            "participants": [
+              {
+                "name": "Ari",
+                "role": "Product"
+              },
+              {
+                "name": "Blair",
+                "role": "Engineering"
+              },
+              {
+                "name": "Casey",
+                "role": "Support"
+              }
+            ],
+            "context": "A two-week pilot has capacity for one team; success must be measurable.",
+            "duration": 45
+          },
+          "participant": {
+            "name": "Casey",
+            "role": "Support"
+          }
+        },
+        "output": [
+          {
+            "role": "Support",
+            "priorities": [
+              "Capture frequent user problems"
+            ],
+            "questions": [
+              "How will feedback be collected?"
+            ]
+          }
+        ]
+      }
+    ],
+    "write": [
+      {
+        "input": {
+          "request": {
+            "goal": "Choose a launch scope for the internal documentation pilot",
+            "participants": [
+              {
+                "name": "Ari",
+                "role": "Product"
+              },
+              {
+                "name": "Blair",
+                "role": "Engineering"
+              },
+              {
+                "name": "Casey",
+                "role": "Support"
+              }
+            ],
+            "context": "A two-week pilot has capacity for one team; success must be measurable.",
+            "duration": 45
+          },
+          "plan": {
+            "focus": [
+              "Select the pilot team",
+              "Agree success measures",
+              "Assign owners"
+            ],
+            "perspectives": [
+              {
+                "name": "Ari",
+                "role": "Product"
+              },
+              {
+                "name": "Blair",
+                "role": "Engineering"
+              },
+              {
+                "name": "Casey",
+                "role": "Support"
+              }
+            ]
+          },
+          "perspectives": [
+            {
+              "role": "Product",
+              "priorities": [
+                "Keep the pilot bounded"
+              ],
+              "questions": [
+                "Which user group benefits first?"
+              ]
+            },
+            {
+              "role": "Engineering",
+              "priorities": [
+                "Confirm implementation capacity"
+              ],
+              "questions": [
+                "What can we deliver in two weeks?"
+              ]
+            },
+            {
+              "role": "Support",
+              "priorities": [
+                "Capture frequent user problems"
+              ],
+              "questions": [
+                "How will feedback be collected?"
+              ]
+            }
+          ]
+        },
+        "output": {
+          "goal": "Choose a launch scope for the internal documentation pilot",
+          "duration": 45,
+          "agenda": [
+            {
+              "topic": "Confirm goal and constraints",
+              "minutes": 5,
+              "owner": "Ari"
+            },
+            {
+              "topic": "Review perspectives and scope options",
+              "minutes": 15,
+              "owner": "Blair"
+            },
+            {
+              "topic": "Choose pilot and success measures",
+              "minutes": 15,
+              "owner": "Ari"
+            },
+            {
+              "topic": "Assign preparation and follow-up owners",
+              "minutes": 10,
+              "owner": "Casey"
+            }
+          ],
+          "preparation_items": [
+            "Bring top support questions",
+            "Estimate work for one pilot team",
+            "Draft one measurable success criterion"
+          ],
+          "decisions": [
+            "Select the pilot team",
+            "Approve the pilot success measures"
+          ],
+          "questions": [
+            "Who owns the two-week follow-up?"
+          ]
+        }
+      }
+    ]
+  },
+  "tools": {}
+}

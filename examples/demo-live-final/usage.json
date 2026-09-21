@@ -1,0 +1,259 @@
+{
+  "tokens": 0,
+  "reserved_tokens": 0,
+  "remote_calls": 12,
+  "tool_calls": {
+    "citation-resolver": 9,
+    "scholarly-search": 3
+  },
+  "peak_parallel_workers": 3,
+  "workers": {
+    "coordinator": {
+      "tokens": 0,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "PlanningWorker:1": {
+      "tokens": 0,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "CitationWorker:2": {
+      "tokens": 0,
+      "remote_calls": 1,
+      "tool_calls": {
+        "citation-resolver": 1
+      }
+    },
+    "CitationWorker:3": {
+      "tokens": 0,
+      "remote_calls": 1,
+      "tool_calls": {
+        "citation-resolver": 1
+      }
+    },
+    "CitationWorker:4": {
+      "tokens": 0,
+      "remote_calls": 1,
+      "tool_calls": {
+        "citation-resolver": 1
+      }
+    },
+    "CitationWorker:5": {
+      "tokens": 0,
+      "remote_calls": 1,
+      "tool_calls": {
+        "citation-resolver": 1
+      }
+    },
+    "SearchWorker:6": {
+      "tokens": 0,
+      "remote_calls": 1,
+      "tool_calls": {
+        "scholarly-search": 1
+      }
+    },
+    "SearchWorker:7": {
+      "tokens": 0,
+      "remote_calls": 1,
+      "tool_calls": {
+        "scholarly-search": 1
+      }
+    },
+    "SearchWorker:8": {
+      "tokens": 0,
+      "remote_calls": 1,
+      "tool_calls": {
+        "scholarly-search": 1
+      }
+    },
+    "ScreeningWorker:9": {
+      "tokens": 0,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "ScreeningWorker:10": {
+      "tokens": 0,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "ScreeningWorker:11": {
+      "tokens": 0,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "ScreeningWorker:12": {
+      "tokens": 0,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "ScreeningWorker:13": {
+      "tokens": 0,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "ScreeningWorker:14": {
+      "tokens": 0,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "ScreeningWorker:15": {
+      "tokens": 0,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "ScreeningWorker:16": {
+      "tokens": 0,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "ScreeningWorker:17": {
+      "tokens": 0,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "ScreeningWorker:18": {
+      "tokens": 0,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "ScreeningWorker:19": {
+      "tokens": 0,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "ScreeningWorker:20": {
+      "tokens": 0,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "ScreeningWorker:21": {
+      "tokens": 0,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "ScreeningWorker:22": {
+      "tokens": 0,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "ScreeningWorker:23": {
+      "tokens": 0,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "ScreeningWorker:24": {
+      "tokens": 0,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "ScreeningWorker:25": {
+      "tokens": 0,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "ScreeningWorker:26": {
+      "tokens": 0,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "ScreeningWorker:27": {
+      "tokens": 0,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "ScreeningWorker:28": {
+      "tokens": 0,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "CitationWorker:29": {
+      "tokens": 0,
+      "remote_calls": 1,
+      "tool_calls": {
+        "citation-resolver": 1
+      }
+    },
+    "CitationWorker:30": {
+      "tokens": 0,
+      "remote_calls": 1,
+      "tool_calls": {
+        "citation-resolver": 1
+      }
+    },
+    "CitationWorker:31": {
+      "tokens": 0,
+      "remote_calls": 1,
+      "tool_calls": {
+        "citation-resolver": 1
+      }
+    },
+    "CitationWorker:32": {
+      "tokens": 0,
+      "remote_calls": 1,
+      "tool_calls": {
+        "citation-resolver": 1
+      }
+    },
+    "CitationWorker:33": {
+      "tokens": 0,
+      "remote_calls": 1,
+      "tool_calls": {
+        "citation-resolver": 1
+      }
+    },
+    "EvidenceWorker:34": {
+      "tokens": 0,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "EvidenceWorker:35": {
+      "tokens": 0,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "EvidenceWorker:36": {
+      "tokens": 0,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "EvidenceWorker:37": {
+      "tokens": 0,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "EvidenceWorker:38": {
+      "tokens": 0,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "SynthesisWorker:39": {
+      "tokens": 0,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "WritingWorker:40": {
+      "tokens": 0,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "VerificationWorker:41": {
+      "tokens": 0,
+      "remote_calls": 0,
+      "tool_calls": {}
+    }
+  },
+  "limits": {
+    "approval_threshold_tokens": null,
+    "estimated_cost_usd": null,
+    "estimated_tokens": 24000,
+    "hard_tokens": 180000,
+    "max_calls_per_tool": {
+      "citation-resolver": 20,
+      "paper-reader": 10,
+      "scholarly-search": 3
+    },
+    "max_parallel_workers": 3,
+    "max_remote_calls": 45
+  }
+}

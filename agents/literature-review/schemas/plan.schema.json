@@ -1,0 +1,27 @@
+{
+  "type": "object",
+  "properties": {
+    "queries": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "rationale": {
+      "type": "string"
+    },
+    "seed_queries": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "queries",
+    "rationale",
+    "seed_queries"
+  ],
+  "additionalProperties": false
+}

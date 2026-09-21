@@ -1,0 +1,12 @@
+{
+  "spec_version": "0.1",
+  "url": "https://router.example.org",
+  "model_id": "host-selected-model",
+  "router_id": "user-router",
+  "capabilities": ["reasoning", "structured_output"],
+  "context_window": 128000,
+  "enforces_output_cap": true,
+  "counts_all_tokens": true,
+  "api_key_env": "AGENTPKG_ROUTER_KEY",
+  "timeout_seconds": 40
+}

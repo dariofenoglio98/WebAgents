@@ -1,0 +1,116 @@
+{
+  "spec_version": "0.1",
+  "package_id": "org.webagents.meeting-agenda",
+  "name": "Meeting Agenda Agent",
+  "version": "0.2.0",
+  "description": "Plan a bounded meeting with participant perspectives and explicit time allocation.",
+  "publisher": {
+    "id": "webagents-research",
+    "name": "WebAgents Research Prototype"
+  },
+  "created_at": "2026-09-20T00:00:00Z",
+  "runtime": {
+    "api": "agentpkg-runtime-v0",
+    "minimum_version": "0.2.0"
+  },
+  "capabilities": [
+    "agenda-planning"
+  ],
+  "entrypoint": "workflow.v0",
+  "graph": "graph.json",
+  "policy": "policy/policy.json",
+  "skills": [
+    {
+      "id": "planning",
+      "version": "0.1.0",
+      "path": "skills/planning/SKILL.md"
+    },
+    {
+      "id": "perspective",
+      "version": "0.1.0",
+      "path": "skills/perspective/SKILL.md"
+    },
+    {
+      "id": "writing",
+      "version": "0.1.0",
+      "path": "skills/writing/SKILL.md"
+    }
+  ],
+  "tools": [],
+  "schemas": [
+    {
+      "id": "input",
+      "path": "schemas/input.schema.json"
+    },
+    {
+      "id": "participant",
+      "path": "schemas/participant.schema.json"
+    },
+    {
+      "id": "plan",
+      "path": "schemas/plan.schema.json"
+    },
+    {
+      "id": "perspective",
+      "path": "schemas/perspective.schema.json"
+    },
+    {
+      "id": "perspectives",
+      "path": "schemas/perspectives.schema.json"
+    },
+    {
+      "id": "batches",
+      "path": "schemas/batches.schema.json"
+    },
+    {
+      "id": "agenda",
+      "path": "schemas/agenda.schema.json"
+    },
+    {
+      "id": "state",
+      "path": "schemas/state.schema.json"
+    }
+  ],
+  "model_requirements": {
+    "tasks": [
+      {
+        "id": "plan",
+        "capabilities": [
+          "structured_output",
+          "reasoning"
+        ],
+        "context_window": 16000,
+        "preferred_tier": "reasoning"
+      },
+      {
+        "id": "perspective",
+        "capabilities": [
+          "structured_output",
+          "reasoning"
+        ],
+        "context_window": 16000,
+        "preferred_tier": "reasoning"
+      },
+      {
+        "id": "write",
+        "capabilities": [
+          "structured_output",
+          "reasoning"
+        ],
+        "context_window": 16000,
+        "preferred_tier": "reasoning"
+      }
+    ],
+    "routing": "host",
+    "fallback_policy": "deny",
+    "extensions": {}
+  },
+  "evals": [],
+  "attestations": [],
+  "dependencies": [],
+  "update": {
+    "channel": "local",
+    "locator": null
+  },
+  "extensions": {}
+}

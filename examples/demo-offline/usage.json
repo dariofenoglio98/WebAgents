@@ -1,0 +1,173 @@
+{
+  "tokens": 0,
+  "reserved_tokens": 0,
+  "remote_calls": 9,
+  "tool_calls": {
+    "scholarly-search": 3,
+    "paper-reader": 2,
+    "citation-resolver": 6
+  },
+  "peak_parallel_workers": 3,
+  "workers": {
+    "coordinator": {
+      "tokens": 0,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "PlanningWorker:1": {
+      "tokens": 0,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "SearchWorker:2": {
+      "tokens": 0,
+      "remote_calls": 1,
+      "tool_calls": {
+        "scholarly-search": 1
+      }
+    },
+    "SearchWorker:3": {
+      "tokens": 0,
+      "remote_calls": 1,
+      "tool_calls": {
+        "scholarly-search": 1
+      }
+    },
+    "SearchWorker:4": {
+      "tokens": 0,
+      "remote_calls": 1,
+      "tool_calls": {
+        "scholarly-search": 1
+      }
+    },
+    "ScreeningWorker:5": {
+      "tokens": 0,
+      "remote_calls": 0,
+      "tool_calls": {
+        "paper-reader": 1
+      }
+    },
+    "ScreeningWorker:6": {
+      "tokens": 0,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "ScreeningWorker:7": {
+      "tokens": 0,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "ScreeningWorker:8": {
+      "tokens": 0,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "ScreeningWorker:9": {
+      "tokens": 0,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "ScreeningWorker:10": {
+      "tokens": 0,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "ScreeningWorker:11": {
+      "tokens": 0,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "ScreeningWorker:12": {
+      "tokens": 0,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "CitationWorker:13": {
+      "tokens": 0,
+      "remote_calls": 1,
+      "tool_calls": {
+        "citation-resolver": 1
+      }
+    },
+    "CitationWorker:14": {
+      "tokens": 0,
+      "remote_calls": 1,
+      "tool_calls": {
+        "citation-resolver": 1
+      }
+    },
+    "CitationWorker:15": {
+      "tokens": 0,
+      "remote_calls": 1,
+      "tool_calls": {
+        "citation-resolver": 1
+      }
+    },
+    "CitationWorker:16": {
+      "tokens": 0,
+      "remote_calls": 1,
+      "tool_calls": {
+        "citation-resolver": 1
+      }
+    },
+    "CitationWorker:17": {
+      "tokens": 0,
+      "remote_calls": 1,
+      "tool_calls": {
+        "citation-resolver": 1
+      }
+    },
+    "CitationWorker:18": {
+      "tokens": 0,
+      "remote_calls": 1,
+      "tool_calls": {
+        "citation-resolver": 1
+      }
+    },
+    "EvidenceWorker:19": {
+      "tokens": 0,
+      "remote_calls": 0,
+      "tool_calls": {
+        "paper-reader": 1
+      }
+    },
+    "EvidenceWorker:20": {
+      "tokens": 0,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "EvidenceWorker:21": {
+      "tokens": 0,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "SynthesisWorker:22": {
+      "tokens": 0,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "WritingWorker:23": {
+      "tokens": 0,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "VerificationWorker:24": {
+      "tokens": 0,
+      "remote_calls": 0,
+      "tool_calls": {}
+    }
+  },
+  "limits": {
+    "approval_threshold_tokens": null,
+    "estimated_cost_usd": null,
+    "estimated_tokens": 24000,
+    "hard_tokens": 180000,
+    "max_calls_per_tool": {
+      "citation-resolver": 20,
+      "paper-reader": 10,
+      "scholarly-search": 3
+    },
+    "max_parallel_workers": 3,
+    "max_remote_calls": 45
+  }
+}

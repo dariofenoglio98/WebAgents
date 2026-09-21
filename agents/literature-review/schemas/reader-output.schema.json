@@ -1,0 +1,40 @@
+{
+  "type": "object",
+  "properties": {
+    "pages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "page",
+          "text"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "sha256": {
+      "type": "string"
+    },
+    "source": {
+      "enum": [
+        "user_pdf"
+      ]
+    }
+  },
+  "required": [
+    "pages",
+    "sha256",
+    "source"
+  ],
+  "additionalProperties": true,
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

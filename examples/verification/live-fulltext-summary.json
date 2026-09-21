@@ -1,0 +1,50 @@
+{
+  "question": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
+  "provenance": {
+    "package_id": "org.webagents.literature-review",
+    "package_version": "0.1.0",
+    "package_digest": "20a35b6db17127ae52809e84e23e23994d9fbad235d91882b136f36fc4c547a5",
+    "mode": "live",
+    "reasoning_mode": "extractive",
+    "synthetic": false,
+    "semantic_evaluation": "not performed"
+  },
+  "candidates": 20,
+  "screening": {
+    "maybe": 13,
+    "include": 7
+  },
+  "resolved_citations": 7,
+  "citation_statuses": {
+    "provider_error": 2,
+    "resolved": 7
+  },
+  "evidence": {
+    "full_text": 12,
+    "abstract": 30
+  },
+  "retained_claims": 42,
+  "unresolved": 16,
+  "unresolved_statuses": {
+    "provider_error": 2,
+    "candidate_limit": 1,
+    "screening_maybe": 13
+  },
+  "worker_invocations": 43,
+  "usage": {
+    "tokens": 0,
+    "reserved_tokens": 0,
+    "remote_calls": 12,
+    "tool_calls": {
+      "citation-resolver": 9,
+      "scholarly-search": 3,
+      "paper-reader": 4
+    },
+    "peak_parallel_workers": 3
+  },
+  "deterministic_checks": {
+    "passed": 10,
+    "total": 10
+  },
+  "semantic_evaluation": "not performed"
+}

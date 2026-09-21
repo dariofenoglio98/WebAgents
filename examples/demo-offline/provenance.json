@@ -1,0 +1,9 @@
+{
+  "package_id": "org.webagents.literature-review",
+  "package_version": "0.1.0",
+  "package_digest": "20a35b6db17127ae52809e84e23e23994d9fbad235d91882b136f36fc4c547a5",
+  "mode": "fixture",
+  "reasoning_mode": "extractive",
+  "synthetic": true,
+  "semantic_evaluation": "not performed"
+}

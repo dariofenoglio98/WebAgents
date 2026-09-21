@@ -1,0 +1,16 @@
+{
+  "type": "object",
+  "properties": {
+    "paper": {
+      "$ref": "paper.schema.json"
+    },
+    "response": {
+      "$ref": "resolver-output.schema.json"
+    }
+  },
+  "required": [
+    "paper",
+    "response"
+  ],
+  "additionalProperties": false
+}

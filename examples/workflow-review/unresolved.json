@@ -1,0 +1,46 @@
+[
+  {
+    "alternatives": [
+      {
+        "match_score": 1,
+        "paper": {
+          "abstract": "Dynamic agent networks select language-model agents and adapt communication topology. This title deliberately has multiple fixture matches.",
+          "arxiv_id": null,
+          "authors": [
+            {
+              "name": "Synthetic Example Author"
+            }
+          ],
+          "bibtex": "@misc{synthetic_ambiguous,\n  title = {SYNTHETIC: Dynamic Agent Networks},\n  author = {Synthetic Example Author},\n  year = {2026},\n  note = {SYNTHETIC TEST DATA; NOT A REAL PUBLICATION}\n}",
+          "doi": "10.0000/synthetic-alternative",
+          "source": "crossref",
+          "title": "SYNTHETIC: Dynamic Agent Networks (different fixture work)",
+          "url": null,
+          "venue": "Synthetic Fixture Proceedings",
+          "year": 2026
+        }
+      }
+    ],
+    "message": "Synthetic scenario ambiguous",
+    "paper_id": "paper-6ca8546b03d7f153",
+    "status": "ambiguous"
+  },
+  {
+    "alternatives": [],
+    "message": "Synthetic scenario not_found",
+    "paper_id": "paper-c9fff587e292f1f3",
+    "status": "not_found"
+  },
+  {
+    "alternatives": [],
+    "message": "Synthetic scenario provider_error",
+    "paper_id": "paper-ec09484d4252cc0a",
+    "status": "provider_error"
+  },
+  {
+    "alternatives": [],
+    "message": "Only title/metadata available; relevance cannot be established.",
+    "paper_id": "paper-466bc780ad415433",
+    "status": "screening_maybe"
+  }
+]

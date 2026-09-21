@@ -1,0 +1,10 @@
+{
+  "anyOf": [
+    {
+      "type": "null"
+    },
+    {
+      "$ref": "reader-output.schema.json"
+    }
+  ]
+}

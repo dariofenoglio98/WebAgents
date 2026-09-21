@@ -1,0 +1,752 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "research_question": {
+      "type": "string"
+    },
+    "mode": {
+      "enum": [
+        "fixture",
+        "live"
+      ]
+    },
+    "reasoning_mode": {
+      "enum": [
+        "extractive",
+        "model"
+      ]
+    },
+    "search_plan": {
+      "type": "object",
+      "properties": {
+        "queries": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "rationale": {
+          "type": "string"
+        },
+        "seed_queries": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "queries",
+        "rationale"
+      ],
+      "additionalProperties": false
+    },
+    "search_queries": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "candidate_papers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "paper_id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "doi": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "arxiv_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "authors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name"
+              ],
+              "additionalProperties": true
+            }
+          },
+          "year": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "venue": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "abstract": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source": {
+            "type": "string"
+          },
+          "provenance": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "source": {
+                  "type": "string"
+                },
+                "query": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "locator": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "synthetic": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "source"
+              ],
+              "additionalProperties": true
+            }
+          },
+          "full_text_available": {
+            "type": "boolean"
+          },
+          "screening_status": {
+            "enum": [
+              "include",
+              "maybe",
+              "exclude",
+              "pending"
+            ]
+          },
+          "screening_rationale": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "paper_id",
+          "title",
+          "doi",
+          "arxiv_id",
+          "authors",
+          "year",
+          "venue",
+          "abstract",
+          "url",
+          "source",
+          "provenance",
+          "full_text_available",
+          "screening_status",
+          "screening_rationale"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "screened_papers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "paper_id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "doi": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "arxiv_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "authors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name"
+              ],
+              "additionalProperties": true
+            }
+          },
+          "year": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "venue": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "abstract": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source": {
+            "type": "string"
+          },
+          "provenance": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "source": {
+                  "type": "string"
+                },
+                "query": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "locator": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "synthetic": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "source"
+              ],
+              "additionalProperties": true
+            }
+          },
+          "full_text_available": {
+            "type": "boolean"
+          },
+          "screening_status": {
+            "enum": [
+              "include",
+              "maybe",
+              "exclude",
+              "pending"
+            ]
+          },
+          "screening_rationale": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "paper_id",
+          "title",
+          "doi",
+          "arxiv_id",
+          "authors",
+          "year",
+          "venue",
+          "abstract",
+          "url",
+          "source",
+          "provenance",
+          "full_text_available",
+          "screening_status",
+          "screening_rationale"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "citation_records": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "paper_id": {
+            "type": "string"
+          },
+          "query": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "resolved",
+              "ambiguous",
+              "not_found",
+              "provider_error"
+            ]
+          },
+          "metadata": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "alternatives": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "message": {
+            "type": "string"
+          },
+          "synthetic": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "paper_id",
+          "query",
+          "status",
+          "metadata",
+          "alternatives",
+          "sources",
+          "warnings",
+          "message",
+          "synthetic"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "evidence_items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "evidence_id": {
+            "type": "string"
+          },
+          "paper_id": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "quote": {
+            "type": "string"
+          },
+          "category": {
+            "enum": [
+              "method",
+              "finding",
+              "setup",
+              "limitation"
+            ]
+          },
+          "scope": {
+            "enum": [
+              "abstract",
+              "full_text"
+            ]
+          },
+          "support_strength": {
+            "enum": [
+              "direct_quote",
+              "model_interpretation"
+            ]
+          },
+          "location": {
+            "type": "object",
+            "properties": {
+              "page": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "section": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "page",
+              "section"
+            ],
+            "additionalProperties": false
+          },
+          "extraction_worker": {
+            "type": "string"
+          },
+          "provenance": {
+            "type": "object",
+            "properties": {
+              "source": {
+                "type": "string"
+              },
+              "locator": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "source_sha256": {
+                "type": "string"
+              },
+              "synthetic": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "source",
+              "locator",
+              "source_sha256",
+              "synthetic"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "evidence_id",
+          "paper_id",
+          "text",
+          "quote",
+          "category",
+          "scope",
+          "support_strength",
+          "location",
+          "extraction_worker",
+          "provenance"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "themes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "theme_id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "evidence_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "method_comparison": {
+            "type": "string"
+          },
+          "limitations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "inference_level": {
+            "enum": [
+              "extractive_grouping",
+              "model_synthesis"
+            ]
+          }
+        },
+        "required": [
+          "theme_id",
+          "label",
+          "evidence_ids",
+          "method_comparison",
+          "limitations",
+          "inference_level"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "claim_id": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "paper_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "evidence_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "support_type": {
+            "enum": [
+              "direct_quote",
+              "model_synthesis"
+            ]
+          },
+          "strength": {
+            "enum": [
+              "descriptive",
+              "tentative"
+            ]
+          },
+          "verification_status": {
+            "enum": [
+              "pending",
+              "supported",
+              "unsupported",
+              "overstated"
+            ]
+          },
+          "theme_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "claim_id",
+          "text",
+          "paper_ids",
+          "evidence_ids",
+          "support_type",
+          "strength",
+          "verification_status",
+          "theme_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "draft": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "claim_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "title",
+        "claim_ids"
+      ],
+      "additionalProperties": false
+    },
+    "verification_results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "claim_id": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "supported",
+              "unsupported",
+              "overstated"
+            ]
+          },
+          "checks": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "reason": {
+            "type": "string"
+          },
+          "semantic_judgment": {
+            "enum": [
+              "not_needed",
+              "model",
+              "not_performed"
+            ]
+          }
+        },
+        "required": [
+          "claim_id",
+          "status",
+          "checks",
+          "reason",
+          "semantic_judgment"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "unresolved": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "paper_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "alternatives": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        },
+        "required": [
+          "paper_id",
+          "status",
+          "message",
+          "alternatives"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "document_refs": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "seed_references": {
+      "type": "array",
+      "maxItems": 20,
+      "items": {
+        "anyOf": [
+          {
+            "type": "string",
+            "maxLength": 500
+          },
+          {
+            "type": "object"
+          }
+        ]
+      }
+    },
+    "search_batches": {
+      "$ref": "search-batches.schema.json"
+    },
+    "seed_results": {
+      "$ref": "responses.schema.json"
+    },
+    "raw_candidates": {
+      "$ref": "raw-papers.schema.json"
+    },
+    "screening_jobs": {
+      "type": "array",
+      "items": {
+        "$ref": "screen-job.schema.json"
+      }
+    },
+    "citation_jobs": {
+      "$ref": "papers.schema.json"
+    },
+    "resolved_jobs": {
+      "$ref": "resolved-jobs.schema.json"
+    },
+    "evidence_jobs": {
+      "type": "array",
+      "items": {
+        "$ref": "evidence-job.schema.json"
+      }
+    },
+    "evidence_batches": {
+      "$ref": "evidence-batches.schema.json"
+    },
+    "final": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        {
+          "$ref": "review-output.schema.json"
+        }
+      ]
+    }
+  },
+  "required": [
+    "research_question",
+    "mode",
+    "reasoning_mode",
+    "search_plan",
+    "search_queries",
+    "candidate_papers",
+    "screened_papers",
+    "citation_records",
+    "evidence_items",
+    "themes",
+    "claims",
+    "draft",
+    "verification_results",
+    "unresolved"
+  ],
+  "additionalProperties": false
+}

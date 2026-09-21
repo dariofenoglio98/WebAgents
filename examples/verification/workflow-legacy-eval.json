@@ -1,0 +1,134 @@
+{
+  "spec_version": "0.1",
+  "kind": "deterministic",
+  "passed": true,
+  "checks": [
+    {
+      "id": "citation-validity",
+      "passed": true,
+      "detail": "Bibliography contains only exact metadata from resolved records."
+    },
+    {
+      "id": "claim-source-consistency",
+      "passed": true,
+      "detail": "Retained claims have nonempty evidence, exact paper links, and resolved citations."
+    },
+    {
+      "id": "verification-coverage",
+      "passed": true,
+      "detail": "Every drafted claim has a recorded final verdict."
+    },
+    {
+      "id": "abstract-full-text-distinction",
+      "passed": true,
+      "detail": "Abstracts carry no invented page numbers; supplied PDFs retain page provenance."
+    },
+    {
+      "id": "duplicate-handling",
+      "passed": true,
+      "detail": "Candidate and evidence identifiers are unique."
+    },
+    {
+      "id": "ambiguity-preserved",
+      "passed": true,
+      "detail": "Ambiguous and failed resolutions remain visible and outside bibliography."
+    },
+    {
+      "id": "extractive-claims-verbatim",
+      "passed": true,
+      "detail": "Extractive scientific text is exactly the supporting quote."
+    },
+    {
+      "id": "budget-compliance",
+      "passed": true,
+      "detail": "Observed usage respects token, call, per-tool, and concurrency caps."
+    },
+    {
+      "id": "delegation-depth",
+      "passed": true,
+      "detail": "All execution workers were spawned directly by coordinator at depth one."
+    },
+    {
+      "id": "tool-permission-compliance",
+      "passed": true,
+      "detail": "Every tool call belongs to the declared role and permission set."
+    },
+    {
+      "id": "failure-fixtures-executed",
+      "passed": true,
+      "detail": "The actual workflow consumed all four resolver status scenarios."
+    },
+    {
+      "id": "ambiguous-best-match-not-selected",
+      "passed": true,
+      "detail": "Even the fixture best_match score of 1 was not accepted."
+    },
+    {
+      "id": "full-text-fixture-executed",
+      "passed": true,
+      "detail": "Both full-text and abstract extraction paths executed."
+    },
+    {
+      "id": "parallel-search-merge",
+      "passed": true,
+      "detail": "Three declared search workers merge duplicates while preserving all queries."
+    },
+    {
+      "id": "relevance-counterexample",
+      "passed": true,
+      "detail": "Shared terminology alone did not include an unrelated fixture."
+    },
+    {
+      "id": "unsupported-claim-rejected",
+      "passed": true,
+      "detail": "An invented quantitative assertion fails the verbatim evidence gate."
+    },
+    {
+      "id": "unjudged-synthesis-rejected",
+      "passed": true,
+      "detail": "A synthesized assertion cannot pass by citing unrelated existing evidence."
+    },
+    {
+      "id": "hallucinated-reference-rejected",
+      "passed": true,
+      "detail": "An invented citation fails paper/evidence linkage."
+    },
+    {
+      "id": "distinct-dois-not-merged",
+      "passed": true,
+      "detail": "Identical titles with different DOIs remain separate works."
+    },
+    {
+      "id": "remote-budget-denied",
+      "passed": true,
+      "detail": "The runtime denied dispatch before the forbidden tool action."
+    },
+    {
+      "id": "tool-permission-denied",
+      "passed": true,
+      "detail": "The runtime denied dispatch before the forbidden tool action."
+    },
+    {
+      "id": "delegation-depth-denied",
+      "passed": true,
+      "detail": "Attempted depth-two execution was denied."
+    }
+  ],
+  "counts": {
+    "passed": 22,
+    "total": 22
+  },
+  "provenance": {
+    "package_id": "org.webagents.literature-review",
+    "package_digest": "20a35b6db17127ae52809e84e23e23994d9fbad235d91882b136f36fc4c547a5",
+    "executed_at": "2026-09-21T19:37:49.397950+00:00",
+    "dataset": "fixtures/review.json",
+    "synthetic": true,
+    "runner": "agentpkg.literature_evals.run_evals",
+    "independent_attestation": false
+  },
+  "semantic_evals": {
+    "status": "not-run",
+    "reason": "Scientific relevance, entailment, and thematic quality require configured host-router judgments and human review."
+  }
+}

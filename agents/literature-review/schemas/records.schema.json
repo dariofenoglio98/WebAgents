@@ -1,0 +1,6 @@
+{
+  "type": "array",
+  "items": {
+    "$ref": "citation-record.schema.json"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "wheel": "dist/agentpkg-0.1.0-py3-none-any.whl",
+  "imported_from_isolated_wheel": true,
+  "cwd_outside_repository": true,
+  "schema_resources_available": true,
+  "publisher_verification": {
+    "valid": true,
+    "digest": "20a35b6db17127ae52809e84e23e23994d9fbad235d91882b136f36fc4c547a5",
+    "package_id": "org.webagents.literature-review",
+    "version": "0.1.0",
+    "publisher": {
+      "id": "webagents-research",
+      "name": "WebAgents Research Prototype"
+    },
+    "key_fingerprint": "sha256:646a5b316da08e6ca0f6606a2f55efb968fa1a74fb248c7c09db05539d61d723",
+    "trust_scope": "exact externally supplied publisher key"
+  },
+  "offline_demo": {
+    "passed": true,
+    "bibliography_count": 3,
+    "evidence_count": 10,
+    "tokens": 0
+  },
+  "dependency_environment": "Existing dev virtualenv dependencies; wheel installed with --no-deps into a fresh temporary directory.",
+  "wheel_sha256": "c1b1c4b260dbca874dc9e343397e6fad1311f498c3a6df27c1a1deeeb0b18f71"
+}

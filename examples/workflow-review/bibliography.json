@@ -1,0 +1,98 @@
+[
+  {
+    "bibtex": "@misc{synthetic_topology,\n  title = {SYNTHETIC: Adaptive Communication Topology for Agent Teams},\n  author = {Synthetic Example Author},\n  year = {2026},\n  note = {SYNTHETIC TEST DATA; NOT A REAL PUBLICATION}\n}",
+    "metadata": {
+      "abstract": "Adaptive communication topology changes message edges between language-model agents during a task. The synthetic method uses intermediate agreement signals to choose a communication graph. Its abstract does not report evaluation sample sizes.",
+      "arxiv_id": null,
+      "authors": [
+        {
+          "name": "Synthetic Example Author"
+        }
+      ],
+      "bibtex": "@misc{synthetic_topology,\n  title = {SYNTHETIC: Adaptive Communication Topology for Agent Teams},\n  author = {Synthetic Example Author},\n  year = {2026},\n  note = {SYNTHETIC TEST DATA; NOT A REAL PUBLICATION}\n}",
+      "doi": "10.0000/synthetic-topology",
+      "source": "crossref",
+      "title": "SYNTHETIC: Adaptive Communication Topology for Agent Teams",
+      "url": null,
+      "venue": "Synthetic Fixture Proceedings",
+      "year": 2026
+    },
+    "paper_id": "paper-0b480b1da362cc50",
+    "reference": 1,
+    "sources": [
+      {
+        "error_code": null,
+        "provider": "crossref",
+        "status": "ok"
+      }
+    ],
+    "synthetic": true,
+    "warnings": [
+      "SYNTHETIC FIXTURE: this is not a real bibliographic lookup."
+    ]
+  },
+  {
+    "bibtex": "@misc{synthetic_joint,\n  title = {SYNTHETIC: Joint Agent and Communication Selection},\n  author = {Synthetic Example Author},\n  year = {2026},\n  note = {SYNTHETIC TEST DATA; NOT A REAL PUBLICATION}\n}",
+    "metadata": {
+      "abstract": "Dynamic agent selection and topology adaptation jointly choose participants and communication edges. The synthetic study distinguishes selection costs from communication costs. Transfer beyond the simulated task distribution is not established.",
+      "arxiv_id": null,
+      "authors": [
+        {
+          "name": "Synthetic Example Author"
+        }
+      ],
+      "bibtex": "@misc{synthetic_joint,\n  title = {SYNTHETIC: Joint Agent and Communication Selection},\n  author = {Synthetic Example Author},\n  year = {2026},\n  note = {SYNTHETIC TEST DATA; NOT A REAL PUBLICATION}\n}",
+      "doi": "10.0000/synthetic-joint",
+      "source": "crossref",
+      "title": "SYNTHETIC: Joint Agent and Communication Selection",
+      "url": null,
+      "venue": "Synthetic Fixture Proceedings",
+      "year": 2026
+    },
+    "paper_id": "paper-40b8ac03b20bbf20",
+    "reference": 2,
+    "sources": [
+      {
+        "error_code": null,
+        "provider": "crossref",
+        "status": "ok"
+      }
+    ],
+    "synthetic": true,
+    "warnings": [
+      "SYNTHETIC FIXTURE: this is not a real bibliographic lookup."
+    ]
+  },
+  {
+    "bibtex": "@misc{synthetic_router,\n  title = {SYNTHETIC: Dynamic Agent Selection with Task Routing},\n  author = {Synthetic Example Author},\n  year = {2026},\n  note = {SYNTHETIC TEST DATA; NOT A REAL PUBLICATION}\n}",
+    "metadata": {
+      "abstract": "Dynamic agent selection routes each task to a subset of language-model agents using task features. The synthetic evaluation compares routed teams with a fixed all-agent baseline. Reported findings concern the simulated workload only.",
+      "arxiv_id": null,
+      "authors": [
+        {
+          "name": "Synthetic Example Author"
+        }
+      ],
+      "bibtex": "@misc{synthetic_router,\n  title = {SYNTHETIC: Dynamic Agent Selection with Task Routing},\n  author = {Synthetic Example Author},\n  year = {2026},\n  note = {SYNTHETIC TEST DATA; NOT A REAL PUBLICATION}\n}",
+      "doi": "10.0000/synthetic-router",
+      "source": "crossref",
+      "title": "SYNTHETIC: Dynamic Agent Selection with Task Routing",
+      "url": null,
+      "venue": "Synthetic Fixture Proceedings",
+      "year": 2026
+    },
+    "paper_id": "paper-9787df51408912ec",
+    "reference": 3,
+    "sources": [
+      {
+        "error_code": null,
+        "provider": "crossref",
+        "status": "ok"
+      }
+    ],
+    "synthetic": true,
+    "warnings": [
+      "SYNTHETIC FIXTURE: this is not a real bibliographic lookup."
+    ]
+  }
+]

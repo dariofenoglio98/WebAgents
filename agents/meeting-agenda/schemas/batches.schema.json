@@ -1,0 +1,9 @@
+{
+  "type": "array",
+  "items": {
+    "type": "array",
+    "items": {
+      "$ref": "perspective.schema.json"
+    }
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "claim_id": {
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "supported",
+        "unsupported",
+        "overstated"
+      ]
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "reason": {
+      "type": "string"
+    },
+    "semantic_judgment": {
+      "enum": [
+        "not_needed",
+        "model",
+        "not_performed"
+      ]
+    }
+  },
+  "required": [
+    "claim_id",
+    "status",
+    "checks",
+    "reason",
+    "semantic_judgment"
+  ],
+  "additionalProperties": false
+}

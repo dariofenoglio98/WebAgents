@@ -1,0 +1,21 @@
+{
+  "spec_version": "0.1",
+  "id": "paper-reader",
+  "version": "0.1.0",
+  "description": "Host PDF text extraction limited to explicitly selected files.",
+  "execution": "local",
+  "binding": "paper.read",
+  "endpoint": null,
+  "method": null,
+  "input_schema": "schemas/reader-input.schema.json",
+  "output_schema": "schemas/reader-output.schema.json",
+  "permissions": [
+    "files.pdfs"
+  ],
+  "domains": [],
+  "timeout_seconds": 20,
+  "retries": 0,
+  "side_effects": "read",
+  "approval_required": false,
+  "extensions": {}
+}

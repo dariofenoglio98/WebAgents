@@ -59,6 +59,9 @@ def create_app(
         # Only infer an origin after TrustedHost validation. Ignore raw forwarding headers.
         origin = settings.public_base_url or validate_origin(str(request.base_url))
         text = SKILL_PATH.read_text(encoding="utf-8").replace("{{BASE_URL}}", origin)
+        # The standalone skill retains its public deployment URL for direct OpenClaw use.
+        # Hosted copies must also honor the configured/validated origin.
+        text = text.replace("https://webagents-citation-resolver-production.up.railway.app", origin)
         return Response(text, media_type="text/markdown", headers={"Cache-Control": "no-store"})
 
     @app.post(

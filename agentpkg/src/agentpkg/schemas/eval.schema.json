@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentpkg.local/spec/0.1/eval.schema.json",
+  "type": "object",
+  "properties": {
+    "spec_version": {
+      "const": "0.1"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096
+    },
+    "cases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+          },
+          "input": {
+            "type": "object"
+          },
+          "assertions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4096
+            },
+            "maxItems": 512,
+            "uniqueItems": true
+          }
+        },
+        "required": [
+          "id",
+          "input",
+          "assertions"
+        ],
+        "additionalProperties": false
+      },
+      "maxItems": 512
+    },
+    "extensions": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9.-]*:[A-Za-z][A-Za-z0-9_.-]*$"
+      },
+      "additionalProperties": true
+    }
+  },
+  "required": [
+    "spec_version",
+    "id",
+    "description",
+    "cases",
+    "extensions"
+  ],
+  "additionalProperties": false
+}

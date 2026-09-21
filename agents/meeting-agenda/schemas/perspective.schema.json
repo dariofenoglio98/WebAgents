@@ -1,0 +1,26 @@
+{
+  "type": "object",
+  "properties": {
+    "role": {
+      "type": "string"
+    },
+    "priorities": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "questions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "role",
+    "priorities",
+    "questions"
+  ],
+  "additionalProperties": false
+}

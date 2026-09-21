@@ -1,0 +1,19 @@
+{
+  "wheel_version": "0.2.0",
+  "wheel_sha256": "5859ca592d7ced2261e07bd3451ba2a67fcca926627534faf092a93dcfd70adb",
+  "wheel_members_match_source": true,
+  "source_members_checked": 34,
+  "no_stale_top_level_modules": true,
+  "loaded_from_installed_wheel": true,
+  "no_development_modules_imported": true,
+  "packages": {
+    "literature-review": {
+      "status": "completed",
+      "interpreter": "agentpkg.workflow.Workflow"
+    },
+    "meeting-agenda": {
+      "status": "completed",
+      "interpreter": "agentpkg.workflow.Workflow"
+    }
+  }
+}

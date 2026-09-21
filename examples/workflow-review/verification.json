@@ -1,0 +1,132 @@
+[
+  {
+    "checks": [
+      "claim_identity",
+      "evidence_links",
+      "citation_status",
+      "source_scope",
+      "verbatim_quote"
+    ],
+    "claim_id": "claim-dda25595ed556a1b",
+    "reason": "Passed applicable structural checks and verbatim quotation check",
+    "semantic_judgment": "not_needed",
+    "status": "supported"
+  },
+  {
+    "checks": [
+      "claim_identity",
+      "evidence_links",
+      "citation_status",
+      "source_scope",
+      "verbatim_quote"
+    ],
+    "claim_id": "claim-5f8d524faf326048",
+    "reason": "Passed applicable structural checks and verbatim quotation check",
+    "semantic_judgment": "not_needed",
+    "status": "supported"
+  },
+  {
+    "checks": [
+      "claim_identity",
+      "evidence_links",
+      "citation_status",
+      "source_scope",
+      "verbatim_quote"
+    ],
+    "claim_id": "claim-7d356d6eb70edca8",
+    "reason": "Passed applicable structural checks and verbatim quotation check",
+    "semantic_judgment": "not_needed",
+    "status": "supported"
+  },
+  {
+    "checks": [
+      "claim_identity",
+      "evidence_links",
+      "citation_status",
+      "source_scope",
+      "verbatim_quote"
+    ],
+    "claim_id": "claim-a97733bb4819bd7c",
+    "reason": "Passed applicable structural checks and verbatim quotation check",
+    "semantic_judgment": "not_needed",
+    "status": "supported"
+  },
+  {
+    "checks": [
+      "claim_identity",
+      "evidence_links",
+      "citation_status",
+      "source_scope",
+      "verbatim_quote"
+    ],
+    "claim_id": "claim-a459a7d4e643f836",
+    "reason": "Passed applicable structural checks and verbatim quotation check",
+    "semantic_judgment": "not_needed",
+    "status": "supported"
+  },
+  {
+    "checks": [
+      "claim_identity",
+      "evidence_links",
+      "citation_status",
+      "source_scope",
+      "verbatim_quote"
+    ],
+    "claim_id": "claim-41964da1527455b0",
+    "reason": "Passed applicable structural checks and verbatim quotation check",
+    "semantic_judgment": "not_needed",
+    "status": "supported"
+  },
+  {
+    "checks": [
+      "claim_identity",
+      "evidence_links",
+      "citation_status",
+      "source_scope",
+      "verbatim_quote"
+    ],
+    "claim_id": "claim-f1e37fa50ea18e54",
+    "reason": "Passed applicable structural checks and verbatim quotation check",
+    "semantic_judgment": "not_needed",
+    "status": "supported"
+  },
+  {
+    "checks": [
+      "claim_identity",
+      "evidence_links",
+      "citation_status",
+      "source_scope",
+      "verbatim_quote"
+    ],
+    "claim_id": "claim-f8ff11d1a8bef6f5",
+    "reason": "Passed applicable structural checks and verbatim quotation check",
+    "semantic_judgment": "not_needed",
+    "status": "supported"
+  },
+  {
+    "checks": [
+      "claim_identity",
+      "evidence_links",
+      "citation_status",
+      "source_scope",
+      "verbatim_quote"
+    ],
+    "claim_id": "claim-434ab9e14a2bfb3a",
+    "reason": "Passed applicable structural checks and verbatim quotation check",
+    "semantic_judgment": "not_needed",
+    "status": "supported"
+  },
+  {
+    "checks": [
+      "claim_identity",
+      "evidence_links",
+      "citation_status",
+      "source_scope",
+      "verbatim_quote"
+    ],
+    "claim_id": "claim-566647fe74e87f66",
+    "reason": "Passed applicable structural checks and verbatim quotation check",
+    "semantic_judgment": "not_needed",
+    "status": "supported"
+  }
+]

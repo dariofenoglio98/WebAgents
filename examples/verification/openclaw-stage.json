@@ -1,0 +1,204 @@
+{
+  "adapter_version": "0.1",
+  "status": "staged",
+  "package_id": "org.webagents.literature-review",
+  "version": "0.1.0",
+  "publisher": {
+    "id": "webagents-research",
+    "name": "WebAgents Research Prototype"
+  },
+  "digest": "20a35b6db17127ae52809e84e23e23994d9fbad235d91882b136f36fc4c547a5",
+  "archive_sha256": "fb7357ebdf2e8415a32033971ba448dd21a9b20eb35a32a6ec71e1a5240cc03b",
+  "requested_permissions": {
+    "package_id": "org.webagents.literature-review",
+    "version": "0.1.0",
+    "permissions": [
+      {
+        "description": "Read Crossref scholarly metadata for bounded search queries.",
+        "id": "network.scholarly",
+        "kind": "network",
+        "required": true,
+        "resources": [
+          "api.crossref.org"
+        ]
+      },
+      {
+        "description": "Verify references through the existing Citation Resolver service.",
+        "id": "network.citations",
+        "kind": "network",
+        "required": true,
+        "resources": [
+          "webagents-citation-resolver-production.up.railway.app"
+        ]
+      },
+      {
+        "description": "Read only individually selected local PDF files.",
+        "id": "files.pdfs",
+        "kind": "files.read",
+        "required": false,
+        "resources": [
+          "user-selected-pdfs"
+        ]
+      },
+      {
+        "description": "Use the host-selected reasoning router within the token cap.",
+        "id": "model.reasoning",
+        "kind": "model",
+        "required": false,
+        "resources": [
+          "host-router"
+        ]
+      },
+      {
+        "description": "Read and write explicit worker state views for this session only.",
+        "id": "memory.session",
+        "kind": "memory",
+        "required": true,
+        "resources": [
+          "session"
+        ]
+      }
+    ],
+    "network": {
+      "allow_redirects": false,
+      "allowed_domains": [
+        "api.crossref.org",
+        "webagents-citation-resolver-production.up.railway.app"
+      ],
+      "https_only": true
+    },
+    "memory": {
+      "raw_documents": false,
+      "retention": "session",
+      "scope": "session",
+      "sharing": "explicit_views",
+      "state_schema": "schemas/research-state.schema.json"
+    },
+    "budget": {
+      "approval_threshold_tokens": null,
+      "estimated_cost_usd": null,
+      "estimated_tokens": 24000,
+      "hard_tokens": 180000,
+      "max_calls_per_tool": {
+        "citation-resolver": 20,
+        "paper-reader": 10,
+        "scholarly-search": 3
+      },
+      "max_parallel_workers": 3,
+      "max_remote_calls": 45
+    },
+    "delegation": {
+      "allow_remote": false,
+      "approved_roles": [
+        "PlanningWorker",
+        "SearchWorker",
+        "ScreeningWorker",
+        "CitationWorker",
+        "EvidenceWorker",
+        "SynthesisWorker",
+        "WritingWorker",
+        "VerificationWorker"
+      ],
+      "max_depth": 1
+    }
+  },
+  "verification": {
+    "valid": true,
+    "digest": "20a35b6db17127ae52809e84e23e23994d9fbad235d91882b136f36fc4c547a5",
+    "package_id": "org.webagents.literature-review",
+    "version": "0.1.0",
+    "publisher": {
+      "id": "webagents-research",
+      "name": "WebAgents Research Prototype"
+    },
+    "key_fingerprint": "sha256:646a5b316da08e6ca0f6606a2f55efb968fa1a74fb248c7c09db05539d61d723",
+    "trust_scope": "exact externally supplied publisher key"
+  },
+  "package_root": "agent-packages/20a35b6db17127ae52809e84e23e23994d9fbad235d91882b136f36fc4c547a5",
+  "coordinator_skill": "agentpkg-20a35b6db171-run",
+  "skills": [
+    {
+      "skill_id": "literature-search",
+      "openclaw_name": "agentpkg-20a35b6db171-1-literature-search",
+      "path": "skills/literature-search/SKILL.md"
+    },
+    {
+      "skill_id": "paper-screening",
+      "openclaw_name": "agentpkg-20a35b6db171-2-paper-screening",
+      "path": "skills/paper-screening/SKILL.md"
+    },
+    {
+      "skill_id": "citation-resolution",
+      "openclaw_name": "agentpkg-20a35b6db171-3-citation-resolution",
+      "path": "skills/citation-resolution/SKILL.md"
+    },
+    {
+      "skill_id": "evidence-extraction",
+      "openclaw_name": "agentpkg-20a35b6db171-4-evidence-extraction",
+      "path": "skills/evidence-extraction/SKILL.md"
+    },
+    {
+      "skill_id": "evidence-synthesis",
+      "openclaw_name": "agentpkg-20a35b6db171-5-evidence-synthesis",
+      "path": "skills/evidence-synthesis/SKILL.md"
+    },
+    {
+      "skill_id": "related-work-writing",
+      "openclaw_name": "agentpkg-20a35b6db171-6-related-work-writing",
+      "path": "skills/related-work-writing/SKILL.md"
+    },
+    {
+      "skill_id": "claim-and-citation-verification",
+      "openclaw_name": "agentpkg-20a35b6db171-7-claim-and-citation-verificat",
+      "path": "skills/claim-and-citation-verification/SKILL.md"
+    }
+  ],
+  "grants": {},
+  "native_openclaw_policy_enforcement": false,
+  "materialized_sha256": {
+    "agent-packages/20a35b6db17127ae52809e84e23e23994d9fbad235d91882b136f36fc4c547a5/adapter.json": "f1450bb085702a287ab78f0e1a412f2dd988b597ebd9c05332c0eb4d13cbd25c",
+    "agent-packages/20a35b6db17127ae52809e84e23e23994d9fbad235d91882b136f36fc4c547a5/package.agent.pkg": "fb7357ebdf2e8415a32033971ba448dd21a9b20eb35a32a6ec71e1a5240cc03b",
+    "agent-packages/20a35b6db17127ae52809e84e23e23994d9fbad235d91882b136f36fc4c547a5/payload/MANIFEST.agent": "a23dd57c3af861df3355506cb0355bc83db6b2848e2d5307aa970f30a5db1d77",
+    "agent-packages/20a35b6db17127ae52809e84e23e23994d9fbad235d91882b136f36fc4c547a5/payload/README.md": "2f1c11c6c9ed53c14d65e95f503ca730f9f468fc3391b1bf7baf96d4119f6e84",
+    "agent-packages/20a35b6db17127ae52809e84e23e23994d9fbad235d91882b136f36fc4c547a5/payload/attestations/provenance.json": "eaf4d0f339c2f4cffaa4bd08322f16870c9b92a1694b174d1e1ae26b9fafea5e",
+    "agent-packages/20a35b6db17127ae52809e84e23e23994d9fbad235d91882b136f36fc4c547a5/payload/attestations/runtime-components.json": "81239b63c8c52c2f5a077d21436f3906885ce66205a9bb73c98ff983b275e425",
+    "agent-packages/20a35b6db17127ae52809e84e23e23994d9fbad235d91882b136f36fc4c547a5/payload/evals/deterministic.json": "c76f313cecbc429c994a8395bfe1e48a82d034187d7f0784786a938be9474ea5",
+    "agent-packages/20a35b6db17127ae52809e84e23e23994d9fbad235d91882b136f36fc4c547a5/payload/evals/semantic.json": "6ee17e1138fdd393a9e8b9a99988cdd1387551c5b02761750754995a05e37c40",
+    "agent-packages/20a35b6db17127ae52809e84e23e23994d9fbad235d91882b136f36fc4c547a5/payload/fixtures/review.json": "9af95b95e02db041efdeb95281e2507009544c6d353017199e18cc9620cb1f51",
+    "agent-packages/20a35b6db17127ae52809e84e23e23994d9fbad235d91882b136f36fc4c547a5/payload/graph.json": "51f316365f22cf0eb7bed416c1b4dff8f5b83f4af2408659febff5350ae72569",
+    "agent-packages/20a35b6db17127ae52809e84e23e23994d9fbad235d91882b136f36fc4c547a5/payload/policy/policy.json": "51e7c6427f4bbd3a189f631441745652e576d0b73d0f43bc81b8e1f7e1cebfc6",
+    "agent-packages/20a35b6db17127ae52809e84e23e23994d9fbad235d91882b136f36fc4c547a5/payload/schemas/citation-record.schema.json": "cfe5b0f4818c0490d51be22d3a6a86db201a908aa032b6868bc14db8ceadf71d",
+    "agent-packages/20a35b6db17127ae52809e84e23e23994d9fbad235d91882b136f36fc4c547a5/payload/schemas/claim.schema.json": "899a48954d9e987a7b493e699bb2ad73a8bf098df3c237c0a9a980ba6940a9e1",
+    "agent-packages/20a35b6db17127ae52809e84e23e23994d9fbad235d91882b136f36fc4c547a5/payload/schemas/evidence.schema.json": "a35e1f32577964264af80b59c3f9eced235b283e6a4d33caa095933f0862f6ff",
+    "agent-packages/20a35b6db17127ae52809e84e23e23994d9fbad235d91882b136f36fc4c547a5/payload/schemas/paper.schema.json": "b5bc13152638006c22dba8222ee3ac6af3c41667e499b61c18f99b0ba5d19d5b",
+    "agent-packages/20a35b6db17127ae52809e84e23e23994d9fbad235d91882b136f36fc4c547a5/payload/schemas/reader-input.schema.json": "5b1df5dc0d13ca9a8b76cce86d93639f2b13baf3eb66ec895a725fc9169686ca",
+    "agent-packages/20a35b6db17127ae52809e84e23e23994d9fbad235d91882b136f36fc4c547a5/payload/schemas/reader-output.schema.json": "4feee1362ccba94d82ffbd56e106525c1fab7643e664172d63469ec241ab3167",
+    "agent-packages/20a35b6db17127ae52809e84e23e23994d9fbad235d91882b136f36fc4c547a5/payload/schemas/research-state.schema.json": "3a8038a729309cc4cc5d51963ba990f85c3c225ac6cf785d8e5efa43b193a568",
+    "agent-packages/20a35b6db17127ae52809e84e23e23994d9fbad235d91882b136f36fc4c547a5/payload/schemas/resolver-input.schema.json": "6ebcf0d39ab472236ac42275a84e9299c64d22273847898c95e46096363d9b83",
+    "agent-packages/20a35b6db17127ae52809e84e23e23994d9fbad235d91882b136f36fc4c547a5/payload/schemas/resolver-output.schema.json": "0122dc2ac551935269f43020a1b97dcfabb2f180fe07fbdf02734dcb7c1a14f9",
+    "agent-packages/20a35b6db17127ae52809e84e23e23994d9fbad235d91882b136f36fc4c547a5/payload/schemas/search-input.schema.json": "f8a6f920b23bf1731a85d5275c10eee77a9d055fb14917be114c1b9e8249baf2",
+    "agent-packages/20a35b6db17127ae52809e84e23e23994d9fbad235d91882b136f36fc4c547a5/payload/schemas/search-output.schema.json": "eb83100404221fd9a489046d6741a046aae07c31c672ab6dc2daabffeda3c9ee",
+    "agent-packages/20a35b6db17127ae52809e84e23e23994d9fbad235d91882b136f36fc4c547a5/payload/schemas/theme.schema.json": "9f3cb6dafa9a85cd8dfc7b20b0c2a7e8d78dc3266607f6b99ade60b05eb41e00",
+    "agent-packages/20a35b6db17127ae52809e84e23e23994d9fbad235d91882b136f36fc4c547a5/payload/schemas/verification.schema.json": "ca466f7699e8c70a122a8b3ac031559cde43ad84852b60af7db324373e5dc4a9",
+    "agent-packages/20a35b6db17127ae52809e84e23e23994d9fbad235d91882b136f36fc4c547a5/payload/skills/citation-resolution/SKILL.md": "d02c50ee6189fb189c6ca4e4bb0a5e22c4e063b245598f4c31188393e7cc2ace",
+    "agent-packages/20a35b6db17127ae52809e84e23e23994d9fbad235d91882b136f36fc4c547a5/payload/skills/claim-and-citation-verification/SKILL.md": "d2e8468c3e17485d5a5ed1703ef7fb3cd319179b173ddf80d675ce31afab07df",
+    "agent-packages/20a35b6db17127ae52809e84e23e23994d9fbad235d91882b136f36fc4c547a5/payload/skills/evidence-extraction/SKILL.md": "47b1a8af70a5b225b54aefd7d43b21ae2d76dbe05f01d0b79399484fecacb0e1",
+    "agent-packages/20a35b6db17127ae52809e84e23e23994d9fbad235d91882b136f36fc4c547a5/payload/skills/evidence-synthesis/SKILL.md": "fc0be88427cb5f6f2ce3b9715abac26dd1bb519e6f9e7a7529161f7df612c273",
+    "agent-packages/20a35b6db17127ae52809e84e23e23994d9fbad235d91882b136f36fc4c547a5/payload/skills/literature-search/SKILL.md": "cff917bc273ede59e8d69ff812523b647eac2f46bb8e4b52419a739f92f0b82a",
+    "agent-packages/20a35b6db17127ae52809e84e23e23994d9fbad235d91882b136f36fc4c547a5/payload/skills/paper-screening/SKILL.md": "56cf8810993d796f58b4c7e0e2b784f92ad3efda2dc5cb142ce25ef99a5782d4",
+    "agent-packages/20a35b6db17127ae52809e84e23e23994d9fbad235d91882b136f36fc4c547a5/payload/skills/related-work-writing/SKILL.md": "8d07f948912f6061d7257d88d31717a05706ef9a9d295565779c5e4a5dc8cf1c",
+    "agent-packages/20a35b6db17127ae52809e84e23e23994d9fbad235d91882b136f36fc4c547a5/payload/tools/citation-resolver.tool.json": "b340cb0855bc1becf0e55ceb89d297b927c5302f8694b31be8b60fa0e84bb35b",
+    "agent-packages/20a35b6db17127ae52809e84e23e23994d9fbad235d91882b136f36fc4c547a5/payload/tools/paper-reader.tool.json": "060750d2a95f065b18b4bf2c45dc5289f71f8c64c2a032a9386957746ab64ecf",
+    "agent-packages/20a35b6db17127ae52809e84e23e23994d9fbad235d91882b136f36fc4c547a5/payload/tools/scholarly-search.tool.json": "3b24647f4fd202b0702058b77555ce4cbd37877c983ec5cd8a0621a3a0d0f6f6",
+    "agent-packages/20a35b6db17127ae52809e84e23e23994d9fbad235d91882b136f36fc4c547a5/permissions.json": "58b2a05feae1187a002ec877abda2a1271fa629652e81c63713f7d6073f650cd",
+    "agent-packages/20a35b6db17127ae52809e84e23e23994d9fbad235d91882b136f36fc4c547a5/publisher.pem": "73efbae1f7ebf46d862f7018725e4f36425d8322c7bdba868f341d800602414a",
+    "skills/agentpkg-20a35b6db171-1-literature-search/SKILL.md": "09c64350a11393cce53bca3841a0baa76998d89be81c2f004cb6ea4974e7a344",
+    "skills/agentpkg-20a35b6db171-2-paper-screening/SKILL.md": "acb190f8ff1d53860cd90a2f3957e6cd1953f34e2f80c4b53302d3eb2730bade",
+    "skills/agentpkg-20a35b6db171-3-citation-resolution/SKILL.md": "b5514e365f4b45cf74711d750269f50fa1da13f02bfd7a0d89bfefa4560b1da0",
+    "skills/agentpkg-20a35b6db171-4-evidence-extraction/SKILL.md": "fd185be983a200c149ad42597818290fa4c7f932782abf891a716e4423a66f11",
+    "skills/agentpkg-20a35b6db171-5-evidence-synthesis/SKILL.md": "68bfb0961d246ed9071cf1752c4a3fdaa8d482f8f3704140f6d08e50b31446d2",
+    "skills/agentpkg-20a35b6db171-6-related-work-writing/SKILL.md": "9c47b7bb4f897c1b8c665700956bb4049812de8405da0edcdbef4422d9db9ef0",
+    "skills/agentpkg-20a35b6db171-7-claim-and-citation-verificat/SKILL.md": "9cd982deab502f62c0d21dfe8487a275e9ea44c08fc4268fb3a41ac6c07deff9",
+    "skills/agentpkg-20a35b6db171-run/SKILL.md": "5eca055017e579d73a2d30d0abbdc6c5c3f421a1a96fd58bb2b6ec47279cd282"
+  }
+}

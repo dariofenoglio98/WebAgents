@@ -1,0 +1,37 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "query": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Query",
+      "type": "string"
+    },
+    "query_type": {
+      "default": "auto",
+      "enum": [
+        "auto",
+        "doi",
+        "arxiv",
+        "title"
+      ],
+      "title": "Query Type",
+      "type": "string"
+    },
+    "format": {
+      "default": "json",
+      "enum": [
+        "json",
+        "bibtex"
+      ],
+      "title": "Format",
+      "type": "string"
+    }
+  },
+  "required": [
+    "query"
+  ],
+  "title": "ResolveRequest",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

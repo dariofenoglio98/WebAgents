@@ -1,0 +1,53 @@
+{
+  "type": "object",
+  "properties": {
+    "citation_records": {
+      "type": "array",
+      "items": {
+        "$ref": "citation-record.schema.json"
+      }
+    },
+    "evidence_jobs": {
+      "type": "array",
+      "items": {
+        "$ref": "evidence-job.schema.json"
+      }
+    },
+    "unresolved": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "paper_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "alternatives": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        },
+        "required": [
+          "paper_id",
+          "status",
+          "message",
+          "alternatives"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "citation_records",
+    "evidence_jobs",
+    "unresolved"
+  ],
+  "additionalProperties": false
+}
