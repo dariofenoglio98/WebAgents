@@ -82,6 +82,30 @@ const plugin = defineFeaturePlugin({
           stateDir: ctx.stateDir,
           workspaceDir: ctx.workspaceDir,
           onChange: announce,
+          // Model discovery reads the host's own published catalog. The current
+          // config snapshot is preferred over the one captured at registration
+          // so a provider configured after startup is visible without a reload.
+          modelHost: {
+            get config() {
+              try {
+                return api.runtime?.config?.current?.() ?? api.config;
+              } catch {
+                return api.config;
+              }
+            },
+            workspaceDir: ctx.workspaceDir,
+            runtimeVersion: api.runtime?.version ?? null,
+          },
+          // The host's own completion runtime, used only by the developer
+          // router probe. Reading it through the live `api` keeps OpenClaw's
+          // plugin LLM policy — including the operator's allowModelOverride
+          // decision — in force on every call.
+          llm: {
+            complete: (params) =>
+              (api.runtime as unknown as { llm: { complete: (p: unknown) => Promise<never> } }).llm.complete(
+                params,
+              ),
+          },
         });
         await instance.initialize();
         backend = instance;
@@ -133,6 +157,21 @@ const plugin = defineFeaturePlugin({
       "packages.close": ({ sessionId }) => active().closeSession(sessionId),
       "packages.authorize": ({ sessionId, packageDigest, decisions, toolApprovals }) =>
         active().authorize(sessionId, packageDigest, decisions, toolApprovals ?? []),
+      "models.evaluate": ({ sessionId }) => active().evaluateModels(sessionId),
+      "run-plan.get": ({ sessionId }) => active().getRunPlan(sessionId),
+      "run-plan.prepare": ({ sessionId, packageDigest, receiptId, modelId, executionMode }) =>
+        active().prepareRunPlan(
+          sessionId,
+          packageDigest,
+          receiptId,
+          modelId,
+          executionMode ?? "model",
+        ),
+      "run-plan.clear": ({ sessionId }) => active().clearRunPlan(sessionId),
+      // Developer/operator only. It is not reachable from the Agent Browser
+      // page, has no tool binding, and is not a Run action: see contract.ts.
+      "router.probe": ({ sessionId, runPlanId, runPlanSha256 }) =>
+        active().probeRouter(sessionId, runPlanId, runPlanSha256),
       "trust.list": () => active().listTrust(),
       "trust.pin-session-publisher": ({ sessionId, signerFingerprint, scope }) =>
         active().pinSessionPublisher(sessionId, signerFingerprint, scope),

@@ -1,0 +1,252 @@
+/**
+ * Model discovery: what the plugin reads from OpenClaw, and what it refuses to
+ * pass on.
+ *
+ * The host is stubbed here so the suite is deterministic and never depends on a
+ * configured provider. The stub returns the exact shapes OpenClaw 2026.9.5's
+ * `buildModelsProviderData` returns; the real call is exercised by hand against
+ * a live host and recorded in the milestone report.
+ */
+import { describe, expect, it } from "vitest";
+import { AgentBrowserError } from "../src/errors.js";
+import {
+  capabilitiesOf,
+  discoverHostModels,
+  stillAvailable,
+  type ModelHost,
+} from "../src/host-models.js";
+
+type Row = Record<string, unknown>;
+
+function host(
+  data: {
+    catalog?: Row[];
+    offered?: Record<string, string[]>;
+    names?: Record<string, string>;
+    pending?: string[];
+    refreshWarning?: string;
+    fail?: Error;
+    default?: { provider: string; model: string };
+  } = {},
+): ModelHost {
+  return {
+    config: { fake: true },
+    runtimeVersion: "2026.9.5",
+    browse: async () => {
+      if (data.fail) throw data.fail;
+      return {
+        byProvider: new Map(
+          Object.entries(data.offered ?? {}).map(([provider, models]) => [
+            provider,
+            new Set(models),
+          ]),
+        ),
+        modelCatalog: (data.catalog ?? []) as never,
+        modelNames: new Map(Object.entries(data.names ?? {})),
+        pendingProviders: data.pending,
+        refreshWarning: data.refreshWarning,
+        resolvedDefault: data.default,
+      };
+    },
+  };
+}
+
+const row = (overrides: Row = {}): Row => ({
+  id: "alpha",
+  name: "Alpha",
+  provider: "acme",
+  reasoning: true,
+  input: ["text", "image"],
+  contextWindow: 400_000,
+  contextTokens: 200_000,
+  baseUrl: "https://api.acme.example/v1",
+  compat: { supportsTemperature: false },
+  ...overrides,
+});
+
+describe("host model discovery", () => {
+  it("reports what the host currently offers as available", async () => {
+    const catalog = await discoverHostModels(
+      host({
+        catalog: [row(), row({ id: "beta", name: "Beta" })],
+        offered: { acme: ["alpha"] },
+      }),
+    );
+    expect(catalog.schema).toBe("agentpkg-host-model-catalog-v0");
+    expect(catalog.host.runtime).toBe("openclaw");
+    expect(catalog.host.source).toContain("buildModelsProviderData");
+    expect(catalog.models.map((model) => model.id)).toEqual(["acme/alpha", "acme/beta"]);
+    const [available, unavailable] = catalog.models;
+    expect(available).toMatchObject({ available: true, selectable: true, availability_reason: null });
+    expect(unavailable).toMatchObject({
+      available: false,
+      selectable: false,
+      availability_reason: "not_offered_by_host",
+    });
+  });
+
+  it("never sends an endpoint, a request parameter or anything else off-contract", async () => {
+    const catalog = await discoverHostModels(
+      host({
+        catalog: [
+          row({
+            baseUrl: "https://api.acme.example/v1",
+            params: { temperature: 0.4, apiKey: "sk-should-never-travel" },
+            compat: { supportsTools: true, supportsJsonSchemaResponseFormat: true },
+            api: "openai-completions",
+          }),
+        ],
+        offered: { acme: ["alpha"] },
+      }),
+    );
+    const serialized = JSON.stringify(catalog);
+    expect(serialized).not.toContain("sk-should-never-travel");
+    expect(serialized).not.toContain("api.acme.example");
+    expect(serialized).not.toContain("openai-completions");
+    expect(serialized).not.toMatch(/baseUrl|apiKey|authorization|bearer/iu);
+    // Only the contract's fields exist on a descriptor.
+    expect(Object.keys(catalog.models[0]).sort()).toEqual([
+      "availability_reason",
+      "available",
+      "capabilities",
+      "display_name",
+      "id",
+      "limits",
+      "model_id",
+      "properties",
+      "provider_id",
+      "selectable",
+    ]);
+  });
+
+  it("classifies a local endpoint without disclosing it", async () => {
+    const catalog = await discoverHostModels(
+      host({
+        catalog: [
+          row({ id: "local-one", baseUrl: "http://127.0.0.1:11434/v1", provider: "ollama" }),
+          row({ id: "remote-one" }),
+          row({ id: "silent-one", baseUrl: undefined }),
+        ],
+        offered: { ollama: ["local-one"], acme: ["remote-one", "silent-one"] },
+      }),
+    );
+    const byId = Object.fromEntries(catalog.models.map((model) => [model.id, model]));
+    expect(byId["ollama/local-one"].properties.local).toBe(true);
+    expect(byId["acme/remote-one"].properties.local).toBe(false);
+    // No base URL at all is unknown, not "remote".
+    expect(byId["acme/silent-one"].properties.local).toBeNull();
+    expect(JSON.stringify(catalog)).not.toContain("11434");
+  });
+
+  it("marks the host default without selecting it", async () => {
+    const catalog = await discoverHostModels(
+      host({
+        catalog: [row(), row({ id: "beta" })],
+        offered: { acme: ["alpha", "beta"] },
+        default: { provider: "acme", model: "beta" },
+      }),
+    );
+    const beta = catalog.models.find((model) => model.id === "acme/beta")!;
+    expect(beta.properties.tags).toContain("host-default");
+    // Marking is all it does: nothing in the catalog pre-selects a model.
+    expect(catalog.models.every((model) => "selectable" in model)).toBe(true);
+  });
+
+  it("reports an empty host catalog as an explained state, not an error", async () => {
+    const catalog = await discoverHostModels(host());
+    expect(catalog.models).toEqual([]);
+    expect(catalog.notes.map((note) => note.code)).toContain("no_models_available");
+  });
+
+  it("passes provider discovery and refresh problems through as notes", async () => {
+    const catalog = await discoverHostModels(
+      host({
+        catalog: [row()],
+        offered: { acme: ["alpha"] },
+        pending: ["slowprovider"],
+        refreshWarning: "Some models could not be refreshed.",
+      }),
+    );
+    const codes = catalog.notes.map((note) => note.code);
+    expect(codes).toContain("provider_discovery_pending");
+    expect(codes).toContain("catalog_refresh_failed");
+    expect(catalog.notes.some((note) => note.detail?.includes("slowprovider"))).toBe(true);
+  });
+
+  it("turns a failing host into a typed, retryable failure", async () => {
+    await expect(discoverHostModels(host({ fail: new Error("catalog not published") }))).rejects
+      .toMatchObject({ code: "model_catalog_unavailable", retryable: true });
+    await expect(
+      discoverHostModels(host({ fail: new Error("catalog not published") })),
+    ).rejects.toBeInstanceOf(AgentBrowserError);
+  });
+
+  it("keeps a model the host offers even when its catalog row was filtered out", async () => {
+    const catalog = await discoverHostModels(
+      host({ catalog: [], offered: { acme: ["ghost"] }, names: { "acme/ghost": "Ghost" } }),
+    );
+    expect(catalog.models).toHaveLength(1);
+    expect(catalog.models[0]).toMatchObject({
+      id: "acme/ghost",
+      display_name: "Ghost",
+      available: true,
+    });
+    // Nothing is claimed about a row that was never seen.
+    expect(catalog.models[0].limits.context_tokens).toBeNull();
+  });
+
+  it("re-checks availability against a fresh catalog", async () => {
+    const catalog = await discoverHostModels(
+      host({ catalog: [row(), row({ id: "beta" })], offered: { acme: ["alpha"] } }),
+    );
+    expect(stillAvailable(catalog, "acme/alpha")).toBe(true);
+    expect(stillAvailable(catalog, "acme/beta")).toBe(false);
+    expect(stillAvailable(catalog, "acme/nothing")).toBe(false);
+  });
+});
+
+describe("capability provenance", () => {
+  it("records an explicit host declaration as declared", () => {
+    const answers = capabilitiesOf(row({ compat: { supportsTools: true }, reasoning: true }));
+    expect(answers.tool_use).toMatchObject({ value: true, basis: "declared" });
+    expect(answers.reasoning).toMatchObject({ value: true, basis: "declared" });
+  });
+
+  it("records an explicit opt-out as a refutation, for tools and structured output alike", () => {
+    const answers = capabilitiesOf(row({ compat: { supportsTools: false } }));
+    expect(answers.tool_use).toMatchObject({ value: false, basis: "declared" });
+    // OpenClaw gates structured output on tool capability, so this follows.
+    expect(answers.structured_output).toMatchObject({ value: false, basis: "derived" });
+  });
+
+  it("records OpenClaw's permissive tool default as host_default, not as a declaration", () => {
+    const answers = capabilitiesOf(row({ compat: {} }));
+    expect(answers.tool_use).toMatchObject({ value: true, basis: "host_default" });
+    expect(answers.tool_use.detail).toContain("supportsModelTools");
+    expect(answers.structured_output).toMatchObject({ value: true, basis: "derived" });
+  });
+
+  it("prefers a declared JSON-schema route over the derived tool gate", () => {
+    const answers = capabilitiesOf(
+      row({ compat: { supportsTools: true, supportsJsonSchemaResponseFormat: true } }),
+    );
+    expect(answers.structured_output).toMatchObject({ value: true, basis: "declared" });
+  });
+
+  it("reports a capability the host never states as unknown, not as false", () => {
+    const answers = capabilitiesOf(row({ reasoning: undefined, input: undefined }));
+    expect(answers.reasoning).toMatchObject({ value: null, basis: "absent" });
+    expect(answers.multimodal).toMatchObject({ value: null, basis: "absent" });
+  });
+
+  it("derives multimodality from the modalities the host lists", () => {
+    expect(capabilitiesOf(row({ input: ["text"] })).multimodal).toMatchObject({
+      value: false,
+      basis: "declared",
+    });
+    expect(capabilitiesOf(row({ input: ["text", "audio"] })).multimodal).toMatchObject({
+      value: true,
+      basis: "declared",
+    });
+  });
+});

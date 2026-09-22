@@ -29,7 +29,10 @@ from .control import API_VERSION, SERVICE, ControlPlane
 from .errors import ControlPlaneError
 from .trust import public_key_from_pem
 
-MAX_REQUEST_BYTES = 64 * 1024
+# 256 KiB rather than 64 KiB because a host model catalog is a request body:
+# the bound still exists, it is just large enough for a few hundred bounded
+# model descriptors. Every field inside one is separately length-limited.
+MAX_REQUEST_BYTES = 256 * 1024
 MAX_RESPONSE_BYTES = 8 * 1024 * 1024
 MAX_CONCURRENT_REQUESTS = 16
 SESSION_ID = re.compile(r"^[A-Za-z0-9_-]{16,64}$")
@@ -108,7 +111,50 @@ class BrowserAPI:
             return self._only(method, "POST", lambda: self._authorize(session_id, body))
         if rest == ["trust-publisher"]:
             return self._only(method, "POST", lambda: self._trust_session(session_id, body))
+        if rest == ["models"]:
+            return self._only(
+                method, "GET", lambda: (200, self.control.model_requirements(session_id))
+            )
+        if rest == ["models", "evaluate"]:
+            return self._only(method, "POST", lambda: self._evaluate_models(session_id, body))
+        if rest == ["run-plan"]:
+            if method == "POST":
+                return self._prepare_run_plan(session_id, body)
+            if method == "DELETE":
+                return 200, self.control.clear_run_plan(session_id)
+            return self._only(method, "GET", lambda: (200, self.control.run_plan(session_id)))
         raise ControlPlaneError("not_found", "Unknown package route", status=404)
+
+    def _evaluate_models(self, session_id, body):
+        payload = _object(body, {"package_digest", "catalog"}, {"package_digest", "catalog"})
+        return 200, self.control.evaluate_models(
+            session_id,
+            package_digest=payload["package_digest"],
+            catalog=payload["catalog"],
+        )
+
+    def _prepare_run_plan(self, session_id, body):
+        payload = _object(
+            body,
+            {
+                "package_digest",
+                "receipt_id",
+                "model_id",
+                "catalog",
+                "execution_mode",
+                "binding_strategy",
+            },
+            {"package_digest", "receipt_id", "model_id", "catalog"},
+        )
+        return 201, self.control.prepare_run_plan(
+            session_id,
+            package_digest=payload["package_digest"],
+            receipt_id=payload["receipt_id"],
+            model_id=payload["model_id"],
+            catalog=payload["catalog"],
+            execution_mode=payload.get("execution_mode", "model"),
+            binding_strategy=payload.get("binding_strategy", "single_model"),
+        )
 
     def _open_file(self, body):
         payload = _object(body, {"path"}, {"path"})

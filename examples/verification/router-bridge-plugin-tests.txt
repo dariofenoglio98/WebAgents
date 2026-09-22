@@ -1,0 +1,32 @@
+
+ RUN  v5.0.1 /Users/dariofenoglio/Desktop/WebAgents/openclaw-agent-browser
+
+ ✓ test/host-llm.test.ts (12 tests) 20ms
+ ✓ test/contract.test.ts (11 tests) 11ms
+ ✓ test/ui.test.ts (35 tests) 292ms
+ ✓ test/service.test.ts (10 tests) 2430ms
+   ✓ control-plane supervisor (7)
+     ✓ restarts without leaving an orphan 393ms
+     ✓ reaps an orphan left by a previous plugin instance 560ms
+     ✓ preserves the trust store across restarts but not the snapshot cache 372ms
+ ✓ test/host-models.test.ts (15 tests) 28ms
+ ✓ test/plugin.test.ts (5 tests) 9ms
+ ✓ test/run-plan.test.ts (13 tests) 924ms
+ ✓ test/backend.test.ts (16 tests) 1415ms
+ ✓ test/router-probe.test.ts (12 tests) 1453ms
+ ✓ test/router-bridge.test.ts (18 tests) 14214ms
+   ✓ the wire contract (3)
+     ✓ answers the child's model calls and returns its report 2035ms
+     ✓ tells the child this host has no tokenizer instead of guessing one 2023ms
+   ✓ failures and lifetimes (5)
+     ✓ reports a failed model call to the child as a bounded error frame 2034ms
+     ✓ refuses a completion from a model other than the bound one 2034ms
+     ✓ cancels the host call when the child abandons its request 2066ms
+     ✓ gives up on a child that never answers 4002ms
+
+ Test Files  10 passed (10)
+      Tests  147 passed (147)
+   Start at  11:02:10
+   Duration  14.55s (tests 55%, import 42%, transform 2%, environment 1%)
+
+JSON report written to /Users/dariofenoglio/Desktop/WebAgents/examples/verification/router-bridge-plugin-tests.json

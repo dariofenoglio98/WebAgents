@@ -12,13 +12,24 @@ import type { ServiceStatusView } from "./contract.js";
 import { ControlPlaneClient, type ControlPlaneTransport } from "./control-plane.js";
 import { AgentBrowserError, asFeatureError, clip } from "./errors.js";
 import {
+  discoverHostModels,
+  stillAvailable,
+  type HostCatalog,
+  type ModelHost,
+} from "./host-models.js";
+import {
+  projectEvaluation,
   projectPackage,
   projectPermissions,
   projectReceipt,
+  projectRunPlanState,
   projectSessions,
   projectTrust,
   projectTrustEntry,
 } from "./project.js";
+import type { HostLlm } from "./host-llm.js";
+import { projectProbe, revalidate } from "./router-probe.js";
+import { RouterBridge, type BridgeLimits } from "./router-bridge.js";
 import {
   ControlPlaneSupervisor,
   resolveAgentpkgPath,
@@ -43,6 +54,24 @@ export type BackendOptions = {
   /** Test seam: supply a supervisor instead of spawning a real child. */
   supervisor?: ControlPlaneSupervisor;
   onChange?: (reason: string) => void;
+  /**
+   * How this backend asks OpenClaw what models exist. Supplied by the plugin
+   * entry from the live `api`; tests substitute a stub host so the suite never
+   * depends on a configured provider.
+   */
+  modelHost?: ModelHost;
+  /**
+   * The host's own completion surface (`api.runtime.llm`). Present only so the
+   * developer router probe can invoke the exact model a run plan bound; no
+   * other operation in this backend touches it.
+   */
+  llm?: HostLlm;
+  /** Test seam: build the bridge instead of spawning a real agentpkg child. */
+  createBridge?: (options: { modelId: string }) => {
+    probe: (plan: Record<string, unknown>) => Promise<Record<string, unknown>>;
+  };
+  /** Operator-tunable bridge deadlines; defaults live in router-bridge.ts. */
+  bridgeLimits?: Partial<BridgeLimits>;
 };
 
 type Ok<T> = { ok: true; value: T };
@@ -123,6 +152,7 @@ export class AgentBrowserBackend {
   private supervisor: ControlPlaneSupervisor | null = null;
   private roots: string[] = [];
   private stopped = false;
+  private agentpkgPath: string | null = null;
 
   constructor(private readonly options: BackendOptions) {}
 
@@ -143,6 +173,7 @@ export class AgentBrowserBackend {
       return;
     }
     const agentpkgPath = await resolveAgentpkgPath(config.agentpkgPath);
+    this.agentpkgPath = agentpkgPath;
     this.supervisor = new ControlPlaneSupervisor({
       agentpkgPath,
       runtimeDir: resolvePath(this.options.stateDir, "agent-browser"),
@@ -354,6 +385,211 @@ export class AgentBrowserBackend {
 
   listSessions() {
     return guard(async () => projectSessions(await (await this.client()).listSessions()));
+  }
+
+  // -- models and run plans -------------------------------------------------
+  /**
+   * Ask the host what it has, ask the control plane what it means.
+   *
+   * The split is the point: discovery is host knowledge, and every requirement
+   * semantic, status and threshold comes back from agentpkgd. Nothing here
+   * decides whether a model fits a package.
+   */
+  private async hostCatalog(): Promise<HostCatalog> {
+    if (!this.options.modelHost) {
+      throw new AgentBrowserError(
+        "model_catalog_unavailable",
+        "Model discovery unavailable",
+        "This backend was started without access to the OpenClaw model catalog.",
+        false,
+      );
+    }
+    return discoverHostModels(this.options.modelHost);
+  }
+
+  evaluateModels(sessionId: string) {
+    return guard(async () => {
+      const client = await this.client();
+      const catalog = await this.hostCatalog();
+      const summary = (await client.getPackage(sessionId)) as Record<string, unknown>;
+      const digest = String(
+        ((summary.package as Record<string, unknown>) ?? {}).digest ?? "",
+      );
+      const requirements = (await client.modelRequirements(sessionId)) as Record<string, unknown>;
+      const modeIds = (
+        (requirements.mode_required_permission_ids as Record<string, unknown>) ?? {}
+      ).model;
+      const executionModePermissionIds = Array.isArray(modeIds)
+        ? modeIds.filter((item): item is string => typeof item === "string")
+        : [];
+      let granted: string[] = [];
+      let authorized = false;
+      try {
+        const receipt = (await client.getAuthorization(sessionId)) as Record<string, unknown>;
+        authorized = true;
+        granted = Array.isArray(receipt.granted_permission_ids)
+          ? (receipt.granted_permission_ids as unknown[]).filter(
+              (item): item is string => typeof item === "string",
+            )
+          : [];
+      } catch (error) {
+        // "Not authorized yet" is a state the page renders, not a failure.
+        if (!(error instanceof AgentBrowserError && error.code === "session_expired")) throw error;
+      }
+      const evaluation = await client.evaluateModels(sessionId, digest, catalog);
+      return projectEvaluation(evaluation, {
+        sessionId,
+        host: catalog.host as unknown as Record<string, unknown>,
+        executionModePermissionIds,
+        executionModePermissionsGranted:
+          executionModePermissionIds.length > 0 &&
+          executionModePermissionIds.every((id) => granted.includes(id)),
+        authorized,
+      });
+    });
+  }
+
+  prepareRunPlan(
+    sessionId: string,
+    packageDigest: string,
+    receiptId: string,
+    modelId: string,
+    executionMode = "model",
+  ) {
+    return guard(async () => {
+      const client = await this.client();
+      // Re-read the catalog immediately before binding, so a plan can never
+      // record a model the host stopped offering while the page was open.
+      const catalog = await this.hostCatalog();
+      if (!stillAvailable(catalog, modelId)) {
+        throw new AgentBrowserError(
+          "model_unknown",
+          "Model no longer available",
+          `This OpenClaw host no longer offers ${modelId} as a usable choice. ` +
+            "Refresh the model list and choose again.",
+          true,
+        );
+      }
+      const payload = await client.prepareRunPlan(sessionId, {
+        packageDigest,
+        receiptId,
+        modelId,
+        executionMode,
+        catalog,
+      });
+      this.options.onChange?.("run-plan");
+      return projectRunPlanState(payload, true);
+    });
+  }
+
+  getRunPlan(sessionId: string) {
+    return guard(async () => {
+      const client = await this.client();
+      let payload: unknown;
+      try {
+        payload = await client.getRunPlan(sessionId);
+      } catch (error) {
+        if (error instanceof AgentBrowserError && error.code === "run_plan_absent") {
+          return { plan: null, preflight: null, executionSupported: false as const };
+        }
+        throw error;
+      }
+      const plan = (payload as Record<string, unknown>).run_plan as
+        | Record<string, unknown>
+        | undefined;
+      const binding = (plan?.model_binding ?? {}) as Record<string, unknown>;
+      const modelId = typeof binding.host_model_id === "string" ? binding.host_model_id : "";
+      let available: boolean | null = null;
+      try {
+        available = stillAvailable(await this.hostCatalog(), modelId);
+      } catch {
+        // An unreachable catalog is unknown availability, not unavailability.
+        available = null;
+      }
+      return projectRunPlanState(payload, available);
+    });
+  }
+
+  clearRunPlan(sessionId: string) {
+    return guard(async () => {
+      await (await this.client()).clearRunPlan(sessionId);
+      this.options.onChange?.("run-plan");
+      return { sessionId, cleared: true };
+    });
+  }
+
+  // -- developer router probe ------------------------------------------------
+  /**
+   * Prove the ModelRouter bridge against the exact model a run plan bound.
+   *
+   * This is the only operation in this backend that spends model tokens, and
+   * the only one that reaches `api.runtime.llm`. It is deliberately not part of
+   * the page: there is still no Run action, and this exists so an operator can
+   * verify the router contract before a workflow is allowed to depend on it.
+   *
+   * Nothing about the request is caller-controlled. The model comes from the
+   * plan, the prompt and schema are host-owned constants inside agentpkg, and
+   * the caller supplies only which plan it believes is current.
+   */
+  probeRouter(sessionId: string, runPlanId: string, runPlanSha256: string) {
+    return guard(async () => {
+      const llm = this.options.llm;
+      if (!llm && !this.options.createBridge) {
+        throw new AgentBrowserError(
+          "bridge_unavailable",
+          "Model invocation is unavailable",
+          "This backend was started without access to the OpenClaw completion runtime.",
+        );
+      }
+      const client = await this.client();
+      const catalog = await this.hostCatalog();
+      const preflight = await revalidate({
+        client,
+        catalog,
+        sessionId,
+        runPlanId,
+        runPlanSha256,
+      });
+      const bridge = this.options.createBridge
+        ? this.options.createBridge({ modelId: preflight.modelId })
+        : new RouterBridge({
+            agentpkgPath: this.requireAgentpkgPath(),
+            modelId: preflight.modelId,
+            llm: llm!,
+            logger: this.options.logger,
+            ...(this.options.bridgeLimits ? { limits: this.options.bridgeLimits } : {}),
+          });
+      const outcome = await bridge.probe(preflight.binding);
+      const report = (outcome.report ?? outcome) as Record<string, unknown>;
+      const view = projectProbe(report, preflight.revalidated);
+      if (view.model.invoked !== preflight.modelId) {
+        // Belt and braces: the router and the host both check this, and a
+        // report that still disagrees is not returned as a success.
+        throw new AgentBrowserError(
+          "selected_model_unavailable",
+          "A different model answered",
+          `The run plan bound ${preflight.modelId} but the probe reports ${view.model.invoked}.`,
+        );
+      }
+      this.options.logger.info("agent-browser: router probe completed", {
+        model: view.model.invoked,
+        status: view.status,
+        inputTokens: view.usage.inputTokens,
+        outputTokens: view.usage.outputTokens,
+      });
+      return view;
+    });
+  }
+
+  private requireAgentpkgPath(): string {
+    if (!this.agentpkgPath) {
+      throw new AgentBrowserError(
+        "bridge_unavailable",
+        "The agentpkg executable is not configured",
+        "Set plugins.entries.agent-browser.config.agentpkgPath to the agentpkg executable.",
+      );
+    }
+    return this.agentpkgPath;
   }
 
   // -- trust ----------------------------------------------------------------

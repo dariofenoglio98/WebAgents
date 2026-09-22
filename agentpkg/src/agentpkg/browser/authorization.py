@@ -39,12 +39,18 @@ class BrowserPolicy:
     require_valid_signature: bool = True
     require_trusted_publisher: bool = True
     require_supported_profile: bool = True
+    # A model whose hard requirements are neither confirmed nor refuted by the
+    # host is `unverified`. By default that is not good enough for a ready run
+    # plan: saying "ready" about a capability nobody confirmed would be the
+    # same dishonesty as calling an unpinned signature a trusted publisher.
+    require_confirmed_model_compatibility: bool = True
 
     def as_json(self) -> dict:
         return {
             "require_valid_signature": self.require_valid_signature,
             "require_trusted_publisher": self.require_trusted_publisher,
             "require_supported_profile": self.require_supported_profile,
+            "require_confirmed_model_compatibility": self.require_confirmed_model_compatibility,
         }
 
 

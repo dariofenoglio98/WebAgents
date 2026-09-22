@@ -64,7 +64,9 @@ Conditional: external token ceilings require a truthful, compatible host router 
 
 Represented but not executed: persistent memory scopes, remote/NANDA worker locators, pinned dependencies, future agent tools, shell/payment permission categories. Tier/latency/cost preferences, estimated dollars, publisher identity strings and attestation content are declarations, not guarantees.
 
-Explicitly future: a native OpenClaw package loader and budget-aware router plugin, arbitrary safe workflow interpreter, HOCON compiler, encrypted/revocable memory vault, NANDA/AgentRank/discovery, external trust/revocation/transparency infrastructure, remote-agent protocols, payment/escrow and an independently hardened OS sandbox.
+Delivered since: the model half of a budget-aware OpenClaw router plugin — an [Agent Browser](openclaw-agent-browser.md) that opens, verifies and authorizes a package, a [run plan](model-selection-and-run-plan.md) that freezes an explicitly chosen host model, and a [`ModelRouter` bridge](model-router-bridge.md) that reaches that exact model with a provable input bound and real usage. Workflow execution through it is not.
+
+Explicitly future: the tool half of that plugin and package execution through it, arbitrary safe workflow interpreter, arbitrary safe workflow interpreter, HOCON compiler, encrypted/revocable memory vault, NANDA/AgentRank/discovery, external trust/revocation/transparency infrastructure, remote-agent protocols, payment/escrow and an independently hardened OS sandbox.
 
 ## Preserving Citation Resolver
 

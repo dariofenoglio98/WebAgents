@@ -68,6 +68,8 @@ The optional Gateway `POST /v1/responses` endpoint is disabled by default and re
 
 A future host plugin should expose only package-authorized tools and bounded, tool-free model completions, reserve usage before dispatch, reliably report actual usage, and refuse providers whose budget guarantees cannot satisfy the selected runtime policy. It should retain the user's configured model selection rather than putting vendor model names or credentials into package metadata. That plugin is future integration work, not a capability demonstrated by staging.
 
+**Update.** The model half of that plugin now exists. [The model-router bridge](model-router-bridge.md) binds the exact model an Agent Browser run plan recorded, invokes it through `api.runtime.llm.complete` with no credential in Python, and satisfies the runtime's accounting contract without relying on the advisory `maxTokens`: the input bound is provable rather than estimated, a host that reports no usage fails instead of guessing, and the runtime rejects an overrun regardless of what the transport enforced. Tool-free is structural — the adapter exposes no tools at all. What remains future work is the tool half and workflow execution itself.
+
 ## Enforcement accounting
 
 | Property | Adapter | OpenClaw skills alone |

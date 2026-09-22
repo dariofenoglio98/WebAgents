@@ -95,7 +95,36 @@ surface, so it adds these concerns:
 Native Control UI runs trusted JavaScript with the signed-in operator's Gateway
 authority, and it is an experimental OpenClaw lab that is off by default. The
 plugin is therefore kept narrow: one page, no agent-callable tool, no HTTP
-route, and no execution path of any kind.
+route, and no package execution path of any kind.
+
+
+## Model-router bridge boundary
+
+[The bridge](model-router-bridge.md) is the first component in this project that
+can spend money, so it is the first one that needs its own entries here. It runs
+in `agentpkg.hostbridge`, a namespace the control plane cannot import.
+
+| Threat | Mitigation |
+|---|---|
+| The control plane gaining the ability to spend tokens | `hostbridge` is in the browser package's forbidden-import set, checked by AST scan at module level and inside functions. Authorization still produces a receipt, never a run. |
+| A downloaded package steering which model is called | The child never names a model on the wire; `model.complete` carries content, a schema and a cap only. The binding is held by the Gateway-side parent, taken from the run plan, and compared again against the provider's own answer. |
+| A downloaded package steering *what* is sent | The probe request is a host-owned constant in trusted Python. Package skills, graph nodes and inputs take no part, and tests assert their vocabulary is absent from both the request and the live provider call. |
+| The bridge becoming a general remote-procedure surface | Two disjoint, closed method allowlists; no name resolution, file path, OpenClaw method name or dynamic dispatch anywhere in the package; `probe.run` takes no parameters at all. |
+| A desynchronized or hostile peer | Any malformed frame, wrong version, unknown or duplicate id, oversized frame or non-frame stdout byte terminates the session and kills the child. Nothing is skipped or resynchronized. |
+| Credentials or endpoints reaching Python | No provider credential exists in Python. The binding that crosses into the child is a closed field set of identity, capabilities and limits; unknown fields are refused. |
+| Logs being read as protocol | The child writes frames to stdout and everything else to stderr; a test writes a deliberate stdout log line and asserts the session fails closed. |
+| Spending against a decision that has since changed | Fifteen preflight checks re-verify the plan hash, package digest, archive hash, signature, trust, signer, receipt identity and expiry, run-mode permissions, and model availability and identity, before the first token. |
+| An unbounded or orphaned completion | Per-request and whole-session deadlines, `$/cancel` in both directions, an `AbortSignal` that reaches the provider request, and SIGKILL on the child. |
+| Silent under-accounting | The input bound is provable rather than estimated; cache reads and writes are charged as input; an aggregate total above the breakdown is charged to output; absent usage fails instead of being guessed. |
+| A host that answers with a different model | Refused after the fact by both the Gateway side and the router, rather than returned as a degraded result. |
+
+Two things remain out of scope, as elsewhere in this prototype. A provider that
+misreports usage cannot be retroactively prevented from overspending — the
+violation is recorded and halts further dispatch. And binding an exact model
+requires the operator to set
+`plugins.entries.agent-browser.llm.allowModelOverride`, which is a
+plugin-wide grant at the OpenClaw layer; the per-run-plan discipline is entirely
+this project's preflight.
 
 
 ## workflow.v0 boundary

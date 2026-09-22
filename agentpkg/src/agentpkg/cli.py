@@ -24,6 +24,10 @@ from .signing import keygen, sign_package, verify_package
 from .validation import parse_json
 
 
+class _Exit(int):
+    """A command's exit status, for commands that own stdout themselves."""
+
+
 def _json_file(path, expected_type=dict):
     value = parse_json(Path(path).read_bytes(), str(path))
     if expected_type is not None and not isinstance(value, expected_type):
@@ -144,6 +148,21 @@ def parser():
         action="store_true",
         help="Browser policy: issue runnable receipts without a valid signature (research use)",
     )
+    serve.add_argument(
+        "--allow-unverified-model",
+        action="store_true",
+        help=(
+            "Browser policy: treat a model whose required capabilities the host cannot confirm "
+            "as ready instead of unverified (research use; the real status is still recorded)"
+        ),
+    )
+    commands.add_parser(
+        "host-bridge",
+        help=(
+            "Run one trusted host model-router bridge session on stdio "
+            "(private JSONL protocol; stdout carries frames only)"
+        ),
+    )
     trust = commands.add_parser(
         "trust", help="Manage the operator-controlled publisher trust store"
     )
@@ -237,6 +256,7 @@ def _browser(args):
         policy=BrowserPolicy(
             require_valid_signature=not args.allow_unsigned,
             require_trusted_publisher=not args.allow_untrusted_publisher,
+            require_confirmed_model_compatibility=not args.allow_unverified_model,
         ),
     )
     if args.quiet and not (args.token_file or args.token):
@@ -309,6 +329,12 @@ def _dispatch(args):
         }
     if command in ("browser-serve", "trust"):
         return _browser(args)
+    if command == "host-bridge":
+        # stdout belongs to the protocol from here on: this returns the process
+        # exit status directly and prints nothing.
+        from .hostbridge import serve
+
+        return _Exit(asyncio.run(serve()))
     if command == "install-openclaw":
         from .openclaw import stage_openclaw
 
@@ -403,6 +429,8 @@ def main(argv=None):
     args = parser().parse_args(argv)
     try:
         result = _dispatch(args)
+        if isinstance(result, _Exit):
+            return int(result)
         _print(result)
         if args.command == "eval" and result.get("passed") is False:
             return 1

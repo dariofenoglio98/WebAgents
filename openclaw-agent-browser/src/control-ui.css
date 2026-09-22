@@ -413,3 +413,89 @@
 .ab-empty h2 {
   margin: 0 0 8px;
 }
+
+/* -- model selection and run plan ---------------------------------------- */
+.ab-model,
+.ab-runplan {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+}
+.ab-model-requirements h3 {
+  margin: 0 0 6px;
+  font-size: 0.95rem;
+}
+.ab-model-note {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted, #666);
+}
+.ab-models {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+}
+.ab-model-row {
+  padding: 10px 12px;
+  border: 1px solid var(--border, #d0d0d0);
+  border-radius: 8px;
+  display: grid;
+  gap: 4px;
+}
+/* Status is carried by the left border as well as the chip, so the three
+   outcomes stay distinguishable without relying on color alone. */
+.ab-model-compatible {
+  border-left: 4px solid #1a7f37;
+}
+.ab-model-unverified {
+  border-left: 4px solid #b26a00;
+}
+.ab-model-incompatible {
+  border-left: 4px solid #b3261e;
+  opacity: 0.82;
+}
+.ab-model-selected {
+  outline: 2px solid var(--accent, #3b6ea5);
+  outline-offset: 1px;
+}
+.ab-model-label {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  cursor: pointer;
+}
+.ab-model-head {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+.ab-model-id {
+  font-size: 0.85rem;
+  color: var(--muted, #666);
+}
+.ab-model-warning {
+  margin: 0;
+  font-size: 0.86rem;
+  color: #8a5300;
+}
+.ab-model-details summary {
+  cursor: pointer;
+  font-size: 0.86rem;
+}
+.ab-checks {
+  display: grid;
+  gap: 6px;
+  padding: 6px 0;
+}
+.ab-check {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  flex-wrap: wrap;
+  font-size: 0.86rem;
+}
+.ab-check p {
+  margin: 0;
+  flex-basis: 100%;
+}

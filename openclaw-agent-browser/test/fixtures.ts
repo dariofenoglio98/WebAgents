@@ -2,9 +2,12 @@ import { readdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type {
+  HostModelViewType,
+  ModelCatalogViewType,
   PackageViewType,
   PermissionsViewType,
   ReceiptViewType,
+  RunPlanStateViewType,
   ServiceStatusView,
 } from "../src/contract.js";
 
@@ -265,5 +268,190 @@ export const receiptView = (overrides: Partial<ReceiptViewType> = {}): ReceiptVi
   blockingReasons: [],
   receiptSha256: "e".repeat(64),
   executionPerformed: false,
+  ...overrides,
+});
+
+
+// -- models and run plans ---------------------------------------------------
+const check = (
+  id: string,
+  status: "satisfied" | "violated" | "unknown",
+  overrides: Partial<HostModelViewType["checks"][number]> = {},
+): HostModelViewType["checks"][number] => ({
+  id,
+  kind: id.startsWith("context") ? "context_tokens" : "capability",
+  subject: id.split(":")[1] ?? id,
+  operator: id.startsWith("context") ? "at_least" : "is_true",
+  required: id.startsWith("context") ? 16000 : true,
+  hostValue: status === "unknown" ? null : status === "satisfied" ? true : false,
+  status,
+  basis: status === "unknown" ? "absent" : "declared",
+  source: id.startsWith("context") ? "limits.context_tokens" : "capabilities",
+  detail: null,
+  tasks: ["plan"],
+  ...overrides,
+});
+
+export const hostModel = (overrides: Partial<HostModelViewType> = {}): HostModelViewType => ({
+  modelId: "acme/big",
+  providerId: "acme",
+  displayName: "Big Model",
+  available: true,
+  availabilityReason: null,
+  selectable: true,
+  status: "compatible",
+  selectableForRunPlan: true,
+  evidenceStrength: "declared",
+  contextTokens: 200000,
+  nativeContextWindow: 400000,
+  local: false,
+  tags: [],
+  capabilities: [
+    { name: "reasoning", value: true, basis: "declared", detail: null },
+    { name: "structured_output", value: true, basis: "derived", detail: "tool gate" },
+  ],
+  checks: [
+    check("capability:reasoning", "satisfied"),
+    check("capability:structured_output", "satisfied"),
+    check("context_tokens:minimum", "satisfied", { hostValue: 200000 }),
+  ],
+  satisfied: ["capability:reasoning", "capability:structured_output", "context_tokens:minimum"],
+  unknown: [],
+  violated: [],
+  ...overrides,
+});
+
+export const UNVERIFIED_MODEL = hostModel({
+  modelId: "acme/silent",
+  displayName: "Silent Model",
+  status: "unverified",
+  evidenceStrength: "host_default",
+  contextTokens: null,
+  checks: [
+    check("capability:reasoning", "unknown"),
+    check("capability:structured_output", "satisfied", { basis: "derived" }),
+    check("context_tokens:minimum", "unknown", { hostValue: null }),
+  ],
+  satisfied: ["capability:structured_output"],
+  unknown: ["capability:reasoning", "context_tokens:minimum"],
+});
+
+export const INCOMPATIBLE_MODEL = hostModel({
+  modelId: "acme/small",
+  displayName: "Small Model",
+  status: "incompatible",
+  selectableForRunPlan: false,
+  evidenceStrength: "declared",
+  contextTokens: 4000,
+  checks: [
+    check("capability:reasoning", "satisfied"),
+    check("capability:structured_output", "satisfied"),
+    check("context_tokens:minimum", "violated", { hostValue: 4000 }),
+  ],
+  satisfied: ["capability:reasoning", "capability:structured_output"],
+  violated: ["context_tokens:minimum"],
+});
+
+export const modelCatalogView = (
+  overrides: Partial<ModelCatalogViewType> = {},
+): ModelCatalogViewType => ({
+  sessionId: "session-abcdefgh1234",
+  packageDigest: "b".repeat(64),
+  host: {
+    runtime: "openclaw",
+    runtimeVersion: "2026.9.5",
+    source: "openclaw/plugin-sdk/models-provider-runtime#buildModelsProviderData",
+    capturedAt: "2026-09-21T10:06:00.000Z",
+    agentId: null,
+  },
+  catalogSha256: "f".repeat(64),
+  requirements: {
+    routing: "host",
+    fallbackPolicy: "deny",
+    privacy: null,
+    bindingStrategy: "single_model",
+    hardRequirements: [
+      { id: "capability:reasoning", kind: "capability", subject: "reasoning", operator: "is_true", required: true, tasks: ["plan"] },
+      { id: "capability:structured_output", kind: "capability", subject: "structured_output", operator: "is_true", required: true, tasks: ["plan"] },
+      { id: "context_tokens:minimum", kind: "context_tokens", subject: "context_tokens", operator: "at_least", required: 16000, tasks: ["plan"] },
+    ],
+    preferences: [{ id: "preferred_tier:reasoning", kind: "preferred_tier", subject: "reasoning" }],
+  },
+  models: [hostModel(), UNVERIFIED_MODEL, INCOMPATIBLE_MODEL],
+  counts: { total: 3, available: 3, selectable: 2, compatible: 1, unverified: 1, incompatible: 1 },
+  notes: [],
+  executionModePermissionIds: ["model.reasoning"],
+  executionModePermissionsGranted: true,
+  authorized: true,
+  ...overrides,
+});
+
+export const runPlanStateView = (
+  overrides: Partial<RunPlanStateViewType> = {},
+): RunPlanStateViewType => ({
+  plan: {
+    runPlanId: "rp_0123456789abcdef0123456789abcdef",
+    runPlanVersion: "0.1",
+    runPlanSha256: "9".repeat(64),
+    createdAt: "2026-09-21T10:07:00.000Z",
+    expiresAt: "2026-09-21T10:15:00.000Z",
+    sessionId: "session-abcdefgh1234",
+    package: {
+      packageId: "org.webagents.literature-review",
+      name: "Literature Review Agent",
+      version: "0.2.0",
+      digest: "b".repeat(64),
+      archiveSha256: "a".repeat(64),
+      executionProfile: "workflow.v0",
+    },
+    publisher: {
+      claimedId: "webagents-research",
+      claimedName: "WebAgents Research Prototype",
+      signerFingerprint: DEV_KEY_FINGERPRINT,
+      signatureStatus: "valid",
+      trustStatus: "trusted",
+      trustReason: "operator_pinned_key",
+    },
+    authorization: {
+      receiptId: "5d1a1f2e-0000-4000-8000-000000000000",
+      receiptSha256: "e".repeat(64),
+      issuedAt: "2026-09-21T10:05:00.000Z",
+      expiresAt: "2026-09-21T10:15:00.000Z",
+      grantedPermissionIds: ["model.reasoning"],
+    },
+    execution: {
+      profile: "workflow.v0",
+      mode: "model",
+      bindingStrategy: "single_model",
+      requiredPermissionIds: ["model.reasoning"],
+      performed: false,
+      note: "This control plane never executes packages.",
+    },
+    modelBinding: {
+      hostModelId: "acme/big",
+      providerId: "acme",
+      displayName: "Big Model",
+      selectedAt: "2026-09-21T10:07:00.000Z",
+      compatibilityStatus: "compatible",
+      evidenceStrength: "declared",
+      contextTokens: 200000,
+      catalogSha256: "f".repeat(64),
+      catalogModelCount: 3,
+      checks: hostModel().checks,
+    },
+    requirements: modelCatalogView().requirements,
+    readiness: { state: "ready", ready: true, blockingReasons: [] },
+  },
+  preflight: {
+    checkedAt: "2026-09-21T10:07:01.000Z",
+    state: "ready",
+    ready: true,
+    stale: false,
+    staleReasons: [],
+    blockingReasons: [],
+    trustStoreChanged: false,
+    modelStillAvailable: true,
+  },
+  executionSupported: false,
   ...overrides,
 });

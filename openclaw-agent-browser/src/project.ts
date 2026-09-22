@@ -9,7 +9,15 @@
  * It makes no security decisions: statuses are copied verbatim from the
  * control plane, never recomputed.
  */
-import { LIMITS, type PackageViewType, type PermissionsViewType, type ReceiptViewType } from "./contract.js";
+import {
+  LIMITS,
+  type ModelCatalogViewType,
+  type PackageViewType,
+  type PermissionsViewType,
+  type ReceiptViewType,
+  type RunPlanStateViewType,
+  type RunPlanViewType,
+} from "./contract.js";
 
 type Json = Record<string, unknown>;
 
@@ -449,4 +457,264 @@ export function projectTrustEntry(entry: unknown) {
 
 export function projectPublisher(publisher: unknown): PackageViewType["publisher"] {
   return projectPackage({ publisher }).publisher;
+}
+
+// -- models and run plans ----------------------------------------------------
+const COMPAT = new Set(["compatible", "unverified", "incompatible"]);
+const compatibility = (value: unknown): "compatible" | "unverified" | "incompatible" =>
+  (COMPAT.has(str(value)) ? str(value) : "unverified") as never;
+
+const BASES = new Set(["declared", "host_default", "derived", "absent"]);
+const basis = (value: unknown) => (BASES.has(str(value)) ? str(value) : "absent") as never;
+
+const CHECK_STATUS = new Set(["satisfied", "violated", "unknown"]);
+const checkStatus = (value: unknown) =>
+  (CHECK_STATUS.has(str(value)) ? str(value) : "unknown") as never;
+
+/** Boolean-or-integer-or-null, the only shapes a requirement value takes. */
+const scalar = (value: unknown): boolean | number | null => {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number" && Number.isFinite(value)) return Math.trunc(value);
+  return null;
+};
+
+function projectCheck(item: unknown) {
+  const check = rec(item);
+  return {
+    id: str(check.id),
+    kind: str(check.kind),
+    subject: str(check.subject),
+    operator: str(check.operator),
+    required: scalar(check.value),
+    hostValue: scalar(check.host_value),
+    status: checkStatus(check.status),
+    basis: basis(check.basis),
+    source: str(check.source),
+    detail: nullableStr(check.detail),
+    tasks: strings(check.tasks, LIMITS.tasks),
+  };
+}
+
+function projectRequirements(value: unknown) {
+  const requirements = rec(value);
+  return {
+    routing: str(requirements.routing),
+    fallbackPolicy: str(requirements.fallback_policy),
+    privacy: nullableStr(requirements.privacy),
+    bindingStrategy: str(requirements.binding_strategy, "single_model"),
+    hardRequirements: arr(requirements.hard_requirements, LIMITS.checks).map((item) => {
+      const requirement = rec(item);
+      return {
+        id: str(requirement.id),
+        kind: str(requirement.kind),
+        subject: str(requirement.subject),
+        operator: str(requirement.operator),
+        required: scalar(requirement.value),
+        tasks: strings(requirement.tasks, LIMITS.tasks),
+      };
+    }),
+    preferences: arr(requirements.preferences, LIMITS.preferences).map((item) => {
+      const preference = rec(item);
+      return {
+        id: str(preference.id),
+        kind: str(preference.kind),
+        subject: str(preference.subject),
+      };
+    }),
+  };
+}
+
+function projectModel(item: unknown) {
+  const model = rec(item);
+  const limits = rec(model.limits);
+  const properties = rec(model.properties);
+  return {
+    modelId: str(model.model_id),
+    providerId: str(model.provider_id),
+    displayName: str(model.display_name),
+    available: bool(model.available),
+    availabilityReason: nullableStr(model.availability_reason),
+    selectable: bool(model.selectable),
+    status: compatibility(model.status),
+    selectableForRunPlan: bool(model.selectable_for_run_plan),
+    evidenceStrength: (["declared", "host_default", "derived", "none"].includes(
+      str(model.evidence_strength),
+    )
+      ? str(model.evidence_strength)
+      : "none") as never,
+    contextTokens: nullableInt(limits.context_tokens),
+    nativeContextWindow: nullableInt(limits.native_context_window),
+    local: typeof properties.local === "boolean" ? properties.local : null,
+    tags: strings(properties.tags, 16),
+    capabilities: Object.entries(rec(model.capabilities))
+      .slice(0, LIMITS.capabilities_reported)
+      .map(([name, value]) => {
+        const answer = rec(value);
+        return {
+          name,
+          value: typeof answer.value === "boolean" ? answer.value : null,
+          basis: basis(answer.basis),
+          detail: nullableStr(answer.detail),
+        };
+      }),
+    checks: arr(model.checks, LIMITS.checks).map(projectCheck),
+    satisfied: strings(model.satisfied, LIMITS.checks),
+    unknown: strings(model.unknown, LIMITS.checks),
+    violated: strings(model.violated, LIMITS.checks),
+  };
+}
+
+/** Control-plane evaluation -> the catalog the page renders. */
+export function projectEvaluation(
+  evaluation: unknown,
+  extra: {
+    sessionId: string;
+    host: Record<string, unknown>;
+    executionModePermissionIds: string[];
+    executionModePermissionsGranted: boolean;
+    authorized: boolean;
+  },
+): ModelCatalogViewType {
+  const source = rec(evaluation);
+  const counts = rec(source.counts);
+  const catalog = rec(source.catalog);
+  const host = rec(extra.host);
+  return {
+    sessionId: extra.sessionId,
+    packageDigest: str(source.package_digest),
+    host: {
+      runtime: str(host.runtime),
+      runtimeVersion: nullableStr(host.runtime_version),
+      source: str(host.source),
+      capturedAt: str(host.captured_at),
+      agentId: nullableStr(host.agent_id),
+    },
+    catalogSha256: str(catalog.catalog_sha256),
+    requirements: projectRequirements(source.requirements),
+    models: arr(source.models, LIMITS.models).map(projectModel),
+    counts: {
+      total: int(counts.total),
+      available: int(counts.available),
+      selectable: int(counts.selectable),
+      compatible: int(counts.compatible),
+      unverified: int(counts.unverified),
+      incompatible: int(counts.incompatible),
+    },
+    notes: arr(source.notes, LIMITS.notes).map((item) => ({
+      code: str(rec(item).code),
+      detail: nullableStr(rec(item).detail),
+    })),
+    executionModePermissionIds: extra.executionModePermissionIds.slice(0, LIMITS.permissions),
+    executionModePermissionsGranted: extra.executionModePermissionsGranted,
+    authorized: extra.authorized,
+  };
+}
+
+export function projectRunPlan(plan: unknown): RunPlanViewType {
+  const source = rec(plan);
+  const pkg = rec(source.package);
+  const publisher = rec(source.publisher);
+  const authorization = rec(source.authorization);
+  const execution = rec(source.execution);
+  const binding = rec(source.model_binding);
+  const compat = rec(binding.compatibility);
+  const catalog = rec(binding.catalog);
+  const descriptor = rec(binding.descriptor);
+  const limits = rec(descriptor.limits);
+  const readiness = rec(source.readiness);
+  return {
+    runPlanId: str(source.run_plan_id),
+    runPlanVersion: str(source.run_plan_version),
+    runPlanSha256: str(source.run_plan_sha256),
+    createdAt: str(source.created_at),
+    expiresAt: str(source.expires_at),
+    sessionId: str(source.session_id),
+    package: {
+      packageId: str(pkg.package_id),
+      name: str(pkg.name),
+      version: str(pkg.version),
+      digest: str(pkg.digest),
+      archiveSha256: str(pkg.archive_sha256),
+      executionProfile: str(pkg.execution_profile),
+    },
+    publisher: {
+      claimedId: str(publisher.claimed_id),
+      claimedName: str(publisher.claimed_name),
+      signerFingerprint: nullableStr(publisher.signer_fingerprint),
+      signatureStatus: str(publisher.signature_status),
+      trustStatus: str(publisher.trust_status),
+      trustReason: str(publisher.trust_reason),
+    },
+    authorization: {
+      receiptId: str(authorization.receipt_id),
+      receiptSha256: str(authorization.receipt_sha256),
+      issuedAt: str(authorization.issued_at),
+      expiresAt: str(authorization.expires_at),
+      grantedPermissionIds: strings(authorization.granted_permission_ids, LIMITS.permissions),
+    },
+    execution: {
+      profile: str(execution.profile),
+      mode: str(execution.mode),
+      bindingStrategy: str(execution.binding_strategy),
+      requiredPermissionIds: strings(execution.required_permission_ids, LIMITS.permissions),
+      performed: false as const,
+      note: str(execution.note),
+    },
+    modelBinding: {
+      hostModelId: str(binding.host_model_id),
+      providerId: str(binding.provider_id),
+      displayName: str(binding.display_name),
+      selectedAt: str(binding.selected_at),
+      compatibilityStatus: compatibility(compat.status),
+      evidenceStrength: str(compat.evidence_strength, "none"),
+      contextTokens: nullableInt(limits.context_tokens),
+      catalogSha256: str(catalog.catalog_sha256),
+      catalogModelCount: int(catalog.model_count),
+      checks: arr(compat.checks, LIMITS.checks).map(projectCheck),
+    },
+    requirements: projectRequirements(source.model_requirements),
+    readiness: {
+      state: str(readiness.state),
+      ready: bool(readiness.ready),
+      blockingReasons: projectBlocking(readiness.blocking_reasons),
+    },
+  };
+}
+
+export function projectRunPlanState(
+  payload: unknown,
+  modelStillAvailable: boolean | null,
+): RunPlanStateViewType {
+  const source = rec(payload);
+  if (!source.run_plan) {
+    return { plan: null, preflight: null, executionSupported: false as const };
+  }
+  const preflight = rec(source.preflight);
+  return {
+    plan: projectRunPlan(source.run_plan),
+    preflight: {
+      checkedAt: str(preflight.checked_at),
+      state: str(preflight.state),
+      // A model that vanished from the host catalog is not ready, whatever the
+      // control plane concluded about the parts it can see.
+      ready: bool(preflight.ready) && modelStillAvailable !== false,
+      stale: bool(preflight.stale) || modelStillAvailable === false,
+      staleReasons: [
+        ...projectBlocking(preflight.stale_reasons),
+        ...(modelStillAvailable === false
+          ? [
+              {
+                code: "model_no_longer_available",
+                message: "The selected model is no longer offered by this OpenClaw host.",
+                subject: null,
+              },
+            ]
+          : []),
+      ].slice(0, LIMITS.blockingReasons),
+      blockingReasons: projectBlocking(preflight.blocking_reasons),
+      trustStoreChanged: bool(preflight.trust_store_changed),
+      modelStillAvailable,
+    },
+    executionSupported: false as const,
+  };
 }

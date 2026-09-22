@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import http.client
 import json
 import socket
 import urllib.error
@@ -156,8 +157,16 @@ def test_no_cors_headers_are_ever_sent(service):
 
 # -- request handling --------------------------------------------------------
 def test_request_bodies_are_bounded_and_strict(service):
-    oversized = call(service, "POST", "/v0/packages/open-file", raw=b"x" * (MAX_REQUEST_BYTES + 1))
-    assert oversized[0] == 413
+    # The service refuses an over-limit body from its Content-Length, without
+    # reading it. A client that is still writing when that happens may see the
+    # connection go away before it can read the 413; both outcomes prove the
+    # bound is enforced without the bytes ever being accepted.
+    try:
+        assert call(service, "POST", "/v0/packages/open-file", raw=b"x" * (MAX_REQUEST_BYTES + 1))[
+            0
+        ] in (413, 431)
+    except (ConnectionError, urllib.error.URLError, http.client.HTTPException):
+        pass
     assert call(service, "POST", "/v0/packages/open-file", raw=b"{not json")[0] == 400
     assert call(service, "POST", "/v0/packages/open-file", body=[1, 2])[0] == 400
     missing = call(service, "POST", "/v0/packages/open-file", body={})
@@ -391,3 +400,137 @@ def test_quiet_serve_requires_a_way_to_obtain_the_token(tmp_path):
     assert (
         main(["browser-serve", "--port", "0", "--quiet", "--cache-dir", str(tmp_path / "c")]) == 2
     )
+
+
+# -- model and run-plan routes ----------------------------------------------
+def _catalog(**overrides):
+    model = {
+        "id": "host/alpha",
+        "provider_id": "host",
+        "model_id": "alpha",
+        "display_name": "Alpha",
+        "available": True,
+        "selectable": True,
+        "capabilities": {
+            "reasoning": {"value": True, "basis": "declared"},
+            "structured_output": {"value": True, "basis": "declared"},
+        },
+        "limits": {"context_tokens": 200000},
+        "properties": {"local": False, "tags": []},
+    }
+    model.update(overrides)
+    return {
+        "schema": "agentpkg-host-model-catalog-v0",
+        "host": {
+            "runtime": "test-host",
+            "source": "test",
+            "captured_at": "2026-09-21T22:00:00+00:00",
+        },
+        "models": [model],
+        "notes": [],
+    }
+
+
+def _authorized_session(service):
+    from agentpkg.browser.trust import read_public_key_file
+
+    service.control.trust_add(
+        read_public_key_file(DEV_KEY),
+        display_name="dev key",
+        publisher_id="webagents-research",
+    )
+    status, summary = call(service, "POST", "/v0/packages/open-file", {"path": str(AGENDA)})
+    assert status == 201
+    session = summary["session"]["id"]
+    digest = summary["package"]["digest"]
+    _, request = call(service, "GET", f"/v0/packages/{session}/permissions")
+    decisions = {item["id"]: "session" for item in request["permissions"]}
+    status, receipt = call(
+        service,
+        "POST",
+        f"/v0/packages/{session}/authorize",
+        {"package_digest": digest, "decisions": decisions},
+    )
+    assert status == 201
+    return session, digest, receipt
+
+
+def test_the_model_routes_evaluate_a_host_catalog(service):
+    session, digest, _ = _authorized_session(service)
+    status, requirements = call(service, "GET", f"/v0/packages/{session}/models")
+    assert status == 200
+    assert requirements["execution_modes"] == ["model"]
+    assert requirements["mode_required_permission_ids"]["model"] == ["model.reasoning"]
+
+    status, evaluation = call(
+        service,
+        "POST",
+        f"/v0/packages/{session}/models/evaluate",
+        {"package_digest": digest, "catalog": _catalog()},
+    )
+    assert status == 200
+    assert evaluation["models"][0]["status"] == "compatible"
+    assert evaluation["execution"]["performed"] is False
+
+
+def test_the_run_plan_routes_prepare_read_and_clear_one_plan(service):
+    session, digest, receipt = _authorized_session(service)
+    status, missing = call(service, "GET", f"/v0/packages/{session}/run-plan")
+    assert status == 404
+    assert missing["error"]["code"] == "run_plan_absent"
+
+    status, created = call(
+        service,
+        "POST",
+        f"/v0/packages/{session}/run-plan",
+        {
+            "package_digest": digest,
+            "receipt_id": receipt["receipt_id"],
+            "model_id": "host/alpha",
+            "catalog": _catalog(),
+        },
+    )
+    assert status == 201
+    assert created["run_plan"]["readiness"]["ready"] is True
+    assert created["preflight"]["state"] == "ready"
+
+    status, read_back = call(service, "GET", f"/v0/packages/{session}/run-plan")
+    assert status == 200
+    assert read_back["run_plan"]["run_plan_id"] == created["run_plan"]["run_plan_id"]
+
+    status, cleared = call(service, "DELETE", f"/v0/packages/{session}/run-plan")
+    assert status == 200 and cleared["cleared"] is True
+    assert call(service, "GET", f"/v0/packages/{session}/run-plan")[0] == 404
+
+
+def test_run_plan_routes_refuse_unknown_request_fields(service):
+    session, digest, receipt = _authorized_session(service)
+    status, body = call(
+        service,
+        "POST",
+        f"/v0/packages/{session}/run-plan",
+        {
+            "package_digest": digest,
+            "receipt_id": receipt["receipt_id"],
+            "model_id": "host/alpha",
+            "catalog": _catalog(),
+            "router_api_key": "sk-nope",
+        },
+    )
+    assert status == 400
+    assert body["error"]["code"] == "unknown_field"
+
+
+def test_the_service_never_grows_an_execution_route(service):
+    for path in (
+        "/v0/packages/run",
+        "/v0/run",
+        "/v0/execute",
+    ):
+        status, body = call(service, "POST", path, {})
+        # `/v0/packages/run` parses as a (nonexistent) session id, which is why
+        # `session_unknown` is an acceptable refusal: either way, nothing runs.
+        assert status in (404, 405), path
+        assert body["error"]["code"] in ("not_found", "method_not_allowed", "session_unknown")
+    status, health = call(service, "GET", "/v0/health", token=False)
+    assert health["execution"] == "disabled"

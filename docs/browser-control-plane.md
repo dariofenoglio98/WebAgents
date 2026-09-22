@@ -49,8 +49,12 @@ and it is not a substitute for the future infrastructure it stands in for.
         ▼
  explicit authorization decision  →  digest-bound receipt, runnable true/false
         │
-        ✕  STOP. Nothing is executed.
+        ✕  STOP. This service executes nothing.
 ```
+
+The control plane never gains an execution path. A ready run plan is handed to a
+[separate trusted namespace](model-router-bridge.md) that the control plane
+cannot import, and which is the only place a model can be reached.
 
 ## 2. Immutable snapshot semantics
 
@@ -338,6 +342,11 @@ Loopback HTTP, JSON in and out, versioned under `/v0`. Everything except
 | GET | `/v0/packages/{id}/permissions` | Authorization request, all decisions defaulting to deny. |
 | POST | `/v0/packages/{id}/authorize` | `{"package_digest", "decisions", "tool_approvals"}` → receipt. |
 | GET | `/v0/packages/{id}/authorization` | The current receipt, or 404. |
+| GET | `/v0/packages/{id}/models` | Normalized model requirements and run-mode permission IDs. |
+| POST | `/v0/packages/{id}/models/evaluate` | `{"package_digest", "catalog"}` → tri-state compatibility. |
+| POST | `/v0/packages/{id}/run-plan` | `{"package_digest", "receipt_id", "model_id", "catalog", …}` → plan + preflight. |
+| GET | `/v0/packages/{id}/run-plan` | The prepared plan plus a recomputed preflight, or 404. |
+| DELETE | `/v0/packages/{id}/run-plan` | Discard the prepared run plan. |
 | DELETE | `/v0/packages/{id}` | Close the session and delete its snapshot. |
 | GET | `/v0/trust` | List pinned publishers. |
 | POST | `/v0/trust` | Pin `{"public_key_pem", "display_name", …}`. |
@@ -353,7 +362,9 @@ include `unauthorized`, `not_found`, `method_not_allowed`, `invalid_request`,
 `session_limit_reached`, `cache_limit_reached`, `digest_mismatch`,
 `unknown_permission`, `invalid_decision`, `unsupported_decision`,
 `trust_entry_exists`, `trust_entry_unknown`, `trust_private_key_refused`,
-`bind_rejected`, `browser_request_refused`, `host_header_rejected`.
+`bind_rejected`, `browser_request_refused`, `host_header_rejected`,
+`model_unknown`, `receipt_mismatch`, `run_plan_refused`, `run_plan_absent`,
+`unsupported_execution_mode`, `unsupported_binding_strategy`.
 
 Unknown request fields are **refused**, never ignored, so a future field cannot
 silently change security behavior against an older service.
@@ -379,8 +390,11 @@ silently change security behavior against an older service.
   or `Sec-Fetch-Mode` are refused, the `Host` header must be a loopback name
   (which blocks DNS rebinding against the port), and no CORS header is ever
   sent.
-* **Bounded.** 64 KiB request bodies, 8 MiB responses, 16 concurrent requests,
-  no chunked bodies, no bodies on GET/DELETE.
+* **Bounded.** 256 KiB request bodies, 8 MiB responses, 16 concurrent requests,
+  no chunked bodies, no bodies on GET/DELETE. The body limit is larger than the
+  earlier 64 KiB because a host model catalog *is* a request body; every field
+  inside a model descriptor is still separately length-limited, and a catalog
+  carries at most 256 of them.
 * **Quiet.** Responses never contain tracebacks, internal paths from unexpected
   errors, or any private key.
 
@@ -409,7 +423,11 @@ is worth more here than routing sugar.
 The control plane **must not** instantiate `Workflow`, invoke a `ModelRouter` or
 `ToolHandler`, contact Citation Resolver or scholarly providers, create workers,
 or execute package skills. Package download is the only package-related network
-activity in the whole service.
+activity in the whole service. Evaluating model compatibility and preparing a run
+plan are arithmetic and set membership over declared data: `hostmodels.py` and
+`runplan.py` contact nothing, and a test asserts neither module so much as
+mentions `complete(`, `count_tokens`, `ModelRouter`, `router.`, `http` or
+`socket`.
 
 This is enforced structurally, not by convention. No module under
 `agentpkg/browser/` imports `workflow`, `workflow_assertions`, `runtime`,
@@ -418,8 +436,9 @@ or inside a function — and none of them uses `importlib`, `__import__`, `eval`
 `exec` or `subprocess`. Two tests hold this line:
 
 * an AST scan of every browser module's imports;
-* a fresh interpreter that opens, inspects and authorizes both shipped packages
-  and then proves no execution module is present in `sys.modules`.
+* a fresh interpreter that opens, inspects, authorizes, evaluates a model catalog
+  for and prepares a run plan for both shipped packages, then proves no execution
+  module is present in `sys.modules`.
 
 `workflow_validation` and `workflow_values` are reached, and that is correct:
 they validate graph structure and declarative data constructors, depend only on
@@ -489,5 +508,6 @@ already running as the same user, which can read the token file and the cache.
 
 See also: [threat model](threat-model.md), [container
 spec](../spec/agent-pkg-v0.md), [execution profile](../spec/workflow-v0.md),
+[model selection and the run plan](model-selection-and-run-plan.md),
 [OpenClaw staging adapter](openclaw-integration.md), [milestone
 report](browser-report.md).

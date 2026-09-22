@@ -1,0 +1,683 @@
+{
+  "recorded_at": "2026-09-22T12:27:27.010344+00:00",
+  "host": {
+    "openclaw": "OpenClaw 2026.9.5 (ec9c1a1)",
+    "service": {
+      "state": "running",
+      "controlPlane": {
+        "apiVersion": "v0",
+        "agentpkgVersion": "0.2.0",
+        "packageFormat": "agent.pkg 0.1",
+        "execution": "disabled"
+      },
+      "executionSupported": false
+    }
+  },
+  "packages": {
+    "literature-review": {
+      "identity": {
+        "package_id": "org.webagents.literature-review",
+        "version": "0.2.0",
+        "digest": "b7bd37ca730ec5a156156207dc04fa5a7563e34a4373a298daa143dd9945b3eb",
+        "signature_status": "valid",
+        "trust_status": "trusted",
+        "signer_fingerprint": "sha256:c7549e614dac7070e6b5b5355e7c2407e1185f831d7fff15670981229dd85a70"
+      },
+      "permissions": [
+        {
+          "id": "network.scholarly",
+          "kind": "network",
+          "required": true
+        },
+        {
+          "id": "network.citations",
+          "kind": "network",
+          "required": true
+        },
+        {
+          "id": "files.pdfs",
+          "kind": "files.read",
+          "required": false
+        },
+        {
+          "id": "model.reasoning",
+          "kind": "model",
+          "required": false
+        },
+        {
+          "id": "memory.session",
+          "kind": "memory",
+          "required": true
+        }
+      ],
+      "without_model_permission": {
+        "receipt_runnable": true,
+        "prepare_ok": false,
+        "error": {
+          "code": "run_plan_refused",
+          "title": "Run plan refused",
+          "detail": "A model-backed run requires permission 'model.reasoning'. Update the permission and authorize again.",
+          "retryable": false
+        }
+      },
+      "catalog": {
+        "host": {
+          "runtime": "openclaw",
+          "runtimeVersion": "2026.9.5",
+          "source": "openclaw/plugin-sdk/models-provider-runtime#buildModelsProviderData",
+          "capturedAt": "2026-09-22T12:27:54.656Z",
+          "agentId": null
+        },
+        "catalog_sha256": "5258705548352479b3762fe0a9f52d21d2f2464a0c7b66ba4b757512e89f1bb9",
+        "counts": {
+          "total": 5,
+          "available": 5,
+          "selectable": 5,
+          "compatible": 5,
+          "unverified": 0,
+          "incompatible": 0
+        },
+        "notes": [],
+        "execution_mode_permission_ids": [
+          "model.reasoning"
+        ],
+        "execution_mode_permissions_granted": true,
+        "hard_requirements": [
+          {
+            "id": "capability:reasoning",
+            "required": true,
+            "tasks": 9
+          },
+          {
+            "id": "capability:structured_output",
+            "required": true,
+            "tasks": 9
+          },
+          {
+            "id": "context_tokens:minimum",
+            "required": 16000,
+            "tasks": 9
+          }
+        ],
+        "models": [
+          {
+            "model_id": "openai/gpt-5.5",
+            "provider_id": "openai",
+            "display_name": "GPT-5.5",
+            "available": true,
+            "selectable_for_run_plan": true,
+            "status": "compatible",
+            "evidence_strength": "derived",
+            "context_tokens": 272000,
+            "native_context_window": 272000,
+            "local": false,
+            "tags": [],
+            "capabilities": {
+              "multimodal": {
+                "value": true,
+                "basis": "declared"
+              },
+              "reasoning": {
+                "value": true,
+                "basis": "declared"
+              },
+              "structured_output": {
+                "value": true,
+                "basis": "derived"
+              },
+              "tool_use": {
+                "value": true,
+                "basis": "host_default"
+              }
+            },
+            "unknown": [],
+            "violated": []
+          },
+          {
+            "model_id": "openai/gpt-5.6-luna",
+            "provider_id": "openai",
+            "display_name": "GPT-5.6-Luna",
+            "available": true,
+            "selectable_for_run_plan": true,
+            "status": "compatible",
+            "evidence_strength": "derived",
+            "context_tokens": 272000,
+            "native_context_window": 372000,
+            "local": false,
+            "tags": [
+              "host-default"
+            ],
+            "capabilities": {
+              "multimodal": {
+                "value": true,
+                "basis": "declared"
+              },
+              "reasoning": {
+                "value": true,
+                "basis": "declared"
+              },
+              "structured_output": {
+                "value": true,
+                "basis": "derived"
+              },
+              "tool_use": {
+                "value": true,
+                "basis": "host_default"
+              }
+            },
+            "unknown": [],
+            "violated": []
+          },
+          {
+            "model_id": "openai/gpt-5.6-sol",
+            "provider_id": "openai",
+            "display_name": "GPT-5.6-Sol",
+            "available": true,
+            "selectable_for_run_plan": true,
+            "status": "compatible",
+            "evidence_strength": "derived",
+            "context_tokens": 272000,
+            "native_context_window": 372000,
+            "local": false,
+            "tags": [],
+            "capabilities": {
+              "multimodal": {
+                "value": true,
+                "basis": "declared"
+              },
+              "reasoning": {
+                "value": true,
+                "basis": "declared"
+              },
+              "structured_output": {
+                "value": true,
+                "basis": "derived"
+              },
+              "tool_use": {
+                "value": true,
+                "basis": "host_default"
+              }
+            },
+            "unknown": [],
+            "violated": []
+          },
+          {
+            "model_id": "openai/gpt-5.6-terra",
+            "provider_id": "openai",
+            "display_name": "GPT-5.6-Terra",
+            "available": true,
+            "selectable_for_run_plan": true,
+            "status": "compatible",
+            "evidence_strength": "derived",
+            "context_tokens": 272000,
+            "native_context_window": 372000,
+            "local": false,
+            "tags": [],
+            "capabilities": {
+              "multimodal": {
+                "value": true,
+                "basis": "declared"
+              },
+              "reasoning": {
+                "value": true,
+                "basis": "declared"
+              },
+              "structured_output": {
+                "value": true,
+                "basis": "derived"
+              },
+              "tool_use": {
+                "value": true,
+                "basis": "host_default"
+              }
+            },
+            "unknown": [],
+            "violated": []
+          },
+          {
+            "model_id": "openai/gpt-6-astra",
+            "provider_id": "openai",
+            "display_name": "GPT-6-Astra",
+            "available": true,
+            "selectable_for_run_plan": true,
+            "status": "compatible",
+            "evidence_strength": "derived",
+            "context_tokens": 272000,
+            "native_context_window": 872000,
+            "local": false,
+            "tags": [],
+            "capabilities": {
+              "multimodal": {
+                "value": true,
+                "basis": "declared"
+              },
+              "reasoning": {
+                "value": true,
+                "basis": "declared"
+              },
+              "structured_output": {
+                "value": true,
+                "basis": "derived"
+              },
+              "tool_use": {
+                "value": true,
+                "basis": "host_default"
+              }
+            },
+            "unknown": [],
+            "violated": []
+          }
+        ]
+      },
+      "run_plan": {
+        "run_plan_id": "rp_59cf17eb6a1b41e7b95cb9f8816c5e1e",
+        "run_plan_sha256": "ada247fb27782bd04083042a5fb80051945edff72b3b43b3f82a5ea4825aa872",
+        "package_digest": "b7bd37ca730ec5a156156207dc04fa5a7563e34a4373a298daa143dd9945b3eb",
+        "archive_sha256": "5fdde862352598fc68e4fe5a2f5c2dee19bf952112446b3fc13bc77763533b0b",
+        "publisher": {
+          "claimedId": "webagents-research",
+          "claimedName": "WebAgents Research Prototype",
+          "signerFingerprint": "sha256:c7549e614dac7070e6b5b5355e7c2407e1185f831d7fff15670981229dd85a70",
+          "signatureStatus": "valid",
+          "trustStatus": "trusted",
+          "trustReason": "operator_pinned_key"
+        },
+        "authorization": {
+          "receiptId": "526414ae-6396-464e-a239-5d4a97e85dff",
+          "receiptSha256": "db80a6204ecdeb028ad40c7224a43da0223806c010e37bc05429fb193b981bd1",
+          "issuedAt": "2026-09-22T12:27:53.363427+00:00",
+          "expiresAt": "2026-09-22T12:42:47.287774+00:00",
+          "grantedPermissionIds": [
+            "memory.session",
+            "model.reasoning",
+            "network.citations",
+            "network.scholarly"
+          ]
+        },
+        "execution": {
+          "profile": "workflow.v0",
+          "mode": "model",
+          "bindingStrategy": "single_model",
+          "requiredPermissionIds": [
+            "model.reasoning"
+          ],
+          "performed": false,
+          "note": "A run plan is a preflight artifact. This control plane never executes a package; a later runner must re-verify the digest, archive hash, signature, trust, receipt and model availability before dispatching anything."
+        },
+        "model_binding": {
+          "hostModelId": "openai/gpt-5.6-luna",
+          "providerId": "openai",
+          "displayName": "GPT-5.6-Luna",
+          "compatibilityStatus": "compatible",
+          "evidenceStrength": "derived",
+          "contextTokens": 272000,
+          "catalogSha256": "4d50c88d474dd72057335a47ef85538806f5e59dac6b79210ef289f11ae4a438",
+          "catalogModelCount": 5
+        },
+        "readiness": {
+          "state": "ready",
+          "ready": true,
+          "blockingReasons": []
+        },
+        "preflight": {
+          "checkedAt": "2026-09-22T12:27:55.924374+00:00",
+          "state": "ready",
+          "ready": true,
+          "stale": false,
+          "staleReasons": [],
+          "blockingReasons": [],
+          "trustStoreChanged": false,
+          "modelStillAvailable": true
+        },
+        "execution_supported": false
+      },
+      "after_reauthorization": null
+    },
+    "meeting-agenda": {
+      "identity": {
+        "package_id": "org.webagents.meeting-agenda",
+        "version": "0.2.0",
+        "digest": "5aa0ec946b33346183f8313f5d3b4f82a1e9fb1d7c541b3d5d756117828aab80",
+        "signature_status": "valid",
+        "trust_status": "trusted",
+        "signer_fingerprint": "sha256:c7549e614dac7070e6b5b5355e7c2407e1185f831d7fff15670981229dd85a70"
+      },
+      "permissions": [
+        {
+          "id": "model.reasoning",
+          "kind": "model",
+          "required": true
+        },
+        {
+          "id": "memory.session",
+          "kind": "memory",
+          "required": true
+        }
+      ],
+      "without_model_permission": {
+        "receipt_runnable": false,
+        "prepare_ok": false,
+        "error": {
+          "code": "run_plan_refused",
+          "title": "Run plan refused",
+          "detail": "Authorization is blocked: Required permission 'model.reasoning' is denied.",
+          "retryable": false
+        }
+      },
+      "catalog": {
+        "host": {
+          "runtime": "openclaw",
+          "runtimeVersion": "2026.9.5",
+          "source": "openclaw/plugin-sdk/models-provider-runtime#buildModelsProviderData",
+          "capturedAt": "2026-09-22T12:28:07.473Z",
+          "agentId": null
+        },
+        "catalog_sha256": "bedc94807a2105c9321d5c52e831e86c944c5d8291d1cabd4396d52d4dca5f6d",
+        "counts": {
+          "total": 5,
+          "available": 5,
+          "selectable": 5,
+          "compatible": 5,
+          "unverified": 0,
+          "incompatible": 0
+        },
+        "notes": [],
+        "execution_mode_permission_ids": [
+          "model.reasoning"
+        ],
+        "execution_mode_permissions_granted": true,
+        "hard_requirements": [
+          {
+            "id": "capability:reasoning",
+            "required": true,
+            "tasks": 3
+          },
+          {
+            "id": "capability:structured_output",
+            "required": true,
+            "tasks": 3
+          },
+          {
+            "id": "context_tokens:minimum",
+            "required": 16000,
+            "tasks": 3
+          }
+        ],
+        "models": [
+          {
+            "model_id": "openai/gpt-5.5",
+            "provider_id": "openai",
+            "display_name": "GPT-5.5",
+            "available": true,
+            "selectable_for_run_plan": true,
+            "status": "compatible",
+            "evidence_strength": "derived",
+            "context_tokens": 272000,
+            "native_context_window": 272000,
+            "local": false,
+            "tags": [],
+            "capabilities": {
+              "multimodal": {
+                "value": true,
+                "basis": "declared"
+              },
+              "reasoning": {
+                "value": true,
+                "basis": "declared"
+              },
+              "structured_output": {
+                "value": true,
+                "basis": "derived"
+              },
+              "tool_use": {
+                "value": true,
+                "basis": "host_default"
+              }
+            },
+            "unknown": [],
+            "violated": []
+          },
+          {
+            "model_id": "openai/gpt-5.6-luna",
+            "provider_id": "openai",
+            "display_name": "GPT-5.6-Luna",
+            "available": true,
+            "selectable_for_run_plan": true,
+            "status": "compatible",
+            "evidence_strength": "derived",
+            "context_tokens": 272000,
+            "native_context_window": 372000,
+            "local": false,
+            "tags": [
+              "host-default"
+            ],
+            "capabilities": {
+              "multimodal": {
+                "value": true,
+                "basis": "declared"
+              },
+              "reasoning": {
+                "value": true,
+                "basis": "declared"
+              },
+              "structured_output": {
+                "value": true,
+                "basis": "derived"
+              },
+              "tool_use": {
+                "value": true,
+                "basis": "host_default"
+              }
+            },
+            "unknown": [],
+            "violated": []
+          },
+          {
+            "model_id": "openai/gpt-5.6-sol",
+            "provider_id": "openai",
+            "display_name": "GPT-5.6-Sol",
+            "available": true,
+            "selectable_for_run_plan": true,
+            "status": "compatible",
+            "evidence_strength": "derived",
+            "context_tokens": 272000,
+            "native_context_window": 372000,
+            "local": false,
+            "tags": [],
+            "capabilities": {
+              "multimodal": {
+                "value": true,
+                "basis": "declared"
+              },
+              "reasoning": {
+                "value": true,
+                "basis": "declared"
+              },
+              "structured_output": {
+                "value": true,
+                "basis": "derived"
+              },
+              "tool_use": {
+                "value": true,
+                "basis": "host_default"
+              }
+            },
+            "unknown": [],
+            "violated": []
+          },
+          {
+            "model_id": "openai/gpt-5.6-terra",
+            "provider_id": "openai",
+            "display_name": "GPT-5.6-Terra",
+            "available": true,
+            "selectable_for_run_plan": true,
+            "status": "compatible",
+            "evidence_strength": "derived",
+            "context_tokens": 272000,
+            "native_context_window": 372000,
+            "local": false,
+            "tags": [],
+            "capabilities": {
+              "multimodal": {
+                "value": true,
+                "basis": "declared"
+              },
+              "reasoning": {
+                "value": true,
+                "basis": "declared"
+              },
+              "structured_output": {
+                "value": true,
+                "basis": "derived"
+              },
+              "tool_use": {
+                "value": true,
+                "basis": "host_default"
+              }
+            },
+            "unknown": [],
+            "violated": []
+          },
+          {
+            "model_id": "openai/gpt-6-astra",
+            "provider_id": "openai",
+            "display_name": "GPT-6-Astra",
+            "available": true,
+            "selectable_for_run_plan": true,
+            "status": "compatible",
+            "evidence_strength": "derived",
+            "context_tokens": 272000,
+            "native_context_window": 872000,
+            "local": false,
+            "tags": [],
+            "capabilities": {
+              "multimodal": {
+                "value": true,
+                "basis": "declared"
+              },
+              "reasoning": {
+                "value": true,
+                "basis": "declared"
+              },
+              "structured_output": {
+                "value": true,
+                "basis": "derived"
+              },
+              "tool_use": {
+                "value": true,
+                "basis": "host_default"
+              }
+            },
+            "unknown": [],
+            "violated": []
+          }
+        ]
+      },
+      "run_plan": {
+        "run_plan_id": "rp_d01fa1d063104cbd98153d47a8f76506",
+        "run_plan_sha256": "46bc3ecdc8f6b43f50b0cb1b76d8b7202ddeb28bb344eaa949b9651eba4c3541",
+        "package_digest": "5aa0ec946b33346183f8313f5d3b4f82a1e9fb1d7c541b3d5d756117828aab80",
+        "archive_sha256": "664b39b12ed26ee2b7524cc5b0afb8a91ebc64b76948696e65f34cbd768c32cb",
+        "publisher": {
+          "claimedId": "webagents-research",
+          "claimedName": "WebAgents Research Prototype",
+          "signerFingerprint": "sha256:c7549e614dac7070e6b5b5355e7c2407e1185f831d7fff15670981229dd85a70",
+          "signatureStatus": "valid",
+          "trustStatus": "trusted",
+          "trustReason": "operator_pinned_key"
+        },
+        "authorization": {
+          "receiptId": "d8841843-0df9-4d39-bf4a-1f4ca321c769",
+          "receiptSha256": "63e08bd5c74d4b26f9e15f50c350ebdc5cb8fb9e972bc230ab3d384b949f3fb5",
+          "issuedAt": "2026-09-22T12:28:06.247232+00:00",
+          "expiresAt": "2026-09-22T12:43:01.117568+00:00",
+          "grantedPermissionIds": [
+            "memory.session",
+            "model.reasoning"
+          ]
+        },
+        "execution": {
+          "profile": "workflow.v0",
+          "mode": "model",
+          "bindingStrategy": "single_model",
+          "requiredPermissionIds": [
+            "model.reasoning"
+          ],
+          "performed": false,
+          "note": "A run plan is a preflight artifact. This control plane never executes a package; a later runner must re-verify the digest, archive hash, signature, trust, receipt and model availability before dispatching anything."
+        },
+        "model_binding": {
+          "hostModelId": "openai/gpt-6-astra",
+          "providerId": "openai",
+          "displayName": "GPT-6-Astra",
+          "compatibilityStatus": "compatible",
+          "evidenceStrength": "derived",
+          "contextTokens": 272000,
+          "catalogSha256": "0e84a6cfd287b4fe7406dbf3fb19cac9eee719d57751566a51089c3bc6a4b9e1",
+          "catalogModelCount": 5
+        },
+        "readiness": {
+          "state": "ready",
+          "ready": true,
+          "blockingReasons": []
+        },
+        "preflight": {
+          "checkedAt": "2026-09-22T12:28:08.950960+00:00",
+          "state": "ready",
+          "ready": true,
+          "stale": false,
+          "staleReasons": [],
+          "blockingReasons": [],
+          "trustStoreChanged": false,
+          "modelStillAvailable": true
+        },
+        "execution_supported": false
+      },
+      "after_reauthorization": null
+    }
+  },
+  "execution": {
+    "performed": false,
+    "note": "No model was invoked; this milestone stops at a run plan."
+  },
+  "catalog_surface_comparison": {
+    "note": "The plugin reads OpenClaw's published catalog through the plugin-SDK subpath, because the Gateway RPC `models.list` is refused to a plugin that is not bundled or trusted-official. The two surfaces differ on this host; see docs/model-selection-and-run-plan.md \u00a79.",
+    "plugin_sdk_models_provider_runtime": [
+      "openai/gpt-5.5",
+      "openai/gpt-5.6-luna",
+      "openai/gpt-5.6-sol",
+      "openai/gpt-5.6-terra",
+      "openai/gpt-6-astra"
+    ],
+    "gateway_models_list_view_default": [
+      "openai/gpt-5.4-pro",
+      "openai/gpt-5.5",
+      "openai/gpt-5.5-pro",
+      "openai/gpt-5.6-luna",
+      "openai/gpt-5.6-sol",
+      "openai/gpt-5.6-terra",
+      "openai/gpt-6-astra"
+    ],
+    "only_in_gateway_rpc": [
+      {
+        "id": "openai/gpt-5.4-pro",
+        "has_reasoning_metadata": false,
+        "has_context_metadata": false
+      },
+      {
+        "id": "openai/gpt-5.5-pro",
+        "has_reasoning_metadata": false,
+        "has_context_metadata": false
+      }
+    ],
+    "meta_provider": {
+      "plugin_loaded": true,
+      "provider_ids": [
+        "meta"
+      ],
+      "auth_profiles": 0,
+      "models_reported": 0,
+      "reason": "No credential is configured for the meta provider, so OpenClaw offers no Meta/Muse model."
+    }
+  }
+}

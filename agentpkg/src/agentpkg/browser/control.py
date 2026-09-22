@@ -35,6 +35,18 @@ from .authorization import (
 from .errors import ControlPlaneError
 from .evaluation import evaluate_snapshot, signature_report
 from .fetch import FetchLimits, download_to_file
+from .hostmodels import evaluate_catalog, find_model, normalize_catalog, requirement_set
+from .runplan import (
+    BINDING_SINGLE_MODEL,
+    EXECUTION_MODES,
+    MODE_MODEL,
+    build_run_plan,
+    mode_permission_ids,
+    preflight,
+    preparation_blockers,
+    validate_binding,
+    validate_mode,
+)
 from .summary import build_summary
 from .trust import TrustStore
 
@@ -87,6 +99,11 @@ class Session:
     decisions: dict
     tool_approvals: dict
     receipt: dict | None = None
+    # The last host catalog this session was shown, its evaluation, and the
+    # plan frozen from them. All three die with the session.
+    catalog: dict | None = None
+    model_evaluation: dict | None = None
+    run_plan: dict | None = None
 
     def descriptor(self) -> dict:
         return {
@@ -105,6 +122,11 @@ class Session:
                 "state": "issued" if self.receipt else "pending",
                 "receipt_id": self.receipt["receipt_id"] if self.receipt else None,
                 "runnable": bool(self.receipt and self.receipt["runnable"]),
+            },
+            "run_plan": {
+                "state": "prepared" if self.run_plan else "absent",
+                "run_plan_id": self.run_plan["run_plan_id"] if self.run_plan else None,
+                "ready": bool(self.run_plan and self.run_plan["readiness"]["ready"]),
             },
         }
 
@@ -394,6 +416,12 @@ class ControlPlane:
                 "receipt_id": session.receipt["receipt_id"] if session.receipt else None,
                 "runnable": bool(session.receipt and session.receipt["runnable"]),
             },
+            "run_plan": {
+                "state": "prepared" if session.run_plan else "absent",
+                "run_plan_id": session.run_plan["run_plan_id"] if session.run_plan else None,
+                "ready": bool(session.run_plan and session.run_plan["readiness"]["ready"]),
+            },
+            "model_requirements_normalized": requirement_set(session.package),
             "execution": {
                 "performed": False,
                 "note": "Opening and inspecting a package never executes it.",
@@ -469,21 +497,7 @@ class ControlPlane:
     def authorize(self, session_id: str, *, package_digest, decisions, tool_approvals=None):
         """Record explicit decisions and issue a digest-bound receipt."""
         session = self._session(session_id)
-        if not isinstance(package_digest, str) or not package_digest:
-            raise ControlPlaneError(
-                "invalid_request",
-                "package_digest is required: the caller must echo the digest it showed the user",
-            )
-        if package_digest != session.package.digest:
-            raise ControlPlaneError(
-                "digest_mismatch",
-                "package_digest does not match this session's package; refusing to authorize",
-                status=409,
-                details={
-                    "session_digest": session.package.digest,
-                    "submitted_digest": package_digest,
-                },
-            )
+        self._require_digest(session, package_digest)
         granted = normalize_decisions(session.package, decisions)
         approvals = normalize_tool_approvals(session.package, tool_approvals)
         receipt = build_receipt(
@@ -504,12 +518,198 @@ class ControlPlane:
             session.decisions = granted
             session.tool_approvals = approvals
             session.receipt = receipt
+            # A new consent decision supersedes any plan prepared under the old
+            # one. Keeping a ready plan alive across a permission change is
+            # exactly how a withdrawn decision would stay silently usable.
+            session.run_plan = None
             session.summary["authorization"] = {
                 "state": "issued",
                 "receipt_id": receipt["receipt_id"],
                 "runnable": receipt["runnable"],
             }
+            session.summary["run_plan"] = {
+                "state": "absent",
+                "run_plan_id": None,
+                "ready": False,
+            }
         return receipt
+
+    # -- models and run plans ------------------------------------------------
+    def model_requirements(self, session_id: str) -> dict:
+        """The package's declared model requirements, normalized generically."""
+        session = self._session(session_id)
+        return {
+            "session_id": session.session_id,
+            "package_digest": session.package.digest,
+            "requirements": requirement_set(session.package),
+            "execution_modes": list(EXECUTION_MODES),
+            "binding_strategies": [BINDING_SINGLE_MODEL],
+            "mode_required_permission_ids": {
+                mode: mode_permission_ids(session.package, mode) for mode in EXECUTION_MODES
+            },
+        }
+
+    def evaluate_models(self, session_id: str, *, package_digest, catalog) -> dict:
+        """Evaluate a host-supplied model catalog against this package.
+
+        The catalog is the host's statement about its own models. This method
+        validates its shape, refuses unknown fields, and compares it with the
+        package's declarations. It contacts nothing.
+        """
+        session = self._session(session_id)
+        self._require_digest(session, package_digest)
+        normalized = normalize_catalog(catalog)
+        evaluation = evaluate_catalog(session.package, normalized)
+        with self._lock:
+            # Retained so `prepare_run_plan` binds the same catalog state that
+            # produced the verdict a person was shown.
+            session.catalog = normalized
+            session.model_evaluation = evaluation
+        return evaluation
+
+    def prepare_run_plan(
+        self,
+        session_id: str,
+        *,
+        package_digest,
+        receipt_id,
+        model_id,
+        catalog,
+        execution_mode=MODE_MODEL,
+        binding_strategy=BINDING_SINGLE_MODEL,
+    ) -> dict:
+        """Freeze one package + authorization + model into an immutable plan."""
+        session = self._session(session_id)
+        self._require_digest(session, package_digest)
+        mode = validate_mode(execution_mode)
+        binding = validate_binding(binding_strategy)
+        if session.receipt is None:
+            raise ControlPlaneError(
+                "authorization_absent",
+                "Authorize this package before preparing a run plan",
+                status=409,
+            )
+        if not isinstance(receipt_id, str) or receipt_id != session.receipt["receipt_id"]:
+            # The same anti-confusion rule `authorize` applies to digests: a
+            # caller must echo the authorization it showed the person.
+            raise ControlPlaneError(
+                "receipt_mismatch",
+                "receipt_id does not match this session's current authorization receipt",
+                status=409,
+                details={"session_receipt_id": session.receipt["receipt_id"]},
+            )
+        if not isinstance(model_id, str) or not model_id:
+            raise ControlPlaneError("invalid_request", "model_id must be a non-empty string")
+        normalized = normalize_catalog(catalog)
+        descriptor = find_model(normalized, model_id)
+        if descriptor is None:
+            raise ControlPlaneError(
+                "model_unknown",
+                f"No model {model_id!r} in the supplied host catalog",
+                status=409,
+            )
+        evaluation = evaluate_catalog(session.package, normalized)
+        compatibility = next(item for item in evaluation["models"] if item["model_id"] == model_id)
+        blockers = preparation_blockers(
+            session.package,
+            mode=mode,
+            evaluation=evaluation,
+            receipt=session.receipt,
+            publisher=session.publisher,
+            compatibility=compatibility,
+            policy=self.config.policy,
+        )
+        if blockers:
+            # A run plan exists only when it is ready. Writing down a plan that
+            # could not be run would create an artifact asserting a binding this
+            # host refuses, and "prepared" would stop meaning anything. Every
+            # reason is returned so a UI can send the person to the exact
+            # control that fixes it. A plan that becomes unusable *later* is a
+            # different thing, and that is what `preflight` reports.
+            raise ControlPlaneError(
+                "run_plan_refused",
+                blockers[0]["message"],
+                status=409,
+                details={"blocking_reasons": blockers},
+            )
+        plan = build_run_plan(
+            session.package,
+            session_id=session.session_id,
+            source=session.source,
+            archive_sha256=session.archive_sha256,
+            evaluation=evaluation,
+            catalog=normalized,
+            descriptor=descriptor,
+            compatibility=compatibility,
+            receipt=session.receipt,
+            publisher=session.publisher,
+            trust_state=self.trust.state(),
+            evaluation_layers=session.evaluation,
+            policy=self.config.policy,
+            instance_id=self.instance_id,
+            mode=mode,
+            binding_strategy=binding,
+            expires_at=session.expires_at,
+            blocking_reasons=blockers,
+        )
+        with self._lock:
+            session.catalog = normalized
+            session.model_evaluation = evaluation
+            session.run_plan = plan
+            session.summary["run_plan"] = {
+                "state": "prepared",
+                "run_plan_id": plan["run_plan_id"],
+                "ready": plan["readiness"]["ready"],
+            }
+        return {"run_plan": plan, "preflight": self._preflight(session)}
+
+    def run_plan(self, session_id: str) -> dict:
+        """The prepared plan plus a freshly recomputed readiness check."""
+        session = self._session(session_id)
+        if session.run_plan is None:
+            raise ControlPlaneError(
+                "run_plan_absent", "This session has no prepared run plan", status=404
+            )
+        return {"run_plan": session.run_plan, "preflight": self._preflight(session)}
+
+    def clear_run_plan(self, session_id: str) -> dict:
+        session = self._session(session_id)
+        with self._lock:
+            existing = session.run_plan
+            session.run_plan = None
+            session.summary["run_plan"] = {"state": "absent", "run_plan_id": None, "ready": False}
+        return {
+            "session_id": session_id,
+            "cleared": existing is not None,
+            "run_plan_id": existing["run_plan_id"] if existing else None,
+        }
+
+    def _preflight(self, session: Session) -> dict:
+        return preflight(
+            session.run_plan,
+            package=session.package,
+            publisher=session.publisher,
+            receipt=session.receipt,
+            trust_state=self.trust.state(),
+            policy=self.config.policy,
+        )
+
+    def _require_digest(self, session: Session, package_digest) -> None:
+        if not isinstance(package_digest, str) or not package_digest:
+            raise ControlPlaneError(
+                "invalid_request",
+                "package_digest is required: the caller must echo the digest it showed the user",
+            )
+        if package_digest != session.package.digest:
+            raise ControlPlaneError(
+                "digest_mismatch",
+                "package_digest does not match this session's package",
+                status=409,
+                details={
+                    "session_digest": session.package.digest,
+                    "submitted_digest": package_digest,
+                },
+            )
 
     # -- trust ---------------------------------------------------------------
     def trust_list(self) -> dict:
@@ -613,7 +813,19 @@ class ControlPlane:
                     "open_file": True,
                     "open_url": True,
                     "authorize": True,
+                    "evaluate_models": True,
+                    "prepare_run_plan": True,
                     "execute": False,
+                },
+                "execution_modes": list(EXECUTION_MODES),
+                "binding_strategies": [BINDING_SINGLE_MODEL],
+                "host_model_catalog": {
+                    "source": "supplied_by_host",
+                    "note": (
+                        "This service discovers no models of its own. A trusted host sends a "
+                        "bounded, provider-neutral catalog; package requirement semantics and "
+                        "run-plan integrity stay here."
+                    ),
                 },
             }
 

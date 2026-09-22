@@ -9,9 +9,12 @@
  */
 import type {
   FeatureErrorView,
+  HostModelViewType,
+  ModelCatalogViewType,
   PackageViewType,
   PermissionsViewType,
   ReceiptViewType,
+  RunPlanStateViewType,
   ServiceStatusView,
 } from "../contract.js";
 import {
@@ -52,7 +55,12 @@ type Loaded = {
   pkg: PackageViewType;
   permissions: PermissionsViewType;
   receipt: ReceiptViewType | null;
+  /** Null until the host catalog has been read for this session. */
+  models: ModelCatalogViewType | null;
+  runPlan: RunPlanStateViewType | null;
 };
+
+type Result<T> = { ok: true; value: T } | { ok: false; error: FeatureErrorView };
 
 const DECISION_LABELS: Record<Decision, string> = {
   deny: "Deny",
@@ -121,6 +129,8 @@ export function mountAgentBrowser(container: HTMLElement, deps: PageDeps): () =>
   let tab: TabId = "overview";
   let decisions = new Map<string, Decision>();
   let approvals = new Map<string, boolean>();
+  /** The model the operator explicitly chose. Never defaulted, never inferred. */
+  let selectedModel: string | null = null;
   let disposed = false;
 
   const root = el("section", { className: "agent-browser" });
@@ -452,6 +462,8 @@ export function mountAgentBrowser(container: HTMLElement, deps: PageDeps): () =>
       pkg,
       permissions: permissionsResult.value,
       receipt: receiptResult && receiptResult.ok ? receiptResult.value : null,
+      models: null,
+      runPlan: null,
     };
     decisions = new Map(
       permissionsResult.value.permissions.map((item) => [item.id, item.decision as Decision]),
@@ -459,9 +471,84 @@ export function mountAgentBrowser(container: HTMLElement, deps: PageDeps): () =>
     approvals = new Map(
       permissionsResult.value.toolApprovals.map((item) => [item.toolId, item.decision]),
     );
+    selectedModel = null;
     tab = "overview";
     renderSessions();
     renderMain();
+    // Model discovery follows authorization: before a receipt exists there is
+    // nothing a model could be bound to.
+    if (loaded.receipt) void loadModels(pkg.sessionId);
+  }
+
+  // -- models ----------------------------------------------------------------
+  async function loadModels(sessionId: string, options: { announce?: boolean } = {}) {
+    if (options.announce) setBusy("Reading this host's model catalog…");
+    const [catalog, plan] = await Promise.all([
+      call<Result<ModelCatalogViewType>>("models.evaluate", { sessionId }).catch(() => null),
+      call<Result<RunPlanStateViewType>>("run-plan.get", { sessionId }).catch(() => null),
+    ]);
+    if (!alive() || loaded?.pkg.sessionId !== sessionId) return;
+    if (options.announce) setBusy(null);
+    if (catalog && !catalog.ok) {
+      loaded = { ...loaded, models: null };
+      fail(catalog.error, () => void loadModels(sessionId, { announce: true }));
+      return;
+    }
+    const models = catalog && catalog.ok ? catalog.value : null;
+    const runPlan = plan && plan.ok ? plan.value : null;
+    if (
+      selectedModel &&
+      models &&
+      !models.models.some((model) => model.modelId === selectedModel)
+    ) {
+      // The chosen model disappeared from the host catalog between reads.
+      selectedModel = null;
+    }
+    if (!selectedModel && runPlan?.plan) selectedModel = runPlan.plan.modelBinding.hostModelId;
+    loaded = { ...loaded, models, runPlan };
+    renderMain();
+  }
+
+  async function prepareRun(): Promise<void> {
+    const current = loaded;
+    if (!current || !current.receipt || !selectedModel) return;
+    setBusy("Preparing the run plan…");
+    const result = await call<Result<RunPlanStateViewType>>("run-plan.prepare", {
+      sessionId: current.pkg.sessionId,
+      packageDigest: current.pkg.identity.digest,
+      receiptId: current.receipt.receiptId,
+      modelId: selectedModel,
+      executionMode: "model",
+    }).catch(() => null);
+    if (!alive()) return;
+    if (!result || !result.ok) {
+      fail(result ? result.error : unexpectedError());
+      void loadModels(current.pkg.sessionId);
+      return;
+    }
+    setBusy(null);
+    loaded = { ...current, runPlan: result.value };
+    notice = {
+      text: result.value.preflight?.ready
+        ? "Run plan prepared. Nothing has executed."
+        : "Run plan prepared, but it is not ready to run.",
+      tone: result.value.preflight?.ready ? "good" : "warn",
+    };
+    renderStatus();
+    renderMain();
+    void refreshSessions();
+  }
+
+  async function clearRunPlan(): Promise<void> {
+    const current = loaded;
+    if (!current) return;
+    setBusy("Discarding the run plan…");
+    await call("run-plan.clear", { sessionId: current.pkg.sessionId }).catch(() => undefined);
+    if (!alive()) return;
+    setBusy(null);
+    loaded = { ...current, runPlan: { plan: null, preflight: null, executionSupported: false } };
+    renderMain();
+    void refreshSessions();
   }
 
   async function closeSession(sessionId: string): Promise<void> {
@@ -507,8 +594,9 @@ export function mountAgentBrowser(container: HTMLElement, deps: PageDeps): () =>
       renderContentCard(pkg),
       renderPermissionsCard(),
       renderConstraintsCard(pkg),
-      renderModelCard(pkg),
       renderAuthorizationCard(),
+      renderModelCard(pkg),
+      renderRunPlanCard(),
     ]);
   }
 
@@ -1047,39 +1135,452 @@ export function mountAgentBrowser(container: HTMLElement, deps: PageDeps): () =>
     );
   }
 
+  // -- model selection -------------------------------------------------------
+  function requirementLabel(requirement: { kind: string; subject: string; required: unknown }): string {
+    if (requirement.kind === "context_tokens") {
+      return `context ≥ ${Number(requirement.required ?? 0).toLocaleString()}`;
+    }
+    if (requirement.kind === "property") return `${requirement.subject} model`;
+    return requirement.subject.replace(/_/gu, " ");
+  }
+
+  function compatibilityTone(status: string): "good" | "warn" | "bad" {
+    if (status === "compatible") return "good";
+    if (status === "incompatible") return "bad";
+    return "warn";
+  }
+
+  function compatibilityText(status: string): string {
+    switch (status) {
+      case "compatible":
+        return "Compatible";
+      case "incompatible":
+        return "Incompatible";
+      default:
+        return "Unverified";
+    }
+  }
+
+  const BASIS_LABELS: Record<string, string> = {
+    declared: "host declares this for this model",
+    host_default: "host default policy for models that do not say",
+    derived: "derived from another host capability",
+    absent: "the host does not report this",
+  };
+
   function renderModelCard(pkg: PackageViewType): HTMLElement {
+    const current = loaded;
     const requirements = pkg.modelRequirements;
-    const tasks = el("div", { className: "ab-items" });
-    for (const task of requirements.tasks) {
-      tasks.append(
+    // The control plane's normalized requirement set once it is known; before
+    // that, the same facts read straight off the package's declared tasks, so
+    // the section is never empty.
+    const hard =
+      current?.models?.requirements.hardRequirements ??
+      [
+        ...[...new Set(requirements.tasks.flatMap((task) => task.capabilities))]
+          .sort()
+          .map((capability) => ({
+            kind: "capability",
+            subject: capability,
+            required: true as boolean | number | null,
+            tasks: requirements.tasks
+              .filter((task) => task.capabilities.includes(capability))
+              .map((task) => task.id),
+          })),
+        ...(requirements.tasks.length > 0
+          ? [
+              {
+                kind: "context_tokens",
+                subject: "context_tokens",
+                required: Math.max(...requirements.tasks.map((task) => task.contextWindow)) as
+                  | boolean
+                  | number
+                  | null,
+                tasks: requirements.tasks.map((task) => task.id),
+              },
+            ]
+          : []),
+      ];
+    const declared = el("div", { className: "ab-model-requirements" });
+    declared.append(
+      el("h3", { text: "This agent requires" }),
+      list(
+        hard.map((requirement) =>
+          el(
+            "span",
+            {},
+            el("code", { text: requirementLabel(requirement) }),
+            el("span", {
+              className: "ab-muted",
+              text: ` · declared by ${requirement.tasks.length} task(s)`,
+            }),
+          ),
+        ),
+      ),
+      el("p", {
+        className: "ab-hint",
+        text:
+          `Routing ${requirements.routing} · fallback ${requirements.fallbackPolicy}` +
+          `${requirements.privacy ? ` · privacy ${requirements.privacy}` : ""}. ` +
+          "The package names no provider and no model.",
+      }),
+    );
+
+    if (!current?.receipt) {
+      return card(
+        "Model",
+        declared,
+        el("p", {
+          className: "ab-hint",
+          text: "Authorize this package first. A model is chosen for an authorized run, not for an inspection.",
+        }),
+      );
+    }
+
+    const body = el("div", { className: "ab-model" });
+    const catalog = current.models;
+    if (!catalog) {
+      body.append(
+        el("p", { className: "ab-hint", text: "Reading this OpenClaw host's model catalog…" }),
+      );
+      if (deps.canWrite) {
+        body.append(
+          button("Refresh models", () => void loadModels(pkg.sessionId, { announce: true })),
+        );
+      }
+      return card("Model", declared, body);
+    }
+
+    body.append(
+      el("p", {
+        className: "ab-hint",
+        text:
+          `Available on this OpenClaw host: ${catalog.counts.available} of ${catalog.counts.total} ` +
+          `models · ${catalog.counts.compatible} compatible, ${catalog.counts.unverified} unverified, ` +
+          `${catalog.counts.incompatible} incompatible.`,
+      }),
+    );
+    for (const note of catalog.notes) {
+      body.append(
+        el(
+          "p",
+          { className: "ab-model-note" },
+          el("code", { text: note.code }),
+          el("span", { text: ` ${note.detail ?? ""}` }),
+        ),
+      );
+    }
+
+    if (!catalog.executionModePermissionsGranted) {
+      const ids = catalog.executionModePermissionIds;
+      body.append(
         el(
           "div",
-          { className: "ab-item" },
-          el("code", { text: task.id }),
-          el("span", {
-            className: "ab-muted",
-            text: ` ${task.capabilities.join(", ")} · context ${task.contextWindow}${
-              task.preferredTier ? ` · prefers ${task.preferredTier}` : ""
-            }`,
+          { className: "ab-banner ab-banner-warn", attrs: { role: "status" } },
+          el("strong", { text: "This run mode needs a model permission" }),
+          el("p", {
+            text:
+              ids.length === 0
+                ? "This package declares no model permission, so it cannot request a model-backed run."
+                : `A model-backed run requires ${ids.join(", ")}. Set it to Allow once or Allow for ` +
+                  "session in Permissions above, then authorize again. Models are listed below for " +
+                  "inspection, but no run plan can be prepared until then.",
           }),
         ),
       );
     }
-    return card(
-      "Model requirements",
-      definition([
-        ["Routing", requirements.routing],
-        ["Fallback policy", requirements.fallbackPolicy],
-        ["Privacy", requirements.privacy ?? "host policy"],
-        ["Latency preference", requirements.latencyPreference ?? "—"],
-        ["Cost sensitivity", requirements.costSensitivity ?? "—"],
-      ]),
-      tasks,
+
+    if (catalog.models.length === 0) {
+      body.append(
+        el("p", {
+          className: "ab-hint",
+          text: "This OpenClaw host reports no models. Configure a model provider and refresh.",
+        }),
+      );
+    } else {
+      body.append(renderModelList(catalog));
+    }
+
+    const canPrepare =
+      deps.canWrite &&
+      selectedModel !== null &&
+      catalog.executionModePermissionsGranted &&
+      catalog.models.some(
+        (model) => model.modelId === selectedModel && model.selectableForRunPlan,
+      );
+    const actions = el("div", { className: "ab-inline" });
+    if (deps.canWrite) {
+      actions.append(
+        button("Prepare run", () => void prepareRun(), {
+          variant: "primary",
+          disabled: !canPrepare || busy !== null,
+          title: canPrepare
+            ? "Bind this package, its authorization and this model into a run plan"
+            : "Choose a selectable model and grant the model permission first",
+        }),
+        button("Refresh models", () => void loadModels(pkg.sessionId, { announce: true })),
+      );
+    } else {
+      actions.append(
+        el("p", { className: "ab-hint", text: "Operator write access is required to choose a model." }),
+      );
+    }
+    body.append(actions);
+    body.append(
       el("p", {
         className: "ab-hint",
-        text: "Model selection happens at run time. No model has been selected or invoked, and this build cannot invoke one.",
+        text:
+          "The package declares requirements, OpenClaw supplies the candidates, and you choose. " +
+          "Nothing is selected for you, and preparing a run plan does not run anything.",
       }),
     );
+    return card("Model", declared, body);
+  }
+
+  function renderModelList(catalog: ModelCatalogViewType): HTMLElement {
+    const node = el("div", { className: "ab-models", attrs: { role: "radiogroup" } });
+    for (const model of catalog.models) {
+      node.append(renderModelRow(model));
+    }
+    return node;
+  }
+
+  function renderModelRow(model: HostModelViewType): HTMLElement {
+    const selectable = model.selectableForRunPlan && deps.canWrite;
+    const row_ = el("div", {
+      className: `ab-model-row ab-model-${model.status}${
+        selectedModel === model.modelId ? " ab-model-selected" : ""
+      }`,
+    });
+    const input = el("input", {
+      attrs: { type: "radio", name: "agent-browser-model", value: model.modelId },
+    });
+    input.checked = selectedModel === model.modelId;
+    input.disabled = !selectable;
+    input.addEventListener("change", () => {
+      selectedModel = model.modelId;
+      renderMain();
+    });
+    const label = el("label", { className: "ab-model-label" });
+    label.append(
+      input,
+      el(
+        "span",
+        { className: "ab-model-head" },
+        el("strong", { text: model.displayName }),
+        el("code", { className: "ab-model-id", text: model.modelId }),
+        chip(compatibilityText(model.status), compatibilityTone(model.status)),
+        model.available ? null : chip("Not available", "bad"),
+        model.local === true ? chip("Local") : null,
+      ),
+    );
+    row_.append(label);
+
+    const facts: string[] = [];
+    facts.push(`Provider ${model.providerId}`);
+    if (model.contextTokens !== null) {
+      facts.push(`context ${model.contextTokens.toLocaleString()} tokens`);
+    } else if (model.nativeContextWindow !== null) {
+      facts.push(`context window ${model.nativeContextWindow.toLocaleString()}`);
+    } else {
+      facts.push("context not reported");
+    }
+    if (!model.available && model.availabilityReason) {
+      facts.push(`unavailable: ${model.availabilityReason}`);
+    }
+    for (const tag of model.tags) facts.push(tag);
+    row_.append(el("p", { className: "ab-muted", text: facts.join(" · ") }));
+
+    if (model.status === "unverified") {
+      row_.append(
+        el("p", {
+          className: "ab-model-warning",
+          text:
+            "This host does not report enough to confirm every requirement: " +
+            `${model.unknown.join(", ")}. It is not refuted either.`,
+        }),
+      );
+    }
+    if (model.status === "incompatible") {
+      row_.append(
+        el("p", {
+          className: "ab-model-warning",
+          text: `Requirement not satisfied: ${model.violated.join(", ")}.`,
+        }),
+      );
+    }
+    row_.append(renderCompatibilityDetails(model));
+    return row_;
+  }
+
+  function renderCompatibilityDetails(model: HostModelViewType): HTMLElement {
+    const details = el("details", { className: "ab-model-details" });
+    details.append(el("summary", { text: "Compatibility details" }));
+    const table = el("div", { className: "ab-checks" });
+    for (const check of model.checks) {
+      const tone =
+        check.status === "satisfied" ? "good" : check.status === "violated" ? "bad" : "warn";
+      const hostValue =
+        check.hostValue === null
+          ? "not reported"
+          : typeof check.hostValue === "boolean"
+            ? String(check.hostValue)
+            : check.hostValue.toLocaleString();
+      table.append(
+        el(
+          "div",
+          { className: "ab-check" },
+          el("code", { text: check.id }),
+          chip(check.status, tone),
+          el("span", {
+            className: "ab-muted",
+            text: ` required ${String(check.required)} · host ${hostValue} · ${
+              BASIS_LABELS[check.basis] ?? check.basis
+            }`,
+          }),
+          check.detail ? el("p", { className: "ab-muted", text: check.detail }) : null,
+        ),
+      );
+    }
+    details.append(table);
+    if (model.capabilities.length > 0) {
+      details.append(
+        el("h4", { text: "What this host reports" }),
+        list(
+          model.capabilities.map((capability) =>
+            el(
+              "span",
+              {},
+              el("code", { text: capability.name }),
+              el("span", {
+                className: "ab-muted",
+                text: ` ${capability.value === null ? "unknown" : String(capability.value)} · ${
+                  BASIS_LABELS[capability.basis] ?? capability.basis
+                }`,
+              }),
+            ),
+          ),
+        ),
+      );
+    }
+    return details;
+  }
+
+  // -- run plan --------------------------------------------------------------
+  function renderRunPlanCard(): HTMLElement | null {
+    const state = loaded?.runPlan;
+    const plan = state?.plan;
+    if (!plan || !state) return null;
+    const preflight = state.preflight;
+    const ready = preflight?.ready === true;
+    const node = el("div", { className: "ab-runplan" });
+    node.append(
+      el(
+        "div",
+        { className: `ab-receipt-banner ab-receipt-${ready ? "ok" : "blocked"}` },
+        el("strong", {
+          text: ready
+            ? "Ready to run"
+            : preflight?.stale
+              ? "Run plan is stale"
+              : "Run plan is not ready",
+        }),
+        el("p", {
+          text: ready
+            ? "Everything this run needs is bound and current."
+            : "This plan cannot be used as it stands; the reasons are listed below.",
+        }),
+      ),
+      definition([
+        ["Package", `${plan.package.name} ${plan.package.version}`],
+        [
+          "Publisher",
+          `${plan.publisher.trustStatus === "trusted" ? "✓ Trusted" : plan.publisher.trustStatus} · ${plan.publisher.claimedName}`,
+        ],
+        [
+          "Authorization",
+          `${preflight?.stale ? "Superseded or changed" : "✓ Current"} · ${plan.authorization.receiptId}`,
+        ],
+        [
+          "Model",
+          `${plan.modelBinding.displayName} (${plan.modelBinding.hostModelId}) · ${compatibilityText(
+            plan.modelBinding.compatibilityStatus,
+          )}`,
+        ],
+        [
+          "Execution",
+          `${plan.execution.profile} · mode ${plan.execution.mode} · ${plan.execution.bindingStrategy} binding`,
+        ],
+        ["Run plan", el("code", { text: plan.runPlanId })],
+        ["Run plan hash", el("code", { text: `sha256:${plan.runPlanSha256}` })],
+      ]),
+    );
+
+    const problems = [...(preflight?.staleReasons ?? []), ...(preflight?.blockingReasons ?? [])];
+    if (problems.length > 0) {
+      const reasons = el("ul", { className: "ab-blocking" });
+      for (const reason of problems) {
+        reasons.append(
+          el("li", {}, el("code", { text: reason.code }), el("span", { text: ` ${reason.message}` })),
+        );
+      }
+      node.append(el("h3", { text: "Why this plan is not usable" }), reasons);
+    }
+
+    node.append(
+      el(
+        "div",
+        { className: "ab-banner ab-banner-warn", attrs: { role: "status" } },
+        el("strong", { text: "Execution is not enabled in this build." }),
+        el("p", {
+          text: "There is no Run action. The next milestone will execute this exact run plan, re-verifying the package, its signature, publisher trust, the authorization receipt and the model before anything runs.",
+        }),
+      ),
+    );
+    if (deps.canWrite) {
+      node.append(button("Discard run plan", () => void clearRunPlan(), { variant: "danger" }));
+    }
+    node.append(renderRunPlanDetails(plan, preflight));
+    return card("Run plan", node);
+  }
+
+  function renderRunPlanDetails(
+    plan: NonNullable<RunPlanStateViewType["plan"]>,
+    preflight: RunPlanStateViewType["preflight"],
+  ): HTMLElement {
+    const details = el("details", { className: "ab-receipt" });
+    details.append(el("summary", { text: "Run plan (technical details)" }));
+    details.append(
+      definition([
+        ["Schema version", plan.runPlanVersion],
+        ["Prepared", whenText(plan.createdAt)],
+        ["Expires", whenText(plan.expiresAt)],
+        ["Package digest", el("code", { text: plan.package.digest })],
+        ["Archive SHA-256", el("code", { text: plan.package.archiveSha256 })],
+        ["Signer", el("code", { text: plan.publisher.signerFingerprint ?? "—" })],
+        ["Receipt hash", el("code", { text: plan.authorization.receiptSha256 })],
+        ["Granted", plan.authorization.grantedPermissionIds.join(", ") || "none"],
+        ["Run-mode permissions", plan.execution.requiredPermissionIds.join(", ") || "none"],
+        ["Model", el("code", { text: plan.modelBinding.hostModelId })],
+        ["Model evidence", plan.modelBinding.evidenceStrength],
+        [
+          "Catalog snapshot",
+          `${plan.modelBinding.catalogModelCount} models · sha256:${shortHash(plan.modelBinding.catalogSha256)}`,
+        ],
+        [
+          "Model still offered",
+          preflight?.modelStillAvailable === null
+            ? "unknown"
+            : preflight?.modelStillAvailable
+              ? "yes"
+              : "no",
+        ],
+        ["Trust store changed since", preflight?.trustStoreChanged ? "yes" : "no"],
+        ["Preflight checked", whenText(preflight?.checkedAt ?? "")],
+        ["Executed", "no"],
+      ]),
+    );
+    return details;
   }
 
   // -- authorization ---------------------------------------------------------
@@ -1205,7 +1706,9 @@ export function mountAgentBrowser(container: HTMLElement, deps: PageDeps): () =>
       return;
     }
     setBusy(null);
-    loaded = { ...current, receipt: result.value };
+    // A new receipt supersedes any prepared plan, on the server and here.
+    loaded = { ...current, receipt: result.value, runPlan: null };
+    void loadModels(current.pkg.sessionId);
     notice = {
       text: result.value.runnable
         ? "Authorized for this session. Nothing has executed."

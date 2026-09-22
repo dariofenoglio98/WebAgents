@@ -37,6 +37,11 @@ export const LIMITS = {
   sessions: 32,
   publishers: 128,
   tasks: 32,
+  models: 128,
+  capabilities_reported: 32,
+  checks: 32,
+  preferences: 16,
+  notes: 16,
   domains: 32,
   ids: 64,
   text: 4096,
@@ -65,6 +70,20 @@ export const ERROR_CODES = [
   "signature_not_valid",
   "limit_reached",
   "control_plane_error",
+  "model_catalog_unavailable",
+  "model_unknown",
+  "run_plan_refused",
+  "run_plan_absent",
+  "run_plan_stale",
+  "probe_refused",
+  "selected_model_unavailable",
+  "model_call_not_authorized",
+  "model_call_failed",
+  "model_call_cancelled",
+  "bridge_unavailable",
+  "bridge_protocol_error",
+  "bridge_timeout",
+  "bridge_failed",
 ] as const;
 
 export const FeatureError = Obj({
@@ -83,6 +102,20 @@ export const FeatureError = Obj({
     Type.Literal("signature_not_valid"),
     Type.Literal("limit_reached"),
     Type.Literal("control_plane_error"),
+    Type.Literal("model_catalog_unavailable"),
+    Type.Literal("model_unknown"),
+    Type.Literal("run_plan_refused"),
+    Type.Literal("run_plan_absent"),
+    Type.Literal("run_plan_stale"),
+    Type.Literal("probe_refused"),
+    Type.Literal("selected_model_unavailable"),
+    Type.Literal("model_call_not_authorized"),
+    Type.Literal("model_call_failed"),
+    Type.Literal("model_call_cancelled"),
+    Type.Literal("bridge_unavailable"),
+    Type.Literal("bridge_protocol_error"),
+    Type.Literal("bridge_timeout"),
+    Type.Literal("bridge_failed"),
   ]),
   /** Short human title for the UI heading. */
   title: Text(200),
@@ -492,6 +525,289 @@ export const TrustedPublisherView = Obj({
   addedAt: Text(64),
 });
 
+// -- models and run plans ---------------------------------------------------
+/**
+ * Compatibility is deliberately tri-state. Collapsing "the host did not say"
+ * into either boolean would tell the operator something nobody established.
+ */
+export const COMPATIBILITY_STATUSES = ["compatible", "unverified", "incompatible"] as const;
+const CompatibilityStatus = Type.Union([
+  Type.Literal("compatible"),
+  Type.Literal("unverified"),
+  Type.Literal("incompatible"),
+]);
+
+/** Where a host capability answer came from; see `host-models.ts`. */
+const CapabilityBasis = Type.Union([
+  Type.Literal("declared"),
+  Type.Literal("host_default"),
+  Type.Literal("derived"),
+  Type.Literal("absent"),
+]);
+
+const CapabilityAnswer = Obj({
+  name: Text(128),
+  value: Nullable(Type.Boolean()),
+  basis: CapabilityBasis,
+  detail: Nullable(Text(LIMITS.text)),
+});
+
+/** One package requirement measured against one host model. */
+const RequirementCheck = Obj({
+  id: Text(200),
+  kind: Text(32),
+  subject: Text(128),
+  operator: Text(32),
+  /** Required value: `true` for a capability, a minimum for a context window. */
+  required: Type.Union([Type.Boolean(), Type.Integer(), Type.Null()]),
+  hostValue: Type.Union([Type.Boolean(), Type.Integer(), Type.Null()]),
+  status: Type.Union([
+    Type.Literal("satisfied"),
+    Type.Literal("violated"),
+    Type.Literal("unknown"),
+  ]),
+  basis: CapabilityBasis,
+  source: Text(64),
+  detail: Nullable(Text(LIMITS.text)),
+  tasks: Type.Array(Id(), { maxItems: LIMITS.tasks }),
+});
+
+export const HostModelView = Obj({
+  modelId: Text(256),
+  providerId: Text(128),
+  displayName: Text(LIMITS.shortText),
+  available: Type.Boolean(),
+  availabilityReason: Nullable(Text(LIMITS.shortText)),
+  selectable: Type.Boolean(),
+  status: CompatibilityStatus,
+  /** True only when this host model could back a ready run plan. */
+  selectableForRunPlan: Type.Boolean(),
+  evidenceStrength: Type.Union([
+    Type.Literal("declared"),
+    Type.Literal("host_default"),
+    Type.Literal("derived"),
+    Type.Literal("none"),
+  ]),
+  contextTokens: Nullable(Type.Integer()),
+  nativeContextWindow: Nullable(Type.Integer()),
+  local: Nullable(Type.Boolean()),
+  tags: Type.Array(Text(64), { maxItems: 16 }),
+  capabilities: Type.Array(CapabilityAnswer, { maxItems: LIMITS.capabilities_reported }),
+  checks: Type.Array(RequirementCheck, { maxItems: LIMITS.checks }),
+  satisfied: Type.Array(Text(200), { maxItems: LIMITS.checks }),
+  unknown: Type.Array(Text(200), { maxItems: LIMITS.checks }),
+  violated: Type.Array(Text(200), { maxItems: LIMITS.checks }),
+});
+export type HostModelViewType = Static<typeof HostModelView>;
+
+const ModelRequirementsView = Obj({
+  routing: Text(64),
+  fallbackPolicy: Text(64),
+  privacy: Nullable(Text(64)),
+  bindingStrategy: Text(64),
+  hardRequirements: Type.Array(
+    Obj({
+      id: Text(200),
+      kind: Text(32),
+      subject: Text(128),
+      operator: Text(32),
+      required: Type.Union([Type.Boolean(), Type.Integer(), Type.Null()]),
+      tasks: Type.Array(Id(), { maxItems: LIMITS.tasks }),
+    }),
+    { maxItems: LIMITS.checks },
+  ),
+  preferences: Type.Array(Obj({ id: Text(200), kind: Text(64), subject: Text(128) }), {
+    maxItems: LIMITS.preferences,
+  }),
+});
+
+export const ModelCatalogView = Obj({
+  sessionId: Text(128),
+  packageDigest: Text(128),
+  host: Obj({
+    runtime: Text(64),
+    runtimeVersion: Nullable(Text(64)),
+    source: Text(LIMITS.shortText),
+    capturedAt: Text(64),
+    agentId: Nullable(Text(128)),
+  }),
+  catalogSha256: Text(128),
+  requirements: ModelRequirementsView,
+  models: Type.Array(HostModelView, { maxItems: LIMITS.models }),
+  counts: Obj({
+    total: Type.Integer(),
+    available: Type.Integer(),
+    selectable: Type.Integer(),
+    compatible: Type.Integer(),
+    unverified: Type.Integer(),
+    incompatible: Type.Integer(),
+  }),
+  notes: Type.Array(Obj({ code: Text(128), detail: Nullable(Text(LIMITS.text)) }), {
+    maxItems: LIMITS.notes,
+  }),
+  /** Permission ids a model-backed run needs, on top of package requirements. */
+  executionModePermissionIds: Type.Array(Id(), { maxItems: LIMITS.permissions }),
+  /** Which of those the current authorization actually granted. */
+  executionModePermissionsGranted: Type.Boolean(),
+  authorized: Type.Boolean(),
+});
+export type ModelCatalogViewType = Static<typeof ModelCatalogView>;
+
+export const RunPlanView = Obj({
+  runPlanId: Text(128),
+  runPlanVersion: Text(16),
+  runPlanSha256: Text(128),
+  createdAt: Text(64),
+  expiresAt: Text(64),
+  sessionId: Text(128),
+  package: Obj({
+    packageId: Id(),
+    name: Text(200),
+    version: Text(64),
+    digest: Text(128),
+    archiveSha256: Text(128),
+    executionProfile: Text(64),
+  }),
+  publisher: Obj({
+    claimedId: Text(200),
+    claimedName: Text(200),
+    signerFingerprint: Nullable(Text(128)),
+    signatureStatus: Text(32),
+    trustStatus: Text(32),
+    trustReason: Text(200),
+  }),
+  authorization: Obj({
+    receiptId: Text(128),
+    receiptSha256: Text(128),
+    issuedAt: Text(64),
+    expiresAt: Text(64),
+    grantedPermissionIds: Type.Array(Id(), { maxItems: LIMITS.permissions }),
+  }),
+  execution: Obj({
+    profile: Text(64),
+    mode: Text(32),
+    bindingStrategy: Text(64),
+    requiredPermissionIds: Type.Array(Id(), { maxItems: LIMITS.permissions }),
+    /** Restated on the plan itself: a plan is preflight, never a run. */
+    performed: Type.Literal(false),
+    note: Text(LIMITS.text),
+  }),
+  modelBinding: Obj({
+    hostModelId: Text(256),
+    providerId: Text(128),
+    displayName: Text(LIMITS.shortText),
+    selectedAt: Text(64),
+    compatibilityStatus: CompatibilityStatus,
+    evidenceStrength: Text(32),
+    contextTokens: Nullable(Type.Integer()),
+    catalogSha256: Text(128),
+    catalogModelCount: Type.Integer(),
+    checks: Type.Array(RequirementCheck, { maxItems: LIMITS.checks }),
+  }),
+  requirements: ModelRequirementsView,
+  readiness: Obj({
+    state: Text(32),
+    ready: Type.Boolean(),
+    blockingReasons: Type.Array(BlockingReason, { maxItems: LIMITS.blockingReasons }),
+  }),
+});
+export type RunPlanViewType = Static<typeof RunPlanView>;
+
+export const RunPlanStateView = Obj({
+  plan: Nullable(RunPlanView),
+  preflight: Nullable(
+    Obj({
+      checkedAt: Text(64),
+      state: Text(32),
+      ready: Type.Boolean(),
+      stale: Type.Boolean(),
+      staleReasons: Type.Array(BlockingReason, { maxItems: LIMITS.blockingReasons }),
+      blockingReasons: Type.Array(BlockingReason, { maxItems: LIMITS.blockingReasons }),
+      trustStoreChanged: Type.Boolean(),
+      /** Re-checked against the live host catalog, not the stored snapshot. */
+      modelStillAvailable: Nullable(Type.Boolean()),
+    }),
+  ),
+  /** Always false. There is no run action in this build. */
+  executionSupported: Type.Literal(false),
+});
+export type RunPlanStateViewType = Static<typeof RunPlanStateView>;
+
+/**
+ * The result of the developer router probe.
+ *
+ * This is a conformance report, not a run result: it says which model answered,
+ * how structured output was obtained, what the token bound was, and what the
+ * host actually billed. `workflowExecuted` is a literal `false` in the schema,
+ * so a build that ever ran a workflow here could not typecheck.
+ */
+export const RouterProbeView = Obj({
+  status: Type.Union([Type.Literal("ok"), Type.Literal("contract_violation")]),
+  runPlanId: Text(128),
+  runPlanSha256: Text(128),
+  sessionId: Text(128),
+  package: Obj({
+    packageId: Id(),
+    name: Text(200),
+    version: Text(64),
+    digest: Text(128),
+    executionProfile: Text(64),
+  }),
+  router: Obj({
+    routerId: Text(128),
+    modelId: Text(256),
+    remote: Type.Boolean(),
+    contextWindow: Type.Integer(),
+    capabilities: Type.Array(Text(64), { maxItems: LIMITS.capabilities_reported }),
+    notDeclared: Type.Array(Text(64), { maxItems: LIMITS.capabilities_reported }),
+  }),
+  model: Obj({
+    planned: Text(256),
+    invoked: Text(256),
+    providerId: Nullable(Text(128)),
+    responseModel: Nullable(Text(256)),
+    stopReason: Nullable(Text(64)),
+    executionMode: Nullable(Text(64)),
+  }),
+  probe: Obj({ status: Text(64), echo: Text(LIMITS.shortText) }),
+  structuredOutput: Obj({
+    validated: Type.Boolean(),
+    constrainedByHost: Type.Boolean(),
+    constraintDetail: Nullable(Text(LIMITS.text)),
+    parse: Nullable(Text(32)),
+  }),
+  tokens: Obj({
+    countTokensBound: Type.Integer(),
+    basis: Text(64),
+    hostTokenizer: Type.Boolean(),
+    hostTokenizerDetail: Nullable(Text(LIMITS.text)),
+    framingAllowance: Nullable(Type.Integer()),
+  }),
+  usage: Obj({
+    inputTokens: Type.Integer(),
+    outputTokens: Type.Integer(),
+    costUsd: Nullable(Type.Number()),
+  }),
+  accounting: Obj({
+    maxOutputTokens: Type.Integer(),
+    inputWithinBound: Type.Boolean(),
+    outputWithinCap: Type.Boolean(),
+  }),
+  durationMs: Type.Number(),
+  /** Always false. The probe is not an agent run and cannot become one. */
+  workflowExecuted: Type.Literal(false),
+  packageExecution: Obj({
+    workflowInstantiated: Type.Literal(false),
+    workersStarted: Type.Literal(0),
+    toolsCalled: Type.Literal(0),
+    packageInstructionsLoaded: Type.Literal(false),
+    exportsWritten: Type.Literal(0),
+  }),
+  /** What was re-verified between reading the plan and spending a token. */
+  revalidated: Type.Array(Text(64), { maxItems: 32 }),
+});
+export type RouterProbeViewType = Static<typeof RouterProbeView>;
+
 const SessionId = Type.String({ minLength: 8, maxLength: 128, pattern: "^[A-Za-z0-9_-]+$" });
 const Fingerprint = Type.String({ pattern: "^sha256:[0-9a-f]{64}$" });
 
@@ -533,6 +849,19 @@ export const contract = defineFeatureContract({
       description: "Read the authorization receipt issued for one session, if any.",
       input: Obj({ sessionId: SessionId }),
       output: Result(Nullable(ReceiptView)),
+    },
+    "models.evaluate": {
+      kind: "query",
+      description:
+        "Discover this host's models and evaluate them against one package's requirements.",
+      input: Obj({ sessionId: SessionId }),
+      output: Result(ModelCatalogView),
+    },
+    "run-plan.get": {
+      kind: "query",
+      description: "Read the run plan prepared for one session, with a fresh preflight check.",
+      input: Obj({ sessionId: SessionId }),
+      output: Result(RunPlanStateView),
     },
     "trust.list": {
       kind: "query",
@@ -578,6 +907,41 @@ export const contract = defineFeatureContract({
         ),
       }),
       output: Result(ReceiptView),
+    },
+    "run-plan.prepare": {
+      kind: "action",
+      description:
+        "Bind this package, its authorization and one explicitly chosen host model into an " +
+        "immutable run plan. Nothing is executed.",
+      input: Obj({
+        sessionId: SessionId,
+        packageDigest: Type.String({ pattern: "^[0-9a-f]{64}$" }),
+        receiptId: Type.String({ minLength: 8, maxLength: 128 }),
+        modelId: Type.String({ minLength: 1, maxLength: 256 }),
+        executionMode: Type.Optional(Type.Literal("model")),
+      }),
+      output: Result(RunPlanStateView),
+    },
+    "router.probe": {
+      kind: "action",
+      description:
+        "Developer/operator conformance probe. Re-verifies a ready run plan, then makes ONE " +
+        "host-owned model call through the agentpkg ModelRouter bridge to prove the router " +
+        "contract against the exact model the plan bound. It is not an agent run: no workflow " +
+        "node, worker, package skill or package tool takes part in it, and it spends a few " +
+        "hundred tokens.",
+      input: Obj({
+        sessionId: SessionId,
+        runPlanId: Type.String({ minLength: 4, maxLength: 128 }),
+        runPlanSha256: Type.String({ pattern: "^[0-9a-f]{64}$" }),
+      }),
+      output: Result(RouterProbeView),
+    },
+    "run-plan.clear": {
+      kind: "action",
+      description: "Discard the run plan prepared for one session.",
+      input: Obj({ sessionId: SessionId }),
+      output: Result(Obj({ sessionId: Text(128), cleared: Type.Boolean() })),
     },
     "trust.pin-session-publisher": {
       kind: "action",

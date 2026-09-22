@@ -44,7 +44,17 @@ SSRF-hardened HTTPS URL, snapshots its bytes once, reports container, integrity,
 schema and runtime validity separately, distinguishes a **self-consistent
 signature** from a **trusted publisher**, renders a generic browser summary, and
 turns explicit permission decisions into a digest-bound authorization receipt.
-It never executes a package — that boundary is enforced structurally and tested.
+It then evaluates a **host-supplied** model catalog against the package's own
+model requirements and freezes an explicitly chosen model into an immutable,
+hashed **run plan**. It discovers no models of its own and never executes a
+package — that boundary is enforced structurally and tested.
+
+A separate trusted namespace, `agentpkg.hostbridge`, turns a ready run plan into
+a `ModelRouter` bound to that exact model and reaches it through OpenClaw over a
+private stdio protocol. The control plane cannot import it. One developer
+[router probe](docs/model-router-bridge.md) makes a single host-owned model call
+to prove the router contract; no package workflow, worker or tool runs, and
+there is still no Run button.
 
 ```sh
 agentpkg/.venv/bin/agentpkg trust add --public-key examples/keys/workflow-publisher.pub.pem \
@@ -55,7 +65,10 @@ curl -sS http://127.0.0.1:8765/v0/health
 
 See the [control-plane documentation](docs/browser-control-plane.md) and the
 [milestone report](docs/browser-report.md) for the API, trust model, SSRF
-defenses and exact curl walkthrough.
+defenses and exact curl walkthrough, and [model selection and the run
+plan](docs/model-selection-and-run-plan.md) for compatibility semantics and the
+run-plan schema, and [the model-router
+bridge](docs/model-router-bridge.md) for how a plan reaches the selected model.
 
 ## OpenClaw Agent Browser plugin
 
@@ -63,12 +76,15 @@ defenses and exact curl walkthrough.
 feature plugin: a **Agent Browser** page in the Control UI where an operator
 opens a signed package, reads its validation layers, signature and publisher
 trust as separate facts, inspects its capabilities, tools, workers, workflow,
-budgets and model requirements, sets each permission, and records an
-authorization receipt. Its backend supervises `agentpkg browser-serve` and keeps
-the control-plane bearer token in the Gateway process; the browser half holds no
-credentials and reimplements no verification, trust or permission logic.
+budgets and model requirements, sets each permission, records an authorization
+receipt, then chooses one of the models **this OpenClaw host actually reports**
+and prepares a run plan. Its backend supervises `agentpkg browser-serve`, keeps
+the control-plane bearer token in the Gateway process, and is the only place that
+knows what OpenClaw is; the browser half holds no credentials and reimplements no
+verification, trust, permission or compatibility logic.
 
-**Nothing executes.** There is no Run action in this milestone.
+**Nothing executes.** Model *discovery* is allowed; model *inference* is not.
+There is no Run action in this milestone.
 
 ```sh
 cd openclaw-agent-browser && npm install && npm run build && npm run validate && npm run pack
@@ -76,7 +92,8 @@ openclaw plugins install ./agent-browser.tgz --accept-capabilities
 # then enable Settings -> Labs -> Custom plugin UI and open "Agent Browser"
 ```
 
-See the [plugin documentation](docs/openclaw-agent-browser.md) and its
+See the [plugin documentation](docs/openclaw-agent-browser.md), [model selection
+and the run plan](docs/model-selection-and-run-plan.md) and its
 [README](openclaw-agent-browser/README.md). Tested against OpenClaw 2026.9.5.
 
-The existing [OpenClaw staging adapter](docs/openclaw-integration.md) still verifies and stages either package. Native browser UI, real OpenClaw model routing, Muse, Instinct, Maritime, NANDA, registries and marketplace features are not implemented in this milestone.
+The existing [OpenClaw staging adapter](docs/openclaw-integration.md) still verifies and stages either package. Executing a prepared run plan, an OpenClaw `ModelRouter` adapter, per-worker or per-node model routing, Muse-specific connectors, Instinct, Maritime, NANDA, registries and marketplace features are not implemented in this milestone.

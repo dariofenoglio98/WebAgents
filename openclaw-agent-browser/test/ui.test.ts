@@ -8,7 +8,14 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mountAgentBrowser } from "../src/ui/page.js";
-import { packageView, permissionsView, receiptView, serviceStatus } from "./fixtures.js";
+import {
+  modelCatalogView,
+  packageView,
+  permissionsView,
+  receiptView,
+  runPlanStateView,
+  serviceStatus,
+} from "./fixtures.js";
 
 type Handlers = Record<string, (input: unknown) => unknown>;
 
@@ -287,11 +294,15 @@ describe("package contents", () => {
     page.dispose();
   });
 
-  it("states that no model has been selected", async () => {
+  it("defers model selection until the package is authorized", async () => {
     const page = await opened();
-    expect(page.text()).toContain("Model requirements");
-    expect(page.text()).toContain("Model selection happens at run time");
-    expect(page.text()).toContain("No model has been selected or invoked");
+    const text = page.text();
+    expect(text).toContain("This agent requires");
+    // The declared requirements are readable before any catalog is fetched.
+    expect(text).toContain("structured output");
+    expect(text).toContain("context ≥ 16,000");
+    expect(text).toContain("Authorize this package first");
+    expect(text).toContain("The package names no provider and no model");
     page.dispose();
   });
 
@@ -497,3 +508,287 @@ describe("milestone boundary", () => {
     expect(document.body.contains(page.container.firstChild as Node)).toBe(false);
   });
 });
+
+// -- model selection and run plan -------------------------------------------
+describe("model selection", () => {
+  /** An authorized package with a host catalog already available. */
+  async function authorized(overrides: Handlers = {}) {
+    const page = mount({
+      "packages.open-url": () => ({ ok: true, value: packageView() }),
+      "packages.authorization": () => ({ ok: true, value: receiptView() }),
+      "models.evaluate": () => ({ ok: true, value: modelCatalogView() }),
+      "run-plan.get": () => ({
+        ok: true,
+        value: { plan: null, preflight: null, executionSupported: false },
+      }),
+      ...overrides,
+    });
+    await settle();
+    const input = page.container.querySelector<HTMLInputElement>("input[name='package-url']")!;
+    input.value = "https://packages.example/x.agent.pkg";
+    page.container.querySelector("form")!.dispatchEvent(new Event("submit"));
+    await settle();
+    return page;
+  }
+
+  const radios = (page: ReturnType<typeof mount>) => [
+    ...page.container.querySelectorAll<HTMLInputElement>("input[name='agent-browser-model']"),
+  ];
+
+  const labelled = (page: ReturnType<typeof mount>, label: string) =>
+    [...page.container.querySelectorAll("button")].find(
+      (button) => (button.textContent ?? "") === label,
+    );
+
+  it("lists what this host reports, with a status for each model", async () => {
+    const page = await authorized();
+    const text = page.text();
+    expect(text).toContain("Big Model");
+    expect(text).toContain("Silent Model");
+    expect(text).toContain("Small Model");
+    expect(text).toContain("Compatible");
+    expect(text).toContain("Unverified");
+    expect(text).toContain("Incompatible");
+    expect(text).toContain("Available on this OpenClaw host: 3 of 3 models");
+    page.dispose();
+  });
+
+  it("labels an unverified model as unconfirmed rather than unsupported", async () => {
+    const page = await authorized();
+    expect(page.text()).toContain("does not report enough to confirm every requirement");
+    expect(page.text()).toContain("capability:reasoning");
+    expect(page.text()).toContain("It is not refuted either");
+    page.dispose();
+  });
+
+  it("explains an incompatible model and refuses to let it be chosen", async () => {
+    const page = await authorized();
+    expect(page.text()).toContain("Requirement not satisfied: context_tokens:minimum");
+    const options = Object.fromEntries(radios(page).map((input) => [input.value, input]));
+    expect(options["acme/big"].disabled).toBe(false);
+    expect(options["acme/silent"].disabled).toBe(false);
+    expect(options["acme/small"].disabled).toBe(true);
+    page.dispose();
+  });
+
+  it("shows per-requirement detail with the host's own answer and its basis", async () => {
+    const page = await authorized();
+    const text = page.text();
+    expect(text).toContain("Compatibility details");
+    expect(text).toContain("required 16000 · host 200,000");
+    expect(text).toContain("host declares this for this model");
+    expect(text).toContain("derived from another host capability");
+    page.dispose();
+  });
+
+  it("selects nothing by default and requires an explicit choice", async () => {
+    const page = await authorized();
+    expect(radios(page).some((input) => input.checked)).toBe(false);
+    expect(labelled(page, "Prepare run")?.disabled).toBe(true);
+
+    const chosen = radios(page).find((input) => input.value === "acme/big")!;
+    chosen.checked = true;
+    chosen.dispatchEvent(new Event("change"));
+    await settle();
+    expect(labelled(page, "Prepare run")?.disabled).toBe(false);
+    page.dispose();
+  });
+
+  it("does not offer model selection before the package is authorized", async () => {
+    const page = mount({ "packages.open-url": () => ({ ok: true, value: packageView() }) });
+    await settle();
+    const input = page.container.querySelector<HTMLInputElement>("input[name='package-url']")!;
+    input.value = "https://packages.example/x.agent.pkg";
+    page.container.querySelector("form")!.dispatchEvent(new Event("submit"));
+    await settle();
+    expect(page.text()).toContain("Authorize this package first");
+    expect(radios(page)).toHaveLength(0);
+    page.dispose();
+  });
+
+  it("sends a denied model permission back to Permissions instead of granting it", async () => {
+    const page = await authorized({
+      "models.evaluate": () => ({
+        ok: true,
+        value: modelCatalogView({ executionModePermissionsGranted: false }),
+      }),
+    });
+    const text = page.text();
+    expect(text).toContain("This run mode needs a model permission");
+    expect(text).toContain("model.reasoning");
+    expect(text).toContain("Allow for session");
+    // Inspection still works; only preparation is blocked.
+    expect(radios(page).length).toBe(3);
+    const chosen = radios(page).find((input) => input.value === "acme/big")!;
+    chosen.checked = true;
+    chosen.dispatchEvent(new Event("change"));
+    await settle();
+    expect(labelled(page, "Prepare run")?.disabled).toBe(true);
+    page.dispose();
+  });
+
+  it("reports an empty host catalog without inventing a model", async () => {
+    const page = await authorized({
+      "models.evaluate": () => ({
+        ok: true,
+        value: modelCatalogView({
+          models: [],
+          counts: { total: 0, available: 0, selectable: 0, compatible: 0, unverified: 0, incompatible: 0 },
+          notes: [{ code: "no_models_available", detail: "Configure a model provider." }],
+        }),
+      }),
+    });
+    expect(page.text()).toContain("reports no models");
+    expect(page.text()).toContain("no_models_available");
+    expect(radios(page)).toHaveLength(0);
+    page.dispose();
+  });
+
+  it("prepares a run plan and renders it as ready without offering a run", async () => {
+    const prepared: Array<Record<string, unknown>> = [];
+    const page = await authorized({
+      "run-plan.prepare": (input) => {
+        prepared.push(input as Record<string, unknown>);
+        return { ok: true, value: runPlanStateView() };
+      },
+    });
+    const chosen = radios(page).find((input) => input.value === "acme/big")!;
+    chosen.checked = true;
+    chosen.dispatchEvent(new Event("change"));
+    await settle();
+    labelled(page, "Prepare run")!.click();
+    await settle();
+
+    expect(prepared[0]).toMatchObject({
+      modelId: "acme/big",
+      executionMode: "model",
+      packageDigest: packageView().identity.digest,
+      receiptId: receiptView().receiptId,
+    });
+    const text = page.text();
+    expect(text).toContain("Ready to run");
+    expect(text).toContain("rp_0123456789abcdef0123456789abcdef");
+    expect(text).toContain("sha256:9999");
+    expect(text).toContain("single_model binding");
+    expect(text).toContain("Execution is not enabled in this build.");
+    const labels = [...page.container.querySelectorAll("button")].map((b) => b.textContent ?? "");
+    expect(labels.some((label) => /^(run|start|execute)\b/iu.test(label))).toBe(false);
+    page.dispose();
+  });
+
+  it("says a plan is stale, and why, instead of leaving it looking ready", async () => {
+    const stale = runPlanStateView({
+      preflight: {
+        checkedAt: "2026-09-21T10:20:00.000Z",
+        state: "stale",
+        ready: false,
+        stale: true,
+        staleReasons: [
+          {
+            code: "publisher_trust_changed",
+            message: "Publisher trust status changed after preparation.",
+            subject: null,
+          },
+        ],
+        blockingReasons: [],
+        trustStoreChanged: true,
+        modelStillAvailable: false,
+      },
+    });
+    const page = await authorized({ "run-plan.get": () => ({ ok: true, value: stale }) });
+    const text = page.text();
+    expect(text).toContain("Run plan is stale");
+    expect(text).toContain("publisher_trust_changed");
+    expect(text).toContain("Why this plan is not usable");
+    expect(text).not.toContain("Ready to run");
+    page.dispose();
+  });
+
+  it("refuses a failed preparation with the control plane's own reason", async () => {
+    const page = await authorized({
+      "run-plan.prepare": () => ({
+        ok: false,
+        error: {
+          code: "run_plan_refused",
+          title: "Run plan refused",
+          detail: "A model-backed run requires permission 'model.reasoning'.",
+          retryable: false,
+        },
+      }),
+      "models.evaluate": () => ({ ok: true, value: modelCatalogView() }),
+    });
+    const chosen = radios(page).find((input) => input.value === "acme/big")!;
+    chosen.checked = true;
+    chosen.dispatchEvent(new Event("change"));
+    await settle();
+    labelled(page, "Prepare run")!.click();
+    await settle();
+    expect(page.text()).toContain("Run plan refused");
+    expect(page.text()).toContain("model.reasoning");
+    page.dispose();
+  });
+
+  it("shows a read-only operator the models but no way to choose one", async () => {
+    // A read-only operator cannot open a package; they reach one already open.
+    const page = mount(
+      {
+        "packages.authorization": () => ({ ok: true, value: receiptView() }),
+        "models.evaluate": () => ({ ok: true, value: modelCatalogView() }),
+        "run-plan.get": () => ({
+          ok: true,
+          value: { plan: null, preflight: null, executionSupported: false },
+        }),
+        "packages.list": () => ({
+          ok: true,
+          value: {
+            sessions: [
+              {
+                sessionId: packageView().sessionId,
+                packageId: "org.webagents.literature-review",
+                name: "Literature Review Agent",
+                version: "0.2.0",
+                digest: "b".repeat(64),
+                expiresAt: "2026-09-21T10:15:00.000Z",
+                source: { kind: "url", display: "https://packages.example/x.agent.pkg" },
+                signatureStatus: "valid",
+                trustStatus: "trusted",
+                authorizationState: "issued",
+                runnable: true,
+              },
+            ],
+            max: 8,
+          },
+        }),
+      },
+      { canWrite: false },
+    );
+    await settle();
+    [...page.container.querySelectorAll("button")]
+      .find((button) => (button.textContent ?? "").includes("org.webagents.literature-review"))!
+      .click();
+    await settle();
+    expect(page.text()).toContain("Big Model");
+    expect(radios(page).every((option) => option.disabled)).toBe(true);
+    expect(labelled(page, "Prepare run")).toBeUndefined();
+    expect(page.text()).toContain("Operator write access is required to choose a model");
+    page.dispose();
+  });
+
+  it("never asks the backend to complete, invoke or run anything", async () => {
+    const page = await authorized({
+      "run-plan.prepare": () => ({ ok: true, value: runPlanStateView() }),
+    });
+    const chosen = radios(page).find((input) => input.value === "acme/big")!;
+    chosen.checked = true;
+    chosen.dispatchEvent(new Event("change"));
+    await settle();
+    labelled(page, "Prepare run")!.click();
+    await settle();
+    for (const call of page.calls) {
+      expect(call.operation).not.toMatch(/execute|invoke|complete|dispatch/u);
+    }
+    expect(page.calls.map((call) => call.operation)).toContain("run-plan.prepare");
+    page.dispose();
+  });
+});
+

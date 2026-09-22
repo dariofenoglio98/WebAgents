@@ -14,4 +14,6 @@ Adapters must count every billable/reasoning token, enforce the output cap, boun
 
 The previous optional `HTTPRouter` in `models.py` remains available. It uses the existing host-configured `/count` and `/complete` protocol, approved HTTPS transport and environment-held credentials. This milestone does not connect a new real provider. The legacy extractive development workflow is separate under `agentpkg.dev` and does not implement reasoning inside the generic interpreter.
 
+The first real adapter is `agentpkg.hostbridge.HostBridgeModelRouter`, which binds the exact model an Agent Browser [run plan](model-selection-and-run-plan.md) recorded and reaches it through OpenClaw over a private stdio protocol. It is the reference implementation of every rule above: a provable input bound rather than an estimate, structured output obtained and then validated, cache and reasoning tokens charged, and cancellation propagated into the provider request. See [the model-router bridge](model-router-bridge.md).
+
 See the [formal contract and failure rules](../spec/workflow-v0.md#7-model-router-contract) and [migration](workflow-migration.md).

@@ -37,9 +37,52 @@ describe("feature contract", () => {
     }
   });
 
-  it("declares no run operation anywhere", () => {
-    const names = Object.keys(contract.operations).join(" ");
-    expect(names).not.toMatch(/run|execute|invoke-workflow/u);
+  it("declares no package-execution operation anywhere", () => {
+    const names = Object.keys(contract.operations);
+    // `run-plan.*` prepares and reads a preflight artifact. Nothing in the
+    // contract can start a workflow, a worker or a package tool.
+    for (const name of names) {
+      expect(name).not.toMatch(/execute|invoke|dispatch|complete/u);
+      expect(/\brun\b/u.test(name.replace(/run-plan/gu, "plan"))).toBe(false);
+    }
+    expect(names).toContain("run-plan.prepare");
+    expect(names).not.toContain("run-plan.execute");
+    expect(names).not.toContain("packages.run");
+    expect(names).not.toContain("workflow.run");
+  });
+
+  it("makes the router probe the only operation that can reach a model", () => {
+    // One operation spends tokens, it is a write action, and it is a developer
+    // conformance probe rather than a run: its own output schema says so.
+    expect(contract.operations["router.probe"].kind).toBe("action");
+    expect(contract.operations["router.probe"].tool).toBeUndefined();
+    expect(contract.operations["router.probe"].description).toContain("not an agent run");
+    const output = JSON.stringify(contract.operations["router.probe"].output);
+    expect(output).toContain('"workflowExecuted"');
+    expect(output).toContain('"const":false');
+  });
+
+  it("lets the probe caller choose nothing except which plan it believes is current", () => {
+    const input = contract.operations["router.probe"].input as {
+      properties: Record<string, unknown>;
+      required?: string[];
+    };
+    expect(Object.keys(input.properties).sort()).toEqual([
+      "runPlanId",
+      "runPlanSha256",
+      "sessionId",
+    ]);
+    // No prompt, no schema, no model, no budget: the request is host-owned.
+    for (const forbidden of ["prompt", "model", "modelId", "schema", "maxOutputTokens", "input"]) {
+      expect(input.properties[forbidden]).toBeUndefined();
+    }
+  });
+
+  it("keeps run-plan preparation a write action and its reads queries", () => {
+    expect(contract.operations["run-plan.prepare"].kind).toBe("action");
+    expect(contract.operations["run-plan.clear"].kind).toBe("action");
+    expect(contract.operations["run-plan.get"].kind).toBe("query");
+    expect(contract.operations["models.evaluate"].kind).toBe("query");
   });
 
   it("bounds every input and output schema", () => {

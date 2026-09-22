@@ -231,6 +231,51 @@ export class ControlPlaneClient {
     });
   }
 
+  /** Evaluate a host-supplied model catalog against one open package. */
+  evaluateModels(sessionId: string, packageDigest: string, catalog: unknown): Promise<unknown> {
+    return this.request(
+      `/v0/packages/${segment(sessionId, SESSION_ID, "session id")}/models/evaluate`,
+      { method: "POST", body: { package_digest: packageDigest, catalog } },
+    );
+  }
+
+  modelRequirements(sessionId: string): Promise<unknown> {
+    return this.request(`/v0/packages/${segment(sessionId, SESSION_ID, "session id")}/models`);
+  }
+
+  prepareRunPlan(
+    sessionId: string,
+    body: {
+      packageDigest: string;
+      receiptId: string;
+      modelId: string;
+      executionMode: string;
+      catalog: unknown;
+    },
+  ): Promise<unknown> {
+    return this.request(`/v0/packages/${segment(sessionId, SESSION_ID, "session id")}/run-plan`, {
+      method: "POST",
+      body: {
+        package_digest: body.packageDigest,
+        receipt_id: body.receiptId,
+        model_id: body.modelId,
+        execution_mode: body.executionMode,
+        binding_strategy: "single_model",
+        catalog: body.catalog,
+      },
+    });
+  }
+
+  getRunPlan(sessionId: string): Promise<unknown> {
+    return this.request(`/v0/packages/${segment(sessionId, SESSION_ID, "session id")}/run-plan`);
+  }
+
+  clearRunPlan(sessionId: string): Promise<unknown> {
+    return this.request(`/v0/packages/${segment(sessionId, SESSION_ID, "session id")}/run-plan`, {
+      method: "DELETE",
+    });
+  }
+
   closeSession(sessionId: string): Promise<unknown> {
     return this.request(`/v0/packages/${segment(sessionId, SESSION_ID, "session id")}`, {
       method: "DELETE",

@@ -102,7 +102,7 @@ The profile supports only packaged local worker roles, depth **one**, with the c
 
 ## 7. Model-router contract
 
-The host supplies the `ModelRouter` protocol in `interfaces.py`. No new vendor/OpenClaw/Muse integration is introduced. Existing optional generic HTTP router support remains a host adapter.
+The host supplies the `ModelRouter` protocol in `interfaces.py`. No vendor integration is part of this profile. Host adapters are separate: the existing optional generic HTTP router, and `agentpkg.hostbridge.HostBridgeModelRouter`, which binds the exact model an Agent Browser run plan recorded and reaches it through OpenClaw over a private stdio protocol (see [the model-router bridge](../docs/model-router-bridge.md)). The interpreter still selects no provider and knows no vendor.
 
 ```python
 await router.count_tokens(request) -> nonnegative_integer

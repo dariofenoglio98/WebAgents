@@ -7,8 +7,8 @@
     "valid": true,
     "pluginId": "agent-browser",
     "artifact": {
-      "sha256": "abc08b0de2edd29b493c3e606c7c233bb82db2b11b4a00a7e99f360d0bd36d2f",
-      "bytes": 81312
+      "sha256": "eb3610bd328730f3082afbb711c59b51e976f0f1e574e150e2ec258a80e2f010",
+      "bytes": 91477
     }
   },
   "install": {
@@ -28,8 +28,8 @@
     ]
   },
   "tests": {
-    "numTotalTests": 61,
-    "numPassedTests": 61,
+    "numTotalTests": 103,
+    "numPassedTests": 103,
     "numFailedTests": 0
   }
 }

@@ -2,10 +2,19 @@
 
 The first visible piece of "OpenClaw as an agent-native browser": a native
 Control UI page where an operator opens a signed `agent.pkg`, sees exactly what
-it is and what it asks for, and records an authorization decision.
+it is and what it asks for, records an authorization decision, chooses one of the
+models this OpenClaw host actually has, and prepares an immutable run plan.
 
-**Nothing is executed.** This milestone stops at an authorization receipt; there
-is no Run action anywhere in the plugin.
+**No package is executed.** The page stops at a prepared run plan; there is no
+Run action anywhere in it, and no workflow, worker or package tool ever runs.
+
+One operator-only action the page does not render, `router.probe`, re-verifies a
+ready plan and makes a single host-owned model call through the agentpkg
+`ModelRouter` bridge, to prove that contract before anything depends on it. See
+[the model-router bridge](../docs/model-router-bridge.md). It requires the
+operator opt-in `plugins.entries.agent-browser.llm.allowModelOverride: true`,
+because binding an exact model is a privilege OpenClaw grants rather than one a
+plugin asserts.
 
 ```text
  OpenClaw Control UI  (Agent Browser page)
@@ -17,10 +26,13 @@ is no Run action anywhere in the plugin.
  agentpkg browser-serve         (agentpkgd — the authority for everything below)
         │
         ▼  validation · signatures · publisher trust · permissions · receipts
+        ▼  model compatibility · run plans
 ```
 
-The browser half never receives the control-plane token, never talks to the
-loopback port, and never recomputes validation, trust, authorization or URL
+The backend is the **only** half that knows what OpenClaw is: it reads the host's
+published model catalog and projects it into a provider-neutral descriptor. The
+browser half never receives the control-plane token, never talks to the loopback
+port, and never recomputes validation, trust, authorization, compatibility or URL
 policy. Those live in `agentpkg`, which this plugin only calls.
 
 Tested against **OpenClaw 2026.9.5 (`ec9c1a1`)**. Its plugin APIs are
@@ -39,7 +51,7 @@ experimental; pin and retest on a different host version.
 cd openclaw-agent-browser
 npm install                 # links the pinned openclaw peer for types and tooling
 npm run typecheck
-npm test                    # 61 tests; the integration ones drive a real agentpkgd
+npm test                    # 103 tests; the integration ones drive a real agentpkgd
 npm run build               # tsc + `openclaw plugins build` (manifest + UI bundle)
 npm run validate            # openclaw plugins validate --json
 npm run pack                # openclaw plugins pack --json  -> agent-browser.tgz
@@ -125,7 +137,39 @@ in the Control UI sidebar.
      *The package has NOT executed.*
 8. Set one required permission back to **Deny** and authorize again → not
    runnable, naming the exact permission.
-9. Repeat with `dist/meeting-agenda.agent.pkg`. No plugin code changes.
+9. Scroll to **Model**. It lists what this host reports, each with
+   *Compatible* / *Unverified* / *Incompatible*, its context window, and a
+   *Compatibility details* disclosure giving every requirement, the host's own
+   answer and where that answer came from.
+   - With `model.reasoning` denied, the models still render but **Prepare run**
+     stays disabled and the page names the permission to change.
+   - Set `model.reasoning` to *Allow for session*, authorize again, choose one
+     model, and press **Prepare run**.
+10. **Ready to run** appears with the package, publisher, authorization, model,
+    execution profile, run-plan id and run-plan hash — and *Execution is not
+    enabled in this build.* There is still no Run button.
+11. Repeat with `dist/meeting-agenda.agent.pkg`. No plugin code changes.
+
+### The developer router probe
+
+Not part of the page. It spends a few hundred real tokens on the selected model,
+once, and proves the `ModelRouter` contract end to end:
+
+```sh
+openclaw config patch --stdin <<'JSON'
+{ "plugins": { "entries": { "agent-browser": { "llm": { "allowModelOverride": true } } } } }
+JSON
+
+node scripts/router-probe.mjs \
+  --package ../dist/meeting-agenda.agent.pkg \
+  --model openai/gpt-5.6-luna \
+  --out /tmp/router-probe.json
+```
+
+It walks the same sequence as the page through the live Gateway and then invokes
+`router.probe`. The result names the model that actually answered, whether
+structured output was constrained by the host, the token bound and the real
+bill — and `workflowExecuted: false`.
 
 ## Iterating
 
@@ -145,8 +189,14 @@ in the Control UI sidebar.
 | `src/service.ts` | `agentpkg browser-serve` supervisor: spawn, token, health, stop, reap |
 | `src/control-plane.ts` | Backend-only loopback HTTP client (holds the token) |
 | `src/project.ts` | Control-plane JSON → bounded browser DTOs |
+| `src/host-models.ts` | Host model discovery and its safe projection |
+| `src/host-llm.ts` | The only module that invokes a model: exact binding, constrained output, usage |
+| `src/router-bridge.ts` | Host side of the private JSONL bridge to the `agentpkg host-bridge` child |
+| `src/router-probe.ts` | Run-plan revalidation before any token is spent, and the probe projection |
 | `src/control-ui.ts` | `defineControlUiPlugin`: the page and sidebar entry |
 | `src/ui/page.ts` | The page itself, mountable with a fake client in tests |
 
 Full architecture, trust semantics and limitations:
-[`docs/openclaw-agent-browser.md`](../docs/openclaw-agent-browser.md).
+[`docs/openclaw-agent-browser.md`](../docs/openclaw-agent-browser.md). Model
+discovery, compatibility semantics and the run-plan schema:
+[`docs/model-selection-and-run-plan.md`](../docs/model-selection-and-run-plan.md).

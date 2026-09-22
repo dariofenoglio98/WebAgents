@@ -35,6 +35,10 @@ FORBIDDEN = {
     "network",
     "dev",
     "openclaw",
+    # The trusted model bridge lives in its own namespace and can spend tokens.
+    # The control plane decides *whether* a run may happen; it must stay unable
+    # to be the thing that makes one happen.
+    "hostbridge",
 }
 VALIDATION_ONLY = {"workflow_validation", "workflow_values"}
 
@@ -91,20 +95,46 @@ control.trust_add(
     display_name="development key",
     publisher_id="webagents-research",
 )
+catalog = {{
+    "schema": "agentpkg-host-model-catalog-v0",
+    "host": {{"runtime": "test", "source": "test", "captured_at": "2026-09-21T22:00:00+00:00"}},
+    "models": [{{
+        "id": "host/alpha", "provider_id": "host", "model_id": "alpha",
+        "display_name": "Alpha", "available": True, "selectable": True,
+        "capabilities": {{
+            "reasoning": {{"value": True, "basis": "declared"}},
+            "structured_output": {{"value": True, "basis": "declared"}},
+        }},
+        "limits": {{"context_tokens": 200000}},
+        "properties": {{"local": False, "tags": []}},
+    }}],
+    "notes": [],
+}}
 runnable = []
+plans = []
 for artifact in ({str(ROOT / "dist/literature-review.agent.pkg")!r},
                  {str(ROOT / "dist/meeting-agenda.agent.pkg")!r}):
     summary = control.open_file(artifact)
     session = summary["session"]["id"]
+    digest = summary["package"]["digest"]
     request = control.permissions(session)
-    receipt = control.authorize(
-        session,
-        package_digest=summary["package"]["digest"],
-        decisions={{p["id"]: "session" for p in request["permissions"] if p["required"]}},
-    )
+    decisions = {{p["id"]: "session" for p in request["permissions"] if p["required"]}}
+    decisions.update({{p["id"]: "session" for p in request["permissions"] if p["kind"] == "model"}})
+    receipt = control.authorize(session, package_digest=digest, decisions=decisions)
     runnable.append(receipt["runnable"])
+    # The complete model-selection and run-plan path, including preflight.
+    control.evaluate_models(session, package_digest=digest, catalog=catalog)
+    state = control.prepare_run_plan(
+        session,
+        package_digest=digest,
+        receipt_id=receipt["receipt_id"],
+        model_id="host/alpha",
+        catalog=catalog,
+    )
+    plans.append(state["preflight"]["ready"] and not state["run_plan"]["execution"]["performed"])
 print(json.dumps({{
     "runnable": runnable,
+    "plans": plans,
     "loaded": sorted(m for m in sys.modules if m.startswith("agentpkg.")),
 }}))
 """
@@ -113,6 +143,7 @@ print(json.dumps({{
     )
     report = json.loads(result.stdout.strip().splitlines()[-1])
     assert report["runnable"] == [True, True]
+    assert report["plans"] == [True, True]
     loaded = {name.split(".", 2)[1] for name in report["loaded"] if name.count(".") >= 1}
     assert not loaded & FORBIDDEN, f"execution modules were imported: {sorted(loaded & FORBIDDEN)}"
     # Graph validation is reached; the interpreter that would run that graph is not.
@@ -124,8 +155,22 @@ def test_the_control_plane_exposes_no_execution_entry_point():
     from agentpkg.browser import ControlPlane
 
     operations = {name for name in dir(ControlPlane) if not name.startswith("_")}
+    # `prepare_run_plan` and `run_plan` are preflight; neither dispatches.
     assert not operations & {"run", "execute", "run_workflow", "dispatch", "start"}
     assert {"open_file", "open_url", "summary", "permissions", "authorize"} <= operations
+    assert {"evaluate_models", "prepare_run_plan", "run_plan", "clear_run_plan"} <= operations
+
+
+def test_model_selection_reaches_no_router_or_completion_surface():
+    """The model modules know capability names, never a way to call a model."""
+    from agentpkg.browser import hostmodels, runplan
+
+    for module in (hostmodels, runplan):
+        source = Path(module.__file__).read_text()
+        for banned in ("complete(", "count_tokens", "ModelRouter", "router.", "http", "socket"):
+            assert banned not in source, f"{module.__name__} mentions {banned}"
+        names = {name for name in dir(module) if not name.startswith("_")}
+        assert not names & {"complete", "invoke", "dispatch", "call_model"}
 
 
 def test_receipts_state_that_nothing_was_executed(tmp_path):

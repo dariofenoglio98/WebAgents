@@ -5,9 +5,17 @@ place inside OpenClaw where a person opens an agent package, sees what it is and
 what it wants, and decides. It is a native Control UI page backed by a trusted
 plugin backend that owns the agentpkg control plane.
 
-**Milestone boundary: nothing executes.** The furthest state the plugin can
-reach is *Authorized — ready to run*. There is no Run action, no model call, no
-tool call, and no workflow instantiation anywhere in it.
+**Milestone boundary: no package executes.** The furthest state the *page* can
+reach is a prepared, hashed **run plan**: the package, its authorization, its
+publisher and one explicitly chosen host model, frozen together and marked
+*Ready to run*. There is no Run action and no workflow instantiation anywhere in
+it. Model discovery and selection are documented separately in [model selection
+and the run plan](model-selection-and-run-plan.md).
+
+One operator-only feature action, `router.probe`, is not rendered by the page: it
+re-verifies a ready plan and makes a single host-owned model call to prove the
+`ModelRouter` contract. See [the model-router bridge](model-router-bridge.md).
+No package skill, node, worker or tool takes part in it.
 
 Tested against **OpenClaw 2026.9.5 (`ec9c1a1`)**. Every plugin API used here is
 documented as experimental; this milestone is pinned to that host version.
@@ -59,6 +67,7 @@ lists; every security decision is copied verbatim from
 | `openclaw/plugin-sdk/plugin-entry` · `buildJsonPluginConfigSchema` | Declares operator configuration |
 | `openclaw/plugin-sdk/tool-plugin` · `toolPluginMetadataSymbol` | Reattaches manifest metadata with that config schema (see below) |
 | `openclaw/plugin-sdk/control-ui` · `defineControlUiPlugin` | `registerNavigation` + `registerPage` |
+| `openclaw/plugin-sdk/models-provider-runtime` · `buildModelsProviderData` | Host model discovery: the same published catalog `/models` reads |
 | `api.registerService({ id, start, stop })` | Owns the long-lived control-plane child, with `ctx.serviceHealth` for late failures |
 
 One detail is worth recording because it is version-specific.
@@ -132,11 +141,15 @@ not by this plugin.
 | `packages.get` | query | The full package view for one session |
 | `packages.permissions` | query | The authorization request, all decisions defaulting to deny |
 | `packages.authorization` | query | The receipt issued for a session, or null |
+| `models.evaluate` | query | This host's models, evaluated against the open package |
+| `run-plan.get` | query | The prepared run plan plus a freshly recomputed preflight |
 | `trust.list` | query | Publisher keys pinned by this operator |
 | `packages.open-url` | action | Open an HTTPS package through the control plane |
 | `packages.open-local` | action | Open a file inside an operator-configured root |
 | `packages.close` | action | Close a session and delete its snapshot |
 | `packages.authorize` | action | Record decisions, receive a receipt |
+| `run-plan.prepare` | action | Bind package + authorization + one chosen model into a run plan |
+| `run-plan.clear` | action | Discard the prepared run plan |
 | `trust.pin-session-publisher` | action | Pin the key that signed one open session |
 | `trust.remove` | action | Remove a pin |
 | `service.restart` | action | Restart the control plane |
@@ -151,8 +164,10 @@ operations therefore return `{ ok: true, value } | { ok: false, error }` where
 `error.code` is one of a closed set: `service_unavailable`, `invalid_request`,
 `not_allowed`, `url_rejected`, `download_failed`, `package_rejected`,
 `source_rejected`, `session_expired`, `digest_mismatch`, `trust_conflict`,
-`signature_not_valid`, `limit_reached`, `control_plane_error`. Control-plane
-codes map onto these in one table in `src/errors.ts`.
+`signature_not_valid`, `limit_reached`, `control_plane_error`,
+`model_catalog_unavailable`, `model_unknown`, `run_plan_refused`,
+`run_plan_absent`. Control-plane codes map onto these in one table in
+`src/errors.ts`.
 
 **Projection, not pass-through.** The page receives explicitly enumerated
 camelCase DTOs with every list bounded (`src/project.ts`, `src/contract.ts`).
@@ -173,8 +188,9 @@ fails loudly instead of leaking.
 | Package contents | Tabs: Overview (capabilities, skills), Tools, Workers, Workflow, Evals & attestations, Technical details |
 | Permissions | Required and optional groups, one select each, deny by default |
 | Declared limits | Budgets and delegation, labelled as runtime-enforced |
-| Model requirements | Declared tasks, plus "model selection happens at run time" |
 | Authorization | Authorize button, outcome, blocking reasons, expandable receipt |
+| Model | Declared requirements; after authorization, this host's models with Compatible / Unverified / Incompatible, per-requirement detail, an explicit choice, and **Prepare run** |
+| Run plan | *Ready to run*, the binding it froze, its hash, and "Execution is not enabled in this build." |
 
 Presentation is entirely generic: there is no package-ID branch, and the two
 reference packages differ on screen only because they declare different things.
@@ -275,11 +291,16 @@ it.
 
 ## 9. What this milestone does not do
 
-* **No execution.** No workflow instantiation, worker creation, model call, tool
-  call, Citation Resolver call, PDF read or output write. There is no Run
+* **No package execution.** No workflow instantiation, worker creation, package
+  tool call, Citation Resolver call, PDF read or output write. There is no Run
   action, and `executionPerformed` is a literal `false` in the contract.
-* **No model selection.** The model panel shows declared requirements and states
-  that selection happens at run time.
+* **No model inference from the page.** Model *discovery* is allowed and
+  *selection* is offered; the page calls no model. The one operation that does —
+  the operator-only `router.probe` — is documented in [the model-router
+  bridge](model-router-bridge.md) and sends a host-owned request, never package
+  content.
+* **No automatic or best-model selection**, no per-worker or per-node routing,
+  no fallback chains, no cost optimization and no quality ranking.
 * **No NANDA, Muse, Instinct or Maritime.** The address bar takes raw HTTPS URLs.
 * **No persistent authorization.** Receipts live and die with their control-plane
   session, which is why *Always* is not offered.
@@ -315,29 +336,39 @@ packs, installs into a throwaway OpenClaw configuration, inspects what the host
 loaded, and runs the test suite. Saved output:
 [`agent-browser-plugin.json`](../examples/verification/agent-browser-plugin.json).
 
-61 tests cover the contract, the supervisor against a real `agentpkg
+103 tests cover the contract, the supervisor against a real `agentpkg
 browser-serve` child, the backend against a real control plane with both shipped
-packages, the page in a DOM, and the plugin registration contract.
+packages, host model discovery against a stubbed OpenClaw catalog, run-plan
+preparation and staleness end to end, the page in a DOM, and the plugin
+registration contract.
 
-## 12. Before the next milestone (model selection and RUN)
+A separate record of the same flow driven against the operator's real OpenClaw
+2026.9.5 host — including the models it actually reported — is
+[`model-selection-run-plan.json`](../examples/verification/model-selection-run-plan.json).
 
-1. **A receipt is consent, not a capability.** The runner must re-open the
-   snapshot, re-check the digest and archive hash, re-evaluate trust, and map
-   decisions onto runtime grants before executing anything.
+## 12. Before the next milestone (execution)
+
+1. **A receipt is consent, not a capability, and neither is a run plan.** The
+   runner must re-open the snapshot, re-check the digest and archive hash,
+   re-evaluate trust, re-confirm the model, re-run the run plan's preflight, and
+   map decisions onto runtime grants before executing anything.
 2. **Where run output goes.** The page currently has no place for an audit
    stream, usage counters or exports; that is a new UI surface, not a variation
    of this one.
-3. **Model selection needs its own trust story.** OpenClaw's model catalog and
-   router are the natural source, but the control plane's budget guarantees
-   depend on a router that reports usage honestly — the earlier integration
-   notes on advisory token caps still apply.
+3. **The router adapter is the missing piece.** `workflow.v0` checks capabilities
+   against the *router*, not the raw model. An OpenClaw `ModelRouter` adapter must
+   declare what it can actually deliver for a bound model, and the control plane's
+   budget guarantees still depend on a router that reports usage honestly — the
+   earlier integration notes on advisory token caps apply.
 4. **Persistent authorization.** Offering *Always* requires a real host
    authorization store with its own revocation and review surface.
 5. **Long operations.** Execution needs cancellation and progress; the current
    single "Opening and verifying package…" state deliberately invents no
    progress and would not be enough for a run.
 
-See also: [the control plane](browser-control-plane.md), [its milestone
+See also: [the control plane](browser-control-plane.md), [model selection and the
+run plan](model-selection-and-run-plan.md) with its [milestone
+report](model-selection-report.md), [the control plane's milestone
 report](browser-report.md), [the legacy staging
 adapter](openclaw-integration.md), and the plugin's own
 [README](../openclaw-agent-browser/README.md).
