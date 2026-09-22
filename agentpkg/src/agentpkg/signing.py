@@ -114,6 +114,38 @@ def sign_package(
     return path
 
 
+def embedded_public_key(signature: dict) -> Ed25519PublicKey:
+    """Decode the key carried inside an artifact. This is NEVER a trust anchor.
+
+    It answers only "is this envelope internally consistent?". Deciding that a
+    key belongs to an accepted publisher is a separate host trust operation.
+    """
+    try:
+        raw = base64.b64decode(signature["public_key"], validate=True)
+        key = Ed25519PublicKey.from_public_bytes(raw)
+    except (ValueError, TypeError) as exc:
+        raise SignatureError("embedded publisher key is not a raw Ed25519 public key") from exc
+    if signature["key_fingerprint"] != fingerprint(key):
+        raise SignatureError("embedded key fingerprint does not match the embedded key")
+    return key
+
+
+def check_signature(package, public_key: Ed25519PublicKey) -> None:
+    """Check digest binding and the domain-separated transcript against one key."""
+    signature = package.signature
+    if signature is None:
+        raise SignatureError("publisher signature missing; build and sign the artifact first")
+    if signature["digest"] != package.digest:
+        raise SignatureError("signed digest differs from package integrity statement")
+    try:
+        public_key.verify(
+            base64.b64decode(signature["signature"], validate=True),
+            DOMAIN + canonical_json(package.integrity),
+        )
+    except (InvalidSignature, ValueError, TypeError) as exc:
+        raise SignatureError("invalid Ed25519 publisher signature") from exc
+
+
 def verify_package(path: str | Path, trusted_key: str | Path) -> dict:
     package = load_package(path)
     if not package.is_archive or package.signature is None:
@@ -125,15 +157,7 @@ def verify_package(path: str | Path, trusted_key: str | Path) -> dict:
     trusted = public.public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw)
     if signature["key_fingerprint"] != expected or embedded != trusted:
         raise SignatureError("publisher key is not the host-pinned trusted key")
-    if signature["digest"] != package.digest:
-        raise SignatureError("signed digest differs from package integrity statement")
-    try:
-        public.verify(
-            base64.b64decode(signature["signature"], validate=True),
-            DOMAIN + canonical_json(package.integrity),
-        )
-    except (InvalidSignature, ValueError) as exc:
-        raise SignatureError("invalid Ed25519 publisher signature") from exc
+    check_signature(package, public)
     return {
         "valid": True,
         "digest": package.digest,

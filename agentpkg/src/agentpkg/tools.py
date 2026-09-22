@@ -6,7 +6,6 @@ import asyncio
 import hashlib
 import http.client
 import io
-import ipaddress
 import json
 import multiprocessing
 import os
@@ -19,6 +18,7 @@ from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import urlencode, urlsplit
 
+from .netaddr import public_address_reason
 from .runtime import PolicyError
 
 MAX_RESPONSE_BYTES = 4 * 1024 * 1024
@@ -74,7 +74,7 @@ def request_json(url, *, method, payload=None, timeout=40, allowed_domains=(), h
         addresses = sorted(
             {a[4][0] for a in socket.getaddrinfo(parts.hostname, 443, type=socket.SOCK_STREAM)}
         )
-        if not addresses or any(not ipaddress.ip_address(a).is_global for a in addresses):
+        if not addresses or any(public_address_reason(a) for a in addresses):
             raise PolicyError("DNS destination is not public; private/loopback access denied")
         body = None if payload is None else json.dumps(payload, allow_nan=False).encode()
         if body and len(body) > MAX_RESPONSE_BYTES:

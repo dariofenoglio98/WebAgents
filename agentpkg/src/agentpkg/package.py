@@ -14,7 +14,7 @@ from pathlib import Path, PurePosixPath
 
 import rfc8785
 
-from .errors import ValidationError
+from .errors import IntegrityError, ValidationError
 from .validation import parse_json, validate_document, validate_payload
 
 MAX_FILES = 256
@@ -270,11 +270,37 @@ def _archive_files(path):
             for name in files
             if name in statement["files"] and statement["files"][name] != expected["files"][name]
         ]
-        raise ValidationError(
+        raise IntegrityError(
             f"content integrity mismatch: missing={sorted(missing)}, "
             f"extra={sorted(extra)}, changed={changed}"
         )
     return files, statement, signature
+
+
+def read_archive(path: str | Path):
+    """Container and integrity layers only: returns (payload, integrity, signature).
+
+    Structural, portability and resource failures raise `ValidationError`; a
+    payload that contradicts its own integrity statement raises the narrower
+    `IntegrityError`. Callers that need the parsed manifest use `load_package`.
+    """
+    return _archive_files(Path(path))
+
+
+def read_regular_bytes(path: str | Path, limit: int) -> bytes:
+    """Read one bounded snapshot; do not follow a symlink at the final component."""
+    path = Path(path)
+    try:
+        fd = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        with os.fdopen(fd, "rb") as stream:
+            if not stat.S_ISREG(os.fstat(stream.fileno()).st_mode):
+                raise ValidationError(f"Expected a regular file: {path}")
+            value = stream.read(limit + 1)
+    except OSError as exc:
+        raise ValidationError(f"Cannot read regular file {path}: {exc.strerror}") from exc
+    if len(value) > limit:
+        raise ValidationError(f"Input exceeds the adapter's {limit}-byte limit: {path}")
+    return value
 
 
 def load_package(path: str | Path) -> Package:

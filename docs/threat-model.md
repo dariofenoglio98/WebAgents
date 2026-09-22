@@ -52,6 +52,52 @@ The primary tests exercise deterministic archive/signature failures, invalid ref
 Before production use, the next security milestone is an independently reviewed host boundary with strongly isolated file/network handlers, provider-specific usage reservations, malicious-document/skill evaluations, and externally managed publisher-key trust. See [OpenClaw integration](openclaw-integration.md) for inspected SDK capabilities and their limits.
 
 
+## Browser control-plane boundary
+
+The [agent browser control plane](browser-control-plane.md) adds a trusted local
+service in front of the runtime. It opens, validates, verifies, inspects and
+authorizes packages, and executes nothing. Its additions to this model are:
+
+| Threat | Control and remaining limit |
+|---|---|
+| A package URL used as an SSRF primitive | HTTPS/443 only, no credentials or redirects, every resolved address classified against `agentpkg.netaddr` (loopback, private, link-local, multicast, reserved, unspecified, cloud metadata, IPv4-mapped, 6to4, Teredo, NAT64), connection pinned to the validated address with TLS still bound to the hostname, byte cap and one deadline, all inside a killable child. Local files are a separate operator operation. No proxy, revocation or registry allowlist exists. |
+| Verify-then-reload substitution | Bytes are captured once, hashed, written to a private `0600` snapshot, rehashed, and every later answer comes from that snapshot. Source paths/URLs become metadata. |
+| A valid signature presented as identity | `signature_status` and `trust_status` are separate fields. An embedded key is never a trust anchor; only an operator pin in the local trust store yields `trusted`, and a claimed publisher pinned to other keys reports `mismatch`. No PKI, revocation, transparency log or NANDA authority exists in v0. |
+| A package granting itself authority | Decisions default to `deny`, are supplied only through the authenticated API, and are bound into a receipt with the package digest, archive hash, signer fingerprint and trust-store state. No package operation can write the trust store. |
+| A stale UI authorizing different bytes | `authorize` requires the caller to echo the digest it displayed; a mismatch is refused. Receipts cannot be replayed across packages sharing an ID and version. |
+| A local web page reaching the service | Loopback-only binding with no public mode, a random per-process bearer token, refusal of any request carrying browser origin headers or a non-loopback `Host`, and no CORS headers. A process already running as the same user can read the token file; that is out of scope here, as elsewhere in this prototype. |
+| Unbounded local state | Session TTLs, session counts, cache byte caps, explicit close, startup sweep of the service's own stale snapshots, and purge on termination. |
+| Control-plane scope creep into execution | No browser module imports the interpreter, mediator, tool, model, fixture or transport modules, at module level or lazily; an AST scan and a fresh-interpreter `sys.modules` check enforce it. Authorization produces a receipt, never a run. |
+
+A misleading `always` grant is deliberately refused rather than displayed: the
+runtime's `always` is not persistent, and no host authorization store exists yet.
+
+
+## Agent Browser plugin boundary
+
+The [Agent Browser feature plugin](openclaw-agent-browser.md) puts a native
+OpenClaw Control UI page in front of the control plane. It adds a browser-facing
+surface, so it adds these concerns:
+
+| Threat | Control and remaining limit |
+|---|---|
+| A secret reaching browser code | The control-plane bearer token is read once from a 0600 file written by the child, deleted immediately, and kept only in the Gateway process. No feature operation can return it, and a test asserts the exact token string appears in no operation output. `agentpkg browser-serve --quiet` keeps it out of the child's stdout so it cannot reach host logs. |
+| A page reaching the control plane directly | The browser never learns the loopback port, and the control plane refuses any request carrying browser fetch-metadata headers. Node's own `fetch` is refused for the same reason, so the backend uses `node:http` with an explicit minimal header set rather than relaxing the rule. |
+| Package text becoming markup | Every package-provided string reaches the DOM through `textContent`; the plugin's browser code contains no `innerHTML`, and a hostile-string fixture is tested. |
+| A valid signature reading as a trusted publisher | Validation layers, signature status and trust status are rendered as separate, differently styled facts. Trust states are copied from the control plane, never recomputed in TypeScript. |
+| Silent or accidental publisher trust | Pinning is offered only for a valid signature from an unknown key, defaults to the narrowest scope, and requires two deliberate presses. The key is taken from that session's own verified envelope: the browser never handles key material, and the control plane refuses a fingerprint that differs from the one displayed. No trust-on-first-use exists. |
+| A package authorizing itself | Every permission renders as denied regardless of publisher trust, only `deny`/`once`/`session` are offered, and authorization echoes the displayed digest, which the control plane verifies. |
+| Unbounded browser payloads | Every contract field carries an explicit length or item bound, and the backend projects and truncates before returning. Unknown request fields are refused by SDK schema validation on both sides. |
+| Filesystem reach from a web page | Local opening is limited to operator-configured absolute roots, `.agent.pkg` only, with symlink escapes resolved and refused. There is no browser-side file access. |
+| Orphaned or duplicated host processes | Single-flight start, one child per plugin instance, an identity-checked reap that verifies a live pid's own argv before signalling, and SIGTERM→SIGKILL on stop. Reaping uses `ps`, so it is POSIX-only. |
+| Privilege confusion in the UI | Queries require `operator.read` and actions `operator.write`, enforced by the SDK. A read-only operator sees the page with disabled controls and no Authorize action. |
+
+Native Control UI runs trusted JavaScript with the signed-in operator's Gateway
+authority, and it is an experimental OpenClaw lab that is off by default. The
+plugin is therefore kept narrow: one page, no agent-callable tool, no HTTP
+route, and no execution path of any kind.
+
+
 ## workflow.v0 boundary
 
 The generic interpreter accepts only the closed graph/data-constructor vocabulary.

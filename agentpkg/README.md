@@ -12,6 +12,18 @@ agentpkg/.venv/bin/agentpkg --help
 
 `run PACKAGE --mode fixture --grants HOST_GRANTS.json --out NEW_DIRECTORY` executes any workflow.v0 package. Optional `--input JSON` must satisfy its input schema; without it fixture mode uses the package's declared sample input. Optional `--limits JSON` can lower global token/remote-call/parallelism ceilings. `--trust-key PUBLIC.pem` authenticates the artifact and is mandatory in live mode. `eval PACKAGE` runs the package-owned fixture through the same interpreter under test grants. Neither command imports an application workflow.
 
+`browser-serve` runs the loopback [agent browser control plane](../docs/browser-control-plane.md):
+package opening, immutable snapshots, layered validation, signature checking,
+publisher-trust evaluation, inspection and authorization receipts. It binds only
+a loopback address, requires a bearer token, and executes nothing. `trust
+list|add|remove` manages the operator's publisher key pins, which are the input
+to `trust_status` and live outside every package.
+
+```sh
+agentpkg trust add --public-key PUBLISHER.pem --display-name "Name" --publisher-id claimed-id
+agentpkg browser-serve --host 127.0.0.1 --port 8765 --token-file /run/agentpkg.token
+```
+
 For a host integration:
 
 ```python

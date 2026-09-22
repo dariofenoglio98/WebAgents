@@ -1,0 +1,61 @@
+{
+  "id": "agent-browser",
+  "name": "Agent Browser",
+  "description": "Open, inspect and authorize signed agent packages through the local agentpkg control plane. Nothing is executed.",
+  "version": "0.1.0",
+  "categories": [
+    "developer-tools"
+  ],
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "agentpkgPath": {
+        "type": "string",
+        "description": "Absolute path to the agentpkg executable that provides `agentpkg browser-serve`."
+      },
+      "localPackages": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "roots": {
+            "type": "array",
+            "maxItems": 8,
+            "items": {
+              "type": "string"
+            },
+            "description": "Absolute directories the Agent Browser may open .agent.pkg files from."
+          },
+          "includeWorkspace": {
+            "type": "boolean",
+            "description": "Also allow the OpenClaw workspace directory. Defaults to true."
+          }
+        }
+      },
+      "sessionTtlSeconds": {
+        "type": "integer",
+        "minimum": 60,
+        "maximum": 86400,
+        "description": "Package session lifetime in the control plane."
+      },
+      "maxSessions": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 32,
+        "description": "Maximum concurrently open package sessions."
+      }
+    }
+  },
+  "activation": {
+    "onStartup": true
+  },
+  "controlUi": {
+    "entry": "dist/control-ui/6b46ecaa591c444123f48e22b9265874825c0c00c5259a1f988a67a133074b94/index.js",
+    "styles": [
+      "dist/control-ui/6b46ecaa591c444123f48e22b9265874825c0c00c5259a1f988a67a133074b94/index.css"
+    ]
+  },
+  "contracts": {
+    "tools": []
+  }
+}

@@ -1,5 +1,14 @@
 # OpenClaw integration: a verified workspace adapter
 
+> **Scope note.** This adapter is the **legacy/current compatibility bridge**:
+> it verifies an artifact and stages a workspace of supported `SKILL.md`
+> wrappers. The native Agent Browser experience is now the separate
+> [browser control plane](browser-control-plane.md) plus the
+> [Agent Browser feature plugin](openclaw-agent-browser.md). Both paths remain
+> supported; wrapper-SKILL staging is not being extended into the browser
+> architecture.
+
+
 The adapter verifies a signed `.agent.pkg` with an **operator-selected Ed25519 public key**, then stages a new workspace that OpenClaw can discover through its supported skills interface. It does not change OpenClaw core, enable plugins, alter personal configuration, select a model, or grant runtime permissions.
 
 The environment inspected for this implementation reports **OpenClaw 2026.9.5 (`ec9c1a1`)**. Its installed public documentation was read at `/opt/homebrew/lib/node_modules/openclaw/docs`: `tools/skills.md`, `cli/skills.md`, `cli/agent.md`, `help/environment.md`, `plugins/sdk-runtime/models.md`, `plugins/sdk-runtime/background-work.md`, and `gateway/openresponses-http-api.md`. Paths identify the inspected development installation; they are not embedded in packages.
@@ -74,3 +83,18 @@ A future host plugin should expose only package-authorized tools and bounded, to
 | Persistent memory deletion/encryption | Not provisioned by adapter | No guarantee inferred from memory metadata |
 
 This realizes the PDF's browser-seed path—downloaded package, verification, permission inspection, supported instruction loading—while keeping the stronger future browser claims separate (PDF sections 2, 9, 14, 16, 17, and 21).
+
+## Where this went next
+
+The staged workspace gives OpenClaw *discovery* of a verified package. It does
+not give a user a package browser: there is no place to see layered validation,
+distinguish a self-consistent signature from a trusted publisher, review
+requested permissions, or record an authorization decision.
+
+Those operations live in the [browser control plane](browser-control-plane.md),
+behind an authenticated loopback API returning bounded JSON, and the
+[Agent Browser feature plugin](openclaw-agent-browser.md) now renders them as a
+native Control UI page. It is pinned to **OpenClaw 2026.9.5 (`ec9c1a1`)** and
+uses `openclaw/plugin-sdk/feature-contract`, `feature-plugin` and `control-ui`.
+It reimplements no verification, trust or permission semantics, and it executes
+nothing.

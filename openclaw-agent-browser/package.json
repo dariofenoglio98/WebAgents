@@ -1,0 +1,46 @@
+{
+  "name": "openclaw-agent-browser",
+  "version": "0.1.0",
+  "description": "OpenClaw Agent Browser: open, verify and authorize signed agent.pkg packages through the local agentpkg control plane.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build": "tsc -p tsconfig.json && openclaw plugins build",
+    "test": "vitest run",
+    "validate": "openclaw plugins validate --json",
+    "pack": "openclaw plugins pack --json",
+    "verify": "node scripts/verify.mjs"
+  },
+  "files": [
+    "dist",
+    "openclaw.plugin.json",
+    "README.md"
+  ],
+  "peerDependencies": {
+    "openclaw": ">=2026.9.5"
+  },
+  "dependencies": {
+    "typebox": "^1.3.17"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "esbuild": "0.28.2",
+    "happy-dom": "^20.0.0",
+    "openclaw": "2026.9.5",
+    "typescript": "^5.9.0",
+    "vitest": "^5.0.1"
+  },
+  "openclaw": {
+    "extensions": [
+      "./dist/index.js"
+    ],
+    "controlUi": "./src/control-ui.ts",
+    "compat": {
+      "pluginApi": ">=2026.9.5"
+    },
+    "build": {
+      "openclawVersion": "2026.9.5"
+    }
+  }
+}

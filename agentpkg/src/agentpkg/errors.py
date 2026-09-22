@@ -9,6 +9,10 @@ class ValidationError(AgentPkgError):
     """Invalid format, archive, schema, or semantic reference."""
 
 
+class IntegrityError(ValidationError):
+    """Archive structure parsed, but payload hashes contradict the integrity statement."""
+
+
 class SignatureError(AgentPkgError):
     """Missing, invalid, or untrusted publisher signature."""
 

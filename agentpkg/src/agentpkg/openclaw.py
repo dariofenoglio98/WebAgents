@@ -10,13 +10,12 @@ import hashlib
 import json
 import os
 import re
-import stat
 import tempfile
 from pathlib import Path, PurePosixPath
 from typing import Any
 
 from .errors import AgentPkgError
-from .package import load_package, permissions_summary
+from .package import load_package, permissions_summary, read_regular_bytes
 from .signing import verify_package
 
 _MAX_ARCHIVE_BYTES = 64 * 1024 * 1024
@@ -25,17 +24,7 @@ _MAX_KEY_BYTES = 16 * 1024
 
 def _read_regular(path: Path, limit: int) -> bytes:
     """Read one bounded snapshot; do not follow an input-file symlink."""
-    try:
-        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
-        with os.fdopen(fd, "rb") as stream:
-            if not stat.S_ISREG(os.fstat(stream.fileno()).st_mode):
-                raise AgentPkgError(f"Expected a regular file: {path}")
-            value = stream.read(limit + 1)
-    except OSError as exc:
-        raise AgentPkgError(f"Cannot read regular file {path}: {exc.strerror}") from exc
-    if len(value) > limit:
-        raise AgentPkgError(f"Input exceeds the adapter's {limit}-byte limit: {path}")
-    return value
+    return read_regular_bytes(path, limit)
 
 
 def _open_parent(path: Path) -> tuple[int, str]:
