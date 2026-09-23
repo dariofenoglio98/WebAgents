@@ -29,6 +29,12 @@ from agentpkg.package import write_new
 
 ROOT = Path(__file__).resolve().parents[1]
 DEV_KEY = ROOT / "examples/keys/workflow-publisher.pub.pem"
+AGENDA_KEY = ROOT / "examples/keys/meeting-agenda-publisher.pub.pem"
+# One explicit pin per shipped signer key, each as narrow as it can be.
+SHIPPED_KEYS = (
+    (DEV_KEY, "WebAgents development key", "org.webagents.literature-review"),
+    (AGENDA_KEY, "WebAgents Meeting Agenda signing key", "org.webagents.meeting-agenda"),
+)
 PACKAGES = ("literature-review", "meeting-agenda")
 BLOCKED_DESTINATIONS = (
     "127.0.0.1",
@@ -169,17 +175,18 @@ def verify_all() -> dict:
                 assert summary["publisher"]["trust_status"] == "unknown"
                 untrusted[name] = summary["session"]["id"]
 
-            code, pinned = call(
-                "POST",
-                "/v0/trust",
-                {
-                    "public_key_pem": DEV_KEY.read_text(),
-                    "display_name": "WebAgents development key",
-                    "publisher_id": "webagents-research",
-                    "package_id_prefix": "org.webagents.",
-                },
-            )
-            assert code == 201
+            for key, label, prefix in SHIPPED_KEYS:
+                code, pinned = call(
+                    "POST",
+                    "/v0/trust",
+                    {
+                        "public_key_pem": key.read_text(),
+                        "display_name": label,
+                        "publisher_id": "webagents-research",
+                        "package_id_prefix": prefix,
+                    },
+                )
+                assert code == 201
             trust_state = pinned["trust_store"]
 
             for name in PACKAGES:

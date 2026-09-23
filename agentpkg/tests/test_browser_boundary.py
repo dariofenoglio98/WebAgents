@@ -16,6 +16,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from shipped_keys import AGENDA_KEY, DIST, ORIGINAL_KEY
+
 ROOT = Path(__file__).resolve().parents[2]
 BROWSER = ROOT / "agentpkg/src/agentpkg/browser"
 # Execution modules: the interpreter, the authority mediator that dispatches to
@@ -91,9 +93,15 @@ control = ControlPlane(
     )
 )
 control.trust_add(
-    read_public_key_file({str(ROOT / "examples/keys/workflow-publisher.pub.pem")!r}),
+    read_public_key_file({str(ORIGINAL_KEY)!r}),
     display_name="development key",
     publisher_id="webagents-research",
+)
+control.trust_add(
+    read_public_key_file({str(AGENDA_KEY)!r}),
+    display_name="meeting agenda signing key",
+    publisher_id="webagents-research",
+    package_id_prefix="org.webagents.meeting-agenda",
 )
 catalog = {{
     "schema": "agentpkg-host-model-catalog-v0",
@@ -112,8 +120,8 @@ catalog = {{
 }}
 runnable = []
 plans = []
-for artifact in ({str(ROOT / "dist/literature-review.agent.pkg")!r},
-                 {str(ROOT / "dist/meeting-agenda.agent.pkg")!r}):
+for artifact in ({str(DIST["literature-review"])!r},
+                 {str(DIST["meeting-agenda"])!r}):
     summary = control.open_file(artifact)
     session = summary["session"]["id"]
     digest = summary["package"]["digest"]

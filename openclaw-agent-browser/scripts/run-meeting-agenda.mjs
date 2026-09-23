@@ -137,13 +137,29 @@ async function main() {
   const opened = await call("packages.open-local", { path: args.package });
   const sessionId = opened.sessionId;
   try {
+    // What the host thought of this signer *before* anyone decided anything.
+    // A rotated signing key shows up here as `unknown`, or as `mismatch` when
+    // another key is already pinned for the same claimed publisher.
+    const trust = {
+      statusOnOpen: opened.publisher.trustStatus,
+      reasonOnOpen: opened.publisher.trustReason ?? null,
+      signerFingerprint: opened.publisher.signerFingerprint,
+      pinned: false,
+      scope: null,
+    };
     if (opened.publisher.trustStatus !== "trusted") {
-      await call("trust.pin-session-publisher", {
+      // The narrowest scope the trust store offers: this key, for this package
+      // id, and nothing else in the publisher's namespace.
+      const pinned = await call("trust.pin-session-publisher", {
         sessionId,
         signerFingerprint: opened.publisher.signerFingerprint,
-        scope: "publisher",
+        scope: "package",
       });
+      trust.pinned = true;
+      trust.scope = "package";
+      trust.packageIdPrefix = pinned.pinned?.packageIdPrefix ?? null;
     }
+    report.steps.trust = trust;
     const view = await call("packages.get", { sessionId });
     report.steps.package = {
       packageId: view.identity.packageId,

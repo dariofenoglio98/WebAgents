@@ -64,8 +64,46 @@ describe("constrained output requests", () => {
     });
   });
 
+  it("inlines a $ref root so a bundled package schema can be constrained", () => {
+    // This is the exact shape `Workflow._model_schema` produces: one closed
+    // document, every package-relative reference moved into `$defs`, and a root
+    // that is nothing but a pointer into it. Before this was handled, every
+    // package node asked for no constraint at all.
+    const bundled = {
+      $ref: "#/$defs/s2",
+      $defs: {
+        s2: { type: "array", items: { $ref: "#/$defs/s1" } },
+        s1: {
+          type: "object",
+          required: ["role"],
+          properties: { role: { type: "string" } },
+          additionalProperties: false,
+        },
+      },
+    };
+    const mapped = responseFormatFor(bundled);
+    const json = (mapped?.format as { json_schema: Record<string, unknown> }).json_schema;
+    // The root now states what it describes, and `$defs` still resolves the
+    // inner reference, so the document remains closed and self-contained.
+    expect(json.schema).toEqual({
+      type: "array",
+      items: { $ref: "#/$defs/s1" },
+      $defs: bundled.$defs,
+    });
+  });
+
+  it("carries an array root, which a package is entitled to declare", () => {
+    const mapped = responseFormatFor({ type: "array", items: { type: "string" } });
+    const json = (mapped?.format as { json_schema: Record<string, unknown> }).json_schema;
+    expect(json.schema).toEqual({ type: "array", items: { type: "string" } });
+  });
+
   it("declines rather than inventing a constraint it cannot express", () => {
-    expect(responseFormatFor({ type: "array", items: { type: "string" } })).toBeNull();
+    // No stated root type: there is nothing for a provider to constrain.
+    expect(responseFormatFor({ properties: { a: { type: "string" } } })).toBeNull();
+    // A root reference that leads nowhere is left as the unusable thing it is.
+    expect(responseFormatFor({ $ref: "#/$defs/missing", $defs: {} })).toBeNull();
+    expect(responseFormatFor({ $ref: "https://example.test/s.json" })).toBeNull();
     expect(responseFormatFor(true)).toBeNull();
     expect(responseFormatFor(undefined)).toBeNull();
     const huge = {
@@ -84,7 +122,7 @@ describe("constrained output requests", () => {
       modelId: "acme/big",
       system: "s",
       user: "u",
-      outputSchema: { type: "array" },
+      outputSchema: { properties: { a: { type: "string" } } },
       maxOutputTokens: 64,
     });
     expect(outcome.constrained).toBe(false);

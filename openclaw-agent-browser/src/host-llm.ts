@@ -29,12 +29,19 @@
  *
  * OpenClaw forwards `responseFormat` to the provider transport as a
  * constrained-decoding request. On 2026.9.5 the OpenAI Responses transport maps
- * a `{type: "json_schema", json_schema: {...}}` value onto `text.format`, and
- * the Chat Completions transport passes the same shape through to
- * `response_format`; other transports ignore it. So it is requested whenever
- * the schema can carry it, and the `constrained` flag reports whether it was —
- * never assumed. Conformance itself is guaranteed on the agentpkg side, which
- * parses and schema-validates before returning.
+ * a `{type: "json_schema", json_schema: {...}}` value onto `text.format`, the
+ * Chat Completions transport passes the same shape through to
+ * `response_format`, and the **native Ollama transport** maps it onto Ollama's
+ * `format` field (`resolveOllamaResponseFormat`), where any root type is
+ * constrained. So it is requested whenever the schema can carry it, and the
+ * `constrained` flag reports whether it was *requested* — never that it worked.
+ * Conformance itself is guaranteed on the agentpkg side, which parses and
+ * schema-validates before returning.
+ *
+ * Asking is not a formality. Every node schema arrives bundled with a `$ref`
+ * root, which this file used to reject outright, so no package node was ever
+ * constrained; measured across four local models, none conformed reliably
+ * unaided and all of them conformed once the constraint was carried.
  *
  * ## Usage and caps
  *
@@ -123,11 +130,60 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+/** A local `#/$defs/<name>` pointer, which is the only reference shape agentpkg emits. */
+const LOCAL_DEFS_REF = /^#\/\$defs\/([^/]+)$/;
+
+/**
+ * Rewrite a `$ref`-rooted document so its root carries the referenced schema.
+ *
+ * `agentpkg.workflow.Workflow._model_schema` bundles every package-relative
+ * reference into one closed document and leaves the root as
+ * `{"$ref": "#/$defs/sN", "$defs": {...}}`. That is a correct JSON Schema, but
+ * a root `$ref` is not something a provider's response-format parser accepts,
+ * and — more importantly — a root with no `type` is indistinguishable from an
+ * unusable schema. Inlining the root keeps the `$defs` namespace intact, so
+ * every inner `$ref` still resolves, while the root states what it describes.
+ *
+ * Anything other than a single local root reference is returned unchanged.
+ */
+export function inlineRootRef(schema: Record<string, unknown>): Record<string, unknown> {
+  const ref = schema.$ref;
+  if (typeof ref !== "string") return schema;
+  const name = LOCAL_DEFS_REF.exec(ref)?.[1];
+  const defs = schema.$defs;
+  if (!name || !isRecord(defs)) return schema;
+  const target = defs[name];
+  if (!isRecord(target)) return schema;
+  // A root that is itself only another reference is left alone rather than
+  // followed: one hop is what the bundler produces, and chasing further would
+  // be guessing at a shape this project does not emit.
+  if (typeof target.$ref === "string") return schema;
+  const { $ref: _dropped, ...rest } = schema;
+  return { ...target, ...rest };
+}
+
 /**
  * Map a bare JSON Schema onto OpenClaw's constrained-output request shape.
  *
  * Returns `null` when the schema cannot carry a provider-native constraint, so
  * the caller reports an unconstrained request instead of pretending otherwise.
+ *
+ * ## Why an array root is carried too
+ *
+ * Every node output schema in a package reaches this function bundled, so the
+ * root is inlined first. What comes out is an object root for most nodes and an
+ * **array** root for a node whose declared output is a list — which a package is
+ * entitled to declare, and which `agentpkg` will hold the model to either way.
+ *
+ * OpenClaw 2026.9.5's native Ollama transport takes `json_schema.schema`
+ * verbatim as Ollama's `format`, and Ollama constrains decoding against any
+ * root type (`resolveOllamaResponseFormat`, `stream.runtime`). A provider whose
+ * response format requires an object root will instead refuse the request. That
+ * refusal is the better outcome: an unconstrained call against a schema the
+ * model cannot be held to does not degrade gracefully, it returns output that
+ * fails validation after the tokens are already spent. Measured on this host,
+ * every local model conformed on every node with the constraint applied and
+ * none of them conformed reliably without it.
  */
 export function responseFormatFor(
   schema: unknown,
@@ -135,11 +191,12 @@ export function responseFormatFor(
   if (!isRecord(schema)) {
     return null;
   }
-  if (schema.type !== "object") {
-    // Provider JSON-schema response formats require an object root.
+  const rooted = inlineRootRef(schema);
+  if (rooted.type !== "object" && rooted.type !== "array") {
+    // Without a stated root type there is nothing a provider can constrain.
     return null;
   }
-  const projected: Record<string, unknown> = { ...schema };
+  const projected: Record<string, unknown> = { ...rooted };
   for (const key of STRIPPED_ROOT_KEYS) delete projected[key];
   const serialized = JSON.stringify(projected);
   if (Buffer.byteLength(serialized) > MAX_RESPONSE_FORMAT_BYTES) {

@@ -136,7 +136,42 @@ perspective-shaped request), so this is a large lever that is simply not exposed
 through `api.runtime.llm.complete` in 2026.9.5.
 
 That matters for timeouts rather than for availability, and it is recorded in
-[the milestone report](package-execution-report.md#the-live-acceptance-attempt).
+[the milestone report](package-execution-report.md#63-the-passing-live-acceptance-run).
+
+## 7. `responseFormat` *does* reach Ollama, and that turned out to matter
+
+An earlier note in `host-llm.ts` said that transports other than OpenAI's
+"ignore" `responseFormat`. That is **wrong for Ollama on 2026.9.5**, and the
+correction is what let the live acceptance run finish.
+
+In the installed runtime, `resolveOllamaResponseFormat` maps
+`{type: "json_schema", json_schema: {schema}}` onto Ollama's own `format` field
+and the native transport sends it:
+
+```js
+if (responseFormat.type === "json_schema" && isRecord(responseFormat.json_schema)) {
+  const schema = responseFormat.json_schema.schema;
+  return isRecord(schema) ? schema : void 0;
+}
+…
+...responseFormat !== void 0 ? { format: responseFormat } : {}
+```
+
+Ollama constrains decoding against that schema whatever its root type, arrays
+included. It is skipped only for Ollama Cloud and when the request carries
+tools.
+
+So the constraint was always available and this project was never asking for it:
+`responseFormatFor` required `schema.type === "object"`, and every package node
+schema arrives bundled with a `$ref` root that has no `type` at all. Across the
+four installed local models, three samples per node, no model conformed reliably
+without the constraint and every model conformed with it
+(`examples/verification/meeting-agenda-structured-output-conformance.json`).
+
+The distinction to keep: **availability** says a model can be reached,
+**compatibility** says a package's declared requirements are met, and neither
+says the transport will carry a decoding constraint. A model can be available,
+compatible, and still unable to satisfy a schema unaided.
 
 See also: [model selection and run plans](model-selection-and-run-plan.md), [the
 model-router bridge](model-router-bridge.md), [package

@@ -10,7 +10,13 @@ import { join } from "node:path";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { AgentBrowserBackend, resolveLocalPackage } from "../src/backend.js";
 import { nodeTransport, type ControlPlaneTransport } from "../src/control-plane.js";
-import { AGENTPKG_BIN, DEV_KEY_FINGERPRINT, DIST, hasAgentpkg } from "./fixtures.js";
+import {
+  AGENDA_KEY_FINGERPRINT,
+  AGENTPKG_BIN,
+  DEV_KEY_FINGERPRINT,
+  DIST,
+  hasAgentpkg,
+} from "./fixtures.js";
 
 const runs = hasAgentpkg();
 const log = { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} };
@@ -69,11 +75,11 @@ describe.runIf(runs)("backend feature operations", () => {
   });
 
   it.each([
-    ["literature-review", REVIEW, "org.webagents.literature-review", 7, 3, 9, 17],
-    ["meeting-agenda", AGENDA, "org.webagents.meeting-agenda", 3, 0, 4, 6],
+    ["literature-review", REVIEW, "org.webagents.literature-review", DEV_KEY_FINGERPRINT, 7, 3, 9, 17],
+    ["meeting-agenda", AGENDA, "org.webagents.meeting-agenda", AGENDA_KEY_FINGERPRINT, 3, 0, 4, 6],
   ])(
     "opens %s through the same generic path",
-    async (_name, path, packageId, skills, tools, workers, nodes) => {
+    async (_name, path, packageId, signer, skills, tools, workers, nodes) => {
       const view = unwrap(await backend.openLocal(path));
       expect(view.identity.packageId).toBe(packageId);
       expect(view.validation).toMatchObject({
@@ -83,7 +89,7 @@ describe.runIf(runs)("backend feature operations", () => {
         runtime: "compatible",
       });
       expect(view.publisher.signatureStatus).toBe("valid");
-      expect(view.publisher.signerFingerprint).toBe(DEV_KEY_FINGERPRINT);
+      expect(view.publisher.signerFingerprint).toBe(signer);
       // A self-consistent signature from an unpinned key is not trust.
       expect(view.publisher.trustStatus).toBe("unknown");
       expect(view.skills).toHaveLength(skills);
@@ -162,8 +168,9 @@ describe.runIf(runs)("backend feature operations", () => {
     expect(denied.blockingReasons[0]?.subject).toBe(grants[0]?.permissionId);
 
     const trusted = unwrap(await backend.listTrust());
-    expect(trusted.publishers.map((item) => item.fingerprint)).toContain(DEV_KEY_FINGERPRINT);
-    unwrap(await backend.removeTrust(DEV_KEY_FINGERPRINT));
+    // The pin under test is this session's own signer, not a project-wide key.
+    expect(trusted.publishers.map((item) => item.fingerprint)).toContain(AGENDA_KEY_FINGERPRINT);
+    unwrap(await backend.removeTrust(AGENDA_KEY_FINGERPRINT));
     expect(unwrap(await backend.getPackage(session)).publisher.trustStatus).toBe("unknown");
     await backend.closeSession(session);
   }, 120_000);

@@ -11,6 +11,7 @@ import json
 from pathlib import Path
 
 import pytest
+from shipped_keys import AGENDA_KEY, DIST, ORIGINAL_KEY
 
 from agentpkg.browser import ControlPlane, ControlPlaneConfig, ControlPlaneError
 from agentpkg.browser.authorization import BrowserPolicy
@@ -19,11 +20,6 @@ from agentpkg.browser.trust import read_public_key_file
 from agentpkg.package import canonical_json, sha256
 
 ROOT = Path(__file__).resolve().parents[2]
-DIST = {
-    "literature-review": ROOT / "dist/literature-review.agent.pkg",
-    "meeting-agenda": ROOT / "dist/meeting-agenda.agent.pkg",
-}
-DEV_KEY = ROOT / "examples/keys/workflow-publisher.pub.pem"
 
 
 def plane(tmp_path, *, trusted=True, **overrides) -> ControlPlane:
@@ -33,10 +29,18 @@ def plane(tmp_path, *, trusted=True, **overrides) -> ControlPlane:
         )
     )
     if trusted:
+        # The two shipped artifacts carry two different signer keys; a plane
+        # that opens either one pins both, each as its own explicit decision.
         control.trust_add(
-            read_public_key_file(DEV_KEY),
+            read_public_key_file(ORIGINAL_KEY),
             display_name="WebAgents development key",
             publisher_id="webagents-research",
+        )
+        control.trust_add(
+            read_public_key_file(AGENDA_KEY),
+            display_name="WebAgents Meeting Agenda signing key",
+            publisher_id="webagents-research",
+            package_id_prefix="org.webagents.meeting-agenda",
         )
     return control
 

@@ -82,10 +82,10 @@ function expectError(
 /** Open, trust the signer, and grant every declared permission. */
 async function authorized(path: string) {
   const view = unwrap(await backend.openLocal(path));
-  // Publisher scope, because both shipped packages share one development key;
-  // the pin may already exist from an earlier case, and either way the session
-  // must end up trusted.
-  await backend.pinSessionPublisher(view.sessionId, view.publisher.signerFingerprint!, "publisher");
+  // Narrow scope: the two shipped packages carry two different signer keys, so
+  // each pin binds one key to one package id. The pin may already exist from an
+  // earlier case, and either way the session must end up trusted.
+  await backend.pinSessionPublisher(view.sessionId, view.publisher.signerFingerprint!, "package");
   const refreshed = unwrap(await backend.getPackage(view.sessionId));
   expect(refreshed.publisher.trustStatus).toBe("trusted");
   const permissions = unwrap(await backend.getPermissions(view.sessionId));
@@ -318,7 +318,10 @@ describe.runIf(runs)("model selection and run plans", () => {
     unwrap(
       await backend.prepareRunPlan(view.sessionId, view.identity.digest, receipt.receiptId, "acme/big"),
     );
-    const pinned = unwrap(await backend.listTrust()).publishers[0]!;
+    // Withdraw the pin on *this* package's signer, not whichever was added first.
+    const pinned = unwrap(await backend.listTrust()).publishers.find(
+      (item) => item.fingerprint === view.publisher.signerFingerprint,
+    )!;
     unwrap(await backend.removeTrust(pinned.fingerprint));
     const state = unwrap(await backend.getRunPlan(view.sessionId));
     expect(state.preflight?.stale).toBe(true);

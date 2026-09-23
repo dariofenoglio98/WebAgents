@@ -1,0 +1,419 @@
+{
+  "recordedAt": "2026-09-23T03:40:00Z",
+  "host": "OpenClaw 2026.9.5 (ec9c1a1)",
+  "question": "Does a local model satisfy the Meeting Agenda node output schemas WITHOUT provider-native constrained decoding? This is what decided that the blocker was `responseFormatFor` refusing to carry a $ref-rooted bundled schema, and not the choice of model.",
+  "method": "Diagnostic only, outside the product path. Each request is the exact wire content agentpkg.hostbridge.router.render() produces for that node, sent straight to Ollama with `think: false` (what OpenClaw's completion path uses). Output is parsed and validated by the router's own parse_structured plus the bundled schema, so a row is conforming exactly when the real HostBridgeModelRouter would have accepted it. Three samples per cell, plus one grammar-constrained control.",
+  "samplesPerCell": 3,
+  "results": {
+    "qwen3.5:9b": {
+      "plan": {
+        "productPath_noGrammar_noThinking": [
+          {
+            "elapsedSeconds": 6.3,
+            "evalCount": 141,
+            "conforming": true,
+            "failure": null,
+            "parse": "direct"
+          },
+          {
+            "elapsedSeconds": 3.2,
+            "evalCount": 86,
+            "conforming": true,
+            "failure": null,
+            "parse": "direct"
+          },
+          {
+            "elapsedSeconds": 5.5,
+            "evalCount": 152,
+            "conforming": true,
+            "failure": null,
+            "parse": "direct"
+          }
+        ],
+        "conformingOutOf": "3/3",
+        "control_grammarConstrained": {
+          "elapsedSeconds": 5.3,
+          "evalCount": 148,
+          "conforming": true,
+          "failure": null,
+          "parse": "direct"
+        }
+      },
+      "one-perspective": {
+        "productPath_noGrammar_noThinking": [
+          {
+            "elapsedSeconds": 1.6,
+            "evalCount": 44,
+            "conforming": true,
+            "failure": null,
+            "parse": "direct"
+          },
+          {
+            "elapsedSeconds": 2.4,
+            "evalCount": 67,
+            "conforming": false,
+            "failure": "model_output_not_conforming: The model did not return a single JSON document"
+          },
+          {
+            "elapsedSeconds": 2.8,
+            "evalCount": 80,
+            "conforming": false,
+            "failure": "model_output_not_conforming: The model did not return a single JSON document"
+          }
+        ],
+        "conformingOutOf": "1/3",
+        "control_grammarConstrained": {
+          "elapsedSeconds": 3.8,
+          "evalCount": 108,
+          "conforming": true,
+          "failure": null,
+          "parse": "direct"
+        }
+      },
+      "write": {
+        "productPath_noGrammar_noThinking": [
+          {
+            "elapsedSeconds": 5.8,
+            "evalCount": 126,
+            "conforming": true,
+            "failure": null,
+            "parse": "direct"
+          },
+          {
+            "elapsedSeconds": 9.3,
+            "evalCount": 286,
+            "conforming": false,
+            "failure": "schema: {'items': [{'topic': 'Assess trust model and adoption cost', 'minutes': 10, 'owner': 'Dari"
+          },
+          {
+            "elapsedSeconds": 8.7,
+            "evalCount": 280,
+            "conforming": false,
+            "failure": "schema: {'items': [{'topic': 'Assess trust model', 'minutes': 15, 'owner': 'Mira'}, {'topic': 'Ass"
+          }
+        ],
+        "conformingOutOf": "1/3",
+        "control_grammarConstrained": {
+          "elapsedSeconds": 9.6,
+          "evalCount": 314,
+          "conforming": true,
+          "failure": null,
+          "parse": "direct"
+        }
+      }
+    },
+    "qwen3.8:27b": {
+      "plan": {
+        "productPath_noGrammar_noThinking": [
+          {
+            "elapsedSeconds": 26.6,
+            "evalCount": 148,
+            "conforming": true,
+            "failure": null,
+            "parse": "direct"
+          },
+          {
+            "elapsedSeconds": 18.3,
+            "evalCount": 117,
+            "conforming": true,
+            "failure": null,
+            "parse": "direct"
+          },
+          {
+            "elapsedSeconds": 18.6,
+            "evalCount": 177,
+            "conforming": true,
+            "failure": null,
+            "parse": "direct"
+          }
+        ],
+        "conformingOutOf": "3/3",
+        "control_grammarConstrained": {
+          "elapsedSeconds": 16.8,
+          "evalCount": 156,
+          "conforming": true,
+          "failure": null,
+          "parse": "direct"
+        }
+      },
+      "one-perspective": {
+        "productPath_noGrammar_noThinking": [
+          {
+            "elapsedSeconds": 15.1,
+            "evalCount": 85,
+            "conforming": false,
+            "failure": "schema: {'role': 'researcher', 'priorities': ['Evaluate whether agent.pkg satisfies the six-week p"
+          },
+          {
+            "elapsedSeconds": 17.9,
+            "evalCount": 130,
+            "conforming": false,
+            "failure": "schema: {'role': 'researcher', 'priorities': ['Assess how quickly the agent.pkg package can be int"
+          },
+          {
+            "elapsedSeconds": 16.6,
+            "evalCount": 132,
+            "conforming": false,
+            "failure": "schema: {'role': 'researcher', 'priorities': ['Confirm that agent.pkg aligns with the six-week pro"
+          }
+        ],
+        "conformingOutOf": "0/3",
+        "control_grammarConstrained": {
+          "elapsedSeconds": 23.9,
+          "evalCount": 179,
+          "conforming": true,
+          "failure": null,
+          "parse": "direct"
+        }
+      },
+      "write": {
+        "productPath_noGrammar_noThinking": [
+          {
+            "elapsedSeconds": 37.1,
+            "evalCount": 326,
+            "conforming": true,
+            "failure": null,
+            "parse": "direct"
+          },
+          {
+            "elapsedSeconds": 30.7,
+            "evalCount": 287,
+            "conforming": true,
+            "failure": null,
+            "parse": "direct"
+          },
+          {
+            "elapsedSeconds": 14.2,
+            "evalCount": 119,
+            "conforming": true,
+            "failure": null,
+            "parse": "direct"
+          }
+        ],
+        "conformingOutOf": "3/3",
+        "control_grammarConstrained": {
+          "elapsedSeconds": 84.2,
+          "evalCount": 496,
+          "conforming": true,
+          "failure": null,
+          "parse": "direct"
+        }
+      }
+    },
+    "qwen3.6:35b": {
+      "plan": {
+        "productPath_noGrammar_noThinking": [
+          {
+            "elapsedSeconds": 89.0,
+            "evalCount": 168,
+            "conforming": true,
+            "failure": null,
+            "parse": "direct"
+          },
+          {
+            "elapsedSeconds": 4.1,
+            "evalCount": 140,
+            "conforming": true,
+            "failure": null,
+            "parse": "direct"
+          },
+          {
+            "elapsedSeconds": 4.0,
+            "evalCount": 144,
+            "conforming": true,
+            "failure": null,
+            "parse": "direct"
+          }
+        ],
+        "conformingOutOf": "3/3",
+        "control_grammarConstrained": {
+          "elapsedSeconds": 4.1,
+          "evalCount": 159,
+          "conforming": true,
+          "failure": null,
+          "parse": "direct"
+        }
+      },
+      "one-perspective": {
+        "productPath_noGrammar_noThinking": [
+          {
+            "elapsedSeconds": 2.7,
+            "evalCount": 82,
+            "conforming": false,
+            "failure": "model_output_not_conforming: The model did not return a single JSON document"
+          },
+          {
+            "elapsedSeconds": 2.6,
+            "evalCount": 105,
+            "conforming": false,
+            "failure": "model_output_not_conforming: The model did not return a single JSON document"
+          },
+          {
+            "elapsedSeconds": 2.5,
+            "evalCount": 104,
+            "conforming": true,
+            "failure": null,
+            "parse": "direct"
+          }
+        ],
+        "conformingOutOf": "1/3",
+        "control_grammarConstrained": {
+          "elapsedSeconds": 2.4,
+          "evalCount": 100,
+          "conforming": true,
+          "failure": null,
+          "parse": "direct"
+        }
+      },
+      "write": {
+        "productPath_noGrammar_noThinking": [
+          {
+            "elapsedSeconds": 9.1,
+            "evalCount": 338,
+            "conforming": true,
+            "failure": null,
+            "parse": "direct"
+          },
+          {
+            "elapsedSeconds": 10.9,
+            "evalCount": 470,
+            "conforming": true,
+            "failure": null,
+            "parse": "direct"
+          },
+          {
+            "elapsedSeconds": 7.2,
+            "evalCount": 314,
+            "conforming": true,
+            "failure": null,
+            "parse": "direct"
+          }
+        ],
+        "conformingOutOf": "3/3",
+        "control_grammarConstrained": {
+          "elapsedSeconds": 9.4,
+          "evalCount": 391,
+          "conforming": true,
+          "failure": null,
+          "parse": "direct"
+        }
+      }
+    },
+    "qwen3:30b": {
+      "plan": {
+        "productPath_noGrammar_noThinking": [
+          {
+            "elapsedSeconds": 31.5,
+            "evalCount": 1297,
+            "conforming": false,
+            "failure": "schema: ['Review trust model', 'Review budget model'] is not of type 'object'\n\nFailed validating '"
+          },
+          {
+            "elapsedSeconds": 15.5,
+            "evalCount": 868,
+            "conforming": false,
+            "failure": "schema: ['Review trust model', 'Review budget model'] is not of type 'object'\n\nFailed validating '"
+          },
+          {
+            "elapsedSeconds": 7.7,
+            "evalCount": 453,
+            "conforming": false,
+            "failure": "schema: ['Review trust model', 'Review budget model'] is not of type 'object'\n\nFailed validating '"
+          }
+        ],
+        "conformingOutOf": "0/3",
+        "control_grammarConstrained": {
+          "elapsedSeconds": 1.8,
+          "evalCount": 104,
+          "conforming": true,
+          "failure": null,
+          "parse": "direct"
+        }
+      },
+      "one-perspective": {
+        "productPath_noGrammar_noThinking": [
+          {
+            "elapsedSeconds": 17.5,
+            "evalCount": 1007,
+            "conforming": false,
+            "failure": "schema: 'Review trust model for signed packages' is not of type 'object'\n\nFailed validating 'type'"
+          },
+          {
+            "elapsedSeconds": 28.8,
+            "evalCount": 1711,
+            "conforming": false,
+            "failure": "schema: 'Evaluate trust model feasibility' is not of type 'object'\n\nFailed validating 'type' in sc"
+          },
+          {
+            "elapsedSeconds": 36.5,
+            "evalCount": 2197,
+            "conforming": false,
+            "failure": "schema: 'Review trust model for agent.pkg' is not of type 'object'\n\nFailed validating 'type' in sc"
+          }
+        ],
+        "conformingOutOf": "0/3",
+        "control_grammarConstrained": {
+          "elapsedSeconds": 1.5,
+          "evalCount": 87,
+          "conforming": true,
+          "failure": null,
+          "parse": "direct"
+        }
+      },
+      "write": {
+        "productPath_noGrammar_noThinking": [
+          {
+            "elapsedSeconds": 26.3,
+            "evalCount": 1586,
+            "conforming": false,
+            "failure": "schema: ['Research adoption costs for agent.pkg', 'Review key management ownership structure', 'Co"
+          },
+          {
+            "elapsedSeconds": 38.6,
+            "evalCount": 2321,
+            "conforming": false,
+            "failure": "schema: ['Adopt agent.pkg', 'Assign key management ownership to Mira'] is not of type 'object'\n\nFa"
+          },
+          {
+            "elapsedSeconds": 47.5,
+            "evalCount": 2828,
+            "conforming": false,
+            "failure": "model_output_not_conforming: The model did not return a single JSON document"
+          }
+        ],
+        "conformingOutOf": "0/3",
+        "control_grammarConstrained": {
+          "elapsedSeconds": 2.6,
+          "evalCount": 157,
+          "conforming": true,
+          "failure": null,
+          "parse": "direct"
+        }
+      }
+    }
+  },
+  "summary": {
+    "qwen3.5:9b": {
+      "plan": "3/3",
+      "one-perspective": "1/3",
+      "write": "1/3"
+    },
+    "qwen3.8:27b": {
+      "plan": "3/3",
+      "one-perspective": "0/3",
+      "write": "3/3"
+    },
+    "qwen3.6:35b": {
+      "plan": "3/3",
+      "one-perspective": "1/3",
+      "write": "3/3"
+    },
+    "qwen3:30b": {
+      "plan": "0/3",
+      "one-perspective": "0/3",
+      "write": "0/3"
+    }
+  },
+  "controlConformedEverywhere": true,
+  "conclusion": "With constrained decoding every model conformed on every node. Without it, no installed local model conformed reliably on `one-perspective`, and the best was 1 of 3. Choosing a different local model does not fix this; requesting the constraint does."
+}

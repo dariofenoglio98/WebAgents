@@ -1,0 +1,50 @@
+{
+  "recordedAt": "2026-09-23T02:52:00Z",
+  "note": "Diagnostic only, outside the product path. Each request is the EXACT wire content agentpkg.hostbridge.router.render() produces for the corresponding Meeting Agenda node \u2014 same skill instructions, same bundled output schema, same data \u2014 sent straight to Ollama. No agentpkg runtime, workflow, worker, budget, permission or audit took part, and no package was executed. Its only purpose is to choose the package's per-step timeouts from measurement.",
+  "model": "ollama/qwen3.5:9b",
+  "measuredAgainstPackageVersion": "0.2.0",
+  "host": "OpenClaw 2026.9.5 (ec9c1a1)",
+  "steps": {
+    "plan": {
+      "elapsedSeconds": 12.7,
+      "generatedTokens": 310,
+      "thinkingChars": 1103,
+      "concurrency": 1
+    },
+    "one-perspective": {
+      "concurrency": 3,
+      "perCallSeconds": [
+        135.1,
+        142.8,
+        145.9
+      ],
+      "generatedTokens": [
+        336,
+        2023,
+        2937
+      ],
+      "mapWallClockSeconds": 145.9
+    },
+    "write": {
+      "elapsedSeconds": 217.6,
+      "generatedTokens": 5503,
+      "thinkingChars": 20592,
+      "concurrency": 1,
+      "note": "The writer is the slowest single step: its input carries the plan and all three joined perspectives, and the exact-minute-sum constraint in the package's own validate assertions costs a long chain of thought."
+    }
+  },
+  "totalModelSeconds": 376.2,
+  "assertionsSatisfiedByTheWrittenAgenda": {
+    "goalPreserved": true,
+    "durationPreserved": true,
+    "minutesSum": 45
+  },
+  "worstObservedAcrossAllSessions": {
+    "note": "Combined with the earlier session in model-availability-latency.json and the 0.2.0 live run. These are the numbers the 0.2.1 timing policy was set from.",
+    "planSeconds": 28.7,
+    "oneConcurrentPerspectiveSeconds": 229.0,
+    "perspectivesMapWallClockSeconds": 229.0,
+    "writeSeconds": 217.6,
+    "sumOfWorstStagesSeconds": 475.3
+  }
+}

@@ -13,6 +13,7 @@ import dataclasses
 from pathlib import Path
 
 import pytest
+from shipped_keys import AGENDA_KEY, DIST, ORIGINAL_KEY
 
 from agentpkg.browser import ControlPlane, ControlPlaneConfig, ControlPlaneError
 from agentpkg.browser.hostmodels import (
@@ -25,11 +26,6 @@ from agentpkg.browser.trust import read_public_key_file
 from agentpkg.package import load_package
 
 ROOT = Path(__file__).resolve().parents[2]
-DIST = {
-    "literature-review": ROOT / "dist/literature-review.agent.pkg",
-    "meeting-agenda": ROOT / "dist/meeting-agenda.agent.pkg",
-}
-DEV_KEY = ROOT / "examples/keys/workflow-publisher.pub.pem"
 
 
 def plane(tmp_path, **overrides) -> ControlPlane:
@@ -38,10 +34,17 @@ def plane(tmp_path, **overrides) -> ControlPlane:
             cache_dir=tmp_path / "cache", trust_store_path=tmp_path / "trust.json", **overrides
         )
     )
+    # One pin per shipped signer key; meeting-agenda's is scoped to its own id.
     control.trust_add(
-        read_public_key_file(DEV_KEY),
+        read_public_key_file(ORIGINAL_KEY),
         display_name="WebAgents development key",
         publisher_id="webagents-research",
+    )
+    control.trust_add(
+        read_public_key_file(AGENDA_KEY),
+        display_name="WebAgents Meeting Agenda signing key",
+        publisher_id="webagents-research",
+        package_id_prefix="org.webagents.meeting-agenda",
     )
     return control
 

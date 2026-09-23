@@ -360,6 +360,32 @@ deadline "cancelled" would hide who stopped the run and why. The bridge session
 outlives the run deadline by two minutes so a run that hits its own deadline
 reports a timeout rather than a killed bridge.
 
+### Three clocks that are easy to confuse
+
+A run that ends in `timeout` has hit exactly one of these, and the audit says
+which. They are owned by different people and none of them can substitute for
+another:
+
+| | Lives in | Set by | Bounds | Changing it means |
+|---|---|---|---|---|
+| **package timing policy** | `graph.json`: each node's and map step's `timeout_seconds`, and `deadline_seconds` | the **publisher** | one node, one map step, or the whole graph | new bytes, new digest, new signature, new version, new trust and authorization |
+| **host execution limits** | `agentpkg.execution.policy` and the plugin's `execution` config | the **operator** | wall clock, tokens, parallelism, one call's output cap | a config edit; it can only ever *lower* what a package declared |
+| **provider latency** | nowhere | **nobody** | how long a model actually takes | a different model, or different hardware |
+
+The asymmetry is the point. A package declares what it believes its work needs;
+an operator declares what this machine is willing to spend; and the run gets the
+tighter of the two. A package cannot raise its own ceiling by asking, and an
+operator cannot make a package's own step budget more generous than its
+publisher signed for. Provider latency obeys neither, which is why the only
+honest way to set a package's timing policy is to measure it — see the 0.2.1
+[timing policy](package-execution-report.md#62-the-021-timing-policy-and-why-each-number),
+where every declared value is recorded next to the slowest run that justified it.
+
+A consequence worth stating: the per-node budgets along a critical path may sum
+to more than the graph deadline, and in Meeting Agenda 0.2.1 they do. That is
+not a contradiction. A node timeout exists to localize a stall, so the audit
+names the node that hung; the deadline exists to bound the run as a whole.
+
 ## 12. Run lifecycle
 
 ```text
@@ -444,6 +470,34 @@ That is a limit of **this execution host**, not of the package format. Literatur
 Review is a valid package that this host cannot yet run; faking its tools or
 special-casing it would have been worse than refusing it.
 
+## 15a. Structured output, and who actually enforces it
+
+Two separate mechanisms make a node's declared `output_schema` mean something,
+and only one of them is a guarantee.
+
+**The guarantee** is on the agentpkg side. `HostBridgeModelRouter` parses the
+response and validates it against the bundled schema before returning, in one
+bounded attempt, with no repair loop. A response that does not conform becomes
+`model_output_not_conforming` and the node fails. This holds whatever the
+provider did, and it is why a package's contract cannot be quietly broken.
+
+**The help** is provider-native constrained decoding. The plugin asks for it via
+OpenClaw's `responseFormat`, and `constrained` on each completion reports
+whether it was requested — never whether it worked. A transport that cannot
+carry the constraint leaves the model free to answer however it likes, and then
+the guarantee above turns that into a failed node rather than bad output.
+
+The help matters far more than it looks. `Workflow._model_schema` hands the
+router a *bundled* document — every package-relative `$ref` moved into one
+closed `$defs` namespace, with the root left as `{"$ref": "#/$defs/sN", "$defs":
+{…}}`. For most of this project's life that root was silently unusable as a
+response format, so no package node was ever constrained. Measured on four local
+models, the difference was the milestone: every model conformed on every node
+with the constraint, and none was reliable without it. `responseFormatFor` now
+inlines the root reference and carries an array root as well as an object root,
+because a node is entitled to declare a list-valued output. See
+[the milestone report](package-execution-report.md#65-the-blocker-that-was-hiding-behind-the-timeout).
+
 ## 16. What still cannot happen
 
 | | Status |
@@ -504,12 +558,20 @@ The manual acceptance test is one command:
 node openclaw-agent-browser/scripts/run-meeting-agenda.mjs \
   --package /absolute/path/to/dist/meeting-agenda.agent.pkg \
   --input   /absolute/path/to/examples/meeting-agenda-acceptance-input.json \
-  --model   openai/gpt-5.6-luna \
-  --out     examples/verification/meeting-agenda-live-run.json
+  --model   ollama/qwen3.5:9b \
+  --out     examples/verification/meeting-agenda-live-run-local-v021.json
 ```
 
-It walks the page's own sequence through the live Gateway — open, trust,
-authorize, evaluate models, choose, prepare — then starts the execution, waits
+`--model` names a model **this host actually offers**; the recorded run used the
+local one above, which costs nothing. Run the
+[router probe](model-router-bridge.md) against the same model first: it makes a
+single host-owned call and executes no workflow, so a model that cannot be
+reached is found before a run spends anything.
+
+It walks the page's own sequence through the live Gateway — open, record what
+the host thought of the signer *before* any decision, pin that exact key at
+`package` scope if it is not already trusted, authorize, evaluate models,
+choose, prepare — then starts the execution, waits
 for it, reads `agenda.json` and `provenance.json` back through the bounded
 artifact API, and checks the package's own invariants itself: the goal is
 preserved, the duration is preserved, and the agenda minutes sum exactly to the

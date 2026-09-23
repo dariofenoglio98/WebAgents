@@ -19,6 +19,17 @@ export const DEV_KEY_FINGERPRINT =
   "sha256:c7549e614dac7070e6b5b5355e7c2407e1185f831d7fff15670981229dd85a70";
 
 /**
+ * The shipped artifacts no longer share one signer.
+ *
+ * `meeting-agenda` 0.2.1 carries a rotated development signing key, because its
+ * local-model timing policy had to change and the original key's private half
+ * exists nowhere. `literature-review` still carries the original key. A test
+ * that opens a shipped artifact must expect the key that actually signed it.
+ */
+export const AGENDA_KEY_FINGERPRINT =
+  "sha256:2bcc374a7fe18e50622042b7d0375fcb24eb3607879a236f9f3c3ede1922c5c4";
+
+/**
  * The operator opt-in every model call in this plugin depends on.
  *
  * `api.runtime.llm.complete` refuses a named model unless

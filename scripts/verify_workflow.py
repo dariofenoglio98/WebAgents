@@ -18,6 +18,13 @@ from jsonschema import Draft202012Validator, FormatChecker
 
 ROOT = Path(__file__).resolve().parents[1]
 
+# The shipped artifacts no longer share one signer. `meeting-agenda` 0.2.1
+# carries a rotated development key; `literature-review` carries the original.
+SHIPPED_SIGNER_KEY = {
+    "literature-review": ROOT / "examples/keys/workflow-publisher.pub.pem",
+    "meeting-agenda": ROOT / "examples/keys/meeting-agenda-publisher.pub.pem",
+}
+
 
 async def execute(package):
     router, handlers, value = fixture_adapters(package)
@@ -75,9 +82,7 @@ def verify_all():
             assert a["output"] == b["output"] and a["state"] == b["state"]
             assert a["usage"] == b["usage"], "Nondeterministic fixture accounting"
             shipped = ROOT / "dist" / f"{name}.agent.pkg"
-            shipped_verification = verify_package(
-                shipped, ROOT / "examples/keys/workflow-publisher.pub.pem"
-            )
+            shipped_verification = verify_package(shipped, SHIPPED_SIGNER_KEY[name])
             assert shipped_verification["digest"] == package.digest, (
                 "Stale distribution artifact"
             )

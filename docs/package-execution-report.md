@@ -1,32 +1,44 @@
 # Milestone report: the first execution of a portable agent package
 
 Pinned host: **OpenClaw 2026.9.5 (ec9c1a1)**. Package: `meeting-agenda.agent.pkg`
-0.2.0, digest `5aa0ec94…`. Architecture and reasoning are in [package
+**0.2.1**, digest `d7884667…`. Architecture and reasoning are in [package
 execution](package-execution.md); this is what was built, what was measured, and
-what did not happen.
+what it took to finish.
 
 ## Headline
 
-The whole execution path is built, tested and installed. A signed portable
-package now runs through the generic `workflow.v0` interpreter, under the
-person's own authorization, on the exact model a run plan bound, and leaves a
-verifiable audit and a package-declared export behind.
+**MILESTONE 3B2 LIVE ACCEPTANCE: PASSED.**
 
-**The live acceptance run has not completed.** Two attempts were made and both
-are diagnosed precisely:
+A signed portable package ran end to end through the generic `workflow.v0`
+interpreter, under the person's own authorization, on the exact local model a
+run plan bound, and left a verifiable audit chain and a package-declared export
+behind. Run `run_4ded5c3ea9ec48c68cfdcb5a9ad14757`, model `ollama/qwen3.5:9b`,
+335.4 s, 5 model calls, peak parallelism 3, 0 tool calls, $0, 89 audit events
+with a valid chain, and an agenda whose minutes sum to exactly 45. The full
+report is `examples/verification/meeting-agenda-live-run-local-v021.json`; §6.3
+has the timeline.
 
-1. against a hosted model, refused by OpenClaw's provider auth layer — the
-   account's weekly quota was exhausted (`Week 0% left`) and both profiles were
-   in a four-day cooldown;
-2. against local Ollama models, where the whole path works — exact model
-   binding, real inference, three bounded parallel workers, a valid audit chain
-   and zero cost — but the package's **60-second `one-perspective` step
-   timeout** is shorter than any local model on this machine can answer in.
+Getting there needed three things, and it is worth separating them because they
+failed for unrelated reasons:
 
-The remaining blocker is that single declared timeout, and it is measured rather
-than inferred: see §6.3. Model availability, which blocked local runs entirely
-at the start of this work, is fixed and documented in [model
-availability](model-availability.md).
+1. **a package timing policy that a local model can meet.** 0.2.0's
+   `one-perspective` step allowed 60 s and its graph deadline 300 s. Both are
+   hosted-model assumptions. 0.2.1 raises four values from measurement; all four
+   turned out to be load-bearing in the passing run (§6.2);
+2. **a development signing key rotation.** Changing the graph changes the signed
+   bytes, and the original publisher key's private half exists on no machine
+   this project builds on. 0.2.1 therefore carries a new signer, is *not*
+   automatically trusted, and needed an explicit narrow pin (§6.4);
+3. **structured output that is actually constrained.** With 1 and 2 done the run
+   stopped timing out and started failing at `model_error` instead. The cause
+   was in this project's own code: `responseFormatFor` refused to carry a
+   `$ref`-rooted schema, so **no package node had ever requested provider-native
+   constrained decoding**, on any provider. Measured across all four installed
+   local models, no model conformed reliably without it and every model
+   conformed with it (§6.5).
+
+Model availability, which blocked local runs entirely at the start of this work,
+is fixed and documented in [model availability](model-availability.md).
 
 ## 1. Architecture implemented
 
@@ -156,11 +168,24 @@ ephemeral, and every run in flight cancelled when the plugin stops.
 
 | Suite | Result |
 |---|---|
-| `agentpkg` pytest | **572 passed, 1 skipped** (`examples/verification/model-availability-agentpkg-tests.xml`) |
-| plugin vitest | **180 passed** (`examples/verification/model-availability-plugin-tests.json`) |
-| `npm run verify` | **passed** — built, validated, packed, installed into a throwaway OpenClaw, 180 tests (`examples/verification/model-availability-plugin-verify.json`) |
+| `agentpkg` pytest | **586 passed, 1 skipped** (`examples/verification/meeting-agenda-021-agentpkg-tests.xml`) |
+| plugin vitest | **182 passed** (`examples/verification/meeting-agenda-021-plugin-tests.json`) |
+| `npm run verify` | **passed** — built, validated, packed, installed into a throwaway OpenClaw (`examples/verification/meeting-agenda-021-plugin-verify.json`) |
+| `scripts/verify_workflow.py` | **passed** — deterministic build/sign/unpack/rebuild and shipped-signature check for both packages |
+| `scripts/verify_browser.py` | **passed** — both shipped artifacts, two pinned signer keys |
 | ruff | clean |
 | tsc | clean |
+
+The 14 new `agentpkg` tests are `tests/test_shipped_artifacts.py`, which pins
+what 0.2.1 must keep being true: the version and digest, that the *only*
+difference from 0.2.0 is timing (a field-by-field comparison of the two graphs
+with the timing keys removed), that each declared timeout exceeds what was
+measured without being unbounded, that the graph deadline is still cut down by
+the host's own run timeout, the worker topology, `max_parallel: 3`, zero tools,
+the budgets/permissions/assertions, that the new bytes verify only under the new
+key, that the new signer is **not** automatically trusted, and that neither the
+0.2.0 run plan nor its receipt can reach 0.2.1. The 2 new plugin tests cover
+`$ref`-root inlining and the array root.
 
 The two execution suites both run the *real* stack. The Python one drives the
 real runner over the real protocol with a scripted provider; the TypeScript one
@@ -179,7 +204,7 @@ tools refusal; a receipt that would expire before the run deadline; a runner
 child that dies mid-session; a plugin stopped with a run in flight; and the
 architectural boundaries in both directions.
 
-### The deterministic end-to-end run
+### 6.1 The deterministic end-to-end run
 
 `examples/execution-offline/` holds a complete artifact set from the real runner
 with a scripted provider:
@@ -197,121 +222,235 @@ with a scripted provider:
 | agenda | goal preserved, duration 45, minutes sum exactly 45 |
 | effective budget | `min(180,000 package, 120,000 host) = 120,000` tokens |
 
-### The live acceptance attempt
+### 6.2 The 0.2.1 timing policy, and why each number
 
-Run through the installed plugin and the live Gateway with
-`--model openai/gpt-5.6-luna`. The full report is
-`examples/verification/meeting-agenda-live-run.json`; the host's own credential
-state at that moment is `examples/verification/openclaw-model-auth-status.txt`.
+Three things are easy to confuse and the run separates them cleanly:
 
-What it **did** establish, on the real host, before the provider:
+| | Where it lives | Who sets it | What it bounds |
+|---|---|---|---|
+| **package timing policy** | `graph.json`, inside the signed bytes | the publisher | one node, one map step, or the whole graph |
+| **host execution limits** | `agentpkg.execution.policy` + plugin config | the operator | a run's wall clock, tokens, parallelism, output cap — and it can only *lower* what a package declared |
+| **provider latency** | neither | nobody | how long a model actually takes |
 
-* the control plane opened, verified and trusted the real signed artifact;
-* the person's `session` grants were recorded in a real receipt;
-* the real host catalog was evaluated and `openai/gpt-5.6-luna` was chosen;
-* a ready run plan was prepared and frozen;
-* **18 host-side preflight checks passed**, including
-  `receipt_outlasts_run_deadline`;
-* an execution lease was issued, opened and inherited;
-* the runner **independently re-verified all nine** artifact facts —
-  `archive_sha256`, container, integrity, schema, package digest, package
-  identity, publisher signature, signer fingerprint, execution profile;
-* `Runtime` and `Workflow` were constructed with `tool_handlers: 0`;
-* the `plan` node started, a `Planner` worker spawned, the model permission was
-  checked and consumed, and `count_tokens` produced a bound of 2,452, reserving
-  14,452 tokens against the 12,000-token node cap;
-* `model.complete` reached OpenClaw and was refused with
-  `Auth lookup failed for provider "openai": Auth profile … is temporarily
-  unavailable for openai/gpt-5.6-luna`;
-* the run was classified `model_error`, the audit chain verified, the lease was
-  released, `result.json`, `audit.json`, `usage.json`, `provenance.json` and
-  `run.json` were written, no lease directory and no runner process were left
-  behind, and the run plan was byte-identical afterwards with
-  `execution.performed: false`.
+0.2.0's numbers were a hosted-model assumption. 0.2.1 changes exactly four, from
+measurement (`examples/verification/meeting-agenda-local-step-latency.json` and
+`model-availability-latency.json`), and nothing else in the graph:
 
-`openclaw models status` reports both OpenAI profiles in `cooldown (4d)`,
-`Week 0% left ⏱3d 19h`, and `openai/gpt-5.6-luna requires subscription auth: No
-usable subscription authentication is available`. Only one provider is
-configured on this host.
+| Value | 0.2.0 | 0.2.1 | Worst measured | Actual, in the passing run |
+|---|---|---|---|---|
+| `one-perspective` step | 60 s | **300 s** | 229.0 s | 132.6 s |
+| `perspectives` map node | 120 s | **360 s** | 229.0 s | 132.6 s |
+| `write` node | 120 s | **300 s** | 217.6 s | 194.5 s |
+| graph `deadline_seconds` | 300 s | **600 s** | — | 335.4 s |
 
-### 6.3 The local acceptance attempt, and the one remaining blocker
+`plan`, `join`, `validate` and `output` keep their 120 s, because 8.3 s is what
+`plan` actually took and the other three make no model call. **All four changed
+values were load-bearing**: at 0.2.0's limits this run would have failed at
+`one-perspective` (132.6 > 60), at the map node (132.6 > 120), at `write`
+(194.5 > 120) and at the deadline (335.4 > 300).
 
-With availability fixed, the same script was run against the lightest local
-model the host offers. Everything worked except one declared timeout.
+One thing this milestone deliberately did **not** do: document 0.2.1 inside
+`agents/meeting-agenda/README.md`. That file is part of the signed payload, so
+editing it changes the digest and invalidates the artifact that passed
+acceptance — a test caught exactly that and the edit was reverted. Release notes
+for a signed package belong in the repository's documentation, which can change
+without re-signing anything.
 
-`examples/verification/meeting-agenda-live-run-local.json`, run
-`run_8c52f1b74b454b7e82499ee5f8e9f653`, model `ollama/qwen3.5:9b`:
+The sum of the per-node budgets along the critical path (1,140 s) deliberately
+exceeds the graph deadline. They answer different questions: a per-node timeout
+localizes a stall to one node so the audit says which one, and the deadline
+bounds the run as a whole. The deadline is also the last word a *package* gets —
+the host's own `run_timeout_seconds` defaults to 600 s and `effective_deadline =
+min(package, host)`, so 0.2.1 cannot buy itself more wall clock than the
+operator allows, and a test asserts that.
+
+Headroom is deliberate but finite: 2.3× on `one-perspective`, 1.5× on `write`,
+1.8× on the deadline. Nothing here is effectively unlimited.
+
+### 6.3 The passing live acceptance run
+
+`examples/verification/meeting-agenda-live-run-local-v021.json`, run
+`run_4ded5c3ea9ec48c68cfdcb5a9ad14757`:
 
 | Fact | Value |
 |---|---|
-| status | `failed`, `errorCode: timeout` |
-| model binding | planned `ollama/qwen3.5:9b`, invoked `ollama/qwen3.5:9b`, every call |
-| Planner | **completed** in 28.7 s |
-| Perspective workers | 3 spawned, peak parallelism **3** |
-| Perspective outcome | all three timed out at exactly 60.0 s after starting |
-| tool calls | 0 |
-| audit | 64 events, chain valid |
-| cost | $0 (local) |
-| run plan | byte-identical afterwards, `execution.performed: false` |
-| artifacts | `result.json`, `audit.json`, `usage.json`, `provenance.json` |
+| package | `org.webagents.meeting-agenda` **0.2.1**, digest `d7884667…7a99`, archive `e4c499f0…0e35` |
+| signer | `sha256:2bcc374a…c5c4`, signature valid, publisher trusted by explicit narrow pin |
+| authorization | receipt `8ebb20c6…`, `memory.session` + `model.reasoning` both `session`, runnable |
+| run plan | `rp_85cef26d…`, sha `fd42cd89…`, ready, bound to `ollama/qwen3.5:9b` |
+| status | **`completed`**, no error code |
+| model | planned `ollama/qwen3.5:9b`, invoked `ollama/qwen3.5:9b`, every one of 5 calls |
+| tasks | `plan` ×1, `perspective` ×3, `write` ×1 |
+| workers | `Planner:1`, `Perspective:2`, `Perspective:3`, `Perspective:4`, `Writer:5` |
+| peak parallel workers | **3** |
+| nodes completed | 9 (6 graph nodes + 3 map step instances) |
+| tool calls | **0**, tool handlers installed **0** |
+| audit | **89 events, chain valid** |
+| usage | 12,885 tokens, 0 remote calls |
+| cost | **$0** |
+| total runtime | 335.4 s workflow, 337.3 s wall clock including the whole lifecycle |
+| artifacts | `agenda.json`, `result.json`, `audit.json`, `usage.json`, `provenance.json`, plus the run record |
+| run plan afterwards | byte-identical (`fd42cd89…`), `execution.performed: false` |
+| page run action | still absent |
 
-The audit timeline is unambiguous — all three step timers fired together, 60.0 s
-after the map node started:
+The audit timeline, which is what the timing policy had to fit:
 
 ```text
-  0.0s  node.started     plan
- 28.7s  model.completed  plan                      <- Planner fits easily
- 28.7s  worker.spawned   Perspective:2/3/4         <- real parallelism, peak 3
- 28.7s  model.called     x3 (concurrent)
- 88.7s  node.failed      perspectives/one-perspective  timeout   (= 28.7 + 60.0)
+   0.0s  node.started     plan
+   8.3s  model.completed  plan                          <- 120 s budget
+   8.3s  worker.spawned   Perspective:2 / :3 / :4       <- real parallelism, peak 3
+   8.3s  model.called     x3, concurrently
+ 135.5s  node.completed   perspectives/one-perspective  Perspective:2   (127.2 s)
+ 138.4s  node.completed   perspectives/one-perspective  Perspective:4   (130.1 s)
+ 140.9s  node.completed   perspectives/one-perspective  Perspective:3   (132.6 s)
+ 140.9s  node.completed   perspectives                  <- 360 s budget
+ 140.9s  node.completed   join
+ 335.4s  model.completed  write                         <- 194.5 s, 300 s budget
+ 335.4s  node.completed   validate                      <- goal, duration, minute sum
+ 335.4s  workflow.completed                             <- 600 s deadline
 ```
 
-**Why 60 s cannot be met locally.** Measured directly against the provider
-(`examples/verification/model-availability-latency.json`), for the *lightest*
-installed model:
+The agenda the package wrote, checked against the package's own assertions and
+independently by the driver:
 
-| Measurement | Result |
-|---|---|
-| one warm perspective-shaped call, alone | **51.4 s** (1,084 generated tokens) |
-| three concurrent calls, as the map node issues them | **202.9 / 214.3 / 229.0 s** |
-| same request with provider-side thinking disabled | **5.0 s** (114 tokens) |
-
-Ollama admits all three concurrently rather than serializing them, but GPU
-contention makes each about four times slower than alone. Thinking tokens
-dominate: `think: false` is 24× faster. That lever is not reachable from a
-plugin completion — `reasoning: "off"` was tested through
-`api.runtime.llm.complete` and changed neither output nor latency on 2026.9.5.
-
-So a single worker *just* fits the 60 s budget with 8.6 s of margin, and three
-concurrent workers need roughly 3.5× the budget. The package's declared
-timeouts — `one-perspective` 60 s, nodes 120 s, graph deadline 300 s — are a
-hosted-model assumption baked into a portable package.
-
-**Why the package was not changed.** Raising those timeouts means editing
-`agents/meeting-agenda/graph.json`, rebuilding and **re-signing** the artifact,
-then re-authorizing and re-preparing a run plan for the new digest. No publisher
-private key exists anywhere on this machine — `examples/keys/` holds only the two
-public keys — so the package cannot be re-signed under its current publisher
-identity. Signing with a freshly generated key would change the signer
-fingerprint and publisher identity, which is a deliberate decision about the
-reference package's provenance rather than a debugging step, so it was left to
-the operator.
-
-**To finish the live acceptance test**, with a usable credential:
-
-```bash
-node openclaw-agent-browser/scripts/run-meeting-agenda.mjs \
-  --package /Users/dariofenoglio/Desktop/WebAgents/dist/meeting-agenda.agent.pkg \
-  --input   /Users/dariofenoglio/Desktop/WebAgents/examples/meeting-agenda-acceptance-input.json \
-  --model   openai/gpt-5.6-luna \
-  --out     examples/verification/meeting-agenda-live-run.json
+```text
+goal      Decide whether to adopt agent.pkg for the next research prototype   (preserved)
+duration  45                                                                  (preserved)
+   5m  Dario   Introductions & Meeting Goal Review
+  15m  Mira    Trust Model & Security Compliance Assessment
+  10m  Tomas   Technical Compatibility & Integration Constraints
+  10m  Dario   Budget Implications & Timeline Feasibility
+   5m  Dario   Final Decision & Action Item Assignment
+          sum  45                                                             (exact)
+3 preparation items, 3 decisions, 5 open questions
 ```
 
-It exits non-zero unless the run completed, every call used the selected model,
-more than one call happened, peak parallelism reached at least two, no tool was
-called, the audit chain verified, tokens were spent, the agenda preserved the
-goal and duration with minutes summing to 45, and the run plan was unchanged
-with `performed` still false.
+Before the workflow, the trusted developer [router probe](model-router-bridge.md)
+made one host-owned call on the same model and nothing else:
+`examples/verification/meeting-agenda-021-router-probe.json` — planned equals
+invoked, provider `ollama`, structured output validated, cost 0,
+`workflowExecuted: false`, no package instructions loaded, no worker started.
+
+### 6.4 The signing key rotation, and what the host made of it
+
+The graph changed, so the signed bytes changed, so the artifact had to be
+re-signed — and the original publisher key's private half exists on no machine
+this project builds on. `examples/keys/` holds public keys only. Rather than
+weaken verification or pretend the old key signed the new bytes, 0.2.1 is signed
+by a **new Ed25519 development key**, generated with the project's own
+`agentpkg keygen` and stored outside the repository at
+`~/.config/agentpkg/keys/webagents-meeting-agenda.private.pem`, mode `0600`, in
+a `0700` directory. Only its public half is recorded, as
+`examples/keys/meeting-agenda-publisher.pub.pem`.
+
+| | Signs | Fingerprint |
+|---|---|---|
+| original development key | `literature-review`, and 0.2.0 | `sha256:c7549e61…5a70` |
+| rotated key | `meeting-agenda` 0.2.1 only | `sha256:2bcc374a…c5c4` |
+
+The rotation is cryptographically clean in both directions: the old key does not
+verify the new bytes and the new key does not verify the old artifact, which
+`agentpkg verify` refuses with `publisher key is not the host-pinned trusted
+key`. 0.2.0 is preserved as `dist/meeting-agenda-0.2.0.agent.pkg` and still
+verifies under the key that signed it.
+
+What the Agent Browser said when the new artifact was first opened, before any
+decision — `examples/verification/meeting-agenda-021-untrusted-open.json`:
+
+```text
+Container   valid        Signature   valid (self_consistent_ed25519_signature)
+Integrity   valid        Publisher   mismatch
+Schema      valid        reason      claimed_publisher_pinned_to_other_key
+Runtime     compatible   names       sha256:c7549e61…5a70
+```
+
+That is worth reading carefully. A rotated key is not merely *unknown* to the
+trust store: because a **different** key is already pinned for the same claimed
+publisher id, the store reports `mismatch`, which is exactly the signal it
+exists to raise for impersonation. A key rotation and an impersonation attempt
+are indistinguishable from the bytes alone, and the store is right to refuse to
+guess. Only an explicit operator decision on that exact fingerprint resolves it.
+
+The pin taken was the narrowest the store offers — `scope: "package"`, which
+binds the new key to `package_id_prefix: org.webagents.meeting-agenda` and
+nothing else in the publisher's namespace. The original key keeps its existing
+publisher-wide pin, so Literature Review's trust state is untouched. Both
+acceptance drivers now pin at `package` scope rather than `publisher`.
+
+Because the bytes, digest, version and signer all changed, none of the previous
+authority carried over: a new authorization receipt and a new run plan were
+created, and `test_shipped_artifacts.py` asserts that the old ones cannot reach
+the new package.
+
+### 6.5 The blocker that was hiding behind the timeout
+
+With the timing policy fixed the run stopped timing out — and failed 19 s in
+with `model_error`. `plan` completed in 8.6 s; one `one-perspective` call came
+back from the provider in 9.5 s and the router refused it.
+
+The router was right to. `parse_structured` and the bundled-schema validator are
+the only thing standing between a package's declared output contract and
+whatever a model emits, and there is deliberately no repair loop. What the model
+emitted did not satisfy the schema.
+
+(That intermediate run's report was written to the same path the passing one
+later took, so it is not preserved as a file. The reproduction below is the
+durable evidence, and it is the stronger of the two.)
+
+The cause was in this project's own code, in
+`openclaw-agent-browser/src/host-llm.ts`:
+
+```ts
+if (schema.type !== "object") {
+  // Provider JSON-schema response formats require an object root.
+  return null;
+}
+```
+
+Every node output schema reaches that function *bundled*:
+`Workflow._model_schema` moves each package-relative `$ref` into one closed
+`$defs` namespace and leaves the root as `{"$ref": "#/$defs/sN", "$defs": {…}}`.
+That root has no `type` at all, so the guard rejected it — **for every node, of
+every package, on every provider**. No package workflow node had ever requested
+provider-native constrained decoding. The router probe had, which is why the
+probe kept passing: its schema is a plain inline object.
+
+The host was willing all along. In OpenClaw 2026.9.5,
+`resolveOllamaResponseFormat` (`dist/stream.runtime-…`) maps
+`{type: "json_schema", json_schema: {schema}}` straight onto Ollama's `format`
+and Ollama constrains decoding against **any** root type, array included. (The
+earlier note in `host-llm.ts` that non-OpenAI transports ignore `responseFormat`
+was wrong for Ollama on this release.)
+
+How much it mattered, measured — three samples per cell, the exact rendered
+request per node, parsed and validated by the router's own code
+(`examples/verification/meeting-agenda-structured-output-conformance.json`):
+
+| model | `plan` | `one-perspective` | `write` |
+|---|---|---|---|
+| `qwen3.5:9b` | 3/3 | **1/3** | **1/3** |
+| `qwen3.8:27b` | 3/3 | **0/3** | 3/3 |
+| `qwen3.6:35b` | 3/3 | **1/3** | 3/3 |
+| `qwen3:30b` | **0/3** | **0/3** | **0/3** |
+| *any of them, grammar-constrained* | 3/3 | 3/3 | 3/3 |
+
+So this was not a model-choice problem: **12/12 cells conformed with the
+constraint and none of the four installed models was reliable without it.** The
+failures were the shapes you would predict — a JSON array one closing bracket
+short, and an agenda returned as `{"items": [...]}` instead of the declared
+object.
+
+The fix inlines a single local root `$ref` into the root, keeping `$defs` intact
+so inner references still resolve, and carries an **array** root as well as an
+object root, because a package is entitled to declare a list-valued node output
+and `one-perspective` does. A provider whose response format insists on an
+object root will now refuse that request outright; that is the better outcome,
+because an unconstrained call against a schema the model cannot be held to does
+not degrade gracefully — it spends the tokens and then fails validation anyway.
+
+This is the one change in this milestone outside the package itself. It weakens
+nothing: the router still parses and validates every response, still makes one
+bounded attempt, and still fails closed.
 
 ## 7. Proof that package tools were never used
 
@@ -360,6 +499,18 @@ Five independent ways:
 * **`llm.allowModelOverride` is plugin-wide.** `llm.allowedModels` is available
   as operator defence in depth but is not set, because it would break dynamic
   model selection.
+* **Structured output now depends on the transport carrying the constraint.** A
+  provider whose response format requires an object root will refuse a node
+  whose declared output is a list, instead of answering unconstrained. Verified
+  on this host's native Ollama transport; reasoned, not measured, for
+  OpenAI-shaped transports, because no hosted credential on this machine is
+  usable (§6.5).
+* **The 0.2.1 timing policy is calibrated to one machine.** 300/360/300/600 s
+  came from `ollama/qwen3.5:9b` on this laptop under GPU contention. A slower
+  machine or a heavier model can still exceed them, and the honest fix then is
+  another measured package version, not a larger round number.
+* **One passing live run, not a distribution.** The conformance table is three
+  samples per cell; the acceptance run itself is n=1.
 
 ## 10. Before the next milestone
 

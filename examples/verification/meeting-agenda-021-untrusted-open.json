@@ -1,0 +1,68 @@
+{
+  "recordedAt": "2026-09-23T03:05:00Z",
+  "note": "The Agent Browser opening meeting-agenda 0.2.1 BEFORE any trust decision. Signature is cryptographically valid; the rotated signer key is not trusted, and is reported as a mismatch because another key is already pinned for the same claimed publisher.",
+  "artifact": "dist/meeting-agenda.agent.pkg",
+  "identity": {
+    "packageId": "org.webagents.meeting-agenda",
+    "name": "Meeting Agenda Agent",
+    "version": "0.2.1",
+    "description": "Plan a bounded meeting with participant perspectives and explicit time allocation.",
+    "createdAt": "2026-09-23T00:00:00Z",
+    "digest": "d7884667cf10c47f73d66cff4381f39a914a9c24da3333b09b533ab19d2d7a99",
+    "specVersion": "0.1",
+    "entrypoint": "workflow.v0",
+    "executionProfile": "workflow.v0",
+    "runtimeApi": "agentpkg-runtime-v0",
+    "minimumRuntimeVersion": "0.2.0"
+  },
+  "validation": {
+    "container": "valid",
+    "integrity": "valid",
+    "schema": "valid",
+    "runtime": "compatible",
+    "supportedProfiles": [
+      "workflow.v0"
+    ],
+    "errors": []
+  },
+  "publisher": {
+    "claimedId": "webagents-research",
+    "claimedName": "WebAgents Research Prototype",
+    "signatureStatus": "valid",
+    "signatureReason": "self_consistent_ed25519_signature",
+    "signerFingerprint": "sha256:2bcc374a7fe18e50622042b7d0375fcb24eb3607879a236f9f3c3ede1922c5c4",
+    "signedDigestMatches": true,
+    "trustStatus": "mismatch",
+    "trustReason": "claimed_publisher_pinned_to_other_key",
+    "trustEntry": null,
+    "pinnedFingerprintsForClaimedPublisher": [
+      "sha256:c7549e614dac7070e6b5b5355e7c2407e1185f831d7fff15670981229dd85a70"
+    ]
+  },
+  "declaredTools": 0,
+  "workers": [
+    "Coordinator",
+    "Planner",
+    "Perspective",
+    "Writer"
+  ],
+  "workflowTiming": {
+    "deadlineSeconds": 600,
+    "nodes": {
+      "plan": 120,
+      "perspectives": 360,
+      "join": 120,
+      "write": 300,
+      "validate": 120,
+      "output": 120
+    },
+    "oneP": [
+      {
+        "id": "one-perspective",
+        "type": "llm",
+        "detail": "perspective"
+      }
+    ],
+    "maxDeclaredParallel": 3
+  }
+}

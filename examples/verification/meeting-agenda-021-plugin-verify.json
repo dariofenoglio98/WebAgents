@@ -1,0 +1,36 @@
+{
+  "passed": true,
+  "host": {
+    "openclawVersion": "OpenClaw 2026.9.5 (ec9c1a1)"
+  },
+  "build": {
+    "valid": true,
+    "pluginId": "agent-browser",
+    "artifact": {
+      "sha256": "f51f1f0bdfd4065712c81f1bc6ecfe02189f9dd9fab2d0dddc568ac9368a1afc",
+      "bytes": 112606
+    }
+  },
+  "install": {
+    "isolatedConfig": true,
+    "status": "loaded",
+    "activated": true,
+    "version": "0.1.0",
+    "builtWithOpenClawVersion": "2026.9.5",
+    "toolNames": [],
+    "httpRoutes": 0,
+    "controlUiEntry": true,
+    "configProperties": [
+      "agentpkgPath",
+      "localPackages",
+      "sessionTtlSeconds",
+      "maxSessions",
+      "execution"
+    ]
+  },
+  "tests": {
+    "numTotalTests": 182,
+    "numPassedTests": 182,
+    "numFailedTests": 0
+  }
+}

@@ -10,6 +10,7 @@ import urllib.request
 from pathlib import Path
 
 import pytest
+from shipped_keys import AGENDA_KEY, DIST
 
 from agentpkg.browser import (
     BrowserService,
@@ -20,8 +21,8 @@ from agentpkg.browser import (
 from agentpkg.browser.server import MAX_REQUEST_BYTES
 
 ROOT = Path(__file__).resolve().parents[2]
-AGENDA = ROOT / "dist/meeting-agenda.agent.pkg"
-DEV_KEY = ROOT / "examples/keys/workflow-publisher.pub.pem"
+AGENDA = DIST["meeting-agenda"]
+DEV_KEY = AGENDA_KEY
 
 
 @pytest.fixture

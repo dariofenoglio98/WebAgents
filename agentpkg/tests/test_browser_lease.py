@@ -12,6 +12,7 @@ import os
 from pathlib import Path
 
 import pytest
+from shipped_keys import AGENDA_KEY, DIST
 
 from agentpkg.browser import ControlPlane, ControlPlaneConfig
 from agentpkg.browser.errors import ControlPlaneError
@@ -20,8 +21,8 @@ from agentpkg.browser.trust import read_public_key_file
 from agentpkg.package import sha256
 
 ROOT = Path(__file__).resolve().parents[2]
-ARTIFACT = ROOT / "dist/meeting-agenda.agent.pkg"
-PUBLIC_KEY = ROOT / "examples/keys/workflow-publisher.pub.pem"
+ARTIFACT = DIST["meeting-agenda"]
+PUBLIC_KEY = AGENDA_KEY
 
 CATALOG = {
     "schema": "agentpkg-host-model-catalog-v0",

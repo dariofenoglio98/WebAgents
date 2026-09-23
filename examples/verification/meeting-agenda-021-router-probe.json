@@ -1,0 +1,241 @@
+{
+  "recordedAt": "2026-09-23T03:45:53.587Z",
+  "steps": {
+    "trustOnOpen": {
+      "status": "trusted",
+      "reason": "operator_pinned_key",
+      "signerFingerprint": "sha256:2bcc374a7fe18e50622042b7d0375fcb24eb3607879a236f9f3c3ede1922c5c4"
+    },
+    "package": {
+      "packageId": "org.webagents.meeting-agenda",
+      "version": "0.2.1",
+      "digest": "d7884667cf10c47f73d66cff4381f39a914a9c24da3333b09b533ab19d2d7a99",
+      "archiveSha256": "e4c499f034b110ef2eca5aeecc87bc9336f6626e55b217d0fb087392ff120e35",
+      "signatureStatus": "valid",
+      "trustStatus": "trusted",
+      "signerFingerprint": "sha256:2bcc374a7fe18e50622042b7d0375fcb24eb3607879a236f9f3c3ede1922c5c4"
+    },
+    "authorization": {
+      "receiptId": "96fb0090-320b-4667-8982-656d9768d78c",
+      "receiptSha256": "19695b40618c1a7384b929f17cd9f8447c912f3dea75306b9beddfadef26ace1",
+      "runnable": true,
+      "granted": [
+        "memory.session",
+        "model.reasoning"
+      ]
+    },
+    "models": {
+      "host": {
+        "runtime": "openclaw",
+        "runtimeVersion": "2026.9.5",
+        "source": "openclaw/plugin-sdk/models-provider-runtime#buildModelsProviderData",
+        "capturedAt": "2026-09-23T03:45:59.597Z",
+        "agentId": null
+      },
+      "catalogSha256": "f643a73cec8fa564b96547c85ed31ca05e7826feaeaf4784a81e6106e420015b",
+      "counts": {
+        "total": 9,
+        "available": 9,
+        "selectable": 9,
+        "compatible": 9,
+        "unverified": 0,
+        "incompatible": 0
+      },
+      "offered": [
+        {
+          "id": "ollama/qwen3.5:9b",
+          "status": "compatible",
+          "evidence": "declared",
+          "contextTokens": 32768
+        },
+        {
+          "id": "ollama/qwen3.6:35b",
+          "status": "compatible",
+          "evidence": "declared",
+          "contextTokens": 32768
+        },
+        {
+          "id": "ollama/qwen3.8:27b",
+          "status": "compatible",
+          "evidence": "declared",
+          "contextTokens": 32768
+        },
+        {
+          "id": "ollama/qwen3:30b",
+          "status": "compatible",
+          "evidence": "declared",
+          "contextTokens": 32768
+        },
+        {
+          "id": "openai/gpt-5.5",
+          "status": "compatible",
+          "evidence": "derived",
+          "contextTokens": 272000
+        },
+        {
+          "id": "openai/gpt-5.6-luna",
+          "status": "compatible",
+          "evidence": "derived",
+          "contextTokens": 272000
+        },
+        {
+          "id": "openai/gpt-5.6-sol",
+          "status": "compatible",
+          "evidence": "derived",
+          "contextTokens": 272000
+        },
+        {
+          "id": "openai/gpt-5.6-terra",
+          "status": "compatible",
+          "evidence": "derived",
+          "contextTokens": 272000
+        },
+        {
+          "id": "openai/gpt-6-astra",
+          "status": "compatible",
+          "evidence": "derived",
+          "contextTokens": 272000
+        }
+      ],
+      "selected": "ollama/qwen3.5:9b",
+      "selectedExplicitly": true
+    },
+    "runPlan": {
+      "runPlanId": "rp_34a73e3ddd634451bc0892ccb4f7f7d8",
+      "runPlanSha256": "46c4f9f60b0893a074c8d87a30c2f5ed3695f002e9d29d3c3d86f391746be24f",
+      "ready": true,
+      "model": "ollama/qwen3.5:9b",
+      "compatibility": "compatible",
+      "evidence": "declared",
+      "executionPerformed": false
+    },
+    "probe": {
+      "status": "ok",
+      "runPlanId": "rp_34a73e3ddd634451bc0892ccb4f7f7d8",
+      "runPlanSha256": "46c4f9f60b0893a074c8d87a30c2f5ed3695f002e9d29d3c3d86f391746be24f",
+      "sessionId": "xTwUMESgKxl3Yv7PNyYYhWEI",
+      "package": {
+        "packageId": "org.webagents.meeting-agenda",
+        "name": "Meeting Agenda Agent",
+        "version": "0.2.1",
+        "digest": "d7884667cf10c47f73d66cff4381f39a914a9c24da3333b09b533ab19d2d7a99",
+        "executionProfile": "workflow.v0"
+      },
+      "router": {
+        "routerId": "openclaw.host-bridge.v0",
+        "modelId": "ollama/qwen3.5:9b",
+        "remote": false,
+        "contextWindow": 32768,
+        "capabilities": [
+          "reasoning",
+          "structured_output"
+        ],
+        "notDeclared": [
+          "multimodal",
+          "tool_use"
+        ]
+      },
+      "model": {
+        "planned": "ollama/qwen3.5:9b",
+        "invoked": "ollama/qwen3.5:9b",
+        "providerId": "ollama",
+        "responseModel": null,
+        "stopReason": "stop",
+        "executionMode": "direct-provider"
+      },
+      "probe": {
+        "status": "ok",
+        "echo": "router probe"
+      },
+      "structuredOutput": {
+        "validated": true,
+        "constrainedByHost": true,
+        "constraintDetail": "Requested as a json_schema response format; OpenClaw maps it onto the provider's constrained-output field where the transport supports one.",
+        "parse": "direct"
+      },
+      "tokens": {
+        "countTokensBound": 1692,
+        "basis": "utf8_upper_bound",
+        "hostTokenizer": false,
+        "hostTokenizerDetail": "OpenClaw 2026.9.5 exposes no tokenizer to a plugin. Its internal estimate is chars/4 and documented as approximate, which is not an upper bound.",
+        "framingAllowance": 512
+      },
+      "usage": {
+        "inputTokens": 236,
+        "outputTokens": 633,
+        "costUsd": 0
+      },
+      "accounting": {
+        "maxOutputTokens": 4096,
+        "inputWithinBound": true,
+        "outputWithinCap": true
+      },
+      "durationMs": 23097.826,
+      "workflowExecuted": false,
+      "packageExecution": {
+        "workflowInstantiated": false,
+        "workersStarted": 0,
+        "toolsCalled": 0,
+        "packageInstructionsLoaded": false,
+        "exportsWritten": 0
+      },
+      "revalidated": [
+        "run_plan_identity",
+        "run_plan_readiness",
+        "run_plan_preflight",
+        "execution_mode",
+        "package_digest",
+        "archive_sha256",
+        "execution_profile",
+        "package_validation",
+        "signature_status",
+        "publisher_trust",
+        "signer_fingerprint",
+        "authorization_receipt",
+        "receipt_not_expired",
+        "model_permission_granted",
+        "model_available",
+        "model_identity",
+        "model_compatibility"
+      ]
+    },
+    "runPlanAfterProbe": {
+      "runPlanSha256": "46c4f9f60b0893a074c8d87a30c2f5ed3695f002e9d29d3c3d86f391746be24f",
+      "unchanged": true,
+      "executionPerformed": false,
+      "ready": true,
+      "executionSupported": false
+    }
+  },
+  "host": {
+    "openclaw": "OpenClaw 2026.9.5 (ec9c1a1)",
+    "service": {
+      "state": "running",
+      "detail": "The Agent Browser control plane is running.",
+      "since": "2026-09-23T03:45:29.956Z",
+      "starts": 1,
+      "controlPlane": {
+        "apiVersion": "v0",
+        "agentpkgVersion": "0.2.0",
+        "packageFormat": "agent.pkg 0.1",
+        "execution": "disabled"
+      },
+      "sessions": {
+        "open": 0,
+        "max": 8
+      },
+      "capabilities": {
+        "openUrl": true,
+        "openLocal": true,
+        "localRoots": [
+          "/Users/dariofenoglio/Desktop/WebAgents/dist",
+          "/Users/dariofenoglio/.openclaw/workspace"
+        ],
+        "trustPinning": true
+      },
+      "executionSupported": false,
+      "executionOperations": true
+    }
+  },
+  "passed": true
+}

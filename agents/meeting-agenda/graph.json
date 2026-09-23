@@ -107,7 +107,7 @@
       }
     }
   },
-  "deadline_seconds": 300,
+  "deadline_seconds": 600,
   "nodes": [
     {
       "id": "plan",
@@ -138,7 +138,7 @@
         "path": "/plan/perspectives"
       },
       "output_schema": "schemas/batches.schema.json",
-      "timeout_seconds": 120,
+      "timeout_seconds": 360,
       "depends_on": [
         "plan"
       ],
@@ -168,7 +168,7 @@
             }
           },
           "output_schema": "schemas/perspectives.schema.json",
-          "timeout_seconds": 60,
+          "timeout_seconds": 300,
           "task": "perspective",
           "max_output_tokens": 12000
         }
@@ -219,7 +219,7 @@
         }
       },
       "output_schema": "schemas/agenda.schema.json",
-      "timeout_seconds": 120,
+      "timeout_seconds": 300,
       "depends_on": [
         "join"
       ],

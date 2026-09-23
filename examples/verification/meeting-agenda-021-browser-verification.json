@@ -1,0 +1,123 @@
+{
+  "passed": true,
+  "service": {
+    "url": "http://127.0.0.1:58919",
+    "loopback_only": true,
+    "health": {
+      "service": "agentpkg-browser-control-plane",
+      "status": "ok",
+      "api_version": "v0",
+      "agentpkg_version": "0.2.0",
+      "package_format": "agent.pkg 0.1",
+      "execution": "disabled"
+    },
+    "unauthenticated_access_refused": true
+  },
+  "packages": {
+    "literature-review": {
+      "passed": true,
+      "digest": "b7bd37ca730ec5a156156207dc04fa5a7563e34a4373a298daa143dd9945b3eb",
+      "archive_sha256": "5fdde862352598fc68e4fe5a2f5c2dee19bf952112446b3fc13bc77763533b0b",
+      "layers": {
+        "container_status": "valid",
+        "integrity_status": "valid",
+        "schema_status": "valid",
+        "runtime_status": "compatible",
+        "supported_execution_profiles": [
+          "workflow.v0"
+        ],
+        "errors": []
+      },
+      "signature_status": "valid",
+      "trust_before_pin": "unknown",
+      "trust_after_pin": "trusted",
+      "capabilities": [
+        "literature-review",
+        "evidence-extraction",
+        "citation-verification"
+      ],
+      "skills": 7,
+      "tools": [
+        "citation-resolver",
+        "paper-reader",
+        "scholarly-search"
+      ],
+      "workers": 9,
+      "workflow_nodes": 17,
+      "permissions_default_deny": true,
+      "required_permissions": [
+        "memory.session",
+        "network.citations",
+        "network.scholarly"
+      ],
+      "runnable_when_granted": true,
+      "runnable_when_required_denied": false,
+      "foreign_digest_refused": true,
+      "execution_performed": false
+    },
+    "meeting-agenda": {
+      "passed": true,
+      "digest": "d7884667cf10c47f73d66cff4381f39a914a9c24da3333b09b533ab19d2d7a99",
+      "archive_sha256": "e4c499f034b110ef2eca5aeecc87bc9336f6626e55b217d0fb087392ff120e35",
+      "layers": {
+        "container_status": "valid",
+        "integrity_status": "valid",
+        "schema_status": "valid",
+        "runtime_status": "compatible",
+        "supported_execution_profiles": [
+          "workflow.v0"
+        ],
+        "errors": []
+      },
+      "signature_status": "valid",
+      "trust_before_pin": "unknown",
+      "trust_after_pin": "trusted",
+      "capabilities": [
+        "agenda-planning"
+      ],
+      "skills": 3,
+      "tools": [],
+      "workers": 4,
+      "workflow_nodes": 6,
+      "permissions_default_deny": true,
+      "required_permissions": [
+        "memory.session",
+        "model.reasoning"
+      ],
+      "runnable_when_granted": true,
+      "runnable_when_required_denied": false,
+      "foreign_digest_refused": true,
+      "execution_performed": false
+    }
+  },
+  "url_policy": {
+    "refused_urls": {
+      "http://packages.example/a.agent.pkg": "url_rejected",
+      "file:///etc/passwd": "url_rejected",
+      "https://user:secret@packages.example/a.agent.pkg": "url_rejected",
+      "https://packages.example:8443/a.agent.pkg": "url_rejected"
+    },
+    "refused_destinations": {
+      "127.0.0.1": "loopback_address",
+      "::1": "loopback_address",
+      "10.0.0.5": "private_address",
+      "172.16.0.5": "private_address",
+      "192.168.1.5": "private_address",
+      "169.254.169.254": "cloud_metadata_address",
+      "100.100.100.200": "cloud_metadata_address",
+      "224.0.0.1": "multicast_address",
+      "240.0.0.1": "reserved_address",
+      "0.0.0.0": "unspecified_address",
+      "::ffff:127.0.0.1": "loopback_address",
+      "64:ff9b::7f00:1": "nat64_address"
+    },
+    "public_destination_allowed": true,
+    "mock_origin_download_bytes": 19517
+  },
+  "trust_store": {
+    "path": "/private/var/folders/zx/c94b09b50v31fk6qp9h3h1cw0000gn/T/agentpkg-browser-verify-1nxn9prw/trust.json",
+    "entry_count": 2,
+    "state_sha256": "869ce6d8893d2eef74b69e12087f9f1cc2d652292155a181ebecc69e195ce13b"
+  },
+  "snapshots_removed_on_close": true
+}

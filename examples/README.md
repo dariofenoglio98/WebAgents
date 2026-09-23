@@ -21,6 +21,19 @@ All recorded runs use the signed reference artifact whose package digest is `20a
 | `verification` | Test logs/JUnit, artifact/wheel verification, staging receipt and live source hashes |
 | `openclaw-workspace` | Locally staged supported skill workspace, excluded from Git |
 
+The Milestone 3B2 live acceptance evidence, all against `meeting-agenda` 0.2.1 on a local `ollama/qwen3.5:9b`:
+
+| File | What it records |
+|---|---|
+| `verification/meeting-agenda-live-run-local-v021.json` | **the passing run** — the whole lifecycle, the run record, the agenda and the run plan before and after |
+| `verification/meeting-agenda-021-untrusted-open.json` | what the Agent Browser said about the rotated signer *before* any trust decision |
+| `verification/meeting-agenda-021-router-probe.json` | one host-owned model call on the selected model, no workflow |
+| `verification/meeting-agenda-local-step-latency.json` | the per-node latency the 0.2.1 timing policy was set from |
+| `verification/meeting-agenda-structured-output-conformance.json` | four local models × three nodes, with and without constrained decoding |
+| `verification/meeting-agenda-021-*-tests.*`, `-plugin-verify.json`, `-browser-verification.json` | the suites and verification scripts for that state of the tree |
+
+The earlier `meeting-agenda-live-run.json`, `-local.json` and `-qwen35-9b.json` are the preserved 0.2.0 failures (hosted-credential refusal, then the 60 s step timeout) that motivated 0.2.1.
+
 The live outputs use an extractive baseline. Structural success does not certify relevance: some off-topic works passed lexical screening. Two arXiv provider failures remain unresolved. Read [the implementation report](../docs/implementation-report.md) before interpreting the output as research.
 
 ## Reproduce the final live demo

@@ -13,6 +13,7 @@ import zipfile
 from pathlib import Path
 
 import pytest
+from shipped_keys import DIST, ORIGINAL_KEY, SIGNER_KEY
 
 from agentpkg.browser import ControlPlane, ControlPlaneConfig, ControlPlaneError
 from agentpkg.browser.authorization import BrowserPolicy
@@ -22,11 +23,7 @@ from agentpkg.package import archive_bytes, build_package, load_package
 from agentpkg.signing import keygen, sign_package
 
 ROOT = Path(__file__).resolve().parents[2]
-DIST = {
-    "literature-review": ROOT / "dist/literature-review.agent.pkg",
-    "meeting-agenda": ROOT / "dist/meeting-agenda.agent.pkg",
-}
-DEV_KEY = ROOT / "examples/keys/workflow-publisher.pub.pem"
+DEV_KEY = ORIGINAL_KEY
 
 
 def plane(tmp_path, **overrides) -> ControlPlane:
@@ -36,13 +33,13 @@ def plane(tmp_path, **overrides) -> ControlPlane:
     return ControlPlane(config)
 
 
-def pin_dev_key(control: ControlPlane, **overrides):
+def pin_dev_key(control: ControlPlane, *, key=DEV_KEY, **overrides):
     options = {
         "display_name": "WebAgents development key",
         "publisher_id": "webagents-research",
         **overrides,
     }
-    return control.trust_add(read_public_key_file(DEV_KEY), **options)
+    return control.trust_add(read_public_key_file(key), **options)
 
 
 def signed_copy(tmp_path, name="meeting-agenda"):
@@ -87,7 +84,7 @@ def test_both_packages_open_and_report_every_layer(name, tmp_path):
 @pytest.mark.parametrize("name", sorted(DIST))
 def test_pinned_development_key_upgrades_trust(name, tmp_path):
     control = plane(tmp_path)
-    pin_dev_key(control, package_id_prefix="org.webagents.")
+    pin_dev_key(control, key=SIGNER_KEY[name], package_id_prefix="org.webagents.")
     summary = control.open_file(str(DIST[name]))
     assert summary["publisher"]["trust_status"] == "trusted"
     assert summary["publisher"]["trust_reason"] == "operator_pinned_key"
@@ -325,7 +322,7 @@ def test_omitting_decisions_entirely_denies_everything(tmp_path):
 
 def test_once_grants_are_accepted_and_always_is_refused(tmp_path):
     control = plane(tmp_path)
-    pin_dev_key(control)
+    pin_dev_key(control, key=SIGNER_KEY["meeting-agenda"])
     summary = control.open_file(str(DIST["meeting-agenda"]))
     session_id, digest = summary["session"]["id"], summary["package"]["digest"]
     receipt = control.authorize(

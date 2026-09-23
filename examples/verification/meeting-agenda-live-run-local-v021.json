@@ -1,0 +1,635 @@
+{
+  "recordedAt": "2026-09-23T03:46:37.838Z",
+  "input": {
+    "goal": "Decide whether to adopt agent.pkg for the next research prototype",
+    "participants": [
+      {
+        "name": "Dario",
+        "role": "researcher"
+      },
+      {
+        "name": "Mira",
+        "role": "security reviewer"
+      },
+      {
+        "name": "Tomas",
+        "role": "systems engineer"
+      }
+    ],
+    "context": "The prototype must ship in six weeks. Portable signed packages would replace ad-hoc scripts, but the team has not yet reviewed the trust and budget model.",
+    "duration": 45
+  },
+  "steps": {
+    "trust": {
+      "statusOnOpen": "trusted",
+      "reasonOnOpen": "operator_pinned_key",
+      "signerFingerprint": "sha256:2bcc374a7fe18e50622042b7d0375fcb24eb3607879a236f9f3c3ede1922c5c4",
+      "pinned": false,
+      "scope": null
+    },
+    "package": {
+      "packageId": "org.webagents.meeting-agenda",
+      "version": "0.2.1",
+      "digest": "d7884667cf10c47f73d66cff4381f39a914a9c24da3333b09b533ab19d2d7a99",
+      "archiveSha256": "e4c499f034b110ef2eca5aeecc87bc9336f6626e55b217d0fb087392ff120e35",
+      "signatureStatus": "valid",
+      "trustStatus": "trusted",
+      "signerFingerprint": "sha256:2bcc374a7fe18e50622042b7d0375fcb24eb3607879a236f9f3c3ede1922c5c4",
+      "declaredTools": 0
+    },
+    "authorization": {
+      "receiptId": "8ebb20c6-2ee7-4344-a6dc-12c5fcc35a64",
+      "receiptSha256": "7ad10349cca30cfa8301517446636c80a53e7887dae70bf05486639d426943c6",
+      "runnable": true,
+      "granted": [
+        "memory.session",
+        "model.reasoning"
+      ],
+      "decisions": [
+        "model.reasoning",
+        "memory.session"
+      ]
+    },
+    "models": {
+      "host": {
+        "runtime": "openclaw",
+        "runtimeVersion": "2026.9.5",
+        "source": "openclaw/plugin-sdk/models-provider-runtime#buildModelsProviderData",
+        "capturedAt": "2026-09-23T03:46:42.465Z",
+        "agentId": null
+      },
+      "catalogSha256": "9b2402ab583bc93ca1500b69775e318f2840fd72f66ae62842a1e5924d8851b0",
+      "offered": [
+        {
+          "id": "ollama/qwen3.5:9b",
+          "status": "compatible"
+        },
+        {
+          "id": "ollama/qwen3.6:35b",
+          "status": "compatible"
+        },
+        {
+          "id": "ollama/qwen3.8:27b",
+          "status": "compatible"
+        },
+        {
+          "id": "ollama/qwen3:30b",
+          "status": "compatible"
+        },
+        {
+          "id": "openai/gpt-5.5",
+          "status": "compatible"
+        },
+        {
+          "id": "openai/gpt-5.6-luna",
+          "status": "compatible"
+        },
+        {
+          "id": "openai/gpt-5.6-sol",
+          "status": "compatible"
+        },
+        {
+          "id": "openai/gpt-5.6-terra",
+          "status": "compatible"
+        },
+        {
+          "id": "openai/gpt-6-astra",
+          "status": "compatible"
+        }
+      ],
+      "selected": "ollama/qwen3.5:9b",
+      "selectedExplicitly": true
+    },
+    "runPlan": {
+      "runPlanId": "rp_85cef26d15b246e097c2046078c25d2c",
+      "runPlanSha256": "fd42cd89824a9c02c6d57f206bdb6de45db0e595c33fc768651e82f5d5885b1c",
+      "ready": true,
+      "model": "ollama/qwen3.5:9b",
+      "compatibility": "compatible",
+      "executionPerformed": false
+    },
+    "run": {
+      "runId": "run_4ded5c3ea9ec48c68cfdcb5a9ad14757",
+      "sessionId": "spp6XYOlSB7lGT6kPSd-JacB",
+      "runPlanId": "rp_85cef26d15b246e097c2046078c25d2c",
+      "runPlanSha256": "fd42cd89824a9c02c6d57f206bdb6de45db0e595c33fc768651e82f5d5885b1c",
+      "runInvocationSha256": "f79dafcea2a9dfd76713009608f2c23b977d7e260064f4588744f3f2cab730a0",
+      "inputSha256": "7fd887619443e7e6e29d6c4c07e2086398b7759bcf9e5008133a5ac2bd99f1ba",
+      "status": "completed",
+      "createdAt": "2026-09-23T03:46:44.075Z",
+      "startedAt": "2026-09-23T03:46:44.079Z",
+      "endedAt": "2026-09-23T03:52:20.578Z",
+      "durationMs": 336499,
+      "package": {
+        "packageId": "org.webagents.meeting-agenda",
+        "name": "Meeting Agenda Agent",
+        "version": "0.2.1",
+        "digest": "d7884667cf10c47f73d66cff4381f39a914a9c24da3333b09b533ab19d2d7a99",
+        "archiveSha256": "e4c499f034b110ef2eca5aeecc87bc9336f6626e55b217d0fb087392ff120e35",
+        "executionProfile": "workflow.v0"
+      },
+      "selectedModel": {
+        "hostModelId": "ollama/qwen3.5:9b",
+        "providerId": "ollama",
+        "modelId": "qwen3.5:9b",
+        "displayName": "qwen3.5:9b"
+      },
+      "model": {
+        "planned": "ollama/qwen3.5:9b",
+        "invoked": [
+          "ollama/qwen3.5:9b"
+        ],
+        "calls": 5,
+        "allCallsUsedPlannedModel": true,
+        "providers": [
+          "ollama"
+        ],
+        "responseModels": []
+      },
+      "grants": {
+        "decisions": [
+          {
+            "permissionId": "memory.session",
+            "decision": "session"
+          },
+          {
+            "permissionId": "model.reasoning",
+            "decision": "session"
+          }
+        ],
+        "grantedPermissionIds": [
+          "memory.session",
+          "model.reasoning"
+        ]
+      },
+      "limits": {
+        "host": {
+          "totalTokens": 120000,
+          "maxRemoteCalls": 32,
+          "maxParallelWorkers": 3,
+          "maxOutputTokensPerCall": 16000,
+          "runTimeoutSeconds": 600
+        },
+        "effectiveDeadlineSeconds": 600
+      },
+      "usage": {
+        "tokens": 12885,
+        "remoteCalls": 0,
+        "peakParallelWorkers": 3,
+        "toolCalls": 0,
+        "limits": {
+          "hardTokens": 120000,
+          "maxRemoteCalls": 32,
+          "maxParallelWorkers": 3
+        },
+        "workers": [
+          {
+            "worker": "coordinator",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "Planner:1",
+            "tokens": 639,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "Perspective:2",
+            "tokens": 4446,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "Perspective:3",
+            "tokens": 706,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "Perspective:4",
+            "tokens": 736,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "Writer:5",
+            "tokens": 6358,
+            "remoteCalls": 0
+          }
+        ]
+      },
+      "cost": {
+        "status": "complete",
+        "totalUsd": 0,
+        "calls": 5,
+        "callsWithReportedCost": 5
+      },
+      "audit": {
+        "events": 89,
+        "chainValid": true,
+        "finalHash": "50d188ab1031432394f1784e11ee9be310c29c476dda88543bf75c01e224de76",
+        "actions": [
+          {
+            "action": "budget.updated",
+            "count": 10
+          },
+          {
+            "action": "delegation.checked",
+            "count": 5
+          },
+          {
+            "action": "memory.cleared",
+            "count": 1
+          },
+          {
+            "action": "model.called",
+            "count": 5
+          },
+          {
+            "action": "model.completed",
+            "count": 5
+          },
+          {
+            "action": "model.count.called",
+            "count": 5
+          },
+          {
+            "action": "node.completed",
+            "count": 9
+          },
+          {
+            "action": "node.started",
+            "count": 9
+          },
+          {
+            "action": "permission.checked",
+            "count": 16
+          },
+          {
+            "action": "runtime.started",
+            "count": 1
+          },
+          {
+            "action": "state.committed",
+            "count": 6
+          },
+          {
+            "action": "worker.completed",
+            "count": 5
+          },
+          {
+            "action": "worker.spawned",
+            "count": 5
+          },
+          {
+            "action": "worker.started",
+            "count": 5
+          },
+          {
+            "action": "workflow.completed",
+            "count": 1
+          },
+          {
+            "action": "workflow.started",
+            "count": 1
+          }
+        ],
+        "workers": [
+          "Perspective:2",
+          "Perspective:3",
+          "Perspective:4",
+          "Planner:1",
+          "Writer:5",
+          "coordinator"
+        ],
+        "workersSpawned": 5,
+        "nodesCompleted": 9,
+        "modelCalls": 5,
+        "toolCalls": 0,
+        "tasksCalled": [
+          {
+            "task": "perspective",
+            "count": 3
+          },
+          {
+            "task": "plan",
+            "count": 1
+          },
+          {
+            "task": "write",
+            "count": 1
+          }
+        ]
+      },
+      "outputSha256": "053532fcb732b8d6d3a7189ad991c2a7e6de8599c057f1758fc395fdc4952644",
+      "artifacts": [
+        {
+          "name": "result.json",
+          "bytes": 68800,
+          "sha256": "ec5951f2f5179a2a260ec8f72cd6a29d3013dcf1ce374289b183cd1dc54f0569"
+        },
+        {
+          "name": "audit.json",
+          "bytes": 55875,
+          "sha256": "71bbebc3458b1bf943738480742b208c9dc3c383a1ef69534ebd9fea40818c82"
+        },
+        {
+          "name": "usage.json",
+          "bytes": 955,
+          "sha256": "bcf0ad618f37de3d16fdf3dffb013876796e30615668665defe7f033b0b1d5ca"
+        },
+        {
+          "name": "provenance.json",
+          "bytes": 236,
+          "sha256": "c1d6284e415cd5a2a0655cba6e1fbdcd6135dbff19a3eee996c49f113e483d95"
+        },
+        {
+          "name": "agenda.json",
+          "bytes": 1531,
+          "sha256": "0d8c58442af1b359824fe441c792f991622915f8bd642a6d511eb4a8d436978f"
+        }
+      ],
+      "host": {
+        "runtime": "openclaw",
+        "runtimeVersion": "2026.9.5",
+        "verifiedVersion": "2026.9.5",
+        "versionVerified": true
+      },
+      "deadlineExceeded": false,
+      "cancelRequested": false,
+      "errorCode": null,
+      "errorDetail": null,
+      "revalidated": [
+        "run_plan_identity",
+        "run_plan_readiness",
+        "run_plan_preflight",
+        "execution_mode",
+        "package_digest",
+        "archive_sha256",
+        "execution_profile",
+        "package_validation",
+        "signature_status",
+        "publisher_trust",
+        "signer_fingerprint",
+        "authorization_receipt",
+        "receipt_not_expired",
+        "receipt_outlasts_run_deadline",
+        "model_permission_granted",
+        "model_available",
+        "model_identity",
+        "model_compatibility",
+        "input_bytes:397",
+        "runner:archive_sha256",
+        "runner:container",
+        "runner:integrity",
+        "runner:schema",
+        "runner:package_digest",
+        "runner:package_identity",
+        "runner:publisher_signature",
+        "runner:signer_fingerprint",
+        "runner:execution_profile",
+        "runner:tool_handlers:0"
+      ],
+      "packageExecution": {
+        "workflowInstantiated": true,
+        "packageInstructionsLoaded": true,
+        "toolHandlersInstalled": 0,
+        "toolCalls": 0
+      }
+    },
+    "audit": {
+      "status": "completed",
+      "errorCode": null,
+      "llmCalls": 5,
+      "tasksCalled": {
+        "perspective": 3,
+        "plan": 1,
+        "write": 1
+      },
+      "workerIds": [
+        "Perspective:2",
+        "Perspective:3",
+        "Perspective:4",
+        "Planner:1",
+        "Writer:5",
+        "coordinator"
+      ],
+      "workersSpawned": 5,
+      "peakParallelWorkers": 3,
+      "plannedModel": "ollama/qwen3.5:9b",
+      "invokedModels": [
+        "ollama/qwen3.5:9b"
+      ],
+      "everyCallUsedPlannedModel": true,
+      "modelMatchesChoice": true,
+      "totalTokens": 12885,
+      "remoteCalls": 0,
+      "toolCalls": 0,
+      "cost": {
+        "status": "complete",
+        "totalUsd": 0,
+        "calls": 5,
+        "callsWithReportedCost": 5
+      },
+      "durationMs": 336499,
+      "resultHash": "053532fcb732b8d6d3a7189ad991c2a7e6de8599c057f1758fc395fdc4952644",
+      "auditEvents": 89,
+      "auditChainValid": true,
+      "auditActions": {
+        "budget.updated": 10,
+        "delegation.checked": 5,
+        "memory.cleared": 1,
+        "model.called": 5,
+        "model.completed": 5,
+        "model.count.called": 5,
+        "node.completed": 9,
+        "node.started": 9,
+        "permission.checked": 16,
+        "runtime.started": 1,
+        "state.committed": 6,
+        "worker.completed": 5,
+        "worker.spawned": 5,
+        "worker.started": 5,
+        "workflow.completed": 1,
+        "workflow.started": 1
+      },
+      "nodesCompleted": 9,
+      "artifacts": [
+        {
+          "name": "result.json",
+          "bytes": 68800,
+          "sha256": "ec5951f2f5179a2a260ec8f72cd6a29d3013dcf1ce374289b183cd1dc54f0569"
+        },
+        {
+          "name": "audit.json",
+          "bytes": 55875,
+          "sha256": "71bbebc3458b1bf943738480742b208c9dc3c383a1ef69534ebd9fea40818c82"
+        },
+        {
+          "name": "usage.json",
+          "bytes": 955,
+          "sha256": "bcf0ad618f37de3d16fdf3dffb013876796e30615668665defe7f033b0b1d5ca"
+        },
+        {
+          "name": "provenance.json",
+          "bytes": 236,
+          "sha256": "c1d6284e415cd5a2a0655cba6e1fbdcd6135dbff19a3eee996c49f113e483d95"
+        },
+        {
+          "name": "agenda.json",
+          "bytes": 1531,
+          "sha256": "0d8c58442af1b359824fe441c792f991622915f8bd642a6d511eb4a8d436978f"
+        }
+      ],
+      "packageExecution": {
+        "workflowInstantiated": true,
+        "packageInstructionsLoaded": true,
+        "toolHandlersInstalled": 0,
+        "toolCalls": 0
+      },
+      "hostRuntime": {
+        "runtime": "openclaw",
+        "runtimeVersion": "2026.9.5",
+        "verifiedVersion": "2026.9.5",
+        "versionVerified": true
+      },
+      "revalidated": [
+        "run_plan_identity",
+        "run_plan_readiness",
+        "run_plan_preflight",
+        "execution_mode",
+        "package_digest",
+        "archive_sha256",
+        "execution_profile",
+        "package_validation",
+        "signature_status",
+        "publisher_trust",
+        "signer_fingerprint",
+        "authorization_receipt",
+        "receipt_not_expired",
+        "receipt_outlasts_run_deadline",
+        "model_permission_granted",
+        "model_available",
+        "model_identity",
+        "model_compatibility",
+        "input_bytes:397",
+        "runner:archive_sha256",
+        "runner:container",
+        "runner:integrity",
+        "runner:schema",
+        "runner:package_digest",
+        "runner:package_identity",
+        "runner:publisher_signature",
+        "runner:signer_fingerprint",
+        "runner:execution_profile",
+        "runner:tool_handlers:0"
+      ]
+    },
+    "wallClockMs": 337349,
+    "agenda": {
+      "agenda": [
+        {
+          "minutes": 5,
+          "owner": "Dario",
+          "topic": "Introductions & Meeting Goal Review"
+        },
+        {
+          "minutes": 15,
+          "owner": "Mira",
+          "topic": "Trust Model & Security Compliance Assessment"
+        },
+        {
+          "minutes": 10,
+          "owner": "Tomas",
+          "topic": "Technical Compatibility & Integration Constraints"
+        },
+        {
+          "minutes": 10,
+          "owner": "Dario",
+          "topic": "Budget Implications & Timeline Feasibility"
+        },
+        {
+          "minutes": 5,
+          "owner": "Dario",
+          "topic": "Final Decision & Action Item Assignment"
+        }
+      ],
+      "decisions": [
+        "Adopt or reject agent.pkg based on today's findings",
+        "Assign owner for security review completion",
+        "Confirm timeline feasibility for six-week shipping target"
+      ],
+      "duration": 45,
+      "goal": "Decide whether to adopt agent.pkg for the next research prototype",
+      "preparation_items": [
+        "Review agent.pkg documentation and signed package specs",
+        "Inventory current ad-hoc scripts to identify dependencies",
+        "Draft budget analysis for security review and compliance costs"
+      ],
+      "questions": [
+        "What specific trust mechanisms are required for secure package distribution?",
+        "How does the budget constraint impact prototype delivery and tool selection?",
+        "Can ad-hoc scripts be phased out without affecting current workflow continuity?",
+        "Are there compliance concerns with adopting agent.pkg?",
+        "What are the acceptance criteria for prototype deployment?"
+      ]
+    },
+    "agendaChecks": {
+      "goalPreserved": true,
+      "durationPreserved": true,
+      "minutesSum": 45,
+      "minutesSumMatchesDuration": true,
+      "items": 5,
+      "owners": [
+        "Dario",
+        "Mira",
+        "Tomas"
+      ],
+      "hasPreparation": true,
+      "hasDecisions": true,
+      "hasQuestions": true
+    },
+    "provenance": {
+      "profile": "workflow.v0",
+      "interpreter": "agentpkg.workflow.Workflow",
+      "package_id": "org.webagents.meeting-agenda",
+      "package_digest": "d7884667cf10c47f73d66cff4381f39a914a9c24da3333b09b533ab19d2d7a99",
+      "synthetic": false
+    },
+    "runPlanAfterExecution": {
+      "runPlanSha256": "fd42cd89824a9c02c6d57f206bdb6de45db0e595c33fc768651e82f5d5885b1c",
+      "unchanged": true,
+      "executionPerformed": false,
+      "ready": true,
+      "pageRunAction": false
+    }
+  },
+  "host": {
+    "openclaw": "OpenClaw 2026.9.5 (ec9c1a1)",
+    "service": {
+      "state": "running",
+      "detail": "The Agent Browser control plane is running.",
+      "since": "2026-09-23T03:45:29.956Z",
+      "starts": 1,
+      "controlPlane": {
+        "apiVersion": "v0",
+        "agentpkgVersion": "0.2.0",
+        "packageFormat": "agent.pkg 0.1",
+        "execution": "disabled"
+      },
+      "sessions": {
+        "open": 0,
+        "max": 8
+      },
+      "capabilities": {
+        "openUrl": true,
+        "openLocal": true,
+        "localRoots": [
+          "/Users/dariofenoglio/Desktop/WebAgents/dist",
+          "/Users/dariofenoglio/.openclaw/workspace"
+        ],
+        "trustPinning": true
+      },
+      "executionSupported": false,
+      "executionOperations": true
+    }
+  },
+  "passed": true
+}

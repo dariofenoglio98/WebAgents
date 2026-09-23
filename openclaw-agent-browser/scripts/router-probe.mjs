@@ -81,11 +81,17 @@ async function main() {
   const opened = await call("packages.open-local", { path: args.package });
   const sessionId = opened.sessionId;
   try {
+    report.steps.trustOnOpen = {
+      status: opened.publisher.trustStatus,
+      reason: opened.publisher.trustReason ?? null,
+      signerFingerprint: opened.publisher.signerFingerprint,
+    };
     if (opened.publisher.trustStatus !== "trusted") {
+      // Narrowest scope: this key, for this package id only.
       await call("trust.pin-session-publisher", {
         sessionId,
         signerFingerprint: opened.publisher.signerFingerprint,
-        scope: "publisher",
+        scope: "package",
       });
     }
     const view = await call("packages.get", { sessionId });

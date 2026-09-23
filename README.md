@@ -10,6 +10,8 @@ agentpkg/.venv/bin/python -m pip install -e './agentpkg[dev]'
 agentpkg/.venv/bin/agentpkg inspect dist/meeting-agenda.agent.pkg
 agentpkg/.venv/bin/agentpkg verify dist/literature-review.agent.pkg \
   --trust-key examples/keys/workflow-publisher.pub.pem
+agentpkg/.venv/bin/agentpkg verify dist/meeting-agenda.agent.pkg \
+  --trust-key examples/keys/meeting-agenda-publisher.pub.pem
 agentpkg/.venv/bin/agentpkg run dist/literature-review.agent.pkg \
   --mode fixture --grants examples/literature-review-grants.json \
   --out examples/my-workflow-review
@@ -19,6 +21,8 @@ agentpkg/.venv/bin/agentpkg run dist/meeting-agenda.agent.pkg \
 ```
 
 Use new output directories. Fixture mode uses package-owned exact-input replay, performs no network/model inference, and reports synthetic usage. Its purpose is deterministic execution and enforcement testing. Supply `--input FILE.json` to use explicit input; a changed input needs matching fixture cases or a host model adapter. The example public keys establish development provenance, not independent certification.
+
+**The two shipped artifacts no longer share a signer.** `meeting-agenda` 0.2.1 carries a rotated development key (`sha256:2bcc374a…c5c4`) because its local-model timing policy had to change and the original key's private half exists on no machine here; `literature-review` still carries the original (`sha256:c7549e61…5a70`). Each must be pinned separately, and a host that trusted one does not thereby trust the other — [why, and what the trust store said about it](docs/package-execution-report.md#64-the-signing-key-rotation-and-what-the-host-made-of-it). Private signing keys live outside this repository.
 
 The runtime executes acyclic graphs with `llm`, `tool`, bounded `map`, `join`, `validate` and `output` nodes. Copied state views, declared writes, atomic wave commits, schema/relationship checks, permissions, global/worker budgets, deadlines, cancellation and structured audit all use generic machinery. Data-only packages never install executable code. Citation Resolver remains the existing standalone remote service.
 
@@ -105,5 +109,7 @@ See the [plugin documentation](docs/openclaw-agent-browser.md), [model selection
 and the run plan](docs/model-selection-and-run-plan.md), [package
 execution](docs/package-execution.md) and its
 [README](openclaw-agent-browser/README.md). Tested against OpenClaw 2026.9.5.
+
+A signed package has now **run for real** on this host: `meeting-agenda` 0.2.1 on a local `ollama/qwen3.5:9b`, completed, five model calls all on the bound model, three genuinely concurrent perspective workers, zero tool calls, a valid 89-event audit chain, $0, and an agenda whose minutes sum to exactly 45 — with the run plan byte-identical afterwards and `execution.performed` still false. The [milestone report](docs/package-execution-report.md) has the timeline, the measured timing policy behind 0.2.1, the signer rotation, and the structured-output defect that the timeout had been hiding.
 
 The existing [OpenClaw staging adapter](docs/openclaw-integration.md) still verifies and stages either package. A generic `ToolHandler` host broker — and therefore Literature Review execution — a user-facing Run action and live audit UI, per-worker or per-node model routing, persistent run history, Muse-specific connectors, Instinct, Maritime, NANDA, registries and marketplace features are not implemented in this milestone.
