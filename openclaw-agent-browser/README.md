@@ -5,16 +5,19 @@ Control UI page where an operator opens a signed `agent.pkg`, sees exactly what
 it is and what it asks for, records an authorization decision, chooses one of the
 models this OpenClaw host actually has, and prepares an immutable run plan.
 
-**No package is executed.** The page stops at a prepared run plan; there is no
-Run action anywhere in it, and no workflow, worker or package tool ever runs.
+**The page runs nothing.** It stops at a prepared run plan; there is no Run
+action anywhere in it, and a test asserts the browser half calls no `execution.*`
+or `router.probe` operation.
 
-One operator-only action the page does not render, `router.probe`, re-verifies a
-ready plan and makes a single host-owned model call through the agentpkg
-`ModelRouter` bridge, to prove that contract before anything depends on it. See
-[the model-router bridge](../docs/model-router-bridge.md). It requires the
-operator opt-in `plugins.entries.agent-browser.llm.allowModelOverride: true`,
-because binding an exact model is a privilege OpenClaw grants rather than one a
-plugin asserts.
+Two operator-only surfaces the page does not render sit behind it. `router.probe`
+re-verifies a ready plan and makes a single host-owned model call to prove the
+`ModelRouter` contract ([the model-router
+bridge](../docs/model-router-bridge.md)). `execution.start` re-verifies the same
+plan and **runs the package's own `workflow.v0` graph** on the model the plan
+bound, through the generic interpreter, with no tool handler installed ([package
+execution](../docs/package-execution.md)). Both require the operator opt-in
+`plugins.entries.agent-browser.llm.allowModelOverride: true`, because binding an
+exact model is a privilege OpenClaw grants rather than one a plugin asserts.
 
 ```text
  OpenClaw Control UI  (Agent Browser page)
@@ -171,6 +174,37 @@ It walks the same sequence as the page through the live Gateway and then invokes
 structured output was constrained by the host, the token bound and the real
 bill — and `workflowExecuted: false`.
 
+### Executing a package
+
+Also not part of the page, and the first thing here that runs one. It spends
+real tokens on the selected model.
+
+```sh
+node scripts/run-meeting-agenda.mjs \
+  --package ../dist/meeting-agenda.agent.pkg \
+  --input   ../examples/meeting-agenda-acceptance-input.json \
+  --model openai/gpt-5.6-luna \
+  --out /tmp/meeting-agenda-run.json
+```
+
+It walks the page's sequence, starts the execution, waits, and reads the
+package's declared `agenda.json` export back through the bounded artifact
+operation. It exits non-zero unless the run completed, every model call used the
+selected model, bounded parallel workers actually ran, no tool was called, the
+audit chain verifies, the agenda preserves the goal and duration with minutes
+summing exactly to the requested duration, and the run plan is byte-identical
+afterwards with `performed` still false.
+
+Host bounds are operator configuration and can only lower what a package already
+declares:
+
+```json
+{ "plugins": { "entries": { "agent-browser": { "config": { "execution": {
+  "totalTokens": 120000, "maxRemoteCalls": 32, "maxParallelWorkers": 3,
+  "maxOutputTokensPerCall": 16000, "runTimeoutSeconds": 600
+} } } } } }
+```
+
 ## Iterating
 
 | Change | Command |
@@ -191,8 +225,13 @@ bill — and `workflowExecuted: false`.
 | `src/project.ts` | Control-plane JSON → bounded browser DTOs |
 | `src/host-models.ts` | Host model discovery and its safe projection |
 | `src/host-llm.ts` | The only module that invokes a model: exact binding, constrained output, usage |
-| `src/router-bridge.ts` | Host side of the private JSONL bridge to the `agentpkg host-bridge` child |
-| `src/router-probe.ts` | Run-plan revalidation before any token is spent, and the probe projection |
+| `src/bridge-core.ts` | The shared JSONL child-bridge transport: framing, correlation, cancellation, lifetime |
+| `src/router-bridge.ts` | The probe child's protocol version, methods and one call sequence |
+| `src/execution-bridge.ts` | The runner child: its protocol version, methods and inherited descriptors |
+| `src/preflight.ts` | One run-plan revalidation, shared by the probe and by execution |
+| `src/router-probe.ts` | The probe report projection |
+| `src/execution.ts` | Preflight, lease, descriptors, bridge, run record, artifacts |
+| `src/run-manager.ts` | Ephemeral run records and lifecycle rules |
 | `src/control-ui.ts` | `defineControlUiPlugin`: the page and sidebar entry |
 | `src/ui/page.ts` | The page itself, mountable with a fake client in tests |
 

@@ -9,10 +9,34 @@
  * ## What it reads, and why that surface
  *
  * `buildModelsProviderData` (`openclaw/plugin-sdk/models-provider-runtime`) is
- * the same published catalog the host's own `/models` picker reads. It returns
- * the catalog rows plus `byProvider`, the set the host is currently willing to
- * offer — which is exactly "available on this host" rather than "exists
- * somewhere". It performs no provider discovery of its own and starts nothing.
+ * the published catalog the host's own `/models` picker reads. It performs no
+ * provider discovery of its own and starts nothing.
+ *
+ * ## Which view, and why availability is not the picker's view
+ *
+ * That function takes a `view`. The two views answer different questions, and
+ * an earlier version of this module asked the wrong one.
+ *
+ * `view: "default"` is the **picker's** listing. Its `byProvider` contains the
+ * configured/default models plus those whose auth readiness OpenClaw could
+ * positively confirm (`authBacked: evaluation.availability === true` in
+ * `commands-models`). A local provider whose credential lives in
+ * `models.providers.<id>.apiKey` rather than the auth store evaluates as
+ * *indeterminate*, so none of its models are auth-backed and the picker lists
+ * only the ones named in configuration. `openclaw models list --provider <id>`
+ * disagrees for exactly this reason: its CLI passes `view: opts.all || provider
+ * ? "all" : "default"`, so naming a provider silently switches it to the full
+ * catalog.
+ *
+ * `view: "all"` is the **host catalog**: every model of a browsable provider
+ * that OpenClaw considers route-compatible. That is the set this plugin can
+ * address, so it is the set this module reports.
+ *
+ * Availability is then decided by the gate that actually applies to
+ * `api.runtime.llm.complete` — this plugin's own LLM policy, mirrored in
+ * `model-policy.ts` — plus the row's own retirement status. Nothing in
+ * OpenClaw's completion path consults the picker view, so neither does this.
+ * Whether the picker also lists a model is kept as a tag, never as a veto.
  *
  * The Gateway RPC `models.list` would carry the same facts, but
  * `api.runtime.gateway.request` refuses any plugin that is not bundled or
@@ -47,18 +71,14 @@
  * A fact the host does not have at all is `null`, never `false`.
  */
 import { buildModelsProviderData } from "openclaw/plugin-sdk/models-provider-runtime";
+import { PLUGIN_ID } from "./contract.js";
 import { AgentBrowserError } from "./errors.js";
-
-/**
- * Mirrors OpenClaw's `normalizeProviderId` (trim + lowercase).
- *
- * The host exports that helper only from an untyped SDK subpath, so matching
- * its one-line behavior here keeps this module type-checked without widening
- * the plugin to implicit `any` imports.
- */
-function normalizeProviderId(provider: unknown): string {
-  return typeof provider === "string" ? provider.trim().toLowerCase() : "";
-}
+import {
+  modelKey,
+  modelPermitted,
+  normalizeProviderId,
+  resolvePluginLlmPolicy,
+} from "./model-policy.js";
 
 /** Upper bound on descriptors sent to the control plane in one catalog. */
 export const MAX_CATALOG_MODELS = 128;
@@ -138,6 +158,8 @@ export type ModelHost = {
   agentId?: string;
   workspaceDir?: string;
   runtimeVersion?: string | null;
+  /** Whose `plugins.entries.<id>.llm` policy gates a model override. */
+  pluginId?: string;
   /** Test seam. Defaults to the plugin-SDK function. */
   browse?: (
     config: unknown,
@@ -297,12 +319,17 @@ function descriptorOf(
  */
 export async function discoverHostModels(host: ModelHost): Promise<HostCatalog> {
   const browse = host.browse ?? (buildModelsProviderData as ModelHost["browse"])!;
-  let data: ProviderData;
-  try {
-    data = await browse(host.config, host.agentId, {
-      view: "default",
+  const ask = (view: "default" | "all") =>
+    browse(host.config, host.agentId, {
+      view,
       ...(host.workspaceDir ? { workspaceDir: host.workspaceDir } : {}),
     });
+
+  // The host catalog: every model of a browsable provider that OpenClaw
+  // considers route-compatible, which is the set this plugin can address.
+  let data: ProviderData;
+  try {
+    data = await ask("all");
   } catch (error) {
     throw new AgentBrowserError(
       "model_catalog_unavailable",
@@ -312,14 +339,43 @@ export async function discoverHostModels(host: ModelHost): Promise<HostCatalog> 
     );
   }
 
-  const offered = new Map<string, string>();
-  for (const [provider, models] of data.byProvider ?? new Map<string, Set<string>>()) {
-    for (const model of models) offered.set(`${normalizeProviderId(provider)}/${model}`, provider);
+  // The host's own picker listing, recorded as provenance only. It is a
+  // presentation view — a local provider whose credential is not in the auth
+  // store is absent from it while remaining perfectly routable — so it tags a
+  // model here and never vetoes one.
+  let pickerOffered = new Set<string>();
+  try {
+    const picker = await ask("default");
+    for (const [provider, models] of picker.byProvider ?? new Map<string, Set<string>>()) {
+      for (const model of models) pickerOffered.add(modelKey(provider, model));
+    }
+  } catch {
+    // The picker view is optional evidence; losing it must not hide a model.
+    pickerOffered = new Set<string>();
   }
+
+  const routable = new Map<string, string>();
+  for (const [provider, models] of data.byProvider ?? new Map<string, Set<string>>()) {
+    for (const model of models) routable.set(modelKey(provider, model), provider);
+  }
+  const policy = resolvePluginLlmPolicy(host.config, host.pluginId ?? PLUGIN_ID);
   const names = data.modelNames ?? new Map<string, string>();
   const defaultKey = data.resolvedDefault
-    ? `${normalizeProviderId(text(data.resolvedDefault.provider))}/${text(data.resolvedDefault.model)}`
+    ? modelKey(text(data.resolvedDefault.provider), text(data.resolvedDefault.model))
     : "";
+
+  /** Availability: addressable by the host, permitted to us, and not retired. */
+  const decide = (key: string, row: CatalogRow): { ok: boolean; reason: string | null } => {
+    // Present as a catalog row, but absent from the set OpenClaw is willing to
+    // address: a hidden provider, or a route it considers incompatible.
+    if (!routable.has(key)) return { ok: false, reason: "not_routable_by_host" };
+    const status = text(row.status);
+    if (status === "deprecated" || status === "disabled") {
+      return { ok: false, reason: `model_${status}` };
+    }
+    const permitted = modelPermitted(policy, key);
+    return permitted.permitted ? { ok: true, reason: null } : { ok: false, reason: permitted.reason };
+  };
 
   const seen = new Set<string>();
   const available: HostModelDescriptor[] = [];
@@ -331,35 +387,38 @@ export async function discoverHostModels(host: ModelHost): Promise<HostCatalog> 
     const key = `${provider}/${modelId}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    const isOffered = offered.has(key);
+    const verdict = decide(key, row);
     const tags: string[] = [];
     if (key === defaultKey) tags.push("host-default");
+    if (pickerOffered.has(key)) tags.push("host-picker");
     if (typeof row.alias === "string" && row.alias) tags.push(`alias:${row.alias}`);
     const descriptor = descriptorOf(row, {
-      available: isOffered,
-      reason: isOffered ? null : "not_offered_by_host",
+      available: verdict.ok,
+      reason: verdict.reason,
       displayName: names.get(key) ?? null,
       tags,
     });
-    (isOffered ? available : unavailable).push(descriptor);
+    (verdict.ok ? available : unavailable).push(descriptor);
   }
-  // A model the host offers but whose catalog row was dropped by visibility
-  // filtering is still a real choice, so it is reported with the little that
-  // is known about it rather than silently omitted.
-  for (const [key, provider] of offered) {
+  // A model the host can route but whose catalog row was dropped by projection
+  // is still a real choice, so it is reported with the little that is known
+  // about it rather than silently omitted.
+  for (const [key, provider] of routable) {
     if (seen.has(key)) continue;
     seen.add(key);
     const modelId = key.slice(key.indexOf("/") + 1);
-    available.push(
-      descriptorOf(
-        { id: modelId, provider, name: names.get(key) ?? modelId },
-        {
-          available: true,
-          reason: null,
-          displayName: names.get(key) ?? null,
-          tags: key === defaultKey ? ["host-default"] : [],
-        },
-      ),
+    const row: CatalogRow = { id: modelId, provider, name: names.get(key) ?? modelId };
+    const verdict = decide(key, row);
+    const tags: string[] = [];
+    if (key === defaultKey) tags.push("host-default");
+    if (pickerOffered.has(key)) tags.push("host-picker");
+    (verdict.ok ? available : unavailable).push(
+      descriptorOf(row, {
+        available: verdict.ok,
+        reason: verdict.reason,
+        displayName: names.get(key) ?? null,
+        tags,
+      }),
     );
   }
 

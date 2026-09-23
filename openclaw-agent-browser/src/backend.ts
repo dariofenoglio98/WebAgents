@@ -28,8 +28,10 @@ import {
   projectTrustEntry,
 } from "./project.js";
 import type { HostLlm } from "./host-llm.js";
-import { projectProbe, revalidate } from "./router-probe.js";
+import { projectProbe } from "./router-probe.js";
+import { revalidate } from "./preflight.js";
 import { RouterBridge, type BridgeLimits } from "./router-bridge.js";
+import { ExecutionService, resolvePolicy, type ExecutionPolicy } from "./execution.js";
 import {
   ControlPlaneSupervisor,
   resolveAgentpkgPath,
@@ -42,6 +44,8 @@ export type BackendConfig = {
   localPackages?: { roots?: string[]; includeWorkspace?: boolean };
   sessionTtlSeconds?: number;
   maxSessions?: number;
+  /** Trusted host bounds for a run. They can only lower package declarations. */
+  execution?: Partial<ExecutionPolicy>;
 };
 
 export type BackendOptions = {
@@ -72,7 +76,13 @@ export type BackendOptions = {
   };
   /** Operator-tunable bridge deadlines; defaults live in router-bridge.ts. */
   bridgeLimits?: Partial<BridgeLimits>;
+  /** Test seam: build an execution bridge instead of spawning a real runner. */
+  createExecutionBridge?: ExecutionServiceSeam;
 };
+
+type ExecutionServiceSeam = NonNullable<
+  ConstructorParameters<typeof ExecutionService>[0]["createBridge"]
+>;
 
 type Ok<T> = { ok: true; value: T };
 type Err = { ok: false; error: ReturnType<typeof asFeatureError> };
@@ -153,6 +163,7 @@ export class AgentBrowserBackend {
   private roots: string[] = [];
   private stopped = false;
   private agentpkgPath: string | null = null;
+  private execution: ExecutionService | null = null;
 
   constructor(private readonly options: BackendOptions) {}
 
@@ -168,6 +179,19 @@ export class AgentBrowserBackend {
     }
     this.roots = [...new Set(roots)].slice(0, 8);
 
+    const runtimeDir = resolvePath(this.options.stateDir, "agent-browser");
+    this.execution = new ExecutionService({
+      agentpkgPath: () => this.requireAgentpkgPath(),
+      llm: () => this.options.llm,
+      logger: this.options.logger,
+      runtimeDir,
+      policy: resolvePolicy(config.execution),
+      hostRuntimeVersion: () => this.options.modelHost?.runtimeVersion ?? null,
+      ...(this.options.createExecutionBridge
+        ? { createBridge: this.options.createExecutionBridge }
+        : {}),
+    });
+
     if (this.options.supervisor) {
       this.supervisor = this.options.supervisor;
       return;
@@ -176,7 +200,7 @@ export class AgentBrowserBackend {
     this.agentpkgPath = agentpkgPath;
     this.supervisor = new ControlPlaneSupervisor({
       agentpkgPath,
-      runtimeDir: resolvePath(this.options.stateDir, "agent-browser"),
+      runtimeDir,
       logger: this.options.logger,
       sessionTtlSeconds: positiveInt(config.sessionTtlSeconds, 900, 86_400),
       maxSessions: positiveInt(config.maxSessions, 8, 32),
@@ -198,6 +222,9 @@ export class AgentBrowserBackend {
 
   async stop(): Promise<void> {
     this.stopped = true;
+    // Runs in flight end here rather than outliving the plugin: their child is
+    // about to lose its parent, and run state is deliberately not persistent.
+    await this.execution?.stopAll();
     await this.supervisor?.stop();
   }
 
@@ -259,7 +286,10 @@ export class AgentBrowserBackend {
         localRoots: this.roots.slice(0, 8),
         trustPinning: snapshot.state === "running",
       },
+      // The page still has no Run action. Execution lives behind operator-only
+      // operations, which is a different fact and a different field.
       executionSupported: false,
+      executionOperations: Boolean(this.execution?.available()),
       ...extra,
     };
     return view;
@@ -590,6 +620,81 @@ export class AgentBrowserBackend {
       );
     }
     return this.agentpkgPath;
+  }
+
+  // -- execution (operator only; the page never calls these) -----------------
+  /**
+   * Run the signed package this session holds, on the model its plan bound.
+   *
+   * The caller supplies which plan it believes is current and the workflow
+   * input. Everything else — the instructions, the schemas, the graph, the
+   * model, the budgets — comes from the signed package, the run plan and this
+   * host's own policy. This is not a general completion endpoint.
+   */
+  startExecution(sessionId: string, runPlanId: string, runPlanSha256: string, input: unknown) {
+    return guard(async () => {
+      const execution = this.requireExecution();
+      const client = await this.client();
+      const catalog = await this.hostCatalog();
+      const record = await execution.start(client, catalog, {
+        sessionId,
+        runPlanId,
+        runPlanSha256,
+        input,
+      });
+      this.options.onChange?.("execution");
+      this.options.logger.info("agent-browser: execution finished", {
+        run: record.runId,
+        status: record.status,
+        model: record.selectedModel.hostModelId,
+        modelCalls: record.audit?.modelCalls ?? 0,
+        tokens: record.usage?.tokens ?? 0,
+      });
+      return record;
+    });
+  }
+
+  cancelExecution(runId: string) {
+    return guard(async () => {
+      const record = await this.requireExecution().cancel(runId);
+      this.options.onChange?.("execution");
+      return record;
+    });
+  }
+
+  getExecution(runId: string) {
+    return guard(async () => this.requireExecution().runs.get(runId)?.view ?? null);
+  }
+
+  listExecutions(sessionId?: string) {
+    return guard(async () => this.requireExecution().runs.list(sessionId));
+  }
+
+  readExecutionArtifact(runId: string, name: string) {
+    return guard(async () => this.requireExecution().artifact(runId, name));
+  }
+
+  clearExecutions(runId?: string, sessionId?: string) {
+    return guard(async () => {
+      const cleared = this.requireExecution().runs.clear({
+        ...(runId ? { runId } : {}),
+        ...(sessionId ? { sessionId } : {}),
+      });
+      if (cleared) this.options.onChange?.("execution");
+      return { cleared };
+    });
+  }
+
+  private requireExecution(): ExecutionService {
+    if (!this.execution || this.stopped) {
+      throw new AgentBrowserError(
+        "service_unavailable",
+        "Agent Browser service unavailable",
+        "The Agent Browser backend is not running.",
+        true,
+      );
+    }
+    return this.execution;
   }
 
   // -- trust ----------------------------------------------------------------

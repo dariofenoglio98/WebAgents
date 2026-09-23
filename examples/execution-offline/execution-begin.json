@@ -1,0 +1,157 @@
+{
+  "protocol": "agentpkg-execution/0.1",
+  "run_id": "run_offline_demo",
+  "run_plan_id": "rp_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "run_plan_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "invocation": {
+    "schema": "agentpkg-run-invocation-v0",
+    "run_invocation_version": "0.1",
+    "run_id": "run_offline_demo",
+    "run_plan_id": "rp_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "run_plan_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "session_id": "session-testing1234",
+    "package": {
+      "package_id": "org.webagents.meeting-agenda",
+      "version": "0.2.0",
+      "digest": "5aa0ec946b33346183f8313f5d3b4f82a1e9fb1d7c541b3d5d756117828aab80",
+      "archive_sha256": "664b39b12ed26ee2b7524cc5b0afb8a91ebc64b76948696e65f34cbd768c32cb"
+    },
+    "input_sha256": "7fd887619443e7e6e29d6c4c07e2086398b7759bcf9e5008133a5ac2bd99f1ba",
+    "input_bytes": 397,
+    "created_at": "2026-09-22T19:17:14.078498+00:00",
+    "note": "A run plan binds authority. This binds the task that authority was used for. Neither is a record of what happened; that is the run record.",
+    "run_invocation_sha256": "36e3b9fc8d015992200c01e8a98e9cb50b4b6dcd221dd795feed722ae3b42345"
+  },
+  "package": {
+    "archive_sha256": "664b39b12ed26ee2b7524cc5b0afb8a91ebc64b76948696e65f34cbd768c32cb",
+    "archive_bytes": 19516,
+    "digest": "5aa0ec946b33346183f8313f5d3b4f82a1e9fb1d7c541b3d5d756117828aab80",
+    "package_id": "org.webagents.meeting-agenda",
+    "version": "0.2.0",
+    "signer_fingerprint": "sha256:c7549e614dac7070e6b5b5355e7c2407e1185f831d7fff15670981229dd85a70",
+    "signature_status": "valid",
+    "entrypoint": "workflow.v0",
+    "execution_profile": "workflow.v0",
+    "verified": [
+      "archive_sha256",
+      "container",
+      "integrity",
+      "schema",
+      "package_digest",
+      "package_identity",
+      "publisher_signature",
+      "signer_fingerprint",
+      "execution_profile"
+    ],
+    "note": "Publisher trust remains the host's decision. The runner confirms that the cryptographic identity it received is the identity the run plan recorded."
+  },
+  "authorization": {
+    "receipt_id": "receipt-1234",
+    "receipt_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "decisions": {
+      "memory.session": "session",
+      "model.reasoning": "session"
+    },
+    "granted_permission_ids": [
+      "memory.session",
+      "model.reasoning"
+    ],
+    "denied_permission_ids": [],
+    "by_kind": {
+      "memory": [
+        "memory.session"
+      ],
+      "model": [
+        "model.reasoning"
+      ]
+    },
+    "source": "authorization_receipt",
+    "note": "Decisions are passed through unchanged; no decision is widened by this host."
+  },
+  "capabilities": {
+    "tools_declared": 0,
+    "tool_nodes": 0,
+    "llm_operations": [
+      {
+        "node": "plan",
+        "max_output_tokens": 12000
+      },
+      {
+        "node": "perspectives/one-perspective",
+        "max_output_tokens": 12000
+      },
+      {
+        "node": "write",
+        "max_output_tokens": 12000
+      }
+    ],
+    "max_requested_output_tokens": 12000,
+    "host_max_output_tokens_per_call": 16000
+  },
+  "model": {
+    "required_capabilities": [
+      "reasoning",
+      "structured_output"
+    ],
+    "router_capabilities": [
+      "reasoning",
+      "structured_output"
+    ],
+    "required_context_window": 16000,
+    "router_context_window": 272000,
+    "privacy": null,
+    "remote": true
+  },
+  "router": {
+    "router_id": "openclaw.host-bridge.v0",
+    "model_id": "acme/big",
+    "provider_id": "acme",
+    "remote": true,
+    "capabilities": [
+      "reasoning",
+      "structured_output"
+    ],
+    "context_window": 272000,
+    "not_declared": [
+      "multimodal",
+      "tool_use"
+    ],
+    "note": "Capabilities describe what this adapter delivers. tool_use is withheld because the adapter exposes no tools to the model, and multimodal because it sends text only."
+  },
+  "limits": {
+    "host": {
+      "total_tokens": 120000,
+      "max_remote_calls": 32,
+      "max_parallel_workers": 3,
+      "max_output_tokens_per_call": 16000,
+      "run_timeout_seconds": 600
+    },
+    "budget": {
+      "declared": {
+        "hard_tokens": 180000,
+        "max_remote_calls": 32,
+        "max_parallel_workers": 3,
+        "estimated_tokens": 12000,
+        "approval_threshold_tokens": null
+      },
+      "host": {
+        "hard_tokens": 120000,
+        "max_remote_calls": 32,
+        "max_parallel_workers": 3
+      },
+      "effective": {
+        "hard_tokens": 120000,
+        "max_remote_calls": 32,
+        "max_parallel_workers": 3
+      }
+    },
+    "graph_deadline_seconds": 300,
+    "effective_deadline_seconds": 300
+  },
+  "execution": {
+    "profile": "workflow.v0",
+    "interpreter": "agentpkg.workflow.Workflow",
+    "tool_handlers": 0,
+    "note": "The generic interpreter runs the package's own graph. This runner contains no package-specific orchestration and installs no tool handler."
+  }
+}

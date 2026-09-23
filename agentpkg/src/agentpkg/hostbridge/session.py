@@ -135,13 +135,29 @@ def normalize_plan(raw) -> dict:
     record = _fields(
         raw,
         "run_plan",
-        {"run_plan_id", "run_plan_sha256", "session_id", "package", "execution", "model_binding"},
+        {
+            "run_plan_id",
+            "run_plan_sha256",
+            "session_id",
+            "package",
+            # Accepted and recorded, never used: one preflight builds the
+            # binding for both this probe and the execution runner, and the
+            # runner needs the signer to verify the artifact it is handed.
+            "publisher",
+            "execution",
+            "model_binding",
+        },
         {"run_plan_id", "run_plan_sha256", "execution", "model_binding"},
     )
     package = _fields(
         record.get("package") or {},
         "run_plan.package",
         {"package_id", "name", "version", "digest", "archive_sha256", "execution_profile"},
+    )
+    publisher = _fields(
+        record.get("publisher") or {},
+        "run_plan.publisher",
+        {"signer_fingerprint", "signature_status", "trust_status"},
     )
     execution = _fields(
         record["execution"],
@@ -166,6 +182,10 @@ def normalize_plan(raw) -> dict:
             "execution_profile": _text(
                 package.get("execution_profile"), "execution_profile", limit=64, allow_none=True
             )
+        },
+        "publisher": {
+            key: _text(publisher.get(key), f"run_plan.publisher.{key}", limit=128, allow_none=True)
+            for key in ("signer_fingerprint", "signature_status", "trust_status")
         },
         "execution": {
             "mode": "model",

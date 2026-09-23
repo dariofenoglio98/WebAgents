@@ -347,6 +347,8 @@ Loopback HTTP, JSON in and out, versioned under `/v0`. Everything except
 | POST | `/v0/packages/{id}/run-plan` | `{"package_digest", "receipt_id", "model_id", "catalog", …}` → plan + preflight. |
 | GET | `/v0/packages/{id}/run-plan` | The prepared plan plus a recomputed preflight, or 404. |
 | DELETE | `/v0/packages/{id}/run-plan` | Discard the prepared run plan. |
+| POST | `/v0/packages/{id}/execution-lease` | `{"package_digest", "run_plan_id", "run_plan_sha256"}` → one **private, one-time copy** of this session's immutable snapshot, issued only while the plan is ready. The response carries a local path and therefore never leaves the authenticated host caller. |
+| DELETE | `/v0/packages/{id}/execution-lease/{lease_id}` | Delete that copy. Idempotent. |
 | DELETE | `/v0/packages/{id}` | Close the session and delete its snapshot. |
 | GET | `/v0/trust` | List pinned publishers. |
 | POST | `/v0/trust` | Pin `{"public_key_pem", "display_name", …}`. |
@@ -509,5 +511,6 @@ already running as the same user, which can read the token file and the cache.
 See also: [threat model](threat-model.md), [container
 spec](../spec/agent-pkg-v0.md), [execution profile](../spec/workflow-v0.md),
 [model selection and the run plan](model-selection-and-run-plan.md),
+[package execution](package-execution.md),
 [OpenClaw staging adapter](openclaw-integration.md), [milestone
 report](browser-report.md).

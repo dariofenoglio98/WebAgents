@@ -1,7 +1,7 @@
 {
   "id": "agent-browser",
   "name": "Agent Browser",
-  "description": "Open, inspect and authorize signed agent packages through the local agentpkg control plane. Nothing is executed.",
+  "description": "Open, inspect and authorize signed agent packages through the local agentpkg control plane. The page itself runs nothing; operator-only execution operations run an authorized package's own workflow on the model its run plan bound.",
   "version": "0.1.0",
   "categories": [
     "developer-tools"
@@ -43,6 +43,47 @@
         "minimum": 1,
         "maximum": 32,
         "description": "Maximum concurrently open package sessions."
+      },
+      "execution": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Trusted host bounds for one run. Each one can only lower what a package already declares; none of them can raise a package's own budget.",
+        "properties": {
+          "totalTokens": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10000000,
+            "description": "Upper bound on total tokens for one run."
+          },
+          "maxRemoteCalls": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10000,
+            "description": "Upper bound on remote calls for one run."
+          },
+          "maxParallelWorkers": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 64,
+            "description": "Upper bound on simultaneously active workers."
+          },
+          "maxOutputTokensPerCall": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200000,
+            "description": "Ceiling on one call's output cap. A graph node asking for more is refused; its declared cap is never silently lowered."
+          },
+          "runTimeoutSeconds": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 86400,
+            "description": "Upper bound on a run's wall-clock time, tightening the graph deadline."
+          },
+          "requireVerifiedHostRuntime": {
+            "type": "boolean",
+            "description": "Refuse to run on an OpenClaw release this project's token accounting was not verified against. Defaults to true."
+          }
+        }
       }
     }
   },
@@ -50,9 +91,9 @@
     "onStartup": true
   },
   "controlUi": {
-    "entry": "dist/control-ui/726c3f4f37f7e65fdcefa54c6ab155d8e5750b80edcf2599d02daf64d947b132/index.js",
+    "entry": "dist/control-ui/13519d291b742d37567c537ca3509df7ab79d7986d2b4a6cbfb514a580516754/index.js",
     "styles": [
-      "dist/control-ui/726c3f4f37f7e65fdcefa54c6ab155d8e5750b80edcf2599d02daf64d947b132/index.css"
+      "dist/control-ui/13519d291b742d37567c537ca3509df7ab79d7986d2b4a6cbfb514a580516754/index.css"
     ]
   },
   "contracts": {

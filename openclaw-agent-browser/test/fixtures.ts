@@ -18,6 +18,19 @@ export const DIST = join(REPO_ROOT, "dist");
 export const DEV_KEY_FINGERPRINT =
   "sha256:c7549e614dac7070e6b5b5355e7c2407e1185f831d7fff15670981229dd85a70";
 
+/**
+ * The operator opt-in every model call in this plugin depends on.
+ *
+ * `api.runtime.llm.complete` refuses a named model unless
+ * `plugins.entries.agent-browser.llm.allowModelOverride` is true, so a host
+ * without it can invoke nothing and the Agent Browser correctly offers nothing.
+ * Tests that expect models to be usable must therefore model a host that
+ * granted it, exactly as the real one does.
+ */
+export const HOST_CONFIG_WITH_MODEL_OVERRIDE = {
+  plugins: { entries: { "agent-browser": { llm: { allowModelOverride: true } } } },
+} as const;
+
 export function hasAgentpkg(): boolean {
   try {
     return readdirSync(join(REPO_ROOT, "agentpkg", ".venv", "bin")).includes("agentpkg");

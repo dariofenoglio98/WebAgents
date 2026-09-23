@@ -1,0 +1,169 @@
+{
+  "recordedAt": "2026-09-23T02:06:10.030Z",
+  "host": {
+    "runtime": "openclaw",
+    "runtimeVersion": "2026.9.5",
+    "source": "openclaw/plugin-sdk/models-provider-runtime#buildModelsProviderData",
+    "capturedAt": "2026-09-23T02:06:09.993Z",
+    "agentId": null
+  },
+  "counts": {
+    "total": 9,
+    "available": 9,
+    "selectable": 9,
+    "compatible": 9,
+    "unverified": 0,
+    "incompatible": 0
+  },
+  "catalogSha256": "cc1bb54f403efd8108af87c70a5975528b9423cc826ef17aec5f690f709faa3e",
+  "notes": [],
+  "models": [
+    {
+      "modelId": "ollama/qwen3.5:9b",
+      "available": true,
+      "availabilityReason": null,
+      "selectable": true,
+      "compatibility": "compatible",
+      "evidence": "declared",
+      "contextTokens": 32768,
+      "local": true,
+      "tags": [],
+      "checks": [
+        "undefined:undefined",
+        "undefined:undefined",
+        "undefined:undefined"
+      ]
+    },
+    {
+      "modelId": "ollama/qwen3.6:35b",
+      "available": true,
+      "availabilityReason": null,
+      "selectable": true,
+      "compatibility": "compatible",
+      "evidence": "declared",
+      "contextTokens": 32768,
+      "local": true,
+      "tags": [],
+      "checks": [
+        "undefined:undefined",
+        "undefined:undefined",
+        "undefined:undefined"
+      ]
+    },
+    {
+      "modelId": "ollama/qwen3.8:27b",
+      "available": true,
+      "availabilityReason": null,
+      "selectable": true,
+      "compatibility": "compatible",
+      "evidence": "declared",
+      "contextTokens": 32768,
+      "local": true,
+      "tags": [],
+      "checks": [
+        "undefined:undefined",
+        "undefined:undefined",
+        "undefined:undefined"
+      ]
+    },
+    {
+      "modelId": "ollama/qwen3:30b",
+      "available": true,
+      "availabilityReason": null,
+      "selectable": true,
+      "compatibility": "compatible",
+      "evidence": "declared",
+      "contextTokens": 32768,
+      "local": true,
+      "tags": [
+        "host-default",
+        "host-picker"
+      ],
+      "checks": [
+        "undefined:undefined",
+        "undefined:undefined",
+        "undefined:undefined"
+      ]
+    },
+    {
+      "modelId": "openai/gpt-5.5",
+      "available": true,
+      "availabilityReason": null,
+      "selectable": true,
+      "compatibility": "compatible",
+      "evidence": "derived",
+      "contextTokens": 272000,
+      "local": false,
+      "tags": [],
+      "checks": [
+        "undefined:undefined",
+        "undefined:undefined",
+        "undefined:undefined"
+      ]
+    },
+    {
+      "modelId": "openai/gpt-5.6-luna",
+      "available": true,
+      "availabilityReason": null,
+      "selectable": true,
+      "compatibility": "compatible",
+      "evidence": "derived",
+      "contextTokens": 272000,
+      "local": false,
+      "tags": [],
+      "checks": [
+        "undefined:undefined",
+        "undefined:undefined",
+        "undefined:undefined"
+      ]
+    },
+    {
+      "modelId": "openai/gpt-5.6-sol",
+      "available": true,
+      "availabilityReason": null,
+      "selectable": true,
+      "compatibility": "compatible",
+      "evidence": "derived",
+      "contextTokens": 272000,
+      "local": false,
+      "tags": [],
+      "checks": [
+        "undefined:undefined",
+        "undefined:undefined",
+        "undefined:undefined"
+      ]
+    },
+    {
+      "modelId": "openai/gpt-5.6-terra",
+      "available": true,
+      "availabilityReason": null,
+      "selectable": true,
+      "compatibility": "compatible",
+      "evidence": "derived",
+      "contextTokens": 272000,
+      "local": false,
+      "tags": [],
+      "checks": [
+        "undefined:undefined",
+        "undefined:undefined",
+        "undefined:undefined"
+      ]
+    },
+    {
+      "modelId": "openai/gpt-6-astra",
+      "available": true,
+      "availabilityReason": null,
+      "selectable": true,
+      "compatibility": "compatible",
+      "evidence": "derived",
+      "contextTokens": 272000,
+      "local": false,
+      "tags": [],
+      "checks": [
+        "undefined:undefined",
+        "undefined:undefined",
+        "undefined:undefined"
+      ]
+    }
+  ]
+}

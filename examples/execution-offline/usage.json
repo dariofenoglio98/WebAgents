@@ -1,0 +1,48 @@
+{
+  "tokens": 5400,
+  "reserved_tokens": 0,
+  "remote_calls": 10,
+  "tool_calls": {},
+  "peak_parallel_workers": 3,
+  "workers": {
+    "coordinator": {
+      "tokens": 0,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "Planner:1": {
+      "tokens": 1080,
+      "remote_calls": 2,
+      "tool_calls": {}
+    },
+    "Perspective:2": {
+      "tokens": 1080,
+      "remote_calls": 2,
+      "tool_calls": {}
+    },
+    "Perspective:3": {
+      "tokens": 1080,
+      "remote_calls": 2,
+      "tool_calls": {}
+    },
+    "Perspective:4": {
+      "tokens": 1080,
+      "remote_calls": 2,
+      "tool_calls": {}
+    },
+    "Writer:5": {
+      "tokens": 1080,
+      "remote_calls": 2,
+      "tool_calls": {}
+    }
+  },
+  "limits": {
+    "approval_threshold_tokens": null,
+    "estimated_cost_usd": null,
+    "estimated_tokens": 12000,
+    "hard_tokens": 120000,
+    "max_calls_per_tool": {},
+    "max_parallel_workers": 3,
+    "max_remote_calls": 32
+  }
+}

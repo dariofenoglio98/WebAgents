@@ -52,6 +52,53 @@ export const CONFIG_SCHEMA = {
       maximum: 32,
       description: "Maximum concurrently open package sessions.",
     },
+    execution: {
+      type: "object",
+      additionalProperties: false,
+      description:
+        "Trusted host bounds for one run. Each one can only lower what a package already " +
+        "declares; none of them can raise a package's own budget.",
+      properties: {
+        totalTokens: {
+          type: "integer",
+          minimum: 1,
+          maximum: 10000000,
+          description: "Upper bound on total tokens for one run.",
+        },
+        maxRemoteCalls: {
+          type: "integer",
+          minimum: 1,
+          maximum: 10000,
+          description: "Upper bound on remote calls for one run.",
+        },
+        maxParallelWorkers: {
+          type: "integer",
+          minimum: 1,
+          maximum: 64,
+          description: "Upper bound on simultaneously active workers.",
+        },
+        maxOutputTokensPerCall: {
+          type: "integer",
+          minimum: 1,
+          maximum: 200000,
+          description:
+            "Ceiling on one call's output cap. A graph node asking for more is refused; its " +
+            "declared cap is never silently lowered.",
+        },
+        runTimeoutSeconds: {
+          type: "integer",
+          minimum: 1,
+          maximum: 86400,
+          description: "Upper bound on a run's wall-clock time, tightening the graph deadline.",
+        },
+        requireVerifiedHostRuntime: {
+          type: "boolean",
+          description:
+            "Refuse to run on an OpenClaw release this project's token accounting was not " +
+            "verified against. Defaults to true.",
+        },
+      },
+    },
   },
 } as const;
 
@@ -60,7 +107,8 @@ const plugin = defineFeaturePlugin({
   name: "Agent Browser",
   description:
     "Open, inspect and authorize signed agent packages through the local agentpkg control plane. " +
-    "Nothing is executed.",
+    "The page itself runs nothing; operator-only execution operations run an authorized " +
+    "package's own workflow on the model its run plan bound.",
   setup(api, events) {
     let backend: AgentBrowserBackend | null = null;
     const logger = api.logger as unknown as Logger;
@@ -146,6 +194,7 @@ const plugin = defineFeaturePlugin({
                 trustPinning: false,
               },
               executionSupported: false as const,
+              executionOperations: false,
             },
       "service.restart": () => active().restart(),
       "packages.list": () => active().listSessions(),
@@ -172,6 +221,16 @@ const plugin = defineFeaturePlugin({
       // page, has no tool binding, and is not a Run action: see contract.ts.
       "router.probe": ({ sessionId, runPlanId, runPlanSha256 }) =>
         active().probeRouter(sessionId, runPlanId, runPlanSha256),
+      // Also developer/operator only, and also absent from the page. These do
+      // run a package: `execution.start` executes the signed graph the run plan
+      // named, on the model it bound, and spends real tokens.
+      "execution.start": ({ sessionId, runPlanId, runPlanSha256, input }) =>
+        active().startExecution(sessionId, runPlanId, runPlanSha256, input),
+      "execution.cancel": ({ runId }) => active().cancelExecution(runId),
+      "execution.get": ({ runId }) => active().getExecution(runId),
+      "execution.status": ({ sessionId }) => active().listExecutions(sessionId),
+      "execution.artifact": ({ runId, name }) => active().readExecutionArtifact(runId, name),
+      "execution.clear": ({ runId, sessionId }) => active().clearExecutions(runId, sessionId),
       "trust.list": () => active().listTrust(),
       "trust.pin-session-publisher": ({ sessionId, signerFingerprint, scope }) =>
         active().pinSessionPublisher(sessionId, signerFingerprint, scope),

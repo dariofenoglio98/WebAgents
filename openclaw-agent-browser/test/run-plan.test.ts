@@ -13,7 +13,7 @@ import { join } from "node:path";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { AgentBrowserBackend } from "../src/backend.js";
 import type { ModelHost } from "../src/host-models.js";
-import { AGENTPKG_BIN, DIST, hasAgentpkg } from "./fixtures.js";
+import { AGENTPKG_BIN, DIST, HOST_CONFIG_WITH_MODEL_OVERRIDE, hasAgentpkg } from "./fixtures.js";
 
 const runs = hasAgentpkg();
 const log = { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} };
@@ -46,7 +46,7 @@ const SILENT: Row = { id: "silent", name: "Silent Model", provider: "acme" };
 /** A stub of exactly the OpenClaw surface `host-models.ts` reads. */
 function makeHost(state: { rows: Row[]; offered: string[]; fail?: Error }): ModelHost {
   return {
-    config: {},
+    config: HOST_CONFIG_WITH_MODEL_OVERRIDE,
     runtimeVersion: "2026.9.5",
     browse: async () => {
       if (state.fail) throw state.fail;

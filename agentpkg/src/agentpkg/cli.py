@@ -13,7 +13,6 @@ from .errors import AgentPkgError, ValidationError
 from .package import (
     _open_parent,
     build_package,
-    create_directory,
     inspect_package,
     load_package,
     permissions_summary,
@@ -39,40 +38,15 @@ def _print(value):
     print(json.dumps(value, ensure_ascii=False, indent=2, allow_nan=False), flush=True)
 
 
-def _output_directory(path):
-    path = Path(path)
-    if path.exists() or path.is_symlink():
-        raise ValidationError(f"output requires a new directory; refusing to overwrite {path}")
-    if not path.parent.is_dir():
-        raise ValidationError(f"output parent does not exist: {path.parent}")
-    return create_directory(path)
-
-
 def _write_result(directory, result, package=None):
-    destination = _output_directory(directory)
+    """Write one run's artifacts through the shared trusted writer.
 
-    def save(name, value):
-        data = (json.dumps(value, ensure_ascii=False, indent=2, allow_nan=False) + "\n").encode(
-            "utf-8"
-        )
-        write_new(destination / name, data, mode=0o600)
+    The same function the execution runner uses, so a CLI run and a browser run
+    produce the same files under the same rules.
+    """
+    from .artifacts import artifact_records, write_artifacts
 
-    save("result.json", result)
-    for field in ("audit", "usage", "provenance"):
-        if field in result:
-            save(field + ".json", result[field])
-    if package is not None and result.get("status") == "completed":
-        from .workflow_values import evaluate
-
-        for export in package.graph.get("exports", []):
-            value = evaluate(export["value"], {"result": result["output"]})
-            if export["format"] == "json":
-                save(export["path"], value)
-            else:
-                if not isinstance(value, str):
-                    raise ValidationError("Text exports must select strings")
-                write_new(destination / export["path"], value.encode("utf-8"), mode=0o600)
-    return destination
+    return write_artifacts(directory, artifact_records(result, package))
 
 
 def parser():
@@ -161,6 +135,14 @@ def parser():
         help=(
             "Run one trusted host model-router bridge session on stdio "
             "(private JSONL protocol; stdout carries frames only)"
+        ),
+    )
+    commands.add_parser(
+        "execution-run",
+        help=(
+            "Run one workflow.v0 package execution session on stdio. Spawned by a trusted "
+            "host with the immutable package archive on fd 3 and the run's artifact "
+            "directory on fd 4; stdout carries protocol frames only"
         ),
     )
     trust = commands.add_parser(
@@ -335,6 +317,12 @@ def _dispatch(args):
         from .hostbridge import serve
 
         return _Exit(asyncio.run(serve()))
+    if command == "execution-run":
+        # The runner. stdout is the protocol; the package and the artifact
+        # directory arrive as inherited descriptors, so no path is named here.
+        from .execution import serve as serve_execution
+
+        return _Exit(asyncio.run(serve_execution()))
     if command == "install-openclaw":
         from .openclaw import stage_openclaw
 

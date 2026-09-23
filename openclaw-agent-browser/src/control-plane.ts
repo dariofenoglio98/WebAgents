@@ -33,6 +33,7 @@ const MAX_RESPONSE_BYTES = 12 * 1024 * 1024;
 const DEFAULT_TIMEOUT_MS = 30_000;
 
 const SESSION_ID = /^[A-Za-z0-9_-]{8,128}$/u;
+const LEASE_ID = /^[A-Za-z0-9_-]{8,128}$/u;
 const FINGERPRINT = /^sha256:[0-9a-f]{64}$/u;
 
 /**
@@ -274,6 +275,40 @@ export class ControlPlaneClient {
     return this.request(`/v0/packages/${segment(sessionId, SESSION_ID, "session id")}/run-plan`, {
       method: "DELETE",
     });
+  }
+
+  /**
+   * Ask for one private, one-time copy of this session's immutable snapshot.
+   *
+   * The response carries a local path, which is exactly why it stops in this
+   * process: the backend turns it into an inherited descriptor and never
+   * projects it into a feature result.
+   */
+  issueExecutionLease(
+    sessionId: string,
+    packageDigest: string,
+    runPlanId: string,
+    runPlanSha256: string,
+  ): Promise<unknown> {
+    return this.request(
+      `/v0/packages/${segment(sessionId, SESSION_ID, "session id")}/execution-lease`,
+      {
+        method: "POST",
+        body: {
+          package_digest: packageDigest,
+          run_plan_id: runPlanId,
+          run_plan_sha256: runPlanSha256,
+        },
+      },
+    );
+  }
+
+  releaseExecutionLease(sessionId: string, leaseId: string): Promise<unknown> {
+    return this.request(
+      `/v0/packages/${segment(sessionId, SESSION_ID, "session id")}/execution-lease/` +
+        segment(leaseId, LEASE_ID, "lease id"),
+      { method: "DELETE" },
+    );
   }
 
   closeSession(sessionId: string): Promise<unknown> {

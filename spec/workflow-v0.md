@@ -102,7 +102,7 @@ The profile supports only packaged local worker roles, depth **one**, with the c
 
 ## 7. Model-router contract
 
-The host supplies the `ModelRouter` protocol in `interfaces.py`. No vendor integration is part of this profile. Host adapters are separate: the existing optional generic HTTP router, and `agentpkg.hostbridge.HostBridgeModelRouter`, which binds the exact model an Agent Browser run plan recorded and reaches it through OpenClaw over a private stdio protocol (see [the model-router bridge](../docs/model-router-bridge.md)). The interpreter still selects no provider and knows no vendor.
+The host supplies the `ModelRouter` protocol in `interfaces.py`. No vendor integration is part of this profile. Host adapters are separate: the existing optional generic HTTP router, and `agentpkg.hostbridge.HostBridgeModelRouter`, which binds the exact model an Agent Browser run plan recorded and reaches it through OpenClaw over a private stdio protocol (see [the model-router bridge](../docs/model-router-bridge.md)). `agentpkg.execution` composes that router with this interpreter to run a package under a re-verified run plan (see [package execution](../docs/package-execution.md)); it installs no orchestration of its own. The interpreter still selects no provider and knows no vendor.
 
 ```python
 await router.count_tokens(request) -> nonnegative_integer
@@ -124,7 +124,7 @@ A remote tokenizer and a remote completion count as two remote calls. A model pe
 
 Existing tool documents declare binding, local/remote execution, input/output schemas, permissions, domains, endpoint/method, timeout, retry count, side effects and approval requirements. The generic mediator checks the worker allowlist, explicit host grants, policy/network contract, tool-call cap, global/worker remote-call caps, and schemas before dispatch. It enforces the tool timeout inside the enclosing node/workflow deadlines, validates the result, counts attempted dispatches conservatively and emits audit events.
 
-`ToolHandler` is an async host callable `(context, copied_payload) -> JSON`. Binding names identify installed host capabilities; no package name selects a handler. Host adapters must perform only their bound contract, respect selected-file IDs and allowed endpoints, and close/reap I/O on cancellation. The existing Crossref, PDF and Citation Resolver handlers are provider integrations in `tools.py`, outside the interpreter. Citation Resolver remains the existing remote service; no bibliographic resolver logic is copied into workflow execution.
+`ToolHandler` is an async host callable `(context, copied_payload) -> JSON`. Binding names identify installed host capabilities; no package name selects a handler. The Agent Browser execution host installs none yet, so it refuses a package that declares a tool or contains a `tool` node; that is a host capability limit, not a format limit. Host adapters must perform only their bound contract, respect selected-file IDs and allowed endpoints, and close/reap I/O on cancellation. The existing Crossref, PDF and Citation Resolver handlers are provider integrations in `tools.py`, outside the interpreter. Citation Resolver remains the existing remote service; no bibliographic resolver logic is copied into workflow execution.
 
 Fixture handlers are the same generic exact-input replay mechanism for every tool. A declared remote fixture tool counts against its remote-call budget even though it performs no network I/O. This exercises enforcement without spending real calls. Production networking retains the existing HTTPS allowlist, public DNS pinning, no-redirect transport and killable network child.
 
@@ -161,7 +161,7 @@ Raw prompts, source pages, input values, model outputs, credentials and provider
 
 ## 11. Exports and compatibility
 
-Exports have `path`, `format` (`text` or `json`), and a result `value` constructor. Filenames must be safe single portable filenames, unique case-insensitively, and cannot collide with host `result.json`, `audit.json`, `usage.json` or `provenance.json`. Text selections must be strings. The interpreter validates exports before successful completion; the CLI writes them to a new private output directory. It never interprets package filenames as code or writes outside that directory.
+Exports have `path`, `format` (`text` or `json`), and a result `value` constructor. Filenames must be safe single portable filenames, unique case-insensitively, and cannot collide with host `result.json`, `audit.json`, `usage.json` or `provenance.json`. Text selections must be strings. The interpreter validates exports before successful completion. One shared writer renders them; the CLI writes to a new private output directory and the execution runner writes through an inherited directory descriptor, which additionally reserves `run.json`. Neither interprets a package filename as code or writes outside its one destination.
 
 Container build/inspect/permissions/validate/unpack/sign/verify and existing OpenClaw staging remain generic and backward compatible. The old host-entrypoint graph schema is retained for archival packages. The old Literature Review source/artifact and development runner are explicitly separated; see `docs/workflow-migration.md`. They are not a fallback of the workflow interpreter.
 

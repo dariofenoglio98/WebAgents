@@ -70,7 +70,7 @@ def encode(frame: dict) -> bytes:
     return data
 
 
-def decode(line: bytes | str) -> dict:
+def decode(line: bytes | str, *, version: str = PROTOCOL_VERSION) -> dict:
     """Parse one received line into a frame, or raise a fatal protocol error."""
     raw = line.encode("utf-8") if isinstance(line, str) else line
     if len(raw) > MAX_FRAME_BYTES:
@@ -81,8 +81,10 @@ def decode(line: bytes | str) -> dict:
         raise _fail("Received frame is not valid UTF-8 JSON") from exc
     if not isinstance(value, dict):
         raise _fail("Received frame must be a JSON object")
-    if value.get("v") != PROTOCOL_VERSION:
-        raise _fail("Unsupported protocol version", expected=PROTOCOL_VERSION)
+    if value.get("v") != version:
+        # A peer speaking a different agentpkg protocol is refused outright, so
+        # a probe parent and an execution child can never complete a handshake.
+        raise _fail("Unsupported protocol version", expected=version)
     return value
 
 
@@ -92,37 +94,46 @@ def request_id(value) -> str:
     return value
 
 
-def request(identifier: str, method: str, params: dict, *, allowed: frozenset[str]) -> dict:
+def request(
+    identifier: str,
+    method: str,
+    params: dict,
+    *,
+    allowed: frozenset[str],
+    version: str = PROTOCOL_VERSION,
+) -> dict:
     """Build an outbound request after checking it against this direction."""
     if method not in allowed:
         raise _fail(f"Method {method!r} is not permitted in this direction")
     if not isinstance(params, dict):
         raise _fail("Request params must be an object")
     return {
-        "v": PROTOCOL_VERSION,
+        "v": version,
         "id": request_id(identifier),
         "method": method,
         "params": params,
     }
 
 
-def cancel(identifier: str) -> dict:
+def cancel(identifier: str, *, version: str = PROTOCOL_VERSION) -> dict:
     return {
-        "v": PROTOCOL_VERSION,
+        "v": version,
         "method": CANCEL_METHOD,
         "params": {"id": request_id(identifier)},
     }
 
 
-def ok(identifier: str, result: dict) -> dict:
-    return {"v": PROTOCOL_VERSION, "id": request_id(identifier), "ok": True, "result": result}
+def ok(identifier: str, result: dict, *, version: str = PROTOCOL_VERSION) -> dict:
+    return {"v": version, "id": request_id(identifier), "ok": True, "result": result}
 
 
-def err(identifier: str, code: str, message: str, detail=None) -> dict:
+def err(
+    identifier: str, code: str, message: str, detail=None, *, version: str = PROTOCOL_VERSION
+) -> dict:
     error = {"code": str(code)[:128], "message": str(message)[:2048]}
     if detail:
         error["detail"] = detail
-    return {"v": PROTOCOL_VERSION, "id": request_id(identifier), "ok": False, "error": error}
+    return {"v": version, "id": request_id(identifier), "ok": False, "error": error}
 
 
 def classify(frame: dict, *, inbound_methods: frozenset[str]) -> tuple[str, dict]:

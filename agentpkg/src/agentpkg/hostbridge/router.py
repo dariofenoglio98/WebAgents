@@ -72,6 +72,9 @@ FRAMING_TOKEN_ALLOWANCE = 512
 
 # Guards on what comes back from the host before it is parsed.
 MAX_COMPLETION_TEXT_BYTES = 4 * 1024 * 1024
+# Per-call evidence a report can carry back. A run bounded by token budgets
+# cannot approach this; it exists so the list cannot grow without a bound.
+MAX_RECORDED_INVOCATIONS = 512
 MAX_EXTRACTION_DEPTH = 256
 
 CAPABILITY_STRUCTURED_OUTPUT = "structured_output"
@@ -297,9 +300,12 @@ class HostBridgeModelRouter:
         self.capabilities = capabilities_for(binding)
         self.context_window = context_window_for(binding)
         self.timeout = request_timeout_seconds
-        # Evidence for the probe report; never used to decide anything.
+        # Evidence for a probe or run report; never used to decide anything.
         self.last_count: dict | None = None
         self.last_completion: dict | None = None
+        # One entry per completed call, so a multi-call run can show which model
+        # answered each time rather than asserting it once.
+        self.invocations: list[dict] = []
 
     def describe(self) -> dict:
         return {
@@ -400,6 +406,19 @@ class HostBridgeModelRouter:
             "max_output_tokens": max_output_tokens,
             "usage": usage,
         }
+        if len(self.invocations) < MAX_RECORDED_INVOCATIONS:
+            self.invocations.append(
+                {
+                    "model_id": invoked,
+                    "provider_id": answer.get("provider_id"),
+                    "response_model": answer.get("response_model"),
+                    "constrained_by_host": answer.get("constrained") is True,
+                    "count_basis": (self.last_count or {}).get("basis"),
+                    "input_tokens": usage["input_tokens"],
+                    "output_tokens": usage["output_tokens"],
+                    "cost_usd": usage["cost_usd"],
+                }
+            )
         result = {
             "output": output,
             "input_tokens": usage["input_tokens"],

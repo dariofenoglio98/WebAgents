@@ -14,7 +14,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { AgentBrowserBackend } from "../src/backend.js";
 import type { HostLlm } from "../src/host-llm.js";
 import type { ModelHost } from "../src/host-models.js";
-import { AGENTPKG_BIN, DIST, hasAgentpkg } from "./fixtures.js";
+import { AGENTPKG_BIN, DIST, HOST_CONFIG_WITH_MODEL_OVERRIDE, hasAgentpkg } from "./fixtures.js";
 
 const runs = hasAgentpkg();
 const log = { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} };
@@ -35,7 +35,7 @@ const BIG: Row = {
 
 function makeHost(state: { rows: Row[]; offered: string[] }): ModelHost {
   return {
-    config: {},
+    config: HOST_CONFIG_WITH_MODEL_OVERRIDE,
     runtimeVersion: "2026.9.5",
     browse: async () => ({
       byProvider: new Map([["acme", new Set(state.offered)]]),
@@ -180,7 +180,7 @@ describe.runIf(runs)("the developer router probe", () => {
     expect(report.accounting).toMatchObject({
       inputWithinBound: true,
       outputWithinCap: true,
-      maxOutputTokens: 256,
+      maxOutputTokens: 4096,
     });
 
     // Nothing from the package took part.
@@ -202,6 +202,8 @@ describe.runIf(runs)("the developer router probe", () => {
       "execution_mode",
       "package_digest",
       "archive_sha256",
+      "execution_profile",
+      "package_validation",
       "signature_status",
       "publisher_trust",
       "signer_fingerprint",
@@ -225,7 +227,7 @@ describe.runIf(runs)("the developer router probe", () => {
     expect(sent).toContain("router probe");
     // The host, not the child, chose the model; and the cap was forwarded.
     expect(stub.calls[0].model).toBe("acme/big");
-    expect(stub.calls[0].maxTokens).toBe(256);
+    expect(stub.calls[0].maxTokens).toBe(4096);
     expect(stub.calls[0].responseFormat).toMatchObject({ type: "json_schema" });
   }, 180_000);
 

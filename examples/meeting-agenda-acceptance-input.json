@@ -1,0 +1,19 @@
+{
+  "goal": "Decide whether to adopt agent.pkg for the next research prototype",
+  "participants": [
+    {
+      "name": "Dario",
+      "role": "researcher"
+    },
+    {
+      "name": "Mira",
+      "role": "security reviewer"
+    },
+    {
+      "name": "Tomas",
+      "role": "systems engineer"
+    }
+  ],
+  "context": "The prototype must ship in six weeks. Portable signed packages would replace ad-hoc scripts, but the team has not yet reviewed the trust and budget model.",
+  "duration": 45
+}

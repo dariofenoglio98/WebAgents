@@ -1,0 +1,20 @@
+# Local model inventory at the time of the 3B2 model-availability fix
+# Captured 2026-09-23T02:10:38Z on OpenClaw 2026.9.5 (ec9c1a1)
+
+$ ollama list
+NAME           ID              SIZE      MODIFIED          
+qwen3.8:27b    22130167c4c2    17 GB     About an hour ago    
+qwen3.5:9b     6488c96fa5fa    6.6 GB    6 hours ago          
+qwen3.6:35b    07d35212591f    23 GB     3 months ago         
+qwen3:30b      ad815644918f    18 GB     3 months ago         
+
+$ openclaw models list --provider ollama --refresh   # --provider forces view:"all"
+Model                                      Input      Ctx         Local Auth  Tags
+ollama/qwen3:30b                           text       33k/262k    yes   -     
+ollama/qwen3.5:9b                          text+image 33k/262k    yes   -     default
+ollama/qwen3.6:35b                         text+image 33k/262k    yes   -     
+ollama/qwen3.8:27b                         text+image 33k/262k    yes   -     
+
+$ openclaw models list   # default view (configured)
+Model                                      Input      Ctx         Local Auth  Tags
+ollama/qwen3.5:9b                          text+image 33k/262k    yes   -     default

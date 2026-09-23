@@ -21,6 +21,10 @@ from itertools import count
 from . import protocol
 from .errors import BridgeError, ProtocolError
 
+# Cancelled request ids whose late answer is still tolerated. A peer's own
+# concurrency is bounded far below this by MAX_PENDING.
+MAX_ABANDONED = 128
+
 
 async def stdio_streams(loop=None):
     """Bind this process's stdin/stdout as asyncio streams.
@@ -57,17 +61,26 @@ class BridgePeer:
         inbound_methods: frozenset[str],
         handler=None,
         prefix: str = "r",
+        version: str = protocol.PROTOCOL_VERSION,
     ):
         self._reader = reader
         self._writer = writer
         self._outbound = outbound_methods
         self._inbound = inbound_methods
         self._handler = handler
+        # One peer speaks exactly one protocol. A frame carrying any other
+        # version ends the session rather than being interpreted.
+        self._version = version
         self._ids = count(1)
         self._prefix = prefix
         self._pending: dict[str, asyncio.Future] = {}
         self._serving: dict[str, asyncio.Task] = {}
         self._seen: set[str] = set()
+        # Ids this peer cancelled and stopped awaiting. A peer that answers a
+        # cancellation with an error frame is behaving correctly, so a late
+        # reply for one of these is discarded rather than treated as the
+        # streams disagreeing. Anything else still ends the session.
+        self._abandoned: dict[str, None] = {}
         self._write_lock = asyncio.Lock()
         self._closed: BridgeError | None = None
         self.frames_sent = 0
@@ -90,7 +103,9 @@ class BridgePeer:
         if len(self._pending) >= protocol.MAX_PENDING:
             raise BridgeError("bridge_saturated", "Too many outstanding bridge requests")
         identifier = f"{self._prefix}{next(self._ids)}"
-        frame = protocol.request(identifier, method, params, allowed=self._outbound)
+        frame = protocol.request(
+            identifier, method, params, allowed=self._outbound, version=self._version
+        )
         future: asyncio.Future = asyncio.get_running_loop().create_future()
         self._pending[identifier] = future
         try:
@@ -111,11 +126,14 @@ class BridgePeer:
             self._pending.pop(identifier, None)
 
     async def _abandon(self, identifier: str) -> None:
-        """Tell the peer to stop work we no longer await."""
+        """Tell the peer to stop work we no longer await, and expect a late reply."""
+        self._abandoned[identifier] = None
+        while len(self._abandoned) > MAX_ABANDONED:
+            self._abandoned.pop(next(iter(self._abandoned)))
         if self._closed is not None:
             return
         with contextlib.suppress(Exception):
-            await self._send(protocol.cancel(identifier))
+            await self._send(protocol.cancel(identifier, version=self._version))
 
     # -- reading -------------------------------------------------------------
     async def serve(self) -> None:
@@ -136,7 +154,7 @@ class BridgePeer:
                     ) from exc
                 self.frames_received += 1
                 kind, frame = protocol.classify(
-                    protocol.decode(line), inbound_methods=self._inbound
+                    protocol.decode(line, version=self._version), inbound_methods=self._inbound
                 )
                 if kind == "response":
                     self._settle(frame)
@@ -155,10 +173,14 @@ class BridgePeer:
     def _settle(self, frame: dict) -> None:
         future = self._pending.pop(frame["id"], None)
         if future is None:
-            # An answer to a request we never sent, or already abandoned, means
-            # the streams no longer agree about what is outstanding.
+            if frame["id"] in self._abandoned:
+                # The answer to something we cancelled. Expected, and ignored.
+                self._abandoned.pop(frame["id"], None)
+                return
+            # An answer to a request we never sent means the streams no longer
+            # agree about what is outstanding.
             raise protocol.ProtocolError(
-                "protocol_violation", "Response for an unknown or abandoned request id"
+                "protocol_violation", "Response for an unknown request id"
             )
         if future.done():
             return
@@ -189,14 +211,20 @@ class BridgePeer:
         identifier, method = frame["id"], frame["method"]
         try:
             result = await self._handler(method, frame["params"])
-            reply = protocol.ok(identifier, result)
+            reply = protocol.ok(identifier, result, version=self._version)
         except asyncio.CancelledError:
-            reply = protocol.err(identifier, "cancelled", f"{method} was cancelled")
+            reply = protocol.err(
+                identifier, "cancelled", f"{method} was cancelled", version=self._version
+            )
         except BridgeError as exc:
-            reply = protocol.err(identifier, exc.code, str(exc), exc.detail or None)
+            reply = protocol.err(
+                identifier, exc.code, str(exc), exc.detail or None, version=self._version
+            )
         except Exception as exc:  # Never leak a traceback onto the wire.
             print(f"host-bridge: {method} failed: {type(exc).__name__}", file=sys.stderr)
-            reply = protocol.err(identifier, "internal_error", f"{method} failed")
+            reply = protocol.err(
+                identifier, "internal_error", f"{method} failed", version=self._version
+            )
         finally:
             self._serving.pop(identifier, None)
         with contextlib.suppress(Exception):

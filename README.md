@@ -53,8 +53,16 @@ A separate trusted namespace, `agentpkg.hostbridge`, turns a ready run plan into
 a `ModelRouter` bound to that exact model and reaches it through OpenClaw over a
 private stdio protocol. The control plane cannot import it. One developer
 [router probe](docs/model-router-bridge.md) makes a single host-owned model call
-to prove the router contract; no package workflow, worker or tool runs, and
-there is still no Run button.
+to prove the router contract.
+
+A third namespace, [`agentpkg.execution`](docs/package-execution.md), composes
+those two with the generic interpreter and **runs a signed package**. It receives
+the control plane's immutable snapshot as a one-time lease over an inherited
+descriptor, re-verifies its hash, digest, identity, signature and signer, carries
+the person's decisions through unchanged, applies host limits that can only lower
+package budgets, and calls `Workflow.run`. It installs no tool handler, so a
+package declaring a tool is refused. Execution is operator-only: there is still
+no Run button on the page.
 
 ```sh
 agentpkg/.venv/bin/agentpkg trust add --public-key examples/keys/workflow-publisher.pub.pem \
@@ -83,8 +91,9 @@ the control-plane bearer token in the Gateway process, and is the only place tha
 knows what OpenClaw is; the browser half holds no credentials and reimplements no
 verification, trust, permission or compatibility logic.
 
-**Nothing executes.** Model *discovery* is allowed; model *inference* is not.
-There is no Run action in this milestone.
+**The page runs nothing.** It stops at a prepared run plan and calls no
+execution operation, which a test asserts. Execution exists behind operator-only
+`execution.*` operations that never reach the Control UI.
 
 ```sh
 cd openclaw-agent-browser && npm install && npm run build && npm run validate && npm run pack
@@ -93,7 +102,8 @@ openclaw plugins install ./agent-browser.tgz --accept-capabilities
 ```
 
 See the [plugin documentation](docs/openclaw-agent-browser.md), [model selection
-and the run plan](docs/model-selection-and-run-plan.md) and its
+and the run plan](docs/model-selection-and-run-plan.md), [package
+execution](docs/package-execution.md) and its
 [README](openclaw-agent-browser/README.md). Tested against OpenClaw 2026.9.5.
 
-The existing [OpenClaw staging adapter](docs/openclaw-integration.md) still verifies and stages either package. Executing a prepared run plan, an OpenClaw `ModelRouter` adapter, per-worker or per-node model routing, Muse-specific connectors, Instinct, Maritime, NANDA, registries and marketplace features are not implemented in this milestone.
+The existing [OpenClaw staging adapter](docs/openclaw-integration.md) still verifies and stages either package. A generic `ToolHandler` host broker — and therefore Literature Review execution — a user-facing Run action and live audit UI, per-worker or per-node model routing, persistent run history, Muse-specific connectors, Instinct, Maritime, NANDA, registries and marketplace features are not implemented in this milestone.

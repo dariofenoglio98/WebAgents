@@ -12,10 +12,14 @@ publisher and one explicitly chosen host model, frozen together and marked
 it. Model discovery and selection are documented separately in [model selection
 and the run plan](model-selection-and-run-plan.md).
 
-One operator-only feature action, `router.probe`, is not rendered by the page: it
-re-verifies a ready plan and makes a single host-owned model call to prove the
-`ModelRouter` contract. See [the model-router bridge](model-router-bridge.md).
-No package skill, node, worker or tool takes part in it.
+Two operator-only surfaces sit behind the page and are not rendered by it.
+`router.probe` re-verifies a ready plan and makes a single host-owned model call
+to prove the `ModelRouter` contract; no package skill, node, worker or tool takes
+part in it ([the model-router bridge](model-router-bridge.md)). The `execution.*`
+operations re-verify the same plan and **run the package's own graph** through
+the generic interpreter, on the model the plan bound, with no tool handler
+installed ([package execution](package-execution.md)). A test asserts the
+browser half of this plugin calls neither.
 
 Tested against **OpenClaw 2026.9.5 (`ec9c1a1`)**. Every plugin API used here is
 documented as experimental; this milestone is pinned to that host version.
@@ -143,6 +147,9 @@ not by this plugin.
 | `packages.authorization` | query | The receipt issued for a session, or null |
 | `models.evaluate` | query | This host's models, evaluated against the open package |
 | `run-plan.get` | query | The prepared run plan plus a freshly recomputed preflight |
+| `execution.status` | query | *Operator only.* A session's ephemeral run records, and the active one |
+| `execution.get` | query | *Operator only.* One run record |
+| `execution.artifact` | query | *Operator only.* One named artifact a run wrote, bounded |
 | `trust.list` | query | Publisher keys pinned by this operator |
 | `packages.open-url` | action | Open an HTTPS package through the control plane |
 | `packages.open-local` | action | Open a file inside an operator-configured root |
@@ -150,6 +157,10 @@ not by this plugin.
 | `packages.authorize` | action | Record decisions, receive a receipt |
 | `run-plan.prepare` | action | Bind package + authorization + one chosen model into a run plan |
 | `run-plan.clear` | action | Discard the prepared run plan |
+| `router.probe` | action | *Operator only.* Prove the router contract with one host-owned call |
+| `execution.start` | action | *Operator only.* Run the signed package on the model its plan bound |
+| `execution.cancel` | action | *Operator only.* Stop a running workflow |
+| `execution.clear` | action | *Operator only.* Forget finished run records |
 | `trust.pin-session-publisher` | action | Pin the key that signed one open session |
 | `trust.remove` | action | Remove a pin |
 | `service.restart` | action | Restart the control plane |
@@ -291,14 +302,19 @@ it.
 
 ## 9. What this milestone does not do
 
-* **No package execution.** No workflow instantiation, worker creation, package
-  tool call, Citation Resolver call, PDF read or output write. There is no Run
-  action, and `executionPerformed` is a literal `false` in the contract.
+* **No package execution from the page.** The page has no Run action, calls no
+  `execution.*` or `router.probe` operation, and a run plan still reports
+  `executionPerformed: false` after a run, because a plan never performs
+  anything. Execution itself now exists, operator-only: see [package
+  execution](package-execution.md).
+* **No package tool ever runs.** The execution host installs no `ToolHandler`, so
+  a package declaring a tool — including Literature Review — is refused before
+  any token. No Citation Resolver call, Crossref call or PDF read happens.
 * **No model inference from the page.** Model *discovery* is allowed and
-  *selection* is offered; the page calls no model. The one operation that does —
-  the operator-only `router.probe` — is documented in [the model-router
-  bridge](model-router-bridge.md) and sends a host-owned request, never package
-  content.
+  *selection* is offered; the page calls no model. The operations that do —
+  operator-only `router.probe` and `execution.start` — send host-owned or
+  signed-package content respectively, and neither accepts a caller-supplied
+  prompt, schema or model id.
 * **No automatic or best-model selection**, no per-worker or per-node routing,
   no fallback chains, no cost optimization and no quality ranking.
 * **No NANDA, Muse, Instinct or Maritime.** The address bar takes raw HTTPS URLs.

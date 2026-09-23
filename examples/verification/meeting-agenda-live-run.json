@@ -1,0 +1,607 @@
+{
+  "recordedAt": "2026-09-22T20:39:44.934Z",
+  "input": {
+    "goal": "Decide whether to adopt agent.pkg for the next research prototype",
+    "participants": [
+      {
+        "name": "Dario",
+        "role": "researcher"
+      },
+      {
+        "name": "Mira",
+        "role": "security reviewer"
+      },
+      {
+        "name": "Tomas",
+        "role": "systems engineer"
+      }
+    ],
+    "context": "The prototype must ship in six weeks. Portable signed packages would replace ad-hoc scripts, but the team has not yet reviewed the trust and budget model.",
+    "duration": 45
+  },
+  "steps": {
+    "package": {
+      "packageId": "org.webagents.meeting-agenda",
+      "version": "0.2.0",
+      "digest": "5aa0ec946b33346183f8313f5d3b4f82a1e9fb1d7c541b3d5d756117828aab80",
+      "archiveSha256": "664b39b12ed26ee2b7524cc5b0afb8a91ebc64b76948696e65f34cbd768c32cb",
+      "signatureStatus": "valid",
+      "trustStatus": "trusted",
+      "signerFingerprint": "sha256:c7549e614dac7070e6b5b5355e7c2407e1185f831d7fff15670981229dd85a70",
+      "declaredTools": 0
+    },
+    "authorization": {
+      "receiptId": "7e6826f2-e17e-4046-8738-27216e8d5375",
+      "receiptSha256": "4b6b8efd0fc42a8c5c31eb8b724ef37b4fb4ec98e156ab6ad084c88774909f29",
+      "runnable": true,
+      "granted": [
+        "memory.session",
+        "model.reasoning"
+      ],
+      "decisions": [
+        "model.reasoning",
+        "memory.session"
+      ]
+    },
+    "models": {
+      "host": {
+        "runtime": "openclaw",
+        "runtimeVersion": "2026.9.5",
+        "source": "openclaw/plugin-sdk/models-provider-runtime#buildModelsProviderData",
+        "capturedAt": "2026-09-22T20:39:59.349Z",
+        "agentId": null
+      },
+      "catalogSha256": "bb99213f88799e29b872962b17cce9b560a6f32ff85a6caeab2e7e940485e907",
+      "offered": [
+        {
+          "id": "claude-cli/claude-fable-5",
+          "status": "compatible"
+        },
+        {
+          "id": "claude-cli/claude-fable-5-1",
+          "status": "compatible"
+        },
+        {
+          "id": "claude-cli/claude-opus-4-6",
+          "status": "compatible"
+        },
+        {
+          "id": "claude-cli/claude-opus-4-7",
+          "status": "compatible"
+        },
+        {
+          "id": "claude-cli/claude-opus-4-8",
+          "status": "compatible"
+        },
+        {
+          "id": "claude-cli/claude-opus-5",
+          "status": "compatible"
+        },
+        {
+          "id": "claude-cli/claude-sonnet-4-6",
+          "status": "compatible"
+        },
+        {
+          "id": "claude-cli/claude-sonnet-5",
+          "status": "compatible"
+        },
+        {
+          "id": "ollama/deepseek-r1:32b",
+          "status": "compatible"
+        },
+        {
+          "id": "ollama/qwen3.6:35b",
+          "status": "compatible"
+        },
+        {
+          "id": "ollama/qwen3:30b",
+          "status": "compatible"
+        },
+        {
+          "id": "ollama/gemma4",
+          "status": "incompatible"
+        },
+        {
+          "id": "ollama/llama3.2:latest",
+          "status": "incompatible"
+        },
+        {
+          "id": "ollama-cloud/glm-5.1",
+          "status": "compatible"
+        },
+        {
+          "id": "ollama-cloud/glm-5.2",
+          "status": "compatible"
+        },
+        {
+          "id": "ollama-cloud/kimi-k3",
+          "status": "compatible"
+        },
+        {
+          "id": "ollama-cloud/minimax-m2.7",
+          "status": "compatible"
+        },
+        {
+          "id": "ollama-cloud/minimax-m3",
+          "status": "compatible"
+        },
+        {
+          "id": "openai/gpt-5.5",
+          "status": "compatible"
+        },
+        {
+          "id": "openai/gpt-5.6-luna",
+          "status": "compatible"
+        },
+        {
+          "id": "openai/gpt-5.6-sol",
+          "status": "compatible"
+        },
+        {
+          "id": "openai/gpt-5.6-terra",
+          "status": "compatible"
+        },
+        {
+          "id": "openai/gpt-6-astra",
+          "status": "compatible"
+        }
+      ],
+      "selected": "ollama/qwen3:30b",
+      "selectedExplicitly": true
+    },
+    "runPlan": {
+      "runPlanId": "rp_98c4f43006d94bf99b7c15dbdc0a5889",
+      "runPlanSha256": "72c067daf46cd0f38632bcb2669c3d5e404aeb624e5f7519ae05e3ff38a5d324",
+      "ready": true,
+      "model": "ollama/qwen3:30b",
+      "compatibility": "compatible",
+      "executionPerformed": false
+    },
+    "run": {
+      "runId": "run_b7d926b375b543eeaa7068e663940813",
+      "sessionId": "7h64NnB8gQlaD4_L-Pfc1lFJ",
+      "runPlanId": "rp_98c4f43006d94bf99b7c15dbdc0a5889",
+      "runPlanSha256": "72c067daf46cd0f38632bcb2669c3d5e404aeb624e5f7519ae05e3ff38a5d324",
+      "runInvocationSha256": "445782cfa48789706d237c8643f096f7afd37151ab848f5f041c1d79dc76a558",
+      "inputSha256": "7fd887619443e7e6e29d6c4c07e2086398b7759bcf9e5008133a5ac2bd99f1ba",
+      "status": "failed",
+      "createdAt": "2026-09-22T20:40:01.123Z",
+      "startedAt": "2026-09-22T20:40:01.126Z",
+      "endedAt": "2026-09-22T20:41:43.808Z",
+      "durationMs": 102682,
+      "package": {
+        "packageId": "org.webagents.meeting-agenda",
+        "name": "Meeting Agenda Agent",
+        "version": "0.2.0",
+        "digest": "5aa0ec946b33346183f8313f5d3b4f82a1e9fb1d7c541b3d5d756117828aab80",
+        "archiveSha256": "664b39b12ed26ee2b7524cc5b0afb8a91ebc64b76948696e65f34cbd768c32cb",
+        "executionProfile": "workflow.v0"
+      },
+      "selectedModel": {
+        "hostModelId": "ollama/qwen3:30b",
+        "providerId": "ollama",
+        "modelId": "qwen3:30b",
+        "displayName": "qwen3:30b"
+      },
+      "model": {
+        "planned": "ollama/qwen3:30b",
+        "invoked": [
+          "ollama/qwen3:30b"
+        ],
+        "calls": 2,
+        "allCallsUsedPlannedModel": true,
+        "providers": [
+          "ollama"
+        ],
+        "responseModels": []
+      },
+      "grants": {
+        "decisions": [
+          {
+            "permissionId": "memory.session",
+            "decision": "session"
+          },
+          {
+            "permissionId": "model.reasoning",
+            "decision": "session"
+          }
+        ],
+        "grantedPermissionIds": [
+          "memory.session",
+          "model.reasoning"
+        ]
+      },
+      "limits": {
+        "host": {
+          "totalTokens": 120000,
+          "maxRemoteCalls": 32,
+          "maxParallelWorkers": 3,
+          "maxOutputTokensPerCall": 16000,
+          "runTimeoutSeconds": 600
+        },
+        "effectiveDeadlineSeconds": 300
+      },
+      "usage": {
+        "tokens": 32989,
+        "remoteCalls": 0,
+        "peakParallelWorkers": 3,
+        "toolCalls": 0,
+        "limits": {
+          "hardTokens": 120000,
+          "maxRemoteCalls": 32,
+          "maxParallelWorkers": 3
+        },
+        "workers": [
+          {
+            "worker": "coordinator",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "Planner:1",
+            "tokens": 1490,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "Perspective:2",
+            "tokens": 2629,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "Perspective:3",
+            "tokens": 14435,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "Perspective:4",
+            "tokens": 14435,
+            "remoteCalls": 0
+          }
+        ]
+      },
+      "cost": {
+        "status": "complete",
+        "totalUsd": 0,
+        "calls": 2,
+        "callsWithReportedCost": 2
+      },
+      "audit": {
+        "events": 64,
+        "chainValid": true,
+        "finalHash": "4a051059fa16980a3bc0d6c0a1db138f286c1db2efa56129061b4f264eaaef3c",
+        "actions": [
+          {
+            "action": "budget.updated",
+            "count": 8
+          },
+          {
+            "action": "delegation.checked",
+            "count": 4
+          },
+          {
+            "action": "memory.cleared",
+            "count": 1
+          },
+          {
+            "action": "model.called",
+            "count": 4
+          },
+          {
+            "action": "model.completed",
+            "count": 2
+          },
+          {
+            "action": "model.count.called",
+            "count": 4
+          },
+          {
+            "action": "model.failed",
+            "count": 2
+          },
+          {
+            "action": "node.completed",
+            "count": 2
+          },
+          {
+            "action": "node.failed",
+            "count": 3
+          },
+          {
+            "action": "node.started",
+            "count": 5
+          },
+          {
+            "action": "permission.checked",
+            "count": 13
+          },
+          {
+            "action": "runtime.started",
+            "count": 1
+          },
+          {
+            "action": "state.committed",
+            "count": 1
+          },
+          {
+            "action": "worker.completed",
+            "count": 2
+          },
+          {
+            "action": "worker.failed",
+            "count": 2
+          },
+          {
+            "action": "worker.spawned",
+            "count": 4
+          },
+          {
+            "action": "worker.started",
+            "count": 4
+          },
+          {
+            "action": "workflow.failed",
+            "count": 1
+          },
+          {
+            "action": "workflow.started",
+            "count": 1
+          }
+        ],
+        "workers": [
+          "Perspective:2",
+          "Perspective:3",
+          "Perspective:4",
+          "Planner:1",
+          "coordinator"
+        ],
+        "workersSpawned": 4,
+        "nodesCompleted": 2,
+        "modelCalls": 2,
+        "toolCalls": 0,
+        "tasksCalled": [
+          {
+            "task": "perspective",
+            "count": 1
+          },
+          {
+            "task": "plan",
+            "count": 1
+          }
+        ]
+      },
+      "outputSha256": null,
+      "artifacts": [
+        {
+          "name": "result.json",
+          "bytes": 43356,
+          "sha256": "eb0339d8731695486119fba66df457cb386df726e0b66f963db1f86fd6da6f48"
+        },
+        {
+          "name": "audit.json",
+          "bytes": 39776,
+          "sha256": "aeaa3348959d4d3c9091334ae184c88d343cb0b0936a293ed8f5e40dc2c863c2"
+        },
+        {
+          "name": "usage.json",
+          "bytes": 865,
+          "sha256": "89ba92a72cf67b4281bdca355bcc0918b7391aa4173382ec7a574f9fc6cddc2f"
+        },
+        {
+          "name": "provenance.json",
+          "bytes": 236,
+          "sha256": "13959361a9641ccfe07db6d8008832aa405779eeb4bfbd72b8e507b6b2ea6d8f"
+        }
+      ],
+      "host": {
+        "runtime": "openclaw",
+        "runtimeVersion": "2026.9.5",
+        "verifiedVersion": "2026.9.5",
+        "versionVerified": true
+      },
+      "deadlineExceeded": false,
+      "cancelRequested": false,
+      "errorCode": "timeout",
+      "errorDetail": null,
+      "revalidated": [
+        "run_plan_identity",
+        "run_plan_readiness",
+        "run_plan_preflight",
+        "execution_mode",
+        "package_digest",
+        "archive_sha256",
+        "execution_profile",
+        "package_validation",
+        "signature_status",
+        "publisher_trust",
+        "signer_fingerprint",
+        "authorization_receipt",
+        "receipt_not_expired",
+        "receipt_outlasts_run_deadline",
+        "model_permission_granted",
+        "model_available",
+        "model_identity",
+        "model_compatibility",
+        "input_bytes:397",
+        "runner:archive_sha256",
+        "runner:container",
+        "runner:integrity",
+        "runner:schema",
+        "runner:package_digest",
+        "runner:package_identity",
+        "runner:publisher_signature",
+        "runner:signer_fingerprint",
+        "runner:execution_profile",
+        "runner:tool_handlers:0"
+      ],
+      "packageExecution": {
+        "workflowInstantiated": true,
+        "packageInstructionsLoaded": true,
+        "toolHandlersInstalled": 0,
+        "toolCalls": 0
+      }
+    },
+    "audit": {
+      "status": "failed",
+      "errorCode": "timeout",
+      "llmCalls": 2,
+      "tasksCalled": {
+        "perspective": 1,
+        "plan": 1
+      },
+      "workerIds": [
+        "Perspective:2",
+        "Perspective:3",
+        "Perspective:4",
+        "Planner:1",
+        "coordinator"
+      ],
+      "workersSpawned": 4,
+      "peakParallelWorkers": 3,
+      "plannedModel": "ollama/qwen3:30b",
+      "invokedModels": [
+        "ollama/qwen3:30b"
+      ],
+      "everyCallUsedPlannedModel": true,
+      "modelMatchesChoice": true,
+      "totalTokens": 32989,
+      "remoteCalls": 0,
+      "toolCalls": 0,
+      "cost": {
+        "status": "complete",
+        "totalUsd": 0,
+        "calls": 2,
+        "callsWithReportedCost": 2
+      },
+      "durationMs": 102682,
+      "resultHash": null,
+      "auditEvents": 64,
+      "auditChainValid": true,
+      "auditActions": {
+        "budget.updated": 8,
+        "delegation.checked": 4,
+        "memory.cleared": 1,
+        "model.called": 4,
+        "model.completed": 2,
+        "model.count.called": 4,
+        "model.failed": 2,
+        "node.completed": 2,
+        "node.failed": 3,
+        "node.started": 5,
+        "permission.checked": 13,
+        "runtime.started": 1,
+        "state.committed": 1,
+        "worker.completed": 2,
+        "worker.failed": 2,
+        "worker.spawned": 4,
+        "worker.started": 4,
+        "workflow.failed": 1,
+        "workflow.started": 1
+      },
+      "nodesCompleted": 2,
+      "artifacts": [
+        {
+          "name": "result.json",
+          "bytes": 43356,
+          "sha256": "eb0339d8731695486119fba66df457cb386df726e0b66f963db1f86fd6da6f48"
+        },
+        {
+          "name": "audit.json",
+          "bytes": 39776,
+          "sha256": "aeaa3348959d4d3c9091334ae184c88d343cb0b0936a293ed8f5e40dc2c863c2"
+        },
+        {
+          "name": "usage.json",
+          "bytes": 865,
+          "sha256": "89ba92a72cf67b4281bdca355bcc0918b7391aa4173382ec7a574f9fc6cddc2f"
+        },
+        {
+          "name": "provenance.json",
+          "bytes": 236,
+          "sha256": "13959361a9641ccfe07db6d8008832aa405779eeb4bfbd72b8e507b6b2ea6d8f"
+        }
+      ],
+      "packageExecution": {
+        "workflowInstantiated": true,
+        "packageInstructionsLoaded": true,
+        "toolHandlersInstalled": 0,
+        "toolCalls": 0
+      },
+      "hostRuntime": {
+        "runtime": "openclaw",
+        "runtimeVersion": "2026.9.5",
+        "verifiedVersion": "2026.9.5",
+        "versionVerified": true
+      },
+      "revalidated": [
+        "run_plan_identity",
+        "run_plan_readiness",
+        "run_plan_preflight",
+        "execution_mode",
+        "package_digest",
+        "archive_sha256",
+        "execution_profile",
+        "package_validation",
+        "signature_status",
+        "publisher_trust",
+        "signer_fingerprint",
+        "authorization_receipt",
+        "receipt_not_expired",
+        "receipt_outlasts_run_deadline",
+        "model_permission_granted",
+        "model_available",
+        "model_identity",
+        "model_compatibility",
+        "input_bytes:397",
+        "runner:archive_sha256",
+        "runner:container",
+        "runner:integrity",
+        "runner:schema",
+        "runner:package_digest",
+        "runner:package_identity",
+        "runner:publisher_signature",
+        "runner:signer_fingerprint",
+        "runner:execution_profile",
+        "runner:tool_handlers:0"
+      ]
+    },
+    "wallClockMs": 103654,
+    "runPlanAfterExecution": {
+      "runPlanSha256": "72c067daf46cd0f38632bcb2669c3d5e404aeb624e5f7519ae05e3ff38a5d324",
+      "unchanged": true,
+      "executionPerformed": false,
+      "ready": true,
+      "pageRunAction": false
+    }
+  },
+  "host": {
+    "openclaw": "OpenClaw 2026.9.5 (ec9c1a1)",
+    "service": {
+      "state": "running",
+      "detail": "The Agent Browser control plane is running.",
+      "since": "2026-09-22T19:35:59.839Z",
+      "starts": 1,
+      "controlPlane": {
+        "apiVersion": "v0",
+        "agentpkgVersion": "0.2.0",
+        "packageFormat": "agent.pkg 0.1",
+        "execution": "disabled"
+      },
+      "sessions": {
+        "open": 1,
+        "max": 8
+      },
+      "capabilities": {
+        "openUrl": true,
+        "openLocal": true,
+        "localRoots": [
+          "/Users/dariofenoglio/Desktop/WebAgents/dist",
+          "/Users/dariofenoglio/.openclaw/workspace"
+        ],
+        "trustPinning": true
+      },
+      "executionSupported": false,
+      "executionOperations": true
+    }
+  },
+  "passed": false
+}

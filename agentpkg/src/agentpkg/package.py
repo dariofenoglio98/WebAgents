@@ -185,8 +185,11 @@ def _source_files(path):
 def _archive_files(path):
     if path.stat().st_size > MAX_TOTAL_BYTES + MAX_FILES * 1024:
         raise ValidationError("archive exceeds total size limit")
+    return _archive_payload(path.read_bytes())
+
+
+def _archive_payload(raw: bytes):
     files = {}
-    raw = path.read_bytes()
     if (
         len(raw) > MAX_TOTAL_BYTES + MAX_FILES * 1024
         or len(raw) < 22
@@ -285,6 +288,28 @@ def read_archive(path: str | Path):
     `IntegrityError`. Callers that need the parsed manifest use `load_package`.
     """
     return _archive_files(Path(path))
+
+
+def read_archive_bytes(data: bytes):
+    """The same container/integrity layers over bytes already held in memory.
+
+    A caller that received an artifact through an inherited file descriptor has
+    no path to reopen, and reopening one would reintroduce the verify/reload
+    race this format is careful about. The parsing rules are identical: this is
+    the same function `read_archive` runs, without the filesystem step.
+    """
+    if not isinstance(data, (bytes, bytearray)):
+        raise ValidationError("archive bytes expected")
+    if len(data) > MAX_TOTAL_BYTES + MAX_FILES * 1024:
+        raise ValidationError("archive exceeds total size limit")
+    return _archive_payload(bytes(data))
+
+
+def load_package_bytes(data: bytes, source: Path | None = None) -> Package:
+    """Load one verified artifact from bytes, with no path to reopen."""
+    files, statement, signature = read_archive_bytes(data)
+    manifest, graph, policy, tools = validate_payload(files)
+    return Package(manifest, graph, policy, tools, files, statement, signature, source, True)
 
 
 def read_regular_bytes(path: str | Path, limit: int) -> bytes:

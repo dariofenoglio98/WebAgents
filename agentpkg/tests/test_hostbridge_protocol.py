@@ -188,8 +188,43 @@ def test_a_response_to_an_unknown_id_is_refused():
             handler=None,
         )
         reader.feed_data(protocol.encode(protocol.ok("never-sent", {"a": 1})))
-        with pytest.raises(ProtocolError, match="unknown or abandoned"):
+        with pytest.raises(ProtocolError, match="unknown request id"):
             await peer.serve()
+
+    asyncio.run(main())
+
+
+def test_a_late_answer_to_a_cancelled_request_is_discarded_not_fatal():
+    """Cancelling is a handshake: the peer may still answer, and often does.
+
+    `$/cancel` asks the peer to stop, and a peer that stops mid-operation
+    answers with a `cancelled` error frame. Treating that as desynchronization
+    would make every cancellation kill the session, which is exactly the
+    failure mode a run has to survive.
+    """
+
+    async def main():
+        (child_reader, child_writer), (_, host_writer) = duplex()
+        peer = BridgePeer(
+            child_reader,
+            child_writer,
+            outbound_methods=protocol.HOST_METHODS,
+            inbound_methods=protocol.CHILD_METHODS,
+            handler=None,
+        )
+        serving = asyncio.create_task(peer.serve())
+        with pytest.raises(BridgeError, match="did not answer"):
+            await peer.call("model.complete", {}, timeout=0.05)
+        # The host now answers the request the peer already gave up on.
+        host_writer.write(protocol.encode(protocol.err("r1", "cancelled", "stopped")))
+        await asyncio.sleep(0.05)
+        assert not serving.done(), "a late answer to a cancellation ended the session"
+        # An answer to something never sent is still fatal.
+        host_writer.write(protocol.encode(protocol.ok("r99", {})))
+        with pytest.raises(ProtocolError, match="unknown request id"):
+            await serving
+        sent = [protocol.decode(line) for line in b"".join(child_writer.chunks).splitlines()]
+        assert [frame.get("method") for frame in sent] == ["model.complete", "$/cancel"]
 
     asyncio.run(main())
 

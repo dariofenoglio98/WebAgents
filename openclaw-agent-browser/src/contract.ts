@@ -84,6 +84,10 @@ export const ERROR_CODES = [
   "bridge_protocol_error",
   "bridge_timeout",
   "bridge_failed",
+  "authorization_expiring",
+  "execution_refused",
+  "execution_active",
+  "execution_unknown",
 ] as const;
 
 export const FeatureError = Obj({
@@ -116,6 +120,10 @@ export const FeatureError = Obj({
     Type.Literal("bridge_protocol_error"),
     Type.Literal("bridge_timeout"),
     Type.Literal("bridge_failed"),
+    Type.Literal("authorization_expiring"),
+    Type.Literal("execution_refused"),
+    Type.Literal("execution_active"),
+    Type.Literal("execution_unknown"),
   ]),
   /** Short human title for the UI heading. */
   title: Text(200),
@@ -166,8 +174,16 @@ export const ServiceStatus = Obj({
     localRoots: Type.Array(Text(1024), { maxItems: 8 }),
     trustPinning: Type.Boolean(),
   }),
-  /** Never true in this milestone; the page states it explicitly. */
+  /**
+   * Whether this *page* offers a Run action. Always false.
+   *
+   * Execution itself exists behind operator-only operations (`execution.*`),
+   * which the Control UI deliberately does not call. The two facts are kept in
+   * separate fields so neither can be read as the other.
+   */
   executionSupported: Type.Literal(false),
+  /** Whether the operator-only execution operations can run a package here. */
+  executionOperations: Type.Optional(Type.Boolean()),
 });
 export type ServiceStatusView = Static<typeof ServiceStatus>;
 
@@ -728,10 +744,170 @@ export const RunPlanStateView = Obj({
       modelStillAvailable: Nullable(Type.Boolean()),
     }),
   ),
-  /** Always false. There is no run action in this build. */
+  /** Always false: this page has no Run action. See `ServiceStatus`. */
   executionSupported: Type.Literal(false),
 });
 export type RunPlanStateViewType = Static<typeof RunPlanStateView>;
+
+// -- execution ---------------------------------------------------------------
+export const RUN_STATUSES = ["preparing", "running", "completed", "failed", "cancelled"] as const;
+
+export const RunStatus = Type.Union([
+  Type.Literal("preparing"),
+  Type.Literal("running"),
+  Type.Literal("completed"),
+  Type.Literal("failed"),
+  Type.Literal("cancelled"),
+]);
+
+export const RunArtifact = Obj({
+  name: Text(128),
+  bytes: Type.Integer(),
+  sha256: Text(128),
+});
+
+export const RunUsageView = Obj({
+  tokens: Type.Integer(),
+  remoteCalls: Type.Integer(),
+  peakParallelWorkers: Type.Integer(),
+  toolCalls: Type.Integer(),
+  limits: Obj({
+    hardTokens: Type.Integer(),
+    maxRemoteCalls: Type.Integer(),
+    maxParallelWorkers: Type.Integer(),
+  }),
+  workers: Type.Array(
+    Obj({ worker: Text(128), tokens: Type.Integer(), remoteCalls: Type.Integer() }),
+    { maxItems: LIMITS.workers },
+  ),
+});
+
+/**
+ * One run's record: what was asked, what happened, and how it ended.
+ *
+ * Deliberately not in here: the agentpkgd bearer token, the leased archive's
+ * path, the run directory's path, the child's pid, and the package's own
+ * output. Artifacts are named and hashed; their contents are read through
+ * `execution.artifact`, which is bounded.
+ */
+export const RunRecordView = Obj({
+  runId: Text(128),
+  sessionId: Text(128),
+  runPlanId: Text(128),
+  runPlanSha256: Text(128),
+  runInvocationSha256: Nullable(Text(128)),
+  inputSha256: Nullable(Text(128)),
+  status: RunStatus,
+  createdAt: Text(64),
+  startedAt: Nullable(Text(64)),
+  endedAt: Nullable(Text(64)),
+  durationMs: Nullable(Type.Number()),
+  package: Obj({
+    packageId: Id(),
+    name: Text(200),
+    version: Text(64),
+    digest: Text(128),
+    archiveSha256: Text(128),
+    executionProfile: Text(64),
+  }),
+  selectedModel: Obj({
+    hostModelId: Text(256),
+    providerId: Text(128),
+    modelId: Text(256),
+    displayName: Text(200),
+  }),
+  /** Which model actually answered each call, from the adapter's own record. */
+  model: Nullable(
+    Obj({
+      planned: Text(256),
+      invoked: Type.Array(Text(256), { maxItems: LIMITS.models }),
+      calls: Type.Integer(),
+      allCallsUsedPlannedModel: Type.Boolean(),
+      providers: Type.Array(Text(128), { maxItems: LIMITS.models }),
+      responseModels: Type.Array(Text(256), { maxItems: LIMITS.models }),
+    }),
+  ),
+  grants: Obj({
+    decisions: Type.Array(Obj({ permissionId: Id(), decision: Decision }), {
+      maxItems: LIMITS.permissions,
+    }),
+    grantedPermissionIds: Type.Array(Id(), { maxItems: LIMITS.ids }),
+  }),
+  limits: Obj({
+    host: Obj({
+      totalTokens: Type.Integer(),
+      maxRemoteCalls: Type.Integer(),
+      maxParallelWorkers: Type.Integer(),
+      maxOutputTokensPerCall: Type.Integer(),
+      runTimeoutSeconds: Type.Integer(),
+    }),
+    effectiveDeadlineSeconds: Nullable(Type.Integer()),
+  }),
+  usage: Nullable(RunUsageView),
+  cost: Nullable(
+    Obj({
+      status: Text(32),
+      totalUsd: Nullable(Type.Number()),
+      calls: Type.Integer(),
+      callsWithReportedCost: Type.Integer(),
+    }),
+  ),
+  audit: Nullable(
+    Obj({
+      events: Type.Integer(),
+      chainValid: Type.Boolean(),
+      finalHash: Nullable(Text(128)),
+      actions: Type.Array(Obj({ action: Text(64), count: Type.Integer() }), { maxItems: 64 }),
+      workers: Type.Array(Text(128), { maxItems: LIMITS.workers }),
+      workersSpawned: Type.Integer(),
+      nodesCompleted: Type.Integer(),
+      modelCalls: Type.Integer(),
+      toolCalls: Type.Integer(),
+      tasksCalled: Type.Array(Obj({ task: Text(64), count: Type.Integer() }), { maxItems: 64 }),
+    }),
+  ),
+  outputSha256: Nullable(Text(128)),
+  artifacts: Type.Array(RunArtifact, { maxItems: 64 }),
+  host: Obj({
+    runtime: Text(64),
+    runtimeVersion: Nullable(Text(64)),
+    verifiedVersion: Text(64),
+    versionVerified: Type.Boolean(),
+  }),
+  deadlineExceeded: Type.Boolean(),
+  cancelRequested: Type.Boolean(),
+  errorCode: Nullable(Text(64)),
+  errorDetail: Nullable(Text(LIMITS.text)),
+  /** What the preflight re-verified before a single token was spent. */
+  revalidated: Type.Array(Text(64), { maxItems: 32 }),
+  packageExecution: Obj({
+    workflowInstantiated: Type.Boolean(),
+    packageInstructionsLoaded: Type.Boolean(),
+    toolHandlersInstalled: Type.Literal(0),
+    toolCalls: Type.Integer(),
+  }),
+});
+export type RunRecordViewType = Static<typeof RunRecordView>;
+
+export type RunArtifactType = Static<typeof RunArtifact>;
+
+export const RunListView = Obj({
+  runs: Type.Array(RunRecordView, { maxItems: 32 }),
+  active: Nullable(RunRecordView),
+});
+
+export const RunArtifactContentView = Obj({
+  runId: Text(128),
+  name: Text(128),
+  bytes: Type.Integer(),
+  sha256: Text(128),
+  truncated: Type.Boolean(),
+  /** JSON artifacts come back parsed; anything else comes back as text. */
+  json: Type.Optional(Type.Any()),
+  text: Type.Optional(Text(262144)),
+});
+export type RunArtifactContentViewType = Static<typeof RunArtifactContentView>;
+export type RunListViewType = Static<typeof RunListView>;
 
 /**
  * The result of the developer router probe.
@@ -863,6 +1039,31 @@ export const contract = defineFeatureContract({
       input: Obj({ sessionId: SessionId }),
       output: Result(RunPlanStateView),
     },
+    "execution.status": {
+      kind: "query",
+      description:
+        "Operator-only. List this session's run records, and the active one if there is any. " +
+        "Not rendered by the Agent Browser page.",
+      input: Obj({ sessionId: Type.Optional(SessionId) }),
+      output: Result(RunListView),
+    },
+    "execution.get": {
+      kind: "query",
+      description: "Operator-only. Read one run record by id.",
+      input: Obj({ runId: Type.String({ minLength: 4, maxLength: 128 }) }),
+      output: Result(Nullable(RunRecordView)),
+    },
+    "execution.artifact": {
+      kind: "query",
+      description:
+        "Operator-only. Read one named artifact a completed run wrote, bounded. The run " +
+        "directory's path is never returned; only the artifact's content is.",
+      input: Obj({
+        runId: Type.String({ minLength: 4, maxLength: 128 }),
+        name: Type.String({ minLength: 1, maxLength: 128 }),
+      }),
+      output: Result(RunArtifactContentView),
+    },
     "trust.list": {
       kind: "query",
       description: "List publisher keys pinned by this operator.",
@@ -936,6 +1137,46 @@ export const contract = defineFeatureContract({
         runPlanSha256: Type.String({ pattern: "^[0-9a-f]{64}$" }),
       }),
       output: Result(RouterProbeView),
+    },
+    "execution.start": {
+      kind: "action",
+      description:
+        "Operator-only. Re-verify a ready run plan and execute the signed package's own " +
+        "workflow.v0 graph on the exact model the plan bound. It accepts the workflow input " +
+        "and nothing else: no prompt, no system text, no model id, no skill text and no " +
+        "output schema, all of which come from the signed package and the run plan. It is " +
+        "not rendered by the Agent Browser page, and it spends real tokens.",
+      input: Obj({
+        sessionId: SessionId,
+        runPlanId: Type.String({ minLength: 4, maxLength: 128 }),
+        runPlanSha256: Type.String({ pattern: "^[0-9a-f]{64}$" }),
+        /**
+         * The package's own declared input schema is what validates this, in
+         * the runner, before any package instruction reaches a model.
+         */
+        input: Type.Unknown(),
+      }),
+      output: Result(RunRecordView),
+    },
+    "execution.cancel": {
+      kind: "action",
+      description:
+        "Operator-only. Ask a running workflow to stop. Workers are cancelled, pending model " +
+        "calls are aborted at the provider, and the run ends as cancelled with its audit and " +
+        "usage intact.",
+      input: Obj({ runId: Type.String({ minLength: 4, maxLength: 128 }) }),
+      output: Result(RunRecordView),
+    },
+    "execution.clear": {
+      kind: "action",
+      description:
+        "Operator-only. Forget finished run records held in memory. A running run is never " +
+        "cleared.",
+      input: Obj({
+        runId: Type.Optional(Type.String({ minLength: 4, maxLength: 128 })),
+        sessionId: Type.Optional(SessionId),
+      }),
+      output: Result(Obj({ cleared: Type.Integer() })),
     },
     "run-plan.clear": {
       kind: "action",

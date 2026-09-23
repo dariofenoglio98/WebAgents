@@ -127,6 +127,35 @@ plugin-wide grant at the OpenClaw layer; the per-run-plan discipline is entirely
 this project's preflight.
 
 
+## Package execution boundary
+
+[Execution](package-execution.md) is the first thing in this project that runs a
+downloaded package's own instructions. It lives in `agentpkg.execution`, a third
+trusted namespace that neither the control plane nor the model bridge can
+import.
+
+| Threat | Control and remaining limit |
+|---|---|
+| The control plane gaining the ability to run a package | `execution` is in the browser package's forbidden-import set, checked by AST scan at module level and inside functions. The control plane's only new power is copying its own snapshot into a private file; it still imports no interpreter and reports `execution: "disabled"`. |
+| The model bridge gaining an interpreter | `hostbridge` must not import `execution`, `workflow`, `runtime` or `tools`, checked the same way, and a real child's `sys.modules` is inspected after a complete probe. |
+| A runner that knows which package it is running | No application word and neither reference package's id, name or tool id occurs anywhere in the execution namespace. The graph supplies all behaviour; the same code refuses a tool-declaring package generically. |
+| Verify-then-reload substitution of package bytes | The runner receives the control plane's immutable snapshot as an inherited read-only descriptor, never a path, and re-verifies archive hash, digest, identity, signature and signer against the run plan before anything runs. The original URL and source path are never reopened. A path substitution after the descriptor is open cannot change the run; an in-place rewrite is caught by the hash. |
+| A package or a page choosing what gets executed | The execution protocol contains no path, no filename, no model id and no OpenClaw method name. The lease directory name is control-plane generated; the lease record stops in the Gateway process; the run record carries no path, no lease and no package output. |
+| A run outliving the consent it was given | Preflight refuses to start unless the receipt outlasts the whole run deadline plus a margin. A run legitimately started continues under the consent it began with and records which receipt that was; it grants nothing to the next run. |
+| Consent quietly widened to make a run possible | Decisions pass through unchanged. `deny` on a required permission refuses, `always` refuses for want of a store, and `once` refuses when the graph would consume that permission kind more than once rather than being treated as a session. |
+| A host limit used to change what a package does | Token, remote-call and worker limits are `min(package, host)` inside `Runtime`. A per-call output cap above the host ceiling is **refused**, not lowered, because lowering a declared cap would alter package behaviour while reporting success. |
+| An unbounded or orphaned run | Effective deadline is the tighter of the graph's and the host's; a host-deadline stop is reported as a timeout rather than a cancellation. One child per run, one active run per plan and per session, cooperative cancel escalating to SIGKILL, every run in flight cancelled when the plugin stops, and no resumption after a Gateway restart. |
+| A package writing outside its run | The runner writes only through an inherited directory descriptor, with exclusive creation, no symlink following and owner-only modes. Export filenames are already constrained to one safe portable name; the execution host additionally reserves `run.json`. |
+| A flattering report | The run summary is derived from the audit rather than kept beside it, and the chain is re-verified event by event. Cost is only the sum of costs the host reported; a missing value is `unknown` or `partial`, never estimated. Which model answered is recorded per call by the adapter. This is a local hash chain, not an externally anchored log. |
+| An unverified host's accounting assumed still valid | The live OpenClaw version is recorded in every run record and provenance, and a release other than the verified one is refused by default. The self-verifying half — that the token bound is `utf8_bytes + framing` because the host answers "no tokenizer" — is re-derived and recorded on every call. |
+| Package tools running unmediated | There is no tool broker. `Workflow` is constructed with no handlers, and a package declaring a tool or containing a `tool` node is refused before any token. This is a limit of this execution host, not of the package format. |
+
+The plugin backend remains trusted host code: it holds the control-plane bearer
+token, opens the lease descriptor and owns the runner process. Binding an exact
+model still requires the plugin-wide `llm.allowModelOverride` opt-in at the
+OpenClaw layer; the per-run-plan discipline is this project's own.
+
+
 ## workflow.v0 boundary
 
 The generic interpreter accepts only the closed graph/data-constructor vocabulary.

@@ -1,0 +1,30 @@
+{
+  "goal": "Decide whether to adopt agent.pkg for the next research prototype",
+  "duration": 45,
+  "agenda": [
+    {
+      "topic": "Discuss researcher considerations",
+      "minutes": 15,
+      "owner": "Dario"
+    },
+    {
+      "topic": "Discuss security reviewer considerations",
+      "minutes": 15,
+      "owner": "Mira"
+    },
+    {
+      "topic": "Discuss systems engineer considerations",
+      "minutes": 15,
+      "owner": "Tomas"
+    }
+  ],
+  "preparation_items": [
+    "Read the proposal"
+  ],
+  "decisions": [
+    "Adopt or defer"
+  ],
+  "questions": [
+    "What is the rollback plan?"
+  ]
+}

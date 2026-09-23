@@ -123,7 +123,37 @@ class BrowserAPI:
             if method == "DELETE":
                 return 200, self.control.clear_run_plan(session_id)
             return self._only(method, "GET", lambda: (200, self.control.run_plan(session_id)))
+        if rest == ["execution-lease"]:
+            return self._only(method, "POST", lambda: self._issue_lease(session_id, body))
+        if len(rest) == 2 and rest[0] == "execution-lease":
+            return self._only(
+                method,
+                "DELETE",
+                lambda: (200, self.control.release_execution_lease(session_id, rest[1])),
+            )
         raise ControlPlaneError("not_found", "Unknown package route", status=404)
+
+    def _issue_lease(self, session_id, body):
+        """Issue one private copy of an immutable snapshot to a trusted runner.
+
+        The response carries a local filesystem path, which is why this route,
+        like every other, is reachable only over the authenticated loopback API
+        by the host process that supervises this service.
+        """
+        payload = _object(
+            body,
+            {"package_digest", "run_plan_id", "run_plan_sha256"},
+            {"package_digest", "run_plan_id", "run_plan_sha256"},
+        )
+        for field in ("run_plan_id", "run_plan_sha256"):
+            if not isinstance(payload[field], str) or not payload[field]:
+                raise _bad(f"{field} must be a non-empty string")
+        return 201, self.control.issue_execution_lease(
+            session_id,
+            package_digest=payload["package_digest"],
+            run_plan_id=payload["run_plan_id"],
+            run_plan_sha256=payload["run_plan_sha256"],
+        )
 
     def _evaluate_models(self, session_id, body):
         payload = _object(body, {"package_digest", "catalog"}, {"package_digest", "catalog"})

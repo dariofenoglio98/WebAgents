@@ -53,13 +53,14 @@ describe("plugin entry", () => {
   it("publishes manifest metadata the host build can read", () => {
     expect(plugin.id).toBe("agent-browser");
     expect(plugin.name).toBe("Agent Browser");
-    expect(plugin.description).toContain("Nothing is executed");
+    expect(plugin.description).toContain("The page itself runs nothing");
     const schema = plugin.configSchema.jsonSchema as Record<string, unknown>;
     expect(Object.keys(schema.properties as object)).toEqual([
       "agentpkgPath",
       "localPackages",
       "sessionTtlSeconds",
       "maxSessions",
+      "execution",
     ]);
     expect(schema.additionalProperties).toBe(false);
   });

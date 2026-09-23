@@ -1,0 +1,281 @@
+{
+  "schema": "agentpkg-execution-result-v0",
+  "run_id": "run_offline_demo",
+  "run_plan_id": "rp_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "run_plan_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "run_invocation_sha256": "36e3b9fc8d015992200c01e8a98e9cb50b4b6dcd221dd795feed722ae3b42345",
+  "input_sha256": "7fd887619443e7e6e29d6c4c07e2086398b7759bcf9e5008133a5ac2bd99f1ba",
+  "status": "completed",
+  "error_code": null,
+  "deadline_exceeded": false,
+  "cancel_requested": false,
+  "package": {
+    "archive_sha256": "664b39b12ed26ee2b7524cc5b0afb8a91ebc64b76948696e65f34cbd768c32cb",
+    "archive_bytes": 19516,
+    "digest": "5aa0ec946b33346183f8313f5d3b4f82a1e9fb1d7c541b3d5d756117828aab80",
+    "package_id": "org.webagents.meeting-agenda",
+    "version": "0.2.0",
+    "signer_fingerprint": "sha256:c7549e614dac7070e6b5b5355e7c2407e1185f831d7fff15670981229dd85a70",
+    "signature_status": "valid",
+    "entrypoint": "workflow.v0",
+    "execution_profile": "workflow.v0",
+    "verified": [
+      "archive_sha256",
+      "container",
+      "integrity",
+      "schema",
+      "package_digest",
+      "package_identity",
+      "publisher_signature",
+      "signer_fingerprint",
+      "execution_profile"
+    ],
+    "note": "Publisher trust remains the host's decision. The runner confirms that the cryptographic identity it received is the identity the run plan recorded."
+  },
+  "grants": {
+    "decisions": {
+      "memory.session": "session",
+      "model.reasoning": "session"
+    },
+    "granted_permission_ids": [
+      "memory.session",
+      "model.reasoning"
+    ],
+    "denied_permission_ids": [],
+    "by_kind": {
+      "memory": [
+        "memory.session"
+      ],
+      "model": [
+        "model.reasoning"
+      ]
+    },
+    "source": "authorization_receipt",
+    "note": "Decisions are passed through unchanged; no decision is widened by this host."
+  },
+  "limits": {
+    "host": {
+      "total_tokens": 120000,
+      "max_remote_calls": 32,
+      "max_parallel_workers": 3,
+      "max_output_tokens_per_call": 16000,
+      "run_timeout_seconds": 600
+    },
+    "budget": {
+      "declared": {
+        "hard_tokens": 180000,
+        "max_remote_calls": 32,
+        "max_parallel_workers": 3,
+        "estimated_tokens": 12000,
+        "approval_threshold_tokens": null
+      },
+      "host": {
+        "hard_tokens": 120000,
+        "max_remote_calls": 32,
+        "max_parallel_workers": 3
+      },
+      "effective": {
+        "hard_tokens": 120000,
+        "max_remote_calls": 32,
+        "max_parallel_workers": 3
+      }
+    },
+    "effective_deadline_seconds": 300
+  },
+  "model": {
+    "planned": "acme/big",
+    "invoked": [
+      "acme/big"
+    ],
+    "calls": 5,
+    "all_calls_used_planned_model": true,
+    "providers": [
+      "acme"
+    ],
+    "response_models": [
+      "big-2026-09-01"
+    ],
+    "constrained_by_host": true,
+    "token_bound_basis": [
+      "utf8_upper_bound"
+    ]
+  },
+  "router": {
+    "router_id": "openclaw.host-bridge.v0",
+    "model_id": "acme/big",
+    "provider_id": "acme",
+    "remote": true,
+    "capabilities": [
+      "reasoning",
+      "structured_output"
+    ],
+    "context_window": 272000,
+    "not_declared": [
+      "multimodal",
+      "tool_use"
+    ],
+    "note": "Capabilities describe what this adapter delivers. tool_use is withheld because the adapter exposes no tools to the model, and multimodal because it sends text only."
+  },
+  "usage": {
+    "tokens": 5400,
+    "reserved_tokens": 0,
+    "remote_calls": 10,
+    "tool_calls": {},
+    "peak_parallel_workers": 3,
+    "workers": {
+      "coordinator": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": {}
+      },
+      "Planner:1": {
+        "tokens": 1080,
+        "remote_calls": 2,
+        "tool_calls": {}
+      },
+      "Perspective:2": {
+        "tokens": 1080,
+        "remote_calls": 2,
+        "tool_calls": {}
+      },
+      "Perspective:3": {
+        "tokens": 1080,
+        "remote_calls": 2,
+        "tool_calls": {}
+      },
+      "Perspective:4": {
+        "tokens": 1080,
+        "remote_calls": 2,
+        "tool_calls": {}
+      },
+      "Writer:5": {
+        "tokens": 1080,
+        "remote_calls": 2,
+        "tool_calls": {}
+      }
+    },
+    "limits": {
+      "approval_threshold_tokens": null,
+      "estimated_cost_usd": null,
+      "estimated_tokens": 12000,
+      "hard_tokens": 120000,
+      "max_calls_per_tool": {},
+      "max_parallel_workers": 3,
+      "max_remote_calls": 32
+    }
+  },
+  "cost": {
+    "calls": 5,
+    "calls_with_reported_cost": 5,
+    "complete": true,
+    "total_usd": 0.006,
+    "status": "complete",
+    "note": "Derived only from costs the host reported for individual calls. Missing values are never estimated."
+  },
+  "audit": {
+    "chain": {
+      "events": 99,
+      "valid": true,
+      "broken": [],
+      "final_hash": "6f8f2650d56d6fc4f32a35346658440cf2a367869b24aa414dec6b34cf066577",
+      "note": "A local hash chain. It binds these events to each other; it is not an external tamper-proof audit service."
+    },
+    "actions": {
+      "budget.updated": 20,
+      "delegation.checked": 5,
+      "memory.cleared": 1,
+      "model.called": 5,
+      "model.completed": 5,
+      "model.count.called": 5,
+      "node.completed": 9,
+      "node.started": 9,
+      "permission.checked": 16,
+      "runtime.started": 1,
+      "state.committed": 6,
+      "worker.completed": 5,
+      "worker.spawned": 5,
+      "worker.started": 5,
+      "workflow.completed": 1,
+      "workflow.started": 1
+    },
+    "workers": [
+      "Perspective:2",
+      "Perspective:3",
+      "Perspective:4",
+      "Planner:1",
+      "Writer:5",
+      "coordinator"
+    ],
+    "worker_count": 6,
+    "workers_spawned": 5,
+    "nodes_completed": 9,
+    "model_calls": 5,
+    "model_count_calls": 5,
+    "tool_calls": 0,
+    "models_used": {
+      "acme/big": 5
+    },
+    "tasks_called": {
+      "perspective": 3,
+      "plan": 1,
+      "write": 1
+    },
+    "state_commits": 6,
+    "permission_checks": 16
+  },
+  "output": {
+    "present": true,
+    "sha256": "ed24267a7fbdc6a6c3813b55c3a09f8abe61430ee33cd5871d1d5341cbbb1384"
+  },
+  "artifacts": [
+    {
+      "name": "result.json",
+      "bytes": 69761,
+      "sha256": "e9b781660dd05b5d47e9d095cebf3f8c8bff48c15877c65c980362764056b629"
+    },
+    {
+      "name": "audit.json",
+      "bytes": 61122,
+      "sha256": "d55286933c14d856e677a2c6d4189be13671cbf322afbf6a1c3b0c3f28b51bf0"
+    },
+    {
+      "name": "usage.json",
+      "bytes": 958,
+      "sha256": "e12b1d4292c23715012cb77eb4af56f2e1bb94543def5ff85297899b0a0b681f"
+    },
+    {
+      "name": "provenance.json",
+      "bytes": 236,
+      "sha256": "13959361a9641ccfe07db6d8008832aa405779eeb4bfbd72b8e507b6b2ea6d8f"
+    },
+    {
+      "name": "agenda.json",
+      "bytes": 609,
+      "sha256": "a24028592befd1a4c99840204995d97d9ac34552f583919d1cf67bda94d34e22"
+    }
+  ],
+  "provenance": {
+    "profile": "workflow.v0",
+    "interpreter": "agentpkg.workflow.Workflow",
+    "package_id": "org.webagents.meeting-agenda",
+    "package_digest": "5aa0ec946b33346183f8313f5d3b4f82a1e9fb1d7c541b3d5d756117828aab80",
+    "synthetic": false
+  },
+  "host": {
+    "runtime": "openclaw",
+    "runtime_version": "2026.9.5",
+    "verified_version": "2026.9.5"
+  },
+  "timing": {
+    "started_at": "2026-09-22T19:17:14.079673+00:00",
+    "ended_at": "2026-09-22T19:17:14.110564+00:00",
+    "duration_ms": 30.891
+  },
+  "package_execution": {
+    "workflow_instantiated": true,
+    "interpreter": "agentpkg.workflow.Workflow",
+    "package_instructions_loaded": true,
+    "tool_handlers_installed": 0,
+    "tool_calls": 0
+  }
+}

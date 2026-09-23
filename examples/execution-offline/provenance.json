@@ -1,0 +1,7 @@
+{
+  "profile": "workflow.v0",
+  "interpreter": "agentpkg.workflow.Workflow",
+  "package_id": "org.webagents.meeting-agenda",
+  "package_digest": "5aa0ec946b33346183f8313f5d3b4f82a1e9fb1d7c541b3d5d756117828aab80",
+  "synthetic": false
+}

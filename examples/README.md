@@ -17,6 +17,7 @@ All recorded runs use the signed reference artifact whose package digest is `20a
 | `demo-live` | Initial real discovery run; exposed numeric-seed keyword pollution |
 | `demo-live-final` | Corrected topic-query run with all four seeds retained; metadata-only ACL seeds stayed `maybe` |
 | `demo-live-fulltext` | Final real run with two selected public ACL PDFs; see exact summary in `verification/live-fulltext-summary.json` |
+| `execution-offline` | The full artifact set of one **package execution**: the real runner, interpreter and protocol, with a scripted provider so it is deterministic and spends nothing. See [package execution](../docs/package-execution.md). |
 | `verification` | Test logs/JUnit, artifact/wheel verification, staging receipt and live source hashes |
 | `openclaw-workspace` | Locally staged supported skill workspace, excluded from Git |
 

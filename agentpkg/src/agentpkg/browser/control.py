@@ -36,6 +36,9 @@ from .errors import ControlPlaneError
 from .evaluation import evaluate_snapshot, signature_report
 from .fetch import FetchLimits, download_to_file
 from .hostmodels import evaluate_catalog, find_model, normalize_catalog, requirement_set
+from .lease import DEFAULT_LEASE_TTL_SECONDS, ExecutionLease
+from .lease import issue as issue_lease
+from .lease import release as release_lease
 from .runplan import (
     BINDING_SINGLE_MODEL,
     EXECUTION_MODES,
@@ -68,6 +71,7 @@ class ControlPlaneConfig:
     max_package_bytes: int = MAX_PACKAGE_BYTES
     max_cache_bytes: int = 128 * 1024 * 1024
     download_timeout_seconds: float = 60.0
+    execution_lease_ttl_seconds: int = DEFAULT_LEASE_TTL_SECONDS
     policy: BrowserPolicy = field(default_factory=BrowserPolicy)
 
     def as_json(self) -> dict:
@@ -77,6 +81,7 @@ class ControlPlaneConfig:
             "max_package_bytes": self.max_package_bytes,
             "max_cache_bytes": self.max_cache_bytes,
             "download_timeout_seconds": self.download_timeout_seconds,
+            "execution_lease_ttl_seconds": self.execution_lease_ttl_seconds,
             "browser_policy": self.policy.as_json(),
         }
 
@@ -104,6 +109,8 @@ class Session:
     catalog: dict | None = None
     model_evaluation: dict | None = None
     run_plan: dict | None = None
+    # One-time private copies of this snapshot, issued to a trusted runner.
+    leases: dict[str, ExecutionLease] = field(default_factory=dict)
 
     def descriptor(self) -> dict:
         return {
@@ -199,6 +206,11 @@ class ControlPlane:
     def purge_expired(self) -> int:
         with self._lock:
             now = time.monotonic()
+            for session in self._sessions.values():
+                for lease_id, lease in list(session.leases.items()):
+                    if lease.expired(now):
+                        release_lease(lease)
+                        session.leases.pop(lease_id, None)
             expired = [s for s in self._sessions.values() if s.expires_monotonic <= now]
             for session in expired:
                 self._drop(session)
@@ -206,6 +218,11 @@ class ControlPlane:
 
     def _drop(self, session: Session) -> None:
         self._sessions.pop(session.session_id, None)
+        for lease in list(session.leases.values()):
+            release_lease(lease)
+        session.leases.clear()
+        # The whole session directory goes, leases included. A runner that
+        # already holds an open descriptor keeps reading the bytes it verified.
         shutil.rmtree(session.directory, ignore_errors=True)
 
     def close(self, session_id: str) -> dict:
@@ -520,8 +537,10 @@ class ControlPlane:
             session.receipt = receipt
             # A new consent decision supersedes any plan prepared under the old
             # one. Keeping a ready plan alive across a permission change is
-            # exactly how a withdrawn decision would stay silently usable.
+            # exactly how a withdrawn decision would stay silently usable, and
+            # any lease issued under it goes with it.
             session.run_plan = None
+            self._release_all(session)
             session.summary["authorization"] = {
                 "state": "issued",
                 "receipt_id": receipt["receipt_id"],
@@ -655,6 +674,7 @@ class ControlPlane:
         with self._lock:
             session.catalog = normalized
             session.model_evaluation = evaluation
+            self._release_all(session)
             session.run_plan = plan
             session.summary["run_plan"] = {
                 "state": "prepared",
@@ -677,11 +697,104 @@ class ControlPlane:
         with self._lock:
             existing = session.run_plan
             session.run_plan = None
+            self._release_all(session)
             session.summary["run_plan"] = {"state": "absent", "run_plan_id": None, "ready": False}
         return {
             "session_id": session_id,
             "cleared": existing is not None,
             "run_plan_id": existing["run_plan_id"] if existing else None,
+        }
+
+    # -- execution leases ----------------------------------------------------
+    def issue_execution_lease(
+        self, session_id: str, *, package_digest, run_plan_id, run_plan_sha256
+    ) -> dict:
+        """Hand one private, one-time copy of this snapshot to a trusted runner.
+
+        This is the only operation that lets package bytes leave the control
+        plane, and it is gated on the same question every other gate asks: is
+        this session's run plan ready *right now*. The control plane still runs
+        nothing; what it does here is copy bytes and say that it did.
+        """
+        session = self._session(session_id)
+        self._require_digest(session, package_digest)
+        if session.run_plan is None:
+            raise ControlPlaneError(
+                "run_plan_absent", "This session has no prepared run plan", status=404
+            )
+        plan = session.run_plan
+        if run_plan_id != plan["run_plan_id"] or run_plan_sha256 != plan["run_plan_sha256"]:
+            # The same anti-confusion rule `authorize` applies to digests: the
+            # caller must echo the plan it read.
+            raise ControlPlaneError(
+                "run_plan_mismatch",
+                "run_plan_id/run_plan_sha256 do not match this session's prepared plan",
+                status=409,
+                details={
+                    "session_run_plan_id": plan["run_plan_id"],
+                    "session_run_plan_sha256": plan["run_plan_sha256"],
+                },
+            )
+        state = self._preflight(session)
+        if not state["ready"] or state["stale"]:
+            reasons = state["stale_reasons"] or state["blocking_reasons"]
+            raise ControlPlaneError(
+                "run_plan_stale",
+                reasons[0]["message"] if reasons else "This run plan is not ready",
+                status=409,
+                details={"preflight": state},
+            )
+        with self._lock:
+            self.purge_expired()
+            live = [lease for lease in session.leases.values() if not lease.expired()]
+            if live:
+                # One active execution per session. A second lease would be a
+                # second run against the same consent with no way to relate them.
+                raise ControlPlaneError(
+                    "execution_lease_active",
+                    "An execution lease is already outstanding for this session; release it first",
+                    status=409,
+                    details={"lease_id": live[0].lease_id},
+                )
+            ttl = min(
+                self.config.execution_lease_ttl_seconds,
+                max(1, int(session.expires_monotonic - time.monotonic())),
+            )
+            lease = issue_lease(
+                directory=session.directory,
+                snapshot_path=session.snapshot_path,
+                archive_sha256=session.archive_sha256,
+                package_digest=session.package.digest,
+                run_plan_id=plan["run_plan_id"],
+                run_plan_sha256=plan["run_plan_sha256"],
+                ttl_seconds=ttl,
+                max_bytes=self.config.max_package_bytes,
+            )
+            session.leases[lease.lease_id] = lease
+        return {
+            "session_id": session_id,
+            "lease": lease.as_json(include_path=True),
+            "preflight": state,
+            "execution": {
+                "performed": False,
+                "note": (
+                    "A lease is bytes plus permission to read them once. The control plane "
+                    "does not run them, and a runner must re-verify them independently."
+                ),
+            },
+        }
+
+    def release_execution_lease(self, session_id: str, lease_id: str) -> dict:
+        """Delete one lease's private copy. Safe to call more than once."""
+        session = self._session(session_id)
+        with self._lock:
+            lease = session.leases.pop(lease_id, None)
+            if lease is not None:
+                release_lease(lease)
+        return {
+            "session_id": session_id,
+            "lease_id": lease_id,
+            "released": lease is not None,
         }
 
     def _preflight(self, session: Session) -> dict:
@@ -693,6 +806,11 @@ class ControlPlane:
             trust_state=self.trust.state(),
             policy=self.config.policy,
         )
+
+    def _release_all(self, session: Session) -> None:
+        for lease in list(session.leases.values()):
+            release_lease(lease)
+        session.leases.clear()
 
     def _require_digest(self, session: Session, package_digest) -> None:
         if not isinstance(package_digest, str) or not package_digest:
@@ -815,8 +933,14 @@ class ControlPlane:
                     "authorize": True,
                     "evaluate_models": True,
                     "prepare_run_plan": True,
+                    # A lease hands immutable bytes to a separate trusted
+                    # runner. This service still executes nothing itself.
+                    "issue_execution_lease": True,
                     "execute": False,
                 },
+                "open_execution_leases": sum(
+                    len(session.leases) for session in self._sessions.values()
+                ),
                 "execution_modes": list(EXECUTION_MODES),
                 "binding_strategies": [BINDING_SINGLE_MODEL],
                 "host_model_catalog": {

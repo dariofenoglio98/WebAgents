@@ -1,0 +1,20 @@
+{
+  "recordedAt": "2026-09-23T01:55:00Z",
+  "note": "Direct Ollama measurements (diagnostic only, outside the product path) establishing why the package's 60s per-step timeout cannot be met locally. Requests are perspective-shaped and constrained by the same JSON schema shape the package uses.",
+  "model": "qwen3.5:9b",
+  "warmSingleCall": {"elapsedSeconds": 51.4, "evalCount": 1084, "contentReturned": true},
+  "threeConcurrentCalls": {
+    "perCall": [
+      {"role": "researcher", "elapsedSeconds": 202.9, "evalCount": 771},
+      {"role": "security reviewer", "elapsedSeconds": 229.0, "evalCount": 1854},
+      {"role": "systems engineer", "elapsedSeconds": 214.3, "evalCount": 1994}
+    ],
+    "wallClockSeconds": 229.0,
+    "observation": "Ollama admits all three concurrently rather than serializing, but GPU contention makes each call ~4x slower than alone."
+  },
+  "thinkingCost": {
+    "thinkTrue": {"elapsedSeconds": 121.6, "evalCount": 2410, "thinkingChars": 9688},
+    "thinkFalse": {"elapsedSeconds": 5.0, "evalCount": 114, "thinkingChars": 0},
+    "observation": "Thinking tokens dominate. OpenClaw 2026.9.5 does not map the plugin `reasoning` parameter onto Ollama's `think` flag, so this lever is not reachable from api.runtime.llm.complete; reasoning:\"off\" was tested and made no difference."
+  }
+}

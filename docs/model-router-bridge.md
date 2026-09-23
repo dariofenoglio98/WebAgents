@@ -468,6 +468,16 @@ reported, not assumed.
 
 ## 12. Before the next milestone (executing `meeting-agenda.agent.pkg`)
 
+> **Done.** All six items below were addressed in [package
+> execution](package-execution.md), except item 5, which is deliberately still
+> open: execution is operator-only and there is still no Run button. Item 1
+> became `agentpkg.execution`; item 2 became a one-time lease plus inherited
+> descriptors, with the runner verifying what it received; item 3 became the
+> receipt's own decisions travelling unchanged, with `once` refused rather than
+> widened; item 4 remains the *next* milestone's subject; item 6 became an
+> operator-configurable ceiling that refuses a node rather than lowering it.
+
+
 1. **A runner namespace.** `agentpkg.hostbridge` must stay free of the
    interpreter. Workflow execution belongs in a sibling — `agentpkg.execution` —
    that imports `workflow`, `runtime` and `hostbridge.router`, and the boundary

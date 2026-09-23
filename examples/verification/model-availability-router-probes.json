@@ -1,0 +1,12 @@
+{
+  "recordedAt": "2026-09-23T02:08:00Z",
+  "host": "OpenClaw 2026.9.5 (ec9c1a1)",
+  "note": "One host-owned router probe per local model, through api.runtime.llm.complete via the agentpkg ModelRouter bridge. No package workflow, worker, skill or tool took part; PROBE_MAX_OUTPUT_TOKENS is 4096.",
+  "probes": [
+    {"modelId":"ollama/qwen3.5:9b","status":"ok","planned":"ollama/qwen3.5:9b","invoked":"ollama/qwen3.5:9b","provider":"ollama","structuredOutputValidated":true,"constrainedByHost":true,"parse":"direct","echo":"router probe","inputTokens":236,"outputTokens":1315,"costUsd":0,"countTokensBound":1692,"workflowExecuted":false,"durationMs":77513},
+    {"modelId":"ollama/qwen3.6:35b","status":"ok","planned":"ollama/qwen3.6:35b","invoked":"ollama/qwen3.6:35b","provider":"ollama","structuredOutputValidated":true,"constrainedByHost":true,"parse":"direct","echo":"router probe","inputTokens":236,"outputTokens":637,"costUsd":0,"countTokensBound":1692,"workflowExecuted":false,"durationMs":53068},
+    {"modelId":"ollama/qwen3.8:27b","status":"ok","planned":"ollama/qwen3.8:27b","invoked":"ollama/qwen3.8:27b","provider":"ollama","structuredOutputValidated":true,"constrainedByHost":true,"parse":"direct","echo":"router probe","inputTokens":236,"outputTokens":104,"costUsd":0,"countTokensBound":1692,"workflowExecuted":false,"durationMs":51341},
+    {"modelId":"ollama/qwen3:30b","status":"ok","planned":"ollama/qwen3:30b","invoked":"ollama/qwen3:30b","provider":"ollama","structuredOutputValidated":true,"constrainedByHost":true,"parse":"direct","echo":"router probe","inputTokens":231,"outputTokens":390,"costUsd":0,"countTokensBound":1692,"workflowExecuted":false,"durationMs":38179}
+  ],
+  "packageExecution": {"workflowInstantiated": false, "workersStarted": 0, "toolsCalled": 0, "packageInstructionsLoaded": false, "exportsWritten": 0}
+}

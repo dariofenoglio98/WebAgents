@@ -27,7 +27,13 @@ from .errors import BridgeError
 PROBE_SCHEMA = "agentpkg-router-probe-v0"
 PROBE_TASK = "router.probe"
 PROBE_ECHO = "router probe"
-PROBE_MAX_OUTPUT_TOKENS = 256
+# The probe asks for two short string fields, but a reasoning model spends its
+# thinking tokens against this same cap before emitting any of them. Measured on
+# a local reasoning model, one trivial echo costs 1,000-2,400 tokens of thinking;
+# an earlier 256 truncated that to empty text and the adapter correctly reported
+# `model_output_not_conforming` for a model that works perfectly well. This is
+# the smallest cap that leaves room for that thinking, and it is still tiny.
+PROBE_MAX_OUTPUT_TOKENS = 4096
 
 PROBE_INSTRUCTIONS = [
     "You are answering a protocol conformance probe for a host model router. "
