@@ -140,12 +140,15 @@ def normalize_plan(raw) -> dict:
             "run_plan_sha256",
             "session_id",
             "package",
-            # Accepted and recorded, never used: one preflight builds the
+            # Accepted and ignored, never used: one preflight builds the
             # binding for both this probe and the execution runner, and the
-            # runner needs the signer to verify the artifact it is handed.
+            # runner needs the signer to verify the artifact it is handed and
+            # the tool bindings to install its handlers. This bridge holds no
+            # interpreter and no tool broker, so neither reaches anything here.
             "publisher",
             "execution",
             "model_binding",
+            "tool_bindings",
         },
         {"run_plan_id", "run_plan_sha256", "execution", "model_binding"},
     )
@@ -162,7 +165,14 @@ def normalize_plan(raw) -> dict:
     execution = _fields(
         record["execution"],
         "run_plan.execution",
-        {"mode", "profile", "required_permission_ids"},
+        {
+            "mode",
+            "profile",
+            "required_permission_ids",
+            # Accepted and ignored, for the same reason as `tool_bindings`.
+            "required_tool_ids",
+            "tool_binding_count",
+        },
         {"mode"},
     )
     if execution["mode"] != "model":
@@ -197,6 +207,9 @@ def normalize_plan(raw) -> dict:
             ],
         },
         "model_binding": normalize_binding(record["model_binding"]),
+        # Counted, never interpreted: a probe that could call a tool would not
+        # be a router probe.
+        "tool_binding_count": len(record.get("tool_bindings") or []),
     }
 
 

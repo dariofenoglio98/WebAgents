@@ -23,7 +23,37 @@ def grants(package):
 
 
 def runtime(package, **kwargs):
+    # Every declared tool needs an explicit approval as well as its permission;
+    # these tests are about the other mechanisms, so they approve all of them
+    # and `test_declared_tool_still_needs_an_explicit_approval` covers the gate.
+    kwargs.setdefault("approved_tools", sorted(package.tools))
     return Runtime(package, grants=grants(package), **kwargs)
+
+
+def test_declared_tool_still_needs_an_explicit_approval(package):
+    async def handler(ctx, payload):
+        raise AssertionError("an unapproved tool must not reach a handler")
+
+    rt = Runtime(
+        package,
+        grants=grants(package),
+        handlers={"scholarly.search": handler},
+        approved_tools=[],
+    )
+
+    async def search(ctx, data):
+        await ctx.tool("scholarly-search", {"query": "query", "limit": 1})
+        return {"candidate_papers": []}
+
+    with pytest.raises(PolicyError, match="not explicitly approved"):
+        asyncio.run(rt.run_worker("SearchWorker", {"search_queries": []}, search))
+    assert rt.audit[-1]["action"] == "worker.failed"
+    assert not any(event["action"] == "tool.called" for event in rt.audit)
+
+    # A permission grant is not an approval, and an approval for something the
+    # package never declared is refused outright rather than ignored.
+    with pytest.raises(PolicyError, match="does not declare"):
+        Runtime(package, grants=grants(package), approved_tools=["not-a-tool"])
 
 
 def test_default_denies_state_and_tools(package):
@@ -150,7 +180,12 @@ def test_role_tool_authority_and_once_grants(package):
         return {"papers": [], "source": "mock", "query": payload["query"]}
 
     rights = grants(package) | {"network.scholarly": "once"}
-    rt = Runtime(package, grants=rights, handlers={"scholarly.search": handler})
+    rt = Runtime(
+        package,
+        grants=rights,
+        handlers={"scholarly.search": handler},
+        approved_tools=sorted(package.tools),
+    )
 
     async def search(ctx, data):
         await ctx.tool("scholarly-search", {"query": "query", "limit": 1})

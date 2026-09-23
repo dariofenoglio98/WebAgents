@@ -19,12 +19,18 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from ..artifacts import HOST_RESULT_NAMES, RUN_RECORD_NAME
+from ..package import canonical_json, sha256
 from .errors import (
     EXPORT_PATH_RESERVED,
     GRANT_UNSUPPORTED,
     MODEL_INCOMPATIBLE,
     OUTPUT_CAP_TOO_LARGE,
     PERMISSION_DENIED,
+    TOOL_CONTRACT_MISMATCH,
+    TOOL_NOT_APPROVED,
+    TOOL_NOT_BOUND,
+    TOOL_NOT_DECLARED,
+    TOOL_PERMISSION_DENIED,
     TOOLS_NOT_SUPPORTED,
     ExecutionError,
     invalid,
@@ -43,12 +49,14 @@ DEFAULT_MAX_REMOTE_CALLS = 32
 DEFAULT_MAX_PARALLEL_WORKERS = 3
 DEFAULT_MAX_OUTPUT_TOKENS_PER_CALL = 16_000
 DEFAULT_RUN_TIMEOUT_SECONDS = 600
+DEFAULT_MAX_CALLS_PER_TOOL = 32
 
 MAX_TOTAL_TOKENS = 10_000_000
 MAX_REMOTE_CALLS = 10_000
 MAX_PARALLEL_WORKERS = 64
 MAX_OUTPUT_TOKENS_PER_CALL = 200_000
 MAX_RUN_TIMEOUT_SECONDS = 86_400
+MAX_CALLS_PER_TOOL = 10_000
 
 
 def _bounded(value, field: str, *, default: int, maximum: int) -> int:
@@ -70,6 +78,7 @@ class HostExecutionLimits:
     max_parallel_workers: int = DEFAULT_MAX_PARALLEL_WORKERS
     max_output_tokens_per_call: int = DEFAULT_MAX_OUTPUT_TOKENS_PER_CALL
     run_timeout_seconds: int = DEFAULT_RUN_TIMEOUT_SECONDS
+    max_calls_per_tool: int = DEFAULT_MAX_CALLS_PER_TOOL
 
     @classmethod
     def normalize(cls, raw) -> HostExecutionLimits:
@@ -83,6 +92,7 @@ class HostExecutionLimits:
             "max_parallel_workers",
             "max_output_tokens_per_call",
             "run_timeout_seconds",
+            "max_calls_per_tool",
         }
         unknown = sorted(set(raw) - allowed)
         if unknown:
@@ -118,6 +128,12 @@ class HostExecutionLimits:
                 default=DEFAULT_RUN_TIMEOUT_SECONDS,
                 maximum=MAX_RUN_TIMEOUT_SECONDS,
             ),
+            max_calls_per_tool=_bounded(
+                raw.get("max_calls_per_tool"),
+                "max_calls_per_tool",
+                default=DEFAULT_MAX_CALLS_PER_TOOL,
+                maximum=MAX_CALLS_PER_TOOL,
+            ),
         )
 
     def runtime_limits(self) -> dict:
@@ -126,6 +142,7 @@ class HostExecutionLimits:
             "hard_tokens": self.total_tokens,
             "max_remote_calls": self.max_remote_calls,
             "max_parallel_workers": self.max_parallel_workers,
+            "max_calls_per_tool": self.max_calls_per_tool,
         }
 
     def as_json(self) -> dict:
@@ -135,6 +152,7 @@ class HostExecutionLimits:
             "max_parallel_workers": self.max_parallel_workers,
             "max_output_tokens_per_call": self.max_output_tokens_per_call,
             "run_timeout_seconds": self.run_timeout_seconds,
+            "max_calls_per_tool": self.max_calls_per_tool,
         }
 
 
@@ -142,6 +160,7 @@ def effective_budget(package, limits: HostExecutionLimits) -> dict:
     """What the package declared, what the host allowed, and the min of both."""
     declared = package.policy["budget"]
     host = limits.runtime_limits()
+    scalar = [key for key in host if key != "max_calls_per_tool"]
     return {
         "declared": {
             "hard_tokens": declared["hard_tokens"],
@@ -149,9 +168,17 @@ def effective_budget(package, limits: HostExecutionLimits) -> dict:
             "max_parallel_workers": declared["max_parallel_workers"],
             "estimated_tokens": declared["estimated_tokens"],
             "approval_threshold_tokens": declared.get("approval_threshold_tokens"),
+            "max_calls_per_tool": dict(declared["max_calls_per_tool"]),
         },
         "host": host,
-        "effective": {key: min(host[key], declared[key]) for key in host},
+        "effective": {
+            **{key: min(host[key], declared[key]) for key in scalar},
+            # One host ceiling, applied to every declared tool's own cap.
+            "max_calls_per_tool": {
+                tool_id: min(host["max_calls_per_tool"], cap)
+                for tool_id, cap in declared["max_calls_per_tool"].items()
+            },
+        },
     }
 
 
@@ -169,23 +196,47 @@ def _operations(graph):
                 yield f"{node['id']}/{step['id']}", step
 
 
-def check_capabilities(package, limits: HostExecutionLimits) -> dict:
+def check_capabilities(package, limits: HostExecutionLimits, *, tool_bindings=()) -> dict:
     """Refuse a package this execution host cannot run, before anything starts.
 
     These are limits of the host, not of the package format. A package that
-    declares tools is a valid package; this milestone simply has no generic
-    tool broker to mediate one, and pretending otherwise would mean either
-    failing halfway through a run or executing an unmediated call.
+    declares a tool the host has no binding for is a valid package; it simply
+    cannot run *here*, and pretending otherwise would mean either failing
+    halfway through a run or executing an unmediated call.
+
+    `tool_bindings` are the bindings the run plan froze. Their *contents* are
+    checked separately by `check_tools`, which compares each one against the
+    signed declaration; this function only asks whether every declared tool and
+    every `tool` operation in the graph has one at all.
     """
     graph = package.graph
     declared_tools = [tool["id"] for tool in package.manifest["tools"]]
     tool_nodes = [name for name, op in _operations(graph) if op["type"] == "tool"]
-    if declared_tools or tool_nodes:
+    bound = {binding["tool_id"] for binding in tool_bindings}
+    if (declared_tools or tool_nodes) and not bound:
         raise ExecutionError(
             TOOLS_NOT_SUPPORTED,
-            "This execution host has no package-tool broker yet, so it runs only packages "
-            "that declare no tools. This is a limit of the host, not of the package format.",
+            "This package declares tools and this run plan binds no host implementation for "
+            "any of them, so nothing could mediate a call. This is a limit of the host, not "
+            "of the package format.",
             detail={"declared_tools": declared_tools[:32], "tool_nodes": tool_nodes[:32]},
+        )
+    missing = sorted(set(declared_tools) - bound)
+    if missing:
+        raise ExecutionError(
+            TOOL_NOT_BOUND,
+            "Every tool a package declares needs a host implementation before any of its "
+            "graph may run; a run that discovered an unbound tool halfway through would "
+            "already have spent whatever came before it.",
+            detail={"unbound_tools": missing[:32]},
+        )
+    used = sorted({op["tool"] for _, op in _operations(graph) if op["type"] == "tool"})
+    undeclared = sorted(set(used) - set(declared_tools))
+    if undeclared:
+        raise ExecutionError(
+            TOOL_NOT_DECLARED,
+            "The graph calls a tool this package never declared.",
+            detail={"tools": undeclared[:32]},
         )
     caps = []
     for name, op in _operations(graph):
@@ -212,11 +263,141 @@ def check_capabilities(package, limits: HostExecutionLimits) -> dict:
                 detail={"reserved": sorted(reserved)},
             )
     return {
-        "tools_declared": 0,
-        "tool_nodes": 0,
+        "tools_declared": len(declared_tools),
+        "tool_nodes": len(tool_nodes),
+        "tool_bindings": len(bound),
         "llm_operations": caps,
         "max_requested_output_tokens": max((c["max_output_tokens"] for c in caps), default=0),
         "host_max_output_tokens_per_call": limits.max_output_tokens_per_call,
+    }
+
+
+def check_tools(package, bindings, grants: dict, approvals: dict) -> dict:
+    """Re-derive every tool fact from the signed package, then compare.
+
+    The control plane already decided all of this, and this checks it again
+    from scratch, because a runner that trusts a plan's own summary of a
+    package is trusting the wrong artifact. Everything on the left of each
+    comparison is read out of the verified package here and now; everything on
+    the right arrived in the plan.
+
+    Nothing here knows what any tool is *for*. The comparisons are over
+    declared structure: identity, the binding name, execution locality, schema
+    digests, the permission class, and — for a remote binding — that the origin
+    the host will contact is one the package itself declared, the linked
+    network permission names, and the package's network policy allows.
+    """
+    permissions = {item["id"]: item for item in package.policy["permissions"]}
+    declared = package.tools
+    checked = []
+    for binding in bindings:
+        tool_id = binding["tool_id"]
+        tool = declared.get(tool_id)
+        if tool is None:
+            raise ExecutionError(
+                TOOL_NOT_DECLARED,
+                f"The run plan binds {tool_id!r}, which this package does not declare.",
+                detail={"tool_id": tool_id},
+            )
+        linked = [pid for pid in tool["permissions"] if pid in permissions]
+        facts = {
+            "binding_name": (tool["binding"], binding["binding_name"]),
+            "remote": (tool["execution"] == "remote", binding["remote"]),
+            "input_schema_sha256": (
+                sha256(canonical_json(package.json(tool["input_schema"]))),
+                binding["input_schema_sha256"],
+            ),
+            "output_schema_sha256": (
+                sha256(canonical_json(package.json(tool["output_schema"]))),
+                binding["output_schema_sha256"],
+            ),
+            "required_permission_ids": (sorted(linked), sorted(binding["required_permission_ids"])),
+        }
+        for name, (expected, actual) in facts.items():
+            if expected != actual:
+                raise ExecutionError(
+                    TOOL_CONTRACT_MISMATCH,
+                    f"The bound implementation of {tool_id!r} does not match the package's own "
+                    f"declaration of {name}.",
+                    detail={"tool_id": tool_id, "field": name},
+                )
+        if tool["execution"] == "remote":
+            origin = binding["endpoint_origin"] or ""
+            host_name = origin.split("://", 1)[-1] if "://" in origin else ""
+            permitted = (
+                set(tool["domains"])
+                & set(package.policy["network"]["allowed_domains"])
+                & {
+                    resource
+                    for pid in linked
+                    if permissions[pid]["kind"] == "network"
+                    for resource in permissions[pid]["resources"]
+                }
+            )
+            if not origin.startswith("https://") or host_name not in permitted:
+                raise ExecutionError(
+                    TOOL_CONTRACT_MISMATCH,
+                    f"The bound implementation of {tool_id!r} would contact a destination this "
+                    "package does not declare.",
+                    detail={"tool_id": tool_id, "permitted": sorted(permitted)},
+                )
+        if approvals.get(tool_id) is not True:
+            raise ExecutionError(
+                TOOL_NOT_APPROVED,
+                f"Tool {tool_id!r} is bound but was not explicitly approved. A granted "
+                "permission is not an approval of an implementation.",
+                detail={"tool_id": tool_id},
+            )
+        if not linked:
+            raise ExecutionError(
+                TOOL_PERMISSION_DENIED,
+                f"Tool {tool_id!r} links to no declared permission, so no authority could be "
+                "checked before it ran.",
+                detail={"tool_id": tool_id},
+            )
+        denied = sorted(pid for pid in linked if grants.get(pid, DENY) == DENY)
+        required_denied = sorted(pid for pid in denied if permissions[pid]["required"])
+        if required_denied:
+            # A denied *optional* permission is an operating profile the package
+            # declared it supports; its graph is responsible for not reaching
+            # the tool, and `Runtime.call_tool` refuses the call if it does.
+            raise ExecutionError(
+                TOOL_PERMISSION_DENIED,
+                f"Tool {tool_id!r} needs {required_denied}, which are denied.",
+                detail={"tool_id": tool_id, "permissions": required_denied},
+            )
+        checked.append(
+            {
+                "tool_id": tool_id,
+                "binding_id": binding["binding_id"],
+                "binding_sha256": binding["binding_sha256"],
+                "implementation_kind": binding["implementation_kind"],
+                "implementation_version": binding["implementation_version"],
+                "remote": binding["remote"],
+                "endpoint_origin": binding["endpoint_origin"],
+                "method": binding["method"],
+                "required_permission_ids": sorted(linked),
+                "denied_permission_ids": denied,
+                "usable": not denied,
+                "approved": True,
+                "timeout_seconds": min(
+                    tool["timeout_seconds"], binding["timeout_seconds"] or tool["timeout_seconds"]
+                ),
+                "max_calls": package.policy["budget"]["max_calls_per_tool"].get(tool_id, 0),
+                "credentials_required": binding["credentials_required"],
+                "credentials_configured": binding["credentials_configured"],
+                "verified": sorted(facts),
+            }
+        )
+    return {
+        "declared": sorted(declared),
+        "bound": [record["tool_id"] for record in checked],
+        "bindings": checked,
+        "note": (
+            "Every field was re-derived from the verified package in this process and then "
+            "compared with the plan, so a plan that described the package incorrectly is "
+            "refused rather than believed."
+        ),
     }
 
 
@@ -235,8 +416,7 @@ def check_model(package, router) -> dict:
     if missing:
         raise ExecutionError(
             MODEL_INCOMPATIBLE,
-            f"The selected model's router does not deliver {missing}, which this package "
-            "requires.",
+            f"The selected model's router does not deliver {missing}, which this package requires.",
             detail={"missing": missing, "router_capabilities": sorted(capabilities)},
         )
     context = max((task["context_window"] for task in requirements["tasks"]), default=0)
@@ -276,21 +456,41 @@ def _consumption_counts(package) -> dict[str, int]:
     """
     graph = package.graph
     coordinator = graph["coordinator"]
-    model_calls = 0
-    worker_spawns = 0
+    permissions = {item["id"]: item for item in package.policy["permissions"]}
+    counts = {"model": 0, "memory": 0}
+
+    def tool_use(tool_id: str, times: int) -> None:
+        tool = package.tools.get(tool_id)
+        if tool is None:
+            return
+        # A tool consumes every permission it links to, once per call, so the
+        # kinds those permissions belong to are consumed the same number of
+        # times. Capping at the package's own per-tool budget keeps the bound
+        # from exceeding what could actually be dispatched.
+        allowed = package.policy["budget"]["max_calls_per_tool"].get(tool_id, 0)
+        for pid in tool["permissions"]:
+            kind = permissions.get(pid, {}).get("kind")
+            if kind:
+                counts[kind] = counts.get(kind, 0) + min(times, allowed)
+
     for node in graph["nodes"]:
         if node["type"] == "llm":
-            model_calls += 1
+            counts["model"] += 1
+        if node["type"] == "tool":
+            tool_use(node["tool"], 1)
         if node["type"] == "map":
             # A map instantiates one worker per item; an empty input spawns
             # none, so its own minimum is one for counting purposes.
-            worker_spawns += max(1, node["max_items"])
+            children = max(1, node["max_items"])
+            counts["memory"] += children
             for step in node["steps"]:
                 if step["type"] == "llm":
-                    model_calls += max(1, node["max_items"])
+                    counts["model"] += children
+                if step["type"] == "tool":
+                    tool_use(step["tool"], children)
         elif node["worker"] != coordinator:
-            worker_spawns += 1
-    return {"model": model_calls, "memory": worker_spawns}
+            counts["memory"] += 1
+    return counts
 
 
 def normalize_grants(package, submitted) -> dict:
@@ -367,6 +567,7 @@ def grant_report(package, grants: dict) -> dict:
 
 
 __all__ = [
+    "DEFAULT_MAX_CALLS_PER_TOOL",
     "DEFAULT_MAX_OUTPUT_TOKENS_PER_CALL",
     "DEFAULT_MAX_PARALLEL_WORKERS",
     "DEFAULT_MAX_REMOTE_CALLS",
@@ -376,6 +577,7 @@ __all__ = [
     "HostExecutionLimits",
     "check_capabilities",
     "check_model",
+    "check_tools",
     "effective_budget",
     "effective_deadline_seconds",
     "grant_report",

@@ -44,6 +44,10 @@ class BrowserPolicy:
     # plan: saying "ready" about a capability nobody confirmed would be the
     # same dishonesty as calling an unpinned signature a trusted publisher.
     require_confirmed_model_compatibility: bool = True
+    # The same rule for a tool implementation. A host binding that declares no
+    # schema digests may still be correct, but nothing has established that it
+    # speaks the contract the package's data will be built against.
+    require_confirmed_tool_contract: bool = True
 
     def as_json(self) -> dict:
         return {
@@ -51,6 +55,7 @@ class BrowserPolicy:
             "require_trusted_publisher": self.require_trusted_publisher,
             "require_supported_profile": self.require_supported_profile,
             "require_confirmed_model_compatibility": self.require_confirmed_model_compatibility,
+            "require_confirmed_tool_contract": self.require_confirmed_tool_contract,
         }
 
 
@@ -60,12 +65,20 @@ def initial_decisions(package: Package) -> dict:
 
 
 def approval_candidates(package: Package) -> list:
-    """Tools the runtime refuses to dispatch without a separate host approval."""
-    return sorted(
-        tool["id"]
-        for tool in package.tools.values()
-        if tool["approval_required"] or tool["side_effects"] != "read"
-    )
+    """Tools the runtime refuses to dispatch without a separate host approval.
+
+    **Every declared tool**, not only the side-effecting ones. A permission
+    grant and a tool approval answer different questions: `network.x = session`
+    says a class of destination is allowed, and an approval says *this exact
+    host implementation of this exact declared tool* may be used. Deriving the
+    second from the first would mean that granting one network permission
+    silently authorized every network-capable tool the package declares.
+
+    `approval_required` and a non-read `side_effects` remain visible on each
+    row, because they change how consequential a yes is, not whether one is
+    needed.
+    """
+    return sorted(tool["id"] for tool in package.tools.values())
 
 
 def initial_tool_approvals(package: Package) -> dict:
@@ -129,10 +142,18 @@ def build_request(
                 "tool_id": tool_id,
                 "approval_required": package.tools[tool_id]["approval_required"],
                 "side_effects": package.tools[tool_id]["side_effects"],
+                "execution": package.tools[tool_id]["execution"],
+                "binding": package.tools[tool_id]["binding"],
+                "domains": list(package.tools[tool_id]["domains"]),
+                "permissions": list(package.tools[tool_id]["permissions"]),
                 "decision": bool(tool_approvals.get(tool_id, False)),
             }
             for tool_id in approval_candidates(package)
         ],
+        "tool_approval_note": (
+            "Every declared tool needs its own approval. A granted permission describes a "
+            "class of authority; an approval names one host implementation of one tool."
+        ),
         "network": copy.deepcopy(policy["network"]),
         "memory": copy.deepcopy(policy["memory"]),
         "budget": copy.deepcopy(policy["budget"]),

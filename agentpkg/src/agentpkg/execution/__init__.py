@@ -31,6 +31,7 @@ from .policy import (
     HostExecutionLimits,
     check_capabilities,
     check_model,
+    check_tools,
     effective_budget,
     effective_deadline_seconds,
     normalize_grants,
@@ -40,9 +41,11 @@ from .protocol import (
     EXECUTION_METHODS,
     EXECUTION_PROTOCOL_VERSION,
     PACKAGE_FD,
+    TOOL_CALL_METHOD,
 )
 from .report import audit_summary, cost_summary, model_evidence, verify_audit_chain
 from .session import EXECUTION_RESULT_SCHEMA, ExecutionSession, serve
+from .toolprobe import TOOL_PROBE_SCHEMA, run_tool_probe
 
 __all__ = [
     "ARTIFACTS_FD",
@@ -51,6 +54,8 @@ __all__ = [
     "EXECUTION_RESULT_SCHEMA",
     "PACKAGE_FD",
     "RUN_INVOCATION_SCHEMA",
+    "TOOL_CALL_METHOD",
+    "TOOL_PROBE_SCHEMA",
     "ExecutionError",
     "ExecutionSession",
     "HostExecutionLimits",
@@ -58,12 +63,14 @@ __all__ = [
     "build_invocation",
     "check_capabilities",
     "check_model",
+    "check_tools",
     "cost_summary",
     "effective_budget",
     "effective_deadline_seconds",
     "model_evidence",
     "normalize_grants",
     "read_execution_artifact",
+    "run_tool_probe",
     "serve",
     "verify_audit_chain",
     "verify_execution_artifact",

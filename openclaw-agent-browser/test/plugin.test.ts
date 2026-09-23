@@ -61,6 +61,7 @@ describe("plugin entry", () => {
       "sessionTtlSeconds",
       "maxSessions",
       "execution",
+      "tools",
     ]);
     expect(schema.additionalProperties).toBe(false);
   });

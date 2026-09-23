@@ -1,0 +1,517 @@
+{
+  "recordedAt": "2026-09-23T19:24:28.571Z",
+  "tool": "citation-resolver",
+  "steps": {
+    "package": {
+      "packageId": "org.webagents.literature-review",
+      "version": "0.2.0",
+      "digest": "b7bd37ca730ec5a156156207dc04fa5a7563e34a4373a298daa143dd9945b3eb",
+      "archiveSha256": "5fdde862352598fc68e4fe5a2f5c2dee19bf952112446b3fc13bc77763533b0b",
+      "signatureStatus": "valid",
+      "trustStatus": "trusted",
+      "declaredTools": [
+        {
+          "id": "citation-resolver",
+          "binding": "citation.resolve",
+          "execution": "remote",
+          "permissions": [
+            "network.citations"
+          ],
+          "domains": [
+            "webagents-citation-resolver-production.up.railway.app"
+          ]
+        },
+        {
+          "id": "paper-reader",
+          "binding": "paper.read",
+          "execution": "local",
+          "permissions": [
+            "files.pdfs"
+          ],
+          "domains": []
+        },
+        {
+          "id": "scholarly-search",
+          "binding": "scholarly.search",
+          "execution": "remote",
+          "permissions": [
+            "network.scholarly"
+          ],
+          "domains": [
+            "api.crossref.org"
+          ]
+        }
+      ]
+    },
+    "authorization": {
+      "receiptId": "e36d8636-d2dd-4a50-8139-2cf6cad82910",
+      "receiptSha256": "5e70beb59191a9fe1905ddf47c89df0b86e5f06ba90af1a011782b8e3507f7d9",
+      "runnable": true,
+      "grantedPermissionIds": [
+        "files.pdfs",
+        "memory.session",
+        "model.reasoning",
+        "network.citations",
+        "network.scholarly"
+      ],
+      "toolApprovals": [
+        {
+          "toolId": "citation-resolver",
+          "approved": true
+        },
+        {
+          "toolId": "paper-reader",
+          "approved": true
+        },
+        {
+          "toolId": "scholarly-search",
+          "approved": true
+        }
+      ]
+    },
+    "tools": {
+      "host": {
+        "runtime": "openclaw",
+        "runtimeVersion": "2026.9.5",
+        "source": "openclaw plugin tool registry",
+        "capturedAt": "2026-09-23T19:24:43.973Z"
+      },
+      "registrySha256": "f50f5f40cee63ddf5c50654a56cfe75850a2deadebafbf62cf3d5e9acdf5b3e5",
+      "counts": {
+        "total": 3,
+        "bound": 1,
+        "unbound": 2,
+        "incompatible": 0,
+        "unverified": 0,
+        "unavailable": 0,
+        "approved": 3,
+        "usable": 1,
+        "blocking": 2
+      },
+      "allToolsBound": false,
+      "declared": [
+        {
+          "toolId": "citation-resolver",
+          "status": "bound",
+          "approved": true,
+          "permissionsGranted": true,
+          "usable": true,
+          "reason": null,
+          "binding": {
+            "bindingId": "openclaw:citation-resolver:1",
+            "bindingSha256": "31253afe3b5e333a87cef88a6d8e4dd360f5d9fa75d78dd008510c2afe94578a",
+            "implementationKind": "json_http",
+            "implementationVersion": "0.1.0",
+            "endpointOrigin": "https://webagents-citation-resolver-production.up.railway.app",
+            "endpointPath": "/resolve",
+            "method": "POST",
+            "available": true,
+            "credentialsRequired": false,
+            "credentialsConfigured": false,
+            "checks": [
+              {
+                "id": "tool_id",
+                "subject": "tool_id",
+                "status": "satisfied",
+                "detail": null
+              },
+              {
+                "id": "binding_name",
+                "subject": "binding",
+                "status": "satisfied",
+                "detail": null
+              },
+              {
+                "id": "execution_locality",
+                "subject": "remote",
+                "status": "satisfied",
+                "detail": null
+              },
+              {
+                "id": "side_effects",
+                "subject": "side_effects",
+                "status": "satisfied",
+                "detail": null
+              },
+              {
+                "id": "permission_kinds",
+                "subject": "permission_kinds",
+                "status": "satisfied",
+                "detail": null
+              },
+              {
+                "id": "input_schema",
+                "subject": "input_schema_sha256",
+                "status": "satisfied",
+                "detail": null
+              },
+              {
+                "id": "output_schema",
+                "subject": "output_schema_sha256",
+                "status": "satisfied",
+                "detail": null
+              },
+              {
+                "id": "endpoint_domain",
+                "subject": "endpoint_origin",
+                "status": "satisfied",
+                "detail": "A remote binding must land on a host the package declares, the linked network permission names, and the package network policy allows."
+              },
+              {
+                "id": "endpoint_path",
+                "subject": "endpoint_path",
+                "status": "satisfied",
+                "detail": null
+              },
+              {
+                "id": "method",
+                "subject": "method",
+                "status": "satisfied",
+                "detail": null
+              }
+            ]
+          }
+        },
+        {
+          "toolId": "paper-reader",
+          "status": "unbound",
+          "approved": true,
+          "permissionsGranted": true,
+          "usable": false,
+          "reason": "This host registers no implementation for this tool, so the package cannot be run here. The package declares what it needs; the host decides what, if anything, satisfies it.",
+          "binding": null
+        },
+        {
+          "toolId": "scholarly-search",
+          "status": "unbound",
+          "approved": true,
+          "permissionsGranted": true,
+          "usable": false,
+          "reason": "This host registers no implementation for this tool, so the package cannot be run here. The package declares what it needs; the host decides what, if anything, satisfies it.",
+          "binding": null
+        }
+      ]
+    },
+    "model": {
+      "selected": "ollama/qwen3.5:9b",
+      "status": "compatible"
+    },
+    "modelPlan": {
+      "prepared": false,
+      "model": "ollama/qwen3.5:9b",
+      "refusedBecause": "run-plan.prepare refused: run_plan_refused — This host registers no implementation for tool paper-reader. The package declares what it needs; a host that cannot supply it cannot run the package. This host registers no implementation for this tool, so the package cannot be run here. The package declares what it needs; the host decides what, if anything, satisfies it."
+    },
+    "runPlan": {
+      "runPlanId": "rp_de746a119a3e4a7cbf77087876026499",
+      "runPlanSha256": "0c75c0ad5378b1b628f1c3bf5362559d1832c1f7a68bfd46a41decca663fbafb",
+      "ready": true,
+      "executionPerformed": false,
+      "mode": "tool_probe",
+      "probeToolId": "citation-resolver",
+      "modelBinding": null,
+      "toolBindings": [
+        {
+          "toolId": "citation-resolver",
+          "bindingId": "openclaw:citation-resolver:1",
+          "bindingSha256": "31253afe3b5e333a87cef88a6d8e4dd360f5d9fa75d78dd008510c2afe94578a",
+          "implementationKind": "json_http",
+          "implementationVersion": "0.1.0",
+          "displayName": "Citation Resolver",
+          "remote": true,
+          "endpointOrigin": "https://webagents-citation-resolver-production.up.railway.app",
+          "endpointPath": "/resolve",
+          "method": "POST",
+          "contractSha256": "b8492f7a934a010370517214705e4d1e959957801ff1f4d9ad8055504929cd75",
+          "requiredPermissionIds": [
+            "network.citations"
+          ],
+          "timeoutSeconds": 45,
+          "maxCalls": 20,
+          "credentialsRequired": false,
+          "credentialsConfigured": false,
+          "approved": true,
+          "usable": true
+        }
+      ],
+      "toolRegistry": {
+        "registrySha256": "35f2c98a853f8d498ee17e0695192a99a7c56a5e4bb0b39b5eb2f526b2bec398",
+        "bindingCount": 2
+      },
+      "preflight": {
+        "checkedAt": "2026-09-23T19:24:46.404629+00:00",
+        "state": "ready",
+        "ready": true,
+        "stale": false,
+        "staleReasons": [],
+        "blockingReasons": [],
+        "trustStoreChanged": false,
+        "modelStillAvailable": true,
+        "toolBindingsCurrent": true,
+        "toolBindingsBound": 1
+      }
+    },
+    "probe": {
+      "status": "ok",
+      "runPlanId": "rp_de746a119a3e4a7cbf77087876026499",
+      "runPlanSha256": "0c75c0ad5378b1b628f1c3bf5362559d1832c1f7a68bfd46a41decca663fbafb",
+      "sessionId": "_54GySABHDW3Dgm6MIHWpIUH",
+      "package": {
+        "packageId": "org.webagents.literature-review",
+        "name": "Literature Review Agent",
+        "version": "0.2.0",
+        "digest": "b7bd37ca730ec5a156156207dc04fa5a7563e34a4373a298daa143dd9945b3eb"
+      },
+      "tool": {
+        "id": "citation-resolver",
+        "version": "0.1.0",
+        "binding": "citation.resolve",
+        "execution": "remote",
+        "remote": true,
+        "sideEffects": "read",
+        "permissions": [
+          "network.citations"
+        ],
+        "domains": [
+          "webagents-citation-resolver-production.up.railway.app"
+        ],
+        "timeoutSeconds": 45,
+        "declaredEndpoint": "https://webagents-citation-resolver-production.up.railway.app/resolve"
+      },
+      "binding": {
+        "bindingId": "openclaw:citation-resolver:1",
+        "bindingSha256": "31253afe3b5e333a87cef88a6d8e4dd360f5d9fa75d78dd008510c2afe94578a",
+        "implementationKind": "json_http",
+        "implementationVersion": "0.1.0",
+        "displayName": "Citation Resolver",
+        "remote": true,
+        "endpointOrigin": "https://webagents-citation-resolver-production.up.railway.app",
+        "endpointPath": "/resolve",
+        "method": "POST",
+        "credentialsRequired": false,
+        "credentialsConfigured": false
+      },
+      "authority": {
+        "role": "CitationWorker",
+        "workerContext": true,
+        "approved": true,
+        "grants": [
+          {
+            "permissionId": "network.citations",
+            "decision": "session"
+          }
+        ],
+        "permissionChecks": 3
+      },
+      "fixture": {
+        "id": "doi",
+        "source": "host_owned"
+      },
+      "request": {
+        "argsSha256": "4f427f2deabe8849a41c383b27bc66bfa9990ca6b5014756d2e9a2b43c8b97ea",
+        "argsBytes": 66
+      },
+      "result": {
+        "validatedByRuntime": true,
+        "validatedAgainst": "schemas/resolver-output.schema.json",
+        "outputSha256": "da1af6d698b4bb738c83e89fb15fff31a2e454b1e0d153278cb5b03efdb13925",
+        "outputBytes": 1128,
+        "outputKeys": [
+          "alternatives",
+          "best_match",
+          "detected_type",
+          "match_score",
+          "message",
+          "query",
+          "sources",
+          "status",
+          "warnings"
+        ],
+        "output": {
+          "status": "resolved",
+          "query": "10.1038/nphys1170",
+          "detected_type": "doi",
+          "best_match": {
+            "title": "Measured measurement",
+            "authors": [
+              {
+                "name": "Markus Aspelmeyer",
+                "given": "Markus",
+                "family": "Aspelmeyer",
+                "orcid": null
+              }
+            ],
+            "year": 2009,
+            "venue": "Nature Physics",
+            "publisher": "Springer Science and Business Media LLC",
+            "doi": "10.1038/nphys1170",
+            "arxiv_id": null,
+            "url": "https://doi.org/10.1038/nphys1170",
+            "publication_type": "journal-article",
+            "abstract": null,
+            "volume": "5",
+            "issue": "1",
+            "pages": "11-12",
+            "journal_reference": null,
+            "provider_ids": {
+              "crossref": "10.1038/nphys1170"
+            },
+            "source": "crossref",
+            "bibtex": "@article{aspelmeyer2009measuredmeasurement97629b50,\n  title = {{Measured measurement}},\n  author = {Aspelmeyer, Markus},\n  year = {2009},\n  publisher = {Springer Science and Business Media LLC},\n  volume = {5},\n  number = {1},\n  pages = {11-12},\n  doi = {10.1038/nphys1170},\n  url = {https://doi.org/10.1038/nphys1170},\n  journal = {Nature Physics}\n}"
+          },
+          "match_score": 1,
+          "alternatives": [],
+          "sources": [
+            {
+              "provider": "crossref",
+              "status": "ok",
+              "error_code": null
+            }
+          ],
+          "warnings": [],
+          "message": "Exact identifier verified against the provider record."
+        }
+      },
+      "transport": {
+        "durationMs": 432.312,
+        "hostCalls": [
+          {
+            "toolId": "citation-resolver",
+            "bindingId": "openclaw:citation-resolver:1",
+            "remote": true,
+            "status": 200,
+            "durationMs": 418,
+            "outcome": "ok"
+          }
+        ]
+      },
+      "usage": {
+        "toolCalls": 1,
+        "remoteCalls": 1,
+        "tokens": 0
+      },
+      "audit": {
+        "events": 15,
+        "chainValid": true,
+        "finalHash": "7ced489742094633694af24ee9e0d96bc641e17ceb82599b50e8a0e13754426a",
+        "actions": [
+          {
+            "action": "budget.updated",
+            "count": 2
+          },
+          {
+            "action": "delegation.checked",
+            "count": 1
+          },
+          {
+            "action": "memory.cleared",
+            "count": 1
+          },
+          {
+            "action": "permission.checked",
+            "count": 3
+          },
+          {
+            "action": "runtime.started",
+            "count": 1
+          },
+          {
+            "action": "tool.called",
+            "count": 1
+          },
+          {
+            "action": "tool.completed",
+            "count": 1
+          },
+          {
+            "action": "tool.dispatched",
+            "count": 1
+          },
+          {
+            "action": "tool.settled",
+            "count": 1
+          },
+          {
+            "action": "worker.completed",
+            "count": 1
+          },
+          {
+            "action": "worker.spawned",
+            "count": 1
+          },
+          {
+            "action": "worker.started",
+            "count": 1
+          }
+        ]
+      },
+      "workflowExecuted": false,
+      "packageExecution": {
+        "workflowInstantiated": false,
+        "workflowNodesExecuted": 0,
+        "workflowWorkersStarted": 0,
+        "modelCalls": 0,
+        "modelRouterInstalled": false,
+        "packageInstructionsLoaded": false,
+        "runtimeWorkerContexts": 1
+      },
+      "revalidated": [
+        "run_plan_identity",
+        "run_plan_readiness",
+        "run_plan_preflight",
+        "execution_mode",
+        "package_digest",
+        "archive_sha256",
+        "execution_profile",
+        "package_validation",
+        "signature_status",
+        "publisher_trust",
+        "signer_fingerprint",
+        "authorization_receipt",
+        "receipt_not_expired",
+        "model_permission_granted",
+        "tool_bindings",
+        "tool_approvals",
+        "no_model_bound"
+      ]
+    },
+    "runPlanAfterProbe": {
+      "runPlanSha256": "0c75c0ad5378b1b628f1c3bf5362559d1832c1f7a68bfd46a41decca663fbafb",
+      "unchanged": true,
+      "executionPerformed": false,
+      "ready": true,
+      "toolBindingsCurrent": true,
+      "executionSupported": false
+    }
+  },
+  "host": {
+    "openclaw": "OpenClaw 2026.9.5 (ec9c1a1)",
+    "service": {
+      "state": "running",
+      "detail": "The Agent Browser control plane is running.",
+      "since": "2026-09-23T19:04:02.388Z",
+      "starts": 1,
+      "controlPlane": {
+        "apiVersion": "v0",
+        "agentpkgVersion": "0.2.0",
+        "packageFormat": "agent.pkg 0.1",
+        "execution": "disabled"
+      },
+      "sessions": {
+        "open": 0,
+        "max": 8
+      },
+      "capabilities": {
+        "openUrl": true,
+        "openLocal": true,
+        "localRoots": [
+          "/Users/dariofenoglio/Desktop/WebAgents/dist",
+          "/Users/dariofenoglio/.openclaw/workspace"
+        ],
+        "trustPinning": true
+      },
+      "executionSupported": false,
+      "executionOperations": true
+    }
+  },
+  "passed": true
+}

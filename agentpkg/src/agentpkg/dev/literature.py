@@ -457,7 +457,15 @@ async def _run_review(
         tool_handlers.update(handlers)
     pdfs = pdfs or {}
     runtime = Runtime(
-        package, grants=grants or {}, handlers=tool_handlers, router=router, limits=limits
+        package,
+        grants=grants or {},
+        handlers=tool_handlers,
+        router=router,
+        limits=limits,
+        # The archived development runner is invoked by an operator against one
+        # package they chose, so running it is the approval. The generic host
+        # path requires a per-tool decision recorded in a receipt instead.
+        approved_tools=sorted(package.tools),
     )
     if _diagnostics is not None:
         _diagnostics["runtime"] = runtime

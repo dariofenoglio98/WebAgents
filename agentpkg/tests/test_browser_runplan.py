@@ -12,6 +12,7 @@ from pathlib import Path
 
 import pytest
 from shipped_keys import AGENDA_KEY, DIST, ORIGINAL_KEY
+from tool_fakes import registry_for
 
 from agentpkg.browser import ControlPlane, ControlPlaneConfig, ControlPlaneError
 from agentpkg.browser.authorization import BrowserPolicy
@@ -83,8 +84,13 @@ def opened(control, name="meeting-agenda"):
     return summary["session"]["id"], summary["package"]["digest"]
 
 
-def authorize(control, session, digest, *, include_model=True, **extra):
-    """Grant every required permission, plus the model permission by default."""
+def authorize(control, session, digest, *, include_model=True, approve_tools=True, **extra):
+    """Grant every required permission, the model permission, and every tool.
+
+    Approving a tool is a decision of its own: the helper does both because
+    most of these tests are about something else, and the tests that are about
+    the distinction pass `approve_tools=False`.
+    """
     request = control.permissions(session)
     decisions = {item["id"]: "session" for item in request["permissions"] if item["required"]}
     if include_model:
@@ -92,16 +98,30 @@ def authorize(control, session, digest, *, include_model=True, **extra):
             {item["id"]: "session" for item in request["permissions"] if item["kind"] == "model"}
         )
     decisions.update(extra)
-    return control.authorize(session, package_digest=digest, decisions=decisions)
+    approvals = {item["tool_id"]: bool(approve_tools) for item in request.get("tool_approvals", [])}
+    return control.authorize(
+        session, package_digest=digest, decisions=decisions, tool_approvals=approvals
+    )
 
 
-def prepared(control, session, digest, receipt, *, models=None, model_id="host/alpha"):
+def tools_for(control, session, **kwargs):
+    """A host registry that satisfies whatever this session's package declares."""
+    package = control._session(session).package
+    return registry_for(package, **kwargs) if package.tools else None
+
+
+def prepared(
+    control, session, digest, receipt, *, models=None, model_id="host/alpha", tool_registry=...
+):
+    if tool_registry is ...:
+        tool_registry = tools_for(control, session)
     return control.prepare_run_plan(
         session,
         package_digest=digest,
         receipt_id=receipt["receipt_id"],
         model_id=model_id,
         catalog=catalog(*(models or [model()])),
+        tool_registry=tool_registry,
     )
 
 

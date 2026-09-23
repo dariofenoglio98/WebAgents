@@ -78,6 +78,47 @@ describe("feature contract", () => {
     }
   });
 
+  it("lets the tool probe caller choose a declared tool and a host fixture, and nothing else", () => {
+    const operation = contract.operations["execution.tool-probe"];
+    expect(operation.kind).toBe("action");
+    expect(operation.tool).toBeUndefined();
+    expect(operation.description).toContain("not an agent run");
+    const input = operation.input as {
+      properties: Record<string, unknown>;
+    };
+    expect(Object.keys(input.properties).sort()).toEqual([
+      "fixtureId",
+      "runPlanId",
+      "runPlanSha256",
+      "sessionId",
+      "toolId",
+    ]);
+    // Nothing that could name a destination, a request or an implementation.
+    for (const forbidden of [
+      "url",
+      "endpoint",
+      "origin",
+      "method",
+      "headers",
+      "args",
+      "input",
+      "body",
+      "bindingId",
+    ]) {
+      expect(input.properties[forbidden], forbidden).toBeUndefined();
+    }
+    // Its own output schema says a graph never ran and no token was spent.
+    const output = JSON.stringify(operation.output);
+    expect(output).toContain('"workflowExecuted"');
+    expect(output).toContain('"modelCalls"');
+    expect(output).toContain('"const":0');
+  });
+
+  it("keeps the tool registry a read and the probe a write", () => {
+    expect(contract.operations["tools.evaluate"].kind).toBe("query");
+    expect(contract.operations["execution.tool-probe"].kind).toBe("action");
+  });
+
   it("keeps run-plan preparation a write action and its reads queries", () => {
     expect(contract.operations["run-plan.prepare"].kind).toBe("action");
     expect(contract.operations["run-plan.clear"].kind).toBe("action");

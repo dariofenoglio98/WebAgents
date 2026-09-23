@@ -97,6 +97,73 @@ export const CONFIG_SCHEMA = {
             "Refuse to run on an OpenClaw release this project's token accounting was not " +
             "verified against. Defaults to true.",
         },
+        maxCallsPerTool: {
+          type: "integer",
+          minimum: 1,
+          maximum: 10000,
+          description:
+            "Ceiling on how often one run may call any one tool. Lowers a package's own " +
+            "per-tool cap; it can never raise one.",
+        },
+        maxToolResponseBytes: {
+          type: "integer",
+          minimum: 1024,
+          maximum: 4194304,
+          description: "Ceiling on one tool response, applied to every binding's own limit.",
+        },
+      },
+    },
+    tools: {
+      type: "object",
+      additionalProperties: false,
+      description:
+        "Which tool implementations this host offers. A package declares what it needs; " +
+        "these entries say what this host will actually run for it. Configuration can " +
+        "disable, relabel, retarget or bound a built-in implementation; it cannot add one, " +
+        "because a registry entry is a claim that code in this plugin can serve it.",
+      properties: {
+        enabled: {
+          type: "boolean",
+          description:
+            "Whether this host brokers package tools at all. Defaults to true; false means " +
+            "no package that declares a tool can run here.",
+        },
+        bindings: {
+          type: "array",
+          maxItems: 32,
+          description: "Per-tool configuration, matched to a built-in implementation by toolId.",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: ["toolId"],
+            properties: {
+              toolId: {
+                type: "string",
+                maxItems: 200,
+                description: "The declared tool id this entry configures.",
+              },
+              enabled: { type: "boolean", description: "Disable this implementation." },
+              origin: {
+                type: "string",
+                description:
+                  "HTTPS origin on port 443, with no path, query or credentials. Remote " +
+                  "bindings only. A package whose declared domains do not cover it is " +
+                  "refused by the control plane rather than redirected here.",
+              },
+              path: { type: "string", description: "Absolute request path. Remote bindings only." },
+              method: { enum: ["GET", "POST"], description: "Remote bindings only." },
+              timeoutSeconds: { type: "integer", minimum: 1, maximum: 120 },
+              displayName: { type: "string", maxLength: 200 },
+              credentialEnv: {
+                type: "string",
+                description:
+                  "Name of an environment variable this host reads at call time and sends as " +
+                  "a bearer token. The value never reaches the package, the run plan, the " +
+                  "audit or any report; only whether one is configured does.",
+              },
+            },
+          },
+        },
       },
     },
   },
@@ -207,14 +274,23 @@ const plugin = defineFeaturePlugin({
       "packages.authorize": ({ sessionId, packageDigest, decisions, toolApprovals }) =>
         active().authorize(sessionId, packageDigest, decisions, toolApprovals ?? []),
       "models.evaluate": ({ sessionId }) => active().evaluateModels(sessionId),
+      "tools.evaluate": ({ sessionId }) => active().evaluateTools(sessionId),
       "run-plan.get": ({ sessionId }) => active().getRunPlan(sessionId),
-      "run-plan.prepare": ({ sessionId, packageDigest, receiptId, modelId, executionMode }) =>
+      "run-plan.prepare": ({
+        sessionId,
+        packageDigest,
+        receiptId,
+        modelId,
+        executionMode,
+        probeToolId,
+      }) =>
         active().prepareRunPlan(
           sessionId,
           packageDigest,
           receiptId,
-          modelId,
+          modelId ?? "",
           executionMode ?? "model",
+          probeToolId,
         ),
       "run-plan.clear": ({ sessionId }) => active().clearRunPlan(sessionId),
       // Developer/operator only. It is not reachable from the Agent Browser
@@ -224,6 +300,11 @@ const plugin = defineFeaturePlugin({
       // Also developer/operator only, and also absent from the page. These do
       // run a package: `execution.start` executes the signed graph the run plan
       // named, on the model it bound, and spends real tokens.
+      // Also developer/operator only. It makes ONE mediated call to one tool
+      // the package declares, through the implementation the plan bound, with
+      // a host-owned fixture. No workflow, no graph node and no model.
+      "execution.tool-probe": ({ sessionId, runPlanId, runPlanSha256, toolId, fixtureId }) =>
+        active().probeTool(sessionId, runPlanId, runPlanSha256, toolId, fixtureId),
       "execution.start": ({ sessionId, runPlanId, runPlanSha256, input }) =>
         active().startExecution(sessionId, runPlanId, runPlanSha256, input),
       "execution.cancel": ({ runId }) => active().cancelExecution(runId),

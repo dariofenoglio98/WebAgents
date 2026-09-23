@@ -298,6 +298,8 @@ person decides and the moment anything runs:
   "execution": {"profile": "workflow.v0", "mode": "model",
                 "binding_strategy": "single_model",
                 "required_permission_ids": ["model.reasoning"],
+                "required_tool_ids": [...], "probe_tool_id": null,
+                "tool_binding_count": 0,
                 "performed": false, "note": "…"},
   "model_binding": {"strategy": "single_model", "selected_at": "…",
                     "host_model_id": "openai/gpt-5.6-luna",
@@ -308,12 +310,22 @@ person decides and the moment anything runs:
                     "catalog": {"catalog_sha256": "…", "model_count": 5,
                                 "available_model_count": 5, "host": {…}}},
   "model_requirements": {…normalized requirement set…},
+  "tool_bindings": [ …one exact host implementation per declared tool… ],
+  "tool_registry": {"registry_sha256": "…", "binding_count": 2, "host": {…}},
   "browser_policy": {…},
   "readiness": {"state": "ready", "ready": true,
                 "compatibility_status": "compatible", "blocking_reasons": []},
   "run_plan_sha256": "da5aeefaba415d0c…"
 }
 ```
+
+`mode` is `model` — authority to run the package's own graph, which needs a
+model *and* every declared tool bound, approved and permitted — or `tool_probe`,
+a strictly smaller authority for one mediated call to one declared tool, which
+binds `model_binding: null` and names its tool in `probe_tool_id`. The two are
+separate modes so neither artifact can be mistaken for the other; see
+[the tool broker](tool-broker.md) for what a `tool_bindings` entry contains and
+what makes one stale.
 
 `run_plan_sha256` is the SHA-256 of the canonical (RFC 8785) plan **without that
 field** — the same construction the authorization receipt uses. Its purpose is

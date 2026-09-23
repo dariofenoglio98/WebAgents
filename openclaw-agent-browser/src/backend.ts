@@ -24,9 +24,19 @@ import {
   projectReceipt,
   projectRunPlanState,
   projectSessions,
+  projectToolRegistry,
   projectTrust,
   projectTrustEntry,
 } from "./project.js";
+import { projectToolProbe } from "./tool-probe.js";
+import type { HttpTransport as ToolHttpTransport } from "./tool-broker.js";
+import {
+  buildToolRegistry,
+  resolveBindings,
+  type ToolBindingDefinition,
+  type ToolRegistry,
+  type ToolsConfig,
+} from "./tool-registry.js";
 import type { HostLlm } from "./host-llm.js";
 import { projectProbe } from "./router-probe.js";
 import { revalidate } from "./preflight.js";
@@ -46,6 +56,8 @@ export type BackendConfig = {
   maxSessions?: number;
   /** Trusted host bounds for a run. They can only lower package declarations. */
   execution?: Partial<ExecutionPolicy>;
+  /** Which tool implementations this host offers, and how they are configured. */
+  tools?: ToolsConfig;
 };
 
 export type BackendOptions = {
@@ -78,6 +90,16 @@ export type BackendOptions = {
   bridgeLimits?: Partial<BridgeLimits>;
   /** Test seam: build an execution bridge instead of spawning a real runner. */
   createExecutionBridge?: ExecutionServiceSeam;
+  /**
+   * Test seam: the tool implementations this host registers.
+   *
+   * Code, not configuration. Operator configuration can disable, relabel,
+   * retarget and bound a built-in; it can never add one, because a registry
+   * entry is a claim that code in this process can serve it.
+   */
+  toolDefinitions?: readonly ToolBindingDefinition[];
+  /** Test seam: replace the broker's HTTP mechanics, never its policy. */
+  toolTransport?: ToolHttpTransport;
 };
 
 type ExecutionServiceSeam = NonNullable<
@@ -88,6 +110,12 @@ type Ok<T> = { ok: true; value: T };
 type Err = { ok: false; error: ReturnType<typeof asFeatureError> };
 
 const ok = <T>(value: T): Ok<T> => ({ ok: true, value });
+
+const rec = (value: unknown): Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+const str = (value: unknown): string => (typeof value === "string" ? value : "");
 
 function positiveInt(value: unknown, fallback: number, max: number): number {
   return typeof value === "number" && Number.isInteger(value) && value > 0
@@ -187,6 +215,8 @@ export class AgentBrowserBackend {
       runtimeDir,
       policy: resolvePolicy(config.execution),
       hostRuntimeVersion: () => this.options.modelHost?.runtimeVersion ?? null,
+      tools: () => this.toolHost(),
+      ...(this.options.toolTransport ? { toolTransport: this.options.toolTransport } : {}),
       ...(this.options.createExecutionBridge
         ? { createBridge: this.options.createExecutionBridge }
         : {}),
@@ -425,6 +455,89 @@ export class AgentBrowserBackend {
    * semantic, status and threshold comes back from agentpkgd. Nothing here
    * decides whether a model fits a package.
    */
+  /**
+   * What this host implements, right now.
+   *
+   * Built on every read rather than cached: whether a credential is present,
+   * whether a binding is enabled and what an operator configured are live
+   * facts, and a stale answer here would mean a plan bound to something that
+   * is no longer there.
+   */
+  private toolHost(): { registry: ToolRegistry; definitions: readonly ToolBindingDefinition[] } {
+    const config = this.options.config?.tools;
+    const supplied = this.options.toolDefinitions;
+    const { definitions } = resolveBindings(config, supplied);
+    const registry = buildToolRegistry({
+      ...(config ? { config } : {}),
+      ...(supplied ? { definitions: supplied } : {}),
+      host: {
+        runtimeVersion: this.options.modelHost?.runtimeVersion ?? null,
+      },
+      policy: resolvePolicy(this.options.config?.execution),
+    });
+    return { registry, definitions };
+  }
+
+  evaluateTools(sessionId: string) {
+    return guard(async () => {
+      const client = await this.client();
+      const summary = rec(await client.getPackage(sessionId));
+      const digest = str(rec(summary.package).digest);
+      let authorized = false;
+      try {
+        await client.getAuthorization(sessionId);
+        authorized = true;
+      } catch (error) {
+        if (!(error instanceof AgentBrowserError && error.code === "session_expired")) throw error;
+      }
+      const evaluation = await client.evaluateTools(
+        sessionId,
+        digest,
+        this.toolHost().registry,
+      );
+      return projectToolRegistry(evaluation, { sessionId, authorized });
+    });
+  }
+
+  /**
+   * Prove the tool boundary against one exact implementation.
+   *
+   * The only operation in this backend that can make a package's declared tool
+   * run, and the caller chooses a *declared tool id* and one of this host's own
+   * fixtures — nothing else. No URL, method, header, endpoint or argument is
+   * caller-controlled, and no workflow, graph node or model takes part.
+   */
+  probeTool(
+    sessionId: string,
+    runPlanId: string,
+    runPlanSha256: string,
+    toolId: string,
+    fixtureId?: string,
+  ) {
+    return guard(async () => {
+      const execution = this.requireExecution();
+      const client = await this.client();
+      const catalog = await this.hostCatalog();
+      const outcome = await execution.toolProbe(client, catalog, {
+        sessionId,
+        runPlanId,
+        runPlanSha256,
+        toolId,
+        ...(fixtureId ? { fixtureId } : {}),
+      });
+      const view = projectToolProbe(outcome.report);
+      this.options.logger.info("agent-browser: tool probe completed", {
+        tool: view.tool.id,
+        binding: view.binding.bindingId,
+        status: view.status,
+        remote: view.binding.remote,
+        toolCalls: view.usage.toolCalls,
+        modelCalls: 0,
+      });
+      return view;
+    });
+  }
+
   private async hostCatalog(): Promise<HostCatalog> {
     if (!this.options.modelHost) {
       throw new AgentBrowserError(
@@ -485,13 +598,15 @@ export class AgentBrowserBackend {
     receiptId: string,
     modelId: string,
     executionMode = "model",
+    probeToolId?: string,
   ) {
     return guard(async () => {
       const client = await this.client();
       // Re-read the catalog immediately before binding, so a plan can never
       // record a model the host stopped offering while the page was open.
       const catalog = await this.hostCatalog();
-      if (!stillAvailable(catalog, modelId)) {
+      // A tool probe binds no model, so there is nothing to re-check.
+      if (executionMode === "model" && !stillAvailable(catalog, modelId)) {
         throw new AgentBrowserError(
           "model_unknown",
           "Model no longer available",
@@ -503,9 +618,13 @@ export class AgentBrowserBackend {
       const payload = await client.prepareRunPlan(sessionId, {
         packageDigest,
         receiptId,
-        modelId,
+        ...(executionMode === "model" ? { modelId } : {}),
         executionMode,
+        ...(probeToolId ? { probeToolId } : {}),
         catalog,
+        // A package that declares no tool gets no bindings; one that does
+        // cannot have a plan prepared without them.
+        toolRegistry: this.toolHost().registry,
       });
       this.options.onChange?.("run-plan");
       return projectRunPlanState(payload, true);
@@ -524,18 +643,32 @@ export class AgentBrowserBackend {
         }
         throw error;
       }
+      // Re-evaluate the live registry first, so the preflight this read
+      // returns compares the plan with what this host offers *now*.
+      const planned = rec((payload as Record<string, unknown>).run_plan);
+      if (Array.isArray(planned.tool_bindings) && planned.tool_bindings.length > 0) {
+        await client
+          .evaluateTools(sessionId, str(rec(planned.package).digest), this.toolHost().registry)
+          .catch(() => undefined);
+        payload = await client.getRunPlan(sessionId);
+      }
       const plan = (payload as Record<string, unknown>).run_plan as
         | Record<string, unknown>
         | undefined;
       const binding = (plan?.model_binding ?? {}) as Record<string, unknown>;
       const modelId = typeof binding.host_model_id === "string" ? binding.host_model_id : "";
       let available: boolean | null = null;
-      try {
-        available = stillAvailable(await this.hostCatalog(), modelId);
-      } catch {
-        // An unreachable catalog is unknown availability, not unavailability.
-        available = null;
+      if (modelId) {
+        try {
+          available = stillAvailable(await this.hostCatalog(), modelId);
+        } catch {
+          // An unreachable catalog is unknown availability, not unavailability.
+          available = null;
+        }
       }
+      // A plan that binds no model — a tool probe — is not made unready by a
+      // model it never named. `null` is "not applicable" here, as it is for an
+      // unreachable catalog, and the projection treats it the same way.
       return projectRunPlanState(payload, available);
     });
   }

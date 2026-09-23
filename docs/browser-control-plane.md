@@ -271,9 +271,14 @@ influences a decision.
   and documented rather than papered over;
 * decisions omitted from an authorize call stay denied — silence is never
   consent;
-* tools that declare `approval_required` or a non-read side effect appear as
-  separate `tool_approvals`, also defaulting to false. They are recorded in the
-  receipt for the run milestone and do not by themselves gate `runnable`;
+* **every** declared tool appears as a separate `tool_approvals` row, also
+  defaulting to false — not only those declaring `approval_required` or a
+  non-read side effect, which now describe how consequential a yes is rather
+  than whether one is needed. A permission grant says a class of authority is
+  allowed; an approval names one host implementation of one declared tool, and
+  [the runtime refuses any tool that lacks one](tool-broker.md). They are
+  recorded in the receipt and gate a run plan, not `runnable`: a package can be
+  authorized and still have no implementation on this host;
 * `authorize` **requires** the caller to echo `package_digest`. A UI must send
   back the digest it showed the user, so a stale view or a reused session id
   cannot silently authorize different bytes. A mismatch is `409 digest_mismatch`.
@@ -344,7 +349,9 @@ Loopback HTTP, JSON in and out, versioned under `/v0`. Everything except
 | GET | `/v0/packages/{id}/authorization` | The current receipt, or 404. |
 | GET | `/v0/packages/{id}/models` | Normalized model requirements and run-mode permission IDs. |
 | POST | `/v0/packages/{id}/models/evaluate` | `{"package_digest", "catalog"}` → tri-state compatibility. |
-| POST | `/v0/packages/{id}/run-plan` | `{"package_digest", "receipt_id", "model_id", "catalog", …}` → plan + preflight. |
+| GET | `/v0/packages/{id}/tools` | What this package asks a host to implement, host-neutrally. |
+| POST | `/v0/packages/{id}/tools/evaluate` | `{"package_digest", "tool_registry"}` → per-tool binding verdicts. |
+| POST | `/v0/packages/{id}/run-plan` | `{"package_digest", "receipt_id", "model_id", "catalog", "tool_registry", "probe_tool_id", "execution_mode", …}` → plan + preflight. |
 | GET | `/v0/packages/{id}/run-plan` | The prepared plan plus a recomputed preflight, or 404. |
 | DELETE | `/v0/packages/{id}/run-plan` | Discard the prepared run plan. |
 | POST | `/v0/packages/{id}/execution-lease` | `{"package_digest", "run_plan_id", "run_plan_sha256"}` → one **private, one-time copy** of this session's immutable snapshot, issued only while the plan is ready. The response carries a local path and therefore never leaves the authenticated host caller. |

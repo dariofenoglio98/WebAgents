@@ -150,12 +150,41 @@ import.
 | A package writing outside its run | The runner writes only through an inherited directory descriptor, with exclusive creation, no symlink following and owner-only modes. Export filenames are already constrained to one safe portable name; the execution host additionally reserves `run.json`. |
 | A flattering report | The run summary is derived from the audit rather than kept beside it, and the chain is re-verified event by event. Cost is only the sum of costs the host reported; a missing value is `unknown` or `partial`, never estimated. Which model answered is recorded per call by the adapter. This is a local hash chain, not an externally anchored log. |
 | An unverified host's accounting assumed still valid | The live OpenClaw version is recorded in every run record and provenance, and a release other than the verified one is refused by default. The self-verifying half — that the token bound is `utf8_bytes + framing` because the host answers "no tokenizer" — is re-derived and recorded on every call. |
-| Package tools running unmediated | There is no tool broker. `Workflow` is constructed with no handlers, and a package declaring a tool or containing a `tool` node is refused before any token. This is a limit of this execution host, not of the package format. |
+| Package tools running unmediated | A [host tool broker](tool-broker.md) now exists, and its own boundary is the table below. A package declaring a tool the host has no binding for is still refused before any token. |
 
 The plugin backend remains trusted host code: it holds the control-plane bearer
 token, opens the lease descriptor and owns the runner process. Binding an exact
 model still requires the plugin-wide `llm.allowModelOverride` opt-in at the
 OpenClaw layer; the per-run-plan discipline is this project's own.
+
+
+## Tool broker boundary
+
+[The broker](tool-broker.md) is the first thing that lets a downloaded
+package's data leave this host. Its Python half lives in
+`agentpkg.toolbridge`, a fourth trusted namespace that the control plane cannot
+import; its implementations live in the OpenClaw plugin.
+
+| Threat | Control and remaining limit |
+|---|---|
+| A package choosing where its data goes | A `tool.call` frame carries a declared tool id, a binding id and a binding digest. There is no URL, method, header, host method name, command or path in it, and the closed parameter set refuses one. The host resolves that triple against the bindings *this run* was constructed with — not the registry, and never anything the child said. |
+| A package's declared endpoint read as authority | It is an upper bound, never a grant. A remote binding must land on a host in the package's `domains` **and** the linked network permission's `resources` **and** `policy.network.allowed_domains`, at the declared path and method, or it is `incompatible`. A package naming a destination cannot reach it, and a host cannot reach elsewhere behind that package's name. |
+| A permission standing in for an approval | `Runtime.call_tool` refuses **every** declared tool that is not explicitly approved, not only side-effecting ones. The receipt records one decision per tool, separately from the permission grant, and a plan is refused when either is missing. An approval for a tool the package does not declare is refused rather than ignored. |
+| Configuration inventing an implementation | A registry entry is a claim that code in the plugin can serve the tool. Operator configuration can disable, relabel, retarget, bound or credential a built-in; naming an unimplemented tool produces a `binding_unknown` note and no binding. |
+| A host binding that speaks a different contract | Eight per-check comparisons against the signed declaration, including both schema digests. A host that declares no digest is `unverified`, which browser policy blocks by default rather than treating as pass. The runner then re-derives every one of those facts from the verified package **in its own process** and compares again, so a plan that described the package incorrectly is refused rather than believed. |
+| An implementation swapped under an approval | A binding digest covers what the binding would *do* — tool, kind, version, origin, path, method, contract, bounds, and whether a credential is attached — and excludes liveness and labels. A moved digest makes the plan stale; the host refuses a `tool.call` whose digest is not the one the plan froze; a stale plan is never repaired, only replaced. |
+| SSRF through a configured origin | HTTPS/443 only, exact origin/path/method, every resolved address classified against the same classes as `agentpkg.netaddr` (loopback, private, CGNAT, link-local, multicast, reserved, unspecified, cloud metadata, IPv4-mapped, 6to4, Teredo, NAT64), the socket pinned to a validated address with TLS still bound to the hostname, **no redirects**, bounded request and response, a deadline, and an `AbortSignal` that reaches the socket. No proxy, no cookie jar, no ambient credential. |
+| A credential reaching the package | A credential belongs to the binding, is read at call time from this process's environment, and is attached as a header. It appears in no frame, plan, receipt, audit event, report, artifact, log or error — only `credentials: {required, configured}` does. `configured` is a boolean, so it can make a plan stale without the secret being hashed. Tests place a fake secret and assert its absence everywhere a caller can see. |
+| A partially runnable package looking runnable | A `model` plan needs **every** declared tool bound, approved and required-permissions granted, or it is refused by name. The strictly smaller `tool_probe` authority exists for one call to one tool, binds no model at all, and is refused by `execution.run`. |
+| A probe becoming a general client | It accepts a declared tool id and one of the host's own fixture ids. Every byte it sends is host code; a tool with no fixture cannot be probed. It constructs no model router, so a model call is impossible rather than absent. |
+| An unbounded or orphaned call | Per-binding concurrency caps, `MAX_PENDING` on the wire, package and host per-tool call caps applied as `min()`, remote-call budgets charged for a remote binding even though the broker is local, per-call deadlines inside the node and run deadlines, and cancellation that propagates workflow → runtime → handler → `$/cancel` → `AbortSignal` → socket. |
+| A result believed because it was configured | The host checks content type, size, status and JSON validity; the handler checks a closed envelope whose binding identity must echo the plan's; and `Runtime` then validates the payload against the **package's own** declared output schema. A service that is wrong, changed or lying fails the run. |
+
+Two things remain out of scope. The broker is trusted host code in the Gateway
+process, so an implementation added to this plugin is inside the trust
+boundary, not outside it; and nothing here evaluates the quality of what a
+service returns — a resolved identifier is a retrieval, not a verification of
+the work behind it.
 
 
 ## workflow.v0 boundary

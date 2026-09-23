@@ -27,6 +27,7 @@ SRC = ROOT / "agentpkg/src"
 EXECUTION = SRC / "agentpkg/execution"
 BROWSER = SRC / "agentpkg/browser"
 BRIDGE = SRC / "agentpkg/hostbridge"
+TOOLBRIDGE = SRC / "agentpkg/toolbridge"
 
 # What the execution namespace composes, and is therefore allowed to import.
 ALLOWED = {
@@ -37,6 +38,7 @@ ALLOWED = {
     "package",
     "runtime",
     "signing",
+    "toolbridge",
     "validation",
     "workflow",
     "workflow_assertions",
@@ -104,18 +106,62 @@ def test_execution_imports_only_what_it_composes():
         assert imported <= ALLOWED, f"{module.name} imports {sorted(imported - ALLOWED)}"
 
 
-def test_execution_actually_composes_the_interpreter_and_the_bridge():
+def test_execution_actually_composes_the_interpreter_and_the_bridges():
     """The permission is not theoretical: this is the module that uses it."""
     imported = set()
     for module in _modules(EXECUTION):
         imported |= _imported(ast.parse(module.read_text(), filename=str(module)))
-    assert {"workflow", "runtime", "hostbridge", "package"} <= imported
+    assert {"workflow", "runtime", "hostbridge", "toolbridge", "package"} <= imported
 
 
-def test_the_control_plane_cannot_reach_the_execution_namespace():
+def test_the_tool_bridge_is_a_leaf_that_knows_no_service_and_no_transport():
+    """It carries tool calls. It must not be able to make one itself.
+
+    Two properties, checked separately: it imports no interpreter, no control
+    plane and no transport, and its text contains no network vocabulary at all.
+    A handler that could open a socket would make "the host decides how" untrue.
+    """
+    modules = _modules(TOOLBRIDGE)
+    assert len(modules) >= 4, "expected the toolbridge package to be present"
+    allowed = {"errors", "hostbridge", "interfaces"}
+    # Every top-level module the namespace imports, agentpkg or otherwise. An
+    # allowlist rather than a banned list: a handler that could reach a network,
+    # a process or the filesystem would make "the host decides how" untrue, and
+    # naming the ways in would mean keeping that list complete forever.
+    permitted_stdlib = {"__future__", "json", "time", "typing"}
+    for module in modules:
+        tree = ast.parse(module.read_text(), filename=str(module))
+        imported = _imported(tree)
+        assert imported <= allowed, f"{module.name} imports {sorted(imported - allowed)}"
+        outside = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                outside.update(alias.name.split(".")[0] for alias in node.names)
+            elif isinstance(node, ast.ImportFrom) and not node.level:
+                outside.add((node.module or "").split(".")[0])
+        assert outside <= permitted_stdlib, f"{module.name} imports {sorted(outside)}"
+    code = "\n".join(ast.unparse(ast.parse(module.read_text())).lower() for module in modules)
+    for banned in ("__import__", "eval(", "exec(", "compile("):
+        assert banned not in code, f"the tool bridge contains {banned!r}"
+    # ...and no service, provider or application vocabulary, in prose or code.
+    prose = "\n".join(module.read_text().lower() for module in modules)
+    for word in DOMAIN_WORDS:
+        assert word not in prose, f"the tool bridge mentions {word!r}"
+
+
+def test_the_tool_bridge_cannot_reach_an_interpreter_or_the_control_plane():
+    for module in _modules(TOOLBRIDGE):
+        imported = _imported(ast.parse(module.read_text(), filename=str(module)))
+        assert not imported & {"browser", "execution", "runtime", "workflow", "tools", "network"}
+
+
+def test_the_control_plane_cannot_reach_the_execution_or_tool_namespace():
     for module in _modules(BROWSER):
         imported = _imported(ast.parse(module.read_text(), filename=str(module)))
         assert "execution" not in imported, f"{module.name} reaches the execution runner"
+        # The control plane evaluates tool bindings and freezes them into a
+        # plan. It must stay unable to be the thing that calls one.
+        assert "toolbridge" not in imported, f"{module.name} reaches the tool bridge"
 
 
 def test_the_model_bridge_cannot_reach_the_execution_namespace():
@@ -123,7 +169,7 @@ def test_the_model_bridge_cannot_reach_the_execution_namespace():
     for module in _modules(BRIDGE):
         imported = _imported(ast.parse(module.read_text(), filename=str(module)))
         assert "execution" not in imported, f"{module.name} reaches the execution runner"
-        assert not imported & {"workflow", "runtime", "tools"}
+        assert not imported & {"workflow", "runtime", "tools", "toolbridge"}
 
 
 def test_execution_modules_contain_no_dynamic_dispatch_or_process_execution():
@@ -164,9 +210,9 @@ def test_the_runner_exposes_no_package_specific_entry_point():
     from agentpkg import execution
 
     names = {name for name in dir(execution) if not name.startswith("_")}
-    assert not any(
-        any(word in name.lower() for word in DOMAIN_WORDS) for name in names
-    ), sorted(names)
+    assert not any(any(word in name.lower() for word in DOMAIN_WORDS) for name in names), sorted(
+        names
+    )
 
 
 # The child expects the package on fd 3 and its artifact directory on fd 4,

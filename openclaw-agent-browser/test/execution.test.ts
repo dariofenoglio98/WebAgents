@@ -173,6 +173,8 @@ async function prepared(artifact = AGENDA, decision: "session" | "once" | "deny"
       view.sessionId,
       refreshed.identity.digest,
       permissions.permissions.map((item) => ({ permissionId: item.id, decision })),
+      // A declared tool needs its own approval as well as its permission.
+      permissions.toolApprovals.map((item) => ({ toolId: item.toolId, approved: true })),
     ),
   );
   await backend.evaluateModels(view.sessionId);
@@ -399,12 +401,51 @@ describe.runIf(runs)("executing a signed package", () => {
     expect(stub.calls).toHaveLength(0);
   }, 60_000);
 
-  it("refuses a package that declares tools, before any token is spent", async () => {
-    const session = await prepared(LITERATURE);
-    const error = expectError(await start(session, { topic: "anything", max_papers: 1 }));
-    expect(error.code).toBe("execution_refused");
-    expect(error.detail).toContain("tool");
+  it("refuses a plan for a package whose tools this host cannot all implement", async () => {
+    // This host implements one of the three tools the reference review package
+    // declares. A partially bound package is refused at plan time rather than
+    // halfway through a run that already spent tokens, and the refusal names
+    // the tools rather than the package.
+    const view = unwrap(await backend.openLocal(LITERATURE));
+    await backend.pinSessionPublisher(
+      view.sessionId,
+      view.publisher.signerFingerprint!,
+      "publisher",
+    );
+    const refreshed = unwrap(await backend.getPackage(view.sessionId));
+    const permissions = unwrap(await backend.getPermissions(view.sessionId));
+    const receipt = unwrap(
+      await backend.authorize(
+        view.sessionId,
+        refreshed.identity.digest,
+        permissions.permissions.map((item) => ({
+          permissionId: item.id,
+          decision: "session" as const,
+        })),
+        permissions.toolApprovals.map((item) => ({ toolId: item.toolId, approved: true })),
+      ),
+    );
+    const tools = unwrap(await backend.evaluateTools(view.sessionId));
+    const bound = tools.tools.filter((tool) => tool.status === "bound").map((tool) => tool.toolId);
+    const unbound = tools.tools
+      .filter((tool) => tool.status === "unbound")
+      .map((tool) => tool.toolId);
+    expect(bound).toEqual(["citation-resolver"]);
+    expect(unbound.sort()).toEqual(["paper-reader", "scholarly-search"]);
+
+    await backend.evaluateModels(view.sessionId);
+    const refused = expectError(
+      await backend.prepareRunPlan(
+        view.sessionId,
+        refreshed.identity.digest,
+        receipt.receiptId,
+        "acme/big",
+      ),
+    );
+    expect(refused.code).toBe("run_plan_refused");
+    expect(refused.detail).toMatch(/paper-reader|scholarly-search/u);
     expect(stub.calls).toHaveLength(0);
+    await backend.closeSession(view.sessionId);
   }, 60_000);
 
   it("refuses input the package's own schema rejects, before any token is spent", async () => {

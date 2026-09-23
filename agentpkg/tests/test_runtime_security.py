@@ -69,6 +69,7 @@ def test_duplicate_binding_cannot_redirect_authorized_tool(tmp_path):
                 "network.scholarly": "session",
             },
             handlers=handlers,
+            approved_tools=["scholarly-search"],
         )
 
         async def worker(ctx, inputs):

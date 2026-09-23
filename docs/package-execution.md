@@ -303,10 +303,10 @@ for an id it never sent is still fatal.
 Workflow(
     verified_package,
     grants=receipt_decisions,   # exactly what the person left
-    handlers={},                # no tool broker exists yet
+    handlers=tool_handlers(peer, plan.tool_bindings),   # one per bound tool
     router=HostBridgeModelRouter(peer, plan.model_binding),
     limits=host_limits,         # min() against the package's own
-    approved_tools=[],
+    approved_tools=[b.tool_id for b in plan.tool_bindings],
 )
 ```
 
@@ -458,17 +458,25 @@ and `total_usd` is `null` when nothing was reported.
 Which model answered is recorded per call by the router adapter, so the record
 can state `allCallsUsedPlannedModel` from evidence rather than assert it once.
 
-## 15. Why Meeting Agenda is the first package
+## 15. Why Meeting Agenda was the first package
 
-It declares `tools: []`. This milestone has no generic `ToolHandler` host
-broker, so it runs only packages that declare no tools — checked against the
-graph's declarations, never against a package id. A package that declares a tool
-or contains a `tool` node is refused with `tools_not_supported` in
-`execution.begin`, before a single token is spent.
+It declares `tools: []`. When this runner was written it had no generic
+`ToolHandler` host broker, so it ran only packages that declare no tools —
+checked against the graph's declarations, never against a package id.
 
-That is a limit of **this execution host**, not of the package format. Literature
-Review is a valid package that this host cannot yet run; faking its tools or
-special-casing it would have been worse than refusing it.
+A [host tool broker](tool-broker.md) now exists, and the construction above
+installs one generic handler per tool the run plan bound. The refusal did not go
+away, it became more precise: a package whose declared tools this host has no
+implementation for is refused with `tool_not_bound` in `execution.begin`, before
+a single token is spent, and `tools_not_supported` remains for a runner built
+with no broker at all. Every declared tool must additionally be approved in the
+receipt, and the runner re-derives each binding's facts from the verified
+package before believing the plan.
+
+That is still a limit of **this execution host**, not of the package format.
+Literature Review declares three tools and this host implements one, so it
+remains a valid package this host cannot run; faking the other two or
+special-casing it would have been worse than refusing it by name.
 
 ## 15a. Structured output, and who actually enforces it
 

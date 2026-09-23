@@ -27,15 +27,50 @@ from ..package import Package, canonical_json, sha256
 from .authorization import DENY, BrowserPolicy
 from .errors import ControlPlaneError
 from .hostmodels import INCOMPATIBLE, UNVERIFIED, catalog_reference
+from .hosttools import (
+    AMBIGUOUS as TOOL_AMBIGUOUS,
+)
+from .hosttools import (
+    BOUND as TOOL_BOUND,
+)
+from .hosttools import (
+    INCOMPATIBLE as TOOL_INCOMPATIBLE,
+)
+from .hosttools import (
+    UNAVAILABLE as TOOL_UNAVAILABLE,
+)
+from .hosttools import (
+    UNBOUND as TOOL_UNBOUND,
+)
+from .hosttools import (
+    UNVERIFIED as TOOL_UNVERIFIED,
+)
+from .hosttools import (
+    plan_tool_bindings,
+    registry_reference,
+)
 
 RUN_PLAN_SCHEMA = "agentpkg-run-plan-v0"
 RUN_PLAN_VERSION = "0.1"
 
-# The only execution mode a run plan can request today. Fixture and extractive
-# runs remain development modes of the CLI; they are not offered by the browser
-# and do not get a plan.
+# The execution modes a run plan can request. Fixture and extractive runs remain
+# development modes of the CLI; they are not offered by the browser and do not
+# get a plan.
+#
+# `model` is authority to run the package's own graph: it needs a model, and it
+# needs *every* declared tool bound, approved and permitted, because a run that
+# discovered an unbound tool halfway through would already have spent whatever
+# came before it.
+#
+# `tool_probe` is authority to make **one mediated call to one declared tool**
+# and nothing else. It is a strictly smaller thing, and it is a separate mode
+# rather than a relaxation of the first so that no artifact can be mistaken for
+# the other: a `tool_probe` plan binds no model, names the one tool it is for,
+# and is refused by the runner as a workflow. A package whose other tools this
+# host cannot implement is still not runnable here, and says so.
 MODE_MODEL = "model"
-EXECUTION_MODES = (MODE_MODEL,)
+MODE_TOOL_PROBE = "tool_probe"
+EXECUTION_MODES = (MODE_MODEL, MODE_TOOL_PROBE)
 
 BINDING_SINGLE_MODEL = "single_model"
 BINDING_STRATEGIES = (BINDING_SINGLE_MODEL,)
@@ -44,7 +79,7 @@ BINDING_STRATEGIES = (BINDING_SINGLE_MODEL,)
 # required. Expressed as kinds, not identifiers, so no package name is ever
 # special-cased: the runtime itself authorizes every declared permission of
 # kind `model` before it will dispatch a model call.
-MODE_REQUIRED_PERMISSION_KINDS = {MODE_MODEL: ("model",)}
+MODE_REQUIRED_PERMISSION_KINDS = {MODE_MODEL: ("model",), MODE_TOOL_PROBE: ()}
 
 
 def mode_permission_ids(package: Package, mode: str) -> list[str]:
@@ -78,6 +113,124 @@ def _reason(code: str, message: str, subject=None) -> dict:
     return {"code": code, "message": message, "subject": subject}
 
 
+# Every tool verdict that is not `bound` blocks a plan, with its own code so a
+# UI can send the person to the control that fixes it. `unverified` blocks only
+# under the same browser policy that governs an unverified model, for the same
+# reason: calling an unconfirmed contract "ready" would be the dishonesty the
+# tri-state exists to prevent.
+_TOOL_BLOCKERS = {
+    TOOL_UNBOUND: (
+        "tool_not_bound",
+        "This host registers no implementation for tool {tool}. The package declares what it "
+        "needs; a host that cannot supply it cannot run the package.",
+    ),
+    TOOL_INCOMPATIBLE: (
+        "tool_contract_mismatch",
+        "The host implementation of tool {tool} does not satisfy the contract the package "
+        "declares.",
+    ),
+    TOOL_AMBIGUOUS: (
+        "tool_binding_ambiguous",
+        "This host registers more than one implementation for tool {tool}; exactly one must "
+        "satisfy a declaration.",
+    ),
+    TOOL_UNAVAILABLE: (
+        "tool_unavailable",
+        "The host implementation of tool {tool} is registered but not currently usable.",
+    ),
+}
+
+
+def tool_blockers(
+    evaluation: dict | None,
+    *,
+    receipt: dict,
+    policy: BrowserPolicy,
+    only: str | None = None,
+) -> list[dict]:
+    """Every reason a declared tool is not ready to be bound into a plan.
+
+    Three separate facts, kept separate: is there an implementation, did the
+    person approve *that* implementation, and are the permissions it travels
+    under granted. None of the three implies another.
+
+    `only` narrows the question to one tool. A `tool_probe` plan is authority
+    for exactly one call, so a package whose *other* tools this host cannot
+    implement still cannot be run here — and that remains true and visible,
+    because a model-mode plan asks the unrestricted question.
+    """
+    if evaluation is None:
+        return [
+            _reason(
+                "tool_registry_missing",
+                "This package declares tools, and no host tool registry was supplied, so no "
+                "implementation can be bound.",
+            )
+        ]
+    reasons: list[dict] = []
+    for tool in evaluation["tools"]:
+        subject = tool["tool_id"]
+        if only is not None and subject != only:
+            continue
+        blocker = _TOOL_BLOCKERS.get(tool["status"])
+        if blocker is not None:
+            code, message = blocker
+            reasons.append(
+                _reason(
+                    code,
+                    message.format(tool=subject)
+                    + (f" {tool['reason']}" if tool.get("reason") else ""),
+                    subject,
+                )
+            )
+            continue
+        if tool["status"] == TOOL_UNVERIFIED and policy.require_confirmed_tool_contract:
+            unknown = ", ".join((tool["binding"] or {}).get("unknown", [])) or "its contract"
+            reasons.append(
+                _reason(
+                    "tool_contract_unverified",
+                    f"This host does not state enough about its implementation of {subject} to "
+                    f"confirm {unknown}.",
+                    subject,
+                )
+            )
+            continue
+        if receipt["tool_approvals"].get(subject) is not True:
+            reasons.append(
+                _reason(
+                    "tool_not_approved",
+                    f"Tool {subject} is declared and bound, but this host implementation was "
+                    "not explicitly approved. A granted permission is not an approval.",
+                    subject,
+                )
+            )
+        # A denied *required* permission means the package cannot run. A denied
+        # optional one is an operating profile the package itself declared it
+        # supports, and `Runtime` refuses the call if the graph reaches the
+        # tool anyway; the plan records the tool as unusable rather than
+        # refusing to exist.
+        for permission_id in tool["required_permission_ids"]:
+            if receipt["decisions"].get(permission_id, DENY) == DENY:
+                reasons.append(
+                    _reason(
+                        "tool_permission_denied",
+                        f"Tool {subject} needs required permission {permission_id!r}, which is "
+                        "denied.",
+                        subject,
+                    )
+                )
+        if not tool["permission_ids"]:
+            reasons.append(
+                _reason(
+                    "tool_permission_undeclared",
+                    f"Tool {subject} links to no declared permission, so no authority can be "
+                    "checked before it runs.",
+                    subject,
+                )
+            )
+    return reasons
+
+
 def preparation_blockers(
     package: Package,
     *,
@@ -87,6 +240,8 @@ def preparation_blockers(
     publisher: dict,
     compatibility: dict | None,
     policy: BrowserPolicy,
+    tool_evaluation: dict | None = None,
+    probe_tool_id: str | None = None,
 ) -> list[dict]:
     """Every reason this run plan may not be prepared or is not ready.
 
@@ -121,7 +276,7 @@ def preparation_blockers(
     # Run-mode permissions: separate from, and additional to, whatever the
     # package marked required.
     required_ids = mode_permission_ids(package, mode)
-    if not required_ids:
+    if not required_ids and MODE_REQUIRED_PERMISSION_KINDS.get(mode):
         reasons.append(
             _reason(
                 "execution_mode_permission_undeclared",
@@ -155,6 +310,30 @@ def preparation_blockers(
                 f"(status: {publisher['trust_status']}).",
             )
         )
+    # A package declaring tools cannot be partially ready. Every declared tool
+    # needs an implementation, an approval and its permissions before any of
+    # the graph may run, because a run that discovers an unbound tool halfway
+    # through has already spent whatever came before it.
+    if package.tools:
+        reasons.extend(
+            tool_blockers(tool_evaluation, receipt=receipt, policy=policy, only=probe_tool_id)
+        )
+    if mode == MODE_TOOL_PROBE:
+        # A probe binds no model, so model compatibility is not its business.
+        # It is authority to make one tool call; that is the whole artifact.
+        if probe_tool_id is None:
+            reasons.append(
+                _reason("tool_probe_tool_missing", "A tool probe must name the tool it is for.")
+            )
+        elif probe_tool_id not in package.tools:
+            reasons.append(
+                _reason(
+                    "tool_not_declared",
+                    f"This package declares no tool named {probe_tool_id!r}.",
+                    probe_tool_id,
+                )
+            )
+        return reasons
     if compatibility is None:
         reasons.append(_reason("model_not_selected", "Select a model for this run."))
         return reasons
@@ -221,9 +400,17 @@ def build_run_plan(
     binding_strategy: str,
     expires_at: str,
     blocking_reasons: list[dict],
+    tool_evaluation: dict | None = None,
+    tool_registry: dict | None = None,
+    probe_tool_id: str | None = None,
 ) -> dict:
     """Freeze one decision into a hashed, self-describing artifact."""
     created = datetime.now(UTC)
+    tool_bindings = plan_tool_bindings(tool_evaluation) if tool_evaluation else []
+    if probe_tool_id is not None:
+        # A probe binds the one tool it is for. Carrying the others would make
+        # the artifact look like authority it is not.
+        tool_bindings = [item for item in tool_bindings if item["tool_id"] == probe_tool_id]
     plan = {
         "schema": RUN_PLAN_SCHEMA,
         "run_plan_version": RUN_PLAN_VERSION,
@@ -271,37 +458,138 @@ def build_run_plan(
             "mode": mode,
             "binding_strategy": binding_strategy,
             "required_permission_ids": mode_permission_ids(package, mode),
+            "required_tool_ids": (
+                [probe_tool_id] if probe_tool_id is not None else sorted(package.tools)
+            ),
+            "probe_tool_id": probe_tool_id,
+            "tool_binding_count": len(tool_bindings),
             "performed": False,
             "note": (
                 "A run plan is a preflight artifact. This control plane never executes a "
                 "package; a later runner must re-verify the digest, archive hash, signature, "
-                "trust, receipt and model availability before dispatching anything."
+                "trust, receipt, model availability and every tool binding digest before "
+                "dispatching anything."
+                + (
+                    " This plan is authority for ONE mediated call to one declared tool. It "
+                    "binds no model and is not authority to run this package's graph."
+                    if probe_tool_id is not None
+                    else ""
+                )
             ),
         },
-        "model_binding": {
-            "strategy": binding_strategy,
-            "selected_at": created.isoformat(),
-            "host_model_id": descriptor["id"],
-            "provider_id": descriptor["provider_id"],
-            "model_id": descriptor["model_id"],
-            "display_name": descriptor["display_name"],
-            # The exact descriptor the verdict was computed from, so a later
-            # runner can compare the host's answer then against its answer now.
-            "descriptor": descriptor,
-            "compatibility": compatibility,
-            "catalog": catalog_reference(catalog),
-        },
+        # What would actually run for each declared tool: one exact host
+        # implementation, its digest, and the approval that authorized it.
+        # No credential, no header and no registry travels in here.
+        "tool_bindings": tool_bindings,
+        "tool_registry": registry_reference(tool_registry) if tool_registry else None,
+        # A tool probe binds no model at all, so no router can be constructed
+        # from it: "no model was called" is then a property of the artifact
+        # rather than a claim about a run.
+        "model_binding": (
+            None
+            if descriptor is None
+            else {
+                "strategy": binding_strategy,
+                "selected_at": created.isoformat(),
+                "host_model_id": descriptor["id"],
+                "provider_id": descriptor["provider_id"],
+                "model_id": descriptor["model_id"],
+                "display_name": descriptor["display_name"],
+                # The exact descriptor the verdict was computed from, so a later
+                # runner can compare the host's answer then against its now.
+                "descriptor": descriptor,
+                "compatibility": compatibility,
+                "catalog": catalog_reference(catalog),
+            }
+        ),
         "model_requirements": evaluation["requirements"],
         "browser_policy": policy.as_json(),
         "readiness": {
             "state": "ready" if not blocking_reasons else "blocked",
             "ready": not blocking_reasons,
-            "compatibility_status": compatibility["status"],
+            "compatibility_status": (compatibility or {}).get("status"),
             "blocking_reasons": blocking_reasons,
         },
     }
     plan["run_plan_sha256"] = sha256(canonical_json(plan))
     return plan
+
+
+def tool_staleness(plan: dict, evaluation: dict | None) -> list[dict]:
+    """Whether every tool this plan bound is still exactly that implementation.
+
+    Conservative on purpose. A binding whose digest moved is a different
+    implementation, even when the host calls it by the same name, so the plan
+    that named the old one is stale rather than quietly retargeted.
+    """
+    bound = plan.get("tool_bindings") or []
+    if not bound:
+        return []
+    if evaluation is None:
+        return [
+            _reason(
+                "tool_registry_unknown",
+                "This plan bound host tool implementations, and no current host tool registry "
+                "has been supplied to compare them against.",
+            )
+        ]
+    current = {tool["tool_id"]: tool for tool in evaluation["tools"]}
+    reasons: list[dict] = []
+    for binding in bound:
+        tool_id = binding["tool_id"]
+        tool = current.get(tool_id)
+        if tool is None or tool["binding"] is None:
+            reasons.append(
+                _reason(
+                    "tool_binding_removed",
+                    f"This host no longer registers an implementation for {tool_id}.",
+                    tool_id,
+                )
+            )
+            continue
+        live = tool["binding"]
+        if live["binding_id"] != binding["binding_id"]:
+            reasons.append(
+                _reason(
+                    "tool_binding_replaced",
+                    f"A different implementation now satisfies {tool_id}.",
+                    tool_id,
+                )
+            )
+        elif live["binding_sha256"] != binding["binding_sha256"]:
+            reasons.append(
+                _reason(
+                    "tool_binding_changed",
+                    f"The host implementation of {tool_id} changed after this plan was "
+                    "prepared, so it is no longer the one that was approved.",
+                    tool_id,
+                )
+            )
+        if tool["contract_sha256"] != binding["contract_sha256"]:
+            reasons.append(
+                _reason(
+                    "tool_contract_changed",
+                    f"The contract {tool_id} was matched against is no longer the current one.",
+                    tool_id,
+                )
+            )
+        if tool["status"] == TOOL_UNAVAILABLE:
+            reasons.append(
+                _reason(
+                    "tool_unavailable",
+                    f"The host implementation of {tool_id} is no longer usable.",
+                    tool_id,
+                )
+            )
+        elif tool["status"] != TOOL_BOUND:
+            reasons.append(
+                _reason(
+                    "tool_binding_stale",
+                    f"The host implementation of {tool_id} is now {tool['status']}.",
+                    tool_id,
+                )
+            )
+    return reasons
 
 
 def preflight(
@@ -312,6 +600,7 @@ def preflight(
     receipt: dict | None,
     trust_state: dict,
     policy: BrowserPolicy,
+    tool_evaluation: dict | None = None,
     now: datetime | None = None,
 ) -> dict:
     """Recompute whether a frozen plan still describes the current world.
@@ -375,6 +664,18 @@ def preflight(
         reasons.append(_reason("signature_not_valid", "The signature is no longer valid."))
     if policy.require_trusted_publisher and publisher["trust_status"] != "trusted":
         reasons.append(_reason("publisher_not_trusted", "The publisher is no longer trusted."))
+    tool_reasons = tool_staleness(plan, tool_evaluation)
+    reasons.extend(tool_reasons)
+    if receipt is not None:
+        for binding in plan.get("tool_bindings") or []:
+            if receipt["tool_approvals"].get(binding["tool_id"]) is not True:
+                reasons.append(
+                    _reason(
+                        "tool_approval_withdrawn",
+                        f"Tool {binding['tool_id']} is no longer approved.",
+                        binding["tool_id"],
+                    )
+                )
 
     stale = bool(reasons)
     return {
@@ -390,6 +691,22 @@ def preflight(
         "blocking_reasons": list(plan["readiness"]["blocking_reasons"]),
         "trust_store_changed": trust_state.get("state_sha256")
         != plan["trust_store"].get("state_sha256"),
+        "tool_bindings": {
+            "bound": len(plan.get("tool_bindings") or []),
+            "current": not tool_reasons,
+            "evaluated": tool_evaluation is not None,
+            "registry_sha256": (
+                (tool_evaluation or {}).get("registry", {}).get("registry_sha256")
+                if tool_evaluation
+                else None
+            ),
+            "registry_changed": bool(
+                tool_evaluation
+                and plan.get("tool_registry")
+                and tool_evaluation["registry"]["registry_sha256"]
+                != plan["tool_registry"]["registry_sha256"]
+            ),
+        },
         "execution": {
             "performed": False,
             "note": "Execution is not implemented in this build.",
@@ -409,6 +726,8 @@ __all__ = [
     "mode_permission_ids",
     "preflight",
     "preparation_blockers",
+    "tool_blockers",
+    "tool_staleness",
     "validate_binding",
     "validate_mode",
 ]

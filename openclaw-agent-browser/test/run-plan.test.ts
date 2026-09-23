@@ -97,6 +97,9 @@ async function authorized(path: string) {
         permissionId: item.id,
         decision: "session" as const,
       })),
+      // Approving a tool is a decision of its own; these cases are about the
+      // model binding, so they approve every declared tool as well.
+      permissions.toolApprovals.map((item) => ({ toolId: item.toolId, approved: true })),
     ),
   );
   return { view: refreshed, receipt };
@@ -227,7 +230,10 @@ describe.runIf(runs)("model selection and run plans", () => {
   }, 120_000);
 
   it("prepares, reads and clears an immutable run plan", async () => {
-    const { view, receipt } = await authorized(REVIEW);
+    // The tool-free package: this host implements one of the three tools the
+    // review package declares, so that one cannot reach a ready plan here.
+    // "A partially bound package is refused" is its own case, below.
+    const { view, receipt } = await authorized(AGENDA);
     const prepared = unwrap(
       await backend.prepareRunPlan(view.sessionId, view.identity.digest, receipt.receiptId, "acme/big"),
     );
@@ -245,7 +251,16 @@ describe.runIf(runs)("model selection and run plans", () => {
       performed: false,
     });
     expect(plan.readiness.ready).toBe(true);
-    expect(prepared.preflight).toMatchObject({ ready: true, stale: false, modelStillAvailable: true });
+    // A package that declares no tool binds none, and says so rather than
+    // leaving the field absent.
+    expect(plan.toolBindings).toEqual([]);
+    expect(prepared.preflight).toMatchObject({
+      ready: true,
+      stale: false,
+      modelStillAvailable: true,
+      toolBindingsCurrent: true,
+      toolBindingsBound: 0,
+    });
     expect(prepared.executionSupported).toBe(false);
 
     const read = unwrap(await backend.getRunPlan(view.sessionId));
@@ -254,6 +269,32 @@ describe.runIf(runs)("model selection and run plans", () => {
 
     unwrap(await backend.clearRunPlan(view.sessionId));
     expect(unwrap(await backend.getRunPlan(view.sessionId)).plan).toBeNull();
+    await backend.closeSession(view.sessionId);
+  }, 120_000);
+
+  it("refuses a plan for a package whose declared tools this host cannot all implement", async () => {
+    const { view, receipt } = await authorized(REVIEW);
+    const tools = unwrap(await backend.evaluateTools(view.sessionId));
+    expect(tools.allToolsBound).toBe(false);
+    expect(tools.counts.bound).toBe(1);
+    expect(tools.counts.unbound).toBe(2);
+    const resolver = tools.tools.find((tool) => tool.toolId === "citation-resolver")!;
+    expect(resolver.status).toBe("bound");
+    expect(resolver.approved).toBe(true);
+    expect(resolver.binding?.bindingSha256).toHaveLength(64);
+    expect(resolver.binding?.endpointOrigin).toMatch(/^https:\/\//u);
+    expect(resolver.binding?.credentialsConfigured).toBe(false);
+
+    const error = expectError(
+      await backend.prepareRunPlan(
+        view.sessionId,
+        view.identity.digest,
+        receipt.receiptId,
+        "acme/big",
+      ),
+    );
+    expect(error.code).toBe("run_plan_refused");
+    expect(error.detail).toMatch(/paper-reader|scholarly-search/u);
     await backend.closeSession(view.sessionId);
   }, 120_000);
 

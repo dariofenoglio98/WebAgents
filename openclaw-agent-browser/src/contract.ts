@@ -88,6 +88,8 @@ export const ERROR_CODES = [
   "execution_refused",
   "execution_active",
   "execution_unknown",
+  "tool_registry_unavailable",
+  "tool_call_failed",
 ] as const;
 
 export const FeatureError = Obj({
@@ -124,6 +126,8 @@ export const FeatureError = Obj({
     Type.Literal("execution_refused"),
     Type.Literal("execution_active"),
     Type.Literal("execution_unknown"),
+    Type.Literal("tool_registry_unavailable"),
+    Type.Literal("tool_call_failed"),
   ]),
   /** Short human title for the UI heading. */
   title: Text(200),
@@ -669,6 +673,140 @@ export const ModelCatalogView = Obj({
 });
 export type ModelCatalogViewType = Static<typeof ModelCatalogView>;
 
+// -- host tool bindings -----------------------------------------------------
+/**
+ * What this host offers for one tool a package declares.
+ *
+ * `bound` is the only status that can back a ready plan. The others are kept
+ * apart on purpose: "nobody implements this", "an implementation exists but
+ * speaks a different contract", "two do", "one does but is down" and "one does
+ * but nothing confirmed its contract" are five different problems with five
+ * different fixes, and collapsing them would tell an operator to do the wrong
+ * one.
+ */
+export const TOOL_BINDING_STATUSES = [
+  "bound",
+  "unverified",
+  "unavailable",
+  "ambiguous",
+  "incompatible",
+  "unbound",
+] as const;
+
+const ToolBindingStatus = Type.Union([
+  Type.Literal("bound"),
+  Type.Literal("unverified"),
+  Type.Literal("unavailable"),
+  Type.Literal("ambiguous"),
+  Type.Literal("incompatible"),
+  Type.Literal("unbound"),
+]);
+
+/** One declared package tool measured against one host implementation. */
+const ToolCheck = Obj({
+  id: Text(200),
+  subject: Text(128),
+  status: Type.Union([
+    Type.Literal("satisfied"),
+    Type.Literal("violated"),
+    Type.Literal("unknown"),
+  ]),
+  detail: Nullable(Text(LIMITS.text)),
+});
+
+export const HostToolBindingView = Obj({
+  toolId: Id(),
+  bindingName: Text(200),
+  status: ToolBindingStatus,
+  reason: Nullable(Text(LIMITS.text)),
+  required: Type.Boolean(),
+  remote: Type.Boolean(),
+  sideEffects: Text(32),
+  declaredDomains: Type.Array(Text(256), { maxItems: LIMITS.domains }),
+  permissionIds: Type.Array(Id(), { maxItems: LIMITS.ids }),
+  /** The person's decisions, reported beside the host's, never derived from it. */
+  approved: Type.Boolean(),
+  permissionsGranted: Type.Boolean(),
+  deniedPermissionIds: Type.Array(Id(), { maxItems: LIMITS.ids }),
+  usable: Type.Boolean(),
+  blocksPlan: Type.Boolean(),
+  /** Present only when exactly one implementation was matched. */
+  binding: Nullable(
+    Obj({
+      bindingId: Text(200),
+      bindingSha256: Text(128),
+      implementationKind: Text(64),
+      implementationVersion: Text(64),
+      displayName: Text(LIMITS.shortText),
+      available: Type.Boolean(),
+      availabilityReason: Nullable(Text(LIMITS.shortText)),
+      endpointOrigin: Nullable(Text(256)),
+      endpointPath: Nullable(Text(256)),
+      method: Nullable(Text(16)),
+      timeoutSeconds: Nullable(Type.Number()),
+      /** Whether a credential is attached. Never what it is. */
+      credentialsRequired: Type.Boolean(),
+      credentialsConfigured: Type.Boolean(),
+      checks: Type.Array(ToolCheck, { maxItems: LIMITS.checks }),
+    }),
+  ),
+});
+export type HostToolBindingViewType = Static<typeof HostToolBindingView>;
+
+export const ToolRegistryView = Obj({
+  sessionId: Text(128),
+  packageDigest: Text(128),
+  host: Obj({
+    runtime: Text(64),
+    runtimeVersion: Nullable(Text(64)),
+    source: Text(LIMITS.shortText),
+    capturedAt: Text(64),
+  }),
+  registrySha256: Text(128),
+  bindingCount: Type.Integer({ minimum: 0 }),
+  tools: Type.Array(HostToolBindingView, { maxItems: LIMITS.tools }),
+  counts: Obj({
+    total: Type.Integer(),
+    bound: Type.Integer(),
+    unbound: Type.Integer(),
+    incompatible: Type.Integer(),
+    unverified: Type.Integer(),
+    unavailable: Type.Integer(),
+    approved: Type.Integer(),
+    usable: Type.Integer(),
+    blocking: Type.Integer(),
+  }),
+  allToolsBound: Type.Boolean(),
+  allToolsUsable: Type.Boolean(),
+  notes: Type.Array(Obj({ code: Text(128), detail: Nullable(Text(LIMITS.text)) }), {
+    maxItems: LIMITS.notes,
+  }),
+  authorized: Type.Boolean(),
+});
+export type ToolRegistryViewType = Static<typeof ToolRegistryView>;
+
+/** One tool implementation a run plan froze, as the plan records it. */
+const PlannedToolBinding = Obj({
+  toolId: Id(),
+  bindingId: Text(200),
+  bindingSha256: Text(128),
+  implementationKind: Text(64),
+  implementationVersion: Nullable(Text(64)),
+  displayName: Nullable(Text(LIMITS.shortText)),
+  remote: Type.Boolean(),
+  endpointOrigin: Nullable(Text(256)),
+  endpointPath: Nullable(Text(256)),
+  method: Nullable(Text(16)),
+  contractSha256: Text(128),
+  requiredPermissionIds: Type.Array(Id(), { maxItems: LIMITS.ids }),
+  timeoutSeconds: Nullable(Type.Number()),
+  maxCalls: Nullable(Type.Integer()),
+  credentialsRequired: Type.Boolean(),
+  credentialsConfigured: Type.Boolean(),
+  approved: Type.Literal(true),
+  usable: Type.Boolean(),
+});
+
 export const RunPlanView = Obj({
   runPlanId: Text(128),
   runPlanVersion: Text(16),
@@ -704,23 +842,33 @@ export const RunPlanView = Obj({
     mode: Text(32),
     bindingStrategy: Text(64),
     requiredPermissionIds: Type.Array(Id(), { maxItems: LIMITS.permissions }),
+    /** Set only on a `tool_probe` plan: the one tool it is authority for. */
+    probeToolId: Nullable(Id()),
     /** Restated on the plan itself: a plan is preflight, never a run. */
     performed: Type.Literal(false),
     note: Text(LIMITS.text),
   }),
-  modelBinding: Obj({
-    hostModelId: Text(256),
-    providerId: Text(128),
-    displayName: Text(LIMITS.shortText),
-    selectedAt: Text(64),
-    compatibilityStatus: CompatibilityStatus,
-    evidenceStrength: Text(32),
-    contextTokens: Nullable(Type.Integer()),
-    catalogSha256: Text(128),
-    catalogModelCount: Type.Integer(),
-    checks: Type.Array(RequirementCheck, { maxItems: LIMITS.checks }),
-  }),
+  /** Null for a `tool_probe` plan: it binds no model, by construction. */
+  modelBinding: Nullable(
+    Obj({
+      hostModelId: Text(256),
+      providerId: Text(128),
+      displayName: Text(LIMITS.shortText),
+      selectedAt: Text(64),
+      compatibilityStatus: CompatibilityStatus,
+      evidenceStrength: Text(32),
+      contextTokens: Nullable(Type.Integer()),
+      catalogSha256: Text(128),
+      catalogModelCount: Type.Integer(),
+      checks: Type.Array(RequirementCheck, { maxItems: LIMITS.checks }),
+    }),
+  ),
   requirements: ModelRequirementsView,
+  /** Exactly what would run for each declared tool. Never a credential. */
+  toolBindings: Type.Array(PlannedToolBinding, { maxItems: LIMITS.tools }),
+  toolRegistry: Nullable(
+    Obj({ registrySha256: Text(128), bindingCount: Type.Integer({ minimum: 0 }) }),
+  ),
   readiness: Obj({
     state: Text(32),
     ready: Type.Boolean(),
@@ -742,6 +890,9 @@ export const RunPlanStateView = Obj({
       trustStoreChanged: Type.Boolean(),
       /** Re-checked against the live host catalog, not the stored snapshot. */
       modelStillAvailable: Nullable(Type.Boolean()),
+      /** Whether every implementation this plan bound is still that one. */
+      toolBindingsCurrent: Type.Boolean(),
+      toolBindingsBound: Type.Integer({ minimum: 0 }),
     }),
   ),
   /** Always false: this page has no Run action. See `ServiceStatus`. */
@@ -883,9 +1034,20 @@ export const RunRecordView = Obj({
   packageExecution: Obj({
     workflowInstantiated: Type.Boolean(),
     packageInstructionsLoaded: Type.Boolean(),
-    toolHandlersInstalled: Type.Literal(0),
+    toolHandlersInstalled: Type.Integer({ minimum: 0 }),
     toolCalls: Type.Integer(),
   }),
+  /** Which implementation each declared tool was bound to, and how often used. */
+  tools: Type.Array(
+    Obj({
+      toolId: Id(),
+      bindingId: Text(200),
+      bindingSha256: Text(128),
+      remote: Type.Boolean(),
+      calls: Type.Integer({ minimum: 0 }),
+    }),
+    { maxItems: LIMITS.tools },
+  ),
 });
 export type RunRecordViewType = Static<typeof RunRecordView>;
 
@@ -984,6 +1146,117 @@ export const RouterProbeView = Obj({
 });
 export type RouterProbeViewType = Static<typeof RouterProbeView>;
 
+/**
+ * The result of the developer tool probe.
+ *
+ * A conformance report, not a run result: it says which declared tool was
+ * called, which host implementation answered, under whose permission and
+ * approval, what the runtime charged, and what came back. `workflowExecuted`
+ * and `modelCalls` are literals in the schema, so a build that ever ran a graph
+ * or spent a token here could not typecheck.
+ */
+export const ToolProbeView = Obj({
+  status: Type.Union([Type.Literal("ok"), Type.Literal("failed")]),
+  runPlanId: Text(128),
+  runPlanSha256: Text(128),
+  sessionId: Text(128),
+  package: Obj({
+    packageId: Id(),
+    name: Text(200),
+    version: Text(64),
+    digest: Text(128),
+  }),
+  tool: Obj({
+    id: Id(),
+    version: Text(64),
+    binding: Text(200),
+    execution: Text(32),
+    remote: Type.Boolean(),
+    sideEffects: Text(32),
+    permissions: Type.Array(Id(), { maxItems: LIMITS.ids }),
+    domains: Type.Array(Text(256), { maxItems: LIMITS.domains }),
+    timeoutSeconds: Type.Number(),
+    declaredEndpoint: Nullable(Text(512)),
+  }),
+  binding: Obj({
+    bindingId: Text(200),
+    bindingSha256: Text(128),
+    implementationKind: Text(64),
+    implementationVersion: Nullable(Text(64)),
+    displayName: Nullable(Text(LIMITS.shortText)),
+    remote: Type.Boolean(),
+    endpointOrigin: Nullable(Text(256)),
+    endpointPath: Nullable(Text(256)),
+    method: Nullable(Text(16)),
+    credentialsRequired: Type.Boolean(),
+    credentialsConfigured: Type.Boolean(),
+  }),
+  authority: Obj({
+    role: Id(),
+    workerContext: Type.Boolean(),
+    approved: Type.Literal(true),
+    grants: Type.Array(Obj({ permissionId: Id(), decision: Text(32) }), {
+      maxItems: LIMITS.ids,
+    }),
+    permissionChecks: Type.Integer({ minimum: 0 }),
+  }),
+  /** The probe's input is host-owned; this says which fixture was sent. */
+  fixture: Obj({ id: Text(64), source: Type.Literal("host_owned") }),
+  request: Obj({ argsSha256: Text(128), argsBytes: Type.Integer({ minimum: 0 }) }),
+  result: Obj({
+    validatedByRuntime: Type.Boolean(),
+    validatedAgainst: Text(512),
+    outputSha256: Nullable(Text(128)),
+    outputBytes: Type.Integer({ minimum: 0 }),
+    outputKeys: Type.Array(Text(128), { maxItems: 64 }),
+    /** The validated answer itself, bounded. This is operator evidence. */
+    output: Type.Optional(Type.Any()),
+  }),
+  transport: Obj({
+    durationMs: Type.Number(),
+    hostCalls: Type.Array(
+      Obj({
+        toolId: Id(),
+        bindingId: Text(200),
+        remote: Type.Boolean(),
+        status: Nullable(Type.Integer()),
+        durationMs: Type.Number(),
+        outcome: Text(16),
+      }),
+      { maxItems: 16 },
+    ),
+  }),
+  usage: Obj({
+    toolCalls: Type.Integer({ minimum: 0 }),
+    remoteCalls: Type.Integer({ minimum: 0 }),
+    tokens: Type.Integer({ minimum: 0 }),
+  }),
+  audit: Obj({
+    events: Type.Integer({ minimum: 0 }),
+    chainValid: Type.Boolean(),
+    finalHash: Nullable(Text(128)),
+    actions: Type.Array(Obj({ action: Text(64), count: Type.Integer() }), { maxItems: 64 }),
+  }),
+  /** Always false and always zero. The probe is not an agent run. */
+  workflowExecuted: Type.Literal(false),
+  packageExecution: Obj({
+    workflowInstantiated: Type.Literal(false),
+    workflowNodesExecuted: Type.Literal(0),
+    workflowWorkersStarted: Type.Literal(0),
+    modelCalls: Type.Literal(0),
+    modelRouterInstalled: Type.Literal(false),
+    packageInstructionsLoaded: Type.Literal(false),
+    /**
+     * One authorized worker context, because only a worker role may hold a
+     * tool and `Runtime.call_tool` takes its authority from the caller's. A
+     * probe that forged one would be bypassing the thing it tests.
+     */
+    runtimeWorkerContexts: Type.Integer({ minimum: 0, maximum: 1 }),
+  }),
+  revalidated: Type.Array(Text(64), { maxItems: 40 }),
+});
+export type ToolProbeViewType = Static<typeof ToolProbeView>;
+
 const SessionId = Type.String({ minLength: 8, maxLength: 128, pattern: "^[A-Za-z0-9_-]+$" });
 const Fingerprint = Type.String({ pattern: "^sha256:[0-9a-f]{64}$" });
 
@@ -1032,6 +1305,14 @@ export const contract = defineFeatureContract({
         "Discover this host's models and evaluate them against one package's requirements.",
       input: Obj({ sessionId: SessionId }),
       output: Result(ModelCatalogView),
+    },
+    "tools.evaluate": {
+      kind: "query",
+      description:
+        "Report what this host implements for each tool the package declares, and how that " +
+        "meets the package's own contract. Nothing is called.",
+      input: Obj({ sessionId: SessionId }),
+      output: Result(ToolRegistryView),
     },
     "run-plan.get": {
       kind: "query",
@@ -1118,8 +1399,19 @@ export const contract = defineFeatureContract({
         sessionId: SessionId,
         packageDigest: Type.String({ pattern: "^[0-9a-f]{64}$" }),
         receiptId: Type.String({ minLength: 8, maxLength: 128 }),
-        modelId: Type.String({ minLength: 1, maxLength: 256 }),
-        executionMode: Type.Optional(Type.Literal("model")),
+        /** Required for a model-backed plan; a tool probe binds none. */
+        modelId: Type.Optional(Type.String({ minLength: 1, maxLength: 256 })),
+        /**
+         * `model` is authority to run this package's graph, and needs every
+         * declared tool bound. `tool_probe` is authority for one mediated call
+         * to one declared tool, and binds no model. They are separate artifacts
+         * so that neither can be mistaken for the other.
+         */
+        executionMode: Type.Optional(
+          Type.Union([Type.Literal("model"), Type.Literal("tool_probe")]),
+        ),
+        /** Required for, and only for, a `tool_probe` plan. */
+        probeToolId: Type.Optional(Type.String({ minLength: 1, maxLength: 200 })),
       }),
       output: Result(RunPlanStateView),
     },
@@ -1137,6 +1429,25 @@ export const contract = defineFeatureContract({
         runPlanSha256: Type.String({ pattern: "^[0-9a-f]{64}$" }),
       }),
       output: Result(RouterProbeView),
+    },
+    "execution.tool-probe": {
+      kind: "action",
+      description:
+        "Developer/operator conformance probe for the tool boundary. Re-verifies a ready run " +
+        "plan and makes ONE mediated call to one tool the package declares, through the host " +
+        "implementation the plan bound. It accepts a tool id and a host-owned fixture id and " +
+        "nothing else: no URL, no method, no header, no endpoint and no arguments of its own. " +
+        "It is not an agent run — no workflow is instantiated, no graph node executes and no " +
+        "model is called — and it is not rendered by the Agent Browser page.",
+      input: Obj({
+        sessionId: SessionId,
+        runPlanId: Type.String({ minLength: 4, maxLength: 128 }),
+        runPlanSha256: Type.String({ pattern: "^[0-9a-f]{64}$" }),
+        toolId: Type.String({ minLength: 1, maxLength: 200 }),
+        /** Which of this host's own fixtures to send. Not a request body. */
+        fixtureId: Type.Optional(Type.String({ minLength: 1, maxLength: 64 })),
+      }),
+      output: Result(ToolProbeView),
     },
     "execution.start": {
       kind: "action",

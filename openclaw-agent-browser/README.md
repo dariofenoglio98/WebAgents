@@ -14,8 +14,11 @@ re-verifies a ready plan and makes a single host-owned model call to prove the
 `ModelRouter` contract ([the model-router
 bridge](../docs/model-router-bridge.md)). `execution.start` re-verifies the same
 plan and **runs the package's own `workflow.v0` graph** on the model the plan
-bound, through the generic interpreter, with no tool handler installed ([package
-execution](../docs/package-execution.md)). Both require the operator opt-in
+bound, through the generic interpreter, with one generic tool handler per tool
+the plan bound ([package execution](../docs/package-execution.md), [the tool
+broker](../docs/tool-broker.md)). `execution.tool-probe` makes one mediated call
+to one declared tool through the implementation the plan bound, with a
+host-owned fixture and no model at all. The first two require the operator opt-in
 `plugins.entries.agent-browser.llm.allowModelOverride: true`, because binding an
 exact model is a privilege OpenClaw grants rather than one a plugin asserts.
 
@@ -174,6 +177,30 @@ It walks the same sequence as the page through the live Gateway and then invokes
 structured output was constrained by the host, the token bound and the real
 bill — and `workflowExecuted: false`.
 
+### The developer tool probe
+
+Also not part of the page. It makes **one** mediated call to one tool a package
+declares, through the host implementation the run plan bound, and spends no
+tokens:
+
+```sh
+node scripts/tool-probe.mjs \
+  --package ../dist/literature-review.agent.pkg \
+  --tool citation-resolver --fixture doi \
+  --out /tmp/tool-probe.json
+```
+
+It walks the page's sequence — including approving each declared tool as a
+decision separate from its permission — records whether a *model-backed* plan is
+refused and why, prepares a `tool_probe` plan that binds one tool and no model,
+and invokes `execution.tool-probe`. The caller chooses a declared tool id and one
+of this host's own fixture ids; it cannot choose a URL, a method, a header, an
+endpoint or any argument. It exits non-zero unless exactly one tool call and the
+binding's own number of remote calls happened, zero tokens were spent, no model
+router existed, no workflow was instantiated, the result validated against the
+package's own output schema, the audit chain verifies, and the run plan is
+byte-identical afterwards. See [the tool broker](../docs/tool-broker.md).
+
 ### Executing a package
 
 Also not part of the page, and the first thing here that runs one. It spends
@@ -190,7 +217,7 @@ node scripts/run-meeting-agenda.mjs \
 It walks the page's sequence, starts the execution, waits, and reads the
 package's declared `agenda.json` export back through the bounded artifact
 operation. It exits non-zero unless the run completed, every model call used the
-selected model, bounded parallel workers actually ran, no tool was called, the
+selected model, bounded parallel workers actually ran, the
 audit chain verifies, the agenda preserves the goal and duration with minutes
 summing exactly to the requested duration, and the run plan is byte-identical
 afterwards with `performed` still false.

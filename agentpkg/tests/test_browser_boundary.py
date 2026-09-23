@@ -41,6 +41,9 @@ FORBIDDEN = {
     # The control plane decides *whether* a run may happen; it must stay unable
     # to be the thing that makes one happen.
     "hostbridge",
+    # The same rule for the tool bridge. The control plane evaluates host tool
+    # bindings and freezes one into a plan; calling one is somebody else's job.
+    "toolbridge",
 }
 VALIDATION_ONLY = {"workflow_validation", "workflow_values"}
 
@@ -118,19 +121,34 @@ catalog = {{
     }}],
     "notes": [],
 }}
+sys.path.insert(0, {str(Path(__file__).parent)!r})
+from tool_fakes import registry_for
+
 runnable = []
 plans = []
+bound = []
 for artifact in ({str(DIST["literature-review"])!r},
                  {str(DIST["meeting-agenda"])!r}):
     summary = control.open_file(artifact)
     session = summary["session"]["id"]
     digest = summary["package"]["digest"]
+    package = control._session(session).package
     request = control.permissions(session)
     decisions = {{p["id"]: "session" for p in request["permissions"] if p["required"]}}
     decisions.update({{p["id"]: "session" for p in request["permissions"] if p["kind"] == "model"}})
-    receipt = control.authorize(session, package_digest=digest, decisions=decisions)
+    receipt = control.authorize(
+        session,
+        package_digest=digest,
+        decisions=decisions,
+        tool_approvals={{t["tool_id"]: True for t in request["tool_approvals"]}},
+    )
     runnable.append(receipt["runnable"])
-    # The complete model-selection and run-plan path, including preflight.
+    # The complete model-selection, tool-binding and run-plan path, including
+    # preflight. A tool-bearing package binds real implementations here, and
+    # the control plane still imports nothing that could call one.
+    registry = registry_for(package) if package.tools else None
+    if registry is not None:
+        control.evaluate_tools(session, package_digest=digest, tool_registry=registry)
     control.evaluate_models(session, package_digest=digest, catalog=catalog)
     state = control.prepare_run_plan(
         session,
@@ -138,11 +156,14 @@ for artifact in ({str(DIST["literature-review"])!r},
         receipt_id=receipt["receipt_id"],
         model_id="host/alpha",
         catalog=catalog,
+        tool_registry=registry,
     )
+    bound.append(len(state["run_plan"]["tool_bindings"]))
     plans.append(state["preflight"]["ready"] and not state["run_plan"]["execution"]["performed"])
 print(json.dumps({{
     "runnable": runnable,
     "plans": plans,
+    "bound": bound,
     "loaded": sorted(m for m in sys.modules if m.startswith("agentpkg.")),
 }}))
 """
@@ -152,6 +173,8 @@ print(json.dumps({{
     report = json.loads(result.stdout.strip().splitlines()[-1])
     assert report["runnable"] == [True, True]
     assert report["plans"] == [True, True]
+    # Three declared tools bound for the tool-bearing package, none for the other.
+    assert report["bound"] == [3, 0]
     loaded = {name.split(".", 2)[1] for name in report["loaded"] if name.count(".") >= 1}
     assert not loaded & FORBIDDEN, f"execution modules were imported: {sorted(loaded & FORBIDDEN)}"
     # Graph validation is reached; the interpreter that would run that graph is not.

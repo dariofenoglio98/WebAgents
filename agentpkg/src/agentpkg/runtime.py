@@ -83,6 +83,12 @@ class Runtime:
         self.handlers = dict(handlers or {})
         self.router = router
         self.approved_tools = set(approved_tools or [])
+        if self.approved_tools - set(package.tools):
+            # An approval for something the signed package never declared is a
+            # host mistake, not a broader permission: it is refused rather than
+            # ignored, so a stale approval cannot quietly follow a package that
+            # dropped the tool.
+            raise PolicyError("Tool approval refers to a tool this package does not declare")
         self.permissions = {p["id"]: p for p in self.policy["permissions"]}
         if set(self.grants) - set(self.permissions):
             raise PolicyError("Grant refers to an undeclared permission")
@@ -90,11 +96,23 @@ class Runtime:
             raise PolicyError("Grant must be once, session, always, or deny")
         self.budget = copy.deepcopy(self.policy["budget"])
         for key, value in (limits or {}).items():
-            if key not in {"hard_tokens", "max_remote_calls", "max_parallel_workers"}:
+            if key not in {
+                "hard_tokens",
+                "max_remote_calls",
+                "max_parallel_workers",
+                "max_calls_per_tool",
+            }:
                 raise PolicyError(f"Unsupported host limit: {key}")
             if isinstance(value, bool) or not isinstance(value, int) or value < 0:
                 raise PolicyError(f"Host limit {key} must be a nonnegative integer")
-            self.budget[key] = min(value, self.budget[key])
+            if key == "max_calls_per_tool":
+                # One host ceiling applied to every declared tool. Like every
+                # other host limit it can only lower a package's own cap.
+                self.budget[key] = {
+                    tool_id: min(value, cap) for tool_id, cap in self.budget[key].items()
+                }
+            else:
+                self.budget[key] = min(value, self.budget[key])
         if self.budget["max_parallel_workers"] < 1:
             raise PolicyError("At least one worker slot is required")
         memory = self.policy["memory"]
@@ -293,10 +311,13 @@ class Runtime:
                 raise PolicyError("Agent tool bindings are not implemented")
             if tool["retries"] != 0:
                 raise PolicyError("Automatic retries are unsupported")
-            if tool["approval_required"] and tool_id not in self.approved_tools:
-                raise PolicyError(f"Tool {tool_id} needs explicit host approval")
-            if tool["side_effects"] != "read" and tool_id not in self.approved_tools:
-                raise PolicyError(f"Side-effecting tool {tool_id} needs explicit host approval")
+            # A declared tool is a request; an approval is authority. A granted
+            # permission is not an approval: `network.x = session` says the
+            # person allowed a class of destination, not that they allowed this
+            # implementation of this tool. Both are required, always, for every
+            # tool — not only for the side-effecting ones.
+            if tool_id not in self.approved_tools:
+                raise PolicyError(f"Tool {tool_id} is declared but not explicitly approved")
             if tool["execution"] == "remote":
                 from urllib.parse import urlsplit
 

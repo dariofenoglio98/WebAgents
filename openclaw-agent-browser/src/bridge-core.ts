@@ -36,11 +36,14 @@ import { setTimeout as delay } from "node:timers/promises";
 import { AgentBrowserError, clip } from "./errors.js";
 import { completeWithBoundModel, type HostLlm } from "./host-llm.js";
 import type { Logger } from "./service.js";
+import type { ToolBroker } from "./tool-broker.js";
 
 export const MAX_FRAME_BYTES = 1024 * 1024;
 export const MAX_PENDING = 16;
 /** Methods the child may ask this process to perform. Nothing else exists. */
 export const HOST_METHODS = new Set(["model.count_tokens", "model.complete"]);
+/** The same set plus the one tool method, for a bridge that brokers tools. */
+export const HOST_METHODS_WITH_TOOLS = new Set([...HOST_METHODS, "tool.call"]);
 export const CANCEL_METHOD = "$/cancel";
 
 const ID_PATTERN = /^[A-Za-z0-9_.:-]{1,64}$/u;
@@ -99,6 +102,14 @@ export type ChildBridgeOptions = {
   mapError?: (code: string, message: string) => AgentBrowserError | null;
   /** Test seam; defaults to node:child_process.spawn. */
   spawnImpl?: typeof spawn;
+  /**
+   * This run's tool authority, or nothing.
+   *
+   * Absent, `tool.call` is not in the inbound method set at all, so a child
+   * that asks for one ends the session rather than being refused per call: a
+   * bridge with no broker has no tool vocabulary.
+   */
+  broker?: ToolBroker;
 };
 
 type Frame = Record<string, unknown>;
@@ -110,6 +121,19 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 export function violation(detail: string): AgentBrowserError {
   return new AgentBrowserError("bridge_protocol_error", "Bridge protocol error", detail);
+}
+
+/**
+ * Turn one failure into the (code, message) pair the child receives.
+ *
+ * The broker encodes its stable code in `detail` as `tool_x: message`, because
+ * `AgentBrowserError.code` is the page's vocabulary and the child's is
+ * `agentpkg.toolbridge`'s. Splitting it here keeps one word for one fact on
+ * both sides instead of translating twice.
+ */
+export function splitToolFailure(failure: AgentBrowserError): [string, string] {
+  const match = /^(tool_[a-z_]+): ([\s\S]*)$/u.exec(failure.detail);
+  return match ? [match[1]!, match[2]!] : [failure.code, failure.detail];
 }
 
 function text(value: unknown, field: string, limit = MAX_CONTENT_BYTES): string {
@@ -354,7 +378,8 @@ export class ChildBridge {
     if (typeof id !== "string" || !ID_PATTERN.test(id)) throw violation("Malformed request id");
     if (this.seen.has(id)) throw violation("Duplicate inbound request id");
     if (this.inbound.size >= MAX_PENDING) throw violation("Too many inbound bridge requests");
-    if (!HOST_METHODS.has(method)) throw violation(`Unknown method ${clip(method, 64)}`);
+    const permitted = this.options.broker ? HOST_METHODS_WITH_TOOLS : HOST_METHODS;
+    if (!permitted.has(method)) throw violation(`Unknown method ${clip(method, 64)}`);
     if (!isRecord(frame.params)) throw violation("Request params must be an object");
     this.seen.add(id);
     const controller = new AbortController();
@@ -373,21 +398,28 @@ export class ChildBridge {
       const result =
         method === "model.count_tokens"
           ? { ...TOKENIZER_ANSWER }
-          : await this.complete(params, controller.signal);
+          : method === "tool.call"
+            ? ((await this.options.broker!.call(params, controller.signal)) as never)
+            : await this.complete(params, controller.signal);
       this.send({ v: this.options.protocolVersion, id, ok: true, result });
     } catch (error) {
       const failure =
         error instanceof AgentBrowserError
           ? error
-          : new AgentBrowserError("model_call_failed", "The model call failed", "Unhandled error");
-      this.options.logger.warn?.("agent-browser: bridge model call failed", {
+          : new AgentBrowserError("model_call_failed", "The call failed", "Unhandled error");
+      this.options.logger.warn?.("agent-browser: bridge call failed", {
+        method,
         code: failure.code,
       });
+      // A tool refusal keeps its own stable code, which the child's handler
+      // re-raises unchanged. `detail` is already credential-free by
+      // construction: nothing in this process puts a secret in one.
+      const [code, message] = splitToolFailure(failure);
       this.send({
         v: this.options.protocolVersion,
         id,
         ok: false,
-        error: { code: failure.code, message: clip(failure.detail, 2000) },
+        error: { code, message: clip(message, 2000) },
       });
     }
   }

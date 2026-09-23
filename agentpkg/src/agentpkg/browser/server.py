@@ -117,6 +117,12 @@ class BrowserAPI:
             )
         if rest == ["models", "evaluate"]:
             return self._only(method, "POST", lambda: self._evaluate_models(session_id, body))
+        if rest == ["tools"]:
+            return self._only(
+                method, "GET", lambda: (200, self.control.tool_requirements(session_id))
+            )
+        if rest == ["tools", "evaluate"]:
+            return self._only(method, "POST", lambda: self._evaluate_tools(session_id, body))
         if rest == ["run-plan"]:
             if method == "POST":
                 return self._prepare_run_plan(session_id, body)
@@ -163,6 +169,16 @@ class BrowserAPI:
             catalog=payload["catalog"],
         )
 
+    def _evaluate_tools(self, session_id, body):
+        payload = _object(
+            body, {"package_digest", "tool_registry"}, {"package_digest", "tool_registry"}
+        )
+        return 200, self.control.evaluate_tools(
+            session_id,
+            package_digest=payload["package_digest"],
+            tool_registry=payload["tool_registry"],
+        )
+
     def _prepare_run_plan(self, session_id, body):
         payload = _object(
             body,
@@ -171,17 +187,21 @@ class BrowserAPI:
                 "receipt_id",
                 "model_id",
                 "catalog",
+                "tool_registry",
+                "probe_tool_id",
                 "execution_mode",
                 "binding_strategy",
             },
-            {"package_digest", "receipt_id", "model_id", "catalog"},
+            {"package_digest", "receipt_id", "catalog"},
         )
         return 201, self.control.prepare_run_plan(
             session_id,
             package_digest=payload["package_digest"],
             receipt_id=payload["receipt_id"],
-            model_id=payload["model_id"],
+            model_id=payload.get("model_id"),
             catalog=payload["catalog"],
+            tool_registry=payload.get("tool_registry"),
+            probe_tool_id=payload.get("probe_tool_id"),
             execution_mode=payload.get("execution_mode", "model"),
             binding_strategy=payload.get("binding_strategy", "single_model"),
         )

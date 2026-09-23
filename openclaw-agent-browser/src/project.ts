@@ -11,12 +11,15 @@
  */
 import {
   LIMITS,
+  TOOL_BINDING_STATUSES,
+  type HostToolBindingViewType,
   type ModelCatalogViewType,
   type PackageViewType,
   type PermissionsViewType,
   type ReceiptViewType,
   type RunPlanStateViewType,
   type RunPlanViewType,
+  type ToolRegistryViewType,
 } from "./contract.js";
 
 type Json = Record<string, unknown>;
@@ -657,28 +660,159 @@ export function projectRunPlan(plan: unknown): RunPlanViewType {
       mode: str(execution.mode),
       bindingStrategy: str(execution.binding_strategy),
       requiredPermissionIds: strings(execution.required_permission_ids, LIMITS.permissions),
+      probeToolId: nullableStr(execution.probe_tool_id),
       performed: false as const,
       note: str(execution.note),
     },
-    modelBinding: {
-      hostModelId: str(binding.host_model_id),
-      providerId: str(binding.provider_id),
-      displayName: str(binding.display_name),
-      selectedAt: str(binding.selected_at),
-      compatibilityStatus: compatibility(compat.status),
-      evidenceStrength: str(compat.evidence_strength, "none"),
-      contextTokens: nullableInt(limits.context_tokens),
-      catalogSha256: str(catalog.catalog_sha256),
-      catalogModelCount: int(catalog.model_count),
-      checks: arr(compat.checks, LIMITS.checks).map(projectCheck),
-    },
+    modelBinding: source.model_binding
+      ? {
+          hostModelId: str(binding.host_model_id),
+          providerId: str(binding.provider_id),
+          displayName: str(binding.display_name),
+          selectedAt: str(binding.selected_at),
+          compatibilityStatus: compatibility(compat.status),
+          evidenceStrength: str(compat.evidence_strength, "none"),
+          contextTokens: nullableInt(limits.context_tokens),
+          catalogSha256: str(catalog.catalog_sha256),
+          catalogModelCount: int(catalog.model_count),
+          checks: arr(compat.checks, LIMITS.checks).map(projectCheck),
+        }
+      : null,
     requirements: projectRequirements(source.model_requirements),
+    toolBindings: arr(source.tool_bindings, LIMITS.tools).map((entry) => {
+      const bound = rec(entry);
+      return {
+        toolId: str(bound.tool_id),
+        bindingId: str(bound.binding_id),
+        bindingSha256: str(bound.binding_sha256),
+        implementationKind: str(bound.implementation_kind),
+        implementationVersion: nullableStr(bound.implementation_version),
+        displayName: nullableStr(bound.display_name),
+        remote: bool(bound.remote),
+        endpointOrigin: nullableStr(bound.endpoint_origin),
+        endpointPath: nullableStr(bound.endpoint_path),
+        method: nullableStr(bound.method),
+        contractSha256: str(bound.contract_sha256),
+        requiredPermissionIds: strings(bound.required_permission_ids, LIMITS.ids),
+        timeoutSeconds: nullableInt(bound.timeout_seconds),
+        maxCalls: nullableInt(bound.max_calls),
+        credentialsRequired: bool(bound.credentials_required),
+        credentialsConfigured: bool(bound.credentials_configured),
+        approved: true as const,
+        usable: bound.usable !== false,
+      };
+    }),
+    toolRegistry: source.tool_registry
+      ? {
+          registrySha256: str(rec(source.tool_registry).registry_sha256),
+          bindingCount: int(rec(source.tool_registry).binding_count),
+        }
+      : null,
     readiness: {
       state: str(readiness.state),
       ready: bool(readiness.ready),
       blockingReasons: projectBlocking(readiness.blocking_reasons),
     },
   };
+}
+
+/** What this host offers for each declared tool, as the page renders it. */
+export function projectToolRegistry(
+  evaluation: unknown,
+  extra: { sessionId: string; authorized: boolean },
+): ToolRegistryViewType {
+  const source = rec(evaluation);
+  const registry = rec(source.registry);
+  const host = rec(registry.host);
+  const counts = rec(source.counts);
+  return {
+    sessionId: extra.sessionId,
+    packageDigest: str(source.package_digest),
+    host: {
+      runtime: str(host.runtime),
+      runtimeVersion: nullableStr(host.runtime_version),
+      source: str(host.source),
+      capturedAt: str(host.captured_at),
+    },
+    registrySha256: str(registry.registry_sha256),
+    bindingCount: int(registry.binding_count),
+    tools: arr(source.tools, LIMITS.tools).map((entry) => {
+      const tool = rec(entry);
+      const binding = rec(tool.binding);
+      return {
+        toolId: str(tool.tool_id),
+        bindingName: str(tool.binding_name),
+        status: toolStatus(tool.status),
+        reason: nullableStr(tool.reason),
+        required: bool(tool.required),
+        remote: bool(tool.remote),
+        sideEffects: str(tool.side_effects),
+        declaredDomains: strings(tool.declared_domains, LIMITS.domains),
+        permissionIds: strings(tool.permission_ids, LIMITS.ids),
+        approved: bool(tool.approved),
+        permissionsGranted: bool(tool.permissions_granted),
+        deniedPermissionIds: strings(tool.denied_permission_ids, LIMITS.ids),
+        usable: bool(tool.usable),
+        blocksPlan: bool(tool.blocks_plan),
+        binding: tool.binding
+          ? {
+              bindingId: str(binding.binding_id),
+              bindingSha256: str(binding.binding_sha256),
+              implementationKind: str(binding.implementation_kind),
+              implementationVersion: str(binding.implementation_version),
+              displayName: str(binding.display_name),
+              available: bool(binding.available),
+              availabilityReason: nullableStr(binding.availability_reason),
+              endpointOrigin: nullableStr(binding.endpoint_origin),
+              endpointPath: nullableStr(binding.endpoint_path),
+              method: nullableStr(binding.method),
+              timeoutSeconds: nullableInt(binding.timeout_seconds),
+              credentialsRequired: bool(binding.credentials_required),
+              credentialsConfigured: bool(binding.credentials_configured),
+              checks: arr(binding.checks, LIMITS.checks).map((item) => {
+                const check = rec(item);
+                return {
+                  id: str(check.id),
+                  subject: str(check.subject),
+                  status: toolCheckStatus(check.status),
+                  detail: nullableStr(check.detail),
+                };
+              }),
+            }
+          : null,
+      };
+    }),
+    counts: {
+      total: int(counts.total),
+      bound: int(counts.bound),
+      unbound: int(counts.unbound),
+      incompatible: int(counts.incompatible),
+      unverified: int(counts.unverified),
+      unavailable: int(counts.unavailable),
+      approved: int(counts.approved),
+      usable: int(counts.usable),
+      blocking: int(counts.blocking),
+    },
+    allToolsBound: bool(source.all_tools_bound),
+    allToolsUsable: bool(source.all_tools_usable),
+    notes: arr(source.notes, LIMITS.notes).map((item) => ({
+      code: str(rec(item).code),
+      detail: nullableStr(rec(item).detail),
+    })),
+    authorized: extra.authorized,
+  };
+}
+
+function toolStatus(value: unknown): HostToolBindingViewType["status"] {
+  const text = str(value);
+  return (TOOL_BINDING_STATUSES as readonly string[]).includes(text)
+    ? (text as HostToolBindingViewType["status"])
+    : "unbound";
+}
+
+function toolCheckStatus(value: unknown): "satisfied" | "violated" | "unknown" {
+  const text = str(value);
+  return text === "satisfied" || text === "violated" ? text : "unknown";
 }
 
 export function projectRunPlanState(
@@ -714,6 +848,8 @@ export function projectRunPlanState(
       blockingReasons: projectBlocking(preflight.blocking_reasons),
       trustStoreChanged: bool(preflight.trust_store_changed),
       modelStillAvailable,
+      toolBindingsCurrent: rec(preflight.tool_bindings).current !== false,
+      toolBindingsBound: int(rec(preflight.tool_bindings).bound),
     },
     executionSupported: false as const,
   };

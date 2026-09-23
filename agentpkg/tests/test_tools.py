@@ -24,6 +24,7 @@ def bind(package, **kwargs):
         package,
         handlers=handlers,
         grants={p["id"]: "session" for p in package.policy["permissions"]},
+        approved_tools=sorted(package.tools),
     )
 
 

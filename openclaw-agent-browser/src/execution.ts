@@ -38,6 +38,9 @@ import type { HostCatalog } from "./host-models.js";
 import { revalidate, type PreflightOutcome } from "./preflight.js";
 import { RunManager, isTerminal } from "./run-manager.js";
 import type { Logger } from "./service.js";
+import { ToolBroker, type HttpTransport } from "./tool-broker.js";
+import { pickFixture } from "./tool-fixtures.js";
+import { buildToolRegistry, type ToolBindingDefinition, type ToolRegistry } from "./tool-registry.js";
 
 /** The OpenClaw release this project's token accounting was verified against. */
 export const VERIFIED_HOST_RUNTIME = "2026.9.5";
@@ -62,6 +65,10 @@ export type ExecutionPolicy = {
    * operator who has re-verified can set this to false.
    */
   requireVerifiedHostRuntime: boolean;
+  /** Ceiling on how often one run may call any one tool. Lowers, never raises. */
+  maxCallsPerTool: number;
+  /** Ceiling on one tool response, applied to every binding's own limit. */
+  maxToolResponseBytes: number;
 };
 
 export const DEFAULT_POLICY: ExecutionPolicy = {
@@ -71,6 +78,8 @@ export const DEFAULT_POLICY: ExecutionPolicy = {
   maxOutputTokensPerCall: 16_000,
   runTimeoutSeconds: 600,
   requireVerifiedHostRuntime: true,
+  maxCallsPerTool: 32,
+  maxToolResponseBytes: 512 * 1024,
 };
 
 function positive(value: unknown, fallback: number, max: number): number {
@@ -92,6 +101,12 @@ export function resolvePolicy(config: unknown): ExecutionPolicy {
     ),
     runTimeoutSeconds: positive(raw.runTimeoutSeconds, DEFAULT_POLICY.runTimeoutSeconds, 86_400),
     requireVerifiedHostRuntime: raw.requireVerifiedHostRuntime !== false,
+    maxCallsPerTool: positive(raw.maxCallsPerTool, DEFAULT_POLICY.maxCallsPerTool, 10_000),
+    maxToolResponseBytes: positive(
+      raw.maxToolResponseBytes,
+      DEFAULT_POLICY.maxToolResponseBytes,
+      4 * 1024 * 1024,
+    ),
   };
 }
 
@@ -128,12 +143,23 @@ export type ExecutionServiceOptions = {
   runtimeDir: string;
   policy: ExecutionPolicy;
   hostRuntimeVersion: () => string | null;
+  /** The tool implementations this host registers, and how to describe them. */
+  tools: () => { registry: ToolRegistry; definitions: readonly ToolBindingDefinition[] };
+  /**
+   * Test seam: replace the broker's HTTP mechanics.
+   *
+   * It replaces transport only. Binding resolution, the destination policy,
+   * the header set, the credential lookup and the response contract all still
+   * apply, so a test cannot reach somewhere a run could not.
+   */
+  toolTransport?: HttpTransport;
   /** Test seam: build a bridge instead of spawning a real runner. */
   createBridge?: (options: {
     modelId: string;
     packageFd: number;
     artifactsFd: number;
-  }) => Pick<ExecutionBridge, "run" | "cancel">;
+    broker: ToolBroker;
+  }) => Pick<ExecutionBridge, "run" | "cancel" | "probe">;
 };
 
 export class ExecutionService {
@@ -175,6 +201,8 @@ export class ExecutionService {
       runPlanId: request.runPlanId,
       runPlanSha256: request.runPlanSha256,
       minimumReceiptRemainingMs: policy.runTimeoutSeconds * 1000 + 60_000,
+      toolRegistry: this.options.tools().registry,
+      requireMode: "model",
     });
 
     const runId = this.runs.newRunId();
@@ -221,6 +249,17 @@ export class ExecutionService {
       await this.runs.persist(runId).catch(() => undefined);
       throw error;
     }
+  }
+
+  /** One run's tool authority, built from the plan the preflight re-verified. */
+  private broker(preflight: PreflightOutcome): ToolBroker {
+    const { definitions } = this.options.tools();
+    return new ToolBroker({
+      bound: preflight.tools,
+      definitions,
+      logger: this.options.logger,
+      ...(this.options.toolTransport ? { transport: this.options.toolTransport } : {}),
+    });
   }
 
   private measureInput(input: unknown): number {
@@ -333,9 +372,16 @@ export class ExecutionService {
       packageExecution: {
         workflowInstantiated: false,
         packageInstructionsLoaded: false,
-        toolHandlersInstalled: 0,
+        toolHandlersInstalled: preflight.tools.length,
         toolCalls: 0,
       },
+      tools: preflight.tools.map((tool) => ({
+        toolId: tool.toolId,
+        bindingId: tool.bindingId,
+        bindingSha256: tool.bindingSha256,
+        remote: tool.remote,
+        calls: 0,
+      })),
     };
   }
 
@@ -361,8 +407,17 @@ export class ExecutionService {
       closeSync(packageFd);
       throw error;
     }
+    // This run's tool authority: exactly the bindings its plan froze, held
+    // here and never in the child. A run with no bound tool gets a broker with
+    // nothing in it, so `tool.call` is refused rather than absent-but-possible.
+    const broker = this.broker(preflight);
     const bridge = this.options.createBridge
-      ? this.options.createBridge({ modelId: preflight.modelId, packageFd, artifactsFd })
+      ? this.options.createBridge({
+          modelId: preflight.modelId,
+          packageFd,
+          artifactsFd,
+          broker,
+        })
       : new ExecutionBridge({
           agentpkgPath: this.options.agentpkgPath(),
           modelId: preflight.modelId,
@@ -370,6 +425,7 @@ export class ExecutionService {
           logger: this.options.logger,
           packageFd,
           artifactsFd,
+          broker,
           limits: {
             maxOutputTokens: policy.maxOutputTokensPerCall,
             completionTimeoutMs: Math.min(policy.runTimeoutSeconds, 600) * 1000,
@@ -401,6 +457,7 @@ export class ExecutionService {
           max_parallel_workers: policy.maxParallelWorkers,
           max_output_tokens_per_call: policy.maxOutputTokensPerCall,
           run_timeout_seconds: policy.runTimeoutSeconds,
+          max_calls_per_tool: policy.maxCallsPerTool,
         },
         input,
         host: {
@@ -514,13 +571,18 @@ export class ExecutionService {
         workflowInstantiated: rec(result.package_execution).workflow_instantiated === true,
         packageInstructionsLoaded:
           rec(result.package_execution).package_instructions_loaded === true,
-        toolHandlersInstalled: 0,
+        toolHandlersInstalled: int(rec(result.package_execution).tool_handlers_installed),
         toolCalls: int(rec(result.package_execution).tool_calls),
       },
+      tools: entry.view.tools.map((tool) => ({
+        ...tool,
+        calls: int(rec(rec(usage.tool_calls))[tool.toolId]),
+      })),
       revalidated: [
         ...entry.view.revalidated,
         ...strings(rec(begin.package).verified, 16).map((name) => `runner:${name}`),
         `runner:tool_handlers:${int(execution.tool_handlers)}`,
+        ...strings(rec(begin.tools).bound, 16).map((name) => `runner:tool_bound:${name}`),
       ],
     });
   }
@@ -540,6 +602,165 @@ export class ExecutionService {
       errorCode: failure.code,
       errorDetail: clip(failure.detail, 4096),
     });
+  }
+
+  // -- tool probe -----------------------------------------------------------
+  /**
+   * Make exactly one mediated tool call against a ready plan, and report it.
+   *
+   * The caller chooses *which declared tool* and *which host-owned fixture*.
+   * It cannot choose a destination, a method, a header, an endpoint or an
+   * argument of its own: the fixture table below is host code, the binding
+   * comes from the plan, and the request is built by the broker. This is a way
+   * to verify the broker, not a way to make a request.
+   */
+  async toolProbe(
+    client: ControlPlaneClient,
+    catalog: HostCatalog,
+    request: {
+      sessionId: string;
+      runPlanId: string;
+      runPlanSha256: string;
+      toolId: string;
+      fixtureId?: string;
+    },
+  ): Promise<{ begin: Record<string, unknown>; report: Record<string, unknown> }> {
+    if (!this.available()) {
+      throw new AgentBrowserError(
+        "bridge_unavailable",
+        "Execution is unavailable",
+        "This backend was started without access to the OpenClaw completion runtime.",
+      );
+    }
+    this.checkHostRuntime();
+    const preflight = await revalidate({
+      client,
+      catalog,
+      sessionId: request.sessionId,
+      runPlanId: request.runPlanId,
+      runPlanSha256: request.runPlanSha256,
+      toolRegistry: this.options.tools().registry,
+    });
+    const bound = preflight.tools.find((tool) => tool.toolId === request.toolId);
+    if (!bound) {
+      throw new AgentBrowserError(
+        "execution_refused",
+        "That tool is not bound by this run plan",
+        `This plan binds ${preflight.tools.map((tool) => tool.toolId).join(", ") || "no tools"}.`,
+      );
+    }
+    let fixture;
+    try {
+      fixture = pickFixture(request.toolId, request.fixtureId);
+    } catch (error) {
+      throw new AgentBrowserError(
+        "invalid_request",
+        "No such probe fixture",
+        clip((error as Error).message, 1000),
+      );
+    }
+    const runId = this.runs.newRunId();
+    const directory = await this.runs.prepareDirectory(runId);
+    const issued = rec(
+      await client.issueExecutionLease(
+        request.sessionId,
+        preflight.packageDigest,
+        request.runPlanId,
+        request.runPlanSha256,
+      ),
+    );
+    const lease = rec(issued.lease);
+    const leaseId = str(lease.lease_id);
+    const path = str(lease.path);
+    if (!path) {
+      throw new AgentBrowserError(
+        "execution_refused",
+        "Execution refused",
+        "The control plane issued no lease for this probe.",
+      );
+    }
+    const packageFd = openSync(path, fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW);
+    let artifactsFd = -1;
+    try {
+      artifactsFd = openSync(
+        directory,
+        fsConstants.O_RDONLY | fsConstants.O_DIRECTORY | fsConstants.O_NOFOLLOW,
+      );
+    } catch (error) {
+      closeSync(packageFd);
+      throw error;
+    }
+    const policy = this.options.policy;
+    const broker = this.broker(preflight);
+    const bridge = this.options.createBridge
+      ? this.options.createBridge({
+          modelId: preflight.modelId,
+          packageFd,
+          artifactsFd,
+          broker,
+        })
+      : new ExecutionBridge({
+          agentpkgPath: this.options.agentpkgPath(),
+          modelId: preflight.modelId,
+          llm: this.options.llm()!,
+          logger: this.options.logger,
+          packageFd,
+          artifactsFd,
+          broker,
+          limits: {
+            maxOutputTokens: policy.maxOutputTokensPerCall,
+            completionTimeoutMs: Math.min(policy.runTimeoutSeconds, 600) * 1000,
+            sessionTimeoutMs: (policy.runTimeoutSeconds + 120) * 1000,
+          },
+        });
+    try {
+      const outcome = await bridge.probe(
+        {
+          run_id: runId,
+          run_plan: preflight.binding,
+          authorization: {
+            receipt_id: preflight.authorization.receiptId,
+            receipt_sha256: preflight.authorization.receiptSha256,
+            issued_at: preflight.authorization.issuedAt,
+            expires_at: preflight.authorization.expiresAt,
+            decisions: preflight.authorization.decisions,
+            tool_approvals: preflight.authorization.toolApprovals,
+          },
+          limits: {
+            total_tokens: policy.totalTokens,
+            max_remote_calls: policy.maxRemoteCalls,
+            max_parallel_workers: policy.maxParallelWorkers,
+            max_output_tokens_per_call: policy.maxOutputTokensPerCall,
+            run_timeout_seconds: policy.runTimeoutSeconds,
+            max_calls_per_tool: policy.maxCallsPerTool,
+          },
+          // The probe never reaches the graph, so the input is only what the
+          // package's own input schema has to accept for `begin` to succeed.
+          input: fixture.workflowInput,
+          host: {
+            runtime: "openclaw",
+            runtime_version: this.options.hostRuntimeVersion(),
+            verified_version: VERIFIED_HOST_RUNTIME,
+          },
+        },
+        { toolId: request.toolId, args: fixture.args },
+      );
+      return {
+        ...outcome,
+        report: {
+          ...outcome.report,
+          fixture: { id: fixture.id, tool_id: request.toolId, source: "host_owned" },
+          revalidated: preflight.revalidated,
+          transport: {
+            ...rec(outcome.report.transport),
+            host_calls: broker.calls,
+          },
+        },
+      };
+    } finally {
+      await client.releaseExecutionLease(request.sessionId, leaseId).catch(() => undefined);
+      this.runs.clear({ runId });
+    }
   }
 
   // -- control --------------------------------------------------------------

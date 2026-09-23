@@ -14,11 +14,17 @@ agentpkg/.venv/bin/agentpkg verify dist/meeting-agenda.agent.pkg \
   --trust-key examples/keys/meeting-agenda-publisher.pub.pem
 agentpkg/.venv/bin/agentpkg run dist/literature-review.agent.pkg \
   --mode fixture --grants examples/literature-review-grants.json \
+  --approve-tool scholarly-search --approve-tool citation-resolver \
+  --approve-tool paper-reader \
   --out examples/my-workflow-review
 agentpkg/.venv/bin/agentpkg run dist/meeting-agenda.agent.pkg \
   --mode fixture --grants examples/meeting-agenda-grants.json \
   --out examples/my-workflow-agenda
 ```
+
+Every declared tool needs `--approve-tool` as well as its permission grant: a
+granted permission describes a class of authority, an approval names one tool,
+and the runtime refuses any tool that lacks one.
 
 Use new output directories. Fixture mode uses package-owned exact-input replay, performs no network/model inference, and reports synthetic usage. Its purpose is deterministic execution and enforcement testing. Supply `--input FILE.json` to use explicit input; a changed input needs matching fixture cases or a host model adapter. The example public keys establish development provenance, not independent certification.
 
@@ -64,9 +70,16 @@ those two with the generic interpreter and **runs a signed package**. It receive
 the control plane's immutable snapshot as a one-time lease over an inherited
 descriptor, re-verifies its hash, digest, identity, signature and signer, carries
 the person's decisions through unchanged, applies host limits that can only lower
-package budgets, and calls `Workflow.run`. It installs no tool handler, so a
-package declaring a tool is refused. Execution is operator-only: there is still
-no Run button on the page.
+package budgets, and calls `Workflow.run`. Execution is operator-only: there is
+still no Run button on the page.
+
+A fourth namespace, [`agentpkg.toolbridge`](docs/tool-broker.md), is the tool
+half of the same shape: one generic `ToolHandler` with no transport, no
+credential and no service vocabulary, parameterized by one **host tool binding**
+a run plan froze and reaching a trusted broker in the OpenClaw plugin. A package
+declares *what* capability it needs; the host decides *what implements it*; the
+person approves that implementation as a decision separate from the permission
+it travels under; and `Runtime.call_tool` remains the only path.
 
 ```sh
 agentpkg/.venv/bin/agentpkg trust add --public-key examples/keys/workflow-publisher.pub.pem \
@@ -107,9 +120,21 @@ openclaw plugins install ./agent-browser.tgz --accept-capabilities
 
 See the [plugin documentation](docs/openclaw-agent-browser.md), [model selection
 and the run plan](docs/model-selection-and-run-plan.md), [package
-execution](docs/package-execution.md) and its
-[README](openclaw-agent-browser/README.md). Tested against OpenClaw 2026.9.5.
+execution](docs/package-execution.md), [the tool broker](docs/tool-broker.md)
+and its [README](openclaw-agent-browser/README.md). Tested against OpenClaw
+2026.9.5.
 
 A signed package has now **run for real** on this host: `meeting-agenda` 0.2.1 on a local `ollama/qwen3.5:9b`, completed, five model calls all on the bound model, three genuinely concurrent perspective workers, zero tool calls, a valid 89-event audit chain, $0, and an agenda whose minutes sum to exactly 45 — with the run plan byte-identical afterwards and `execution.performed` still false. The [milestone report](docs/package-execution-report.md) has the timeline, the measured timing policy behind 0.2.1, the signer rotation, and the structured-output defect that the timeout had been hiding.
 
-The existing [OpenClaw staging adapter](docs/openclaw-integration.md) still verifies and stages either package. A generic `ToolHandler` host broker — and therefore Literature Review execution — a user-facing Run action and live audit UI, per-worker or per-node model routing, persistent run history, Muse-specific connectors, Instinct, Maritime, NANDA, registries and marketplace features are not implemented in this milestone.
+A signed package has also now **called a real tool**: `literature-review` 0.2.0's
+declared `citation-resolver`, through a host binding it could not name, at the
+exact origin its own manifest declares, under a permission and an approval given
+separately — one tool call, one remote call, zero tokens, zero model calls, zero
+workflow workers, a valid 15-event audit chain, and real Crossref metadata with
+BibTeX validated against the package's own output schema. The other two tools it
+declares have no implementation here, so a model-backed run plan for that package
+is still refused *by name*; the probe runs under a strictly smaller `tool_probe`
+authority that binds one tool and no model at all. The [tool-broker
+report](docs/tool-broker-report.md) has the numbers and the refusals.
+
+The existing [OpenClaw staging adapter](docs/openclaw-integration.md) still verifies and stages either package. Implementations for `scholarly-search` and `paper-reader` — and therefore Literature Review execution — a user-facing Run action and live audit UI, per-worker or per-node model routing, persistent run history, Muse-specific connectors, Instinct, Maritime, NANDA, registries and marketplace features are not implemented in this milestone.

@@ -42,6 +42,7 @@ from ..hostbridge.router import HostBridgeModelRouter
 from ..hostbridge.session import normalize_binding
 from ..package import sha256
 from ..runtime import digest
+from ..toolbridge import normalize_tool_bindings, tool_handlers
 from ..validation import validate_instance
 from ..workflow import Workflow
 from . import protocol
@@ -51,6 +52,8 @@ from .errors import (
     ARTIFACTS_FAILED,
     INPUT_INVALID,
     NOT_BOUND,
+    TOOL_NOT_BOUND,
+    TOOL_NOT_DECLARED,
     ExecutionError,
     invalid,
 )
@@ -59,12 +62,14 @@ from .policy import (
     HostExecutionLimits,
     check_capabilities,
     check_model,
+    check_tools,
     effective_budget,
     effective_deadline_seconds,
     grant_report,
     normalize_grants,
 )
 from .report import audit_summary, cost_summary, model_evidence
+from .toolprobe import run_tool_probe
 
 EXECUTION_RESULT_SCHEMA = "agentpkg-execution-result-v0"
 MAX_TEXT = 512
@@ -111,8 +116,9 @@ def normalize_execution_plan(raw) -> dict:
             "publisher",
             "execution",
             "model_binding",
+            "tool_bindings",
         },
-        {"run_plan_id", "run_plan_sha256", "package", "publisher", "execution", "model_binding"},
+        {"run_plan_id", "run_plan_sha256", "package", "publisher", "execution"},
     )
     package = _fields(
         record["package"],
@@ -129,14 +135,42 @@ def normalize_execution_plan(raw) -> dict:
     execution = _fields(
         record["execution"],
         "run_plan.execution",
-        {"mode", "profile", "required_permission_ids"},
+        {
+            "mode",
+            "profile",
+            "required_permission_ids",
+            "required_tool_ids",
+            "probe_tool_id",
+            "tool_binding_count",
+        },
         {"mode"},
     )
-    if execution["mode"] != "model":
-        raise invalid("Only a model-backed run plan can be executed")
+    mode = execution["mode"]
+    if mode not in {"model", "tool_probe"}:
+        raise invalid("A run plan must be model-backed or a tool probe")
+    if mode == "model" and "model_binding" not in record:
+        raise invalid("Missing fields in run_plan: ['model_binding']")
+    if mode == "tool_probe" and record.get("model_binding") is not None:
+        # A probe that carried a model binding could construct a router, and
+        # "no model was called" would become a claim rather than a property.
+        raise invalid("A tool_probe run plan binds no model")
     permissions = execution.get("required_permission_ids") or []
     if not isinstance(permissions, list) or len(permissions) > MAX_IDS:
         raise invalid("run_plan.execution.required_permission_ids must be a bounded list")
+    required_tools = execution.get("required_tool_ids") or []
+    if not isinstance(required_tools, list) or len(required_tools) > MAX_IDS:
+        raise invalid("run_plan.execution.required_tool_ids must be a bounded list")
+    bindings = normalize_tool_bindings(record.get("tool_bindings"))
+    missing = sorted(
+        {_text(item, "required_tool_ids[]", limit=200) for item in required_tools}
+        - {binding["tool_id"] for binding in bindings}
+    )
+    if missing:
+        raise ExecutionError(
+            TOOL_NOT_BOUND,
+            "The run plan names tools it binds no implementation for",
+            detail={"tool_ids": missing},
+        )
     return {
         "run_plan_id": _text(record["run_plan_id"], "run_plan_id", limit=128),
         "run_plan_sha256": _text(record["run_plan_sha256"], "run_plan_sha256", limit=128),
@@ -146,9 +180,7 @@ def normalize_execution_plan(raw) -> dict:
             "name": _text(package.get("name"), "package.name", allow_none=True),
             "version": _text(package["version"], "package.version", limit=64),
             "digest": _text(package["digest"], "package.digest", limit=128),
-            "archive_sha256": _text(
-                package["archive_sha256"], "package.archive_sha256", limit=128
-            ),
+            "archive_sha256": _text(package["archive_sha256"], "package.archive_sha256", limit=128),
             "execution_profile": _text(
                 package.get("execution_profile"),
                 "package.execution_profile",
@@ -171,15 +203,25 @@ def normalize_execution_plan(raw) -> dict:
             ),
         },
         "execution": {
-            "mode": "model",
+            "mode": mode,
             "profile": _text(
                 execution.get("profile"), "execution.profile", limit=64, allow_none=True
+            ),
+            "probe_tool_id": _text(
+                execution.get("probe_tool_id"),
+                "execution.probe_tool_id",
+                limit=200,
+                allow_none=True,
             ),
             "required_permission_ids": [
                 _text(item, "required_permission_ids[]", limit=200) for item in permissions
             ],
+            "required_tool_ids": sorted(
+                {_text(item, "required_tool_ids[]", limit=200) for item in required_tools}
+            ),
         },
-        "model_binding": normalize_binding(record["model_binding"]),
+        "model_binding": (normalize_binding(record["model_binding"]) if mode == "model" else None),
+        "tool_bindings": bindings,
     }
 
 
@@ -197,10 +239,10 @@ def normalize_authorization(raw) -> dict:
     approvals = record.get("tool_approvals") or {}
     if not isinstance(approvals, dict) or len(approvals) > MAX_IDS:
         raise invalid("authorization.tool_approvals must be a bounded object")
-    if any(value is True for value in approvals.values()):
-        # This host runs no tools, so an approval for one would be recorded
-        # consent that nothing could honour.
-        raise invalid("This execution host approves no tools; tool_approvals must all be false")
+    if any(not isinstance(value, bool) for value in approvals.values()):
+        # A missing or non-boolean approval is not a quiet `false`: it means
+        # the caller assembled consent from somewhere other than a receipt.
+        raise invalid("authorization.tool_approvals values must be true or false")
     return {
         "receipt_id": _text(record["receipt_id"], "authorization.receipt_id", limit=128),
         "receipt_sha256": _text(
@@ -218,7 +260,10 @@ def normalize_authorization(raw) -> dict:
             )
             for key, value in sorted(decisions.items())
         },
-        "tool_approvals": {},
+        "tool_approvals": {
+            _text(key, "authorization.tool_approvals key", limit=200): bool(value)
+            for key, value in sorted(approvals.items())
+        },
     }
 
 
@@ -240,6 +285,10 @@ class ExecutionSession:
         self._input = None
         self._evidence: dict = {}
         self._host: dict = {}
+        self._handlers: dict = {}
+        self._approved_tools: list[str] = []
+        self._tools: dict = {}
+        self._probed = False
         # Run state.
         self._workflow: Workflow | None = None
         self._started = False
@@ -253,6 +302,8 @@ class ExecutionSession:
             return self._begin(params)
         if method == "execution.run":
             return await self._run(params)
+        if method == "execution.tool_probe":
+            return await self._tool_probe(params)
         if method == "execution.cancel":
             return self._cancel(params)
         if method == "execution.end":
@@ -292,7 +343,19 @@ class ExecutionSession:
         )
 
         # 2. What this host can and cannot run, from the graph's declarations.
-        capabilities = check_capabilities(package, limits)
+        capabilities = (
+            check_capabilities(package, limits, tool_bindings=plan["tool_bindings"])
+            if plan["execution"]["mode"] == "model"
+            else {
+                "tools_declared": len(package.tools),
+                "tool_bindings": len(plan["tool_bindings"]),
+                "mode": "tool_probe",
+                "note": (
+                    "A tool probe binds one declared tool. Whether this host could run the "
+                    "whole package is a different question, and a model-backed plan asks it."
+                ),
+            }
+        )
 
         # 3. The person's decisions, unchanged or refused.
         grants = normalize_grants(package, authorization["decisions"])
@@ -304,17 +367,44 @@ class ExecutionSession:
                     detail={"permission": permission_id},
                 )
 
+        # 3b. Every tool binding, re-derived from the verified package and
+        #     compared with the plan, then matched against the approvals the
+        #     person actually gave. Permission and approval are separate
+        #     questions and both are asked.
+        tools = check_tools(package, plan["tool_bindings"], grants, authorization["tool_approvals"])
+        handlers = tool_handlers(self._peer, plan["tool_bindings"])
+
         # 4. The exact model, and whether it can satisfy the package at all.
-        router = HostBridgeModelRouter(
-            self._peer,
-            plan["model_binding"],
-            request_timeout_seconds=DEFAULT_REQUEST_TIMEOUT_SECONDS,
-        )
-        model = check_model(package, router)
+        #    A tool probe binds none, so none is constructed: a router that does
+        #    not exist cannot be called, which is a stronger statement than a
+        #    router that was not used.
+        router = None
+        model = None
+        if plan["execution"]["mode"] == "model":
+            router = HostBridgeModelRouter(
+                self._peer,
+                plan["model_binding"],
+                request_timeout_seconds=DEFAULT_REQUEST_TIMEOUT_SECONDS,
+            )
+            model = check_model(package, router)
 
         # 5. The task. Checked against the package's own input schema before a
         #    single instruction is rendered, so bad input costs nothing.
         invocation = build_invocation(run_id=run_id, plan=plan, input_value=record["input"])
+        probe_tool = plan["execution"]["probe_tool_id"]
+        if plan["execution"]["mode"] == "tool_probe":
+            if probe_tool is None or probe_tool not in package.tools:
+                raise ExecutionError(
+                    TOOL_NOT_DECLARED,
+                    "A tool probe plan must name a tool this package declares.",
+                    detail={"tool_id": probe_tool},
+                )
+            if [binding["tool_id"] for binding in plan["tool_bindings"]] != [probe_tool]:
+                raise ExecutionError(
+                    TOOL_NOT_BOUND,
+                    "A tool probe plan binds exactly the one tool it names.",
+                    detail={"tool_id": probe_tool},
+                )
         try:
             validate_instance(
                 package.files, package.graph["input_schema"], record["input"], "workflow input"
@@ -333,6 +423,9 @@ class ExecutionSession:
         self._limits = limits
         self._input = record["input"]
         self._evidence = evidence
+        self._handlers = handlers
+        self._approved_tools = [binding["tool_id"] for binding in plan["tool_bindings"]]
+        self._tools = tools
         self._host = {
             "runtime": host.get("runtime"),
             "runtime_version": host.get("runtime_version"),
@@ -352,7 +445,8 @@ class ExecutionSession:
             },
             "capabilities": capabilities,
             "model": model,
-            "router": router.describe(),
+            "tools": tools,
+            "router": router.describe() if router is not None else None,
             "limits": {
                 "host": limits.as_json(),
                 "budget": effective_budget(package, limits),
@@ -362,10 +456,13 @@ class ExecutionSession:
             "execution": {
                 "profile": package.graph.get("profile", package.manifest["entrypoint"]),
                 "interpreter": "agentpkg.workflow.Workflow",
-                "tool_handlers": 0,
+                "tool_handlers": len(handlers),
+                "tool_handler_kind": "agentpkg.toolbridge.HostBridgeToolHandler",
                 "note": (
                     "The generic interpreter runs the package's own graph. This runner "
-                    "contains no package-specific orchestration and installs no tool handler."
+                    "contains no package-specific orchestration; every tool handler it "
+                    "installs is the same generic bridge handler, parameterized by one "
+                    "binding the run plan froze."
                 ),
             },
         }
@@ -375,9 +472,19 @@ class ExecutionSession:
         _fields(params, "execution.run", set())
         if self.plan is None or self.package is None:
             raise ExecutionError(NOT_BOUND, "Begin an execution session before running it")
+        if self.plan["execution"]["mode"] != "model":
+            raise ExecutionError(
+                "execution_plan_invalid",
+                "This plan is authority for one tool call, not for running this package.",
+            )
         if self._started:
             raise ExecutionError(
                 ALREADY_STARTED, "One execution session runs one workflow; prepare another"
+            )
+        if self._probed:
+            raise ExecutionError(
+                ALREADY_STARTED,
+                "A session that probed a tool does not also run a workflow; prepare another",
             )
         self._started = True
         started = datetime.now(UTC)
@@ -385,13 +492,14 @@ class ExecutionSession:
             workflow = Workflow(
                 self.package,
                 grants=self._grants,
-                # No tool handler is installed. A package that declared a tool
-                # was already refused in execution.begin, so this is not a hole
-                # a run could fall through: it is the same fact stated twice.
-                handlers={},
+                # Exactly the bindings this plan froze, keyed by the abstract
+                # capability name the package asked for. A package that
+                # declared a tool with no approved binding was already refused
+                # in `execution.begin`; `Runtime` refuses it again at dispatch.
+                handlers=self._handlers,
                 router=self.router,
                 limits=self._limits.runtime_limits(),
-                approved_tools=[],
+                approved_tools=self._approved_tools,
             )
         except AgentPkgError as exc:
             raise ExecutionError(
@@ -422,6 +530,39 @@ class ExecutionSession:
                 await watchdog
             self._finished = True
         return self._finish(started, datetime.now(UTC))
+
+    # -- tool probe ----------------------------------------------------------
+    async def _tool_probe(self, params: dict) -> dict:
+        """One approved tool call, with no workflow, no graph and no model.
+
+        This is the tool boundary's equivalent of the router probe: the
+        smallest thing that can show a declaration, a binding, an approval, a
+        permission and a budget converge on one real call. It is not a run.
+        """
+        record = _fields(params, "execution.tool_probe", {"tool_id", "args"}, {"tool_id", "args"})
+        if self.plan is None or self.package is None:
+            raise ExecutionError(NOT_BOUND, "Begin an execution session before probing a tool")
+        if self._started:
+            raise ExecutionError(
+                ALREADY_STARTED, "A session that ran a workflow does not also probe a tool"
+            )
+        if self._probed:
+            raise ExecutionError(
+                ALREADY_STARTED, "One session probes one tool; prepare another session"
+            )
+        self._probed = True
+        return await run_tool_probe(
+            package=self.package,
+            plan=self.plan,
+            handlers=self._handlers,
+            approved_tools=self._approved_tools,
+            grants=self._grants,
+            limits=self._limits,
+            tools=self._tools,
+            tool_id=_text(record["tool_id"], "tool_id", limit=200),
+            args=record["args"],
+            invocation=self.invocation,
+        )
 
     async def _watchdog(self, seconds: int, workflow: Workflow) -> None:
         """The host's own run deadline, on top of the graph's."""
@@ -481,8 +622,12 @@ class ExecutionSession:
                     self.package, self._limits
                 ),
             },
-            "model": model_evidence(self.router, self.plan["model_binding"]["host_model_id"]),
-            "router": self.router.describe(),
+            "model": (
+                model_evidence(self.router, self.plan["model_binding"]["host_model_id"])
+                if self.router is not None
+                else None
+            ),
+            "router": self.router.describe() if self.router is not None else None,
             "usage": outcome.get("usage"),
             "cost": cost_summary(audit),
             "audit": summary,
@@ -498,11 +643,12 @@ class ExecutionSession:
                 "ended_at": ended.isoformat(),
                 "duration_ms": round((ended - started).total_seconds() * 1000, 3),
             },
+            "tools": dict(self._tools),
             "package_execution": {
                 "workflow_instantiated": True,
                 "interpreter": "agentpkg.workflow.Workflow",
                 "package_instructions_loaded": True,
-                "tool_handlers_installed": 0,
+                "tool_handlers_installed": len(self._handlers),
                 "tool_calls": summary["tool_calls"],
             },
         }

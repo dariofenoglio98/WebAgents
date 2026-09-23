@@ -27,6 +27,14 @@ from .control import (
 )
 from .errors import ControlPlaneError
 from .hostmodels import evaluate_catalog, normalize_catalog, requirement_set
+from .hosttools import (
+    IMPLEMENTATION_KINDS,
+    binding_digest,
+    empty_registry,
+    evaluate_registry,
+    normalize_registry,
+    tool_requirement_set,
+)
 from .runplan import BINDING_STRATEGIES, EXECUTION_MODES, build_run_plan, preflight
 from .server import BrowserService
 from .trust import TrustStore
@@ -35,6 +43,7 @@ __all__ = [
     "API_VERSION",
     "BINDING_STRATEGIES",
     "EXECUTION_MODES",
+    "IMPLEMENTATION_KINDS",
     "SERVICE",
     "BrowserPolicy",
     "BrowserService",
@@ -42,11 +51,16 @@ __all__ = [
     "ControlPlaneConfig",
     "ControlPlaneError",
     "TrustStore",
+    "binding_digest",
     "build_run_plan",
     "default_cache_dir",
     "default_trust_store",
+    "empty_registry",
     "evaluate_catalog",
+    "evaluate_registry",
     "normalize_catalog",
+    "normalize_registry",
     "preflight",
     "requirement_set",
+    "tool_requirement_set",
 ]

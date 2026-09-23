@@ -36,6 +36,12 @@ from .errors import ControlPlaneError
 from .evaluation import evaluate_snapshot, signature_report
 from .fetch import FetchLimits, download_to_file
 from .hostmodels import evaluate_catalog, find_model, normalize_catalog, requirement_set
+from .hosttools import (
+    IMPLEMENTATION_KINDS,
+    evaluate_registry,
+    normalize_registry,
+    tool_requirement_set,
+)
 from .lease import DEFAULT_LEASE_TTL_SECONDS, ExecutionLease
 from .lease import issue as issue_lease
 from .lease import release as release_lease
@@ -43,6 +49,7 @@ from .runplan import (
     BINDING_SINGLE_MODEL,
     EXECUTION_MODES,
     MODE_MODEL,
+    MODE_TOOL_PROBE,
     build_run_plan,
     mode_permission_ids,
     preflight,
@@ -108,6 +115,11 @@ class Session:
     # plan frozen from them. All three die with the session.
     catalog: dict | None = None
     model_evaluation: dict | None = None
+    # The same three facts for the host's tool implementations. A registry is
+    # a live statement about the host, so it is re-supplied rather than cached
+    # across decisions; what is kept is the last one this session was shown.
+    tool_registry: dict | None = None
+    tool_evaluation: dict | None = None
     run_plan: dict | None = None
     # One-time private copies of this snapshot, issued to a trusted runner.
     leases: dict[str, ExecutionLease] = field(default_factory=dict)
@@ -439,6 +451,21 @@ class ControlPlane:
                 "ready": bool(session.run_plan and session.run_plan["readiness"]["ready"]),
             },
             "model_requirements_normalized": requirement_set(session.package),
+            "tool_requirements": {
+                "declared_tool_ids": sorted(session.package.tools),
+                "tool_count": len(session.package.tools),
+                "registry_evaluated": session.tool_evaluation is not None,
+                "bound_tool_count": (
+                    sum(1 for item in session.tool_evaluation["tools"] if item["binding"])
+                    if session.tool_evaluation
+                    else 0
+                ),
+                "note": (
+                    "Declaring a tool is a request. A host implementation and an explicit "
+                    "approval are separate facts, and both are required before a run plan "
+                    "can bind one."
+                ),
+            },
             "execution": {
                 "performed": False,
                 "note": "Opening and inspecting a package never executes it.",
@@ -553,6 +580,59 @@ class ControlPlane:
             }
         return receipt
 
+    # -- tools ---------------------------------------------------------------
+    def tool_requirements(self, session_id: str) -> dict:
+        """What this package asks a host to implement, host-neutrally."""
+        session = self._session(session_id)
+        return {
+            "session_id": session.session_id,
+            "package_digest": session.package.digest,
+            **tool_requirement_set(session.package),
+            "implementation_kinds": list(IMPLEMENTATION_KINDS),
+            "approval_model": {
+                "per_tool": True,
+                "note": (
+                    "Every declared tool needs its own approval in the authorization receipt, "
+                    "in addition to the permissions it links to."
+                ),
+            },
+        }
+
+    def evaluate_tools(self, session_id: str, *, package_digest, tool_registry) -> dict:
+        """Evaluate a host-supplied tool registry against this package.
+
+        The registry is the host's statement about its own implementations.
+        This method validates its shape, refuses unknown fields, and compares
+        it with what the package declares. It calls nothing.
+        """
+        session = self._session(session_id)
+        self._require_digest(session, package_digest)
+        normalized = normalize_registry(tool_registry)
+        evaluation = evaluate_registry(
+            session.package,
+            normalized,
+            decisions=session.decisions,
+            tool_approvals=session.tool_approvals,
+        )
+        with self._lock:
+            # Retained so `prepare_run_plan` binds the same registry state that
+            # produced the verdicts a person was shown, and so `preflight` can
+            # say whether those verdicts still hold.
+            session.tool_registry = normalized
+            session.tool_evaluation = evaluation
+        return evaluation
+
+    def _tool_evaluation(self, session: Session) -> dict | None:
+        """Re-evaluate the last supplied registry against current consent."""
+        if session.tool_registry is None:
+            return None
+        return evaluate_registry(
+            session.package,
+            session.tool_registry,
+            decisions=session.decisions,
+            tool_approvals=session.tool_approvals,
+        )
+
     # -- models and run plans ------------------------------------------------
     def model_requirements(self, session_id: str) -> dict:
         """The package's declared model requirements, normalized generically."""
@@ -594,10 +674,20 @@ class ControlPlane:
         receipt_id,
         model_id,
         catalog,
+        tool_registry=None,
+        probe_tool_id=None,
         execution_mode=MODE_MODEL,
         binding_strategy=BINDING_SINGLE_MODEL,
     ) -> dict:
-        """Freeze one package + authorization + model into an immutable plan."""
+        """Freeze one package + authorization + model + tools into a plan.
+
+        A `tool_probe` plan is the same artifact with a strictly smaller
+        authority: it names one declared tool, binds one implementation of it,
+        binds no model, and asks nothing about the package's other tools. A
+        package this host cannot run is still a package this host cannot run;
+        the probe plan does not pretend otherwise, and a `model` plan for the
+        same session still refuses.
+        """
         session = self._session(session_id)
         self._require_digest(session, package_digest)
         mode = validate_mode(execution_mode)
@@ -617,18 +707,58 @@ class ControlPlane:
                 status=409,
                 details={"session_receipt_id": session.receipt["receipt_id"]},
             )
-        if not isinstance(model_id, str) or not model_id:
-            raise ControlPlaneError("invalid_request", "model_id must be a non-empty string")
-        normalized = normalize_catalog(catalog)
-        descriptor = find_model(normalized, model_id)
-        if descriptor is None:
+        probe = None
+        if mode == MODE_TOOL_PROBE:
+            if not isinstance(probe_tool_id, str) or not probe_tool_id:
+                raise ControlPlaneError(
+                    "invalid_request", "A tool probe plan must name the tool it is for"
+                )
+            probe = probe_tool_id
+        elif probe_tool_id is not None:
             raise ControlPlaneError(
-                "model_unknown",
-                f"No model {model_id!r} in the supplied host catalog",
-                status=409,
+                "invalid_request", "probe_tool_id belongs to a tool_probe plan only"
             )
+        normalized = normalize_catalog(catalog)
+        descriptor = None
+        compatibility = None
+        if mode == MODE_MODEL:
+            if not isinstance(model_id, str) or not model_id:
+                raise ControlPlaneError("invalid_request", "model_id must be a non-empty string")
+            descriptor = find_model(normalized, model_id)
+            if descriptor is None:
+                raise ControlPlaneError(
+                    "model_unknown",
+                    f"No model {model_id!r} in the supplied host catalog",
+                    status=409,
+                )
         evaluation = evaluate_catalog(session.package, normalized)
-        compatibility = next(item for item in evaluation["models"] if item["model_id"] == model_id)
+        if descriptor is not None:
+            compatibility = next(
+                item for item in evaluation["models"] if item["model_id"] == model_id
+            )
+        # A tool-bearing package needs a registry supplied with the plan, and a
+        # tool-free one must not be able to acquire bindings by accident.
+        registry = None
+        tool_evaluation = None
+        if session.package.tools:
+            if tool_registry is None:
+                raise ControlPlaneError(
+                    "tool_registry_missing",
+                    "This package declares tools, so a host tool registry must be supplied "
+                    "before a run plan can bind them",
+                    status=409,
+                    details={"required_tool_ids": sorted(session.package.tools)},
+                )
+            registry = normalize_registry(tool_registry)
+            tool_evaluation = evaluate_registry(
+                session.package,
+                registry,
+                decisions=session.decisions,
+                tool_approvals=session.tool_approvals,
+            )
+        elif tool_registry is not None:
+            registry = normalize_registry(tool_registry)
+            tool_evaluation = evaluate_registry(session.package, registry)
         blockers = preparation_blockers(
             session.package,
             mode=mode,
@@ -637,6 +767,8 @@ class ControlPlane:
             publisher=session.publisher,
             compatibility=compatibility,
             policy=self.config.policy,
+            tool_evaluation=tool_evaluation,
+            probe_tool_id=probe,
         )
         if blockers:
             # A run plan exists only when it is ready. Writing down a plan that
@@ -670,10 +802,16 @@ class ControlPlane:
             binding_strategy=binding,
             expires_at=session.expires_at,
             blocking_reasons=blockers,
+            tool_evaluation=tool_evaluation,
+            tool_registry=registry,
+            probe_tool_id=probe,
         )
         with self._lock:
             session.catalog = normalized
             session.model_evaluation = evaluation
+            if registry is not None:
+                session.tool_registry = registry
+                session.tool_evaluation = tool_evaluation
             self._release_all(session)
             session.run_plan = plan
             session.summary["run_plan"] = {
@@ -805,6 +943,7 @@ class ControlPlane:
             receipt=session.receipt,
             trust_state=self.trust.state(),
             policy=self.config.policy,
+            tool_evaluation=self._tool_evaluation(session),
         )
 
     def _release_all(self, session: Session) -> None:
@@ -932,6 +1071,7 @@ class ControlPlane:
                     "open_url": True,
                     "authorize": True,
                     "evaluate_models": True,
+                    "evaluate_tools": True,
                     "prepare_run_plan": True,
                     # A lease hands immutable bytes to a separate trusted
                     # runner. This service still executes nothing itself.
@@ -949,6 +1089,16 @@ class ControlPlane:
                         "This service discovers no models of its own. A trusted host sends a "
                         "bounded, provider-neutral catalog; package requirement semantics and "
                         "run-plan integrity stay here."
+                    ),
+                },
+                "host_tool_registry": {
+                    "source": "supplied_by_host",
+                    "implementation_kinds": list(IMPLEMENTATION_KINDS),
+                    "note": (
+                        "This service registers no tool implementation of its own and calls "
+                        "none. A trusted host sends a bounded, service-neutral registry; "
+                        "contract compatibility, binding digests and run-plan integrity "
+                        "stay here."
                     ),
                 },
             }

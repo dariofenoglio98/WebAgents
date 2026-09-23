@@ -34,6 +34,10 @@ async def execute(package):
         router=router,
         handlers=handlers,
         grants={p["id"]: "session" for p in package.policy["permissions"]},
+        # A declared tool needs an explicit approval as well as its permission.
+        # This script is the operator, and it approves exactly what the package
+        # declares; nothing is approved implicitly by the grants above.
+        approved_tools=sorted(package.tools),
     )
     validator = Draft202012Validator(
         json.loads((SCHEMAS / "audit-event.schema.json").read_text()),

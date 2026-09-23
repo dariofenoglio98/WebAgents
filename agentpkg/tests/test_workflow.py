@@ -46,6 +46,9 @@ def execute(package, **options):
                 "router": router,
                 "handlers": handlers,
                 "grants": {p["id"]: "session" for p in package.policy["permissions"]},
+                # Fixture replay exercises the same enforcement path as a live
+                # run, so every declared tool needs its approval here too.
+                "approved_tools": sorted(package.tools),
                 **options,
             },
         )
@@ -147,7 +150,7 @@ from agentpkg.fixtures import fixture_adapters
 for name in ('literature-review', 'meeting-agenda'):
  p=load_package('agents/'+name)
  r,h,i=fixture_adapters(p)
- asyncio.run(run_workflow(p,i,router=r,handlers=h,
+ asyncio.run(run_workflow(p,i,router=r,handlers=h,approved_tools=sorted(p.tools),
   grants={x['id']:'session' for x in p.policy['permissions']}))
 assert not any('literature' in m or m.startswith('agentpkg.dev') for m in sys.modules)
 """

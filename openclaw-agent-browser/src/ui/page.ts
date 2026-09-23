@@ -16,6 +16,7 @@ import type {
   ReceiptViewType,
   RunPlanStateViewType,
   ServiceStatusView,
+  ToolRegistryViewType,
 } from "../contract.js";
 import {
   append,
@@ -57,6 +58,8 @@ type Loaded = {
   receipt: ReceiptViewType | null;
   /** Null until the host catalog has been read for this session. */
   models: ModelCatalogViewType | null;
+  /** Null until this host's tool implementations have been read. */
+  tools: ToolRegistryViewType | null;
   runPlan: RunPlanStateViewType | null;
 };
 
@@ -463,6 +466,7 @@ export function mountAgentBrowser(container: HTMLElement, deps: PageDeps): () =>
       permissions: permissionsResult.value,
       receipt: receiptResult && receiptResult.ok ? receiptResult.value : null,
       models: null,
+      tools: null,
       runPlan: null,
     };
     decisions = new Map(
@@ -483,14 +487,15 @@ export function mountAgentBrowser(container: HTMLElement, deps: PageDeps): () =>
   // -- models ----------------------------------------------------------------
   async function loadModels(sessionId: string, options: { announce?: boolean } = {}) {
     if (options.announce) setBusy("Reading this host's model catalog…");
-    const [catalog, plan] = await Promise.all([
+    const [catalog, tools, plan] = await Promise.all([
       call<Result<ModelCatalogViewType>>("models.evaluate", { sessionId }).catch(() => null),
+      call<Result<ToolRegistryViewType>>("tools.evaluate", { sessionId }).catch(() => null),
       call<Result<RunPlanStateViewType>>("run-plan.get", { sessionId }).catch(() => null),
     ]);
     if (!alive() || loaded?.pkg.sessionId !== sessionId) return;
     if (options.announce) setBusy(null);
     if (catalog && !catalog.ok) {
-      loaded = { ...loaded, models: null };
+      loaded = { ...loaded, models: null, tools: null };
       fail(catalog.error, () => void loadModels(sessionId, { announce: true }));
       return;
     }
@@ -504,8 +509,15 @@ export function mountAgentBrowser(container: HTMLElement, deps: PageDeps): () =>
       // The chosen model disappeared from the host catalog between reads.
       selectedModel = null;
     }
-    if (!selectedModel && runPlan?.plan) selectedModel = runPlan.plan.modelBinding.hostModelId;
-    loaded = { ...loaded, models, runPlan };
+    if (!selectedModel && runPlan?.plan?.modelBinding) {
+      selectedModel = runPlan.plan.modelBinding.hostModelId;
+    }
+    loaded = {
+      ...loaded,
+      models,
+      tools: tools && tools.ok ? tools.value : null,
+      runPlan,
+    };
     renderMain();
   }
 
@@ -801,7 +813,7 @@ export function mountAgentBrowser(container: HTMLElement, deps: PageDeps): () =>
   function renderTab(pkg: PackageViewType): HTMLElement {
     switch (tab) {
       case "tools":
-        return renderTools(pkg);
+        return renderTools(pkg, loaded?.tools ?? null);
       case "workers":
         return renderWorkers(pkg);
       case "workflow":
@@ -845,11 +857,96 @@ export function mountAgentBrowser(container: HTMLElement, deps: PageDeps): () =>
     return node;
   }
 
-  function renderTools(pkg: PackageViewType): HTMLElement {
+  /**
+   * Three facts per tool, deliberately not merged.
+   *
+   * The package's *declaration* is what it asks for. This host's *binding* is
+   * what would actually run, if anything does. The *approval* is the person's.
+   * A row can be declared and unbound, bound and unapproved, or approved with
+   * a denied permission — and each of those is a different thing to fix.
+   */
+  const TOOL_STATUS_LABELS: Record<string, { label: string; tone: "good" | "warn" | "bad" }> = {
+    bound: { label: "Host implementation", tone: "good" },
+    unverified: { label: "Contract unconfirmed", tone: "warn" },
+    unavailable: { label: "Implementation unusable", tone: "warn" },
+    ambiguous: { label: "More than one implementation", tone: "bad" },
+    incompatible: { label: "Contract mismatch", tone: "bad" },
+    unbound: { label: "No host implementation", tone: "bad" },
+  };
+
+  function renderToolBinding(
+    tools: ToolRegistryViewType | null,
+    toolId: string,
+  ): HTMLElement | null {
+    if (!tools) {
+      return el("p", {
+        className: "ab-muted",
+        text: "Authorize this package to see what this host implements for it.",
+      });
+    }
+    const row = tools.tools.find((item: ToolRegistryViewType["tools"][number]) => item.toolId === toolId);
+    if (!row) return null;
+    const status = TOOL_STATUS_LABELS[row.status] ?? TOOL_STATUS_LABELS.unbound!;
+    const head = el(
+      "div",
+      { className: "ab-item-head" },
+      chip(status.label, status.tone),
+      chip(row.approved ? "Approved" : "Not approved", row.approved ? "good" : "warn"),
+      row.permissionsGranted ? null : chip("Permission denied", "warn"),
+    );
+    const rows: Array<[string, HTMLElement | string]> = [];
+    if (row.binding) {
+      rows.push(["Implementation", el("code", { text: row.binding.bindingId })]);
+      rows.push(["Version", row.binding.implementationVersion]);
+      rows.push([
+        "Runs",
+        row.remote
+          ? `remotely, ${row.binding.method ?? ""} ${row.binding.endpointOrigin ?? ""}${
+              row.binding.endpointPath ?? ""
+            }`.trim()
+          : "locally, in this host",
+      ]);
+      rows.push([
+        "Credential",
+        row.binding.credentialsRequired
+          ? row.binding.credentialsConfigured
+            ? "configured on this host"
+            : "required and not configured"
+          : "none",
+      ]);
+      rows.push(["Binding digest", el("code", { text: row.binding.bindingSha256 })]);
+      rows.push([
+        "Contract",
+        row.binding.checks.every((check: { status: string }) => check.status === "satisfied")
+          ? "verified against this package's own schemas"
+          : row.binding.checks
+              .filter((check: { status: string }) => check.status !== "satisfied")
+              .map((check: { subject: string; status: string }) => `${check.subject}: ${check.status}`)
+              .join(", "),
+      ]);
+    }
+    if (row.deniedPermissionIds.length > 0) {
+      rows.push(["Denied permissions", row.deniedPermissionIds.join(", ")]);
+    }
+    const detail = el("div", { className: "ab-subitem" }, head);
+    if (row.reason) detail.append(el("p", { className: "ab-muted", text: row.reason }));
+    if (rows.length > 0) detail.append(definition(rows));
+    return detail;
+  }
+
+  function renderTools(pkg: PackageViewType, tools: ToolRegistryViewType | null): HTMLElement {
     if (pkg.tools.length === 0) {
       return el("p", { className: "ab-hint", text: "This package declares no tools." });
     }
     const node = el("div", { className: "ab-items" });
+    node.append(
+      el("p", {
+        className: "ab-hint",
+        text:
+          "A package declares what it needs. This host decides what, if anything, implements " +
+          "it, and you decide whether that implementation may be used. All three are required.",
+      }),
+    );
     for (const tool of pkg.tools) {
       node.append(
         el(
@@ -865,12 +962,13 @@ export function mountAgentBrowser(container: HTMLElement, deps: PageDeps): () =>
           ),
           el("p", { text: tool.description }),
           definition([
-            ["Host binding", el("code", { text: tool.binding })],
-            ["Endpoint", tool.endpointOrigin ? `${tool.method ?? ""} ${tool.endpointOrigin}`.trim() : "—"],
+            ["Requested capability", el("code", { text: tool.binding })],
+            ["Expects", tool.endpointOrigin ? `${tool.method ?? ""} ${tool.endpointOrigin}`.trim() : "—"],
             ["Network domains", tool.domains.length > 0 ? tool.domains.join(", ") : "—"],
             ["Required permissions", tool.permissions.length > 0 ? tool.permissions.join(", ") : "—"],
             ["Timeout", `${tool.timeoutSeconds}s`],
           ]),
+          renderToolBinding(tools, tool.id),
         ),
       );
     }
@@ -1503,9 +1601,11 @@ export function mountAgentBrowser(container: HTMLElement, deps: PageDeps): () =>
         ],
         [
           "Model",
-          `${plan.modelBinding.displayName} (${plan.modelBinding.hostModelId}) · ${compatibilityText(
-            plan.modelBinding.compatibilityStatus,
-          )}`,
+          plan.modelBinding
+            ? `${plan.modelBinding.displayName} (${plan.modelBinding.hostModelId}) · ${compatibilityText(
+                plan.modelBinding.compatibilityStatus,
+              )}`
+            : "none — this plan binds one tool call, not a run",
         ],
         [
           "Execution",
@@ -1561,25 +1661,82 @@ export function mountAgentBrowser(container: HTMLElement, deps: PageDeps): () =>
         ["Receipt hash", el("code", { text: plan.authorization.receiptSha256 })],
         ["Granted", plan.authorization.grantedPermissionIds.join(", ") || "none"],
         ["Run-mode permissions", plan.execution.requiredPermissionIds.join(", ") || "none"],
-        ["Model", el("code", { text: plan.modelBinding.hostModelId })],
-        ["Model evidence", plan.modelBinding.evidenceStrength],
+        ["Model", el("code", { text: plan.modelBinding?.hostModelId ?? "none" })],
+        ["Model evidence", plan.modelBinding?.evidenceStrength ?? "—"],
         [
           "Catalog snapshot",
-          `${plan.modelBinding.catalogModelCount} models · sha256:${shortHash(plan.modelBinding.catalogSha256)}`,
+          plan.modelBinding
+            ? `${plan.modelBinding.catalogModelCount} models · sha256:${shortHash(plan.modelBinding.catalogSha256)}`
+            : "—",
         ],
         [
           "Model still offered",
-          preflight?.modelStillAvailable === null
-            ? "unknown"
-            : preflight?.modelStillAvailable
-              ? "yes"
-              : "no",
+          !plan.modelBinding
+            ? "—"
+            : preflight?.modelStillAvailable === null
+              ? "unknown"
+              : preflight?.modelStillAvailable
+                ? "yes"
+                : "no",
         ],
         ["Trust store changed since", preflight?.trustStoreChanged ? "yes" : "no"],
         ["Preflight checked", whenText(preflight?.checkedAt ?? "")],
         ["Executed", "no"],
       ]),
     );
+    if (plan.toolBindings.length > 0) {
+      details.append(el("h4", { text: "Tools" }));
+      details.append(
+        el("p", {
+          className: "ab-muted",
+          text:
+            preflight?.toolBindingsCurrent === false
+              ? "One of these implementations changed after this plan was prepared, so the " +
+                "plan is stale."
+              : "Exactly these implementations would run. Nothing else is reachable.",
+        }),
+      );
+      for (const bound of plan.toolBindings) {
+        details.append(
+          definition([
+            ["Tool", el("code", { text: bound.toolId })],
+            ["Implementation", el("code", { text: bound.bindingId })],
+            ["Binding digest", el("code", { text: bound.bindingSha256 })],
+            [
+              "Runs",
+              bound.remote
+                ? `remotely, ${bound.method ?? ""} ${bound.endpointOrigin ?? ""}${
+                    bound.endpointPath ?? ""
+                  }`.trim()
+                : "locally, in this host",
+            ],
+            ["Permissions", bound.requiredPermissionIds.join(", ") || "none"],
+            ["Approved", "yes"],
+            [
+              "Credential",
+              bound.credentialsRequired
+                ? bound.credentialsConfigured
+                  ? "configured on this host"
+                  : "required and not configured"
+                : "none",
+            ],
+            ["Call cap", bound.maxCalls === null ? "—" : String(bound.maxCalls)],
+          ]),
+        );
+      }
+      if (plan.toolRegistry) {
+        details.append(
+          definition([
+            [
+              "Registry snapshot",
+              `${plan.toolRegistry.bindingCount} implementations · sha256:${shortHash(
+                plan.toolRegistry.registrySha256,
+              )}`,
+            ],
+          ]),
+        );
+      }
+    }
     return details;
   }
 

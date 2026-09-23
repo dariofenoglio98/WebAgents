@@ -31,6 +31,9 @@ def test_cli_build_sign_verify_run_unpack_stage(name, tmp_path, capsys):
         assert main([command, str(first)]) == 0
         assert json.loads(capsys.readouterr().out)
     out = tmp_path / "result"
+    # A granted permission is not a tool approval: the operator names each
+    # declared tool, and a run that omits one is refused rather than degraded.
+    approvals = [flag for tool in load_package(first).tools for flag in ("--approve-tool", tool)]
     assert (
         main(
             [
@@ -42,6 +45,7 @@ def test_cli_build_sign_verify_run_unpack_stage(name, tmp_path, capsys):
                 "fixture",
                 "--trust-key",
                 str(public),
+                *approvals,
                 "--out",
                 str(out),
             ]

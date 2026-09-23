@@ -364,3 +364,40 @@ def test_an_authorization_receipt_does_not_cross_the_version_bump(tmp_path):
             catalog=CATALOG,
         )
     assert stale.value.code in {"receipt_mismatch", "authorization_absent"}
+
+
+# -- the host's contract digests agree with the package's own schemas --------
+def test_the_plugin_built_in_binding_matches_the_shipped_tool_contract():
+    """The host pins a contract; the package declares one. They must agree.
+
+    The plugin states the SHA-256 of the canonical JSON of the Citation
+    Resolver's request and response contract as *its own* claim about the
+    service it implements — deliberately not read from any package, because a
+    binding that derived its contract from the package it is about to serve
+    would confirm nothing. This asserts that the two independently written
+    statements describe the same contract, which is what makes the shipped
+    package's `citation-resolver` `bound` rather than `incompatible` here.
+    """
+    import re
+
+    from agentpkg.package import canonical_json, load_package, sha256
+
+    source = (ROOT / "openclaw-agent-browser/src/tool-registry.ts").read_text()
+    block = source[source.index('toolId: "citation-resolver"') :]
+    declared = {
+        name: re.search(rf'{name}: "([0-9a-f]{{64}})"', block).group(1)
+        for name in ("inputSchemaSha256", "outputSchemaSha256")
+    }
+    package = load_package(DIST["literature-review"])
+    tool = package.tools["citation-resolver"]
+    assert declared["inputSchemaSha256"] == sha256(
+        canonical_json(package.json(tool["input_schema"]))
+    )
+    assert declared["outputSchemaSha256"] == sha256(
+        canonical_json(package.json(tool["output_schema"]))
+    )
+    # ...and the endpoint the host is configured for is one the package itself
+    # declares, so the binding constrains this host rather than widening it.
+    assert 'origin: "https://webagents-citation-resolver-production.up.railway.app"' in block
+    assert 'path: "/resolve"' in block
+    assert tool["domains"] == ["webagents-citation-resolver-production.up.railway.app"]

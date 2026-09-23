@@ -16,6 +16,8 @@
 import { AgentBrowserError } from "./errors.js";
 import type { ControlPlaneClient } from "./control-plane.js";
 import { stillAvailable, type HostCatalog } from "./host-models.js";
+import type { BoundTool } from "./tool-broker.js";
+import type { ToolRegistry } from "./tool-registry.js";
 
 export type PreflightOutcome = {
   /** The bounded run-plan facts a bridge child is allowed to see. */
@@ -32,6 +34,8 @@ export type PreflightOutcome = {
   };
   /** The exact host model id this run may invoke. */
   modelId: string;
+  /** Exactly the tool implementations this run may call, or none. */
+  tools: BoundTool[];
   packageDigest: string;
   archiveSha256: string;
   /** Names of the checks that passed, in the order they ran. */
@@ -49,6 +53,52 @@ function record(value: unknown): Record<string, unknown> {
 
 function str(value: unknown): string {
   return typeof value === "string" ? value : "";
+}
+
+/** The bounded plan facts a probe child receives. No model, by construction. */
+function probeBinding(
+  plan: Record<string, unknown>,
+  planned: Record<string, unknown>,
+  publisher: Record<string, unknown>,
+  execution: Record<string, unknown>,
+  tools: Record<string, unknown>[],
+): Record<string, unknown> {
+  return {
+    run_plan_id: str(plan.run_plan_id),
+    run_plan_sha256: str(plan.run_plan_sha256),
+    session_id: str(plan.session_id),
+    package: {
+      package_id: str(planned.package_id),
+      name: str(planned.name),
+      version: str(planned.version),
+      digest: str(planned.digest),
+      archive_sha256: str(planned.archive_sha256),
+      execution_profile: str(planned.execution_profile),
+    },
+    publisher: {
+      signer_fingerprint: str(publisher.signer_fingerprint),
+      signature_status: str(publisher.signature_status),
+      trust_status: str(publisher.trust_status),
+    },
+    execution: {
+      mode: "tool_probe",
+      profile: str(execution.profile),
+      required_permission_ids: Array.isArray(execution.required_permission_ids)
+        ? execution.required_permission_ids.map(str)
+        : [],
+      required_tool_ids: tools.map((bound) => str(bound.tool_id)).sort(),
+      probe_tool_id: str(execution.probe_tool_id),
+    },
+    tool_bindings: tools,
+  };
+}
+
+function toolApprovalsOf(receipt: Record<string, unknown>): Record<string, boolean> {
+  const approvals: Record<string, boolean> = {};
+  for (const [key, value] of Object.entries(record(receipt.tool_approvals))) {
+    approvals[key] = value === true;
+  }
+  return approvals;
 }
 
 function refuse(detail: string, code: "run_plan_stale" | "probe_refused" = "run_plan_stale"): never {
@@ -75,6 +125,17 @@ export type PreflightOptions = {
    * person to authorize again when it does not.
    */
   minimumReceiptRemainingMs?: number;
+  /**
+   * This host's tool implementations, right now.
+   *
+   * A plan bound one exact implementation of each declared tool. The registry
+   * is re-evaluated against the package through the control plane, and every
+   * binding identity and digest is then compared with the plan here, so a
+   * binding that moved makes the plan stale rather than being substituted.
+   */
+  toolRegistry?: ToolRegistry;
+  /** Refuse a plan whose authority is the other kind. */
+  requireMode?: "model" | "tool_probe";
 };
 
 /**
@@ -110,7 +171,17 @@ export async function revalidate(options: PreflightOptions): Promise<PreflightOu
   revalidated.push("run_plan_readiness", "run_plan_preflight");
 
   const execution = record(plan.execution);
-  if (str(execution.mode) !== "model") refuse("Only a model-backed run plan can be executed.");
+  const mode = str(execution.mode);
+  if (mode !== "model" && mode !== "tool_probe") {
+    refuse("Only a model-backed run plan or a tool probe can be acted on.");
+  }
+  if (options.requireMode && mode !== options.requireMode) {
+    refuse(
+      `This plan is authority for ${mode === "model" ? "a run" : "one tool call"}, not for ` +
+        `${options.requireMode === "model" ? "a run" : "one tool call"}.`,
+      "probe_refused",
+    );
+  }
   if (execution.performed !== false) refuse("This run plan is not in a preflight state.");
   revalidated.push("execution_mode");
 
@@ -185,13 +256,69 @@ export async function revalidate(options: PreflightOptions): Promise<PreflightOu
   const requiredPermissions = Array.isArray(execution.required_permission_ids)
     ? execution.required_permission_ids.map(str)
     : [];
-  if (requiredPermissions.length === 0) refuse("This run mode declares no model permission.");
+  if (mode === "model" && requiredPermissions.length === 0) {
+    refuse("This run mode declares no model permission.");
+  }
   for (const permission of requiredPermissions) {
     if (!granted.has(permission)) {
-      refuse(`A model-backed run needs permission ${permission}, which is not granted.`);
+      refuse(`This plan needs permission ${permission}, which is not granted.`);
     }
   }
   revalidated.push("model_permission_granted");
+
+  // -- the tools it bound are still exactly those implementations ----------
+  const plannedTools = Array.isArray(plan.tool_bindings) ? plan.tool_bindings.map(record) : [];
+  const tools: BoundTool[] = [];
+  if (plannedTools.length > 0) {
+    if (!options.toolRegistry) {
+      refuse("This plan binds host tool implementations and no current registry was supplied.");
+    }
+    const evaluated = record(
+      await client.evaluateTools(sessionId, str(planned.digest), options.toolRegistry),
+    );
+    const live = new Map<string, Record<string, unknown>>();
+    for (const entry of Array.isArray(evaluated.tools) ? evaluated.tools : []) {
+      const tool = record(entry);
+      live.set(str(tool.tool_id), tool);
+    }
+    for (const bound of plannedTools) {
+      const toolId = str(bound.tool_id);
+      const current = live.get(toolId);
+      const binding = record(current?.binding);
+      if (!current || current.binding === null) {
+        refuse(`This host no longer registers an implementation for ${toolId}.`);
+      }
+      if (str(binding.binding_id) !== str(bound.binding_id)) {
+        refuse(`A different implementation now satisfies ${toolId}.`);
+      }
+      if (str(binding.binding_sha256) !== str(bound.binding_sha256)) {
+        refuse(
+          `The host implementation of ${toolId} changed after this plan was prepared, so it is ` +
+            "no longer the one that was approved.",
+        );
+      }
+      if (str(current!.contract_sha256) !== str(bound.contract_sha256)) {
+        refuse(`The contract ${toolId} was matched against is no longer the current one.`);
+      }
+      if (str(current!.status) !== "bound") {
+        refuse(`The host implementation of ${toolId} is now ${str(current!.status)}.`);
+      }
+      if (toolApprovalsOf(receipt)[toolId] !== true) {
+        refuse(`Tool ${toolId} is no longer approved.`);
+      }
+      tools.push({
+        toolId,
+        bindingId: str(bound.binding_id),
+        bindingSha256: str(bound.binding_sha256),
+        remote: bound.remote === true,
+        timeoutSeconds:
+          typeof bound.timeout_seconds === "number" && bound.timeout_seconds > 0
+            ? bound.timeout_seconds
+            : 60,
+      });
+    }
+    revalidated.push("tool_bindings", "tool_approvals");
+  }
 
   const decisions: Record<string, string> = {};
   for (const [key, value] of Object.entries(record(receipt.decisions))) {
@@ -203,8 +330,31 @@ export async function revalidate(options: PreflightOptions): Promise<PreflightOu
   }
 
   // -- the model is still the model the person chose, and still usable -----
+  // A tool probe binds none, so there is nothing to re-check and nothing a
+  // router could be constructed from.
   const binding = record(plan.model_binding);
   const modelId = str(binding.host_model_id);
+  if (mode === "tool_probe") {
+    revalidated.push("no_model_bound");
+    return {
+      modelId: "",
+      tools,
+      packageDigest: str(planned.digest),
+      archiveSha256: str(planned.archive_sha256),
+      revalidated,
+      plan,
+      authorization: {
+        receiptId: str(receipt.receipt_id),
+        receiptSha256: str(receipt.receipt_sha256),
+        issuedAt: str(receipt.issued_at) || null,
+        expiresAt: str(receipt.expires_at) || null,
+        decisions,
+        toolApprovals,
+        remainingMs,
+      },
+      binding: probeBinding(plan, planned, plannedPublisher, execution, plannedTools),
+    };
+  }
   if (!modelId) refuse("The run plan binds no host model.");
   if (!stillAvailable(catalog, modelId)) {
     throw new AgentBrowserError(
@@ -232,6 +382,7 @@ export async function revalidate(options: PreflightOptions): Promise<PreflightOu
 
   return {
     modelId,
+    tools,
     packageDigest: str(planned.digest),
     archiveSha256: str(planned.archive_sha256),
     revalidated,
@@ -266,7 +417,11 @@ export async function revalidate(options: PreflightOptions): Promise<PreflightOu
         mode: "model",
         profile: str(execution.profile),
         required_permission_ids: requiredPermissions,
+        required_tool_ids: plannedTools.map((bound) => str(bound.tool_id)).sort(),
       },
+      // Exactly the binding records the plan froze, unchanged. No credential,
+      // no header and no request template is among them.
+      tool_bindings: plannedTools,
       // Exactly the descriptor fields the router needs to bind itself. No
       // endpoint, credential, receipt body or catalog travels to the child.
       model_binding: {

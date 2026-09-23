@@ -244,14 +244,29 @@ export class ControlPlaneClient {
     return this.request(`/v0/packages/${segment(sessionId, SESSION_ID, "session id")}/models`);
   }
 
+  /** What this package asks a host to implement, host-neutrally. */
+  toolRequirements(sessionId: string): Promise<unknown> {
+    return this.request(`/v0/packages/${segment(sessionId, SESSION_ID, "session id")}/tools`);
+  }
+
+  /** Evaluate a host-supplied tool registry against one open package. */
+  evaluateTools(sessionId: string, packageDigest: string, registry: unknown): Promise<unknown> {
+    return this.request(
+      `/v0/packages/${segment(sessionId, SESSION_ID, "session id")}/tools/evaluate`,
+      { method: "POST", body: { package_digest: packageDigest, tool_registry: registry } },
+    );
+  }
+
   prepareRunPlan(
     sessionId: string,
     body: {
       packageDigest: string;
       receiptId: string;
-      modelId: string;
+      modelId?: string;
       executionMode: string;
       catalog: unknown;
+      toolRegistry?: unknown;
+      probeToolId?: string;
     },
   ): Promise<unknown> {
     return this.request(`/v0/packages/${segment(sessionId, SESSION_ID, "session id")}/run-plan`, {
@@ -259,10 +274,12 @@ export class ControlPlaneClient {
       body: {
         package_digest: body.packageDigest,
         receipt_id: body.receiptId,
-        model_id: body.modelId,
+        ...(body.modelId === undefined ? {} : { model_id: body.modelId }),
         execution_mode: body.executionMode,
         binding_strategy: "single_model",
         catalog: body.catalog,
+        ...(body.toolRegistry === undefined ? {} : { tool_registry: body.toolRegistry }),
+        ...(body.probeToolId === undefined ? {} : { probe_tool_id: body.probeToolId }),
       },
     });
   }

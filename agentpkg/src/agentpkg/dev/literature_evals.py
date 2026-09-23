@@ -242,7 +242,12 @@ async def run_evals(package) -> dict:
             check(cid, True, "The runtime denied dispatch before the forbidden tool action.")
         else:
             check(cid, False, "Forbidden action was not rejected.")
-    runtime = Runtime(package, grants=FIXTURE_GRANTS, handlers=make_fixture_handlers(fixture))
+    runtime = Runtime(
+        package,
+        grants=FIXTURE_GRANTS,
+        handlers=make_fixture_handlers(fixture),
+        approved_tools=sorted(package.tools),
+    )
 
     async def empty(ctx, inputs):
         return {"candidate_papers": []}

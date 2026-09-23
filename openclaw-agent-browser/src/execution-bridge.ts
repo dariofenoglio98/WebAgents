@@ -36,6 +36,7 @@ import { ChildBridge, type BridgeLimits } from "./bridge-core.js";
 import { AgentBrowserError } from "./errors.js";
 import type { HostLlm } from "./host-llm.js";
 import type { Logger } from "./service.js";
+import type { ToolBroker } from "./tool-broker.js";
 
 export const EXECUTION_PROTOCOL_VERSION = "agentpkg-execution/0.1";
 /** Methods this process may ask the runner to perform. */
@@ -44,6 +45,7 @@ export const EXECUTION_METHODS = new Set([
   "execution.run",
   "execution.cancel",
   "execution.end",
+  "execution.tool_probe",
 ]);
 
 export const DEFAULT_EXECUTION_LIMITS: BridgeLimits = {
@@ -65,6 +67,14 @@ export type ExecutionBridgeOptions = {
   /** The run's artifact directory, opened by the caller. Closed after spawn. */
   artifactsFd: number;
   limits?: Partial<BridgeLimits>;
+  /**
+   * This run's tool authority: exactly the bindings its plan froze.
+   *
+   * Without one the bridge has no tool vocabulary at all — `tool.call` is not
+   * in its inbound method set — so a package that got as far as asking would
+   * end the session rather than receive a refusal it might retry.
+   */
+  broker?: ToolBroker;
   /** Test seam; defaults to node:child_process.spawn. */
   spawnImpl?: typeof spawn;
 };
@@ -96,11 +106,14 @@ export class ExecutionBridge extends ChildBridge {
       logger: options.logger,
       limits: { ...DEFAULT_EXECUTION_LIMITS, ...(options.limits ?? {}) },
       extraFds: fds,
+      ...(options.broker ? { broker: options.broker } : {}),
       // A refusal from the runner is a decision, not a transport failure: the
       // package declared something this host will not run, the consent could
       // not be honoured, or the input did not satisfy the package's own schema.
       mapError: (code, message) =>
-        code.startsWith("execution_") || code === "tools_not_supported"
+        code.startsWith("execution_") ||
+        code === "tools_not_supported" ||
+        code.startsWith("tool_")
           ? new AgentBrowserError(
               "execution_refused",
               "The run was refused",
@@ -137,6 +150,29 @@ export class ExecutionBridge extends ChildBridge {
       const result = await this.call("execution.run", {});
       await this.call("execution.end", {});
       return { begin, result };
+    });
+  }
+
+  /**
+   * Bind the plan and make exactly one mediated tool call.
+   *
+   * The same session shape as `run`, with `execution.run` replaced by one
+   * `execution.tool_probe`. The child refuses to do both, so this cannot
+   * become a quiet way to run a graph.
+   */
+  async probe(
+    request: ExecutionRequest,
+    tool: { toolId: string; args: unknown },
+  ): Promise<{ begin: Record<string, unknown>; report: Record<string, unknown> }> {
+    return this.session(async () => {
+      const begin = await this.call("execution.begin", { ...request });
+      this.begun = true;
+      const report = await this.call("execution.tool_probe", {
+        tool_id: tool.toolId,
+        args: tool.args,
+      });
+      await this.call("execution.end", {});
+      return { begin, report };
     });
   }
 

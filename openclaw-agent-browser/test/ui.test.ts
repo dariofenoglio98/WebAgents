@@ -6,6 +6,9 @@
  * permissions, and no run action anywhere.
  */
 // @vitest-environment happy-dom
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mountAgentBrowser } from "../src/ui/page.js";
 import {
@@ -792,3 +795,22 @@ describe("model selection", () => {
   });
 });
 
+describe("what the page will not do", () => {
+  it("calls no execution or probe operation, even now that tools can run", () => {
+    // The page reads what this host implements and renders it. It has no Run
+    // action, and it has no way to make a tool call either: a static scan of
+    // the page's own source, so a future edit cannot quietly add one.
+    const here = dirname(fileURLToPath(import.meta.url));
+    const source = readFileSync(join(here, "..", "src", "ui", "page.ts"), "utf8");
+    for (const operation of [
+      "execution.start",
+      "execution.tool-probe",
+      "execution.cancel",
+      "router.probe",
+    ]) {
+      expect(source).not.toContain(operation);
+    }
+    // ...and it reads the registry, which is the only new thing it does.
+    expect(source).toContain("tools.evaluate");
+  });
+});

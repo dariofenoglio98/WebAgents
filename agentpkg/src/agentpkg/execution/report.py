@@ -59,9 +59,7 @@ def audit_summary(audit: list) -> dict:
     actions = Counter(event["action"] for event in audit)
     workers = sorted({event["worker"] for event in audit if event.get("worker")})
     nodes = [event for event in audit if event.get("action") == "node.completed"]
-    models = Counter(
-        event["model"] for event in audit if event.get("action") == "model.completed"
-    )
+    models = Counter(event["model"] for event in audit if event.get("action") == "model.completed")
     tasks = Counter(event["task"] for event in audit if event.get("action") == "model.completed")
     return {
         "chain": verify_audit_chain(audit),
@@ -119,9 +117,7 @@ def model_evidence(router, planned_model: str) -> dict:
         "response_models": sorted(
             {item.get("response_model") for item in invocations if item.get("response_model")}
         )[:MAX_MODELS],
-        "constrained_by_host": all(
-            item.get("constrained_by_host") is True for item in invocations
-        )
+        "constrained_by_host": all(item.get("constrained_by_host") is True for item in invocations)
         if invocations
         else None,
         "token_bound_basis": sorted(

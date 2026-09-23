@@ -13,6 +13,9 @@ it. Model discovery and selection are documented separately in [model selection
 and the run plan](model-selection-and-run-plan.md).
 
 Two operator-only surfaces sit behind the page and are not rendered by it.
+`execution.tool-probe` re-verifies a ready plan and makes one mediated call to
+one tool the package declares, through the implementation the plan bound; see
+[the tool broker](tool-broker.md).
 `router.probe` re-verifies a ready plan and makes a single host-owned model call
 to prove the `ModelRouter` contract; no package skill, node, worker or tool takes
 part in it ([the model-router bridge](model-router-bridge.md)). The `execution.*`
@@ -146,6 +149,7 @@ not by this plugin.
 | `packages.permissions` | query | The authorization request, all decisions defaulting to deny |
 | `packages.authorization` | query | The receipt issued for a session, or null |
 | `models.evaluate` | query | This host's models, evaluated against the open package |
+| `tools.evaluate` | query | This host's tool implementations, evaluated against the package's declarations |
 | `run-plan.get` | query | The prepared run plan plus a freshly recomputed preflight |
 | `execution.status` | query | *Operator only.* A session's ephemeral run records, and the active one |
 | `execution.get` | query | *Operator only.* One run record |
@@ -158,6 +162,7 @@ not by this plugin.
 | `run-plan.prepare` | action | Bind package + authorization + one chosen model into a run plan |
 | `run-plan.clear` | action | Discard the prepared run plan |
 | `router.probe` | action | *Operator only.* Prove the router contract with one host-owned call |
+| `execution.tool-probe` | action | *Operator only.* Make one mediated call to one declared tool, with a host-owned fixture and no model |
 | `execution.start` | action | *Operator only.* Run the signed package on the model its plan bound |
 | `execution.cancel` | action | *Operator only.* Stop a running workflow |
 | `execution.clear` | action | *Operator only.* Forget finished run records |
@@ -307,9 +312,12 @@ it.
   `executionPerformed: false` after a run, because a plan never performs
   anything. Execution itself now exists, operator-only: see [package
   execution](package-execution.md).
-* **No package tool ever runs.** The execution host installs no `ToolHandler`, so
-  a package declaring a tool — including Literature Review — is refused before
-  any token. No Citation Resolver call, Crossref call or PDF read happens.
+* **No package tool runs from the page.** The page reads what this host
+  implements for each declared tool and renders it beside the declaration and
+  the approval; it calls none. Tool execution exists, operator-only, behind
+  [the tool broker](tool-broker.md), and a tool this host has no implementation
+  for is refused by name — `scholarly-search` and `paper-reader` still are, so
+  Literature Review cannot be run here.
 * **No model inference from the page.** Model *discovery* is allowed and
   *selection* is offered; the page calls no model. The operations that do —
   operator-only `router.probe` and `execution.start` — send host-owned or

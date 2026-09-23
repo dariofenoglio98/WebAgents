@@ -175,6 +175,16 @@ def parser():
         help="Required for live mode; validates the archive publisher before dispatch",
     )
     run.add_argument(
+        "--approve-tool",
+        action="append",
+        default=[],
+        metavar="TOOL_ID",
+        help=(
+            "Approve one declared tool, repeatable. A granted permission is not an approval: "
+            "the runtime refuses to dispatch any declared tool without one"
+        ),
+    )
+    run.add_argument(
         "--selected-files", help="Host JSON map of selected file IDs to local PDF paths"
     )
     run.add_argument(
@@ -379,7 +389,19 @@ def _dispatch(args):
         )
         if command == "run" and args.input:
             input_value = _json_file(args.input, None)
-        options = dict(grants=grants, handlers=handlers, router=router)
+        # The operator is the host here. `run` requires each tool to be named,
+        # because approving a tool is a separate decision from granting the
+        # permission it travels under. `eval` runs the package's own declared
+        # fixtures under blanket consent, which is already what its grants say.
+        approved = (
+            sorted(set(args.approve_tool or ())) if command == "run" else sorted(package.tools)
+        )
+        unknown = sorted(set(approved) - set(package.tools))
+        if unknown:
+            raise AgentPkgError(
+                f"--approve-tool names tools this package does not declare: {unknown}"
+            )
+        options = dict(grants=grants, handlers=handlers, router=router, approved_tools=approved)
         if command == "run" and args.limits:
             options["limits"] = _json_file(args.limits)
         if args.out:
@@ -407,6 +429,7 @@ def _dispatch(args):
             "profile": "workflow.v0",
             "output_directory": args.out,
             "usage": result["usage"],
+            "approved_tools": approved,
             "fixture_replay": mode == "fixture",
             "passed": result["status"] == "completed",
         }

@@ -460,7 +460,9 @@ def test_the_model_routes_evaluate_a_host_catalog(service):
     session, digest, _ = _authorized_session(service)
     status, requirements = call(service, "GET", f"/v0/packages/{session}/models")
     assert status == 200
-    assert requirements["execution_modes"] == ["model"]
+    # A model-backed run, and the strictly smaller authority to make one
+    # mediated tool call. Neither can stand in for the other.
+    assert requirements["execution_modes"] == ["model", "tool_probe"]
     assert requirements["mode_required_permission_ids"]["model"] == ["model.reasoning"]
 
     status, evaluation = call(
