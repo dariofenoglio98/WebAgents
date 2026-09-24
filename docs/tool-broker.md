@@ -26,11 +26,18 @@ the host decides, what the person authorizes, and what finally runs.
   OpenClaw tool broker                    ← the trusted host half
        │  resolve the triple, then dispatch
        ▼
-  the one approved implementation         ← json_http, or local_builtin
+  the one approved implementation         ← json_http, local_builtin or selected_file
        │
        ▼
   result, validated twice                 ← by the host, then by the package
 ```
+
+> **3B4 update.** All three tools the Literature Review package declares now
+> have a host implementation: `citation-resolver` (unchanged), `scholarly-search`
+> (one fixed Crossref query, §3a) and `paper-reader` (one PDF the person
+> selected for the run, §3b). Adding them added two *entries*, one *adapter* and
+> one *category* — the smallest generic extensions, explained where they occur.
+> The broker's architecture is otherwise the one below.
 
 ## 1. Three objects, three jobs
 
@@ -117,16 +124,118 @@ credential value, request template, query parameter, second endpoint or local
 command has anywhere to travel; an unknown field is refused with
 `unknown_field` rather than dropped.
 
-There are two **implementation kinds**, and they are categories rather than a
-service list:
+There are three **implementation kinds**, and they are categories rather than
+a service list:
 
-* `json_http` — one exact JSON request to one exact configured origin, path and
-  method, under the transport policy in §7;
+* `json_http` — one exact HTTPS request to one exact configured origin, path and
+  method, under the transport policy in §7. *What* that request carries and how
+  its answer is read is an **adapter** named by `implementation_id` (§3a);
 * `local_builtin` — an implementation that ships with the plugin and performs
-  no I/O.
+  no I/O;
+* `selected_file` — a local implementation that reads **only** files the person
+  explicitly selected for this run, through opaque host-held capabilities
+  (§3b). It can name no path, reach no network and write nothing.
 
-Adding a service adds an *entry*. Adding a way of reaching services would add a
-kind, and there are two.
+Adding a service adds an *entry*. Adding a way of reaching resources adds a
+kind: reading a person's own selected file is a different kind of reach from
+calling a service or computing in memory, which is why `selected_file` is the
+one kind 3B4 added.
+
+`limits` gained one optional field, `min_interval_ms`: the spacing a service
+itself requires between call starts (§7a). It is part of what a binding would
+do, so it is part of the binding digest.
+
+### 3a. Adapters: the package controls values, the host controls the shape
+
+A `json_http` binding's request shape is code in `src/tool-adapters.ts`, chosen
+by the binding's `implementation_id` — never by anything a package says. Two
+adapters exist:
+
+| `implementation_id` | Sends | Believes |
+|---|---|---|
+| `openclaw.tool.json_http` | the package's arguments as the JSON body of one POST | 200/400/404/422/502 bodies as data for the package's own schema (the Citation Resolver's contract) |
+| `openclaw.tool.crossref_works_search` | `GET /works?query.bibliographic=<query>&rows=<limit>&select=<fixed list>&filter=<fixed work types>` | only 200; 429/5xx/401/403 are `tool_unavailable`, anything else `tool_transport_error` |
+
+The Crossref adapter reads exactly two argument names, `query` (1–500
+characters of text) and `limit` (1–20), and refuses any other name with
+`tool_request_invalid`, so a package cannot add `select=reference`,
+`query.author=` or a path. Values are percent-encoded as values; parameter
+names, the path, the method, the selected fields, the filter and the headers
+are constants.
+
+The filter (`type:journal-article,type:proceedings-article,type:posted-content,
+type:book-chapter,type:book,type:monograph,type:report,type:dissertation`,
+added in implementation 0.2.0) asks only for works in their own right. Without
+it, Crossref's relevance ranking fills a small page with supplementary files
+(`component`), reviews *of* other papers (`peer-review`) and datasets — none of
+which a review can screen or cite — and a live survey of this milestone's
+queries found such records in the top five for most of them. It is a property
+of what the host means by "scholarly search", not something a package can
+widen or narrow.
+The descriptor carries no template: the mapping is identified by
+`implementation_id` and `implementation_version`, both in the binding digest,
+and a test fingerprints the mapping so it cannot change without a version bump.
+
+The answer is reduced to the declared `search-output` contract — `papers[]`
+with `title, doi, arxiv_id, authors, year, venue, abstract, url, source,
+provenance`, plus `query`, `source` and `skipped_records` — and nothing else
+from Crossref reaches the package. Missing fields are `null`, never invented;
+a record without a title is counted in `skipped_records`, not guessed; DOIs are
+lowercased, as the Citation Resolver stores them.
+
+Markup (`<jats:p>`, `&amp;`, `&#x2013;`) is rendered to text **exactly as the
+Citation Resolver renders the same Crossref fields** — its `clean_text` is
+CPython 3.13's `HTMLParser` data path without `close()`, then `html.unescape`,
+then whitespace collapse. `src/html-text.ts` ports those steps, with CPython's
+WHATWG tables generated verbatim into `src/html-entities.ts`, and is checked
+against 141 vectors produced by the resolver's own function (curated edge cases
+plus every text field of a real Crossref response). This matters because a
+later package step requires evidence quotes to occur verbatim in the resolver's
+copy of an abstract: two renderings of one record that differed by one
+character would refuse a correct run. CPython's quirks are kept, not fixed —
+`"Q&A"` renders as nothing because a trailing reference-shaped `&` is withheld
+when `close()` is never called, and the resolver does the same.
+
+### 3b. Selected-file capabilities
+
+`paper-reader` can read a file only if the person selected it, for this package
+session, and the run was given it:
+
+```text
+ operator selects /abs/path/paper.pdf     files.select-local — inside localFiles.roots only
+      │  lstat: regular file, not a symlink; realpath inside a root;
+      │  open O_NOFOLLOW; same inode as checked; ≤ 20 MiB; %PDF- magic
+      ▼
+ immutable private copy                   0400 file in the plugin's 0700 state dir
+      │  SHA-256 and size recorded
+      ▼
+ opaque capability  file_<32 hex>         bound to one session; expires; released with it
+      │  named in execution.start's `files`, and bound into the Run Invocation
+      ▼
+ this run's broker                        refuses every other string before opening anything,
+      │                                   re-reads the copy, re-checks size and hash
+      ▼
+ agentpkg host-pdf-read                   bytes on stdin, JSON on stdout, nothing else
+```
+
+A package can only ever put a *string* in `file_id`. `/etc/passwd`, `../x.pdf`,
+`~/paper.pdf`, `file://…`, the original path and another session's id all get
+the same `tool_request_invalid` before any file is opened, and the refusal never
+echoes a path. No path or directory reaches a package, a run plan, an audit, a
+report, a model or a result; the Run Invocation records `attachments` as
+`{file_id, sha256, bytes, media_type}` only.
+
+The parser is a separate process in a fifth trusted namespace,
+`agentpkg.hostfiles`, which `execution`, `toolbridge`, `hostbridge` and
+`browser` cannot import. It is given bytes and a minimal environment (no
+credential, no proxy setting), refuses a non-pipe stdout, caps its own CPU,
+address space (where the kernel allows) and file size (zero), and refuses
+encrypted documents, more than 100 pages, more than 64 KiB of text on one page
+or 256 KiB in total. It does no OCR, renders nothing, runs no script, follows no
+link and extracts no attachment. The broker adds a wall-clock deadline, SIGKILL
+on cancellation, an output byte cap, and a check that the parser's answer
+describes the exact bytes it was sent. The legacy development CLI's killable
+child now calls the same parser function, so there is one parser, not two.
 
 ## 4. The binding digest
 
@@ -239,6 +348,27 @@ its `paper-reader` steps are conditional.
 The address classification mirrors `agentpkg.netaddr.public_address_reason`,
 because a second transport with a weaker rule would be the hole the first one
 closed.
+
+A run cancelled while its destination is still being resolved is refused
+before the request is sent, whatever a transport would do with a dead signal.
+
+### 7a. Concurrency and pacing
+
+A binding serves at most `max_concurrent` calls at once and, when its service
+states a rate limit, spaces call starts by `min_interval_ms`. A call that
+cannot start yet **waits its turn** (first in, first out) instead of being
+refused, bounded by cancellation and by the binding's own deadline; a waiter
+that gives up holds no slot. The pacer is per binding and per process, because
+a service's limits apply to this host rather than to one run. Nothing here
+retries a request.
+
+This changed one behaviour: before 3B4 a call arriving while a binding was at
+its limit was refused with `tool_unavailable`, which would have failed any run
+whose graph legitimately runs more workers than a binding serves at once (three
+evidence workers against a two-at-a-time reader). Crossref's public pool
+answers every request with `x-concurrency-limit: 1` and one request per second,
+and answers 429 to clients that ignore it, so the shipped Crossref binding sets
+`max_concurrent: 1, min_interval_ms: 1000`.
 
 ## 8. Credentials
 
@@ -426,19 +556,26 @@ name. It **cannot** add an implementation for a tool this plugin has no code
 for: that is refused with a `binding_unknown` note. An unsafe origin is refused
 with `binding_config_rejected` and the built-in is kept.
 
-Two implementations ship:
+Four implementations ship:
 
-| Tool | Kind | Runs |
-|---|---|---|
-| `test.echo` | `local_builtin` | returns its input; no I/O at all |
-| `citation-resolver` | `json_http` | `POST https://webagents-citation-resolver-production.up.railway.app/resolve` |
+| Tool | Kind | Implementation | Runs |
+|---|---|---|---|
+| `test.echo` | `local_builtin` | `openclaw.tool.echo` | returns its input; no I/O at all |
+| `citation-resolver` | `json_http` | `openclaw.tool.json_http` | `POST https://webagents-citation-resolver-production.up.railway.app/resolve` |
+| `scholarly-search` | `json_http` | `openclaw.tool.crossref_works_search` | `GET https://api.crossref.org/works` with two value parameters and two fixed ones; 1 at a time, ≥ 1 s apart |
+| `paper-reader` | `selected_file` | `openclaw.tool.selected_pdf_text` | page text of one selected PDF, via `agentpkg host-pdf-read` |
 
-The Citation Resolver binding states its own schema digests as *this host's*
-claim about the service contract it speaks — deliberately not read from any
-package. `test_shipped_artifacts.py` asserts that this independent statement
-equals the digests of the schemas the shipped Literature Review package
-declares, which is how "the host and the package agree" is established rather
-than assumed.
+Each binding states its own schema digests as *this host's* claim about the
+contract its code speaks — deliberately not read from any package.
+`test_shipped_artifacts.py` asserts, for all three Literature Review tools, that
+this independent statement equals the digests of the schemas the shipped
+package declares, and that a remote binding's origin, path and method are the
+ones the package itself declares. That is how "the host and the package agree"
+is established rather than assumed.
+
+`localFiles.roots` names the directories an operator may select PDFs from. It
+is empty by default — no file is selectable until an operator names one — and
+the workspace is never implied.
 
 ## 16. The tool probe
 
@@ -453,6 +590,17 @@ or arguments, because every byte it sends is written in
 alternative would be inventing a request for a service whose contract this host
 has not written down.
 
+Two optional fields were added in 3B4, both host-side choices:
+
+* `fileId` — for a file-reading fixture (`selected-pdf`), the opaque id of a
+  capability the operator selected in the probing session. The fixture's only
+  argument becomes that id; the caller never writes a path or a value;
+* `role` — the declared role to attribute the call to, required only when more
+  than one role declares the tool (the review package's `ScreeningWorker` and
+  `EvidenceWorker` both declare `paper-reader`). The runner checks the role
+  declares the tool with approved authority; the report records
+  `role_named_by_host`. The probe still never chooses an authority itself.
+
 **What it proves, and what it does not.** No `Workflow` is instantiated, no
 graph node executes, no skill text is read and no model router is constructed,
 so a model call is impossible rather than merely absent. It does spawn
@@ -465,11 +613,10 @@ rather than one that reads as the other.
 
 ## 17. What is still not implemented
 
-* `scholarly-search` and `paper-reader` have **no host implementation**. The
-  reference review package therefore cannot run here, and says so by name;
-* no local shell, filesystem or command adapter exists, and none is designed —
-  `local_builtin` is a category for implementations that ship with the host and
-  perform no I/O;
+* no local shell or command adapter exists, and none is designed. The one
+  filesystem reach is `selected_file`: explicitly selected PDFs, by capability;
+* file selection is an operator operation (`files.select-local`) over
+  configured roots; a browser upload path is future work for the run surface;
 * no agent-kind tool binding, no remote-agent execution, no registry federation
   and no discovery;
 * redirects, proxies, cookies and ambient credentials remain unimplemented

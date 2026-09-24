@@ -19,6 +19,7 @@ import { AGENTPKG_BIN, DIST, HOST_CONFIG_WITH_MODEL_OVERRIDE, hasAgentpkg } from
 const runs = hasAgentpkg();
 const log = { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} };
 const AGENDA = join(DIST, "meeting-agenda.agent.pkg");
+const REVIEW = join(DIST, "literature-review.agent.pkg");
 
 type Row = Record<string, unknown>;
 
@@ -88,9 +89,9 @@ function expectError(
 }
 
 /** Trust, authorize, evaluate and prepare — the path a person takes in the UI. */
-async function prepared(modelId = "acme/big") {
-  const view = unwrap(await backend.openLocal(AGENDA));
-  await backend.pinSessionPublisher(view.sessionId, view.publisher.signerFingerprint!, "publisher");
+async function prepared(modelId = "acme/big", artifact = AGENDA) {
+  const view = unwrap(await backend.openLocal(artifact));
+  await backend.pinSessionPublisher(view.sessionId, view.publisher.signerFingerprint!, "package");
   const refreshed = unwrap(await backend.getPackage(view.sessionId));
   const permissions = unwrap(await backend.getPermissions(view.sessionId));
   const receipt = unwrap(
@@ -101,6 +102,8 @@ async function prepared(modelId = "acme/big") {
         permissionId: item.id,
         decision: "session" as const,
       })),
+      // A declared tool needs its own approval before a plan can bind it.
+      permissions.toolApprovals.map((item) => ({ toolId: item.toolId, approved: true })),
     ),
   );
   await backend.evaluateModels(view.sessionId);
@@ -143,6 +146,21 @@ describe.runIf(runs)("the developer router probe", () => {
     await backend?.stop();
     await rm(stateDir, { recursive: true, force: true });
   });
+
+  it("probes a plan that binds host tools, re-checking the bindings and calling none", async () => {
+    const { sessionId, plan } = await prepared("acme/big", REVIEW);
+    expect(plan.toolBindings.length).toBeGreaterThan(0);
+    const report = unwrap(
+      await backend.probeRouter(sessionId, plan.runPlanId, plan.runPlanSha256),
+    );
+    expect(report.status).toBe("ok");
+    expect(report.model.invoked).toBe("acme/big");
+    expect(report.workflowExecuted).toBe(false);
+    // The bindings were revalidated against this host's live registry.
+    expect(report.revalidated.some((item) => item.includes("tool"))).toBe(true);
+    // One host-owned completion and nothing else: no tool was reached.
+    expect(stub.calls).toHaveLength(1);
+  }, 120_000);
 
   it("proves the router contract against the model the plan bound", async () => {
     const { sessionId, plan } = await prepared();

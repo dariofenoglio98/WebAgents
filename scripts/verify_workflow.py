@@ -18,10 +18,10 @@ from jsonschema import Draft202012Validator, FormatChecker
 
 ROOT = Path(__file__).resolve().parents[1]
 
-# The shipped artifacts no longer share one signer. `meeting-agenda` 0.2.1
-# carries a rotated development key; `literature-review` carries the original.
+# The shipped artifacts no longer share one signer: `meeting-agenda` 0.2.1 and
+# `literature-review` 0.2.1 each carry a package-specific development key.
 SHIPPED_SIGNER_KEY = {
-    "literature-review": ROOT / "examples/keys/workflow-publisher.pub.pem",
+    "literature-review": ROOT / "examples/keys/literature-review-publisher.pub.pem",
     "meeting-agenda": ROOT / "examples/keys/meeting-agenda-publisher.pub.pem",
 }
 

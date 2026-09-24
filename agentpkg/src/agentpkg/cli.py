@@ -145,6 +145,13 @@ def parser():
             "directory on fd 4; stdout carries protocol frames only"
         ),
     )
+    commands.add_parser(
+        "host-pdf-read",
+        help=(
+            "Extract bounded page text from PDF bytes on stdin and write one JSON document to "
+            "stdout. Spawned by a trusted host tool broker per call; it opens no file"
+        ),
+    )
     trust = commands.add_parser(
         "trust", help="Manage the operator-controlled publisher trust store"
     )
@@ -333,6 +340,13 @@ def _dispatch(args):
         from .execution import serve as serve_execution
 
         return _Exit(asyncio.run(serve_execution()))
+    if command == "host-pdf-read":
+        # A trusted host capability, not a package operation: bytes arrive on
+        # stdin from the broker that holds the person's selection, and the
+        # answer is the only thing written to stdout.
+        from .hostfiles import serve_stdin
+
+        return _Exit(serve_stdin())
     if command == "install-openclaw":
         from .openclaw import stage_openclaw
 

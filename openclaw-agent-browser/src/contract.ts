@@ -188,6 +188,8 @@ export const ServiceStatus = Obj({
   executionSupported: Type.Literal(false),
   /** Whether the operator-only execution operations can run a package here. */
   executionOperations: Type.Optional(Type.Boolean()),
+  /** Whether an operator can select local files for a run (operator-only; not the page). */
+  fileSelection: Type.Optional(Type.Boolean()),
 });
 export type ServiceStatusView = Static<typeof ServiceStatus>;
 
@@ -917,6 +919,56 @@ export const RunArtifact = Obj({
   sha256: Text(128),
 });
 
+/**
+ * What a run was asked, as the person's own task: the workflow input and the
+ * selected files it was given. Never a path, never package output.
+ *
+ * The input is echoed only when it is small; a larger one is identified by its
+ * hash and size, which the invocation already binds.
+ */
+export const RunTaskView = Obj({
+  inputBytes: Type.Integer({ minimum: 0 }),
+  input: Type.Optional(Type.Unknown()),
+  attachments: Type.Array(
+    Obj({
+      fileId: Text(64),
+      sha256: Text(128),
+      bytes: Type.Integer({ minimum: 0 }),
+      mediaType: Text(64),
+    }),
+    { maxItems: 16 },
+  ),
+});
+export type RunTaskViewType = Static<typeof RunTaskView>;
+
+/**
+ * Live progress of a running workflow, derived by the runner from the audit
+ * events it has already recorded. Identifiers and counts only: no prompt, no
+ * model output, no tool payload.
+ */
+export const RunProgressView = Obj({
+  updatedAt: Text(64),
+  events: Type.Integer({ minimum: 0 }),
+  lastAction: Nullable(Text(64)),
+  activeNodes: Type.Array(Text(200), { maxItems: 64 }),
+  completedNodes: Type.Array(Text(200), { maxItems: 128 }),
+  failedNodes: Type.Array(Text(200), { maxItems: 64 }),
+  nodesCompleted: Type.Integer({ minimum: 0 }),
+  stepsCompleted: Type.Integer({ minimum: 0 }),
+  workersSpawned: Type.Integer({ minimum: 0 }),
+  workersActive: Type.Integer({ minimum: 0 }),
+  peakParallelWorkers: Type.Integer({ minimum: 0 }),
+  activeWorkers: Type.Array(Text(128), { maxItems: 64 }),
+  modelCallsStarted: Type.Integer({ minimum: 0 }),
+  modelCallsCompleted: Type.Integer({ minimum: 0 }),
+  toolCallsStarted: Type.Integer({ minimum: 0 }),
+  toolCallsCompleted: Type.Integer({ minimum: 0 }),
+  tokens: Type.Integer({ minimum: 0 }),
+  remoteCalls: Type.Integer({ minimum: 0 }),
+  elapsedMs: Type.Number({ minimum: 0 }),
+});
+export type RunProgressViewType = Static<typeof RunProgressView>;
+
 export const RunUsageView = Obj({
   tokens: Type.Integer(),
   remoteCalls: Type.Integer(),
@@ -991,6 +1043,7 @@ export const RunRecordView = Obj({
       maxParallelWorkers: Type.Integer(),
       maxOutputTokensPerCall: Type.Integer(),
       runTimeoutSeconds: Type.Integer(),
+      modelCallTimeoutSeconds: Type.Integer(),
     }),
     effectiveDeadlineSeconds: Nullable(Type.Integer()),
   }),
@@ -1029,14 +1082,22 @@ export const RunRecordView = Obj({
   cancelRequested: Type.Boolean(),
   errorCode: Nullable(Text(64)),
   errorDetail: Nullable(Text(LIMITS.text)),
-  /** What the preflight re-verified before a single token was spent. */
-  revalidated: Type.Array(Text(64), { maxItems: 32 }),
+  /**
+   * What the preflight re-verified before a single token was spent, then what
+   * the runner verified for itself: at most ~26 preflight checks, the input
+   * size, 16 runner facts, the handler count and one entry per bound tool (16).
+   */
+  revalidated: Type.Array(Text(64), { maxItems: 64 }),
   packageExecution: Obj({
     workflowInstantiated: Type.Boolean(),
     packageInstructionsLoaded: Type.Boolean(),
     toolHandlersInstalled: Type.Integer({ minimum: 0 }),
     toolCalls: Type.Integer(),
   }),
+  /** What was asked: the workflow input (when small) and the selected files given. */
+  task: Type.Optional(RunTaskView),
+  /** Live, while running; the last snapshot afterwards. Null before the first. */
+  progress: Type.Optional(Nullable(RunProgressView)),
   /** Which implementation each declared tool was bound to, and how often used. */
   tools: Type.Array(
     Obj({
@@ -1142,7 +1203,7 @@ export const RouterProbeView = Obj({
     exportsWritten: Type.Literal(0),
   }),
   /** What was re-verified between reading the plan and spending a token. */
-  revalidated: Type.Array(Text(64), { maxItems: 32 }),
+  revalidated: Type.Array(Text(64), { maxItems: 40 }),
 });
 export type RouterProbeViewType = Static<typeof RouterProbeView>;
 
@@ -1193,6 +1254,8 @@ export const ToolProbeView = Obj({
   }),
   authority: Obj({
     role: Id(),
+    /** Whether the operator named the role, because more than one declares the tool. */
+    roleNamedByHost: Type.Optional(Type.Boolean()),
     workerContext: Type.Boolean(),
     approved: Type.Literal(true),
     grants: Type.Array(Obj({ permissionId: Id(), decision: Text(32) }), {
@@ -1201,7 +1264,12 @@ export const ToolProbeView = Obj({
     permissionChecks: Type.Integer({ minimum: 0 }),
   }),
   /** The probe's input is host-owned; this says which fixture was sent. */
-  fixture: Obj({ id: Text(64), source: Type.Literal("host_owned") }),
+  fixture: Obj({
+    id: Text(64),
+    source: Type.Literal("host_owned"),
+    /** For a file-reading tool: the selected-file capability the fixture was bound to. */
+    fileId: Type.Optional(Nullable(Text(64))),
+  }),
   request: Obj({ argsSha256: Text(128), argsBytes: Type.Integer({ minimum: 0 }) }),
   result: Obj({
     validatedByRuntime: Type.Boolean(),
@@ -1257,7 +1325,25 @@ export const ToolProbeView = Obj({
 });
 export type ToolProbeViewType = Static<typeof ToolProbeView>;
 
+/**
+ * One selected file, as the operator may see it: an opaque id, its hash, size,
+ * type and a display name. Never the path it was selected from or the private
+ * copy's location.
+ */
+export const FileCapabilityView = Obj({
+  fileId: Text(64),
+  sessionId: Text(128),
+  sha256: Text(128),
+  bytes: Type.Integer({ minimum: 0 }),
+  mediaType: Text(64),
+  displayName: Text(200),
+  selectedAt: Text(64),
+  expiresAt: Text(64),
+});
+export type FileCapabilityViewType = Static<typeof FileCapabilityView>;
+
 const SessionId = Type.String({ minLength: 8, maxLength: 128, pattern: "^[A-Za-z0-9_-]+$" });
+const FileId = Type.String({ pattern: "^file_[0-9a-f]{32}$" });
 const Fingerprint = Type.String({ pattern: "^sha256:[0-9a-f]{64}$" });
 
 export const contract = defineFeatureContract({
@@ -1344,6 +1430,16 @@ export const contract = defineFeatureContract({
         name: Type.String({ minLength: 1, maxLength: 128 }),
       }),
       output: Result(RunArtifactContentView),
+    },
+    "files.list": {
+      kind: "query",
+      description:
+        "Operator-only. List the local files selected for one package session, by opaque id " +
+        "and hash. No path is ever returned. Not rendered by the Agent Browser page.",
+      input: Obj({ sessionId: SessionId }),
+      output: Result(
+        Obj({ files: Type.Array(FileCapabilityView, { maxItems: 16 }) }),
+      ),
     },
     "trust.list": {
       kind: "query",
@@ -1446,6 +1542,16 @@ export const contract = defineFeatureContract({
         toolId: Type.String({ minLength: 1, maxLength: 200 }),
         /** Which of this host's own fixtures to send. Not a request body. */
         fixtureId: Type.Optional(Type.String({ minLength: 1, maxLength: 64 })),
+        /**
+         * For a file-reading tool: which selected-file capability of this
+         * session the fixture reads. An opaque id the host issued, never a path.
+         */
+        fileId: Type.Optional(FileId),
+        /**
+         * The declared role to attribute the call to, required only when more
+         * than one role declares the tool. The runner checks it is one of them.
+         */
+        role: Type.Optional(Type.String({ minLength: 1, maxLength: 128 })),
       }),
       output: Result(ToolProbeView),
     },
@@ -1466,8 +1572,38 @@ export const contract = defineFeatureContract({
          * the runner, before any package instruction reaches a model.
          */
         input: Type.Unknown(),
+        /**
+         * Selected-file capabilities of this session the run may read, by
+         * opaque id. A file-reading tool can read these and nothing else.
+         */
+        files: Type.Optional(Type.Array(FileId, { maxItems: 16 })),
+        /**
+         * Return as soon as the runner has bound the plan and started, with the
+         * record in `running`; follow it with `execution.get`. Refusals before
+         * the run starts are still returned here. Defaults to waiting.
+         */
+        detach: Type.Optional(Type.Boolean()),
       }),
       output: Result(RunRecordView),
+    },
+    "files.select-local": {
+      kind: "action",
+      description:
+        "Operator-only. Select one local PDF inside an operator-configured directory for a " +
+        "package session. The host copies its bytes once into private storage and returns an " +
+        "opaque id, a SHA-256 and a size; the path never leaves the host. Not rendered by the " +
+        "Agent Browser page.",
+      input: Obj({
+        sessionId: SessionId,
+        path: Type.String({ minLength: 1, maxLength: 4096 }),
+      }),
+      output: Result(FileCapabilityView),
+    },
+    "files.release": {
+      kind: "action",
+      description: "Operator-only. Forget one selected file and delete its private copy.",
+      input: Obj({ sessionId: SessionId, fileId: FileId }),
+      output: Result(Obj({ fileId: Text(64), released: Type.Boolean() })),
     },
     "execution.cancel": {
       kind: "action",

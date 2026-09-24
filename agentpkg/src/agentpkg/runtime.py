@@ -6,6 +6,7 @@ import asyncio
 import copy
 import hashlib
 import json
+import re
 from collections import Counter
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -24,6 +25,21 @@ class PolicyError(AgentPkgError):
 
 class BudgetError(PolicyError):
     """A hard bound was reached before dispatch."""
+
+
+_REASON = re.compile(r"[a-z][a-z0-9_]{0,63}")
+
+
+def failure_reason(exc) -> dict:
+    """A failed call's stable code, when the failing adapter gave one.
+
+    Bridge and tool errors carry a fixed identifier (`bridge_timeout`,
+    `model_output_not_conforming`, `tool_unavailable`, ...) that says *which*
+    failure happened. Only an identifier-shaped string is recorded, never a
+    message, so nothing a provider or service wrote reaches the audit.
+    """
+    code = getattr(exc, "code", None)
+    return {"reason": code} if isinstance(code, str) and _REASON.fullmatch(code) else {}
 
 
 def digest(value: Any) -> str:
@@ -73,9 +89,20 @@ class Runtime:
     """
 
     def __init__(
-        self, package, grants=None, handlers=None, router=None, limits=None, approved_tools=None
+        self,
+        package,
+        grants=None,
+        handlers=None,
+        router=None,
+        limits=None,
+        approved_tools=None,
+        observer=None,
     ):
         self.package = package
+        # A host may watch the audit as it is written, to report progress. The
+        # observer receives a copy of each event after it is chained, cannot
+        # change it, and cannot fail the run: its errors are discarded.
+        self._observer = observer
         self.policy = copy.deepcopy(package.policy)
         self.roles = {r["id"]: r for r in package.graph["workers"]}
         self.coordinator = package.graph["coordinator"]
@@ -185,6 +212,11 @@ class Runtime:
         }
         event["event_hash"] = digest(event)
         self.audit.append(event)
+        if self._observer is not None:
+            try:
+                self._observer(copy.deepcopy(event))
+            except Exception:  # noqa: BLE001 - observation must never affect a run
+                pass
 
     def _authorize(self, permission_ids, *, consume=False, context=None):
         for pid in permission_ids:
@@ -373,7 +405,12 @@ class Runtime:
             return copy.deepcopy(result)
         except BaseException as exc:
             self.record(
-                "tool.failed", context=ctx, tool=tool_id, error=type(exc).__name__, status="error"
+                "tool.failed",
+                context=ctx,
+                tool=tool_id,
+                error=type(exc).__name__,
+                status="error",
+                **failure_reason(exc),
             )
             raise
 
@@ -445,13 +482,39 @@ class Runtime:
         try:
             input_bound = await router.count_tokens(request)
         except BaseException as exc:
-            self.record("model.count.failed", context=ctx, task=task, error=type(exc).__name__)
+            self.record(
+                "model.count.failed",
+                context=ctx,
+                task=task,
+                error=type(exc).__name__,
+                **failure_reason(exc),
+            )
             raise
         if isinstance(input_bound, bool) or not isinstance(input_bound, int) or input_bound < 0:
             raise PolicyError("Router returned an invalid input token count")
         reservation = input_bound + max_output_tokens
+
+        def refuse(reason, message, **facts):
+            # Which bound refused the call, in numbers, so a failed run can be
+            # classified from its audit rather than guessed at.
+            self.record(
+                "model.refused",
+                context=ctx,
+                task=task,
+                reason=reason,
+                input_bound=input_bound,
+                max_output_tokens=max_output_tokens,
+                reserved_tokens=reservation,
+                **facts,
+            )
+            raise BudgetError(message)
+
         if reservation > router.context_window:
-            raise BudgetError("Model request exceeds configured context window")
+            refuse(
+                "context_window",
+                "Model request exceeds configured context window",
+                context_window=router.context_window,
+            )
         own = self._usage[ctx.worker_id]
         async with self._lock:
             self._check_context(ctx)
@@ -459,12 +522,24 @@ class Runtime:
                 self._global.tokens + self._global.reserved_tokens + reservation
                 > self.budget["hard_tokens"]
             ):
-                raise BudgetError("Global token budget exhausted before model dispatch")
+                refuse(
+                    "global_token_budget",
+                    "Global token budget exhausted before model dispatch",
+                    used_tokens=self._global.tokens,
+                    held_tokens=self._global.reserved_tokens,
+                    limit=self.budget["hard_tokens"],
+                )
             if (
                 own.tokens + own.reserved_tokens + reservation
                 > self.roles[ctx.role]["budget"]["tokens"]
             ):
-                raise BudgetError(f"Token budget exhausted for {ctx.worker_id}")
+                refuse(
+                    "worker_token_budget",
+                    f"Token budget exhausted for {ctx.worker_id}",
+                    used_tokens=own.tokens,
+                    held_tokens=own.reserved_tokens,
+                    limit=self.roles[ctx.role]["budget"]["tokens"],
+                )
             threshold = self.budget.get("approval_threshold_tokens")
             if (
                 threshold is not None
@@ -525,6 +600,7 @@ class Runtime:
                 task=task,
                 error=type(exc).__name__,
                 tokens_charged=used,
+                **failure_reason(exc),
             )
             raise
         finally:

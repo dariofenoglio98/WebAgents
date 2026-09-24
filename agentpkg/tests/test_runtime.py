@@ -283,6 +283,71 @@ def test_per_worker_token_reservation_and_failed_model_charge(package):
     assert rt.usage["tokens"] == 40 and rt.usage["reserved_tokens"] == 0
 
 
+def test_a_refused_model_call_records_which_bound_refused_it(package):
+    """Three bounds can refuse a call before dispatch; the audit names which."""
+    for role in package.graph["workers"]:
+        if role["id"] == "ScreeningWorker":
+            role["budget"]["tokens"] = 50
+
+    async def work(ctx, data):
+        await ctx.model("screen", {}, {"type": "object"}, max_output_tokens=60)
+
+    def refusal(rt, bound=20):
+        with pytest.raises(BudgetError):
+            asyncio.run(rt.run_worker("ScreeningWorker", {}, work))
+        assert rt.router.calls == 0
+        assert not [e for e in rt.audit if e["action"] == "model.called"]
+        (event,) = [e for e in rt.audit if e["action"] == "model.refused"]
+        assert event["input_bound"] == bound and event["max_output_tokens"] == 60
+        assert event["reserved_tokens"] == bound + 60
+        return event
+
+    event = refusal(runtime(package, router=Router()))
+    assert event["reason"] == "worker_token_budget"
+    assert event["limit"] == 50 and event["used_tokens"] == 0
+
+    event = refusal(runtime(package, router=Router(), limits={"hard_tokens": 70}))
+    assert event["reason"] == "global_token_budget" and event["limit"] == 70
+
+    class Full(Router):
+        # Meets the package's declared minimum, but this request does not fit.
+        context_window = 16000
+
+        async def count_tokens(self, request):
+            return 15990
+
+    event = refusal(runtime(package, router=Full()), bound=15990)
+    assert event["reason"] == "context_window" and event["context_window"] == 16000
+
+
+def test_a_failed_call_records_the_adapter_s_stable_code_and_never_its_message(package):
+    from agentpkg.hostbridge.errors import BridgeError
+
+    class Slow(Router):
+        async def complete(self, request, *, max_output_tokens):
+            raise BridgeError("bridge_timeout", "The host did not answer — private detail")
+
+    class Odd(Router):
+        async def complete(self, request, *, max_output_tokens):
+            raise BridgeError("Not An Identifier!", "whatever")
+
+    async def work(ctx, data):
+        await ctx.model("screen", {}, {"type": "object"}, max_output_tokens=20)
+
+    rt = runtime(package, router=Slow())
+    with pytest.raises(BridgeError):
+        asyncio.run(rt.run_worker("ScreeningWorker", {}, work))
+    (failed,) = [e for e in rt.audit if e["action"] == "model.failed"]
+    assert failed["reason"] == "bridge_timeout" and failed["error"] == "BridgeError"
+    assert "private detail" not in str(rt.audit)
+
+    rt = runtime(package, router=Odd())
+    with pytest.raises(BridgeError):
+        asyncio.run(rt.run_worker("ScreeningWorker", {}, work))
+    (failed,) = [e for e in rt.audit if e["action"] == "model.failed"]
+    assert "reason" not in failed
+
+
 def test_model_contract_violation_halts_and_charges_full_reservation(package):
     class DishonestRouter(Router):
         async def complete(self, request, *, max_output_tokens):

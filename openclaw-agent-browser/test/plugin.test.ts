@@ -58,6 +58,7 @@ describe("plugin entry", () => {
     expect(Object.keys(schema.properties as object)).toEqual([
       "agentpkgPath",
       "localPackages",
+      "localFiles",
       "sessionTtlSeconds",
       "maxSessions",
       "execution",

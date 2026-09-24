@@ -36,6 +36,12 @@ def failure_code(exc):
     return "worker_error"
 
 
+def _failed_check(exc):
+    """Which declared check failed, when a validation says so; never data."""
+    facts = getattr(exc, "failed_check", None)
+    return {"failed_check": facts} if isinstance(facts, dict) else {}
+
+
 class Workflow:
     """One execution per instance. All authority remains in the host mediator.
 
@@ -45,7 +51,15 @@ class Workflow:
     """
 
     def __init__(
-        self, package, *, grants=None, handlers=None, router=None, limits=None, approved_tools=None
+        self,
+        package,
+        *,
+        grants=None,
+        handlers=None,
+        router=None,
+        limits=None,
+        approved_tools=None,
+        observer=None,
     ):
         # Recheck the exact payload, not mutable manifest/graph aliases supplied by callers.
         from .package import integrity_statement
@@ -66,6 +80,7 @@ class Workflow:
             router=router,
             limits=limits,
             approved_tools=approved_tools,
+            observer=observer,
         )
         self._used = False
         self._task = None
@@ -152,7 +167,8 @@ class Workflow:
                     raise ValidationError(f"node {node['id']}: join members must select arrays")
                 result.extend(selected)
             if "unique_by" in node:
-                seen, unique = set(), []
+                seen, unique = {}, []
+                identical = conflicting = 0
                 for item in result:
                     identity = None
                     for path in node["unique_by"]:
@@ -162,8 +178,25 @@ class Workflow:
                             break
                     key = digest(identity if identity is not None else item)
                     if key not in seen:
-                        seen.add(key)
+                        seen[key] = digest(item)
                         unique.append(item)
+                    elif seen[key] == digest(item):
+                        identical += 1
+                    else:
+                        # A different record claiming the same identity: the
+                        # first still wins, but the loss is never silent.
+                        conflicting += 1
+                if identical or conflicting:
+                    self._event(
+                        "node.deduplicated",
+                        node,
+                        ctx,
+                        original_count=len(result),
+                        retained_count=len(unique),
+                        identical_duplicates=identical,
+                        conflicting_duplicates=conflicting,
+                        unique_by=list(node["unique_by"]),
+                    )
                 result = unique
             if "limit" in node:
                 if len(result) > node["limit"]:
@@ -180,9 +213,13 @@ class Workflow:
 
             check_assertions(node.get("assertions", []), env)
             result = value
-        validate_instance(
-            self.package.files, node["output_schema"], result, f"node {node['id']} output"
-        )
+        try:
+            validate_instance(
+                self.package.files, node["output_schema"], result, f"node {node['id']} output"
+            )
+        except ValidationError as exc:
+            exc.failed_check = {"check": "output_schema", "schema": node["output_schema"]}
+            raise
         return result
 
     def _model_schema(self, path):
@@ -233,7 +270,9 @@ class Workflow:
             self._event("node.completed", node, ctx, output_hash=digest(result))
             return result
         except BaseException as exc:
-            self._event("node.failed", node, ctx, error_code=failure_code(exc))
+            self._event(
+                "node.failed", node, ctx, error_code=failure_code(exc), **_failed_check(exc)
+            )
             raise
         finally:
             del ctx.operation_id
@@ -332,7 +371,7 @@ class Workflow:
             )
             return result, patch
         except BaseException as exc:
-            self._event("node.failed", node, error_code=failure_code(exc))
+            self._event("node.failed", node, error_code=failure_code(exc), **_failed_check(exc))
             if isinstance(exc, asyncio.CancelledError):
                 raise
             raise WorkflowError(failure_code(exc), node["id"]) from exc

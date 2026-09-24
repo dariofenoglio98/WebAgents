@@ -16,7 +16,13 @@
  *   node scripts/tool-probe.mjs \
  *     --package /path/to/literature-review.agent.pkg \
  *     --tool citation-resolver [--fixture doi] \
+ *     [--file /absolute/path/inside/localFiles/roots/paper.pdf --role ScreeningWorker] \
  *     [--out report.json] [--keep]
+ *
+ * For a file-reading tool, `--file` is selected through `files.select-local`
+ * first — the host copies it and answers with an opaque id — and the probe then
+ * names only that id. `--role` names the declared role to attribute the call to
+ * when more than one role declares the tool.
  *
  * This makes ONE real call to whatever the bound implementation is. It spends
  * no tokens and runs no workflow.
@@ -227,6 +233,22 @@ async function main() {
     };
     if (!plan.readiness.ready) throw new Error("the prepared run plan is not ready");
 
+    // --- a file-reading tool reads one file the operator selected --------
+    let fileId = null;
+    if (args.file) {
+      const selected = await call("files.select-local", { sessionId, path: args.file });
+      fileId = selected.fileId;
+      report.steps.selectedFile = {
+        fileId: selected.fileId,
+        sha256: selected.sha256,
+        bytes: selected.bytes,
+        mediaType: selected.mediaType,
+        displayName: selected.displayName,
+        // Recorded so a reader can check the host never returned the path.
+        pathReturned: JSON.stringify(selected).includes(args.file),
+      };
+    }
+
     // --- the one operation that calls a tool -----------------------------
     report.steps.probe = await call("execution.tool-probe", {
       sessionId,
@@ -234,6 +256,8 @@ async function main() {
       runPlanSha256: plan.runPlanSha256,
       toolId: args.tool,
       ...(args.fixture ? { fixtureId: args.fixture } : {}),
+      ...(fileId ? { fileId } : {}),
+      ...(args.role ? { role: args.role } : {}),
     });
 
     const after = await call("run-plan.get", { sessionId });
@@ -248,6 +272,22 @@ async function main() {
 
     const probe = report.steps.probe;
     const planned = plan.toolBindings.find((item) => item.toolId === args.tool);
+    const probeText = JSON.stringify(probe);
+    report.steps.pathLeak = args.file
+      ? {
+          inProbeReport: probeText.includes(args.file),
+          inSelection: report.steps.selectedFile.pathReturned,
+        }
+      : null;
+    if (args.file && fileId) {
+      const output = probe.result.output ?? {};
+      report.steps.fileChecks = {
+        outputSha256MatchesSelection: output.sha256 === report.steps.selectedFile.sha256,
+        pages: Array.isArray(output.pages) ? output.pages.length : 0,
+        source: output.source,
+        fixtureFileId: probe.fixture.fileId,
+      };
+    }
     report.passed =
       probe.status === "ok" &&
       probe.tool.id === args.tool &&
@@ -264,7 +304,13 @@ async function main() {
       probe.packageExecution.workflowWorkersStarted === 0 &&
       probe.result.validatedByRuntime === true &&
       probe.audit.chainValid === true &&
-      report.steps.runPlanAfterProbe.unchanged === true;
+      report.steps.runPlanAfterProbe.unchanged === true &&
+      (!args.file ||
+        (report.steps.pathLeak.inProbeReport === false &&
+          report.steps.pathLeak.inSelection === false &&
+          report.steps.fileChecks.outputSha256MatchesSelection === true &&
+          report.steps.fileChecks.pages > 0 &&
+          report.steps.fileChecks.fixtureFileId === fileId));
   } finally {
     if (!args.keep) await call("packages.close", { sessionId }).catch(() => undefined);
   }

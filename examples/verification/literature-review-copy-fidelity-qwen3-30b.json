@@ -1,0 +1,111 @@
+{
+ "model": "ollama/qwen3:30b",
+ "num_ctx": 65536,
+ "variants": {
+  "default": {
+   "prepare": {
+    "record": {
+     "label": "prepare[default]",
+     "options": {},
+     "bound_bytes": 18049,
+     "elapsed_s": 180.6,
+     "prompt_eval_count": 3442,
+     "eval_count": 8177,
+     "thinking_chars": 13771,
+     "done_reason": "stop",
+     "conforming": true
+    },
+    "checks": [
+     {
+      "paper_id": "paper-4dd72bbd354ba2ba",
+      "status_ok": true,
+      "metadata_exact": true,
+      "diffs": []
+     },
+     {
+      "paper_id": "paper-8da040891b501053",
+      "status_ok": true,
+      "metadata_exact": true,
+      "diffs": []
+     },
+     {
+      "records": 2,
+      "evidence_jobs": 2
+     }
+    ]
+   },
+   "verification": {
+    "record": {
+     "label": "verification[default]",
+     "options": {},
+     "bound_bytes": 16794,
+     "elapsed_s": 173.6,
+     "prompt_eval_count": 3634,
+     "eval_count": 6096,
+     "thinking_chars": 10896,
+     "done_reason": "stop",
+     "conforming": true
+    },
+    "checks": {
+     "bibliography": [
+      {
+       "paper_id": "paper-4dd72bbd354ba2ba",
+       "diffs": []
+      },
+      {
+       "paper_id": "paper-8da040891b501053",
+       "diffs": []
+      }
+     ],
+     "evidence_table": [
+      {
+       "evidence_id": "ev-4dd72bbd-1",
+       "diffs": []
+      },
+      {
+       "evidence_id": "ev-4dd72bbd-2",
+       "diffs": []
+      },
+      {
+       "evidence_id": "ev-8da04089-1",
+       "diffs": []
+      },
+      {
+       "evidence_id": "ev-8da04089-2",
+       "diffs": []
+      }
+     ],
+     "related_work_chars": 12,
+     "claims": [
+      [
+       "claim-1",
+       "supported"
+      ],
+      [
+       "claim-2",
+       "supported"
+      ],
+      [
+       "claim-3",
+       "supported"
+      ],
+      [
+       "claim-4",
+       "supported"
+      ]
+     ]
+    }
+   }
+  }
+ },
+ "inputs": {
+  "dois": [
+   "10.2139/ssrn.7162224",
+   "10.2139/ssrn.6532560"
+  ],
+  "statuses": [
+   "resolved",
+   "resolved"
+  ]
+ }
+}

@@ -2,13 +2,13 @@
   "spec_version": "0.1",
   "package_id": "org.webagents.literature-review",
   "name": "Literature Review Agent",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "A constrained coordinator-worker review with structured evidence and verified citations. Bundled demo data are synthetic.",
   "publisher": {
     "id": "webagents-research",
     "name": "WebAgents Research Prototype"
   },
-  "created_at": "2026-09-20T00:00:00Z",
+  "created_at": "2026-09-24T00:00:00Z",
   "runtime": {
     "api": "agentpkg-runtime-v0",
     "minimum_version": "0.2.0"
@@ -24,37 +24,37 @@
   "skills": [
     {
       "id": "literature-search",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "path": "skills/literature-search/SKILL.md"
     },
     {
       "id": "paper-screening",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "path": "skills/paper-screening/SKILL.md"
     },
     {
       "id": "citation-resolution",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "path": "skills/citation-resolution/SKILL.md"
     },
     {
       "id": "evidence-extraction",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "path": "skills/evidence-extraction/SKILL.md"
     },
     {
       "id": "evidence-synthesis",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "path": "skills/evidence-synthesis/SKILL.md"
     },
     {
       "id": "related-work-writing",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "path": "skills/related-work-writing/SKILL.md"
     },
     {
       "id": "claim-and-citation-verification",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "path": "skills/claim-and-citation-verification/SKILL.md"
     }
   ],
@@ -104,6 +104,10 @@
     {
       "id": "paper",
       "path": "schemas/paper.schema.json"
+    },
+    {
+      "id": "paper-evidence",
+      "path": "schemas/paper-evidence.schema.json"
     },
     {
       "id": "papers",

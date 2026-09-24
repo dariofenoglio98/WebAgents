@@ -40,6 +40,21 @@ export const CONFIG_SCHEMA = {
         },
       },
     },
+    localFiles: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        roots: {
+          type: "array",
+          maxItems: 8,
+          items: { type: "string" },
+          description:
+            "Absolute directories an operator may select PDFs from for a run. Empty by " +
+            "default; the workspace is never implied. A selected file is copied once into " +
+            "private storage and reaches a package only as an opaque id.",
+        },
+      },
+    },
     sessionTtlSeconds: {
       type: "integer",
       minimum: 60,
@@ -90,6 +105,15 @@ export const CONFIG_SCHEMA = {
           minimum: 1,
           maximum: 86400,
           description: "Upper bound on a run's wall-clock time, tightening the graph deadline.",
+        },
+        modelCallTimeoutSeconds: {
+          type: "integer",
+          minimum: 1,
+          maximum: 3600,
+          description:
+            "Upper bound on one model completion, including time queued at the model server " +
+            "(default 300). Raise it for a local server that decodes one request at a time; " +
+            "graph node timeouts still bound every call.",
         },
         requireVerifiedHostRuntime: {
           type: "boolean",
@@ -262,6 +286,7 @@ const plugin = defineFeaturePlugin({
               },
               executionSupported: false as const,
               executionOperations: false,
+              fileSelection: false,
             },
       "service.restart": () => active().restart(),
       "packages.list": () => active().listSessions(),
@@ -303,10 +328,21 @@ const plugin = defineFeaturePlugin({
       // Also developer/operator only. It makes ONE mediated call to one tool
       // the package declares, through the implementation the plan bound, with
       // a host-owned fixture. No workflow, no graph node and no model.
-      "execution.tool-probe": ({ sessionId, runPlanId, runPlanSha256, toolId, fixtureId }) =>
-        active().probeTool(sessionId, runPlanId, runPlanSha256, toolId, fixtureId),
-      "execution.start": ({ sessionId, runPlanId, runPlanSha256, input }) =>
-        active().startExecution(sessionId, runPlanId, runPlanSha256, input),
+      "execution.tool-probe": ({
+        sessionId,
+        runPlanId,
+        runPlanSha256,
+        toolId,
+        fixtureId,
+        fileId,
+        role,
+      }) => active().probeTool(sessionId, runPlanId, runPlanSha256, toolId, fixtureId, fileId, role),
+      "execution.start": ({ sessionId, runPlanId, runPlanSha256, input, files, detach }) =>
+        active().startExecution(sessionId, runPlanId, runPlanSha256, input, files, detach),
+      // Operator-only file selection. A path goes in; an opaque id comes out.
+      "files.select-local": ({ sessionId, path }) => active().selectFile(sessionId, path),
+      "files.list": ({ sessionId }) => active().listFiles(sessionId),
+      "files.release": ({ sessionId, fileId }) => active().releaseFile(sessionId, fileId),
       "execution.cancel": ({ runId }) => active().cancelExecution(runId),
       "execution.get": ({ runId }) => active().getExecution(runId),
       "execution.status": ({ sessionId }) => active().listExecutions(sessionId),

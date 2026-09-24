@@ -81,15 +81,25 @@ def test_same_interpreter_from_built_artifacts(name, tmp_path):
     top_done = [e["node_id"] for e in events if e["action"] == "node.completed" and not e["worker"]]
     assert set(top_done) == {n["id"] for n in package.graph["nodes"]}
     if name == "literature-review":
+        # 0.2.1's bounded review: three results per query, at most three
+        # selected papers. Replay still exercises deduplication, a selected PDF,
+        # an abstract-only paper and an ambiguous citation that stays unresolved.
         assert result["usage"]["tool_calls"]["scholarly-search"] == 3
-        assert result["usage"]["tool_calls"]["citation-resolver"] == 6
-        assert len(result["output"]["bibliography"]) == 3
+        assert result["usage"]["tool_calls"]["citation-resolver"] == 3
+        assert result["usage"]["tool_calls"]["paper-reader"] == 2
+        assert len(result["state"]["raw_candidates"]) == 9
+        assert len(result["state"]["candidate_papers"]) == 8
+        assert len(result["state"]["citation_jobs"]) == 3
+        assert len(result["output"]["bibliography"]) == 2
+        assert len(result["output"]["evidence_table"]) == 7
         assert {c["status"] for c in result["state"]["citation_records"]} == {
             "resolved",
             "ambiguous",
-            "not_found",
-            "provider_error",
         }
+        assert [u["status"] for u in result["output"]["unresolved"]] == [
+            "ambiguous",
+            "screening_maybe",
+        ]
         assert "SYNTHETIC DEMONSTRATION" in result["output"]["related_work"]
     else:
         assert sum(item["minutes"] for item in result["output"]["agenda"]) == 45
@@ -417,6 +427,65 @@ def test_source_quote_constraint_rejects_fabrication(tmp_path):
         execute(load_package(path))
     assert caught.value.node_id == "evidence"
     assert caught.value.code == "schema_validation"
+    # The audit names the declared check that refused it, and never the data.
+    audit = caught.value.execution_report["audit"]
+    (failed,) = [
+        e
+        for e in audit
+        if e["action"] == "node.failed" and e.get("node_id") == "evidence/check-document"
+    ] or [e for e in audit if e["action"] == "node.failed" and "failed_check" in e]
+    check = failed["failed_check"]
+    assert check["check"] == "assertion" and check["kind"] == "relation"
+    assert check["failure"] == "fields_do_not_match"
+    assert check["compare"]["op"] == "contained_in" and check["compare"]["left"] == "/quote"
+    assert "fabricated" not in json.dumps(audit)
+
+
+def test_a_final_bibliography_that_is_not_the_resolver_record_is_attributed(tmp_path):
+    path = source(tmp_path, "literature-review")
+
+    def alter(f):
+        f["models"]["verify"][0]["output"]["bibliography"][0]["metadata"]["title"] += " (edited)"
+
+    change(path / "fixtures/workflow.json", alter)
+    with pytest.raises(WorkflowError) as caught:
+        execute(load_package(path))
+    assert caught.value.node_id == "validate-output"
+    assert caught.value.code == "schema_validation"
+    audit = caught.value.execution_report["audit"]
+    (failed,) = [
+        e for e in audit if e["action"] == "node.failed" and e.get("node_id") == "validate-output"
+    ]
+    assert failed["failed_check"] == {
+        "check": "assertion",
+        "index": 0,
+        "kind": "relation",
+        "failure": "fields_do_not_match",
+        "compare": {"left": "/metadata", "right": "/response/best_match", "op": "eq"},
+    }
+    assert "(edited)" not in json.dumps(audit)
+
+
+def _deduplicated(audit, node_id):
+    return [e for e in audit if e["action"] == "node.deduplicated" and e.get("node_id") == node_id]
+
+
+def test_join_deduplication_is_recorded_with_its_counts(tmp_path):
+    path = source(tmp_path, "literature-review")
+
+    def collide(f):
+        first = f["models"]["extract"][0]["output"][0]["evidence_id"]
+        f["models"]["extract"][1]["output"][0]["evidence_id"] = first
+
+    change(path / "fixtures/workflow.json", collide)
+    with pytest.raises(WorkflowError) as caught:
+        execute(load_package(path))
+    (event,) = _deduplicated(caught.value.execution_report["audit"], "join-evidence")
+    assert event["original_count"] == 7 and event["retained_count"] == 6
+    assert event["conflicting_duplicates"] == 1 and event["identical_duplicates"] == 0
+    assert event["unique_by"] == ["/evidence_id"]
+    # Counts and declared pointers only; no evidence text reaches the audit.
+    assert "quote" not in json.dumps(event)
 
 
 def test_tool_output_schema_and_tool_errors_are_distinct():

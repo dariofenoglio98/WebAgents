@@ -1,0 +1,1449 @@
+{
+  "recordedAt": "2026-09-24T15:44:30.700Z",
+  "input": {
+    "question": "What defenses have been proposed against prompt injection attacks on LLM-integrated applications? Compare their detection or prevention mechanisms, where in the application they are deployed, and their reported effectiveness, focusing on representative methods.",
+    "seeds": [],
+    "documents": {},
+    "mode": "live"
+  },
+  "steps": {
+    "trust": {
+      "statusOnOpen": "trusted",
+      "reasonOnOpen": "operator_pinned_key",
+      "signerFingerprint": "sha256:c5ca9763f9fc71253298ca381ec14c4d7432009c74dacc69df6344b71de05232",
+      "pinned": false,
+      "scope": null
+    },
+    "package": {
+      "packageId": "org.webagents.literature-review",
+      "version": "0.2.1",
+      "digest": "2199abb5868bcedd5c73e7a664f38d35aaaa047c2dcfdb07d91f3977bde41700",
+      "archiveSha256": "0fb8b65bbff4578d4815ee70b29a0cb789b2cc95ce181d011d467b4be22c8e42",
+      "entrypoint": "workflow.v0",
+      "executionProfile": "workflow.v0",
+      "validation": {
+        "container": "valid",
+        "integrity": "valid",
+        "schema": "valid",
+        "runtime": "compatible",
+        "supportedProfiles": [
+          "workflow.v0"
+        ],
+        "errors": []
+      },
+      "signatureStatus": "valid",
+      "trustStatus": "trusted",
+      "signerFingerprint": "sha256:c5ca9763f9fc71253298ca381ec14c4d7432009c74dacc69df6344b71de05232",
+      "declaredTools": [
+        {
+          "id": "citation-resolver",
+          "binding": "citation.resolve",
+          "execution": "remote",
+          "permissions": [
+            "network.citations"
+          ]
+        },
+        {
+          "id": "paper-reader",
+          "binding": "paper.read",
+          "execution": "local",
+          "permissions": [
+            "files.pdfs"
+          ]
+        },
+        {
+          "id": "scholarly-search",
+          "binding": "scholarly.search",
+          "execution": "remote",
+          "permissions": [
+            "network.scholarly"
+          ]
+        }
+      ]
+    },
+    "files": [],
+    "authorization": {
+      "receiptId": "2d0cdf7c-c1e5-403c-8b56-91fda07e371d",
+      "receiptSha256": "6a73613dfb78698624de902576325c8092591a77601325815d3cb4ef1ee26afd",
+      "runnable": true,
+      "decisions": [
+        {
+          "permissionId": "network.scholarly",
+          "decision": "session"
+        },
+        {
+          "permissionId": "network.citations",
+          "decision": "session"
+        },
+        {
+          "permissionId": "files.pdfs",
+          "decision": "deny"
+        },
+        {
+          "permissionId": "model.reasoning",
+          "decision": "session"
+        },
+        {
+          "permissionId": "memory.session",
+          "decision": "session"
+        }
+      ],
+      "grantedPermissionIds": [
+        "memory.session",
+        "model.reasoning",
+        "network.citations",
+        "network.scholarly"
+      ],
+      "toolApprovals": [
+        {
+          "toolId": "citation-resolver",
+          "approved": true
+        },
+        {
+          "toolId": "paper-reader",
+          "approved": true
+        },
+        {
+          "toolId": "scholarly-search",
+          "approved": true
+        }
+      ],
+      "expiresAt": "2026-09-24T17:44:35.103626+00:00"
+    },
+    "tools": {
+      "registrySha256": "d3aca6e5b767ab753a5ebc9ae2d48f5eefd243c1d14785c4f0049e103a8f3275",
+      "counts": {
+        "total": 3,
+        "bound": 3,
+        "unbound": 0,
+        "incompatible": 0,
+        "unverified": 0,
+        "unavailable": 0,
+        "approved": 3,
+        "usable": 2,
+        "blocking": 0
+      },
+      "allToolsBound": true,
+      "declared": [
+        {
+          "toolId": "citation-resolver",
+          "status": "bound",
+          "approved": true,
+          "usable": true,
+          "deniedPermissionIds": [],
+          "blocksPlan": false,
+          "binding": {
+            "bindingId": "openclaw:citation-resolver:1",
+            "bindingSha256": "7ac13746d199913ac9da5e8df6210a8980ffa32bda67f38217a7d8bf8bd42c39",
+            "implementationKind": "json_http",
+            "implementationVersion": "0.1.0",
+            "endpointOrigin": "https://webagents-citation-resolver-production.up.railway.app",
+            "endpointPath": "/resolve",
+            "method": "POST",
+            "checks": [
+              "tool_id:satisfied",
+              "binding_name:satisfied",
+              "execution_locality:satisfied",
+              "side_effects:satisfied",
+              "permission_kinds:satisfied",
+              "input_schema:satisfied",
+              "output_schema:satisfied",
+              "endpoint_domain:satisfied",
+              "endpoint_path:satisfied",
+              "method:satisfied"
+            ]
+          }
+        },
+        {
+          "toolId": "paper-reader",
+          "status": "bound",
+          "approved": true,
+          "usable": false,
+          "deniedPermissionIds": [
+            "files.pdfs"
+          ],
+          "blocksPlan": false,
+          "binding": {
+            "bindingId": "openclaw:paper-reader:1",
+            "bindingSha256": "3ddd2fd9be61d3d9c9b2e06e22d54034dd5d6e0a5b3ddf64c8c6abe91cc7351b",
+            "implementationKind": "selected_file",
+            "implementationVersion": "0.1.0",
+            "endpointOrigin": null,
+            "endpointPath": null,
+            "method": null,
+            "checks": [
+              "tool_id:satisfied",
+              "binding_name:satisfied",
+              "execution_locality:satisfied",
+              "side_effects:satisfied",
+              "permission_kinds:satisfied",
+              "input_schema:satisfied",
+              "output_schema:satisfied"
+            ]
+          }
+        },
+        {
+          "toolId": "scholarly-search",
+          "status": "bound",
+          "approved": true,
+          "usable": true,
+          "deniedPermissionIds": [],
+          "blocksPlan": false,
+          "binding": {
+            "bindingId": "openclaw:scholarly-search:1",
+            "bindingSha256": "4800eb9bb1be9ddbec38e262ce0ae6e22c17dcb5659c122fd99959110923d65c",
+            "implementationKind": "json_http",
+            "implementationVersion": "0.2.0",
+            "endpointOrigin": "https://api.crossref.org",
+            "endpointPath": "/works",
+            "method": "GET",
+            "checks": [
+              "tool_id:satisfied",
+              "binding_name:satisfied",
+              "execution_locality:satisfied",
+              "side_effects:satisfied",
+              "permission_kinds:satisfied",
+              "input_schema:satisfied",
+              "output_schema:satisfied",
+              "endpoint_domain:satisfied",
+              "endpoint_path:satisfied",
+              "method:satisfied"
+            ]
+          }
+        }
+      ]
+    },
+    "models": {
+      "catalogSha256": "bc1fa0d6db380f503b94ea4db5326b79dc5e337387aee698fd80691da28752c4",
+      "offered": [
+        {
+          "id": "ollama/qwen3.5:9b",
+          "status": "compatible",
+          "available": true,
+          "contextTokens": 32768
+        },
+        {
+          "id": "ollama/qwen3.6:35b",
+          "status": "compatible",
+          "available": true,
+          "contextTokens": 32768
+        },
+        {
+          "id": "ollama/qwen3.8:27b",
+          "status": "compatible",
+          "available": true,
+          "contextTokens": 32768
+        },
+        {
+          "id": "ollama/qwen3:30b",
+          "status": "compatible",
+          "available": true,
+          "contextTokens": 65536
+        }
+      ],
+      "selected": "ollama/qwen3:30b",
+      "selectedStatus": "compatible",
+      "selectedContextTokens": 65536
+    },
+    "runPlan": {
+      "runPlanId": "rp_b6675a64ec1e46e59ce7e66a62c6cffb",
+      "runPlanSha256": "3864c26f397e1baa1329612cc24c2cfd0d852e0e9062fbae23bebff428a20f38",
+      "ready": true,
+      "blockingReasons": [],
+      "mode": "model",
+      "model": "ollama/qwen3:30b",
+      "modelContextTokens": 65536,
+      "compatibility": "compatible",
+      "toolBindings": [
+        {
+          "toolId": "citation-resolver",
+          "bindingId": "openclaw:citation-resolver:1",
+          "bindingSha256": "7ac13746d199913ac9da5e8df6210a8980ffa32bda67f38217a7d8bf8bd42c39",
+          "implementationKind": "json_http",
+          "implementationVersion": "0.1.0",
+          "displayName": "Citation Resolver",
+          "remote": true,
+          "endpointOrigin": "https://webagents-citation-resolver-production.up.railway.app",
+          "endpointPath": "/resolve",
+          "method": "POST",
+          "contractSha256": "b8492f7a934a010370517214705e4d1e959957801ff1f4d9ad8055504929cd75",
+          "requiredPermissionIds": [
+            "network.citations"
+          ],
+          "timeoutSeconds": 45,
+          "maxCalls": 20,
+          "credentialsRequired": false,
+          "credentialsConfigured": false,
+          "approved": true,
+          "usable": true
+        },
+        {
+          "toolId": "paper-reader",
+          "bindingId": "openclaw:paper-reader:1",
+          "bindingSha256": "3ddd2fd9be61d3d9c9b2e06e22d54034dd5d6e0a5b3ddf64c8c6abe91cc7351b",
+          "implementationKind": "selected_file",
+          "implementationVersion": "0.1.0",
+          "displayName": "Selected PDF text",
+          "remote": false,
+          "endpointOrigin": null,
+          "endpointPath": null,
+          "method": null,
+          "contractSha256": "11cd9636f63d674bba5ce50e9104328a5c75063fb109af17b07616cba602ab95",
+          "requiredPermissionIds": [
+            "files.pdfs"
+          ],
+          "timeoutSeconds": 20,
+          "maxCalls": 10,
+          "credentialsRequired": false,
+          "credentialsConfigured": false,
+          "approved": true,
+          "usable": false
+        },
+        {
+          "toolId": "scholarly-search",
+          "bindingId": "openclaw:scholarly-search:1",
+          "bindingSha256": "4800eb9bb1be9ddbec38e262ce0ae6e22c17dcb5659c122fd99959110923d65c",
+          "implementationKind": "json_http",
+          "implementationVersion": "0.2.0",
+          "displayName": "Crossref works search",
+          "remote": true,
+          "endpointOrigin": "https://api.crossref.org",
+          "endpointPath": "/works",
+          "method": "GET",
+          "contractSha256": "4a7de543623c8171e5727e3d133b638a44b7e062980bac6dafdadb199359c718",
+          "requiredPermissionIds": [
+            "network.scholarly"
+          ],
+          "timeoutSeconds": 25,
+          "maxCalls": 3,
+          "credentialsRequired": false,
+          "credentialsConfigured": false,
+          "approved": true,
+          "usable": true
+        }
+      ],
+      "toolRegistry": {
+        "registrySha256": "fcc1aa840b19afff5916eab513a1aadaecf99243d3392f935caae87b6acb1635",
+        "bindingCount": 4
+      },
+      "executionPerformed": false
+    },
+    "started": {
+      "runId": "run_33ad6e1ebe40408c9efa7483ecf34122",
+      "status": "running",
+      "runInvocationSha256": "360145bed46b4a5ee1a5ff9051d353f40a67a590d9329197193b185665d82949",
+      "task": {
+        "inputBytes": 316,
+        "input": {
+          "question": "What defenses have been proposed against prompt injection attacks on LLM-integrated applications? Compare their detection or prevention mechanisms, where in the application they are deployed, and their reported effectiveness, focusing on representative methods.",
+          "seeds": [],
+          "documents": {},
+          "mode": "live"
+        },
+        "attachments": []
+      }
+    },
+    "wallClockMs": 2460928,
+    "run": {
+      "runId": "run_33ad6e1ebe40408c9efa7483ecf34122",
+      "sessionId": "kzi3EcpRDgLjz4cnbQGZ20Wu",
+      "runPlanId": "rp_b6675a64ec1e46e59ce7e66a62c6cffb",
+      "runPlanSha256": "3864c26f397e1baa1329612cc24c2cfd0d852e0e9062fbae23bebff428a20f38",
+      "runInvocationSha256": "360145bed46b4a5ee1a5ff9051d353f40a67a590d9329197193b185665d82949",
+      "inputSha256": "50b7594cc7f0d5dadf10c3619712588b65d900db9f87e5847d968b4334f63c41",
+      "status": "completed",
+      "createdAt": "2026-09-24T15:44:43.986Z",
+      "startedAt": "2026-09-24T15:44:43.992Z",
+      "endedAt": "2026-09-24T16:25:24.420Z",
+      "durationMs": 2440428,
+      "package": {
+        "packageId": "org.webagents.literature-review",
+        "name": "Literature Review Agent",
+        "version": "0.2.1",
+        "digest": "2199abb5868bcedd5c73e7a664f38d35aaaa047c2dcfdb07d91f3977bde41700",
+        "archiveSha256": "0fb8b65bbff4578d4815ee70b29a0cb789b2cc95ce181d011d467b4be22c8e42",
+        "executionProfile": "workflow.v0"
+      },
+      "selectedModel": {
+        "hostModelId": "ollama/qwen3:30b",
+        "providerId": "ollama",
+        "modelId": "qwen3:30b",
+        "displayName": "qwen3:30b"
+      },
+      "model": {
+        "planned": "ollama/qwen3:30b",
+        "invoked": [
+          "ollama/qwen3:30b"
+        ],
+        "calls": 16,
+        "allCallsUsedPlannedModel": true,
+        "providers": [
+          "ollama"
+        ],
+        "responseModels": []
+      },
+      "grants": {
+        "decisions": [
+          {
+            "permissionId": "files.pdfs",
+            "decision": "deny"
+          },
+          {
+            "permissionId": "memory.session",
+            "decision": "session"
+          },
+          {
+            "permissionId": "model.reasoning",
+            "decision": "session"
+          },
+          {
+            "permissionId": "network.citations",
+            "decision": "session"
+          },
+          {
+            "permissionId": "network.scholarly",
+            "decision": "session"
+          }
+        ],
+        "grantedPermissionIds": [
+          "memory.session",
+          "model.reasoning",
+          "network.citations",
+          "network.scholarly"
+        ]
+      },
+      "limits": {
+        "host": {
+          "totalTokens": 180000,
+          "maxRemoteCalls": 45,
+          "maxParallelWorkers": 3,
+          "maxOutputTokensPerCall": 16000,
+          "runTimeoutSeconds": 4500,
+          "modelCallTimeoutSeconds": 1200
+        },
+        "effectiveDeadlineSeconds": 4500
+      },
+      "usage": {
+        "tokens": 120242,
+        "remoteCalls": 6,
+        "peakParallelWorkers": 3,
+        "toolCalls": 6,
+        "limits": {
+          "hardTokens": 180000,
+          "maxRemoteCalls": 45,
+          "maxParallelWorkers": 3
+        },
+        "workers": [
+          {
+            "worker": "coordinator",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "PlanningWorker:1",
+            "tokens": 1600,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "SearchWorker:2",
+            "tokens": 0,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "SearchWorker:3",
+            "tokens": 0,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "SearchWorker:4",
+            "tokens": 0,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "PlanningWorker:5",
+            "tokens": 16164,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "ScreeningWorker:6",
+            "tokens": 2840,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "ScreeningWorker:7",
+            "tokens": 2407,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "ScreeningWorker:8",
+            "tokens": 2516,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "ScreeningWorker:9",
+            "tokens": 2209,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "ScreeningWorker:10",
+            "tokens": 2664,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "ScreeningWorker:11",
+            "tokens": 2128,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "ScreeningWorker:12",
+            "tokens": 11523,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "CitationWorker:13",
+            "tokens": 0,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "CitationWorker:14",
+            "tokens": 0,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "CitationWorker:15",
+            "tokens": 0,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "CitationWorker:16",
+            "tokens": 16875,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "EvidenceWorker:17",
+            "tokens": 6303,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "EvidenceWorker:18",
+            "tokens": 7038,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "EvidenceWorker:19",
+            "tokens": 9853,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "SynthesisWorker:20",
+            "tokens": 11035,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "WritingWorker:21",
+            "tokens": 4249,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:22",
+            "tokens": 20838,
+            "remoteCalls": 0
+          }
+        ]
+      },
+      "cost": {
+        "status": "complete",
+        "totalUsd": 0,
+        "calls": 16,
+        "callsWithReportedCost": 16
+      },
+      "audit": {
+        "events": 404,
+        "chainValid": true,
+        "finalHash": "b0dbbbc87b26da425359d79fbfde682d2be685dedfcb52a2669960022db569c4",
+        "actions": [
+          {
+            "action": "budget.updated",
+            "count": 44
+          },
+          {
+            "action": "delegation.checked",
+            "count": 22
+          },
+          {
+            "action": "memory.cleared",
+            "count": 1
+          },
+          {
+            "action": "model.called",
+            "count": 16
+          },
+          {
+            "action": "model.completed",
+            "count": 16
+          },
+          {
+            "action": "model.count.called",
+            "count": 16
+          },
+          {
+            "action": "node.completed",
+            "count": 50
+          },
+          {
+            "action": "node.skipped",
+            "count": 12
+          },
+          {
+            "action": "node.started",
+            "count": 50
+          },
+          {
+            "action": "permission.checked",
+            "count": 67
+          },
+          {
+            "action": "runtime.started",
+            "count": 1
+          },
+          {
+            "action": "state.committed",
+            "count": 17
+          },
+          {
+            "action": "tool.called",
+            "count": 6
+          },
+          {
+            "action": "tool.completed",
+            "count": 6
+          },
+          {
+            "action": "tool.dispatched",
+            "count": 6
+          },
+          {
+            "action": "tool.settled",
+            "count": 6
+          },
+          {
+            "action": "worker.completed",
+            "count": 22
+          },
+          {
+            "action": "worker.spawned",
+            "count": 22
+          },
+          {
+            "action": "worker.started",
+            "count": 22
+          },
+          {
+            "action": "workflow.completed",
+            "count": 1
+          },
+          {
+            "action": "workflow.started",
+            "count": 1
+          }
+        ],
+        "workers": [
+          "CitationWorker:13",
+          "CitationWorker:14",
+          "CitationWorker:15",
+          "CitationWorker:16",
+          "EvidenceWorker:17",
+          "EvidenceWorker:18",
+          "EvidenceWorker:19",
+          "PlanningWorker:1",
+          "PlanningWorker:5",
+          "ScreeningWorker:10",
+          "ScreeningWorker:11",
+          "ScreeningWorker:12",
+          "ScreeningWorker:6",
+          "ScreeningWorker:7",
+          "ScreeningWorker:8",
+          "ScreeningWorker:9",
+          "SearchWorker:2",
+          "SearchWorker:3",
+          "SearchWorker:4",
+          "SynthesisWorker:20",
+          "VerificationWorker:22",
+          "WritingWorker:21",
+          "coordinator"
+        ],
+        "workersSpawned": 22,
+        "nodesCompleted": 50,
+        "modelCalls": 16,
+        "toolCalls": 6,
+        "tasksCalled": [
+          {
+            "task": "extract",
+            "count": 3
+          },
+          {
+            "task": "normalize",
+            "count": 1
+          },
+          {
+            "task": "plan",
+            "count": 1
+          },
+          {
+            "task": "prepare",
+            "count": 1
+          },
+          {
+            "task": "screen",
+            "count": 6
+          },
+          {
+            "task": "select",
+            "count": 1
+          },
+          {
+            "task": "synthesize",
+            "count": 1
+          },
+          {
+            "task": "verify",
+            "count": 1
+          },
+          {
+            "task": "write",
+            "count": 1
+          }
+        ]
+      },
+      "outputSha256": "475f7ada83926a741737b06d4e48473a523f0a9c12b79d14b4dec2b8f436dad0",
+      "artifacts": [
+        {
+          "name": "result.json",
+          "bytes": 507849,
+          "sha256": "b210dd7124df302f6595287297e0e69e2af659259147c8a7ac0a17a1c6b53756"
+        },
+        {
+          "name": "audit.json",
+          "bytes": 262325,
+          "sha256": "2ef16391e347a2f9a64623975e442878be2889b4d95b4d7acba466d40c030689"
+        },
+        {
+          "name": "usage.json",
+          "bytes": 3111,
+          "sha256": "0145b4984b4f98edcc5232778f2c49683b4417e1638171c2ce156f0de8af0534"
+        },
+        {
+          "name": "provenance.json",
+          "bytes": 239,
+          "sha256": "0d8961ccab634149d353d0a3b7bd11e1ffa7a0b06f638c677c0156f0b9053ce6"
+        },
+        {
+          "name": "related-work.md",
+          "bytes": 944,
+          "sha256": "727813e71fb4b44f476a7014cb80423a7f48d8b871045bf3c96c00657fecf3cb"
+        },
+        {
+          "name": "bibliography.json",
+          "bytes": 6667,
+          "sha256": "83f313e0a347d2c21dbf07a606ea043e011cf3df885cddf4d01ba031c2824413"
+        },
+        {
+          "name": "evidence-table.json",
+          "bytes": 5040,
+          "sha256": "96220c5ef1dd7a6b1324f6ca53905f1ff3f19a591ad38f787bb4d4ced5e047e9"
+        },
+        {
+          "name": "unresolved.json",
+          "bytes": 3,
+          "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+        },
+        {
+          "name": "verification.json",
+          "bytes": 1872,
+          "sha256": "02e39c1b870ea70a949cb423fac341c597227bced8b722ea02a723b8ec99f2c0"
+        }
+      ],
+      "host": {
+        "runtime": "openclaw",
+        "runtimeVersion": "2026.9.5",
+        "verifiedVersion": "2026.9.5",
+        "versionVerified": true
+      },
+      "deadlineExceeded": false,
+      "cancelRequested": false,
+      "errorCode": null,
+      "errorDetail": null,
+      "revalidated": [
+        "run_plan_identity",
+        "run_plan_readiness",
+        "run_plan_preflight",
+        "execution_mode",
+        "package_digest",
+        "archive_sha256",
+        "execution_profile",
+        "package_validation",
+        "signature_status",
+        "publisher_trust",
+        "signer_fingerprint",
+        "authorization_receipt",
+        "receipt_not_expired",
+        "receipt_outlasts_run_deadline",
+        "model_permission_granted",
+        "tool_bindings",
+        "tool_approvals",
+        "model_available",
+        "model_identity",
+        "model_compatibility",
+        "input_bytes:316",
+        "runner:archive_sha256",
+        "runner:container",
+        "runner:integrity",
+        "runner:schema",
+        "runner:package_digest",
+        "runner:package_identity",
+        "runner:publisher_signature",
+        "runner:signer_fingerprint",
+        "runner:execution_profile",
+        "runner:tool_handlers:3",
+        "runner:tool_bound:citation-resolver",
+        "runner:tool_bound:paper-reader",
+        "runner:tool_bound:scholarly-search"
+      ],
+      "packageExecution": {
+        "workflowInstantiated": true,
+        "packageInstructionsLoaded": true,
+        "toolHandlersInstalled": 3,
+        "toolCalls": 6
+      },
+      "task": {
+        "inputBytes": 316,
+        "input": {
+          "question": "What defenses have been proposed against prompt injection attacks on LLM-integrated applications? Compare their detection or prevention mechanisms, where in the application they are deployed, and their reported effectiveness, focusing on representative methods.",
+          "seeds": [],
+          "documents": {},
+          "mode": "live"
+        },
+        "attachments": []
+      },
+      "progress": {
+        "updatedAt": "2026-09-24T16:25:24.312Z",
+        "events": 404,
+        "lastAction": "memory.cleared",
+        "activeNodes": [],
+        "completedNodes": [
+          "planning",
+          "seed-discovery",
+          "search",
+          "join-search",
+          "normalize",
+          "screening",
+          "select-included",
+          "citations",
+          "prepare-evidence",
+          "check-records",
+          "evidence",
+          "join-evidence",
+          "synthesis",
+          "writing",
+          "verification",
+          "validate-output",
+          "outputs"
+        ],
+        "failedNodes": [],
+        "nodesCompleted": 17,
+        "stepsCompleted": 33,
+        "workersSpawned": 22,
+        "workersActive": 0,
+        "peakParallelWorkers": 3,
+        "activeWorkers": [],
+        "modelCallsStarted": 16,
+        "modelCallsCompleted": 16,
+        "toolCallsStarted": 6,
+        "toolCallsCompleted": 6,
+        "tokens": 120242,
+        "remoteCalls": 6,
+        "elapsedMs": 2440320
+      },
+      "tools": [
+        {
+          "toolId": "citation-resolver",
+          "bindingId": "openclaw:citation-resolver:1",
+          "bindingSha256": "7ac13746d199913ac9da5e8df6210a8980ffa32bda67f38217a7d8bf8bd42c39",
+          "remote": true,
+          "calls": 3
+        },
+        {
+          "toolId": "paper-reader",
+          "bindingId": "openclaw:paper-reader:1",
+          "bindingSha256": "3ddd2fd9be61d3d9c9b2e06e22d54034dd5d6e0a5b3ddf64c8c6abe91cc7351b",
+          "remote": false,
+          "calls": 0
+        },
+        {
+          "toolId": "scholarly-search",
+          "bindingId": "openclaw:scholarly-search:1",
+          "bindingSha256": "4800eb9bb1be9ddbec38e262ce0ae6e22c17dcb5659c122fd99959110923d65c",
+          "remote": true,
+          "calls": 3
+        }
+      ]
+    },
+    "progress": {
+      "snapshots": 105,
+      "first": {
+        "at": "2026-09-24T15:45:10.400Z",
+        "updatedAt": "2026-09-24T15:44:45.642Z",
+        "events": 13,
+        "lastAction": "model.called",
+        "activeNodes": [
+          "planning"
+        ],
+        "completedNodes": [],
+        "failedNodes": [],
+        "nodesCompleted": 0,
+        "stepsCompleted": 0,
+        "workersSpawned": 1,
+        "workersActive": 1,
+        "peakParallelWorkers": 1,
+        "activeWorkers": [
+          "PlanningWorker:1"
+        ],
+        "modelCallsStarted": 1,
+        "modelCallsCompleted": 0,
+        "toolCallsStarted": 0,
+        "toolCallsCompleted": 0,
+        "tokens": 0,
+        "remoteCalls": 0,
+        "elapsedMs": 1650
+      },
+      "last": {
+        "at": "2026-09-24T16:25:43.640Z",
+        "updatedAt": "2026-09-24T16:25:24.312Z",
+        "events": 404,
+        "lastAction": "memory.cleared",
+        "activeNodes": [],
+        "completedNodes": [
+          "planning",
+          "seed-discovery",
+          "search",
+          "join-search",
+          "normalize",
+          "screening",
+          "select-included",
+          "citations",
+          "prepare-evidence",
+          "check-records",
+          "evidence",
+          "join-evidence",
+          "synthesis",
+          "writing",
+          "verification",
+          "validate-output",
+          "outputs"
+        ],
+        "failedNodes": [],
+        "nodesCompleted": 17,
+        "stepsCompleted": 33,
+        "workersSpawned": 22,
+        "workersActive": 0,
+        "peakParallelWorkers": 3,
+        "activeWorkers": [],
+        "modelCallsStarted": 16,
+        "modelCallsCompleted": 16,
+        "toolCallsStarted": 6,
+        "toolCallsCompleted": 6,
+        "tokens": 120242,
+        "remoteCalls": 6,
+        "elapsedMs": 2440320
+      },
+      "maxWorkersActive": 3,
+      "nodeTimeline": [
+        {
+          "at": "2026-09-24T15:45:10.400Z",
+          "completed": 0,
+          "active": [
+            "planning"
+          ]
+        },
+        {
+          "at": "2026-09-24T15:45:32.492Z",
+          "completed": 4,
+          "active": [
+            "normalize"
+          ]
+        },
+        {
+          "at": "2026-09-24T15:51:45.870Z",
+          "completed": 5,
+          "active": [
+            "screening"
+          ]
+        },
+        {
+          "at": "2026-09-24T15:55:20.310Z",
+          "completed": 6,
+          "active": [
+            "select-included"
+          ]
+        },
+        {
+          "at": "2026-09-24T15:59:42.140Z",
+          "completed": 8,
+          "active": [
+            "prepare-evidence"
+          ]
+        },
+        {
+          "at": "2026-09-24T16:06:32.744Z",
+          "completed": 10,
+          "active": [
+            "evidence"
+          ]
+        },
+        {
+          "at": "2026-09-24T16:14:26.604Z",
+          "completed": 12,
+          "active": [
+            "synthesis"
+          ]
+        },
+        {
+          "at": "2026-09-24T16:17:30.805Z",
+          "completed": 13,
+          "active": [
+            "writing"
+          ]
+        },
+        {
+          "at": "2026-09-24T16:18:15.519Z",
+          "completed": 14,
+          "active": [
+            "verification"
+          ]
+        },
+        {
+          "at": "2026-09-24T16:25:43.640Z",
+          "completed": 17,
+          "active": []
+        }
+      ]
+    },
+    "artifacts": {
+      "listed": [
+        {
+          "name": "result.json",
+          "bytes": 507849,
+          "sha256": "b210dd7124df302f6595287297e0e69e2af659259147c8a7ac0a17a1c6b53756"
+        },
+        {
+          "name": "audit.json",
+          "bytes": 262325,
+          "sha256": "2ef16391e347a2f9a64623975e442878be2889b4d95b4d7acba466d40c030689"
+        },
+        {
+          "name": "usage.json",
+          "bytes": 3111,
+          "sha256": "0145b4984b4f98edcc5232778f2c49683b4417e1638171c2ce156f0de8af0534"
+        },
+        {
+          "name": "provenance.json",
+          "bytes": 239,
+          "sha256": "0d8961ccab634149d353d0a3b7bd11e1ffa7a0b06f638c677c0156f0b9053ce6"
+        },
+        {
+          "name": "related-work.md",
+          "bytes": 944,
+          "sha256": "727813e71fb4b44f476a7014cb80423a7f48d8b871045bf3c96c00657fecf3cb"
+        },
+        {
+          "name": "bibliography.json",
+          "bytes": 6667,
+          "sha256": "83f313e0a347d2c21dbf07a606ea043e011cf3df885cddf4d01ba031c2824413"
+        },
+        {
+          "name": "evidence-table.json",
+          "bytes": 5040,
+          "sha256": "96220c5ef1dd7a6b1324f6ca53905f1ff3f19a591ad38f787bb4d4ced5e047e9"
+        },
+        {
+          "name": "unresolved.json",
+          "bytes": 3,
+          "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+        },
+        {
+          "name": "verification.json",
+          "bytes": 1872,
+          "sha256": "02e39c1b870ea70a949cb423fac341c597227bced8b722ea02a723b8ec99f2c0"
+        }
+      ],
+      "written": [
+        "audit.json",
+        "bibliography.json",
+        "evidence-table.json",
+        "provenance.json",
+        "related-work.md",
+        "result.json",
+        "run.json",
+        "unresolved.json",
+        "usage.json",
+        "verification.json"
+      ],
+      "exportsPresent": [
+        "related-work.md",
+        "bibliography.json",
+        "evidence-table.json",
+        "unresolved.json",
+        "verification.json"
+      ],
+      "hostFilesPresent": [
+        "result.json",
+        "audit.json",
+        "usage.json",
+        "provenance.json",
+        "run.json"
+      ],
+      "copiedTo": "/Users/dariofenoglio/Desktop/WebAgents/examples/literature-review-live"
+    },
+    "relatedWorkViaApi": {
+      "bytes": 944,
+      "sha256": "727813e71fb4b44f476a7014cb80423a7f48d8b871045bf3c96c00657fecf3cb",
+      "truncated": false
+    },
+    "search": {
+      "queries": [
+        "standard terminology for prompt injection defense mechanisms in LLM applications",
+        "detection and prevention methods for prompt injection in LLM-integrated systems",
+        "reported effectiveness metrics of prompt injection defense techniques in LLM contexts"
+      ],
+      "batches": [
+        {
+          "query": "standard terminology for prompt injection defense mechanisms in LLM applications",
+          "source": "crossref",
+          "papers": 3,
+          "with_abstract": 3
+        },
+        {
+          "query": "detection and prevention methods for prompt injection in LLM-integrated systems",
+          "source": "crossref",
+          "papers": 3,
+          "with_abstract": 3
+        },
+        {
+          "query": "reported effectiveness metrics of prompt injection defense techniques in LLM contexts",
+          "source": "crossref",
+          "papers": 3,
+          "with_abstract": 3
+        }
+      ],
+      "raw_candidates": 9,
+      "candidate_papers": 7,
+      "screened": [
+        {
+          "paper_id": "10.21203/rs.3.rs-10354224/v1",
+          "status": "include",
+          "doi": "10.21203/rs.3.rs-10354224/v1",
+          "title": "guardrail-rs A Fail-Open Reverse Proxy for Prompt-Injection Defense and PII Redaction in LLM Applications",
+          "has_abstract": true,
+          "rationale": "The paper directly addresses prompt-injection defense mechanisms through a reverse proxy (guardrail-rs) that implements regex-based and ONNX-based semantic classifiers for detection, deployment between application and LLM provider, and empirical performance characterization. It explicitly discusses detection mechanisms, deployment location, and effectiveness metrics (latency, system stability), al"
+        },
+        {
+          "paper_id": "10.36227/techrxiv.171822345.56781952/v1",
+          "status": "include",
+          "doi": "10.36227/techrxiv.171822345.56781952/v1",
+          "title": "Dynamic Moving Target Defense for Mitigating Targeted LLM Prompt Injection",
+          "has_abstract": true,
+          "rationale": "The paper proposes a moving target defense mechanism specifically targeting prompt injection attacks in LLMs, detailing dynamic techniques (random parameter perturbation, model re-initialization, dynamic context adjustments) integrated with Mistral LLM and demonstrating reduced attack success rates through experimental evaluation, directly addressing the research question on defense mechanisms, de"
+        },
+        {
+          "paper_id": "10.21203/rs.3.rs-10196595/v1",
+          "status": "include",
+          "doi": "10.21203/rs.3.rs-10196595/v1",
+          "title": "Containment over Detection: Cryptographic Boundary Enforcement for Prompt Injection Defense in Agentic LLM Systems",
+          "has_abstract": true,
+          "rationale": "Paper directly proposes and evaluates a containment-based defense architecture for prompt injection attacks, detailing four input-layer defense mechanisms (cryptographic tokens, canonicalization, XML envelope, behavioral grounding), providing empirical evaluation against 547 adversarial patterns with 94.3% containment rate, and addressing deployment context within agentic LLM systems. This fully a"
+        },
+        {
+          "paper_id": "10.2139/ssrn.6739079",
+          "status": "include",
+          "doi": "10.2139/ssrn.6739079",
+          "title": "PIDL: A Prompt Injection Detection Layer for LLM-Integrated Web Applications via Multi-Signal Semantic Analysis",
+          "has_abstract": true,
+          "rationale": "The paper directly proposes PIDL, a detection layer for prompt injection attacks in LLM-integrated web applications, detailing its four-signal semantic analysis pipeline, deployment as middleware, and effectiveness metrics (latency, token handling). It addresses all aspects of the research question: detection mechanism, application-layer deployment, and defense efficacy."
+        },
+        {
+          "paper_id": "10.21203/rs.3.rs-10196595/v1",
+          "status": "include",
+          "doi": "10.21203/rs.3.rs-10196595/v1",
+          "title": "Containment over Detection: Cryptographic Boundary Enforcement for Prompt Injection Defense in Agentic LLM Systems",
+          "has_abstract": true,
+          "rationale": "The paper proposes a containment-based defense architecture with four layers (cryptographic tokens, input canonicalization, XML envelope wrapping, behavioral grounding) specifically for prompt injection in LLM-integrated systems, providing empirical validation against 547 adversarial patterns with 94.3% syntactic containment rate and <0.5ms overhead, directly addressing the research question on de"
+        },
+        {
+          "paper_id": "10.53941/ijndi.2025.100013",
+          "status": "include",
+          "doi": "10.53941/ijndi.2025.100013",
+          "title": "Prompt Injection Detection in LLM Integrated Applications",
+          "has_abstract": true,
+          "rationale": "The paper directly addresses prompt injection detection mechanisms using a BERT-based model for real-time identification and mitigation in LLM-integrated applications, aligning with the research question's focus on detection/prevention methods, deployment context (application-level), and effectiveness claims."
+        }
+      ],
+      "citation_jobs": 3,
+      "resolver_statuses": [
+        {
+          "paper_id": "10.21203/rs.3.rs-10354224/v1",
+          "query_doi": "10.21203/rs.3.rs-10354224/v1",
+          "status": "resolved",
+          "source": "crossref"
+        },
+        {
+          "paper_id": "10.36227/techrxiv.171822345.56781952/v1",
+          "query_doi": "10.36227/techrxiv.171822345.56781952/v1",
+          "status": "resolved",
+          "source": "crossref"
+        },
+        {
+          "paper_id": "10.21203/rs.3.rs-10196595/v1",
+          "query_doi": "10.21203/rs.3.rs-10196595/v1",
+          "status": "resolved",
+          "source": "crossref"
+        }
+      ]
+    },
+    "grounding": {
+      "evidence_items": 7,
+      "evidence_quotes_in_genuine_sources": 7,
+      "evidence_quote_results": [
+        {
+          "evidence_id": "method-1",
+          "paper_id": "10.21203/rs.3.rs-10354224/v1",
+          "scope": "abstract",
+          "quote_in_genuine_source": true,
+          "synthetic": false
+        },
+        {
+          "evidence_id": "setup-1",
+          "paper_id": "10.21203/rs.3.rs-10354224/v1",
+          "scope": "abstract",
+          "quote_in_genuine_source": true,
+          "synthetic": false
+        },
+        {
+          "evidence_id": "finding-1",
+          "paper_id": "10.21203/rs.3.rs-10354224/v1",
+          "scope": "abstract",
+          "quote_in_genuine_source": true,
+          "synthetic": false
+        },
+        {
+          "evidence_id": "limitation-1",
+          "paper_id": "10.21203/rs.3.rs-10354224/v1",
+          "scope": "abstract",
+          "quote_in_genuine_source": true,
+          "synthetic": false
+        },
+        {
+          "evidence_id": "e1",
+          "paper_id": "10.36227/techrxiv.171822345.56781952/v1",
+          "scope": "abstract",
+          "quote_in_genuine_source": true,
+          "synthetic": false
+        },
+        {
+          "evidence_id": "e2",
+          "paper_id": "10.36227/techrxiv.171822345.56781952/v1",
+          "scope": "abstract",
+          "quote_in_genuine_source": true,
+          "synthetic": false
+        },
+        {
+          "evidence_id": "e3",
+          "paper_id": "10.36227/techrxiv.171822345.56781952/v1",
+          "scope": "abstract",
+          "quote_in_genuine_source": true,
+          "synthetic": false
+        }
+      ],
+      "evidence_table_rows": 7,
+      "evidence_table_rows_match_items": true,
+      "bibliography": [
+        {
+          "paper_id": "10.21203/rs.3.rs-10354224/v1",
+          "resolved": true,
+          "metadata_equals_resolver_record": false,
+          "title": "guardrail-rs A Fail-Open Reverse Proxy for Prompt-Injection Defense and PII Redaction in LLM Applications",
+          "doi": "10.21203/rs.3.rs-10354224/v1"
+        },
+        {
+          "paper_id": "10.36227/techrxiv.171822345.56781952/v1",
+          "resolved": true,
+          "metadata_equals_resolver_record": false,
+          "title": "Dynamic Moving Target Defense for Mitigating Targeted LLM Prompt Injection",
+          "doi": "10.36227/techrxiv.171822345.56781952/v1"
+        }
+      ],
+      "bibliography_all_resolved_and_exact": false,
+      "claims": 7,
+      "claim_statuses": [
+        {
+          "claim_id": "claim-1",
+          "verification_status": "supported",
+          "support_type": "direct_quote",
+          "evidence_ids": [
+            "method-1"
+          ],
+          "paper_ids": [
+            "10.21203/rs.3.rs-10354224/v1"
+          ]
+        },
+        {
+          "claim_id": "claim-2",
+          "verification_status": "supported",
+          "support_type": "direct_quote",
+          "evidence_ids": [
+            "setup-1"
+          ],
+          "paper_ids": [
+            "10.21203/rs.3.rs-10354224/v1"
+          ]
+        },
+        {
+          "claim_id": "claim-3",
+          "verification_status": "supported",
+          "support_type": "direct_quote",
+          "evidence_ids": [
+            "finding-1"
+          ],
+          "paper_ids": [
+            "10.21203/rs.3.rs-10354224/v1"
+          ]
+        },
+        {
+          "claim_id": "claim-4",
+          "verification_status": "supported",
+          "support_type": "direct_quote",
+          "evidence_ids": [
+            "limitation-1"
+          ],
+          "paper_ids": [
+            "10.21203/rs.3.rs-10354224/v1"
+          ]
+        },
+        {
+          "claim_id": "claim-5",
+          "verification_status": "supported",
+          "support_type": "direct_quote",
+          "evidence_ids": [
+            "e1"
+          ],
+          "paper_ids": [
+            "10.36227/techrxiv.171822345.56781952/v1"
+          ]
+        },
+        {
+          "claim_id": "claim-6",
+          "verification_status": "supported",
+          "support_type": "direct_quote",
+          "evidence_ids": [
+            "e2"
+          ],
+          "paper_ids": [
+            "10.36227/techrxiv.171822345.56781952/v1"
+          ]
+        },
+        {
+          "claim_id": "claim-7",
+          "verification_status": "supported",
+          "support_type": "direct_quote",
+          "evidence_ids": [
+            "e3"
+          ],
+          "paper_ids": [
+            "10.36227/techrxiv.171822345.56781952/v1"
+          ]
+        }
+      ],
+      "claims_reference_existing_evidence": true,
+      "claims_cite_evidence_and_papers": true,
+      "claims_reference_resolved_papers": true,
+      "verification_results": 7,
+      "verification_results_match_claims": true,
+      "unsupported_or_overstated": 0,
+      "related_work_chars": 944,
+      "related_work_paper_ids_mentioned": [],
+      "related_work_mentions_only_bibliography": true,
+      "unresolved": 0
+    },
+    "resultStatus": "completed",
+    "resultErrorCode": null,
+    "runPlanAfterExecution": {
+      "runPlanSha256": "3864c26f397e1baa1329612cc24c2cfd0d852e0e9062fbae23bebff428a20f38",
+      "unchanged": true,
+      "executionPerformed": false,
+      "toolBindingsCurrent": true,
+      "pageRunAction": false
+    }
+  },
+  "host": {
+    "openclaw": "OpenClaw 2026.9.5 (ec9c1a1)",
+    "service": {
+      "state": "running",
+      "detail": "The Agent Browser control plane is running.",
+      "since": "2026-09-24T12:55:26.072Z",
+      "starts": 1,
+      "controlPlane": {
+        "apiVersion": "v0",
+        "agentpkgVersion": "0.2.0",
+        "packageFormat": "agent.pkg 0.1",
+        "execution": "disabled"
+      },
+      "sessions": {
+        "open": 0,
+        "max": 8
+      },
+      "capabilities": {
+        "openUrl": true,
+        "openLocal": true,
+        "localRoots": [
+          "/Users/dariofenoglio/Desktop/WebAgents/dist",
+          "/Users/dariofenoglio/.openclaw/workspace"
+        ],
+        "trustPinning": true
+      },
+      "executionSupported": false,
+      "executionOperations": true,
+      "fileSelection": true
+    }
+  },
+  "criteria": {
+    "completed": true,
+    "profileWorkflowV0": true,
+    "packageIsLiteratureReview": true,
+    "signatureValid": true,
+    "signerTrusted": true,
+    "runnerReverifiedPackage": true,
+    "oneExplicitModelEveryCall": true,
+    "zeroCostLocal": true,
+    "scholarlySearchCalled": true,
+    "citationResolverCalled": true,
+    "paperReaderUseMatchesDocuments": true,
+    "peakParallelAtLeastTwo": true,
+    "auditChainValid": true,
+    "allExportsWritten": true,
+    "allHostFilesWritten": true,
+    "relatedWorkNonEmpty": true,
+    "bibliographyFromResolvedRecords": false,
+    "evidenceQuotesInGenuineSources": true,
+    "evidenceTableMatchesItems": true,
+    "claimsReferenceExistingEvidence": true,
+    "claimsCiteEvidenceAndPapers": true,
+    "claimsReferenceResolvedPapers": true,
+    "verificationMatchesClaims": true,
+    "relatedWorkCitesOnlyBibliography": true,
+    "noSyntheticContent": true,
+    "noCredentialShapedText": true,
+    "runPlanUnchanged": true,
+    "progressObserved": true
+  },
+  "notObserved": [],
+  "passed": false
+}

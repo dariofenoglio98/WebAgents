@@ -16,7 +16,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from shipped_keys import AGENDA_KEY, DIST, ORIGINAL_KEY
+from shipped_keys import AGENDA_KEY, DIST, LITERATURE_KEY, ORIGINAL_KEY
 
 ROOT = Path(__file__).resolve().parents[2]
 BROWSER = ROOT / "agentpkg/src/agentpkg/browser"
@@ -105,6 +105,12 @@ control.trust_add(
     display_name="meeting agenda signing key",
     publisher_id="webagents-research",
     package_id_prefix="org.webagents.meeting-agenda",
+)
+control.trust_add(
+    read_public_key_file({str(LITERATURE_KEY)!r}),
+    display_name="literature review signing key",
+    publisher_id="webagents-research",
+    package_id_prefix="org.webagents.literature-review",
 )
 catalog = {{
     "schema": "agentpkg-host-model-catalog-v0",

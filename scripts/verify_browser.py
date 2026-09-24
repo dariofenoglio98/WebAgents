@@ -28,11 +28,12 @@ from agentpkg.netaddr import public_address_reason
 from agentpkg.package import write_new
 
 ROOT = Path(__file__).resolve().parents[1]
-DEV_KEY = ROOT / "examples/keys/workflow-publisher.pub.pem"
 AGENDA_KEY = ROOT / "examples/keys/meeting-agenda-publisher.pub.pem"
-# One explicit pin per shipped signer key, each as narrow as it can be.
+LITERATURE_KEY = ROOT / "examples/keys/literature-review-publisher.pub.pem"
+# One explicit pin per shipped signer key, each as narrow as it can be. The
+# original development key now signs only the preserved 0.2.0 artifacts.
 SHIPPED_KEYS = (
-    (DEV_KEY, "WebAgents development key", "org.webagents.literature-review"),
+    (LITERATURE_KEY, "WebAgents Literature Review signing key", "org.webagents.literature-review"),
     (AGENDA_KEY, "WebAgents Meeting Agenda signing key", "org.webagents.meeting-agenda"),
 )
 PACKAGES = ("literature-review", "meeting-agenda")

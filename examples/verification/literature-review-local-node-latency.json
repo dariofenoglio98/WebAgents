@@ -1,0 +1,276 @@
+{
+ "model": "ollama/qwen3.5:9b",
+ "num_ctx": 65536,
+ "probes": {
+  "planning": {
+   "record": {
+    "label": "planning",
+    "task": "plan",
+    "role": "PlanningWorker",
+    "bound_bytes": 2722,
+    "reservation": 14722,
+    "max_output_tokens": 12000,
+    "elapsed_s": 24.7,
+    "prompt_eval_count": 389,
+    "eval_count": 376,
+    "thinking_chars": 1095,
+    "output_chars": 911,
+    "done_reason": "stop",
+    "options": {},
+    "conforming": true,
+    "parse": "direct"
+   },
+   "output": {
+    "queries": [
+     "dynamic agent selection adaptive topology multi-agent LLM systems review 2020-2025",
+     "criteria-based agent routing communication graph adaptation mechanisms survey",
+     "latency throughput scalability trade-offs distributed agent orchestration topology"
+    ],
+    "rationale": "Query 1 (terminology): captures core concepts of dynamic agent selection and topology adaptation in multi-agent LLM architectures, establishing foundational search scope. Query 2 (method): focuses on specific selection criteria and graph adaptation mechanisms, targeting comparative methodology analysis across representative approaches. Query 3 (evaluation): concentrates on performance metrics including latency, throughput, and scalability to enable systematic efficiency trade-off assessment. Together they form complementary dimensions covering what methods exist, how they work, and how well they perform.",
+    "seed_queries": []
+   }
+  },
+  "crossref": {
+   "queries": [
+    "dynamic agent selection adaptive topology multi-agent LLM systems review 2020-2025",
+    "criteria-based agent routing communication graph adaptation mechanisms survey",
+    "latency throughput scalability trade-offs distributed agent orchestration topology"
+   ],
+   "counts": [
+    3,
+    3,
+    3
+   ],
+   "with_abstract": 2,
+   "titles": [
+    "A Methodological Framework for Self-Evolving Multi-Agent Systems: Toward Adaptive and Continuous Learning in LLM-Based Architectures",
+    "Review of: \"AgentNet: Decentralized Evolutionary Coordination for LLM-based Multi-Agent Systems\"",
+    "Review of: \"AgentNet: Decentralized Evolutionary Coordination for LLM-based Multi-Agent Systems\"",
+    "A Hybrid Sensor-Fusion and Graph-Based Routing Model for Explainable Multi-Agent Fire Evacuation",
+    "Trust based secure routing mechanisms for wireless sensor networks: A survey",
+    "Using Graph Theory to Model Routing Vulnerabilities and Defence Mechanisms in ISP Networks",
+    "Vehicular PKI scalability-consistency trade-offs in large scale distributed scenarios",
+    "REAL-TIME DATA PIPELINE MODERNIZATION: A COMPARATIVE STUDY OF LATENCY, SCALABILITY, AND COST TRADE-OFFS IN KAFKA-SPARK- BIGQUERY ARCHITECTURES",
+    "Managing trade-offs between information loss and latency in real-time distributed systems"
+   ]
+  },
+  "normalize": {
+   "record": {
+    "label": "normalize",
+    "task": "normalize",
+    "role": "PlanningWorker",
+    "bound_bytes": 14893,
+    "reservation": 26893,
+    "max_output_tokens": 12000,
+    "elapsed_s": 202.6,
+    "prompt_eval_count": 3331,
+    "eval_count": 4100,
+    "thinking_chars": 2328,
+    "output_chars": 14092,
+    "done_reason": "stop",
+    "options": {},
+    "conforming": true,
+    "parse": "direct"
+   },
+   "candidate_count": 9,
+   "screening_jobs": 1
+  },
+  "screening": {
+   "records": [
+    {
+     "label": "screen-one[0]",
+     "task": "screen",
+     "role": "ScreeningWorker",
+     "bound_bytes": 7177,
+     "reservation": 19177,
+     "max_output_tokens": 12000,
+     "elapsed_s": 246.6,
+     "prompt_eval_count": 1147,
+     "eval_count": 3477,
+     "thinking_chars": 11584,
+     "output_chars": 2913,
+     "done_reason": "stop",
+     "options": {},
+     "conforming": true,
+     "parse": "direct"
+    }
+   ],
+   "statuses": [
+    "include"
+   ]
+  },
+  "select": {
+   "record": {
+    "label": "select-included",
+    "task": "select",
+    "role": "ScreeningWorker",
+    "bound_bytes": 7001,
+    "reservation": 19001,
+    "max_output_tokens": 12000,
+    "elapsed_s": 65.9,
+    "prompt_eval_count": 1124,
+    "eval_count": 1294,
+    "thinking_chars": 2853,
+    "output_chars": 2792,
+    "done_reason": "stop",
+    "options": {},
+    "conforming": true,
+    "parse": "direct"
+   },
+   "included": 1
+  },
+  "citations": {
+   "statuses": [
+    "resolved"
+   ]
+  },
+  "prepare": [
+   {
+    "variant": "default",
+    "record": {
+     "label": "prepare-evidence[default]",
+     "task": "prepare",
+     "role": "CitationWorker",
+     "bound_bytes": 13380,
+     "reservation": 25380,
+     "max_output_tokens": 12000,
+     "elapsed_s": 139.2,
+     "prompt_eval_count": 2287,
+     "eval_count": 2106,
+     "thinking_chars": 4643,
+     "output_chars": 4102,
+     "done_reason": "stop",
+     "options": {},
+     "conforming": true,
+     "parse": "direct"
+    },
+    "citation_checks": [
+     "metadata_not_exact"
+    ],
+    "evidence_jobs": 1
+   },
+   {
+    "variant": "t0.2_p0",
+    "record": {
+     "label": "prepare-evidence[t0.2_p0]",
+     "task": "prepare",
+     "role": "CitationWorker",
+     "bound_bytes": 13380,
+     "reservation": 25380,
+     "max_output_tokens": 12000,
+     "elapsed_s": 593.9,
+     "prompt_eval_count": 2287,
+     "eval_count": 12000,
+     "thinking_chars": 35689,
+     "output_chars": 0,
+     "done_reason": "length",
+     "options": {
+      "temperature": 0.2,
+      "presence_penalty": 0
+     },
+     "conforming": false,
+     "failure": "BridgeError: The model returned no output"
+    },
+    "citation_checks": null,
+    "evidence_jobs": 0
+   }
+  ],
+  "extract": {
+   "records": [
+    {
+     "label": "extract-one[0]",
+     "task": "extract",
+     "role": "EvidenceWorker",
+     "bound_bytes": 7419,
+     "reservation": 19419,
+     "max_output_tokens": 12000,
+     "elapsed_s": 289.8,
+     "prompt_eval_count": 1244,
+     "eval_count": 5866,
+     "thinking_chars": 21042,
+     "output_chars": 3282,
+     "done_reason": "stop",
+     "options": {},
+     "conforming": true,
+     "parse": "direct",
+     "quotes_contained": [
+      true,
+      true,
+      true,
+      true
+     ]
+    }
+   ],
+   "evidence_items": 4
+  },
+  "synthesis": {
+   "record": {
+    "label": "synthesis",
+    "task": "synthesize",
+    "role": "SynthesisWorker",
+    "bound_bytes": 8057,
+    "reservation": 20057,
+    "max_output_tokens": 12000,
+    "elapsed_s": 330.7,
+    "prompt_eval_count": 1429,
+    "eval_count": 6722,
+    "thinking_chars": 22107,
+    "output_chars": 2772,
+    "done_reason": "stop",
+    "options": {},
+    "conforming": true,
+    "parse": "direct"
+   }
+  },
+  "writing": {
+   "record": {
+    "label": "writing",
+    "task": "write",
+    "role": "WritingWorker",
+    "bound_bytes": 6050,
+    "reservation": 18050,
+    "max_output_tokens": 12000,
+    "elapsed_s": 186.6,
+    "prompt_eval_count": 1033,
+    "eval_count": 3680,
+    "thinking_chars": 11912,
+    "output_chars": 2033,
+    "done_reason": "stop",
+    "options": {},
+    "conforming": true,
+    "parse": "direct"
+   }
+  },
+  "verification": {
+   "record": {
+    "label": "verification",
+    "task": "verify",
+    "role": "VerificationWorker",
+    "bound_bytes": 11486,
+    "reservation": 23486,
+    "max_output_tokens": 12000,
+    "elapsed_s": 202.9,
+    "prompt_eval_count": 2178,
+    "eval_count": 2629,
+    "thinking_chars": 5212,
+    "output_chars": 5461,
+    "done_reason": "stop",
+    "options": {},
+    "conforming": true,
+    "parse": "direct"
+   },
+   "checks": {
+    "bibliography": [
+     "not_exact"
+    ],
+    "evidence_table": [
+     "not_exact",
+     "not_exact",
+     "not_exact",
+     "not_exact"
+    ],
+    "related_work_chars": 55
+   }
+  }
+ }
+}

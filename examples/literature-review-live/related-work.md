@@ -1,0 +1,5 @@
+## Network-layer detection using reverse proxy
+The guardrail-rs system (Myet et al. [1]) employs a reverse proxy that sits between an application and its LLM provider, inspecting every request and response before crossing the network boundary. It uses regex-based and ONNX-based semantic classifiers for prompt-injection detection, reports a component missing its documented latency target at larger payloads, and explicitly notes the absence of formal adversarial-robustness evaluation (identified as the most important future work).
+
+## Model-layer dynamic defense
+Panterino and Fellington [2] describe dynamic defense techniques including random parameter perturbation, model re-initialization, and dynamic context adjustments, seamlessly integrated with the Mistral LLM. Their experimental results demonstrate a substantial reduction in attack success rate while maintaining high performance and managing computational overhead efficiently.

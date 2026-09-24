@@ -32,7 +32,7 @@
         "required": [
           "name"
         ],
-        "additionalProperties": true
+        "additionalProperties": false
       }
     },
     "year": {
@@ -84,12 +84,15 @@
           },
           "synthetic": {
             "type": "boolean"
+          },
+          "retrieved_at": {
+            "type": "string"
           }
         },
         "required": [
           "source"
         ],
-        "additionalProperties": true
+        "additionalProperties": false
       }
     },
     "full_text_available": {

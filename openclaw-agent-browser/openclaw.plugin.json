@@ -32,6 +32,20 @@
           }
         }
       },
+      "localFiles": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "roots": {
+            "type": "array",
+            "maxItems": 8,
+            "items": {
+              "type": "string"
+            },
+            "description": "Absolute directories an operator may select PDFs from for a run. Empty by default; the workspace is never implied. A selected file is copied once into private storage and reaches a package only as an opaque id."
+          }
+        }
+      },
       "sessionTtlSeconds": {
         "type": "integer",
         "minimum": 60,
@@ -78,6 +92,12 @@
             "minimum": 1,
             "maximum": 86400,
             "description": "Upper bound on a run's wall-clock time, tightening the graph deadline."
+          },
+          "modelCallTimeoutSeconds": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 3600,
+            "description": "Upper bound on one model completion, including time queued at the model server (default 300). Raise it for a local server that decodes one request at a time; graph node timeouts still bound every call."
           },
           "requireVerifiedHostRuntime": {
             "type": "boolean",
@@ -165,9 +185,9 @@
     "onStartup": true
   },
   "controlUi": {
-    "entry": "dist/control-ui/998d2d6c17f64a556c23595a865a0276e921031c93f2ffc284f334f07f785d89/index.js",
+    "entry": "dist/control-ui/25af14bdc53aefa74e2cd9f1f5351cecfc9cf4c9cdec4278a62ede35c26d40bf/index.js",
     "styles": [
-      "dist/control-ui/998d2d6c17f64a556c23595a865a0276e921031c93f2ffc284f334f07f785d89/index.css"
+      "dist/control-ui/25af14bdc53aefa74e2cd9f1f5351cecfc9cf4c9cdec4278a62ede35c26d40bf/index.css"
     ]
   },
   "contracts": {

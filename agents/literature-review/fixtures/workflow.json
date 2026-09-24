@@ -147,75 +147,6 @@
               ]
             },
             {
-              "title": "SYNTHETIC: Unavailable Topology Provider",
-              "doi": "10.0000/synthetic-failure",
-              "arxiv_id": null,
-              "authors": [
-                {
-                  "name": "Synthetic Example Author"
-                }
-              ],
-              "year": 2026,
-              "venue": "Synthetic Fixture Proceedings",
-              "abstract": "Dynamic agent selection and adaptive communication topology appear in this synthetic record. Its citation fixture simulates a provider outage.",
-              "url": null,
-              "source": "synthetic-fixture",
-              "provenance": [
-                {
-                  "source": "synthetic-fixture",
-                  "query": null,
-                  "locator": "fixture:failure",
-                  "synthetic": true
-                }
-              ]
-            },
-            {
-              "title": "SYNTHETIC: Dynamic Agent Selection Without An Abstract",
-              "doi": "10.0000/synthetic-title-only",
-              "arxiv_id": null,
-              "authors": [
-                {
-                  "name": "Synthetic Example Author"
-                }
-              ],
-              "year": 2026,
-              "venue": "Synthetic Fixture Proceedings",
-              "abstract": null,
-              "url": null,
-              "source": "synthetic-fixture",
-              "provenance": [
-                {
-                  "source": "synthetic-fixture",
-                  "query": null,
-                  "locator": "fixture:title-only",
-                  "synthetic": true
-                }
-              ]
-            },
-            {
-              "title": "SYNTHETIC: Ceramic Agent Topology",
-              "doi": "10.0000/synthetic-irrelevant",
-              "arxiv_id": null,
-              "authors": [
-                {
-                  "name": "Synthetic Example Author"
-                }
-              ],
-              "year": 2026,
-              "venue": "Synthetic Fixture Proceedings",
-              "abstract": "This synthetic article studies ceramic grain topology under furnace heating. Experiments measure thermal properties.",
-              "url": null,
-              "source": "synthetic-fixture",
-              "provenance": [
-                {
-                  "source": "synthetic-fixture",
-                  "query": null,
-                  "locator": "fixture:irrelevant",
-                  "synthetic": true
-                }
-              ]
-            },
-            {
               "title": "SYNTHETIC: Dynamic Agent Selection with Task Routing",
               "doi": "10.0000/synthetic-router",
               "arxiv_id": null,
@@ -234,282 +165,6 @@
                   "source": "synthetic-fixture",
                   "query": null,
                   "locator": "fixture:router",
-                  "synthetic": true
-                }
-              ]
-            },
-            {
-              "title": "SYNTHETIC: Adaptive Communication Topology for Agent Teams",
-              "doi": "10.0000/synthetic-topology",
-              "arxiv_id": null,
-              "authors": [
-                {
-                  "name": "Synthetic Example Author"
-                }
-              ],
-              "year": 2026,
-              "venue": "Synthetic Fixture Proceedings",
-              "abstract": "Adaptive communication topology changes message edges between language-model agents during a task. The synthetic method uses intermediate agreement signals to choose a communication graph. Its abstract does not report evaluation sample sizes.",
-              "url": null,
-              "source": "synthetic-fixture",
-              "provenance": [
-                {
-                  "source": "synthetic-fixture",
-                  "query": null,
-                  "locator": "fixture:topology",
-                  "synthetic": true
-                }
-              ]
-            },
-            {
-              "title": "SYNTHETIC: Joint Agent and Communication Selection",
-              "doi": "10.0000/synthetic-joint",
-              "arxiv_id": null,
-              "authors": [
-                {
-                  "name": "Synthetic Example Author"
-                }
-              ],
-              "year": 2026,
-              "venue": "Synthetic Fixture Proceedings",
-              "abstract": "Dynamic agent selection and topology adaptation jointly choose participants and communication edges. The synthetic study distinguishes selection costs from communication costs. Transfer beyond the simulated task distribution is not established.",
-              "url": null,
-              "source": "synthetic-fixture",
-              "provenance": [
-                {
-                  "source": "synthetic-fixture",
-                  "query": null,
-                  "locator": "fixture:joint",
-                  "synthetic": true
-                }
-              ]
-            },
-            {
-              "title": "SYNTHETIC: Dynamic Agent Networks",
-              "doi": "10.0000/synthetic-ambiguous",
-              "arxiv_id": null,
-              "authors": [
-                {
-                  "name": "Synthetic Example Author"
-                }
-              ],
-              "year": 2026,
-              "venue": "Synthetic Fixture Proceedings",
-              "abstract": "Dynamic agent networks select language-model agents and adapt communication topology. This title deliberately has multiple fixture matches.",
-              "url": null,
-              "source": "synthetic-fixture",
-              "provenance": [
-                {
-                  "source": "synthetic-fixture",
-                  "query": null,
-                  "locator": "fixture:ambiguous",
-                  "synthetic": true
-                }
-              ]
-            },
-            {
-              "title": "SYNTHETIC: Missing Agent Selection Paper",
-              "doi": "10.0000/synthetic-missing",
-              "arxiv_id": null,
-              "authors": [
-                {
-                  "name": "Synthetic Example Author"
-                }
-              ],
-              "year": 2026,
-              "venue": "Synthetic Fixture Proceedings",
-              "abstract": "Dynamic language-model agent selection is discussed in this synthetic search record. Its citation is deliberately absent from fixture indexes.",
-              "url": null,
-              "source": "synthetic-fixture",
-              "provenance": [
-                {
-                  "source": "synthetic-fixture",
-                  "query": null,
-                  "locator": "fixture:missing",
-                  "synthetic": true
-                }
-              ]
-            },
-            {
-              "title": "SYNTHETIC: Unavailable Topology Provider",
-              "doi": "10.0000/synthetic-failure",
-              "arxiv_id": null,
-              "authors": [
-                {
-                  "name": "Synthetic Example Author"
-                }
-              ],
-              "year": 2026,
-              "venue": "Synthetic Fixture Proceedings",
-              "abstract": "Dynamic agent selection and adaptive communication topology appear in this synthetic record. Its citation fixture simulates a provider outage.",
-              "url": null,
-              "source": "synthetic-fixture",
-              "provenance": [
-                {
-                  "source": "synthetic-fixture",
-                  "query": null,
-                  "locator": "fixture:failure",
-                  "synthetic": true
-                }
-              ]
-            },
-            {
-              "title": "SYNTHETIC: Dynamic Agent Selection Without An Abstract",
-              "doi": "10.0000/synthetic-title-only",
-              "arxiv_id": null,
-              "authors": [
-                {
-                  "name": "Synthetic Example Author"
-                }
-              ],
-              "year": 2026,
-              "venue": "Synthetic Fixture Proceedings",
-              "abstract": null,
-              "url": null,
-              "source": "synthetic-fixture",
-              "provenance": [
-                {
-                  "source": "synthetic-fixture",
-                  "query": null,
-                  "locator": "fixture:title-only",
-                  "synthetic": true
-                }
-              ]
-            },
-            {
-              "title": "SYNTHETIC: Ceramic Agent Topology",
-              "doi": "10.0000/synthetic-irrelevant",
-              "arxiv_id": null,
-              "authors": [
-                {
-                  "name": "Synthetic Example Author"
-                }
-              ],
-              "year": 2026,
-              "venue": "Synthetic Fixture Proceedings",
-              "abstract": "This synthetic article studies ceramic grain topology under furnace heating. Experiments measure thermal properties.",
-              "url": null,
-              "source": "synthetic-fixture",
-              "provenance": [
-                {
-                  "source": "synthetic-fixture",
-                  "query": null,
-                  "locator": "fixture:irrelevant",
-                  "synthetic": true
-                }
-              ]
-            },
-            {
-              "title": "SYNTHETIC: Dynamic Agent Selection with Task Routing",
-              "doi": "10.0000/synthetic-router",
-              "arxiv_id": null,
-              "authors": [
-                {
-                  "name": "Synthetic Example Author"
-                }
-              ],
-              "year": 2026,
-              "venue": "Synthetic Fixture Proceedings",
-              "abstract": "Dynamic agent selection routes each task to a subset of language-model agents using task features. The synthetic evaluation compares routed teams with a fixed all-agent baseline. Reported findings concern the simulated workload only.",
-              "url": null,
-              "source": "synthetic-fixture",
-              "provenance": [
-                {
-                  "source": "synthetic-fixture",
-                  "query": null,
-                  "locator": "fixture:router",
-                  "synthetic": true
-                }
-              ]
-            },
-            {
-              "title": "SYNTHETIC: Adaptive Communication Topology for Agent Teams",
-              "doi": "10.0000/synthetic-topology",
-              "arxiv_id": null,
-              "authors": [
-                {
-                  "name": "Synthetic Example Author"
-                }
-              ],
-              "year": 2026,
-              "venue": "Synthetic Fixture Proceedings",
-              "abstract": "Adaptive communication topology changes message edges between language-model agents during a task. The synthetic method uses intermediate agreement signals to choose a communication graph. Its abstract does not report evaluation sample sizes.",
-              "url": null,
-              "source": "synthetic-fixture",
-              "provenance": [
-                {
-                  "source": "synthetic-fixture",
-                  "query": null,
-                  "locator": "fixture:topology",
-                  "synthetic": true
-                }
-              ]
-            },
-            {
-              "title": "SYNTHETIC: Joint Agent and Communication Selection",
-              "doi": "10.0000/synthetic-joint",
-              "arxiv_id": null,
-              "authors": [
-                {
-                  "name": "Synthetic Example Author"
-                }
-              ],
-              "year": 2026,
-              "venue": "Synthetic Fixture Proceedings",
-              "abstract": "Dynamic agent selection and topology adaptation jointly choose participants and communication edges. The synthetic study distinguishes selection costs from communication costs. Transfer beyond the simulated task distribution is not established.",
-              "url": null,
-              "source": "synthetic-fixture",
-              "provenance": [
-                {
-                  "source": "synthetic-fixture",
-                  "query": null,
-                  "locator": "fixture:joint",
-                  "synthetic": true
-                }
-              ]
-            },
-            {
-              "title": "SYNTHETIC: Dynamic Agent Networks",
-              "doi": "10.0000/synthetic-ambiguous",
-              "arxiv_id": null,
-              "authors": [
-                {
-                  "name": "Synthetic Example Author"
-                }
-              ],
-              "year": 2026,
-              "venue": "Synthetic Fixture Proceedings",
-              "abstract": "Dynamic agent networks select language-model agents and adapt communication topology. This title deliberately has multiple fixture matches.",
-              "url": null,
-              "source": "synthetic-fixture",
-              "provenance": [
-                {
-                  "source": "synthetic-fixture",
-                  "query": null,
-                  "locator": "fixture:ambiguous",
-                  "synthetic": true
-                }
-              ]
-            },
-            {
-              "title": "SYNTHETIC: Missing Agent Selection Paper",
-              "doi": "10.0000/synthetic-missing",
-              "arxiv_id": null,
-              "authors": [
-                {
-                  "name": "Synthetic Example Author"
-                }
-              ],
-              "year": 2026,
-              "venue": "Synthetic Fixture Proceedings",
-              "abstract": "Dynamic language-model agent selection is discussed in this synthetic search record. Its citation is deliberately absent from fixture indexes.",
-              "url": null,
-              "source": "synthetic-fixture",
-              "provenance": [
-                {
-                  "source": "synthetic-fixture",
-                  "query": null,
-                  "locator": "fixture:missing",
                   "synthetic": true
                 }
               ]
@@ -609,19 +264,13 @@
               "provenance": [
                 {
                   "source": "synthetic-fixture",
-                  "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
-                  "locator": "10.0000/synthetic-router",
-                  "synthetic": true
-                },
-                {
-                  "source": "synthetic-fixture",
-                  "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-                  "locator": "10.0000/synthetic-router",
-                  "synthetic": true
-                },
-                {
-                  "source": "synthetic-fixture",
                   "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
+                  "locator": "10.0000/synthetic-router",
+                  "synthetic": true
+                },
+                {
+                  "source": "synthetic-fixture",
+                  "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
                   "locator": "10.0000/synthetic-router",
                   "synthetic": true
                 },
@@ -652,18 +301,6 @@
               "url": null,
               "source": "synthetic-fixture",
               "provenance": [
-                {
-                  "source": "synthetic-fixture",
-                  "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
-                  "locator": "10.0000/synthetic-topology",
-                  "synthetic": true
-                },
-                {
-                  "source": "synthetic-fixture",
-                  "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-                  "locator": "10.0000/synthetic-topology",
-                  "synthetic": true
-                },
                 {
                   "source": "synthetic-fixture",
                   "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
@@ -697,18 +334,6 @@
               "url": null,
               "source": "synthetic-fixture",
               "provenance": [
-                {
-                  "source": "synthetic-fixture",
-                  "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
-                  "locator": "10.0000/synthetic-joint",
-                  "synthetic": true
-                },
-                {
-                  "source": "synthetic-fixture",
-                  "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-                  "locator": "10.0000/synthetic-joint",
-                  "synthetic": true
-                },
                 {
                   "source": "synthetic-fixture",
                   "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
@@ -750,18 +375,6 @@
                 },
                 {
                   "source": "synthetic-fixture",
-                  "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-                  "locator": "10.0000/synthetic-ambiguous",
-                  "synthetic": true
-                },
-                {
-                  "source": "synthetic-fixture",
-                  "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
-                  "locator": "10.0000/synthetic-ambiguous",
-                  "synthetic": true
-                },
-                {
-                  "source": "synthetic-fixture",
                   "query": null,
                   "locator": "fixture:ambiguous",
                   "synthetic": true
@@ -795,18 +408,6 @@
                 },
                 {
                   "source": "synthetic-fixture",
-                  "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-                  "locator": "10.0000/synthetic-missing",
-                  "synthetic": true
-                },
-                {
-                  "source": "synthetic-fixture",
-                  "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
-                  "locator": "10.0000/synthetic-missing",
-                  "synthetic": true
-                },
-                {
-                  "source": "synthetic-fixture",
                   "query": null,
                   "locator": "fixture:missing",
                   "synthetic": true
@@ -834,19 +435,7 @@
               "provenance": [
                 {
                   "source": "synthetic-fixture",
-                  "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
-                  "locator": "10.0000/synthetic-failure",
-                  "synthetic": true
-                },
-                {
-                  "source": "synthetic-fixture",
                   "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-                  "locator": "10.0000/synthetic-failure",
-                  "synthetic": true
-                },
-                {
-                  "source": "synthetic-fixture",
-                  "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
                   "locator": "10.0000/synthetic-failure",
                   "synthetic": true
                 },
@@ -879,19 +468,7 @@
               "provenance": [
                 {
                   "source": "synthetic-fixture",
-                  "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
-                  "locator": "10.0000/synthetic-title-only",
-                  "synthetic": true
-                },
-                {
-                  "source": "synthetic-fixture",
                   "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-                  "locator": "10.0000/synthetic-title-only",
-                  "synthetic": true
-                },
-                {
-                  "source": "synthetic-fixture",
-                  "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
                   "locator": "10.0000/synthetic-title-only",
                   "synthetic": true
                 },
@@ -924,19 +501,7 @@
               "provenance": [
                 {
                   "source": "synthetic-fixture",
-                  "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
-                  "locator": "10.0000/synthetic-irrelevant",
-                  "synthetic": true
-                },
-                {
-                  "source": "synthetic-fixture",
                   "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-                  "locator": "10.0000/synthetic-irrelevant",
-                  "synthetic": true
-                },
-                {
-                  "source": "synthetic-fixture",
-                  "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
                   "locator": "10.0000/synthetic-irrelevant",
                   "synthetic": true
                 },
@@ -972,19 +537,13 @@
                 "provenance": [
                   {
                     "source": "synthetic-fixture",
-                    "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
-                    "locator": "10.0000/synthetic-router",
-                    "synthetic": true
-                  },
-                  {
-                    "source": "synthetic-fixture",
-                    "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-                    "locator": "10.0000/synthetic-router",
-                    "synthetic": true
-                  },
-                  {
-                    "source": "synthetic-fixture",
                     "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
+                    "locator": "10.0000/synthetic-router",
+                    "synthetic": true
+                  },
+                  {
+                    "source": "synthetic-fixture",
+                    "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
                     "locator": "10.0000/synthetic-router",
                     "synthetic": true
                   },
@@ -1018,18 +577,6 @@
                 "url": null,
                 "source": "synthetic-fixture",
                 "provenance": [
-                  {
-                    "source": "synthetic-fixture",
-                    "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
-                    "locator": "10.0000/synthetic-topology",
-                    "synthetic": true
-                  },
-                  {
-                    "source": "synthetic-fixture",
-                    "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-                    "locator": "10.0000/synthetic-topology",
-                    "synthetic": true
-                  },
                   {
                     "source": "synthetic-fixture",
                     "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
@@ -1066,18 +613,6 @@
                 "url": null,
                 "source": "synthetic-fixture",
                 "provenance": [
-                  {
-                    "source": "synthetic-fixture",
-                    "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
-                    "locator": "10.0000/synthetic-joint",
-                    "synthetic": true
-                  },
-                  {
-                    "source": "synthetic-fixture",
-                    "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-                    "locator": "10.0000/synthetic-joint",
-                    "synthetic": true
-                  },
                   {
                     "source": "synthetic-fixture",
                     "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
@@ -1122,18 +657,6 @@
                   },
                   {
                     "source": "synthetic-fixture",
-                    "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-                    "locator": "10.0000/synthetic-ambiguous",
-                    "synthetic": true
-                  },
-                  {
-                    "source": "synthetic-fixture",
-                    "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
-                    "locator": "10.0000/synthetic-ambiguous",
-                    "synthetic": true
-                  },
-                  {
-                    "source": "synthetic-fixture",
                     "query": null,
                     "locator": "fixture:ambiguous",
                     "synthetic": true
@@ -1170,18 +693,6 @@
                   },
                   {
                     "source": "synthetic-fixture",
-                    "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-                    "locator": "10.0000/synthetic-missing",
-                    "synthetic": true
-                  },
-                  {
-                    "source": "synthetic-fixture",
-                    "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
-                    "locator": "10.0000/synthetic-missing",
-                    "synthetic": true
-                  },
-                  {
-                    "source": "synthetic-fixture",
                     "query": null,
                     "locator": "fixture:missing",
                     "synthetic": true
@@ -1212,19 +723,7 @@
                 "provenance": [
                   {
                     "source": "synthetic-fixture",
-                    "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
-                    "locator": "10.0000/synthetic-failure",
-                    "synthetic": true
-                  },
-                  {
-                    "source": "synthetic-fixture",
                     "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-                    "locator": "10.0000/synthetic-failure",
-                    "synthetic": true
-                  },
-                  {
-                    "source": "synthetic-fixture",
-                    "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
                     "locator": "10.0000/synthetic-failure",
                     "synthetic": true
                   },
@@ -1260,19 +759,7 @@
                 "provenance": [
                   {
                     "source": "synthetic-fixture",
-                    "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
-                    "locator": "10.0000/synthetic-title-only",
-                    "synthetic": true
-                  },
-                  {
-                    "source": "synthetic-fixture",
                     "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-                    "locator": "10.0000/synthetic-title-only",
-                    "synthetic": true
-                  },
-                  {
-                    "source": "synthetic-fixture",
-                    "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
                     "locator": "10.0000/synthetic-title-only",
                     "synthetic": true
                   },
@@ -1308,19 +795,7 @@
                 "provenance": [
                   {
                     "source": "synthetic-fixture",
-                    "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
-                    "locator": "10.0000/synthetic-irrelevant",
-                    "synthetic": true
-                  },
-                  {
-                    "source": "synthetic-fixture",
                     "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-                    "locator": "10.0000/synthetic-irrelevant",
-                    "synthetic": true
-                  },
-                  {
-                    "source": "synthetic-fixture",
-                    "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
                     "locator": "10.0000/synthetic-irrelevant",
                     "synthetic": true
                   },
@@ -1363,19 +838,13 @@
             "provenance": [
               {
                 "source": "synthetic-fixture",
-                "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
-                "locator": "10.0000/synthetic-router",
-                "synthetic": true
-              },
-              {
-                "source": "synthetic-fixture",
-                "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-                "locator": "10.0000/synthetic-router",
-                "synthetic": true
-              },
-              {
-                "source": "synthetic-fixture",
                 "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
+                "locator": "10.0000/synthetic-router",
+                "synthetic": true
+              },
+              {
+                "source": "synthetic-fixture",
+                "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
                 "locator": "10.0000/synthetic-router",
                 "synthetic": true
               },
@@ -1423,19 +892,13 @@
           "provenance": [
             {
               "source": "synthetic-fixture",
-              "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
-              "locator": "10.0000/synthetic-router",
-              "synthetic": true
-            },
-            {
-              "source": "synthetic-fixture",
-              "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-              "locator": "10.0000/synthetic-router",
-              "synthetic": true
-            },
-            {
-              "source": "synthetic-fixture",
               "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
+              "locator": "10.0000/synthetic-router",
+              "synthetic": true
+            },
+            {
+              "source": "synthetic-fixture",
+              "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
               "locator": "10.0000/synthetic-router",
               "synthetic": true
             },
@@ -1472,18 +935,6 @@
             "provenance": [
               {
                 "source": "synthetic-fixture",
-                "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
-                "locator": "10.0000/synthetic-topology",
-                "synthetic": true
-              },
-              {
-                "source": "synthetic-fixture",
-                "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-                "locator": "10.0000/synthetic-topology",
-                "synthetic": true
-              },
-              {
-                "source": "synthetic-fixture",
                 "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
                 "locator": "10.0000/synthetic-topology",
                 "synthetic": true
@@ -1517,18 +968,6 @@
           "url": null,
           "source": "synthetic-fixture",
           "provenance": [
-            {
-              "source": "synthetic-fixture",
-              "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
-              "locator": "10.0000/synthetic-topology",
-              "synthetic": true
-            },
-            {
-              "source": "synthetic-fixture",
-              "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-              "locator": "10.0000/synthetic-topology",
-              "synthetic": true
-            },
             {
               "source": "synthetic-fixture",
               "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
@@ -1568,18 +1007,6 @@
             "provenance": [
               {
                 "source": "synthetic-fixture",
-                "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
-                "locator": "10.0000/synthetic-joint",
-                "synthetic": true
-              },
-              {
-                "source": "synthetic-fixture",
-                "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-                "locator": "10.0000/synthetic-joint",
-                "synthetic": true
-              },
-              {
-                "source": "synthetic-fixture",
                 "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
                 "locator": "10.0000/synthetic-joint",
                 "synthetic": true
@@ -1613,18 +1040,6 @@
           "url": null,
           "source": "synthetic-fixture",
           "provenance": [
-            {
-              "source": "synthetic-fixture",
-              "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
-              "locator": "10.0000/synthetic-joint",
-              "synthetic": true
-            },
-            {
-              "source": "synthetic-fixture",
-              "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-              "locator": "10.0000/synthetic-joint",
-              "synthetic": true
-            },
             {
               "source": "synthetic-fixture",
               "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
@@ -1670,18 +1085,6 @@
               },
               {
                 "source": "synthetic-fixture",
-                "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-                "locator": "10.0000/synthetic-ambiguous",
-                "synthetic": true
-              },
-              {
-                "source": "synthetic-fixture",
-                "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
-                "locator": "10.0000/synthetic-ambiguous",
-                "synthetic": true
-              },
-              {
-                "source": "synthetic-fixture",
                 "query": null,
                 "locator": "fixture:ambiguous",
                 "synthetic": true
@@ -1712,18 +1115,6 @@
             {
               "source": "synthetic-fixture",
               "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
-              "locator": "10.0000/synthetic-ambiguous",
-              "synthetic": true
-            },
-            {
-              "source": "synthetic-fixture",
-              "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-              "locator": "10.0000/synthetic-ambiguous",
-              "synthetic": true
-            },
-            {
-              "source": "synthetic-fixture",
-              "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
               "locator": "10.0000/synthetic-ambiguous",
               "synthetic": true
             },
@@ -1766,18 +1157,6 @@
               },
               {
                 "source": "synthetic-fixture",
-                "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-                "locator": "10.0000/synthetic-missing",
-                "synthetic": true
-              },
-              {
-                "source": "synthetic-fixture",
-                "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
-                "locator": "10.0000/synthetic-missing",
-                "synthetic": true
-              },
-              {
-                "source": "synthetic-fixture",
                 "query": null,
                 "locator": "fixture:missing",
                 "synthetic": true
@@ -1808,18 +1187,6 @@
             {
               "source": "synthetic-fixture",
               "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
-              "locator": "10.0000/synthetic-missing",
-              "synthetic": true
-            },
-            {
-              "source": "synthetic-fixture",
-              "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-              "locator": "10.0000/synthetic-missing",
-              "synthetic": true
-            },
-            {
-              "source": "synthetic-fixture",
-              "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
               "locator": "10.0000/synthetic-missing",
               "synthetic": true
             },
@@ -1856,19 +1223,7 @@
             "provenance": [
               {
                 "source": "synthetic-fixture",
-                "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
-                "locator": "10.0000/synthetic-failure",
-                "synthetic": true
-              },
-              {
-                "source": "synthetic-fixture",
                 "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-                "locator": "10.0000/synthetic-failure",
-                "synthetic": true
-              },
-              {
-                "source": "synthetic-fixture",
-                "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
                 "locator": "10.0000/synthetic-failure",
                 "synthetic": true
               },
@@ -1903,19 +1258,7 @@
           "provenance": [
             {
               "source": "synthetic-fixture",
-              "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
-              "locator": "10.0000/synthetic-failure",
-              "synthetic": true
-            },
-            {
-              "source": "synthetic-fixture",
               "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-              "locator": "10.0000/synthetic-failure",
-              "synthetic": true
-            },
-            {
-              "source": "synthetic-fixture",
-              "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
               "locator": "10.0000/synthetic-failure",
               "synthetic": true
             },
@@ -1952,19 +1295,7 @@
             "provenance": [
               {
                 "source": "synthetic-fixture",
-                "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
-                "locator": "10.0000/synthetic-title-only",
-                "synthetic": true
-              },
-              {
-                "source": "synthetic-fixture",
                 "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-                "locator": "10.0000/synthetic-title-only",
-                "synthetic": true
-              },
-              {
-                "source": "synthetic-fixture",
-                "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
                 "locator": "10.0000/synthetic-title-only",
                 "synthetic": true
               },
@@ -1999,19 +1330,7 @@
           "provenance": [
             {
               "source": "synthetic-fixture",
-              "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
-              "locator": "10.0000/synthetic-title-only",
-              "synthetic": true
-            },
-            {
-              "source": "synthetic-fixture",
               "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-              "locator": "10.0000/synthetic-title-only",
-              "synthetic": true
-            },
-            {
-              "source": "synthetic-fixture",
-              "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
               "locator": "10.0000/synthetic-title-only",
               "synthetic": true
             },
@@ -2048,19 +1367,7 @@
             "provenance": [
               {
                 "source": "synthetic-fixture",
-                "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
-                "locator": "10.0000/synthetic-irrelevant",
-                "synthetic": true
-              },
-              {
-                "source": "synthetic-fixture",
                 "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-                "locator": "10.0000/synthetic-irrelevant",
-                "synthetic": true
-              },
-              {
-                "source": "synthetic-fixture",
-                "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
                 "locator": "10.0000/synthetic-irrelevant",
                 "synthetic": true
               },
@@ -2095,19 +1402,7 @@
           "provenance": [
             {
               "source": "synthetic-fixture",
-              "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
-              "locator": "10.0000/synthetic-irrelevant",
-              "synthetic": true
-            },
-            {
-              "source": "synthetic-fixture",
               "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-              "locator": "10.0000/synthetic-irrelevant",
-              "synthetic": true
-            },
-            {
-              "source": "synthetic-fixture",
-              "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
               "locator": "10.0000/synthetic-irrelevant",
               "synthetic": true
             },
@@ -2146,19 +1441,13 @@
               "provenance": [
                 {
                   "source": "synthetic-fixture",
-                  "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
-                  "locator": "10.0000/synthetic-router",
-                  "synthetic": true
-                },
-                {
-                  "source": "synthetic-fixture",
-                  "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-                  "locator": "10.0000/synthetic-router",
-                  "synthetic": true
-                },
-                {
-                  "source": "synthetic-fixture",
                   "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
+                  "locator": "10.0000/synthetic-router",
+                  "synthetic": true
+                },
+                {
+                  "source": "synthetic-fixture",
+                  "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
                   "locator": "10.0000/synthetic-router",
                   "synthetic": true
                 },
@@ -2189,18 +1478,6 @@
               "url": null,
               "source": "synthetic-fixture",
               "provenance": [
-                {
-                  "source": "synthetic-fixture",
-                  "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
-                  "locator": "10.0000/synthetic-topology",
-                  "synthetic": true
-                },
-                {
-                  "source": "synthetic-fixture",
-                  "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-                  "locator": "10.0000/synthetic-topology",
-                  "synthetic": true
-                },
                 {
                   "source": "synthetic-fixture",
                   "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
@@ -2234,18 +1511,6 @@
               "url": null,
               "source": "synthetic-fixture",
               "provenance": [
-                {
-                  "source": "synthetic-fixture",
-                  "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
-                  "locator": "10.0000/synthetic-joint",
-                  "synthetic": true
-                },
-                {
-                  "source": "synthetic-fixture",
-                  "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-                  "locator": "10.0000/synthetic-joint",
-                  "synthetic": true
-                },
                 {
                   "source": "synthetic-fixture",
                   "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
@@ -2287,18 +1552,6 @@
                 },
                 {
                   "source": "synthetic-fixture",
-                  "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-                  "locator": "10.0000/synthetic-ambiguous",
-                  "synthetic": true
-                },
-                {
-                  "source": "synthetic-fixture",
-                  "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
-                  "locator": "10.0000/synthetic-ambiguous",
-                  "synthetic": true
-                },
-                {
-                  "source": "synthetic-fixture",
                   "query": null,
                   "locator": "fixture:ambiguous",
                   "synthetic": true
@@ -2332,18 +1585,6 @@
                 },
                 {
                   "source": "synthetic-fixture",
-                  "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-                  "locator": "10.0000/synthetic-missing",
-                  "synthetic": true
-                },
-                {
-                  "source": "synthetic-fixture",
-                  "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
-                  "locator": "10.0000/synthetic-missing",
-                  "synthetic": true
-                },
-                {
-                  "source": "synthetic-fixture",
                   "query": null,
                   "locator": "fixture:missing",
                   "synthetic": true
@@ -2371,19 +1612,7 @@
               "provenance": [
                 {
                   "source": "synthetic-fixture",
-                  "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
-                  "locator": "10.0000/synthetic-failure",
-                  "synthetic": true
-                },
-                {
-                  "source": "synthetic-fixture",
                   "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-                  "locator": "10.0000/synthetic-failure",
-                  "synthetic": true
-                },
-                {
-                  "source": "synthetic-fixture",
-                  "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
                   "locator": "10.0000/synthetic-failure",
                   "synthetic": true
                 },
@@ -2416,19 +1645,7 @@
               "provenance": [
                 {
                   "source": "synthetic-fixture",
-                  "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
-                  "locator": "10.0000/synthetic-title-only",
-                  "synthetic": true
-                },
-                {
-                  "source": "synthetic-fixture",
                   "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-                  "locator": "10.0000/synthetic-title-only",
-                  "synthetic": true
-                },
-                {
-                  "source": "synthetic-fixture",
-                  "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
                   "locator": "10.0000/synthetic-title-only",
                   "synthetic": true
                 },
@@ -2461,19 +1678,7 @@
               "provenance": [
                 {
                   "source": "synthetic-fixture",
-                  "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
-                  "locator": "10.0000/synthetic-irrelevant",
-                  "synthetic": true
-                },
-                {
-                  "source": "synthetic-fixture",
                   "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-                  "locator": "10.0000/synthetic-irrelevant",
-                  "synthetic": true
-                },
-                {
-                  "source": "synthetic-fixture",
-                  "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
                   "locator": "10.0000/synthetic-irrelevant",
                   "synthetic": true
                 },
@@ -2509,19 +1714,13 @@
             "provenance": [
               {
                 "source": "synthetic-fixture",
-                "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
-                "locator": "10.0000/synthetic-router",
-                "synthetic": true
-              },
-              {
-                "source": "synthetic-fixture",
-                "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-                "locator": "10.0000/synthetic-router",
-                "synthetic": true
-              },
-              {
-                "source": "synthetic-fixture",
                 "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
+                "locator": "10.0000/synthetic-router",
+                "synthetic": true
+              },
+              {
+                "source": "synthetic-fixture",
+                "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
                 "locator": "10.0000/synthetic-router",
                 "synthetic": true
               },
@@ -2554,18 +1753,6 @@
             "provenance": [
               {
                 "source": "synthetic-fixture",
-                "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
-                "locator": "10.0000/synthetic-topology",
-                "synthetic": true
-              },
-              {
-                "source": "synthetic-fixture",
-                "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-                "locator": "10.0000/synthetic-topology",
-                "synthetic": true
-              },
-              {
-                "source": "synthetic-fixture",
                 "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
                 "locator": "10.0000/synthetic-topology",
                 "synthetic": true
@@ -2580,51 +1767,6 @@
             "full_text_available": false,
             "screening_status": "include",
             "screening_rationale": "Extractive baseline: available source text overlaps question terms (agent, topology); lexical heuristic, not semantic relevance or a probability."
-          },
-          {
-            "paper_id": "paper-40b8ac03b20bbf20",
-            "title": "SYNTHETIC: Joint Agent and Communication Selection",
-            "doi": "10.0000/synthetic-joint",
-            "arxiv_id": null,
-            "authors": [
-              {
-                "name": "Synthetic Example Author"
-              }
-            ],
-            "year": 2026,
-            "venue": "Synthetic Fixture Proceedings",
-            "abstract": "Dynamic agent selection and topology adaptation jointly choose participants and communication edges. The synthetic study distinguishes selection costs from communication costs. Transfer beyond the simulated task distribution is not established.",
-            "url": null,
-            "source": "synthetic-fixture",
-            "provenance": [
-              {
-                "source": "synthetic-fixture",
-                "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
-                "locator": "10.0000/synthetic-joint",
-                "synthetic": true
-              },
-              {
-                "source": "synthetic-fixture",
-                "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-                "locator": "10.0000/synthetic-joint",
-                "synthetic": true
-              },
-              {
-                "source": "synthetic-fixture",
-                "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
-                "locator": "10.0000/synthetic-joint",
-                "synthetic": true
-              },
-              {
-                "source": "synthetic-fixture",
-                "query": null,
-                "locator": "fixture:joint",
-                "synthetic": true
-              }
-            ],
-            "full_text_available": false,
-            "screening_status": "include",
-            "screening_rationale": "Extractive baseline: available source text overlaps question terms (adaptation, agent, dynamic, selection, topology); lexical heuristic, not semantic relevance or a probability."
           },
           {
             "paper_id": "paper-6ca8546b03d7f153",
@@ -2650,18 +1792,6 @@
               },
               {
                 "source": "synthetic-fixture",
-                "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-                "locator": "10.0000/synthetic-ambiguous",
-                "synthetic": true
-              },
-              {
-                "source": "synthetic-fixture",
-                "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
-                "locator": "10.0000/synthetic-ambiguous",
-                "synthetic": true
-              },
-              {
-                "source": "synthetic-fixture",
                 "query": null,
                 "locator": "fixture:ambiguous",
                 "synthetic": true
@@ -2670,96 +1800,6 @@
             "full_text_available": false,
             "screening_status": "include",
             "screening_rationale": "Extractive baseline: available source text overlaps question terms (agent, dynamic, topology); lexical heuristic, not semantic relevance or a probability."
-          },
-          {
-            "paper_id": "paper-c9fff587e292f1f3",
-            "title": "SYNTHETIC: Missing Agent Selection Paper",
-            "doi": "10.0000/synthetic-missing",
-            "arxiv_id": null,
-            "authors": [
-              {
-                "name": "Synthetic Example Author"
-              }
-            ],
-            "year": 2026,
-            "venue": "Synthetic Fixture Proceedings",
-            "abstract": "Dynamic language-model agent selection is discussed in this synthetic search record. Its citation is deliberately absent from fixture indexes.",
-            "url": null,
-            "source": "synthetic-fixture",
-            "provenance": [
-              {
-                "source": "synthetic-fixture",
-                "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
-                "locator": "10.0000/synthetic-missing",
-                "synthetic": true
-              },
-              {
-                "source": "synthetic-fixture",
-                "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-                "locator": "10.0000/synthetic-missing",
-                "synthetic": true
-              },
-              {
-                "source": "synthetic-fixture",
-                "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
-                "locator": "10.0000/synthetic-missing",
-                "synthetic": true
-              },
-              {
-                "source": "synthetic-fixture",
-                "query": null,
-                "locator": "fixture:missing",
-                "synthetic": true
-              }
-            ],
-            "full_text_available": false,
-            "screening_status": "include",
-            "screening_rationale": "Extractive baseline: available source text overlaps question terms (agent, dynamic, selection); lexical heuristic, not semantic relevance or a probability."
-          },
-          {
-            "paper_id": "paper-ec09484d4252cc0a",
-            "title": "SYNTHETIC: Unavailable Topology Provider",
-            "doi": "10.0000/synthetic-failure",
-            "arxiv_id": null,
-            "authors": [
-              {
-                "name": "Synthetic Example Author"
-              }
-            ],
-            "year": 2026,
-            "venue": "Synthetic Fixture Proceedings",
-            "abstract": "Dynamic agent selection and adaptive communication topology appear in this synthetic record. Its citation fixture simulates a provider outage.",
-            "url": null,
-            "source": "synthetic-fixture",
-            "provenance": [
-              {
-                "source": "synthetic-fixture",
-                "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
-                "locator": "10.0000/synthetic-failure",
-                "synthetic": true
-              },
-              {
-                "source": "synthetic-fixture",
-                "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-                "locator": "10.0000/synthetic-failure",
-                "synthetic": true
-              },
-              {
-                "source": "synthetic-fixture",
-                "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
-                "locator": "10.0000/synthetic-failure",
-                "synthetic": true
-              },
-              {
-                "source": "synthetic-fixture",
-                "query": null,
-                "locator": "fixture:failure",
-                "synthetic": true
-              }
-            ],
-            "full_text_available": false,
-            "screening_status": "include",
-            "screening_rationale": "Extractive baseline: available source text overlaps question terms (agent, dynamic, selection, topology); lexical heuristic, not semantic relevance or a probability."
           }
         ]
       }
@@ -2787,19 +1827,13 @@
                 "provenance": [
                   {
                     "source": "synthetic-fixture",
-                    "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
-                    "locator": "10.0000/synthetic-router",
-                    "synthetic": true
-                  },
-                  {
-                    "source": "synthetic-fixture",
-                    "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-                    "locator": "10.0000/synthetic-router",
-                    "synthetic": true
-                  },
-                  {
-                    "source": "synthetic-fixture",
                     "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
+                    "locator": "10.0000/synthetic-router",
+                    "synthetic": true
+                  },
+                  {
+                    "source": "synthetic-fixture",
+                    "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
                     "locator": "10.0000/synthetic-router",
                     "synthetic": true
                   },
@@ -2868,18 +1902,6 @@
                 "provenance": [
                   {
                     "source": "synthetic-fixture",
-                    "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
-                    "locator": "10.0000/synthetic-topology",
-                    "synthetic": true
-                  },
-                  {
-                    "source": "synthetic-fixture",
-                    "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-                    "locator": "10.0000/synthetic-topology",
-                    "synthetic": true
-                  },
-                  {
-                    "source": "synthetic-fixture",
                     "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
                     "locator": "10.0000/synthetic-topology",
                     "synthetic": true
@@ -2932,87 +1954,6 @@
             },
             {
               "paper": {
-                "paper_id": "paper-40b8ac03b20bbf20",
-                "title": "SYNTHETIC: Joint Agent and Communication Selection",
-                "doi": "10.0000/synthetic-joint",
-                "arxiv_id": null,
-                "authors": [
-                  {
-                    "name": "Synthetic Example Author"
-                  }
-                ],
-                "year": 2026,
-                "venue": "Synthetic Fixture Proceedings",
-                "abstract": "Dynamic agent selection and topology adaptation jointly choose participants and communication edges. The synthetic study distinguishes selection costs from communication costs. Transfer beyond the simulated task distribution is not established.",
-                "url": null,
-                "source": "synthetic-fixture",
-                "provenance": [
-                  {
-                    "source": "synthetic-fixture",
-                    "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
-                    "locator": "10.0000/synthetic-joint",
-                    "synthetic": true
-                  },
-                  {
-                    "source": "synthetic-fixture",
-                    "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-                    "locator": "10.0000/synthetic-joint",
-                    "synthetic": true
-                  },
-                  {
-                    "source": "synthetic-fixture",
-                    "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
-                    "locator": "10.0000/synthetic-joint",
-                    "synthetic": true
-                  },
-                  {
-                    "source": "synthetic-fixture",
-                    "query": null,
-                    "locator": "fixture:joint",
-                    "synthetic": true
-                  }
-                ],
-                "full_text_available": false,
-                "screening_status": "include",
-                "screening_rationale": "Extractive baseline: available source text overlaps question terms (adaptation, agent, dynamic, selection, topology); lexical heuristic, not semantic relevance or a probability."
-              },
-              "response": {
-                "status": "resolved",
-                "query": "10.0000/synthetic-joint",
-                "detected_type": "doi",
-                "best_match": {
-                  "title": "SYNTHETIC: Joint Agent and Communication Selection",
-                  "doi": "10.0000/synthetic-joint",
-                  "arxiv_id": null,
-                  "authors": [
-                    {
-                      "name": "Synthetic Example Author"
-                    }
-                  ],
-                  "year": 2026,
-                  "venue": "Synthetic Fixture Proceedings",
-                  "abstract": "Dynamic agent selection and topology adaptation jointly choose participants and communication edges. The synthetic study distinguishes selection costs from communication costs. Transfer beyond the simulated task distribution is not established.",
-                  "url": null,
-                  "source": "crossref",
-                  "bibtex": "@misc{synthetic_joint,\n  title = {SYNTHETIC: Joint Agent and Communication Selection},\n  author = {Synthetic Example Author},\n  year = {2026},\n  note = {SYNTHETIC TEST DATA; NOT A REAL PUBLICATION}\n}"
-                },
-                "match_score": 1.0,
-                "alternatives": [],
-                "sources": [
-                  {
-                    "provider": "crossref",
-                    "status": "ok",
-                    "error_code": null
-                  }
-                ],
-                "warnings": [
-                  "SYNTHETIC FIXTURE: this is not a real bibliographic lookup."
-                ],
-                "message": "Synthetic scenario resolved"
-              }
-            },
-            {
-              "paper": {
                 "paper_id": "paper-6ca8546b03d7f153",
                 "title": "SYNTHETIC: Dynamic Agent Networks",
                 "doi": "10.0000/synthetic-ambiguous",
@@ -3031,18 +1972,6 @@
                   {
                     "source": "synthetic-fixture",
                     "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
-                    "locator": "10.0000/synthetic-ambiguous",
-                    "synthetic": true
-                  },
-                  {
-                    "source": "synthetic-fixture",
-                    "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-                    "locator": "10.0000/synthetic-ambiguous",
-                    "synthetic": true
-                  },
-                  {
-                    "source": "synthetic-fixture",
-                    "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
                     "locator": "10.0000/synthetic-ambiguous",
                     "synthetic": true
                   },
@@ -3110,138 +2039,6 @@
                   "SYNTHETIC FIXTURE: this is not a real bibliographic lookup."
                 ],
                 "message": "Synthetic scenario ambiguous"
-              }
-            },
-            {
-              "paper": {
-                "paper_id": "paper-c9fff587e292f1f3",
-                "title": "SYNTHETIC: Missing Agent Selection Paper",
-                "doi": "10.0000/synthetic-missing",
-                "arxiv_id": null,
-                "authors": [
-                  {
-                    "name": "Synthetic Example Author"
-                  }
-                ],
-                "year": 2026,
-                "venue": "Synthetic Fixture Proceedings",
-                "abstract": "Dynamic language-model agent selection is discussed in this synthetic search record. Its citation is deliberately absent from fixture indexes.",
-                "url": null,
-                "source": "synthetic-fixture",
-                "provenance": [
-                  {
-                    "source": "synthetic-fixture",
-                    "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
-                    "locator": "10.0000/synthetic-missing",
-                    "synthetic": true
-                  },
-                  {
-                    "source": "synthetic-fixture",
-                    "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-                    "locator": "10.0000/synthetic-missing",
-                    "synthetic": true
-                  },
-                  {
-                    "source": "synthetic-fixture",
-                    "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
-                    "locator": "10.0000/synthetic-missing",
-                    "synthetic": true
-                  },
-                  {
-                    "source": "synthetic-fixture",
-                    "query": null,
-                    "locator": "fixture:missing",
-                    "synthetic": true
-                  }
-                ],
-                "full_text_available": false,
-                "screening_status": "include",
-                "screening_rationale": "Extractive baseline: available source text overlaps question terms (agent, dynamic, selection); lexical heuristic, not semantic relevance or a probability."
-              },
-              "response": {
-                "status": "not_found",
-                "query": "10.0000/synthetic-missing",
-                "detected_type": "doi",
-                "best_match": null,
-                "match_score": null,
-                "alternatives": [],
-                "sources": [
-                  {
-                    "provider": "crossref",
-                    "status": "not_found",
-                    "error_code": null
-                  }
-                ],
-                "warnings": [
-                  "SYNTHETIC FIXTURE: this is not a real bibliographic lookup."
-                ],
-                "message": "Synthetic scenario not_found"
-              }
-            },
-            {
-              "paper": {
-                "paper_id": "paper-ec09484d4252cc0a",
-                "title": "SYNTHETIC: Unavailable Topology Provider",
-                "doi": "10.0000/synthetic-failure",
-                "arxiv_id": null,
-                "authors": [
-                  {
-                    "name": "Synthetic Example Author"
-                  }
-                ],
-                "year": 2026,
-                "venue": "Synthetic Fixture Proceedings",
-                "abstract": "Dynamic agent selection and adaptive communication topology appear in this synthetic record. Its citation fixture simulates a provider outage.",
-                "url": null,
-                "source": "synthetic-fixture",
-                "provenance": [
-                  {
-                    "source": "synthetic-fixture",
-                    "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
-                    "locator": "10.0000/synthetic-failure",
-                    "synthetic": true
-                  },
-                  {
-                    "source": "synthetic-fixture",
-                    "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-                    "locator": "10.0000/synthetic-failure",
-                    "synthetic": true
-                  },
-                  {
-                    "source": "synthetic-fixture",
-                    "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
-                    "locator": "10.0000/synthetic-failure",
-                    "synthetic": true
-                  },
-                  {
-                    "source": "synthetic-fixture",
-                    "query": null,
-                    "locator": "fixture:failure",
-                    "synthetic": true
-                  }
-                ],
-                "full_text_available": false,
-                "screening_status": "include",
-                "screening_rationale": "Extractive baseline: available source text overlaps question terms (agent, dynamic, selection, topology); lexical heuristic, not semantic relevance or a probability."
-              },
-              "response": {
-                "status": "provider_error",
-                "query": "10.0000/synthetic-failure",
-                "detected_type": "doi",
-                "best_match": null,
-                "match_score": null,
-                "alternatives": [],
-                "sources": [
-                  {
-                    "provider": "crossref",
-                    "status": "error",
-                    "error_code": "fixture_outage"
-                  }
-                ],
-                "warnings": [
-                  "SYNTHETIC FIXTURE: this is not a real bibliographic lookup."
-                ],
-                "message": "Synthetic scenario provider_error"
               }
             }
           ],
@@ -3320,40 +2117,6 @@
               "synthetic": true
             },
             {
-              "paper_id": "paper-40b8ac03b20bbf20",
-              "query": "10.0000/synthetic-joint",
-              "status": "resolved",
-              "metadata": {
-                "title": "SYNTHETIC: Joint Agent and Communication Selection",
-                "doi": "10.0000/synthetic-joint",
-                "arxiv_id": null,
-                "authors": [
-                  {
-                    "name": "Synthetic Example Author"
-                  }
-                ],
-                "year": 2026,
-                "venue": "Synthetic Fixture Proceedings",
-                "abstract": "Dynamic agent selection and topology adaptation jointly choose participants and communication edges. The synthetic study distinguishes selection costs from communication costs. Transfer beyond the simulated task distribution is not established.",
-                "url": null,
-                "source": "crossref",
-                "bibtex": "@misc{synthetic_joint,\n  title = {SYNTHETIC: Joint Agent and Communication Selection},\n  author = {Synthetic Example Author},\n  year = {2026},\n  note = {SYNTHETIC TEST DATA; NOT A REAL PUBLICATION}\n}"
-              },
-              "alternatives": [],
-              "sources": [
-                {
-                  "provider": "crossref",
-                  "status": "ok",
-                  "error_code": null
-                }
-              ],
-              "warnings": [
-                "SYNTHETIC FIXTURE: this is not a real bibliographic lookup."
-              ],
-              "message": "Synthetic scenario resolved",
-              "synthetic": true
-            },
-            {
               "paper_id": "paper-6ca8546b03d7f153",
               "query": "10.0000/synthetic-ambiguous",
               "status": "ambiguous",
@@ -3391,44 +2154,6 @@
               ],
               "message": "Synthetic scenario ambiguous",
               "synthetic": true
-            },
-            {
-              "paper_id": "paper-c9fff587e292f1f3",
-              "query": "10.0000/synthetic-missing",
-              "status": "not_found",
-              "metadata": null,
-              "alternatives": [],
-              "sources": [
-                {
-                  "provider": "crossref",
-                  "status": "not_found",
-                  "error_code": null
-                }
-              ],
-              "warnings": [
-                "SYNTHETIC FIXTURE: this is not a real bibliographic lookup."
-              ],
-              "message": "Synthetic scenario not_found",
-              "synthetic": true
-            },
-            {
-              "paper_id": "paper-ec09484d4252cc0a",
-              "query": "10.0000/synthetic-failure",
-              "status": "provider_error",
-              "metadata": null,
-              "alternatives": [],
-              "sources": [
-                {
-                  "provider": "crossref",
-                  "status": "error",
-                  "error_code": "fixture_outage"
-                }
-              ],
-              "warnings": [
-                "SYNTHETIC FIXTURE: this is not a real bibliographic lookup."
-              ],
-              "message": "Synthetic scenario provider_error",
-              "synthetic": true
             }
           ],
           "evidence_jobs": [
@@ -3451,19 +2176,13 @@
                 "provenance": [
                   {
                     "source": "synthetic-fixture",
-                    "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
-                    "locator": "10.0000/synthetic-router",
-                    "synthetic": true
-                  },
-                  {
-                    "source": "synthetic-fixture",
-                    "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-                    "locator": "10.0000/synthetic-router",
-                    "synthetic": true
-                  },
-                  {
-                    "source": "synthetic-fixture",
                     "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
+                    "locator": "10.0000/synthetic-router",
+                    "synthetic": true
+                  },
+                  {
+                    "source": "synthetic-fixture",
+                    "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
                     "locator": "10.0000/synthetic-router",
                     "synthetic": true
                   },
@@ -3533,18 +2252,6 @@
                 "provenance": [
                   {
                     "source": "synthetic-fixture",
-                    "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
-                    "locator": "10.0000/synthetic-topology",
-                    "synthetic": true
-                  },
-                  {
-                    "source": "synthetic-fixture",
-                    "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-                    "locator": "10.0000/synthetic-topology",
-                    "synthetic": true
-                  },
-                  {
-                    "source": "synthetic-fixture",
                     "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
                     "locator": "10.0000/synthetic-topology",
                     "synthetic": true
@@ -3595,88 +2302,6 @@
                 "synthetic": true
               },
               "file_id": null
-            },
-            {
-              "paper": {
-                "paper_id": "paper-40b8ac03b20bbf20",
-                "title": "SYNTHETIC: Joint Agent and Communication Selection",
-                "doi": "10.0000/synthetic-joint",
-                "arxiv_id": null,
-                "authors": [
-                  {
-                    "name": "Synthetic Example Author"
-                  }
-                ],
-                "year": 2026,
-                "venue": "Synthetic Fixture Proceedings",
-                "abstract": "Dynamic agent selection and topology adaptation jointly choose participants and communication edges. The synthetic study distinguishes selection costs from communication costs. Transfer beyond the simulated task distribution is not established.",
-                "url": null,
-                "source": "synthetic-fixture",
-                "provenance": [
-                  {
-                    "source": "synthetic-fixture",
-                    "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
-                    "locator": "10.0000/synthetic-joint",
-                    "synthetic": true
-                  },
-                  {
-                    "source": "synthetic-fixture",
-                    "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-                    "locator": "10.0000/synthetic-joint",
-                    "synthetic": true
-                  },
-                  {
-                    "source": "synthetic-fixture",
-                    "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
-                    "locator": "10.0000/synthetic-joint",
-                    "synthetic": true
-                  },
-                  {
-                    "source": "synthetic-fixture",
-                    "query": null,
-                    "locator": "fixture:joint",
-                    "synthetic": true
-                  }
-                ],
-                "full_text_available": false,
-                "screening_status": "include",
-                "screening_rationale": "Extractive baseline: available source text overlaps question terms (adaptation, agent, dynamic, selection, topology); lexical heuristic, not semantic relevance or a probability."
-              },
-              "record": {
-                "paper_id": "paper-40b8ac03b20bbf20",
-                "query": "10.0000/synthetic-joint",
-                "status": "resolved",
-                "metadata": {
-                  "title": "SYNTHETIC: Joint Agent and Communication Selection",
-                  "doi": "10.0000/synthetic-joint",
-                  "arxiv_id": null,
-                  "authors": [
-                    {
-                      "name": "Synthetic Example Author"
-                    }
-                  ],
-                  "year": 2026,
-                  "venue": "Synthetic Fixture Proceedings",
-                  "abstract": "Dynamic agent selection and topology adaptation jointly choose participants and communication edges. The synthetic study distinguishes selection costs from communication costs. Transfer beyond the simulated task distribution is not established.",
-                  "url": null,
-                  "source": "crossref",
-                  "bibtex": "@misc{synthetic_joint,\n  title = {SYNTHETIC: Joint Agent and Communication Selection},\n  author = {Synthetic Example Author},\n  year = {2026},\n  note = {SYNTHETIC TEST DATA; NOT A REAL PUBLICATION}\n}"
-                },
-                "alternatives": [],
-                "sources": [
-                  {
-                    "provider": "crossref",
-                    "status": "ok",
-                    "error_code": null
-                  }
-                ],
-                "warnings": [
-                  "SYNTHETIC FIXTURE: this is not a real bibliographic lookup."
-                ],
-                "message": "Synthetic scenario resolved",
-                "synthetic": true
-              },
-              "file_id": null
             }
           ],
           "unresolved": [
@@ -3705,24 +2330,6 @@
                   "match_score": 1.0
                 }
               ]
-            },
-            {
-              "paper_id": "paper-c9fff587e292f1f3",
-              "status": "not_found",
-              "message": "Synthetic scenario not_found",
-              "alternatives": []
-            },
-            {
-              "paper_id": "paper-ec09484d4252cc0a",
-              "status": "provider_error",
-              "message": "Synthetic scenario provider_error",
-              "alternatives": []
-            },
-            {
-              "paper_id": "paper-466bc780ad415433",
-              "status": "screening_maybe",
-              "message": "Only title/metadata available; relevance cannot be established.",
-              "alternatives": []
             }
           ]
         }
@@ -3750,19 +2357,13 @@
             "provenance": [
               {
                 "source": "synthetic-fixture",
-                "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
-                "locator": "10.0000/synthetic-router",
-                "synthetic": true
-              },
-              {
-                "source": "synthetic-fixture",
-                "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-                "locator": "10.0000/synthetic-router",
-                "synthetic": true
-              },
-              {
-                "source": "synthetic-fixture",
                 "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
+                "locator": "10.0000/synthetic-router",
+                "synthetic": true
+              },
+              {
+                "source": "synthetic-fixture",
+                "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
                 "locator": "10.0000/synthetic-router",
                 "synthetic": true
               },
@@ -3930,18 +2531,6 @@
             "provenance": [
               {
                 "source": "synthetic-fixture",
-                "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
-                "locator": "10.0000/synthetic-topology",
-                "synthetic": true
-              },
-              {
-                "source": "synthetic-fixture",
-                "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-                "locator": "10.0000/synthetic-topology",
-                "synthetic": true
-              },
-              {
-                "source": "synthetic-fixture",
                 "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
                 "locator": "10.0000/synthetic-topology",
                 "synthetic": true
@@ -4051,153 +2640,6 @@
               "source": "crossref",
               "locator": "10.0000/synthetic-topology",
               "source_sha256": "fb16738786324beeb9571536e1f0965b83d28faebe09ed637170869da77fc8b1",
-              "synthetic": true
-            }
-          }
-        ]
-      },
-      {
-        "input": {
-          "research_question": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
-          "paper": {
-            "paper_id": "paper-40b8ac03b20bbf20",
-            "title": "SYNTHETIC: Joint Agent and Communication Selection",
-            "doi": "10.0000/synthetic-joint",
-            "arxiv_id": null,
-            "authors": [
-              {
-                "name": "Synthetic Example Author"
-              }
-            ],
-            "year": 2026,
-            "venue": "Synthetic Fixture Proceedings",
-            "abstract": "Dynamic agent selection and topology adaptation jointly choose participants and communication edges. The synthetic study distinguishes selection costs from communication costs. Transfer beyond the simulated task distribution is not established.",
-            "url": null,
-            "source": "synthetic-fixture",
-            "provenance": [
-              {
-                "source": "synthetic-fixture",
-                "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
-                "locator": "10.0000/synthetic-joint",
-                "synthetic": true
-              },
-              {
-                "source": "synthetic-fixture",
-                "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-                "locator": "10.0000/synthetic-joint",
-                "synthetic": true
-              },
-              {
-                "source": "synthetic-fixture",
-                "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
-                "locator": "10.0000/synthetic-joint",
-                "synthetic": true
-              },
-              {
-                "source": "synthetic-fixture",
-                "query": null,
-                "locator": "fixture:joint",
-                "synthetic": true
-              }
-            ],
-            "full_text_available": false,
-            "screening_status": "include",
-            "screening_rationale": "Extractive baseline: available source text overlaps question terms (adaptation, agent, dynamic, selection, topology); lexical heuristic, not semantic relevance or a probability."
-          },
-          "record": {
-            "paper_id": "paper-40b8ac03b20bbf20",
-            "query": "10.0000/synthetic-joint",
-            "status": "resolved",
-            "metadata": {
-              "title": "SYNTHETIC: Joint Agent and Communication Selection",
-              "doi": "10.0000/synthetic-joint",
-              "arxiv_id": null,
-              "authors": [
-                {
-                  "name": "Synthetic Example Author"
-                }
-              ],
-              "year": 2026,
-              "venue": "Synthetic Fixture Proceedings",
-              "abstract": "Dynamic agent selection and topology adaptation jointly choose participants and communication edges. The synthetic study distinguishes selection costs from communication costs. Transfer beyond the simulated task distribution is not established.",
-              "url": null,
-              "source": "crossref",
-              "bibtex": "@misc{synthetic_joint,\n  title = {SYNTHETIC: Joint Agent and Communication Selection},\n  author = {Synthetic Example Author},\n  year = {2026},\n  note = {SYNTHETIC TEST DATA; NOT A REAL PUBLICATION}\n}"
-            },
-            "alternatives": [],
-            "sources": [
-              {
-                "provider": "crossref",
-                "status": "ok",
-                "error_code": null
-              }
-            ],
-            "warnings": [
-              "SYNTHETIC FIXTURE: this is not a real bibliographic lookup."
-            ],
-            "message": "Synthetic scenario resolved",
-            "synthetic": true
-          },
-          "document": null
-        },
-        "output": [
-          {
-            "evidence_id": "evidence-7d356d6eb70edca8",
-            "paper_id": "paper-40b8ac03b20bbf20",
-            "text": "Dynamic agent selection and topology adaptation jointly choose participants and communication edges.",
-            "quote": "Dynamic agent selection and topology adaptation jointly choose participants and communication edges.",
-            "category": "method",
-            "scope": "abstract",
-            "support_strength": "direct_quote",
-            "location": {
-              "page": null,
-              "section": "abstract"
-            },
-            "extraction_worker": "fixture-replay",
-            "provenance": {
-              "source": "crossref",
-              "locator": "10.0000/synthetic-joint",
-              "source_sha256": "2d2dc3f3a2055b5efc9bf6b2a984d4ca3cfe9d9d3a4482bd922c36969a236ad4",
-              "synthetic": true
-            }
-          },
-          {
-            "evidence_id": "evidence-a97733bb4819bd7c",
-            "paper_id": "paper-40b8ac03b20bbf20",
-            "text": "The synthetic study distinguishes selection costs from communication costs.",
-            "quote": "The synthetic study distinguishes selection costs from communication costs.",
-            "category": "method",
-            "scope": "abstract",
-            "support_strength": "direct_quote",
-            "location": {
-              "page": null,
-              "section": "abstract"
-            },
-            "extraction_worker": "fixture-replay",
-            "provenance": {
-              "source": "crossref",
-              "locator": "10.0000/synthetic-joint",
-              "source_sha256": "2d2dc3f3a2055b5efc9bf6b2a984d4ca3cfe9d9d3a4482bd922c36969a236ad4",
-              "synthetic": true
-            }
-          },
-          {
-            "evidence_id": "evidence-f1e37fa50ea18e54",
-            "paper_id": "paper-40b8ac03b20bbf20",
-            "text": "Transfer beyond the simulated task distribution is not established.",
-            "quote": "Transfer beyond the simulated task distribution is not established.",
-            "category": "limitation",
-            "scope": "abstract",
-            "support_strength": "direct_quote",
-            "location": {
-              "page": null,
-              "section": "abstract"
-            },
-            "extraction_worker": "fixture-replay",
-            "provenance": {
-              "source": "crossref",
-              "locator": "10.0000/synthetic-joint",
-              "source_sha256": "2d2dc3f3a2055b5efc9bf6b2a984d4ca3cfe9d9d3a4482bd922c36969a236ad4",
               "synthetic": true
             }
           }
@@ -4348,66 +2790,6 @@
                 "source_sha256": "fb16738786324beeb9571536e1f0965b83d28faebe09ed637170869da77fc8b1",
                 "synthetic": true
               }
-            },
-            {
-              "evidence_id": "evidence-7d356d6eb70edca8",
-              "paper_id": "paper-40b8ac03b20bbf20",
-              "text": "Dynamic agent selection and topology adaptation jointly choose participants and communication edges.",
-              "quote": "Dynamic agent selection and topology adaptation jointly choose participants and communication edges.",
-              "category": "method",
-              "scope": "abstract",
-              "support_strength": "direct_quote",
-              "location": {
-                "page": null,
-                "section": "abstract"
-              },
-              "extraction_worker": "fixture-replay",
-              "provenance": {
-                "source": "crossref",
-                "locator": "10.0000/synthetic-joint",
-                "source_sha256": "2d2dc3f3a2055b5efc9bf6b2a984d4ca3cfe9d9d3a4482bd922c36969a236ad4",
-                "synthetic": true
-              }
-            },
-            {
-              "evidence_id": "evidence-a97733bb4819bd7c",
-              "paper_id": "paper-40b8ac03b20bbf20",
-              "text": "The synthetic study distinguishes selection costs from communication costs.",
-              "quote": "The synthetic study distinguishes selection costs from communication costs.",
-              "category": "method",
-              "scope": "abstract",
-              "support_strength": "direct_quote",
-              "location": {
-                "page": null,
-                "section": "abstract"
-              },
-              "extraction_worker": "fixture-replay",
-              "provenance": {
-                "source": "crossref",
-                "locator": "10.0000/synthetic-joint",
-                "source_sha256": "2d2dc3f3a2055b5efc9bf6b2a984d4ca3cfe9d9d3a4482bd922c36969a236ad4",
-                "synthetic": true
-              }
-            },
-            {
-              "evidence_id": "evidence-f1e37fa50ea18e54",
-              "paper_id": "paper-40b8ac03b20bbf20",
-              "text": "Transfer beyond the simulated task distribution is not established.",
-              "quote": "Transfer beyond the simulated task distribution is not established.",
-              "category": "limitation",
-              "scope": "abstract",
-              "support_strength": "direct_quote",
-              "location": {
-                "page": null,
-                "section": "abstract"
-              },
-              "extraction_worker": "fixture-replay",
-              "provenance": {
-                "source": "crossref",
-                "locator": "10.0000/synthetic-joint",
-                "source_sha256": "2d2dc3f3a2055b5efc9bf6b2a984d4ca3cfe9d9d3a4482bd922c36969a236ad4",
-                "synthetic": true
-              }
             }
           ],
           "citation_records": [
@@ -4480,40 +2862,6 @@
               "synthetic": true
             },
             {
-              "paper_id": "paper-40b8ac03b20bbf20",
-              "query": "10.0000/synthetic-joint",
-              "status": "resolved",
-              "metadata": {
-                "title": "SYNTHETIC: Joint Agent and Communication Selection",
-                "doi": "10.0000/synthetic-joint",
-                "arxiv_id": null,
-                "authors": [
-                  {
-                    "name": "Synthetic Example Author"
-                  }
-                ],
-                "year": 2026,
-                "venue": "Synthetic Fixture Proceedings",
-                "abstract": "Dynamic agent selection and topology adaptation jointly choose participants and communication edges. The synthetic study distinguishes selection costs from communication costs. Transfer beyond the simulated task distribution is not established.",
-                "url": null,
-                "source": "crossref",
-                "bibtex": "@misc{synthetic_joint,\n  title = {SYNTHETIC: Joint Agent and Communication Selection},\n  author = {Synthetic Example Author},\n  year = {2026},\n  note = {SYNTHETIC TEST DATA; NOT A REAL PUBLICATION}\n}"
-              },
-              "alternatives": [],
-              "sources": [
-                {
-                  "provider": "crossref",
-                  "status": "ok",
-                  "error_code": null
-                }
-              ],
-              "warnings": [
-                "SYNTHETIC FIXTURE: this is not a real bibliographic lookup."
-              ],
-              "message": "Synthetic scenario resolved",
-              "synthetic": true
-            },
-            {
               "paper_id": "paper-6ca8546b03d7f153",
               "query": "10.0000/synthetic-ambiguous",
               "status": "ambiguous",
@@ -4551,44 +2899,6 @@
               ],
               "message": "Synthetic scenario ambiguous",
               "synthetic": true
-            },
-            {
-              "paper_id": "paper-c9fff587e292f1f3",
-              "query": "10.0000/synthetic-missing",
-              "status": "not_found",
-              "metadata": null,
-              "alternatives": [],
-              "sources": [
-                {
-                  "provider": "crossref",
-                  "status": "not_found",
-                  "error_code": null
-                }
-              ],
-              "warnings": [
-                "SYNTHETIC FIXTURE: this is not a real bibliographic lookup."
-              ],
-              "message": "Synthetic scenario not_found",
-              "synthetic": true
-            },
-            {
-              "paper_id": "paper-ec09484d4252cc0a",
-              "query": "10.0000/synthetic-failure",
-              "status": "provider_error",
-              "metadata": null,
-              "alternatives": [],
-              "sources": [
-                {
-                  "provider": "crossref",
-                  "status": "error",
-                  "error_code": "fixture_outage"
-                }
-              ],
-              "warnings": [
-                "SYNTHETIC FIXTURE: this is not a real bibliographic lookup."
-              ],
-              "message": "Synthetic scenario provider_error",
-              "synthetic": true
             }
           ]
         },
@@ -4599,9 +2909,7 @@
               "label": "Communication structure",
               "evidence_ids": [
                 "evidence-dda25595ed556a1b",
-                "evidence-5f8d524faf326048",
-                "evidence-7d356d6eb70edca8",
-                "evidence-a97733bb4819bd7c"
+                "evidence-5f8d524faf326048"
               ],
               "method_comparison": "Extractive grouping; comparative reasoning requires the host model router.",
               "limitations": [
@@ -4614,8 +2922,7 @@
               "label": "Reported limitations",
               "evidence_ids": [
                 "evidence-a459a7d4e643f836",
-                "evidence-41964da1527455b0",
-                "evidence-f1e37fa50ea18e54"
+                "evidence-41964da1527455b0"
               ],
               "method_comparison": "Extractive grouping; comparative reasoning requires the host model router.",
               "limitations": [
@@ -4668,34 +2975,6 @@
               "theme_id": "theme-1"
             },
             {
-              "claim_id": "claim-7d356d6eb70edca8",
-              "text": "Dynamic agent selection and topology adaptation jointly choose participants and communication edges.",
-              "paper_ids": [
-                "paper-40b8ac03b20bbf20"
-              ],
-              "evidence_ids": [
-                "evidence-7d356d6eb70edca8"
-              ],
-              "support_type": "direct_quote",
-              "strength": "descriptive",
-              "verification_status": "pending",
-              "theme_id": "theme-1"
-            },
-            {
-              "claim_id": "claim-a97733bb4819bd7c",
-              "text": "The synthetic study distinguishes selection costs from communication costs.",
-              "paper_ids": [
-                "paper-40b8ac03b20bbf20"
-              ],
-              "evidence_ids": [
-                "evidence-a97733bb4819bd7c"
-              ],
-              "support_type": "direct_quote",
-              "strength": "descriptive",
-              "verification_status": "pending",
-              "theme_id": "theme-1"
-            },
-            {
               "claim_id": "claim-a459a7d4e643f836",
               "text": "A limitation is that the simulated workload does not establish performance on real tasks.",
               "paper_ids": [
@@ -4717,20 +2996,6 @@
               ],
               "evidence_ids": [
                 "evidence-41964da1527455b0"
-              ],
-              "support_type": "direct_quote",
-              "strength": "descriptive",
-              "verification_status": "pending",
-              "theme_id": "theme-2"
-            },
-            {
-              "claim_id": "claim-f1e37fa50ea18e54",
-              "text": "Transfer beyond the simulated task distribution is not established.",
-              "paper_ids": [
-                "paper-40b8ac03b20bbf20"
-              ],
-              "evidence_ids": [
-                "evidence-f1e37fa50ea18e54"
               ],
               "support_type": "direct_quote",
               "strength": "descriptive",
@@ -4793,9 +3058,7 @@
               "label": "Communication structure",
               "evidence_ids": [
                 "evidence-dda25595ed556a1b",
-                "evidence-5f8d524faf326048",
-                "evidence-7d356d6eb70edca8",
-                "evidence-a97733bb4819bd7c"
+                "evidence-5f8d524faf326048"
               ],
               "method_comparison": "Extractive grouping; comparative reasoning requires the host model router.",
               "limitations": [
@@ -4808,8 +3071,7 @@
               "label": "Reported limitations",
               "evidence_ids": [
                 "evidence-a459a7d4e643f836",
-                "evidence-41964da1527455b0",
-                "evidence-f1e37fa50ea18e54"
+                "evidence-41964da1527455b0"
               ],
               "method_comparison": "Extractive grouping; comparative reasoning requires the host model router.",
               "limitations": [
@@ -4862,34 +3124,6 @@
               "theme_id": "theme-1"
             },
             {
-              "claim_id": "claim-7d356d6eb70edca8",
-              "text": "Dynamic agent selection and topology adaptation jointly choose participants and communication edges.",
-              "paper_ids": [
-                "paper-40b8ac03b20bbf20"
-              ],
-              "evidence_ids": [
-                "evidence-7d356d6eb70edca8"
-              ],
-              "support_type": "direct_quote",
-              "strength": "descriptive",
-              "verification_status": "pending",
-              "theme_id": "theme-1"
-            },
-            {
-              "claim_id": "claim-a97733bb4819bd7c",
-              "text": "The synthetic study distinguishes selection costs from communication costs.",
-              "paper_ids": [
-                "paper-40b8ac03b20bbf20"
-              ],
-              "evidence_ids": [
-                "evidence-a97733bb4819bd7c"
-              ],
-              "support_type": "direct_quote",
-              "strength": "descriptive",
-              "verification_status": "pending",
-              "theme_id": "theme-1"
-            },
-            {
               "claim_id": "claim-a459a7d4e643f836",
               "text": "A limitation is that the simulated workload does not establish performance on real tasks.",
               "paper_ids": [
@@ -4911,20 +3145,6 @@
               ],
               "evidence_ids": [
                 "evidence-41964da1527455b0"
-              ],
-              "support_type": "direct_quote",
-              "strength": "descriptive",
-              "verification_status": "pending",
-              "theme_id": "theme-2"
-            },
-            {
-              "claim_id": "claim-f1e37fa50ea18e54",
-              "text": "Transfer beyond the simulated task distribution is not established.",
-              "paper_ids": [
-                "paper-40b8ac03b20bbf20"
-              ],
-              "evidence_ids": [
-                "evidence-f1e37fa50ea18e54"
               ],
               "support_type": "direct_quote",
               "strength": "descriptive",
@@ -4981,11 +3201,8 @@
             "claim_ids": [
               "claim-dda25595ed556a1b",
               "claim-5f8d524faf326048",
-              "claim-7d356d6eb70edca8",
-              "claim-a97733bb4819bd7c",
               "claim-a459a7d4e643f836",
               "claim-41964da1527455b0",
-              "claim-f1e37fa50ea18e54",
               "claim-f8ff11d1a8bef6f5",
               "claim-434ab9e14a2bfb3a",
               "claim-566647fe74e87f66"
@@ -5021,34 +3238,6 @@
               "theme_id": "theme-1"
             },
             {
-              "claim_id": "claim-7d356d6eb70edca8",
-              "text": "Dynamic agent selection and topology adaptation jointly choose participants and communication edges.",
-              "paper_ids": [
-                "paper-40b8ac03b20bbf20"
-              ],
-              "evidence_ids": [
-                "evidence-7d356d6eb70edca8"
-              ],
-              "support_type": "direct_quote",
-              "strength": "descriptive",
-              "verification_status": "pending",
-              "theme_id": "theme-1"
-            },
-            {
-              "claim_id": "claim-a97733bb4819bd7c",
-              "text": "The synthetic study distinguishes selection costs from communication costs.",
-              "paper_ids": [
-                "paper-40b8ac03b20bbf20"
-              ],
-              "evidence_ids": [
-                "evidence-a97733bb4819bd7c"
-              ],
-              "support_type": "direct_quote",
-              "strength": "descriptive",
-              "verification_status": "pending",
-              "theme_id": "theme-1"
-            },
-            {
               "claim_id": "claim-a459a7d4e643f836",
               "text": "A limitation is that the simulated workload does not establish performance on real tasks.",
               "paper_ids": [
@@ -5070,20 +3259,6 @@
               ],
               "evidence_ids": [
                 "evidence-41964da1527455b0"
-              ],
-              "support_type": "direct_quote",
-              "strength": "descriptive",
-              "verification_status": "pending",
-              "theme_id": "theme-2"
-            },
-            {
-              "claim_id": "claim-f1e37fa50ea18e54",
-              "text": "Transfer beyond the simulated task distribution is not established.",
-              "paper_ids": [
-                "paper-40b8ac03b20bbf20"
-              ],
-              "evidence_ids": [
-                "evidence-f1e37fa50ea18e54"
               ],
               "support_type": "direct_quote",
               "strength": "descriptive",
@@ -5171,34 +3346,6 @@
               "theme_id": "theme-1"
             },
             {
-              "claim_id": "claim-7d356d6eb70edca8",
-              "text": "Dynamic agent selection and topology adaptation jointly choose participants and communication edges.",
-              "paper_ids": [
-                "paper-40b8ac03b20bbf20"
-              ],
-              "evidence_ids": [
-                "evidence-7d356d6eb70edca8"
-              ],
-              "support_type": "direct_quote",
-              "strength": "descriptive",
-              "verification_status": "pending",
-              "theme_id": "theme-1"
-            },
-            {
-              "claim_id": "claim-a97733bb4819bd7c",
-              "text": "The synthetic study distinguishes selection costs from communication costs.",
-              "paper_ids": [
-                "paper-40b8ac03b20bbf20"
-              ],
-              "evidence_ids": [
-                "evidence-a97733bb4819bd7c"
-              ],
-              "support_type": "direct_quote",
-              "strength": "descriptive",
-              "verification_status": "pending",
-              "theme_id": "theme-1"
-            },
-            {
               "claim_id": "claim-a459a7d4e643f836",
               "text": "A limitation is that the simulated workload does not establish performance on real tasks.",
               "paper_ids": [
@@ -5220,20 +3367,6 @@
               ],
               "evidence_ids": [
                 "evidence-41964da1527455b0"
-              ],
-              "support_type": "direct_quote",
-              "strength": "descriptive",
-              "verification_status": "pending",
-              "theme_id": "theme-2"
-            },
-            {
-              "claim_id": "claim-f1e37fa50ea18e54",
-              "text": "Transfer beyond the simulated task distribution is not established.",
-              "paper_ids": [
-                "paper-40b8ac03b20bbf20"
-              ],
-              "evidence_ids": [
-                "evidence-f1e37fa50ea18e54"
               ],
               "support_type": "direct_quote",
               "strength": "descriptive",
@@ -5423,66 +3556,6 @@
                 "source_sha256": "fb16738786324beeb9571536e1f0965b83d28faebe09ed637170869da77fc8b1",
                 "synthetic": true
               }
-            },
-            {
-              "evidence_id": "evidence-7d356d6eb70edca8",
-              "paper_id": "paper-40b8ac03b20bbf20",
-              "text": "Dynamic agent selection and topology adaptation jointly choose participants and communication edges.",
-              "quote": "Dynamic agent selection and topology adaptation jointly choose participants and communication edges.",
-              "category": "method",
-              "scope": "abstract",
-              "support_strength": "direct_quote",
-              "location": {
-                "page": null,
-                "section": "abstract"
-              },
-              "extraction_worker": "fixture-replay",
-              "provenance": {
-                "source": "crossref",
-                "locator": "10.0000/synthetic-joint",
-                "source_sha256": "2d2dc3f3a2055b5efc9bf6b2a984d4ca3cfe9d9d3a4482bd922c36969a236ad4",
-                "synthetic": true
-              }
-            },
-            {
-              "evidence_id": "evidence-a97733bb4819bd7c",
-              "paper_id": "paper-40b8ac03b20bbf20",
-              "text": "The synthetic study distinguishes selection costs from communication costs.",
-              "quote": "The synthetic study distinguishes selection costs from communication costs.",
-              "category": "method",
-              "scope": "abstract",
-              "support_strength": "direct_quote",
-              "location": {
-                "page": null,
-                "section": "abstract"
-              },
-              "extraction_worker": "fixture-replay",
-              "provenance": {
-                "source": "crossref",
-                "locator": "10.0000/synthetic-joint",
-                "source_sha256": "2d2dc3f3a2055b5efc9bf6b2a984d4ca3cfe9d9d3a4482bd922c36969a236ad4",
-                "synthetic": true
-              }
-            },
-            {
-              "evidence_id": "evidence-f1e37fa50ea18e54",
-              "paper_id": "paper-40b8ac03b20bbf20",
-              "text": "Transfer beyond the simulated task distribution is not established.",
-              "quote": "Transfer beyond the simulated task distribution is not established.",
-              "category": "limitation",
-              "scope": "abstract",
-              "support_strength": "direct_quote",
-              "location": {
-                "page": null,
-                "section": "abstract"
-              },
-              "extraction_worker": "fixture-replay",
-              "provenance": {
-                "source": "crossref",
-                "locator": "10.0000/synthetic-joint",
-                "source_sha256": "2d2dc3f3a2055b5efc9bf6b2a984d4ca3cfe9d9d3a4482bd922c36969a236ad4",
-                "synthetic": true
-              }
             }
           ],
           "citation_records": [
@@ -5555,40 +3628,6 @@
               "synthetic": true
             },
             {
-              "paper_id": "paper-40b8ac03b20bbf20",
-              "query": "10.0000/synthetic-joint",
-              "status": "resolved",
-              "metadata": {
-                "title": "SYNTHETIC: Joint Agent and Communication Selection",
-                "doi": "10.0000/synthetic-joint",
-                "arxiv_id": null,
-                "authors": [
-                  {
-                    "name": "Synthetic Example Author"
-                  }
-                ],
-                "year": 2026,
-                "venue": "Synthetic Fixture Proceedings",
-                "abstract": "Dynamic agent selection and topology adaptation jointly choose participants and communication edges. The synthetic study distinguishes selection costs from communication costs. Transfer beyond the simulated task distribution is not established.",
-                "url": null,
-                "source": "crossref",
-                "bibtex": "@misc{synthetic_joint,\n  title = {SYNTHETIC: Joint Agent and Communication Selection},\n  author = {Synthetic Example Author},\n  year = {2026},\n  note = {SYNTHETIC TEST DATA; NOT A REAL PUBLICATION}\n}"
-              },
-              "alternatives": [],
-              "sources": [
-                {
-                  "provider": "crossref",
-                  "status": "ok",
-                  "error_code": null
-                }
-              ],
-              "warnings": [
-                "SYNTHETIC FIXTURE: this is not a real bibliographic lookup."
-              ],
-              "message": "Synthetic scenario resolved",
-              "synthetic": true
-            },
-            {
               "paper_id": "paper-6ca8546b03d7f153",
               "query": "10.0000/synthetic-ambiguous",
               "status": "ambiguous",
@@ -5626,44 +3665,6 @@
               ],
               "message": "Synthetic scenario ambiguous",
               "synthetic": true
-            },
-            {
-              "paper_id": "paper-c9fff587e292f1f3",
-              "query": "10.0000/synthetic-missing",
-              "status": "not_found",
-              "metadata": null,
-              "alternatives": [],
-              "sources": [
-                {
-                  "provider": "crossref",
-                  "status": "not_found",
-                  "error_code": null
-                }
-              ],
-              "warnings": [
-                "SYNTHETIC FIXTURE: this is not a real bibliographic lookup."
-              ],
-              "message": "Synthetic scenario not_found",
-              "synthetic": true
-            },
-            {
-              "paper_id": "paper-ec09484d4252cc0a",
-              "query": "10.0000/synthetic-failure",
-              "status": "provider_error",
-              "metadata": null,
-              "alternatives": [],
-              "sources": [
-                {
-                  "provider": "crossref",
-                  "status": "error",
-                  "error_code": "fixture_outage"
-                }
-              ],
-              "warnings": [
-                "SYNTHETIC FIXTURE: this is not a real bibliographic lookup."
-              ],
-              "message": "Synthetic scenario provider_error",
-              "synthetic": true
             }
           ],
           "themes": [
@@ -5672,9 +3673,7 @@
               "label": "Communication structure",
               "evidence_ids": [
                 "evidence-dda25595ed556a1b",
-                "evidence-5f8d524faf326048",
-                "evidence-7d356d6eb70edca8",
-                "evidence-a97733bb4819bd7c"
+                "evidence-5f8d524faf326048"
               ],
               "method_comparison": "Extractive grouping; comparative reasoning requires the host model router.",
               "limitations": [
@@ -5687,8 +3686,7 @@
               "label": "Reported limitations",
               "evidence_ids": [
                 "evidence-a459a7d4e643f836",
-                "evidence-41964da1527455b0",
-                "evidence-f1e37fa50ea18e54"
+                "evidence-41964da1527455b0"
               ],
               "method_comparison": "Extractive grouping; comparative reasoning requires the host model router.",
               "limitations": [
@@ -5716,11 +3714,8 @@
             "claim_ids": [
               "claim-dda25595ed556a1b",
               "claim-5f8d524faf326048",
-              "claim-7d356d6eb70edca8",
-              "claim-a97733bb4819bd7c",
               "claim-a459a7d4e643f836",
               "claim-41964da1527455b0",
-              "claim-f1e37fa50ea18e54",
               "claim-f8ff11d1a8bef6f5",
               "claim-434ab9e14a2bfb3a",
               "claim-566647fe74e87f66"
@@ -5752,29 +3747,11 @@
                   "match_score": 1.0
                 }
               ]
-            },
-            {
-              "paper_id": "paper-c9fff587e292f1f3",
-              "status": "not_found",
-              "message": "Synthetic scenario not_found",
-              "alternatives": []
-            },
-            {
-              "paper_id": "paper-ec09484d4252cc0a",
-              "status": "provider_error",
-              "message": "Synthetic scenario provider_error",
-              "alternatives": []
-            },
-            {
-              "paper_id": "paper-466bc780ad415433",
-              "status": "screening_maybe",
-              "message": "Only title/metadata available; relevance cannot be established.",
-              "alternatives": []
             }
           ]
         },
         "output": {
-          "related_work": "# Related Work\n\nExecuted by workflow.v0 with deterministic fixture replay; no model inference.\n\n**SYNTHETIC DEMONSTRATION \u2014 all bundled papers, identifiers, and findings are invented test data. Do not cite this as research.**\n\nThis extractive baseline groups source quotations; it does not perform semantic method comparison or establish research gaps.\n\n## Communication structure\n\nAn abstract states: \u201cAdaptive communication topology changes message edges between language-model agents during a task.\u201d [1] An abstract states: \u201cThe synthetic method uses intermediate agreement signals to choose a communication graph.\u201d [1] An abstract states: \u201cDynamic agent selection and topology adaptation jointly choose participants and communication edges.\u201d [2] An abstract states: \u201cThe synthetic study distinguishes selection costs from communication costs.\u201d [2]\n\n## Reported limitations\n\nThe supplied full text states: \u201cA limitation is that the simulated workload does not establish performance on real tasks.\u201d [3] An abstract states: \u201cIts abstract does not report evaluation sample sizes.\u201d [1] An abstract states: \u201cTransfer beyond the simulated task distribution is not established.\u201d [2]\n\n## Selection and evaluation\n\nThe supplied full text states: \u201cDynamic agent selection routes each task to a subset of language-model agents using task features.\u201d [3] The supplied full text states: \u201cThe simulated experimental setup uses ten invented task families.\u201d [3] The supplied full text states: \u201cThe synthetic evaluation compares routed teams with a fixed all-agent baseline.\u201d [3]\n\nEvidence coverage: 6 abstract-derived items and 4 supplied full-text items. Search coverage is bounded; this is not a systematic or exhaustive review.\n\n4 records require follow-up; ambiguous and failed citations are excluded from the prose.\n",
+          "related_work": "# Related Work\n\nExecuted by workflow.v0 with deterministic fixture replay; no model inference.\n\n**SYNTHETIC DEMONSTRATION \u2014 all bundled papers, identifiers, and findings are invented test data. Do not cite this as research.**\n\nThis extractive baseline groups source quotations; it does not perform semantic method comparison or establish research gaps.\n\n## Communication structure\n\nAn abstract states: \u201cAdaptive communication topology changes message edges between language-model agents during a task.\u201d [1] An abstract states: \u201cThe synthetic method uses intermediate agreement signals to choose a communication graph.\u201d [1]\n\n## Reported limitations\n\nThe supplied full text states: \u201cA limitation is that the simulated workload does not establish performance on real tasks.\u201d [2] An abstract states: \u201cIts abstract does not report evaluation sample sizes.\u201d [1]\n\n## Selection and evaluation\n\nThe supplied full text states: \u201cDynamic agent selection routes each task to a subset of language-model agents using task features.\u201d [2] The supplied full text states: \u201cThe simulated experimental setup uses ten invented task families.\u201d [2] The supplied full text states: \u201cThe synthetic evaluation compares routed teams with a fixed all-agent baseline.\u201d [2]\n\nEvidence coverage: 3 abstract-derived items and 4 supplied full-text items. Search coverage is bounded; this is not a systematic or exhaustive review.\n\n2 records require follow-up; ambiguous citations are excluded from the prose.\n",
           "bibliography": [
             {
               "reference": 1,
@@ -5796,38 +3773,6 @@
                 "bibtex": "@misc{synthetic_topology,\n  title = {SYNTHETIC: Adaptive Communication Topology for Agent Teams},\n  author = {Synthetic Example Author},\n  year = {2026},\n  note = {SYNTHETIC TEST DATA; NOT A REAL PUBLICATION}\n}"
               },
               "bibtex": "@misc{synthetic_topology,\n  title = {SYNTHETIC: Adaptive Communication Topology for Agent Teams},\n  author = {Synthetic Example Author},\n  year = {2026},\n  note = {SYNTHETIC TEST DATA; NOT A REAL PUBLICATION}\n}",
-              "sources": [
-                {
-                  "provider": "crossref",
-                  "status": "ok",
-                  "error_code": null
-                }
-              ],
-              "warnings": [
-                "SYNTHETIC FIXTURE: this is not a real bibliographic lookup."
-              ],
-              "synthetic": true
-            },
-            {
-              "reference": 2,
-              "paper_id": "paper-40b8ac03b20bbf20",
-              "metadata": {
-                "title": "SYNTHETIC: Joint Agent and Communication Selection",
-                "doi": "10.0000/synthetic-joint",
-                "arxiv_id": null,
-                "authors": [
-                  {
-                    "name": "Synthetic Example Author"
-                  }
-                ],
-                "year": 2026,
-                "venue": "Synthetic Fixture Proceedings",
-                "abstract": "Dynamic agent selection and topology adaptation jointly choose participants and communication edges. The synthetic study distinguishes selection costs from communication costs. Transfer beyond the simulated task distribution is not established.",
-                "url": null,
-                "source": "crossref",
-                "bibtex": "@misc{synthetic_joint,\n  title = {SYNTHETIC: Joint Agent and Communication Selection},\n  author = {Synthetic Example Author},\n  year = {2026},\n  note = {SYNTHETIC TEST DATA; NOT A REAL PUBLICATION}\n}"
-              },
-              "bibtex": "@misc{synthetic_joint,\n  title = {SYNTHETIC: Joint Agent and Communication Selection},\n  author = {Synthetic Example Author},\n  year = {2026},\n  note = {SYNTHETIC TEST DATA; NOT A REAL PUBLICATION}\n}",
               "sources": [
                 {
                   "provider": "crossref",
@@ -6020,69 +3965,6 @@
                 "synthetic": true
               },
               "reference": 1
-            },
-            {
-              "evidence_id": "evidence-7d356d6eb70edca8",
-              "paper_id": "paper-40b8ac03b20bbf20",
-              "text": "Dynamic agent selection and topology adaptation jointly choose participants and communication edges.",
-              "quote": "Dynamic agent selection and topology adaptation jointly choose participants and communication edges.",
-              "category": "method",
-              "scope": "abstract",
-              "support_strength": "direct_quote",
-              "location": {
-                "page": null,
-                "section": "abstract"
-              },
-              "extraction_worker": "fixture-replay",
-              "provenance": {
-                "source": "crossref",
-                "locator": "10.0000/synthetic-joint",
-                "source_sha256": "2d2dc3f3a2055b5efc9bf6b2a984d4ca3cfe9d9d3a4482bd922c36969a236ad4",
-                "synthetic": true
-              },
-              "reference": 2
-            },
-            {
-              "evidence_id": "evidence-a97733bb4819bd7c",
-              "paper_id": "paper-40b8ac03b20bbf20",
-              "text": "The synthetic study distinguishes selection costs from communication costs.",
-              "quote": "The synthetic study distinguishes selection costs from communication costs.",
-              "category": "method",
-              "scope": "abstract",
-              "support_strength": "direct_quote",
-              "location": {
-                "page": null,
-                "section": "abstract"
-              },
-              "extraction_worker": "fixture-replay",
-              "provenance": {
-                "source": "crossref",
-                "locator": "10.0000/synthetic-joint",
-                "source_sha256": "2d2dc3f3a2055b5efc9bf6b2a984d4ca3cfe9d9d3a4482bd922c36969a236ad4",
-                "synthetic": true
-              },
-              "reference": 2
-            },
-            {
-              "evidence_id": "evidence-f1e37fa50ea18e54",
-              "paper_id": "paper-40b8ac03b20bbf20",
-              "text": "Transfer beyond the simulated task distribution is not established.",
-              "quote": "Transfer beyond the simulated task distribution is not established.",
-              "category": "limitation",
-              "scope": "abstract",
-              "support_strength": "direct_quote",
-              "location": {
-                "page": null,
-                "section": "abstract"
-              },
-              "extraction_worker": "fixture-replay",
-              "provenance": {
-                "source": "crossref",
-                "locator": "10.0000/synthetic-joint",
-                "source_sha256": "2d2dc3f3a2055b5efc9bf6b2a984d4ca3cfe9d9d3a4482bd922c36969a236ad4",
-                "synthetic": true
-              },
-              "reference": 2
             }
           ],
           "unresolved": [
@@ -6111,18 +3993,6 @@
                   "match_score": 1.0
                 }
               ]
-            },
-            {
-              "paper_id": "paper-c9fff587e292f1f3",
-              "status": "not_found",
-              "message": "Synthetic scenario not_found",
-              "alternatives": []
-            },
-            {
-              "paper_id": "paper-ec09484d4252cc0a",
-              "status": "provider_error",
-              "message": "Synthetic scenario provider_error",
-              "alternatives": []
             },
             {
               "paper_id": "paper-466bc780ad415433",
@@ -6159,32 +4029,6 @@
               "semantic_judgment": "not_needed"
             },
             {
-              "claim_id": "claim-7d356d6eb70edca8",
-              "status": "supported",
-              "checks": [
-                "claim_identity",
-                "evidence_links",
-                "citation_status",
-                "source_scope",
-                "verbatim_quote"
-              ],
-              "reason": "Passed applicable structural checks and verbatim quotation check",
-              "semantic_judgment": "not_needed"
-            },
-            {
-              "claim_id": "claim-a97733bb4819bd7c",
-              "status": "supported",
-              "checks": [
-                "claim_identity",
-                "evidence_links",
-                "citation_status",
-                "source_scope",
-                "verbatim_quote"
-              ],
-              "reason": "Passed applicable structural checks and verbatim quotation check",
-              "semantic_judgment": "not_needed"
-            },
-            {
               "claim_id": "claim-a459a7d4e643f836",
               "status": "supported",
               "checks": [
@@ -6199,19 +4043,6 @@
             },
             {
               "claim_id": "claim-41964da1527455b0",
-              "status": "supported",
-              "checks": [
-                "claim_identity",
-                "evidence_links",
-                "citation_status",
-                "source_scope",
-                "verbatim_quote"
-              ],
-              "reason": "Passed applicable structural checks and verbatim quotation check",
-              "semantic_judgment": "not_needed"
-            },
-            {
-              "claim_id": "claim-f1e37fa50ea18e54",
               "status": "supported",
               "checks": [
                 "claim_identity",
@@ -6293,34 +4124,6 @@
               "theme_id": "theme-1"
             },
             {
-              "claim_id": "claim-7d356d6eb70edca8",
-              "text": "Dynamic agent selection and topology adaptation jointly choose participants and communication edges.",
-              "paper_ids": [
-                "paper-40b8ac03b20bbf20"
-              ],
-              "evidence_ids": [
-                "evidence-7d356d6eb70edca8"
-              ],
-              "support_type": "direct_quote",
-              "strength": "descriptive",
-              "verification_status": "supported",
-              "theme_id": "theme-1"
-            },
-            {
-              "claim_id": "claim-a97733bb4819bd7c",
-              "text": "The synthetic study distinguishes selection costs from communication costs.",
-              "paper_ids": [
-                "paper-40b8ac03b20bbf20"
-              ],
-              "evidence_ids": [
-                "evidence-a97733bb4819bd7c"
-              ],
-              "support_type": "direct_quote",
-              "strength": "descriptive",
-              "verification_status": "supported",
-              "theme_id": "theme-1"
-            },
-            {
               "claim_id": "claim-a459a7d4e643f836",
               "text": "A limitation is that the simulated workload does not establish performance on real tasks.",
               "paper_ids": [
@@ -6342,20 +4145,6 @@
               ],
               "evidence_ids": [
                 "evidence-41964da1527455b0"
-              ],
-              "support_type": "direct_quote",
-              "strength": "descriptive",
-              "verification_status": "supported",
-              "theme_id": "theme-2"
-            },
-            {
-              "claim_id": "claim-f1e37fa50ea18e54",
-              "text": "Transfer beyond the simulated task distribution is not established.",
-              "paper_ids": [
-                "paper-40b8ac03b20bbf20"
-              ],
-              "evidence_ids": [
-                "evidence-f1e37fa50ea18e54"
               ],
               "support_type": "direct_quote",
               "strength": "descriptive",
@@ -6414,7 +4203,7 @@
       {
         "input": {
           "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
-          "limit": 10
+          "limit": 3
         },
         "output": {
           "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
@@ -6488,7 +4277,19 @@
                   "synthetic": true
                 }
               ]
-            },
+            }
+          ]
+        }
+      },
+      {
+        "input": {
+          "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
+          "limit": 3
+        },
+        "output": {
+          "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
+          "source": "synthetic-fixture",
+          "papers": [
             {
               "title": "SYNTHETIC: Dynamic Agent Networks",
               "doi": "10.0000/synthetic-ambiguous",
@@ -6535,87 +4336,6 @@
                 }
               ]
             },
-            {
-              "title": "SYNTHETIC: Unavailable Topology Provider",
-              "doi": "10.0000/synthetic-failure",
-              "arxiv_id": null,
-              "authors": [
-                {
-                  "name": "Synthetic Example Author"
-                }
-              ],
-              "year": 2026,
-              "venue": "Synthetic Fixture Proceedings",
-              "abstract": "Dynamic agent selection and adaptive communication topology appear in this synthetic record. Its citation fixture simulates a provider outage.",
-              "url": null,
-              "source": "synthetic-fixture",
-              "provenance": [
-                {
-                  "source": "synthetic-fixture",
-                  "query": null,
-                  "locator": "fixture:failure",
-                  "synthetic": true
-                }
-              ]
-            },
-            {
-              "title": "SYNTHETIC: Dynamic Agent Selection Without An Abstract",
-              "doi": "10.0000/synthetic-title-only",
-              "arxiv_id": null,
-              "authors": [
-                {
-                  "name": "Synthetic Example Author"
-                }
-              ],
-              "year": 2026,
-              "venue": "Synthetic Fixture Proceedings",
-              "abstract": null,
-              "url": null,
-              "source": "synthetic-fixture",
-              "provenance": [
-                {
-                  "source": "synthetic-fixture",
-                  "query": null,
-                  "locator": "fixture:title-only",
-                  "synthetic": true
-                }
-              ]
-            },
-            {
-              "title": "SYNTHETIC: Ceramic Agent Topology",
-              "doi": "10.0000/synthetic-irrelevant",
-              "arxiv_id": null,
-              "authors": [
-                {
-                  "name": "Synthetic Example Author"
-                }
-              ],
-              "year": 2026,
-              "venue": "Synthetic Fixture Proceedings",
-              "abstract": "This synthetic article studies ceramic grain topology under furnace heating. Experiments measure thermal properties.",
-              "url": null,
-              "source": "synthetic-fixture",
-              "provenance": [
-                {
-                  "source": "synthetic-fixture",
-                  "query": null,
-                  "locator": "fixture:irrelevant",
-                  "synthetic": true
-                }
-              ]
-            }
-          ]
-        }
-      },
-      {
-        "input": {
-          "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
-          "limit": 10
-        },
-        "output": {
-          "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
-          "source": "synthetic-fixture",
-          "papers": [
             {
               "title": "SYNTHETIC: Dynamic Agent Selection with Task Routing",
               "doi": "10.0000/synthetic-router",
@@ -6638,167 +4358,6 @@
                   "synthetic": true
                 }
               ]
-            },
-            {
-              "title": "SYNTHETIC: Adaptive Communication Topology for Agent Teams",
-              "doi": "10.0000/synthetic-topology",
-              "arxiv_id": null,
-              "authors": [
-                {
-                  "name": "Synthetic Example Author"
-                }
-              ],
-              "year": 2026,
-              "venue": "Synthetic Fixture Proceedings",
-              "abstract": "Adaptive communication topology changes message edges between language-model agents during a task. The synthetic method uses intermediate agreement signals to choose a communication graph. Its abstract does not report evaluation sample sizes.",
-              "url": null,
-              "source": "synthetic-fixture",
-              "provenance": [
-                {
-                  "source": "synthetic-fixture",
-                  "query": null,
-                  "locator": "fixture:topology",
-                  "synthetic": true
-                }
-              ]
-            },
-            {
-              "title": "SYNTHETIC: Joint Agent and Communication Selection",
-              "doi": "10.0000/synthetic-joint",
-              "arxiv_id": null,
-              "authors": [
-                {
-                  "name": "Synthetic Example Author"
-                }
-              ],
-              "year": 2026,
-              "venue": "Synthetic Fixture Proceedings",
-              "abstract": "Dynamic agent selection and topology adaptation jointly choose participants and communication edges. The synthetic study distinguishes selection costs from communication costs. Transfer beyond the simulated task distribution is not established.",
-              "url": null,
-              "source": "synthetic-fixture",
-              "provenance": [
-                {
-                  "source": "synthetic-fixture",
-                  "query": null,
-                  "locator": "fixture:joint",
-                  "synthetic": true
-                }
-              ]
-            },
-            {
-              "title": "SYNTHETIC: Dynamic Agent Networks",
-              "doi": "10.0000/synthetic-ambiguous",
-              "arxiv_id": null,
-              "authors": [
-                {
-                  "name": "Synthetic Example Author"
-                }
-              ],
-              "year": 2026,
-              "venue": "Synthetic Fixture Proceedings",
-              "abstract": "Dynamic agent networks select language-model agents and adapt communication topology. This title deliberately has multiple fixture matches.",
-              "url": null,
-              "source": "synthetic-fixture",
-              "provenance": [
-                {
-                  "source": "synthetic-fixture",
-                  "query": null,
-                  "locator": "fixture:ambiguous",
-                  "synthetic": true
-                }
-              ]
-            },
-            {
-              "title": "SYNTHETIC: Missing Agent Selection Paper",
-              "doi": "10.0000/synthetic-missing",
-              "arxiv_id": null,
-              "authors": [
-                {
-                  "name": "Synthetic Example Author"
-                }
-              ],
-              "year": 2026,
-              "venue": "Synthetic Fixture Proceedings",
-              "abstract": "Dynamic language-model agent selection is discussed in this synthetic search record. Its citation is deliberately absent from fixture indexes.",
-              "url": null,
-              "source": "synthetic-fixture",
-              "provenance": [
-                {
-                  "source": "synthetic-fixture",
-                  "query": null,
-                  "locator": "fixture:missing",
-                  "synthetic": true
-                }
-              ]
-            },
-            {
-              "title": "SYNTHETIC: Unavailable Topology Provider",
-              "doi": "10.0000/synthetic-failure",
-              "arxiv_id": null,
-              "authors": [
-                {
-                  "name": "Synthetic Example Author"
-                }
-              ],
-              "year": 2026,
-              "venue": "Synthetic Fixture Proceedings",
-              "abstract": "Dynamic agent selection and adaptive communication topology appear in this synthetic record. Its citation fixture simulates a provider outage.",
-              "url": null,
-              "source": "synthetic-fixture",
-              "provenance": [
-                {
-                  "source": "synthetic-fixture",
-                  "query": null,
-                  "locator": "fixture:failure",
-                  "synthetic": true
-                }
-              ]
-            },
-            {
-              "title": "SYNTHETIC: Dynamic Agent Selection Without An Abstract",
-              "doi": "10.0000/synthetic-title-only",
-              "arxiv_id": null,
-              "authors": [
-                {
-                  "name": "Synthetic Example Author"
-                }
-              ],
-              "year": 2026,
-              "venue": "Synthetic Fixture Proceedings",
-              "abstract": null,
-              "url": null,
-              "source": "synthetic-fixture",
-              "provenance": [
-                {
-                  "source": "synthetic-fixture",
-                  "query": null,
-                  "locator": "fixture:title-only",
-                  "synthetic": true
-                }
-              ]
-            },
-            {
-              "title": "SYNTHETIC: Ceramic Agent Topology",
-              "doi": "10.0000/synthetic-irrelevant",
-              "arxiv_id": null,
-              "authors": [
-                {
-                  "name": "Synthetic Example Author"
-                }
-              ],
-              "year": 2026,
-              "venue": "Synthetic Fixture Proceedings",
-              "abstract": "This synthetic article studies ceramic grain topology under furnace heating. Experiments measure thermal properties.",
-              "url": null,
-              "source": "synthetic-fixture",
-              "provenance": [
-                {
-                  "source": "synthetic-fixture",
-                  "query": null,
-                  "locator": "fixture:irrelevant",
-                  "synthetic": true
-                }
-              ]
             }
           ]
         }
@@ -6806,127 +4365,12 @@
       {
         "input": {
           "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-          "limit": 10
+          "limit": 3
         },
         "output": {
           "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
           "source": "synthetic-fixture",
           "papers": [
-            {
-              "title": "SYNTHETIC: Dynamic Agent Selection with Task Routing",
-              "doi": "10.0000/synthetic-router",
-              "arxiv_id": null,
-              "authors": [
-                {
-                  "name": "Synthetic Example Author"
-                }
-              ],
-              "year": 2026,
-              "venue": "Synthetic Fixture Proceedings",
-              "abstract": "Dynamic agent selection routes each task to a subset of language-model agents using task features. The synthetic evaluation compares routed teams with a fixed all-agent baseline. Reported findings concern the simulated workload only.",
-              "url": null,
-              "source": "synthetic-fixture",
-              "provenance": [
-                {
-                  "source": "synthetic-fixture",
-                  "query": null,
-                  "locator": "fixture:router",
-                  "synthetic": true
-                }
-              ]
-            },
-            {
-              "title": "SYNTHETIC: Adaptive Communication Topology for Agent Teams",
-              "doi": "10.0000/synthetic-topology",
-              "arxiv_id": null,
-              "authors": [
-                {
-                  "name": "Synthetic Example Author"
-                }
-              ],
-              "year": 2026,
-              "venue": "Synthetic Fixture Proceedings",
-              "abstract": "Adaptive communication topology changes message edges between language-model agents during a task. The synthetic method uses intermediate agreement signals to choose a communication graph. Its abstract does not report evaluation sample sizes.",
-              "url": null,
-              "source": "synthetic-fixture",
-              "provenance": [
-                {
-                  "source": "synthetic-fixture",
-                  "query": null,
-                  "locator": "fixture:topology",
-                  "synthetic": true
-                }
-              ]
-            },
-            {
-              "title": "SYNTHETIC: Joint Agent and Communication Selection",
-              "doi": "10.0000/synthetic-joint",
-              "arxiv_id": null,
-              "authors": [
-                {
-                  "name": "Synthetic Example Author"
-                }
-              ],
-              "year": 2026,
-              "venue": "Synthetic Fixture Proceedings",
-              "abstract": "Dynamic agent selection and topology adaptation jointly choose participants and communication edges. The synthetic study distinguishes selection costs from communication costs. Transfer beyond the simulated task distribution is not established.",
-              "url": null,
-              "source": "synthetic-fixture",
-              "provenance": [
-                {
-                  "source": "synthetic-fixture",
-                  "query": null,
-                  "locator": "fixture:joint",
-                  "synthetic": true
-                }
-              ]
-            },
-            {
-              "title": "SYNTHETIC: Dynamic Agent Networks",
-              "doi": "10.0000/synthetic-ambiguous",
-              "arxiv_id": null,
-              "authors": [
-                {
-                  "name": "Synthetic Example Author"
-                }
-              ],
-              "year": 2026,
-              "venue": "Synthetic Fixture Proceedings",
-              "abstract": "Dynamic agent networks select language-model agents and adapt communication topology. This title deliberately has multiple fixture matches.",
-              "url": null,
-              "source": "synthetic-fixture",
-              "provenance": [
-                {
-                  "source": "synthetic-fixture",
-                  "query": null,
-                  "locator": "fixture:ambiguous",
-                  "synthetic": true
-                }
-              ]
-            },
-            {
-              "title": "SYNTHETIC: Missing Agent Selection Paper",
-              "doi": "10.0000/synthetic-missing",
-              "arxiv_id": null,
-              "authors": [
-                {
-                  "name": "Synthetic Example Author"
-                }
-              ],
-              "year": 2026,
-              "venue": "Synthetic Fixture Proceedings",
-              "abstract": "Dynamic language-model agent selection is discussed in this synthetic search record. Its citation is deliberately absent from fixture indexes.",
-              "url": null,
-              "source": "synthetic-fixture",
-              "provenance": [
-                {
-                  "source": "synthetic-fixture",
-                  "query": null,
-                  "locator": "fixture:missing",
-                  "synthetic": true
-                }
-              ]
-            },
             {
               "title": "SYNTHETIC: Unavailable Topology Provider",
               "doi": "10.0000/synthetic-failure",
@@ -7106,47 +4550,6 @@
       },
       {
         "input": {
-          "query": "10.0000/synthetic-joint",
-          "query_type": "auto",
-          "format": "bibtex"
-        },
-        "output": {
-          "status": "resolved",
-          "query": "10.0000/synthetic-joint",
-          "detected_type": "doi",
-          "best_match": {
-            "title": "SYNTHETIC: Joint Agent and Communication Selection",
-            "doi": "10.0000/synthetic-joint",
-            "arxiv_id": null,
-            "authors": [
-              {
-                "name": "Synthetic Example Author"
-              }
-            ],
-            "year": 2026,
-            "venue": "Synthetic Fixture Proceedings",
-            "abstract": "Dynamic agent selection and topology adaptation jointly choose participants and communication edges. The synthetic study distinguishes selection costs from communication costs. Transfer beyond the simulated task distribution is not established.",
-            "url": null,
-            "source": "crossref",
-            "bibtex": "@misc{synthetic_joint,\n  title = {SYNTHETIC: Joint Agent and Communication Selection},\n  author = {Synthetic Example Author},\n  year = {2026},\n  note = {SYNTHETIC TEST DATA; NOT A REAL PUBLICATION}\n}"
-          },
-          "match_score": 1.0,
-          "alternatives": [],
-          "sources": [
-            {
-              "provider": "crossref",
-              "status": "ok",
-              "error_code": null
-            }
-          ],
-          "warnings": [
-            "SYNTHETIC FIXTURE: this is not a real bibliographic lookup."
-          ],
-          "message": "Synthetic scenario resolved"
-        }
-      },
-      {
-        "input": {
           "query": "10.0000/synthetic-ambiguous",
           "query_type": "auto",
           "format": "bibtex"
@@ -7204,58 +4607,6 @@
             "SYNTHETIC FIXTURE: this is not a real bibliographic lookup."
           ],
           "message": "Synthetic scenario ambiguous"
-        }
-      },
-      {
-        "input": {
-          "query": "10.0000/synthetic-missing",
-          "query_type": "auto",
-          "format": "bibtex"
-        },
-        "output": {
-          "status": "not_found",
-          "query": "10.0000/synthetic-missing",
-          "detected_type": "doi",
-          "best_match": null,
-          "match_score": null,
-          "alternatives": [],
-          "sources": [
-            {
-              "provider": "crossref",
-              "status": "not_found",
-              "error_code": null
-            }
-          ],
-          "warnings": [
-            "SYNTHETIC FIXTURE: this is not a real bibliographic lookup."
-          ],
-          "message": "Synthetic scenario not_found"
-        }
-      },
-      {
-        "input": {
-          "query": "10.0000/synthetic-failure",
-          "query_type": "auto",
-          "format": "bibtex"
-        },
-        "output": {
-          "status": "provider_error",
-          "query": "10.0000/synthetic-failure",
-          "detected_type": "doi",
-          "best_match": null,
-          "match_score": null,
-          "alternatives": [],
-          "sources": [
-            {
-              "provider": "crossref",
-              "status": "error",
-              "error_code": "fixture_outage"
-            }
-          ],
-          "warnings": [
-            "SYNTHETIC FIXTURE: this is not a real bibliographic lookup."
-          ],
-          "message": "Synthetic scenario provider_error"
         }
       }
     ]

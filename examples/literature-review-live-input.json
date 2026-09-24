@@ -1,0 +1,6 @@
+{
+  "question": "What methods have been proposed for dynamically selecting agents and adapting communication topology in multi-agent LLM systems? Compare their selection criteria, topology adaptation mechanisms, and efficiency trade-offs, focusing on representative methods.",
+  "seeds": [],
+  "documents": {},
+  "mode": "live"
+}

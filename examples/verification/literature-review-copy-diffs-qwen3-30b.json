@@ -1,0 +1,122 @@
+{
+ "model": "qwen3:30b",
+ "papers": [
+  {
+   "doi": "10.2139/ssrn.7162224",
+   "title": "Self-Refining Topology Optimization via an LLM-Based Multi-Agent Framework",
+   "non_ascii": []
+  },
+  {
+   "doi": "10.2139/ssrn.6532560",
+   "title": "Optimizing Multi‑Agent LLM Collaboration via Communication‑Flow Control​",
+   "non_ascii": [
+    "U+200B",
+    "U+2011",
+    "U+2018",
+    "U+2019"
+   ]
+  },
+  {
+   "doi": "10.20944/preprints202604.0849.v1",
+   "title": "WirelessLLM-Agent: A Unified LLM-Based Agent Framework for Multi-Task Wireless Communication Decision-Making",
+   "non_ascii": []
+  }
+ ],
+ "prepare": {
+  "record": {
+   "label": "prepare",
+   "task": "prepare",
+   "role": "CitationWorker",
+   "bound_bytes": 22341,
+   "reservation": 34341,
+   "max_output_tokens": 12000,
+   "elapsed_s": 378.2,
+   "prompt_eval_count": 4512,
+   "eval_count": 11287,
+   "thinking_chars": 21854,
+   "output_chars": 26080,
+   "done_reason": "stop",
+   "options": {},
+   "conforming": true,
+   "parse": "direct"
+  },
+  "rows": [
+   {
+    "paper_id": "paper-4dd72bbd354ba2ba",
+    "exact": false,
+    "diffs": [
+     "/bibtex: missing in output"
+    ],
+    "chars": []
+   },
+   {
+    "paper_id": "paper-8da040891b501053",
+    "exact": false,
+    "diffs": [
+     "/bibtex: missing in output"
+    ],
+    "chars": []
+   },
+   {
+    "paper_id": "paper-73855050e526b257",
+    "exact": false,
+    "diffs": [
+     "/bibtex: missing in output"
+    ],
+    "chars": []
+   },
+   {
+    "evidence_jobs": 3,
+    "records": 3
+   }
+  ]
+ },
+ "extract": {
+  "record": {
+   "label": "extract-one",
+   "task": "extract",
+   "role": "EvidenceWorker",
+   "bound_bytes": 9721,
+   "reservation": 21721,
+   "max_output_tokens": 12000,
+   "elapsed_s": 187.4,
+   "prompt_eval_count": 1904,
+   "eval_count": 6871,
+   "thinking_chars": 23678,
+   "output_chars": 3516,
+   "done_reason": "stop",
+   "options": {},
+   "conforming": true,
+   "parse": "direct"
+  },
+  "quotes": [
+   {
+    "quote": "removing misleading agreements while preserving necessary guidance",
+    "contained": true
+   },
+   {
+    "quote": "We evaluate seven agent combinations across four increasingly complex FEA tasks through 1,120 controlled experimental trials using the AutoGen framework with GP",
+    "contained": true
+   },
+   {
+    "quote": "early agreements (i.e., approval messages such as ‘looks good’ or ‘execution succeeded’ that may falsely indicate task completion) as a dominant failure mechani",
+    "contained": true
+   },
+   {
+    "quote": "This approach significantly improves task success rates (Task 2: 10.7% to 77.5%; Tasks 3-4: 0.7% to 45.0%)",
+    "contained": true
+   },
+   {
+    "quote": "Not discussed",
+    "contained": false,
+    "closest": {
+     "at": 0,
+     "output": "U+004E LATIN CAPITAL LETTER N",
+     "expected": "U+0069 LATIN SMALL LETTER I",
+     "context_output": "Not discussed",
+     "context_expected": "ion succeeded"
+    }
+   }
+  ]
+ }
+}

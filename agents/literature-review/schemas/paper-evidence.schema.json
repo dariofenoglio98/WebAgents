@@ -1,0 +1,7 @@
+{
+  "type": "array",
+  "items": {
+    "$ref": "evidence.schema.json"
+  },
+  "maxItems": 4
+}

@@ -1,0 +1,105 @@
+{
+  "tokens": 44109,
+  "reserved_tokens": 0,
+  "remote_calls": 3,
+  "tool_calls": {
+    "scholarly-search": 3
+  },
+  "peak_parallel_workers": 3,
+  "workers": {
+    "coordinator": {
+      "tokens": 0,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "PlanningWorker:1": {
+      "tokens": 2029,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "SearchWorker:2": {
+      "tokens": 0,
+      "remote_calls": 1,
+      "tool_calls": {
+        "scholarly-search": 1
+      }
+    },
+    "SearchWorker:3": {
+      "tokens": 0,
+      "remote_calls": 1,
+      "tool_calls": {
+        "scholarly-search": 1
+      }
+    },
+    "SearchWorker:4": {
+      "tokens": 0,
+      "remote_calls": 1,
+      "tool_calls": {
+        "scholarly-search": 1
+      }
+    },
+    "PlanningWorker:5": {
+      "tokens": 16414,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "ScreeningWorker:6": {
+      "tokens": 2801,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "ScreeningWorker:7": {
+      "tokens": 2481,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "ScreeningWorker:8": {
+      "tokens": 2895,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "ScreeningWorker:9": {
+      "tokens": 2916,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "ScreeningWorker:10": {
+      "tokens": 4242,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "CitationWorker:11": {
+      "tokens": 1389,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "SynthesisWorker:12": {
+      "tokens": 2357,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "WritingWorker:13": {
+      "tokens": 2952,
+      "remote_calls": 0,
+      "tool_calls": {}
+    },
+    "VerificationWorker:14": {
+      "tokens": 3633,
+      "remote_calls": 0,
+      "tool_calls": {}
+    }
+  },
+  "limits": {
+    "approval_threshold_tokens": null,
+    "estimated_cost_usd": null,
+    "estimated_tokens": 24000,
+    "hard_tokens": 180000,
+    "max_calls_per_tool": {
+      "citation-resolver": 20,
+      "paper-reader": 10,
+      "scholarly-search": 3
+    },
+    "max_parallel_workers": 3,
+    "max_remote_calls": 45
+  }
+}

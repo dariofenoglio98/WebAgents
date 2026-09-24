@@ -44,7 +44,10 @@ export const MAX_PENDING = 16;
 export const HOST_METHODS = new Set(["model.count_tokens", "model.complete"]);
 /** The same set plus the one tool method, for a bridge that brokers tools. */
 export const HOST_METHODS_WITH_TOOLS = new Set([...HOST_METHODS, "tool.call"]);
+/** A runner's live progress snapshot; accepted only where a sink is attached. */
+export const PROGRESS_METHOD = "execution.progress";
 export const CANCEL_METHOD = "$/cancel";
+const MAX_PROGRESS_KEYS = 32;
 
 const ID_PATTERN = /^[A-Za-z0-9_.:-]{1,64}$/u;
 const MAX_CONTENT_BYTES = 512 * 1024;
@@ -110,6 +113,11 @@ export type ChildBridgeOptions = {
    * bridge with no broker has no tool vocabulary.
    */
   broker?: ToolBroker;
+  /**
+   * Where live progress snapshots go, or nothing. Absent, the progress method
+   * is not in the inbound set, exactly as `tool.call` is absent without a broker.
+   */
+  onProgress?: (snapshot: Record<string, unknown>) => void;
 };
 
 type Frame = Record<string, unknown>;
@@ -379,7 +387,8 @@ export class ChildBridge {
     if (this.seen.has(id)) throw violation("Duplicate inbound request id");
     if (this.inbound.size >= MAX_PENDING) throw violation("Too many inbound bridge requests");
     const permitted = this.options.broker ? HOST_METHODS_WITH_TOOLS : HOST_METHODS;
-    if (!permitted.has(method)) throw violation(`Unknown method ${clip(method, 64)}`);
+    const progress = method === PROGRESS_METHOD && Boolean(this.options.onProgress);
+    if (!permitted.has(method) && !progress) throw violation(`Unknown method ${clip(method, 64)}`);
     if (!isRecord(frame.params)) throw violation("Request params must be an object");
     this.seen.add(id);
     const controller = new AbortController();
@@ -398,9 +407,11 @@ export class ChildBridge {
       const result =
         method === "model.count_tokens"
           ? { ...TOKENIZER_ANSWER }
-          : method === "tool.call"
-            ? ((await this.options.broker!.call(params, controller.signal)) as never)
-            : await this.complete(params, controller.signal);
+          : method === PROGRESS_METHOD
+            ? this.progress(params)
+            : method === "tool.call"
+              ? ((await this.options.broker!.call(params, controller.signal)) as never)
+              : await this.complete(params, controller.signal);
       this.send({ v: this.options.protocolVersion, id, ok: true, result });
     } catch (error) {
       const failure =
@@ -422,6 +433,19 @@ export class ChildBridge {
         error: { code, message: clip(message, 2000) },
       });
     }
+  }
+
+  /** Record one bounded progress snapshot. It can change nothing else. */
+  private progress(params: Record<string, unknown>): Record<string, unknown> {
+    if (Object.keys(params).length > MAX_PROGRESS_KEYS) {
+      throw violation("execution.progress carries too many fields");
+    }
+    try {
+      this.options.onProgress?.(params);
+    } catch {
+      // A sink failure must not affect the run it is observing.
+    }
+    return { accepted: true };
   }
 
   private async complete(

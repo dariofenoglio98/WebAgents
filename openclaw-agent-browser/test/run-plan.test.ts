@@ -272,20 +272,31 @@ describe.runIf(runs)("model selection and run plans", () => {
     await backend.closeSession(view.sessionId);
   }, 120_000);
 
-  it("refuses a plan for a package whose declared tools this host cannot all implement", async () => {
+  it("binds every declared tool when this host implements all of them", async () => {
     const { view, receipt } = await authorized(REVIEW);
     const tools = unwrap(await backend.evaluateTools(view.sessionId));
-    expect(tools.allToolsBound).toBe(false);
-    expect(tools.counts.bound).toBe(1);
-    expect(tools.counts.unbound).toBe(2);
-    const resolver = tools.tools.find((tool) => tool.toolId === "citation-resolver")!;
-    expect(resolver.status).toBe("bound");
-    expect(resolver.approved).toBe(true);
-    expect(resolver.binding?.bindingSha256).toHaveLength(64);
-    expect(resolver.binding?.endpointOrigin).toMatch(/^https:\/\//u);
-    expect(resolver.binding?.credentialsConfigured).toBe(false);
+    expect(tools.allToolsBound).toBe(true);
+    expect(tools.counts.bound).toBe(3);
+    expect(tools.counts.unbound).toBe(0);
+    for (const tool of tools.tools) {
+      expect(tool.status, tool.toolId).toBe("bound");
+      expect(tool.approved, tool.toolId).toBe(true);
+      expect(tool.binding?.bindingSha256, tool.toolId).toHaveLength(64);
+      expect(tool.binding?.credentialsConfigured, tool.toolId).toBe(false);
+      expect(tool.binding!.checks.every((check) => check.status === "satisfied"), tool.toolId).toBe(
+        true,
+      );
+    }
+    const search = tools.tools.find((tool) => tool.toolId === "scholarly-search")!;
+    expect(search.binding?.endpointOrigin).toBe("https://api.crossref.org");
+    expect(search.binding?.endpointPath).toBe("/works");
+    expect(search.binding?.method).toBe("GET");
+    const reader = tools.tools.find((tool) => tool.toolId === "paper-reader")!;
+    expect(reader.remote).toBe(false);
+    expect(reader.binding?.implementationKind).toBe("selected_file");
+    expect(reader.binding?.endpointOrigin).toBeNull();
 
-    const error = expectError(
+    const state = unwrap(
       await backend.prepareRunPlan(
         view.sessionId,
         view.identity.digest,
@@ -293,8 +304,12 @@ describe.runIf(runs)("model selection and run plans", () => {
         "acme/big",
       ),
     );
-    expect(error.code).toBe("run_plan_refused");
-    expect(error.detail).toMatch(/paper-reader|scholarly-search/u);
+    expect(state.plan!.readiness.ready).toBe(true);
+    expect(state.plan!.toolBindings.map((item) => item.toolId).sort()).toEqual([
+      "citation-resolver",
+      "paper-reader",
+      "scholarly-search",
+    ]);
     await backend.closeSession(view.sessionId);
   }, 120_000);
 

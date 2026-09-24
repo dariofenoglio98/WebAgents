@@ -92,6 +92,7 @@ export function projectToolProbe(report: Record<string, unknown>): ToolProbeView
     },
     authority: {
       role: str(authority.role),
+      roleNamedByHost: authority.role_named_by_host === true,
       workerContext: authority.worker_context === true,
       approved: true as const,
       grants: Object.entries(record(authority.grants))
@@ -99,7 +100,11 @@ export function projectToolProbe(report: Record<string, unknown>): ToolProbeView
         .map(([permissionId, decision]) => ({ permissionId, decision: str(decision) })),
       permissionChecks: num(authority.permission_checks),
     },
-    fixture: { id: str(fixture.id), source: "host_owned" as const },
+    fixture: {
+      id: str(fixture.id),
+      source: "host_owned" as const,
+      fileId: nullableStr(fixture.file_id),
+    },
     request: { argsSha256: str(request.args_sha256), argsBytes: num(request.args_bytes) },
     result: {
       validatedByRuntime: result.validated_by_runtime === true,

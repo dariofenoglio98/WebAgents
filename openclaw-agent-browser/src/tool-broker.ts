@@ -11,7 +11,10 @@
  *   ToolBroker                        <- this file: resolve, then dispatch
  *        │
  *        ├── local_builtin            no I/O at all
- *        └── json_http                one request, one origin, one path
+ *        ├── json_http                one request, one origin, one path;
+ *        │                            its shape is an adapter (tool-adapters.ts)
+ *        └── selected_file            one PDF the person selected for this run,
+ *                                     by opaque id, parsed out of process
  * ```
  *
  * ## Resolution, not routing
@@ -56,7 +59,11 @@ import { request as httpsRequest, type RequestOptions } from "node:https";
 import { connect as tlsConnect } from "node:tls";
 import { isIP } from "node:net";
 import { AgentBrowserError, clip } from "./errors.js";
+import type { FileCapabilityView } from "./file-capabilities.js";
+import type { PdfReader } from "./pdf-reader.js";
 import type { Logger } from "./service.js";
+import { AdapterRefusal, HTTP_ADAPTERS, encodeQuery } from "./tool-adapters.js";
+import { HOST_PACER, type Pacer } from "./tool-pacer.js";
 import {
   credentialConfigured,
   findDefinition,
@@ -292,15 +299,27 @@ export type ToolBrokerOptions = {
   definitions: readonly ToolBindingDefinition[];
   logger: Logger;
   env?: NodeJS.ProcessEnv;
-  /** Test seams. Neither can widen the policy above; both replace mechanics. */
+  /**
+   * The selected files this run was given, by opaque id, and nothing else.
+   *
+   * A `selected_file` binding can read exactly these. An id the package names
+   * that is not here — a path, another session's id, anything — is refused.
+   */
+  files?: ReadonlyMap<string, FileCapabilityView>;
+  /** Where those capabilities' verified bytes come from. Host code. */
+  fileStore?: { readVerified(capability: FileCapabilityView): Promise<Buffer> };
+  /** The trusted PDF parser, handed bytes and never a path. */
+  pdfReader?: PdfReader;
+  /** Test seams. None can widen the policy above; each replaces mechanics. */
   resolver?: Resolver;
   transport?: HttpTransport;
   now?: () => number;
+  /** Where concurrency and spacing are enforced; one per process by default. */
+  pacer?: Pacer;
 };
 
 /** One run's tool authority. Constructed per run, discarded with it. */
 export class ToolBroker {
-  private readonly inflight = new Map<string, number>();
   readonly calls: Array<{
     toolId: string;
     bindingId: string;
@@ -348,24 +367,34 @@ export class ToolBroker {
         "this host no longer registers that implementation",
       );
     }
-    const limit = definition.maxConcurrent ?? 4;
-    const active = this.inflight.get(bound.bindingId) ?? 0;
-    if (active >= limit) {
-      throw toolError(
-        TOOL_ERRORS.unavailable,
-        `this implementation allows ${limit} concurrent calls and is at its limit`,
-      );
-    }
-    this.inflight.set(bound.bindingId, active + 1);
     const clock = this.options.now ?? Date.now;
     const started = clock();
     let status: number | null = null;
     let outcome: "ok" | "failed" = "failed";
+    // A binding serves at most its own number of calls at once and spaces
+    // their starts as its service requires. A call that cannot start yet
+    // waits its turn — bounded by cancellation and by the binding's own
+    // deadline — rather than being refused for arriving third.
+    const waitMs = Math.max(1, Math.min(bound.timeoutSeconds, definition.timeoutSeconds)) * 1000;
+    const waitDeadline = AbortSignal.timeout(waitMs);
+    let release: () => void = () => undefined;
+    try {
+      release = await (this.options.pacer ?? HOST_PACER).acquire(
+        bound.bindingId,
+        { maxConcurrent: definition.maxConcurrent ?? 4, minIntervalMs: definition.minIntervalMs ?? 0 },
+        AbortSignal.any([signal, waitDeadline]),
+      );
+    } catch {
+      if (signal.aborted) throw toolError(TOOL_ERRORS.cancelled, "the tool call was cancelled");
+      throw toolError(TOOL_ERRORS.timeout, "the call waited for its turn longer than the binding allows");
+    }
     try {
       const answer =
         definition.kind === "local_builtin"
           ? { output: await this.local(definition, request.args), status: null }
-          : await this.http(definition, bound, request.args, signal);
+          : definition.kind === "selected_file"
+            ? { output: await this.selectedFile(definition, bound, request.args, signal), status: null }
+            : await this.http(definition, bound, request.args, signal);
       status = answer.status;
       outcome = "ok";
       return {
@@ -379,9 +408,7 @@ export class ToolBroker {
         transport_status: answer.status,
       };
     } finally {
-      const remaining = (this.inflight.get(bound.bindingId) ?? 1) - 1;
-      if (remaining <= 0) this.inflight.delete(bound.bindingId);
-      else this.inflight.set(bound.bindingId, remaining);
+      release();
       // Recorded exactly once, on every path, so a report counts attempts
       // rather than successes.
       if (this.calls.length < 256) {
@@ -408,6 +435,70 @@ export class ToolBroker {
     return args;
   }
 
+  /**
+   * Read one file this run was given, by opaque id, and nothing else.
+   *
+   * The argument set is closed to `file_id`. The id is resolved against the
+   * capabilities attached to *this run*, so a path, a traversal, a `file://`
+   * URL or another session's id all fail the same way, before any file is
+   * opened. The bytes are re-verified against the size and hash recorded at
+   * selection, and the parser receives bytes on stdin — never a path.
+   */
+  private async selectedFile(
+    definition: ToolBindingDefinition,
+    bound: BoundTool,
+    args: unknown,
+    signal: AbortSignal,
+  ): Promise<unknown> {
+    if (definition.implementationId !== "openclaw.tool.selected_pdf_text") {
+      throw toolError(TOOL_ERRORS.unavailable, "this host has no code for that file implementation");
+    }
+    const record =
+      typeof args === "object" && args !== null && !Array.isArray(args)
+        ? (args as Record<string, unknown>)
+        : null;
+    if (!record || Object.keys(record).join(",") !== "file_id" || typeof record.file_id !== "string") {
+      throw toolError(TOOL_ERRORS.requestInvalid, "a selected-file read takes exactly one file_id");
+    }
+    const maxRequest = definition.maxRequestBytes ?? DEFAULT_MAX_REQUEST_BYTES;
+    if (Buffer.byteLength(record.file_id) > maxRequest) {
+      throw toolError(TOOL_ERRORS.requestInvalid, "the file id exceeds this binding's limit");
+    }
+    const capability = this.options.files?.get(record.file_id);
+    if (!capability) {
+      // The same answer for every string that is not one of this run's
+      // capabilities; it never says whether a path exists.
+      throw toolError(
+        TOOL_ERRORS.requestInvalid,
+        "this run was given no selected file with that id",
+      );
+    }
+    if (!this.options.fileStore || !this.options.pdfReader) {
+      throw toolError(TOOL_ERRORS.unavailable, "this host has no file reader configured for runs");
+    }
+    let data: Buffer;
+    try {
+      data = await this.options.fileStore.readVerified(capability);
+    } catch {
+      throw toolError(
+        TOOL_ERRORS.unavailable,
+        "the selected file no longer matches what was selected, so it is not read",
+      );
+    }
+    if (signal.aborted) throw toolError(TOOL_ERRORS.cancelled, "the tool call was cancelled");
+    const timeoutMs = Math.max(1, Math.min(bound.timeoutSeconds, definition.timeoutSeconds)) * 1000;
+    const deadline = AbortSignal.timeout(timeoutMs);
+    try {
+      return await this.options.pdfReader(data, AbortSignal.any([signal, deadline]));
+    } catch (error) {
+      if (signal.aborted) throw toolError(TOOL_ERRORS.cancelled, "the tool call was cancelled");
+      if (deadline.aborted) throw toolError(TOOL_ERRORS.timeout, "the PDF parser did not finish in time");
+      throw error instanceof AgentBrowserError
+        ? error
+        : toolError(TOOL_ERRORS.responseInvalid, "the PDF could not be read");
+    }
+  }
+
   private async http(
     definition: ToolBindingDefinition,
     bound: BoundTool,
@@ -418,12 +509,30 @@ export class ToolBroker {
     const path = definition.path ?? "";
     const method = definition.method ?? "POST";
     const hostname = safeHostname(origin);
-    if (!hostname || !path.startsWith("/")) {
+    if (!hostname || !path.startsWith("/") || path.includes("?") || path.includes("#")) {
       throw toolError(TOOL_ERRORS.unavailable, "this binding has no usable configured endpoint");
     }
-    const body = method === "POST" ? JSON.stringify(args ?? null) : null;
+    // What the request carries is the implementation's adapter, chosen by the
+    // binding's implementation id — host code, never the package.
+    const adapter = HTTP_ADAPTERS.get(definition.implementationId);
+    if (!adapter) {
+      throw toolError(TOOL_ERRORS.unavailable, "this host has no code for that HTTP implementation");
+    }
+    let shaped;
+    try {
+      shaped = adapter.request(args, method);
+    } catch (error) {
+      if (error instanceof AdapterRefusal) throw toolError(error.code, error.message);
+      throw toolError(TOOL_ERRORS.requestInvalid, "the tool arguments could not be encoded");
+    }
+    const body = shaped.body;
+    // The path is the binding's; only an adapter-built query may follow it.
+    const target = shaped.query && shaped.query.length > 0 ? `${path}?${encodeQuery(shaped.query)}` : path;
     const maxRequest = definition.maxRequestBytes ?? DEFAULT_MAX_REQUEST_BYTES;
-    if (body !== null && Buffer.byteLength(body) > maxRequest) {
+    if (
+      (body !== null && Buffer.byteLength(body) > maxRequest) ||
+      Buffer.byteLength(target) > Math.max(maxRequest, path.length)
+    ) {
       // Refused here, so a pathological document fails locally rather than at
       // someone else's server.
       throw toolError(TOOL_ERRORS.requestInvalid, "the tool arguments exceed this binding's limit");
@@ -466,6 +575,9 @@ export class ToolBroker {
       headers.authorization = `Bearer ${value}`;
     }
 
+    // Resolution is asynchronous; a run cancelled meanwhile must not still
+    // send its request, whatever a transport would do with a dead signal.
+    if (signal.aborted) throw toolError(TOOL_ERRORS.cancelled, "the tool call was cancelled");
     const timeoutMs = Math.max(1, Math.min(bound.timeoutSeconds, definition.timeoutSeconds)) * 1000;
     const deadline = AbortSignal.timeout(timeoutMs);
     const transport = this.options.transport ?? nodeToolTransport;
@@ -474,7 +586,7 @@ export class ToolBroker {
       answer = await transport({
         hostname,
         address: addresses[0]!,
-        path,
+        path: target,
         method,
         headers,
         body,
@@ -499,27 +611,26 @@ export class ToolBroker {
         `the tool host answered with ${clip(contentType || "no content type", 64)} rather than JSON`,
       );
     }
-    let output: unknown;
+    let json: unknown;
     try {
-      output = JSON.parse(answer.body);
+      json = JSON.parse(answer.body);
     } catch {
       throw toolError(TOOL_ERRORS.responseInvalid, "the tool host answered with invalid JSON");
     }
-    if (answer.status >= 500 && answer.status !== 502) {
-      throw toolError(
-        TOOL_ERRORS.unavailable,
-        `the tool host answered HTTP ${answer.status}`,
+    // The status contract and the shape of what the package receives are the
+    // adapter's. Whatever it returns is still checked against the package's
+    // own declared output schema by the runtime, after this.
+    let output: unknown;
+    try {
+      output = adapter.response(
+        { status: answer.status, json },
+        args,
+        new Date((this.options.now ?? Date.now)()).toISOString(),
       );
+    } catch (error) {
+      if (error instanceof AdapterRefusal) throw toolError(error.code, error.message);
+      throw toolError(TOOL_ERRORS.responseInvalid, "the tool response could not be read");
     }
-    if (answer.status === 401 || answer.status === 403) {
-      throw toolError(TOOL_ERRORS.unavailable, `the tool host refused this call`);
-    }
-    if (answer.status >= 400 && ![400, 404, 422, 502].includes(answer.status)) {
-      throw toolError(TOOL_ERRORS.transport, `the tool host answered HTTP ${answer.status}`);
-    }
-    // 4xx/502 bodies reach the package *only* because its own declared output
-    // schema then has to accept them; an unresolved lookup is data, not an
-    // exception. Anything the schema rejects fails the run in the runtime.
     return { output, status: answer.status };
   }
 }

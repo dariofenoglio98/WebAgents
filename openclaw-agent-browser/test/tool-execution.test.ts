@@ -14,7 +14,7 @@
  * not a permission, and that what finally runs is the one implementation all
  * three agreed on.
  */
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -24,53 +24,27 @@ import type { ModelHost } from "../src/host-models.js";
 import type { HttpTransport } from "../src/tool-broker.js";
 import { BUILT_IN_BINDINGS, type ToolBindingDefinition } from "../src/tool-registry.js";
 import { AGENTPKG_BIN, DIST, HOST_CONFIG_WITH_MODEL_OVERRIDE, hasAgentpkg } from "./fixtures.js";
+import { makePdf } from "./pdf.js";
 
 const runs = hasAgentpkg();
 const log = { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} };
 const REVIEW = join(DIST, "literature-review.agent.pkg");
 
 /**
- * Implementations for the two tools this host does not ship.
- *
- * Supplied as *code* through the backend's test seam, never as configuration:
- * a registry entry is a claim that code in the process can serve the tool, and
- * these two exist only so a package that declares three tools can be bound
- * completely and the whole chain exercised. They are not shipped.
+ * The implementations this plugin ships, copied so one test can change a
+ * binding in place and prove the plan that approved it goes stale.
  */
-const STUB_DEFINITIONS: ToolBindingDefinition[] = [
-  ...BUILT_IN_BINDINGS,
-  {
-    id: "test:scholarly-search:1",
-    toolId: "scholarly-search",
-    binding: "scholarly.search",
-    kind: "json_http",
-    implementationId: "test.tool.json_http",
-    implementationVersion: "0.0.1",
-    displayName: "Stub scholarly search",
-    origin: "https://api.crossref.org",
-    path: "/works",
-    method: "GET",
-    inputSchemaSha256: "f8a6f920b23bf1731a85d5275c10eee77a9d055fb14917be114c1b9e8249baf2",
-    outputSchemaSha256: "eb83100404221fd9a489046d6741a046aae07c31c672ab6dc2daabffeda3c9ee",
-    permissionKinds: ["network"],
-    sideEffects: "read",
-    timeoutSeconds: 25,
-  },
-  {
-    id: "test:paper-reader:1",
-    toolId: "paper-reader",
-    binding: "paper.read",
-    kind: "local_builtin",
-    implementationId: "openclaw.tool.echo",
-    implementationVersion: "0.0.1",
-    displayName: "Stub paper reader",
-    inputSchemaSha256: "5b1df5dc0d13ca9a8b76cce86d93639f2b13baf3eb66ec895a725fc9169686ca",
-    outputSchemaSha256: "4feee1362ccba94d82ffbd56e106525c1fab7643e664172d63469ec241ab3167",
-    permissionKinds: ["files.read"],
-    sideEffects: "read",
-    timeoutSeconds: 20,
-  },
-];
+const DEFINITIONS: ToolBindingDefinition[] = [...BUILT_IN_BINDINGS];
+
+/**
+ * A host that implements only one of the review package's three tools. Code,
+ * supplied through the backend's test seam: the refusal of a partially bound
+ * package is still a property worth proving now that this plugin ships all
+ * three.
+ */
+const RESOLVER_ONLY: ToolBindingDefinition[] = BUILT_IN_BINDINGS.filter(
+  (definition) => definition.toolId === "citation-resolver" || definition.toolId === "test.echo",
+);
 
 const RESOLVED = {
   status: "resolved",
@@ -178,13 +152,18 @@ async function prepared(options: { approveTools?: boolean } = {}) {
 describe.runIf(runs)("the host tool broker, end to end", () => {
   beforeAll(async () => {
     stateDir = await mkdtemp(join(tmpdir(), "agent-browser-tools-"));
+    await mkdir(join(stateDir, "selectable"));
     backend = new AgentBrowserBackend({
-      config: { agentpkgPath: AGENTPKG_BIN, localPackages: { roots: [DIST] } },
+      config: {
+        agentpkgPath: AGENTPKG_BIN,
+        localPackages: { roots: [DIST] },
+        localFiles: { roots: [join(stateDir, "selectable")] },
+      },
       logger: log,
       stateDir,
       modelHost: makeHost(),
       llm,
-      toolDefinitions: STUB_DEFINITIONS,
+      toolDefinitions: DEFINITIONS,
       toolTransport: transport,
     });
     await backend.initialize();
@@ -277,7 +256,7 @@ describe.runIf(runs)("the host tool broker, end to end", () => {
     expect(report.binding.bindingSha256).toBe(
       plan.toolBindings.find((item) => item.toolId === "citation-resolver")!.bindingSha256,
     );
-    expect(report.fixture).toEqual({ id: "doi", source: "host_owned" });
+    expect(report.fixture).toEqual({ id: "doi", source: "host_owned", fileId: null });
     expect(report.authority.role).toBe("CitationWorker");
     expect(report.authority.approved).toBe(true);
 
@@ -338,11 +317,67 @@ describe.runIf(runs)("the host tool broker, end to end", () => {
       ),
     );
     expect(unknownFixture.code).toBe("invalid_request");
-    // A tool this host has no fixture for cannot be probed at all.
-    const noFixture = expectError(
-      await backend.probeTool(sessionId, plan.runPlanId, plan.runPlanSha256, "scholarly-search"),
+    // A file-reading fixture without a selected file cannot be probed at all:
+    // the host never invents one.
+    const noFile = expectError(
+      await backend.probeTool(sessionId, plan.runPlanId, plan.runPlanSha256, "paper-reader"),
     );
-    expect(noFixture.code).toBe("invalid_request");
+    expect(noFile.code).toBe("invalid_request");
+    // And a file id that is not a capability of this session is refused.
+    const foreign = expectError(
+      await backend.probeTool(
+        sessionId,
+        plan.runPlanId,
+        plan.runPlanSha256,
+        "paper-reader",
+        "selected-pdf",
+        `file_${"0".repeat(32)}`,
+        "ScreeningWorker",
+      ),
+    );
+    expect(foreign.code).toBe("invalid_request");
+    await backend.closeSession(sessionId);
+  }, 180_000);
+
+  it("reads exactly the selected PDF through the real runner, the real broker and the real parser", async () => {
+    const { sessionId, digest, receipt } = await prepared();
+    const data = makePdf([["A selected page for the end-to-end reader test."], "Its second page."]);
+    const path = join(stateDir, "selectable", "selected.pdf");
+    await writeFile(path, data);
+    const selected = unwrap(await backend.selectFile(sessionId, path));
+    expect(selected.fileId).toMatch(/^file_[0-9a-f]{32}$/u);
+    expect(JSON.stringify(selected)).not.toContain(stateDir);
+    expect(unwrap(await backend.listFiles(sessionId)).files.map((file) => file.fileId)).toEqual([
+      selected.fileId,
+    ]);
+    const plan = unwrap(
+      await backend.prepareRunPlan(sessionId, digest, receipt.receiptId, "", "tool_probe", "paper-reader"),
+    ).plan!;
+    // Two roles declare the reader, so the operator names one.
+    const report = unwrap(
+      await backend.probeTool(
+        sessionId,
+        plan.runPlanId,
+        plan.runPlanSha256,
+        "paper-reader",
+        "selected-pdf",
+        selected.fileId,
+        "EvidenceWorker",
+      ),
+    );
+    expect(report.status).toBe("ok");
+    expect(report.authority.role).toBe("EvidenceWorker");
+    expect(report.authority.roleNamedByHost).toBe(true);
+    expect(report.fixture).toEqual({ id: "selected-pdf", source: "host_owned", fileId: selected.fileId });
+    expect(report.usage).toEqual({ toolCalls: 1, remoteCalls: 0, tokens: 0 });
+    expect(report.result.validatedAgainst).toBe("schemas/reader-output.schema.json");
+    const output = report.result.output as { pages: Array<{ page: number; text: string }>; sha256: string };
+    expect(output.sha256).toBe(selected.sha256);
+    expect(output.pages.map((page) => page.page)).toEqual([1, 2]);
+    expect(output.pages[0]!.text).toContain("A selected page for the end-to-end reader test.");
+    // No path anywhere in what the caller receives.
+    expect(JSON.stringify(report)).not.toContain(stateDir);
+    // Released with the session.
     await backend.closeSession(sessionId);
   }, 180_000);
 
@@ -357,9 +392,9 @@ describe.runIf(runs)("the host tool broker, end to end", () => {
     // The implementation behind the binding changes. Same tool, same binding
     // id, a different thing — so the plan that approved the old one is stale
     // rather than quietly retargeted.
-    const index = STUB_DEFINITIONS.findIndex((item) => item.toolId === "citation-resolver");
-    const original = STUB_DEFINITIONS[index]!;
-    STUB_DEFINITIONS[index] = { ...original, timeoutSeconds: 11 };
+    const index = DEFINITIONS.findIndex((item) => item.toolId === "citation-resolver");
+    const original = DEFINITIONS[index]!;
+    DEFINITIONS[index] = { ...original, timeoutSeconds: 11 };
     try {
       const evaluated = unwrap(await backend.evaluateTools(sessionId));
       const after = evaluated.tools.find((tool) => tool.toolId === "citation-resolver")!;
@@ -384,7 +419,7 @@ describe.runIf(runs)("the host tool broker, end to end", () => {
       expect(error.code).toBe("run_plan_stale");
       expect(error.detail).toMatch(/changed|no longer|different/u);
     } finally {
-      STUB_DEFINITIONS[index] = original;
+      DEFINITIONS[index] = original;
     }
     await backend.closeSession(sessionId);
   }, 180_000);
@@ -427,11 +462,11 @@ describe.runIf(runs)("the host tool broker, end to end", () => {
 
 describe.runIf(runs)("a tool probe is authority for one call, not for a run", () => {
   /**
-   * This backend registers only what the plugin actually ships, so the
-   * reference review package has one bound tool and two unbound ones — the
-   * real state of this host. A model-backed plan is refused, and a tool probe
-   * plan for the bound tool is prepared and used. Neither can stand in for the
-   * other, and that is the whole point of the two modes.
+   * This backend registers one of the review package's three tools, so the
+   * package has one bound tool and two unbound ones. A model-backed plan is
+   * refused, and a tool probe plan for the bound tool is prepared and used.
+   * Neither can stand in for the other, and that is the whole point of the two
+   * modes. (The plugin now ships all three; the restriction is a test seam.)
    */
   let shipped: AgentBrowserBackend;
   let shippedState = "";
@@ -444,6 +479,7 @@ describe.runIf(runs)("a tool probe is authority for one call, not for a run", ()
       stateDir: shippedState,
       modelHost: makeHost(),
       llm,
+      toolDefinitions: RESOLVER_ONLY,
       toolTransport: transport,
     });
     await shipped.initialize();

@@ -1,0 +1,735 @@
+{
+  "recordedAt": "2026-09-24T15:42:51.193Z",
+  "tool": "scholarly-search",
+  "steps": {
+    "package": {
+      "packageId": "org.webagents.literature-review",
+      "version": "0.2.1",
+      "digest": "2199abb5868bcedd5c73e7a664f38d35aaaa047c2dcfdb07d91f3977bde41700",
+      "archiveSha256": "0fb8b65bbff4578d4815ee70b29a0cb789b2cc95ce181d011d467b4be22c8e42",
+      "signatureStatus": "valid",
+      "trustStatus": "trusted",
+      "declaredTools": [
+        {
+          "id": "citation-resolver",
+          "binding": "citation.resolve",
+          "execution": "remote",
+          "permissions": [
+            "network.citations"
+          ],
+          "domains": [
+            "webagents-citation-resolver-production.up.railway.app"
+          ]
+        },
+        {
+          "id": "paper-reader",
+          "binding": "paper.read",
+          "execution": "local",
+          "permissions": [
+            "files.pdfs"
+          ],
+          "domains": []
+        },
+        {
+          "id": "scholarly-search",
+          "binding": "scholarly.search",
+          "execution": "remote",
+          "permissions": [
+            "network.scholarly"
+          ],
+          "domains": [
+            "api.crossref.org"
+          ]
+        }
+      ]
+    },
+    "authorization": {
+      "receiptId": "fade8ee4-95d9-415d-a2c1-94758b026132",
+      "receiptSha256": "968352f5a3e0abaa1e9bdf8c9d3074889ee64f44d9233dcb17fb4dec0c00eac5",
+      "runnable": true,
+      "grantedPermissionIds": [
+        "files.pdfs",
+        "memory.session",
+        "model.reasoning",
+        "network.citations",
+        "network.scholarly"
+      ],
+      "toolApprovals": [
+        {
+          "toolId": "citation-resolver",
+          "approved": true
+        },
+        {
+          "toolId": "paper-reader",
+          "approved": true
+        },
+        {
+          "toolId": "scholarly-search",
+          "approved": true
+        }
+      ]
+    },
+    "tools": {
+      "host": {
+        "runtime": "openclaw",
+        "runtimeVersion": "2026.9.5",
+        "source": "openclaw plugin tool registry",
+        "capturedAt": "2026-09-24T15:42:58.098Z"
+      },
+      "registrySha256": "becd6063ad96f2ec4bbb765246bef1e5b4ff75dca4fc783939434a37b1acb7c4",
+      "counts": {
+        "total": 3,
+        "bound": 3,
+        "unbound": 0,
+        "incompatible": 0,
+        "unverified": 0,
+        "unavailable": 0,
+        "approved": 3,
+        "usable": 3,
+        "blocking": 0
+      },
+      "allToolsBound": true,
+      "declared": [
+        {
+          "toolId": "citation-resolver",
+          "status": "bound",
+          "approved": true,
+          "permissionsGranted": true,
+          "usable": true,
+          "reason": null,
+          "binding": {
+            "bindingId": "openclaw:citation-resolver:1",
+            "bindingSha256": "7ac13746d199913ac9da5e8df6210a8980ffa32bda67f38217a7d8bf8bd42c39",
+            "implementationKind": "json_http",
+            "implementationVersion": "0.1.0",
+            "endpointOrigin": "https://webagents-citation-resolver-production.up.railway.app",
+            "endpointPath": "/resolve",
+            "method": "POST",
+            "available": true,
+            "credentialsRequired": false,
+            "credentialsConfigured": false,
+            "checks": [
+              {
+                "id": "tool_id",
+                "subject": "tool_id",
+                "status": "satisfied",
+                "detail": null
+              },
+              {
+                "id": "binding_name",
+                "subject": "binding",
+                "status": "satisfied",
+                "detail": null
+              },
+              {
+                "id": "execution_locality",
+                "subject": "remote",
+                "status": "satisfied",
+                "detail": null
+              },
+              {
+                "id": "side_effects",
+                "subject": "side_effects",
+                "status": "satisfied",
+                "detail": null
+              },
+              {
+                "id": "permission_kinds",
+                "subject": "permission_kinds",
+                "status": "satisfied",
+                "detail": null
+              },
+              {
+                "id": "input_schema",
+                "subject": "input_schema_sha256",
+                "status": "satisfied",
+                "detail": null
+              },
+              {
+                "id": "output_schema",
+                "subject": "output_schema_sha256",
+                "status": "satisfied",
+                "detail": null
+              },
+              {
+                "id": "endpoint_domain",
+                "subject": "endpoint_origin",
+                "status": "satisfied",
+                "detail": "A remote binding must land on a host the package declares, the linked network permission names, and the package network policy allows."
+              },
+              {
+                "id": "endpoint_path",
+                "subject": "endpoint_path",
+                "status": "satisfied",
+                "detail": null
+              },
+              {
+                "id": "method",
+                "subject": "method",
+                "status": "satisfied",
+                "detail": null
+              }
+            ]
+          }
+        },
+        {
+          "toolId": "paper-reader",
+          "status": "bound",
+          "approved": true,
+          "permissionsGranted": true,
+          "usable": true,
+          "reason": null,
+          "binding": {
+            "bindingId": "openclaw:paper-reader:1",
+            "bindingSha256": "3ddd2fd9be61d3d9c9b2e06e22d54034dd5d6e0a5b3ddf64c8c6abe91cc7351b",
+            "implementationKind": "selected_file",
+            "implementationVersion": "0.1.0",
+            "endpointOrigin": null,
+            "endpointPath": null,
+            "method": null,
+            "available": true,
+            "credentialsRequired": false,
+            "credentialsConfigured": false,
+            "checks": [
+              {
+                "id": "tool_id",
+                "subject": "tool_id",
+                "status": "satisfied",
+                "detail": null
+              },
+              {
+                "id": "binding_name",
+                "subject": "binding",
+                "status": "satisfied",
+                "detail": null
+              },
+              {
+                "id": "execution_locality",
+                "subject": "remote",
+                "status": "satisfied",
+                "detail": null
+              },
+              {
+                "id": "side_effects",
+                "subject": "side_effects",
+                "status": "satisfied",
+                "detail": null
+              },
+              {
+                "id": "permission_kinds",
+                "subject": "permission_kinds",
+                "status": "satisfied",
+                "detail": null
+              },
+              {
+                "id": "input_schema",
+                "subject": "input_schema_sha256",
+                "status": "satisfied",
+                "detail": null
+              },
+              {
+                "id": "output_schema",
+                "subject": "output_schema_sha256",
+                "status": "satisfied",
+                "detail": null
+              }
+            ]
+          }
+        },
+        {
+          "toolId": "scholarly-search",
+          "status": "bound",
+          "approved": true,
+          "permissionsGranted": true,
+          "usable": true,
+          "reason": null,
+          "binding": {
+            "bindingId": "openclaw:scholarly-search:1",
+            "bindingSha256": "4800eb9bb1be9ddbec38e262ce0ae6e22c17dcb5659c122fd99959110923d65c",
+            "implementationKind": "json_http",
+            "implementationVersion": "0.2.0",
+            "endpointOrigin": "https://api.crossref.org",
+            "endpointPath": "/works",
+            "method": "GET",
+            "available": true,
+            "credentialsRequired": false,
+            "credentialsConfigured": false,
+            "checks": [
+              {
+                "id": "tool_id",
+                "subject": "tool_id",
+                "status": "satisfied",
+                "detail": null
+              },
+              {
+                "id": "binding_name",
+                "subject": "binding",
+                "status": "satisfied",
+                "detail": null
+              },
+              {
+                "id": "execution_locality",
+                "subject": "remote",
+                "status": "satisfied",
+                "detail": null
+              },
+              {
+                "id": "side_effects",
+                "subject": "side_effects",
+                "status": "satisfied",
+                "detail": null
+              },
+              {
+                "id": "permission_kinds",
+                "subject": "permission_kinds",
+                "status": "satisfied",
+                "detail": null
+              },
+              {
+                "id": "input_schema",
+                "subject": "input_schema_sha256",
+                "status": "satisfied",
+                "detail": null
+              },
+              {
+                "id": "output_schema",
+                "subject": "output_schema_sha256",
+                "status": "satisfied",
+                "detail": null
+              },
+              {
+                "id": "endpoint_domain",
+                "subject": "endpoint_origin",
+                "status": "satisfied",
+                "detail": "A remote binding must land on a host the package declares, the linked network permission names, and the package network policy allows."
+              },
+              {
+                "id": "endpoint_path",
+                "subject": "endpoint_path",
+                "status": "satisfied",
+                "detail": null
+              },
+              {
+                "id": "method",
+                "subject": "method",
+                "status": "satisfied",
+                "detail": null
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "model": {
+      "selected": "ollama/qwen3.5:9b",
+      "status": "compatible"
+    },
+    "modelPlan": {
+      "prepared": true,
+      "model": "ollama/qwen3.5:9b"
+    },
+    "runPlan": {
+      "runPlanId": "rp_35486cffe48f477bb80f597fd7835e8f",
+      "runPlanSha256": "21b002629516e9f20b18266f4e67651dac9e3856364c9755c7b7d91d02d9ccbd",
+      "ready": true,
+      "executionPerformed": false,
+      "mode": "tool_probe",
+      "probeToolId": "scholarly-search",
+      "modelBinding": null,
+      "toolBindings": [
+        {
+          "toolId": "scholarly-search",
+          "bindingId": "openclaw:scholarly-search:1",
+          "bindingSha256": "4800eb9bb1be9ddbec38e262ce0ae6e22c17dcb5659c122fd99959110923d65c",
+          "implementationKind": "json_http",
+          "implementationVersion": "0.2.0",
+          "displayName": "Crossref works search",
+          "remote": true,
+          "endpointOrigin": "https://api.crossref.org",
+          "endpointPath": "/works",
+          "method": "GET",
+          "contractSha256": "4a7de543623c8171e5727e3d133b638a44b7e062980bac6dafdadb199359c718",
+          "requiredPermissionIds": [
+            "network.scholarly"
+          ],
+          "timeoutSeconds": 25,
+          "maxCalls": 3,
+          "credentialsRequired": false,
+          "credentialsConfigured": false,
+          "approved": true,
+          "usable": true
+        }
+      ],
+      "toolRegistry": {
+        "registrySha256": "4230e6e5f88084dc3ddcdb720d7df026f2b2a20be2c75f7b7b1c82a8e55b6fdb",
+        "bindingCount": 4
+      },
+      "preflight": {
+        "checkedAt": "2026-09-24T15:43:01.450807+00:00",
+        "state": "ready",
+        "ready": true,
+        "stale": false,
+        "staleReasons": [],
+        "blockingReasons": [],
+        "trustStoreChanged": false,
+        "modelStillAvailable": true,
+        "toolBindingsCurrent": true,
+        "toolBindingsBound": 1
+      }
+    },
+    "probe": {
+      "status": "ok",
+      "runPlanId": "rp_35486cffe48f477bb80f597fd7835e8f",
+      "runPlanSha256": "21b002629516e9f20b18266f4e67651dac9e3856364c9755c7b7d91d02d9ccbd",
+      "sessionId": "4z-G5XibMYNde57xJ0UDMWfJ",
+      "package": {
+        "packageId": "org.webagents.literature-review",
+        "name": "Literature Review Agent",
+        "version": "0.2.1",
+        "digest": "2199abb5868bcedd5c73e7a664f38d35aaaa047c2dcfdb07d91f3977bde41700"
+      },
+      "tool": {
+        "id": "scholarly-search",
+        "version": "0.1.0",
+        "binding": "scholarly.search",
+        "execution": "remote",
+        "remote": true,
+        "sideEffects": "read",
+        "permissions": [
+          "network.scholarly"
+        ],
+        "domains": [
+          "api.crossref.org"
+        ],
+        "timeoutSeconds": 25,
+        "declaredEndpoint": "https://api.crossref.org/works"
+      },
+      "binding": {
+        "bindingId": "openclaw:scholarly-search:1",
+        "bindingSha256": "4800eb9bb1be9ddbec38e262ce0ae6e22c17dcb5659c122fd99959110923d65c",
+        "implementationKind": "json_http",
+        "implementationVersion": "0.2.0",
+        "displayName": "Crossref works search",
+        "remote": true,
+        "endpointOrigin": "https://api.crossref.org",
+        "endpointPath": "/works",
+        "method": "GET",
+        "credentialsRequired": false,
+        "credentialsConfigured": false
+      },
+      "authority": {
+        "role": "SearchWorker",
+        "roleNamedByHost": false,
+        "workerContext": true,
+        "approved": true,
+        "grants": [
+          {
+            "permissionId": "network.scholarly",
+            "decision": "session"
+          }
+        ],
+        "permissionChecks": 3
+      },
+      "fixture": {
+        "id": "topic",
+        "source": "host_owned",
+        "fileId": null
+      },
+      "request": {
+        "argsSha256": "079da2f0ebbe08006efe2efb8158877bf3de60513004d3b333812fb044850dc4",
+        "argsBytes": 78
+      },
+      "result": {
+        "validatedByRuntime": true,
+        "validatedAgainst": "schemas/search-output.schema.json",
+        "outputSha256": "fee6c26dfa42d914549f49f6ce73a5f6692efc3aa3aa44d01166aae8289777ef",
+        "outputBytes": 10668,
+        "outputKeys": [
+          "papers",
+          "query",
+          "skipped_records",
+          "source"
+        ],
+        "output": {
+          "papers": [
+            {
+              "title": "Evaluating Safety-Critical Communication Behavior of Large Language Models Using Workflow-Embedded Multi-Agent Clinical Simulation",
+              "doi": "10.21203/rs.3.rs-10989591/v1",
+              "arxiv_id": null,
+              "authors": [
+                {
+                  "name": "David Power"
+                },
+                {
+                  "name": "Theresa Power"
+                }
+              ],
+              "year": 2026,
+              "venue": null,
+              "abstract": "Abstract Objective: To evaluate the safety-critical escalation behavior of large language models (LLMs) within a realistic ward-to-registrar communication workflow using a role locked, multi-agent simulation framework, and to assess the impact of structured ISBAR handover on escalation safety and actionability. Materials and Methods: We conducted a controlled, paired simulation study using a role-locked multi agent LLM framework representing ward nurses, registrars (a senior resident physician in specialty training), and nurse managers. Synthetic ward deteri oration case cards defined ground-truth clinical information. For each case, matched escalation transcripts were generated under two conditions: unstruc tured (control) and ISBAR-structured nurse handover. Registrar responses were constrained to produce structured plans containing assessment, actions, timeframes, and escalation triggers. Transcripts were evaluated using a rubric based automated auditing system to assess safety-critical omissions, escalation appropriateness, actionability, closed-loop communication, and hallucinations. A subset underwent independent review by experienced intensive care nurses to evaluate agreement between human and automated assessments. 1 Results: ISBAR-structured handover significantly reduced the frequency of hallucinated content and improved escalation efficiency but did not reduce safety-critical omissions. Across 200 paired (n=400) escalation simulations, ISBAR-structured handover reduced hallucination frequency (10.0% vs 26.5%) and shortened esca lation dialogues (median 7 vs 9 turns) but did not reduce safety-critical omissions (16.0% vs 11.5%). Structured handover improved specification of review time frames and escalation triggers and supported clearer closed-loop confirmation. Human reviewers demonstrated moderate agreement for omission detection and several communication quality measures. Agreement between the automated evaluator and human consensus was limited across several domains, with the automated evaluator showing high sensitivity but low specificity for omission detection and systematically differing from human assessments of actionability and overall safety risk. Discussion: Embedding LLMs within a role-locked escalation workflow reveals safety-critical behaviors that are not observable using static evaluation methods. Structured ISBAR communication improves LLM escalation performance by constraining information flow and reducing hallucinated content, but does not eliminate all failure modes. Human validation identified important differences between automated and expert assessment, suggesting that current LLM-based eval uators may prioritize communication structure and fluency differently from clinicians assessing clinical completeness and safety. Workflow-embedded simu lation offers a scalable approach to pre-deployment evaluation and governance of LLMs in safety-critical clinical communication, while supporting continued expert oversight. Conclusion: Role-locked, standards-based multi-agent simulation provides a reproducible method for evaluating LLM behavior during clinical escalation. Assessing LLMs within realistic escalation workflows enables identification of safety-critical omis sions and communication failures, supporting governance decisions prior to clinical deployment. Expert human assessment remains important when evalu ating safety-critical communication quality, as automated evaluators may not reliably reproduce clinician judgement across all domains.",
+              "url": "https://doi.org/10.21203/rs.3.rs-10989591/v1",
+              "source": "crossref",
+              "provenance": [
+                {
+                  "source": "crossref",
+                  "query": "communication topology multi-agent large language models",
+                  "locator": "10.21203/rs.3.rs-10989591/v1",
+                  "synthetic": false,
+                  "retrieved_at": "2026-09-24T15:43:05.044Z"
+                }
+              ]
+            },
+            {
+              "title": "Dynamic, Efficient, and Generalizable Multi-Agent Communication for Large Language Models",
+              "doi": "10.1109/icdmw69685.2025.00306",
+              "arxiv_id": null,
+              "authors": [
+                {
+                  "name": "Song Wang"
+                },
+                {
+                  "name": "Jundong Li"
+                }
+              ],
+              "year": 2025,
+              "venue": "2025 IEEE International Conference on Data Mining Workshops (ICDMW)",
+              "abstract": null,
+              "url": "https://doi.org/10.1109/icdmw69685.2025.00306",
+              "source": "crossref",
+              "provenance": [
+                {
+                  "source": "crossref",
+                  "query": "communication topology multi-agent large language models",
+                  "locator": "10.1109/icdmw69685.2025.00306",
+                  "synthetic": false,
+                  "retrieved_at": "2026-09-24T15:43:05.044Z"
+                }
+              ]
+            },
+            {
+              "title": "Multi-Agent Large Language Models with Reinforcement Learning for Quant Trading",
+              "doi": "10.2139/ssrn.6682038",
+              "arxiv_id": null,
+              "authors": [
+                {
+                  "name": "Qizhao Chen"
+                },
+                {
+                  "name": "Hiroaki Kawashima"
+                }
+              ],
+              "year": 2026,
+              "venue": null,
+              "abstract": "The growing complexity and non-stationarity of financial markets make it increasingly difficult for traditional quantitative models to design robust trading strategies. Manually constructed alpha signals tend to exhibit limited adaptability when market conditions change, while machine learning-based approaches frequently lack interpretability and generalization across assets. To solve these issues, this research explores an alternative approach in which large language models (LLMs) are incorporated into the alpha design and portfolio weighting process. Specifically, we introduce a novel framework that integrates a multi-agent LLM system with reinforcement learning to improve formulaic alpha generation and portfolio allocation. In our setup, DeepSeek serves as the generation agent to construct a diverse pool of formulaic alphas, while Gemini acts as the evaluation agent to filter and select the most promising candidates. The selected alphas are then incorporated into a Deep Deterministic Policy Gradient (DDPG) framework, which optimizes their portfolio weights to maximize risk-adjusted returns. Empirical evaluations across seven major companies reveal that the multi-agent LLM + DDPG framework generally achieves higher cumulative returns than equal-weighted benchmarks and multi-agent PPO, though often with increased short-term risk. In contrast, single-agent PPO offers more stable, risk-controlled performance with smaller drawdowns. These results demonstrate that integrating LLM-generated signals with reinforcement learning can balance alpha exploitation and risk management, enabling adaptive and effective portfolio strategies across diverse market conditions.",
+              "url": "https://doi.org/10.2139/ssrn.6682038",
+              "source": "crossref",
+              "provenance": [
+                {
+                  "source": "crossref",
+                  "query": "communication topology multi-agent large language models",
+                  "locator": "10.2139/ssrn.6682038",
+                  "synthetic": false,
+                  "retrieved_at": "2026-09-24T15:43:05.044Z"
+                }
+              ]
+            },
+            {
+              "title": "A Multi-Agent Framework for Explainable Prompt Injection Detection in Large Language Models",
+              "doi": "10.21203/rs.3.rs-10302085/v1",
+              "arxiv_id": null,
+              "authors": [
+                {
+                  "name": "Atul"
+                }
+              ],
+              "year": 2026,
+              "venue": null,
+              "abstract": "Abstract Large Language Models (LLMs) are increasingly deployed in conversational agents, decision-support systems, software development, and autonomous AI applications. Despite their advantages, LLMs remain vulnerable to prompt injection attacks, where carefully crafted inputs alter model behavior, override security boundaries, or trigger unintended outputs. Existing defenses based on rules, keyword matching, or conventional machine learning often suffer from limited generalization and weak interpretability. This paper presents PromptShield , an interpretable framework for prompt injection detection that combines transformer-based semantic representation with explainable artificial intelligence (XAI). The proposed framework includes contextual feature extraction, attack classification, and post-hoc decision explanation using SHAP and LIME. PromptShield is evaluated using public prompt injection and jailbreak benchmarks with standard classification metrics, including accuracy, precision, recall, F1-score, and ROC-AUC.",
+              "url": "https://doi.org/10.21203/rs.3.rs-10302085/v1",
+              "source": "crossref",
+              "provenance": [
+                {
+                  "source": "crossref",
+                  "query": "communication topology multi-agent large language models",
+                  "locator": "10.21203/rs.3.rs-10302085/v1",
+                  "synthetic": false,
+                  "retrieved_at": "2026-09-24T15:43:05.044Z"
+                }
+              ]
+            },
+            {
+              "title": "Mathematical Framework for Large Language Models in Multi-Agent Systems for Interaction and Optimization",
+              "doi": "10.36227/techrxiv.174612312.28926018/v2",
+              "arxiv_id": null,
+              "authors": [
+                {
+                  "name": "Raman Marozau"
+                }
+              ],
+              "year": 2025,
+              "venue": null,
+              "abstract": "This paper introduces an optimization framework centered on the minimization of the L-function, designed to enhance the efficiency and contextual alignment of Large Language Models (LLMs) operating in MultiAgent Systems (MAS). The L-function integrates response brevity, historical context deviation, and taskspecific alignment into a unified objective, ensuring dynamic adaptability to diverse operational scenarios. Key contributions include: 1) Theoretical derivation of the DH(O, H) and DT (O, T) metrics, rigorously quantifying historical and task-based deviations using geometric and semantic embeddings. 2) Development of parameterized weighting factors (α, β, γ, λ) that dynamically adjust to task priorities, system load, and resource availability, ensuring robustness in both standard and exceptional conditions. 3) Validation of the L-function’s coherence and robustness, highlighting its efficacy in scenarios with noisy embeddings or unforeseen task requirements. Experimental directions are proposed to empirically validate the theoretical framework across diverse MAS scenarios, focusing on scalability, contextual precision, and system efficiency. By embedding L into MAS, the framework enables real-time adaptability, optimizing task distribution and resource utilization across diverse applications, including finance, healthcare, and autonomous systems. This work bridges the gap between theoretical optimization models and practical deployment in LLM-driven MAS, providing a foundational step toward next-generation intelligent systems.",
+              "url": "https://doi.org/10.36227/techrxiv.174612312.28926018/v2",
+              "source": "crossref",
+              "provenance": [
+                {
+                  "source": "crossref",
+                  "query": "communication topology multi-agent large language models",
+                  "locator": "10.36227/techrxiv.174612312.28926018/v2",
+                  "synthetic": false,
+                  "retrieved_at": "2026-09-24T15:43:05.044Z"
+                }
+              ]
+            }
+          ],
+          "query": "communication topology multi-agent large language models",
+          "source": "crossref",
+          "skipped_records": 0
+        }
+      },
+      "transport": {
+        "durationMs": 2155.596,
+        "hostCalls": [
+          {
+            "toolId": "scholarly-search",
+            "bindingId": "openclaw:scholarly-search:1",
+            "remote": true,
+            "status": 200,
+            "durationMs": 2144,
+            "outcome": "ok"
+          }
+        ]
+      },
+      "usage": {
+        "toolCalls": 1,
+        "remoteCalls": 1,
+        "tokens": 0
+      },
+      "audit": {
+        "events": 15,
+        "chainValid": true,
+        "finalHash": "1f59153b2459cff7f25b23a73c0b5affaafb5657fb441d832c3b2cf034fde369",
+        "actions": [
+          {
+            "action": "budget.updated",
+            "count": 2
+          },
+          {
+            "action": "delegation.checked",
+            "count": 1
+          },
+          {
+            "action": "memory.cleared",
+            "count": 1
+          },
+          {
+            "action": "permission.checked",
+            "count": 3
+          },
+          {
+            "action": "runtime.started",
+            "count": 1
+          },
+          {
+            "action": "tool.called",
+            "count": 1
+          },
+          {
+            "action": "tool.completed",
+            "count": 1
+          },
+          {
+            "action": "tool.dispatched",
+            "count": 1
+          },
+          {
+            "action": "tool.settled",
+            "count": 1
+          },
+          {
+            "action": "worker.completed",
+            "count": 1
+          },
+          {
+            "action": "worker.spawned",
+            "count": 1
+          },
+          {
+            "action": "worker.started",
+            "count": 1
+          }
+        ]
+      },
+      "workflowExecuted": false,
+      "packageExecution": {
+        "workflowInstantiated": false,
+        "workflowNodesExecuted": 0,
+        "workflowWorkersStarted": 0,
+        "modelCalls": 0,
+        "modelRouterInstalled": false,
+        "packageInstructionsLoaded": false,
+        "runtimeWorkerContexts": 1
+      },
+      "revalidated": [
+        "run_plan_identity",
+        "run_plan_readiness",
+        "run_plan_preflight",
+        "execution_mode",
+        "package_digest",
+        "archive_sha256",
+        "execution_profile",
+        "package_validation",
+        "signature_status",
+        "publisher_trust",
+        "signer_fingerprint",
+        "authorization_receipt",
+        "receipt_not_expired",
+        "model_permission_granted",
+        "tool_bindings",
+        "tool_approvals",
+        "no_model_bound"
+      ]
+    },
+    "runPlanAfterProbe": {
+      "runPlanSha256": "21b002629516e9f20b18266f4e67651dac9e3856364c9755c7b7d91d02d9ccbd",
+      "unchanged": true,
+      "executionPerformed": false,
+      "ready": true,
+      "toolBindingsCurrent": true,
+      "executionSupported": false
+    },
+    "pathLeak": null
+  },
+  "host": {
+    "openclaw": "OpenClaw 2026.9.5 (ec9c1a1)",
+    "service": {
+      "state": "running",
+      "detail": "The Agent Browser control plane is running.",
+      "since": "2026-09-24T12:55:26.072Z",
+      "starts": 1,
+      "controlPlane": {
+        "apiVersion": "v0",
+        "agentpkgVersion": "0.2.0",
+        "packageFormat": "agent.pkg 0.1",
+        "execution": "disabled"
+      },
+      "sessions": {
+        "open": 0,
+        "max": 8
+      },
+      "capabilities": {
+        "openUrl": true,
+        "openLocal": true,
+        "localRoots": [
+          "/Users/dariofenoglio/Desktop/WebAgents/dist",
+          "/Users/dariofenoglio/.openclaw/workspace"
+        ],
+        "trustPinning": true
+      },
+      "executionSupported": false,
+      "executionOperations": true,
+      "fileSelection": true
+    }
+  },
+  "passed": true
+}

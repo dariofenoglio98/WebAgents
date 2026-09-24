@@ -25,10 +25,16 @@
  *   ──────────────────────                                 ──────────────
  *   execution.begin / run / cancel / end               ──▶  stdin
  *   model.count_tokens / model.complete                 ◀──  stdout
+ *   tool.call (when a broker is attached)               ◀──  stdout
+ *   execution.progress (when a sink is attached)        ◀──  stdout
  *   logs and diagnostics                                ◀──  stderr
  *   the leased immutable archive (read-only)            ──▶  fd 3
  *   the run's private artifact directory                ──▶  fd 4
  * ```
+ *
+ * `execution.progress` carries identifiers and counts the runner derived from
+ * its own audit, so a caller can watch a long run without reading its output.
+ * It can change nothing: the handler only records a snapshot.
  */
 import type { spawn } from "node:child_process";
 import { closeSync } from "node:fs";
@@ -75,6 +81,8 @@ export type ExecutionBridgeOptions = {
    * end the session rather than receive a refusal it might retry.
    */
   broker?: ToolBroker;
+  /** Where live progress snapshots go. Absent, the method does not exist. */
+  onProgress?: (snapshot: Record<string, unknown>) => void;
   /** Test seam; defaults to node:child_process.spawn. */
   spawnImpl?: typeof spawn;
 };
@@ -85,6 +93,8 @@ export type ExecutionRequest = {
   authorization: Record<string, unknown>;
   limits: Record<string, unknown>;
   input: unknown;
+  /** The selected files this run was given: opaque id, hash, size, type. */
+  attachments?: ReadonlyArray<Record<string, unknown>>;
   host: Record<string, unknown>;
 };
 
@@ -107,6 +117,7 @@ export class ExecutionBridge extends ChildBridge {
       limits: { ...DEFAULT_EXECUTION_LIMITS, ...(options.limits ?? {}) },
       extraFds: fds,
       ...(options.broker ? { broker: options.broker } : {}),
+      ...(options.onProgress ? { onProgress: options.onProgress } : {}),
       // A refusal from the runner is a decision, not a transport failure: the
       // package declared something this host will not run, the consent could
       // not be honoured, or the input did not satisfy the package's own schema.
@@ -139,10 +150,12 @@ export class ExecutionBridge extends ChildBridge {
   /** Bind the plan, run the graph, end cleanly, and return both reports. */
   async run(
     request: ExecutionRequest,
+    hooks: { onBegin?: (begin: Record<string, unknown>) => void } = {},
   ): Promise<{ begin: Record<string, unknown>; result: Record<string, unknown> }> {
     return this.session(async () => {
       const begin = await this.call("execution.begin", { ...request });
       this.begun = true;
+      hooks.onBegin?.(begin);
       // A cancellation that arrived while the session was still binding is
       // honoured here rather than lost: the run is stopped before its first
       // node, and still reports an audit.
@@ -162,7 +175,7 @@ export class ExecutionBridge extends ChildBridge {
    */
   async probe(
     request: ExecutionRequest,
-    tool: { toolId: string; args: unknown },
+    tool: { toolId: string; args: unknown; role?: string },
   ): Promise<{ begin: Record<string, unknown>; report: Record<string, unknown> }> {
     return this.session(async () => {
       const begin = await this.call("execution.begin", { ...request });
@@ -170,6 +183,7 @@ export class ExecutionBridge extends ChildBridge {
       const report = await this.call("execution.tool_probe", {
         tool_id: tool.toolId,
         args: tool.args,
+        ...(tool.role ? { role: tool.role } : {}),
       });
       await this.call("execution.end", {});
       return { begin, report };

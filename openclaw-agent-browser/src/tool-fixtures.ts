@@ -28,6 +28,12 @@ export type ToolProbeFixture = {
   description: string;
   args: unknown;
   workflowInput: unknown;
+  /**
+   * The fixture reads a selected file. Its only argument is then the opaque id
+   * of a capability the operator selected in the probing session, supplied by
+   * the host at probe time — never a path and never a value the caller writes.
+   */
+  requiresFile?: boolean;
 };
 
 /**
@@ -76,6 +82,33 @@ export const TOOL_PROBE_FIXTURES: readonly ToolProbeFixture[] = Object.freeze([
       "this one may legitimately answer `ambiguous`.",
     args: { query: "Attention Is All You Need", query_type: "title", format: "bibtex" },
     workflowInput: INERT_REVIEW_INPUT,
+  },
+  {
+    id: "bibliographic",
+    toolId: "scholarly-search",
+    description:
+      "One bibliographic query for a widely indexed title, three rows. A search ranks; it " +
+      "does not resolve, so the probe checks the shape and provenance of what came back, " +
+      "not which paper is first.",
+    args: { query: "Attention Is All You Need", limit: 3 },
+    workflowInput: INERT_REVIEW_INPUT,
+  },
+  {
+    id: "topic",
+    toolId: "scholarly-search",
+    description: "One topical query of the kind a literature plan produces, five rows.",
+    args: { query: "communication topology multi-agent large language models", limit: 5 },
+    workflowInput: INERT_REVIEW_INPUT,
+  },
+  {
+    id: "selected-pdf",
+    toolId: "paper-reader",
+    description:
+      "Reads the one PDF the operator selected in the probing session, by the opaque id the " +
+      "host issued for it.",
+    args: { file_id: "<selected at probe time>" },
+    workflowInput: INERT_REVIEW_INPUT,
+    requiresFile: true,
   },
 ]);
 

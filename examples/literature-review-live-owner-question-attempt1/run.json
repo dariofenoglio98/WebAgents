@@ -1,0 +1,405 @@
+{
+  "runId": "run_a5ee4deecb6846d0881256043d5faa56",
+  "sessionId": "aqArsAxBZtry2po7kJJ4nlXm",
+  "runPlanId": "rp_462d5cf10a654ed3bf77c01a02b331c5",
+  "runPlanSha256": "91ca8e6d342f0e62582fedc7c4934162e766d9c858e4488311e26d1e74f9188d",
+  "runInvocationSha256": "99f9708a92087240d34dc09c015da9d8f72a7210f9f405bb6d66310a02ed8980",
+  "inputSha256": "b1f093ea3703101a8ed188803a018e09b2dd54fa8ba907f256277d1fd672e5c0",
+  "status": "failed",
+  "createdAt": "2026-09-24T12:18:09.921Z",
+  "startedAt": "2026-09-24T12:18:09.966Z",
+  "endedAt": "2026-09-24T12:26:35.809Z",
+  "durationMs": 505843,
+  "package": {
+    "packageId": "org.webagents.literature-review",
+    "name": "Literature Review Agent",
+    "version": "0.2.1",
+    "digest": "b5b8e581c695cc397948de3eb0aec1855c5cf3fff275912f640feeea5537b778",
+    "archiveSha256": "cf37162fbe7a6eb7f07ab5f2aa4c42c48c47c626e322a1209259a88eed40c704",
+    "executionProfile": "workflow.v0"
+  },
+  "selectedModel": {
+    "hostModelId": "ollama/qwen3:30b",
+    "providerId": "ollama",
+    "modelId": "qwen3:30b",
+    "displayName": "qwen3:30b"
+  },
+  "model": {
+    "planned": "ollama/qwen3:30b",
+    "invoked": [
+      "ollama/qwen3:30b"
+    ],
+    "calls": 2,
+    "allCallsUsedPlannedModel": true,
+    "providers": [
+      "ollama"
+    ],
+    "responseModels": []
+  },
+  "grants": {
+    "decisions": [
+      {
+        "permissionId": "files.pdfs",
+        "decision": "deny"
+      },
+      {
+        "permissionId": "memory.session",
+        "decision": "session"
+      },
+      {
+        "permissionId": "model.reasoning",
+        "decision": "session"
+      },
+      {
+        "permissionId": "network.citations",
+        "decision": "session"
+      },
+      {
+        "permissionId": "network.scholarly",
+        "decision": "session"
+      }
+    ],
+    "grantedPermissionIds": [
+      "memory.session",
+      "model.reasoning",
+      "network.citations",
+      "network.scholarly"
+    ]
+  },
+  "limits": {
+    "host": {
+      "totalTokens": 180000,
+      "maxRemoteCalls": 45,
+      "maxParallelWorkers": 3,
+      "maxOutputTokensPerCall": 16000,
+      "runTimeoutSeconds": 4500,
+      "modelCallTimeoutSeconds": 1200
+    },
+    "effectiveDeadlineSeconds": 4500
+  },
+  "usage": {
+    "tokens": 17609,
+    "remoteCalls": 3,
+    "peakParallelWorkers": 3,
+    "toolCalls": 3,
+    "limits": {
+      "hardTokens": 180000,
+      "maxRemoteCalls": 45,
+      "maxParallelWorkers": 3
+    },
+    "workers": [
+      {
+        "worker": "coordinator",
+        "tokens": 0,
+        "remoteCalls": 0
+      },
+      {
+        "worker": "PlanningWorker:1",
+        "tokens": 1420,
+        "remoteCalls": 0
+      },
+      {
+        "worker": "SearchWorker:2",
+        "tokens": 0,
+        "remoteCalls": 1
+      },
+      {
+        "worker": "SearchWorker:3",
+        "tokens": 0,
+        "remoteCalls": 1
+      },
+      {
+        "worker": "SearchWorker:4",
+        "tokens": 0,
+        "remoteCalls": 1
+      },
+      {
+        "worker": "PlanningWorker:5",
+        "tokens": 16189,
+        "remoteCalls": 0
+      },
+      {
+        "worker": "ScreeningWorker:6",
+        "tokens": 0,
+        "remoteCalls": 0
+      },
+      {
+        "worker": "ScreeningWorker:7",
+        "tokens": 0,
+        "remoteCalls": 0
+      },
+      {
+        "worker": "ScreeningWorker:8",
+        "tokens": 0,
+        "remoteCalls": 0
+      }
+    ]
+  },
+  "cost": {
+    "status": "complete",
+    "totalUsd": 0,
+    "calls": 2,
+    "callsWithReportedCost": 2
+  },
+  "audit": {
+    "events": 118,
+    "chainValid": true,
+    "finalHash": "80f9d9c20e800588e4c5f1c88b2aa4c8ad6312183de453a78f85fe87cc5c48e8",
+    "actions": [
+      {
+        "action": "budget.updated",
+        "count": 10
+      },
+      {
+        "action": "delegation.checked",
+        "count": 8
+      },
+      {
+        "action": "memory.cleared",
+        "count": 1
+      },
+      {
+        "action": "model.called",
+        "count": 2
+      },
+      {
+        "action": "model.completed",
+        "count": 2
+      },
+      {
+        "action": "model.count.called",
+        "count": 2
+      },
+      {
+        "action": "node.completed",
+        "count": 8
+      },
+      {
+        "action": "node.failed",
+        "count": 4
+      },
+      {
+        "action": "node.started",
+        "count": 12
+      },
+      {
+        "action": "permission.checked",
+        "count": 22
+      },
+      {
+        "action": "runtime.started",
+        "count": 1
+      },
+      {
+        "action": "state.committed",
+        "count": 5
+      },
+      {
+        "action": "tool.called",
+        "count": 3
+      },
+      {
+        "action": "tool.completed",
+        "count": 3
+      },
+      {
+        "action": "tool.dispatched",
+        "count": 3
+      },
+      {
+        "action": "tool.failed",
+        "count": 3
+      },
+      {
+        "action": "tool.settled",
+        "count": 3
+      },
+      {
+        "action": "worker.completed",
+        "count": 5
+      },
+      {
+        "action": "worker.failed",
+        "count": 3
+      },
+      {
+        "action": "worker.spawned",
+        "count": 8
+      },
+      {
+        "action": "worker.started",
+        "count": 8
+      },
+      {
+        "action": "workflow.failed",
+        "count": 1
+      },
+      {
+        "action": "workflow.started",
+        "count": 1
+      }
+    ],
+    "workers": [
+      "PlanningWorker:1",
+      "PlanningWorker:5",
+      "ScreeningWorker:6",
+      "ScreeningWorker:7",
+      "ScreeningWorker:8",
+      "SearchWorker:2",
+      "SearchWorker:3",
+      "SearchWorker:4",
+      "coordinator"
+    ],
+    "workersSpawned": 8,
+    "nodesCompleted": 8,
+    "modelCalls": 2,
+    "toolCalls": 3,
+    "tasksCalled": [
+      {
+        "task": "normalize",
+        "count": 1
+      },
+      {
+        "task": "plan",
+        "count": 1
+      }
+    ]
+  },
+  "outputSha256": null,
+  "artifacts": [
+    {
+      "name": "result.json",
+      "bytes": 81062,
+      "sha256": "2cbbb0da10688c513652ef52d3ea2dec70f0f3ef8f50d4e6d2c14abf3562e02c"
+    },
+    {
+      "name": "audit.json",
+      "bytes": 74763,
+      "sha256": "356025a983d37b004eada3f70816fe37352a9f0d60d68c0a988a189c5ef6d5d6"
+    },
+    {
+      "name": "usage.json",
+      "bytes": 1501,
+      "sha256": "bb1ea6e1f8a0d378f46f604cee47ad3523a700b74c92710fe64aacc92e9d4af4"
+    },
+    {
+      "name": "provenance.json",
+      "bytes": 239,
+      "sha256": "1a950d28a3077be34ff0869ee72cb65e35426e9e5192ed6b35ccd4795108691a"
+    }
+  ],
+  "host": {
+    "runtime": "openclaw",
+    "runtimeVersion": "2026.9.5",
+    "verifiedVersion": "2026.9.5",
+    "versionVerified": true
+  },
+  "deadlineExceeded": false,
+  "cancelRequested": false,
+  "errorCode": "permission_denied",
+  "errorDetail": null,
+  "revalidated": [
+    "run_plan_identity",
+    "run_plan_readiness",
+    "run_plan_preflight",
+    "execution_mode",
+    "package_digest",
+    "archive_sha256",
+    "execution_profile",
+    "package_validation",
+    "signature_status",
+    "publisher_trust",
+    "signer_fingerprint",
+    "authorization_receipt",
+    "receipt_not_expired",
+    "receipt_outlasts_run_deadline",
+    "model_permission_granted",
+    "tool_bindings",
+    "tool_approvals",
+    "model_available",
+    "model_identity",
+    "model_compatibility",
+    "input_bytes:312",
+    "runner:archive_sha256",
+    "runner:container",
+    "runner:integrity",
+    "runner:schema",
+    "runner:package_digest",
+    "runner:package_identity",
+    "runner:publisher_signature",
+    "runner:signer_fingerprint",
+    "runner:execution_profile",
+    "runner:tool_handlers:3",
+    "runner:tool_bound:citation-resolver",
+    "runner:tool_bound:paper-reader",
+    "runner:tool_bound:scholarly-search"
+  ],
+  "packageExecution": {
+    "workflowInstantiated": true,
+    "packageInstructionsLoaded": true,
+    "toolHandlersInstalled": 3,
+    "toolCalls": 3
+  },
+  "task": {
+    "inputBytes": 312,
+    "input": {
+      "question": "What methods have been proposed for dynamically selecting agents and adapting communication topology in multi-agent LLM systems? Compare their selection criteria, topology adaptation mechanisms, and efficiency trade-offs, focusing on representative methods.",
+      "seeds": [],
+      "documents": {},
+      "mode": "live"
+    },
+    "attachments": []
+  },
+  "progress": {
+    "updatedAt": "2026-09-24T12:26:35.694Z",
+    "events": 118,
+    "lastAction": "memory.cleared",
+    "activeNodes": [],
+    "completedNodes": [
+      "planning",
+      "seed-discovery",
+      "search",
+      "join-search",
+      "normalize"
+    ],
+    "failedNodes": [
+      "screening"
+    ],
+    "nodesCompleted": 5,
+    "stepsCompleted": 3,
+    "workersSpawned": 8,
+    "workersActive": 0,
+    "peakParallelWorkers": 3,
+    "activeWorkers": [],
+    "modelCallsStarted": 2,
+    "modelCallsCompleted": 2,
+    "toolCallsStarted": 3,
+    "toolCallsCompleted": 3,
+    "tokens": 17609,
+    "remoteCalls": 3,
+    "elapsedMs": 505735
+  },
+  "tools": [
+    {
+      "toolId": "citation-resolver",
+      "bindingId": "openclaw:citation-resolver:1",
+      "bindingSha256": "7ac13746d199913ac9da5e8df6210a8980ffa32bda67f38217a7d8bf8bd42c39",
+      "remote": true,
+      "calls": 0
+    },
+    {
+      "toolId": "paper-reader",
+      "bindingId": "openclaw:paper-reader:1",
+      "bindingSha256": "3ddd2fd9be61d3d9c9b2e06e22d54034dd5d6e0a5b3ddf64c8c6abe91cc7351b",
+      "remote": false,
+      "calls": 0
+    },
+    {
+      "toolId": "scholarly-search",
+      "bindingId": "openclaw:scholarly-search:1",
+      "bindingSha256": "4800eb9bb1be9ddbec38e262ce0ae6e22c17dcb5659c122fd99959110923d65c",
+      "remote": true,
+      "calls": 3
+    }
+  ]
+}

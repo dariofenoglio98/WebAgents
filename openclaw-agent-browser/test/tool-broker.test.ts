@@ -26,6 +26,7 @@ import {
   type ToolBindingDefinition,
 } from "../src/tool-registry.js";
 import { fixturesFor, pickFixture, TOOL_PROBE_FIXTURES } from "../src/tool-fixtures.js";
+import { Pacer } from "../src/tool-pacer.js";
 
 const log = { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} };
 const DIGEST = "a".repeat(64);
@@ -178,14 +179,19 @@ describe("resolving a call against this run's bindings", () => {
     ).rejects.toThrow(/tool_unavailable/u);
   });
 
-  it("bounds how many calls one implementation serves at once", async () => {
+  it("bounds how many calls one implementation serves at once, by waiting rather than refusing", async () => {
     let release: (value: { ok: true }) => void = () => {};
     const held = new Promise<{ ok: true }>((resolve) => {
       release = resolve;
     });
     const definition: ToolBindingDefinition = { ...RESOLVER, maxConcurrent: 1 };
+    let inFlight = 0;
+    let peak = 0;
     const transport: HttpTransport = async () => {
+      inFlight += 1;
+      peak = Math.max(peak, inFlight);
       await held;
+      inFlight -= 1;
       return { status: 200, contentType: "application/json", body: "{}" };
     };
     const instance = new ToolBroker({
@@ -194,6 +200,7 @@ describe("resolving a call against this run's bindings", () => {
       logger: log,
       transport,
       resolver: publicResolver,
+      pacer: new Pacer(),
     });
     const params = {
       tool_id: "citation-resolver",
@@ -204,13 +211,97 @@ describe("resolving a call against this run's bindings", () => {
     const first = instance.call(params, signal());
     // Let the first call reach the transport before the second arrives.
     await new Promise((resolve) => setTimeout(resolve, 5));
-    await expect(instance.call(params, signal())).rejects.toThrow(
-      /tool_unavailable: .*concurrent/u,
-    );
+    const second = instance.call(params, signal());
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    // The second waits its turn: the transport has seen only the first.
+    expect(inFlight).toBe(1);
     release({ ok: true });
     await expect(first).resolves.toMatchObject({ status: "ok" });
-    // The slot is released, so a later call is served rather than refused.
-    await expect(instance.call(params, signal())).resolves.toMatchObject({ status: "ok" });
+    await expect(second).resolves.toMatchObject({ status: "ok" });
+    expect(peak).toBe(1);
+  });
+
+  it("gives up waiting for a turn at the binding's own deadline, holding no slot", async () => {
+    const definition: ToolBindingDefinition = { ...RESOLVER, maxConcurrent: 1, timeoutSeconds: 1 };
+    const pacer = new Pacer();
+    const hang: HttpTransport = (options) =>
+      new Promise((_, reject) => options.signal.addEventListener("abort", () => reject(new Error("x"))));
+    const instance = new ToolBroker({
+      bound: [bound(definition, { timeoutSeconds: 1 })],
+      definitions: [definition],
+      logger: log,
+      transport: hang,
+      resolver: publicResolver,
+      pacer,
+    });
+    const params = {
+      tool_id: "citation-resolver",
+      binding_id: definition.id,
+      binding_sha256: DIGEST,
+      args: {},
+    };
+    const first = instance.call(params, signal());
+    const firstOutcome = first.then(
+      () => "resolved",
+      (error: Error) => error.message,
+    );
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    const waiting = instance.call(params, signal());
+    await expect(waiting).rejects.toThrow(/tool_timeout/u);
+    expect(await firstOutcome).toMatch(/tool_timeout/u);
+    expect(pacer.load(definition.id)).toEqual({ active: 0, waiting: 0 });
+  }, 10_000);
+});
+
+describe("pacing one implementation", () => {
+  it("serves waiters first in, first out, and hands a slot straight to the next", async () => {
+    const pacer = new Pacer();
+    const order: number[] = [];
+    const limits = { maxConcurrent: 1, minIntervalMs: 0 };
+    const first = await pacer.acquire("k", limits, new AbortController().signal);
+    const waiting = [1, 2, 3].map((index) =>
+      pacer.acquire("k", limits, new AbortController().signal).then((release) => {
+        order.push(index);
+        return release;
+      }),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    expect(pacer.load("k")).toEqual({ active: 1, waiting: 3 });
+    first();
+    (await waiting[0])();
+    (await waiting[1])();
+    (await waiting[2])();
+    expect(order).toEqual([1, 2, 3]);
+    expect(pacer.load("k")).toEqual({ active: 0, waiting: 0 });
+  });
+
+  it("drops a cancelled waiter without holding a slot", async () => {
+    const pacer = new Pacer();
+    const limits = { maxConcurrent: 1, minIntervalMs: 0 };
+    const held = await pacer.acquire("k", limits, new AbortController().signal);
+    const controller = new AbortController();
+    const cancelled = pacer.acquire("k", limits, controller.signal);
+    controller.abort();
+    await expect(cancelled).rejects.toBeDefined();
+    expect(pacer.load("k")).toEqual({ active: 1, waiting: 0 });
+    held();
+    expect(pacer.load("k")).toEqual({ active: 0, waiting: 0 });
+  });
+
+  it("spaces the starts of calls by the service's interval, even when slots allow more", async () => {
+    const pacer = new Pacer();
+    const limits = { maxConcurrent: 3, minIntervalMs: 150 };
+    const starts: number[] = [];
+    await Promise.all(
+      [0, 1, 2].map(async () => {
+        const release = await pacer.acquire("spaced", limits, new AbortController().signal);
+        starts.push(Date.now());
+        release();
+      }),
+    );
+    starts.sort((a, b) => a - b);
+    expect(starts[1]! - starts[0]!).toBeGreaterThanOrEqual(140);
+    expect(starts[2]! - starts[1]!).toBeGreaterThanOrEqual(140);
   });
 });
 
@@ -520,6 +611,8 @@ describe("the registry this host publishes", () => {
     expect(registry.schema).toBe("agentpkg-host-tool-registry-v0");
     expect(registry.bindings.map((item) => item.tool_id).sort()).toEqual([
       "citation-resolver",
+      "paper-reader",
+      "scholarly-search",
       "test.echo",
     ]);
     const text = JSON.stringify(registry).toLowerCase();
@@ -534,6 +627,19 @@ describe("the registry this host publishes", () => {
     const echo = registry.bindings.find((item) => item.tool_id === "test.echo")!;
     expect(echo.remote).toBe(false);
     expect(echo.endpoint).toBeNull();
+    const search = registry.bindings.find((item) => item.tool_id === "scholarly-search")!;
+    expect(search.remote).toBe(true);
+    expect(search.implementation_kind).toBe("json_http");
+    expect(search.implementation_id).toBe("openclaw.tool.crossref_works_search");
+    expect(search.endpoint).toEqual({ origin: "https://api.crossref.org", path: "/works", method: "GET" });
+    // The request shape is code named by the implementation id, never a
+    // template in the descriptor.
+    expect(JSON.stringify(search)).not.toContain("query.bibliographic=");
+    const reader = registry.bindings.find((item) => item.tool_id === "paper-reader")!;
+    expect(reader.remote).toBe(false);
+    expect(reader.implementation_kind).toBe("selected_file");
+    expect(reader.endpoint).toBeNull();
+    expect(reader.contract.permission_kinds).toEqual(["files.read"]);
   });
 
   it("lets an operator disable the broker entirely", () => {
@@ -585,9 +691,9 @@ describe("the registry this host publishes", () => {
 
   it("cannot be given an implementation configuration alone does not have", () => {
     const { definitions, notes } = resolveBindings({
-      bindings: [{ toolId: "scholarly-search", origin: "https://api.example" }],
+      bindings: [{ toolId: "weather-lookup", origin: "https://api.example" }],
     });
-    expect(definitions.some((item) => item.toolId === "scholarly-search")).toBe(false);
+    expect(definitions.some((item) => item.toolId === "weather-lookup")).toBe(false);
     expect(notes.some((note) => note.code === "binding_unknown")).toBe(true);
   });
 
@@ -606,8 +712,12 @@ describe("the registry this host publishes", () => {
 describe("the probe's fixtures", () => {
   it("are host-owned, and a tool without one cannot be probed", () => {
     expect(fixturesFor("citation-resolver").length).toBeGreaterThan(0);
-    expect(fixturesFor("scholarly-search")).toEqual([]);
-    expect(() => pickFixture("scholarly-search")).toThrow(/no probe fixture/u);
+    expect(fixturesFor("scholarly-search").length).toBeGreaterThan(0);
+    expect(fixturesFor("weather-lookup")).toEqual([]);
+    expect(() => pickFixture("weather-lookup")).toThrow(/no probe fixture/u);
+    // A file-reading fixture carries no file of its own; the host binds one.
+    const reader = pickFixture("paper-reader", "selected-pdf");
+    expect(reader.requiresFile).toBe(true);
     expect(() => pickFixture("citation-resolver", "nope")).toThrow(/Unknown probe fixture/u);
     expect(pickFixture("citation-resolver", "doi").args).toMatchObject({
       query: "10.1038/nphys1170",

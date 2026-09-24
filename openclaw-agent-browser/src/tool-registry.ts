@@ -15,15 +15,22 @@
  * and grants nothing: nothing in an `.agent.pkg` adds an entry below, and a
  * package naming an origin no binding here names simply cannot run.
  *
- * ## Two categories, not a service list
+ * ## Three categories, not a service list
  *
- * * `json_http` — one exact JSON request to one exact configured origin, path
- *   and method, under the transport policy in `tool-broker.ts`;
+ * * `json_http` — one exact HTTPS request to one exact configured origin, path
+ *   and method, under the transport policy in `tool-broker.ts`. What the
+ *   request carries and how the answer is read is an *adapter* chosen by the
+ *   implementation id (`tool-adapters.ts`), never by the package;
  * * `local_builtin` — an implementation that ships with this plugin and does
- *   no I/O at all.
+ *   no I/O at all;
+ * * `selected_file` — a local implementation that reads **only** files the
+ *   person explicitly selected for this run, through opaque host-held
+ *   capabilities (`file-capabilities.ts`). It can name no path, reach no
+ *   network and write nothing.
  *
- * Adding a service adds an *entry*. Adding a way of reaching services would
- * add a category, and there are two.
+ * Adding a service adds an *entry*. Adding a way of reaching resources adds a
+ * category: reading a person's own selected file is a different kind of reach
+ * from calling a service or computing in memory, so it is the third.
  *
  * ## What never leaves this process
  *
@@ -47,7 +54,7 @@ import type { ExecutionPolicy } from "./execution.js";
 export const TOOL_REGISTRY_SCHEMA = "agentpkg-host-tool-registry-v0";
 export const MAX_REGISTRY_BINDINGS = 64;
 
-export type ToolImplementationKind = "json_http" | "local_builtin";
+export type ToolImplementationKind = "json_http" | "local_builtin" | "selected_file";
 
 export type ToolBindingDescriptor = {
   id: string;
@@ -74,6 +81,8 @@ export type ToolBindingDescriptor = {
     max_request_bytes: number;
     max_response_bytes: number;
     max_concurrent: number;
+    /** Minimum spacing between the starts of two calls, when a service states one. */
+    min_interval_ms: number | null;
   };
   credentials: { required: boolean; configured: boolean; source: string | null };
 };
@@ -112,7 +121,7 @@ export type ToolBindingDefinition = {
   implementationVersion: string;
   displayName: string;
   description?: string;
-  /** Required for `json_http`, forbidden for `local_builtin`. */
+  /** Required for `json_http`, forbidden for the two local categories. */
   origin?: string;
   path?: string;
   method?: "GET" | "POST";
@@ -124,6 +133,8 @@ export type ToolBindingDefinition = {
   maxRequestBytes?: number;
   maxResponseBytes?: number;
   maxConcurrent?: number;
+  /** The service's own rate limit, honoured by the host: spacing between call starts. */
+  minIntervalMs?: number;
   credential?: CredentialSource;
   enabled?: boolean;
 };
@@ -143,6 +154,14 @@ const SOURCE = "openclaw plugin tool registry";
  * a Python test asserts they equal the digests of the schemas the shipped
  * Literature Review package declares, which is how "the host and the package
  * agree" is established rather than assumed.
+ *
+ * `scholarly-search` is one fixed Crossref query (`tool-adapters.ts`): the
+ * package supplies a query string and a row count, and this host decides the
+ * origin, path, method, parameter names, selected fields and how the answer is
+ * rendered. `paper-reader` extracts page text from one PDF the person selected
+ * for this run, by opaque id, through the trusted `agentpkg host-pdf-read`
+ * parser; it never sees or accepts a path. Their digests are pinned the same
+ * way, by the same test.
  */
 export const BUILT_IN_BINDINGS: readonly ToolBindingDefinition[] = Object.freeze([
   {
@@ -183,6 +202,58 @@ export const BUILT_IN_BINDINGS: readonly ToolBindingDefinition[] = Object.freeze
     maxRequestBytes: 16 * 1024,
     maxResponseBytes: 512 * 1024,
     maxConcurrent: 4,
+  },
+  {
+    id: "openclaw:scholarly-search:1",
+    toolId: "scholarly-search",
+    binding: "scholarly.search",
+    kind: "json_http",
+    implementationId: "openclaw.tool.crossref_works_search",
+    implementationVersion: "0.2.0",
+    displayName: "Crossref works search",
+    description:
+      "One GET to https://api.crossref.org/works with exactly four parameters — " +
+      "query.bibliographic, rows, a fixed field selection and a fixed filter to scholarly " +
+      "work types — whose names and fixed values are host code. " +
+      "The answer is reduced to the declared search result, with markup rendered to text " +
+      "as the Citation Resolver renders the same Crossref fields.",
+    origin: "https://api.crossref.org",
+    path: "/works",
+    method: "GET",
+    inputSchemaSha256: "f8a6f920b23bf1731a85d5275c10eee77a9d055fb14917be114c1b9e8249baf2",
+    outputSchemaSha256: "eb83100404221fd9a489046d6741a046aae07c31c672ab6dc2daabffeda3c9ee",
+    permissionKinds: ["network"],
+    sideEffects: "read",
+    timeoutSeconds: 25,
+    // A GET carries its arguments in the URL; this bounds that URL.
+    maxRequestBytes: 4 * 1024,
+    maxResponseBytes: 512 * 1024,
+    // Crossref's public pool states `x-concurrency-limit: 1` and one request per
+    // second on every answer, and answers 429 to clients that ignore it. This
+    // host honours both; calls beyond them wait their turn inside their deadline.
+    maxConcurrent: 1,
+    minIntervalMs: 1000,
+  },
+  {
+    id: "openclaw:paper-reader:1",
+    toolId: "paper-reader",
+    binding: "paper.read",
+    kind: "selected_file",
+    implementationId: "openclaw.tool.selected_pdf_text",
+    implementationVersion: "0.1.0",
+    displayName: "Selected PDF text",
+    description:
+      "Extracts page text from one PDF the person selected for this run, named by an opaque " +
+      "id. No path is accepted, no other file is readable, and nothing is fetched, rendered, " +
+      "executed or OCRed.",
+    inputSchemaSha256: "5b1df5dc0d13ca9a8b76cce86d93639f2b13baf3eb66ec895a725fc9169686ca",
+    outputSchemaSha256: "4feee1362ccba94d82ffbd56e106525c1fab7643e664172d63469ec241ab3167",
+    permissionKinds: ["files.read"],
+    sideEffects: "read",
+    timeoutSeconds: 20,
+    maxRequestBytes: 1024,
+    maxResponseBytes: 512 * 1024,
+    maxConcurrent: 2,
   },
 ]);
 
@@ -391,6 +462,7 @@ export function describeBinding(
         options.maxResponseBytes ?? 4 * 1024 * 1024,
       ),
       max_concurrent: definition.maxConcurrent ?? 4,
+      min_interval_ms: definition.minIntervalMs && definition.minIntervalMs > 0 ? definition.minIntervalMs : null,
     },
     // A name, never a value: `configured` is the only thing about a secret
     // that crosses this boundary, and it is enough to make a run plan stale

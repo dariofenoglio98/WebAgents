@@ -335,3 +335,67 @@ def test_a_plan_binding_carries_identity_and_no_secret(echo):
     values = " ".join(str(value).lower() for value in record.values())
     for forbidden in ("secret", "token", "bearer", "password", "header", "api_key"):
         assert forbidden not in values
+
+
+# -- the third implementation category ---------------------------------------
+def test_a_selected_file_binding_is_a_local_category_that_can_satisfy_a_local_tool(echo):
+    registry = registry_for(echo, overrides={ECHO_TOOL: {"implementation_kind": "selected_file"}})
+    result = evaluate(echo, registry)
+    tool = result["tools"][0]
+    assert tool["status"] == BOUND
+    assert tool["binding"]["implementation_kind"] == "selected_file"
+    assert tool["binding"]["remote"] is False
+    assert tool["binding"]["endpoint_origin"] is None
+    # Changing the category is a different implementation, so a different digest.
+    plain = normalize_registry(registry_for(echo))["bindings"][0]
+    files = normalize_registry(registry)["bindings"][0]
+    assert binding_digest(plain) != binding_digest(files)
+
+
+def test_a_selected_file_binding_cannot_claim_to_be_remote_or_carry_an_endpoint(echo):
+    with pytest.raises(ControlPlaneError):
+        normalize_registry(
+            registry_for(
+                echo,
+                overrides={ECHO_TOOL: {"implementation_kind": "selected_file", "remote": True}},
+            )
+        )
+    with pytest.raises(ControlPlaneError):
+        normalize_registry(
+            registry_for(
+                echo,
+                overrides={
+                    ECHO_TOOL: {
+                        "implementation_kind": "selected_file",
+                        "endpoint": {"origin": "https://example.org", "path": "/", "method": "GET"},
+                    }
+                },
+            )
+        )
+
+
+def test_the_shipped_review_package_is_fully_bound_by_this_host_s_three_categories():
+    package = load_package(DIST["literature-review"])
+    registry = registry_for(
+        package, overrides={"paper-reader": {"implementation_kind": "selected_file"}}
+    )
+    result = evaluate_registry(
+        package,
+        normalize_registry(registry),
+        decisions={
+            "network.scholarly": "session",
+            "network.citations": "session",
+            "memory.session": "session",
+            "model.reasoning": "session",
+            "files.pdfs": "deny",
+        },
+        tool_approvals={tool_id: True for tool_id in package.tools},
+    )
+    by_id = {tool["tool_id"]: tool for tool in result["tools"]}
+    assert result["all_tools_bound"] is True
+    # A denied optional files permission leaves the reader bound and approved,
+    # unusable, and not blocking: the graph's own conditions keep it unreached.
+    assert by_id["paper-reader"]["usable"] is False
+    assert by_id["paper-reader"]["blocks_plan"] is False
+    assert by_id["scholarly-search"]["usable"] is True
+    assert by_id["citation-resolver"]["usable"] is True

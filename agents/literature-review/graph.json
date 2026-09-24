@@ -60,7 +60,7 @@
       "tools": [],
       "max_instances": 1,
       "budget": {
-        "tokens": 30000,
+        "tokens": 50000,
         "remote_calls": 15
       },
       "state_read": [
@@ -112,7 +112,7 @@
       ],
       "max_instances": 3,
       "budget": {
-        "tokens": 30000,
+        "tokens": 45000,
         "remote_calls": 15
       },
       "state_read": [
@@ -138,7 +138,7 @@
       ],
       "max_instances": 3,
       "budget": {
-        "tokens": 30000,
+        "tokens": 50000,
         "remote_calls": 15
       },
       "state_read": [
@@ -193,7 +193,7 @@
       "tools": [],
       "max_instances": 1,
       "budget": {
-        "tokens": 30000,
+        "tokens": 45000,
         "remote_calls": 15
       },
       "state_read": [
@@ -237,7 +237,7 @@
       "tools": [],
       "max_instances": 1,
       "budget": {
-        "tokens": 30000,
+        "tokens": 60000,
         "remote_calls": 15
       },
       "state_read": [
@@ -348,7 +348,7 @@
       }
     }
   },
-  "deadline_seconds": 1800,
+  "deadline_seconds": 4500,
   "nodes": [
     {
       "id": "planning",
@@ -367,7 +367,7 @@
         }
       },
       "output_schema": "schemas/plan.schema.json",
-      "timeout_seconds": 120,
+      "timeout_seconds": 360,
       "depends_on": [],
       "writes": {
         "/search_plan": {
@@ -465,7 +465,7 @@
                 "path": ""
               },
               "limit": {
-                "literal": 10
+                "literal": 3
               }
             }
           },
@@ -525,7 +525,7 @@
         }
       },
       "output_schema": "schemas/normalize.schema.json",
-      "timeout_seconds": 120,
+      "timeout_seconds": 900,
       "depends_on": [
         "join-search"
       ],
@@ -540,7 +540,7 @@
         }
       },
       "task": "normalize",
-      "max_output_tokens": 12000
+      "max_output_tokens": 16000
     },
     {
       "id": "screening",
@@ -551,7 +551,7 @@
         "path": "/screening_jobs"
       },
       "output_schema": "schemas/papers.schema.json",
-      "timeout_seconds": 120,
+      "timeout_seconds": 1200,
       "depends_on": [
         "normalize"
       ],
@@ -613,7 +613,7 @@
             }
           },
           "output_schema": "schemas/paper.schema.json",
-          "timeout_seconds": 60,
+          "timeout_seconds": 600,
           "task": "screen",
           "max_output_tokens": 12000
         }
@@ -636,7 +636,7 @@
         }
       },
       "output_schema": "schemas/selection.schema.json",
-      "timeout_seconds": 120,
+      "timeout_seconds": 480,
       "depends_on": [
         "screening"
       ],
@@ -787,7 +787,7 @@
         }
       },
       "output_schema": "schemas/prepare.schema.json",
-      "timeout_seconds": 120,
+      "timeout_seconds": 720,
       "depends_on": [
         "citations"
       ],
@@ -806,7 +806,7 @@
         }
       },
       "task": "prepare",
-      "max_output_tokens": 12000
+      "max_output_tokens": 16000
     },
     {
       "id": "check-records",
@@ -878,7 +878,7 @@
         "path": "/evidence_jobs"
       },
       "output_schema": "schemas/evidence-batches.schema.json",
-      "timeout_seconds": 120,
+      "timeout_seconds": 1020,
       "depends_on": [
         "check-records"
       ],
@@ -943,8 +943,8 @@
               }
             }
           },
-          "output_schema": "schemas/evidence-list.schema.json",
-          "timeout_seconds": 60,
+          "output_schema": "schemas/paper-evidence.schema.json",
+          "timeout_seconds": 900,
           "task": "extract",
           "max_output_tokens": 12000
         },
@@ -1180,7 +1180,7 @@
         }
       },
       "output_schema": "schemas/synthesis.schema.json",
-      "timeout_seconds": 120,
+      "timeout_seconds": 600,
       "depends_on": [
         "join-evidence"
       ],
@@ -1218,7 +1218,7 @@
         }
       },
       "output_schema": "schemas/written.schema.json",
-      "timeout_seconds": 120,
+      "timeout_seconds": 360,
       "depends_on": [
         "synthesis"
       ],
@@ -1276,7 +1276,7 @@
         }
       },
       "output_schema": "schemas/review-output.schema.json",
-      "timeout_seconds": 120,
+      "timeout_seconds": 720,
       "depends_on": [
         "writing"
       ],
@@ -1295,7 +1295,7 @@
         }
       },
       "task": "verify",
-      "max_output_tokens": 12000
+      "max_output_tokens": 16000
     },
     {
       "id": "validate-output",

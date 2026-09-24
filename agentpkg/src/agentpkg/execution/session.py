@@ -68,13 +68,13 @@ from .policy import (
     grant_report,
     normalize_grants,
 )
+from .progress import ProgressTracker
 from .report import audit_summary, cost_summary, model_evidence
 from .toolprobe import run_tool_probe
 
 EXECUTION_RESULT_SCHEMA = "agentpkg-execution-result-v0"
 MAX_TEXT = 512
 MAX_IDS = 64
-DEFAULT_REQUEST_TIMEOUT_SECONDS = 300.0
 MAX_ARTIFACTS = 64
 
 
@@ -316,7 +316,7 @@ class ExecutionSession:
         record = _fields(
             params,
             "execution.begin",
-            {"run_id", "run_plan", "authorization", "limits", "input", "host"},
+            {"run_id", "run_plan", "authorization", "limits", "input", "host", "attachments"},
             {"run_id", "run_plan", "authorization", "input"},
         )
         if self.plan is not None:
@@ -384,13 +384,18 @@ class ExecutionSession:
             router = HostBridgeModelRouter(
                 self._peer,
                 plan["model_binding"],
-                request_timeout_seconds=DEFAULT_REQUEST_TIMEOUT_SECONDS,
+                request_timeout_seconds=float(limits.model_call_timeout_seconds),
             )
             model = check_model(package, router)
 
         # 5. The task. Checked against the package's own input schema before a
         #    single instruction is rendered, so bad input costs nothing.
-        invocation = build_invocation(run_id=run_id, plan=plan, input_value=record["input"])
+        invocation = build_invocation(
+            run_id=run_id,
+            plan=plan,
+            input_value=record["input"],
+            attachments=record.get("attachments"),
+        )
         probe_tool = plan["execution"]["probe_tool_id"]
         if plan["execution"]["mode"] == "tool_probe":
             if probe_tool is None or probe_tool not in package.tools:
@@ -488,6 +493,9 @@ class ExecutionSession:
             )
         self._started = True
         started = datetime.now(UTC)
+        # Live progress, read from the audit as it is written. Observation
+        # only: the run neither waits for nor depends on the parent's answer.
+        tracker = ProgressTracker(self._peer)
         try:
             workflow = Workflow(
                 self.package,
@@ -500,6 +508,7 @@ class ExecutionSession:
                 router=self.router,
                 limits=self._limits.runtime_limits(),
                 approved_tools=self._approved_tools,
+                observer=tracker.observe,
             )
         except AgentPkgError as exc:
             raise ExecutionError(
@@ -528,6 +537,7 @@ class ExecutionSession:
             watchdog.cancel()
             with contextlib.suppress(asyncio.CancelledError, Exception):
                 await watchdog
+            await tracker.close()
             self._finished = True
         return self._finish(started, datetime.now(UTC))
 
@@ -539,7 +549,9 @@ class ExecutionSession:
         smallest thing that can show a declaration, a binding, an approval, a
         permission and a budget converge on one real call. It is not a run.
         """
-        record = _fields(params, "execution.tool_probe", {"tool_id", "args"}, {"tool_id", "args"})
+        record = _fields(
+            params, "execution.tool_probe", {"tool_id", "args", "role"}, {"tool_id", "args"}
+        )
         if self.plan is None or self.package is None:
             raise ExecutionError(NOT_BOUND, "Begin an execution session before probing a tool")
         if self._started:
@@ -562,6 +574,7 @@ class ExecutionSession:
             tool_id=_text(record["tool_id"], "tool_id", limit=200),
             args=record["args"],
             invocation=self.invocation,
+            role=_text(record.get("role"), "role", limit=128, allow_none=True),
         )
 
     async def _watchdog(self, seconds: int, workflow: Workflow) -> None:

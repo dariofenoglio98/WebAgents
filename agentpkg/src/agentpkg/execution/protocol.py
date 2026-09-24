@@ -23,6 +23,11 @@ child may ask for `tool.call`. Neither adds a destination to the wire: a tool
 call names a tool the signed package declared and a binding digest the run plan
 froze, and the trusted parent resolves what that means.
 
+The child may also send `execution.progress`: identifiers and counts it derived
+from the audit events it has already recorded, so the host can show a long run
+moving. It carries no prompt, no model output and no tool payload, and the
+parent's answer changes nothing in the run.
+
 There is no path, no filename, no model identifier, no URL, no HTTP method, no
 header and no OpenClaw method name anywhere in a frame. The child cannot open
 the package from anywhere else, because it never learns where the package is;
@@ -52,10 +57,14 @@ EXECUTION_METHODS = frozenset(
     }
 )
 
+# A live progress snapshot. Observation only: nothing in the run depends on
+# the answer, and a parent that refuses it does not stop the run.
+PROGRESS_METHOD = "execution.progress"
+
 # Requests the runner may send to the parent: the two ModelRouter operations
-# the router probe already proved, and one tool invocation that can only name a
-# tool this package declared and this plan bound.
-RUNNER_OUTBOUND_METHODS = HOST_METHODS | frozenset({TOOL_CALL_METHOD})
+# the router probe already proved, one tool invocation that can only name a
+# tool this package declared and this plan bound, and progress.
+RUNNER_OUTBOUND_METHODS = HOST_METHODS | frozenset({TOOL_CALL_METHOD, PROGRESS_METHOD})
 
 # Inherited descriptors. Fixed numbers rather than negotiated ones: a number
 # that arrives over the wire would be a way to name a descriptor.
@@ -67,6 +76,7 @@ __all__ = [
     "EXECUTION_METHODS",
     "EXECUTION_PROTOCOL_VERSION",
     "PACKAGE_FD",
+    "PROGRESS_METHOD",
     "RUNNER_OUTBOUND_METHODS",
     "TOOL_CALL_METHOD",
 ]

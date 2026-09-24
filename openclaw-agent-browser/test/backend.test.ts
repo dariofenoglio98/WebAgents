@@ -13,9 +13,9 @@ import { nodeTransport, type ControlPlaneTransport } from "../src/control-plane.
 import {
   AGENDA_KEY_FINGERPRINT,
   AGENTPKG_BIN,
-  DEV_KEY_FINGERPRINT,
   DIST,
   hasAgentpkg,
+  LITERATURE_KEY_FINGERPRINT,
 } from "./fixtures.js";
 
 const runs = hasAgentpkg();
@@ -75,7 +75,7 @@ describe.runIf(runs)("backend feature operations", () => {
   });
 
   it.each([
-    ["literature-review", REVIEW, "org.webagents.literature-review", DEV_KEY_FINGERPRINT, 7, 3, 9, 17],
+    ["literature-review", REVIEW, "org.webagents.literature-review", LITERATURE_KEY_FINGERPRINT, 7, 3, 9, 17],
     ["meeting-agenda", AGENDA, "org.webagents.meeting-agenda", AGENDA_KEY_FINGERPRINT, 3, 0, 4, 6],
   ])(
     "opens %s through the same generic path",

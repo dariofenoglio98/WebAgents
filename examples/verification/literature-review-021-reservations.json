@@ -1,0 +1,107 @@
+{
+ "note": "Worst-case reservation (byte-bound input + declared output cap) of each Literature Review 0.2.1 model call, computed with agentpkg.hostbridge.router.render()/token_upper_bound() from the largest real Crossref and Citation Resolver records sampled; no model was called.",
+ "policy": {
+  "per_query": 3,
+  "selected": 3,
+  "evidence_per_paper": 4,
+  "candidates": 9,
+  "with_abstract": 9,
+  "resolver_statuses": [
+   "resolved",
+   "resolved",
+   "resolved"
+  ]
+ },
+ "calls": [
+  {
+   "node": "planning",
+   "role": "PlanningWorker",
+   "bound": 2897,
+   "max_output_tokens": 12000,
+   "reservation": 14897,
+   "data_bytes": 302,
+   "output_bytes_est": null,
+   "calls": 1
+  },
+  {
+   "node": "normalize",
+   "role": "PlanningWorker",
+   "bound": 26393,
+   "max_output_tokens": 16000,
+   "reservation": 42393,
+   "data_bytes": 21175,
+   "output_bytes_est": 46566,
+   "calls": 1
+  },
+  {
+   "node": "screening/screen-one",
+   "role": "ScreeningWorker",
+   "bound": 7489,
+   "max_output_tokens": 12000,
+   "reservation": 19489,
+   "data_bytes": 3215,
+   "output_bytes_est": 2909,
+   "calls": 9
+  },
+  {
+   "node": "select-included",
+   "role": "ScreeningWorker",
+   "bound": 27579,
+   "max_output_tokens": 12000,
+   "reservation": 39579,
+   "data_bytes": 23171,
+   "output_bytes_est": 8558,
+   "calls": 1
+  },
+  {
+   "node": "prepare-evidence",
+   "role": "CitationWorker",
+   "bound": 26907,
+   "max_output_tokens": 16000,
+   "reservation": 42907,
+   "data_bytes": 19276,
+   "output_bytes_est": 30031,
+   "calls": 1
+  },
+  {
+   "node": "evidence/extract-one",
+   "role": "EvidenceWorker",
+   "bound": 11168,
+   "max_output_tokens": 12000,
+   "reservation": 23168,
+   "data_bytes": 6902,
+   "output_bytes_est": 3505,
+   "calls": 3
+  },
+  {
+   "node": "synthesis",
+   "role": "SynthesisWorker",
+   "bound": 25749,
+   "max_output_tokens": 12000,
+   "reservation": 37749,
+   "data_bytes": 21463,
+   "output_bytes_est": 7067,
+   "calls": 1
+  },
+  {
+   "node": "writing",
+   "role": "WritingWorker",
+   "bound": 10831,
+   "max_output_tokens": 12000,
+   "reservation": 22831,
+   "data_bytes": 7347,
+   "output_bytes_est": 5153,
+   "calls": 1
+  },
+  {
+   "node": "verification",
+   "role": "VerificationWorker",
+   "bound": 34991,
+   "max_output_tokens": 16000,
+   "reservation": 50991,
+   "data_bytes": 29430,
+   "output_bytes_est": 31278,
+   "calls": 1
+  }
+ ]
+}

@@ -1,0 +1,272 @@
+{
+ "model": "ollama/qwen3.5:9b",
+ "num_ctx": 65536,
+ "variants": {
+  "default": {
+   "prepare": {
+    "record": {
+     "label": "prepare[default]",
+     "options": {},
+     "bound_bytes": 18049,
+     "elapsed_s": 580.5,
+     "prompt_eval_count": 3447,
+     "eval_count": 11492,
+     "thinking_chars": 34348,
+     "done_reason": "stop",
+     "conforming": true
+    },
+    "checks": [
+     {
+      "paper_id": "paper-4dd72bbd354ba2ba",
+      "status_ok": true,
+      "metadata_exact": false,
+      "diffs": [
+       "/abstract: missing in output",
+       "/arxiv_id: missing in output",
+       "/authors: missing in output",
+       "/detected_type: extra in output",
+       "/doi: missing in output",
+       "/issue: missing in output",
+       "/journal_reference: missing in output",
+       "/match_score: extra in output"
+      ]
+     },
+     {
+      "paper_id": "paper-8da040891b501053",
+      "status_ok": true,
+      "metadata_exact": false,
+      "diffs": [
+       "/abstract: missing in output",
+       "/arxiv_id: missing in output",
+       "/authors: missing in output",
+       "/bibtex: output=\"@misc{tian2026optimizingmultiagentllm8da04089,\\n  title = {{Optimizing Multi\\u2011Agent L expected=\"@misc{tian2026optimizingmultiagentllm8da04089,\\n  title = {{Optimizing Multi\\u2011Agent L",
+       "/detected_type: extra in output",
+       "/doi: missing in output",
+       "/issue: missing in output",
+       "/journal_reference: missing in output"
+      ]
+     },
+     {
+      "records": 2,
+      "evidence_jobs": 2
+     }
+    ]
+   },
+   "verification": {
+    "record": {
+     "label": "verification[default]",
+     "options": {},
+     "bound_bytes": 16794,
+     "elapsed_s": 143.0,
+     "prompt_eval_count": 3639,
+     "eval_count": 2895,
+     "thinking_chars": 2758,
+     "done_reason": "stop",
+     "conforming": true
+    },
+    "checks": {
+     "bibliography": [
+      {
+       "paper_id": null,
+       "diffs": [
+        "unknown paper_id"
+       ]
+      },
+      {
+       "paper_id": null,
+       "diffs": [
+        "unknown paper_id"
+       ]
+      }
+     ],
+     "evidence_table": [
+      {
+       "evidence_id": "ev-4dd72bbd-1",
+       "diffs": []
+      },
+      {
+       "evidence_id": "ev-4dd72bbd-2",
+       "diffs": []
+      },
+      {
+       "evidence_id": "ev-8da04089-1",
+       "diffs": []
+      },
+      {
+       "evidence_id": "ev-8da04089-2",
+       "diffs": []
+      }
+     ],
+     "related_work_chars": 69,
+     "claims": [
+      [
+       "claim-1",
+       "supported"
+      ],
+      [
+       "claim-2",
+       "supported"
+      ],
+      [
+       "claim-3",
+       "supported"
+      ],
+      [
+       "claim-4",
+       "supported"
+      ]
+     ]
+    }
+   }
+  },
+  "pp0": {
+   "prepare": {
+    "record": {
+     "label": "prepare[pp0]",
+     "options": {
+      "presence_penalty": 0
+     },
+     "bound_bytes": 18049,
+     "elapsed_s": 433.4,
+     "prompt_eval_count": 3447,
+     "eval_count": 9022,
+     "thinking_chars": 24424,
+     "done_reason": "stop",
+     "conforming": true
+    },
+    "checks": [
+     {
+      "paper_id": "paper-4dd72bbd354ba2ba",
+      "status_ok": true,
+      "metadata_exact": false,
+      "diffs": [
+       ": output=null expected={\"title\": \"Self-Refining Topology Optimization via an LLM-Based Multi-Agent Framework\", \"a"
+      ]
+     },
+     {
+      "paper_id": "paper-8da040891b501053",
+      "status_ok": true,
+      "metadata_exact": false,
+      "diffs": [
+       ": output=null expected={\"title\": \"Optimizing Multi\\u2011Agent LLM Collaboration via Communication\\u2011Flow Contr"
+      ]
+     },
+     {
+      "records": 2,
+      "evidence_jobs": 2
+     }
+    ]
+   },
+   "verification": {
+    "record": {
+     "label": "verification[pp0]",
+     "options": {
+      "presence_penalty": 0
+     },
+     "bound_bytes": 16794,
+     "elapsed_s": 127.4,
+     "prompt_eval_count": 3639,
+     "eval_count": 2772,
+     "thinking_chars": 4573,
+     "done_reason": "stop",
+     "conforming": true
+    },
+    "checks": {
+     "bibliography": [
+      {
+       "paper_id": "paper-4dd72bbd354ba2ba",
+       "diffs": [
+        ": output=null expected={\"title\": \"Self-Refining Topology Optimization via an LLM-Based Multi-Agent Framework\", \"a"
+       ]
+      },
+      {
+       "paper_id": "paper-8da040891b501053",
+       "diffs": [
+        ": output=null expected={\"title\": \"Optimizing Multi\\u2011Agent LLM Collaboration via Communication\\u2011Flow Contr"
+       ]
+      }
+     ],
+     "evidence_table": [
+      {
+       "evidence_id": "ev-4dd72bbd-1",
+       "diffs": [
+        "/category: missing in output",
+        "/claim_ids: extra in output",
+        "/extraction_worker: missing in output",
+        "/location: missing in output",
+        "/provenance: missing in output",
+        "/support_strength: missing in output",
+        "/text: missing in output"
+       ]
+      },
+      {
+       "evidence_id": "ev-4dd72bbd-2",
+       "diffs": [
+        "/category: missing in output",
+        "/claim_ids: extra in output",
+        "/extraction_worker: missing in output",
+        "/location: missing in output",
+        "/provenance: missing in output",
+        "/support_strength: missing in output",
+        "/text: missing in output"
+       ]
+      },
+      {
+       "evidence_id": "ev-8da04089-1",
+       "diffs": [
+        "/category: missing in output",
+        "/claim_ids: extra in output",
+        "/extraction_worker: missing in output",
+        "/location: missing in output",
+        "/provenance: missing in output",
+        "/support_strength: missing in output",
+        "/text: missing in output"
+       ]
+      },
+      {
+       "evidence_id": "ev-8da04089-2",
+       "diffs": [
+        "/category: missing in output",
+        "/claim_ids: extra in output",
+        "/extraction_worker: missing in output",
+        "/location: missing in output",
+        "/provenance: missing in output",
+        "/support_strength: missing in output",
+        "/text: missing in output"
+       ]
+      }
+     ],
+     "related_work_chars": 82,
+     "claims": [
+      [
+       "claim-1",
+       "supported"
+      ],
+      [
+       "claim-2",
+       "supported"
+      ],
+      [
+       "claim-3",
+       "supported"
+      ],
+      [
+       "claim-4",
+       "supported"
+      ]
+     ]
+    }
+   }
+  }
+ },
+ "inputs": {
+  "dois": [
+   "10.2139/ssrn.7162224",
+   "10.2139/ssrn.6532560"
+  ],
+  "statuses": [
+   "resolved",
+   "resolved"
+  ]
+ }
+}

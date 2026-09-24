@@ -1,0 +1,9 @@
+
+ RUN  v5.0.1 /Users/dariofenoglio/Desktop/WebAgents/openclaw-agent-browser
+
+
+ Test Files  15 passed (15)
+      Tests  299 passed (299)
+   Start at  12:42:01
+   Duration  18.01s (import 49%, tests 47%, transform 2%, environment 2%)
+

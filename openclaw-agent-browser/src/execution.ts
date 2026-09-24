@@ -30,9 +30,20 @@ import { closeSync, constants as fsConstants, openSync } from "node:fs";
 import { readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import type { ControlPlaneClient } from "./control-plane.js";
-import type { RunArtifactContentViewType, RunRecordViewType } from "./contract.js";
+import type {
+  RunArtifactContentViewType,
+  RunProgressViewType,
+  RunRecordViewType,
+  RunTaskViewType,
+} from "./contract.js";
 import { AgentBrowserError, clip } from "./errors.js";
 import { ExecutionBridge } from "./execution-bridge.js";
+import {
+  attachmentsOf,
+  type FileCapabilityStore,
+  type FileCapabilityView,
+} from "./file-capabilities.js";
+import type { PdfReader } from "./pdf-reader.js";
 import type { HostLlm } from "./host-llm.js";
 import type { HostCatalog } from "./host-models.js";
 import { revalidate, type PreflightOutcome } from "./preflight.js";
@@ -49,6 +60,8 @@ export const VERIFIED_HOST_RUNTIME = "2026.9.5";
 export const MAX_INPUT_BYTES = 256 * 1024;
 /** How much of one artifact `execution.artifact` will return. */
 export const MAX_ARTIFACT_BYTES = 256 * 1024;
+/** A run record echoes the task input only when it is this small. */
+export const MAX_ECHOED_INPUT_BYTES = 16 * 1024;
 
 export type ExecutionPolicy = {
   totalTokens: number;
@@ -56,6 +69,14 @@ export type ExecutionPolicy = {
   maxParallelWorkers: number;
   maxOutputTokensPerCall: number;
   runTimeoutSeconds: number;
+  /**
+   * How long one model completion may take, queueing at the model server
+   * included. A local server that decodes one request at a time answers the
+   * third of three concurrent workers only after the other two finish, so an
+   * operator running one raises this. The package's node timeouts still bound
+   * every call; this only stops the host from cutting one off first.
+   */
+  modelCallTimeoutSeconds: number;
   /**
    * Refuse to run on an OpenClaw the token accounting was not verified against.
    *
@@ -71,12 +92,26 @@ export type ExecutionPolicy = {
   maxToolResponseBytes: number;
 };
 
+/** The runner enforces the same ceiling on `model_call_timeout_seconds`. */
+export const MAX_MODEL_CALL_TIMEOUT_SECONDS = 3_600;
+/**
+ * The runner times a completion out itself and cancels it, which aborts the
+ * request here. This host-side timer is only the backstop for a runner that did
+ * not, so it fires a little later and never races the runner's own report.
+ */
+const COMPLETION_BACKSTOP_SECONDS = 30;
+
+function completionTimeoutMs(policy: ExecutionPolicy): number {
+  return (policy.modelCallTimeoutSeconds + COMPLETION_BACKSTOP_SECONDS) * 1000;
+}
+
 export const DEFAULT_POLICY: ExecutionPolicy = {
   totalTokens: 120_000,
   maxRemoteCalls: 32,
   maxParallelWorkers: 3,
   maxOutputTokensPerCall: 16_000,
   runTimeoutSeconds: 600,
+  modelCallTimeoutSeconds: 300,
   requireVerifiedHostRuntime: true,
   maxCallsPerTool: 32,
   maxToolResponseBytes: 512 * 1024,
@@ -100,6 +135,11 @@ export function resolvePolicy(config: unknown): ExecutionPolicy {
       200_000,
     ),
     runTimeoutSeconds: positive(raw.runTimeoutSeconds, DEFAULT_POLICY.runTimeoutSeconds, 86_400),
+    modelCallTimeoutSeconds: positive(
+      raw.modelCallTimeoutSeconds,
+      DEFAULT_POLICY.modelCallTimeoutSeconds,
+      MAX_MODEL_CALL_TIMEOUT_SECONDS,
+    ),
     requireVerifiedHostRuntime: raw.requireVerifiedHostRuntime !== false,
     maxCallsPerTool: positive(raw.maxCallsPerTool, DEFAULT_POLICY.maxCallsPerTool, 10_000),
     maxToolResponseBytes: positive(
@@ -146,6 +186,13 @@ export type ExecutionServiceOptions = {
   /** The tool implementations this host registers, and how to describe them. */
   tools: () => { registry: ToolRegistry; definitions: readonly ToolBindingDefinition[] };
   /**
+   * The person's selected files, as host-held capabilities. A run is given
+   * the ones named at start and a file-reading tool can read nothing else.
+   */
+  files?: FileCapabilityStore;
+  /** The trusted PDF parser a `selected_file` binding hands bytes to. */
+  pdfReader?: () => PdfReader;
+  /**
    * Test seam: replace the broker's HTTP mechanics.
    *
    * It replaces transport only. Binding resolution, the destination policy,
@@ -159,8 +206,36 @@ export type ExecutionServiceOptions = {
     packageFd: number;
     artifactsFd: number;
     broker: ToolBroker;
+    onProgress?: (snapshot: Record<string, unknown>) => void;
   }) => Pick<ExecutionBridge, "run" | "cancel" | "probe">;
 };
+
+/** Project one runner progress snapshot into the bounded record view. */
+export function projectProgress(snapshot: Record<string, unknown>, elapsedMs: number): RunProgressViewType {
+  const ids = (value: unknown, max: number) =>
+    strings(value, max).map((item) => clip(item, 200));
+  return {
+    updatedAt: new Date().toISOString(),
+    events: int(snapshot.events),
+    lastAction: str(snapshot.last_action) ? clip(str(snapshot.last_action), 64) : null,
+    activeNodes: ids(snapshot.active_nodes, 64),
+    completedNodes: ids(snapshot.completed_nodes, 128),
+    failedNodes: ids(snapshot.failed_nodes, 64),
+    nodesCompleted: Math.max(0, int(snapshot.nodes_completed)),
+    stepsCompleted: Math.max(0, int(snapshot.steps_completed)),
+    workersSpawned: Math.max(0, int(snapshot.workers_spawned)),
+    workersActive: Math.max(0, int(snapshot.workers_active)),
+    peakParallelWorkers: Math.max(0, int(snapshot.peak_parallel_workers)),
+    activeWorkers: strings(snapshot.active_workers, 64).map((item) => clip(item, 128)),
+    modelCallsStarted: Math.max(0, int(snapshot.model_calls_started)),
+    modelCallsCompleted: Math.max(0, int(snapshot.model_calls_completed)),
+    toolCallsStarted: Math.max(0, int(snapshot.tool_calls_started)),
+    toolCallsCompleted: Math.max(0, int(snapshot.tool_calls_completed)),
+    tokens: Math.max(0, int(snapshot.tokens)),
+    remoteCalls: Math.max(0, int(snapshot.remote_calls)),
+    elapsedMs: Math.max(0, elapsedMs),
+  };
+}
 
 export class ExecutionService {
   readonly runs: RunManager;
@@ -174,11 +249,31 @@ export class ExecutionService {
     return Boolean(this.options.createBridge || this.options.llm());
   }
 
+  /** Resolve the files a run was given against its own session, or refuse. */
+  private attach(sessionId: string, fileIds: readonly string[] | undefined): Map<string, FileCapabilityView> {
+    if (!fileIds || fileIds.length === 0) return new Map();
+    if (!this.options.files) {
+      throw new AgentBrowserError(
+        "not_allowed",
+        "File selection is not available",
+        "This backend holds no selected-file store, so a run cannot be given files.",
+      );
+    }
+    return this.options.files.attach(sessionId, fileIds);
+  }
+
   // -- start ----------------------------------------------------------------
   async start(
     client: ControlPlaneClient,
     catalog: HostCatalog,
-    request: { sessionId: string; runPlanId: string; runPlanSha256: string; input: unknown },
+    request: {
+      sessionId: string;
+      runPlanId: string;
+      runPlanSha256: string;
+      input: unknown;
+      files?: readonly string[];
+      detach?: boolean;
+    },
   ): Promise<RunRecordViewType> {
     if (!this.available()) {
       throw new AgentBrowserError(
@@ -191,6 +286,9 @@ export class ExecutionService {
     const inputBytes = this.measureInput(request.input);
     this.runs.assertNoActiveRun(request.runPlanId, request.sessionId);
     this.checkHostRuntime();
+    // Every named file must be a live capability of this session, before
+    // anything is prepared; a path or another session's id is refused here.
+    const attached = this.attach(request.sessionId, request.files);
 
     // The same preflight the probe runs, plus the requirement that consent
     // outlast the whole run deadline. A margin covers spawn and preparation.
@@ -206,7 +304,7 @@ export class ExecutionService {
     });
 
     const runId = this.runs.newRunId();
-    const record = this.initialRecord(runId, request, preflight, inputBytes);
+    const record = this.initialRecord(runId, request, preflight, inputBytes, attached);
     const directory = await this.runs.prepareDirectory(runId);
     const entry = this.runs.register({
       view: record,
@@ -235,7 +333,10 @@ export class ExecutionService {
           "The control plane issued no lease for this run.",
         );
       }
-      return await this.execute(client, entry, preflight, request.input, path);
+      return await this.execute(client, entry, preflight, request.input, path, {
+        attached,
+        detach: request.detach === true,
+      });
     } catch (error) {
       this.finishWithError(entry, error);
       // `execute` releases the lease on every path it reaches; this covers the
@@ -251,13 +352,24 @@ export class ExecutionService {
     }
   }
 
-  /** One run's tool authority, built from the plan the preflight re-verified. */
-  private broker(preflight: PreflightOutcome): ToolBroker {
+  /**
+   * One run's tool authority, built from the plan the preflight re-verified.
+   *
+   * It holds exactly the bindings the plan froze and exactly the selected
+   * files this run was given; neither can grow after construction.
+   */
+  private broker(
+    preflight: PreflightOutcome,
+    attached: ReadonlyMap<string, FileCapabilityView> = new Map(),
+  ): ToolBroker {
     const { definitions } = this.options.tools();
     return new ToolBroker({
       bound: preflight.tools,
       definitions,
       logger: this.options.logger,
+      files: attached,
+      ...(this.options.files ? { fileStore: this.options.files } : {}),
+      ...(this.options.pdfReader ? { pdfReader: this.options.pdfReader() } : {}),
       ...(this.options.toolTransport ? { transport: this.options.toolTransport } : {}),
     });
   }
@@ -297,11 +409,25 @@ export class ExecutionService {
     );
   }
 
+  private task(input: unknown, inputBytes: number, attached: ReadonlyMap<string, FileCapabilityView>): RunTaskViewType {
+    return {
+      inputBytes,
+      ...(inputBytes <= MAX_ECHOED_INPUT_BYTES ? { input } : {}),
+      attachments: attachmentsOf(attached).map((file) => ({
+        fileId: file.file_id,
+        sha256: file.sha256,
+        bytes: file.bytes,
+        mediaType: file.media_type,
+      })),
+    };
+  }
+
   private initialRecord(
     runId: string,
-    request: { sessionId: string; runPlanId: string; runPlanSha256: string },
+    request: { sessionId: string; runPlanId: string; runPlanSha256: string; input: unknown },
     preflight: PreflightOutcome,
     inputBytes: number,
+    attached: ReadonlyMap<string, FileCapabilityView> = new Map(),
   ): RunRecordViewType {
     const binding = rec(preflight.binding);
     const pkg = rec(binding.package);
@@ -350,6 +476,7 @@ export class ExecutionService {
           maxParallelWorkers: policy.maxParallelWorkers,
           maxOutputTokensPerCall: policy.maxOutputTokensPerCall,
           runTimeoutSeconds: policy.runTimeoutSeconds,
+          modelCallTimeoutSeconds: policy.modelCallTimeoutSeconds,
         },
         effectiveDeadlineSeconds: null,
       },
@@ -375,6 +502,8 @@ export class ExecutionService {
         toolHandlersInstalled: preflight.tools.length,
         toolCalls: 0,
       },
+      task: this.task(request.input, inputBytes, attached),
+      progress: null,
       tools: preflight.tools.map((tool) => ({
         toolId: tool.toolId,
         bindingId: tool.bindingId,
@@ -391,6 +520,10 @@ export class ExecutionService {
     preflight: PreflightOutcome,
     input: unknown,
     leasePath: string,
+    options: { attached: ReadonlyMap<string, FileCapabilityView>; detach: boolean } = {
+      attached: new Map(),
+      detach: false,
+    },
   ): Promise<RunRecordViewType> {
     const policy = this.options.policy;
     const runId = entry.view.runId;
@@ -410,13 +543,34 @@ export class ExecutionService {
     // This run's tool authority: exactly the bindings its plan froze, held
     // here and never in the child. A run with no bound tool gets a broker with
     // nothing in it, so `tool.call` is refused rather than absent-but-possible.
-    const broker = this.broker(preflight);
+    const broker = this.broker(preflight, options.attached);
+    const startedMs = Date.now();
+    // Live progress, derived by the runner from its own audit. Identifiers and
+    // counts only; a terminal record is never rewritten by a late snapshot.
+    const onProgress = (snapshot: Record<string, unknown>) => {
+      const current = this.runs.get(runId);
+      if (!current || isTerminal(current.view.status)) return;
+      this.runs.update(runId, { progress: projectProgress(snapshot, Date.now() - startedMs) });
+    };
+    let signalBegun: (begin: Record<string, unknown>) => void = () => undefined;
+    const begun = new Promise<Record<string, unknown>>((resolve) => {
+      signalBegun = resolve;
+    });
+    const onBegin = (begin: Record<string, unknown>) => {
+      const invocation = rec(begin.invocation);
+      this.runs.update(runId, {
+        runInvocationSha256: str(invocation.run_invocation_sha256) || null,
+        inputSha256: str(invocation.input_sha256) || null,
+      });
+      signalBegun(begin);
+    };
     const bridge = this.options.createBridge
       ? this.options.createBridge({
           modelId: preflight.modelId,
           packageFd,
           artifactsFd,
           broker,
+          onProgress,
         })
       : new ExecutionBridge({
           agentpkgPath: this.options.agentpkgPath(),
@@ -426,9 +580,10 @@ export class ExecutionService {
           packageFd,
           artifactsFd,
           broker,
+          onProgress,
           limits: {
             maxOutputTokens: policy.maxOutputTokensPerCall,
-            completionTimeoutMs: Math.min(policy.runTimeoutSeconds, 600) * 1000,
+            completionTimeoutMs: completionTimeoutMs(policy),
             // The whole child outlives the run deadline, so a run that hits its
             // own deadline reports a timeout rather than a killed bridge.
             sessionTimeoutMs: (policy.runTimeoutSeconds + 120) * 1000,
@@ -437,6 +592,37 @@ export class ExecutionService {
     entry.bridge = bridge as ExecutionBridge;
     this.runs.update(runId, { status: "running", startedAt: new Date().toISOString() });
 
+    const running = this.drive(client, entry, preflight, input, bridge, options.attached, onBegin);
+    if (!options.detach) {
+      await running;
+      return this.runs.require(runId).view;
+    }
+    // Detached: answer once the runner has bound the plan (so a refusal is
+    // still returned to the caller), and let the run finish in the background.
+    const first = await Promise.race([
+      begun.then(() => "begun" as const),
+      running.then(
+        () => "ended" as const,
+        (error: unknown) => ({ error }),
+      ),
+    ]);
+    if (typeof first === "object") throw first.error;
+    running.catch(() => undefined);
+    return this.runs.require(runId).view;
+  }
+
+  /** Bind, run and settle one execution; records the outcome however it ends. */
+  private async drive(
+    client: ControlPlaneClient,
+    entry: ReturnType<RunManager["register"]>,
+    preflight: PreflightOutcome,
+    input: unknown,
+    bridge: Pick<ExecutionBridge, "run" | "cancel" | "probe">,
+    attached: ReadonlyMap<string, FileCapabilityView>,
+    onBegin: (begin: Record<string, unknown>) => void,
+  ): Promise<void> {
+    const policy = this.options.policy;
+    const runId = entry.view.runId;
     try {
       const outcome = await bridge.run({
         run_id: runId,
@@ -458,14 +644,16 @@ export class ExecutionService {
           max_output_tokens_per_call: policy.maxOutputTokensPerCall,
           run_timeout_seconds: policy.runTimeoutSeconds,
           max_calls_per_tool: policy.maxCallsPerTool,
+          model_call_timeout_seconds: policy.modelCallTimeoutSeconds,
         },
         input,
+        attachments: attachmentsOf(attached),
         host: {
           runtime: "openclaw",
           runtime_version: this.options.hostRuntimeVersion(),
           verified_version: VERIFIED_HOST_RUNTIME,
         },
-      });
+      }, { onBegin });
       this.applyOutcome(entry, outcome.begin, outcome.result);
     } catch (error) {
       this.finishWithError(entry, error);
@@ -481,7 +669,6 @@ export class ExecutionService {
       }
       await this.runs.persist(runId).catch(() => undefined);
     }
-    return this.runs.require(runId).view;
   }
 
   private applyOutcome(
@@ -524,7 +711,11 @@ export class ExecutionService {
         tokens: int(usage.tokens),
         remoteCalls: int(usage.remote_calls),
         peakParallelWorkers: int(usage.peak_parallel_workers),
-        toolCalls: Object.keys(rec(usage.tool_calls)).length,
+        // Every attempted dispatch, summed across tools.
+        toolCalls: Object.values(rec(usage.tool_calls)).reduce<number>(
+          (total, count) => total + int(count),
+          0,
+        ),
         limits: {
           hardTokens: int(rec(usage.limits).hard_tokens),
           maxRemoteCalls: int(rec(usage.limits).max_remote_calls),
@@ -623,6 +814,8 @@ export class ExecutionService {
       runPlanSha256: string;
       toolId: string;
       fixtureId?: string;
+      fileId?: string;
+      role?: string;
     },
   ): Promise<{ begin: Record<string, unknown>; report: Record<string, unknown> }> {
     if (!this.available()) {
@@ -659,6 +852,24 @@ export class ExecutionService {
         clip((error as Error).message, 1000),
       );
     }
+    // A file-reading fixture reads one capability the operator selected in
+    // this session, and nothing else; the id is the host's, never a path.
+    if (fixture.requiresFile && !request.fileId) {
+      throw new AgentBrowserError(
+        "invalid_request",
+        "This probe reads a selected file",
+        "Select a PDF for this session with files.select-local and pass its fileId.",
+      );
+    }
+    if (!fixture.requiresFile && request.fileId) {
+      throw new AgentBrowserError(
+        "invalid_request",
+        "This probe reads no file",
+        "Only a file-reading fixture takes a fileId.",
+      );
+    }
+    const attached = this.attach(request.sessionId, request.fileId ? [request.fileId] : []);
+    const args = fixture.requiresFile ? { file_id: request.fileId } : fixture.args;
     const runId = this.runs.newRunId();
     const directory = await this.runs.prepareDirectory(runId);
     const issued = rec(
@@ -691,7 +902,7 @@ export class ExecutionService {
       throw error;
     }
     const policy = this.options.policy;
-    const broker = this.broker(preflight);
+    const broker = this.broker(preflight, attached);
     const bridge = this.options.createBridge
       ? this.options.createBridge({
           modelId: preflight.modelId,
@@ -709,7 +920,7 @@ export class ExecutionService {
           broker,
           limits: {
             maxOutputTokens: policy.maxOutputTokensPerCall,
-            completionTimeoutMs: Math.min(policy.runTimeoutSeconds, 600) * 1000,
+            completionTimeoutMs: completionTimeoutMs(policy),
             sessionTimeoutMs: (policy.runTimeoutSeconds + 120) * 1000,
           },
         });
@@ -733,23 +944,30 @@ export class ExecutionService {
             max_output_tokens_per_call: policy.maxOutputTokensPerCall,
             run_timeout_seconds: policy.runTimeoutSeconds,
             max_calls_per_tool: policy.maxCallsPerTool,
+            model_call_timeout_seconds: policy.modelCallTimeoutSeconds,
           },
           // The probe never reaches the graph, so the input is only what the
           // package's own input schema has to accept for `begin` to succeed.
           input: fixture.workflowInput,
+          attachments: attachmentsOf(attached),
           host: {
             runtime: "openclaw",
             runtime_version: this.options.hostRuntimeVersion(),
             verified_version: VERIFIED_HOST_RUNTIME,
           },
         },
-        { toolId: request.toolId, args: fixture.args },
+        { toolId: request.toolId, args, ...(request.role ? { role: request.role } : {}) },
       );
       return {
         ...outcome,
         report: {
           ...outcome.report,
-          fixture: { id: fixture.id, tool_id: request.toolId, source: "host_owned" },
+          fixture: {
+            id: fixture.id,
+            tool_id: request.toolId,
+            source: "host_owned",
+            file_id: request.fileId ?? null,
+          },
           revalidated: preflight.revalidated,
           transport: {
             ...rec(outcome.report.transport),

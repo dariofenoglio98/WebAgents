@@ -69,19 +69,32 @@ def _output_summary(value) -> dict:
     return {"kind": kind, "keys": keys, "size": size}
 
 
-def _role_for(package, tool_id: str) -> str:
+def _role_for(package, tool_id: str, requested: str | None = None) -> str:
     """The one declared role allowed to call this tool, or a refusal.
 
     The coordinator is preferred when it declares the tool, because then the
     probe needs no worker at all. Otherwise exactly one non-coordinator role
     must declare it: two roles would make "which authority was this attributed
     to" a choice this module is not entitled to make.
+
+    When more than one does, the trusted host that asked for the probe names
+    the role, and it must be one the package itself declares for this tool and
+    approves for delegation. The choice is then the operator's and is recorded
+    in the report, rather than being made here.
     """
     coordinator = package.graph["coordinator"]
     roles = [worker["id"] for worker in package.graph["workers"] if tool_id in worker["tools"]]
+    approved = set(package.policy["delegation"]["approved_roles"])
+    if requested is not None:
+        if requested not in roles or (requested != coordinator and requested not in approved):
+            raise ExecutionError(
+                TOOL_PERMISSION_DENIED,
+                f"Role {requested!r} does not declare {tool_id!r} with approved authority.",
+                detail={"tool_id": tool_id, "roles": sorted(roles)},
+            )
+        return requested
     if coordinator in roles:
         return coordinator
-    approved = set(package.policy["delegation"]["approved_roles"])
     usable = sorted(role for role in roles if role in approved)
     if not usable:
         raise ExecutionError(
@@ -94,7 +107,7 @@ def _role_for(package, tool_id: str) -> str:
         raise ExecutionError(
             TOOL_PERMISSION_DENIED,
             f"More than one role declares {tool_id!r}; a probe must not choose which authority "
-            "a call is attributed to.",
+            "a call is attributed to, so the host must name one.",
             detail={"tool_id": tool_id, "roles": usable},
         )
     return usable[0]
@@ -112,6 +125,7 @@ async def run_tool_probe(
     tool_id: str,
     args,
     invocation: dict | None,
+    role: str | None = None,
 ) -> dict:
     """Execute one mediated tool call and report exactly what happened."""
     started = datetime.now(UTC)
@@ -136,7 +150,8 @@ async def run_tool_probe(
             TOOL_NOT_APPROVED, f"Tool {tool_id!r} was not approved.", detail={"tool_id": tool_id}
         )
     declaration = package.tools[tool_id]
-    role = _role_for(package, tool_id)
+    requested_role = role
+    role = _role_for(package, tool_id, requested_role)
 
     runtime = Runtime(
         package,
@@ -165,6 +180,9 @@ async def run_tool_probe(
         ToolBridgeError,
         AgentPkgError,
         asyncio.CancelledError,
+        # The declared tool timeout elapsing is an outcome of the probe, not a
+        # fault of the runner: a slow service is reported as `timeout`.
+        TimeoutError,
     ) as exc:
         error = exc
     finally:
@@ -184,7 +202,11 @@ async def run_tool_probe(
     report = {
         "schema": TOOL_PROBE_SCHEMA,
         "status": "ok" if error is None else "failed",
-        "error_code": None if error is None else getattr(error, "code", type(error).__name__),
+        "error_code": None
+        if error is None
+        else "timeout"
+        if isinstance(error, TimeoutError)
+        else getattr(error, "code", type(error).__name__),
         "run_plan_id": plan["run_plan_id"],
         "run_plan_sha256": plan["run_plan_sha256"],
         "session_id": plan.get("session_id"),
@@ -225,6 +247,7 @@ async def run_tool_probe(
         },
         "authority": {
             "role": role,
+            "role_named_by_host": requested_role is not None,
             "worker_context": role != package.graph["coordinator"],
             "approved": True,
             "approval_source": binding.get("approval_source"),
@@ -287,8 +310,9 @@ async def run_tool_probe(
     }
     if error is not None:
         raise ExecutionError(
-            getattr(error, "code", "tool_probe_failed")
-            if isinstance(getattr(error, "code", None), str)
+            report["error_code"]
+            if isinstance(report["error_code"], str)
+            and (isinstance(error, TimeoutError) or isinstance(getattr(error, "code", None), str))
             else "tool_probe_failed",
             f"The tool probe failed: {type(error).__name__}",
             detail={"report": report},

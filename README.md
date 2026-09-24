@@ -9,7 +9,7 @@ The same interpreter executes both [`literature-review.agent.pkg`](dist/literatu
 agentpkg/.venv/bin/python -m pip install -e './agentpkg[dev]'
 agentpkg/.venv/bin/agentpkg inspect dist/meeting-agenda.agent.pkg
 agentpkg/.venv/bin/agentpkg verify dist/literature-review.agent.pkg \
-  --trust-key examples/keys/workflow-publisher.pub.pem
+  --trust-key examples/keys/literature-review-publisher.pub.pem
 agentpkg/.venv/bin/agentpkg verify dist/meeting-agenda.agent.pkg \
   --trust-key examples/keys/meeting-agenda-publisher.pub.pem
 agentpkg/.venv/bin/agentpkg run dist/literature-review.agent.pkg \
@@ -28,7 +28,7 @@ and the runtime refuses any tool that lacks one.
 
 Use new output directories. Fixture mode uses package-owned exact-input replay, performs no network/model inference, and reports synthetic usage. Its purpose is deterministic execution and enforcement testing. Supply `--input FILE.json` to use explicit input; a changed input needs matching fixture cases or a host model adapter. The example public keys establish development provenance, not independent certification.
 
-**The two shipped artifacts no longer share a signer.** `meeting-agenda` 0.2.1 carries a rotated development key (`sha256:2bcc374a…c5c4`) because its local-model timing policy had to change and the original key's private half exists on no machine here; `literature-review` still carries the original (`sha256:c7549e61…5a70`). Each must be pinned separately, and a host that trusted one does not thereby trust the other — [why, and what the trust store said about it](docs/package-execution-report.md#64-the-signing-key-rotation-and-what-the-host-made-of-it). Private signing keys live outside this repository.
+**Each shipped artifact has its own signer.** `meeting-agenda` 0.2.1 carries a rotated development key (`sha256:2bcc374a…c5c4`) and `literature-review` 0.2.1 another (`sha256:c5ca9763…5232`), because both packages' local-model policy had to change and the original key's private half exists on no machine here. The original key (`sha256:c7549e61…5a70`) still signs the preserved 0.2.0 artifacts. Each must be pinned separately, and a host that trusted one does not thereby trust another — [why, and what the trust store said about it](docs/package-execution-report.md#64-the-signing-key-rotation-and-what-the-host-made-of-it), and [the Literature Review rotation](docs/literature-review-execution-report.md). Private signing keys live outside this repository.
 
 The runtime executes acyclic graphs with `llm`, `tool`, bounded `map`, `join`, `validate` and `output` nodes. Copied state views, declared writes, atomic wave commits, schema/relationship checks, permissions, global/worker budgets, deadlines, cancellation and structured audit all use generic machinery. Data-only packages never install executable code. Citation Resolver remains the existing standalone remote service.
 
@@ -131,10 +131,12 @@ declared `citation-resolver`, through a host binding it could not name, at the
 exact origin its own manifest declares, under a permission and an approval given
 separately — one tool call, one remote call, zero tokens, zero model calls, zero
 workflow workers, a valid 15-event audit chain, and real Crossref metadata with
-BibTeX validated against the package's own output schema. The other two tools it
-declares have no implementation here, so a model-backed run plan for that package
-is still refused *by name*; the probe runs under a strictly smaller `tool_probe`
-authority that binds one tool and no model at all. The [tool-broker
-report](docs/tool-broker-report.md) has the numbers and the refusals.
+BibTeX validated against the package's own output schema. The probe runs under a
+strictly smaller `tool_probe` authority that binds one tool and no model at all.
+The [tool-broker report](docs/tool-broker-report.md) has the numbers and the
+refusals. (In 3B3 the other two tools had no implementation, so a model run plan
+for that package was refused by name; 3B4 supplied both — see below.)
 
-The existing [OpenClaw staging adapter](docs/openclaw-integration.md) still verifies and stages either package. Implementations for `scholarly-search` and `paper-reader` — and therefore Literature Review execution — a user-facing Run action and live audit UI, per-worker or per-node model routing, persistent run history, Muse-specific connectors, Instinct, Maritime, NANDA, registries and marketplace features are not implemented in this milestone.
+The **Literature Review agent has now run for real** (milestone 3B4): `literature-review` 0.2.1, signed by its own key, completed through the signed graph on a local `ollama/qwen3:30b` against live Crossref and the live Citation Resolver — 16 model calls all on the bound model, 3 searches, 3 resolutions, peak 3 concurrent workers, 120,242 tokens, $0, a valid 404-event audit, every package assertion and 28 of 28 independent acceptance checks passing, and the run plan byte-identical afterwards. Getting there took two new host tools (a Crossref adapter whose request shape is host code, and a reader of operator-selected PDFs by opaque capability), a measured bounded-work and timing policy, an output contract stated where the package's own validation already required it, and three refused attempts, each classified from its audit. The [milestone report](docs/literature-review-execution-report.md) has every change, the evidence behind it, the model comparison, the runs and what the agent wrote.
+
+The existing [OpenClaw staging adapter](docs/openclaw-integration.md) still verifies and stages either package. A user-facing Run action and live audit UI, per-worker or per-node model routing, persistent run history, browser file upload, Muse-specific connectors, Instinct, Maritime, NANDA, registries and marketplace features are not implemented yet.

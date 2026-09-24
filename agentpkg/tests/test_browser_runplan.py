@@ -11,7 +11,7 @@ import json
 from pathlib import Path
 
 import pytest
-from shipped_keys import AGENDA_KEY, DIST, ORIGINAL_KEY
+from shipped_keys import AGENDA_KEY, DIST, LITERATURE_KEY, ORIGINAL_KEY
 from tool_fakes import registry_for
 
 from agentpkg.browser import ControlPlane, ControlPlaneConfig, ControlPlaneError
@@ -30,8 +30,8 @@ def plane(tmp_path, *, trusted=True, **overrides) -> ControlPlane:
         )
     )
     if trusted:
-        # The two shipped artifacts carry two different signer keys; a plane
-        # that opens either one pins both, each as its own explicit decision.
+        # The shipped artifacts carry different signer keys; a plane that
+        # opens any of them pins each key as its own explicit decision.
         control.trust_add(
             read_public_key_file(ORIGINAL_KEY),
             display_name="WebAgents development key",
@@ -42,6 +42,12 @@ def plane(tmp_path, *, trusted=True, **overrides) -> ControlPlane:
             display_name="WebAgents Meeting Agenda signing key",
             publisher_id="webagents-research",
             package_id_prefix="org.webagents.meeting-agenda",
+        )
+        control.trust_add(
+            read_public_key_file(LITERATURE_KEY),
+            display_name="WebAgents Literature Review signing key",
+            publisher_id="webagents-research",
+            package_id_prefix="org.webagents.literature-review",
         )
     return control
 

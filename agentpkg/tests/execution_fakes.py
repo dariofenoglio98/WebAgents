@@ -188,6 +188,9 @@ class FakeExecutionHost:
         self.delay = delay
         self.fail_with = fail_with
         self.requests: list[tuple[str, dict]] = []
+        # Live progress snapshots, kept apart from the model/tool requests a
+        # test counts: observation is not a request for work.
+        self.progress: list[dict] = []
         self.peer = BridgePeer(
             reader,
             writer,
@@ -199,6 +202,9 @@ class FakeExecutionHost:
         )
 
     async def handle(self, method: str, params: dict) -> dict:
+        if method == execution_protocol.PROGRESS_METHOD:
+            self.progress.append(params)
+            return {"accepted": True}
         self.requests.append((method, params))
         if method == "model.count_tokens":
             return {"supported": False, "detail": "This test host exposes no tokenizer."}

@@ -50,6 +50,11 @@ DEFAULT_MAX_PARALLEL_WORKERS = 3
 DEFAULT_MAX_OUTPUT_TOKENS_PER_CALL = 16_000
 DEFAULT_RUN_TIMEOUT_SECONDS = 600
 DEFAULT_MAX_CALLS_PER_TOOL = 32
+# How long one model completion may take, queueing at the model server
+# included. A local server that decodes one request at a time answers the third
+# of three concurrent workers only after the other two, so an operator running
+# one raises this; the package's own node timeouts still bound every call.
+DEFAULT_MODEL_CALL_TIMEOUT_SECONDS = 300
 
 MAX_TOTAL_TOKENS = 10_000_000
 MAX_REMOTE_CALLS = 10_000
@@ -57,6 +62,7 @@ MAX_PARALLEL_WORKERS = 64
 MAX_OUTPUT_TOKENS_PER_CALL = 200_000
 MAX_RUN_TIMEOUT_SECONDS = 86_400
 MAX_CALLS_PER_TOOL = 10_000
+MAX_MODEL_CALL_TIMEOUT_SECONDS = 3_600
 
 
 def _bounded(value, field: str, *, default: int, maximum: int) -> int:
@@ -79,6 +85,7 @@ class HostExecutionLimits:
     max_output_tokens_per_call: int = DEFAULT_MAX_OUTPUT_TOKENS_PER_CALL
     run_timeout_seconds: int = DEFAULT_RUN_TIMEOUT_SECONDS
     max_calls_per_tool: int = DEFAULT_MAX_CALLS_PER_TOOL
+    model_call_timeout_seconds: int = DEFAULT_MODEL_CALL_TIMEOUT_SECONDS
 
     @classmethod
     def normalize(cls, raw) -> HostExecutionLimits:
@@ -93,6 +100,7 @@ class HostExecutionLimits:
             "max_output_tokens_per_call",
             "run_timeout_seconds",
             "max_calls_per_tool",
+            "model_call_timeout_seconds",
         }
         unknown = sorted(set(raw) - allowed)
         if unknown:
@@ -134,6 +142,12 @@ class HostExecutionLimits:
                 default=DEFAULT_MAX_CALLS_PER_TOOL,
                 maximum=MAX_CALLS_PER_TOOL,
             ),
+            model_call_timeout_seconds=_bounded(
+                raw.get("model_call_timeout_seconds"),
+                "model_call_timeout_seconds",
+                default=DEFAULT_MODEL_CALL_TIMEOUT_SECONDS,
+                maximum=MAX_MODEL_CALL_TIMEOUT_SECONDS,
+            ),
         )
 
     def runtime_limits(self) -> dict:
@@ -153,6 +167,7 @@ class HostExecutionLimits:
             "max_output_tokens_per_call": self.max_output_tokens_per_call,
             "run_timeout_seconds": self.run_timeout_seconds,
             "max_calls_per_tool": self.max_calls_per_tool,
+            "model_call_timeout_seconds": self.model_call_timeout_seconds,
         }
 
 

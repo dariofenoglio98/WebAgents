@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import http.client
-import io
 import json
 import multiprocessing
 import os
@@ -18,6 +17,7 @@ from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import urlencode, urlsplit
 
+from .hostfiles.pdf import PdfLimits, PdfRefused, extract_text
 from .netaddr import public_address_reason
 from .runtime import PolicyError
 
@@ -136,33 +136,31 @@ def _text(value):
     return " ".join("".join(parser.parts).split()) or None
 
 
+# The development CLI's own bounds, unchanged: 100 pages and 1 MiB of text.
+# The parser itself is shared with the host broker's `agentpkg host-pdf-read`.
+LEGACY_PDF_LIMITS = PdfLimits(
+    max_bytes=MAX_PDF_BYTES,
+    max_pages=100,
+    max_page_text_bytes=1024 * 1024,
+    max_total_text_bytes=1024 * 1024,
+    cpu_seconds=10,
+    address_space_bytes=512 * 1024 * 1024,
+)
+
+
 def _pdf_child(data, connection):
     try:
         # A killable child bounds parser CPU and address-space consumption on POSIX.
         import resource
-
-        from pypdf import PdfReader
 
         resource.setrlimit(resource.RLIMIT_CPU, (10, 10))
         try:
             resource.setrlimit(resource.RLIMIT_AS, (512 * 1024 * 1024, 512 * 1024 * 1024))
         except (ValueError, OSError):
             pass  # macOS can decline RLIMIT_AS; parent timeout/byte/page caps still apply.
-        reader = PdfReader(io.BytesIO(data), strict=True)
-        if reader.is_encrypted:
-            raise ValueError("Encrypted PDF unsupported")
-        if len(reader.pages) > 100:
-            raise ValueError("PDF exceeds 100-page limit")
-        pages, total = [], 0
-        for i, page in enumerate(reader.pages, 1):
-            text = page.extract_text() or ""
-            total += len(text.encode())
-            if total > 1024 * 1024:
-                raise ValueError("PDF extracted text exceeds 1 MiB limit")
-            pages.append({"page": i, "text": text})
-        connection.send(
-            {"pages": pages, "sha256": hashlib.sha256(data).hexdigest(), "source": "user_pdf"}
-        )
+        connection.send(extract_text(data, LEGACY_PDF_LIMITS))
+    except PdfRefused as exc:
+        connection.send({"error": exc.code})
     except BaseException as exc:
         connection.send({"error": type(exc).__name__})
     finally:

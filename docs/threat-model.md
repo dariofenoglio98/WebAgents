@@ -187,6 +187,26 @@ service returns — a resolved identifier is a retrieval, not a verification of
 the work behind it.
 
 
+## Scholarly search, selected files and pacing (3B4)
+
+The broker gained its first adapter that shapes a request from package
+values, its first capability over a person's own files, and a pacer. Each one
+is a new way for package data to reach something, so each gets an entry.
+
+| Threat | Control and remaining limit |
+|---|---|
+| Package arguments shaping a request | The Crossref adapter reads exactly `query` and `limit` and refuses any other argument name; origin, path, method, parameter names, the selected field list and the headers are host constants. Values are percent-encoded as values. The mapping is identified by `implementation_id`/`implementation_version` (in the binding digest) and fingerprinted by a test, so it cannot drift without a version bump. |
+| Upstream metadata carrying markup or instructions | Titles and abstracts are rendered to plain text with the Citation Resolver's own rules (a tested port of CPython's `HTMLParser` data path + `html.unescape`): markup is dropped, nothing is executed or fetched, and scripts' text is data. The package treats all of it as untrusted data; its evidence checks require verbatim quotes. A model can still be misled by text it reads — capability enforcement never relies on model obedience. |
+| A service's rate limit turning into a failed run, or the host abusing a service | Per-binding `max_concurrent` and `min_interval_ms`, enforced process-wide; calls wait their turn inside their deadline instead of being refused, and nothing is retried. Crossref's advertised public-pool limits (concurrency 1, 1 request/s) are honoured. A sporadic 429 still fails the call as `tool_unavailable`. |
+| A package naming a file to read | A package can only pass a string. Only ids of capabilities the operator selected for this session *and* attached to this run resolve; paths, traversal, `~`, `file://`, other sessions' ids and unknown ids get one indistinguishable refusal before any open. No path reaches a package, plan, audit, report, model or result. |
+| Selection-time substitution (symlink, swap, growth, TOCTOU) | Selection requires a regular non-symlink file inside a configured root (realpath), opens it `O_NOFOLLOW`, checks the opened inode is the one checked, bounds bytes while reading, requires `%PDF-`, and copies it once into a `0400` file in a `0700` directory; every read re-verifies size and SHA-256. A copy that changed is refused, not parsed. |
+| A hostile PDF | Parsed in a separate short-lived process given bytes on stdin and a minimal environment; it caps CPU, file size (zero) and address space (where the kernel allows), refuses encrypted documents and page/text excess, and does no OCR, rendering, script execution, link following or attachment extraction. The parent adds a deadline, SIGKILL on cancel, an output cap and a hash check of the answer. This is resource isolation for a trusted parser, not an OS sandbox; a parser vulnerability could still execute in that process with the operator's privileges. |
+| Selected files lingering | Capabilities are in-memory, bounded (16 files, 64 MiB per session), expire with the session TTL, are released when the session closes, and the private directory is emptied at start and stop. |
+| Progress as a side channel | `execution.progress` carries identifiers and counts derived from the audit — node ids, worker ids, call counts, tokens — never content, and the parent only records it. Node and worker ids can still reveal a graph's shape, as the audit already does. |
+| Result selection steered by the package | The Crossref filter to scholarly work types is a host constant beside the selected fields; a package cannot widen it to supplementary files, reviews of other works or datasets, nor narrow it. It is part of implementation 0.2.0 and the fingerprinted mapping. |
+| A slow or queued model call held open indefinitely | One completion is bounded by the operator's `modelCallTimeoutSeconds` (queueing at the model server included); the runner then cancels it, the cancellation aborts the provider request, and a host timer 30 s later is the backstop. The package's node timeouts and the run deadline still apply, and a call that outruns its declared output cap halts the run rather than being accepted. |
+| Provider or service text reaching the audit through failures | A failed call records only the failing adapter's identifier-shaped code (`bridge_timeout`, `tool_unavailable`, …) as `reason`, never an error message; a refused call records which bound refused it (`context_window`, `worker_token_budget`, `global_token_budget`) and the numbers, never the request; a failed validation records the package-declared check (assertion index, kind, compared JSON pointers), never the values it compared. |
+
 ## workflow.v0 boundary
 
 The generic interpreter accepts only the closed graph/data-constructor vocabulary.

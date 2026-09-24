@@ -58,12 +58,17 @@ MAX_NOTES = 32
 MAX_KINDS = 16
 
 # Implementation categories this host understands. They are *categories*, not
-# services: `json_http` is "one exact JSON request to one exact configured
-# origin, path and method", and `local_builtin` is "an implementation that ships
-# with the host and performs no I/O". Adding a service never adds a category.
+# services: `json_http` is "one exact HTTPS request to one exact configured
+# origin, path and method", `local_builtin` is "an implementation that ships
+# with the host and performs no I/O", and `selected_file` is "a local
+# implementation that reads only files the person explicitly selected for this
+# run, by opaque host-held capability, and nothing else". Adding a service
+# never adds a category; adding a way of reaching a resource does.
 KIND_JSON_HTTP = "json_http"
 KIND_LOCAL_BUILTIN = "local_builtin"
-IMPLEMENTATION_KINDS = (KIND_JSON_HTTP, KIND_LOCAL_BUILTIN)
+KIND_SELECTED_FILE = "selected_file"
+IMPLEMENTATION_KINDS = (KIND_JSON_HTTP, KIND_LOCAL_BUILTIN, KIND_SELECTED_FILE)
+REMOTE_KINDS = (KIND_JSON_HTTP,)
 
 # Verdicts. `unverified` exists for the same reason it exists for models:
 # collapsing "the host did not say" into either boolean would misinform the
@@ -256,13 +261,13 @@ def normalize_binding(raw, *, index: int) -> dict:
             f"{field}.implementation_kind must be one of {list(IMPLEMENTATION_KINDS)}",
         )
     remote = _flag(record["remote"], f"{field}.remote")
-    if (kind == KIND_JSON_HTTP) is not remote:
+    if (kind in REMOTE_KINDS) is not remote:
         # A local implementation that calls out, or a remote one that claims to
         # be local, would make the remote-call budget meaningless.
         raise ControlPlaneError(
             "invalid_request",
-            f"{field}: {KIND_JSON_HTTP} bindings are remote and {KIND_LOCAL_BUILTIN} "
-            "bindings are local; the two must agree",
+            f"{field}: {KIND_JSON_HTTP} bindings are remote and {KIND_LOCAL_BUILTIN} / "
+            f"{KIND_SELECTED_FILE} bindings are local; the two must agree",
         )
     endpoint_raw = record.get("endpoint")
     if remote:
@@ -323,7 +328,13 @@ def normalize_binding(raw, *, index: int) -> dict:
     limits_record = _fields(
         record.get("limits") or {},
         f"{field}.limits",
-        {"timeout_seconds", "max_request_bytes", "max_response_bytes", "max_concurrent"},
+        {
+            "timeout_seconds",
+            "max_request_bytes",
+            "max_response_bytes",
+            "max_concurrent",
+            "min_interval_ms",
+        },
     )
     limits = {
         "timeout_seconds": _count(
@@ -341,6 +352,11 @@ def normalize_binding(raw, *, index: int) -> dict:
         ),
         "max_concurrent": _count(
             limits_record.get("max_concurrent"), f"{field}.limits.max_concurrent", maximum=64
+        ),
+        # A service's own rate limit, honoured by the host. Part of what the
+        # binding would do, so it is part of its digest.
+        "min_interval_ms": _count(
+            limits_record.get("min_interval_ms"), f"{field}.limits.min_interval_ms", maximum=60_000
         ),
     }
 
@@ -947,6 +963,7 @@ __all__ = [
     "IMPLEMENTATION_KINDS",
     "KIND_JSON_HTTP",
     "KIND_LOCAL_BUILTIN",
+    "KIND_SELECTED_FILE",
     "REGISTRY_SCHEMA",
     "TOOL_STATUSES",
     "binding_digest",

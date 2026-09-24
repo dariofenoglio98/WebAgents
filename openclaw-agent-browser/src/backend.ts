@@ -7,8 +7,8 @@
  * only ever invokes the typed operations in `contract.ts`.
  */
 import { realpath } from "node:fs/promises";
-import { isAbsolute, resolve as resolvePath, sep } from "node:path";
-import type { ServiceStatusView } from "./contract.js";
+import { isAbsolute, join, resolve as resolvePath, sep } from "node:path";
+import type { FileCapabilityViewType, ServiceStatusView } from "./contract.js";
 import { ControlPlaneClient, type ControlPlaneTransport } from "./control-plane.js";
 import { AgentBrowserError, asFeatureError, clip } from "./errors.js";
 import {
@@ -42,6 +42,8 @@ import { projectProbe } from "./router-probe.js";
 import { revalidate } from "./preflight.js";
 import { RouterBridge, type BridgeLimits } from "./router-bridge.js";
 import { ExecutionService, resolvePolicy, type ExecutionPolicy } from "./execution.js";
+import { FileCapabilityStore } from "./file-capabilities.js";
+import { spawnPdfReader, type PdfReader } from "./pdf-reader.js";
 import {
   ControlPlaneSupervisor,
   resolveAgentpkgPath,
@@ -52,6 +54,12 @@ import {
 export type BackendConfig = {
   agentpkgPath?: string;
   localPackages?: { roots?: string[]; includeWorkspace?: boolean };
+  /**
+   * Directories an operator may select PDFs from for a run. Empty by default:
+   * no file is selectable until an operator names a directory, and the
+   * workspace is never implied.
+   */
+  localFiles?: { roots?: string[] };
   sessionTtlSeconds?: number;
   maxSessions?: number;
   /** Trusted host bounds for a run. They can only lower package declarations. */
@@ -100,6 +108,8 @@ export type BackendOptions = {
   toolDefinitions?: readonly ToolBindingDefinition[];
   /** Test seam: replace the broker's HTTP mechanics, never its policy. */
   toolTransport?: ToolHttpTransport;
+  /** Test seam: replace PDF parsing, never the capability checks around it. */
+  pdfReader?: PdfReader;
 };
 
 type ExecutionServiceSeam = NonNullable<
@@ -189,9 +199,11 @@ export async function resolveLocalPackage(
 export class AgentBrowserBackend {
   private supervisor: ControlPlaneSupervisor | null = null;
   private roots: string[] = [];
+  private fileRoots: string[] = [];
   private stopped = false;
   private agentpkgPath: string | null = null;
   private execution: ExecutionService | null = null;
+  private files: FileCapabilityStore | null = null;
 
   constructor(private readonly options: BackendOptions) {}
 
@@ -206,8 +218,16 @@ export class AgentBrowserBackend {
       roots.push(resolvePath(this.options.workspaceDir));
     }
     this.roots = [...new Set(roots)].slice(0, 8);
+    const fileRoots = Array.isArray(config.localFiles?.roots)
+      ? config.localFiles.roots.filter((item) => typeof item === "string" && isAbsolute(item))
+      : [];
+    this.fileRoots = [...new Set(fileRoots.map((item) => resolvePath(item)))].slice(0, 8);
 
     const runtimeDir = resolvePath(this.options.stateDir, "agent-browser");
+    const ttlSeconds = positiveInt(config.sessionTtlSeconds, 900, 86_400);
+    this.files = new FileCapabilityStore(join(runtimeDir, "files"), { ttlSeconds });
+    await this.files.initialize();
+    const files = this.files;
     this.execution = new ExecutionService({
       agentpkgPath: () => this.requireAgentpkgPath(),
       llm: () => this.options.llm,
@@ -216,6 +236,16 @@ export class AgentBrowserBackend {
       policy: resolvePolicy(config.execution),
       hostRuntimeVersion: () => this.options.modelHost?.runtimeVersion ?? null,
       tools: () => this.toolHost(),
+      files,
+      // The trusted parser a selected-file binding hands bytes to: one short
+      // process per call, given bytes on stdin and nothing else.
+      pdfReader: () =>
+        this.options.pdfReader ??
+        spawnPdfReader({
+          agentpkgPath: this.requireAgentpkgPath(),
+          timeoutMs: 30_000,
+          maxOutputBytes: 512 * 1024,
+        }),
       ...(this.options.toolTransport ? { toolTransport: this.options.toolTransport } : {}),
       ...(this.options.createExecutionBridge
         ? { createBridge: this.options.createExecutionBridge }
@@ -255,6 +285,7 @@ export class AgentBrowserBackend {
     // Runs in flight end here rather than outliving the plugin: their child is
     // about to lose its parent, and run state is deliberately not persistent.
     await this.execution?.stopAll();
+    await this.files?.stop();
     await this.supervisor?.stop();
   }
 
@@ -320,6 +351,7 @@ export class AgentBrowserBackend {
       // operations, which is a different fact and a different field.
       executionSupported: false,
       executionOperations: Boolean(this.execution?.available()),
+      fileSelection: snapshot.state === "running" && this.fileRoots.length > 0,
       ...extra,
     };
     return view;
@@ -438,9 +470,49 @@ export class AgentBrowserBackend {
   closeSession(sessionId: string) {
     return guard(async () => {
       await (await this.client()).closeSession(sessionId);
+      // A session's selected files die with it.
+      await this.files?.releaseSession(sessionId);
       this.options.onChange?.("packages");
       return { sessionId, closed: true };
     });
+  }
+
+  // -- selected files (operator only; the page never calls these) ------------
+  /**
+   * Select one local PDF for a package session.
+   *
+   * The path is operator input, resolved inside operator-configured roots, and
+   * stays in this process. What comes back is an opaque id, a hash and a size.
+   */
+  selectFile(sessionId: string, path: string) {
+    return guard(async (): Promise<FileCapabilityViewType> => {
+      // The session must exist: a capability is bound to one package session.
+      await (await this.client()).getPackage(sessionId);
+      return this.requireFiles().selectLocal(sessionId, path, this.fileRoots);
+    });
+  }
+
+  listFiles(sessionId: string) {
+    return guard(async () => ({ files: this.requireFiles().list(sessionId) }));
+  }
+
+  releaseFile(sessionId: string, fileId: string) {
+    return guard(async () => ({
+      fileId,
+      released: await this.requireFiles().release(sessionId, fileId),
+    }));
+  }
+
+  private requireFiles(): FileCapabilityStore {
+    if (!this.files || this.stopped) {
+      throw new AgentBrowserError(
+        "service_unavailable",
+        "Agent Browser service unavailable",
+        "The Agent Browser backend is not running.",
+        true,
+      );
+    }
+    return this.files;
   }
 
   listSessions() {
@@ -513,6 +585,8 @@ export class AgentBrowserBackend {
     runPlanSha256: string,
     toolId: string,
     fixtureId?: string,
+    fileId?: string,
+    role?: string,
   ) {
     return guard(async () => {
       const execution = this.requireExecution();
@@ -524,6 +598,8 @@ export class AgentBrowserBackend {
         runPlanSha256,
         toolId,
         ...(fixtureId ? { fixtureId } : {}),
+        ...(fileId ? { fileId } : {}),
+        ...(role ? { role } : {}),
       });
       const view = projectToolProbe(outcome.report);
       this.options.logger.info("agent-browser: tool probe completed", {
@@ -712,6 +788,9 @@ export class AgentBrowserBackend {
         sessionId,
         runPlanId,
         runPlanSha256,
+        // A plan that binds tools is re-checked against what this host
+        // implements now, as execution does, even though the probe calls none.
+        toolRegistry: this.toolHost().registry,
       });
       const bridge = this.options.createBridge
         ? this.options.createBridge({ modelId: preflight.modelId })
@@ -764,7 +843,14 @@ export class AgentBrowserBackend {
    * model, the budgets — comes from the signed package, the run plan and this
    * host's own policy. This is not a general completion endpoint.
    */
-  startExecution(sessionId: string, runPlanId: string, runPlanSha256: string, input: unknown) {
+  startExecution(
+    sessionId: string,
+    runPlanId: string,
+    runPlanSha256: string,
+    input: unknown,
+    files?: readonly string[],
+    detach?: boolean,
+  ) {
     return guard(async () => {
       const execution = this.requireExecution();
       const client = await this.client();
@@ -774,9 +860,11 @@ export class AgentBrowserBackend {
         runPlanId,
         runPlanSha256,
         input,
+        ...(files && files.length > 0 ? { files } : {}),
+        ...(detach ? { detach: true } : {}),
       });
       this.options.onChange?.("execution");
-      this.options.logger.info("agent-browser: execution finished", {
+      this.options.logger.info(detach ? "agent-browser: execution started" : "agent-browser: execution finished", {
         run: record.runId,
         status: record.status,
         model: record.selectedModel.hostModelId,

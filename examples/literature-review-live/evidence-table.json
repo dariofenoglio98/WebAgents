@@ -1,0 +1,142 @@
+[
+  {
+    "category": "method",
+    "evidence_id": "method-1",
+    "extraction_worker": "assistant",
+    "location": {
+      "page": null,
+      "section": "abstract"
+    },
+    "paper_id": "10.21203/rs.3.rs-10354224/v1",
+    "provenance": {
+      "locator": "10.21203/rs.3.rs-10354224/v1",
+      "source": "crossref",
+      "source_sha256": "10.21203/rs.3.rs-10354224/v1",
+      "synthetic": false
+    },
+    "quote": "regex-based and optional ONNX-based semantic classifiers for prompt-injection detection",
+    "scope": "abstract",
+    "support_strength": "direct_quote",
+    "text": "Regex and ONNX classifiers for prompt-injection detection"
+  },
+  {
+    "category": "setup",
+    "evidence_id": "setup-1",
+    "extraction_worker": "assistant",
+    "location": {
+      "page": null,
+      "section": "abstract"
+    },
+    "paper_id": "10.21203/rs.3.rs-10354224/v1",
+    "provenance": {
+      "locator": "10.21203/rs.3.rs-10354224/v1",
+      "source": "crossref",
+      "source_sha256": "10.21203/rs.3.rs-10354224/v1",
+      "synthetic": false
+    },
+    "quote": "an open-source reverse proxy, implemented in Rust, that sits between an application and its LLM provider and inspects every request and response before it crosses the network boundary",
+    "scope": "abstract",
+    "support_strength": "direct_quote",
+    "text": "Reverse proxy between application and LLM provider"
+  },
+  {
+    "category": "finding",
+    "evidence_id": "finding-1",
+    "extraction_worker": "assistant",
+    "location": {
+      "page": null,
+      "section": "abstract"
+    },
+    "paper_id": "10.21203/rs.3.rs-10354224/v1",
+    "provenance": {
+      "locator": "10.21203/rs.3.rs-10354224/v1",
+      "source": "crossref",
+      "source_sha256": "10.21203/rs.3.rs-10354224/v1",
+      "synthetic": false
+    },
+    "quote": "including a case where a component misses its own documented latency target at larger payload sizes",
+    "scope": "abstract",
+    "support_strength": "direct_quote",
+    "text": "Component misses latency target at larger payloads"
+  },
+  {
+    "category": "limitation",
+    "evidence_id": "limitation-1",
+    "extraction_worker": "assistant",
+    "location": {
+      "page": null,
+      "section": "abstract"
+    },
+    "paper_id": "10.21203/rs.3.rs-10354224/v1",
+    "provenance": {
+      "locator": "10.21203/rs.3.rs-10354224/v1",
+      "source": "crossref",
+      "source_sha256": "10.21203/rs.3.rs-10354224/v1",
+      "synthetic": false
+    },
+    "quote": "no formal adversarial-robustness evaluation of the classifiers against established attack suites has been performed, and this is identified as the most important item of future work",
+    "scope": "abstract",
+    "support_strength": "direct_quote",
+    "text": "No adversarial-robustness evaluation performed"
+  },
+  {
+    "category": "method",
+    "evidence_id": "e1",
+    "extraction_worker": "evidence-extraction-agent",
+    "location": {
+      "page": null,
+      "section": "abstract"
+    },
+    "paper_id": "10.36227/techrxiv.171822345.56781952/v1",
+    "provenance": {
+      "locator": "10.36227/techrxiv.171822345.56781952/v1",
+      "source": "crossref",
+      "source_sha256": "",
+      "synthetic": false
+    },
+    "quote": "the development of dynamic defence techniques such as random parameter perturbation, model re-initialization, and dynamic context adjustments",
+    "scope": "abstract",
+    "support_strength": "direct_quote",
+    "text": "the development of dynamic defence techniques such as random parameter perturbation, model re-initialization, and dynamic context adjustments"
+  },
+  {
+    "category": "setup",
+    "evidence_id": "e2",
+    "extraction_worker": "evidence-extraction-agent",
+    "location": {
+      "page": null,
+      "section": "abstract"
+    },
+    "paper_id": "10.36227/techrxiv.171822345.56781952/v1",
+    "provenance": {
+      "locator": "10.36227/techrxiv.171822345.56781952/v1",
+      "source": "crossref",
+      "source_sha256": "",
+      "synthetic": false
+    },
+    "quote": "their seamless integration with the Mistral LLM",
+    "scope": "abstract",
+    "support_strength": "direct_quote",
+    "text": "their seamless integration with the Mistral LLM"
+  },
+  {
+    "category": "finding",
+    "evidence_id": "e3",
+    "extraction_worker": "evidence-extraction-agent",
+    "location": {
+      "page": null,
+      "section": "abstract"
+    },
+    "paper_id": "10.36227/techrxiv.171822345.56781952/v1",
+    "provenance": {
+      "locator": "10.36227/techrxiv.171822345.56781952/v1",
+      "source": "crossref",
+      "source_sha256": "",
+      "synthetic": false
+    },
+    "quote": "The experimental results indicate a substantial reduction in the attack success rate, maintaining high performance metrics while managing computational overhead efficiently.",
+    "scope": "abstract",
+    "support_strength": "direct_quote",
+    "text": "The experimental results indicate a substantial reduction in the attack success rate, maintaining high performance metrics while managing computational overhead efficiently."
+  }
+]

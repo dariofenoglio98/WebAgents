@@ -1,0 +1,627 @@
+{
+  "recordedAt": "2026-09-24T15:43:24.682Z",
+  "tool": "paper-reader",
+  "steps": {
+    "package": {
+      "packageId": "org.webagents.literature-review",
+      "version": "0.2.1",
+      "digest": "2199abb5868bcedd5c73e7a664f38d35aaaa047c2dcfdb07d91f3977bde41700",
+      "archiveSha256": "0fb8b65bbff4578d4815ee70b29a0cb789b2cc95ce181d011d467b4be22c8e42",
+      "signatureStatus": "valid",
+      "trustStatus": "trusted",
+      "declaredTools": [
+        {
+          "id": "citation-resolver",
+          "binding": "citation.resolve",
+          "execution": "remote",
+          "permissions": [
+            "network.citations"
+          ],
+          "domains": [
+            "webagents-citation-resolver-production.up.railway.app"
+          ]
+        },
+        {
+          "id": "paper-reader",
+          "binding": "paper.read",
+          "execution": "local",
+          "permissions": [
+            "files.pdfs"
+          ],
+          "domains": []
+        },
+        {
+          "id": "scholarly-search",
+          "binding": "scholarly.search",
+          "execution": "remote",
+          "permissions": [
+            "network.scholarly"
+          ],
+          "domains": [
+            "api.crossref.org"
+          ]
+        }
+      ]
+    },
+    "authorization": {
+      "receiptId": "e72b05f9-eae2-4606-a244-faee3a103b40",
+      "receiptSha256": "3ce64aa3d67c9716a0def981ba2536947d0dfe90598afcecc7d9869344906c4b",
+      "runnable": true,
+      "grantedPermissionIds": [
+        "files.pdfs",
+        "memory.session",
+        "model.reasoning",
+        "network.citations",
+        "network.scholarly"
+      ],
+      "toolApprovals": [
+        {
+          "toolId": "citation-resolver",
+          "approved": true
+        },
+        {
+          "toolId": "paper-reader",
+          "approved": true
+        },
+        {
+          "toolId": "scholarly-search",
+          "approved": true
+        }
+      ]
+    },
+    "tools": {
+      "host": {
+        "runtime": "openclaw",
+        "runtimeVersion": "2026.9.5",
+        "source": "openclaw plugin tool registry",
+        "capturedAt": "2026-09-24T15:43:32.511Z"
+      },
+      "registrySha256": "78da84bcd0c744707708713c58d7b1570e25d16cbb6b896c8207e66d2edfdf43",
+      "counts": {
+        "total": 3,
+        "bound": 3,
+        "unbound": 0,
+        "incompatible": 0,
+        "unverified": 0,
+        "unavailable": 0,
+        "approved": 3,
+        "usable": 3,
+        "blocking": 0
+      },
+      "allToolsBound": true,
+      "declared": [
+        {
+          "toolId": "citation-resolver",
+          "status": "bound",
+          "approved": true,
+          "permissionsGranted": true,
+          "usable": true,
+          "reason": null,
+          "binding": {
+            "bindingId": "openclaw:citation-resolver:1",
+            "bindingSha256": "7ac13746d199913ac9da5e8df6210a8980ffa32bda67f38217a7d8bf8bd42c39",
+            "implementationKind": "json_http",
+            "implementationVersion": "0.1.0",
+            "endpointOrigin": "https://webagents-citation-resolver-production.up.railway.app",
+            "endpointPath": "/resolve",
+            "method": "POST",
+            "available": true,
+            "credentialsRequired": false,
+            "credentialsConfigured": false,
+            "checks": [
+              {
+                "id": "tool_id",
+                "subject": "tool_id",
+                "status": "satisfied",
+                "detail": null
+              },
+              {
+                "id": "binding_name",
+                "subject": "binding",
+                "status": "satisfied",
+                "detail": null
+              },
+              {
+                "id": "execution_locality",
+                "subject": "remote",
+                "status": "satisfied",
+                "detail": null
+              },
+              {
+                "id": "side_effects",
+                "subject": "side_effects",
+                "status": "satisfied",
+                "detail": null
+              },
+              {
+                "id": "permission_kinds",
+                "subject": "permission_kinds",
+                "status": "satisfied",
+                "detail": null
+              },
+              {
+                "id": "input_schema",
+                "subject": "input_schema_sha256",
+                "status": "satisfied",
+                "detail": null
+              },
+              {
+                "id": "output_schema",
+                "subject": "output_schema_sha256",
+                "status": "satisfied",
+                "detail": null
+              },
+              {
+                "id": "endpoint_domain",
+                "subject": "endpoint_origin",
+                "status": "satisfied",
+                "detail": "A remote binding must land on a host the package declares, the linked network permission names, and the package network policy allows."
+              },
+              {
+                "id": "endpoint_path",
+                "subject": "endpoint_path",
+                "status": "satisfied",
+                "detail": null
+              },
+              {
+                "id": "method",
+                "subject": "method",
+                "status": "satisfied",
+                "detail": null
+              }
+            ]
+          }
+        },
+        {
+          "toolId": "paper-reader",
+          "status": "bound",
+          "approved": true,
+          "permissionsGranted": true,
+          "usable": true,
+          "reason": null,
+          "binding": {
+            "bindingId": "openclaw:paper-reader:1",
+            "bindingSha256": "3ddd2fd9be61d3d9c9b2e06e22d54034dd5d6e0a5b3ddf64c8c6abe91cc7351b",
+            "implementationKind": "selected_file",
+            "implementationVersion": "0.1.0",
+            "endpointOrigin": null,
+            "endpointPath": null,
+            "method": null,
+            "available": true,
+            "credentialsRequired": false,
+            "credentialsConfigured": false,
+            "checks": [
+              {
+                "id": "tool_id",
+                "subject": "tool_id",
+                "status": "satisfied",
+                "detail": null
+              },
+              {
+                "id": "binding_name",
+                "subject": "binding",
+                "status": "satisfied",
+                "detail": null
+              },
+              {
+                "id": "execution_locality",
+                "subject": "remote",
+                "status": "satisfied",
+                "detail": null
+              },
+              {
+                "id": "side_effects",
+                "subject": "side_effects",
+                "status": "satisfied",
+                "detail": null
+              },
+              {
+                "id": "permission_kinds",
+                "subject": "permission_kinds",
+                "status": "satisfied",
+                "detail": null
+              },
+              {
+                "id": "input_schema",
+                "subject": "input_schema_sha256",
+                "status": "satisfied",
+                "detail": null
+              },
+              {
+                "id": "output_schema",
+                "subject": "output_schema_sha256",
+                "status": "satisfied",
+                "detail": null
+              }
+            ]
+          }
+        },
+        {
+          "toolId": "scholarly-search",
+          "status": "bound",
+          "approved": true,
+          "permissionsGranted": true,
+          "usable": true,
+          "reason": null,
+          "binding": {
+            "bindingId": "openclaw:scholarly-search:1",
+            "bindingSha256": "4800eb9bb1be9ddbec38e262ce0ae6e22c17dcb5659c122fd99959110923d65c",
+            "implementationKind": "json_http",
+            "implementationVersion": "0.2.0",
+            "endpointOrigin": "https://api.crossref.org",
+            "endpointPath": "/works",
+            "method": "GET",
+            "available": true,
+            "credentialsRequired": false,
+            "credentialsConfigured": false,
+            "checks": [
+              {
+                "id": "tool_id",
+                "subject": "tool_id",
+                "status": "satisfied",
+                "detail": null
+              },
+              {
+                "id": "binding_name",
+                "subject": "binding",
+                "status": "satisfied",
+                "detail": null
+              },
+              {
+                "id": "execution_locality",
+                "subject": "remote",
+                "status": "satisfied",
+                "detail": null
+              },
+              {
+                "id": "side_effects",
+                "subject": "side_effects",
+                "status": "satisfied",
+                "detail": null
+              },
+              {
+                "id": "permission_kinds",
+                "subject": "permission_kinds",
+                "status": "satisfied",
+                "detail": null
+              },
+              {
+                "id": "input_schema",
+                "subject": "input_schema_sha256",
+                "status": "satisfied",
+                "detail": null
+              },
+              {
+                "id": "output_schema",
+                "subject": "output_schema_sha256",
+                "status": "satisfied",
+                "detail": null
+              },
+              {
+                "id": "endpoint_domain",
+                "subject": "endpoint_origin",
+                "status": "satisfied",
+                "detail": "A remote binding must land on a host the package declares, the linked network permission names, and the package network policy allows."
+              },
+              {
+                "id": "endpoint_path",
+                "subject": "endpoint_path",
+                "status": "satisfied",
+                "detail": null
+              },
+              {
+                "id": "method",
+                "subject": "method",
+                "status": "satisfied",
+                "detail": null
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "model": {
+      "selected": "ollama/qwen3.5:9b",
+      "status": "compatible"
+    },
+    "modelPlan": {
+      "prepared": true,
+      "model": "ollama/qwen3.5:9b"
+    },
+    "runPlan": {
+      "runPlanId": "rp_482aa999d23b43ae93908d7285eeb9c5",
+      "runPlanSha256": "cc08708da8f274b8469b5edb9b3f18266b80daa856226a5429c18eab39fdec2e",
+      "ready": true,
+      "executionPerformed": false,
+      "mode": "tool_probe",
+      "probeToolId": "paper-reader",
+      "modelBinding": null,
+      "toolBindings": [
+        {
+          "toolId": "paper-reader",
+          "bindingId": "openclaw:paper-reader:1",
+          "bindingSha256": "3ddd2fd9be61d3d9c9b2e06e22d54034dd5d6e0a5b3ddf64c8c6abe91cc7351b",
+          "implementationKind": "selected_file",
+          "implementationVersion": "0.1.0",
+          "displayName": "Selected PDF text",
+          "remote": false,
+          "endpointOrigin": null,
+          "endpointPath": null,
+          "method": null,
+          "contractSha256": "11cd9636f63d674bba5ce50e9104328a5c75063fb109af17b07616cba602ab95",
+          "requiredPermissionIds": [
+            "files.pdfs"
+          ],
+          "timeoutSeconds": 20,
+          "maxCalls": 10,
+          "credentialsRequired": false,
+          "credentialsConfigured": false,
+          "approved": true,
+          "usable": true
+        }
+      ],
+      "toolRegistry": {
+        "registrySha256": "333e1af62bae34719f0aaf2a6a621374972d1fbce67235444030125e4243156f",
+        "bindingCount": 4
+      },
+      "preflight": {
+        "checkedAt": "2026-09-24T15:43:36.171332+00:00",
+        "state": "ready",
+        "ready": true,
+        "stale": false,
+        "staleReasons": [],
+        "blockingReasons": [],
+        "trustStoreChanged": false,
+        "modelStillAvailable": true,
+        "toolBindingsCurrent": true,
+        "toolBindingsBound": 1
+      }
+    },
+    "selectedFile": {
+      "fileId": "file_f0c0c25d2d2aad0b14dcf4bcdd9536d6",
+      "sha256": "d78cd0dd40c6d8fa23e24444343269a317e6046f11d3c25e6e3e32cd0c08ad9f",
+      "bytes": 1055,
+      "mediaType": "application/pdf",
+      "displayName": "paper-reader-probe.pdf",
+      "pathReturned": false
+    },
+    "probe": {
+      "status": "ok",
+      "runPlanId": "rp_482aa999d23b43ae93908d7285eeb9c5",
+      "runPlanSha256": "cc08708da8f274b8469b5edb9b3f18266b80daa856226a5429c18eab39fdec2e",
+      "sessionId": "dmZxCv8A8z4p32UpEPv1LlID",
+      "package": {
+        "packageId": "org.webagents.literature-review",
+        "name": "Literature Review Agent",
+        "version": "0.2.1",
+        "digest": "2199abb5868bcedd5c73e7a664f38d35aaaa047c2dcfdb07d91f3977bde41700"
+      },
+      "tool": {
+        "id": "paper-reader",
+        "version": "0.1.0",
+        "binding": "paper.read",
+        "execution": "local",
+        "remote": false,
+        "sideEffects": "read",
+        "permissions": [
+          "files.pdfs"
+        ],
+        "domains": [],
+        "timeoutSeconds": 20,
+        "declaredEndpoint": null
+      },
+      "binding": {
+        "bindingId": "openclaw:paper-reader:1",
+        "bindingSha256": "3ddd2fd9be61d3d9c9b2e06e22d54034dd5d6e0a5b3ddf64c8c6abe91cc7351b",
+        "implementationKind": "selected_file",
+        "implementationVersion": "0.1.0",
+        "displayName": "Selected PDF text",
+        "remote": false,
+        "endpointOrigin": null,
+        "endpointPath": null,
+        "method": null,
+        "credentialsRequired": false,
+        "credentialsConfigured": false
+      },
+      "authority": {
+        "role": "ScreeningWorker",
+        "roleNamedByHost": true,
+        "workerContext": true,
+        "approved": true,
+        "grants": [
+          {
+            "permissionId": "files.pdfs",
+            "decision": "session"
+          }
+        ],
+        "permissionChecks": 3
+      },
+      "fixture": {
+        "id": "selected-pdf",
+        "source": "host_owned",
+        "fileId": "file_f0c0c25d2d2aad0b14dcf4bcdd9536d6"
+      },
+      "request": {
+        "argsSha256": "8fa6f137786a3e05b7bb1dd040519e25343825ef6dca96d0b9b5fc7419b8f9d0",
+        "argsBytes": 51
+      },
+      "result": {
+        "validatedByRuntime": true,
+        "validatedAgainst": "schemas/reader-output.schema.json",
+        "outputSha256": "72bf0803272c5fb98ddc3380d166db4ab7be71af894e8efdcf7f2a38be16973a",
+        "outputBytes": 340,
+        "outputKeys": [
+          "pages",
+          "sha256",
+          "source"
+        ],
+        "output": {
+          "pages": [
+            {
+              "page": 1,
+              "text": "SYNTHETIC PROBE DOCUMENT - not a real paper.\nPage one exists so the paper-reader binding can be proved.\n"
+            },
+            {
+              "page": 2,
+              "text": "Page two carries a second, distinct sentence.\nNothing here is scientific evidence.\n"
+            }
+          ],
+          "sha256": "d78cd0dd40c6d8fa23e24444343269a317e6046f11d3c25e6e3e32cd0c08ad9f",
+          "source": "user_pdf"
+        }
+      },
+      "transport": {
+        "durationMs": 463.27,
+        "hostCalls": [
+          {
+            "toolId": "paper-reader",
+            "bindingId": "openclaw:paper-reader:1",
+            "remote": false,
+            "status": null,
+            "durationMs": 458,
+            "outcome": "ok"
+          }
+        ]
+      },
+      "usage": {
+        "toolCalls": 1,
+        "remoteCalls": 0,
+        "tokens": 0
+      },
+      "audit": {
+        "events": 14,
+        "chainValid": true,
+        "finalHash": "dee8ebcd7a8cb3fec36c18e52de9fddcd4112be7919d6302fc18d47682f7eaf4",
+        "actions": [
+          {
+            "action": "budget.updated",
+            "count": 1
+          },
+          {
+            "action": "delegation.checked",
+            "count": 1
+          },
+          {
+            "action": "memory.cleared",
+            "count": 1
+          },
+          {
+            "action": "permission.checked",
+            "count": 3
+          },
+          {
+            "action": "runtime.started",
+            "count": 1
+          },
+          {
+            "action": "tool.called",
+            "count": 1
+          },
+          {
+            "action": "tool.completed",
+            "count": 1
+          },
+          {
+            "action": "tool.dispatched",
+            "count": 1
+          },
+          {
+            "action": "tool.settled",
+            "count": 1
+          },
+          {
+            "action": "worker.completed",
+            "count": 1
+          },
+          {
+            "action": "worker.spawned",
+            "count": 1
+          },
+          {
+            "action": "worker.started",
+            "count": 1
+          }
+        ]
+      },
+      "workflowExecuted": false,
+      "packageExecution": {
+        "workflowInstantiated": false,
+        "workflowNodesExecuted": 0,
+        "workflowWorkersStarted": 0,
+        "modelCalls": 0,
+        "modelRouterInstalled": false,
+        "packageInstructionsLoaded": false,
+        "runtimeWorkerContexts": 1
+      },
+      "revalidated": [
+        "run_plan_identity",
+        "run_plan_readiness",
+        "run_plan_preflight",
+        "execution_mode",
+        "package_digest",
+        "archive_sha256",
+        "execution_profile",
+        "package_validation",
+        "signature_status",
+        "publisher_trust",
+        "signer_fingerprint",
+        "authorization_receipt",
+        "receipt_not_expired",
+        "model_permission_granted",
+        "tool_bindings",
+        "tool_approvals",
+        "no_model_bound"
+      ]
+    },
+    "runPlanAfterProbe": {
+      "runPlanSha256": "cc08708da8f274b8469b5edb9b3f18266b80daa856226a5429c18eab39fdec2e",
+      "unchanged": true,
+      "executionPerformed": false,
+      "ready": true,
+      "toolBindingsCurrent": true,
+      "executionSupported": false
+    },
+    "pathLeak": {
+      "inProbeReport": false,
+      "inSelection": false
+    },
+    "fileChecks": {
+      "outputSha256MatchesSelection": true,
+      "pages": 2,
+      "source": "user_pdf",
+      "fixtureFileId": "file_f0c0c25d2d2aad0b14dcf4bcdd9536d6"
+    }
+  },
+  "host": {
+    "openclaw": "OpenClaw 2026.9.5 (ec9c1a1)",
+    "service": {
+      "state": "running",
+      "detail": "The Agent Browser control plane is running.",
+      "since": "2026-09-24T12:55:26.072Z",
+      "starts": 1,
+      "controlPlane": {
+        "apiVersion": "v0",
+        "agentpkgVersion": "0.2.0",
+        "packageFormat": "agent.pkg 0.1",
+        "execution": "disabled"
+      },
+      "sessions": {
+        "open": 0,
+        "max": 8
+      },
+      "capabilities": {
+        "openUrl": true,
+        "openLocal": true,
+        "localRoots": [
+          "/Users/dariofenoglio/Desktop/WebAgents/dist",
+          "/Users/dariofenoglio/.openclaw/workspace"
+        ],
+        "trustPinning": true
+      },
+      "executionSupported": false,
+      "executionOperations": true,
+      "fileSelection": true
+    }
+  },
+  "passed": true
+}

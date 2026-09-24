@@ -1,0 +1,143 @@
+{
+ "model": "ollama/qwen3.6:35b",
+ "num_ctx": 65536,
+ "variants": {
+  "default": {
+   "prepare": {
+    "record": {
+     "label": "prepare[default]",
+     "options": {},
+     "bound_bytes": 18049,
+     "elapsed_s": 414.7,
+     "prompt_eval_count": 3447,
+     "eval_count": 16121,
+     "thinking_chars": 38728,
+     "done_reason": "stop",
+     "conforming": true
+    },
+    "checks": [
+     {
+      "paper_id": "paper-4dd72bbd354ba2ba",
+      "status_ok": true,
+      "metadata_exact": true,
+      "diffs": []
+     },
+     {
+      "paper_id": "paper-8da040891b501053",
+      "status_ok": true,
+      "metadata_exact": true,
+      "diffs": []
+     },
+     {
+      "records": 2,
+      "evidence_jobs": 2
+     }
+    ]
+   },
+   "verification": {
+    "record": {
+     "label": "verification[default]",
+     "options": {},
+     "bound_bytes": 16794,
+     "elapsed_s": 155.4,
+     "prompt_eval_count": 3639,
+     "eval_count": 6158,
+     "thinking_chars": 17556,
+     "done_reason": "stop",
+     "conforming": true
+    },
+    "checks": {
+     "bibliography": [
+      {
+       "paper_id": "paper-4dd72bbd354ba2ba",
+       "diffs": [
+        ": output=null expected={\"title\": \"Self-Refining Topology Optimization via an LLM-Based Multi-Agent Framework\", \"a"
+       ]
+      },
+      {
+       "paper_id": "paper-8da040891b501053",
+       "diffs": [
+        ": output=null expected={\"title\": \"Optimizing Multi\\u2011Agent LLM Collaboration via Communication\\u2011Flow Contr"
+       ]
+      }
+     ],
+     "evidence_table": [
+      {
+       "evidence_id": "ev-4dd72bbd-1",
+       "diffs": [
+        "/category: missing in output",
+        "/extraction_worker: missing in output",
+        "/location: missing in output",
+        "/provenance: missing in output",
+        "/support_strength: missing in output",
+        "/text: missing in output"
+       ]
+      },
+      {
+       "evidence_id": "ev-4dd72bbd-2",
+       "diffs": [
+        "/category: missing in output",
+        "/extraction_worker: missing in output",
+        "/location: missing in output",
+        "/provenance: missing in output",
+        "/support_strength: missing in output",
+        "/text: missing in output"
+       ]
+      },
+      {
+       "evidence_id": "ev-8da04089-1",
+       "diffs": [
+        "/category: missing in output",
+        "/extraction_worker: missing in output",
+        "/location: missing in output",
+        "/provenance: missing in output",
+        "/support_strength: missing in output",
+        "/text: missing in output"
+       ]
+      },
+      {
+       "evidence_id": "ev-8da04089-2",
+       "diffs": [
+        "/category: missing in output",
+        "/extraction_worker: missing in output",
+        "/location: missing in output",
+        "/provenance: missing in output",
+        "/support_strength: missing in output",
+        "/text: missing in output"
+       ]
+      }
+     ],
+     "related_work_chars": 588,
+     "claims": [
+      [
+       "claim-1",
+       "supported"
+      ],
+      [
+       "claim-2",
+       "supported"
+      ],
+      [
+       "claim-3",
+       "supported"
+      ],
+      [
+       "claim-4",
+       "supported"
+      ]
+     ]
+    }
+   }
+  }
+ },
+ "inputs": {
+  "dois": [
+   "10.2139/ssrn.7162224",
+   "10.2139/ssrn.6532560"
+  ],
+  "statuses": [
+   "resolved",
+   "resolved"
+  ]
+ }
+}

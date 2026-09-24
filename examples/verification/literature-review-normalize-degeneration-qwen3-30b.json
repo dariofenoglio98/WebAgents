@@ -1,0 +1,22 @@
+{
+ "note": "Diagnostic normalize request on qwen3:30b under the 0.2.0 paper schema (provenance/author items allowed additionalProperties). Grammar-constrained decoding absorbed JSON punctuation into free-form key names, inflating provenance and collapsing the output.",
+ "raw_candidates": 9,
+ "candidate_papers": 2,
+ "screening_jobs": 0,
+ "provenance_bytes_first_candidate": 13552,
+ "provenance_entries_first_candidate": 7,
+ "sample_keys": [
+  "abstract",
+  "arxiv_id",
+  "authors",
+  "doi",
+  "full_text_available",
+  "locator",
+  "locator ",
+  "paper_id",
+  "provenance",
+  "query",
+  "query ",
+  "retrieved_at"
+ ]
+}

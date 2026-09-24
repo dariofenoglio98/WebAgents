@@ -17,6 +17,7 @@ import { join } from "node:path";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { AgentBrowserBackend } from "../src/backend.js";
 import { AgentBrowserError } from "../src/errors.js";
+import { BUILT_IN_BINDINGS } from "../src/tool-registry.js";
 import type { HostLlm } from "../src/host-llm.js";
 import type { ModelHost } from "../src/host-models.js";
 import { AGENTPKG_BIN, DIST, HOST_CONFIG_WITH_MODEL_OVERRIDE, hasAgentpkg } from "./fixtures.js";
@@ -402,51 +403,73 @@ describe.runIf(runs)("executing a signed package", () => {
   }, 60_000);
 
   it("refuses a plan for a package whose tools this host cannot all implement", async () => {
-    // This host implements one of the three tools the reference review package
-    // declares. A partially bound package is refused at plan time rather than
-    // halfway through a run that already spent tokens, and the refusal names
-    // the tools rather than the package.
-    const view = unwrap(await backend.openLocal(LITERATURE));
-    await backend.pinSessionPublisher(
-      view.sessionId,
-      view.publisher.signerFingerprint!,
-      "publisher",
-    );
-    const refreshed = unwrap(await backend.getPackage(view.sessionId));
-    const permissions = unwrap(await backend.getPermissions(view.sessionId));
-    const receipt = unwrap(
-      await backend.authorize(
-        view.sessionId,
-        refreshed.identity.digest,
-        permissions.permissions.map((item) => ({
-          permissionId: item.id,
-          decision: "session" as const,
-        })),
-        permissions.toolApprovals.map((item) => ({ toolId: item.toolId, approved: true })),
+    // A host that implements one of the three tools the reference review
+    // package declares. A partially bound package is refused at plan time
+    // rather than halfway through a run that already spent tokens, and the
+    // refusal names the tools rather than the package. (The plugin ships all
+    // three; this host is restricted through the definitions test seam.)
+    const partialDir = await mkdtemp(join(tmpdir(), "agent-browser-partial-"));
+    const partial = new AgentBrowserBackend({
+      config: {
+        agentpkgPath: AGENTPKG_BIN,
+        localPackages: { roots: [DIST] },
+        execution: { runTimeoutSeconds: 120 },
+      },
+      logger: log,
+      stateDir: partialDir,
+      modelHost: makeHost(hostState),
+      llm: { complete: (params) => stub.llm.complete(params) },
+      toolDefinitions: BUILT_IN_BINDINGS.filter(
+        (item) => item.toolId === "citation-resolver" || item.toolId === "test.echo",
       ),
-    );
-    const tools = unwrap(await backend.evaluateTools(view.sessionId));
-    const bound = tools.tools.filter((tool) => tool.status === "bound").map((tool) => tool.toolId);
-    const unbound = tools.tools
-      .filter((tool) => tool.status === "unbound")
-      .map((tool) => tool.toolId);
-    expect(bound).toEqual(["citation-resolver"]);
-    expect(unbound.sort()).toEqual(["paper-reader", "scholarly-search"]);
+    });
+    await partial.initialize();
+    await partial.launch();
+    try {
+      const view = unwrap(await partial.openLocal(LITERATURE));
+      await partial.pinSessionPublisher(
+        view.sessionId,
+        view.publisher.signerFingerprint!,
+        "publisher",
+      );
+      const refreshed = unwrap(await partial.getPackage(view.sessionId));
+      const permissions = unwrap(await partial.getPermissions(view.sessionId));
+      const receipt = unwrap(
+        await partial.authorize(
+          view.sessionId,
+          refreshed.identity.digest,
+          permissions.permissions.map((item) => ({
+            permissionId: item.id,
+            decision: "session" as const,
+          })),
+          permissions.toolApprovals.map((item) => ({ toolId: item.toolId, approved: true })),
+        ),
+      );
+      const tools = unwrap(await partial.evaluateTools(view.sessionId));
+      const bound = tools.tools.filter((tool) => tool.status === "bound").map((tool) => tool.toolId);
+      const unbound = tools.tools
+        .filter((tool) => tool.status === "unbound")
+        .map((tool) => tool.toolId);
+      expect(bound).toEqual(["citation-resolver"]);
+      expect(unbound.sort()).toEqual(["paper-reader", "scholarly-search"]);
 
-    await backend.evaluateModels(view.sessionId);
-    const refused = expectError(
-      await backend.prepareRunPlan(
-        view.sessionId,
-        refreshed.identity.digest,
-        receipt.receiptId,
-        "acme/big",
-      ),
-    );
-    expect(refused.code).toBe("run_plan_refused");
-    expect(refused.detail).toMatch(/paper-reader|scholarly-search/u);
-    expect(stub.calls).toHaveLength(0);
-    await backend.closeSession(view.sessionId);
-  }, 60_000);
+      await partial.evaluateModels(view.sessionId);
+      const refused = expectError(
+        await partial.prepareRunPlan(
+          view.sessionId,
+          refreshed.identity.digest,
+          receipt.receiptId,
+          "acme/big",
+        ),
+      );
+      expect(refused.code).toBe("run_plan_refused");
+      expect(refused.detail).toMatch(/paper-reader|scholarly-search/u);
+      expect(stub.calls).toHaveLength(0);
+    } finally {
+      await partial.stop();
+      await rm(partialDir, { recursive: true, force: true });
+    }
+  }, 90_000);
 
   it("refuses input the package's own schema rejects, before any token is spent", async () => {
     const session = await prepared();
@@ -503,6 +526,51 @@ describe.runIf(runs)("executing a signed package", () => {
     expect(record.status).toBe("failed");
     expect(record.errorCode).toBe("model_error");
     expect(record.audit?.chainValid).toBe(true);
+  }, 120_000);
+
+  it("bounds one model call by the host's per-call timeout and cancels it at the model", async () => {
+    // Host policy, not a package's: the child waits this long for one
+    // completion, then cancels it, and the abort reaches the host model call.
+    const dir = await mkdtemp(join(tmpdir(), "agent-browser-call-timeout-"));
+    const shared = backend;
+    const aborted: number[] = [];
+    stub = stubLlm({ delayMs: 20_000 });
+    backend = new AgentBrowserBackend({
+      config: {
+        agentpkgPath: AGENTPKG_BIN,
+        localPackages: { roots: [DIST] },
+        execution: { runTimeoutSeconds: 120, modelCallTimeoutSeconds: 2 },
+      },
+      logger: log,
+      stateDir: dir,
+      modelHost: makeHost(hostState),
+      llm: {
+        complete: (params) => {
+          params.signal?.addEventListener("abort", () => aborted.push(Date.now()));
+          return stub.llm.complete(params);
+        },
+      },
+    });
+    await backend.initialize();
+    await backend.launch();
+    try {
+      const session = await prepared();
+      const started = Date.now();
+      const record = unwrap(await start(session));
+      expect(record.status).toBe("failed");
+      expect(record.errorCode).toBe("model_error");
+      expect(record.limits.host.modelCallTimeoutSeconds).toBe(2);
+      expect(aborted.length).toBeGreaterThan(0);
+      // Well before the stub would have answered, and before the backstop.
+      expect(Date.now() - started).toBeLessThan(20_000);
+    } finally {
+      for (const open of unwrap(await backend.listSessions()).sessions) {
+        await backend.closeSession(open.sessionId);
+      }
+      await backend.stop();
+      backend = shared;
+      await rm(dir, { recursive: true, force: true });
+    }
   }, 120_000);
 
   it("lists, reads and clears ephemeral run records", async () => {
@@ -783,3 +851,17 @@ async function waitForActive() {
   }
   throw new Error("no run became active");
 }
+
+describe("the host execution policy", () => {
+  it("keeps the previous per-call timeout by default and caps what an operator sets", async () => {
+    const { resolvePolicy, MAX_MODEL_CALL_TIMEOUT_SECONDS } = await import("../src/execution.js");
+    expect(resolvePolicy({}).modelCallTimeoutSeconds).toBe(300);
+    expect(resolvePolicy({ modelCallTimeoutSeconds: 1800 }).modelCallTimeoutSeconds).toBe(1800);
+    expect(resolvePolicy({ modelCallTimeoutSeconds: 99_999 }).modelCallTimeoutSeconds).toBe(
+      MAX_MODEL_CALL_TIMEOUT_SECONDS,
+    );
+    for (const bad of [0, -5, 1.5, "600", null]) {
+      expect(resolvePolicy({ modelCallTimeoutSeconds: bad }).modelCallTimeoutSeconds).toBe(300);
+    }
+  });
+});

@@ -105,9 +105,11 @@ def authorization(*, decisions=None, approvals=None):
 class ToolHarness:
     """One in-process runner plus a fake host that answers `tool.call`."""
 
-    def __init__(self, tmp_path, *, host=None):
+    def __init__(self, tmp_path, *, host=None, second_role=False, tool_timeout=10):
         self.tmp_path = Path(os.path.realpath(tmp_path))
-        self.package, self.artifact = echo_package(self.tmp_path)
+        self.package, self.artifact = echo_package(
+            self.tmp_path, second_role=second_role, tool_timeout=tool_timeout
+        )
         self.archive_sha256 = sha256(self.artifact.read_bytes())
         self.artifacts = self.tmp_path / "artifacts"
         self.artifacts.mkdir(mode=0o700, exist_ok=True)
@@ -160,24 +162,32 @@ class ToolHarness:
     def call(self, method, params, *, timeout=30.0):
         return self.host_peer.call(method, params, timeout=timeout)
 
-    async def begin(self, *, tool_bindings=None, authorization_record=None, plan=None, **kwargs):
+    async def begin(
+        self,
+        *,
+        tool_bindings=None,
+        authorization_record=None,
+        plan=None,
+        attachments=None,
+        **kwargs,
+    ):
         bindings = bindings_for(self.package) if tool_bindings is None else tool_bindings
-        return await self.call(
-            "execution.begin",
-            {
-                "run_id": "run-tool",
-                "run_plan": plan
-                or plan_for(
-                    self.package,
-                    self.archive_sha256,
-                    signer_fingerprint(self.package),
-                    tool_bindings=bindings,
-                    **kwargs,
-                ),
-                "authorization": authorization_record or authorization(),
-                "input": ECHO_INPUT,
-            },
-        )
+        params = {
+            "run_id": "run-tool",
+            "run_plan": plan
+            or plan_for(
+                self.package,
+                self.archive_sha256,
+                signer_fingerprint(self.package),
+                tool_bindings=bindings,
+                **kwargs,
+            ),
+            "authorization": authorization_record or authorization(),
+            "input": ECHO_INPUT,
+        }
+        if attachments is not None:
+            params["attachments"] = attachments
+        return await self.call("execution.begin", params)
 
 
 def run(coroutine):
@@ -573,6 +583,28 @@ def test_the_tool_probe_calls_one_tool_and_runs_no_workflow(tmp_path):
     assert harness.host.requests[0]["tool_id"] == ECHO_TOOL
 
 
+def test_a_tool_that_outlasts_its_declared_timeout_is_a_reported_probe_outcome(tmp_path):
+    """A slow service is a result of the probe, not an internal runner fault."""
+    slow = FakeToolHost(answers={ECHO_TOOL: lambda args: dict(args)}, delay=3.0)
+
+    async def main():
+        async with ToolHarness(tmp_path, host=slow, tool_timeout=1) as harness:
+            await harness.begin()
+            with pytest.raises(BridgeError) as failure:
+                await harness.call(
+                    "execution.tool_probe", {"tool_id": ECHO_TOOL, "args": ECHO_INPUT}, timeout=30
+                )
+            return failure.value
+
+    error = run(main())
+    assert error.code == "timeout"
+    report = error.detail["report"]
+    assert report["status"] == "failed"
+    assert report["error_code"] == "timeout"
+    assert report["usage"]["tool_calls"] == 1
+    assert report["audit"]["chain"]["valid"] is True
+
+
 def test_the_probe_refuses_an_undeclared_or_unbound_tool(tmp_path):
     async def main():
         async with ToolHarness(tmp_path) as harness:
@@ -754,3 +786,107 @@ def test_the_wire_carries_no_destination_method_or_header(tmp_path):
     encoded = json.dumps(requests).lower()
     for forbidden in ("http", "://", "header", "authorization", "method", "origin", "endpoint"):
         assert forbidden not in encoded, forbidden
+
+
+# -- a tool more than one role declares ---------------------------------------
+def test_a_probe_of_a_tool_two_roles_declare_needs_the_host_to_name_one(tmp_path):
+    async def main():
+        async with ToolHarness(tmp_path, second_role=True) as harness:
+            await harness.begin()
+            with pytest.raises(BridgeError) as unnamed:
+                await harness.call(
+                    "execution.tool_probe", {"tool_id": ECHO_TOOL, "args": ECHO_INPUT}
+                )
+            return unnamed.value, harness.host.requests
+
+    error, requests = run(main())
+    assert error.code == "tool_permission_denied"
+    assert "host must name one" in str(error)
+    assert requests == []
+
+
+@pytest.mark.parametrize("role", ["EchoWorker", "EchoReviewer"])
+def test_the_host_may_name_either_declared_role_and_the_report_says_so(tmp_path, role):
+    async def main():
+        async with ToolHarness(tmp_path, second_role=True) as harness:
+            await harness.begin()
+            return await harness.call(
+                "execution.tool_probe", {"tool_id": ECHO_TOOL, "args": ECHO_INPUT, "role": role}
+            )
+
+    report = run(main())
+    assert report["status"] == "ok"
+    assert report["authority"]["role"] == role
+    assert report["authority"]["role_named_by_host"] is True
+    assert report["package_execution"]["runtime_worker_contexts"] == 1
+
+
+@pytest.mark.parametrize("role", ["EchoCoordinator", "SomeoneElse"])
+def test_the_host_cannot_name_a_role_that_does_not_declare_the_tool(tmp_path, role):
+    async def main():
+        async with ToolHarness(tmp_path, second_role=True) as harness:
+            await harness.begin()
+            with pytest.raises(BridgeError) as refused:
+                await harness.call(
+                    "execution.tool_probe",
+                    {"tool_id": ECHO_TOOL, "args": ECHO_INPUT, "role": role},
+                )
+            return refused.value, harness.host.requests
+
+    error, requests = run(main())
+    assert error.code == "tool_permission_denied"
+    assert requests == []
+
+
+# -- the files a run was given are part of what was asked ---------------------
+ATTACHMENT = {
+    "file_id": "file_" + "1" * 32,
+    "sha256": "2" * 64,
+    "bytes": 941,
+    "media_type": "application/pdf",
+}
+
+
+def test_the_invocation_binds_the_selected_files_by_id_and_hash_only(tmp_path):
+    async def main():
+        async with ToolHarness(tmp_path) as harness:
+            plain = await harness.begin()
+        async with ToolHarness(tmp_path / "again") as harness:
+            given = await harness.begin(attachments=[ATTACHMENT])
+        return plain, given
+
+    plain, given = run(main())
+    assert plain["invocation"]["attachments"] == []
+    assert given["invocation"]["attachments"] == [ATTACHMENT]
+    assert given["invocation"]["run_invocation_version"] == "0.2"
+    # The files are bound into the invocation's hash, so a run given a file is
+    # not the same invocation as one that was not.
+    assert (
+        plain["invocation"]["run_invocation_sha256"] != given["invocation"]["run_invocation_sha256"]
+    )
+
+
+@pytest.mark.parametrize(
+    "attachments",
+    [
+        [{**ATTACHMENT, "path": "/tmp/paper.pdf"}],
+        [{**ATTACHMENT, "file_id": "/etc/passwd"}],
+        [{**ATTACHMENT, "file_id": "../file_" + "1" * 32}],
+        [{**ATTACHMENT, "sha256": "not-a-hash"}],
+        [{**ATTACHMENT, "bytes": 0}],
+        [{**ATTACHMENT, "bytes": True}],
+        [{**ATTACHMENT, "media_type": "text/html"}],
+        [ATTACHMENT, ATTACHMENT],
+        [{k: v for k, v in ATTACHMENT.items() if k != "sha256"}],
+        "file_" + "1" * 32,
+        [ATTACHMENT] * 17,
+    ],
+)
+def test_the_runner_refuses_attachments_that_are_not_opaque_bounded_records(tmp_path, attachments):
+    async def main():
+        async with ToolHarness(tmp_path) as harness:
+            with pytest.raises(BridgeError) as refused:
+                await harness.begin(attachments=attachments)
+            return refused.value
+
+    assert run(main()).code == "execution_plan_invalid"

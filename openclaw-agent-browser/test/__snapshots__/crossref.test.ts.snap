@@ -1,0 +1,3 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`the Crossref request shape is host code > fingerprints the mapping, so it cannot change without a version bump 1`] = `"718fb837767bb8b6416332786cc70f15c926942da53835c1ace2b4bec27f0ac4"`;

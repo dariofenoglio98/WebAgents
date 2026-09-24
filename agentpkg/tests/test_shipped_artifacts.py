@@ -401,3 +401,362 @@ def test_the_plugin_built_in_binding_matches_the_shipped_tool_contract():
     assert 'origin: "https://webagents-citation-resolver-production.up.railway.app"' in block
     assert 'path: "/resolve"' in block
     assert tool["domains"] == ["webagents-citation-resolver-production.up.railway.app"]
+
+
+def _binding_block(tool_id: str) -> str:
+    source = (ROOT / "openclaw-agent-browser/src/tool-registry.ts").read_text()
+    block = source[source.index(f'toolId: "{tool_id}"') :]
+    return block[: block.index("},")]
+
+
+@pytest.mark.parametrize("tool_id", ["citation-resolver", "scholarly-search", "paper-reader"])
+def test_every_plugin_built_in_states_the_contract_the_package_declares(tool_id):
+    """All three Literature Review tools now have a host implementation.
+
+    Each binding's schema digests are the host's *own* statement of the
+    contract its code speaks, written without reading any package. The shipped
+    package declares its contract independently. Agreement is what makes the
+    tool `bound`; this proves the agreement rather than assuming it.
+    """
+    import re
+
+    from agentpkg.package import canonical_json, load_package, sha256
+
+    block = _binding_block(tool_id)
+    declared = {
+        name: re.search(rf'{name}: "([0-9a-f]{{64}})"', block).group(1)
+        for name in ("inputSchemaSha256", "outputSchemaSha256")
+    }
+    package = load_package(DIST["literature-review"])
+    tool = package.tools[tool_id]
+    assert declared["inputSchemaSha256"] == sha256(
+        canonical_json(package.json(tool["input_schema"]))
+    )
+    assert declared["outputSchemaSha256"] == sha256(
+        canonical_json(package.json(tool["output_schema"]))
+    )
+    assert f'binding: "{tool["binding"]}"' in block
+    remote = tool["execution"] == "remote"
+    assert ('kind: "json_http"' in block) is remote
+    if remote:
+        # The configured endpoint is one the package itself declares, so the
+        # binding constrains this host rather than widening it.
+        from urllib.parse import urlsplit
+
+        endpoint = urlsplit(tool["endpoint"])
+        assert f'origin: "https://{endpoint.hostname}"' in block
+        assert f'path: "{endpoint.path}"' in block
+        assert f'method: "{tool["method"]}"' in block
+    else:
+        assert "origin:" not in block and "path:" not in block
+        assert 'kind: "selected_file"' in block
+
+
+# == Literature Review 0.2.1 ================================================
+# Republished for local execution with a package-specific signing key. What
+# changed is enumerated here, file by file and field by field, so nothing else
+# can change quietly. Measurements: examples/verification/
+# literature-review-qwen3-30b-node-latency*.json and the 3B4 report.
+REVIEW = DIST["literature-review"]
+REVIEW_SOURCE = ROOT / "agents/literature-review"
+REVIEW_PREVIOUS = ROOT / "dist/literature-review-0.2.0.agent.pkg"
+REVIEW_PREVIOUS_DIGEST = "b7bd37ca730ec5a156156207dc04fa5a7563e34a4373a298daa143dd9945b3eb"
+
+# operation: (declared seconds, worst measured seconds on ollama/qwen3:30b).
+# A model step's budget covers its worst measured latency plus one OpenClaw
+# heartbeat turn and a model reload at the shared single-slot server (300 s);
+# map steps also cover a three-deep queue.
+REVIEW_TIMING = {
+    "planning": (360, 44.4),
+    "normalize": (900, 586.7),
+    "screening": (1200, 353.5),
+    "screening/screen-one": (600, 155.1),
+    "select-included": (480, 118.2),
+    "prepare-evidence": (720, 378.2),
+    "evidence": (1020, 187.4),
+    "evidence/extract-one": (900, 187.4),
+    "synthesis": (600, 111.1),
+    "writing": (360, 43.2),
+    "verification": (720, 173.6),
+}
+REVIEW_CONTENTION_SECONDS = 300
+REVIEW_DEADLINE_SECONDS = 4500
+# Worst reservation (byte-bound input + declared output cap) of each role's one
+# model call, from the largest real Crossref and resolver records.
+REVIEW_BUDGETS = {
+    "PlanningWorker": (50000, 42393),
+    "ScreeningWorker": (45000, 39579),
+    "CitationWorker": (50000, 42907),
+    "SynthesisWorker": (45000, 37749),
+    "VerificationWorker": (60000, 50991),
+}
+REVIEW_CHANGED_FILES = {
+    "MANIFEST.agent",
+    "README.md",
+    "graph.json",
+    "fixtures/workflow.json",
+    "schemas/claim.schema.json",
+    "schemas/evidence-job.schema.json",
+    "schemas/paper.schema.json",
+    "schemas/paper-evidence.schema.json",
+    "schemas/screen-job.schema.json",
+    "schemas/selection.schema.json",
+    "schemas/workflow-input.schema.json",
+    "skills/citation-resolution/SKILL.md",
+    "skills/claim-and-citation-verification/SKILL.md",
+    "skills/evidence-extraction/SKILL.md",
+    "skills/evidence-synthesis/SKILL.md",
+    "skills/literature-search/SKILL.md",
+    "skills/paper-screening/SKILL.md",
+    "skills/related-work-writing/SKILL.md",
+}
+
+
+def _operations(graph):
+    for node in graph["nodes"]:
+        yield node["id"], node
+        for step in node.get("steps", []):
+            yield f"{node['id']}/{step['id']}", step
+
+
+@pytest.fixture(scope="module")
+def review():
+    return load_package(REVIEW)
+
+
+def test_the_shipped_review_artifact_is_the_republished_version(review):
+    assert review.manifest["package_id"] == PACKAGE_ID["literature-review"]
+    assert review.manifest["version"] == "0.2.1"
+    assert review.manifest["runtime"]["minimum_version"] == "0.2.0"
+    assert review.manifest["entrypoint"] == "workflow.v0"
+    assert review.graph["profile"] == "workflow.v0"
+
+
+def test_the_shipped_review_artifact_matches_its_source_tree(review, tmp_path):
+    rebuilt = load_package(build_package(REVIEW_SOURCE, tmp_path / "rebuilt.agent.pkg"))
+    assert rebuilt.digest == review.digest
+
+
+def test_review_0_2_0_is_preserved_and_verifies_under_its_own_key():
+    previous = load_package(REVIEW_PREVIOUS)
+    assert previous.manifest["version"] == "0.2.0"
+    assert previous.digest == REVIEW_PREVIOUS_DIGEST
+    assert verify_package(REVIEW_PREVIOUS, ORIGINAL_KEY)["valid"]
+    assert previous.graph["deadline_seconds"] == 1800
+
+
+def test_only_the_enumerated_files_changed():
+    before, after = load_package(REVIEW_PREVIOUS), load_package(REVIEW)
+    changed = {
+        name
+        for name in set(before.files) | set(after.files)
+        if before.files.get(name) != after.files.get(name)
+    }
+    changed.discard("SIGNATURE")  # rotated key, re-signed bytes
+    assert changed == REVIEW_CHANGED_FILES
+    # The package-wide policy — permissions, network, budgets, delegation — is
+    # byte-identical, and so is every tool contract.
+    assert before.files["policy/policy.json"] == after.files["policy/policy.json"]
+    for tool in after.manifest["tools"]:
+        assert before.files[tool["path"]] == after.files[tool["path"]]
+
+
+def test_the_graph_changed_only_in_timing_budgets_caps_breadth_and_one_schema():
+    def normalized(graph):
+        graph = json.loads(json.dumps(graph))
+        graph.pop("deadline_seconds")
+        for worker in graph["workers"]:
+            worker["budget"].pop("tokens")
+        for _, op in _operations(graph):
+            op.pop("timeout_seconds")
+            op.pop("max_output_tokens", None)
+            if op.get("tool") == "scholarly-search":
+                op["input"]["object"].pop("limit")
+            if op.get("id") == "extract-one":
+                op.pop("output_schema")
+        return graph
+
+    before, after = load_package(REVIEW_PREVIOUS).graph, load_package(REVIEW).graph
+    assert normalized(before) == normalized(after)
+    # Every validation assertion is exactly what 0.2.0 declared.
+    assertions = lambda g: {name: op.get("assertions") for name, op in _operations(g)}  # noqa: E731
+    assert assertions(before) == assertions(after)
+
+
+def test_the_bounded_work_policy_is_explicit(review):
+    ops = dict(_operations(review.graph))
+    assert ops["search/search-query"]["input"]["object"]["limit"] == {"literal": 3}
+    assert ops["search"]["max_items"] == 3
+    assert review.json("schemas/selection.schema.json")["maxItems"] == 3
+    assert ops["evidence/extract-one"]["output_schema"] == "schemas/paper-evidence.schema.json"
+    assert review.json("schemas/paper-evidence.schema.json")["maxItems"] == 4
+    caps = {name: op["max_output_tokens"] for name, op in ops.items() if op["type"] == "llm"}
+    assert caps == {
+        "planning": 12000,
+        "normalize": 16000,
+        "screening/screen-one": 12000,
+        "select-included": 12000,
+        "prepare-evidence": 16000,
+        "evidence/extract-one": 12000,
+        "synthesis": 12000,
+        "writing": 12000,
+        "verification": 16000,
+    }
+    # Parallelism was not serialized away to fit a slow host.
+    for name in ("seed-discovery", "search", "screening", "citations", "evidence"):
+        assert ops[name]["max_parallel"] == 3
+    assert review.policy["budget"]["max_parallel_workers"] == 3
+
+
+def test_the_schema_changes_only_add_constraints(review):
+    before = load_package(REVIEW_PREVIOUS)
+    claim, old_claim = (
+        review.json("schemas/claim.schema.json"),
+        before.json("schemas/claim.schema.json"),
+    )
+    for field in ("paper_ids", "evidence_ids"):
+        assert claim["properties"][field] == {**old_claim["properties"][field], "minItems": 1}
+    paper, old_paper = (
+        review.json("schemas/paper.schema.json"),
+        before.json("schemas/paper.schema.json"),
+    )
+    for field in ("authors", "provenance"):
+        item, old_item = (
+            paper["properties"][field]["items"],
+            old_paper["properties"][field]["items"],
+        )
+        assert old_item["additionalProperties"] is True and item["additionalProperties"] is False
+        assert set(old_item["properties"]) <= set(item["properties"])
+        assert item["required"] == old_item["required"]
+    assert {k: v for k, v in paper.items() if k != "properties"} == {
+        k: v for k, v in old_paper.items() if k != "properties"
+    }
+
+
+def test_document_ids_are_opaque_tokens_never_dois(review):
+    """A model once put each paper's DOI in `file_id`; the shape now forbids it."""
+    import re
+
+    pattern = "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$"
+    before = load_package(REVIEW_PREVIOUS)
+    for name in ("screen-job", "evidence-job"):
+        old = before.json(f"schemas/{name}.schema.json")["properties"]["file_id"]
+        new = review.json(f"schemas/{name}.schema.json")["properties"]["file_id"]
+        assert old == {"type": ["string", "null"]}
+        assert new == {"anyOf": [{"type": "null"}, {"type": "string", "pattern": pattern}]}
+    documents = review.json("schemas/workflow-input.schema.json")["properties"]["documents"]
+    assert documents["additionalProperties"] == {"type": "string", "pattern": pattern}
+    assert re.match(pattern, "file_" + "0" * 32)  # a host capability id
+    assert re.match(pattern, "synthetic-router-pdf")  # the fixture's document id
+    assert not re.match(pattern, "10.2139/ssrn.7162224")
+
+
+def test_the_review_timing_policy_is_what_was_measured(review):
+    ops = dict(_operations(review.graph))
+    assert review.graph["deadline_seconds"] == REVIEW_DEADLINE_SECONDS
+    for name, (declared, measured) in REVIEW_TIMING.items():
+        assert ops[name]["timeout_seconds"] == declared, name
+        assert declared > measured, name
+        assert declared <= 4 * measured + REVIEW_CONTENTION_SECONDS, name
+    critical_path = sum(
+        measured for name, (_, measured) in REVIEW_TIMING.items() if "/" not in name
+    )
+    assert REVIEW_DEADLINE_SECONDS <= 4 * critical_path
+    # Operations without a model call keep 0.2.0's budgets.
+    before = dict(_operations(load_package(REVIEW_PREVIOUS).graph))
+    for name, op in ops.items():
+        if name not in REVIEW_TIMING:
+            assert op["timeout_seconds"] == before[name]["timeout_seconds"], name
+
+
+def test_review_graph_deadline_is_still_capped_by_the_host(review):
+    limits = HostExecutionLimits()
+    assert effective_deadline_seconds(review, limits) == DEFAULT_RUN_TIMEOUT_SECONDS
+    generous = HostExecutionLimits.normalize({"run_timeout_seconds": 86_400})
+    assert effective_deadline_seconds(review, generous) == REVIEW_DEADLINE_SECONDS
+
+
+def test_review_worker_budgets_cover_their_worst_reservation_and_no_more(review):
+    workers = {worker["id"]: worker for worker in review.graph["workers"]}
+    for role, (declared, worst) in REVIEW_BUDGETS.items():
+        assert workers[role]["budget"]["tokens"] == declared
+        assert worst < declared <= worst + 10000, role
+        # Still inside what any one call may reserve against the context window.
+        assert declared < 65536
+    for role, worker in workers.items():
+        if role not in REVIEW_BUDGETS:
+            assert worker["budget"]["tokens"] == 30000, role
+        assert worker["budget"]["remote_calls"] == 15
+    budget = review.policy["budget"]
+    assert budget["hard_tokens"] == 180000
+    assert budget["max_remote_calls"] == 45
+    assert budget["max_calls_per_tool"] == {
+        "scholarly-search": 3,
+        "citation-resolver": 20,
+        "paper-reader": 10,
+    }
+
+
+def test_the_new_review_bytes_verify_only_under_the_new_key(review):
+    from shipped_keys import LITERATURE_FINGERPRINT, LITERATURE_KEY
+
+    verified = verify_package(REVIEW, LITERATURE_KEY)
+    assert verified["valid"] and verified["version"] == "0.2.1"
+    assert verified["key_fingerprint"] == LITERATURE_FINGERPRINT
+    with pytest.raises(Exception):
+        verify_package(REVIEW, ORIGINAL_KEY)
+    with pytest.raises(Exception):
+        verify_package(REVIEW_PREVIOUS, LITERATURE_KEY)
+
+
+def test_the_new_review_signer_is_a_mismatch_until_pinned_at_package_scope(tmp_path):
+    from shipped_keys import LITERATURE_FINGERPRINT
+
+    control = ControlPlane(
+        ControlPlaneConfig(cache_dir=tmp_path / "cache", trust_store_path=tmp_path / "trust.json")
+    )
+    control.trust_add(
+        read_public_key_file(ORIGINAL_KEY),
+        display_name="WebAgents development key",
+        publisher_id="webagents-research",
+    )
+    summary = control.open_file(str(REVIEW))
+    session_id = summary["session"]["id"]
+    assert summary["publisher"]["signature_status"] == "valid"
+    assert summary["publisher"]["trust_status"] == "mismatch"
+    assert summary["publisher"]["trust_reason"] == "claimed_publisher_pinned_to_other_key"
+    pinned = control.trust_session_publisher(
+        session_id, signer_fingerprint=summary["publisher"]["signer_fingerprint"], scope="package"
+    )
+    assert pinned["added"]["fingerprint"] == LITERATURE_FINGERPRINT
+    assert pinned["added"]["package_id_prefix"] == PACKAGE_ID["literature-review"]
+    assert control.summary(session_id)["publisher"]["trust_status"] == "trusted"
+    # The narrow pin does not reach the other package the same publisher signs.
+    agenda = control.open_file(str(AGENDA))
+    assert agenda["publisher"]["trust_status"] == "mismatch"
+
+
+def test_a_review_0_2_0_receipt_cannot_authorize_0_2_1(tmp_path):
+    from shipped_keys import LITERATURE_KEY
+
+    control = ControlPlane(
+        ControlPlaneConfig(cache_dir=tmp_path / "cache", trust_store_path=tmp_path / "trust.json")
+    )
+    for key, prefix in ((ORIGINAL_KEY, None), (LITERATURE_KEY, PACKAGE_ID["literature-review"])):
+        control.trust_add(
+            read_public_key_file(key),
+            display_name="WebAgents development key",
+            publisher_id="webagents-research",
+            package_id_prefix=prefix,
+        )
+    old = control.open_file(str(REVIEW_PREVIOUS))
+    new = control.open_file(str(REVIEW))
+    assert old["publisher"]["trust_status"] == new["publisher"]["trust_status"] == "trusted"
+    assert old["package"]["digest"] != new["package"]["digest"]
+    with pytest.raises(ControlPlaneError) as mismatch:
+        control.authorize(
+            new["session"]["id"],
+            package_digest=old["package"]["digest"],
+            decisions={"memory.session": "session"},
+        )
+    assert mismatch.value.code == "digest_mismatch"

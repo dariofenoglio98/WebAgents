@@ -1,0 +1,403 @@
+{
+ "model": "ollama/qwen3:30b",
+ "num_ctx": 65536,
+ "options": {},
+ "package_version": "0.2.1",
+ "package_digest": "f77fe0dd83b1fccc66deb49f18b07fa503d5b548f70333f73cb2194bd7d07515",
+ "probes": {
+  "planning": {
+   "record": {
+    "label": "planning",
+    "task": "plan",
+    "role": "PlanningWorker",
+    "bound_bytes": 2897,
+    "reservation": 14897,
+    "max_output_tokens": 12000,
+    "elapsed_s": 44.4,
+    "prompt_eval_count": 420,
+    "eval_count": 1824,
+    "thinking_chars": 8618,
+    "output_chars": 483,
+    "done_reason": "stop",
+    "options": {},
+    "conforming": true,
+    "parse": "direct"
+   },
+   "output": {
+    "queries": [
+     "dynamic agent selection multi-agent LLM communication topology",
+     "agent selection criteria topology adaptation mechanisms multi-agent LLM",
+     "efficiency trade-offs communication topology multi-agent LLM performance metrics"
+    ],
+    "rationale": "Three complementary queries covering terminology (key terms), method (proposed techniques), and evaluation (efficiency metrics) facets to comprehensively explore the research question.",
+    "seed_queries": []
+   }
+  },
+  "crossref": {
+   "queries": [
+    "dynamic agent selection multi-agent LLM communication topology",
+    "agent selection criteria topology adaptation mechanisms multi-agent LLM",
+    "efficiency trade-offs communication topology multi-agent LLM performance metrics"
+   ],
+   "counts": [
+    3,
+    3,
+    3
+   ],
+   "with_abstract": 7,
+   "titles": [
+    "Self-Refining Topology Optimization via an LLM-Based Multi-Agent Framework",
+    "Optimizing Multi\u2011Agent LLM Collaboration via Communication\u2011Flow Control\u200b",
+    "WirelessLLM-Agent: A Unified LLM-Based Agent Framework for Multi-Task Wireless Communication Decision-Making",
+    "Self-Refining Topology Optimization via an LLM-Based Multi-Agent Framework",
+    "Memory in LLM-based Multi-agent Systems: Mechanisms, Challenges, and Collective Intelligence",
+    "ALAS: A Stateful Multi-LLM Agent Framework for Disruption-Aware Planning",
+    "Controlled Benchmarking of Memory Topologies in LLM-Based Multi-Agent Systems: Quality, Efficiency, and Privacy Trade-Offs",
+    "Stress-Based Assessment of Bio-Inspired Phosphene Vision Encoding: Trade-Offs Among Performance, Residual Proxy Safety Burden, and Topology-Based Representation Metrics",
+    "Self-Refining Topology Optimization via an LLM-Based Multi-Agent Framework"
+   ]
+  },
+  "normalize": {
+   "record": {
+    "label": "normalize",
+    "task": "normalize",
+    "role": "PlanningWorker",
+    "bound_bytes": 23021,
+    "reservation": 39021,
+    "max_output_tokens": 16000,
+    "elapsed_s": 586.7,
+    "prompt_eval_count": 4657,
+    "eval_count": 20420,
+    "thinking_chars": 15288,
+    "output_chars": 67070,
+    "done_reason": "length",
+    "options": {},
+    "conforming": false,
+    "failure": "BridgeError: The model did not return a single JSON document",
+    "text_head": "{\"candidate_papers\":[{\"abstract\":\"Topology optimization is a widely used design method that produces optimized material distributions for prescribed objectives and constraints through well-established numerical algorithms. Throughout the workflow, engineers make a series of decisions ranging from setting and adjusting numerical parameters to assessing whether the converged design meets considerati"
+   },
+   "candidate_count": 9,
+   "screening_jobs": 0
+  },
+  "screening": {
+   "records": [
+    {
+     "label": "screen-one[0]",
+     "task": "screen",
+     "role": "ScreeningWorker",
+     "bound_bytes": 6918,
+     "reservation": 18918,
+     "max_output_tokens": 12000,
+     "elapsed_s": 74.0,
+     "prompt_eval_count": 1093,
+     "eval_count": 1264,
+     "thinking_chars": 3491,
+     "output_chars": 3008,
+     "done_reason": "stop",
+     "options": {},
+     "conforming": true,
+     "parse": "direct"
+    },
+    {
+     "label": "screen-one[1]",
+     "task": "screen",
+     "role": "ScreeningWorker",
+     "bound_bytes": 6875,
+     "reservation": 18875,
+     "max_output_tokens": 12000,
+     "elapsed_s": 89.2,
+     "prompt_eval_count": 1134,
+     "eval_count": 1625,
+     "thinking_chars": 5461,
+     "output_chars": 3095,
+     "done_reason": "stop",
+     "options": {},
+     "conforming": true,
+     "parse": "direct"
+    },
+    {
+     "label": "screen-one[2]",
+     "task": "screen",
+     "role": "ScreeningWorker",
+     "bound_bytes": 6274,
+     "reservation": 18274,
+     "max_output_tokens": 12000,
+     "elapsed_s": 60.2,
+     "prompt_eval_count": 1018,
+     "eval_count": 1079,
+     "thinking_chars": 2733,
+     "output_chars": 2301,
+     "done_reason": "stop",
+     "options": {},
+     "conforming": true,
+     "parse": "direct"
+    },
+    {
+     "label": "screen-one[3]",
+     "task": "screen",
+     "role": "ScreeningWorker",
+     "bound_bytes": 6927,
+     "reservation": 18927,
+     "max_output_tokens": 12000,
+     "elapsed_s": 140.5,
+     "prompt_eval_count": 1094,
+     "eval_count": 1124,
+     "thinking_chars": 2688,
+     "output_chars": 3001,
+     "done_reason": "stop",
+     "options": {},
+     "conforming": true,
+     "parse": "direct"
+    },
+    {
+     "label": "screen-one[4]",
+     "task": "screen",
+     "role": "ScreeningWorker",
+     "bound_bytes": 6432,
+     "reservation": 18432,
+     "max_output_tokens": 12000,
+     "elapsed_s": 155.1,
+     "prompt_eval_count": 1099,
+     "eval_count": 1191,
+     "thinking_chars": 3109,
+     "output_chars": 2399,
+     "done_reason": "stop",
+     "options": {},
+     "conforming": true,
+     "parse": "direct"
+    },
+    {
+     "label": "screen-one[5]",
+     "task": "screen",
+     "role": "ScreeningWorker",
+     "bound_bytes": 5138,
+     "reservation": 17138,
+     "max_output_tokens": 12000,
+     "elapsed_s": 126.2,
+     "prompt_eval_count": 837,
+     "eval_count": 1187,
+     "thinking_chars": 4341,
+     "output_chars": 929,
+     "done_reason": "stop",
+     "options": {},
+     "conforming": true,
+     "parse": "direct"
+    },
+    {
+     "label": "screen-one[6]",
+     "task": "screen",
+     "role": "ScreeningWorker",
+     "bound_bytes": 5423,
+     "reservation": 17423,
+     "max_output_tokens": 12000,
+     "elapsed_s": 71.5,
+     "prompt_eval_count": 922,
+     "eval_count": 1699,
+     "thinking_chars": 6698,
+     "output_chars": 1102,
+     "done_reason": "stop",
+     "options": {},
+     "conforming": true,
+     "parse": "direct"
+    },
+    {
+     "label": "screen-one[7]",
+     "task": "screen",
+     "role": "ScreeningWorker",
+     "bound_bytes": 8264,
+     "reservation": 20264,
+     "max_output_tokens": 12000,
+     "elapsed_s": 95.5,
+     "prompt_eval_count": 1356,
+     "eval_count": 1600,
+     "thinking_chars": 2947,
+     "output_chars": 4606,
+     "done_reason": "stop",
+     "options": {},
+     "conforming": true,
+     "parse": "direct"
+    },
+    {
+     "label": "screen-one[8]",
+     "task": "screen",
+     "role": "ScreeningWorker",
+     "bound_bytes": 6936,
+     "reservation": 18936,
+     "max_output_tokens": 12000,
+     "elapsed_s": 109.2,
+     "prompt_eval_count": 1096,
+     "eval_count": 1288,
+     "thinking_chars": 3631,
+     "output_chars": 2940,
+     "done_reason": "stop",
+     "options": {},
+     "conforming": true,
+     "parse": "direct"
+    }
+   ],
+   "statuses": [
+    "exclude",
+    "exclude",
+    "exclude",
+    "exclude",
+    "exclude",
+    "maybe",
+    "maybe",
+    "exclude",
+    "exclude"
+   ]
+  },
+  "select": {
+   "record": {
+    "label": "select-included",
+    "task": "select",
+    "role": "ScreeningWorker",
+    "bound_bytes": 26731,
+    "reservation": 38731,
+    "max_output_tokens": 12000,
+    "elapsed_s": 51.9,
+    "prompt_eval_count": 5510,
+    "eval_count": 1517,
+    "thinking_chars": 6738,
+    "output_chars": 2,
+    "done_reason": "stop",
+    "options": {},
+    "conforming": true,
+    "parse": "direct"
+   },
+   "included": 0
+  },
+  "citations": {
+   "statuses": [
+    "resolved",
+    "resolved",
+    "resolved"
+   ]
+  },
+  "prepare": [
+   {
+    "variant": "host",
+    "record": {
+     "label": "prepare-evidence[host]",
+     "task": "prepare",
+     "role": "CitationWorker",
+     "bound_bytes": 22287,
+     "reservation": 38287,
+     "max_output_tokens": 16000,
+     "elapsed_s": 281.5,
+     "prompt_eval_count": 4500,
+     "eval_count": 10006,
+     "thinking_chars": 23703,
+     "output_chars": 17865,
+     "done_reason": "stop",
+     "options": {},
+     "conforming": true,
+     "parse": "direct"
+    },
+    "citation_checks": [
+     "metadata_not_exact",
+     "metadata_not_exact",
+     "metadata_not_exact"
+    ],
+    "evidence_jobs": 1
+   }
+  ],
+  "extract": {
+   "records": [
+    {
+     "label": "extract-one[0]",
+     "task": "extract",
+     "role": "EvidenceWorker",
+     "bound_bytes": 14875,
+     "reservation": 26875,
+     "max_output_tokens": 12000,
+     "elapsed_s": 103.2,
+     "prompt_eval_count": 2872,
+     "eval_count": 4610,
+     "thinking_chars": 16153,
+     "output_chars": 3293,
+     "done_reason": "stop",
+     "options": {},
+     "conforming": true,
+     "parse": "direct",
+     "quotes_contained": [
+      false,
+      false,
+      false
+     ]
+    }
+   ],
+   "evidence_items": 3
+  },
+  "synthesis": {
+   "record": {
+    "label": "synthesis",
+    "task": "synthesize",
+    "role": "SynthesisWorker",
+    "bound_bytes": 14926,
+    "reservation": 26926,
+    "max_output_tokens": 12000,
+    "elapsed_s": 87.0,
+    "prompt_eval_count": 2895,
+    "eval_count": 3942,
+    "thinking_chars": 16431,
+    "output_chars": 1692,
+    "done_reason": "stop",
+    "options": {},
+    "conforming": true,
+    "parse": "direct"
+   }
+  },
+  "writing": {
+   "record": {
+    "label": "writing",
+    "task": "write",
+    "role": "WritingWorker",
+    "bound_bytes": 5112,
+    "reservation": 17112,
+    "max_output_tokens": 12000,
+    "elapsed_s": 37.3,
+    "prompt_eval_count": 766,
+    "eval_count": 1970,
+    "thinking_chars": 7129,
+    "output_chars": 1197,
+    "done_reason": "stop",
+    "options": {},
+    "conforming": true,
+    "parse": "direct"
+   }
+  },
+  "verification": {
+   "record": {
+    "label": "verification",
+    "task": "verify",
+    "role": "VerificationWorker",
+    "bound_bytes": 17384,
+    "reservation": 33384,
+    "max_output_tokens": 16000,
+    "elapsed_s": 111.1,
+    "prompt_eval_count": 3365,
+    "eval_count": 5082,
+    "thinking_chars": 10118,
+    "output_chars": 12678,
+    "done_reason": "stop",
+    "options": {},
+    "conforming": true,
+    "parse": "direct"
+   },
+   "checks": {
+    "bibliography": [
+     "not_exact",
+     "not_exact",
+     "not_exact"
+    ],
+    "evidence_table": [
+     "ok",
+     "ok",
+     "ok"
+    ],
+    "related_work_chars": 52
+   }
+  }
+ }
+}

@@ -204,6 +204,15 @@ Hashing is RFC 8785 canonical JSON — the same canonicalization a package's
 integrity statement, an authorization receipt and a run plan already use, so one
 comparison rule covers every artifact in this project.
 
+**Version 0.2 (3B4) adds `attachments`**: the selected files a run was given,
+as a closed, sorted list of `{file_id, sha256, bytes, media_type}` — the opaque
+capability id and the exact bytes' identity, never a path or a display name.
+Files are part of *what was asked*, so a run given a file is a different
+invocation, with a different hash, from one that was not. The host decides
+which files these are and enforces that nothing else is readable (see [the tool
+broker](tool-broker.md#3b-selected-file-capabilities)); the runner validates
+the list's shape and binds it.
+
 The input is bounded at 256 KiB by the backend and again by the runner, and is
 validated against the **package's own declared input schema** in
 `execution.begin`, before `execution.run` exists and therefore before any
@@ -241,6 +250,7 @@ ones, and `Runtime` applies `min()` to each, so a host limit can only ever lower
 | `execution.maxRemoteCalls` | 32 | `min` with the package's `max_remote_calls` |
 | `execution.maxParallelWorkers` | 3 | `min` with the package's `max_parallel_workers` |
 | `execution.runTimeoutSeconds` | 600 | `min` with the graph's `deadline_seconds` |
+| `execution.modelCallTimeoutSeconds` | 300 | how long one model completion may take, queueing at the model server included |
 | `execution.maxOutputTokensPerCall` | 16,000 | an **upper bound**, checked before the run |
 | `execution.requireVerifiedHostRuntime` | `true` | refuse an unverified OpenClaw release |
 
@@ -251,6 +261,18 @@ package's behaviour while reporting success. So the whole graph is scanned
 before the run and a node above the ceiling is refused with
 `execution_output_cap_too_large`. Meeting Agenda's nodes request 12,000, which
 is why the default ceiling is 16,000.
+
+`modelCallTimeoutSeconds` bounds one completion rather than lowering anything
+the package declared: it is the runner's own wait for `model.complete`, after
+which the runner cancels the call and the cancellation reaches the model
+request. The host keeps a backstop timer 30 s later for a runner that did not.
+Until 3B4 this was a constant 300 s in the runner. It is now an operator setting
+because a local model server that decodes one request at a time (Ollama's
+default `OLLAMA_NUM_PARALLEL=1`) answers the third of three concurrent workers
+only after the other two have finished, so a call's wall-clock time includes the
+queue in front of it. The package's own node timeouts still bound every call;
+this only stops the host from cutting one off first. It appears in the run
+record with the other host limits.
 
 No cost guess is introduced anywhere. The package's own budget policy stays
 visible in the run record next to the host's, with the effective `min` of both.
@@ -324,6 +346,57 @@ Parallelism is the interpreter's. Meeting Agenda's `perspectives` map declares
 allocates `min(max_parallel, item_count)` consumers and `Runtime` holds the
 global and per-role semaphores. The plugin implements no scheduling.
 
+## 9a. The task, the run and its progress — the interaction model for workflow.v0
+
+Under `workflow.v0` a person does not converse with a package. The model is:
+
+```text
+ structured task input        the package's own declared input schema, e.g. for
+   (+ selected files)         Literature Review {question, seeds, documents, mode}
+        │
+        ▼
+ one Run Invocation           plan + input + attachments, hashed, immutable
+        │
+        ▼
+ one bounded run              the signed graph, start to finish, under the plan
+        │                     (live progress while it runs)
+        ▼
+ one result + artifacts       exports, result, audit, usage, provenance, run record
+```
+
+For Literature Review the `question` field *is* the research prompt; `seeds`
+and selected `documents` are optional. A follow-up question is a **new** Run
+Invocation against the same (or a new) run plan — not a turn in a
+conversation. Conversational or long-lived agents need a different execution
+profile (`conversation.v0` or similar), which this milestone deliberately does
+not add.
+
+Three backend additions make that model renderable by the run surface (3C)
+without adding anything package-specific:
+
+* **the task on the record.** The run record carries `task`: the input when it
+  is at most 16 KiB (the person's own task, never package output), its size,
+  and the attachments by id and hash;
+* **live progress.** The runner watches its own hash-chained audit as events
+  are appended and sends `execution.progress` — active and completed node ids,
+  steps completed, workers spawned/active/peak, model and tool calls started
+  and completed, tokens and remote calls so far. Identifiers and counts only;
+  no prompt, input, model output, tool payload or error text. Sends are
+  coalesced (at most one per second plus one per node transition), one at a
+  time, and dropped on failure: observation never steers or delays the run. The
+  parent accepts the method only when a sink is attached, exactly as `tool.call`
+  exists only when a broker is attached, and never rewrites a terminal record
+  with a late snapshot. `Runtime` gained a generic `observer` hook for this; it
+  receives a copy of each chained event and its errors are discarded;
+* **a detached start.** `execution.start` accepts `detach: true`: it answers as
+  soon as the runner has bound the plan (so every refusal — stale plan, denied
+  permission, unknown file — still comes back to the caller) with the record in
+  `running`, and the run continues; `execution.get` then shows progress and,
+  finally, the outcome. Without `detach` it waits, as before.
+
+`usage.toolCalls` on the run record now sums every attempted dispatch across
+tools; it previously counted distinct tools.
+
 ## 10. Cancellation
 
 `execution.cancel` → `Workflow.cancel()` → the run task is cancelled → workers
@@ -369,7 +442,7 @@ another:
 | | Lives in | Set by | Bounds | Changing it means |
 |---|---|---|---|---|
 | **package timing policy** | `graph.json`: each node's and map step's `timeout_seconds`, and `deadline_seconds` | the **publisher** | one node, one map step, or the whole graph | new bytes, new digest, new signature, new version, new trust and authorization |
-| **host execution limits** | `agentpkg.execution.policy` and the plugin's `execution` config | the **operator** | wall clock, tokens, parallelism, one call's output cap | a config edit; it can only ever *lower* what a package declared |
+| **host execution limits** | `agentpkg.execution.policy` and the plugin's `execution` config | the **operator** | wall clock, tokens, parallelism, one call's output cap, one call's wait for the model | a config edit; it can only ever *lower* what a package declared |
 | **provider latency** | nowhere | **nobody** | how long a model actually takes | a different model, or different hardware |
 
 The asymmetry is the point. A package declares what it believes its work needs;
@@ -441,6 +514,25 @@ exists. A completed run contains `runtime.started`, `workflow.started`,
 `model.count.called`, `model.called`, `model.completed`, `budget.updated`,
 `worker.completed`, `node.completed`, `state.committed`, `workflow.completed`
 and `memory.cleared`.
+
+A failed call says *which* failure it was. `model.failed`, `model.count.failed`
+and `tool.failed` carry the failing adapter's stable code as `reason`
+(`bridge_timeout`, `model_output_not_conforming`, `selected_model_unavailable`,
+`tool_unavailable`, …) — only an identifier-shaped string, never a message a
+provider or service wrote. A call refused before dispatch records
+`model.refused` with the bound that refused it — `context_window`,
+`worker_token_budget` or `global_token_budget` — and the numbers: the request's
+input bound, its output cap, the reservation, what was already used and held,
+and the limit. A run that ends in `budget_exhausted` can therefore be classified
+from its own audit rather than guessed at.
+
+A node that fails a declared check records which one as `failed_check`: for an
+assertion, its index and kind, the failure (`fields_do_not_match`,
+`missing_target_key`, …) and the JSON pointers it compared, all taken from the
+package's own declaration; for a node output that fails its schema,
+`output_schema` and the schema path. No value from the data is ever recorded, so
+a failed run's state can still be cleared under the package's retention policy
+while the audit says exactly what refused it.
 
 The run record's summary is *derived from that chain*, not kept alongside it: it
 says five model calls happened because five `model.completed` events exist. It

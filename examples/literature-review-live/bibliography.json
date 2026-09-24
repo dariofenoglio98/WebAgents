@@ -1,0 +1,72 @@
+[
+  {
+    "reference": "guardrail-rs A Fail-Open Reverse Proxy for Prompt-Injection Defense and PII Redaction in LLM Applications",
+    "paper_id": "10.21203/rs.3.rs-10354224/v1",
+    "metadata": {
+      "abstract": "Abstract Applications built on large language models (LLMs) typically forward user input to a model provider with no enforcement layer in between, leaving prompt-injection attempts and personally identifiable information (PII) to pass through unfiltered in both directions. We present guardrail-rs, an open-source reverse proxy, implemented in Rust, that sits between an application and its LLM provider and inspects every request and response before it crosses the network boundary. The system is built around a composable Stage/Pipeline abstraction supporting regex-based and optional ONNX-based semantic classifiers for prompt-injection detection, regex-based PII redaction, user-defined policy rules, and privacy-preserving observability (metrics, distributed tracing, and a metadata-only audit log). A central design goal is fail-open by default: a malfunctioning security stage degrades gracefully rather than becoming an availability liability. We describe the system’s architecture and implementation as a five-crate Rust workspace, all of which is published and available for use, and report an honest, continuouslytracked empirical performance characterization measured on commodity CI infrastructure, including a case where a component misses its own documented latency target at larger payload sizes. We also report several concrete engineering pitfalls encountered while hardening the system for production use — a security-relevant configuration-drift defect, a dependency-tooling schema change that silently broke continuous integration twice, a single-threaded async-runtime deadlock, and a supply-chain issue that silently blocked releases — each with the general lesson it implies for builders of similar infrastructure. We are explicit about what this work does not yet establish: no formal adversarial-robustness evaluation of the classifiers against established attack suites has been performed, and this is identified as the most important item of future work. guardrail-rs is available at https://github.com /Mattral/guardrail-rs, published on crates.io, and reproducible via a runnable notebook at https://colab.research.google.com/github/Mattral/guardrail-rs/blob/m ain/examples/notebooks/quickstart_colab.ipynb.",
+      "arxiv_id": null,
+      "authors": [
+        {
+          "family": "Myet",
+          "given": "Min Htet",
+          "name": "Min Htet Myet",
+          "orcid": "https://orcid.org/0009-0005-0853-8301"
+        }
+      ],
+      "bibtex": "@misc{myet2026guardrailrsafailopen644da869,\n  title = {{guardrail-rs A Fail-Open Reverse Proxy for Prompt-Injection Defense and PII Redaction in LLM Applications}},\n  author = {Myet, Min Htet},\n  year = {2026},\n  publisher = {Springer Science and Business Media LLC},\n  doi = {10.21203/rs.3.rs-10354224/v1},\n  url = {https://doi.org/10.21203/rs.3.rs-10354224/v1}\n}",
+      "doi": "10.21203/rs.3.rs-10354224/v1",
+      "issue": null,
+      "journal_reference": null,
+      "pages": null,
+      "provider_ids": {
+        "crossref": "10.21203/rs.3.rs-10354224/v1"
+      },
+      "publication_type": "posted-content",
+      "publisher": "Springer Science and Business Media LLC",
+      "source": "crossref",
+      "title": "guardrail-rs A Fail-Open Reverse Proxy for Prompt-Injection Defense and PII Redaction in LLM Applications",
+      "url": "https://doi.org/10.21203/rs.3.rs-10354224/v1",
+      "venue": null,
+      "volume": null,
+      "year": 2026
+    }
+  },
+  {
+    "reference": "Dynamic Moving Target Defense for Mitigating Targeted LLM Prompt Injection",
+    "paper_id": "10.36227/techrxiv.171822345.56781952/v1",
+    "metadata": {
+      "abstract": "The increasing sophistication and capabilities of artificial intelligence systems have brought about significant advancements in natural language processing, yet they have also exposed these systems to various security vulnerabilities, particularly targeted prompt injection attacks. The introduction of a moving target defence mechanism offers a novel and significant approach to mitigating these attacks through continuously altering the model’s parameters and configurations, thereby creating an unpredictable environment that complicates adversarial efforts. This research provides a comprehensive evaluation of the moving target defence mechanism, detailing the selection and categorization of prompt injection attacks, the development of dynamic defence techniques such as random parameter perturbation, model re-initialization, and dynamic context adjustments, and their seamless integration with the Mistral LLM. The experimental results indicate a substantial reduction in the attack success rate, maintaining high performance metrics while managing computational overhead efficiently. The findings highlight the practical applicability and potential for widespread adoption of the moving target defence mechanism in enhancing the security and resilience of large language models against sophisticated adversarial tactics.",
+      "arxiv_id": null,
+      "authors": [
+        {
+          "family": "Panterino",
+          "given": "Samuel",
+          "name": "Samuel Panterino",
+          "orcid": "https://orcid.org/0009-0000-4889-2106"
+        },
+        {
+          "family": "Fellington",
+          "given": "Matthew",
+          "name": "Matthew Fellington",
+          "orcid": "https://orcid.org/0009-0002-8130-7903"
+        }
+      ],
+      "bibtex": "@misc{panterino2024dynamicmovingtargete2046100,\n  title = {{Dynamic Moving Target Defense for Mitigating Targeted LLM Prompt Injection}},\n  author = {Panterino, Samuel and Fellington, Matthew},\n  year = {2024},\n  publisher = {Institute of Electrical and Electronics Engineers (IEEE)},\n  doi = {10.36227/techrxiv.171822345.56781952/v1},\n  url = {https://doi.org/10.36227/techrxiv.171822345.56781952/v1}\n}",
+      "doi": "10.36227/techrxiv.171822345.56781952/v1",
+      "issue": null,
+      "journal_reference": null,
+      "pages": null,
+      "provider_ids": {
+        "crossref": "10.36227/techrxiv.171822345.56781952/v1"
+      },
+      "publication_type": "posted-content",
+      "publisher": "Institute of Electrical and Electronics Engineers (IEEE)",
+      "source": "crossref",
+      "title": "Dynamic Moving Target Defense for Mitigating Targeted LLM Prompt Injection",
+      "url": "https://doi.org/10.36227/techrxiv.171822345.56781952/v1",
+      "venue": null,
+      "volume": null,
+      "year": 2024
+    }
+  }
+]

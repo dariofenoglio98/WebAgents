@@ -1,0 +1,38 @@
+== rag-hallucination: unique 7, with abstract 4
+    A 2024 Hallucination Reduction in Large Language Models with Retrieval-Augmented Generation Using Wiki
+    A 2026 Quantum-Enhanced Retrieval-Augmented Generation for Hallucination Reduction in Large Language M
+    A 2026 Hallucination in Large Language Models and Retrieval-Augmented Generation: Mechanisms, Mitigati
+    - 2025 A Comparative Study of Retrieval-Augmented Generation, Graph Retrieval-Augmented Generation, an
+    - 2025 A Comparative Study of Retrieval-Augmented Generation, Graph Retrieval-Augmented Generation, an
+    - 2025 Retrieval-Augmented Generation: Enhancing AI with Reliable Knowledge.
+    A 2026 Evaluating hallucination Mitigation in Retrieval-Augmented Generation Systems through Guarded R
+== multi-agent-debate: unique 9, with abstract 3
+    A 2026 Robust BioReasoning Agent: Enhancing Robust Multi-hop Fact Extraction and Reasoning in Biomedic
+    - 2025 Adaptive heterogeneous multi-agent debate for enhanced educational and factual reasoning in lar
+    - 2023 Multi-Agent Reasoning with Large Language Models for Effective Corporate Planning
+    A 2025 ShanZhiXingYu: Address Factuality Issues in Large Language Models Through Multi-Dimensions
+    - 2024 Multi-Agent Based Casual Triple Extraction For Factuality Evaluation Using Large Language Model
+    - 2025 Debate or Vote: Which Yields Better Decisions in Multi-Agent Large Language Models?
+    - None Multi-Judge Consensus Scoring for IRT-Based Adaptive LLM Evaluation
+    A 2026 Adversarial Consensus Verification for Reliable LLM agents in Financial Forensics: The Pave Int
+    - 2026 From consensus theory to LLM agents: Practical consensus-building for multi-issue negotiation
+== prompt-injection: unique 9, with abstract 7
+    A 2026 Evaluating Hybrid Guardrail Architectures for Prompt Injection Defense in Large Language Models
+    - 2026 PROMPT INJECTION ATTACKS IN LARGE LANGUAGE MODELS VIA A COMPREHENSIVE ANALYSIS OF ATTACK VECTOR
+    - 2025 Prompt Injection Attacks on Large Language Models: Multi-Model Security Analysis with Categoriz
+    A 2026 PIDL: A Prompt Injection Detection Layer for LLM-Integrated Web Applications via Multi-Signal S
+    A 2025 Prompt Injection Detection in LLM Integrated Applications
+    A 2026 Beyond Prompt Injection: Trust-Boundary Security Assurance for LLM-Integrated and Agentic Appli
+    A 2026 Prompt injection defenses open a biosecurity gap
+    A 2026 Prompt injection defenses open a biosecurity gap
+    A 2024 Enhancing Security in Large Language Models: A Comprehensive Review of Prompt Injection Attacks
+== mas-coordination: unique 9, with abstract 4
+    A 2025 AgentNet: Decentralized Evolutionary Coordination for LLM-based Multi-Agent Systems
+    A 2026 Empirical Analysis of Constraint-Based Dialogue Control and Multi-Agent Coordination in LLM Sys
+    - 2005 Coordination Strategies for Multi-Agent Systems
+    - 2024 Optimizing Collaboration of Large Language Model-Based Agents for Finite Element Analysis
+    - 2025 Optimizing Collaboration of Large Language Model Based Agents for Autonomous Finite Element Ana
+    A 2023 Large Language Model in Creative Work: The Role of Collaboration Modality and User Expertise
+    - 2026 A multi-agent ensemble framework for enhancing task performance using specialized LLM
+    A 2026 WirelessLLM-Agent: A Unified LLM-Based Agent Framework for Multi-Task Wireless Communication De
+    - 2025 ALAS: A Stateful Multi-LLM Agent Framework for Disruption-Aware Planning

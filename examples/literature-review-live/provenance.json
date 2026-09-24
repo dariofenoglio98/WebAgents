@@ -1,0 +1,7 @@
+{
+  "profile": "workflow.v0",
+  "interpreter": "agentpkg.workflow.Workflow",
+  "package_id": "org.webagents.literature-review",
+  "package_digest": "2199abb5868bcedd5c73e7a664f38d35aaaa047c2dcfdb07d91f3977bde41700",
+  "synthetic": false
+}

@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { Compile } from "typebox/compile";
-import { contract, DECISIONS, PackageView, ReceiptView, ServiceStatus } from "../src/contract.js";
+import {
+  contract,
+  DECISIONS,
+  PackageView,
+  ReceiptView,
+  RunRecordView,
+  ServiceStatus,
+} from "../src/contract.js";
 import { packageView, receiptView, serviceStatus } from "./fixtures.js";
 
 describe("feature contract", () => {
@@ -78,7 +85,7 @@ describe("feature contract", () => {
     }
   });
 
-  it("lets the tool probe caller choose a declared tool and a host fixture, and nothing else", () => {
+  it("lets the tool probe caller choose a declared tool, a host fixture, a selected file and a declared role, and nothing else", () => {
     const operation = contract.operations["execution.tool-probe"];
     expect(operation.kind).toBe("action");
     expect(operation.tool).toBeUndefined();
@@ -87,13 +94,15 @@ describe("feature contract", () => {
       properties: Record<string, unknown>;
     };
     expect(Object.keys(input.properties).sort()).toEqual([
+      "fileId",
       "fixtureId",
+      "role",
       "runPlanId",
       "runPlanSha256",
       "sessionId",
       "toolId",
     ]);
-    // Nothing that could name a destination, a request or an implementation.
+    // Nothing that could name a destination, a request, a path or an implementation.
     for (const forbidden of [
       "url",
       "endpoint",
@@ -104,9 +113,13 @@ describe("feature contract", () => {
       "input",
       "body",
       "bindingId",
+      "path",
+      "filePath",
     ]) {
       expect(input.properties[forbidden], forbidden).toBeUndefined();
     }
+    // A file is named only by the opaque id the host issued for it.
+    expect(JSON.stringify(input.properties.fileId)).toContain("^file_[0-9a-f]{32}$");
     // Its own output schema says a graph never ran and no token was spent.
     const output = JSON.stringify(operation.output);
     expect(output).toContain('"workflowExecuted"');
@@ -117,6 +130,27 @@ describe("feature contract", () => {
   it("keeps the tool registry a read and the probe a write", () => {
     expect(contract.operations["tools.evaluate"].kind).toBe("query");
     expect(contract.operations["execution.tool-probe"].kind).toBe("action");
+  });
+
+  it("names a selected file by opaque id everywhere except the one selection action", () => {
+    expect(contract.operations["files.select-local"].kind).toBe("action");
+    expect(contract.operations["files.release"].kind).toBe("action");
+    expect(contract.operations["files.list"].kind).toBe("query");
+    // Only selection takes a path; its result, the listing and a run take ids.
+    const select = contract.operations["files.select-local"].input as {
+      properties: Record<string, unknown>;
+    };
+    expect(Object.keys(select.properties).sort()).toEqual(["path", "sessionId"]);
+    for (const id of ["files.select-local", "files.list"] as const) {
+      const output = JSON.stringify(contract.operations[id].output);
+      expect(output, id).not.toContain('"path"');
+      expect(output, id).not.toContain("privatePath");
+    }
+    const start = contract.operations["execution.start"].input as {
+      properties: Record<string, unknown>;
+    };
+    expect(JSON.stringify(start.properties.files)).toContain("^file_[0-9a-f]{32}$");
+    expect(start.properties.path).toBeUndefined();
   });
 
   it("keeps run-plan preparation a write action and its reads queries", () => {
@@ -149,5 +183,23 @@ describe("feature contract", () => {
   it("refuses a package view that claims execution happened", () => {
     const invalid = { ...packageView(), executionPerformed: true };
     expect(Compile(PackageView).Check(invalid)).toBe(false);
+  });
+});
+
+describe("the run record's revalidation list", () => {
+  it("holds everything a run that binds tools re-verifies", () => {
+    // ~26 preflight checks, the input size, 16 runner facts, the handler count
+    // and one entry per bound tool: a three-tool package overflowed the old 32.
+    const check = Compile(RunRecordView.properties.revalidated);
+    const composed = [
+      ...Array.from({ length: 26 }, (_, i) => `preflight_check_${i}`),
+      "input_bytes:245",
+      ...Array.from({ length: 16 }, (_, i) => `runner:fact_${i}`),
+      "runner:tool_handlers:3",
+      ...Array.from({ length: 16 }, (_, i) => `runner:tool_bound:tool-${i}`),
+    ];
+    expect(composed).toHaveLength(60);
+    expect(check.Check(composed)).toBe(true);
+    expect(check.Check([...composed, ...Array.from({ length: 5 }, (_, i) => `extra_${i}`)])).toBe(false);
   });
 });

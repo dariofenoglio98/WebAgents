@@ -114,7 +114,14 @@ async function main() {
       packageDigest: view.identity.digest,
       decisions: permissions.permissions.map((item) => ({
         permissionId: item.id,
-        decision: "session",
+        // A router probe reads no file, so file access stays denied.
+        decision: item.kind === "files.read" ? "deny" : "session",
+      })),
+      // A declared tool needs its own approval before any plan binds it. The
+      // probe calls none; approving them only lets the plan become ready.
+      toolApprovals: (permissions.toolApprovals ?? []).map((item) => ({
+        toolId: item.toolId,
+        approved: true,
       })),
     });
     report.steps.authorization = {
@@ -122,6 +129,7 @@ async function main() {
       receiptSha256: receipt.receiptSha256,
       runnable: receipt.runnable,
       granted: receipt.grantedPermissionIds,
+      toolApprovals: receipt.toolApprovals ?? [],
     };
 
     const catalog = await call("models.evaluate", { sessionId });

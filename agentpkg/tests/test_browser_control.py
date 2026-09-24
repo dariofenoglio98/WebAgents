@@ -42,6 +42,16 @@ def pin_dev_key(control: ControlPlane, *, key=DEV_KEY, **overrides):
     return control.trust_add(read_public_key_file(key), **options)
 
 
+def pin_review_key(control: ControlPlane):
+    """Literature Review 0.2.1 has its own signer, pinned only for its own id."""
+    return pin_dev_key(
+        control,
+        key=SIGNER_KEY["literature-review"],
+        display_name="WebAgents Literature Review signing key",
+        package_id_prefix="org.webagents.literature-review",
+    )
+
+
 def signed_copy(tmp_path, name="meeting-agenda"):
     """A locally built and locally signed artifact with a throwaway key."""
     source = tmp_path / f"src-{name}"
@@ -273,7 +283,7 @@ def test_every_permission_defaults_to_deny(name, tmp_path):
 
 def test_explicit_grants_produce_a_digest_bound_runnable_receipt(tmp_path):
     control = plane(tmp_path)
-    pin_dev_key(control)
+    pin_review_key(control)
     summary = control.open_file(str(DIST["literature-review"]))
     receipt = grant_required(control, summary["session"]["id"], summary)
     assert receipt["runnable"] is True
@@ -293,7 +303,7 @@ def test_explicit_grants_produce_a_digest_bound_runnable_receipt(tmp_path):
 
 def test_denying_a_required_permission_makes_the_package_not_runnable(tmp_path):
     control = plane(tmp_path)
-    pin_dev_key(control)
+    pin_review_key(control)
     summary = control.open_file(str(DIST["literature-review"]))
     request = control.permissions(summary["session"]["id"])
     required = sorted(item["id"] for item in request["permissions"] if item["required"])
@@ -340,7 +350,7 @@ def test_once_grants_are_accepted_and_always_is_refused(tmp_path):
 
 def test_authorization_rejects_a_foreign_or_missing_digest(tmp_path):
     control = plane(tmp_path)
-    pin_dev_key(control)
+    pin_review_key(control)
     agenda = control.open_file(str(DIST["meeting-agenda"]))
     review = control.open_file(str(DIST["literature-review"]))
     with pytest.raises(ControlPlaneError) as error:

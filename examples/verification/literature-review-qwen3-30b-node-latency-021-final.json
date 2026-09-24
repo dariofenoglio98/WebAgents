@@ -1,0 +1,411 @@
+{
+ "model": "ollama/qwen3:30b",
+ "num_ctx": 65536,
+ "options": {},
+ "package_version": "0.2.1",
+ "package_digest": "f0ad3d0fd48b86fe1d0b46199ed1d027af44f2b446e803d06a156ab7ab29b6ae",
+ "probes": {
+  "planning": {
+   "record": {
+    "label": "planning",
+    "task": "plan",
+    "role": "PlanningWorker",
+    "bound_bytes": 2897,
+    "reservation": 14897,
+    "max_output_tokens": 12000,
+    "elapsed_s": 26.3,
+    "prompt_eval_count": 420,
+    "eval_count": 1522,
+    "thinking_chars": 7226,
+    "output_chars": 433,
+    "done_reason": "stop",
+    "options": {},
+    "conforming": true,
+    "parse": "direct"
+   },
+   "output": {
+    "queries": [
+     "dynamic agent selection communication topology multi-agent LLM",
+     "agent selection algorithms topology adaptation multi-agent LLM",
+     "efficiency trade-offs topology adaptation mechanisms multi-agent LLM"
+    ],
+    "rationale": "Three queries cover terminology (key concepts), method (proposed techniques), and evaluation (efficiency metrics) facets for comprehensive search coverage.",
+    "seed_queries": []
+   }
+  },
+  "crossref": {
+   "queries": [
+    "dynamic agent selection communication topology multi-agent LLM",
+    "agent selection algorithms topology adaptation multi-agent LLM",
+    "efficiency trade-offs topology adaptation mechanisms multi-agent LLM"
+   ],
+   "counts": [
+    3,
+    3,
+    3
+   ],
+   "with_abstract": 6,
+   "titles": [
+    "Self-Refining Topology Optimization via an LLM-Based Multi-Agent Framework",
+    "Optimizing Multi\u2011Agent LLM Collaboration via Communication\u2011Flow Control\u200b",
+    "WirelessLLM-Agent: A Unified LLM-Based Agent Framework for Multi-Task Wireless Communication Decision-Making",
+    "Self-Refining Topology Optimization via an LLM-Based Multi-Agent Framework",
+    "ALAS: A Stateful Multi-LLM Agent Framework for Disruption-Aware Planning",
+    "Strategic adaptation of humans playing computer algorithms in a repeated constant-sum game",
+    "Controlled Benchmarking of Memory Topologies in LLM-Based Multi-Agent Systems: Quality, Efficiency, and Privacy Trade-Offs",
+    "Self-Refining Topology Optimization via an LLM-Based Multi-Agent Framework",
+    "Memory in LLM-based Multi-agent Systems: Mechanisms, Challenges, and Collective Intelligence"
+   ]
+  },
+  "normalize": {
+   "record": {
+    "label": "normalize",
+    "task": "normalize",
+    "role": "PlanningWorker",
+    "bound_bytes": 19966,
+    "reservation": 35966,
+    "max_output_tokens": 16000,
+    "elapsed_s": 313.4,
+    "prompt_eval_count": 4147,
+    "eval_count": 12144,
+    "thinking_chars": 20352,
+    "output_chars": 22876,
+    "done_reason": "stop",
+    "options": {},
+    "conforming": true,
+    "parse": "direct"
+   },
+   "candidate_count": 9,
+   "candidate_papers": 7,
+   "screening_jobs": 7
+  },
+  "screening": {
+   "records": [
+    {
+     "label": "screen-one[0]",
+     "task": "screen",
+     "role": "ScreeningWorker",
+     "bound_bytes": 7395,
+     "reservation": 19395,
+     "max_output_tokens": 12000,
+     "elapsed_s": 79.3,
+     "prompt_eval_count": 1257,
+     "eval_count": 1323,
+     "thinking_chars": 2944,
+     "output_chars": 3302,
+     "done_reason": "stop",
+     "options": {},
+     "conforming": true,
+     "parse": "direct"
+    },
+    {
+     "label": "screen-one[1]",
+     "task": "screen",
+     "role": "ScreeningWorker",
+     "bound_bytes": 6968,
+     "reservation": 18968,
+     "max_output_tokens": 12000,
+     "elapsed_s": 112.5,
+     "prompt_eval_count": 1147,
+     "eval_count": 1241,
+     "thinking_chars": 3449,
+     "output_chars": 2803,
+     "done_reason": "stop",
+     "options": {},
+     "conforming": true,
+     "parse": "direct"
+    },
+    {
+     "label": "screen-one[2]",
+     "task": "screen",
+     "role": "ScreeningWorker",
+     "bound_bytes": 6379,
+     "reservation": 18379,
+     "max_output_tokens": 12000,
+     "elapsed_s": 95.5,
+     "prompt_eval_count": 1036,
+     "eval_count": 1325,
+     "thinking_chars": 4020,
+     "output_chars": 2258,
+     "done_reason": "stop",
+     "options": {},
+     "conforming": true,
+     "parse": "direct"
+    },
+    {
+     "label": "screen-one[3]",
+     "task": "screen",
+     "role": "ScreeningWorker",
+     "bound_bytes": 5225,
+     "reservation": 17225,
+     "max_output_tokens": 12000,
+     "elapsed_s": 84.5,
+     "prompt_eval_count": 856,
+     "eval_count": 1159,
+     "thinking_chars": 4078,
+     "output_chars": 840,
+     "done_reason": "stop",
+     "options": {},
+     "conforming": true,
+     "parse": "direct"
+    },
+    {
+     "label": "screen-one[4]",
+     "task": "screen",
+     "role": "ScreeningWorker",
+     "bound_bytes": 5282,
+     "reservation": 17282,
+     "max_output_tokens": 12000,
+     "elapsed_s": 74.5,
+     "prompt_eval_count": 859,
+     "eval_count": 853,
+     "thinking_chars": 2360,
+     "output_chars": 1117,
+     "done_reason": "stop",
+     "options": {},
+     "conforming": true,
+     "parse": "direct"
+    },
+    {
+     "label": "screen-one[5]",
+     "task": "screen",
+     "role": "ScreeningWorker",
+     "bound_bytes": 5519,
+     "reservation": 17519,
+     "max_output_tokens": 12000,
+     "elapsed_s": 64.9,
+     "prompt_eval_count": 951,
+     "eval_count": 1424,
+     "thinking_chars": 4878,
+     "output_chars": 1267,
+     "done_reason": "stop",
+     "options": {},
+     "conforming": true,
+     "parse": "direct"
+    },
+    {
+     "label": "screen-one[6]",
+     "task": "screen",
+     "role": "ScreeningWorker",
+     "bound_bytes": 6541,
+     "reservation": 18541,
+     "max_output_tokens": 12000,
+     "elapsed_s": 28.0,
+     "prompt_eval_count": 1133,
+     "eval_count": 1223,
+     "thinking_chars": 3095,
+     "output_chars": 2317,
+     "done_reason": "stop",
+     "options": {},
+     "conforming": true,
+     "parse": "direct"
+    }
+   ],
+   "statuses": [
+    "exclude",
+    "exclude",
+    "exclude",
+    "maybe",
+    "exclude",
+    "maybe",
+    "exclude"
+   ],
+   "decisions": [
+    {
+     "title": "Self-Refining Topology Optimization via an LLM-Based Multi-Agent Framework",
+     "status": "exclude",
+     "rationale": "Paper focuses on topology optimization application using multi-agent LLMs for design automation, not on dynamic agent selection, communication topology adaptation, or comparative analysis of selection criteria and mechanisms as specified in the research question."
+    },
+    {
+     "title": "Optimizing Multi\u2011Agent LLM Collaboration via Communication\u2011Flow Control\u200b",
+     "status": "exclude",
+     "rationale": "The paper focuses on communication flow dynamics (removing misleading agreements) rather than dynamic agent selection or communication topology adaptation mechanisms. It does not address methods for selecting agents dynamically or adapting communication topology, which are central to the research qu"
+    },
+    {
+     "title": "WirelessLLM-Agent: A Unified LLM-Based Agent Framework for Multi-Task Wireless Communicati",
+     "status": "exclude",
+     "rationale": "Paper focuses on multi-task wireless communication decision-making using LLMs, not dynamic agent selection or topology adaptation in multi-agent LLM systems. Abstract describes channel learning, task offloading, and caching without addressing multi-agent agent selection criteria or communication top"
+    },
+    {
+     "title": "ALAS: A Stateful Multi-LLM Agent Framework for Disruption-Aware Planning",
+     "status": "maybe",
+     "rationale": "Title suggests relevance to multi-agent LLM frameworks but abstract and full text are unavailable for assessment"
+    },
+    {
+     "title": "Strategic adaptation of humans playing computer algorithms in a repeated constant-sum game",
+     "status": "exclude",
+     "rationale": "Paper discusses strategic adaptation in human-computer games within constant-sum games, not multi-agent LLM systems. Title mentions 'multi-agent' but context is human behavioral strategy, not LLM-based agent selection or topology adaptation. No abstract or source text confirms relevance to research "
+    },
+    {
+     "title": "Controlled Benchmarking of Memory Topologies in LLM-Based Multi-Agent Systems: Quality, Ef",
+     "status": "maybe",
+     "rationale": "Title and retrieval query include key terms (topology adaptation, efficiency trade-offs, multi-agent LLM) but abstract is unavailable; uncertain without full text content"
+    },
+    {
+     "title": "Memory in LLM-based Multi-agent Systems: Mechanisms, Challenges, and Collective Intelligen",
+     "status": "exclude",
+     "rationale": "Paper focuses on memory architectures and collective intelligence in LLM-MAS but does not address dynamic agent selection, communication topology adaptation mechanisms, or efficiency trade-offs as specified in the research question."
+    }
+   ]
+  },
+  "select": {
+   "record": {
+    "label": "select-included",
+    "task": "select",
+    "role": "ScreeningWorker",
+    "bound_bytes": 17216,
+    "reservation": 29216,
+    "max_output_tokens": 12000,
+    "elapsed_s": 118.2,
+    "prompt_eval_count": 3814,
+    "eval_count": 1770,
+    "thinking_chars": 7814,
+    "output_chars": 2,
+    "done_reason": "stop",
+    "options": {},
+    "conforming": true,
+    "parse": "direct"
+   },
+   "included": 0
+  },
+  "citations": {
+   "statuses": [
+    "resolved",
+    "resolved",
+    "resolved"
+   ]
+  },
+  "prepare": [
+   {
+    "variant": "host",
+    "record": {
+     "label": "prepare-evidence[host]",
+     "task": "prepare",
+     "role": "CitationWorker",
+     "bound_bytes": 23160,
+     "reservation": 39160,
+     "max_output_tokens": 16000,
+     "elapsed_s": 177.6,
+     "prompt_eval_count": 4742,
+     "eval_count": 7005,
+     "thinking_chars": 14197,
+     "output_chars": 14369,
+     "done_reason": "stop",
+     "options": {},
+     "conforming": true,
+     "parse": "direct"
+    },
+    "citation_checks": [
+     "ok",
+     "ok",
+     "ok"
+    ],
+    "evidence_jobs": 1
+   }
+  ],
+  "extract": {
+   "records": [
+    {
+     "label": "extract-one[0]",
+     "task": "extract",
+     "role": "EvidenceWorker",
+     "bound_bytes": 10412,
+     "reservation": 22412,
+     "max_output_tokens": 12000,
+     "elapsed_s": 19.7,
+     "prompt_eval_count": 2000,
+     "eval_count": 822,
+     "thinking_chars": 4440,
+     "output_chars": 2,
+     "done_reason": "stop",
+     "options": {},
+     "conforming": true,
+     "parse": "direct",
+     "quotes_contained": []
+    }
+   ],
+   "evidence_items": 0
+  },
+  "synthesis": {
+   "record": {
+    "label": "synthesis",
+    "task": "synthesize",
+    "role": "SynthesisWorker",
+    "bound_bytes": 13077,
+    "reservation": 25077,
+    "max_output_tokens": 12000,
+    "elapsed_s": 111.1,
+    "prompt_eval_count": 2742,
+    "eval_count": 4781,
+    "thinking_chars": 17711,
+    "output_chars": 3507,
+    "done_reason": "stop",
+    "options": {},
+    "conforming": true,
+    "parse": "direct"
+   }
+  },
+  "writing": {
+   "record": {
+    "label": "writing",
+    "task": "write",
+    "role": "WritingWorker",
+    "bound_bytes": 6641,
+    "reservation": 18641,
+    "max_output_tokens": 12000,
+    "elapsed_s": 43.2,
+    "prompt_eval_count": 1133,
+    "eval_count": 2054,
+    "thinking_chars": 6744,
+    "output_chars": 1910,
+    "done_reason": "stop",
+    "options": {},
+    "conforming": true,
+    "parse": "direct"
+   }
+  },
+  "verification": {
+   "record": {
+    "label": "verification",
+    "task": "verify",
+    "role": "VerificationWorker",
+    "bound_bytes": 17427,
+    "reservation": 33427,
+    "max_output_tokens": 16000,
+    "elapsed_s": 149.1,
+    "prompt_eval_count": 3643,
+    "eval_count": 6141,
+    "thinking_chars": 13809,
+    "output_chars": 12645,
+    "done_reason": "stop",
+    "options": {},
+    "conforming": true,
+    "parse": "direct"
+   },
+   "checks": {
+    "bibliography": [
+     "ok",
+     "ok",
+     "ok"
+    ],
+    "evidence_table": [],
+    "related_work_chars": 750,
+    "related_work": "## Iterative Self-Refinement for Problem-Specific Adaptation\nFocuses on iterative self-refinement cycles for decision-making in topology optimization, particularly effective for under-represented problem classes with sparse literature coverage [1].\n\n## Communication Flow Dynamics in Agent Collaboration\nAddresses communication flow as the primary determinant of success, identifying early agreements as a failure mechanism and proposing their removal to improve task success rates [2].\n\n## Unified Multi-Task Frameworks with Parameter-Efficient Adaptation\nIntegrates semantic state serialization and MoE-LoRA adapter architecture for parameter-efficient knowledge sharing across multiple wireless communication tasks without additional training [3].",
+    "claims": [
+     [
+      "claim-1",
+      "supported"
+     ],
+     [
+      "claim-2",
+      "supported"
+     ],
+     [
+      "claim-3",
+      "supported"
+     ]
+    ]
+   }
+  }
+ }
+}

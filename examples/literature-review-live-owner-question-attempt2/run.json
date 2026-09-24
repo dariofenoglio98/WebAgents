@@ -1,0 +1,471 @@
+{
+  "runId": "run_208c91cef0cb48db82aa0a32f531313f",
+  "sessionId": "dNtQwHZwOR1MOuY0u9WQHdql",
+  "runPlanId": "rp_40b0a8564ed24081bb34ef2bfe5bec1e",
+  "runPlanSha256": "91395dfdb898968612c8037ddc4ddd905fd1eb089b0d78862557932c18904425",
+  "runInvocationSha256": "979765d9d4747d8735380a534f64e4383593702ce833c1b9451cc122540a3840",
+  "inputSha256": "b1f093ea3703101a8ed188803a018e09b2dd54fa8ba907f256277d1fd672e5c0",
+  "status": "failed",
+  "createdAt": "2026-09-24T16:27:34.447Z",
+  "startedAt": "2026-09-24T16:27:34.456Z",
+  "endedAt": "2026-09-24T16:38:07.193Z",
+  "durationMs": 632737,
+  "package": {
+    "packageId": "org.webagents.literature-review",
+    "name": "Literature Review Agent",
+    "version": "0.2.1",
+    "digest": "2199abb5868bcedd5c73e7a664f38d35aaaa047c2dcfdb07d91f3977bde41700",
+    "archiveSha256": "0fb8b65bbff4578d4815ee70b29a0cb789b2cc95ce181d011d467b4be22c8e42",
+    "executionProfile": "workflow.v0"
+  },
+  "selectedModel": {
+    "hostModelId": "ollama/qwen3:30b",
+    "providerId": "ollama",
+    "modelId": "qwen3:30b",
+    "displayName": "qwen3:30b"
+  },
+  "model": {
+    "planned": "ollama/qwen3:30b",
+    "invoked": [
+      "ollama/qwen3:30b"
+    ],
+    "calls": 11,
+    "allCallsUsedPlannedModel": true,
+    "providers": [
+      "ollama"
+    ],
+    "responseModels": []
+  },
+  "grants": {
+    "decisions": [
+      {
+        "permissionId": "files.pdfs",
+        "decision": "deny"
+      },
+      {
+        "permissionId": "memory.session",
+        "decision": "session"
+      },
+      {
+        "permissionId": "model.reasoning",
+        "decision": "session"
+      },
+      {
+        "permissionId": "network.citations",
+        "decision": "session"
+      },
+      {
+        "permissionId": "network.scholarly",
+        "decision": "session"
+      }
+    ],
+    "grantedPermissionIds": [
+      "memory.session",
+      "model.reasoning",
+      "network.citations",
+      "network.scholarly"
+    ]
+  },
+  "limits": {
+    "host": {
+      "totalTokens": 180000,
+      "maxRemoteCalls": 45,
+      "maxParallelWorkers": 3,
+      "maxOutputTokensPerCall": 16000,
+      "runTimeoutSeconds": 4500,
+      "modelCallTimeoutSeconds": 1200
+    },
+    "effectiveDeadlineSeconds": 4500
+  },
+  "usage": {
+    "tokens": 44109,
+    "remoteCalls": 3,
+    "peakParallelWorkers": 3,
+    "toolCalls": 3,
+    "limits": {
+      "hardTokens": 180000,
+      "maxRemoteCalls": 45,
+      "maxParallelWorkers": 3
+    },
+    "workers": [
+      {
+        "worker": "coordinator",
+        "tokens": 0,
+        "remoteCalls": 0
+      },
+      {
+        "worker": "PlanningWorker:1",
+        "tokens": 2029,
+        "remoteCalls": 0
+      },
+      {
+        "worker": "SearchWorker:2",
+        "tokens": 0,
+        "remoteCalls": 1
+      },
+      {
+        "worker": "SearchWorker:3",
+        "tokens": 0,
+        "remoteCalls": 1
+      },
+      {
+        "worker": "SearchWorker:4",
+        "tokens": 0,
+        "remoteCalls": 1
+      },
+      {
+        "worker": "PlanningWorker:5",
+        "tokens": 16414,
+        "remoteCalls": 0
+      },
+      {
+        "worker": "ScreeningWorker:6",
+        "tokens": 2801,
+        "remoteCalls": 0
+      },
+      {
+        "worker": "ScreeningWorker:7",
+        "tokens": 2481,
+        "remoteCalls": 0
+      },
+      {
+        "worker": "ScreeningWorker:8",
+        "tokens": 2895,
+        "remoteCalls": 0
+      },
+      {
+        "worker": "ScreeningWorker:9",
+        "tokens": 2916,
+        "remoteCalls": 0
+      },
+      {
+        "worker": "ScreeningWorker:10",
+        "tokens": 4242,
+        "remoteCalls": 0
+      },
+      {
+        "worker": "CitationWorker:11",
+        "tokens": 1389,
+        "remoteCalls": 0
+      },
+      {
+        "worker": "SynthesisWorker:12",
+        "tokens": 2357,
+        "remoteCalls": 0
+      },
+      {
+        "worker": "WritingWorker:13",
+        "tokens": 2952,
+        "remoteCalls": 0
+      },
+      {
+        "worker": "VerificationWorker:14",
+        "tokens": 3633,
+        "remoteCalls": 0
+      }
+    ]
+  },
+  "cost": {
+    "status": "complete",
+    "totalUsd": 0,
+    "calls": 11,
+    "callsWithReportedCost": 11
+  },
+  "audit": {
+    "events": 249,
+    "chainValid": true,
+    "finalHash": "421aa2175a0736b9ba3834c7063be3afdeb3691ea879fee46431478e499cc419",
+    "actions": [
+      {
+        "action": "budget.updated",
+        "count": 28
+      },
+      {
+        "action": "delegation.checked",
+        "count": 14
+      },
+      {
+        "action": "memory.cleared",
+        "count": 1
+      },
+      {
+        "action": "model.called",
+        "count": 11
+      },
+      {
+        "action": "model.completed",
+        "count": 11
+      },
+      {
+        "action": "model.count.called",
+        "count": 11
+      },
+      {
+        "action": "node.completed",
+        "count": 26
+      },
+      {
+        "action": "node.failed",
+        "count": 1
+      },
+      {
+        "action": "node.skipped",
+        "count": 4
+      },
+      {
+        "action": "node.started",
+        "count": 27
+      },
+      {
+        "action": "permission.checked",
+        "count": 43
+      },
+      {
+        "action": "runtime.started",
+        "count": 1
+      },
+      {
+        "action": "state.committed",
+        "count": 15
+      },
+      {
+        "action": "tool.called",
+        "count": 3
+      },
+      {
+        "action": "tool.completed",
+        "count": 3
+      },
+      {
+        "action": "tool.dispatched",
+        "count": 3
+      },
+      {
+        "action": "tool.settled",
+        "count": 3
+      },
+      {
+        "action": "worker.completed",
+        "count": 14
+      },
+      {
+        "action": "worker.spawned",
+        "count": 14
+      },
+      {
+        "action": "worker.started",
+        "count": 14
+      },
+      {
+        "action": "workflow.failed",
+        "count": 1
+      },
+      {
+        "action": "workflow.started",
+        "count": 1
+      }
+    ],
+    "workers": [
+      "CitationWorker:11",
+      "PlanningWorker:1",
+      "PlanningWorker:5",
+      "ScreeningWorker:10",
+      "ScreeningWorker:6",
+      "ScreeningWorker:7",
+      "ScreeningWorker:8",
+      "ScreeningWorker:9",
+      "SearchWorker:2",
+      "SearchWorker:3",
+      "SearchWorker:4",
+      "SynthesisWorker:12",
+      "VerificationWorker:14",
+      "WritingWorker:13",
+      "coordinator"
+    ],
+    "workersSpawned": 14,
+    "nodesCompleted": 26,
+    "modelCalls": 11,
+    "toolCalls": 3,
+    "tasksCalled": [
+      {
+        "task": "normalize",
+        "count": 1
+      },
+      {
+        "task": "plan",
+        "count": 1
+      },
+      {
+        "task": "prepare",
+        "count": 1
+      },
+      {
+        "task": "screen",
+        "count": 4
+      },
+      {
+        "task": "select",
+        "count": 1
+      },
+      {
+        "task": "synthesize",
+        "count": 1
+      },
+      {
+        "task": "verify",
+        "count": 1
+      },
+      {
+        "task": "write",
+        "count": 1
+      }
+    ]
+  },
+  "outputSha256": null,
+  "artifacts": [
+    {
+      "name": "result.json",
+      "bytes": 173382,
+      "sha256": "728373f12ebc1dd8331201ba9408266c1ce67ec4ab397fb91e59646b6195f5fc"
+    },
+    {
+      "name": "audit.json",
+      "bytes": 161391,
+      "sha256": "10ad642815c5dc68920c342da0d5bb91197d66a86d043124e10275fe1979bb27"
+    },
+    {
+      "name": "usage.json",
+      "bytes": 2139,
+      "sha256": "33ca693850d369bf43c9f2b632bbb75dd05b0f08c42678575b1658f0fb65938f"
+    },
+    {
+      "name": "provenance.json",
+      "bytes": 239,
+      "sha256": "0d8961ccab634149d353d0a3b7bd11e1ffa7a0b06f638c677c0156f0b9053ce6"
+    }
+  ],
+  "host": {
+    "runtime": "openclaw",
+    "runtimeVersion": "2026.9.5",
+    "verifiedVersion": "2026.9.5",
+    "versionVerified": true
+  },
+  "deadlineExceeded": false,
+  "cancelRequested": false,
+  "errorCode": "schema_validation",
+  "errorDetail": null,
+  "revalidated": [
+    "run_plan_identity",
+    "run_plan_readiness",
+    "run_plan_preflight",
+    "execution_mode",
+    "package_digest",
+    "archive_sha256",
+    "execution_profile",
+    "package_validation",
+    "signature_status",
+    "publisher_trust",
+    "signer_fingerprint",
+    "authorization_receipt",
+    "receipt_not_expired",
+    "receipt_outlasts_run_deadline",
+    "model_permission_granted",
+    "tool_bindings",
+    "tool_approvals",
+    "model_available",
+    "model_identity",
+    "model_compatibility",
+    "input_bytes:312",
+    "runner:archive_sha256",
+    "runner:container",
+    "runner:integrity",
+    "runner:schema",
+    "runner:package_digest",
+    "runner:package_identity",
+    "runner:publisher_signature",
+    "runner:signer_fingerprint",
+    "runner:execution_profile",
+    "runner:tool_handlers:3",
+    "runner:tool_bound:citation-resolver",
+    "runner:tool_bound:paper-reader",
+    "runner:tool_bound:scholarly-search"
+  ],
+  "packageExecution": {
+    "workflowInstantiated": true,
+    "packageInstructionsLoaded": true,
+    "toolHandlersInstalled": 3,
+    "toolCalls": 3
+  },
+  "task": {
+    "inputBytes": 312,
+    "input": {
+      "question": "What methods have been proposed for dynamically selecting agents and adapting communication topology in multi-agent LLM systems? Compare their selection criteria, topology adaptation mechanisms, and efficiency trade-offs, focusing on representative methods.",
+      "seeds": [],
+      "documents": {},
+      "mode": "live"
+    },
+    "attachments": []
+  },
+  "progress": {
+    "updatedAt": "2026-09-24T16:38:07.126Z",
+    "events": 249,
+    "lastAction": "memory.cleared",
+    "activeNodes": [],
+    "completedNodes": [
+      "planning",
+      "seed-discovery",
+      "search",
+      "join-search",
+      "normalize",
+      "screening",
+      "select-included",
+      "citations",
+      "prepare-evidence",
+      "check-records",
+      "evidence",
+      "join-evidence",
+      "synthesis",
+      "writing",
+      "verification"
+    ],
+    "failedNodes": [
+      "validate-output"
+    ],
+    "nodesCompleted": 15,
+    "stepsCompleted": 11,
+    "workersSpawned": 14,
+    "workersActive": 0,
+    "peakParallelWorkers": 3,
+    "activeWorkers": [],
+    "modelCallsStarted": 11,
+    "modelCallsCompleted": 11,
+    "toolCallsStarted": 3,
+    "toolCallsCompleted": 3,
+    "tokens": 44109,
+    "remoteCalls": 3,
+    "elapsedMs": 632672
+  },
+  "tools": [
+    {
+      "toolId": "citation-resolver",
+      "bindingId": "openclaw:citation-resolver:1",
+      "bindingSha256": "7ac13746d199913ac9da5e8df6210a8980ffa32bda67f38217a7d8bf8bd42c39",
+      "remote": true,
+      "calls": 0
+    },
+    {
+      "toolId": "paper-reader",
+      "bindingId": "openclaw:paper-reader:1",
+      "bindingSha256": "3ddd2fd9be61d3d9c9b2e06e22d54034dd5d6e0a5b3ddf64c8c6abe91cc7351b",
+      "remote": false,
+      "calls": 0
+    },
+    {
+      "toolId": "scholarly-search",
+      "bindingId": "openclaw:scholarly-search:1",
+      "bindingSha256": "4800eb9bb1be9ddbec38e262ce0ae6e22c17dcb5659c122fd99959110923d65c",
+      "remote": true,
+      "calls": 3
+    }
+  ]
+}

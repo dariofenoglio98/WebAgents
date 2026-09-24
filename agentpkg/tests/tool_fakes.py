@@ -133,8 +133,18 @@ ECHO_STATE_SCHEMA = {
 }
 
 
-def echo_source(directory: Path, *, tool_id: str = ECHO_TOOL) -> Path:
-    """Write a minimal one-tool workflow.v0 package source tree."""
+def echo_source(
+    directory: Path,
+    *,
+    tool_id: str = ECHO_TOOL,
+    second_role: bool = False,
+    tool_timeout: int = 10,
+) -> Path:
+    """Write a minimal one-tool workflow.v0 package source tree.
+
+    `second_role` adds a second approved worker that also declares the tool, so
+    "which authority is a call attributed to" becomes a real question.
+    """
     root = Path(directory)
     (root / "skills").mkdir(parents=True)
     (root / "schemas").mkdir()
@@ -163,7 +173,7 @@ def echo_source(directory: Path, *, tool_id: str = ECHO_TOOL) -> Path:
             "output_schema": "schemas/echo-output.schema.json",
             "permissions": ["files.echo"],
             "domains": [],
-            "timeout_seconds": 10,
+            "timeout_seconds": tool_timeout,
             "retries": 0,
             "side_effects": "read",
             "approval_required": False,
@@ -216,7 +226,7 @@ def echo_source(directory: Path, *, tool_id: str = ECHO_TOOL) -> Path:
             },
             "delegation": {
                 "max_depth": 1,
-                "approved_roles": ["EchoWorker"],
+                "approved_roles": ["EchoWorker", *(["EchoReviewer"] if second_role else [])],
                 "allow_remote": False,
             },
             "extensions": {},
@@ -249,6 +259,22 @@ def echo_source(directory: Path, *, tool_id: str = ECHO_TOOL) -> Path:
                     "state_read": ["request"],
                     "state_write": ["answer"],
                 },
+                *(
+                    [
+                        {
+                            "id": "EchoReviewer",
+                            "kind": "packaged",
+                            "skills": ["echo"],
+                            "tools": [tool_id],
+                            "max_instances": 1,
+                            "budget": {"tokens": 1000, "remote_calls": 4},
+                            "state_read": ["request"],
+                            "state_write": [],
+                        }
+                    ]
+                    if second_role
+                    else []
+                ),
             ],
             "input_schema": "schemas/echo-input.schema.json",
             "output_schema": "schemas/echo-output.schema.json",
@@ -330,7 +356,7 @@ def echo_source(directory: Path, *, tool_id: str = ECHO_TOOL) -> Path:
     return root
 
 
-def echo_package(tmp_path: Path):
+def echo_package(tmp_path: Path, *, second_role: bool = False, tool_timeout: int = 10):
     """Build and sign the echo package, and load it.
 
     It is signed with a throwaway key generated here: an execution runner
@@ -340,7 +366,7 @@ def echo_package(tmp_path: Path):
     from agentpkg.signing import keygen, sign_package
 
     root = Path(tmp_path)
-    source = echo_source(root / "echo-source")
+    source = echo_source(root / "echo-source", second_role=second_role, tool_timeout=tool_timeout)
     artifact = build_package(source, root / "echo.agent.pkg")
     private, public = root / "echo.private.pem", root / "echo.pub.pem"
     keygen(private, public)
@@ -366,8 +392,13 @@ class FakeToolHost:
         self.delay = delay
         self.requests: list[dict] = []
         self.cancelled: list[str] = []
+        self.progress: list[dict] = []
 
     async def __call__(self, method: str, params: dict) -> dict:
+        if method == "execution.progress":
+            # Observation of a run, not a request for work: kept apart.
+            self.progress.append(params)
+            return {"accepted": True}
         if method != "tool.call":
             raise AssertionError(f"unexpected method {method!r}")
         self.requests.append(params)

@@ -17,6 +17,8 @@ from pathlib import Path
 import pytest
 from execution_fakes import MEETING_AGENDA, MEETING_INPUT, Harness, authorization, plan_for
 
+from agentpkg.execution.errors import ExecutionError
+from agentpkg.execution.policy import HostExecutionLimits
 from agentpkg.hostbridge.errors import BridgeError
 from agentpkg.package import load_package, sha256
 from agentpkg.signing import embedded_public_key, fingerprint
@@ -421,6 +423,38 @@ def test_the_host_run_timeout_stops_a_slow_run_and_says_so(tmp_path):
     assert result["error_code"] == "timeout"
     assert result["deadline_exceeded"] is True
     assert result["limits"]["effective_deadline_seconds"] == 1
+
+
+def test_one_model_call_is_bounded_by_the_host_s_own_timeout(tmp_path):
+    """A completion that outlives the host's per-call limit fails, and says so.
+
+    The limit is host policy, so it is reported with the other host limits, and
+    it is what the router waits for — not a constant a slower local model server
+    would silently run into.
+    """
+    _, _, result, _ = run(
+        tmp_path,
+        begin=begin_params(
+            limits={"model_call_timeout_seconds": 1, "max_output_tokens_per_call": 16000}
+        ),
+        host_options={"delay": 5.0},
+    )
+    assert result["status"] == "failed"
+    assert result["deadline_exceeded"] is False
+    assert result["limits"]["host"]["model_call_timeout_seconds"] == 1
+
+
+def test_the_model_call_timeout_defaults_to_the_previous_constant_and_is_capped():
+    assert HostExecutionLimits().model_call_timeout_seconds == 300
+    assert (
+        HostExecutionLimits.normalize({"model_call_timeout_seconds": 1800}).as_json()[
+            "model_call_timeout_seconds"
+        ]
+        == 1800
+    )
+    for bad in (0, -1, True, 1.5, 3601):
+        with pytest.raises(ExecutionError):
+            HostExecutionLimits.normalize({"model_call_timeout_seconds": bad})
 
 
 # -- cancellation ------------------------------------------------------------

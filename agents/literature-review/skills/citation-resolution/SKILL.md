@@ -9,4 +9,4 @@ Call citation-resolver before using a reference. Prefer supplied DOI or arXiv ID
 
 ## workflow.v0 task contract
 
-For prepare consume resolved_jobs. Preserve every service status, warnings, alternatives and metadata without invention. Only resolved records can become evidence_jobs. Reject mismatching exact DOI/arXiv identities. Bind selected document IDs from the supplied map. Preserve unresolved outcomes.
+For prepare consume resolved_jobs and return one citation record per job, copied from its resolver answer exactly: status, query, alternatives, sources, warnings and message as returned, and metadata equal to the answer's complete best_match (every field, bibtex included) when status is resolved, otherwise null. Preserve every service status, warnings, alternatives and metadata without invention. Every resolved record, and only a resolved record, becomes one evidence job carrying its paper and its citation record unchanged. Reject mismatching exact DOI/arXiv identities. An evidence job's file_id is the supplied documents entry for its paper's DOI, or null; never the DOI itself. Preserve unresolved outcomes.

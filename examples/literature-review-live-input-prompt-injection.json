@@ -1,0 +1,6 @@
+{
+  "question": "What defenses have been proposed against prompt injection attacks on LLM-integrated applications? Compare their detection or prevention mechanisms, where in the application they are deployed, and their reported effectiveness, focusing on representative methods.",
+  "seeds": [],
+  "documents": {},
+  "mode": "live"
+}
