@@ -1,0 +1,196 @@
+{
+  "passed": true,
+  "artifact": {
+    "path": "dist/literature-review.agent.pkg",
+    "version": "0.2.2",
+    "digest": "19de8c9e2fa2e96d85b029108f78519cbda5edbf4a872257ae51597cef08c634",
+    "signature_valid": true,
+    "signer": "sha256:c5ca9763f9fc71253298ca381ec14c4d7432009c74dacc69df6344b71de05232",
+    "node_count": 18
+  },
+  "previous_artifact_preserved": {
+    "path": "dist/literature-review-0.2.1.agent.pkg",
+    "version": "0.2.1",
+    "digest": "2199abb5868bcedd5c73e7a664f38d35aaaa047c2dcfdb07d91f3977bde41700",
+    "signature_valid": true,
+    "signer": "sha256:c5ca9763f9fc71253298ca381ec14c4d7432009c74dacc69df6344b71de05232"
+  },
+  "a1_unique_evidence_ids": {
+    "three_workers_e1_e2": {
+      "status": "completed",
+      "peak_concurrent_extractions": 3,
+      "evidence_ids": [
+        "10.5555/scripted.1:e1",
+        "10.5555/scripted.1:e2",
+        "10.5555/scripted.2:e1",
+        "10.5555/scripted.2:e2",
+        "10.5555/scripted.3:e1",
+        "10.5555/scripted.3:e2"
+      ],
+      "distinct": 6,
+      "evidence_table_rows": 6,
+      "claims": 6,
+      "bibliography": 3,
+      "deduplicated_events": 0
+    },
+    "deterministic_ids_and_output": true,
+    "colliding_local_ids_on_0_2_2": {
+      "refused": true,
+      "code": "schema_validation",
+      "node_id": "check-evidence",
+      "failed_check": {
+        "check": "assertion",
+        "index": 0,
+        "kind": "relation",
+        "failure": "duplicate_target_key",
+        "target_key": "/evidence_id"
+      },
+      "model_tasks": [
+        "plan",
+        "normalize",
+        "screen",
+        "screen",
+        "screen",
+        "select",
+        "prepare",
+        "extract",
+        "extract",
+        "extract"
+      ],
+      "deduplicated_events": 0
+    },
+    "same_collision_on_0_2_1": {
+      "status": "completed",
+      "evidence_items_kept": 2,
+      "original_count": 6,
+      "retained_count": 2,
+      "conflicting_duplicates": 4,
+      "bibliography": 1
+    }
+  },
+  "a2_honest_empty_result": {
+    "scenarios": [
+      {
+        "scenario": "nothing_included",
+        "status": "completed",
+        "related_work_first_line": "## No sufficiently grounded literature found",
+        "claims": 0,
+        "bibliography": 0,
+        "evidence_table": 0,
+        "verification_results": 0,
+        "unresolved": 0,
+        "writer_or_verifier_called": false,
+        "skipped_nodes": [
+          "prepare-evidence",
+          "screening/read-source",
+          "synthesis",
+          "verification",
+          "writing"
+        ],
+        "final_checks_ran": true,
+        "output_schema_valid": true
+      },
+      {
+        "scenario": "nothing_resolved",
+        "status": "completed",
+        "related_work_first_line": "## No sufficiently grounded literature found",
+        "claims": 0,
+        "bibliography": 0,
+        "evidence_table": 0,
+        "verification_results": 0,
+        "unresolved": 3,
+        "writer_or_verifier_called": false,
+        "skipped_nodes": [
+          "screening/read-source",
+          "synthesis",
+          "verification",
+          "writing"
+        ],
+        "final_checks_ran": true,
+        "output_schema_valid": true
+      },
+      {
+        "scenario": "no_evidence_in_sources",
+        "status": "completed",
+        "related_work_first_line": "## No sufficiently grounded literature found",
+        "claims": 0,
+        "bibliography": 0,
+        "evidence_table": 0,
+        "verification_results": 0,
+        "unresolved": 0,
+        "writer_or_verifier_called": false,
+        "skipped_nodes": [
+          "evidence/check-document",
+          "evidence/read-source",
+          "screening/read-source",
+          "synthesis",
+          "verification",
+          "writing"
+        ],
+        "final_checks_ran": true,
+        "output_schema_valid": true
+      },
+      {
+        "scenario": "evidence_supports_no_claim",
+        "status": "completed",
+        "related_work_first_line": "## No sufficiently grounded literature found",
+        "claims": 0,
+        "bibliography": 0,
+        "evidence_table": 0,
+        "verification_results": 0,
+        "unresolved": 0,
+        "writer_or_verifier_called": false,
+        "skipped_nodes": [
+          "evidence/check-document",
+          "evidence/read-source",
+          "screening/read-source",
+          "verification",
+          "writing"
+        ],
+        "final_checks_ran": true,
+        "output_schema_valid": true
+      }
+    ],
+    "0_2_1_model_tasks_for_nothing_included": [
+      "plan",
+      "normalize",
+      "screen",
+      "screen",
+      "screen",
+      "select",
+      "prepare",
+      "synthesize",
+      "write",
+      "verify"
+    ]
+  },
+  "grounding_still_enforced": {
+    "refused": true,
+    "code": "schema_validation",
+    "node_id": "validate-output",
+    "failed_check": {
+      "check": "assertion",
+      "index": 2,
+      "kind": "relation",
+      "failure": "missing_target_key",
+      "row_key": "/evidence_ids",
+      "target_key": "/evidence_id"
+    },
+    "model_tasks": [
+      "plan",
+      "normalize",
+      "screen",
+      "screen",
+      "screen",
+      "select",
+      "prepare",
+      "extract",
+      "extract",
+      "extract",
+      "synthesize",
+      "write",
+      "verify"
+    ],
+    "deduplicated_events": 0
+  }
+}

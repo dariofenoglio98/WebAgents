@@ -20,6 +20,42 @@ import type { Static, TSchema } from "typebox";
 export const PLUGIN_ID = "agent-browser";
 
 /** UI-facing list bounds. The control plane has its own, lower limits. */
+/**
+ * What any operation may carry through OpenClaw, whatever its schema says.
+ *
+ * `defineFeaturePlugin` (OpenClaw 2026.9.5) checks every operation's input and
+ * output against the host's plugin JSON limits before its schema, and refuses
+ * a value over any of them as `INVALID_INPUT` / `INVALID_OUTPUT`. These mirror
+ * the host's `PLUGIN_JSON_VALUE_LIMITS`; `test/host-bounds.test.ts` reads the
+ * host's own constant so the mirror cannot drift unnoticed. A projection that
+ * could exceed them must bound itself first (see `src/json-limits.ts`).
+ */
+export const HOST_JSON_LIMITS = {
+  maxDepth: 32,
+  maxNodes: 4096,
+  maxObjectKeys: 512,
+  maxStringLength: 65_536,
+  maxSerializedBytes: 262_144,
+} as const;
+
+/**
+ * The person's words in a task, for a list or a title: its longest top-level
+ * text. Key order says nothing (a form fills declared defaults such as a mode
+ * first), and a short enum value is not what anyone typed. Shared by both
+ * halves so a run is named the same way everywhere.
+ */
+export function taskText(input: unknown): string | null {
+  if (typeof input === "string") return input.trim() || null;
+  let best: string | null = null;
+  if (input && typeof input === "object" && !Array.isArray(input)) {
+    for (const value of Object.values(input as Record<string, unknown>)) {
+      const text = typeof value === "string" ? value.trim() : "";
+      if (text && (best === null || text.length > best.length)) best = text;
+    }
+  }
+  return best;
+}
+
 export const LIMITS = {
   capabilities: 64,
   skills: 64,
@@ -90,6 +126,7 @@ export const ERROR_CODES = [
   "execution_unknown",
   "tool_registry_unavailable",
   "tool_call_failed",
+  "input_invalid",
 ] as const;
 
 export const FeatureError = Obj({
@@ -128,6 +165,7 @@ export const FeatureError = Obj({
     Type.Literal("execution_unknown"),
     Type.Literal("tool_registry_unavailable"),
     Type.Literal("tool_call_failed"),
+    Type.Literal("input_invalid"),
   ]),
   /** Short human title for the UI heading. */
   title: Text(200),
@@ -179,17 +217,29 @@ export const ServiceStatus = Obj({
     trustPinning: Type.Boolean(),
   }),
   /**
-   * Whether this *page* offers a Run action. Always false.
+   * Whether this page offers a Run action for a ready, model-backed run plan.
    *
-   * Execution itself exists behind operator-only operations (`execution.*`),
-   * which the Control UI deliberately does not call. The two facts are kept in
-   * separate fields so neither can be read as the other.
+   * True only while the service runs and this backend holds OpenClaw's
+   * completion runtime. Offering the action is not authority: every Run is
+   * re-verified by the same preflight the operator path uses, and the page
+   * enables it only when that preflight says the plan is current.
    */
-  executionSupported: Type.Literal(false),
-  /** Whether the operator-only execution operations can run a package here. */
+  executionSupported: Type.Boolean(),
+  /** Whether the execution operations can run a package here at all. */
   executionOperations: Type.Optional(Type.Boolean()),
-  /** Whether an operator can select local files for a run (operator-only; not the page). */
+  /** Whether PDFs can be selected for a run from operator-configured directories. */
   fileSelection: Type.Optional(Type.Boolean()),
+  /** Host execution bounds the page needs to explain a disabled Run action. */
+  execution: Type.Optional(
+    Obj({
+      runTimeoutSeconds: Type.Integer({ minimum: 0 }),
+      modelCallTimeoutSeconds: Type.Integer({ minimum: 0 }),
+      /** How long consent must outlast a run's deadline before one may start. */
+      receiptMarginSeconds: Type.Integer({ minimum: 0 }),
+      /** Directories PDFs may be selected from, for display only. */
+      fileRoots: Type.Array(Text(1024), { maxItems: 8 }),
+    }),
+  ),
 });
 export type ServiceStatusView = Static<typeof ServiceStatus>;
 
@@ -294,6 +344,62 @@ const WorkflowNode = Obj({
   }),
 });
 
+/**
+ * The package's own task input contract, bundled into one offline document.
+ *
+ * The page renders a form from it; the control plane and the runner remain
+ * the only judges of whether a task satisfies it.
+ */
+export const TaskInputView = Obj({
+  schemaPath: Nullable(Text(512)),
+  schemaSha256: Nullable(Text(128)),
+  bytes: Type.Integer({ minimum: 0 }),
+  /** Null when the schema exceeds the control plane's bound; edit as JSON then. */
+  document: Nullable(Type.Unknown()),
+  note: Text(LIMITS.text),
+});
+export type TaskInputViewType = Static<typeof TaskInputView>;
+
+/**
+ * Noncritical presentation hints from the signed package, already validated
+ * and reduced to a closed vocabulary by the control plane. Cosmetic only:
+ * nothing here can enable, authorize or change a run.
+ */
+export const PresentationView = Obj({
+  task: Obj({
+    prompt: Nullable(Text(LIMITS.shortText)),
+    runLabel: Nullable(Text(64)),
+    runningLabel: Nullable(Text(128)),
+    completedLabel: Nullable(Text(128)),
+  }),
+  input: Type.Array(
+    Obj({
+      field: Text(200),
+      widget: Nullable(Type.Union([Type.Literal("multiline"), Type.Literal("selected_files")])),
+      group: Nullable(
+        Type.Union([Type.Literal("primary"), Type.Literal("optional"), Type.Literal("advanced")]),
+      ),
+      label: Nullable(Text(128)),
+      placeholder: Nullable(Text(LIMITS.shortText)),
+      rows: Nullable(Type.Integer({ minimum: 1, maximum: 12 })),
+      itemPlaceholder: Nullable(Text(LIMITS.shortText)),
+      keyLabel: Nullable(Text(128)),
+      keyPlaceholder: Nullable(Text(LIMITS.shortText)),
+    }),
+    { maxItems: 64 },
+  ),
+  nodes: Type.Array(Obj({ nodeId: Id(), label: Text(128) }), { maxItems: LIMITS.nodes }),
+  stages: Type.Array(
+    Obj({ label: Text(128), nodes: Type.Array(Id(), { maxItems: LIMITS.nodes }) }),
+    { maxItems: 32 },
+  ),
+  result: Obj({
+    primaryExport: Nullable(Text(256)),
+    summary: Type.Array(Obj({ label: Text(128), export: Text(256) }), { maxItems: 8 }),
+  }),
+});
+export type PresentationViewType = Static<typeof PresentationView>;
+
 const Workflow = Obj({
   profile: Text(64),
   coordinator: Id(),
@@ -309,6 +415,10 @@ const Workflow = Obj({
   fixtureDeclared: Type.Boolean(),
   /** True when the graph exceeded the browser bounds above. */
   truncated: Type.Boolean(),
+  /** The task a person fills in to start a run. */
+  input: Type.Optional(TaskInputView),
+  /** Validated cosmetic hints, or null when the package carries none. */
+  presentation: Type.Optional(Nullable(PresentationView)),
 });
 
 export const PackageView = Obj({
@@ -897,8 +1007,12 @@ export const RunPlanStateView = Obj({
       toolBindingsBound: Type.Integer({ minimum: 0 }),
     }),
   ),
-  /** Always false: this page has no Run action. See `ServiceStatus`. */
-  executionSupported: Type.Literal(false),
+  /**
+   * Whether this host can run a model-backed plan from the page. A plan is
+   * still never *performed*: `plan.execution.performed` stays false, and a run
+   * is a separate record that references the plan.
+   */
+  executionSupported: Type.Boolean(),
 });
 export type RunPlanStateViewType = Static<typeof RunPlanStateView>;
 
@@ -966,6 +1080,29 @@ export const RunProgressView = Obj({
   tokens: Type.Integer({ minimum: 0 }),
   remoteCalls: Type.Integer({ minimum: 0 }),
   elapsedMs: Type.Number({ minimum: 0 }),
+  /** Top-level nodes whose declared condition was false: completed, not performed. */
+  skippedNodes: Type.Optional(Type.Array(Text(200), { maxItems: 128 })),
+  /** One row per spawned worker: where it ran, how it ended, how many calls. */
+  workers: Type.Optional(
+    Type.Array(
+      Obj({
+        id: Text(128),
+        role: Nullable(Text(128)),
+        node: Nullable(Text(200)),
+        state: Type.Union([
+          Type.Literal("queued"),
+          Type.Literal("active"),
+          Type.Literal("completed"),
+          Type.Literal("failed"),
+          Type.Literal("cancelled"),
+        ]),
+        modelCalls: Type.Integer({ minimum: 0 }),
+        toolCalls: Type.Integer({ minimum: 0 }),
+        durationMs: Nullable(Type.Number({ minimum: 0 })),
+      }),
+      { maxItems: 64 },
+    ),
+  ),
 });
 export type RunProgressViewType = Static<typeof RunProgressView>;
 
@@ -1018,6 +1155,8 @@ export const RunRecordView = Obj({
     providerId: Text(128),
     modelId: Text(256),
     displayName: Text(200),
+    /** Whether the host reports this model as local. Null when it does not say. */
+    local: Type.Optional(Nullable(Type.Boolean())),
   }),
   /** Which model actually answered each call, from the adapter's own record. */
   model: Nullable(
@@ -1106,18 +1245,151 @@ export const RunRecordView = Obj({
       bindingSha256: Text(128),
       remote: Type.Boolean(),
       calls: Type.Integer({ minimum: 0 }),
+      /** The host implementation's display name, as the plan froze it. */
+      displayName: Type.Optional(Nullable(Text(LIMITS.shortText))),
     }),
     { maxItems: LIMITS.tools },
   ),
+  /**
+   * Where a run that did not complete stopped, from its own audit: the node,
+   * the map step, the stable code, the declared check that refused it and the
+   * first failed call's reason. Codes and pointers only; never data.
+   */
+  failure: Type.Optional(
+    Nullable(
+      Obj({
+        nodeId: Nullable(Text(200)),
+        stepId: Nullable(Text(200)),
+        errorCode: Nullable(Text(64)),
+        failedCheck: Nullable(Type.Unknown()),
+        call: Nullable(
+          Obj({
+            kind: Text(32),
+            action: Text(64),
+            tool: Nullable(Text(200)),
+            task: Nullable(Text(128)),
+            reason: Nullable(Text(64)),
+          }),
+        ),
+      }),
+    ),
+  ),
+  /**
+   * `live` for a run this Gateway process started; `recovered` for a finished
+   * run's record read back, unchanged, from this plugin's own run directory
+   * after a restart. A recovered record is evidence to inspect, never
+   * authority to act on.
+   */
+  origin: Type.Optional(Type.Union([Type.Literal("live"), Type.Literal("recovered")])),
 });
 export type RunRecordViewType = Static<typeof RunRecordView>;
 
 export type RunArtifactType = Static<typeof RunArtifact>;
 
+/**
+ * One run in a list: enough to name it, date it and open it. A list carries
+ * summaries, not records, so it stays inside the host's JSON limits however
+ * many runs (up to 32) and however many workers each had; the full record is
+ * one `execution.get` away.
+ */
+export const RunSummaryView = Obj({
+  runId: Text(128),
+  sessionId: Text(128),
+  runPlanId: Text(128),
+  status: RunStatus,
+  createdAt: Text(64),
+  endedAt: Nullable(Text(64)),
+  durationMs: Nullable(Type.Number()),
+  package: Obj({ packageId: Id(), name: Text(200), version: Text(64) }),
+  cancelRequested: Type.Boolean(),
+  errorCode: Nullable(Text(64)),
+  /** The task's own words (see `taskText`), clipped for a list. */
+  taskText: Nullable(Text(400)),
+  origin: Type.Optional(Type.Union([Type.Literal("live"), Type.Literal("recovered")])),
+});
+export type RunSummaryViewType = Static<typeof RunSummaryView>;
+
+/** One run as a list shows it; both halves summarize a record this way. */
+export function runSummary(view: RunRecordViewType): RunSummaryViewType {
+  const text = taskText(view.task?.input);
+  return {
+    runId: view.runId,
+    sessionId: view.sessionId,
+    runPlanId: view.runPlanId,
+    status: view.status,
+    createdAt: view.createdAt,
+    endedAt: view.endedAt,
+    durationMs: view.durationMs,
+    package: { packageId: view.package.packageId, name: view.package.name, version: view.package.version },
+    cancelRequested: view.cancelRequested,
+    errorCode: view.errorCode,
+    taskText: text ? (text.length > 400 ? `${text.slice(0, 399)}…` : text) : null,
+    ...(view.origin ? { origin: view.origin } : {}),
+  };
+}
+
 export const RunListView = Obj({
-  runs: Type.Array(RunRecordView, { maxItems: 32 }),
+  runs: Type.Array(RunSummaryView, { maxItems: 32 }),
+  /** The one run still in flight, in full, so a page can reconnect to it. */
   active: Nullable(RunRecordView),
 });
+
+/** One bounded slice of an artifact, for downloading one larger than a view. */
+export const RunArtifactChunkView = Obj({
+  runId: Text(128),
+  name: Text(128),
+  /** The whole artifact's size and hash, so a download can be verified. */
+  bytes: Type.Integer({ minimum: 0 }),
+  sha256: Text(128),
+  offset: Type.Integer({ minimum: 0 }),
+  length: Type.Integer({ minimum: 0 }),
+  /** At most 48 KiB of bytes: exactly the host's longest string once encoded. */
+  base64: Text(HOST_JSON_LIMITS.maxStringLength),
+  eof: Type.Boolean(),
+});
+export type RunArtifactChunkViewType = Static<typeof RunArtifactChunkView>;
+
+/**
+ * Whether a Run may start right now, answered by the same preflight that
+ * `execution.start` runs, without starting anything.
+ */
+export const RunReadinessView = Obj({
+  sessionId: Text(128),
+  checkedAt: Text(64),
+  ready: Type.Boolean(),
+  executionAvailable: Type.Boolean(),
+  runPlanId: Nullable(Text(128)),
+  runPlanSha256: Nullable(Text(128)),
+  /** The first thing that would refuse a start, with its stable code. */
+  blocker: Nullable(Obj({ code: Text(64), title: Text(200), detail: Text(LIMITS.text) })),
+  /** What the preflight re-verified before it stopped or finished. */
+  checks: Type.Array(Text(64), { maxItems: 64 }),
+  receipt: Nullable(
+    Obj({
+      expiresAt: Nullable(Text(64)),
+      remainingSeconds: Nullable(Type.Integer()),
+      requiredSeconds: Type.Integer({ minimum: 0 }),
+    }),
+  ),
+  /** A run already in flight for this session, which a Run would be refused for. */
+  activeRunId: Nullable(Text(128)),
+});
+export type RunReadinessViewType = Static<typeof RunReadinessView>;
+
+/** The package's own verdict on one proposed task. */
+export const InputValidationView = Obj({
+  sessionId: Text(128),
+  schemaPath: Nullable(Text(512)),
+  valid: Type.Boolean(),
+  errors: Type.Array(
+    Obj({ pointer: Text(1024), rule: Text(64), message: Text(LIMITS.shortText) }),
+    { maxItems: 16 },
+  ),
+  errorCount: Type.Integer({ minimum: 0 }),
+  inputSha256: Nullable(Text(128)),
+  inputBytes: Type.Integer({ minimum: 0 }),
+});
+export type InputValidationViewType = Static<typeof InputValidationView>;
 
 export const RunArtifactContentView = Obj({
   runId: Text(128),
@@ -1125,9 +1397,14 @@ export const RunArtifactContentView = Obj({
   bytes: Type.Integer(),
   sha256: Text(128),
   truncated: Type.Boolean(),
-  /** JSON artifacts come back parsed; anything else comes back as text. */
+  /** How many of the artifact's bytes this view carries (all, unless truncated). */
+  shownBytes: Type.Optional(Type.Integer({ minimum: 0 })),
+  /**
+   * A small JSON artifact comes back parsed; anything else — including JSON
+   * too large for the host's limits — comes back as at most 48 KiB of text.
+   */
   json: Type.Optional(Type.Any()),
-  text: Type.Optional(Text(262144)),
+  text: Type.Optional(Text(HOST_JSON_LIMITS.maxStringLength)),
 });
 export type RunArtifactContentViewType = Static<typeof RunArtifactContentView>;
 export type RunListViewType = Static<typeof RunListView>;
@@ -1344,6 +1621,10 @@ export type FileCapabilityViewType = Static<typeof FileCapabilityView>;
 
 const SessionId = Type.String({ minLength: 8, maxLength: 128, pattern: "^[A-Za-z0-9_-]+$" });
 const FileId = Type.String({ pattern: "^file_[0-9a-f]{32}$" });
+/** Run ids are issued by this backend and nothing else has their shape. */
+const RunId = Type.String({ pattern: "^run_[0-9a-f]{32}$" });
+/** One plain filename: no separator, no leading dot, no traversal. */
+const ArtifactName = Type.String({ pattern: "^[A-Za-z0-9_-][A-Za-z0-9_.-]{0,127}$" });
 const Fingerprint = Type.String({ pattern: "^sha256:[0-9a-f]{64}$" });
 
 export const contract = defineFeatureContract({
@@ -1409,33 +1690,57 @@ export const contract = defineFeatureContract({
     "execution.status": {
       kind: "query",
       description:
-        "Operator-only. List this session's run records, and the active one if there is any. " +
-        "Not rendered by the Agent Browser page.",
+        "List run records held by this backend — one session's, or all — and the active one " +
+        "if there is any. Used by the page to reconnect to a run after a reload.",
       input: Obj({ sessionId: Type.Optional(SessionId) }),
       output: Result(RunListView),
     },
     "execution.get": {
       kind: "query",
-      description: "Operator-only. Read one run record by id.",
-      input: Obj({ runId: Type.String({ minLength: 4, maxLength: 128 }) }),
+      description: "Read one run record by the id this backend issued for it.",
+      input: Obj({ runId: RunId }),
       output: Result(Nullable(RunRecordView)),
+    },
+    "execution.readiness": {
+      kind: "query",
+      description:
+        "Whether a Run could start right now for this session's run plan: the same preflight " +
+        "execution.start performs — plan identity and readiness, package bytes, signer, " +
+        "trust, authorization and its remaining lifetime, tool bindings and the bound model — " +
+        "run without starting anything.",
+      input: Obj({ sessionId: SessionId }),
+      output: Result(RunReadinessView),
+    },
+    "execution.validate-input": {
+      kind: "query",
+      description:
+        "Check one proposed task against the package's own declared input schema, with the " +
+        "control plane's offline validator. Nothing is started and nothing is stored.",
+      input: Obj({ sessionId: SessionId, input: Type.Unknown() }),
+      output: Result(InputValidationView),
     },
     "execution.artifact": {
       kind: "query",
       description:
-        "Operator-only. Read one named artifact a completed run wrote, bounded. The run " +
-        "directory's path is never returned; only the artifact's content is.",
-      input: Obj({
-        runId: Type.String({ minLength: 4, maxLength: 128 }),
-        name: Type.String({ minLength: 1, maxLength: 128 }),
-      }),
+        "Read one named artifact a run wrote, bounded. The run directory's path is never " +
+        "returned; only the artifact's content is.",
+      input: Obj({ runId: RunId, name: ArtifactName }),
       output: Result(RunArtifactContentView),
+    },
+    "execution.artifact-chunk": {
+      kind: "query",
+      description:
+        "Read one bounded base64 slice of a named run artifact, so an artifact larger than a " +
+        "view can be downloaded and verified against its SHA-256. Named by run id and plain " +
+        "filename only.",
+      input: Obj({ runId: RunId, name: ArtifactName, offset: Type.Integer({ minimum: 0 }) }),
+      output: Result(RunArtifactChunkView),
     },
     "files.list": {
       kind: "query",
       description:
-        "Operator-only. List the local files selected for one package session, by opaque id " +
-        "and hash. No path is ever returned. Not rendered by the Agent Browser page.",
+        "List the local files selected for one package session, by opaque id, hash and " +
+        "display name. No path is ever returned.",
       input: Obj({ sessionId: SessionId }),
       output: Result(
         Obj({ files: Type.Array(FileCapabilityView, { maxItems: 16 }) }),
@@ -1558,11 +1863,11 @@ export const contract = defineFeatureContract({
     "execution.start": {
       kind: "action",
       description:
-        "Operator-only. Re-verify a ready run plan and execute the signed package's own " +
-        "workflow.v0 graph on the exact model the plan bound. It accepts the workflow input " +
-        "and nothing else: no prompt, no system text, no model id, no skill text and no " +
-        "output schema, all of which come from the signed package and the run plan. It is " +
-        "not rendered by the Agent Browser page, and it spends real tokens.",
+        "Re-verify a ready run plan and execute the signed package's own workflow.v0 graph " +
+        "on the exact model the plan bound. It accepts the workflow input and selected-file " +
+        "ids and nothing else: no prompt, no system text, no model id, no tool binding, no " +
+        "skill text and no output schema, all of which come from the signed package and the " +
+        "run plan. The page's Run action calls it detached; it spends real tokens.",
       input: Obj({
         sessionId: SessionId,
         runPlanId: Type.String({ minLength: 4, maxLength: 128 }),
@@ -1589,10 +1894,10 @@ export const contract = defineFeatureContract({
     "files.select-local": {
       kind: "action",
       description:
-        "Operator-only. Select one local PDF inside an operator-configured directory for a " +
-        "package session. The host copies its bytes once into private storage and returns an " +
-        "opaque id, a SHA-256 and a size; the path never leaves the host. Not rendered by the " +
-        "Agent Browser page.",
+        "Select one local PDF inside an operator-configured directory for a package session. " +
+        "The host copies its bytes once into private storage and returns an opaque id, a " +
+        "SHA-256 and a size; the path never reaches a package, a run plan, an audit or a " +
+        "result.",
       input: Obj({
         sessionId: SessionId,
         path: Type.String({ minLength: 1, maxLength: 4096 }),
@@ -1601,26 +1906,26 @@ export const contract = defineFeatureContract({
     },
     "files.release": {
       kind: "action",
-      description: "Operator-only. Forget one selected file and delete its private copy.",
+      description: "Forget one selected file and delete its private copy.",
       input: Obj({ sessionId: SessionId, fileId: FileId }),
       output: Result(Obj({ fileId: Text(64), released: Type.Boolean() })),
     },
     "execution.cancel": {
       kind: "action",
       description:
-        "Operator-only. Ask a running workflow to stop. Workers are cancelled, pending model " +
-        "calls are aborted at the provider, and the run ends as cancelled with its audit and " +
-        "usage intact.",
-      input: Obj({ runId: Type.String({ minLength: 4, maxLength: 128 }) }),
+        "Ask a running workflow to stop. Workers are cancelled, pending model calls are " +
+        "aborted at the provider, and the run ends as cancelled with its audit and usage " +
+        "intact.",
+      input: Obj({ runId: RunId }),
       output: Result(RunRecordView),
     },
     "execution.clear": {
       kind: "action",
       description:
-        "Operator-only. Forget finished run records held in memory. A running run is never " +
-        "cleared.",
+        "Forget finished run records held in memory. A running run is never cleared, and no " +
+        "artifact is deleted.",
       input: Obj({
-        runId: Type.Optional(Type.String({ minLength: 4, maxLength: 128 })),
+        runId: Type.Optional(RunId),
         sessionId: Type.Optional(SessionId),
       }),
       output: Result(Obj({ cleared: Type.Integer() })),

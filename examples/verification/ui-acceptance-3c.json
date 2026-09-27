@@ -1,0 +1,1872 @@
+{
+  "milestone": "3C \u2014 final demo experience",
+  "kind": "real Agent Browser UI acceptance",
+  "how": "OpenClaw's own Control UI, served by the live Gateway, opened in Google Chrome (headless, private profile) from `openclaw dashboard`'s link and operated through the Chrome DevTools Protocol with real mouse events, text insertion and key presses; <select> choices were made as Playwright's selectOption does (set the option, fire input and change). Every run was started, watched, cancelled, reloaded, viewed and downloaded from the page; no operator script started or read any run.",
+  "host": {
+    "openclaw": "2026.9.5 (ec9c1a1)",
+    "browser": "Chrome 153.0.8010.54, headless",
+    "plugin_archive_sha256": "fcf25498ba834e7fc47ca723921027ea4be00bd9e5652d7a6f9862369904c4bf",
+    "control_ui_entry": "dist/control-ui/29bb00e8f6e0d1cb6ef26f85e0c17d0af5928cf904ce3208eed63107065a85de/index.js",
+    "model_catalog": "9 host models listed by the page; none preselected; ollama/qwen3:30b chosen",
+    "execution_bounds": {
+      "runTimeoutSeconds": 4500,
+      "modelCallTimeoutSeconds": 1200,
+      "sessionTtlSeconds": 7200,
+      "receiptMarginSeconds": 60
+    }
+  },
+  "package": {
+    "path": "dist/literature-review.agent.pkg",
+    "id": "org.webagents.literature-review",
+    "version": "0.2.2",
+    "digest": "19de8c9e2fa2e96d85b029108f78519cbda5edbf4a872257ae51597cef08c634",
+    "archive_sha256": "4804ea8f4c2ad40439641f8348c2d65b798f4d52802f6ad751b71114e4f27c04",
+    "signer": "sha256:c5ca9763f9fc71253298ca381ec14c4d7432009c74dacc69df6344b71de05232",
+    "page_showed": {
+      "verification": "Container, Integrity, Schema valid; Runtime compatible; signature cryptographically valid",
+      "publisher": "Trusted by this OpenClaw host (operator-pinned key, scope org.webagents.literature-review)",
+      "tool_bindings": {
+        "citation-resolver": "openclaw:citation-resolver:1 0.1.0, remote, binding 7ac13746\u20262c39, approved, contract verified",
+        "paper-reader": "openclaw:paper-reader:1 0.1.0, local, binding 3ddd2fd9\u2026351b, approved, files.pdfs denied",
+        "scholarly-search": "openclaw:scholarly-search:1 0.2.0, remote (Crossref), binding 4800eb9b\u2026d65c, approved, contract verified"
+      }
+    }
+  },
+  "flow": {
+    "package_opened": "2026-09-26T22:47:01Z",
+    "authorized": "2026-09-26T22:47:40Z",
+    "decisions": "network.scholarly, network.citations, memory.session, model.reasoning = session; files.pdfs = deny; 3 tools approved",
+    "receipt": "57333b3b-40b7-414e-9ff5-cde02ff93665 (executed: no)",
+    "run_plan": {
+      "id": "rp_15289a122ea34ef1ba145f5e4ad38b1a",
+      "sha256": "523a094c204c776f435a434b7caad5ad3c274bf6cab32b14d1f205ee80c9e15b",
+      "prepared": "2026-09-26T22:48:05Z"
+    },
+    "run_gate": {
+      "before_task": "Run Research disabled \u2014 'Research question must be at least 1 character.'",
+      "after_task": "all 8 checklist lines \u2713, including 'Authorization valid for 118 more min (a run may take up to 76 min)'"
+    },
+    "task": {
+      "question": "What defenses have been proposed against prompt injection attacks on LLM-integrated applications?",
+      "seeds": [],
+      "documents": {},
+      "mode": "live",
+      "input_sha256": "fb7ce380d22debc895c4eb2a7c7536d248dec53745261a8aca21fba164399bd1"
+    }
+  },
+  "cancellation_test": {
+    "run_id": "run_5d000b444f724b8491450238352a9696",
+    "started": "2026-09-26T22:48:35Z",
+    "progress_before_cancel": "Planning \u2713, Scholarly search active with 3 worker chips, 1 model call, 3 tool calls, 2,229 tokens",
+    "cancel_pressed": "2026-09-26T22:49:17Z",
+    "page_showed_cancelled": "2026-09-26T22:49:20Z",
+    "status": "cancelled",
+    "error_code": "cancelled",
+    "stopped_at": "Scholarly search (search) / search-query",
+    "runner_process_exited": true,
+    "exploratory_cancel_on_the_previous_build": "run_c66616019b8a45e0b484fb774d5197d4"
+  },
+  "full_run": {
+    "run_id": "run_dbb6d0edf5104e6dad4beaa814e9d1d2",
+    "started_from_page": "2026-09-26T22:50:11Z",
+    "started": "2026-09-26T22:50:11.701Z",
+    "ended": "2026-09-26T23:17:21.801Z",
+    "duration": "27:10",
+    "status": "completed",
+    "page_showed": "\u2713 Research completed \u2014 Finished in 27:10; Related work (2 themes); Summary: Papers included 2, Evidence items 5, Claims verified 2, Unresolved 0; 5 package exports and 5 run-evidence files",
+    "model": {
+      "planned": "ollama/qwen3:30b",
+      "invoked": [
+        "ollama/qwen3:30b"
+      ],
+      "calls": 17,
+      "allCallsUsedPlannedModel": true,
+      "providers": [
+        "ollama"
+      ],
+      "responseModels": []
+    },
+    "tools": [
+      {
+        "toolId": "citation-resolver",
+        "bindingId": "openclaw:citation-resolver:1",
+        "remote": true,
+        "calls": 6
+      },
+      {
+        "toolId": "paper-reader",
+        "bindingId": "openclaw:paper-reader:1",
+        "remote": false,
+        "calls": 0
+      },
+      {
+        "toolId": "scholarly-search",
+        "bindingId": "openclaw:scholarly-search:1",
+        "remote": true,
+        "calls": 3
+      }
+    ],
+    "usage": {
+      "tokens": 107284,
+      "remoteCalls": 9,
+      "peakParallelWorkers": 3,
+      "toolCalls": 9,
+      "limits": {
+        "hardTokens": 180000,
+        "maxRemoteCalls": 45,
+        "maxParallelWorkers": 3
+      },
+      "workers": [
+        {
+          "worker": "coordinator",
+          "tokens": 0,
+          "remoteCalls": 0
+        },
+        {
+          "worker": "PlanningWorker:1",
+          "tokens": 2110,
+          "remoteCalls": 0
+        },
+        {
+          "worker": "CitationWorker:2",
+          "tokens": 0,
+          "remoteCalls": 1
+        },
+        {
+          "worker": "CitationWorker:3",
+          "tokens": 0,
+          "remoteCalls": 1
+        },
+        {
+          "worker": "CitationWorker:4",
+          "tokens": 0,
+          "remoteCalls": 1
+        },
+        {
+          "worker": "SearchWorker:5",
+          "tokens": 0,
+          "remoteCalls": 1
+        },
+        {
+          "worker": "SearchWorker:6",
+          "tokens": 0,
+          "remoteCalls": 1
+        },
+        {
+          "worker": "SearchWorker:7",
+          "tokens": 0,
+          "remoteCalls": 1
+        },
+        {
+          "worker": "PlanningWorker:8",
+          "tokens": 16535,
+          "remoteCalls": 0
+        },
+        {
+          "worker": "ScreeningWorker:9",
+          "tokens": 1682,
+          "remoteCalls": 0
+        },
+        {
+          "worker": "ScreeningWorker:10",
+          "tokens": 1785,
+          "remoteCalls": 0
+        },
+        {
+          "worker": "ScreeningWorker:11",
+          "tokens": 2218,
+          "remoteCalls": 0
+        },
+        {
+          "worker": "ScreeningWorker:12",
+          "tokens": 2302,
+          "remoteCalls": 0
+        },
+        {
+          "worker": "ScreeningWorker:13",
+          "tokens": 2354,
+          "remoteCalls": 0
+        },
+        {
+          "worker": "ScreeningWorker:14",
+          "tokens": 2234,
+          "remoteCalls": 0
+        },
+        {
+          "worker": "ScreeningWorker:15",
+          "tokens": 1996,
+          "remoteCalls": 0
+        },
+        {
+          "worker": "ScreeningWorker:16",
+          "tokens": 8936,
+          "remoteCalls": 0
+        },
+        {
+          "worker": "CitationWorker:17",
+          "tokens": 0,
+          "remoteCalls": 1
+        },
+        {
+          "worker": "CitationWorker:18",
+          "tokens": 0,
+          "remoteCalls": 1
+        },
+        {
+          "worker": "CitationWorker:19",
+          "tokens": 0,
+          "remoteCalls": 1
+        },
+        {
+          "worker": "CitationWorker:20",
+          "tokens": 16211,
+          "remoteCalls": 0
+        },
+        {
+          "worker": "EvidenceWorker:21",
+          "tokens": 6224,
+          "remoteCalls": 0
+        },
+        {
+          "worker": "EvidenceWorker:22",
+          "tokens": 8042,
+          "remoteCalls": 0
+        },
+        {
+          "worker": "EvidenceWorker:23",
+          "tokens": 8119,
+          "remoteCalls": 0
+        },
+        {
+          "worker": "SynthesisWorker:24",
+          "tokens": 8838,
+          "remoteCalls": 0
+        },
+        {
+          "worker": "WritingWorker:25",
+          "tokens": 3370,
+          "remoteCalls": 0
+        },
+        {
+          "worker": "VerificationWorker:26",
+          "tokens": 14328,
+          "remoteCalls": 0
+        }
+      ]
+    },
+    "cost": {
+      "status": "complete",
+      "totalUsd": 0,
+      "calls": 17,
+      "callsWithReportedCost": 17
+    },
+    "audit": {
+      "events": 469,
+      "chainValid": true,
+      "finalHash": "b9eb31ddf508be9788578a11aee96032eb555ebbed82168592d8782099b50afd",
+      "actions": [
+        {
+          "action": "budget.updated",
+          "count": 52
+        },
+        {
+          "action": "delegation.checked",
+          "count": 26
+        },
+        {
+          "action": "memory.cleared",
+          "count": 1
+        },
+        {
+          "action": "model.called",
+          "count": 17
+        },
+        {
+          "action": "model.completed",
+          "count": 17
+        },
+        {
+          "action": "model.count.called",
+          "count": 17
+        },
+        {
+          "action": "node.completed",
+          "count": 56
+        },
+        {
+          "action": "node.skipped",
+          "count": 13
+        },
+        {
+          "action": "node.started",
+          "count": 56
+        },
+        {
+          "action": "permission.checked",
+          "count": 79
+        },
+        {
+          "action": "runtime.started",
+          "count": 1
+        },
+        {
+          "action": "state.committed",
+          "count": 18
+        },
+        {
+          "action": "tool.called",
+          "count": 9
+        },
+        {
+          "action": "tool.completed",
+          "count": 9
+        },
+        {
+          "action": "tool.dispatched",
+          "count": 9
+        },
+        {
+          "action": "tool.settled",
+          "count": 9
+        },
+        {
+          "action": "worker.completed",
+          "count": 26
+        },
+        {
+          "action": "worker.spawned",
+          "count": 26
+        },
+        {
+          "action": "worker.started",
+          "count": 26
+        },
+        {
+          "action": "workflow.completed",
+          "count": 1
+        },
+        {
+          "action": "workflow.started",
+          "count": 1
+        }
+      ],
+      "workers": [
+        "CitationWorker:17",
+        "CitationWorker:18",
+        "CitationWorker:19",
+        "CitationWorker:2",
+        "CitationWorker:20",
+        "CitationWorker:3",
+        "CitationWorker:4",
+        "EvidenceWorker:21",
+        "EvidenceWorker:22",
+        "EvidenceWorker:23",
+        "PlanningWorker:1",
+        "PlanningWorker:8",
+        "ScreeningWorker:10",
+        "ScreeningWorker:11",
+        "ScreeningWorker:12",
+        "ScreeningWorker:13",
+        "ScreeningWorker:14",
+        "ScreeningWorker:15",
+        "ScreeningWorker:16",
+        "ScreeningWorker:9",
+        "SearchWorker:5",
+        "SearchWorker:6",
+        "SearchWorker:7",
+        "SynthesisWorker:24",
+        "VerificationWorker:26",
+        "WritingWorker:25",
+        "coordinator"
+      ],
+      "workersSpawned": 26,
+      "nodesCompleted": 56,
+      "modelCalls": 17,
+      "toolCalls": 9,
+      "tasksCalled": [
+        {
+          "task": "extract",
+          "count": 3
+        },
+        {
+          "task": "normalize",
+          "count": 1
+        },
+        {
+          "task": "plan",
+          "count": 1
+        },
+        {
+          "task": "prepare",
+          "count": 1
+        },
+        {
+          "task": "screen",
+          "count": 7
+        },
+        {
+          "task": "select",
+          "count": 1
+        },
+        {
+          "task": "synthesize",
+          "count": 1
+        },
+        {
+          "task": "verify",
+          "count": 1
+        },
+        {
+          "task": "write",
+          "count": 1
+        }
+      ]
+    },
+    "revalidated_before_start": [
+      "run_plan_identity",
+      "run_plan_readiness",
+      "run_plan_preflight",
+      "execution_mode",
+      "package_digest",
+      "archive_sha256",
+      "execution_profile",
+      "package_validation",
+      "signature_status",
+      "publisher_trust",
+      "signer_fingerprint",
+      "authorization_receipt",
+      "receipt_not_expired",
+      "receipt_outlasts_run_deadline",
+      "model_permission_granted",
+      "tool_bindings",
+      "tool_approvals",
+      "model_available",
+      "model_identity",
+      "model_compatibility",
+      "input_bytes:152",
+      "runner:archive_sha256",
+      "runner:container",
+      "runner:integrity",
+      "runner:schema",
+      "runner:package_digest",
+      "runner:package_identity",
+      "runner:publisher_signature",
+      "runner:signer_fingerprint",
+      "runner:execution_profile",
+      "runner:tool_handlers:3",
+      "runner:tool_bound:citation-resolver",
+      "runner:tool_bound:paper-reader",
+      "runner:tool_bound:scholarly-search"
+    ],
+    "workers_spawned": 26,
+    "exports_sha256": {
+      "related-work.md": "285afccd9862a102df187d41c2765c9a330e44a5d98361894f9163c6e6d9b1e0",
+      "bibliography.json": "da5e65e2ce24b8a275e7aa2484c0573445c941225de056d0f095228804d37ed0",
+      "evidence-table.json": "10840d1c7f5e4db2f49c6c8ee862ee498abb358948ad50bb75d69efe6bbf2c30",
+      "unresolved.json": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "verification.json": "6b65b9dbd3dfbde9685560aad77a01a88455d42be1b1d8d056f13c56eda5390b"
+    },
+    "progress_timeline_from_the_page": [
+      {
+        "at": "2026-09-26T22:50:18.628Z",
+        "page_state": "running",
+        "elapsed": "00:06",
+        "stages": {
+          "Planning": "active",
+          "Scholarly search": "pending",
+          "Screening": "pending",
+          "Citations": "pending",
+          "Evidence extraction": "pending",
+          "Synthesis": "pending",
+          "Writing": "pending",
+          "Verification": "pending"
+        },
+        "workers_shown": 0,
+        "model_calls": "0",
+        "tool_calls": "0",
+        "tokens": "0",
+        "workers": "1 active \u00b7 1 spawned \u00b7 peak 1",
+        "banner": null
+      },
+      {
+        "at": "2026-09-26T22:51:18.677Z",
+        "page_state": "running",
+        "elapsed": "01:06",
+        "stages": {
+          "Planning": "completed",
+          "Scholarly search": "completed",
+          "Screening": "active",
+          "Citations": "pending",
+          "Evidence extraction": "pending",
+          "Synthesis": "pending",
+          "Writing": "pending",
+          "Verification": "pending"
+        },
+        "workers_shown": 6,
+        "model_calls": "1",
+        "tool_calls": "6",
+        "tokens": "2,110",
+        "workers": "1 active \u00b7 8 spawned \u00b7 peak 3",
+        "banner": null
+      },
+      {
+        "at": "2026-09-26T22:52:18.734Z",
+        "page_state": "running",
+        "elapsed": "02:06",
+        "stages": {
+          "Planning": "completed",
+          "Scholarly search": "completed",
+          "Screening": "active",
+          "Citations": "pending",
+          "Evidence extraction": "pending",
+          "Synthesis": "pending",
+          "Writing": "pending",
+          "Verification": "pending"
+        },
+        "workers_shown": 6,
+        "model_calls": "1",
+        "tool_calls": "6",
+        "tokens": "2,110",
+        "workers": "1 active \u00b7 8 spawned \u00b7 peak 3",
+        "banner": null
+      },
+      {
+        "at": "2026-09-26T22:53:18.772Z",
+        "page_state": "running",
+        "elapsed": "03:06",
+        "stages": {
+          "Planning": "completed",
+          "Scholarly search": "completed",
+          "Screening": "active",
+          "Citations": "pending",
+          "Evidence extraction": "pending",
+          "Synthesis": "pending",
+          "Writing": "pending",
+          "Verification": "pending"
+        },
+        "workers_shown": 6,
+        "model_calls": "1",
+        "tool_calls": "6",
+        "tokens": "2,110",
+        "workers": "1 active \u00b7 8 spawned \u00b7 peak 3",
+        "banner": null
+      },
+      {
+        "at": "2026-09-26T22:54:18.815Z",
+        "page_state": "running",
+        "elapsed": "04:06",
+        "stages": {
+          "Planning": "completed",
+          "Scholarly search": "completed",
+          "Screening": "active",
+          "Citations": "pending",
+          "Evidence extraction": "pending",
+          "Synthesis": "pending",
+          "Writing": "pending",
+          "Verification": "pending"
+        },
+        "workers_shown": 6,
+        "model_calls": "1",
+        "tool_calls": "6",
+        "tokens": "2,110",
+        "workers": "1 active \u00b7 8 spawned \u00b7 peak 3",
+        "banner": null
+      },
+      {
+        "at": "2026-09-26T22:55:18.846Z",
+        "page_state": "running",
+        "elapsed": "05:07",
+        "stages": {
+          "Planning": "completed",
+          "Scholarly search": "completed",
+          "Screening": "active",
+          "Citations": "pending",
+          "Evidence extraction": "pending",
+          "Synthesis": "pending",
+          "Writing": "pending",
+          "Verification": "pending"
+        },
+        "workers_shown": 6,
+        "model_calls": "1",
+        "tool_calls": "6",
+        "tokens": "2,110",
+        "workers": "1 active \u00b7 8 spawned \u00b7 peak 3",
+        "banner": null
+      },
+      {
+        "at": "2026-09-26T22:56:18.877Z",
+        "page_state": "running",
+        "elapsed": "06:07",
+        "stages": {
+          "Planning": "completed",
+          "Scholarly search": "completed",
+          "Screening": "active",
+          "Citations": "pending",
+          "Evidence extraction": "pending",
+          "Synthesis": "pending",
+          "Writing": "pending",
+          "Verification": "pending"
+        },
+        "workers_shown": 6,
+        "model_calls": "1",
+        "tool_calls": "6",
+        "tokens": "2,110",
+        "workers": "1 active \u00b7 8 spawned \u00b7 peak 3",
+        "banner": null
+      },
+      {
+        "at": "2026-09-26T22:57:18.900Z",
+        "page_state": "running",
+        "elapsed": "07:07",
+        "stages": {
+          "Planning": "completed",
+          "Scholarly search": "completed",
+          "Screening": "active",
+          "Citations": "pending",
+          "Evidence extraction": "pending",
+          "Synthesis": "pending",
+          "Writing": "pending",
+          "Verification": "pending"
+        },
+        "workers_shown": 9,
+        "model_calls": "2",
+        "tool_calls": "6",
+        "tokens": "18,645",
+        "workers": "3 active \u00b7 11 spawned \u00b7 peak 3",
+        "banner": null
+      },
+      {
+        "at": "2026-09-26T22:58:18.998Z",
+        "page_state": "running",
+        "elapsed": "08:07",
+        "stages": {
+          "Planning": "completed",
+          "Scholarly search": "completed",
+          "Screening": "active",
+          "Citations": "pending",
+          "Evidence extraction": "pending",
+          "Synthesis": "pending",
+          "Writing": "pending",
+          "Verification": "pending"
+        },
+        "workers_shown": 12,
+        "model_calls": "5",
+        "tool_calls": "6",
+        "tokens": "24,330",
+        "workers": "3 active \u00b7 14 spawned \u00b7 peak 3",
+        "banner": null
+      },
+      {
+        "at": "2026-09-26T22:59:19.050Z",
+        "page_state": "running",
+        "elapsed": "09:07",
+        "stages": {
+          "Planning": "completed",
+          "Scholarly search": "completed",
+          "Screening": "active",
+          "Citations": "pending",
+          "Evidence extraction": "pending",
+          "Synthesis": "pending",
+          "Writing": "pending",
+          "Verification": "pending"
+        },
+        "workers_shown": 13,
+        "model_calls": "9",
+        "tool_calls": "6",
+        "tokens": "33,216",
+        "workers": "1 active \u00b7 16 spawned \u00b7 peak 3",
+        "banner": null
+      },
+      {
+        "at": "2026-09-26T23:00:19.134Z",
+        "page_state": "running",
+        "elapsed": "10:07",
+        "stages": {
+          "Planning": "completed",
+          "Scholarly search": "completed",
+          "Screening": "active",
+          "Citations": "pending",
+          "Evidence extraction": "pending",
+          "Synthesis": "pending",
+          "Writing": "pending",
+          "Verification": "pending"
+        },
+        "workers_shown": 13,
+        "model_calls": "9",
+        "tool_calls": "6",
+        "tokens": "33,216",
+        "workers": "1 active \u00b7 16 spawned \u00b7 peak 3",
+        "banner": null
+      },
+      {
+        "at": "2026-09-26T23:01:19.186Z",
+        "page_state": "running",
+        "elapsed": "11:07",
+        "stages": {
+          "Planning": "completed",
+          "Scholarly search": "completed",
+          "Screening": "completed",
+          "Citations": "active",
+          "Evidence extraction": "pending",
+          "Synthesis": "pending",
+          "Writing": "pending",
+          "Verification": "pending"
+        },
+        "workers_shown": 16,
+        "model_calls": "10",
+        "tool_calls": "9",
+        "tokens": "42,152",
+        "workers": "1 active \u00b7 20 spawned \u00b7 peak 3",
+        "banner": null
+      },
+      {
+        "at": "2026-09-26T23:02:19.270Z",
+        "page_state": "running",
+        "elapsed": "12:07",
+        "stages": {
+          "Planning": "completed",
+          "Scholarly search": "completed",
+          "Screening": "completed",
+          "Citations": "active",
+          "Evidence extraction": "pending",
+          "Synthesis": "pending",
+          "Writing": "pending",
+          "Verification": "pending"
+        },
+        "workers_shown": 16,
+        "model_calls": "10",
+        "tool_calls": "9",
+        "tokens": "42,152",
+        "workers": "1 active \u00b7 20 spawned \u00b7 peak 3",
+        "banner": null
+      },
+      {
+        "at": "2026-09-26T23:03:19.355Z",
+        "page_state": "running",
+        "elapsed": "13:07",
+        "stages": {
+          "Planning": "completed",
+          "Scholarly search": "completed",
+          "Screening": "completed",
+          "Citations": "active",
+          "Evidence extraction": "pending",
+          "Synthesis": "pending",
+          "Writing": "pending",
+          "Verification": "pending"
+        },
+        "workers_shown": 16,
+        "model_calls": "10",
+        "tool_calls": "9",
+        "tokens": "42,152",
+        "workers": "1 active \u00b7 20 spawned \u00b7 peak 3",
+        "banner": null
+      },
+      {
+        "at": "2026-09-26T23:04:19.383Z",
+        "page_state": "running",
+        "elapsed": "14:07",
+        "stages": {
+          "Planning": "completed",
+          "Scholarly search": "completed",
+          "Screening": "completed",
+          "Citations": "active",
+          "Evidence extraction": "pending",
+          "Synthesis": "pending",
+          "Writing": "pending",
+          "Verification": "pending"
+        },
+        "workers_shown": 16,
+        "model_calls": "10",
+        "tool_calls": "9",
+        "tokens": "42,152",
+        "workers": "1 active \u00b7 20 spawned \u00b7 peak 3",
+        "banner": null
+      },
+      {
+        "at": "2026-09-26T23:05:19.417Z",
+        "page_state": "running",
+        "elapsed": "15:07",
+        "stages": {
+          "Planning": "completed",
+          "Scholarly search": "completed",
+          "Screening": "completed",
+          "Citations": "active",
+          "Evidence extraction": "pending",
+          "Synthesis": "pending",
+          "Writing": "pending",
+          "Verification": "pending"
+        },
+        "workers_shown": 16,
+        "model_calls": "10",
+        "tool_calls": "9",
+        "tokens": "42,152",
+        "workers": "1 active \u00b7 20 spawned \u00b7 peak 3",
+        "banner": null
+      },
+      {
+        "at": "2026-09-26T23:06:19.524Z",
+        "page_state": "running",
+        "elapsed": "16:07",
+        "stages": {
+          "Planning": "completed",
+          "Scholarly search": "completed",
+          "Screening": "completed",
+          "Citations": "completed",
+          "Evidence extraction": "active",
+          "Synthesis": "pending",
+          "Writing": "pending",
+          "Verification": "pending"
+        },
+        "workers_shown": 19,
+        "model_calls": "11",
+        "tool_calls": "9",
+        "tokens": "58,363",
+        "workers": "3 active \u00b7 23 spawned \u00b7 peak 3",
+        "banner": null
+      },
+      {
+        "at": "2026-09-26T23:07:19.608Z",
+        "page_state": "running",
+        "elapsed": "17:07",
+        "stages": {
+          "Planning": "completed",
+          "Scholarly search": "completed",
+          "Screening": "completed",
+          "Citations": "completed",
+          "Evidence extraction": "active",
+          "Synthesis": "pending",
+          "Writing": "pending",
+          "Verification": "pending"
+        },
+        "workers_shown": 19,
+        "model_calls": "11",
+        "tool_calls": "9",
+        "tokens": "58,363",
+        "workers": "3 active \u00b7 23 spawned \u00b7 peak 3",
+        "banner": null
+      },
+      {
+        "at": "2026-09-26T23:08:19.744Z",
+        "page_state": "running",
+        "elapsed": "18:07",
+        "stages": {
+          "Planning": "completed",
+          "Scholarly search": "completed",
+          "Screening": "completed",
+          "Citations": "completed",
+          "Evidence extraction": "active",
+          "Synthesis": "pending",
+          "Writing": "pending",
+          "Verification": "pending"
+        },
+        "workers_shown": 19,
+        "model_calls": "11",
+        "tool_calls": "9",
+        "tokens": "58,363",
+        "workers": "3 active \u00b7 23 spawned \u00b7 peak 3",
+        "banner": null
+      },
+      {
+        "at": "2026-09-26T23:09:19.838Z",
+        "page_state": "running",
+        "elapsed": "19:08",
+        "stages": {
+          "Planning": "completed",
+          "Scholarly search": "completed",
+          "Screening": "completed",
+          "Citations": "completed",
+          "Evidence extraction": "active",
+          "Synthesis": "pending",
+          "Writing": "pending",
+          "Verification": "pending"
+        },
+        "workers_shown": 19,
+        "model_calls": "11",
+        "tool_calls": "9",
+        "tokens": "58,363",
+        "workers": "3 active \u00b7 23 spawned \u00b7 peak 3",
+        "banner": null
+      },
+      {
+        "at": "2026-09-26T23:10:19.852Z",
+        "page_state": "running",
+        "elapsed": "20:08",
+        "stages": {
+          "Planning": "completed",
+          "Scholarly search": "completed",
+          "Screening": "completed",
+          "Citations": "completed",
+          "Evidence extraction": "active",
+          "Synthesis": "pending",
+          "Writing": "pending",
+          "Verification": "pending"
+        },
+        "workers_shown": 19,
+        "model_calls": "11",
+        "tool_calls": "9",
+        "tokens": "58,363",
+        "workers": "3 active \u00b7 23 spawned \u00b7 peak 3",
+        "banner": null
+      },
+      {
+        "at": "2026-09-26T23:11:19.887Z",
+        "page_state": "running",
+        "elapsed": "21:08",
+        "stages": {
+          "Planning": "completed",
+          "Scholarly search": "completed",
+          "Screening": "completed",
+          "Citations": "completed",
+          "Evidence extraction": "completed",
+          "Synthesis": "active",
+          "Writing": "pending",
+          "Verification": "pending"
+        },
+        "workers_shown": 19,
+        "model_calls": "14",
+        "tool_calls": "9",
+        "tokens": "80,748",
+        "workers": "1 active \u00b7 24 spawned \u00b7 peak 3",
+        "banner": null
+      },
+      {
+        "at": "2026-09-26T23:12:19.930Z",
+        "page_state": "running",
+        "elapsed": "22:08",
+        "stages": {
+          "Planning": "completed",
+          "Scholarly search": "completed",
+          "Screening": "completed",
+          "Citations": "completed",
+          "Evidence extraction": "completed",
+          "Synthesis": "active",
+          "Writing": "pending",
+          "Verification": "pending"
+        },
+        "workers_shown": 19,
+        "model_calls": "14",
+        "tool_calls": "9",
+        "tokens": "80,748",
+        "workers": "1 active \u00b7 24 spawned \u00b7 peak 3",
+        "banner": null
+      },
+      {
+        "at": "2026-09-26T23:13:19.969Z",
+        "page_state": "running",
+        "elapsed": "23:08",
+        "stages": {
+          "Planning": "completed",
+          "Scholarly search": "completed",
+          "Screening": "completed",
+          "Citations": "completed",
+          "Evidence extraction": "completed",
+          "Synthesis": "completed",
+          "Writing": "active",
+          "Verification": "pending"
+        },
+        "workers_shown": 19,
+        "model_calls": "15",
+        "tool_calls": "9",
+        "tokens": "89,586",
+        "workers": "1 active \u00b7 25 spawned \u00b7 peak 3",
+        "banner": null
+      },
+      {
+        "at": "2026-09-26T23:14:20.029Z",
+        "page_state": "running",
+        "elapsed": "24:08",
+        "stages": {
+          "Planning": "completed",
+          "Scholarly search": "completed",
+          "Screening": "completed",
+          "Citations": "completed",
+          "Evidence extraction": "completed",
+          "Synthesis": "completed",
+          "Writing": "completed",
+          "Verification": "active"
+        },
+        "workers_shown": 19,
+        "model_calls": "16",
+        "tool_calls": "9",
+        "tokens": "92,956",
+        "workers": "1 active \u00b7 26 spawned \u00b7 peak 3",
+        "banner": null
+      },
+      {
+        "at": "2026-09-26T23:15:20.055Z",
+        "page_state": "running",
+        "elapsed": "25:08",
+        "stages": {
+          "Planning": "completed",
+          "Scholarly search": "completed",
+          "Screening": "completed",
+          "Citations": "completed",
+          "Evidence extraction": "completed",
+          "Synthesis": "completed",
+          "Writing": "completed",
+          "Verification": "active"
+        },
+        "workers_shown": 19,
+        "model_calls": "16",
+        "tool_calls": "9",
+        "tokens": "92,956",
+        "workers": "1 active \u00b7 26 spawned \u00b7 peak 3",
+        "banner": null
+      },
+      {
+        "at": "2026-09-26T23:16:20.016Z",
+        "page_state": "running",
+        "elapsed": "26:08",
+        "stages": {
+          "Planning": "completed",
+          "Scholarly search": "completed",
+          "Screening": "completed",
+          "Citations": "completed",
+          "Evidence extraction": "completed",
+          "Synthesis": "completed",
+          "Writing": "completed",
+          "Verification": "active"
+        },
+        "workers_shown": 19,
+        "model_calls": "16",
+        "tool_calls": "9",
+        "tokens": "92,956",
+        "workers": "1 active \u00b7 26 spawned \u00b7 peak 3",
+        "banner": null
+      },
+      {
+        "at": "2026-09-26T23:17:20.090Z",
+        "page_state": "running",
+        "elapsed": "27:08",
+        "stages": {
+          "Planning": "completed",
+          "Scholarly search": "completed",
+          "Screening": "completed",
+          "Citations": "completed",
+          "Evidence extraction": "completed",
+          "Synthesis": "completed",
+          "Writing": "completed",
+          "Verification": "active"
+        },
+        "workers_shown": 19,
+        "model_calls": "16",
+        "tool_calls": "9",
+        "tokens": "92,956",
+        "workers": "1 active \u00b7 26 spawned \u00b7 peak 3",
+        "banner": null
+      },
+      {
+        "at": "2026-09-26T23:18:20.183Z",
+        "page_state": "completed",
+        "elapsed": null,
+        "stages": {
+          "stage0": "completed",
+          "stage1": "completed",
+          "stage2": "completed",
+          "stage3": "completed",
+          "stage4": "completed",
+          "stage5": "completed",
+          "stage6": "completed",
+          "stage7": "completed"
+        },
+        "workers_shown": 19,
+        "model_calls": null,
+        "tool_calls": null,
+        "tokens": null,
+        "workers": null,
+        "banner": "\u2713 Research completed"
+      }
+    ]
+  },
+  "reload_test": {
+    "reloaded": "2026-09-26T22:53:43Z",
+    "reconnected": "2026-09-26T22:53:45Z",
+    "elapsed_before_after": [
+      "03:31",
+      "03:34"
+    ],
+    "same_runner_process": true
+  },
+  "artifacts_through_the_page": {
+    "viewed": [
+      "related-work.md (whole, rendered as text with its SHA-256)",
+      "usage.json",
+      "audit.json (first 48.0 KiB of 298.8 KiB, stated)"
+    ],
+    "downloaded_and_byte_identical": {
+      "related-work.md": "285afccd9862a102df187d41c2765c9a330e44a5d98361894f9163c6e6d9b1e0",
+      "run.json": "55460c07d321d5ef5f21dd6f69dba8f2c97063911c10e3fdc74184f6421099e0",
+      "audit.json": "dfab195a12a55a0fd381f8721e8e6cf5fe986c6976273327807546897bc8aa24",
+      "result.json": "eae834c4dc40d53492883e76ec6cf4cf69f06e0803c2e0d587424625079c7186"
+    }
+  },
+  "independent_run_checks": {
+    "passed": 28,
+    "total": 28,
+    "observations": {
+      "related_work_has_citation_markers": false,
+      "related_work_chars": 623,
+      "themes": [
+        "Moving Target Defense (MTD) Techniques",
+        "Hybrid Rule-Based and Learned Detection Framework"
+      ],
+      "papers_screened": 7,
+      "candidates": 7
+    },
+    "checks": [
+      {
+        "check": "audit chain verifies",
+        "passed": true,
+        "detail": {
+          "valid": true,
+          "events": 469,
+          "final_hash": "b9eb31ddf508be9788578a11aee96032eb555ebbed82168592d8782099b50afd"
+        }
+      },
+      {
+        "check": "run completed",
+        "passed": true,
+        "detail": "completed"
+      },
+      {
+        "check": "package digest is the signed 0.2.2 artifact",
+        "passed": true,
+        "detail": "19de8c9e2fa2e96d85b029108f78519cbda5edbf4a872257ae51597cef08c634"
+      },
+      {
+        "check": "started from the Agent Browser page's run plan",
+        "passed": true,
+        "detail": "rp_15289a122ea34ef1ba145f5e4ad38b1a"
+      },
+      {
+        "check": "every model call used the bound model (record and audit agree)",
+        "passed": true,
+        "detail": {
+          "record": {
+            "planned": "ollama/qwen3:30b",
+            "invoked": [
+              "ollama/qwen3:30b"
+            ],
+            "calls": 17,
+            "allCallsUsedPlannedModel": true,
+            "providers": [
+              "ollama"
+            ],
+            "responseModels": []
+          },
+          "audit_model_events": 34
+        }
+      },
+      {
+        "check": "only document steps were skipped (no PDFs were given)",
+        "passed": true,
+        "detail": [
+          "evidence/check-document",
+          "evidence/read-source",
+          "screening/read-source"
+        ]
+      },
+      {
+        "check": "bound model is ollama/qwen3:30b, chosen from the host list",
+        "passed": true,
+        "detail": "ollama/qwen3:30b"
+      },
+      {
+        "check": "output validates against the package's own output schema",
+        "passed": true,
+        "detail": null
+      },
+      {
+        "check": "evidence ids are globally unique (A1)",
+        "passed": true,
+        "detail": [
+          "10.36227/techrxiv.171822345.56781952/v1:e1",
+          "10.36227/techrxiv.171822345.56781952/v1:e2",
+          "10.2139/ssrn.7366618:e1",
+          "10.2139/ssrn.7366618:e2",
+          "10.2139/ssrn.7366618:e3"
+        ]
+      },
+      {
+        "check": "evidence ids follow <paper_id>:e<n>",
+        "passed": true,
+        "detail": null
+      },
+      {
+        "check": "no evidence was silently deduplicated",
+        "passed": true,
+        "detail": 0
+      },
+      {
+        "check": "evidence table is exactly the cited evidence",
+        "passed": true,
+        "detail": [
+          "10.2139/ssrn.7366618:e1",
+          "10.2139/ssrn.7366618:e2",
+          "10.2139/ssrn.7366618:e3",
+          "10.36227/techrxiv.171822345.56781952/v1:e1",
+          "10.36227/techrxiv.171822345.56781952/v1:e2"
+        ]
+      },
+      {
+        "check": "uncited evidence is preserved in the run's state, not lost",
+        "passed": true,
+        "detail": {
+          "extracted": 6,
+          "cited": 5,
+          "uncited": [
+            "10.2139/ssrn.6816879:e1"
+          ]
+        }
+      },
+      {
+        "check": "bibliography is exactly the cited papers",
+        "passed": true,
+        "detail": [
+          "10.2139/ssrn.7366618",
+          "10.36227/techrxiv.171822345.56781952/v1"
+        ]
+      },
+      {
+        "check": "claim mtd-claim cites only table evidence",
+        "passed": true,
+        "detail": [
+          "10.36227/techrxiv.171822345.56781952/v1:e1",
+          "10.36227/techrxiv.171822345.56781952/v1:e2"
+        ]
+      },
+      {
+        "check": "claim mtd-claim cites only bibliography papers",
+        "passed": true,
+        "detail": [
+          "10.36227/techrxiv.171822345.56781952/v1"
+        ]
+      },
+      {
+        "check": "claim mtd-claim is verified supported",
+        "passed": true,
+        "detail": "supported"
+      },
+      {
+        "check": "claim hybrid-claim cites only table evidence",
+        "passed": true,
+        "detail": [
+          "10.2139/ssrn.7366618:e1",
+          "10.2139/ssrn.7366618:e2",
+          "10.2139/ssrn.7366618:e3"
+        ]
+      },
+      {
+        "check": "claim hybrid-claim cites only bibliography papers",
+        "passed": true,
+        "detail": [
+          "10.2139/ssrn.7366618"
+        ]
+      },
+      {
+        "check": "claim hybrid-claim is verified supported",
+        "passed": true,
+        "detail": "supported"
+      },
+      {
+        "check": "a verification result exists for every claim",
+        "passed": true,
+        "detail": {
+          "mtd-claim": "supported",
+          "hybrid-claim": "supported"
+        }
+      },
+      {
+        "check": "bibliography 10.36227/techrxiv.171822345.56781952/v1 came from a real tool result",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "check": "bibliography 10.2139/ssrn.7366618 came from a real tool result",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "check": "tool calls: 3 Crossref searches, 6 citation resolutions, 0 PDF reads",
+        "passed": true,
+        "detail": {
+          "citation-resolver": 6,
+          "scholarly-search": 3
+        }
+      },
+      {
+        "check": "usage within the package and host bounds",
+        "passed": true,
+        "detail": {
+          "tokens": 107284,
+          "remote_calls": 9,
+          "peak_parallel_workers": 3
+        }
+      },
+      {
+        "check": "parallel workers genuinely overlapped",
+        "passed": true,
+        "detail": 3
+      },
+      {
+        "check": "related-work.md is the result's related_work",
+        "passed": true,
+        "detail": null
+      },
+      {
+        "check": "run record hashes match its artifacts",
+        "passed": true,
+        "detail": 9
+      }
+    ]
+  },
+  "security_acceptance": {
+    "during_the_run": {
+      "passed": 39,
+      "total": 39,
+      "active_run_during_probes": true,
+      "no_run_started_by_probes": true,
+      "plan_unchanged_by_probes": true,
+      "probes": [
+        {
+          "id": "start-model",
+          "what": "B22 arbitrary model id in a start",
+          "operation": "execution.start",
+          "passed": true,
+          "layer": "gateway",
+          "code": "INVALID_REQUEST",
+          "message": "plugin session action payload does not match schema: <root>: must not have additional properties: \"model\""
+        },
+        {
+          "id": "start-model-binding",
+          "what": "B22 model binding override in a start",
+          "operation": "execution.start",
+          "passed": true,
+          "layer": "gateway",
+          "code": "INVALID_REQUEST",
+          "message": "plugin session action payload does not match schema: <root>: must not have additional properties: \"modelBinding\""
+        },
+        {
+          "id": "start-executable",
+          "what": "B22 arbitrary executable path",
+          "operation": "execution.start",
+          "passed": true,
+          "layer": "gateway",
+          "code": "INVALID_REQUEST",
+          "message": "plugin session action payload does not match schema: <root>: must not have additional properties: \"executable\""
+        },
+        {
+          "id": "start-archive",
+          "what": "B22 arbitrary package archive path",
+          "operation": "execution.start",
+          "passed": true,
+          "layer": "gateway",
+          "code": "INVALID_REQUEST",
+          "message": "plugin session action payload does not match schema: <root>: must not have additional properties: \"archivePath\""
+        },
+        {
+          "id": "start-command",
+          "what": "B22 arbitrary command / subprocess",
+          "operation": "execution.start",
+          "passed": true,
+          "layer": "gateway",
+          "code": "INVALID_REQUEST",
+          "message": "plugin session action payload does not match schema: <root>: must not have additional properties: \"command\""
+        },
+        {
+          "id": "start-url",
+          "what": "B22 arbitrary URL",
+          "operation": "execution.start",
+          "passed": true,
+          "layer": "gateway",
+          "code": "INVALID_REQUEST",
+          "message": "plugin session action payload does not match schema: <root>: must not have additional properties: \"url\""
+        },
+        {
+          "id": "start-tool",
+          "what": "B22 arbitrary tool id / binding",
+          "operation": "execution.start",
+          "passed": true,
+          "layer": "gateway",
+          "code": "INVALID_REQUEST",
+          "message": "plugin session action payload does not match schema: <root>: must not have additional properties: \"toolId\", \"bindings\""
+        },
+        {
+          "id": "start-path",
+          "what": "B6 path string instead of a capability",
+          "operation": "execution.start",
+          "passed": true,
+          "layer": "gateway",
+          "code": "INVALID_REQUEST",
+          "message": "plugin session action payload does not match schema: <root>: must not have additional properties: \"path\""
+        },
+        {
+          "id": "start-file-path",
+          "what": "B6 a path passed as a file id",
+          "operation": "execution.start",
+          "passed": true,
+          "layer": "gateway",
+          "code": "INVALID_REQUEST",
+          "message": "plugin session action payload does not match schema: files.0: must match pattern \"^file_[0-9a-f]{32}$\""
+        },
+        {
+          "id": "start-concurrent",
+          "what": "second start while a run is active",
+          "operation": "execution.start",
+          "passed": true,
+          "layer": "plugin",
+          "code": "execution_active",
+          "message": "A run is already in progress \u2014 Run run_dbb6d0edf5104e6dad4beaa814e9d1d2 is running for this run plan. Wait for it to finish, or cancel it."
+        },
+        {
+          "id": "artifact-dotdot",
+          "what": "B22 artifact traversal ../run.json",
+          "operation": "execution.artifact",
+          "passed": true,
+          "layer": "gateway",
+          "code": "INVALID_REQUEST",
+          "message": "plugin session action payload does not match schema: name: must match pattern \"^[A-Za-z0-9_-][A-Za-z0-9_.-]{0,127}$\""
+        },
+        {
+          "id": "artifact-absolute",
+          "what": "B22 absolute artifact path",
+          "operation": "execution.artifact",
+          "passed": true,
+          "layer": "gateway",
+          "code": "INVALID_REQUEST",
+          "message": "plugin session action payload does not match schema: name: must match pattern \"^[A-Za-z0-9_-][A-Za-z0-9_.-]{0,127}$\""
+        },
+        {
+          "id": "artifact-dots",
+          "what": "B22 artifact name ..",
+          "operation": "execution.artifact",
+          "passed": true,
+          "layer": "gateway",
+          "code": "INVALID_REQUEST",
+          "message": "plugin session action payload does not match schema: name: must match pattern \"^[A-Za-z0-9_-][A-Za-z0-9_.-]{0,127}$\""
+        },
+        {
+          "id": "artifact-nested",
+          "what": "B22 nested artifact path",
+          "operation": "execution.artifact",
+          "passed": true,
+          "layer": "gateway",
+          "code": "INVALID_REQUEST",
+          "message": "plugin session action payload does not match schema: name: must match pattern \"^[A-Za-z0-9_-][A-Za-z0-9_.-]{0,127}$\""
+        },
+        {
+          "id": "artifact-encoded",
+          "what": "B22 encoded traversal",
+          "operation": "execution.artifact",
+          "passed": true,
+          "layer": "gateway",
+          "code": "INVALID_REQUEST",
+          "message": "plugin session action payload does not match schema: name: must match pattern \"^[A-Za-z0-9_-][A-Za-z0-9_.-]{0,127}$\""
+        },
+        {
+          "id": "artifact-undeclared",
+          "what": "artifact that is not in the run's list",
+          "operation": "execution.artifact",
+          "passed": true,
+          "layer": "plugin",
+          "code": "execution_unknown",
+          "message": "No such artifact \u2014 This run wrote no artifact named secrets.json."
+        },
+        {
+          "id": "chunk-dotdot",
+          "what": "B22 chunked artifact traversal",
+          "operation": "execution.artifact-chunk",
+          "passed": true,
+          "layer": "gateway",
+          "code": "INVALID_REQUEST",
+          "message": "plugin session action payload does not match schema: name: must match pattern \"^[A-Za-z0-9_-][A-Za-z0-9_.-]{0,127}$\""
+        },
+        {
+          "id": "chunk-negative",
+          "what": "negative artifact offset",
+          "operation": "execution.artifact-chunk",
+          "passed": true,
+          "layer": "gateway",
+          "code": "INVALID_REQUEST",
+          "message": "plugin session action payload does not match schema: offset: must be >= 0"
+        },
+        {
+          "id": "run-malformed",
+          "what": "malformed run id",
+          "operation": "execution.get",
+          "passed": true,
+          "layer": "gateway",
+          "code": "INVALID_REQUEST",
+          "message": "plugin session action payload does not match schema: runId: must match pattern \"^run_[0-9a-f]{32}$\""
+        },
+        {
+          "id": "run-unknown-get",
+          "what": "unknown run id",
+          "operation": "execution.get",
+          "passed": true,
+          "layer": "plugin",
+          "code": null,
+          "message": ""
+        },
+        {
+          "id": "run-unknown-artifact",
+          "what": "artifact of an unknown run",
+          "operation": "execution.artifact",
+          "passed": true,
+          "layer": "plugin",
+          "code": "execution_unknown",
+          "message": "No such run \u2014 This run is not held by the Agent Browser backend. Run records are ephemeral and do not survive a Gateway restart."
+        },
+        {
+          "id": "run-unknown-cancel",
+          "what": "cancel an unknown run",
+          "operation": "execution.cancel",
+          "passed": true,
+          "layer": "plugin",
+          "code": "execution_unknown",
+          "message": "No such run \u2014 This run is not held by the Agent Browser backend. Run records are ephemeral and do not survive a Gateway restart."
+        },
+        {
+          "id": "file-outside",
+          "what": "B6 select a file outside the file roots",
+          "operation": "files.select-local",
+          "passed": true,
+          "layer": "plugin",
+          "code": "not_allowed",
+          "message": "Not a PDF \u2014 Only .pdf files can be selected."
+        },
+        {
+          "id": "file-traversal",
+          "what": "B6 traversal out of a file root",
+          "operation": "files.select-local",
+          "passed": true,
+          "layer": "plugin",
+          "code": "not_allowed",
+          "message": "Not a PDF \u2014 Only .pdf files can be selected."
+        },
+        {
+          "id": "file-ssh",
+          "what": "B6 a private key path",
+          "operation": "files.select-local",
+          "passed": true,
+          "layer": "plugin",
+          "code": "not_allowed",
+          "message": "Not a PDF \u2014 Only .pdf files can be selected."
+        },
+        {
+          "id": "file-pdf-outside",
+          "what": "B6 a real PDF outside the file roots",
+          "operation": "files.select-local",
+          "passed": true,
+          "layer": "plugin",
+          "code": "not_allowed",
+          "message": "Path outside the allowed directories \u2014 That file is not inside a directory this host allows the Agent Browser to read."
+        },
+        {
+          "id": "file-pdf-traversal",
+          "what": "B6 traversal from a file root to a real PDF",
+          "operation": "files.select-local",
+          "passed": true,
+          "layer": "plugin",
+          "code": "not_allowed",
+          "message": "Path outside the allowed directories \u2014 That file is not inside a directory this host allows the Agent Browser to read."
+        },
+        {
+          "id": "file-relative",
+          "what": "B6 a relative path",
+          "operation": "files.select-local",
+          "passed": true,
+          "layer": "plugin",
+          "code": "not_allowed",
+          "message": "Absolute path required \u2014 Enter the full path of a PDF inside an allowed directory."
+        },
+        {
+          "id": "pkg-outside",
+          "what": "open a package outside the package roots",
+          "operation": "packages.open-local",
+          "passed": true,
+          "layer": "plugin",
+          "code": "not_allowed",
+          "message": "Not an agent package \u2014 Only built .agent.pkg artifacts can be opened."
+        },
+        {
+          "id": "pkg-traversal",
+          "what": "traversal out of a package root",
+          "operation": "packages.open-local",
+          "passed": true,
+          "layer": "plugin",
+          "code": "not_allowed",
+          "message": "Not an agent package \u2014 Only built .agent.pkg artifacts can be opened."
+        },
+        {
+          "id": "pkg-real-outside",
+          "what": "a real .agent.pkg outside the package roots",
+          "operation": "packages.open-local",
+          "passed": true,
+          "layer": "plugin",
+          "code": "not_allowed",
+          "message": "Path outside the allowed directories \u2014 That file is not inside a directory this host allows the Agent Browser to read."
+        },
+        {
+          "id": "pkg-real-traversal",
+          "what": "traversal from a package root to a real .agent.pkg",
+          "operation": "packages.open-local",
+          "passed": true,
+          "layer": "plugin",
+          "code": "not_allowed",
+          "message": "Path outside the allowed directories \u2014 That file is not inside a directory this host allows the Agent Browser to read."
+        },
+        {
+          "id": "url-http",
+          "what": "plain-HTTP package URL",
+          "operation": "packages.open-url",
+          "passed": true,
+          "layer": "plugin",
+          "code": "url_rejected",
+          "message": "This URL cannot be opened \u2014 Only https:// package URLs are accepted; refused scheme 'http'"
+        },
+        {
+          "id": "url-file",
+          "what": "file: package URL",
+          "operation": "packages.open-url",
+          "passed": true,
+          "layer": "plugin",
+          "code": "url_rejected",
+          "message": "This URL cannot be opened \u2014 Only https:// package URLs are accepted; refused scheme 'file'"
+        },
+        {
+          "id": "op-exec",
+          "what": "an operation the contract does not have: exec",
+          "operation": "execution.exec",
+          "passed": true,
+          "layer": "gateway",
+          "code": "UNAVAILABLE",
+          "message": "unknown plugin session action: agent-browser/execution.exec"
+        },
+        {
+          "id": "op-tool",
+          "what": "an operation the contract does not have: tool call",
+          "operation": "tools.call",
+          "passed": true,
+          "layer": "gateway",
+          "code": "UNAVAILABLE",
+          "message": "unknown plugin session action: agent-browser/tools.call"
+        },
+        {
+          "id": "op-shell",
+          "what": "an operation the contract does not have: shell",
+          "operation": "shell.run",
+          "passed": true,
+          "layer": "gateway",
+          "code": "UNAVAILABLE",
+          "message": "unknown plugin session action: agent-browser/shell.run"
+        },
+        {
+          "id": "op-http",
+          "what": "an operation the contract does not have: http",
+          "operation": "http.request",
+          "passed": true,
+          "layer": "gateway",
+          "code": "UNAVAILABLE",
+          "message": "unknown plugin session action: agent-browser/http.request"
+        },
+        {
+          "id": "validate-huge",
+          "what": "task input over the size bound",
+          "operation": "execution.validate-input",
+          "passed": true,
+          "layer": "gateway",
+          "code": "INVALID_REQUEST",
+          "message": "plugin session action payload must be JSON-compatible"
+        }
+      ]
+    },
+    "after_the_run": {
+      "passed": 8,
+      "total": 8,
+      "no_run_started_by_probes": true,
+      "plan_unchanged_by_probes": true,
+      "probes": [
+        {
+          "id": "after-forged-file",
+          "what": "B6 a forged file capability",
+          "operation": "execution.start",
+          "passed": true,
+          "layer": "plugin",
+          "code": "invalid_request",
+          "message": "Unknown selected file \u2014 A run can only be given files selected in its own package session."
+        },
+        {
+          "id": "after-referenced-file",
+          "what": "B6 a task naming a file it was not given",
+          "operation": "execution.start",
+          "passed": true,
+          "layer": "plugin",
+          "code": "invalid_request",
+          "message": "The task names a file this run was not given \u2014 Every selected-file id in the task must be one of this run's attached files. Select the document again if its cap"
+        },
+        {
+          "id": "after-invalid-input",
+          "what": "task input the package schema rejects",
+          "operation": "execution.start",
+          "passed": true,
+          "layer": "plugin",
+          "code": "input_invalid",
+          "message": "The task does not match this package's input \u2014 /question must be at least 1 character"
+        },
+        {
+          "id": "after-extra-input",
+          "what": "task input with a field the schema forbids",
+          "operation": "execution.start",
+          "passed": true,
+          "layer": "plugin",
+          "code": "input_invalid",
+          "message": "The task does not match this package's input \u2014 (task) contains a field this package does not accept"
+        },
+        {
+          "id": "after-wrong-hash",
+          "what": "a run plan hash that is not the plan's",
+          "operation": "execution.start",
+          "passed": true,
+          "layer": "plugin",
+          "code": "probe_refused",
+          "message": "The request was refused \u2014 The run plan changed after the caller read it."
+        },
+        {
+          "id": "after-unknown-plan",
+          "what": "a run plan id that does not exist",
+          "operation": "execution.start",
+          "passed": true,
+          "layer": "plugin",
+          "code": "probe_refused",
+          "message": "The request was refused \u2014 This session's run plan is not the one the caller asked for."
+        },
+        {
+          "id": "after-model-prepare",
+          "what": "B22 prepare a plan on a model the host does not offer",
+          "operation": "run-plan.prepare",
+          "passed": true,
+          "layer": "plugin",
+          "code": "model_unknown",
+          "message": "Model no longer available \u2014 This OpenClaw host no longer offers evil/not-offered as a usable choice. Refresh the model list and choose again."
+        },
+        {
+          "id": "after-artifact-ok",
+          "what": "positive control: a declared export of the finished run",
+          "operation": "execution.artifact",
+          "passed": true,
+          "layer": "plugin",
+          "code": null,
+          "message": ""
+        }
+      ]
+    },
+    "final_build_regression": {
+      "passed": 39,
+      "total": 39,
+      "no_run_started_by_probes": true,
+      "plan_unchanged_by_probes": true
+    },
+    "authorization_stale_plan_credentials": {
+      "passed": 6,
+      "total": 6,
+      "no_run_started_by_probes": true,
+      "session_closed": true,
+      "probes": [
+        {
+          "id": "unauthorized-readiness",
+          "what": "readiness of an unauthorized session",
+          "passed": true,
+          "blocker": "run_plan_absent"
+        },
+        {
+          "id": "unauthorized-start",
+          "what": "start in a session nobody authorized",
+          "passed": true,
+          "layer": "plugin",
+          "code": "run_plan_absent",
+          "title": "No run plan prepared",
+          "detail": "This session has no prepared run plan"
+        },
+        {
+          "id": "unauthorized-prepare",
+          "what": "prepare a plan with a receipt that was never issued",
+          "passed": true,
+          "layer": "plugin",
+          "code": "session_expired",
+          "title": "No authorization yet",
+          "detail": "Authorize this package before preparing a run plan"
+        },
+        {
+          "id": "stale-plan-reported",
+          "what": "the page's plan read reports the plan no longer ready",
+          "passed": true,
+          "preflight": null,
+          "reasons": []
+        },
+        {
+          "id": "stale-plan-start",
+          "what": "start the plan prepared under the previous authorization",
+          "passed": true,
+          "layer": "plugin",
+          "code": "run_plan_absent",
+          "title": "No run plan prepared",
+          "detail": "This session has no prepared run plan"
+        },
+        {
+          "id": "no-credentials",
+          "what": "no Gateway token or provider credential in any operation output or on the page",
+          "passed": true,
+          "secrets_checked": 5,
+          "found": 0,
+          "outputs_scanned": 30,
+          "bearer_or_sk_patterns": 0
+        }
+      ]
+    }
+  },
+  "defects_found_by_this_acceptance_and_fixed": [
+    "Header read 'execution disabled' (the control plane's own flag) on a page that runs packages \u2192 'runs available'.",
+    "Summary grid misaligned by its 'Show \u2026' expanders; recent-run rows started with a stray separator.",
+    "Run frame always accent-red \u2192 it now takes the run's state (completed green, failed red, cancelled amber).",
+    "Tool rows said 'used only if the task needs it' for tools every run needs \u2192 precise per-tool notes.",
+    "Checklist named fields by JSON pointer \u2192 by the schema's title; untouched fields no longer shown in error.",
+    "Stop point named by node id \u2192 by the package's validated label, with the id kept.",
+    "Recent runs named a run 'live' (first string in the task) \u2192 the task's own words; tasks now keep schema order.",
+    "execution.status grew past the Gateway's 4,096-node output limit after nine runs \u2192 it returns compact summaries.",
+    "Viewing an artifact over 64 K characters, or downloading one over 48 KiB, failed with INVALID_OUTPUT \u2192 bounded views, 48 KiB chunks.",
+    "A host reporting ~35+ models would have failed the Model section \u2192 the catalog is fitted to the limit, usable models first, with a note."
+  ],
+  "final_build_regression": {
+    "why": "After the full run, fixes to the run list, artifact views, downloads and model catalog changed code the reload path uses; this repeats start, progress, reload and cancel through the page on the final build.",
+    "plugin_archive_sha256": "fcf25498ba834e7fc47ca723921027ea4be00bd9e5652d7a6f9862369904c4bf",
+    "run_id": "run_bd0ddd025b3d4a0db091aa581b78170e",
+    "run_plan": "rp_2dd042e9dab541b1a5951772c35394d4",
+    "started_from_page": "2026-09-27T02:56:54Z",
+    "progress_seen": "02:57:47Z \u2014 Planning \u2713, Scholarly search with 3 worker chips, 1 model call, 3 tool calls, 2,239 tokens",
+    "reload": {
+      "at": "02:58:09Z",
+      "elapsed_before": "01:09",
+      "reconnected_at": "02:58:11Z",
+      "elapsed_after": "01:17",
+      "same_runner_process": true
+    },
+    "cancel": {
+      "pressed": "02:58:12Z",
+      "page_showed_cancelled": "02:58:13Z",
+      "stopped_at": "Deduplicate candidates (normalize), in Screening",
+      "runner_processes_left": 0
+    },
+    "large_artifacts_on_final_build": {
+      "audit.json_view": "first 48.0 KiB of 298.8 KiB, stated",
+      "audit.json_download": "298.8 KiB, SHA-256 verified, byte-identical",
+      "result.json_download": "494.4 KiB, SHA-256 verified, byte-identical"
+    },
+    "run_list_output_nodes": {
+      "before_fix_9_runs": 3879,
+      "after_fix_9_runs": 149,
+      "host_limit": 4096
+    }
+  },
+  "host_state_restored": "Each acceptance browser's paired Control UI device was removed afterwards; no package session left open; no runner process left."
+}

@@ -36,7 +36,12 @@ ALLOWED_KEYS = {
     "tool_calls_completed",
     "tokens",
     "remote_calls",
+    "skipped_nodes",
+    "workers",
 }
+# One row per spawned worker: identity, where it ran, how it ended, how many
+# calls it made. Nothing it received or produced.
+WORKER_KEYS = {"id", "role", "node", "state", "model_calls", "tool_calls", "duration_ms"}
 
 
 class RecordingPeer:
@@ -65,20 +70,26 @@ def test_the_snapshot_is_a_pure_count_of_audit_events():
         tracker = ProgressTracker(peer, interval=0.0)
         for item in [
             event("node.started", node_id="plan"),
-            event("worker.spawned", worker="Planner:1"),
+            event("worker.spawned", worker="Planner:1", role="Planner", node_id="plan"),
             event("worker.started", worker="Planner:1"),
-            event("model.called", node_id="plan"),
+            event("model.called", node_id="plan", worker="Planner:1"),
             event("budget.updated", tokens=120, remote_calls=0),
-            event("model.completed", node_id="plan"),
+            event("model.completed", node_id="plan", worker="Planner:1"),
             event("worker.completed", worker="Planner:1"),
             event("node.completed", node_id="plan"),
+            event("node.started", node_id="gate"),
+            event("node.skipped", node_id="gate"),
+            event("node.completed", node_id="gate"),
             event("node.started", node_id="map"),
+            event("worker.spawned", worker="W:2", role="W", node_id="map"),
+            event("worker.spawned", worker="W:3", role="W", node_id="map"),
             event("worker.started", worker="W:2"),
             event("worker.started", worker="W:3"),
-            event("tool.called", node_id="map/step"),
-            event("tool.completed", node_id="map/step"),
+            event("node.skipped", node_id="map/optional-step"),
+            event("tool.called", node_id="map/step", worker="W:2"),
+            event("tool.completed", node_id="map/step", worker="W:2"),
             event("node.completed", node_id="map/step"),
-            event("worker.failed", worker="W:3"),
+            event("worker.failed", worker="W:3", error="ValueError"),
             event("node.failed", node_id="map"),
         ]:
             tracker.observe(item)
@@ -88,18 +99,59 @@ def test_the_snapshot_is_a_pure_count_of_audit_events():
 
     snapshot, sent = asyncio.run(main())
     assert set(snapshot) == ALLOWED_KEYS
-    assert snapshot["completed_nodes"] == ["plan"]
+    assert snapshot["completed_nodes"] == ["plan", "gate"]
+    # A top-level node whose condition was false is reported as skipped; a
+    # skipped map step is not a top-level node and is not listed.
+    assert snapshot["skipped_nodes"] == ["gate"]
     assert snapshot["failed_nodes"] == ["map"]
     assert snapshot["active_nodes"] == []
-    assert snapshot["nodes_completed"] == 1
+    assert snapshot["nodes_completed"] == 2
     assert snapshot["steps_completed"] == 1
-    assert snapshot["workers_spawned"] == 1
+    assert snapshot["workers_spawned"] == 3
     assert snapshot["active_workers"] == ["W:2"]
     assert snapshot["peak_parallel_workers"] == 2
+    rows = {row["id"]: row for row in snapshot["workers"]}
+    assert all(set(row) == WORKER_KEYS for row in rows.values())
+    assert rows["Planner:1"] == {
+        **rows["Planner:1"],
+        "role": "Planner",
+        "node": "plan",
+        "state": "completed",
+        "model_calls": 1,
+        "tool_calls": 0,
+    }
+    assert rows["Planner:1"]["duration_ms"] is not None
+    assert (rows["W:2"]["node"], rows["W:2"]["state"], rows["W:2"]["tool_calls"]) == (
+        "map",
+        "active",
+        1,
+    )
+    assert rows["W:3"]["state"] == "failed"
     assert (snapshot["model_calls_started"], snapshot["model_calls_completed"]) == (1, 1)
     assert (snapshot["tool_calls_started"], snapshot["tool_calls_completed"]) == (1, 1)
     assert snapshot["tokens"] == 120
     assert sent and set(sent[-1]) == ALLOWED_KEYS
+
+
+def test_a_cancelled_worker_is_reported_as_cancelled_not_failed():
+    tracker = ProgressTracker(RecordingPeer(), interval=10.0)
+    tracker.observe(event("worker.spawned", worker="W:1", role="W", node_id="map"))
+    tracker.observe(event("worker.started", worker="W:1"))
+    tracker.observe(event("worker.failed", worker="W:1", error="CancelledError"))
+    (row,) = tracker.snapshot()["workers"]
+    assert row["state"] == "cancelled"
+
+
+def test_worker_rows_are_bounded():
+    from agentpkg.execution.progress import MAX_WORKERS
+
+    tracker = ProgressTracker(RecordingPeer(), interval=10.0)
+    for index in range(MAX_WORKERS + 10):
+        tracker.observe(event("worker.spawned", worker=f"W:{index}", role="W", node_id="map"))
+    snapshot = tracker.snapshot()
+    assert len(snapshot["workers"]) == MAX_WORKERS
+    # The totals keep counting past the rows.
+    assert snapshot["workers_spawned"] == MAX_WORKERS + 10
 
 
 def test_sends_are_coalesced_and_one_at_a_time():
@@ -169,6 +221,22 @@ def test_a_real_run_reports_progress_that_agrees_with_its_audit(tmp_path):
     progress, result = asyncio.run(main())
     assert result["status"] == "completed"
     assert progress, "a real run sent no progress"
+    # The final record carries an exact snapshot taken after the run settled.
+    final = result["progress"]
+    assert set(final) == ALLOWED_KEYS
+    assert final["completed_nodes"] == [
+        "plan",
+        "perspectives",
+        "join",
+        "write",
+        "validate",
+        "output",
+    ]
+    assert final["active_nodes"] == [] and final["workers_active"] == 0
+    assert final["model_calls_completed"] == result["audit"]["model_calls"]
+    assert {row["state"] for row in final["workers"]} == {"completed"}
+    assert sum(row["model_calls"] for row in final["workers"]) == result["audit"]["model_calls"]
+    assert result["failure"] is None
     for snapshot in progress:
         assert set(snapshot) == ALLOWED_KEYS
     last = progress[-1]

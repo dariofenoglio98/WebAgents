@@ -320,6 +320,10 @@
   margin: 0;
   word-break: break-word;
 }
+.ab-defs dd.ab-summary-detail {
+  grid-column: 1 / -1;
+  margin: 0 0 6px;
+}
 .ab-flow {
   margin: 8px 0 0;
   padding-left: 20px;
@@ -498,4 +502,334 @@
 .ab-check p {
   margin: 0;
   flex-basis: 100%;
+}
+
+/* -- the Run surface ------------------------------------------------------ */
+.ab-top,
+.ab-setup,
+.ab-run-host {
+  display: grid;
+  gap: 16px;
+}
+.ab-run {
+  border-width: 2px;
+}
+.ab-run[data-state="preparing"],
+.ab-run[data-state="running"] {
+  border-color: var(--accent, #4f46e5);
+}
+.ab-run[data-state="completed"] {
+  border-color: #1a7f37;
+}
+.ab-run[data-state="failed"] {
+  border-color: #b42318;
+}
+.ab-run[data-state="cancelled"] {
+  border-color: #b26a00;
+}
+.ab-run-title {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.ab-run-prompt {
+  margin: 4px 0 0;
+  font-size: 1.1rem;
+}
+.ab-checklist,
+.ab-plain-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+  font-size: 0.88rem;
+}
+.ab-checklist li,
+.ab-plain-list li {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+.ab-plain-list li.ab-run-row {
+  display: grid;
+  gap: 2px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border, rgba(127, 127, 127, 0.2));
+}
+.ab-run-row:last-child {
+  border-bottom: none;
+}
+.ab-run-row-main {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.ab-run-row-main > button {
+  margin-left: auto;
+}
+.ab-run-row-task {
+  overflow-wrap: anywhere;
+}
+.ab-row-note {
+  flex-basis: 100%;
+  padding-left: calc(1.1em + 6px);
+  font-size: 0.82rem;
+}
+.ab-check-icon {
+  display: inline-block;
+  min-width: 1.1em;
+  text-align: center;
+  font-weight: 600;
+}
+.ab-check-ok .ab-check-icon {
+  color: #1a7f37;
+}
+.ab-check-no .ab-check-icon {
+  color: #b26a00;
+}
+.ab-button-small {
+  padding: 1px 8px;
+  font-size: 0.78rem;
+}
+.ab-form {
+  display: grid;
+  gap: 12px;
+}
+.ab-form-toolbar {
+  display: flex;
+  justify-content: flex-end;
+}
+.ab-form-group summary {
+  cursor: pointer;
+  font-size: 0.9rem;
+  margin-bottom: 8px;
+}
+.ab-form-group[open] {
+  display: grid;
+  gap: 12px;
+}
+.ab-field {
+  display: grid;
+  gap: 4px;
+}
+.ab-field-label {
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+.ab-field-error {
+  margin: 0;
+  min-height: 1em;
+  color: #b42318;
+  font-size: 0.82rem;
+}
+.ab-input,
+.ab-textarea,
+.ab-json-editor {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border, #d0d0d0);
+  border-radius: 8px;
+  font: inherit;
+}
+.ab-textarea {
+  font-size: 1rem;
+  line-height: 1.4;
+  resize: vertical;
+}
+.ab-json-editor,
+.ab-pre {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.82rem;
+}
+.ab-input-number {
+  max-width: 180px;
+}
+.ab-list-editor,
+.ab-files {
+  display: grid;
+  gap: 6px;
+}
+.ab-list-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.ab-list-row .ab-input,
+.ab-list-row .ab-select {
+  flex: 1;
+  min-width: 0;
+}
+.ab-fieldset {
+  border: 1px solid var(--border, #d0d0d0);
+  border-radius: 8px;
+  display: grid;
+  gap: 6px;
+}
+.ab-file-picker {
+  display: grid;
+  gap: 4px;
+}
+.ab-run-summary h4 {
+  margin: 0 0 4px;
+  font-size: 0.9rem;
+}
+.ab-run-actions {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+}
+.ab-run-button {
+  font-size: 1.05rem;
+  padding: 10px 22px;
+}
+.ab-run-reason {
+  margin: 0;
+  font-size: 0.86rem;
+  color: #8a5300;
+}
+.ab-progress,
+.ab-outcome {
+  display: grid;
+  gap: 10px;
+}
+.ab-progress-head {
+  font-size: 1.05rem;
+}
+.ab-elapsed {
+  font-family: var(--font-mono, monospace);
+  font-weight: 600;
+}
+.ab-stages {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.ab-stage {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+.ab-stage-icon {
+  display: inline-block;
+  min-width: 1.2em;
+  text-align: center;
+  font-weight: 700;
+}
+.ab-stage-completed .ab-stage-icon {
+  color: #1a7f37;
+}
+.ab-stage-active .ab-stage-icon {
+  color: var(--accent, #4f46e5);
+}
+.ab-stage-failed .ab-stage-icon {
+  color: #b42318;
+}
+.ab-stage-cancelled .ab-stage-icon {
+  color: #b26a00;
+}
+.ab-run-task {
+  margin: 4px 0 0;
+  font-style: italic;
+  overflow-wrap: anywhere;
+}
+.ab-stage-pending .ab-stage-label,
+.ab-stage-skipped .ab-stage-label {
+  color: var(--text-muted, #7a7a7a);
+}
+.ab-workers {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  flex-basis: 100%;
+  padding-left: 2em;
+}
+.ab-worker {
+  font-size: 0.8rem;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border, #d0d0d0);
+}
+.ab-worker-completed {
+  border-color: #1a7f37;
+}
+.ab-worker-active {
+  border-color: var(--accent, #4f46e5);
+}
+.ab-worker-failed,
+.ab-worker-cancelled {
+  border-color: #b42318;
+}
+.ab-result {
+  padding: 12px 14px;
+  border: 1px solid var(--border, #d0d0d0);
+  border-radius: 10px;
+}
+.ab-result h3 {
+  margin-top: 0;
+}
+.ab-markdown {
+  line-height: 1.55;
+}
+.ab-markdown h3,
+.ab-markdown h4,
+.ab-markdown h5,
+.ab-markdown h6 {
+  margin: 14px 0 6px;
+}
+.ab-markdown p {
+  margin: 6px 0;
+}
+.ab-markdown blockquote {
+  margin: 6px 0;
+  padding-left: 12px;
+  border-left: 3px solid var(--border, #d0d0d0);
+}
+.ab-md-code {
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border, #d0d0d0);
+  overflow-x: auto;
+}
+.ab-pre {
+  margin: 0;
+  padding: 10px;
+  max-height: 420px;
+  overflow: auto;
+  border: 1px solid var(--border, #d0d0d0);
+  border-radius: 6px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.ab-artifact {
+  gap: 8px;
+}
+.ab-viewer {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+.ab-table {
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  width: 100%;
+}
+.ab-table th,
+.ab-table td {
+  text-align: left;
+  padding: 3px 6px;
+  border-bottom: 1px solid var(--border, #e6e6e6);
+}
+.ab-card-flash {
+  outline: 2px solid var(--accent, #4f46e5);
+  outline-offset: 2px;
 }

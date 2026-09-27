@@ -806,7 +806,24 @@
         }
       },
       "task": "prepare",
-      "max_output_tokens": 16000
+      "max_output_tokens": 16000,
+      "when": {
+        "left": {
+          "from": "state",
+          "path": "/resolved_jobs"
+        },
+        "op": "ne",
+        "right": {
+          "literal": []
+        }
+      },
+      "otherwise": {
+        "literal": {
+          "citation_records": [],
+          "evidence_jobs": [],
+          "unresolved": []
+        }
+      }
     },
     {
       "id": "check-records",
@@ -1154,9 +1171,36 @@
           "from": "result",
           "path": ""
         }
+      }
+    },
+    {
+      "id": "check-evidence",
+      "type": "validate",
+      "worker": "LiteratureReviewCoordinator",
+      "depends_on": [
+        "join-evidence"
+      ],
+      "input": {
+        "from": "state",
+        "path": "/evidence_items"
       },
-      "unique_by": [
-        "/evidence_id"
+      "writes": {},
+      "output_schema": "schemas/evidence-list.schema.json",
+      "timeout_seconds": 10,
+      "assertions": [
+        {
+          "kind": "relation",
+          "rows": {
+            "from": "state",
+            "path": "/evidence_items"
+          },
+          "targets": {
+            "from": "state",
+            "path": "/evidence_items"
+          },
+          "row_key": "/evidence_id",
+          "target_key": "/evidence_id"
+        }
       ]
     },
     {
@@ -1182,7 +1226,7 @@
       "output_schema": "schemas/synthesis.schema.json",
       "timeout_seconds": 600,
       "depends_on": [
-        "join-evidence"
+        "check-evidence"
       ],
       "writes": {
         "/themes": {
@@ -1195,7 +1239,23 @@
         }
       },
       "task": "synthesize",
-      "max_output_tokens": 12000
+      "max_output_tokens": 12000,
+      "when": {
+        "left": {
+          "from": "state",
+          "path": "/evidence_items"
+        },
+        "op": "ne",
+        "right": {
+          "literal": []
+        }
+      },
+      "otherwise": {
+        "literal": {
+          "themes": [],
+          "claims": []
+        }
+      }
     },
     {
       "id": "writing",
@@ -1233,7 +1293,26 @@
         }
       },
       "task": "write",
-      "max_output_tokens": 12000
+      "max_output_tokens": 12000,
+      "when": {
+        "left": {
+          "from": "state",
+          "path": "/claims"
+        },
+        "op": "ne",
+        "right": {
+          "literal": []
+        }
+      },
+      "otherwise": {
+        "literal": {
+          "draft": {
+            "title": "Related Work",
+            "claim_ids": []
+          },
+          "claims": []
+        }
+      }
     },
     {
       "id": "verification",
@@ -1295,7 +1374,40 @@
         }
       },
       "task": "verify",
-      "max_output_tokens": 16000
+      "max_output_tokens": 16000,
+      "when": {
+        "left": {
+          "from": "state",
+          "path": "/claims"
+        },
+        "op": "ne",
+        "right": {
+          "literal": []
+        }
+      },
+      "otherwise": {
+        "object": {
+          "related_work": {
+            "literal": "## No sufficiently grounded literature found\n\nNo sufficiently grounded literature was found within this bounded search. No retrieved paper yielded verbatim evidence supporting a claim about this question, so this review makes no claims and cites no sources.\n\nThe search is bounded: at most three scholarly-search queries of three results each, at most three included papers, and only abstracts or explicitly selected documents as evidence. Papers that were found but could not be verified, if any, are listed as unresolved. A narrower or differently worded question, seed references or selected documents may find grounded sources.\n"
+          },
+          "bibliography": {
+            "literal": []
+          },
+          "evidence_table": {
+            "literal": []
+          },
+          "unresolved": {
+            "from": "state",
+            "path": "/unresolved"
+          },
+          "verification_results": {
+            "literal": []
+          },
+          "claims": {
+            "literal": []
+          }
+        }
+      }
     },
     {
       "id": "validate-output",
@@ -1450,7 +1562,138 @@
     }
   ],
   "fixture": "fixtures/workflow.json",
-  "extensions": {},
+  "extensions": {
+    "agentpkg:presentation": {
+      "schema": "agentpkg-presentation-v0",
+      "task": {
+        "prompt": "What would you like me to research?",
+        "run_label": "Run Research",
+        "running_label": "Researching\u2026",
+        "completed_label": "Research completed"
+      },
+      "input": {
+        "question": {
+          "widget": "multiline",
+          "rows": 4,
+          "placeholder": "What defenses have been proposed against prompt injection attacks on LLM-integrated applications?"
+        },
+        "seeds": {
+          "group": "optional",
+          "item_placeholder": "A title, DOI or arXiv id"
+        },
+        "documents": {
+          "group": "optional",
+          "widget": "selected_files",
+          "key_label": "Paper DOI",
+          "key_placeholder": "10.1234/example"
+        },
+        "mode": {
+          "group": "advanced"
+        }
+      },
+      "nodes": {
+        "planning": "Planning",
+        "seed-discovery": "Seed references",
+        "search": "Scholarly search",
+        "join-search": "Merge search results",
+        "normalize": "Deduplicate candidates",
+        "screening": "Screening",
+        "select-included": "Select papers",
+        "citations": "Citations",
+        "prepare-evidence": "Prepare evidence",
+        "check-records": "Check citation records",
+        "evidence": "Evidence extraction",
+        "join-evidence": "Merge evidence",
+        "check-evidence": "Check evidence ids",
+        "synthesis": "Synthesis",
+        "writing": "Writing",
+        "verification": "Verification",
+        "validate-output": "Validate result",
+        "outputs": "Outputs"
+      },
+      "stages": [
+        {
+          "label": "Planning",
+          "nodes": [
+            "planning",
+            "seed-discovery"
+          ]
+        },
+        {
+          "label": "Scholarly search",
+          "nodes": [
+            "search",
+            "join-search"
+          ]
+        },
+        {
+          "label": "Screening",
+          "nodes": [
+            "normalize",
+            "screening",
+            "select-included"
+          ]
+        },
+        {
+          "label": "Citations",
+          "nodes": [
+            "citations",
+            "prepare-evidence",
+            "check-records"
+          ]
+        },
+        {
+          "label": "Evidence extraction",
+          "nodes": [
+            "evidence",
+            "join-evidence",
+            "check-evidence"
+          ]
+        },
+        {
+          "label": "Synthesis",
+          "nodes": [
+            "synthesis"
+          ]
+        },
+        {
+          "label": "Writing",
+          "nodes": [
+            "writing"
+          ]
+        },
+        {
+          "label": "Verification",
+          "nodes": [
+            "verification",
+            "validate-output",
+            "outputs"
+          ]
+        }
+      ],
+      "result": {
+        "primary_export": "related-work.md",
+        "summary": [
+          {
+            "label": "Papers included",
+            "export": "bibliography.json"
+          },
+          {
+            "label": "Evidence items",
+            "export": "evidence-table.json"
+          },
+          {
+            "label": "Claims verified",
+            "export": "verification.json"
+          },
+          {
+            "label": "Unresolved",
+            "export": "unresolved.json"
+          }
+        ]
+      }
+    }
+  },
   "exports": [
     {
       "path": "related-work.md",

@@ -13,14 +13,18 @@ import {
   LIMITS,
   TOOL_BINDING_STATUSES,
   type HostToolBindingViewType,
+  type InputValidationViewType,
   type ModelCatalogViewType,
   type PackageViewType,
   type PermissionsViewType,
+  type PresentationViewType,
   type ReceiptViewType,
   type RunPlanStateViewType,
   type RunPlanViewType,
+  type TaskInputViewType,
   type ToolRegistryViewType,
 } from "./contract.js";
+import { BUDGETS, fitsJson } from "./json-limits.js";
 
 type Json = Record<string, unknown>;
 
@@ -47,6 +51,106 @@ const SEVERITIES = new Set(["info", "warning", "critical"]);
 const DECISION_SET = new Set(["deny", "once", "session"]);
 const decision = (value: unknown): "deny" | "once" | "session" =>
   (DECISION_SET.has(str(value)) ? str(value) : "deny") as never;
+
+/** The largest task input schema the page is given to render a form from (see `BUDGETS.inputSchema`). */
+export const MAX_INPUT_SCHEMA_BYTES = BUDGETS.inputSchema.maxSerializedBytes;
+
+const clipText = (value: unknown, max: number): string | null => {
+  const text = str(value);
+  return text ? (text.length > max ? `${text.slice(0, max - 1)}…` : text) : null;
+};
+
+/** The package's task input contract, bounded again on this side. */
+export function projectTaskInput(value: unknown): TaskInputViewType {
+  const source = rec(value);
+  let document: unknown = source.document ?? null;
+  let note = str(source.note);
+  // A form needs the whole schema, and the package view that carries it must
+  // stay inside the host's JSON limits: a schema too large *or* too intricate
+  // for its budget is left out, and the task is edited as JSON instead.
+  if (document !== null && !fitsJson(document, BUDGETS.inputSchema)) {
+    document = null;
+    note = "The input schema is too large to render as a form; edit the task as JSON.";
+  }
+  return {
+    schemaPath: nullableStr(source.schema_path),
+    schemaSha256: nullableStr(source.schema_sha256),
+    bytes: Math.max(0, int(source.bytes)),
+    document,
+    note: note.slice(0, LIMITS.text),
+  };
+}
+
+const WIDGET_SET = new Set(["multiline", "selected_files"]);
+const GROUP_SET = new Set(["primary", "optional", "advanced"]);
+
+/** Validated presentation hints -> the bounded view. Cosmetic only. */
+export function projectPresentation(value: unknown): PresentationViewType | null {
+  if (value === null || value === undefined) return null;
+  const source = rec(value);
+  const task = rec(source.task);
+  const result = rec(source.result);
+  return {
+    task: {
+      prompt: clipText(task.prompt, LIMITS.shortText),
+      runLabel: clipText(task.run_label, 64),
+      runningLabel: clipText(task.running_label, 128),
+      completedLabel: clipText(task.completed_label, 128),
+    },
+    input: Object.entries(rec(source.input))
+      .slice(0, 64)
+      .map(([field, raw]) => {
+        const hint = rec(raw);
+        return {
+          field: field.slice(0, 200),
+          widget: WIDGET_SET.has(str(hint.widget)) ? (str(hint.widget) as never) : null,
+          group: GROUP_SET.has(str(hint.group)) ? (str(hint.group) as never) : null,
+          label: clipText(hint.label, 128),
+          placeholder: clipText(hint.placeholder, LIMITS.shortText),
+          rows:
+            typeof hint.rows === "number" && Number.isInteger(hint.rows) && hint.rows >= 1 && hint.rows <= 12
+              ? hint.rows
+              : null,
+          itemPlaceholder: clipText(hint.item_placeholder, LIMITS.shortText),
+          keyLabel: clipText(hint.key_label, 128),
+          keyPlaceholder: clipText(hint.key_placeholder, LIMITS.shortText),
+        };
+      }),
+    nodes: Object.entries(rec(source.nodes))
+      .slice(0, LIMITS.nodes)
+      .map(([nodeId, label]) => ({ nodeId: nodeId.slice(0, 200), label: str(label).slice(0, 128) }))
+      .filter((item) => item.label.length > 0),
+    stages: arr(source.stages, 32).map((item) => {
+      const stage = rec(item);
+      return { label: str(stage.label).slice(0, 128), nodes: strings(stage.nodes, LIMITS.nodes) };
+    }),
+    result: {
+      primaryExport: nullableStr(result.primary_export),
+      summary: arr(result.summary, 8).map((item) => ({
+        label: str(rec(item).label).slice(0, 128),
+        export: str(rec(item).export).slice(0, 256),
+      })),
+    },
+  };
+}
+
+/** The control plane's verdict on one proposed task. */
+export function projectInputValidation(value: unknown, sessionId: string): InputValidationViewType {
+  const source = rec(value);
+  return {
+    sessionId,
+    schemaPath: nullableStr(source.schema_path),
+    valid: bool(source.valid),
+    errors: arr(source.errors, 16).map((item) => ({
+      pointer: str(rec(item).pointer).slice(0, 1024),
+      rule: str(rec(item).rule).slice(0, 64),
+      message: str(rec(item).message).slice(0, LIMITS.shortText),
+    })),
+    errorCount: Math.max(0, int(source.error_count)),
+    inputSha256: nullableStr(source.input_sha256),
+    inputBytes: Math.max(0, int(source.input_bytes)),
+  };
+}
 
 /** Control-plane package summary -> browser package view. */
 export function projectPackage(summary: unknown): PackageViewType {
@@ -220,6 +324,8 @@ export function projectPackage(summary: unknown): PackageViewType {
       })),
       fixtureDeclared: bool(workflow.fixture_declared),
       truncated,
+      input: projectTaskInput(workflow.input),
+      presentation: projectPresentation(workflow.presentation),
     },
     evals: arr(source.evals, LIMITS.evals).map((item) => {
       const value = rec(item);
@@ -582,7 +688,7 @@ export function projectEvaluation(
   const counts = rec(source.counts);
   const catalog = rec(source.catalog);
   const host = rec(extra.host);
-  return {
+  return fitCatalog({
     sessionId: extra.sessionId,
     packageDigest: str(source.package_digest),
     host: {
@@ -610,7 +716,48 @@ export function projectEvaluation(
     executionModePermissionIds: extra.executionModePermissionIds.slice(0, LIMITS.permissions),
     executionModePermissionsGranted: extra.executionModePermissionsGranted,
     authorized: extra.authorized,
-  };
+  });
+}
+
+const MODEL_RANK: Record<string, number> = { compatible: 1, unverified: 2, incompatible: 3 };
+
+/**
+ * A catalog the host can carry in one answer.
+ *
+ * Each model's detail is about a hundred JSON nodes, so a host reporting a few
+ * dozen models would exceed the host's own output limit and the whole Model
+ * section would fail. Every model is still counted; when the details do not
+ * fit, the page gets the ones a plan could use first — selectable for a run
+ * plan, then compatible, unverified, incompatible, each in the host's order —
+ * and a note saying how many are not listed. A catalog that fits is unchanged.
+ */
+export function fitCatalog(view: ModelCatalogViewType): ModelCatalogViewType {
+  const carried = (candidate: ModelCatalogViewType) => fitsJson({ ok: true, value: candidate });
+  if (carried(view)) return view;
+  const rank = (model: ModelCatalogViewType["models"][number]) =>
+    model.selectableForRunPlan ? 0 : (MODEL_RANK[model.status] ?? 4);
+  const ordered = [...view.models].sort((left, right) => rank(left) - rank(right));
+  const listing = (count: number): ModelCatalogViewType => ({
+    ...view,
+    models: ordered.slice(0, count),
+    notes: [
+      {
+        code: "models_not_listed",
+        detail:
+          `${ordered.length - count} of the ${ordered.length} models this host reports are not listed: ` +
+          "their details do not fit one answer. Models a run plan could use are listed first.",
+      },
+      ...view.notes,
+    ].slice(0, LIMITS.notes),
+  });
+  let low = 0;
+  let high = ordered.length;
+  while (low < high) {
+    const middle = Math.ceil((low + high) / 2);
+    if (carried(listing(middle))) low = middle;
+    else high = middle - 1;
+  }
+  return listing(low);
 }
 
 export function projectRunPlan(plan: unknown): RunPlanViewType {
@@ -818,10 +965,11 @@ function toolCheckStatus(value: unknown): "satisfied" | "violated" | "unknown" {
 export function projectRunPlanState(
   payload: unknown,
   modelStillAvailable: boolean | null,
+  executionSupported = false,
 ): RunPlanStateViewType {
   const source = rec(payload);
   if (!source.run_plan) {
-    return { plan: null, preflight: null, executionSupported: false as const };
+    return { plan: null, preflight: null, executionSupported };
   }
   const preflight = rec(source.preflight);
   return {
@@ -851,6 +999,8 @@ export function projectRunPlanState(
       toolBindingsCurrent: rec(preflight.tool_bindings).current !== false,
       toolBindingsBound: int(rec(preflight.tool_bindings).bound),
     },
-    executionSupported: false as const,
+    // A host that can run model-backed plans, and a plan of that kind.
+    executionSupported:
+      executionSupported && str(rec(rec(source.run_plan).execution).mode) === "model",
   };
 }

@@ -45,6 +45,7 @@ from .hosttools import (
 from .lease import DEFAULT_LEASE_TTL_SECONDS, ExecutionLease
 from .lease import issue as issue_lease
 from .lease import release as release_lease
+from .presentation import validate_task_input
 from .runplan import (
     BINDING_SINGLE_MODEL,
     EXECUTION_MODES,
@@ -579,6 +580,21 @@ class ControlPlane:
                 "ready": False,
             }
         return receipt
+
+    # -- the task ------------------------------------------------------------
+    def validate_input(self, session_id: str, *, input_value) -> dict:
+        """Check one proposed task against the package's own input schema.
+
+        The same offline validator the runner applies before any instruction
+        reaches a model, run early so a person sees a precise reason instead
+        of a refused run. It reads the snapshot and changes nothing.
+        """
+        session = self._session(session_id)
+        return {
+            "session_id": session.session_id,
+            "package_digest": session.package.digest,
+            **validate_task_input(session.package, input_value),
+        }
 
     # -- tools ---------------------------------------------------------------
     def tool_requirements(self, session_id: str) -> dict:

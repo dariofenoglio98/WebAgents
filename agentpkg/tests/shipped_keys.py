@@ -2,7 +2,8 @@
 
 The two reference artifacts are no longer signed by one key, and each current
 one has its own. `meeting-agenda` 0.2.1 and `literature-review` 0.2.1 each carry
-a **package-specific development signing key**, because the original key's
+a **package-specific development signing key** (`literature-review` 0.2.2 is
+signed by the same Literature Review key as 0.2.1), because the original key's
 private half does not exist on any machine this project builds on and both
 packages' local-model timing policy had to change (see
 `docs/package-execution-report.md` and `docs/literature-review-execution-report.md`).
@@ -36,7 +37,7 @@ ORIGINAL_FINGERPRINT = "sha256:c7549e614dac7070e6b5b5355e7c2407e1185f831d7fff156
 AGENDA_KEY = ROOT / "examples/keys/meeting-agenda-publisher.pub.pem"
 AGENDA_FINGERPRINT = "sha256:2bcc374a7fe18e50622042b7d0375fcb24eb3607879a236f9f3c3ede1922c5c4"
 
-#: The Literature Review key. Signs `literature-review` 0.2.1 and nothing else.
+#: The Literature Review key. Signs `literature-review` 0.2.1 and 0.2.2, and nothing else.
 LITERATURE_KEY = ROOT / "examples/keys/literature-review-publisher.pub.pem"
 LITERATURE_FINGERPRINT = "sha256:c5ca9763f9fc71253298ca381ec14c4d7432009c74dacc69df6344b71de05232"
 

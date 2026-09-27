@@ -457,7 +457,12 @@ def test_every_plugin_built_in_states_the_contract_the_package_declares(tool_id)
 # changed is enumerated here, file by file and field by field, so nothing else
 # can change quietly. Measurements: examples/verification/
 # literature-review-qwen3-30b-node-latency*.json and the 3B4 report.
-REVIEW = DIST["literature-review"]
+#
+# 0.2.1 is the version the 3B4 live acceptance ran. It is preserved, byte for
+# byte, beside its successor; the current artifact is 0.2.2 (section below).
+REVIEW = ROOT / "dist/literature-review-0.2.1.agent.pkg"
+REVIEW_ARCHIVE_SHA256 = "0fb8b65bbff4578d4815ee70b29a0cb789b2cc95ce181d011d467b4be22c8e42"
+REVIEW_DIGEST = "2199abb5868bcedd5c73e7a664f38d35aaaa047c2dcfdb07d91f3977bde41700"
 REVIEW_SOURCE = ROOT / "agents/literature-review"
 REVIEW_PREVIOUS = ROOT / "dist/literature-review-0.2.0.agent.pkg"
 REVIEW_PREVIOUS_DIGEST = "b7bd37ca730ec5a156156207dc04fa5a7563e34a4373a298daa143dd9945b3eb"
@@ -524,17 +529,17 @@ def review():
     return load_package(REVIEW)
 
 
-def test_the_shipped_review_artifact_is_the_republished_version(review):
+def test_the_preserved_review_artifact_is_the_accepted_0_2_1(review):
+    from agentpkg.package import sha256
+
     assert review.manifest["package_id"] == PACKAGE_ID["literature-review"]
     assert review.manifest["version"] == "0.2.1"
     assert review.manifest["runtime"]["minimum_version"] == "0.2.0"
     assert review.manifest["entrypoint"] == "workflow.v0"
     assert review.graph["profile"] == "workflow.v0"
-
-
-def test_the_shipped_review_artifact_matches_its_source_tree(review, tmp_path):
-    rebuilt = load_package(build_package(REVIEW_SOURCE, tmp_path / "rebuilt.agent.pkg"))
-    assert rebuilt.digest == review.digest
+    # The exact bytes the 3B4 acceptance ran, not a rebuild of them.
+    assert sha256(REVIEW.read_bytes()) == REVIEW_ARCHIVE_SHA256
+    assert review.digest == REVIEW_DIGEST
 
 
 def test_review_0_2_0_is_preserved_and_verifies_under_its_own_key():
@@ -760,3 +765,258 @@ def test_a_review_0_2_0_receipt_cannot_authorize_0_2_1(tmp_path):
             decisions={"memory.session": "session"},
         )
     assert mismatch.value.code == "digest_mismatch"
+
+
+# == Literature Review 0.2.2 ================================================
+# Two package-level corrections to the accepted 0.2.1 run — globally unique
+# evidence ids, and an honest empty result — plus noncritical presentation
+# metadata. Signed by the same Literature Review key, whose package-scope pin
+# already covers it. Behaviour is proved in test_literature_022.py; this
+# section proves that nothing *else* changed.
+CURRENT_REVIEW = DIST["literature-review"]
+CURRENT_CHANGED_FILES = {
+    "MANIFEST.agent",
+    "README.md",
+    "graph.json",
+    "fixtures/workflow.json",
+    "schemas/workflow-input.schema.json",
+    "skills/evidence-extraction/SKILL.md",
+    "skills/evidence-synthesis/SKILL.md",
+    "skills/related-work-writing/SKILL.md",
+}
+CONDITIONAL_NODES = {
+    "prepare-evidence": "/resolved_jobs",
+    "synthesis": "/evidence_items",
+    "writing": "/claims",
+    "verification": "/claims",
+}
+ANNOTATIONS = {"title", "description", "default", "examples"}
+
+
+@pytest.fixture(scope="module")
+def current_review():
+    return load_package(CURRENT_REVIEW)
+
+
+def test_the_shipped_review_artifact_is_0_2_2(current_review):
+    assert current_review.manifest["package_id"] == PACKAGE_ID["literature-review"]
+    assert current_review.manifest["version"] == "0.2.2"
+    assert current_review.manifest["runtime"] == {
+        "api": "agentpkg-runtime-v0",
+        "minimum_version": "0.2.0",
+    }
+    assert current_review.manifest["entrypoint"] == "workflow.v0"
+    assert current_review.graph["profile"] == "workflow.v0"
+
+
+def test_the_shipped_review_artifact_matches_its_source_tree(current_review, tmp_path):
+    rebuilt = load_package(build_package(REVIEW_SOURCE, tmp_path / "rebuilt.agent.pkg"))
+    assert rebuilt.digest == current_review.digest
+
+
+def test_0_2_2_is_signed_by_the_same_literature_review_key(current_review):
+    from shipped_keys import LITERATURE_FINGERPRINT, LITERATURE_KEY
+
+    verified = verify_package(CURRENT_REVIEW, LITERATURE_KEY)
+    assert verified["valid"] and verified["version"] == "0.2.2"
+    assert verified["key_fingerprint"] == LITERATURE_FINGERPRINT
+    with pytest.raises(Exception):
+        verify_package(CURRENT_REVIEW, ORIGINAL_KEY)
+    # The preserved predecessor still verifies, under the same key.
+    assert verify_package(REVIEW, LITERATURE_KEY)["valid"]
+
+
+def test_only_the_enumerated_files_changed_since_0_2_1(current_review, review):
+    changed = {
+        name
+        for name in set(review.files) | set(current_review.files)
+        if review.files.get(name) != current_review.files.get(name)
+    }
+    assert changed == CURRENT_CHANGED_FILES
+    # Permissions, network policy, budgets, delegation and every tool contract
+    # are byte-identical: nothing about what the package may reach moved.
+    assert review.files["policy/policy.json"] == current_review.files["policy/policy.json"]
+    for tool in current_review.manifest["tools"]:
+        assert review.files[tool["path"]] == current_review.files[tool["path"]]
+
+
+def test_the_manifest_changed_only_in_version_date_and_three_skill_versions(current_review, review):
+    before = json.loads(json.dumps(review.manifest))
+    after = json.loads(json.dumps(current_review.manifest))
+    assert (before["version"], after["version"]) == ("0.2.1", "0.2.2")
+    bumped = {
+        skill["id"]
+        for old, skill in zip(before["skills"], after["skills"], strict=True)
+        if old["version"] != skill["version"]
+    }
+    assert bumped == {"evidence-extraction", "evidence-synthesis", "related-work-writing"}
+    for manifest in (before, after):
+        manifest.pop("version")
+        manifest.pop("created_at")
+        for skill in manifest["skills"]:
+            skill.pop("version")
+    assert before == after
+
+
+def test_the_graph_changed_only_by_the_two_corrections_and_presentation(current_review, review):
+    """Undo exactly the 0.2.2 edits and the 0.2.1 graph comes back, byte for byte."""
+    graph = json.loads(json.dumps(current_review.graph))
+    assert set(graph["extensions"]) == {"agentpkg:presentation"}
+    graph["extensions"] = {}
+    ids = [node["id"] for node in graph["nodes"]]
+    graph["nodes"].pop(ids.index("check-evidence"))
+    nodes = {node["id"]: node for node in graph["nodes"]}
+    nodes["join-evidence"]["unique_by"] = ["/evidence_id"]
+    nodes["synthesis"]["depends_on"] = ["join-evidence"]
+    for node_id, pointer in CONDITIONAL_NODES.items():
+        condition = nodes[node_id].pop("when")
+        nodes[node_id].pop("otherwise")
+        assert condition["left"] == {"from": "state", "path": pointer}, node_id
+    assert graph == review.graph
+    # Timing, budgets, caps, breadth and parallelism are therefore unchanged too.
+
+
+def test_every_0_2_1_assertion_survives_and_one_is_added(current_review, review):
+    def assertions(package):
+        return {name: op.get("assertions") for name, op in _operations(package.graph)}
+
+    before, after = assertions(review), assertions(current_review)
+    added = set(after) - set(before)
+    assert added == {"check-evidence"}
+    for name, rules in before.items():
+        assert after[name] == rules, name
+
+
+def test_the_workflow_input_schema_gained_annotations_only(current_review, review):
+    def strip(value):
+        if isinstance(value, dict):
+            return {k: strip(v) for k, v in value.items() if k not in ANNOTATIONS}
+        if isinstance(value, list):
+            return [strip(v) for v in value]
+        return value
+
+    path = "schemas/workflow-input.schema.json"
+    assert strip(current_review.json(path)) == review.json(path)
+    properties = current_review.json(path)["properties"]
+    assert properties["mode"]["default"] == "live"
+    assert properties["question"]["title"] == "Research question"
+
+
+def test_presentation_metadata_is_noncritical(current_review, tmp_path):
+    """Stripping it changes nothing the interpreter does."""
+    import asyncio
+    import shutil
+
+    from agentpkg.fixtures import fixture_adapters
+    from agentpkg.workflow import run_workflow
+
+    def replay(package):
+        router, handlers, value = fixture_adapters(package)
+        grants = {item["id"]: "session" for item in package.policy["permissions"]}
+        return asyncio.run(
+            run_workflow(
+                package,
+                value,
+                router=router,
+                handlers=handlers,
+                grants=grants,
+                approved_tools=sorted(package.tools),
+            )
+        )
+
+    source = tmp_path / "plain"
+    shutil.copytree(REVIEW_SOURCE, source)
+    graph = json.loads((source / "graph.json").read_text())
+    graph["extensions"] = {}
+    (source / "graph.json").write_text(json.dumps(graph))
+    plain, dressed = replay(load_package(source)), replay(current_review)
+    assert plain["output"] == dressed["output"]
+    assert plain["usage"]["tool_calls"] == dressed["usage"]["tool_calls"]
+    assert [event["action"] for event in plain["audit"]] == [
+        event["action"] for event in dressed["audit"]
+    ]
+
+
+def test_0_2_2_is_trusted_by_the_existing_package_scope_pin(tmp_path, current_review):
+    """Same key, same package id: the narrow pin that covered 0.2.1 covers 0.2.2."""
+    from shipped_keys import LITERATURE_FINGERPRINT, LITERATURE_KEY
+
+    control = ControlPlane(
+        ControlPlaneConfig(cache_dir=tmp_path / "cache", trust_store_path=tmp_path / "trust.json")
+    )
+    control.trust_add(
+        read_public_key_file(LITERATURE_KEY),
+        display_name="WebAgents Research Prototype",
+        publisher_id="webagents-research",
+        package_id_prefix=PACKAGE_ID["literature-review"],
+    )
+    summary = control.open_file(str(CURRENT_REVIEW))
+    assert summary["package"]["version"] == "0.2.2"
+    assert summary["publisher"]["signer_fingerprint"] == LITERATURE_FINGERPRINT
+    assert summary["publisher"]["trust_status"] == "trusted"
+
+
+def test_a_0_2_1_receipt_or_plan_cannot_reach_0_2_2(tmp_path, review, current_review):
+    from shipped_keys import LITERATURE_KEY
+    from tool_fakes import registry_for
+
+    control = ControlPlane(
+        ControlPlaneConfig(cache_dir=tmp_path / "cache", trust_store_path=tmp_path / "trust.json")
+    )
+    control.trust_add(
+        read_public_key_file(LITERATURE_KEY),
+        display_name="WebAgents Research Prototype",
+        publisher_id="webagents-research",
+        package_id_prefix=PACKAGE_ID["literature-review"],
+    )
+    decisions = {
+        "network.scholarly": "session",
+        "network.citations": "session",
+        "memory.session": "session",
+        "model.reasoning": "session",
+        "files.pdfs": "deny",
+    }
+    approvals = {tool: True for tool in ("scholarly-search", "citation-resolver", "paper-reader")}
+
+    def plan(artifact):
+        summary = control.open_file(str(artifact))
+        session_id, digest_ = summary["session"]["id"], summary["package"]["digest"]
+        receipt = control.authorize(
+            session_id, package_digest=digest_, decisions=decisions, tool_approvals=approvals
+        )
+        state = control.prepare_run_plan(
+            session_id,
+            package_digest=digest_,
+            receipt_id=receipt["receipt_id"],
+            model_id="host/alpha",
+            catalog=CATALOG,
+            tool_registry=registry_for(control._session(session_id).package),
+        )
+        assert state["run_plan"]["readiness"]["ready"]
+        return session_id, digest_, receipt, state["run_plan"]
+
+    old_session, old_digest, old_receipt, old_plan = plan(REVIEW)
+    new_session, new_digest, _, new_plan = plan(CURRENT_REVIEW)
+    assert old_digest == REVIEW_DIGEST and new_digest == current_review.digest
+    assert old_plan["run_plan_sha256"] != new_plan["run_plan_sha256"]
+    with pytest.raises(ControlPlaneError) as wrong_digest:
+        control.authorize(new_session, package_digest=old_digest, decisions=decisions)
+    assert wrong_digest.value.code == "digest_mismatch"
+    with pytest.raises(ControlPlaneError) as wrong_receipt:
+        control.prepare_run_plan(
+            new_session,
+            package_digest=new_digest,
+            receipt_id=old_receipt["receipt_id"],
+            model_id="host/alpha",
+            catalog=CATALOG,
+        )
+    assert wrong_receipt.value.code == "receipt_mismatch"
+    with pytest.raises(ControlPlaneError) as wrong_plan:
+        control.issue_execution_lease(
+            new_session,
+            package_digest=new_digest,
+            run_plan_id=old_plan["run_plan_id"],
+            run_plan_sha256=old_plan["run_plan_sha256"],
+        )
+    assert wrong_plan.value.code == "run_plan_mismatch"
+    assert old_session != new_session

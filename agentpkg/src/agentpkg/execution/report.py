@@ -102,6 +102,48 @@ def cost_summary(audit: list) -> dict:
     }
 
 
+def failure_summary(audit: list) -> dict | None:
+    """Where a run stopped, and which declared check or call refused it.
+
+    Read from the chain: the node that failed (and its step, for a map), its
+    stable error code, the declared check that refused it when a validation
+    did, and the stable reason of the first failed model or tool call. Pointers,
+    identifiers and codes only — never data, never a message.
+    """
+    failed = [event for event in audit if event.get("action") == "node.failed"]
+    if not failed:
+        return None
+    attributed = [event for event in failed if isinstance(event.get("failed_check"), dict)]
+    event = (attributed or failed)[0]
+    node = event.get("node_id") if isinstance(event.get("node_id"), str) else None
+    top, _, step = (node or "").partition("/")
+    call = next(
+        (
+            item
+            for item in audit
+            if item.get("action") in {"model.failed", "tool.failed", "model.refused"}
+        ),
+        None,
+    )
+    return {
+        "node_id": top or None,
+        "step_id": step or None,
+        "error_code": event.get("error_code"),
+        "failed_check": event.get("failed_check") if attributed else None,
+        "call": (
+            {
+                "kind": call["action"].split(".")[0],
+                "action": call["action"],
+                "tool": call.get("tool"),
+                "task": call.get("task"),
+                "reason": call.get("reason"),
+            }
+            if call
+            else None
+        ),
+    }
+
+
 def model_evidence(router, planned_model: str) -> dict:
     """Which model actually answered each call, straight from the adapter."""
     invocations = list(getattr(router, "invocations", ()) or ())
@@ -126,4 +168,10 @@ def model_evidence(router, planned_model: str) -> dict:
     }
 
 
-__all__ = ["audit_summary", "cost_summary", "model_evidence", "verify_audit_chain"]
+__all__ = [
+    "audit_summary",
+    "cost_summary",
+    "failure_summary",
+    "model_evidence",
+    "verify_audit_chain",
+]

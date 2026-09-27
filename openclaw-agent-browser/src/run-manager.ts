@@ -16,19 +16,33 @@
  * run plan, so a double-click — or a script that fires twice — gets a refusal
  * rather than two runs spending tokens against one authorization.
  *
- * Records live in this process's memory and die with it. A Gateway restart does
- * not resume a run; it ends one, because the child that was doing the work is
- * gone. Nothing here is persistent run history.
+ * Records live in this process's memory. A Gateway restart does not resume a
+ * run; it ends one, because the child that was doing the work is gone.
+ *
+ * What a restart does not erase is what finished runs already wrote: each run
+ * directory keeps its artifacts and the `run.json` this manager persisted when
+ * the run settled. `recover()` reads the most recent of those back, validated
+ * against the same contract a live record satisfies, so a completed run can
+ * still be opened and inspected after a restart. A recovered record is read
+ * only — it is evidence, never authority — and this is not a history database:
+ * it is bounded, it is this plugin's own private directory, and nothing is
+ * rewritten.
  */
-import { mkdir, writeFile } from "node:fs/promises";
+import { lstat, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
-import type { RunRecordViewType } from "./contract.js";
+import { Value } from "typebox/value";
+import { RunRecordView, runSummary, type RunRecordViewType, type RunSummaryViewType } from "./contract.js";
 import { AgentBrowserError } from "./errors.js";
 import type { ExecutionBridge } from "./execution-bridge.js";
 
 export const MAX_RECORDS = 32;
 export const RUN_RECORD_FILE = "run.json";
+/** How many finished runs a restarted backend reads back from disk. */
+export const MAX_RECOVERED = 16;
+/** A run record is small; anything larger was not written by this manager. */
+const MAX_RECORD_BYTES = 256 * 1024;
+const RUN_ID = /^run_[0-9a-f]{32}$/u;
 
 export type RunStatus = RunRecordViewType["status"];
 
@@ -117,13 +131,18 @@ export class RunManager {
     return entry;
   }
 
-  list(sessionId?: string): { runs: RunRecordViewType[]; active: RunRecordViewType | null } {
+  /**
+   * The runs this backend holds, as summaries, plus the one in flight in full.
+   * A list of full records would outgrow the host's JSON limits within a
+   * handful of runs; a summary is a few dozen nodes whatever the run did.
+   */
+  list(sessionId?: string): { runs: RunSummaryViewType[]; active: RunRecordViewType | null } {
     const all = this.order
       .map((id) => this.runs.get(id))
       .filter((entry): entry is RunEntry => Boolean(entry))
       .filter((entry) => !sessionId || entry.view.sessionId === sessionId);
     const active = all.find((entry) => !isTerminal(entry.view.status)) ?? null;
-    return { runs: all.map((entry) => entry.view), active: active ? active.view : null };
+    return { runs: all.map((entry) => runSummary(entry.view)), active: active ? active.view : null };
   }
 
   /** Move one run forward. A terminal state never changes again. */
@@ -166,5 +185,49 @@ export class RunManager {
   /** Every run still in flight, for Gateway shutdown. */
   active(): RunEntry[] {
     return [...this.runs.values()].filter((entry) => !isTerminal(entry.view.status));
+  }
+
+  /**
+   * Read back the most recent finished runs this plugin persisted.
+   *
+   * Only a directory named like a run id, holding a regular `run.json` that
+   * is a valid terminal record for that same id, is recovered. Anything else
+   * — a probe's empty directory, a truncated file, a record that no longer
+   * satisfies the contract — is skipped, never repaired.
+   */
+  async recover(): Promise<number> {
+    const runs = join(this.root, "runs");
+    const names = await readdir(runs).catch(() => [] as string[]);
+    const found: Array<{ name: string; directory: string; mtimeMs: number }> = [];
+    for (const name of names) {
+      if (!RUN_ID.test(name) || this.runs.has(name)) continue;
+      const directory = join(runs, name);
+      const info = await lstat(join(directory, RUN_RECORD_FILE)).catch(() => null);
+      if (!info || !info.isFile() || info.size > MAX_RECORD_BYTES) continue;
+      found.push({ name, directory, mtimeMs: info.mtimeMs });
+    }
+    found.sort((a, b) => b.mtimeMs - a.mtimeMs);
+    const recovered: RunEntry[] = [];
+    for (const candidate of found.slice(0, MAX_RECOVERED)) {
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(await readFile(join(candidate.directory, RUN_RECORD_FILE), "utf8"));
+      } catch {
+        continue;
+      }
+      if (!Value.Check(RunRecordView, parsed)) continue;
+      const view = parsed as RunRecordViewType;
+      if (view.runId !== candidate.name || !isTerminal(view.status)) continue;
+      recovered.push({
+        view: { ...view, origin: "recovered" },
+        directory: candidate.directory,
+        lease: null,
+        bridge: null,
+        settled: true,
+      });
+    }
+    // Oldest first, so the list keeps the order the runs happened in.
+    for (const entry of recovered.reverse()) this.register(entry);
+    return recovered.length;
   }
 }

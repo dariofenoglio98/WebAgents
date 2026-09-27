@@ -197,9 +197,10 @@ const plugin = defineFeaturePlugin({
   contract,
   name: "Agent Browser",
   description:
-    "Open, inspect and authorize signed agent packages through the local agentpkg control plane. " +
-    "The page itself runs nothing; operator-only execution operations run an authorized " +
-    "package's own workflow on the model its run plan bound.",
+    "Open, inspect and authorize signed agent packages through the local agentpkg control plane, " +
+    "then run a ready workflow.v0 run plan from the page: the package's own graph executes on the " +
+    "model its run plan bound, re-verified before it starts, with live progress, cancellation and " +
+    "inspectable artifacts.",
   setup(api, events) {
     let backend: AgentBrowserBackend | null = null;
     const logger = api.logger as unknown as Logger;
@@ -284,7 +285,7 @@ const plugin = defineFeaturePlugin({
                 localRoots: [],
                 trustPinning: false,
               },
-              executionSupported: false as const,
+              executionSupported: false,
               executionOperations: false,
               fileSelection: false,
             },
@@ -346,7 +347,11 @@ const plugin = defineFeaturePlugin({
       "execution.cancel": ({ runId }) => active().cancelExecution(runId),
       "execution.get": ({ runId }) => active().getExecution(runId),
       "execution.status": ({ sessionId }) => active().listExecutions(sessionId),
+      "execution.readiness": ({ sessionId }) => active().runReadiness(sessionId),
+      "execution.validate-input": ({ sessionId, input }) => active().validateInput(sessionId, input),
       "execution.artifact": ({ runId, name }) => active().readExecutionArtifact(runId, name),
+      "execution.artifact-chunk": ({ runId, name, offset }) =>
+        active().readExecutionArtifactChunk(runId, name, offset),
       "execution.clear": ({ runId, sessionId }) => active().clearExecutions(runId, sessionId),
       "trust.list": () => active().listTrust(),
       "trust.pin-session-publisher": ({ sessionId, signerFingerprint, scope }) =>

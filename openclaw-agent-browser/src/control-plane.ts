@@ -240,6 +240,14 @@ export class ControlPlaneClient {
     );
   }
 
+  /** Check one proposed task against the package's own input schema. Read-only. */
+  validateInput(sessionId: string, input: unknown): Promise<unknown> {
+    return this.request(
+      `/v0/packages/${segment(sessionId, SESSION_ID, "session id")}/input/validate`,
+      { method: "POST", body: { input } },
+    );
+  }
+
   modelRequirements(sessionId: string): Promise<unknown> {
     return this.request(`/v0/packages/${segment(sessionId, SESSION_ID, "session id")}/models`);
   }

@@ -13,6 +13,7 @@ from execution_fakes import MEETING_AGENDA
 from agentpkg.execution.report import (
     audit_summary,
     cost_summary,
+    failure_summary,
     model_evidence,
     verify_audit_chain,
 )
@@ -63,10 +64,20 @@ def test_a_summary_counts_only_what_the_chain_contains():
         [
             {"action": "runtime.started"},
             {"action": "worker.spawned", "worker": "Planner:1"},
-            {"action": "model.completed", "worker": "Planner:1", "model": "acme/big",
-             "task": "plan", "cost_usd": 0.001},
-            {"action": "model.completed", "worker": "Writer:2", "model": "acme/big",
-             "task": "write", "cost_usd": 0.002},
+            {
+                "action": "model.completed",
+                "worker": "Planner:1",
+                "model": "acme/big",
+                "task": "plan",
+                "cost_usd": 0.001,
+            },
+            {
+                "action": "model.completed",
+                "worker": "Writer:2",
+                "model": "acme/big",
+                "task": "write",
+                "cost_usd": 0.002,
+            },
             {"action": "node.completed"},
             {"action": "workflow.completed"},
         ]
@@ -90,9 +101,7 @@ def test_cost_is_complete_partial_or_unknown_but_never_invented():
     assert cost_summary(complete)["total_usd"] == pytest.approx(0.75)
     assert cost_summary(complete)["status"] == "complete"
 
-    partial = chain(
-        [{"action": "model.completed", "cost_usd": 0.5}, {"action": "model.completed"}]
-    )
+    partial = chain([{"action": "model.completed", "cost_usd": 0.5}, {"action": "model.completed"}])
     report = cost_summary(partial)
     assert report["status"] == "partial"
     assert report["total_usd"] == pytest.approx(0.5)
@@ -105,10 +114,20 @@ def test_cost_is_complete_partial_or_unknown_but_never_invented():
 def test_model_evidence_reports_what_answered_rather_than_what_was_planned():
     class Router:
         invocations = [
-            {"model_id": "acme/big", "provider_id": "acme", "response_model": "big-2026",
-             "constrained_by_host": True, "count_basis": "utf8_upper_bound"},
-            {"model_id": "acme/big", "provider_id": "acme", "response_model": "big-2026",
-             "constrained_by_host": True, "count_basis": "utf8_upper_bound"},
+            {
+                "model_id": "acme/big",
+                "provider_id": "acme",
+                "response_model": "big-2026",
+                "constrained_by_host": True,
+                "count_basis": "utf8_upper_bound",
+            },
+            {
+                "model_id": "acme/big",
+                "provider_id": "acme",
+                "response_model": "big-2026",
+                "constrained_by_host": True,
+                "count_basis": "utf8_upper_bound",
+            },
         ]
 
     evidence = model_evidence(Router(), "acme/big")
@@ -127,10 +146,63 @@ def test_model_evidence_reports_what_answered_rather_than_what_was_planned():
 def test_a_real_runtime_chain_verifies_end_to_end():
     """The verifier agrees with the audit `Runtime` actually produces."""
     package = load_package(MEETING_AGENDA)
-    runtime = Runtime(
-        package, grants={"model.reasoning": "session", "memory.session": "session"}
-    )
+    runtime = Runtime(package, grants={"model.reasoning": "session", "memory.session": "session"})
     runtime.record("state.committed", nodes=["plan"])
     runtime.clear()
     assert verify_audit_chain(runtime.audit)["valid"] is True
     assert audit_summary(runtime.audit)["actions"]["runtime.started"] == 1
+
+
+def test_a_failure_summary_names_the_node_the_check_and_the_call_never_data():
+    audit = chain(
+        [
+            {"action": "node.started", "node_id": "evidence"},
+            {"action": "tool.failed", "tool": "paper-reader", "reason": "tool_unavailable"},
+            {
+                "action": "node.failed",
+                "node_id": "evidence/read-source",
+                "error_code": "tool_error",
+            },
+            {
+                "action": "node.failed",
+                "node_id": "check-evidence",
+                "error_code": "schema_validation",
+                "failed_check": {
+                    "check": "assertion",
+                    "index": 0,
+                    "kind": "relation",
+                    "failure": "duplicate_target_key",
+                    "target_key": "/evidence_id",
+                },
+            },
+            {"action": "workflow.failed", "error_code": "schema_validation"},
+        ]
+    )
+    summary = failure_summary(audit)
+    # The attributed refusal wins over an earlier unattributed failure.
+    assert summary["node_id"] == "check-evidence" and summary["step_id"] is None
+    assert summary["error_code"] == "schema_validation"
+    assert summary["failed_check"]["failure"] == "duplicate_target_key"
+    assert summary["call"] == {
+        "kind": "tool",
+        "action": "tool.failed",
+        "tool": "paper-reader",
+        "task": None,
+        "reason": "tool_unavailable",
+    }
+
+
+def test_a_step_failure_is_attributed_to_its_map_and_step():
+    audit = chain(
+        [
+            {"action": "node.failed", "node_id": "screening/read-source", "error_code": "x"},
+            {"action": "node.failed", "node_id": "screening", "error_code": "permission_denied"},
+        ]
+    )
+    summary = failure_summary(audit)
+    assert (summary["node_id"], summary["step_id"]) == ("screening", "read-source")
+    assert summary["failed_check"] is None and summary["call"] is None
+
+
+def test_a_completed_run_has_no_failure_summary():
+    assert failure_summary(chain([{"action": "workflow.completed"}])) is None

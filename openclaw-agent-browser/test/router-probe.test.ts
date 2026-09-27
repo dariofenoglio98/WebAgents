@@ -363,6 +363,8 @@ describe.runIf(runs)("the developer router probe", () => {
     expect(after.plan!.runPlanSha256).toBe(plan.runPlanSha256);
     expect(after.plan!.execution.performed).toBe(false);
     expect(after.preflight!.ready).toBe(true);
-    expect(after.executionSupported).toBe(false);
+    // The host can run plans; the probe still performed none.
+    expect(after.executionSupported).toBe(true);
+    expect(after.plan!.execution.performed).toBe(false);
   }, 180_000);
 });

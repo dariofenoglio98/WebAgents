@@ -1,7 +1,7 @@
 {
   "id": "agent-browser",
   "name": "Agent Browser",
-  "description": "Open, inspect and authorize signed agent packages through the local agentpkg control plane. The page itself runs nothing; operator-only execution operations run an authorized package's own workflow on the model its run plan bound.",
+  "description": "Open, inspect and authorize signed agent packages through the local agentpkg control plane, then run a ready workflow.v0 run plan from the page: the package's own graph executes on the model its run plan bound, re-verified before it starts, with live progress, cancellation and inspectable artifacts.",
   "version": "0.1.0",
   "categories": [
     "developer-tools"
@@ -185,9 +185,9 @@
     "onStartup": true
   },
   "controlUi": {
-    "entry": "dist/control-ui/25af14bdc53aefa74e2cd9f1f5351cecfc9cf4c9cdec4278a62ede35c26d40bf/index.js",
+    "entry": "dist/control-ui/29bb00e8f6e0d1cb6ef26f85e0c17d0af5928cf904ce3208eed63107065a85de/index.js",
     "styles": [
-      "dist/control-ui/25af14bdc53aefa74e2cd9f1f5351cecfc9cf4c9cdec4278a62ede35c26d40bf/index.css"
+      "dist/control-ui/29bb00e8f6e0d1cb6ef26f85e0c17d0af5928cf904ce3208eed63107065a85de/index.css"
     ]
   },
   "contracts": {

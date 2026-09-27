@@ -27,16 +27,19 @@
  */
 import { createHash } from "node:crypto";
 import { closeSync, constants as fsConstants, openSync } from "node:fs";
-import { readFile, readdir } from "node:fs/promises";
+import { open, readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import type { ControlPlaneClient } from "./control-plane.js";
 import type {
+  RunArtifactChunkViewType,
   RunArtifactContentViewType,
   RunProgressViewType,
+  RunReadinessViewType,
   RunRecordViewType,
   RunTaskViewType,
 } from "./contract.js";
 import { AgentBrowserError, clip } from "./errors.js";
+import { BUDGETS, fitsJson } from "./json-limits.js";
 import { ExecutionBridge } from "./execution-bridge.js";
 import {
   attachmentsOf,
@@ -58,10 +61,28 @@ export const VERIFIED_HOST_RUNTIME = "2026.9.5";
 
 /** One workflow input is a task description, not a data transfer. */
 export const MAX_INPUT_BYTES = 256 * 1024;
-/** How much of one artifact `execution.artifact` will return. */
-export const MAX_ARTIFACT_BYTES = 256 * 1024;
-/** A run record echoes the task input only when it is this small. */
+/**
+ * How much of one artifact `execution.artifact` will show: 48 KiB of bytes,
+ * which decode to at most 49,152 characters — inside the host's longest
+ * string (`HOST_JSON_LIMITS.maxStringLength`). Download has the whole file.
+ */
+export const MAX_ARTIFACT_BYTES = 48 * 1024;
+/**
+ * One `execution.artifact-chunk` slice: 48 KiB of bytes, whose base64 is
+ * exactly 65,536 characters, the host's longest string.
+ */
+export const ARTIFACT_CHUNK_BYTES = 48 * 1024;
+/** A run record echoes the task input only when it is this small, and fits `BUDGETS.echoedInput`. */
 export const MAX_ECHOED_INPUT_BYTES = 16 * 1024;
+/**
+ * How long consent must outlast a run's deadline before one may start: the
+ * margin covers spawning the runner and preparing the run.
+ */
+export const RECEIPT_MARGIN_SECONDS = 60;
+/** An artifact is named by one plain filename, never a path. */
+const ARTIFACT_NAME = /^[A-Za-z0-9_-][A-Za-z0-9_.-]{0,127}$/u;
+/** Opaque selected-file capability ids, wherever they appear in a task. */
+const FILE_ID = /^file_[0-9a-f]{32}$/u;
 
 export type ExecutionPolicy = {
   totalTokens: number;
@@ -210,10 +231,29 @@ export type ExecutionServiceOptions = {
   }) => Pick<ExecutionBridge, "run" | "cancel" | "probe">;
 };
 
+const WORKER_STATES = new Set(["queued", "active", "completed", "failed", "cancelled"]);
+
 /** Project one runner progress snapshot into the bounded record view. */
 export function projectProgress(snapshot: Record<string, unknown>, elapsedMs: number): RunProgressViewType {
   const ids = (value: unknown, max: number) =>
     strings(value, max).map((item) => clip(item, 200));
+  const workers = (Array.isArray(snapshot.workers) ? snapshot.workers : [])
+    .slice(0, 64)
+    .map((item) => {
+      const row = rec(item);
+      const duration = row.duration_ms;
+      return {
+        id: clip(str(row.id), 128),
+        role: str(row.role) ? clip(str(row.role), 128) : null,
+        node: str(row.node) ? clip(str(row.node), 200) : null,
+        state: (WORKER_STATES.has(str(row.state)) ? str(row.state) : "queued") as never,
+        modelCalls: Math.max(0, int(row.model_calls)),
+        toolCalls: Math.max(0, int(row.tool_calls)),
+        durationMs:
+          typeof duration === "number" && Number.isFinite(duration) && duration >= 0 ? duration : null,
+      };
+    })
+    .filter((row) => row.id.length > 0);
   return {
     updatedAt: new Date().toISOString(),
     events: int(snapshot.events),
@@ -234,7 +274,53 @@ export function projectProgress(snapshot: Record<string, unknown>, elapsedMs: nu
     tokens: Math.max(0, int(snapshot.tokens)),
     remoteCalls: Math.max(0, int(snapshot.remote_calls)),
     elapsedMs: Math.max(0, elapsedMs),
+    skippedNodes: ids(snapshot.skipped_nodes, 128),
+    workers,
   };
+}
+
+/** Where a run that did not complete stopped, as the runner read it from its audit. */
+export function projectFailure(value: unknown): RunRecordViewType["failure"] {
+  if (!isRecord(value)) return null;
+  const call = isRecord(value.call) ? value.call : null;
+  const text = (item: unknown, max: number) => (str(item) ? clip(str(item), max) : null);
+  let failedCheck: unknown = null;
+  if (isRecord(value.failed_check)) {
+    // Declared pointers and codes only; bounded again here.
+    const serialized = JSON.stringify(value.failed_check);
+    failedCheck = serialized.length <= 2048 ? value.failed_check : null;
+  }
+  return {
+    nodeId: text(value.node_id, 200),
+    stepId: text(value.step_id, 200),
+    errorCode: text(value.error_code, 64),
+    failedCheck,
+    call: call
+      ? {
+          kind: clip(str(call.kind), 32),
+          action: clip(str(call.action), 64),
+          tool: text(call.tool, 200),
+          task: text(call.task, 128),
+          reason: text(call.reason, 64),
+        }
+      : null,
+  };
+}
+
+/** Every selected-file id a task names, wherever in the task it appears. */
+export function referencedFileIds(value: unknown, found = new Set<string>(), depth = 0): Set<string> {
+  if (depth > 32) return found;
+  if (typeof value === "string") {
+    if (FILE_ID.test(value)) found.add(value);
+  } else if (Array.isArray(value)) {
+    for (const item of value) referencedFileIds(item, found, depth + 1);
+  } else if (isRecord(value)) {
+    for (const [key, item] of Object.entries(value)) {
+      if (FILE_ID.test(key)) found.add(key);
+      referencedFileIds(item, found, depth + 1);
+    }
+  }
+  return found;
 }
 
 export class ExecutionService {
@@ -289,6 +375,12 @@ export class ExecutionService {
     // Every named file must be a live capability of this session, before
     // anything is prepared; a path or another session's id is refused here.
     const attached = this.attach(request.sessionId, request.files);
+    // ...and a task may only name the files this run is given. A stale id, or
+    // one from another session, is refused now rather than at the first read.
+    this.checkReferencedFiles(request.input, attached);
+    // The package's own input schema, through the control plane, before a
+    // lease exists: invalid input costs nothing and names the field.
+    await this.checkInput(client, request.sessionId, request.input);
 
     // The same preflight the probe runs, plus the requirement that consent
     // outlast the whole run deadline. A margin covers spawn and preparation.
@@ -298,10 +390,13 @@ export class ExecutionService {
       sessionId: request.sessionId,
       runPlanId: request.runPlanId,
       runPlanSha256: request.runPlanSha256,
-      minimumReceiptRemainingMs: policy.runTimeoutSeconds * 1000 + 60_000,
+      minimumReceiptRemainingMs: (policy.runTimeoutSeconds + RECEIPT_MARGIN_SECONDS) * 1000,
       toolRegistry: this.options.tools().registry,
       requireMode: "model",
     });
+    // Reading a selected file is a permission of its own; attaching one does
+    // not grant it, and a run that could not read it is refused up front.
+    this.checkFilePermission(preflight, attached);
 
     const runId = this.runs.newRunId();
     const record = this.initialRecord(runId, request, preflight, inputBytes, attached);
@@ -374,6 +469,74 @@ export class ExecutionService {
     });
   }
 
+  private checkReferencedFiles(
+    input: unknown,
+    attached: ReadonlyMap<string, FileCapabilityView>,
+  ): void {
+    for (const fileId of referencedFileIds(input)) {
+      if (!attached.has(fileId)) {
+        throw new AgentBrowserError(
+          "invalid_request",
+          "The task names a file this run was not given",
+          "Every selected-file id in the task must be one of this run's attached files. " +
+            "Select the document again if its capability expired.",
+        );
+      }
+    }
+  }
+
+  private async checkInput(client: ControlPlaneClient, sessionId: string, input: unknown): Promise<void> {
+    const report = rec(await client.validateInput(sessionId, input));
+    if (report.valid === true) return;
+    const errors = Array.isArray(report.errors) ? report.errors.map(rec) : [];
+    const listed = errors
+      .slice(0, 4)
+      .map((item) => `${str(item.pointer) || "(task)"} ${str(item.message)}`)
+      .join("; ");
+    throw new AgentBrowserError(
+      "input_invalid",
+      "The task does not match this package's input",
+      clip(listed || "The package's own input schema refused this task.", 2000),
+    );
+  }
+
+  private checkFilePermission(
+    preflight: PreflightOutcome,
+    attached: ReadonlyMap<string, FileCapabilityView>,
+  ): void {
+    if (attached.size === 0) return;
+    const bindings = Array.isArray(preflight.plan.tool_bindings)
+      ? preflight.plan.tool_bindings.map(rec)
+      : [];
+    const readers = bindings.filter((binding) => str(binding.implementation_kind) === "selected_file");
+    if (readers.length === 0) {
+      throw new AgentBrowserError(
+        "execution_refused",
+        "This package reads no selected files",
+        "The run plan binds no tool that reads selected files, so a run cannot be given one.",
+      );
+    }
+    const decisions = preflight.authorization.decisions;
+    const denied = [
+      ...new Set(
+        readers.flatMap((binding) =>
+          (Array.isArray(binding.required_permission_ids) ? binding.required_permission_ids : [])
+            .map(str)
+            .filter((id) => (decisions[id] ?? "deny") === "deny"),
+        ),
+      ),
+    ];
+    if (denied.length > 0) {
+      throw new AgentBrowserError(
+        "execution_refused",
+        "Selected files need a permission that is denied",
+        `Reading the selected documents requires ${denied.join(", ")}, which this authorization ` +
+          "denies. Allow it under Permissions, authorize again and prepare a new run plan — " +
+          "or run without documents.",
+      );
+    }
+  }
+
   private measureInput(input: unknown): number {
     let serialized: string;
     try {
@@ -410,16 +573,16 @@ export class ExecutionService {
   }
 
   private task(input: unknown, inputBytes: number, attached: ReadonlyMap<string, FileCapabilityView>): RunTaskViewType {
-    return {
+    return echoTask(
+      input,
       inputBytes,
-      ...(inputBytes <= MAX_ECHOED_INPUT_BYTES ? { input } : {}),
-      attachments: attachmentsOf(attached).map((file) => ({
+      attachmentsOf(attached).map((file) => ({
         fileId: file.file_id,
         sha256: file.sha256,
         bytes: file.bytes,
         mediaType: file.media_type,
       })),
-    };
+    );
   }
 
   private initialRecord(
@@ -432,6 +595,12 @@ export class ExecutionService {
     const binding = rec(preflight.binding);
     const pkg = rec(binding.package);
     const model = rec(binding.model_binding);
+    const local = rec(model.properties).local;
+    const displayNames = new Map(
+      (Array.isArray(preflight.plan.tool_bindings) ? preflight.plan.tool_bindings : [])
+        .map(rec)
+        .map((item) => [str(item.tool_id), str(item.display_name)] as const),
+    );
     const policy = this.options.policy;
     const version = this.options.hostRuntimeVersion();
     return {
@@ -459,6 +628,7 @@ export class ExecutionService {
         providerId: str(model.provider_id),
         modelId: str(model.model_id),
         displayName: str(model.display_name),
+        local: typeof local === "boolean" ? local : null,
       },
       model: null,
       grants: {
@@ -510,7 +680,10 @@ export class ExecutionService {
         bindingSha256: tool.bindingSha256,
         remote: tool.remote,
         calls: 0,
+        displayName: clip(displayNames.get(tool.toolId) ?? "", 512) || null,
       })),
+      failure: null,
+      origin: "live",
     };
   }
 
@@ -687,7 +860,14 @@ export class ExecutionService {
     const execution = rec(rec(begin).execution);
     const started = entry.view.startedAt;
     const ended = new Date().toISOString();
+    const elapsed = started ? Date.parse(ended) - Date.parse(started) : 0;
     this.runs.update(runId, {
+      // The runner's own snapshot taken after the run settled, so the final
+      // record is exact even if the last throttled update never arrived.
+      ...(isRecord(result.progress)
+        ? { progress: projectProgress(result.progress, Math.max(0, elapsed)) }
+        : {}),
+      failure: status === "completed" ? null : projectFailure(result.failure),
       status: (["completed", "failed", "cancelled"].includes(status)
         ? status
         : "failed") as RunRecordViewType["status"],
@@ -991,16 +1171,18 @@ export class ExecutionService {
     return this.runs.require(runId).view;
   }
 
-  /** Read one artifact a run wrote. The directory's path never leaves here. */
-  async artifact(runId: string, name: string): Promise<RunArtifactContentViewType> {
+  /** Resolve one artifact name inside one run's directory, or refuse. */
+  private async artifactEntry(runId: string, name: string) {
     const entry = this.runs.require(runId);
-    if (name.includes("/") || name.includes("\\") || name.startsWith(".")) {
+    if (!ARTIFACT_NAME.test(name) || name.includes("..")) {
       throw new AgentBrowserError(
         "invalid_request",
         "Unsafe artifact name",
         "An artifact is named by one plain filename.",
       );
     }
+    // Only names this run actually wrote exist; nothing else in the host's
+    // filesystem can be named through here.
     const listed = await readdir(entry.directory).catch(() => [] as string[]);
     if (!listed.includes(name)) {
       throw new AgentBrowserError(
@@ -1009,26 +1191,158 @@ export class ExecutionService {
         `This run wrote no artifact named ${clip(name, 64)}.`,
       );
     }
-    const data = await readFile(join(entry.directory, name));
-    const truncated = data.byteLength > MAX_ARTIFACT_BYTES;
-    const body = data.subarray(0, MAX_ARTIFACT_BYTES).toString("utf8");
-    const view: RunArtifactContentViewType = {
-      runId,
-      name,
-      bytes: data.byteLength,
-      sha256: createHash("sha256").update(data).digest("hex"),
-      truncated,
-    };
-    if (name.endsWith(".json") && !truncated) {
-      try {
-        view.json = JSON.parse(body) as unknown;
-        return view;
-      } catch {
-        // Fall through to text.
-      }
+    return entry;
+  }
+
+  /** Read one artifact a run wrote. The directory's path never leaves here. */
+  async artifact(runId: string, name: string): Promise<RunArtifactContentViewType> {
+    const entry = await this.artifactEntry(runId, name);
+    const data = await this.readArtifactBytes(join(entry.directory, name));
+    return artifactContent(runId, name, data);
+  }
+
+  /**
+   * One bounded slice of an artifact, for downloading one larger than a view.
+   *
+   * The whole file's size and SHA-256 come back with every slice, so the page
+   * can verify what it assembled. The file is opened without following links.
+   */
+  async artifactChunk(runId: string, name: string, offset: number): Promise<RunArtifactChunkViewType> {
+    const entry = await this.artifactEntry(runId, name);
+    const data = await this.readArtifactBytes(join(entry.directory, name));
+    if (!Number.isInteger(offset) || offset < 0 || offset > data.byteLength) {
+      throw new AgentBrowserError(
+        "invalid_request",
+        "Offset outside the artifact",
+        `This artifact has ${data.byteLength} bytes.`,
+      );
     }
-    view.text = body;
-    return view;
+    return artifactSlice(runId, name, data, offset);
+  }
+
+  private async readArtifactBytes(path: string): Promise<Buffer> {
+    const handle = await open(path, fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW);
+    try {
+      const info = await handle.stat();
+      if (!info.isFile() || info.size > 64 * 1024 * 1024) {
+        throw new AgentBrowserError(
+          "invalid_request",
+          "Artifact not readable",
+          "An artifact is one regular file of bounded size.",
+        );
+      }
+      return await handle.readFile();
+    } finally {
+      await handle.close().catch(() => undefined);
+    }
+  }
+
+  /**
+   * Whether a Run could start right now, by the checks `start` itself makes.
+   *
+   * Nothing is prepared, leased or spawned. The answer names the first check
+   * that would refuse and everything that passed before it.
+   */
+  async readiness(
+    client: ControlPlaneClient,
+    catalog: HostCatalog | null,
+    sessionId: string,
+  ): Promise<RunReadinessViewType> {
+    const policy = this.options.policy;
+    const requiredSeconds = policy.runTimeoutSeconds + RECEIPT_MARGIN_SECONDS;
+    const active = this.runs.list(sessionId).active;
+    const view: RunReadinessViewType = {
+      sessionId,
+      checkedAt: new Date().toISOString(),
+      ready: false,
+      executionAvailable: this.available(),
+      runPlanId: null,
+      runPlanSha256: null,
+      blocker: null,
+      checks: [],
+      receipt: null,
+      activeRunId: active ? active.runId : null,
+    };
+    const block = (error: unknown) => {
+      const failure =
+        error instanceof AgentBrowserError
+          ? error
+          : new AgentBrowserError("execution_refused", "Run unavailable", "Unhandled error");
+      view.blocker = {
+        code: failure.code,
+        title: clip(failure.title, 200),
+        detail: clip(failure.detail, 4096),
+      };
+      const passed = (failure as AgentBrowserError & { revalidated?: string[] }).revalidated;
+      if (Array.isArray(passed)) view.checks = passed.slice(0, 64);
+      return view;
+    };
+    try {
+      const receipt = rec(await client.getAuthorization(sessionId));
+      const expiry = Date.parse(str(receipt.expires_at));
+      view.receipt = {
+        expiresAt: str(receipt.expires_at) || null,
+        remainingSeconds: Number.isFinite(expiry) ? Math.floor((expiry - Date.now()) / 1000) : null,
+        requiredSeconds,
+      };
+    } catch (error) {
+      return block(
+        error instanceof AgentBrowserError && error.code === "session_expired"
+          ? new AgentBrowserError(
+              "run_plan_absent",
+              "Authorize this package first",
+              "A run needs an authorization receipt and a prepared run plan.",
+            )
+          : error,
+      );
+    }
+    let plan: Record<string, unknown>;
+    try {
+      plan = rec(rec(await client.getRunPlan(sessionId)).run_plan);
+    } catch (error) {
+      return block(error);
+    }
+    view.runPlanId = str(plan.run_plan_id) || null;
+    view.runPlanSha256 = str(plan.run_plan_sha256) || null;
+    try {
+      if (!this.available()) {
+        throw new AgentBrowserError(
+          "bridge_unavailable",
+          "Execution is unavailable",
+          "This backend was started without access to the OpenClaw completion runtime.",
+        );
+      }
+      this.checkHostRuntime();
+      if (!catalog) {
+        throw new AgentBrowserError(
+          "model_catalog_unavailable",
+          "Model discovery unavailable",
+          "This backend cannot read the OpenClaw model catalog, so the bound model cannot be checked.",
+        );
+      }
+      const preflight = await revalidate({
+        client,
+        catalog,
+        sessionId,
+        runPlanId: view.runPlanId ?? "",
+        runPlanSha256: view.runPlanSha256 ?? "",
+        minimumReceiptRemainingMs: requiredSeconds * 1000,
+        toolRegistry: this.options.tools().registry,
+        requireMode: "model",
+      });
+      view.checks = preflight.revalidated.slice(0, 64);
+      if (active) {
+        throw new AgentBrowserError(
+          "execution_active",
+          "A run is already in progress",
+          `Run ${active.runId} is ${active.status} for this package session.`,
+        );
+      }
+      view.ready = true;
+      return view;
+    } catch (error) {
+      return block(error);
+    }
   }
 
   /** Stop every run in flight. Called when the Gateway stops the plugin. */
@@ -1046,4 +1360,67 @@ export class ExecutionService {
       await entry.bridge?.cancel().catch(() => undefined);
     }
   }
+}
+
+/**
+ * What `execution.artifact` returns for one artifact's bytes.
+ *
+ * At most `MAX_ARTIFACT_BYTES` of it, as text; a JSON artifact comes back
+ * parsed only when the whole of it is shown and its shape fits
+ * `BUDGETS.artifactJson`. Either way the view fits the host's JSON limits.
+ */
+export function artifactContent(runId: string, name: string, data: Buffer): RunArtifactContentViewType {
+  const truncated = data.byteLength > MAX_ARTIFACT_BYTES;
+  const shown = data.subarray(0, MAX_ARTIFACT_BYTES);
+  const view: RunArtifactContentViewType = {
+    runId,
+    name,
+    bytes: data.byteLength,
+    sha256: createHash("sha256").update(data).digest("hex"),
+    truncated,
+    shownBytes: shown.byteLength,
+  };
+  const body = shown.toString("utf8");
+  if (name.endsWith(".json") && !truncated) {
+    try {
+      const parsed = JSON.parse(body) as unknown;
+      if (fitsJson(parsed, BUDGETS.artifactJson)) {
+        view.json = parsed;
+        return view;
+      }
+    } catch {
+      // Not JSON after all: it is shown as the text it is.
+    }
+  }
+  view.text = body;
+  return view;
+}
+
+/** One `execution.artifact-chunk` slice of an artifact's bytes, with the whole file's hash. */
+export function artifactSlice(runId: string, name: string, data: Buffer, offset: number): RunArtifactChunkViewType {
+  const slice = data.subarray(offset, offset + ARTIFACT_CHUNK_BYTES);
+  return {
+    runId,
+    name,
+    bytes: data.byteLength,
+    sha256: createHash("sha256").update(data).digest("hex"),
+    offset,
+    length: slice.byteLength,
+    base64: slice.toString("base64"),
+    eof: offset + slice.byteLength >= data.byteLength,
+  };
+}
+
+/**
+ * What a run record says it was asked. The input is echoed only when small in
+ * shape as well as size (`BUDGETS.echoedInput`): the record carrying it must
+ * still fit the host's JSON limits beside everything else it holds. Its size
+ * and hash are always recorded; the input itself is in the run's own files.
+ */
+export function echoTask(input: unknown, inputBytes: number, attachments: RunTaskViewType["attachments"]): RunTaskViewType {
+  return {
+    inputBytes,
+    ...(inputBytes <= MAX_ECHOED_INPUT_BYTES && fitsJson(input, BUDGETS.echoedInput) ? { input } : {}),
+    attachments,
+  };
 }

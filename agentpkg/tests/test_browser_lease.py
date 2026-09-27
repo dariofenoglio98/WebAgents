@@ -51,9 +51,7 @@ CATALOG = {
 def ready(tmp_path):
     """An open, trusted, authorized session with a ready run plan."""
     control = ControlPlane(
-        ControlPlaneConfig(
-            cache_dir=tmp_path / "cache", trust_store_path=tmp_path / "trust.json"
-        )
+        ControlPlaneConfig(cache_dir=tmp_path / "cache", trust_store_path=tmp_path / "trust.json")
     )
     control.trust_add(
         read_public_key_file(PUBLIC_KEY),
@@ -146,9 +144,7 @@ def test_a_lease_needs_the_digest_the_caller_showed(ready):
 
 def test_no_plan_means_no_lease(tmp_path):
     control = ControlPlane(
-        ControlPlaneConfig(
-            cache_dir=tmp_path / "cache", trust_store_path=tmp_path / "trust.json"
-        )
+        ControlPlaneConfig(cache_dir=tmp_path / "cache", trust_store_path=tmp_path / "trust.json")
     )
     summary = control.open_file(str(ARTIFACT))
     with pytest.raises(ControlPlaneError) as error:

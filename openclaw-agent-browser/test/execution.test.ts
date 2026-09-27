@@ -324,7 +324,8 @@ describe.runIf(runs)("executing a signed package", () => {
     const after = unwrap(await backend.getRunPlan(session.sessionId));
     expect(after.plan!.runPlanSha256).toBe(session.plan.runPlanSha256);
     expect(after.plan!.execution.performed).toBe(false);
-    expect(after.executionSupported).toBe(false);
+    // This host can run model-backed plans; the plan itself still performs nothing.
+    expect(after.executionSupported).toBe(true);
     // The evidence that a plan ran is a run record that references it.
     expect(record.runPlanSha256).toBe(session.plan.runPlanSha256);
     expect(record.runInvocationSha256).toMatch(/^[0-9a-f]{64}$/u);
@@ -474,8 +475,14 @@ describe.runIf(runs)("executing a signed package", () => {
   it("refuses input the package's own schema rejects, before any token is spent", async () => {
     const session = await prepared();
     const error = expectError(await start(session, { goal: "no duration" }));
-    expect(error.code).toBe("execution_refused");
+    // Refused by the control plane's validator before a lease exists or a
+    // runner is spawned, naming the fields — and the runner would refuse it
+    // again if it got that far.
+    expect(error.code).toBe("input_invalid");
+    expect(error.detail).toContain("/duration is required");
+    expect(error.detail).toContain("/participants is required");
     expect(stub.calls).toHaveLength(0);
+    expect(unwrap(await backend.listExecutions(session.sessionId)).runs).toHaveLength(0);
   }, 60_000);
 
   it("refuses oversized input without reaching the control plane", async () => {
@@ -811,22 +818,28 @@ describe.runIf(runs)("executing a signed package", () => {
     }
   }, 120_000);
 
-  it("keeps execution out of the Agent Browser page entirely", async () => {
+  it("lets the page reach execution only through the Run panel, never a probe", async () => {
     const { readFile: read } = await import("node:fs/promises");
     const { fileURLToPath } = await import("node:url");
     const here = fileURLToPath(new URL(".", import.meta.url));
-    for (const file of ["../src/ui/page.ts", "../src/ui/dom.ts", "../src/control-ui.ts"]) {
+    const browser = [
+      "../src/ui/page.ts",
+      "../src/ui/run.ts",
+      "../src/ui/form.ts",
+      "../src/ui/markdown.ts",
+      "../src/ui/dom.ts",
+      "../src/control-ui.ts",
+    ];
+    for (const file of browser) {
       const source = await read(join(here, file), "utf8");
-      for (const operation of [
-        "execution.start",
-        "execution.cancel",
-        "execution.artifact",
-        "execution.status",
-        "execution.get",
-        "execution.clear",
-        "router.probe",
-      ]) {
+      // Probes and record deletion stay operator-only.
+      for (const operation of ["router.probe", "execution.tool-probe", "execution.clear"]) {
         expect(source).not.toContain(operation);
+      }
+      // Starting and cancelling a run live in exactly one module.
+      if (!file.endsWith("run.ts")) {
+        expect(source).not.toContain("execution.start");
+        expect(source).not.toContain("execution.cancel");
       }
     }
   });

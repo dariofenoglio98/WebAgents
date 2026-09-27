@@ -471,21 +471,31 @@ def _deduplicated(audit, node_id):
 
 
 def test_join_deduplication_is_recorded_with_its_counts(tmp_path):
-    path = source(tmp_path, "literature-review")
+    """A join that drops records says so, with counts, whatever package declares it.
+
+    (Literature Review 0.2.2 no longer deduplicates evidence at all — see
+    test_literature_022.py — so this uses a package-neutral join.)
+    """
+    path = source(tmp_path)
+    change(
+        path / "graph.json",
+        lambda g: next(n for n in g["nodes"] if n["id"] == "join").update(unique_by=["/role"]),
+    )
 
     def collide(f):
-        first = f["models"]["extract"][0]["output"][0]["evidence_id"]
-        f["models"]["extract"][1]["output"][0]["evidence_id"] = first
+        second = f["models"]["perspective"][1]["output"][0]
+        second["role"] = f["models"]["perspective"][0]["output"][0]["role"]
 
     change(path / "fixtures/workflow.json", collide)
     with pytest.raises(WorkflowError) as caught:
+        # The writer's recorded input no longer matches, so the run then stops.
         execute(load_package(path))
-    (event,) = _deduplicated(caught.value.execution_report["audit"], "join-evidence")
-    assert event["original_count"] == 7 and event["retained_count"] == 6
+    (event,) = _deduplicated(caught.value.execution_report["audit"], "join")
+    assert event["original_count"] == 3 and event["retained_count"] == 2
     assert event["conflicting_duplicates"] == 1 and event["identical_duplicates"] == 0
-    assert event["unique_by"] == ["/evidence_id"]
-    # Counts and declared pointers only; no evidence text reaches the audit.
-    assert "quote" not in json.dumps(event)
+    assert event["unique_by"] == ["/role"]
+    # Counts and declared pointers only; no record content reaches the audit.
+    assert "priorities" not in json.dumps(event)
 
 
 def test_tool_output_schema_and_tool_errors_are_distinct():

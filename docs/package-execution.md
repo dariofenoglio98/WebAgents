@@ -27,7 +27,8 @@ one.
         ▼
  run record + artifacts on disk
         │
-        ✕  STOP. There is still no Run button on the page.
+        ▲  since 3C, started by the Agent Browser page's Run button (or an
+           operator script) through the same execution.start
 ```
 
 Four artifacts appear in this document and they are **not the same object**:
@@ -375,8 +376,8 @@ Three backend additions make that model renderable by the run surface (3C)
 without adding anything package-specific:
 
 * **the task on the record.** The run record carries `task`: the input when it
-  is at most 16 KiB (the person's own task, never package output), its size,
-  and the attachments by id and hash;
+  is at most 16 KiB and small in shape (512 JSON nodes; the person's own task,
+  never package output), its size, and the attachments by id and hash;
 * **live progress.** The runner watches its own hash-chained audit as events
   are appended and sends `execution.progress` — active and completed node ids,
   steps completed, workers spawned/active/peak, model and tool calls started
@@ -503,8 +504,14 @@ a format rule.
 A failed or cancelled run still writes its evidence, and no package export,
 because an export selects from a final output a failed run does not have.
 
-The future browser UI will read these through the bounded `execution.artifact`
-operation, which returns one named artifact's content and never a path.
+The Agent Browser page reads these through `execution.artifact` (a view of at
+most 48 KiB, parsed when it is small JSON) and `execution.artifact-chunk`
+(48 KiB slices with the whole file's size and SHA-256, reassembled and verified
+before a download is saved). Both name an artifact by one plain filename the run
+wrote, never a path. Both sizes come from the host: `defineFeaturePlugin`
+refuses any output over OpenClaw's plugin JSON limits (65,536 characters per
+string, 4,096 nodes, 256 KiB), and 48 KiB is the largest slice whose base64
+fits one string.
 
 ## 14. Audit and usage
 
@@ -602,12 +609,12 @@ because a node is entitled to declare a list-valued output. See
 
 | | Status |
 |---|---|
-| a Run button on the Agent Browser page | no — the page is unchanged and calls no `execution.*` operation, asserted by a test |
-| a package tool call | no — `handlers={}`, and a package declaring one is refused first |
-| Literature Review | no — it declares tools |
+| a Run button on the Agent Browser page | **yes, since 3C** — it calls `execution.start` with six fields and nothing else; see [the Run surface](openclaw-agent-browser.md#5a-the-run-surface) |
+| a package tool call | **yes, since 3B3/3B4** — only through a host binding the plan froze, under its permission and a separate approval ([the tool broker](tool-broker.md)) |
+| Literature Review | **yes, since 3B4**, and from the page since 3C ([report](demo-experience-report.md)) |
 | an agent-callable tool binding | no — the plugin still exposes none |
 | a run plan mutated by execution | no — `execution.performed` stays false |
-| persistent run history or resumable runs | no — records are ephemeral |
+| persistent run history or resumable runs | no — finished records are re-read read-only from their run directories after a restart (newest 16); there is no history database and no resume |
 | the control plane executing anything | no — `execution: "disabled"`, `capabilities.execute: false`, and it still cannot import an execution module |
 
 ## 17. Residual trust assumptions
@@ -639,20 +646,25 @@ answers "no tokenizer" — is re-derived on every call and recorded per call.
 
 ## 18. Running it
 
-The page has no Run action. Execution is reachable only through operator-only
-feature operations, all `operator.write` for actions and `operator.read` for
-queries, none rendered by the Control UI:
+The normal path is the Agent Browser page: prepare a run plan, fill the task
+form, press Run ([the demo steps](../README.md#demo-the-literature-review-agent-from-the-browser)).
+Every operation below is `operator.write` for actions and `operator.read` for
+queries:
 
-| Operation | Kind | Purpose |
-|---|---|---|
-| `execution.start` | action | re-verify a ready plan and run the package |
-| `execution.cancel` | action | stop a running workflow |
-| `execution.clear` | action | forget finished records |
-| `execution.status` | query | list a session's runs and the active one |
-| `execution.get` | query | read one run record |
-| `execution.artifact` | query | read one named artifact, bounded |
+| Operation | Kind | Purpose | Page |
+|---|---|---|---|
+| `execution.readiness` | query | would a start pass right now, by the same checks | yes |
+| `execution.validate-input` | query | the package schema's verdict on a task | yes |
+| `execution.start` | action | re-verify a ready plan and run the package | yes (Run) |
+| `execution.cancel` | action | stop a running workflow | yes (Cancel) |
+| `execution.status` | query | run summaries, and the active run in full | yes |
+| `execution.get` | query | read one run record | yes |
+| `execution.artifact` | query | read one named artifact, bounded | yes (View) |
+| `execution.artifact-chunk` | query | one verified slice of an artifact | yes (Download) |
+| `execution.clear` | action | forget finished records | no |
 
-The manual acceptance test is one command:
+The operator scripts walk the same sequence through the Gateway, for automation
+and regression. The Meeting Agenda acceptance is one command:
 
 ```bash
 node openclaw-agent-browser/scripts/run-meeting-agenda.mjs \

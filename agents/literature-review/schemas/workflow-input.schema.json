@@ -1,29 +1,45 @@
 {
   "type": "object",
+  "title": "Literature review task",
+  "description": "One bounded research question. Each run answers one question; a follow-up question is a new run.",
   "properties": {
     "question": {
       "type": "string",
       "minLength": 1,
-      "maxLength": 2000
+      "maxLength": 2000,
+      "title": "Research question",
+      "description": "The question the review should answer, in one or two sentences.",
+      "examples": [
+        "What defenses have been proposed against prompt injection attacks on LLM-integrated applications?"
+      ]
     },
     "seeds": {
       "type": "array",
       "items": {
         "type": "string"
-      }
+      },
+      "title": "Seed papers",
+      "description": "Optional titles, DOIs or arXiv ids to look up first. Seeds are search hints, not verified references.",
+      "default": []
     },
     "documents": {
       "type": "object",
       "additionalProperties": {
         "type": "string",
         "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$"
-      }
+      },
+      "title": "Documents",
+      "description": "Optional PDFs selected on this host, keyed by the DOI of the paper each one is. The package receives only opaque document ids, never a path.",
+      "default": {}
     },
     "mode": {
       "enum": [
         "fixture",
         "live"
-      ]
+      ],
+      "title": "Mode",
+      "description": "live for real research; fixture marks the result as a synthetic demonstration.",
+      "default": "live"
     }
   },
   "required": [

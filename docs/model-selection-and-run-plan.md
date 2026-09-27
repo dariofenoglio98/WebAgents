@@ -517,8 +517,9 @@ enabled, and the plugin installed (see the
 6. Choose one model explicitly. Nothing is preselected.
 7. Press **Prepare run**.
 8. **Ready to run** appears with the package, publisher, authorization, model,
-   execution profile, run-plan id and run-plan hash — and the line *Execution is
-   not enabled in this build.* There is no Run button.
+   execution profile, run-plan id and run-plan hash, and *Run this plan from the
+   Run panel above* — since milestone 3C the page's [Run
+   surface](openclaw-agent-browser.md#5a-the-run-surface) runs it.
 
 To see the permission rule: authorize with `model.reasoning` on **Deny**. The
 models still render, *Prepare run* stays disabled, and the page explains which
@@ -530,8 +531,8 @@ permission the run mode needs and where to change it.
 > bridge](model-router-bridge.md): a preflight that re-verifies every fact in
 > this list, a `ModelRouter` that declares what it can actually deliver for the
 > bound model, honest token accounting with a provable input bound, and real
-> `cost_usd` from the host. Point 4 — a run surface — is still open, which is
-> why there is still no Run button.
+> `cost_usd` from the host. Point 4 — a run surface — was delivered by
+> milestone 3C: [the Run surface](openclaw-agent-browser.md#5a-the-run-surface).
 
 
 1. **A run plan is preflight, not a capability.** The runner must re-open the

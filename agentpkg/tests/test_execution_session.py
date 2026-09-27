@@ -29,9 +29,7 @@ SIGNER = fingerprint(embedded_public_key(PACKAGE.signature))
 
 
 def plan(**overrides):
-    return plan_for(
-        PACKAGE, archive_sha256=ARCHIVE_SHA256, signer_fingerprint=SIGNER, **overrides
-    )
+    return plan_for(PACKAGE, archive_sha256=ARCHIVE_SHA256, signer_fingerprint=SIGNER, **overrides)
 
 
 def begin_params(**overrides):
@@ -112,9 +110,7 @@ def test_parallel_perspective_workers_are_bounded_by_the_package(tmp_path):
 def test_a_tighter_host_limit_lowers_parallelism_but_never_raises_it(tmp_path):
     _, _, result, _ = run(
         tmp_path,
-        begin=begin_params(
-            limits={"max_parallel_workers": 1, "max_output_tokens_per_call": 16000}
-        ),
+        begin=begin_params(limits={"max_parallel_workers": 1, "max_output_tokens_per_call": 16000}),
         host_options={"delay": 0.02},
     )
     assert result["status"] == "completed"
@@ -318,9 +314,7 @@ def test_invalid_input_is_refused_before_any_model_call(tmp_path):
     async def main():
         async with Harness(tmp_path) as harness:
             with pytest.raises(BridgeError) as error:
-                await harness.call(
-                    "execution.begin", begin_params(input={"goal": "no duration"})
-                )
+                await harness.call("execution.begin", begin_params(input={"goal": "no duration"}))
             return error.value, harness.host.requests
 
     failure, requests = asyncio.run(main())
@@ -414,9 +408,7 @@ def test_a_tight_remote_call_budget_stops_the_run(tmp_path):
 def test_the_host_run_timeout_stops_a_slow_run_and_says_so(tmp_path):
     _, _, result, _ = run(
         tmp_path,
-        begin=begin_params(
-            limits={"run_timeout_seconds": 1, "max_output_tokens_per_call": 16000}
-        ),
+        begin=begin_params(limits={"run_timeout_seconds": 1, "max_output_tokens_per_call": 16000}),
         host_options={"delay": 5.0},
     )
     assert result["status"] == "failed"

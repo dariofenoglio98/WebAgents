@@ -53,7 +53,8 @@ describe("plugin entry", () => {
   it("publishes manifest metadata the host build can read", () => {
     expect(plugin.id).toBe("agent-browser");
     expect(plugin.name).toBe("Agent Browser");
-    expect(plugin.description).toContain("The page itself runs nothing");
+    expect(plugin.description).toContain("run a ready workflow.v0 run plan from the page");
+    expect(plugin.description).toContain("re-verified before it starts");
     const schema = plugin.configSchema.jsonSchema as Record<string, unknown>;
     expect(Object.keys(schema.properties as object)).toEqual([
       "agentpkgPath",

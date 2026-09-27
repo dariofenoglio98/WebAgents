@@ -68,6 +68,19 @@ describe("initial view", () => {
     expect(input).not.toBeNull();
     expect(input?.placeholder).toContain("https://");
     expect(page.text()).toContain("Control plane running");
+    // Whether a run can start is the plugin's runner, not the control plane,
+    // which never executes a package itself.
+    const detail = page.container.querySelector(".ab-service-detail")!;
+    expect(detail.textContent).toContain("runs unavailable");
+    expect(detail.getAttribute("title")).toContain("its own execution: disabled");
+    page.dispose();
+  });
+
+  it("says runs are available when the runner is", async () => {
+    const page = mount({ "service.status": () => serviceStatus({ executionSupported: true }) });
+    await settle();
+    expect(page.container.querySelector(".ab-service-detail")?.textContent).toContain("runs available");
+    expect(page.text()).not.toContain("execution disabled");
     page.dispose();
   });
 
@@ -291,7 +304,7 @@ describe("package contents", () => {
   it("labels declared limits as runtime-enforced, not browser-enforced", async () => {
     const page = await opened();
     expect(page.text()).toContain("Declared limits");
-    expect(page.text()).toContain("Nothing runs in this milestone");
+    expect(page.text()).toContain("the agentpkg runtime enforces them during a run");
     expect(page.text()).toContain("Hard token limit");
     expect(page.text()).toContain("Delegation depth");
     page.dispose();
@@ -397,7 +410,7 @@ describe("permissions and authorization", () => {
     expect(page.text()).toContain("The package has NOT executed");
     expect(page.text()).toContain("Authorization receipt (technical details)");
     expect(page.text()).toContain("Receipt hash");
-    expect(page.text()).toContain("No agent code has executed");
+    expect(page.text()).toContain("Authorizing runs nothing");
     page.dispose();
   });
 
@@ -489,17 +502,20 @@ describe("permissions and authorization", () => {
   });
 });
 
-describe("milestone boundary", () => {
-  it("has no run action anywhere in the page", async () => {
+describe("run boundary", () => {
+  it("offers Run only as a disabled action until everything is in place", async () => {
     const page = mount({ "packages.open-url": () => ({ ok: true, value: packageView() }) });
     await settle();
     const input = page.container.querySelector<HTMLInputElement>("input[name='package-url']")!;
     input.value = "https://packages.example/x.agent.pkg";
     page.container.querySelector("form")!.dispatchEvent(new Event("submit"));
     await settle();
-    const labels = [...page.container.querySelectorAll("button")].map((b) => b.textContent ?? "");
-    expect(labels.some((label) => /^(run|start|execute)\b/iu.test(label))).toBe(false);
-    expect(page.text()).toContain("This build has no run action");
+    const run = page.container.querySelector<HTMLButtonElement>("button[data-run='start']");
+    expect(run).not.toBeNull();
+    expect(run!.disabled).toBe(true);
+    // Nothing is started by opening, and the reason is precise.
+    expect(page.calls.map((call) => call.operation)).not.toContain("execution.start");
+    expect(page.text()).toContain("This host cannot run packages");
     page.dispose();
   });
 
@@ -647,7 +663,7 @@ describe("model selection", () => {
     page.dispose();
   });
 
-  it("prepares a run plan and renders it as ready without offering a run", async () => {
+  it("prepares a run plan and renders it as ready without starting a run", async () => {
     const prepared: Array<Record<string, unknown>> = [];
     const page = await authorized({
       "run-plan.prepare": (input) => {
@@ -673,9 +689,11 @@ describe("model selection", () => {
     expect(text).toContain("rp_0123456789abcdef0123456789abcdef");
     expect(text).toContain("sha256:9999");
     expect(text).toContain("single_model binding");
-    expect(text).toContain("Execution is not enabled in this build.");
-    const labels = [...page.container.querySelectorAll("button")].map((b) => b.textContent ?? "");
-    expect(labels.some((label) => /^(run|start|execute)\b/iu.test(label))).toBe(false);
+    // No execution runtime on this (fixture) host: the plan says so plainly,
+    // and the Run action stays disabled. Preparing a plan started nothing.
+    expect(text).toContain("This host cannot run packages right now.");
+    expect(page.container.querySelector<HTMLButtonElement>("button[data-run='start']")?.disabled).toBe(true);
+    expect(page.calls.map((call) => call.operation)).not.toContain("execution.start");
     page.dispose();
   });
 
@@ -796,21 +814,21 @@ describe("model selection", () => {
 });
 
 describe("what the page will not do", () => {
-  it("calls no execution or probe operation, even now that tools can run", () => {
-    // The page reads what this host implements and renders it. It has no Run
-    // action, and it has no way to make a tool call either: a static scan of
-    // the page's own source, so a future edit cannot quietly add one.
+  it("never calls a probe, and starts runs only from the Run panel", () => {
+    // A static scan of the browser half's own source, so a future edit cannot
+    // quietly add a probe call or a second way to start a run.
     const here = dirname(fileURLToPath(import.meta.url));
-    const source = readFileSync(join(here, "..", "src", "ui", "page.ts"), "utf8");
-    for (const operation of [
-      "execution.start",
-      "execution.tool-probe",
-      "execution.cancel",
-      "router.probe",
-    ]) {
-      expect(source).not.toContain(operation);
+    const read = (...parts: string[]) => readFileSync(join(here, "..", "src", ...parts), "utf8");
+    const page = read("ui", "page.ts");
+    const run = read("ui", "run.ts");
+    for (const source of [page, run, read("ui", "form.ts"), read("ui", "markdown.ts")]) {
+      expect(source).not.toContain("execution.tool-probe");
+      expect(source).not.toContain("router.probe");
+      // No markup-injection API anywhere in the browser half.
+      expect(source).not.toMatch(/\.(inner|outer)HTML\s*=|insertAdjacentHTML|document\.write|DOMParser|createContextualFragment/u);
     }
-    // ...and it reads the registry, which is the only new thing it does.
-    expect(source).toContain("tools.evaluate");
+    expect(page).not.toContain("execution.start");
+    expect(run).toContain("execution.start");
+    expect(page).toContain("tools.evaluate");
   });
 });

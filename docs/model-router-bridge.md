@@ -20,7 +20,8 @@ it exactly once.
         ▼  parsed, schema-validated, usage accounted
  router probe result
         │
-        ✕  STOP. No workflow node ran. There is still no Run button.
+        ✕  STOP. No workflow node ran. (The probe is not a Run button: since 3C
+           the page's Run starts execution.start, never router.probe.)
 ```
 
 Five stages are kept apart throughout, and the vocabulary below keeps them apart
@@ -403,7 +404,7 @@ reached the provider.
 | Crossref, the Citation Resolver, a PDF read | no — no network module is imported |
 | package SKILL.md loaded into a model request | no — the probe's instructions are host constants |
 | package artifacts exported | no — the bridge writes no files |
-| a Run button | no — the page is unchanged; `router.probe` is an operator-only feature action with no tool binding |
+| a Run button | not part of the probe — `router.probe` is an operator-only feature action with no tool binding that the page never calls; the page's Run button (3C) starts `execution.start` |
 
 The control plane keeps `execution: "disabled"`, `capabilities.execute: false`,
 and `execution.performed: false` on every plan and summary. Those are still true:
@@ -469,8 +470,8 @@ reported, not assumed.
 ## 12. Before the next milestone (executing `meeting-agenda.agent.pkg`)
 
 > **Done.** All six items below were addressed in [package
-> execution](package-execution.md), except item 5, which is deliberately still
-> open: execution is operator-only and there is still no Run button. Item 1
+> execution](package-execution.md), except item 5, which stayed open until
+> milestone 3C delivered the page's Run surface. Item 1
 > became `agentpkg.execution`; item 2 became a one-time lease plus inherited
 > descriptors, with the runner verifying what it received; item 3 became the
 > receipt's own decisions travelling unchanged, with `once` refused rather than

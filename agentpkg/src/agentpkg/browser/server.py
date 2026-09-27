@@ -123,6 +123,8 @@ class BrowserAPI:
             )
         if rest == ["tools", "evaluate"]:
             return self._only(method, "POST", lambda: self._evaluate_tools(session_id, body))
+        if rest == ["input", "validate"]:
+            return self._only(method, "POST", lambda: self._validate_input(session_id, body))
         if rest == ["run-plan"]:
             if method == "POST":
                 return self._prepare_run_plan(session_id, body)
@@ -160,6 +162,10 @@ class BrowserAPI:
             run_plan_id=payload["run_plan_id"],
             run_plan_sha256=payload["run_plan_sha256"],
         )
+
+    def _validate_input(self, session_id, body):
+        payload = _object(body, {"input"}, {"input"})
+        return 200, self.control.validate_input(session_id, input_value=payload["input"])
 
     def _evaluate_models(self, session_id, body):
         payload = _object(body, {"package_digest", "catalog"}, {"package_digest", "catalog"})

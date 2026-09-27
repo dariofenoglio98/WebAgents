@@ -69,7 +69,7 @@ from .policy import (
     normalize_grants,
 )
 from .progress import ProgressTracker
-from .report import audit_summary, cost_summary, model_evidence
+from .report import audit_summary, cost_summary, failure_summary, model_evidence
 from .toolprobe import run_tool_probe
 
 EXECUTION_RESULT_SCHEMA = "agentpkg-execution-result-v0"
@@ -539,7 +539,7 @@ class ExecutionSession:
                 await watchdog
             await tracker.close()
             self._finished = True
-        return self._finish(started, datetime.now(UTC))
+        return self._finish(started, datetime.now(UTC), tracker)
 
     # -- tool probe ----------------------------------------------------------
     async def _tool_probe(self, params: dict) -> dict:
@@ -603,7 +603,9 @@ class ExecutionSession:
             # transport failure: the artifacts and audit still matter.
             self._outcome = report
 
-    def _finish(self, started: datetime, ended: datetime) -> dict:
+    def _finish(
+        self, started: datetime, ended: datetime, tracker: ProgressTracker | None = None
+    ) -> dict:
         outcome = self._outcome or {"status": "failed", "error_code": "worker_error"}
         status = outcome.get("status", "failed")
         error_code = outcome.get("error_code")
@@ -657,6 +659,13 @@ class ExecutionSession:
                 "duration_ms": round((ended - started).total_seconds() * 1000, 3),
             },
             "tools": dict(self._tools),
+            # The last progress snapshot, taken after the run settled, so the
+            # final record is exact even when a throttled send was still
+            # pending: identifiers and counts derived from the same audit.
+            "progress": tracker.snapshot() if tracker is not None else None,
+            # Where a run that did not complete stopped, and which declared
+            # check refused it. Codes and pointers only.
+            "failure": failure_summary(audit) if status != "completed" else None,
             "package_execution": {
                 "workflow_instantiated": True,
                 "interpreter": "agentpkg.workflow.Workflow",

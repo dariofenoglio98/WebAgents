@@ -19,6 +19,7 @@ import {
 } from "./host-models.js";
 import {
   projectEvaluation,
+  projectInputValidation,
   projectPackage,
   projectPermissions,
   projectReceipt,
@@ -41,7 +42,12 @@ import type { HostLlm } from "./host-llm.js";
 import { projectProbe } from "./router-probe.js";
 import { revalidate } from "./preflight.js";
 import { RouterBridge, type BridgeLimits } from "./router-bridge.js";
-import { ExecutionService, resolvePolicy, type ExecutionPolicy } from "./execution.js";
+import {
+  ExecutionService,
+  RECEIPT_MARGIN_SECONDS,
+  resolvePolicy,
+  type ExecutionPolicy,
+} from "./execution.js";
 import { FileCapabilityStore } from "./file-capabilities.js";
 import { spawnPdfReader, type PdfReader } from "./pdf-reader.js";
 import {
@@ -251,6 +257,11 @@ export class AgentBrowserBackend {
         ? { createBridge: this.options.createExecutionBridge }
         : {}),
     });
+    // Finished runs a previous Gateway process persisted stay inspectable.
+    const recovered = await this.execution.runs.recover().catch(() => 0);
+    if (recovered > 0) {
+      this.options.logger.info("agent-browser: recovered finished run records", { recovered });
+    }
 
     if (this.options.supervisor) {
       this.supervisor = this.options.supervisor;
@@ -333,7 +344,13 @@ export class AgentBrowserBackend {
     }
   }
 
+  /** Whether this backend can run a model-backed plan from the page right now. */
+  private executionAvailable(): boolean {
+    return Boolean(this.execution?.available()) && !this.stopped;
+  }
+
   private snapshotView(snapshot: ServiceSnapshot, extra: Partial<ServiceStatusView> = {}) {
+    const policy = resolvePolicy(this.options.config?.execution);
     const view: ServiceStatusView = {
       state: snapshot.state === "unconfigured" ? "unconfigured" : snapshot.state,
       detail: snapshot.detail,
@@ -347,11 +364,17 @@ export class AgentBrowserBackend {
         localRoots: this.roots.slice(0, 8),
         trustPinning: snapshot.state === "running",
       },
-      // The page still has no Run action. Execution lives behind operator-only
-      // operations, which is a different fact and a different field.
-      executionSupported: false,
+      // Offering Run is not authority to run: every start is re-verified by
+      // the same preflight the operator path has always used.
+      executionSupported: snapshot.state === "running" && this.executionAvailable(),
       executionOperations: Boolean(this.execution?.available()),
       fileSelection: snapshot.state === "running" && this.fileRoots.length > 0,
+      execution: {
+        runTimeoutSeconds: policy.runTimeoutSeconds,
+        modelCallTimeoutSeconds: policy.modelCallTimeoutSeconds,
+        receiptMarginSeconds: RECEIPT_MARGIN_SECONDS,
+        fileRoots: this.fileRoots.slice(0, 8),
+      },
       ...extra,
     };
     return view;
@@ -477,7 +500,7 @@ export class AgentBrowserBackend {
     });
   }
 
-  // -- selected files (operator only; the page never calls these) ------------
+  // -- selected files ---------------------------------------------------------
   /**
    * Select one local PDF for a package session.
    *
@@ -703,7 +726,7 @@ export class AgentBrowserBackend {
         toolRegistry: this.toolHost().registry,
       });
       this.options.onChange?.("run-plan");
-      return projectRunPlanState(payload, true);
+      return projectRunPlanState(payload, true, this.executionAvailable());
     });
   }
 
@@ -715,7 +738,7 @@ export class AgentBrowserBackend {
         payload = await client.getRunPlan(sessionId);
       } catch (error) {
         if (error instanceof AgentBrowserError && error.code === "run_plan_absent") {
-          return { plan: null, preflight: null, executionSupported: false as const };
+          return { plan: null, preflight: null, executionSupported: this.executionAvailable() };
         }
         throw error;
       }
@@ -745,7 +768,7 @@ export class AgentBrowserBackend {
       // A plan that binds no model — a tool probe — is not made unready by a
       // model it never named. `null` is "not applicable" here, as it is for an
       // unreachable catalog, and the projection treats it the same way.
-      return projectRunPlanState(payload, available);
+      return projectRunPlanState(payload, available, this.executionAvailable());
     });
   }
 
@@ -834,7 +857,28 @@ export class AgentBrowserBackend {
     return this.agentpkgPath;
   }
 
-  // -- execution (operator only; the page never calls these) -----------------
+  // -- execution --------------------------------------------------------------
+  /**
+   * Whether a Run could start now for this session: the same preflight
+   * `startExecution` performs, run without starting anything.
+   */
+  runReadiness(sessionId: string) {
+    return guard(async () => {
+      const execution = this.requireExecution();
+      const client = await this.client();
+      // An unreachable catalog is reported as a blocker, not thrown.
+      const catalog = await this.hostCatalog().catch(() => null);
+      return execution.readiness(client, catalog, sessionId);
+    });
+  }
+
+  /** The package's own verdict on one proposed task, from the control plane. */
+  validateInput(sessionId: string, input: unknown) {
+    return guard(async () =>
+      projectInputValidation(await (await this.client()).validateInput(sessionId, input), sessionId),
+    );
+  }
+
   /**
    * Run the signed package this session holds, on the model its plan bound.
    *
@@ -893,6 +937,10 @@ export class AgentBrowserBackend {
 
   readExecutionArtifact(runId: string, name: string) {
     return guard(async () => this.requireExecution().artifact(runId, name));
+  }
+
+  readExecutionArtifactChunk(runId: string, name: string, offset: number) {
+    return guard(async () => this.requireExecution().artifactChunk(runId, name, offset));
   }
 
   clearExecutions(runId?: string, sessionId?: string) {

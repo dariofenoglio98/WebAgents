@@ -97,7 +97,31 @@ surface, so it adds these concerns:
 Native Control UI runs trusted JavaScript with the signed-in operator's Gateway
 authority, and it is an experimental OpenClaw lab that is off by default. The
 plugin is therefore kept narrow: one page, no agent-callable tool, no HTTP
-route, and no package execution path of any kind.
+route, and — since milestone 3C — exactly one way to execute: the Run surface
+below.
+
+## Run surface boundary (3C)
+
+The page's Run button starts the open package's prepared run plan. A page is
+the least trusted caller that can reach `execution.start`, so the start's input
+is the whole attack surface and it is closed:
+
+| Threat | Control and remaining limit |
+|---|---|
+| The page choosing what runs | `execution.start` takes exactly `{sessionId, runPlanId, runPlanSha256, input, files, detach}`; a model, binding, tool, path, archive, executable, command or URL is refused by the Gateway's schema check before the plugin sees it. Everything else resolves through the session's own authorized state: the plan froze the model and tool implementations, the receipt holds the decisions. A structural test pins the six fields; 47 live probes tried the rest. |
+| A stale or substituted plan | The preflight re-verifies plan id and hash, package bytes, signature, signer, publisher trust, receipt and that it outlasts the whole run deadline, bindings, approvals and model identity at every start; the runner re-verifies the snapshot itself. A wrong hash, an unknown plan or an arbitrary model id is refused. |
+| Concurrent or repeated runs | One run per plan and session (`execution_active`); the button is single-flight. |
+| A task smuggling authority | The task is data validated against the package's own input schema by the control plane before a lease exists; it cannot name a model, tool or path. Files are `file_<32 hex>` capabilities the session holds, copied from operator roots; a path, a forged id, another run's id or an id the run was not given is refused, and reading still needs `files.read`. |
+| A package steering the UI | `agentpkg:presentation` is noncritical and validated against a closed vocabulary (labels, stages, field hints, exports); it can relabel, never add a control, and a Run label must contain "run". No package markup, style or script reaches the page. |
+| Model output as an attack | Results are rendered as Markdown built from DOM calls only — no markup, scripts, images or iframes from text, only http(s) links with `noopener noreferrer nofollow` — and bounded; tested with hostile text. |
+| Artifact paths | An artifact is one plain filename the run wrote, opened with `O_NOFOLLOW`; traversal, absolute, nested and encoded names are refused. Downloads are verified against the file's SHA-256. |
+| Denial through large outputs | Every output is fitted to the host's plugin JSON limits first (run summaries, 48 KiB views and slices, budgeted echoes, a fitted model catalog), so growth fails closed in one field instead of breaking the page. |
+| A reload granting anything | Reconnect only re-reads records; a finished run whose session is gone is read-only evidence with no Run or New run. |
+
+Remaining limits: the operator's Gateway authority is the trust root — a
+compromised Control UI session can start any authorized plan, as the operator
+could; the page polls rather than streams; and run records are files in the
+plugin's state directory with no retention policy beyond the 32 newest.
 
 
 ## Model-router bridge boundary

@@ -5,24 +5,27 @@ place inside OpenClaw where a person opens an agent package, sees what it is and
 what it wants, and decides. It is a native Control UI page backed by a trusted
 plugin backend that owns the agentpkg control plane.
 
-**Milestone boundary: no package executes.** The furthest state the *page* can
-reach is a prepared, hashed **run plan**: the package, its authorization, its
+**Since milestone 3C the page runs what it authorized** ([§5a](#5a-the-run-surface)).
+Up to a prepared, hashed **run plan** — the package, its authorization, its
 publisher and one explicitly chosen host model, frozen together and marked
-*Ready to run*. There is no Run action and no workflow instantiation anywhere in
-it. Model discovery and selection are documented separately in [model selection
-and the run plan](model-selection-and-run-plan.md).
+*Ready to run* — nothing changes. From there the Run panel offers a task form
+generated from the package's own input schema, a Run button that opens only
+when every check holds, live progress, Cancel, reconnect after a reload, the
+result, the artifacts and the technical audit. Run calls `execution.start` with
+exactly `{sessionId, runPlanId, runPlanSha256, input, files, detach}`: the
+package's own graph then runs through the generic interpreter on the model the
+plan bound, with one generic tool handler per tool the plan bound
+([package execution](package-execution.md), [the tool broker](tool-broker.md)).
+Model discovery and selection are documented in [model selection and the run
+plan](model-selection-and-run-plan.md).
 
-Two operator-only surfaces sit behind the page and are not rendered by it.
+Two operator-only surfaces remain behind the page and are not rendered by it.
 `execution.tool-probe` re-verifies a ready plan and makes one mediated call to
-one tool the package declares, through the implementation the plan bound; see
-[the tool broker](tool-broker.md).
+one tool the package declares, through the implementation the plan bound.
 `router.probe` re-verifies a ready plan and makes a single host-owned model call
-to prove the `ModelRouter` contract; no package skill, node, worker or tool takes
-part in it ([the model-router bridge](model-router-bridge.md)). The `execution.*`
-operations re-verify the same plan and **run the package's own graph** through
-the generic interpreter, on the model the plan bound, with no tool handler
-installed ([package execution](package-execution.md)). A test asserts the
-browser half of this plugin calls neither.
+to prove the `ModelRouter` contract ([the model-router
+bridge](model-router-bridge.md)). A structural test asserts the browser half
+never calls either.
 
 Tested against **OpenClaw 2026.9.5 (`ec9c1a1`)**. Every plugin API used here is
 documented as experimental; this milestone is pinned to that host version.
@@ -151,9 +154,13 @@ not by this plugin.
 | `models.evaluate` | query | This host's models, evaluated against the open package |
 | `tools.evaluate` | query | This host's tool implementations, evaluated against the package's declarations |
 | `run-plan.get` | query | The prepared run plan plus a freshly recomputed preflight |
-| `execution.status` | query | *Operator only.* A session's ephemeral run records, and the active one |
-| `execution.get` | query | *Operator only.* One run record |
-| `execution.artifact` | query | *Operator only.* One named artifact a run wrote, bounded |
+| `execution.status` | query | Summaries of the runs this backend holds (one session's, or all), and the active run in full |
+| `execution.get` | query | One run record |
+| `execution.readiness` | query | Whether Run could start now, by the same checks `execution.start` makes; nothing is prepared |
+| `execution.validate-input` | query | The package's own input schema's verdict on a task, by JSON pointer, via the control plane |
+| `execution.artifact` | query | One named artifact a run wrote: at most 48 KiB, parsed when small JSON |
+| `execution.artifact-chunk` | query | One 48 KiB slice of an artifact with the whole file's size and SHA-256, for downloads |
+| `files.list` | query | The PDF capabilities this session holds |
 | `trust.list` | query | Publisher keys pinned by this operator |
 | `packages.open-url` | action | Open an HTTPS package through the control plane |
 | `packages.open-local` | action | Open a file inside an operator-configured root |
@@ -163,9 +170,11 @@ not by this plugin.
 | `run-plan.clear` | action | Discard the prepared run plan |
 | `router.probe` | action | *Operator only.* Prove the router contract with one host-owned call |
 | `execution.tool-probe` | action | *Operator only.* Make one mediated call to one declared tool, with a host-owned fixture and no model |
-| `execution.start` | action | *Operator only.* Run the signed package on the model its plan bound |
-| `execution.cancel` | action | *Operator only.* Stop a running workflow |
+| `execution.start` | action | Run the signed package on the model its plan bound (the page's Run button) |
+| `execution.cancel` | action | Stop a running workflow |
 | `execution.clear` | action | *Operator only.* Forget finished run records |
+| `files.select-local` | action | Copy one operator-selected PDF from a configured root into private storage; returns an opaque `file_<32 hex>` id |
+| `files.release` | action | Forget one selected file |
 | `trust.pin-session-publisher` | action | Pin the key that signed one open session |
 | `trust.remove` | action | Remove a pin |
 | `service.restart` | action | Restart the control plane |
@@ -182,8 +191,10 @@ operations therefore return `{ ok: true, value } | { ok: false, error }` where
 `source_rejected`, `session_expired`, `digest_mismatch`, `trust_conflict`,
 `signature_not_valid`, `limit_reached`, `control_plane_error`,
 `model_catalog_unavailable`, `model_unknown`, `run_plan_refused`,
-`run_plan_absent`. Control-plane codes map onto these in one table in
-`src/errors.ts`.
+`run_plan_absent`, `run_plan_stale`, `probe_refused`, the model-call, bridge
+and tool codes, `authorization_expiring`, `execution_refused`,
+`execution_active`, `execution_unknown` and `input_invalid`. Control-plane codes
+map onto these in one table in `src/errors.ts`.
 
 **Projection, not pass-through.** The page receives explicitly enumerated
 camelCase DTOs with every list bounded (`src/project.ts`, `src/contract.ts`).
@@ -191,14 +202,27 @@ Snapshot paths, cache locations and other host-internal fields are dropped. The
 SDK validates both directions against the same schemas, so a projection bug
 fails loudly instead of leaking.
 
+**The host's own output limits.** Before any schema, `defineFeaturePlugin`
+refuses an input or output over OpenClaw's plugin JSON limits — 32 levels,
+4,096 nodes, 512 keys per object, 65,536 characters per string, 256 KiB
+serialized — as `INVALID_OUTPUT`. `HOST_JSON_LIMITS` mirrors them (a test reads
+the host's own constant), and every projection of unbounded data fits itself
+first (`src/json-limits.ts`): run lists are summaries, artifact views and
+download slices are 48 KiB, a task input is echoed only when small in shape as
+well as size, an input schema too intricate to carry is left out (the task is
+then edited as JSON), and a model catalog too large for one answer lists the
+models a plan could use first and says how many it left out. The live UI
+acceptance found the first three by exceeding them.
+
 ## 5. Page structure
 
 | Section | Content |
 |---|---|
-| Header | Service state chip, control-plane version, Retry when unavailable |
+| Header | Service state chip, control-plane version, whether runs are available, Retry when unavailable |
 | Address bar | HTTPS URL entry; optional local-path entry when roots are configured |
 | Open packages | Session tabs with trust status |
 | Package header | Name, package ID, version, description, execution profile, file count, session expiry, source |
+| **Run panel** | Checklist, task form, Run button, live progress, Cancel, result, artifacts, technical details — see §5a |
 | Verification and trust | Container / Integrity / Schema / Runtime rows, then signature, then publisher — see below |
 | Warnings | One row per warning, rendered from `code` and `severity` |
 | Package contents | Tabs: Overview (capabilities, skills), Tools, Workers, Workflow, Evals & attestations, Technical details |
@@ -206,12 +230,64 @@ fails loudly instead of leaking.
 | Declared limits | Budgets and delegation, labelled as runtime-enforced |
 | Authorization | Authorize button, outcome, blocking reasons, expandable receipt |
 | Model | Declared requirements; after authorization, this host's models with Compatible / Unverified / Incompatible, per-requirement detail, an explicit choice, and **Prepare run** |
-| Run plan | *Ready to run*, the binding it froze, its hash, and "Execution is not enabled in this build." |
+| Run plan | *Ready to run*, the binding it froze, its hash, and "Run this plan from the Run panel above." |
+| Recent runs | Every run this backend holds, newest first, each openable — including finished runs recovered after a Gateway restart |
 
 Presentation is entirely generic: there is no package-ID branch, and the two
 reference packages differ on screen only because they declare different things.
 A sophisticated graph visualization was not added; the workflow tab lists nodes,
 types, dependencies, parallelism and exports.
+
+## 5a. The Run surface
+
+The Run panel sits directly under the package header and is the page's only
+way to start anything.
+
+**Checklist and gate.** Package verified · Publisher trusted · Permissions
+authorized · Tools bound (n of n) · Model · Run plan ready · Task valid ·
+Authorization valid for *N* more minutes (a run may take up to *M*). Each
+unmet line says precisely why and offers **Go** to the section that fixes it.
+The Run button is enabled only when all hold *and* the backend's
+`execution.readiness` — the same preflight `execution.start` runs — agrees,
+and it says why when it is not. Start re-checks everything regardless.
+
+**Task form.** Generated from the package's own bundled input schema
+(`workflow.input.document`): strings, numbers, booleans, enums, string lists,
+object lists, string maps, and a *selected files* widget for maps whose values
+are file capabilities. Validated presentation hints may relabel a field, make
+it multiline, or group it as *Optional* / *Advanced*; they cannot add a field
+or an action. **Edit as JSON** covers any shape the form does not render. The
+backend validates the task against the package's schema as the person types
+(`execution.validate-input`), naming each field by its title; a field's own
+error appears beside it once it has been touched.
+
+**Files.** A PDF is chosen by path inside an operator-configured root and
+copied once into private storage; the package only ever sees an opaque
+`file_<32 hex>` capability, and reading one still needs its `files.read`
+permission granted.
+
+**Progress.** From the run's own progress snapshot, polled every two seconds:
+the package's stages (validated `agentpkg:presentation` hints, or its node
+list), each stage's fan-out workers with their state, and model, tool and
+remote calls, tokens and workers. Nothing is estimated or invented.
+
+**Cancel** goes through `execution.cancel` → the runner's AbortSignal; the run
+ends *cancelled* within seconds and says which node it stopped at. **Reload**
+reconnects to a run in flight for an open session; a finished run whose
+session has closed opens read-only (*From a previous Gateway session*).
+
+**Result.** The package's primary export rendered as Markdown built from DOM
+calls only (no HTML from text, only http(s) links, `noopener noreferrer
+nofollow`), its declared summary exports as counts with expandable rows, every
+artifact with **View** (48 KiB, truncation stated) and **Download** (48 KiB
+slices, reassembled and checked against the file's SHA-256), and **Technical
+details**: package, digest, archive hash, run plan and its hash, run
+invocation, task input hash, model and whether every call used it, tools and
+bindings, permissions, usage against limits, cost, audit chain, workers, and
+every check re-verified before start. A run that finds nothing grounded
+completes with the package's own *No sufficiently grounded literature found*
+text and empty tables — shown as a completed run, not an error. A failed run
+names its error code, the node and the package check that stopped it.
 
 ## 6. Trust user experience
 
@@ -296,6 +372,15 @@ visible.
 | Lifecycle safety | Single-flight start, identity-checked orphan reap, SIGTERM→SIGKILL stop, per-run cache wipe |
 | Least privilege in the UI | Read-only operators see the page but get no Authorize button and disabled selects |
 | Aborted views stop working | The page checks its `AbortSignal` after every await and removes itself on dispose |
+| Run starts only what was authorized | `execution.start` takes exactly six fields; a model, binding, tool, path, archive, executable, command or URL in a start is refused by the Gateway's schema check before the plugin runs (live probes) |
+| Everything is re-verified at Run | Preflight re-checks plan identity and hash, package bytes, signature, signer, publisher trust, receipt and its remaining time, bindings, approvals, model availability and identity; the runner re-verifies the snapshot itself |
+| One run per plan and session | A second start while one runs is refused with `execution_active` |
+| Files are capabilities, not paths | A task names `file_<32 hex>` ids the session holds; a path, a forged id, an id the run was not given, or a file outside the roots is refused |
+| Package labels are hints, not authority | `agentpkg:presentation` is noncritical, validated by the control plane against a closed vocabulary; it can relabel, never add a control |
+| Model-produced text is inert | Markdown is rendered with DOM calls only: no markup, scripts or images from text, only http(s) links opened with `noopener noreferrer nofollow` (tested with hostile text) |
+| Artifacts by name, not path | One plain filename matching `^[A-Za-z0-9_-][A-Za-z0-9_.-]{0,127}$`, listed in that run's own directory, opened with `O_NOFOLLOW`; traversal, absolute and encoded names are refused (live probes) |
+| Downloads are verified | Assembled from 48 KiB slices and checked against the whole file's SHA-256 before saving |
+| No new network or process from the browser | A structural test: the browser half imports only the contract, its own modules and the Control UI SDK, and has no `fetch`, socket or subprocess |
 
 One implementation note worth keeping: the backend talks to the control plane
 with `node:http`, not global `fetch`. Node's fetch sends `sec-fetch-mode: cors`,
@@ -307,22 +392,15 @@ it.
 
 ## 9. What this milestone does not do
 
-* **No package execution from the page.** The page has no Run action, calls no
-  `execution.*` or `router.probe` operation, and a run plan still reports
+* **No chat and no general execution API.** The page starts one thing — the
+  prepared run plan of the open package — and a run plan still reports
   `executionPerformed: false` after a run, because a plan never performs
-  anything. Execution itself now exists, operator-only: see [package
-  execution](package-execution.md).
-* **No package tool runs from the page.** The page reads what this host
-  implements for each declared tool and renders it beside the declaration and
-  the approval; it calls none. Tool execution exists, operator-only, behind
-  [the tool broker](tool-broker.md), and a tool this host has no implementation
-  for is refused by name — `scholarly-search` and `paper-reader` still are, so
-  Literature Review cannot be run here.
-* **No model inference from the page.** Model *discovery* is allowed and
-  *selection* is offered; the page calls no model. The operations that do —
-  operator-only `router.probe` and `execution.start` — send host-owned or
-  signed-package content respectively, and neither accepts a caller-supplied
-  prompt, schema or model id.
+  anything; each run is its own record.
+* **No tool call and no model call of the page's own.** Tools and the model are
+  reached only by the package's graph during a run, through the bindings its
+  plan froze. `router.probe` and `execution.tool-probe` stay operator-only, and
+  no operation accepts a caller-supplied prompt, schema, model id, endpoint or
+  tool implementation.
 * **No automatic or best-model selection**, no per-worker or per-node routing,
   no fallback chains, no cost optimization and no quality ranking.
 * **No NANDA, Muse, Instinct or Maritime.** The address bar takes raw HTTPS URLs.
@@ -349,9 +427,27 @@ it.
   plugin's `browser-changed` event; it is not a live stream.
 * Session tabs show the package ID rather than a display name, because the
   control plane's session list is intentionally minimal.
-* The live Control UI rendering itself is verified by hand. Automated tests
-  drive the page in a DOM with a fake feature client, and the plugin's load is
-  verified in a real OpenClaw with an isolated configuration.
+* Automated tests drive the page in a DOM with a fake feature client, the
+  backend against a real control plane and runner, and the plugin's load in a
+  real OpenClaw with an isolated configuration. The live Control UI was driven
+  end to end in a real browser for the 3C acceptance
+  ([`ui-acceptance-3c.json`](../examples/verification/ui-acceptance-3c.json));
+  that is a recorded acceptance, not a test that runs on every change.
+* Progress is polled every two seconds, not streamed.
+* A run takes as long as its model: tens of minutes for Literature Review on a
+  local 30B model. The authorization must outlast the run deadline, so with a
+  2-hour session and a 75-minute deadline a run must start within about 44
+  minutes of opening the package.
+* A finished run's record and artifacts survive a Gateway restart (the newest
+  16 are re-read from their run directories) but its package session does not:
+  such a run is shown read-only, with generic labels, because the package's
+  presentation hints belonged to the closed session.
+* Run records live in the plugin's state directory; there is no run history
+  database, search or retention policy beyond the 32 newest.
+* A package whose view approaches all of its per-list bounds at once (128
+  nodes, 512 edges, 64 tools…) could exceed the host's 4,096-node output limit;
+  `packages.get` would then fail closed rather than show a partial package. No
+  shipped package is near it (Literature Review's view is 1,114 nodes).
 
 ## 11. Verification
 
@@ -360,35 +456,43 @@ packs, installs into a throwaway OpenClaw configuration, inspects what the host
 loaded, and runs the test suite. Saved output:
 [`agent-browser-plugin.json`](../examples/verification/agent-browser-plugin.json).
 
-103 tests cover the contract, the supervisor against a real `agentpkg
+391 tests cover the contract, the supervisor against a real `agentpkg
 browser-serve` child, the backend against a real control plane with both shipped
 packages, host model discovery against a stubbed OpenClaw catalog, run-plan
-preparation and staleness end to end, the page in a DOM, and the plugin
-registration contract.
+preparation and staleness end to end, the Run surface (gate, start, progress,
+cancel, reload, artifacts, file input) against a real control plane and runner,
+the page and the Run panel in a DOM, safe Markdown, the host's output limits
+(`test/host-bounds.test.ts`, using the host's own check as the oracle),
+structural properties of the source, and the plugin registration contract.
+
+The 3C acceptance drove the real Control UI in a real browser: open, trust,
+permissions, approvals, model, plan, task, Run, live progress, Cancel, reload,
+result, artifacts, download — plus 47 hostile probes through the same Gateway
+method the page uses. Record:
+[`ui-acceptance-3c.json`](../examples/verification/ui-acceptance-3c.json),
+narrative: [the milestone report](demo-experience-report.md).
 
 A separate record of the same flow driven against the operator's real OpenClaw
 2026.9.5 host — including the models it actually reported — is
 [`model-selection-run-plan.json`](../examples/verification/model-selection-run-plan.json).
 
-## 12. Before the next milestone (execution)
+## 12. Future work
 
-1. **A receipt is consent, not a capability, and neither is a run plan.** The
-   runner must re-open the snapshot, re-check the digest and archive hash,
-   re-evaluate trust, re-confirm the model, re-run the run plan's preflight, and
-   map decisions onto runtime grants before executing anything.
-2. **Where run output goes.** The page currently has no place for an audit
-   stream, usage counters or exports; that is a new UI surface, not a variation
-   of this one.
-3. **The router adapter is the missing piece.** `workflow.v0` checks capabilities
-   against the *router*, not the raw model. An OpenClaw `ModelRouter` adapter must
-   declare what it can actually deliver for a bound model, and the control plane's
-   budget guarantees still depend on a router that reports usage honestly — the
-   earlier integration notes on advisory token caps apply.
-4. **Persistent authorization.** Offering *Always* requires a real host
+The pre-execution notes this section used to hold — re-verify at run time, a
+place for run output, a router adapter that reports what it delivers,
+cancellation and progress — were delivered by milestones 3B and 3C. What
+remains, deliberately not built:
+
+1. **Persistent authorization.** Offering *Always* requires a real host
    authorization store with its own revocation and review surface.
-5. **Long operations.** Execution needs cancellation and progress; the current
-   single "Opening and verifying package…" state deliberately invents no
-   progress and would not be enough for a run.
+2. **Scholarly-search federation** behind the same abstract `scholarly-search`
+   capability (Crossref + arXiv + OpenAlex, optionally Semantic Scholar) —
+   host implementations, no package change.
+3. **Other execution profiles** (`conversation.v0`, `service.v0`); there is no
+   chat.
+4. **Discovery and locators** (NANDA, registries), Muse / Instinct, Maritime /
+   sandboxed execution, a package update flow, richer evals and attestations,
+   and model-provider redundancy.
 
 See also: [the control plane](browser-control-plane.md), [model selection and the
 run plan](model-selection-and-run-plan.md) with its [milestone

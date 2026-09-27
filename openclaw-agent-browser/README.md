@@ -3,24 +3,37 @@
 The first visible piece of "OpenClaw as an agent-native browser": a native
 Control UI page where an operator opens a signed `agent.pkg`, sees exactly what
 it is and what it asks for, records an authorization decision, chooses one of the
-models this OpenClaw host actually has, and prepares an immutable run plan.
+models this OpenClaw host actually has, prepares an immutable run plan — and
+**runs it**: a task form built from the package's own input schema, a Run button
+that opens only when every check holds, live progress from the run's own record,
+Cancel, a reload that reconnects, the result rendered safely, every artifact
+viewable and downloadable, and the technical audit behind it.
 
-**The page runs nothing.** It stops at a prepared run plan; there is no Run
-action anywhere in it, and a test asserts the browser half calls no `execution.*`
-or `router.probe` operation.
+**What the Run button can start, and nothing else.** It calls one operation,
+`execution.start`, with exactly `{sessionId, runPlanId, runPlanSha256, input,
+files, detach}`. The Gateway rejects any other field before the plugin sees it:
+no model, binding, tool, path, archive, executable, command or URL can be
+expressed. The model and tool implementations are the ones the run plan froze;
+files are opaque capabilities this session already holds; everything is
+re-verified — package bytes, signature, publisher trust, authorization, bindings,
+model, input schema — before a lease exists. Package-supplied labels
+(`agentpkg:presentation`) are validated hints: they can name a stage or relabel
+the Run button, never add an action. The page has no chat and no general
+execution API.
 
 Two operator-only surfaces the page does not render sit behind it. `router.probe`
 re-verifies a ready plan and makes a single host-owned model call to prove the
 `ModelRouter` contract ([the model-router
-bridge](../docs/model-router-bridge.md)). `execution.start` re-verifies the same
-plan and **runs the package's own `workflow.v0` graph** on the model the plan
-bound, through the generic interpreter, with one generic tool handler per tool
-the plan bound ([package execution](../docs/package-execution.md), [the tool
-broker](../docs/tool-broker.md)). `execution.tool-probe` makes one mediated call
-to one declared tool through the implementation the plan bound, with a
-host-owned fixture and no model at all. The first two require the operator opt-in
-`plugins.entries.agent-browser.llm.allowModelOverride: true`, because binding an
-exact model is a privilege OpenClaw grants rather than one a plugin asserts.
+bridge](../docs/model-router-bridge.md)). `execution.tool-probe` makes one
+mediated call to one declared tool through the implementation the plan bound,
+with a host-owned fixture and no model at all. `execution.start` — what Run calls —
+**runs the package's own `workflow.v0` graph** on the model the plan bound,
+through the generic interpreter, with one generic tool handler per tool the plan
+bound ([package execution](../docs/package-execution.md), [the tool
+broker](../docs/tool-broker.md)). Model-bound operations require the operator
+opt-in `plugins.entries.agent-browser.llm.allowModelOverride: true`, because
+binding an exact model is a privilege OpenClaw grants rather than one a plugin
+asserts.
 
 ```text
  OpenClaw Control UI  (Agent Browser page)
@@ -57,7 +70,7 @@ experimental; pin and retest on a different host version.
 cd openclaw-agent-browser
 npm install                 # links the pinned openclaw peer for types and tooling
 npm run typecheck
-npm test                    # 103 tests; the integration ones drive a real agentpkgd
+npm test                    # 391 tests; the integration ones drive a real agentpkgd and runner
 npm run build               # tsc + `openclaw plugins build` (manifest + UI bundle)
 npm run validate            # openclaw plugins validate --json
 npm run pack                # openclaw plugins pack --json  -> agent-browser.tgz
@@ -97,8 +110,16 @@ opened as local packages. Add to your OpenClaw config:
 | `agentpkgPath` | Absolute path to the `agentpkg` executable. Falls back to `AGENTPKG_BIN`, then `PATH`. |
 | `localPackages.roots` | Absolute directories the page may open `.agent.pkg` files from. Empty means local opening is off. |
 | `localPackages.includeWorkspace` | Also allow the OpenClaw workspace directory. Default `true`. |
-| `sessionTtlSeconds` | Package session lifetime in the control plane. Default 900. |
+| `localFiles.roots` | Absolute directories an operator may select PDFs from for a run. Empty by default. |
+| `sessionTtlSeconds` | Package session lifetime in the control plane, and so of its authorization. Default 900. A run starts only if the authorization outlasts `execution.runTimeoutSeconds` plus 60 s. |
 | `maxSessions` | Concurrently open package sessions. Default 8. |
+| `execution.*` | Host run bounds (`totalTokens`, `maxRemoteCalls`, `maxParallelWorkers`, `maxOutputTokensPerCall`, `runTimeoutSeconds`, `modelCallTimeoutSeconds`); they can only lower what a package declares. |
+
+For the Literature Review demo on a local 30B model this host uses
+`sessionTtlSeconds: 7200` and `execution: { totalTokens: 180000, maxRemoteCalls:
+45, maxParallelWorkers: 3, maxOutputTokensPerCall: 16000, runTimeoutSeconds:
+4500, modelCallTimeoutSeconds: 1200 }`, so a run must start within about 44
+minutes of opening the package (the Run panel shows the remaining time).
 
 There is no token, key or secret in plugin configuration.
 
@@ -152,9 +173,24 @@ in the Control UI sidebar.
    - Set `model.reasoning` to *Allow for session*, authorize again, choose one
      model, and press **Prepare run**.
 10. **Ready to run** appears with the package, publisher, authorization, model,
-    execution profile, run-plan id and run-plan hash — and *Execution is not
-    enabled in this build.* There is still no Run button.
-11. Repeat with `dist/meeting-agenda.agent.pkg`. No plugin code changes.
+    execution profile, run-plan id and run-plan hash.
+11. Back in the **Run panel** at the top, the checklist is all ✓ once the task
+    is valid. The task form is the package's own input schema: fill it and press
+    the Run button (its label is a validated package hint; *Run* by default).
+    While it runs: stages, parallel workers, model/tool/remote calls and tokens,
+    from the run's own progress snapshot. **Cancel** stops it within seconds.
+    Reloading the page reconnects to it.
+12. When it finishes: the primary result (Markdown, rendered without any markup
+    the text did not earn), the package's declared summary, every artifact with
+    **View** and **Download** (chunked, SHA-256 verified), and **Technical
+    details** — plan, invocation, input hash, model, tools and bindings,
+    permissions, usage, cost, audit chain, workers and every check re-verified
+    before start. A failed run names the node and check that stopped it; a
+    cancelled one says so.
+13. Repeat with `dist/meeting-agenda.agent.pkg`. No plugin code changes.
+
+The exact Literature Review demo, with timings, is in the [repository
+README](../README.md#demo-the-literature-review-agent-from-the-browser).
 
 ### The developer router probe
 
@@ -201,10 +237,11 @@ router existed, no workflow was instantiated, the result validated against the
 package's own output schema, the audit chain verifies, and the run plan is
 byte-identical afterwards. See [the tool broker](../docs/tool-broker.md).
 
-### Executing a package
+### Executing a package from a script
 
-Also not part of the page, and the first thing here that runs one. It spends
-real tokens on the selected model.
+The page's Run button is the normal path. The operator script below walks the
+same sequence through the Gateway, for automation and regression; it spends real
+tokens on the selected model.
 
 ```sh
 node scripts/run-meeting-agenda.mjs \
@@ -261,6 +298,10 @@ declares:
 | `src/run-manager.ts` | Ephemeral run records and lifecycle rules |
 | `src/control-ui.ts` | `defineControlUiPlugin`: the page and sidebar entry |
 | `src/ui/page.ts` | The page itself, mountable with a fake client in tests |
+| `src/ui/run.ts` | The Run panel: checklist, gate, start, progress, cancel, result, artifacts, technical details |
+| `src/ui/form.ts` | The task form, generated from the package's bundled input schema and validated hints |
+| `src/ui/markdown.ts` | Markdown for package-produced text, built from DOM calls only |
+| `src/ui/dom.ts` | Small DOM helpers; no markup from strings anywhere |
 
 Full architecture, trust semantics and limitations:
 [`docs/openclaw-agent-browser.md`](../docs/openclaw-agent-browser.md). Model

@@ -31,6 +31,9 @@ MIN_INTERVAL_SECONDS = 1.0
 SEND_TIMEOUT_SECONDS = 10.0
 MAX_COMPLETED = 128
 MAX_LISTED = 64
+# Per-worker rows a run surface can render. A run that spawns more keeps
+# counting in the totals; only the rows stop growing.
+MAX_WORKERS = 64
 # Node transitions are worth an immediate snapshot; everything else waits for
 # the interval.
 URGENT = frozenset({"node.started", "node.completed", "node.failed", "node.skipped"})
@@ -55,6 +58,11 @@ class ProgressTracker:
         self.active_nodes: dict[str, None] = {}
         self.completed_nodes: list[str] = []
         self.failed_nodes: list[str] = []
+        # Top-level nodes whose declared condition was false: they complete
+        # with their declared `otherwise` value, and a person should see that
+        # the step was skipped rather than performed.
+        self.skipped_nodes: list[str] = []
+        self.workers: dict[str, dict] = {}
         self.nodes_completed = 0
         self.steps_completed = 0
         self.workers_spawned = 0
@@ -86,6 +94,8 @@ class ProgressTracker:
                     self.nodes_completed += 1
                     if len(self.completed_nodes) < MAX_COMPLETED:
                         self.completed_nodes.append(node)
+                elif node not in self.skipped_nodes and len(self.skipped_nodes) < MAX_COMPLETED:
+                    self.skipped_nodes.append(node)
             elif action == "node.completed":
                 self.steps_completed += 1
         elif action == "node.failed" and top_level:
@@ -94,17 +104,49 @@ class ProgressTracker:
                 self.failed_nodes.append(node)
         elif action == "worker.spawned":
             self.workers_spawned += 1
+            worker = event.get("worker")
+            if isinstance(worker, str) and len(self.workers) < MAX_WORKERS:
+                self.workers[worker] = {
+                    "id": worker,
+                    "role": event.get("role") if isinstance(event.get("role"), str) else None,
+                    "node": node.split("/", 1)[0] if isinstance(node, str) else None,
+                    "state": "queued",
+                    "model_calls": 0,
+                    "tool_calls": 0,
+                    "_started": None,
+                    "duration_ms": None,
+                }
         elif action == "worker.started" and event.get("worker"):
             self.active_workers[event["worker"]] = None
             self.peak = max(self.peak, len(self.active_workers))
+            row = self.workers.get(event["worker"])
+            if row is not None:
+                row["state"] = "active"
+                row["_started"] = self._clock()
         elif action in {"worker.completed", "worker.failed"} and event.get("worker"):
             self.active_workers.pop(event["worker"], None)
+            row = self.workers.get(event["worker"])
+            if row is not None:
+                if action == "worker.completed":
+                    row["state"] = "completed"
+                else:
+                    row["state"] = (
+                        "cancelled" if event.get("error") == "CancelledError" else "failed"
+                    )
+                if row["_started"] is not None:
+                    row["duration_ms"] = round((self._clock() - row["_started"]) * 1000, 1)
         elif action == "model.called":
             self.model_started += 1
         elif action == "model.completed":
             self.model_completed += 1
+            row = self.workers.get(event.get("worker") or "")
+            if row is not None:
+                row["model_calls"] += 1
         elif action == "tool.called":
             self.tool_started += 1
+            row = self.workers.get(event.get("worker") or "")
+            if row is not None:
+                row["tool_calls"] += 1
         elif action == "tool.completed":
             self.tool_completed += 1
         if action == "budget.updated":
@@ -124,6 +166,7 @@ class ProgressTracker:
             "active_nodes": list(self.active_nodes)[:MAX_LISTED],
             "completed_nodes": list(self.completed_nodes),
             "failed_nodes": list(self.failed_nodes),
+            "skipped_nodes": list(self.skipped_nodes),
             "nodes_completed": self.nodes_completed,
             "steps_completed": self.steps_completed,
             "workers_spawned": self.workers_spawned,
@@ -136,6 +179,10 @@ class ProgressTracker:
             "tool_calls_completed": self.tool_completed,
             "tokens": self.tokens,
             "remote_calls": self.remote_calls,
+            "workers": [
+                {key: value for key, value in row.items() if not key.startswith("_")}
+                for row in self.workers.values()
+            ],
         }
 
     # -- sending -------------------------------------------------------------

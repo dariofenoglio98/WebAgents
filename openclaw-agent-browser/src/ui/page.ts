@@ -4,8 +4,12 @@
  * It is deliberately a pure function of feature-operation results: it renders
  * what the control plane reported and sends back explicit decisions. It never
  * decides whether a package is valid, whether a publisher is trusted, or
- * whether something is runnable, and it has no Run action at all — this
- * milestone stops at an authorization receipt.
+ * whether something is runnable.
+ *
+ * Its one way to execute anything is the Run panel (`run.ts`), which starts a
+ * run only when the backend's own preflight and the package's own input schema
+ * both accept exactly the plan and the task on screen — and the backend checks
+ * everything again when it starts. The page never calls a probe.
  */
 import type {
   FeatureErrorView,
@@ -17,7 +21,10 @@ import type {
   RunPlanStateViewType,
   ServiceStatusView,
   ToolRegistryViewType,
+  RunRecordViewType,
+  RunSummaryViewType,
 } from "../contract.js";
+import { RunPanel, renderRunList } from "./run.js";
 import {
   append,
   button,
@@ -135,6 +142,8 @@ export function mountAgentBrowser(container: HTMLElement, deps: PageDeps): () =>
   /** The model the operator explicitly chose. Never defaulted, never inferred. */
   let selectedModel: string | null = null;
   let disposed = false;
+  /** Runs this backend holds, across sessions, for reconnecting after a reload. */
+  let recentRuns: RunSummaryViewType[] = [];
 
   const root = el("section", { className: "agent-browser" });
   const header = el("header", { className: "ab-topbar" });
@@ -143,6 +152,13 @@ export function mountAgentBrowser(container: HTMLElement, deps: PageDeps): () =>
   const statusArea = el("div", { className: "ab-status", attrs: { "aria-live": "polite" } });
   const sessionArea = el("nav", { className: "ab-sessions", attrs: { "aria-label": "Open packages" } });
   const mainArea = el("main", { className: "ab-main" });
+  // Three stable regions: the package header, the Run panel, and the setup
+  // cards. Re-rendering the others never rebuilds the panel, so a person's
+  // cursor in the task form stays where it was while progress updates.
+  const topArea = el("div", { className: "ab-top" });
+  const runHost = el("div", { className: "ab-run-host" });
+  const setupArea = el("div", { className: "ab-setup" });
+  mainArea.append(topArea, runHost, setupArea);
 
   header.append(
     el(
@@ -151,7 +167,9 @@ export function mountAgentBrowser(container: HTMLElement, deps: PageDeps): () =>
       el("h1", { className: "ab-title", text: "Agent Browser" }),
       el("p", {
         className: "ab-subtitle",
-        text: "Open, verify and authorize a signed agent package. Nothing is executed here.",
+        text:
+          "Open, verify and authorize a signed agent package, then run it on a model you choose. " +
+          "Nothing runs until you press Run.",
       }),
     ),
     serviceArea,
@@ -163,6 +181,58 @@ export function mountAgentBrowser(container: HTMLElement, deps: PageDeps): () =>
 
   async function call<T>(operation: string, input: unknown): Promise<T> {
     return (await deps.invoke(operation, input)) as T;
+  }
+
+  const runPanel = new RunPanel({
+    call,
+    alive,
+    canWrite: deps.canWrite,
+    service: () => service,
+    loaded: () => loaded,
+    reveal: (section) => {
+      const target = root.querySelector<HTMLElement>(`[data-section="${section}"]`);
+      target?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+      target?.classList.add("ab-card-flash");
+      setTimeout(() => target?.classList.remove("ab-card-flash"), 1600);
+    },
+    changed: () => {
+      void refreshSessions();
+      void refreshRuns();
+    },
+  });
+
+  /** Every run this backend holds, newest first. Used to reconnect after a reload. */
+  async function refreshRuns(options: { reconnect?: boolean } = {}): Promise<void> {
+    const result = await call<Result<{ runs: RunSummaryViewType[]; active: RunRecordViewType | null }>>(
+      "execution.status",
+      {},
+    ).catch(() => null);
+    if (!alive() || !result || !result.ok) return;
+    recentRuns = [...result.value.runs].reverse();
+    if (options.reconnect && !loaded && result.value.active) {
+      const active = result.value.active;
+      if (sessions.some((session) => session.sessionId === active.sessionId)) {
+        await showSession(active.sessionId);
+      } else {
+        await openRun(active.runId);
+      }
+      return;
+    }
+    if (!loaded) renderMain();
+  }
+
+  async function openRun(runId: string): Promise<void> {
+    const record = recentRuns.find((item) => item.runId === runId);
+    if (record && sessions.some((session) => session.sessionId === record.sessionId)) {
+      if (loaded?.pkg.sessionId !== record.sessionId) await showSession(record.sessionId);
+      await runPanel.openRun(runId);
+      return;
+    }
+    // The run's package session is gone: show the run on its own.
+    loaded = null;
+    renderSessions();
+    await runPanel.openRun(runId);
+    renderMain();
   }
 
   function setBusy(label: string | null) {
@@ -201,10 +271,16 @@ export function mountAgentBrowser(container: HTMLElement, deps: PageDeps): () =>
             : "Control plane unavailable";
     serviceArea.append(chip(label, tone));
     if (service.controlPlane) {
+      // The control plane's own `execution` field says that it never runs a
+      // package itself; runs happen in a separate leased runner, so what the
+      // operator needs here is whether that runner is available.
       serviceArea.append(
         el("span", {
           className: "ab-service-detail",
-          text: `agentpkg ${service.controlPlane.agentpkgVersion} · ${service.controlPlane.packageFormat} · execution ${service.controlPlane.execution}`,
+          text: `agentpkg ${service.controlPlane.agentpkgVersion} · ${service.controlPlane.packageFormat} · ${service.executionSupported ? "runs available" : "runs unavailable"}`,
+          attrs: {
+            title: `The control plane verifies and authorizes (its own execution: ${service.controlPlane.execution}); a run executes in a separate runner started for that run only.`,
+          },
         }),
       );
     }
@@ -479,6 +555,7 @@ export function mountAgentBrowser(container: HTMLElement, deps: PageDeps): () =>
     tab = "overview";
     renderSessions();
     renderMain();
+    void runPanel.attachSession(pkg.sessionId);
     // Model discovery follows authorization: before a receipt exists there is
     // nothing a model could be bound to.
     if (loaded.receipt) void loadModels(pkg.sessionId);
@@ -558,7 +635,10 @@ export function mountAgentBrowser(container: HTMLElement, deps: PageDeps): () =>
     await call("run-plan.clear", { sessionId: current.pkg.sessionId }).catch(() => undefined);
     if (!alive()) return;
     setBusy(null);
-    loaded = { ...current, runPlan: { plan: null, preflight: null, executionSupported: false } };
+    loaded = {
+      ...current,
+      runPlan: { plan: null, preflight: null, executionSupported: Boolean(service?.executionSupported) },
+    };
     renderMain();
     void refreshSessions();
   }
@@ -568,9 +648,11 @@ export function mountAgentBrowser(container: HTMLElement, deps: PageDeps): () =>
     if (!alive()) return;
     if (loaded?.pkg.sessionId === sessionId) {
       loaded = null;
+      runPanel.detach();
       renderMain();
     }
     void refreshSessions();
+    void refreshRuns();
   }
 
   function unexpectedError(): FeatureErrorView {
@@ -583,10 +665,32 @@ export function mountAgentBrowser(container: HTMLElement, deps: PageDeps): () =>
   }
 
   // -- package rendering -----------------------------------------------------
+  function renderRecentRuns(): HTMLElement | null {
+    if (recentRuns.length === 0) return null;
+    return card(
+      "Recent runs",
+      el("p", {
+        className: "ab-hint",
+        text:
+          "Runs this Agent Browser holds. A finished run's result, artifacts and audit stay " +
+          "inspectable even after its package session has closed.",
+      }),
+      renderRunList(recentRuns.slice(0, 16), (runId) => void openRun(runId)),
+    );
+  }
+
   function renderMain() {
-    clear(mainArea);
+    clear(topArea);
+    clear(setupArea);
     if (!loaded) {
-      mainArea.append(
+      if (runPanel.currentRun() && !runPanel.hasSession()) {
+        if (!runHost.contains(runPanel.root)) runHost.append(runPanel.root);
+        runPanel.render();
+        append(setupArea, [renderRecentRuns()]);
+        return;
+      }
+      clear(runHost);
+      topArea.append(
         el(
           "div",
           { className: "ab-empty" },
@@ -596,11 +700,17 @@ export function mountAgentBrowser(container: HTMLElement, deps: PageDeps): () =>
           }),
         ),
       );
+      append(setupArea, [renderRecentRuns()]);
       return;
     }
     const { pkg } = loaded;
-    append(mainArea, [
-      renderHeaderCard(pkg),
+    topArea.append(renderHeaderCard(pkg));
+    if (!runHost.contains(runPanel.root)) {
+      clear(runHost);
+      runHost.append(runPanel.root);
+    }
+    runPanel.sync();
+    append(setupArea, [
       renderSecurityCard(pkg),
       renderWarnings(pkg),
       renderContentCard(pkg),
@@ -692,7 +802,7 @@ export function mountAgentBrowser(container: HTMLElement, deps: PageDeps): () =>
       trustBlock.append(renderTrustReview(pkg));
     }
 
-    return card(
+    return sectioned("trust", card(
       "Verification and trust",
       el("p", {
         className: "ab-hint",
@@ -701,7 +811,12 @@ export function mountAgentBrowser(container: HTMLElement, deps: PageDeps): () =>
       validation,
       signature,
       trustBlock,
-    );
+    ));
+  }
+
+  function sectioned(section: string, node: HTMLElement): HTMLElement {
+    node.dataset.section = section;
+    return node;
   }
 
   function trustExplanation(publisher: PackageViewType["publisher"]): string {
@@ -1139,7 +1254,7 @@ export function mountAgentBrowser(container: HTMLElement, deps: PageDeps): () =>
       node.append(block);
     }
 
-    return card(
+    return sectioned("permissions", card(
       "Permissions",
       el("p", {
         className: "ab-hint",
@@ -1151,11 +1266,12 @@ export function mountAgentBrowser(container: HTMLElement, deps: PageDeps): () =>
             "p",
             { className: "ab-hint" },
             ...permissions.unsupportedDecisions.map((item) =>
-              el("span", { text: `"${item.value}" is not offered: ${item.reason} ` }),
+              // The control plane's reason may itself open with "Not offered".
+              el("span", { text: `"${item.value}" is not offered: ${item.reason.replace(/^not offered:\s*/iu, "")} ` }),
             ),
           )
         : null,
-    );
+    ));
   }
 
   function renderPermission(permission: PermissionsViewType["permissions"][number]): HTMLElement {
@@ -1208,7 +1324,7 @@ export function mountAgentBrowser(container: HTMLElement, deps: PageDeps): () =>
       "Declared limits",
       el("p", {
         className: "ab-hint",
-        text: "These are limits the package declares and the agentpkg runtime enforces during a run. Nothing runs in this milestone, so nothing is being enforced yet.",
+        text: "These are limits the package declares; the agentpkg runtime enforces them during a run, and this host can only lower them.",
       }),
       definition([
         ["Estimated tokens", String(pkg.budget.estimatedTokens)],
@@ -1325,14 +1441,14 @@ export function mountAgentBrowser(container: HTMLElement, deps: PageDeps): () =>
     );
 
     if (!current?.receipt) {
-      return card(
+      return sectioned("model", card(
         "Model",
         declared,
         el("p", {
           className: "ab-hint",
           text: "Authorize this package first. A model is chosen for an authorized run, not for an inspection.",
         }),
-      );
+      ));
     }
 
     const body = el("div", { className: "ab-model" });
@@ -1346,7 +1462,7 @@ export function mountAgentBrowser(container: HTMLElement, deps: PageDeps): () =>
           button("Refresh models", () => void loadModels(pkg.sessionId, { announce: true })),
         );
       }
-      return card("Model", declared, body);
+      return sectioned("model", card("Model", declared, body));
     }
 
     body.append(
@@ -1432,7 +1548,7 @@ export function mountAgentBrowser(container: HTMLElement, deps: PageDeps): () =>
           "Nothing is selected for you, and preparing a run plan does not run anything.",
       }),
     );
-    return card("Model", declared, body);
+    return sectioned("model", card("Model", declared, body));
   }
 
   function renderModelList(catalog: ModelCatalogViewType): HTMLElement {
@@ -1630,10 +1746,17 @@ export function mountAgentBrowser(container: HTMLElement, deps: PageDeps): () =>
     node.append(
       el(
         "div",
-        { className: "ab-banner ab-banner-warn", attrs: { role: "status" } },
-        el("strong", { text: "Execution is not enabled in this build." }),
+        { className: "ab-banner ab-banner-good", attrs: { role: "status" } },
+        el("strong", {
+          text: state.executionSupported
+            ? "Run this plan from the Run panel above."
+            : "This host cannot run packages right now.",
+        }),
         el("p", {
-          text: "There is no Run action. The next milestone will execute this exact run plan, re-verifying the package, its signature, publisher trust, the authorization receipt and the model before anything runs.",
+          text:
+            "A run plan never runs by itself and never changes. Each Run re-verifies the package, " +
+            "its signature, publisher trust, the authorization, the tool bindings and the model " +
+            "against this plan, and is recorded as a separate run that references it.",
         }),
       ),
     );
@@ -1641,7 +1764,7 @@ export function mountAgentBrowser(container: HTMLElement, deps: PageDeps): () =>
       node.append(button("Discard run plan", () => void clearRunPlan(), { variant: "danger" }));
     }
     node.append(renderRunPlanDetails(plan, preflight));
-    return card("Run plan", node);
+    return sectioned("run-plan", card("Run plan", node));
   }
 
   function renderRunPlanDetails(
@@ -1795,11 +1918,13 @@ export function mountAgentBrowser(container: HTMLElement, deps: PageDeps): () =>
     node.append(
       el("p", {
         className: "ab-hint",
-        text: "No agent code has executed. This build has no run action; execution arrives in a later milestone.",
+        text:
+          "Authorizing runs nothing. A run starts only when you press Run, after a run plan is " +
+          "prepared, and everything is re-verified at that moment.",
       }),
     );
     if (current.receipt) node.append(renderReceiptDetails(current.receipt));
-    return card("Authorization", node);
+    return sectioned("authorization", card("Authorization", node));
   }
 
   function renderReceiptDetails(receipt: ReceiptViewType): HTMLElement {
@@ -1885,10 +2010,13 @@ export function mountAgentBrowser(container: HTMLElement, deps: PageDeps): () =>
   void (async () => {
     await refreshService();
     if (alive()) await refreshSessions();
+    // A reload must not lose a run: reconnect to one still in flight.
+    if (alive()) await refreshRuns({ reconnect: true });
   })();
 
   const dispose = () => {
     disposed = true;
+    runPanel.dispose();
     root.remove();
   };
   deps.signal.addEventListener("abort", dispose, { once: true });

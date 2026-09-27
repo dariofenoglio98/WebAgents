@@ -147,8 +147,24 @@ export type PreflightOptions = {
  * and so this layer does not depend on a remote verdict it cannot see inside.
  */
 export async function revalidate(options: PreflightOptions): Promise<PreflightOutcome> {
-  const { client, catalog, sessionId } = options;
   const revalidated: string[] = [];
+  try {
+    return await revalidateInto(options, revalidated);
+  } catch (error) {
+    // Which checks passed before the one that refused, for a readiness report.
+    // The refusal itself is unchanged.
+    if (error instanceof AgentBrowserError) {
+      (error as AgentBrowserError & { revalidated?: string[] }).revalidated = [...revalidated];
+    }
+    throw error;
+  }
+}
+
+async function revalidateInto(
+  options: PreflightOptions,
+  revalidated: string[],
+): Promise<PreflightOutcome> {
+  const { client, catalog, sessionId } = options;
   const state = record(await client.getRunPlan(sessionId));
   const plan = record(state.run_plan);
   const preflight = record(state.preflight);
@@ -243,8 +259,9 @@ export async function revalidate(options: PreflightOptions): Promise<PreflightOu
       "authorization_expiring",
       "This authorization is about to expire",
       `A run may take up to ${Math.round(required / 1000)}s, and this authorization has ` +
-        `${Math.max(0, Math.round(remainingMs / 1000))}s left. Authorize again before starting, ` +
-        "so consent cannot lapse in the middle of a run.",
+        `${Math.max(0, Math.round(remainingMs / 1000))}s left. An authorization lasts only as ` +
+        "long as its package session, so close the package, open it again, authorize and " +
+        "prepare a new run plan before starting — consent must not lapse in the middle of a run.",
     );
   }
   if (required > 0) revalidated.push("receipt_outlasts_run_deadline");

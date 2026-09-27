@@ -4,7 +4,11 @@ Everything here is derived from declared package structure. There are no
 package-ID, publisher, capability-name or application-domain branches: the two
 reference packages differ in this output only because their declarations
 differ. Raw instruction text, schema bodies and attestation contents are
-summarized by path/size/hash and never inlined.
+summarized by path/size/hash and never inlined — with one deliberate exception:
+the **task input schema**, which is the contract a person fills in to start a
+run, is included as one bounded self-contained document so a browser can render
+a form from it. Presentation hints from the noncritical `agentpkg:presentation`
+extension are included only after validation (`presentation.py`).
 """
 
 from __future__ import annotations
@@ -13,6 +17,7 @@ import copy
 from urllib.parse import urlsplit
 
 from ..package import Package, permissions_summary, sha256
+from .presentation import EXTENSION_KEY, input_form, presentation_hints
 
 SCHEMA = "agentpkg-browser-summary-v0"
 MAX_LISTED_KEYS = 32
@@ -165,6 +170,9 @@ def _workflow(package: Package) -> dict:
             for export in graph.get("exports", [])
         ],
         "fixture_declared": "fixture" in graph,
+        # The task a person fills in, and the package's cosmetic hints for it.
+        "input": input_form(package),
+        "presentation": presentation_hints(package)[0],
     }
 
 
@@ -320,6 +328,13 @@ def warnings(package: Package, evaluation: dict, publisher: dict) -> list:
             "update_locator_declared",
             "info",
             "An update locator is declared. Updates are never fetched automatically.",
+        )
+    hints, notes = presentation_hints(package)
+    if package.graph.get("extensions", {}).get(EXTENSION_KEY) is not None and notes:
+        warn(
+            "presentation_ignored" if hints is None else "presentation_hints_adjusted",
+            "info",
+            "Some presentation hints were not used: " + "; ".join(notes)[:900],
         )
     if not package.manifest["evals"]:
         warn("no_evals_declared", "info", "The package declares no evaluations.")

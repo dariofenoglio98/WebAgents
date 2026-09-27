@@ -70,8 +70,8 @@ those two with the generic interpreter and **runs a signed package**. It receive
 the control plane's immutable snapshot as a one-time lease over an inherited
 descriptor, re-verifies its hash, digest, identity, signature and signer, carries
 the person's decisions through unchanged, applies host limits that can only lower
-package budgets, and calls `Workflow.run`. Execution is operator-only: there is
-still no Run button on the page.
+package budgets, and calls `Workflow.run`. Since milestone 3C the Agent Browser
+page starts it too, through the same operation and the same re-verification.
 
 A fourth namespace, [`agentpkg.toolbridge`](docs/tool-broker.md), is the tool
 half of the same shape: one generic `ToolHandler` with no transport, no
@@ -108,9 +108,15 @@ the control-plane bearer token in the Gateway process, and is the only place tha
 knows what OpenClaw is; the browser half holds no credentials and reimplements no
 verification, trust, permission or compatibility logic.
 
-**The page runs nothing.** It stops at a prepared run plan and calls no
-execution operation, which a test asserts. Execution exists behind operator-only
-`execution.*` operations that never reach the Control UI.
+**The page runs what it authorized** (milestone 3C). A task form generated from
+the package's own input schema, a Run button that opens only when every check
+holds and says precisely why it does not, live progress from the run's own
+record, Cancel, reconnect after a reload, the result rendered as safe Markdown,
+artifacts to view and download, and the technical audit, usage and provenance.
+Run sends only `{sessionId, runPlanId, runPlanSha256, input, files, detach}`;
+the model, tools and files all resolve through state the session already
+authorized, and everything is re-verified before anything executes. There is no
+chat and no general execution API.
 
 ```sh
 cd openclaw-agent-browser && npm install && npm run build && npm run validate && npm run pack
@@ -139,4 +145,94 @@ for that package was refused by name; 3B4 supplied both — see below.)
 
 The **Literature Review agent has now run for real** (milestone 3B4): `literature-review` 0.2.1, signed by its own key, completed through the signed graph on a local `ollama/qwen3:30b` against live Crossref and the live Citation Resolver — 16 model calls all on the bound model, 3 searches, 3 resolutions, peak 3 concurrent workers, 120,242 tokens, $0, a valid 404-event audit, every package assertion and 28 of 28 independent acceptance checks passing, and the run plan byte-identical afterwards. Getting there took two new host tools (a Crossref adapter whose request shape is host code, and a reader of operator-selected PDFs by opaque capability), a measured bounded-work and timing policy, an output contract stated where the package's own validation already required it, and three refused attempts, each classified from its audit. The [milestone report](docs/literature-review-execution-report.md) has every change, the evidence behind it, the model comparison, the runs and what the agent wrote.
 
-The existing [OpenClaw staging adapter](docs/openclaw-integration.md) still verifies and stages either package. A user-facing Run action and live audit UI, per-worker or per-node model routing, persistent run history, browser file upload, Muse-specific connectors, Instinct, Maritime, NANDA, registries and marketplace features are not implemented yet.
+The existing [OpenClaw staging adapter](docs/openclaw-integration.md) still verifies and stages either package. Per-worker or per-node model routing, a run history database (a finished run is re-read from its own run directory, read-only), browser file upload, conversation or service profiles, Muse-specific connectors, Instinct, Maritime, NANDA, registries and marketplace features are not implemented — see [future work](#after-the-demo-future-work).
+
+## Demo: the Literature Review agent from the browser
+
+Milestone 3C. Everything below happens in the OpenClaw Control UI; no operator
+script is involved. The accepted UI-started run and its evidence are in the
+[milestone report](docs/demo-experience-report.md) and
+[`ui-acceptance-3c.json`](examples/verification/ui-acceptance-3c.json).
+
+**Once per host** (already true on the development host): the plugin is built,
+packed and installed as in its
+[README](openclaw-agent-browser/README.md#build-verify-and-install) with
+`localPackages.roots` containing this repository's `dist/`,
+`llm.allowModelOverride: true`, `sessionTtlSeconds: 7200` and the `execution`
+bounds listed there (`runTimeoutSeconds: 4500`); **Settings → Labs → Custom
+plugin UI** is on; and the Literature Review signing key
+`sha256:c5ca9763…5232` is pinned for `org.webagents.literature-review` (step 5
+shows how if it is not).
+
+1. **Start the OpenClaw Gateway.** `openclaw gateway status` should say
+   *running* and *Connectivity probe: ok*; otherwise `openclaw gateway start`
+   (or `openclaw gateway restart` after installing the plugin).
+2. **Ensure Ollama is available.** `ollama list` shows `qwen3:30b`. Nothing needs
+   to be loaded by hand: the first model call loads it.
+3. **Open Agent Browser.** `openclaw dashboard` opens the Control UI; choose
+   **Agent Browser** in the sidebar. The header reads *Control plane running*
+   and *runs available*.
+4. **Open the Literature Review package.** Expand *Open a local package
+   (operator directories)*, enter `<repo>/dist/literature-review.agent.pkg`,
+   press **Open file**. The Run panel opens at the top with *✓ Package
+   verified*; **Verification and trust** shows Container, Integrity, Schema and
+   Runtime valid, the signature cryptographically valid, and signer
+   `sha256:c5ca9763…5232`.
+5. **Trust and permissions.** If the publisher is not yet trusted, use *Review
+   publisher key* → *Trust this publisher key* (press twice). In
+   **Permissions** set `network.scholarly`, `network.citations`,
+   `memory.session` and `model.reasoning` to *Allow for session* and leave
+   `files.pdfs` on *Deny*; tick the three **Tool approvals**; press
+   **Authorize** (*The package has NOT executed*). **Package contents → Tools**
+   now shows each host implementation — `openclaw:scholarly-search:1`
+   (Crossref), `openclaw:citation-resolver:1`, `openclaw:paper-reader:1`.
+6. **Select the model.** In **Model**, choose **qwen3:30b** from the list this
+   host reports. Nothing is preselected, and the page names no model itself.
+7. **Prepare the Run Plan.** Press **Prepare run** → **Ready to run**, with the
+   run plan's id and hash.
+8. **Enter the research question** in the Run panel: *What defenses have been
+   proposed against prompt injection attacks on LLM-integrated applications?*
+   Leave *Optional* (no documents, no seed papers) and *Advanced* (mode `live`)
+   as they are. Every checklist line turns ✓, including *Authorization valid for
+   N more min (a run may take up to 76 min)*.
+9. **Run.** Press **Run Research**.
+10. **Inspect progress.** Planning → Scholarly search → Screening → Citations →
+    Evidence extraction → Synthesis → Writing → Verification, each fan-out's
+    workers, and the model, tool and remote calls and tokens, all from the
+    run's own record. **Cancel** stops a run within seconds; reloading the page
+    reconnects to it.
+11. **Inspect the result, artifacts and audit.** *✓ Research completed*, the
+    **Related work**, the **Summary** (papers included, evidence items, claims
+    verified, unresolved), **Artifacts** with View and Download (SHA-256
+    verified), and **Technical details** (plan, model and every call on it,
+    tools and bindings, permissions, usage, cost, audit chain, workers,
+    re-verified checks). A run that finds nothing grounded completes too, with
+    *No sufficiently grounded literature found* and empty tables — a correct
+    outcome, not an error.
+
+**Timing — it is not instantaneous.** On this Mac with `qwen3:30b` a run takes
+tens of minutes: the accepted UI-started run took 27 min 10 s (17 model calls,
+9 tool calls, 107,284 tokens, $0); earlier ones took about 40 minutes. Start
+the run within about 44 minutes of opening the package, because the
+authorization must outlast the whole run deadline. For a presentation,
+**pre-start a live run** before the audience arrives, show a completed real run
+from **Recent runs** for the results, and walk through the fresh run's first
+stages live.
+
+### After the demo: future work
+
+Recorded as post-demo work and deliberately not implemented in 3C:
+
+- **Scholarly search federation.** Today `scholarly-search` → Crossref. Next:
+  host-federated scholarly search → Crossref + arXiv + OpenAlex, optionally
+  Semantic Scholar — better recent-AI coverage, arXiv-first papers, better
+  metadata and abstract availability, and source redundancy. The package still
+  requests the *same* abstract capability, `scholarly-search`; only the host's
+  implementation changes, so no package or runtime redesign is needed.
+  Crossref-only coverage is why a run on a recent AI topic such as prompt
+  injection may include only a few papers.
+- **Execution profiles.** `conversation.v0` and `service.v0`. For now
+  `workflow.v0` = one input → one run → one result; there is no chat.
+- NANDA discovery and remote package locators; Muse / Instinct; Maritime /
+  sandboxed deployment; persistent authorization (*Always*); richer evals and
+  attestations; a package update UX; model-provider redundancy.

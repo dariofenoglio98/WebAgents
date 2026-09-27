@@ -179,9 +179,7 @@ class BridgePeer:
                 return
             # An answer to a request we never sent means the streams no longer
             # agree about what is outstanding.
-            raise protocol.ProtocolError(
-                "protocol_violation", "Response for an unknown request id"
-            )
+            raise protocol.ProtocolError("protocol_violation", "Response for an unknown request id")
         if future.done():
             return
         if frame["ok"] is True:

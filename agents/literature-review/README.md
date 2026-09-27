@@ -1,8 +1,22 @@
 # Literature Review Agent — workflow.v0
 
-Version 0.2.1 is a data-only package executed by the same generic interpreter as Meeting Agenda. `MANIFEST.agent` selects `workflow.v0`; **graph.json is the only authoritative execution graph**. The seven skills describe domain behavior; schemas and declared validation assertions enforce the structured contracts.
+Version 0.2.2 is a data-only package executed by the same generic interpreter as Meeting Agenda. `MANIFEST.agent` selects `workflow.v0`; **graph.json is the only authoritative execution graph**. The seven skills describe domain behavior; schemas and declared validation assertions enforce the structured contracts.
 
 The graph performs planning, seed resolution, parallel search, join/normalization/deduplication, parallel screening, citation resolution, evidence preparation and parallel extraction, synthesis, writing, verification and declared exports. Citation Resolver remains a remote tool consumed through its existing contract. Conditional selected-PDF reads remain worker-local. Exact quote/page checks, record links and resolver metadata checks use generic validation nodes.
+
+## 0.2.2: globally unique evidence ids, and an honest empty result
+
+Two corrections found in the accepted 0.2.1 run. Nothing else changed: the permissions, network policy, budgets, tool contracts, timing policy and every 0.2.1 validation assertion are byte-identical, and each change below either adds a check or removes work that had nothing to work on.
+
+**Evidence ids are unique across the whole run.** In 0.2.1 each extraction worker numbered its own paper's evidence (`e1`, `e2`, …) and `join-evidence` kept the first record per `evidence_id`, so two papers' `e1` collided and genuine evidence was dropped (three of ten items in the accepted run). In 0.2.2:
+
+- an evidence id is its paper's `paper_id`, a colon, and `e1`–`e4` — for example `10.1234/abc:e2` — which is stable, meaningful and deterministic for a given paper and position (evidence-extraction skill 0.1.2; synthesis and writing skills 0.1.2 copy ids exactly);
+- `join-evidence` concatenates every worker's evidence and removes nothing;
+- a new `check-evidence` node relates the evidence list to itself, so a duplicated id refuses the run (`duplicate_target_key`) instead of one record silently replacing another.
+
+**No evidence, no review.** When nothing survives screening, resolution or extraction, 0.2.1 still asked the writer and verifier for a review, and the final checks then refused the unsupported claims. In 0.2.2 the graph terminates honestly: `prepare-evidence` runs only when a paper was resolved, `synthesis` only when there is evidence, and `writing` and `verification` only when there are claims. Otherwise each node takes its declared empty value, and the result is a valid review with no claims, no bibliography, no evidence table and no verification results, whose `related_work` is the package's own fixed statement that no sufficiently grounded literature was found within this bounded search. Unresolved citations are still reported. The final `validate-output` assertions are unchanged and still run.
+
+**Presentation metadata.** `graph.json` `extensions` carries `agentpkg:presentation`: human-readable node and stage labels, input widget hints and the result summary a browser may render. It is noncritical: it grants nothing, changes no execution, and a host that ignores it runs the package identically. The workflow input schema gained JSON Schema annotations (titles, descriptions, defaults, an example) with every validation keyword unchanged.
 
 ## 0.2.1: a bounded review, a measured timing policy, and an explicit output contract
 
@@ -30,7 +44,7 @@ No assertion was removed or loosened: exact quote containment, record links, res
 
 ## Replay fixture
 
-`fixtures/workflow.json` owns the exact-input model/tool replay scenario. It is synthetic: three searches of three results each (nine raw candidates, eight after deduplication by DOI), eight screening decisions, three selected papers, three citation resolutions (two resolved, one ambiguous), two bibliography entries and seven evidence items, four of them from a selected PDF. Replay does not infer answers to new questions or establish model quality. The original fixture dataset and application schemas remain available; old specialized eval definitions are historical data and are not claimed as the new generic eval harness.
+`fixtures/workflow.json` owns the exact-input model/tool replay scenario; in 0.2.2 its evidence ids follow the `<paper_id>:e<n>` contract. It is synthetic: three searches of three results each (nine raw candidates, eight after deduplication by DOI), eight screening decisions, three selected papers, three citation resolutions (two resolved, one ambiguous), two bibliography entries and seven evidence items, four of them from a selected PDF. Replay does not infer answers to new questions or establish model quality. The original fixture dataset and application schemas remain available; old specialized eval definitions are historical data and are not claimed as the new generic eval harness.
 
 ```sh
 # Run from repository root, with a new output directory.
