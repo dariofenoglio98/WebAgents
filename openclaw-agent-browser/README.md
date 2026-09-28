@@ -70,7 +70,7 @@ experimental; pin and retest on a different host version.
 cd openclaw-agent-browser
 npm install                 # links the pinned openclaw peer for types and tooling
 npm run typecheck
-npm test                    # 391 tests; the integration ones drive a real agentpkgd and runner
+npm test                    # 393 tests; the integration ones drive a real agentpkgd and runner
 npm run build               # tsc + `openclaw plugins build` (manifest + UI bundle)
 npm run validate            # openclaw plugins validate --json
 npm run pack                # openclaw plugins pack --json  -> agent-browser.tgz

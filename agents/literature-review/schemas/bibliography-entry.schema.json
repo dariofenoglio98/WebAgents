@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "A final bibliography entry: the verifier's row plus the Citation Resolver's best_match for that paper, selected by paper id.",
+  "type": "object",
+  "properties": {
+    "reference": {
+      "type": [
+        "integer",
+        "string"
+      ]
+    },
+    "paper_id": {
+      "type": "string"
+    },
+    "metadata": {
+      "$ref": "resolver-output.schema.json#/$defs/Paper"
+    }
+  },
+  "required": [
+    "reference",
+    "paper_id",
+    "metadata"
+  ],
+  "additionalProperties": false
+}

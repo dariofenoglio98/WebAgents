@@ -181,12 +181,15 @@ def validate_payload(files: dict[str, bytes]):
         return value
 
     manifest = document("MANIFEST.agent", "manifest")
-    if tuple(int(x) for x in manifest["runtime"]["minimum_version"].split("-")[0].split(".")) > (
-        0,
-        2,
-        0,
-    ):
-        raise ValidationError("manifest runtime.minimum_version exceeds reference runtime 0.2.0")
+    from . import __version__
+
+    def release(version):
+        return tuple(int(x) for x in version.split("-")[0].split("."))
+
+    if release(manifest["runtime"]["minimum_version"]) > release(__version__):
+        raise ValidationError(
+            f"manifest runtime.minimum_version exceeds reference runtime {__version__}"
+        )
     workflow = manifest["entrypoint"] == "workflow.v0"
     graph = document(manifest["graph"], "workflow" if workflow else "graph")
     policy = document(manifest["policy"], "policy")

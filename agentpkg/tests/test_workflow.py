@@ -441,13 +441,32 @@ def test_source_quote_constraint_rejects_fabrication(tmp_path):
     assert "fabricated" not in json.dumps(audit)
 
 
-def test_a_final_bibliography_that_is_not_the_resolver_record_is_attributed(tmp_path):
+def test_a_verifier_cannot_supply_bibliographic_metadata(tmp_path):
+    """Since 0.2.3 the verifier's rows are {reference, paper_id}; metadata is refused."""
     path = source(tmp_path, "literature-review")
 
     def alter(f):
-        f["models"]["verify"][0]["output"]["bibliography"][0]["metadata"]["title"] += " (edited)"
+        resolution = f["tools"]["citation-resolver"][0]["output"]["best_match"]
+        f["models"]["verify"][0]["output"]["bibliography"][0]["metadata"] = resolution
 
     change(path / "fixtures/workflow.json", alter)
+    with pytest.raises(WorkflowError) as caught:
+        execute(load_package(path))
+    assert caught.value.node_id == "verification"
+    assert caught.value.code == "schema_validation"
+
+
+def test_a_final_bibliography_that_is_not_the_resolver_record_is_attributed(tmp_path):
+    path = source(tmp_path, "literature-review")
+
+    def alter(graph):
+        (node,) = [n for n in graph["nodes"] if n["id"] == "bibliography"]
+        fixture = json.loads((path / "fixtures/workflow.json").read_text())
+        record = fixture["tools"]["citation-resolver"][0]["output"]["best_match"]
+        record = dict(record, title=record["title"] + " (edited)")
+        node["steps"][0]["input"]["object"]["metadata"] = {"literal": record}
+
+    change(path / "graph.json", alter)
     with pytest.raises(WorkflowError) as caught:
         execute(load_package(path))
     assert caught.value.node_id == "validate-output"

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "A bibliography row as the verifier writes it: which cited resolved paper, under which reference. Bibliographic metadata is attached by the workflow from the resolver's own record, never written by the model.",
+  "type": "object",
+  "properties": {
+    "reference": {
+      "type": [
+        "integer",
+        "string"
+      ]
+    },
+    "paper_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "reference",
+    "paper_id"
+  ],
+  "additionalProperties": false
+}

@@ -110,8 +110,9 @@ def test_unrelated_packages_yield_structurally_different_summaries(tmp_path):
     assert len(review["skills"]) == 7 and len(agenda["skills"]) == 3
     assert len(review["tools"]) == 3 and agenda["tools"] == []
     assert len(review["workers"]) == 9 and len(agenda["workers"]) == 4
-    # 0.2.2 added `check-evidence`, which refuses colliding evidence ids.
-    assert review["workflow"]["node_count"] == 18
+    # 0.2.2 added `check-evidence`, which refuses colliding evidence ids; 0.2.3
+    # added `bibliography` and `assemble-output`, which attach resolver metadata.
+    assert review["workflow"]["node_count"] == 20
     assert agenda["workflow"]["node_count"] == 6
     assert review["policy"]["network"]["allowed_domains"]
     assert agenda["policy"]["network"]["allowed_domains"] == []

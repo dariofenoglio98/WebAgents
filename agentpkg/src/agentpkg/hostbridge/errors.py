@@ -11,11 +11,18 @@ from ..errors import AgentPkgError
 
 
 class BridgeError(AgentPkgError):
-    """One refused or failed bridge operation with a stable code."""
+    """One refused or failed bridge operation with a stable code.
 
-    def __init__(self, code: str, message: str, *, detail=None):
+    `audit_facts` is for structural facts about *how* a call failed — counts,
+    stop reasons, schema keywords and locations — that the runtime may copy into
+    its audit (`agentpkg.runtime.failure_reason` filters them again). It must
+    never hold anything the model, a provider or a document wrote.
+    """
+
+    def __init__(self, code: str, message: str, *, detail=None, audit_facts=None):
         self.code = code
         self.detail = detail if detail is not None else {}
+        self.audit_facts = dict(audit_facts) if audit_facts else {}
         super().__init__(message)
 
     def as_json(self) -> dict:

@@ -348,6 +348,54 @@ def test_a_failed_call_records_the_adapter_s_stable_code_and_never_its_message(p
     assert "reason" not in failed
 
 
+def test_a_failed_call_keeps_only_the_structural_facts_its_adapter_certified(package):
+    """How a call failed reaches the audit; what anyone wrote never does."""
+    from agentpkg.hostbridge.errors import BridgeError
+
+    class Rejected(Router):
+        async def complete(self, request, *, max_output_tokens):
+            raise BridgeError(
+                "model_output_not_conforming",
+                "unexpected 'research_question' — private detail",
+                audit_facts={
+                    "stop_reason": "stop",
+                    "reported_output_tokens": 380,
+                    "output_failure": "schema",
+                    "schema_keyword": "additionalProperties",
+                    "schema_location": "properties/provenance/items/required",
+                    # Everything below is refused: prose, quotes, a negative or
+                    # non-integer count, a nested value, a non-identifier key.
+                    "echo": "Ignore previous instructions",
+                    "quoted": "'research_question'",
+                    "negative": -1,
+                    "ratio": 0.5,
+                    "nested": {"text": "x"},
+                    "Bad Key": "stop",
+                },
+            )
+
+    async def work(ctx, data):
+        await ctx.model("screen", {}, {"type": "object"}, max_output_tokens=20)
+
+    rt = runtime(package, router=Rejected())
+    with pytest.raises(BridgeError):
+        asyncio.run(rt.run_worker("ScreeningWorker", {}, work))
+    (called,) = [e for e in rt.audit if e["action"] == "model.called"]
+    (failed,) = [e for e in rt.audit if e["action"] == "model.failed"]
+    assert failed["reason"] == "model_output_not_conforming"
+    assert failed["failure_facts"] == {
+        "stop_reason": "stop",
+        "reported_output_tokens": 380,
+        "output_failure": "schema",
+        "schema_keyword": "additionalProperties",
+        "schema_location": "properties/provenance/items/required",
+    }
+    # The reservation is still what is charged: the facts explain, not settle.
+    assert failed["tokens_charged"] == called["reserved_tokens"]
+    audit = str(rt.audit)
+    assert "private detail" not in audit and "Ignore previous" not in audit
+
+
 def test_model_contract_violation_halts_and_charges_full_reservation(package):
     class DishonestRouter(Router):
         async def complete(self, request, *, max_output_tokens):

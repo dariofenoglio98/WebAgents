@@ -19,6 +19,17 @@ def edit(path, operation):
     path.write_text(json.dumps(doc))
 
 
+def _lookup(members, *, key="/id", equals=None, path=""):
+    return {
+        "lookup": {
+            "in": members,
+            "key": key,
+            "equals": equals or {"literal": "x"},
+            "path": path,
+        }
+    }
+
+
 @pytest.fixture
 def source(tmp_path):
     p = tmp_path / "source"
@@ -58,6 +69,33 @@ def source(tmp_path):
         (
             lambda g: g["nodes"][0].update(input={"from": "state", "path": "/perspectives"}),
             "state_read",
+        ),
+        # A keyed selection is checked like any other projection: both operands
+        # stay inside the role's state view and earlier steps, and its shape is closed.
+        (
+            lambda g: g["nodes"][0].update(
+                input=_lookup({"from": "state", "path": "/perspectives"})
+            ),
+            "state_read",
+        ),
+        (
+            lambda g: g["nodes"][0].update(
+                input=_lookup({"literal": []}, equals={"from": "state", "path": "/agenda"})
+            ),
+            "state_read",
+        ),
+        (
+            lambda g: g["nodes"][1]["steps"][0].update(
+                input=_lookup({"literal": []}, equals={"from": "steps", "path": "/later"})
+            ),
+            "forward step",
+        ),
+        (lambda g: g["nodes"][0].update(input=_lookup({"literal": []}, key="")), "not valid"),
+        (
+            lambda g: g["nodes"][0].update(
+                input={"lookup": {**_lookup({"literal": []})["lookup"], "default": None}}
+            ),
+            "not valid",
         ),
         (lambda g: g["nodes"][0]["writes"].update({"/request": {"literal": {}}}), "state_write"),
         (lambda g: g["nodes"][0]["writes"].update({"/plan/focus": {"literal": []}}), "state_write"),

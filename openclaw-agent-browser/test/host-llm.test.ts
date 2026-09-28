@@ -130,6 +130,74 @@ describe("constrained output requests", () => {
   });
 });
 
+describe("structured-output plumbing for a hosted provider", () => {
+  // The screen node's schema as `Workflow._model_schema` bundles it: a `$ref`
+  // root into `$defs`, closed objects, nullable unions and an enum.
+  const BUNDLED_PAPER = {
+    $ref: "#/$defs/s9",
+    $defs: {
+      s9: {
+        $schema: "https://json-schema.org/draft/2020-12/schema",
+        type: "object",
+        required: ["paper_id", "screening_status"],
+        properties: {
+          paper_id: { type: "string" },
+          doi: { type: ["string", "null"] },
+          screening_status: { enum: ["include", "maybe", "exclude", "pending"] },
+        },
+        additionalProperties: false,
+      },
+    },
+  };
+
+  it("sends an OpenAI-bound request the whole bundled schema, not a provider-specific form", async () => {
+    const { host, calls } = llm({ provider: "openai", model: "gpt-5.6-luna" });
+    const outcome = await completeWithBoundModel(host, {
+      modelId: "openai/gpt-5.6-luna",
+      system: "s",
+      user: "u",
+      outputSchema: BUNDLED_PAPER,
+      maxOutputTokens: 12000,
+      reasoning: "low",
+    });
+    expect(calls[0]).toMatchObject({ model: "openai/gpt-5.6-luna", maxTokens: 12000 });
+    // Same shape as for any other provider: OpenClaw's canonical json_schema,
+    // the root inlined and `$defs` kept so the document stays closed.
+    expect(calls[0].responseFormat).toEqual({
+      type: "json_schema",
+      json_schema: {
+        name: RESPONSE_FORMAT_NAME,
+        schema: {
+          type: "object",
+          required: ["paper_id", "screening_status"],
+          properties: BUNDLED_PAPER.$defs.s9.properties,
+          additionalProperties: false,
+          $defs: BUNDLED_PAPER.$defs,
+        },
+      },
+    });
+    // Requested is all this file can know: the route is chosen after auth
+    // resolution, and OpenClaw's native Codex backend drops the format.
+    expect(outcome.constrained).toBe(true);
+    expect(outcome.constraintDetail).toContain("does not report it");
+    expect(outcome.constraintDetail).toContain("not assumed");
+  });
+
+  it("hands every stop reason through unchanged for the router to classify", async () => {
+    for (const stopReason of ["stop", "length", "error", "aborted"]) {
+      const { host } = llm({ stopReason, text: stopReason === "stop" ? '{"status":"ok"}' : "" });
+      const outcome = await completeWithBoundModel(host, {
+        modelId: "acme/big",
+        system: "s",
+        user: "u",
+        outputSchema: SCHEMA,
+        maxOutputTokens: 64,
+      });
+      expect(outcome.stopReason).toBe(stopReason);
+    }
+  });
+});
+
 describe("exact model binding", () => {
   it("always names the bound model and passes the cap and schema through", async () => {
     const { host, calls } = llm();

@@ -75,8 +75,9 @@ describe.runIf(runs)("backend feature operations", () => {
   });
 
   it.each([
-    // Literature Review 0.2.2 added `check-evidence`: 18 nodes.
-    ["literature-review", REVIEW, "org.webagents.literature-review", LITERATURE_KEY_FINGERPRINT, 7, 3, 9, 18],
+    // Literature Review 0.2.2 added `check-evidence`; 0.2.3 added `bibliography`
+    // and `assemble-output`: 20 nodes.
+    ["literature-review", REVIEW, "org.webagents.literature-review", LITERATURE_KEY_FINGERPRINT, 7, 3, 9, 20],
     ["meeting-agenda", AGENDA, "org.webagents.meeting-agenda", AGENDA_KEY_FINGERPRINT, 3, 0, 4, 6],
   ])(
     "opens %s through the same generic path",

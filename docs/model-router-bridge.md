@@ -236,19 +236,66 @@ silence.
 
 ### Structured output
 
-Two layers, both always applied:
+Three layers, all always applied:
 
 1. **request-side.** The schema is sent as OpenClaw's canonical json_schema
-   response format. On 2026.9.5 the OpenAI Responses transport maps it onto
-   `text.format` and Chat Completions passes it through to `response_format`;
-   Anthropic, Google and Mistral transports ignore `responseFormat` entirely.
-   The result records `constrained_by_host` honestly rather than assuming it.
-   A schema without an object root, or above 64 KiB, cannot carry a
-   provider-native constraint and is reported as unconstrained.
-2. **response-side, unconditional.** A strict `json.loads`; then, in one bounded
+   response format, and whether it reaches the provider is the route's
+   decision, which OpenClaw does not report back. Read from the installed
+   2026.9.5 transports and confirmed with `OPENCLAW_DEBUG_MODEL_PAYLOAD=summary`:
+   the native Ollama transport maps it onto `format` (constrained decoding);
+   Chat Completions passes it to `response_format`; the managed OpenAI
+   Responses request builder maps it onto `text.format` (no `strict` flag),
+   while the plain `openai-responses` provider stream does not read it — which
+   one an OpenAI Platform route takes was not observable here, as this host has
+   no such route; Anthropic, Google and Mistral transports ignore it. On the **native Codex
+   Responses backend** — the ChatGPT sign-in route (`openai-chatgpt-responses`,
+   `chatgpt.com/backend-api/codex`), which is how this host serves `openai/*`
+   models — `sanitizeOpenAICodexResponsesParams` deletes `text.format` *and*
+   `max_output_tokens` before the request leaves the host; the payload that
+   leaves is `include, input, instructions, model, prompt_cache_key, reasoning,
+   store, stream`. The result's `constrained_by_host` therefore means *requested*
+   (see §11). A schema without an object or array root, or above 64 KiB, is not
+   requested at all and is reported as unconstrained.
+2. **prompt-side.** The schema always travels in the system prompt, and because
+   the constraint may be dropped silently, a **closed object root** (after
+   following a bundled `#/$defs` root reference) also has its exact top-level
+   property names stated in words (`closed_root_properties`). This is derived
+   from the schema, counted like every other byte, and changes nothing about
+   what is accepted.
+3. **response-side, unconditional.** First the host's stop reason: `stop` (or
+   none reported) is a finished turn; `length` is `model_output_truncated`;
+   anything else is `model_turn_failed` — OpenClaw 2026.9.5 reports a provider
+   error, a refusal and a content filter alike as `error`, so they are not told
+   apart, but none is ever parsed as an answer or reported as bad output. A
+   finished turn's text gets a strict `json.loads`; then, in one bounded
    attempt, a fenced-block or first-balanced-value extraction; then
    `Draft202012Validator` against the exact `output_schema`. A failure is
-   `model_output_not_conforming`.
+   `model_output_not_conforming`. (A refusal an OpenAI route delivers as
+   ordinary text with stop reason `stop` lands here, as non-JSON output.)
+
+Every classified failure carries `audit_facts` — the stop reason, the usage the
+host reported, and for a non-conforming answer whether it was `not_json` or a
+`schema` failure and which JSON Schema keyword failed at which schema location
+— which the runtime records as `failure_facts` on `model.failed`. Nothing the
+model wrote is among them: not the offending key, not its value.
+
+Measured on this host with the exact Literature Review node requests
+(`openai/gpt-5.6-luna` over the Codex backend, so unconstrained): before the
+closed-root contract, 6 of 48 screen answers added one undeclared top-level
+property — the input's `research_question`, copied into the answer — and were
+rightly refused, while 24 of 24 answers for the other eight tasks conformed. A
+generic "add no property the schema does not declare" sentence cut that to 1 of
+60, the one failure being an invented key. Naming the closed top-level set —
+the wording shipped — gave 60 of 60, and so did a variant that also warned about
+nested properties, which is why the shipped sentence says nothing about them.
+`ollama/qwen3:30b`, which is constrained, conformed on every call either way.
+
+That is not the end of it for a long, copy-heavy answer. On the live run's own
+`prepare-evidence` input (three resolved citation records, ~23 KB of answer),
+unconstrained Luna produced a malformed document about 1 time in 12 under every
+wording — refused, as it must be — and about 1 time in 12 a *schema-valid*
+answer that dropped every evidence job. No schema can catch the second; only
+the package can (§11).
 
 There is deliberately **no repair loop**. A second call to fix the first would
 spend tokens the runtime already reserved against one completion, and would make
@@ -446,9 +493,34 @@ English text, so a request close to the context window may be refused that a
 real tokenizer would admit. Accepted deliberately; see §5.
 
 **`constrained_by_host` is a request, not a proof.** It reports that a
-constrained-output format was sent, not that the provider honoured it. The
-guarantee comes from parse-and-validate, which is why the capability is declared
-on that basis.
+constrained-output format was sent to OpenClaw, not that it reached the
+provider. On this host it does not for `openai/*` (the Codex backend deletes
+it), and a plugin cannot see which route a model resolves to. The guarantee
+comes from parse-and-validate, which is why the capability is declared on that
+basis. On an unconstrained route conformance is the model following the prompt,
+so it is a rate, not a certainty: the closed-root contract removed the screen
+node's recurring failure, but a long copy-heavy answer can still come back
+malformed, and a residual non-conforming answer fails the node rather than being
+accepted, repaired or retried.
+
+**Schema validity is not task correctness.** A structurally valid answer can
+still break the task contract — measured: Luna's `prepare` answer omitting every
+evidence job, which ends a run in the package's honest "no grounded literature"
+branch instead of failing it. Catching that is the package's job (an assertion
+that each resolved record yields one evidence job, or building the jobs with
+`lookup` instead of asking a model to copy them), not the router's.
+
+**The Codex backend does not cap output.** It deletes `max_output_tokens` too,
+so the provider is never told the node's cap. The runtime still charges what the
+host reports and halts on an overrun (§7 of the workflow spec), so such a route
+fails closed; it cannot be made to stop early.
+
+**A remote model doubles a package's remote-call use.** For a remote router the
+runtime counts the token preflight and the completion as two remote calls even
+though this host's preflight never leaves the process. The Literature Review
+package's own `max_remote_calls: 45` fits a remote model with about nine
+screening jobs and three selected papers (2 × 19 model calls + 6 remote tool
+calls); a question that yields more candidates exhausts it.
 
 **`model.count_tokens` costs a round trip.** It asks the host every time, even
 though 2026.9.5 always answers "unsupported". That keeps the protocol honest

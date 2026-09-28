@@ -28,6 +28,27 @@ class BudgetError(PolicyError):
 
 
 _REASON = re.compile(r"[a-z][a-z0-9_]{0,63}")
+# A fact value is a count, a flag, or a structural token such as a stop reason,
+# a JSON Schema keyword or a schema location. No spaces and no quotes, so prose
+# — a provider message, a model answer, a document excerpt — cannot pass.
+_FACT_TEXT = re.compile(r"[A-Za-z0-9_$.:/#-]{1,200}")
+MAX_FAILURE_FACTS = 12
+
+
+def _safe_facts(facts) -> dict:
+    safe = {}
+    if not isinstance(facts, dict):
+        return safe
+    for key, value in facts.items():
+        if len(safe) >= MAX_FAILURE_FACTS:
+            break
+        if not isinstance(key, str) or not _REASON.fullmatch(key):
+            continue
+        if isinstance(value, bool) or (isinstance(value, int) and 0 <= value < 2**53):
+            safe[key] = value
+        elif isinstance(value, str) and _FACT_TEXT.fullmatch(value):
+            safe[key] = value
+    return safe
 
 
 def failure_reason(exc) -> dict:
@@ -37,9 +58,18 @@ def failure_reason(exc) -> dict:
     `model_output_not_conforming`, `tool_unavailable`, ...) that says *which*
     failure happened. Only an identifier-shaped string is recorded, never a
     message, so nothing a provider or service wrote reaches the audit.
+
+    An adapter may also certify a few structural facts about the failure in
+    `exc.audit_facts` — which schema keyword failed, where in the schema, the
+    host's stop reason, the usage the host reported. They are copied only when
+    each value is a count, a flag or a spaceless structural token, so they can
+    say *how* a call failed without ever carrying what it said.
     """
     code = getattr(exc, "code", None)
-    return {"reason": code} if isinstance(code, str) and _REASON.fullmatch(code) else {}
+    if not (isinstance(code, str) and _REASON.fullmatch(code)):
+        return {}
+    facts = _safe_facts(getattr(exc, "audit_facts", None))
+    return {"reason": code, "failure_facts": facts} if facts else {"reason": code}
 
 
 def digest(value: Any) -> str:

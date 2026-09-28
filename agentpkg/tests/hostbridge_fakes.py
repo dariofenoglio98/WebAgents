@@ -98,8 +98,10 @@ class FakeHost:
         usage_report: dict | None = None,
         tokenizer: dict | None = None,
         on_complete=None,
+        stop_reason: str | None = "stop",
     ):
         self.text = text
+        self.stop_reason = stop_reason
         self.model_id = model_id
         self.usage = usage_report if usage_report is not None else usage()
         self.tokenizer = tokenizer or {
@@ -128,7 +130,7 @@ class FakeHost:
             "model_id": self.model_id,
             "provider_id": self.model_id.split("/")[0],
             "response_model": f"{self.model_id.split('/')[-1]}-2026-09-01",
-            "stop_reason": "stop",
+            "stop_reason": self.stop_reason,
             "execution": {"mode": "direct-provider", "owner": {"kind": "provider", "id": "acme"}},
             "constrained": True,
             "constraint_detail": "json_schema response format",

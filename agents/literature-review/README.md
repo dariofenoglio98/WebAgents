@@ -1,8 +1,19 @@
 # Literature Review Agent — workflow.v0
 
-Version 0.2.2 is a data-only package executed by the same generic interpreter as Meeting Agenda. `MANIFEST.agent` selects `workflow.v0`; **graph.json is the only authoritative execution graph**. The seven skills describe domain behavior; schemas and declared validation assertions enforce the structured contracts.
+Version 0.2.3 is a data-only package executed by the same generic interpreter as Meeting Agenda. `MANIFEST.agent` selects `workflow.v0`; **graph.json is the only authoritative execution graph**. The seven skills describe domain behavior; schemas and declared validation assertions enforce the structured contracts.
 
 The graph performs planning, seed resolution, parallel search, join/normalization/deduplication, parallel screening, citation resolution, evidence preparation and parallel extraction, synthesis, writing, verification and declared exports. Citation Resolver remains a remote tool consumed through its existing contract. Conditional selected-PDF reads remain worker-local. Exact quote/page checks, record links and resolver metadata checks use generic validation nodes.
+
+## 0.2.3: bibliographic metadata comes from the resolver, not the model
+
+A live 0.2.2 run on `ollama/qwen3:30b` completed every stage and was refused by `validate-output` assertion 0 (`fields_do_not_match`, `/metadata` against `/response/best_match`): the verifier was asked to reproduce each cited paper's complete resolver record, and a model can return scientifically sound output while its transcription of that record differs from the original in a field such as a null value, an author object or the BibTeX string. The package required a model to regenerate trusted data that the package then demanded be identical. 0.2.3 stops asking:
+
+- `verification` writes a draft review (`schemas/review-draft.schema.json`) whose bibliography rows are `{reference, paper_id}` only. Which papers are cited, and under which reference, remain the model's decisions; the row admits no other field (claim-and-citation-verification skill 0.1.2).
+- A new `bibliography` map attaches, to each row, the Citation Resolver's own `best_match` for that `paper_id`, selected from `resolved_jobs` with workflow.v0's generic `lookup` constructor (agentpkg 0.2.1): exactly one resolved job must carry the id, or the run stops. The metadata never passes through a model.
+- A new coordinator node, `assemble-output`, builds `final` from the draft and that bibliography. The verifier can no longer write `final` at all.
+- `validate-output` is unchanged: every bibliography entry must still equal its resolved job's `best_match` exactly, for a job whose status is `resolved`, and every claim, evidence and paper relation is checked as before. The final bibliography schema now also requires `{reference, paper_id, metadata}`, with metadata shaped as a resolver `Paper`.
+
+Nothing else changed: permissions, network policy, budgets, tool contracts, timing policy and every 0.2.2 assertion are byte-identical. The package requires agentpkg 0.2.1 or later, which adds `lookup`; an older runtime refuses the graph at load.
 
 ## 0.2.2: globally unique evidence ids, and an honest empty result
 
@@ -36,7 +47,7 @@ Two corrections found in the accepted 0.2.1 run. Nothing else changed: the permi
 - A citation record is its resolver answer copied exactly, with `metadata` the complete `best_match` (BibTeX included) when resolved and `null` otherwise; every resolved record becomes one evidence job.
 - An evidence item always carries a verbatim quote, copied character for character; what a source does not state is left out rather than recorded as an item.
 - A `direct_quote` claim cites exactly one evidence item and its text is that quote verbatim; any reworded or combined claim is `model_synthesis`.
-- The final bibliography is `{reference, paper_id, metadata}` with metadata copied from the citation record, the evidence table copies evidence items exactly, and `related_work` is prose rendered from supported claims only.
+- The final bibliography is `{reference, paper_id, metadata}` (since 0.2.3 the metadata is attached by the workflow from the resolver record, not copied by a model), the evidence table copies evidence items exactly, and `related_work` is prose rendered from supported claims only.
 - Paper `authors` and `provenance` entries admit only their declared fields, and every claim cites at least one evidence item and one paper.
 - A document id — a `documents` value, or a job's `file_id` — is an opaque token of letters, digits, `_` and `-`, never a DOI; a job's `file_id` is null unless a document was supplied for that paper.
 
@@ -44,7 +55,7 @@ No assertion was removed or loosened: exact quote containment, record links, res
 
 ## Replay fixture
 
-`fixtures/workflow.json` owns the exact-input model/tool replay scenario; in 0.2.2 its evidence ids follow the `<paper_id>:e<n>` contract. It is synthetic: three searches of three results each (nine raw candidates, eight after deduplication by DOI), eight screening decisions, three selected papers, three citation resolutions (two resolved, one ambiguous), two bibliography entries and seven evidence items, four of them from a selected PDF. Replay does not infer answers to new questions or establish model quality. The original fixture dataset and application schemas remain available; old specialized eval definitions are historical data and are not claimed as the new generic eval harness.
+`fixtures/workflow.json` owns the exact-input model/tool replay scenario; in 0.2.2 its evidence ids follow the `<paper_id>:e<n>` contract, and in 0.2.3 its verifier bibliography rows carry no metadata. It is synthetic: three searches of three results each (nine raw candidates, eight after deduplication by DOI), eight screening decisions, three selected papers, three citation resolutions (two resolved, one ambiguous), two bibliography entries and seven evidence items, four of them from a selected PDF. Replay does not infer answers to new questions or establish model quality. The original fixture dataset and application schemas remain available; old specialized eval definitions are historical data and are not claimed as the new generic eval harness.
 
 ```sh
 # Run from repository root, with a new output directory.

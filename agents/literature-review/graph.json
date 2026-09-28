@@ -14,6 +14,7 @@
         "remote_calls": 15
       },
       "state_read": [
+        "bibliography",
         "candidate_papers",
         "citation_records",
         "claims",
@@ -25,6 +26,7 @@
         "reasoning_mode",
         "research_question",
         "resolved_jobs",
+        "review",
         "screened_papers",
         "search_batches",
         "search_plan",
@@ -39,6 +41,7 @@
         "claims",
         "draft",
         "evidence_items",
+        "final",
         "mode",
         "raw_candidates",
         "reasoning_mode",
@@ -146,9 +149,11 @@
         "citation_jobs",
         "document_refs",
         "resolved_jobs",
+        "review",
         "search_plan"
       ],
       "state_write": [
+        "bibliography",
         "candidate_papers",
         "citation_records",
         "evidence_jobs",
@@ -252,7 +257,7 @@
       ],
       "state_write": [
         "claims",
-        "final",
+        "review",
         "verification_results"
       ]
     }
@@ -345,6 +350,12 @@
       "document_refs": {
         "from": "input",
         "path": "/documents"
+      },
+      "review": {
+        "literal": {}
+      },
+      "bibliography": {
+        "literal": []
       }
     }
   },
@@ -1354,13 +1365,13 @@
           }
         }
       },
-      "output_schema": "schemas/review-output.schema.json",
+      "output_schema": "schemas/review-draft.schema.json",
       "timeout_seconds": 720,
       "depends_on": [
         "writing"
       ],
       "writes": {
-        "/final": {
+        "/review": {
           "from": "result",
           "path": ""
         },
@@ -1410,6 +1421,111 @@
       }
     },
     {
+      "id": "bibliography",
+      "type": "map",
+      "worker": "CitationWorker",
+      "input": {
+        "from": "state",
+        "path": "/review/bibliography"
+      },
+      "output_schema": "schemas/bibliography.schema.json",
+      "timeout_seconds": 60,
+      "depends_on": [
+        "verification"
+      ],
+      "writes": {
+        "/bibliography": {
+          "from": "result",
+          "path": ""
+        }
+      },
+      "item_schema": "schemas/bibliography-ref.schema.json",
+      "max_items": 20,
+      "max_parallel": 3,
+      "steps": [
+        {
+          "id": "attach-metadata",
+          "type": "validate",
+          "input": {
+            "object": {
+              "reference": {
+                "from": "item",
+                "path": "/reference"
+              },
+              "paper_id": {
+                "from": "item",
+                "path": "/paper_id"
+              },
+              "metadata": {
+                "lookup": {
+                  "in": {
+                    "from": "state",
+                    "path": "/resolved_jobs"
+                  },
+                  "key": "/paper/paper_id",
+                  "equals": {
+                    "from": "item",
+                    "path": "/paper_id"
+                  },
+                  "path": "/response/best_match"
+                }
+              }
+            }
+          },
+          "output_schema": "schemas/bibliography-entry.schema.json",
+          "timeout_seconds": 10
+        }
+      ],
+      "yield": {
+        "from": "steps",
+        "path": "/attach-metadata"
+      }
+    },
+    {
+      "id": "assemble-output",
+      "type": "validate",
+      "worker": "LiteratureReviewCoordinator",
+      "depends_on": [
+        "bibliography"
+      ],
+      "input": {
+        "object": {
+          "related_work": {
+            "from": "state",
+            "path": "/review/related_work"
+          },
+          "bibliography": {
+            "from": "state",
+            "path": "/bibliography"
+          },
+          "evidence_table": {
+            "from": "state",
+            "path": "/review/evidence_table"
+          },
+          "unresolved": {
+            "from": "state",
+            "path": "/review/unresolved"
+          },
+          "verification_results": {
+            "from": "state",
+            "path": "/review/verification_results"
+          },
+          "claims": {
+            "from": "state",
+            "path": "/review/claims"
+          }
+        }
+      },
+      "output_schema": "schemas/review-output.schema.json",
+      "timeout_seconds": 10,
+      "writes": {
+        "/final": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
       "id": "validate-output",
       "type": "validate",
       "worker": "LiteratureReviewCoordinator",
@@ -1420,7 +1536,7 @@
       "output_schema": "schemas/review-output.schema.json",
       "timeout_seconds": 120,
       "depends_on": [
-        "verification"
+        "assemble-output"
       ],
       "writes": {},
       "assertions": [
@@ -1608,6 +1724,8 @@
         "synthesis": "Synthesis",
         "writing": "Writing",
         "verification": "Verification",
+        "bibliography": "Attach citation metadata",
+        "assemble-output": "Assemble result",
         "validate-output": "Validate result",
         "outputs": "Outputs"
       },
@@ -1666,6 +1784,8 @@
           "label": "Verification",
           "nodes": [
             "verification",
+            "bibliography",
+            "assemble-output",
             "validate-output",
             "outputs"
           ]

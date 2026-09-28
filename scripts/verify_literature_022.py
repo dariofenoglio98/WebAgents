@@ -5,7 +5,7 @@ never silently merged. A2 — a run with no grounded evidence completes with a
 valid, claim-free result whose prose is the package's own fixed statement,
 while every final check still runs.
 
-Every scenario executes the shipped `dist/literature-review.agent.pkg` graph
+Every scenario executes the preserved `dist/literature-review-0.2.2.agent.pkg` graph
 through the real `Workflow` interpreter and every check it declares. Only the
 model's answers and the three tool handlers are scripted, deterministically,
 by the same `ScriptedReview` scenarios the test suite uses
@@ -31,7 +31,7 @@ from agentpkg.validation import validate_instance
 from agentpkg.workflow import WorkflowError
 from literature_scenarios import Scenario, ScriptedReview, run_scenario
 
-CURRENT = ROOT / "dist/literature-review.agent.pkg"
+CURRENT = ROOT / "dist/literature-review-0.2.2.agent.pkg"  # preserved; 0.2.3 is current
 PREVIOUS = ROOT / "dist/literature-review-0.2.1.agent.pkg"
 KEY = ROOT / "examples/keys/literature-review-publisher.pub.pem"
 
@@ -128,7 +128,7 @@ def verify_all():
     return {
         "passed": True,
         "artifact": {
-            "path": "dist/literature-review.agent.pkg",
+            "path": "dist/literature-review-0.2.2.agent.pkg",
             "version": current.manifest["version"],
             "digest": current.digest,
             "signature_valid": signature["valid"],

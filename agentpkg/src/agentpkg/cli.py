@@ -9,6 +9,7 @@ import signal
 import sys
 from pathlib import Path
 
+from . import __version__
 from .errors import AgentPkgError, ValidationError
 from .package import (
     _open_parent,
@@ -55,7 +56,9 @@ def parser():
         description="Agent Package v0: inspectable declarations, host-controlled authority",
     )
     root.add_argument(
-        "--version", action="version", version="agentpkg 0.2.0 (agent.pkg 0.1, workflow.v0)"
+        "--version",
+        action="version",
+        version=f"agentpkg {__version__} (agent.pkg 0.1, workflow.v0)",
     )
     commands = root.add_subparsers(dest="command", required=True)
     for name, help_text in [

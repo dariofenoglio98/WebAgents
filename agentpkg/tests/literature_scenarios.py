@@ -43,6 +43,24 @@ class Scenario:
     # Make the verifier cite evidence that does not exist, to prove the final
     # checks still run on a result with claims.
     verify_cites_missing_evidence: bool = False
+    # Resolver records shaped like the real Citation Resolver's: every optional
+    # field serialized, most of them null, full author objects, a URL,
+    # provider ids and multi-line BibTeX.
+    rich_metadata: bool = False
+    # How the verifier writes bibliography rows. "auto" follows the output
+    # schema it is given: {reference, paper_id, metadata} with metadata copied
+    # exactly where the schema asks for metadata (0.2.2 and earlier), and
+    # {reference, paper_id} where it does not (0.2.3). "reconstruct" writes
+    # metadata the way a model transcribing it plausibly does — null fields
+    # and BibTeX left out — and "copy" forces an exact copy regardless.
+    verify_bibliography: str = "auto"
+    # A paper id the verifier lists in its bibliography without citing it.
+    verify_extra_reference: str | None = None
+    # Per-paper resolver answers overriding `resolver_status`, e.g. {2: "ambiguous"}.
+    # With `candidate_on_failure` the failed answer still carries a best_match
+    # candidate, as an ambiguous resolution may.
+    resolver_status_by_paper: dict = field(default_factory=dict)
+    candidate_on_failure: bool = False
     # Hold every extraction call until this many are in flight, so concurrency
     # is proved rather than assumed.
     extraction_barrier: int = 0
@@ -80,6 +98,36 @@ class Scenario:
     def best_match(self, doi: str) -> dict:
         index = int(doi.rsplit(".", 1)[1])
         paper = self.public(index)
+        if self.rich_metadata:
+            return {
+                "title": paper["title"],
+                "authors": [
+                    {"name": "Ada Author", "given": "Ada", "family": "Author", "orcid": None},
+                    {"name": "Scripted Consortium", "given": None, "family": None, "orcid": None},
+                ],
+                "year": paper["year"],
+                "venue": paper["venue"],
+                "publisher": None,
+                "doi": doi,
+                "arxiv_id": None,
+                "url": f"https://doi.org/{doi}",
+                "publication_type": "journal-article",
+                "abstract": paper["abstract"],
+                "volume": None,
+                "issue": None,
+                "pages": None,
+                "journal_reference": None,
+                "provider_ids": {"crossref": doi},
+                "source": "crossref",
+                "bibtex": (
+                    f"@article{{scripted{index},\n"
+                    f"  title = {{{paper['title']}}},\n"
+                    f"  author = {{Author, Ada and {{Scripted Consortium}}}},\n"
+                    f"  year = {{{paper['year']}}},\n"
+                    f"  doi = {{{doi}}}\n"
+                    "}"
+                ),
+            }
         return {
             "title": paper["title"],
             "authors": [{"name": author["name"]} for author in paper["authors"]],
@@ -109,6 +157,7 @@ class ScriptedReview:
     def __init__(self, scenario: Scenario):
         self.scenario = scenario
         self.tasks: list[str] = []
+        self.schemas: dict[str, dict] = {}
         self.active_extractions = 0
         self.peak_extractions = 0
         self._barrier = asyncio.Event()
@@ -133,6 +182,8 @@ class ScriptedReview:
                 self.active_extractions -= 1
         else:
             await asyncio.sleep(0)
+            self.output_schema = request["output_schema"]
+            self.schemas[task] = request["output_schema"]
             output = getattr(self, task)(data)
         return {"output": output, "input_tokens": 10, "output_tokens": 10, "cost_usd": 0}
 
@@ -301,14 +352,20 @@ class ScriptedReview:
         if self.scenario.verify_cites_missing_evidence and claims:
             claims[0]["evidence_ids"] = ["no-such-evidence"]
         cited = sorted({pid for claim in claims for pid in claim["paper_ids"]})
-        bibliography = [
-            {
-                "reference": number,
-                "paper_id": pid,
-                "metadata": copy.deepcopy(records[pid]["metadata"]),
-            }
-            for number, pid in enumerate(cited, start=1)
-        ]
+        listed = cited + (
+            [self.scenario.verify_extra_reference] if self.scenario.verify_extra_reference else []
+        )
+        mode = self.scenario.verify_bibliography
+        if mode == "auto":
+            mode = "copy" if _asks_for_metadata(self.output_schema) else "references"
+        bibliography = []
+        for number, pid in enumerate(listed, start=1):
+            row = {"reference": number, "paper_id": pid}
+            if mode == "copy":
+                row["metadata"] = copy.deepcopy(records[pid]["metadata"])
+            elif mode == "reconstruct":
+                row["metadata"] = _transcribed(records[pid]["metadata"])
+            bibliography.append(row)
         table = [
             copy.deepcopy(evidence[eid])
             for claim in claims
@@ -337,6 +394,44 @@ class ScriptedReview:
         }
 
 
+def _follow(schema: dict, root: dict) -> dict:
+    """Follow a bundled request schema's local `$ref`s."""
+    while isinstance(schema, dict) and "$ref" in schema:
+        target = root
+        for part in schema["$ref"].removeprefix("#/").split("/"):
+            target = target[part.replace("~1", "/").replace("~0", "~")]
+        schema = target
+    return schema
+
+
+def _asks_for_metadata(output_schema: dict) -> bool:
+    """Whether the verifier's output schema lets a bibliography row carry metadata."""
+    review = _follow(output_schema, output_schema)
+    items = _follow(
+        _follow(review["properties"]["bibliography"], output_schema)["items"], output_schema
+    )
+    properties = items.get("properties")
+    return properties is None or "metadata" in properties
+
+
+def _transcribed(metadata):
+    """A model's plausible copy: tidier than the original, so not identical to it.
+
+    Null fields are dropped (in authors too) and the long BibTeX string is left
+    out, which is what qwen3:30b was recorded doing when asked to copy resolver
+    records (examples/verification/literature-review-copy-diffs-qwen3-30b.json).
+    """
+    if isinstance(metadata, dict):
+        return {
+            key: _transcribed(value)
+            for key, value in metadata.items()
+            if value is not None and key != "bibtex"
+        }
+    if isinstance(metadata, list):
+        return [_transcribed(value) for value in metadata]
+    return metadata
+
+
 def scripted_handlers(scenario: Scenario) -> dict:
     """Host tool handlers keyed by the package's abstract binding names."""
 
@@ -354,12 +449,14 @@ def scripted_handlers(scenario: Scenario) -> dict:
     async def resolve(ctx, payload):
         await asyncio.sleep(0)
         scenario.calls.append(("citation-resolver", payload["query"]))
-        status = scenario.resolver_status
+        index = int(payload["query"].rsplit(".", 1)[1])
+        status = scenario.resolver_status_by_paper.get(index, scenario.resolver_status)
+        candidate = status == "resolved" or scenario.candidate_on_failure
         return {
             "status": status,
             "query": payload["query"],
             "detected_type": "doi",
-            "best_match": scenario.best_match(payload["query"]) if status == "resolved" else None,
+            "best_match": scenario.best_match(payload["query"]) if candidate else None,
             "match_score": 1.0 if status == "resolved" else 0.0,
             "alternatives": [],
             "sources": [{"provider": "crossref", "status": "ok"}],

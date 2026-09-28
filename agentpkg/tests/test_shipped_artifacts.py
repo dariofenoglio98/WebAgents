@@ -27,6 +27,7 @@ from shipped_keys import AGENDA_FINGERPRINT, AGENDA_KEY, DIST, ORIGINAL_KEY, PAC
 
 from agentpkg.browser import ControlPlane, ControlPlaneConfig, ControlPlaneError
 from agentpkg.browser.trust import read_public_key_file
+from agentpkg.errors import ValidationError
 from agentpkg.execution.policy import (
     DEFAULT_RUN_TIMEOUT_SECONDS,
     HostExecutionLimits,
@@ -459,7 +460,7 @@ def test_every_plugin_built_in_states_the_contract_the_package_declares(tool_id)
 # literature-review-qwen3-30b-node-latency*.json and the 3B4 report.
 #
 # 0.2.1 is the version the 3B4 live acceptance ran. It is preserved, byte for
-# byte, beside its successor; the current artifact is 0.2.2 (section below).
+# byte, beside its successors; the current artifact is 0.2.3 (sections below).
 REVIEW = ROOT / "dist/literature-review-0.2.1.agent.pkg"
 REVIEW_ARCHIVE_SHA256 = "0fb8b65bbff4578d4815ee70b29a0cb789b2cc95ce181d011d467b4be22c8e42"
 REVIEW_DIGEST = "2199abb5868bcedd5c73e7a664f38d35aaaa047c2dcfdb07d91f3977bde41700"
@@ -772,9 +773,13 @@ def test_a_review_0_2_0_receipt_cannot_authorize_0_2_1(tmp_path):
 # evidence ids, and an honest empty result — plus noncritical presentation
 # metadata. Signed by the same Literature Review key, whose package-scope pin
 # already covers it. Behaviour is proved in test_literature_022.py; this
-# section proves that nothing *else* changed.
-CURRENT_REVIEW = DIST["literature-review"]
-CURRENT_CHANGED_FILES = {
+# section proves that nothing *else* changed. 0.2.2 is preserved byte for byte
+# beside its successor: it is the artifact the live run that motivated 0.2.3
+# executed and was refused by (run_4077223351c9…).
+REVIEW_022 = ROOT / "dist/literature-review-0.2.2.agent.pkg"
+REVIEW_022_ARCHIVE_SHA256 = "4804ea8f4c2ad40439641f8348c2d65b798f4d52802f6ad751b71114e4f27c04"
+REVIEW_022_DIGEST = "19de8c9e2fa2e96d85b029108f78519cbda5edbf4a872257ae51597cef08c634"
+REVIEW_022_CHANGED_FILES = {
     "MANIFEST.agent",
     "README.md",
     "graph.json",
@@ -794,55 +799,54 @@ ANNOTATIONS = {"title", "description", "default", "examples"}
 
 
 @pytest.fixture(scope="module")
-def current_review():
-    return load_package(CURRENT_REVIEW)
+def review_022():
+    return load_package(REVIEW_022)
 
 
-def test_the_shipped_review_artifact_is_0_2_2(current_review):
-    assert current_review.manifest["package_id"] == PACKAGE_ID["literature-review"]
-    assert current_review.manifest["version"] == "0.2.2"
-    assert current_review.manifest["runtime"] == {
+def test_the_preserved_0_2_2_artifact_is_the_bytes_the_live_run_executed(review_022):
+    from agentpkg.package import sha256
+
+    assert review_022.manifest["package_id"] == PACKAGE_ID["literature-review"]
+    assert review_022.manifest["version"] == "0.2.2"
+    assert review_022.manifest["runtime"] == {
         "api": "agentpkg-runtime-v0",
         "minimum_version": "0.2.0",
     }
-    assert current_review.manifest["entrypoint"] == "workflow.v0"
-    assert current_review.graph["profile"] == "workflow.v0"
+    assert review_022.manifest["entrypoint"] == "workflow.v0"
+    assert review_022.graph["profile"] == "workflow.v0"
+    assert sha256(REVIEW_022.read_bytes()) == REVIEW_022_ARCHIVE_SHA256
+    assert review_022.digest == REVIEW_022_DIGEST
 
 
-def test_the_shipped_review_artifact_matches_its_source_tree(current_review, tmp_path):
-    rebuilt = load_package(build_package(REVIEW_SOURCE, tmp_path / "rebuilt.agent.pkg"))
-    assert rebuilt.digest == current_review.digest
-
-
-def test_0_2_2_is_signed_by_the_same_literature_review_key(current_review):
+def test_0_2_2_is_signed_by_the_same_literature_review_key(review_022):
     from shipped_keys import LITERATURE_FINGERPRINT, LITERATURE_KEY
 
-    verified = verify_package(CURRENT_REVIEW, LITERATURE_KEY)
+    verified = verify_package(REVIEW_022, LITERATURE_KEY)
     assert verified["valid"] and verified["version"] == "0.2.2"
     assert verified["key_fingerprint"] == LITERATURE_FINGERPRINT
     with pytest.raises(Exception):
-        verify_package(CURRENT_REVIEW, ORIGINAL_KEY)
+        verify_package(REVIEW_022, ORIGINAL_KEY)
     # The preserved predecessor still verifies, under the same key.
     assert verify_package(REVIEW, LITERATURE_KEY)["valid"]
 
 
-def test_only_the_enumerated_files_changed_since_0_2_1(current_review, review):
+def test_only_the_enumerated_files_changed_since_0_2_1(review_022, review):
     changed = {
         name
-        for name in set(review.files) | set(current_review.files)
-        if review.files.get(name) != current_review.files.get(name)
+        for name in set(review.files) | set(review_022.files)
+        if review.files.get(name) != review_022.files.get(name)
     }
-    assert changed == CURRENT_CHANGED_FILES
+    assert changed == REVIEW_022_CHANGED_FILES
     # Permissions, network policy, budgets, delegation and every tool contract
     # are byte-identical: nothing about what the package may reach moved.
-    assert review.files["policy/policy.json"] == current_review.files["policy/policy.json"]
-    for tool in current_review.manifest["tools"]:
-        assert review.files[tool["path"]] == current_review.files[tool["path"]]
+    assert review.files["policy/policy.json"] == review_022.files["policy/policy.json"]
+    for tool in review_022.manifest["tools"]:
+        assert review.files[tool["path"]] == review_022.files[tool["path"]]
 
 
-def test_the_manifest_changed_only_in_version_date_and_three_skill_versions(current_review, review):
+def test_the_manifest_changed_only_in_version_date_and_three_skill_versions(review_022, review):
     before = json.loads(json.dumps(review.manifest))
-    after = json.loads(json.dumps(current_review.manifest))
+    after = json.loads(json.dumps(review_022.manifest))
     assert (before["version"], after["version"]) == ("0.2.1", "0.2.2")
     bumped = {
         skill["id"]
@@ -858,9 +862,9 @@ def test_the_manifest_changed_only_in_version_date_and_three_skill_versions(curr
     assert before == after
 
 
-def test_the_graph_changed_only_by_the_two_corrections_and_presentation(current_review, review):
+def test_the_graph_changed_only_by_the_two_corrections_and_presentation(review_022, review):
     """Undo exactly the 0.2.2 edits and the 0.2.1 graph comes back, byte for byte."""
-    graph = json.loads(json.dumps(current_review.graph))
+    graph = json.loads(json.dumps(review_022.graph))
     assert set(graph["extensions"]) == {"agentpkg:presentation"}
     graph["extensions"] = {}
     ids = [node["id"] for node in graph["nodes"]]
@@ -876,18 +880,18 @@ def test_the_graph_changed_only_by_the_two_corrections_and_presentation(current_
     # Timing, budgets, caps, breadth and parallelism are therefore unchanged too.
 
 
-def test_every_0_2_1_assertion_survives_and_one_is_added(current_review, review):
+def test_every_0_2_1_assertion_survives_and_one_is_added(review_022, review):
     def assertions(package):
         return {name: op.get("assertions") for name, op in _operations(package.graph)}
 
-    before, after = assertions(review), assertions(current_review)
+    before, after = assertions(review), assertions(review_022)
     added = set(after) - set(before)
     assert added == {"check-evidence"}
     for name, rules in before.items():
         assert after[name] == rules, name
 
 
-def test_the_workflow_input_schema_gained_annotations_only(current_review, review):
+def test_the_workflow_input_schema_gained_annotations_only(review_022, review):
     def strip(value):
         if isinstance(value, dict):
             return {k: strip(v) for k, v in value.items() if k not in ANNOTATIONS}
@@ -896,48 +900,13 @@ def test_the_workflow_input_schema_gained_annotations_only(current_review, revie
         return value
 
     path = "schemas/workflow-input.schema.json"
-    assert strip(current_review.json(path)) == review.json(path)
-    properties = current_review.json(path)["properties"]
+    assert strip(review_022.json(path)) == review.json(path)
+    properties = review_022.json(path)["properties"]
     assert properties["mode"]["default"] == "live"
     assert properties["question"]["title"] == "Research question"
 
 
-def test_presentation_metadata_is_noncritical(current_review, tmp_path):
-    """Stripping it changes nothing the interpreter does."""
-    import asyncio
-    import shutil
-
-    from agentpkg.fixtures import fixture_adapters
-    from agentpkg.workflow import run_workflow
-
-    def replay(package):
-        router, handlers, value = fixture_adapters(package)
-        grants = {item["id"]: "session" for item in package.policy["permissions"]}
-        return asyncio.run(
-            run_workflow(
-                package,
-                value,
-                router=router,
-                handlers=handlers,
-                grants=grants,
-                approved_tools=sorted(package.tools),
-            )
-        )
-
-    source = tmp_path / "plain"
-    shutil.copytree(REVIEW_SOURCE, source)
-    graph = json.loads((source / "graph.json").read_text())
-    graph["extensions"] = {}
-    (source / "graph.json").write_text(json.dumps(graph))
-    plain, dressed = replay(load_package(source)), replay(current_review)
-    assert plain["output"] == dressed["output"]
-    assert plain["usage"]["tool_calls"] == dressed["usage"]["tool_calls"]
-    assert [event["action"] for event in plain["audit"]] == [
-        event["action"] for event in dressed["audit"]
-    ]
-
-
-def test_0_2_2_is_trusted_by_the_existing_package_scope_pin(tmp_path, current_review):
+def test_0_2_2_is_trusted_by_the_existing_package_scope_pin(tmp_path, review_022):
     """Same key, same package id: the narrow pin that covered 0.2.1 covers 0.2.2."""
     from shipped_keys import LITERATURE_FINGERPRINT, LITERATURE_KEY
 
@@ -950,13 +919,13 @@ def test_0_2_2_is_trusted_by_the_existing_package_scope_pin(tmp_path, current_re
         publisher_id="webagents-research",
         package_id_prefix=PACKAGE_ID["literature-review"],
     )
-    summary = control.open_file(str(CURRENT_REVIEW))
+    summary = control.open_file(str(REVIEW_022))
     assert summary["package"]["version"] == "0.2.2"
     assert summary["publisher"]["signer_fingerprint"] == LITERATURE_FINGERPRINT
     assert summary["publisher"]["trust_status"] == "trusted"
 
 
-def test_a_0_2_1_receipt_or_plan_cannot_reach_0_2_2(tmp_path, review, current_review):
+def test_a_0_2_1_receipt_or_plan_cannot_reach_0_2_2(tmp_path, review, review_022):
     from shipped_keys import LITERATURE_KEY
     from tool_fakes import registry_for
 
@@ -996,8 +965,8 @@ def test_a_0_2_1_receipt_or_plan_cannot_reach_0_2_2(tmp_path, review, current_re
         return session_id, digest_, receipt, state["run_plan"]
 
     old_session, old_digest, old_receipt, old_plan = plan(REVIEW)
-    new_session, new_digest, _, new_plan = plan(CURRENT_REVIEW)
-    assert old_digest == REVIEW_DIGEST and new_digest == current_review.digest
+    new_session, new_digest, _, new_plan = plan(REVIEW_022)
+    assert old_digest == REVIEW_DIGEST and new_digest == review_022.digest
     assert old_plan["run_plan_sha256"] != new_plan["run_plan_sha256"]
     with pytest.raises(ControlPlaneError) as wrong_digest:
         control.authorize(new_session, package_digest=old_digest, decisions=decisions)
@@ -1020,3 +989,254 @@ def test_a_0_2_1_receipt_or_plan_cannot_reach_0_2_2(tmp_path, review, current_re
         )
     assert wrong_plan.value.code == "run_plan_mismatch"
     assert old_session != new_session
+
+
+# == Literature Review 0.2.3 ================================================
+# One correction to 0.2.2: the final bibliography's metadata is attached by the
+# workflow from the Citation Resolver's own record, instead of being
+# reproduced by the verifier model. Signed by the same Literature Review key.
+# Behaviour is proved in test_literature_023.py; this section proves that
+# nothing *else* changed.
+CURRENT_REVIEW = DIST["literature-review"]
+CURRENT_CHANGED_FILES = {
+    "MANIFEST.agent",
+    "README.md",
+    "graph.json",
+    "fixtures/workflow.json",
+    "attestations/runtime-components.json",
+    "schemas/research-state.schema.json",
+    "schemas/review-output.schema.json",
+    "schemas/review-draft.schema.json",
+    "schemas/bibliography.schema.json",
+    "schemas/bibliography-entry.schema.json",
+    "schemas/bibliography-ref.schema.json",
+    "skills/claim-and-citation-verification/SKILL.md",
+}
+NEW_REVIEW_SCHEMAS = ["bibliography-entry", "bibliography-ref", "bibliography", "review-draft"]
+
+
+@pytest.fixture(scope="module")
+def current_review():
+    return load_package(CURRENT_REVIEW)
+
+
+def test_the_shipped_review_artifact_is_0_2_3(current_review):
+    assert current_review.manifest["package_id"] == PACKAGE_ID["literature-review"]
+    assert current_review.manifest["version"] == "0.2.3"
+    # It uses workflow.v0's `lookup` constructor, added in agentpkg 0.2.1.
+    assert current_review.manifest["runtime"] == {
+        "api": "agentpkg-runtime-v0",
+        "minimum_version": "0.2.1",
+    }
+    assert current_review.manifest["entrypoint"] == "workflow.v0"
+    assert current_review.graph["profile"] == "workflow.v0"
+
+
+def test_the_shipped_review_artifact_matches_its_source_tree(current_review, tmp_path):
+    rebuilt = load_package(build_package(REVIEW_SOURCE, tmp_path / "rebuilt.agent.pkg"))
+    assert rebuilt.digest == current_review.digest
+
+
+def test_0_2_3_is_signed_by_the_same_literature_review_key(current_review):
+    from shipped_keys import LITERATURE_FINGERPRINT, LITERATURE_KEY
+
+    verified = verify_package(CURRENT_REVIEW, LITERATURE_KEY)
+    assert verified["valid"] and verified["version"] == "0.2.3"
+    assert verified["key_fingerprint"] == LITERATURE_FINGERPRINT
+    with pytest.raises(Exception):
+        verify_package(CURRENT_REVIEW, ORIGINAL_KEY)
+    assert verify_package(REVIEW_022, LITERATURE_KEY)["valid"]
+
+
+def test_an_older_runtime_refuses_0_2_3_at_load(monkeypatch):
+    import agentpkg
+
+    monkeypatch.setattr(agentpkg, "__version__", "0.2.0")
+    with pytest.raises(ValidationError, match="exceeds reference runtime 0.2.0"):
+        load_package(CURRENT_REVIEW)
+    # 0.2.2 needed nothing new, so it still loads there.
+    assert load_package(REVIEW_022).manifest["version"] == "0.2.2"
+
+
+def test_only_the_enumerated_files_changed_since_0_2_2(current_review, review_022):
+    changed = {
+        name
+        for name in set(review_022.files) | set(current_review.files)
+        if review_022.files.get(name) != current_review.files.get(name)
+    }
+    changed.discard("SIGNATURE")
+    assert changed == CURRENT_CHANGED_FILES
+    assert review_022.files["policy/policy.json"] == current_review.files["policy/policy.json"]
+    for tool in current_review.manifest["tools"]:
+        assert review_022.files[tool["path"]] == current_review.files[tool["path"]]
+
+
+def test_the_manifest_changed_only_in_version_runtime_one_skill_and_four_schemas(
+    current_review, review_022
+):
+    before = json.loads(json.dumps(review_022.manifest))
+    after = json.loads(json.dumps(current_review.manifest))
+    assert (before["version"], after["version"]) == ("0.2.2", "0.2.3")
+    bumped = {
+        skill["id"]
+        for old, skill in zip(before["skills"], after["skills"], strict=True)
+        if old["version"] != skill["version"]
+    }
+    assert bumped == {"claim-and-citation-verification"}
+    added = after["schemas"][len(before["schemas"]) :]
+    assert [schema["id"] for schema in added] == NEW_REVIEW_SCHEMAS
+    for manifest in (before, after):
+        for key in ("version", "created_at", "runtime"):
+            manifest.pop(key)
+        for skill in manifest["skills"]:
+            skill.pop("version")
+    after["schemas"] = after["schemas"][: len(before["schemas"])]
+    assert before == after
+
+
+def test_the_graph_changed_only_by_the_bibliography_projection(current_review, review_022):
+    """Undo exactly the 0.2.3 edits and the 0.2.2 graph comes back."""
+    graph = json.loads(json.dumps(current_review.graph))
+    ids = [node["id"] for node in graph["nodes"]]
+    assert ids[ids.index("verification") + 1 : ids.index("validate-output")] == [
+        "bibliography",
+        "assemble-output",
+    ]
+    graph["nodes"] = [
+        n for n in graph["nodes"] if n["id"] not in {"bibliography", "assemble-output"}
+    ]
+    nodes = {node["id"]: node for node in graph["nodes"]}
+    nodes["validate-output"]["depends_on"] = ["verification"]
+    verification = nodes["verification"]
+    assert verification["output_schema"] == "schemas/review-draft.schema.json"
+    verification["output_schema"] = "schemas/review-output.schema.json"
+    assert verification["writes"].pop("/review") == {"from": "result", "path": ""}
+    verification["writes"]["/final"] = {"from": "result", "path": ""}
+    workers = {worker["id"]: worker for worker in graph["workers"]}
+
+    def drop(values, *keys):
+        for key in keys:
+            values.remove(key)
+
+    drop(workers["VerificationWorker"]["state_write"], "review")
+    workers["VerificationWorker"]["state_write"] = sorted(
+        workers["VerificationWorker"]["state_write"] + ["final"]
+    )
+    drop(workers["CitationWorker"]["state_read"], "review")
+    drop(workers["CitationWorker"]["state_write"], "bibliography")
+    drop(workers["LiteratureReviewCoordinator"]["state_read"], "bibliography", "review")
+    drop(workers["LiteratureReviewCoordinator"]["state_write"], "final")
+    assert graph["initial_state"]["object"].pop("review") == {"literal": {}}
+    assert graph["initial_state"]["object"].pop("bibliography") == {"literal": []}
+    presentation = graph["extensions"]["agentpkg:presentation"]
+    presentation["nodes"].pop("bibliography")
+    presentation["nodes"].pop("assemble-output")
+    for stage in presentation["stages"]:
+        stage["nodes"] = [n for n in stage["nodes"] if n not in {"bibliography", "assemble-output"}]
+    assert graph == review_022.graph
+
+
+def test_every_0_2_2_assertion_survives_and_none_is_added(current_review, review_022):
+    def assertions(package):
+        return {name: op.get("assertions") for name, op in _operations(package.graph)}
+
+    before, after = assertions(review_022), assertions(current_review)
+    for name, rules in before.items():
+        assert after[name] == rules, name
+    assert {name: after[name] for name in set(after) - set(before)} == {
+        "bibliography": None,
+        "bibliography/attach-metadata": None,
+        "assemble-output": None,
+    }
+
+
+def test_the_schema_changes_only_move_metadata_out_of_model_output(current_review, review_022):
+    old_output = review_022.json("schemas/review-output.schema.json")
+    output = current_review.json("schemas/review-output.schema.json")
+    draft = current_review.json("schemas/review-draft.schema.json")
+    assert old_output["properties"]["bibliography"]["items"] == {"type": "object"}
+    # The final bibliography is now fully typed; the draft admits no metadata.
+    assert output["properties"]["bibliography"]["items"] == {
+        "$ref": "bibliography-entry.schema.json"
+    }
+    assert draft["properties"]["bibliography"]["items"] == {"$ref": "bibliography-ref.schema.json"}
+    for schema in (output, draft):
+        rest = json.loads(json.dumps(schema))
+        rest["properties"].pop("bibliography")
+        expected = json.loads(json.dumps(old_output))
+        expected["properties"].pop("bibliography")
+        assert rest == expected
+    entry = current_review.json("schemas/bibliography-entry.schema.json")
+    assert entry["properties"]["metadata"] == {"$ref": "resolver-output.schema.json#/$defs/Paper"}
+    assert entry["additionalProperties"] is False
+    state, old_state = (
+        current_review.json("schemas/research-state.schema.json"),
+        review_022.json("schemas/research-state.schema.json"),
+    )
+    assert set(state["properties"]) - set(old_state["properties"]) == {"review", "bibliography"}
+    for key, value in old_state["properties"].items():
+        assert state["properties"][key] == value, key
+    assert state["required"] == old_state["required"]
+
+
+def test_0_2_3_is_trusted_by_the_existing_package_scope_pin(tmp_path):
+    from shipped_keys import LITERATURE_FINGERPRINT, LITERATURE_KEY
+
+    control = ControlPlane(
+        ControlPlaneConfig(cache_dir=tmp_path / "cache", trust_store_path=tmp_path / "trust.json")
+    )
+    control.trust_add(
+        read_public_key_file(LITERATURE_KEY),
+        display_name="WebAgents Research Prototype",
+        publisher_id="webagents-research",
+        package_id_prefix=PACKAGE_ID["literature-review"],
+    )
+    old = control.open_file(str(REVIEW_022))
+    new = control.open_file(str(CURRENT_REVIEW))
+    assert new["package"]["version"] == "0.2.3"
+    assert new["publisher"]["signer_fingerprint"] == LITERATURE_FINGERPRINT
+    assert new["publisher"]["trust_status"] == "trusted"
+    assert new["validation"]["runtime_status"] == "compatible"
+    # A 0.2.2 authorization cannot stand in for 0.2.3.
+    with pytest.raises(ControlPlaneError) as mismatch:
+        control.authorize(
+            new["session"]["id"],
+            package_digest=old["package"]["digest"],
+            decisions={"memory.session": "session"},
+        )
+    assert mismatch.value.code == "digest_mismatch"
+
+
+def test_presentation_metadata_is_noncritical(current_review, tmp_path):
+    """Stripping it changes nothing the interpreter does."""
+    import asyncio
+    import shutil
+
+    from agentpkg.fixtures import fixture_adapters
+    from agentpkg.workflow import run_workflow
+
+    def replay(package):
+        router, handlers, value = fixture_adapters(package)
+        grants = {item["id"]: "session" for item in package.policy["permissions"]}
+        return asyncio.run(
+            run_workflow(
+                package,
+                value,
+                router=router,
+                handlers=handlers,
+                grants=grants,
+                approved_tools=sorted(package.tools),
+            )
+        )
+
+    source = tmp_path / "plain"
+    shutil.copytree(REVIEW_SOURCE, source)
+    graph = json.loads((source / "graph.json").read_text())
+    graph["extensions"] = {}
+    (source / "graph.json").write_text(json.dumps(graph))
+    plain, dressed = replay(load_package(source)), replay(current_review)
+    assert plain["output"] == dressed["output"]
+    assert plain["usage"]["tool_calls"] == dressed["usage"]["tool_calls"]
+    assert [event["action"] for event in plain["audit"]] == [
+        event["action"] for event in dressed["audit"]
+    ]

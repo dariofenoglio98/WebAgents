@@ -13,7 +13,9 @@ have nothing to work on and returns a valid, claim-free review whose prose is
 the package's own fixed statement — while every final check still runs.
 
 Every scenario goes through the real `Workflow` interpreter and every check the
-package declares; `ScriptedReview` only answers the model's tasks.
+package declares; `ScriptedReview` only answers the model's tasks. Each test runs
+on the preserved 0.2.2 bytes and on the current artifact, so a later version
+cannot lose either correction unnoticed.
 """
 
 from __future__ import annotations
@@ -34,13 +36,18 @@ from agentpkg.workflow import WorkflowError
 
 ROOT = Path(__file__).resolve().parents[2]
 PREVIOUS = ROOT / "dist/literature-review-0.2.1.agent.pkg"
+# The artifact that introduced both corrections, and every version since.
+ARTIFACTS = {
+    "0.2.2": ROOT / "dist/literature-review-0.2.2.agent.pkg",
+    "0.2.3": DIST["literature-review"],
+}
 MODEL_STEPS_AFTER_EVIDENCE = {"synthesize", "write", "verify"}
 
 
-@pytest.fixture(scope="module")
-def review():
-    package = load_package(DIST["literature-review"])
-    assert package.manifest["version"] == "0.2.2"
+@pytest.fixture(scope="module", params=sorted(ARTIFACTS))
+def review(request):
+    package = load_package(ARTIFACTS[request.param])
+    assert package.manifest["version"] == request.param
     return package
 
 
@@ -65,8 +72,9 @@ def _no_result_text(package):
 
 # -- the signed artifact ------------------------------------------------------
 def test_the_corrections_ship_in_the_signed_artifact(review):
-    verified = verify_package(DIST["literature-review"], LITERATURE_KEY)
-    assert verified["valid"] and verified["version"] == "0.2.2"
+    version = review.manifest["version"]
+    verified = verify_package(ARTIFACTS[version], LITERATURE_KEY)
+    assert verified["valid"] and verified["version"] == version
     assert verified["key_fingerprint"] == LITERATURE_FINGERPRINT
     nodes = _nodes(review)
     assert "unique_by" not in nodes["join-evidence"]

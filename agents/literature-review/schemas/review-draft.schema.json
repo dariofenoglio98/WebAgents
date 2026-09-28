@@ -1,0 +1,48 @@
+{
+  "type": "object",
+  "properties": {
+    "related_work": {
+      "type": "string",
+      "minLength": 1
+    },
+    "bibliography": {
+      "type": "array",
+      "items": {
+        "$ref": "bibliography-ref.schema.json"
+      }
+    },
+    "evidence_table": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "unresolved": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "verification_results": {
+      "type": "array",
+      "items": {
+        "$ref": "verification.schema.json"
+      }
+    },
+    "claims": {
+      "type": "array",
+      "items": {
+        "$ref": "claim.schema.json"
+      }
+    }
+  },
+  "required": [
+    "related_work",
+    "bibliography",
+    "evidence_table",
+    "unresolved",
+    "verification_results",
+    "claims"
+  ],
+  "additionalProperties": false
+}

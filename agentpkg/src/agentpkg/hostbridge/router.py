@@ -53,6 +53,7 @@ guessing, and `Runtime` then charges the full reservation.
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
 
 from jsonschema import Draft202012Validator
@@ -90,6 +91,52 @@ _OUTPUT_CONTRACT = (
     "below. Emit the JSON document alone: no prose before or after it, no "
     "explanation, no markdown code fence."
 )
+# Said in words when the answer is a closed object, because the schema cannot
+# always be relied on to constrain decoding. A host may drop the constrained
+# response format without saying so — OpenClaw 2026.9.5 does on its native
+# Codex Responses backend — and a model then sees the schema only as text.
+# Measured there on the Literature Review screen node, the one recurring
+# failure was an extra top-level property (an input field copied into the
+# answer); naming the closed top-level set removed it. It says nothing about
+# nested objects on purpose: a stronger "anywhere" warning did no better on
+# screen and was not better on a copy-heavy node either. Validation is
+# unchanged: this is a clearer request, not a looser check.
+_CLOSED_ROOT_CONTRACT = (
+    "It is one JSON object with exactly these top-level properties and no others: {names}."
+)
+# Only schema-declared names that read as plain identifiers are listed, and only
+# a bounded number; anything else keeps the generic contract alone.
+_LISTABLE_PROPERTY = re.compile(r"[A-Za-z_][A-Za-z0-9_.-]{0,63}")
+MAX_LISTED_PROPERTIES = 64
+_LOCAL_DEFS_REF = re.compile(r"#/\$defs/([^/]+)")
+
+
+def closed_root_properties(schema) -> list[str] | None:
+    """The exact top-level property names of a closed object root, or None.
+
+    Follows one local `#/$defs/<name>` root reference, which is the shape
+    `Workflow._model_schema` bundles every node schema into. A root that is not
+    an object, is open (`additionalProperties` not `false`), or declares names
+    that are not plain identifiers is left to the schema alone.
+    """
+    root = schema
+    if isinstance(schema, dict) and isinstance(schema.get("$ref"), str):
+        match = _LOCAL_DEFS_REF.fullmatch(schema["$ref"])
+        defs = schema.get("$defs")
+        if not match or not isinstance(defs, dict):
+            return None
+        root = defs.get(match.group(1))
+    if not isinstance(root, dict) or root.get("type") != "object":
+        return None
+    if root.get("additionalProperties") is not False:
+        return None
+    properties = root.get("properties")
+    if not isinstance(properties, dict) or not 0 < len(properties) <= MAX_LISTED_PROPERTIES:
+        return None
+    names = list(properties)
+    if not all(isinstance(name, str) and _LISTABLE_PROPERTY.fullmatch(name) for name in names):
+        return None
+    return names
 
 
 def _canonical(value: Any) -> str:
@@ -118,7 +165,11 @@ def render(request: dict) -> dict:
     sections = [_PREAMBLE, f"## Task\n{request.get('task', '')}"]
     if instructions:
         sections.append("## Instructions\n" + "\n\n---\n\n".join(instructions))
-    sections.append(f"## Output contract\n{_OUTPUT_CONTRACT}\n\n{schema_text}")
+    contract = _OUTPUT_CONTRACT
+    names = closed_root_properties(schema)
+    if names:
+        contract += " " + _CLOSED_ROOT_CONTRACT.format(names=", ".join(names))
+    sections.append(f"## Output contract\n{contract}\n\n{schema_text}")
     return {
         "system": "\n\n".join(sections),
         "user": _canonical(request.get("data")),
@@ -210,6 +261,57 @@ def parse_structured(text: str) -> tuple[Any, str]:
     raise BridgeError(
         "model_output_not_conforming", "The model did not return a single JSON document"
     )
+
+
+# How the host's normalized stop reason reads. `stop` — or no stop reason at
+# all, from a host that does not report one — is a turn the provider finished,
+# and only such a turn's text is parsed. Everything else is a turn it did not
+# finish, and is classified here rather than handed to the parser, where a cut
+# or empty answer would be indistinguishable from a model ignoring the schema.
+STOP_COMPLETE = "stop"
+STOP_LENGTH = "length"
+MAX_SCHEMA_LOCATION_PARTS = 8
+
+
+def classify_termination(stop_reason) -> tuple[str, str] | None:
+    """The failure a non-finished turn is, or None for a finished one.
+
+    `length` is an answer cut off at the output limit. Any other reason is a
+    turn the provider did not complete: OpenClaw 2026.9.5 reports `error` for a
+    provider error, a refusal and a content filter alike (it does not tell them
+    apart to a plugin), `aborted` for an abort, and `toolUse` would mean a tool
+    call this adapter never offered. None of these is retried here or anywhere
+    else, and none is reported as non-conforming output.
+    """
+    if stop_reason is None or stop_reason == STOP_COMPLETE:
+        return None
+    if stop_reason == STOP_LENGTH:
+        return (
+            "model_output_truncated",
+            "The model stopped at its output limit before the answer was complete",
+        )
+    return (
+        "model_turn_failed",
+        "The provider did not complete this turn (an error, a refusal or a content filter)",
+    )
+
+
+def _reported_counts(report) -> dict:
+    """The host's usage report as audit facts, or nothing if it is unusable."""
+    try:
+        usage = project_usage(report)
+    except BridgeError:
+        return {}
+    return {
+        "reported_input_tokens": usage["input_tokens"],
+        "reported_output_tokens": usage["output_tokens"],
+    }
+
+
+def _schema_location(error: JsonValidationError) -> str:
+    """Where in the *schema* validation failed — never where in the output."""
+    parts = [str(part) for part in error.schema_path][-MAX_SCHEMA_LOCATION_PARTS:]
+    return "/".join(parts) or "#"
 
 
 def _count(value, field: str) -> int:
@@ -382,17 +484,48 @@ class HostBridgeModelRouter:
                 "The host completed with a model other than the one the run plan bound",
                 detail={"expected": self.model_id, "invoked": invoked},
             )
+        stop_reason = answer.get("stop_reason")
+        # Structural facts only: what the host said about how the turn ended and
+        # what it cost. They reach the audit so a failure can be classified from
+        # the record instead of reproduced; no text the model wrote is among them.
+        facts = {
+            **(
+                {"stop_reason": stop_reason}
+                if isinstance(stop_reason, str)
+                else {"stop_reason": "unreported"}
+            ),
+            **_reported_counts(answer.get("usage")),
+        }
+        termination = classify_termination(stop_reason)
+        if termination is not None:
+            raise BridgeError(*termination, audit_facts=facts)
         text = answer.get("text")
         if not isinstance(text, str):
-            raise BridgeError("model_output_not_conforming", "The host returned no text")
+            raise BridgeError(
+                "model_output_not_conforming",
+                "The host returned no text",
+                audit_facts={**facts, "output_failure": "no_text"},
+            )
         usage = project_usage(answer.get("usage"))
-        output, parse_mode = parse_structured(text)
         try:
-            Draft202012Validator(rendered["output_schema"]).validate(output)
+            output, parse_mode = parse_structured(text)
+        except BridgeError as exc:
+            exc.audit_facts = {**facts, "output_failure": "not_json"}
+            raise
+        validator = Draft202012Validator(rendered["output_schema"])
+        try:
+            validator.validate(output)
         except JsonValidationError as exc:
             raise BridgeError(
                 "model_output_not_conforming",
                 f"The model output does not satisfy the requested schema: {exc.message[:200]}",
+                audit_facts={
+                    **facts,
+                    "output_failure": "schema",
+                    "schema_keyword": str(exc.validator),
+                    "schema_location": _schema_location(exc),
+                    "schema_violations": sum(1 for _ in validator.iter_errors(output)),
+                },
             ) from exc
         self.last_completion = {
             "model_id": invoked,
@@ -434,6 +567,8 @@ __all__ = [
     "ROUTER_ID",
     "HostBridgeModelRouter",
     "capabilities_for",
+    "classify_termination",
+    "closed_root_properties",
     "context_window_for",
     "parse_structured",
     "project_usage",

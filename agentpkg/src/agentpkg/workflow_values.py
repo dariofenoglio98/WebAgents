@@ -1,10 +1,37 @@
-"""Finite data constructors and JSON Pointer selection; no executable expressions."""
+"""Finite data constructors, JSON Pointer selection and keyed selection; no executable
+expressions."""
 
 from __future__ import annotations
 
 import copy
+import json
 
 from .errors import ValidationError
+
+
+class LookupFailure(ValidationError):
+    """A declared keyed selection that did not find exactly one member.
+
+    Like an assertion failure, `failed_check` names only the package's own
+    pointers, never a value from the data.
+    """
+
+    def __init__(self, failure, message, spec):
+        super().__init__(f"lookup: {message}")
+        self.failed_check = {
+            "check": "lookup",
+            "failure": failure,
+            "key": spec["key"],
+            "path": spec["path"],
+        }
+
+
+def _identity(value):
+    """The canonical JSON form `runtime.digest` hashes, so a lookup key compares exactly as a
+    relation key does. Kept here because validation-only hosts must not import the runtime."""
+    return json.dumps(
+        value, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False
+    )
 
 
 def tokens(path):
@@ -43,12 +70,36 @@ def evaluate(expression, environment):
         return None
     if "object" in expression:
         return {key: evaluate(value, environment) for key, value in expression["object"].items()}
+    if "lookup" in expression:
+        return lookup(expression["lookup"], environment)
     return [evaluate(value, environment) for value in expression["array"]]
+
+
+def lookup(spec, environment):
+    """Select `path` from the one member of `in` whose `key` equals `equals`.
+
+    The constructive counterpart of a `relation` assertion's keyed match:
+    identical key equality, and exactly one match required. No match, several
+    matches, a non-array or a missing pointer fail; nothing is defaulted.
+    """
+    members = evaluate(spec["in"], environment)
+    if not isinstance(members, list):
+        raise LookupFailure("not_array", "lookup `in` must be an array", spec)
+    wanted = _identity(evaluate(spec["equals"], environment))
+    matches = [m for m in members if _identity(select(m, spec["key"], "lookup")) == wanted]
+    if not matches:
+        raise LookupFailure("no_match", "no member has the requested key", spec)
+    if len(matches) > 1:
+        raise LookupFailure("duplicate_key", "several members have the requested key", spec)
+    return select(matches[0], spec["path"], "lookup")
 
 
 def references(expression):
     if "from" in expression:
         yield expression["from"], expression["path"]
+    elif "lookup" in expression:
+        yield from references(expression["lookup"]["in"])
+        yield from references(expression["lookup"]["equals"])
     elif "object" in expression:
         for value in expression["object"].values():
             yield from references(value)

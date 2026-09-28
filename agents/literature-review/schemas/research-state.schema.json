@@ -730,6 +730,22 @@
           "$ref": "review-output.schema.json"
         }
       ]
+    },
+    "review": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        {
+          "$ref": "review-draft.schema.json"
+        }
+      ]
+    },
+    "bibliography": {
+      "$ref": "bibliography.schema.json"
     }
   },
   "required": [

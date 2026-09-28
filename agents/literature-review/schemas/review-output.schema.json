@@ -8,7 +8,7 @@
     "bibliography": {
       "type": "array",
       "items": {
-        "type": "object"
+        "$ref": "bibliography-entry.schema.json"
       }
     },
     "evidence_table": {

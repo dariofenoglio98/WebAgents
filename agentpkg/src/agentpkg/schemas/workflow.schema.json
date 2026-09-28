@@ -300,6 +300,43 @@
             "coalesce"
           ],
           "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "lookup": {
+              "type": "object",
+              "properties": {
+                "in": {
+                  "$ref": "#/$defs/value"
+                },
+                "key": {
+                  "type": "string",
+                  "pattern": "^(?:/(?:[^~/]|~[01])*)+$",
+                  "maxLength": 1024
+                },
+                "equals": {
+                  "$ref": "#/$defs/value"
+                },
+                "path": {
+                  "type": "string",
+                  "pattern": "^(?:/(?:[^~/]|~[01])*)*$",
+                  "maxLength": 1024
+                }
+              },
+              "required": [
+                "in",
+                "key",
+                "equals",
+                "path"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "lookup"
+          ],
+          "additionalProperties": false
         }
       ]
     },

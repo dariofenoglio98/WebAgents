@@ -27,16 +27,32 @@
  *
  * ## Structured output
  *
- * OpenClaw forwards `responseFormat` to the provider transport as a
- * constrained-decoding request. On 2026.9.5 the OpenAI Responses transport maps
- * a `{type: "json_schema", json_schema: {...}}` value onto `text.format`, the
- * Chat Completions transport passes the same shape through to
- * `response_format`, and the **native Ollama transport** maps it onto Ollama's
- * `format` field (`resolveOllamaResponseFormat`), where any root type is
- * constrained. So it is requested whenever the schema can carry it, and the
- * `constrained` flag reports whether it was *requested* — never that it worked.
- * Conformance itself is guaranteed on the agentpkg side, which parses and
- * schema-validates before returning.
+ * OpenClaw forwards `responseFormat` to the provider transport, and each
+ * transport decides what becomes of it. What 2026.9.5 actually does, read from
+ * the installed transports and confirmed with `OPENCLAW_DEBUG_MODEL_PAYLOAD`:
+ *
+ * * the **native Ollama transport** maps a `{type: "json_schema", json_schema}`
+ *   value onto Ollama's `format` field (`resolveOllamaResponseFormat`), where
+ *   any root type is constrained;
+ * * the Chat Completions transport passes it through to `response_format`, and
+ *   the managed OpenAI Responses request builder (`buildOpenAIResponsesParams`)
+ *   maps it onto `text.format`, with no `strict` flag. The plain
+ *   `openai-responses` provider stream in `@openclaw/ai` does not read it at
+ *   all; which of the two an OpenAI Platform route takes was not observable on
+ *   this host, which has no such route;
+ * * on the **native Codex Responses backend** — the ChatGPT sign-in route
+ *   (`api: "openai-chatgpt-responses"`, `chatgpt.com/backend-api/codex`), which
+ *   is how this host serves `openai/*` models — `sanitizeOpenAICodexResponsesParams`
+ *   deletes `text.format` *and* `max_output_tokens` before the request leaves
+ *   the host. The model then sees the schema only as prompt text, and no output
+ *   cap is sent.
+ *
+ * A plugin is told none of this, and the route is chosen after auth resolution,
+ * where this file cannot see it. So the constraint is requested whenever the
+ * schema can carry it, and `constrained` reports that it was *requested* —
+ * never that it reached a provider. Conformance is guaranteed on the agentpkg
+ * side, which parses and schema-validates every answer, and the output cap by
+ * the runtime, which charges and halts on any overrun the host reports.
  *
  * Asking is not a formality. Every node schema arrives bundled with a `$ref`
  * root, which this file used to reject outright, so no package node was ever
@@ -45,9 +61,10 @@
  *
  * ## Usage and caps
  *
- * `maxTokens` is documented as advisory, but the OpenAI transports do apply it
- * (`max_output_tokens`/`max_tokens`), and the runtime rejects an overrun
- * regardless. Usage comes back normalized by OpenClaw
+ * `maxTokens` is documented as advisory. The OpenAI Platform transports apply it
+ * (`max_output_tokens`/`max_tokens`); the native Codex Responses backend drops
+ * it (above). The runtime rejects an overrun the host reports either way, so a
+ * route that cannot cap output fails closed rather than overspending silently. Usage comes back normalized by OpenClaw
  * (`input`/`output`/`cacheRead`/`cacheWrite`/`total`/`costUsd`); it is passed on
  * unchanged for the router to interpret, because deciding what counts as a
  * billable input token is the router's contract, not this file's.
@@ -208,8 +225,9 @@ export function responseFormatFor(
       json_schema: { name: RESPONSE_FORMAT_NAME, schema: projected },
     },
     detail:
-      "Requested as a json_schema response format; OpenClaw maps it onto the provider's " +
-      "constrained-output field where the transport supports one.",
+      "Requested as a json_schema response format. The host route decides whether it reaches " +
+      "the provider and does not report it; some routes drop it. Conformance is enforced by " +
+      "parse-and-validate, not assumed.",
   };
 }
 

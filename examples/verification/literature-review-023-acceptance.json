@@ -1,0 +1,157 @@
+{
+  "passed": true,
+  "runtime": "agentpkg 0.2.1",
+  "artifact": {
+    "path": "dist/literature-review.agent.pkg",
+    "version": "0.2.3",
+    "archive_sha256": "32304cad852d162084a3bdd9a444e04e31423f1e660f7cefdaeee442c1520dff",
+    "digest": "2b2dcdfdf41d5d66e648db3220cc585942bf3f0f84991c7c5a9c73a239cf8987",
+    "signature_valid": true,
+    "signer": "sha256:c5ca9763f9fc71253298ca381ec14c4d7432009c74dacc69df6344b71de05232",
+    "minimum_runtime": "0.2.1",
+    "node_count": 20
+  },
+  "previous_artifact_preserved": {
+    "path": "dist/literature-review-0.2.2.agent.pkg",
+    "version": "0.2.2",
+    "archive_sha256": "4804ea8f4c2ad40439641f8348c2d65b798f4d52802f6ad751b71114e4f27c04",
+    "digest": "19de8c9e2fa2e96d85b029108f78519cbda5edbf4a872257ae51597cef08c634",
+    "signature_valid": true,
+    "signer": "sha256:c5ca9763f9fc71253298ca381ec14c4d7432009c74dacc69df6344b71de05232",
+    "minimum_runtime": "0.2.0",
+    "node_count": 18
+  },
+  "b1_live_failure_reproduced_on_0_2_2": {
+    "transcribed_bibliography": {
+      "refused": true,
+      "error_code": "schema_validation",
+      "node_id": "validate-output",
+      "failed_check": {
+        "check": "assertion",
+        "index": 0,
+        "kind": "relation",
+        "failure": "fields_do_not_match",
+        "compare": {
+          "left": "/metadata",
+          "right": "/response/best_match",
+          "op": "eq"
+        }
+      }
+    },
+    "matches_live_run_failed_check": true,
+    "exact_copy_status": "completed"
+  },
+  "b1_fixed_on_0_2_3": {
+    "status": "completed",
+    "bibliography": 3,
+    "metadata_equals_resolver_best_match": true,
+    "deterministic": true,
+    "verifier_rows": [
+      {
+        "reference": 1,
+        "paper_id": "10.5555/scripted.1"
+      },
+      {
+        "reference": 2,
+        "paper_id": "10.5555/scripted.2"
+      },
+      {
+        "reference": 3,
+        "paper_id": "10.5555/scripted.3"
+      }
+    ]
+  },
+  "refusals_on_0_2_3": {
+    "verifier_writes_exact_metadata": {
+      "refused": true,
+      "error_code": "schema_validation",
+      "node_id": "verification",
+      "failed_check": null
+    },
+    "verifier_writes_transcribed_metadata": {
+      "refused": true,
+      "error_code": "schema_validation",
+      "node_id": "verification",
+      "failed_check": null
+    },
+    "fabricated_bibliography_paper": {
+      "refused": true,
+      "error_code": "schema_validation",
+      "node_id": "bibliography",
+      "failed_check": {
+        "check": "lookup",
+        "failure": "no_match",
+        "key": "/paper/paper_id",
+        "path": "/response/best_match"
+      }
+    },
+    "unresolved_paper_in_bibliography": {
+      "refused": true,
+      "error_code": "schema_validation",
+      "node_id": "bibliography",
+      "failed_check": {
+        "check": "output_schema",
+        "schema": "schemas/bibliography-entry.schema.json"
+      }
+    },
+    "ambiguous_candidate_in_bibliography": {
+      "refused": true,
+      "error_code": "schema_validation",
+      "node_id": "validate-output",
+      "failed_check": {
+        "check": "assertion",
+        "index": 0,
+        "kind": "relation",
+        "failure": "target_value_mismatch",
+        "path": "/response/status"
+      }
+    },
+    "ungrounded_claim": {
+      "refused": true,
+      "error_code": "schema_validation",
+      "node_id": "validate-output",
+      "failed_check": {
+        "check": "assertion",
+        "index": 2,
+        "kind": "relation",
+        "failure": "missing_target_key",
+        "row_key": "/evidence_ids",
+        "target_key": "/evidence_id"
+      }
+    },
+    "colliding_evidence_ids": {
+      "refused": true,
+      "error_code": "schema_validation",
+      "node_id": "check-evidence",
+      "failed_check": {
+        "check": "assertion",
+        "index": 0,
+        "kind": "relation",
+        "failure": "duplicate_target_key",
+        "target_key": "/evidence_id"
+      }
+    }
+  },
+  "honest_empty_results_on_0_2_3": {
+    "nothing_included": {
+      "status": "completed",
+      "claims": 0,
+      "bibliography": 0
+    },
+    "nothing_resolved": {
+      "status": "completed",
+      "claims": 0,
+      "bibliography": 0
+    },
+    "no_evidence_in_sources": {
+      "status": "completed",
+      "claims": 0,
+      "bibliography": 0
+    }
+  },
+  "fixture_replay": {
+    "status": "completed",
+    "bibliography": 2,
+    "metadata_equals_resolver_best_match": true
+  }
+}
