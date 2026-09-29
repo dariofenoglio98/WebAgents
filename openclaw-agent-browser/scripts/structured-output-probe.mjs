@@ -23,6 +23,7 @@
  * `openclaw` command resolves to). Set `OPENCLAW_DEBUG_MODEL_PAYLOAD=summary`
  * to have the transport log which request fields actually left the host.
  */
+import { observeTransport } from "./transport-observer.mjs";
 import { execFileSync } from "node:child_process";
 import { appendFileSync, readFileSync, realpathSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -49,14 +50,21 @@ function openclawRoot() {
 const args = parseArgs(process.argv.slice(2));
 const root = openclawRoot();
 const load = (path) => import(pathToFileURL(join(root, path)).href);
-const { createRuntimeLlm } = await load("dist/runtime-llm.runtime.js");
-const { getRuntimeConfig } = await load("dist/plugin-sdk/config-runtime.js");
-const { completeWithBoundModel } = await import(
+const { completeWithBoundModel, responseFormatFor } = await import(
   new URL("../dist/host-llm.js", import.meta.url).href
 );
 
 const request = JSON.parse(readFileSync(args.requests, "utf8"))[args.case];
 if (!request) throw new Error(`no case ${args.case} in ${args.requests}`);
+
+// Optional safe transport evidence: field presence and hashes only, no text or headers.
+if (args["transport-facts"]) {
+  const expected = responseFormatFor(request.output_schema)?.format?.json_schema?.schema;
+  observeTransport(expected, (facts) => appendFileSync(args["transport-facts"], `${JSON.stringify(facts)}\n`, { mode: 0o600 }));
+}
+
+const { createRuntimeLlm } = await load("dist/runtime-llm.runtime.js");
+const { getRuntimeConfig } = await load("dist/plugin-sdk/config-runtime.js");
 
 // The authority the Gateway grants this plugin, with the caller named
 // explicitly because no Gateway request scope exists in a script. The

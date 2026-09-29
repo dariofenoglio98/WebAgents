@@ -316,7 +316,7 @@ class ScriptedReview:
         claims = [
             {
                 "claim_id": f"claim-{index}",
-                "text": item["quote"],
+                "text": (None if _draft_quotes(self.output_schema) else item["quote"]),
                 "paper_ids": [item["paper_id"]],
                 "evidence_ids": [item["evidence_id"]],
                 "support_type": "direct_quote",
@@ -402,6 +402,13 @@ def _follow(schema: dict, root: dict) -> dict:
             target = target[part.replace("~1", "/").replace("~0", "~")]
         schema = target
     return schema
+
+
+def _draft_quotes(schema):
+    root = _follow(schema, schema)
+    claims = _follow(root.get("properties", {}).get("claims", {}), schema)
+    item = _follow(claims.get("items", {}), schema)
+    return item.get("properties", {}).get("text", {}).get("type") == ["string", "null"]
 
 
 def _asks_for_metadata(output_schema: dict) -> bool:

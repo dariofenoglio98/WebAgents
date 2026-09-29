@@ -56,5 +56,26 @@
     "verification_status",
     "theme_id"
   ],
-  "additionalProperties": false
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "support_type": {
+            "const": "direct_quote"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "evidence_ids": {
+            "maxItems": 1
+          },
+          "paper_ids": {
+            "maxItems": 1
+          }
+        }
+      }
+    }
+  ]
 }

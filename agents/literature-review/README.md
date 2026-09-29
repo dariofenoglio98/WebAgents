@@ -4,6 +4,14 @@ Version 0.2.3 is a data-only package executed by the same generic interpreter as
 
 The graph performs planning, seed resolution, parallel search, join/normalization/deduplication, parallel screening, citation resolution, evidence preparation and parallel extraction, synthesis, writing, verification and declared exports. Citation Resolver remains a remote tool consumed through its existing contract. Conditional selected-PDF reads remain worker-local. Exact quote/page checks, record links and resolver metadata checks use generic validation nodes.
 
+## 0.2.4: deterministic preparation and direct quotes
+
+`prepare-evidence` is a structural map over resolver answers. It constructs one citation record per answer, one evidence job per resolved record, and an unresolved row for every other status. Three ordered joins retain these collections. Bidirectional relations check coverage, uniqueness and exact source data. Missing fields or a missing/duplicated screening-job reference fail closed. Each job carries the same opaque selected-file capability used for that paper's screening; no second model reconstructs that mapping.
+
+Direct-quote model outputs select exactly one evidence ID and one paper ID with `text: null`. The `materialize-claims` map checks their relationship and copies the selected evidence's exact quote. Paraphrase text is unchanged. The final exact-quote, evidence and bibliography checks still run. Bibliography metadata continues to come directly from the resolver through `lookup`.
+
+No workflow primitive, permission, tool contract or budget changed. Removing the `prepare` model task saves one completion (two remote accounting events for a remote tokenizer/completion path). The signed 0.2.3 archive is preserved separately. Live acceptance status is documented in the milestone report; fixture success alone is not cross-provider acceptance.
+
 ## 0.2.3: bibliographic metadata comes from the resolver, not the model
 
 A live 0.2.2 run on `ollama/qwen3:30b` completed every stage and was refused by `validate-output` assertion 0 (`fields_do_not_match`, `/metadata` against `/response/best_match`): the verifier was asked to reproduce each cited paper's complete resolver record, and a model can return scientifically sound output while its transcription of that record differs from the original in a field such as a null value, an author object or the BibTeX string. The package required a model to regenerate trusted data that the package then demanded be identical. 0.2.3 stops asking:

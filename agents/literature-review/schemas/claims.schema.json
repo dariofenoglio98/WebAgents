@@ -1,0 +1,7 @@
+{
+  "type": "array",
+  "maxItems": 200,
+  "items": {
+    "$ref": "claim.schema.json"
+  }
+}

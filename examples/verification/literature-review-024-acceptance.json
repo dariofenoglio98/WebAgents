@@ -1,0 +1,1042 @@
+{
+  "verdict": "PARTIAL",
+  "initial_state": {
+    "head": "f237aa9d3417cef1579cefbc37e1e60ec5e8b002",
+    "worktree_clean": true,
+    "safety_snapshot": "/private/tmp/webagents-pre-024-20260927-230021",
+    "archive_023_sha256": "32304cad852d162084a3bdd9a444e04e31423f1e660f7cefdaeee442c1520dff"
+  },
+  "artifact": {
+    "package_id": "org.webagents.literature-review",
+    "version": "0.2.4",
+    "package_digest": "4a32fc32533fc60e012febc165e557750e271dff930730ec602fed66fd8712b1",
+    "archive_sha256": "f513e68ea23e045ed3665d8d71e46531147f017f0da80f999fb343afc3e1fe24",
+    "signer_fingerprint": "sha256:c5ca9763f9fc71253298ca381ec14c4d7432009c74dacc69df6344b71de05232",
+    "signature_valid": true,
+    "node_count": 24,
+    "max_remote_calls": 45
+  },
+  "offline": {
+    "python_passed": 865,
+    "python_skipped": 2,
+    "plugin_passed": 407,
+    "fixture": {
+      "passed": true,
+      "package_id": "org.webagents.literature-review",
+      "version": "0.2.4",
+      "package_digest": "4a32fc32533fc60e012febc165e557750e271dff930730ec602fed66fd8712b1",
+      "archive_sha256": "f513e68ea23e045ed3665d8d71e46531147f017f0da80f999fb343afc3e1fe24",
+      "signer_fingerprint": "sha256:c5ca9763f9fc71253298ca381ec14c4d7432009c74dacc69df6344b71de05232",
+      "checks": {
+        "completed": true,
+        "signature_valid": true,
+        "prepare_model_task_absent": true,
+        "one_job_per_resolved_record": true,
+        "unique_jobs": true,
+        "direct_drafts_contain_no_quote": true,
+        "exact_final_quotes": true,
+        "exact_bibliography": true,
+        "strict_final_validation_completed": true,
+        "previous_archive_preserved": true
+      },
+      "resolved_records": 2,
+      "evidence_jobs": 2,
+      "evidence_items": 7,
+      "model_tasks": [
+        "plan",
+        "normalize",
+        "screen",
+        "screen",
+        "screen",
+        "screen",
+        "screen",
+        "screen",
+        "screen",
+        "screen",
+        "select",
+        "extract",
+        "extract",
+        "synthesize",
+        "write",
+        "verify"
+      ],
+      "usage": {
+        "tokens": 35732,
+        "reserved_tokens": 0,
+        "remote_calls": 6,
+        "tool_calls": {
+          "scholarly-search": 3,
+          "paper-reader": 2,
+          "citation-resolver": 3
+        },
+        "peak_parallel_workers": 3,
+        "workers": {
+          "coordinator": {
+            "tokens": 0,
+            "remote_calls": 0,
+            "tool_calls": {}
+          },
+          "PlanningWorker:1": {
+            "tokens": 566,
+            "remote_calls": 0,
+            "tool_calls": {}
+          },
+          "SearchWorker:2": {
+            "tokens": 0,
+            "remote_calls": 1,
+            "tool_calls": {
+              "scholarly-search": 1
+            }
+          },
+          "SearchWorker:3": {
+            "tokens": 0,
+            "remote_calls": 1,
+            "tool_calls": {
+              "scholarly-search": 1
+            }
+          },
+          "SearchWorker:4": {
+            "tokens": 0,
+            "remote_calls": 1,
+            "tool_calls": {
+              "scholarly-search": 1
+            }
+          },
+          "PlanningWorker:5": {
+            "tokens": 5784,
+            "remote_calls": 0,
+            "tool_calls": {}
+          },
+          "ScreeningWorker:6": {
+            "tokens": 1405,
+            "remote_calls": 0,
+            "tool_calls": {
+              "paper-reader": 1
+            }
+          },
+          "ScreeningWorker:7": {
+            "tokens": 1189,
+            "remote_calls": 0,
+            "tool_calls": {}
+          },
+          "ScreeningWorker:8": {
+            "tokens": 1191,
+            "remote_calls": 0,
+            "tool_calls": {}
+          },
+          "ScreeningWorker:9": {
+            "tokens": 1137,
+            "remote_calls": 0,
+            "tool_calls": {}
+          },
+          "ScreeningWorker:10": {
+            "tokens": 1139,
+            "remote_calls": 0,
+            "tool_calls": {}
+          },
+          "ScreeningWorker:11": {
+            "tokens": 1146,
+            "remote_calls": 0,
+            "tool_calls": {}
+          },
+          "ScreeningWorker:12": {
+            "tokens": 1062,
+            "remote_calls": 0,
+            "tool_calls": {}
+          },
+          "ScreeningWorker:13": {
+            "tokens": 1127,
+            "remote_calls": 0,
+            "tool_calls": {}
+          },
+          "ScreeningWorker:14": {
+            "tokens": 3590,
+            "remote_calls": 0,
+            "tool_calls": {}
+          },
+          "CitationWorker:15": {
+            "tokens": 0,
+            "remote_calls": 1,
+            "tool_calls": {
+              "citation-resolver": 1
+            }
+          },
+          "CitationWorker:16": {
+            "tokens": 0,
+            "remote_calls": 1,
+            "tool_calls": {
+              "citation-resolver": 1
+            }
+          },
+          "CitationWorker:17": {
+            "tokens": 0,
+            "remote_calls": 1,
+            "tool_calls": {
+              "citation-resolver": 1
+            }
+          },
+          "CitationWorker:18": {
+            "tokens": 0,
+            "remote_calls": 0,
+            "tool_calls": {}
+          },
+          "CitationWorker:19": {
+            "tokens": 0,
+            "remote_calls": 0,
+            "tool_calls": {}
+          },
+          "CitationWorker:20": {
+            "tokens": 0,
+            "remote_calls": 0,
+            "tool_calls": {}
+          },
+          "CitationWorker:21": {
+            "tokens": 0,
+            "remote_calls": 0,
+            "tool_calls": {}
+          },
+          "CitationWorker:22": {
+            "tokens": 0,
+            "remote_calls": 0,
+            "tool_calls": {}
+          },
+          "CitationWorker:23": {
+            "tokens": 0,
+            "remote_calls": 0,
+            "tool_calls": {}
+          },
+          "EvidenceWorker:24": {
+            "tokens": 2126,
+            "remote_calls": 0,
+            "tool_calls": {
+              "paper-reader": 1
+            }
+          },
+          "EvidenceWorker:25": {
+            "tokens": 1804,
+            "remote_calls": 0,
+            "tool_calls": {}
+          },
+          "SynthesisWorker:26": {
+            "tokens": 3548,
+            "remote_calls": 0,
+            "tool_calls": {}
+          },
+          "WritingWorker:27": {
+            "tokens": 2013,
+            "remote_calls": 0,
+            "tool_calls": {}
+          },
+          "VerificationWorker:28": {
+            "tokens": 6905,
+            "remote_calls": 0,
+            "tool_calls": {}
+          },
+          "VerificationWorker:29": {
+            "tokens": 0,
+            "remote_calls": 0,
+            "tool_calls": {}
+          },
+          "CitationWorker:30": {
+            "tokens": 0,
+            "remote_calls": 0,
+            "tool_calls": {}
+          },
+          "CitationWorker:31": {
+            "tokens": 0,
+            "remote_calls": 0,
+            "tool_calls": {}
+          },
+          "VerificationWorker:32": {
+            "tokens": 0,
+            "remote_calls": 0,
+            "tool_calls": {}
+          },
+          "VerificationWorker:33": {
+            "tokens": 0,
+            "remote_calls": 0,
+            "tool_calls": {}
+          },
+          "VerificationWorker:34": {
+            "tokens": 0,
+            "remote_calls": 0,
+            "tool_calls": {}
+          },
+          "VerificationWorker:35": {
+            "tokens": 0,
+            "remote_calls": 0,
+            "tool_calls": {}
+          },
+          "VerificationWorker:36": {
+            "tokens": 0,
+            "remote_calls": 0,
+            "tool_calls": {}
+          },
+          "VerificationWorker:37": {
+            "tokens": 0,
+            "remote_calls": 0,
+            "tool_calls": {}
+          }
+        },
+        "limits": {
+          "approval_threshold_tokens": null,
+          "estimated_cost_usd": null,
+          "estimated_tokens": 24000,
+          "hard_tokens": 180000,
+          "max_calls_per_tool": {
+            "citation-resolver": 20,
+            "paper-reader": 10,
+            "scholarly-search": 3
+          },
+          "max_parallel_workers": 3,
+          "max_remote_calls": 45
+        }
+      },
+      "scope": "offline fixture; does not establish live cross-provider acceptance"
+    },
+    "changed_files_private_key_marker_matches": []
+  },
+  "qwen_focused": {
+    "model": "ollama/qwen3:30b",
+    "package_digest": "6108d263a8c34cf385bb15566dc5312e7280e4c1550c6830981ebd77797f654a",
+    "cases": [
+      {
+        "case": "trivial",
+        "schema_requested": true,
+        "cap_requested": 1024,
+        "transport": [],
+        "process_ok": true,
+        "actual_model": "ollama/qwen3:30b",
+        "provider": "ollama",
+        "stop_reason": "stop",
+        "usage": {
+          "input_tokens": 155,
+          "output_tokens": 279,
+          "cache_read_tokens": 0,
+          "cache_write_tokens": 0,
+          "total_tokens": 434,
+          "cost_usd": 0
+        },
+        "conforming": true
+      },
+      {
+        "case": "screen",
+        "schema_requested": true,
+        "cap_requested": 12000,
+        "transport": [],
+        "process_ok": true,
+        "actual_model": "ollama/qwen3:30b",
+        "provider": "ollama",
+        "stop_reason": "stop",
+        "usage": {
+          "input_tokens": 992,
+          "output_tokens": 2021,
+          "cache_read_tokens": 50,
+          "cache_write_tokens": 0,
+          "total_tokens": 3063,
+          "cost_usd": 0
+        },
+        "conforming": true
+      },
+      {
+        "case": "normalize",
+        "schema_requested": true,
+        "cap_requested": 16000,
+        "transport": [],
+        "process_ok": true,
+        "actual_model": "ollama/qwen3:30b",
+        "provider": "ollama",
+        "stop_reason": "stop",
+        "usage": {
+          "input_tokens": 1887,
+          "output_tokens": 7418,
+          "cache_read_tokens": 50,
+          "cache_write_tokens": 0,
+          "total_tokens": 9355,
+          "cost_usd": 0
+        },
+        "conforming": true
+      },
+      {
+        "case": "extract",
+        "schema_requested": true,
+        "cap_requested": 12000,
+        "transport": [],
+        "process_ok": true,
+        "actual_model": "ollama/qwen3:30b",
+        "provider": "ollama",
+        "stop_reason": "stop",
+        "usage": {
+          "input_tokens": 1383,
+          "output_tokens": 5026,
+          "cache_read_tokens": 50,
+          "cache_write_tokens": 0,
+          "total_tokens": 6459,
+          "cost_usd": 0
+        },
+        "conforming": true
+      },
+      {
+        "case": "synthesize",
+        "schema_requested": true,
+        "cap_requested": 12000,
+        "transport": [],
+        "process_ok": true,
+        "actual_model": "ollama/qwen3:30b",
+        "provider": "ollama",
+        "stop_reason": "stop",
+        "usage": {
+          "input_tokens": 2970,
+          "output_tokens": 5601,
+          "cache_read_tokens": 50,
+          "cache_write_tokens": 0,
+          "total_tokens": 8621,
+          "cost_usd": 0
+        },
+        "conforming": true
+      },
+      {
+        "case": "write",
+        "schema_requested": true,
+        "cap_requested": 12000,
+        "transport": [],
+        "process_ok": true,
+        "actual_model": "ollama/qwen3:30b",
+        "provider": "ollama",
+        "stop_reason": "stop",
+        "usage": {
+          "input_tokens": 1569,
+          "output_tokens": 1897,
+          "cache_read_tokens": 50,
+          "cache_write_tokens": 0,
+          "total_tokens": 3516,
+          "cost_usd": 0
+        },
+        "conforming": true
+      },
+      {
+        "case": "verify",
+        "schema_requested": true,
+        "cap_requested": 16000,
+        "transport": [],
+        "process_ok": true,
+        "actual_model": "ollama/qwen3:30b",
+        "provider": "ollama",
+        "stop_reason": "stop",
+        "usage": {
+          "input_tokens": 4552,
+          "output_tokens": 7719,
+          "cache_read_tokens": 50,
+          "cache_write_tokens": 0,
+          "total_tokens": 12321,
+          "cost_usd": 0
+        },
+        "conforming": true
+      }
+    ],
+    "passed": true
+  },
+  "qwen_focused_usage": {
+    "input_tokens": 13508,
+    "cache_read_tokens": 300,
+    "output_tokens": 29961,
+    "total_tokens": 43769,
+    "cost_usd": 0
+  },
+  "probed_content_equivalence": {
+    "final_package_digest": "4a32fc32533fc60e012febc165e557750e271dff930730ec602fed66fd8712b1",
+    "schema_probe_package_digest": "6108d263a8c34cf385bb15566dc5312e7280e4c1550c6830981ebd77797f654a",
+    "all_model_schemas_prompts_fixtures_and_execution_graph_identical": true,
+    "only_change": "noncritical graph presentation annotations"
+  },
+  "crossref": {
+    "path": "exact ToolBroker with real DNS/TLS transport, no network stubs; not a full UI run",
+    "reports": [
+      {
+        "query_sha256": "27fd7735484616d73b6ccfb107b6b503a20298b8485601f1eee69557906c0729",
+        "binding_id": "openclaw:scholarly-search:1",
+        "binding_sha256": "4800eb9bb1be9ddbec38e262ce0ae6e22c17dcb5659c122fd99959110923d65c",
+        "implementation_version": "0.2.0",
+        "endpoint_origin": "https://api.crossref.org",
+        "ok": true,
+        "status": 200,
+        "papers": 3,
+        "schema_valid": true
+      },
+      {
+        "query_sha256": "031bab14a3ccf044a2738de2ec9023eff6e54b3ab5adf452b00fc29cd93c86d8",
+        "binding_id": "openclaw:scholarly-search:1",
+        "binding_sha256": "4800eb9bb1be9ddbec38e262ce0ae6e22c17dcb5659c122fd99959110923d65c",
+        "implementation_version": "0.2.0",
+        "endpoint_origin": "https://api.crossref.org",
+        "ok": true,
+        "status": 200,
+        "papers": 3,
+        "schema_valid": true
+      },
+      {
+        "query_sha256": "14e7334a2de8d311587625d5726d69598b5feb8c879f99760c8d37834624d9e7",
+        "binding_id": "openclaw:scholarly-search:1",
+        "binding_sha256": "4800eb9bb1be9ddbec38e262ce0ae6e22c17dcb5659c122fd99959110923d65c",
+        "implementation_version": "0.2.0",
+        "endpoint_origin": "https://api.crossref.org",
+        "ok": true,
+        "status": 200,
+        "papers": 3,
+        "schema_valid": true
+      }
+    ]
+  },
+  "hosted": {
+    "api_key_profiles": 0,
+    "oauth_profiles": 2,
+    "intended_model": "openai/gpt-5.6-luna",
+    "intended_route": "OpenAI API-key Responses",
+    "tested": false,
+    "schema_reached_provider": null,
+    "max_output_reached_provider": null,
+    "cost_usd": null,
+    "reason": "API-key setup is required; no substitution of the OAuth route",
+    "auth_rechecked_at": "2026-09-28T12:35:15.479676+00:00"
+  },
+  "qwen_live": {
+    "run_id": "run_41b9200000d14aa2b7970c1a819213e7",
+    "status": "completed",
+    "passed": false,
+    "driver_criteria": {
+      "completed": true,
+      "profileWorkflowV0": true,
+      "packageIsLiteratureReview": true,
+      "signatureValid": true,
+      "signerTrusted": true,
+      "runnerReverifiedPackage": true,
+      "oneExplicitModelEveryCall": true,
+      "zeroCostLocal": true,
+      "scholarlySearchCalled": true,
+      "citationResolverCalled": true,
+      "paperReaderUseMatchesDocuments": true,
+      "peakParallelAtLeastTwo": true,
+      "auditChainValid": true,
+      "allExportsWritten": true,
+      "allHostFilesWritten": true,
+      "relatedWorkNonEmpty": true,
+      "bibliographyFromResolvedRecords": true,
+      "evidenceQuotesInGenuineSources": true,
+      "evidenceTableMatchesItems": false,
+      "claimsReferenceExistingEvidence": true,
+      "claimsCiteEvidenceAndPapers": true,
+      "claimsReferenceResolvedPapers": true,
+      "verificationMatchesClaims": true,
+      "relatedWorkCitesOnlyBibliography": true,
+      "noSyntheticContent": true,
+      "noCredentialShapedText": true,
+      "runPlanUnchanged": true,
+      "progressObserved": true
+    },
+    "deterministic_checks": {
+      "one_ordered_job_per_resolved_record": true,
+      "unique_jobs": true,
+      "exact_source_papers": true,
+      "exact_resolver_metadata": true,
+      "no_prepare_model_call": true,
+      "direct_drafts_have_null_text": true,
+      "exact_final_direct_quotes": true,
+      "paraphrases_unchanged": true,
+      "final_validation_completed": true
+    },
+    "resolved_records": 3,
+    "evidence_jobs": 3,
+    "evidence_items": 10,
+    "claims": 9,
+    "direct_quote_claims": 9,
+    "bibliography_entries": 3,
+    "model_calls": 18,
+    "model_completions": 18,
+    "model_tasks": [
+      "plan",
+      "normalize",
+      "screen",
+      "screen",
+      "screen",
+      "screen",
+      "screen",
+      "screen",
+      "screen",
+      "screen",
+      "screen",
+      "select",
+      "extract",
+      "extract",
+      "extract",
+      "synthesize",
+      "write",
+      "verify"
+    ],
+    "planned_model": {
+      "planned": "ollama/qwen3:30b",
+      "invoked": [
+        "ollama/qwen3:30b"
+      ],
+      "calls": 18,
+      "allCallsUsedPlannedModel": true,
+      "providers": [
+        "ollama"
+      ],
+      "responseModels": []
+    },
+    "usage": {
+      "tokens": 114022,
+      "remoteCalls": 6,
+      "peakParallelWorkers": 3,
+      "toolCalls": 6,
+      "limits": {
+        "hardTokens": 180000,
+        "maxRemoteCalls": 45,
+        "maxParallelWorkers": 3
+      },
+      "workers": [
+        {
+          "worker": "coordinator",
+          "tokens": 0,
+          "remoteCalls": 0
+        },
+        {
+          "worker": "PlanningWorker:1",
+          "tokens": 2600,
+          "remoteCalls": 0
+        },
+        {
+          "worker": "SearchWorker:2",
+          "tokens": 0,
+          "remoteCalls": 1
+        },
+        {
+          "worker": "SearchWorker:3",
+          "tokens": 0,
+          "remoteCalls": 1
+        },
+        {
+          "worker": "SearchWorker:4",
+          "tokens": 0,
+          "remoteCalls": 1
+        },
+        {
+          "worker": "PlanningWorker:5",
+          "tokens": 16551,
+          "remoteCalls": 0
+        },
+        {
+          "worker": "ScreeningWorker:6",
+          "tokens": 1740,
+          "remoteCalls": 0
+        },
+        {
+          "worker": "ScreeningWorker:7",
+          "tokens": 2457,
+          "remoteCalls": 0
+        },
+        {
+          "worker": "ScreeningWorker:8",
+          "tokens": 2089,
+          "remoteCalls": 0
+        },
+        {
+          "worker": "ScreeningWorker:9",
+          "tokens": 3166,
+          "remoteCalls": 0
+        },
+        {
+          "worker": "ScreeningWorker:10",
+          "tokens": 2007,
+          "remoteCalls": 0
+        },
+        {
+          "worker": "ScreeningWorker:11",
+          "tokens": 2566,
+          "remoteCalls": 0
+        },
+        {
+          "worker": "ScreeningWorker:12",
+          "tokens": 2506,
+          "remoteCalls": 0
+        },
+        {
+          "worker": "ScreeningWorker:13",
+          "tokens": 2419,
+          "remoteCalls": 0
+        },
+        {
+          "worker": "ScreeningWorker:14",
+          "tokens": 2235,
+          "remoteCalls": 0
+        },
+        {
+          "worker": "ScreeningWorker:15",
+          "tokens": 10926,
+          "remoteCalls": 0
+        },
+        {
+          "worker": "CitationWorker:16",
+          "tokens": 0,
+          "remoteCalls": 1
+        },
+        {
+          "worker": "CitationWorker:17",
+          "tokens": 0,
+          "remoteCalls": 1
+        },
+        {
+          "worker": "CitationWorker:18",
+          "tokens": 0,
+          "remoteCalls": 1
+        },
+        {
+          "worker": "CitationWorker:19",
+          "tokens": 0,
+          "remoteCalls": 0
+        },
+        {
+          "worker": "CitationWorker:20",
+          "tokens": 0,
+          "remoteCalls": 0
+        },
+        {
+          "worker": "CitationWorker:21",
+          "tokens": 0,
+          "remoteCalls": 0
+        },
+        {
+          "worker": "CitationWorker:22",
+          "tokens": 0,
+          "remoteCalls": 0
+        },
+        {
+          "worker": "CitationWorker:23",
+          "tokens": 0,
+          "remoteCalls": 0
+        },
+        {
+          "worker": "CitationWorker:24",
+          "tokens": 0,
+          "remoteCalls": 0
+        },
+        {
+          "worker": "EvidenceWorker:25",
+          "tokens": 8914,
+          "remoteCalls": 0
+        },
+        {
+          "worker": "EvidenceWorker:26",
+          "tokens": 8505,
+          "remoteCalls": 0
+        },
+        {
+          "worker": "EvidenceWorker:27",
+          "tokens": 8766,
+          "remoteCalls": 0
+        },
+        {
+          "worker": "SynthesisWorker:28",
+          "tokens": 14521,
+          "remoteCalls": 0
+        },
+        {
+          "worker": "WritingWorker:29",
+          "tokens": 4773,
+          "remoteCalls": 0
+        },
+        {
+          "worker": "VerificationWorker:30",
+          "tokens": 17281,
+          "remoteCalls": 0
+        },
+        {
+          "worker": "VerificationWorker:31",
+          "tokens": 0,
+          "remoteCalls": 0
+        },
+        {
+          "worker": "CitationWorker:32",
+          "tokens": 0,
+          "remoteCalls": 0
+        },
+        {
+          "worker": "CitationWorker:33",
+          "tokens": 0,
+          "remoteCalls": 0
+        },
+        {
+          "worker": "CitationWorker:34",
+          "tokens": 0,
+          "remoteCalls": 0
+        },
+        {
+          "worker": "VerificationWorker:35",
+          "tokens": 0,
+          "remoteCalls": 0
+        },
+        {
+          "worker": "VerificationWorker:36",
+          "tokens": 0,
+          "remoteCalls": 0
+        },
+        {
+          "worker": "VerificationWorker:37",
+          "tokens": 0,
+          "remoteCalls": 0
+        },
+        {
+          "worker": "VerificationWorker:38",
+          "tokens": 0,
+          "remoteCalls": 0
+        },
+        {
+          "worker": "VerificationWorker:39",
+          "tokens": 0,
+          "remoteCalls": 0
+        },
+        {
+          "worker": "VerificationWorker:40",
+          "tokens": 0,
+          "remoteCalls": 0
+        },
+        {
+          "worker": "VerificationWorker:41",
+          "tokens": 0,
+          "remoteCalls": 0
+        },
+        {
+          "worker": "VerificationWorker:42",
+          "tokens": 0,
+          "remoteCalls": 0
+        }
+      ]
+    },
+    "cost": {
+      "status": "complete",
+      "totalUsd": 0,
+      "calls": 18,
+      "callsWithReportedCost": 18
+    },
+    "audit": {
+      "events": 632,
+      "chainValid": true,
+      "finalHash": "1f5cdd3b6d7137aaef2f0a45a4f6b3f6ee5d6325fcb6959a5769aaa1485784b0",
+      "actions": [
+        {
+          "action": "budget.updated",
+          "count": 48
+        },
+        {
+          "action": "delegation.checked",
+          "count": 42
+        },
+        {
+          "action": "memory.cleared",
+          "count": 1
+        },
+        {
+          "action": "model.called",
+          "count": 18
+        },
+        {
+          "action": "model.completed",
+          "count": 18
+        },
+        {
+          "action": "model.count.called",
+          "count": 18
+        },
+        {
+          "action": "node.completed",
+          "count": 96
+        },
+        {
+          "action": "node.skipped",
+          "count": 30
+        },
+        {
+          "action": "node.started",
+          "count": 96
+        },
+        {
+          "action": "permission.checked",
+          "count": 91
+        },
+        {
+          "action": "runtime.started",
+          "count": 1
+        },
+        {
+          "action": "state.committed",
+          "count": 21
+        },
+        {
+          "action": "tool.called",
+          "count": 6
+        },
+        {
+          "action": "tool.completed",
+          "count": 6
+        },
+        {
+          "action": "tool.dispatched",
+          "count": 6
+        },
+        {
+          "action": "tool.settled",
+          "count": 6
+        },
+        {
+          "action": "worker.completed",
+          "count": 42
+        },
+        {
+          "action": "worker.spawned",
+          "count": 42
+        },
+        {
+          "action": "worker.started",
+          "count": 42
+        },
+        {
+          "action": "workflow.completed",
+          "count": 1
+        },
+        {
+          "action": "workflow.started",
+          "count": 1
+        }
+      ],
+      "workers": [
+        "CitationWorker:16",
+        "CitationWorker:17",
+        "CitationWorker:18",
+        "CitationWorker:19",
+        "CitationWorker:20",
+        "CitationWorker:21",
+        "CitationWorker:22",
+        "CitationWorker:23",
+        "CitationWorker:24",
+        "CitationWorker:32",
+        "CitationWorker:33",
+        "CitationWorker:34",
+        "EvidenceWorker:25",
+        "EvidenceWorker:26",
+        "EvidenceWorker:27",
+        "PlanningWorker:1",
+        "PlanningWorker:5",
+        "ScreeningWorker:10",
+        "ScreeningWorker:11",
+        "ScreeningWorker:12",
+        "ScreeningWorker:13",
+        "ScreeningWorker:14",
+        "ScreeningWorker:15",
+        "ScreeningWorker:6",
+        "ScreeningWorker:7",
+        "ScreeningWorker:8",
+        "ScreeningWorker:9",
+        "SearchWorker:2",
+        "SearchWorker:3",
+        "SearchWorker:4",
+        "SynthesisWorker:28",
+        "VerificationWorker:30",
+        "VerificationWorker:31",
+        "VerificationWorker:35",
+        "VerificationWorker:36",
+        "VerificationWorker:37",
+        "VerificationWorker:38",
+        "VerificationWorker:39",
+        "VerificationWorker:40",
+        "VerificationWorker:41",
+        "VerificationWorker:42",
+        "WritingWorker:29",
+        "coordinator"
+      ],
+      "workersSpawned": 42,
+      "nodesCompleted": 96,
+      "modelCalls": 18,
+      "toolCalls": 6,
+      "tasksCalled": [
+        {
+          "task": "extract",
+          "count": 3
+        },
+        {
+          "task": "normalize",
+          "count": 1
+        },
+        {
+          "task": "plan",
+          "count": 1
+        },
+        {
+          "task": "screen",
+          "count": 9
+        },
+        {
+          "task": "select",
+          "count": 1
+        },
+        {
+          "task": "synthesize",
+          "count": 1
+        },
+        {
+          "task": "verify",
+          "count": 1
+        },
+        {
+          "task": "write",
+          "count": 1
+        }
+      ]
+    },
+    "exports": [
+      "related-work.md",
+      "bibliography.json",
+      "evidence-table.json",
+      "unresolved.json",
+      "verification.json"
+    ],
+    "error_code": null,
+    "artifact_directory": "/private/tmp/webagents-pre-024-20260927-230021/qwen-live-artifacts",
+    "evidence_table_differences": [
+      {
+        "evidence_id": "10.2139/ssrn.7502658:e2",
+        "changed_fields": [
+          "category"
+        ],
+        "source_category": "setup",
+        "output_category": "method"
+      }
+    ],
+    "evidence_table_provenance_fields_exact": true,
+    "driver_criteria_passed": 27,
+    "driver_criteria_total": 28,
+    "artifact_sha256": {
+      "audit.json": "d72301d213e9615f9d0ff66fe184b268b0edfce6e66f28578a3b18b860bff8ae",
+      "usage.json": "b3ba50a4c6b24935cef187f35e5bb4db07652fb6938fa8bedc395084eefb9809",
+      "provenance.json": "5dc3a7ee95a75c021994049e7d14cc4a475a9ce771976a3ee2e2f2c974b276f9",
+      "result.json": "64857014f361d7c790bb2effee558815d77394eb669e68b1fb906e770e7956a3",
+      "related-work.md": "94df06718e16fd516668dd0305708ec0db2d66536c3889eb9a0e1215369fea06",
+      "evidence-table.json": "eb85678edd7c1d3c602610a1eda7904dee256d83734d53c63da57e99e7500d1a",
+      "bibliography.json": "f28c9c0d73196916b62933cf43e47eaf447012c911cddd49d7655972af5faeaf",
+      "verification.json": "abc29f50c2e0afb6c412527b2868debc8b0219537c9df111f87c728cce1a4a1f",
+      "unresolved.json": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "run.json": "d9722a62d1fdb757edfe0f032dd969bd45f918db332c143355dd9c3f66a5bdbe"
+    },
+    "scope": "Real UI execution path completed; independent acceptance failed one full-row evidence-table equality check. Original package validators passed; the failing check is retained."
+  },
+  "committed": false,
+  "pushed": false,
+  "host_update": {
+    "supported_plugin_install": true,
+    "gateway_hot_applied": true,
+    "plugin_version": "0.1.0",
+    "host_configuration_semantically_unchanged": true,
+    "oauth_profiles_preserved": true,
+    "backup_directory": "/private/tmp/webagents-pre-024-20260927-230021"
+  },
+  "recorded_at": "2026-09-28T18:10:52.869179+00:00"
+}

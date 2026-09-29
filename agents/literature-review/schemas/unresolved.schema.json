@@ -1,0 +1,30 @@
+{
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "paper_id": {
+        "type": "string"
+      },
+      "status": {
+        "type": "string"
+      },
+      "message": {
+        "type": "string"
+      },
+      "alternatives": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      }
+    },
+    "required": [
+      "paper_id",
+      "status",
+      "message",
+      "alternatives"
+    ],
+    "additionalProperties": false
+  }
+}

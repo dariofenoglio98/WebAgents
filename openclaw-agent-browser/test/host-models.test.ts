@@ -387,11 +387,12 @@ describe("capability provenance", () => {
     expect(answers.reasoning).toMatchObject({ value: true, basis: "declared" });
   });
 
-  it("records an explicit opt-out as a refutation, for tools and structured output alike", () => {
+  it("records a tool opt-out without inferring structured-output transport support", () => {
     const answers = capabilitiesOf(row({ compat: { supportsTools: false } }));
     expect(answers.tool_use).toMatchObject({ value: false, basis: "declared" });
-    // OpenClaw gates structured output on tool capability, so this follows.
-    expect(answers.structured_output).toMatchObject({ value: false, basis: "derived" });
+    // Tool use and responseFormat delivery are distinct capabilities.
+    expect(answers.structured_output).toMatchObject({ value: true, basis: "derived" });
+    expect(answers.structured_output_transport).toMatchObject({ value: null, basis: "absent" });
   });
 
   it("records OpenClaw's permissive tool default as host_default, not as a declaration", () => {
@@ -399,13 +400,17 @@ describe("capability provenance", () => {
     expect(answers.tool_use).toMatchObject({ value: true, basis: "host_default" });
     expect(answers.tool_use.detail).toContain("supportsModelTools");
     expect(answers.structured_output).toMatchObject({ value: true, basis: "derived" });
+    expect(answers.structured_output_transport).toMatchObject({ value: null, basis: "absent" });
   });
 
-  it("prefers a declared JSON-schema route over the derived tool gate", () => {
+  it("retains a catalog declaration as limited evidence, not transport proof", () => {
     const answers = capabilitiesOf(
       row({ compat: { supportsTools: true, supportsJsonSchemaResponseFormat: true } }),
     );
-    expect(answers.structured_output).toMatchObject({ value: true, basis: "declared" });
+    expect(answers.structured_output).toMatchObject({ value: true, basis: "derived" });
+    expect(answers.structured_output_transport).toMatchObject({ value: null, basis: "absent" });
+    expect(answers.structured_output_transport.detail).toContain("supportsJsonSchemaResponseFormat=true");
+    expect(answers.structured_output.detail).toContain("unverified");
   });
 
   it("reports a capability the host never states as unknown, not as false", () => {

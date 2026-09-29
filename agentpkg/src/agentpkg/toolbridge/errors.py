@@ -12,10 +12,24 @@ ask — so an operator reading either one sees the same word for the same fact.
 from __future__ import annotations
 
 from ..hostbridge.errors import BridgeError
+from .facts import safe_tool_facts
 
 
 class ToolBridgeError(BridgeError):
     """One refused or failed tool operation with a stable code."""
+
+    def __init__(self, code, message, *, detail=None, audit_facts=None):
+        facts = safe_tool_facts(audit_facts)
+        if not facts:
+            stage = {
+                "tool_timeout": "timeout",
+                "tool_cancelled": "cancelled",
+                "tool_request_invalid": "input_schema",
+            }.get(code, "bridge")
+            facts = {"stage": stage}
+            if stage in {"timeout", "cancelled"}:
+                facts[stage] = True
+        super().__init__(code, message, detail=detail, audit_facts=facts)
 
 
 # The package asked for something it never declared, or the host never bound.

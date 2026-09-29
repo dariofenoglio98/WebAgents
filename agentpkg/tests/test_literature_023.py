@@ -22,12 +22,11 @@ from __future__ import annotations
 
 import copy
 import json
-import shutil
 from pathlib import Path
 
 import pytest
 from literature_scenarios import Scenario, ScriptedReview, run_scenario
-from shipped_keys import DIST, LITERATURE_FINGERPRINT, LITERATURE_KEY
+from shipped_keys import LITERATURE_FINGERPRINT, LITERATURE_KEY
 
 from agentpkg.package import load_package
 from agentpkg.runtime import digest
@@ -49,7 +48,7 @@ LIVE_FAILED_CHECK = {
 
 @pytest.fixture(scope="module")
 def review():
-    package = load_package(DIST["literature-review"])
+    package = load_package(ROOT / "dist/literature-review-0.2.3.agent.pkg")
     assert package.manifest["version"] == "0.2.3"
     return package
 
@@ -78,7 +77,14 @@ def _resolver_records(result):
 
 def _source(tmp_path):
     source = tmp_path / "literature-review"
-    shutil.copytree(ROOT / "agents/literature-review", source)
+    source.mkdir()
+    package = load_package(ROOT / "dist/literature-review-0.2.3.agent.pkg")
+    for name, data in package.files.items():
+        if name == "SIGNATURE":
+            continue
+        target = source / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(data)
     return source
 
 
@@ -116,7 +122,7 @@ def test_0_2_2_passed_only_when_the_model_copied_every_field_exactly(previous):
 
 # -- the fix, on the signed 0.2.3 bytes --------------------------------------
 def test_0_2_3_is_signed_by_the_same_literature_review_key(review):
-    verified = verify_package(DIST["literature-review"], LITERATURE_KEY)
+    verified = verify_package(ROOT / "dist/literature-review-0.2.3.agent.pkg", LITERATURE_KEY)
     assert verified["valid"] and verified["version"] == "0.2.3"
     assert verified["key_fingerprint"] == LITERATURE_FINGERPRINT
     assert review.manifest["runtime"]["minimum_version"] == "0.2.1"

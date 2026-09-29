@@ -137,6 +137,7 @@ def failure_summary(audit: list) -> dict | None:
                 "tool": call.get("tool"),
                 "task": call.get("task"),
                 "reason": call.get("reason"),
+                **({"failure_facts": call["failure_facts"]} if call.get("failure_facts") else {}),
             }
             if call
             else None

@@ -1,3 +1,4 @@
+import { safeToolFacts } from "./tool-facts.js";
 /**
  * The host side of a private JSONL bridge to a spawned `agentpkg` child.
  *
@@ -430,7 +431,10 @@ export class ChildBridge {
         v: this.options.protocolVersion,
         id,
         ok: false,
-        error: { code, message: clip(message, 2000) },
+        error: { code, message: clip(message, 2000),
+          ...(method === "tool.call" && Object.keys(safeToolFacts(failure.auditFacts)).length
+            ? { detail: { failure_facts: safeToolFacts(failure.auditFacts) } } : {}),
+        },
       });
     }
   }

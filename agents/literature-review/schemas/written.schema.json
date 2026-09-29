@@ -23,7 +23,7 @@
     "claims": {
       "type": "array",
       "items": {
-        "$ref": "claim.schema.json"
+        "$ref": "claim-draft.schema.json"
       }
     }
   },

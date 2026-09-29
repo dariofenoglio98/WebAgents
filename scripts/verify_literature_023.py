@@ -32,7 +32,7 @@ from literature_scenarios import Scenario, run_scenario
 
 from agentpkg import __version__
 
-CURRENT = ROOT / "dist/literature-review.agent.pkg"
+CURRENT = ROOT / "dist/literature-review-0.2.3.agent.pkg"
 PREVIOUS = ROOT / "dist/literature-review-0.2.2.agent.pkg"
 KEY = ROOT / "examples/keys/literature-review-publisher.pub.pem"
 LIVE_FAILED_CHECK = {

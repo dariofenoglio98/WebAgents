@@ -57,6 +57,7 @@ from .errors import (
     ToolBridgeError,
     invalid,
 )
+from .facts import safe_tool_facts
 
 TOOL_CALL_METHOD = "tool.call"
 
@@ -135,7 +136,8 @@ class HostBridgeToolHandler:
             raise
         except TimeoutError as exc:
             raise ToolBridgeError(
-                TOOL_TIMEOUT, "The host did not answer this tool call in time"
+                TOOL_TIMEOUT, "The host did not answer this tool call in time",
+                audit_facts={"stage": "timeout", "timeout": True}
             ) from exc
         except Exception as exc:
             code = getattr(exc, "code", None)
@@ -146,8 +148,10 @@ class HostBridgeToolHandler:
                 code
                 if isinstance(code, str) and code.startswith("tool_")
                 else TOOL_BROKER_UNAVAILABLE,
-                str(exc)[:2048],
-                detail=detail if isinstance(detail, dict) else None,
+                "The host refused or failed this tool call",
+                audit_facts=safe_tool_facts(
+                    detail.get("failure_facts") if isinstance(detail, dict) else None
+                ),
             ) from exc
         output = self._settle(answer)
         duration = round((time.monotonic() - started) * 1000, 3)

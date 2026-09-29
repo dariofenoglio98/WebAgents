@@ -176,3 +176,11 @@ compatible, and still unable to satisfy a schema unaided.
 See also: [model selection and run plans](model-selection-and-run-plan.md), [the
 model-router bridge](model-router-bridge.md), [package
 execution](package-execution.md), [threat model](threat-model.md).
+
+## Structured JSON versus constrained decoding
+
+The Agent Browser descriptor's `structured_output` capability now describes the same contract as `HostBridgeModelRouter.capabilities_for`: the bridge returns schema-validated JSON or fails closed, in one attempt. Its evidence is `derived`, including when a catalog row declares JSON Schema support. It is not evidence that a provider constrained decoding.
+
+A separate capability, `structured_output_transport`, is `null` with `basis: absent`. OpenClaw 2026.9.5's public model catalog does not attest to the transport selected after authentication. Tool support does not establish that `responseFormat` survives that route. The detail retains any catalog schema declaration while explicitly marking delivery/decoding unverified. Neither base URLs nor auth profiles nor credentials cross into package code or the Python model descriptor. Existing Run Plan compatibility gates are unchanged; a package that requires `structured_output_transport` would encounter the existing unverified-capability gate.
+
+The installed ChatGPT/Codex sanitizer removes `text.format` and `max_output_tokens`. That is a route fact, not a model-family property. Direct OpenAI API behavior remains to be observed with a configured API-key profile; an OpenAI model name or successful prompt-only samples do not prove constrained decoding. See the [0.2.4 report](literature-review-024-report.md).

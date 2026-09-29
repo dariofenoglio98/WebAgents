@@ -307,68 +307,7 @@
       }
     },
     "citation_records": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "paper_id": {
-            "type": "string"
-          },
-          "query": {
-            "type": "string"
-          },
-          "status": {
-            "enum": [
-              "resolved",
-              "ambiguous",
-              "not_found",
-              "provider_error"
-            ]
-          },
-          "metadata": {
-            "type": [
-              "object",
-              "null"
-            ]
-          },
-          "alternatives": {
-            "type": "array",
-            "items": {
-              "type": "object"
-            }
-          },
-          "sources": {
-            "type": "array",
-            "items": {
-              "type": "object"
-            }
-          },
-          "warnings": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "message": {
-            "type": "string"
-          },
-          "synthetic": {
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "paper_id",
-          "query",
-          "status",
-          "metadata",
-          "alternatives",
-          "sources",
-          "warnings",
-          "message",
-          "synthetic"
-        ],
-        "additionalProperties": false
-      }
+      "$ref": "records.schema.json"
     },
     "evidence_items": {
       "type": "array",
@@ -519,61 +458,7 @@
     "claims": {
       "type": "array",
       "items": {
-        "type": "object",
-        "properties": {
-          "claim_id": {
-            "type": "string"
-          },
-          "text": {
-            "type": "string"
-          },
-          "paper_ids": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "evidence_ids": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "support_type": {
-            "enum": [
-              "direct_quote",
-              "model_synthesis"
-            ]
-          },
-          "strength": {
-            "enum": [
-              "descriptive",
-              "tentative"
-            ]
-          },
-          "verification_status": {
-            "enum": [
-              "pending",
-              "supported",
-              "unsupported",
-              "overstated"
-            ]
-          },
-          "theme_id": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "claim_id",
-          "text",
-          "paper_ids",
-          "evidence_ids",
-          "support_type",
-          "strength",
-          "verification_status",
-          "theme_id"
-        ],
-        "additionalProperties": false
+        "$ref": "claim-draft.schema.json"
       }
     },
     "draft": {
@@ -746,6 +631,12 @@
     },
     "bibliography": {
       "$ref": "bibliography.schema.json"
+    },
+    "preparation_batches": {
+      "$ref": "preparation-batches.schema.json"
+    },
+    "materialized_claims": {
+      "$ref": "claims.schema.json"
     }
   },
   "required": [

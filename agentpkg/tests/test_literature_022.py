@@ -25,7 +25,7 @@ from pathlib import Path
 
 import pytest
 from literature_scenarios import Scenario, ScriptedReview, run_scenario
-from shipped_keys import DIST, LITERATURE_FINGERPRINT, LITERATURE_KEY
+from shipped_keys import LITERATURE_FINGERPRINT, LITERATURE_KEY
 
 from agentpkg.artifacts import artifact_records
 from agentpkg.package import load_package
@@ -39,7 +39,7 @@ PREVIOUS = ROOT / "dist/literature-review-0.2.1.agent.pkg"
 # The artifact that introduced both corrections, and every version since.
 ARTIFACTS = {
     "0.2.2": ROOT / "dist/literature-review-0.2.2.agent.pkg",
-    "0.2.3": DIST["literature-review"],
+    "0.2.3": ROOT / "dist/literature-review-0.2.3.agent.pkg",
 }
 MODEL_STEPS_AFTER_EVIDENCE = {"synthesize", "write", "verify"}
 

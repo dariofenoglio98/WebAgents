@@ -6,9 +6,9 @@
  * what the host thought of the signer, pin that exact key at `package` scope if
  * it is not already trusted, set each permission, approve each tool, read what
  * this host implements, choose one model this host actually offers, prepare a
- * run plan — and then uses the operator-only operations the page does not have
- * yet: select files (optional), start the run **detached**, follow its live
- * progress, and read what it produced.
+ * run plan — then starts the run **detached**, follows its live progress, and
+ * reads what it produced through the same execution operations used by the UI.
+ * Optional local file selection is performed through the host capability API.
  *
  * Every step goes through the running Gateway (`plugins.sessionAction`), so the
  * backend answering is the installed plugin with the real tool registry, the

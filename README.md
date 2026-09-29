@@ -4,6 +4,8 @@ A research prototype for portable, signed, inspectable agents under host-control
 
 The same interpreter executes both [`literature-review.agent.pkg`](dist/literature-review.agent.pkg) and [`meeting-agenda.agent.pkg`](dist/meeting-agenda.agent.pkg). Graphs, skills, state mappings, schemas, tool contracts and application validation rules live in package data. The interpreter contains no application-specific orchestration or package-name dispatch.
 
+Literature Review **0.2.4** constructs evidence jobs and final direct quotes deterministically with existing workflow primitives. The signed 0.2.3 archive is preserved. Current verification and live-provider status are in the [0.2.4 acceptance report](docs/literature-review-024-report.md).
+
 ```sh
 # Existing development environment; for a new environment create agentpkg/.venv first.
 agentpkg/.venv/bin/python -m pip install -e './agentpkg[dev]'

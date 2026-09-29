@@ -62,11 +62,11 @@
  * * `host_default` — the row is silent and OpenClaw applies a documented
  *   default to it (`supportsModelTools`: tools are offered unless a provider
  *   opts out with `compat.supportsTools === false`);
- * * `derived` — OpenClaw's own mechanism for one capability is another
- *   capability. Structured output is the synthetic `structured_output` tool
- *   (`docs/tools/swarm.md`), gated on tool capability — `sessions_spawn`
- *   refuses an `outputSchema` for a model that declares
- *   `compat.supportsTools=false`.
+ * * `derived` — the bridge guarantees schema-validated JSON or a failed call.
+ *
+ * Structured-output transport evidence is absent: the public catalog does not
+ * reveal the route selected after auth resolution. Tool capability cannot
+ * establish that this plugin's responseFormat will reach a provider.
  *
  * A fact the host does not have at all is `null`, never `false`.
  */
@@ -242,20 +242,17 @@ export function capabilitiesOf(row: CatalogRow): Record<string, CapabilityAnswer
     typeof compat?.supportsJsonSchemaResponseFormat === "boolean"
       ? (compat.supportsJsonSchemaResponseFormat as boolean)
       : null;
-  const structured: CapabilityAnswer =
-    jsonSchema === true
-      ? {
-          value: true,
-          basis: "declared",
-          detail: "The provider route accepts a JSON Schema response format.",
-        }
-      : {
-          value: toolUse.value,
-          basis: "derived",
-          detail:
-            "OpenClaw produces structured output through its synthetic structured_output tool, " +
-            `so it follows tool capability (${toolUse.basis}).`,
-        };
+  // Catalog capability is not transport evidence: auth resolution can choose a
+  // route that removes responseFormat. The public row does not attest to the
+  // final transport, even when compat declares schema support. Do not infer it
+  // from tools (this completion path does not use the synthetic tool).
+  const transport: CapabilityAnswer = absent(
+    (jsonSchema === null ? "The catalog supplies no JSON Schema route declaration. "
+      : `The catalog declares supportsJsonSchemaResponseFormat=${String(jsonSchema)}. `) +
+    "The public model descriptor does not identify the transport selected after auth resolution; " +
+    "schema delivery and constrained decoding are unverified. The bridge requests a schema and " +
+    "validates every answer, failing closed on nonconformance.",
+  );
 
   const reasoning: CapabilityAnswer =
     typeof row.reasoning === "boolean"
@@ -276,7 +273,22 @@ export function capabilitiesOf(row: CatalogRow): Record<string, CapabilityAnswer
           detail: `Accepted input modalities: ${inputs.join(", ")}.`,
         };
 
-  return { tool_use: toolUse, structured_output: structured, reasoning, multimodal };
+  return {
+    tool_use: toolUse,
+    // workflow.v0's existing contract means validated JSON or failure; it has
+    // never promised successful generation or native constrained decoding.
+    // Match HostBridgeModelRouter.capabilities_for rather than the tools gate.
+    structured_output: {
+      value: true,
+      basis: "derived",
+      detail: "The Agent Browser bridge returns schema-validated JSON or fails closed. " +
+        "This is an adapter guarantee, not evidence of provider constrained decoding. " +
+        "See structured_output_transport: actual schema delivery is unverified.",
+    },
+    structured_output_transport: transport,
+    reasoning,
+    multimodal,
+  };
 }
 
 function descriptorOf(

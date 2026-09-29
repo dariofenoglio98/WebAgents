@@ -2,7 +2,7 @@
   "spec_version": "0.1",
   "kind": "host-runtime-component-inventory",
   "independent_attestation": false,
-  "runtime": "agentpkg 0.1.0",
+  "runtime": "agentpkg 0.2.1",
   "components": [
     {
       "name": "jsonschema",

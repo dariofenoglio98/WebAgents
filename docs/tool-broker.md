@@ -628,3 +628,9 @@ rather than one that reads as the other.
 See [the milestone report](tool-broker-report.md) for what was actually run,
 and [the threat model](threat-model.md) for this boundary's entry in the
 project-wide table.
+
+## Structural failure diagnostics
+
+Tool failures now carry a closed `failure_facts` object into the runtime's hash-chained `tool.failed` audit event and the execution report's failing-call summary. Allowed facts identify the failure stage, HTTP status, content-type category, response byte count, size overflow, JSON parse result, and timeout/cancellation. Package-schema failures report only a whitelisted keyword and schema/instance depth; arbitrary instance keys and values are excluded. Binding ID, digest, implementation version, and approved origin remain in the preceding `tool.dispatched` event.
+
+Both sides filter the diagnostic vocabulary. Bodies, header values, credentials, arbitrary URLs, provider exception text, and user arguments are not diagnostic facts. JSON-suffix content types are distinguishable in diagnostics but remain subject to the unchanged acceptance policy. No retry was added. The 0.2.4 milestone replayed three prior planning queries through the real broker's DNS/TLS path; all succeeded, so the earlier intermittent Crossref failure has no established root cause. See the [acceptance report](literature-review-024-report.md).

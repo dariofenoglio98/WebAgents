@@ -997,7 +997,7 @@ def test_a_0_2_1_receipt_or_plan_cannot_reach_0_2_2(tmp_path, review, review_022
 # reproduced by the verifier model. Signed by the same Literature Review key.
 # Behaviour is proved in test_literature_023.py; this section proves that
 # nothing *else* changed.
-CURRENT_REVIEW = DIST["literature-review"]
+CURRENT_REVIEW = ROOT / "dist/literature-review-0.2.3.agent.pkg"
 CURRENT_CHANGED_FILES = {
     "MANIFEST.agent",
     "README.md",
@@ -1032,9 +1032,9 @@ def test_the_shipped_review_artifact_is_0_2_3(current_review):
     assert current_review.graph["profile"] == "workflow.v0"
 
 
-def test_the_shipped_review_artifact_matches_its_source_tree(current_review, tmp_path):
+def test_the_shipped_review_artifact_matches_its_source_tree(tmp_path):
     rebuilt = load_package(build_package(REVIEW_SOURCE, tmp_path / "rebuilt.agent.pkg"))
-    assert rebuilt.digest == current_review.digest
+    assert rebuilt.digest == load_package(DIST["literature-review"]).digest
 
 
 def test_0_2_3_is_signed_by_the_same_literature_review_key(current_review):
@@ -1207,7 +1207,7 @@ def test_0_2_3_is_trusted_by_the_existing_package_scope_pin(tmp_path):
     assert mismatch.value.code == "digest_mismatch"
 
 
-def test_presentation_metadata_is_noncritical(current_review, tmp_path):
+def test_presentation_metadata_is_noncritical(tmp_path):
     """Stripping it changes nothing the interpreter does."""
     import asyncio
     import shutil
@@ -1234,7 +1234,7 @@ def test_presentation_metadata_is_noncritical(current_review, tmp_path):
     graph = json.loads((source / "graph.json").read_text())
     graph["extensions"] = {}
     (source / "graph.json").write_text(json.dumps(graph))
-    plain, dressed = replay(load_package(source)), replay(current_review)
+    plain, dressed = replay(load_package(source)), replay(load_package(DIST["literature-review"]))
     assert plain["output"] == dressed["output"]
     assert plain["usage"]["tool_calls"] == dressed["usage"]["tool_calls"]
     assert [event["action"] for event in plain["audit"]] == [

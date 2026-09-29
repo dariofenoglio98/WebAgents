@@ -1,0 +1,7 @@
+{
+  "type": "array",
+  "maxItems": 20,
+  "items": {
+    "$ref": "prepare.schema.json"
+  }
+}

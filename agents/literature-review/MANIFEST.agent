@@ -2,7 +2,7 @@
   "spec_version": "0.1",
   "package_id": "org.webagents.literature-review",
   "name": "Literature Review Agent",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "A constrained coordinator-worker review with structured evidence and verified citations. Bundled demo data are synthetic.",
   "publisher": {
     "id": "webagents-research",
@@ -34,7 +34,7 @@
     },
     {
       "id": "citation-resolution",
-      "version": "0.1.1",
+      "version": "0.1.3",
       "path": "skills/citation-resolution/SKILL.md"
     },
     {
@@ -44,17 +44,17 @@
     },
     {
       "id": "evidence-synthesis",
-      "version": "0.1.2",
+      "version": "0.1.3",
       "path": "skills/evidence-synthesis/SKILL.md"
     },
     {
       "id": "related-work-writing",
-      "version": "0.1.2",
+      "version": "0.1.3",
       "path": "skills/related-work-writing/SKILL.md"
     },
     {
       "id": "claim-and-citation-verification",
-      "version": "0.1.2",
+      "version": "0.1.3",
       "path": "skills/claim-and-citation-verification/SKILL.md"
     }
   ],
@@ -228,6 +228,30 @@
     {
       "id": "review-draft",
       "path": "schemas/review-draft.schema.json"
+    },
+    {
+      "id": "synthetic-flag",
+      "path": "schemas/synthetic-flag.schema.json"
+    },
+    {
+      "id": "preparation-batches",
+      "path": "schemas/preparation-batches.schema.json"
+    },
+    {
+      "id": "evidence-jobs",
+      "path": "schemas/evidence-jobs.schema.json"
+    },
+    {
+      "id": "unresolved",
+      "path": "schemas/unresolved.schema.json"
+    },
+    {
+      "id": "claim-draft",
+      "path": "schemas/claim-draft.schema.json"
+    },
+    {
+      "id": "claims",
+      "path": "schemas/claims.schema.json"
     }
   ],
   "model_requirements": {
@@ -297,15 +321,6 @@
       },
       {
         "id": "select",
-        "capabilities": [
-          "structured_output",
-          "reasoning"
-        ],
-        "context_window": 16000,
-        "preferred_tier": "reasoning"
-      },
-      {
-        "id": "prepare",
         "capabilities": [
           "structured_output",
           "reasoning"

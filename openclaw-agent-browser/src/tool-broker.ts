@@ -58,6 +58,7 @@ import { lookup as dnsLookup } from "node:dns";
 import { request as httpsRequest, type RequestOptions } from "node:https";
 import { connect as tlsConnect } from "node:tls";
 import { isIP } from "node:net";
+import { contentTypeCategory, safeToolFacts, type ToolFailureFacts } from "./tool-facts.js";
 import { AgentBrowserError, clip } from "./errors.js";
 import type { FileCapabilityView } from "./file-capabilities.js";
 import type { PdfReader } from "./pdf-reader.js";
@@ -115,8 +116,13 @@ export type ToolCallResult = {
   transport_status: number | null;
 };
 
-export function toolError(code: string, detail: string): AgentBrowserError {
-  return new AgentBrowserError("tool_call_failed", "The tool call failed", `${code}: ${detail}`);
+export function toolError(code: string, detail: string, facts: ToolFailureFacts = {}): AgentBrowserError {
+  const stage: ToolFailureFacts["stage"] = code === TOOL_ERRORS.timeout ? "timeout"
+    : code === TOOL_ERRORS.cancelled ? "cancelled" : code === TOOL_ERRORS.requestInvalid ? "input_schema"
+    : code === TOOL_ERRORS.transport ? "transport" : "binding";
+  return new AgentBrowserError("tool_call_failed", "The tool call failed", `${code}: ${detail}`,
+    false, null, safeToolFacts({ stage, ...(code === TOOL_ERRORS.timeout ? {timeout: true} : {}),
+      ...(code === TOOL_ERRORS.cancelled ? {cancelled: true} : {}), ...facts }));
 }
 
 /**
@@ -211,8 +217,10 @@ export const nodeToolTransport: HttpTransport = (options) =>
       // still authenticates the name the binding holds.
       ALPNProtocols: ["http/1.1"],
     });
-    socket.on("error", () =>
-      reject(toolError(TOOL_ERRORS.transport, "the tool host connection failed")),
+    socket.on("error", (error: NodeJS.ErrnoException) =>
+      reject(toolError(TOOL_ERRORS.transport, "the tool host connection failed", {
+        stage: /^(ERR_TLS_|ERR_SSL_|CERT_|DEPTH_ZERO_|UNABLE_TO_VERIFY_|SELF_SIGNED_)/u.test(error.code ?? "") ? "tls" : "transport",
+      })),
     );
     const requestOptions: RequestOptions = {
       host: options.hostname,
@@ -236,6 +244,7 @@ export const nodeToolTransport: HttpTransport = (options) =>
             TOOL_ERRORS.transport,
             "the tool host returned a redirect; each hop would need the whole destination " +
               "policy re-applied, so redirects are refused",
+            { stage: "status", http_status: status },
           ),
         );
         return;
@@ -244,7 +253,8 @@ export const nodeToolTransport: HttpTransport = (options) =>
       if (Number.isFinite(declared) && declared > options.maxResponseBytes) {
         response.destroy();
         socket.destroy();
-        reject(toolError(TOOL_ERRORS.responseInvalid, "the tool response is too large"));
+        reject(toolError(TOOL_ERRORS.responseInvalid, "the tool response is too large",
+          { stage: "body_size", http_status: status, body_exceeded: true, response_bytes: declared }));
         return;
       }
       let size = 0;
@@ -254,7 +264,8 @@ export const nodeToolTransport: HttpTransport = (options) =>
         if (size > options.maxResponseBytes) {
           response.destroy();
           socket.destroy();
-          reject(toolError(TOOL_ERRORS.responseInvalid, "the tool response is too large"));
+          reject(toolError(TOOL_ERRORS.responseInvalid, "the tool response is too large",
+            { stage: "body_size", http_status: status, body_exceeded: true, response_bytes: size }));
           return;
         }
         chunks.push(chunk);
@@ -284,7 +295,7 @@ export const nodeToolTransport: HttpTransport = (options) =>
           error.name === "AbortError" ? TOOL_ERRORS.cancelled : TOOL_ERRORS.transport,
           error.name === "AbortError"
             ? "the tool call was cancelled"
-            : `the tool request failed (${error.code ?? error.name})`,
+            : "the tool request failed",
         ),
       );
     });
@@ -549,6 +560,7 @@ export class ToolBroker {
         throw toolError(
           TOOL_ERRORS.unavailable,
           `the tool host resolves to a non-public destination (${rejection})`,
+          { stage: "address_policy" },
         );
       }
     }
@@ -604,19 +616,30 @@ export class ToolBroker {
         : toolError(TOOL_ERRORS.transport, "the tool request failed");
     }
 
+    const facts: ToolFailureFacts = {
+      http_status: answer.status, content_type: contentTypeCategory(answer.contentType),
+      response_bytes: Buffer.byteLength(answer.body), body_exceeded: false,
+    };
+    if (facts.response_bytes! > (definition.maxResponseBytes ?? DEFAULT_MAX_RESPONSE_BYTES)) {
+      throw toolError(TOOL_ERRORS.responseInvalid, "the tool response is too large",
+        { ...facts, stage: "body_size", body_exceeded: true });
+    }
     const contentType = (answer.contentType ?? "").split(";")[0]?.trim().toLowerCase() ?? "";
     if (contentType !== "application/json") {
       throw toolError(
         TOOL_ERRORS.responseInvalid,
-        `the tool host answered with ${clip(contentType || "no content type", 64)} rather than JSON`,
+        "the tool host did not answer with the required JSON content type",
+        { ...facts, stage: "content_type" },
       );
     }
     let json: unknown;
     try {
       json = JSON.parse(answer.body);
     } catch {
-      throw toolError(TOOL_ERRORS.responseInvalid, "the tool host answered with invalid JSON");
+      throw toolError(TOOL_ERRORS.responseInvalid, "the tool host answered with invalid JSON",
+        { ...facts, stage: "json_parse", json_parsed: false });
     }
+    facts.json_parsed = true;
     // The status contract and the shape of what the package receives are the
     // adapter's. Whatever it returns is still checked against the package's
     // own declared output schema by the runtime, after this.
@@ -628,8 +651,10 @@ export class ToolBroker {
         new Date((this.options.now ?? Date.now)()).toISOString(),
       );
     } catch (error) {
-      if (error instanceof AdapterRefusal) throw toolError(error.code, error.message);
-      throw toolError(TOOL_ERRORS.responseInvalid, "the tool response could not be read");
+      if (error instanceof AdapterRefusal) throw toolError(error.code, error.message,
+        { ...facts, stage: error.code === TOOL_ERRORS.responseInvalid ? "adapter_response" : "status" });
+      throw toolError(TOOL_ERRORS.responseInvalid, "the tool response could not be read",
+        { ...facts, stage: "adapter_response" });
     }
     return { output, status: answer.status };
   }

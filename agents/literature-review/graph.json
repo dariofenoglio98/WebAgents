@@ -33,7 +33,9 @@
         "search_queries",
         "themes",
         "unresolved",
-        "verification_results"
+        "verification_results",
+        "evidence_jobs",
+        "materialized_claims"
       ],
       "state_write": [
         "candidate_papers",
@@ -150,7 +152,10 @@
         "document_refs",
         "resolved_jobs",
         "review",
-        "search_plan"
+        "search_plan",
+        "screening_jobs",
+        "mode",
+        "preparation_batches"
       ],
       "state_write": [
         "bibliography",
@@ -159,7 +164,8 @@
         "evidence_jobs",
         "resolved_jobs",
         "seed_results",
-        "unresolved"
+        "unresolved",
+        "preparation_batches"
       ]
     },
     {
@@ -253,12 +259,14 @@
         "mode",
         "research_question",
         "themes",
-        "unresolved"
+        "unresolved",
+        "review"
       ],
       "state_write": [
         "claims",
         "review",
-        "verification_results"
+        "verification_results",
+        "materialized_claims"
       ]
     }
   ],
@@ -783,56 +791,318 @@
     },
     {
       "id": "prepare-evidence",
-      "type": "llm",
+      "type": "map",
       "worker": "CitationWorker",
-      "input": {
-        "object": {
-          "resolved_jobs": {
-            "from": "state",
-            "path": "/resolved_jobs"
-          },
-          "documents": {
-            "from": "state",
-            "path": "/document_refs"
-          }
-        }
-      },
-      "output_schema": "schemas/prepare.schema.json",
-      "timeout_seconds": 720,
       "depends_on": [
         "citations"
       ],
+      "input": {
+        "from": "state",
+        "path": "/resolved_jobs"
+      },
+      "output_schema": "schemas/preparation-batches.schema.json",
+      "timeout_seconds": 60,
+      "writes": {
+        "/preparation_batches": {
+          "from": "result",
+          "path": ""
+        }
+      },
+      "item_schema": "schemas/resolved-job.schema.json",
+      "max_items": 20,
+      "max_parallel": 3,
+      "steps": [
+        {
+          "id": "synthetic",
+          "type": "validate",
+          "input": {
+            "literal": false
+          },
+          "output_schema": "schemas/synthetic-flag.schema.json",
+          "timeout_seconds": 10,
+          "when": {
+            "left": {
+              "from": "state",
+              "path": "/mode"
+            },
+            "op": "eq",
+            "right": {
+              "literal": "live"
+            }
+          },
+          "otherwise": {
+            "literal": true
+          }
+        },
+        {
+          "id": "record",
+          "type": "validate",
+          "input": {
+            "object": {
+              "query": {
+                "from": "item",
+                "path": "/response/query"
+              },
+              "status": {
+                "from": "item",
+                "path": "/response/status"
+              },
+              "alternatives": {
+                "from": "item",
+                "path": "/response/alternatives"
+              },
+              "sources": {
+                "from": "item",
+                "path": "/response/sources"
+              },
+              "warnings": {
+                "from": "item",
+                "path": "/response/warnings"
+              },
+              "message": {
+                "from": "item",
+                "path": "/response/message"
+              },
+              "paper_id": {
+                "from": "item",
+                "path": "/paper/paper_id"
+              },
+              "metadata": {
+                "literal": null
+              },
+              "synthetic": {
+                "from": "steps",
+                "path": "/synthetic"
+              }
+            }
+          },
+          "output_schema": "schemas/citation-record.schema.json",
+          "timeout_seconds": 10,
+          "when": {
+            "left": {
+              "from": "item",
+              "path": "/response/status"
+            },
+            "op": "ne",
+            "right": {
+              "literal": "resolved"
+            }
+          },
+          "otherwise": {
+            "object": {
+              "query": {
+                "from": "item",
+                "path": "/response/query"
+              },
+              "status": {
+                "from": "item",
+                "path": "/response/status"
+              },
+              "alternatives": {
+                "from": "item",
+                "path": "/response/alternatives"
+              },
+              "sources": {
+                "from": "item",
+                "path": "/response/sources"
+              },
+              "warnings": {
+                "from": "item",
+                "path": "/response/warnings"
+              },
+              "message": {
+                "from": "item",
+                "path": "/response/message"
+              },
+              "paper_id": {
+                "from": "item",
+                "path": "/paper/paper_id"
+              },
+              "metadata": {
+                "from": "item",
+                "path": "/response/best_match"
+              },
+              "synthetic": {
+                "from": "steps",
+                "path": "/synthetic"
+              }
+            }
+          }
+        },
+        {
+          "id": "job",
+          "type": "validate",
+          "input": {
+            "literal": []
+          },
+          "output_schema": "schemas/evidence-jobs.schema.json",
+          "timeout_seconds": 10,
+          "when": {
+            "left": {
+              "from": "item",
+              "path": "/response/status"
+            },
+            "op": "ne",
+            "right": {
+              "literal": "resolved"
+            }
+          },
+          "otherwise": {
+            "array": [
+              {
+                "object": {
+                  "paper": {
+                    "from": "item",
+                    "path": "/paper"
+                  },
+                  "record": {
+                    "from": "steps",
+                    "path": "/record"
+                  },
+                  "file_id": {
+                    "lookup": {
+                      "in": {
+                        "from": "state",
+                        "path": "/screening_jobs"
+                      },
+                      "key": "/paper/paper_id",
+                      "equals": {
+                        "from": "item",
+                        "path": "/paper/paper_id"
+                      },
+                      "path": "/file_id"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "unresolved",
+          "type": "validate",
+          "input": {
+            "literal": []
+          },
+          "output_schema": "schemas/unresolved.schema.json",
+          "timeout_seconds": 10,
+          "when": {
+            "left": {
+              "from": "item",
+              "path": "/response/status"
+            },
+            "op": "eq",
+            "right": {
+              "literal": "resolved"
+            }
+          },
+          "otherwise": {
+            "array": [
+              {
+                "object": {
+                  "paper_id": {
+                    "from": "steps",
+                    "path": "/record/paper_id"
+                  },
+                  "status": {
+                    "from": "steps",
+                    "path": "/record/status"
+                  },
+                  "message": {
+                    "from": "steps",
+                    "path": "/record/message"
+                  },
+                  "alternatives": {
+                    "from": "steps",
+                    "path": "/record/alternatives"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "yield": {
+        "object": {
+          "citation_records": {
+            "array": [
+              {
+                "from": "steps",
+                "path": "/record"
+              }
+            ]
+          },
+          "evidence_jobs": {
+            "from": "steps",
+            "path": "/job"
+          },
+          "unresolved": {
+            "from": "steps",
+            "path": "/unresolved"
+          }
+        }
+      }
+    },
+    {
+      "id": "join-citation-records",
+      "type": "join",
+      "worker": "CitationWorker",
+      "depends_on": [
+        "prepare-evidence"
+      ],
+      "input": {
+        "from": "state",
+        "path": "/preparation_batches"
+      },
+      "select": "/citation_records",
+      "output_schema": "schemas/records.schema.json",
+      "timeout_seconds": 10,
       "writes": {
         "/citation_records": {
           "from": "result",
-          "path": "/citation_records"
-        },
+          "path": ""
+        }
+      }
+    },
+    {
+      "id": "join-evidence-jobs",
+      "type": "join",
+      "worker": "CitationWorker",
+      "depends_on": [
+        "prepare-evidence"
+      ],
+      "input": {
+        "from": "state",
+        "path": "/preparation_batches"
+      },
+      "select": "/evidence_jobs",
+      "output_schema": "schemas/evidence-jobs.schema.json",
+      "timeout_seconds": 10,
+      "writes": {
         "/evidence_jobs": {
           "from": "result",
-          "path": "/evidence_jobs"
-        },
+          "path": ""
+        }
+      }
+    },
+    {
+      "id": "join-unresolved",
+      "type": "join",
+      "worker": "CitationWorker",
+      "depends_on": [
+        "prepare-evidence"
+      ],
+      "input": {
+        "from": "state",
+        "path": "/preparation_batches"
+      },
+      "select": "/unresolved",
+      "output_schema": "schemas/unresolved.schema.json",
+      "timeout_seconds": 10,
+      "writes": {
         "/unresolved": {
           "from": "result",
-          "path": "/unresolved"
-        }
-      },
-      "task": "prepare",
-      "max_output_tokens": 16000,
-      "when": {
-        "left": {
-          "from": "state",
-          "path": "/resolved_jobs"
-        },
-        "op": "ne",
-        "right": {
-          "literal": []
-        }
-      },
-      "otherwise": {
-        "literal": {
-          "citation_records": [],
-          "evidence_jobs": [],
-          "unresolved": []
+          "path": ""
         }
       }
     },
@@ -841,7 +1111,9 @@
       "type": "validate",
       "worker": "LiteratureReviewCoordinator",
       "depends_on": [
-        "prepare-evidence"
+        "join-citation-records",
+        "join-evidence-jobs",
+        "join-unresolved"
       ],
       "input": {
         "from": "state",
@@ -891,6 +1163,79 @@
             {
               "left": "/metadata",
               "right": "/response/best_match",
+              "op": "eq"
+            }
+          ]
+        },
+        {
+          "kind": "relation",
+          "rows": {
+            "from": "state",
+            "path": "/resolved_jobs"
+          },
+          "targets": {
+            "from": "state",
+            "path": "/citation_records"
+          },
+          "row_key": "/paper/paper_id",
+          "target_key": "/paper_id"
+        },
+        {
+          "kind": "relation",
+          "rows": {
+            "from": "state",
+            "path": "/citation_records"
+          },
+          "targets": {
+            "from": "state",
+            "path": "/evidence_jobs"
+          },
+          "row_key": "/paper_id",
+          "target_key": "/record/paper_id",
+          "where": {
+            "path": "/status",
+            "equals": "resolved"
+          }
+        },
+        {
+          "kind": "relation",
+          "rows": {
+            "from": "state",
+            "path": "/evidence_jobs"
+          },
+          "targets": {
+            "from": "state",
+            "path": "/citation_records"
+          },
+          "row_key": "/record/paper_id",
+          "target_key": "/paper_id",
+          "target_values": {
+            "/status": "resolved"
+          },
+          "compare": [
+            {
+              "left": "/record",
+              "right": "",
+              "op": "eq"
+            }
+          ]
+        },
+        {
+          "kind": "relation",
+          "rows": {
+            "from": "state",
+            "path": "/evidence_jobs"
+          },
+          "targets": {
+            "from": "state",
+            "path": "/resolved_jobs"
+          },
+          "row_key": "/paper/paper_id",
+          "target_key": "/paper/paper_id",
+          "compare": [
+            {
+              "left": "/paper",
+              "right": "/paper",
               "op": "eq"
             }
           ]
@@ -1421,6 +1766,148 @@
       }
     },
     {
+      "id": "materialize-claims",
+      "type": "map",
+      "worker": "VerificationWorker",
+      "depends_on": [
+        "verification"
+      ],
+      "input": {
+        "from": "state",
+        "path": "/review/claims"
+      },
+      "output_schema": "schemas/claims.schema.json",
+      "timeout_seconds": 60,
+      "writes": {
+        "/materialized_claims": {
+          "from": "result",
+          "path": ""
+        }
+      },
+      "item_schema": "schemas/claim-draft.schema.json",
+      "max_items": 200,
+      "max_parallel": 1,
+      "steps": [
+        {
+          "id": "check-direct-source",
+          "type": "validate",
+          "input": {
+            "from": "item",
+            "path": ""
+          },
+          "output_schema": "schemas/claim-draft.schema.json",
+          "timeout_seconds": 10,
+          "when": {
+            "left": {
+              "from": "item",
+              "path": "/support_type"
+            },
+            "op": "eq",
+            "right": {
+              "literal": "direct_quote"
+            }
+          },
+          "otherwise": {
+            "from": "item",
+            "path": ""
+          },
+          "assertions": [
+            {
+              "kind": "equal",
+              "left": {
+                "from": "item",
+                "path": "/paper_ids/0"
+              },
+              "right": {
+                "lookup": {
+                  "in": {
+                    "from": "state",
+                    "path": "/evidence_items"
+                  },
+                  "key": "/evidence_id",
+                  "equals": {
+                    "from": "item",
+                    "path": "/evidence_ids/0"
+                  },
+                  "path": "/paper_id"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "attach-quote",
+          "type": "validate",
+          "input": {
+            "from": "item",
+            "path": ""
+          },
+          "output_schema": "schemas/claim.schema.json",
+          "timeout_seconds": 10,
+          "when": {
+            "left": {
+              "from": "item",
+              "path": "/support_type"
+            },
+            "op": "ne",
+            "right": {
+              "literal": "direct_quote"
+            }
+          },
+          "otherwise": {
+            "object": {
+              "claim_id": {
+                "from": "item",
+                "path": "/claim_id"
+              },
+              "text": {
+                "lookup": {
+                  "in": {
+                    "from": "state",
+                    "path": "/evidence_items"
+                  },
+                  "key": "/evidence_id",
+                  "equals": {
+                    "from": "item",
+                    "path": "/evidence_ids/0"
+                  },
+                  "path": "/quote"
+                }
+              },
+              "paper_ids": {
+                "from": "item",
+                "path": "/paper_ids"
+              },
+              "evidence_ids": {
+                "from": "item",
+                "path": "/evidence_ids"
+              },
+              "support_type": {
+                "from": "item",
+                "path": "/support_type"
+              },
+              "strength": {
+                "from": "item",
+                "path": "/strength"
+              },
+              "verification_status": {
+                "from": "item",
+                "path": "/verification_status"
+              },
+              "theme_id": {
+                "from": "item",
+                "path": "/theme_id"
+              }
+            }
+          }
+        }
+      ],
+      "yield": {
+        "from": "steps",
+        "path": "/attach-quote"
+      }
+    },
+    {
       "id": "bibliography",
       "type": "map",
       "worker": "CitationWorker",
@@ -1486,7 +1973,8 @@
       "type": "validate",
       "worker": "LiteratureReviewCoordinator",
       "depends_on": [
-        "bibliography"
+        "bibliography",
+        "materialize-claims"
       ],
       "input": {
         "object": {
@@ -1512,7 +2000,7 @@
           },
           "claims": {
             "from": "state",
-            "path": "/review/claims"
+            "path": "/materialized_claims"
           }
         }
       },
@@ -1727,7 +2215,11 @@
         "bibliography": "Attach citation metadata",
         "assemble-output": "Assemble result",
         "validate-output": "Validate result",
-        "outputs": "Outputs"
+        "outputs": "Outputs",
+        "join-citation-records": "Collect citation records",
+        "join-evidence-jobs": "Collect evidence jobs",
+        "join-unresolved": "Collect unresolved citations",
+        "materialize-claims": "Attach exact quotes"
       },
       "stages": [
         {
@@ -1757,6 +2249,9 @@
           "nodes": [
             "citations",
             "prepare-evidence",
+            "join-citation-records",
+            "join-evidence-jobs",
+            "join-unresolved",
             "check-records"
           ]
         },
@@ -1784,6 +2279,7 @@
           "label": "Verification",
           "nodes": [
             "verification",
+            "materialize-claims",
             "bibliography",
             "assemble-output",
             "validate-output",

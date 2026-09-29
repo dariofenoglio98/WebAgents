@@ -733,3 +733,54 @@ describe("the probe's fixtures", () => {
     }
   });
 });
+
+describe("closed tool failure diagnostics", () => {
+  const SEARCH = BUILT_IN_BINDINGS.find((item) => item.toolId === "scholarly-search")!;
+  const request = { tool_id: SEARCH.toolId, binding_id: SEARCH.id, binding_sha256: DIGEST,
+    args: { query: "private question", limit: 3 } };
+  async function failure(transport: HttpTransport, extra = {}) {
+    const b = broker({ bound: [bound(SEARCH)], definitions: [SEARCH], transport,
+      resolver: publicResolver, ...extra });
+    try { await b.call(request, signal()); } catch (error) { return error as { auditFacts: unknown }; }
+    throw new Error("Expected refusal");
+  }
+  it.each([
+    ["content_type", 200, "text/html; secret=credential", "PRIVATE RESPONSE"],
+    ["json_parse", 200, "application/json", "PRIVATE RESPONSE"],
+    ["adapter_response", 200, "application/json", '{"secret":"PRIVATE RESPONSE"}'],
+    ["status", 429, "application/json", '{"secret":"PRIVATE RESPONSE"}'],
+    ["body_size", 200, "application/json", "x".repeat(600_000)],
+  ])("reports %s with no service body or header values", async (stage, status, contentType, body) => {
+    const err = await failure(async () => ({ status: Number(status), contentType: String(contentType), body: String(body) }));
+    expect(err.auditFacts).toMatchObject({ stage, http_status: Number(status), response_bytes: Buffer.byteLength(String(body)) });
+    expect(JSON.stringify(err)).not.toContain("PRIVATE RESPONSE");
+    expect(JSON.stringify(err)).not.toContain("secret=credential");
+    expect(JSON.stringify(err)).not.toContain("private question");
+  });
+  it("reports transport failure without copying an exception", async () => {
+    const err = await failure(async () => { throw new Error("Authorization: Bearer PRIVATE"); });
+    expect(err.auditFacts).toMatchObject({ stage: "transport" });
+    expect(JSON.stringify(err)).not.toContain("PRIVATE");
+  });
+  it("reports address policy without disclosing an address", async () => {
+    const err = await failure(async () => { throw new Error("must not dispatch"); },
+      { resolver: async () => ["10.0.0.123"] });
+    expect(err.auditFacts).toMatchObject({ stage: "address_policy" });
+    expect(JSON.stringify(err)).not.toContain("10.0.0.123");
+  });
+  it("reports cancellation without exception text", async () => {
+    const abort = new AbortController(); abort.abort();
+    const b = broker({ bound: [bound(SEARCH)], definitions: [SEARCH], resolver: publicResolver });
+    await expect(b.call(request, abort.signal)).rejects.toMatchObject({
+      auditFacts: { stage: "cancelled", cancelled: true },
+    });
+  });
+  it("keeps successful calls unchanged", async () => {
+    const { transport } = jsonTransport({ status: "ok", message: { items: [] } });
+    const b = broker({ bound: [bound(SEARCH)], definitions: [SEARCH], transport, resolver: publicResolver });
+    const result = await b.call(request, signal());
+    expect(result.status).toBe("ok");
+    expect(result).not.toHaveProperty("failure_facts");
+    expect(result.output).toMatchObject({ papers: [] });
+  });
+});

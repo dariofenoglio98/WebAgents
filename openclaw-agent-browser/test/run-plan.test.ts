@@ -177,13 +177,13 @@ describe.runIf(runs)("model selection and run plans", () => {
     expect(silent.violated).toEqual([]);
     const reasoning = silent.checks.find((c) => c.id === "capability:reasoning")!;
     expect(reasoning).toMatchObject({ hostValue: null, status: "unknown", basis: "absent" });
-    // OpenClaw's tool default is host_default; nothing here claims it is declared.
+    // Structured JSON is an adapter guarantee; transport conformance remains unverified.
     const structured = silent.checks.find((c) => c.id === "capability:structured_output")!;
     expect(structured.basis).toBe("derived");
     expect(structured.status).toBe("satisfied");
     const big = catalog.models.find((model) => model.modelId === "acme/big")!;
-    expect(big.checks.find((c) => c.id === "capability:structured_output")!.basis).toBe("declared");
-    expect(big.evidenceStrength).toBe("declared");
+    expect(big.checks.find((c) => c.id === "capability:structured_output")!.basis).toBe("derived");
+    expect(big.evidenceStrength).toBe("derived");
     await backend.closeSession(view.sessionId);
   }, 120_000);
 

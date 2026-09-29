@@ -59,5 +59,23 @@
     "message",
     "synthetic"
   ],
-  "additionalProperties": false
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "resolved"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "metadata": {
+            "type": "object"
+          }
+        }
+      }
+    }
+  ]
 }

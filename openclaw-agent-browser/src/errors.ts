@@ -16,6 +16,7 @@ export class AgentBrowserError extends Error {
     readonly detail: string,
     readonly retryable = false,
     readonly validation: unknown = null,
+    readonly auditFacts: unknown = null,
   ) {
     super(`${code}: ${detail}`);
     this.name = "AgentBrowserError";

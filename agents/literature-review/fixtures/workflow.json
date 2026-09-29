@@ -1804,537 +1804,6 @@
         ]
       }
     ],
-    "prepare": [
-      {
-        "input": {
-          "resolved_jobs": [
-            {
-              "paper": {
-                "paper_id": "paper-9787df51408912ec",
-                "title": "SYNTHETIC: Dynamic Agent Selection with Task Routing",
-                "doi": "10.0000/synthetic-router",
-                "arxiv_id": null,
-                "authors": [
-                  {
-                    "name": "Synthetic Example Author"
-                  }
-                ],
-                "year": 2026,
-                "venue": "Synthetic Fixture Proceedings",
-                "abstract": "Dynamic agent selection routes each task to a subset of language-model agents using task features. The synthetic evaluation compares routed teams with a fixed all-agent baseline. Reported findings concern the simulated workload only.",
-                "url": null,
-                "source": "synthetic-fixture",
-                "provenance": [
-                  {
-                    "source": "synthetic-fixture",
-                    "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
-                    "locator": "10.0000/synthetic-router",
-                    "synthetic": true
-                  },
-                  {
-                    "source": "synthetic-fixture",
-                    "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
-                    "locator": "10.0000/synthetic-router",
-                    "synthetic": true
-                  },
-                  {
-                    "source": "synthetic-fixture",
-                    "query": null,
-                    "locator": "fixture:router",
-                    "synthetic": true
-                  }
-                ],
-                "full_text_available": true,
-                "screening_status": "include",
-                "screening_rationale": "Extractive baseline: available source text overlaps question terms (agent, dynamic, selection); lexical heuristic, not semantic relevance or a probability."
-              },
-              "response": {
-                "status": "resolved",
-                "query": "10.0000/synthetic-router",
-                "detected_type": "doi",
-                "best_match": {
-                  "title": "SYNTHETIC: Dynamic Agent Selection with Task Routing",
-                  "doi": "10.0000/synthetic-router",
-                  "arxiv_id": null,
-                  "authors": [
-                    {
-                      "name": "Synthetic Example Author"
-                    }
-                  ],
-                  "year": 2026,
-                  "venue": "Synthetic Fixture Proceedings",
-                  "abstract": "Dynamic agent selection routes each task to a subset of language-model agents using task features. The synthetic evaluation compares routed teams with a fixed all-agent baseline. Reported findings concern the simulated workload only.",
-                  "url": null,
-                  "source": "crossref",
-                  "bibtex": "@misc{synthetic_router,\n  title = {SYNTHETIC: Dynamic Agent Selection with Task Routing},\n  author = {Synthetic Example Author},\n  year = {2026},\n  note = {SYNTHETIC TEST DATA; NOT A REAL PUBLICATION}\n}"
-                },
-                "match_score": 1.0,
-                "alternatives": [],
-                "sources": [
-                  {
-                    "provider": "crossref",
-                    "status": "ok",
-                    "error_code": null
-                  }
-                ],
-                "warnings": [
-                  "SYNTHETIC FIXTURE: this is not a real bibliographic lookup."
-                ],
-                "message": "Synthetic scenario resolved"
-              }
-            },
-            {
-              "paper": {
-                "paper_id": "paper-0b480b1da362cc50",
-                "title": "SYNTHETIC: Adaptive Communication Topology for Agent Teams",
-                "doi": "10.0000/synthetic-topology",
-                "arxiv_id": null,
-                "authors": [
-                  {
-                    "name": "Synthetic Example Author"
-                  }
-                ],
-                "year": 2026,
-                "venue": "Synthetic Fixture Proceedings",
-                "abstract": "Adaptive communication topology changes message edges between language-model agents during a task. The synthetic method uses intermediate agreement signals to choose a communication graph. Its abstract does not report evaluation sample sizes.",
-                "url": null,
-                "source": "synthetic-fixture",
-                "provenance": [
-                  {
-                    "source": "synthetic-fixture",
-                    "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
-                    "locator": "10.0000/synthetic-topology",
-                    "synthetic": true
-                  },
-                  {
-                    "source": "synthetic-fixture",
-                    "query": null,
-                    "locator": "fixture:topology",
-                    "synthetic": true
-                  }
-                ],
-                "full_text_available": false,
-                "screening_status": "include",
-                "screening_rationale": "Extractive baseline: available source text overlaps question terms (agent, topology); lexical heuristic, not semantic relevance or a probability."
-              },
-              "response": {
-                "status": "resolved",
-                "query": "10.0000/synthetic-topology",
-                "detected_type": "doi",
-                "best_match": {
-                  "title": "SYNTHETIC: Adaptive Communication Topology for Agent Teams",
-                  "doi": "10.0000/synthetic-topology",
-                  "arxiv_id": null,
-                  "authors": [
-                    {
-                      "name": "Synthetic Example Author"
-                    }
-                  ],
-                  "year": 2026,
-                  "venue": "Synthetic Fixture Proceedings",
-                  "abstract": "Adaptive communication topology changes message edges between language-model agents during a task. The synthetic method uses intermediate agreement signals to choose a communication graph. Its abstract does not report evaluation sample sizes.",
-                  "url": null,
-                  "source": "crossref",
-                  "bibtex": "@misc{synthetic_topology,\n  title = {SYNTHETIC: Adaptive Communication Topology for Agent Teams},\n  author = {Synthetic Example Author},\n  year = {2026},\n  note = {SYNTHETIC TEST DATA; NOT A REAL PUBLICATION}\n}"
-                },
-                "match_score": 1.0,
-                "alternatives": [],
-                "sources": [
-                  {
-                    "provider": "crossref",
-                    "status": "ok",
-                    "error_code": null
-                  }
-                ],
-                "warnings": [
-                  "SYNTHETIC FIXTURE: this is not a real bibliographic lookup."
-                ],
-                "message": "Synthetic scenario resolved"
-              }
-            },
-            {
-              "paper": {
-                "paper_id": "paper-6ca8546b03d7f153",
-                "title": "SYNTHETIC: Dynamic Agent Networks",
-                "doi": "10.0000/synthetic-ambiguous",
-                "arxiv_id": null,
-                "authors": [
-                  {
-                    "name": "Synthetic Example Author"
-                  }
-                ],
-                "year": 2026,
-                "venue": "Synthetic Fixture Proceedings",
-                "abstract": "Dynamic agent networks select language-model agents and adapt communication topology. This title deliberately has multiple fixture matches.",
-                "url": null,
-                "source": "synthetic-fixture",
-                "provenance": [
-                  {
-                    "source": "synthetic-fixture",
-                    "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
-                    "locator": "10.0000/synthetic-ambiguous",
-                    "synthetic": true
-                  },
-                  {
-                    "source": "synthetic-fixture",
-                    "query": null,
-                    "locator": "fixture:ambiguous",
-                    "synthetic": true
-                  }
-                ],
-                "full_text_available": false,
-                "screening_status": "include",
-                "screening_rationale": "Extractive baseline: available source text overlaps question terms (agent, dynamic, topology); lexical heuristic, not semantic relevance or a probability."
-              },
-              "response": {
-                "status": "ambiguous",
-                "query": "10.0000/synthetic-ambiguous",
-                "detected_type": "doi",
-                "best_match": {
-                  "title": "SYNTHETIC: Dynamic Agent Networks",
-                  "doi": "10.0000/synthetic-ambiguous",
-                  "arxiv_id": null,
-                  "authors": [
-                    {
-                      "name": "Synthetic Example Author"
-                    }
-                  ],
-                  "year": 2026,
-                  "venue": "Synthetic Fixture Proceedings",
-                  "abstract": "Dynamic agent networks select language-model agents and adapt communication topology. This title deliberately has multiple fixture matches.",
-                  "url": null,
-                  "source": "crossref",
-                  "bibtex": "@misc{synthetic_ambiguous,\n  title = {SYNTHETIC: Dynamic Agent Networks},\n  author = {Synthetic Example Author},\n  year = {2026},\n  note = {SYNTHETIC TEST DATA; NOT A REAL PUBLICATION}\n}"
-                },
-                "match_score": 1.0,
-                "alternatives": [
-                  {
-                    "paper": {
-                      "title": "SYNTHETIC: Dynamic Agent Networks (different fixture work)",
-                      "doi": "10.0000/synthetic-alternative",
-                      "arxiv_id": null,
-                      "authors": [
-                        {
-                          "name": "Synthetic Example Author"
-                        }
-                      ],
-                      "year": 2026,
-                      "venue": "Synthetic Fixture Proceedings",
-                      "abstract": "Dynamic agent networks select language-model agents and adapt communication topology. This title deliberately has multiple fixture matches.",
-                      "url": null,
-                      "source": "crossref",
-                      "bibtex": "@misc{synthetic_ambiguous,\n  title = {SYNTHETIC: Dynamic Agent Networks},\n  author = {Synthetic Example Author},\n  year = {2026},\n  note = {SYNTHETIC TEST DATA; NOT A REAL PUBLICATION}\n}"
-                    },
-                    "match_score": 1.0
-                  }
-                ],
-                "sources": [
-                  {
-                    "provider": "crossref",
-                    "status": "ok",
-                    "error_code": null
-                  }
-                ],
-                "warnings": [
-                  "SYNTHETIC FIXTURE: this is not a real bibliographic lookup."
-                ],
-                "message": "Synthetic scenario ambiguous"
-              }
-            }
-          ],
-          "documents": {
-            "10.0000/synthetic-router": "synthetic-router-pdf"
-          }
-        },
-        "output": {
-          "citation_records": [
-            {
-              "paper_id": "paper-9787df51408912ec",
-              "query": "10.0000/synthetic-router",
-              "status": "resolved",
-              "metadata": {
-                "title": "SYNTHETIC: Dynamic Agent Selection with Task Routing",
-                "doi": "10.0000/synthetic-router",
-                "arxiv_id": null,
-                "authors": [
-                  {
-                    "name": "Synthetic Example Author"
-                  }
-                ],
-                "year": 2026,
-                "venue": "Synthetic Fixture Proceedings",
-                "abstract": "Dynamic agent selection routes each task to a subset of language-model agents using task features. The synthetic evaluation compares routed teams with a fixed all-agent baseline. Reported findings concern the simulated workload only.",
-                "url": null,
-                "source": "crossref",
-                "bibtex": "@misc{synthetic_router,\n  title = {SYNTHETIC: Dynamic Agent Selection with Task Routing},\n  author = {Synthetic Example Author},\n  year = {2026},\n  note = {SYNTHETIC TEST DATA; NOT A REAL PUBLICATION}\n}"
-              },
-              "alternatives": [],
-              "sources": [
-                {
-                  "provider": "crossref",
-                  "status": "ok",
-                  "error_code": null
-                }
-              ],
-              "warnings": [
-                "SYNTHETIC FIXTURE: this is not a real bibliographic lookup."
-              ],
-              "message": "Synthetic scenario resolved",
-              "synthetic": true
-            },
-            {
-              "paper_id": "paper-0b480b1da362cc50",
-              "query": "10.0000/synthetic-topology",
-              "status": "resolved",
-              "metadata": {
-                "title": "SYNTHETIC: Adaptive Communication Topology for Agent Teams",
-                "doi": "10.0000/synthetic-topology",
-                "arxiv_id": null,
-                "authors": [
-                  {
-                    "name": "Synthetic Example Author"
-                  }
-                ],
-                "year": 2026,
-                "venue": "Synthetic Fixture Proceedings",
-                "abstract": "Adaptive communication topology changes message edges between language-model agents during a task. The synthetic method uses intermediate agreement signals to choose a communication graph. Its abstract does not report evaluation sample sizes.",
-                "url": null,
-                "source": "crossref",
-                "bibtex": "@misc{synthetic_topology,\n  title = {SYNTHETIC: Adaptive Communication Topology for Agent Teams},\n  author = {Synthetic Example Author},\n  year = {2026},\n  note = {SYNTHETIC TEST DATA; NOT A REAL PUBLICATION}\n}"
-              },
-              "alternatives": [],
-              "sources": [
-                {
-                  "provider": "crossref",
-                  "status": "ok",
-                  "error_code": null
-                }
-              ],
-              "warnings": [
-                "SYNTHETIC FIXTURE: this is not a real bibliographic lookup."
-              ],
-              "message": "Synthetic scenario resolved",
-              "synthetic": true
-            },
-            {
-              "paper_id": "paper-6ca8546b03d7f153",
-              "query": "10.0000/synthetic-ambiguous",
-              "status": "ambiguous",
-              "metadata": null,
-              "alternatives": [
-                {
-                  "paper": {
-                    "title": "SYNTHETIC: Dynamic Agent Networks (different fixture work)",
-                    "doi": "10.0000/synthetic-alternative",
-                    "arxiv_id": null,
-                    "authors": [
-                      {
-                        "name": "Synthetic Example Author"
-                      }
-                    ],
-                    "year": 2026,
-                    "venue": "Synthetic Fixture Proceedings",
-                    "abstract": "Dynamic agent networks select language-model agents and adapt communication topology. This title deliberately has multiple fixture matches.",
-                    "url": null,
-                    "source": "crossref",
-                    "bibtex": "@misc{synthetic_ambiguous,\n  title = {SYNTHETIC: Dynamic Agent Networks},\n  author = {Synthetic Example Author},\n  year = {2026},\n  note = {SYNTHETIC TEST DATA; NOT A REAL PUBLICATION}\n}"
-                  },
-                  "match_score": 1.0
-                }
-              ],
-              "sources": [
-                {
-                  "provider": "crossref",
-                  "status": "ok",
-                  "error_code": null
-                }
-              ],
-              "warnings": [
-                "SYNTHETIC FIXTURE: this is not a real bibliographic lookup."
-              ],
-              "message": "Synthetic scenario ambiguous",
-              "synthetic": true
-            }
-          ],
-          "evidence_jobs": [
-            {
-              "paper": {
-                "paper_id": "paper-9787df51408912ec",
-                "title": "SYNTHETIC: Dynamic Agent Selection with Task Routing",
-                "doi": "10.0000/synthetic-router",
-                "arxiv_id": null,
-                "authors": [
-                  {
-                    "name": "Synthetic Example Author"
-                  }
-                ],
-                "year": 2026,
-                "venue": "Synthetic Fixture Proceedings",
-                "abstract": "Dynamic agent selection routes each task to a subset of language-model agents using task features. The synthetic evaluation compares routed teams with a fixed all-agent baseline. Reported findings concern the simulated workload only.",
-                "url": null,
-                "source": "synthetic-fixture",
-                "provenance": [
-                  {
-                    "source": "synthetic-fixture",
-                    "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
-                    "locator": "10.0000/synthetic-router",
-                    "synthetic": true
-                  },
-                  {
-                    "source": "synthetic-fixture",
-                    "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
-                    "locator": "10.0000/synthetic-router",
-                    "synthetic": true
-                  },
-                  {
-                    "source": "synthetic-fixture",
-                    "query": null,
-                    "locator": "fixture:router",
-                    "synthetic": true
-                  }
-                ],
-                "full_text_available": true,
-                "screening_status": "include",
-                "screening_rationale": "Extractive baseline: available source text overlaps question terms (agent, dynamic, selection); lexical heuristic, not semantic relevance or a probability."
-              },
-              "record": {
-                "paper_id": "paper-9787df51408912ec",
-                "query": "10.0000/synthetic-router",
-                "status": "resolved",
-                "metadata": {
-                  "title": "SYNTHETIC: Dynamic Agent Selection with Task Routing",
-                  "doi": "10.0000/synthetic-router",
-                  "arxiv_id": null,
-                  "authors": [
-                    {
-                      "name": "Synthetic Example Author"
-                    }
-                  ],
-                  "year": 2026,
-                  "venue": "Synthetic Fixture Proceedings",
-                  "abstract": "Dynamic agent selection routes each task to a subset of language-model agents using task features. The synthetic evaluation compares routed teams with a fixed all-agent baseline. Reported findings concern the simulated workload only.",
-                  "url": null,
-                  "source": "crossref",
-                  "bibtex": "@misc{synthetic_router,\n  title = {SYNTHETIC: Dynamic Agent Selection with Task Routing},\n  author = {Synthetic Example Author},\n  year = {2026},\n  note = {SYNTHETIC TEST DATA; NOT A REAL PUBLICATION}\n}"
-                },
-                "alternatives": [],
-                "sources": [
-                  {
-                    "provider": "crossref",
-                    "status": "ok",
-                    "error_code": null
-                  }
-                ],
-                "warnings": [
-                  "SYNTHETIC FIXTURE: this is not a real bibliographic lookup."
-                ],
-                "message": "Synthetic scenario resolved",
-                "synthetic": true
-              },
-              "file_id": "synthetic-router-pdf"
-            },
-            {
-              "paper": {
-                "paper_id": "paper-0b480b1da362cc50",
-                "title": "SYNTHETIC: Adaptive Communication Topology for Agent Teams",
-                "doi": "10.0000/synthetic-topology",
-                "arxiv_id": null,
-                "authors": [
-                  {
-                    "name": "Synthetic Example Author"
-                  }
-                ],
-                "year": 2026,
-                "venue": "Synthetic Fixture Proceedings",
-                "abstract": "Adaptive communication topology changes message edges between language-model agents during a task. The synthetic method uses intermediate agreement signals to choose a communication graph. Its abstract does not report evaluation sample sizes.",
-                "url": null,
-                "source": "synthetic-fixture",
-                "provenance": [
-                  {
-                    "source": "synthetic-fixture",
-                    "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
-                    "locator": "10.0000/synthetic-topology",
-                    "synthetic": true
-                  },
-                  {
-                    "source": "synthetic-fixture",
-                    "query": null,
-                    "locator": "fixture:topology",
-                    "synthetic": true
-                  }
-                ],
-                "full_text_available": false,
-                "screening_status": "include",
-                "screening_rationale": "Extractive baseline: available source text overlaps question terms (agent, topology); lexical heuristic, not semantic relevance or a probability."
-              },
-              "record": {
-                "paper_id": "paper-0b480b1da362cc50",
-                "query": "10.0000/synthetic-topology",
-                "status": "resolved",
-                "metadata": {
-                  "title": "SYNTHETIC: Adaptive Communication Topology for Agent Teams",
-                  "doi": "10.0000/synthetic-topology",
-                  "arxiv_id": null,
-                  "authors": [
-                    {
-                      "name": "Synthetic Example Author"
-                    }
-                  ],
-                  "year": 2026,
-                  "venue": "Synthetic Fixture Proceedings",
-                  "abstract": "Adaptive communication topology changes message edges between language-model agents during a task. The synthetic method uses intermediate agreement signals to choose a communication graph. Its abstract does not report evaluation sample sizes.",
-                  "url": null,
-                  "source": "crossref",
-                  "bibtex": "@misc{synthetic_topology,\n  title = {SYNTHETIC: Adaptive Communication Topology for Agent Teams},\n  author = {Synthetic Example Author},\n  year = {2026},\n  note = {SYNTHETIC TEST DATA; NOT A REAL PUBLICATION}\n}"
-                },
-                "alternatives": [],
-                "sources": [
-                  {
-                    "provider": "crossref",
-                    "status": "ok",
-                    "error_code": null
-                  }
-                ],
-                "warnings": [
-                  "SYNTHETIC FIXTURE: this is not a real bibliographic lookup."
-                ],
-                "message": "Synthetic scenario resolved",
-                "synthetic": true
-              },
-              "file_id": null
-            }
-          ],
-          "unresolved": [
-            {
-              "paper_id": "paper-6ca8546b03d7f153",
-              "status": "ambiguous",
-              "message": "Synthetic scenario ambiguous",
-              "alternatives": [
-                {
-                  "paper": {
-                    "title": "SYNTHETIC: Dynamic Agent Networks (different fixture work)",
-                    "doi": "10.0000/synthetic-alternative",
-                    "arxiv_id": null,
-                    "authors": [
-                      {
-                        "name": "Synthetic Example Author"
-                      }
-                    ],
-                    "year": 2026,
-                    "venue": "Synthetic Fixture Proceedings",
-                    "abstract": "Dynamic agent networks select language-model agents and adapt communication topology. This title deliberately has multiple fixture matches.",
-                    "url": null,
-                    "source": "crossref",
-                    "bibtex": "@misc{synthetic_ambiguous,\n  title = {SYNTHETIC: Dynamic Agent Networks},\n  author = {Synthetic Example Author},\n  year = {2026},\n  note = {SYNTHETIC TEST DATA; NOT A REAL PUBLICATION}\n}"
-                  },
-                  "match_score": 1.0
-                }
-              ]
-            }
-          ]
-        }
-      }
-    ],
     "extract": [
       {
         "input": {
@@ -2948,7 +2417,7 @@
           "claims": [
             {
               "claim_id": "claim-dda25595ed556a1b",
-              "text": "Adaptive communication topology changes message edges between language-model agents during a task.",
+              "text": null,
               "paper_ids": [
                 "paper-0b480b1da362cc50"
               ],
@@ -2962,7 +2431,7 @@
             },
             {
               "claim_id": "claim-5f8d524faf326048",
-              "text": "The synthetic method uses intermediate agreement signals to choose a communication graph.",
+              "text": null,
               "paper_ids": [
                 "paper-0b480b1da362cc50"
               ],
@@ -2976,7 +2445,7 @@
             },
             {
               "claim_id": "claim-a459a7d4e643f836",
-              "text": "A limitation is that the simulated workload does not establish performance on real tasks.",
+              "text": null,
               "paper_ids": [
                 "paper-9787df51408912ec"
               ],
@@ -2990,7 +2459,7 @@
             },
             {
               "claim_id": "claim-41964da1527455b0",
-              "text": "Its abstract does not report evaluation sample sizes.",
+              "text": null,
               "paper_ids": [
                 "paper-0b480b1da362cc50"
               ],
@@ -3004,7 +2473,7 @@
             },
             {
               "claim_id": "claim-f8ff11d1a8bef6f5",
-              "text": "Dynamic agent selection routes each task to a subset of language-model agents using task features.",
+              "text": null,
               "paper_ids": [
                 "paper-9787df51408912ec"
               ],
@@ -3018,7 +2487,7 @@
             },
             {
               "claim_id": "claim-434ab9e14a2bfb3a",
-              "text": "The simulated experimental setup uses ten invented task families.",
+              "text": null,
               "paper_ids": [
                 "paper-9787df51408912ec"
               ],
@@ -3032,7 +2501,7 @@
             },
             {
               "claim_id": "claim-566647fe74e87f66",
-              "text": "The synthetic evaluation compares routed teams with a fixed all-agent baseline.",
+              "text": null,
               "paper_ids": [
                 "paper-9787df51408912ec"
               ],
@@ -3097,7 +2566,7 @@
           "claims": [
             {
               "claim_id": "claim-dda25595ed556a1b",
-              "text": "Adaptive communication topology changes message edges between language-model agents during a task.",
+              "text": null,
               "paper_ids": [
                 "paper-0b480b1da362cc50"
               ],
@@ -3111,7 +2580,7 @@
             },
             {
               "claim_id": "claim-5f8d524faf326048",
-              "text": "The synthetic method uses intermediate agreement signals to choose a communication graph.",
+              "text": null,
               "paper_ids": [
                 "paper-0b480b1da362cc50"
               ],
@@ -3125,7 +2594,7 @@
             },
             {
               "claim_id": "claim-a459a7d4e643f836",
-              "text": "A limitation is that the simulated workload does not establish performance on real tasks.",
+              "text": null,
               "paper_ids": [
                 "paper-9787df51408912ec"
               ],
@@ -3139,7 +2608,7 @@
             },
             {
               "claim_id": "claim-41964da1527455b0",
-              "text": "Its abstract does not report evaluation sample sizes.",
+              "text": null,
               "paper_ids": [
                 "paper-0b480b1da362cc50"
               ],
@@ -3153,7 +2622,7 @@
             },
             {
               "claim_id": "claim-f8ff11d1a8bef6f5",
-              "text": "Dynamic agent selection routes each task to a subset of language-model agents using task features.",
+              "text": null,
               "paper_ids": [
                 "paper-9787df51408912ec"
               ],
@@ -3167,7 +2636,7 @@
             },
             {
               "claim_id": "claim-434ab9e14a2bfb3a",
-              "text": "The simulated experimental setup uses ten invented task families.",
+              "text": null,
               "paper_ids": [
                 "paper-9787df51408912ec"
               ],
@@ -3181,7 +2650,7 @@
             },
             {
               "claim_id": "claim-566647fe74e87f66",
-              "text": "The synthetic evaluation compares routed teams with a fixed all-agent baseline.",
+              "text": null,
               "paper_ids": [
                 "paper-9787df51408912ec"
               ],
@@ -3211,7 +2680,7 @@
           "claims": [
             {
               "claim_id": "claim-dda25595ed556a1b",
-              "text": "Adaptive communication topology changes message edges between language-model agents during a task.",
+              "text": null,
               "paper_ids": [
                 "paper-0b480b1da362cc50"
               ],
@@ -3225,7 +2694,7 @@
             },
             {
               "claim_id": "claim-5f8d524faf326048",
-              "text": "The synthetic method uses intermediate agreement signals to choose a communication graph.",
+              "text": null,
               "paper_ids": [
                 "paper-0b480b1da362cc50"
               ],
@@ -3239,7 +2708,7 @@
             },
             {
               "claim_id": "claim-a459a7d4e643f836",
-              "text": "A limitation is that the simulated workload does not establish performance on real tasks.",
+              "text": null,
               "paper_ids": [
                 "paper-9787df51408912ec"
               ],
@@ -3253,7 +2722,7 @@
             },
             {
               "claim_id": "claim-41964da1527455b0",
-              "text": "Its abstract does not report evaluation sample sizes.",
+              "text": null,
               "paper_ids": [
                 "paper-0b480b1da362cc50"
               ],
@@ -3267,7 +2736,7 @@
             },
             {
               "claim_id": "claim-f8ff11d1a8bef6f5",
-              "text": "Dynamic agent selection routes each task to a subset of language-model agents using task features.",
+              "text": null,
               "paper_ids": [
                 "paper-9787df51408912ec"
               ],
@@ -3281,7 +2750,7 @@
             },
             {
               "claim_id": "claim-434ab9e14a2bfb3a",
-              "text": "The simulated experimental setup uses ten invented task families.",
+              "text": null,
               "paper_ids": [
                 "paper-9787df51408912ec"
               ],
@@ -3295,7 +2764,7 @@
             },
             {
               "claim_id": "claim-566647fe74e87f66",
-              "text": "The synthetic evaluation compares routed teams with a fixed all-agent baseline.",
+              "text": null,
               "paper_ids": [
                 "paper-9787df51408912ec"
               ],
@@ -3319,7 +2788,7 @@
           "claims": [
             {
               "claim_id": "claim-dda25595ed556a1b",
-              "text": "Adaptive communication topology changes message edges between language-model agents during a task.",
+              "text": null,
               "paper_ids": [
                 "paper-0b480b1da362cc50"
               ],
@@ -3333,7 +2802,7 @@
             },
             {
               "claim_id": "claim-5f8d524faf326048",
-              "text": "The synthetic method uses intermediate agreement signals to choose a communication graph.",
+              "text": null,
               "paper_ids": [
                 "paper-0b480b1da362cc50"
               ],
@@ -3347,7 +2816,7 @@
             },
             {
               "claim_id": "claim-a459a7d4e643f836",
-              "text": "A limitation is that the simulated workload does not establish performance on real tasks.",
+              "text": null,
               "paper_ids": [
                 "paper-9787df51408912ec"
               ],
@@ -3361,7 +2830,7 @@
             },
             {
               "claim_id": "claim-41964da1527455b0",
-              "text": "Its abstract does not report evaluation sample sizes.",
+              "text": null,
               "paper_ids": [
                 "paper-0b480b1da362cc50"
               ],
@@ -3375,7 +2844,7 @@
             },
             {
               "claim_id": "claim-f8ff11d1a8bef6f5",
-              "text": "Dynamic agent selection routes each task to a subset of language-model agents using task features.",
+              "text": null,
               "paper_ids": [
                 "paper-9787df51408912ec"
               ],
@@ -3389,7 +2858,7 @@
             },
             {
               "claim_id": "claim-434ab9e14a2bfb3a",
-              "text": "The simulated experimental setup uses ten invented task families.",
+              "text": null,
               "paper_ids": [
                 "paper-9787df51408912ec"
               ],
@@ -3403,7 +2872,7 @@
             },
             {
               "claim_id": "claim-566647fe74e87f66",
-              "text": "The synthetic evaluation compares routed teams with a fixed all-agent baseline.",
+              "text": null,
               "paper_ids": [
                 "paper-9787df51408912ec"
               ],
@@ -4041,7 +3510,7 @@
           "claims": [
             {
               "claim_id": "claim-dda25595ed556a1b",
-              "text": "Adaptive communication topology changes message edges between language-model agents during a task.",
+              "text": null,
               "paper_ids": [
                 "paper-0b480b1da362cc50"
               ],
@@ -4055,7 +3524,7 @@
             },
             {
               "claim_id": "claim-5f8d524faf326048",
-              "text": "The synthetic method uses intermediate agreement signals to choose a communication graph.",
+              "text": null,
               "paper_ids": [
                 "paper-0b480b1da362cc50"
               ],
@@ -4069,7 +3538,7 @@
             },
             {
               "claim_id": "claim-a459a7d4e643f836",
-              "text": "A limitation is that the simulated workload does not establish performance on real tasks.",
+              "text": null,
               "paper_ids": [
                 "paper-9787df51408912ec"
               ],
@@ -4083,7 +3552,7 @@
             },
             {
               "claim_id": "claim-41964da1527455b0",
-              "text": "Its abstract does not report evaluation sample sizes.",
+              "text": null,
               "paper_ids": [
                 "paper-0b480b1da362cc50"
               ],
@@ -4097,7 +3566,7 @@
             },
             {
               "claim_id": "claim-f8ff11d1a8bef6f5",
-              "text": "Dynamic agent selection routes each task to a subset of language-model agents using task features.",
+              "text": null,
               "paper_ids": [
                 "paper-9787df51408912ec"
               ],
@@ -4111,7 +3580,7 @@
             },
             {
               "claim_id": "claim-434ab9e14a2bfb3a",
-              "text": "The simulated experimental setup uses ten invented task families.",
+              "text": null,
               "paper_ids": [
                 "paper-9787df51408912ec"
               ],
@@ -4125,7 +3594,7 @@
             },
             {
               "claim_id": "claim-566647fe74e87f66",
-              "text": "The synthetic evaluation compares routed teams with a fixed all-agent baseline.",
+              "text": null,
               "paper_ids": [
                 "paper-9787df51408912ec"
               ],

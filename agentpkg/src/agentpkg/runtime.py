@@ -15,7 +15,8 @@ from uuid import uuid4
 
 from jsonschema import Draft202012Validator
 
-from .errors import AgentPkgError
+from .errors import AgentPkgError, ValidationError
+from .toolbridge.facts import schema_facts
 from .validation import validate_document, validate_instance
 
 
@@ -400,7 +401,12 @@ class Runtime:
             handler = self.handlers.get(tool["binding"])
             if handler is None:
                 raise PolicyError(f"No trusted host handler for {tool['binding']}")
-            validate_instance(self.package.files, tool["input_schema"], payload, "tool input")
+            try:
+                validate_instance(self.package.files, tool["input_schema"], payload, "tool input")
+            except ValidationError as exc:
+                exc.code = "tool_request_invalid"
+                exc.audit_facts = schema_facts(exc, "input_schema")
+                raise
             async with self._lock:
                 self._authorize(tool["permissions"], context=ctx)
                 cap = self.budget["max_calls_per_tool"].get(tool_id, 0)
@@ -424,7 +430,12 @@ class Runtime:
             )
             async with asyncio.timeout(tool["timeout_seconds"]):
                 result = await handler(ctx, copy.deepcopy(payload))
-            validate_instance(self.package.files, tool["output_schema"], result, "tool output")
+            try:
+                validate_instance(self.package.files, tool["output_schema"], result, "tool output")
+            except ValidationError as exc:
+                exc.code = "tool_response_invalid"
+                exc.audit_facts = schema_facts(exc, "output_schema")
+                raise
             self.record(
                 "tool.completed",
                 context=ctx,
@@ -434,6 +445,13 @@ class Runtime:
             )
             return copy.deepcopy(result)
         except BaseException as exc:
+            if isinstance(exc, (TimeoutError, asyncio.CancelledError)):
+                cancelled = isinstance(exc, asyncio.CancelledError)
+                exc.code = "tool_cancelled" if cancelled else "tool_timeout"
+                exc.audit_facts = {
+                    "stage": "cancelled" if cancelled else "timeout",
+                    "cancelled" if cancelled else "timeout": True,
+                }
             self.record(
                 "tool.failed",
                 context=ctx,
