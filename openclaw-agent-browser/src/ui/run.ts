@@ -478,9 +478,9 @@ export class RunPanel {
   }
 
   private scheduleValidation(): void {
-    if (this.validateTimer) clearTimeout(this.validateTimer);
     const key = JSON.stringify(this.taskValue ?? null);
     if (key === this.validation.key && this.validation.state !== "idle") return;
+    if (this.validateTimer) clearTimeout(this.validateTimer);
     this.validation = { key, state: "checking", report: null };
     this.renderActions();
     this.validateTimer = setTimeout(() => void this.validate(key), VALIDATE_DEBOUNCE_MS);

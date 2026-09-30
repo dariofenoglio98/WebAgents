@@ -1,0 +1,36 @@
+{
+  "agenda": [
+    {
+      "minutes": 8,
+      "owner": "Research Lead",
+      "topic": "Confirm critical experiments for prototype validation"
+    },
+    {
+      "minutes": 10,
+      "owner": "Systems Engineer",
+      "topic": "Complete implementation checks for agent.pkg and OpenClaw runtime"
+    },
+    {
+      "minutes": 7,
+      "owner": "Evaluation Lead",
+      "topic": "Finalize paper revisions to reflect evaluation results"
+    }
+  ],
+  "decisions": [
+    "Finalize list of experiments to include in paper",
+    "Confirm all implementation checks are complete",
+    "Approve paper revision focus areas"
+  ],
+  "duration": 25,
+  "goal": "Agree on the final set of experiments and paper revisions required before submission, identify the highest-priority remaining tasks, and leave the meeting with a concrete action plan.",
+  "preparation_items": [
+    "Review experimental results for prototype validation",
+    "Compile implementation check status for agent.pkg and OpenClaw",
+    "Prepare draft paper revisions for evaluation section"
+  ],
+  "questions": [
+    "Which experiments are critical to include before submission?",
+    "Are all implementation checks completed for prototype and OpenClaw?",
+    "What specific revisions are needed in the evaluation section?"
+  ]
+}

@@ -275,7 +275,11 @@ async function main() {
       audit.everyCallUsedPlannedModel &&
       audit.invokedModels.length === 1 &&
       audit.invokedModels[0] === chosen.modelId &&
-      audit.llmCalls > 1 &&
+      audit.llmCalls === input.participants.length + 2 &&
+      audit.tasksCalled.plan === 1 &&
+      audit.tasksCalled.perspective === input.participants.length &&
+      audit.tasksCalled.write === 1 &&
+      (record.progress?.workers ?? []).filter((worker) => worker.role === "Perspective").length === input.participants.length &&
       audit.peakParallelWorkers >= 2 &&
       audit.toolCalls === 0 &&
       audit.auditChainValid &&

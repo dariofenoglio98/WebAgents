@@ -337,6 +337,37 @@
             "lookup"
           ],
           "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "allocate": {
+              "type": "object",
+              "properties": {
+                "rows": {
+                  "$ref": "#/$defs/value"
+                },
+                "total": {
+                  "$ref": "#/$defs/value"
+                },
+                "field": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                }
+              },
+              "required": [
+                "rows",
+                "total",
+                "field"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "allocate"
+          ],
+          "additionalProperties": false
         }
       ]
     },

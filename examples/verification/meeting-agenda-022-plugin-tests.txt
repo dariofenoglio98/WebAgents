@@ -1,0 +1,13 @@
+
+> openclaw-agent-browser@0.1.0 test
+> vitest run
+
+
+ RUN  v5.0.1 /Users/dariofenoglio/Desktop/WebAgents/openclaw-agent-browser
+
+
+ Test Files  22 passed (22)
+      Tests  409 passed (409)
+   Start at  10:48:48
+   Duration  14.53s (tests 80%, import 16%, transform 3%, environment 1%)
+

@@ -410,6 +410,10 @@ def test_time_sum_is_a_package_declared_generic_constraint(tmp_path):
         path / "fixtures/workflow.json",
         lambda f: f["models"]["write"][0]["output"]["agenda"][0].update(minutes=99),
     )
+    # Bypass constructive allocation to deliberately corrupt the final value.
+    change(path / "graph.json", lambda g: next(
+        n for n in g["nodes"] if n["id"] == "assemble"
+    )["input"]["object"].update(agenda={"from": "state", "path": "/draft/agenda"}))
     with pytest.raises(WorkflowError) as caught:
         execute(load_package(path))
     assert caught.value.node_id == "validate"
@@ -640,8 +644,9 @@ def test_empty_map_and_join_are_well_defined(tmp_path):
     path = source(tmp_path)
 
     def empty(f):
-        f["models"]["plan"][0]["output"]["perspectives"] = []
-        f["models"]["write"][0]["input"]["plan"]["perspectives"] = []
+        f["input"]["participants"] = []
+        f["models"]["plan"][0]["input"]["participants"] = []
+        f["models"]["write"][0]["input"]["request"]["participants"] = []
         f["models"]["write"][0]["input"]["perspectives"] = []
 
     change(path / "fixtures/workflow.json", empty)

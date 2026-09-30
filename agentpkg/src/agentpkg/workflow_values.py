@@ -72,7 +72,52 @@ def evaluate(expression, environment):
         return {key: evaluate(value, environment) for key, value in expression["object"].items()}
     if "lookup" in expression:
         return lookup(expression["lookup"], environment)
+    if "allocate" in expression:
+        return allocate(expression["allocate"], environment)
     return [evaluate(value, environment) for value in expression["array"]]
+
+
+def allocate(spec, environment):
+    """Apportion a bounded integer total across positive weighted records.
+
+    Reserve one unit per record, then use largest remainders, breaking ties
+    in input order. Already exact allocations are preserved. No rows or other
+    fields are removed or changed; impossible totals fail closed.
+    """
+    rows = evaluate(spec["rows"], environment)
+    total = evaluate(spec["total"], environment)
+    field = spec["field"]
+
+    def positive_integer(value):
+        # JSON Schema treats 1.0 as an integer too. Bound before conversion,
+        # rejecting non-finite numbers and booleans without coercing strings.
+        return (
+            isinstance(value, (int, float))
+            and not isinstance(value, bool)
+            and 1 <= value <= 2147483647
+            and int(value) == value
+        )
+
+    if not isinstance(rows, list) or not 1 <= len(rows) <= 256:
+        raise ValidationError("allocate: requires 1 to 256 records")
+    if not positive_integer(total) or total < len(rows):
+        raise ValidationError("allocate: total must be a feasible bounded integer")
+    if any(not isinstance(row, dict) or not positive_integer(row.get(field)) for row in rows):
+        raise ValidationError("allocate: weights must be positive bounded integers")
+    total = int(total)
+    weights = [int(row[field]) for row in rows]
+    weight_sum = sum(weights)
+    if weight_sum == total:
+        return rows
+    remaining = total - len(rows)
+    quotients = [divmod(remaining * weight, weight_sum) for weight in weights]
+    amounts = [1 + quotient for quotient, _ in quotients]
+    order = sorted(range(len(rows)), key=lambda i: (-quotients[i][1], i))
+    for index in order[: total - sum(amounts)]:
+        amounts[index] += 1
+    for row, amount in zip(rows, amounts, strict=True):
+        row[field] = amount
+    return rows
 
 
 def lookup(spec, environment):
@@ -100,6 +145,9 @@ def references(expression):
     elif "lookup" in expression:
         yield from references(expression["lookup"]["in"])
         yield from references(expression["lookup"]["equals"])
+    elif "allocate" in expression:
+        yield from references(expression["allocate"]["rows"])
+        yield from references(expression["allocate"]["total"])
     elif "object" in expression:
         for value in expression["object"].values():
             yield from references(value)

@@ -46,20 +46,6 @@
             "Select the pilot team",
             "Agree success measures",
             "Assign owners"
-          ],
-          "perspectives": [
-            {
-              "name": "Ari",
-              "role": "Product"
-            },
-            {
-              "name": "Blair",
-              "role": "Engineering"
-            },
-            {
-              "name": "Casey",
-              "role": "Support"
-            }
           ]
         }
       }
@@ -207,20 +193,6 @@
               "Select the pilot team",
               "Agree success measures",
               "Assign owners"
-            ],
-            "perspectives": [
-              {
-                "name": "Ari",
-                "role": "Product"
-              },
-              {
-                "name": "Blair",
-                "role": "Engineering"
-              },
-              {
-                "name": "Casey",
-                "role": "Support"
-              }
             ]
           },
           "perspectives": [
@@ -254,8 +226,6 @@
           ]
         },
         "output": {
-          "goal": "Choose a launch scope for the internal documentation pilot",
-          "duration": 45,
           "agenda": [
             {
               "topic": "Confirm goal and constraints",

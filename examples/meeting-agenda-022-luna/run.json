@@ -1,0 +1,393 @@
+{
+  "runId": "run_119d25dc76af40148a44b1c45c719281",
+  "sessionId": "E4P8Ab5Mm4FhSYdCJ9pJvaYj",
+  "runPlanId": "rp_a07933e58b0a444fa7a5f4c2a18572c6",
+  "runPlanSha256": "7f44f1de662643c0dd9714dc43a252153e55421ede134683d90eb6d53a5c6313",
+  "runInvocationSha256": "bf17e6341af274afc23ab92d3b68d99d00083cbf843123f5aac211916fa828b4",
+  "inputSha256": "176d6b89e02bad6004caf02ff96fac260d1182525b4ce43308caca5fa3dbdf12",
+  "status": "completed",
+  "createdAt": "2026-09-29T14:52:44.340Z",
+  "startedAt": "2026-09-29T14:52:44.353Z",
+  "endedAt": "2026-09-29T14:53:16.708Z",
+  "durationMs": 32355,
+  "package": {
+    "packageId": "org.webagents.meeting-agenda",
+    "name": "Meeting Agenda Agent",
+    "version": "0.2.2",
+    "digest": "dbd2eb816bb8687d4a5b3448f5b82bc0716c3884f9fee8a2c578af0c5e894679",
+    "archiveSha256": "7b148e845c0f9e38d752a51a8d0b60a314842a3de3a2723b3bdf1a0c041921e1",
+    "executionProfile": "workflow.v0"
+  },
+  "selectedModel": {
+    "hostModelId": "openai/gpt-5.6-luna",
+    "providerId": "openai",
+    "modelId": "gpt-5.6-luna",
+    "displayName": "GPT-5.6-Luna",
+    "local": false
+  },
+  "model": {
+    "planned": "openai/gpt-5.6-luna",
+    "invoked": [
+      "openai/gpt-5.6-luna"
+    ],
+    "calls": 5,
+    "allCallsUsedPlannedModel": true,
+    "providers": [
+      "openai"
+    ],
+    "responseModels": [
+      "gpt-5.6-luna"
+    ]
+  },
+  "grants": {
+    "decisions": [
+      {
+        "permissionId": "memory.session",
+        "decision": "session"
+      },
+      {
+        "permissionId": "model.reasoning",
+        "decision": "session"
+      }
+    ],
+    "grantedPermissionIds": [
+      "memory.session",
+      "model.reasoning"
+    ]
+  },
+  "limits": {
+    "host": {
+      "totalTokens": 180000,
+      "maxRemoteCalls": 45,
+      "maxParallelWorkers": 3,
+      "maxOutputTokensPerCall": 16000,
+      "runTimeoutSeconds": 4500,
+      "modelCallTimeoutSeconds": 1200
+    },
+    "effectiveDeadlineSeconds": 600
+  },
+  "usage": {
+    "tokens": 5120,
+    "remoteCalls": 10,
+    "peakParallelWorkers": 3,
+    "toolCalls": 0,
+    "limits": {
+      "hardTokens": 180000,
+      "maxRemoteCalls": 32,
+      "maxParallelWorkers": 3
+    },
+    "workers": [
+      {
+        "worker": "coordinator",
+        "tokens": 0,
+        "remoteCalls": 0
+      },
+      {
+        "worker": "Planner:1",
+        "tokens": 587,
+        "remoteCalls": 2
+      },
+      {
+        "worker": "Perspective:2",
+        "tokens": 748,
+        "remoteCalls": 2
+      },
+      {
+        "worker": "Perspective:3",
+        "tokens": 689,
+        "remoteCalls": 2
+      },
+      {
+        "worker": "Perspective:4",
+        "tokens": 798,
+        "remoteCalls": 2
+      },
+      {
+        "worker": "Writer:5",
+        "tokens": 2298,
+        "remoteCalls": 2
+      }
+    ]
+  },
+  "cost": {
+    "status": "complete",
+    "totalUsd": 0.014405,
+    "calls": 5,
+    "callsWithReportedCost": 5
+  },
+  "audit": {
+    "events": 102,
+    "chainValid": true,
+    "finalHash": "f1e4ede526dc619bb5ead15da4155bc5f6946e28293ee2ee13db13688928015e",
+    "actions": [
+      {
+        "action": "budget.updated",
+        "count": 20
+      },
+      {
+        "action": "delegation.checked",
+        "count": 5
+      },
+      {
+        "action": "memory.cleared",
+        "count": 1
+      },
+      {
+        "action": "model.called",
+        "count": 5
+      },
+      {
+        "action": "model.completed",
+        "count": 5
+      },
+      {
+        "action": "model.count.called",
+        "count": 5
+      },
+      {
+        "action": "node.completed",
+        "count": 10
+      },
+      {
+        "action": "node.started",
+        "count": 10
+      },
+      {
+        "action": "permission.checked",
+        "count": 16
+      },
+      {
+        "action": "runtime.started",
+        "count": 1
+      },
+      {
+        "action": "state.committed",
+        "count": 7
+      },
+      {
+        "action": "worker.completed",
+        "count": 5
+      },
+      {
+        "action": "worker.spawned",
+        "count": 5
+      },
+      {
+        "action": "worker.started",
+        "count": 5
+      },
+      {
+        "action": "workflow.completed",
+        "count": 1
+      },
+      {
+        "action": "workflow.started",
+        "count": 1
+      }
+    ],
+    "workers": [
+      "Perspective:2",
+      "Perspective:3",
+      "Perspective:4",
+      "Planner:1",
+      "Writer:5",
+      "coordinator"
+    ],
+    "workersSpawned": 5,
+    "nodesCompleted": 10,
+    "modelCalls": 5,
+    "toolCalls": 0,
+    "tasksCalled": [
+      {
+        "task": "perspective",
+        "count": 3
+      },
+      {
+        "task": "plan",
+        "count": 1
+      },
+      {
+        "task": "write",
+        "count": 1
+      }
+    ]
+  },
+  "outputSha256": "c9afe4551fb9cabdba0292e38aa0a48c44cc4e4b97851f07cc123883c990a6d8",
+  "artifacts": [
+    {
+      "name": "result.json",
+      "bytes": 93495,
+      "sha256": "6d04571e5fc7b2673faa4cd4a5c6aa64171f57c01a8f59b4d3afd9417bf8f278"
+    },
+    {
+      "name": "audit.json",
+      "bytes": 63089,
+      "sha256": "4436052d81d6a9da04bb71056b81e57e0dde19d36d828b80f42263ffb104749a"
+    },
+    {
+      "name": "usage.json",
+      "bytes": 954,
+      "sha256": "84c1eaae2ba7f87e178010c4ed2dfd8eeb539db19dec233b1f76339d39214e40"
+    },
+    {
+      "name": "provenance.json",
+      "bytes": 236,
+      "sha256": "c57d3106aecbe82975ffc3b5b8c1423c0e75b28bf5194579cd6baedcfc58ee3f"
+    },
+    {
+      "name": "agenda.json",
+      "bytes": 3437,
+      "sha256": "5a7056b1d23ca89599111a0ca887909d7b45a320a402f8642eb44606342b65a1"
+    }
+  ],
+  "host": {
+    "runtime": "openclaw",
+    "runtimeVersion": "2026.9.5",
+    "verifiedVersion": "2026.9.5",
+    "versionVerified": true
+  },
+  "deadlineExceeded": false,
+  "cancelRequested": false,
+  "errorCode": null,
+  "errorDetail": null,
+  "revalidated": [
+    "run_plan_identity",
+    "run_plan_readiness",
+    "run_plan_preflight",
+    "execution_mode",
+    "package_digest",
+    "archive_sha256",
+    "execution_profile",
+    "package_validation",
+    "signature_status",
+    "publisher_trust",
+    "signer_fingerprint",
+    "authorization_receipt",
+    "receipt_not_expired",
+    "receipt_outlasts_run_deadline",
+    "model_permission_granted",
+    "model_available",
+    "model_identity",
+    "model_compatibility",
+    "input_bytes:757",
+    "runner:archive_sha256",
+    "runner:container",
+    "runner:integrity",
+    "runner:schema",
+    "runner:package_digest",
+    "runner:package_identity",
+    "runner:publisher_signature",
+    "runner:signer_fingerprint",
+    "runner:execution_profile",
+    "runner:tool_handlers:0"
+  ],
+  "packageExecution": {
+    "workflowInstantiated": true,
+    "packageInstructionsLoaded": true,
+    "toolHandlersInstalled": 0,
+    "toolCalls": 0
+  },
+  "task": {
+    "inputBytes": 757,
+    "input": {
+      "context": "The WebAgents project has reached a working prototype with a portable signed agent.pkg format, an OpenClaw-based browser/runtime, and two reference agents: Meeting Agenda and Literature Review. The team is preparing the final workshop paper and wants to decide which remaining experiments, implementation checks, and paper revisions are necessary before submission.",
+      "duration": 25,
+      "goal": "Agree on the final set of experiments and paper revisions required before submission, identify the highest-priority remaining tasks, and leave the meeting with a concrete action plan.",
+      "participants": [
+        {
+          "name": "Research Lead",
+          "role": "Research Lead"
+        },
+        {
+          "name": "Systems Engineer",
+          "role": "Systems Engineer"
+        },
+        {
+          "name": "Evaluation Lead",
+          "role": "Evaluation Lead"
+        }
+      ]
+    },
+    "attachments": []
+  },
+  "progress": {
+    "updatedAt": "2026-09-29T14:53:16.708Z",
+    "events": 102,
+    "lastAction": "memory.cleared",
+    "activeNodes": [],
+    "completedNodes": [
+      "plan",
+      "perspectives",
+      "join",
+      "write",
+      "assemble",
+      "validate",
+      "output"
+    ],
+    "failedNodes": [],
+    "nodesCompleted": 7,
+    "stepsCompleted": 3,
+    "workersSpawned": 5,
+    "workersActive": 0,
+    "peakParallelWorkers": 3,
+    "activeWorkers": [],
+    "modelCallsStarted": 5,
+    "modelCallsCompleted": 5,
+    "toolCallsStarted": 0,
+    "toolCallsCompleted": 0,
+    "tokens": 5120,
+    "remoteCalls": 10,
+    "elapsedMs": 32355,
+    "skippedNodes": [],
+    "workers": [
+      {
+        "id": "Planner:1",
+        "role": "Planner",
+        "node": "plan",
+        "state": "completed",
+        "modelCalls": 1,
+        "toolCalls": 0,
+        "durationMs": 6527.5
+      },
+      {
+        "id": "Perspective:2",
+        "role": "Perspective",
+        "node": "perspectives",
+        "state": "completed",
+        "modelCalls": 1,
+        "toolCalls": 0,
+        "durationMs": 7930.6
+      },
+      {
+        "id": "Perspective:3",
+        "role": "Perspective",
+        "node": "perspectives",
+        "state": "completed",
+        "modelCalls": 1,
+        "toolCalls": 0,
+        "durationMs": 7010.4
+      },
+      {
+        "id": "Perspective:4",
+        "role": "Perspective",
+        "node": "perspectives",
+        "state": "completed",
+        "modelCalls": 1,
+        "toolCalls": 0,
+        "durationMs": 11152.6
+      },
+      {
+        "id": "Writer:5",
+        "role": "Writer",
+        "node": "write",
+        "state": "completed",
+        "modelCalls": 1,
+        "toolCalls": 0,
+        "durationMs": 14057.2
+      }
+    ]
+  },
+  "tools": [],
+  "failure": null,
+  "origin": "live"
+}

@@ -1,0 +1,61 @@
+{
+  "failedRunId": "run_2080d87f2ac44bd18e4801a4c3e98ffb",
+  "failure": {
+    "nodeId": "validate",
+    "stepId": null,
+    "errorCode": "schema_validation",
+    "failedCheck": {
+      "check": "assertion",
+      "index": 0,
+      "kind": "equal",
+      "failure": "values_differ"
+    },
+    "call": null
+  },
+  "operands": {
+    "left": "/agenda/goal",
+    "right": "/request/goal",
+    "requestGoal": "Agree on the final set of experiments and paper revisions required before\nsubmission, identify the highest-priority remaining tasks, and leave the meeting\nwith a concrete action plan.",
+    "writerGoal": null,
+    "limitation": "Failed artifacts retain model output hashes, not output values or state. Exact writer string is unavailable."
+  },
+  "durationEvidence": {
+    "recorded": 15,
+    "inputHashMatches15": true,
+    "inputHashMatches25": false,
+    "plannerWorkerInputHashMatches15": true
+  },
+  "originalAudit": {
+    "events": 85,
+    "valid": true,
+    "broken": [],
+    "final_hash": "71a54a7b930495b5240f9b13a190491f1029f60a55a71e8ea8f1def883f5d953",
+    "note": "A local hash chain. It binds these events to each other; it is not an external tamper-proof audit service."
+  },
+  "preserved021ArchiveSha256": "e4c499f034b110ef2eca5aeecc87bc9336f6626e55b217d0fb087392ff120e35",
+  "preserved021MatchesGit": true,
+  "package022": {
+    "verification": {
+      "valid": true,
+      "digest": "dbd2eb816bb8687d4a5b3448f5b82bc0716c3884f9fee8a2c578af0c5e894679",
+      "package_id": "org.webagents.meeting-agenda",
+      "version": "0.2.2",
+      "publisher": {
+        "id": "webagents-research",
+        "name": "WebAgents Research Prototype"
+      },
+      "key_fingerprint": "sha256:2bcc374a7fe18e50622042b7d0375fcb24eb3607879a236f9f3c3ede1922c5c4",
+      "trust_scope": "exact externally supplied publisher key"
+    },
+    "archiveSha256": "7b148e845c0f9e38d752a51a8d0b60a314842a3de3a2723b3bdf1a0c041921e1",
+    "signature": {
+      "algorithm": "Ed25519",
+      "digest": "dbd2eb816bb8687d4a5b3448f5b82bc0716c3884f9fee8a2c578af0c5e894679",
+      "format": "agent.pkg-signature-v0.1",
+      "key_fingerprint": "sha256:2bcc374a7fe18e50622042b7d0375fcb24eb3607879a236f9f3c3ede1922c5c4",
+      "public_key": "+0eHZAWLJvr0Uel3Ekv5xXFfAdAT7MB2Y/AFU8pBwQc=",
+      "signature": "Qi88x7wnlAs4UEJo8Eb0GdbXQlY+SZxB3smH4y2k1EycmQ1Ncb9guJ98fsdcSMbeLZIYsktqPEImbKqEFMF0Dg=="
+    },
+    "reproducibleSignedBuild": true
+  }
+}

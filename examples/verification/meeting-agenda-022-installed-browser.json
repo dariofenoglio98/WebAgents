@@ -1,0 +1,49 @@
+{
+  "installedArtifactSha256": "7f00533850811d24f8ae3708d8598cf3f2117106c8038b897a5035382324b0fd",
+  "installedFilesMatchPackedArtifact": true,
+  "verifiedFiles": [
+    "openclaw.plugin.json",
+    "package.json",
+    "dist/index.js",
+    "dist/control-ui/2e8963eed677d0612b683237fc3a1bf865f857cef0d95af21ea85ede626907db/index.css",
+    "dist/control-ui/2e8963eed677d0612b683237fc3a1bf865f857cef0d95af21ea85ede626907db/index.js"
+  ],
+  "gatewayGeneration": 5,
+  "service": {
+    "state": "running",
+    "detail": "The Agent Browser control plane is running.",
+    "since": "2026-09-29T14:54:07.970Z",
+    "starts": 1,
+    "controlPlane": {
+      "apiVersion": "v0",
+      "agentpkgVersion": "0.2.2",
+      "packageFormat": "agent.pkg 0.1",
+      "execution": "disabled"
+    },
+    "sessions": {
+      "open": 0,
+      "max": 8
+    },
+    "capabilities": {
+      "openUrl": true,
+      "openLocal": true,
+      "localRoots": [
+        "/Users/dariofenoglio/Desktop/WebAgents/dist",
+        "/Users/dariofenoglio/.openclaw/workspace"
+      ],
+      "trustPinning": true
+    },
+    "executionSupported": true,
+    "executionOperations": true,
+    "fileSelection": true,
+    "execution": {
+      "runTimeoutSeconds": 4500,
+      "modelCallTimeoutSeconds": 1200,
+      "receiptMarginSeconds": 60,
+      "fileRoots": [
+        "/Users/dariofenoglio/Desktop/WebAgents/examples/probe-files"
+      ]
+    }
+  },
+  "authenticationProviderSettingsChanged": false
+}

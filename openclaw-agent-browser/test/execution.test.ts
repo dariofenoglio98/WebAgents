@@ -105,10 +105,8 @@ function stubLlm(options: { delayMs?: number; failAfter?: number } = {}) {
 
 function answer(task: string, data: Record<string, never>): string {
   if (task === "plan") {
-    const participants = (data.participants ?? []) as Array<{ name: string; role: string }>;
     return JSON.stringify({
       focus: ["Scope", "Risks"],
-      perspectives: participants.map((item) => ({ name: item.name, role: item.role })),
     });
   }
   if (task === "perspective") {
@@ -127,8 +125,6 @@ function answer(task: string, data: Record<string, never>): string {
     const share = Math.floor(request.duration / people.length);
     const remainder = request.duration - share * people.length;
     return JSON.stringify({
-      goal: request.goal,
-      duration: request.duration,
       agenda: people.map((person, index) => ({
         topic: `Discuss ${person.role} considerations`,
         minutes: share + (index === 0 ? remainder : 0),

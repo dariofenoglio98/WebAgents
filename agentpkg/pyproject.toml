@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agentpkg"
-version = "0.2.1"
+version = "0.2.2"
 description = "Agent Package v0: portable declarative packages and a policy-enforcing reference runtime"
 requires-python = ">=3.11"
 dependencies = ["jsonschema>=4.23,<5", "cryptography>=44,<47", "pypdf>=6,<7", "rfc8785>=0.1.4,<0.2"]

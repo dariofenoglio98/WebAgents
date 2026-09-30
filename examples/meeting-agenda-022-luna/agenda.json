@@ -1,0 +1,51 @@
+{
+  "agenda": [
+    {
+      "topic": "Confirm central paper claims and map each claim to minimum required evidence across portability, signed package integrity, runtime compatibility, and reference-agent usefulness.",
+      "minutes": 4,
+      "owner": "Research Lead"
+    },
+    {
+      "topic": "Agree on the essential evaluation matrix: environments, baselines, metrics, trial counts, success criteria, ablations, and failure-recovery tests for Meeting Agenda and Literature Review.",
+      "minutes": 6,
+      "owner": "Evaluation Lead"
+    },
+    {
+      "topic": "Review implementation readiness, including signing and tamper detection, malformed-package rejection, installation and execution across supported environments, runtime reliability, and reproducibility from a clean setup.",
+      "minutes": 5,
+      "owner": "Systems Engineer"
+    },
+    {
+      "topic": "Select required paper revisions covering methodology, architecture, security assumptions and limitations, related work, reproducibility instructions, results tables or figures, and scope boundaries.",
+      "minutes": 5,
+      "owner": "Research Lead"
+    },
+    {
+      "topic": "Assign submission-critical tasks, owners, completion dates, dependencies, fallback plans, and the final acceptance checklist for deciding whether to submit or cut lower-value work.",
+      "minutes": 5,
+      "owner": "Evaluation Lead"
+    }
+  ],
+  "decisions": [
+    "Which claims are submission-critical and the minimum experiment or implementation evidence required for each.",
+    "Which environments, baselines, metrics, trial counts, ablations, and failure cases will constitute the final evaluation.",
+    "Which security, portability, runtime, and clean-environment reproducibility checks must pass before submission.",
+    "Which paper sections, figures, tables, limitations, and reproducibility details must be revised.",
+    "The owner, deadline, dependency, and fallback plan for every submission-critical task, plus the cutoff for dropping optional work."
+  ],
+  "duration": 25,
+  "goal": "Agree on the final set of experiments and paper revisions required before submission, identify the highest-priority remaining tasks, and leave the meeting with a concrete action plan.",
+  "preparation_items": [
+    "Research Lead: bring the current claim list, draft paper, architecture description, and a claim-to-evidence matrix.",
+    "Systems Engineer: report supported environments and runtime versions, current package verification behavior, known failure modes, and reproducibility gaps.",
+    "Evaluation Lead: bring existing results, candidate baselines, proposed metrics, trial counts, and a list of missing experiments or ablations.",
+    "All participants: identify one essential task that could block submission and one lower-value task that can be deferred."
+  ],
+  "questions": [
+    "What is the latest date on which each essential experiment can produce usable results for the paper?",
+    "Which baseline or ablation can be removed if time or compute becomes constrained without weakening the central claims?",
+    "Are any security or portability claims broader than the implemented evidence, requiring narrower wording?",
+    "What result or implementation failure would trigger a change in the paper’s claims or a submission deferral?",
+    "Who will independently reproduce the final reference-agent workflow, and what evidence will be recorded?"
+  ]
+}

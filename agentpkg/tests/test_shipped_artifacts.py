@@ -37,7 +37,7 @@ from agentpkg.package import build_package, load_package
 from agentpkg.signing import verify_package
 
 ROOT = Path(__file__).resolve().parents[2]
-AGENDA = DIST["meeting-agenda"]
+AGENDA = ROOT / "dist/meeting-agenda-0.2.1.agent.pkg"
 AGENDA_SOURCE = ROOT / "agents/meeting-agenda"
 PREVIOUS = ROOT / "dist/meeting-agenda-0.2.0.agent.pkg"
 
@@ -101,8 +101,9 @@ def test_the_shipped_agenda_artifact_is_the_republished_version(agenda):
 def test_the_shipped_artifact_matches_its_source_tree(agenda, tmp_path):
     """No hand-edited artifact: the bytes come from `agents/meeting-agenda`."""
     rebuilt = load_package(build_package(AGENDA_SOURCE, tmp_path / "rebuilt.agent.pkg"))
-    assert rebuilt.digest == agenda.digest
-    assert rebuilt.manifest["version"] == agenda.manifest["version"]
+    current = load_package(DIST["meeting-agenda"])
+    assert rebuilt.digest == current.digest
+    assert rebuilt.manifest["version"] == current.manifest["version"]
 
 
 def test_the_previous_version_is_preserved_unchanged():

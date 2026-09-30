@@ -229,6 +229,7 @@ def test_a_real_run_reports_progress_that_agrees_with_its_audit(tmp_path):
         "perspectives",
         "join",
         "write",
+        "assemble",
         "validate",
         "output",
     ]

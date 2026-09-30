@@ -220,6 +220,36 @@ beforeEach(() => {
 
 // -- the task form --------------------------------------------------------------
 describe("the task form", () => {
+  it.each([25, 37])("preserves an edited duration of %i through rerender, JSON and invocation", async (duration) => {
+    const started = vi.fn(() => ({ ok: true, value: runRecord({ status: "running" }) }));
+    const page = mount({ pkg: agendaView(), handlers: {
+      "execution.start": started,
+      "execution.get": () => ({ ok: true, value: runRecord() }),
+    } });
+    await openPackage(page);
+    const field = () => page.container.querySelector<HTMLInputElement>("#ab-field-duration")!;
+    expect(field().value).toBe("");
+    typeInto(field(), "15");
+    await waitFor(() => page.called("execution.validate-input").at(-1)?.input.input.duration === 15);
+    typeInto(field(), String(duration));
+    typeInto(page.container.querySelector<HTMLTextAreaElement>("#ab-field-goal")!, "Decide\nnext steps");
+    const clickText = (text: string) => [...page.container.querySelectorAll("button")].find(b => b.textContent === text)!.click();
+    clickText("Add participants"); // Recreates controls using the current value.
+    expect(field().value).toBe(String(duration));
+    clickText("Edit as JSON");
+    const json = page.container.querySelector<HTMLTextAreaElement>("[aria-label='Task as JSON']")!;
+    expect(JSON.parse(json.value).duration).toBe(duration);
+    clickText("Edit as form");
+    expect(field().value).toBe(String(duration));
+    await waitFor(() => page.runButton()?.disabled === false);
+    page.runButton()!.click();
+    await waitFor(() => started.mock.calls.length === 1);
+    const sent = JSON.parse(JSON.stringify(page.called("execution.start")[0]!.input));
+    expect(sent.input.duration).toBe(duration);
+    expect(sent.input.goal).toBe("Decide\nnext steps");
+    page.dispose();
+  });
+
   it("renders the Literature Review task from its own schema and hints", async () => {
     const page = mount();
     await openPackage(page);

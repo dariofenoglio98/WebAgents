@@ -35,6 +35,19 @@
           "$ref": "agenda.schema.json"
         }
       ]
+    },
+    "draft": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        {
+          "$ref": "draft.schema.json"
+        }
+      ]
     }
   },
   "required": [
@@ -42,7 +55,8 @@
     "plan",
     "batches",
     "perspectives",
-    "agenda"
+    "agenda",
+    "draft"
   ],
   "additionalProperties": false
 }

@@ -2,16 +2,16 @@
   "spec_version": "0.1",
   "package_id": "org.webagents.meeting-agenda",
   "name": "Meeting Agenda Agent",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Plan a bounded meeting with participant perspectives and explicit time allocation.",
   "publisher": {
     "id": "webagents-research",
     "name": "WebAgents Research Prototype"
   },
-  "created_at": "2026-09-23T00:00:00Z",
+  "created_at": "2026-09-29T00:00:00Z",
   "runtime": {
     "api": "agentpkg-runtime-v0",
-    "minimum_version": "0.2.0"
+    "minimum_version": "0.2.2"
   },
   "capabilities": [
     "agenda-planning"
@@ -69,6 +69,10 @@
     {
       "id": "state",
       "path": "schemas/state.schema.json"
+    },
+    {
+      "id": "draft",
+      "path": "schemas/draft.schema.json"
     }
   ],
   "model_requirements": {

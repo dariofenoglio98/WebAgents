@@ -145,9 +145,6 @@ def scripted_model(request_input=None):
             return json.dumps(
                 {
                     "focus": ["Scope", "Risks"],
-                    "perspectives": [
-                        {"name": p["name"], "role": p["role"]} for p in data["participants"]
-                    ],
                 }
             )
         if task == "perspective":
@@ -162,7 +159,8 @@ def scripted_model(request_input=None):
                 ]
             )
         if task == "write":
-            return json.dumps(agenda_for(data.get("request", default)))
+            draft = agenda_for(data.get("request", default))
+            return json.dumps({k: v for k, v in draft.items() if k not in {"goal", "duration"}})
         raise AssertionError(f"unscripted task {task!r}")
 
     return respond

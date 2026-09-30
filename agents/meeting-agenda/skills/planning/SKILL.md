@@ -1,6 +1,6 @@
 ---
 name: planning
-description: Identify the decisions needed to achieve the meeting goal. Return focus items and the supplied participants as perspectives. An empty participant list is valid.
+description: Identify the decisions needed to achieve the meeting goal and return focus items.
 ---
 
-Identify the decisions needed to achieve the meeting goal. Return focus items and the supplied participants as perspectives. An empty participant list is valid.
+Identify the decisions needed to achieve the meeting goal and return focus items. The graph uses the supplied participants directly for perspective workers.

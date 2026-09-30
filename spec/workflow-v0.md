@@ -1,6 +1,6 @@
 # workflow.v0 execution profile
 
-Status: experimental, normative for agentpkg 0.2.1 (0.2.1 adds the `lookup` constructor, §4; a graph without it is also valid for 0.2.0). The enclosing **agent.pkg format remains 0.1**, including its archive, integrity statement and Ed25519 signature transcript. This document adds execution semantics; it does not redefine the container. Machine contracts are `agentpkg/schemas/workflow.schema.json`, `workflow-fixture.schema.json`, `audit-event.schema.json`, `model-request.schema.json`, and `model-result.schema.json`. Examples are `agents/literature-review` and `agents/meeting-agenda`.
+Status: experimental, normative for agentpkg 0.2.2 (0.2.1 adds `lookup`; 0.2.2 adds `allocate`, §4; older graphs retain their semantics). The enclosing **agent.pkg format remains 0.1**, including its archive, integrity statement and Ed25519 signature transcript. This document adds execution semantics; it does not redefine the container. Machine contracts are `agentpkg/schemas/workflow.schema.json`, `workflow-fixture.schema.json`, `audit-event.schema.json`, `model-request.schema.json`, and `model-result.schema.json`. Examples are `agents/literature-review` and `agents/meeting-agenda`.
 
 ## 1. Authority and canonical representation
 
@@ -63,7 +63,28 @@ Every value expression is exactly one of:
             "equals": {"from": "item", "path": "/id"}, "path": "/metadata"}}
 ```
 
-Objects containing special-looking fields are still inert inside `literal`. `coalesce` evaluates in order and returns the first non-null value; it does not catch missing-path errors. An empty string is non-null. At most eight alternatives are allowed. `lookup` (agentpkg 0.2.1) is keyed selection over data already in scope: it constructs array `in` and value `equals`, finds the members whose JSON Pointer `key` equals `equals`, and returns `path` of that member (empty `path` returns the whole member). Key equality is the exact canonical JSON equality a `relation` assertion uses (§5), with no coercion. Exactly one member must match: no match, several matches, a non-array `in` or a missing pointer fail as `schema_validation`, attributed as `{"check": "lookup", "failure": "no_match" | "duplicate_key" | "not_array", "key", "path"}` — the package's own pointers, never data. It is the constructive counterpart of a relation's keyed match: where a relation can only prove that a row equals its trusted target, `lookup` lets the graph copy the target, so a model is never asked to reproduce trusted data that a later check requires to be identical. Its `in` and `equals` operands are ordinary projections, checked statically against the role's `state_read` and step order. There is no arithmetic, string interpolation, variable assignment, external lookup, iteration, filtering, or code evaluation.
+Objects containing special-looking fields are still inert inside `literal`. `coalesce` evaluates in order and returns the first non-null value; it does not catch missing-path errors. An empty string is non-null. At most eight alternatives are allowed. `lookup` (agentpkg 0.2.1) is keyed selection over data already in scope: it constructs array `in` and value `equals`, finds the members whose JSON Pointer `key` equals `equals`, and returns `path` of that member (empty `path` returns the whole member). Key equality is the exact canonical JSON equality a `relation` assertion uses (§5), with no coercion. Exactly one member must match: no match, several matches, a non-array `in` or a missing pointer fail as `schema_validation`, attributed as `{"check": "lookup", "failure": "no_match" | "duplicate_key" | "not_array", "key", "path"}` — the package's own pointers, never data. It is the constructive counterpart of a relation's keyed match: where a relation can only prove that a row equals its trusted target, `lookup` lets the graph copy the target, so a model is never asked to reproduce trusted data that a later check requires to be identical. Its `in` and `equals` operands are ordinary projections, checked statically against the role's `state_read` and step order. There is no general arithmetic, string interpolation, variable assignment, external lookup, iteration, filtering, or code evaluation.
+
+`allocate` (agentpkg 0.2.2) constructs exact positive integer allocations:
+
+```json
+{"allocate": {"rows": {"from": "state", "path": "/draft/records"},
+              "total": {"from": "state", "path": "/request/capacity"},
+              "field": "units"}}
+```
+
+`rows` must contain 1–256 objects, each with a positive integer weight in the
+named top-level `field`; weights and `total` are bounded by 2,147,483,647.
+Booleans, fractions, missing weights, and totals smaller than the row count fail
+as `schema_validation`. Exact allocations are copied unchanged. Otherwise,
+reserve one unit per row, distribute the remaining units in proportion to the
+original weights using integer division, and assign leftover units by descending
+fractional remainder, breaking ties in original row order. This uses integer
+arithmetic only. Every other field, all rows, and their order are preserved;
+input data is never mutated. Both operands undergo the usual scope and authority
+checks. This is one finite constructor, not an expression evaluator or a new
+capability. Authors must declare runtime minimum 0.2.2 when using it. Final
+assertions remain independent checks of the constructed result.
 
 Paths are JSON Pointers: empty selects a whole permitted source, `/` separates components, `~0` means tilde, and `~1` means slash. Array indices are nonnegative canonical decimal strings. No wildcard, negative index, parent traversal, automatic creation, or missing-value default exists.
 

@@ -16,3 +16,14 @@ agentpkg/.venv/bin/agentpkg run dist/meeting-agenda.agent.pkg \
 The package requests model and session-memory permissions, bounded token/remote-call budgets, depth-one delegation and at most three concurrent workers. Fixture execution makes no remote calls. The `agenda.json` export and generic run/audit/usage/provenance files expose the result.
 
 See [workflow.v0](../../spec/workflow-v0.md) and the [migration/genericity explanation](../../docs/workflow-migration.md).
+
+## 0.2.2: exact input and allocation preservation
+
+The planner returns focus items; perspective workers map directly over the input
+participants. The writer returns a draft with at most ten topics and positive
+integer time estimates. A structural `assemble` node copies the input goal and
+duration and uses workflow.v0 `allocate` to apportion minutes to that exact total.
+It preserves all topics, order, owners, and other content; already exact estimates
+stay unchanged. The ten-topic bound fits every allowed input duration (10–240).
+The three original final assertions are unchanged. Five model calls still occur
+for three participants. Runtime 0.2.2 is required for the generic constructor.

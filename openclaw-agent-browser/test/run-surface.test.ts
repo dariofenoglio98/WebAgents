@@ -94,7 +94,7 @@ function agendaLlm(options: { delayMs?: number } = {}) {
       const data = JSON.parse(params.messages[0]?.content ?? "{}") as Record<string, any>;
       let output: unknown;
       if (task === "plan") {
-        output = { focus: ["Scope"], perspectives: data.participants.map((p: any) => ({ name: p.name, role: p.role })) };
+        output = { focus: ["Scope"] };
       } else if (task === "perspective") {
         output = [{ role: data.participant.role, priorities: ["p"], questions: ["q"] }];
       } else {
@@ -102,8 +102,6 @@ function agendaLlm(options: { delayMs?: number } = {}) {
         const share = Math.floor(data.request.duration / people.length);
         const rest = data.request.duration - share * people.length;
         output = {
-          goal: data.request.goal,
-          duration: data.request.duration,
           agenda: people.map((person, index) => ({ topic: `About ${person.role}`, minutes: share + (index === 0 ? rest : 0), owner: person.name })),
           preparation_items: ["Read"],
           decisions: ["Adopt"],
@@ -328,7 +326,7 @@ describe.runIf(runs)("the Run surface's backend", () => {
     expect(stub.calls.every((call) => call.startsWith("acme/big:"))).toBe(true);
     expect(record.origin).toBe("live");
     // The final record carries the runner's own settled progress.
-    expect(record.progress!.completedNodes).toEqual(["plan", "perspectives", "join", "write", "validate", "output"]);
+    expect(record.progress!.completedNodes).toEqual(["plan", "perspectives", "join", "write", "assemble", "validate", "output"]);
     expect(record.progress!.workers!.every((worker) => worker.state === "completed")).toBe(true);
     expect(record.failure).toBeNull();
   }, 120_000);

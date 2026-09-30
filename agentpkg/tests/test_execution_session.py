@@ -367,8 +367,8 @@ def test_output_that_does_not_satisfy_the_package_schema_fails(tmp_path):
     assert result["error_code"] in {"model_error", "schema_validation"}
 
 
-def test_a_broken_package_assertion_fails_the_run(tmp_path):
-    """The package's own time-allocation assertion is what catches this."""
+def test_draft_allocation_is_normalized_before_final_assertions(tmp_path):
+    """Draft estimates are normalized in the signed graph before validation."""
     from execution_fakes import scripted_model
 
     honest = scripted_model()
@@ -381,9 +381,10 @@ def test_a_broken_package_assertion_fails_the_run(tmp_path):
             return json.dumps(value)
         return text
 
-    _, _, result, _ = run(tmp_path, host_options={"respond": wrong_total})
-    assert result["status"] == "failed"
-    assert result["error_code"] == "schema_validation"
+    harness, _, result, _ = run(tmp_path, host_options={"respond": wrong_total})
+    assert result["status"] == "completed"
+    assert result["error_code"] is None
+    assert sum(row["minutes"] for row in harness.artifact("agenda.json")["agenda"]) == 45
 
 
 # -- budgets and deadlines ---------------------------------------------------

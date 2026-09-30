@@ -18,10 +18,12 @@
         "plan",
         "batches",
         "perspectives",
-        "agenda"
+        "agenda",
+        "draft"
       ],
       "state_write": [
-        "perspectives"
+        "perspectives",
+        "agenda"
       ]
     },
     {
@@ -81,7 +83,7 @@
         "perspectives"
       ],
       "state_write": [
-        "agenda"
+        "draft"
       ]
     }
   ],
@@ -103,6 +105,9 @@
         "literal": []
       },
       "agenda": {
+        "literal": {}
+      },
+      "draft": {
         "literal": {}
       }
     }
@@ -135,7 +140,7 @@
       "worker": "Perspective",
       "input": {
         "from": "state",
-        "path": "/plan/perspectives"
+        "path": "/request/participants"
       },
       "output_schema": "schemas/batches.schema.json",
       "timeout_seconds": 360,
@@ -218,19 +223,72 @@
           }
         }
       },
-      "output_schema": "schemas/agenda.schema.json",
+      "output_schema": "schemas/draft.schema.json",
       "timeout_seconds": 300,
       "depends_on": [
         "join"
       ],
       "writes": {
-        "/agenda": {
+        "/draft": {
           "from": "result",
           "path": ""
         }
       },
       "task": "write",
       "max_output_tokens": 12000
+    },
+    {
+      "id": "assemble",
+      "type": "validate",
+      "worker": "Coordinator",
+      "input": {
+        "object": {
+          "goal": {
+            "from": "state",
+            "path": "/request/goal"
+          },
+          "duration": {
+            "from": "state",
+            "path": "/request/duration"
+          },
+          "agenda": {
+            "allocate": {
+              "rows": {
+                "from": "state",
+                "path": "/draft/agenda"
+              },
+              "total": {
+                "from": "state",
+                "path": "/request/duration"
+              },
+              "field": "minutes"
+            }
+          },
+          "preparation_items": {
+            "from": "state",
+            "path": "/draft/preparation_items"
+          },
+          "decisions": {
+            "from": "state",
+            "path": "/draft/decisions"
+          },
+          "questions": {
+            "from": "state",
+            "path": "/draft/questions"
+          }
+        }
+      },
+      "output_schema": "schemas/agenda.schema.json",
+      "timeout_seconds": 120,
+      "depends_on": [
+        "write"
+      ],
+      "writes": {
+        "/agenda": {
+          "from": "result",
+          "path": ""
+        }
+      }
     },
     {
       "id": "validate",
@@ -243,7 +301,7 @@
       "output_schema": "schemas/agenda.schema.json",
       "timeout_seconds": 120,
       "depends_on": [
-        "write"
+        "assemble"
       ],
       "writes": {},
       "assertions": [
