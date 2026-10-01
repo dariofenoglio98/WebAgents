@@ -139,7 +139,7 @@
               "properties": {
                 "toolId": {
                   "type": "string",
-                  "maxItems": 200,
+                  "maxLength": 200,
                   "description": "The declared tool id this entry configures."
                 },
                 "enabled": {
@@ -185,9 +185,9 @@
     "onStartup": true
   },
   "controlUi": {
-    "entry": "dist/control-ui/2e8963eed677d0612b683237fc3a1bf865f857cef0d95af21ea85ede626907db/index.js",
+    "entry": "dist/control-ui/0ad8e81c9c13678ac2c4826a075d8fd2c90aa847712a3eb9a97a08e13cf21513/index.js",
     "styles": [
-      "dist/control-ui/2e8963eed677d0612b683237fc3a1bf865f857cef0d95af21ea85ede626907db/index.css"
+      "dist/control-ui/0ad8e81c9c13678ac2c4826a075d8fd2c90aa847712a3eb9a97a08e13cf21513/index.css"
     ]
   },
   "contracts": {

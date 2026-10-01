@@ -1,4 +1,4 @@
-# agentpkg 0.2.0
+# agentpkg 0.2.2
 
 Installable tooling for agent.pkg format 0.1 and the generic workflow.v0 interpreter. From the repository root:
 

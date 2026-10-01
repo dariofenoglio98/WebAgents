@@ -1,8 +1,18 @@
 # Literature Review Agent — workflow.v0
 
-Version 0.2.3 is a data-only package executed by the same generic interpreter as Meeting Agenda. `MANIFEST.agent` selects `workflow.v0`; **graph.json is the only authoritative execution graph**. The seven skills describe domain behavior; schemas and declared validation assertions enforce the structured contracts.
+Version 0.2.5 is a data-only package executed by the same generic interpreter as Meeting Agenda. `MANIFEST.agent` selects `workflow.v0`; **graph.json is the only authoritative execution graph**. The seven skills describe domain behavior; schemas and declared validation assertions enforce the structured contracts.
 
 The graph performs planning, seed resolution, parallel search, join/normalization/deduplication, parallel screening, citation resolution, evidence preparation and parallel extraction, synthesis, writing, verification and declared exports. Citation Resolver remains a remote tool consumed through its existing contract. Conditional selected-PDF reads remain worker-local. Exact quote/page checks, record links and resolver metadata checks use generic validation nodes.
+
+## 0.2.5: the exported evidence table is the extraction record
+
+The verification skill has always asked the verifier to copy each cited evidence item exactly into `evidence_table`, but 0.2.4 exported the verifier's copy, and `validate-output` compared only its `paper_id`, `quote`, `scope`, `location` and `provenance`. A live 0.2.4 run on `ollama/qwen3:30b` completed with one exported row re-labelled `category: "method"` where its extraction record said `"setup"`; the same path admitted a rewritten `text`, `support_strength` or `extraction_worker`.
+
+- A new `materialize-evidence` map reads only each verifier row's `evidence_id` (`schemas/evidence-ref.schema.json`) and attaches that evidence item's own extraction record with `lookup`: exactly one item must carry the id, or the run stops. Which evidence is cited, and in which order, remains the verifier's decision.
+- `assemble-output` exports that materialized table instead of the verifier's copy.
+- `validate-output` keeps every check it had and adds one: each exported row must equal its extraction record as a whole.
+
+No workflow primitive, skill, prompt, permission, tool contract, budget or timing changed, and the replay fixture is unchanged. The package still requires agentpkg 0.2.1 or later. The signed 0.2.4 archive is preserved separately.
 
 ## 0.2.4: deterministic preparation and direct quotes
 

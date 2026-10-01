@@ -637,6 +637,9 @@
     },
     "materialized_claims": {
       "$ref": "claims.schema.json"
+    },
+    "evidence_table": {
+      "$ref": "evidence-list.schema.json"
     }
   },
   "required": [

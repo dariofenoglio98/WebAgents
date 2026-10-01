@@ -111,8 +111,9 @@ def test_unrelated_packages_yield_structurally_different_summaries(tmp_path):
     assert len(review["tools"]) == 3 and agenda["tools"] == []
     assert len(review["workers"]) == 9 and len(agenda["workers"]) == 4
     # 0.2.2 added `check-evidence`, which refuses colliding evidence ids; 0.2.3
-    # added `bibliography` and `assemble-output`, which attach resolver metadata.
-    assert review["workflow"]["node_count"] == 24
+    # added `bibliography` and `assemble-output`, which attach resolver metadata;
+    # 0.2.5 added `materialize-evidence`, which attaches each cited evidence record.
+    assert review["workflow"]["node_count"] == 25
     assert agenda["workflow"]["node_count"] == 7
     assert review["policy"]["network"]["allowed_domains"]
     assert agenda["policy"]["network"]["allowed_domains"] == []

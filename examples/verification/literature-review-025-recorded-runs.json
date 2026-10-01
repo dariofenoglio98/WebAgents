@@ -1,0 +1,142 @@
+{
+  "scope": "Read-only analysis of Agent Browser run records for Literature Review 0.2.4, with the acceptance driver's independent grounding checks (openclaw-agent-browser/scripts/run-literature-review.mjs) recomputed over each run's own artifacts.",
+  "runs": [
+    {
+      "run_id": "run_41b9200000d14aa2b7970c1a819213e7",
+      "created_at": "2026-09-28T12:24:11.764Z",
+      "status": "completed",
+      "package": "org.webagents.literature-review 0.2.4",
+      "package_digest": "4a32fc32533fc60e012febc165e557750e271dff930730ec602fed66fd8712b1",
+      "model": "ollama/qwen3:30b",
+      "model_calls": 18,
+      "all_calls_used_planned_model": true,
+      "cost": {
+        "status": "complete",
+        "totalUsd": 0,
+        "calls": 18,
+        "callsWithReportedCost": 18
+      },
+      "audit_chain_valid": true,
+      "audit_events": 632,
+      "evidence_items": 10,
+      "evidence_quotes_in_genuine_sources": 10,
+      "evidence_table_rows": 9,
+      "evidence_table_rows_match_items": false,
+      "evidence_table_row_diffs": [
+        {
+          "evidence_id": "10.2139/ssrn.7502658:e2",
+          "fields": [
+            "category"
+          ],
+          "exported": {
+            "category": "method"
+          },
+          "extracted": {
+            "category": "setup"
+          }
+        }
+      ],
+      "bibliography_entries": 3,
+      "bibliography_all_resolved_and_exact": true,
+      "claims": 9,
+      "direct_quote_claims": 9,
+      "direct_quotes_exact": true,
+      "claims_reference_existing_evidence": true,
+      "claims_cite_evidence_and_papers": true,
+      "claims_reference_resolved_papers": true,
+      "verification_results_match_claims": true,
+      "unsupported_or_overstated": 0
+    },
+    {
+      "run_id": "run_a71e5b0fa7574328aa87597ae8882c85",
+      "created_at": "2026-09-28T18:27:16.832Z",
+      "status": "completed",
+      "package": "org.webagents.literature-review 0.2.4",
+      "package_digest": "4a32fc32533fc60e012febc165e557750e271dff930730ec602fed66fd8712b1",
+      "model": "openai/gpt-5.6-luna",
+      "model_calls": 18,
+      "all_calls_used_planned_model": true,
+      "cost": {
+        "status": "complete",
+        "totalUsd": 0.200458,
+        "calls": 18,
+        "callsWithReportedCost": 18
+      },
+      "audit_chain_valid": true,
+      "audit_events": 678,
+      "evidence_items": 12,
+      "evidence_quotes_in_genuine_sources": 12,
+      "evidence_table_rows": 9,
+      "evidence_table_rows_match_items": true,
+      "evidence_table_row_diffs": [],
+      "bibliography_entries": 3,
+      "bibliography_all_resolved_and_exact": true,
+      "claims": 10,
+      "direct_quote_claims": 9,
+      "direct_quotes_exact": true,
+      "claims_reference_existing_evidence": true,
+      "claims_cite_evidence_and_papers": true,
+      "claims_reference_resolved_papers": true,
+      "verification_results_match_claims": true,
+      "unsupported_or_overstated": 0
+    },
+    {
+      "run_id": "run_322dca7785ba45cca1551243e1a35b23",
+      "created_at": "2026-09-28T19:06:51.233Z",
+      "status": "completed",
+      "package": "org.webagents.literature-review 0.2.4",
+      "package_digest": "4a32fc32533fc60e012febc165e557750e271dff930730ec602fed66fd8712b1",
+      "model": "ollama/qwen3:30b",
+      "model_calls": 18,
+      "all_calls_used_planned_model": true,
+      "cost": {
+        "status": "complete",
+        "totalUsd": 0,
+        "calls": 18,
+        "callsWithReportedCost": 18
+      },
+      "audit_chain_valid": true,
+      "audit_events": 572,
+      "evidence_items": 11,
+      "evidence_quotes_in_genuine_sources": 11,
+      "evidence_table_rows": 3,
+      "evidence_table_rows_match_items": true,
+      "evidence_table_row_diffs": [],
+      "bibliography_entries": 3,
+      "bibliography_all_resolved_and_exact": true,
+      "claims": 3,
+      "direct_quote_claims": 3,
+      "direct_quotes_exact": true,
+      "claims_reference_existing_evidence": true,
+      "claims_cite_evidence_and_papers": true,
+      "claims_reference_resolved_papers": true,
+      "verification_results_match_claims": true,
+      "unsupported_or_overstated": 0
+    }
+  ],
+  "replay_of_0_2_5_on_run_41b92000": {
+    "rows_cited_by_verifier": 9,
+    "materialized_rows_equal_extraction_records": true,
+    "verifier_order_preserved": true,
+    "0_2_4_final_check_on_table_0_2_4_exported": {
+      "holds": true
+    },
+    "0_2_5_final_check_on_table_0_2_4_exported": {
+      "holds": false,
+      "failed_check": {
+        "check": "assertion",
+        "index": 1,
+        "kind": "relation",
+        "failure": "fields_do_not_match",
+        "compare": {
+          "left": "",
+          "right": "",
+          "op": "eq"
+        }
+      }
+    },
+    "0_2_5_final_check_on_0_2_5_materialized_table": {
+      "holds": true
+    }
+  }
+}

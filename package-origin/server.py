@@ -1,0 +1,103 @@
+import hashlib
+import os
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+
+
+PACKAGE = Path(__file__).parent / "packages" / "literature-review-0.2.5.agent.pkg"
+
+EXPECTED_SHA256 = (
+    "1669f83fafac3434748fc19d38a8d3d2c3352da83cf1cbb84796ce313bd4f571"
+)
+
+VERSIONED_PATH = "/literature-review-0.2.5.agent.pkg"
+LATEST_PATH = "/literature-review.agent.pkg"
+
+
+def verify_package():
+    digest = hashlib.sha256(PACKAGE.read_bytes()).hexdigest()
+
+    if digest != EXPECTED_SHA256:
+        raise RuntimeError(
+            f"Package SHA-256 mismatch: expected {EXPECTED_SHA256}, got {digest}"
+        )
+
+    return digest
+
+
+PACKAGE_SHA256 = verify_package()
+
+
+class Handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        if self.path == "/health":
+            body = b'{"status":"ok"}\n'
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.end_headers()
+            self.wfile.write(body)
+            return
+
+        if self.path in (VERSIONED_PATH, LATEST_PATH):
+            data = PACKAGE.read_bytes()
+
+            self.send_response(200)
+            self.send_header("Content-Type", "application/octet-stream")
+            self.send_header("Content-Length", str(len(data)))
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("X-Agent-Package-SHA256", PACKAGE_SHA256)
+
+            if self.path == VERSIONED_PATH:
+                self.send_header(
+                    "Cache-Control",
+                    "public, max-age=31536000, immutable",
+                )
+            else:
+                self.send_header("Cache-Control", "no-cache")
+
+            self.end_headers()
+            self.wfile.write(data)
+            return
+
+        self.send_response(404)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
+    def do_HEAD(self):
+        if self.path in (VERSIONED_PATH, LATEST_PATH):
+            size = PACKAGE.stat().st_size
+
+            self.send_response(200)
+            self.send_header("Content-Type", "application/octet-stream")
+            self.send_header("Content-Length", str(size))
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("X-Agent-Package-SHA256", PACKAGE_SHA256)
+            self.end_headers()
+            return
+
+        if self.path == "/health":
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            return
+
+        self.send_response(404)
+        self.end_headers()
+
+    def log_message(self, format, *args):
+        print(
+            "%s - - [%s] %s"
+            % (self.address_string(), self.log_date_time_string(), format % args)
+        )
+
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", "8080"))
+
+    print(f"Package SHA-256: {PACKAGE_SHA256}")
+    print(f"Listening on 0.0.0.0:{port}")
+
+    server = ThreadingHTTPServer(("0.0.0.0", port), Handler)
+    server.serve_forever()

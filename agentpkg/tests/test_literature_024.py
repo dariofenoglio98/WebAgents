@@ -10,7 +10,7 @@ from literature_scenarios import Scenario, ScriptedReview, run_scenario
 from shipped_keys import LITERATURE_FINGERPRINT, LITERATURE_KEY
 
 from agentpkg.fixtures import fixture_adapters
-from agentpkg.package import build_package, load_package
+from agentpkg.package import load_package
 from agentpkg.signing import verify_package
 from agentpkg.workflow import WorkflowError, run_workflow
 
@@ -189,16 +189,13 @@ def test_previous_strict_assertions_are_preserved(review):
     assert review.manifest["runtime"] == previous.manifest["runtime"]
 
 
-def test_signed_fixture_and_source_match(review, tmp_path):
+def test_preserved_signed_archive_still_replays(review):
+    # The source has moved on to 0.2.5 (test_literature_025); this archive is
+    # the preserved 0.2.4 release, checked as published.
     checked = verify_package(ARCHIVE, LITERATURE_KEY)
     assert checked["valid"] and checked["key_fingerprint"] == LITERATURE_FINGERPRINT
     assert checked["version"] == "0.2.4"
-    assert (
-        load_package(
-            build_package(ROOT / "agents/literature-review", tmp_path / "rebuilt.agent.pkg")
-        ).digest
-        == review.digest
-    )
+    assert checked["digest"] == review.digest
     router, handlers, value = fixture_adapters(review)
     result = asyncio.run(
         run_workflow(

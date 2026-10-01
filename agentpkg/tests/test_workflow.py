@@ -411,9 +411,12 @@ def test_time_sum_is_a_package_declared_generic_constraint(tmp_path):
         lambda f: f["models"]["write"][0]["output"]["agenda"][0].update(minutes=99),
     )
     # Bypass constructive allocation to deliberately corrupt the final value.
-    change(path / "graph.json", lambda g: next(
-        n for n in g["nodes"] if n["id"] == "assemble"
-    )["input"]["object"].update(agenda={"from": "state", "path": "/draft/agenda"}))
+    change(
+        path / "graph.json",
+        lambda g: next(n for n in g["nodes"] if n["id"] == "assemble")["input"]["object"].update(
+            agenda={"from": "state", "path": "/draft/agenda"}
+        ),
+    )
     with pytest.raises(WorkflowError) as caught:
         execute(load_package(path))
     assert caught.value.node_id == "validate"

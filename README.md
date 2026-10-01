@@ -1,10 +1,10 @@
 # WebAgents — generically executable agent.pkg
 
-A research prototype for portable, signed, inspectable agents under host-controlled authority. **agent.pkg 0.1** now has a generic execution profile, **workflow.v0**, implemented by agentpkg 0.2.0.
+A research prototype for portable, signed, inspectable agents under host-controlled authority. **agent.pkg 0.1** now has a generic execution profile, **workflow.v0**, implemented by agentpkg 0.2.2 ([current artifacts](dist/README.md)).
 
 The same interpreter executes both [`literature-review.agent.pkg`](dist/literature-review.agent.pkg) and [`meeting-agenda.agent.pkg`](dist/meeting-agenda.agent.pkg). Graphs, skills, state mappings, schemas, tool contracts and application validation rules live in package data. The interpreter contains no application-specific orchestration or package-name dispatch.
 
-Literature Review **0.2.4** constructs evidence jobs and final direct quotes deterministically with existing workflow primitives. The signed 0.2.3 archive is preserved. Current verification and live-provider status are in the [0.2.4 acceptance report](docs/literature-review-024-report.md).
+Literature Review **0.2.5** exports each cited evidence row as its own extraction record; 0.2.4 had already made evidence jobs and final direct quotes deterministic, all with existing workflow primitives. Signed earlier archives are preserved. Current verification and live-provider status are in the [0.2.5 report](docs/literature-review-025-report.md).
 
 ```sh
 # Existing development environment; for a new environment create agentpkg/.venv first.
@@ -84,8 +84,13 @@ person approves that implementation as a decision separate from the permission
 it travels under; and `Runtime.call_tool` remains the only path.
 
 ```sh
-agentpkg/.venv/bin/agentpkg trust add --public-key examples/keys/workflow-publisher.pub.pem \
-  --display-name "WebAgents development key" --publisher-id webagents-research
+# Each current package has its own development key; pin each for its own package id.
+agentpkg/.venv/bin/agentpkg trust add --public-key examples/keys/literature-review-publisher.pub.pem \
+  --display-name "WebAgents Literature Review development key" --publisher-id webagents-research \
+  --package-id-prefix org.webagents.literature-review
+agentpkg/.venv/bin/agentpkg trust add --public-key examples/keys/meeting-agenda-publisher.pub.pem \
+  --display-name "WebAgents Meeting Agenda development key" --publisher-id webagents-research \
+  --package-id-prefix org.webagents.meeting-agenda
 agentpkg/.venv/bin/agentpkg browser-serve --port 8765        # loopback only; prints a bearer token
 curl -sS http://127.0.0.1:8765/v0/health
 ```

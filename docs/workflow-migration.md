@@ -79,12 +79,16 @@ Both demos use new output directories:
 agentpkg/.venv/bin/agentpkg run dist/literature-review.agent.pkg \
   --mode fixture --input examples/literature-review-input.json \
   --grants examples/literature-review-grants.json \
-  --trust-key examples/keys/workflow-publisher.pub.pem --out examples/my-workflow-review
+  --approve-tool scholarly-search --approve-tool citation-resolver --approve-tool paper-reader \
+  --trust-key examples/keys/literature-review-publisher.pub.pem --out examples/my-workflow-review
 agentpkg/.venv/bin/agentpkg run dist/meeting-agenda.agent.pkg \
   --mode fixture --input examples/meeting-agenda-input.json \
   --grants examples/meeting-agenda-grants.json \
-  --trust-key examples/keys/workflow-publisher.pub.pem --out examples/my-workflow-agenda
+  --trust-key examples/keys/meeting-agenda-publisher.pub.pem --out examples/my-workflow-agenda
 ```
+
+Each current artifact is signed by its own key (see [the artifact index](../dist/README.md));
+`examples/keys/workflow-publisher.pub.pem` signs only the preserved 0.2.0 artifacts.
 
 Each output has `result.json`, `audit.json`, `usage.json`, `provenance.json`, plus package-declared exports. `provenance.interpreter` and `workflow.started.profile` identify the same execution engine. `agentpkg eval PACKAGE` replays the declared fixture under explicit test grants; it is an execution/constraint smoke evaluation, not the previous application-specific semantic harness.
 

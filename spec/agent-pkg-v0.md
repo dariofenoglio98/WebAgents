@@ -43,7 +43,7 @@ The machine-readable schemas in `agentpkg/src/agentpkg/schemas/` use JSON Schema
 | `package_id`, `name`, `version`, `description` | Stable asserted package identity, display name, package SemVer, capability description. |
 | `publisher: {id,name}` | Publisher's asserted identity; binding to a real identity is a host trust-bootstrap responsibility. |
 | `created_at` | RFC 3339 date-time selected by the source author; builds do not insert current timestamps. |
-| `runtime: {api,minimum_version}` | API exactly `agentpkg-runtime-v0`; minimum version cannot exceed implementation `0.1.0`. |
+| `runtime: {api,minimum_version}` | API exactly `agentpkg-runtime-v0`; minimum version cannot exceed the implementation's own version (agentpkg 0.2.2). |
 | `capabilities` | Unique capability identifiers used for discovery/inspection, not grants. |
 | `entrypoint` | Host handler identifier; never a file path or code import. |
 | `graph`, `policy` | Package-relative JSON document paths. |

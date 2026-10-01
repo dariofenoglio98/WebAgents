@@ -1,0 +1,66 @@
+{
+  "wheel": "dist/agentpkg-0.2.2-py3-none-any.whl",
+  "wheel_sha256": "c0ea47ef0c9c07d53a56cbe0e024643ca24985a709531bb3c165b8dd14eaeabd",
+  "built_from": "sdist, `python -m build --no-isolation` with SOURCE_DATE_EPOCH of the source commit",
+  "reproducible": true,
+  "wheel_contents_match_tracked_sources": true,
+  "environment": "fresh virtualenv; the wheel and its declared dependencies installed by pip",
+  "installed": {
+    "agentpkg": "0.2.2",
+    "cryptography": "46.0.7",
+    "jsonschema": "4.26.0",
+    "pypdf": "6.19.0",
+    "rfc8785": "0.1.4"
+  },
+  "imported_version": "0.2.2",
+  "imported_from_isolated_wheel": true,
+  "cwd_outside_repository": true,
+  "schema_resources_available": true,
+  "verify": {
+    "literature-review": {
+      "exit": 0,
+      "valid": true,
+      "version": "0.2.5",
+      "key_fingerprint": "sha256:c5ca9763f9fc71253298ca381ec14c4d7432009c74dacc69df6344b71de05232"
+    },
+    "meeting-agenda": {
+      "exit": 0,
+      "valid": true,
+      "version": "0.2.2",
+      "key_fingerprint": "sha256:2bcc374a7fe18e50622042b7d0375fcb24eb3607879a236f9f3c3ede1922c5c4"
+    }
+  },
+  "fixture_runs": {
+    "literature-review": {
+      "exit": 0,
+      "passed": true,
+      "exports": [
+        "audit.json",
+        "bibliography.json",
+        "evidence-table.json",
+        "provenance.json",
+        "related-work.md",
+        "result.json",
+        "unresolved.json",
+        "usage.json",
+        "verification.json"
+      ]
+    },
+    "meeting-agenda": {
+      "exit": 0,
+      "passed": true,
+      "exports": [
+        "agenda.json",
+        "audit.json",
+        "provenance.json",
+        "result.json",
+        "usage.json"
+      ]
+    }
+  },
+  "previous_wheel_0_2_0_on_current_meeting_agenda": {
+    "exit": 2,
+    "message": "agentpkg: manifest runtime.minimum_version exceeds reference runtime 0.2.0"
+  },
+  "passed": true
+}

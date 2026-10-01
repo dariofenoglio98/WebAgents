@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "An evidence-table row as the verifier writes it: which cited evidence item. Only its evidence_id is used; the workflow attaches the item's own extraction record, never the model's copy.",
+  "type": "object",
+  "properties": {
+    "evidence_id": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "required": [
+    "evidence_id"
+  ]
+}

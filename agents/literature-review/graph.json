@@ -35,7 +35,8 @@
         "unresolved",
         "verification_results",
         "evidence_jobs",
-        "materialized_claims"
+        "materialized_claims",
+        "evidence_table"
       ],
       "state_write": [
         "candidate_papers",
@@ -266,7 +267,8 @@
         "claims",
         "review",
         "verification_results",
-        "materialized_claims"
+        "materialized_claims",
+        "evidence_table"
       ]
     }
   ],
@@ -1908,6 +1910,55 @@
       }
     },
     {
+      "id": "materialize-evidence",
+      "type": "map",
+      "worker": "VerificationWorker",
+      "depends_on": [
+        "verification"
+      ],
+      "input": {
+        "from": "state",
+        "path": "/review/evidence_table"
+      },
+      "output_schema": "schemas/evidence-list.schema.json",
+      "timeout_seconds": 60,
+      "writes": {
+        "/evidence_table": {
+          "from": "result",
+          "path": ""
+        }
+      },
+      "item_schema": "schemas/evidence-ref.schema.json",
+      "max_items": 200,
+      "max_parallel": 1,
+      "steps": [
+        {
+          "id": "attach-evidence",
+          "type": "validate",
+          "input": {
+            "lookup": {
+              "in": {
+                "from": "state",
+                "path": "/evidence_items"
+              },
+              "key": "/evidence_id",
+              "equals": {
+                "from": "item",
+                "path": "/evidence_id"
+              },
+              "path": ""
+            }
+          },
+          "output_schema": "schemas/evidence.schema.json",
+          "timeout_seconds": 10
+        }
+      ],
+      "yield": {
+        "from": "steps",
+        "path": "/attach-evidence"
+      }
+    },
+    {
       "id": "bibliography",
       "type": "map",
       "worker": "CitationWorker",
@@ -1974,7 +2025,8 @@
       "worker": "LiteratureReviewCoordinator",
       "depends_on": [
         "bibliography",
-        "materialize-claims"
+        "materialize-claims",
+        "materialize-evidence"
       ],
       "input": {
         "object": {
@@ -1988,7 +2040,7 @@
           },
           "evidence_table": {
             "from": "state",
-            "path": "/review/evidence_table"
+            "path": "/evidence_table"
           },
           "unresolved": {
             "from": "state",
@@ -2087,6 +2139,11 @@
             {
               "left": "/provenance",
               "right": "/provenance",
+              "op": "eq"
+            },
+            {
+              "left": "",
+              "right": "",
               "op": "eq"
             }
           ]
@@ -2219,7 +2276,8 @@
         "join-citation-records": "Collect citation records",
         "join-evidence-jobs": "Collect evidence jobs",
         "join-unresolved": "Collect unresolved citations",
-        "materialize-claims": "Attach exact quotes"
+        "materialize-claims": "Attach exact quotes",
+        "materialize-evidence": "Attach exact evidence"
       },
       "stages": [
         {
@@ -2280,6 +2338,7 @@
           "nodes": [
             "verification",
             "materialize-claims",
+            "materialize-evidence",
             "bibliography",
             "assemble-output",
             "validate-output",

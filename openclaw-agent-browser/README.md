@@ -70,7 +70,7 @@ experimental; pin and retest on a different host version.
 cd openclaw-agent-browser
 npm install                 # links the pinned openclaw peer for types and tooling
 npm run typecheck
-npm test                    # 393 tests; the integration ones drive a real agentpkgd and runner
+npm test                    # the integration tests drive a real agentpkgd and runner
 npm run build               # tsc + `openclaw plugins build` (manifest + UI bundle)
 npm run validate            # openclaw plugins validate --json
 npm run pack                # openclaw plugins pack --json  -> agent-browser.tgz
@@ -113,7 +113,8 @@ opened as local packages. Add to your OpenClaw config:
 | `localFiles.roots` | Absolute directories an operator may select PDFs from for a run. Empty by default. |
 | `sessionTtlSeconds` | Package session lifetime in the control plane, and so of its authorization. Default 900. A run starts only if the authorization outlasts `execution.runTimeoutSeconds` plus 60 s. |
 | `maxSessions` | Concurrently open package sessions. Default 8. |
-| `execution.*` | Host run bounds (`totalTokens`, `maxRemoteCalls`, `maxParallelWorkers`, `maxOutputTokensPerCall`, `runTimeoutSeconds`, `modelCallTimeoutSeconds`); they can only lower what a package declares. |
+| `execution.*` | Host run bounds (`totalTokens`, `maxRemoteCalls`, `maxParallelWorkers`, `maxOutputTokensPerCall`, `runTimeoutSeconds`, `modelCallTimeoutSeconds`, `maxCallsPerTool`, `maxToolResponseBytes`); they can only lower what a package declares. `requireVerifiedHostRuntime` (default `true`) refuses to run on an OpenClaw release other than the verified one. |
+| `tools.*` | `enabled` (default `true`) and per-tool `bindings` that disable, relabel, retarget or bound a built-in implementation; configuration cannot add one. See [the tool broker](../docs/tool-broker.md#15-host-configuration). |
 
 For the Literature Review demo on a local 30B model this host uses
 `sessionTtlSeconds: 7200` and `execution: { totalTokens: 180000, maxRemoteCalls:

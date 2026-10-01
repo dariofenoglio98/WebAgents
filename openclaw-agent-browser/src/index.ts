@@ -163,7 +163,7 @@ export const CONFIG_SCHEMA = {
             properties: {
               toolId: {
                 type: "string",
-                maxItems: 200,
+                maxLength: 200,
                 description: "The declared tool id this entry configures.",
               },
               enabled: { type: "boolean", description: "Disable this implementation." },

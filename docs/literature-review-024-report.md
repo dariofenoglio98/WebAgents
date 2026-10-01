@@ -1,5 +1,8 @@
 # Literature Review 0.2.4 acceptance report
 
+> Superseded by the [0.2.5 report](literature-review-025-report.md), which fixes the evidence-table
+> defect below and records the live 0.2.4 runs made after this report, including a hosted one.
+
 LITERATURE REVIEW 0.2.4 CROSS-PROVIDER ACCEPTANCE: PARTIAL
 
 Machine-readable evidence: [acceptance.json](../examples/verification/literature-review-024-acceptance.json).

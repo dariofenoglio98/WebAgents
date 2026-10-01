@@ -106,6 +106,7 @@ def test_final_checks_still_reject_corruption(mutation, index):
 def test_final_checks_unchanged_from_preserved_021():
     old = load_package(ROOT / "dist/meeting-agenda-0.2.1.agent.pkg")
     new = load_package(ROOT / "agents/meeting-agenda")
+
     def assertions(p):
         return next(n for n in p.graph["nodes"] if n["id"] == "validate")["assertions"]
 

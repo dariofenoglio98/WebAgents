@@ -136,8 +136,9 @@ class HostBridgeToolHandler:
             raise
         except TimeoutError as exc:
             raise ToolBridgeError(
-                TOOL_TIMEOUT, "The host did not answer this tool call in time",
-                audit_facts={"stage": "timeout", "timeout": True}
+                TOOL_TIMEOUT,
+                "The host did not answer this tool call in time",
+                audit_facts={"stage": "timeout", "timeout": True},
             ) from exc
         except Exception as exc:
             code = getattr(exc, "code", None)

@@ -1,0 +1,66 @@
+# Release artifacts
+
+Everything a user needs to run the current packages is in the first table. The unversioned
+`.agent.pkg` names are byte-identical copies of the newest versioned file; earlier signed
+archives and wheels stay here unchanged so that every milestone report can be re-checked
+against the exact bytes it describes.
+
+## Current
+
+| Artifact | What it is | Requires | Verify with |
+|---|---|---|---|
+| `agentpkg-0.2.2-py3-none-any.whl` | agentpkg 0.2.2: the CLI, the browser control plane and the workflow.v0 runtime | Python ≥ 3.11 | SHA-256 below |
+| `literature-review.agent.pkg` | Literature Review 0.2.5, identical to `literature-review-0.2.5.agent.pkg` | agentpkg ≥ 0.2.1 | [`examples/keys/literature-review-publisher.pub.pem`](../examples/keys/literature-review-publisher.pub.pem) (`sha256:c5ca9763…5232`) |
+| `meeting-agenda.agent.pkg` | Meeting Agenda 0.2.2, identical to `meeting-agenda-0.2.2.agent.pkg` | agentpkg ≥ 0.2.2 | [`examples/keys/meeting-agenda-publisher.pub.pem`](../examples/keys/meeting-agenda-publisher.pub.pem) (`sha256:2bcc374a…c5c4`) |
+
+From the repository root:
+
+```sh
+python3 -m venv .venv && .venv/bin/python -m pip install dist/agentpkg-0.2.2-py3-none-any.whl
+# fingerprints in the table above, and in each command's own output
+.venv/bin/agentpkg verify dist/literature-review.agent.pkg \
+  --trust-key examples/keys/literature-review-publisher.pub.pem
+.venv/bin/agentpkg verify dist/meeting-agenda.agent.pkg \
+  --trust-key examples/keys/meeting-agenda-publisher.pub.pem
+```
+
+The keys are development keys: they establish which key signed an artifact, not an independent
+certification of its publisher.
+
+## Historical
+
+Preserved for provenance. Each is described by the report of the milestone that produced it;
+none is needed to run the current packages.
+
+| Artifact | Version | Signed by | Note |
+|---|---|---|---|
+| `literature-review-0.2.0.agent.pkg` | 0.2.0 | `workflow-publisher.pub.pem` (`sha256:c7549e61…5a70`) | agentpkg ≥ 0.2.0 |
+| `literature-review-0.2.1.agent.pkg` | 0.2.1 | `literature-review-publisher.pub.pem` (`sha256:c5ca9763…5232`) | agentpkg ≥ 0.2.0 |
+| `literature-review-0.2.2.agent.pkg` | 0.2.2 | `literature-review-publisher.pub.pem` (`sha256:c5ca9763…5232`) | agentpkg ≥ 0.2.0 |
+| `literature-review-0.2.3.agent.pkg` | 0.2.3 | `literature-review-publisher.pub.pem` (`sha256:c5ca9763…5232`) | agentpkg ≥ 0.2.1 |
+| `literature-review-0.2.4.agent.pkg` | 0.2.4 | `literature-review-publisher.pub.pem` (`sha256:c5ca9763…5232`) | agentpkg ≥ 0.2.1 |
+| `meeting-agenda-0.2.0.agent.pkg` | 0.2.0 | `workflow-publisher.pub.pem` (`sha256:c7549e61…5a70`) | agentpkg ≥ 0.2.0 |
+| `meeting-agenda-0.2.1.agent.pkg` | 0.2.1 | `meeting-agenda-publisher.pub.pem` (`sha256:2bcc374a…c5c4`) | agentpkg ≥ 0.2.0 |
+| `literature-review-legacy.agent.pkg` | 0.1.0 | `publisher.pub.pem` (`sha256:646a5b31…d723`) | pre-workflow.v0 profile; runs only under `agentpkg-legacy` |
+| `agentpkg-0.1.0-py3-none-any.whl` | 0.1.0 | — | cannot load the current packages: both declare a newer `runtime.minimum_version` |
+| `agentpkg-0.2.0-py3-none-any.whl` | 0.2.0 | — | cannot load the current packages: both declare a newer `runtime.minimum_version` |
+
+## SHA-256
+
+```
+c1b1c4b260dbca874dc9e343397e6fad1311f498c3a6df27c1a1deeeb0b18f71  agentpkg-0.1.0-py3-none-any.whl
+5859ca592d7ced2261e07bd3451ba2a67fcca926627534faf092a93dcfd70adb  agentpkg-0.2.0-py3-none-any.whl
+c0ea47ef0c9c07d53a56cbe0e024643ca24985a709531bb3c165b8dd14eaeabd  agentpkg-0.2.2-py3-none-any.whl
+5fdde862352598fc68e4fe5a2f5c2dee19bf952112446b3fc13bc77763533b0b  literature-review-0.2.0.agent.pkg
+0fb8b65bbff4578d4815ee70b29a0cb789b2cc95ce181d011d467b4be22c8e42  literature-review-0.2.1.agent.pkg
+4804ea8f4c2ad40439641f8348c2d65b798f4d52802f6ad751b71114e4f27c04  literature-review-0.2.2.agent.pkg
+32304cad852d162084a3bdd9a444e04e31423f1e660f7cefdaeee442c1520dff  literature-review-0.2.3.agent.pkg
+f513e68ea23e045ed3665d8d71e46531147f017f0da80f999fb343afc3e1fe24  literature-review-0.2.4.agent.pkg
+1669f83fafac3434748fc19d38a8d3d2c3352da83cf1cbb84796ce313bd4f571  literature-review-0.2.5.agent.pkg
+fb7357ebdf2e8415a32033971ba448dd21a9b20eb35a32a6ec71e1a5240cc03b  literature-review-legacy.agent.pkg
+1669f83fafac3434748fc19d38a8d3d2c3352da83cf1cbb84796ce313bd4f571  literature-review.agent.pkg
+664b39b12ed26ee2b7524cc5b0afb8a91ebc64b76948696e65f34cbd768c32cb  meeting-agenda-0.2.0.agent.pkg
+e4c499f034b110ef2eca5aeecc87bc9336f6626e55b217d0fb087392ff120e35  meeting-agenda-0.2.1.agent.pkg
+7b148e845c0f9e38d752a51a8d0b60a314842a3de3a2723b3bdf1a0c041921e1  meeting-agenda-0.2.2.agent.pkg
+7b148e845c0f9e38d752a51a8d0b60a314842a3de3a2723b3bdf1a0c041921e1  meeting-agenda.agent.pkg
+```

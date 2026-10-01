@@ -4,11 +4,13 @@
  * This is the seam the Gateway actually drives: session actions with scopes,
  * one background service, and no agent-callable tool.
  */
+import { readFileSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
-import plugin from "../src/index.js";
+import plugin, { CONFIG_SCHEMA } from "../src/index.js";
 import { contract } from "../src/contract.js";
 
 type Registered = {
@@ -66,6 +68,50 @@ describe("plugin entry", () => {
       "tools",
     ]);
     expect(schema.additionalProperties).toBe(false);
+  });
+
+  it("puts every config keyword on a type it applies to", () => {
+    // JSON Schema ignores a keyword meant for another type, silently: a
+    // `maxItems` on a string bounds nothing.
+    const allowed: Record<string, Set<string>> = {
+      string: new Set(["maxLength", "minLength", "pattern", "format"]),
+      integer: new Set(["minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum", "multipleOf"]),
+      array: new Set(["items", "maxItems", "minItems", "uniqueItems"]),
+      object: new Set(["properties", "required", "additionalProperties"]),
+    };
+    const typed = new Set(Object.values(allowed).flatMap((keywords) => [...keywords]));
+    const misplaced: string[] = [];
+    const walk = (schema: Record<string, unknown>, path: string) => {
+      const type = schema.type as string | undefined;
+      for (const keyword of Object.keys(schema)) {
+        if (typed.has(keyword) && (!type || !allowed[type]?.has(keyword))) misplaced.push(`${path}.${keyword}`);
+      }
+      for (const [name, child] of Object.entries((schema.properties ?? {}) as Record<string, Record<string, unknown>>)) {
+        walk(child, `${path}.${name}`);
+      }
+      if (schema.items) walk(schema.items as Record<string, unknown>, `${path}[]`);
+    };
+    walk(CONFIG_SCHEMA as unknown as Record<string, unknown>, "config");
+    expect(misplaced).toEqual([]);
+  });
+
+  it("bounds a configured tool id like every other id", () => {
+    const parse = (toolId: string) =>
+      (plugin.configSchema as unknown as { safeParse: (value: unknown) => { success: boolean } }).safeParse({
+        tools: { bindings: [{ toolId }] },
+      }).success;
+    expect(parse("scholarly-search")).toBe(true);
+    expect(parse("x".repeat(200))).toBe(true);
+    expect(parse("x".repeat(201))).toBe(false);
+  });
+
+  it("ships a manifest that declares exactly the entry's configuration and version", () => {
+    const here = dirname(fileURLToPath(import.meta.url));
+    const read = (name: string) => JSON.parse(readFileSync(join(here, "..", name), "utf8")) as Record<string, unknown>;
+    const manifest = read("openclaw.plugin.json");
+    expect(manifest.id).toBe(contract.pluginId);
+    expect(manifest.configSchema).toEqual(CONFIG_SCHEMA);
+    expect(manifest.version).toBe(read("package.json").version);
   });
 
   it("registers every operation with the right scope and no agent tool", () => {

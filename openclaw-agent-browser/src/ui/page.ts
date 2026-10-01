@@ -35,6 +35,7 @@ import {
   definition,
   el,
   list,
+  replace,
   row,
   shortHash,
   whenText,
@@ -680,17 +681,18 @@ export function mountAgentBrowser(container: HTMLElement, deps: PageDeps): () =>
   }
 
   function renderMain() {
-    clear(topArea);
-    clear(setupArea);
+    // Region by region, each replaced as a unit. Emptying two regions up front
+    // let the pressed control's removal lay out a page missing the first one,
+    // which clamped the host's scroll position (see `clear` in dom.ts).
     if (!loaded) {
       if (runPanel.currentRun() && !runPanel.hasSession()) {
+        replace(topArea, []);
         if (!runHost.contains(runPanel.root)) runHost.append(runPanel.root);
         runPanel.render();
-        append(setupArea, [renderRecentRuns()]);
+        replace(setupArea, [renderRecentRuns()]);
         return;
       }
-      clear(runHost);
-      topArea.append(
+      replace(topArea, [
         el(
           "div",
           { className: "ab-empty" },
@@ -699,18 +701,16 @@ export function mountAgentBrowser(container: HTMLElement, deps: PageDeps): () =>
             text: "Enter the HTTPS address of an agent package above. The control plane downloads it, verifies its container, integrity, schema and signature, and reports what it requests before anything is authorized.",
           }),
         ),
-      );
-      append(setupArea, [renderRecentRuns()]);
+      ]);
+      replace(runHost, []);
+      replace(setupArea, [renderRecentRuns()]);
       return;
     }
     const { pkg } = loaded;
-    topArea.append(renderHeaderCard(pkg));
-    if (!runHost.contains(runPanel.root)) {
-      clear(runHost);
-      runHost.append(runPanel.root);
-    }
+    replace(topArea, [renderHeaderCard(pkg)]);
+    if (!runHost.contains(runPanel.root)) replace(runHost, [runPanel.root]);
     runPanel.sync();
-    append(setupArea, [
+    replace(setupArea, [
       renderSecurityCard(pkg),
       renderWarnings(pkg),
       renderContentCard(pkg),
