@@ -37,6 +37,15 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest]
         python: ["3.11", "3.13"]
+        # setup-python has no macOS build of 3.11 after 3.11.9, which predates
+        # CPython's ipaddress fixes (CVE-2024-4032) that the URL policy relies on.
+        # The 3.11 floor is tested on Ubuntu; macOS tests 3.12 instead.
+        exclude:
+          - os: macos-latest
+            python: "3.11"
+        include:
+          - os: macos-latest
+            python: "3.12"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

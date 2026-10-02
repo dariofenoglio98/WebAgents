@@ -55,7 +55,7 @@ local **Ollama** (`ollama/qwen3:30b`) and hosted **OpenAI** through OpenClaw (`o
 | macOS (Apple Silicon) | development platform; every recorded live run, including the paper's Table I runs |
 | Ubuntu Linux | continuous integration: Python, plugin, Citation Resolver and experiment test suites; offline package verification; plugin build, validation, packing and isolated install. **No live Agent Browser run has been accepted on Linux.** |
 | Windows | not supported |
-| Python / Node | Python ≥ 3.11 (CI runs 3.11 and 3.13; development used 3.13); Node 24 (≥ 24.16) or ≥ 26.1 to build the plugin (CI runs 24 and 26) |
+| Python / Node | Python 3.11 ≥ 3.11.10, 3.12 ≥ 3.12.4, or 3.13 (CI: 3.11 and 3.13 on Linux, 3.12 and 3.13 on macOS; development used 3.13); Node 24 (≥ 24.16) or ≥ 26.1 to build the plugin (CI runs 24 and 26) |
 
 ## Verifying the release
 
@@ -115,8 +115,10 @@ verification scripts, the test suites and CI never contact it. To use another de
 - On Linux, `agentpkg browser-serve` started without `--cache-dir` keeps its cache under the shared
   `/tmp`, where another local user can block it from starting. Pass a private `--cache-dir` on
   multi-user hosts; the Agent Browser plugin always does.
-- The URL policy relies on Python's `ipaddress` classification, which older patch releases got
-  wrong for some special-purpose addresses. Use a current patch release of Python.
+- The URL policy relies on Python's `ipaddress` classification. Patch releases before 3.11.10 and
+  3.12.4 lack CPython's CVE-2024-4032 fix and treat most of `192.0.0.0/24` as public. python.org
+  ships no macOS installer after 3.11.9, so on macOS use 3.12 or 3.13 (or a 3.11 from Homebrew or
+  uv).
 
 ## License
 

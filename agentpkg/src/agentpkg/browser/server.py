@@ -21,6 +21,7 @@ import ipaddress
 import json
 import re
 import socket
+import socketserver
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from secrets import compare_digest, token_urlsafe
@@ -435,6 +436,15 @@ class BrowserService(ThreadingHTTPServer):
         self.slots = threading.BoundedSemaphore(MAX_CONCURRENT_REQUESTS)
         super().__init__((str(address), port), _Handler)
         self.timeout = 5
+
+    def server_bind(self):
+        # HTTPServer.server_bind also resolves the bound address back to a name
+        # with socket.getfqdn(), a reverse DNS lookup. On a host whose own name
+        # does not resolve (GitHub's macOS runners, for one) that takes about
+        # 35 s, longer than a supervising host waits for readiness. The name is
+        # never used: this service only ever binds a loopback literal.
+        socketserver.TCPServer.server_bind(self)
+        self.server_name, self.server_port = self.server_address[:2]
 
     @property
     def url(self) -> str:

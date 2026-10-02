@@ -17,7 +17,7 @@ absolute paths for your own checkout.
 
 | Component | Needed for | Tested with | Notes |
 |---|---|---|---|
-| Python ≥ 3.11, a current patch release | everything | 3.13.5; CI also 3.11 | `agentpkg` dependencies: `jsonschema`, `cryptography`, `pypdf`, `rfc8785`. The URL policy relies on the standard library's `ipaddress` classification, which older patch releases got wrong for some special-purpose addresses (3.12.1, for example, treats `192.0.0.8` as public); use an up-to-date patch release |
+| Python 3.11 ≥ 3.11.10, 3.12 ≥ 3.12.4, or 3.13 | everything | 3.13.5; CI also 3.11 (Linux) and 3.12 (macOS) | `agentpkg` dependencies: `jsonschema`, `cryptography`, `pypdf`, `rfc8785`. The URL policy relies on the standard library's `ipaddress` classification. Older patch releases lack CPython's CVE-2024-4032 fix and treat most of `192.0.0.0/24` as public. python.org ships no macOS installer after 3.11.9, so on macOS use 3.12 or 3.13, or a 3.11 from Homebrew or uv. The test suite expects the classification of current patch releases (3.11.14, 3.12.10, 3.13) |
 | Node 24 (≥ 24.16) or ≥ 26.1, and npm | building the plugin | Node 26.9.0 | the range the pinned `openclaw` devDependency declares; only needed to build, test and pack `openclaw-agent-browser` |
 | OpenClaw **2026.9.5** | Agent Browser, live runs | 2026.9.5 (`ec9c1a1`) | the plugin APIs are experimental; execution refuses another OpenClaw release unless you opt out (see below) |
 | Ollama | optional, local models | 0.34.0, `qwen3:30b` | the recorded local runs used Apple M3 Max, 36 GB |

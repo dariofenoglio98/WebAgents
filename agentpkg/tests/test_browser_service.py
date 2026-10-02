@@ -84,6 +84,26 @@ def _local_routable_address():
     return None if address.startswith("127.") else address
 
 
+def test_binding_makes_no_reverse_dns_lookup(tmp_path, monkeypatch):
+    """HTTPServer would call socket.getfqdn(); where the host's own name does not
+    resolve (GitHub's macOS runners) that takes ~35 s, longer than the plugin waits."""
+
+    def refuse(*_):
+        raise AssertionError("reverse DNS lookup while binding the control plane")
+
+    monkeypatch.setattr(socket, "getfqdn", refuse)
+    monkeypatch.setattr(socket, "gethostbyaddr", refuse)
+    control = ControlPlane(
+        ControlPlaneConfig(cache_dir=tmp_path / "cache", trust_store_path=tmp_path / "trust.json")
+    )
+    server = BrowserService(control, host="127.0.0.1", port=0)
+    try:
+        assert server.server_name == "127.0.0.1"
+        assert server.server_port == server.server_address[1] > 0
+    finally:
+        server.server_close()
+
+
 def test_the_service_is_not_reachable_off_loopback(service):
     assert service.socket.getsockname()[0] == "127.0.0.1"
     external = _local_routable_address()

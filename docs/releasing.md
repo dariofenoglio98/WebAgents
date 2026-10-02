@@ -14,6 +14,7 @@ the checklist to complete before the repository is published. Nothing here rewri
 | Paper Table I | the four run records stay on the recording host. The README says which evidence the repository contains: a recomputed check of both Literature Review runs, and two other recorded Meeting Agenda 0.2.2 runs |
 | Citation Resolver | the hosted instance named by the signed Literature Review package stays reachable for this release. It is documented as an external research/demo dependency of live runs only |
 | Version | `v0.1.0`, with the research-prototype status stated in the README and the release notes |
+| Code and the paper's experiments | the paper's experiment results were produced at commit `23eac90`. The release differs from it in production code only by the loopback bind fix in `agentpkg/src/agentpkg/browser/server.py` (no reverse DNS lookup). Rerunning the RQ1 paper preset on the release tree reproduced every one of the 9,099 outcomes, and every summary and LaTeX table byte for byte. RQ2 never executes the changed method |
 
 ## Release artifacts
 
@@ -31,8 +32,8 @@ the checklist to complete before the repository is published. Nothing here rewri
 SHA-256 of the v0.1.0 release candidate, built from a clean export of the release tree:
 
 ```
-d4acc95fb3dc85a03cc4681ecbe5528ae2968a0624036c887b5b5fb4bf115c6e  agentpkg-0.2.2-py3-none-any.whl
-7f779107d2b6f11d8adb98b5b6d50d3a2d7ba75dbdfa4b53e527fb24640c7af0  agentpkg-0.2.2.tar.gz
+cc28762bc58e8897b3615d43559b13021a8237e03096d6cb62c46e4732b6ce59  agentpkg-0.2.2-py3-none-any.whl
+8d7f7ec7b955d8ae9e2da38c630c262d85db50a22f1ac847853d2f9df16b9ebd  agentpkg-0.2.2.tar.gz
 14ffd2385924caeb6b491e0b635e1e6e0bc91123acfebb6e87630162d15ac496  agent-browser.tgz
 7b148e845c0f9e38d752a51a8d0b60a314842a3de3a2723b3bdf1a0c041921e1  meeting-agenda-0.2.2.agent.pkg
 1669f83fafac3434748fc19d38a8d3d2c3352da83cf1cbb84796ce313bd4f571  literature-review-0.2.5.agent.pkg
@@ -68,7 +69,8 @@ recorded evidence and of the paper's experiment manifests. A changed package get
 a new signature and a new row in `dist/README.md`.
 
 [CI](../.github/workflows/ci.yml) repeats every check on Ubuntu and macOS: the Python suite on
-3.11 and 3.13, the offline acceptance scripts, the wheel and sdist build, an installed-wheel
+3.11 and 3.13 (Ubuntu) and 3.12 and 3.13 (macOS, where `setup-python` has no 3.11 newer than the
+unpatched 3.11.9), the offline acceptance scripts, the wheel and sdist build, an installed-wheel
 verification and fixture run of both packages, `check_release.py`, the plugin suite on Node 24 and
 26 with no skipped test, build, validation, packing, artifact inspection and isolated install, the
 Citation Resolver suite and the experiments' test suites. It needs no credential, model, OpenClaw
@@ -87,11 +89,11 @@ Status as of the final release-engineering pass (2026-10-02, before the release 
 | ✅ | Internal deck not tracked in the tree | not in `git ls-files`; ignored by `/Portable AI Agents …pdf` and `/*.pdf` |
 | ✅ | Local/private files ignored | `/private/`, `.claude/`, virtualenvs, `node_modules/`, build output, `examples/my-*`, `*.tgz`, keys and `.env` files; a fresh clone stays clean after every documented command |
 | ✅ | README complete and consistent with the code | versions, commands, artifact names, Linux scope, external services, license, evidence |
-| ✅ | Getting-started tested | two fresh-clone rehearsals: empty `HOME`, fresh pip/npm caches, no global OpenClaw, case-sensitive file system |
-| ⏳ | macOS CI | workflow validated with actionlint 1.7.12 + shellcheck 0.11.0; every step reproduced locally on macOS. **Observe the first GitHub-hosted run** |
-| ⏳ | Linux CI | same workflow; **not yet run on GitHub** |
-| ✅ | Full Python tests | `pytest agentpkg/tests`: 935 passed, 2 skipped (opt-in live tests), on 3.13 and 3.11 |
-| ✅ | Plugin typecheck, tests, build | 443 tests, none skipped; build, validate, pack, isolated install (`npm run verify`) |
+| ✅ | Getting-started tested | three fresh-clone rehearsals: empty `HOME`, fresh pip/npm caches, no global OpenClaw, case-sensitive file system |
+| ⏳ | macOS CI | the first GitHub run (`f9f6dd2`) failed on macOS twice over: `setup-python`'s macOS 3.11 is the unpatched 3.11.9, and the runners' ~35 s reverse DNS lookup stalled every control-plane start past the plugin's 30 s limit. Both are fixed (macOS now tests 3.12 and 3.13; the bind no longer does a reverse lookup), and the stall was reproduced and cleared locally. **Re-run on GitHub after the next push** |
+| ⏳ | Linux CI | same workflow; **confirm the Ubuntu jobs on the next GitHub run** |
+| ✅ | Full Python tests | `pytest agentpkg/tests`: 936 passed, 2 skipped (opt-in live tests), on 3.13.5, 3.12.10 and 3.11.14 |
+| ✅ | Plugin typecheck, tests, build | 443 tests, none skipped, also with a simulated 35 s reverse DNS lookup; build, validate, pack, isolated install (`npm run verify`) |
 | ✅ | Citation Resolver tests | 132 passed |
 | ✅ | UI scroll regression | `test/ui-stability.test.ts` in the plugin suite, and the headless-Chrome layout harness from the scroll fix rerun on the current UI: all 30 measured interactions (Authorize, model selection, Prepare run, content tabs, task form, result viewer) identical to the post-fix measurements |
 | ✅ | Experiments' test suites | contract overhead 26, contract enforcement 101 (separate processes) |
@@ -112,7 +114,7 @@ Status as of the final release-engineering pass (2026-10-02, before the release 
 
 ### Human-only steps
 
-1. Confirm that every co-author and the institution authorize release under Apache-2.0.
+1. ~~Confirm that every co-author and the institution authorize release under Apache-2.0.~~ Confirmed by the maintainer on 2026-10-02.
 2. If the paper is under anonymous review, confirm that publishing the repository now does not
    violate the venue's policy. The git history (author names and e-mail addresses) and the
    repository URL identify the authors. The README's clone URL (`<this-repository-url>`) and the
@@ -131,8 +133,7 @@ Status as of the final release-engineering pass (2026-10-02, before the release 
 
 - `agentpkg browser-serve` without `--cache-dir` uses Python's temporary directory, which is the
   shared `/tmp` on most Linux systems ([browser-control-plane.md](browser-control-plane.md)). The
-  plugin always passes a private one. A per-user default is a change for a later version; this
-  release keeps `agentpkg/src` identical to the code that produced the paper's experiment results.
+  plugin always passes a private one. A per-user default is a change for a later version.
 - On Linux the PDF reader's `RLIMIT_AS` cap is enforced for the first time: macOS refuses to set
   it, so it was never active during development. CI exercises the reader on Linux.
 - No live Agent Browser run on a Linux OpenClaw host has been accepted.

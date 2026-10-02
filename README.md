@@ -73,7 +73,8 @@ Agent Browser run has been accepted on Linux.
 
 ## Quickstart: offline, about five minutes
 
-This needs only Python ≥ 3.11 (a current patch release) and this repository. It verifies both
+This needs only Python (3.11 ≥ 3.11.10, 3.12 ≥ 3.12.4, or 3.13; see
+[getting-started](docs/getting-started.md#requirements)) and this repository. It verifies both
 signed packages and runs them in **fixture mode**: package-owned, exact-input replay of model and
 tool responses, with no network and no inference. It still exercises the real interpreter,
 permission checks, budgets, validation and audit.
