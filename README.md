@@ -13,6 +13,14 @@ Agent-Native Web* (citation below).
 > **Status:** research prototype, not production software. The interfaces, the package format
 > (`agent.pkg` 0.1) and the execution profile (`workflow.v0`) are experimental and will change.
 
+In four lines:
+
+- **WebAgents** is a research prototype, not a product.
+- **`agent.pkg`** is a signed, portable, declarative agent artifact: data only, no executable code.
+- The **OpenClaw Agent Browser** is the host-controlled runtime that opens, verifies, authorizes
+  and runs a package with the host's own models and tools.
+- **A package declares what it needs; the host and its user grant the authority.**
+
 ## At a glance
 
 **What problem does it solve?** A shared agent workflow is today either a hosted service, where
@@ -46,7 +54,10 @@ both a local Ollama model and a hosted OpenAI model, started from the browser pa
 [Status](#status-verified-experimental-future) for exactly what is verified.
 
 **Tested host:** OpenClaw **2026.9.5** (`ec9c1a1`), Python 3.13, Node 26, Ollama 0.34, macOS on
-Apple Silicon. Execution refuses other OpenClaw releases by default.
+Apple Silicon. Execution refuses other OpenClaw releases by default. Every recorded live run was made
+on macOS. The automated test suites, the offline package verification and the plugin build are also
+run by [continuous integration](.github/workflows/ci.yml) on Ubuntu Linux and macOS. No live
+Agent Browser run has been accepted on Linux.
 
 ### The two example packages
 
@@ -62,10 +73,10 @@ Apple Silicon. Execution refuses other OpenClaw releases by default.
 
 ## Quickstart: offline, about five minutes
 
-This needs only Python ≥ 3.11 and this repository. It verifies both signed packages and runs
-them in **fixture mode**: package-owned, exact-input replay of model and tool responses, with no
-network and no inference. It still exercises the real interpreter, permission checks, budgets,
-validation and audit.
+This needs only Python ≥ 3.11 (a current patch release) and this repository. It verifies both
+signed packages and runs them in **fixture mode**: package-owned, exact-input replay of model and
+tool responses, with no network and no inference. It still exercises the real interpreter,
+permission checks, budgets, validation and audit.
 
 ```sh
 git clone <this-repository-url> WebAgents && cd WebAgents
@@ -101,11 +112,12 @@ certify the publisher.
 ## Running from the Agent Browser
 
 Live runs need OpenClaw 2026.9.5, the plugin, and at least one model configured in OpenClaw.
-The complete, copy-pasteable setup is in **[docs/getting-started.md](docs/getting-started.md)**.
-In short:
+Building the plugin needs Node 24 (≥ 24.16) or Node ≥ 26.1, the range the pinned OpenClaw
+devDependency supports. The complete, copy-pasteable setup is in
+**[docs/getting-started.md](docs/getting-started.md)**. In short:
 
 ```sh
-cd openclaw-agent-browser && npm install && npm test && npm run build && npm run validate && npm run pack
+cd openclaw-agent-browser && npm ci && npm test && npm run build && npm run validate && npm run pack
 openclaw plugins install ./agent-browser.tgz --accept-capabilities && cd ..
 # configure agentpkgPath, localPackages.roots and llm.allowModelOverride (see getting-started), then:
 openclaw gateway restart && openclaw dashboard        # choose "Agent Browser" in the sidebar
@@ -170,14 +182,22 @@ quality across models or interoperability across independent runtimes.
 | Model cost | n/a | $0.0147 | n/a | $0.2005 |
 | Run id | `run_34fdabde…` | `run_1c2ca974…` | `run_322dca77…` | `run_a71e5b0f…` |
 
-Each run made every model call on the model its Run Plan selected. Evidence in this repository:
-[literature-review-025-recorded-runs.json](examples/verification/literature-review-025-recorded-runs.json)
-(independent checks recomputed over both Literature Review runs), and two further Meeting Agenda
-0.2.2 runs of the same package in [examples/meeting-agenda-022-qwen/](examples/meeting-agenda-022-qwen/)
-and [examples/meeting-agenda-022-luna/](examples/meeting-agenda-022-luna/)
-([report](docs/meeting-agenda-022-report.md)). The current Literature Review 0.2.5 changes only a
-step after the last model call. It passes offline acceptance but has not yet been run live
-([report](docs/literature-review-025-report.md)).
+Each run made every model call on the model its Run Plan selected. The figures come from the
+Agent Browser run records on the recording host. **Those four run records are not included in
+this repository.** What the repository does include:
+
+- [literature-review-025-recorded-runs.json](examples/verification/literature-review-025-recorded-runs.json):
+  independent checks recomputed over both Literature Review runs (run ids, model, model calls,
+  audit events and chain validity, cost, and every grounding check). Their token counts and
+  durations are not in it.
+- Two **other** recorded runs of the same Meeting Agenda 0.2.2 package, with their own figures
+  (`ollama/qwen3:30b`: 9,415 tokens, 133.2 s; `openai/gpt-5.6-luna`: 5,120 tokens, 32.4 s), in
+  [examples/meeting-agenda-022-qwen/](examples/meeting-agenda-022-qwen/) and
+  [examples/meeting-agenda-022-luna/](examples/meeting-agenda-022-luna/), with complete run
+  records and audit chains ([report](docs/meeting-agenda-022-report.md)).
+
+The current Literature Review 0.2.5 changes only a step after the last model call. It passes
+offline acceptance but has not yet been run live ([report](docs/literature-review-025-report.md)).
 
 ## How it works
 
@@ -223,10 +243,16 @@ Design rationale: [docs/architecture.md](docs/architecture.md). Threat model:
 
 **Experimental** (works on the development host, but limited or lightly exercised):
 
-- The plugin depends on OpenClaw's experimental plugin and Control UI APIs, and has only been run
-  on macOS with one OpenClaw release.
-- Live Literature Review depends on public Crossref, which covers recent AI topics thinly, and on
-  the authors' hosted Citation Resolver, which has no availability guarantee.
+- The plugin depends on OpenClaw's experimental plugin and Control UI APIs. It has been run live
+  only on macOS, with one OpenClaw release. On Linux, CI builds, validates and packs it and runs its
+  test suite, including the integration tests that drive a real control plane and runner; that is
+  not a live acceptance run.
+- Live Literature Review runs depend on two external services: public Crossref, which covers
+  recent AI topics thinly, and the Citation Resolver hosted by the authors at
+  `webagents-citation-resolver-production.up.railway.app`. The resolver is a research/demo service
+  with no availability guarantee, and the signed package names its origin. If either service is
+  unavailable or rate-limited, a live run fails or finds less. Fixture-mode runs, the offline
+  verification scripts and CI never contact either service.
 - Local-model runs are slow and sensitive to the host's resource limits. The packages' timing
   and budget policy was set from measurements on one machine.
 - Opening a package by HTTPS URL is covered by tests against a mock origin. The minimal origin in
@@ -269,6 +295,8 @@ boundary; data-flow policies; persistent ("always") authorization; federated sch
 | `scripts/` | offline acceptance and verification scripts |
 | `citation-resolver/` | the Citation Resolver service (FastAPI) |
 | `package-origin/` | a minimal static package origin |
+| `experiments/` | the paper's offline experiments: contract enforcement and contract overhead ([index](experiments/README.md)) |
+| `.github/workflows/` | continuous integration on Ubuntu and macOS |
 
 ## Development
 
@@ -277,9 +305,18 @@ agentpkg/.venv/bin/python -m pytest agentpkg/tests
 agentpkg/.venv/bin/python -m ruff check agentpkg && agentpkg/.venv/bin/python -m ruff format --check agentpkg
 agentpkg/.venv/bin/python scripts/verify_workflow.py
 agentpkg/.venv/bin/python scripts/verify_browser.py
-(cd openclaw-agent-browser && npm run typecheck && npm test && npm run verify)
+agentpkg/.venv/bin/python scripts/verify_literature_025.py
+agentpkg/.venv/bin/python scripts/check_release.py     # package identities, dist/ SHA-256 list, licenses
+(cd openclaw-agent-browser && npm ci && npm run typecheck && npm test && npm run verify)
 (cd citation-resolver && python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt && .venv/bin/python -m pytest)
 ```
+
+The plugin's integration tests use `agentpkg/.venv/bin/agentpkg`, so create that environment
+first. `npm run verify` builds, validates and packs the plugin with the pinned OpenClaw
+devDependency, installs the artifact into a throwaway OpenClaw configuration and state directory
+(not yours), and reruns the tests. It needs no global OpenClaw installation.
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs all of the above, and the paper
+experiments' test suites, on Ubuntu and macOS.
 
 The pre-`workflow.v0` Literature Review runner is still available as `agentpkg-legacy`, together
 with `dist/literature-review-legacy.agent.pkg` ([migration notes](docs/workflow-migration.md)).
@@ -287,8 +324,10 @@ How the prototype got here, milestone by milestone: [docs/development-history.md
 
 ## License
 
-**No license has been selected yet.** Until a `LICENSE` file is added, all rights are reserved.
-The public-release checklist, including exactly where a license would be declared, is in
+WebAgents is licensed under the [Apache License, Version 2.0](LICENSE) (SPDX: `Apache-2.0`).
+Third-party material it contains or bundles, including tables and expressions derived from
+CPython's `html` module and the dependencies bundled into the plugin artifact, is listed with its
+terms in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Release procedure and checklist:
 [docs/releasing.md](docs/releasing.md).
 
 ## Citation

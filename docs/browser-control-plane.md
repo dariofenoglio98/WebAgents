@@ -427,6 +427,12 @@ is worth more here than routing sugar.
 * the cache directory must be owned by the current user, is created `0700`, and
   is refused if it is a symlink.
 
+Without `--cache-dir` the cache is `agentpkg-browser-cache` under Python's temporary
+directory. On macOS that directory is private to the user. On most Linux systems it is
+the shared `/tmp`, where another local user could create that name first and so stop the
+service from starting (`cache_unsafe`). On a multi-user Linux host, pass a private
+`--cache-dir`. The Agent Browser plugin always passes one inside its own state directory.
+
 ## 10. The non-execution boundary
 
 The control plane **must not** instantiate `Workflow`, invoke a `ModelRouter` or

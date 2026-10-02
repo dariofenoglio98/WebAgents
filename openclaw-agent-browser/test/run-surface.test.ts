@@ -17,7 +17,7 @@ import { closeSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { AgentBrowserBackend } from "../src/backend.js";
 import plugin from "../src/index.js";
 import { contract } from "../src/contract.js";
@@ -27,6 +27,19 @@ import type { HttpTransport } from "../src/tool-broker.js";
 import { BUILT_IN_BINDINGS } from "../src/tool-registry.js";
 import { AGENTPKG_BIN, DIST, HOST_CONFIG_WITH_MODEL_OVERRIDE, hasAgentpkg } from "./fixtures.js";
 import { makePdf } from "./pdf.js";
+
+// The broker resolves a tool's host before it calls the stubbed transport. Answer
+// that lookup here with the public address the broker's unit tests use, so this
+// suite needs neither DNS nor the hosted Citation Resolver's domain.
+vi.mock("node:dns", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:dns")>();
+  const lookup = (
+    _hostname: string,
+    _options: unknown,
+    callback: (error: Error | null, addresses: { address: string; family: number }[]) => void,
+  ) => callback(null, [{ address: "93.184.216.34", family: 4 }]);
+  return { ...actual, lookup, default: { ...actual.default, lookup } };
+});
 
 const runs = hasAgentpkg();
 const log = { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} };

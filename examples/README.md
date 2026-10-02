@@ -4,28 +4,40 @@ For the current quickstart, see the root [README](../README.md#quickstart-offlin
 This directory holds the grants, inputs and public development keys those commands use, plus
 recorded runs and verification evidence from each milestone. In the recorded files, absolute local
 paths were replaced by `<repo>` (the checkout), `~` (the recording user's home) and `$TMPDIR`, and
-test-report hostnames by `localhost`. Nothing else was changed.
+test-report hostnames by `localhost`. Nothing else was changed. Run outputs are evidence about this
+prototype, not independent certification. Recorded live runs contain bibliographic metadata and
+abstracts returned by public scholarly services; see
+[THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md#4-scholarly-metadata-in-recorded-runs-and-test-fixtures).
 
-For this milestone, use [the workflow demo commands](../docs/workflow-migration.md#commands)
-and `literature-review-input.json` / `meeting-agenda-input.json` with their matching
-grants. Current deterministic demo outputs are in `workflow-review/` and
-`workflow-agenda/`. The live runs below are preserved historical results; reproduce
-them with `python -m agentpkg.dev.legacy_cli` and
-`dist/literature-review-legacy.agent.pkg`, using the original publisher key.
+## Inputs, grants and keys
 
-
-All recorded runs use the signed reference artifact whose package digest is `20a35b6db17127ae52809e84e23e23994d9fbad235d91882b136f36fc4c547a5`. Run outputs are evidence about this prototype, not independent certification.
-
-| Directory | Meaning |
+| File | Used by |
 |---|---|
-| `demo-offline` | Final synthetic fixture run; three bibliography entries, ten evidence items, no model calls |
-| `eval-results` | Final 22/22 deterministic eval receipt; semantic evals not run |
-| `demo-live` | Initial real discovery run; exposed numeric-seed keyword pollution |
-| `demo-live-final` | Corrected topic-query run with all four seeds retained; metadata-only ACL seeds stayed `maybe` |
-| `demo-live-fulltext` | Final real run with two selected public ACL PDFs; see exact summary in `verification/live-fulltext-summary.json` |
-| `execution-offline` | The full artifact set of one **package execution**: the real runner, interpreter and protocol, with a scripted provider so it is deterministic and spends nothing. See [package execution](../docs/package-execution.md). |
-| `verification` | Test logs/JUnit, artifact/wheel verification, staging receipt and live source hashes |
-| `openclaw-workspace` | Locally staged supported skill workspace, excluded from Git |
+| `meeting-agenda-grants.json`, `literature-review-grants.json` | the README quickstart's fixture runs of the current packages |
+| `meeting-agenda-input.json`, `literature-review-input.json` | [workflow demo commands](../docs/workflow-migration.md#commands); the paper's offline experiments |
+| `meeting-agenda-022-input.json`, `literature-review-live-input.json` | the task inputs of the recorded live runs; also the overhead experiment's inputs |
+| `meeting-agenda-acceptance-input.json`, `literature-review-live-input-prompt-injection.json` | the 3B2 acceptance input; a prompt-injection variant of the live question |
+| `fixture-grants.json`, `grants.session.json` | test-suite grants |
+| `grants.live-pdfs.json`, `live-pdf-map.json` | the legacy full-text demo below |
+| `router-config.example.json` | configuration documentation for the legacy HTTP model router; not a deployed endpoint |
+| `keys/*.pub.pem` | public development keys of the signers in [dist/](../dist/README.md); no private key is shipped |
+| `probe-files/paper-reader-probe.pdf` | a synthetic two-page PDF for proving the `paper-reader` binding |
+
+## Recorded runs of the current runtime (`workflow.v0`)
+
+| Directory | What it records |
+|---|---|
+| `meeting-agenda-022-qwen`, `meeting-agenda-022-luna` | two browser-started live runs of Meeting Agenda 0.2.2 on `ollama/qwen3:30b` and `openai/gpt-5.6-luna`: run record, result, audit chain, usage and agenda ([report](../docs/meeting-agenda-022-report.md)) |
+| `literature-review-live` | the accepted live run of Literature Review 0.2.1 on `ollama/qwen3:30b` (milestone 3B4, [report](../docs/literature-review-execution-report.md)); its audit stream is also replayed by the [overhead experiment](../experiments/contract_overhead/README.md) |
+| `literature-review-live-engine-attempt1`–`3`, `literature-review-live-owner-question-attempt1`–`2` | the failed 0.2.1 attempts that report diagnoses |
+| `workflow-agenda`, `workflow-review` | deterministic fixture runs (synthetic data) from the `workflow.v0` milestone |
+| `execution-offline` | the full artifact set of one **package execution**: the real runner, interpreter and protocol, with a scripted provider so it is deterministic and spends nothing ([package execution](../docs/package-execution.md)) |
+| `verification` | test logs and JUnit reports, acceptance records, recomputed checks and artifact/wheel verification, per milestone |
+| `openclaw-workspace` | locally staged skill workspace, excluded from Git |
+
+The Literature Review 0.2.4 runs reported in the root README's *Recorded results* are summarized,
+with every grounding check recomputed, in
+`verification/literature-review-025-recorded-runs.json`; their full run records are not included.
 
 The Milestone 3B2 live acceptance evidence, all against `meeting-agenda` 0.2.1 on a local `ollama/qwen3.5:9b`:
 
@@ -40,9 +52,29 @@ The Milestone 3B2 live acceptance evidence, all against `meeting-agenda` 0.2.1 o
 
 The earlier `meeting-agenda-live-run.json`, `-local.json` and `-qwen35-9b.json` are the preserved 0.2.0 failures (hosted-credential refusal, then the 60 s step timeout) that motivated 0.2.1.
 
-The live outputs use an extractive baseline. Structural success does not certify relevance: some off-topic works passed lexical screening. Two arXiv provider failures remain unresolved. Read [the implementation report](../docs/implementation-report.md) before interpreting the output as research.
+## Legacy runner (pre-`workflow.v0`)
 
-## Reproduce the final live demo
+These were produced by the archived application runner (`agentpkg-legacy`) on
+`dist/literature-review-legacy.agent.pkg`, package digest
+`20a35b6db17127ae52809e84e23e23994d9fbad235d91882b136f36fc4c547a5`, signed with
+`keys/publisher.pub.pem`.
+
+| Directory | Meaning |
+|---|---|
+| `demo-offline` | Final synthetic fixture run; three bibliography entries, ten evidence items, no model calls |
+| `eval-results` | Final 22/22 deterministic eval receipt; semantic evals not run |
+
+The raw outputs of that runner's three live runs (`demo-live`, `demo-live-final`,
+`demo-live-fulltext`) are not part of the published tree. They reproduced third-party abstracts,
+and the full-text run reproduced text extracted from two ACL Anthology PDFs. Their sanitized
+summaries remain in `verification/`: `live-run.txt`, `live-final-run.txt` and
+`live-fulltext-run.txt` (the CLI reports: usage and structural checks), `live-fulltext-summary.json`
+(the full-text run's counts and its 10/10 deterministic checks) and `live-pdf-sources.json` (the
+PDFs' URLs, sizes and SHA-256).
+
+Those live runs used an extractive baseline. Structural success does not certify relevance: some off-topic works passed lexical screening. Two arXiv provider failures remained unresolved. Read [the implementation report](../docs/implementation-report.md) before interpreting their results as research.
+
+### Reproduce the legacy full-text demo
 
 Commands below run from the repository root. They fetch two public PDFs from ACL Anthology into host storage, outside the package. The source pages are [MasRouter](https://aclanthology.org/2025.acl-long.757/) and [AgentDropout](https://aclanthology.org/2025.acl-long.1170/). Downloads and scholarly services may change; the recorded run's exact hashes are in `verification/live-pdf-sources.json`.
 

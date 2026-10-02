@@ -157,9 +157,15 @@ def test_metadata_records_what_is_needed_and_nothing_private(smoke_result):
         ):
             assert field in identity, (key, field)
     # No private identifiers anywhere in the file.
-    for private in {getpass.getuser(), str(Path.home()), socket.gethostname().split(".")[0]}:
+    for private in {str(Path.home()), socket.gethostname().split(".")[0]}:
         if len(private) >= 4:
             assert private not in text, private
+    # The user name is looked for where a user name leaks: as a path segment or as a
+    # whole JSON string. A substring test would flag the CI user `runner` on the
+    # benchmark's own vocabulary (`runner_verification`, "runner outbound frames").
+    user = getpass.getuser()
+    if len(user) >= 4:
+        assert not re.search(rf'[/\\"]{re.escape(user)}[/\\"]', text), user
     # Paths are repository-relative: no absolute user, temp or volume path.
     assert not re.search(r'"/(Users|home|private|var|tmp|Volumes)/', text)
 

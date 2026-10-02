@@ -15,6 +15,8 @@
 **/.coverage
 **/htmlcov/
 **/build/
+# `python -m build agentpkg` output; the published wheel is copied to /dist/ deliberately
+/agentpkg/dist/
 
 # Node / vitest
 **/node_modules/
@@ -37,4 +39,5 @@ examples/my-*/
 
 # Material kept locally and not published (see docs/releasing.md)
 /Portable AI Agents and the OpenClaw Agent-Native Browser.pdf
+/*.pdf
 /private/

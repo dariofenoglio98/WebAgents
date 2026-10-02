@@ -9,6 +9,17 @@ reads `SKILL.md`, recognizes a previously unknown capability, calls its HTTP API
 uses the structured result. The agent interprets intent; the service retrieves and
 matches metadata. **This project does not implement `agent.pkg` or an OpenClaw plugin.**
 
+## Hosted instance
+
+The signed Literature Review package in [`../dist/`](../dist/README.md) declares the instance
+the authors host at `https://webagents-citation-resolver-production.up.railway.app` as its
+`citation-resolver` origin. That instance is an external research/demo dependency with no
+availability guarantee. Its availability, and that of the upstream providers (Crossref, arXiv,
+OpenAlex), affects only **live** Literature Review runs. This service's test suite, the
+package's fixture mode and the repository's offline verification never contact it. To use your
+own deployment, see [getting-started](../docs/getting-started.md#4-external-services-used-by-literature-review-live-mode):
+the package must then be rebuilt and signed by you.
+
 ## Run locally
 
 Requires Python 3.11+; Railway uses Python 3.13 via `.python-version`.

@@ -28,7 +28,9 @@ async function openclaw(args, env = {}) {
 
 async function main() {
   const report = { passed: true, host: {}, build: {}, install: {}, tests: {} };
-  report.host.openclawVersion = (await run("openclaw", ["--version"])).stdout.trim();
+  // The pinned devDependency that builds, validates and installs the artifact
+  // below; a globally installed OpenClaw is neither needed nor consulted.
+  report.host.openclawVersion = (await openclaw(["--version"])).trim();
 
   await run("npx", ["tsc", "-p", "tsconfig.json"], { cwd: ROOT, maxBuffer: 32 * 1024 * 1024 });
   await openclaw(["plugins", "build"]);

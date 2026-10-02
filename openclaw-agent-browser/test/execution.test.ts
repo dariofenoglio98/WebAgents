@@ -786,8 +786,13 @@ describe.runIf(runs)("executing a signed package", () => {
         state.plan!.runPlanSha256,
         INPUT,
       );
-      await new Promise((resolve) => setTimeout(resolve, 200));
-      const before = unwrap(await stopping.listExecutions());
+      // Poll, as waitForActive does: preflight makes real control-plane round trips,
+      // which a slow runner may not finish within a fixed wait.
+      let before = unwrap(await stopping.listExecutions());
+      for (let attempt = 0; attempt < 200 && before.active?.status !== "running"; attempt += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        before = unwrap(await stopping.listExecutions());
+      }
       expect(before.active?.status).toBe("running");
       const runId = before.active!.runId;
 

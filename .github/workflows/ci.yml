@@ -1,0 +1,332 @@
+# Clean-install CI for WebAgents. Every job starts from a fresh checkout and installs its
+# dependencies from the public registries. Nothing here needs a model, a provider credential,
+# Ollama, a configured OpenClaw host, live Crossref, the hosted Citation Resolver or a signing
+# key: package runs use fixture mode, and the plugin tests drive a real control plane against
+# throwaway state. Live-provider tests stay opt-in (AGENTPKG_TEST_LIVE_MODEL,
+# AGENTPKG_TEST_OPENCLAW) and are skipped here.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  PYTHONUNBUFFERED: "1"
+
+jobs:
+  agentpkg:
+    name: agentpkg (${{ matrix.os }}, Python ${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python: ["3.11", "3.13"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install agentpkg as the README describes
+        run: |
+          python -m venv agentpkg/.venv
+          agentpkg/.venv/bin/python -m pip install -e './agentpkg[dev]'
+          agentpkg/.venv/bin/agentpkg --version
+      - name: Install the Citation Resolver environment (the package/resolver schema contract test uses it)
+        run: |
+          python -m venv citation-resolver/.venv
+          citation-resolver/.venv/bin/python -m pip install -r citation-resolver/requirements.txt
+      - name: Lint
+        run: |
+          agentpkg/.venv/bin/python -m ruff check agentpkg
+          agentpkg/.venv/bin/python -m ruff format --check agentpkg
+      - name: Test suite (only the opt-in live tests may be skipped)
+        run: |
+          agentpkg/.venv/bin/python -m pytest agentpkg/tests -rs --junitxml="$RUNNER_TEMP/agentpkg.xml"
+          agentpkg/.venv/bin/python - "$RUNNER_TEMP/agentpkg.xml" <<'PY'
+          import sys
+          import xml.etree.ElementTree as ET
+          opt_in = {
+              ("tests.test_live_structured_output", "test_a_live_model_conforms_to_the_exact_screen_schema"),
+              ("tests.test_openclaw", "test_installed_openclaw_discovers_staged_skills"),
+          }
+          skipped = {
+              (case.get("classname"), case.get("name").split("[")[0])
+              for case in ET.parse(sys.argv[1]).getroot().iter("testcase")
+              if case.find("skipped") is not None
+          }
+          print("skipped:", sorted(skipped))
+          sys.exit(1 if skipped - opt_in else 0)
+          PY
+      - name: Offline acceptance scripts
+        run: |
+          for script in verify_workflow verify_browser verify_literature_022 \
+                        verify_literature_023 verify_literature_024 verify_literature_025; do
+            report="$RUNNER_TEMP/$script.json"
+            agentpkg/.venv/bin/python "scripts/$script.py" > "$report"
+            # The scripts report failures in their JSON, not in their exit status.
+            agentpkg/.venv/bin/python -c '
+          import json, sys
+          report = json.load(open(sys.argv[2]))
+          print(sys.argv[1], "passed:", report.get("passed"))
+          sys.exit(0 if report.get("passed") is True else 1)
+          ' "$script" "$report"
+          done
+
+  packages:
+    name: signed packages and distributions (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - name: Build the wheel and sdist from source
+        run: |
+          python -m venv "$RUNNER_TEMP/build-env"
+          "$RUNNER_TEMP/build-env/bin/python" -m pip install 'build>=1.2,<2' 'setuptools==84.0.0'
+          SOURCE_DATE_EPOCH=1790965957 "$RUNNER_TEMP/build-env/bin/python" -m build \
+            --no-isolation --outdir "$RUNNER_TEMP/agentpkg-dist" agentpkg
+          ls -l "$RUNNER_TEMP/agentpkg-dist"
+      - name: Install the shipped wheel in a fresh environment
+        run: |
+          python -m venv "$RUNNER_TEMP/wheel-env"
+          "$RUNNER_TEMP/wheel-env/bin/python" -m pip install dist/agentpkg-0.2.2-py3-none-any.whl
+          cd "$RUNNER_TEMP"
+          wheel-env/bin/agentpkg --version
+          wheel-env/bin/python -c 'import agentpkg; assert "site-packages" in agentpkg.__file__, agentpkg.__file__'
+      - name: Release-tree checks (package identities, dist/ SHA-256 list, licenses, wheel = source)
+        run: |
+          "$RUNNER_TEMP/wheel-env/bin/python" scripts/check_release.py \
+            --built-wheel "$RUNNER_TEMP/agentpkg-dist/agentpkg-0.2.2-py3-none-any.whl"
+      - name: Verify both signed packages with the installed wheel
+        run: |
+          agentpkg="$RUNNER_TEMP/wheel-env/bin/agentpkg"
+          "$agentpkg" verify dist/meeting-agenda.agent.pkg \
+            --trust-key examples/keys/meeting-agenda-publisher.pub.pem > "$RUNNER_TEMP/verify-agenda.json"
+          "$agentpkg" verify dist/literature-review.agent.pkg \
+            --trust-key examples/keys/literature-review-publisher.pub.pem > "$RUNNER_TEMP/verify-review.json"
+          python - "$RUNNER_TEMP" <<'PY'
+          import json, sys
+          from pathlib import Path
+          expected = {
+              "verify-agenda.json": ("org.webagents.meeting-agenda", "0.2.2",
+                  "sha256:2bcc374a7fe18e50622042b7d0375fcb24eb3607879a236f9f3c3ede1922c5c4"),
+              "verify-review.json": ("org.webagents.literature-review", "0.2.5",
+                  "sha256:c5ca9763f9fc71253298ca381ec14c4d7432009c74dacc69df6344b71de05232"),
+          }
+          for name, (package_id, version, fingerprint) in expected.items():
+              report = json.loads((Path(sys.argv[1]) / name).read_text())
+              print(json.dumps(report))
+              assert report["valid"] is True
+              assert (report["package_id"], report["version"]) == (package_id, version)
+              assert report["key_fingerprint"] == fingerprint
+          PY
+          # A valid signature by a key the host did not pin must be refused.
+          if "$agentpkg" verify dist/literature-review.agent.pkg \
+               --trust-key examples/keys/meeting-agenda-publisher.pub.pem > /dev/null 2>&1; then
+            echo "verification accepted an unpinned key" >&2
+            exit 1
+          fi
+      - name: Run both packages in fixture mode with the installed wheel (README quickstart)
+        run: |
+          agentpkg="$RUNNER_TEMP/wheel-env/bin/agentpkg"
+          "$agentpkg" run dist/meeting-agenda.agent.pkg --mode fixture \
+            --grants examples/meeting-agenda-grants.json \
+            --out "$RUNNER_TEMP/my-agenda" > "$RUNNER_TEMP/run-agenda.json"
+          "$agentpkg" run dist/literature-review.agent.pkg --mode fixture \
+            --grants examples/literature-review-grants.json \
+            --approve-tool scholarly-search --approve-tool citation-resolver --approve-tool paper-reader \
+            --out "$RUNNER_TEMP/my-review" > "$RUNNER_TEMP/run-review.json"
+          python - "$RUNNER_TEMP" <<'PY'
+          import json, sys
+          from pathlib import Path
+          temp = Path(sys.argv[1])
+          exports = {
+              "agenda": ["agenda.json"],
+              "review": ["related-work.md", "bibliography.json", "evidence-table.json",
+                         "unresolved.json", "verification.json"],
+          }
+          for name, declared in exports.items():
+              report = json.loads((temp / f"run-{name}.json").read_text())
+              print(name, report["status"], "passed:", report["passed"])
+              assert report["status"] == "completed" and report["passed"] is True
+              for file in ["result.json", "audit.json", "usage.json", "provenance.json", *declared]:
+                  assert (temp / f"my-{name}" / file).is_file(), file
+          PY
+          # Each declared tool needs its own approval; a permission grant is not one.
+          if "$agentpkg" run dist/literature-review.agent.pkg --mode fixture \
+               --grants examples/literature-review-grants.json \
+               --out "$RUNNER_TEMP/unapproved" > /dev/null 2>&1; then
+            echo "a run without tool approvals was accepted" >&2
+            exit 1
+          fi
+      - name: Keep the CI-built distributions
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: agentpkg-dist
+          path: ${{ runner.temp }}/agentpkg-dist
+          retention-days: 14
+
+  plugin:
+    name: Agent Browser plugin (${{ matrix.os }}, Node ${{ matrix.node }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        node: ["24", "26"]
+    defaults:
+      run:
+        shell: bash
+        working-directory: openclaw-agent-browser
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - name: Install agentpkg (the integration tests spawn agentpkg/.venv/bin/agentpkg)
+        working-directory: .
+        run: |
+          python -m venv agentpkg/.venv
+          agentpkg/.venv/bin/python -m pip install -e ./agentpkg
+          test -x agentpkg/.venv/bin/agentpkg
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ matrix.node }}
+          # npm's download cache only; `npm ci` still installs exactly package-lock.json.
+          cache: npm
+          cache-dependency-path: openclaw-agent-browser/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Tests (no test may be skipped)
+        run: |
+          npx vitest run --reporter=default --reporter=json --outputFile=vitest-report.json
+          node -e '
+            const r = JSON.parse(require("node:fs").readFileSync("vitest-report.json", "utf8"));
+            console.log({ total: r.numTotalTests, passed: r.numPassedTests,
+                          failed: r.numFailedTests, skipped: r.numPendingTests, todo: r.numTodoTests });
+            process.exit(r.success && r.numFailedTests === 0 && r.numPendingTests === 0 && r.numTodoTests === 0 ? 0 : 1);
+          '
+      - name: Build, validate and pack
+        run: |
+          npm run build
+          npm run validate
+          npm run pack
+      - name: Inspect the packed artifact
+        run: |
+          tar -tzf agent-browser.tgz | sort | tee "$RUNNER_TEMP/agent-browser.contents"
+          # Exactly the manifest, package.json and the bundled entry points: no sources,
+          # node_modules, maps or local files.
+          unexpected=$(grep -v -E '^package/(|dist/|dist/control-ui/|dist/control-ui/[0-9a-f]{64}/|package\.json|openclaw\.plugin\.json|dist/index\.js|dist/control-ui/[0-9a-f]{64}/index\.(js|css))$' \
+            "$RUNNER_TEMP/agent-browser.contents" || true)
+          if [ -n "$unexpected" ]; then
+            echo "unexpected entries in agent-browser.tgz:" >&2
+            echo "$unexpected" >&2
+            exit 1
+          fi
+      - name: Install the artifact into a throwaway OpenClaw configuration
+        run: npm run verify
+
+  citation-resolver:
+    name: Citation Resolver (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    defaults:
+      run:
+        shell: bash
+        working-directory: citation-resolver
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - name: Install
+        run: |
+          python -m venv .venv
+          .venv/bin/python -m pip install -r requirements-dev.txt
+      - name: Lint
+        run: |
+          .venv/bin/python -m ruff check .
+          .venv/bin/python -m ruff format --check .
+      - name: Tests (mocked upstream services)
+        run: .venv/bin/python -m pytest -rs
+
+  experiments:
+    name: paper experiments' test suites (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "26"
+          cache: npm
+          cache-dependency-path: openclaw-agent-browser/package-lock.json
+      - name: Install agentpkg and build the plugin
+        run: |
+          python -m venv agentpkg/.venv
+          agentpkg/.venv/bin/python -m pip install -e './agentpkg[dev]'
+          (cd openclaw-agent-browser && npm ci && npm run build)
+      - name: Tests (no test may be skipped)
+        # One pytest process per experiment: each puts its own directory first on
+        # sys.path, and both have an `analyze` module.
+        run: |
+          for experiment in contract_overhead contract_enforcement; do
+            agentpkg/.venv/bin/python -m pytest "experiments/$experiment/tests" -rs \
+              --junitxml="$RUNNER_TEMP/$experiment.xml"
+            agentpkg/.venv/bin/python - "$RUNNER_TEMP/$experiment.xml" <<'PY'
+          import sys
+          import xml.etree.ElementTree as ET
+          suites = ET.parse(sys.argv[1]).getroot()
+          suites = [suites] if suites.tag == "testsuite" else list(suites)
+          skipped = sum(int(s.get("skipped", 0)) for s in suites)
+          print(sys.argv[1], "tests:", sum(int(s.get("tests", 0)) for s in suites), "skipped:", skipped)
+          sys.exit(1 if skipped else 0)
+          PY
+          done

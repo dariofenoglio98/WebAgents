@@ -2,6 +2,7 @@
   "name": "openclaw-agent-browser",
   "version": "0.1.0",
   "description": "OpenClaw Agent Browser: open, verify and authorize signed agent.pkg packages through the local agentpkg control plane.",
+  "license": "Apache-2.0",
   "type": "module",
   "private": true,
   "scripts": {

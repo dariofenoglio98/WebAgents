@@ -62,15 +62,20 @@ experimental; pin and retest on a different host version.
 - OpenClaw 2026.9.5 with the Gateway running.
 - An `agentpkg` executable providing `agentpkg browser-serve` (this repository's
   `agentpkg/.venv/bin/agentpkg`, or an installed wheel).
-- Node 20+ and npm for building the plugin.
+- Node 24 (≥ 24.16) or Node ≥ 26.1, and npm, for building the plugin (the range the pinned
+  `openclaw` devDependency declares; tested with Node 26.9.0).
+
+Developed and accepted live on macOS. CI also builds, validates, packs and tests the plugin on
+Ubuntu Linux; no live run on a Linux OpenClaw host has been accepted.
 
 ## Build, verify and install
 
 ```sh
 cd openclaw-agent-browser
-npm install                 # links the pinned openclaw peer for types and tooling
+npm ci                      # the pinned openclaw devDependency provides types and tooling
 npm run typecheck
 npm test                    # the integration tests drive a real agentpkgd and runner
+                            # through ../agentpkg/.venv/bin/agentpkg; without it they skip
 npm run build               # tsc + `openclaw plugins build` (manifest + UI bundle)
 npm run validate            # openclaw plugins validate --json
 npm run pack                # openclaw plugins pack --json  -> agent-browser.tgz
@@ -81,8 +86,17 @@ Install the **packed artifact**, not the source directory: a directory install
 also scans this project's `node_modules`, which contains OpenClaw's own bundled
 plugins, and the registry reports conflicting child rows.
 
-`npm run verify` runs the whole chain and installs into a throwaway
-configuration, so it never touches your real OpenClaw state.
+`npm run verify` runs the whole chain with the pinned OpenClaw devDependency and
+installs into a throwaway configuration and state directory, so it never installs
+into your real OpenClaw state and needs no global OpenClaw.
+
+The packed artifact contains only `package.json`, `openclaw.plugin.json` and the
+bundled `dist/` files; `openclaw plugins pack` does not carry license files. The
+plugin is Apache-2.0 (`package.json` `license`). The bundle also contains TypeBox
+and parts of the OpenClaw plugin SDK (both MIT) and tables derived from CPython
+(PSF License); their notices are in
+[THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md), which a release ships beside
+the `.tgz`.
 
 ## Configure
 

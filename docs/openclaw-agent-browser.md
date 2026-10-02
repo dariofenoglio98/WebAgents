@@ -423,6 +423,10 @@ it.
   sharing a state directory would fight over the same runtime directory.
 * Orphan reaping uses `ps`, so it is POSIX-only. The plugin has not been tested
   on Windows.
+* Live runs have been accepted only on macOS. On Linux, CI builds, validates and
+  packs the plugin and runs its test suite, including the integration tests
+  against a real control plane and runner; no live run on a Linux OpenClaw host
+  has been accepted.
 * The page polls `service.status` on load and after actions, and refreshes on the
   plugin's `browser-changed` event; it is not a live stream.
 * Session tabs show the package ID rather than a display name, because the

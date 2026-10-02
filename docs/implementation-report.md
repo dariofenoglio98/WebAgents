@@ -45,11 +45,14 @@ WebAgents/
   examples/
     keys/publisher.pub.pem             Public development key only
     demo-offline/                      Reproducible synthetic workflow outputs
-    demo-live-fulltext/                Final real external/PDF demo outputs
-    demo-live/, demo-live-final/        Earlier discovery-only observations
+    demo-live-fulltext/                Final real external/PDF demo outputs (*)
+    demo-live/, demo-live-final/        Earlier discovery-only observations (*)
     eval-results/                      Executed eval results/provenance
     verification/                      Test logs, receipts, hashes, demo summaries
     openclaw-workspace/                 Local staged workspace; gitignored
+
+(*) Not part of the published tree: these raw outputs reproduced third-party abstracts and PDF
+text. Their summaries remain in `examples/verification/` (see [examples/README.md](../examples/README.md#legacy-runner-pre-workflowv0)).
   dist/
     literature-review.agent.pkg
     agentpkg-0.1.0-py3-none-any.whl
@@ -139,7 +142,7 @@ The package test warning comes from deliberately constructing a duplicate-entry 
 
 The [offline demo](../examples/demo-offline/related-work.md) uses invented papers, identifiers and page records, explicitly labelled synthetic. It produces eight candidates, three bibliography entries, ten evidence items, four unresolved items, 24 worker invocations and peak parallelism three. It counts nine simulated remote calls, two simulated PDF reads, and zero model tokens.
 
-The [final live demo](../examples/demo-live-fulltext/related-work.md) uses the requested example topic, two arXiv seeds, and DOI seeds for MasRouter and AgentDropout. Public PDFs were downloaded separately from ACL Anthology, explicitly selected through host file maps, and parsed by the real reader. URLs, byte counts and hashes are recorded in [live-pdf-sources.json](../examples/verification/live-pdf-sources.json); the source PDFs remain in temporary host storage and are not embedded in the package.
+The final live demo (its raw outputs are not in the published tree; [summary](../examples/verification/live-fulltext-summary.json)) uses the requested example topic, two arXiv seeds, and DOI seeds for MasRouter and AgentDropout. Public PDFs were downloaded separately from ACL Anthology, explicitly selected through host file maps, and parsed by the real reader. URLs, byte counts and hashes are recorded in [live-pdf-sources.json](../examples/verification/live-pdf-sources.json); the source PDFs remain in temporary host storage and are not embedded in the package.
 
 Observed result: **20 candidates; seven resolved bibliography records; 42 retained quotation claims/evidence items (12 full-text, 30 abstract); 16 unresolved items; 43 worker invocations; peak concurrency three; 12 remote calls (three searches, nine resolutions); four PDF reads; zero model tokens.** Both arXiv resolutions returned provider errors and remain unresolved. Thirteen candidates remained `maybe`; one notice records candidate truncation. The output includes bibliography/BibTeX, evidence table, full state, provenance, audit, usage and verification results.
 

@@ -27,6 +27,24 @@ python3 -m venv .venv && .venv/bin/python -m pip install dist/agentpkg-0.2.2-py3
 The keys are development keys: they establish which key signed an artifact, not an independent
 certification of its publisher.
 
+**The 0.2.2 wheel was rebuilt for the public release** from the current `agentpkg/` source. It
+differs from the earlier 0.2.2 build (SHA-256 `c0ea47ef…eabd`, recorded in
+`examples/verification/agentpkg-022-wheel-smoke.json`) in exactly two ways: it adds the Apache-2.0
+license metadata and `LICENSE` file, and it contains the host-usage accounting correction in
+`agentpkg/hostbridge/router.py` that was made after that build. Every other file is unchanged. The
+version stays 0.2.2 because the runtime reports that version, and the signed packages and the
+paper experiments were run against it. The signed `.agent.pkg` files are unaffected. It was
+built as below with setuptools 84.0.0; two such builds on the development machine produced
+identical bytes, and CI rebuilds it from source and checks that every file matches:
+
+```sh
+python3 -m venv /tmp/build-env && /tmp/build-env/bin/pip install 'build>=1.2,<2' 'setuptools==84.0.0'
+SOURCE_DATE_EPOCH=1790965957 /tmp/build-env/bin/python -m build --no-isolation --outdir /tmp/agentpkg-dist agentpkg
+```
+
+Build from a clean checkout: a stale `agentpkg/build/` directory from an earlier build can leak
+into the wheel.
+
 ## Historical
 
 Preserved for provenance. Each is described by the report of the milestone that produced it;
@@ -50,7 +68,7 @@ none is needed to run the current packages.
 ```
 c1b1c4b260dbca874dc9e343397e6fad1311f498c3a6df27c1a1deeeb0b18f71  agentpkg-0.1.0-py3-none-any.whl
 5859ca592d7ced2261e07bd3451ba2a67fcca926627534faf092a93dcfd70adb  agentpkg-0.2.0-py3-none-any.whl
-c0ea47ef0c9c07d53a56cbe0e024643ca24985a709531bb3c165b8dd14eaeabd  agentpkg-0.2.2-py3-none-any.whl
+d4acc95fb3dc85a03cc4681ecbe5528ae2968a0624036c887b5b5fb4bf115c6e  agentpkg-0.2.2-py3-none-any.whl
 5fdde862352598fc68e4fe5a2f5c2dee19bf952112446b3fc13bc77763533b0b  literature-review-0.2.0.agent.pkg
 0fb8b65bbff4578d4815ee70b29a0cb789b2cc95ce181d011d467b4be22c8e42  literature-review-0.2.1.agent.pkg
 4804ea8f4c2ad40439641f8348c2d65b798f4d52802f6ad751b71114e4f27c04  literature-review-0.2.2.agent.pkg

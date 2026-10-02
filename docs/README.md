@@ -32,7 +32,9 @@ each claim). Reports are historical: a later report or the current artifacts in
 | [openclaw-integration.md](openclaw-integration.md) | The older verified-workspace staging adapter (`install-openclaw`) |
 | [workflow-migration.md](workflow-migration.md) | Migration from the legacy Literature Review runner to generic execution |
 | [literature-walkthrough.md](literature-walkthrough.md) | Walkthrough of the reference package layout |
-| [releasing.md](releasing.md) | Public-release checklist: license decision, locally kept material, history |
+| [releasing.md](releasing.md) | Release procedure, artifact SHA-256 manifest, and the public-release checklist |
+| [release-notes-v0.1.0.md](release-notes-v0.1.0.md) | Draft notes for the first public release |
+| [../THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md) | Third-party material in the repository and the plugin artifact, and its terms |
 
 ## Reports (chronological)
 

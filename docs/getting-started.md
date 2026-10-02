@@ -17,14 +17,17 @@ absolute paths for your own checkout.
 
 | Component | Needed for | Tested with | Notes |
 |---|---|---|---|
-| Python ≥ 3.11 | everything | 3.13.5 | `agentpkg` dependencies: `jsonschema`, `cryptography`, `pypdf`, `rfc8785` |
-| Node ≥ 20 and npm | building the plugin | Node 26.9.0 | only needed to build, test and pack `openclaw-agent-browser` |
+| Python ≥ 3.11, a current patch release | everything | 3.13.5; CI also 3.11 | `agentpkg` dependencies: `jsonschema`, `cryptography`, `pypdf`, `rfc8785`. The URL policy relies on the standard library's `ipaddress` classification, which older patch releases got wrong for some special-purpose addresses (3.12.1, for example, treats `192.0.0.8` as public); use an up-to-date patch release |
+| Node 24 (≥ 24.16) or ≥ 26.1, and npm | building the plugin | Node 26.9.0 | the range the pinned `openclaw` devDependency declares; only needed to build, test and pack `openclaw-agent-browser` |
 | OpenClaw **2026.9.5** | Agent Browser, live runs | 2026.9.5 (`ec9c1a1`) | the plugin APIs are experimental; execution refuses another OpenClaw release unless you opt out (see below) |
 | Ollama | optional, local models | 0.34.0, `qwen3:30b` | the recorded local runs used Apple M3 Max, 36 GB |
 | OpenAI account in OpenClaw | optional, hosted models | `openai/gpt-5.6-luna` | configured as an OpenClaw provider; WebAgents never sees the credential |
 
-The prototype was developed and tested on macOS (Apple Silicon). The Python package and tests are
-platform-neutral; the browser plugin has only been exercised on macOS.
+The prototype was developed on macOS (Apple Silicon), and every recorded live run was made there.
+[Continuous integration](../.github/workflows/ci.yml) also runs the Python and plugin test suites,
+the offline package verification, the plugin build/validate/pack and the Citation Resolver tests on
+Ubuntu Linux. Linux is therefore covered by tests, but no live Agent Browser run on a Linux
+OpenClaw host has been accepted. Windows is not supported.
 
 ## 1. Offline CLI
 
@@ -67,14 +70,19 @@ approval names one tool. The outputs are `result.json`, `audit.json`, `usage.jso
 `provenance.json` and the package's declared exports (`agenda.json`; or `related-work.md`,
 `bibliography.json`, `evidence-table.json`, `unresolved.json`, `verification.json`).
 
-Test suites:
+Test suites and offline acceptance checks:
 
 ```sh
 agentpkg/.venv/bin/python -m pytest agentpkg/tests
 agentpkg/.venv/bin/python -m ruff check agentpkg
-agentpkg/.venv/bin/python scripts/verify_workflow.py
-agentpkg/.venv/bin/python scripts/verify_browser.py
+agentpkg/.venv/bin/python -m ruff format --check agentpkg
+agentpkg/.venv/bin/python scripts/verify_workflow.py         # both packages, fixture mode
+agentpkg/.venv/bin/python scripts/verify_browser.py          # control plane, no execution
+agentpkg/.venv/bin/python scripts/verify_literature_025.py   # current Literature Review
+agentpkg/.venv/bin/python scripts/check_release.py           # package identities and dist/ hashes
 ```
+
+None of these needs a model, a credential, OpenClaw or network access.
 
 ## 2. Agent Browser (OpenClaw plugin)
 
@@ -83,7 +91,7 @@ Install OpenClaw 2026.9.5 and start its Gateway (`openclaw gateway status` shoul
 
 ```sh
 cd openclaw-agent-browser
-npm install
+npm ci                             # exact versions from package-lock.json
 npm run typecheck
 npm test
 npm run build
@@ -94,8 +102,10 @@ cd ..
 ```
 
 Install the packed `.tgz`, not the directory: a directory install also scans this project's
-`node_modules`, which contains OpenClaw's own bundled plugins. `npm run verify` runs the whole
-chain against a throwaway OpenClaw configuration without touching yours.
+`node_modules`, which contains OpenClaw's own bundled plugins. `npm test` drives a real control
+plane and runner through `agentpkg/.venv/bin/agentpkg` from section 1. `npm run verify` runs the
+whole chain with the pinned OpenClaw devDependency and installs into a throwaway OpenClaw
+configuration and state directory, not yours; it needs no global OpenClaw.
 
 Configure the plugin. The heredoc below expands `$PWD`, so run it from the repository root:
 
@@ -199,8 +209,13 @@ the package schema before accepting it.
 | Service | Used by | Notes |
 |---|---|---|
 | Crossref REST API (`api.crossref.org`) | `scholarly-search` host adapter | public API; the adapter sends at most one request at a time, ≥ 1 s apart; coverage of recent AI topics is thin, so a run may include only a few papers |
-| Citation Resolver (`webagents-citation-resolver-production.up.railway.app`) | `citation-resolver` | a small FastAPI service in [`citation-resolver/`](../citation-resolver/README.md), hosted by the authors with **no availability guarantee** |
+| Citation Resolver (`webagents-citation-resolver-production.up.railway.app`) | `citation-resolver` | a small FastAPI service in [`citation-resolver/`](../citation-resolver/README.md), hosted by the authors as an external research/demo dependency with **no availability guarantee** |
 | Selected PDFs | `paper-reader` | only files the operator selects under `localFiles.roots`; the package sees opaque ids, never paths |
+
+Both services are outside this repository's control. Their availability, rate limits and
+coverage decide whether a **live** Literature Review run completes and how much it finds. They do
+not affect fixture-mode runs, the offline verification scripts, the test suites or CI, which
+replay recorded or synthetic answers and never contact them.
 
 The resolver origin is declared in the **signed** package manifest. A host can tighten or relabel
 the binding, but it cannot point it at a domain the package did not declare. If the hosted resolver

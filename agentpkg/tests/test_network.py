@@ -53,9 +53,11 @@ def test_process_response_is_received_and_child_reaped():
 def test_deadline_kills_stalled_operation_and_reaps_child(tmp_path):
     pid_file = tmp_path / "child.pid"
     began = time.monotonic()
+    # The deadline must outlast a cold spawn-start child on a slow CI runner, which
+    # re-imports this module before it writes its pid; the stall itself is 30 s.
     with pytest.raises(ToolError, match="deadline"):
-        asyncio.run(_call_in_process(_stall, (str(pid_file),), timeout=0.7))
-    assert time.monotonic() - began < 4
+        asyncio.run(_call_in_process(_stall, (str(pid_file),), timeout=3.0))
+    assert time.monotonic() - began < 10
     assert pid_file.exists(), "Child must have started so termination is exercised"
     assert not _alive(int(pid_file.read_text()))
 
