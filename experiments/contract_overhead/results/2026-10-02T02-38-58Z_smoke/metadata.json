@@ -1,0 +1,653 @@
+{
+  "benchmark": {
+    "name": "contract_overhead",
+    "version": "1.0.0",
+    "script": "experiments/contract_overhead/benchmark.py",
+    "script_sha256": "12fd4c5b00d6a949a793403535c3dad1d2dabbf1c01211deef32c4bf19ff9938",
+    "analysis_script_sha256": "7c3797b3aa3118fdb24d288ee198797c2b7ebcc2978c6127c5e07598ae8cb5ff",
+    "started_at_utc": "2026-10-02T02:38:58.060636+00:00",
+    "finished_at_utc": "2026-10-02T02:39:03.831937+00:00",
+    "wall_seconds": 5.591,
+    "config": {
+      "warmup_iterations_per_package": 2,
+      "batches": 1,
+      "iterations_per_batch": 5,
+      "measured_observations_per_package": 5,
+      "seed": 20261001,
+      "order": "same process; within each (batch, iteration) every package runs once, in an order drawn from random.Random(seed); warmup uses the same scheme",
+      "gc": "enabled (Python default)",
+      "packages": [
+        "meeting-agenda",
+        "literature-review"
+      ],
+      "audit_microbenchmark": {
+        "enabled": true,
+        "warmup_events": 200,
+        "batches": 5,
+        "stream_repeats_per_batch": 5
+      },
+      "component_decomposition": {
+        "enabled": true,
+        "warmup_iterations_per_package": 2,
+        "batches": 1,
+        "iterations_per_batch": 5
+      }
+    },
+    "stages": [
+      {
+        "stage": "package_open_verify",
+        "label": "Package open and verification",
+        "production_operation": "ControlPlane._open_bytes",
+        "interval": [
+          "t0",
+          "t1"
+        ]
+      },
+      {
+        "stage": "authorization_receipt",
+        "label": "Authorization receipt",
+        "production_operation": "ControlPlane.authorize",
+        "interval": [
+          "t1",
+          "t2"
+        ]
+      },
+      {
+        "stage": "compatibility_evaluation",
+        "label": "Model and tool compatibility",
+        "production_operation": "ControlPlane.evaluate_models + ControlPlane.evaluate_tools",
+        "interval": [
+          "t2",
+          "t3"
+        ]
+      },
+      {
+        "stage": "run_plan_preparation",
+        "label": "Run Plan preparation",
+        "production_operation": "ControlPlane.prepare_run_plan",
+        "interval": [
+          "t3",
+          "t4"
+        ]
+      },
+      {
+        "stage": "host_revalidation_lease",
+        "label": "Host revalidation and lease",
+        "production_operation": "ControlPlane.validate_input + run_plan + summary + authorization [+ evaluate_tools when tools are bound] + issue_execution_lease",
+        "interval": [
+          "t4",
+          "t5"
+        ]
+      },
+      {
+        "stage": "runner_verification",
+        "label": "Runner re-verification",
+        "production_operation": "ExecutionSession('execution.begin')",
+        "interval": [
+          "t5",
+          "t6"
+        ]
+      },
+      {
+        "stage": "workflow_start",
+        "label": "Workflow instantiation and start checks",
+        "production_operation": "ExecutionSession('execution.run') until Workflow dispatches its first wave",
+        "interval": [
+          "t6",
+          "t7"
+        ]
+      }
+    ],
+    "groups": [
+      {
+        "group": "verification",
+        "label": "Package verification",
+        "stages": [
+          "package_open_verify"
+        ],
+        "interval": [
+          "t0",
+          "t1"
+        ]
+      },
+      {
+        "group": "authorization_and_binding",
+        "label": "Authorization and binding",
+        "stages": [
+          "authorization_receipt",
+          "compatibility_evaluation"
+        ],
+        "interval": [
+          "t1",
+          "t3"
+        ]
+      },
+      {
+        "group": "run_plan",
+        "label": "Run Plan preparation",
+        "stages": [
+          "run_plan_preparation"
+        ],
+        "interval": [
+          "t3",
+          "t4"
+        ]
+      },
+      {
+        "group": "revalidation",
+        "label": "Pre-execution revalidation",
+        "stages": [
+          "host_revalidation_lease",
+          "runner_verification",
+          "workflow_start"
+        ],
+        "interval": [
+          "t4",
+          "t7"
+        ]
+      }
+    ],
+    "total": {
+      "stage": "total_pre_execution",
+      "interval": [
+        "t0",
+        "t7"
+      ]
+    },
+    "secondary": {
+      "stage": "local_file_read",
+      "operation": "agentpkg.package.read_regular_bytes (the read open_file performs)",
+      "in_total": false
+    },
+    "components": [
+      {
+        "component": "container_integrity",
+        "production_function": "agentpkg.package.read_archive_bytes"
+      },
+      {
+        "component": "schema_validation",
+        "production_function": "agentpkg.validation.validate_payload"
+      },
+      {
+        "component": "signature",
+        "production_function": "agentpkg.browser.evaluation.signature_report"
+      },
+      {
+        "component": "publisher_trust",
+        "production_function": "agentpkg.browser.trust.TrustStore.evaluate"
+      },
+      {
+        "component": "inspection_summary",
+        "production_function": "agentpkg.browser.summary.build_summary"
+      }
+    ],
+    "units": {
+      "raw": "ns",
+      "summary": "ms",
+      "audit_summary": "us"
+    },
+    "model_id_bound": "ollama/qwen3:30b",
+    "session_ttl_seconds": 7200,
+    "browser_policy": "production default (agentpkg.browser.authorization.BrowserPolicy())"
+  },
+  "packages": {
+    "meeting-agenda": {
+      "label": "Meeting Agenda",
+      "archive": "dist/meeting-agenda.agent.pkg",
+      "archive_sha256": "7b148e845c0f9e38d752a51a8d0b60a314842a3de3a2723b3bdf1a0c041921e1",
+      "archive_bytes": 21580,
+      "archive_entries": 19,
+      "package_id": "org.webagents.meeting-agenda",
+      "package_name": "Meeting Agenda Agent",
+      "package_version": "0.2.2",
+      "package_digest": "dbd2eb816bb8687d4a5b3448f5b82bc0716c3884f9fee8a2c578af0c5e894679",
+      "signer_fingerprint": "sha256:2bcc374a7fe18e50622042b7d0375fcb24eb3607879a236f9f3c3ede1922c5c4",
+      "signature_status": "valid",
+      "trust_status": "trusted",
+      "publisher_key": "examples/keys/meeting-agenda-publisher.pub.pem",
+      "entrypoint": "workflow.v0",
+      "runtime_minimum_version": "0.2.2",
+      "payload_files": 17,
+      "graph_nodes": 7,
+      "graph_node_types": [
+        "join",
+        "llm",
+        "map",
+        "output",
+        "validate"
+      ],
+      "worker_roles": 4,
+      "root_nodes": [
+        "plan"
+      ],
+      "declared_tools": [],
+      "declared_permissions": [
+        {
+          "id": "model.reasoning",
+          "kind": "model",
+          "required": true
+        },
+        {
+          "id": "memory.session",
+          "kind": "memory",
+          "required": true
+        }
+      ],
+      "model_tasks": 3,
+      "model_capabilities_required": [
+        "reasoning",
+        "structured_output"
+      ],
+      "model_context_window_required": 16000
+    },
+    "literature-review": {
+      "label": "Literature Review",
+      "archive": "dist/literature-review.agent.pkg",
+      "archive_sha256": "1669f83fafac3434748fc19d38a8d3d2c3352da83cf1cbb84796ce313bd4f571",
+      "archive_bytes": 224302,
+      "archive_entries": 68,
+      "package_id": "org.webagents.literature-review",
+      "package_name": "Literature Review Agent",
+      "package_version": "0.2.5",
+      "package_digest": "cef9ebd68df9db3b36c1ffeac9069d734b0e41a40d58445aaba1a60eaac155b5",
+      "signer_fingerprint": "sha256:c5ca9763f9fc71253298ca381ec14c4d7432009c74dacc69df6344b71de05232",
+      "signature_status": "valid",
+      "trust_status": "trusted",
+      "publisher_key": "examples/keys/literature-review-publisher.pub.pem",
+      "entrypoint": "workflow.v0",
+      "runtime_minimum_version": "0.2.1",
+      "payload_files": 66,
+      "graph_nodes": 25,
+      "graph_node_types": [
+        "join",
+        "llm",
+        "map",
+        "output",
+        "validate"
+      ],
+      "worker_roles": 9,
+      "root_nodes": [
+        "planning"
+      ],
+      "declared_tools": [
+        "citation-resolver",
+        "paper-reader",
+        "scholarly-search"
+      ],
+      "declared_permissions": [
+        {
+          "id": "network.scholarly",
+          "kind": "network",
+          "required": true
+        },
+        {
+          "id": "network.citations",
+          "kind": "network",
+          "required": true
+        },
+        {
+          "id": "files.pdfs",
+          "kind": "files.read",
+          "required": false
+        },
+        {
+          "id": "model.reasoning",
+          "kind": "model",
+          "required": false
+        },
+        {
+          "id": "memory.session",
+          "kind": "memory",
+          "required": true
+        }
+      ],
+      "model_tasks": 8,
+      "model_capabilities_required": [
+        "reasoning",
+        "structured_output"
+      ],
+      "model_context_window_required": 16000
+    }
+  },
+  "package_file_sha256_before_after_equal": true,
+  "fixtures": {
+    "host-model-catalog.json": {
+      "path": "experiments/contract_overhead/fixtures/host-model-catalog.json",
+      "sha256": "b624b61650b5b02128c1a79627a19799ebde1c5efa89094473a13f397fc94ce2"
+    },
+    "host-tool-registry.json": {
+      "path": "experiments/contract_overhead/fixtures/host-tool-registry.json",
+      "sha256": "9d8a6e2cab991db66eeb3990a12d956bf633f52f45f0771dadcbdc69008c0f98"
+    },
+    "host-execution-policy.json": {
+      "path": "experiments/contract_overhead/fixtures/host-execution-policy.json",
+      "sha256": "bafd20523db40c9eddc484aa3cbc15538acb9f7b909185488f66b76b50f339ee"
+    },
+    "authorization.json": {
+      "path": "experiments/contract_overhead/fixtures/authorization.json",
+      "sha256": "202345c4afcad64c6bc7412ba688a2a993097c11e2340b478bf27b83b8542ea4"
+    },
+    "meeting-agenda-input.json": {
+      "path": "experiments/contract_overhead/fixtures/meeting-agenda-input.json",
+      "sha256": "1123e537efe3c71b4868924144371dc3839e6acc3a0d963a34ed1ed4289fb367"
+    },
+    "literature-review-input.json": {
+      "path": "experiments/contract_overhead/fixtures/literature-review-input.json",
+      "sha256": "6a77d01d5daf556e7e9615b725a60820ad71744132ada044ef24c1f87717c3bd"
+    }
+  },
+  "evidence": {
+    "literature-review": {
+      "run_plan_schema": "agentpkg-run-plan-v0",
+      "run_plan_tool_bindings": 3,
+      "receipt_runnable": true,
+      "model_compatibility": "compatible",
+      "tool_verdicts": {
+        "citation-resolver": "bound",
+        "paper-reader": "bound",
+        "scholarly-search": "bound"
+      },
+      "runner_verified": [
+        "archive_sha256",
+        "container",
+        "integrity",
+        "schema",
+        "package_digest",
+        "package_identity",
+        "publisher_signature",
+        "signer_fingerprint",
+        "execution_profile"
+      ],
+      "runner_capabilities": {
+        "tools_declared": 3,
+        "tool_nodes": 5,
+        "tool_bindings": 3,
+        "llm_operations": [
+          {
+            "node": "planning",
+            "max_output_tokens": 12000
+          },
+          {
+            "node": "normalize",
+            "max_output_tokens": 16000
+          },
+          {
+            "node": "screening/screen-one",
+            "max_output_tokens": 12000
+          },
+          {
+            "node": "select-included",
+            "max_output_tokens": 12000
+          },
+          {
+            "node": "evidence/extract-one",
+            "max_output_tokens": 12000
+          },
+          {
+            "node": "synthesis",
+            "max_output_tokens": 12000
+          },
+          {
+            "node": "writing",
+            "max_output_tokens": 12000
+          },
+          {
+            "node": "verification",
+            "max_output_tokens": 16000
+          }
+        ],
+        "max_requested_output_tokens": 16000,
+        "host_max_output_tokens_per_call": 16000
+      },
+      "runner_model_check": {
+        "required_capabilities": [
+          "reasoning",
+          "structured_output"
+        ],
+        "router_capabilities": [
+          "reasoning",
+          "structured_output"
+        ],
+        "required_context_window": 16000,
+        "router_context_window": 65536,
+        "privacy": null,
+        "remote": false
+      },
+      "runner_effective_deadline_seconds": 4500,
+      "first_wave_nodes": [
+        "planning"
+      ],
+      "audit_actions_at_stop": [
+        "runtime.started",
+        "workflow.started",
+        "permission.checked"
+      ],
+      "runner_outbound_methods": [
+        "execution.progress",
+        "$/cancel"
+      ],
+      "outcome_after_stop": {
+        "status": "failed",
+        "error_code": "worker_error",
+        "model_calls": 0,
+        "tool_calls": 0
+      }
+    },
+    "meeting-agenda": {
+      "run_plan_schema": "agentpkg-run-plan-v0",
+      "run_plan_tool_bindings": 0,
+      "receipt_runnable": true,
+      "model_compatibility": "compatible",
+      "tool_verdicts": {},
+      "runner_verified": [
+        "archive_sha256",
+        "container",
+        "integrity",
+        "schema",
+        "package_digest",
+        "package_identity",
+        "publisher_signature",
+        "signer_fingerprint",
+        "execution_profile"
+      ],
+      "runner_capabilities": {
+        "tools_declared": 0,
+        "tool_nodes": 0,
+        "tool_bindings": 0,
+        "llm_operations": [
+          {
+            "node": "plan",
+            "max_output_tokens": 12000
+          },
+          {
+            "node": "perspectives/one-perspective",
+            "max_output_tokens": 12000
+          },
+          {
+            "node": "write",
+            "max_output_tokens": 12000
+          }
+        ],
+        "max_requested_output_tokens": 12000,
+        "host_max_output_tokens_per_call": 16000
+      },
+      "runner_model_check": {
+        "required_capabilities": [
+          "reasoning",
+          "structured_output"
+        ],
+        "router_capabilities": [
+          "reasoning",
+          "structured_output"
+        ],
+        "required_context_window": 16000,
+        "router_context_window": 65536,
+        "privacy": null,
+        "remote": false
+      },
+      "runner_effective_deadline_seconds": 600,
+      "first_wave_nodes": [
+        "plan"
+      ],
+      "audit_actions_at_stop": [
+        "runtime.started",
+        "workflow.started",
+        "permission.checked"
+      ],
+      "runner_outbound_methods": [
+        "execution.progress",
+        "$/cancel"
+      ],
+      "outcome_after_stop": {
+        "status": "failed",
+        "error_code": "worker_error",
+        "model_calls": 0,
+        "tool_calls": 0
+      }
+    }
+  },
+  "guards": {
+    "offline_violations": [],
+    "refused": [
+      "socket.connect",
+      "socket.connect_ex",
+      "socket.create_connection",
+      "socket.getaddrinfo",
+      "subprocess.Popen",
+      "os.fork/forkpty/posix_spawn/posix_spawnp/system",
+      "runner outbound frames other than execution.progress"
+    ]
+  },
+  "batch_orders": [
+    [
+      [
+        "meeting-agenda",
+        "literature-review"
+      ],
+      [
+        "meeting-agenda",
+        "literature-review"
+      ],
+      [
+        "literature-review",
+        "meeting-agenda"
+      ],
+      [
+        "literature-review",
+        "meeting-agenda"
+      ],
+      [
+        "literature-review",
+        "meeting-agenda"
+      ]
+    ]
+  ],
+  "audit": {
+    "streams": {
+      "meeting-agenda": {
+        "path": "examples/meeting-agenda-022-qwen/audit.json",
+        "sha256": "d63063fc60df7600fba4c9fb262b3b1bbe54571ecb97b079c8e884e5db5c9968",
+        "events": 92
+      },
+      "literature-review": {
+        "path": "examples/literature-review-live/audit.json",
+        "sha256": "2ef16391e347a2f9a64623975e442878be2889b4d95b4d7acba466d40c030689",
+        "events": 404
+      }
+    }
+  },
+  "machine": {
+    "os": "Darwin",
+    "os_version": "15.7.4",
+    "kernel": "24.6.0",
+    "architecture": "arm64",
+    "cpu_model": "Apple M3 Max",
+    "logical_cpus": 14,
+    "performance_logical_cpus": 10,
+    "efficiency_logical_cpus": 4,
+    "memory_bytes": 38654705664,
+    "python_version": "3.13.5",
+    "python_implementation": "CPython",
+    "python_compiler": "Clang 17.0.0 (clang-1700.0.13.3)",
+    "timer": {
+      "function": "time.perf_counter_ns",
+      "implementation": "mach_absolute_time()",
+      "resolution_s": 4.166666666666666e-08,
+      "monotonic": true
+    },
+    "load_average_1_5_15": {
+      "start": [
+        2.91,
+        3.3,
+        3.25
+      ],
+      "end": [
+        2.76,
+        3.26,
+        3.24
+      ]
+    }
+  },
+  "software": {
+    "git_commit": "f5394750e4c26fefdb2d91b280454ceb9a37067a",
+    "git_dirty": true,
+    "git_tracked_changes": [],
+    "git_untracked": [
+      "experiments/"
+    ],
+    "git_production_paths_modified": [],
+    "agentpkg_version": "0.2.2",
+    "agentpkg_source_in_repository": true,
+    "dependencies": {
+      "jsonschema": "4.26.0",
+      "referencing": "0.37.0",
+      "cryptography": "46.0.7",
+      "rfc8785": "0.1.4"
+    },
+    "agent_browser_plugin_version": "0.1.0",
+    "agent_browser_manifest_version": "0.1.0",
+    "openclaw_version_pinned_by_plugin": "2026.9.5",
+    "node_version": "v26.9.0",
+    "node_in_measured_path": false,
+    "openclaw_in_measured_path": false,
+    "note": "Node and OpenClaw do not run in the measured process. Node generated the host fixtures once (fixtures/generate_fixtures.mjs) through the plugin's own code; the OpenClaw version is the one the plugin verifies and the fixtures name."
+  },
+  "gc": {
+    "stats_before": [
+      {
+        "collections": 21,
+        "collected": 1351,
+        "uncollectable": 0
+      },
+      {
+        "collections": 1,
+        "collected": 0,
+        "uncollectable": 0
+      },
+      {
+        "collections": 0,
+        "collected": 0,
+        "uncollectable": 0
+      }
+    ],
+    "stats_after": [
+      {
+        "collections": 580,
+        "collected": 96453,
+        "uncollectable": 0
+      },
+      {
+        "collections": 52,
+        "collected": 15024,
+        "uncollectable": 0
+      },
+      {
+        "collections": 4,
+        "collected": 21375,
+        "uncollectable": 0
+      }
+    ],
+    "enabled": true
+  },
+  "environment_note": "No username, home directory, hostname or serial number is recorded. Paths are repository-relative."
+}

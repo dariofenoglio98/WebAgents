@@ -1,0 +1,64 @@
+{
+  "schema": "agentpkg-host-model-catalog-v0",
+  "host": {
+    "runtime": "openclaw",
+    "runtime_version": "2026.9.5",
+    "source": "openclaw/plugin-sdk/models-provider-runtime#buildModelsProviderData",
+    "captured_at": "2026-10-01T00:00:00.000Z",
+    "agent_id": null
+  },
+  "models": [
+    {
+      "id": "ollama/qwen3:30b",
+      "provider_id": "ollama",
+      "model_id": "qwen3:30b",
+      "display_name": "qwen3:30b",
+      "available": true,
+      "availability_reason": null,
+      "selectable": true,
+      "capabilities": {
+        "tool_use": {
+          "value": true,
+          "basis": "declared",
+          "detail": "Catalog row declares compat.supportsTools=true."
+        },
+        "structured_output": {
+          "value": true,
+          "basis": "derived",
+          "detail": "The Agent Browser bridge returns schema-validated JSON or fails closed. This is an adapter guarantee, not evidence of provider constrained decoding. See structured_output_transport: actual schema delivery is unverified."
+        },
+        "structured_output_transport": {
+          "value": null,
+          "basis": "absent",
+          "detail": "The catalog declares supportsJsonSchemaResponseFormat=true. The public model descriptor does not identify the transport selected after auth resolution; schema delivery and constrained decoding are unverified. The bridge requests a schema and validates every answer, failing closed on nonconformance."
+        },
+        "reasoning": {
+          "value": true,
+          "basis": "declared",
+          "detail": "Catalog row declares reasoning=true."
+        },
+        "multimodal": {
+          "value": false,
+          "basis": "declared",
+          "detail": "Accepted input modalities: text."
+        }
+      },
+      "limits": {
+        "context_tokens": 65536,
+        "native_context_window": 262144,
+        "max_output_tokens": null
+      },
+      "properties": {
+        "local": true,
+        "privacy_class": null,
+        "cost_class": null,
+        "status": null,
+        "tags": [
+          "host-default",
+          "host-picker"
+        ]
+      }
+    }
+  ],
+  "notes": []
+}

@@ -1,0 +1,1 @@
+python experiments/contract_overhead/benchmark.py --warmup 2 --batches 1 --iterations 5 --component-warmup 2 --component-iterations 5 --label smoke

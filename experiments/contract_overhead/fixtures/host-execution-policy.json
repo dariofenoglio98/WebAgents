@@ -1,0 +1,11 @@
+{
+  "totalTokens": 180000,
+  "maxRemoteCalls": 45,
+  "maxParallelWorkers": 3,
+  "maxOutputTokensPerCall": 16000,
+  "runTimeoutSeconds": 4500,
+  "modelCallTimeoutSeconds": 1200,
+  "requireVerifiedHostRuntime": true,
+  "maxCallsPerTool": 32,
+  "maxToolResponseBytes": 524288
+}

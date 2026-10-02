@@ -1,0 +1,161 @@
+{
+  "schema": "agentpkg-host-tool-registry-v0",
+  "host": {
+    "runtime": "openclaw",
+    "runtime_version": "2026.9.5",
+    "source": "openclaw plugin tool registry",
+    "captured_at": "2026-10-01T00:00:00.000Z",
+    "agent_id": null
+  },
+  "bindings": [
+    {
+      "id": "openclaw:citation-resolver:1",
+      "tool_id": "citation-resolver",
+      "binding": "citation.resolve",
+      "implementation_kind": "json_http",
+      "implementation_id": "openclaw.tool.json_http",
+      "implementation_version": "0.1.0",
+      "display_name": "Citation Resolver",
+      "description": "One JSON POST to the configured Citation Resolver origin. No other request shape, path, method or destination is reachable through this binding.",
+      "remote": true,
+      "available": true,
+      "availability_reason": null,
+      "enabled": true,
+      "endpoint": {
+        "origin": "https://webagents-citation-resolver-production.up.railway.app",
+        "path": "/resolve",
+        "method": "POST"
+      },
+      "contract": {
+        "input_schema_sha256": "6ebcf0d39ab472236ac42275a84e9299c64d22273847898c95e46096363d9b83",
+        "output_schema_sha256": "0122dc2ac551935269f43020a1b97dcfabb2f180fe07fbdf02734dcb7c1a14f9",
+        "permission_kinds": [
+          "network"
+        ],
+        "side_effects": "read"
+      },
+      "limits": {
+        "timeout_seconds": 45,
+        "max_request_bytes": 16384,
+        "max_response_bytes": 524288,
+        "max_concurrent": 4,
+        "min_interval_ms": null
+      },
+      "credentials": {
+        "required": false,
+        "configured": false,
+        "source": null
+      }
+    },
+    {
+      "id": "openclaw:paper-reader:1",
+      "tool_id": "paper-reader",
+      "binding": "paper.read",
+      "implementation_kind": "selected_file",
+      "implementation_id": "openclaw.tool.selected_pdf_text",
+      "implementation_version": "0.1.0",
+      "display_name": "Selected PDF text",
+      "description": "Extracts page text from one PDF the person selected for this run, named by an opaque id. No path is accepted, no other file is readable, and nothing is fetched, rendered, executed or OCRed.",
+      "remote": false,
+      "available": true,
+      "availability_reason": null,
+      "enabled": true,
+      "endpoint": null,
+      "contract": {
+        "input_schema_sha256": "5b1df5dc0d13ca9a8b76cce86d93639f2b13baf3eb66ec895a725fc9169686ca",
+        "output_schema_sha256": "4feee1362ccba94d82ffbd56e106525c1fab7643e664172d63469ec241ab3167",
+        "permission_kinds": [
+          "files.read"
+        ],
+        "side_effects": "read"
+      },
+      "limits": {
+        "timeout_seconds": 20,
+        "max_request_bytes": 1024,
+        "max_response_bytes": 524288,
+        "max_concurrent": 2,
+        "min_interval_ms": null
+      },
+      "credentials": {
+        "required": false,
+        "configured": false,
+        "source": null
+      }
+    },
+    {
+      "id": "openclaw:scholarly-search:1",
+      "tool_id": "scholarly-search",
+      "binding": "scholarly.search",
+      "implementation_kind": "json_http",
+      "implementation_id": "openclaw.tool.crossref_works_search",
+      "implementation_version": "0.2.0",
+      "display_name": "Crossref works search",
+      "description": "One GET to https://api.crossref.org/works with exactly four parameters — query.bibliographic, rows, a fixed field selection and a fixed filter to scholarly work types — whose names and fixed values are host code. The answer is reduced to the declared search result, with markup rendered to text as the Citation Resolver renders the same Crossref fields.",
+      "remote": true,
+      "available": true,
+      "availability_reason": null,
+      "enabled": true,
+      "endpoint": {
+        "origin": "https://api.crossref.org",
+        "path": "/works",
+        "method": "GET"
+      },
+      "contract": {
+        "input_schema_sha256": "f8a6f920b23bf1731a85d5275c10eee77a9d055fb14917be114c1b9e8249baf2",
+        "output_schema_sha256": "eb83100404221fd9a489046d6741a046aae07c31c672ab6dc2daabffeda3c9ee",
+        "permission_kinds": [
+          "network"
+        ],
+        "side_effects": "read"
+      },
+      "limits": {
+        "timeout_seconds": 25,
+        "max_request_bytes": 4096,
+        "max_response_bytes": 524288,
+        "max_concurrent": 1,
+        "min_interval_ms": 1000
+      },
+      "credentials": {
+        "required": false,
+        "configured": false,
+        "source": null
+      }
+    },
+    {
+      "id": "openclaw:test.echo:1",
+      "tool_id": "test.echo",
+      "binding": "test.echo.builtin",
+      "implementation_kind": "local_builtin",
+      "implementation_id": "openclaw.tool.echo",
+      "implementation_version": "0.1.0",
+      "display_name": "Echo (host conformance implementation)",
+      "description": "Returns its input unchanged. Performs no I/O and reaches nothing.",
+      "remote": false,
+      "available": true,
+      "availability_reason": null,
+      "enabled": true,
+      "endpoint": null,
+      "contract": {
+        "input_schema_sha256": null,
+        "output_schema_sha256": null,
+        "permission_kinds": [
+          "files.read"
+        ],
+        "side_effects": "read"
+      },
+      "limits": {
+        "timeout_seconds": 10,
+        "max_request_bytes": 16384,
+        "max_response_bytes": 524288,
+        "max_concurrent": 8,
+        "min_interval_ms": null
+      },
+      "credentials": {
+        "required": false,
+        "configured": false,
+        "source": null
+      }
+    }
+  ],
+  "notes": []
+}

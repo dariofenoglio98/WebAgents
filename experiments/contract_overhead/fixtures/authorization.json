@@ -1,0 +1,26 @@
+{
+  "note": "Pre-recorded user decisions, applied as one authorize call per run. They are the decisions the README demo walk-through tells a person to make: every permission the run needs set to 'Allow for session', files.pdfs left on 'Deny' (no PDFs are selected), and every declared tool approved.",
+  "packages": {
+    "org.webagents.meeting-agenda": {
+      "decisions": {
+        "memory.session": "session",
+        "model.reasoning": "session"
+      },
+      "tool_approvals": {}
+    },
+    "org.webagents.literature-review": {
+      "decisions": {
+        "files.pdfs": "deny",
+        "memory.session": "session",
+        "model.reasoning": "session",
+        "network.citations": "session",
+        "network.scholarly": "session"
+      },
+      "tool_approvals": {
+        "citation-resolver": true,
+        "paper-reader": true,
+        "scholarly-search": true
+      }
+    }
+  }
+}
