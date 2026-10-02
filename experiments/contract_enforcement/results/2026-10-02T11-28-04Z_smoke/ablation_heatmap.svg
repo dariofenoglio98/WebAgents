@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="722" height="144" font-family="Helvetica, Arial, sans-serif" font-size="12">
+<text x="190" y="20">Explicit-block rate of each family's violations, per profile</text>
+<text x="222.0" y="34" text-anchor="middle">F1</text>
+<text x="286.0" y="34" text-anchor="middle">F2</text>
+<text x="350.0" y="34" text-anchor="middle">F3</text>
+<text x="414.0" y="34" text-anchor="middle">F4</text>
+<text x="478.0" y="34" text-anchor="middle">F5</text>
+<text x="542.0" y="34" text-anchor="middle">F6</text>
+<text x="606.0" y="34" text-anchor="middle">F7</text>
+<text x="670.0" y="34" text-anchor="middle">F8</text>
+<text x="182" y="76.0" text-anchor="end">Full</text>
+<rect x="190" y="40" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="221.0" y="76.0" text-anchor="middle">100</text>
+<rect x="254" y="40" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="285.0" y="76.0" text-anchor="middle">100</text>
+<rect x="318" y="40" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="349.0" y="76.0" text-anchor="middle">100</text>
+<rect x="382" y="40" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="413.0" y="76.0" text-anchor="middle">100</text>
+<rect x="446" y="40" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="477.0" y="76.0" text-anchor="middle">100</text>
+<rect x="510" y="40" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="541.0" y="76.0" text-anchor="middle">100</text>
+<rect x="574" y="40" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="605.0" y="76.0" text-anchor="middle">100</text>
+<rect x="638" y="40" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="669.0" y="76.0" text-anchor="middle">100</text>
+</svg>

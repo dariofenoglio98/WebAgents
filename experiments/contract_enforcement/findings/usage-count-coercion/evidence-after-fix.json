@@ -1,0 +1,166 @@
+{
+ "agentpkg": "agentpkg/src/agentpkg",
+ "plugin": "openclaw-agent-browser/src (compiled, unpatched)",
+ "runs": {
+  "literature-review/plan/at_cap": {
+   "call_refused_with": null,
+   "charged_tokens": 12532,
+   "honest_tokens": 666,
+   "host_usage_report": {
+    "inputTokens": 532,
+    "outputTokens": 12000,
+    "totalTokens": 12532
+   },
+   "run_status": "completed",
+   "undercharged_by": -11866
+  },
+  "literature-review/plan/fractional_count": {
+   "call_refused_with": "model_usage_invalid",
+   "charged_tokens": null,
+   "honest_tokens": 666,
+   "host_usage_report": {
+    "inputTokens": 532,
+    "outputTokens": 134.5,
+    "totalTokens": 666
+   },
+   "run_status": "failed",
+   "undercharged_by": null
+  },
+  "literature-review/plan/missing": {
+   "call_refused_with": "model_usage_unavailable",
+   "charged_tokens": null,
+   "honest_tokens": 666,
+   "host_usage_report": {
+    "totalTokens": 0
+   },
+   "run_status": "failed",
+   "undercharged_by": null
+  },
+  "literature-review/plan/negative_count": {
+   "call_refused_with": "model_usage_invalid",
+   "charged_tokens": null,
+   "honest_tokens": 666,
+   "host_usage_report": {
+    "inputTokens": 532,
+    "outputTokens": -5,
+    "totalTokens": 527
+   },
+   "run_status": "failed",
+   "undercharged_by": null
+  },
+  "literature-review/plan/negative_count_without_total": {
+   "call_refused_with": "model_usage_invalid",
+   "charged_tokens": null,
+   "honest_tokens": 666,
+   "host_usage_report": {
+    "inputTokens": 532,
+    "outputTokens": -5
+   },
+   "run_status": "failed",
+   "undercharged_by": null
+  },
+  "literature-review/plan/none": {
+   "call_refused_with": null,
+   "charged_tokens": 666,
+   "honest_tokens": 666,
+   "host_usage_report": {
+    "inputTokens": 532,
+    "outputTokens": 134,
+    "totalTokens": 666
+   },
+   "run_status": "completed",
+   "undercharged_by": 0
+  },
+  "literature-review/plan/string_count_without_total": {
+   "call_refused_with": "model_usage_invalid",
+   "charged_tokens": null,
+   "honest_tokens": 666,
+   "host_usage_report": {
+    "inputTokens": 532,
+    "outputTokens": "134"
+   },
+   "run_status": "failed",
+   "undercharged_by": null
+  },
+  "meeting-agenda/plan/at_cap": {
+   "call_refused_with": null,
+   "charged_tokens": 12435,
+   "honest_tokens": 477,
+   "host_usage_report": {
+    "inputTokens": 435,
+    "outputTokens": 12000,
+    "totalTokens": 12435
+   },
+   "run_status": "completed",
+   "undercharged_by": -11958
+  },
+  "meeting-agenda/plan/fractional_count": {
+   "call_refused_with": "model_usage_invalid",
+   "charged_tokens": null,
+   "honest_tokens": 477,
+   "host_usage_report": {
+    "inputTokens": 435,
+    "outputTokens": 42.5,
+    "totalTokens": 477
+   },
+   "run_status": "failed",
+   "undercharged_by": null
+  },
+  "meeting-agenda/plan/missing": {
+   "call_refused_with": "model_usage_unavailable",
+   "charged_tokens": null,
+   "honest_tokens": 477,
+   "host_usage_report": {
+    "totalTokens": 0
+   },
+   "run_status": "failed",
+   "undercharged_by": null
+  },
+  "meeting-agenda/plan/negative_count": {
+   "call_refused_with": "model_usage_invalid",
+   "charged_tokens": null,
+   "honest_tokens": 477,
+   "host_usage_report": {
+    "inputTokens": 435,
+    "outputTokens": -5,
+    "totalTokens": 430
+   },
+   "run_status": "failed",
+   "undercharged_by": null
+  },
+  "meeting-agenda/plan/negative_count_without_total": {
+   "call_refused_with": "model_usage_invalid",
+   "charged_tokens": null,
+   "honest_tokens": 477,
+   "host_usage_report": {
+    "inputTokens": 435,
+    "outputTokens": -5
+   },
+   "run_status": "failed",
+   "undercharged_by": null
+  },
+  "meeting-agenda/plan/none": {
+   "call_refused_with": null,
+   "charged_tokens": 477,
+   "honest_tokens": 477,
+   "host_usage_report": {
+    "inputTokens": 435,
+    "outputTokens": 42,
+    "totalTokens": 477
+   },
+   "run_status": "completed",
+   "undercharged_by": 0
+  },
+  "meeting-agenda/plan/string_count_without_total": {
+   "call_refused_with": "model_usage_invalid",
+   "charged_tokens": null,
+   "honest_tokens": 477,
+   "host_usage_report": {
+    "inputTokens": 435,
+    "outputTokens": "42"
+   },
+   "run_status": "failed",
+   "undercharged_by": null
+  }
+ }
+}

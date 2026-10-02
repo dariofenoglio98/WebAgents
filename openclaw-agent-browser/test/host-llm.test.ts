@@ -292,6 +292,58 @@ describe("usage", () => {
     expect(outcome.usage.output_tokens).toBeNull();
     expect(outcome.usage.cost_usd).toBeNull();
   });
+
+  const REQUEST = {
+    modelId: "acme/big",
+    system: "s",
+    user: "u",
+    outputSchema: SCHEMA,
+    maxOutputTokens: 64,
+  };
+
+  // OpenClaw 2026.9.5 hands over each bucket either absent or as a non-negative
+  // integer. Anything else is a malformed report: it must not reach the router
+  // looking like "not reported", where it would be charged as nothing.
+  it.each([
+    ["a negative output count", { inputTokens: 532, outputTokens: -5, totalTokens: 527 }],
+    ["a negative output count with no total", { inputTokens: 532, outputTokens: -5 }],
+    ["an output count that is a string", { inputTokens: 532, outputTokens: "134" }],
+    ["an output count that is NaN", { inputTokens: 532, outputTokens: Number.NaN }],
+    ["an infinite output count", { inputTokens: 532, outputTokens: Number.POSITIVE_INFINITY }],
+    ["a fractional output count", { inputTokens: 532, outputTokens: 134.5 }],
+    ["a negative total", { inputTokens: 532, outputTokens: 134, totalTokens: -1 }],
+    ["a non-numeric input count", { inputTokens: "532", outputTokens: 134 }],
+    ["a negative cache bucket", { inputTokens: 532, outputTokens: 134, cacheReadTokens: -40 }],
+    ["a boolean count", { inputTokens: 532, outputTokens: true }],
+    ["a negative cost", { inputTokens: 532, outputTokens: 134, costUsd: -0.01 }],
+  ])("refuses %s as model_usage_invalid, without echoing it", async (_label, usage) => {
+    const { host } = llm({ usage });
+    const failure = await completeWithBoundModel(host, REQUEST).catch((error) => error);
+    expect(failure).toBeInstanceOf(AgentBrowserError);
+    expect(failure.code).toBe("model_usage_invalid");
+    const said = `${failure.message} ${failure.detail ?? ""}`;
+    for (const value of Object.values(usage)) expect(said).not.toContain(String(value));
+  });
+
+  it.each([
+    ["OpenAI-like usage", { inputTokens: 532, outputTokens: 134, totalTokens: 666, costUsd: 0.001 }],
+    ["Ollama-like usage", { inputTokens: 532, outputTokens: 134 }],
+    ["a legitimately zero bucket", { inputTokens: 532, outputTokens: 0, cacheReadTokens: 0, totalTokens: 532 }],
+    ["a total-only report", { totalTokens: 666 }],
+  ])("passes %s through exactly", async (_label, usage) => {
+    const { host } = llm({ usage });
+    const outcome = await completeWithBoundModel(host, REQUEST);
+    expect(outcome.usage.input_tokens).toBe(usage.inputTokens ?? null);
+    expect(outcome.usage.output_tokens).toBe(usage.outputTokens ?? null);
+    expect(outcome.usage.total_tokens).toBe(usage.totalTokens ?? null);
+  });
+
+  it("reads an explicit null bucket as not reported, not as zero", async () => {
+    const { host } = llm({ usage: { inputTokens: 532, outputTokens: null, totalTokens: 666 } });
+    const outcome = await completeWithBoundModel(host, REQUEST);
+    expect(outcome.usage.output_tokens).toBeNull();
+    expect(outcome.usage.total_tokens).toBe(666);
+  });
 });
 
 describe("failures", () => {

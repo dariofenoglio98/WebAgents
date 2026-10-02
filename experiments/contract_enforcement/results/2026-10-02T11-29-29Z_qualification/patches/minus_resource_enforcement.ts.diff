@@ -1,0 +1,64 @@
+--- a/bridge-core.ts
++++ b/bridge-core.ts
+@@ -172,5 +172,5 @@
+     !Number.isSafeInteger(maxOutputTokens) ||
+     maxOutputTokens <= 0 ||
+-    maxOutputTokens > Math.min(limits.maxOutputTokens, MAX_OUTPUT_TOKENS)
++    ablatedNever() /* ABLATED B.bridge.output_cap */
+   ) {
+     throw violation("model.complete max_output_tokens is missing or out of range");
+@@ -284,5 +284,5 @@
+   /** Run one bounded session: start, drive, always stop. */
+   protected async session<T>(drive: () => Promise<T>): Promise<T> {
+-    const deadline = AbortSignal.timeout(this.limits.sessionTimeoutMs);
++    const deadline = AbortSignal.timeout(2_147_483_647); // ABLATED B.bridge.session_timeout
+     const onTimeout = () =>
+       this.fail(
+@@ -458,5 +458,5 @@
+   ): Promise<Record<string, unknown>> {
+     const request = readCompleteParams(params, this.limits);
+-    const timeout = AbortSignal.timeout(this.limits.completionTimeoutMs);
++    const timeout = AbortSignal.timeout(2_147_483_647); // ABLATED B.bridge.completion_timeout
+     const outcome = await completeWithBoundModel(this.options.llm, {
+       // The binding is this process's, not the child's: the child never names
+@@ -500,2 +500,7 @@
+   }
+ }
++
++// contract_enforcement experiment ablation helper: always false.
++function ablatedNever(): boolean {
++  return false;
++}
+--- a/execution.ts
++++ b/execution.ts
+@@ -550,5 +550,5 @@
+     }
+     const bytes = Buffer.byteLength(serialized);
+-    if (bytes > MAX_INPUT_BYTES) {
++    if (ablatedNever() /* ABLATED B.start.input_size */ && (bytes > MAX_INPUT_BYTES)) {
+       throw new AgentBrowserError(
+         "invalid_request",
+@@ -1425,2 +1425,7 @@
+   };
+ }
++
++// contract_enforcement experiment ablation helper: always false.
++function ablatedNever(): boolean {
++  return false;
++}
+--- a/tool-broker.ts
++++ b/tool-broker.ts
+@@ -499,5 +499,5 @@
+     if (signal.aborted) throw toolError(TOOL_ERRORS.cancelled, "the tool call was cancelled");
+     const timeoutMs = Math.max(1, Math.min(bound.timeoutSeconds, definition.timeoutSeconds)) * 1000;
+-    const deadline = AbortSignal.timeout(timeoutMs);
++    const deadline = AbortSignal.timeout(2_147_483_647); // ABLATED B.broker.file_timeout
+     try {
+       return await this.options.pdfReader(data, AbortSignal.any([signal, deadline]));
+@@ -592,5 +592,5 @@
+     if (signal.aborted) throw toolError(TOOL_ERRORS.cancelled, "the tool call was cancelled");
+     const timeoutMs = Math.max(1, Math.min(bound.timeoutSeconds, definition.timeoutSeconds)) * 1000;
+-    const deadline = AbortSignal.timeout(timeoutMs);
++    const deadline = AbortSignal.timeout(2_147_483_647); // ABLATED B.broker.http_timeout
+     const transport = this.options.transport ?? nodeToolTransport;
+     let answer: Awaited<ReturnType<HttpTransport>>;

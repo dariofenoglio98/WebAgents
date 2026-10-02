@@ -1,0 +1,44 @@
+{
+ "budget": 1,
+ "builds": {
+  "full": {
+   "agentpkg_key": "production",
+   "agentpkg_root": "agentpkg/src/agentpkg",
+   "browser_policy": {},
+   "build_seconds": 0.01,
+   "python_patches": [],
+   "pythonpath": "agentpkg/src",
+   "typescript": "experiments/contract_enforcement/.cache/builds/ts-full-7d41d9616d13b64d4f67",
+   "typescript_key": "ts-full-7d41d9616d13b64d4f67",
+   "typescript_patches": []
+  }
+ },
+ "calibration_sha256": "a86caad12924daac9b9aba986fa3460ab78afe832ecb243352c2b2e31374e288",
+ "catalog_sha256": "2a93d0e768ba011ae2b126dc0b689d228ff0a8c909eedcea4596c5549256b908",
+ "counts": {
+  "controls": 100,
+  "families": 8,
+  "packages": [
+   "literature-review",
+   "meeting-agenda"
+  ],
+  "templates": 61,
+  "violations": 100
+ },
+ "execution_order": "Each profile's cases are split into --jobs shards by catalog index (index mod shards); a worker runs its shard in catalog order; shards are queued profile by profile in the order of `profiles`. Each record carries its shard and sequence number.",
+ "expected_executions": 200,
+ "experiment": "contract_enforcement",
+ "experiment_code_sha256": "443e348f3565f3f7ad6aeda6337853d99cddf95f1478e1a83cf26d02d0ac44d4",
+ "experiment_version": "1.0.0",
+ "jobs": 4,
+ "limit": 1,
+ "manifest_sha256": "ea50433afe24eaa5ef0a77efd01159b0b3a8512d2bc5105c638981c9236388ec",
+ "preset": "smoke",
+ "preset_description": "One variant per template and package, full system only: does every path run?",
+ "profiles": [
+  "full"
+ ],
+ "seed": 20261002,
+ "started_utc": "2026-10-02T11:28:46.289260+00:00",
+ "threat_model_version": "1.0"
+}

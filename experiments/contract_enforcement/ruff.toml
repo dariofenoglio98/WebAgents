@@ -1,0 +1,6 @@
+# The project's own lint settings (agentpkg/pyproject.toml), for this experiment.
+extend = "../../agentpkg/pyproject.toml"
+
+[lint.per-file-ignores]
+# Each ablation site is a verbatim production source line that its patch must match exactly.
+"harness/ablations.py" = ["E501"]

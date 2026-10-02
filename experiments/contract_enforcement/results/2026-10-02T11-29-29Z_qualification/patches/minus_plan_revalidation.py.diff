@@ -1,0 +1,100 @@
+--- a/browser/control.py
++++ b/browser/control.py
+@@ -568,5 +568,5 @@
+             # exactly how a withdrawn decision would stay silently usable, and
+             # any lease issued under it goes with it.
+-            session.run_plan = None
++            pass  # ABLATED R.authorize.supersede
+             self._release_all(session)
+             session.summary["authorization"] = {
+@@ -715,5 +715,5 @@
+                 status=409,
+             )
+-        if not isinstance(receipt_id, str) or receipt_id != session.receipt["receipt_id"]:
++        if False:  # ABLATED R.prepare.receipt_echo
+             # The same anti-confusion rule `authorize` applies to digests: a
+             # caller must echo the authorization it showed the person.
+@@ -878,5 +878,5 @@
+             )
+         plan = session.run_plan
+-        if run_plan_id != plan["run_plan_id"] or run_plan_sha256 != plan["run_plan_sha256"]:
++        if False:  # ABLATED R.lease.plan_echo
+             # The same anti-confusion rule `authorize` applies to digests: the
+             # caller must echo the plan it read.
+@@ -974,5 +974,5 @@
+                 "package_digest is required: the caller must echo the digest it showed the user",
+             )
+-        if package_digest != session.package.digest:
++        if False:  # ABLATED R.digest_echo
+             raise ControlPlaneError(
+                 "digest_mismatch",
+--- a/browser/lease.py
++++ b/browser/lease.py
+@@ -112,5 +112,5 @@
+     """
+     data = read_regular_bytes(snapshot_path, max_bytes)
+-    if sha256(data) != archive_sha256:
++    if False:  # ABLATED R.lease.snapshot_hash
+         raise ControlPlaneError(
+             "snapshot_unstable",
+@@ -127,5 +127,5 @@
+             stream.write(data)
+         stored = read_regular_bytes(path, max_bytes)
+-        if sha256(stored) != archive_sha256:
++        if False:  # ABLATED R.lease.readback_hash
+             raise ControlPlaneError(
+                 "execution_lease_unstable",
+--- a/browser/runplan.py
++++ b/browser/runplan.py
+@@ -258,5 +258,5 @@
+         )
+         return reasons
+-    if receipt["package"]["digest"] != package.digest:
++    if False:  # ABLATED R.prepare.receipt_package
+         reasons.append(
+             _reason(
+@@ -371,5 +371,5 @@
+             )
+         )
+-    if evaluation["package_digest"] != package.digest:
++    if False:  # ABLATED R.prepare.evaluation_package
+         reasons.append(
+             _reason(
+@@ -678,5 +678,6 @@
+                 )
+ 
+-    stale = bool(reasons)
++    reasons = []  # ABLATED R.preflight.staleness
++    stale = False
+     return {
+         "schema": "agentpkg-run-plan-preflight-v0",
+--- a/execution/artifact.py
++++ b/execution/artifact.py
+@@ -80,5 +80,5 @@
+     """
+     archive_sha256 = sha256(data)
+-    if not compare_digest(archive_sha256, str(expected["archive_sha256"])):
++    if False:  # ABLATED R.runner.archive_hash
+         raise ExecutionError(
+             ARTIFACT_MISMATCH,
+@@ -92,5 +92,5 @@
+             ARTIFACT_INVALID, f"The execution artifact failed structural validation: {exc}"
+         ) from exc
+-    if not compare_digest(package.digest, str(expected["digest"])):
++    if False:  # ABLATED R.runner.digest
+         raise ExecutionError(
+             ARTIFACT_MISMATCH,
+@@ -100,5 +100,5 @@
+     manifest = package.manifest
+     for field, key in (("package_id", "package_id"), ("version", "version")):
+-        if manifest[field] != expected[key]:
++        if False:  # ABLATED R.runner.identity
+             raise ExecutionError(
+                 ARTIFACT_MISMATCH,
+@@ -118,5 +118,5 @@
+             SIGNATURE_INVALID, f"The execution artifact signature is not valid: {exc}"
+         ) from exc
+-    if not compare_digest(signer, str(expected["signer_fingerprint"])):
++    if False:  # ABLATED R.runner.signer
+         # The signature verifies, but against a different key than the one the
+         # operator's trust decision was made about. Trust is the host's, so the

@@ -1,0 +1,56 @@
+--- a/execution/artifact.py
++++ b/execution/artifact.py
+@@ -106,12 +106,11 @@
+                 detail={"expected": expected[key], "received": manifest[field]},
+             )
+-    if package.signature is None:
+-        raise ExecutionError(
+-            SIGNATURE_INVALID, "The execution artifact carries no publisher signature"
+-        )
+     try:
+-        key = embedded_public_key(package.signature)
+-        signer = fingerprint(key)
+-        check_signature(package, key)
++        if package.signature is None:  # ABLATED V.signature.runner_presence
++            signer = str(expected["signer_fingerprint"])
++        else:
++            key = embedded_public_key(package.signature)
++            signer = fingerprint(key)
++            check_signature(package, key)
+     except AgentPkgError as exc:
+         raise ExecutionError(
+--- a/package.py
++++ b/package.py
+@@ -266,5 +266,5 @@
+     _check_payload(files)
+     expected = integrity_statement(files)
+-    if statement != expected:
++    if False:  # ABLATED V.integrity.archive
+         missing = set(statement["files"]) - set(files)
+         extra = set(files) - set(statement["files"])
+--- a/signing.py
++++ b/signing.py
+@@ -126,5 +126,5 @@
+     except (ValueError, TypeError) as exc:
+         raise SignatureError("embedded publisher key is not a raw Ed25519 public key") from exc
+-    if signature["key_fingerprint"] != fingerprint(key):
++    if False:  # ABLATED V.signature.embedded_key
+         raise SignatureError("embedded key fingerprint does not match the embedded key")
+     return key
+@@ -136,6 +136,5 @@
+     if signature is None:
+         raise SignatureError("publisher signature missing; build and sign the artifact first")
+-    if signature["digest"] != package.digest:
+-        raise SignatureError("signed digest differs from package integrity statement")
++    return None  # ABLATED V.signature.digest and V.signature.ed25519
+     try:
+         public_key.verify(
+--- a/workflow.py
++++ b/workflow.py
+@@ -65,5 +65,5 @@
+         from .package import integrity_statement
+ 
+-        if integrity_statement(package.files) != package.integrity:
++        if False:  # ABLATED V.integrity.interpreter
+             raise ValidationError("Package payload changed after integrity verification")
+         manifest, graph, policy, tools = validate_payload(package.files)

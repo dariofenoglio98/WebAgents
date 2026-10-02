@@ -231,8 +231,33 @@ export function responseFormatFor(
   };
 }
 
-function finite(value: unknown): number | null {
-  return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null;
+/**
+ * One usage bucket as the host reported it, keeping three cases apart.
+ *
+ * Absent (`undefined`, or `null`) is "not reported" and becomes `null`; the
+ * router decides whether the call can still be accounted for. A present value
+ * must be a non-negative integer (a cost: a non-negative finite number), which
+ * is all OpenClaw's own usage normalization ever produces. Anything else is a
+ * malformed report. It is refused here, by field name only, instead of being
+ * folded into "not reported", where the router would charge it as nothing.
+ */
+function bucket(usage: Record<string, unknown>, field: keyof LlmUsage, integer = true): number | null {
+  const value = usage[field];
+  if (value === undefined || value === null) return null;
+  if (
+    typeof value === "number" &&
+    Number.isFinite(value) &&
+    value >= 0 &&
+    (!integer || Number.isSafeInteger(value))
+  ) {
+    return value;
+  }
+  throw new AgentBrowserError(
+    "model_usage_invalid",
+    "The host reported unusable usage",
+    `The host's ${field} for this completion is not a non-negative ${integer ? "integer" : "number"}, ` +
+      "so the call cannot be accounted for. Nothing it returned is used.",
+  );
 }
 
 /** Translate OpenClaw's completion failure codes into stable browser codes. */
@@ -306,7 +331,15 @@ export async function completeWithBoundModel(
         "Nothing is returned from a model the person did not choose.",
     );
   }
-  const usage = result.usage ?? {};
+  const usage = (result.usage ?? {}) as Record<string, unknown>;
+  const counted = {
+    input_tokens: bucket(usage, "inputTokens"),
+    output_tokens: bucket(usage, "outputTokens"),
+    cache_read_tokens: bucket(usage, "cacheReadTokens"),
+    cache_write_tokens: bucket(usage, "cacheWriteTokens"),
+    total_tokens: bucket(usage, "totalTokens"),
+    cost_usd: bucket(usage, "costUsd", false),
+  };
   return {
     text: typeof result.text === "string" ? result.text : "",
     modelId: invoked,
@@ -321,13 +354,6 @@ export async function completeWithBoundModel(
       ? constrained.detail
       : "This output schema cannot carry a provider-native constraint; the adapter parses and " +
         "validates the response instead.",
-    usage: {
-      input_tokens: finite(usage.inputTokens),
-      output_tokens: finite(usage.outputTokens),
-      cache_read_tokens: finite(usage.cacheReadTokens),
-      cache_write_tokens: finite(usage.cacheWriteTokens),
-      total_tokens: finite(usage.totalTokens),
-      cost_usd: finite(usage.costUsd),
-    },
+    usage: counted,
   };
 }

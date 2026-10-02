@@ -1,0 +1,121 @@
+--- a/hostbridge/router.py
++++ b/hostbridge/router.py
+@@ -516,5 +516,5 @@
+         }
+         termination = classify_termination(stop_reason)
+-        if termination is not None:
++        if False:  # ABLATED O.router.termination
+             raise BridgeError(*termination, audit_facts=facts)
+         text = answer.get("text")
+@@ -533,5 +533,5 @@
+         validator = Draft202012Validator(rendered["output_schema"])
+         try:
+-            validator.validate(output)
++            pass  # ABLATED O.router.output_schema
+         except JsonValidationError as exc:
+             raise BridgeError(
+--- a/runtime.py
++++ b/runtime.py
+@@ -432,5 +432,5 @@
+                 result = await handler(ctx, copy.deepcopy(payload))
+             try:
+-                validate_instance(self.package.files, tool["output_schema"], result, "tool output")
++                pass  # ABLATED O.runtime.tool_output_schema
+             except ValidationError as exc:
+                 exc.code = "tool_response_invalid"
+@@ -630,5 +630,5 @@
+             self._check_context(ctx)
+             validate_document(result, "model-result", "model response")
+-            Draft202012Validator(output_schema).validate(result["output"])
++            pass  # ABLATED O.runtime.model_output_schema
+             self.record(
+                 "model.completed",
+--- a/workflow.py
++++ b/workflow.py
+@@ -116,10 +116,5 @@
+                 self._event("node.skipped", node, ctx, reason="condition_false")
+                 result = evaluate(node["otherwise"], env)
+-                validate_instance(
+-                    self.package.files,
+-                    node["output_schema"],
+-                    result,
+-                    f"node {node['id']} skipped output",
+-                )
++                pass  # ABLATED O.workflow.skipped_output
+                 return result
+         kind = node["type"]
+@@ -144,5 +139,5 @@
+                 raise WorkflowError(code, node["id"]) from exc
+             # Also use the closed package validator, including formats and local refs.
+-            if not validator.is_valid(result):
++            if False:  # ABLATED O.workflow.closed_validator
+                 raise WorkflowError("schema_validation", node["id"])
+         elif kind == "tool":
+@@ -212,10 +207,8 @@
+             from .workflow_assertions import check_assertions
+ 
+-            check_assertions(node.get("assertions", []), env)
++            pass  # ABLATED O.workflow.assertions
+             result = value
+         try:
+-            validate_instance(
+-                self.package.files, node["output_schema"], result, f"node {node['id']} output"
+-            )
++            pass  # ABLATED O.workflow.node_output
+         except ValidationError as exc:
+             exc.failed_check = {"check": "output_schema", "schema": node["output_schema"]}
+@@ -284,7 +277,5 @@
+             raise ValidationError(f"node {node['id']}: map input exceeds max_items or is not array")
+         for item in items:
+-            validate_instance(
+-                self.package.files, node["item_schema"], item, f"node {node['id']} item"
+-            )
++            pass  # ABLATED O.workflow.map_item
+         results = [None] * len(items)
+         cursor = 0
+@@ -309,7 +300,5 @@
+ 
+         await self._gather([consume() for _ in range(min(node["max_parallel"], len(items)))])
+-        validate_instance(
+-            self.package.files, node["output_schema"], results, f"node {node['id']} map output"
+-        )
++        pass  # ABLATED O.workflow.map_output
+         return results
+ 
+@@ -361,10 +350,5 @@
+                 if set(patch) - set(self.runtime.roles[role]["state_write"]):
+                     raise PolicyError("Node state write exceeds worker authorization")
+-            validate_instance(
+-                self.package.files,
+-                self.package.policy["memory"]["state_schema"],
+-                snapshot | patch,
+-                f"node {node['id']} state write",
+-            )
++            pass  # ABLATED O.workflow.state_write
+             self._event(
+                 "node.completed", node, output_hash=digest(result), state_keys=sorted(patch)
+@@ -422,10 +406,5 @@
+                         if node["type"] == "output":
+                             self._output = result
+-                    validate_instance(
+-                        self.package.files,
+-                        self.package.policy["memory"]["state_schema"],
+-                        next_state,
+-                        "state commit",
+-                    )
++                    pass  # ABLATED O.workflow.state_commit
+                     state = next_state
+                     rt.state = copy.deepcopy(state)
+@@ -439,10 +418,8 @@
+                         state_hash=digest(state),
+                     )
+-            validate_instance(
+-                self.package.files, self.graph["output_schema"], self._output, "workflow output"
+-            )
++            pass  # ABLATED O.workflow.output
+             for export in self.graph.get("exports", []):
+                 value = evaluate(export["value"], {"result": self._output})
+-                if export["format"] == "text" and not isinstance(value, str):
++                if False:  # ABLATED O.workflow.text_export
+                     raise ValidationError("Text exports must select strings")
+             rt.record("workflow.completed", profile="workflow.v0", output_hash=digest(self._output))

@@ -1,0 +1,10 @@
+family,family_name,full:n,full:VDR,full:SVR,full:IFR
+F1,Package verification,18,1.0,0.0,0.0
+F2,Publisher trust,6,1.0,0.0,0.0
+F3,Authorization,12,1.0,0.0,0.0
+F4,Requirements / compatibility,13,1.0,0.0,0.0
+F5,Plan binding / TOCTOU,13,1.0,0.0,0.0
+F6,Host mediation,11,1.0,0.0,0.0
+F7,Output / state integrity,12,1.0,0.0,0.0
+F8,Resource governance,15,1.0,0.0,0.0
+All,Overall,100,1.0,0.0,0.0

@@ -366,6 +366,16 @@ cost_usd      = costUsd, when the host reports one
 * **no usage means failure.** A host that reports nothing raises
   `model_usage_unavailable` rather than estimating; `Runtime.call_model` then
   charges the full reservation, which is the conservative outcome.
+* **an unreported count is not zero.** The charge must be established by the
+  report itself: an aggregate `totalTokens`, or both `inputTokens` and
+  `outputTokens`. A report that establishes neither (for example input only)
+  raises `model_usage_unavailable` and is charged the full reservation.
+* **a malformed count is refused, not dropped.** Each bucket is either absent
+  (`undefined` or `null`: not reported) or a non-negative integer (`costUsd`: a
+  non-negative number), which is all OpenClaw's own normalization produces. The
+  plugin refuses anything else (negative, fractional, non-finite, non-numeric)
+  as `model_usage_invalid`, naming only the field, and the router validates
+  every reported count again with the same rule.
 * **an overrun is reported, not hidden.** If the provider bills more output than
   the cap, the router returns the real number and the runtime halts.
 

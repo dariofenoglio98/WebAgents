@@ -1,0 +1,5463 @@
+{
+ "ablation_silent_violations": [
+  {
+   "boundary_reached": true,
+   "expected_stage": "verify",
+   "harness_problems": [],
+   "key": "minus_verification::F1.payload_edit_integrity/meeting-agenda/md_insert-cc23d3ecc1",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F1.payload_edit_integrity"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "verify",
+   "harness_problems": [],
+   "key": "minus_verification::F1.payload_edit_integrity/meeting-agenda/md_insert-3d91b50c29",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F1.payload_edit_integrity"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "verify",
+   "harness_problems": [],
+   "key": "minus_verification::F1.payload_edit_integrity/meeting-agenda/md_replace-76efcb5428",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F1.payload_edit_integrity"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "verify",
+   "harness_problems": [],
+   "key": "minus_verification::F1.payload_edit_integrity/literature-review/md_insert-e265a8f3de",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F1.payload_edit_integrity"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "verify",
+   "harness_problems": [],
+   "key": "minus_verification::F1.payload_edit_integrity/literature-review/md_insert-30fd9e9bcc",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F1.payload_edit_integrity"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "verify",
+   "harness_problems": [],
+   "key": "minus_verification::F1.payload_edit_integrity/literature-review/json_string-f0cb1a7cdf",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F1.payload_edit_integrity"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "verify",
+   "harness_problems": [],
+   "key": "minus_verification::F1.payload_edit_restated/meeting-agenda/md_replace-9a69f38417",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F1.payload_edit_restated"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "verify",
+   "harness_problems": [],
+   "key": "minus_verification::F1.payload_edit_restated/meeting-agenda/md_insert-e224eaef57",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F1.payload_edit_restated"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "verify",
+   "harness_problems": [],
+   "key": "minus_verification::F1.payload_edit_restated/meeting-agenda/md_replace-3330400ddc",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F1.payload_edit_restated"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "verify",
+   "harness_problems": [],
+   "key": "minus_verification::F1.payload_edit_restated/literature-review/json_string-ce5f655aa7",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F1.payload_edit_restated"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "verify",
+   "harness_problems": [],
+   "key": "minus_verification::F1.payload_edit_restated/literature-review/md_insert-54493e1473",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F1.payload_edit_restated"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "verify",
+   "harness_problems": [],
+   "key": "minus_verification::F1.payload_edit_restated/literature-review/md_replace-f345954a39",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F1.payload_edit_restated"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "verify",
+   "harness_problems": [],
+   "key": "minus_verification::F1.payload_edit_redigested/meeting-agenda/md_insert-dcffdacb92",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F1.payload_edit_redigested"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "verify",
+   "harness_problems": [],
+   "key": "minus_verification::F1.payload_edit_redigested/meeting-agenda/md_replace-9a69f38417",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F1.payload_edit_redigested"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "verify",
+   "harness_problems": [],
+   "key": "minus_verification::F1.payload_edit_redigested/meeting-agenda/md_replace-b10d2e9ff2",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F1.payload_edit_redigested"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "verify",
+   "harness_problems": [],
+   "key": "minus_verification::F1.payload_edit_redigested/literature-review/json_string-0634480a5a",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F1.payload_edit_redigested"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "verify",
+   "harness_problems": [],
+   "key": "minus_verification::F1.payload_edit_redigested/literature-review/md_insert-a9d343d17d",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F1.payload_edit_redigested"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "verify",
+   "harness_problems": [],
+   "key": "minus_verification::F1.payload_edit_redigested/literature-review/md_replace-39c4f0c954",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F1.payload_edit_redigested"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "verify",
+   "harness_problems": [],
+   "key": "minus_verification::F1.member_added/meeting-agenda/add-0",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F1.member_added"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "verify",
+   "harness_problems": [],
+   "key": "minus_verification::F1.member_added/meeting-agenda/add-1",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F1.member_added"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "verify",
+   "harness_problems": [],
+   "key": "minus_verification::F1.member_added/meeting-agenda/add-2",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F1.member_added"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "verify",
+   "harness_problems": [],
+   "key": "minus_verification::F1.member_added/literature-review/add-0",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F1.member_added"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "verify",
+   "harness_problems": [],
+   "key": "minus_verification::F1.member_added/literature-review/add-1",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F1.member_added"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "verify",
+   "harness_problems": [],
+   "key": "minus_verification::F1.member_added/literature-review/add-2",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F1.member_added"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "verify",
+   "harness_problems": [],
+   "key": "minus_verification::F1.member_removed/meeting-agenda/rm-0",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F1.member_removed"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "minus_verification::F8.usage_accounting/meeting-agenda/negative_count",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.usage_accounting"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "minus_verification::F8.usage_accounting/meeting-agenda/negative_count_without_total",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.usage_accounting"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "minus_verification::F8.usage_accounting/literature-review/negative_count_without_total",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.usage_accounting"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "trust",
+   "harness_problems": [],
+   "key": "minus_trust::F2.signer_not_pinned/meeting-agenda/shipped_unpinned",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F2.signer_not_pinned"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "trust",
+   "harness_problems": [],
+   "key": "minus_trust::F2.signer_not_pinned/meeting-agenda/unknown_key_publisher_pinned",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F2.signer_not_pinned"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "trust",
+   "harness_problems": [],
+   "key": "minus_trust::F2.signer_not_pinned/meeting-agenda/unknown_key_other_pins",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F2.signer_not_pinned"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "trust",
+   "harness_problems": [],
+   "key": "minus_trust::F2.signer_not_pinned/literature-review/shipped_unpinned",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F2.signer_not_pinned"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "trust",
+   "harness_problems": [],
+   "key": "minus_trust::F2.signer_not_pinned/literature-review/unknown_key_empty_store",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F2.signer_not_pinned"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "trust",
+   "harness_problems": [],
+   "key": "minus_trust::F2.signer_not_pinned/literature-review/unknown_key_publisher_pinned",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F2.signer_not_pinned"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "trust",
+   "harness_problems": [],
+   "key": "minus_trust::F2.pin_scope_mismatch/meeting-agenda/bound_to_other_publisher",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F2.pin_scope_mismatch"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "trust",
+   "harness_problems": [],
+   "key": "minus_trust::F2.pin_scope_mismatch/meeting-agenda/other_package_prefix",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F2.pin_scope_mismatch"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "trust",
+   "harness_problems": [],
+   "key": "minus_trust::F2.pin_scope_mismatch/literature-review/bound_to_other_publisher",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F2.pin_scope_mismatch"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "trust",
+   "harness_problems": [],
+   "key": "minus_trust::F2.pin_scope_mismatch/literature-review/other_package_prefix",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F2.pin_scope_mismatch"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "minus_trust::F8.usage_accounting/meeting-agenda/negative_count",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.usage_accounting"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "minus_trust::F8.usage_accounting/meeting-agenda/negative_count_without_total",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.usage_accounting"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "minus_trust::F8.usage_accounting/literature-review/negative_count_without_total",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.usage_accounting"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "authorize",
+   "harness_problems": [],
+   "key": "minus_authorization::F3.required_permission_denied/meeting-agenda/model.reasoning",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F3.required_permission_denied"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "authorize",
+   "harness_problems": [],
+   "key": "minus_authorization::F3.required_permission_denied/meeting-agenda/memory.session",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F3.required_permission_denied"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "authorize",
+   "harness_problems": [],
+   "key": "minus_authorization::F3.required_permission_denied/literature-review/network.scholarly",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": "tool_transport_error",
+    "code": "tool_transport_error",
+    "component": "mediation",
+    "source": "call",
+    "stage": "execute/tool",
+    "step": null
+   },
+   "template_id": "F3.required_permission_denied"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "authorize",
+   "harness_problems": [],
+   "key": "minus_authorization::F3.required_permission_denied/literature-review/network.citations",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": "tool_response_invalid",
+    "code": "tool_response_invalid",
+    "component": "validation",
+    "source": "call",
+    "stage": "execute/tool",
+    "step": null
+   },
+   "template_id": "F3.required_permission_denied"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "authorize",
+   "harness_problems": [],
+   "key": "minus_authorization::F3.required_permission_denied/literature-review/memory.session",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F3.required_permission_denied"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "authorize",
+   "harness_problems": [],
+   "key": "minus_authorization::F3.run_mode_permission_denied/literature-review/model.reasoning",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F3.run_mode_permission_denied"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "authorize",
+   "harness_problems": [],
+   "key": "minus_authorization::F3.tool_approval_withheld/literature-review/scholarly-search",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": "tool_approvals",
+    "code": "run_plan_stale",
+    "component": "authorization",
+    "source": "revalidate",
+    "stage": "revalidate",
+    "step": "start"
+   },
+   "template_id": "F3.tool_approval_withheld"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "authorize",
+   "harness_problems": [],
+   "key": "minus_authorization::F3.tool_approval_withheld/literature-review/citation-resolver",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": "tool_approvals",
+    "code": "run_plan_stale",
+    "component": "authorization",
+    "source": "revalidate",
+    "stage": "revalidate",
+    "step": "start"
+   },
+   "template_id": "F3.tool_approval_withheld"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "authorize",
+   "harness_problems": [],
+   "key": "minus_authorization::F3.tool_approval_withheld/literature-review/paper-reader",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": "tool_approvals",
+    "code": "run_plan_stale",
+    "component": "authorization",
+    "source": "revalidate",
+    "stage": "revalidate",
+    "step": "start"
+   },
+   "template_id": "F3.tool_approval_withheld"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "authorize",
+   "harness_problems": [],
+   "key": "minus_authorization::F3.once_grant_exceeded/meeting-agenda/model.reasoning",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F3.once_grant_exceeded"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "authorize",
+   "harness_problems": [],
+   "key": "minus_authorization::F3.once_grant_exceeded/meeting-agenda/memory.session",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F3.once_grant_exceeded"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "authorize",
+   "harness_problems": [],
+   "key": "minus_authorization::F3.once_grant_exceeded/literature-review/memory.session",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F3.once_grant_exceeded"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "authorize",
+   "harness_problems": [],
+   "key": "minus_authorization::F3.once_grant_exceeded/literature-review/model.reasoning",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F3.once_grant_exceeded"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "authorize",
+   "harness_problems": [],
+   "key": "minus_authorization::F3.once_grant_exceeded/literature-review/files.pdfs",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F3.once_grant_exceeded"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "revalidate",
+   "harness_problems": [],
+   "key": "minus_authorization::F3.selected_file_without_permission/literature-review/attached_pdf",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F3.selected_file_without_permission"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "execute/tool",
+   "harness_problems": [],
+   "key": "minus_authorization::F3.named_document_without_permission/literature-review/named_document",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": "tool_request_invalid",
+    "code": "tool_request_invalid",
+    "component": "mediation",
+    "source": "call",
+    "stage": "execute/tool",
+    "step": null
+   },
+   "template_id": "F3.named_document_without_permission"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "minus_authorization::F8.usage_accounting/meeting-agenda/negative_count",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.usage_accounting"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "minus_authorization::F8.usage_accounting/meeting-agenda/negative_count_without_total",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.usage_accounting"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "minus_authorization::F8.usage_accounting/literature-review/negative_count_without_total",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.usage_accounting"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "compatibility",
+   "harness_problems": [],
+   "key": "minus_compatibility::F4.model_context_insufficient/meeting-agenda/contextTokens-15999",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": "context_window",
+    "code": "context_window",
+    "component": "resource",
+    "source": "call",
+    "stage": "resource",
+    "step": null
+   },
+   "template_id": "F4.model_context_insufficient"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "compatibility",
+   "harness_problems": [],
+   "key": "minus_compatibility::F4.model_context_insufficient/literature-review/contextTokens-15999",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": "context_window",
+    "code": "context_window",
+    "component": "resource",
+    "source": "call",
+    "stage": "resource",
+    "step": null
+   },
+   "template_id": "F4.model_context_insufficient"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "compatibility",
+   "harness_problems": [],
+   "key": "minus_compatibility::F4.model_capability_missing/meeting-agenda/reasoning_false",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F4.model_capability_missing"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "compatibility",
+   "harness_problems": [],
+   "key": "minus_compatibility::F4.model_capability_missing/meeting-agenda/reasoning_absent",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F4.model_capability_missing"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "compatibility",
+   "harness_problems": [],
+   "key": "minus_compatibility::F4.model_capability_missing/literature-review/reasoning_false",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F4.model_capability_missing"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "compatibility",
+   "harness_problems": [],
+   "key": "minus_compatibility::F4.model_capability_missing/literature-review/reasoning_absent",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F4.model_capability_missing"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "revalidate",
+   "harness_problems": [],
+   "key": "minus_compatibility::F4.host_runtime_unverified/meeting-agenda/2026.9.4",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F4.host_runtime_unverified"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "revalidate",
+   "harness_problems": [],
+   "key": "minus_compatibility::F4.host_runtime_unverified/meeting-agenda/2026.10.0",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F4.host_runtime_unverified"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "revalidate",
+   "harness_problems": [],
+   "key": "minus_compatibility::F4.host_runtime_unverified/meeting-agenda/2027.1.0",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F4.host_runtime_unverified"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "revalidate",
+   "harness_problems": [],
+   "key": "minus_compatibility::F4.host_runtime_unverified/literature-review/2026.9.4",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F4.host_runtime_unverified"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "revalidate",
+   "harness_problems": [],
+   "key": "minus_compatibility::F4.host_runtime_unverified/literature-review/2026.10.0",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F4.host_runtime_unverified"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "revalidate",
+   "harness_problems": [],
+   "key": "minus_compatibility::F4.host_runtime_unverified/literature-review/2027.1.0",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F4.host_runtime_unverified"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "verify",
+   "harness_problems": [],
+   "key": "minus_compatibility::F4.runtime_too_old/meeting-agenda/min-0.2.3",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F4.runtime_too_old"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "verify",
+   "harness_problems": [],
+   "key": "minus_compatibility::F4.runtime_too_old/meeting-agenda/min-0.3.0",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F4.runtime_too_old"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "verify",
+   "harness_problems": [],
+   "key": "minus_compatibility::F4.runtime_too_old/meeting-agenda/min-1.0.0",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F4.runtime_too_old"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "verify",
+   "harness_problems": [],
+   "key": "minus_compatibility::F4.runtime_too_old/literature-review/min-0.2.3",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F4.runtime_too_old"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "verify",
+   "harness_problems": [],
+   "key": "minus_compatibility::F4.runtime_too_old/literature-review/min-0.3.0",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F4.runtime_too_old"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "verify",
+   "harness_problems": [],
+   "key": "minus_compatibility::F4.runtime_too_old/literature-review/min-1.0.0",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F4.runtime_too_old"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "compatibility",
+   "harness_problems": [],
+   "key": "minus_compatibility::F4.execution_profile_unsupported/literature-review/legacy_profile",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": "input_schema",
+    "code": "input_invalid",
+    "component": "validation",
+    "source": "start",
+    "stage": "revalidate",
+    "step": "start"
+   },
+   "template_id": "F4.execution_profile_unsupported"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "minus_compatibility::F8.usage_accounting/meeting-agenda/negative_count",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.usage_accounting"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "minus_compatibility::F8.usage_accounting/meeting-agenda/negative_count_without_total",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.usage_accounting"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "minus_compatibility::F8.usage_accounting/literature-review/negative_count_without_total",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.usage_accounting"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "prepare",
+   "harness_problems": [],
+   "key": "minus_plan_revalidation::F3.receipt_binding/meeting-agenda/stale_receipt",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F3.receipt_binding"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "prepare",
+   "harness_problems": [],
+   "key": "minus_plan_revalidation::F3.receipt_binding/meeting-agenda/foreign_receipt",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F3.receipt_binding"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "prepare",
+   "harness_problems": [],
+   "key": "minus_plan_revalidation::F3.receipt_binding/meeting-agenda/foreign_digest",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F3.receipt_binding"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "prepare",
+   "harness_problems": [],
+   "key": "minus_plan_revalidation::F3.receipt_binding/literature-review/stale_receipt",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F3.receipt_binding"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "prepare",
+   "harness_problems": [],
+   "key": "minus_plan_revalidation::F3.receipt_binding/literature-review/foreign_receipt",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F3.receipt_binding"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "prepare",
+   "harness_problems": [],
+   "key": "minus_plan_revalidation::F3.receipt_binding/literature-review/foreign_digest",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F3.receipt_binding"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "revalidate",
+   "harness_problems": [],
+   "key": "minus_plan_revalidation::F3.consent_lifetime/meeting-agenda/ttl-1800",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F3.consent_lifetime"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "revalidate",
+   "harness_problems": [],
+   "key": "minus_plan_revalidation::F3.consent_lifetime/meeting-agenda/ttl-4500",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F3.consent_lifetime"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "revalidate",
+   "harness_problems": [],
+   "key": "minus_plan_revalidation::F3.consent_lifetime/meeting-agenda/ttl-4540",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F3.consent_lifetime"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "revalidate",
+   "harness_problems": [],
+   "key": "minus_plan_revalidation::F3.consent_lifetime/literature-review/ttl-1800",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F3.consent_lifetime"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "revalidate",
+   "harness_problems": [],
+   "key": "minus_plan_revalidation::F3.consent_lifetime/literature-review/ttl-4500",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F3.consent_lifetime"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "revalidate",
+   "harness_problems": [],
+   "key": "minus_plan_revalidation::F3.consent_lifetime/literature-review/ttl-4540",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F3.consent_lifetime"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "revalidate",
+   "harness_problems": [],
+   "key": "minus_plan_revalidation::F5.reauthorized_after_plan/meeting-agenda/identical",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F5.reauthorized_after_plan"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "revalidate",
+   "harness_problems": [],
+   "key": "minus_plan_revalidation::F5.reauthorized_after_plan/literature-review/identical",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F5.reauthorized_after_plan"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "revalidate",
+   "harness_problems": [],
+   "key": "minus_plan_revalidation::F5.trust_withdrawn_after_plan/meeting-agenda/pin_removed",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F5.trust_withdrawn_after_plan"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "revalidate",
+   "harness_problems": [],
+   "key": "minus_plan_revalidation::F5.trust_withdrawn_after_plan/meeting-agenda/pin_rebound",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F5.trust_withdrawn_after_plan"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "revalidate",
+   "harness_problems": [],
+   "key": "minus_plan_revalidation::F5.trust_withdrawn_after_plan/meeting-agenda/pin_rescoped",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F5.trust_withdrawn_after_plan"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "revalidate",
+   "harness_problems": [],
+   "key": "minus_plan_revalidation::F5.trust_withdrawn_after_plan/literature-review/pin_removed",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F5.trust_withdrawn_after_plan"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "revalidate",
+   "harness_problems": [],
+   "key": "minus_plan_revalidation::F5.trust_withdrawn_after_plan/literature-review/pin_rebound",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F5.trust_withdrawn_after_plan"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "revalidate",
+   "harness_problems": [],
+   "key": "minus_plan_revalidation::F5.trust_withdrawn_after_plan/literature-review/pin_rescoped",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F5.trust_withdrawn_after_plan"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "revalidate",
+   "harness_problems": [],
+   "key": "minus_plan_revalidation::F5.model_changed_after_plan/meeting-agenda/removed",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": "selected_model_unavailable",
+    "code": "selected_model_unavailable",
+    "component": "mediation",
+    "source": "call",
+    "stage": "execute/model",
+    "step": null
+   },
+   "template_id": "F5.model_changed_after_plan"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "revalidate",
+   "harness_problems": [],
+   "key": "minus_plan_revalidation::F5.model_changed_after_plan/meeting-agenda/not_routable",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": "selected_model_unavailable",
+    "code": "selected_model_unavailable",
+    "component": "mediation",
+    "source": "call",
+    "stage": "execute/model",
+    "step": null
+   },
+   "template_id": "F5.model_changed_after_plan"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "revalidate",
+   "harness_problems": [],
+   "key": "minus_plan_revalidation::F5.model_changed_after_plan/meeting-agenda/override_disabled",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": "model_error",
+    "component": null,
+    "source": "workflow",
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F5.model_changed_after_plan"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "revalidate",
+   "harness_problems": [],
+   "key": "minus_plan_revalidation::F5.model_changed_after_plan/literature-review/removed",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": "selected_model_unavailable",
+    "code": "selected_model_unavailable",
+    "component": "mediation",
+    "source": "call",
+    "stage": "execute/model",
+    "step": null
+   },
+   "template_id": "F5.model_changed_after_plan"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "revalidate",
+   "harness_problems": [],
+   "key": "minus_plan_revalidation::F5.model_changed_after_plan/literature-review/deprecated",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": "selected_model_unavailable",
+    "code": "selected_model_unavailable",
+    "component": "mediation",
+    "source": "call",
+    "stage": "execute/model",
+    "step": null
+   },
+   "template_id": "F5.model_changed_after_plan"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "revalidate",
+   "harness_problems": [],
+   "key": "minus_plan_revalidation::F5.model_changed_after_plan/literature-review/override_disabled",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": "model_error",
+    "component": null,
+    "source": "workflow",
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F5.model_changed_after_plan"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "revalidate",
+   "harness_problems": [],
+   "key": "minus_plan_revalidation::F5.tool_binding_changed_after_plan/literature-review/scholarly-search-path",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": "tool_transport_error",
+    "code": "tool_transport_error",
+    "component": "mediation",
+    "source": "call",
+    "stage": "execute/tool",
+    "step": null
+   },
+   "template_id": "F5.tool_binding_changed_after_plan"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "revalidate",
+   "harness_problems": [],
+   "key": "minus_plan_revalidation::F5.tool_binding_changed_after_plan/literature-review/paper-reader-timeout",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F5.tool_binding_changed_after_plan"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "revalidate",
+   "harness_problems": [
+    "synthetic_anomaly"
+   ],
+   "key": "minus_plan_revalidation::F5.snapshot_rewritten/meeting-agenda/other_release",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": "model_output_not_conforming",
+    "code": "model_output_not_conforming",
+    "component": "validation",
+    "source": "call",
+    "stage": "execute/model",
+    "step": null
+   },
+   "template_id": "F5.snapshot_rewritten"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "revalidate",
+   "harness_problems": [],
+   "key": "minus_plan_revalidation::F5.snapshot_rewritten/literature-review/other_release",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F5.snapshot_rewritten"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "revalidate",
+   "harness_problems": [
+    "synthetic_anomaly"
+   ],
+   "key": "minus_plan_revalidation::F5.lease_rewritten/meeting-agenda/other_release",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": "model_output_not_conforming",
+    "code": "model_output_not_conforming",
+    "component": "validation",
+    "source": "call",
+    "stage": "execute/model",
+    "step": null
+   },
+   "template_id": "F5.lease_rewritten"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "revalidate",
+   "harness_problems": [],
+   "key": "minus_plan_revalidation::F5.lease_rewritten/literature-review/other_release",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F5.lease_rewritten"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "revalidate",
+   "harness_problems": [],
+   "key": "minus_plan_revalidation::F5.stale_plan_reference/meeting-agenda/superseded_plan",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F5.stale_plan_reference"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "revalidate",
+   "harness_problems": [],
+   "key": "minus_plan_revalidation::F5.stale_plan_reference/meeting-agenda/wrong_sha",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F5.stale_plan_reference"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "revalidate",
+   "harness_problems": [],
+   "key": "minus_plan_revalidation::F5.stale_plan_reference/meeting-agenda/foreign_plan",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F5.stale_plan_reference"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "revalidate",
+   "harness_problems": [],
+   "key": "minus_plan_revalidation::F5.stale_plan_reference/literature-review/superseded_plan",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F5.stale_plan_reference"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "revalidate",
+   "harness_problems": [],
+   "key": "minus_plan_revalidation::F5.stale_plan_reference/literature-review/wrong_sha",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F5.stale_plan_reference"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "revalidate",
+   "harness_problems": [],
+   "key": "minus_plan_revalidation::F5.stale_plan_reference/literature-review/foreign_plan",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F5.stale_plan_reference"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "minus_plan_revalidation::F8.usage_accounting/meeting-agenda/negative_count",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.usage_accounting"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "minus_plan_revalidation::F8.usage_accounting/meeting-agenda/negative_count_without_total",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.usage_accounting"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "minus_plan_revalidation::F8.usage_accounting/literature-review/negative_count_without_total",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.usage_accounting"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "execute/model",
+   "harness_problems": [],
+   "key": "minus_host_mediation::F6.provider_substitutes_model/meeting-agenda/first-agent_default",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F6.provider_substitutes_model"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "execute/model",
+   "harness_problems": [],
+   "key": "minus_host_mediation::F6.provider_substitutes_model/meeting-agenda/first-unlisted_model",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F6.provider_substitutes_model"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "execute/model",
+   "harness_problems": [],
+   "key": "minus_host_mediation::F6.provider_substitutes_model/meeting-agenda/last-agent_default",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F6.provider_substitutes_model"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "execute/model",
+   "harness_problems": [],
+   "key": "minus_host_mediation::F6.provider_substitutes_model/literature-review/first-agent_default",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F6.provider_substitutes_model"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "execute/model",
+   "harness_problems": [],
+   "key": "minus_host_mediation::F6.provider_substitutes_model/literature-review/first-provider_swap",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F6.provider_substitutes_model"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "execute/model",
+   "harness_problems": [],
+   "key": "minus_host_mediation::F6.provider_substitutes_model/literature-review/middle-remote_model",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F6.provider_substitutes_model"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "execute/tool",
+   "harness_problems": [],
+   "key": "minus_host_mediation::F6.tool_argument_smuggling/literature-review/search-query-endpoint",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F6.tool_argument_smuggling"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "execute/tool",
+   "harness_problems": [],
+   "key": "minus_host_mediation::F6.tool_argument_smuggling/literature-review/search-query-headers",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F6.tool_argument_smuggling"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "execute/tool",
+   "harness_problems": [],
+   "key": "minus_host_mediation::F6.tool_argument_smuggling/literature-review/search-query-filter",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F6.tool_argument_smuggling"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "revalidate",
+   "harness_problems": [],
+   "key": "minus_host_mediation::F6.reserved_export_name/meeting-agenda/lower",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F6.reserved_export_name"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "revalidate",
+   "harness_problems": [],
+   "key": "minus_host_mediation::F6.reserved_export_name/meeting-agenda/upper",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F6.reserved_export_name"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "revalidate",
+   "harness_problems": [],
+   "key": "minus_host_mediation::F6.reserved_export_name/meeting-agenda/title",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F6.reserved_export_name"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "revalidate",
+   "harness_problems": [],
+   "key": "minus_host_mediation::F6.reserved_export_name/literature-review/lower",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F6.reserved_export_name"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "revalidate",
+   "harness_problems": [],
+   "key": "minus_host_mediation::F6.reserved_export_name/literature-review/upper",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F6.reserved_export_name"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "revalidate",
+   "harness_problems": [],
+   "key": "minus_host_mediation::F6.reserved_export_name/literature-review/title",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F6.reserved_export_name"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "execute/tool",
+   "harness_problems": [],
+   "key": "minus_host_mediation::F6.nonpublic_destination/literature-review/crossref-loopback",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F6.nonpublic_destination"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "execute/tool",
+   "harness_problems": [],
+   "key": "minus_host_mediation::F6.nonpublic_destination/literature-review/crossref-link_local_metadata",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F6.nonpublic_destination"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "execute/tool",
+   "harness_problems": [],
+   "key": "minus_host_mediation::F6.nonpublic_destination/literature-review/resolver-ipv4_mapped",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F6.nonpublic_destination"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "minus_host_mediation::F8.usage_accounting/meeting-agenda/negative_count",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.usage_accounting"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "minus_host_mediation::F8.usage_accounting/meeting-agenda/negative_count_without_total",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.usage_accounting"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "minus_host_mediation::F8.usage_accounting/literature-review/negative_count_without_total",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.usage_accounting"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "execute/model",
+   "harness_problems": [],
+   "key": "minus_output_validation::F7.model_output_schema/meeting-agenda/perspective-missing_required-root-575d8c",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F7.model_output_schema"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "execute/model",
+   "harness_problems": [],
+   "key": "minus_output_validation::F7.model_output_schema/meeting-agenda/perspective-wrong_type-questions-16588c",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F7.model_output_schema"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "execute/model",
+   "harness_problems": [],
+   "key": "minus_output_validation::F7.model_output_schema/meeting-agenda/plan-missing_required-root-9a1c40",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F7.model_output_schema"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "execute/model",
+   "harness_problems": [],
+   "key": "minus_output_validation::F7.model_output_schema/literature-review/screen-invalid_enum-screening_status-f9ec64",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F7.model_output_schema"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "execute/model",
+   "harness_problems": [],
+   "key": "minus_output_validation::F7.model_output_schema/literature-review/select-invalid_enum-screening_status-9eb99f",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F7.model_output_schema"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "execute/model",
+   "harness_problems": [],
+   "key": "minus_output_validation::F7.model_output_schema/literature-review/write-extra_property-draft-c3e57c",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F7.model_output_schema"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "execute/model",
+   "harness_problems": [],
+   "key": "minus_output_validation::F7.model_turn_unfinished/meeting-agenda/plan-length",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F7.model_turn_unfinished"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "execute/model",
+   "harness_problems": [],
+   "key": "minus_output_validation::F7.model_turn_unfinished/meeting-agenda/plan-toolUse",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F7.model_turn_unfinished"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "execute/model",
+   "harness_problems": [],
+   "key": "minus_output_validation::F7.model_turn_unfinished/meeting-agenda/write-length",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F7.model_turn_unfinished"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "execute/model",
+   "harness_problems": [],
+   "key": "minus_output_validation::F7.model_turn_unfinished/literature-review/plan-length",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F7.model_turn_unfinished"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "execute/model",
+   "harness_problems": [],
+   "key": "minus_output_validation::F7.model_turn_unfinished/literature-review/verify-aborted",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F7.model_turn_unfinished"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "execute/model",
+   "harness_problems": [],
+   "key": "minus_output_validation::F7.model_turn_unfinished/literature-review/verify-toolUse",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F7.model_turn_unfinished"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "validate",
+   "harness_problems": [],
+   "key": "minus_output_validation::F7.evidence_relation/literature-review/document-quote_from_other_paper",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F7.evidence_relation"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "validate",
+   "harness_problems": [],
+   "key": "minus_output_validation::F7.evidence_relation/literature-review/abstract-fabricated_quote",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F7.evidence_relation"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "validate",
+   "harness_problems": [],
+   "key": "minus_output_validation::F7.evidence_relation/literature-review/abstract-page_on_abstract",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F7.evidence_relation"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "validate",
+   "harness_problems": [],
+   "key": "minus_output_validation::F7.review_relation/literature-review/claim_cites_unresolved_paper",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F7.review_relation"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "validate",
+   "harness_problems": [],
+   "key": "minus_output_validation::F7.review_relation/literature-review/direct_quote_wrong_paper",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F7.review_relation"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "execute/tool",
+   "harness_problems": [],
+   "key": "minus_output_validation::F7.resolver_response/literature-review/status_not_in_enum",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F7.resolver_response"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "execute/tool",
+   "harness_problems": [],
+   "key": "minus_output_validation::F7.resolver_response/literature-review/source_not_in_enum",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F7.resolver_response"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "execute/tool",
+   "harness_problems": [],
+   "key": "minus_output_validation::F7.resolver_response/literature-review/not_an_object",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": "schema",
+    "code": "schema_validation",
+    "component": "validation",
+    "source": "workflow",
+    "stage": "validate",
+    "step": null
+   },
+   "template_id": "F7.resolver_response"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "validate",
+   "harness_problems": [],
+   "key": "minus_output_validation::F7.resolver_identity/literature-review/identity_other_paper",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F7.resolver_identity"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "validate",
+   "harness_problems": [],
+   "key": "minus_output_validation::F7.resolver_identity/literature-review/identity_unknown_doi",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F7.resolver_identity"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "validate",
+   "harness_problems": [],
+   "key": "minus_output_validation::F7.resolver_identity/literature-review/resolved_without_match",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F7.resolver_identity"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "execute/tool",
+   "harness_problems": [],
+   "key": "minus_output_validation::F7.search_response/literature-review/oversized_body",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F7.search_response"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "execute/tool",
+   "harness_problems": [],
+   "key": "minus_output_validation::F7.reader_response/literature-review/page_zero",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F7.reader_response"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "execute/tool",
+   "harness_problems": [],
+   "key": "minus_output_validation::F7.reader_response/literature-review/pages_missing",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F7.reader_response"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "execute/tool",
+   "harness_problems": [],
+   "key": "minus_output_validation::F7.reader_response/literature-review/text_not_string",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F7.reader_response"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "minus_output_validation::F8.usage_accounting/meeting-agenda/negative_count",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.usage_accounting"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "minus_output_validation::F8.usage_accounting/meeting-agenda/negative_count_without_total",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.usage_accounting"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "minus_output_validation::F8.usage_accounting/literature-review/negative_count_without_total",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.usage_accounting"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "minus_resource_enforcement::F8.token_budget/meeting-agenda/limit-40pct",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.token_budget"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "minus_resource_enforcement::F8.token_budget/meeting-agenda/limit-70pct",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.token_budget"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "minus_resource_enforcement::F8.token_budget/meeting-agenda/limit-90pct",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.token_budget"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "minus_resource_enforcement::F8.token_budget/literature-review/limit-10pct",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.token_budget"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "minus_resource_enforcement::F8.token_budget/literature-review/limit-40pct",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.token_budget"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "minus_resource_enforcement::F8.token_budget/literature-review/limit-70pct",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.token_budget"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "minus_resource_enforcement::F8.worker_token_budget/meeting-agenda/half",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.worker_token_budget"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "minus_resource_enforcement::F8.worker_token_budget/meeting-agenda/just_below",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.worker_token_budget"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "minus_resource_enforcement::F8.worker_token_budget/literature-review/half",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.worker_token_budget"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "minus_resource_enforcement::F8.worker_token_budget/literature-review/just_below",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.worker_token_budget"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "minus_resource_enforcement::F8.remote_call_budget/literature-review/host-one",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.remote_call_budget"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "minus_resource_enforcement::F8.remote_call_budget/literature-review/worker-CitationWorker-0",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.remote_call_budget"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "minus_resource_enforcement::F8.remote_call_budget/literature-review/worker-SearchWorker-0",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.remote_call_budget"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "minus_resource_enforcement::F8.tool_call_budget/literature-review/cap-1",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.tool_call_budget"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "minus_resource_enforcement::F8.tool_call_budget/literature-review/cap-2",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.tool_call_budget"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "minus_resource_enforcement::F8.fanout_bound/literature-review/search-4",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.fanout_bound"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "minus_resource_enforcement::F8.fanout_bound/literature-review/search-10",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.fanout_bound"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "minus_resource_enforcement::F8.fanout_bound/literature-review/seed-discovery-30",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.fanout_bound"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "minus_resource_enforcement::F8.output_cap_ceiling/meeting-agenda/ceiling-11999",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.output_cap_ceiling"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "minus_resource_enforcement::F8.output_cap_ceiling/meeting-agenda/ceiling-8000",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.output_cap_ceiling"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "minus_resource_enforcement::F8.output_cap_ceiling/meeting-agenda/ceiling-1000",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.output_cap_ceiling"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "minus_resource_enforcement::F8.output_cap_ceiling/literature-review/ceiling-15999",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.output_cap_ceiling"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "minus_resource_enforcement::F8.output_cap_ceiling/literature-review/ceiling-12000",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.output_cap_ceiling"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "minus_resource_enforcement::F8.output_cap_ceiling/literature-review/ceiling-4000",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.output_cap_ceiling"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "minus_resource_enforcement::F8.usage_accounting/meeting-agenda/negative_count",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.usage_accounting"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "minus_resource_enforcement::F8.usage_accounting/meeting-agenda/negative_count_without_total",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.usage_accounting"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "minus_resource_enforcement::F8.usage_accounting/literature-review/output_over_cap",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.usage_accounting"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "minus_resource_enforcement::F8.usage_accounting/literature-review/output_triple_cap",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.usage_accounting"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "minus_resource_enforcement::F8.usage_accounting/literature-review/negative_count_without_total",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.usage_accounting"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "minus_resource_enforcement::F8.deadline/meeting-agenda/node_timeout",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.deadline"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "minus_resource_enforcement::F8.deadline/meeting-agenda/graph_deadline",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.deadline"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "minus_resource_enforcement::F8.deadline/meeting-agenda/model_call_timeout",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.deadline"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "minus_resource_enforcement::F8.deadline/literature-review/node_timeout",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.deadline"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "minus_resource_enforcement::F8.deadline/literature-review/model_call_timeout",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.deadline"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "minus_resource_enforcement::F8.deadline/literature-review/run_deadline",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.deadline"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "revalidate",
+   "harness_problems": [],
+   "key": "minus_resource_enforcement::F8.input_size/meeting-agenda/just_over",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.input_size"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "revalidate",
+   "harness_problems": [],
+   "key": "minus_resource_enforcement::F8.input_size/meeting-agenda/one_mib",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": "bridge_protocol_error",
+    "component": null,
+    "source": "start",
+    "stage": null,
+    "step": "start"
+   },
+   "template_id": "F8.input_size"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "revalidate",
+   "harness_problems": [],
+   "key": "minus_resource_enforcement::F8.input_size/meeting-agenda/four_mib",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": "bridge_protocol_error",
+    "component": null,
+    "source": "start",
+    "stage": null,
+    "step": "start"
+   },
+   "template_id": "F8.input_size"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "revalidate",
+   "harness_problems": [],
+   "key": "minus_resource_enforcement::F8.input_size/literature-review/just_over",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": "schema_validation",
+    "code": "schema_validation",
+    "component": "validation",
+    "source": "workflow",
+    "stage": "validate",
+    "step": null
+   },
+   "template_id": "F8.input_size"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "revalidate",
+   "harness_problems": [],
+   "key": "minus_resource_enforcement::F8.input_size/literature-review/one_mib",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": "bridge_protocol_error",
+    "component": null,
+    "source": "start",
+    "stage": null,
+    "step": "start"
+   },
+   "template_id": "F8.input_size"
+  },
+  {
+   "boundary_reached": true,
+   "expected_stage": "revalidate",
+   "harness_problems": [],
+   "key": "minus_resource_enforcement::F8.input_size/literature-review/four_mib",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": "bridge_protocol_error",
+    "component": null,
+    "source": "start",
+    "stage": null,
+    "step": "start"
+   },
+   "template_id": "F8.input_size"
+  }
+ ],
+ "controls_not_accepted": [],
+ "duplicate_records": [],
+ "full_not_explicitly_blocked": [
+  {
+   "boundary_reached": true,
+   "evidence": {
+    "anomalies": [],
+    "artifacts": [
+     {
+      "bytes": 818,
+      "name": "agenda.json"
+     },
+     {
+      "bytes": 57633,
+      "name": "audit.json"
+     },
+     {
+      "bytes": 236,
+      "name": "provenance.json"
+     },
+     {
+      "bytes": 67947,
+      "name": "result.json"
+     },
+     {
+      "bytes": 9495,
+      "name": "run.json"
+     },
+     {
+      "bytes": 953,
+      "name": "usage.json"
+     }
+    ],
+    "audit": [
+     {
+      "action": "worker.completed",
+      "node_id": "perspectives",
+      "status": "ok"
+     },
+     {
+      "action": "model.completed",
+      "model": "ollama/qwen3:30b",
+      "node_id": "perspectives/one-perspective",
+      "status": "ok",
+      "task": "perspective",
+      "tokens": 543
+     },
+     {
+      "action": "budget.updated",
+      "node_id": "perspectives/one-perspective",
+      "reserved_tokens": 14804,
+      "tokens": 1518
+     },
+     {
+      "action": "node.completed",
+      "node_id": "perspectives/one-perspective",
+      "node_type": "llm"
+     },
+     {
+      "action": "worker.completed",
+      "node_id": "perspectives",
+      "status": "ok"
+     },
+     {
+      "action": "model.completed",
+      "model": "ollama/qwen3:30b",
+      "node_id": "perspectives/one-perspective",
+      "status": "ok",
+      "task": "perspective",
+      "tokens": 542
+     },
+     {
+      "action": "budget.updated",
+      "node_id": "perspectives/one-perspective",
+      "reserved_tokens": 0,
+      "tokens": 2060
+     },
+     {
+      "action": "node.completed",
+      "node_id": "perspectives/one-perspective",
+      "node_type": "llm"
+     },
+     {
+      "action": "worker.completed",
+      "node_id": "perspectives",
+      "status": "ok"
+     },
+     {
+      "action": "node.completed",
+      "node_id": "perspectives",
+      "node_type": "map"
+     },
+     {
+      "action": "state.committed",
+      "node_id": null,
+      "nodes": [
+       "perspectives"
+      ]
+     },
+     {
+      "action": "node.started",
+      "node_id": "join",
+      "node_type": "join"
+     },
+     {
+      "action": "node.completed",
+      "node_id": "join",
+      "node_type": "join"
+     },
+     {
+      "action": "state.committed",
+      "node_id": null,
+      "nodes": [
+       "join"
+      ]
+     },
+     {
+      "action": "node.started",
+      "node_id": "write",
+      "node_type": "llm"
+     },
+     {
+      "action": "delegation.checked",
+      "allowed": true,
+      "node_id": "write"
+     },
+     {
+      "action": "permission.checked",
+      "allowed": true,
+      "grant": "session",
+      "node_id": null,
+      "permission": "memory.session"
+     },
+     {
+      "action": "worker.spawned",
+      "node_id": "write"
+     },
+     {
+      "action": "worker.started",
+      "node_id": "write"
+     },
+     {
+      "action": "permission.checked",
+      "allowed": true,
+      "grant": "session",
+      "node_id": "write",
+      "permission": "model.reasoning"
+     },
+     {
+      "action": "permission.checked",
+      "allowed": true,
+      "grant": "session",
+      "node_id": "write",
+      "permission": "model.reasoning"
+     },
+     {
+      "action": "model.count.called",
+      "model": "ollama/qwen3:30b",
+      "node_id": "write",
+      "task": "write"
+     },
+     {
+      "action": "budget.updated",
+      "node_id": "write",
+      "reserved_tokens": 16643,
+      "tokens": 2060
+     },
+     {
+      "action": "model.called",
+      "model": "ollama/qwen3:30b",
+      "node_id": "write",
+      "reserved_tokens": 16643,
+      "task": "write"
+     },
+     {
+      "action": "model.completed",
+      "model": "ollama/qwen3:30b",
+      "node_id": "write",
+      "status": "ok",
+      "task": "write",
+      "tokens": 1004
+     },
+     {
+      "action": "budget.updated",
+      "node_id": "write",
+      "reserved_tokens": 0,
+      "tokens": 3064
+     },
+     {
+      "action": "worker.completed",
+      "node_id": "write",
+      "status": "ok"
+     },
+     {
+      "action": "node.completed",
+      "node_id": "write",
+      "node_type": "llm"
+     },
+     {
+      "action": "state.committed",
+      "node_id": null,
+      "nodes": [
+       "write"
+      ]
+     },
+     {
+      "action": "node.started",
+      "node_id": "assemble",
+      "node_type": "validate"
+     },
+     {
+      "action": "node.completed",
+      "node_id": "assemble",
+      "node_type": "validate"
+     },
+     {
+      "action": "state.committed",
+      "node_id": null,
+      "nodes": [
+       "assemble"
+      ]
+     },
+     {
+      "action": "node.started",
+      "node_id": "validate",
+      "node_type": "validate"
+     },
+     {
+      "action": "node.completed",
+      "node_id": "validate",
+      "node_type": "validate"
+     },
+     {
+      "action": "state.committed",
+      "node_id": null,
+      "nodes": [
+       "validate"
+      ]
+     },
+     {
+      "action": "node.started",
+      "node_id": "output",
+      "node_type": "output"
+     },
+     {
+      "action": "node.completed",
+      "node_id": "output",
+      "node_type": "output"
+     },
+     {
+      "action": "state.committed",
+      "node_id": null,
+      "nodes": [
+       "output"
+      ]
+     },
+     {
+      "action": "workflow.completed",
+      "node_id": null
+     },
+     {
+      "action": "memory.cleared",
+      "node_id": null
+     }
+    ],
+    "broker_calls": [],
+    "committed_nodes": [
+     "assemble",
+     "join",
+     "output",
+     "perspectives",
+     "plan",
+     "validate",
+     "write"
+    ],
+    "control_crashes": [],
+    "control_errors": [],
+    "events": [
+     {
+      "event": "plan.prepared",
+      "ready": true
+     },
+     {
+      "event": "start.requested"
+     },
+     {
+      "event": "runner.spawn",
+      "sid": 17
+     }
+    ],
+    "model_calls": [
+     {
+      "completed": true,
+      "error": null,
+      "executed_model": "ollama/qwen3:30b",
+      "fault": "usage",
+      "index": 1,
+      "item": "",
+      "max_tokens": 12000,
+      "mutation_schema_valid": null,
+      "requested_model": "ollama/qwen3:30b",
+      "task": "plan"
+     },
+     {
+      "completed": true,
+      "error": null,
+      "executed_model": "ollama/qwen3:30b",
+      "fault": null,
+      "index": 2,
+      "item": "Research Lead",
+      "max_tokens": 12000,
+      "mutation_schema_valid": null,
+      "requested_model": "ollama/qwen3:30b",
+      "task": "perspective"
+     },
+     {
+      "completed": true,
+      "error": null,
+      "executed_model": "ollama/qwen3:30b",
+      "fault": null,
+      "index": 3,
+      "item": "Systems Engineer",
+      "max_tokens": 12000,
+      "mutation_schema_valid": null,
+      "requested_model": "ollama/qwen3:30b",
+      "task": "perspective"
+     },
+     {
+      "completed": true,
+      "error": null,
+      "executed_model": "ollama/qwen3:30b",
+      "fault": null,
+      "index": 4,
+      "item": "Evaluation Lead",
+      "max_tokens": 12000,
+      "mutation_schema_valid": null,
+      "requested_model": "ollama/qwen3:30b",
+      "task": "perspective"
+     },
+     {
+      "completed": true,
+      "error": null,
+      "executed_model": "ollama/qwen3:30b",
+      "fault": null,
+      "index": 5,
+      "item": "",
+      "max_tokens": 12000,
+      "mutation_schema_valid": null,
+      "requested_model": "ollama/qwen3:30b",
+      "task": "write"
+     }
+    ],
+    "node_guard": {
+     "dns_lookups": [],
+     "fs_open_count": 0,
+     "fs_sensitive": [],
+     "refused": []
+    },
+    "page_errors": [],
+    "preflight_before_start": {
+     "ready": true,
+     "stale": false,
+     "stale_reasons": []
+    },
+    "python_guard": [],
+    "receipt_blocking": [],
+    "rpc_failures": [],
+    "runner_begin": {
+     "budget_effective": {
+      "hard_tokens": 180000,
+      "max_calls_per_tool": {},
+      "max_parallel_workers": 3,
+      "max_remote_calls": 32
+     },
+     "effective_deadline_seconds": 600,
+     "model": {
+      "privacy": null,
+      "remote": false,
+      "required_capabilities": [
+       "reasoning",
+       "structured_output"
+      ],
+      "required_context_window": 16000,
+      "router_capabilities": [
+       "reasoning",
+       "structured_output"
+      ],
+      "router_context_window": 65536
+     },
+     "router_model": "ollama/qwen3:30b",
+     "signer": "sha256:2bcc374a7fe18e50622042b7d0375fcb24eb3607879a236f9f3c3ede1922c5c4",
+     "tools_bound": [],
+     "verified": [
+      "archive_sha256",
+      "container",
+      "integrity",
+      "schema",
+      "package_digest",
+      "package_identity",
+      "publisher_signature",
+      "signer_fingerprint",
+      "execution_profile"
+     ]
+    },
+    "runner_run": {
+     "artifacts": [
+      {
+       "bytes": 67947,
+       "name": "result.json"
+      },
+      {
+       "bytes": 57633,
+       "name": "audit.json"
+      },
+      {
+       "bytes": 953,
+       "name": "usage.json"
+      },
+      {
+       "bytes": 236,
+       "name": "provenance.json"
+      },
+      {
+       "bytes": 818,
+       "name": "agenda.json"
+      }
+     ],
+     "audit": {
+      "model_calls": 5,
+      "nodes_completed": 10,
+      "tool_calls": 0,
+      "workers_spawned": 5
+     },
+     "cancel_requested": false,
+     "deadline_exceeded": false,
+     "error_code": null,
+     "failure": null,
+     "model": {
+      "all_calls_used_planned_model": true,
+      "calls": 5,
+      "constrained_by_host": true,
+      "invoked": [
+       "ollama/qwen3:30b"
+      ],
+      "planned": "ollama/qwen3:30b",
+      "providers": [
+       "ollama"
+      ],
+      "response_models": [
+       "qwen3:30b-synthetic"
+      ],
+      "token_bound_basis": [
+       "utf8_upper_bound"
+      ]
+     },
+     "status": "completed",
+     "usage": {
+      "peak_parallel_workers": 3,
+      "remote_calls": 0,
+      "reserved_tokens": 0,
+      "tokens": 3064,
+      "tool_calls": {}
+     }
+    },
+    "start_errors": [],
+    "transports": [],
+    "warnings": []
+   },
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "full::F8.usage_accounting/meeting-agenda/negative_count",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.usage_accounting"
+  },
+  {
+   "boundary_reached": true,
+   "evidence": {
+    "anomalies": [],
+    "artifacts": [
+     {
+      "bytes": 818,
+      "name": "agenda.json"
+     },
+     {
+      "bytes": 57633,
+      "name": "audit.json"
+     },
+     {
+      "bytes": 236,
+      "name": "provenance.json"
+     },
+     {
+      "bytes": 67947,
+      "name": "result.json"
+     },
+     {
+      "bytes": 9495,
+      "name": "run.json"
+     },
+     {
+      "bytes": 953,
+      "name": "usage.json"
+     }
+    ],
+    "audit": [
+     {
+      "action": "worker.completed",
+      "node_id": "perspectives",
+      "status": "ok"
+     },
+     {
+      "action": "model.completed",
+      "model": "ollama/qwen3:30b",
+      "node_id": "perspectives/one-perspective",
+      "status": "ok",
+      "task": "perspective",
+      "tokens": 543
+     },
+     {
+      "action": "budget.updated",
+      "node_id": "perspectives/one-perspective",
+      "reserved_tokens": 14804,
+      "tokens": 1518
+     },
+     {
+      "action": "node.completed",
+      "node_id": "perspectives/one-perspective",
+      "node_type": "llm"
+     },
+     {
+      "action": "worker.completed",
+      "node_id": "perspectives",
+      "status": "ok"
+     },
+     {
+      "action": "model.completed",
+      "model": "ollama/qwen3:30b",
+      "node_id": "perspectives/one-perspective",
+      "status": "ok",
+      "task": "perspective",
+      "tokens": 542
+     },
+     {
+      "action": "budget.updated",
+      "node_id": "perspectives/one-perspective",
+      "reserved_tokens": 0,
+      "tokens": 2060
+     },
+     {
+      "action": "node.completed",
+      "node_id": "perspectives/one-perspective",
+      "node_type": "llm"
+     },
+     {
+      "action": "worker.completed",
+      "node_id": "perspectives",
+      "status": "ok"
+     },
+     {
+      "action": "node.completed",
+      "node_id": "perspectives",
+      "node_type": "map"
+     },
+     {
+      "action": "state.committed",
+      "node_id": null,
+      "nodes": [
+       "perspectives"
+      ]
+     },
+     {
+      "action": "node.started",
+      "node_id": "join",
+      "node_type": "join"
+     },
+     {
+      "action": "node.completed",
+      "node_id": "join",
+      "node_type": "join"
+     },
+     {
+      "action": "state.committed",
+      "node_id": null,
+      "nodes": [
+       "join"
+      ]
+     },
+     {
+      "action": "node.started",
+      "node_id": "write",
+      "node_type": "llm"
+     },
+     {
+      "action": "delegation.checked",
+      "allowed": true,
+      "node_id": "write"
+     },
+     {
+      "action": "permission.checked",
+      "allowed": true,
+      "grant": "session",
+      "node_id": null,
+      "permission": "memory.session"
+     },
+     {
+      "action": "worker.spawned",
+      "node_id": "write"
+     },
+     {
+      "action": "worker.started",
+      "node_id": "write"
+     },
+     {
+      "action": "permission.checked",
+      "allowed": true,
+      "grant": "session",
+      "node_id": "write",
+      "permission": "model.reasoning"
+     },
+     {
+      "action": "permission.checked",
+      "allowed": true,
+      "grant": "session",
+      "node_id": "write",
+      "permission": "model.reasoning"
+     },
+     {
+      "action": "model.count.called",
+      "model": "ollama/qwen3:30b",
+      "node_id": "write",
+      "task": "write"
+     },
+     {
+      "action": "budget.updated",
+      "node_id": "write",
+      "reserved_tokens": 16643,
+      "tokens": 2060
+     },
+     {
+      "action": "model.called",
+      "model": "ollama/qwen3:30b",
+      "node_id": "write",
+      "reserved_tokens": 16643,
+      "task": "write"
+     },
+     {
+      "action": "model.completed",
+      "model": "ollama/qwen3:30b",
+      "node_id": "write",
+      "status": "ok",
+      "task": "write",
+      "tokens": 1004
+     },
+     {
+      "action": "budget.updated",
+      "node_id": "write",
+      "reserved_tokens": 0,
+      "tokens": 3064
+     },
+     {
+      "action": "worker.completed",
+      "node_id": "write",
+      "status": "ok"
+     },
+     {
+      "action": "node.completed",
+      "node_id": "write",
+      "node_type": "llm"
+     },
+     {
+      "action": "state.committed",
+      "node_id": null,
+      "nodes": [
+       "write"
+      ]
+     },
+     {
+      "action": "node.started",
+      "node_id": "assemble",
+      "node_type": "validate"
+     },
+     {
+      "action": "node.completed",
+      "node_id": "assemble",
+      "node_type": "validate"
+     },
+     {
+      "action": "state.committed",
+      "node_id": null,
+      "nodes": [
+       "assemble"
+      ]
+     },
+     {
+      "action": "node.started",
+      "node_id": "validate",
+      "node_type": "validate"
+     },
+     {
+      "action": "node.completed",
+      "node_id": "validate",
+      "node_type": "validate"
+     },
+     {
+      "action": "state.committed",
+      "node_id": null,
+      "nodes": [
+       "validate"
+      ]
+     },
+     {
+      "action": "node.started",
+      "node_id": "output",
+      "node_type": "output"
+     },
+     {
+      "action": "node.completed",
+      "node_id": "output",
+      "node_type": "output"
+     },
+     {
+      "action": "state.committed",
+      "node_id": null,
+      "nodes": [
+       "output"
+      ]
+     },
+     {
+      "action": "workflow.completed",
+      "node_id": null
+     },
+     {
+      "action": "memory.cleared",
+      "node_id": null
+     }
+    ],
+    "broker_calls": [],
+    "committed_nodes": [
+     "assemble",
+     "join",
+     "output",
+     "perspectives",
+     "plan",
+     "validate",
+     "write"
+    ],
+    "control_crashes": [],
+    "control_errors": [],
+    "events": [
+     {
+      "event": "plan.prepared",
+      "ready": true
+     },
+     {
+      "event": "start.requested"
+     },
+     {
+      "event": "runner.spawn",
+      "sid": 16
+     }
+    ],
+    "model_calls": [
+     {
+      "completed": true,
+      "error": null,
+      "executed_model": "ollama/qwen3:30b",
+      "fault": "usage",
+      "index": 1,
+      "item": "",
+      "max_tokens": 12000,
+      "mutation_schema_valid": null,
+      "requested_model": "ollama/qwen3:30b",
+      "task": "plan"
+     },
+     {
+      "completed": true,
+      "error": null,
+      "executed_model": "ollama/qwen3:30b",
+      "fault": null,
+      "index": 2,
+      "item": "Research Lead",
+      "max_tokens": 12000,
+      "mutation_schema_valid": null,
+      "requested_model": "ollama/qwen3:30b",
+      "task": "perspective"
+     },
+     {
+      "completed": true,
+      "error": null,
+      "executed_model": "ollama/qwen3:30b",
+      "fault": null,
+      "index": 3,
+      "item": "Systems Engineer",
+      "max_tokens": 12000,
+      "mutation_schema_valid": null,
+      "requested_model": "ollama/qwen3:30b",
+      "task": "perspective"
+     },
+     {
+      "completed": true,
+      "error": null,
+      "executed_model": "ollama/qwen3:30b",
+      "fault": null,
+      "index": 4,
+      "item": "Evaluation Lead",
+      "max_tokens": 12000,
+      "mutation_schema_valid": null,
+      "requested_model": "ollama/qwen3:30b",
+      "task": "perspective"
+     },
+     {
+      "completed": true,
+      "error": null,
+      "executed_model": "ollama/qwen3:30b",
+      "fault": null,
+      "index": 5,
+      "item": "",
+      "max_tokens": 12000,
+      "mutation_schema_valid": null,
+      "requested_model": "ollama/qwen3:30b",
+      "task": "write"
+     }
+    ],
+    "node_guard": {
+     "dns_lookups": [],
+     "fs_open_count": 0,
+     "fs_sensitive": [],
+     "refused": []
+    },
+    "page_errors": [],
+    "preflight_before_start": {
+     "ready": true,
+     "stale": false,
+     "stale_reasons": []
+    },
+    "python_guard": [],
+    "receipt_blocking": [],
+    "rpc_failures": [],
+    "runner_begin": {
+     "budget_effective": {
+      "hard_tokens": 180000,
+      "max_calls_per_tool": {},
+      "max_parallel_workers": 3,
+      "max_remote_calls": 32
+     },
+     "effective_deadline_seconds": 600,
+     "model": {
+      "privacy": null,
+      "remote": false,
+      "required_capabilities": [
+       "reasoning",
+       "structured_output"
+      ],
+      "required_context_window": 16000,
+      "router_capabilities": [
+       "reasoning",
+       "structured_output"
+      ],
+      "router_context_window": 65536
+     },
+     "router_model": "ollama/qwen3:30b",
+     "signer": "sha256:2bcc374a7fe18e50622042b7d0375fcb24eb3607879a236f9f3c3ede1922c5c4",
+     "tools_bound": [],
+     "verified": [
+      "archive_sha256",
+      "container",
+      "integrity",
+      "schema",
+      "package_digest",
+      "package_identity",
+      "publisher_signature",
+      "signer_fingerprint",
+      "execution_profile"
+     ]
+    },
+    "runner_run": {
+     "artifacts": [
+      {
+       "bytes": 67947,
+       "name": "result.json"
+      },
+      {
+       "bytes": 57633,
+       "name": "audit.json"
+      },
+      {
+       "bytes": 953,
+       "name": "usage.json"
+      },
+      {
+       "bytes": 236,
+       "name": "provenance.json"
+      },
+      {
+       "bytes": 818,
+       "name": "agenda.json"
+      }
+     ],
+     "audit": {
+      "model_calls": 5,
+      "nodes_completed": 10,
+      "tool_calls": 0,
+      "workers_spawned": 5
+     },
+     "cancel_requested": false,
+     "deadline_exceeded": false,
+     "error_code": null,
+     "failure": null,
+     "model": {
+      "all_calls_used_planned_model": true,
+      "calls": 5,
+      "constrained_by_host": true,
+      "invoked": [
+       "ollama/qwen3:30b"
+      ],
+      "planned": "ollama/qwen3:30b",
+      "providers": [
+       "ollama"
+      ],
+      "response_models": [
+       "qwen3:30b-synthetic"
+      ],
+      "token_bound_basis": [
+       "utf8_upper_bound"
+      ]
+     },
+     "status": "completed",
+     "usage": {
+      "peak_parallel_workers": 3,
+      "remote_calls": 0,
+      "reserved_tokens": 0,
+      "tokens": 3064,
+      "tool_calls": {}
+     }
+    },
+    "start_errors": [],
+    "transports": [],
+    "warnings": []
+   },
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "full::F8.usage_accounting/meeting-agenda/negative_count_without_total",
+   "outcome": "SILENT_VIOLATION",
+   "package": "meeting-agenda",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.usage_accounting"
+  },
+  {
+   "boundary_reached": true,
+   "evidence": {
+    "anomalies": [],
+    "artifacts": [
+     {
+      "bytes": 407234,
+      "name": "audit.json"
+     },
+     {
+      "bytes": 2779,
+      "name": "bibliography.json"
+     },
+     {
+      "bytes": 5489,
+      "name": "evidence-table.json"
+     },
+     {
+      "bytes": 239,
+      "name": "provenance.json"
+     },
+     {
+      "bytes": 934,
+      "name": "related-work.md"
+     },
+     {
+      "bytes": 644233,
+      "name": "result.json"
+     },
+     {
+      "bytes": 26776,
+      "name": "run.json"
+     },
+     {
+      "bytes": 4405,
+      "name": "unresolved.json"
+     },
+     {
+      "bytes": 5578,
+      "name": "usage.json"
+     },
+     {
+      "bytes": 2347,
+      "name": "verification.json"
+     }
+    ],
+    "audit": [
+     {
+      "action": "worker.completed",
+      "node_id": "materialize-evidence",
+      "status": "ok"
+     },
+     {
+      "action": "delegation.checked",
+      "allowed": true,
+      "node_id": "materialize-evidence"
+     },
+     {
+      "action": "permission.checked",
+      "allowed": true,
+      "grant": "session",
+      "node_id": null,
+      "permission": "memory.session"
+     },
+     {
+      "action": "worker.spawned",
+      "node_id": "materialize-claims"
+     },
+     {
+      "action": "worker.started",
+      "node_id": "materialize-claims"
+     },
+     {
+      "action": "node.started",
+      "node_id": "materialize-claims/check-direct-source",
+      "node_type": "validate"
+     },
+     {
+      "action": "node.completed",
+      "node_id": "materialize-claims/check-direct-source",
+      "node_type": "validate"
+     },
+     {
+      "action": "node.started",
+      "node_id": "materialize-claims/attach-quote",
+      "node_type": "validate"
+     },
+     {
+      "action": "node.skipped",
+      "node_id": "materialize-claims/attach-quote",
+      "node_type": "validate",
+      "reason": "condition_false"
+     },
+     {
+      "action": "node.completed",
+      "node_id": "materialize-claims/attach-quote",
+      "node_type": "validate"
+     },
+     {
+      "action": "worker.completed",
+      "node_id": "materialize-claims",
+      "status": "ok"
+     },
+     {
+      "action": "delegation.checked",
+      "allowed": true,
+      "node_id": "materialize-claims"
+     },
+     {
+      "action": "permission.checked",
+      "allowed": true,
+      "grant": "session",
+      "node_id": null,
+      "permission": "memory.session"
+     },
+     {
+      "action": "worker.spawned",
+      "node_id": "materialize-evidence"
+     },
+     {
+      "action": "worker.started",
+      "node_id": "materialize-evidence"
+     },
+     {
+      "action": "node.started",
+      "node_id": "materialize-evidence/attach-evidence",
+      "node_type": "validate"
+     },
+     {
+      "action": "node.completed",
+      "node_id": "materialize-evidence/attach-evidence",
+      "node_type": "validate"
+     },
+     {
+      "action": "worker.completed",
+      "node_id": "materialize-evidence",
+      "status": "ok"
+     },
+     {
+      "action": "worker.spawned",
+      "node_id": "materialize-claims"
+     },
+     {
+      "action": "worker.started",
+      "node_id": "materialize-claims"
+     },
+     {
+      "action": "node.started",
+      "node_id": "materialize-claims/check-direct-source",
+      "node_type": "validate"
+     },
+     {
+      "action": "node.skipped",
+      "node_id": "materialize-claims/check-direct-source",
+      "node_type": "validate",
+      "reason": "condition_false"
+     },
+     {
+      "action": "node.completed",
+      "node_id": "materialize-claims/check-direct-source",
+      "node_type": "validate"
+     },
+     {
+      "action": "node.completed",
+      "node_id": "materialize-evidence",
+      "node_type": "map"
+     },
+     {
+      "action": "node.started",
+      "node_id": "materialize-claims/attach-quote",
+      "node_type": "validate"
+     },
+     {
+      "action": "node.completed",
+      "node_id": "materialize-claims/attach-quote",
+      "node_type": "validate"
+     },
+     {
+      "action": "worker.completed",
+      "node_id": "materialize-claims",
+      "status": "ok"
+     },
+     {
+      "action": "node.completed",
+      "node_id": "materialize-claims",
+      "node_type": "map"
+     },
+     {
+      "action": "state.committed",
+      "node_id": null,
+      "nodes": [
+       "materialize-claims",
+       "materialize-evidence",
+       "bibliography"
+      ]
+     },
+     {
+      "action": "node.started",
+      "node_id": "assemble-output",
+      "node_type": "validate"
+     },
+     {
+      "action": "node.completed",
+      "node_id": "assemble-output",
+      "node_type": "validate"
+     },
+     {
+      "action": "state.committed",
+      "node_id": null,
+      "nodes": [
+       "assemble-output"
+      ]
+     },
+     {
+      "action": "node.started",
+      "node_id": "validate-output",
+      "node_type": "validate"
+     },
+     {
+      "action": "node.completed",
+      "node_id": "validate-output",
+      "node_type": "validate"
+     },
+     {
+      "action": "state.committed",
+      "node_id": null,
+      "nodes": [
+       "validate-output"
+      ]
+     },
+     {
+      "action": "node.started",
+      "node_id": "outputs",
+      "node_type": "output"
+     },
+     {
+      "action": "node.completed",
+      "node_id": "outputs",
+      "node_type": "output"
+     },
+     {
+      "action": "state.committed",
+      "node_id": null,
+      "nodes": [
+       "outputs"
+      ]
+     },
+     {
+      "action": "workflow.completed",
+      "node_id": null
+     },
+     {
+      "action": "memory.cleared",
+      "node_id": null
+     }
+    ],
+    "broker_calls": [
+     {
+      "arg_keys": [
+       "limit",
+       "query"
+      ],
+      "code": null,
+      "ok": true,
+      "tool_id": "scholarly-search"
+     },
+     {
+      "arg_keys": [
+       "limit",
+       "query"
+      ],
+      "code": null,
+      "ok": true,
+      "tool_id": "scholarly-search"
+     },
+     {
+      "arg_keys": [
+       "limit",
+       "query"
+      ],
+      "code": null,
+      "ok": true,
+      "tool_id": "scholarly-search"
+     },
+     {
+      "arg_keys": [
+       "file_id"
+      ],
+      "code": null,
+      "ok": true,
+      "tool_id": "paper-reader"
+     },
+     {
+      "arg_keys": [
+       "format",
+       "query",
+       "query_type"
+      ],
+      "code": null,
+      "ok": true,
+      "tool_id": "citation-resolver"
+     },
+     {
+      "arg_keys": [
+       "format",
+       "query",
+       "query_type"
+      ],
+      "code": null,
+      "ok": true,
+      "tool_id": "citation-resolver"
+     },
+     {
+      "arg_keys": [
+       "format",
+       "query",
+       "query_type"
+      ],
+      "code": null,
+      "ok": true,
+      "tool_id": "citation-resolver"
+     },
+     {
+      "arg_keys": [
+       "file_id"
+      ],
+      "code": null,
+      "ok": true,
+      "tool_id": "paper-reader"
+     }
+    ],
+    "committed_nodes": [
+     "assemble-output",
+     "bibliography",
+     "check-evidence",
+     "check-records",
+     "citations",
+     "evidence",
+     "join-citation-records",
+     "join-evidence",
+     "join-evidence-jobs",
+     "join-search",
+     "join-unresolved",
+     "materialize-claims",
+     "materialize-evidence",
+     "normalize",
+     "outputs",
+     "planning",
+     "prepare-evidence",
+     "screening",
+     "search",
+     "seed-discovery",
+     "select-included",
+     "synthesis",
+     "validate-output",
+     "verification",
+     "writing"
+    ],
+    "control_crashes": [],
+    "control_errors": [],
+    "events": [
+     {
+      "event": "plan.prepared",
+      "ready": true
+     },
+     {
+      "event": "start.requested"
+     },
+     {
+      "event": "runner.spawn",
+      "sid": 18
+     }
+    ],
+    "model_calls": [
+     {
+      "completed": true,
+      "error": null,
+      "executed_model": "ollama/qwen3:30b",
+      "fault": "usage",
+      "index": 1,
+      "item": "",
+      "max_tokens": 12000,
+      "mutation_schema_valid": null,
+      "requested_model": "ollama/qwen3:30b",
+      "task": "plan"
+     },
+     {
+      "completed": true,
+      "error": null,
+      "executed_model": "ollama/qwen3:30b",
+      "fault": null,
+      "index": 2,
+      "item": "",
+      "max_tokens": 16000,
+      "mutation_schema_valid": null,
+      "requested_model": "ollama/qwen3:30b",
+      "task": "normalize"
+     },
+     {
+      "completed": true,
+      "error": null,
+      "executed_model": "ollama/qwen3:30b",
+      "fault": null,
+      "index": 3,
+      "item": "10.5555/wa.2",
+      "max_tokens": 12000,
+      "mutation_schema_valid": null,
+      "requested_model": "ollama/qwen3:30b",
+      "task": "screen"
+     },
+     {
+      "completed": true,
+      "error": null,
+      "executed_model": "ollama/qwen3:30b",
+      "fault": null,
+      "index": 4,
+      "item": "10.5555/wa.3",
+      "max_tokens": 12000,
+      "mutation_schema_valid": null,
+      "requested_model": "ollama/qwen3:30b",
+      "task": "screen"
+     },
+     {
+      "completed": true,
+      "error": null,
+      "executed_model": "ollama/qwen3:30b",
+      "fault": null,
+      "index": 5,
+      "item": "10.5555/wa.1",
+      "max_tokens": 12000,
+      "mutation_schema_valid": null,
+      "requested_model": "ollama/qwen3:30b",
+      "task": "screen"
+     },
+     {
+      "completed": true,
+      "error": null,
+      "executed_model": "ollama/qwen3:30b",
+      "fault": null,
+      "index": 6,
+      "item": "10.5555/wa.4",
+      "max_tokens": 12000,
+      "mutation_schema_valid": null,
+      "requested_model": "ollama/qwen3:30b",
+      "task": "screen"
+     },
+     {
+      "completed": true,
+      "error": null,
+      "executed_model": "ollama/qwen3:30b",
+      "fault": null,
+      "index": 7,
+      "item": "10.5555/wa.6",
+      "max_tokens": 12000,
+      "mutation_schema_valid": null,
+      "requested_model": "ollama/qwen3:30b",
+      "task": "screen"
+     },
+     {
+      "completed": true,
+      "error": null,
+      "executed_model": "ollama/qwen3:30b",
+      "fault": null,
+      "index": 8,
+      "item": "10.5555/wa.5",
+      "max_tokens": 12000,
+      "mutation_schema_valid": null,
+      "requested_model": "ollama/qwen3:30b",
+      "task": "screen"
+     },
+     {
+      "completed": true,
+      "error": null,
+      "executed_model": "ollama/qwen3:30b",
+      "fault": null,
+      "index": 9,
+      "item": "",
+      "max_tokens": 12000,
+      "mutation_schema_valid": null,
+      "requested_model": "ollama/qwen3:30b",
+      "task": "select"
+     },
+     {
+      "completed": true,
+      "error": null,
+      "executed_model": "ollama/qwen3:30b",
+      "fault": null,
+      "index": 10,
+      "item": "10.5555/wa.2",
+      "max_tokens": 12000,
+      "mutation_schema_valid": null,
+      "requested_model": "ollama/qwen3:30b",
+      "task": "extract"
+     },
+     {
+      "completed": true,
+      "error": null,
+      "executed_model": "ollama/qwen3:30b",
+      "fault": null,
+      "index": 11,
+      "item": "10.5555/wa.1",
+      "max_tokens": 12000,
+      "mutation_schema_valid": null,
+      "requested_model": "ollama/qwen3:30b",
+      "task": "extract"
+     },
+     {
+      "completed": true,
+      "error": null,
+      "executed_model": "ollama/qwen3:30b",
+      "fault": null,
+      "index": 12,
+      "item": "",
+      "max_tokens": 12000,
+      "mutation_schema_valid": null,
+      "requested_model": "ollama/qwen3:30b",
+      "task": "synthesize"
+     },
+     {
+      "completed": true,
+      "error": null,
+      "executed_model": "ollama/qwen3:30b",
+      "fault": null,
+      "index": 13,
+      "item": "",
+      "max_tokens": 12000,
+      "mutation_schema_valid": null,
+      "requested_model": "ollama/qwen3:30b",
+      "task": "write"
+     },
+     {
+      "completed": true,
+      "error": null,
+      "executed_model": "ollama/qwen3:30b",
+      "fault": null,
+      "index": 14,
+      "item": "",
+      "max_tokens": 16000,
+      "mutation_schema_valid": null,
+      "requested_model": "ollama/qwen3:30b",
+      "task": "verify"
+     }
+    ],
+    "node_guard": {
+     "dns_lookups": [
+      "api.crossref.org",
+      "api.crossref.org",
+      "api.crossref.org",
+      "webagents-citation-resolver-production.up.railway.app",
+      "webagents-citation-resolver-production.up.railway.app",
+      "webagents-citation-resolver-production.up.railway.app"
+     ],
+     "fs_open_count": 0,
+     "fs_sensitive": [],
+     "refused": []
+    },
+    "page_errors": [],
+    "preflight_before_start": {
+     "ready": true,
+     "stale": false,
+     "stale_reasons": []
+    },
+    "python_guard": [],
+    "receipt_blocking": [],
+    "rpc_failures": [],
+    "runner_begin": {
+     "budget_effective": {
+      "hard_tokens": 180000,
+      "max_calls_per_tool": {
+       "citation-resolver": 20,
+       "paper-reader": 10,
+       "scholarly-search": 3
+      },
+      "max_parallel_workers": 3,
+      "max_remote_calls": 45
+     },
+     "effective_deadline_seconds": 4500,
+     "model": {
+      "privacy": null,
+      "remote": false,
+      "required_capabilities": [
+       "reasoning",
+       "structured_output"
+      ],
+      "required_context_window": 16000,
+      "router_capabilities": [
+       "reasoning",
+       "structured_output"
+      ],
+      "router_context_window": 65536
+     },
+     "router_model": "ollama/qwen3:30b",
+     "signer": "sha256:c5ca9763f9fc71253298ca381ec14c4d7432009c74dacc69df6344b71de05232",
+     "tools_bound": [
+      "citation-resolver",
+      "paper-reader",
+      "scholarly-search"
+     ],
+     "verified": [
+      "archive_sha256",
+      "container",
+      "integrity",
+      "schema",
+      "package_digest",
+      "package_identity",
+      "publisher_signature",
+      "signer_fingerprint",
+      "execution_profile"
+     ]
+    },
+    "runner_run": {
+     "artifacts": [
+      {
+       "bytes": 644233,
+       "name": "result.json"
+      },
+      {
+       "bytes": 407234,
+       "name": "audit.json"
+      },
+      {
+       "bytes": 5578,
+       "name": "usage.json"
+      },
+      {
+       "bytes": 239,
+       "name": "provenance.json"
+      },
+      {
+       "bytes": 934,
+       "name": "related-work.md"
+      },
+      {
+       "bytes": 2779,
+       "name": "bibliography.json"
+      },
+      {
+       "bytes": 5489,
+       "name": "evidence-table.json"
+      },
+      {
+       "bytes": 4405,
+       "name": "unresolved.json"
+      },
+      {
+       "bytes": 2347,
+       "name": "verification.json"
+      }
+     ],
+     "audit": {
+      "model_calls": 14,
+      "nodes_completed": 94,
+      "tool_calls": 8,
+      "workers_spawned": 45
+     },
+     "cancel_requested": false,
+     "deadline_exceeded": false,
+     "error_code": null,
+     "failure": null,
+     "model": {
+      "all_calls_used_planned_model": true,
+      "calls": 14,
+      "constrained_by_host": true,
+      "invoked": [
+       "ollama/qwen3:30b"
+      ],
+      "planned": "ollama/qwen3:30b",
+      "providers": [
+       "ollama"
+      ],
+      "response_models": [
+       "qwen3:30b-synthetic"
+      ],
+      "token_bound_basis": [
+       "utf8_upper_bound"
+      ]
+     },
+     "status": "completed",
+     "usage": {
+      "peak_parallel_workers": 3,
+      "remote_calls": 6,
+      "reserved_tokens": 0,
+      "tokens": 36719,
+      "tool_calls": {
+       "citation-resolver": 3,
+       "paper-reader": 2,
+       "scholarly-search": 3
+      }
+     }
+    },
+    "start_errors": [],
+    "transports": [
+     {
+      "address": "104.16.24.7",
+      "address_public": true,
+      "authorized": true,
+      "body_keys": null,
+      "header_names": [
+       "accept",
+       "connection",
+       "user-agent"
+      ],
+      "hostname": "api.crossref.org",
+      "method": "GET",
+      "path": "/works",
+      "query_names": [
+       "query.bibliographic",
+       "rows",
+       "select",
+       "filter"
+      ]
+     },
+     {
+      "address": "104.16.24.7",
+      "address_public": true,
+      "authorized": true,
+      "body_keys": null,
+      "header_names": [
+       "accept",
+       "connection",
+       "user-agent"
+      ],
+      "hostname": "api.crossref.org",
+      "method": "GET",
+      "path": "/works",
+      "query_names": [
+       "query.bibliographic",
+       "rows",
+       "select",
+       "filter"
+      ]
+     },
+     {
+      "address": "104.16.24.7",
+      "address_public": true,
+      "authorized": true,
+      "body_keys": null,
+      "header_names": [
+       "accept",
+       "connection",
+       "user-agent"
+      ],
+      "hostname": "api.crossref.org",
+      "method": "GET",
+      "path": "/works",
+      "query_names": [
+       "query.bibliographic",
+       "rows",
+       "select",
+       "filter"
+      ]
+     },
+     {
+      "address": "104.16.24.7",
+      "address_public": true,
+      "authorized": true,
+      "body_keys": [
+       "format",
+       "query",
+       "query_type"
+      ],
+      "header_names": [
+       "accept",
+       "connection",
+       "content-length",
+       "content-type",
+       "user-agent"
+      ],
+      "hostname": "webagents-citation-resolver-production.up.railway.app",
+      "method": "POST",
+      "path": "/resolve",
+      "query_names": []
+     },
+     {
+      "address": "104.16.24.7",
+      "address_public": true,
+      "authorized": true,
+      "body_keys": [
+       "format",
+       "query",
+       "query_type"
+      ],
+      "header_names": [
+       "accept",
+       "connection",
+       "content-length",
+       "content-type",
+       "user-agent"
+      ],
+      "hostname": "webagents-citation-resolver-production.up.railway.app",
+      "method": "POST",
+      "path": "/resolve",
+      "query_names": []
+     },
+     {
+      "address": "104.16.24.7",
+      "address_public": true,
+      "authorized": true,
+      "body_keys": [
+       "format",
+       "query",
+       "query_type"
+      ],
+      "header_names": [
+       "accept",
+       "connection",
+       "content-length",
+       "content-type",
+       "user-agent"
+      ],
+      "hostname": "webagents-citation-resolver-production.up.railway.app",
+      "method": "POST",
+      "path": "/resolve",
+      "query_names": []
+     }
+    ],
+    "warnings": []
+   },
+   "expected_stage": "resource",
+   "harness_problems": [],
+   "key": "full::F8.usage_accounting/literature-review/negative_count_without_total",
+   "outcome": "SILENT_VIOLATION",
+   "package": "literature-review",
+   "refusal": {
+    "check": null,
+    "code": null,
+    "component": null,
+    "source": null,
+    "stage": null,
+    "step": null
+   },
+   "template_id": "F8.usage_accounting"
+  }
+ ],
+ "full_stage_mismatch": [],
+ "harness_errors": [],
+ "missing_executions": []
+}

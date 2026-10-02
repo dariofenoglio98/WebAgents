@@ -1,0 +1,163 @@
+--- a/browser/presentation.py
++++ b/browser/presentation.py
+@@ -197,5 +197,5 @@
+     report["input_sha256"] = sha256(data)
+     report["input_bytes"] = len(data)
+-    if len(data) > MAX_TASK_INPUT_BYTES:
++    if False:  # ABLATED B.control.task_size
+         report["errors"] = [
+             {
+--- a/browser/server.py
++++ b/browser/server.py
+@@ -33,5 +33,5 @@
+ # the bound still exists, it is just large enough for a few hundred bounded
+ # model descriptors. Every field inside one is separately length-limited.
+-MAX_REQUEST_BYTES = 256 * 1024
++MAX_REQUEST_BYTES = 2**62  # ABLATED B.server.request_size
+ MAX_RESPONSE_BYTES = 8 * 1024 * 1024
+ MAX_CONCURRENT_REQUESTS = 16
+--- a/execution/invocation.py
++++ b/execution/invocation.py
+@@ -103,5 +103,5 @@
+             INPUT_INVALID, f"The workflow input is not finite canonical JSON: {exc}"
+         ) from exc
+-    if len(data) > MAX_INPUT_BYTES:
++    if False:  # ABLATED B.runner.input_size
+         raise ExecutionError(
+             INPUT_INVALID,
+--- a/execution/policy.py
++++ b/execution/policy.py
+@@ -259,5 +259,5 @@
+             continue
+         requested = op["max_output_tokens"]
+-        if requested > limits.max_output_tokens_per_call:
++        if False:  # ABLATED B.runner.output_cap
+             # Silently lowering it would change what the package does, so the
+             # run is refused instead and the operator raises the host ceiling.
+--- a/execution/session.py
++++ b/execution/session.py
+@@ -580,5 +580,5 @@
+     async def _watchdog(self, seconds: int, workflow: Workflow) -> None:
+         """The host's own run deadline, on top of the graph's."""
+-        await asyncio.sleep(seconds)
++        await asyncio.Event().wait()  # ABLATED B.runner.watchdog
+         self._timed_out = True
+         workflow.cancel()
+--- a/hostbridge/router.py
++++ b/hostbridge/router.py
+@@ -492,5 +492,5 @@
+         if CAPABILITY_REASONING in self.capabilities:
+             params["reasoning"] = "low"
+-        answer = await self._peer.call("model.complete", params, timeout=self.timeout)
++        answer = await self._peer.call("model.complete", params, timeout=None)  # ABLATED B.router.call_timeout
+         invoked = answer.get("model_id")
+         if invoked != self.model_id:
+--- a/runtime.py
++++ b/runtime.py
+@@ -357,7 +357,7 @@
+     def _remote(self, ctx, count=1):
+         own = self._usage[ctx.worker_id]
+-        if self._global.remote_calls + count > self.budget["max_remote_calls"]:
++        if False:  # ABLATED B.runtime.remote_global
+             raise BudgetError("Global remote-call budget exhausted")
+-        if own.remote_calls + count > self.roles[ctx.role]["budget"]["remote_calls"]:
++        if False:  # ABLATED B.runtime.remote_worker
+             raise BudgetError(f"Remote-call budget exhausted for {ctx.worker_id}")
+         own.remote_calls += count
+@@ -411,5 +411,5 @@
+                 self._authorize(tool["permissions"], context=ctx)
+                 cap = self.budget["max_calls_per_tool"].get(tool_id, 0)
+-                if self._global.tool_calls[tool_id] >= cap:
++                if False:  # ABLATED B.runtime.tool_calls
+                     raise BudgetError(f"Call budget exhausted for tool {tool_id}")
+                 if tool["execution"] == "remote":
+@@ -429,5 +429,5 @@
+                 remote_calls=self._global.remote_calls,
+             )
+-            async with asyncio.timeout(tool["timeout_seconds"]):
++            async with asyncio.timeout(None):  # ABLATED B.runtime.tool_timeout
+                 result = await handler(ctx, copy.deepcopy(payload))
+             try:
+@@ -558,5 +558,5 @@
+             raise BudgetError(message)
+ 
+-        if reservation > router.context_window:
++        if False:  # ABLATED B.runtime.context_window
+             refuse(
+                 "context_window",
+@@ -567,8 +567,5 @@
+         async with self._lock:
+             self._check_context(ctx)
+-            if (
+-                self._global.tokens + self._global.reserved_tokens + reservation
+-                > self.budget["hard_tokens"]
+-            ):
++            if False:  # ABLATED B.runtime.global_tokens
+                 refuse(
+                     "global_token_budget",
+@@ -578,8 +575,5 @@
+                     limit=self.budget["hard_tokens"],
+                 )
+-            if (
+-                own.tokens + own.reserved_tokens + reservation
+-                > self.roles[ctx.role]["budget"]["tokens"]
+-            ):
++            if False:  # ABLATED B.runtime.worker_tokens
+                 refuse(
+                     "worker_token_budget",
+@@ -590,8 +584,5 @@
+                 )
+             threshold = self.budget.get("approval_threshold_tokens")
+-            if (
+-                threshold is not None
+-                and self._global.tokens + self._global.reserved_tokens + reservation > threshold
+-            ):
++            if False:  # ABLATED B.runtime.approval_threshold
+                 raise BudgetError("Token approval threshold exceeded; a new host grant is required")
+             if router.remote:
+@@ -625,5 +616,5 @@
+             if valid_counts:
+                 used = inp + out  # Report known overruns honestly, even above the cap.
+-            if not valid_counts or inp > input_bound or out > max_output_tokens:
++            if not valid_counts:  # ABLATED B.runtime.accounting_halt (overrun)
+                 self._halted = "router violated token accounting contract"
+                 raise PolicyError("Router violated token accounting contract; execution halted")
+--- a/toolbridge/handler.py
++++ b/toolbridge/handler.py
+@@ -131,5 +131,5 @@
+                     "args": payload,
+                 },
+-                timeout=self.timeout + BRIDGE_GRACE_SECONDS,
++                timeout=None,  # ABLATED B.handler.call_timeout
+             )
+         except ToolBridgeError:
+--- a/workflow.py
++++ b/workflow.py
+@@ -266,5 +266,5 @@
+         ctx.operation_id = f"{ctx.node_id}/{node['id']}"
+         try:
+-            async with asyncio.timeout(node["timeout_seconds"]):
++            async with asyncio.timeout(None):  # ABLATED B.workflow.step_timeout
+                 result = await self._operation(node, env, ctx)
+             self._event("node.completed", node, ctx, output_hash=digest(result))
+@@ -281,5 +281,5 @@
+         env = {"state": view}
+         items = evaluate(node["input"], env)
+-        if not isinstance(items, list) or len(items) > node["max_items"]:
++        if not isinstance(items, list):  # ABLATED B.workflow.map_items
+             raise ValidationError(f"node {node['id']}: map input exceeds max_items or is not array")
+         for item in items:
+@@ -340,5 +340,5 @@
+         self._event("node.started", node)
+         try:
+-            async with asyncio.timeout(node["timeout_seconds"]):
++            async with asyncio.timeout(None):  # ABLATED B.workflow.node_timeout
+                 if node["type"] == "map":
+                     result = await self._map(node, view)
+@@ -410,5 +410,5 @@
+             pending = {n["id"]: n for n in self.graph["nodes"]}
+             done = set()
+-            async with asyncio.timeout(self.graph["deadline_seconds"]):
++            async with asyncio.timeout(None):  # ABLATED B.workflow.deadline
+                 while pending:
+                     ready = [n for n in pending.values() if set(n["depends_on"]) <= done]

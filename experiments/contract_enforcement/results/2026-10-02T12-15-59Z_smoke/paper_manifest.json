@@ -1,0 +1,63 @@
+{
+ "builds": {
+  "full": {
+   "agentpkg_key": "production",
+   "browser_policy": {},
+   "python_patches": [],
+   "typescript_key": "ts-full-196ddb00ba8309bfe79f",
+   "typescript_patches": []
+  }
+ },
+ "calibration_sha256": "a86caad12924daac9b9aba986fa3460ab78afe832ecb243352c2b2e31374e288",
+ "catalog_sha256": "2a93d0e768ba011ae2b126dc0b689d228ff0a8c909eedcea4596c5549256b908",
+ "counts": {
+  "controls": 100,
+  "families": 8,
+  "packages": [
+   "literature-review",
+   "meeting-agenda"
+  ],
+  "templates": 61,
+  "violations": 100
+ },
+ "dirty_fingerprint": "33bc32f17642bb9282c610910ffb9ecbb9b4dc1516cf3a093fef1a6b4424090b",
+ "expected_executions": 200,
+ "experiment": "contract_enforcement",
+ "experiment_code_sha256": "443e348f3565f3f7ad6aeda6337853d99cddf95f1478e1a83cf26d02d0ac44d4",
+ "experiment_version": "1.0.0",
+ "git_commit": "0451577c233158d317e0307e4c817e27f382b40d",
+ "git_dirty": true,
+ "git_production_paths_modified": [
+  "openclaw-agent-browser/src/contract.ts",
+  "openclaw-agent-browser/src/host-llm.ts"
+ ],
+ "packages": [
+  {
+   "archive_sha256": "7b148e845c0f9e38d752a51a8d0b60a314842a3de3a2723b3bdf1a0c041921e1",
+   "digest": "dbd2eb816bb8687d4a5b3448f5b82bc0716c3884f9fee8a2c578af0c5e894679",
+   "package": "meeting-agenda",
+   "package_id": "org.webagents.meeting-agenda",
+   "signer_fingerprint": "sha256:2bcc374a7fe18e50622042b7d0375fcb24eb3607879a236f9f3c3ede1922c5c4",
+   "version": "0.2.2"
+  },
+  {
+   "archive_sha256": "1669f83fafac3434748fc19d38a8d3d2c3352da83cf1cbb84796ce313bd4f571",
+   "digest": "cef9ebd68df9db3b36c1ffeac9069d734b0e41a40d58445aaba1a60eaac155b5",
+   "package": "literature-review",
+   "package_id": "org.webagents.literature-review",
+   "signer_fingerprint": "sha256:c5ca9763f9fc71253298ca381ec14c4d7432009c74dacc69df6344b71de05232",
+   "version": "0.2.5"
+  }
+ ],
+ "preset": {
+  "budget": 1,
+  "limit": 1,
+  "preset": "smoke",
+  "preset_description": "One variant per template and package, full system only: does every path run?"
+ },
+ "profiles": [
+  "full"
+ ],
+ "seed": 20261002,
+ "threat_model_version": "1.0"
+}

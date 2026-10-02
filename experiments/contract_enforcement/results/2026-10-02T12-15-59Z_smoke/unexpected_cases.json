@@ -1,0 +1,9 @@
+{
+ "ablation_silent_violations": [],
+ "controls_not_accepted": [],
+ "duplicate_records": [],
+ "full_not_explicitly_blocked": [],
+ "full_stage_mismatch": [],
+ "harness_errors": [],
+ "missing_executions": []
+}

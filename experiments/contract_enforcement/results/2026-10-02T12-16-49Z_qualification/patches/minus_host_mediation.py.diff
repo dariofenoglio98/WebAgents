@@ -1,0 +1,138 @@
+--- a/execution/policy.py
++++ b/execution/policy.py
+@@ -248,5 +248,5 @@
+     used = sorted({op["tool"] for _, op in _operations(graph) if op["type"] == "tool"})
+     undeclared = sorted(set(used) - set(declared_tools))
+-    if undeclared:
++    if False:  # ABLATED M.runner.graph_tool_declared
+         raise ExecutionError(
+             TOOL_NOT_DECLARED,
+@@ -272,5 +272,5 @@
+     reserved = {name.lower() for name in HOST_RESULT_NAMES} | {RUN_RECORD_NAME}
+     for export in graph.get("exports", []):
+-        if export["path"].lower() in reserved:
++        if False:  # ABLATED M.runner.export_reserved
+             raise ExecutionError(
+                 EXPORT_PATH_RESERVED,
+--- a/hostbridge/router.py
++++ b/hostbridge/router.py
+@@ -494,5 +494,5 @@
+         answer = await self._peer.call("model.complete", params, timeout=self.timeout)
+         invoked = answer.get("model_id")
+-        if invoked != self.model_id:
++        if False:  # ABLATED M.router.model_echo
+             # The plan bound one model. Anything else is not a degraded result,
+             # it is a different decision, and it is refused after the fact just
+--- a/runtime.py
++++ b/runtime.py
+@@ -274,13 +274,9 @@
+         try:
+             self._check_context(parent)
+-            if role == self.coordinator or role not in self.roles:
++            if False:  # ABLATED M.runtime.worker_role
+                 raise PolicyError(f"Undeclared or invalid worker role: {role}")
+-            if role not in self.policy["delegation"]["approved_roles"]:
++            if False:  # ABLATED M.runtime.worker_approved
+                 raise PolicyError(f"Worker is not approved: {role}")
+-            if (
+-                parent is not self._root
+-                or depth != parent.depth + 1
+-                or depth > self.policy["delegation"]["max_depth"]
+-            ):
++            if False:  # ABLATED M.runtime.delegation_depth
+                 raise PolicyError("Delegation depth exceeded; only coordinator may spawn workers")
+             self.record(
+@@ -292,5 +288,5 @@
+                 node_id=node_id,
+             )
+-            if not isinstance(inputs, dict) or set(inputs) - set(self.roles[role]["state_read"]):
++            if False:  # ABLATED M.runtime.state_read
+                 raise PolicyError(f"Worker {role} input exceeds declared state_read fields")
+             mem = self._permission_kind("memory")
+@@ -323,5 +319,5 @@
+                 if not return_value and not isinstance(patch, dict):
+                     raise PolicyError(f"Worker {role} must return a structured state patch")
+-                if not return_value and set(patch) - set(self.roles[role]["state_write"]):
++                if False:  # ABLATED M.runtime.state_write
+                     raise PolicyError(f"Worker {role} output exceeds declared state_write fields")
+                 # Ensure messages are finite serializable data, never host object capabilities.
+@@ -369,9 +365,9 @@
+         tool = self.package.tools.get(tool_id)
+         try:
+-            if tool is None or tool_id not in self.roles[ctx.role]["tools"]:
++            if False:  # ABLATED M.runtime.role_tools
+                 raise PolicyError(f"Role {ctx.role} may not call tool {tool_id}")
+-            if tool["execution"] not in {"local", "remote"}:
++            if False:  # ABLATED M.runtime.tool_kind
+                 raise PolicyError("Agent tool bindings are not implemented")
+-            if tool["retries"] != 0:
++            if False:  # ABLATED M.runtime.retries
+                 raise PolicyError("Automatic retries are unsupported")
+             # A declared tool is a request; an approval is authority. A granted
+@@ -398,10 +394,10 @@
+                     or set(tool["domains"]) - (allowed & linked)
+                 ):
+-                    raise PolicyError("Tool network contract exceeds declared permission/policy")
++                    pass  # ABLATED M.runtime.network_contract
+             handler = self.handlers.get(tool["binding"])
+-            if handler is None:
++            if False:  # ABLATED M.runtime.handler
+                 raise PolicyError(f"No trusted host handler for {tool['binding']}")
+             try:
+-                validate_instance(self.package.files, tool["input_schema"], payload, "tool input")
++                pass  # ABLATED M.runtime.tool_input_schema
+             except ValidationError as exc:
+                 exc.code = "tool_request_invalid"
+@@ -476,5 +472,5 @@
+             raise PolicyError("Package requires a local-only model router")
+         declared = {t["id"]: t for t in self.package.manifest["model_requirements"]["tasks"]}
+-        if task not in declared:
++        if False:  # ABLATED M.runtime.model_task
+             raise PolicyError(f"Undeclared model task {task}")
+         if (
+--- a/toolbridge/handler.py
++++ b/toolbridge/handler.py
+@@ -102,5 +102,5 @@
+     async def __call__(self, context, payload):
+         args = _canonical(payload)
+-        if len(args.encode("utf-8")) > MAX_ARGS_BYTES:
++        if False:  # ABLATED M.handler.args_size
+             raise invalid(
+                 f"Tool arguments exceed {MAX_ARGS_BYTES} canonical bytes",
+@@ -195,17 +195,13 @@
+         }
+         unknown = sorted(set(answer) - allowed)
+-        if unknown:
++        if False:  # ABLATED M.handler.envelope_fields
+             raise ToolBridgeError(
+                 TOOL_RESPONSE_INVALID, f"The host tool result carries unknown fields: {unknown}"
+             )
+-        if answer.get("status") != "ok":
++        if False:  # ABLATED M.handler.envelope_status
+             raise ToolBridgeError(
+                 TOOL_RESPONSE_INVALID, "The host tool result is not a completed call"
+             )
+-        if (
+-            answer.get("tool_id") != self.tool_id
+-            or answer.get("binding_id") != self.binding["binding_id"]
+-            or answer.get("binding_sha256") != self.binding["binding_sha256"]
+-        ):
++        if False:  # ABLATED M.handler.binding_echo
+             # A result attributed to a different implementation is not a
+             # degraded answer, it is a different decision.
+@@ -215,5 +211,5 @@
+                 detail={"expected_binding_id": self.binding["binding_id"]},
+             )
+-        if answer.get("remote") is not self.remote:
++        if False:  # ABLATED M.handler.locality_echo
+             raise ToolBridgeError(
+                 "tool_contract_mismatch",
+--- a/workflow.py
++++ b/workflow.py
+@@ -359,5 +359,5 @@
+                     for path, value in node["writes"].items()
+                 }
+-                if set(patch) - set(self.runtime.roles[role]["state_write"]):
++                if False:  # ABLATED M.workflow.node_write
+                     raise PolicyError("Node state write exceeds worker authorization")
+             validate_instance(

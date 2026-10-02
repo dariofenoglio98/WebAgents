@@ -1,0 +1,57 @@
+--- a/backend.ts
++++ b/backend.ts
+@@ -706,5 +706,5 @@
+       const catalog = await this.hostCatalog();
+       // A tool probe binds no model, so there is nothing to re-check.
+-      if (executionMode === "model" && !stillAvailable(catalog, modelId)) {
++      if (ablatedNever() /* ABLATED C.prepare.backend_model_available */ && (executionMode === "model" && !stillAvailable(catalog, modelId))) {
+         throw new AgentBrowserError(
+           "model_unknown",
+@@ -996,2 +996,7 @@
+   }
+ }
++
++// contract_enforcement experiment ablation helper: always false.
++function ablatedNever(): boolean {
++  return false;
++}
+--- a/execution.ts
++++ b/execution.ts
+@@ -372,5 +372,5 @@
+     const inputBytes = this.measureInput(request.input);
+     this.runs.assertNoActiveRun(request.runPlanId, request.sessionId);
+-    this.checkHostRuntime();
++    // ABLATED C.start.host_runtime
+     // Every named file must be a live capability of this session, before
+     // anything is prepared; a path or another session's id is refused here.
+--- a/preflight.ts
++++ b/preflight.ts
+@@ -215,5 +215,5 @@
+   }
+   revalidated.push("archive_sha256");
+-  if (str(planned.execution_profile) !== "workflow.v0") {
++  if (ablatedNever() /* ABLATED C.revalidate.profile */ && (str(planned.execution_profile) !== "workflow.v0")) {
+     refuse("This host executes the workflow.v0 profile only.");
+   }
+@@ -222,5 +222,5 @@
+     if (str(validation[layer]) !== "valid") refuse(`Package ${layer.replace("_status", "")} is not valid.`);
+   }
+-  if (str(validation.runtime_status) !== "compatible") {
++  if (ablatedNever() /* ABLATED C.revalidate.runtime_status */ && (str(validation.runtime_status) !== "compatible")) {
+     refuse("No installed execution profile can run this package.");
+   }
+@@ -395,5 +395,5 @@
+   revalidated.push("model_identity");
+   const compatibility = record(binding.compatibility);
+-  if (str(compatibility.status) === "incompatible") refuse("The selected model is incompatible.");
++  if (ablatedNever() /* ABLATED C.revalidate.model_compatibility */ && (str(compatibility.status) === "incompatible")) refuse("The selected model is incompatible.");
+   revalidated.push("model_compatibility");
+ 
+@@ -461,2 +461,7 @@
+   };
+ }
++
++// contract_enforcement experiment ablation helper: always false.
++function ablatedNever(): boolean {
++  return false;
++}

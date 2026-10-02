@@ -1,0 +1,3216 @@
+{
+ "packages": {
+  "literature-review": {
+   "candidates": [
+    {
+     "doi": "10.5555/wa.2",
+     "paper_id": "paper-6b3a21bcb0a2f354"
+    },
+    {
+     "doi": "10.5555/wa.1",
+     "paper_id": "paper-87fe6dad6f3ee148"
+    },
+    {
+     "doi": "10.5555/wa.3",
+     "paper_id": "paper-eb6334940fbc9c50"
+    },
+    {
+     "doi": "10.5555/wa.4",
+     "paper_id": "paper-98e0ee4006c08c80"
+    },
+    {
+     "doi": "10.5555/wa.6",
+     "paper_id": "paper-a14b70ed31c5235b"
+    },
+    {
+     "doi": "10.5555/wa.5",
+     "paper_id": "paper-b716fed5a5eaaeb1"
+    }
+   ],
+   "caps": {
+    "evidence/extract-one": 12000,
+    "normalize": 16000,
+    "planning": 12000,
+    "screening/screen-one": 12000,
+    "select-included": 12000,
+    "synthesis": 12000,
+    "verification": 16000,
+    "writing": 12000
+   },
+   "search_queries": [
+    "How do signed agent packages, frozen run plans and host-mediated tool access constrain portable language-model agent workflows?",
+    "How do signed agent packages, frozen run plans and host-mediated tool access constrain portable language-model agent workflows? evaluation",
+    "How do signed agent packages, frozen run plans and host-mediated tool access constrain portable language-model agent workflows? limitations"
+   ],
+   "selected": [
+    {
+     "doi": "10.5555/wa.2",
+     "has_document": false,
+     "paper_id": "paper-6b3a21bcb0a2f354",
+     "resolver": "resolved"
+    },
+    {
+     "doi": "10.5555/wa.1",
+     "has_document": true,
+     "paper_id": "paper-87fe6dad6f3ee148",
+     "resolver": "resolved"
+    },
+    {
+     "doi": "10.5555/wa.3",
+     "has_document": false,
+     "paper_id": "paper-eb6334940fbc9c50",
+     "resolver": "ambiguous"
+    }
+   ],
+   "tasks": {
+    "extract": {
+     "answers": {
+      "10.5555/wa.1": [
+       {
+        "category": "method",
+        "evidence_id": "paper-87fe6dad6f3ee148:e1",
+        "extraction_worker": "synthetic-model",
+        "location": {
+         "page": 1,
+         "section": "supplied PDF"
+        },
+        "paper_id": "paper-87fe6dad6f3ee148",
+        "provenance": {
+         "locator": "10.5555/wa.1",
+         "source": "user_pdf",
+         "source_sha256": "3318da1e70e3df6c6e634a46cee3d42f453f2d5d12d6771ef807d6671511a585",
+         "synthetic": false
+        },
+        "quote": "Portable workflows are packaged as data rather than executable code.",
+        "scope": "full_text",
+        "support_strength": "direct_quote",
+        "text": "Portable workflows are packaged as data rather than executable code."
+       },
+       {
+        "category": "setup",
+        "evidence_id": "paper-87fe6dad6f3ee148:e2",
+        "extraction_worker": "synthetic-model",
+        "location": {
+         "page": 1,
+         "section": "supplied PDF"
+        },
+        "paper_id": "paper-87fe6dad6f3ee148",
+        "provenance": {
+         "locator": "10.5555/wa.1",
+         "source": "user_pdf",
+         "source_sha256": "3318da1e70e3df6c6e634a46cee3d42f453f2d5d12d6771ef807d6671511a585",
+         "synthetic": false
+        },
+        "quote": "The runtime refuses any package whose content hashes disagree with its manifest.",
+        "scope": "full_text",
+        "support_strength": "direct_quote",
+        "text": "The runtime refuses any package whose content hashes disagree with its manifest."
+       },
+       {
+        "category": "finding",
+        "evidence_id": "paper-87fe6dad6f3ee148:e3",
+        "extraction_worker": "synthetic-model",
+        "location": {
+         "page": 2,
+         "section": "supplied PDF"
+        },
+        "paper_id": "paper-87fe6dad6f3ee148",
+        "provenance": {
+         "locator": "10.5555/wa.1",
+         "source": "user_pdf",
+         "source_sha256": "3318da1e70e3df6c6e634a46cee3d42f453f2d5d12d6771ef807d6671511a585",
+         "synthetic": false
+        },
+        "quote": "Run plans freeze the selected model and the approved tools.",
+        "scope": "full_text",
+        "support_strength": "direct_quote",
+        "text": "Run plans freeze the selected model and the approved tools."
+       },
+       {
+        "category": "limitation",
+        "evidence_id": "paper-87fe6dad6f3ee148:e4",
+        "extraction_worker": "synthetic-model",
+        "location": {
+         "page": 2,
+         "section": "supplied PDF"
+        },
+        "paper_id": "paper-87fe6dad6f3ee148",
+        "provenance": {
+         "locator": "10.5555/wa.1",
+         "source": "user_pdf",
+         "source_sha256": "3318da1e70e3df6c6e634a46cee3d42f453f2d5d12d6771ef807d6671511a585",
+         "synthetic": false
+        },
+        "quote": "A limitation is that the evaluation covers two reference packages only.",
+        "scope": "full_text",
+        "support_strength": "direct_quote",
+        "text": "A limitation is that the evaluation covers two reference packages only."
+       }
+      ],
+      "10.5555/wa.2": [
+       {
+        "category": "method",
+        "evidence_id": "paper-6b3a21bcb0a2f354:e1",
+        "extraction_worker": "synthetic-model",
+        "location": {
+         "page": null,
+         "section": "abstract"
+        },
+        "paper_id": "paper-6b3a21bcb0a2f354",
+        "provenance": {
+         "locator": "10.5555/wa.2",
+         "source": "crossref",
+         "source_sha256": "c1fe7ee9b96864cabc4804161f391519ae66bbbb090761529fc3b225d96b3313",
+         "synthetic": false
+        },
+        "quote": "Host-mediated tool access routes every agent tool call through a trusted broker.",
+        "scope": "abstract",
+        "support_strength": "direct_quote",
+        "text": "Host-mediated tool access routes every agent tool call through a trusted broker."
+       },
+       {
+        "category": "setup",
+        "evidence_id": "paper-6b3a21bcb0a2f354:e2",
+        "extraction_worker": "synthetic-model",
+        "location": {
+         "page": null,
+         "section": "abstract"
+        },
+        "paper_id": "paper-6b3a21bcb0a2f354",
+        "provenance": {
+         "locator": "10.5555/wa.2",
+         "source": "crossref",
+         "source_sha256": "c1fe7ee9b96864cabc4804161f391519ae66bbbb090761529fc3b225d96b3313",
+         "synthetic": false
+        },
+        "quote": "The broker resolves each call against bindings approved for the current run.",
+        "scope": "abstract",
+        "support_strength": "direct_quote",
+        "text": "The broker resolves each call against bindings approved for the current run."
+       },
+       {
+        "category": "finding",
+        "evidence_id": "paper-6b3a21bcb0a2f354:e3",
+        "extraction_worker": "synthetic-model",
+        "location": {
+         "page": null,
+         "section": "abstract"
+        },
+        "paper_id": "paper-6b3a21bcb0a2f354",
+        "provenance": {
+         "locator": "10.5555/wa.2",
+         "source": "crossref",
+         "source_sha256": "c1fe7ee9b96864cabc4804161f391519ae66bbbb090761529fc3b225d96b3313",
+         "synthetic": false
+        },
+        "quote": "Experiments measure refused calls under injected binding changes.",
+        "scope": "abstract",
+        "support_strength": "direct_quote",
+        "text": "Experiments measure refused calls under injected binding changes."
+       },
+       {
+        "category": "limitation",
+        "evidence_id": "paper-6b3a21bcb0a2f354:e4",
+        "extraction_worker": "synthetic-model",
+        "location": {
+         "page": null,
+         "section": "abstract"
+        },
+        "paper_id": "paper-6b3a21bcb0a2f354",
+        "provenance": {
+         "locator": "10.5555/wa.2",
+         "source": "crossref",
+         "source_sha256": "c1fe7ee9b96864cabc4804161f391519ae66bbbb090761529fc3b225d96b3313",
+         "synthetic": false
+        },
+        "quote": "The method does not address semantic misuse of an approved tool.",
+        "scope": "abstract",
+        "support_strength": "direct_quote",
+        "text": "The method does not address semantic misuse of an approved tool."
+       }
+      ]
+     },
+     "items": [
+      "10.5555/wa.1",
+      "10.5555/wa.2"
+     ],
+     "map": true,
+     "node": "evidence",
+     "schema": {
+      "$defs": {
+       "s12": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+         "category": {
+          "enum": [
+           "method",
+           "finding",
+           "setup",
+           "limitation"
+          ]
+         },
+         "evidence_id": {
+          "type": "string"
+         },
+         "extraction_worker": {
+          "type": "string"
+         },
+         "location": {
+          "additionalProperties": false,
+          "properties": {
+           "page": {
+            "type": [
+             "integer",
+             "null"
+            ]
+           },
+           "section": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "page",
+           "section"
+          ],
+          "type": "object"
+         },
+         "paper_id": {
+          "type": "string"
+         },
+         "provenance": {
+          "additionalProperties": false,
+          "properties": {
+           "locator": {
+            "type": [
+             "string",
+             "null"
+            ]
+           },
+           "source": {
+            "type": "string"
+           },
+           "source_sha256": {
+            "type": "string"
+           },
+           "synthetic": {
+            "type": "boolean"
+           }
+          },
+          "required": [
+           "source",
+           "locator",
+           "source_sha256",
+           "synthetic"
+          ],
+          "type": "object"
+         },
+         "quote": {
+          "type": "string"
+         },
+         "scope": {
+          "enum": [
+           "abstract",
+           "full_text"
+          ]
+         },
+         "support_strength": {
+          "enum": [
+           "direct_quote",
+           "model_interpretation"
+          ]
+         },
+         "text": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "evidence_id",
+         "paper_id",
+         "text",
+         "quote",
+         "category",
+         "scope",
+         "support_strength",
+         "location",
+         "extraction_worker",
+         "provenance"
+        ],
+        "type": "object"
+       },
+       "s14": {
+        "items": {
+         "$ref": "#/$defs/s12"
+        },
+        "maxItems": 4,
+        "type": "array"
+       }
+      },
+      "$ref": "#/$defs/s14"
+     },
+     "schema_path": "schemas/paper-evidence.schema.json"
+    },
+    "normalize": {
+     "answers": {
+      "": {
+       "candidate_papers": [
+        {
+         "abstract": "Host-mediated tool access routes every agent tool call through a trusted broker. The broker resolves each call against bindings approved for the current run. Experiments measure refused calls under injected binding changes. The method does not address semantic misuse of an approved tool.",
+         "arxiv_id": null,
+         "authors": [
+          {
+           "name": "Grace Hopper-Synth"
+          }
+         ],
+         "doi": "10.5555/wa.2",
+         "full_text_available": false,
+         "paper_id": "paper-6b3a21bcb0a2f354",
+         "provenance": [
+          {
+           "locator": "10.5555/wa.2",
+           "query": "How do signed agent packages, frozen run plans and host-mediated tool access constrain portable language-model agent workflows?",
+           "retrieved_at": "2026-01-01T00:00:00.000Z",
+           "source": "crossref",
+           "synthetic": false
+          }
+         ],
+         "screening_rationale": "",
+         "screening_status": "pending",
+         "source": "crossref",
+         "title": "Host-Mediated Tool Access for Language-Model Agent Workflows",
+         "url": "https://doi.org/10.5555/wa.2",
+         "venue": "Synthetic Journal of Agent Security",
+         "year": 2025
+        },
+        {
+         "abstract": "Signed agent packages bind workflow graphs, skills and schemas to one publisher key. A host verifies package integrity before any instruction reaches a model. The evaluation compares signed packages with unsigned workflow scripts. A limitation is that a valid signature does not establish publisher trust.",
+         "arxiv_id": null,
+         "authors": [
+          {
+           "name": "Ada Lovelace-Synth"
+          },
+          {
+           "name": "Alan Turing-Synth"
+          }
+         ],
+         "doi": "10.5555/wa.1",
+         "full_text_available": true,
+         "paper_id": "paper-87fe6dad6f3ee148",
+         "provenance": [
+          {
+           "locator": "10.5555/wa.1",
+           "query": "How do signed agent packages, frozen run plans and host-mediated tool access constrain portable language-model agent workflows?",
+           "retrieved_at": "2026-01-01T00:00:00.000Z",
+           "source": "crossref",
+           "synthetic": false
+          }
+         ],
+         "screening_rationale": "",
+         "screening_status": "pending",
+         "source": "crossref",
+         "title": "Signed Agent Packages for Portable Language-Model Workflows",
+         "url": "https://doi.org/10.5555/wa.1",
+         "venue": "Proceedings of the Synthetic Workshop on Agent Runtimes",
+         "year": 2026
+        },
+        {
+         "abstract": "Run plans record the exact package digest, receipt and model binding of one run. A stale plan is refused rather than repaired. The prototype evaluates revalidation on a single host.",
+         "arxiv_id": null,
+         "authors": [
+          {
+           "name": "Barbara Liskov-Synth"
+          }
+         ],
+         "doi": "10.5555/wa.3",
+         "full_text_available": false,
+         "paper_id": "paper-eb6334940fbc9c50",
+         "provenance": [
+          {
+           "locator": "10.5555/wa.3",
+           "query": "How do signed agent packages, frozen run plans and host-mediated tool access constrain portable language-model agent workflows?",
+           "retrieved_at": "2026-01-01T00:00:00.000Z",
+           "source": "crossref",
+           "synthetic": false
+          },
+          {
+           "locator": "10.5555/wa.3",
+           "query": "How do signed agent packages, frozen run plans and host-mediated tool access constrain portable language-model agent workflows? evaluation",
+           "retrieved_at": "2026-01-01T00:00:00.000Z",
+           "source": "crossref",
+           "synthetic": false
+          }
+         ],
+         "screening_rationale": "",
+         "screening_status": "pending",
+         "source": "crossref",
+         "title": "Run Plans as Frozen Authorization Records for Agent Workflows",
+         "url": "https://doi.org/10.5555/wa.3",
+         "venue": "Synthetic Systems Letters",
+         "year": 2026
+        },
+        {
+         "abstract": "Budgeted execution reserves tokens before every model call in an agent graph. Workers that exceed their declared budget are refused before dispatch. The evaluation reports refusals under synthetic overload. Token accounting depends on usage reported by the host.",
+         "arxiv_id": null,
+         "authors": [
+          {
+           "name": "Edsger Dijkstra-Synth"
+          }
+         ],
+         "doi": "10.5555/wa.4",
+         "full_text_available": false,
+         "paper_id": "paper-98e0ee4006c08c80",
+         "provenance": [
+          {
+           "locator": "10.5555/wa.4",
+           "query": "How do signed agent packages, frozen run plans and host-mediated tool access constrain portable language-model agent workflows? evaluation",
+           "retrieved_at": "2026-01-01T00:00:00.000Z",
+           "source": "crossref",
+           "synthetic": false
+          },
+          {
+           "locator": "10.5555/wa.4",
+           "query": "How do signed agent packages, frozen run plans and host-mediated tool access constrain portable language-model agent workflows? limitations",
+           "retrieved_at": "2026-01-01T00:00:00.000Z",
+           "source": "crossref",
+           "synthetic": false
+          }
+         ],
+         "screening_rationale": "",
+         "screening_status": "pending",
+         "source": "crossref",
+         "title": "Budgeted Execution of Multi-Agent Language-Model Graphs",
+         "url": "https://doi.org/10.5555/wa.4",
+         "venue": "Synthetic Conference on Workflow Systems",
+         "year": 2024
+        },
+        {
+         "abstract": "Static websites benefit from aggressive content caching. The study measures cache hit rates for synthetic page loads.",
+         "arxiv_id": null,
+         "authors": [
+          {
+           "name": "Tim Berners-Synth"
+          }
+         ],
+         "doi": "10.5555/wa.6",
+         "full_text_available": false,
+         "paper_id": "paper-a14b70ed31c5235b",
+         "provenance": [
+          {
+           "locator": "10.5555/wa.6",
+           "query": "How do signed agent packages, frozen run plans and host-mediated tool access constrain portable language-model agent workflows? evaluation",
+           "retrieved_at": "2026-01-01T00:00:00.000Z",
+           "source": "crossref",
+           "synthetic": false
+          },
+          {
+           "locator": "10.5555/wa.6",
+           "query": "How do signed agent packages, frozen run plans and host-mediated tool access constrain portable language-model agent workflows? limitations",
+           "retrieved_at": "2026-01-01T00:00:00.000Z",
+           "source": "crossref",
+           "synthetic": false
+          }
+         ],
+         "screening_rationale": "",
+         "screening_status": "pending",
+         "source": "crossref",
+         "title": "Caching Strategies for Static Websites",
+         "url": "https://doi.org/10.5555/wa.6",
+         "venue": "Synthetic Web Engineering Notes",
+         "year": 2022
+        },
+        {
+         "abstract": "This survey catalogues prompt formatting conventions across chat interfaces. It reports no execution or authorization mechanism.",
+         "arxiv_id": null,
+         "authors": [
+          {
+           "name": "Donald Knuth-Synth"
+          }
+         ],
+         "doi": "10.5555/wa.5",
+         "full_text_available": false,
+         "paper_id": "paper-b716fed5a5eaaeb1",
+         "provenance": [
+          {
+           "locator": "10.5555/wa.5",
+           "query": "How do signed agent packages, frozen run plans and host-mediated tool access constrain portable language-model agent workflows? limitations",
+           "retrieved_at": "2026-01-01T00:00:00.000Z",
+           "source": "crossref",
+           "synthetic": false
+          }
+         ],
+         "screening_rationale": "",
+         "screening_status": "pending",
+         "source": "crossref",
+         "title": "A Survey of Prompt Formatting Conventions",
+         "url": "https://doi.org/10.5555/wa.5",
+         "venue": "Synthetic Review of Interface Design",
+         "year": 2023
+        }
+       ],
+       "screening_jobs": [
+        {
+         "file_id": null,
+         "paper": {
+          "abstract": "Host-mediated tool access routes every agent tool call through a trusted broker. The broker resolves each call against bindings approved for the current run. Experiments measure refused calls under injected binding changes. The method does not address semantic misuse of an approved tool.",
+          "arxiv_id": null,
+          "authors": [
+           {
+            "name": "Grace Hopper-Synth"
+           }
+          ],
+          "doi": "10.5555/wa.2",
+          "full_text_available": false,
+          "paper_id": "paper-6b3a21bcb0a2f354",
+          "provenance": [
+           {
+            "locator": "10.5555/wa.2",
+            "query": "How do signed agent packages, frozen run plans and host-mediated tool access constrain portable language-model agent workflows?",
+            "retrieved_at": "2026-01-01T00:00:00.000Z",
+            "source": "crossref",
+            "synthetic": false
+           }
+          ],
+          "screening_rationale": "",
+          "screening_status": "pending",
+          "source": "crossref",
+          "title": "Host-Mediated Tool Access for Language-Model Agent Workflows",
+          "url": "https://doi.org/10.5555/wa.2",
+          "venue": "Synthetic Journal of Agent Security",
+          "year": 2025
+         }
+        },
+        {
+         "file_id": "file_00000000000000000000000000000000",
+         "paper": {
+          "abstract": "Signed agent packages bind workflow graphs, skills and schemas to one publisher key. A host verifies package integrity before any instruction reaches a model. The evaluation compares signed packages with unsigned workflow scripts. A limitation is that a valid signature does not establish publisher trust.",
+          "arxiv_id": null,
+          "authors": [
+           {
+            "name": "Ada Lovelace-Synth"
+           },
+           {
+            "name": "Alan Turing-Synth"
+           }
+          ],
+          "doi": "10.5555/wa.1",
+          "full_text_available": true,
+          "paper_id": "paper-87fe6dad6f3ee148",
+          "provenance": [
+           {
+            "locator": "10.5555/wa.1",
+            "query": "How do signed agent packages, frozen run plans and host-mediated tool access constrain portable language-model agent workflows?",
+            "retrieved_at": "2026-01-01T00:00:00.000Z",
+            "source": "crossref",
+            "synthetic": false
+           }
+          ],
+          "screening_rationale": "",
+          "screening_status": "pending",
+          "source": "crossref",
+          "title": "Signed Agent Packages for Portable Language-Model Workflows",
+          "url": "https://doi.org/10.5555/wa.1",
+          "venue": "Proceedings of the Synthetic Workshop on Agent Runtimes",
+          "year": 2026
+         }
+        },
+        {
+         "file_id": null,
+         "paper": {
+          "abstract": "Run plans record the exact package digest, receipt and model binding of one run. A stale plan is refused rather than repaired. The prototype evaluates revalidation on a single host.",
+          "arxiv_id": null,
+          "authors": [
+           {
+            "name": "Barbara Liskov-Synth"
+           }
+          ],
+          "doi": "10.5555/wa.3",
+          "full_text_available": false,
+          "paper_id": "paper-eb6334940fbc9c50",
+          "provenance": [
+           {
+            "locator": "10.5555/wa.3",
+            "query": "How do signed agent packages, frozen run plans and host-mediated tool access constrain portable language-model agent workflows?",
+            "retrieved_at": "2026-01-01T00:00:00.000Z",
+            "source": "crossref",
+            "synthetic": false
+           },
+           {
+            "locator": "10.5555/wa.3",
+            "query": "How do signed agent packages, frozen run plans and host-mediated tool access constrain portable language-model agent workflows? evaluation",
+            "retrieved_at": "2026-01-01T00:00:00.000Z",
+            "source": "crossref",
+            "synthetic": false
+           }
+          ],
+          "screening_rationale": "",
+          "screening_status": "pending",
+          "source": "crossref",
+          "title": "Run Plans as Frozen Authorization Records for Agent Workflows",
+          "url": "https://doi.org/10.5555/wa.3",
+          "venue": "Synthetic Systems Letters",
+          "year": 2026
+         }
+        },
+        {
+         "file_id": null,
+         "paper": {
+          "abstract": "Budgeted execution reserves tokens before every model call in an agent graph. Workers that exceed their declared budget are refused before dispatch. The evaluation reports refusals under synthetic overload. Token accounting depends on usage reported by the host.",
+          "arxiv_id": null,
+          "authors": [
+           {
+            "name": "Edsger Dijkstra-Synth"
+           }
+          ],
+          "doi": "10.5555/wa.4",
+          "full_text_available": false,
+          "paper_id": "paper-98e0ee4006c08c80",
+          "provenance": [
+           {
+            "locator": "10.5555/wa.4",
+            "query": "How do signed agent packages, frozen run plans and host-mediated tool access constrain portable language-model agent workflows? evaluation",
+            "retrieved_at": "2026-01-01T00:00:00.000Z",
+            "source": "crossref",
+            "synthetic": false
+           },
+           {
+            "locator": "10.5555/wa.4",
+            "query": "How do signed agent packages, frozen run plans and host-mediated tool access constrain portable language-model agent workflows? limitations",
+            "retrieved_at": "2026-01-01T00:00:00.000Z",
+            "source": "crossref",
+            "synthetic": false
+           }
+          ],
+          "screening_rationale": "",
+          "screening_status": "pending",
+          "source": "crossref",
+          "title": "Budgeted Execution of Multi-Agent Language-Model Graphs",
+          "url": "https://doi.org/10.5555/wa.4",
+          "venue": "Synthetic Conference on Workflow Systems",
+          "year": 2024
+         }
+        },
+        {
+         "file_id": null,
+         "paper": {
+          "abstract": "Static websites benefit from aggressive content caching. The study measures cache hit rates for synthetic page loads.",
+          "arxiv_id": null,
+          "authors": [
+           {
+            "name": "Tim Berners-Synth"
+           }
+          ],
+          "doi": "10.5555/wa.6",
+          "full_text_available": false,
+          "paper_id": "paper-a14b70ed31c5235b",
+          "provenance": [
+           {
+            "locator": "10.5555/wa.6",
+            "query": "How do signed agent packages, frozen run plans and host-mediated tool access constrain portable language-model agent workflows? evaluation",
+            "retrieved_at": "2026-01-01T00:00:00.000Z",
+            "source": "crossref",
+            "synthetic": false
+           },
+           {
+            "locator": "10.5555/wa.6",
+            "query": "How do signed agent packages, frozen run plans and host-mediated tool access constrain portable language-model agent workflows? limitations",
+            "retrieved_at": "2026-01-01T00:00:00.000Z",
+            "source": "crossref",
+            "synthetic": false
+           }
+          ],
+          "screening_rationale": "",
+          "screening_status": "pending",
+          "source": "crossref",
+          "title": "Caching Strategies for Static Websites",
+          "url": "https://doi.org/10.5555/wa.6",
+          "venue": "Synthetic Web Engineering Notes",
+          "year": 2022
+         }
+        },
+        {
+         "file_id": null,
+         "paper": {
+          "abstract": "This survey catalogues prompt formatting conventions across chat interfaces. It reports no execution or authorization mechanism.",
+          "arxiv_id": null,
+          "authors": [
+           {
+            "name": "Donald Knuth-Synth"
+           }
+          ],
+          "doi": "10.5555/wa.5",
+          "full_text_available": false,
+          "paper_id": "paper-b716fed5a5eaaeb1",
+          "provenance": [
+           {
+            "locator": "10.5555/wa.5",
+            "query": "How do signed agent packages, frozen run plans and host-mediated tool access constrain portable language-model agent workflows? limitations",
+            "retrieved_at": "2026-01-01T00:00:00.000Z",
+            "source": "crossref",
+            "synthetic": false
+           }
+          ],
+          "screening_rationale": "",
+          "screening_status": "pending",
+          "source": "crossref",
+          "title": "A Survey of Prompt Formatting Conventions",
+          "url": "https://doi.org/10.5555/wa.5",
+          "venue": "Synthetic Review of Interface Design",
+          "year": 2023
+         }
+        }
+       ]
+      }
+     },
+     "items": [
+      ""
+     ],
+     "map": false,
+     "node": "normalize",
+     "schema": {
+      "$defs": {
+       "s13": {
+        "additionalProperties": false,
+        "properties": {
+         "candidate_papers": {
+          "items": {
+           "$ref": "#/$defs/s15"
+          },
+          "type": "array"
+         },
+         "screening_jobs": {
+          "items": {
+           "$ref": "#/$defs/s34"
+          },
+          "type": "array"
+         }
+        },
+        "required": [
+         "candidate_papers",
+         "screening_jobs"
+        ],
+        "type": "object"
+       },
+       "s15": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+         "abstract": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "arxiv_id": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "authors": {
+          "items": {
+           "additionalProperties": false,
+           "properties": {
+            "name": {
+             "type": "string"
+            }
+           },
+           "required": [
+            "name"
+           ],
+           "type": "object"
+          },
+          "type": "array"
+         },
+         "doi": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "full_text_available": {
+          "type": "boolean"
+         },
+         "paper_id": {
+          "type": "string"
+         },
+         "provenance": {
+          "items": {
+           "additionalProperties": false,
+           "properties": {
+            "locator": {
+             "type": [
+              "string",
+              "null"
+             ]
+            },
+            "query": {
+             "type": [
+              "string",
+              "null"
+             ]
+            },
+            "retrieved_at": {
+             "type": "string"
+            },
+            "source": {
+             "type": "string"
+            },
+            "synthetic": {
+             "type": "boolean"
+            }
+           },
+           "required": [
+            "source"
+           ],
+           "type": "object"
+          },
+          "type": "array"
+         },
+         "screening_rationale": {
+          "type": "string"
+         },
+         "screening_status": {
+          "enum": [
+           "include",
+           "maybe",
+           "exclude",
+           "pending"
+          ]
+         },
+         "source": {
+          "type": "string"
+         },
+         "title": {
+          "type": "string"
+         },
+         "url": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "venue": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "year": {
+          "type": [
+           "integer",
+           "null"
+          ]
+         }
+        },
+        "required": [
+         "paper_id",
+         "title",
+         "doi",
+         "arxiv_id",
+         "authors",
+         "year",
+         "venue",
+         "abstract",
+         "url",
+         "source",
+         "provenance",
+         "full_text_available",
+         "screening_status",
+         "screening_rationale"
+        ],
+        "type": "object"
+       },
+       "s34": {
+        "additionalProperties": false,
+        "properties": {
+         "file_id": {
+          "anyOf": [
+           {
+            "type": "null"
+           },
+           {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$",
+            "type": "string"
+           }
+          ]
+         },
+         "paper": {
+          "$ref": "#/$defs/s15"
+         }
+        },
+        "required": [
+         "paper",
+         "file_id"
+        ],
+        "type": "object"
+       }
+      },
+      "$ref": "#/$defs/s13"
+     },
+     "schema_path": "schemas/normalize.schema.json"
+    },
+    "plan": {
+     "answers": {
+      "": {
+       "queries": [
+        "How do signed agent packages, frozen run plans and host-mediated tool access constrain portable language-model agent workflows?",
+        "How do signed agent packages, frozen run plans and host-mediated tool access constrain portable language-model agent workflows? evaluation",
+        "How do signed agent packages, frozen run plans and host-mediated tool access constrain portable language-model agent workflows? limitations"
+       ],
+       "rationale": "Three facets of the question: the question itself, evaluation, limits.",
+       "seed_queries": []
+      }
+     },
+     "items": [
+      ""
+     ],
+     "map": false,
+     "node": "planning",
+     "schema": {
+      "$defs": {
+       "s17": {
+        "additionalProperties": false,
+        "properties": {
+         "queries": {
+          "items": {
+           "minLength": 1,
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "rationale": {
+          "type": "string"
+         },
+         "seed_queries": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         }
+        },
+        "required": [
+         "queries",
+         "rationale",
+         "seed_queries"
+        ],
+        "type": "object"
+       }
+      },
+      "$ref": "#/$defs/s17"
+     },
+     "schema_path": "schemas/plan.schema.json"
+    },
+    "screen": {
+     "answers": {
+      "10.5555/wa.1": {
+       "abstract": "Signed agent packages bind workflow graphs, skills and schemas to one publisher key. A host verifies package integrity before any instruction reaches a model. The evaluation compares signed packages with unsigned workflow scripts. A limitation is that a valid signature does not establish publisher trust.",
+       "arxiv_id": null,
+       "authors": [
+        {
+         "name": "Ada Lovelace-Synth"
+        },
+        {
+         "name": "Alan Turing-Synth"
+        }
+       ],
+       "doi": "10.5555/wa.1",
+       "full_text_available": true,
+       "paper_id": "paper-87fe6dad6f3ee148",
+       "provenance": [
+        {
+         "locator": "10.5555/wa.1",
+         "query": "How do signed agent packages, frozen run plans and host-mediated tool access constrain portable language-model agent workflows?",
+         "retrieved_at": "2026-01-01T00:00:00.000Z",
+         "source": "crossref",
+         "synthetic": false
+        }
+       ],
+       "screening_rationale": "The source addresses package verification, authorization or mediation.",
+       "screening_status": "include",
+       "source": "crossref",
+       "title": "Signed Agent Packages for Portable Language-Model Workflows",
+       "url": "https://doi.org/10.5555/wa.1",
+       "venue": "Proceedings of the Synthetic Workshop on Agent Runtimes",
+       "year": 2026
+      },
+      "10.5555/wa.2": {
+       "abstract": "Host-mediated tool access routes every agent tool call through a trusted broker. The broker resolves each call against bindings approved for the current run. Experiments measure refused calls under injected binding changes. The method does not address semantic misuse of an approved tool.",
+       "arxiv_id": null,
+       "authors": [
+        {
+         "name": "Grace Hopper-Synth"
+        }
+       ],
+       "doi": "10.5555/wa.2",
+       "full_text_available": false,
+       "paper_id": "paper-6b3a21bcb0a2f354",
+       "provenance": [
+        {
+         "locator": "10.5555/wa.2",
+         "query": "How do signed agent packages, frozen run plans and host-mediated tool access constrain portable language-model agent workflows?",
+         "retrieved_at": "2026-01-01T00:00:00.000Z",
+         "source": "crossref",
+         "synthetic": false
+        }
+       ],
+       "screening_rationale": "The source addresses package verification, authorization or mediation.",
+       "screening_status": "include",
+       "source": "crossref",
+       "title": "Host-Mediated Tool Access for Language-Model Agent Workflows",
+       "url": "https://doi.org/10.5555/wa.2",
+       "venue": "Synthetic Journal of Agent Security",
+       "year": 2025
+      },
+      "10.5555/wa.3": {
+       "abstract": "Run plans record the exact package digest, receipt and model binding of one run. A stale plan is refused rather than repaired. The prototype evaluates revalidation on a single host.",
+       "arxiv_id": null,
+       "authors": [
+        {
+         "name": "Barbara Liskov-Synth"
+        }
+       ],
+       "doi": "10.5555/wa.3",
+       "full_text_available": false,
+       "paper_id": "paper-eb6334940fbc9c50",
+       "provenance": [
+        {
+         "locator": "10.5555/wa.3",
+         "query": "How do signed agent packages, frozen run plans and host-mediated tool access constrain portable language-model agent workflows?",
+         "retrieved_at": "2026-01-01T00:00:00.000Z",
+         "source": "crossref",
+         "synthetic": false
+        },
+        {
+         "locator": "10.5555/wa.3",
+         "query": "How do signed agent packages, frozen run plans and host-mediated tool access constrain portable language-model agent workflows? evaluation",
+         "retrieved_at": "2026-01-01T00:00:00.000Z",
+         "source": "crossref",
+         "synthetic": false
+        }
+       ],
+       "screening_rationale": "The source addresses package verification, authorization or mediation.",
+       "screening_status": "include",
+       "source": "crossref",
+       "title": "Run Plans as Frozen Authorization Records for Agent Workflows",
+       "url": "https://doi.org/10.5555/wa.3",
+       "venue": "Synthetic Systems Letters",
+       "year": 2026
+      },
+      "10.5555/wa.4": {
+       "abstract": "Budgeted execution reserves tokens before every model call in an agent graph. Workers that exceed their declared budget are refused before dispatch. The evaluation reports refusals under synthetic overload. Token accounting depends on usage reported by the host.",
+       "arxiv_id": null,
+       "authors": [
+        {
+         "name": "Edsger Dijkstra-Synth"
+        }
+       ],
+       "doi": "10.5555/wa.4",
+       "full_text_available": false,
+       "paper_id": "paper-98e0ee4006c08c80",
+       "provenance": [
+        {
+         "locator": "10.5555/wa.4",
+         "query": "How do signed agent packages, frozen run plans and host-mediated tool access constrain portable language-model agent workflows? evaluation",
+         "retrieved_at": "2026-01-01T00:00:00.000Z",
+         "source": "crossref",
+         "synthetic": false
+        },
+        {
+         "locator": "10.5555/wa.4",
+         "query": "How do signed agent packages, frozen run plans and host-mediated tool access constrain portable language-model agent workflows? limitations",
+         "retrieved_at": "2026-01-01T00:00:00.000Z",
+         "source": "crossref",
+         "synthetic": false
+        }
+       ],
+       "screening_rationale": "The source addresses package verification, authorization or mediation.",
+       "screening_status": "include",
+       "source": "crossref",
+       "title": "Budgeted Execution of Multi-Agent Language-Model Graphs",
+       "url": "https://doi.org/10.5555/wa.4",
+       "venue": "Synthetic Conference on Workflow Systems",
+       "year": 2024
+      },
+      "10.5555/wa.5": {
+       "abstract": "This survey catalogues prompt formatting conventions across chat interfaces. It reports no execution or authorization mechanism.",
+       "arxiv_id": null,
+       "authors": [
+        {
+         "name": "Donald Knuth-Synth"
+        }
+       ],
+       "doi": "10.5555/wa.5",
+       "full_text_available": false,
+       "paper_id": "paper-b716fed5a5eaaeb1",
+       "provenance": [
+        {
+         "locator": "10.5555/wa.5",
+         "query": "How do signed agent packages, frozen run plans and host-mediated tool access constrain portable language-model agent workflows? limitations",
+         "retrieved_at": "2026-01-01T00:00:00.000Z",
+         "source": "crossref",
+         "synthetic": false
+        }
+       ],
+       "screening_rationale": "The source does not address the question.",
+       "screening_status": "exclude",
+       "source": "crossref",
+       "title": "A Survey of Prompt Formatting Conventions",
+       "url": "https://doi.org/10.5555/wa.5",
+       "venue": "Synthetic Review of Interface Design",
+       "year": 2023
+      },
+      "10.5555/wa.6": {
+       "abstract": "Static websites benefit from aggressive content caching. The study measures cache hit rates for synthetic page loads.",
+       "arxiv_id": null,
+       "authors": [
+        {
+         "name": "Tim Berners-Synth"
+        }
+       ],
+       "doi": "10.5555/wa.6",
+       "full_text_available": false,
+       "paper_id": "paper-a14b70ed31c5235b",
+       "provenance": [
+        {
+         "locator": "10.5555/wa.6",
+         "query": "How do signed agent packages, frozen run plans and host-mediated tool access constrain portable language-model agent workflows? evaluation",
+         "retrieved_at": "2026-01-01T00:00:00.000Z",
+         "source": "crossref",
+         "synthetic": false
+        },
+        {
+         "locator": "10.5555/wa.6",
+         "query": "How do signed agent packages, frozen run plans and host-mediated tool access constrain portable language-model agent workflows? limitations",
+         "retrieved_at": "2026-01-01T00:00:00.000Z",
+         "source": "crossref",
+         "synthetic": false
+        }
+       ],
+       "screening_rationale": "The source does not address the question.",
+       "screening_status": "exclude",
+       "source": "crossref",
+       "title": "Caching Strategies for Static Websites",
+       "url": "https://doi.org/10.5555/wa.6",
+       "venue": "Synthetic Web Engineering Notes",
+       "year": 2022
+      }
+     },
+     "items": [
+      "10.5555/wa.1",
+      "10.5555/wa.2",
+      "10.5555/wa.3",
+      "10.5555/wa.4",
+      "10.5555/wa.5",
+      "10.5555/wa.6"
+     ],
+     "map": true,
+     "node": "screening",
+     "schema": {
+      "$defs": {
+       "s15": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+         "abstract": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "arxiv_id": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "authors": {
+          "items": {
+           "additionalProperties": false,
+           "properties": {
+            "name": {
+             "type": "string"
+            }
+           },
+           "required": [
+            "name"
+           ],
+           "type": "object"
+          },
+          "type": "array"
+         },
+         "doi": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "full_text_available": {
+          "type": "boolean"
+         },
+         "paper_id": {
+          "type": "string"
+         },
+         "provenance": {
+          "items": {
+           "additionalProperties": false,
+           "properties": {
+            "locator": {
+             "type": [
+              "string",
+              "null"
+             ]
+            },
+            "query": {
+             "type": [
+              "string",
+              "null"
+             ]
+            },
+            "retrieved_at": {
+             "type": "string"
+            },
+            "source": {
+             "type": "string"
+            },
+            "synthetic": {
+             "type": "boolean"
+            }
+           },
+           "required": [
+            "source"
+           ],
+           "type": "object"
+          },
+          "type": "array"
+         },
+         "screening_rationale": {
+          "type": "string"
+         },
+         "screening_status": {
+          "enum": [
+           "include",
+           "maybe",
+           "exclude",
+           "pending"
+          ]
+         },
+         "source": {
+          "type": "string"
+         },
+         "title": {
+          "type": "string"
+         },
+         "url": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "venue": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "year": {
+          "type": [
+           "integer",
+           "null"
+          ]
+         }
+        },
+        "required": [
+         "paper_id",
+         "title",
+         "doi",
+         "arxiv_id",
+         "authors",
+         "year",
+         "venue",
+         "abstract",
+         "url",
+         "source",
+         "provenance",
+         "full_text_available",
+         "screening_status",
+         "screening_rationale"
+        ],
+        "type": "object"
+       }
+      },
+      "$ref": "#/$defs/s15"
+     },
+     "schema_path": "schemas/paper.schema.json"
+    },
+    "select": {
+     "answers": {
+      "": [
+       {
+        "abstract": "Host-mediated tool access routes every agent tool call through a trusted broker. The broker resolves each call against bindings approved for the current run. Experiments measure refused calls under injected binding changes. The method does not address semantic misuse of an approved tool.",
+        "arxiv_id": null,
+        "authors": [
+         {
+          "name": "Grace Hopper-Synth"
+         }
+        ],
+        "doi": "10.5555/wa.2",
+        "full_text_available": false,
+        "paper_id": "paper-6b3a21bcb0a2f354",
+        "provenance": [
+         {
+          "locator": "10.5555/wa.2",
+          "query": "How do signed agent packages, frozen run plans and host-mediated tool access constrain portable language-model agent workflows?",
+          "retrieved_at": "2026-01-01T00:00:00.000Z",
+          "source": "crossref",
+          "synthetic": false
+         }
+        ],
+        "screening_rationale": "The source addresses package verification, authorization or mediation.",
+        "screening_status": "include",
+        "source": "crossref",
+        "title": "Host-Mediated Tool Access for Language-Model Agent Workflows",
+        "url": "https://doi.org/10.5555/wa.2",
+        "venue": "Synthetic Journal of Agent Security",
+        "year": 2025
+       },
+       {
+        "abstract": "Signed agent packages bind workflow graphs, skills and schemas to one publisher key. A host verifies package integrity before any instruction reaches a model. The evaluation compares signed packages with unsigned workflow scripts. A limitation is that a valid signature does not establish publisher trust.",
+        "arxiv_id": null,
+        "authors": [
+         {
+          "name": "Ada Lovelace-Synth"
+         },
+         {
+          "name": "Alan Turing-Synth"
+         }
+        ],
+        "doi": "10.5555/wa.1",
+        "full_text_available": true,
+        "paper_id": "paper-87fe6dad6f3ee148",
+        "provenance": [
+         {
+          "locator": "10.5555/wa.1",
+          "query": "How do signed agent packages, frozen run plans and host-mediated tool access constrain portable language-model agent workflows?",
+          "retrieved_at": "2026-01-01T00:00:00.000Z",
+          "source": "crossref",
+          "synthetic": false
+         }
+        ],
+        "screening_rationale": "The source addresses package verification, authorization or mediation.",
+        "screening_status": "include",
+        "source": "crossref",
+        "title": "Signed Agent Packages for Portable Language-Model Workflows",
+        "url": "https://doi.org/10.5555/wa.1",
+        "venue": "Proceedings of the Synthetic Workshop on Agent Runtimes",
+        "year": 2026
+       },
+       {
+        "abstract": "Run plans record the exact package digest, receipt and model binding of one run. A stale plan is refused rather than repaired. The prototype evaluates revalidation on a single host.",
+        "arxiv_id": null,
+        "authors": [
+         {
+          "name": "Barbara Liskov-Synth"
+         }
+        ],
+        "doi": "10.5555/wa.3",
+        "full_text_available": false,
+        "paper_id": "paper-eb6334940fbc9c50",
+        "provenance": [
+         {
+          "locator": "10.5555/wa.3",
+          "query": "How do signed agent packages, frozen run plans and host-mediated tool access constrain portable language-model agent workflows?",
+          "retrieved_at": "2026-01-01T00:00:00.000Z",
+          "source": "crossref",
+          "synthetic": false
+         },
+         {
+          "locator": "10.5555/wa.3",
+          "query": "How do signed agent packages, frozen run plans and host-mediated tool access constrain portable language-model agent workflows? evaluation",
+          "retrieved_at": "2026-01-01T00:00:00.000Z",
+          "source": "crossref",
+          "synthetic": false
+         }
+        ],
+        "screening_rationale": "The source addresses package verification, authorization or mediation.",
+        "screening_status": "include",
+        "source": "crossref",
+        "title": "Run Plans as Frozen Authorization Records for Agent Workflows",
+        "url": "https://doi.org/10.5555/wa.3",
+        "venue": "Synthetic Systems Letters",
+        "year": 2026
+       }
+      ]
+     },
+     "items": [
+      ""
+     ],
+     "map": false,
+     "node": "select-included",
+     "schema": {
+      "$defs": {
+       "s15": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+         "abstract": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "arxiv_id": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "authors": {
+          "items": {
+           "additionalProperties": false,
+           "properties": {
+            "name": {
+             "type": "string"
+            }
+           },
+           "required": [
+            "name"
+           ],
+           "type": "object"
+          },
+          "type": "array"
+         },
+         "doi": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "full_text_available": {
+          "type": "boolean"
+         },
+         "paper_id": {
+          "type": "string"
+         },
+         "provenance": {
+          "items": {
+           "additionalProperties": false,
+           "properties": {
+            "locator": {
+             "type": [
+              "string",
+              "null"
+             ]
+            },
+            "query": {
+             "type": [
+              "string",
+              "null"
+             ]
+            },
+            "retrieved_at": {
+             "type": "string"
+            },
+            "source": {
+             "type": "string"
+            },
+            "synthetic": {
+             "type": "boolean"
+            }
+           },
+           "required": [
+            "source"
+           ],
+           "type": "object"
+          },
+          "type": "array"
+         },
+         "screening_rationale": {
+          "type": "string"
+         },
+         "screening_status": {
+          "enum": [
+           "include",
+           "maybe",
+           "exclude",
+           "pending"
+          ]
+         },
+         "source": {
+          "type": "string"
+         },
+         "title": {
+          "type": "string"
+         },
+         "url": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "venue": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "year": {
+          "type": [
+           "integer",
+           "null"
+          ]
+         }
+        },
+        "required": [
+         "paper_id",
+         "title",
+         "doi",
+         "arxiv_id",
+         "authors",
+         "year",
+         "venue",
+         "abstract",
+         "url",
+         "source",
+         "provenance",
+         "full_text_available",
+         "screening_status",
+         "screening_rationale"
+        ],
+        "type": "object"
+       },
+       "s38": {
+        "items": {
+         "$ref": "#/$defs/s15"
+        },
+        "maxItems": 3,
+        "type": "array"
+       }
+      },
+      "$ref": "#/$defs/s38"
+     },
+     "schema_path": "schemas/selection.schema.json"
+    },
+    "synthesize": {
+     "answers": {
+      "": {
+       "claims": [
+        {
+         "claim_id": "claim-ea0244e8f7c8794a",
+         "evidence_ids": [
+          "paper-6b3a21bcb0a2f354:e1"
+         ],
+         "paper_ids": [
+          "paper-6b3a21bcb0a2f354"
+         ],
+         "strength": "descriptive",
+         "support_type": "direct_quote",
+         "text": null,
+         "theme_id": "theme-1",
+         "verification_status": "pending"
+        },
+        {
+         "claim_id": "claim-4eeac9130268e0e4",
+         "evidence_ids": [
+          "paper-6b3a21bcb0a2f354:e2"
+         ],
+         "paper_ids": [
+          "paper-6b3a21bcb0a2f354"
+         ],
+         "strength": "descriptive",
+         "support_type": "direct_quote",
+         "text": null,
+         "theme_id": "theme-1",
+         "verification_status": "pending"
+        },
+        {
+         "claim_id": "claim-6a71b17aeb62e55d",
+         "evidence_ids": [
+          "paper-6b3a21bcb0a2f354:e3"
+         ],
+         "paper_ids": [
+          "paper-6b3a21bcb0a2f354"
+         ],
+         "strength": "descriptive",
+         "support_type": "direct_quote",
+         "text": null,
+         "theme_id": "theme-1",
+         "verification_status": "pending"
+        },
+        {
+         "claim_id": "claim-8e4ea5b5818a9f02",
+         "evidence_ids": [
+          "paper-6b3a21bcb0a2f354:e4"
+         ],
+         "paper_ids": [
+          "paper-6b3a21bcb0a2f354"
+         ],
+         "strength": "descriptive",
+         "support_type": "direct_quote",
+         "text": null,
+         "theme_id": "theme-1",
+         "verification_status": "pending"
+        },
+        {
+         "claim_id": "claim-81c1d15ca3acfba2",
+         "evidence_ids": [
+          "paper-87fe6dad6f3ee148:e1"
+         ],
+         "paper_ids": [
+          "paper-87fe6dad6f3ee148"
+         ],
+         "strength": "descriptive",
+         "support_type": "direct_quote",
+         "text": null,
+         "theme_id": "theme-1",
+         "verification_status": "pending"
+        },
+        {
+         "claim_id": "claim-a7aa1a7209fb37a5",
+         "evidence_ids": [
+          "paper-87fe6dad6f3ee148:e2"
+         ],
+         "paper_ids": [
+          "paper-87fe6dad6f3ee148"
+         ],
+         "strength": "descriptive",
+         "support_type": "direct_quote",
+         "text": null,
+         "theme_id": "theme-1",
+         "verification_status": "pending"
+        },
+        {
+         "claim_id": "claim-bc900de4a5339455",
+         "evidence_ids": [
+          "paper-87fe6dad6f3ee148:e3"
+         ],
+         "paper_ids": [
+          "paper-87fe6dad6f3ee148"
+         ],
+         "strength": "descriptive",
+         "support_type": "direct_quote",
+         "text": null,
+         "theme_id": "theme-1",
+         "verification_status": "pending"
+        },
+        {
+         "claim_id": "claim-1d16291bc175936f",
+         "evidence_ids": [
+          "paper-87fe6dad6f3ee148:e4"
+         ],
+         "paper_ids": [
+          "paper-87fe6dad6f3ee148"
+         ],
+         "strength": "descriptive",
+         "support_type": "direct_quote",
+         "text": null,
+         "theme_id": "theme-1",
+         "verification_status": "pending"
+        },
+        {
+         "claim_id": "claim-d4c5235621275774",
+         "evidence_ids": [
+          "paper-6b3a21bcb0a2f354:e1",
+          "paper-87fe6dad6f3ee148:e1"
+         ],
+         "paper_ids": [
+          "paper-6b3a21bcb0a2f354",
+          "paper-87fe6dad6f3ee148"
+         ],
+         "strength": "tentative",
+         "support_type": "model_synthesis",
+         "text": "Both reviewed lines of work enforce workflow constraints in the host rather than in the model.",
+         "theme_id": "theme-1",
+         "verification_status": "pending"
+        }
+       ],
+       "themes": [
+        {
+         "evidence_ids": [
+          "paper-6b3a21bcb0a2f354:e1",
+          "paper-6b3a21bcb0a2f354:e2",
+          "paper-6b3a21bcb0a2f354:e3",
+          "paper-6b3a21bcb0a2f354:e4",
+          "paper-87fe6dad6f3ee148:e1",
+          "paper-87fe6dad6f3ee148:e2",
+          "paper-87fe6dad6f3ee148:e3",
+          "paper-87fe6dad6f3ee148:e4"
+         ],
+         "inference_level": "extractive_grouping",
+         "label": "Host-side enforcement of agent workflows",
+         "limitations": [
+          "Evidence is limited to abstracts and one supplied document."
+         ],
+         "method_comparison": "The sources enforce constraints before dispatch.",
+         "theme_id": "theme-1"
+        }
+       ]
+      }
+     },
+     "items": [
+      ""
+     ],
+     "map": false,
+     "node": "synthesis",
+     "schema": {
+      "$defs": {
+       "s39": {
+        "additionalProperties": false,
+        "properties": {
+         "claims": {
+          "items": {
+           "$ref": "#/$defs/s4"
+          },
+          "type": "array"
+         },
+         "themes": {
+          "items": {
+           "$ref": "#/$defs/s41"
+          },
+          "type": "array"
+         }
+        },
+        "required": [
+         "themes",
+         "claims"
+        ],
+        "type": "object"
+       },
+       "s4": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "allOf": [
+         {
+          "else": {
+           "properties": {
+            "text": {
+             "type": "string"
+            }
+           }
+          },
+          "if": {
+           "properties": {
+            "support_type": {
+             "const": "direct_quote"
+            }
+           }
+          },
+          "then": {
+           "properties": {
+            "evidence_ids": {
+             "maxItems": 1
+            },
+            "paper_ids": {
+             "maxItems": 1
+            },
+            "text": {
+             "type": "null"
+            }
+           }
+          }
+         }
+        ],
+        "properties": {
+         "claim_id": {
+          "type": "string"
+         },
+         "evidence_ids": {
+          "items": {
+           "type": "string"
+          },
+          "minItems": 1,
+          "type": "array"
+         },
+         "paper_ids": {
+          "items": {
+           "type": "string"
+          },
+          "minItems": 1,
+          "type": "array"
+         },
+         "strength": {
+          "enum": [
+           "descriptive",
+           "tentative"
+          ]
+         },
+         "support_type": {
+          "enum": [
+           "direct_quote",
+           "model_synthesis"
+          ]
+         },
+         "text": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "theme_id": {
+          "type": "string"
+         },
+         "verification_status": {
+          "enum": [
+           "pending",
+           "supported",
+           "unsupported",
+           "overstated"
+          ]
+         }
+        },
+        "required": [
+         "claim_id",
+         "text",
+         "paper_ids",
+         "evidence_ids",
+         "support_type",
+         "strength",
+         "verification_status",
+         "theme_id"
+        ],
+        "type": "object"
+       },
+       "s41": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+         "evidence_ids": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "inference_level": {
+          "enum": [
+           "extractive_grouping",
+           "model_synthesis"
+          ]
+         },
+         "label": {
+          "type": "string"
+         },
+         "limitations": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "method_comparison": {
+          "type": "string"
+         },
+         "theme_id": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "theme_id",
+         "label",
+         "evidence_ids",
+         "method_comparison",
+         "limitations",
+         "inference_level"
+        ],
+        "type": "object"
+       }
+      },
+      "$ref": "#/$defs/s39"
+     },
+     "schema_path": "schemas/synthesis.schema.json"
+    },
+    "verify": {
+     "answers": {
+      "": {
+       "bibliography": [
+        {
+         "paper_id": "paper-6b3a21bcb0a2f354",
+         "reference": 1
+        },
+        {
+         "paper_id": "paper-87fe6dad6f3ee148",
+         "reference": 2
+        }
+       ],
+       "claims": [
+        {
+         "claim_id": "claim-ea0244e8f7c8794a",
+         "evidence_ids": [
+          "paper-6b3a21bcb0a2f354:e1"
+         ],
+         "paper_ids": [
+          "paper-6b3a21bcb0a2f354"
+         ],
+         "strength": "descriptive",
+         "support_type": "direct_quote",
+         "text": null,
+         "theme_id": "theme-1",
+         "verification_status": "supported"
+        },
+        {
+         "claim_id": "claim-4eeac9130268e0e4",
+         "evidence_ids": [
+          "paper-6b3a21bcb0a2f354:e2"
+         ],
+         "paper_ids": [
+          "paper-6b3a21bcb0a2f354"
+         ],
+         "strength": "descriptive",
+         "support_type": "direct_quote",
+         "text": null,
+         "theme_id": "theme-1",
+         "verification_status": "supported"
+        },
+        {
+         "claim_id": "claim-6a71b17aeb62e55d",
+         "evidence_ids": [
+          "paper-6b3a21bcb0a2f354:e3"
+         ],
+         "paper_ids": [
+          "paper-6b3a21bcb0a2f354"
+         ],
+         "strength": "descriptive",
+         "support_type": "direct_quote",
+         "text": null,
+         "theme_id": "theme-1",
+         "verification_status": "supported"
+        },
+        {
+         "claim_id": "claim-8e4ea5b5818a9f02",
+         "evidence_ids": [
+          "paper-6b3a21bcb0a2f354:e4"
+         ],
+         "paper_ids": [
+          "paper-6b3a21bcb0a2f354"
+         ],
+         "strength": "descriptive",
+         "support_type": "direct_quote",
+         "text": null,
+         "theme_id": "theme-1",
+         "verification_status": "supported"
+        },
+        {
+         "claim_id": "claim-81c1d15ca3acfba2",
+         "evidence_ids": [
+          "paper-87fe6dad6f3ee148:e1"
+         ],
+         "paper_ids": [
+          "paper-87fe6dad6f3ee148"
+         ],
+         "strength": "descriptive",
+         "support_type": "direct_quote",
+         "text": null,
+         "theme_id": "theme-1",
+         "verification_status": "supported"
+        },
+        {
+         "claim_id": "claim-a7aa1a7209fb37a5",
+         "evidence_ids": [
+          "paper-87fe6dad6f3ee148:e2"
+         ],
+         "paper_ids": [
+          "paper-87fe6dad6f3ee148"
+         ],
+         "strength": "descriptive",
+         "support_type": "direct_quote",
+         "text": null,
+         "theme_id": "theme-1",
+         "verification_status": "supported"
+        },
+        {
+         "claim_id": "claim-bc900de4a5339455",
+         "evidence_ids": [
+          "paper-87fe6dad6f3ee148:e3"
+         ],
+         "paper_ids": [
+          "paper-87fe6dad6f3ee148"
+         ],
+         "strength": "descriptive",
+         "support_type": "direct_quote",
+         "text": null,
+         "theme_id": "theme-1",
+         "verification_status": "supported"
+        },
+        {
+         "claim_id": "claim-1d16291bc175936f",
+         "evidence_ids": [
+          "paper-87fe6dad6f3ee148:e4"
+         ],
+         "paper_ids": [
+          "paper-87fe6dad6f3ee148"
+         ],
+         "strength": "descriptive",
+         "support_type": "direct_quote",
+         "text": null,
+         "theme_id": "theme-1",
+         "verification_status": "supported"
+        },
+        {
+         "claim_id": "claim-d4c5235621275774",
+         "evidence_ids": [
+          "paper-6b3a21bcb0a2f354:e1",
+          "paper-87fe6dad6f3ee148:e1"
+         ],
+         "paper_ids": [
+          "paper-6b3a21bcb0a2f354",
+          "paper-87fe6dad6f3ee148"
+         ],
+         "strength": "tentative",
+         "support_type": "model_synthesis",
+         "text": "Both reviewed lines of work enforce workflow constraints in the host rather than in the model.",
+         "theme_id": "theme-1",
+         "verification_status": "supported"
+        }
+       ],
+       "evidence_table": [
+        {
+         "category": "method",
+         "evidence_id": "paper-6b3a21bcb0a2f354:e1",
+         "extraction_worker": "synthetic-model",
+         "location": {
+          "page": null,
+          "section": "abstract"
+         },
+         "paper_id": "paper-6b3a21bcb0a2f354",
+         "provenance": {
+          "locator": "10.5555/wa.2",
+          "source": "crossref",
+          "source_sha256": "c1fe7ee9b96864cabc4804161f391519ae66bbbb090761529fc3b225d96b3313",
+          "synthetic": false
+         },
+         "quote": "Host-mediated tool access routes every agent tool call through a trusted broker.",
+         "scope": "abstract",
+         "support_strength": "direct_quote",
+         "text": "Host-mediated tool access routes every agent tool call through a trusted broker."
+        },
+        {
+         "category": "setup",
+         "evidence_id": "paper-6b3a21bcb0a2f354:e2",
+         "extraction_worker": "synthetic-model",
+         "location": {
+          "page": null,
+          "section": "abstract"
+         },
+         "paper_id": "paper-6b3a21bcb0a2f354",
+         "provenance": {
+          "locator": "10.5555/wa.2",
+          "source": "crossref",
+          "source_sha256": "c1fe7ee9b96864cabc4804161f391519ae66bbbb090761529fc3b225d96b3313",
+          "synthetic": false
+         },
+         "quote": "The broker resolves each call against bindings approved for the current run.",
+         "scope": "abstract",
+         "support_strength": "direct_quote",
+         "text": "The broker resolves each call against bindings approved for the current run."
+        },
+        {
+         "category": "finding",
+         "evidence_id": "paper-6b3a21bcb0a2f354:e3",
+         "extraction_worker": "synthetic-model",
+         "location": {
+          "page": null,
+          "section": "abstract"
+         },
+         "paper_id": "paper-6b3a21bcb0a2f354",
+         "provenance": {
+          "locator": "10.5555/wa.2",
+          "source": "crossref",
+          "source_sha256": "c1fe7ee9b96864cabc4804161f391519ae66bbbb090761529fc3b225d96b3313",
+          "synthetic": false
+         },
+         "quote": "Experiments measure refused calls under injected binding changes.",
+         "scope": "abstract",
+         "support_strength": "direct_quote",
+         "text": "Experiments measure refused calls under injected binding changes."
+        },
+        {
+         "category": "limitation",
+         "evidence_id": "paper-6b3a21bcb0a2f354:e4",
+         "extraction_worker": "synthetic-model",
+         "location": {
+          "page": null,
+          "section": "abstract"
+         },
+         "paper_id": "paper-6b3a21bcb0a2f354",
+         "provenance": {
+          "locator": "10.5555/wa.2",
+          "source": "crossref",
+          "source_sha256": "c1fe7ee9b96864cabc4804161f391519ae66bbbb090761529fc3b225d96b3313",
+          "synthetic": false
+         },
+         "quote": "The method does not address semantic misuse of an approved tool.",
+         "scope": "abstract",
+         "support_strength": "direct_quote",
+         "text": "The method does not address semantic misuse of an approved tool."
+        },
+        {
+         "category": "method",
+         "evidence_id": "paper-87fe6dad6f3ee148:e1",
+         "extraction_worker": "synthetic-model",
+         "location": {
+          "page": 1,
+          "section": "supplied PDF"
+         },
+         "paper_id": "paper-87fe6dad6f3ee148",
+         "provenance": {
+          "locator": "10.5555/wa.1",
+          "source": "user_pdf",
+          "source_sha256": "3318da1e70e3df6c6e634a46cee3d42f453f2d5d12d6771ef807d6671511a585",
+          "synthetic": false
+         },
+         "quote": "Portable workflows are packaged as data rather than executable code.",
+         "scope": "full_text",
+         "support_strength": "direct_quote",
+         "text": "Portable workflows are packaged as data rather than executable code."
+        },
+        {
+         "category": "setup",
+         "evidence_id": "paper-87fe6dad6f3ee148:e2",
+         "extraction_worker": "synthetic-model",
+         "location": {
+          "page": 1,
+          "section": "supplied PDF"
+         },
+         "paper_id": "paper-87fe6dad6f3ee148",
+         "provenance": {
+          "locator": "10.5555/wa.1",
+          "source": "user_pdf",
+          "source_sha256": "3318da1e70e3df6c6e634a46cee3d42f453f2d5d12d6771ef807d6671511a585",
+          "synthetic": false
+         },
+         "quote": "The runtime refuses any package whose content hashes disagree with its manifest.",
+         "scope": "full_text",
+         "support_strength": "direct_quote",
+         "text": "The runtime refuses any package whose content hashes disagree with its manifest."
+        },
+        {
+         "category": "finding",
+         "evidence_id": "paper-87fe6dad6f3ee148:e3",
+         "extraction_worker": "synthetic-model",
+         "location": {
+          "page": 2,
+          "section": "supplied PDF"
+         },
+         "paper_id": "paper-87fe6dad6f3ee148",
+         "provenance": {
+          "locator": "10.5555/wa.1",
+          "source": "user_pdf",
+          "source_sha256": "3318da1e70e3df6c6e634a46cee3d42f453f2d5d12d6771ef807d6671511a585",
+          "synthetic": false
+         },
+         "quote": "Run plans freeze the selected model and the approved tools.",
+         "scope": "full_text",
+         "support_strength": "direct_quote",
+         "text": "Run plans freeze the selected model and the approved tools."
+        },
+        {
+         "category": "limitation",
+         "evidence_id": "paper-87fe6dad6f3ee148:e4",
+         "extraction_worker": "synthetic-model",
+         "location": {
+          "page": 2,
+          "section": "supplied PDF"
+         },
+         "paper_id": "paper-87fe6dad6f3ee148",
+         "provenance": {
+          "locator": "10.5555/wa.1",
+          "source": "user_pdf",
+          "source_sha256": "3318da1e70e3df6c6e634a46cee3d42f453f2d5d12d6771ef807d6671511a585",
+          "synthetic": false
+         },
+         "quote": "A limitation is that the evaluation covers two reference packages only.",
+         "scope": "full_text",
+         "support_strength": "direct_quote",
+         "text": "A limitation is that the evaluation covers two reference packages only."
+        }
+       ],
+       "related_work": "## Host-side enforcement of agent workflows\n\nA source states: \u201cHost-mediated tool access routes every agent tool call through a trusted broker.\u201d [1]\nA source states: \u201cThe broker resolves each call against bindings approved for the current run.\u201d [1]\nA source states: \u201cExperiments measure refused calls under injected binding changes.\u201d [1]\nA source states: \u201cThe method does not address semantic misuse of an approved tool.\u201d [1]\nA source states: \u201cPortable workflows are packaged as data rather than executable code.\u201d [2]\nA source states: \u201cThe runtime refuses any package whose content hashes disagree with its manifest.\u201d [2]\nA source states: \u201cRun plans freeze the selected model and the approved tools.\u201d [2]\nA source states: \u201cA limitation is that the evaluation covers two reference packages only.\u201d [2]\nBoth reviewed lines of work enforce workflow constraints in the host rather than in the model. [1][2]\n",
+       "unresolved": [
+        {
+         "alternatives": [
+          {
+           "match_score": 0.6,
+           "paper": {
+            "abstract": "Run plans record the exact package digest, receipt and model binding of one run. A stale plan is refused rather than repaired. The prototype evaluates revalidation on a single host.",
+            "arxiv_id": null,
+            "authors": [
+             {
+              "family": "Liskov-Synth",
+              "given": "Barbara",
+              "name": "Barbara Liskov-Synth",
+              "orcid": null
+             }
+            ],
+            "bibtex": "@inproceedings{synthetic3,\n  title = {Run Plans as Frozen Authorization Records for Agent Workflows},\n  year = {2026},\n  doi = {10.5555/wa.3},\n  note = {SYNTHETIC TEST DATA}\n}",
+            "doi": "10.5555/wa.3",
+            "issue": null,
+            "journal_reference": null,
+            "pages": null,
+            "provider_ids": {
+             "crossref": "10.5555/wa.3"
+            },
+            "publication_type": "proceedings-article",
+            "publisher": null,
+            "source": "crossref",
+            "title": "Run Plans as Frozen Authorization Records for Agent Workflows",
+            "url": "https://doi.org/10.5555/wa.3",
+            "venue": "Synthetic Systems Letters",
+            "volume": null,
+            "year": 2026
+           }
+          },
+          {
+           "match_score": 0.6,
+           "paper": {
+            "abstract": "Signed agent packages bind workflow graphs, skills and schemas to one publisher key. A host verifies package integrity before any instruction reaches a model. The evaluation compares signed packages with unsigned workflow scripts. A limitation is that a valid signature does not establish publisher trust.",
+            "arxiv_id": null,
+            "authors": [
+             {
+              "family": "Lovelace-Synth",
+              "given": "Ada",
+              "name": "Ada Lovelace-Synth",
+              "orcid": null
+             },
+             {
+              "family": "Turing-Synth",
+              "given": "Alan",
+              "name": "Alan Turing-Synth",
+              "orcid": null
+             }
+            ],
+            "bibtex": "@inproceedings{synthetic1,\n  title = {Signed Agent Packages for Portable Language-Model Workflows},\n  year = {2026},\n  doi = {10.5555/wa.1},\n  note = {SYNTHETIC TEST DATA}\n}",
+            "doi": "10.5555/wa.1",
+            "issue": null,
+            "journal_reference": null,
+            "pages": null,
+            "provider_ids": {
+             "crossref": "10.5555/wa.1"
+            },
+            "publication_type": "proceedings-article",
+            "publisher": null,
+            "source": "crossref",
+            "title": "Signed Agent Packages for Portable Language-Model Workflows",
+            "url": "https://doi.org/10.5555/wa.1",
+            "venue": "Proceedings of the Synthetic Workshop on Agent Runtimes",
+            "volume": null,
+            "year": 2026
+           }
+          },
+          {
+           "match_score": 0.6,
+           "paper": {
+            "abstract": "Host-mediated tool access routes every agent tool call through a trusted broker. The broker resolves each call against bindings approved for the current run. Experiments measure refused calls under injected binding changes. The method does not address semantic misuse of an approved tool.",
+            "arxiv_id": null,
+            "authors": [
+             {
+              "family": "Hopper-Synth",
+              "given": "Grace",
+              "name": "Grace Hopper-Synth",
+              "orcid": null
+             }
+            ],
+            "bibtex": "@inproceedings{synthetic2,\n  title = {Host-Mediated Tool Access for Language-Model Agent Workflows},\n  year = {2025},\n  doi = {10.5555/wa.2},\n  note = {SYNTHETIC TEST DATA}\n}",
+            "doi": "10.5555/wa.2",
+            "issue": null,
+            "journal_reference": null,
+            "pages": null,
+            "provider_ids": {
+             "crossref": "10.5555/wa.2"
+            },
+            "publication_type": "proceedings-article",
+            "publisher": null,
+            "source": "crossref",
+            "title": "Host-Mediated Tool Access for Language-Model Agent Workflows",
+            "url": "https://doi.org/10.5555/wa.2",
+            "venue": "Synthetic Journal of Agent Security",
+            "volume": null,
+            "year": 2025
+           }
+          }
+         ],
+         "message": "Several records matched; none was accepted.",
+         "paper_id": "paper-eb6334940fbc9c50",
+         "status": "ambiguous"
+        }
+       ],
+       "verification_results": [
+        {
+         "checks": [
+          "evidence_exists",
+          "paper_resolved"
+         ],
+         "claim_id": "claim-ea0244e8f7c8794a",
+         "reason": "Every cited evidence item exists and its paper resolved.",
+         "semantic_judgment": "not_needed",
+         "status": "supported"
+        },
+        {
+         "checks": [
+          "evidence_exists",
+          "paper_resolved"
+         ],
+         "claim_id": "claim-4eeac9130268e0e4",
+         "reason": "Every cited evidence item exists and its paper resolved.",
+         "semantic_judgment": "not_needed",
+         "status": "supported"
+        },
+        {
+         "checks": [
+          "evidence_exists",
+          "paper_resolved"
+         ],
+         "claim_id": "claim-6a71b17aeb62e55d",
+         "reason": "Every cited evidence item exists and its paper resolved.",
+         "semantic_judgment": "not_needed",
+         "status": "supported"
+        },
+        {
+         "checks": [
+          "evidence_exists",
+          "paper_resolved"
+         ],
+         "claim_id": "claim-8e4ea5b5818a9f02",
+         "reason": "Every cited evidence item exists and its paper resolved.",
+         "semantic_judgment": "not_needed",
+         "status": "supported"
+        },
+        {
+         "checks": [
+          "evidence_exists",
+          "paper_resolved"
+         ],
+         "claim_id": "claim-81c1d15ca3acfba2",
+         "reason": "Every cited evidence item exists and its paper resolved.",
+         "semantic_judgment": "not_needed",
+         "status": "supported"
+        },
+        {
+         "checks": [
+          "evidence_exists",
+          "paper_resolved"
+         ],
+         "claim_id": "claim-a7aa1a7209fb37a5",
+         "reason": "Every cited evidence item exists and its paper resolved.",
+         "semantic_judgment": "not_needed",
+         "status": "supported"
+        },
+        {
+         "checks": [
+          "evidence_exists",
+          "paper_resolved"
+         ],
+         "claim_id": "claim-bc900de4a5339455",
+         "reason": "Every cited evidence item exists and its paper resolved.",
+         "semantic_judgment": "not_needed",
+         "status": "supported"
+        },
+        {
+         "checks": [
+          "evidence_exists",
+          "paper_resolved"
+         ],
+         "claim_id": "claim-1d16291bc175936f",
+         "reason": "Every cited evidence item exists and its paper resolved.",
+         "semantic_judgment": "not_needed",
+         "status": "supported"
+        },
+        {
+         "checks": [
+          "evidence_exists",
+          "paper_resolved"
+         ],
+         "claim_id": "claim-d4c5235621275774",
+         "reason": "Every cited evidence item exists and its paper resolved.",
+         "semantic_judgment": "model",
+         "status": "supported"
+        }
+       ]
+      }
+     },
+     "items": [
+      ""
+     ],
+     "map": false,
+     "node": "verification",
+     "schema": {
+      "$defs": {
+       "s1": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "description": "A bibliography row as the verifier writes it: which cited resolved paper, under which reference. Bibliographic metadata is attached by the workflow from the resolver's own record, never written by the model.",
+        "properties": {
+         "paper_id": {
+          "type": "string"
+         },
+         "reference": {
+          "type": [
+           "integer",
+           "string"
+          ]
+         }
+        },
+        "required": [
+         "reference",
+         "paper_id"
+        ],
+        "type": "object"
+       },
+       "s32": {
+        "additionalProperties": false,
+        "properties": {
+         "bibliography": {
+          "items": {
+           "$ref": "#/$defs/s1"
+          },
+          "type": "array"
+         },
+         "claims": {
+          "items": {
+           "$ref": "#/$defs/s4"
+          },
+          "type": "array"
+         },
+         "evidence_table": {
+          "items": {
+           "type": "object"
+          },
+          "type": "array"
+         },
+         "related_work": {
+          "minLength": 1,
+          "type": "string"
+         },
+         "unresolved": {
+          "items": {
+           "type": "object"
+          },
+          "type": "array"
+         },
+         "verification_results": {
+          "items": {
+           "$ref": "#/$defs/s43"
+          },
+          "type": "array"
+         }
+        },
+        "required": [
+         "related_work",
+         "bibliography",
+         "evidence_table",
+         "unresolved",
+         "verification_results",
+         "claims"
+        ],
+        "type": "object"
+       },
+       "s4": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "allOf": [
+         {
+          "else": {
+           "properties": {
+            "text": {
+             "type": "string"
+            }
+           }
+          },
+          "if": {
+           "properties": {
+            "support_type": {
+             "const": "direct_quote"
+            }
+           }
+          },
+          "then": {
+           "properties": {
+            "evidence_ids": {
+             "maxItems": 1
+            },
+            "paper_ids": {
+             "maxItems": 1
+            },
+            "text": {
+             "type": "null"
+            }
+           }
+          }
+         }
+        ],
+        "properties": {
+         "claim_id": {
+          "type": "string"
+         },
+         "evidence_ids": {
+          "items": {
+           "type": "string"
+          },
+          "minItems": 1,
+          "type": "array"
+         },
+         "paper_ids": {
+          "items": {
+           "type": "string"
+          },
+          "minItems": 1,
+          "type": "array"
+         },
+         "strength": {
+          "enum": [
+           "descriptive",
+           "tentative"
+          ]
+         },
+         "support_type": {
+          "enum": [
+           "direct_quote",
+           "model_synthesis"
+          ]
+         },
+         "text": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "theme_id": {
+          "type": "string"
+         },
+         "verification_status": {
+          "enum": [
+           "pending",
+           "supported",
+           "unsupported",
+           "overstated"
+          ]
+         }
+        },
+        "required": [
+         "claim_id",
+         "text",
+         "paper_ids",
+         "evidence_ids",
+         "support_type",
+         "strength",
+         "verification_status",
+         "theme_id"
+        ],
+        "type": "object"
+       },
+       "s43": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+         "checks": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "claim_id": {
+          "type": "string"
+         },
+         "reason": {
+          "type": "string"
+         },
+         "semantic_judgment": {
+          "enum": [
+           "not_needed",
+           "model",
+           "not_performed"
+          ]
+         },
+         "status": {
+          "enum": [
+           "supported",
+           "unsupported",
+           "overstated"
+          ]
+         }
+        },
+        "required": [
+         "claim_id",
+         "status",
+         "checks",
+         "reason",
+         "semantic_judgment"
+        ],
+        "type": "object"
+       }
+      },
+      "$ref": "#/$defs/s32"
+     },
+     "schema_path": "schemas/review-draft.schema.json"
+    },
+    "write": {
+     "answers": {
+      "": {
+       "claims": [
+        {
+         "claim_id": "claim-ea0244e8f7c8794a",
+         "evidence_ids": [
+          "paper-6b3a21bcb0a2f354:e1"
+         ],
+         "paper_ids": [
+          "paper-6b3a21bcb0a2f354"
+         ],
+         "strength": "descriptive",
+         "support_type": "direct_quote",
+         "text": null,
+         "theme_id": "theme-1",
+         "verification_status": "pending"
+        },
+        {
+         "claim_id": "claim-4eeac9130268e0e4",
+         "evidence_ids": [
+          "paper-6b3a21bcb0a2f354:e2"
+         ],
+         "paper_ids": [
+          "paper-6b3a21bcb0a2f354"
+         ],
+         "strength": "descriptive",
+         "support_type": "direct_quote",
+         "text": null,
+         "theme_id": "theme-1",
+         "verification_status": "pending"
+        },
+        {
+         "claim_id": "claim-6a71b17aeb62e55d",
+         "evidence_ids": [
+          "paper-6b3a21bcb0a2f354:e3"
+         ],
+         "paper_ids": [
+          "paper-6b3a21bcb0a2f354"
+         ],
+         "strength": "descriptive",
+         "support_type": "direct_quote",
+         "text": null,
+         "theme_id": "theme-1",
+         "verification_status": "pending"
+        },
+        {
+         "claim_id": "claim-8e4ea5b5818a9f02",
+         "evidence_ids": [
+          "paper-6b3a21bcb0a2f354:e4"
+         ],
+         "paper_ids": [
+          "paper-6b3a21bcb0a2f354"
+         ],
+         "strength": "descriptive",
+         "support_type": "direct_quote",
+         "text": null,
+         "theme_id": "theme-1",
+         "verification_status": "pending"
+        },
+        {
+         "claim_id": "claim-81c1d15ca3acfba2",
+         "evidence_ids": [
+          "paper-87fe6dad6f3ee148:e1"
+         ],
+         "paper_ids": [
+          "paper-87fe6dad6f3ee148"
+         ],
+         "strength": "descriptive",
+         "support_type": "direct_quote",
+         "text": null,
+         "theme_id": "theme-1",
+         "verification_status": "pending"
+        },
+        {
+         "claim_id": "claim-a7aa1a7209fb37a5",
+         "evidence_ids": [
+          "paper-87fe6dad6f3ee148:e2"
+         ],
+         "paper_ids": [
+          "paper-87fe6dad6f3ee148"
+         ],
+         "strength": "descriptive",
+         "support_type": "direct_quote",
+         "text": null,
+         "theme_id": "theme-1",
+         "verification_status": "pending"
+        },
+        {
+         "claim_id": "claim-bc900de4a5339455",
+         "evidence_ids": [
+          "paper-87fe6dad6f3ee148:e3"
+         ],
+         "paper_ids": [
+          "paper-87fe6dad6f3ee148"
+         ],
+         "strength": "descriptive",
+         "support_type": "direct_quote",
+         "text": null,
+         "theme_id": "theme-1",
+         "verification_status": "pending"
+        },
+        {
+         "claim_id": "claim-1d16291bc175936f",
+         "evidence_ids": [
+          "paper-87fe6dad6f3ee148:e4"
+         ],
+         "paper_ids": [
+          "paper-87fe6dad6f3ee148"
+         ],
+         "strength": "descriptive",
+         "support_type": "direct_quote",
+         "text": null,
+         "theme_id": "theme-1",
+         "verification_status": "pending"
+        },
+        {
+         "claim_id": "claim-d4c5235621275774",
+         "evidence_ids": [
+          "paper-6b3a21bcb0a2f354:e1",
+          "paper-87fe6dad6f3ee148:e1"
+         ],
+         "paper_ids": [
+          "paper-6b3a21bcb0a2f354",
+          "paper-87fe6dad6f3ee148"
+         ],
+         "strength": "tentative",
+         "support_type": "model_synthesis",
+         "text": "Both reviewed lines of work enforce workflow constraints in the host rather than in the model.",
+         "theme_id": "theme-1",
+         "verification_status": "pending"
+        }
+       ],
+       "draft": {
+        "claim_ids": [
+         "claim-ea0244e8f7c8794a",
+         "claim-4eeac9130268e0e4",
+         "claim-6a71b17aeb62e55d",
+         "claim-8e4ea5b5818a9f02",
+         "claim-81c1d15ca3acfba2",
+         "claim-a7aa1a7209fb37a5",
+         "claim-bc900de4a5339455",
+         "claim-1d16291bc175936f",
+         "claim-d4c5235621275774"
+        ],
+        "title": "Related Work"
+       }
+      }
+     },
+     "items": [
+      ""
+     ],
+     "map": false,
+     "node": "writing",
+     "schema": {
+      "$defs": {
+       "s4": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "allOf": [
+         {
+          "else": {
+           "properties": {
+            "text": {
+             "type": "string"
+            }
+           }
+          },
+          "if": {
+           "properties": {
+            "support_type": {
+             "const": "direct_quote"
+            }
+           }
+          },
+          "then": {
+           "properties": {
+            "evidence_ids": {
+             "maxItems": 1
+            },
+            "paper_ids": {
+             "maxItems": 1
+            },
+            "text": {
+             "type": "null"
+            }
+           }
+          }
+         }
+        ],
+        "properties": {
+         "claim_id": {
+          "type": "string"
+         },
+         "evidence_ids": {
+          "items": {
+           "type": "string"
+          },
+          "minItems": 1,
+          "type": "array"
+         },
+         "paper_ids": {
+          "items": {
+           "type": "string"
+          },
+          "minItems": 1,
+          "type": "array"
+         },
+         "strength": {
+          "enum": [
+           "descriptive",
+           "tentative"
+          ]
+         },
+         "support_type": {
+          "enum": [
+           "direct_quote",
+           "model_synthesis"
+          ]
+         },
+         "text": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "theme_id": {
+          "type": "string"
+         },
+         "verification_status": {
+          "enum": [
+           "pending",
+           "supported",
+           "unsupported",
+           "overstated"
+          ]
+         }
+        },
+        "required": [
+         "claim_id",
+         "text",
+         "paper_ids",
+         "evidence_ids",
+         "support_type",
+         "strength",
+         "verification_status",
+         "theme_id"
+        ],
+        "type": "object"
+       },
+       "s45": {
+        "additionalProperties": false,
+        "properties": {
+         "claims": {
+          "items": {
+           "$ref": "#/$defs/s4"
+          },
+          "type": "array"
+         },
+         "draft": {
+          "additionalProperties": false,
+          "properties": {
+           "claim_ids": {
+            "items": {
+             "type": "string"
+            },
+            "type": "array"
+           },
+           "title": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "title",
+           "claim_ids"
+          ],
+          "type": "object"
+         }
+        },
+        "required": [
+         "draft",
+         "claims"
+        ],
+        "type": "object"
+       }
+      },
+      "$ref": "#/$defs/s45"
+     },
+     "schema_path": "schemas/written.schema.json"
+    }
+   },
+   "usage": {
+    "first_reservation": 14946,
+    "max_reservation": 40929,
+    "model_calls": 14,
+    "peak_tokens": 68849,
+    "remote_calls": 6,
+    "role_first_reservation": {
+     "EvidenceWorker": 19098,
+     "PlanningWorker": 14946,
+     "ScreeningWorker": 17626,
+     "SynthesisWorker": 28462,
+     "VerificationWorker": 40929,
+     "WritingWorker": 19846
+    },
+    "role_need": {
+     "EvidenceWorker": 19724,
+     "PlanningWorker": 28537,
+     "ScreeningWorker": 22832,
+     "SynthesisWorker": 28462,
+     "VerificationWorker": 40929,
+     "WritingWorker": 19846
+    },
+    "role_remote_need": {
+     "CitationWorker": 1,
+     "SearchWorker": 1
+    },
+    "tokens": 36853,
+    "tool_calls": {
+     "citation-resolver": 3,
+     "paper-reader": 2,
+     "scholarly-search": 3
+    }
+   }
+  },
+  "meeting-agenda": {
+   "caps": {
+    "perspectives/one-perspective": 12000,
+    "plan": 12000,
+    "write": 12000
+   },
+   "tasks": {
+    "perspective": {
+     "answers": {
+      "Evaluation Lead": [
+       {
+        "priorities": [
+         "What Evaluation Lead needs from: Agree on the final set of experiments and paper revisions re"
+        ],
+        "questions": [
+         "Which decision must Evaluation Lead leave with?"
+        ],
+        "role": "Evaluation Lead"
+       }
+      ],
+      "Research Lead": [
+       {
+        "priorities": [
+         "What Research Lead needs from: Agree on the final set of experiments and paper revisions re"
+        ],
+        "questions": [
+         "Which decision must Research Lead leave with?"
+        ],
+        "role": "Research Lead"
+       }
+      ],
+      "Systems Engineer": [
+       {
+        "priorities": [
+         "What Systems Engineer needs from: Agree on the final set of experiments and paper revisions re"
+        ],
+        "questions": [
+         "Which decision must Systems Engineer leave with?"
+        ],
+        "role": "Systems Engineer"
+       }
+      ]
+     },
+     "items": [
+      "Evaluation Lead",
+      "Research Lead",
+      "Systems Engineer"
+     ],
+     "map": true,
+     "node": "perspectives",
+     "schema": {
+      "$defs": {
+       "s5": {
+        "additionalProperties": false,
+        "properties": {
+         "priorities": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "questions": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "role": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "role",
+         "priorities",
+         "questions"
+        ],
+        "type": "object"
+       },
+       "s6": {
+        "items": {
+         "$ref": "#/$defs/s5"
+        },
+        "type": "array"
+       }
+      },
+      "$ref": "#/$defs/s6"
+     },
+     "schema_path": "schemas/perspectives.schema.json"
+    },
+    "plan": {
+     "answers": {
+      "": {
+       "focus": [
+        "Decide: Agree on the final set of experiments and paper revisions required before submis",
+        "Risks and dependencies",
+        "Owners, deadlines and next steps"
+       ]
+      }
+     },
+     "items": [
+      ""
+     ],
+     "map": false,
+     "node": "plan",
+     "schema": {
+      "$defs": {
+       "s7": {
+        "additionalProperties": false,
+        "properties": {
+         "focus": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         }
+        },
+        "required": [
+         "focus"
+        ],
+        "type": "object"
+       }
+      },
+      "$ref": "#/$defs/s7"
+     },
+     "schema_path": "schemas/plan.schema.json"
+    },
+    "write": {
+     "answers": {
+      "": {
+       "agenda": [
+        {
+         "minutes": 9,
+         "owner": "Research Lead",
+         "topic": "Research Lead priorities and decisions"
+        },
+        {
+         "minutes": 8,
+         "owner": "Systems Engineer",
+         "topic": "Systems Engineer priorities and decisions"
+        },
+        {
+         "minutes": 8,
+         "owner": "Evaluation Lead",
+         "topic": "Evaluation Lead priorities and decisions"
+        }
+       ],
+       "decisions": [
+        "Approve the final experiment list"
+       ],
+       "preparation_items": [
+        "Read the current draft and the open-issues list"
+       ],
+       "questions": [
+        "What is still blocking submission?"
+       ]
+      }
+     },
+     "items": [
+      ""
+     ],
+     "map": false,
+     "node": "write",
+     "schema": {
+      "$defs": {
+       "s2": {
+        "additionalProperties": false,
+        "properties": {
+         "agenda": {
+          "items": {
+           "additionalProperties": false,
+           "properties": {
+            "minutes": {
+             "minimum": 1,
+             "type": "integer"
+            },
+            "owner": {
+             "type": "string"
+            },
+            "topic": {
+             "type": "string"
+            }
+           },
+           "required": [
+            "topic",
+            "minutes",
+            "owner"
+           ],
+           "type": "object"
+          },
+          "maxItems": 10,
+          "minItems": 1,
+          "type": "array"
+         },
+         "decisions": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "preparation_items": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "questions": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         }
+        },
+        "required": [
+         "agenda",
+         "preparation_items",
+         "decisions",
+         "questions"
+        ],
+        "type": "object"
+       }
+      },
+      "$ref": "#/$defs/s2"
+     },
+     "schema_path": "schemas/draft.schema.json"
+    }
+   },
+   "usage": {
+    "first_reservation": 14425,
+    "max_reservation": 16643,
+    "model_calls": 5,
+    "peak_tokens": 44887,
+    "remote_calls": 0,
+    "role_first_reservation": {
+     "Perspective": 14800,
+     "Planner": 14425,
+     "Writer": 16643
+    },
+    "role_need": {
+     "Perspective": 14806,
+     "Planner": 14425,
+     "Writer": 16643
+    },
+    "role_remote_need": {},
+    "tokens": 3106,
+    "tool_calls": {}
+   }
+  }
+ },
+ "sha256": "a86caad12924daac9b9aba986fa3460ab78afe832ecb243352c2b2e31374e288"
+}

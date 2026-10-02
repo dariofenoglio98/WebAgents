@@ -320,6 +320,12 @@ def _count(value, field: str) -> int:
     return value
 
 
+def _reported(usage: dict, field: str) -> int | None:
+    """A count the host reported (validated), or None when it reported none."""
+    value = usage.get(field)
+    return None if value is None else _count(value, field)
+
+
 def project_usage(usage: dict) -> dict:
     """Map the host's usage report onto the two numbers the contract requires.
 
@@ -328,18 +334,30 @@ def project_usage(usage: dict) -> dict:
     than what a provider discounts. `output_tokens` absorbs any difference
     between the host's aggregate total and its own breakdown, which is where an
     unreported reasoning charge would otherwise disappear.
+
+    A count the host did not report is not a count of zero. The charge must be
+    established by the report itself: by an aggregate total, or by both the
+    input and the output count. A report that establishes neither is refused
+    (`model_usage_unavailable`), so `Runtime.call_model` charges the call's
+    whole reservation instead of an undercount.
     """
     if not isinstance(usage, dict):
         raise BridgeError("model_usage_unavailable", "The host reported no usage")
-    read = _count(usage.get("cache_read_tokens", 0) or 0, "cache_read_tokens")
-    write = _count(usage.get("cache_write_tokens", 0) or 0, "cache_write_tokens")
-    prompt = _count(usage.get("input_tokens", 0) or 0, "input_tokens") + read + write
-    output = _count(usage.get("output_tokens", 0) or 0, "output_tokens")
-    total = usage.get("total_tokens")
-    if total is not None:
-        total = _count(total, "total_tokens")
-        if total > prompt + output:
-            output = total - prompt
+    read = _reported(usage, "cache_read_tokens") or 0
+    write = _reported(usage, "cache_write_tokens") or 0
+    reported_input = _reported(usage, "input_tokens")
+    reported_output = _reported(usage, "output_tokens")
+    total = _reported(usage, "total_tokens")
+    if total is None and (reported_input is None or reported_output is None):
+        raise BridgeError(
+            "model_usage_unavailable",
+            "The host reported neither a total nor both input and output tokens for this "
+            "completion, so it cannot be accounted for",
+        )
+    prompt = (reported_input or 0) + read + write
+    output = reported_output or 0
+    if total is not None and total > prompt + output:
+        output = total - prompt
     if prompt == 0 and output == 0:
         raise BridgeError(
             "model_usage_unavailable",

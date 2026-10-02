@@ -396,6 +396,29 @@ def test_a_failed_call_keeps_only_the_structural_facts_its_adapter_certified(pac
     assert "private detail" not in audit and "Ignore previous" not in audit
 
 
+@pytest.mark.parametrize("code", ["model_usage_invalid", "model_usage_unavailable"])
+def test_an_unaccountable_usage_report_is_charged_the_whole_reservation(package, code):
+    """CE-1: a call whose usage cannot be established is refused and never undercharged."""
+    from agentpkg.hostbridge.errors import BridgeError
+
+    class Unaccountable(Router):
+        async def complete(self, request, *, max_output_tokens):
+            raise BridgeError(code, "The host's usage report cannot be accounted for")
+
+    async def work(ctx, data):
+        await ctx.model("screen", {}, {"type": "object"}, max_output_tokens=20)
+
+    rt = runtime(package, router=Unaccountable())
+    with pytest.raises(BridgeError):
+        asyncio.run(rt.run_worker("ScreeningWorker", {}, work))
+    (called,) = [e for e in rt.audit if e["action"] == "model.called"]
+    (failed,) = [e for e in rt.audit if e["action"] == "model.failed"]
+    assert failed["reason"] == code
+    assert failed["tokens_charged"] == called["reserved_tokens"]
+    assert rt.usage["tokens"] == called["reserved_tokens"]
+    assert rt.usage["reserved_tokens"] == 0
+
+
 def test_model_contract_violation_halts_and_charges_full_reservation(package):
     class DishonestRouter(Router):
         async def complete(self, request, *, max_output_tokens):

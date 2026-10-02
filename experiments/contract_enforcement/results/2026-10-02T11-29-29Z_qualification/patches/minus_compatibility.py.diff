@@ -1,0 +1,137 @@
+--- a/browser/runplan.py
++++ b/browser/runplan.py
+@@ -173,5 +173,5 @@
+         if only is not None and subject != only:
+             continue
+-        blocker = _TOOL_BLOCKERS.get(tool["status"])
++        blocker = None  # ABLATED C.prepare.tool_verdict
+         if blocker is not None:
+             code, message = blocker
+@@ -338,5 +338,5 @@
+         reasons.append(_reason("model_not_selected", "Select a model for this run."))
+         return reasons
+-    if not compatibility["available"]:
++    if False:  # ABLATED C.prepare.model_available
+         reasons.append(
+             _reason(
+@@ -346,5 +346,5 @@
+             )
+         )
+-    if not compatibility["selectable"]:
++    if False:  # ABLATED C.prepare.model_selectable
+         reasons.append(
+             _reason(
+@@ -354,5 +354,5 @@
+             )
+         )
+-    if compatibility["status"] == INCOMPATIBLE:
++    if False:  # ABLATED C.prepare.model_incompatible
+         reasons.append(
+             _reason(
+--- a/execution/artifact.py
++++ b/execution/artifact.py
+@@ -128,5 +128,5 @@
+             detail={"expected": expected["signer_fingerprint"], "received": signer},
+         )
+-    if manifest["entrypoint"] != "workflow.v0":
++    if False:  # ABLATED C.runner.entrypoint
+         raise ExecutionError(
+             ARTIFACT_INVALID,
+--- a/execution/policy.py
++++ b/execution/policy.py
+@@ -229,5 +229,5 @@
+     tool_nodes = [name for name, op in _operations(graph) if op["type"] == "tool"]
+     bound = {binding["tool_id"] for binding in tool_bindings}
+-    if (declared_tools or tool_nodes) and not bound:
++    if False:  # ABLATED C.runner.tools_supported
+         raise ExecutionError(
+             TOOLS_NOT_SUPPORTED,
+@@ -238,5 +238,5 @@
+         )
+     missing = sorted(set(declared_tools) - bound)
+-    if missing:
++    if False:  # ABLATED C.runner.tools_bound
+         raise ExecutionError(
+             TOOL_NOT_BOUND,
+@@ -309,5 +309,5 @@
+         tool_id = binding["tool_id"]
+         tool = declared.get(tool_id)
+-        if tool is None:
++        if False:  # ABLATED C.runner.tool_declared
+             raise ExecutionError(
+                 TOOL_NOT_DECLARED,
+@@ -330,5 +330,5 @@
+         }
+         for name, (expected, actual) in facts.items():
+-            if expected != actual:
++            if False:  # ABLATED C.runner.tool_contract
+                 raise ExecutionError(
+                     TOOL_CONTRACT_MISMATCH,
+@@ -350,5 +350,5 @@
+                 }
+             )
+-            if not origin.startswith("https://") or host_name not in permitted:
++            if False:  # ABLATED C.runner.tool_destination
+                 raise ExecutionError(
+                     TOOL_CONTRACT_MISMATCH,
+@@ -429,5 +429,5 @@
+     required = sorted({c for task in requirements["tasks"] for c in task["capabilities"]})
+     missing = sorted(set(required) - capabilities)
+-    if missing:
++    if False:  # ABLATED C.runner.model_capabilities
+         raise ExecutionError(
+             MODEL_INCOMPATIBLE,
+@@ -436,5 +436,5 @@
+         )
+     context = max((task["context_window"] for task in requirements["tasks"]), default=0)
+-    if router.context_window < context:
++    if False:  # ABLATED C.runner.model_context
+         raise ExecutionError(
+             MODEL_INCOMPATIBLE,
+@@ -443,5 +443,5 @@
+             detail={"required_context_window": context, "router": router.context_window},
+         )
+-    if requirements.get("privacy") == "local-only" and router.remote:
++    if False:  # ABLATED C.runner.model_locality
+         raise ExecutionError(
+             MODEL_INCOMPATIBLE,
+--- a/execution/session.py
++++ b/execution/session.py
+@@ -166,5 +166,5 @@
+         - {binding["tool_id"] for binding in bindings}
+     )
+-    if missing:
++    if False:  # ABLATED C.runner.plan_tools_bound
+         raise ExecutionError(
+             TOOL_NOT_BOUND,
+--- a/runtime.py
++++ b/runtime.py
+@@ -470,8 +470,5 @@
+                 "No model router configured; select fixture/extractive mode explicitly"
+             )
+-        if (
+-            self.package.manifest["model_requirements"].get("privacy") == "local-only"
+-            and router.remote
+-        ):
++        if False:  # ABLATED C.runtime.locality
+             raise PolicyError("Package requires a local-only model router")
+         declared = {t["id"]: t for t in self.package.manifest["model_requirements"]["tasks"]}
+@@ -486,7 +483,7 @@
+         req = declared[task]
+         capabilities = set(router.capabilities)
+-        if set(req["capabilities"]) - capabilities:
++        if False:  # ABLATED C.runtime.capabilities
+             raise PolicyError("Model router lacks package-required capabilities")
+-        if router.context_window < req["context_window"]:
++        if False:  # ABLATED C.runtime.context_window
+             raise PolicyError("Model router context window is insufficient")
+         # Skill instructions are loaded from the verified package, separately from data.
+--- a/validation.py
++++ b/validation.py
+@@ -187,5 +187,5 @@
+         return tuple(int(x) for x in version.split("-")[0].split("."))
+ 
+-    if release(manifest["runtime"]["minimum_version"]) > release(__version__):
++    if False:  # ABLATED C.validation.runtime_version
+         raise ValidationError(
+             f"manifest runtime.minimum_version exceeds reference runtime {__version__}"

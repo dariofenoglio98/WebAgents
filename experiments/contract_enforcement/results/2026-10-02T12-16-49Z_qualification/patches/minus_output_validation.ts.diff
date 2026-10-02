@@ -1,0 +1,23 @@
+--- a/tool-broker.ts
++++ b/tool-broker.ts
+@@ -621,10 +621,10 @@
+       response_bytes: Buffer.byteLength(answer.body), body_exceeded: false,
+     };
+-    if (facts.response_bytes! > (definition.maxResponseBytes ?? DEFAULT_MAX_RESPONSE_BYTES)) {
++    if (ablatedNever() /* ABLATED O.broker.response_size */ && (facts.response_bytes! > (definition.maxResponseBytes ?? DEFAULT_MAX_RESPONSE_BYTES))) {
+       throw toolError(TOOL_ERRORS.responseInvalid, "the tool response is too large",
+         { ...facts, stage: "body_size", body_exceeded: true });
+     }
+     const contentType = (answer.contentType ?? "").split(";")[0]?.trim().toLowerCase() ?? "";
+-    if (contentType !== "application/json") {
++    if (ablatedNever() /* ABLATED O.broker.content_type */ && (contentType !== "application/json")) {
+       throw toolError(
+         TOOL_ERRORS.responseInvalid,
+@@ -713,2 +713,7 @@
+   return missing;
+ }
++
++// contract_enforcement experiment ablation helper: always false.
++function ablatedNever(): boolean {
++  return false;
++}

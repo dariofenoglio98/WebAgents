@@ -1,0 +1,11 @@
+expected_stage,observed_stage,count
+authorize,authorize,14
+compatibility,compatibility,25
+execute/model,execute/model,26
+execute/tool,execute/tool,19
+prepare,prepare,6
+resource,resource,33
+revalidate,revalidate,63
+trust,trust,10
+validate,validate,9
+verify,verify,68

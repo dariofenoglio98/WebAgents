@@ -1,0 +1,130 @@
+{
+ "ablation_effects": [],
+ "calibration_sha256": "a86caad12924daac9b9aba986fa3460ab78afe832ecb243352c2b2e31374e288",
+ "catalog_sha256": "2a93d0e768ba011ae2b126dc0b689d228ff0a8c909eedcea4596c5549256b908",
+ "counts": {
+  "controls": 100,
+  "distinct_archives": 52,
+  "duplicate_records": 0,
+  "expected_executions": 200,
+  "families": 8,
+  "missing_executions": 0,
+  "packages": [
+   "literature-review",
+   "meeting-agenda"
+  ],
+  "profiles": 1,
+  "recorded_executions": 200,
+  "templates": 61,
+  "unknown_records": 0,
+  "violations": 100
+ },
+ "experiment_version": "1.0.0",
+ "manifest": {
+  "sha256": "b60757a788699947cec5d922c01433eb3e34fbd21da75d6a429ff036a5317b03",
+  "verified": true
+ },
+ "preset": "smoke",
+ "profiles": {
+  "full": {
+   "BAR": {
+    "ci_high": 1.0,
+    "ci_low": 0.9630065017930143,
+    "k": 100,
+    "n": 100,
+    "rate": 1.0
+   },
+   "FRR": {
+    "ci_high": 0.03699349820698568,
+    "ci_low": 3.469446951953614e-18,
+    "k": 0,
+    "n": 100,
+    "rate": 0.0
+   },
+   "IFR": {
+    "ci_high": 0.03699349820698568,
+    "ci_low": 3.469446951953614e-18,
+    "k": 0,
+    "n": 100,
+    "rate": 0.0
+   },
+   "PCC": {
+    "ci_high": 1.0,
+    "ci_low": 0.9811546736227335,
+    "k": 200,
+    "n": 200,
+    "rate": 1.0
+   },
+   "SVR": {
+    "ci_high": 0.03699349820698568,
+    "ci_low": 3.469446951953614e-18,
+    "k": 0,
+    "n": 100,
+    "rate": 0.0
+   },
+   "VDR": {
+    "ci_high": 1.0,
+    "ci_low": 0.9630065017930143,
+    "k": 100,
+    "n": 100,
+    "rate": 1.0
+   },
+   "code_accuracy": {
+    "ci_high": 0.9843366960084523,
+    "ci_low": 0.9016292856411208,
+    "k": 96,
+    "n": 100,
+    "rate": 0.96
+   },
+   "component_accuracy": {
+    "ci_high": 0.9944980324498376,
+    "ci_low": 0.929988209271456,
+    "k": 98,
+    "n": 100,
+    "rate": 0.98
+   },
+   "control_outcomes": {
+    "BENIGN_ACCEPT": 100,
+    "FALSE_REJECT": 0,
+    "HARNESS_ERROR": 0
+   },
+   "controls": 100,
+   "detected_after_boundary": 0,
+   "harness_errors": 0,
+   "label": "Full",
+   "matched_controls": 100,
+   "stage_accuracy": {
+    "ci_high": 1.0,
+    "ci_low": 0.9630065017930143,
+    "k": 100,
+    "n": 100,
+    "rate": 1.0
+   },
+   "violation_outcomes": {
+    "EXPLICIT_BLOCK": 100,
+    "HARNESS_ERROR": 0,
+    "INCIDENTAL_FAILURE": 0,
+    "SILENT_VIOLATION": 0
+   },
+   "violations": 100
+  }
+ },
+ "seed": 20261002,
+ "status": {
+  "complete": true,
+  "full_false_rejects": 0,
+  "full_incidental_failures": 0,
+  "full_silent_violations": 0,
+  "harness_errors_any_profile": 0
+ },
+ "threat_model_version": "1.0",
+ "unexpected_counts": {
+  "ablation_silent_violations": 0,
+  "controls_not_accepted": 0,
+  "duplicate_records": 0,
+  "full_not_explicitly_blocked": 0,
+  "full_stage_mismatch": 0,
+  "harness_errors": 0,
+  "missing_executions": 0
+ }
+}

@@ -1,0 +1,132 @@
+--- a/preflight.ts
++++ b/preflight.ts
+@@ -170,8 +170,8 @@
+   const preflight = record(state.preflight);
+ 
+-  if (str(plan.run_plan_id) !== options.runPlanId) {
++  if (ablatedNever() /* ABLATED R.revalidate.plan_id */ && (str(plan.run_plan_id) !== options.runPlanId)) {
+     refuse("This session's run plan is not the one the caller asked for.", "probe_refused");
+   }
+-  if (str(plan.run_plan_sha256) !== options.runPlanSha256) {
++  if (ablatedNever() /* ABLATED R.revalidate.plan_sha */ && (str(plan.run_plan_sha256) !== options.runPlanSha256)) {
+     refuse("The run plan changed after the caller read it.", "probe_refused");
+   }
+@@ -179,6 +179,6 @@
+ 
+   const readiness = record(plan.readiness);
+-  if (readiness.ready !== true) refuse("The run plan was never ready to run.");
+-  if (preflight.stale === true || preflight.ready !== true) {
++  if (ablatedNever() /* ABLATED R.revalidate.readiness */ && (readiness.ready !== true)) refuse("The run plan was never ready to run.");
++  if (ablatedNever() /* ABLATED R.revalidate.preflight_stale */ && (preflight.stale === true || preflight.ready !== true)) {
+     const reasons = Array.isArray(preflight.stale_reasons) ? preflight.stale_reasons : [];
+     const first = record(reasons[0]);
+@@ -199,5 +199,5 @@
+     );
+   }
+-  if (execution.performed !== false) refuse("This run plan is not in a preflight state.");
++  if (ablatedNever() /* ABLATED R.revalidate.performed */ && (execution.performed !== false)) refuse("This run plan is not in a preflight state.");
+   revalidated.push("execution_mode");
+ 
+@@ -206,10 +206,10 @@
+   const planned = record(plan.package);
+   const current = record(summary.package);
+-  if (str(current.digest) !== str(planned.digest)) {
++  if (ablatedNever() /* ABLATED R.revalidate.package_digest */ && (str(current.digest) !== str(planned.digest))) {
+     refuse("The package bytes are not the planned bytes.");
+   }
+   revalidated.push("package_digest");
+   const snapshot = record(summary.snapshot);
+-  if (str(snapshot.archive_sha256) !== str(planned.archive_sha256)) {
++  if (ablatedNever() /* ABLATED R.revalidate.archive_sha256 */ && (str(snapshot.archive_sha256) !== str(planned.archive_sha256))) {
+     refuse("The package archive hash is not the planned hash.");
+   }
+@@ -234,5 +234,5 @@
+     ["signer_fingerprint", "signer_fingerprint"],
+   ] as const) {
+-    if (str(publisher[field]) !== str(plannedPublisher[field])) {
++    if (ablatedNever() /* ABLATED R.revalidate.publisher */ && (str(publisher[field]) !== str(plannedPublisher[field]))) {
+       refuse(`The publisher ${field.replace(/_/gu, " ")} changed after this plan was prepared.`);
+     }
+@@ -243,8 +243,8 @@
+   const receipt = record(await client.getAuthorization(sessionId));
+   const plannedAuth = record(plan.authorization);
+-  if (str(receipt.receipt_id) !== str(plannedAuth.receipt_id)) {
++  if (ablatedNever() /* ABLATED R.revalidate.receipt_id */ && (str(receipt.receipt_id) !== str(plannedAuth.receipt_id))) {
+     refuse("A newer authorization replaced the one this plan was prepared under.");
+   }
+-  if (str(receipt.receipt_sha256) !== str(plannedAuth.receipt_sha256)) {
++  if (ablatedNever() /* ABLATED R.revalidate.receipt_sha256 */ && (str(receipt.receipt_sha256) !== str(plannedAuth.receipt_sha256))) {
+     refuse("The authorization receipt changed after this plan was prepared.");
+   }
+@@ -252,8 +252,8 @@
+   const expiry = Date.parse(str(receipt.expires_at));
+   const remainingMs = Number.isFinite(expiry) ? expiry - Date.now() : null;
+-  if (remainingMs !== null && remainingMs <= 0) refuse("The authorization receipt expired.");
++  if (ablatedNever() /* ABLATED R.revalidate.receipt_expired */ && (remainingMs !== null && remainingMs <= 0)) refuse("The authorization receipt expired.");
+   revalidated.push("receipt_not_expired");
+   const required = options.minimumReceiptRemainingMs ?? 0;
+-  if (required > 0 && remainingMs !== null && remainingMs < required) {
++  if (ablatedNever() /* ABLATED R.revalidate.receipt_outlasts_run */ && (required > 0 && remainingMs !== null && remainingMs < required)) {
+     throw new AgentBrowserError(
+       "authorization_expiring",
+@@ -288,5 +288,5 @@
+   const tools: BoundTool[] = [];
+   if (plannedTools.length > 0) {
+-    if (!options.toolRegistry) {
++    if (ablatedNever() /* ABLATED R.revalidate.tool_registry */ && (!options.toolRegistry)) {
+       refuse("This plan binds host tool implementations and no current registry was supplied.");
+     }
+@@ -303,11 +303,11 @@
+       const current = live.get(toolId);
+       const binding = record(current?.binding);
+-      if (!current || current.binding === null) {
++      if (ablatedNever() /* ABLATED R.revalidate.tool_removed */ && (!current || current.binding === null)) {
+         refuse(`This host no longer registers an implementation for ${toolId}.`);
+       }
+-      if (str(binding.binding_id) !== str(bound.binding_id)) {
++      if (ablatedNever() /* ABLATED R.revalidate.tool_replaced */ && (str(binding.binding_id) !== str(bound.binding_id))) {
+         refuse(`A different implementation now satisfies ${toolId}.`);
+       }
+-      if (str(binding.binding_sha256) !== str(bound.binding_sha256)) {
++      if (ablatedNever() /* ABLATED R.revalidate.tool_changed */ && (str(binding.binding_sha256) !== str(bound.binding_sha256))) {
+         refuse(
+           `The host implementation of ${toolId} changed after this plan was prepared, so it is ` +
+@@ -315,8 +315,8 @@
+         );
+       }
+-      if (str(current!.contract_sha256) !== str(bound.contract_sha256)) {
++      if (ablatedNever() /* ABLATED R.revalidate.tool_contract */ && (str(current!.contract_sha256) !== str(bound.contract_sha256))) {
+         refuse(`The contract ${toolId} was matched against is no longer the current one.`);
+       }
+-      if (str(current!.status) !== "bound") {
++      if (ablatedNever() /* ABLATED R.revalidate.tool_status */ && (str(current!.status) !== "bound")) {
+         refuse(`The host implementation of ${toolId} is now ${str(current!.status)}.`);
+       }
+@@ -373,6 +373,6 @@
+     };
+   }
+-  if (!modelId) refuse("The run plan binds no host model.");
+-  if (!stillAvailable(catalog, modelId)) {
++  if (ablatedNever() /* ABLATED R.revalidate.model_bound */ && (!modelId)) refuse("The run plan binds no host model.");
++  if (ablatedNever() /* ABLATED R.revalidate.model_available */ && (!stillAvailable(catalog, modelId))) {
+     throw new AgentBrowserError(
+       "selected_model_unavailable",
+@@ -386,9 +386,5 @@
+   const live = catalog.models.find((model) => model.id === modelId);
+   const descriptor = record(binding.descriptor);
+-  if (
+-    !live ||
+-    live.provider_id !== str(descriptor.provider_id) ||
+-    live.model_id !== str(descriptor.model_id)
+-  ) {
++  if (ablatedNever() /* ABLATED R.revalidate.model_identity */) {
+     refuse("The host's identity for the selected model changed after this plan was prepared.");
+   }
+@@ -461,2 +457,7 @@
+   };
+ }
++
++// contract_enforcement experiment ablation helper: always false.
++function ablatedNever(): boolean {
++  return false;
++}

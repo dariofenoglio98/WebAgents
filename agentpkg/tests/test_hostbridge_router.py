@@ -535,6 +535,81 @@ def test_invalid_usage_is_refused(report):
     assert failure.value.code == "model_usage_invalid"
 
 
+@pytest.mark.parametrize(
+    "report",
+    [
+        # CE-1: an output count the host could not report must not be charged as zero.
+        {"input_tokens": 532, "output_tokens": None},
+        {"input_tokens": 532},
+        {"input_tokens": 532, "cache_read_tokens": 40},
+        # ... nor an input count that is missing while nothing covers it.
+        {"output_tokens": 134},
+        {"input_tokens": None, "output_tokens": 134},
+    ],
+)
+def test_usage_that_cannot_be_established_is_refused_not_zeroed(report):
+    with pytest.raises(BridgeError) as failure:
+        project_usage(report)
+    assert failure.value.code == "model_usage_unavailable"
+
+
+@pytest.mark.parametrize(
+    ("report", "charged"),
+    [
+        # OpenAI-like: breakdown and total.
+        ({"input_tokens": 532, "output_tokens": 134, "total_tokens": 666}, (532, 134)),
+        # Ollama-like: breakdown only.
+        ({"input_tokens": 532, "output_tokens": 134}, (532, 134)),
+        # A total covers whatever the breakdown omits.
+        ({"input_tokens": 532, "total_tokens": 666}, (532, 134)),
+        ({"total_tokens": 666}, (0, 666)),
+        # A reported zero is a value, not an absence.
+        ({"input_tokens": 532, "output_tokens": 0, "total_tokens": 532}, (532, 0)),
+        ({"input_tokens": 532, "output_tokens": 0}, (532, 0)),
+    ],
+)
+def test_established_usage_is_charged_in_full(report, charged):
+    projected = project_usage(report)
+    assert (projected["input_tokens"], projected["output_tokens"]) == charged
+    reported = sum(report.get(key) or 0 for key in ("input_tokens", "output_tokens"))
+    assert sum(charged) >= max(reported, report.get("total_tokens") or 0)
+
+
+@pytest.mark.parametrize(
+    "report",
+    [
+        {"input_tokens": 532, "output_tokens": float("nan")},
+        {"input_tokens": 532, "output_tokens": float("inf")},
+        {"input_tokens": 532, "output_tokens": 134.5},
+        {"input_tokens": 532, "output_tokens": 134, "total_tokens": -1},
+        {"input_tokens": 532, "output_tokens": 134, "total_tokens": "666"},
+    ],
+)
+def test_malformed_counts_and_totals_are_refused(report):
+    with pytest.raises(BridgeError) as failure:
+        project_usage(report)
+    assert failure.value.code == "model_usage_invalid"
+
+
+def test_an_unestablished_output_count_fails_the_call_without_echoing_the_report():
+    """Through the real bridge: the call fails closed and its audit facts carry no counts."""
+
+    async def main():
+        host, child, session, tasks = await bound(
+            {"text": '{"title":"ok"}', "usage_report": {"input_tokens": 532, "output_tokens": None}}
+        )
+        with pytest.raises(BridgeError) as failure:
+            await session.router.complete(REQUEST, max_output_tokens=64)
+        assert failure.value.code == "model_usage_unavailable"
+        assert "532" not in str(failure.value)
+        # No reported count reaches the audit facts of a refused report.
+        assert not any(isinstance(v, int) for v in (failure.value.audit_facts or {}).values())
+        assert session.router.invocations == []
+        await teardown(host, child, tasks)
+
+    asyncio.run(main())
+
+
 def test_an_overrun_is_reported_honestly_rather_than_hidden():
     """Runtime halts on an overrun; the router must let it see one."""
 

@@ -1,0 +1,85 @@
+{
+ "agentpkg_production": "agentpkg/src",
+ "dirty_fingerprint": "33bc32f17642bb9282c610910ffb9ecbb9b4dc1516cf3a093fef1a6b4424090b",
+ "git_commit": "0451577c233158d317e0307e4c817e27f382b40d",
+ "git_dirty": true,
+ "git_production_paths_modified": [
+  "openclaw-agent-browser/src/contract.ts",
+  "openclaw-agent-browser/src/host-llm.ts"
+ ],
+ "git_tracked_changes": [
+  "agentpkg/tests/test_hostbridge_router.py",
+  "agentpkg/tests/test_runtime.py",
+  "docs/model-router-bridge.md",
+  "experiments/README.md",
+  "gentpkg/src/agentpkg/hostbridge/router.py",
+  "openclaw-agent-browser/src/contract.ts",
+  "openclaw-agent-browser/src/host-llm.ts",
+  "openclaw-agent-browser/test/host-llm.test.ts"
+ ],
+ "git_untracked_count": 48,
+ "network": "none: every model, tool, DNS answer and PDF parse is synthetic; sockets, child processes and sensitive opens are refused in every worker",
+ "node": "v26.9.0",
+ "openclaw_verified_by_plugin": "2026.9.5",
+ "packages": [
+  {
+   "archive": "dist/meeting-agenda.agent.pkg",
+   "archive_sha256": "7b148e845c0f9e38d752a51a8d0b60a314842a3de3a2723b3bdf1a0c041921e1",
+   "digest": "dbd2eb816bb8687d4a5b3448f5b82bc0716c3884f9fee8a2c578af0c5e894679",
+   "package": "meeting-agenda",
+   "package_id": "org.webagents.meeting-agenda",
+   "publisher_key": "examples/keys/meeting-agenda-publisher.pub.pem",
+   "publisher_key_sha256": "50c067910a5bd907f0a670a9d451076ba820f912e2dca9b8bfe557548fadc757",
+   "signer_fingerprint": "sha256:2bcc374a7fe18e50622042b7d0375fcb24eb3607879a236f9f3c3ede1922c5c4",
+   "version": "0.2.2",
+   "workflow": {
+    "deadline_seconds": 600,
+    "model_tasks": [
+     "perspective",
+     "plan",
+     "write"
+    ],
+    "nodes": 7,
+    "profile": "workflow.v0",
+    "runtime_minimum_version": "0.2.2",
+    "tools": [],
+    "workers": 4
+   }
+  },
+  {
+   "archive": "dist/literature-review.agent.pkg",
+   "archive_sha256": "1669f83fafac3434748fc19d38a8d3d2c3352da83cf1cbb84796ce313bd4f571",
+   "digest": "cef9ebd68df9db3b36c1ffeac9069d734b0e41a40d58445aaba1a60eaac155b5",
+   "package": "literature-review",
+   "package_id": "org.webagents.literature-review",
+   "publisher_key": "examples/keys/literature-review-publisher.pub.pem",
+   "publisher_key_sha256": "e7ca900ea381f1dbdb1f91e65eb7ab1d3edc152f33df442fbce2099dfd47119d",
+   "signer_fingerprint": "sha256:c5ca9763f9fc71253298ca381ec14c4d7432009c74dacc69df6344b71de05232",
+   "version": "0.2.5",
+   "workflow": {
+    "deadline_seconds": 4500,
+    "model_tasks": [
+     "extract",
+     "normalize",
+     "plan",
+     "screen",
+     "select",
+     "synthesize",
+     "verify",
+     "write"
+    ],
+    "nodes": 25,
+    "profile": "workflow.v0",
+    "runtime_minimum_version": "0.2.1",
+    "tools": [
+     "citation-resolver",
+     "paper-reader",
+     "scholarly-search"
+    ],
+    "workers": 9
+   }
+  }
+ ],
+ "platform": "macOS-15.7.4-arm64-arm-64bit-Mach-O",
+ "python": "3.13.5"
+}
