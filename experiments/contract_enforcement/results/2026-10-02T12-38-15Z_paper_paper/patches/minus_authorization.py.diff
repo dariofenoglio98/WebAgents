@@ -1,0 +1,108 @@
+--- a/browser/authorization.py
++++ b/browser/authorization.py
+@@ -239,5 +239,5 @@
+         )
+     for permission in package.policy["permissions"]:
+-        if permission["required"] and decisions.get(permission["id"], DENY) == DENY:
++        if False:  # ABLATED A.receipt.required_permission
+             block(
+                 "required_permission_denied",
+--- a/browser/runplan.py
++++ b/browser/runplan.py
+@@ -196,5 +196,5 @@
+             )
+             continue
+-        if receipt["tool_approvals"].get(subject) is not True:
++        if False:  # ABLATED A.prepare.tool_not_approved
+             reasons.append(
+                 _reason(
+@@ -211,5 +211,5 @@
+         # refusing to exist.
+         for permission_id in tool["required_permission_ids"]:
+-            if receipt["decisions"].get(permission_id, DENY) == DENY:
++            if False:  # ABLATED A.prepare.tool_permission_denied
+                 reasons.append(
+                     _reason(
+@@ -220,5 +220,5 @@
+                     )
+                 )
+-        if not tool["permission_ids"]:
++        if False:  # ABLATED A.prepare.tool_permission_undeclared
+             reasons.append(
+                 _reason(
+@@ -277,5 +277,5 @@
+     # package marked required.
+     required_ids = mode_permission_ids(package, mode)
+-    if not required_ids and MODE_REQUIRED_PERMISSION_KINDS.get(mode):
++    if False:  # ABLATED A.prepare.mode_permission_undeclared
+         reasons.append(
+             _reason(
+@@ -286,5 +286,5 @@
+         )
+     for permission_id in required_ids:
+-        if receipt["decisions"].get(permission_id, DENY) == DENY:
++        if False:  # ABLATED A.prepare.mode_permission_denied
+             reasons.append(
+                 _reason(
+--- a/execution/policy.py
++++ b/execution/policy.py
+@@ -357,5 +357,5 @@
+                     detail={"tool_id": tool_id, "permitted": sorted(permitted)},
+                 )
+-        if approvals.get(tool_id) is not True:
++        if False:  # ABLATED A.runner.tool_not_approved
+             raise ExecutionError(
+                 TOOL_NOT_APPROVED,
+@@ -364,5 +364,5 @@
+                 detail={"tool_id": tool_id},
+             )
+-        if not linked:
++        if False:  # ABLATED A.runner.tool_no_permission
+             raise ExecutionError(
+                 TOOL_PERMISSION_DENIED,
+@@ -373,5 +373,5 @@
+         denied = sorted(pid for pid in linked if grants.get(pid, DENY) == DENY)
+         required_denied = sorted(pid for pid in denied if permissions[pid]["required"])
+-        if required_denied:
++        if False:  # ABLATED A.runner.tool_permission_denied
+             # A denied *optional* permission is an operating profile the package
+             # declared it supports; its graph is responsible for not reaching
+@@ -545,5 +545,5 @@
+                 f"Decision for {permission_id!r} must be one of {list(SUPPORTED_DECISIONS)}"
+             )
+-        if decision == DENY and permission["required"]:
++        if False:  # ABLATED A.runner.required_denied
+             raise ExecutionError(
+                 PERMISSION_DENIED,
+@@ -551,5 +551,5 @@
+                 detail={"permission": permission_id, "kind": permission["kind"]},
+             )
+-        if decision == ONCE and counts.get(permission["kind"], 0) > 1:
++        if False:  # ABLATED A.runner.once_overused
+             raise ExecutionError(
+                 GRANT_UNSUPPORTED,
+--- a/execution/session.py
++++ b/execution/session.py
+@@ -361,5 +361,5 @@
+         grants = normalize_grants(package, authorization["decisions"])
+         for permission_id in plan["execution"]["required_permission_ids"]:
+-            if grants.get(permission_id, "deny") == "deny":
++            if False:  # ABLATED A.runner.mode_permission
+                 raise ExecutionError(
+                     "execution_permission_denied",
+--- a/runtime.py
++++ b/runtime.py
+@@ -260,5 +260,5 @@
+                 allowed=grant != "deny" and not (grant == "once" and pid in self._once_used),
+             )
+-            if grant == "deny" or (grant == "once" and pid in self._once_used):
++            if False:  # ABLATED A.runtime.grant
+                 raise PolicyError(f"Permission denied or consumed: {pid}")
+         if consume:
+@@ -380,5 +380,5 @@
+             # implementation of this tool. Both are required, always, for every
+             # tool — not only for the side-effecting ones.
+-            if tool_id not in self.approved_tools:
++            if False:  # ABLATED A.runtime.tool_approval
+                 raise PolicyError(f"Tool {tool_id} is declared but not explicitly approved")
+             if tool["execution"] == "remote":

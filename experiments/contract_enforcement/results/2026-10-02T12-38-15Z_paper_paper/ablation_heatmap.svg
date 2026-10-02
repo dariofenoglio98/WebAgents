@@ -1,0 +1,164 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="722" height="656" font-family="Helvetica, Arial, sans-serif" font-size="12">
+<text x="190" y="20">Explicit-block rate of each family's violations, per profile</text>
+<text x="222.0" y="34" text-anchor="middle">F1</text>
+<text x="286.0" y="34" text-anchor="middle">F2</text>
+<text x="350.0" y="34" text-anchor="middle">F3</text>
+<text x="414.0" y="34" text-anchor="middle">F4</text>
+<text x="478.0" y="34" text-anchor="middle">F5</text>
+<text x="542.0" y="34" text-anchor="middle">F6</text>
+<text x="606.0" y="34" text-anchor="middle">F7</text>
+<text x="670.0" y="34" text-anchor="middle">F8</text>
+<text x="182" y="76.0" text-anchor="end">Full</text>
+<rect x="190" y="40" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="221.0" y="76.0" text-anchor="middle">100</text>
+<rect x="254" y="40" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="285.0" y="76.0" text-anchor="middle">100</text>
+<rect x="318" y="40" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="349.0" y="76.0" text-anchor="middle">100</text>
+<rect x="382" y="40" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="413.0" y="76.0" text-anchor="middle">100</text>
+<rect x="446" y="40" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="477.0" y="76.0" text-anchor="middle">100</text>
+<rect x="510" y="40" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="541.0" y="76.0" text-anchor="middle">100</text>
+<rect x="574" y="40" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="605.0" y="76.0" text-anchor="middle">100</text>
+<rect x="638" y="40" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="669.0" y="76.0" text-anchor="middle">100</text>
+<text x="182" y="140.0" text-anchor="end">-Verification</text>
+<rect x="190" y="104" width="62" height="62" fill="rgb(193,165,131)"/>
+<text x="221.0" y="140.0" text-anchor="middle">49</text>
+<rect x="254" y="104" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="285.0" y="140.0" text-anchor="middle">100</text>
+<rect x="318" y="104" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="349.0" y="140.0" text-anchor="middle">100</text>
+<rect x="382" y="104" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="413.0" y="140.0" text-anchor="middle">100</text>
+<rect x="446" y="104" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="477.0" y="140.0" text-anchor="middle">100</text>
+<rect x="510" y="104" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="541.0" y="140.0" text-anchor="middle">100</text>
+<rect x="574" y="104" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="605.0" y="140.0" text-anchor="middle">100</text>
+<rect x="638" y="104" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="669.0" y="140.0" text-anchor="middle">100</text>
+<text x="182" y="204.0" text-anchor="end">-Trust</text>
+<rect x="190" y="168" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="221.0" y="204.0" text-anchor="middle">100</text>
+<rect x="254" y="168" width="62" height="62" fill="rgb(237,105,219)"/>
+<text x="285.0" y="204.0" text-anchor="middle">14</text>
+<rect x="318" y="168" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="349.0" y="204.0" text-anchor="middle">100</text>
+<rect x="382" y="168" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="413.0" y="204.0" text-anchor="middle">100</text>
+<rect x="446" y="168" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="477.0" y="204.0" text-anchor="middle">100</text>
+<rect x="510" y="168" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="541.0" y="204.0" text-anchor="middle">100</text>
+<rect x="574" y="168" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="605.0" y="204.0" text-anchor="middle">100</text>
+<rect x="638" y="168" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="669.0" y="204.0" text-anchor="middle">100</text>
+<text x="182" y="268.0" text-anchor="end">-Authorization</text>
+<rect x="190" y="232" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="221.0" y="268.0" text-anchor="middle">100</text>
+<rect x="254" y="232" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="285.0" y="268.0" text-anchor="middle">100</text>
+<rect x="318" y="232" width="62" height="62" fill="rgb(195,162,135)"/>
+<text x="349.0" y="268.0" text-anchor="middle">47</text>
+<rect x="382" y="232" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="413.0" y="268.0" text-anchor="middle">100</text>
+<rect x="446" y="232" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="477.0" y="268.0" text-anchor="middle">100</text>
+<rect x="510" y="232" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="541.0" y="268.0" text-anchor="middle">100</text>
+<rect x="574" y="232" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="605.0" y="268.0" text-anchor="middle">100</text>
+<rect x="638" y="232" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="669.0" y="268.0" text-anchor="middle">100</text>
+<text x="182" y="332.0" text-anchor="end">-Compatibility</text>
+<rect x="190" y="296" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="221.0" y="332.0" text-anchor="middle">100</text>
+<rect x="254" y="296" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="285.0" y="332.0" text-anchor="middle">100</text>
+<rect x="318" y="296" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="349.0" y="332.0" text-anchor="middle">100</text>
+<rect x="382" y="296" width="62" height="62" fill="rgb(158,213,60)"/>
+<text x="413.0" y="332.0" text-anchor="middle">76</text>
+<rect x="446" y="296" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="477.0" y="332.0" text-anchor="middle">100</text>
+<rect x="510" y="296" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="541.0" y="332.0" text-anchor="middle">100</text>
+<rect x="574" y="296" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="605.0" y="332.0" text-anchor="middle">100</text>
+<rect x="638" y="296" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="669.0" y="332.0" text-anchor="middle">100</text>
+<text x="182" y="396.0" text-anchor="end">-Plan revalidation</text>
+<rect x="190" y="360" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="221.0" y="396.0" text-anchor="middle">100</text>
+<rect x="254" y="360" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="285.0" y="396.0" text-anchor="middle">100</text>
+<rect x="318" y="360" width="62" height="62" fill="rgb(188,172,120)"/>
+<text x="349.0" y="396.0" text-anchor="middle">53</text>
+<rect x="382" y="360" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="413.0" y="396.0" text-anchor="middle">100</text>
+<rect x="446" y="360" width="62" height="62" fill="rgb(216,134,177)"/>
+<text x="477.0" y="396.0" text-anchor="middle">31</text>
+<rect x="510" y="360" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="541.0" y="396.0" text-anchor="middle">100</text>
+<rect x="574" y="360" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="605.0" y="396.0" text-anchor="middle">100</text>
+<rect x="638" y="360" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="669.0" y="396.0" text-anchor="middle">100</text>
+<text x="182" y="460.0" text-anchor="end">-Host mediation</text>
+<rect x="190" y="424" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="221.0" y="460.0" text-anchor="middle">100</text>
+<rect x="254" y="424" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="285.0" y="460.0" text-anchor="middle">100</text>
+<rect x="318" y="424" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="349.0" y="460.0" text-anchor="middle">100</text>
+<rect x="382" y="424" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="413.0" y="460.0" text-anchor="middle">100</text>
+<rect x="446" y="424" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="477.0" y="460.0" text-anchor="middle">100</text>
+<rect x="510" y="424" width="62" height="62" fill="rgb(217,132,179)"/>
+<text x="541.0" y="460.0" text-anchor="middle">30</text>
+<rect x="574" y="424" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="605.0" y="460.0" text-anchor="middle">100</text>
+<rect x="638" y="424" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="669.0" y="460.0" text-anchor="middle">100</text>
+<text x="182" y="524.0" text-anchor="end">-Output validation</text>
+<rect x="190" y="488" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="221.0" y="524.0" text-anchor="middle">100</text>
+<rect x="254" y="488" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="285.0" y="524.0" text-anchor="middle">100</text>
+<rect x="318" y="488" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="349.0" y="524.0" text-anchor="middle">100</text>
+<rect x="382" y="488" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="413.0" y="524.0" text-anchor="middle">100</text>
+<rect x="446" y="488" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="477.0" y="524.0" text-anchor="middle">100</text>
+<rect x="510" y="488" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="541.0" y="524.0" text-anchor="middle">100</text>
+<rect x="574" y="488" width="62" height="62" fill="rgb(233,111,210)"/>
+<text x="605.0" y="524.0" text-anchor="middle">18</text>
+<rect x="638" y="488" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="669.0" y="524.0" text-anchor="middle">100</text>
+<text x="182" y="588.0" text-anchor="end">-Resource enforcement</text>
+<rect x="190" y="552" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="221.0" y="588.0" text-anchor="middle">100</text>
+<rect x="254" y="552" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="285.0" y="588.0" text-anchor="middle">100</text>
+<rect x="318" y="552" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="349.0" y="588.0" text-anchor="middle">100</text>
+<rect x="382" y="552" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="413.0" y="588.0" text-anchor="middle">100</text>
+<rect x="446" y="552" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="477.0" y="588.0" text-anchor="middle">100</text>
+<rect x="510" y="552" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="541.0" y="588.0" text-anchor="middle">100</text>
+<rect x="574" y="552" width="62" height="62" fill="rgb(128,255,0)"/>
+<text x="605.0" y="588.0" text-anchor="middle">100</text>
+<rect x="638" y="552" width="62" height="62" fill="rgb(233,111,210)"/>
+<text x="669.0" y="588.0" text-anchor="middle">18</text>
+</svg>

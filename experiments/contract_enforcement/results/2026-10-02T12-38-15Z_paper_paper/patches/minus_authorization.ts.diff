@@ -1,0 +1,45 @@
+--- a/execution.ts
++++ b/execution.ts
+@@ -397,5 +397,5 @@
+     // Reading a selected file is a permission of its own; attaching one does
+     // not grant it, and a run that could not read it is refused up front.
+-    this.checkFilePermission(preflight, attached);
++    // ABLATED A.start.file_permission
+ 
+     const runId = this.runs.newRunId();
+--- a/preflight.ts
++++ b/preflight.ts
+@@ -266,5 +266,5 @@
+   }
+   if (required > 0) revalidated.push("receipt_outlasts_run_deadline");
+-  if (receipt.runnable !== true) refuse("The authorization receipt is not runnable.");
++  if (ablatedNever() /* ABLATED A.revalidate.receipt_runnable */ && (receipt.runnable !== true)) refuse("The authorization receipt is not runnable.");
+ 
+   const granted = new Set(
+@@ -274,9 +274,9 @@
+     ? execution.required_permission_ids.map(str)
+     : [];
+-  if (mode === "model" && requiredPermissions.length === 0) {
++  if (ablatedNever() /* ABLATED A.revalidate.mode_permission_undeclared */ && (mode === "model" && requiredPermissions.length === 0)) {
+     refuse("This run mode declares no model permission.");
+   }
+   for (const permission of requiredPermissions) {
+-    if (!granted.has(permission)) {
++    if (ablatedNever() /* ABLATED A.revalidate.permission_granted */ && (!granted.has(permission))) {
+       refuse(`This plan needs permission ${permission}, which is not granted.`);
+     }
+@@ -321,5 +321,5 @@
+         refuse(`The host implementation of ${toolId} is now ${str(current!.status)}.`);
+       }
+-      if (toolApprovalsOf(receipt)[toolId] !== true) {
++      if (ablatedNever() /* ABLATED A.revalidate.tool_approved */ && (toolApprovalsOf(receipt)[toolId] !== true)) {
+         refuse(`Tool ${toolId} is no longer approved.`);
+       }
+@@ -461,2 +461,7 @@
+   };
+ }
++
++// contract_enforcement experiment ablation helper: always false.
++function ablatedNever(): boolean {
++  return false;
++}

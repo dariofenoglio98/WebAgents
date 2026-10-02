@@ -1,0 +1,2172 @@
+{
+  "benchmark": {
+    "name": "contract_overhead",
+    "version": "1.0.0",
+    "started_at_utc": "2026-10-02T12:53:19.954072+00:00",
+    "config": {
+      "warmup_iterations_per_package": 50,
+      "batches": 5,
+      "iterations_per_batch": 200,
+      "measured_observations_per_package": 1000,
+      "seed": 20261001,
+      "order": "same process; within each (batch, iteration) every package runs once, in an order drawn from random.Random(seed); warmup uses the same scheme",
+      "gc": "enabled (Python default)",
+      "packages": [
+        "meeting-agenda",
+        "literature-review"
+      ],
+      "audit_microbenchmark": {
+        "enabled": true,
+        "warmup_events": 200,
+        "batches": 5,
+        "stream_repeats_per_batch": 5
+      },
+      "component_decomposition": {
+        "enabled": true,
+        "warmup_iterations_per_package": 20,
+        "batches": 5,
+        "iterations_per_batch": 100
+      }
+    }
+  },
+  "statistics": {
+    "percentile_method": "linear interpolation (Hyndman-Fan type 7)",
+    "std": "sample standard deviation (ddof = 1)",
+    "units": "milliseconds in `ms`, nanoseconds in `ns`; audit in microseconds"
+  },
+  "packages": {
+    "meeting-agenda": {
+      "label": "Meeting Agenda",
+      "archive": "dist/meeting-agenda.agent.pkg",
+      "archive_sha256": "7b148e845c0f9e38d752a51a8d0b60a314842a3de3a2723b3bdf1a0c041921e1",
+      "archive_bytes": 21580,
+      "archive_entries": 19,
+      "package_id": "org.webagents.meeting-agenda",
+      "package_name": "Meeting Agenda Agent",
+      "package_version": "0.2.2",
+      "package_digest": "dbd2eb816bb8687d4a5b3448f5b82bc0716c3884f9fee8a2c578af0c5e894679",
+      "signer_fingerprint": "sha256:2bcc374a7fe18e50622042b7d0375fcb24eb3607879a236f9f3c3ede1922c5c4",
+      "signature_status": "valid",
+      "trust_status": "trusted",
+      "publisher_key": "examples/keys/meeting-agenda-publisher.pub.pem",
+      "entrypoint": "workflow.v0",
+      "runtime_minimum_version": "0.2.2",
+      "payload_files": 17,
+      "graph_nodes": 7,
+      "graph_node_types": [
+        "join",
+        "llm",
+        "map",
+        "output",
+        "validate"
+      ],
+      "worker_roles": 4,
+      "root_nodes": [
+        "plan"
+      ],
+      "declared_tools": [],
+      "declared_permissions": [
+        {
+          "id": "model.reasoning",
+          "kind": "model",
+          "required": true
+        },
+        {
+          "id": "memory.session",
+          "kind": "memory",
+          "required": true
+        }
+      ],
+      "model_tasks": 3,
+      "model_capabilities_required": [
+        "reasoning",
+        "structured_output"
+      ],
+      "model_context_window_required": 16000
+    },
+    "literature-review": {
+      "label": "Literature Review",
+      "archive": "dist/literature-review.agent.pkg",
+      "archive_sha256": "1669f83fafac3434748fc19d38a8d3d2c3352da83cf1cbb84796ce313bd4f571",
+      "archive_bytes": 224302,
+      "archive_entries": 68,
+      "package_id": "org.webagents.literature-review",
+      "package_name": "Literature Review Agent",
+      "package_version": "0.2.5",
+      "package_digest": "cef9ebd68df9db3b36c1ffeac9069d734b0e41a40d58445aaba1a60eaac155b5",
+      "signer_fingerprint": "sha256:c5ca9763f9fc71253298ca381ec14c4d7432009c74dacc69df6344b71de05232",
+      "signature_status": "valid",
+      "trust_status": "trusted",
+      "publisher_key": "examples/keys/literature-review-publisher.pub.pem",
+      "entrypoint": "workflow.v0",
+      "runtime_minimum_version": "0.2.1",
+      "payload_files": 66,
+      "graph_nodes": 25,
+      "graph_node_types": [
+        "join",
+        "llm",
+        "map",
+        "output",
+        "validate"
+      ],
+      "worker_roles": 9,
+      "root_nodes": [
+        "planning"
+      ],
+      "declared_tools": [
+        "citation-resolver",
+        "paper-reader",
+        "scholarly-search"
+      ],
+      "declared_permissions": [
+        {
+          "id": "network.scholarly",
+          "kind": "network",
+          "required": true
+        },
+        {
+          "id": "network.citations",
+          "kind": "network",
+          "required": true
+        },
+        {
+          "id": "files.pdfs",
+          "kind": "files.read",
+          "required": false
+        },
+        {
+          "id": "model.reasoning",
+          "kind": "model",
+          "required": false
+        },
+        {
+          "id": "memory.session",
+          "kind": "memory",
+          "required": true
+        }
+      ],
+      "model_tasks": 8,
+      "model_capabilities_required": [
+        "reasoning",
+        "structured_output"
+      ],
+      "model_context_window_required": 16000
+    }
+  },
+  "summary": [
+    {
+      "package_key": "meeting-agenda",
+      "package_id": "org.webagents.meeting-agenda",
+      "package_version": "0.2.2",
+      "kind": "stage",
+      "stage": "package_open_verify",
+      "label": "Package open and verification",
+      "ns": {
+        "n": 1000,
+        "median": 19013500.0,
+        "p95": 19654560.4,
+        "mean": 19113252.393,
+        "std": 861944.2891347391,
+        "min": 18098500.0,
+        "max": 41065291.0,
+        "p5": 18674493.1,
+        "p10": 18752158.9,
+        "p25": 18858708.25,
+        "p75": 19207427.0,
+        "p90": 19439603.9,
+        "p99": 20587899.259999998
+      },
+      "ms": {
+        "n": 1000,
+        "median": 19.0135,
+        "p95": 19.654560399999998,
+        "mean": 19.113252393,
+        "std": 0.8619442891347391,
+        "min": 18.0985,
+        "max": 41.065291,
+        "p5": 18.674493100000003,
+        "p10": 18.752158899999998,
+        "p25": 18.85870825,
+        "p75": 19.207427,
+        "p90": 19.439603899999998,
+        "p99": 20.587899259999997
+      },
+      "negative": 0,
+      "zero": 0
+    },
+    {
+      "package_key": "meeting-agenda",
+      "package_id": "org.webagents.meeting-agenda",
+      "package_version": "0.2.2",
+      "kind": "stage",
+      "stage": "authorization_receipt",
+      "label": "Authorization receipt",
+      "ns": {
+        "n": 1000,
+        "median": 267396.0,
+        "p95": 290821.14999999997,
+        "mean": 269627.697,
+        "std": 24052.595104072065,
+        "min": 225458.0,
+        "max": 664458.0,
+        "p5": 245074.7,
+        "p10": 254167.0,
+        "p25": 260979.25,
+        "p75": 275667.0,
+        "p90": 283558.6,
+        "p99": 331692.82999999996
+      },
+      "ms": {
+        "n": 1000,
+        "median": 0.267396,
+        "p95": 0.29082115,
+        "mean": 0.269627697,
+        "std": 0.024052595104072063,
+        "min": 0.225458,
+        "max": 0.664458,
+        "p5": 0.2450747,
+        "p10": 0.254167,
+        "p25": 0.26097925,
+        "p75": 0.275667,
+        "p90": 0.2835586,
+        "p99": 0.33169282999999994
+      },
+      "negative": 0,
+      "zero": 0
+    },
+    {
+      "package_key": "meeting-agenda",
+      "package_id": "org.webagents.meeting-agenda",
+      "package_version": "0.2.2",
+      "kind": "stage",
+      "stage": "compatibility_evaluation",
+      "label": "Model and tool compatibility",
+      "ns": {
+        "n": 1000,
+        "median": 621500.0,
+        "p95": 669573.25,
+        "mean": 627209.825,
+        "std": 18581.039401109956,
+        "min": 595291.0,
+        "max": 761708.0,
+        "p5": 610541.95,
+        "p10": 612666.0,
+        "p25": 616280.75,
+        "p75": 631125.0,
+        "p90": 648691.0,
+        "p99": 700255.0
+      },
+      "ms": {
+        "n": 1000,
+        "median": 0.6215,
+        "p95": 0.66957325,
+        "mean": 0.627209825,
+        "std": 0.018581039401109955,
+        "min": 0.595291,
+        "max": 0.761708,
+        "p5": 0.61054195,
+        "p10": 0.612666,
+        "p25": 0.61628075,
+        "p75": 0.631125,
+        "p90": 0.648691,
+        "p99": 0.700255
+      },
+      "negative": 0,
+      "zero": 0
+    },
+    {
+      "package_key": "meeting-agenda",
+      "package_id": "org.webagents.meeting-agenda",
+      "package_version": "0.2.2",
+      "kind": "stage",
+      "stage": "run_plan_preparation",
+      "label": "Run Plan preparation",
+      "ns": {
+        "n": 1000,
+        "median": 1284729.0,
+        "p95": 1344541.7,
+        "mean": 1298970.003,
+        "std": 142314.95739256166,
+        "min": 1153791.0,
+        "max": 4420708.0,
+        "p5": 1244958.0,
+        "p10": 1256487.5,
+        "p25": 1268781.5,
+        "p75": 1301875.0,
+        "p90": 1322133.3,
+        "p99": 1565847.0899999999
+      },
+      "ms": {
+        "n": 1000,
+        "median": 1.284729,
+        "p95": 1.3445417,
+        "mean": 1.298970003,
+        "std": 0.14231495739256167,
+        "min": 1.153791,
+        "max": 4.420708,
+        "p5": 1.244958,
+        "p10": 1.2564875,
+        "p25": 1.2687815,
+        "p75": 1.301875,
+        "p90": 1.3221333,
+        "p99": 1.5658470899999999
+      },
+      "negative": 0,
+      "zero": 0
+    },
+    {
+      "package_key": "meeting-agenda",
+      "package_id": "org.webagents.meeting-agenda",
+      "package_version": "0.2.2",
+      "kind": "stage",
+      "stage": "host_revalidation_lease",
+      "label": "Host revalidation and lease",
+      "ns": {
+        "n": 1000,
+        "median": 1759646.0,
+        "p95": 1915712.15,
+        "mean": 1746464.831,
+        "std": 516693.93999726215,
+        "min": 1218459.0,
+        "max": 17108416.0,
+        "p5": 1387087.5,
+        "p10": 1505850.0,
+        "p25": 1657197.75,
+        "p75": 1817823.0,
+        "p90": 1868774.7,
+        "p99": 2210102.59
+      },
+      "ms": {
+        "n": 1000,
+        "median": 1.759646,
+        "p95": 1.9157121499999998,
+        "mean": 1.746464831,
+        "std": 0.5166939399972621,
+        "min": 1.218459,
+        "max": 17.108416,
+        "p5": 1.3870875,
+        "p10": 1.50585,
+        "p25": 1.65719775,
+        "p75": 1.817823,
+        "p90": 1.8687747,
+        "p99": 2.21010259
+      },
+      "negative": 0,
+      "zero": 0
+    },
+    {
+      "package_key": "meeting-agenda",
+      "package_id": "org.webagents.meeting-agenda",
+      "package_version": "0.2.2",
+      "kind": "stage",
+      "stage": "runner_verification",
+      "label": "Runner re-verification",
+      "ns": {
+        "n": 1000,
+        "median": 18228625.0,
+        "p95": 18981136.849999998,
+        "mean": 18391662.007,
+        "std": 2076902.2690657843,
+        "min": 17632875.0,
+        "max": 81209584.0,
+        "p5": 17832980.95,
+        "p10": 17906749.7,
+        "p25": 18088989.5,
+        "p75": 18422135.5,
+        "p90": 18762042.0,
+        "p99": 20190430.329999987
+      },
+      "ms": {
+        "n": 1000,
+        "median": 18.228625,
+        "p95": 18.98113685,
+        "mean": 18.391662007,
+        "std": 2.0769022690657843,
+        "min": 17.632875,
+        "max": 81.209584,
+        "p5": 17.83298095,
+        "p10": 17.9067497,
+        "p25": 18.0889895,
+        "p75": 18.4221355,
+        "p90": 18.762042,
+        "p99": 20.190430329999987
+      },
+      "negative": 0,
+      "zero": 0
+    },
+    {
+      "package_key": "meeting-agenda",
+      "package_id": "org.webagents.meeting-agenda",
+      "package_version": "0.2.2",
+      "kind": "stage",
+      "stage": "workflow_start",
+      "label": "Workflow instantiation and start checks",
+      "ns": {
+        "n": 1000,
+        "median": 15175146.0,
+        "p95": 15917760.1,
+        "mean": 15288563.854,
+        "std": 498176.9243484487,
+        "min": 14763292.0,
+        "max": 23767417.0,
+        "p5": 14948520.2,
+        "p10": 14980591.4,
+        "p25": 15057104.25,
+        "p75": 15370760.0,
+        "p90": 15674237.8,
+        "p99": 16839405.75
+      },
+      "ms": {
+        "n": 1000,
+        "median": 15.175146,
+        "p95": 15.917760099999999,
+        "mean": 15.288563854,
+        "std": 0.4981769243484487,
+        "min": 14.763292,
+        "max": 23.767417,
+        "p5": 14.948520199999999,
+        "p10": 14.9805914,
+        "p25": 15.05710425,
+        "p75": 15.37076,
+        "p90": 15.6742378,
+        "p99": 16.83940575
+      },
+      "negative": 0,
+      "zero": 0
+    },
+    {
+      "package_key": "meeting-agenda",
+      "package_id": "org.webagents.meeting-agenda",
+      "package_version": "0.2.2",
+      "kind": "group",
+      "stage": "verification",
+      "label": "Package verification",
+      "ns": {
+        "n": 1000,
+        "median": 19013500.0,
+        "p95": 19654560.4,
+        "mean": 19113252.393,
+        "std": 861944.2891347391,
+        "min": 18098500.0,
+        "max": 41065291.0,
+        "p5": 18674493.1,
+        "p10": 18752158.9,
+        "p25": 18858708.25,
+        "p75": 19207427.0,
+        "p90": 19439603.9,
+        "p99": 20587899.259999998
+      },
+      "ms": {
+        "n": 1000,
+        "median": 19.0135,
+        "p95": 19.654560399999998,
+        "mean": 19.113252393,
+        "std": 0.8619442891347391,
+        "min": 18.0985,
+        "max": 41.065291,
+        "p5": 18.674493100000003,
+        "p10": 18.752158899999998,
+        "p25": 18.85870825,
+        "p75": 19.207427,
+        "p90": 19.439603899999998,
+        "p99": 20.587899259999997
+      },
+      "negative": 0,
+      "zero": 0
+    },
+    {
+      "package_key": "meeting-agenda",
+      "package_id": "org.webagents.meeting-agenda",
+      "package_version": "0.2.2",
+      "kind": "group",
+      "stage": "authorization_and_binding",
+      "label": "Authorization and binding",
+      "ns": {
+        "n": 1000,
+        "median": 890750.5,
+        "p95": 948852.3999999999,
+        "mean": 896837.522,
+        "std": 31776.165311399884,
+        "min": 843209.0,
+        "max": 1279958.0,
+        "p5": 867906.55,
+        "p10": 872787.8,
+        "p25": 880926.75,
+        "p75": 902125.0,
+        "p90": 927496.5,
+        "p99": 1004626.25
+      },
+      "ms": {
+        "n": 1000,
+        "median": 0.8907505,
+        "p95": 0.9488523999999999,
+        "mean": 0.896837522,
+        "std": 0.03177616531139989,
+        "min": 0.843209,
+        "max": 1.279958,
+        "p5": 0.86790655,
+        "p10": 0.8727878,
+        "p25": 0.88092675,
+        "p75": 0.902125,
+        "p90": 0.9274965,
+        "p99": 1.00462625
+      },
+      "negative": 0,
+      "zero": 0
+    },
+    {
+      "package_key": "meeting-agenda",
+      "package_id": "org.webagents.meeting-agenda",
+      "package_version": "0.2.2",
+      "kind": "group",
+      "stage": "run_plan",
+      "label": "Run Plan preparation",
+      "ns": {
+        "n": 1000,
+        "median": 1284729.0,
+        "p95": 1344541.7,
+        "mean": 1298970.003,
+        "std": 142314.95739256166,
+        "min": 1153791.0,
+        "max": 4420708.0,
+        "p5": 1244958.0,
+        "p10": 1256487.5,
+        "p25": 1268781.5,
+        "p75": 1301875.0,
+        "p90": 1322133.3,
+        "p99": 1565847.0899999999
+      },
+      "ms": {
+        "n": 1000,
+        "median": 1.284729,
+        "p95": 1.3445417,
+        "mean": 1.298970003,
+        "std": 0.14231495739256167,
+        "min": 1.153791,
+        "max": 4.420708,
+        "p5": 1.244958,
+        "p10": 1.2564875,
+        "p25": 1.2687815,
+        "p75": 1.301875,
+        "p90": 1.3221333,
+        "p99": 1.5658470899999999
+      },
+      "negative": 0,
+      "zero": 0
+    },
+    {
+      "package_key": "meeting-agenda",
+      "package_id": "org.webagents.meeting-agenda",
+      "package_version": "0.2.2",
+      "kind": "group",
+      "stage": "revalidation",
+      "label": "Pre-execution revalidation",
+      "ns": {
+        "n": 1000,
+        "median": 35144896.0,
+        "p95": 36492227.4,
+        "mean": 35426690.692,
+        "std": 2704040.9170009973,
+        "min": 34041709.0,
+        "max": 116635708.0,
+        "p5": 34706741.05,
+        "p10": 34808453.9,
+        "p25": 34961812.25,
+        "p75": 35483166.75,
+        "p90": 35945912.5,
+        "p99": 40037283.67
+      },
+      "ms": {
+        "n": 1000,
+        "median": 35.144896,
+        "p95": 36.4922274,
+        "mean": 35.426690692,
+        "std": 2.7040409170009974,
+        "min": 34.041709,
+        "max": 116.635708,
+        "p5": 34.70674105,
+        "p10": 34.808453899999996,
+        "p25": 34.96181225,
+        "p75": 35.48316675,
+        "p90": 35.9459125,
+        "p99": 40.03728367
+      },
+      "negative": 0,
+      "zero": 0
+    },
+    {
+      "package_key": "meeting-agenda",
+      "package_id": "org.webagents.meeting-agenda",
+      "package_version": "0.2.2",
+      "kind": "total",
+      "stage": "total_pre_execution",
+      "label": "Total pre-execution",
+      "ns": {
+        "n": 1000,
+        "median": 56357854.0,
+        "p95": 58216123.55,
+        "mean": 56735750.61,
+        "std": 3506997.0235362006,
+        "min": 54195916.0,
+        "max": 161949458.0,
+        "p5": 55696495.8,
+        "p10": 55827179.5,
+        "p25": 56071177.0,
+        "p75": 56884676.75,
+        "p90": 57657262.8,
+        "p99": 61523940.0
+      },
+      "ms": {
+        "n": 1000,
+        "median": 56.357854,
+        "p95": 58.21612355,
+        "mean": 56.73575061,
+        "std": 3.5069970235362007,
+        "min": 54.195916,
+        "max": 161.949458,
+        "p5": 55.696495799999994,
+        "p10": 55.8271795,
+        "p25": 56.071177,
+        "p75": 56.88467675,
+        "p90": 57.6572628,
+        "p99": 61.52394
+      },
+      "negative": 0,
+      "zero": 0
+    },
+    {
+      "package_key": "meeting-agenda",
+      "package_id": "org.webagents.meeting-agenda",
+      "package_version": "0.2.2",
+      "kind": "secondary",
+      "stage": "local_file_read",
+      "label": "Local file read (secondary, not in total)",
+      "ns": {
+        "n": 1000,
+        "median": 100312.5,
+        "p95": 130683.64999999998,
+        "mean": 102380.329,
+        "std": 16575.691508584092,
+        "min": 55667.0,
+        "max": 200334.0,
+        "p5": 79112.5,
+        "p10": 85407.8,
+        "p25": 91697.5,
+        "p75": 110843.5,
+        "p90": 122338.1,
+        "p99": 156557.83
+      },
+      "ms": {
+        "n": 1000,
+        "median": 0.1003125,
+        "p95": 0.13068364999999998,
+        "mean": 0.10238032899999999,
+        "std": 0.01657569150858409,
+        "min": 0.055667,
+        "max": 0.200334,
+        "p5": 0.0791125,
+        "p10": 0.0854078,
+        "p25": 0.0916975,
+        "p75": 0.1108435,
+        "p90": 0.1223381,
+        "p99": 0.15655782999999998
+      },
+      "negative": 0,
+      "zero": 0
+    },
+    {
+      "package_key": "literature-review",
+      "package_id": "org.webagents.literature-review",
+      "package_version": "0.2.5",
+      "kind": "stage",
+      "stage": "package_open_verify",
+      "label": "Package open and verification",
+      "ns": {
+        "n": 1000,
+        "median": 149605583.0,
+        "p95": 155876993.75,
+        "mean": 150595372.078,
+        "std": 2736682.1875641337,
+        "min": 147156958.0,
+        "max": 178467709.0,
+        "p5": 148154149.7,
+        "p10": 148440704.5,
+        "p25": 148911354.0,
+        "p75": 151349396.0,
+        "p90": 154488646.1,
+        "p99": 158649568.58
+      },
+      "ms": {
+        "n": 1000,
+        "median": 149.605583,
+        "p95": 155.87699375,
+        "mean": 150.595372078,
+        "std": 2.7366821875641336,
+        "min": 147.156958,
+        "max": 178.467709,
+        "p5": 148.15414969999998,
+        "p10": 148.4407045,
+        "p25": 148.911354,
+        "p75": 151.349396,
+        "p90": 154.48864609999998,
+        "p99": 158.64956858000002
+      },
+      "negative": 0,
+      "zero": 0
+    },
+    {
+      "package_key": "literature-review",
+      "package_id": "org.webagents.literature-review",
+      "package_version": "0.2.5",
+      "kind": "stage",
+      "stage": "authorization_receipt",
+      "label": "Authorization receipt",
+      "ns": {
+        "n": 1000,
+        "median": 389437.5,
+        "p95": 413978.85,
+        "mean": 393695.437,
+        "std": 85097.09795565596,
+        "min": 338041.0,
+        "max": 2681917.0,
+        "p5": 364558.05,
+        "p10": 371412.8,
+        "p25": 381989.5,
+        "p75": 396676.5,
+        "p90": 406291.1,
+        "p99": 445551.24999999994
+      },
+      "ms": {
+        "n": 1000,
+        "median": 0.3894375,
+        "p95": 0.41397884999999995,
+        "mean": 0.393695437,
+        "std": 0.08509709795565597,
+        "min": 0.338041,
+        "max": 2.681917,
+        "p5": 0.36455804999999997,
+        "p10": 0.3714128,
+        "p25": 0.3819895,
+        "p75": 0.3966765,
+        "p90": 0.40629109999999996,
+        "p99": 0.44555124999999995
+      },
+      "negative": 0,
+      "zero": 0
+    },
+    {
+      "package_key": "literature-review",
+      "package_id": "org.webagents.literature-review",
+      "package_version": "0.2.5",
+      "kind": "stage",
+      "stage": "compatibility_evaluation",
+      "label": "Model and tool compatibility",
+      "ns": {
+        "n": 1000,
+        "median": 1483979.5,
+        "p95": 1530727.4,
+        "mean": 1488550.954,
+        "std": 26913.451351313593,
+        "min": 1417541.0,
+        "max": 1892459.0,
+        "p5": 1465500.0,
+        "p10": 1469708.9,
+        "p25": 1475916.75,
+        "p75": 1492718.5,
+        "p90": 1508046.1,
+        "p99": 1583509.25
+      },
+      "ms": {
+        "n": 1000,
+        "median": 1.4839795,
+        "p95": 1.5307274,
+        "mean": 1.488550954,
+        "std": 0.026913451351313594,
+        "min": 1.417541,
+        "max": 1.892459,
+        "p5": 1.4655,
+        "p10": 1.4697088999999999,
+        "p25": 1.47591675,
+        "p75": 1.4927185,
+        "p90": 1.5080461,
+        "p99": 1.58350925
+      },
+      "negative": 0,
+      "zero": 0
+    },
+    {
+      "package_key": "literature-review",
+      "package_id": "org.webagents.literature-review",
+      "package_version": "0.2.5",
+      "kind": "stage",
+      "stage": "run_plan_preparation",
+      "label": "Run Plan preparation",
+      "ns": {
+        "n": 1000,
+        "median": 3060396.5,
+        "p95": 3131112.15,
+        "mean": 3092950.113,
+        "std": 575669.3792327263,
+        "min": 2942208.0,
+        "max": 19852834.0,
+        "p5": 3016083.0,
+        "p10": 3026600.0,
+        "p25": 3043198.25,
+        "p75": 3080875.0,
+        "p90": 3106133.3,
+        "p99": 3332331.6699999995
+      },
+      "ms": {
+        "n": 1000,
+        "median": 3.0603965,
+        "p95": 3.13111215,
+        "mean": 3.092950113,
+        "std": 0.5756693792327263,
+        "min": 2.942208,
+        "max": 19.852834,
+        "p5": 3.016083,
+        "p10": 3.0266,
+        "p25": 3.04319825,
+        "p75": 3.080875,
+        "p90": 3.1061332999999998,
+        "p99": 3.3323316699999994
+      },
+      "negative": 0,
+      "zero": 0
+    },
+    {
+      "package_key": "literature-review",
+      "package_id": "org.webagents.literature-review",
+      "package_version": "0.2.5",
+      "kind": "stage",
+      "stage": "host_revalidation_lease",
+      "label": "Host revalidation and lease",
+      "ns": {
+        "n": 1000,
+        "median": 6289250.0,
+        "p95": 6625536.85,
+        "mean": 6305731.878,
+        "std": 1018313.8924638866,
+        "min": 5586209.0,
+        "max": 34627375.0,
+        "p5": 5774864.9,
+        "p10": 5883433.1,
+        "p25": 6111625.25,
+        "p75": 6375197.25,
+        "p90": 6476383.7,
+        "p99": 7290583.419999999
+      },
+      "ms": {
+        "n": 1000,
+        "median": 6.28925,
+        "p95": 6.62553685,
+        "mean": 6.305731878,
+        "std": 1.0183138924638866,
+        "min": 5.586209,
+        "max": 34.627375,
+        "p5": 5.774864900000001,
+        "p10": 5.8834330999999995,
+        "p25": 6.11162525,
+        "p75": 6.37519725,
+        "p90": 6.4763837,
+        "p99": 7.290583419999999
+      },
+      "negative": 0,
+      "zero": 0
+    },
+    {
+      "package_key": "literature-review",
+      "package_id": "org.webagents.literature-review",
+      "package_version": "0.2.5",
+      "kind": "stage",
+      "stage": "runner_verification",
+      "label": "Runner re-verification",
+      "ns": {
+        "n": 1000,
+        "median": 149149354.0,
+        "p95": 155223910.45,
+        "mean": 150150340.616,
+        "std": 2933107.2016708474,
+        "min": 147120417.0,
+        "max": 187616708.0,
+        "p5": 147795062.15,
+        "p10": 148015791.3,
+        "p25": 148454583.5,
+        "p75": 150709750.25,
+        "p90": 153946533.0,
+        "p99": 160063541.58
+      },
+      "ms": {
+        "n": 1000,
+        "median": 149.149354,
+        "p95": 155.22391044999998,
+        "mean": 150.150340616,
+        "std": 2.9331072016708473,
+        "min": 147.120417,
+        "max": 187.616708,
+        "p5": 147.79506215,
+        "p10": 148.01579130000002,
+        "p25": 148.4545835,
+        "p75": 150.70975025,
+        "p90": 153.946533,
+        "p99": 160.06354158000002
+      },
+      "negative": 0,
+      "zero": 0
+    },
+    {
+      "package_key": "literature-review",
+      "package_id": "org.webagents.literature-review",
+      "package_version": "0.2.5",
+      "kind": "stage",
+      "stage": "workflow_start",
+      "label": "Workflow instantiation and start checks",
+      "ns": {
+        "n": 1000,
+        "median": 126092583.5,
+        "p95": 131718454.5,
+        "mean": 127005687.56,
+        "std": 2400876.739113469,
+        "min": 124418916.0,
+        "max": 148037041.0,
+        "p5": 124941523.25,
+        "p10": 125162500.0,
+        "p25": 125529333.0,
+        "p75": 127308447.5,
+        "p90": 130876025.3,
+        "p99": 134312883.0
+      },
+      "ms": {
+        "n": 1000,
+        "median": 126.0925835,
+        "p95": 131.7184545,
+        "mean": 127.00568756,
+        "std": 2.4008767391134693,
+        "min": 124.418916,
+        "max": 148.037041,
+        "p5": 124.94152325,
+        "p10": 125.1625,
+        "p25": 125.529333,
+        "p75": 127.3084475,
+        "p90": 130.8760253,
+        "p99": 134.312883
+      },
+      "negative": 0,
+      "zero": 0
+    },
+    {
+      "package_key": "literature-review",
+      "package_id": "org.webagents.literature-review",
+      "package_version": "0.2.5",
+      "kind": "group",
+      "stage": "verification",
+      "label": "Package verification",
+      "ns": {
+        "n": 1000,
+        "median": 149605583.0,
+        "p95": 155876993.75,
+        "mean": 150595372.078,
+        "std": 2736682.1875641337,
+        "min": 147156958.0,
+        "max": 178467709.0,
+        "p5": 148154149.7,
+        "p10": 148440704.5,
+        "p25": 148911354.0,
+        "p75": 151349396.0,
+        "p90": 154488646.1,
+        "p99": 158649568.58
+      },
+      "ms": {
+        "n": 1000,
+        "median": 149.605583,
+        "p95": 155.87699375,
+        "mean": 150.595372078,
+        "std": 2.7366821875641336,
+        "min": 147.156958,
+        "max": 178.467709,
+        "p5": 148.15414969999998,
+        "p10": 148.4407045,
+        "p25": 148.911354,
+        "p75": 151.349396,
+        "p90": 154.48864609999998,
+        "p99": 158.64956858000002
+      },
+      "negative": 0,
+      "zero": 0
+    },
+    {
+      "package_key": "literature-review",
+      "package_id": "org.webagents.literature-review",
+      "package_version": "0.2.5",
+      "kind": "group",
+      "stage": "authorization_and_binding",
+      "label": "Authorization and binding",
+      "ns": {
+        "n": 1000,
+        "median": 1873166.5,
+        "p95": 1938212.2,
+        "mean": 1882246.391,
+        "std": 88299.08707809467,
+        "min": 1812042.0,
+        "max": 4106250.0,
+        "p5": 1843572.6,
+        "p10": 1851507.7,
+        "p25": 1861906.5,
+        "p75": 1885448.0,
+        "p90": 1906463.1,
+        "p99": 2031494.2499999998
+      },
+      "ms": {
+        "n": 1000,
+        "median": 1.8731665,
+        "p95": 1.9382122,
+        "mean": 1.882246391,
+        "std": 0.08829908707809467,
+        "min": 1.812042,
+        "max": 4.10625,
+        "p5": 1.8435726000000001,
+        "p10": 1.8515077,
+        "p25": 1.8619065,
+        "p75": 1.885448,
+        "p90": 1.9064631,
+        "p99": 2.0314942499999997
+      },
+      "negative": 0,
+      "zero": 0
+    },
+    {
+      "package_key": "literature-review",
+      "package_id": "org.webagents.literature-review",
+      "package_version": "0.2.5",
+      "kind": "group",
+      "stage": "run_plan",
+      "label": "Run Plan preparation",
+      "ns": {
+        "n": 1000,
+        "median": 3060396.5,
+        "p95": 3131112.15,
+        "mean": 3092950.113,
+        "std": 575669.3792327263,
+        "min": 2942208.0,
+        "max": 19852834.0,
+        "p5": 3016083.0,
+        "p10": 3026600.0,
+        "p25": 3043198.25,
+        "p75": 3080875.0,
+        "p90": 3106133.3,
+        "p99": 3332331.6699999995
+      },
+      "ms": {
+        "n": 1000,
+        "median": 3.0603965,
+        "p95": 3.13111215,
+        "mean": 3.092950113,
+        "std": 0.5756693792327263,
+        "min": 2.942208,
+        "max": 19.852834,
+        "p5": 3.016083,
+        "p10": 3.0266,
+        "p25": 3.04319825,
+        "p75": 3.080875,
+        "p90": 3.1061332999999998,
+        "p99": 3.3323316699999994
+      },
+      "negative": 0,
+      "zero": 0
+    },
+    {
+      "package_key": "literature-review",
+      "package_id": "org.webagents.literature-review",
+      "package_version": "0.2.5",
+      "kind": "group",
+      "stage": "revalidation",
+      "label": "Pre-execution revalidation",
+      "ns": {
+        "n": 1000,
+        "median": 282375042.0,
+        "p95": 289178960.7,
+        "mean": 283461760.054,
+        "std": 4080067.5922772335,
+        "min": 278348833.0,
+        "max": 327951833.0,
+        "p5": 279464508.35,
+        "p10": 279894258.1,
+        "p25": 280747896.0,
+        "p75": 285552344.0,
+        "p90": 287466474.4,
+        "p99": 297175485.25
+      },
+      "ms": {
+        "n": 1000,
+        "median": 282.375042,
+        "p95": 289.1789607,
+        "mean": 283.461760054,
+        "std": 4.080067592277233,
+        "min": 278.348833,
+        "max": 327.951833,
+        "p5": 279.46450835,
+        "p10": 279.8942581,
+        "p25": 280.747896,
+        "p75": 285.552344,
+        "p90": 287.4664744,
+        "p99": 297.17548525
+      },
+      "negative": 0,
+      "zero": 0
+    },
+    {
+      "package_key": "literature-review",
+      "package_id": "org.webagents.literature-review",
+      "package_version": "0.2.5",
+      "kind": "total",
+      "stage": "total_pre_execution",
+      "label": "Total pre-execution",
+      "ns": {
+        "n": 1000,
+        "median": 438568542.0,
+        "p95": 446596285.1,
+        "mean": 439032328.636,
+        "std": 5499470.484931974,
+        "min": 430989500.0,
+        "max": 498032083.0,
+        "p5": 433052131.9,
+        "p10": 433740529.1,
+        "p25": 435447156.75,
+        "p75": 441127322.75,
+        "p90": 444360308.3,
+        "p99": 456512594.08
+      },
+      "ms": {
+        "n": 1000,
+        "median": 438.568542,
+        "p95": 446.59628510000005,
+        "mean": 439.032328636,
+        "std": 5.499470484931973,
+        "min": 430.9895,
+        "max": 498.032083,
+        "p5": 433.05213189999995,
+        "p10": 433.7405291,
+        "p25": 435.44715675,
+        "p75": 441.12732275,
+        "p90": 444.3603083,
+        "p99": 456.51259408
+      },
+      "negative": 0,
+      "zero": 0
+    },
+    {
+      "package_key": "literature-review",
+      "package_id": "org.webagents.literature-review",
+      "package_version": "0.2.5",
+      "kind": "secondary",
+      "stage": "local_file_read",
+      "label": "Local file read (secondary, not in total)",
+      "ns": {
+        "n": 1000,
+        "median": 127896.0,
+        "p95": 159685.44999999995,
+        "mean": 130405.491,
+        "std": 23849.750647246918,
+        "min": 90833.0,
+        "max": 674208.0,
+        "p5": 105529.5,
+        "p10": 112667.0,
+        "p25": 120406.5,
+        "p75": 136708.5,
+        "p90": 149658.30000000002,
+        "p99": 185465.5
+      },
+      "ms": {
+        "n": 1000,
+        "median": 0.127896,
+        "p95": 0.15968544999999995,
+        "mean": 0.13040549099999998,
+        "std": 0.02384975064724692,
+        "min": 0.090833,
+        "max": 0.674208,
+        "p5": 0.1055295,
+        "p10": 0.112667,
+        "p25": 0.1204065,
+        "p75": 0.1367085,
+        "p90": 0.14965830000000002,
+        "p99": 0.1854655
+      },
+      "negative": 0,
+      "zero": 0
+    }
+  ],
+  "stability": {
+    "batch_median_spread": [
+      {
+        "package_key": "literature-review",
+        "kind": "group",
+        "stage": "authorization_and_binding",
+        "batch_medians_ms": [
+          1.8733125,
+          1.872042,
+          1.872896,
+          1.8750835,
+          1.871021
+        ],
+        "min_ms": 1.871021,
+        "max_ms": 1.8750835,
+        "spread_pct_of_median": 0.21687874516226174
+      },
+      {
+        "package_key": "literature-review",
+        "kind": "group",
+        "stage": "revalidation",
+        "batch_medians_ms": [
+          281.924125,
+          281.6211455,
+          282.0123545,
+          284.4291665,
+          281.2245205
+        ],
+        "min_ms": 281.2245205,
+        "max_ms": 284.4291665,
+        "spread_pct_of_median": 1.1348899595737023
+      },
+      {
+        "package_key": "literature-review",
+        "kind": "group",
+        "stage": "run_plan",
+        "batch_medians_ms": [
+          3.061042,
+          3.062667,
+          3.057021,
+          3.0633545,
+          3.0567915
+        ],
+        "min_ms": 3.0567915,
+        "max_ms": 3.0633545,
+        "spread_pct_of_median": 0.2144493368751361
+      },
+      {
+        "package_key": "literature-review",
+        "kind": "group",
+        "stage": "verification",
+        "batch_medians_ms": [
+          149.322354,
+          149.224625,
+          149.424229,
+          151.4051255,
+          149.1002085
+        ],
+        "min_ms": 149.1002085,
+        "max_ms": 151.4051255,
+        "spread_pct_of_median": 1.5406624230059576
+      },
+      {
+        "package_key": "literature-review",
+        "kind": "stage",
+        "stage": "authorization_receipt",
+        "batch_medians_ms": [
+          0.3911255,
+          0.3901045,
+          0.389917,
+          0.3836665,
+          0.3896875
+        ],
+        "min_ms": 0.3836665,
+        "max_ms": 0.3911255,
+        "spread_pct_of_median": 1.9153265928422387
+      },
+      {
+        "package_key": "literature-review",
+        "kind": "stage",
+        "stage": "compatibility_evaluation",
+        "batch_medians_ms": [
+          1.4828335,
+          1.4815205,
+          1.4816045,
+          1.49025,
+          1.482937
+        ],
+        "min_ms": 1.4815205,
+        "max_ms": 1.49025,
+        "spread_pct_of_median": 0.5882493659784422
+      },
+      {
+        "package_key": "literature-review",
+        "kind": "stage",
+        "stage": "host_revalidation_lease",
+        "batch_medians_ms": [
+          6.3405835,
+          6.3188755,
+          6.3098335,
+          5.9555,
+          6.292
+        ],
+        "min_ms": 5.9555,
+        "max_ms": 6.3405835,
+        "spread_pct_of_median": 6.122884286679658
+      },
+      {
+        "package_key": "literature-review",
+        "kind": "stage",
+        "stage": "package_open_verify",
+        "batch_medians_ms": [
+          149.322354,
+          149.224625,
+          149.424229,
+          151.4051255,
+          149.1002085
+        ],
+        "min_ms": 149.1002085,
+        "max_ms": 151.4051255,
+        "spread_pct_of_median": 1.5406624230059576
+      },
+      {
+        "package_key": "literature-review",
+        "kind": "stage",
+        "stage": "run_plan_preparation",
+        "batch_medians_ms": [
+          3.061042,
+          3.062667,
+          3.057021,
+          3.0633545,
+          3.0567915
+        ],
+        "min_ms": 3.0567915,
+        "max_ms": 3.0633545,
+        "spread_pct_of_median": 0.2144493368751361
+      },
+      {
+        "package_key": "literature-review",
+        "kind": "stage",
+        "stage": "runner_verification",
+        "batch_medians_ms": [
+          148.933208,
+          148.900104,
+          148.9051875,
+          150.6670005,
+          148.6832085
+        ],
+        "min_ms": 148.6832085,
+        "max_ms": 150.6670005,
+        "spread_pct_of_median": 1.3300707960156464
+      },
+      {
+        "package_key": "literature-review",
+        "kind": "stage",
+        "stage": "workflow_start",
+        "batch_medians_ms": [
+          126.0160205,
+          125.9567085,
+          126.0611665,
+          126.7125835,
+          125.73925
+        ],
+        "min_ms": 125.73925,
+        "max_ms": 126.7125835,
+        "spread_pct_of_median": 0.7719197061260906
+      },
+      {
+        "package_key": "literature-review",
+        "kind": "total",
+        "stage": "total_pre_execution",
+        "batch_medians_ms": [
+          437.897271,
+          437.5630835,
+          438.620083,
+          441.5003335,
+          437.5280415
+        ],
+        "min_ms": 437.5280415,
+        "max_ms": 441.5003335,
+        "spread_pct_of_median": 0.9057402936118566
+      },
+      {
+        "package_key": "meeting-agenda",
+        "kind": "group",
+        "stage": "authorization_and_binding",
+        "batch_medians_ms": [
+          0.887521,
+          0.887,
+          0.8897295,
+          0.90375,
+          0.889979
+        ],
+        "min_ms": 0.887,
+        "max_ms": 0.90375,
+        "spread_pct_of_median": 1.8804367777509015
+      },
+      {
+        "package_key": "meeting-agenda",
+        "kind": "group",
+        "stage": "revalidation",
+        "batch_medians_ms": [
+          35.060834,
+          35.0469795,
+          35.110959,
+          35.7231875,
+          35.0918335
+        ],
+        "min_ms": 35.0469795,
+        "max_ms": 35.7231875,
+        "spread_pct_of_median": 1.9240574790717904
+      },
+      {
+        "package_key": "meeting-agenda",
+        "kind": "group",
+        "stage": "run_plan",
+        "batch_medians_ms": [
+          1.282875,
+          1.2803335,
+          1.2811875,
+          1.301042,
+          1.2820835
+        ],
+        "min_ms": 1.2803335,
+        "max_ms": 1.301042,
+        "spread_pct_of_median": 1.6118963610224426
+      },
+      {
+        "package_key": "meeting-agenda",
+        "kind": "group",
+        "stage": "verification",
+        "batch_medians_ms": [
+          18.9410415,
+          18.966813,
+          18.9952705,
+          19.2116455,
+          18.986792
+        ],
+        "min_ms": 18.9410415,
+        "max_ms": 19.2116455,
+        "spread_pct_of_median": 1.4232203434401804
+      },
+      {
+        "package_key": "meeting-agenda",
+        "kind": "stage",
+        "stage": "authorization_receipt",
+        "batch_medians_ms": [
+          0.2674585,
+          0.268208,
+          0.2667495,
+          0.266167,
+          0.2679795
+        ],
+        "min_ms": 0.266167,
+        "max_ms": 0.268208,
+        "spread_pct_of_median": 0.763287408936564
+      },
+      {
+        "package_key": "meeting-agenda",
+        "kind": "stage",
+        "stage": "compatibility_evaluation",
+        "batch_medians_ms": [
+          0.619104,
+          0.618292,
+          0.6200205,
+          0.635625,
+          0.62
+        ],
+        "min_ms": 0.618292,
+        "max_ms": 0.635625,
+        "spread_pct_of_median": 2.788897827835888
+      },
+      {
+        "package_key": "meeting-agenda",
+        "kind": "stage",
+        "stage": "host_revalidation_lease",
+        "batch_medians_ms": [
+          1.784229,
+          1.7757295,
+          1.7787495,
+          1.5904795,
+          1.7727295
+        ],
+        "min_ms": 1.5904795,
+        "max_ms": 1.784229,
+        "spread_pct_of_median": 11.010708972145535
+      },
+      {
+        "package_key": "meeting-agenda",
+        "kind": "stage",
+        "stage": "package_open_verify",
+        "batch_medians_ms": [
+          18.9410415,
+          18.966813,
+          18.9952705,
+          19.2116455,
+          18.986792
+        ],
+        "min_ms": 18.9410415,
+        "max_ms": 19.2116455,
+        "spread_pct_of_median": 1.4232203434401804
+      },
+      {
+        "package_key": "meeting-agenda",
+        "kind": "stage",
+        "stage": "run_plan_preparation",
+        "batch_medians_ms": [
+          1.282875,
+          1.2803335,
+          1.2811875,
+          1.301042,
+          1.2820835
+        ],
+        "min_ms": 1.2803335,
+        "max_ms": 1.301042,
+        "spread_pct_of_median": 1.6118963610224426
+      },
+      {
+        "package_key": "meeting-agenda",
+        "kind": "stage",
+        "stage": "runner_verification",
+        "batch_medians_ms": [
+          18.154563,
+          18.1714585,
+          18.191896,
+          18.594938,
+          18.227396
+        ],
+        "min_ms": 18.154563,
+        "max_ms": 18.594938,
+        "spread_pct_of_median": 2.4158432136269163
+      },
+      {
+        "package_key": "meeting-agenda",
+        "kind": "stage",
+        "stage": "workflow_start",
+        "batch_medians_ms": [
+          15.116167,
+          15.125833,
+          15.140521,
+          15.487396,
+          15.1023955
+        ],
+        "min_ms": 15.1023955,
+        "max_ms": 15.487396,
+        "spread_pct_of_median": 2.537046431052461
+      },
+      {
+        "package_key": "meeting-agenda",
+        "kind": "total",
+        "stage": "total_pre_execution",
+        "batch_medians_ms": [
+          56.2116245,
+          56.190562,
+          56.3065625,
+          57.2211665,
+          56.3053125
+        ],
+        "min_ms": 56.190562,
+        "max_ms": 57.2211665,
+        "spread_pct_of_median": 1.8286794596543767
+      }
+    ],
+    "position_effect": [
+      {
+        "package_key": "meeting-agenda",
+        "stage": "total_pre_execution",
+        "median_ms_by_position": {
+          "0": 56.379209,
+          "1": 56.344542
+        },
+        "n_by_position": {
+          "0": 497,
+          "1": 503
+        }
+      },
+      {
+        "package_key": "literature-review",
+        "stage": "total_pre_execution",
+        "median_ms_by_position": {
+          "0": 438.570333,
+          "1": 438.544208
+        },
+        "n_by_position": {
+          "0": 503,
+          "1": 497
+        }
+      }
+    ],
+    "half_drift": [
+      {
+        "package_key": "meeting-agenda",
+        "stage": "total_pre_execution",
+        "by_batch": {
+          "0": {
+            "first_half_median_ms": 56.2028955,
+            "second_half_median_ms": 56.224167
+          },
+          "1": {
+            "first_half_median_ms": 56.245083,
+            "second_half_median_ms": 56.152375
+          },
+          "2": {
+            "first_half_median_ms": 56.274396,
+            "second_half_median_ms": 56.356958
+          },
+          "3": {
+            "first_half_median_ms": 57.5225415,
+            "second_half_median_ms": 56.985667
+          },
+          "4": {
+            "first_half_median_ms": 56.357229,
+            "second_half_median_ms": 56.2394165
+          }
+        }
+      },
+      {
+        "package_key": "literature-review",
+        "stage": "total_pre_execution",
+        "by_batch": {
+          "0": {
+            "first_half_median_ms": 438.1895415,
+            "second_half_median_ms": 437.2804995
+          },
+          "1": {
+            "first_half_median_ms": 437.4183125,
+            "second_half_median_ms": 437.664854
+          },
+          "2": {
+            "first_half_median_ms": 437.2207085,
+            "second_half_median_ms": 439.3255
+          },
+          "3": {
+            "first_half_median_ms": 443.5617085,
+            "second_half_median_ms": 440.4556455
+          },
+          "4": {
+            "first_half_median_ms": 437.7986875,
+            "second_half_median_ms": 437.1345625
+          }
+        }
+      }
+    ],
+    "tail": [
+      {
+        "package_key": "meeting-agenda",
+        "stage": "total_pre_execution",
+        "max_over_median": 2.873591638176997,
+        "p99_over_median": 1.091665768536893,
+        "above_2x_median": 1,
+        "above_5x_median": 0,
+        "n": 1000
+      },
+      {
+        "package_key": "literature-review",
+        "stage": "total_pre_execution",
+        "max_over_median": 1.1355855135638069,
+        "p99_over_median": 1.0409150460226124,
+        "above_2x_median": 0,
+        "above_5x_median": 0,
+        "n": 1000
+      }
+    ]
+  },
+  "audit": [
+    {
+      "variant": "no_observer",
+      "stream": "literature-review",
+      "ns": {
+        "n": 10100,
+        "median": 5375.0,
+        "p95": 6794.04999999997,
+        "mean": 5649.061386138614,
+        "std": 1130.3350079577874,
+        "min": 4417.0,
+        "max": 39917.0,
+        "p5": 4750.0,
+        "p10": 4959.0,
+        "p25": 5166.0,
+        "p75": 6167.0,
+        "p90": 6542.0,
+        "p99": 7792.0
+      },
+      "us": {
+        "n": 10100,
+        "median": 5.375,
+        "p95": 6.79404999999997,
+        "mean": 5.649061386138614,
+        "std": 1.1303350079577874,
+        "min": 4.417,
+        "max": 39.917,
+        "p5": 4.75,
+        "p10": 4.959,
+        "p25": 5.166,
+        "p75": 6.167,
+        "p90": 6.542,
+        "p99": 7.792
+      },
+      "events_per_second_at_median": 186046.51162790696,
+      "events_per_second_at_mean": 177020.55822118526,
+      "max_chain_length": 2021
+    },
+    {
+      "variant": "no_observer",
+      "stream": "meeting-agenda",
+      "ns": {
+        "n": 2300,
+        "median": 5333.0,
+        "p95": 6542.0,
+        "mean": 5561.8639130434785,
+        "std": 2704.4114471568805,
+        "min": 4417.0,
+        "max": 104541.0,
+        "p5": 4667.0,
+        "p10": 4958.0,
+        "p25": 5042.0,
+        "p75": 5834.0,
+        "p90": 6416.0,
+        "p99": 6875.0
+      },
+      "us": {
+        "n": 2300,
+        "median": 5.333,
+        "p95": 6.542,
+        "mean": 5.561863913043479,
+        "std": 2.7044114471568803,
+        "min": 4.417,
+        "max": 104.541,
+        "p5": 4.667,
+        "p10": 4.958,
+        "p25": 5.042,
+        "p75": 5.834,
+        "p90": 6.416,
+        "p99": 6.875
+      },
+      "events_per_second_at_median": 187511.71948246766,
+      "events_per_second_at_mean": 179795.84104077713,
+      "max_chain_length": 461
+    },
+    {
+      "variant": "progress_observer",
+      "stream": "literature-review",
+      "ns": {
+        "n": 10100,
+        "median": 11500.0,
+        "p95": 15041.0,
+        "mean": 12241.289702970296,
+        "std": 1934.8858621549737,
+        "min": 9916.0,
+        "max": 99417.0,
+        "p5": 10250.0,
+        "p10": 10791.0,
+        "p25": 11166.0,
+        "p75": 13417.0,
+        "p90": 14750.0,
+        "p99": 15709.410000000009
+      },
+      "us": {
+        "n": 10100,
+        "median": 11.5,
+        "p95": 15.041,
+        "mean": 12.241289702970295,
+        "std": 1.9348858621549736,
+        "min": 9.916,
+        "max": 99.417,
+        "p5": 10.25,
+        "p10": 10.791,
+        "p25": 11.166,
+        "p75": 13.417,
+        "p90": 14.75,
+        "p99": 15.709410000000009
+      },
+      "events_per_second_at_median": 86956.52173913043,
+      "events_per_second_at_mean": 81690.73882446834,
+      "max_chain_length": 2021
+    },
+    {
+      "variant": "progress_observer",
+      "stream": "meeting-agenda",
+      "ns": {
+        "n": 2300,
+        "median": 11500.0,
+        "p95": 14792.0,
+        "mean": 12632.511304347827,
+        "std": 21385.503012369998,
+        "min": 9875.0,
+        "max": 1032333.0,
+        "p5": 10291.95,
+        "p10": 10833.0,
+        "p25": 11083.0,
+        "p75": 13344.25,
+        "p90": 14375.0,
+        "p99": 15208.419999999991
+      },
+      "us": {
+        "n": 2300,
+        "median": 11.5,
+        "p95": 14.792,
+        "mean": 12.632511304347826,
+        "std": 21.38550301237,
+        "min": 9.875,
+        "max": 1032.333,
+        "p5": 10.29195,
+        "p10": 10.833,
+        "p25": 11.083,
+        "p75": 13.34425,
+        "p90": 14.375,
+        "p99": 15.208419999999991
+      },
+      "events_per_second_at_median": 86956.52173913043,
+      "events_per_second_at_mean": 79160.82368007243,
+      "max_chain_length": 461
+    }
+  ],
+  "components": [
+    {
+      "package_key": "meeting-agenda",
+      "component": "container_integrity",
+      "ns": {
+        "n": 500,
+        "median": 2890021.0,
+        "p95": 3012111.05,
+        "mean": 2920245.804,
+        "std": 477727.60748262785,
+        "min": 2743667.0,
+        "max": 13491334.0,
+        "p5": 2833441.65,
+        "p10": 2849646.2,
+        "p25": 2867760.5,
+        "p75": 2913114.0,
+        "p90": 2942395.8000000003,
+        "p99": 3209472.59
+      },
+      "ms": {
+        "n": 500,
+        "median": 2.890021,
+        "p95": 3.0121110499999997,
+        "mean": 2.920245804,
+        "std": 0.4777276074826278,
+        "min": 2.743667,
+        "max": 13.491334,
+        "p5": 2.8334416499999997,
+        "p10": 2.8496462,
+        "p25": 2.8677605,
+        "p75": 2.913114,
+        "p90": 2.9423958000000003,
+        "p99": 3.20947259
+      }
+    },
+    {
+      "package_key": "meeting-agenda",
+      "component": "schema_validation",
+      "ns": {
+        "n": 500,
+        "median": 14355208.5,
+        "p95": 14658187.2,
+        "mean": 14410138.06,
+        "std": 428531.43003921583,
+        "min": 14093083.0,
+        "max": 21412333.0,
+        "p5": 14175580.9,
+        "p10": 14216716.7,
+        "p25": 14279844.0,
+        "p75": 14459135.25,
+        "p90": 14566662.8,
+        "p99": 15320215.0
+      },
+      "ms": {
+        "n": 500,
+        "median": 14.3552085,
+        "p95": 14.658187199999999,
+        "mean": 14.410138060000001,
+        "std": 0.42853143003921584,
+        "min": 14.093083,
+        "max": 21.412333,
+        "p5": 14.1755809,
+        "p10": 14.2167167,
+        "p25": 14.279844,
+        "p75": 14.45913525,
+        "p90": 14.566662800000001,
+        "p99": 15.320215
+      }
+    },
+    {
+      "package_key": "meeting-agenda",
+      "component": "signature",
+      "ns": {
+        "n": 500,
+        "median": 245375.0,
+        "p95": 256463.1,
+        "mean": 247128.758,
+        "std": 6940.554491157422,
+        "min": 233500.0,
+        "max": 323875.0,
+        "p5": 243409.75,
+        "p10": 243786.9,
+        "p25": 244625.0,
+        "p75": 247145.75,
+        "p90": 249675.3,
+        "p99": 275552.49999999994
+      },
+      "ms": {
+        "n": 500,
+        "median": 0.245375,
+        "p95": 0.2564631,
+        "mean": 0.247128758,
+        "std": 0.006940554491157422,
+        "min": 0.2335,
+        "max": 0.323875,
+        "p5": 0.24340975,
+        "p10": 0.2437869,
+        "p25": 0.244625,
+        "p75": 0.24714575,
+        "p90": 0.2496753,
+        "p99": 0.2755524999999999
+      }
+    },
+    {
+      "package_key": "meeting-agenda",
+      "component": "publisher_trust",
+      "ns": {
+        "n": 500,
+        "median": 150853.5,
+        "p95": 168804.44999999998,
+        "mean": 152018.002,
+        "std": 26738.981442290176,
+        "min": 112625.0,
+        "max": 531542.0,
+        "p5": 132799.7,
+        "p10": 136454.8,
+        "p25": 143406.5,
+        "p75": 155459.0,
+        "p90": 162425.3,
+        "p99": 214181.74999999968
+      },
+      "ms": {
+        "n": 500,
+        "median": 0.1508535,
+        "p95": 0.16880445,
+        "mean": 0.152018002,
+        "std": 0.026738981442290175,
+        "min": 0.112625,
+        "max": 0.531542,
+        "p5": 0.13279970000000002,
+        "p10": 0.1364548,
+        "p25": 0.1434065,
+        "p75": 0.155459,
+        "p90": 0.1624253,
+        "p99": 0.21418174999999967
+      }
+    },
+    {
+      "package_key": "meeting-agenda",
+      "component": "inspection_summary",
+      "ns": {
+        "n": 500,
+        "median": 204791.5,
+        "p95": 212843.4,
+        "mean": 206038.076,
+        "std": 9229.73006497854,
+        "min": 192833.0,
+        "max": 361500.0,
+        "p5": 200916.95,
+        "p10": 201495.8,
+        "p25": 202989.5,
+        "p75": 206770.75,
+        "p90": 209125.0,
+        "p99": 233675.75
+      },
+      "ms": {
+        "n": 500,
+        "median": 0.2047915,
+        "p95": 0.2128434,
+        "mean": 0.20603807600000001,
+        "std": 0.00922973006497854,
+        "min": 0.192833,
+        "max": 0.3615,
+        "p5": 0.20091695,
+        "p10": 0.20149579999999997,
+        "p25": 0.2029895,
+        "p75": 0.20677075,
+        "p90": 0.209125,
+        "p99": 0.23367575
+      }
+    },
+    {
+      "package_key": "literature-review",
+      "component": "container_integrity",
+      "ns": {
+        "n": 500,
+        "median": 23460687.5,
+        "p95": 23839343.75,
+        "mean": 23491533.848,
+        "std": 215615.2415405973,
+        "min": 23077042.0,
+        "max": 25108583.0,
+        "p5": 23268888.1,
+        "p10": 23292986.9,
+        "p25": 23363541.25,
+        "p75": 23554385.5,
+        "p90": 23706762.2,
+        "p99": 24304557.169999998
+      },
+      "ms": {
+        "n": 500,
+        "median": 23.4606875,
+        "p95": 23.83934375,
+        "mean": 23.491533848,
+        "std": 0.21561524154059727,
+        "min": 23.077042,
+        "max": 25.108583,
+        "p5": 23.2688881,
+        "p10": 23.2929869,
+        "p25": 23.36354125,
+        "p75": 23.5543855,
+        "p90": 23.7067622,
+        "p99": 24.30455717
+      }
+    },
+    {
+      "package_key": "literature-review",
+      "component": "schema_validation",
+      "ns": {
+        "n": 500,
+        "median": 122287312.5,
+        "p95": 127736125.3,
+        "mean": 123231483.32,
+        "std": 3035277.3220959543,
+        "min": 120970083.0,
+        "max": 168602625.0,
+        "p5": 121543998.25,
+        "p10": 121656762.5,
+        "p25": 121944208.0,
+        "p75": 123014510.25,
+        "p90": 127205145.8,
+        "p99": 129547301.01
+      },
+      "ms": {
+        "n": 500,
+        "median": 122.2873125,
+        "p95": 127.7361253,
+        "mean": 123.23148332,
+        "std": 3.035277322095954,
+        "min": 120.970083,
+        "max": 168.602625,
+        "p5": 121.54399825,
+        "p10": 121.6567625,
+        "p25": 121.944208,
+        "p75": 123.01451025,
+        "p90": 127.2051458,
+        "p99": 129.54730101
+      }
+    },
+    {
+      "package_key": "literature-review",
+      "component": "signature",
+      "ns": {
+        "n": 500,
+        "median": 350021.0,
+        "p95": 393366.35,
+        "mean": 356996.762,
+        "std": 16826.235857124884,
+        "min": 328916.0,
+        "max": 471125.0,
+        "p5": 346041.95,
+        "p10": 346620.9,
+        "p25": 347614.5,
+        "p75": 359468.5,
+        "p90": 376829.20000000007,
+        "p99": 421653.75
+      },
+      "ms": {
+        "n": 500,
+        "median": 0.350021,
+        "p95": 0.39336635,
+        "mean": 0.35699676199999997,
+        "std": 0.016826235857124883,
+        "min": 0.328916,
+        "max": 0.471125,
+        "p5": 0.34604195,
+        "p10": 0.3466209,
+        "p25": 0.3476145,
+        "p75": 0.3594685,
+        "p90": 0.3768292000000001,
+        "p99": 0.42165375
+      }
+    },
+    {
+      "package_key": "literature-review",
+      "component": "publisher_trust",
+      "ns": {
+        "n": 500,
+        "median": 171083.5,
+        "p95": 228820.84999999983,
+        "mean": 182016.816,
+        "std": 68140.95542322638,
+        "min": 113833.0,
+        "max": 1562292.0,
+        "p5": 153413.95,
+        "p10": 157116.7,
+        "p25": 162780.75,
+        "p75": 184395.75,
+        "p90": 213666.7,
+        "p99": 294163.8399999998
+      },
+      "ms": {
+        "n": 500,
+        "median": 0.1710835,
+        "p95": 0.22882084999999983,
+        "mean": 0.182016816,
+        "std": 0.06814095542322637,
+        "min": 0.113833,
+        "max": 1.562292,
+        "p5": 0.15341395000000002,
+        "p10": 0.1571167,
+        "p25": 0.16278075,
+        "p75": 0.18439575,
+        "p90": 0.21366670000000001,
+        "p99": 0.2941638399999998
+      }
+    },
+    {
+      "package_key": "literature-review",
+      "component": "inspection_summary",
+      "ns": {
+        "n": 500,
+        "median": 811875.0,
+        "p95": 871281.8999999998,
+        "mean": 822800.564,
+        "std": 46161.38179522351,
+        "min": 792959.0,
+        "max": 1217541.0,
+        "p5": 802162.8,
+        "p10": 804333.0,
+        "p25": 807697.5,
+        "p75": 818906.25,
+        "p90": 836275.0,
+        "p99": 1095976.7499999995
+      },
+      "ms": {
+        "n": 500,
+        "median": 0.811875,
+        "p95": 0.8712818999999998,
+        "mean": 0.822800564,
+        "std": 0.04616138179522351,
+        "min": 0.792959,
+        "max": 1.217541,
+        "p5": 0.8021628000000001,
+        "p10": 0.804333,
+        "p25": 0.8076975,
+        "p75": 0.81890625,
+        "p90": 0.836275,
+        "p99": 1.0959767499999995
+      }
+    }
+  ],
+  "context_runs": [
+    {
+      "package_key": "meeting-agenda",
+      "source": "examples/meeting-agenda-022-qwen/run.json",
+      "run_id": "run_76c1e18ab3c64a1b9470c656a9178d4b",
+      "package_version": "0.2.2",
+      "model": "ollama/qwen3:30b",
+      "duration_ms": 133230.0
+    },
+    {
+      "package_key": "meeting-agenda",
+      "source": "examples/meeting-agenda-022-luna/run.json",
+      "run_id": "run_119d25dc76af40148a44b1c45c719281",
+      "package_version": "0.2.2",
+      "model": "openai/gpt-5.6-luna",
+      "duration_ms": 32355.0
+    }
+  ]
+}

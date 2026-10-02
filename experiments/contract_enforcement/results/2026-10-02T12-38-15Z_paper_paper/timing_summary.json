@@ -1,0 +1,65 @@
+{
+ "full": {
+  "max_ms": 6521.722,
+  "median_ms": 188.46,
+  "n": 1011,
+  "p95_ms": 1337.165,
+  "total_s": 477.073255
+ },
+ "minus_authorization": {
+  "max_ms": 6523.637,
+  "median_ms": 186.353,
+  "n": 1011,
+  "p95_ms": 1339.965,
+  "total_s": 487.091048
+ },
+ "minus_compatibility": {
+  "max_ms": 6539.497,
+  "median_ms": 194.073,
+  "n": 1011,
+  "p95_ms": 1341.453,
+  "total_s": 494.807049
+ },
+ "minus_host_mediation": {
+  "max_ms": 6525.43,
+  "median_ms": 185.882,
+  "n": 1011,
+  "p95_ms": 1323.21,
+  "total_s": 501.424581
+ },
+ "minus_output_validation": {
+  "max_ms": 6519.384,
+  "median_ms": 186.19,
+  "n": 1011,
+  "p95_ms": 745.567,
+  "total_s": 355.74156300000004
+ },
+ "minus_plan_revalidation": {
+  "max_ms": 6538.044,
+  "median_ms": 194.595,
+  "n": 1011,
+  "p95_ms": 1346.901,
+  "total_s": 514.15026
+ },
+ "minus_resource_enforcement": {
+  "max_ms": 8835.796,
+  "median_ms": 186.868,
+  "n": 1011,
+  "p95_ms": 1332.559,
+  "total_s": 511.943789
+ },
+ "minus_trust": {
+  "max_ms": 6518.081,
+  "median_ms": 187.025,
+  "n": 1011,
+  "p95_ms": 1335.836,
+  "total_s": 484.338249
+ },
+ "minus_verification": {
+  "max_ms": 6524.592,
+  "median_ms": 203.778,
+  "n": 1011,
+  "p95_ms": 1335.429,
+  "total_s": 547.3142929999999
+ }
+}

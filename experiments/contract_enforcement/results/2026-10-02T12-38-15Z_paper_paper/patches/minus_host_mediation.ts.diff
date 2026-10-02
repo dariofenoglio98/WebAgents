@@ -1,0 +1,139 @@
+--- a/bridge-core.ts
++++ b/bridge-core.ts
+@@ -165,5 +165,5 @@
+   const allowed = new Set(["system", "user", "output_schema", "max_output_tokens", "reasoning"]);
+   for (const key of Object.keys(params)) {
+-    if (!allowed.has(key)) throw violation(`model.complete does not accept ${key}`);
++    // ABLATED M.bridge.complete_params
+   }
+   const maxOutputTokens = params.max_output_tokens;
+--- a/execution.ts
++++ b/execution.ts
+@@ -378,5 +378,5 @@
+     // ...and a task may only name the files this run is given. A stale id, or
+     // one from another session, is refused now rather than at the first read.
+-    this.checkReferencedFiles(request.input, attached);
++    // ABLATED M.start.referenced_files
+     // The package's own input schema, through the control plane, before a
+     // lease exists: invalid input costs nothing and names the field.
+--- a/file-capabilities.ts
++++ b/file-capabilities.ts
+@@ -290,4 +290,5 @@
+       const record = isFileId(fileId) ? this.files.get(fileId) : undefined;
+       if (!record || record.sessionId !== sessionId) {
++        continue; // ABLATED M.files.attach
+         refuse(
+           "Unknown selected file",
+--- a/host-llm.ts
++++ b/host-llm.ts
+@@ -324,5 +324,5 @@
+ 
+   const invoked = `${result.provider ?? ""}/${result.model ?? ""}`;
+-  if (invoked !== request.modelId) {
++  if (ablatedNever() /* ABLATED M.host_llm.model_echo */ && (invoked !== request.modelId)) {
+     throw new AgentBrowserError(
+       "selected_model_unavailable",
+@@ -358,2 +358,7 @@
+   };
+ }
++
++// contract_enforcement experiment ablation helper: always false.
++function ablatedNever(): boolean {
++  return false;
++}
+--- a/tool-adapters.ts
++++ b/tool-adapters.ts
+@@ -141,5 +141,5 @@
+   }
+   for (const key of Object.keys(args)) {
+-    if (key !== "query" && key !== "limit") {
++    if (ablatedNever() /* ABLATED M.adapter.argument_names */ && (key !== "query" && key !== "limit")) {
+       // The host reads only the names it was written for. Any other name
+       // would be a way for a package to shape the request, so it is refused.
+@@ -300,2 +300,7 @@
+   return new URLSearchParams(query.map(([name, value]) => [name, value])).toString();
+ }
++
++// contract_enforcement experiment ablation helper: always false.
++function ablatedNever(): boolean {
++  return false;
++}
+--- a/tool-broker.ts
++++ b/tool-broker.ts
+@@ -356,6 +356,6 @@
+   async call(params: Record<string, unknown>, signal: AbortSignal): Promise<ToolCallResult> {
+     const request = readToolCallParams(params);
+-    const bound = this.options.bound.find((item) => item.toolId === request.tool_id);
+-    if (!bound) {
++    const bound = this.options.bound.find((item) => item.toolId === request.tool_id)!;
++    if (ablatedNever() /* ABLATED M.broker.bound */) {
+       throw toolError(
+         TOOL_ERRORS.notBound,
+@@ -364,6 +364,5 @@
+     }
+     if (
+-      bound.bindingId !== request.binding_id ||
+-      bound.bindingSha256 !== request.binding_sha256
++      ablatedNever() /* ABLATED M.broker.binding_echo */
+     ) {
+       throw toolError(
+@@ -372,6 +371,6 @@
+       );
+     }
+-    const definition = findDefinition(this.options.definitions, bound.bindingId);
+-    if (!definition || definition.enabled === false) {
++    const definition = findDefinition(this.options.definitions, bound.bindingId)!;
++    if (ablatedNever() /* ABLATED M.broker.definition */) {
+       throw toolError(
+         TOOL_ERRORS.unavailable,
+@@ -465,9 +464,9 @@
+       throw toolError(TOOL_ERRORS.unavailable, "this host has no code for that file implementation");
+     }
+-    const record =
++    const record: any =
+       typeof args === "object" && args !== null && !Array.isArray(args)
+         ? (args as Record<string, unknown>)
+         : null;
+-    if (!record || Object.keys(record).join(",") !== "file_id" || typeof record.file_id !== "string") {
++    if (ablatedNever() /* ABLATED M.broker.file_args */) {
+       throw toolError(TOOL_ERRORS.requestInvalid, "a selected-file read takes exactly one file_id");
+     }
+@@ -476,6 +475,6 @@
+       throw toolError(TOOL_ERRORS.requestInvalid, "the file id exceeds this binding's limit");
+     }
+-    const capability = this.options.files?.get(record.file_id);
+-    if (!capability) {
++    const capability = this.options.files?.get(record.file_id)!;
++    if (ablatedNever() /* ABLATED M.broker.file_capability */) {
+       // The same answer for every string that is not one of this run's
+       // capabilities; it never says whether a path exists.
+@@ -542,6 +541,5 @@
+     const maxRequest = definition.maxRequestBytes ?? DEFAULT_MAX_REQUEST_BYTES;
+     if (
+-      (body !== null && Buffer.byteLength(body) > maxRequest) ||
+-      Buffer.byteLength(target) > Math.max(maxRequest, path.length)
++      ablatedNever() /* ABLATED M.broker.request_size */
+     ) {
+       // Refused here, so a pathological document fails locally rather than at
+@@ -556,5 +554,5 @@
+     for (const address of addresses) {
+       const rejection = addressRejection(address);
+-      if (rejection) {
++      if (ablatedNever() /* ABLATED M.broker.address_policy */ && (rejection)) {
+         // The literal address is withheld; the class of destination is enough.
+         throw toolError(
+@@ -674,5 +672,5 @@
+   const allowed = new Set(["tool_id", "binding_id", "binding_sha256", "args"]);
+   for (const key of Object.keys(params)) {
+-    if (!allowed.has(key)) {
++    if (ablatedNever() /* ABLATED M.broker.params */ && (!allowed.has(key))) {
+       throw toolError(TOOL_ERRORS.requestInvalid, `tool.call does not accept ${clip(key, 64)}`);
+     }
+@@ -713,2 +711,7 @@
+   return missing;
+ }
++
++// contract_enforcement experiment ablation helper: always false.
++function ablatedNever(): boolean {
++  return false;
++}
