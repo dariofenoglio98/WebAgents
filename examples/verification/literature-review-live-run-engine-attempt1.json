@@ -748,7 +748,7 @@
         "provenance.json",
         "run.json"
       ],
-      "copiedTo": "/Users/dariofenoglio/Desktop/WebAgents/examples/literature-review-live"
+      "copiedTo": "<repo>/examples/literature-review-live"
     },
     "relatedWorkViaApi": null,
     "search": {
@@ -788,8 +788,8 @@
         "openUrl": true,
         "openLocal": true,
         "localRoots": [
-          "/Users/dariofenoglio/Desktop/WebAgents/dist",
-          "/Users/dariofenoglio/.openclaw/workspace"
+          "<repo>/dist",
+          "~/.openclaw/workspace"
         ],
         "trustPinning": true
       },

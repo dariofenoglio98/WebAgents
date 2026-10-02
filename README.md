@@ -1,245 +1,303 @@
-# WebAgents — generically executable agent.pkg
+# WebAgents
 
-A research prototype for portable, signed, inspectable agents under host-controlled authority. **agent.pkg 0.1** now has a generic execution profile, **workflow.v0**, implemented by agentpkg 0.2.2 ([current artifacts](dist/README.md)).
+**Unbundling agent creation, hosting and execution for an agent-native web.**
 
-The same interpreter executes both [`literature-review.agent.pkg`](dist/literature-review.agent.pkg) and [`meeting-agenda.agent.pkg`](dist/meeting-agenda.agent.pkg). Graphs, skills, state mappings, schemas, tool contracts and application validation rules live in package data. The interpreter contains no application-specific orchestration or package-name dispatch.
+WebAgents is a research prototype. A creator publishes an agent as a signed, inspectable
+package, an origin hosts it, and the *user's own runtime* verifies it and executes it with the
+user's models, tools, permissions and budgets. Publishing an agent does not mean paying for or
+controlling every run of it. Running an agent does not mean handing a publisher your credentials.
 
-Literature Review **0.2.5** exports each cited evidence row as its own extraction record; 0.2.4 had already made evidence jobs and final direct quotes deterministic, all with existing workflow primitives. Signed earlier archives are preserved. Current verification and live-provider status are in the [0.2.5 report](docs/literature-review-025-report.md).
+It accompanies the paper *WebAgents: Unbundling Agent Creation, Hosting, and Execution for an
+Agent-Native Web* (citation below).
+
+> **Status:** research prototype, not production software. The interfaces, the package format
+> (`agent.pkg` 0.1) and the execution profile (`workflow.v0`) are experimental and will change.
+
+## At a glance
+
+**What problem does it solve?** A shared agent workflow is today either a hosted service, where
+the publisher runs, pays for and controls every invocation, or a script, where each recipient
+reconstructs models, credentials and tools by hand. Neither gives a clear boundary between *the
+published behaviour* and *the authority to run it*. WebAgents makes that boundary explicit: the
+package describes behaviour and requirements, and only the host grants authority.
+
+**What is `agent.pkg`?** A deterministic, data-only archive. It holds a manifest, a workflow
+graph, Markdown skills, JSON schemas, tool declarations and policies, protected by SHA-256 content
+hashes and an Ed25519 publisher signature. It never contains executable code: no Python, no shell,
+no native modules. Its requirements, such as "structured output", "a scholarly-search tool" or
+"this much context", are **not permissions**: the runtime has to bind each one to a concrete
+resource, and the user has to approve it. Specification: [spec/agent-pkg-v0.md](spec/agent-pkg-v0.md).
+
+**What is the Agent Browser?** An [OpenClaw](https://docs.openclaw.ai) plugin that adds an
+*Agent Browser* page to the OpenClaw Control UI. It works through a local control plane
+(`agentpkg browser-serve`) and a generic `workflow.v0` interpreter, in this order:
+
+1. Open a package from an HTTPS URL or an approved local directory.
+2. Verify its integrity and signature, and evaluate publisher trust as a separate decision.
+3. Show what the package asks for.
+4. Record the user's per-permission and per-tool decisions.
+5. Let the user choose one of the models the host actually has.
+6. Freeze all of this into an immutable, hash-bound **Run Plan**.
+7. Re-verify the plan, then run the package's own graph through host-mediated model and tool
+   bridges, with live progress, cancellation, result artifacts and a hash-linked audit trail.
+
+**What works today?** Two unrelated packages run through the same interpreter, unchanged, under
+both a local Ollama model and a hosted OpenAI model, started from the browser page. See
+[Status](#status-verified-experimental-future) for exactly what is verified.
+
+**Tested host:** OpenClaw **2026.9.5** (`ec9c1a1`), Python 3.13, Node 26, Ollama 0.34, macOS on
+Apple Silicon. Execution refuses other OpenClaw releases by default.
+
+### The two example packages
+
+| | [Meeting Agenda](agents/meeting-agenda/) | [Literature Review](agents/literature-review/) |
+|---|---|---|
+| Purpose | Sanity check and tutorial | The full demonstration |
+| What it does | plans a meeting, runs three parallel role-based perspectives, writes an agenda whose minutes sum exactly to the requested duration | search → screening → citation resolution → evidence extraction → synthesis → writing → verification, producing a related-work draft with bibliography, evidence table and verification report |
+| Tools | none (model only) | three host tools: Crossref scholarly search, a remote Citation Resolver, and a reader for operator-selected PDFs |
+| Workers | 3 parallel perspectives | bounded parallel map workers (peak 3) |
+| Validation | goal and duration copied from input; minutes must sum exactly | paper-scoped evidence ids, exact quotes and bibliography copied from trusted data, whole-row checks, explicit no-results outcome |
+| Typical live run | ~30 s hosted, ~2.5 min local | ~7 min hosted, ~25 min local |
+| Current version | 0.2.2 ([dist](dist/meeting-agenda.agent.pkg)) | 0.2.5 ([dist](dist/literature-review.agent.pkg)) |
+
+## Quickstart: offline, about five minutes
+
+This needs only Python ≥ 3.11 and this repository. It verifies both signed packages and runs
+them in **fixture mode**: package-owned, exact-input replay of model and tool responses, with no
+network and no inference. It still exercises the real interpreter, permission checks, budgets,
+validation and audit.
 
 ```sh
-# Existing development environment; for a new environment create agentpkg/.venv first.
+git clone <this-repository-url> WebAgents && cd WebAgents
+python3 -m venv agentpkg/.venv
 agentpkg/.venv/bin/python -m pip install -e './agentpkg[dev]'
-agentpkg/.venv/bin/agentpkg inspect dist/meeting-agenda.agent.pkg
-agentpkg/.venv/bin/agentpkg verify dist/literature-review.agent.pkg \
-  --trust-key examples/keys/literature-review-publisher.pub.pem
+
+# 1. Verify signatures against the publisher keys shipped in examples/keys/
 agentpkg/.venv/bin/agentpkg verify dist/meeting-agenda.agent.pkg \
   --trust-key examples/keys/meeting-agenda-publisher.pub.pem
-agentpkg/.venv/bin/agentpkg run dist/literature-review.agent.pkg \
-  --mode fixture --grants examples/literature-review-grants.json \
-  --approve-tool scholarly-search --approve-tool citation-resolver \
-  --approve-tool paper-reader \
-  --out examples/my-workflow-review
+agentpkg/.venv/bin/agentpkg verify dist/literature-review.agent.pkg \
+  --trust-key examples/keys/literature-review-publisher.pub.pem
+
+# 2. Run Meeting Agenda (model only)
 agentpkg/.venv/bin/agentpkg run dist/meeting-agenda.agent.pkg \
   --mode fixture --grants examples/meeting-agenda-grants.json \
-  --out examples/my-workflow-agenda
+  --out examples/my-agenda
+
+# 3. Run Literature Review (each tool needs its own approval as well as a permission grant)
+agentpkg/.venv/bin/agentpkg run dist/literature-review.agent.pkg \
+  --mode fixture --grants examples/literature-review-grants.json \
+  --approve-tool scholarly-search --approve-tool citation-resolver --approve-tool paper-reader \
+  --out examples/my-review
 ```
 
-Every declared tool needs `--approve-tool` as well as its permission grant: a
-granted permission describes a class of authority, an approval names one tool,
-and the runtime refuses any tool that lacks one.
+Each run prints a JSON report ending in `"passed": true`, and writes `result.json`,
+`audit.json`, `usage.json`, `provenance.json` and the package's declared exports to the new
+`--out` directory (`examples/my-*` is git-ignored). You can also install the prebuilt wheel
+instead of the editable checkout: `pip install dist/agentpkg-0.2.2-py3-none-any.whl`.
 
-Use new output directories. Fixture mode uses package-owned exact-input replay, performs no network/model inference, and reports synthetic usage. Its purpose is deterministic execution and enforcement testing. Supply `--input FILE.json` to use explicit input; a changed input needs matching fixture cases or a host model adapter. The example public keys establish development provenance, not independent certification.
+The example keys are development keys. They show which key signed an artifact; they do not
+certify the publisher.
 
-**Each shipped artifact has its own signer.** `meeting-agenda` 0.2.1 carries a rotated development key (`sha256:2bcc374a…c5c4`) and `literature-review` 0.2.1 another (`sha256:c5ca9763…5232`), because both packages' local-model policy had to change and the original key's private half exists on no machine here. The original key (`sha256:c7549e61…5a70`) still signs the preserved 0.2.0 artifacts. Each must be pinned separately, and a host that trusted one does not thereby trust another — [why, and what the trust store said about it](docs/package-execution-report.md#64-the-signing-key-rotation-and-what-the-host-made-of-it), and [the Literature Review rotation](docs/literature-review-execution-report.md). Private signing keys live outside this repository.
+## Running from the Agent Browser
 
-The runtime executes acyclic graphs with `llm`, `tool`, bounded `map`, `join`, `validate` and `output` nodes. Copied state views, declared writes, atomic wave commits, schema/relationship checks, permissions, global/worker budgets, deadlines, cancellation and structured audit all use generic machinery. Data-only packages never install executable code. Citation Resolver remains the existing standalone remote service.
-
-Read the [formal workflow specification](spec/workflow-v0.md), [container specification](spec/agent-pkg-v0.md), [architecture and migration](docs/workflow-migration.md), [model interface](docs/model-router.md), and [milestone report](docs/workflow-report.md). The [Literature Review source](agents/literature-review) and [Meeting Agenda source](agents/meeting-agenda) are the canonical examples.
+Live runs need OpenClaw 2026.9.5, the plugin, and at least one model configured in OpenClaw.
+The complete, copy-pasteable setup is in **[docs/getting-started.md](docs/getting-started.md)**.
+In short:
 
 ```sh
-agentpkg/.venv/bin/python -m pytest agentpkg/tests
-agentpkg/.venv/bin/python -m ruff check agentpkg
-agentpkg/.venv/bin/python -m ruff format --check agentpkg
-(cd citation-resolver && .venv/bin/python -m pytest)
-agentpkg/.venv/bin/python scripts/verify_workflow.py
-agentpkg/.venv/bin/python scripts/verify_browser.py
-(cd openclaw-agent-browser && npm test && npm run verify)
+cd openclaw-agent-browser && npm install && npm test && npm run build && npm run validate && npm run pack
+openclaw plugins install ./agent-browser.tgz --accept-capabilities && cd ..
+# configure agentpkgPath, localPackages.roots and llm.allowModelOverride (see getting-started), then:
+openclaw gateway restart && openclaw dashboard        # choose "Agent Browser" in the sidebar
 ```
 
-The previous Literature Review runner, fixture/live providers and specialized evals remain explicitly available under `agentpkg.dev` with `agents/literature-review-legacy` and its original signed artifact. They are excluded from generic execution. See the [migration commands](docs/workflow-migration.md#commands).
-
-## Agent browser control plane
-
-`agentpkg browser-serve` starts the trusted local control plane that the future
-OpenClaw Agent Browser will call: it opens a package from a local artifact or an
-SSRF-hardened HTTPS URL, snapshots its bytes once, reports container, integrity,
-schema and runtime validity separately, distinguishes a **self-consistent
-signature** from a **trusted publisher**, renders a generic browser summary, and
-turns explicit permission decisions into a digest-bound authorization receipt.
-It then evaluates a **host-supplied** model catalog against the package's own
-model requirements and freezes an explicitly chosen model into an immutable,
-hashed **run plan**. It discovers no models of its own and never executes a
-package — that boundary is enforced structurally and tested.
-
-A separate trusted namespace, `agentpkg.hostbridge`, turns a ready run plan into
-a `ModelRouter` bound to that exact model and reaches it through OpenClaw over a
-private stdio protocol. The control plane cannot import it. One developer
-[router probe](docs/model-router-bridge.md) makes a single host-owned model call
-to prove the router contract.
-
-A third namespace, [`agentpkg.execution`](docs/package-execution.md), composes
-those two with the generic interpreter and **runs a signed package**. It receives
-the control plane's immutable snapshot as a one-time lease over an inherited
-descriptor, re-verifies its hash, digest, identity, signature and signer, carries
-the person's decisions through unchanged, applies host limits that can only lower
-package budgets, and calls `Workflow.run`. Since milestone 3C the Agent Browser
-page starts it too, through the same operation and the same re-verification.
-
-A fourth namespace, [`agentpkg.toolbridge`](docs/tool-broker.md), is the tool
-half of the same shape: one generic `ToolHandler` with no transport, no
-credential and no service vocabulary, parameterized by one **host tool binding**
-a run plan froze and reaching a trusted broker in the OpenClaw plugin. A package
-declares *what* capability it needs; the host decides *what implements it*; the
-person approves that implementation as a decision separate from the permission
-it travels under; and `Runtime.call_tool` remains the only path.
-
-```sh
-# Each current package has its own development key; pin each for its own package id.
-agentpkg/.venv/bin/agentpkg trust add --public-key examples/keys/literature-review-publisher.pub.pem \
-  --display-name "WebAgents Literature Review development key" --publisher-id webagents-research \
-  --package-id-prefix org.webagents.literature-review
-agentpkg/.venv/bin/agentpkg trust add --public-key examples/keys/meeting-agenda-publisher.pub.pem \
-  --display-name "WebAgents Meeting Agenda development key" --publisher-id webagents-research \
-  --package-id-prefix org.webagents.meeting-agenda
-agentpkg/.venv/bin/agentpkg browser-serve --port 8765        # loopback only; prints a bearer token
-curl -sS http://127.0.0.1:8765/v0/health
-```
-
-See the [control-plane documentation](docs/browser-control-plane.md) and the
-[milestone report](docs/browser-report.md) for the API, trust model, SSRF
-defenses and exact curl walkthrough, and [model selection and the run
-plan](docs/model-selection-and-run-plan.md) for compatibility semantics and the
-run-plan schema, and [the model-router
-bridge](docs/model-router-bridge.md) for how a plan reaches the selected model.
-
-## OpenClaw Agent Browser plugin
-
-[`openclaw-agent-browser/`](openclaw-agent-browser/) is a native OpenClaw
-feature plugin: a **Agent Browser** page in the Control UI where an operator
-opens a signed package, reads its validation layers, signature and publisher
-trust as separate facts, inspects its capabilities, tools, workers, workflow,
-budgets and model requirements, sets each permission, records an authorization
-receipt, then chooses one of the models **this OpenClaw host actually reports**
-and prepares a run plan. Its backend supervises `agentpkg browser-serve`, keeps
-the control-plane bearer token in the Gateway process, and is the only place that
-knows what OpenClaw is; the browser half holds no credentials and reimplements no
-verification, trust, permission or compatibility logic.
-
-**The page runs what it authorized** (milestone 3C). A task form generated from
-the package's own input schema, a Run button that opens only when every check
-holds and says precisely why it does not, live progress from the run's own
-record, Cancel, reconnect after a reload, the result rendered as safe Markdown,
-artifacts to view and download, and the technical audit, usage and provenance.
-Run sends only `{sessionId, runPlanId, runPlanSha256, input, files, detach}`;
-the model, tools and files all resolve through state the session already
-authorized, and everything is re-verified before anything executes. There is no
-chat and no general execution API.
-
-```sh
-cd openclaw-agent-browser && npm install && npm run build && npm run validate && npm run pack
-openclaw plugins install ./agent-browser.tgz --accept-capabilities
-# then enable Settings -> Labs -> Custom plugin UI and open "Agent Browser"
-```
-
-See the [plugin documentation](docs/openclaw-agent-browser.md), [model selection
-and the run plan](docs/model-selection-and-run-plan.md), [package
-execution](docs/package-execution.md), [the tool broker](docs/tool-broker.md)
-and its [README](openclaw-agent-browser/README.md). Tested against OpenClaw
-2026.9.5.
-
-A signed package has now **run for real** on this host: `meeting-agenda` 0.2.1 on a local `ollama/qwen3.5:9b`, completed, five model calls all on the bound model, three genuinely concurrent perspective workers, zero tool calls, a valid 89-event audit chain, $0, and an agenda whose minutes sum to exactly 45 — with the run plan byte-identical afterwards and `execution.performed` still false. The [milestone report](docs/package-execution-report.md) has the timeline, the measured timing policy behind 0.2.1, the signer rotation, and the structured-output defect that the timeout had been hiding.
-
-A signed package has also now **called a real tool**: `literature-review` 0.2.0's
-declared `citation-resolver`, through a host binding it could not name, at the
-exact origin its own manifest declares, under a permission and an approval given
-separately — one tool call, one remote call, zero tokens, zero model calls, zero
-workflow workers, a valid 15-event audit chain, and real Crossref metadata with
-BibTeX validated against the package's own output schema. The probe runs under a
-strictly smaller `tool_probe` authority that binds one tool and no model at all.
-The [tool-broker report](docs/tool-broker-report.md) has the numbers and the
-refusals. (In 3B3 the other two tools had no implementation, so a model run plan
-for that package was refused by name; 3B4 supplied both — see below.)
-
-The **Literature Review agent has now run for real** (milestone 3B4): `literature-review` 0.2.1, signed by its own key, completed through the signed graph on a local `ollama/qwen3:30b` against live Crossref and the live Citation Resolver — 16 model calls all on the bound model, 3 searches, 3 resolutions, peak 3 concurrent workers, 120,242 tokens, $0, a valid 404-event audit, every package assertion and 28 of 28 independent acceptance checks passing, and the run plan byte-identical afterwards. Getting there took two new host tools (a Crossref adapter whose request shape is host code, and a reader of operator-selected PDFs by opaque capability), a measured bounded-work and timing policy, an output contract stated where the package's own validation already required it, and three refused attempts, each classified from its audit. The [milestone report](docs/literature-review-execution-report.md) has every change, the evidence behind it, the model comparison, the runs and what the agent wrote.
-
-The existing [OpenClaw staging adapter](docs/openclaw-integration.md) still verifies and stages either package. Per-worker or per-node model routing, a run history database (a finished run is re-read from its own run directory, read-only), browser file upload, conversation or service profiles, Muse-specific connectors, Instinct, Maritime, NANDA, registries and marketplace features are not implemented — see [future work](#after-the-demo-future-work).
+Models are whatever your OpenClaw host reports. The recorded runs used `ollama/qwen3:30b` locally
+and `openai/gpt-5.6-luna` hosted. WebAgents never sees a provider credential: the plugin calls
+the model through OpenClaw, bound to exactly the model in the Run Plan, with no fallback.
 
 ## Demo: the Literature Review agent from the browser
 
-Milestone 3C. Everything below happens in the OpenClaw Control UI; no operator
-script is involved. The accepted UI-started run and its evidence are in the
-[milestone report](docs/demo-experience-report.md) and
-[`ui-acceptance-3c.json`](examples/verification/ui-acceptance-3c.json).
+Once the plugin is installed and configured as in [getting-started](docs/getting-started.md),
+everything below happens in the Control UI. `<repo>` is the absolute path of your checkout.
 
-**Once per host** (already true on the development host): the plugin is built,
-packed and installed as in its
-[README](openclaw-agent-browser/README.md#build-verify-and-install) with
-`localPackages.roots` containing this repository's `dist/`,
-`llm.allowModelOverride: true`, `sessionTtlSeconds: 7200` and the `execution`
-bounds listed there (`runTimeoutSeconds: 4500`); **Settings → Labs → Custom
-plugin UI** is on; and the Literature Review signing key
-`sha256:c5ca9763…5232` is pinned for `org.webagents.literature-review` (step 5
-shows how if it is not).
+1. **Start the Gateway.** `openclaw gateway status` reports *running*; otherwise run
+   `openclaw gateway start`.
+2. **Have a model.** For example, `ollama list` shows `qwen3:30b` (see the context note in
+   getting-started), or a hosted OpenAI model is configured in OpenClaw.
+3. **Open Agent Browser.** `openclaw dashboard` → **Agent Browser**. The header reads *Control
+   plane running*.
+4. **Open the package.** *Open a local package* → `<repo>/dist/literature-review.agent.pkg` →
+   **Open file**. **Verification and trust** shows Container, Integrity, Schema and Runtime valid,
+   the signature cryptographically valid, and signer `sha256:c5ca9763…5232`.
+5. **Trust and permissions.** If the publisher is unknown: *Review publisher key* → *Trust this
+   publisher key* (press twice). Set `network.scholarly`, `network.citations`, `memory.session`
+   and `model.reasoning` to *Allow for session*. Leave `files.pdfs` on *Deny* unless you will
+   select PDFs. Tick the three **Tool approvals**, then press **Authorize** (*The package has NOT
+   executed*).
+6. **Select the model** from the list this host reports. Nothing is preselected.
+7. **Prepare run** → **Ready to run**, showing the Run Plan id and hash.
+8. **Enter a research question**, for example *What defenses have been proposed against prompt
+   injection attacks on LLM-integrated applications?* Every checklist line turns ✓.
+9. **Run Research.** Progress shows each stage (planning, search, screening, citations, evidence,
+   synthesis, writing, verification), the workers, and the model, tool and remote calls and
+   tokens. **Cancel** stops a run within seconds, and reloading the page reconnects to it.
+10. **Inspect the result:** the related-work draft, the summary, the artifacts (View and Download,
+    SHA-256 verified) and **Technical details** (plan, model and every call on it, tool bindings,
+    permissions, usage, cost, audit chain, and the checks re-verified before start). If a run
+    finds nothing grounded, it completes with *No sufficiently grounded literature found*. That
+    is a correct outcome, not an error.
 
-1. **Start the OpenClaw Gateway.** `openclaw gateway status` should say
-   *running* and *Connectivity probe: ok*; otherwise `openclaw gateway start`
-   (or `openclaw gateway restart` after installing the plugin).
-2. **Ensure Ollama is available.** `ollama list` shows `qwen3:30b`. Nothing needs
-   to be loaded by hand: the first model call loads it.
-3. **Open Agent Browser.** `openclaw dashboard` opens the Control UI; choose
-   **Agent Browser** in the sidebar. The header reads *Control plane running*
-   and *runs available*.
-4. **Open the Literature Review package.** Expand *Open a local package
-   (operator directories)*, enter `<repo>/dist/literature-review.agent.pkg`,
-   press **Open file**. The Run panel opens at the top with *✓ Package
-   verified*; **Verification and trust** shows Container, Integrity, Schema and
-   Runtime valid, the signature cryptographically valid, and signer
-   `sha256:c5ca9763…5232`.
-5. **Trust and permissions.** If the publisher is not yet trusted, use *Review
-   publisher key* → *Trust this publisher key* (press twice). In
-   **Permissions** set `network.scholarly`, `network.citations`,
-   `memory.session` and `model.reasoning` to *Allow for session* and leave
-   `files.pdfs` on *Deny*; tick the three **Tool approvals**; press
-   **Authorize** (*The package has NOT executed*). **Package contents → Tools**
-   now shows each host implementation — `openclaw:scholarly-search:1`
-   (Crossref), `openclaw:citation-resolver:1`, `openclaw:paper-reader:1`.
-6. **Select the model.** In **Model**, choose **qwen3:30b** from the list this
-   host reports. Nothing is preselected, and the page names no model itself.
-7. **Prepare the Run Plan.** Press **Prepare run** → **Ready to run**, with the
-   run plan's id and hash.
-8. **Enter the research question** in the Run panel: *What defenses have been
-   proposed against prompt injection attacks on LLM-integrated applications?*
-   Leave *Optional* (no documents, no seed papers) and *Advanced* (mode `live`)
-   as they are. Every checklist line turns ✓, including *Authorization valid for
-   N more min (a run may take up to 76 min)*.
-9. **Run.** Press **Run Research**.
-10. **Inspect progress.** Planning → Scholarly search → Screening → Citations →
-    Evidence extraction → Synthesis → Writing → Verification, each fan-out's
-    workers, and the model, tool and remote calls and tokens, all from the
-    run's own record. **Cancel** stops a run within seconds; reloading the page
-    reconnects to it.
-11. **Inspect the result, artifacts and audit.** *✓ Research completed*, the
-    **Related work**, the **Summary** (papers included, evidence items, claims
-    verified, unresolved), **Artifacts** with View and Download (SHA-256
-    verified), and **Technical details** (plan, model and every call on it,
-    tools and bindings, permissions, usage, cost, audit chain, workers,
-    re-verified checks). A run that finds nothing grounded completes too, with
-    *No sufficiently grounded literature found* and empty tables — a correct
-    outcome, not an error.
+A local run takes tens of minutes. The authorization has to outlast the run deadline, so start
+the run within the time the Run panel shows. Repeat with `dist/meeting-agenda.agent.pkg` for a
+fast run; no plugin change is needed. The accepted browser-started run and its evidence are in
+[docs/demo-experience-report.md](docs/demo-experience-report.md).
 
-**Timing — it is not instantaneous.** On this Mac with `qwen3:30b` a run takes
-tens of minutes: the accepted UI-started run took 27 min 10 s (17 model calls,
-9 tool calls, 107,284 tokens, $0); earlier ones took about 40 minutes. Start
-the run within about 44 minutes of opening the package, because the
-authorization must outlast the whole run deadline. For a presentation,
-**pre-start a live run** before the audience arrives, show a completed real run
-from **Recent runs** for the results, and walk through the fresh run's first
-stages live.
+## Recorded results
 
-### After the demo: future work
+These are the acceptance runs reported in the paper's Table I. Within each workflow, the local
+and hosted runs used identical package bytes, task input, permissions and runtime limits. They
+show **portability across model bindings within one runtime**. They do not show equal answer
+quality across models or interoperability across independent runtimes.
 
-Recorded as post-demo work and deliberately not implemented in 3C:
+| | Meeting Agenda 0.2.2, local | Meeting Agenda 0.2.2, hosted | Literature Review 0.2.4, local | Literature Review 0.2.4, hosted |
+|---|---|---|---|---|
+| Model | `ollama/qwen3:30b` | `openai/gpt-5.6-luna` | `ollama/qwen3:30b` | `openai/gpt-5.6-luna` |
+| Model calls / external tool calls | 5 / 0 | 5 / 0 | 18 / 6 | 18 / 6 |
+| Peak parallel workers | 3 | 3 | 3 | 3 |
+| Reported tokens | 11,346 | 5,198 | 100,352 | 68,398 |
+| Workflow duration | 154.3 s | 29.4 s | 1,489.8 s | 417.6 s |
+| Audit events (chain valid) | 92 | 102 | 572 | 678 |
+| Model cost | n/a | $0.0147 | n/a | $0.2005 |
+| Run id | `run_34fdabde…` | `run_1c2ca974…` | `run_322dca77…` | `run_a71e5b0f…` |
 
-- **Scholarly search federation.** Today `scholarly-search` → Crossref. Next:
-  host-federated scholarly search → Crossref + arXiv + OpenAlex, optionally
-  Semantic Scholar — better recent-AI coverage, arXiv-first papers, better
-  metadata and abstract availability, and source redundancy. The package still
-  requests the *same* abstract capability, `scholarly-search`; only the host's
-  implementation changes, so no package or runtime redesign is needed.
-  Crossref-only coverage is why a run on a recent AI topic such as prompt
-  injection may include only a few papers.
-- **Execution profiles.** `conversation.v0` and `service.v0`. For now
-  `workflow.v0` = one input → one run → one result; there is no chat.
-- NANDA discovery and remote package locators; Muse / Instinct; Maritime /
-  sandboxed deployment; persistent authorization (*Always*); richer evals and
-  attestations; a package update UX; model-provider redundancy.
+Each run made every model call on the model its Run Plan selected. Evidence in this repository:
+[literature-review-025-recorded-runs.json](examples/verification/literature-review-025-recorded-runs.json)
+(independent checks recomputed over both Literature Review runs), and two further Meeting Agenda
+0.2.2 runs of the same package in [examples/meeting-agenda-022-qwen/](examples/meeting-agenda-022-qwen/)
+and [examples/meeting-agenda-022-luna/](examples/meeting-agenda-022-luna/)
+([report](docs/meeting-agenda-022-report.md)). The current Literature Review 0.2.5 changes only a
+step after the last model call. It passes offline acceptance but has not yet been run live
+([report](docs/literature-review-025-report.md)).
+
+## How it works
+
+```text
+ creator ──build+sign──▶ agent.pkg ──served by──▶ HTTPS origin ──open──▶ OpenClaw + Agent Browser
+ (workflow, skills,       (data only,                                   verify → trust → authorize
+  schemas, policy)         signed)                                      → Run Plan → re-verify → run
+                                                                          │ model bridge   │ tool broker
+                                                                          ▼                ▼
+                                                              user's models,      approved host tools
+                                                              files, budgets      and origin services
+```
+
+| Layer | Code | Role |
+|---|---|---|
+| Package format and CLI | [`agentpkg/`](agentpkg/) (`agentpkg.package`, `validation`, `signing`, `cli`) | build, validate, sign, verify, inspect, run in fixture mode |
+| Interpreter | `agentpkg.workflow` | `workflow.v0`: acyclic graphs of `llm`, `tool`, `map`, `join`, `validate` and `output` nodes; copied worker state, atomic wave commits, budgets, deadlines, cancellation, audit |
+| Control plane | `agentpkg.browser` (`agentpkg browser-serve`) | loopback, token-protected: snapshots, layered validation, publisher trust, authorization receipts, model compatibility, Run Plans. It never executes. |
+| Execution | `agentpkg.execution`, `agentpkg.hostbridge`, `agentpkg.toolbridge` | leases the verified snapshot, re-verifies, runs the graph, and reaches models and tools only through host bridges |
+| Browser plugin | [`openclaw-agent-browser/`](openclaw-agent-browser/) | the Control UI page and the Gateway-side backend; the only part that knows OpenClaw |
+| Example packages | [`agents/`](agents/) → [`dist/`](dist/README.md) | Meeting Agenda, Literature Review (and the archived pre-`workflow.v0` legacy package) |
+| Services | [`citation-resolver/`](citation-resolver/), [`package-origin/`](package-origin/) | the remote Citation Resolver used by Literature Review; a minimal static package origin |
+
+Design rationale: [docs/architecture.md](docs/architecture.md). Threat model:
+[docs/threat-model.md](docs/threat-model.md). Every document: [docs/README.md](docs/README.md).
+
+## Status: verified, experimental, future
+
+**Verified in this repository** (automated tests, offline acceptance scripts, or recorded live runs):
+
+- The `agent.pkg` container: deterministic build, SHA-256 integrity, Ed25519 signatures, and
+  bounded parsing that rejects duplicate names, path traversal, duplicate JSON keys and remote
+  schemas.
+- The generic `workflow.v0` interpreter running both packages with no package-specific code;
+  fixture-mode replay of both.
+- Control-plane opening, from local paths and SSRF-hardened HTTPS (no redirects, no private
+  networks, size-bounded), with signature validity and publisher trust kept separate.
+- Permission decisions, separate per-tool approvals, model compatibility evaluation, and
+  immutable hash-bound Run Plans that are re-verified before execution; stale plans are refused.
+- Execution from the Agent Browser page on OpenClaw 2026.9.5, with every model call on the
+  planned model, host tool bindings, budgets, deadlines, cancellation and valid audit chains. See
+  [Recorded results](#recorded-results).
+
+**Experimental** (works on the development host, but limited or lightly exercised):
+
+- The plugin depends on OpenClaw's experimental plugin and Control UI APIs, and has only been run
+  on macOS with one OpenClaw release.
+- Live Literature Review depends on public Crossref, which covers recent AI topics thinly, and on
+  the authors' hosted Citation Resolver, which has no availability guarantee.
+- Local-model runs are slow and sensitive to the host's resource limits. The packages' timing
+  and budget policy was set from measurements on one machine.
+- Opening a package by HTTPS URL is covered by tests against a mock origin. The minimal origin in
+  `package-origin/` has not been part of a recorded acceptance run.
+- The audit trail is a locally hash-linked record, not a third-party attestation.
+
+**Future work** (not implemented): NANDA-based discovery and AgentFacts mapping; issuer
+credentials or certification for publishers; MCP and A2A integration through host adapters;
+conversational and persistent-service execution profiles; executable modules under an isolation
+boundary; data-flow policies; persistent ("always") authorization; federated scholarly search
+(arXiv, OpenAlex); conformance tests across independent runtimes.
+
+## Limitations
+
+- **Portability is not equivalence.** A package can be bound to any compatible, authorized
+  environment. Different models will still produce different answers, and a successful run with a
+  valid audit chain does not prove an answer correct or a review complete.
+- **Trust is the host's decision.** A valid signature shows which key signed the content. It
+  does not show that the signer is trustworthy or that the workflow is safe. The prototype uses
+  manually pinned development keys.
+- **The security boundary assumes a trusted OpenClaw host and trusted adapters.** Prompt
+  injection can still misuse a capability the user approved. Sending context to a hosted model is
+  not the same as keeping it local.
+- **Cancellation is not rollback.** Failed waves do not commit workflow state, but side effects
+  that external services have already completed are not undone.
+- **Single runtime.** Only one runtime implementation exists, so cross-runtime interoperability is
+  untested.
+
+## Repository layout
+
+| Path | Contents |
+|---|---|
+| `agentpkg/` | Python package: format, CLI, interpreter, control plane, execution, tests |
+| `openclaw-agent-browser/` | OpenClaw plugin (TypeScript): backend, Control UI page, tests, operator scripts |
+| `agents/` | package sources: `meeting-agenda`, `literature-review`, `literature-review-legacy` |
+| `dist/` | signed packages and wheels, current and historical, with SHA-256 ([dist/README.md](dist/README.md)) |
+| `spec/` | the `agent.pkg` and `workflow.v0` specifications |
+| `docs/` | guides and dated milestone reports ([index](docs/README.md)) |
+| `examples/` | grants, inputs, public development keys, recorded runs, verification evidence ([examples/README.md](examples/README.md)) |
+| `scripts/` | offline acceptance and verification scripts |
+| `citation-resolver/` | the Citation Resolver service (FastAPI) |
+| `package-origin/` | a minimal static package origin |
+
+## Development
+
+```sh
+agentpkg/.venv/bin/python -m pytest agentpkg/tests
+agentpkg/.venv/bin/python -m ruff check agentpkg && agentpkg/.venv/bin/python -m ruff format --check agentpkg
+agentpkg/.venv/bin/python scripts/verify_workflow.py
+agentpkg/.venv/bin/python scripts/verify_browser.py
+(cd openclaw-agent-browser && npm run typecheck && npm test && npm run verify)
+(cd citation-resolver && python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt && .venv/bin/python -m pytest)
+```
+
+The pre-`workflow.v0` Literature Review runner is still available as `agentpkg-legacy`, together
+with `dist/literature-review-legacy.agent.pkg` ([migration notes](docs/workflow-migration.md)).
+How the prototype got here, milestone by milestone: [docs/development-history.md](docs/development-history.md).
+
+## License
+
+**No license has been selected yet.** Until a `LICENSE` file is added, all rights are reserved.
+The public-release checklist, including exactly where a license would be declared, is in
+[docs/releasing.md](docs/releasing.md).
+
+## Citation
+
+```bibtex
+@misc{webagents2026,
+  title  = {WebAgents: Unbundling Agent Creation, Hosting, and Execution for an Agent-Native Web},
+  author = {{Author information to be added}},
+  year   = {2026},
+  note   = {Research prototype}
+}
+```

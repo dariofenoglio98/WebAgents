@@ -1,15 +1,40 @@
+# OS / editor
 .DS_Store
+.idea/
+.vscode/
+.claude/
+
+# Python
 **/.venv/
 **/__pycache__/
 **/*.py[cod]
 **/.pytest_cache/
 **/.ruff_cache/
+**/.mypy_cache/
 **/*.egg-info/
 **/.coverage
+**/htmlcov/
 **/build/
+
+# Node / vitest
+**/node_modules/
+**/.vitest/
+**/vitest-report.json
+
+# Secrets and private signing keys (public keys under examples/keys/ are tracked)
 **/.env
 **/.env.*
 !**/.env.example
 *.key
 *.private.pem
+*-private.pem
+*.p12
+
+# Local OpenClaw staging and per-user run output
 examples/openclaw-workspace/
+examples/my-*/
+*.log
+
+# Material kept locally and not published (see docs/releasing.md)
+/Portable AI Agents and the OpenClaw Agent-Native Browser.pdf
+/private/

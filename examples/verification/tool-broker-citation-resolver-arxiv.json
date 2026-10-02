@@ -546,8 +546,8 @@
         "openUrl": true,
         "openLocal": true,
         "localRoots": [
-          "/Users/dariofenoglio/Desktop/WebAgents/dist",
-          "/Users/dariofenoglio/.openclaw/workspace"
+          "<repo>/dist",
+          "~/.openclaw/workspace"
         ],
         "trustPinning": true
       },

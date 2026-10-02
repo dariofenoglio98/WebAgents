@@ -979,7 +979,7 @@
         "provenance.json",
         "run.json"
       ],
-      "copiedTo": "/Users/dariofenoglio/Desktop/WebAgents/examples/literature-review-live-owner-question"
+      "copiedTo": "<repo>/examples/literature-review-live-owner-question"
     },
     "relatedWorkViaApi": null,
     "search": {
@@ -1022,8 +1022,8 @@
         "openUrl": true,
         "openLocal": true,
         "localRoots": [
-          "/Users/dariofenoglio/Desktop/WebAgents/dist",
-          "/Users/dariofenoglio/.openclaw/workspace"
+          "<repo>/dist",
+          "~/.openclaw/workspace"
         ],
         "trustPinning": true
       },

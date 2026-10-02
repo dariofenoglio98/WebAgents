@@ -1,5 +1,11 @@
 # Recorded runs and reproduction
 
+For the current quickstart, see the root [README](../README.md#quickstart-offline-about-five-minutes).
+This directory holds the grants, inputs and public development keys those commands use, plus
+recorded runs and verification evidence from each milestone. In the recorded files, absolute local
+paths were replaced by `<repo>` (the checkout), `~` (the recording user's home) and `$TMPDIR`, and
+test-report hostnames by `localhost`. Nothing else was changed.
+
 For this milestone, use [the workflow demo commands](../docs/workflow-migration.md#commands)
 and `literature-review-input.json` / `meeting-agenda-input.json` with their matching
 grants. Current deterministic demo outputs are in `workflow-review/` and
@@ -41,30 +47,32 @@ The live outputs use an extractive baseline. Structural success does not certify
 Commands below run from the repository root. They fetch two public PDFs from ACL Anthology into host storage, outside the package. The source pages are [MasRouter](https://aclanthology.org/2025.acl-long.757/) and [AgentDropout](https://aclanthology.org/2025.acl-long.1170/). Downloads and scholarly services may change; the recorded run's exact hashes are in `verification/live-pdf-sources.json`.
 
 ```sh
-mkdir /private/tmp/webagents-demo-inputs
+INPUTS="${TMPDIR:-/tmp}/webagents-demo-inputs"
+mkdir -p "$INPUTS"
 curl --fail --proto '=https' --max-time 60 \
   https://aclanthology.org/2025.acl-long.757.pdf \
-  -o /private/tmp/webagents-demo-inputs/masrouter.pdf
+  -o "$INPUTS"/masrouter.pdf
 curl --fail --proto '=https' --max-time 60 \
   https://aclanthology.org/2025.acl-long.1170.pdf \
-  -o /private/tmp/webagents-demo-inputs/agentdropout.pdf
-python3 - <<'PY'
+  -o "$INPUTS"/agentdropout.pdf
+INPUTS="$INPUTS" python3 - <<'PY'
+import os
 import json
 from pathlib import Path
-root = Path('/private/tmp/webagents-demo-inputs')
+root = Path(os.environ['INPUTS'])
 (root / 'selected-files.json').write_text(json.dumps({
     'masrouter': str(root / 'masrouter.pdf'),
     'agentdropout': str(root / 'agentdropout.pdf'),
 }, indent=2) + '\n')
 PY
-agentpkg/.venv/bin/agentpkg run dist/literature-review.agent.pkg \
+agentpkg/.venv/bin/agentpkg-legacy run dist/literature-review-legacy.agent.pkg \
   --mode live --trust-key examples/keys/publisher.pub.pem \
   --question 'Dynamic agent selection and topology adaptation in multi-agent LLM systems' \
   --seed 'arXiv:2602.06039' --seed 'arXiv:2602.17100' \
   --seed '10.18653/v1/2025.acl-long.757' --seed '10.18653/v1/2025.acl-long.1170' \
   --grants examples/grants.live-pdfs.json \
   --pdf-map examples/live-pdf-map.json \
-  --selected-files /private/tmp/webagents-demo-inputs/selected-files.json \
+  --selected-files "$INPUTS/selected-files.json" \
   --out examples/my-live-review
 ```
 

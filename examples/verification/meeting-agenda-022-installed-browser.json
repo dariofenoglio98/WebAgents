@@ -28,8 +28,8 @@
       "openUrl": true,
       "openLocal": true,
       "localRoots": [
-        "/Users/dariofenoglio/Desktop/WebAgents/dist",
-        "/Users/dariofenoglio/.openclaw/workspace"
+        "<repo>/dist",
+        "~/.openclaw/workspace"
       ],
       "trustPinning": true
     },
@@ -41,7 +41,7 @@
       "modelCallTimeoutSeconds": 1200,
       "receiptMarginSeconds": 60,
       "fileRoots": [
-        "/Users/dariofenoglio/Desktop/WebAgents/examples/probe-files"
+        "<repo>/examples/probe-files"
       ]
     }
   },

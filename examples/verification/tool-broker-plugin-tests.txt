@@ -1,1 +1,1 @@
-JSON report written to /Users/dariofenoglio/Desktop/WebAgents/examples/verification/tool-broker-plugin-tests.json
+JSON report written to <repo>/examples/verification/tool-broker-plugin-tests.json

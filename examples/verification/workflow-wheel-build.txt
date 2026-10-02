@@ -99,7 +99,7 @@ running install_egg_info
 Copying src/agentpkg.egg-info to build/bdist.macosx-15.0-arm64/wheel/./agentpkg-0.2.0-py3.13.egg-info
 running install_scripts
 creating build/bdist.macosx-15.0-arm64/wheel/agentpkg-0.2.0.dist-info/WHEEL
-creating '/Users/dariofenoglio/Desktop/WebAgents/dist/.tmp-mnienrdk/agentpkg-0.2.0-py3-none-any.whl' and adding 'build/bdist.macosx-15.0-arm64/wheel' to it
+creating '<repo>/dist/.tmp-mnienrdk/agentpkg-0.2.0-py3-none-any.whl' and adding 'build/bdist.macosx-15.0-arm64/wheel' to it
 adding 'agentpkg/__init__.py'
 adding 'agentpkg/__main__.py'
 adding 'agentpkg/cli.py'

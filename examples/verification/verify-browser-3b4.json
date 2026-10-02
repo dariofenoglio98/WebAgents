@@ -115,7 +115,7 @@
     "mock_origin_download_bytes": 19517
   },
   "trust_store": {
-    "path": "/private/var/folders/zx/c94b09b50v31fk6qp9h3h1cw0000gn/T/agentpkg-browser-verify-trjcjrd4/trust.json",
+    "path": "$TMPDIR/agentpkg-browser-verify-trjcjrd4/trust.json",
     "entry_count": 2,
     "state_sha256": "60a401dcb19586eab0d078459a7c55add206462af2fca5279b73206e170ded24"
   },

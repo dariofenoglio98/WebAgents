@@ -15,7 +15,7 @@ Auth overview
 Auth store    : ~/.openclaw/state/openclaw.sqlite
 Shell env     : off
 Providers w/ OAuth/tokens (1): openai (2)
-- openai effective=profiles:~/.openclaw/state/openclaw.sqlite | profiles=2 (2 oauth, 0 token, 0 api-key) | openai:<redacted-account>=OAuth (<redacted-account>) [cooldown 4d], openai:setup-89b14ae3-7666-45da-bf85-b338505aa3fc=OAuth (<redacted-account>) [cooldown 4d]
+- openai effective=profiles:~/.openclaw/state/openclaw.sqlite | profiles=2 (2 oauth, 0 token, 0 api-key) | openai:<redacted-account>=OAuth (<redacted-account>) [cooldown 4d], openai:setup-<redacted-account>-7666-45da-bf85-b338505aa3fc=OAuth (<redacted-account>) [cooldown 4d]
 
 Runtime auth
 - openai via codex uses openai effective=missing:missing | status=missing
@@ -27,10 +27,10 @@ Missing auth
 - openai Run `openclaw models auth login --provider openai` or `openclaw configure`.
 
 Unavailable auth profiles
-- openai:setup-89b14ae3-7666-45da-bf85-b338505aa3fc (openai) cooldown (4d) — Wait for cooldown or switch provider.
+- openai:setup-<redacted-account>-7666-45da-bf85-b338505aa3fc (openai) cooldown (4d) — Wait for cooldown or switch provider.
 - openai:<redacted-account> (openai) cooldown (4d) — Wait for cooldown or switch provider.
 
 OAuth/token status
 - openai usage: 5h 94% left ⏱2h 19m · Week 0% left ⏱3d 19h
   - openai:<redacted-account> (<redacted-account>) ok expires in 7d
-  - openai:setup-89b14ae3-7666-45da-bf85-b338505aa3fc (<redacted-account>) ok expires in 7d
+  - openai:setup-<redacted-account>-7666-45da-bf85-b338505aa3fc (<redacted-account>) ok expires in 7d

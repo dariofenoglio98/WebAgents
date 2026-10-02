@@ -1,5 +1,5 @@
 
- RUN  v5.0.1 /Users/dariofenoglio/Desktop/WebAgents/openclaw-agent-browser
+ RUN  v5.0.1 <repo>/openclaw-agent-browser
 
 
  Test Files  15 passed (15)

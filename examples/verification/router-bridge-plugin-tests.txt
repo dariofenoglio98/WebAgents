@@ -1,5 +1,5 @@
 
- RUN  v5.0.1 /Users/dariofenoglio/Desktop/WebAgents/openclaw-agent-browser
+ RUN  v5.0.1 <repo>/openclaw-agent-browser
 
  ✓ test/host-llm.test.ts (12 tests) 20ms
  ✓ test/contract.test.ts (11 tests) 11ms
@@ -29,4 +29,4 @@
    Start at  11:02:10
    Duration  14.55s (tests 55%, import 42%, transform 2%, environment 1%)
 
-JSON report written to /Users/dariofenoglio/Desktop/WebAgents/examples/verification/router-bridge-plugin-tests.json
+JSON report written to <repo>/examples/verification/router-bridge-plugin-tests.json
