@@ -1,0 +1,3248 @@
+{
+  "statistics": {
+    "pooling": "all measured observations of every run concatenated per package x stage",
+    "percentile_method": "linear interpolation (Hyndman-Fan type 7)",
+    "std": "sample standard deviation (ddof = 1)",
+    "run_median_cv": "sample SD (ddof = 1) of the run medians over their mean",
+    "units": "milliseconds"
+  },
+  "observations_per_package": 3000,
+  "runs": 3,
+  "packages": {
+    "meeting-agenda": {
+      "label": "Meeting Agenda",
+      "archive": "dist/meeting-agenda.agent.pkg",
+      "archive_sha256": "7b148e845c0f9e38d752a51a8d0b60a314842a3de3a2723b3bdf1a0c041921e1",
+      "archive_bytes": 21580,
+      "archive_entries": 19,
+      "package_id": "org.webagents.meeting-agenda",
+      "package_name": "Meeting Agenda Agent",
+      "package_version": "0.2.2",
+      "package_digest": "dbd2eb816bb8687d4a5b3448f5b82bc0716c3884f9fee8a2c578af0c5e894679",
+      "signer_fingerprint": "sha256:2bcc374a7fe18e50622042b7d0375fcb24eb3607879a236f9f3c3ede1922c5c4",
+      "signature_status": "valid",
+      "trust_status": "trusted",
+      "publisher_key": "examples/keys/meeting-agenda-publisher.pub.pem",
+      "entrypoint": "workflow.v0",
+      "runtime_minimum_version": "0.2.2",
+      "payload_files": 17,
+      "graph_nodes": 7,
+      "graph_node_types": [
+        "join",
+        "llm",
+        "map",
+        "output",
+        "validate"
+      ],
+      "worker_roles": 4,
+      "root_nodes": [
+        "plan"
+      ],
+      "declared_tools": [],
+      "remote_tools": [],
+      "local_tools": [],
+      "declared_tool_details": [],
+      "declared_permissions": [
+        {
+          "id": "model.reasoning",
+          "kind": "model",
+          "required": true,
+          "resources": [
+            "host-router"
+          ]
+        },
+        {
+          "id": "memory.session",
+          "kind": "memory",
+          "required": true,
+          "resources": [
+            "session"
+          ]
+        }
+      ],
+      "host_resource_permissions": [],
+      "model_tasks": 3,
+      "model_capabilities_required": [
+        "reasoning",
+        "structured_output"
+      ],
+      "model_context_window_required": 16000
+    },
+    "literature-review": {
+      "label": "Literature Review",
+      "archive": "dist/literature-review.agent.pkg",
+      "archive_sha256": "1669f83fafac3434748fc19d38a8d3d2c3352da83cf1cbb84796ce313bd4f571",
+      "archive_bytes": 224302,
+      "archive_entries": 68,
+      "package_id": "org.webagents.literature-review",
+      "package_name": "Literature Review Agent",
+      "package_version": "0.2.5",
+      "package_digest": "cef9ebd68df9db3b36c1ffeac9069d734b0e41a40d58445aaba1a60eaac155b5",
+      "signer_fingerprint": "sha256:c5ca9763f9fc71253298ca381ec14c4d7432009c74dacc69df6344b71de05232",
+      "signature_status": "valid",
+      "trust_status": "trusted",
+      "publisher_key": "examples/keys/literature-review-publisher.pub.pem",
+      "entrypoint": "workflow.v0",
+      "runtime_minimum_version": "0.2.1",
+      "payload_files": 66,
+      "graph_nodes": 25,
+      "graph_node_types": [
+        "join",
+        "llm",
+        "map",
+        "output",
+        "validate"
+      ],
+      "worker_roles": 9,
+      "root_nodes": [
+        "planning"
+      ],
+      "declared_tools": [
+        "citation-resolver",
+        "paper-reader",
+        "scholarly-search"
+      ],
+      "remote_tools": [
+        "citation-resolver",
+        "scholarly-search"
+      ],
+      "local_tools": [
+        "paper-reader"
+      ],
+      "declared_tool_details": [
+        {
+          "id": "citation-resolver",
+          "execution": "remote",
+          "binding": "citation.resolve",
+          "permissions": [
+            "network.citations"
+          ],
+          "side_effects": "read"
+        },
+        {
+          "id": "paper-reader",
+          "execution": "local",
+          "binding": "paper.read",
+          "permissions": [
+            "files.pdfs"
+          ],
+          "side_effects": "read"
+        },
+        {
+          "id": "scholarly-search",
+          "execution": "remote",
+          "binding": "scholarly.search",
+          "permissions": [
+            "network.scholarly"
+          ],
+          "side_effects": "read"
+        }
+      ],
+      "declared_permissions": [
+        {
+          "id": "network.scholarly",
+          "kind": "network",
+          "required": true,
+          "resources": [
+            "api.crossref.org"
+          ]
+        },
+        {
+          "id": "network.citations",
+          "kind": "network",
+          "required": true,
+          "resources": [
+            "webagents-citation-resolver-production.up.railway.app"
+          ]
+        },
+        {
+          "id": "files.pdfs",
+          "kind": "files.read",
+          "required": false,
+          "resources": [
+            "user-selected-pdfs"
+          ]
+        },
+        {
+          "id": "model.reasoning",
+          "kind": "model",
+          "required": false,
+          "resources": [
+            "host-router"
+          ]
+        },
+        {
+          "id": "memory.session",
+          "kind": "memory",
+          "required": true,
+          "resources": [
+            "session"
+          ]
+        }
+      ],
+      "host_resource_permissions": [],
+      "model_tasks": 8,
+      "model_capabilities_required": [
+        "reasoning",
+        "structured_output"
+      ],
+      "model_context_window_required": 16000
+    },
+    "webair": {
+      "label": "WebAir",
+      "archive": "dist/webair-0.3.0.agent.pkg",
+      "archive_sha256": "b537cf5cba06bce8137533eb75b491486f57caf3098af30f657343b741492887",
+      "archive_bytes": 167193,
+      "archive_entries": 60,
+      "package_id": "org.webagents.webair",
+      "package_name": "WebAir Travel Agent",
+      "package_version": "0.3.0",
+      "package_digest": "ffe8f5b344f97c631498bb6da3e17217ae7e5730721935b0e66c5d595b335e94",
+      "signer_fingerprint": "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b",
+      "signature_status": "valid",
+      "trust_status": "trusted",
+      "publisher_key": "examples/keys/webair-publisher.pub.pem",
+      "entrypoint": "workflow.v0",
+      "runtime_minimum_version": "0.2.2",
+      "payload_files": 58,
+      "graph_nodes": 34,
+      "graph_node_types": [
+        "join",
+        "llm",
+        "map",
+        "output",
+        "tool",
+        "validate"
+      ],
+      "worker_roles": 7,
+      "root_nodes": [
+        "interpret"
+      ],
+      "declared_tools": [
+        "get-fare-rules",
+        "personal.passenger_identity",
+        "personal.travel_profile",
+        "prepare-booking",
+        "search-flights",
+        "simulate-purchase",
+        "wallet.payment_method"
+      ],
+      "remote_tools": [
+        "get-fare-rules",
+        "prepare-booking",
+        "search-flights",
+        "simulate-purchase"
+      ],
+      "local_tools": [
+        "personal.passenger_identity",
+        "personal.travel_profile",
+        "wallet.payment_method"
+      ],
+      "declared_tool_details": [
+        {
+          "id": "get-fare-rules",
+          "execution": "remote",
+          "binding": "webair.get_fare_rules",
+          "permissions": [
+            "network.webair"
+          ],
+          "side_effects": "read"
+        },
+        {
+          "id": "personal.passenger_identity",
+          "execution": "local",
+          "binding": "host.resource.personal.passenger_identity",
+          "permissions": [
+            "identity.passenger"
+          ],
+          "side_effects": "read"
+        },
+        {
+          "id": "personal.travel_profile",
+          "execution": "local",
+          "binding": "host.resource.personal.travel_profile",
+          "permissions": [
+            "profile.travel"
+          ],
+          "side_effects": "read"
+        },
+        {
+          "id": "prepare-booking",
+          "execution": "remote",
+          "binding": "webair.prepare_booking",
+          "permissions": [
+            "network.webair",
+            "identity.passenger"
+          ],
+          "side_effects": "read"
+        },
+        {
+          "id": "search-flights",
+          "execution": "remote",
+          "binding": "webair.search_flights",
+          "permissions": [
+            "network.webair"
+          ],
+          "side_effects": "read"
+        },
+        {
+          "id": "simulate-purchase",
+          "execution": "remote",
+          "binding": "webair.simulate_purchase",
+          "permissions": [
+            "network.webair",
+            "booking.simulate_purchase",
+            "identity.passenger",
+            "wallet.payment"
+          ],
+          "side_effects": "write"
+        },
+        {
+          "id": "wallet.payment_method",
+          "execution": "local",
+          "binding": "host.resource.wallet.payment_method",
+          "permissions": [
+            "wallet.payment"
+          ],
+          "side_effects": "read"
+        }
+      ],
+      "declared_permissions": [
+        {
+          "id": "network.webair",
+          "kind": "network",
+          "required": true,
+          "resources": [
+            "webagents-webair-production.up.railway.app"
+          ]
+        },
+        {
+          "id": "profile.travel",
+          "kind": "personal.read",
+          "required": false,
+          "resources": [
+            "personal.travel_profile"
+          ]
+        },
+        {
+          "id": "identity.passenger",
+          "kind": "personal.read",
+          "required": false,
+          "resources": [
+            "personal.passenger_identity"
+          ]
+        },
+        {
+          "id": "wallet.payment",
+          "kind": "personal.read",
+          "required": false,
+          "resources": [
+            "wallet.payment_method"
+          ]
+        },
+        {
+          "id": "booking.simulate_purchase",
+          "kind": "payment",
+          "required": false,
+          "resources": [
+            "webagents-webair-production.up.railway.app"
+          ]
+        },
+        {
+          "id": "model.reasoning",
+          "kind": "model",
+          "required": true,
+          "resources": [
+            "host-router"
+          ]
+        },
+        {
+          "id": "memory.session",
+          "kind": "memory",
+          "required": true,
+          "resources": [
+            "session"
+          ]
+        }
+      ],
+      "host_resource_permissions": [
+        {
+          "id": "profile.travel",
+          "resource_types": [
+            "personal.travel_profile"
+          ],
+          "required": false
+        },
+        {
+          "id": "identity.passenger",
+          "resource_types": [
+            "personal.passenger_identity"
+          ],
+          "required": false
+        },
+        {
+          "id": "wallet.payment",
+          "resource_types": [
+            "wallet.payment_method"
+          ],
+          "required": false
+        }
+      ],
+      "model_tasks": 3,
+      "model_capabilities_required": [
+        "reasoning",
+        "structured_output"
+      ],
+      "model_context_window_required": 16000
+    }
+  },
+  "benchmark": {
+    "name": "contract_overhead",
+    "version": "1.1.0",
+    "config": {
+      "warmup_iterations_per_package": 50,
+      "batches": 5,
+      "iterations_per_batch": 200,
+      "measured_observations_per_package": 1000,
+      "seed": 20261001,
+      "order": "same process; within each (batch, iteration) every package runs once, in an order drawn from random.Random(seed); warmup uses the same scheme",
+      "gc": "enabled (Python default)",
+      "packages": [
+        "meeting-agenda",
+        "literature-review",
+        "webair"
+      ],
+      "audit_microbenchmark": {
+        "enabled": true,
+        "warmup_events": 200,
+        "batches": 5,
+        "stream_repeats_per_batch": 5
+      },
+      "component_decomposition": {
+        "enabled": true,
+        "warmup_iterations_per_package": 20,
+        "batches": 5,
+        "iterations_per_batch": 100
+      }
+    }
+  },
+  "machine": {
+    "os": "Darwin",
+    "os_version": "15.7.4",
+    "kernel": "24.6.0",
+    "architecture": "arm64",
+    "cpu_model": "Apple M3 Max",
+    "logical_cpus": 14,
+    "performance_logical_cpus": 10,
+    "efficiency_logical_cpus": 4,
+    "memory_bytes": 38654705664,
+    "python_version": "3.13.5",
+    "python_implementation": "CPython",
+    "python_compiler": "Clang 17.0.0 (clang-1700.0.13.3)",
+    "timer": {
+      "function": "time.perf_counter_ns",
+      "implementation": "mach_absolute_time()",
+      "resolution_s": 4.166666666666666e-08,
+      "monotonic": true
+    }
+  },
+  "software": {
+    "git_commit": "9d78ca5a4be1abc7aaac03864d1b35255cf7718d",
+    "agentpkg_version": "0.2.2",
+    "dependencies": {
+      "jsonschema": "4.26.0",
+      "referencing": "0.37.0",
+      "cryptography": "46.0.7",
+      "rfc8785": "0.1.4"
+    },
+    "agent_browser_plugin_version": "0.1.0"
+  },
+  "summary": [
+    {
+      "package_key": "meeting-agenda",
+      "kind": "stage",
+      "stage": "package_open_verify",
+      "label": "Package open and verification",
+      "n": 3000,
+      "n_per_run": [
+        1000,
+        1000,
+        1000
+      ],
+      "ms": {
+        "n": 3000,
+        "median": 19.3090205,
+        "p95": 20.389341350000002,
+        "mean": 19.439495683333334,
+        "std": 0.5659795777777129,
+        "min": 18.318125,
+        "max": 27.556166,
+        "p5": 18.9283878,
+        "p10": 19.018908600000003,
+        "p25": 19.15015675,
+        "p75": 19.54136425,
+        "p90": 19.9973422,
+        "p99": 21.51590791
+      },
+      "run_medians_ms": [
+        19.3150005,
+        19.333708,
+        19.2873955
+      ],
+      "run_p95s_ms": [
+        20.5201875,
+        20.30010175,
+        20.31472885
+      ],
+      "run_median_sd_ms": 0.023298262587227274,
+      "run_median_cv_pct": 0.12064115971913097,
+      "run_median_range_ms": [
+        19.2873955,
+        19.333708
+      ],
+      "batch_medians_ms": [
+        19.2435,
+        19.2821045,
+        19.3357295,
+        19.3849585,
+        19.3278125,
+        19.2604585,
+        19.418312,
+        19.3866875,
+        19.3191245,
+        19.3050835,
+        19.2121465,
+        19.2914585,
+        19.2608335,
+        19.297479,
+        19.3592085
+      ],
+      "batch_median_spread_pct": 1.067715993154603
+    },
+    {
+      "package_key": "meeting-agenda",
+      "kind": "stage",
+      "stage": "authorization_receipt",
+      "label": "Authorization receipt",
+      "n": 3000,
+      "n_per_run": [
+        1000,
+        1000,
+        1000
+      ],
+      "ms": {
+        "n": 3000,
+        "median": 0.491146,
+        "p95": 0.5418874999999999,
+        "mean": 0.4982417476666667,
+        "std": 0.04179592754683756,
+        "min": 0.44075,
+        "max": 1.376959,
+        "p5": 0.470542,
+        "p10": 0.476208,
+        "p25": 0.48270875,
+        "p75": 0.503041,
+        "p90": 0.5202173,
+        "p99": 0.6578924999999995
+      },
+      "run_medians_ms": [
+        0.4925625,
+        0.491104,
+        0.489084
+      ],
+      "run_p95s_ms": [
+        0.5508770500000001,
+        0.5340083,
+        0.5418351
+      ],
+      "run_median_sd_ms": 0.0017467867881723056,
+      "run_median_cv_pct": 0.35582132645800607,
+      "run_median_range_ms": [
+        0.489084,
+        0.4925625
+      ],
+      "batch_medians_ms": [
+        0.4903125,
+        0.493896,
+        0.4938125,
+        0.496604,
+        0.490187,
+        0.490521,
+        0.4941045,
+        0.4945,
+        0.489375,
+        0.4889795,
+        0.487583,
+        0.489167,
+        0.4869585,
+        0.489271,
+        0.4927915
+      ],
+      "batch_median_spread_pct": 1.9638763219083477
+    },
+    {
+      "package_key": "meeting-agenda",
+      "kind": "stage",
+      "stage": "compatibility_evaluation",
+      "label": "Model and tool compatibility",
+      "n": 3000,
+      "n_per_run": [
+        1000,
+        1000,
+        1000
+      ],
+      "ms": {
+        "n": 3000,
+        "median": 1.225417,
+        "p95": 1.2939622,
+        "mean": 1.2338738306666666,
+        "std": 0.03504783834726851,
+        "min": 1.13075,
+        "max": 1.750459,
+        "p5": 1.2046229499999999,
+        "p10": 1.2086208999999999,
+        "p25": 1.21578075,
+        "p75": 1.2407185,
+        "p90": 1.2666878000000001,
+        "p99": 1.3809290799999996
+      },
+      "run_medians_ms": [
+        1.228209,
+        1.223729,
+        1.225375
+      ],
+      "run_p95s_ms": [
+        1.2980410500000001,
+        1.2989684,
+        1.2841981999999998
+      ],
+      "run_median_sd_ms": 0.00226610061559501,
+      "run_median_cv_pct": 0.1848714495280937,
+      "run_median_range_ms": [
+        1.223729,
+        1.228209
+      ],
+      "batch_medians_ms": [
+        1.2236875,
+        1.227188,
+        1.228979,
+        1.2318335,
+        1.228167,
+        1.222583,
+        1.224729,
+        1.223917,
+        1.223479,
+        1.223709,
+        1.2252915,
+        1.225125,
+        1.22375,
+        1.2247495,
+        1.2279585
+      ],
+      "batch_median_spread_pct": 0.7548858878243121
+    },
+    {
+      "package_key": "meeting-agenda",
+      "kind": "stage",
+      "stage": "run_plan_preparation",
+      "label": "Run Plan preparation",
+      "n": 3000,
+      "n_per_run": [
+        1000,
+        1000,
+        1000
+      ],
+      "ms": {
+        "n": 3000,
+        "median": 2.120583,
+        "p95": 2.2931059,
+        "mean": 2.1465586543333335,
+        "std": 0.13135825738943216,
+        "min": 2.009084,
+        "max": 6.531375,
+        "p5": 2.0733247,
+        "p10": 2.0846208,
+        "p25": 2.10070875,
+        "p75": 2.1530105,
+        "p90": 2.2071952,
+        "p99": 2.58575333
+      },
+      "run_medians_ms": [
+        2.1286665,
+        2.1155625,
+        2.118042
+      ],
+      "run_p95s_ms": [
+        2.30108575,
+        2.26813335,
+        2.2958851
+      ],
+      "run_median_sd_ms": 0.0069611150507660246,
+      "run_median_cv_pct": 0.32823727804581215,
+      "run_median_range_ms": [
+        2.1155625,
+        2.1286665
+      ],
+      "batch_medians_ms": [
+        2.124,
+        2.1261665,
+        2.137146,
+        2.1378125,
+        2.1219375,
+        2.1128125,
+        2.1249165,
+        2.121875,
+        2.1118335,
+        2.110604,
+        2.1136455,
+        2.1183545,
+        2.1129585,
+        2.1208125,
+        2.1284785
+      ],
+      "batch_median_spread_pct": 1.2830669679045796
+    },
+    {
+      "package_key": "meeting-agenda",
+      "kind": "stage",
+      "stage": "host_revalidation_lease",
+      "label": "Host revalidation and lease",
+      "n": 3000,
+      "n_per_run": [
+        1000,
+        1000,
+        1000
+      ],
+      "ms": {
+        "n": 3000,
+        "median": 1.858875,
+        "p95": 2.1930934,
+        "mean": 1.8876296066666667,
+        "std": 0.23305057645738117,
+        "min": 1.349083,
+        "max": 5.670291,
+        "p5": 1.6086336499999998,
+        "p10": 1.7009086,
+        "p25": 1.78171875,
+        "p75": 1.96071925,
+        "p90": 2.0854333,
+        "p99": 2.6698174099999963
+      },
+      "run_medians_ms": [
+        1.880646,
+        1.8482705,
+        1.852729
+      ],
+      "run_p95s_ms": [
+        2.1972788499999996,
+        2.15300625,
+        2.2226374999999994
+      ],
+      "run_median_sd_ms": 0.017547127549829948,
+      "run_median_cv_pct": 0.9431158365304612,
+      "run_median_range_ms": [
+        1.8482705,
+        1.880646
+      ],
+      "batch_medians_ms": [
+        1.8774995,
+        1.879271,
+        1.8925205,
+        1.892729,
+        1.864854,
+        1.8580835,
+        1.8756455,
+        1.8674165,
+        1.8180625,
+        1.8290835,
+        1.8451875,
+        1.8444165,
+        1.838,
+        1.8702505,
+        1.891375
+      ],
+      "batch_median_spread_pct": 4.016757447380819
+    },
+    {
+      "package_key": "meeting-agenda",
+      "kind": "stage",
+      "stage": "runner_verification",
+      "label": "Runner re-verification",
+      "n": 3000,
+      "n_per_run": [
+        1000,
+        1000,
+        1000
+      ],
+      "ms": {
+        "n": 3000,
+        "median": 18.5789375,
+        "p95": 19.79285145,
+        "mean": 18.751270349,
+        "std": 0.7562363613967749,
+        "min": 17.827792,
+        "max": 35.156542,
+        "p5": 18.1742229,
+        "p10": 18.283308,
+        "p25": 18.42086475,
+        "p75": 18.86039575,
+        "p90": 19.34585,
+        "p99": 21.218604489999976
+      },
+      "run_medians_ms": [
+        18.6031455,
+        18.5867915,
+        18.5491665
+      ],
+      "run_p95s_ms": [
+        19.922375,
+        19.7888875,
+        19.6109
+      ],
+      "run_median_sd_ms": 0.027679193093972036,
+      "run_median_cv_pct": 0.14897544823611328,
+      "run_median_range_ms": [
+        18.5491665,
+        18.6031455
+      ],
+      "batch_medians_ms": [
+        18.5093545,
+        18.590667,
+        18.6457705,
+        18.680333,
+        18.6014585,
+        18.516396,
+        18.6336455,
+        18.6223335,
+        18.57125,
+        18.565854,
+        18.477542,
+        18.522104,
+        18.571375,
+        18.5976245,
+        18.626375
+      ],
+      "batch_median_spread_pct": 1.091510211496224
+    },
+    {
+      "package_key": "meeting-agenda",
+      "kind": "stage",
+      "stage": "workflow_start",
+      "label": "Workflow instantiation and start checks",
+      "n": 3000,
+      "n_per_run": [
+        1000,
+        1000,
+        1000
+      ],
+      "ms": {
+        "n": 3000,
+        "median": 15.332333,
+        "p95": 16.340604149999997,
+        "mean": 15.475017576333332,
+        "std": 0.5837683030801432,
+        "min": 14.904583,
+        "max": 25.42625,
+        "p5": 15.0999527,
+        "p10": 15.137370800000001,
+        "p25": 15.2139065,
+        "p75": 15.51810375,
+        "p90": 15.9326417,
+        "p99": 17.275173839999997
+      },
+      "run_medians_ms": [
+        15.337584,
+        15.352687,
+        15.303229
+      ],
+      "run_p95s_ms": [
+        16.5998226,
+        16.2313872,
+        16.26139585
+      ],
+      "run_median_sd_ms": 0.025345809640516945,
+      "run_median_cv_pct": 0.1653221192593537,
+      "run_median_range_ms": [
+        15.303229,
+        15.352687
+      ],
+      "batch_medians_ms": [
+        15.2858335,
+        15.346646,
+        15.3667915,
+        15.404834,
+        15.3230415,
+        15.286938,
+        15.409646,
+        15.436271,
+        15.334187,
+        15.3046045,
+        15.240708,
+        15.3150835,
+        15.295521,
+        15.340958,
+        15.3400205
+      ],
+      "batch_median_spread_pct": 1.2754940816899811
+    },
+    {
+      "package_key": "meeting-agenda",
+      "kind": "group",
+      "stage": "verification",
+      "label": "Package verification",
+      "n": 3000,
+      "n_per_run": [
+        1000,
+        1000,
+        1000
+      ],
+      "ms": {
+        "n": 3000,
+        "median": 19.3090205,
+        "p95": 20.389341350000002,
+        "mean": 19.439495683333334,
+        "std": 0.5659795777777129,
+        "min": 18.318125,
+        "max": 27.556166,
+        "p5": 18.9283878,
+        "p10": 19.018908600000003,
+        "p25": 19.15015675,
+        "p75": 19.54136425,
+        "p90": 19.9973422,
+        "p99": 21.51590791
+      },
+      "run_medians_ms": [
+        19.3150005,
+        19.333708,
+        19.2873955
+      ],
+      "run_p95s_ms": [
+        20.5201875,
+        20.30010175,
+        20.31472885
+      ],
+      "run_median_sd_ms": 0.023298262587227274,
+      "run_median_cv_pct": 0.12064115971913097,
+      "run_median_range_ms": [
+        19.2873955,
+        19.333708
+      ],
+      "batch_medians_ms": [
+        19.2435,
+        19.2821045,
+        19.3357295,
+        19.3849585,
+        19.3278125,
+        19.2604585,
+        19.418312,
+        19.3866875,
+        19.3191245,
+        19.3050835,
+        19.2121465,
+        19.2914585,
+        19.2608335,
+        19.297479,
+        19.3592085
+      ],
+      "batch_median_spread_pct": 1.067715993154603
+    },
+    {
+      "package_key": "meeting-agenda",
+      "kind": "group",
+      "stage": "authorization_and_binding",
+      "label": "Authorization and binding",
+      "n": 3000,
+      "n_per_run": [
+        1000,
+        1000,
+        1000
+      ],
+      "ms": {
+        "n": 3000,
+        "median": 1.7183955,
+        "p95": 1.8197101,
+        "mean": 1.7321155783333333,
+        "std": 0.06082598560756941,
+        "min": 1.598875,
+        "max": 2.6735,
+        "p5": 1.683708,
+        "p10": 1.6911619,
+        "p25": 1.70297925,
+        "p75": 1.74197875,
+        "p90": 1.7815965,
+        "p99": 1.98791783
+      },
+      "run_medians_ms": [
+        1.72225,
+        1.715333,
+        1.717146
+      ],
+      "run_p95s_ms": [
+        1.82570625,
+        1.8154348,
+        1.8162482
+      ],
+      "run_median_sd_ms": 0.0035866110745382163,
+      "run_median_cv_pct": 0.20873712708494763,
+      "run_median_range_ms": [
+        1.715333,
+        1.72225
+      ],
+      "batch_medians_ms": [
+        1.7150415,
+        1.724979,
+        1.722979,
+        1.728729,
+        1.720396,
+        1.713125,
+        1.7221035,
+        1.719104,
+        1.7133335,
+        1.7131455,
+        1.713,
+        1.718104,
+        1.71275,
+        1.718729,
+        1.722729
+      ],
+      "batch_median_spread_pct": 0.9298790645110492
+    },
+    {
+      "package_key": "meeting-agenda",
+      "kind": "group",
+      "stage": "run_plan",
+      "label": "Run Plan preparation",
+      "n": 3000,
+      "n_per_run": [
+        1000,
+        1000,
+        1000
+      ],
+      "ms": {
+        "n": 3000,
+        "median": 2.120583,
+        "p95": 2.2931059,
+        "mean": 2.1465586543333335,
+        "std": 0.13135825738943216,
+        "min": 2.009084,
+        "max": 6.531375,
+        "p5": 2.0733247,
+        "p10": 2.0846208,
+        "p25": 2.10070875,
+        "p75": 2.1530105,
+        "p90": 2.2071952,
+        "p99": 2.58575333
+      },
+      "run_medians_ms": [
+        2.1286665,
+        2.1155625,
+        2.118042
+      ],
+      "run_p95s_ms": [
+        2.30108575,
+        2.26813335,
+        2.2958851
+      ],
+      "run_median_sd_ms": 0.0069611150507660246,
+      "run_median_cv_pct": 0.32823727804581215,
+      "run_median_range_ms": [
+        2.1155625,
+        2.1286665
+      ],
+      "batch_medians_ms": [
+        2.124,
+        2.1261665,
+        2.137146,
+        2.1378125,
+        2.1219375,
+        2.1128125,
+        2.1249165,
+        2.121875,
+        2.1118335,
+        2.110604,
+        2.1136455,
+        2.1183545,
+        2.1129585,
+        2.1208125,
+        2.1284785
+      ],
+      "batch_median_spread_pct": 1.2830669679045796
+    },
+    {
+      "package_key": "meeting-agenda",
+      "kind": "group",
+      "stage": "revalidation",
+      "label": "Pre-execution revalidation",
+      "n": 3000,
+      "n_per_run": [
+        1000,
+        1000,
+        1000
+      ],
+      "ms": {
+        "n": 3000,
+        "median": 35.810729,
+        "p95": 38.12583719999999,
+        "mean": 36.113917531999995,
+        "std": 1.1748365014289701,
+        "min": 34.377583,
+        "max": 55.07025,
+        "p5": 35.2096146,
+        "p10": 35.3273878,
+        "p25": 35.51962475,
+        "p75": 36.257427,
+        "p90": 37.1157916,
+        "p99": 40.91229925999998
+      },
+      "run_medians_ms": [
+        35.8378125,
+        35.8296455,
+        35.73925
+      ],
+      "run_p95s_ms": [
+        38.4234256,
+        38.032283,
+        37.851616699999994
+      ],
+      "run_median_sd_ms": 0.05470011077913815,
+      "run_median_cv_pct": 0.15278406292595287,
+      "run_median_range_ms": [
+        35.73925,
+        35.8378125
+      ],
+      "batch_medians_ms": [
+        35.693708,
+        35.799146,
+        35.916708,
+        36.0047915,
+        35.815146,
+        35.6930625,
+        35.9585415,
+        35.951729,
+        35.748834,
+        35.7430415,
+        35.5664995,
+        35.6702915,
+        35.73,
+        35.8487085,
+        35.8797705
+      ],
+      "batch_median_spread_pct": 1.2239125319118862
+    },
+    {
+      "package_key": "meeting-agenda",
+      "kind": "total",
+      "stage": "total_pre_execution",
+      "label": "Total pre-execution",
+      "n": 3000,
+      "n_per_run": [
+        1000,
+        1000,
+        1000
+      ],
+      "ms": {
+        "n": 3000,
+        "median": 58.985375,
+        "p95": 62.482743449999994,
+        "mean": 59.432087448,
+        "std": 1.6446682521808276,
+        "min": 56.485625,
+        "max": 79.05475,
+        "p5": 58.10903685,
+        "p10": 58.2844667,
+        "p25": 58.58201025,
+        "p75": 59.68160425,
+        "p90": 60.9878456,
+        "p99": 65.72023332999999
+      },
+      "run_medians_ms": [
+        59.039021,
+        59.0251465,
+        58.890375
+      ],
+      "run_p95s_ms": [
+        63.07808959999999,
+        62.2396104,
+        61.923744049999996
+      ],
+      "run_median_sd_ms": 0.0821091674525442,
+      "run_median_cv_pct": 0.1392038310390549,
+      "run_median_range_ms": [
+        58.890375,
+        59.039021
+      ],
+      "batch_medians_ms": [
+        58.8272085,
+        58.9659165,
+        59.1632915,
+        59.28575,
+        59.0441665,
+        58.803146,
+        59.266875,
+        59.1878335,
+        58.898604,
+        58.9290205,
+        58.661646,
+        58.834166,
+        58.855646,
+        59.01275,
+        59.186979
+      ],
+      "batch_median_spread_pct": 1.058065664582115
+    },
+    {
+      "package_key": "meeting-agenda",
+      "kind": "secondary",
+      "stage": "local_file_read",
+      "label": "Local file read (secondary, not in total)",
+      "n": 3000,
+      "n_per_run": [
+        1000,
+        1000,
+        1000
+      ],
+      "ms": {
+        "n": 3000,
+        "median": 0.12725,
+        "p95": 0.1682542,
+        "mean": 0.13054037666666665,
+        "std": 0.029421325971922208,
+        "min": 0.076708,
+        "max": 0.589334,
+        "p5": 0.0973729,
+        "p10": 0.1029539,
+        "p25": 0.11519775,
+        "p75": 0.140917,
+        "p90": 0.1548792,
+        "p99": 0.23893740999999952
+      },
+      "run_medians_ms": [
+        0.128479,
+        0.126646,
+        0.1267085
+      ],
+      "run_p95s_ms": [
+        0.16987739999999993,
+        0.16793365,
+        0.16606395
+      ],
+      "run_median_sd_ms": 0.0010407101341552022,
+      "run_median_cv_pct": 0.8176680156313174,
+      "run_median_range_ms": [
+        0.126646,
+        0.128479
+      ],
+      "batch_medians_ms": [
+        0.1293335,
+        0.126,
+        0.127979,
+        0.1318335,
+        0.1269165,
+        0.131583,
+        0.1295415,
+        0.128271,
+        0.125583,
+        0.1229585,
+        0.1252915,
+        0.1279165,
+        0.125646,
+        0.129104,
+        0.126708
+      ],
+      "batch_median_spread_pct": 6.974459724950879
+    },
+    {
+      "package_key": "literature-review",
+      "kind": "stage",
+      "stage": "package_open_verify",
+      "label": "Package open and verification",
+      "n": 3000,
+      "n_per_run": [
+        1000,
+        1000,
+        1000
+      ],
+      "ms": {
+        "n": 3000,
+        "median": 152.704396,
+        "p95": 160.1385955,
+        "mean": 153.80296182266667,
+        "std": 3.5287489904039413,
+        "min": 148.396208,
+        "max": 199.827666,
+        "p5": 150.5131083,
+        "p10": 150.8482506,
+        "p25": 151.51926075,
+        "p75": 154.93419825,
+        "p90": 158.3779247,
+        "p99": 166.38504124999994
+      },
+      "run_medians_ms": [
+        152.5277085,
+        153.215125,
+        152.2527915
+      ],
+      "run_p95s_ms": [
+        160.8992893,
+        160.2169628,
+        159.74724405
+      ],
+      "run_median_sd_ms": 0.4956824532203908,
+      "run_median_cv_pct": 0.3246859311507992,
+      "run_median_range_ms": [
+        152.2527915,
+        153.215125
+      ],
+      "batch_medians_ms": [
+        152.0243335,
+        152.2224165,
+        153.1367915,
+        152.981312,
+        152.272771,
+        152.7604165,
+        153.774729,
+        153.7569995,
+        153.2294995,
+        152.840396,
+        151.5842295,
+        152.270563,
+        151.899813,
+        152.689667,
+        152.8629165
+      ],
+      "batch_median_spread_pct": 1.4344704916026225
+    },
+    {
+      "package_key": "literature-review",
+      "kind": "stage",
+      "stage": "authorization_receipt",
+      "label": "Authorization receipt",
+      "n": 3000,
+      "n_per_run": [
+        1000,
+        1000,
+        1000
+      ],
+      "ms": {
+        "n": 3000,
+        "median": 0.622209,
+        "p95": 0.6870124999999999,
+        "mean": 0.6340990606666668,
+        "std": 0.11496978098435048,
+        "min": 0.563416,
+        "max": 5.44325,
+        "p5": 0.5977059499999999,
+        "p10": 0.6034119,
+        "p25": 0.61173975,
+        "p75": 0.63675,
+        "p90": 0.6599166999999999,
+        "p99": 0.8262599999999998
+      },
+      "run_medians_ms": [
+        0.6235415,
+        0.622292,
+        0.62075
+      ],
+      "run_p95s_ms": [
+        0.6950225999999999,
+        0.68648395,
+        0.6762021
+      ],
+      "run_median_sd_ms": 0.0013983017378233933,
+      "run_median_cv_pct": 0.22473707784678157,
+      "run_median_range_ms": [
+        0.62075,
+        0.6235415
+      ],
+      "batch_medians_ms": [
+        0.623646,
+        0.6221875,
+        0.6257295,
+        0.625521,
+        0.6228545,
+        0.6214375,
+        0.630583,
+        0.626063,
+        0.618375,
+        0.6168335,
+        0.61775,
+        0.6194165,
+        0.6174375,
+        0.6246665,
+        0.627729
+      ],
+      "batch_median_spread_pct": 2.209788029424192
+    },
+    {
+      "package_key": "literature-review",
+      "kind": "stage",
+      "stage": "compatibility_evaluation",
+      "label": "Model and tool compatibility",
+      "n": 3000,
+      "n_per_run": [
+        1000,
+        1000,
+        1000
+      ],
+      "ms": {
+        "n": 3000,
+        "median": 2.1065415,
+        "p95": 2.212125,
+        "mean": 2.1189369,
+        "std": 0.05114081435791179,
+        "min": 1.978167,
+        "max": 2.735292,
+        "p5": 2.0731208,
+        "p10": 2.080041,
+        "p25": 2.0905,
+        "p75": 2.1297605,
+        "p90": 2.1715997000000002,
+        "p99": 2.3182779199999994
+      },
+      "run_medians_ms": [
+        2.108125,
+        2.103979,
+        2.1075
+      ],
+      "run_p95s_ms": [
+        2.21989375,
+        2.21376905,
+        2.1942610499999997
+      ],
+      "run_median_sd_ms": 0.002235224895471015,
+      "run_median_cv_pct": 0.10610909617775172,
+      "run_median_range_ms": [
+        2.103979,
+        2.108125
+      ],
+      "batch_medians_ms": [
+        2.103562,
+        2.1021665,
+        2.110792,
+        2.114104,
+        2.110979,
+        2.1013545,
+        2.1076875,
+        2.104875,
+        2.1016245,
+        2.1046455,
+        2.106083,
+        2.1104995,
+        2.1045835,
+        2.1112295,
+        2.109146
+      ],
+      "batch_median_spread_pct": 0.6052337445049344
+    },
+    {
+      "package_key": "literature-review",
+      "kind": "stage",
+      "stage": "run_plan_preparation",
+      "label": "Run Plan preparation",
+      "n": 3000,
+      "n_per_run": [
+        1000,
+        1000,
+        1000
+      ],
+      "ms": {
+        "n": 3000,
+        "median": 3.938333,
+        "p95": 4.19828335,
+        "mean": 3.9803098103333334,
+        "std": 0.29821486682315457,
+        "min": 3.795209,
+        "max": 17.20125,
+        "p5": 3.87474795,
+        "p10": 3.8864539,
+        "p25": 3.908167,
+        "p75": 3.98394825,
+        "p90": 4.0817214,
+        "p99": 4.626331009999999
+      },
+      "run_medians_ms": [
+        3.941625,
+        3.928792,
+        3.9430625
+      ],
+      "run_p95s_ms": [
+        4.2528726,
+        4.2086518,
+        4.1284729
+      ],
+      "run_median_sd_ms": 0.007857050607575312,
+      "run_median_cv_pct": 0.1995275974595456,
+      "run_median_range_ms": [
+        3.928792,
+        3.9430625
+      ],
+      "batch_medians_ms": [
+        3.931938,
+        3.933,
+        3.957,
+        3.9452085,
+        3.942688,
+        3.926083,
+        3.9299585,
+        3.9425415,
+        3.921396,
+        3.9220415,
+        3.9325625,
+        3.9469375,
+        3.932,
+        3.9487715,
+        3.956667
+      ],
+      "batch_median_spread_pct": 0.904037317311658
+    },
+    {
+      "package_key": "literature-review",
+      "kind": "stage",
+      "stage": "host_revalidation_lease",
+      "label": "Host revalidation and lease",
+      "n": 3000,
+      "n_per_run": [
+        1000,
+        1000,
+        1000
+      ],
+      "ms": {
+        "n": 3000,
+        "median": 7.192729,
+        "p95": 7.977054149999997,
+        "mean": 7.406704739333334,
+        "std": 3.5920973837713692,
+        "min": 6.435458,
+        "max": 194.842916,
+        "p5": 6.90170625,
+        "p10": 6.983891099999999,
+        "p25": 7.07932275,
+        "p75": 7.33051075,
+        "p90": 7.6850381,
+        "p99": 12.41277
+      },
+      "run_medians_ms": [
+        7.2197705,
+        7.186521,
+        7.171937
+      ],
+      "run_p95s_ms": [
+        8.0958098,
+        7.9413851,
+        7.891468749999999
+      ],
+      "run_median_sd_ms": 0.02451620562165648,
+      "run_median_cv_pct": 0.34084640852222614,
+      "run_median_range_ms": [
+        7.171937,
+        7.2197705
+      ],
+      "batch_medians_ms": [
+        7.213854,
+        7.170292,
+        7.27725,
+        7.188917,
+        7.232729,
+        7.178979,
+        7.2204165,
+        7.2215205,
+        7.1775625,
+        7.1390415,
+        7.1330205,
+        7.1832295,
+        7.130708,
+        7.210792,
+        7.231271
+      ],
+      "batch_median_spread_pct": 2.0373630092277937
+    },
+    {
+      "package_key": "literature-review",
+      "kind": "stage",
+      "stage": "runner_verification",
+      "label": "Runner re-verification",
+      "n": 3000,
+      "n_per_run": [
+        1000,
+        1000,
+        1000
+      ],
+      "ms": {
+        "n": 3000,
+        "median": 152.106938,
+        "p95": 159.75397080000002,
+        "mean": 153.303244812,
+        "std": 3.7706660248068378,
+        "min": 149.028916,
+        "max": 218.097916,
+        "p5": 149.998967,
+        "p10": 150.27952530000002,
+        "p25": 150.99370875,
+        "p75": 154.52201,
+        "p90": 157.9055961,
+        "p99": 165.06485891999972
+      },
+      "run_medians_ms": [
+        152.010792,
+        152.597021,
+        151.633958
+      ],
+      "run_p95s_ms": [
+        160.319425,
+        160.2538277,
+        158.77609615
+      ],
+      "run_median_sd_ms": 0.48531066441438925,
+      "run_median_cv_pct": 0.31911413767573854,
+      "run_median_range_ms": [
+        151.633958,
+        152.597021
+      ],
+      "batch_medians_ms": [
+        151.629729,
+        151.953521,
+        152.536458,
+        152.418896,
+        151.839354,
+        152.0904585,
+        152.975688,
+        153.099396,
+        152.392771,
+        152.320771,
+        151.2433955,
+        151.9279585,
+        151.2836665,
+        151.7941045,
+        152.06
+      ],
+      "batch_median_spread_pct": 1.2201945055261196
+    },
+    {
+      "package_key": "literature-review",
+      "kind": "stage",
+      "stage": "workflow_start",
+      "label": "Workflow instantiation and start checks",
+      "n": 3000,
+      "n_per_run": [
+        1000,
+        1000,
+        1000
+      ],
+      "ms": {
+        "n": 3000,
+        "median": 128.8813335,
+        "p95": 136.48529164999997,
+        "mean": 130.07003360433333,
+        "std": 3.5538309948224334,
+        "min": 125.937042,
+        "max": 171.798292,
+        "p5": 126.9148854,
+        "p10": 127.1823586,
+        "p25": 127.77951,
+        "p75": 131.2701665,
+        "p90": 134.7607461,
+        "p99": 141.96535625
+      },
+      "run_medians_ms": [
+        128.6686875,
+        129.374646,
+        128.357521
+      ],
+      "run_p95s_ms": [
+        137.3839878,
+        137.1636976,
+        135.1766399
+      ],
+      "run_median_sd_ms": 0.5211757956885507,
+      "run_median_cv_pct": 0.4046386980921265,
+      "run_median_range_ms": [
+        128.357521,
+        129.374646
+      ],
+      "batch_medians_ms": [
+        128.17325,
+        128.5774375,
+        129.252416,
+        129.058083,
+        128.2854375,
+        129.12775,
+        130.1163125,
+        129.8945625,
+        129.2519165,
+        129.1109995,
+        128.1841045,
+        128.438437,
+        128.1072085,
+        128.526458,
+        128.624979
+      ],
+      "batch_median_spread_pct": 1.5588789667512086
+    },
+    {
+      "package_key": "literature-review",
+      "kind": "group",
+      "stage": "verification",
+      "label": "Package verification",
+      "n": 3000,
+      "n_per_run": [
+        1000,
+        1000,
+        1000
+      ],
+      "ms": {
+        "n": 3000,
+        "median": 152.704396,
+        "p95": 160.1385955,
+        "mean": 153.80296182266667,
+        "std": 3.5287489904039413,
+        "min": 148.396208,
+        "max": 199.827666,
+        "p5": 150.5131083,
+        "p10": 150.8482506,
+        "p25": 151.51926075,
+        "p75": 154.93419825,
+        "p90": 158.3779247,
+        "p99": 166.38504124999994
+      },
+      "run_medians_ms": [
+        152.5277085,
+        153.215125,
+        152.2527915
+      ],
+      "run_p95s_ms": [
+        160.8992893,
+        160.2169628,
+        159.74724405
+      ],
+      "run_median_sd_ms": 0.4956824532203908,
+      "run_median_cv_pct": 0.3246859311507992,
+      "run_median_range_ms": [
+        152.2527915,
+        153.215125
+      ],
+      "batch_medians_ms": [
+        152.0243335,
+        152.2224165,
+        153.1367915,
+        152.981312,
+        152.272771,
+        152.7604165,
+        153.774729,
+        153.7569995,
+        153.2294995,
+        152.840396,
+        151.5842295,
+        152.270563,
+        151.899813,
+        152.689667,
+        152.8629165
+      ],
+      "batch_median_spread_pct": 1.4344704916026225
+    },
+    {
+      "package_key": "literature-review",
+      "kind": "group",
+      "stage": "authorization_and_binding",
+      "label": "Authorization and binding",
+      "n": 3000,
+      "n_per_run": [
+        1000,
+        1000,
+        1000
+      ],
+      "ms": {
+        "n": 3000,
+        "median": 2.7301455,
+        "p95": 2.88917325,
+        "mean": 2.753035960666667,
+        "std": 0.13259984226768243,
+        "min": 2.59375,
+        "max": 7.429792,
+        "p5": 2.68149585,
+        "p10": 2.6925,
+        "p25": 2.70904175,
+        "p75": 2.76484425,
+        "p90": 2.8240461,
+        "p99": 3.0663640799999983
+      },
+      "run_medians_ms": [
+        2.733396,
+        2.7272915,
+        2.729833
+      ],
+      "run_p95s_ms": [
+        2.9004167,
+        2.8950461499999998,
+        2.85848125
+      ],
+      "run_median_sd_ms": 0.003066461356351838,
+      "run_median_cv_pct": 0.11231745368387167,
+      "run_median_range_ms": [
+        2.7272915,
+        2.733396
+      ],
+      "batch_medians_ms": [
+        2.7282085,
+        2.7247705,
+        2.735375,
+        2.741396,
+        2.736875,
+        2.721729,
+        2.733146,
+        2.7318545,
+        2.723021,
+        2.723708,
+        2.724333,
+        2.7289375,
+        2.7212085,
+        2.7385835,
+        2.740729
+      ],
+      "batch_median_spread_pct": 0.7394294553165766
+    },
+    {
+      "package_key": "literature-review",
+      "kind": "group",
+      "stage": "run_plan",
+      "label": "Run Plan preparation",
+      "n": 3000,
+      "n_per_run": [
+        1000,
+        1000,
+        1000
+      ],
+      "ms": {
+        "n": 3000,
+        "median": 3.938333,
+        "p95": 4.19828335,
+        "mean": 3.9803098103333334,
+        "std": 0.29821486682315457,
+        "min": 3.795209,
+        "max": 17.20125,
+        "p5": 3.87474795,
+        "p10": 3.8864539,
+        "p25": 3.908167,
+        "p75": 3.98394825,
+        "p90": 4.0817214,
+        "p99": 4.626331009999999
+      },
+      "run_medians_ms": [
+        3.941625,
+        3.928792,
+        3.9430625
+      ],
+      "run_p95s_ms": [
+        4.2528726,
+        4.2086518,
+        4.1284729
+      ],
+      "run_median_sd_ms": 0.007857050607575312,
+      "run_median_cv_pct": 0.1995275974595456,
+      "run_median_range_ms": [
+        3.928792,
+        3.9430625
+      ],
+      "batch_medians_ms": [
+        3.931938,
+        3.933,
+        3.957,
+        3.9452085,
+        3.942688,
+        3.926083,
+        3.9299585,
+        3.9425415,
+        3.921396,
+        3.9220415,
+        3.9325625,
+        3.9469375,
+        3.932,
+        3.9487715,
+        3.956667
+      ],
+      "batch_median_spread_pct": 0.904037317311658
+    },
+    {
+      "package_key": "literature-review",
+      "kind": "group",
+      "stage": "revalidation",
+      "label": "Pre-execution revalidation",
+      "n": 3000,
+      "n_per_run": [
+        1000,
+        1000,
+        1000
+      ],
+      "ms": {
+        "n": 3000,
+        "median": 289.357021,
+        "p95": 301.09256045,
+        "mean": 290.7799831556666,
+        "std": 7.295745065623558,
+        "min": 282.55475,
+        "max": 504.155041,
+        "p5": 284.67707144999997,
+        "p10": 285.2703288,
+        "p25": 286.71947925,
+        "p75": 293.062125,
+        "p90": 297.0138587,
+        "p99": 312.4992711599999
+      },
+      "run_medians_ms": [
+        289.293083,
+        290.083917,
+        288.001354
+      ],
+      "run_p95s_ms": [
+        303.0678979,
+        301.31266454999997,
+        298.1978747
+      ],
+      "run_median_sd_ms": 1.0512731070758916,
+      "run_median_cv_pct": 0.3636036461693481,
+      "run_median_range_ms": [
+        288.001354,
+        290.083917
+      ],
+      "batch_medians_ms": [
+        288.013625,
+        289.3713335,
+        290.487792,
+        290.1584585,
+        288.5774375,
+        289.1251665,
+        291.738,
+        291.2512915,
+        289.6191875,
+        289.2347505,
+        287.459688,
+        288.9860625,
+        287.1879165,
+        288.468396,
+        288.449166
+      ],
+      "batch_median_spread_pct": 1.5724807658978588
+    },
+    {
+      "package_key": "literature-review",
+      "kind": "total",
+      "stage": "total_pre_execution",
+      "label": "Total pre-execution",
+      "n": 3000,
+      "n_per_run": [
+        1000,
+        1000,
+        1000
+      ],
+      "ms": {
+        "n": 3000,
+        "median": 449.8925625,
+        "p95": 465.03143689999996,
+        "mean": 451.31629074933335,
+        "std": 8.902641752041426,
+        "min": 440.040541,
+        "max": 669.1425,
+        "p5": 442.80118125,
+        "p10": 443.9708833,
+        "p25": 446.25220875,
+        "p75": 453.8736145,
+        "p90": 459.4549253,
+        "p99": 482.14447282999987
+      },
+      "run_medians_ms": [
+        449.5554585,
+        451.2577915,
+        448.485438
+      ],
+      "run_p95s_ms": [
+        467.54123575,
+        465.1963625,
+        460.95143095
+      ],
+      "run_median_sd_ms": 1.398143140160762,
+      "run_median_cv_pct": 0.31085996434929364,
+      "run_median_range_ms": [
+        448.485438,
+        451.2577915
+      ],
+      "batch_medians_ms": [
+        448.0625835,
+        448.511188,
+        451.5576875,
+        451.819271,
+        449.2030835,
+        450.2430835,
+        452.7895625,
+        453.0553125,
+        450.9950625,
+        450.4102295,
+        447.089542,
+        448.6857085,
+        447.262542,
+        449.713437,
+        449.3945205
+      ],
+      "batch_median_spread_pct": 1.3260433706325205
+    },
+    {
+      "package_key": "literature-review",
+      "kind": "secondary",
+      "stage": "local_file_read",
+      "label": "Local file read (secondary, not in total)",
+      "n": 3000,
+      "n_per_run": [
+        1000,
+        1000,
+        1000
+      ],
+      "ms": {
+        "n": 3000,
+        "median": 0.1545625,
+        "p95": 0.20888124999999996,
+        "mean": 0.16053731966666668,
+        "std": 0.04685403991582395,
+        "min": 0.105917,
+        "max": 1.880291,
+        "p5": 0.1253646,
+        "p10": 0.1312459,
+        "p25": 0.140375,
+        "p75": 0.17138525,
+        "p90": 0.1892205,
+        "p99": 0.27746216999999995
+      },
+      "run_medians_ms": [
+        0.156208,
+        0.1538955,
+        0.152916
+      ],
+      "run_p95s_ms": [
+        0.2059643,
+        0.21195444999999996,
+        0.2088875
+      ],
+      "run_median_sd_ms": 0.001690381638368498,
+      "run_median_cv_pct": 1.095233551741448,
+      "run_median_range_ms": [
+        0.152916,
+        0.156208
+      ],
+      "batch_medians_ms": [
+        0.151667,
+        0.1512705,
+        0.1577705,
+        0.1608125,
+        0.157604,
+        0.1558955,
+        0.155063,
+        0.1543335,
+        0.1536875,
+        0.152854,
+        0.1528955,
+        0.153208,
+        0.1503535,
+        0.151479,
+        0.15875
+      ],
+      "batch_median_spread_pct": 6.766841892438332
+    },
+    {
+      "package_key": "webair",
+      "kind": "stage",
+      "stage": "package_open_verify",
+      "label": "Package open and verification",
+      "n": 3000,
+      "n_per_run": [
+        1000,
+        1000,
+        1000
+      ],
+      "ms": {
+        "n": 3000,
+        "median": 161.6546455,
+        "p95": 168.44029105,
+        "mean": 162.50261504066668,
+        "std": 3.560763673572317,
+        "min": 158.206084,
+        "max": 264.442583,
+        "p5": 159.6916872,
+        "p10": 160.0235917,
+        "p25": 160.65319825,
+        "p75": 163.17328175,
+        "p90": 166.09416190000002,
+        "p99": 172.9285421699999
+      },
+      "run_medians_ms": [
+        161.583479,
+        162.342125,
+        161.0876875
+      ],
+      "run_p95s_ms": [
+        168.83103365,
+        169.2145021,
+        166.9397545
+      ],
+      "run_median_sd_ms": 0.6317919496947525,
+      "run_median_cv_pct": 0.3907884345236047,
+      "run_median_range_ms": [
+        161.0876875,
+        162.342125
+      ],
+      "batch_medians_ms": [
+        161.176625,
+        161.2103125,
+        161.7808335,
+        162.2095625,
+        161.376771,
+        162.0080415,
+        162.7945205,
+        162.730521,
+        162.352313,
+        161.6720415,
+        160.8269165,
+        161.1398125,
+        161.045542,
+        161.2614165,
+        161.3090415
+      ],
+      "batch_median_spread_pct": 1.217165144814842
+    },
+    {
+      "package_key": "webair",
+      "kind": "stage",
+      "stage": "authorization_receipt",
+      "label": "Authorization receipt",
+      "n": 3000,
+      "n_per_run": [
+        1000,
+        1000,
+        1000
+      ],
+      "ms": {
+        "n": 3000,
+        "median": 0.6286875,
+        "p95": 0.7004347999999999,
+        "mean": 0.6386530060000001,
+        "std": 0.05457150499053153,
+        "min": 0.562042,
+        "max": 2.095,
+        "p5": 0.60395895,
+        "p10": 0.609125,
+        "p25": 0.617583,
+        "p75": 0.64320825,
+        "p90": 0.6702994,
+        "p99": 0.8462273199999996
+      },
+      "run_medians_ms": [
+        0.6319375,
+        0.6279165,
+        0.62575
+      ],
+      "run_p95s_ms": [
+        0.71475625,
+        0.6929586499999999,
+        0.68950355
+      ],
+      "run_median_sd_ms": 0.0031397271510966366,
+      "run_median_cv_pct": 0.49953126177553236,
+      "run_median_range_ms": [
+        0.62575,
+        0.6319375
+      ],
+      "batch_medians_ms": [
+        0.6313335,
+        0.6299375,
+        0.6352505,
+        0.6344165,
+        0.629729,
+        0.6292085,
+        0.6305625,
+        0.633729,
+        0.6257505,
+        0.621375,
+        0.622229,
+        0.6286455,
+        0.6229165,
+        0.6252295,
+        0.6299375
+      ],
+      "batch_median_spread_pct": 2.2070583557013688
+    },
+    {
+      "package_key": "webair",
+      "kind": "stage",
+      "stage": "compatibility_evaluation",
+      "label": "Model and tool compatibility",
+      "n": 3000,
+      "n_per_run": [
+        1000,
+        1000,
+        1000
+      ],
+      "ms": {
+        "n": 3000,
+        "median": 3.367646,
+        "p95": 3.5142643,
+        "mean": 3.3844861713333336,
+        "std": 0.07207176723072564,
+        "min": 3.216458,
+        "max": 4.739959,
+        "p5": 3.320125,
+        "p10": 3.327667,
+        "p25": 3.34533375,
+        "p75": 3.3987185,
+        "p90": 3.4537422999999996,
+        "p99": 3.678864259999999
+      },
+      "run_medians_ms": [
+        3.3722295,
+        3.362042,
+        3.3684795
+      ],
+      "run_p95s_ms": [
+        3.5519898999999997,
+        3.50332435,
+        3.4836832999999996
+      ],
+      "run_median_sd_ms": 0.005152492317639305,
+      "run_median_cv_pct": 0.1530026519798213,
+      "run_median_range_ms": [
+        3.362042,
+        3.3722295
+      ],
+      "batch_medians_ms": [
+        3.363084,
+        3.36625,
+        3.3760005,
+        3.3777705,
+        3.3739795,
+        3.3579375,
+        3.363167,
+        3.3687915,
+        3.3610835,
+        3.36225,
+        3.368646,
+        3.36675,
+        3.3640205,
+        3.371958,
+        3.3706045
+      ],
+      "batch_median_spread_pct": 0.5889276960820766
+    },
+    {
+      "package_key": "webair",
+      "kind": "stage",
+      "stage": "run_plan_preparation",
+      "label": "Run Plan preparation",
+      "n": 3000,
+      "n_per_run": [
+        1000,
+        1000,
+        1000
+      ],
+      "ms": {
+        "n": 3000,
+        "median": 6.5441875,
+        "p95": 6.9221910499999995,
+        "mean": 6.593389803666667,
+        "std": 0.1846003940153704,
+        "min": 6.328708,
+        "max": 9.151,
+        "p5": 6.45018925,
+        "p10": 6.469542,
+        "p25": 6.49968725,
+        "p75": 6.61513525,
+        "p90": 6.7380173,
+        "p99": 7.3918854199999995
+      },
+      "run_medians_ms": [
+        6.5539585,
+        6.5330625,
+        6.5478125
+      ],
+      "run_p95s_ms": [
+        6.9919351,
+        6.8754854,
+        6.874052699999999
+      ],
+      "run_median_sd_ms": 0.010739169986549472,
+      "run_median_cv_pct": 0.16408343854633867,
+      "run_median_range_ms": [
+        6.5330625,
+        6.5539585
+      ],
+      "batch_medians_ms": [
+        6.536667,
+        6.5502705,
+        6.5606245,
+        6.5684785,
+        6.5492085,
+        6.526188,
+        6.548375,
+        6.550729,
+        6.527604,
+        6.512229,
+        6.5357915,
+        6.5558545,
+        6.5403335,
+        6.560396,
+        6.5488545
+      ],
+      "batch_median_spread_pct": 0.8595337465499077
+    },
+    {
+      "package_key": "webair",
+      "kind": "stage",
+      "stage": "host_revalidation_lease",
+      "label": "Host revalidation and lease",
+      "n": 3000,
+      "n_per_run": [
+        1000,
+        1000,
+        1000
+      ],
+      "ms": {
+        "n": 3000,
+        "median": 10.80775,
+        "p95": 11.65567945,
+        "mean": 10.921999299666668,
+        "std": 0.8312987645061213,
+        "min": 9.975125,
+        "max": 47.287291,
+        "p5": 10.49298335,
+        "p10": 10.566716699999999,
+        "p25": 10.67420875,
+        "p75": 11.00978125,
+        "p90": 11.3591464,
+        "p99": 12.367697499999998
+      },
+      "run_medians_ms": [
+        10.8504165,
+        10.77475,
+        10.794437
+      ],
+      "run_p95s_ms": [
+        11.7739479,
+        11.5821917,
+        11.56813125
+      ],
+      "run_median_sd_ms": 0.039257062234074644,
+      "run_median_cv_pct": 0.36327152089390585,
+      "run_median_range_ms": [
+        10.77475,
+        10.8504165
+      ],
+      "batch_medians_ms": [
+        10.7918335,
+        10.828875,
+        10.9296665,
+        10.904875,
+        10.842208,
+        10.7467705,
+        10.8201045,
+        10.8642085,
+        10.7493125,
+        10.7172085,
+        10.725875,
+        10.8195415,
+        10.746708,
+        10.847083,
+        10.8100625
+      ],
+      "batch_median_spread_pct": 1.965793065161572
+    },
+    {
+      "package_key": "webair",
+      "kind": "stage",
+      "stage": "runner_verification",
+      "label": "Runner re-verification",
+      "n": 3000,
+      "n_per_run": [
+        1000,
+        1000,
+        1000
+      ],
+      "ms": {
+        "n": 3000,
+        "median": 162.4483335,
+        "p95": 169.16067564999997,
+        "mean": 163.22476434366666,
+        "std": 3.0115421724998206,
+        "min": 158.866917,
+        "max": 191.203542,
+        "p5": 160.458242,
+        "p10": 160.74551630000002,
+        "p25": 161.433708,
+        "p75": 163.8509265,
+        "p90": 166.6599209,
+        "p99": 174.84982875
+      },
+      "run_medians_ms": [
+        162.322083,
+        163.1250415,
+        161.8209165
+      ],
+      "run_p95s_ms": [
+        170.60508095,
+        169.71005384999998,
+        167.72343475
+      ],
+      "run_median_sd_ms": 0.6578566496673758,
+      "run_median_cv_pct": 0.4050275788561572,
+      "run_median_range_ms": [
+        161.8209165,
+        163.1250415
+      ],
+      "batch_medians_ms": [
+        161.8312705,
+        161.916188,
+        163.063729,
+        162.9387915,
+        162.5299795,
+        162.8138125,
+        163.5546665,
+        163.4660625,
+        163.1041665,
+        162.6498955,
+        161.513417,
+        161.864146,
+        161.6240205,
+        162.0820415,
+        162.017729
+      ],
+      "batch_median_spread_pct": 1.2565530566061438
+    },
+    {
+      "package_key": "webair",
+      "kind": "stage",
+      "stage": "workflow_start",
+      "label": "Workflow instantiation and start checks",
+      "n": 3000,
+      "n_per_run": [
+        1000,
+        1000,
+        1000
+      ],
+      "ms": {
+        "n": 3000,
+        "median": 142.5759165,
+        "p95": 149.32636075,
+        "mean": 143.31757668833333,
+        "std": 2.9791252690654937,
+        "min": 139.332708,
+        "max": 165.259708,
+        "p5": 140.50740415,
+        "p10": 140.7974875,
+        "p25": 141.538136,
+        "p75": 144.01405225,
+        "p90": 146.7558794,
+        "p99": 154.57006082999993
+      },
+      "run_medians_ms": [
+        142.4232915,
+        143.285292,
+        141.746688
+      ],
+      "run_p95s_ms": [
+        149.8060979,
+        150.5190881,
+        147.24684345
+      ],
+      "run_median_sd_ms": 0.7711613997761713,
+      "run_median_cv_pct": 0.5412225216477449,
+      "run_median_range_ms": [
+        141.746688,
+        143.285292
+      ],
+      "batch_medians_ms": [
+        142.1534795,
+        142.0354585,
+        142.8580835,
+        142.8992295,
+        142.1450415,
+        142.983417,
+        143.9952085,
+        143.884896,
+        143.2008125,
+        142.758375,
+        141.5981665,
+        141.705292,
+        141.662458,
+        141.9537705,
+        141.927417
+      ],
+      "batch_median_spread_pct": 1.6812390611565868
+    },
+    {
+      "package_key": "webair",
+      "kind": "group",
+      "stage": "verification",
+      "label": "Package verification",
+      "n": 3000,
+      "n_per_run": [
+        1000,
+        1000,
+        1000
+      ],
+      "ms": {
+        "n": 3000,
+        "median": 161.6546455,
+        "p95": 168.44029105,
+        "mean": 162.50261504066668,
+        "std": 3.560763673572317,
+        "min": 158.206084,
+        "max": 264.442583,
+        "p5": 159.6916872,
+        "p10": 160.0235917,
+        "p25": 160.65319825,
+        "p75": 163.17328175,
+        "p90": 166.09416190000002,
+        "p99": 172.9285421699999
+      },
+      "run_medians_ms": [
+        161.583479,
+        162.342125,
+        161.0876875
+      ],
+      "run_p95s_ms": [
+        168.83103365,
+        169.2145021,
+        166.9397545
+      ],
+      "run_median_sd_ms": 0.6317919496947525,
+      "run_median_cv_pct": 0.3907884345236047,
+      "run_median_range_ms": [
+        161.0876875,
+        162.342125
+      ],
+      "batch_medians_ms": [
+        161.176625,
+        161.2103125,
+        161.7808335,
+        162.2095625,
+        161.376771,
+        162.0080415,
+        162.7945205,
+        162.730521,
+        162.352313,
+        161.6720415,
+        160.8269165,
+        161.1398125,
+        161.045542,
+        161.2614165,
+        161.3090415
+      ],
+      "batch_median_spread_pct": 1.217165144814842
+    },
+    {
+      "package_key": "webair",
+      "kind": "group",
+      "stage": "authorization_and_binding",
+      "label": "Authorization and binding",
+      "n": 3000,
+      "n_per_run": [
+        1000,
+        1000,
+        1000
+      ],
+      "ms": {
+        "n": 3000,
+        "median": 3.997542,
+        "p95": 4.20442325,
+        "mean": 4.023139177333333,
+        "std": 0.10230409318878177,
+        "min": 3.883625,
+        "max": 5.501042,
+        "p5": 3.9352089500000003,
+        "p10": 3.9486586,
+        "p25": 3.9686565,
+        "p75": 4.04190625,
+        "p90": 4.1196458,
+        "p99": 4.411610409999997
+      },
+      "run_medians_ms": [
+        4.0046045,
+        3.991417,
+        3.996
+      ],
+      "run_p95s_ms": [
+        4.2503348,
+        4.168992,
+        4.1695708
+      ],
+      "run_median_sd_ms": 0.006695165737306256,
+      "run_median_cv_pct": 0.1674905036812915,
+      "run_median_range_ms": [
+        3.991417,
+        4.0046045
+      ],
+      "batch_medians_ms": [
+        3.9954375,
+        3.9996045,
+        4.010146,
+        4.0161245,
+        4.002437,
+        3.988666,
+        3.996521,
+        4.0016665,
+        3.987979,
+        3.986583,
+        3.993667,
+        3.9982705,
+        3.9851665,
+        4.0027915,
+        4.003146
+      ],
+      "batch_median_spread_pct": 0.7744258847061529
+    },
+    {
+      "package_key": "webair",
+      "kind": "group",
+      "stage": "run_plan",
+      "label": "Run Plan preparation",
+      "n": 3000,
+      "n_per_run": [
+        1000,
+        1000,
+        1000
+      ],
+      "ms": {
+        "n": 3000,
+        "median": 6.5441875,
+        "p95": 6.9221910499999995,
+        "mean": 6.593389803666667,
+        "std": 0.1846003940153704,
+        "min": 6.328708,
+        "max": 9.151,
+        "p5": 6.45018925,
+        "p10": 6.469542,
+        "p25": 6.49968725,
+        "p75": 6.61513525,
+        "p90": 6.7380173,
+        "p99": 7.3918854199999995
+      },
+      "run_medians_ms": [
+        6.5539585,
+        6.5330625,
+        6.5478125
+      ],
+      "run_p95s_ms": [
+        6.9919351,
+        6.8754854,
+        6.874052699999999
+      ],
+      "run_median_sd_ms": 0.010739169986549472,
+      "run_median_cv_pct": 0.16408343854633867,
+      "run_median_range_ms": [
+        6.5330625,
+        6.5539585
+      ],
+      "batch_medians_ms": [
+        6.536667,
+        6.5502705,
+        6.5606245,
+        6.5684785,
+        6.5492085,
+        6.526188,
+        6.548375,
+        6.550729,
+        6.527604,
+        6.512229,
+        6.5357915,
+        6.5558545,
+        6.5403335,
+        6.560396,
+        6.5488545
+      ],
+      "batch_median_spread_pct": 0.8595337465499077
+    },
+    {
+      "package_key": "webair",
+      "kind": "group",
+      "stage": "revalidation",
+      "label": "Pre-execution revalidation",
+      "n": 3000,
+      "n_per_run": [
+        1000,
+        1000,
+        1000
+      ],
+      "ms": {
+        "n": 3000,
+        "median": 316.1373125,
+        "p95": 327.32376395,
+        "mean": 317.4643403316667,
+        "std": 5.3575655102779045,
+        "min": 308.72175,
+        "max": 362.601041,
+        "p5": 312.189175,
+        "p10": 312.8535878,
+        "p25": 314.2386355,
+        "p75": 318.8444895,
+        "p90": 323.4998413,
+        "p99": 338.68143542
+      },
+      "run_medians_ms": [
+        315.932104,
+        317.574542,
+        314.666271
+      ],
+      "run_p95s_ms": [
+        329.12186905,
+        329.1017396,
+        323.6512667
+      ],
+      "run_median_sd_ms": 1.4581938586926713,
+      "run_median_cv_pct": 0.46136959806014094,
+      "run_median_range_ms": [
+        314.666271,
+        317.574542
+      ],
+      "batch_medians_ms": [
+        314.8106665,
+        315.0205,
+        317.1705415,
+        316.9962915,
+        315.717833,
+        316.7598955,
+        318.7458335,
+        318.906229,
+        317.669437,
+        316.6647085,
+        313.990271,
+        315.0849165,
+        314.36225,
+        315.2116255,
+        315.2871875
+      ],
+      "batch_median_spread_pct": 1.5550072090905083
+    },
+    {
+      "package_key": "webair",
+      "kind": "total",
+      "stage": "total_pre_execution",
+      "label": "Total pre-execution",
+      "n": 3000,
+      "n_per_run": [
+        1000,
+        1000,
+        1000
+      ],
+      "ms": {
+        "n": 3000,
+        "median": 488.683667,
+        "p95": 504.6696417,
+        "mean": 490.58348435333335,
+        "std": 7.607227739085688,
+        "min": 477.609,
+        "max": 591.436833,
+        "p5": 483.2082104,
+        "p10": 484.2010583,
+        "p25": 486.13939575,
+        "p75": 492.46094775,
+        "p90": 499.049608,
+        "p99": 518.3438395
+      },
+      "run_medians_ms": [
+        488.182312,
+        490.750896,
+        486.848104
+      ],
+      "run_p95s_ms": [
+        506.63477675,
+        505.97987435000005,
+        498.98177469999996
+      ],
+      "run_median_sd_ms": 1.983663284077564,
+      "run_median_cv_pct": 0.4059943869875653,
+      "run_median_range_ms": [
+        486.848104,
+        490.750896
+      ],
+      "batch_medians_ms": [
+        486.9056665,
+        487.0579375,
+        489.910625,
+        490.5545,
+        487.691146,
+        489.282208,
+        492.2190625,
+        492.2678955,
+        490.8406045,
+        489.0386045,
+        485.45225,
+        487.026208,
+        486.6507085,
+        487.6173125,
+        487.9413125
+      ],
+      "batch_median_spread_pct": 1.394694760690665
+    },
+    {
+      "package_key": "webair",
+      "kind": "secondary",
+      "stage": "local_file_read",
+      "label": "Local file read (secondary, not in total)",
+      "n": 3000,
+      "n_per_run": [
+        1000,
+        1000,
+        1000
+      ],
+      "ms": {
+        "n": 3000,
+        "median": 0.1379585,
+        "p95": 0.18566664999999977,
+        "mean": 0.14429689333333334,
+        "std": 0.045992879948494284,
+        "min": 0.09275,
+        "max": 1.188833,
+        "p5": 0.112208,
+        "p10": 0.1174959,
+        "p25": 0.125875,
+        "p75": 0.15444825,
+        "p90": 0.1697131,
+        "p99": 0.24175332999999993
+      },
+      "run_medians_ms": [
+        0.1396255,
+        0.138041,
+        0.136229
+      ],
+      "run_p95s_ms": [
+        0.194833,
+        0.1807101,
+        0.18234759999999997
+      ],
+      "run_median_sd_ms": 0.0016995193683313453,
+      "run_median_cv_pct": 1.2318467113061233,
+      "run_median_range_ms": [
+        0.136229,
+        0.1396255
+      ],
+      "batch_medians_ms": [
+        0.135479,
+        0.137729,
+        0.140375,
+        0.142958,
+        0.1408955,
+        0.1345625,
+        0.138771,
+        0.1416455,
+        0.139,
+        0.1375625,
+        0.134771,
+        0.134854,
+        0.1343955,
+        0.1370415,
+        0.1393545
+      ],
+      "batch_median_spread_pct": 6.206576615431452
+    }
+  ],
+  "comparison_with_reference": [
+    {
+      "package_key": "meeting-agenda",
+      "stage": "verification",
+      "reference_version": "0.2.2",
+      "version": "0.2.2",
+      "same_archive": true,
+      "reference_median_ms": 18.910541,
+      "reference_p95_ms": 19.4897351,
+      "median_ms": 19.3090205,
+      "p95_ms": 20.389341350000002,
+      "difference_ms": 0.39847950000000054,
+      "difference_pct": 2.1071819151022733,
+      "p95_difference_ms": 0.8996062500000015,
+      "p95_difference_pct": 4.615795162859866,
+      "reference_run_medians_ms": [
+        19.0135,
+        18.8806875,
+        18.8465
+      ],
+      "run_medians_ms": [
+        19.3150005,
+        19.333708,
+        19.2873955
+      ],
+      "reference_run_median_sd_ms": 0.08822031636051929,
+      "run_median_sd_ms": 0.023298262587227274,
+      "run_median_ranges_overlap": false,
+      "difference_over_largest_run_median_range": 2.386104790419142
+    },
+    {
+      "package_key": "meeting-agenda",
+      "stage": "authorization_and_binding",
+      "reference_version": "0.2.2",
+      "version": "0.2.2",
+      "same_archive": true,
+      "reference_median_ms": 0.885583,
+      "reference_p95_ms": 0.9409610500000001,
+      "median_ms": 1.7183955,
+      "p95_ms": 1.8197101,
+      "difference_ms": 0.8328125,
+      "difference_pct": 94.04115706828156,
+      "p95_difference_ms": 0.8787490499999999,
+      "p95_difference_pct": 93.38846172219348,
+      "reference_run_medians_ms": [
+        0.8907505,
+        0.8849375,
+        0.8809585
+      ],
+      "run_medians_ms": [
+        1.72225,
+        1.715333,
+        1.717146
+      ],
+      "reference_run_median_sd_ms": 0.004924541839941399,
+      "run_median_sd_ms": 0.0035866110745382163,
+      "run_median_ranges_overlap": false,
+      "difference_over_largest_run_median_range": 85.05029616013051
+    },
+    {
+      "package_key": "meeting-agenda",
+      "stage": "run_plan",
+      "reference_version": "0.2.2",
+      "version": "0.2.2",
+      "same_archive": true,
+      "reference_median_ms": 1.277542,
+      "reference_p95_ms": 1.3298402,
+      "median_ms": 2.120583,
+      "p95_ms": 2.2931059,
+      "difference_ms": 0.8430409999999999,
+      "difference_pct": 65.98929819919815,
+      "p95_difference_ms": 0.9632657,
+      "p95_difference_pct": 72.43469553710288,
+      "reference_run_medians_ms": [
+        1.284729,
+        1.276125,
+        1.2730415
+      ],
+      "run_medians_ms": [
+        2.1286665,
+        2.1155625,
+        2.118042
+      ],
+      "reference_run_median_sd_ms": 0.006057150657143489,
+      "run_median_sd_ms": 0.0069611150507660246,
+      "run_median_ranges_overlap": false,
+      "difference_over_largest_run_median_range": 64.33463064712953
+    },
+    {
+      "package_key": "meeting-agenda",
+      "stage": "revalidation",
+      "reference_version": "0.2.2",
+      "version": "0.2.2",
+      "same_archive": true,
+      "reference_median_ms": 34.959208,
+      "reference_p95_ms": 36.0125774,
+      "median_ms": 35.810729,
+      "p95_ms": 38.12583719999999,
+      "difference_ms": 0.8515210000000053,
+      "difference_pct": 2.4357559816572656,
+      "p95_difference_ms": 2.1132597999999945,
+      "p95_difference_pct": 5.868115954399849,
+      "reference_run_medians_ms": [
+        35.144896,
+        34.936292,
+        34.816437
+      ],
+      "run_medians_ms": [
+        35.8378125,
+        35.8296455,
+        35.73925
+      ],
+      "reference_run_median_sd_ms": 0.16621580576768374,
+      "run_median_sd_ms": 0.05470011077913815,
+      "run_median_ranges_overlap": false,
+      "difference_over_largest_run_median_range": 2.592472728711953
+    },
+    {
+      "package_key": "meeting-agenda",
+      "stage": "total_pre_execution",
+      "reference_version": "0.2.2",
+      "version": "0.2.2",
+      "same_archive": true,
+      "reference_median_ms": 56.0513335,
+      "reference_p95_ms": 57.70803305,
+      "median_ms": 58.985375,
+      "p95_ms": 62.482743449999994,
+      "difference_ms": 2.9340414999999993,
+      "difference_pct": 5.2345614578464925,
+      "p95_difference_ms": 4.7747103999999965,
+      "p95_difference_pct": 8.27390945011597,
+      "reference_run_medians_ms": [
+        56.357854,
+        56.010167,
+        55.831604
+      ],
+      "run_medians_ms": [
+        59.039021,
+        59.0251465,
+        58.890375
+      ],
+      "reference_run_median_sd_ms": 0.26761603634000414,
+      "run_median_sd_ms": 0.0821091674525442,
+      "run_median_ranges_overlap": false,
+      "difference_over_largest_run_median_range": 5.575375771971447
+    },
+    {
+      "package_key": "literature-review",
+      "stage": "verification",
+      "reference_version": "0.2.5",
+      "version": "0.2.5",
+      "same_archive": true,
+      "reference_median_ms": 148.849,
+      "reference_p95_ms": 154.8107473,
+      "median_ms": 152.704396,
+      "p95_ms": 160.1385955,
+      "difference_ms": 3.855396000000013,
+      "difference_pct": 2.5901389999261086,
+      "p95_difference_ms": 5.327848200000005,
+      "p95_difference_pct": 3.4415234684420417,
+      "reference_run_medians_ms": [
+        149.605583,
+        148.7662505,
+        147.9061045
+      ],
+      "run_medians_ms": [
+        152.5277085,
+        153.215125,
+        152.2527915
+      ],
+      "reference_run_median_sd_ms": 0.8497604916322491,
+      "run_median_sd_ms": 0.4956824532203908,
+      "run_median_ranges_overlap": false,
+      "difference_over_largest_run_median_range": 2.268575919024582
+    },
+    {
+      "package_key": "literature-review",
+      "stage": "authorization_and_binding",
+      "reference_version": "0.2.5",
+      "version": "0.2.5",
+      "same_archive": true,
+      "reference_median_ms": 1.865709,
+      "reference_p95_ms": 1.92887915,
+      "median_ms": 2.7301455,
+      "p95_ms": 2.88917325,
+      "difference_ms": 0.8644364999999998,
+      "difference_pct": 46.33286863063853,
+      "p95_difference_ms": 0.9602940999999998,
+      "p95_difference_pct": 49.78508373632427,
+      "reference_run_medians_ms": [
+        1.8731665,
+        1.8657295,
+        1.858229
+      ],
+      "run_medians_ms": [
+        2.733396,
+        2.7272915,
+        2.729833
+      ],
+      "reference_run_median_sd_ms": 0.0074687724950846975,
+      "run_median_sd_ms": 0.003066461356351838,
+      "run_median_ranges_overlap": false,
+      "difference_over_largest_run_median_range": 57.8702259414224
+    },
+    {
+      "package_key": "literature-review",
+      "stage": "run_plan",
+      "reference_version": "0.2.5",
+      "version": "0.2.5",
+      "same_archive": true,
+      "reference_median_ms": 3.0482915,
+      "reference_p95_ms": 3.11913125,
+      "median_ms": 3.938333,
+      "p95_ms": 4.19828335,
+      "difference_ms": 0.8900415000000002,
+      "difference_pct": 29.198044215915708,
+      "p95_difference_ms": 1.0791520999999995,
+      "p95_difference_pct": 34.59784194717678,
+      "reference_run_medians_ms": [
+        3.0603965,
+        3.0483545,
+        3.037438
+      ],
+      "run_medians_ms": [
+        3.941625,
+        3.928792,
+        3.9430625
+      ],
+      "reference_run_median_sd_ms": 0.011483847050676638,
+      "run_median_sd_ms": 0.007857050607575312,
+      "run_median_ranges_overlap": false,
+      "difference_over_largest_run_median_range": 38.767406407212846
+    },
+    {
+      "package_key": "literature-review",
+      "stage": "revalidation",
+      "reference_version": "0.2.5",
+      "version": "0.2.5",
+      "same_archive": true,
+      "reference_median_ms": 281.1954585,
+      "reference_p95_ms": 287.80589165,
+      "median_ms": 289.357021,
+      "p95_ms": 301.09256045,
+      "difference_ms": 8.161562500000002,
+      "difference_pct": 2.9024517478115683,
+      "p95_difference_ms": 13.28666880000003,
+      "p95_difference_pct": 4.616538154874854,
+      "reference_run_medians_ms": [
+        282.375042,
+        280.905229,
+        279.72525
+      ],
+      "run_medians_ms": [
+        289.293083,
+        290.083917,
+        288.001354
+      ],
+      "reference_run_median_sd_ms": 1.3275352059784782,
+      "run_median_sd_ms": 1.0512731070758916,
+      "run_median_ranges_overlap": false,
+      "difference_over_largest_run_median_range": 3.0800766626210776
+    },
+    {
+      "package_key": "literature-review",
+      "stage": "total_pre_execution",
+      "reference_version": "0.2.5",
+      "version": "0.2.5",
+      "same_archive": true,
+      "reference_median_ms": 436.0788125,
+      "reference_p95_ms": 444.38356039999996,
+      "median_ms": 449.8925625,
+      "p95_ms": 465.03143689999996,
+      "difference_ms": 13.81374999999997,
+      "difference_pct": 3.167718679292627,
+      "p95_difference_ms": 20.647876499999995,
+      "p95_difference_pct": 4.646408719848764,
+      "reference_run_medians_ms": [
+        438.568542,
+        436.177167,
+        434.226104
+      ],
+      "run_medians_ms": [
+        449.5554585,
+        451.2577915,
+        448.485438
+      ],
+      "reference_run_median_sd_ms": 2.174936359392211,
+      "run_median_sd_ms": 1.398143140160762,
+      "run_median_ranges_overlap": false,
+      "difference_over_largest_run_median_range": 3.181104715830163
+    }
+  ],
+  "sources": [
+    {
+      "directory": "experiments/contract_overhead/results/2026-10-03T15-08-48Z_paper-webair-run1",
+      "git_commit": "9d78ca5a4be1abc7aaac03864d1b35255cf7718d",
+      "git_tracked_changes": [],
+      "git_untracked": [
+        "experiments/contract_overhead/results/2026-10-03T15-08-48Z_paper-webair-run1/"
+      ],
+      "script_sha256": "8322b3961db262a0b80c72397de48023c2ce03adb9ce37db971ebe18fef8fd9c",
+      "analysis_script_sha256": "5c12b85e95d135706a24012cfe4bdd8085a7c28a8a5a499af97c68a412f9d9ca",
+      "started_at_utc": "2026-10-03T15:08:48.475002+00:00",
+      "files_sha256": {
+        "metadata.json": "9e8810f901516a920c6ff4bfe346c67f4d3b90bdc8f8b7306ce3a24239aab4dd",
+        "samples.csv": "6278fdc57c727c3b66b1b36eb8f6415d4768eecfcd79a47272027be16f09202d",
+        "summary.csv": "45d81e70082514a457e6024dd6cc71ec9286391a6798daabe5ca989ca7d33a95",
+        "paper_table.tex": "a3fe4b38adc3e58c1e400d7c6a3856cd04a3a1d103b5ebbcd8a8198bc3d5991d"
+      }
+    },
+    {
+      "directory": "experiments/contract_overhead/results/2026-10-03T15-30-34Z_paper-webair-run2",
+      "git_commit": "9d78ca5a4be1abc7aaac03864d1b35255cf7718d",
+      "git_tracked_changes": [],
+      "git_untracked": [
+        "experiments/contract_overhead/results/2026-10-03T15-08-48Z_paper-webair-run1/",
+        "experiments/contract_overhead/results/2026-10-03T15-30-34Z_paper-webair-run2/"
+      ],
+      "script_sha256": "8322b3961db262a0b80c72397de48023c2ce03adb9ce37db971ebe18fef8fd9c",
+      "analysis_script_sha256": "5c12b85e95d135706a24012cfe4bdd8085a7c28a8a5a499af97c68a412f9d9ca",
+      "started_at_utc": "2026-10-03T15:30:34.607739+00:00",
+      "files_sha256": {
+        "metadata.json": "72709f4ab08a4698905122dc5de214b7565a420d165a16ab4e2b8461dbadf00b",
+        "samples.csv": "8f14add2e2966f7344ad1e62001b23cac9dcbd2a1f02c08c439fd84b911d25a3",
+        "summary.csv": "a0231f5b2a0727350111d674263b9dcd45f8edaab83db0a76f3724f35a24bd3f",
+        "paper_table.tex": "a1e4c5a3b3095bf4bb77dce7c5e5cc1516389b5696689cca2e4263318d81014f"
+      }
+    },
+    {
+      "directory": "experiments/contract_overhead/results/2026-10-03T15-53-23Z_paper-webair-run3",
+      "git_commit": "9d78ca5a4be1abc7aaac03864d1b35255cf7718d",
+      "git_tracked_changes": [],
+      "git_untracked": [
+        "experiments/contract_overhead/results/2026-10-03T15-08-48Z_paper-webair-run1/",
+        "experiments/contract_overhead/results/2026-10-03T15-30-34Z_paper-webair-run2/",
+        "experiments/contract_overhead/results/2026-10-03T15-53-23Z_paper-webair-run3/"
+      ],
+      "script_sha256": "8322b3961db262a0b80c72397de48023c2ce03adb9ce37db971ebe18fef8fd9c",
+      "analysis_script_sha256": "5c12b85e95d135706a24012cfe4bdd8085a7c28a8a5a499af97c68a412f9d9ca",
+      "started_at_utc": "2026-10-03T15:53:23.941300+00:00",
+      "files_sha256": {
+        "metadata.json": "81da7ad93dd5ba95718f94956472c845e877ff7834eafa93af030ceb8d854df1",
+        "samples.csv": "02af7e74f8c4ef79fb78dbc06ef12dbbefdac47b39829a607404b433b0c6913b",
+        "summary.csv": "ca3566c3acff281cf9232516223d49ad7fddbbbe71a33f3cc0c12779da40b8f5",
+        "paper_table.tex": "e7df49acc105494148307d5d2e5bbc81176203beae12747fd8eba8a95934d4c6"
+      }
+    }
+  ],
+  "reference_sources": [
+    {
+      "directory": "experiments/contract_overhead/results/2026-10-02T12-53-19Z_paper-run1",
+      "git_commit": "23eac90c1f6fec7705f7fe7f6810820b7e120199",
+      "git_tracked_changes": [],
+      "git_untracked": [
+        "experiments/contract_enforcement/results/2026-10-02T12-38-15Z_paper_paper/",
+        "experiments/contract_overhead/results/2026-10-02T12-53-19Z_paper-run1/"
+      ],
+      "script_sha256": "12fd4c5b00d6a949a793403535c3dad1d2dabbf1c01211deef32c4bf19ff9938",
+      "analysis_script_sha256": "7c3797b3aa3118fdb24d288ee198797c2b7ebcc2978c6127c5e07598ae8cb5ff",
+      "started_at_utc": "2026-10-02T12:53:19.954072+00:00",
+      "files_sha256": {
+        "metadata.json": "c7ddb65c92c0c5fa6b5da8bf1b938fb01991674f34e0cbcee8afe984d199d366",
+        "samples.csv": "0a18719e6ebc12e9bb681aa6d2691d6081c18609218967772d3e22e035ed0886",
+        "summary.csv": "3c0a270ce17bee94bf9991d372fe8515e58bee946c0ea9df0c0e61edd97b105e",
+        "paper_table.tex": "a59cf59c869cbf962922b7d045bbcaaa8409e57d7dcfbe50beae7d401cd4ddd4"
+      }
+    },
+    {
+      "directory": "experiments/contract_overhead/results/2026-10-02T13-03-41Z_paper-run2",
+      "git_commit": "23eac90c1f6fec7705f7fe7f6810820b7e120199",
+      "git_tracked_changes": [],
+      "git_untracked": [
+        "experiments/contract_enforcement/results/2026-10-02T12-38-15Z_paper_paper/",
+        "experiments/contract_overhead/results/2026-10-02T12-53-19Z_paper-run1/",
+        "experiments/contract_overhead/results/2026-10-02T13-03-41Z_paper-run2/"
+      ],
+      "script_sha256": "12fd4c5b00d6a949a793403535c3dad1d2dabbf1c01211deef32c4bf19ff9938",
+      "analysis_script_sha256": "7c3797b3aa3118fdb24d288ee198797c2b7ebcc2978c6127c5e07598ae8cb5ff",
+      "started_at_utc": "2026-10-02T13:03:41.763840+00:00",
+      "files_sha256": {
+        "metadata.json": "c31a69fe1ba8e236c6076d627445dee0035128f6d9c51aaf11c996ccfe192a81",
+        "samples.csv": "bb4010d22f3f6f6d08bbfa99f684fbe45e3d080ba8f81162ee24696b6cc279c2",
+        "summary.csv": "010e9a3b7ced80eabb218b192b68db62d60122dfc5924de141e9fd88645b856c",
+        "paper_table.tex": "667f45ce30688cb878f4c57152bbee62fe57068d4006197a43a8660aedcb0ce3"
+      }
+    },
+    {
+      "directory": "experiments/contract_overhead/results/2026-10-02T13-14-02Z_paper-run3",
+      "git_commit": "23eac90c1f6fec7705f7fe7f6810820b7e120199",
+      "git_tracked_changes": [],
+      "git_untracked": [
+        "experiments/contract_enforcement/results/2026-10-02T12-38-15Z_paper_paper/",
+        "experiments/contract_overhead/results/2026-10-02T12-53-19Z_paper-run1/",
+        "experiments/contract_overhead/results/2026-10-02T13-03-41Z_paper-run2/",
+        "experiments/contract_overhead/results/2026-10-02T13-14-02Z_paper-run3/"
+      ],
+      "script_sha256": "12fd4c5b00d6a949a793403535c3dad1d2dabbf1c01211deef32c4bf19ff9938",
+      "analysis_script_sha256": "7c3797b3aa3118fdb24d288ee198797c2b7ebcc2978c6127c5e07598ae8cb5ff",
+      "started_at_utc": "2026-10-02T13:14:02.341245+00:00",
+      "files_sha256": {
+        "metadata.json": "7ac27bd71191a47314dcd057b6c7f1708b750479e27a36adab19e567ab48520c",
+        "samples.csv": "74d7c27e9238c20161af47747f7a95ba3b6cbc8867069d2d18aff3d5370cbec2",
+        "summary.csv": "a1a785489d2eb3a73317b6a134709671c10b4f3c4f1e6263dd4e514092cd3340",
+        "paper_table.tex": "c97a6cb420978714940843963fe488bee1622cfe5c33baf5cc206b5d1d5fa6e3"
+      }
+    }
+  ]
+}

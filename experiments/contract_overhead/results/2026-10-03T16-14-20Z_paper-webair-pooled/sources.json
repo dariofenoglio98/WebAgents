@@ -1,0 +1,117 @@
+{
+  "runs": [
+    {
+      "directory": "experiments/contract_overhead/results/2026-10-03T15-08-48Z_paper-webair-run1",
+      "git_commit": "9d78ca5a4be1abc7aaac03864d1b35255cf7718d",
+      "git_tracked_changes": [],
+      "git_untracked": [
+        "experiments/contract_overhead/results/2026-10-03T15-08-48Z_paper-webair-run1/"
+      ],
+      "script_sha256": "8322b3961db262a0b80c72397de48023c2ce03adb9ce37db971ebe18fef8fd9c",
+      "analysis_script_sha256": "5c12b85e95d135706a24012cfe4bdd8085a7c28a8a5a499af97c68a412f9d9ca",
+      "started_at_utc": "2026-10-03T15:08:48.475002+00:00",
+      "files_sha256": {
+        "metadata.json": "9e8810f901516a920c6ff4bfe346c67f4d3b90bdc8f8b7306ce3a24239aab4dd",
+        "samples.csv": "6278fdc57c727c3b66b1b36eb8f6415d4768eecfcd79a47272027be16f09202d",
+        "summary.csv": "45d81e70082514a457e6024dd6cc71ec9286391a6798daabe5ca989ca7d33a95",
+        "paper_table.tex": "a3fe4b38adc3e58c1e400d7c6a3856cd04a3a1d103b5ebbcd8a8198bc3d5991d"
+      }
+    },
+    {
+      "directory": "experiments/contract_overhead/results/2026-10-03T15-30-34Z_paper-webair-run2",
+      "git_commit": "9d78ca5a4be1abc7aaac03864d1b35255cf7718d",
+      "git_tracked_changes": [],
+      "git_untracked": [
+        "experiments/contract_overhead/results/2026-10-03T15-08-48Z_paper-webair-run1/",
+        "experiments/contract_overhead/results/2026-10-03T15-30-34Z_paper-webair-run2/"
+      ],
+      "script_sha256": "8322b3961db262a0b80c72397de48023c2ce03adb9ce37db971ebe18fef8fd9c",
+      "analysis_script_sha256": "5c12b85e95d135706a24012cfe4bdd8085a7c28a8a5a499af97c68a412f9d9ca",
+      "started_at_utc": "2026-10-03T15:30:34.607739+00:00",
+      "files_sha256": {
+        "metadata.json": "72709f4ab08a4698905122dc5de214b7565a420d165a16ab4e2b8461dbadf00b",
+        "samples.csv": "8f14add2e2966f7344ad1e62001b23cac9dcbd2a1f02c08c439fd84b911d25a3",
+        "summary.csv": "a0231f5b2a0727350111d674263b9dcd45f8edaab83db0a76f3724f35a24bd3f",
+        "paper_table.tex": "a1e4c5a3b3095bf4bb77dce7c5e5cc1516389b5696689cca2e4263318d81014f"
+      }
+    },
+    {
+      "directory": "experiments/contract_overhead/results/2026-10-03T15-53-23Z_paper-webair-run3",
+      "git_commit": "9d78ca5a4be1abc7aaac03864d1b35255cf7718d",
+      "git_tracked_changes": [],
+      "git_untracked": [
+        "experiments/contract_overhead/results/2026-10-03T15-08-48Z_paper-webair-run1/",
+        "experiments/contract_overhead/results/2026-10-03T15-30-34Z_paper-webair-run2/",
+        "experiments/contract_overhead/results/2026-10-03T15-53-23Z_paper-webair-run3/"
+      ],
+      "script_sha256": "8322b3961db262a0b80c72397de48023c2ce03adb9ce37db971ebe18fef8fd9c",
+      "analysis_script_sha256": "5c12b85e95d135706a24012cfe4bdd8085a7c28a8a5a499af97c68a412f9d9ca",
+      "started_at_utc": "2026-10-03T15:53:23.941300+00:00",
+      "files_sha256": {
+        "metadata.json": "81da7ad93dd5ba95718f94956472c845e877ff7834eafa93af030ceb8d854df1",
+        "samples.csv": "02af7e74f8c4ef79fb78dbc06ef12dbbefdac47b39829a607404b433b0c6913b",
+        "summary.csv": "ca3566c3acff281cf9232516223d49ad7fddbbbe71a33f3cc0c12779da40b8f5",
+        "paper_table.tex": "e7df49acc105494148307d5d2e5bbc81176203beae12747fd8eba8a95934d4c6"
+      }
+    }
+  ],
+  "reference": [
+    {
+      "directory": "experiments/contract_overhead/results/2026-10-02T12-53-19Z_paper-run1",
+      "git_commit": "23eac90c1f6fec7705f7fe7f6810820b7e120199",
+      "git_tracked_changes": [],
+      "git_untracked": [
+        "experiments/contract_enforcement/results/2026-10-02T12-38-15Z_paper_paper/",
+        "experiments/contract_overhead/results/2026-10-02T12-53-19Z_paper-run1/"
+      ],
+      "script_sha256": "12fd4c5b00d6a949a793403535c3dad1d2dabbf1c01211deef32c4bf19ff9938",
+      "analysis_script_sha256": "7c3797b3aa3118fdb24d288ee198797c2b7ebcc2978c6127c5e07598ae8cb5ff",
+      "started_at_utc": "2026-10-02T12:53:19.954072+00:00",
+      "files_sha256": {
+        "metadata.json": "c7ddb65c92c0c5fa6b5da8bf1b938fb01991674f34e0cbcee8afe984d199d366",
+        "samples.csv": "0a18719e6ebc12e9bb681aa6d2691d6081c18609218967772d3e22e035ed0886",
+        "summary.csv": "3c0a270ce17bee94bf9991d372fe8515e58bee946c0ea9df0c0e61edd97b105e",
+        "paper_table.tex": "a59cf59c869cbf962922b7d045bbcaaa8409e57d7dcfbe50beae7d401cd4ddd4"
+      }
+    },
+    {
+      "directory": "experiments/contract_overhead/results/2026-10-02T13-03-41Z_paper-run2",
+      "git_commit": "23eac90c1f6fec7705f7fe7f6810820b7e120199",
+      "git_tracked_changes": [],
+      "git_untracked": [
+        "experiments/contract_enforcement/results/2026-10-02T12-38-15Z_paper_paper/",
+        "experiments/contract_overhead/results/2026-10-02T12-53-19Z_paper-run1/",
+        "experiments/contract_overhead/results/2026-10-02T13-03-41Z_paper-run2/"
+      ],
+      "script_sha256": "12fd4c5b00d6a949a793403535c3dad1d2dabbf1c01211deef32c4bf19ff9938",
+      "analysis_script_sha256": "7c3797b3aa3118fdb24d288ee198797c2b7ebcc2978c6127c5e07598ae8cb5ff",
+      "started_at_utc": "2026-10-02T13:03:41.763840+00:00",
+      "files_sha256": {
+        "metadata.json": "c31a69fe1ba8e236c6076d627445dee0035128f6d9c51aaf11c996ccfe192a81",
+        "samples.csv": "bb4010d22f3f6f6d08bbfa99f684fbe45e3d080ba8f81162ee24696b6cc279c2",
+        "summary.csv": "010e9a3b7ced80eabb218b192b68db62d60122dfc5924de141e9fd88645b856c",
+        "paper_table.tex": "667f45ce30688cb878f4c57152bbee62fe57068d4006197a43a8660aedcb0ce3"
+      }
+    },
+    {
+      "directory": "experiments/contract_overhead/results/2026-10-02T13-14-02Z_paper-run3",
+      "git_commit": "23eac90c1f6fec7705f7fe7f6810820b7e120199",
+      "git_tracked_changes": [],
+      "git_untracked": [
+        "experiments/contract_enforcement/results/2026-10-02T12-38-15Z_paper_paper/",
+        "experiments/contract_overhead/results/2026-10-02T12-53-19Z_paper-run1/",
+        "experiments/contract_overhead/results/2026-10-02T13-03-41Z_paper-run2/",
+        "experiments/contract_overhead/results/2026-10-02T13-14-02Z_paper-run3/"
+      ],
+      "script_sha256": "12fd4c5b00d6a949a793403535c3dad1d2dabbf1c01211deef32c4bf19ff9938",
+      "analysis_script_sha256": "7c3797b3aa3118fdb24d288ee198797c2b7ebcc2978c6127c5e07598ae8cb5ff",
+      "started_at_utc": "2026-10-02T13:14:02.341245+00:00",
+      "files_sha256": {
+        "metadata.json": "7ac27bd71191a47314dcd057b6c7f1708b750479e27a36adab19e567ab48520c",
+        "samples.csv": "74d7c27e9238c20161af47747f7a95ba3b6cbc8867069d2d18aff3d5370cbec2",
+        "summary.csv": "a1a785489d2eb3a73317b6a134709671c10b4f3c4f1e6263dd4e514092cd3340",
+        "paper_table.tex": "c97a6cb420978714940843963fe488bee1622cfe5c33baf5cc206b5d1d5fa6e3"
+      }
+    }
+  ]
+}
