@@ -2,6 +2,9 @@
 # Tests and the package publisher tooling only; the origin itself never imports agentpkg.
 # Install from the repository root: pip resolves this path against the working directory.
 -e ./agentpkg
+# httpx: the publisher's json_http binding check (publisher/binding.py); same pin as the
+# Citation Resolver. httpx2: FastAPI's TestClient.
+httpx==0.28.1
 httpx2==2.13.1
 pytest==9.1.1
 ruff==0.16.8
