@@ -1,0 +1,21 @@
+{
+  "spec_version": "0.1",
+  "id": "personal.passenger_identity",
+  "version": "0.1.0",
+  "description": "Host-owned resource: the one passenger identity the person granted for this run. It takes no arguments, so the package cannot name or enumerate the host's resources; the host returns the granted one or refuses.",
+  "execution": "local",
+  "binding": "host.resource.personal.passenger_identity",
+  "endpoint": null,
+  "method": null,
+  "input_schema": "schemas/host/empty-input.schema.json",
+  "output_schema": "schemas/host/personal.passenger_identity.schema.json",
+  "permissions": [
+    "identity.passenger"
+  ],
+  "domains": [],
+  "timeout_seconds": 10,
+  "retries": 0,
+  "side_effects": "read",
+  "approval_required": true,
+  "extensions": {}
+}

@@ -230,11 +230,29 @@ export class ControlPlaneClient {
     packageDigest: string,
     decisions: Record<string, string>,
     toolApprovals: Record<string, boolean>,
+    resources?: { registry: unknown; selections: Record<string, string> },
   ): Promise<unknown> {
     return this.request(`/v0/packages/${segment(sessionId, SESSION_ID, "session id")}/authorize`, {
       method: "POST",
-      body: { package_digest: packageDigest, decisions, tool_approvals: toolApprovals },
+      body: {
+        package_digest: packageDigest,
+        decisions,
+        tool_approvals: toolApprovals,
+        // Present only when this host holds resources: the registry the
+        // selections were made from, supplied with the decision itself.
+        ...(resources
+          ? { resource_registry: resources.registry, resource_selections: resources.selections }
+          : {}),
+      },
     });
+  }
+
+  /** Which permissions request a host resource this host holds, and the options. */
+  evaluateResources(sessionId: string, packageDigest: string, registry: unknown): Promise<unknown> {
+    return this.request(
+      `/v0/packages/${segment(sessionId, SESSION_ID, "session id")}/resources/evaluate`,
+      { method: "POST", body: { package_digest: packageDigest, resource_registry: registry } },
+    );
   }
 
   /** Evaluate a host-supplied model catalog against one open package. */
@@ -279,6 +297,7 @@ export class ControlPlaneClient {
       executionMode: string;
       catalog: unknown;
       toolRegistry?: unknown;
+      resourceRegistry?: unknown;
       probeToolId?: string;
     },
   ): Promise<unknown> {
@@ -292,6 +311,7 @@ export class ControlPlaneClient {
         binding_strategy: "single_model",
         catalog: body.catalog,
         ...(body.toolRegistry === undefined ? {} : { tool_registry: body.toolRegistry }),
+        ...(body.resourceRegistry === undefined ? {} : { resource_registry: body.resourceRegistry }),
         ...(body.probeToolId === undefined ? {} : { probe_tool_id: body.probeToolId }),
       },
     });

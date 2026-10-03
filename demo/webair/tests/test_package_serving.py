@@ -1,8 +1,9 @@
 """The origin publishes the real signed WebAir package next to its HTML.
 
 `create_app(<signed artifact>)` is exactly what `python -m origin --agent-package PATH`
-runs. The test drives it in-process: the advertised link resolves to `/agent.pkg`, which
-serves the artifact's exact bytes, and those bytes verify against WebAir's pinned key.
+runs. The test drives it in-process, for each signed version: the advertised link resolves
+to `/agent.pkg`, which serves the artifact's exact bytes, and those bytes verify against
+WebAir's pinned key. Choosing 0.2.0 needs no origin change, only a different path.
 """
 
 import hashlib
@@ -18,20 +19,27 @@ from origin.agent_package import MEDIA_TYPE
 from origin.app import create_app
 from publisher.contract import REPO_ROOT
 
-ARTIFACT = REPO_ROOT / "dist" / "webair-0.1.0.agent.pkg"
+ARTIFACTS = {
+    version: REPO_ROOT / "dist" / f"webair-{version}.agent.pkg" for version in ("0.1.0", "0.2.0")
+}
 PUBLIC_KEY = REPO_ROOT / "examples" / "keys" / "webair-publisher.pub.pem"
 FINGERPRINT = "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b"
 ORIGIN = "http://webair.test"
 
 
-@pytest.fixture(scope="module")
-def artifact_bytes():
-    return ARTIFACT.read_bytes()
+@pytest.fixture(params=sorted(ARTIFACTS))
+def version(request):
+    return request.param
 
 
 @pytest.fixture
-def publishing_client():
-    with TestClient(create_app(ARTIFACT), base_url=ORIGIN) as client:
+def artifact_bytes(version):
+    return ARTIFACTS[version].read_bytes()
+
+
+@pytest.fixture
+def publishing_client(version):
+    with TestClient(create_app(ARTIFACTS[version]), base_url=ORIGIN) as client:
         yield client
 
 
@@ -74,14 +82,14 @@ def test_agent_pkg_serves_the_exact_signed_artifact(publishing_client, artifact_
     assert head.headers["etag"] == response.headers["etag"]
 
 
-def test_fetched_bytes_verify_against_the_pinned_webair_key(publishing_client, tmp_path):
+def test_fetched_bytes_verify_against_the_pinned_webair_key(publishing_client, version, tmp_path):
     fetched = publishing_client.get("/agent.pkg").content
     copy = tmp_path / "fetched.agent.pkg"
     copy.write_bytes(fetched)
     report = verify_package(copy, PUBLIC_KEY)
     assert report["valid"] is True
     assert report["key_fingerprint"] == FINGERPRINT
-    assert (report["package_id"], report["version"]) == ("org.webagents.webair", "0.1.0")
+    assert (report["package_id"], report["version"]) == ("org.webagents.webair", version)
     package = load_package_bytes(fetched)
     assert package.manifest["publisher"] == {
         "id": "webair-demo",

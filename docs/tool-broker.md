@@ -237,6 +237,54 @@ on cancellation, an output byte cap, and a check that the parser's answer
 describes the exact bytes it was sent. The legacy development CLI's killable
 child now calls the same parser function, so there is one parser, not two.
 
+### 3c. Host-owned resources
+
+The same idea, for what the host holds rather than what the person selects per
+run: a travel profile, an identity, a payment instrument. The resources come
+from the operator's definitions file (`hostResources.file`, format
+`openclaw-host-resources-v0`): resource **types** (id, display name, the
+permission kind they are read under — `personal.read` — the JSON Schema of a
+value, and *sealed* fields) and **resources** (opaque id, type, display-safe
+label, value). The store (`src/host-resources.ts`) validates the whole document
+or rejects it, refuses a label that contains a sealed value, and keeps values in
+this process's memory only.
+
+```text
+ host resource store         types + resources; each value digested with
+      │                      HMAC-SHA256 under a key that never leaves the process
+      ├─ registry ──────────▶ control plane: ids, labels, digests — never a value
+      │                       the person picks one per requesting permission;
+      │                       receipt and run plan freeze {permission, type, id, digest}
+      ▼
+ one binding per type        tool id = type id, binding host.resource.<type>,
+      │                      kind host_resource, input schema: the empty object
+      ▼
+ this run's broker           the grant for the binding's type whose permission the
+                             calling tool links; digest re-checked; value returned,
+                             with the grant it came from echoed for the audit
+```
+
+A host-resource call takes **no arguments** — anything else is
+`tool_request_invalid` — so no package or model can name, guess or enumerate a
+resource. A grant is found by type *and* by a permission the calling tool links;
+a resource removed or changed since the pick is `tool_unavailable`, never a
+newer value. The runner checks that the answer is attributed to exactly a grant
+its plan holds (`tool_binding_stale` otherwise) and records the grant's
+permission, type, opaque id and digest in `tool.settled`; the value is in no
+audit, log, report or record.
+
+**Sealed values travel only where a grant says.** Whenever the host holds
+resources, every other tool call is checked before its slot, socket or parser:
+a sealed value (case-insensitive, anywhere in the arguments, keys included) of
+a resource this run was **not** granted is refused, and a granted one is
+refused unless the called tool links the permission it was granted under.
+That makes substituting another card or passenger by its identifier a host
+refusal rather than a trust in the package, and makes the package's own tool
+declarations the statement of where each resource may go. It is an exact-value
+check over values this host holds, not a general data-loss filter: unsealed
+fields (preferences) are ordinary data, and a value nobody marked sealed is not
+policed.
+
 ## 4. The binding digest
 
 `binding_sha256` is SHA-256 of the canonical JSON of a security-relevant
@@ -556,7 +604,8 @@ name. It **cannot** add an implementation for a tool this plugin has no code
 for: that is refused with a `binding_unknown` note. An unsafe origin is refused
 with `binding_config_rejected` and the built-in is kept.
 
-Four implementations ship:
+Four implementations ship, plus one `host_resource` implementation per
+resource type the host's definitions file declares:
 
 | Tool | Kind | Implementation | Runs |
 |---|---|---|---|
@@ -576,6 +625,12 @@ is established rather than assumed.
 `localFiles.roots` names the directories an operator may select PDFs from. It
 is empty by default — no file is selectable until an operator names one — and
 the workspace is never implied.
+
+`hostResources.file` names the host-resource definitions document (absolute
+path, regular file, ≤ 1 MiB). Absent, the host holds no resources, offers no
+`host_resource` binding, and a package that requests one cannot run here. A
+document that fails validation is refused whole and logged; the host then holds
+none. The WebAir demo ships a fictional one: `demo/webair/host-resources.json`.
 
 ## 16. The tool probe
 

@@ -17,7 +17,9 @@ import {
   type HostCatalog,
   type ModelHost,
 } from "./host-models.js";
+import { HostResourceStore, readHostResourceFile } from "./host-resources.js";
 import {
+  attachResourceRequests,
   projectDiscovery,
   projectEvaluation,
   projectInputValidation,
@@ -33,6 +35,7 @@ import {
 import { projectToolProbe } from "./tool-probe.js";
 import type { HttpTransport as ToolHttpTransport } from "./tool-broker.js";
 import {
+  BUILT_IN_BINDINGS,
   buildToolRegistry,
   resolveBindings,
   type ToolBindingDefinition,
@@ -73,6 +76,12 @@ export type BackendConfig = {
   execution?: Partial<ExecutionPolicy>;
   /** Which tool implementations this host offers, and how they are configured. */
   tools?: ToolsConfig;
+  /**
+   * What this host holds for the person: resource types and resources, in one
+   * operator-owned JSON file (`openclaw-host-resources-v0`). Absent, the host
+   * holds none and a package requesting one cannot run here.
+   */
+  hostResources?: { file?: string };
 };
 
 export type BackendOptions = {
@@ -117,6 +126,13 @@ export type BackendOptions = {
   toolTransport?: ToolHttpTransport;
   /** Test seam: replace PDF parsing, never the capability checks around it. */
   pdfReader?: PdfReader;
+  /**
+   * Test seam: host resource definitions supplied as data instead of a file,
+   * and a fixed digest key so a fixture's digests are reproducible. The store
+   * still validates both exactly as it validates a file.
+   */
+  hostResources?: unknown;
+  hostResourceKey?: Buffer;
 };
 
 type ExecutionServiceSeam = NonNullable<
@@ -220,8 +236,49 @@ export class AgentBrowserBackend {
   private agentpkgPath: string | null = null;
   private execution: ExecutionService | null = null;
   private files: FileCapabilityStore | null = null;
+  private resources: HostResourceStore | null = null;
 
   constructor(private readonly options: BackendOptions) {}
+
+  /** The host's resource store, when it holds any. Host code; never a package's. */
+  hostResourceStore(): HostResourceStore | null {
+    return this.resources;
+  }
+
+  /**
+   * Load what this host holds for the person. A definitions document that
+   * fails validation is refused whole and logged: the host then holds no
+   * resources, which is a state a package can see (its resource tools are
+   * unbound), rather than a half-loaded store.
+   */
+  private async loadHostResources(): Promise<void> {
+    const key = this.options.hostResourceKey ? { key: this.options.hostResourceKey } : {};
+    try {
+      if (this.options.hostResources !== undefined) {
+        this.resources = new HostResourceStore(this.options.hostResources, key);
+        return;
+      }
+      const file = this.options.config?.hostResources?.file;
+      if (typeof file === "string" && file.length > 0) {
+        this.resources = new HostResourceStore(await readHostResourceFile(file), {
+          ...key,
+          source: "openclaw plugin host resources file",
+        });
+      }
+    } catch (error) {
+      this.resources = null;
+      this.options.logger.error("agent-browser: host resources were not loaded", {
+        detail: error instanceof AgentBrowserError ? error.detail : "unreadable definitions",
+      });
+    }
+  }
+
+  /** The registry the control plane is shown: ids, labels, digests. No value. */
+  private resourceRegistry(): unknown {
+    return this.resources?.registry({
+      runtimeVersion: this.options.modelHost?.runtimeVersion ?? null,
+    });
+  }
 
   /** Resolve configuration and prepare the supervisor. Never blocks on spawn. */
   async initialize(): Promise<void> {
@@ -244,6 +301,7 @@ export class AgentBrowserBackend {
     this.files = new FileCapabilityStore(join(runtimeDir, "files"), { ttlSeconds });
     await this.files.initialize();
     const files = this.files;
+    await this.loadHostResources();
     this.execution = new ExecutionService({
       agentpkgPath: () => this.requireAgentpkgPath(),
       llm: () => this.options.llm,
@@ -266,6 +324,7 @@ export class AgentBrowserBackend {
       ...(this.options.createExecutionBridge
         ? { createBridge: this.options.createExecutionBridge }
         : {}),
+      resources: () => this.resources,
     });
     // Finished runs a previous Gateway process persisted stay inspectable.
     const recovered = await this.execution.runs.recover().catch(() => 0);
@@ -505,9 +564,16 @@ export class AgentBrowserBackend {
   }
 
   getPermissions(sessionId: string) {
-    return guard(async () =>
-      projectPermissions(await (await this.client()).getPermissions(sessionId)),
-    );
+    return guard(async () => {
+      const client = await this.client();
+      const view = projectPermissions(await client.getPermissions(sessionId));
+      const registry = this.resourceRegistry();
+      if (!registry) return view;
+      // Which permissions request a resource this host holds, and what the
+      // person may choose from: the control plane decides, from declarations.
+      const evaluation = await client.evaluateResources(sessionId, view.packageDigest, registry);
+      return attachResourceRequests(view, evaluation);
+    });
   }
 
   getAuthorization(sessionId: string) {
@@ -530,6 +596,7 @@ export class AgentBrowserBackend {
     packageDigest: string,
     decisions: ReadonlyArray<{ permissionId: string; decision: string }>,
     toolApprovals: ReadonlyArray<{ toolId: string; approved: boolean }> = [],
+    resourceSelections: ReadonlyArray<{ permissionId: string; resourceId: string }> = [],
   ) {
     return guard(async () => {
       const client = await this.client();
@@ -537,7 +604,23 @@ export class AgentBrowserBackend {
       for (const entry of decisions) decisionMap[entry.permissionId] = entry.decision;
       const approvalMap: Record<string, boolean> = {};
       for (const entry of toolApprovals) approvalMap[entry.toolId] = entry.approved;
-      const receipt = await client.authorize(sessionId, packageDigest, decisionMap, approvalMap);
+      const selectionMap: Record<string, string> = {};
+      for (const entry of resourceSelections) selectionMap[entry.permissionId] = entry.resourceId;
+      const registry = this.resourceRegistry();
+      if (!registry && resourceSelections.length > 0) {
+        throw new AgentBrowserError(
+          "invalid_request",
+          "This host holds no resources",
+          "A resource can only be selected from what this host holds, and it holds none.",
+        );
+      }
+      const receipt = await client.authorize(
+        sessionId,
+        packageDigest,
+        decisionMap,
+        approvalMap,
+        registry ? { registry, selections: selectionMap } : undefined,
+      );
       this.options.onChange?.("packages");
       return projectReceipt(receipt);
     });
@@ -613,11 +696,16 @@ export class AgentBrowserBackend {
    */
   private toolHost(): { registry: ToolRegistry; definitions: readonly ToolBindingDefinition[] } {
     const config = this.options.config?.tools;
-    const supplied = this.options.toolDefinitions;
+    // Code-defined implementations, plus one host-resource implementation per
+    // type this host holds. Neither list can be extended by a package.
+    const supplied = [
+      ...(this.options.toolDefinitions ?? BUILT_IN_BINDINGS),
+      ...(this.resources?.bindings() ?? []),
+    ];
     const { definitions } = resolveBindings(config, supplied);
     const registry = buildToolRegistry({
       ...(config ? { config } : {}),
-      ...(supplied ? { definitions: supplied } : {}),
+      definitions: supplied,
       host: {
         runtimeVersion: this.options.modelHost?.runtimeVersion ?? null,
       },
@@ -777,6 +865,9 @@ export class AgentBrowserBackend {
         // A package that declares no tool gets no bindings; one that does
         // cannot have a plan prepared without them.
         toolRegistry: this.toolHost().registry,
+        // The host resources the receipt granted are compared with what the
+        // host holds now, before a plan names them.
+        ...(this.resources ? { resourceRegistry: this.resourceRegistry() } : {}),
       });
       this.options.onChange?.("run-plan");
       return projectRunPlanState(payload, true, this.executionAvailable());
@@ -802,6 +893,17 @@ export class AgentBrowserBackend {
         await client
           .evaluateTools(sessionId, str(rec(planned.package).digest), this.toolHost().registry)
           .catch(() => undefined);
+        payload = await client.getRunPlan(sessionId);
+      }
+      // The same for host resources: the preflight compares frozen grants
+      // with what this host holds now, not with what it held at the decision.
+      if (Array.isArray(planned.resource_grants) && planned.resource_grants.length > 0) {
+        const registry = this.resourceRegistry();
+        if (registry) {
+          await client
+            .evaluateResources(sessionId, str(rec(planned.package).digest), registry)
+            .catch(() => undefined);
+        }
         payload = await client.getRunPlan(sessionId);
       }
       const plan = (payload as Record<string, unknown>).run_plan as
@@ -867,6 +969,7 @@ export class AgentBrowserBackend {
         // A plan that binds tools is re-checked against what this host
         // implements now, as execution does, even though the probe calls none.
         toolRegistry: this.toolHost().registry,
+        ...(this.resources ? { resources: this.resources } : {}),
       });
       const bridge = this.options.createBridge
         ? this.options.createBridge({ modelId: preflight.modelId })

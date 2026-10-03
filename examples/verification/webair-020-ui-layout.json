@@ -1,0 +1,65 @@
+{
+  "schema": "agent-browser-ui-layout-check-v0",
+  "recorded": "2026-10-03",
+  "subject": "Permissions card with host-resource choosers (WebAir 0.2.0 shape), Authorize re-render",
+  "method": "src/ui/page.ts bundled with the plugin's esbuild and a fake backend serving the plugin's own test fixtures; mounted in the host's layout (main.content scroller inside a 100vh .shell, display:contents root) with OpenClaw 2026.9.5's control-ui-core stylesheet and the plugin's control-ui.css; headless Chrome driven over CDP; real mouse events for focusing a chooser and pressing Authorize. Positions are getBoundingClientRect().top in CSS px.",
+  "measurements": {
+    "before": {
+      "scrollTop": 2868,
+      "permissionsTop": -208.23,
+      "identityChooserTop": 300.3,
+      "authorizeCardTop": 1405.17,
+      "identityChoice": "",
+      "identityDecision": "deny"
+    },
+    "afterChoosing": {
+      "scrollTop": 2868,
+      "permissionsTop": -208.23,
+      "identityChooserTop": 300.3,
+      "authorizeCardTop": 1405.17,
+      "identityChoice": "passenger_demo_sam",
+      "identityDecision": "deny"
+    },
+    "afterDecision": {
+      "scrollTop": 2868,
+      "permissionsTop": -208.23,
+      "identityChooserTop": 300.3,
+      "authorizeCardTop": 1405.17,
+      "identityChoice": "passenger_demo_sam",
+      "identityDecision": "session"
+    },
+    "beforeAuthorize": {
+      "scrollTop": 3823,
+      "permissionsTop": -1163.23,
+      "identityChooserTop": -654.7,
+      "authorizeCardTop": 450.17,
+      "identityChoice": "passenger_demo_sam",
+      "identityDecision": "session"
+    },
+    "afterAuthorize": {
+      "scrollTop": 3863,
+      "permissionsTop": -1163.08,
+      "identityChooserTop": -654.55,
+      "authorizeCardTop": 450.33,
+      "identityChoice": "passenger_demo_sam",
+      "identityDecision": "session"
+    },
+    "sent": [
+      {
+        "permissionId": "identity.passenger",
+        "resourceId": "passenger_demo_sam"
+      }
+    ],
+    "receiptShowsLabel": true,
+    "valueLeak": [],
+    "deltas": {
+      "choosing_moves_chooser_px": 0,
+      "choosing_moves_permissions_px": 0,
+      "decision_moves_chooser_px": 0,
+      "authorize_moves_pressed_card_px": 0.16,
+      "authorize_scrolltop_change_px": 40
+    }
+  },
+  "passed": true,
+  "note": "The scrollTop change on Authorize is Chrome's scroll anchoring compensating for the status banner rendered above; the pressed card itself stays within 1 px, as it did before this change (see agent-browser UI layout notes for M3)."
+}

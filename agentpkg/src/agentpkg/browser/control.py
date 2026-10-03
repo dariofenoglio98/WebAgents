@@ -37,6 +37,11 @@ from .errors import ControlPlaneError
 from .evaluation import evaluate_snapshot, signature_report
 from .fetch import FetchLimits, download_to_file
 from .hostmodels import evaluate_catalog, find_model, normalize_catalog, requirement_set
+from .hostresources import (
+    evaluate_resources,
+    normalize_resource_registry,
+    normalize_resource_selections,
+)
 from .hosttools import (
     IMPLEMENTATION_KINDS,
     evaluate_registry,
@@ -122,9 +127,16 @@ class Session:
     # across decisions; what is kept is the last one this session was shown.
     tool_registry: dict | None = None
     tool_evaluation: dict | None = None
+    # The last host resource registry this session was shown. Like a tool
+    # registry it is a live statement about the host, re-supplied before every
+    # decision and every read that compares against it; it never holds values.
+    resource_registry: dict | None = None
     run_plan: dict | None = None
     # One-time private copies of this snapshot, issued to a trusted runner.
     leases: dict[str, ExecutionLease] = field(default_factory=dict)
+    # Receipts whose `once` grants a run has already used. `once` means one
+    # run: a plan under such a receipt is stale until the person decides again.
+    spent_receipt_ids: set[str] = field(default_factory=set)
 
     def descriptor(self) -> dict:
         return {
@@ -553,12 +565,34 @@ class ControlPlane:
             }
 
     # -- authorization -------------------------------------------------------
-    def authorize(self, session_id: str, *, package_digest, decisions, tool_approvals=None):
-        """Record explicit decisions and issue a digest-bound receipt."""
+    def authorize(
+        self,
+        session_id: str,
+        *,
+        package_digest,
+        decisions,
+        tool_approvals=None,
+        resource_registry=None,
+        resource_selections=None,
+    ):
+        """Record explicit decisions and issue a digest-bound receipt.
+
+        A permission that requests a host resource carries the person's pick,
+        validated here against the host resource registry supplied with the
+        same call, and frozen into the receipt by id and digest.
+        """
         session = self._session(session_id)
         self._require_digest(session, package_digest)
         granted = normalize_decisions(session.package, decisions)
         approvals = normalize_tool_approvals(session.package, tool_approvals)
+        registry = (
+            normalize_resource_registry(resource_registry)
+            if resource_registry is not None
+            else None
+        )
+        resource_grants = normalize_resource_selections(
+            session.package, registry, granted, resource_selections
+        )
         receipt = build_receipt(
             session.package,
             session_id=session.session_id,
@@ -572,10 +606,14 @@ class ControlPlane:
             policy=self.config.policy,
             instance_id=self.instance_id,
             expires_at=session.expires_at,
+            resource_grants=resource_grants,
+            resource_registry=registry,
         )
         with self._lock:
             session.decisions = granted
             session.tool_approvals = approvals
+            if registry is not None:
+                session.resource_registry = registry
             session.receipt = receipt
             # A new consent decision supersedes any plan prepared under the old
             # one. Keeping a ready plan alive across a permission change is
@@ -594,6 +632,32 @@ class ControlPlane:
                 "ready": False,
             }
         return receipt
+
+    # -- host resources ------------------------------------------------------
+    def evaluate_resources(self, session_id: str, *, package_digest, resource_registry) -> dict:
+        """Evaluate a host-supplied resource registry against this package.
+
+        Which declared permissions request a host resource this host offers,
+        the options a person may choose from (opaque ids and display-safe
+        labels), and which one the current receipt holds. The registry carries
+        no values; this method reads declarations and compares strings.
+        """
+        session = self._session(session_id)
+        self._require_digest(session, package_digest)
+        registry = normalize_resource_registry(resource_registry)
+        with self._lock:
+            # Retained so `preflight` compares frozen grants with what the host
+            # holds now, not with what it held when the person chose.
+            session.resource_registry = registry
+        return {
+            "session_id": session.session_id,
+            **evaluate_resources(
+                session.package,
+                registry,
+                decisions=session.decisions,
+                grants=(session.receipt or {}).get("resource_grants") or [],
+            ),
+        }
 
     # -- the task ------------------------------------------------------------
     def validate_input(self, session_id: str, *, input_value) -> dict:
@@ -708,6 +772,7 @@ class ControlPlane:
         probe_tool_id=None,
         execution_mode=MODE_MODEL,
         binding_strategy=BINDING_SINGLE_MODEL,
+        resource_registry=None,
     ) -> dict:
         """Freeze one package + authorization + model + tools into a plan.
 
@@ -789,6 +854,13 @@ class ControlPlane:
         elif tool_registry is not None:
             registry = normalize_registry(tool_registry)
             tool_evaluation = evaluate_registry(session.package, registry)
+        # Host resources the receipt granted are compared with what the host
+        # holds right now, supplied with this call, before a plan names them.
+        resources = (
+            normalize_resource_registry(resource_registry)
+            if resource_registry is not None
+            else session.resource_registry
+        )
         blockers = preparation_blockers(
             session.package,
             mode=mode,
@@ -799,6 +871,7 @@ class ControlPlane:
             policy=self.config.policy,
             tool_evaluation=tool_evaluation,
             probe_tool_id=probe,
+            resource_registry=resources,
         )
         if blockers:
             # A run plan exists only when it is ready. Writing down a plan that
@@ -835,6 +908,7 @@ class ControlPlane:
             tool_evaluation=tool_evaluation,
             tool_registry=registry,
             probe_tool_id=probe,
+            resource_registry=resources,
         )
         with self._lock:
             session.catalog = normalized
@@ -842,6 +916,8 @@ class ControlPlane:
             if registry is not None:
                 session.tool_registry = registry
                 session.tool_evaluation = tool_evaluation
+            if resources is not None:
+                session.resource_registry = resources
             self._release_all(session)
             session.run_plan = plan
             session.summary["run_plan"] = {
@@ -939,6 +1015,10 @@ class ControlPlane:
                 max_bytes=self.config.max_package_bytes,
             )
             session.leases[lease.lease_id] = lease
+            if "once" in plan["authorization"]["decisions"].values():
+                # Handing the bytes to a runner starts a run, and a run is
+                # what a one-time grant was for.
+                session.spent_receipt_ids.add(plan["authorization"]["receipt_id"])
         return {
             "session_id": session_id,
             "lease": lease.as_json(include_path=True),
@@ -966,14 +1046,20 @@ class ControlPlane:
         }
 
     def _preflight(self, session: Session) -> dict:
+        plan = session.run_plan
         return preflight(
-            session.run_plan,
+            plan,
             package=session.package,
             publisher=session.publisher,
             receipt=session.receipt,
             trust_state=self.trust.state(),
             policy=self.config.policy,
             tool_evaluation=self._tool_evaluation(session),
+            resource_registry=session.resource_registry,
+            once_spent=(
+                plan["authorization"]["receipt_id"] in session.spent_receipt_ids
+                and "once" in plan["authorization"]["decisions"].values()
+            ),
         )
 
     def _release_all(self, session: Session) -> None:

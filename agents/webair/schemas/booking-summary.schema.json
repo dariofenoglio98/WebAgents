@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Booking quote summary",
+  "description": "What WebAir's quote says, without the passenger identity it was made for.",
+  "anyOf": [
+    {
+      "type": "null"
+    },
+    {
+      "type": "object",
+      "properties": {
+        "quote_id": {
+          "type": "string",
+          "pattern": "^WAQ-[0-9A-F]{16}$"
+        },
+        "fare_id": {
+          "type": "string",
+          "pattern": "^WA[0-9]{3}(-WA[0-9]{3})?-[0-9]{8}-(BASIC|STANDARD|FLEX|BUSINESS)$"
+        },
+        "fare_name": {
+          "type": "string"
+        },
+        "cabin": {
+          "enum": [
+            "economy",
+            "business"
+          ]
+        },
+        "flight": {
+          "$ref": "api/get_fare_rules.output.schema.json#/$defs/Itinerary"
+        },
+        "price_per_passenger_usd": {
+          "type": "integer"
+        },
+        "passenger_count": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 6
+        },
+        "total_usd": {
+          "type": "integer"
+        },
+        "currency": {
+          "const": "USD"
+        },
+        "simulated": {
+          "const": true
+        },
+        "notice": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "quote_id",
+        "fare_id",
+        "fare_name",
+        "cabin",
+        "flight",
+        "price_per_passenger_usd",
+        "passenger_count",
+        "total_usd",
+        "currency",
+        "simulated",
+        "notice"
+      ],
+      "additionalProperties": false
+    }
+  ]
+}

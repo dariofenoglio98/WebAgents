@@ -1,17 +1,8 @@
 {
-  "request": "Prepare a booking quote for two travelers on the nonstop flight from Boston to Zurich on 9 October under $900 that includes a checked bag.",
-  "booking": {
-    "passengers": [
-      {
-        "given_name": "Alex",
-        "family_name": "Example"
-      },
-      {
-        "given_name": "Sam",
-        "family_name": "Example"
-      }
-    ],
-    "contact_email": "alex.example@example.com"
-  },
-  "purchase": null
+  "request": "Prepare WA101 Standard for 9 October for me.",
+  "booking": true,
+  "purchase": {
+    "quote_id": "",
+    "fare_id": ""
+  }
 }

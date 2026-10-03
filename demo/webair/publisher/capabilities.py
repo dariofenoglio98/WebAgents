@@ -1,0 +1,128 @@
+"""Reference runs of the host-owned capability scenarios, and the WebAir answers they need.
+
+For each scenario in `capability_scenarios()` this runs the package's own graph in the generic
+interpreter, with the person's decisions as grants, the demo host's selected resources behind
+the package's host-resource tools (`host.py`), a scripted model router and the in-process
+json_http binding of WebAir's API. It keeps:
+
+* every request WebAir received and its answer, so the Agent Browser's acceptance tests can
+  serve exactly these at the broker boundary without a network;
+* how the run ended, so those tests can compare the real host path with this reference.
+
+The output is `examples/webair-capability-scenarios.json`. It contains the demo's fictional
+passenger details in WebAir's booking requests, because that is what WebAir receives; it is
+a demo fixture, never part of the signed package.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import json
+
+from agentpkg.errors import AgentPkgError
+
+from origin.app import create_app
+
+from .binding import json_http_handlers
+from .fixture import ScriptedRouter, package_from_files, run_package, source_files
+from .host import HOST_RESOURCES, host_resource_handlers
+from .scenarios import Scenario, capability_scenarios
+
+
+def _failure(exc: BaseException) -> dict:
+    report = getattr(exc, "execution_report", None) or {}
+    audit = report.get("audit") or []
+    failed = [event for event in audit if event.get("action") == "node.failed"]
+    denied = [
+        event["permission"]
+        for event in audit
+        if event.get("action") == "permission.checked" and event.get("allowed") is False
+    ]
+    return {
+        "status": "failed",
+        "error_code": report.get("error_code") or getattr(exc, "code", type(exc).__name__),
+        "failed_node": failed[0].get("node_id") if failed else None,
+        "denied_permissions": denied,
+    }
+
+
+def reference_run(package, scenario: Scenario, app) -> dict:
+    router = ScriptedRouter(scenario.models)
+    calls: list = []
+    handlers = {
+        **json_http_handlers(package, app, record=calls),
+        **host_resource_handlers(package, scenario.selections),
+    }
+    try:
+        result = asyncio.run(
+            run_package(
+                package,
+                scenario.input,
+                router=router,
+                handlers=handlers,
+                grants=scenario.decisions,
+            )
+        )
+        outcome = {"status": result["status"], "output": result["output"]}
+    except (AgentPkgError, PermissionError, RuntimeError) as exc:
+        outcome = _failure(exc)
+    if router.unused():
+        raise ValueError(f"scenario {scenario.id}: unused scripted outputs {router.unused()}")
+    return {
+        "outcome": outcome,
+        "model_tasks": [call["task"] for call in router.calls],
+        "origin": [
+            {
+                "tool": call["tool"],
+                "method": call["method"],
+                "path": call["path"],
+                "status": call["status"],
+                "request": call["input"],
+                "response": call["output"],
+            }
+            for call in calls
+        ],
+    }
+
+
+def capability_document(files: dict[str, bytes] | None = None) -> dict:
+    files = source_files() if files is None else files
+    package = package_from_files(files)
+    app = create_app()
+    runs = []
+    for scenario in capability_scenarios():
+        reference = reference_run(package, scenario, app)
+        runs.append(
+            {
+                "id": scenario.id,
+                "summary": scenario.summary,
+                "input": scenario.input,
+                "decisions": scenario.decisions,
+                "selections": scenario.selections,
+                "models": scenario.models,
+                "expect": scenario.expect,
+                "reference": {
+                    "status": reference["outcome"]["status"],
+                    "error_code": reference["outcome"].get("error_code"),
+                    "failed_node": reference["outcome"].get("failed_node"),
+                    "model_tasks": reference["model_tasks"],
+                    "tools_called": [call["tool"] for call in reference["origin"]],
+                },
+                "origin": reference["origin"],
+            }
+        )
+    return {
+        "profile": "webair-capability-scenarios-v0",
+        "package_id": package.manifest["package_id"],
+        "package_version": package.manifest["version"],
+        "host_resources": HOST_RESOURCES.relative_to(HOST_RESOURCES.parents[2]).as_posix(),
+        "note": "The host-owned capability demo: per scenario, the task, the person's "
+        "permission decisions and host-resource picks, the scripted model answers, and every "
+        "request WebAir received with its answer in a reference run of the package's graph. "
+        "Generated by demo/webair/publisher; every person, card and booking is fictional.",
+        "scenarios": runs,
+    }
+
+
+def render(document: dict) -> str:
+    return json.dumps(document, indent=2, ensure_ascii=False) + "\n"

@@ -98,6 +98,11 @@ const MAPPING: Record<string, { code: ErrorCode; title: string; retryable?: bool
   invalid_decision: { code: "invalid_request", title: "Unsupported decision" },
   unsupported_decision: { code: "invalid_request", title: "Unsupported decision" },
   unknown_tool_approval: { code: "invalid_request", title: "Unknown tool approval" },
+  resource_registry_missing: { code: "invalid_request", title: "Host resources unavailable" },
+  resource_not_requested: { code: "invalid_request", title: "No host resource requested" },
+  resource_selection_denied: { code: "invalid_request", title: "A denied permission carries no resource" },
+  resource_unknown: { code: "invalid_request", title: "Unknown host resource" },
+  resource_selection_required: { code: "invalid_request", title: "Choose a resource" },
 };
 
 /** Translate one control-plane error body into the browser's typed category. */

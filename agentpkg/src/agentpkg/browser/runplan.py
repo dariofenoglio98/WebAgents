@@ -27,6 +27,14 @@ from ..package import Package, canonical_json, sha256
 from .authorization import DENY, BrowserPolicy
 from .errors import ControlPlaneError
 from .hostmodels import INCOMPATIBLE, UNVERIFIED, catalog_reference
+from .hostresources import (
+    grant_staleness,
+    grants_report,
+    resource_tool_blockers,
+)
+from .hostresources import (
+    registry_reference as resource_registry_reference,
+)
 from .hosttools import (
     AMBIGUOUS as TOOL_AMBIGUOUS,
 )
@@ -242,6 +250,7 @@ def preparation_blockers(
     policy: BrowserPolicy,
     tool_evaluation: dict | None = None,
     probe_tool_id: str | None = None,
+    resource_registry: dict | None = None,
 ) -> list[dict]:
     """Every reason this run plan may not be prepared or is not ready.
 
@@ -318,6 +327,14 @@ def preparation_blockers(
         reasons.extend(
             tool_blockers(tool_evaluation, receipt=receipt, policy=policy, only=probe_tool_id)
         )
+    # The host resources the person picked must still be exactly those
+    # resources, and a tool that returns one must have one to return.
+    reasons.extend(grant_staleness(receipt.get("resource_grants") or [], resource_registry))
+    reasons.extend(
+        reason
+        for reason in resource_tool_blockers(tool_evaluation, receipt=receipt)
+        if probe_tool_id is None or reason["subject"] == probe_tool_id
+    )
     if mode == MODE_TOOL_PROBE:
         # A probe binds no model, so model compatibility is not its business.
         # It is authority to make one tool call; that is the whole artifact.
@@ -403,6 +420,7 @@ def build_run_plan(
     tool_evaluation: dict | None = None,
     tool_registry: dict | None = None,
     probe_tool_id: str | None = None,
+    resource_registry: dict | None = None,
 ) -> dict:
     """Freeze one decision into a hashed, self-describing artifact."""
     created = datetime.now(UTC)
@@ -482,6 +500,11 @@ def build_run_plan(
         # No credential, no header and no registry travels in here.
         "tool_bindings": tool_bindings,
         "tool_registry": registry_reference(tool_registry) if tool_registry else None,
+        # Which host-owned resource each resource-bearing permission was granted
+        # for, exactly as the receipt froze it: opaque id, type and digest. No
+        # value and no label; a later runner compares, it never looks inside.
+        "resource_grants": [dict(grant) for grant in receipt.get("resource_grants") or []],
+        "resource_registry": resource_registry_reference(resource_registry),
         # A tool probe binds no model at all, so no router can be constructed
         # from it: "no model was called" is then a property of the artifact
         # rather than a claim about a run.
@@ -602,6 +625,8 @@ def preflight(
     policy: BrowserPolicy,
     tool_evaluation: dict | None = None,
     now: datetime | None = None,
+    resource_registry: dict | None = None,
+    once_spent: bool = False,
 ) -> dict:
     """Recompute whether a frozen plan still describes the current world.
 
@@ -676,6 +701,20 @@ def preflight(
                         binding["tool_id"],
                     )
                 )
+    planned_grants = plan.get("resource_grants") or []
+    resource_reasons = grant_staleness(planned_grants, resource_registry)
+    reasons.extend(resource_reasons)
+    if once_spent:
+        # `once` means one run. The first execution lease issued under a
+        # receipt that grants anything once spends it; running again needs the
+        # person to decide again.
+        reasons.append(
+            _reason(
+                "authorization_once_spent",
+                "This authorization granted something once, and a run has already used it. "
+                "Authorize again to run again.",
+            )
+        )
 
     stale = bool(reasons)
     return {
@@ -707,6 +746,7 @@ def preflight(
                 != plan["tool_registry"]["registry_sha256"]
             ),
         },
+        "resource_grants": grants_report(planned_grants, resource_registry),
         "execution": {
             "performed": False,
             "note": "Execution is not implemented in this build.",

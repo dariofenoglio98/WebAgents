@@ -16,6 +16,7 @@
 import { AgentBrowserError } from "./errors.js";
 import type { ControlPlaneClient } from "./control-plane.js";
 import { stillAvailable, type HostCatalog } from "./host-models.js";
+import type { HostResourceStore, ResourceGrant } from "./host-resources.js";
 import type { BoundTool } from "./tool-broker.js";
 import type { ToolRegistry } from "./tool-registry.js";
 
@@ -36,6 +37,8 @@ export type PreflightOutcome = {
   modelId: string;
   /** Exactly the tool implementations this run may call, or none. */
   tools: BoundTool[];
+  /** Exactly the host resources the plan granted, each still current. */
+  resources: ResourceGrant[];
   packageDigest: string;
   archiveSha256: string;
   /** Names of the checks that passed, in the order they ran. */
@@ -109,6 +112,33 @@ function refuse(detail: string, code: "run_plan_stale" | "probe_refused" = "run_
   );
 }
 
+/**
+ * The grants a plan froze, which must be exactly the grants its receipt froze.
+ * Both are covered by their own hashes; comparing them here means a plan can
+ * never carry a resource its receipt did not.
+ */
+function plannedResources(
+  plan: Record<string, unknown>,
+  receipt: Record<string, unknown>,
+): ResourceGrant[] {
+  const read = (value: unknown): ResourceGrant[] =>
+    (Array.isArray(value) ? value : []).map((item) => {
+      const grant = record(item);
+      return {
+        permission_id: str(grant.permission_id),
+        resource_type: str(grant.resource_type),
+        resource_id: str(grant.resource_id),
+        resource_digest: str(grant.resource_digest),
+      };
+    });
+  const planned = read(plan.resource_grants);
+  const granted = read(receipt.resource_grants);
+  if (JSON.stringify(planned) !== JSON.stringify(granted)) {
+    refuse("The host resources this plan names are not the ones its authorization granted.");
+  }
+  return planned;
+}
+
 export type PreflightOptions = {
   client: ControlPlaneClient;
   catalog: HostCatalog;
@@ -136,6 +166,12 @@ export type PreflightOptions = {
   toolRegistry?: ToolRegistry;
   /** Refuse a plan whose authority is the other kind. */
   requireMode?: "model" | "tool_probe";
+  /**
+   * The host's resource store, right now. A plan that granted host resources
+   * names each by id and digest; each must still exist with exactly that
+   * digest, or the plan is stale rather than quietly resolved to a newer value.
+   */
+  resources?: Pick<HostResourceStore, "describe">;
 };
 
 /**
@@ -327,6 +363,9 @@ async function revalidateInto(
         toolId,
         bindingId: str(bound.binding_id),
         bindingSha256: str(bound.binding_sha256),
+        permissionIds: Array.isArray(bound.required_permission_ids)
+          ? bound.required_permission_ids.map(str)
+          : [],
         remote: bound.remote === true,
         timeoutSeconds:
           typeof bound.timeout_seconds === "number" && bound.timeout_seconds > 0
@@ -335,6 +374,25 @@ async function revalidateInto(
       });
     }
     revalidated.push("tool_bindings", "tool_approvals");
+  }
+
+  // -- the host resources it granted are still exactly those resources ----
+  const resources = plannedResources(plan, receipt);
+  if (resources.length > 0) {
+    const store = options.resources;
+    for (const grant of resources) {
+      const live = store?.describe(grant.resource_id);
+      if (!live) {
+        refuse(`The host resource granted for ${grant.permission_id} no longer exists on this host.`);
+      }
+      if (live.type !== grant.resource_type || live.digest !== grant.resource_digest) {
+        refuse(
+          `The host resource granted for ${grant.permission_id} changed after this plan was ` +
+            "prepared, so it is no longer the one that was granted.",
+        );
+      }
+    }
+    revalidated.push("resource_grants");
   }
 
   const decisions: Record<string, string> = {};
@@ -356,6 +414,7 @@ async function revalidateInto(
     return {
       modelId: "",
       tools,
+      resources,
       packageDigest: str(planned.digest),
       archiveSha256: str(planned.archive_sha256),
       revalidated,
@@ -400,6 +459,7 @@ async function revalidateInto(
   return {
     modelId,
     tools,
+    resources,
     packageDigest: str(planned.digest),
     archiveSha256: str(planned.archive_sha256),
     revalidated,
@@ -439,6 +499,8 @@ async function revalidateInto(
       // Exactly the binding records the plan froze, unchanged. No credential,
       // no header and no request template is among them.
       tool_bindings: plannedTools,
+      // The host resources it granted, by reference; absent when there are none.
+      ...(resources.length > 0 ? { resource_grants: resources } : {}),
       // Exactly the descriptor fields the router needs to bind itself. No
       // endpoint, credential, receipt body or catalog travels to the child.
       model_binding: {

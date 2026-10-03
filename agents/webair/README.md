@@ -1,97 +1,118 @@
 # WebAir Travel Agent — workflow.v0
 
-`org.webagents.webair` 0.1.0, published by the fictional WebAir demo airline
+`org.webagents.webair` 0.2.0, published by the fictional WebAir demo airline
 (`demo/webair/`). WebAir serves the same business logic two ways: HTML pages and forms for
 people, and this signed package for an agent-native host. **The package never touches
-WebAir's HTML.** It does not click, parse pages, read a DOM or take screenshots. It declares
-WebAir's semantic operations as tools and carries the domain knowledge and orchestration to
-use them. Nothing is ever booked or charged: WebAir is not an airline.
+WebAir's HTML.** It declares WebAir's semantic operations as tools and carries the domain
+knowledge and orchestration to use them. Nothing is ever booked or charged: WebAir is not an
+airline.
+
+**WebAir publishes the behavior. The person's runtime supplies the authority.** This version
+asks the person's host for three personal resources it does not own — a travel profile, a
+passenger identity and a payment method — and for a separate authority to simulate a
+purchase. The package holds none of these: no name, email or payment record is in its bytes.
 
 ## What it does
 
-One task: a travel request in plain language, for example *"Find me a nonstop flight from
-Boston to Zurich on 9 October under $900."* Optionally with made-up passenger details (a
-booking quote), and optionally with an explicit authorization of one exact quote from an
-earlier run (a simulated purchase).
+One task: a travel request in plain language, for example *"Find me a flight to Zurich on
+9 October under $900."* Optionally a booking quote of the selected fare (`booking: true`),
+or, in a separate run, a simulated purchase of one exact quote an earlier run returned
+(`purchase: {quote_id, fare_id}`). Both are the person's choice in the task, never a model's.
 
 ```text
-interpret (model) ─► search_flights (tool) ─► select (model) ─► checks ─┬─► get_fare_rules × ≤6 (tool)
-                                                                        └─► prepare_booking (tool, only with booking details)
-                                                                              └─► simulate_purchase (tool, only with an authorized quote)
-                                                     answer (model) ◄─────────────┘
-                                                     assemble + validate ─► output
+interpret (model: the request only)
+  └─► travel profile (host, only when the request leaves the origin unstated)
+        └─► fill unstated criteria ─► search_flights ─► select (model) ─► checks ─► get_fare_rules × ≤6
+booking:  passenger identity (host) ─► prepare_booking ─► check ─► quote summary (no identity)
+purchase: payment method (host) ─► passenger identity (host) ─► prepare_booking (re-quote)
+          ─► check it is the authorized quote ─► simulate_purchase ─► check ─► summary
+answer (model: summaries only) ─► assemble + validate ─► clear personal state ─► output
 ```
 
-21 nodes, all canonical workflow.v0 operators: 3 `llm`, 3 `tool` (search, booking quote,
-simulated purchase), 1 `map` (fare rules, a `tool` step and a `validate` step per fare),
-1 `join`, 12 `validate`, 1 `output`.
+34 nodes, all canonical workflow.v0 operators: 3 `llm`, 6 `tool` (the three host resources,
+search, quote, purchase), 1 `map` (fare rules: a `tool` step and a `validate` step per fare),
+2 `join`, 21 `validate`, 1 `output`.
 
-## Tools: what the package asks for, not what it may do
+## Host-owned resources: requested, never owned
 
-| Tool | Binding | Declared endpoint (upper bound) | Permission | Side effects |
+| Tool | Binding | Permission (kind) | What the package receives |
+|---|---|---|---|
+| `personal.travel_profile` | `host.resource.personal.travel_profile` | `profile.travel` (`personal.read`, optional) | home airport, preferred cabin, nonstop preference, currency |
+| `personal.passenger_identity` | `host.resource.personal.passenger_identity` | `identity.passenger` (`personal.read`, optional) | given name, family name, contact email |
+| `wallet.payment_method` | `host.resource.wallet.payment_method` | `wallet.payment` (`personal.read`, optional) | an opaque demo identifier WebAir accepts, and a display label |
+
+Each permission's scope names a host resource **type**; the host lists the resources of that
+type it holds, and the person picks one when granting. The tools take **no arguments**: the
+package cannot name, guess or enumerate a resource. The host returns exactly the one the
+person granted, frozen into the authorization receipt and run plan by opaque id and digest,
+or refuses. The tool schemas in `schemas/host/` are copies of the host's own resource type
+schemas (generated from `demo/webair/host-resources.json`), which a host binding pins.
+
+## Tools of WebAir's own API
+
+| Tool | Binding | Declared endpoint (upper bound) | Permissions | Side effects |
 |---|---|---|---|---|
-| `search-flights` | `webair.search_flights` | `POST https://webair.example/api/v1/search_flights` | `network.webair` (required) | read |
-| `get-fare-rules` | `webair.get_fare_rules` | `POST https://webair.example/api/v1/get_fare_rules` | `network.webair` (required) | read |
-| `prepare-booking` | `webair.prepare_booking` | `POST https://webair.example/api/v1/prepare_booking` | `network.webair.booking` (optional) | read, approval |
-| `simulate-purchase` | `webair.simulate_purchase` | `POST https://webair.example/api/v1/simulate_purchase` | `network.webair.booking` (optional) | write, approval |
+| `search-flights` | `webair.search_flights` | `POST https://webair.example/api/v1/search_flights` | `network.webair` | read |
+| `get-fare-rules` | `webair.get_fare_rules` | `POST https://webair.example/api/v1/get_fare_rules` | `network.webair` | read |
+| `prepare-booking` | `webair.prepare_booking` | `POST https://webair.example/api/v1/prepare_booking` | `network.webair`, `identity.passenger` | read, approval |
+| `simulate-purchase` | `webair.simulate_purchase` | `POST https://webair.example/api/v1/simulate_purchase` | `network.webair`, `booking.simulate_purchase` (`payment`), `identity.passenger`, `wallet.payment` | write, approval |
 
-`webair.example` is a reserved name that never resolves (RFC 2606). Under agent.pkg 0.1 a
-declared endpoint is an upper bound: a host binding must land inside it, and the package
-gains no authority by naming it. The host chooses the implementation, the person approves
-every tool, and the host's tool broker makes every call. A public WebAir deployment
-publishes a new package version declaring its real hostname. `get_flight` is part of
-WebAir's API but not of this package: every declared tool must be bound and approved before
-a package can run, and the workflow never needs it.
+A tool's permissions are the authority it travels under: the runtime checks every one of them
+at each call, and a host refuses to send a granted resource's sealed value (an email, a
+payment identifier) to a tool that does not link the permission it was granted under. So the
+identity can reach only `prepare-booking` and `simulate-purchase`, the payment identifier only
+`simulate-purchase`, and the search and fare-rule tools neither. Search authority can never
+become purchase authority: `simulate-purchase` also needs `booking.simulate_purchase`, the
+package's only `payment` permission, which a person can grant `once`, for one run.
 
-The tool schemas in `schemas/api/` are generated from WebAir's published API contract
-(`GET /api/v1/schemas`), not written by hand: each output schema is the answer or WebAir's
-refusal (`{"error": …}`), because a `json_http` binding hands 4xx bodies to the package as
-data. `demo/webair/tests/test_package_contract.py` fails if the origin and the package
-drift apart.
+`webair.example` is a reserved name that never resolves (RFC 2606). A declared endpoint is an
+upper bound: a host binding must land inside it, and the package gains no authority by naming
+it. The tool schemas in `schemas/api/` are generated from WebAir's published API contract.
 
-## Why the graph checks so much
+## What each model sees
 
-workflow.v0 can branch only on `eq`/`ne` and cannot ask whether a field exists, and
-WebAir's answer and refusal share no field. So the `select` model step classifies the
-search (`options_found`, `no_matching_flights`, `request_refused`; the graph itself sets
-`request_not_supported` when nothing was searched), and declarative checks verify that
-classification against WebAir's own answer. A wrong classification, an invented or unlisted
-fare id, a fare price that differs from the search, a quote for another fare, price or party
-size, a purchase of a quote other than the one the person authorized, or an answer citing a
-fare WebAir did not offer stops the run with `schema_validation`.
+- `interpret`: the request text only. Unstated criteria stay null; the graph fills them from
+  the granted profile afterwards, so no model ever receives the profile as such.
+- `select`: the request, the interpretation and WebAir's search answer, whose `query` echoes
+  the criteria searched (including any the profile supplied: home airport, cabin, nonstop).
+- `answer`: the same plus fare rules and **redacted summaries** of a quote and a purchase:
+  quote and confirmation ids, fare, price, passenger count, `real_transaction: false`,
+  `amount_charged_usd: 0`. Never a name, an email, a payment identifier or its label.
 
-The result separates what a model wrote from what WebAir said. `answer`,
-`interpreted_request` and the chosen ids are model output, with the ids checked against the
-search. `evidence.search`, `evidence.fare_rules`, `evidence.booking_quote` and
-`evidence.simulated_confirmation` are WebAir's answers, copied verbatim. A confirmation's
-schema requires `real_transaction: false` and `amount_charged_usd: 0`.
+These are read sets in the graph, checked statically by the interpreter, not instructions: the
+host-resource tools run in a `Personal` role with no model, and the state keys they write are
+outside every model role's `state_read`. A final node clears every state key that held a host
+resource or a request built from one, so the final state a host writes to disk keeps none.
 
 ## Booking and purchase
 
-Both are opt-in per task and never chosen by a model:
-
-- **Quote**: only when the task carries `booking` (made-up passengers and a contact email),
-  for the fare the checked selection names. The search's party size must equal the booking's.
-- **Simulated purchase**: only when the task also carries `purchase`, an explicit `quote_id`
-  from an earlier run and a demo payment method (`demo-visa-4242` or `demo-travel-1234`).
-  The run prepares the quote again; if it is not exactly that quote, nothing is sent. WebAir
-  also recomputes the quote and refuses a mismatch.
-
-Passenger details and the payment method arrive in the task for now. A later milestone
-supplies them from host-owned capabilities of the person's browser; the package's tool
-contracts stay the same.
+- **Quote**: `booking: true`. The fare is the checked selection; the passenger is the granted
+  identity, one traveler. The quote is checked against the search (fare, price, party size) and
+  against the request that was sent.
+- **Simulated purchase**: a separate run whose task names `purchase.quote_id` and
+  `purchase.fare_id` from a quote. It reads the payment method first (so a purchase without one
+  stops before any identity is read), then the identity, and asks WebAir to quote that fare for
+  that passenger again. Only if today's quote id is exactly the authorized one does it send
+  `simulate_purchase`, with that quote id and the opaque payment identifier; a stale or
+  substituted quote never reaches the purchase. WebAir recomputes the quote and refuses a
+  mismatch too, and the graph checks the confirmation against the request.
 
 ## Requirements
 
 Model tasks `interpret`, `select`, `answer`: structured output and reasoning, a 16,000-token
 context window, host routing, no fallback. The package names no provider, model or
-credential. Permissions: `network.webair` (required), `network.webair.booking` (optional),
-`model.reasoning`, `memory.session`. Budgets: 120,000 tokens, 20 remote calls, at most 1
-search, 6 fare-rule reads, 1 quote and 1 purchase per run, 3 parallel workers.
+credential. Required permissions: `network.webair`, `model.reasoning`, `memory.session`;
+optional: `profile.travel`, `identity.passenger`, `wallet.payment`, `booking.simulate_purchase`.
+Budgets: 120,000 tokens, 20 remote calls, at most 1 search, 6 fare-rule reads, 1 quote, 1
+purchase and 1 read of each host resource per run, 3 parallel workers. It declares
+`personal.read`, a permission kind agentpkg's runtime from this branch accepts (minimum
+runtime 0.2.2).
 
 ## Fixture
 
-`fixtures/workflow.json` replays nine scenarios (the default input is the hero request).
-Its model outputs are scripted; its tool answers were recorded from WebAir's own API by
-`demo/webair/publisher` (`python -m publisher sync`), which runs this package's graph in the
-generic interpreter against the origin. See [demo/webair/README.md](../../demo/webair/README.md).
+`fixtures/workflow.json` replays seven search scenarios (the default input is the hero
+request). They involve no host resource, so the signed fixture holds no personal data. Its
+model outputs are scripted; its tool answers were recorded from WebAir's own API by
+`demo/webair/publisher` (`python -m publisher sync`). The host-capability scenarios — profile,
+quote, denied and simulated purchase — run on the Agent Browser host with the demo host's
+resources; see [demo/webair/README.md](../../demo/webair/README.md).

@@ -13,9 +13,18 @@
  *        ├── local_builtin            no I/O at all
  *        ├── json_http                one request, one origin, one path;
  *        │                            its shape is an adapter (tool-adapters.ts)
- *        └── selected_file            one PDF the person selected for this run,
- *                                     by opaque id, parsed out of process
+ *        ├── selected_file            one PDF the person selected for this run,
+ *        │                            by opaque id, parsed out of process
+ *        └── host_resource            the one host-owned resource of its type the
+ *                                     person granted for this run; no arguments
  * ```
+ *
+ * ## Host-owned values travel only where they were granted to go
+ *
+ * When this host holds personal resources, every call except a resource read
+ * is checked for their sealed values before dispatch: a value of a resource
+ * this run was not granted may go nowhere, and a granted one only to a tool
+ * that links the permission it was granted under (`host-resources.ts`).
  *
  * ## Resolution, not routing
  *
@@ -61,6 +70,11 @@ import { isIP } from "node:net";
 import { contentTypeCategory, safeToolFacts, type ToolFailureFacts } from "./tool-facts.js";
 import { AgentBrowserError, clip } from "./errors.js";
 import type { FileCapabilityView } from "./file-capabilities.js";
+import {
+  HOST_RESOURCE_IMPLEMENTATION,
+  type HostResourceStore,
+  type ResourceGrant,
+} from "./host-resources.js";
 import type { PdfReader } from "./pdf-reader.js";
 import type { Logger } from "./service.js";
 import { AdapterRefusal, HTTP_ADAPTERS, encodeQuery } from "./tool-adapters.js";
@@ -96,6 +110,8 @@ export type BoundTool = {
   bindingSha256: string;
   remote: boolean;
   timeoutSeconds: number;
+  /** Every permission the package's tool links, as the plan froze them. */
+  permissionIds?: readonly string[];
 };
 
 export type ToolCallRequest = {
@@ -114,6 +130,8 @@ export type ToolCallResult = {
   remote: boolean;
   duration_ms: number;
   transport_status: number | null;
+  /** Only for a `host_resource` binding: which granted resource answered. */
+  resource?: ResourceGrant;
 };
 
 export function toolError(code: string, detail: string, facts: ToolFailureFacts = {}): AgentBrowserError {
@@ -321,6 +339,15 @@ export type ToolBrokerOptions = {
   fileStore?: { readVerified(capability: FileCapabilityView): Promise<Buffer> };
   /** The trusted PDF parser, handed bytes and never a path. */
   pdfReader?: PdfReader;
+  /**
+   * The host resources this run was granted, exactly as its plan froze them,
+   * and the host store that holds their values. Present whenever this host
+   * holds any resource — with no grants, every sealed value is withheld.
+   */
+  resources?: {
+    grants: readonly ResourceGrant[];
+    store: Pick<HostResourceStore, "resolve" | "egressRefusal">;
+  };
   /** Test seams. None can widen the policy above; each replaces mechanics. */
   resolver?: Resolver;
   transport?: HttpTransport;
@@ -378,6 +405,16 @@ export class ToolBroker {
         "this host no longer registers that implementation",
       );
     }
+    if (definition.kind !== "host_resource" && this.options.resources) {
+      // Before a slot, a socket or a parser: a sealed host value bound for a
+      // tool it was not granted to reach is refused here, whatever the tool.
+      const refusal = this.options.resources.store.egressRefusal(
+        request.args,
+        this.options.resources.grants,
+        bound.permissionIds ?? [],
+      );
+      if (refusal) throw toolError(TOOL_ERRORS.requestInvalid, refusal);
+    }
     const clock = this.options.now ?? Date.now;
     const started = clock();
     let status: number | null = null;
@@ -400,12 +437,14 @@ export class ToolBroker {
       throw toolError(TOOL_ERRORS.timeout, "the call waited for its turn longer than the binding allows");
     }
     try {
-      const answer =
+      const answer: { output: unknown; status: number | null; resource?: ResourceGrant } =
         definition.kind === "local_builtin"
           ? { output: await this.local(definition, request.args), status: null }
           : definition.kind === "selected_file"
             ? { output: await this.selectedFile(definition, bound, request.args, signal), status: null }
-            : await this.http(definition, bound, request.args, signal);
+            : definition.kind === "host_resource"
+              ? { ...this.hostResource(definition, bound, request.args), status: null }
+              : await this.http(definition, bound, request.args, signal);
       status = answer.status;
       outcome = "ok";
       return {
@@ -417,6 +456,7 @@ export class ToolBroker {
         remote: bound.remote,
         duration_ms: clock() - started,
         transport_status: answer.status,
+        ...(answer.resource ? { resource: answer.resource } : {}),
       };
     } finally {
       release();
@@ -508,6 +548,70 @@ export class ToolBroker {
         ? error
         : toolError(TOOL_ERRORS.responseInvalid, "the PDF could not be read");
     }
+  }
+
+  /**
+   * Return the one host resource this run was granted for this binding's type.
+   *
+   * The argument set is closed to nothing at all: there is no field in which a
+   * package or a model could name a resource, so a guessed id, a path or
+   * another person's identifier has nowhere to go. The grant is found among
+   * this run's grants by type *and* by a permission the calling tool links,
+   * and the store re-checks its digest, so a resource removed or changed since
+   * the person chose it is refused rather than substituted.
+   */
+  private hostResource(
+    definition: ToolBindingDefinition,
+    bound: BoundTool,
+    args: unknown,
+  ): { output: unknown; resource: ResourceGrant } {
+    if (definition.implementationId !== HOST_RESOURCE_IMPLEMENTATION || !definition.resourceType) {
+      throw toolError(TOOL_ERRORS.unavailable, "this host has no code for that resource implementation");
+    }
+    if (
+      typeof args !== "object" ||
+      args === null ||
+      Array.isArray(args) ||
+      Object.keys(args).length > 0
+    ) {
+      throw toolError(
+        TOOL_ERRORS.requestInvalid,
+        "a host resource read takes no arguments, so nothing a package sends can name a resource",
+      );
+    }
+    const resources = this.options.resources;
+    if (!resources) {
+      throw toolError(TOOL_ERRORS.unavailable, "this host holds no resources for runs");
+    }
+    const linked = new Set(bound.permissionIds ?? []);
+    const matches = resources.grants.filter(
+      (grant) => grant.resource_type === definition.resourceType && linked.has(grant.permission_id),
+    );
+    if (matches.length !== 1) {
+      throw toolError(
+        TOOL_ERRORS.requestInvalid,
+        "this run was granted no host resource of that type for this tool",
+      );
+    }
+    const grant = matches[0]!;
+    let output: unknown;
+    try {
+      output = resources.store.resolve(grant);
+    } catch {
+      throw toolError(
+        TOOL_ERRORS.unavailable,
+        "the granted host resource is no longer the one that was granted, so it is not returned",
+      );
+    }
+    return {
+      output,
+      resource: {
+        permission_id: grant.permission_id,
+        resource_type: grant.resource_type,
+        resource_id: grant.resource_id,
+        resource_digest: grant.resource_digest,
+      },
+    };
   }
 
   private async http(

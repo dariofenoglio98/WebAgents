@@ -1,0 +1,9 @@
+{
+  "network.webair": "session",
+  "model.reasoning": "session",
+  "memory.session": "session",
+  "profile.travel": "deny",
+  "identity.passenger": "deny",
+  "wallet.payment": "deny",
+  "booking.simulate_purchase": "deny"
+}

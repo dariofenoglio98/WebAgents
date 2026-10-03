@@ -283,12 +283,34 @@ def warnings(package: Package, evaluation: dict, publisher: dict) -> list:
                 f"The package requests write access to: "
                 f"{', '.join(permission['resources']) or 'unspecified resources'}.",
             )
-        if permission["kind"] in {"shell", "payment"}:
+        linked = sorted(
+            tool["id"] for tool in package.tools.values() if permission["id"] in tool["permissions"]
+        )
+        if permission["kind"] == "payment" and linked:
+            # A payment permission that gates declared tools is enforced like
+            # any other grant; what this host does not have is payment
+            # infrastructure of its own, and saying so is the honest version.
+            warn(
+                "requests_payment_permission",
+                "warning",
+                f"The package requests payment authority ({permission['id']}) for "
+                f"{', '.join(linked)}. This host charges nothing itself: the permission only "
+                "decides whether those tools may be called.",
+            )
+        elif permission["kind"] in {"shell", "payment"}:
             warn(
                 f"requests_{permission['kind']}_permission",
                 "critical",
                 f"The package requests a {permission['kind']} permission, which this host "
                 "does not implement.",
+            )
+        if permission["kind"] == "personal.read":
+            warn(
+                "requests_personal_data",
+                "warning",
+                f"The package requests host-owned personal data ({permission['id']}: "
+                f"{', '.join(permission['resources']) or 'unspecified'}). You choose whether "
+                "to grant it and which of your resources is shared.",
             )
     remote = [tool for tool in package.tools.values() if tool["execution"] == "remote"]
     if remote:

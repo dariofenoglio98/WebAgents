@@ -1,20 +1,8 @@
 {
-  "request": "Book the nonstop flight from Boston to Zurich on 9 October under $900 that includes a checked bag for two travelers, and simulate the purchase of the quote I approved.",
-  "booking": {
-    "passengers": [
-      {
-        "given_name": "Alex",
-        "family_name": "Example"
-      },
-      {
-        "given_name": "Sam",
-        "family_name": "Example"
-      }
-    ],
-    "contact_email": "alex.example@example.com"
-  },
+  "request": "Simulate purchase of quote WAQ-C82CB5B08515FAE6.",
+  "booking": false,
   "purchase": {
-    "quote_id": "WAQ-C90FC1184D716CE8",
-    "payment_method_id": "demo-visa-4242"
+    "quote_id": "WAQ-C82CB5B08515FAE6",
+    "fare_id": "WA101-20261009-STANDARD"
   }
 }

@@ -60,14 +60,18 @@ MAX_KINDS = 16
 # Implementation categories this host understands. They are *categories*, not
 # services: `json_http` is "one exact HTTPS request to one exact configured
 # origin, path and method", `local_builtin` is "an implementation that ships
-# with the host and performs no I/O", and `selected_file` is "a local
+# with the host and performs no I/O", `selected_file` is "a local
 # implementation that reads only files the person explicitly selected for this
-# run, by opaque host-held capability, and nothing else". Adding a service
-# never adds a category; adding a way of reaching a resource does.
+# run, by opaque host-held capability, and nothing else", and `host_resource`
+# is "a local implementation that returns only the one host-owned resource of
+# its type the person granted for this run, takes no argument that could name
+# another, and reaches nothing else". Adding a service never adds a category;
+# adding a way of reaching a resource does.
 KIND_JSON_HTTP = "json_http"
 KIND_LOCAL_BUILTIN = "local_builtin"
 KIND_SELECTED_FILE = "selected_file"
-IMPLEMENTATION_KINDS = (KIND_JSON_HTTP, KIND_LOCAL_BUILTIN, KIND_SELECTED_FILE)
+KIND_HOST_RESOURCE = "host_resource"
+IMPLEMENTATION_KINDS = (KIND_JSON_HTTP, KIND_LOCAL_BUILTIN, KIND_SELECTED_FILE, KIND_HOST_RESOURCE)
 REMOTE_KINDS = (KIND_JSON_HTTP,)
 
 # Verdicts. `unverified` exists for the same reason it exists for models:
@@ -209,6 +213,11 @@ def binding_digest(binding: dict) -> str:
             "source": binding["credentials"]["source"],
         },
     }
+    if binding.get("resource_type") is not None:
+        # Which type of host resource a `host_resource` binding returns is part
+        # of what it would do. Absent for every other category, so their
+        # digests are exactly what they were before the category existed.
+        subject["resource_type"] = binding["resource_type"]
     return sha256(canonical_json(subject))
 
 
@@ -240,6 +249,7 @@ def normalize_binding(raw, *, index: int) -> dict:
             "contract",
             "limits",
             "credentials",
+            "resource_type",
         },
         {
             "id",
@@ -267,7 +277,15 @@ def normalize_binding(raw, *, index: int) -> dict:
         raise ControlPlaneError(
             "invalid_request",
             f"{field}: {KIND_JSON_HTTP} bindings are remote and {KIND_LOCAL_BUILTIN} / "
-            f"{KIND_SELECTED_FILE} bindings are local; the two must agree",
+            f"{KIND_SELECTED_FILE} / {KIND_HOST_RESOURCE} bindings are local; the two must agree",
+        )
+    resource_type = record.get("resource_type")
+    if kind == KIND_HOST_RESOURCE:
+        resource_type = _text(resource_type, f"{field}.resource_type", limit=128)
+    elif resource_type is not None:
+        raise ControlPlaneError(
+            "invalid_request",
+            f"{field}.resource_type belongs to a {KIND_HOST_RESOURCE} binding only",
         )
     endpoint_raw = record.get("endpoint")
     if remote:
@@ -403,6 +421,8 @@ def normalize_binding(raw, *, index: int) -> dict:
         "limits": limits,
         "credentials": credentials,
     }
+    if resource_type is not None:
+        binding["resource_type"] = resource_type
     binding["binding_sha256"] = binding_digest(binding)
     return binding
 
@@ -708,7 +728,9 @@ def evaluate_binding(contract: dict, binding: dict) -> dict:
         status = UNVERIFIED
     else:
         status = BOUND
+    extra = {"resource_type": binding["resource_type"]} if binding.get("resource_type") else {}
     return {
+        **extra,
         "status": status,
         "binding_id": binding["id"],
         "binding_sha256": binding["binding_sha256"],
@@ -943,6 +965,13 @@ def plan_tool_bindings(evaluation: dict) -> list[dict]:
                 "approved": tool["approved"],
                 "approval_source": "authorization_receipt",
                 "compatibility_status": tool["status"],
+                # Only a `host_resource` binding has one, so every other plan
+                # record keeps exactly its earlier shape.
+                **(
+                    {"resource_type": binding["resource_type"]}
+                    if binding.get("resource_type")
+                    else {}
+                ),
             }
         )
     return records
@@ -961,6 +990,7 @@ __all__ = [
     "CONTRACT_SCHEMA",
     "EVALUATION_SCHEMA",
     "IMPLEMENTATION_KINDS",
+    "KIND_HOST_RESOURCE",
     "KIND_JSON_HTTP",
     "KIND_LOCAL_BUILTIN",
     "KIND_SELECTED_FILE",

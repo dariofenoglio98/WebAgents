@@ -93,6 +93,7 @@ def normalize_tool_binding(raw, *, index: int = 0) -> dict:
             "approved",
             "approval_source",
             "compatibility_status",
+            "resource_type",
         },
         {
             "tool_id",
@@ -179,6 +180,11 @@ def normalize_tool_binding(raw, *, index: int = 0) -> dict:
             f"{field}.compatibility_status",
             limit=64,
             allow_none=True,
+        ),
+        # The type of host-owned resource a `host_resource` binding returns;
+        # None for every other category.
+        "resource_type": _text(
+            record.get("resource_type"), f"{field}.resource_type", limit=128, allow_none=True
         ),
     }
 

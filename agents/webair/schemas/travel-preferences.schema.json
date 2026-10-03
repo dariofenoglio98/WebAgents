@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "The travel profile the person granted, or all-null preferences when the request did not need one.",
+  "anyOf": [
+    {
+      "$ref": "host/personal.travel_profile.schema.json"
+    },
+    {
+      "type": "object",
+      "properties": {
+        "home_airport": {
+          "type": "null"
+        },
+        "preferred_cabin": {
+          "type": "null"
+        },
+        "prefer_nonstop": {
+          "type": "null"
+        },
+        "preferred_currency": {
+          "type": "null"
+        }
+      },
+      "required": [
+        "home_airport",
+        "preferred_cabin",
+        "prefer_nonstop",
+        "preferred_currency"
+      ],
+      "additionalProperties": false
+    }
+  ]
+}

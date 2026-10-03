@@ -153,6 +153,9 @@ export function mountAgentBrowser(container: HTMLElement, deps: PageDeps): () =>
   let tab: TabId = "overview";
   let decisions = new Map<string, Decision>();
   let approvals = new Map<string, boolean>();
+  // Which host resource the person picked for a permission that requests one.
+  // Only ids from that permission's own options ever enter this map.
+  let resourceSelections = new Map<string, string>();
   /** The model the operator explicitly chose. Never defaulted, never inferred. */
   let selectedModel: string | null = null;
   let disposed = false;
@@ -632,6 +635,13 @@ export function mountAgentBrowser(container: HTMLElement, deps: PageDeps): () =>
     );
     approvals = new Map(
       permissionsResult.value.toolApprovals.map((item) => [item.toolId, item.decision]),
+    );
+    resourceSelections = new Map(
+      permissionsResult.value.permissions.flatMap((item) =>
+        item.hostResource?.selectedResourceId
+          ? [[item.id, item.hostResource.selectedResourceId] as [string, string]]
+          : [],
+      ),
     );
     selectedModel = null;
     tab = "overview";
@@ -1537,9 +1547,11 @@ export function mountAgentBrowser(container: HTMLElement, deps: PageDeps): () =>
     for (const option of options) {
       const optionNode = el("option", { text: DECISION_LABELS[option as Decision] ?? option });
       optionNode.value = option;
-      if ((decisions.get(permission.id) ?? "deny") === option) optionNode.selected = true;
       select.append(optionNode);
     }
+    // Set once every option is attached, so a re-render restores the decision exactly.
+    const chosen = decisions.get(permission.id) ?? "deny";
+    select.value = options.includes(chosen) ? chosen : (options[0] ?? "deny");
     select.disabled = !deps.canWrite;
     select.addEventListener("change", () => {
       decisions.set(permission.id, select.value as Decision);
@@ -1560,6 +1572,7 @@ export function mountAgentBrowser(container: HTMLElement, deps: PageDeps): () =>
           permission.required ? chip("Required", "warn") : chip("Optional"),
         ),
         el("p", { text: permission.description }),
+        permission.hostResource ? renderResourceChoice(permission) : null,
         permission.resources.length > 0
           ? el("p", { className: "ab-muted", text: `Scope: ${permission.resources.join(", ")}` })
           : null,
@@ -1571,6 +1584,65 @@ export function mountAgentBrowser(container: HTMLElement, deps: PageDeps): () =>
           : null,
       ),
     );
+  }
+
+  /**
+   * The host resource a permission would share, chosen by the person from what
+   * this host holds. Labels are the host's display-safe text; the value itself
+   * never reaches the page.
+   */
+  function renderResourceChoice(permission: PermissionsViewType["permissions"][number]): HTMLElement {
+    const request = permission.hostResource!;
+    const kind = request.typeDisplayName ?? "host resource";
+    if (request.status !== "offered") {
+      const why =
+        request.status === "empty"
+          ? `This host holds no ${kind.toLowerCase()}, so this permission cannot be granted here.`
+          : request.status === "kind_mismatch"
+            ? `The package requests a ${kind.toLowerCase()} under a different permission kind than this host reads it with, so it cannot be granted.`
+            : "The package's request names more than one kind of host resource, so it cannot be granted.";
+      return el("p", { className: "ab-muted ab-resource-choice", text: why });
+    }
+    const select = el("select", {
+      className: "ab-select",
+      attrs: { "aria-label": `${kind} for ${permission.id}` },
+    });
+    const placeholder = el("option", { text: `Choose a ${kind.toLowerCase()}…` });
+    placeholder.value = "";
+    select.append(placeholder);
+    const current = resourceSelections.get(permission.id) ?? "";
+    for (const option of request.options) {
+      const node = el("option", { text: option.label });
+      node.value = option.resourceId;
+      select.append(node);
+    }
+    // Set once every option is attached: the pick survives a re-render exactly.
+    select.value = request.options.some((option) => option.resourceId === current) ? current : "";
+    select.disabled = !deps.canWrite;
+    select.addEventListener("change", () => {
+      if (select.value) resourceSelections.set(permission.id, select.value);
+      else resourceSelections.delete(permission.id);
+    });
+    return el(
+      "div",
+      { className: "ab-resource-choice" },
+      el("label", {}, el("span", { className: "ab-muted", text: `${kind}: ` }), select),
+      el("p", {
+        className: "ab-muted",
+        text:
+          "Held by this host, not by the package. Only the one you choose is shared, and only " +
+          "with the tools listed under “Used by”; denying the permission shares none.",
+      }),
+    );
+  }
+
+  /** A grant as a person reads it: the permission and the label they chose. */
+  function resourceGrantText(grant: { permissionId: string; resourceId: string; resourceDigest: string }): string {
+    const permission = loaded?.permissions.permissions.find((item) => item.id === grant.permissionId);
+    const label = permission?.hostResource?.options.find(
+      (option) => option.resourceId === grant.resourceId,
+    )?.label;
+    return `${grant.permissionId} → ${label ?? grant.resourceId} (${shortHash(grant.resourceDigest)})`;
   }
 
   function renderConstraintsCard(pkg: PackageViewType): HTMLElement {
@@ -1969,6 +2041,14 @@ export function mountAgentBrowser(container: HTMLElement, deps: PageDeps): () =>
           "Authorization",
           `${preflight?.stale ? "Superseded or changed" : "✓ Current"} · ${plan.authorization.receiptId}`,
         ],
+        ...(plan.resourceGrants.length > 0
+          ? [
+              [
+                "Host resources",
+                plan.resourceGrants.map(resourceGrantText).join(" · "),
+              ] as [string, string],
+            ]
+          : []),
         [
           "Model",
           plan.modelBinding
@@ -2208,6 +2288,7 @@ export function mountAgentBrowser(container: HTMLElement, deps: PageDeps): () =>
           receipt.toolApprovals.map((item) => `${item.toolId}=${item.approved}`).join(" · ") || "—",
         ],
         ["Granted", receipt.grantedPermissionIds.join(", ") || "none"],
+        ["Host resources", receipt.resourceGrants.map(resourceGrantText).join(" · ") || "none"],
         ["Runnable", receipt.runnable ? "yes" : "no"],
         ["Receipt hash", el("code", { text: receipt.receiptSha256 })],
         ["Executed", "no"],
@@ -2230,6 +2311,16 @@ export function mountAgentBrowser(container: HTMLElement, deps: PageDeps): () =>
         decision,
       })),
       toolApprovals: [...approvals.entries()].map(([toolId, approved]) => ({ toolId, approved })),
+      // A pick travels only with a permission that is allowed and requests a
+      // resource this host offers; a denied permission carries none.
+      resourceSelections: current.permissions.permissions
+        .filter(
+          (item) =>
+            item.hostResource?.status === "offered" &&
+            (decisions.get(item.id) ?? "deny") !== "deny" &&
+            resourceSelections.has(item.id),
+        )
+        .map((item) => ({ permissionId: item.id, resourceId: resourceSelections.get(item.id)! })),
     }).catch(() => null);
     if (!alive()) return;
     if (!result || !result.ok) {

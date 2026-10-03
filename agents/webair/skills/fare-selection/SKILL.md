@@ -6,7 +6,9 @@ description: Read one WebAir search result and choose the fares that answer the 
 # Choosing fares
 
 Your input has the person's `request`, the `interpreted_request` and WebAir's `search`
-answer. Return `outcome`, `fare_ids` and `selected_fare_id`.
+answer. Return `outcome`, `fare_ids` and `selected_fare_id`. The interpreted request may leave
+the departure airport, nonstop preference or cabin open; the criteria actually searched are in
+`search.query`.
 
 ## outcome
 

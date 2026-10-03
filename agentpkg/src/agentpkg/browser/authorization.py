@@ -15,6 +15,7 @@ from uuid import uuid4
 
 from ..package import Package, canonical_json, sha256
 from .errors import ControlPlaneError
+from .hostresources import registry_reference
 
 REQUEST_SCHEMA = "agentpkg-authorization-request-v0"
 RECEIPT_SCHEMA = "agentpkg-authorization-receipt-v0"
@@ -261,8 +262,17 @@ def build_receipt(
     policy: BrowserPolicy,
     instance_id: str,
     expires_at: str,
+    resource_grants: list | None = None,
+    resource_registry: dict | None = None,
 ) -> dict:
-    """Bind decisions to these exact bytes, this signer, and this trust state."""
+    """Bind decisions to these exact bytes, this signer, and this trust state.
+
+    `resource_grants` are the host resources the person picked for the
+    permissions that request one, already validated against
+    `resource_registry`: opaque id, type and digest, never a value or a label.
+    They are part of the receipt hash, so a plan that names this receipt names
+    exactly these resources.
+    """
     reasons = blocking_reasons(
         package,
         evaluation=evaluation,
@@ -307,6 +317,8 @@ def build_receipt(
         "granted_permission_ids": sorted(
             pid for pid, decision in decisions.items() if decision != DENY
         ),
+        "resource_grants": [dict(grant) for grant in resource_grants or []],
+        "resource_registry": registry_reference(resource_registry),
         "runnable": not reasons,
         "blocking_reasons": reasons,
         "execution": {

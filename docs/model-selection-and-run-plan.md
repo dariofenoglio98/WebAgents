@@ -380,6 +380,10 @@ The plan is immutable. The world around it is not. Readiness is therefore
 | Signer changed | stale | `signer_changed` |
 | Plan expired | stale | `run_plan_expired` |
 | Selected model no longer offered | stale | `model_no_longer_available` |
+| A run was started under a receipt that grants something `once` | stale | `authorization_once_spent` |
+| A granted host resource changed, or changed type | stale | `resource_changed`, `resource_type_changed` |
+| A granted host resource was removed | stale | `resource_removed` |
+| Grants exist but no host resource registry was supplied | stale | `resource_registry_unknown` |
 
 Re-authorization **discards** rather than marks stale, deliberately: a changed
 consent decision must not leave an older ready plan sitting there. Everything

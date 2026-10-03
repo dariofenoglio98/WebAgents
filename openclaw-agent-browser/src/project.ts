@@ -439,6 +439,8 @@ export function projectPermissions(request: unknown): PermissionsViewType {
         decision: decision(permission.decision),
         linkedTools: strings(permission.linked_tools, LIMITS.tools),
         linkedDomains: strings(permission.linked_domains, LIMITS.domains),
+        // Filled in from the host resource evaluation, when this host holds any.
+        hostResource: null,
       };
     }),
     toolApprovals: arr(source.tool_approvals, LIMITS.toolApprovals).map((item) => {
@@ -468,6 +470,56 @@ function projectBlocking(value: unknown) {
       subject: nullableStr(reason.subject),
     };
   });
+}
+
+/** Grant references, exactly as a receipt or plan froze them. Never a value or a label. */
+export function projectResourceGrants(value: unknown) {
+  return arr(value, LIMITS.permissions).map((item) => {
+    const grant = rec(item);
+    return {
+      permissionId: str(grant.permission_id),
+      resourceType: str(grant.resource_type),
+      resourceId: str(grant.resource_id),
+      resourceDigest: str(grant.resource_digest),
+    };
+  });
+}
+
+/**
+ * Attach the control plane's resource evaluation to a permissions view: for
+ * each permission that requests a host resource, the options a person may
+ * choose from and the one the current receipt holds.
+ */
+export function attachResourceRequests(
+  view: PermissionsViewType,
+  evaluation: unknown,
+): PermissionsViewType {
+  const byPermission = new Map<string, Record<string, unknown>>();
+  for (const item of arr(rec(evaluation).requests, LIMITS.permissions)) {
+    const request = rec(item);
+    byPermission.set(str(request.permission_id), request);
+  }
+  return {
+    ...view,
+    permissions: view.permissions.map((permission) => {
+      const request = byPermission.get(permission.id);
+      if (!request) return permission;
+      return {
+        ...permission,
+        hostResource: {
+          resourceType: nullableStr(request.resource_type),
+          typeDisplayName: nullableStr(request.type_display_name),
+          typeDescription: nullableStr(request.type_description),
+          status: str(request.status),
+          options: arr(request.options, 64).map((option) => ({
+            resourceId: str(rec(option).resource_id),
+            label: str(rec(option).label),
+          })),
+          selectedResourceId: nullableStr(request.selected_resource_id),
+        },
+      };
+    }),
+  };
 }
 
 export function projectReceipt(receipt: unknown): ReceiptViewType {
@@ -505,6 +557,7 @@ export function projectReceipt(receipt: unknown): ReceiptViewType {
       .slice(0, LIMITS.toolApprovals)
       .map(([toolId, approved]) => ({ toolId, approved: bool(approved) })),
     grantedPermissionIds: strings(source.granted_permission_ids, LIMITS.permissions),
+    resourceGrants: projectResourceGrants(source.resource_grants),
     runnable: bool(source.runnable),
     blockingReasons: projectBlocking(source.blocking_reasons),
     receiptSha256: str(source.receipt_sha256),
@@ -964,6 +1017,13 @@ export function projectRunPlan(plan: unknown): RunPlanViewType {
           bindingCount: int(rec(source.tool_registry).binding_count),
         }
       : null,
+    resourceGrants: projectResourceGrants(source.resource_grants),
+    resourceRegistry: source.resource_registry
+      ? {
+          registrySha256: str(rec(source.resource_registry).registry_sha256),
+          resourceCount: int(rec(source.resource_registry).resource_count),
+        }
+      : null,
     readiness: {
       state: str(readiness.state),
       ready: bool(readiness.ready),
@@ -1107,6 +1167,7 @@ export function projectRunPlanState(
       modelStillAvailable,
       toolBindingsCurrent: rec(preflight.tool_bindings).current !== false,
       toolBindingsBound: int(rec(preflight.tool_bindings).bound),
+      resourceGrantsCurrent: rec(preflight.resource_grants).current !== false,
     },
     // A host that can run model-backed plans, and a plan of that kind.
     executionSupported:

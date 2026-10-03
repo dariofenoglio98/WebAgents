@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "array",
+  "maxItems": 64,
+  "items": {
+    "type": "object",
+    "properties": {
+      "fare_id": {
+        "type": "string",
+        "pattern": "^WA[0-9]{3}(-WA[0-9]{3})?-[0-9]{8}-(BASIC|STANDARD|FLEX|BUSINESS)$"
+      }
+    },
+    "required": [
+      "fare_id"
+    ]
+  }
+}

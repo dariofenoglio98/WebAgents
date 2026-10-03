@@ -465,6 +465,49 @@ requirements for research use. The receipt still records the real
 `signature_status` and `trust_status`, so a relaxed policy is visible rather
 than hidden.
 
+**`once` means one run.** The runtime consumes a `once` grant at its first use
+inside a run, and refuses one the graph could use more than once. Across runs,
+the first execution lease issued under a receipt that grants anything `once`
+spends that receipt: every plan under it is then stale
+(`authorization_once_spent`) until the person authorizes again. A one-time
+purchase authority therefore cannot be replayed by pressing Run twice.
+
+### Host-owned resources
+
+A package can request a *type* of resource the person's host holds — a
+`personal.read` permission whose scope names the type (see the
+[spec](../spec/agent-pkg-v0.md#5-tools-and-permissions)) — and can never name a
+resource. Three objects meet here, as for tools:
+
+    permission resource scope   what the package asks for       (signed, in the pkg)
+    host resource registry      what this host holds            (host-owned, no values)
+    resource grant              which one the person chose      (receipt, then run plan)
+
+The host sends a **resource registry**: types (id, display name, permission
+kind, digest of the value schema) and resources (opaque id, type, display-safe
+label, keyed digest of the value). It never carries a value.
+`POST /v0/packages/{id}/resources/evaluate` reports which permissions request an
+offered type and what the person may choose from, each with a status:
+`offered`, `empty` (the host holds none), `ambiguous` (two type scopes) or
+`kind_mismatch` (a package may not relabel personal data as a milder kind).
+
+`authorize` then takes the registry and the picks
+(`resource_selections: {permission_id: resource_id}`) in the same call and
+freezes each as a **grant** — `{permission_id, resource_type, resource_id,
+resource_digest}` — into the receipt's `resource_grants` (covered by
+`receipt_sha256`). Every mistake is refused by name: a granted
+resource-bearing permission without a pick (`resource_selection_required`), a
+pick for a denied permission (`resource_selection_denied`), for a permission
+that requests no offered type (`resource_not_requested`), or of an id that is
+not one of that permission's options (`resource_unknown`, one answer for an
+unknown id and for a resource of another type). The run plan copies the
+receipt's grants and a reference to the registry, and its readiness and every
+`preflight` compare them with the registry the host supplied last: a resource
+that changed (`resource_changed`), disappeared (`resource_removed`) or changed
+type is stale, never silently re-resolved. A plan that binds a host-resource
+tool whose granted permission carries no grant is refused at preparation
+(`resource_not_selected`).
+
 ### Receipt
 
 ```json
@@ -487,6 +530,10 @@ than hidden.
   "decisions": {"memory.session": "session", "files.pdfs": "deny"},
   "tool_approvals": {},
   "granted_permission_ids": [...],
+  "resource_grants": [{"permission_id": "identity.passenger",
+                       "resource_type": "personal.passenger_identity",
+                       "resource_id": "…", "resource_digest": "…"}],
+  "resource_registry": {"registry_sha256": "…", "type_count": 3, "resource_count": 6},
   "runnable": true,
   "blocking_reasons": [],
   "execution": {"performed": false, "note": "…"},
@@ -518,13 +565,14 @@ Loopback HTTP, JSON in and out, versioned under `/v0`. Everything except
 | GET | `/v0/packages` | Open sessions with identity, trust and authorization state. |
 | GET | `/v0/packages/{id}` | Full browser summary. |
 | GET | `/v0/packages/{id}/permissions` | Authorization request, all decisions defaulting to deny. |
-| POST | `/v0/packages/{id}/authorize` | `{"package_digest", "decisions", "tool_approvals"}` → receipt. |
+| POST | `/v0/packages/{id}/authorize` | `{"package_digest", "decisions", "tool_approvals", "resource_registry?", "resource_selections?"}` → receipt. |
 | GET | `/v0/packages/{id}/authorization` | The current receipt, or 404. |
 | GET | `/v0/packages/{id}/models` | Normalized model requirements and run-mode permission IDs. |
 | POST | `/v0/packages/{id}/models/evaluate` | `{"package_digest", "catalog"}` → tri-state compatibility. |
 | GET | `/v0/packages/{id}/tools` | What this package asks a host to implement, host-neutrally. |
 | POST | `/v0/packages/{id}/tools/evaluate` | `{"package_digest", "tool_registry"}` → per-tool binding verdicts. |
-| POST | `/v0/packages/{id}/run-plan` | `{"package_digest", "receipt_id", "model_id", "catalog", "tool_registry", "probe_tool_id", "execution_mode", …}` → plan + preflight. |
+| POST | `/v0/packages/{id}/resources/evaluate` | `{"package_digest", "resource_registry"}` → which permissions request a host resource, the options, and the current pick. |
+| POST | `/v0/packages/{id}/run-plan` | `{"package_digest", "receipt_id", "model_id", "catalog", "tool_registry", "resource_registry", "probe_tool_id", "execution_mode", …}` → plan + preflight. |
 | GET | `/v0/packages/{id}/run-plan` | The prepared plan plus a recomputed preflight, or 404. |
 | DELETE | `/v0/packages/{id}/run-plan` | Discard the prepared run plan. |
 | POST | `/v0/packages/{id}/execution-lease` | `{"package_digest", "run_plan_id", "run_plan_sha256"}` → one **private, one-time copy** of this session's immutable snapshot, issued only while the plan is ready. The response carries a local path and therefore never leaves the authenticated host caller. |
@@ -548,7 +596,9 @@ include `unauthorized`, `not_found`, `method_not_allowed`, `invalid_request`,
 `trust_entry_exists`, `trust_entry_unknown`, `trust_private_key_refused`,
 `bind_rejected`, `browser_request_refused`, `host_header_rejected`,
 `model_unknown`, `receipt_mismatch`, `run_plan_refused`, `run_plan_absent`,
-`unsupported_execution_mode`, `unsupported_binding_strategy`.
+`unsupported_execution_mode`, `unsupported_binding_strategy`,
+`resource_registry_missing`, `resource_not_requested`, `resource_selection_denied`,
+`resource_unknown`, `resource_selection_required`.
 
 Unknown request fields are **refused**, never ignored, so a future field cannot
 silently change security behavior against an older service.

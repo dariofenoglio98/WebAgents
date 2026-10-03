@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Cleared working state",
+  "description": "Null for every state key that held a host resource or a request built from one, so the final state keeps none of them.",
+  "type": "object",
+  "properties": {
+    "profile": {
+      "type": "null"
+    },
+    "passenger": {
+      "type": "null"
+    },
+    "payment": {
+      "type": "null"
+    },
+    "booking_request": {
+      "type": "null"
+    },
+    "purchase_request": {
+      "type": "null"
+    },
+    "quote": {
+      "type": "null"
+    },
+    "confirmation": {
+      "type": "null"
+    }
+  },
+  "required": [
+    "profile",
+    "passenger",
+    "payment",
+    "booking_request",
+    "purchase_request",
+    "quote",
+    "confirmation"
+  ],
+  "additionalProperties": false
+}

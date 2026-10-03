@@ -86,11 +86,29 @@ def _canonical(value: Any) -> str:
 class HostBridgeToolHandler:
     """`ToolHandler` backed by the exact implementation one run plan bound."""
 
-    def __init__(self, peer, binding: dict, *, timeout_seconds: float | None = None):
+    def __init__(
+        self,
+        peer,
+        binding: dict,
+        *,
+        timeout_seconds: float | None = None,
+        resource_grants=(),
+    ):
         self._peer = peer
         self.binding = binding
         self.tool_id = binding["tool_id"]
         self.remote = binding["remote"]
+        # The host resources this plan granted that this binding could
+        # legitimately return: its type, under a permission the tool links.
+        # Empty for every binding that is not a `host_resource` one.
+        linked = set(binding.get("required_permission_ids") or [])
+        self._grants = [
+            dict(grant)
+            for grant in resource_grants
+            if binding.get("implementation_kind") == "host_resource"
+            and grant["resource_type"] == binding.get("resource_type")
+            and grant["permission_id"] in linked
+        ]
         declared = binding.get("timeout_seconds") or DEFAULT_TIMEOUT_SECONDS
         self.timeout = float(timeout_seconds or declared)
         # Evidence for a probe or run report; never used to decide anything.
@@ -156,6 +174,7 @@ class HostBridgeToolHandler:
             ) from exc
         output = self._settle(answer)
         duration = round((time.monotonic() - started) * 1000, 3)
+        resource = answer.get("resource")
         context.event(
             "tool.settled",
             tool=self.tool_id,
@@ -164,6 +183,18 @@ class HostBridgeToolHandler:
             status="ok",
             duration_ms=duration,
             transport_status=answer.get("transport_status"),
+            # Which granted host resource answered, by opaque id and digest:
+            # the authority is auditable, the value is not recorded.
+            **(
+                {
+                    "resource_permission": resource["permission_id"],
+                    "resource_type": resource["resource_type"],
+                    "resource_id": resource["resource_id"],
+                    "resource_digest": resource["resource_digest"],
+                }
+                if resource is not None
+                else {}
+            ),
         )
         if len(self.calls) < 512:
             self.calls.append(
@@ -192,6 +223,7 @@ class HostBridgeToolHandler:
             "remote",
             "duration_ms",
             "transport_status",
+            "resource",
         }
         unknown = sorted(set(answer) - allowed)
         if unknown:
@@ -219,6 +251,7 @@ class HostBridgeToolHandler:
                 "tool_contract_mismatch",
                 "The host reports a different execution locality than the plan bound",
             )
+        self._check_resource(answer.get("resource"))
         if "output" not in answer:
             raise ToolBridgeError(TOOL_RESPONSE_INVALID, "The host tool result carries no output")
         output = answer["output"]
@@ -235,8 +268,44 @@ class HostBridgeToolHandler:
             )
         return output
 
+    def _check_resource(self, resource) -> None:
+        """A host resource answer must name exactly a resource this plan granted.
 
-def tool_handlers(peer, bindings, *, timeout_seconds: float | None = None) -> dict:
+        The host already resolved the grant; this is the runner's own check
+        that the answer is attributed to *that* grant and not to another
+        resource, another type or another permission. Any other binding must
+        not claim a resource at all.
+        """
+        if self.binding.get("implementation_kind") != "host_resource":
+            if resource is not None:
+                raise ToolBridgeError(
+                    TOOL_RESPONSE_INVALID,
+                    "The host attributed a host resource to a binding that returns none",
+                )
+            return
+        if not isinstance(resource, dict) or set(resource) != {
+            "permission_id",
+            "resource_type",
+            "resource_id",
+            "resource_digest",
+        }:
+            raise ToolBridgeError(
+                TOOL_RESPONSE_INVALID,
+                "The host resource answer does not say which granted resource it came from",
+            )
+        if resource not in self._grants:
+            # A value attributed to a resource nobody granted for this run is
+            # not a degraded answer; it is a different decision.
+            raise ToolBridgeError(
+                "tool_binding_stale",
+                "The host answered with a resource this run plan did not grant",
+                detail={"tool_id": self.tool_id},
+            )
+
+
+def tool_handlers(
+    peer, bindings, *, timeout_seconds: float | None = None, resource_grants=()
+) -> dict:
     """Build one handler per bound tool, keyed the way `Runtime` looks them up.
 
     `Runtime.handlers` is keyed by the package tool's own `binding` name, which
@@ -252,7 +321,9 @@ def tool_handlers(peer, bindings, *, timeout_seconds: float | None = None) -> di
             raise ToolBridgeError(
                 "tool_binding_ambiguous", "Two tools may not share one binding name"
             )
-        handlers[name] = HostBridgeToolHandler(peer, binding, timeout_seconds=timeout_seconds)
+        handlers[name] = HostBridgeToolHandler(
+            peer, binding, timeout_seconds=timeout_seconds, resource_grants=resource_grants
+        )
     return handlers
 
 

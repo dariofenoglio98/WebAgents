@@ -17,6 +17,32 @@ origin with two interfaces over one set of business logic:
                                  WebAirService  (shared by both interfaces)
 ```
 
+Since milestone 4 the package also asks the person's own host for what WebAir must never own:
+
+```text
+                    WebAir origin
+                   /             \
+                HTML           agent.pkg
+                                  |
+                             requests capability
+                                  |
+                         +--------+---------+
+                         |                  |
+                    OpenClaw host      WebAir tools
+                         |
+             +-----------+-----------+
+             |           |           |
+          profile     identity     demo wallet
+             |           |           |
+             +----- user grants -----+
+                         |
+                      Run Plan
+                         |
+                       execute
+```
+
+**WebAir publishes behavior. The user's runtime supplies authority.**
+
 > **No real booking or payment ever occurs.** WebAir is not an airline. Every flight, schedule
 > and price is invented; "purchases" are simulated, nothing is reserved, charged or issued, and
 > the site collects no card details. It calls no airline, payment or other external service.
@@ -54,16 +80,19 @@ gives the same answer whichever interface asks.
 | Publisher tooling: tool schemas from the API contract, the recorded fixture, example tasks, the captured pages | [`publisher/`](publisher/) |
 | Tests: service, API, HTML journey, discovery, safety; package contract, package runs, package serving | [`tests/`](tests/) |
 | **Agent Browser discovery of this origin** (milestone 3): generic `rel="agent-package"` discovery, tested offline against these pages and this package | [below](#how-the-agent-browser-discovers-webair); evidence [`webair-010-discovery.json`](../../examples/verification/webair-010-discovery.json) |
+| **Host-owned capabilities** (milestone 4): WebAir 0.2.0 requests a travel profile, a passenger identity and a payment method from the person's host, and a separate simulated-purchase authority; the demo host's fictional resources | [below](#host-owned-capabilities-milestone-4); package [`dist/webair-0.2.0.agent.pkg`](../../dist/README.md#demo); host resources [`host-resources.json`](host-resources.json); evidence [`webair-020-host-capabilities.json`](../../examples/verification/webair-020-host-capabilities.json) |
 
 ### Not implemented yet (on purpose)
 
-Host tool bindings for WebAir's operations in the Agent Browser (its tool registry has none, so
-a browser run plan would report all four tools `unbound`). A public HTTPS deployment, and so a
-live discovery of this origin: the Agent Browser refuses the local `http://127.0.0.1:8040/` by
-design. Host-owned personal-data and payment capabilities, mid-run authorization, NANDA. Real
-airline or payment services. **No generic WebAgents code was changed or special-cased for
-WebAir:** discovery works on any origin that publishes the link, and the browser's code
-mentions no site (`scripts/verify_webair.py` and the plugin's structural tests check this).
+Shipped host tool bindings for WebAir's operations in the Agent Browser (the acceptance tests
+supply them as test configuration, with WebAir's recorded answers at the broker's transport). A
+public HTTPS deployment, and so a live discovery and live tool calls: the Agent Browser refuses
+the local `http://127.0.0.1:8040/` by design. Mid-run authorization, NANDA, persistent personal
+accounts, Apple Wallet or any real wallet, card or payment service. **No generic WebAgents code
+was changed or special-cased for WebAir:** discovery works on any origin that publishes the link,
+host resources are generic types an operator configures, and the browser's code mentions no site
+or demo resource (`scripts/verify_webair.py`, `scripts/verify_webair_capabilities.py` and the
+plugin's structural tests check this).
 
 ## Running it
 
@@ -74,7 +103,7 @@ it):
 ```sh
 python3 -m venv demo/webair/.venv
 demo/webair/.venv/bin/python -m pip install -r demo/webair/requirements-dev.txt
-cd demo/webair && .venv/bin/python -m origin --agent-package ../../dist/webair-0.1.0.agent.pkg
+cd demo/webair && .venv/bin/python -m origin --agent-package ../../dist/webair-0.2.0.agent.pkg
 ```
 
 Then open **<http://127.0.0.1:8040/>**; the signed package is at
@@ -115,64 +144,77 @@ The origin writes nothing to disk and keeps nothing in memory between requests.
 
 | | |
 |---|---|
-| Package | `org.webagents.webair` **0.1.0**, "WebAir Travel Agent" |
+| Package | `org.webagents.webair` **0.2.0**, "WebAir Travel Agent" |
 | Publisher | `webair-demo`, "WebAir (fictional demo airline)": a dedicated demo key, `sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b` ([public key](../../examples/keys/webair-publisher.pub.pem)) |
-| Artifact | `dist/webair-0.1.0.agent.pkg` (= `dist/webair.agent.pkg`), 164,531 bytes, 41 payload files, archive SHA-256 `73872c3177a9ec281a8875ae154023a72ff10f9fe96c5a82ed1639a34ecb470c` |
-| Package digest | `3b7c61a7bd9584e0217dda802065248c86dd135d210b8a06ab25239835cc2fb6` |
-| Profile | `workflow.v0`, runtime ≥ agentpkg 0.2.1; 21 nodes, canonical operators only |
+| Artifact | `dist/webair-0.2.0.agent.pkg`, 166,031 bytes, archive SHA-256 `3f135be80c2ac43b93f42acbcb648a3460b1ab39a831c251122331c99107a616` |
+| Package digest | `74f05a8d98b6ed7436ac6297bfd6e5b16cd625839405180cddfc31965ccab9e1` |
+| Profile | `workflow.v0`, minimum runtime 0.2.2 *from this branch* (it declares the `personal.read` permission kind, which the released 0.2.2 wheel refuses); 34 nodes, canonical operators only |
+| Earlier | `dist/webair-0.1.0.agent.pkg` (= `dist/webair.agent.pkg`, the newest version the released runtime reads), unchanged: archive `73872c31…470c`, digest `3b7c61a7…2fb6` |
 
 ### The task
 
-One travel request in plain language, for example *"Find me a nonstop flight from Boston to
-Zurich on 9 October under $900."*, or *"… Which of those fares includes a checked bag?"*, or
-*"What are the change and refund rules for the Standard fare on the nonstop flights from Boston
-to Zurich on 9 October?"*. Task input:
+One travel request in plain language, for example *"Find me a flight to Zurich on 9 October
+under $900."*, *"Prepare WA101 Standard for 9 October for me."* or *"What are the change and
+refund rules for the Standard fare on the nonstop flights from Boston to Zurich on 9 October?"*.
+Task input:
 
 ```json
-{"request": "Find me a nonstop flight from Boston to Zurich on 9 October under $900.",
- "booking": null, "purchase": null}
+{"request": "Find me a flight to Zurich on 9 October under $900.",
+ "booking": false, "purchase": {"quote_id": "", "fare_id": ""}}
 ```
 
-`booking` (made-up passengers and a contact email) asks for a quote of the fare the workflow
-selects; `purchase` (an exact `quote_id` from an earlier run and `demo-visa-4242` or
-`demo-travel-1234`) asks to simulate purchasing that quote. A model never decides to book or
-buy: both are explicit in the task, and a purchase must name the exact quote.
+`booking: true` asks for a quote of the fare the workflow selects, for the passenger identity the
+person grants. `purchase` names an exact `quote_id` and `fare_id` from an earlier quote and asks,
+in a separate run, to simulate purchasing it with the payment method the person grants. A model
+never decides to book or buy: both are explicit in the task, and a purchase must name the exact
+quote. No name, email or payment method is ever part of a task.
 
 ```text
-interpret ─► search_flights ─► select ─► verify the reading ─┬─► get_fare_rules × ≤6
- (model)       (tool)          (model)   against WebAir's    ├─► prepare_booking   (only with booking)
-                                         own answer          └─► simulate_purchase (only with an authorized quote)
-                                    answer (model) ─► assemble + validate ─► output
+interpret (model: the request only)
+  └─► travel profile (host, only when the request leaves the origin unstated)
+        └─► fill unstated criteria ─► search_flights ─► select (model) ─► verify ─► get_fare_rules × ≤6
+booking:  passenger identity (host) ─► prepare_booking ─► check ─► quote summary (no identity)
+purchase: payment method (host) ─► passenger identity (host) ─► prepare_booking (today's quote)
+          ─► it must be the authorized quote ─► simulate_purchase ─► check ─► summary
+answer (model: summaries only) ─► assemble + validate ─► clear personal state ─► output
 ```
 
-The result separates WebAir's evidence (search, fare rules, quote, confirmation, copied
-verbatim) from what a model wrote (the answer text and the interpreted request). Every fare id a
-model names is checked against the search, every fare-rule price against the search, a quote
-against the selected fare, price and party size, and a purchase against the authorized quote;
-a mismatch stops the run. The answer *text* is model-written: workflow.v0 can check the ids it
-cites, not every number in its prose.
+The result separates WebAir's evidence (search and fare rules, copied verbatim; a quote and a
+confirmation, summarized without the passenger or the payment method) from what a model wrote.
+Every fare id a model names is checked against the search, every fare-rule price against the
+search, a quote against the selected fare, price, party size and the request that was sent, a
+purchase against the authorized quote before it is sent, and a confirmation against the request;
+a mismatch stops the run.
 
 ### Tools, permissions, models
 
-| Tool | Binding | Declared endpoint (upper bound only) | Permission | Effects |
+| Tool | Binding | Declared endpoint (upper bound only) | Permissions | Effects |
 |---|---|---|---|---|
-| `search-flights` | `webair.search_flights` | `POST https://webair.example/api/v1/search_flights` | `network.webair` (required) | read |
-| `get-fare-rules` | `webair.get_fare_rules` | `POST https://webair.example/api/v1/get_fare_rules` | `network.webair` (required) | read |
-| `prepare-booking` | `webair.prepare_booking` | `POST https://webair.example/api/v1/prepare_booking` | `network.webair.booking` (optional) | read, approval required |
-| `simulate-purchase` | `webair.simulate_purchase` | `POST https://webair.example/api/v1/simulate_purchase` | `network.webair.booking` (optional) | write, approval required |
+| `search-flights` | `webair.search_flights` | `POST https://webair.example/api/v1/search_flights` | `network.webair` | read |
+| `get-fare-rules` | `webair.get_fare_rules` | `POST https://webair.example/api/v1/get_fare_rules` | `network.webair` | read |
+| `prepare-booking` | `webair.prepare_booking` | `POST https://webair.example/api/v1/prepare_booking` | `network.webair`, `identity.passenger` | read, approval required |
+| `simulate-purchase` | `webair.simulate_purchase` | `POST https://webair.example/api/v1/simulate_purchase` | `network.webair`, `booking.simulate_purchase`, `identity.passenger`, `wallet.payment` | write, approval required |
+| `personal.travel_profile` | `host.resource.personal.travel_profile` | none: local, the person's host | `profile.travel` | read, approval required |
+| `personal.passenger_identity` | `host.resource.personal.passenger_identity` | none: local, the person's host | `identity.passenger` | read, approval required |
+| `wallet.payment_method` | `host.resource.wallet.payment_method` | none: local, the person's host | `wallet.payment` | read, approval required |
 
-`webair.example` is a reserved, never-resolving name (RFC 2606). A declared endpoint is an upper
-bound that a host binding must land inside; it is not authority, and nothing in the package
-selects a URL, header, credential, path or command. Further permissions: `model.reasoning`
-(host router) and `memory.session`. Model tasks `interpret`, `select` and `answer` need
-structured output and reasoning with a 16,000-token context window, routed by the host with no
-fallback; the package names no provider, model or credential. `get_flight` stays an
-origin-only operation: every declared tool must be bound and approved before a package can run,
-and the workflow never needs it.
+Permissions: `network.webair`, `model.reasoning` and `memory.session` are required;
+`profile.travel`, `identity.passenger` and `wallet.payment` (kind `personal.read`) and
+`booking.simulate_purchase` (kind `payment`, the package's only one, so it can be granted
+*once*) are optional. `webair.example` is a reserved, never-resolving name (RFC 2606). A declared
+endpoint is an upper bound that a host binding must land inside; it is not authority, and nothing
+in the package selects a URL, header, credential, path, command or host resource. Model tasks
+`interpret`, `select` and `answer` need structured output and reasoning with a 16,000-token
+context window, routed by the host with no fallback; the package names no provider, model or
+credential. `get_flight` stays an origin-only operation.
 
 ### Keeping the package and the API aligned
 
-The package's tool schemas (`agents/webair/schemas/api/*.json`) are **generated** from the
+The package's host-resource schemas (`agents/webair/schemas/host/*.json`) are likewise
+**generated**, from the demo host's own type definitions in
+[`host-resources.json`](host-resources.json): a host binding pins its type's schema digest, so
+the package must declare exactly the host's schema. The package's tool schemas
+(`agents/webair/schemas/api/*.json`) are **generated** from the
 contract this origin publishes at `GET /api/v1/schemas`: each input schema is the published
 request schema; each output schema is the published answer or the published refusal
 (`{"error": …}`), because a `json_http` binding hands 4xx bodies to the package as data.
@@ -186,43 +228,36 @@ The built package contains no Python and never imports this directory.
 ### Build, sign, verify, run (from the repository root)
 
 ```sh
-# refresh the generated files after an origin change (then review the diff)
+# refresh the generated files after an origin or host-resource change (then review the diff)
 (cd demo/webair && .venv/bin/python -m publisher sync)
 
-agentpkg/.venv/bin/agentpkg build agents/webair -o dist/webair-0.1.0.agent.pkg
-agentpkg/.venv/bin/agentpkg sign dist/webair-0.1.0.agent.pkg \
+agentpkg/.venv/bin/agentpkg build agents/webair -o dist/webair-0.2.0.agent.pkg
+agentpkg/.venv/bin/agentpkg sign dist/webair-0.2.0.agent.pkg \
   --private-key ~/.config/agentpkg/keys/webagents-webair.private.pem
-agentpkg/.venv/bin/agentpkg verify dist/webair-0.1.0.agent.pkg \
+agentpkg/.venv/bin/agentpkg verify dist/webair-0.2.0.agent.pkg \
   --trust-key examples/keys/webair-publisher.pub.pem
 
-# fixture run of the hero request: generic CLI, interpreter, model router and tool handlers
-agentpkg/.venv/bin/agentpkg run dist/webair-0.1.0.agent.pkg --mode fixture \
-  --grants examples/webair-grants.json \
+# fixture run of the hero request: generic CLI, interpreter, model router and tool handlers,
+# with every personal permission denied (a search needs none)
+agentpkg/.venv/bin/agentpkg run dist/webair-0.2.0.agent.pkg --mode fixture \
+  --grants examples/webair-0.2.0-grants.json \
   --approve-tool search-flights --approve-tool get-fare-rules \
   --out examples/my-webair
-# a quote, then a simulated purchase of that exact quote
-agentpkg/.venv/bin/agentpkg run dist/webair-0.1.0.agent.pkg --mode fixture \
-  --grants examples/webair-grants.json --input examples/webair-booking-input.json \
-  --approve-tool search-flights --approve-tool get-fare-rules --approve-tool prepare-booking \
-  --out examples/my-webair-quote
-agentpkg/.venv/bin/agentpkg run dist/webair-0.1.0.agent.pkg --mode fixture \
-  --grants examples/webair-grants.json --input examples/webair-purchase-input.json \
-  --approve-tool search-flights --approve-tool get-fare-rules \
-  --approve-tool prepare-booking --approve-tool simulate-purchase \
-  --out examples/my-webair-purchase
 
-agentpkg/.venv/bin/python scripts/verify_webair.py     # every scenario, offline
+agentpkg/.venv/bin/python scripts/verify_webair.py               # search scenarios, offline
+agentpkg/.venv/bin/python scripts/verify_webair_capabilities.py  # host capabilities, offline (needs Node)
 ```
 
 The private key lives outside the repository (`0600`, in a `0700` directory), as the other
 publishers' keys do; only the public key is in the tree. Building and signing again with the
-same key reproduces the artifact byte for byte. The fixture replays nine scenarios
-([`examples/webair-scenarios.json`](../../examples/webair-scenarios.json)): the hero search,
-the checked-bag question, Standard-fare rules, JFK→GVA in business, a route WebAir does not fly
-(no results), a date outside the schedule (WebAir refuses), a city WebAir does not serve (nothing
-searched), a quote for two demo passengers and its simulated purchase. Its model answers are
-scripted; its tool answers were recorded from this origin by `python -m publisher sync`, which
-runs the package's own graph in the generic interpreter against the in-process API.
+same key reproduces the artifact byte for byte. The package fixture replays seven search
+scenarios ([`examples/webair-scenarios.json`](../../examples/webair-scenarios.json)): the hero
+search, the checked-bag question, Standard-fare rules, JFK→GVA in business, a route WebAir does
+not fly (no results), a date outside the schedule (WebAir refuses) and a city WebAir does not
+serve (nothing searched). None involves a host resource, so the signed fixture holds no personal
+data. Its model answers are scripted; its tool answers were recorded from this origin by
+`python -m publisher sync`, which runs the package's own graph in the generic interpreter against
+the in-process API.
 
 The hero result: **WA101 Economy Basic $704, WA101 Economy Standard $858, WA105 Economy Basic
 $749**, all nonstop; only WA101 Standard includes a checked bag (one, 23 kg).
@@ -237,12 +272,13 @@ $749**, all nonstop; only WA101 Standard includes a checked bag (one, 23 kg).
   share no field; a wrong classification stops the run instead of producing an answer.
 - **The declared host is a placeholder.** `webair.example` never resolves. Agent Browser
   bindings require HTTPS on 443 at a public address, so a public deployment needs a new package
-  version naming its hostname, plus host bindings for the four tools.
-- **No optional tools in agent.pkg 0.1.** A host must bind and approve all four tools to run
-  the package at all, even for a search-only task (the booking permission itself is optional).
-- **Demo personal data in the task.** Passenger names and the email reach the interpreting and
-  answering models today; host-owned capabilities should supply them later without changing
-  the tool contracts.
+  version naming its hostname, plus host bindings for the four WebAir tools.
+- **No optional tools in agent.pkg 0.1.** A host must bind and approve all seven tools to run
+  the package at all, even for a search-only task — including the three host-resource tools,
+  so a host that holds no resources cannot run 0.2.0 (the personal permissions themselves are
+  optional, and a search never reads one).
+- **One passenger per booking.** A quote is for the one identity the person grants; a request
+  for several travelers cannot be quoted (the graph refuses rather than quoting fewer).
 - **Prices in the answer prose are not machine-checked**; ids and all structured fields are.
 
 ## Demo data
@@ -315,12 +351,16 @@ can name a path. There is no static directory mount and no directory listing, an
 invalid configured file stops the origin from starting. Without a configured package,
 `/agent.pkg` answers `404` with `{"error": {"code": "agent_package_unavailable", …}}`.
 
-Started with `--agent-package ../../dist/webair-0.1.0.agent.pkg`, the link resolves to the exact
+Started with `--agent-package ../../dist/webair-0.2.0.agent.pkg`, the link resolves to the exact
 signed bytes: `X-Agent-Package-SHA256` and the ETag carry
-`73872c3177a9ec281a8875ae154023a72ff10f9fe96c5a82ed1639a34ecb470c`, and `agentpkg verify` on the
+`3f135be80c2ac43b93f42acbcb648a3460b1ab39a831c251122331c99107a616`, and `agentpkg verify` on the
 downloaded file succeeds against WebAir's pinned key
-([`tests/test_package_serving.py`](tests/test_package_serving.py); a recorded `curl` check is in
-[`examples/verification/webair-010-serving.json`](../../examples/verification/webair-010-serving.json)).
+([`tests/test_package_serving.py`](tests/test_package_serving.py) checks both signed versions; a
+recorded `curl` check is in
+[`examples/verification/webair-020-serving.json`](../../examples/verification/webair-020-serving.json),
+and the 0.1.0 one in
+[`webair-010-serving.json`](../../examples/verification/webair-010-serving.json)). Publishing a
+different version needs no origin change, only a different `--agent-package` path.
 
 ### How the Agent Browser discovers WebAir
 
@@ -362,12 +402,90 @@ advertisement; a cross-origin advertisement, rejected and never fetched; a valid
 an invalid or tampered package, failing inspection; and a valid signature by a stranger's key,
 untrusted and reported as an impersonation once WebAir's key is pinned.
 
+## Host-owned capabilities (milestone 4)
+
+The division the demo makes visible:
+
+| WebAir (origin and package) owns | The person's host owns |
+|---|---|
+| the airline workflow, search semantics, fare rules, the booking protocol, its API contracts | the model, personal preferences, the passenger identity, the payment capability, which resource is used, authorization, credentials, budgets |
+
+A package may **request** a capability. It can never **grant** itself one.
+
+### What the demo host holds
+
+[`host-resources.json`](host-resources.json) is the demo host's configuration — what an operator
+names with `plugins.entries.agent-browser.config.hostResources.file`. It is never part of the
+package. Everything in it is fictional:
+
+| Type (`personal.read`) | Resources (display label) | Sealed field |
+|---|---|---|
+| `personal.travel_profile` | `profile_demo_traveler` "Demo Traveler — BOS / Economy / Nonstop"; `profile_demo_explorer` "Demo Explorer — JFK / Business / Any stops" | — (preferences) |
+| `personal.passenger_identity` | `passenger_demo_alex` "Alex Traveler — a\*\*\*@example.com" (alex.traveler@example.com); `passenger_demo_sam` "Sam Traveler — s\*\*\*@example.com" | `/contact_email` |
+| `wallet.payment_method` | `payment_demo_visa` "Demo Visa •••• 4242" → `demo-visa-4242`; `payment_demo_travel` "Demo Travel Card •••• 1234" → `demo-travel-1234` | `/payment_method_id` |
+
+A payment method is an opaque identifier the merchant accepts (WebAir's demo identifiers) and a
+display label. There is no card number, security code, wallet credential or token anywhere, and
+no Apple Wallet, Apple Pay, bank or card API is involved: this is a *host-owned payment
+capability* over a *demo wallet*.
+
+### How the person grants them
+
+In the Agent Browser's Permissions card, each `personal.read` permission shows the host's labels
+in a chooser under its decision (Deny / Allow once / Allow for session); nothing is chosen by
+default, and allowing one without choosing is refused. The purchase authority is an ordinary
+permission, `booking.simulate_purchase` (*Allow once* is the natural choice: it covers one run).
+The receipt and the run plan freeze each pick by opaque id and keyed digest; the run plan's
+preflight compares them with the host's store before anything runs, and the broker resolves only
+those grants, for the tools that link their permissions. A run with a `once` grant spends the
+authorization: a second purchase needs a new decision.
+
+### Who sees what
+
+| | Travel profile | Passenger identity | Payment method |
+|---|---|---|---|
+| **Package (workflow state)** | home airport, cabin, nonstop, currency — only when a request leaves the origin unstated | given and family name, email — only for a quote or a purchase | the opaque identifier and display label — only for a purchase |
+| **Models** | never the profile; the select and answer steps see WebAir's echo of the *search criteria* (e.g. BOS, economy, nonstop), which may have come from it | never | never (not even the label) |
+| **WebAir (origin)** | the criteria, as an ordinary search | names and email in `prepare_booking` and `simulate_purchase` only | `demo-visa-4242` in `simulate_purchase` only |
+| **Result, exports, run record** | the search query echo | the passenger *count* | `payment_display: "Demo Visa •••• 4242"` in a purchase result |
+| **Audit** | permission checks; the grant's opaque id and digest | the same | the same |
+
+The models' isolation is structural: the host-resource tools run in a `Personal` role with no
+model, and the state they fill is outside every model role's `state_read`, which the interpreter
+checks statically. The Writer reads redacted summaries of a quote and a purchase. A final node
+clears every state key that held a host resource or a request built from one, so the state the
+host writes to `result.json` keeps none.
+
+### Scenarios, offline
+
+[`examples/webair-capability-scenarios.json`](../../examples/webair-capability-scenarios.json)
+(generated by `python -m publisher sync`) holds each scenario's task, grants and picks, scripted
+model answers, and every request WebAir received with its answer in a reference run. The Agent
+Browser's acceptance suite
+([`webair-capabilities.test.ts`](../../openclaw-agent-browser/test/webair-capabilities.test.ts))
+runs them through the real control plane, runner and broker, serving those answers at the
+broker's transport:
+
+| | Scenario | Result |
+|---|---|---|
+| A | *"Find me a flight to Zurich on 9 October under $900."*, Demo Traveler granted | BOS→ZRH nonstop economy ≤ $900: WA101 Basic $704 / Standard $858, WA105 Basic $749 |
+| B | the same route stated in full, profile denied | the same three fares; the profile is never read |
+| C | *"Prepare WA101 Standard for 9 October for me."*, Alex Traveler granted | quote `WAQ-C82CB5B08515FAE6`, $858, one passenger; the identity reaches only `prepare_booking` |
+| D | purchase of that quote, payment method and purchase denied | stops at the payment method: nothing resolved, nothing sent |
+| E | purchase of that quote, Demo Visa granted, purchase *once* | `WA-DEMO-TYD4M`, `real_transaction: false`, $0 charged; the identifier reaches only `simulate_purchase` |
+| F | a signed, trusted package variant that sends the Travel Card's identifier, or another passenger's email | refused by the host before WebAir is asked |
+| G | the granted Visa changed or removed after the plan | the plan is stale; nothing runs |
+| H | the spent `once` grant replayed; a superseded pick; picks for denied or non-resource permissions | refused |
+
+The recorded acceptance is
+[`webair-020-host-capabilities.json`](../../examples/verification/webair-020-host-capabilities.json)
+(`agentpkg/.venv/bin/python scripts/verify_webair_capabilities.py`).
+
 ## Next steps
 
 1. **A public HTTPS deployment**, for a live discovery of WebAir from the Agent Browser, never
    by relaxing the loopback policy.
-2. **Host bindings** for the four declared tools (the generic `json_http` adapter already speaks
+2. **Host bindings** for the four WebAir tools (the generic `json_http` adapter already speaks
    this API's request and status shape), and a package version declaring the deployment's host.
-3. **Host-owned personal and payment capabilities**: passenger details and a payment method
-   come from the person's browser under explicit authorization, never from the package or the
-   site.
+3. **The live demo**: discover, inspect, grant the demo host's resources, quote, then purchase in
+   a second run, against the deployed origin and a real model.

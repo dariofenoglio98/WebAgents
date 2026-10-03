@@ -62,11 +62,13 @@ from .policy import (
     HostExecutionLimits,
     check_capabilities,
     check_model,
+    check_resource_grants,
     check_tools,
     effective_budget,
     effective_deadline_seconds,
     grant_report,
     normalize_grants,
+    normalize_resource_grants,
 )
 from .progress import ProgressTracker
 from .report import audit_summary, cost_summary, failure_summary, model_evidence
@@ -117,6 +119,7 @@ def normalize_execution_plan(raw) -> dict:
             "execution",
             "model_binding",
             "tool_bindings",
+            "resource_grants",
         },
         {"run_plan_id", "run_plan_sha256", "package", "publisher", "execution"},
     )
@@ -222,6 +225,7 @@ def normalize_execution_plan(raw) -> dict:
         },
         "model_binding": (normalize_binding(record["model_binding"]) if mode == "model" else None),
         "tool_bindings": bindings,
+        "resource_grants": normalize_resource_grants(record.get("resource_grants")),
     }
 
 
@@ -372,7 +376,12 @@ class ExecutionSession:
         #     person actually gave. Permission and approval are separate
         #     questions and both are asked.
         tools = check_tools(package, plan["tool_bindings"], grants, authorization["tool_approvals"])
-        handlers = tool_handlers(self._peer, plan["tool_bindings"])
+        # 3c. The host resources the person picked, by reference only, each
+        #     re-checked against the signed package's own declarations.
+        resources = check_resource_grants(package, plan["resource_grants"], grants)
+        handlers = tool_handlers(
+            self._peer, plan["tool_bindings"], resource_grants=plan["resource_grants"]
+        )
 
         # 4. The exact model, and whether it can satisfy the package at all.
         #    A tool probe binds none, so none is constructed: a router that does
@@ -451,6 +460,7 @@ class ExecutionSession:
             "capabilities": capabilities,
             "model": model,
             "tools": tools,
+            "resources": resources,
             "router": router.describe() if router is not None else None,
             "limits": {
                 "host": limits.as_json(),

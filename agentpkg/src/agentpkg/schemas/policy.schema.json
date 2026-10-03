@@ -23,7 +23,8 @@
               "model",
               "memory",
               "shell",
-              "payment"
+              "payment",
+              "personal.read"
             ]
           },
           "description": {

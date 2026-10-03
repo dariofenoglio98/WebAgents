@@ -7,7 +7,9 @@ against the WebAir ASGI app in this process, through httpx's ASGI transport: no 
 DNS, no network. It is a test and build-time binding, not part of the package.
 
 Each handler is keyed by the tool's binding name, as `agentpkg.runtime.Runtime` looks
-handlers up, and is parameterized only by the tool's own declared method and path.
+handlers up, and is parameterized only by the tool's own declared method and path. Only the
+package's remote tools get one: its host-resource tools are the person's host's, not WebAir's
+(see `host.py`).
 """
 
 from __future__ import annotations
@@ -30,6 +32,8 @@ class BindingError(Exception):
 def json_http_handlers(package, app, *, record=None) -> dict:
     handlers = {}
     for tool_id, tool in package.tools.items():
+        if tool["execution"] != "remote":
+            continue
         endpoint = urlsplit(tool["endpoint"])
         handlers[tool["binding"]] = _handler(
             app,
@@ -53,7 +57,14 @@ def _handler(app, tool_id, *, origin, path, method, record):
         result = response.json()
         if record is not None:
             record.append(
-                {"tool": tool_id, "input": copy.deepcopy(payload), "output": copy.deepcopy(result)}
+                {
+                    "tool": tool_id,
+                    "method": method,
+                    "path": path,
+                    "status": response.status_code,
+                    "input": copy.deepcopy(payload),
+                    "output": copy.deepcopy(result),
+                }
             )
         return result
 

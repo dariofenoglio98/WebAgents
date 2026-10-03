@@ -360,6 +360,15 @@
   margin: 2px 0;
   font-size: 0.88rem;
 }
+.ab-resource-choice {
+  margin: 6px 0;
+}
+.ab-resource-choice label {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
 .ab-select {
   padding: 6px 8px;
   min-width: 168px;

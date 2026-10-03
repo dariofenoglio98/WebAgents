@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Passenger identity",
+  "type": "object",
+  "properties": {
+    "given_name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 40
+    },
+    "family_name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 40
+    },
+    "contact_email": {
+      "type": "string",
+      "minLength": 6,
+      "maxLength": 254
+    }
+  },
+  "required": [
+    "given_name",
+    "family_name",
+    "contact_email"
+  ],
+  "additionalProperties": false
+}

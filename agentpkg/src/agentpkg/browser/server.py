@@ -126,6 +126,8 @@ class BrowserAPI:
             )
         if rest == ["tools", "evaluate"]:
             return self._only(method, "POST", lambda: self._evaluate_tools(session_id, body))
+        if rest == ["resources", "evaluate"]:
+            return self._only(method, "POST", lambda: self._evaluate_resources(session_id, body))
         if rest == ["input", "validate"]:
             return self._only(method, "POST", lambda: self._validate_input(session_id, body))
         if rest == ["run-plan"]:
@@ -188,6 +190,16 @@ class BrowserAPI:
             tool_registry=payload["tool_registry"],
         )
 
+    def _evaluate_resources(self, session_id, body):
+        payload = _object(
+            body, {"package_digest", "resource_registry"}, {"package_digest", "resource_registry"}
+        )
+        return 200, self.control.evaluate_resources(
+            session_id,
+            package_digest=payload["package_digest"],
+            resource_registry=payload["resource_registry"],
+        )
+
     def _prepare_run_plan(self, session_id, body):
         payload = _object(
             body,
@@ -197,6 +209,7 @@ class BrowserAPI:
                 "model_id",
                 "catalog",
                 "tool_registry",
+                "resource_registry",
                 "probe_tool_id",
                 "execution_mode",
                 "binding_strategy",
@@ -213,6 +226,7 @@ class BrowserAPI:
             probe_tool_id=payload.get("probe_tool_id"),
             execution_mode=payload.get("execution_mode", "model"),
             binding_strategy=payload.get("binding_strategy", "single_model"),
+            resource_registry=payload.get("resource_registry"),
         )
 
     def _open_file(self, body):
@@ -230,13 +244,23 @@ class BrowserAPI:
 
     def _authorize(self, session_id, body):
         payload = _object(
-            body, {"package_digest", "decisions", "tool_approvals"}, {"package_digest"}
+            body,
+            {
+                "package_digest",
+                "decisions",
+                "tool_approvals",
+                "resource_registry",
+                "resource_selections",
+            },
+            {"package_digest"},
         )
         receipt = self.control.authorize(
             session_id,
             package_digest=payload["package_digest"],
             decisions=payload.get("decisions"),
             tool_approvals=payload.get("tool_approvals"),
+            resource_registry=payload.get("resource_registry"),
+            resource_selections=payload.get("resource_selections"),
         )
         return 201, receipt
 

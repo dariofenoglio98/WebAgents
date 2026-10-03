@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Simulated purchase",
+  "anyOf": [
+    {
+      "type": "null"
+    },
+    {
+      "type": "object",
+      "properties": {
+        "confirmation_id": {
+          "type": "string",
+          "pattern": "^WA-DEMO-[A-Z2-9]{5}$"
+        },
+        "quote_id": {
+          "type": "string",
+          "pattern": "^WAQ-[0-9A-F]{16}$"
+        },
+        "fare_id": {
+          "type": "string",
+          "pattern": "^WA[0-9]{3}(-WA[0-9]{3})?-[0-9]{8}-(BASIC|STANDARD|FLEX|BUSINESS)$"
+        },
+        "fare_name": {
+          "type": "string"
+        },
+        "total_usd": {
+          "type": "integer"
+        },
+        "amount_charged_usd": {
+          "const": 0
+        },
+        "currency": {
+          "const": "USD"
+        },
+        "real_transaction": {
+          "const": false
+        },
+        "simulated": {
+          "const": true
+        },
+        "message": {
+          "type": "string"
+        },
+        "passenger_count": {
+          "const": 1
+        },
+        "payment_display": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "description": "The display-safe label the host gave for the payment method; never an identifier or a card number."
+        }
+      },
+      "required": [
+        "amount_charged_usd",
+        "confirmation_id",
+        "currency",
+        "fare_id",
+        "fare_name",
+        "message",
+        "passenger_count",
+        "payment_display",
+        "quote_id",
+        "real_transaction",
+        "simulated",
+        "total_usd"
+      ],
+      "additionalProperties": false
+    }
+  ]
+}

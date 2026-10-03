@@ -15,7 +15,7 @@
  * and grants nothing: nothing in an `.agent.pkg` adds an entry below, and a
  * package naming an origin no binding here names simply cannot run.
  *
- * ## Three categories, not a service list
+ * ## Four categories, not a service list
  *
  * * `json_http` — one exact HTTPS request to one exact configured origin, path
  *   and method, under the transport policy in `tool-broker.ts`. What the
@@ -26,11 +26,18 @@
  * * `selected_file` — a local implementation that reads **only** files the
  *   person explicitly selected for this run, through opaque host-held
  *   capabilities (`file-capabilities.ts`). It can name no path, reach no
- *   network and write nothing.
+ *   network and write nothing;
+ * * `host_resource` — a local implementation that returns **only** the one
+ *   host-owned resource of its type (a profile, an identity, a payment
+ *   instrument) the person granted for this run (`host-resources.ts`). It
+ *   takes no argument that could name another resource, reaches no network
+ *   and writes nothing. Its entries come from the host's own resource store,
+ *   one per resource type, never from a package.
  *
  * Adding a service adds an *entry*. Adding a way of reaching resources adds a
  * category: reading a person's own selected file is a different kind of reach
- * from calling a service or computing in memory, so it is the third.
+ * from calling a service or computing in memory, so it is the third, and
+ * reading what the host holds for the person is the fourth.
  *
  * ## What never leaves this process
  *
@@ -54,7 +61,7 @@ import type { ExecutionPolicy } from "./execution.js";
 export const TOOL_REGISTRY_SCHEMA = "agentpkg-host-tool-registry-v0";
 export const MAX_REGISTRY_BINDINGS = 64;
 
-export type ToolImplementationKind = "json_http" | "local_builtin" | "selected_file";
+export type ToolImplementationKind = "json_http" | "local_builtin" | "selected_file" | "host_resource";
 
 export type ToolBindingDescriptor = {
   id: string;
@@ -85,6 +92,8 @@ export type ToolBindingDescriptor = {
     min_interval_ms: number | null;
   };
   credentials: { required: boolean; configured: boolean; source: string | null };
+  /** Only on a `host_resource` binding: the type of resource it returns. */
+  resource_type?: string;
 };
 
 export type ToolRegistry = {
@@ -137,6 +146,8 @@ export type ToolBindingDefinition = {
   minIntervalMs?: number;
   credential?: CredentialSource;
   enabled?: boolean;
+  /** Required for `host_resource`: the resource type this binding returns. */
+  resourceType?: string;
 };
 
 const SOURCE = "openclaw plugin tool registry";
@@ -472,6 +483,9 @@ export function describeBinding(
       configured,
       source: definition.credential ? `env:${definition.credential.name}` : null,
     },
+    ...(definition.kind === "host_resource" && definition.resourceType
+      ? { resource_type: definition.resourceType }
+      : {}),
   };
 }
 

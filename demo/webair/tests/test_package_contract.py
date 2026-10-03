@@ -32,6 +32,7 @@ from publisher.contract import (
     output_schema_path,
     tool_output_schema,
 )
+from publisher.host import EMPTY_INPUT_SCHEMA, host_definitions, host_schema_files
 
 TOOL_IDS = {
     "search-flights",
@@ -39,6 +40,7 @@ TOOL_IDS = {
     "prepare-booking",
     "simulate-purchase",
 }
+HOST_TOOL_IDS = {"personal.travel_profile", "personal.passenger_identity", "wallet.payment_method"}
 
 
 @pytest.fixture(scope="module")
@@ -65,15 +67,21 @@ def without_draft(schema):
 # --- operations ---------------------------------------------------------------------------
 
 
-def test_the_package_declares_exactly_the_four_semantic_operations(package):
-    assert set(package.tools) == TOOL_IDS
-    assert {tool["binding"] for tool in package.tools.values()} == {
+def test_the_package_declares_the_four_semantic_operations_and_three_host_resources(package):
+    assert set(package.tools) == TOOL_IDS | HOST_TOOL_IDS
+    remote = {tool_id for tool_id, tool in package.tools.items() if tool["execution"] == "remote"}
+    assert remote == TOOL_IDS
+    assert {package.tools[tool_id]["binding"] for tool_id in TOOL_IDS} == {
         f"webair.{operation}" for operation in PACKAGE_TOOLS
     }
+    for tool_id in HOST_TOOL_IDS:
+        assert package.tools[tool_id]["binding"] == f"host.resource.{tool_id}"
 
 
-def test_every_declared_tool_names_one_published_operation(package, published):
+def test_every_webair_tool_names_one_published_operation(package, published):
     for tool_id, tool in package.tools.items():
+        if tool["execution"] != "remote":
+            continue
         operation = tool["binding"].removeprefix("webair.")
         assert PACKAGE_TOOLS[operation] == tool_id
         assert operation in published["operations"], operation
@@ -176,8 +184,11 @@ def test_the_model_facing_search_plan_is_the_origin_request_made_explicit(publis
     assert set(plan["required"]) == set(origin["properties"]) >= set(origin["required"])
     assert plan["additionalProperties"] is False
     fields, origin_fields = plan["properties"], origin["properties"]
-    for name in ("origin", "destination"):
-        assert fields[name]["enum"] == origin_fields[name]["enum"] == list(inventory.AIRPORTS)
+    assert fields["destination"]["enum"] == origin_fields["destination"]["enum"]
+    assert origin_fields["destination"]["enum"] == list(inventory.AIRPORTS)
+    # Left open (null) when the request does not say; the host's profile may fill it.
+    assert fields["origin"]["enum"] == [*origin_fields["origin"]["enum"], None]
+    assert fields["nonstop_only"]["type"] == ["boolean", "null"]
     assert fields["date"]["pattern"] == origin_fields["date"]["pattern"] == DATE_PATTERN
     for name in ("passengers",):
         assert (fields[name]["minimum"], fields[name]["maximum"]) == (
@@ -201,20 +212,42 @@ def test_model_facing_fare_ids_use_the_origin_id_format():
     assert answer["mentioned_fare_ids"]["items"]["pattern"] == FARE_ID_PATTERN
 
 
-def test_task_inputs_reuse_the_origin_definitions(package, published):
-    task = source_json("schemas/input.schema.json")["$defs"]
-    booking, purchase = task["Booking"]["properties"], task["Purchase"]["properties"]
-    assert booking["passengers"]["$ref"].endswith(
-        "prepare_booking.input.schema.json#/properties/passengers"
-    )
-    assert purchase["quote_id"]["$ref"].endswith(
-        "simulate_purchase.input.schema.json#/properties/quote_id"
-    )
+def test_task_inputs_carry_choices_and_ids_never_personal_data(package, published):
+    task = source_json("schemas/input.schema.json")
+    assert set(task["properties"]) == {"request", "booking", "purchase"}
+    assert task["properties"]["booking"]["type"] == "boolean"
+    purchase = task["properties"]["purchase"]["properties"]
+    assert set(purchase) == {"quote_id", "fare_id"}
+    # The origin's own id formats, or empty for "no purchase in this task".
+    assert purchase["quote_id"]["pattern"] == f"^({QUOTE_ID_PATTERN[1:-1]})?$"
+    assert purchase["fare_id"]["pattern"] == f"^({FARE_ID_PATTERN[1:-1]})?$"
     request = published["operations"]["simulate_purchase"]["request_schema"]["properties"]
     assert request["quote_id"]["pattern"] == QUOTE_ID_PATTERN
     assert request["payment_method_id"]["enum"] == list(inventory.PAYMENT_METHODS)
     confirmation = published["operations"]["simulate_purchase"]["response_schema"]
     assert confirmation["properties"]["confirmation_id"]["pattern"] == CONFIRMATION_ID_PATTERN
+
+
+def test_host_resource_schemas_are_the_demo_hosts_own(package):
+    for path, document in host_schema_files().items():
+        assert source_json(path) == document, path
+    assert source_json("schemas/host/empty-input.schema.json") == EMPTY_INPUT_SCHEMA
+    for tool_id in HOST_TOOL_IDS:
+        tool = package.tools[tool_id]
+        assert tool["input_schema"] == "schemas/host/empty-input.schema.json"
+        assert tool["output_schema"] == f"schemas/host/{tool_id}.schema.json"
+
+
+def test_every_demo_payment_method_is_one_webair_accepts():
+    definitions = host_definitions()
+    wallet = [r["value"] for r in definitions["resources"] if r["type"] == "wallet.payment_method"]
+    assert {value["payment_method_id"] for value in wallet} == set(inventory.PAYMENT_METHODS)
+    # A demo identity is a valid WebAir passenger and contact.
+    identity = TypeAdapter(dict).validate_python
+    for resource in definitions["resources"]:
+        if resource["type"] == "personal.passenger_identity":
+            value = identity(resource["value"])
+            assert re.fullmatch(r"[^@]+@example\.com", value["contact_email"])
 
 
 def test_manifest_names_the_published_api(package, published):

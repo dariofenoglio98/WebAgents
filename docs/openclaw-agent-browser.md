@@ -397,6 +397,16 @@ session.
 * Required permissions are labelled and grouped separately from optional ones.
 * Tool approvals appear as their own checkboxes when a package declares a tool
   needing explicit approval.
+* A permission that requests a **host-owned resource** (`personal.read`, e.g. a
+  travel profile, a passenger identity or a payment method) shows a chooser of
+  the host's display-safe labels (`Alex Traveler — a***@example.com`,
+  `Demo Visa •••• 4242`) under its decision. Nothing is chosen by default;
+  allowing the permission without choosing is refused with a precise reason,
+  and a pick is sent only with a permission that is allowed. Choosing changes no
+  other part of the page. The receipt and the run plan name the chosen resource
+  by its label and short digest; the value itself never reaches the page.
+  `hostResources.file` in the plugin configuration names the host's resource
+  definitions; without one, such permissions say the host holds none.
 * **Authorize** sends the session id, the exact digest the page displayed, and
   the explicit decisions. A mismatched digest is refused by the control plane.
 * Success renders `✓ Authorized for this session` together with *The package has

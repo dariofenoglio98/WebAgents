@@ -2,8 +2,8 @@
   "spec_version": "0.1",
   "package_id": "org.webagents.webair",
   "name": "WebAir Travel Agent",
-  "version": "0.1.0",
-  "description": "Search WebAir flights, explain fare rules, prepare a booking quote and simulate a purchase through WebAir's own semantic API. WebAir is a fictional demo airline: nothing is ever booked or charged.",
+  "version": "0.2.0",
+  "description": "Search WebAir flights, explain fare rules, prepare a booking quote and simulate a purchase through WebAir's own semantic API, using a travel profile, a passenger identity and a payment method that the person's host owns and grants per run. WebAir publishes the behavior; the person's runtime supplies the authority. WebAir is a fictional demo airline: nothing is ever booked or charged.",
   "publisher": {
     "id": "webair-demo",
     "name": "WebAir (fictional demo airline)"
@@ -11,13 +11,16 @@
   "created_at": "2026-10-02T00:00:00Z",
   "runtime": {
     "api": "agentpkg-runtime-v0",
-    "minimum_version": "0.2.1"
+    "minimum_version": "0.2.2"
   },
   "capabilities": [
     "flight-search",
     "fare-rules",
     "booking-quote",
-    "simulated-purchase"
+    "simulated-purchase",
+    "host-travel-profile",
+    "host-passenger-identity",
+    "host-payment-method"
   ],
   "entrypoint": "workflow.v0",
   "graph": "graph.json",
@@ -25,22 +28,22 @@
   "skills": [
     {
       "id": "webair-domain",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "path": "skills/webair-domain/SKILL.md"
     },
     {
       "id": "travel-request",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "path": "skills/travel-request/SKILL.md"
     },
     {
       "id": "fare-selection",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "path": "skills/fare-selection/SKILL.md"
     },
     {
       "id": "answer-writing",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "path": "skills/answer-writing/SKILL.md"
     }
   ],
@@ -60,6 +63,18 @@
     {
       "id": "simulate-purchase",
       "path": "tools/simulate-purchase.tool.json"
+    },
+    {
+      "id": "personal.travel_profile",
+      "path": "tools/host-travel-profile.tool.json"
+    },
+    {
+      "id": "personal.passenger_identity",
+      "path": "tools/host-passenger-identity.tool.json"
+    },
+    {
+      "id": "wallet.payment_method",
+      "path": "tools/host-payment-method.tool.json"
     }
   ],
   "schemas": [
@@ -96,12 +111,36 @@
       "path": "schemas/api/simulate_purchase.output.schema.json"
     },
     {
+      "id": "host.empty-input",
+      "path": "schemas/host/empty-input.schema.json"
+    },
+    {
+      "id": "host.personal.travel_profile",
+      "path": "schemas/host/personal.travel_profile.schema.json"
+    },
+    {
+      "id": "host.personal.passenger_identity",
+      "path": "schemas/host/personal.passenger_identity.schema.json"
+    },
+    {
+      "id": "host.wallet.payment_method",
+      "path": "schemas/host/wallet.payment_method.schema.json"
+    },
+    {
       "id": "input",
       "path": "schemas/input.schema.json"
     },
     {
       "id": "plan",
       "path": "schemas/plan.schema.json"
+    },
+    {
+      "id": "travel-preferences",
+      "path": "schemas/travel-preferences.schema.json"
+    },
+    {
+      "id": "search-request",
+      "path": "schemas/search-request.schema.json"
     },
     {
       "id": "selection",
@@ -174,6 +213,38 @@
     {
       "id": "simulated-confirmation",
       "path": "schemas/simulated-confirmation.schema.json"
+    },
+    {
+      "id": "passenger",
+      "path": "schemas/passenger.schema.json"
+    },
+    {
+      "id": "payment",
+      "path": "schemas/payment.schema.json"
+    },
+    {
+      "id": "booking-summary",
+      "path": "schemas/booking-summary.schema.json"
+    },
+    {
+      "id": "purchase-summary",
+      "path": "schemas/purchase-summary.schema.json"
+    },
+    {
+      "id": "purchase-result",
+      "path": "schemas/purchase-result.schema.json"
+    },
+    {
+      "id": "fare-refs",
+      "path": "schemas/fare-refs.schema.json"
+    },
+    {
+      "id": "status",
+      "path": "schemas/status.schema.json"
+    },
+    {
+      "id": "scrub",
+      "path": "schemas/scrub.schema.json"
     }
   ],
   "model_requirements": {
@@ -223,7 +294,8 @@
       "fictional": true,
       "semantic_api": "webair-semantic-api",
       "semantic_api_version": "v1",
-      "note": "Informational only. Tool endpoints are upper bounds; the host chooses and the person approves every binding."
+      "note": "Informational only. Tool endpoints are upper bounds; the host chooses and the person approves every binding.",
+      "host_resources": "The travel profile, passenger identity and payment method are requested as host-owned resource types (personal.read permissions and argument-free local tools). The package holds none of them; the person's host supplies the one the person grants."
     }
   }
 }

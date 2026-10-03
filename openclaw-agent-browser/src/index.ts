@@ -190,6 +190,25 @@ export const CONFIG_SCHEMA = {
         },
       },
     },
+    hostResources: {
+      type: "object",
+      additionalProperties: false,
+      description:
+        "What this host holds for the person (travel profiles, identities, payment instruments, " +
+        "...), so a package can request a type of resource without ever owning one. The person " +
+        "chooses whether to grant each request and which resource; a package receives only the " +
+        "granted resource, and only through the tool that links its permission.",
+      properties: {
+        file: {
+          type: "string",
+          maxLength: 4096,
+          description:
+            "Absolute path to an openclaw-host-resources-v0 JSON document: resource types (id, " +
+            "value schema, sealed fields) and resources (opaque id, display-safe label, value). " +
+            "Values never leave this host process except to the tool call a grant allows.",
+        },
+      },
+    },
   },
 } as const;
 
@@ -298,8 +317,20 @@ const plugin = defineFeaturePlugin({
       "websites.discover": ({ url }) => active().discoverWebsite(url),
       "packages.open-local": ({ path }) => active().openLocal(path),
       "packages.close": ({ sessionId }) => active().closeSession(sessionId),
-      "packages.authorize": ({ sessionId, packageDigest, decisions, toolApprovals }) =>
-        active().authorize(sessionId, packageDigest, decisions, toolApprovals ?? []),
+      "packages.authorize": ({
+        sessionId,
+        packageDigest,
+        decisions,
+        toolApprovals,
+        resourceSelections,
+      }) =>
+        active().authorize(
+          sessionId,
+          packageDigest,
+          decisions,
+          toolApprovals ?? [],
+          resourceSelections ?? [],
+        ),
       "models.evaluate": ({ sessionId }) => active().evaluateModels(sessionId),
       "tools.evaluate": ({ sessionId }) => active().evaluateTools(sessionId),
       "run-plan.get": ({ sessionId }) => active().getRunPlan(sessionId),

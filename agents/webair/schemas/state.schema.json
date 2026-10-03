@@ -16,6 +16,19 @@
         }
       ]
     },
+    "profile": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "travel-preferences.schema.json"
+        }
+      ]
+    },
+    "search_request": {
+      "$ref": "search-request.schema.json"
+    },
     "search": {
       "$ref": "search-outcome.schema.json"
     },
@@ -41,8 +54,17 @@
     "fare_rules": {
       "$ref": "fare-rules.schema.json"
     },
+    "selected_booking_fare": {
+      "$ref": "booking-fare.schema.json"
+    },
     "booking_fare": {
       "$ref": "booking-fare.schema.json"
+    },
+    "payment": {
+      "$ref": "payment.schema.json"
+    },
+    "passenger": {
+      "$ref": "passenger.schema.json"
     },
     "booking_request": {
       "$ref": "booking-request.schema.json"
@@ -55,6 +77,31 @@
     },
     "confirmation": {
       "$ref": "confirmation.schema.json"
+    },
+    "booking_summary": {
+      "$ref": "booking-summary.schema.json"
+    },
+    "purchase_summary": {
+      "$ref": "purchase-summary.schema.json"
+    },
+    "purchase_result": {
+      "$ref": "purchase-result.schema.json"
+    },
+    "purchase_fares": {
+      "$ref": "fare-refs.schema.json"
+    },
+    "known_fares": {
+      "$ref": "fare-refs.schema.json"
+    },
+    "status": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "status.schema.json"
+        }
+      ]
     },
     "answer": {
       "anyOf": [
@@ -80,17 +127,28 @@
   "required": [
     "request",
     "plan",
+    "profile",
+    "search_request",
     "search",
     "selection",
     "offered_flights",
     "offered_fares",
     "refusal",
     "fare_rules",
+    "selected_booking_fare",
     "booking_fare",
+    "payment",
+    "passenger",
     "booking_request",
     "quote",
     "purchase_request",
     "confirmation",
+    "booking_summary",
+    "purchase_summary",
+    "purchase_result",
+    "purchase_fares",
+    "known_fares",
+    "status",
     "answer",
     "result"
   ],

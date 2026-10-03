@@ -4,16 +4,43 @@
     {
       "id": "network.webair",
       "kind": "network",
-      "description": "Search WebAir flights and read fare rules through WebAir's semantic API (a fictional demo airline).",
+      "description": "Call WebAir's semantic API (a fictional demo airline): search flights, read fare rules, request a booking quote and, only with the separate purchase permission, simulate a purchase.",
       "required": true,
       "resources": [
         "webair.example"
       ]
     },
     {
-      "id": "network.webair.booking",
-      "kind": "network",
-      "description": "Send passenger names and a contact email to WebAir for a booking quote, and simulate purchasing an exact quote. Optional: searches work without it, and the workflow reaches these tools only when a task supplies booking or purchase details.",
+      "id": "profile.travel",
+      "kind": "personal.read",
+      "description": "Read the travel profile you choose (home airport, preferred cabin, nonstop preference) when a request leaves those unstated. The profile becomes search criteria sent to WebAir; it is never shown to a model as a profile.",
+      "required": false,
+      "resources": [
+        "personal.travel_profile"
+      ]
+    },
+    {
+      "id": "identity.passenger",
+      "kind": "personal.read",
+      "description": "Read the passenger identity you choose (name and contact email) and send it to WebAir for a booking quote or a simulated purchase, and nowhere else. No model sees it.",
+      "required": false,
+      "resources": [
+        "personal.passenger_identity"
+      ]
+    },
+    {
+      "id": "wallet.payment",
+      "kind": "personal.read",
+      "description": "Read which payment method you choose (an opaque demo identifier and a display label, never a card number) and send the identifier to WebAir with a simulated purchase, and nowhere else. No model sees it.",
+      "required": false,
+      "resources": [
+        "wallet.payment_method"
+      ]
+    },
+    {
+      "id": "booking.simulate_purchase",
+      "kind": "payment",
+      "description": "Simulate purchasing the one exact quote a task names, with the payment method you choose. Fictional: WebAir performs no real transaction and charges nothing. Consequential by design: grant it once, for one run.",
       "required": false,
       "resources": [
         "webair.example"
@@ -60,7 +87,10 @@
       "search-flights": 1,
       "get-fare-rules": 6,
       "prepare-booking": 1,
-      "simulate-purchase": 1
+      "simulate-purchase": 1,
+      "personal.travel_profile": 1,
+      "personal.passenger_identity": 1,
+      "wallet.payment_method": 1
     },
     "max_parallel_workers": 3,
     "estimated_cost_usd": null,
@@ -70,6 +100,7 @@
     "max_depth": 1,
     "approved_roles": [
       "Interpreter",
+      "Personal",
       "Searcher",
       "Selector",
       "Booker",

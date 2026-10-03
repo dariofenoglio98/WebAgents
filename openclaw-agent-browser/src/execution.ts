@@ -47,6 +47,7 @@ import {
   type FileCapabilityView,
 } from "./file-capabilities.js";
 import type { PdfReader } from "./pdf-reader.js";
+import type { HostResourceStore } from "./host-resources.js";
 import type { HostLlm } from "./host-llm.js";
 import type { HostCatalog } from "./host-models.js";
 import { revalidate, type PreflightOutcome } from "./preflight.js";
@@ -213,6 +214,12 @@ export type ExecutionServiceOptions = {
   files?: FileCapabilityStore;
   /** The trusted PDF parser a `selected_file` binding hands bytes to. */
   pdfReader?: () => PdfReader;
+  /**
+   * What this host holds for the person, if anything. A run is given exactly
+   * the resources its plan granted; every other sealed value is withheld from
+   * every tool call.
+   */
+  resources?: () => HostResourceStore | null;
   /**
    * Test seam: replace the broker's HTTP mechanics.
    *
@@ -393,6 +400,7 @@ export class ExecutionService {
       minimumReceiptRemainingMs: (policy.runTimeoutSeconds + RECEIPT_MARGIN_SECONDS) * 1000,
       toolRegistry: this.options.tools().registry,
       requireMode: "model",
+      ...this.resourceOption(),
     });
     // Reading a selected file is a permission of its own; attaching one does
     // not grant it, and a run that could not read it is refused up front.
@@ -458,15 +466,25 @@ export class ExecutionService {
     attached: ReadonlyMap<string, FileCapabilityView> = new Map(),
   ): ToolBroker {
     const { definitions } = this.options.tools();
+    const store = this.options.resources?.() ?? null;
     return new ToolBroker({
       bound: preflight.tools,
       definitions,
       logger: this.options.logger,
       files: attached,
+      // Exactly the grants the plan froze, re-verified by the preflight; with
+      // none, every value this host holds is withheld from every call.
+      ...(store ? { resources: { grants: preflight.resources, store } } : {}),
       ...(this.options.files ? { fileStore: this.options.files } : {}),
       ...(this.options.pdfReader ? { pdfReader: this.options.pdfReader() } : {}),
       ...(this.options.toolTransport ? { transport: this.options.toolTransport } : {}),
     });
+  }
+
+  /** The live resource store, for a preflight to compare frozen grants with. */
+  private resourceOption(): { resources?: HostResourceStore } {
+    const store = this.options.resources?.() ?? null;
+    return store ? { resources: store } : {};
   }
 
   private checkReferencedFiles(
@@ -639,6 +657,13 @@ export class ExecutionService {
           .filter(([, decision]) => decision !== "deny")
           .map(([permissionId]) => permissionId),
       },
+      // Which host resources this run carries, by reference: never a value.
+      resources: preflight.resources.map((grant) => ({
+        permissionId: grant.permission_id,
+        resourceType: grant.resource_type,
+        resourceId: grant.resource_id,
+        resourceDigest: grant.resource_digest,
+      })),
       limits: {
         host: {
           totalTokens: policy.totalTokens,
@@ -1013,6 +1038,7 @@ export class ExecutionService {
       runPlanId: request.runPlanId,
       runPlanSha256: request.runPlanSha256,
       toolRegistry: this.options.tools().registry,
+      ...this.resourceOption(),
     });
     const bound = preflight.tools.find((tool) => tool.toolId === request.toolId);
     if (!bound) {
@@ -1329,6 +1355,7 @@ export class ExecutionService {
         minimumReceiptRemainingMs: requiredSeconds * 1000,
         toolRegistry: this.options.tools().registry,
         requireMode: "model",
+        ...this.resourceOption(),
       });
       view.checks = preflight.revalidated.slice(0, 64);
       if (active) {

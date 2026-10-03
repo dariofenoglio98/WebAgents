@@ -563,6 +563,32 @@ const BlockingReason = Obj({
   subject: Nullable(Text(200)),
 });
 
+/**
+ * One host resource a person granted, as a receipt, a plan and a run record
+ * name it: an opaque id, its type, and the host's digest of its value. The
+ * value and its label never travel in one.
+ */
+export const ResourceGrantView = Obj({
+  permissionId: Id(),
+  resourceType: Id(),
+  resourceId: Id(),
+  resourceDigest: Text(64),
+});
+
+/**
+ * What a resource-bearing permission lets the person choose from: display-safe
+ * labels the host composed, by opaque id. `status` is the control plane's:
+ * only `offered` can carry a selection.
+ */
+export const HostResourceRequestView = Obj({
+  resourceType: Nullable(Id()),
+  typeDisplayName: Nullable(Text(128)),
+  typeDescription: Nullable(Text(LIMITS.text)),
+  status: Text(32),
+  options: Type.Array(Obj({ resourceId: Id(), label: Text(200) }), { maxItems: 64 }),
+  selectedResourceId: Nullable(Id()),
+});
+
 export const PermissionsView = Obj({
   sessionId: Text(128),
   packageId: Id(),
@@ -582,6 +608,8 @@ export const PermissionsView = Obj({
       decision: Decision,
       linkedTools: Type.Array(Id(), { maxItems: LIMITS.tools }),
       linkedDomains: Type.Array(Text(256), { maxItems: LIMITS.domains }),
+      /** Set when this permission requests a resource this host holds. */
+      hostResource: Nullable(HostResourceRequestView),
     }),
     { maxItems: LIMITS.permissions },
   ),
@@ -631,6 +659,8 @@ export const ReceiptView = Obj({
     maxItems: LIMITS.toolApprovals,
   }),
   grantedPermissionIds: Type.Array(Id(), { maxItems: LIMITS.permissions }),
+  /** Which host resource each resource-bearing grant names. */
+  resourceGrants: Type.Array(ResourceGrantView, { maxItems: LIMITS.permissions }),
   runnable: Type.Boolean(),
   blockingReasons: Type.Array(BlockingReason, { maxItems: LIMITS.blockingReasons }),
   receiptSha256: Text(128),
@@ -987,6 +1017,11 @@ export const RunPlanView = Obj({
   toolRegistry: Nullable(
     Obj({ registrySha256: Text(128), bindingCount: Type.Integer({ minimum: 0 }) }),
   ),
+  /** The host resources this plan would run with, by id and digest only. */
+  resourceGrants: Type.Array(ResourceGrantView, { maxItems: LIMITS.permissions }),
+  resourceRegistry: Nullable(
+    Obj({ registrySha256: Text(128), resourceCount: Type.Integer({ minimum: 0 }) }),
+  ),
   readiness: Obj({
     state: Text(32),
     ready: Type.Boolean(),
@@ -1011,6 +1046,8 @@ export const RunPlanStateView = Obj({
       /** Whether every implementation this plan bound is still that one. */
       toolBindingsCurrent: Type.Boolean(),
       toolBindingsBound: Type.Integer({ minimum: 0 }),
+      /** Whether every host resource this plan granted is still that one. */
+      resourceGrantsCurrent: Type.Boolean(),
     }),
   ),
   /**
@@ -1181,6 +1218,8 @@ export const RunRecordView = Obj({
     }),
     grantedPermissionIds: Type.Array(Id(), { maxItems: LIMITS.ids }),
   }),
+  /** The host resources the run was granted, by reference. Absent on older records. */
+  resources: Type.Optional(Type.Array(ResourceGrantView, { maxItems: LIMITS.permissions })),
   limits: Obj({
     host: Obj({
       totalTokens: Type.Integer(),
@@ -1886,6 +1925,16 @@ export const contract = defineFeatureContract({
         toolApprovals: Type.Optional(
           Type.Array(Obj({ toolId: Id(), approved: Type.Boolean() }), {
             maxItems: LIMITS.toolApprovals,
+          }),
+        ),
+        /**
+         * For a permission that requests a host resource: which one. Only ids
+         * from that permission's own options are accepted, and the control
+         * plane re-checks each against the host's registry.
+         */
+        resourceSelections: Type.Optional(
+          Type.Array(Obj({ permissionId: Id(), resourceId: Id() }), {
+            maxItems: LIMITS.permissions,
           }),
         ),
       }),

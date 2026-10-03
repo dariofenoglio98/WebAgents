@@ -4,19 +4,13 @@
   "type": "object",
   "properties": {
     "status": {
-      "type": "string",
-      "enum": [
-        "options_found",
-        "no_matching_flights",
-        "request_refused",
-        "request_not_supported"
-      ]
+      "$ref": "status.schema.json"
     },
     "answer": {
       "type": "string",
       "minLength": 1,
       "maxLength": 4000,
-      "description": "Model-written summary. The evidence fields are WebAir's own answers, verbatim."
+      "description": "Model-written summary from WebAir's answers. No passenger identity or payment detail is ever in its input."
     },
     "interpreted_request": {
       "$ref": "plan.schema.json"
@@ -30,6 +24,12 @@
     "refusal": {
       "$ref": "refusal.schema.json"
     },
+    "booking": {
+      "$ref": "booking-summary.schema.json"
+    },
+    "purchase": {
+      "$ref": "purchase-result.schema.json"
+    },
     "evidence": {
       "type": "object",
       "properties": {
@@ -38,19 +38,11 @@
         },
         "fare_rules": {
           "$ref": "fare-rules.schema.json"
-        },
-        "booking_quote": {
-          "$ref": "booking-quote.schema.json"
-        },
-        "simulated_confirmation": {
-          "$ref": "simulated-confirmation.schema.json"
         }
       },
       "required": [
         "search",
-        "fare_rules",
-        "booking_quote",
-        "simulated_confirmation"
+        "fare_rules"
       ],
       "additionalProperties": false
     },
@@ -65,6 +57,8 @@
     "selected_fare_id",
     "mentioned_fare_ids",
     "refusal",
+    "booking",
+    "purchase",
     "evidence",
     "notice"
   ],

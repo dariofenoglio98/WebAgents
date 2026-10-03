@@ -2,13 +2,19 @@
 
     agentpkg/.venv/bin/python scripts/verify_webair.py [--report PATH]
 
-Verifies the signed artifact against WebAir's pinned publisher key, checks that the source
-tree rebuilds to the same payload, then runs every demo scenario in
-`examples/webair-scenarios.json` through `agentpkg.workflow` with agentpkg's own fixture
-adapters (exact-input replay of the package's fixture for both models and tools). Nothing
-from `demo/webair` is imported, and no network, model or origin server is used. Whether the
+Verifies the signed 0.2.0 artifact against WebAir's pinned publisher key, checks that the
+source tree rebuilds to the same payload and that the signed bytes carry no personal data,
+then runs every search scenario in `examples/webair-scenarios.json` through
+`agentpkg.workflow` with agentpkg's own fixture adapters (exact-input replay of the package's
+fixture for both models and tools), with every personal permission denied. Nothing from
+`demo/webair` is imported, and no network, model or origin server is used. Whether the
 fixture's tool answers are WebAir's real answers is established separately by
-`demo/webair/tests/test_package_contract.py`.
+`demo/webair/tests/test_package_contract.py`; the host-owned capability scenarios run on the
+Agent Browser host (`scripts/verify_webair_capabilities.py`).
+
+0.1.0 is checked to be unchanged: earlier evidence describes those exact bytes, and the
+unversioned `dist/webair.agent.pkg` stays the newest version the released 0.2.2 runtime can
+read (0.2.0 declares the `personal.read` permission kind).
 
 Prints a JSON report; `passed` is false if any check fails.
 """
@@ -30,11 +36,15 @@ from agentpkg.signing import verify_package
 from agentpkg.workflow import run_workflow
 
 ROOT = Path(__file__).resolve().parents[1]
-ARCHIVE = ROOT / "dist/webair-0.1.0.agent.pkg"
+ARCHIVE = ROOT / "dist/webair-0.2.0.agent.pkg"
+ARCHIVE_010 = ROOT / "dist/webair-0.1.0.agent.pkg"
+ARCHIVE_010_SHA256 = "73872c3177a9ec281a8875ae154023a72ff10f9fe96c5a82ed1639a34ecb470c"
 ALIAS = ROOT / "dist/webair.agent.pkg"
 SOURCE = ROOT / "agents/webair"
 KEY = ROOT / "examples/keys/webair-publisher.pub.pem"
 SCENARIOS = ROOT / "examples/webair-scenarios.json"
+GRANTS = ROOT / "examples/webair-0.2.0-grants.json"
+HOST_RESOURCES = ROOT / "demo/webair/host-resources.json"
 CANONICAL_NODE_TYPES = {"llm", "tool", "map", "join", "validate", "output"}
 # Generic code that must not know WebAir exists: the runtime, the browser control plane,
 # the execution host, the tool and model bridges, and the Agent Browser plugin.
@@ -50,12 +60,40 @@ def genericity_scan() -> dict:
             if not path.is_file() or path.suffix not in GENERIC_SUFFIXES:
                 continue
             scanned += 1
-            if re.search(r"webair", path.read_text(errors="replace"), re.I):
+            text = path.read_text(errors="replace")
+            if re.search(
+                r"webair|airline|passenger_demo|payment_demo|profile_demo",
+                text,
+                re.IGNORECASE,
+            ):
                 hits.append(path.relative_to(ROOT).as_posix())
     return {
         "files_scanned": scanned,
         "files_mentioning_webair": hits,
         "clean": not hits,
+    }
+
+
+def personal_data_scan(package) -> dict:
+    """Which of the demo host's personal values, if any, the signed bytes contain."""
+    text = "\n".join(data.decode() for data in package.files.values())
+    definitions = json.loads(HOST_RESOURCES.read_text())
+    values = []
+    for resource in definitions["resources"]:
+        values += [resource["id"], resource["label"]]
+        values += [
+            value
+            for field, value in resource["value"].items()
+            if field in {"given_name", "family_name", "contact_email", "display"}
+        ]
+    found = sorted({value for value in values if value in text})
+    emails = sorted(set(re.findall(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+", text)))
+    return {
+        "host_values_checked": len(values),
+        "host_values_found": found,
+        "email_addresses_found": emails,
+        "card_like_digit_runs": bool(re.search(r"\b\d{13,19}\b", text)),
+        "clean": not found and not emails,
     }
 
 
@@ -75,23 +113,16 @@ def run_scenario(package, case: dict) -> dict:
             case["input"],
             router=router,
             handlers=handlers,
-            grants={p["id"]: "session" for p in package.policy["permissions"]},
+            # Every personal permission denied: a search needs none of them.
+            grants=json.loads(GRANTS.read_text()),
             approved_tools=sorted(package.tools),
         )
     )
     output, audit = result["output"], result["audit"]
     evidence = output["evidence"]
-    quote = evidence["booking_quote"] or {}
-    confirmation = evidence["simulated_confirmation"] or {}
     observed = {
         "status": output["status"],
         "selected_fare_id": output["selected_fare_id"],
-        **({"quote_id": quote.get("quote_id")} if "quote_id" in case["expect"] else {}),
-        **(
-            {"confirmation_id": confirmation.get("confirmation_id")}
-            if "confirmation_id" in case["expect"]
-            else {}
-        ),
     }
     offered = {
         fare["fare_id"]
@@ -105,7 +136,9 @@ def run_scenario(package, case: dict) -> dict:
         if e["action"] == "node.completed" and e.get("node_id") in nodes
     )
     skipped = sorted(
-        e["node_id"] for e in audit if e["action"] == "node.skipped" and e.get("node_id") in nodes
+        e["node_id"]
+        for e in audit
+        if e["action"] == "node.skipped" and e.get("node_id") in nodes
     )
     tools = [(e["tool"], e["binding"]) for e in audit if e["action"] == "tool.called"]
     summary = audit_summary(audit)
@@ -113,10 +146,15 @@ def run_scenario(package, case: dict) -> dict:
         "completed": result["status"] == "completed",
         "expected_outcome": observed == case["expect"],
         "ids_from_tool_evidence": set(output["mentioned_fare_ids"]) <= offered
-        and (output["selected_fare_id"] is None or output["selected_fare_id"] in offered),
+        and (
+            output["selected_fare_id"] is None or output["selected_fare_id"] in offered
+        ),
         "audit_chain_valid": verify_audit_chain(audit)["valid"],
-        "no_real_transaction": not confirmation
-        or (confirmation["real_transaction"] is False and confirmation["amount_charged_usd"] == 0),
+        "no_booking_or_purchase": output["booking"] is None
+        and output["purchase"] is None,
+        "no_host_resource_read": not any(
+            e["action"] == "tool.called" and "." in e.get("tool", "") for e in audit
+        ),
         "replay_router": isinstance(router, FixtureRouter) and router.synthetic,
     }
     return {
@@ -156,10 +194,18 @@ def verify() -> dict:
     scenarios = json.loads(SCENARIOS.read_text())["scenarios"]
     runs = [run_scenario(package, case) for case in scenarios]
     genericity = genericity_scan()
+    personal = personal_data_scan(package)
+    earlier = verify_package(ARCHIVE_010, KEY)
     checks = {
         "signature_valid": signature["valid"] is True,
-        "alias_is_this_release": ALIAS.read_bytes() == ARCHIVE.read_bytes(),
+        "earlier_release_unchanged": sha256(ARCHIVE_010.read_bytes())
+        == ARCHIVE_010_SHA256
+        and earlier["valid"] is True
+        and earlier["key_fingerprint"] == signature["key_fingerprint"],
+        "alias_is_newest_release_runtime_compatible": ALIAS.read_bytes()
+        == ARCHIVE_010.read_bytes(),
         "source_rebuilds_to_signed_payload": rebuild_matches(package),
+        "no_personal_data_in_signed_bytes": personal["clean"],
         "profile_workflow_v0": graph["profile"] == "workflow.v0"
         and package.manifest["entrypoint"] == "workflow.v0",
         "canonical_operators_only": node_types <= CANONICAL_NODE_TYPES,
@@ -183,7 +229,9 @@ def verify() -> dict:
             "verification": signature,
             "runtime_minimum_version": package.manifest["runtime"]["minimum_version"],
             "workflow_nodes": len(graph["nodes"]),
-            "node_types": dict(sorted(Counter(n["type"] for n in graph["nodes"]).items())),
+            "node_types": dict(
+                sorted(Counter(n["type"] for n in graph["nodes"]).items())
+            ),
             "tools": {
                 tool_id: {
                     "binding": tool["binding"],
@@ -205,11 +253,26 @@ def verify() -> dict:
                 for p in package.policy["permissions"]
             },
             "model_requirements": package.manifest["model_requirements"],
+            "host_resource_requests": {
+                p["id"]: {"kind": p["kind"], "resource_types": p["resources"]}
+                for p in package.policy["permissions"]
+                if p["kind"] == "personal.read"
+            },
+            "action_authorities": [
+                p["id"] for p in package.policy["permissions"] if p["kind"] == "payment"
+            ],
         },
+        "earlier_release": {
+            "archive": ARCHIVE_010.relative_to(ROOT).as_posix(),
+            "archive_sha256": sha256(ARCHIVE_010.read_bytes()),
+            "signer_fingerprint": earlier["key_fingerprint"],
+        },
+        "personal_data": personal,
         "genericity": genericity,
         "scenarios": runs,
-        "scope": "offline fixture replay through the generic interpreter; synthetic token "
-        "accounting; no live model, network, origin server or Agent Browser",
+        "scope": "offline fixture replay of the search scenarios through the generic "
+        "interpreter, every personal permission denied; synthetic token accounting; no live "
+        "model, network, origin server or Agent Browser",
     }
 
 

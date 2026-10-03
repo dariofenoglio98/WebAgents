@@ -36,6 +36,18 @@ Prices are whole US dollars (USD), per passenger, taxes and fees included. A quo
   search says which flights exist.
 - The demo schedule covers departures from 1 October 2026 to 31 December 2027. Times are
   local to each airport.
+- Flight numbers name routes: WA101 and WA105 Boston → Zurich; WA100 and WA104 Zurich →
+  Boston; WA115 New York JFK → Zurich; WA114 Zurich → JFK; WA121 JFK → Geneva; WA120 Geneva →
+  JFK; WA213 Boston → London Heathrow; WA212 Heathrow → Boston; WA741 Heathrow → Zurich;
+  WA740 Zurich → Heathrow; WA205 Boston → Reykjavik; WA204 Reykjavik → Boston; WA731
+  Reykjavik → Zurich; WA730 Zurich → Reykjavik. Only a search says whether one operates on a
+  given day.
+
+## Personal data
+
+You never receive the person's travel profile, identity (name, email) or payment method. The
+person's host holds them and supplies them to WebAir's tools directly, only when the person
+granted them. Never ask for, guess or invent any of them.
 
 ## Three different stages
 

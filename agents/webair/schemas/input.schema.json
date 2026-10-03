@@ -7,29 +7,33 @@
       "type": "string",
       "minLength": 1,
       "maxLength": 2000,
-      "description": "The person's travel request in their own words, for example: Find me a nonstop flight from Boston to Zurich on 9 October under $900."
+      "description": "The person's travel request in their own words, for example: Find me a flight to Zurich on 9 October under $900."
     },
     "booking": {
-      "anyOf": [
-        {
-          "type": "null"
-        },
-        {
-          "$ref": "#/$defs/Booking"
-        }
-      ],
-      "description": "Null, or demo passenger details for a booking quote of the fare the workflow selects."
+      "type": "boolean",
+      "default": false,
+      "description": "Ask WebAir for a booking quote of the fare the workflow selects, for the passenger identity you grant. Nothing is reserved or charged."
     },
     "purchase": {
-      "anyOf": [
-        {
-          "type": "null"
+      "type": "object",
+      "description": "Leave both empty, or authorize one simulated purchase: the exact quote id and fare id an earlier quote returned. Needs the passenger identity that quote was made for, a payment method and the purchase permission.",
+      "properties": {
+        "quote_id": {
+          "type": "string",
+          "pattern": "^(WAQ-[0-9A-F]{16})?$",
+          "default": ""
         },
-        {
-          "$ref": "#/$defs/Purchase"
+        "fare_id": {
+          "type": "string",
+          "pattern": "^(WA[0-9]{3}(-WA[0-9]{3})?-[0-9]{8}-(BASIC|STANDARD|FLEX|BUSINESS))?$",
+          "default": ""
         }
+      },
+      "required": [
+        "quote_id",
+        "fare_id"
       ],
-      "description": "Null, or explicit authorization to simulate purchasing one exact quote returned by an earlier run. Requires booking."
+      "additionalProperties": false
     }
   },
   "required": [
@@ -38,54 +42,57 @@
     "purchase"
   ],
   "additionalProperties": false,
-  "if": {
-    "properties": {
-      "purchase": {
-        "type": "object"
-      }
-    }
-  },
-  "then": {
-    "properties": {
-      "booking": {
-        "type": "object"
-      }
-    }
-  },
-  "$defs": {
-    "Booking": {
-      "type": "object",
-      "description": "Made-up passenger details only. A later milestone supplies these from the person's browser instead of the task.",
-      "properties": {
-        "passengers": {
-          "$ref": "api/prepare_booking.input.schema.json#/properties/passengers"
-        },
-        "contact_email": {
-          "$ref": "api/prepare_booking.input.schema.json#/properties/contact_email"
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "purchase": {
+            "properties": {
+              "quote_id": {
+                "minLength": 1
+              }
+            }
+          }
         }
       },
-      "required": [
-        "passengers",
-        "contact_email"
-      ],
-      "additionalProperties": false
+      "then": {
+        "properties": {
+          "purchase": {
+            "properties": {
+              "fare_id": {
+                "minLength": 1
+              }
+            }
+          },
+          "booking": {
+            "const": false
+          }
+        }
+      }
     },
-    "Purchase": {
-      "type": "object",
-      "description": "The person's yes to one quote: WebAir recomputes the quote and refuses a different one. Only demo payment methods exist.",
-      "properties": {
-        "quote_id": {
-          "$ref": "api/simulate_purchase.input.schema.json#/properties/quote_id"
-        },
-        "payment_method_id": {
-          "$ref": "api/simulate_purchase.input.schema.json#/properties/payment_method_id"
+    {
+      "if": {
+        "properties": {
+          "purchase": {
+            "properties": {
+              "fare_id": {
+                "minLength": 1
+              }
+            }
+          }
         }
       },
-      "required": [
-        "quote_id",
-        "payment_method_id"
-      ],
-      "additionalProperties": false
+      "then": {
+        "properties": {
+          "purchase": {
+            "properties": {
+              "quote_id": {
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
     }
-  }
+  ]
 }

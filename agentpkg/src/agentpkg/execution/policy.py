@@ -566,6 +566,82 @@ def normalize_grants(package, submitted) -> dict:
     return grants
 
 
+# Permission kinds whose scope names a type of host-owned resource. Mirrors
+# `agentpkg.browser.hostresources.RESOURCE_PERMISSION_KINDS`; the runner does
+# not import the control plane.
+RESOURCE_PERMISSION_KINDS = ("personal.read",)
+MAX_RESOURCE_GRANTS = 32
+_GRANT_FIELDS = ("permission_id", "resource_type", "resource_id", "resource_digest")
+
+
+def normalize_resource_grants(raw) -> list[dict]:
+    """The host resources a plan granted, as a closed, bounded list of references.
+
+    Opaque id, type and digest per resource-bearing permission, and nothing
+    else: a runner compares these with what the host attributes an answer to;
+    it never receives a value from here.
+    """
+    if raw is None:
+        return []
+    if not isinstance(raw, list) or len(raw) > MAX_RESOURCE_GRANTS:
+        raise invalid(f"resource_grants must be a list of at most {MAX_RESOURCE_GRANTS}")
+    grants = []
+    for index, item in enumerate(raw):
+        if not isinstance(item, dict) or set(item) != set(_GRANT_FIELDS):
+            raise invalid(f"resource_grants[{index}] must carry exactly {list(_GRANT_FIELDS)}")
+        for name in _GRANT_FIELDS:
+            value = item[name]
+            if not isinstance(value, str) or not value or len(value) > 128:
+                raise invalid(f"resource_grants[{index}].{name} must be a short string")
+        grants.append({name: item[name] for name in _GRANT_FIELDS})
+    permissions = [grant["permission_id"] for grant in grants]
+    if len(set(permissions)) != len(permissions):
+        raise invalid("resource_grants names one permission twice")
+    return sorted(grants, key=lambda grant: grant["permission_id"])
+
+
+def check_resource_grants(package, resource_grants: list[dict], grants: dict) -> dict:
+    """Re-derive from the signed package that every frozen grant is one it could hold.
+
+    The control plane validated these against the registry; this checks them
+    again against the package itself: the permission is declared, it is a
+    resource kind, its own scope names exactly the granted type, and the
+    person did not deny it. A plan that says otherwise is refused, not
+    believed.
+    """
+    declared = {permission["id"]: permission for permission in package.policy["permissions"]}
+    checked = []
+    for grant in resource_grants:
+        permission = declared.get(grant["permission_id"])
+        if (
+            permission is None
+            or permission["kind"] not in RESOURCE_PERMISSION_KINDS
+            or grant["resource_type"] not in permission["resources"]
+        ):
+            raise invalid(
+                "The run plan grants a host resource under a permission this package does not "
+                "declare for that resource type",
+                permission=grant["permission_id"],
+            )
+        if grants.get(grant["permission_id"], DENY) == DENY:
+            raise ExecutionError(
+                PERMISSION_DENIED,
+                f"The run plan grants a host resource under {grant['permission_id']!r}, which "
+                "is denied.",
+                detail={"permission": grant["permission_id"]},
+            )
+        checked.append({**grant, "decision": grants[grant["permission_id"]]})
+    return {
+        "grants": checked,
+        "note": (
+            "Each grant names one host resource by opaque id and digest. The host resolves "
+            "it only for the tool calls that link its permission; the runner never sees a "
+            "value until a tool returns one, and checks that the host attributes the answer "
+            "to exactly this grant."
+        ),
+    }
+
+
 def grant_report(package, grants: dict) -> dict:
     declared = {permission["id"]: permission for permission in package.policy["permissions"]}
     return {
@@ -591,10 +667,12 @@ __all__ = [
     "SUPPORTED_DECISIONS",
     "HostExecutionLimits",
     "check_capabilities",
+    "check_resource_grants",
     "check_model",
     "check_tools",
     "effective_budget",
     "effective_deadline_seconds",
     "grant_report",
     "normalize_grants",
+    "normalize_resource_grants",
 ]

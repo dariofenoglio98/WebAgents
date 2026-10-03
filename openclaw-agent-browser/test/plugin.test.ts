@@ -66,6 +66,7 @@ describe("plugin entry", () => {
       "maxSessions",
       "execution",
       "tools",
+      "hostResources",
     ]);
     expect(schema.additionalProperties).toBe(false);
   });

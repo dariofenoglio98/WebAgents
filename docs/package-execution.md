@@ -238,6 +238,22 @@ never given. So the run is refused with `execution_grant_unsupported` and the
 person chooses `session` deliberately. The count is derived from the graph, not
 from a package name.
 
+Across runs, `once` means one run: the control plane spends a receipt that
+grants anything `once` when it issues that receipt's first execution lease, so
+the plan is stale (`authorization_once_spent`) until the person decides again.
+
+**Host-owned resources travel by reference.** A plan that granted host
+resources carries `resource_grants` — `{permission_id, resource_type,
+resource_id, resource_digest}` per resource-bearing permission, never a value.
+The plugin's preflight compares each with its live resource store (removed,
+retyped or changed: `run_plan_stale`) and that the plan's grants equal the
+receipt's, and the runner re-derives every grant from the verified package:
+the permission is declared, of a resource kind, scoped to exactly that type, and
+not denied (`execution_plan_invalid` / `execution_permission_denied`
+otherwise). Its `host_resource` tool handlers accept an answer only when the
+host attributes it to exactly one of those grants, and record the grant — not
+the value — in the audit's `tool.settled` event.
+
 Redesigning persistent authorization is not part of this milestone.
 
 ## 7. Host limits, and the one that refuses instead of lowering

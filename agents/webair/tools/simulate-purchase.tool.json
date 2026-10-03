@@ -1,8 +1,8 @@
 {
   "spec_version": "0.1",
   "id": "simulate-purchase",
-  "version": "0.1.0",
-  "description": "WebAir semantic API: simulate paying one exact quote with a demo payment method. Fictional: no real transaction ever occurs and nothing is charged. Declared as the package's purchase boundary, so a host treats it as consequential.",
+  "version": "0.2.0",
+  "description": "WebAir semantic API: simulate paying one exact quote for the granted passenger, with the payment method the person granted (an opaque demo identifier supplied by the host). Fictional: no real transaction ever occurs and nothing is charged. Requires the separate purchase permission, so search or quote authority can never become purchase authority.",
   "execution": "remote",
   "binding": "webair.simulate_purchase",
   "endpoint": "https://webair.example/api/v1/simulate_purchase",
@@ -10,7 +10,10 @@
   "input_schema": "schemas/api/simulate_purchase.input.schema.json",
   "output_schema": "schemas/api/simulate_purchase.output.schema.json",
   "permissions": [
-    "network.webair.booking"
+    "network.webair",
+    "booking.simulate_purchase",
+    "identity.passenger",
+    "wallet.payment"
   ],
   "domains": [
     "webair.example"

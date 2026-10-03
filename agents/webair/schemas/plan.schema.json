@@ -8,17 +8,17 @@
         "object",
         "null"
       ],
-      "description": "The WebAir search_flights arguments, or null when the request cannot be one WebAir search.",
+      "description": "One WebAir search, with origin, nonstop preference and cabin null when the request leaves them unstated, or null when the request cannot be one WebAir search.",
       "properties": {
         "origin": {
-          "type": "string",
           "enum": [
             "BOS",
             "JFK",
             "ZRH",
             "GVA",
             "LHR",
-            "KEF"
+            "KEF",
+            null
           ]
         },
         "destination": {
@@ -42,7 +42,10 @@
           "maximum": 6
         },
         "nonstop_only": {
-          "type": "boolean"
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "max_price_usd": {
           "type": [
@@ -78,11 +81,16 @@
       ],
       "minLength": 1,
       "maxLength": 300
+    },
+    "needs_travel_profile": {
+      "type": "boolean",
+      "description": "True when the request leaves the departure airport unstated, or refers to the person's usual preferences, so the travel profile they grant should fill what is unstated."
     }
   },
   "required": [
     "search",
-    "unsupported_reason"
+    "unsupported_reason",
+    "needs_travel_profile"
   ],
   "additionalProperties": false
 }
