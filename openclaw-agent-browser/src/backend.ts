@@ -37,6 +37,8 @@ import type { HttpTransport as ToolHttpTransport } from "./tool-broker.js";
 import {
   BUILT_IN_BINDINGS,
   buildToolRegistry,
+  parseOperatorBindings,
+  readOperatorBindingsFile,
   resolveBindings,
   type ToolBindingDefinition,
   type ToolRegistry,
@@ -118,8 +120,10 @@ export type BackendOptions = {
    * Test seam: the tool implementations this host registers.
    *
    * Code, not configuration. Operator configuration can disable, relabel,
-   * retarget and bound a built-in; it can never add one, because a registry
-   * entry is a claim that code in this process can serve it.
+   * retarget and bound a built-in; it can never add an implementation, because
+   * a registry entry is a claim that code in this process can serve it. (An
+   * operator bindings file adds entries of the service-neutral JSON adapter on
+   * top of these; `parseOperatorBindings`.)
    */
   toolDefinitions?: readonly ToolBindingDefinition[];
   /** Test seam: replace the broker's HTTP mechanics, never its policy. */
@@ -237,6 +241,8 @@ export class AgentBrowserBackend {
   private execution: ExecutionService | null = null;
   private files: FileCapabilityStore | null = null;
   private resources: HostResourceStore | null = null;
+  private operatorBindings: ToolBindingDefinition[] = [];
+  private operatorBindingNotes: ToolRegistry["notes"] = [];
 
   constructor(private readonly options: BackendOptions) {}
 
@@ -273,6 +279,30 @@ export class AgentBrowserBackend {
     }
   }
 
+  /**
+   * Load the operator's bindings file, if one is configured. Like the host
+   * resource file it is read once, at start, and refused whole: a document
+   * that fails validation adds no entry, is logged, and leaves a registry note
+   * the control plane reports, so a package that needed one of its entries is
+   * shown unbound rather than half-configured.
+   */
+  private async loadOperatorBindings(): Promise<void> {
+    const file = this.options.config?.tools?.bindingsFile;
+    this.operatorBindings = [];
+    this.operatorBindingNotes = [];
+    if (typeof file !== "string" || file.length === 0) return;
+    try {
+      this.operatorBindings = parseOperatorBindings(await readOperatorBindingsFile(file), [
+        ...(this.options.toolDefinitions ?? BUILT_IN_BINDINGS),
+        ...(this.resources?.bindings() ?? []),
+      ]);
+    } catch (error) {
+      const detail = error instanceof AgentBrowserError ? error.detail : "unreadable bindings file";
+      this.options.logger.error("agent-browser: operator tool bindings were not loaded", { detail });
+      this.operatorBindingNotes = [{ code: "operator_bindings_rejected", detail: clip(detail ?? "", 512) }];
+    }
+  }
+
   /** The registry the control plane is shown: ids, labels, digests. No value. */
   private resourceRegistry(): unknown {
     return this.resources?.registry({
@@ -302,6 +332,7 @@ export class AgentBrowserBackend {
     await this.files.initialize();
     const files = this.files;
     await this.loadHostResources();
+    await this.loadOperatorBindings();
     this.execution = new ExecutionService({
       agentpkgPath: () => this.requireAgentpkgPath(),
       llm: () => this.options.llm,
@@ -696,11 +727,13 @@ export class AgentBrowserBackend {
    */
   private toolHost(): { registry: ToolRegistry; definitions: readonly ToolBindingDefinition[] } {
     const config = this.options.config?.tools;
-    // Code-defined implementations, plus one host-resource implementation per
-    // type this host holds. Neither list can be extended by a package.
+    // Code-defined implementations, one host-resource implementation per type
+    // this host holds, and the operator's JSON-adapter entries. None of these
+    // lists can be extended by a package.
     const supplied = [
       ...(this.options.toolDefinitions ?? BUILT_IN_BINDINGS),
       ...(this.resources?.bindings() ?? []),
+      ...this.operatorBindings,
     ];
     const { definitions } = resolveBindings(config, supplied);
     const registry = buildToolRegistry({
@@ -710,6 +743,7 @@ export class AgentBrowserBackend {
         runtimeVersion: this.options.modelHost?.runtimeVersion ?? null,
       },
       policy: resolvePolicy(this.options.config?.execution),
+      ...(this.operatorBindingNotes.length > 0 ? { notes: this.operatorBindingNotes } : {}),
     });
     return { registry, definitions };
   }

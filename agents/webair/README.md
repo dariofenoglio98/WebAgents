@@ -1,11 +1,16 @@
 # WebAir Travel Agent — workflow.v0
 
-`org.webagents.webair` 0.2.0, published by the fictional WebAir demo airline
-(`demo/webair/`). WebAir serves the same business logic two ways: HTML pages and forms for
-people, and this signed package for an agent-native host. **The package never touches
-WebAir's HTML.** It declares WebAir's semantic operations as tools and carries the domain
-knowledge and orchestration to use them. Nothing is ever booked or charged: WebAir is not an
-airline.
+`org.webagents.webair` 0.3.0, published by the fictional WebAir demo airline
+(`demo/webair/`), whose public demo origin is <https://webagents-webair-production.up.railway.app/>.
+WebAir serves the same business logic two ways: HTML pages and forms for people, and this
+signed package for an agent-native host. **The package never touches WebAir's HTML.** It
+declares WebAir's semantic operations as tools and carries the domain knowledge and
+orchestration to use them. Nothing is ever booked or charged: WebAir is not an airline.
+
+0.3.0 is 0.2.0 for the live deployment: the tools' declared endpoints, the network
+permission's scope, the network policy and the manifest's informational origin name the
+public host instead of 0.2.0's reserved, never-resolving placeholder name. The graph, schemas, skills, fixture,
+permissions and budgets are unchanged.
 
 **WebAir publishes the behavior. The person's runtime supplies the authority.** This version
 asks the person's host for three personal resources it does not own — a travel profile, a
@@ -52,10 +57,10 @@ schemas (generated from `demo/webair/host-resources.json`), which a host binding
 
 | Tool | Binding | Declared endpoint (upper bound) | Permissions | Side effects |
 |---|---|---|---|---|
-| `search-flights` | `webair.search_flights` | `POST https://webair.example/api/v1/search_flights` | `network.webair` | read |
-| `get-fare-rules` | `webair.get_fare_rules` | `POST https://webair.example/api/v1/get_fare_rules` | `network.webair` | read |
-| `prepare-booking` | `webair.prepare_booking` | `POST https://webair.example/api/v1/prepare_booking` | `network.webair`, `identity.passenger` | read, approval |
-| `simulate-purchase` | `webair.simulate_purchase` | `POST https://webair.example/api/v1/simulate_purchase` | `network.webair`, `booking.simulate_purchase` (`payment`), `identity.passenger`, `wallet.payment` | write, approval |
+| `search-flights` | `webair.search_flights` | `POST https://webagents-webair-production.up.railway.app/api/v1/search_flights` | `network.webair` | read |
+| `get-fare-rules` | `webair.get_fare_rules` | `POST https://webagents-webair-production.up.railway.app/api/v1/get_fare_rules` | `network.webair` | read |
+| `prepare-booking` | `webair.prepare_booking` | `POST https://webagents-webair-production.up.railway.app/api/v1/prepare_booking` | `network.webair`, `identity.passenger` | read, approval |
+| `simulate-purchase` | `webair.simulate_purchase` | `POST https://webagents-webair-production.up.railway.app/api/v1/simulate_purchase` | `network.webair`, `booking.simulate_purchase` (`payment`), `identity.passenger`, `wallet.payment` | write, approval |
 
 A tool's permissions are the authority it travels under: the runtime checks every one of them
 at each call, and a host refuses to send a granted resource's sealed value (an email, a
@@ -65,9 +70,11 @@ identity can reach only `prepare-booking` and `simulate-purchase`, the payment i
 become purchase authority: `simulate-purchase` also needs `booking.simulate_purchase`, the
 package's only `payment` permission, which a person can grant `once`, for one run.
 
-`webair.example` is a reserved name that never resolves (RFC 2606). A declared endpoint is an
-upper bound: a host binding must land inside it, and the package gains no authority by naming
-it. The tool schemas in `schemas/api/` are generated from WebAir's published API contract.
+The declared host is WebAir's public demo deployment (versions up to 0.2.0 declared a
+reserved, never-resolving placeholder name, RFC 2606). A declared endpoint is an upper bound,
+even on a real, public origin: a host binding must land inside it, the host decides whether it
+binds anything there at all, and the package gains no authority by naming it. The tool schemas
+in `schemas/api/` are generated from WebAir's published API contract.
 
 ## What each model sees
 
@@ -105,8 +112,9 @@ credential. Required permissions: `network.webair`, `model.reasoning`, `memory.s
 optional: `profile.travel`, `identity.passenger`, `wallet.payment`, `booking.simulate_purchase`.
 Budgets: 120,000 tokens, 20 remote calls, at most 1 search, 6 fare-rule reads, 1 quote, 1
 purchase and 1 read of each host resource per run, 3 parallel workers. It declares
-`personal.read`, a permission kind agentpkg's runtime from this branch accepts (minimum
-runtime 0.2.2).
+`personal.read`, a permission kind only agentpkg from after the v0.1.0 release accepts (the
+`demo/webair` branch; its runtime still reports 0.2.2, the package's minimum): the released
+0.2.2 wheel rejects the package.
 
 ## Fixture
 

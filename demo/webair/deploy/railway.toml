@@ -1,0 +1,15 @@
+# Railway config-as-code for the public WebAir demo origin.
+#
+# This file is the root of a deployment bundle that `deploy/bundle.py` assembles: the origin's
+# code, its runtime requirements and exactly one signed agent package (agent.pkg), and nothing
+# else from this repository. See demo/webair/README.md, "Public deployment".
+
+[build]
+builder = "RAILPACK"
+
+[deploy]
+startCommand = "python -m origin --host 0.0.0.0 --agent-package agent.pkg"
+healthcheckPath = "/health"
+healthcheckTimeout = 30
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3

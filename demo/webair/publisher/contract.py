@@ -18,10 +18,11 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 PACKAGE_SOURCE = REPO_ROOT / "agents" / "webair"
 API_SCHEMA_DIR = "schemas/api"
 
-# The reserved, never-resolving name the package declares as WebAir's host (RFC 2606).
+# The host the package declares for WebAir's API: the public demo deployment (Railway).
 # It is an upper bound on where a host binding may send a call, never authority to send
-# one; a public deployment publishes a package version that declares its real hostname.
-DECLARED_HOST = "webair.example"
+# one. Versions up to 0.2.0 declared the reserved, never-resolving `webair.example`
+# (RFC 2606); 0.3.0 declares this real hostname.
+DECLARED_HOST = "webagents-webair-production.up.railway.app"
 
 # Origin operation -> package tool id, for the operations the workflow uses. `get_flight`
 # stays an origin-only operation: agent.pkg 0.1 has no optional tool, so every declared

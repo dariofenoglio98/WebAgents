@@ -2,7 +2,7 @@
 
     agentpkg/.venv/bin/python scripts/verify_webair.py [--report PATH]
 
-Verifies the signed 0.2.0 artifact against WebAir's pinned publisher key, checks that the
+Verifies the signed 0.3.0 artifact against WebAir's pinned publisher key, checks that the
 source tree rebuilds to the same payload and that the signed bytes carry no personal data,
 then runs every search scenario in `examples/webair-scenarios.json` through
 `agentpkg.workflow` with agentpkg's own fixture adapters (exact-input replay of the package's
@@ -12,9 +12,10 @@ fixture's tool answers are WebAir's real answers is established separately by
 `demo/webair/tests/test_package_contract.py`; the host-owned capability scenarios run on the
 Agent Browser host (`scripts/verify_webair_capabilities.py`).
 
-0.1.0 is checked to be unchanged: earlier evidence describes those exact bytes, and the
-unversioned `dist/webair.agent.pkg` stays the newest version the released 0.2.2 runtime can
-read (0.2.0 declares the `personal.read` permission kind).
+0.1.0 and 0.2.0 are checked to be unchanged: earlier evidence describes those exact bytes,
+and the unversioned `dist/webair.agent.pkg` stays the newest version the released 0.2.2 runtime
+can read (0.2.0 and 0.3.0 declare the `personal.read` permission kind). The permission ids, and
+so the grants file, are the same for 0.2.0 and 0.3.0.
 
 Prints a JSON report; `passed` is false if any check fails.
 """
@@ -36,7 +37,9 @@ from agentpkg.signing import verify_package
 from agentpkg.workflow import run_workflow
 
 ROOT = Path(__file__).resolve().parents[1]
-ARCHIVE = ROOT / "dist/webair-0.2.0.agent.pkg"
+ARCHIVE = ROOT / "dist/webair-0.3.0.agent.pkg"
+ARCHIVE_020 = ROOT / "dist/webair-0.2.0.agent.pkg"
+ARCHIVE_020_SHA256 = "3f135be80c2ac43b93f42acbcb648a3460b1ab39a831c251122331c99107a616"
 ARCHIVE_010 = ROOT / "dist/webair-0.1.0.agent.pkg"
 ARCHIVE_010_SHA256 = "73872c3177a9ec281a8875ae154023a72ff10f9fe96c5a82ed1639a34ecb470c"
 ALIAS = ROOT / "dist/webair.agent.pkg"
@@ -202,6 +205,8 @@ def verify() -> dict:
         == ARCHIVE_010_SHA256
         and earlier["valid"] is True
         and earlier["key_fingerprint"] == signature["key_fingerprint"],
+        "release_0_2_0_unchanged": sha256(ARCHIVE_020.read_bytes()) == ARCHIVE_020_SHA256
+        and verify_package(ARCHIVE_020, KEY)["valid"] is True,
         "alias_is_newest_release_runtime_compatible": ALIAS.read_bytes()
         == ARCHIVE_010.read_bytes(),
         "source_rebuilds_to_signed_payload": rebuild_matches(package),

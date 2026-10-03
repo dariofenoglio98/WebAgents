@@ -5,13 +5,14 @@ from __future__ import annotations
 from pathlib import Path
 
 from fastapi import FastAPI, Request
-from fastapi.responses import Response
+from fastapi.responses import JSONResponse, Response
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from . import agent_package, api, web
 from .service import WebAirService
 
 STYLESHEET_PATH = "/static/webair.css"
+HEALTH_PATH = "/health"
 
 _SECURITY_HEADERS = {
     "X-Content-Type-Options": "nosniff",
@@ -75,6 +76,20 @@ def create_app(agent_package_path: str | Path | None = None) -> FastAPI:
     def css() -> Response:
         return Response(
             stylesheet, media_type="text/css", headers={"Cache-Control": "public, max-age=300"}
+        )
+
+    # For a hosting platform's health check. It states only public facts: that this is the
+    # fictional demo, and which package /agent.pkg serves (the digest its ETag also carries).
+    @app.get(HEALTH_PATH, include_in_schema=False)
+    def health() -> JSONResponse:
+        return JSONResponse(
+            {
+                "status": "ok",
+                "service": "webair-origin",
+                "fictional": True,
+                "agent_package_sha256": package.sha256 if package else None,
+            },
+            headers={"Cache-Control": "no-store"},
         )
 
     app.include_router(web.router(templates))

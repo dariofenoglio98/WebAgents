@@ -52,12 +52,14 @@ into the wheel.
 
 | Artifact | What it is | Requires | Verify with |
 |---|---|---|---|
+| `webair-0.3.0.agent.pkg` | WebAir Travel Agent 0.3.0, the live demo's package: 0.2.0 with WebAir's public deployment, `webagents-webair-production.up.railway.app`, as the declared host of its four tools (graph, schemas, skills, fixture and permissions unchanged). The public origin serves exactly these bytes at <https://webagents-webair-production.up.railway.app/agent.pkg> ([live demo](../docs/webair-live-demo.md)) | agentpkg from this branch (`personal.read`, as 0.2.0) | [`examples/keys/webair-publisher.pub.pem`](../examples/keys/webair-publisher.pub.pem) (`sha256:2e53acce…a20b`) |
 | `webair-0.2.0.agent.pkg` | WebAir Travel Agent 0.2.0: requests a travel profile, a passenger identity and a payment method from the person's host (`personal.read` permissions with argument-free host-resource tools) and a separate, once-grantable simulated-purchase authority. Holds no personal data. Served by the fictional WebAir origin with `--agent-package` | agentpkg from this branch (it declares the `personal.read` permission kind, which the released 0.2.2 wheel does not accept) | [`examples/keys/webair-publisher.pub.pem`](../examples/keys/webair-publisher.pub.pem) (`sha256:2e53acce…a20b`) |
 | `webair.agent.pkg` | WebAir Travel Agent 0.1.0, identical to `webair-0.1.0.agent.pkg`: the agent package the fictional WebAir origin ([`demo/webair/`](../demo/webair/README.md)) publishes at `/agent.pkg`. No real booking or payment | agentpkg ≥ 0.2.1 | [`examples/keys/webair-publisher.pub.pem`](../examples/keys/webair-publisher.pub.pem) (`sha256:2e53acce…a20b`) |
 
 Built and signed with the same generic commands as every package (`agentpkg build agents/webair
--o dist/webair-0.2.0.agent.pkg`, then `agentpkg sign`); rebuilding and re-signing with the same
-key reproduces the bytes. Neither is part of the v0.1.0 release. The unversioned
+-o dist/webair-0.3.0.agent.pkg`, then `agentpkg sign`); rebuilding and re-signing with the same
+key reproduces the bytes (0.2.0 was built the same way from the source as it was then). None of
+them is part of the v0.1.0 release. The unversioned
 `webair.agent.pkg` deliberately stays 0.1.0, the newest WebAir the released 0.2.2 runtime can
 read; it moves to the newest version when a release ships a runtime that accepts
 `personal.read`. 0.1.0 is unchanged and still verifies.
@@ -100,5 +102,6 @@ e4c499f034b110ef2eca5aeecc87bc9336f6626e55b217d0fb087392ff120e35  meeting-agenda
 7b148e845c0f9e38d752a51a8d0b60a314842a3de3a2723b3bdf1a0c041921e1  meeting-agenda.agent.pkg
 73872c3177a9ec281a8875ae154023a72ff10f9fe96c5a82ed1639a34ecb470c  webair-0.1.0.agent.pkg
 3f135be80c2ac43b93f42acbcb648a3460b1ab39a831c251122331c99107a616  webair-0.2.0.agent.pkg
+b537cf5cba06bce8137533eb75b491486f57caf3098af30f657343b741492887  webair-0.3.0.agent.pkg
 73872c3177a9ec281a8875ae154023a72ff10f9fe96c5a82ed1639a34ecb470c  webair.agent.pkg
 ```

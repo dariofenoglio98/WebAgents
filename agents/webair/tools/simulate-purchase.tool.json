@@ -5,7 +5,7 @@
   "description": "WebAir semantic API: simulate paying one exact quote for the granted passenger, with the payment method the person granted (an opaque demo identifier supplied by the host). Fictional: no real transaction ever occurs and nothing is charged. Requires the separate purchase permission, so search or quote authority can never become purchase authority.",
   "execution": "remote",
   "binding": "webair.simulate_purchase",
-  "endpoint": "https://webair.example/api/v1/simulate_purchase",
+  "endpoint": "https://webagents-webair-production.up.railway.app/api/v1/simulate_purchase",
   "method": "POST",
   "input_schema": "schemas/api/simulate_purchase.input.schema.json",
   "output_schema": "schemas/api/simulate_purchase.output.schema.json",
@@ -16,7 +16,7 @@
     "wallet.payment"
   ],
   "domains": [
-    "webair.example"
+    "webagents-webair-production.up.railway.app"
   ],
   "timeout_seconds": 20,
   "retries": 0,

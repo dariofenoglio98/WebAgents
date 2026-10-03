@@ -9,11 +9,12 @@ Generated: `agents/webair/schemas/api/*.json` (WebAir's published API contract),
 package must declare exactly), `agents/webair/fixtures/workflow.json` (the package's
 recorded fixture: searches only, no personal data), the example tasks
 `examples/webair-*.json`, `examples/webair-capability-scenarios.json` (the host-owned
-capability demo's tasks, grants, picks, model scripts and WebAir's answers) and
+capability demo's tasks, grants, picks, model scripts and WebAir's answers),
 `examples/webair-site.json` (the origin's own HTML pages, which offline website-discovery
-fixtures serve). Everything else in `agents/webair/` (manifest, graph, policy, tool
-declarations, skills, package-authored schemas) is written by hand, and the contract tests
-check it against the origin.
+fixtures serve) and `demo/webair/host-bindings.json` (the demo host's operator bindings of
+the four WebAir tools to the public origin). Everything else in `agents/webair/` (manifest,
+graph, policy, tool declarations, skills, package-authored schemas) is written by hand, and
+the contract tests check it against the origin.
 """
 
 from __future__ import annotations
@@ -27,6 +28,7 @@ from .capabilities import capability_document
 from .contract import PACKAGE_SOURCE, REPO_ROOT, contract_files
 from .fixture import FIXTURE_PATH, record_fixture, source_files
 from .host import host_schema_files
+from .host_bindings import HOST_BINDINGS, host_bindings_document
 from .scenarios import capability_scenario, scenario, scenarios
 from .site import capture_site
 
@@ -66,6 +68,8 @@ def generated() -> dict[Path, dict]:
     documents[PACKAGE_SOURCE / FIXTURE_PATH] = record_fixture(current)
     current[FIXTURE_PATH] = json.dumps(documents[PACKAGE_SOURCE / FIXTURE_PATH]).encode()
     documents.update(example_files(current))
+    # The demo host's operator configuration for the four WebAir tools (not package content).
+    documents[HOST_BINDINGS] = host_bindings_document()
     return documents
 
 

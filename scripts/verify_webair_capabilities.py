@@ -1,20 +1,22 @@
-"""Acceptance of host-owned capabilities, with WebAir 0.2.0 as the package.
+"""Acceptance of host-owned capabilities, with WebAir 0.3.0 as the package.
 
     agentpkg/.venv/bin/python scripts/verify_webair_capabilities.py [--report PATH]
         [--private-key PATH]
 
 Three parts, one report:
 
-1. The signed artifact: `dist/webair-0.2.0.agent.pkg` verifies against WebAir's pinned
+1. The signed artifact: `dist/webair-0.3.0.agent.pkg` verifies against WebAir's pinned
    publisher key, the source rebuilds to its exact payload (and, given `--private-key`,
    re-signs to its exact bytes), its signed bytes hold no personal data, and the
    host-resource requests and action authority it declares.
 2. Discovery: the production control plane, over its HTTP API, discovers WebAir's package
-   link on WebAir's own pages (`examples/webair-site.json`) and inspects the exact 0.2.0
+   link on WebAir's own pages (`examples/webair-site.json`) and inspects the exact 0.3.0
    bytes served there, through the offline fixture web of `agentpkg/tests/web_fixtures.py`.
 3. The host: `openclaw-agent-browser/test/webair-capabilities.test.ts`, run with vitest,
    drives scenarios A-H through the real control plane, authorization with host-resource
-   picks, run plan, preflight, lease, runner and broker, with WebAir's recorded answers at
+   picks, run plan, preflight, lease, runner and broker, with WebAir's four tools bound by the
+   demo host's shipped operator bindings file (`demo/webair/host-bindings.json`, loaded through
+   `tools.bindingsFile`) to the public origin, WebAir's recorded answers at
    the broker's transport and a scripted model, and writes what it observed: grants by
    opaque id and digest, every model call and whether its input held a personal value,
    every request bound for WebAir and what it carried, resolutions, audit validity, and
@@ -47,15 +49,14 @@ from agentpkg.package import build_package, load_package, sha256, write_new  # n
 from agentpkg.signing import sign_package, verify_package  # noqa: E402
 from web_fixtures import FixtureWeb, publish_webair  # noqa: E402
 
-ARCHIVE = ROOT / "dist/webair-0.2.0.agent.pkg"
+ARCHIVE = ROOT / "dist/webair-0.3.0.agent.pkg"
+PUBLIC_ORIGIN = "https://webagents-webair-production.up.railway.app"
 SOURCE = ROOT / "agents/webair"
 KEY = ROOT / "examples/keys/webair-publisher.pub.pem"
 HOST_RESOURCES = ROOT / "demo/webair/host-resources.json"
 SCENARIOS = ROOT / "examples/webair-capability-scenarios.json"
 PLUGIN = ROOT / "openclaw-agent-browser"
-EXPECTED_FINGERPRINT = (
-    "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b"
-)
+EXPECTED_FINGERPRINT = "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b"
 
 
 def artifact_facts(private_key: str | None) -> dict:
@@ -67,9 +68,7 @@ def artifact_facts(private_key: str | None) -> dict:
         rebuilt = load_package(rebuilt_path)
         resigned = None
         if private_key:
-            signed = sign_package(
-                rebuilt_path, Path(private_key), scratch / "resigned.agent.pkg"
-            )
+            signed = sign_package(rebuilt_path, Path(private_key), scratch / "resigned.agent.pkg")
             resigned = signed.read_bytes() == ARCHIVE.read_bytes()
     text = "\n".join(data.decode() for data in package.files.values())
     definitions = json.loads(HOST_RESOURCES.read_text())
@@ -103,9 +102,7 @@ def artifact_facts(private_key: str | None) -> dict:
         and rebuilt.digest == package.digest,
         "resigned_bytes_identical": resigned,
         "graph_nodes": len(package.graph["nodes"]),
-        "node_types": dict(
-            sorted(Counter(n["type"] for n in package.graph["nodes"]).items())
-        ),
+        "node_types": dict(sorted(Counter(n["type"] for n in package.graph["nodes"]).items())),
         "tools": {
             tool_id: {
                 "execution": tool["execution"],
@@ -124,9 +121,7 @@ def artifact_facts(private_key: str | None) -> dict:
             for p in permissions
         },
         "host_resource_requests": {
-            p["id"]: p["resources"][0]
-            for p in permissions
-            if p["kind"] == "personal.read"
+            p["id"]: p["resources"][0] for p in permissions if p["kind"] == "personal.read"
         },
         "action_authorities": [p["id"] for p in permissions if p["kind"] == "payment"],
         "personal_data_in_signed_bytes": personal,
@@ -137,7 +132,7 @@ def artifact_facts(private_key: str | None) -> dict:
 
 
 def discovery() -> dict:
-    """WebAir's page, discovered by the production control plane, leads to the 0.2.0 bytes."""
+    """WebAir's page, discovered by the production control plane, leads to the 0.3.0 bytes."""
     import urllib.request
 
     with tempfile.TemporaryDirectory(prefix="webair-capabilities-") as directory:
@@ -145,9 +140,7 @@ def discovery() -> dict:
         web = FixtureWeb()
         publish_webair(web, archive=ARCHIVE.read_bytes())
         control = ControlPlane(
-            ControlPlaneConfig(
-                cache_dir=scratch / "cache", trust_store_path=scratch / "t.json"
-            ),
+            ControlPlaneConfig(cache_dir=scratch / "cache", trust_store_path=scratch / "t.json"),
             transport=web.package_transport,
             discovery_network=web.network,
         )
@@ -156,9 +149,7 @@ def discovery() -> dict:
 
         def call(method, path, body=None):
             data = json.dumps(body).encode() if body is not None else None
-            request = urllib.request.Request(
-                service.url + path, data=data, method=method
-            )
+            request = urllib.request.Request(service.url + path, data=data, method=method)
             request.add_header("Authorization", "Bearer " + service.token)
             if data is not None:
                 request.add_header("Content-Type", "application/json")
@@ -166,13 +157,9 @@ def discovery() -> dict:
                 return json.loads(response.read())
 
         try:
-            found = call(
-                "POST", "/v0/websites/discover", {"url": "https://webair.example/"}
-            )
+            found = call("POST", "/v0/websites/discover", {"url": "https://webair.example/"})
             (candidate,) = found["candidates"]
-            summary = call(
-                "POST", "/v0/packages/open-url", {"url": candidate["resolved_url"]}
-            )
+            summary = call("POST", "/v0/packages/open-url", {"url": candidate["resolved_url"]})
         finally:
             service.shutdown()
             service.server_close()
@@ -240,9 +227,7 @@ def host_acceptance() -> dict:
 
 
 def genericity() -> dict:
-    words = re.compile(
-        r"webair|airline|passenger_demo|payment_demo|profile_demo", re.IGNORECASE
-    )
+    words = re.compile(r"webair|airline|passenger_demo|payment_demo|profile_demo", re.IGNORECASE)
     hits = sorted(
         path.relative_to(ROOT).as_posix()
         for base in (
@@ -269,8 +254,7 @@ def verify(private_key: str | None) -> dict:
     def model_clean(key):
         checked = scenarios.get(key, {}).get("model_inputs_checked", {})
         return (
-            checked.get("personal_values_found") == []
-            and checked.get("card_like_found") is False
+            checked.get("personal_values_found") == [] and checked.get("card_like_found") is False
         )
 
     expected = json.loads(SCENARIOS.read_text())
@@ -278,16 +262,12 @@ def verify(private_key: str | None) -> dict:
     checks = {
         "signature_valid_under_pinned_key": artifact["signature"]["valid"] is True
         and artifact["signer_fingerprint"] == EXPECTED_FINGERPRINT,
-        "source_rebuilds_to_signed_payload": artifact[
-            "source_rebuilds_to_signed_payload"
-        ],
+        "source_rebuilds_to_signed_payload": artifact["source_rebuilds_to_signed_payload"],
         "resigned_bytes_identical_when_checked": artifact["resigned_bytes_identical"]
         in (None, True),
-        "no_personal_data_in_signed_bytes": not artifact[
-            "personal_data_in_signed_bytes"
-        ]
+        "no_personal_data_in_signed_bytes": not artifact["personal_data_in_signed_bytes"]
         and not artifact["email_addresses_in_signed_bytes"],
-        "discovery_leads_to_the_0_2_0_bytes": found["advertised"]
+        "discovery_leads_to_the_0_3_0_bytes": found["advertised"]
         == "https://webair.example/agent.pkg"
         and found["inspected"]["archive_sha256"] == artifact["archive_sha256"]
         and found["inspected"]["digest"] == artifact["package_digest"]
@@ -295,22 +275,29 @@ def verify(private_key: str | None) -> dict:
         and found["inspected"]["signature_status"] == "valid"
         and found["package_fetched_by_discovery"] is False,
         "host_suite_passed": host.get("success") is True,
-        "A_profile_search": scenarios.get("A", {}).get("run", {}).get("status")
-        == "completed"
+        "webair_tools_bound_by_the_operator_file_to_the_public_origin": sorted(
+            (b["tool_id"], b["binding_id"], b["endpoint_origin"])
+            for b in (observed.get("offered") or {}).get("tool_bindings", [])
+            if b["implementation_kind"] == "json_http"
+        )
+        == sorted(
+            (tool, f"demo:webair.{operation}:1", PUBLIC_ORIGIN)
+            for tool, operation in (
+                ("search-flights", "search_flights"),
+                ("get-fare-rules", "get_fare_rules"),
+                ("prepare-booking", "prepare_booking"),
+                ("simulate-purchase", "simulate_purchase"),
+            )
+        ),
+        "A_profile_search": scenarios.get("A", {}).get("run", {}).get("status") == "completed"
         and scenarios["A"]["output"]["selected_fare_id"]
         == expect["profile-search"]["selected_fare_id"],
-        "B_explicit_search_profile_denied": scenarios.get("B", {})
-        .get("run", {})
-        .get("status")
+        "B_explicit_search_profile_denied": scenarios.get("B", {}).get("run", {}).get("status")
         == "completed"
         and scenarios["B"]["host_resource_resolutions"] == [],
-        "C_booking": scenarios.get("C", {})
-        .get("output", {})
-        .get("booking", {})
-        .get("quote_id")
+        "C_booking": scenarios.get("C", {}).get("output", {}).get("booking", {}).get("quote_id")
         == expect["booking"]["quote_id"],
-        "D_purchase_denied": scenarios.get("D", {}).get("run", {}).get("failed_node")
-        == "payment"
+        "D_purchase_denied": scenarios.get("D", {}).get("run", {}).get("failed_node") == "payment"
         and scenarios["D"]["host_resource_resolutions"] == []
         and scenarios["D"]["webair_requests"] == [],
         "E_purchase_with_visa": (scenarios.get("E", {}).get("output") or {})
@@ -333,26 +320,18 @@ def verify(private_key: str | None) -> dict:
             if request["carries_payment_identifier"]
         ),
         "audit_chains_valid": all(
-            scenarios.get(k, {}).get("run", {}).get("audit_chain_valid") is True
-            for k in "ABCDE"
+            scenarios.get(k, {}).get("run", {}).get("audit_chain_valid") is True for k in "ABCDE"
         ),
-        "F_substitution_refused": attacks.get("substitute_card", {}).get(
-            "purchase_requests_sent"
-        )
+        "F_substitution_refused": attacks.get("substitute_card", {}).get("purchase_requests_sent")
         == 0
-        and attacks.get("substitute_card", {}).get(
-            "requests_carrying_the_substituted_identifier"
-        )
+        and attacks.get("substitute_card", {}).get("requests_carrying_the_substituted_identifier")
         == 0
-        and attacks.get("substitute_passenger", {}).get("prepare_booking_sent")
-        is False,
+        and attacks.get("substitute_passenger", {}).get("prepare_booking_sent") is False,
         "G_stale_resource_refused": all(
             attacks.get("stale_resource", {}).get(k, {}).get("refused") is True
             for k in ("changed", "removed")
         ),
-        "H_replayed_or_invalid_grant_refused": attacks.get(
-            "replayed_once_grant", {}
-        ).get("refused")
+        "H_replayed_or_invalid_grant_refused": attacks.get("replayed_once_grant", {}).get("refused")
         is True
         and len(attacks.get("invalid_grants", {})) == 4,
         "no_webair_or_demo_resource_in_generic_code": generic["clean"],
@@ -377,9 +356,7 @@ def verify(private_key: str | None) -> dict:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--report")
-    parser.add_argument(
-        "--private-key", help="also check that re-signing reproduces the bytes"
-    )
+    parser.add_argument("--private-key", help="also check that re-signing reproduces the bytes")
     args = parser.parse_args()
     report = verify(args.private_key)
     encoded = (json.dumps(report, indent=2, ensure_ascii=False) + "\n").encode()

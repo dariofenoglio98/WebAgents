@@ -129,10 +129,18 @@ function primitiveKind(schema: Schema, hint?: Hint | null, topLevel = false): Fi
   return "text";
 }
 
-function defaultFor(schema: Schema, kind: FieldKind, required: boolean): Json {
+function defaultFor(schema: Schema, kind: FieldKind, required: boolean, columns: FieldModel[] = []): Json {
   if ("default" in schema) return structuredClone(schema.default);
   if (!required) return undefined;
   switch (kind) {
+    case "object": {
+      // A required object starts from the defaults its own fields declare, if any.
+      const value: Record<string, Json> = {};
+      for (const column of columns) {
+        if ("default" in column.schema) value[column.name] = structuredClone(column.schema.default as Json);
+      }
+      return Object.keys(value).length > 0 ? value : undefined;
+    }
     case "list":
     case "objectList":
       return [];
@@ -219,7 +227,7 @@ function field(
     keyLabel: hint?.keyLabel ?? null,
     keyPlaceholder: hint?.keyPlaceholder ?? null,
     itemPlaceholder: hint?.itemPlaceholder ?? null,
-    defaultValue: defaultFor(schema, kind, required),
+    defaultValue: defaultFor(schema, kind, required, columns),
   };
 }
 
@@ -660,7 +668,8 @@ export class TaskForm {
       input.disabled = disabled;
       input.addEventListener("input", () => {
         const next = coerce(column.kind, input.value);
-        if (next === undefined || next === "") delete current[column.name];
+        // As in an object list: a required field keeps "" and the schema decides.
+        if (next === undefined || (next === "" && !column.required)) delete current[column.name];
         else current[column.name] = next;
         this.set(item.name, Object.keys(current).length === 0 && !item.required ? undefined : { ...current });
       });

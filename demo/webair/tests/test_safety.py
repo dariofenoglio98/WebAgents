@@ -60,6 +60,7 @@ def exercise(client):
         "/static/webair.css",
         "/agent.pkg",
         "/api/v1/schemas",
+        "/health",
         "/missing",
     ):
         assert client.get(url).status_code in (200, 404)
@@ -88,6 +89,94 @@ def imported_modules(path):
             yield from (alias.name for alias in node.names)
         elif isinstance(node, ast.ImportFrom) and node.level == 0:
             yield node.module
+
+
+# --- what the origin serves ---------------------------------------------------------------------
+
+
+def served_routes(app) -> set[tuple[str, str]]:
+    """(path, method) of every route, including those of included routers.
+
+    The pinned FastAPI wraps an included router in an object holding `original_router`; a
+    mount (a static directory, a sub-application) has no methods and shows up as MOUNT.
+    """
+    found = set()
+
+    def walk(routes, prefix=""):
+        for route in routes:
+            nested = getattr(route, "original_router", None)
+            if nested is not None:
+                walk(nested.routes, prefix + route.include_context.prefix)
+            elif getattr(route, "methods", None):
+                found.update((prefix + route.path, method) for method in route.methods)
+            else:
+                found.add((prefix + getattr(route, "path", "?"), "MOUNT"))
+
+    walk(app.routes)
+    return found
+
+
+def test_the_origin_serves_exactly_its_routes(client):
+    """Fixed paths only: no static directory, no docs, no debug or admin route."""
+    routes = served_routes(create_app())
+    pages = {"/", "/flights", "/results", "/flight/{flight_id}", "/fare/{fare_id}", "/passenger"}
+    operations = {
+        "search_flights",
+        "get_flight",
+        "get_fare_rules",
+        "prepare_booking",
+        "simulate_purchase",
+    }
+    assert routes == (
+        {(path, "GET") for path in pages}
+        | {("/payment", "POST"), ("/confirmation", "POST")}
+        | {(f"/api/v1/{name}", "POST") for name in operations}
+        | {("/api/v1/schemas", "GET")}
+        | {("/static/webair.css", "GET"), ("/health", "GET")}
+        | {("/agent.pkg", "GET"), ("/agent.pkg", "HEAD")}
+    )
+    # And by behaviour: nothing that would expose source, configuration or a listing.
+    for path in (
+        "/docs",
+        "/redoc",
+        "/openapi.json",
+        "/static/",
+        "/static",
+        "/static/../origin/app.py",
+        "/origin/app.py",
+        "/templates/base.html",
+        "/host-resources.json",
+        "/host-bindings.json",
+        "/.env",
+        "/.git/config",
+        "/admin",
+        "/debug",
+        "/health/",
+        "/agent.pkg/",
+        "/api/v1/",
+        "/api/v1",
+    ):
+        assert client.get(path).status_code in (404, 405), path
+
+
+def test_health_states_only_public_facts(package_file, package_bytes):
+    import hashlib
+
+    with TestClient(create_app()) as client:
+        unpublished = client.get("/health")
+    with TestClient(create_app(package_file)) as client:
+        published = client.get("/health")
+    assert unpublished.json() == {
+        "status": "ok",
+        "service": "webair-origin",
+        "fictional": True,
+        "agent_package_sha256": None,
+    }
+    assert published.json()["agent_package_sha256"] == hashlib.sha256(package_bytes).hexdigest()
+    assert published.headers["cache-control"] == "no-store"
+    # No path, environment, version or host detail.
+    assert str(package_file.parent) not in published.text
+    assert "access-control-allow-origin" not in published.headers
 
 
 # --- network ----------------------------------------------------------------------------------
@@ -234,7 +323,11 @@ def test_the_origin_needs_no_environment(monkeypatch):
         exercise(client)
 
 
-def test_the_only_environment_variable_read_is_the_package_path():
+def test_the_only_environment_variables_read_are_the_package_path_and_the_port():
+    """The launcher reads where the package is and, on a hosting platform, which port to use.
+
+    Neither is a credential, and nothing a request does depends on either.
+    """
     names = set()
     for path in SOURCES:
         for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
@@ -247,4 +340,4 @@ def test_the_only_environment_variable_read_is_the_package_path():
                 names.add((path.name, node.args[0].value))
             elif isinstance(node, ast.Subscript) and ast.unparse(node.value) == "os.environ":
                 names.add((path.name, ast.unparse(node.slice)))
-    assert names == {("__main__.py", "WEBAIR_AGENT_PACKAGE")}
+    assert names == {("__main__.py", "WEBAIR_AGENT_PACKAGE"), ("__main__.py", "PORT")}

@@ -39,6 +39,21 @@
  * from calling a service or computing in memory, so it is the third, and
  * reading what the host holds for the person is the fourth.
  *
+ * ## Operator entries
+ *
+ * Most entries are code (`BUILT_IN_BINDINGS`). One kind can also be an
+ * operator's statement: an entry of the plain `openclaw.tool.json_http`
+ * adapter — one JSON POST to one exact HTTPS origin and path — whose code is
+ * already here and knows nothing about the service it reaches. An operator's
+ * bindings file (`tools.bindingsFile`, `openclaw-host-tool-bindings-v0`) adds
+ * such entries, each with the endpoint, contract digests, permission kinds,
+ * side effects and bounds the operator states for it
+ * (`parseOperatorBindings`). It cannot add a category, an adapter, a local
+ * implementation or a request shape, cannot replace or shadow an entry this
+ * host already has, and goes through the same control-plane evaluation and
+ * broker policy as every other entry: a package still has to declare that
+ * exact origin, path and contract before anything binds.
+ *
  * ## What never leaves this process
  *
  * A descriptor carries identity, locality, the contract it implements, its
@@ -56,6 +71,9 @@
  * to serve would confirm nothing. A package whose schemas differ is reported
  * `incompatible`, and a binding that states no digest is `unverified`.
  */
+import { lstat, readFile } from "node:fs/promises";
+import { isAbsolute } from "node:path";
+import { AgentBrowserError } from "./errors.js";
 import type { ExecutionPolicy } from "./execution.js";
 
 export const TOOL_REGISTRY_SCHEMA = "agentpkg-host-tool-registry-v0";
@@ -282,6 +300,8 @@ export type ToolConfigEntry = {
 export type ToolsConfig = {
   enabled?: boolean;
   bindings?: ToolConfigEntry[];
+  /** Absolute path to an operator bindings file (`openclaw-host-tool-bindings-v0`). */
+  bindingsFile?: string;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -324,6 +344,219 @@ function safePath(value: unknown): string | null {
   return value;
 }
 
+// -- operator entries ---------------------------------------------------------
+export const OPERATOR_BINDINGS_SCHEMA = "openclaw-host-tool-bindings-v0";
+export const MAX_OPERATOR_BINDINGS = 32;
+export const MAX_OPERATOR_BINDINGS_BYTES = 256 * 1024;
+/** The one implementation an operator entry can name, and its code version. */
+export const OPERATOR_IMPLEMENTATION = Object.freeze({
+  id: "openclaw.tool.json_http",
+  version: "0.1.0",
+});
+
+const OPERATOR_FIELDS = [
+  "id",
+  "tool_id",
+  "binding",
+  "implementation_id",
+  "display_name",
+  "description",
+  "endpoint",
+  "input_schema_sha256",
+  "output_schema_sha256",
+  "permission_kinds",
+  "side_effects",
+  "timeout_seconds",
+  "max_request_bytes",
+  "max_response_bytes",
+  "max_concurrent",
+  "min_interval_ms",
+] as const;
+const OPERATOR_REQUIRED = OPERATOR_FIELDS.filter(
+  (field) =>
+    !["description", "max_request_bytes", "max_response_bytes", "max_concurrent", "min_interval_ms"].includes(
+      field,
+    ),
+);
+const BINDING_ID = /^[a-z][a-z0-9-]{0,31}:[A-Za-z0-9._-]{1,128}:[0-9]{1,6}$/u;
+const NAME = /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/u;
+const KIND = /^[a-z][a-z0-9_.]{0,63}$/u;
+const HEX64 = /^[0-9a-f]{64}$/u;
+const CONTROL = /[\u0000-\u001f\u007f]/u;
+
+function refuseBindings(detail: string): never {
+  throw new AgentBrowserError("invalid_request", "Tool bindings rejected", detail);
+}
+
+function closedRecord(value: unknown, field: string, allowed: readonly string[], required: readonly string[]) {
+  if (!isRecord(value)) refuseBindings(`${field} must be an object`);
+  for (const key of Object.keys(value)) {
+    if (!allowed.includes(key)) refuseBindings(`${field} has an unknown field ${key.slice(0, 64)}`);
+  }
+  for (const key of required) {
+    if (!(key in value)) refuseBindings(`${field} is missing ${key}`);
+  }
+  return value;
+}
+
+function boundedText(value: unknown, field: string, max: number, pattern?: RegExp): string {
+  if (typeof value !== "string" || value.length === 0 || value.length > max || CONTROL.test(value)) {
+    refuseBindings(`${field} must be a string of 1 to ${max} characters without control characters`);
+  }
+  if (pattern && !pattern.test(value)) refuseBindings(`${field} is not a valid identifier`);
+  return value;
+}
+
+function boundedInteger(value: unknown, field: string, min: number, max: number): number {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < min || value > max) {
+    refuseBindings(`${field} must be an integer from ${min} to ${max}`);
+  }
+  return value;
+}
+
+/**
+ * Validate an operator's bindings document into registry entries.
+ *
+ * All or nothing, like the host resource store: one bad entry rejects the
+ * document. Every entry is the plain JSON POST adapter, so what an operator
+ * states is *where* (one exact HTTPS origin and path) and *what contract*
+ * (schema digests, permission kinds, side effects, bounds) — never how a
+ * request is shaped. An entry may not reuse an id, a tool id or a binding name
+ * this host already serves (`existing`): it adds, it never replaces or makes a
+ * declaration ambiguous. Credentials are not part of the document; an operator
+ * attaches one by name through `tools.bindings`, as for any other entry.
+ */
+export function parseOperatorBindings(
+  document: unknown,
+  existing: readonly ToolBindingDefinition[] = BUILT_IN_BINDINGS,
+): ToolBindingDefinition[] {
+  const root = closedRecord(document, "tool bindings", ["schema", "bindings"], ["schema", "bindings"]);
+  if (root.schema !== OPERATOR_BINDINGS_SCHEMA) {
+    refuseBindings(`tool bindings schema must be ${OPERATOR_BINDINGS_SCHEMA}`);
+  }
+  if (!Array.isArray(root.bindings) || root.bindings.length > MAX_OPERATOR_BINDINGS) {
+    refuseBindings(`bindings must be a list of at most ${MAX_OPERATOR_BINDINGS}`);
+  }
+  const ids = new Set(existing.map((item) => item.id));
+  const toolIds = new Set(existing.map((item) => item.toolId));
+  const names = new Set(existing.map((item) => item.binding));
+  return root.bindings.map((raw, index) => {
+    const field = `bindings[${index}]`;
+    const entry = closedRecord(raw, field, OPERATOR_FIELDS, OPERATOR_REQUIRED);
+    const id = boundedText(entry.id, `${field}.id`, 176, BINDING_ID);
+    if (id.startsWith("openclaw:")) refuseBindings(`${field}.id must not use this plugin's own openclaw: namespace`);
+    const toolId = boundedText(entry.tool_id, `${field}.tool_id`, 128, NAME);
+    const binding = boundedText(entry.binding, `${field}.binding`, 128, NAME);
+    if (binding.startsWith("host.resource.")) {
+      refuseBindings(`${field}.binding must not use the host.resource. names of host-held resources`);
+    }
+    if (ids.has(id)) refuseBindings(`${field}.id is already registered on this host`);
+    if (toolIds.has(toolId)) refuseBindings(`${field}.tool_id is already served by another binding on this host`);
+    if (names.has(binding)) refuseBindings(`${field}.binding is already served by another binding on this host`);
+    ids.add(id);
+    toolIds.add(toolId);
+    names.add(binding);
+    if (entry.implementation_id !== OPERATOR_IMPLEMENTATION.id) {
+      refuseBindings(
+        `${field}.implementation_id must be ${OPERATOR_IMPLEMENTATION.id}: an operator entry cannot ` +
+          "name another adapter or a local implementation",
+      );
+    }
+    const endpoint = closedRecord(entry.endpoint, `${field}.endpoint`, ["origin", "path", "method"], [
+      "origin",
+      "path",
+      "method",
+    ]);
+    const origin = safeOrigin(endpoint.origin);
+    if (!origin) refuseBindings(`${field}.endpoint.origin must be an https origin on port 443 with no path or credentials`);
+    const path = safePath(endpoint.path);
+    if (!path) refuseBindings(`${field}.endpoint.path must be an absolute path with no query, fragment or '..'`);
+    // The JSON adapter's contract is one JSON request body; a GET would drop
+    // every argument, so it is refused rather than half-honoured.
+    if (endpoint.method !== "POST") refuseBindings(`${field}.endpoint.method must be POST`);
+    const digest = (value: unknown, name: string) => {
+      if (typeof value !== "string" || !HEX64.test(value)) {
+        refuseBindings(`${field}.${name} must be 64 lowercase hex characters`);
+      }
+      return value;
+    };
+    if (!Array.isArray(entry.permission_kinds) || entry.permission_kinds.length === 0 || entry.permission_kinds.length > 16) {
+      refuseBindings(`${field}.permission_kinds must list 1 to 16 permission kinds`);
+    }
+    const kinds = entry.permission_kinds.map((kind, at) =>
+      boundedText(kind, `${field}.permission_kinds[${at}]`, 64, KIND),
+    );
+    if (new Set(kinds).size !== kinds.length) refuseBindings(`${field}.permission_kinds has a duplicate`);
+    if (entry.side_effects !== "read" && entry.side_effects !== "write") {
+      refuseBindings(`${field}.side_effects must be read or write`);
+    }
+    const definition: ToolBindingDefinition = {
+      id,
+      toolId,
+      binding,
+      kind: "json_http",
+      implementationId: OPERATOR_IMPLEMENTATION.id,
+      implementationVersion: OPERATOR_IMPLEMENTATION.version,
+      displayName: boundedText(entry.display_name, `${field}.display_name`, 200),
+      origin,
+      path,
+      method: "POST",
+      inputSchemaSha256: digest(entry.input_schema_sha256, "input_schema_sha256"),
+      outputSchemaSha256: digest(entry.output_schema_sha256, "output_schema_sha256"),
+      permissionKinds: kinds,
+      sideEffects: entry.side_effects,
+      timeoutSeconds: boundedInteger(entry.timeout_seconds, `${field}.timeout_seconds`, 1, 120),
+    };
+    if (entry.description !== undefined) {
+      definition.description = boundedText(entry.description, `${field}.description`, 1000);
+    }
+    if (entry.max_request_bytes !== undefined) {
+      definition.maxRequestBytes = boundedInteger(entry.max_request_bytes, `${field}.max_request_bytes`, 1, 64 * 1024);
+    }
+    if (entry.max_response_bytes !== undefined) {
+      definition.maxResponseBytes = boundedInteger(
+        entry.max_response_bytes,
+        `${field}.max_response_bytes`,
+        1024,
+        4 * 1024 * 1024,
+      );
+    }
+    if (entry.max_concurrent !== undefined) {
+      definition.maxConcurrent = boundedInteger(entry.max_concurrent, `${field}.max_concurrent`, 1, 16);
+    }
+    if (entry.min_interval_ms !== undefined) {
+      definition.minIntervalMs = boundedInteger(entry.min_interval_ms, `${field}.min_interval_ms`, 1, 60_000);
+    }
+    return definition;
+  });
+}
+
+/**
+ * Read an operator's bindings file: an absolute path to a regular file, not a
+ * link, bounded, parsed as JSON. Its contents are validated by
+ * `parseOperatorBindings`.
+ */
+export async function readOperatorBindingsFile(path: string): Promise<unknown> {
+  if (typeof path !== "string" || !isAbsolute(path) || path.includes("\u0000")) {
+    refuseBindings("tools.bindingsFile must be an absolute path");
+  }
+  let info;
+  try {
+    info = await lstat(path);
+  } catch {
+    refuseBindings("tools.bindingsFile does not exist");
+  }
+  if (info.isSymbolicLink() || !info.isFile()) refuseBindings("tools.bindingsFile must be a regular file");
+  if (info.size > MAX_OPERATOR_BINDINGS_BYTES) {
+    refuseBindings(`tools.bindingsFile exceeds ${MAX_OPERATOR_BINDINGS_BYTES} bytes`);
+  }
+  try {
+    return JSON.parse(await readFile(path, "utf8")) as unknown;
+  } catch {
+    refuseBindings("tools.bindingsFile is not valid JSON");
+  }
+}
+
 /**
  * Apply operator configuration onto the built-ins.
  *
@@ -331,7 +564,9 @@ function safePath(value: unknown): string | null {
  * tighten a timeout, or attach a credential. It cannot invent an
  * implementation category, and it cannot add a binding for a tool this plugin
  * has no implementation for — a registry entry is a claim that code here can
- * serve it, and configuration is not code.
+ * serve it, and configuration is not code. (An operator bindings file adds
+ * entries of the one implementation whose code is service-neutral, before
+ * this runs; see `parseOperatorBindings`.)
  */
 export function resolveBindings(
   config: ToolsConfig | undefined,
@@ -501,8 +736,11 @@ export function buildToolRegistry(options: {
   env?: NodeJS.ProcessEnv;
   policy?: Pick<ExecutionPolicy, "maxToolResponseBytes"> | undefined;
   definitions?: readonly ToolBindingDefinition[];
+  /** Host facts about how the entries were assembled, e.g. a rejected bindings file. */
+  notes?: ToolRegistry["notes"];
 }): ToolRegistry {
-  const { definitions, notes } = resolveBindings(options.config, options.definitions);
+  const { definitions, notes: resolved } = resolveBindings(options.config, options.definitions);
+  const notes = [...(options.notes ?? []), ...resolved];
   const bindings = definitions.map((definition) =>
     describeBinding(definition, {
       ...(options.env ? { env: options.env } : {}),

@@ -144,7 +144,8 @@ export const CONFIG_SCHEMA = {
         "Which tool implementations this host offers. A package declares what it needs; " +
         "these entries say what this host will actually run for it. Configuration can " +
         "disable, relabel, retarget or bound a built-in implementation; it cannot add one, " +
-        "because a registry entry is a claim that code in this plugin can serve it.",
+        "because a registry entry is a claim that code in this plugin can serve it. An " +
+        "operator bindings file can add entries of the service-neutral JSON POST adapter only.",
       properties: {
         enabled: {
           type: "boolean",
@@ -187,6 +188,17 @@ export const CONFIG_SCHEMA = {
               },
             },
           },
+        },
+        bindingsFile: {
+          type: "string",
+          maxLength: 4096,
+          description:
+            "Absolute path to an openclaw-host-tool-bindings-v0 JSON document: further entries of " +
+            "the service-neutral openclaw.tool.json_http implementation, each one JSON POST to one " +
+            "exact HTTPS origin and path, with the schema digests, permission kinds, side effects " +
+            "and bounds the operator states for it. It cannot add an implementation category, an " +
+            "adapter or a local implementation, nor replace an entry this host already has. Read " +
+            "once at start; a document that fails validation adds nothing.",
         },
       },
     },

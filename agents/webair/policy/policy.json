@@ -7,7 +7,7 @@
       "description": "Call WebAir's semantic API (a fictional demo airline): search flights, read fare rules, request a booking quote and, only with the separate purchase permission, simulate a purchase.",
       "required": true,
       "resources": [
-        "webair.example"
+        "webagents-webair-production.up.railway.app"
       ]
     },
     {
@@ -43,7 +43,7 @@
       "description": "Simulate purchasing the one exact quote a task names, with the payment method you choose. Fictional: WebAir performs no real transaction and charges nothing. Consequential by design: grant it once, for one run.",
       "required": false,
       "resources": [
-        "webair.example"
+        "webagents-webair-production.up.railway.app"
       ]
     },
     {
@@ -67,7 +67,7 @@
   ],
   "network": {
     "allowed_domains": [
-      "webair.example"
+      "webagents-webair-production.up.railway.app"
     ],
     "https_only": true,
     "allow_redirects": false

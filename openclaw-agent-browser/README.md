@@ -129,6 +129,8 @@ opened as local packages. Add to your OpenClaw config:
 | `maxSessions` | Concurrently open package sessions. Default 8. |
 | `execution.*` | Host run bounds (`totalTokens`, `maxRemoteCalls`, `maxParallelWorkers`, `maxOutputTokensPerCall`, `runTimeoutSeconds`, `modelCallTimeoutSeconds`, `maxCallsPerTool`, `maxToolResponseBytes`); they can only lower what a package declares. `requireVerifiedHostRuntime` (default `true`) refuses to run on an OpenClaw release other than the verified one. |
 | `tools.*` | `enabled` (default `true`) and per-tool `bindings` that disable, relabel, retarget or bound a built-in implementation; configuration cannot add one. See [the tool broker](../docs/tool-broker.md#15-host-configuration). |
+| `tools.bindingsFile` | Absolute path to an operator bindings file (`openclaw-host-tool-bindings-v0`): further entries of the service-neutral JSON POST adapter only, each one exact HTTPS origin and path with the contract digests, permission kinds, side effects and bounds the operator states. Read once at start; a document that fails validation adds nothing. The WebAir demo ships one: [`demo/webair/host-bindings.json`](../demo/webair/host-bindings.json). |
+| `hostResources.file` | Absolute path to the host's resource definitions (`openclaw-host-resources-v0`): resource types and the person's resources (opaque id, display label, value) that a package can request by type and the person grants per run. The WebAir demo ships a fictional one: [`demo/webair/host-resources.json`](../demo/webair/host-resources.json). |
 
 For the Literature Review demo on a local 30B model this host uses
 `sessionTtlSeconds: 7200` and `execution: { totalTokens: 180000, maxRemoteCalls:

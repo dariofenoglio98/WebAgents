@@ -17,7 +17,8 @@ def main(argv: list[str] | None = None) -> int:
         prog="python -m origin", description="WebAir: a fictional airline demo origin."
     )
     parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=8040)
+    # A hosting platform assigns the listening port through $PORT (Railway does).
+    parser.add_argument("--port", type=int, default=int(os.environ.get("PORT", "8040")))
     parser.add_argument(
         "--agent-package",
         default=os.environ.get("WEBAIR_AGENT_PACKAGE") or None,
@@ -46,6 +47,10 @@ def main(argv: list[str] | None = None) -> int:
         server_header=False,
         proxy_headers=False,
         log_level="info",
+        # One small process: past this many connections at once it answers 503 instead of
+        # growing, and an idle connection is not held open.
+        limit_concurrency=64,
+        timeout_keep_alive=5,
     )
     return 0
 

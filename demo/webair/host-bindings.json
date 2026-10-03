@@ -1,0 +1,100 @@
+{
+  "schema": "openclaw-host-tool-bindings-v0",
+  "bindings": [
+    {
+      "id": "demo:webair.search_flights:1",
+      "tool_id": "search-flights",
+      "binding": "webair.search_flights",
+      "implementation_id": "openclaw.tool.json_http",
+      "display_name": "WebAir search_flights (demo binding)",
+      "description": "One JSON POST to /api/v1/search_flights on WebAir's public demo origin, and nothing else. WebAir is a fictional airline: no real booking or payment occurs.",
+      "endpoint": {
+        "origin": "https://webagents-webair-production.up.railway.app",
+        "path": "/api/v1/search_flights",
+        "method": "POST"
+      },
+      "input_schema_sha256": "66cb6246e48442ed5101adf8b40d8ca29027a499a5acea7c8db5c7ef0f799ba8",
+      "output_schema_sha256": "824d0e39f171a09d424a7a7e40c38632db9747a3a4d1846b0f7a95e26893e4a7",
+      "permission_kinds": [
+        "network"
+      ],
+      "side_effects": "read",
+      "timeout_seconds": 20,
+      "max_request_bytes": 16384,
+      "max_response_bytes": 262144,
+      "max_concurrent": 4
+    },
+    {
+      "id": "demo:webair.get_fare_rules:1",
+      "tool_id": "get-fare-rules",
+      "binding": "webair.get_fare_rules",
+      "implementation_id": "openclaw.tool.json_http",
+      "display_name": "WebAir get_fare_rules (demo binding)",
+      "description": "One JSON POST to /api/v1/get_fare_rules on WebAir's public demo origin, and nothing else. WebAir is a fictional airline: no real booking or payment occurs.",
+      "endpoint": {
+        "origin": "https://webagents-webair-production.up.railway.app",
+        "path": "/api/v1/get_fare_rules",
+        "method": "POST"
+      },
+      "input_schema_sha256": "ad5ad98ed1b482225a8d623cf7004270e4042d825fd7cf166651a37a0492e1c8",
+      "output_schema_sha256": "70c5dbb27a550e396ae211b5fe484bc395a67a793fba8c2cafa142840dd50b11",
+      "permission_kinds": [
+        "network"
+      ],
+      "side_effects": "read",
+      "timeout_seconds": 20,
+      "max_request_bytes": 16384,
+      "max_response_bytes": 262144,
+      "max_concurrent": 4
+    },
+    {
+      "id": "demo:webair.prepare_booking:1",
+      "tool_id": "prepare-booking",
+      "binding": "webair.prepare_booking",
+      "implementation_id": "openclaw.tool.json_http",
+      "display_name": "WebAir prepare_booking (demo binding)",
+      "description": "One JSON POST to /api/v1/prepare_booking on WebAir's public demo origin, and nothing else. WebAir is a fictional airline: no real booking or payment occurs.",
+      "endpoint": {
+        "origin": "https://webagents-webair-production.up.railway.app",
+        "path": "/api/v1/prepare_booking",
+        "method": "POST"
+      },
+      "input_schema_sha256": "b7d0f573905ae0c23987b305de00816118a5d52ffe29f4ea410dc89f5c586173",
+      "output_schema_sha256": "c632b8935b6c059abee0a609e8d88f1c33dee69d6bf99cc3576d85652fe4a842",
+      "permission_kinds": [
+        "network",
+        "personal.read"
+      ],
+      "side_effects": "read",
+      "timeout_seconds": 20,
+      "max_request_bytes": 16384,
+      "max_response_bytes": 262144,
+      "max_concurrent": 4
+    },
+    {
+      "id": "demo:webair.simulate_purchase:1",
+      "tool_id": "simulate-purchase",
+      "binding": "webair.simulate_purchase",
+      "implementation_id": "openclaw.tool.json_http",
+      "display_name": "WebAir simulate_purchase (demo binding)",
+      "description": "One JSON POST to /api/v1/simulate_purchase on WebAir's public demo origin, and nothing else. WebAir is a fictional airline: no real booking or payment occurs.",
+      "endpoint": {
+        "origin": "https://webagents-webair-production.up.railway.app",
+        "path": "/api/v1/simulate_purchase",
+        "method": "POST"
+      },
+      "input_schema_sha256": "01ebc6ec5fd4ff9be71d4a308650bad902366eee94d494db8a7d46469172fa71",
+      "output_schema_sha256": "debe54138360dd92e5bb98e33865bbf4da3bb64b2d0bd2c5a897f5051cf1f347",
+      "permission_kinds": [
+        "network",
+        "payment",
+        "personal.read"
+      ],
+      "side_effects": "write",
+      "timeout_seconds": 20,
+      "max_request_bytes": 16384,
+      "max_response_bytes": 262144,
+      "max_concurrent": 4
+    }
+  ]
+}

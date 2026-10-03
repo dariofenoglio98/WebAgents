@@ -9,6 +9,7 @@ import json
 import re
 
 import pytest
+from agentpkg.browser.hosttools import tool_contract
 from agentpkg.package import load_package
 from agentpkg.validation import schema_validator
 from pydantic import TypeAdapter
@@ -33,6 +34,7 @@ from publisher.contract import (
     tool_output_schema,
 )
 from publisher.host import EMPTY_INPUT_SCHEMA, host_definitions, host_schema_files
+from publisher.host_bindings import HOST_BINDINGS, host_bindings_document
 
 TOOL_IDS = {
     "search-flights",
@@ -236,6 +238,42 @@ def test_host_resource_schemas_are_the_demo_hosts_own(package):
         tool = package.tools[tool_id]
         assert tool["input_schema"] == "schemas/host/empty-input.schema.json"
         assert tool["output_schema"] == f"schemas/host/{tool_id}.schema.json"
+
+
+def test_the_demo_hosts_bindings_are_generated_from_the_published_contract():
+    document = json.loads(HOST_BINDINGS.read_text())
+    assert document == host_bindings_document()
+    assert document["schema"] == "openclaw-host-tool-bindings-v0"
+
+
+def test_the_demo_hosts_bindings_land_inside_the_package_declarations(package):
+    """Each binding is the host's statement; the package's declaration bounds it from above."""
+    document = json.loads(HOST_BINDINGS.read_text())
+    assert {binding["tool_id"] for binding in document["bindings"]} == TOOL_IDS
+    for binding in document["bindings"]:
+        contract = tool_contract(package, binding["tool_id"])
+        permitted = (
+            set(contract["domains"])
+            & set(contract["network_resources"])
+            & set(contract["allowed_domains"])
+        )
+        assert binding["implementation_id"] == "openclaw.tool.json_http"
+        assert binding["binding"] == contract["binding"]
+        assert binding["endpoint"] == {
+            "origin": f"https://{DECLARED_HOST}",
+            "path": contract["endpoint_path"],
+            "method": contract["method"],
+        }
+        assert DECLARED_HOST in permitted
+        assert binding["input_schema_sha256"] == contract["input_schema_sha256"]
+        assert binding["output_schema_sha256"] == contract["output_schema_sha256"]
+        assert sorted(binding["permission_kinds"]) == contract["permission_kinds"]
+        assert binding["side_effects"] == contract["side_effects"]
+        assert binding["timeout_seconds"] <= contract["timeout_seconds"]
+    # Host configuration names no credential, header, query or person.
+    text = HOST_BINDINGS.read_text().lower()
+    for word in ("token", "secret", "password", "authorization", "header", "query", "@"):
+        assert word not in text, word
 
 
 def test_every_demo_payment_method_is_one_webair_accepts():

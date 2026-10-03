@@ -6,7 +6,8 @@ packages: they verify with the standard tooling, run through the unchanged CLI a
 interpreter with the package's own fixture, ask for nothing they do not declare, and no
 generic code knows they exist.
 
-0.2.0 asks the person's host for a travel profile, a passenger identity and a payment
+0.3.0 is the live demo's package: 0.2.0 with WebAir's public deployment as its declared host.
+Like 0.2.0 it asks the person's host for a travel profile, a passenger identity and a payment
 method it does not own (`personal.read` permissions with argument-free host-resource tools)
 and for a separate, `once`-grantable purchase authority. These tests also pin what that
 means for the signed bytes: no name, email, host resource id or label is in them. That the
@@ -14,7 +15,7 @@ host resolves, binds and withholds those resources correctly is tested on the ho
 (`openclaw-agent-browser/test/webair-capabilities.test.ts`); that the tool contracts equal
 WebAir's published API is tested on the origin side (`demo/webair/tests/`).
 
-0.1.0 stays here unchanged and verifiable: earlier evidence describes those exact bytes.
+0.1.0 and 0.2.0 stay here unchanged and verifiable: earlier evidence describes those exact bytes.
 """
 
 from __future__ import annotations
@@ -37,7 +38,8 @@ from agentpkg.workflow import run_workflow
 
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "agents/webair"
-ARCHIVE = ROOT / "dist/webair-0.2.0.agent.pkg"
+ARCHIVE = ROOT / "dist/webair-0.3.0.agent.pkg"
+ARCHIVE_020 = ROOT / "dist/webair-0.2.0.agent.pkg"
 ARCHIVE_010 = ROOT / "dist/webair-0.1.0.agent.pkg"
 ALIAS = ROOT / "dist/webair.agent.pkg"
 KEY = ROOT / "examples/keys/webair-publisher.pub.pem"
@@ -46,9 +48,13 @@ HOST_RESOURCES = json.loads((ROOT / "demo/webair/host-resources.json").read_text
 SCENARIOS = json.loads((ROOT / "examples/webair-scenarios.json").read_text())["scenarios"]
 
 PACKAGE_ID = "org.webagents.webair"
-VERSION = "0.2.0"
-DIGEST = "74f05a8d98b6ed7436ac6297bfd6e5b16cd625839405180cddfc31965ccab9e1"
-ARCHIVE_SHA256 = "3f135be80c2ac43b93f42acbcb648a3460b1ab39a831c251122331c99107a616"
+VERSION = "0.3.0"
+DIGEST = "ffe8f5b344f97c631498bb6da3e17217ae7e5730721935b0e66c5d595b335e94"
+ARCHIVE_SHA256 = "b537cf5cba06bce8137533eb75b491486f57caf3098af30f657343b741492887"
+# WebAir's public demo deployment: the one host 0.3.0 declares for its API.
+PUBLIC_HOST = "webagents-webair-production.up.railway.app"
+DIGEST_020 = "74f05a8d98b6ed7436ac6297bfd6e5b16cd625839405180cddfc31965ccab9e1"
+ARCHIVE_SHA256_020 = "3f135be80c2ac43b93f42acbcb648a3460b1ab39a831c251122331c99107a616"
 DIGEST_010 = "3b7c61a7bd9584e0217dda802065248c86dd135d210b8a06ab25239835cc2fb6"
 ARCHIVE_SHA256_010 = "73872c3177a9ec281a8875ae154023a72ff10f9fe96c5a82ed1639a34ecb470c"
 FINGERPRINT = "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b"
@@ -82,7 +88,8 @@ def test_shipped_artifact_identity_and_signature(package):
     assert report["valid"] is True
     assert report["key_fingerprint"] == FINGERPRINT == package.signature["key_fingerprint"]
     # The unversioned name stays the newest version the released 0.2.2 runtime can read:
-    # 0.2.0 declares the `personal.read` permission kind, which only this branch accepts.
+    # 0.2.0 and 0.3.0 declare the `personal.read` permission kind, which only this branch
+    # accepts.
     assert ALIAS.read_bytes() == ARCHIVE_010.read_bytes()
 
 
@@ -105,6 +112,42 @@ def test_the_earlier_release_is_unchanged_and_still_verifies():
         )
     )
     assert result["output"]["status"] == "options_found"
+
+
+def test_0_2_0_is_unchanged_and_still_verifies():
+    earlier = load_package(ARCHIVE_020)
+    assert earlier.manifest["version"] == "0.2.0"
+    assert earlier.digest == DIGEST_020
+    assert sha256(ARCHIVE_020.read_bytes()) == ARCHIVE_SHA256_020
+    assert verify_package(ARCHIVE_020, KEY)["key_fingerprint"] == FINGERPRINT
+
+
+def test_0_3_0_differs_from_0_2_0_only_for_the_live_host(package):
+    """The live version changes where WebAir is declared to be, and nothing it does."""
+    earlier = load_package(ARCHIVE_020)
+    changed = sorted(
+        name
+        for name in set(earlier.files) | set(package.files)
+        if earlier.files.get(name) != package.files.get(name)
+    )
+    remote = [f"tools/{name}.tool.json" for name in OPERATIONS]
+    assert changed == sorted(["MANIFEST.agent", "README.md", "policy/policy.json", *remote])
+    # Policy and tool declarations: the host, swapped back, gives 0.2.0's bytes exactly.
+    for name in ["policy/policy.json", *remote]:
+        swapped = package.files[name].replace(PUBLIC_HOST.encode(), b"webair.example")
+        assert swapped == earlier.files[name], name
+    # The manifest: version, date and the informational origin; nothing else.
+    now = json.loads(package.files["MANIFEST.agent"])
+    then = json.loads(earlier.files["MANIFEST.agent"])
+    assert (then["version"], now["version"]) == ("0.2.0", "0.3.0")
+    origin = now["extensions"]["org.webagents.webair:origin"]
+    assert origin.pop("origin") == f"https://{PUBLIC_HOST}"
+    for key in ("version", "created_at"):
+        now.pop(key)
+        then.pop(key)
+    assert now == then
+    # No trace of the placeholder anywhere in the live package.
+    assert all(b"webair.example" not in data for data in package.files.values())
 
 
 def test_another_publishers_key_is_refused():
@@ -161,8 +204,8 @@ def test_tools_are_webair_operations_and_host_resource_requests(package):
         tool = package.tools[tool_id]
         assert tool["binding"] == f"webair.{operation}"
         assert tool["execution"] == "remote" and tool["method"] == "POST"
-        assert tool["endpoint"] == f"https://webair.example/api/v1/{operation}"
-        assert tool["domains"] == ["webair.example"]
+        assert tool["endpoint"] == f"https://{PUBLIC_HOST}/api/v1/{operation}"
+        assert tool["domains"] == [PUBLIC_HOST]
         assert tool["retries"] == 0 and tool["extensions"] == {}
         assert tool["input_schema"] == f"schemas/api/{operation}.input.schema.json"
     for tool_id, permission in HOST_TOOLS.items():
@@ -212,7 +255,7 @@ def test_permissions_request_resources_and_a_separate_purchase_authority(package
     # The only payment-kind permission, consumed by one call: `once` is honourable.
     assert [p for p in permissions.values() if p["kind"] == "payment"] == [purchase]
     assert package.policy["network"] == {
-        "allowed_domains": ["webair.example"],
+        "allowed_domains": [PUBLIC_HOST],
         "https_only": True,
         "allow_redirects": False,
     }
@@ -238,7 +281,7 @@ def test_no_model_role_can_read_a_host_resource(package):
 
 def test_the_control_plane_derives_its_contracts_generically(package):
     contract = tool_contract(package, "search-flights")
-    assert contract["endpoint_origin"] == "https://webair.example"
+    assert contract["endpoint_origin"] == f"https://{PUBLIC_HOST}"
     assert contract["endpoint_path"] == "/api/v1/search_flights"
     assert contract["required_permission_ids"] == ["network.webair"]
     purchase = tool_contract(package, "simulate-purchase")

@@ -232,10 +232,22 @@ def captured_run(monkeypatch):
 
 def test_cli_without_a_package(monkeypatch, captured_run):
     monkeypatch.delenv("WEBAIR_AGENT_PACKAGE", raising=False)
+    monkeypatch.delenv("PORT", raising=False)
     assert cli.main([]) == 0
     app, options = captured_run[0]
     assert app.state.agent_package is None
     assert (options["host"], options["port"]) == ("127.0.0.1", 8040)
+    # One bounded process, behind no trusted proxy.
+    assert options["limit_concurrency"] == 64 and options["proxy_headers"] is False
+
+
+def test_cli_takes_a_platform_assigned_port(monkeypatch, captured_run):
+    monkeypatch.delenv("WEBAIR_AGENT_PACKAGE", raising=False)
+    monkeypatch.setenv("PORT", "9123")
+    assert cli.main(["--host", "0.0.0.0"]) == 0
+    assert (captured_run[0][1]["host"], captured_run[0][1]["port"]) == ("0.0.0.0", 9123)
+    assert cli.main(["--port", "9001"]) == 0
+    assert captured_run[1][1]["port"] == 9001
 
 
 def test_cli_publishes_the_configured_package(

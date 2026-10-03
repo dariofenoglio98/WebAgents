@@ -4,8 +4,11 @@
  * Real `agentpkg browser-serve` control plane, real authorization with real
  * host-resource selections, real receipt and run plan, real preflight, real
  * execution lease, real `agentpkg execution-run` child running the signed
- * WebAir 0.2.0 graph, real `Runtime` permission checks, real tool bridge, real
- * broker with the real host-resource store — and two stand-ins: a scripted
+ * WebAir 0.3.0 graph, real `Runtime` permission checks, real tool bridge, real
+ * broker with the real host-resource store, and WebAir's four tools bound
+ * exactly as the live demo host binds them: through the operator bindings file
+ * `demo/webair/host-bindings.json` (`tools.bindingsFile`) to the public
+ * origin — and two stand-ins: a scripted
  * model in place of OpenClaw's completion runtime, and WebAir's own recorded
  * answers (`examples/webair-capability-scenarios.json`, generated from the
  * origin by `demo/webair/publisher`) in place of the network at the broker's
@@ -29,13 +32,13 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { AgentBrowserBackend } from "../src/backend.js";
 import type { HostLlm } from "../src/host-llm.js";
 import type { ModelHost } from "../src/host-models.js";
-import { canonicalJson, sha256Hex } from "../src/host-resources.js";
+import { canonicalJson } from "../src/host-resources.js";
 import type { HttpTransport } from "../src/tool-broker.js";
-import { BUILT_IN_BINDINGS, type ToolBindingDefinition } from "../src/tool-registry.js";
 import { AGENTPKG_BIN, DIST, HOST_CONFIG_WITH_MODEL_OVERRIDE, REPO_ROOT, hasAgentpkg } from "./fixtures.js";
 
-// The broker resolves webair.example before it calls the stubbed transport.
-// Answer with a public address so the destination policy runs unchanged.
+// The broker resolves WebAir's public host before it calls the stubbed
+// transport. Answer with a public address so the destination policy runs
+// unchanged, without a network.
 vi.mock("node:dns", async (importOriginal) => {
   const actual = await importOriginal<typeof import("node:dns")>();
   const lookup = (
@@ -48,12 +51,14 @@ vi.mock("node:dns", async (importOriginal) => {
 
 const run = promisify(execFile);
 const runs = hasAgentpkg();
-const WEBAIR = join(DIST, "webair-0.2.0.agent.pkg");
+const WEBAIR = join(DIST, "webair-0.3.0.agent.pkg");
+const PUBLIC_HOST = "webagents-webair-production.up.railway.app";
 const PACKAGE_SOURCE = join(REPO_ROOT, "agents", "webair");
 const read = (path: string) => JSON.parse(readFileSync(path, "utf8")) as Record<string, any>;
 const SCENARIOS = read(join(REPO_ROOT, "examples", "webair-capability-scenarios.json"));
 const HOST_RESOURCES = read(join(REPO_ROOT, "demo", "webair", "host-resources.json"));
-const POLICY = read(join(PACKAGE_SOURCE, "policy", "policy.json"));
+// The demo host's own operator configuration for WebAir's four tools, as shipped.
+const HOST_BINDINGS = join(REPO_ROOT, "demo", "webair", "host-bindings.json");
 const KEY = Buffer.alloc(32, 7);
 
 type Scenario = {
@@ -105,40 +110,6 @@ const CARD_LIKE = /(?:\d[ -]?){13,19}/u;
 function leaks(text: string, values: readonly string[] = PERSONAL): string[] {
   return values.filter((value) => text.includes(value));
 }
-
-// -- the demo host's bindings of WebAir's four tools (test configuration) -----
-const permissionKinds = new Map(
-  (POLICY.permissions as Array<{ id: string; kind: string }>).map((item) => [item.id, item.kind]),
-);
-function schemaDigest(path: string): string {
-  return sha256Hex(canonicalJson(read(join(PACKAGE_SOURCE, path))));
-}
-const WEBAIR_BINDINGS: ToolBindingDefinition[] = [
-  ["search-flights", "search_flights", "read"],
-  ["get-fare-rules", "get_fare_rules", "read"],
-  ["prepare-booking", "prepare_booking", "read"],
-  ["simulate-purchase", "simulate_purchase", "write"],
-].map(([toolId, operation, sideEffects]) => {
-  const tool = read(join(PACKAGE_SOURCE, "tools", `${toolId}.tool.json`));
-  return {
-    id: `demo:webair.${operation}:1`,
-    toolId: toolId!,
-    binding: `webair.${operation}`,
-    kind: "json_http" as const,
-    implementationId: "openclaw.tool.json_http",
-    implementationVersion: "0.1.0",
-    displayName: `WebAir ${operation} (demo binding)`,
-    origin: "https://webair.example",
-    path: `/api/v1/${operation}`,
-    method: "POST" as const,
-    inputSchemaSha256: schemaDigest(`schemas/api/${operation}.input.schema.json`),
-    outputSchemaSha256: schemaDigest(`schemas/api/${operation}.output.schema.json`),
-    permissionKinds: [...new Set((tool.permissions as string[]).map((id) => permissionKinds.get(id)!))],
-    sideEffects: sideEffects as "read" | "write",
-    timeoutSeconds: 20,
-    maxConcurrent: 4,
-  };
-});
 
 // -- WebAir's recorded answers, at the transport boundary ---------------------
 const exchanges = new Map<string, { status: number; response: unknown }>();
@@ -280,12 +251,12 @@ describe.runIf(runs)("host-owned capabilities, with the signed WebAir package", 
         agentpkgPath: AGENTPKG_BIN,
         localPackages: { roots: [DIST, packagesDir] },
         execution: { runTimeoutSeconds: 120 },
+        tools: { bindingsFile: HOST_BINDINGS },
       },
       logger,
       stateDir,
       modelHost: host,
       llm,
-      toolDefinitions: [...BUILT_IN_BINDINGS, ...WEBAIR_BINDINGS],
       toolTransport: transport,
       hostResources: HOST_RESOURCES,
       hostResourceKey: KEY,
@@ -346,6 +317,17 @@ describe.runIf(runs)("host-owned capabilities, with the signed WebAir package", 
       ]),
     );
     expect(tools.allToolsBound).toBe(true);
+    // WebAir's own operations: bound through the operator's bindings file, to the public host.
+    const webairTools = tools.tools.filter((tool) => !tool.toolId.includes("."));
+    expect(webairTools.map((tool) => [tool.toolId, tool.status, tool.binding?.bindingId, tool.binding?.endpointOrigin]).sort()).toEqual(
+      [
+        ["get-fare-rules", "bound", "demo:webair.get_fare_rules:1", `https://${PUBLIC_HOST}`],
+        ["prepare-booking", "bound", "demo:webair.prepare_booking:1", `https://${PUBLIC_HOST}`],
+        ["search-flights", "bound", "demo:webair.search_flights:1", `https://${PUBLIC_HOST}`],
+        ["simulate-purchase", "bound", "demo:webair.simulate_purchase:1", `https://${PUBLIC_HOST}`],
+      ],
+    );
+    expect(webairTools.every((tool) => tool.binding?.implementationKind === "json_http")).toBe(true);
     evidence.offered = {
       types: HOST_RESOURCES.types.map((type: any) => ({
         id: type.id,
@@ -357,12 +339,14 @@ describe.runIf(runs)("host-owned capabilities, with the signed WebAir package", 
           .filter((item) => item.hostResource)
           .map((item) => [item.id, item.hostResource!.options]),
       ),
-      tool_bindings: resourceTools.map((tool) => ({
+      tool_bindings: [...resourceTools, ...webairTools].map((tool) => ({
         tool_id: tool.toolId,
         status: tool.status,
         implementation_kind: tool.binding?.implementationKind,
         binding_id: tool.binding?.bindingId,
+        endpoint_origin: tool.binding?.endpointOrigin ?? null,
       })),
+      webair_bindings_file: "demo/webair/host-bindings.json",
     };
     evidence.package = {
       package_id: view.identity.packageId,
@@ -389,6 +373,7 @@ describe.runIf(runs)("host-owned capabilities, with the signed WebAir package", 
     expect(resolutions).toEqual([{ type: "personal.travel_profile", resourceId: "profile_demo_traveler" }]);
     // The search WebAir received carries the profile's preferences as criteria.
     expect(requests[0]!.path).toBe("/api/v1/search_flights");
+    expect(requests.every((request) => request.hostname === PUBLIC_HOST)).toBe(true);
     expect(requests[0]!.body).toEqual(item.expect.search_query);
     expect(requests.map((request) => request.body)).toEqual(item.origin.map((call) => call.request));
     // The interpreting model saw the request and nothing of the profile.

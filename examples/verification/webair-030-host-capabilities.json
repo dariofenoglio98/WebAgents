@@ -1,0 +1,858 @@
+{
+  "schema": "webair-host-capabilities-verification-v0",
+  "passed": true,
+  "checks": {
+    "signature_valid_under_pinned_key": true,
+    "source_rebuilds_to_signed_payload": true,
+    "resigned_bytes_identical_when_checked": true,
+    "no_personal_data_in_signed_bytes": true,
+    "discovery_leads_to_the_0_3_0_bytes": true,
+    "host_suite_passed": true,
+    "webair_tools_bound_by_the_operator_file_to_the_public_origin": true,
+    "A_profile_search": true,
+    "B_explicit_search_profile_denied": true,
+    "C_booking": true,
+    "D_purchase_denied": true,
+    "E_purchase_with_visa": true,
+    "models_never_saw_personal_data": true,
+    "identity_only_to_booking_calls": true,
+    "payment_identifier_only_to_purchase": true,
+    "audit_chains_valid": true,
+    "F_substitution_refused": true,
+    "G_stale_resource_refused": true,
+    "H_replayed_or_invalid_grant_refused": true,
+    "no_webair_or_demo_resource_in_generic_code": true
+  },
+  "artifact": {
+    "artifact": "dist/webair-0.3.0.agent.pkg",
+    "package_id": "org.webagents.webair",
+    "version": "0.3.0",
+    "archive_sha256": "b537cf5cba06bce8137533eb75b491486f57caf3098af30f657343b741492887",
+    "package_digest": "ffe8f5b344f97c631498bb6da3e17217ae7e5730721935b0e66c5d595b335e94",
+    "signer_fingerprint": "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b",
+    "signature": {
+      "valid": true,
+      "trust_scope": "exact externally supplied publisher key"
+    },
+    "source_rebuilds_to_signed_payload": true,
+    "resigned_bytes_identical": true,
+    "graph_nodes": 34,
+    "node_types": {
+      "join": 2,
+      "llm": 3,
+      "map": 1,
+      "output": 1,
+      "tool": 6,
+      "validate": 21
+    },
+    "tools": {
+      "get-fare-rules": {
+        "execution": "remote",
+        "binding": "webair.get_fare_rules",
+        "permissions": [
+          "network.webair"
+        ],
+        "side_effects": "read"
+      },
+      "personal.passenger_identity": {
+        "execution": "local",
+        "binding": "host.resource.personal.passenger_identity",
+        "permissions": [
+          "identity.passenger"
+        ],
+        "side_effects": "read"
+      },
+      "personal.travel_profile": {
+        "execution": "local",
+        "binding": "host.resource.personal.travel_profile",
+        "permissions": [
+          "profile.travel"
+        ],
+        "side_effects": "read"
+      },
+      "prepare-booking": {
+        "execution": "remote",
+        "binding": "webair.prepare_booking",
+        "permissions": [
+          "network.webair",
+          "identity.passenger"
+        ],
+        "side_effects": "read"
+      },
+      "search-flights": {
+        "execution": "remote",
+        "binding": "webair.search_flights",
+        "permissions": [
+          "network.webair"
+        ],
+        "side_effects": "read"
+      },
+      "simulate-purchase": {
+        "execution": "remote",
+        "binding": "webair.simulate_purchase",
+        "permissions": [
+          "network.webair",
+          "booking.simulate_purchase",
+          "identity.passenger",
+          "wallet.payment"
+        ],
+        "side_effects": "write"
+      },
+      "wallet.payment_method": {
+        "execution": "local",
+        "binding": "host.resource.wallet.payment_method",
+        "permissions": [
+          "wallet.payment"
+        ],
+        "side_effects": "read"
+      }
+    },
+    "permissions": {
+      "network.webair": {
+        "kind": "network",
+        "required": true,
+        "resources": [
+          "webagents-webair-production.up.railway.app"
+        ]
+      },
+      "profile.travel": {
+        "kind": "personal.read",
+        "required": false,
+        "resources": [
+          "personal.travel_profile"
+        ]
+      },
+      "identity.passenger": {
+        "kind": "personal.read",
+        "required": false,
+        "resources": [
+          "personal.passenger_identity"
+        ]
+      },
+      "wallet.payment": {
+        "kind": "personal.read",
+        "required": false,
+        "resources": [
+          "wallet.payment_method"
+        ]
+      },
+      "booking.simulate_purchase": {
+        "kind": "payment",
+        "required": false,
+        "resources": [
+          "webagents-webair-production.up.railway.app"
+        ]
+      },
+      "model.reasoning": {
+        "kind": "model",
+        "required": true,
+        "resources": [
+          "host-router"
+        ]
+      },
+      "memory.session": {
+        "kind": "memory",
+        "required": true,
+        "resources": [
+          "session"
+        ]
+      }
+    },
+    "host_resource_requests": {
+      "profile.travel": "personal.travel_profile",
+      "identity.passenger": "personal.passenger_identity",
+      "wallet.payment": "wallet.payment_method"
+    },
+    "action_authorities": [
+      "booking.simulate_purchase"
+    ],
+    "personal_data_in_signed_bytes": [],
+    "email_addresses_in_signed_bytes": []
+  },
+  "discovery": {
+    "website": "https://webair.example/",
+    "advertised": "https://webair.example/agent.pkg",
+    "same_origin": true,
+    "discovery_status": "candidate",
+    "package_fetched_by_discovery": false,
+    "inspected": {
+      "version": "0.3.0",
+      "digest": "ffe8f5b344f97c631498bb6da3e17217ae7e5730721935b0e66c5d595b335e94",
+      "archive_sha256": "b537cf5cba06bce8137533eb75b491486f57caf3098af30f657343b741492887",
+      "validation": {
+        "container_status": "valid",
+        "integrity_status": "valid",
+        "schema_status": "valid"
+      },
+      "runtime_status": "compatible",
+      "signature_status": "valid",
+      "trust_status_before_pin": "unknown"
+    }
+  },
+  "host": {
+    "ran": true,
+    "suite": "openclaw-agent-browser/test/webair-capabilities.test.ts",
+    "tests": 9,
+    "passed_tests": 9,
+    "failed_tests": 0,
+    "success": true
+  },
+  "offered": {
+    "types": [
+      {
+        "id": "personal.travel_profile",
+        "permission_kind": "personal.read",
+        "sealed_fields": []
+      },
+      {
+        "id": "personal.passenger_identity",
+        "permission_kind": "personal.read",
+        "sealed_fields": [
+          "/contact_email"
+        ]
+      },
+      {
+        "id": "wallet.payment_method",
+        "permission_kind": "personal.read",
+        "sealed_fields": [
+          "/payment_method_id"
+        ]
+      }
+    ],
+    "resources": {
+      "profile.travel": [
+        {
+          "resourceId": "profile_demo_traveler",
+          "label": "Demo Traveler — BOS / Economy / Nonstop"
+        },
+        {
+          "resourceId": "profile_demo_explorer",
+          "label": "Demo Explorer — JFK / Business / Any stops"
+        }
+      ],
+      "identity.passenger": [
+        {
+          "resourceId": "passenger_demo_alex",
+          "label": "Alex Traveler — a***@example.com"
+        },
+        {
+          "resourceId": "passenger_demo_sam",
+          "label": "Sam Traveler — s***@example.com"
+        }
+      ],
+      "wallet.payment": [
+        {
+          "resourceId": "payment_demo_visa",
+          "label": "Demo Visa •••• 4242"
+        },
+        {
+          "resourceId": "payment_demo_travel",
+          "label": "Demo Travel Card •••• 1234"
+        }
+      ]
+    },
+    "tool_bindings": [
+      {
+        "tool_id": "personal.passenger_identity",
+        "status": "bound",
+        "implementation_kind": "host_resource",
+        "binding_id": "openclaw:host-resource:personal.passenger_identity:1",
+        "endpoint_origin": null
+      },
+      {
+        "tool_id": "personal.travel_profile",
+        "status": "bound",
+        "implementation_kind": "host_resource",
+        "binding_id": "openclaw:host-resource:personal.travel_profile:1",
+        "endpoint_origin": null
+      },
+      {
+        "tool_id": "wallet.payment_method",
+        "status": "bound",
+        "implementation_kind": "host_resource",
+        "binding_id": "openclaw:host-resource:wallet.payment_method:1",
+        "endpoint_origin": null
+      },
+      {
+        "tool_id": "get-fare-rules",
+        "status": "bound",
+        "implementation_kind": "json_http",
+        "binding_id": "demo:webair.get_fare_rules:1",
+        "endpoint_origin": "https://webagents-webair-production.up.railway.app"
+      },
+      {
+        "tool_id": "prepare-booking",
+        "status": "bound",
+        "implementation_kind": "json_http",
+        "binding_id": "demo:webair.prepare_booking:1",
+        "endpoint_origin": "https://webagents-webair-production.up.railway.app"
+      },
+      {
+        "tool_id": "search-flights",
+        "status": "bound",
+        "implementation_kind": "json_http",
+        "binding_id": "demo:webair.search_flights:1",
+        "endpoint_origin": "https://webagents-webair-production.up.railway.app"
+      },
+      {
+        "tool_id": "simulate-purchase",
+        "status": "bound",
+        "implementation_kind": "json_http",
+        "binding_id": "demo:webair.simulate_purchase:1",
+        "endpoint_origin": "https://webagents-webair-production.up.railway.app"
+      }
+    ],
+    "webair_bindings_file": "demo/webair/host-bindings.json"
+  },
+  "scenarios": {
+    "A": {
+      "id": "profile-search",
+      "decisions": {
+        "network.webair": "session",
+        "model.reasoning": "session",
+        "memory.session": "session",
+        "profile.travel": "session",
+        "identity.passenger": "deny",
+        "wallet.payment": "deny",
+        "booking.simulate_purchase": "deny"
+      },
+      "selections": {
+        "profile.travel": "profile_demo_traveler"
+      },
+      "receipt": {
+        "receipt_id": "e4329f44-d78c-438b-928b-a4776f8860cb",
+        "receipt_sha256": "d462d76575d6d8ac6a105c3bce4e1feb3bef3901dca212f89676fde6afe81cf8",
+        "resource_grants": [
+          {
+            "permissionId": "profile.travel",
+            "resourceType": "personal.travel_profile",
+            "resourceId": "profile_demo_traveler",
+            "resourceDigest": "82b9c76b24fe7ccb1c76e0707bb3d22ed27436144d393e701bc6fc88e0a9d41f"
+          }
+        ]
+      },
+      "run_plan": {
+        "run_plan_id": "rp_528ebb6f2de6435c8d9a06f979aa8c73",
+        "run_plan_sha256": "ec065643567004ddd0226c68a906819b4293b815777606f489533869819b2b54",
+        "resource_grants": [
+          {
+            "permissionId": "profile.travel",
+            "resourceType": "personal.travel_profile",
+            "resourceId": "profile_demo_traveler",
+            "resourceDigest": "82b9c76b24fe7ccb1c76e0707bb3d22ed27436144d393e701bc6fc88e0a9d41f"
+          }
+        ],
+        "resource_registry": {
+          "registrySha256": "7560d49595655693bbf4b7fb2a9569cc801dd8ded7523b153795d337ddacb134",
+          "resourceCount": 6
+        },
+        "ready": true
+      },
+      "run": {
+        "run_id": "run_d2bd6e6278d7447c8b2f03175a949e27",
+        "status": "completed",
+        "error_code": null,
+        "failed_node": null,
+        "run_invocation_sha256": "4ba9ed8f0a87cd7625078af6908eae97031fee0a10f9c1406d746cf83f02d29e",
+        "audit_chain_valid": true,
+        "audit_events": 247,
+        "resources": [
+          {
+            "permissionId": "profile.travel",
+            "resourceType": "personal.travel_profile",
+            "resourceId": "profile_demo_traveler",
+            "resourceDigest": "82b9c76b24fe7ccb1c76e0707bb3d22ed27436144d393e701bc6fc88e0a9d41f"
+          }
+        ]
+      },
+      "model_calls": [
+        "interpret",
+        "select",
+        "answer"
+      ],
+      "model_inputs_checked": {
+        "calls": 3,
+        "personal_values_found": [],
+        "card_like_found": false
+      },
+      "webair_requests": [
+        {
+          "path": "/api/v1/search_flights",
+          "carries_identity": false,
+          "carries_payment_identifier": false
+        },
+        {
+          "path": "/api/v1/get_fare_rules",
+          "carries_identity": false,
+          "carries_payment_identifier": false
+        },
+        {
+          "path": "/api/v1/get_fare_rules",
+          "carries_identity": false,
+          "carries_payment_identifier": false
+        },
+        {
+          "path": "/api/v1/get_fare_rules",
+          "carries_identity": false,
+          "carries_payment_identifier": false
+        }
+      ],
+      "host_resource_resolutions": [
+        {
+          "type": "personal.travel_profile",
+          "resourceId": "profile_demo_traveler"
+        }
+      ],
+      "output": {
+        "status": "options_found",
+        "selected_fare_id": "WA101-20261009-BASIC",
+        "booking": null,
+        "purchase": null
+      }
+    },
+    "B": {
+      "id": "explicit-search-profile-denied",
+      "decisions": {
+        "network.webair": "session",
+        "model.reasoning": "session",
+        "memory.session": "session",
+        "profile.travel": "deny",
+        "identity.passenger": "deny",
+        "wallet.payment": "deny",
+        "booking.simulate_purchase": "deny"
+      },
+      "selections": {},
+      "receipt": {
+        "receipt_id": "83f8a16f-09b1-4a43-b570-cb159eeaa1ef",
+        "receipt_sha256": "a49b31fdf33601a519339dc3c43818d90fe9bb30545a2bde0761eb3b3bdd5f45",
+        "resource_grants": []
+      },
+      "run_plan": {
+        "run_plan_id": "rp_90152bb20e4c43d6be6250001c5ad9bc",
+        "run_plan_sha256": "d0f9395e6b6251322b240a879dfc8e35447fac7424438167a87b472f360effdd",
+        "resource_grants": [],
+        "resource_registry": {
+          "registrySha256": "f497f1bef0ea19ef17a6a1bed61399c0bf93ae1e3b804f27d4199457a8767298",
+          "resourceCount": 6
+        },
+        "ready": true
+      },
+      "run": {
+        "run_id": "run_d8580e258f544c7aa8ae0f7eab886228",
+        "status": "completed",
+        "error_code": null,
+        "failed_node": null,
+        "run_invocation_sha256": "39ba3fecad6be2e875a9ad6fa5da8d5ca9e58ac28a3c080eeb1bbf37f5dc779b",
+        "audit_chain_valid": true,
+        "audit_events": 241,
+        "resources": []
+      },
+      "model_calls": [
+        "interpret",
+        "select",
+        "answer"
+      ],
+      "model_inputs_checked": {
+        "calls": 3,
+        "personal_values_found": [],
+        "card_like_found": false
+      },
+      "webair_requests": [
+        {
+          "path": "/api/v1/search_flights",
+          "carries_identity": false,
+          "carries_payment_identifier": false
+        },
+        {
+          "path": "/api/v1/get_fare_rules",
+          "carries_identity": false,
+          "carries_payment_identifier": false
+        },
+        {
+          "path": "/api/v1/get_fare_rules",
+          "carries_identity": false,
+          "carries_payment_identifier": false
+        },
+        {
+          "path": "/api/v1/get_fare_rules",
+          "carries_identity": false,
+          "carries_payment_identifier": false
+        }
+      ],
+      "host_resource_resolutions": [],
+      "output": {
+        "status": "options_found",
+        "selected_fare_id": "WA101-20261009-BASIC",
+        "booking": null,
+        "purchase": null
+      }
+    },
+    "C": {
+      "id": "booking",
+      "decisions": {
+        "network.webair": "session",
+        "model.reasoning": "session",
+        "memory.session": "session",
+        "profile.travel": "deny",
+        "identity.passenger": "session",
+        "wallet.payment": "deny",
+        "booking.simulate_purchase": "deny"
+      },
+      "selections": {
+        "identity.passenger": "passenger_demo_alex"
+      },
+      "receipt": {
+        "receipt_id": "cc3e34dd-a232-465e-ada3-45f53ef3ddf3",
+        "receipt_sha256": "53e7daae669d0a01b8835a0209709b9004ca64b6798d88ebfa35ad292dc12cd3",
+        "resource_grants": [
+          {
+            "permissionId": "identity.passenger",
+            "resourceType": "personal.passenger_identity",
+            "resourceId": "passenger_demo_alex",
+            "resourceDigest": "4fddea71585e9003da5450ad9ac964dedeefe0f148acac9999a8a5c4ab72ac4e"
+          }
+        ]
+      },
+      "run_plan": {
+        "run_plan_id": "rp_6f3e5a976f3140dd9e3bf69b8eb90c06",
+        "run_plan_sha256": "8d746dfbbf86d2cce525b6401e0b01f386d181bf00277d3b9c469e0a9c416f7e",
+        "resource_grants": [
+          {
+            "permissionId": "identity.passenger",
+            "resourceType": "personal.passenger_identity",
+            "resourceId": "passenger_demo_alex",
+            "resourceDigest": "4fddea71585e9003da5450ad9ac964dedeefe0f148acac9999a8a5c4ab72ac4e"
+          }
+        ],
+        "resource_registry": {
+          "registrySha256": "71bb264fee937e5270037445a8c73e6cfe91343f2f65a3b5665cf0b747e55b8f",
+          "resourceCount": 6
+        },
+        "ready": true
+      },
+      "run": {
+        "run_id": "run_a8eaddb37999433884b5450729778a35",
+        "status": "completed",
+        "error_code": null,
+        "failed_node": null,
+        "run_invocation_sha256": "93260c166ec750eb0cf2ca7ff60f75b6587cc5ed13dc0058cf03bf84054d3ed0",
+        "audit_chain_valid": true,
+        "audit_events": 223,
+        "resources": [
+          {
+            "permissionId": "identity.passenger",
+            "resourceType": "personal.passenger_identity",
+            "resourceId": "passenger_demo_alex",
+            "resourceDigest": "4fddea71585e9003da5450ad9ac964dedeefe0f148acac9999a8a5c4ab72ac4e"
+          }
+        ]
+      },
+      "model_calls": [
+        "interpret",
+        "select",
+        "answer"
+      ],
+      "model_inputs_checked": {
+        "calls": 3,
+        "personal_values_found": [],
+        "card_like_found": false
+      },
+      "webair_requests": [
+        {
+          "path": "/api/v1/search_flights",
+          "carries_identity": false,
+          "carries_payment_identifier": false
+        },
+        {
+          "path": "/api/v1/get_fare_rules",
+          "carries_identity": false,
+          "carries_payment_identifier": false
+        },
+        {
+          "path": "/api/v1/prepare_booking",
+          "carries_identity": true,
+          "carries_payment_identifier": false
+        }
+      ],
+      "host_resource_resolutions": [
+        {
+          "type": "personal.passenger_identity",
+          "resourceId": "passenger_demo_alex"
+        }
+      ],
+      "output": {
+        "status": "options_found",
+        "selected_fare_id": "WA101-20261009-STANDARD",
+        "booking": {
+          "quote_id": "WAQ-C82CB5B08515FAE6",
+          "fare_id": "WA101-20261009-STANDARD",
+          "total_usd": 858,
+          "passenger_count": 1
+        },
+        "purchase": null
+      }
+    },
+    "D": {
+      "id": "purchase-denied",
+      "decisions": {
+        "network.webair": "session",
+        "model.reasoning": "session",
+        "memory.session": "session",
+        "profile.travel": "deny",
+        "identity.passenger": "session",
+        "wallet.payment": "deny",
+        "booking.simulate_purchase": "deny"
+      },
+      "selections": {
+        "identity.passenger": "passenger_demo_alex"
+      },
+      "receipt": {
+        "receipt_id": "13b9bb0e-0bef-46a4-95d0-7c75655836cc",
+        "receipt_sha256": "93e72d101b015329b8869cc0e2084dda6360f5889b1b7f2e676105e6da2cccdd",
+        "resource_grants": [
+          {
+            "permissionId": "identity.passenger",
+            "resourceType": "personal.passenger_identity",
+            "resourceId": "passenger_demo_alex",
+            "resourceDigest": "4fddea71585e9003da5450ad9ac964dedeefe0f148acac9999a8a5c4ab72ac4e"
+          }
+        ]
+      },
+      "run_plan": {
+        "run_plan_id": "rp_755bc9e354c04975ba7739f8780b391d",
+        "run_plan_sha256": "3535059e566fe457db6431bd15c5f904681d2e6359cc622790cc20bd7a0db18b",
+        "resource_grants": [
+          {
+            "permissionId": "identity.passenger",
+            "resourceType": "personal.passenger_identity",
+            "resourceId": "passenger_demo_alex",
+            "resourceDigest": "4fddea71585e9003da5450ad9ac964dedeefe0f148acac9999a8a5c4ab72ac4e"
+          }
+        ],
+        "resource_registry": {
+          "registrySha256": "9ad420842f581d184bed8d069ddc0a3c9cda7765ed5ec7ff3dc25f950483e537",
+          "resourceCount": 6
+        },
+        "ready": true
+      },
+      "run": {
+        "run_id": "run_0035f6e50958491bbf78d3a1aa1a3afc",
+        "status": "failed",
+        "error_code": "permission_denied",
+        "failed_node": "payment",
+        "run_invocation_sha256": "ceeef4d182b6e51183011a76894d0b3115f23085b8bbee24c0de460d1cb54403",
+        "audit_chain_valid": true,
+        "audit_events": 82,
+        "resources": [
+          {
+            "permissionId": "identity.passenger",
+            "resourceType": "personal.passenger_identity",
+            "resourceId": "passenger_demo_alex",
+            "resourceDigest": "4fddea71585e9003da5450ad9ac964dedeefe0f148acac9999a8a5c4ab72ac4e"
+          }
+        ]
+      },
+      "model_calls": [],
+      "model_inputs_checked": {
+        "calls": 0,
+        "personal_values_found": [],
+        "card_like_found": false
+      },
+      "webair_requests": [],
+      "host_resource_resolutions": [],
+      "output": null,
+      "denied_permission_checked": "wallet.payment",
+      "payment_resolutions": 0,
+      "purchase_dispatches": 0
+    },
+    "E": {
+      "id": "purchase-visa",
+      "decisions": {
+        "network.webair": "session",
+        "model.reasoning": "session",
+        "memory.session": "session",
+        "profile.travel": "deny",
+        "identity.passenger": "session",
+        "wallet.payment": "session",
+        "booking.simulate_purchase": "once"
+      },
+      "selections": {
+        "identity.passenger": "passenger_demo_alex",
+        "wallet.payment": "payment_demo_visa"
+      },
+      "receipt": {
+        "receipt_id": "a36bf47f-caf7-4298-8714-18bf3336f7b0",
+        "receipt_sha256": "07bdc9fec97b7086ac0e4beb59d2dad6155666c572e2a497d02a8aed2f254673",
+        "resource_grants": [
+          {
+            "permissionId": "identity.passenger",
+            "resourceType": "personal.passenger_identity",
+            "resourceId": "passenger_demo_alex",
+            "resourceDigest": "4fddea71585e9003da5450ad9ac964dedeefe0f148acac9999a8a5c4ab72ac4e"
+          },
+          {
+            "permissionId": "wallet.payment",
+            "resourceType": "wallet.payment_method",
+            "resourceId": "payment_demo_visa",
+            "resourceDigest": "b0d2fffeff4cf7cd61c1d9fe5c8a896237ae633c869d95c70978baa271a68cbb"
+          }
+        ]
+      },
+      "run_plan": {
+        "run_plan_id": "rp_5ffdc7dbe22f49b1affedd00d1d20092",
+        "run_plan_sha256": "b9d2794bcbfc1e0b8f22236619eb85c3533771ea85ad12cbfd6aa1b5ffcac158",
+        "resource_grants": [
+          {
+            "permissionId": "identity.passenger",
+            "resourceType": "personal.passenger_identity",
+            "resourceId": "passenger_demo_alex",
+            "resourceDigest": "4fddea71585e9003da5450ad9ac964dedeefe0f148acac9999a8a5c4ab72ac4e"
+          },
+          {
+            "permissionId": "wallet.payment",
+            "resourceType": "wallet.payment_method",
+            "resourceId": "payment_demo_visa",
+            "resourceDigest": "b0d2fffeff4cf7cd61c1d9fe5c8a896237ae633c869d95c70978baa271a68cbb"
+          }
+        ],
+        "resource_registry": {
+          "registrySha256": "27f06751d57136a176fd6f7d7147495fc0b79d5f1f571cd8696bd57ccb744186",
+          "resourceCount": 6
+        },
+        "ready": true
+      },
+      "run": {
+        "run_id": "run_4f2e8dde386c48a99fecd18122faadb4",
+        "status": "completed",
+        "error_code": null,
+        "failed_node": null,
+        "run_invocation_sha256": "fc18bbb719aec0b680d1932e3b5c9d675e8ea86b9cb0aae9ab92f86670edace4",
+        "audit_chain_valid": true,
+        "audit_events": 204,
+        "resources": [
+          {
+            "permissionId": "identity.passenger",
+            "resourceType": "personal.passenger_identity",
+            "resourceId": "passenger_demo_alex",
+            "resourceDigest": "4fddea71585e9003da5450ad9ac964dedeefe0f148acac9999a8a5c4ab72ac4e"
+          },
+          {
+            "permissionId": "wallet.payment",
+            "resourceType": "wallet.payment_method",
+            "resourceId": "payment_demo_visa",
+            "resourceDigest": "b0d2fffeff4cf7cd61c1d9fe5c8a896237ae633c869d95c70978baa271a68cbb"
+          }
+        ]
+      },
+      "model_calls": [
+        "answer"
+      ],
+      "model_inputs_checked": {
+        "calls": 1,
+        "personal_values_found": [],
+        "card_like_found": false
+      },
+      "webair_requests": [
+        {
+          "path": "/api/v1/prepare_booking",
+          "carries_identity": true,
+          "carries_payment_identifier": false
+        },
+        {
+          "path": "/api/v1/simulate_purchase",
+          "carries_identity": true,
+          "carries_payment_identifier": true
+        }
+      ],
+      "host_resource_resolutions": [
+        {
+          "type": "wallet.payment_method",
+          "resourceId": "payment_demo_visa"
+        },
+        {
+          "type": "personal.passenger_identity",
+          "resourceId": "passenger_demo_alex"
+        }
+      ],
+      "output": {
+        "status": "purchase_simulated",
+        "selected_fare_id": null,
+        "booking": {
+          "quote_id": "WAQ-C82CB5B08515FAE6",
+          "fare_id": "WA101-20261009-STANDARD",
+          "total_usd": 858,
+          "passenger_count": 1
+        },
+        "purchase": {
+          "amount_charged_usd": 0,
+          "confirmation_id": "WA-DEMO-TYD4M",
+          "currency": "USD",
+          "fare_id": "WA101-20261009-STANDARD",
+          "fare_name": "Economy Standard",
+          "message": "No real transaction was performed.",
+          "passenger_count": 1,
+          "payment_display": "Demo Visa •••• 4242",
+          "quote_id": "WAQ-C82CB5B08515FAE6",
+          "real_transaction": false,
+          "simulated": true,
+          "total_usd": 858
+        }
+      }
+    }
+  },
+  "attacks": {
+    "replayed_once_grant": {
+      "refused": true,
+      "code": "run_plan_stale",
+      "stale_reason": "authorization_once_spent"
+    },
+    "substitute_card": {
+      "granted": "payment_demo_visa",
+      "attempted_origin_identifier": "the Travel Card's (a withheld resource)",
+      "run_status": "failed",
+      "failed_node": "purchase",
+      "broker_refusal": "tool_request_invalid",
+      "purchase_requests_sent": 0,
+      "requests_carrying_the_substituted_identifier": 0
+    },
+    "substitute_passenger": {
+      "granted": "passenger_demo_alex",
+      "attempted": "another passenger's email (a withheld resource)",
+      "run_status": "failed",
+      "failed_node": "prepare",
+      "prepare_booking_sent": false
+    },
+    "authorization_substitution": {
+      "cross_type_pick_refused": "invalid_request",
+      "guessed_id_refused": "invalid_request"
+    },
+    "stale_resource": {
+      "changed": {
+        "refused": true,
+        "code": "run_plan_stale",
+        "control_plane_stale_reasons": [
+          "resource_changed"
+        ]
+      },
+      "removed": {
+        "refused": true,
+        "code": "run_plan_stale",
+        "control_plane_stale_reasons": [
+          "resource_removed"
+        ]
+      }
+    },
+    "invalid_grants": {
+      "superseded_plan": "run_plan_absent",
+      "pick_for_denied_permission": "invalid_request",
+      "pick_for_non_resource_permission": "invalid_request",
+      "granted_without_pick": "invalid_request"
+    }
+  },
+  "genericity": {
+    "pattern": "webair|airline|passenger_demo|payment_demo|profile_demo",
+    "files_matching": [],
+    "clean": true
+  },
+  "scope": "offline: the production control plane, runner and broker with the demo host's fictional resources; WebAir's recorded answers at the broker's transport; a scripted model. No network, provider, origin server or real personal data."
+}

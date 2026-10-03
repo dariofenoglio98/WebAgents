@@ -1,0 +1,6 @@
+{
+  "$schema": "https://schema.railpack.com",
+  "deploy": {
+    "startCommand": "python -m origin --host 0.0.0.0 --agent-package agent.pkg"
+  }
+}

@@ -53,7 +53,10 @@ any one of these stand in for another.
 A declaration is a request. It never becomes authority by being signed, being
 required, or naming a URL. A binding is the host's answer to that request, and
 it exists only because code in this plugin can serve it — configuration can
-disable, relabel, retarget or bound one, and cannot invent one. An approval is
+disable, relabel, retarget or bound one, and cannot invent one. The one entry an
+operator can *state* rather than code is an endpoint of the service-neutral
+JSON POST adapter, in an operator bindings file (§3d): the code that serves it is
+already here. An approval is
 consent for *that* implementation of *that* tool, and it is separate from the
 permission the tool travels under.
 
@@ -124,7 +127,7 @@ credential value, request template, query parameter, second endpoint or local
 command has anywhere to travel; an unknown field is refused with
 `unknown_field` rather than dropped.
 
-There are three **implementation kinds**, and they are categories rather than
+There are four **implementation kinds**, and they are categories rather than
 a service list:
 
 * `json_http` — one exact HTTPS request to one exact configured origin, path and
@@ -134,12 +137,14 @@ a service list:
   no I/O;
 * `selected_file` — a local implementation that reads **only** files the person
   explicitly selected for this run, through opaque host-held capabilities
-  (§3b). It can name no path, reach no network and write nothing.
+  (§3b). It can name no path, reach no network and write nothing;
+* `host_resource` — a local implementation that returns **only** the one
+  host-owned resource of its type the person granted for this run (§3c).
 
 Adding a service adds an *entry*. Adding a way of reaching resources adds a
 kind: reading a person's own selected file is a different kind of reach from
 calling a service or computing in memory, which is why `selected_file` is the
-one kind 3B4 added.
+one kind 3B4 added; host-owned resources added `host_resource`.
 
 `limits` gained one optional field, `min_interval_ms`: the spacing a service
 itself requires between call starts (§7a). It is part of what a binding would
@@ -284,6 +289,48 @@ declarations the statement of where each resource may go. It is an exact-value
 check over values this host holds, not a general data-loss filter: unsealed
 fields (preferences) are ordinary data, and a value nobody marked sealed is not
 policed.
+
+### 3d. Operator entries of the JSON adapter
+
+A service whose API is exactly "one JSON body POSTed to one path, answers and
+refusals returned as data" — the Citation Resolver's shape, and WebAir's — needs
+no new code: `openclaw.tool.json_http` already serves it, knowing nothing about
+the service. So an operator may add such entries in a bindings file
+(`tools.bindingsFile`, format `openclaw-host-tool-bindings-v0`), read once when
+the plugin starts:
+
+```json
+{"schema":"openclaw-host-tool-bindings-v0","bindings":[
+ {"id":"demo:webair.search_flights:1","tool_id":"search-flights",
+  "binding":"webair.search_flights","implementation_id":"openclaw.tool.json_http",
+  "display_name":"WebAir search_flights (demo binding)","description":"…",
+  "endpoint":{"origin":"https://webagents-webair-production.up.railway.app",
+              "path":"/api/v1/search_flights","method":"POST"},
+  "input_schema_sha256":"…","output_schema_sha256":"…",
+  "permission_kinds":["network"],"side_effects":"read","timeout_seconds":20,
+  "max_request_bytes":16384,"max_response_bytes":262144,"max_concurrent":4}]}
+```
+
+What an entry states is *where* (one HTTPS origin on 443, one absolute path,
+POST) and *what contract* (both schema digests, the permission kinds, side
+effects, deadline and bounds). What it cannot state: another adapter, a local
+implementation, a category, a request template, a header, a query, a credential
+value, or a GET (the adapter would drop every argument). It cannot reuse an id,
+a tool id or a binding name this host already serves (no shadowing, no
+ambiguity), nor the `openclaw:` namespace or a `host.resource.` name. The
+document is refused whole on any error: it adds nothing, the reason is logged,
+and the registry carries an `operator_bindings_rejected` note, so a package that
+needed an entry is reported unbound rather than half-configured. The
+implementation version is the adapter's own (code), not the operator's.
+
+Everything after that is unchanged: the control plane still compares each entry
+with the package's declaration (endpoint domain, path, method, digests, kinds,
+side effects) and refuses an entry outside it; the person still approves the
+binding; the run plan freezes its id and digest; the broker applies §7 with no
+exception path; `tools.bindings` overrides (disable, timeout, a credential by
+name) apply to these entries as to built-ins. The WebAir demo's file is
+[`demo/webair/host-bindings.json`](../demo/webair/host-bindings.json), generated
+from the contract WebAir publishes.
 
 ## 4. The binding digest
 
@@ -603,6 +650,10 @@ retarget an origin/path/method, tighten a timeout, or attach a credential by
 name. It **cannot** add an implementation for a tool this plugin has no code
 for: that is refused with a `binding_unknown` note. An unsafe origin is refused
 with `binding_config_rejected` and the built-in is kept.
+
+`tools.bindingsFile` names an operator bindings file (absolute path, regular
+file, ≤ 256 KiB) of JSON-adapter entries (§3d). Absent, nothing is added. A file
+that fails validation adds nothing and is reported as `operator_bindings_rejected`.
 
 Four implementations ship, plus one `host_resource` implementation per
 resource type the host's definitions file declares:
