@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "fare_id": {
+      "examples": [
+        "WA101-20261009-STANDARD"
+      ],
+      "pattern": "^WA[0-9]{3}(-WA[0-9]{3})?-[0-9]{8}-(BASIC|STANDARD|FLEX|BUSINESS)$",
+      "title": "Fare Id",
+      "type": "string"
+    },
+    "passengers": {
+      "default": 1,
+      "description": "Number of travelers",
+      "maximum": 6,
+      "minimum": 1,
+      "title": "Passengers",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "fare_id"
+  ],
+  "title": "GetFareRulesRequest",
+  "type": "object"
+}

@@ -1,0 +1,1395 @@
+{
+  "spec_version": "0.1",
+  "profile": "workflow.v0",
+  "coordinator": "Coordinator",
+  "workers": [
+    {
+      "id": "Coordinator",
+      "kind": "packaged",
+      "skills": [],
+      "tools": [],
+      "max_instances": 1,
+      "budget": {
+        "tokens": 0,
+        "remote_calls": 0
+      },
+      "state_read": [
+        "request",
+        "plan",
+        "search",
+        "selection",
+        "offered_flights",
+        "offered_fares",
+        "refusal",
+        "fare_rules",
+        "booking_fare",
+        "booking_request",
+        "quote",
+        "purchase_request",
+        "confirmation",
+        "answer",
+        "result"
+      ],
+      "state_write": [
+        "offered_flights",
+        "offered_fares",
+        "refusal",
+        "booking_fare",
+        "booking_request",
+        "purchase_request",
+        "result"
+      ]
+    },
+    {
+      "id": "Interpreter",
+      "kind": "packaged",
+      "skills": [
+        "webair-domain",
+        "travel-request"
+      ],
+      "tools": [],
+      "max_instances": 1,
+      "budget": {
+        "tokens": 40000,
+        "remote_calls": 2
+      },
+      "state_read": [
+        "request"
+      ],
+      "state_write": [
+        "plan"
+      ]
+    },
+    {
+      "id": "Searcher",
+      "kind": "packaged",
+      "skills": [],
+      "tools": [
+        "search-flights",
+        "get-fare-rules"
+      ],
+      "max_instances": 3,
+      "budget": {
+        "tokens": 0,
+        "remote_calls": 1
+      },
+      "state_read": [
+        "plan",
+        "selection",
+        "offered_fares"
+      ],
+      "state_write": [
+        "search",
+        "fare_rules"
+      ]
+    },
+    {
+      "id": "Selector",
+      "kind": "packaged",
+      "skills": [
+        "webair-domain",
+        "fare-selection"
+      ],
+      "tools": [],
+      "max_instances": 1,
+      "budget": {
+        "tokens": 40000,
+        "remote_calls": 2
+      },
+      "state_read": [
+        "request",
+        "plan",
+        "search"
+      ],
+      "state_write": [
+        "selection"
+      ]
+    },
+    {
+      "id": "Booker",
+      "kind": "packaged",
+      "skills": [],
+      "tools": [
+        "prepare-booking",
+        "simulate-purchase"
+      ],
+      "max_instances": 1,
+      "budget": {
+        "tokens": 0,
+        "remote_calls": 1
+      },
+      "state_read": [
+        "booking_request",
+        "purchase_request"
+      ],
+      "state_write": [
+        "quote",
+        "confirmation"
+      ]
+    },
+    {
+      "id": "Writer",
+      "kind": "packaged",
+      "skills": [
+        "webair-domain",
+        "answer-writing"
+      ],
+      "tools": [],
+      "max_instances": 1,
+      "budget": {
+        "tokens": 40000,
+        "remote_calls": 2
+      },
+      "state_read": [
+        "request",
+        "plan",
+        "selection",
+        "search",
+        "fare_rules",
+        "quote",
+        "confirmation"
+      ],
+      "state_write": [
+        "answer"
+      ]
+    }
+  ],
+  "input_schema": "schemas/input.schema.json",
+  "output_schema": "schemas/result.schema.json",
+  "initial_state": {
+    "object": {
+      "request": {
+        "from": "input",
+        "path": ""
+      },
+      "plan": {
+        "literal": null
+      },
+      "search": {
+        "literal": null
+      },
+      "selection": {
+        "literal": null
+      },
+      "offered_flights": {
+        "literal": []
+      },
+      "offered_fares": {
+        "literal": []
+      },
+      "refusal": {
+        "literal": null
+      },
+      "fare_rules": {
+        "literal": []
+      },
+      "booking_fare": {
+        "literal": null
+      },
+      "booking_request": {
+        "literal": null
+      },
+      "quote": {
+        "literal": null
+      },
+      "purchase_request": {
+        "literal": null
+      },
+      "confirmation": {
+        "literal": null
+      },
+      "answer": {
+        "literal": null
+      },
+      "result": {
+        "literal": null
+      }
+    }
+  },
+  "deadline_seconds": 1200,
+  "nodes": [
+    {
+      "id": "interpret",
+      "type": "llm",
+      "worker": "Interpreter",
+      "task": "interpret",
+      "input": {
+        "object": {
+          "request": {
+            "from": "state",
+            "path": "/request/request"
+          },
+          "booking": {
+            "from": "state",
+            "path": "/request/booking"
+          }
+        }
+      },
+      "output_schema": "schemas/plan.schema.json",
+      "max_output_tokens": 6000,
+      "timeout_seconds": 300,
+      "depends_on": [],
+      "writes": {
+        "/plan": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "id": "search",
+      "type": "tool",
+      "worker": "Searcher",
+      "tool": "search-flights",
+      "input": {
+        "from": "state",
+        "path": "/plan/search"
+      },
+      "when": {
+        "left": {
+          "from": "state",
+          "path": "/plan/search"
+        },
+        "op": "ne",
+        "right": {
+          "literal": null
+        }
+      },
+      "otherwise": {
+        "literal": null
+      },
+      "output_schema": "schemas/search-outcome.schema.json",
+      "timeout_seconds": 60,
+      "depends_on": [
+        "interpret"
+      ],
+      "writes": {
+        "/search": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "id": "select",
+      "type": "llm",
+      "worker": "Selector",
+      "task": "select",
+      "input": {
+        "object": {
+          "request": {
+            "from": "state",
+            "path": "/request/request"
+          },
+          "interpreted_request": {
+            "from": "state",
+            "path": "/plan"
+          },
+          "search": {
+            "from": "state",
+            "path": "/search"
+          }
+        }
+      },
+      "when": {
+        "left": {
+          "from": "state",
+          "path": "/search"
+        },
+        "op": "ne",
+        "right": {
+          "literal": null
+        }
+      },
+      "otherwise": {
+        "literal": {
+          "outcome": "request_not_supported",
+          "fare_ids": [],
+          "selected_fare_id": null
+        }
+      },
+      "output_schema": "schemas/selection.schema.json",
+      "max_output_tokens": 6000,
+      "timeout_seconds": 300,
+      "depends_on": [
+        "search"
+      ],
+      "writes": {
+        "/selection": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "id": "offered-flights",
+      "type": "validate",
+      "worker": "Coordinator",
+      "input": {
+        "literal": []
+      },
+      "when": {
+        "left": {
+          "from": "state",
+          "path": "/selection/outcome"
+        },
+        "op": "ne",
+        "right": {
+          "literal": "options_found"
+        }
+      },
+      "otherwise": {
+        "from": "state",
+        "path": "/search/flights"
+      },
+      "assertions": [
+        {
+          "kind": "equal",
+          "left": {
+            "from": "state",
+            "path": "/selection/fare_ids"
+          },
+          "right": {
+            "literal": []
+          }
+        },
+        {
+          "kind": "equal",
+          "left": {
+            "from": "state",
+            "path": "/selection/selected_fare_id"
+          },
+          "right": {
+            "literal": null
+          }
+        }
+      ],
+      "output_schema": "schemas/offered-flights.schema.json",
+      "timeout_seconds": 10,
+      "depends_on": [
+        "select"
+      ],
+      "writes": {
+        "/offered_flights": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "id": "offered-fares",
+      "type": "join",
+      "worker": "Coordinator",
+      "input": {
+        "from": "state",
+        "path": "/offered_flights"
+      },
+      "select": "/fares",
+      "output_schema": "schemas/offered-fares.schema.json",
+      "timeout_seconds": 10,
+      "depends_on": [
+        "offered-flights"
+      ],
+      "writes": {
+        "/offered_fares": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "id": "check-options",
+      "type": "validate",
+      "worker": "Coordinator",
+      "input": {
+        "from": "state",
+        "path": "/selection"
+      },
+      "when": {
+        "left": {
+          "from": "state",
+          "path": "/selection/outcome"
+        },
+        "op": "eq",
+        "right": {
+          "literal": "options_found"
+        }
+      },
+      "otherwise": {
+        "from": "state",
+        "path": "/selection"
+      },
+      "assertions": [
+        {
+          "kind": "relation",
+          "rows": {
+            "from": "state",
+            "path": "/selection/fare_ids"
+          },
+          "row_key": "",
+          "targets": {
+            "from": "state",
+            "path": "/offered_fares"
+          },
+          "target_key": "/fare_id"
+        },
+        {
+          "kind": "relation",
+          "rows": {
+            "array": [
+              {
+                "from": "state",
+                "path": "/selection/selected_fare_id"
+              }
+            ]
+          },
+          "row_key": "",
+          "targets": {
+            "from": "state",
+            "path": "/selection/fare_ids"
+          },
+          "target_key": ""
+        }
+      ],
+      "output_schema": "schemas/selection.schema.json",
+      "timeout_seconds": 10,
+      "depends_on": [
+        "offered-fares"
+      ],
+      "writes": {}
+    },
+    {
+      "id": "check-no-flights",
+      "type": "validate",
+      "worker": "Coordinator",
+      "input": {
+        "from": "state",
+        "path": "/selection"
+      },
+      "when": {
+        "left": {
+          "from": "state",
+          "path": "/selection/outcome"
+        },
+        "op": "eq",
+        "right": {
+          "literal": "no_matching_flights"
+        }
+      },
+      "otherwise": {
+        "from": "state",
+        "path": "/selection"
+      },
+      "assertions": [
+        {
+          "kind": "equal",
+          "left": {
+            "from": "state",
+            "path": "/search/flights"
+          },
+          "right": {
+            "literal": []
+          }
+        }
+      ],
+      "output_schema": "schemas/selection.schema.json",
+      "timeout_seconds": 10,
+      "depends_on": [
+        "select"
+      ],
+      "writes": {}
+    },
+    {
+      "id": "check-not-searched",
+      "type": "validate",
+      "worker": "Coordinator",
+      "input": {
+        "from": "state",
+        "path": "/selection"
+      },
+      "when": {
+        "left": {
+          "from": "state",
+          "path": "/selection/outcome"
+        },
+        "op": "eq",
+        "right": {
+          "literal": "request_not_supported"
+        }
+      },
+      "otherwise": {
+        "from": "state",
+        "path": "/selection"
+      },
+      "assertions": [
+        {
+          "kind": "equal",
+          "left": {
+            "from": "state",
+            "path": "/search"
+          },
+          "right": {
+            "literal": null
+          }
+        }
+      ],
+      "output_schema": "schemas/selection.schema.json",
+      "timeout_seconds": 10,
+      "depends_on": [
+        "select"
+      ],
+      "writes": {}
+    },
+    {
+      "id": "refusal",
+      "type": "validate",
+      "worker": "Coordinator",
+      "input": {
+        "literal": null
+      },
+      "when": {
+        "left": {
+          "from": "state",
+          "path": "/selection/outcome"
+        },
+        "op": "ne",
+        "right": {
+          "literal": "request_refused"
+        }
+      },
+      "otherwise": {
+        "from": "state",
+        "path": "/search/error"
+      },
+      "output_schema": "schemas/refusal.schema.json",
+      "timeout_seconds": 10,
+      "depends_on": [
+        "select"
+      ],
+      "writes": {
+        "/refusal": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "id": "fare-rules",
+      "type": "map",
+      "worker": "Searcher",
+      "input": {
+        "from": "state",
+        "path": "/selection/fare_ids"
+      },
+      "item_schema": "schemas/fare-id.schema.json",
+      "max_items": 6,
+      "max_parallel": 3,
+      "steps": [
+        {
+          "id": "rules",
+          "type": "tool",
+          "tool": "get-fare-rules",
+          "input": {
+            "object": {
+              "fare_id": {
+                "from": "item",
+                "path": ""
+              },
+              "passengers": {
+                "from": "state",
+                "path": "/plan/search/passengers"
+              }
+            }
+          },
+          "output_schema": "schemas/api/get_fare_rules.output.schema.json",
+          "timeout_seconds": 30
+        },
+        {
+          "id": "check",
+          "type": "validate",
+          "input": {
+            "from": "steps",
+            "path": "/rules"
+          },
+          "assertions": [
+            {
+              "kind": "equal",
+              "left": {
+                "from": "steps",
+                "path": "/rules/fare_id"
+              },
+              "right": {
+                "from": "item",
+                "path": ""
+              }
+            },
+            {
+              "kind": "equal",
+              "left": {
+                "from": "steps",
+                "path": "/rules/passengers"
+              },
+              "right": {
+                "from": "state",
+                "path": "/plan/search/passengers"
+              }
+            },
+            {
+              "kind": "equal",
+              "left": {
+                "from": "steps",
+                "path": "/rules/price_per_passenger_usd"
+              },
+              "right": {
+                "lookup": {
+                  "in": {
+                    "from": "state",
+                    "path": "/offered_fares"
+                  },
+                  "key": "/fare_id",
+                  "equals": {
+                    "from": "item",
+                    "path": ""
+                  },
+                  "path": "/price_usd"
+                }
+              }
+            }
+          ],
+          "output_schema": "schemas/fare-rule.schema.json",
+          "timeout_seconds": 10
+        }
+      ],
+      "yield": {
+        "from": "steps",
+        "path": "/check"
+      },
+      "output_schema": "schemas/fare-rules.schema.json",
+      "timeout_seconds": 120,
+      "depends_on": [
+        "check-options"
+      ],
+      "writes": {
+        "/fare_rules": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "id": "booking-fare",
+      "type": "validate",
+      "worker": "Coordinator",
+      "input": {
+        "literal": null
+      },
+      "when": {
+        "left": {
+          "from": "state",
+          "path": "/request/booking"
+        },
+        "op": "eq",
+        "right": {
+          "literal": null
+        }
+      },
+      "otherwise": {
+        "from": "state",
+        "path": "/selection/selected_fare_id"
+      },
+      "output_schema": "schemas/booking-fare.schema.json",
+      "timeout_seconds": 10,
+      "depends_on": [
+        "check-options"
+      ],
+      "writes": {
+        "/booking_fare": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "id": "booking-request",
+      "type": "validate",
+      "worker": "Coordinator",
+      "input": {
+        "literal": null
+      },
+      "when": {
+        "left": {
+          "from": "state",
+          "path": "/booking_fare"
+        },
+        "op": "eq",
+        "right": {
+          "literal": null
+        }
+      },
+      "otherwise": {
+        "object": {
+          "fare_id": {
+            "from": "state",
+            "path": "/booking_fare"
+          },
+          "passengers": {
+            "from": "state",
+            "path": "/request/booking/passengers"
+          },
+          "contact_email": {
+            "from": "state",
+            "path": "/request/booking/contact_email"
+          }
+        }
+      },
+      "output_schema": "schemas/booking-request.schema.json",
+      "timeout_seconds": 10,
+      "depends_on": [
+        "booking-fare"
+      ],
+      "writes": {
+        "/booking_request": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "id": "prepare",
+      "type": "tool",
+      "worker": "Booker",
+      "tool": "prepare-booking",
+      "input": {
+        "from": "state",
+        "path": "/booking_request"
+      },
+      "when": {
+        "left": {
+          "from": "state",
+          "path": "/booking_request"
+        },
+        "op": "ne",
+        "right": {
+          "literal": null
+        }
+      },
+      "otherwise": {
+        "literal": null
+      },
+      "output_schema": "schemas/quote.schema.json",
+      "timeout_seconds": 60,
+      "depends_on": [
+        "booking-request"
+      ],
+      "writes": {
+        "/quote": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "id": "check-quote",
+      "type": "validate",
+      "worker": "Coordinator",
+      "input": {
+        "from": "state",
+        "path": "/quote"
+      },
+      "when": {
+        "left": {
+          "from": "state",
+          "path": "/quote"
+        },
+        "op": "ne",
+        "right": {
+          "literal": null
+        }
+      },
+      "otherwise": {
+        "literal": null
+      },
+      "assertions": [
+        {
+          "kind": "equal",
+          "left": {
+            "from": "state",
+            "path": "/quote/fare/fare_id"
+          },
+          "right": {
+            "from": "state",
+            "path": "/booking_fare"
+          }
+        },
+        {
+          "kind": "equal",
+          "left": {
+            "from": "state",
+            "path": "/quote/fare/passengers"
+          },
+          "right": {
+            "from": "state",
+            "path": "/plan/search/passengers"
+          }
+        },
+        {
+          "kind": "equal",
+          "left": {
+            "from": "state",
+            "path": "/quote/fare/price_per_passenger_usd"
+          },
+          "right": {
+            "lookup": {
+              "in": {
+                "from": "state",
+                "path": "/offered_fares"
+              },
+              "key": "/fare_id",
+              "equals": {
+                "from": "state",
+                "path": "/booking_fare"
+              },
+              "path": "/price_usd"
+            }
+          }
+        },
+        {
+          "kind": "equal",
+          "left": {
+            "from": "state",
+            "path": "/quote/passengers"
+          },
+          "right": {
+            "from": "state",
+            "path": "/booking_request/passengers"
+          }
+        },
+        {
+          "kind": "equal",
+          "left": {
+            "from": "state",
+            "path": "/quote/contact_email"
+          },
+          "right": {
+            "from": "state",
+            "path": "/booking_request/contact_email"
+          }
+        }
+      ],
+      "output_schema": "schemas/booking-quote.schema.json",
+      "timeout_seconds": 10,
+      "depends_on": [
+        "prepare"
+      ],
+      "writes": {}
+    },
+    {
+      "id": "purchase-request",
+      "type": "validate",
+      "worker": "Coordinator",
+      "input": {
+        "literal": null
+      },
+      "when": {
+        "left": {
+          "from": "state",
+          "path": "/request/purchase"
+        },
+        "op": "eq",
+        "right": {
+          "literal": null
+        }
+      },
+      "otherwise": {
+        "object": {
+          "booking": {
+            "from": "state",
+            "path": "/booking_request"
+          },
+          "quote_id": {
+            "from": "state",
+            "path": "/request/purchase/quote_id"
+          },
+          "payment_method_id": {
+            "from": "state",
+            "path": "/request/purchase/payment_method_id"
+          }
+        }
+      },
+      "output_schema": "schemas/purchase-request.schema.json",
+      "timeout_seconds": 10,
+      "depends_on": [
+        "check-quote"
+      ],
+      "writes": {
+        "/purchase_request": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "id": "check-purchase",
+      "type": "validate",
+      "worker": "Coordinator",
+      "input": {
+        "from": "state",
+        "path": "/purchase_request"
+      },
+      "when": {
+        "left": {
+          "from": "state",
+          "path": "/purchase_request"
+        },
+        "op": "ne",
+        "right": {
+          "literal": null
+        }
+      },
+      "otherwise": {
+        "literal": null
+      },
+      "assertions": [
+        {
+          "kind": "equal",
+          "left": {
+            "from": "state",
+            "path": "/purchase_request/quote_id"
+          },
+          "right": {
+            "from": "state",
+            "path": "/quote/quote_id"
+          }
+        }
+      ],
+      "output_schema": "schemas/purchase-request.schema.json",
+      "timeout_seconds": 10,
+      "depends_on": [
+        "purchase-request"
+      ],
+      "writes": {}
+    },
+    {
+      "id": "purchase",
+      "type": "tool",
+      "worker": "Booker",
+      "tool": "simulate-purchase",
+      "input": {
+        "from": "state",
+        "path": "/purchase_request"
+      },
+      "when": {
+        "left": {
+          "from": "state",
+          "path": "/purchase_request"
+        },
+        "op": "ne",
+        "right": {
+          "literal": null
+        }
+      },
+      "otherwise": {
+        "literal": null
+      },
+      "output_schema": "schemas/confirmation.schema.json",
+      "timeout_seconds": 60,
+      "depends_on": [
+        "check-purchase"
+      ],
+      "writes": {
+        "/confirmation": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "id": "check-confirmation",
+      "type": "validate",
+      "worker": "Coordinator",
+      "input": {
+        "from": "state",
+        "path": "/confirmation"
+      },
+      "when": {
+        "left": {
+          "from": "state",
+          "path": "/confirmation"
+        },
+        "op": "ne",
+        "right": {
+          "literal": null
+        }
+      },
+      "otherwise": {
+        "literal": null
+      },
+      "assertions": [
+        {
+          "kind": "equal",
+          "left": {
+            "from": "state",
+            "path": "/confirmation/quote_id"
+          },
+          "right": {
+            "from": "state",
+            "path": "/quote/quote_id"
+          }
+        },
+        {
+          "kind": "equal",
+          "left": {
+            "from": "state",
+            "path": "/confirmation/fare_id"
+          },
+          "right": {
+            "from": "state",
+            "path": "/quote/fare/fare_id"
+          }
+        },
+        {
+          "kind": "equal",
+          "left": {
+            "from": "state",
+            "path": "/confirmation/total_usd"
+          },
+          "right": {
+            "from": "state",
+            "path": "/quote/total_usd"
+          }
+        },
+        {
+          "kind": "equal",
+          "left": {
+            "from": "state",
+            "path": "/confirmation/passengers"
+          },
+          "right": {
+            "from": "state",
+            "path": "/quote/passengers"
+          }
+        },
+        {
+          "kind": "equal",
+          "left": {
+            "from": "state",
+            "path": "/confirmation/payment_method/id"
+          },
+          "right": {
+            "from": "state",
+            "path": "/purchase_request/payment_method_id"
+          }
+        }
+      ],
+      "output_schema": "schemas/simulated-confirmation.schema.json",
+      "timeout_seconds": 10,
+      "depends_on": [
+        "purchase"
+      ],
+      "writes": {}
+    },
+    {
+      "id": "answer",
+      "type": "llm",
+      "worker": "Writer",
+      "task": "answer",
+      "input": {
+        "object": {
+          "request": {
+            "from": "state",
+            "path": "/request/request"
+          },
+          "interpreted_request": {
+            "from": "state",
+            "path": "/plan"
+          },
+          "selection": {
+            "from": "state",
+            "path": "/selection"
+          },
+          "search": {
+            "from": "state",
+            "path": "/search"
+          },
+          "fare_rules": {
+            "from": "state",
+            "path": "/fare_rules"
+          },
+          "booking_quote": {
+            "from": "state",
+            "path": "/quote"
+          },
+          "simulated_confirmation": {
+            "from": "state",
+            "path": "/confirmation"
+          }
+        }
+      },
+      "output_schema": "schemas/answer.schema.json",
+      "max_output_tokens": 8000,
+      "timeout_seconds": 300,
+      "depends_on": [
+        "fare-rules",
+        "check-confirmation",
+        "check-no-flights",
+        "check-not-searched",
+        "refusal"
+      ],
+      "writes": {
+        "/answer": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "id": "assemble",
+      "type": "validate",
+      "worker": "Coordinator",
+      "input": {
+        "object": {
+          "status": {
+            "from": "state",
+            "path": "/selection/outcome"
+          },
+          "answer": {
+            "from": "state",
+            "path": "/answer/answer"
+          },
+          "interpreted_request": {
+            "from": "state",
+            "path": "/plan"
+          },
+          "selected_fare_id": {
+            "from": "state",
+            "path": "/selection/selected_fare_id"
+          },
+          "mentioned_fare_ids": {
+            "from": "state",
+            "path": "/answer/mentioned_fare_ids"
+          },
+          "refusal": {
+            "from": "state",
+            "path": "/refusal"
+          },
+          "evidence": {
+            "object": {
+              "search": {
+                "from": "state",
+                "path": "/search"
+              },
+              "fare_rules": {
+                "from": "state",
+                "path": "/fare_rules"
+              },
+              "booking_quote": {
+                "from": "state",
+                "path": "/quote"
+              },
+              "simulated_confirmation": {
+                "from": "state",
+                "path": "/confirmation"
+              }
+            }
+          },
+          "notice": {
+            "literal": "Fictional WebAir demo: no real booking, payment or ticket."
+          }
+        }
+      },
+      "assertions": [
+        {
+          "kind": "relation",
+          "rows": {
+            "from": "state",
+            "path": "/answer/mentioned_fare_ids"
+          },
+          "row_key": "",
+          "targets": {
+            "from": "state",
+            "path": "/offered_fares"
+          },
+          "target_key": "/fare_id"
+        }
+      ],
+      "output_schema": "schemas/result.schema.json",
+      "timeout_seconds": 10,
+      "depends_on": [
+        "answer"
+      ],
+      "writes": {
+        "/result": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "id": "output",
+      "type": "output",
+      "worker": "Coordinator",
+      "input": {
+        "from": "state",
+        "path": "/result"
+      },
+      "output_schema": "schemas/result.schema.json",
+      "timeout_seconds": 10,
+      "depends_on": [
+        "assemble"
+      ],
+      "writes": {}
+    }
+  ],
+  "fixture": "fixtures/workflow.json",
+  "exports": [
+    {
+      "path": "answer.md",
+      "format": "text",
+      "value": {
+        "from": "result",
+        "path": "/answer"
+      }
+    },
+    {
+      "path": "search.json",
+      "format": "json",
+      "value": {
+        "from": "result",
+        "path": "/evidence/search"
+      }
+    },
+    {
+      "path": "fare-rules.json",
+      "format": "json",
+      "value": {
+        "from": "result",
+        "path": "/evidence/fare_rules"
+      }
+    },
+    {
+      "path": "booking.json",
+      "format": "json",
+      "value": {
+        "object": {
+          "booking_quote": {
+            "from": "result",
+            "path": "/evidence/booking_quote"
+          },
+          "simulated_confirmation": {
+            "from": "result",
+            "path": "/evidence/simulated_confirmation"
+          }
+        }
+      }
+    }
+  ],
+  "extensions": {
+    "agentpkg:presentation": {
+      "schema": "agentpkg-presentation-v0",
+      "task": {
+        "prompt": "Where would you like to fly with WebAir?",
+        "run_label": "Run WebAir search",
+        "running_label": "Asking WebAir…",
+        "completed_label": "WebAir answered"
+      },
+      "input": {
+        "request": {
+          "widget": "multiline",
+          "rows": 3,
+          "placeholder": "Find me a nonstop flight from Boston to Zurich on 9 October under $900."
+        },
+        "booking": {
+          "group": "optional"
+        },
+        "purchase": {
+          "group": "advanced"
+        }
+      },
+      "nodes": {
+        "interpret": "Understand the request",
+        "search": "Search WebAir",
+        "select": "Choose fares",
+        "offered-flights": "Check the search reading",
+        "offered-fares": "Collect offered fares",
+        "check-options": "Check chosen fares",
+        "check-no-flights": "Check empty result",
+        "check-not-searched": "Check unsupported request",
+        "refusal": "Copy WebAir's refusal",
+        "fare-rules": "Fare rules",
+        "booking-fare": "Booking: choose fare",
+        "booking-request": "Booking: build request",
+        "prepare": "Booking quote",
+        "check-quote": "Check the quote",
+        "purchase-request": "Purchase: build request",
+        "check-purchase": "Check the authorized quote",
+        "purchase": "Simulated purchase",
+        "check-confirmation": "Check the confirmation",
+        "answer": "Write the answer",
+        "assemble": "Assemble result",
+        "output": "Output"
+      },
+      "stages": [
+        {
+          "label": "Understanding",
+          "nodes": [
+            "interpret"
+          ]
+        },
+        {
+          "label": "WebAir search",
+          "nodes": [
+            "search",
+            "select",
+            "offered-flights",
+            "offered-fares",
+            "check-options",
+            "check-no-flights",
+            "check-not-searched",
+            "refusal"
+          ]
+        },
+        {
+          "label": "Fare rules",
+          "nodes": [
+            "fare-rules"
+          ]
+        },
+        {
+          "label": "Booking quote",
+          "nodes": [
+            "booking-fare",
+            "booking-request",
+            "prepare",
+            "check-quote"
+          ]
+        },
+        {
+          "label": "Simulated purchase",
+          "nodes": [
+            "purchase-request",
+            "check-purchase",
+            "purchase",
+            "check-confirmation"
+          ]
+        },
+        {
+          "label": "Answer",
+          "nodes": [
+            "answer",
+            "assemble",
+            "output"
+          ]
+        }
+      ],
+      "result": {
+        "primary_export": "answer.md",
+        "summary": [
+          {
+            "label": "Fare rules",
+            "export": "fare-rules.json"
+          }
+        ]
+      }
+    }
+  }
+}

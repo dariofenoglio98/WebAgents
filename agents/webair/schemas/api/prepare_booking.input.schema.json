@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "PassengerName": {
+      "additionalProperties": false,
+      "properties": {
+        "given_name": {
+          "maxLength": 40,
+          "minLength": 1,
+          "pattern": "^[A-Za-zÀ-ÖØ-öø-ÿĀ-ž][A-Za-zÀ-ÖØ-öø-ÿĀ-ž .'-]*$",
+          "title": "Given Name",
+          "type": "string"
+        },
+        "family_name": {
+          "maxLength": 40,
+          "minLength": 1,
+          "pattern": "^[A-Za-zÀ-ÖØ-öø-ÿĀ-ž][A-Za-zÀ-ÖØ-öø-ÿĀ-ž .'-]*$",
+          "title": "Family Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "given_name",
+        "family_name"
+      ],
+      "title": "PassengerName",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "fare_id": {
+      "pattern": "^WA[0-9]{3}(-WA[0-9]{3})?-[0-9]{8}-(BASIC|STANDARD|FLEX|BUSINESS)$",
+      "title": "Fare Id",
+      "type": "string"
+    },
+    "passengers": {
+      "items": {
+        "$ref": "#/$defs/PassengerName"
+      },
+      "maxItems": 6,
+      "minItems": 1,
+      "title": "Passengers",
+      "type": "array"
+    },
+    "contact_email": {
+      "maxLength": 254,
+      "pattern": "^[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9-]{1,63}(\\.[A-Za-z0-9-]{1,63})*\\.[A-Za-z]{2,24}$",
+      "title": "Contact Email",
+      "type": "string"
+    }
+  },
+  "required": [
+    "fare_id",
+    "passengers",
+    "contact_email"
+  ],
+  "title": "PrepareBookingRequest",
+  "type": "object"
+}

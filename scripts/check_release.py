@@ -52,6 +52,16 @@ CURRENT_PACKAGES = {
         "fingerprint": "sha256:c5ca9763f9fc71253298ca381ec14c4d7432009c74dacc69df6344b71de05232",
         "tools": ["citation-resolver", "paper-reader", "scholarly-search"],
     },
+    # The fictional WebAir origin's demo package (demo/webair); not part of v0.1.0.
+    "webair": {
+        "package_id": "org.webagents.webair",
+        "version": "0.1.0",
+        "digest": "3b7c61a7bd9584e0217dda802065248c86dd135d210b8a06ab25239835cc2fb6",
+        "archive_sha256": "73872c3177a9ec281a8875ae154023a72ff10f9fe96c5a82ed1639a34ecb470c",
+        "key": "examples/keys/webair-publisher.pub.pem",
+        "fingerprint": "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b",
+        "tools": ["get-fare-rules", "prepare-booking", "search-flights", "simulate-purchase"],
+    },
 }
 # Present in the working copy, never in the published tree.
 LOCAL_ONLY = (

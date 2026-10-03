@@ -1,0 +1,403 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "anyOf": [
+    {
+      "$ref": "#/$defs/SimulatedConfirmation"
+    },
+    {
+      "$ref": "#/$defs/ErrorResponse"
+    }
+  ],
+  "$defs": {
+    "Itinerary": {
+      "additionalProperties": false,
+      "properties": {
+        "flight_id": {
+          "title": "Flight Id",
+          "type": "string"
+        },
+        "flight_numbers": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Flight Numbers",
+          "type": "array"
+        },
+        "origin": {
+          "enum": [
+            "BOS",
+            "JFK",
+            "ZRH",
+            "GVA",
+            "LHR",
+            "KEF"
+          ],
+          "title": "Origin",
+          "type": "string"
+        },
+        "destination": {
+          "enum": [
+            "BOS",
+            "JFK",
+            "ZRH",
+            "GVA",
+            "LHR",
+            "KEF"
+          ],
+          "title": "Destination",
+          "type": "string"
+        },
+        "date": {
+          "title": "Date",
+          "type": "string"
+        },
+        "departure_local": {
+          "title": "Departure Local",
+          "type": "string"
+        },
+        "arrival_local": {
+          "title": "Arrival Local",
+          "type": "string"
+        },
+        "arrival_day_offset": {
+          "description": "Calendar days between departure and arrival",
+          "title": "Arrival Day Offset",
+          "type": "integer"
+        },
+        "duration_minutes": {
+          "title": "Duration Minutes",
+          "type": "integer"
+        },
+        "stops": {
+          "title": "Stops",
+          "type": "integer"
+        },
+        "via": {
+          "items": {
+            "enum": [
+              "BOS",
+              "JFK",
+              "ZRH",
+              "GVA",
+              "LHR",
+              "KEF"
+            ],
+            "type": "string"
+          },
+          "title": "Via",
+          "type": "array"
+        },
+        "layover_minutes": {
+          "items": {
+            "type": "integer"
+          },
+          "title": "Layover Minutes",
+          "type": "array"
+        },
+        "segments": {
+          "items": {
+            "$ref": "#/$defs/Segment"
+          },
+          "title": "Segments",
+          "type": "array"
+        }
+      },
+      "required": [
+        "flight_id",
+        "flight_numbers",
+        "origin",
+        "destination",
+        "date",
+        "departure_local",
+        "arrival_local",
+        "arrival_day_offset",
+        "duration_minutes",
+        "stops",
+        "via",
+        "layover_minutes",
+        "segments"
+      ],
+      "title": "Itinerary",
+      "type": "object"
+    },
+    "PassengerName": {
+      "additionalProperties": false,
+      "properties": {
+        "given_name": {
+          "maxLength": 40,
+          "minLength": 1,
+          "pattern": "^[A-Za-zÀ-ÖØ-öø-ÿĀ-ž][A-Za-zÀ-ÖØ-öø-ÿĀ-ž .'-]*$",
+          "title": "Given Name",
+          "type": "string"
+        },
+        "family_name": {
+          "maxLength": 40,
+          "minLength": 1,
+          "pattern": "^[A-Za-zÀ-ÖØ-öø-ÿĀ-ž][A-Za-zÀ-ÖØ-öø-ÿĀ-ž .'-]*$",
+          "title": "Family Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "given_name",
+        "family_name"
+      ],
+      "title": "PassengerName",
+      "type": "object"
+    },
+    "PaymentMethod": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "enum": [
+            "demo-visa-4242",
+            "demo-travel-1234"
+          ],
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "demo": {
+          "const": true,
+          "default": true,
+          "title": "Demo",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "demo"
+      ],
+      "title": "PaymentMethod",
+      "type": "object"
+    },
+    "Segment": {
+      "additionalProperties": false,
+      "properties": {
+        "flight_number": {
+          "title": "Flight Number",
+          "type": "string"
+        },
+        "origin": {
+          "enum": [
+            "BOS",
+            "JFK",
+            "ZRH",
+            "GVA",
+            "LHR",
+            "KEF"
+          ],
+          "title": "Origin",
+          "type": "string"
+        },
+        "destination": {
+          "enum": [
+            "BOS",
+            "JFK",
+            "ZRH",
+            "GVA",
+            "LHR",
+            "KEF"
+          ],
+          "title": "Destination",
+          "type": "string"
+        },
+        "departure_local": {
+          "description": "Local time at origin, YYYY-MM-DDTHH:MM",
+          "title": "Departure Local",
+          "type": "string"
+        },
+        "arrival_local": {
+          "description": "Local time at destination, YYYY-MM-DDTHH:MM",
+          "title": "Arrival Local",
+          "type": "string"
+        },
+        "duration_minutes": {
+          "title": "Duration Minutes",
+          "type": "integer"
+        },
+        "aircraft": {
+          "title": "Aircraft",
+          "type": "string"
+        }
+      },
+      "required": [
+        "flight_number",
+        "origin",
+        "destination",
+        "departure_local",
+        "arrival_local",
+        "duration_minutes",
+        "aircraft"
+      ],
+      "title": "Segment",
+      "type": "object"
+    },
+    "ErrorBody": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "details": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ErrorDetail"
+          },
+          "title": "Details",
+          "type": "array"
+        }
+      },
+      "required": [
+        "code",
+        "message",
+        "details"
+      ],
+      "title": "ErrorBody",
+      "type": "object"
+    },
+    "ErrorDetail": {
+      "additionalProperties": false,
+      "properties": {
+        "field": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Field"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "field",
+        "message"
+      ],
+      "title": "ErrorDetail",
+      "type": "object"
+    },
+    "SimulatedConfirmation": {
+      "additionalProperties": false,
+      "properties": {
+        "confirmation_id": {
+          "pattern": "^WA-DEMO-[A-Z2-9]{5}$",
+          "title": "Confirmation Id",
+          "type": "string"
+        },
+        "status": {
+          "const": "simulated",
+          "default": "simulated",
+          "title": "Status",
+          "type": "string"
+        },
+        "simulated": {
+          "const": true,
+          "default": true,
+          "title": "Simulated",
+          "type": "boolean"
+        },
+        "real_transaction": {
+          "const": false,
+          "default": false,
+          "title": "Real Transaction",
+          "type": "boolean"
+        },
+        "amount_charged_usd": {
+          "const": 0,
+          "default": 0,
+          "title": "Amount Charged Usd",
+          "type": "integer"
+        },
+        "currency": {
+          "const": "USD",
+          "default": "USD",
+          "title": "Currency",
+          "type": "string"
+        },
+        "total_usd": {
+          "description": "What the fare would have cost; nothing was charged",
+          "title": "Total Usd",
+          "type": "integer"
+        },
+        "quote_id": {
+          "title": "Quote Id",
+          "type": "string"
+        },
+        "fare_id": {
+          "title": "Fare Id",
+          "type": "string"
+        },
+        "fare_name": {
+          "title": "Fare Name",
+          "type": "string"
+        },
+        "flight": {
+          "$ref": "#/$defs/Itinerary"
+        },
+        "passengers": {
+          "items": {
+            "$ref": "#/$defs/PassengerName"
+          },
+          "title": "Passengers",
+          "type": "array"
+        },
+        "payment_method": {
+          "$ref": "#/$defs/PaymentMethod"
+        },
+        "message": {
+          "const": "No real transaction was performed.",
+          "default": "No real transaction was performed.",
+          "title": "Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "confirmation_id",
+        "status",
+        "simulated",
+        "real_transaction",
+        "amount_charged_usd",
+        "currency",
+        "total_usd",
+        "quote_id",
+        "fare_id",
+        "fare_name",
+        "flight",
+        "passengers",
+        "payment_method",
+        "message"
+      ],
+      "title": "SimulatedConfirmation",
+      "type": "object"
+    },
+    "ErrorResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "error": {
+          "$ref": "#/$defs/ErrorBody"
+        }
+      },
+      "required": [
+        "error"
+      ],
+      "title": "ErrorResponse",
+      "type": "object"
+    }
+  }
+}

@@ -147,7 +147,8 @@ def schemas_document() -> dict:
             }
             for name, (request_model, response_model, description) in OPERATIONS.items()
         },
-        "error_schema": ErrorResponse.model_json_schema(),
+        # A refusal is a response body too, so its schema is the serialized form.
+        "error_schema": ErrorResponse.model_json_schema(mode="serialization"),
         "error_statuses": {str(code): meaning for code, meaning in ERROR_STATUSES.items()},
     }
 

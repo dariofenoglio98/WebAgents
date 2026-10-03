@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WebAir travel request",
+  "type": "object",
+  "properties": {
+    "request": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000,
+      "description": "The person's travel request in their own words, for example: Find me a nonstop flight from Boston to Zurich on 9 October under $900."
+    },
+    "booking": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/Booking"
+        }
+      ],
+      "description": "Null, or demo passenger details for a booking quote of the fare the workflow selects."
+    },
+    "purchase": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/Purchase"
+        }
+      ],
+      "description": "Null, or explicit authorization to simulate purchasing one exact quote returned by an earlier run. Requires booking."
+    }
+  },
+  "required": [
+    "request",
+    "booking",
+    "purchase"
+  ],
+  "additionalProperties": false,
+  "if": {
+    "properties": {
+      "purchase": {
+        "type": "object"
+      }
+    }
+  },
+  "then": {
+    "properties": {
+      "booking": {
+        "type": "object"
+      }
+    }
+  },
+  "$defs": {
+    "Booking": {
+      "type": "object",
+      "description": "Made-up passenger details only. A later milestone supplies these from the person's browser instead of the task.",
+      "properties": {
+        "passengers": {
+          "$ref": "api/prepare_booking.input.schema.json#/properties/passengers"
+        },
+        "contact_email": {
+          "$ref": "api/prepare_booking.input.schema.json#/properties/contact_email"
+        }
+      },
+      "required": [
+        "passengers",
+        "contact_email"
+      ],
+      "additionalProperties": false
+    },
+    "Purchase": {
+      "type": "object",
+      "description": "The person's yes to one quote: WebAir recomputes the quote and refuses a different one. Only demo payment methods exist.",
+      "properties": {
+        "quote_id": {
+          "$ref": "api/simulate_purchase.input.schema.json#/properties/quote_id"
+        },
+        "payment_method_id": {
+          "$ref": "api/simulate_purchase.input.schema.json#/properties/payment_method_id"
+        }
+      },
+      "required": [
+        "quote_id",
+        "payment_method_id"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

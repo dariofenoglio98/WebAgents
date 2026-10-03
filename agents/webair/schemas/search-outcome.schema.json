@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "WebAir's search answer or refusal, or null when nothing was searched.",
+  "anyOf": [
+    {
+      "type": "null"
+    },
+    {
+      "$ref": "api/search_flights.output.schema.json"
+    }
+  ]
+}

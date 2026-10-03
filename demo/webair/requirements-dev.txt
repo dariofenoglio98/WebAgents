@@ -1,4 +1,7 @@
 -r requirements.txt
+# Tests and the package publisher tooling only; the origin itself never imports agentpkg.
+# Install from the repository root: pip resolves this path against the working directory.
+-e ./agentpkg
 httpx2==2.13.1
 pytest==9.1.1
 ruff==0.16.8

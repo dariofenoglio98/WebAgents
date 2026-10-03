@@ -1,8 +1,9 @@
 """Request and response models shared by the HTML pages and the JSON API.
 
 Requests are closed (`extra="forbid"`) and bounded; the JSON API additionally
-validates them in strict mode. Responses are plain data models whose JSON Schema
-the API publishes at `GET /api/v1/schemas`.
+validates them in strict mode. Responses are closed too, and the JSON Schema the API
+publishes at `GET /api/v1/schemas` marks every field they always carry as required.
+The WebAir agent package's tool contracts are generated from that document.
 """
 
 from __future__ import annotations
@@ -35,7 +36,18 @@ PURCHASE_NOTICE = "No real transaction was performed."
 
 
 class _Request(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
+    # Serialized (e.g. echoed in a response), every field is always present.
+    model_config = ConfigDict(
+        extra="forbid", frozen=True, json_schema_serialization_defaults_required=True
+    )
+
+
+class _Response(BaseModel):
+    """A closed answer: the published schema lists exactly the fields WebAir emits, and a
+    defaulted field (`currency`, `simulated`, `real_transaction`, ...) is required in it,
+    because serialization always writes it. A package can then rely on them."""
+
+    model_config = ConfigDict(extra="forbid", json_schema_serialization_defaults_required=True)
 
 
 def _passengers():
@@ -87,7 +99,7 @@ class SimulatePurchaseRequest(_Request):
 # --- responses --------------------------------------------------------------------------------
 
 
-class Segment(BaseModel):
+class Segment(_Response):
     flight_number: str
     origin: AirportCode
     destination: AirportCode
@@ -97,7 +109,7 @@ class Segment(BaseModel):
     aircraft: str
 
 
-class Itinerary(BaseModel):
+class Itinerary(_Response):
     flight_id: str
     flight_numbers: list[str]
     origin: AirportCode
@@ -113,7 +125,7 @@ class Itinerary(BaseModel):
     segments: list[Segment]
 
 
-class FareSummary(BaseModel):
+class FareSummary(_Response):
     fare_id: str
     fare_family: FareFamilyCode
     fare_name: str
@@ -133,32 +145,32 @@ class FlightOffer(Itinerary):
     lowest_price_usd: int | None
 
 
-class SearchFlightsResponse(BaseModel):
+class SearchFlightsResponse(_Response):
     query: SearchFlightsRequest
     currency: Currency = "USD"
     flights: list[FlightOffer]
 
 
-class Baggage(BaseModel):
+class Baggage(_Response):
     personal_item: bool
     cabin_bag_kg: int
     checked_bags: int
     checked_bag_kg: int | None
 
 
-class ChangePolicy(BaseModel):
+class ChangePolicy(_Response):
     allowed: bool
     fee_usd: int | None
     summary: str
 
 
-class RefundPolicy(BaseModel):
+class RefundPolicy(_Response):
     refundable: bool
     fee_usd: int | None
     summary: str
 
 
-class FareRules(BaseModel):
+class FareRules(_Response):
     fare_id: str
     fare_family: FareFamilyCode
     fare_name: str
@@ -177,13 +189,13 @@ class FareRules(BaseModel):
     flight: Itinerary
 
 
-class PaymentMethod(BaseModel):
+class PaymentMethod(_Response):
     id: PaymentMethodId
     label: str
     demo: Literal[True] = True
 
 
-class BookingQuote(BaseModel):
+class BookingQuote(_Response):
     quote_id: str = Field(description="Digest binding this exact fare, price and passenger list")
     fare: FareRules
     passengers: list[PassengerName]
@@ -195,7 +207,7 @@ class BookingQuote(BaseModel):
     notice: str
 
 
-class SimulatedConfirmation(BaseModel):
+class SimulatedConfirmation(_Response):
     confirmation_id: str = Field(pattern=CONFIRMATION_ID_PATTERN)
     status: Literal["simulated"] = "simulated"
     simulated: Literal[True] = True
@@ -212,16 +224,16 @@ class SimulatedConfirmation(BaseModel):
     message: Literal["No real transaction was performed."] = PURCHASE_NOTICE
 
 
-class ErrorDetail(BaseModel):
+class ErrorDetail(_Response):
     field: str | None = None
     message: str
 
 
-class ErrorBody(BaseModel):
+class ErrorBody(_Response):
     code: str
     message: str
     details: list[ErrorDetail] = []
 
 
-class ErrorResponse(BaseModel):
+class ErrorResponse(_Response):
     error: ErrorBody

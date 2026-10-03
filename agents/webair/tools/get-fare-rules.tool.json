@@ -1,0 +1,23 @@
+{
+  "spec_version": "0.1",
+  "id": "get-fare-rules",
+  "version": "0.1.0",
+  "description": "WebAir semantic API: price, baggage allowance, change and refund policy of one fare returned by a search.",
+  "execution": "remote",
+  "binding": "webair.get_fare_rules",
+  "endpoint": "https://webair.example/api/v1/get_fare_rules",
+  "method": "POST",
+  "input_schema": "schemas/api/get_fare_rules.input.schema.json",
+  "output_schema": "schemas/api/get_fare_rules.output.schema.json",
+  "permissions": [
+    "network.webair"
+  ],
+  "domains": [
+    "webair.example"
+  ],
+  "timeout_seconds": 20,
+  "retries": 0,
+  "side_effects": "read",
+  "approval_required": false,
+  "extensions": {}
+}

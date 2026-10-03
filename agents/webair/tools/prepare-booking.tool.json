@@ -1,0 +1,23 @@
+{
+  "spec_version": "0.1",
+  "id": "prepare-booking",
+  "version": "0.1.0",
+  "description": "WebAir semantic API: quote one fare for named passengers. Sends the passenger names and contact email to WebAir. Reserves nothing, stores nothing, charges nothing.",
+  "execution": "remote",
+  "binding": "webair.prepare_booking",
+  "endpoint": "https://webair.example/api/v1/prepare_booking",
+  "method": "POST",
+  "input_schema": "schemas/api/prepare_booking.input.schema.json",
+  "output_schema": "schemas/api/prepare_booking.output.schema.json",
+  "permissions": [
+    "network.webair.booking"
+  ],
+  "domains": [
+    "webair.example"
+  ],
+  "timeout_seconds": 20,
+  "retries": 0,
+  "side_effects": "read",
+  "approval_required": true,
+  "extensions": {}
+}

@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Fare selection",
+  "type": "object",
+  "properties": {
+    "outcome": {
+      "type": "string",
+      "enum": [
+        "options_found",
+        "no_matching_flights",
+        "request_refused",
+        "request_not_supported"
+      ]
+    },
+    "fare_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^WA[0-9]{3}(-WA[0-9]{3})?-[0-9]{8}-(BASIC|STANDARD|FLEX|BUSINESS)$"
+      },
+      "maxItems": 6,
+      "uniqueItems": true
+    },
+    "selected_fare_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^WA[0-9]{3}(-WA[0-9]{3})?-[0-9]{8}-(BASIC|STANDARD|FLEX|BUSINESS)$"
+    }
+  },
+  "required": [
+    "outcome",
+    "fare_ids",
+    "selected_fare_id"
+  ],
+  "additionalProperties": false
+}

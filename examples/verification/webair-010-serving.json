@@ -1,0 +1,68 @@
+{
+  "schema": "webair-serving-check-v0",
+  "recorded": "2026-10-02",
+  "command": "cd demo/webair && .venv/bin/python -m origin --port 8042 --agent-package ../../dist/webair-0.1.0.agent.pkg",
+  "port_note": "Ports 8040 and 8041 were held by earlier, unrelated WebAir processes; the default command uses --port 8040.",
+  "server_banner": [
+    "WebAir demo origin - fictional airline, no real booking or payment.",
+    "  site:        http://127.0.0.1:8042/",
+    "  agent.pkg:   published, sha256 73872c3177a9ec281a8875ae154023a72ff10f9fe96c5a82ed1639a34ecb470c"
+  ],
+  "requests": [
+    "curl -sS http://127.0.0.1:8042/",
+    "curl -sS -D - http://127.0.0.1:8042/agent.pkg -o fetched.agent.pkg",
+    "curl -sS -I http://127.0.0.1:8042/agent.pkg",
+    "agentpkg verify fetched.agent.pkg --trust-key examples/keys/webair-publisher.pub.pem"
+  ],
+  "advertised_link": "<link rel=\"agent-package\" type=\"application/vnd.webagents.agent-package\" href=\"/agent.pkg\">",
+  "resolved_href": "http://127.0.0.1:8042/agent.pkg",
+  "get_agent_pkg": {
+    "status_line": "HTTP/1.1 200 OK",
+    "content-disposition": "attachment; filename=\"webair.agent.pkg\"",
+    "cache-control": "no-cache",
+    "etag": "\"sha256:73872c3177a9ec281a8875ae154023a72ff10f9fe96c5a82ed1639a34ecb470c\"",
+    "x-agent-package-sha256": "73872c3177a9ec281a8875ae154023a72ff10f9fe96c5a82ed1639a34ecb470c",
+    "content-length": "164531",
+    "content-type": "application/vnd.webagents.agent-package",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "x-frame-options": "DENY",
+    "content-security-policy": "default-src 'none'; style-src 'self'; img-src 'self' data:; form-action 'self'; frame-ancestors 'none'; base-uri 'none'"
+  },
+  "head_agent_pkg": {
+    "status_line": "HTTP/1.1 200 OK",
+    "content-disposition": "attachment; filename=\"webair.agent.pkg\"",
+    "cache-control": "no-cache",
+    "etag": "\"sha256:73872c3177a9ec281a8875ae154023a72ff10f9fe96c5a82ed1639a34ecb470c\"",
+    "x-agent-package-sha256": "73872c3177a9ec281a8875ae154023a72ff10f9fe96c5a82ed1639a34ecb470c",
+    "content-length": "164531",
+    "content-type": "application/vnd.webagents.agent-package",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "x-frame-options": "DENY",
+    "content-security-policy": "default-src 'none'; style-src 'self'; img-src 'self' data:; form-action 'self'; frame-ancestors 'none'; base-uri 'none'"
+  },
+  "artifact": {
+    "path": "dist/webair-0.1.0.agent.pkg",
+    "bytes": 164531,
+    "sha256": "73872c3177a9ec281a8875ae154023a72ff10f9fe96c5a82ed1639a34ecb470c"
+  },
+  "fetched": {
+    "bytes": 164531,
+    "sha256": "73872c3177a9ec281a8875ae154023a72ff10f9fe96c5a82ed1639a34ecb470c"
+  },
+  "bytes_identical": true,
+  "verify_fetched": {
+    "valid": true,
+    "digest": "3b7c61a7bd9584e0217dda802065248c86dd135d210b8a06ab25239835cc2fb6",
+    "package_id": "org.webagents.webair",
+    "version": "0.1.0",
+    "publisher": {
+      "id": "webair-demo",
+      "name": "WebAir (fictional demo airline)"
+    },
+    "key_fingerprint": "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b",
+    "trust_scope": "exact externally supplied publisher key"
+  },
+  "passed": true
+}

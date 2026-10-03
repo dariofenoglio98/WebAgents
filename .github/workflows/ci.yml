@@ -87,7 +87,8 @@ jobs:
       - name: Offline acceptance scripts
         run: |
           for script in verify_workflow verify_browser verify_literature_022 \
-                        verify_literature_023 verify_literature_024 verify_literature_025; do
+                        verify_literature_023 verify_literature_024 verify_literature_025 \
+                        verify_webair; do
             report="$RUNNER_TEMP/$script.json"
             agentpkg/.venv/bin/python "scripts/$script.py" > "$report"
             # The scripts report failures in their JSON, not in their exit status.
@@ -139,6 +140,8 @@ jobs:
             --trust-key examples/keys/meeting-agenda-publisher.pub.pem > "$RUNNER_TEMP/verify-agenda.json"
           "$agentpkg" verify dist/literature-review.agent.pkg \
             --trust-key examples/keys/literature-review-publisher.pub.pem > "$RUNNER_TEMP/verify-review.json"
+          "$agentpkg" verify dist/webair.agent.pkg \
+            --trust-key examples/keys/webair-publisher.pub.pem > "$RUNNER_TEMP/verify-webair.json"
           python - "$RUNNER_TEMP" <<'PY'
           import json, sys
           from pathlib import Path
@@ -147,6 +150,8 @@ jobs:
                   "sha256:2bcc374a7fe18e50622042b7d0375fcb24eb3607879a236f9f3c3ede1922c5c4"),
               "verify-review.json": ("org.webagents.literature-review", "0.2.5",
                   "sha256:c5ca9763f9fc71253298ca381ec14c4d7432009c74dacc69df6344b71de05232"),
+              "verify-webair.json": ("org.webagents.webair", "0.1.0",
+                  "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b"),
           }
           for name, (package_id, version, fingerprint) in expected.items():
               report = json.loads((Path(sys.argv[1]) / name).read_text())
@@ -171,6 +176,10 @@ jobs:
             --grants examples/literature-review-grants.json \
             --approve-tool scholarly-search --approve-tool citation-resolver --approve-tool paper-reader \
             --out "$RUNNER_TEMP/my-review" > "$RUNNER_TEMP/run-review.json"
+          "$agentpkg" run dist/webair.agent.pkg --mode fixture \
+            --grants examples/webair-grants.json \
+            --approve-tool search-flights --approve-tool get-fare-rules \
+            --out "$RUNNER_TEMP/my-webair" > "$RUNNER_TEMP/run-webair.json"
           python - "$RUNNER_TEMP" <<'PY'
           import json, sys
           from pathlib import Path
@@ -179,6 +188,7 @@ jobs:
               "agenda": ["agenda.json"],
               "review": ["related-work.md", "bibliography.json", "evidence-table.json",
                          "unresolved.json", "verification.json"],
+              "webair": ["answer.md", "search.json", "fare-rules.json", "booking.json"],
           }
           for name, declared in exports.items():
               report = json.loads((temp / f"run-{name}.json").read_text())
@@ -201,6 +211,47 @@ jobs:
           name: agentpkg-dist
           path: ${{ runner.temp }}/agentpkg-dist
           retention-days: 14
+
+  webair:
+    name: WebAir demo origin and its package contract (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - name: Install (the requirements name ./agentpkg relative to the repository root)
+        run: |
+          python -m venv demo/webair/.venv
+          demo/webair/.venv/bin/python -m pip install -r demo/webair/requirements-dev.txt
+      - name: Lint
+        working-directory: demo/webair
+        run: |
+          .venv/bin/ruff check .
+          .venv/bin/ruff format --check .
+      - name: Tests, including the origin/package contract (no test may be skipped)
+        working-directory: demo/webair
+        run: |
+          .venv/bin/python -m pytest -rs -p no:cacheprovider --junitxml="$RUNNER_TEMP/webair.xml"
+          .venv/bin/python - "$RUNNER_TEMP/webair.xml" <<'PY'
+          import sys
+          import xml.etree.ElementTree as ET
+          suites = ET.parse(sys.argv[1]).getroot()
+          suites = [suites] if suites.tag == "testsuite" else list(suites)
+          skipped = sum(int(s.get("skipped", 0)) for s in suites)
+          print("tests:", sum(int(s.get("tests", 0)) for s in suites), "skipped:", skipped)
+          sys.exit(1 if skipped else 0)
+          PY
+      - name: The package's generated schemas, fixture and examples are current
+        working-directory: demo/webair
+        run: .venv/bin/python -m publisher check
 
   plugin:
     name: Agent Browser plugin (${{ matrix.os }}, Node ${{ matrix.node }})

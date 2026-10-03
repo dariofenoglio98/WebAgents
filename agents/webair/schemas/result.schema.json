@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WebAir result",
+  "type": "object",
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": [
+        "options_found",
+        "no_matching_flights",
+        "request_refused",
+        "request_not_supported"
+      ]
+    },
+    "answer": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4000,
+      "description": "Model-written summary. The evidence fields are WebAir's own answers, verbatim."
+    },
+    "interpreted_request": {
+      "$ref": "plan.schema.json"
+    },
+    "selected_fare_id": {
+      "$ref": "selection.schema.json#/properties/selected_fare_id"
+    },
+    "mentioned_fare_ids": {
+      "$ref": "answer.schema.json#/properties/mentioned_fare_ids"
+    },
+    "refusal": {
+      "$ref": "refusal.schema.json"
+    },
+    "evidence": {
+      "type": "object",
+      "properties": {
+        "search": {
+          "$ref": "search-outcome.schema.json"
+        },
+        "fare_rules": {
+          "$ref": "fare-rules.schema.json"
+        },
+        "booking_quote": {
+          "$ref": "booking-quote.schema.json"
+        },
+        "simulated_confirmation": {
+          "$ref": "simulated-confirmation.schema.json"
+        }
+      },
+      "required": [
+        "search",
+        "fare_rules",
+        "booking_quote",
+        "simulated_confirmation"
+      ],
+      "additionalProperties": false
+    },
+    "notice": {
+      "const": "Fictional WebAir demo: no real booking, payment or ticket."
+    }
+  },
+  "required": [
+    "status",
+    "answer",
+    "interpreted_request",
+    "selected_fare_id",
+    "mentioned_fare_ids",
+    "refusal",
+    "evidence",
+    "notice"
+  ],
+  "additionalProperties": false
+}

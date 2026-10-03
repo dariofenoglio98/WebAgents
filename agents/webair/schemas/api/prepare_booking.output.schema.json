@@ -1,0 +1,568 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "anyOf": [
+    {
+      "$ref": "#/$defs/BookingQuote"
+    },
+    {
+      "$ref": "#/$defs/ErrorResponse"
+    }
+  ],
+  "$defs": {
+    "Baggage": {
+      "additionalProperties": false,
+      "properties": {
+        "personal_item": {
+          "title": "Personal Item",
+          "type": "boolean"
+        },
+        "cabin_bag_kg": {
+          "title": "Cabin Bag Kg",
+          "type": "integer"
+        },
+        "checked_bags": {
+          "title": "Checked Bags",
+          "type": "integer"
+        },
+        "checked_bag_kg": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Checked Bag Kg"
+        }
+      },
+      "required": [
+        "personal_item",
+        "cabin_bag_kg",
+        "checked_bags",
+        "checked_bag_kg"
+      ],
+      "title": "Baggage",
+      "type": "object"
+    },
+    "ChangePolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "allowed": {
+          "title": "Allowed",
+          "type": "boolean"
+        },
+        "fee_usd": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Fee Usd"
+        },
+        "summary": {
+          "title": "Summary",
+          "type": "string"
+        }
+      },
+      "required": [
+        "allowed",
+        "fee_usd",
+        "summary"
+      ],
+      "title": "ChangePolicy",
+      "type": "object"
+    },
+    "FareRules": {
+      "additionalProperties": false,
+      "properties": {
+        "fare_id": {
+          "title": "Fare Id",
+          "type": "string"
+        },
+        "fare_family": {
+          "enum": [
+            "BASIC",
+            "STANDARD",
+            "FLEX",
+            "BUSINESS"
+          ],
+          "title": "Fare Family",
+          "type": "string"
+        },
+        "fare_name": {
+          "title": "Fare Name",
+          "type": "string"
+        },
+        "cabin": {
+          "enum": [
+            "economy",
+            "business"
+          ],
+          "title": "Cabin",
+          "type": "string"
+        },
+        "booking_class": {
+          "title": "Booking Class",
+          "type": "string"
+        },
+        "currency": {
+          "const": "USD",
+          "default": "USD",
+          "title": "Currency",
+          "type": "string"
+        },
+        "price_per_passenger_usd": {
+          "title": "Price Per Passenger Usd",
+          "type": "integer"
+        },
+        "passengers": {
+          "title": "Passengers",
+          "type": "integer"
+        },
+        "total_usd": {
+          "title": "Total Usd",
+          "type": "integer"
+        },
+        "seats_left": {
+          "title": "Seats Left",
+          "type": "integer"
+        },
+        "available": {
+          "title": "Available",
+          "type": "boolean"
+        },
+        "baggage": {
+          "$ref": "#/$defs/Baggage"
+        },
+        "changes": {
+          "$ref": "#/$defs/ChangePolicy"
+        },
+        "refunds": {
+          "$ref": "#/$defs/RefundPolicy"
+        },
+        "seat_selection": {
+          "title": "Seat Selection",
+          "type": "string"
+        },
+        "flight": {
+          "$ref": "#/$defs/Itinerary"
+        }
+      },
+      "required": [
+        "fare_id",
+        "fare_family",
+        "fare_name",
+        "cabin",
+        "booking_class",
+        "currency",
+        "price_per_passenger_usd",
+        "passengers",
+        "total_usd",
+        "seats_left",
+        "available",
+        "baggage",
+        "changes",
+        "refunds",
+        "seat_selection",
+        "flight"
+      ],
+      "title": "FareRules",
+      "type": "object"
+    },
+    "Itinerary": {
+      "additionalProperties": false,
+      "properties": {
+        "flight_id": {
+          "title": "Flight Id",
+          "type": "string"
+        },
+        "flight_numbers": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Flight Numbers",
+          "type": "array"
+        },
+        "origin": {
+          "enum": [
+            "BOS",
+            "JFK",
+            "ZRH",
+            "GVA",
+            "LHR",
+            "KEF"
+          ],
+          "title": "Origin",
+          "type": "string"
+        },
+        "destination": {
+          "enum": [
+            "BOS",
+            "JFK",
+            "ZRH",
+            "GVA",
+            "LHR",
+            "KEF"
+          ],
+          "title": "Destination",
+          "type": "string"
+        },
+        "date": {
+          "title": "Date",
+          "type": "string"
+        },
+        "departure_local": {
+          "title": "Departure Local",
+          "type": "string"
+        },
+        "arrival_local": {
+          "title": "Arrival Local",
+          "type": "string"
+        },
+        "arrival_day_offset": {
+          "description": "Calendar days between departure and arrival",
+          "title": "Arrival Day Offset",
+          "type": "integer"
+        },
+        "duration_minutes": {
+          "title": "Duration Minutes",
+          "type": "integer"
+        },
+        "stops": {
+          "title": "Stops",
+          "type": "integer"
+        },
+        "via": {
+          "items": {
+            "enum": [
+              "BOS",
+              "JFK",
+              "ZRH",
+              "GVA",
+              "LHR",
+              "KEF"
+            ],
+            "type": "string"
+          },
+          "title": "Via",
+          "type": "array"
+        },
+        "layover_minutes": {
+          "items": {
+            "type": "integer"
+          },
+          "title": "Layover Minutes",
+          "type": "array"
+        },
+        "segments": {
+          "items": {
+            "$ref": "#/$defs/Segment"
+          },
+          "title": "Segments",
+          "type": "array"
+        }
+      },
+      "required": [
+        "flight_id",
+        "flight_numbers",
+        "origin",
+        "destination",
+        "date",
+        "departure_local",
+        "arrival_local",
+        "arrival_day_offset",
+        "duration_minutes",
+        "stops",
+        "via",
+        "layover_minutes",
+        "segments"
+      ],
+      "title": "Itinerary",
+      "type": "object"
+    },
+    "PassengerName": {
+      "additionalProperties": false,
+      "properties": {
+        "given_name": {
+          "maxLength": 40,
+          "minLength": 1,
+          "pattern": "^[A-Za-zÀ-ÖØ-öø-ÿĀ-ž][A-Za-zÀ-ÖØ-öø-ÿĀ-ž .'-]*$",
+          "title": "Given Name",
+          "type": "string"
+        },
+        "family_name": {
+          "maxLength": 40,
+          "minLength": 1,
+          "pattern": "^[A-Za-zÀ-ÖØ-öø-ÿĀ-ž][A-Za-zÀ-ÖØ-öø-ÿĀ-ž .'-]*$",
+          "title": "Family Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "given_name",
+        "family_name"
+      ],
+      "title": "PassengerName",
+      "type": "object"
+    },
+    "PaymentMethod": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "enum": [
+            "demo-visa-4242",
+            "demo-travel-1234"
+          ],
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "demo": {
+          "const": true,
+          "default": true,
+          "title": "Demo",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "demo"
+      ],
+      "title": "PaymentMethod",
+      "type": "object"
+    },
+    "RefundPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "refundable": {
+          "title": "Refundable",
+          "type": "boolean"
+        },
+        "fee_usd": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Fee Usd"
+        },
+        "summary": {
+          "title": "Summary",
+          "type": "string"
+        }
+      },
+      "required": [
+        "refundable",
+        "fee_usd",
+        "summary"
+      ],
+      "title": "RefundPolicy",
+      "type": "object"
+    },
+    "Segment": {
+      "additionalProperties": false,
+      "properties": {
+        "flight_number": {
+          "title": "Flight Number",
+          "type": "string"
+        },
+        "origin": {
+          "enum": [
+            "BOS",
+            "JFK",
+            "ZRH",
+            "GVA",
+            "LHR",
+            "KEF"
+          ],
+          "title": "Origin",
+          "type": "string"
+        },
+        "destination": {
+          "enum": [
+            "BOS",
+            "JFK",
+            "ZRH",
+            "GVA",
+            "LHR",
+            "KEF"
+          ],
+          "title": "Destination",
+          "type": "string"
+        },
+        "departure_local": {
+          "description": "Local time at origin, YYYY-MM-DDTHH:MM",
+          "title": "Departure Local",
+          "type": "string"
+        },
+        "arrival_local": {
+          "description": "Local time at destination, YYYY-MM-DDTHH:MM",
+          "title": "Arrival Local",
+          "type": "string"
+        },
+        "duration_minutes": {
+          "title": "Duration Minutes",
+          "type": "integer"
+        },
+        "aircraft": {
+          "title": "Aircraft",
+          "type": "string"
+        }
+      },
+      "required": [
+        "flight_number",
+        "origin",
+        "destination",
+        "departure_local",
+        "arrival_local",
+        "duration_minutes",
+        "aircraft"
+      ],
+      "title": "Segment",
+      "type": "object"
+    },
+    "ErrorBody": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "details": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ErrorDetail"
+          },
+          "title": "Details",
+          "type": "array"
+        }
+      },
+      "required": [
+        "code",
+        "message",
+        "details"
+      ],
+      "title": "ErrorBody",
+      "type": "object"
+    },
+    "ErrorDetail": {
+      "additionalProperties": false,
+      "properties": {
+        "field": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Field"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "field",
+        "message"
+      ],
+      "title": "ErrorDetail",
+      "type": "object"
+    },
+    "BookingQuote": {
+      "additionalProperties": false,
+      "properties": {
+        "quote_id": {
+          "description": "Digest binding this exact fare, price and passenger list",
+          "title": "Quote Id",
+          "type": "string"
+        },
+        "fare": {
+          "$ref": "#/$defs/FareRules"
+        },
+        "passengers": {
+          "items": {
+            "$ref": "#/$defs/PassengerName"
+          },
+          "title": "Passengers",
+          "type": "array"
+        },
+        "contact_email": {
+          "title": "Contact Email",
+          "type": "string"
+        },
+        "currency": {
+          "const": "USD",
+          "default": "USD",
+          "title": "Currency",
+          "type": "string"
+        },
+        "total_usd": {
+          "title": "Total Usd",
+          "type": "integer"
+        },
+        "payment_methods": {
+          "items": {
+            "$ref": "#/$defs/PaymentMethod"
+          },
+          "title": "Payment Methods",
+          "type": "array"
+        },
+        "simulated": {
+          "const": true,
+          "default": true,
+          "title": "Simulated",
+          "type": "boolean"
+        },
+        "notice": {
+          "title": "Notice",
+          "type": "string"
+        }
+      },
+      "required": [
+        "quote_id",
+        "fare",
+        "passengers",
+        "contact_email",
+        "currency",
+        "total_usd",
+        "payment_methods",
+        "simulated",
+        "notice"
+      ],
+      "title": "BookingQuote",
+      "type": "object"
+    },
+    "ErrorResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "error": {
+          "$ref": "#/$defs/ErrorBody"
+        }
+      },
+      "required": [
+        "error"
+      ],
+      "title": "ErrorResponse",
+      "type": "object"
+    }
+  }
+}

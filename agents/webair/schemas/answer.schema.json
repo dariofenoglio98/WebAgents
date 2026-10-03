@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Answer",
+  "type": "object",
+  "properties": {
+    "answer": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4000
+    },
+    "mentioned_fare_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^WA[0-9]{3}(-WA[0-9]{3})?-[0-9]{8}-(BASIC|STANDARD|FLEX|BUSINESS)$"
+      },
+      "maxItems": 24,
+      "uniqueItems": true
+    }
+  },
+  "required": [
+    "answer",
+    "mentioned_fare_ids"
+  ],
+  "additionalProperties": false
+}

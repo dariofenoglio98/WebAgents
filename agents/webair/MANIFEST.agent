@@ -1,0 +1,229 @@
+{
+  "spec_version": "0.1",
+  "package_id": "org.webagents.webair",
+  "name": "WebAir Travel Agent",
+  "version": "0.1.0",
+  "description": "Search WebAir flights, explain fare rules, prepare a booking quote and simulate a purchase through WebAir's own semantic API. WebAir is a fictional demo airline: nothing is ever booked or charged.",
+  "publisher": {
+    "id": "webair-demo",
+    "name": "WebAir (fictional demo airline)"
+  },
+  "created_at": "2026-10-02T00:00:00Z",
+  "runtime": {
+    "api": "agentpkg-runtime-v0",
+    "minimum_version": "0.2.1"
+  },
+  "capabilities": [
+    "flight-search",
+    "fare-rules",
+    "booking-quote",
+    "simulated-purchase"
+  ],
+  "entrypoint": "workflow.v0",
+  "graph": "graph.json",
+  "policy": "policy/policy.json",
+  "skills": [
+    {
+      "id": "webair-domain",
+      "version": "0.1.0",
+      "path": "skills/webair-domain/SKILL.md"
+    },
+    {
+      "id": "travel-request",
+      "version": "0.1.0",
+      "path": "skills/travel-request/SKILL.md"
+    },
+    {
+      "id": "fare-selection",
+      "version": "0.1.0",
+      "path": "skills/fare-selection/SKILL.md"
+    },
+    {
+      "id": "answer-writing",
+      "version": "0.1.0",
+      "path": "skills/answer-writing/SKILL.md"
+    }
+  ],
+  "tools": [
+    {
+      "id": "search-flights",
+      "path": "tools/search-flights.tool.json"
+    },
+    {
+      "id": "get-fare-rules",
+      "path": "tools/get-fare-rules.tool.json"
+    },
+    {
+      "id": "prepare-booking",
+      "path": "tools/prepare-booking.tool.json"
+    },
+    {
+      "id": "simulate-purchase",
+      "path": "tools/simulate-purchase.tool.json"
+    }
+  ],
+  "schemas": [
+    {
+      "id": "api.search_flights.input",
+      "path": "schemas/api/search_flights.input.schema.json"
+    },
+    {
+      "id": "api.search_flights.output",
+      "path": "schemas/api/search_flights.output.schema.json"
+    },
+    {
+      "id": "api.get_fare_rules.input",
+      "path": "schemas/api/get_fare_rules.input.schema.json"
+    },
+    {
+      "id": "api.get_fare_rules.output",
+      "path": "schemas/api/get_fare_rules.output.schema.json"
+    },
+    {
+      "id": "api.prepare_booking.input",
+      "path": "schemas/api/prepare_booking.input.schema.json"
+    },
+    {
+      "id": "api.prepare_booking.output",
+      "path": "schemas/api/prepare_booking.output.schema.json"
+    },
+    {
+      "id": "api.simulate_purchase.input",
+      "path": "schemas/api/simulate_purchase.input.schema.json"
+    },
+    {
+      "id": "api.simulate_purchase.output",
+      "path": "schemas/api/simulate_purchase.output.schema.json"
+    },
+    {
+      "id": "input",
+      "path": "schemas/input.schema.json"
+    },
+    {
+      "id": "plan",
+      "path": "schemas/plan.schema.json"
+    },
+    {
+      "id": "selection",
+      "path": "schemas/selection.schema.json"
+    },
+    {
+      "id": "answer",
+      "path": "schemas/answer.schema.json"
+    },
+    {
+      "id": "result",
+      "path": "schemas/result.schema.json"
+    },
+    {
+      "id": "state",
+      "path": "schemas/state.schema.json"
+    },
+    {
+      "id": "search-outcome",
+      "path": "schemas/search-outcome.schema.json"
+    },
+    {
+      "id": "offered-flights",
+      "path": "schemas/offered-flights.schema.json"
+    },
+    {
+      "id": "offered-fares",
+      "path": "schemas/offered-fares.schema.json"
+    },
+    {
+      "id": "refusal",
+      "path": "schemas/refusal.schema.json"
+    },
+    {
+      "id": "fare-id",
+      "path": "schemas/fare-id.schema.json"
+    },
+    {
+      "id": "fare-rule",
+      "path": "schemas/fare-rule.schema.json"
+    },
+    {
+      "id": "fare-rules",
+      "path": "schemas/fare-rules.schema.json"
+    },
+    {
+      "id": "booking-fare",
+      "path": "schemas/booking-fare.schema.json"
+    },
+    {
+      "id": "booking-request",
+      "path": "schemas/booking-request.schema.json"
+    },
+    {
+      "id": "quote",
+      "path": "schemas/quote.schema.json"
+    },
+    {
+      "id": "booking-quote",
+      "path": "schemas/booking-quote.schema.json"
+    },
+    {
+      "id": "purchase-request",
+      "path": "schemas/purchase-request.schema.json"
+    },
+    {
+      "id": "confirmation",
+      "path": "schemas/confirmation.schema.json"
+    },
+    {
+      "id": "simulated-confirmation",
+      "path": "schemas/simulated-confirmation.schema.json"
+    }
+  ],
+  "model_requirements": {
+    "tasks": [
+      {
+        "id": "interpret",
+        "capabilities": [
+          "structured_output",
+          "reasoning"
+        ],
+        "context_window": 16000,
+        "preferred_tier": "reasoning"
+      },
+      {
+        "id": "select",
+        "capabilities": [
+          "structured_output",
+          "reasoning"
+        ],
+        "context_window": 16000,
+        "preferred_tier": "reasoning"
+      },
+      {
+        "id": "answer",
+        "capabilities": [
+          "structured_output",
+          "reasoning"
+        ],
+        "context_window": 16000,
+        "preferred_tier": "reasoning"
+      }
+    ],
+    "routing": "host",
+    "fallback_policy": "deny",
+    "extensions": {}
+  },
+  "evals": [],
+  "attestations": [],
+  "dependencies": [],
+  "update": {
+    "channel": "local",
+    "locator": null
+  },
+  "extensions": {
+    "org.webagents.webair:origin": {
+      "name": "WebAir",
+      "fictional": true,
+      "semantic_api": "webair-semantic-api",
+      "semantic_api_version": "v1",
+      "note": "Informational only. Tool endpoints are upper bounds; the host chooses and the person approves every binding."
+    }
+  }
+}

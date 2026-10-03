@@ -1,0 +1,475 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "anyOf": [
+    {
+      "$ref": "#/$defs/SearchFlightsResponse"
+    },
+    {
+      "$ref": "#/$defs/ErrorResponse"
+    }
+  ],
+  "$defs": {
+    "FareSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "fare_id": {
+          "title": "Fare Id",
+          "type": "string"
+        },
+        "fare_family": {
+          "enum": [
+            "BASIC",
+            "STANDARD",
+            "FLEX",
+            "BUSINESS"
+          ],
+          "title": "Fare Family",
+          "type": "string"
+        },
+        "fare_name": {
+          "title": "Fare Name",
+          "type": "string"
+        },
+        "cabin": {
+          "enum": [
+            "economy",
+            "business"
+          ],
+          "title": "Cabin",
+          "type": "string"
+        },
+        "booking_class": {
+          "title": "Booking Class",
+          "type": "string"
+        },
+        "price_usd": {
+          "description": "Per passenger, taxes and fees included",
+          "title": "Price Usd",
+          "type": "integer"
+        },
+        "seats_left": {
+          "title": "Seats Left",
+          "type": "integer"
+        },
+        "available": {
+          "description": "Enough seats for the requested passengers",
+          "title": "Available",
+          "type": "boolean"
+        },
+        "checked_bags": {
+          "title": "Checked Bags",
+          "type": "integer"
+        },
+        "changeable": {
+          "title": "Changeable",
+          "type": "boolean"
+        },
+        "refundable": {
+          "title": "Refundable",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "fare_id",
+        "fare_family",
+        "fare_name",
+        "cabin",
+        "booking_class",
+        "price_usd",
+        "seats_left",
+        "available",
+        "checked_bags",
+        "changeable",
+        "refundable"
+      ],
+      "title": "FareSummary",
+      "type": "object"
+    },
+    "FlightOffer": {
+      "additionalProperties": false,
+      "properties": {
+        "flight_id": {
+          "title": "Flight Id",
+          "type": "string"
+        },
+        "flight_numbers": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Flight Numbers",
+          "type": "array"
+        },
+        "origin": {
+          "enum": [
+            "BOS",
+            "JFK",
+            "ZRH",
+            "GVA",
+            "LHR",
+            "KEF"
+          ],
+          "title": "Origin",
+          "type": "string"
+        },
+        "destination": {
+          "enum": [
+            "BOS",
+            "JFK",
+            "ZRH",
+            "GVA",
+            "LHR",
+            "KEF"
+          ],
+          "title": "Destination",
+          "type": "string"
+        },
+        "date": {
+          "title": "Date",
+          "type": "string"
+        },
+        "departure_local": {
+          "title": "Departure Local",
+          "type": "string"
+        },
+        "arrival_local": {
+          "title": "Arrival Local",
+          "type": "string"
+        },
+        "arrival_day_offset": {
+          "description": "Calendar days between departure and arrival",
+          "title": "Arrival Day Offset",
+          "type": "integer"
+        },
+        "duration_minutes": {
+          "title": "Duration Minutes",
+          "type": "integer"
+        },
+        "stops": {
+          "title": "Stops",
+          "type": "integer"
+        },
+        "via": {
+          "items": {
+            "enum": [
+              "BOS",
+              "JFK",
+              "ZRH",
+              "GVA",
+              "LHR",
+              "KEF"
+            ],
+            "type": "string"
+          },
+          "title": "Via",
+          "type": "array"
+        },
+        "layover_minutes": {
+          "items": {
+            "type": "integer"
+          },
+          "title": "Layover Minutes",
+          "type": "array"
+        },
+        "segments": {
+          "items": {
+            "$ref": "#/$defs/Segment"
+          },
+          "title": "Segments",
+          "type": "array"
+        },
+        "currency": {
+          "const": "USD",
+          "default": "USD",
+          "title": "Currency",
+          "type": "string"
+        },
+        "fares": {
+          "items": {
+            "$ref": "#/$defs/FareSummary"
+          },
+          "title": "Fares",
+          "type": "array"
+        },
+        "lowest_price_usd": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Lowest Price Usd"
+        }
+      },
+      "required": [
+        "flight_id",
+        "flight_numbers",
+        "origin",
+        "destination",
+        "date",
+        "departure_local",
+        "arrival_local",
+        "arrival_day_offset",
+        "duration_minutes",
+        "stops",
+        "via",
+        "layover_minutes",
+        "segments",
+        "currency",
+        "fares",
+        "lowest_price_usd"
+      ],
+      "title": "FlightOffer",
+      "type": "object"
+    },
+    "SearchFlightsRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "origin": {
+          "enum": [
+            "BOS",
+            "JFK",
+            "ZRH",
+            "GVA",
+            "LHR",
+            "KEF"
+          ],
+          "title": "Origin",
+          "type": "string"
+        },
+        "destination": {
+          "enum": [
+            "BOS",
+            "JFK",
+            "ZRH",
+            "GVA",
+            "LHR",
+            "KEF"
+          ],
+          "title": "Destination",
+          "type": "string"
+        },
+        "date": {
+          "description": "Local departure date, YYYY-MM-DD",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "title": "Date",
+          "type": "string"
+        },
+        "passengers": {
+          "default": 1,
+          "description": "Number of travelers",
+          "maximum": 6,
+          "minimum": 1,
+          "title": "Passengers",
+          "type": "integer"
+        },
+        "nonstop_only": {
+          "default": false,
+          "title": "Nonstop Only",
+          "type": "boolean"
+        },
+        "max_price_usd": {
+          "anyOf": [
+            {
+              "maximum": 100000,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Maximum per-passenger fare, taxes included",
+          "title": "Max Price Usd"
+        },
+        "cabin": {
+          "anyOf": [
+            {
+              "enum": [
+                "economy",
+                "business"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cabin"
+        }
+      },
+      "required": [
+        "origin",
+        "destination",
+        "date",
+        "passengers",
+        "nonstop_only",
+        "max_price_usd",
+        "cabin"
+      ],
+      "title": "SearchFlightsRequest",
+      "type": "object"
+    },
+    "Segment": {
+      "additionalProperties": false,
+      "properties": {
+        "flight_number": {
+          "title": "Flight Number",
+          "type": "string"
+        },
+        "origin": {
+          "enum": [
+            "BOS",
+            "JFK",
+            "ZRH",
+            "GVA",
+            "LHR",
+            "KEF"
+          ],
+          "title": "Origin",
+          "type": "string"
+        },
+        "destination": {
+          "enum": [
+            "BOS",
+            "JFK",
+            "ZRH",
+            "GVA",
+            "LHR",
+            "KEF"
+          ],
+          "title": "Destination",
+          "type": "string"
+        },
+        "departure_local": {
+          "description": "Local time at origin, YYYY-MM-DDTHH:MM",
+          "title": "Departure Local",
+          "type": "string"
+        },
+        "arrival_local": {
+          "description": "Local time at destination, YYYY-MM-DDTHH:MM",
+          "title": "Arrival Local",
+          "type": "string"
+        },
+        "duration_minutes": {
+          "title": "Duration Minutes",
+          "type": "integer"
+        },
+        "aircraft": {
+          "title": "Aircraft",
+          "type": "string"
+        }
+      },
+      "required": [
+        "flight_number",
+        "origin",
+        "destination",
+        "departure_local",
+        "arrival_local",
+        "duration_minutes",
+        "aircraft"
+      ],
+      "title": "Segment",
+      "type": "object"
+    },
+    "ErrorBody": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "details": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ErrorDetail"
+          },
+          "title": "Details",
+          "type": "array"
+        }
+      },
+      "required": [
+        "code",
+        "message",
+        "details"
+      ],
+      "title": "ErrorBody",
+      "type": "object"
+    },
+    "ErrorDetail": {
+      "additionalProperties": false,
+      "properties": {
+        "field": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Field"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "field",
+        "message"
+      ],
+      "title": "ErrorDetail",
+      "type": "object"
+    },
+    "SearchFlightsResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "query": {
+          "$ref": "#/$defs/SearchFlightsRequest"
+        },
+        "currency": {
+          "const": "USD",
+          "default": "USD",
+          "title": "Currency",
+          "type": "string"
+        },
+        "flights": {
+          "items": {
+            "$ref": "#/$defs/FlightOffer"
+          },
+          "title": "Flights",
+          "type": "array"
+        }
+      },
+      "required": [
+        "query",
+        "currency",
+        "flights"
+      ],
+      "title": "SearchFlightsResponse",
+      "type": "object"
+    },
+    "ErrorResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "error": {
+          "$ref": "#/$defs/ErrorBody"
+        }
+      },
+      "required": [
+        "error"
+      ],
+      "title": "ErrorResponse",
+      "type": "object"
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "spec_version": "0.1",
+  "id": "search-flights",
+  "version": "0.1.0",
+  "description": "WebAir semantic API: search fictional WebAir flights for one route and date, optionally nonstop, by cabin or under a per-passenger price. A refusal (invalid route, date outside the schedule) is returned as data.",
+  "execution": "remote",
+  "binding": "webair.search_flights",
+  "endpoint": "https://webair.example/api/v1/search_flights",
+  "method": "POST",
+  "input_schema": "schemas/api/search_flights.input.schema.json",
+  "output_schema": "schemas/api/search_flights.output.schema.json",
+  "permissions": [
+    "network.webair"
+  ],
+  "domains": [
+    "webair.example"
+  ],
+  "timeout_seconds": 20,
+  "retries": 0,
+  "side_effects": "read",
+  "approval_required": false,
+  "extensions": {}
+}

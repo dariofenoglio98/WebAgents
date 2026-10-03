@@ -48,6 +48,16 @@ SOURCE_DATE_EPOCH=1790965957 /tmp/build-env/bin/python -m build --no-isolation -
 Build from a clean checkout: a stale `agentpkg/build/` directory from an earlier build can leak
 into the wheel.
 
+## Demo
+
+| Artifact | What it is | Requires | Verify with |
+|---|---|---|---|
+| `webair.agent.pkg` | WebAir Travel Agent 0.1.0, identical to `webair-0.1.0.agent.pkg`: the agent package the fictional WebAir origin ([`demo/webair/`](../demo/webair/README.md)) publishes at `/agent.pkg`. No real booking or payment | agentpkg ≥ 0.2.1 | [`examples/keys/webair-publisher.pub.pem`](../examples/keys/webair-publisher.pub.pem) (`sha256:2e53acce…a20b`) |
+
+Built and signed with the same generic commands as every package (`agentpkg build agents/webair
+-o dist/webair-0.1.0.agent.pkg`, then `agentpkg sign`); rebuilding and re-signing with the same
+key reproduces the bytes. It is not part of the v0.1.0 release.
+
 ## Historical
 
 Preserved for provenance. Each is described by the report of the milestone that produced it;
@@ -84,4 +94,6 @@ fb7357ebdf2e8415a32033971ba448dd21a9b20eb35a32a6ec71e1a5240cc03b  literature-rev
 e4c499f034b110ef2eca5aeecc87bc9336f6626e55b217d0fb087392ff120e35  meeting-agenda-0.2.1.agent.pkg
 7b148e845c0f9e38d752a51a8d0b60a314842a3de3a2723b3bdf1a0c041921e1  meeting-agenda-0.2.2.agent.pkg
 7b148e845c0f9e38d752a51a8d0b60a314842a3de3a2723b3bdf1a0c041921e1  meeting-agenda.agent.pkg
+73872c3177a9ec281a8875ae154023a72ff10f9fe96c5a82ed1639a34ecb470c  webair-0.1.0.agent.pkg
+73872c3177a9ec281a8875ae154023a72ff10f9fe96c5a82ed1639a34ecb470c  webair.agent.pkg
 ```

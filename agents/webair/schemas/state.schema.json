@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Workflow state",
+  "type": "object",
+  "properties": {
+    "request": {
+      "$ref": "input.schema.json"
+    },
+    "plan": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "plan.schema.json"
+        }
+      ]
+    },
+    "search": {
+      "$ref": "search-outcome.schema.json"
+    },
+    "selection": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "selection.schema.json"
+        }
+      ]
+    },
+    "offered_flights": {
+      "$ref": "offered-flights.schema.json"
+    },
+    "offered_fares": {
+      "$ref": "offered-fares.schema.json"
+    },
+    "refusal": {
+      "$ref": "refusal.schema.json"
+    },
+    "fare_rules": {
+      "$ref": "fare-rules.schema.json"
+    },
+    "booking_fare": {
+      "$ref": "booking-fare.schema.json"
+    },
+    "booking_request": {
+      "$ref": "booking-request.schema.json"
+    },
+    "quote": {
+      "$ref": "quote.schema.json"
+    },
+    "purchase_request": {
+      "$ref": "purchase-request.schema.json"
+    },
+    "confirmation": {
+      "$ref": "confirmation.schema.json"
+    },
+    "answer": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "answer.schema.json"
+        }
+      ]
+    },
+    "result": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "result.schema.json"
+        }
+      ]
+    }
+  },
+  "required": [
+    "request",
+    "plan",
+    "search",
+    "selection",
+    "offered_flights",
+    "offered_fares",
+    "refusal",
+    "fare_rules",
+    "booking_fare",
+    "booking_request",
+    "quote",
+    "purchase_request",
+    "confirmation",
+    "answer",
+    "result"
+  ],
+  "additionalProperties": false
+}

@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "origin": {
+      "enum": [
+        "BOS",
+        "JFK",
+        "ZRH",
+        "GVA",
+        "LHR",
+        "KEF"
+      ],
+      "title": "Origin",
+      "type": "string"
+    },
+    "destination": {
+      "enum": [
+        "BOS",
+        "JFK",
+        "ZRH",
+        "GVA",
+        "LHR",
+        "KEF"
+      ],
+      "title": "Destination",
+      "type": "string"
+    },
+    "date": {
+      "description": "Local departure date, YYYY-MM-DD",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+      "title": "Date",
+      "type": "string"
+    },
+    "passengers": {
+      "default": 1,
+      "description": "Number of travelers",
+      "maximum": 6,
+      "minimum": 1,
+      "title": "Passengers",
+      "type": "integer"
+    },
+    "nonstop_only": {
+      "default": false,
+      "title": "Nonstop Only",
+      "type": "boolean"
+    },
+    "max_price_usd": {
+      "anyOf": [
+        {
+          "maximum": 100000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Maximum per-passenger fare, taxes included",
+      "title": "Max Price Usd"
+    },
+    "cabin": {
+      "anyOf": [
+        {
+          "enum": [
+            "economy",
+            "business"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Cabin"
+    }
+  },
+  "required": [
+    "origin",
+    "destination",
+    "date"
+  ],
+  "title": "SearchFlightsRequest",
+  "type": "object"
+}

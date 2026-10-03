@@ -1,0 +1,81 @@
+{
+  "spec_version": "0.1",
+  "permissions": [
+    {
+      "id": "network.webair",
+      "kind": "network",
+      "description": "Search WebAir flights and read fare rules through WebAir's semantic API (a fictional demo airline).",
+      "required": true,
+      "resources": [
+        "webair.example"
+      ]
+    },
+    {
+      "id": "network.webair.booking",
+      "kind": "network",
+      "description": "Send passenger names and a contact email to WebAir for a booking quote, and simulate purchasing an exact quote. Optional: searches work without it, and the workflow reaches these tools only when a task supplies booking or purchase details.",
+      "required": false,
+      "resources": [
+        "webair.example"
+      ]
+    },
+    {
+      "id": "model.reasoning",
+      "kind": "model",
+      "description": "Use the host-selected model router to interpret the request, choose fares and write the answer.",
+      "required": true,
+      "resources": [
+        "host-router"
+      ]
+    },
+    {
+      "id": "memory.session",
+      "kind": "memory",
+      "description": "Read and write explicit worker state views for this run only.",
+      "required": true,
+      "resources": [
+        "session"
+      ]
+    }
+  ],
+  "network": {
+    "allowed_domains": [
+      "webair.example"
+    ],
+    "https_only": true,
+    "allow_redirects": false
+  },
+  "memory": {
+    "scope": "session",
+    "retention": "session",
+    "raw_documents": false,
+    "state_schema": "schemas/state.schema.json",
+    "sharing": "explicit_views"
+  },
+  "budget": {
+    "estimated_tokens": 24000,
+    "hard_tokens": 120000,
+    "max_remote_calls": 20,
+    "max_calls_per_tool": {
+      "search-flights": 1,
+      "get-fare-rules": 6,
+      "prepare-booking": 1,
+      "simulate-purchase": 1
+    },
+    "max_parallel_workers": 3,
+    "estimated_cost_usd": null,
+    "approval_threshold_tokens": null
+  },
+  "delegation": {
+    "max_depth": 1,
+    "approved_roles": [
+      "Interpreter",
+      "Searcher",
+      "Selector",
+      "Booker",
+      "Writer"
+    ],
+    "allow_remote": false
+  },
+  "extensions": {}
+}

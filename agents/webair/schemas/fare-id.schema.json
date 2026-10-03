@@ -1,0 +1,4 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$ref": "api/get_fare_rules.input.schema.json#/properties/fare_id"
+}

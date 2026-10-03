@@ -1,0 +1,6 @@
+{
+  "network.webair": "session",
+  "network.webair.booking": "session",
+  "model.reasoning": "session",
+  "memory.session": "session"
+}
