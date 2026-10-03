@@ -1,7 +1,8 @@
-# WebAgents v0.1.0 — release notes (draft)
+# WebAgents v0.1.0 — release notes
 
-> Draft for the first public release. Not tagged. The SHA-256 values of the release assets are in
-> [releasing.md](releasing.md#release-artifacts).
+> Tagged `v0.1.0` (commit `319cc3e`) while the repository was private.
+> [v0.2.0](release-notes-v0.2.0.md) supersedes it. The SHA-256 values of its assets are in
+> [releasing.md](releasing.md#v010).
 
 WebAgents is a **research prototype** that accompanies the paper *WebAgents: Unbundling Agent
 Creation, Hosting, and Execution for an Agent-Native Web*. It separates three roles that today's

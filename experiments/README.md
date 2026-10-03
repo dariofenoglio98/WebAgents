@@ -4,10 +4,10 @@ Controlled experiments for the WebAgents paper. Each experiment lives in its own
 its own README, scripts, tests and timestamped result directories. Paper RQ numbers can change, so
 directory names describe what an experiment measures, not which RQ it answers.
 
-| Directory | Question | Paper section (current draft) |
-|---|---|---|
-| [`contract_enforcement/`](contract_enforcement/) | How effectively does WebAgents detect and contain violations of the package-to-execution contract, and which enforcement components are responsible? | RQ1 (section not yet fixed) |
-| [`contract_overhead/`](contract_overhead/) | What local latency does the package-to-execution contract add before workflow execution? | IV-B (RQ2) |
+| Directory | Question | Paper (current draft) | Results the paper reports |
+|---|---|---|---|
+| [`contract_enforcement/`](contract_enforcement/) | How effectively does WebAgents detect and contain violations of the package-to-execution contract, and which enforcement components are responsible? | RQ1, Section V-B, Table II | `results/2026-10-02T12-38-15Z_paper_paper` (commit `23eac90`) |
+| [`contract_overhead/`](contract_overhead/) | What local latency does the package-to-execution contract add before workflow execution? | RQ2, Section V-C, Tables III and IV | `results/2026-10-03T16-14-20Z_paper-webair-pooled`, pooled from `results/2026-10-03T*_paper-webair-run{1,2,3}` (commit `9d78ca5`) |
 
 The experiments import the production code. They do not modify it. `contract_enforcement`
 additionally compiles private, patched copies of the plugin and of agentpkg — one per removed

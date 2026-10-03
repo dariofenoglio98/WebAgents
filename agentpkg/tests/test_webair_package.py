@@ -87,9 +87,9 @@ def test_shipped_artifact_identity_and_signature(package):
     report = verify_package(ARCHIVE, KEY)
     assert report["valid"] is True
     assert report["key_fingerprint"] == FINGERPRINT == package.signature["key_fingerprint"]
-    # The unversioned name stays the newest version the released 0.2.2 runtime can read:
-    # 0.2.0 and 0.3.0 declare the `personal.read` permission kind, which only this branch
-    # accepts.
+    # The unversioned name stays 0.1.0: the recorded discovery, serving and live-demo
+    # evidence pins it (0.2.0 and 0.3.0 declare `personal.read`, which the v0.1.0 release's
+    # 0.2.2 wheel rejects).
     assert ALIAS.read_bytes() == ARCHIVE_010.read_bytes()
 
 

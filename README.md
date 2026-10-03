@@ -40,7 +40,8 @@ resource, and the user has to approve it. Specification: [spec/agent-pkg-v0.md](
 *Agent Browser* page to the OpenClaw Control UI. It works through a local control plane
 (`agentpkg browser-serve`) and a generic `workflow.v0` interpreter, in this order:
 
-1. Open a package from an HTTPS URL or an approved local directory.
+1. Open a package from an HTTPS URL, from a website that advertises one, or from an approved
+   local directory.
 2. Verify its integrity and signature, and evaluate publisher trust as a separate decision.
 3. Show what the package asks for.
 4. Record the user's per-permission and per-tool decisions.
@@ -49,8 +50,11 @@ resource, and the user has to approve it. Specification: [spec/agent-pkg-v0.md](
 7. Re-verify the plan, then run the package's own graph through host-mediated model and tool
    bridges, with live progress, cancellation, result artifacts and a hash-linked audit trail.
 
-**What works today?** Two unrelated packages run through the same interpreter, unchanged, under
-both a local Ollama model and a hosted OpenAI model, started from the browser page. See
+**What works today?** Three unrelated packages run through the same interpreter, unchanged, under
+both a local Ollama model and a hosted OpenAI model, started from the browser page: a model-only
+meeting planner, a literature review that calls live scholarly services, and a travel agent that a
+(fictional) airline website publishes beside its HTML pages. The travel agent uses the site's
+semantic API and personal resources that only the user's host holds. See
 [Status](#status-verified-experimental-future) for exactly what is verified.
 
 **Tested host:** OpenClaw **2026.9.5** (`ec9c1a1`), Python 3.13, Node 26, Ollama 0.34, macOS on
@@ -59,22 +63,22 @@ on macOS. The automated test suites, the offline package verification and the pl
 run by [continuous integration](.github/workflows/ci.yml) on Ubuntu Linux and macOS. No live
 Agent Browser run has been accepted on Linux.
 
-### The two example packages
+### The three example packages
 
-| | [Meeting Agenda](agents/meeting-agenda/) | [Literature Review](agents/literature-review/) |
-|---|---|---|
-| Purpose | Sanity check and tutorial | The full demonstration |
-| What it does | plans a meeting, runs three parallel role-based perspectives, writes an agenda whose minutes sum exactly to the requested duration | search → screening → citation resolution → evidence extraction → synthesis → writing → verification, producing a related-work draft with bibliography, evidence table and verification report |
-| Tools | none (model only) | three host tools: Crossref scholarly search, a remote Citation Resolver, and a reader for operator-selected PDFs |
-| Workers | 3 parallel perspectives | bounded parallel map workers (peak 3) |
-| Validation | goal and duration copied from input; minutes must sum exactly | paper-scoped evidence ids, exact quotes and bibliography copied from trusted data, whole-row checks, explicit no-results outcome |
-| Typical live run | ~30 s hosted, ~2.5 min local | ~7 min hosted, ~25 min local |
-| Current version | 0.2.2 ([dist](dist/meeting-agenda.agent.pkg)) | 0.2.5 ([dist](dist/literature-review.agent.pkg)) |
+| | [Meeting Agenda](agents/meeting-agenda/) | [Literature Review](agents/literature-review/) | [WebAir](agents/webair/) |
+|---|---|---|---|
+| Purpose | Sanity check and tutorial | The full demonstration | The website-native case |
+| What it does | plans a meeting, runs three parallel role-based perspectives, writes an agenda whose minutes sum exactly to the requested duration | search → screening → citation resolution → evidence extraction → synthesis → writing → verification, producing a related-work draft with bibliography, evidence table and verification report | a fictional airline's travel agent, published by [its website](demo/webair/README.md): interprets a travel request, searches flights, reads fare rules and answers; optionally a booking quote or, in a separate run, a simulated purchase |
+| Tools | none (model only) | three host tools: Crossref scholarly search, a remote Citation Resolver, and a reader for operator-selected PDFs | WebAir's four semantic API operations (search, fare rules, booking quote, simulated purchase), bound by the host, and three host-owned resources the user selects: a travel profile, a passenger identity, a demo payment method |
+| Workers | 3 parallel perspectives | bounded parallel map workers (peak 3) | bounded fare-rule workers (peak 3) |
+| Validation | goal and duration copied from input; minutes must sum exactly | paper-scoped evidence ids, exact quotes and bibliography copied from trusted data, whole-row checks, explicit no-results outcome | the model only chooses among flights and fares WebAir returned; quotes and purchases are checked against the authorized fare; no model sees the identity or payment method; personal state is cleared before output |
+| Typical live run (search) | ~30 s hosted, ~2.5 min local | ~7 min hosted, ~25 min local | ~20 s hosted, ~1.5 min local |
+| Current version | 0.2.2 ([dist](dist/meeting-agenda.agent.pkg)) | 0.2.5 ([dist](dist/literature-review.agent.pkg)) | 0.3.0 ([dist](dist/webair-0.3.0.agent.pkg)) |
 
 ## Quickstart: offline, about five minutes
 
 This needs only Python (3.11 ≥ 3.11.10, 3.12 ≥ 3.12.4, or 3.13; see
-[getting-started](docs/getting-started.md#requirements)) and this repository. It verifies both
+[getting-started](docs/getting-started.md#requirements)) and this repository. It verifies the three
 signed packages and runs them in **fixture mode**: package-owned, exact-input replay of model and
 tool responses, with no network and no inference. It still exercises the real interpreter,
 permission checks, budgets, validation and audit.
@@ -89,6 +93,8 @@ agentpkg/.venv/bin/agentpkg verify dist/meeting-agenda.agent.pkg \
   --trust-key examples/keys/meeting-agenda-publisher.pub.pem
 agentpkg/.venv/bin/agentpkg verify dist/literature-review.agent.pkg \
   --trust-key examples/keys/literature-review-publisher.pub.pem
+agentpkg/.venv/bin/agentpkg verify dist/webair-0.3.0.agent.pkg \
+  --trust-key examples/keys/webair-publisher.pub.pem
 
 # 2. Run Meeting Agenda (model only)
 agentpkg/.venv/bin/agentpkg run dist/meeting-agenda.agent.pkg \
@@ -100,12 +106,20 @@ agentpkg/.venv/bin/agentpkg run dist/literature-review.agent.pkg \
   --mode fixture --grants examples/literature-review-grants.json \
   --approve-tool scholarly-search --approve-tool citation-resolver --approve-tool paper-reader \
   --out examples/my-review
+
+# 4. Run a WebAir flight search (every personal resource denied: a search needs none)
+agentpkg/.venv/bin/agentpkg run dist/webair-0.3.0.agent.pkg \
+  --mode fixture --grants examples/webair-0.2.0-grants.json \
+  --approve-tool search-flights --approve-tool get-fare-rules \
+  --out examples/my-webair
 ```
 
 Each run prints a JSON report ending in `"passed": true`, and writes `result.json`,
 `audit.json`, `usage.json`, `provenance.json` and the package's declared exports to the new
 `--out` directory (`examples/my-*` is git-ignored). You can also install the prebuilt wheel
-instead of the editable checkout: `pip install dist/agentpkg-0.2.2-py3-none-any.whl`.
+instead of the editable checkout: `pip install dist/agentpkg-0.2.2-py3-none-any.whl`. Use the one
+in this release: the v0.1.0 release's wheel of the same version cannot read WebAir 0.2.0 or later
+([dist/README.md](dist/README.md)).
 
 The example keys are development keys. They show which key signed an artifact; they do not
 certify the publisher.
@@ -165,6 +179,31 @@ the run within the time the Run panel shows. Repeat with `dist/meeting-agenda.ag
 fast run; no plugin change is needed. The accepted browser-started run and its evidence are in
 [docs/demo-experience-report.md](docs/demo-experience-report.md).
 
+## Demo: WebAir, a website that publishes its agent
+
+WebAir is a made-up airline whose small origin, [`demo/webair/`](demo/webair/README.md), is
+deployed at <https://webagents-webair-production.up.railway.app/>. It serves ordinary HTML pages
+for people and, from the same origin, the signed WebAir package together with an experimental
+`<link rel="agent-package">` in each page's head. **No real booking or payment ever occurs:**
+every flight, price, passenger and card is invented.
+
+Typing the site's address (not the package URL) into the Agent Browser lists the advertised
+package as an unverified candidate. **Inspect** opens it through the same verification, trust and
+authorization steps as any package. The package then reaches WebAir only through its semantic API,
+never through the HTML. It asks the host for a travel profile, a passenger identity and a demo
+payment method by *type*. The person picks which of the host's resources to share, and the pick is
+frozen into the Run Plan. A simulated purchase needs a separate, `once` authorization.
+
+The host side needs two operator files in the plugin configuration: `hostResources.file`, the
+fictional resources this host holds ([`demo/webair/host-resources.json`](demo/webair/host-resources.json)),
+and `tools.bindingsFile`, which binds the package's four API tools to WebAir's endpoints
+([`demo/webair/host-bindings.json`](demo/webair/host-bindings.json)). The complete setup, a 3–5
+minute presentation script and the reset steps are in
+**[docs/webair-live-demo.md](docs/webair-live-demo.md)**. The accepted end-to-end walk-through
+(search, quote, simulated purchase, refused replay, denied purchase; 133 checks, including that no
+model request contained a passenger name, e-mail or payment identifier) is
+[`webair-030-live-demo.json`](examples/verification/webair-030-live-demo.json).
+
 ## Recorded results
 
 These are the acceptance runs reported in the paper's Table I. Within each workflow, the local
@@ -172,20 +211,23 @@ and hosted runs used identical package bytes, task input, permissions and runtim
 show **portability across model bindings within one runtime**. They do not show equal answer
 quality across models or interoperability across independent runtimes.
 
-| | Meeting Agenda 0.2.2, local | Meeting Agenda 0.2.2, hosted | Literature Review 0.2.4, local | Literature Review 0.2.4, hosted |
-|---|---|---|---|---|
-| Model | `ollama/qwen3:30b` | `openai/gpt-5.6-luna` | `ollama/qwen3:30b` | `openai/gpt-5.6-luna` |
-| Model calls / external tool calls | 5 / 0 | 5 / 0 | 18 / 6 | 18 / 6 |
-| Peak parallel workers | 3 | 3 | 3 | 3 |
-| Reported tokens | 11,346 | 5,198 | 100,352 | 68,398 |
-| Workflow duration | 154.3 s | 29.4 s | 1,489.8 s | 417.6 s |
-| Audit events (chain valid) | 92 | 102 | 572 | 678 |
-| Model cost | n/a | $0.0147 | n/a | $0.2005 |
-| Run id | `run_34fdabde…` | `run_1c2ca974…` | `run_322dca77…` | `run_a71e5b0f…` |
+| | Meeting Agenda 0.2.2, local | Meeting Agenda 0.2.2, hosted | Literature Review 0.2.4, local | Literature Review 0.2.4, hosted | WebAir 0.3.0, local | WebAir 0.3.0, hosted |
+|---|---|---|---|---|---|---|
+| Model | `ollama/qwen3:30b` | `openai/gpt-5.6-luna` | `ollama/qwen3:30b` | `openai/gpt-5.6-luna` | `ollama/qwen3:30b` | `openai/gpt-5.6-luna` |
+| Model calls / external tool calls | 5 / 0 | 5 / 0 | 18 / 6 | 18 / 6 | 3 / 4 | 3 / 4 |
+| Personal-resource reads | 0 | 0 | 0 | 0 | 1 | 1 |
+| Peak parallel workers | 3 | 3 | 3 | 3 | 3 | 3 |
+| Reported tokens | 11,346 | 5,198 | 100,352 | 68,398 | 11,577 | 7,716 |
+| Workflow duration | 154.3 s | 29.4 s | 1,489.8 s | 417.6 s | 81.7 s | 18.6 s |
+| Audit events (chain valid) | 92 | 102 | 572 | 678 | 241 | 247 |
+| Model cost | n/a | $0.0147 | n/a | $0.2005 | n/a | $0.0094 |
+| Run id | `run_34fdabde…` | `run_1c2ca974…` | `run_322dca77…` | `run_a71e5b0f…` | `run_8dcfcde4…` | `run_a3a1337c…` |
 
-Each run made every model call on the model its Run Plan selected. The figures come from the
-Agent Browser run records on the recording host. **Those four run records are not included in
-this repository.** What the repository does include:
+Each run made every model call on the model its Run Plan selected. The WebAir runs are a
+profile-assisted search: one flight search and three fare-rule requests to the public WebAir
+origin, and one read of the travel profile the user selected. The figures come from the Agent
+Browser run records on the recording host. **Those six run records are not included in this
+repository.** What the repository does include:
 
 - [literature-review-025-recorded-runs.json](examples/verification/literature-review-025-recorded-runs.json):
   independent checks recomputed over both Literature Review runs (run ids, model, model calls,
@@ -196,9 +238,37 @@ this repository.** What the repository does include:
   [examples/meeting-agenda-022-qwen/](examples/meeting-agenda-022-qwen/) and
   [examples/meeting-agenda-022-luna/](examples/meeting-agenda-022-luna/), with complete run
   records and audit chains ([report](docs/meeting-agenda-022-report.md)).
+- [webair-030-table1-runs.json](examples/verification/webair-030-table1-runs.json): every WebAir
+  figure above recomputed from both run records, with the audit chains re-verified, the hashes of
+  the source files, and a comparison showing that the two runs had identical package bytes, task,
+  permissions, resource selection, tool bindings and tool-call sequence, and differed only in the
+  model and therefore the Run Plan hash ([script](scripts/verify_webair_table1.py)).
 
 The current Literature Review 0.2.5 changes only a step after the last model call. It passes
 offline acceptance but has not yet been run live ([report](docs/literature-review-025-report.md)).
+
+### Controlled experiments
+
+The paper's two offline experiments live in [`experiments/`](experiments/README.md), with their
+code, tests, frozen inputs and every result directory they report:
+
+- **Contract enforcement** ([`contract_enforcement/`](experiments/contract_enforcement/)): 716
+  injected contract violations from 61 templates and 295 matched benign controls (Meeting Agenda
+  and Literature Review), each run under the full system and under eight ablations that each
+  remove one enforcement component. The full system explicitly refused every violation before its
+  forbidden boundary and accepted every control. Results:
+  `results/2026-10-02T12-38-15Z_paper_paper`, at commit `23eac90`.
+- **Contract overhead** ([`contract_overhead/`](experiments/contract_overhead/)): automated
+  processing from signed package bytes in memory to the first node dispatch, excluding download,
+  human decisions, inference and tools. Pooled median (95th percentile) over three runs of 1,000
+  observations per package on an Apple M3 Max: Meeting Agenda 59.0 (62.5) ms, Literature Review
+  449.9 (465.0) ms, WebAir 488.7 (504.7) ms. Results: `results/2026-10-03T16-14-20Z_paper-webair-pooled`
+  and its three runs, at commit `9d78ca5`.
+
+Both are offline and credential-free, and CI runs both test suites. The production code of this
+release is the code the overhead was measured on. The enforcement results predate four documented
+production changes, and rerunning the full enforcement experiment on this release's code gave the
+same outcome for every one of the 9,099 cases ([docs/releasing.md](docs/releasing.md)).
 
 ## How it works
 
@@ -219,8 +289,8 @@ offline acceptance but has not yet been run live ([report](docs/literature-revie
 | Control plane | `agentpkg.browser` (`agentpkg browser-serve`) | loopback, token-protected: snapshots, layered validation, publisher trust, authorization receipts, model compatibility, Run Plans. It never executes. |
 | Execution | `agentpkg.execution`, `agentpkg.hostbridge`, `agentpkg.toolbridge` | leases the verified snapshot, re-verifies, runs the graph, and reaches models and tools only through host bridges |
 | Browser plugin | [`openclaw-agent-browser/`](openclaw-agent-browser/) | the Control UI page and the Gateway-side backend; the only part that knows OpenClaw |
-| Example packages | [`agents/`](agents/) → [`dist/`](dist/README.md) | Meeting Agenda, Literature Review (and the archived pre-`workflow.v0` legacy package) |
-| Services | [`citation-resolver/`](citation-resolver/), [`package-origin/`](package-origin/) | the remote Citation Resolver used by Literature Review; a minimal static package origin |
+| Example packages | [`agents/`](agents/) → [`dist/`](dist/README.md) | Meeting Agenda, Literature Review, WebAir (and the archived pre-`workflow.v0` legacy package) |
+| Services | [`citation-resolver/`](citation-resolver/), [`demo/webair/`](demo/webair/README.md), [`package-origin/`](package-origin/) | the remote Citation Resolver used by Literature Review; the fictional WebAir origin (HTML site, semantic API, signed package, discovery link) and its publisher tooling; a minimal static package origin |
 
 Design rationale: [docs/architecture.md](docs/architecture.md). Threat model:
 [docs/threat-model.md](docs/threat-model.md). Every document: [docs/README.md](docs/README.md).
@@ -232,12 +302,21 @@ Design rationale: [docs/architecture.md](docs/architecture.md). Threat model:
 - The `agent.pkg` container: deterministic build, SHA-256 integrity, Ed25519 signatures, and
   bounded parsing that rejects duplicate names, path traversal, duplicate JSON keys and remote
   schemas.
-- The generic `workflow.v0` interpreter running both packages with no package-specific code;
-  fixture-mode replay of both.
+- The generic `workflow.v0` interpreter running all three packages with no package-specific
+  code; fixture-mode replay of each.
 - Control-plane opening, from local paths and SSRF-hardened HTTPS (no redirects, no private
   networks, size-bounded), with signature validity and publisher trust kept separate.
+- Website discovery: one page read under the same policy, its same-origin
+  `rel="agent-package"` links listed as unverified candidates, each opened only by the person.
 - Permission decisions, separate per-tool approvals, model compatibility evaluation, and
   immutable hash-bound Run Plans that are re-verified before execution; stale plans are refused.
+- Host-owned resources (`personal.read`): a package requests a resource *type*; the person picks
+  one of the host's resources, which the Run Plan binds by opaque id and keyed digest. The tool
+  broker returns only that resource, and refuses a sealed value (an e-mail, a payment
+  identifier) in any tool call whose permissions do not include the grant. A `once` grant is
+  spent by the first run.
+- Operator-configured HTTP tool bindings (`tools.bindingsFile`), with no package-specific code in
+  the plugin.
 - Execution from the Agent Browser page on OpenClaw 2026.9.5, with every model call on the
   planned model, host tool bindings, budgets, deadlines, cancellation and valid audit chains. See
   [Recorded results](#recorded-results).
@@ -254,6 +333,15 @@ Design rationale: [docs/architecture.md](docs/architecture.md). Threat model:
   with no availability guarantee, and the signed package names its origin. If either service is
   unavailable or rate-limited, a live run fails or finds less. Fixture-mode runs, the offline
   verification scripts and CI never contact either service.
+- Live WebAir runs depend on the public demo origin at
+  `webagents-webair-production.up.railway.app`, a research/demo deployment with no availability
+  guarantee, whose fictional schedule ends on 31 December 2027. The signed package names that
+  host, so a new host is a new package version. Fixture-mode runs and CI never contact it.
+- `rel="agent-package"` and `application/vnd.webagents.agent-package` are an experimental
+  WebAgents convention, not a registered link relation or media type.
+- `agent.pkg` 0.1 has no optional tools. The Agent Browser must bind and approve all seven WebAir
+  tools before any run, so a host that holds none of the three resource types cannot run WebAir
+  0.2.0 or later, even for a search that reads none of them.
 - Local-model runs are slow and sensitive to the host's resource limits. The packages' timing
   and budget policy was set from measurements on one machine.
 - Opening a package by HTTPS URL is covered by tests against a mock origin. The minimal origin in
@@ -288,13 +376,14 @@ boundary; data-flow policies; persistent ("always") authorization; federated sch
 |---|---|
 | `agentpkg/` | Python package: format, CLI, interpreter, control plane, execution, tests |
 | `openclaw-agent-browser/` | OpenClaw plugin (TypeScript): backend, Control UI page, tests, operator scripts |
-| `agents/` | package sources: `meeting-agenda`, `literature-review`, `literature-review-legacy` |
+| `agents/` | package sources: `meeting-agenda`, `literature-review`, `webair`, `literature-review-legacy` |
 | `dist/` | signed packages and wheels, current and historical, with SHA-256 ([dist/README.md](dist/README.md)) |
 | `spec/` | the `agent.pkg` and `workflow.v0` specifications |
 | `docs/` | guides and dated milestone reports ([index](docs/README.md)) |
 | `examples/` | grants, inputs, public development keys, recorded runs, verification evidence ([examples/README.md](examples/README.md)) |
 | `scripts/` | offline acceptance and verification scripts |
 | `citation-resolver/` | the Citation Resolver service (FastAPI) |
+| `demo/webair/` | the fictional WebAir origin (FastAPI), its deployment bundle and the package publisher tooling ([README](demo/webair/README.md)) |
 | `package-origin/` | a minimal static package origin |
 | `experiments/` | the paper's offline experiments: contract enforcement and contract overhead ([index](experiments/README.md)) |
 | `.github/workflows/` | continuous integration on Ubuntu and macOS |
@@ -307,10 +396,17 @@ agentpkg/.venv/bin/python -m ruff check agentpkg && agentpkg/.venv/bin/python -m
 agentpkg/.venv/bin/python scripts/verify_workflow.py
 agentpkg/.venv/bin/python scripts/verify_browser.py
 agentpkg/.venv/bin/python scripts/verify_literature_025.py
+agentpkg/.venv/bin/python scripts/verify_webair.py
 agentpkg/.venv/bin/python scripts/check_release.py     # package identities, dist/ SHA-256 list, licenses
 (cd openclaw-agent-browser && npm ci && npm run typecheck && npm test && npm run verify)
 (cd citation-resolver && python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt && .venv/bin/python -m pytest)
+python3 -m venv demo/webair/.venv && demo/webair/.venv/bin/pip install -r demo/webair/requirements-dev.txt
+(cd demo/webair && .venv/bin/python -m pytest && .venv/bin/python -m publisher check)
 ```
+
+Package sources must not contain stray files: the builder refuses names such as `.DS_Store`
+(macOS Finder metadata) as non-portable, so delete them from `agents/` if a build or test reports
+`unsafe/nonportable package path`.
 
 The plugin's integration tests use `agentpkg/.venv/bin/agentpkg`, so create that environment
 first. `npm run verify` builds, validates and packs the plugin with the pinned OpenClaw

@@ -35,7 +35,8 @@ each claim). Reports are historical: a later report or the current artifacts in
 | [../demo/webair/README.md](../demo/webair/README.md) | WebAir demo: a fictional airline origin publishing its HTML site and a signed `agent.pkg` over one service, how the Agent Browser discovers it, and how the package requests host-owned capabilities (a travel profile, a passenger identity, a demo payment method) that the person's host grants |
 | [webair-live-demo.md](webair-live-demo.md) | The WebAir live demo as a presentation script: the public origin, discovery, trust, a profile-assisted search, a quote, a simulated purchase in a separate `once` authorization, a denied purchase, and how to reset the demo |
 | [releasing.md](releasing.md) | Release procedure, artifact SHA-256 manifest, and the public-release checklist |
-| [release-notes-v0.1.0.md](release-notes-v0.1.0.md) | Draft notes for the first public release |
+| [release-notes-v0.2.0.md](release-notes-v0.2.0.md) | Draft notes for v0.2.0, the release the paper describes (WebAir, website discovery, host-owned resources) |
+| [release-notes-v0.1.0.md](release-notes-v0.1.0.md) | Notes for v0.1.0, superseded by v0.2.0 |
 | [../THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md) | Third-party material in the repository and the plugin artifact, and its terms |
 
 ## Reports (chronological)

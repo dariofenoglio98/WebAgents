@@ -77,11 +77,11 @@ gives the same answer whichever interface asks.
 | Human website: home → search → results → flight → fare → passengers → payment → confirmation | [`origin/web.py`](origin/web.py), [`origin/templates/`](origin/templates/), [`origin/static/webair.css`](origin/static/webair.css) |
 | Semantic JSON API | [`origin/api.py`](origin/api.py) |
 | Experimental discovery hint plus a fixed `/agent.pkg` route | [`origin/agent_package.py`](origin/agent_package.py) |
-| **The signed WebAir agent package** (milestone 2) | source [`agents/webair/`](../../agents/webair/README.md); artifact [`dist/webair-0.1.0.agent.pkg`](../../dist/README.md#demo) |
+| **The signed WebAir agent package** (milestone 2) | source [`agents/webair/`](../../agents/webair/README.md); artifact [`dist/webair-0.1.0.agent.pkg`](../../dist/README.md#webair) |
 | Publisher tooling: tool schemas from the API contract, the recorded fixture, example tasks, the captured pages | [`publisher/`](publisher/) |
 | Tests: service, API, HTML journey, discovery, safety; package contract, package runs, package serving | [`tests/`](tests/) |
 | **Agent Browser discovery of this origin** (milestone 3): generic `rel="agent-package"` discovery, tested offline against these pages and this package | [below](#how-the-agent-browser-discovers-webair); evidence [`webair-010-discovery.json`](../../examples/verification/webair-010-discovery.json) |
-| **Host-owned capabilities** (milestone 4): WebAir 0.2.0 requests a travel profile, a passenger identity and a payment method from the person's host, and a separate simulated-purchase authority; the demo host's fictional resources | [below](#host-owned-capabilities-milestone-4); package [`dist/webair-0.2.0.agent.pkg`](../../dist/README.md#demo); host resources [`host-resources.json`](host-resources.json); evidence [`webair-020-host-capabilities.json`](../../examples/verification/webair-020-host-capabilities.json) |
+| **Host-owned capabilities** (milestone 4): WebAir 0.2.0 requests a travel profile, a passenger identity and a payment method from the person's host, and a separate simulated-purchase authority; the demo host's fictional resources | [below](#host-owned-capabilities-milestone-4); package [`dist/webair-0.2.0.agent.pkg`](../../dist/README.md#webair); host resources [`host-resources.json`](host-resources.json); evidence [`webair-020-host-capabilities.json`](../../examples/verification/webair-020-host-capabilities.json) |
 | **The live demo** (milestone 5): this origin deployed on Railway; WebAir 0.3.0 declaring its real hostname; the demo host's bindings of the four tools to it; discovery, trust, search, booking and a simulated purchase through the real Agent Browser | [below](#public-deployment-milestone-5); bindings [`host-bindings.json`](host-bindings.json); script [docs/webair-live-demo.md](../../docs/webair-live-demo.md); evidence [`webair-030-live-demo.json`](../../examples/verification/webair-030-live-demo.json), offline [`webair-030-host-capabilities.json`](../../examples/verification/webair-030-host-capabilities.json) |
 
 ### Not implemented yet (on purpose)
@@ -153,9 +153,9 @@ The origin writes nothing to disk and keeps nothing in memory between requests.
 | Publisher | `webair-demo`, "WebAir (fictional demo airline)": a dedicated demo key, `sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b` ([public key](../../examples/keys/webair-publisher.pub.pem)) |
 | Artifact | `dist/webair-0.3.0.agent.pkg`, 167,193 bytes, archive SHA-256 `b537cf5cba06bce8137533eb75b491486f57caf3098af30f657343b741492887`; 58 payload files |
 | Package digest | `ffe8f5b344f97c631498bb6da3e17217ae7e5730721935b0e66c5d595b335e94` |
-| Profile | `workflow.v0`, minimum runtime 0.2.2 *from this branch* (it declares the `personal.read` permission kind, which the released 0.2.2 wheel refuses); 34 nodes, canonical operators only |
+| Profile | `workflow.v0`, minimum runtime 0.2.2 *as released in v0.2.0* (it declares the `personal.read` permission kind, which the v0.1.0 release's 0.2.2 wheel refuses); 34 nodes, canonical operators only |
 | What changed from 0.2.0 | only the declared host (tool endpoints, the network permission's scope, the network policy) and the manifest's version, date and informational origin, plus the package README; graph, schemas, skills, fixture, permissions and budgets are byte-identical (`agentpkg/tests/test_webair_package.py`) |
-| Earlier | `dist/webair-0.2.0.agent.pkg` (declares the reserved `webair.example`), archive `3f135be8…a616`, digest `74f05a8d…b9e1`; `dist/webair-0.1.0.agent.pkg` (= `dist/webair.agent.pkg`, the newest version the released runtime reads), archive `73872c31…470c`, digest `3b7c61a7…2fb6`; both unchanged |
+| Earlier | `dist/webair-0.2.0.agent.pkg` (declares the reserved `webair.example`), archive `3f135be8…a616`, digest `74f05a8d…b9e1`; `dist/webair-0.1.0.agent.pkg` (= `dist/webair.agent.pkg`, which stays 0.1.0 because the recorded evidence pins it), archive `73872c31…470c`, digest `3b7c61a7…2fb6`; both unchanged |
 
 ### The task
 
@@ -563,5 +563,6 @@ purchase → refused replay → denied purchase, 133 checks).
 
 1. **Optional tools** in a future agent.pkg version, so a host without resources could still run
    a search.
-2. **A release** of a runtime that accepts `personal.read`, after which the unversioned
-   `dist/webair.agent.pkg` can move from 0.1.0 to the newest WebAir.
+2. **Moving the unversioned alias.** v0.2.0 ships a runtime that accepts `personal.read`,
+   but `dist/webair.agent.pkg` stays 0.1.0 because the recorded discovery, serving and live-demo
+   evidence pins it; a later release can move it to the newest WebAir together with that evidence.

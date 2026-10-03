@@ -61,11 +61,12 @@ reach any server the host did not bind, and it owns none of my data. My runtime 
 Before the audience arrives (once per machine; [Reset](#l-reset-the-demo) before each talk):
 
 1. **OpenClaw 2026.9.5** with the Gateway running and **Settings → Labs → Custom plugin UI** on.
-2. **This branch's runtime.** WebAir 0.3.0 declares the `personal.read` permission kind, which
-   only agentpkg from after the v0.1.0 release accepts: use the repository's editable
-   `agentpkg/.venv` (`python3 -m venv agentpkg/.venv && agentpkg/.venv/bin/python -m pip install -e './agentpkg[dev]'`).
-   The released `agentpkg-0.2.2` wheel refuses the package.
-3. **The Agent Browser plugin from this branch:**
+2. **A runtime from v0.2.0 or later.** WebAir 0.3.0 declares the `personal.read` permission
+   kind, which agentpkg accepts from the v0.2.0 release on: use the repository's editable
+   `agentpkg/.venv` (`python3 -m venv agentpkg/.venv && agentpkg/.venv/bin/python -m pip install -e './agentpkg[dev]'`)
+   or the `dist/agentpkg-0.2.2-py3-none-any.whl` shipped with v0.2.0. The v0.1.0 release's
+   0.2.2 wheel refuses the package.
+3. **The Agent Browser plugin from v0.2.0 or later:**
 
    ```sh
    cd openclaw-agent-browser && npm ci && npm run build && npm run pack
