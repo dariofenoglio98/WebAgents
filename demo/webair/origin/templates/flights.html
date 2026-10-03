@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% from "_macros.html" import search_fields, errors_box, progress %}
+{% block title %}Book a flight{% endblock %}
+{% block progress %}{{ progress(1) }}{% endblock %}
+{% block content %}
+<h1>Book a flight</h1>
+{{ errors_box(errors) }}
+<form class="card search" action="/results" method="get">
+  <div class="grid">{{ search_fields(form, advanced=true) }}</div>
+  <div class="actions"><button type="submit">Search flights</button></div>
+</form>
+<p class="note">Fares are per passenger and include taxes and fees. Schedule: {{ first_date|longdate }} – {{ last_date|longdate }}.</p>
+{% endblock %}

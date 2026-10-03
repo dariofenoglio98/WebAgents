@@ -1,0 +1,18 @@
+[project]
+name = "webair-origin"
+version = "0.1.0"
+description = "WebAir: a fictional airline origin for the WebAgents demo (no real booking or payment)"
+license = "Apache-2.0"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-q"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]

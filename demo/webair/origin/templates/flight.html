@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% from "_macros.html" import flight_times, progress %}
+{% block title %}Choose a fare · {{ flight.flight_numbers|join(" + ") }}{% endblock %}
+{% block progress %}{{ progress(3) }}{% endblock %}
+{% block content %}
+<h1>Choose your fare</h1>
+<section class="card" aria-labelledby="flight-heading">
+  <h2 id="flight-heading">{{ flight.date|longdate }}</h2>
+  {{ flight_times(flight) }}
+  <ol class="segments">
+    {% for s in flight.segments %}
+    <li>{{ s.flight_number }}: {{ s.origin }} {{ s.departure_local|clock }} → {{ s.destination }} {{ s.arrival_local|clock }} ({{ s.duration_minutes|duration }}, {{ s.aircraft }}){% if not loop.last %} · layover {{ flight.layover_minutes[loop.index0]|duration }} in {{ airports[s.destination].city }}{% endif %}</li>
+    {% endfor %}
+  </ol>
+</section>
+<div class="table-wrap">
+<table class="fares">
+  <caption>Fares for {{ passengers }} passenger{% if passengers != 1 %}s{% endif %}, per passenger, taxes included</caption>
+  <thead>
+    <tr><th scope="col">Fare</th><th scope="col">Checked bags</th><th scope="col">Changes</th><th scope="col">Refunds</th><th scope="col">Price</th><th scope="col"><span class="visually-hidden">Select</span></th></tr>
+  </thead>
+  <tbody>
+    {% for fare in flight.fares %}
+    <tr data-fare-id="{{ fare.fare_id }}">
+      <th scope="row">{{ fare.fare_name }}</th>
+      <td>{{ fare.checked_bags }}</td>
+      <td>{{ "Yes" if fare.changeable else "No" }}</td>
+      <td>{{ "Yes" if fare.refundable else "No" }}</td>
+      <td><strong>{{ fare.price_usd|usd }}</strong></td>
+      <td>
+        {% if fare.available %}
+        <a class="button" href="/fare/{{ fare.fare_id }}?passengers={{ passengers }}" aria-label="Select {{ fare.fare_name }}">Select</a>
+        {% else %}
+        <span class="sold-out">Not enough seats</span>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

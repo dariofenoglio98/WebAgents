@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% from "_macros.html" import flight_times, progress %}
+{% block title %}{{ query.origin }} to {{ query.destination }}{% endblock %}
+{% block progress %}{{ progress(2) }}{% endblock %}
+{% block content %}
+<h1>{{ airports[query.origin].city }} ({{ query.origin }}) to {{ airports[query.destination].city }} ({{ query.destination }})</h1>
+<p class="summary">
+  {{ query.date|longdate }} · {{ query.passengers }} passenger{% if query.passengers != 1 %}s{% endif %}
+  {% if query.nonstop_only %} · nonstop only{% endif %}
+  {% if query.cabin %} · {{ query.cabin|capitalize }}{% endif %}
+  {% if query.max_price_usd %} · up to {{ query.max_price_usd|usd }} per passenger{% endif %}
+  · <a href="/flights?{{ change_search }}">Change search</a>
+</p>
+{% if flights %}
+<p>{{ flights|length }} flight{% if flights|length != 1 %}s{% endif %} found. Prices are per passenger, taxes included.</p>
+<ol class="results">
+  {% for flight in flights %}
+  <li class="card result" data-flight-id="{{ flight.flight_id }}">
+    {{ flight_times(flight) }}
+    <ul class="fare-chips">
+      {% for fare in flight.fares %}
+      <li data-fare-id="{{ fare.fare_id }}" data-price-usd="{{ fare.price_usd }}">{{ fare.fare_name }} <strong>{{ fare.price_usd|usd }}</strong></li>
+      {% endfor %}
+    </ul>
+    <div class="price">
+      <span>from</span> <strong>{{ flight.lowest_price_usd|usd }}</strong>
+      <a class="button" href="/flight/{{ flight.flight_id }}?passengers={{ query.passengers }}" aria-label="Select {{ flight.flight_numbers|join(' + ') }} departing {{ flight.departure_local|clock }}">Select</a>
+    </div>
+  </li>
+  {% endfor %}
+</ol>
+{% else %}
+<div class="card empty">
+  <h2>No flights match your search</h2>
+  <p>Try another date, remove the nonstop or price filter, or <a href="/flights?{{ change_search }}">change your search</a>.</p>
+</div>
+{% endif %}
+{% endblock %}

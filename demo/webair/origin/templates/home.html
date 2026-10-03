@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% from "_macros.html" import search_fields %}
+{% block title %}Fly WebAir{% endblock %}
+{% block content %}
+<section class="hero">
+  <h1>Fly between Boston, New York and Europe</h1>
+  <p>Nonstop service to Zurich and Geneva, with connections through London and Reykjavik.</p>
+  <form class="card search" action="/results" method="get" aria-labelledby="search-heading">
+    <h2 id="search-heading">Search flights</h2>
+    <div class="grid">{{ search_fields(form) }}</div>
+    <div class="actions">
+      <button type="submit">Search flights</button>
+      <a href="/flights">More search options</a>
+    </div>
+  </form>
+</section>
+<section aria-labelledby="routes-heading">
+  <h2 id="routes-heading">Popular routes</h2>
+  <ul class="routes">
+    <li><a href="/results?origin=BOS&amp;destination=ZRH&amp;date={{ form.date }}&amp;passengers=1">Boston → Zurich</a></li>
+    <li><a href="/results?origin=ZRH&amp;destination=BOS&amp;date={{ form.date }}&amp;passengers=1">Zurich → Boston</a></li>
+    <li><a href="/results?origin=JFK&amp;destination=ZRH&amp;date={{ form.date }}&amp;passengers=1">New York → Zurich</a></li>
+    <li><a href="/results?origin=BOS&amp;destination=LHR&amp;date={{ form.date }}&amp;passengers=1">Boston → London</a></li>
+  </ul>
+  <p class="note">The demo schedule runs from {{ first_date|longdate }} to {{ last_date|longdate }}.</p>
+</section>
+{% endblock %}

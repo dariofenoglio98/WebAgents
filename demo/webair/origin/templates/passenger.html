@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% from "_macros.html" import errors_box, progress %}
+{% block title %}Passenger details{% endblock %}
+{% block progress %}{{ progress(4) }}{% endblock %}
+{% block content %}
+<h1>Passenger details</h1>
+<p class="summary">{{ fare.flight.flight_numbers|join(" + ") }} · {{ fare.flight.origin }} → {{ fare.flight.destination }} · {{ fare.flight.date|longdate }} · {{ fare.fare_name }} · total {{ fare.total_usd|usd }}</p>
+{{ errors_box(errors) }}
+<form class="card" action="/payment" method="post">
+  <input type="hidden" name="fare_id" value="{{ fare.fare_id }}">
+  <input type="hidden" name="passengers" value="{{ fare.passengers }}">
+  <p class="note">Use made-up details. WebAir does not store anything you enter.</p>
+  {% for i in range(1, fare.passengers + 1) %}
+  <fieldset>
+    <legend>Passenger {{ i }}</legend>
+    <div class="grid">
+      <div class="field">
+        <label for="given_name_{{ i }}">Given name</label>
+        <input id="given_name_{{ i }}" name="given_name_{{ i }}" required maxlength="40" autocomplete="off" value="{{ form.get('given_name_' ~ i, '') }}">
+      </div>
+      <div class="field">
+        <label for="family_name_{{ i }}">Family name</label>
+        <input id="family_name_{{ i }}" name="family_name_{{ i }}" required maxlength="40" autocomplete="off" value="{{ form.get('family_name_' ~ i, '') }}">
+      </div>
+    </div>
+  </fieldset>
+  {% endfor %}
+  <fieldset>
+    <legend>Contact</legend>
+    <div class="field">
+      <label for="contact_email">Email</label>
+      <input id="contact_email" name="contact_email" type="email" required maxlength="254" autocomplete="off" placeholder="traveler@example.com" value="{{ form.get('contact_email', '') }}">
+    </div>
+  </fieldset>
+  <div class="actions"><button type="submit">Continue to payment</button></div>
+</form>
+{% endblock %}

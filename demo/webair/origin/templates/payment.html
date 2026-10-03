@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% from "_macros.html" import errors_box, progress, booking_hidden, flight_times %}
+{% block title %}Payment (demo){% endblock %}
+{% block progress %}{{ progress(5) }}{% endblock %}
+{% block content %}
+<h1>Payment</h1>
+<div class="demo-callout" role="note">
+  <strong>Demo payment only.</strong> Choose a pretend payment method below. No card details are
+  collected, nothing is charged, and no ticket is issued.
+</div>
+{{ errors_box(errors) }}
+<div class="two-col">
+  <section class="card" aria-labelledby="review-heading">
+    <h2 id="review-heading">Review your booking</h2>
+    <p>{{ quote.fare.flight.date|longdate }} · {{ quote.fare.fare_name }}</p>
+    {{ flight_times(quote.fare.flight) }}
+    <h3>Passengers</h3>
+    <ul>{% for p in quote.passengers %}<li>{{ p.given_name }} {{ p.family_name }}</li>{% endfor %}</ul>
+    <p>Contact: {{ quote.contact_email }}</p>
+    <dl class="totals">
+      <dt>{{ quote.fare.passengers }} × {{ quote.fare.price_per_passenger_usd|usd }}</dt>
+      <dd data-total-usd="{{ quote.total_usd }}"><strong>{{ quote.total_usd|usd }}</strong></dd>
+    </dl>
+    <p class="note">Quote {{ quote.quote_id }}. {{ quote.notice }}</p>
+  </section>
+  <form class="card" action="/confirmation" method="post" aria-labelledby="pay-heading">
+    <h2 id="pay-heading">Demo payment method</h2>
+    {{ booking_hidden(booking) }}
+    <input type="hidden" name="quote_id" value="{{ quote.quote_id }}">
+    <fieldset>
+      <legend>Pay with</legend>
+      {% for method in quote.payment_methods %}
+      <div class="field radio">
+        <input type="radio" id="pm-{{ method.id }}" name="payment_method_id" value="{{ method.id }}" required{% if loop.first %} checked{% endif %}>
+        <label for="pm-{{ method.id }}">{{ method.label }} <span class="badge">demo</span></label>
+      </div>
+      {% endfor %}
+    </fieldset>
+    <div class="actions"><button type="submit">Simulate purchase of {{ quote.total_usd|usd }}</button></div>
+    <p class="note">Pressing the button runs a simulation. No real transaction is performed.</p>
+  </form>
+</div>
+{% endblock %}

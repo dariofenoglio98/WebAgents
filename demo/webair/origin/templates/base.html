@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}WebAir{% endblock %} · WebAir (demo)</title>
+  <link rel="stylesheet" href="/static/webair.css">
+  {# Experimental WebAgents demo convention, not an HTML standard: this origin also offers
+     an agent-native interface. The href is relative so it resolves against this origin. #}
+  <link rel="{{ agent_package.rel }}" type="{{ agent_package.type }}" href="{{ agent_package.href }}">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <div class="demo-banner" role="note">
+    <strong>Fictional demo airline.</strong> WebAir is not a real airline. Flights, prices and
+    bookings are simulated; no real reservation or payment ever occurs.
+  </div>
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="/"><span class="brand-mark" aria-hidden="true">✈</span> WebAir</a>
+      <nav aria-label="Main">
+        <a href="/flights">Book a flight</a>
+      </nav>
+    </div>
+  </header>
+  {% block progress %}{% endblock %}
+  <main id="main" class="wrap">
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="site-footer">
+    <div class="wrap">
+      <p>WebAir is a fictional airline built for the WebAgents research demo. All schedules
+         and fares are invented. No real transaction is ever performed.</p>
+      <p>This origin advertises an experimental agent-native interface in its page metadata
+         (<code>rel="agent-package"</code>, a WebAgents demo convention).</p>
+    </div>
+  </footer>
+</body>
+</html>

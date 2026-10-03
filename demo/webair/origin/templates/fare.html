@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% from "_macros.html" import flight_times, progress %}
+{% block title %}{{ fare.fare_name }} · {{ fare.flight.flight_numbers|join(" + ") }}{% endblock %}
+{% block progress %}{{ progress(3) }}{% endblock %}
+{% block content %}
+<h1>{{ fare.fare_name }}</h1>
+<div class="two-col">
+  <section class="card" aria-labelledby="rules-heading">
+    <h2 id="rules-heading">Fare details</h2>
+    <dl class="rules">
+      <dt>Cabin</dt><dd>{{ fare.cabin|capitalize }} (booking class {{ fare.booking_class }})</dd>
+      <dt>Personal item</dt><dd>{{ "Included" if fare.baggage.personal_item else "Not included" }}</dd>
+      <dt>Cabin bag</dt><dd>1 × {{ fare.baggage.cabin_bag_kg }} kg</dd>
+      <dt>Checked bags</dt><dd>{% if fare.baggage.checked_bags %}{{ fare.baggage.checked_bags }} × {{ fare.baggage.checked_bag_kg }} kg{% else %}None included{% endif %}</dd>
+      <dt>Changes</dt><dd>{{ fare.changes.summary }}</dd>
+      <dt>Refunds</dt><dd>{{ fare.refunds.summary }}</dd>
+      <dt>Seats</dt><dd>{{ fare.seat_selection }}</dd>
+      <dt>Availability</dt><dd>{{ fare.seats_left }} seat(s) left at this price</dd>
+    </dl>
+  </section>
+  <section class="card" aria-labelledby="trip-heading">
+    <h2 id="trip-heading">Your flight</h2>
+    <p>{{ fare.flight.date|longdate }}</p>
+    {{ flight_times(fare.flight) }}
+    <dl class="totals">
+      <dt>Price per passenger</dt><dd>{{ fare.price_per_passenger_usd|usd }}</dd>
+      <dt>Passengers</dt><dd>{{ fare.passengers }}</dd>
+      <dt>Total</dt><dd data-total-usd="{{ fare.total_usd }}"><strong>{{ fare.total_usd|usd }}</strong></dd>
+    </dl>
+    {% if fare.available %}
+    <a class="button" href="/passenger?fare_id={{ fare.fare_id }}&amp;passengers={{ fare.passengers }}">Continue to passenger details</a>
+    {% else %}
+    <p class="sold-out">Not enough seats left in this fare for {{ fare.passengers }} passengers.</p>
+    {% endif %}
+    <p><a href="/flight/{{ fare.flight.flight_id }}?passengers={{ fare.passengers }}">Choose a different fare</a></p>
+  </section>
+</div>
+{% endblock %}

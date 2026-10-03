@@ -1,0 +1,91 @@
+{% macro errors_box(errors) %}
+{% if errors %}
+<div class="errors" role="alert">
+  <h2>Please check the following</h2>
+  <ul>
+    {% for message in errors %}<li>{{ message }}</li>{% endfor %}
+  </ul>
+</div>
+{% endif %}
+{% endmacro %}
+
+{% macro airport_select(name, label, selected) %}
+<label for="{{ name }}">{{ label }}</label>
+<select id="{{ name }}" name="{{ name }}" required>
+  {% for code, airport in airports.items() %}
+  <option value="{{ code }}"{% if code == selected %} selected{% endif %}>{{ airport.city }} ({{ code }})</option>
+  {% endfor %}
+</select>
+{% endmacro %}
+
+{% macro search_fields(form, advanced=false) %}
+<div class="field">{{ airport_select("origin", "From", form.get("origin")) }}</div>
+<div class="field">{{ airport_select("destination", "To", form.get("destination")) }}</div>
+<div class="field">
+  <label for="date">Departure date</label>
+  <input id="date" name="date" type="date" required min="{{ first_date }}" max="{{ last_date }}"
+         value="{{ form.get('date', '') }}">
+</div>
+<div class="field">
+  <label for="passengers">Passengers</label>
+  <select id="passengers" name="passengers">
+    {% for n in range(1, max_passengers + 1) %}
+    <option value="{{ n }}"{% if n|string == form.get("passengers", "1")|string %} selected{% endif %}>{{ n }}</option>
+    {% endfor %}
+  </select>
+</div>
+{% if advanced %}
+<div class="field">
+  <label for="cabin">Cabin</label>
+  <select id="cabin" name="cabin">
+    <option value="">Any cabin</option>
+    <option value="economy"{% if form.get("cabin") == "economy" %} selected{% endif %}>Economy</option>
+    <option value="business"{% if form.get("cabin") == "business" %} selected{% endif %}>Business</option>
+  </select>
+</div>
+<div class="field">
+  <label for="max_price_usd">Maximum price per passenger (USD)</label>
+  <input id="max_price_usd" name="max_price_usd" type="number" min="1" max="100000" step="1"
+         inputmode="numeric" value="{{ form.get('max_price_usd', '') }}">
+</div>
+<div class="field checkbox">
+  <input id="nonstop_only" name="nonstop_only" type="checkbox" value="on"{% if form.get("nonstop_only") %} checked{% endif %}>
+  <label for="nonstop_only">Nonstop flights only</label>
+</div>
+{% endif %}
+{% endmacro %}
+
+{% macro flight_times(flight) %}
+<div class="times">
+  <span class="time">{{ flight.departure_local|clock }}</span>
+  <span class="code">{{ flight.origin }}</span>
+  <span class="arrow" aria-hidden="true">→</span>
+  <span class="time">{{ flight.arrival_local|clock }}{% if flight.arrival_day_offset %}<sup title="arrives {{ flight.arrival_day_offset }} day(s) later">+{{ flight.arrival_day_offset }}</sup>{% endif %}</span>
+  <span class="code">{{ flight.destination }}</span>
+</div>
+<p class="meta">
+  {{ flight.duration_minutes|duration }} ·
+  {% if flight.stops == 0 %}Nonstop{% else %}{{ flight.stops }} stop via {{ flight.via|join(", ") }}{% endif %}
+  · {{ flight.flight_numbers|join(" + ") }}
+</p>
+{% endmacro %}
+
+{% macro progress(step) %}
+<nav class="progress wrap" aria-label="Booking progress">
+  <ol>
+    {% for name in ["Search", "Flight", "Fare", "Passengers", "Payment", "Confirmation"] %}
+    <li{% if loop.index == step %} aria-current="step"{% elif loop.index < step %} class="done"{% endif %}>{{ name }}</li>
+    {% endfor %}
+  </ol>
+</nav>
+{% endmacro %}
+
+{% macro booking_hidden(booking) %}
+<input type="hidden" name="fare_id" value="{{ booking.fare_id }}">
+<input type="hidden" name="passengers" value="{{ booking.passengers|length }}">
+{% for p in booking.passengers %}
+<input type="hidden" name="given_name_{{ loop.index }}" value="{{ p.given_name }}">
+<input type="hidden" name="family_name_{{ loop.index }}" value="{{ p.family_name }}">
+{% endfor %}
+<input type="hidden" name="contact_email" value="{{ booking.contact_email }}">
+{% endmacro %}

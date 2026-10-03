@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% from "_macros.html" import progress, flight_times %}
+{% block title %}Booking simulated{% endblock %}
+{% block progress %}{{ progress(6) }}{% endblock %}
+{% block content %}
+<h1>Booking simulated</h1>
+<div class="demo-callout strong" role="status">
+  <p><strong>{{ confirmation.message }}</strong></p>
+  <p>This was a simulation on a fictional airline: no payment was charged (amount charged:
+     {{ confirmation.amount_charged_usd|usd }}), no seat was reserved and no ticket was issued.</p>
+</div>
+<section class="card" aria-labelledby="conf-heading">
+  <h2 id="conf-heading">Demo confirmation <span class="confirmation-id" data-confirmation-id="{{ confirmation.confirmation_id }}">{{ confirmation.confirmation_id }}</span></h2>
+  <p>{{ confirmation.flight.date|longdate }} · {{ confirmation.fare_name }}</p>
+  {{ flight_times(confirmation.flight) }}
+  <h3>Passengers</h3>
+  <ul>{% for p in confirmation.passengers %}<li>{{ p.given_name }} {{ p.family_name }}</li>{% endfor %}</ul>
+  <dl class="totals">
+    <dt>Simulated total</dt><dd>{{ confirmation.total_usd|usd }}</dd>
+    <dt>Demo payment method</dt><dd>{{ confirmation.payment_method.label }}</dd>
+    <dt>Actually charged</dt><dd>{{ confirmation.amount_charged_usd|usd }}</dd>
+  </dl>
+</section>
+<p><a class="button" href="/">Search another flight</a></p>
+{% endblock %}
