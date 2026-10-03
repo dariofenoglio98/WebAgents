@@ -1,8 +1,9 @@
 # Release artifacts
 
 Everything a user needs to run the current packages is in the first table. The unversioned
-`.agent.pkg` names are byte-identical copies of the newest versioned file; earlier signed
-archives and wheels stay here unchanged so that every milestone report can be re-checked
+`.agent.pkg` names are byte-identical copies of a versioned file: the newest one for Meeting Agenda
+and Literature Review, and WebAir 0.1.0 for `webair.agent.pkg` (see [WebAir](#webair)). Earlier
+signed archives and wheels stay here unchanged so that every milestone report can be re-checked
 against the exact bytes it describes.
 
 ## Current
@@ -12,6 +13,7 @@ against the exact bytes it describes.
 | `agentpkg-0.2.2-py3-none-any.whl` | agentpkg 0.2.2: the CLI, the browser control plane and the workflow.v0 runtime | Python ≥ 3.11 | SHA-256 below |
 | `literature-review.agent.pkg` | Literature Review 0.2.5, identical to `literature-review-0.2.5.agent.pkg` | agentpkg ≥ 0.2.1 | [`examples/keys/literature-review-publisher.pub.pem`](../examples/keys/literature-review-publisher.pub.pem) (`sha256:c5ca9763…5232`) |
 | `meeting-agenda.agent.pkg` | Meeting Agenda 0.2.2, identical to `meeting-agenda-0.2.2.agent.pkg` | agentpkg ≥ 0.2.2 | [`examples/keys/meeting-agenda-publisher.pub.pem`](../examples/keys/meeting-agenda-publisher.pub.pem) (`sha256:2bcc374a…c5c4`) |
+| `webair-0.3.0.agent.pkg` | WebAir Travel Agent 0.3.0, the package of the fictional WebAir origin's public deployment, `webagents-webair-production.up.railway.app`, which serves exactly these bytes at <https://webagents-webair-production.up.railway.app/agent.pkg> ([live demo](../docs/webair-live-demo.md)). It requests a travel profile, a passenger identity and a payment method from the person's host (`personal.read` permissions) and a separate, once-grantable simulated-purchase authority. No real booking or payment | the agentpkg 0.2.2 wheel in this directory (`371fb1eb…`); the v0.1.0 release's 0.2.2 wheel rejects `personal.read` | [`examples/keys/webair-publisher.pub.pem`](../examples/keys/webair-publisher.pub.pem) (`sha256:2e53acce…a20b`) |
 
 From the repository root:
 
@@ -22,23 +24,38 @@ python3 -m venv .venv && .venv/bin/python -m pip install dist/agentpkg-0.2.2-py3
   --trust-key examples/keys/literature-review-publisher.pub.pem
 .venv/bin/agentpkg verify dist/meeting-agenda.agent.pkg \
   --trust-key examples/keys/meeting-agenda-publisher.pub.pem
+.venv/bin/agentpkg verify dist/webair-0.3.0.agent.pkg \
+  --trust-key examples/keys/webair-publisher.pub.pem
 ```
 
 The keys are development keys: they establish which key signed an artifact, not an independent
 certification of its publisher.
 
-**The 0.2.2 wheel was rebuilt for the public release** from the current `agentpkg/` source. It
-differs from the earlier 0.2.2 build (SHA-256 `c0ea47ef…eabd`, recorded in
-`examples/verification/agentpkg-022-wheel-smoke.json`) in exactly three ways. It adds the
-Apache-2.0 license metadata and `LICENSE` file. It contains the host-usage accounting correction in
-`agentpkg/hostbridge/router.py`, made after that build. And `agentpkg/browser/server.py` no longer
-resolves the control plane's loopback address back to a host name when it binds: that reverse DNS
-lookup took about 35 s on hosts whose own name does not resolve (GitHub's macOS runners among
-them), longer than the plugin waits for the control plane. Every other file is unchanged. The
-version stays 0.2.2 because the runtime reports that version, and the signed packages and the
-paper experiments were run against it. The signed `.agent.pkg` files are unaffected. It was
-built as below with setuptools 84.0.0; two such builds on the development machine produced
-identical bytes, and CI rebuilds it from source and checks that every file matches:
+**The 0.2.2 wheel has been rebuilt twice since its first build,** each time from the current
+`agentpkg/` source and without a version change.
+
+- **For v0.1.0** (SHA-256 `cc28762b…ce59`). It differs from the first 0.2.2 build (SHA-256
+  `c0ea47ef…eabd`, recorded in `examples/verification/agentpkg-022-wheel-smoke.json`) in exactly
+  three ways. It adds the Apache-2.0 license metadata and `LICENSE` file. It contains the
+  host-usage accounting correction in `agentpkg/hostbridge/router.py`, made after that build. And
+  `agentpkg/browser/server.py` no longer resolves the control plane's loopback address back to a
+  host name when it binds: that reverse DNS lookup took about 35 s on hosts whose own name does
+  not resolve (GitHub's macOS runners among them), longer than the plugin waits for the control
+  plane.
+- **For v0.2.0** (SHA-256 `371fb1eb…1cd1`, the file in this directory). It adds the WebAir
+  milestones' generic runtime changes: website package discovery (`agentpkg/browser/discovery.py`,
+  `fetch.py`, `control.py`, `server.py`) and host-owned capabilities (`agentpkg/browser/hostresources.py`;
+  `authorization.py`, `runplan.py`, `hosttools.py` and `summary.py` in `agentpkg/browser/`;
+  `agentpkg/execution/policy.py` and `session.py`; `agentpkg/toolbridge/binding.py` and
+  `handler.py`; and the `personal.read` permission kind in `agentpkg/schemas/policy.schema.json`).
+  Its metadata and every other file are unchanged.
+
+The version stays 0.2.2 because the runtime reports that version: the signed packages declare
+their minimum runtime against it, the paper's experiments recorded it, and the contract
+enforcement experiment's runtime-version cases treat 0.2.3, 0.3.0 and 1.0.0 as newer than the
+runtime. The signed `.agent.pkg` files are unaffected. It was built as below with setuptools
+84.0.0; two such builds from a clean export produced identical bytes, and CI rebuilds it from
+source and checks that every file matches:
 
 ```sh
 python3 -m venv /tmp/build-env && /tmp/build-env/bin/pip install 'build>=1.2,<2' 'setuptools==84.0.0'
@@ -48,21 +65,24 @@ SOURCE_DATE_EPOCH=1790965957 /tmp/build-env/bin/python -m build --no-isolation -
 Build from a clean checkout: a stale `agentpkg/build/` directory from an earlier build can leak
 into the wheel.
 
-## Demo
+## WebAir
+
+The demo origin in [`demo/webair/`](../demo/webair/README.md) and its packages are new in v0.2.0.
+The current package is `webair-0.3.0.agent.pkg` (above); the two earlier versions stay for the
+milestone evidence that describes them.
 
 | Artifact | What it is | Requires | Verify with |
 |---|---|---|---|
-| `webair-0.3.0.agent.pkg` | WebAir Travel Agent 0.3.0, the live demo's package: 0.2.0 with WebAir's public deployment, `webagents-webair-production.up.railway.app`, as the declared host of its four tools (graph, schemas, skills, fixture and permissions unchanged). The public origin serves exactly these bytes at <https://webagents-webair-production.up.railway.app/agent.pkg> ([live demo](../docs/webair-live-demo.md)) | agentpkg from this branch (`personal.read`, as 0.2.0) | [`examples/keys/webair-publisher.pub.pem`](../examples/keys/webair-publisher.pub.pem) (`sha256:2e53acce…a20b`) |
-| `webair-0.2.0.agent.pkg` | WebAir Travel Agent 0.2.0: requests a travel profile, a passenger identity and a payment method from the person's host (`personal.read` permissions with argument-free host-resource tools) and a separate, once-grantable simulated-purchase authority. Holds no personal data. Served by the fictional WebAir origin with `--agent-package` | agentpkg from this branch (it declares the `personal.read` permission kind, which the released 0.2.2 wheel does not accept) | [`examples/keys/webair-publisher.pub.pem`](../examples/keys/webair-publisher.pub.pem) (`sha256:2e53acce…a20b`) |
-| `webair.agent.pkg` | WebAir Travel Agent 0.1.0, identical to `webair-0.1.0.agent.pkg`: the agent package the fictional WebAir origin ([`demo/webair/`](../demo/webair/README.md)) publishes at `/agent.pkg`. No real booking or payment | agentpkg ≥ 0.2.1 | [`examples/keys/webair-publisher.pub.pem`](../examples/keys/webair-publisher.pub.pem) (`sha256:2e53acce…a20b`) |
+| `webair-0.2.0.agent.pkg` | WebAir Travel Agent 0.2.0: the first version with host-owned capabilities (`personal.read` permissions with argument-free host-resource tools) and the simulated-purchase authority. It declares the reserved host `webair.example`, so it runs only against a local origin started with `--agent-package`. 0.3.0 differs from it only in the declared host (tool endpoints, the network permission's scope and policy), the manifest's version, date and origin, and the package README | the agentpkg 0.2.2 wheel in this directory | [`examples/keys/webair-publisher.pub.pem`](../examples/keys/webair-publisher.pub.pem) (`sha256:2e53acce…a20b`) |
+| `webair.agent.pkg` | WebAir Travel Agent 0.1.0, identical to `webair-0.1.0.agent.pkg`: the same four WebAir tools, without host-owned personal resources; it also declares `webair.example`. The website discovery milestone's evidence uses it | agentpkg ≥ 0.2.1 | [`examples/keys/webair-publisher.pub.pem`](../examples/keys/webair-publisher.pub.pem) (`sha256:2e53acce…a20b`) |
 
 Built and signed with the same generic commands as every package (`agentpkg build agents/webair
 -o dist/webair-0.3.0.agent.pkg`, then `agentpkg sign`); rebuilding and re-signing with the same
-key reproduces the bytes (0.2.0 was built the same way from the source as it was then). None of
-them is part of the v0.1.0 release. The unversioned
-`webair.agent.pkg` deliberately stays 0.1.0, the newest WebAir the released 0.2.2 runtime can
-read; it moves to the newest version when a release ships a runtime that accepts
-`personal.read`. 0.1.0 is unchanged and still verifies.
+key reproduces the bytes (0.2.0 was built the same way from the source as it was then). The
+unversioned `webair.agent.pkg` stays 0.1.0, unlike the other two aliases: the recorded discovery,
+serving and live-demo evidence pins it to 0.1.0's bytes, and the contract overhead benchmark,
+whose results record its source hash, documents it as 0.1.0. Use the versioned
+`webair-0.3.0.agent.pkg` for the current package.
 
 ## Historical
 
@@ -87,7 +107,7 @@ none is needed to run the current packages.
 ```
 c1b1c4b260dbca874dc9e343397e6fad1311f498c3a6df27c1a1deeeb0b18f71  agentpkg-0.1.0-py3-none-any.whl
 5859ca592d7ced2261e07bd3451ba2a67fcca926627534faf092a93dcfd70adb  agentpkg-0.2.0-py3-none-any.whl
-cc28762bc58e8897b3615d43559b13021a8237e03096d6cb62c46e4732b6ce59  agentpkg-0.2.2-py3-none-any.whl
+371fb1eb8c70abc3511a09e7208742ab313bc47dfda6999675ce716d14731cd1  agentpkg-0.2.2-py3-none-any.whl
 5fdde862352598fc68e4fe5a2f5c2dee19bf952112446b3fc13bc77763533b0b  literature-review-0.2.0.agent.pkg
 0fb8b65bbff4578d4815ee70b29a0cb789b2cc95ce181d011d467b4be22c8e42  literature-review-0.2.1.agent.pkg
 4804ea8f4c2ad40439641f8348c2d65b798f4d52802f6ad751b71114e4f27c04  literature-review-0.2.2.agent.pkg

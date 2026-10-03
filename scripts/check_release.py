@@ -52,7 +52,27 @@ CURRENT_PACKAGES = {
         "fingerprint": "sha256:c5ca9763f9fc71253298ca381ec14c4d7432009c74dacc69df6344b71de05232",
         "tools": ["citation-resolver", "paper-reader", "scholarly-search"],
     },
-    # The fictional WebAir origin's demo package (demo/webair); not part of v0.1.0.
+    # The fictional WebAir origin's packages (demo/webair), new in v0.2.0. The current one has no
+    # unversioned alias: `webair.agent.pkg` stays 0.1.0, which the recorded evidence pins.
+    "webair-0.3.0": {
+        "stem": "webair",
+        "alias": False,
+        "package_id": "org.webagents.webair",
+        "version": "0.3.0",
+        "digest": "ffe8f5b344f97c631498bb6da3e17217ae7e5730721935b0e66c5d595b335e94",
+        "archive_sha256": "b537cf5cba06bce8137533eb75b491486f57caf3098af30f657343b741492887",
+        "key": "examples/keys/webair-publisher.pub.pem",
+        "fingerprint": "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b",
+        "tools": [
+            "get-fare-rules",
+            "personal.passenger_identity",
+            "personal.travel_profile",
+            "prepare-booking",
+            "search-flights",
+            "simulate-purchase",
+            "wallet.payment_method",
+        ],
+    },
     "webair": {
         "package_id": "org.webagents.webair",
         "version": "0.1.0",
@@ -80,8 +100,8 @@ def sha256_file(path: Path) -> str:
 def check_packages() -> dict:
     report = {}
     for name, expected in CURRENT_PACKAGES.items():
-        archive = DIST / f"{name}.agent.pkg"
-        versioned = DIST / f"{name}-{expected['version']}.agent.pkg"
+        versioned = DIST / f"{expected.get('stem', name)}-{expected['version']}.agent.pkg"
+        archive = DIST / f"{name}.agent.pkg" if expected.get("alias", True) else versioned
         package = load_package(archive)
         signature = verify_package(archive, ROOT / expected["key"])
         observed = {
