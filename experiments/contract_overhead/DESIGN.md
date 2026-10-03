@@ -107,3 +107,34 @@ Garbage collection stays on. Every observation is kept; nothing is trimmed.
 it to the previous one and appends it. It is timed per event on a fresh
 `Runtime` for each batch (no observer, and again with the runner's progress
 observer), and reported separately from the pre-execution latency.
+
+## Extension: a third package and host resources (benchmark 1.1.0, 2026-10-03)
+
+WebAir 0.3.0 (`dist/webair-0.3.0.agent.pkg`) is the third package. It goes
+through the same seven operations and the same timers; nothing in the
+benchmark depends on which package is open. What changed is the host, and it
+changed for every package at once, because production decides it per host:
+
+* The host holds resources (the WebAir demo's host resources file). On such a
+  host the plugin's backend sends the resource registry with every
+  `authorize` (with the package's selections, empty when it requests no host
+  resource) and every `prepare_run_plan`. So stage 2 now includes
+  resource-grant validation and stage 4 grant staleness, for every package.
+* The tool registry is the one that backend assembles for that host: built-in
+  bindings, one `host_resource` binding per resource type, and the operator
+  bindings file's WebAir entries (11 bindings instead of 4).
+* The trust store holds three keys.
+* The runner projection carries the plan's `resource_grants` exactly as
+  `preflight.ts` does (only when there are any); the fidelity test runs the
+  real `revalidate` with the same host's live resource store.
+
+The WebAir decisions are those of the accepted live profile-assisted search:
+the travel profile granted with the "Demo Traveler" profile selected, the
+passenger, payment and simulated-purchase permissions denied, every tool
+approved. The first wave is `interpret`, before any profile, tool or model
+operation.
+
+Consequence for comparisons: a 1.1.0 series measures a different
+implementation commit and a different host configuration than the 1.0.0
+series at `23eac90`. The two are reported side by side (`aggregate.py
+--reference`), never pooled.

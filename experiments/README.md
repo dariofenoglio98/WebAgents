@@ -22,6 +22,7 @@ agentpkg/.venv/bin/python experiments/contract_enforcement/run.py --preset paper
 
 agentpkg/.venv/bin/python -m pytest experiments/contract_overhead/tests
 agentpkg/.venv/bin/python experiments/contract_overhead/benchmark.py --label paper
+agentpkg/.venv/bin/python experiments/contract_overhead/aggregate.py --out <dir> RUN1 RUN2 RUN3
 ```
 
 Both experiments are offline and credential-free: every model, tool and network answer is a

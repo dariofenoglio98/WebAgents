@@ -4,13 +4,18 @@
 // of that projection. Reads JSON:
 //   { state, summary, receipt, tool_evaluation, catalog, registry,
 //     minimum_receipt_remaining_ms }
+// The host resource store is the benchmark host's (fixtures/benchmark_host.mjs),
+// the live store `execution.ts` hands `revalidate` on a host that holds
+// resources; a plan's frozen grants are compared with it.
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { benchmarkHost } from "../fixtures/benchmark_host.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const { revalidate } = await import(
   pathToFileURL(join(ROOT, "openclaw-agent-browser/dist/preflight.js")).href
 );
+const { store } = await benchmarkHost();
 
 const chunks = [];
 for await (const chunk of process.stdin) chunks.push(chunk);
@@ -45,12 +50,14 @@ const outcome = await revalidate({
   minimumReceiptRemainingMs: input.minimum_receipt_remaining_ms,
   toolRegistry: input.registry,
   requireMode: "model",
+  resources: store,
 });
 process.stdout.write(
   JSON.stringify({
     binding: outcome.binding,
     authorization: outcome.authorization,
     revalidated: outcome.revalidated,
+    resources: outcome.resources,
     calls: calls.map((call) => call[0]),
   }),
 );

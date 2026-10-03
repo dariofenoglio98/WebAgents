@@ -1,0 +1,8 @@
+{
+  "request": "Find me a flight to Zurich on 9 October under $900.",
+  "booking": false,
+  "purchase": {
+    "quote_id": "",
+    "fare_id": ""
+  }
+}

@@ -24,12 +24,17 @@ NS_PER_MS = 1_000_000
 NS_PER_US = 1_000
 PERCENTILES = (5, 10, 25, 75, 90, 95, 99)
 
-# Recorded live runs of the *same* Meeting Agenda version the benchmark opens,
-# kept in this repository. Read at analysis time, never typed in. Literature
+# Recorded live runs of the *same* package versions the benchmark opens, kept in
+# this repository. Read at analysis time, never typed in. Each entry is (package
+# key, file, location of the run inside it): None for an Agent Browser
+# `run.json`, or the path to one run of a Table I evidence file. Literature
 # Review 0.2.5 has no recorded live run (README, "Recorded results").
+TABLE_I_WEBAIR = ROOT / "examples/verification/webair-030-table1-runs.json"
 CONTEXT_RUNS = (
-    ("meeting-agenda", ROOT / "examples/meeting-agenda-022-qwen/run.json"),
-    ("meeting-agenda", ROOT / "examples/meeting-agenda-022-luna/run.json"),
+    ("meeting-agenda", ROOT / "examples/meeting-agenda-022-qwen/run.json", None),
+    ("meeting-agenda", ROOT / "examples/meeting-agenda-022-luna/run.json", None),
+    ("webair", TABLE_I_WEBAIR, ("runs", "local")),
+    ("webair", TABLE_I_WEBAIR, ("runs", "api")),
 )
 
 
@@ -289,22 +294,45 @@ def component_summary(path: Path, metadata: dict) -> list[dict]:
     return records
 
 
+def _context_record(document: dict, location) -> dict:
+    """run id, status, duration, version and model of one recorded run."""
+    if location is None:  # an Agent Browser run.json
+        return {
+            "run_id": document.get("runId"),
+            "status": document.get("status"),
+            "duration_ms": document.get("durationMs"),
+            "package_version": (document.get("package") or {}).get("version"),
+            "model": (document.get("selectedModel") or {}).get("hostModelId"),
+        }
+    run = document
+    for part in location:  # one run of a Table I evidence file
+        run = run.get(part) or {}
+    return {
+        "run_id": run.get("run_id"),
+        "status": run.get("status"),
+        "duration_ms": run.get("workflow_duration_ms"),
+        "package_version": (document.get("package") or {}).get("version"),
+        "model": (run.get("model") or {}).get("host_model_id"),
+    }
+
+
 def context_runs() -> list[dict]:
     found = []
-    for package_key, path in CONTEXT_RUNS:
+    for package_key, path, location in CONTEXT_RUNS:
         if not path.exists():
             continue
-        record = json.loads(path.read_text(encoding="utf-8"))
-        duration = record.get("durationMs")
-        if not isinstance(duration, (int, float)) or record.get("status") != "completed":
+        record = _context_record(json.loads(path.read_text(encoding="utf-8")), location)
+        duration = record["duration_ms"]
+        if not isinstance(duration, (int, float)) or record["status"] != "completed":
             continue
         found.append(
             {
                 "package_key": package_key,
-                "source": str(path.relative_to(ROOT)),
-                "run_id": record.get("runId"),
-                "package_version": (record.get("package") or {}).get("version"),
-                "model": (record.get("selectedModel") or {}).get("hostModelId"),
+                "source": str(path.relative_to(ROOT))
+                + ("" if location is None else "#" + "/".join(location)),
+                "run_id": record["run_id"],
+                "package_version": record["package_version"],
+                "model": record["model"],
                 "duration_ms": float(duration),
             }
         )
@@ -441,18 +469,28 @@ def interpretation(summary, metadata, audit) -> list[str]:
             f"by *{second['label']}* ({fmt(second['ms']['median'])} ms). Of the four paper "
             f"groups, *{groups[0]['label']}* had the largest median ({fmt(groups[0]['ms']['median'])} ms)."
         )
-    if len(packages) == 2:
-        a, b = packages
-        ra, rb = find(summary, a, total)["ms"]["median"], find(summary, b, total)["ms"]["median"]
-        ia, ib = metadata["packages"][a], metadata["packages"][b]
+    if len(packages) >= 2:
+        ordered = sorted(packages, key=lambda k: find(summary, k, total)["ms"]["median"])
+        smallest = ordered[0]
+        base = find(summary, smallest, total)["ms"]["median"]
+        identities = [metadata["packages"][k] for k in packages]
+
+        def series(field, size=False):
+            values = [len(identity[field]) if size else identity[field] for identity in identities]
+            return " / ".join(f"{value:,}" for value in values)
+
+        def ratio(k):
+            return fmt(find(summary, k, total)["ms"]["median"] / base, 1)
+
+        ratios = ", ".join(f"{metadata['packages'][k]['label']} {ratio(k)}x" for k in ordered[1:])
         out.append(
-            f"- The median total for {ib['label']} was {fmt(rb / ra, 1)}x that of {ia['label']}. "
-            f"The two artifacts differ in several respects at once ({ia['archive_bytes']:,} vs "
-            f"{ib['archive_bytes']:,} archive bytes, {ia['payload_files']} vs {ib['payload_files']} "
-            f"payload files, {ia['graph_nodes']} vs {ib['graph_nodes']} graph nodes, "
-            f"{len(ia['declared_tools'])} vs {len(ib['declared_tools'])} declared tools), so two "
-            "packages do not identify which property drives the difference and do not establish "
-            "a scaling relation."
+            f"- Relative to {metadata['packages'][smallest]['label']}, the median totals were: "
+            f"{ratios}. The artifacts differ in several respects at once "
+            f"({' / '.join(identity['label'] for identity in identities)}: "
+            f"{series('archive_bytes')} archive bytes, {series('payload_files')} payload files, "
+            f"{series('graph_nodes')} graph nodes, {series('declared_tools', size=True)} declared "
+            f"tools), so {len(packages)} packages do not identify which property drives the "
+            "differences and do not establish a scaling relation."
         )
     out.append(
         "- Each measured observation re-verifies the package three times, as production does: "
@@ -489,11 +527,11 @@ def context_section(summary, metadata) -> list[str]:
     lines = [
         "## Optional context (not a paper claim)",
         "",
-        "Recorded live runs of the same Meeting Agenda version, read from run records in this "
-        "repository at analysis time. They were recorded on a host session, not in this "
-        "benchmark, and are shown only to place the measured magnitude next to a workflow "
-        "duration. Literature Review 0.2.5 has no recorded live run in the repository, so no "
-        "ratio is computed for it.",
+        "Recorded live runs of the same package versions, read from run records and evidence "
+        "files in this repository at analysis time. They were recorded on a host session, not "
+        "in this benchmark, and are shown only to place the measured magnitude next to a "
+        "workflow duration. A package with no recorded live run of the benchmarked version in "
+        "the repository (Literature Review 0.2.5) gets no ratio.",
         "",
     ]
     rows = []
@@ -597,6 +635,29 @@ def report(summary, batches, diagnostics, audit, metadata, components=()) -> str
         )
         + " |"
     )
+    identities = [metadata["packages"][k] for k in packages]
+    if all("remote_tools" in identity for identity in identities):
+        lines.append(
+            "| Remote / local tools | "
+            + " | ".join(
+                f"{len(identity['remote_tools'])} / {len(identity['local_tools'])}"
+                for identity in identities
+            )
+            + " |"
+        )
+    if all("host_resource_permissions" in identity for identity in identities):
+        lines.append(
+            "| Host-resource permissions | "
+            + " | ".join(
+                ", ".join(
+                    f"{item['id']} ({', '.join(item['resource_types'])})"
+                    for item in identity["host_resource_permissions"]
+                )
+                or "none"
+                for identity in identities
+            )
+            + " |"
+        )
     lines += [
         "",
         "## Stages (production operations)",
@@ -686,14 +747,17 @@ def report(summary, batches, diagnostics, audit, metadata, components=()) -> str
         "",
         "Order position (0 = ran first within its iteration) and tail of the total:",
         "",
-        "| Package | median at position 0 | median at position 1 | p99 / median | max / median | > 2x median | > 5x median |",
-        "|---|---:|---:|---:|---:|---:|---:|",
+        "| Package | "
+        + " | ".join(f"median at position {i}" for i in range(len(packages)))
+        + " | p99 / median | max / median | > 2x median | > 5x median |",
+        "|---|" + "---:|" * (len(packages) + 4),
     ]
     for effect, tail in zip(diagnostics["position_effect"], diagnostics["tail"], strict=True):
         by = effect["median_ms_by_position"]
         lines.append(
-            f"| {metadata['packages'][effect['package_key']]['label']} | {fmt(by.get('0', float('nan')), 3)} | "
-            f"{fmt(by.get('1', float('nan')), 3)} | {fmt(tail['p99_over_median'], 2)} | "
+            f"| {metadata['packages'][effect['package_key']]['label']} | "
+            + " | ".join(fmt(by.get(str(i), float("nan")), 3) for i in range(len(packages)))
+            + f" | {fmt(tail['p99_over_median'], 2)} | "
             f"{fmt(tail['max_over_median'], 2)} | {tail['above_2x_median']} | {tail['above_5x_median']} |"
         )
     negatives = sum(record["negative"] for record in summary)
@@ -798,8 +862,10 @@ def report(summary, batches, diagnostics, audit, metadata, components=()) -> str
         "equals the real TypeScript output.",
         "- The stop at the first wave replaces `Workflow._gather` in the benchmark process only; "
         "everything before it is unmodified production code.",
-        "- One machine, one Python process, two packages. Absolute values depend on the machine "
-        "and on the trust store contents (two pinned keys here); they are not a scaling law.",
+        f"- One machine, one Python process, {len(packages)} packages. Absolute values depend on "
+        "the machine, on the trust store contents "
+        f"({len(packages)} pinned keys here) and on the host's tool and resource registries; "
+        "they are not a scaling law.",
         "",
         "## Files",
         "",

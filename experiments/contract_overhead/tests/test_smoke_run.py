@@ -50,6 +50,14 @@ def test_a_run_writes_every_result_file_and_they_parse(smoke_result):
             assert _rows(smoke_result / name), name
     table = (smoke_result / "paper_table.tex").read_text()
     assert table.count("\\begin{tabular}") == 1 and "\\bottomrule" in table
+    # One median/p95 column pair per package, in package order.
+    assert "\\begin{tabular}{l" + "rr" * len(benchmark.PACKAGES) + "}" in table
+    heads = [
+        f"\\multicolumn{{2}}{{c}}{{{label}}}"
+        for label in ("Meeting Agenda 0.2.2", "Literature Review 0.2.5", "WebAir 0.3.0")
+    ]
+    assert all(head in table for head in heads)
+    assert table.index(heads[0]) < table.index(heads[1]) < table.index(heads[2])
     assert "Paper-ready interpretation" in (smoke_result / "report.md").read_text()
     assert "benchmark.py" in (smoke_result / "command.txt").read_text()
 
@@ -174,6 +182,13 @@ def test_the_audit_and_component_samples_are_complete(smoke_result):
     audit = _rows(smoke_result / "audit_samples.csv")
     assert {row["variant"] for row in audit} == {"no_observer", "progress_observer"}
     assert all(int(row["elapsed_ns"]) > 0 for row in audit)
+    # Only committed recorded streams are replayed; none is synthesized for a
+    # package without one.
+    assert {row["stream"] for row in audit} == {
+        spec.key for spec in benchmark.PACKAGES if spec.recorded_audit is not None
+    }
+    metadata = json.loads((smoke_result / "metadata.json").read_text())
+    assert metadata["audit"]["packages_without_recorded_stream"] == ["webair"]
     components = _rows(smoke_result / "component_samples.csv")
     assert {row["component"] for row in components} == set(benchmark.COMPONENTS)
     assert len(components) == len(benchmark.PACKAGES) * len(benchmark.COMPONENTS) * BATCHES * 2
@@ -218,8 +233,8 @@ def test_running_the_pipeline_mutates_no_package_or_runtime_state(tmp_path):
     pipeline = benchmark.ContractPipeline(tmp_path / "work", benchmark.Fixtures.load())
     try:
         with benchmark.OfflineGuard() as guard:
-            for key in ("meeting-agenda", "literature-review"):
-                pipeline.run_once(key)
+            for spec in benchmark.PACKAGES:
+                pipeline.run_once(spec.key)
         assert guard.violations == []
     finally:
         pipeline.close()

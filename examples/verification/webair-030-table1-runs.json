@@ -1,0 +1,796 @@
+{
+  "profile": "webair-table1-runs-v0",
+  "purpose": "The canonical WebAir 0.3.0 rows of the paper's end-to-end table (Table I): one profile-assisted search, run unchanged under a local and an API model binding.",
+  "command": "agentpkg/.venv/bin/python scripts/verify_webair_table1.py",
+  "notice": "WebAir is a fictional airline. No real booking, payment or transaction occurs.",
+  "package": {
+    "artifact": "dist/webair-0.3.0.agent.pkg",
+    "package_id": "org.webagents.webair",
+    "version": "0.3.0",
+    "archive_sha256": "b537cf5cba06bce8137533eb75b491486f57caf3098af30f657343b741492887",
+    "archive_bytes": 167193,
+    "package_digest": "ffe8f5b344f97c631498bb6da3e17217ae7e5730721935b0e66c5d595b335e94"
+  },
+  "task": {
+    "input": {
+      "booking": false,
+      "purchase": {
+        "fare_id": "",
+        "quote_id": ""
+      },
+      "request": " Find me a flight to Zurich on 9 October under $900."
+    },
+    "input_sha256": "eeca856beeecb135643639dabcea0a19c42b1c94b3fe50f296419cb838b28d58",
+    "note": "The request as typed in the Agent Browser for both runs, including its leading space. The search reads the host travel profile for what the request leaves unstated (origin, cabin, nonstop)."
+  },
+  "authorization": {
+    "decisions": {
+      "booking.simulate_purchase": "session",
+      "identity.passenger": "session",
+      "memory.session": "session",
+      "model.reasoning": "session",
+      "network.webair": "session",
+      "profile.travel": "session",
+      "wallet.payment": "session"
+    },
+    "resource_grants": [
+      {
+        "permission": "identity.passenger",
+        "type": "personal.passenger_identity",
+        "resource_id": "passenger_demo_alex",
+        "digest_prefix": "5bb0bd98c256"
+      },
+      {
+        "permission": "profile.travel",
+        "type": "personal.travel_profile",
+        "resource_id": "profile_demo_traveler",
+        "digest_prefix": "e34c2bc27590"
+      },
+      {
+        "permission": "wallet.payment",
+        "type": "wallet.payment_method",
+        "resource_id": "payment_demo_travel",
+        "digest_prefix": "8429c300157a"
+      }
+    ],
+    "note": "Both runs ran under one Agent Browser session's authorization, which allowed all seven declared permissions for the session and selected one resource of each host-resource type. The search path read only the travel profile: the passenger, payment, quote and purchase nodes were skipped and their tools made no call. This is broader consent than a search needs (the accepted demo search in webair-030-live-demo.json denies the identity, payment and purchase permissions); it is identical across the two runs."
+  },
+  "table_i_rows": [
+    {
+      "package": "WebAir",
+      "binding": "Local",
+      "model": "Qwen3-30B",
+      "host_model_id": "ollama/qwen3:30b",
+      "model_calls": 3,
+      "external_tool_calls": 4,
+      "host_resource_reads": 1,
+      "peak_parallel_workers": 3,
+      "reported_tokens": 11577,
+      "workflow_duration_s": 81.7,
+      "audit_events": 241,
+      "model_cost_usd": null
+    },
+    {
+      "package": "WebAir",
+      "binding": "API",
+      "model": "GPT-5.6 Luna",
+      "host_model_id": "openai/gpt-5.6-luna",
+      "model_calls": 3,
+      "external_tool_calls": 4,
+      "host_resource_reads": 1,
+      "peak_parallel_workers": 3,
+      "reported_tokens": 7716,
+      "workflow_duration_s": 18.6,
+      "audit_events": 247,
+      "model_cost_usd": 0.0094
+    }
+  ],
+  "runs": {
+    "local": {
+      "run_id": "run_8dcfcde45f3344edb7f52d950083a680",
+      "status": "completed",
+      "error_code": null,
+      "created_at": "2026-10-03T14:30:13.538Z",
+      "model": {
+        "host_model_id": "ollama/qwen3:30b",
+        "provider_id": "ollama",
+        "model_id": "qwen3:30b",
+        "display_name": "qwen3:30b",
+        "local": true,
+        "invoked": [
+          "ollama/qwen3:30b"
+        ],
+        "all_calls_used_planned_model": true
+      },
+      "model_calls": 3,
+      "model_calls_in_audit": 3,
+      "model_tasks_in_audit": {
+        "answer": 1,
+        "interpret": 1,
+        "select": 1
+      },
+      "external_tool_calls": 4,
+      "host_resource_reads": 1,
+      "tool_calls_total": 5,
+      "tool_calls_by_tool": {
+        "get-fare-rules": 3,
+        "personal.travel_profile": 1,
+        "search-flights": 1
+      },
+      "external_call_domains": [
+        "webagents-webair-production.up.railway.app"
+      ],
+      "peak_parallel_workers": 3,
+      "reported_tokens": 11577,
+      "workflow_duration_ms": 81732,
+      "workflow_duration_s": 81.7,
+      "audit_events": 241,
+      "audit_events_in_file": 241,
+      "audit_chain_valid_recorded": true,
+      "audit_chain_valid_reverified": true,
+      "audit_final_hash": "4313244bff2cb17e4d0fb4424dd0ee27e3bbaaf148ddf5cc422edf77df461248",
+      "model_cost_usd": null,
+      "model_cost_status": "complete",
+      "model_cost_note": "local model: no provider charge recorded; hardware and energy cost not measured",
+      "deadline_exceeded": false,
+      "resource_grants": [
+        {
+          "permission": "identity.passenger",
+          "type": "personal.passenger_identity",
+          "resource_id": "passenger_demo_alex",
+          "digest_prefix": "5bb0bd98c256"
+        },
+        {
+          "permission": "profile.travel",
+          "type": "personal.travel_profile",
+          "resource_id": "profile_demo_traveler",
+          "digest_prefix": "e34c2bc27590"
+        },
+        {
+          "permission": "wallet.payment",
+          "type": "wallet.payment_method",
+          "resource_id": "payment_demo_travel",
+          "digest_prefix": "8429c300157a"
+        }
+      ],
+      "outcome": {
+        "search_query": {
+          "origin": "BOS",
+          "destination": "ZRH",
+          "date": "2026-10-09",
+          "passengers": 1,
+          "nonstop_only": true,
+          "max_price_usd": 900,
+          "cabin": "economy"
+        },
+        "fares_returned": {
+          "WA101-20261009-BASIC": 704,
+          "WA101-20261009-STANDARD": 858,
+          "WA105-20261009-BASIC": 749
+        },
+        "booking": null,
+        "purchase": null
+      },
+      "source": {
+        "run_record": "agent-browser run record run_8dcfcde45f3344edb7f52d950083a680",
+        "files": {
+          "run.json": {
+            "bytes": 16501,
+            "sha256": "513b5d6202526d020a44c1e84b5d96a9d4127a585a44b5bea5d057f6d8d47045"
+          },
+          "audit.json": {
+            "bytes": 151299,
+            "sha256": "b3615922528aaf446fad862a4c7f9689110c78ee1ceecadda38083d6343534fe"
+          },
+          "usage.json": {
+            "bytes": 2100,
+            "sha256": "62962b9bb4682c193fd90c0c87cc904d01764154af94202b6a9432d3b8f1c9cc"
+          },
+          "search.json": {
+            "bytes": 2942,
+            "sha256": "5efd878f3c66a15e93284cc73194b9fe4354e6fdd02445fb2b8026d7f0ae663c"
+          },
+          "fare-rules.json": {
+            "bytes": 4321,
+            "sha256": "8e2cc3bda80907e01b8604509a63e552a3da59857f28caf798f7291f49948f44"
+          },
+          "booking.json": {
+            "bytes": 42,
+            "sha256": "38068a369bc780ebe17dbc2a84fc7a8d7fc6d7858af6e1c925ecc0a91dd16149"
+          }
+        }
+      }
+    },
+    "api": {
+      "run_id": "run_a3a1337cd6454cc3989ca19ad72b0950",
+      "status": "completed",
+      "error_code": null,
+      "created_at": "2026-10-03T14:26:53.397Z",
+      "model": {
+        "host_model_id": "openai/gpt-5.6-luna",
+        "provider_id": "openai",
+        "model_id": "gpt-5.6-luna",
+        "display_name": "GPT-5.6-Luna",
+        "local": false,
+        "invoked": [
+          "openai/gpt-5.6-luna"
+        ],
+        "all_calls_used_planned_model": true
+      },
+      "model_calls": 3,
+      "model_calls_in_audit": 3,
+      "model_tasks_in_audit": {
+        "answer": 1,
+        "interpret": 1,
+        "select": 1
+      },
+      "external_tool_calls": 4,
+      "host_resource_reads": 1,
+      "tool_calls_total": 5,
+      "tool_calls_by_tool": {
+        "get-fare-rules": 3,
+        "personal.travel_profile": 1,
+        "search-flights": 1
+      },
+      "external_call_domains": [
+        "webagents-webair-production.up.railway.app"
+      ],
+      "peak_parallel_workers": 3,
+      "reported_tokens": 7716,
+      "workflow_duration_ms": 18598,
+      "workflow_duration_s": 18.6,
+      "audit_events": 247,
+      "audit_events_in_file": 247,
+      "audit_chain_valid_recorded": true,
+      "audit_chain_valid_reverified": true,
+      "audit_final_hash": "c2ba6c9b9d0f61aebc2a803abb40413b7a3ca833c9f17a7c1b3b0bd8a288e389",
+      "model_cost_usd": 0.009396,
+      "model_cost_status": "complete",
+      "model_cost_note": "provider-reported cost of every model call",
+      "deadline_exceeded": false,
+      "resource_grants": [
+        {
+          "permission": "identity.passenger",
+          "type": "personal.passenger_identity",
+          "resource_id": "passenger_demo_alex",
+          "digest_prefix": "5bb0bd98c256"
+        },
+        {
+          "permission": "profile.travel",
+          "type": "personal.travel_profile",
+          "resource_id": "profile_demo_traveler",
+          "digest_prefix": "e34c2bc27590"
+        },
+        {
+          "permission": "wallet.payment",
+          "type": "wallet.payment_method",
+          "resource_id": "payment_demo_travel",
+          "digest_prefix": "8429c300157a"
+        }
+      ],
+      "outcome": {
+        "search_query": {
+          "origin": "BOS",
+          "destination": "ZRH",
+          "date": "2026-10-09",
+          "passengers": 1,
+          "nonstop_only": true,
+          "max_price_usd": 900,
+          "cabin": "economy"
+        },
+        "fares_returned": {
+          "WA101-20261009-BASIC": 704,
+          "WA101-20261009-STANDARD": 858,
+          "WA105-20261009-BASIC": 749
+        },
+        "booking": null,
+        "purchase": null
+      },
+      "source": {
+        "run_record": "agent-browser run record run_a3a1337cd6454cc3989ca19ad72b0950",
+        "files": {
+          "run.json": {
+            "bytes": 16545,
+            "sha256": "c67bb784b69a38ea8126da2918a6c6305677f75f57bb9696b1b460486e0aa19d"
+          },
+          "audit.json": {
+            "bytes": 154499,
+            "sha256": "145aaf0666b50f6fb2294a3ed24264f99505dfd8dd3d3d48ea6c773f5e88f640"
+          },
+          "usage.json": {
+            "bytes": 2100,
+            "sha256": "20362f6136eb876f4e9778049779e603108adfcf6194ea4f3a666c4addd23fbd"
+          },
+          "search.json": {
+            "bytes": 2942,
+            "sha256": "5efd878f3c66a15e93284cc73194b9fe4354e6fdd02445fb2b8026d7f0ae663c"
+          },
+          "fare-rules.json": {
+            "bytes": 4321,
+            "sha256": "8e2cc3bda80907e01b8604509a63e552a3da59857f28caf798f7291f49948f44"
+          },
+          "booking.json": {
+            "bytes": 42,
+            "sha256": "38068a369bc780ebe17dbc2a84fc7a8d7fc6d7858af6e1c925ecc0a91dd16149"
+          }
+        }
+      }
+    }
+  },
+  "pair_comparison": {
+    "identical_fields": {
+      "package": {
+        "identical": true,
+        "sha256": "bb6bc61cfc2998924c815c8407d55e63c0e489d2d1877f6e55f18d85ef4ec4de"
+      },
+      "task_input_sha256": {
+        "identical": true,
+        "sha256": "7a6c3d781c7f8c17199b9bf7c7a3029661bb1d1122bbeb496cc32b561dca3946"
+      },
+      "task_input": {
+        "identical": true,
+        "sha256": "eeca856beeecb135643639dabcea0a19c42b1c94b3fe50f296419cb838b28d58"
+      },
+      "attachments": {
+        "identical": true,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "decisions": {
+        "identical": true,
+        "sha256": "4838a628be86912096e92ccb101290964e87eb49088d76829a220809ba7eb3fa"
+      },
+      "granted_permission_ids": {
+        "identical": true,
+        "sha256": "7fab58f7d9c1c879dc11406a7b3703b6550c4535cd7c3a04947c94173714dbb2"
+      },
+      "runtime_grant_scopes": {
+        "identical": true,
+        "sha256": "f33970102d900ec2f91a7cf2260159b1a34da1cdd88e345ca7fdb80131d13968"
+      },
+      "resource_grants": {
+        "identical": true,
+        "sha256": "bbd1d1e79635e988dc6f8d139778a934f5fc8f8e01adbd2642bac805b0b5df34"
+      },
+      "tool_bindings": {
+        "identical": true,
+        "sha256": "179e02313a6ea1f6a1615270d4db72f896a982d4d16944a551f46c2191b514ca"
+      },
+      "host_limits": {
+        "identical": true,
+        "sha256": "4d27a0df6f0acd49d3fae717f378a2061829d1c73fc65e52c36aa2d3f65746f6"
+      },
+      "package_budget_limits": {
+        "identical": true,
+        "sha256": "77dc34ddc9ac5eaf08f9b0dcef8bc08537e3e61746e9a7d87a4e4846e10dd3f9"
+      },
+      "host_runtime": {
+        "identical": true,
+        "sha256": "84f2d7dd4de63aba874772bd92610c9d4df6ba90421fc22a7379179c11ca81a0"
+      },
+      "agent_browser_session": {
+        "identical": true,
+        "sha256": "1f4a0a7bead444a5a95dd42ec7f56ed995027c646936b881074ea607fdedab76"
+      },
+      "tool_call_sequence": {
+        "identical": true,
+        "sha256": "dc96c33295d73b165f7e4c4e1e44215ab1cf14c4ed4e296d33c343289236fe8f"
+      },
+      "completed_nodes": {
+        "identical": true,
+        "sha256": "cda293fb9406fdc83e9cdd7223b1e65303bb6000c419011c303ace004c69bb7b"
+      },
+      "skipped_nodes": {
+        "identical": true,
+        "sha256": "80d50d8be4d961e74bd58070fed361a4df765af9a20257b6211bdd1cb0874af8"
+      },
+      "live_search_answer_sha256": {
+        "identical": true,
+        "sha256": "ddcd087d18203019207db8026f8406d0cec10a79a7a78ed597942d79e209f783"
+      },
+      "live_fare_rules_answer_sha256": {
+        "identical": true,
+        "sha256": "0116e1d4e8b2977f15b6c060bb630c6935436686e03421a3ef55540816dcf96e"
+      }
+    },
+    "differing_by_design": {
+      "host_model": [
+        "ollama/qwen3:30b",
+        "openai/gpt-5.6-luna"
+      ],
+      "run_plan_sha256": [
+        "14139f34f72f7bbf77262981e8088baa7793ebec469c5aaf676e4ad981bae06a",
+        "9fbf67c7ba2ceca7a8824b51364519ee4d6edf092d00961be91a92ef773312c5"
+      ],
+      "note": "Each Run Plan freezes its model binding, so the two plans differ by construction; the package, receipt decisions, resource grants and tool bindings they freeze are the identical fields above."
+    }
+  },
+  "existing_table_i_rows": {
+    "meeting-agenda/local": {
+      "run_id": "run_34fdabdec10f45d19f60ff33077b9503",
+      "available": true,
+      "package_version": "0.2.2",
+      "model": "ollama/qwen3:30b",
+      "derived": {
+        "model_calls": 5,
+        "external_tool_calls": 0,
+        "peak_parallel_workers": 3,
+        "reported_tokens": 11346,
+        "workflow_duration_s": 154.3,
+        "audit_events": 92,
+        "model_cost_usd": null
+      },
+      "host_resource_reads": 0,
+      "matches_paper_table_i": true
+    },
+    "meeting-agenda/api": {
+      "run_id": "run_1c2ca9749ead4151b9ddc276271c5604",
+      "available": true,
+      "package_version": "0.2.2",
+      "model": "openai/gpt-5.6-luna",
+      "derived": {
+        "model_calls": 5,
+        "external_tool_calls": 0,
+        "peak_parallel_workers": 3,
+        "reported_tokens": 5198,
+        "workflow_duration_s": 29.4,
+        "audit_events": 102,
+        "model_cost_usd": 0.0147
+      },
+      "host_resource_reads": 0,
+      "matches_paper_table_i": true
+    },
+    "literature-review/local": {
+      "run_id": "run_322dca7785ba45cca1551243e1a35b23",
+      "available": true,
+      "package_version": "0.2.4",
+      "model": "ollama/qwen3:30b",
+      "derived": {
+        "model_calls": 18,
+        "external_tool_calls": 6,
+        "peak_parallel_workers": 3,
+        "reported_tokens": 100352,
+        "workflow_duration_s": 1489.8,
+        "audit_events": 572,
+        "model_cost_usd": null
+      },
+      "host_resource_reads": 0,
+      "matches_paper_table_i": true
+    },
+    "literature-review/api": {
+      "run_id": "run_a71e5b0fa7574328aa87597ae8882c85",
+      "available": true,
+      "package_version": "0.2.4",
+      "model": "openai/gpt-5.6-luna",
+      "derived": {
+        "model_calls": 18,
+        "external_tool_calls": 6,
+        "peak_parallel_workers": 3,
+        "reported_tokens": 68398,
+        "workflow_duration_s": 417.6,
+        "audit_events": 678,
+        "model_cost_usd": 0.2005
+      },
+      "host_resource_reads": 0,
+      "matches_paper_table_i": true
+    }
+  },
+  "checks": [
+    {
+      "id": "local_package_is_webair_030",
+      "passed": true
+    },
+    {
+      "id": "local_archive_is_the_committed_artifact",
+      "passed": true,
+      "detail": {
+        "run": "b537cf5cba06bce8137533eb75b491486f57caf3098af30f657343b741492887",
+        "dist/webair-0.3.0.agent.pkg": "b537cf5cba06bce8137533eb75b491486f57caf3098af30f657343b741492887"
+      }
+    },
+    {
+      "id": "api_package_is_webair_030",
+      "passed": true
+    },
+    {
+      "id": "api_archive_is_the_committed_artifact",
+      "passed": true,
+      "detail": {
+        "run": "b537cf5cba06bce8137533eb75b491486f57caf3098af30f657343b741492887",
+        "dist/webair-0.3.0.agent.pkg": "b537cf5cba06bce8137533eb75b491486f57caf3098af30f657343b741492887"
+      }
+    },
+    {
+      "id": "local_completed",
+      "passed": true
+    },
+    {
+      "id": "local_audit_chain_valid",
+      "passed": true
+    },
+    {
+      "id": "local_audit_event_count_agrees",
+      "passed": true
+    },
+    {
+      "id": "local_model_calls_agree_with_audit",
+      "passed": true
+    },
+    {
+      "id": "local_every_call_used_the_planned_model",
+      "passed": true
+    },
+    {
+      "id": "local_tool_calls_split_without_remainder",
+      "passed": true
+    },
+    {
+      "id": "local_external_calls_reach_only_the_public_webair_origin",
+      "passed": true
+    },
+    {
+      "id": "local_within_deadline",
+      "passed": true
+    },
+    {
+      "id": "local_search_is_bos_zrh_economy_nonstop_under_900",
+      "passed": true,
+      "detail": {
+        "origin": "BOS",
+        "destination": "ZRH",
+        "date": "2026-10-09",
+        "passengers": 1,
+        "nonstop_only": true,
+        "max_price_usd": 900,
+        "cabin": "economy"
+      }
+    },
+    {
+      "id": "local_search_returned_the_three_expected_fares",
+      "passed": true,
+      "detail": {
+        "WA101-20261009-BASIC": 704,
+        "WA101-20261009-STANDARD": 858,
+        "WA105-20261009-BASIC": 749
+      }
+    },
+    {
+      "id": "local_no_booking_or_purchase",
+      "passed": true
+    },
+    {
+      "id": "api_completed",
+      "passed": true
+    },
+    {
+      "id": "api_audit_chain_valid",
+      "passed": true
+    },
+    {
+      "id": "api_audit_event_count_agrees",
+      "passed": true
+    },
+    {
+      "id": "api_model_calls_agree_with_audit",
+      "passed": true
+    },
+    {
+      "id": "api_every_call_used_the_planned_model",
+      "passed": true
+    },
+    {
+      "id": "api_tool_calls_split_without_remainder",
+      "passed": true
+    },
+    {
+      "id": "api_external_calls_reach_only_the_public_webair_origin",
+      "passed": true
+    },
+    {
+      "id": "api_within_deadline",
+      "passed": true
+    },
+    {
+      "id": "api_search_is_bos_zrh_economy_nonstop_under_900",
+      "passed": true,
+      "detail": {
+        "origin": "BOS",
+        "destination": "ZRH",
+        "date": "2026-10-09",
+        "passengers": 1,
+        "nonstop_only": true,
+        "max_price_usd": 900,
+        "cabin": "economy"
+      }
+    },
+    {
+      "id": "api_search_returned_the_three_expected_fares",
+      "passed": true,
+      "detail": {
+        "WA101-20261009-BASIC": 704,
+        "WA101-20261009-STANDARD": 858,
+        "WA105-20261009-BASIC": 749
+      }
+    },
+    {
+      "id": "api_no_booking_or_purchase",
+      "passed": true
+    },
+    {
+      "id": "local_binding_is_qwen3_30b",
+      "passed": true
+    },
+    {
+      "id": "api_binding_is_gpt_5_6_luna",
+      "passed": true
+    },
+    {
+      "id": "pair_identical_package",
+      "passed": true
+    },
+    {
+      "id": "pair_identical_task_input_sha256",
+      "passed": true
+    },
+    {
+      "id": "pair_identical_task_input",
+      "passed": true
+    },
+    {
+      "id": "pair_identical_attachments",
+      "passed": true
+    },
+    {
+      "id": "pair_identical_decisions",
+      "passed": true
+    },
+    {
+      "id": "pair_identical_granted_permission_ids",
+      "passed": true
+    },
+    {
+      "id": "pair_identical_runtime_grant_scopes",
+      "passed": true
+    },
+    {
+      "id": "pair_identical_resource_grants",
+      "passed": true
+    },
+    {
+      "id": "pair_identical_tool_bindings",
+      "passed": true
+    },
+    {
+      "id": "pair_identical_host_limits",
+      "passed": true
+    },
+    {
+      "id": "pair_identical_package_budget_limits",
+      "passed": true
+    },
+    {
+      "id": "pair_identical_host_runtime",
+      "passed": true
+    },
+    {
+      "id": "pair_identical_agent_browser_session",
+      "passed": true
+    },
+    {
+      "id": "pair_identical_tool_call_sequence",
+      "passed": true
+    },
+    {
+      "id": "pair_identical_completed_nodes",
+      "passed": true
+    },
+    {
+      "id": "pair_identical_skipped_nodes",
+      "passed": true
+    },
+    {
+      "id": "pair_identical_live_search_answer_sha256",
+      "passed": true
+    },
+    {
+      "id": "pair_identical_live_fare_rules_answer_sha256",
+      "passed": true
+    },
+    {
+      "id": "existing_row_meeting-agenda_local_matches_paper_definitions",
+      "passed": true,
+      "detail": {
+        "derived": [
+          5,
+          0,
+          3,
+          11346,
+          154.3,
+          92,
+          null
+        ],
+        "paper": [
+          5,
+          0,
+          3,
+          11346,
+          154.3,
+          92,
+          null
+        ]
+      }
+    },
+    {
+      "id": "existing_row_meeting-agenda_api_matches_paper_definitions",
+      "passed": true,
+      "detail": {
+        "derived": [
+          5,
+          0,
+          3,
+          5198,
+          29.4,
+          102,
+          0.0147
+        ],
+        "paper": [
+          5,
+          0,
+          3,
+          5198,
+          29.4,
+          102,
+          0.0147
+        ]
+      }
+    },
+    {
+      "id": "existing_row_literature-review_local_matches_paper_definitions",
+      "passed": true,
+      "detail": {
+        "derived": [
+          18,
+          6,
+          3,
+          100352,
+          1489.8,
+          572,
+          null
+        ],
+        "paper": [
+          18,
+          6,
+          3,
+          100352,
+          1489.8,
+          572,
+          null
+        ]
+      }
+    },
+    {
+      "id": "existing_row_literature-review_api_matches_paper_definitions",
+      "passed": true,
+      "detail": {
+        "derived": [
+          18,
+          6,
+          3,
+          68398,
+          417.6,
+          678,
+          0.2005
+        ],
+        "paper": [
+          18,
+          6,
+          3,
+          68398,
+          417.6,
+          678,
+          0.2005
+        ]
+      }
+    }
+  ],
+  "passed": true
+}

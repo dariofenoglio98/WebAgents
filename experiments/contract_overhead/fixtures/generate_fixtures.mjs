@@ -1,30 +1,38 @@
 // Generate the deterministic host fixtures for the contract-overhead benchmark.
 //
-// Both fixtures are produced by the Agent Browser plugin's own host code (the
+// Every fixture is produced by the Agent Browser plugin's own host code (the
 // built `openclaw-agent-browser/dist`), not written by hand:
 //
-//   host-model-catalog.json  discoverHostModels() over one OpenClaw catalog row,
-//                            the documented `ollama/qwen3:30b` configuration used
-//                            for the recorded local runs (docs/getting-started.md)
-//   host-tool-registry.json  buildToolRegistry() with the plugin's built-in
-//                            bindings and the recorded execution policy
+//   host-model-catalog.json     discoverHostModels() over one OpenClaw catalog row,
+//                               the documented `ollama/qwen3:30b` configuration used
+//                               for the recorded local runs (docs/getting-started.md)
+//   host-tool-registry.json     buildToolRegistry() over the definitions the plugin's
+//                               backend assembles for a host configured like the
+//                               WebAir live demo (benchmark_host.mjs): the built-in
+//                               bindings, one host-resource binding per resource
+//                               type, and the operator bindings file's WebAir
+//                               entries; with the recorded execution policy
+//   host-resource-registry.json HostResourceStore.registry() for that host's
+//                               resources file: ids, labels and keyed digests,
+//                               never a value
+//   host-execution-policy.json  resolvePolicy() over the recorded runs' settings
 //
-// The only substitution is OpenClaw's model-provider lookup, replaced through
-// the `browse` seam `ModelHost` exposes for exactly this purpose, so that no
-// OpenClaw configuration, gateway or credential is read. `captured_at` is then
-// pinned so the fixture bytes are reproducible.
+// The substitutions are OpenClaw's model-provider lookup, replaced through the
+// `browse` seam `ModelHost` exposes for exactly this purpose, so that no OpenClaw
+// configuration, gateway or credential is read; the host-resource digest key
+// (benchmark_host.mjs); and `captured_at`, pinned. Together they make the
+// fixture bytes reproducible.
 //
 // Usage, from the repository root:
 //   node experiments/contract_overhead/fixtures/generate_fixtures.mjs
 //   node experiments/contract_overhead/fixtures/generate_fixtures.mjs --check
 
 import { readFileSync, writeFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { DIST, benchmarkHost } from "./benchmark_host.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const ROOT = resolve(HERE, "../../..");
-const DIST = join(ROOT, "openclaw-agent-browser/dist");
 const CAPTURED_AT = "2026-10-01T00:00:00.000Z";
 const OPENCLAW_VERSION = "2026.9.5";
 const PLUGIN_ID = "agent-browser";
@@ -80,17 +88,23 @@ const catalog = await discoverHostModels({
 });
 catalog.host.captured_at = CAPTURED_AT;
 
+const host = await benchmarkHost();
 const policy = resolvePolicy(EXECUTION);
 const registry = buildToolRegistry({
   host: { runtimeVersion: OPENCLAW_VERSION, agentId: null },
   env: {},
   policy,
+  definitions: host.toolDefinitions(),
 });
 registry.host.captured_at = CAPTURED_AT;
+
+const resources = host.store.registry({ runtimeVersion: OPENCLAW_VERSION });
+resources.host.captured_at = CAPTURED_AT;
 
 const outputs = {
   "host-model-catalog.json": catalog,
   "host-tool-registry.json": registry,
+  "host-resource-registry.json": resources,
   "host-execution-policy.json": policy,
 };
 

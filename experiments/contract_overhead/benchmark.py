@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """Contract-overhead benchmark: local latency of the package-to-execution contract.
 
-Measures, for the two current signed packages, the wall-clock time from "the
+Measures, for each current signed package, the wall-clock time from "the
 package bytes are in memory" to "the interpreter is about to dispatch the first
 workflow node", through the real production operations and nothing else:
 
     t0  ControlPlane._open_bytes        snapshot, container, integrity, schema,
     t1                                   runtime profile, Ed25519, publisher trust
-        ControlPlane.authorize          digest-bound authorization receipt
-    t2
+        ControlPlane.authorize          digest-bound authorization receipt,
+    t2                                   with the host's resource grants
         ControlPlane.evaluate_models    host catalog and tool registry against
         ControlPlane.evaluate_tools     the package's declarations
     t3
@@ -61,7 +61,7 @@ FIXTURES = HERE / "fixtures"
 RESULTS = HERE / "results"
 
 BENCHMARK_NAME = "contract_overhead"
-BENCHMARK_VERSION = "1.0.0"
+BENCHMARK_VERSION = "1.1.0"
 
 # Paper protocol defaults (README, "Protocol").
 DEFAULT_WARMUP = 50
@@ -100,9 +100,11 @@ STAGE_LABELS = {
 }
 STAGE_OPERATIONS = {
     "package_open_verify": "ControlPlane._open_bytes",
-    "authorization_receipt": "ControlPlane.authorize",
+    "authorization_receipt": (
+        "ControlPlane.authorize (with the host resource registry and selections)"
+    ),
     "compatibility_evaluation": "ControlPlane.evaluate_models + ControlPlane.evaluate_tools",
-    "run_plan_preparation": "ControlPlane.prepare_run_plan",
+    "run_plan_preparation": "ControlPlane.prepare_run_plan (with the host resource registry)",
     "host_revalidation_lease": (
         "ControlPlane.validate_input + run_plan + summary + authorization "
         "[+ evaluate_tools when tools are bound] + issue_execution_lease"
@@ -163,7 +165,9 @@ class PackageSpec:
     archive: Path
     publisher_key: Path
     task_input: Path
-    recorded_audit: Path
+    # A committed audit stream of a recorded live run of this package, for the
+    # optional audit-event microbenchmark; None when the repository holds none.
+    recorded_audit: Path | None = None
 
 
 PACKAGES = (
@@ -182,6 +186,14 @@ PACKAGES = (
         publisher_key=ROOT / "examples/keys/literature-review-publisher.pub.pem",
         task_input=FIXTURES / "literature-review-input.json",
         recorded_audit=ROOT / "examples/literature-review-live/audit.json",
+    ),
+    PackageSpec(
+        key="webair",
+        label="WebAir",
+        # The versioned artifact: the `webair.agent.pkg` alias deliberately stays 0.1.0.
+        archive=ROOT / "dist/webair-0.3.0.agent.pkg",
+        publisher_key=ROOT / "examples/keys/webair-publisher.pub.pem",
+        task_input=FIXTURES / "webair-input.json",
     ),
 )
 
@@ -374,11 +386,22 @@ def project_for_runner(plan: dict, receipt: dict) -> tuple[dict, dict]:
     (`drive`) sends. It selects fields; it checks nothing. The runner refuses
     unknown fields, so this must match exactly, and
     `tests/test_fidelity.py` compares it with the real TypeScript output.
+    That includes the host-resource grants the plan froze, by reference,
+    which `revalidate` adds only when there are any (`plannedResources`).
     """
     planned = _record(plan.get("package"))
     publisher = _record(plan.get("publisher"))
     execution = _record(plan.get("execution"))
     tools = [_record(item) for item in plan.get("tool_bindings") or []]
+    resources = [
+        {
+            "permission_id": _str(grant.get("permission_id")),
+            "resource_type": _str(grant.get("resource_type")),
+            "resource_id": _str(grant.get("resource_id")),
+            "resource_digest": _str(grant.get("resource_digest")),
+        }
+        for grant in (_record(item) for item in plan.get("resource_grants") or [])
+    ]
     model = _record(plan.get("model_binding"))
     descriptor = _record(model.get("descriptor"))
     compatibility = _record(model.get("compatibility"))
@@ -409,6 +432,7 @@ def project_for_runner(plan: dict, receipt: dict) -> tuple[dict, dict]:
             "required_tool_ids": sorted(_str(item.get("tool_id")) for item in tools),
         },
         "tool_bindings": tools,
+        **({"resource_grants": resources} if resources else {}),
         "model_binding": {
             "host_model_id": _str(model.get("host_model_id")),
             "provider_id": _str(model.get("provider_id")),
@@ -461,6 +485,10 @@ class Fixtures:
     policy: dict
     authorization: dict
     inputs: dict
+    # What the host holds for the person: ids, labels and digests, no value.
+    # The benchmark's host holds resources, so, as the plugin's backend does,
+    # every authorize and prepare_run_plan call carries it, for every package.
+    resource_registry: dict | None = None
     files: dict = field(default_factory=dict)
 
     @classmethod
@@ -468,6 +496,7 @@ class Fixtures:
         files = {
             "host-model-catalog.json": FIXTURES / "host-model-catalog.json",
             "host-tool-registry.json": FIXTURES / "host-tool-registry.json",
+            "host-resource-registry.json": FIXTURES / "host-resource-registry.json",
             "host-execution-policy.json": FIXTURES / "host-execution-policy.json",
             "authorization.json": FIXTURES / "authorization.json",
         }
@@ -479,6 +508,7 @@ class Fixtures:
             policy=_load_json(files["host-execution-policy.json"]),
             authorization=_load_json(files["authorization.json"])["packages"],
             inputs={spec.key: _load_json(spec.task_input) for spec in packages},
+            resource_registry=_load_json(files["host-resource-registry.json"]),
             files={
                 name: {"path": _rel(path), "sha256": _sha256_file(path)}
                 for name, path in files.items()
@@ -538,6 +568,7 @@ class ContractPipeline:
     # The operator's one-time "Trust this publisher key" action, at package
     # scope, through the same production call the page uses. Not timed.
     def _pin_publisher(self, spec: PackageSpec) -> None:
+        from agentpkg.browser.hostresources import RESOURCE_PERMISSION_KINDS
         from agentpkg.package import read_regular_bytes
 
         data = read_regular_bytes(spec.archive, self.control.config.max_package_bytes + 1)
@@ -577,9 +608,44 @@ class ContractPipeline:
                     node["id"] for node in package.graph["nodes"] if not node["depends_on"]
                 ),
                 "declared_tools": sorted(package.tools),
+                "remote_tools": sorted(
+                    tool_id
+                    for tool_id, tool in package.tools.items()
+                    if tool.get("execution") == "remote"
+                ),
+                "local_tools": sorted(
+                    tool_id
+                    for tool_id, tool in package.tools.items()
+                    if tool.get("execution") != "remote"
+                ),
+                "declared_tool_details": [
+                    {
+                        "id": tool_id,
+                        "execution": tool.get("execution"),
+                        "binding": tool.get("binding"),
+                        "permissions": list(tool.get("permissions") or []),
+                        "side_effects": tool.get("side_effects"),
+                    }
+                    for tool_id, tool in sorted(package.tools.items())
+                ],
                 "declared_permissions": [
-                    {"id": item["id"], "kind": item["kind"], "required": item["required"]}
+                    {
+                        "id": item["id"],
+                        "kind": item["kind"],
+                        "required": item["required"],
+                        "resources": list(item.get("resources") or []),
+                    }
                     for item in package.policy["permissions"]
+                ],
+                # Permissions whose scope names a type of host-owned resource.
+                "host_resource_permissions": [
+                    {
+                        "id": item["id"],
+                        "resource_types": list(item.get("resources") or []),
+                        "required": item["required"],
+                    }
+                    for item in package.policy["permissions"]
+                    if item["kind"] in RESOURCE_PERMISSION_KINDS
                 ],
                 "model_tasks": len(package.manifest["model_requirements"]["tasks"]),
                 "model_capabilities_required": sorted(
@@ -612,6 +678,20 @@ class ContractPipeline:
         task = fixtures.inputs[key]
         catalog = fixtures.catalog
         registry = fixtures.registry
+        # On a host that holds resources the plugin's backend sends its resource
+        # registry with every authorize (plus the person's picks, empty when the
+        # package requests none) and every prepare_run_plan. Decided per host,
+        # never per package.
+        resources = fixtures.resource_registry
+        authorize_resources = (
+            {
+                "resource_registry": resources,
+                "resource_selections": decided.get("resource_selections") or {},
+            }
+            if resources is not None
+            else {}
+        )
+        plan_resources = {"resource_registry": resources} if resources is not None else {}
         run_id = f"run_{uuid4().hex}"
         artifacts_dir = Path(tempfile.mkdtemp(prefix="artifacts-", dir=self.workdir))
         self.stop.reset()
@@ -658,6 +738,7 @@ class ContractPipeline:
                 package_digest=digest,
                 decisions=decided["decisions"],
                 tool_approvals=decided["tool_approvals"],
+                **authorize_resources,
             )
             t2 = time.perf_counter_ns()
             # 3. What the page shows before a model is chosen.
@@ -674,6 +755,7 @@ class ContractPipeline:
                 model_id=MODEL_ID,
                 catalog=catalog,
                 tool_registry=registry,
+                **plan_resources,
             )
             t4 = time.perf_counter_ns()
             # 5. Run start in the plugin: input, then `revalidate`'s reads, then the lease.
@@ -774,6 +856,7 @@ class ContractPipeline:
     ) -> dict:
         """Every observation proves its own preconditions, outside the timed region."""
         identity = self.identity[key]
+        decided = self.fixtures.authorization[identity["package_id"]]
         failures = []
 
         def expect(condition, message):
@@ -815,6 +898,31 @@ class ContractPipeline:
         expect(
             begun["execution"]["tool_handlers"] == len(identity["declared_tools"]), "tool handlers"
         )
+
+        # Host resources: exactly the picks, frozen by id and digest in the
+        # receipt, carried unchanged by the plan, re-checked by the runner; and
+        # every denied permission reaches the runner denied.
+        def refs(grants):
+            return [
+                (g["permission_id"], g["resource_type"], g["resource_id"], g["resource_digest"])
+                for g in grants
+            ]
+
+        receipt_grants = receipt.get("resource_grants") or []
+        expect(
+            sorted((g["permission_id"], g["resource_id"]) for g in receipt_grants)
+            == sorted((decided.get("resource_selections") or {}).items()),
+            "receipt resource grants are not the selections",
+        )
+        expect(refs(plan.get("resource_grants") or []) == refs(receipt_grants), "plan grants")
+        expect(
+            refs((begun.get("resources") or {}).get("grants") or []) == refs(receipt_grants),
+            "runner resource grants",
+        )
+        if self.fixtures.resource_registry is not None:
+            expect(receipt.get("resource_registry") is not None, "receipt names no registry")
+        denied = sorted(pid for pid, d in decided["decisions"].items() if d == "deny")
+        expect(begun["authorization"]["denied_permission_ids"] == denied, "runner denied set")
         expect(self.stop.hits == 1, f"first-wave stop hit {self.stop.hits} times")
         expect(
             sorted(self.stop.nodes or []) == identity["root_nodes"], f"first wave {self.stop.nodes}"
@@ -846,6 +954,13 @@ class ContractPipeline:
                 "runner_capabilities": begun["capabilities"],
                 "runner_model_check": begun["model"],
                 "runner_effective_deadline_seconds": begun["limits"]["effective_deadline_seconds"],
+                "runner_denied_permission_ids": begun["authorization"]["denied_permission_ids"],
+                "resource_grants": [
+                    {k: g[k] for k in ("permission_id", "resource_type", "resource_id")}
+                    for g in receipt_grants
+                ],
+                "receipt_resource_registry": receipt.get("resource_registry"),
+                "run_plan_resource_registry": plan.get("resource_registry"),
                 "first_wave_nodes": list(self.stop.nodes or []),
                 "audit_actions_at_stop": actions,
                 "runner_outbound_methods": methods,
@@ -1141,7 +1256,7 @@ def audit_benchmark(config: Config, packages=PACKAGES) -> tuple[list[dict], dict
     rows: list[dict] = []
     streams = {}
     for spec in packages:
-        if spec.key not in config.packages:
+        if spec.key not in config.packages or spec.recorded_audit is None:
             continue
         package = load_package_bytes(spec.archive.read_bytes())
         grants = {item["id"]: "session" for item in package.policy["permissions"]}
@@ -1151,7 +1266,14 @@ def audit_benchmark(config: Config, packages=PACKAGES) -> tuple[list[dict], dict
         observer = ProgressTracker(None).observe if variant == "progress_observer" else None
         return Runtime(package, grants=grants, observer=observer)
 
-    meta = {"streams": {}}
+    meta = {
+        "streams": {},
+        "packages_without_recorded_stream": [
+            spec.key
+            for spec in packages
+            if spec.key in config.packages and spec.recorded_audit is None
+        ],
+    }
     for key, (_, _, stream) in streams.items():
         spec = next(item for item in packages if item.key == key)
         meta["streams"][key] = {
@@ -1492,6 +1614,13 @@ def main(argv=None) -> int:
             "model_id_bound": MODEL_ID,
             "session_ttl_seconds": SESSION_TTL_SECONDS,
             "browser_policy": "production default (agentpkg.browser.authorization.BrowserPolicy())",
+            "host_resources": (
+                "The host holds resources (fixtures/host-resource-registry.json, the WebAir "
+                "demo's host resources file). As the plugin's backend does on such a host, every "
+                "authorize carries the resource registry and the package's selections (empty "
+                "when it requests no host resource) and every prepare_run_plan carries the "
+                "registry, for every package."
+            ),
         },
         "packages": pipeline.identity,
         "package_file_sha256_before_after_equal": True,

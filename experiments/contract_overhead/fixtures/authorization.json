@@ -1,12 +1,13 @@
 {
-  "note": "Pre-recorded user decisions, applied as one authorize call per run. They are the decisions the README demo walk-through tells a person to make: every permission the run needs set to 'Allow for session', files.pdfs left on 'Deny' (no PDFs are selected), and every declared tool approved.",
+  "note": "Pre-recorded user decisions, applied as one authorize call per run. Meeting Agenda and Literature Review use the decisions the README demo walk-through tells a person to make: every permission the run needs set to 'Allow for session', files.pdfs left on 'Deny' (no PDFs are selected), and every declared tool approved. WebAir uses the decisions of the accepted live profile-assisted search (examples/verification/webair-030-live-demo.json, agent_browser.search): the network, model and memory permissions and the travel profile allowed for the session, with the 'Demo Traveler' profile selected; the passenger identity, payment method and simulated-purchase permissions denied, so the plan grants no identity, payment or purchase authority; and every declared tool approved, which agent.pkg 0.1 requires because it has no optional tools. As the plugin's backend does on a host that holds resources, resource_selections travel with every authorize call, empty for a package that requests no host resource.",
   "packages": {
     "org.webagents.meeting-agenda": {
       "decisions": {
         "memory.session": "session",
         "model.reasoning": "session"
       },
-      "tool_approvals": {}
+      "tool_approvals": {},
+      "resource_selections": {}
     },
     "org.webagents.literature-review": {
       "decisions": {
@@ -20,6 +21,30 @@
         "citation-resolver": true,
         "paper-reader": true,
         "scholarly-search": true
+      },
+      "resource_selections": {}
+    },
+    "org.webagents.webair": {
+      "decisions": {
+        "booking.simulate_purchase": "deny",
+        "identity.passenger": "deny",
+        "memory.session": "session",
+        "model.reasoning": "session",
+        "network.webair": "session",
+        "profile.travel": "session",
+        "wallet.payment": "deny"
+      },
+      "tool_approvals": {
+        "get-fare-rules": true,
+        "personal.passenger_identity": true,
+        "personal.travel_profile": true,
+        "prepare-booking": true,
+        "search-flights": true,
+        "simulate-purchase": true,
+        "wallet.payment_method": true
+      },
+      "resource_selections": {
+        "profile.travel": "profile_demo_traveler"
       }
     }
   }
