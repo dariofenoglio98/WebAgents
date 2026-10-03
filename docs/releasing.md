@@ -125,17 +125,18 @@ Status of the v0.2.0 release-engineering pass (2026-10-03).
 | ✅ | Paper's commits reachable | `23eac90` and `9d78ca5` are ancestors of `main`, which carries every commit of the former WebAir branch |
 | ✅ | Paper's experiment results committed | contract enforcement `results/2026-10-02T12-38-15Z_paper_paper`; contract overhead `results/2026-10-03T*_paper-webair-run{1,2,3}` and `…T16-14-20Z_paper-webair-pooled`, whose tables match the paper's |
 | ✅ | Contract enforcement results reproduce on this source | a full paper-preset rerun on the v0.2.0 production code (into a scratch directory) gave the paper run's outcome for each of the 9,099 cases, with byte-identical LaTeX tables |
-| ✅ | Full Python tests | `pytest agentpkg/tests` from a fresh clone on 3.13.5: only the two opt-in live tests skipped |
+| ✅ | Full Python tests | `pytest agentpkg/tests` from a fresh clone on 3.13.5: 1,223 passed, 2 skipped (the opt-in live tests) |
 | ✅ | Plugin typecheck, tests, build | 527 tests, none skipped; build, validate, pack, isolated install (`npm run verify`) from a fresh clone |
-| ✅ | WebAir origin and package contract | the demo's suite and `python -m publisher check` (generated files current) from a fresh install of `requirements-dev.txt` |
-| ✅ | Citation Resolver tests | from a fresh clone |
+| ✅ | WebAir origin and package contract | 294 tests, none skipped, and `python -m publisher check` (generated files current), from a fresh install of `requirements-dev.txt` |
+| ✅ | Citation Resolver tests | 132 passed, from a fresh clone |
 | ✅ | Experiments' test suites | contract overhead 35, contract enforcement 101 (separate processes) |
 | ✅ | Offline acceptance scripts | the eight CI runs, including `verify_webair` and `verify_webair_discovery` |
 | ✅ | Current Python distribution | wheel rebuilt from current source, reproducibly; `check_release.py --built-wheel` |
 | ✅ | Current plugin distribution | built twice from clean clones with identical bytes; contents are exactly the manifest, `package.json` and the bundles |
 | ✅ | Signed artifacts verified | Meeting Agenda 0.2.2, Literature Review 0.2.5 and WebAir 0.3.0 with the installed wheel; fixture runs pass; the public WebAir origin serves exactly `dist/webair-0.3.0.agent.pkg` |
 | ✅ | Secret scan | gitleaks over the full history and trufflehog/gitleaks over the extracted artifacts: only documented test fixtures and hash-like build keys; no personal path, credential or private signing key |
-| ⏳ | CI on GitHub | the WebAir commits had never run in CI (it runs on `main` and pull requests only). **Check the first run on `main` on both operating systems** |
+| ✅ | CI rehearsal | every `run:` step of every job in `ci.yml`, each job in its own fresh clone, on macOS with Python 3.13 and Node 26: all six jobs pass |
+| ⏳ | CI on GitHub | the WebAir commits had never run in CI (it runs on `main` and pull requests only). **Check the first run on `main` on both operating systems**, including the Linux and the other Python/Node matrix legs the rehearsal did not cover |
 | ⏳ | Tag and GitHub Release | after CI passes |
 | ⏳ | Visibility | the maintainer keeps the repository private for now (anonymous review) |
 
