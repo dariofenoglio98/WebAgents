@@ -15,6 +15,10 @@ Steps 2-4 run inside a killable child process, so DNS, connect and read time
 are all bounded by one wall clock and the sockets die with the child. This
 mirrors the existing `tools._read_pdf` child pattern without importing any
 execution module.
+
+Website discovery (`discovery.py`) applies steps 1-3 and the killable child
+unchanged to an HTML page; it allows redirects only within one origin, each hop
+re-validated and re-resolved. A package download still refuses every redirect.
 """
 
 from __future__ import annotations
@@ -48,56 +52,66 @@ def _reject(code: str, message: str, *, status: int = 400) -> ControlPlaneError:
     return ControlPlaneError(code, message, status=status)
 
 
-def validate_package_url(url: str) -> tuple[str, str]:
-    """Syntax gate. Returns (hostname, request_target); raises on anything else."""
+def validate_package_url(url: str, *, subject: str = "Package") -> tuple[str, str]:
+    """Syntax gate. Returns (hostname, request_target); raises on anything else.
+
+    `subject` only names the URL in messages ("Package", "Website"); the policy
+    is the same for every caller.
+    """
+    noun = subject.lower()
     if not isinstance(url, str) or not url or len(url) > 2048:
-        raise _reject("url_rejected", "Package URL must be a string of at most 2048 characters")
+        raise _reject("url_rejected", f"{subject} URL must be a string of at most 2048 characters")
     if any(character.isspace() or ord(character) < 32 for character in url):
-        raise _reject("url_rejected", "Package URL must not contain whitespace or control bytes")
-    parts = urlsplit(url)
+        raise _reject("url_rejected", f"{subject} URL must not contain whitespace or control bytes")
+    try:
+        parts = urlsplit(url)
+    except ValueError as exc:  # For example an unterminated IPv6 literal.
+        raise _reject("url_rejected", f"{subject} URL is malformed") from exc
     if parts.scheme != "https":
         raise _reject(
             "url_rejected",
-            f"Only https:// package URLs are accepted; refused scheme {parts.scheme or 'none'!r}",
+            f"Only https:// {noun} URLs are accepted; refused scheme {parts.scheme or 'none'!r}",
         )
     if parts.username or parts.password or "@" in parts.netloc:
-        raise _reject("url_rejected", "Package URLs must not embed credentials")
+        raise _reject("url_rejected", f"{subject} URLs must not embed credentials")
     if parts.fragment:
-        raise _reject("url_rejected", "Package URLs must not contain a fragment")
+        raise _reject("url_rejected", f"{subject} URLs must not contain a fragment")
     try:
         port = parts.port
     except ValueError as exc:
-        raise _reject("url_rejected", "Package URL has an invalid port") from exc
+        raise _reject("url_rejected", f"{subject} URL has an invalid port") from exc
     if port not in (None, 443):
-        raise _reject("url_rejected", "Package URLs must use the default HTTPS port 443")
+        raise _reject("url_rejected", f"{subject} URLs must use the default HTTPS port 443")
     hostname = parts.hostname
     if not hostname or len(hostname) > 253:
-        raise _reject("url_rejected", "Package URL must name a host")
+        raise _reject("url_rejected", f"{subject} URL must name a host")
     target = parts.path or "/"
     if parts.query:
         target += "?" + parts.query
     return hostname, target
 
 
-def resolve_public_addresses(hostname: str, *, limits: FetchLimits, resolver=None) -> list[str]:
+def resolve_public_addresses(
+    hostname: str, *, limits: FetchLimits, resolver=None, subject: str = "Package"
+) -> list[str]:
     """Resolve and require every answer to be publicly routable."""
     resolver = resolver or socket.getaddrinfo
     try:
         answers = resolver(hostname, 443, type=socket.SOCK_STREAM)
     except OSError as exc:
         raise _reject(
-            "url_unresolvable", f"Cannot resolve package host: {type(exc).__name__}"
+            "url_unresolvable", f"Cannot resolve {subject.lower()} host: {type(exc).__name__}"
         ) from exc
     addresses = sorted({answer[4][0] for answer in answers})[: limits.max_addresses]
     if not addresses:
-        raise _reject("url_unresolvable", "Package host has no addresses")
+        raise _reject("url_unresolvable", f"{subject} host has no addresses")
     for address in addresses:
         reason = public_address_reason(address)
         if reason:
             # The literal address is withheld; the class of destination is enough.
             raise _reject(
                 "url_destination_denied",
-                f"Package host resolves to a non-public destination ({reason})",
+                f"{subject} host resolves to a non-public destination ({reason})",
                 status=403,
             )
     return addresses
@@ -225,6 +239,75 @@ def _download_child(url: str, destination: str, limits: tuple, sender) -> None:
         sender.close()
 
 
+@dataclass(frozen=True)
+class ChildOperation:
+    """How one killable child operation names itself and its own failures."""
+
+    operation: str  # "Package download"
+    child: str  # "download"
+    timeout_code: str
+    failure_code: str
+
+
+DOWNLOAD = ChildOperation("Package download", "download", "download_timeout", "download_failed")
+
+
+def run_in_killable_child(
+    target,
+    args: tuple,
+    *,
+    timeout_seconds: float,
+    operation: ChildOperation,
+    max_message_bytes: int = MAX_MESSAGE_BYTES,
+) -> dict:
+    """Run `target(*args, sender)` in a spawned child and return its one JSON message.
+
+    The child owns DNS and sockets; the parent owns only the deadline, after which
+    it terminates, kills and reaps the child, so a hostile or slow host cannot hold
+    a request thread, a socket or a resolver call open. A message with `ok: false`
+    becomes the ControlPlaneError it describes.
+    """
+    context = multiprocessing.get_context("spawn")
+    receiver, sender = context.Pipe(duplex=False)
+    process = context.Process(target=target, args=(*args, sender), daemon=True)
+    process.start()
+    sender.close()
+    try:
+        if not receiver.poll(timeout_seconds + 10):
+            raise _reject(
+                operation.timeout_code, f"{operation.operation} deadline exceeded", status=504
+            )
+        message = json.loads(receiver.recv_bytes(max_message_bytes))
+        if not isinstance(message, dict):
+            raise _reject(
+                operation.failure_code, f"Invalid {operation.child} child response", status=502
+            )
+        if not message.get("ok"):
+            details = message.get("details")
+            raise ControlPlaneError(
+                str(message.get("code", operation.failure_code)),
+                str(message.get("message", f"{operation.operation} failed")),
+                status=int(message.get("status", 502)),
+                details=details if isinstance(details, dict) else None,
+            )
+        return message
+    except (EOFError, OSError, ValueError, KeyError) as exc:
+        raise _reject(
+            operation.failure_code,
+            f"{operation.child.capitalize()} child failed: {type(exc).__name__}",
+            status=502,
+        ) from exc
+    finally:
+        receiver.close()
+        if process.is_alive():
+            process.terminate()
+        process.join(timeout=2)
+        if process.is_alive():
+            process.kill()
+            process.join(timeout=2)
+        process.close()
+
+
 def download_to_file(url: str, destination, *, limits: FetchLimits, transport=None) -> dict:
     """Download one package into an existing private file owned by the service.
 
@@ -247,39 +330,15 @@ def download_to_file(url: str, destination, *, limits: FetchLimits, transport=No
             stream.write(data)
         return {"sha256": hashlib.sha256(data).hexdigest(), "bytes": len(data)}
 
-    context = multiprocessing.get_context("spawn")
-    receiver, sender = context.Pipe(duplex=False)
-    process = context.Process(
-        target=_download_child,
-        args=(url, str(destination), (limits.max_bytes, limits.timeout_seconds), sender),
-        daemon=True,
+    message = run_in_killable_child(
+        _download_child,
+        (url, str(destination), (limits.max_bytes, limits.timeout_seconds)),
+        timeout_seconds=limits.timeout_seconds,
+        operation=DOWNLOAD,
     )
-    process.start()
-    sender.close()
     try:
-        # The child owns DNS and sockets; the parent only owns this deadline.
-        if not receiver.poll(limits.timeout_seconds + 10):
-            raise _reject("download_timeout", "Package download deadline exceeded", status=504)
-        message = json.loads(receiver.recv_bytes(MAX_MESSAGE_BYTES))
-        if not isinstance(message, dict):
-            raise _reject("download_failed", "Invalid download child response", status=502)
-        if not message.get("ok"):
-            raise ControlPlaneError(
-                str(message.get("code", "download_failed")),
-                str(message.get("message", "Package download failed")),
-                status=int(message.get("status", 502)),
-            )
         return {"sha256": message["sha256"], "bytes": message["bytes"]}
-    except (EOFError, OSError, ValueError, KeyError) as exc:
+    except KeyError as exc:
         raise _reject(
             "download_failed", f"Download child failed: {type(exc).__name__}", status=502
         ) from exc
-    finally:
-        receiver.close()
-        if process.is_alive():
-            process.terminate()
-        process.join(timeout=2)
-        if process.is_alive():
-            process.kill()
-            process.join(timeout=2)
-        process.close()

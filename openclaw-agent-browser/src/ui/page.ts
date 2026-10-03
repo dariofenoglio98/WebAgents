@@ -23,6 +23,8 @@ import type {
   ToolRegistryViewType,
   RunRecordViewType,
   RunSummaryViewType,
+  WebsiteCandidateViewType,
+  WebsiteDiscoveryViewType,
 } from "../contract.js";
 import { RunPanel, renderRunList } from "./run.js";
 import {
@@ -134,8 +136,19 @@ export function mountAgentBrowser(container: HTMLElement, deps: PageDeps): () =>
   let service: ServiceStatusView | null = null;
   let sessions: SessionRow[] = [];
   let loaded: Loaded | null = null;
+  /**
+   * The last web page read for advertised packages. Shown while no package is
+   * open; a candidate is only an address until the person inspects it.
+   */
+  let discovery: WebsiteDiscoveryViewType | null = null;
+  /** Sessions opened from a page's advertisement: session id -> that page. */
+  const advertisedOn = new Map<string, string>();
   let busy: string | null = null;
-  let failure: { error: FeatureErrorView; retry?: () => void } | null = null;
+  let failure: {
+    error: FeatureErrorView;
+    retry?: () => void;
+    action?: { label: string; run: () => void };
+  } | null = null;
   let notice: { text: string; tone: "good" | "warn" } | null = null;
   let tab: TabId = "overview";
   let decisions = new Map<string, Decision>();
@@ -246,8 +259,12 @@ export function mountAgentBrowser(container: HTMLElement, deps: PageDeps): () =>
     renderAddress();
   }
 
-  function fail(error: FeatureErrorView, retry?: () => void) {
-    failure = { error, retry };
+  function fail(
+    error: FeatureErrorView,
+    retry?: () => void,
+    action?: { label: string; run: () => void },
+  ) {
+    failure = { error, retry, action };
     busy = null;
     renderStatus();
     renderAddress();
@@ -331,28 +348,30 @@ export function mountAgentBrowser(container: HTMLElement, deps: PageDeps): () =>
       attrs: {
         type: "text",
         name: "package-url",
-        placeholder: "https://example.org/travel.agent.pkg",
-        "aria-label": "Agent package URL",
+        placeholder: "https://example.org/ or https://example.org/travel.agent.pkg",
+        "aria-label": "Website or agent package URL",
         spellcheck: "false",
         autocomplete: "off",
       },
     });
     input.disabled = !canOpen;
-    const submit = button("Open", () => void openUrl(input.value.trim()), {
+    const submit = button("Open", () => openAddress(input.value.trim()), {
       variant: "primary",
       disabled: !canOpen,
     });
     submit.type = "submit";
     form.addEventListener("submit", (event) => {
       event.preventDefault();
-      if (canOpen) void openUrl(input.value.trim());
+      if (canOpen) openAddress(input.value.trim());
     });
     form.append(input, submit);
     addressArea.append(form);
     addressArea.append(
       el("p", {
         className: "ab-hint",
-        text: "HTTPS only. The control plane downloads and verifies the package; this page never fetches it.",
+        text:
+          "HTTPS only. A website is read for an advertised agent package; an address ending in " +
+          ".pkg opens that package directly. The control plane fetches and verifies; this page never does.",
       }),
     );
 
@@ -427,8 +446,11 @@ export function mountAgentBrowser(container: HTMLElement, deps: PageDeps): () =>
       });
       banner.append(el("div", { className: "ab-validation" }, ...layers));
     }
+    if (failure.action && deps.canWrite) {
+      banner.append(button(failure.action.label, failure.action.run, { variant: "primary" }));
+    }
     if (failure.retry && deps.canWrite) {
-      banner.append(button("Retry", failure.retry, { variant: "primary" }));
+      banner.append(button("Retry", failure.retry, { variant: failure.action ? "ghost" : "primary" }));
     }
     statusArea.append(banner);
   }
@@ -472,14 +494,42 @@ export function mountAgentBrowser(container: HTMLElement, deps: PageDeps): () =>
   // -- open / load -----------------------------------------------------------
   type OpenResult = { ok: true; value: PackageViewType } | { ok: false; error: FeatureErrorView };
 
-  async function openUrl(url: string): Promise<void> {
+  /**
+   * One address bar for both kinds of address. This only chooses which
+   * control-plane operation to ask; each applies its own full URL policy, and
+   * a website that turns out not to be a web page says so.
+   */
+  function openAddress(value: string): void {
+    if (!value) return;
+    if (namesPackage(value)) void openUrl(value);
+    else void discoverWebsite(value);
+  }
+
+  function namesPackage(value: string): boolean {
+    try {
+      return new URL(value).pathname.toLowerCase().endsWith(".pkg");
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Inspecting a package is the same operation whether a person typed its
+   * address or a website advertised it; `advertisedBy` only labels the result.
+   */
+  async function openUrl(url: string, advertisedBy: string | null = null): Promise<void> {
     if (!url) return;
     setBusy("Opening and verifying package…");
     const result = await call<OpenResult>("packages.open-url", { url }).catch(
       () => null as OpenResult | null,
     );
     if (!alive()) return;
-    await afterOpen(result, () => void openUrl(url));
+    if (result?.ok) {
+      if (advertisedBy) advertisedOn.set(result.value.sessionId, advertisedBy);
+      // A package opened by its own address replaces the website view.
+      else discovery = null;
+    }
+    await afterOpen(result, () => void openUrl(url, advertisedBy));
   }
 
   async function openLocal(path: string): Promise<void> {
@@ -489,7 +539,38 @@ export function mountAgentBrowser(container: HTMLElement, deps: PageDeps): () =>
       () => null as OpenResult | null,
     );
     if (!alive()) return;
+    if (result?.ok) discovery = null;
     await afterOpen(result, () => void openLocal(path));
+  }
+
+  /** Read a web page for advertised packages. Nothing is opened or verified. */
+  async function discoverWebsite(url: string): Promise<void> {
+    setBusy("Reading the website for an advertised agent package…");
+    const result = await call<Result<WebsiteDiscoveryViewType>>("websites.discover", { url }).catch(
+      () => null,
+    );
+    if (!alive()) return;
+    const retry = () => void discoverWebsite(url);
+    if (!result || !result.ok) {
+      const error = result ? result.error : unexpectedError();
+      // The address answered, but not with a page. If it is a package, that
+      // is the person's call to make, by the same operation as any package.
+      const asPackage =
+        error.code === "discovery_not_html"
+          ? { label: "Open as agent package", run: () => void openUrl(url) }
+          : undefined;
+      fail(error, error.retryable ? retry : undefined, asPackage);
+      return;
+    }
+    setBusy(null);
+    discovery = result.value;
+    if (loaded) {
+      // A new address replaces the package view; its session stays open.
+      loaded = null;
+      runPanel.detach();
+      renderSessions();
+    }
+    renderMain();
   }
 
   async function afterOpen(result: OpenResult | null, retry: () => void): Promise<void> {
@@ -647,6 +728,7 @@ export function mountAgentBrowser(container: HTMLElement, deps: PageDeps): () =>
   async function closeSession(sessionId: string): Promise<void> {
     await call("packages.close", { sessionId }).catch(() => undefined);
     if (!alive()) return;
+    advertisedOn.delete(sessionId);
     if (loaded?.pkg.sessionId === sessionId) {
       loaded = null;
       runPanel.detach();
@@ -693,14 +775,16 @@ export function mountAgentBrowser(container: HTMLElement, deps: PageDeps): () =>
         return;
       }
       replace(topArea, [
-        el(
-          "div",
-          { className: "ab-empty" },
-          el("h2", { text: "No package open" }),
-          el("p", {
-            text: "Enter the HTTPS address of an agent package above. The control plane downloads it, verifies its container, integrity, schema and signature, and reports what it requests before anything is authorized.",
-          }),
-        ),
+        discovery
+          ? renderWebsiteCard(discovery)
+          : el(
+              "div",
+              { className: "ab-empty" },
+              el("h2", { text: "No package open" }),
+              el("p", {
+                text: "Enter a website, or the HTTPS address of an agent package, above. A website is read for an advertised package. A package is downloaded and its container, integrity, schema and signature verified, and what it requests is reported, before anything is authorized.",
+              }),
+            ),
       ]);
       replace(runHost, []);
       replace(setupArea, [renderRecentRuns()]);
@@ -722,8 +806,170 @@ export function mountAgentBrowser(container: HTMLElement, deps: PageDeps): () =>
     ]);
   }
 
+  // -- website discovery -----------------------------------------------------
+  const WEBSITE_STATUS: Record<
+    WebsiteDiscoveryViewType["status"],
+    { label: string; tone: "neutral" | "warn" | "bad"; text: string }
+  > = {
+    candidate: {
+      label: "Agent package advertised",
+      tone: "warn",
+      text:
+        "This website says an agent package is available at the address below. That is only a " +
+        "location: who published it, whether it is intact and signed, and what it would be " +
+        "allowed to do are unknown until you inspect it.",
+    },
+    multiple_candidates: {
+      label: "Several agent packages advertised",
+      tone: "warn",
+      text:
+        "This website advertises more than one agent package, and the Agent Browser does not " +
+        "choose between them. Each is only a location until you inspect it.",
+    },
+    no_candidate: {
+      label: "No agent package advertised",
+      tone: "neutral",
+      text:
+        'This page does not advertise an agent package: its head has no <link rel="agent-package">. ' +
+        "If you know a package's own address, open that directly.",
+    },
+    candidates_rejected: {
+      label: "Advertised package not usable",
+      tone: "bad",
+      text:
+        "This page advertises an agent package this browser will not fetch, for the reasons " +
+        "below. Nothing was downloaded.",
+    },
+  };
+
+  function renderWebsiteCard(view: WebsiteDiscoveryViewType): HTMLElement {
+    const status = WEBSITE_STATUS[view.status];
+    const node = el("div", { className: "ab-website" });
+    append(node, [
+      el("p", { className: "ab-website-url" }, el("code", { text: view.finalUrl })),
+      view.redirects.length > 0
+        ? el("p", {
+            className: "ab-hint",
+            text: `Reached from ${view.requestedUrl} through ${view.redirects.length} redirect${
+              view.redirects.length === 1 ? "" : "s"
+            } within ${view.pageOrigin}.`,
+          })
+        : null,
+      el("div", { className: "ab-chips" }, chip(status.label, status.tone)),
+      el("p", { text: status.text }),
+    ]);
+    if (view.candidates.length > 0) {
+      const items = el("div", { className: "ab-items" });
+      for (const candidate of view.candidates) items.append(renderCandidate(view, candidate));
+      node.append(items);
+    }
+    if (view.linksNotListed > 0) {
+      node.append(
+        el("p", {
+          className: "ab-hint",
+          text: `${view.linksNotListed} further advertisement(s) on this page were not listed.`,
+        }),
+      );
+    }
+    node.append(
+      el("p", {
+        className: "ab-hint",
+        text:
+          'rel="agent-package" is experimental WebAgents metadata, not a web standard. The ' +
+          "control plane read this one page without running its scripts or loading anything it " +
+          "references, and accepts only a package served by the page's own origin. Inspecting " +
+          "a package downloads and verifies it exactly as if you had typed its address.",
+      }),
+      renderWebsiteDetails(view),
+    );
+    return sectioned("website", card("Website", node));
+  }
+
+  function renderCandidate(
+    view: WebsiteDiscoveryViewType,
+    candidate: WebsiteCandidateViewType,
+  ): HTMLElement {
+    const address = candidate.resolvedUrl ?? candidate.href ?? "(no href)";
+    const node = el("div", {
+      className: `ab-item ab-candidate${candidate.accepted ? "" : " ab-candidate-rejected"}`,
+    });
+    node.append(
+      el(
+        "div",
+        { className: "ab-item-head" },
+        el("code", { text: address }),
+        candidate.accepted ? chip("Unverified candidate", "warn") : chip("Not fetched", "bad"),
+        candidate.typeHint ? chip(`advertised type ${candidate.typeHint}`) : null,
+      ),
+    );
+    if (candidate.href !== null && candidate.href !== address) {
+      node.append(el("p", { className: "ab-muted", text: `Written on the page as ${candidate.href}` }));
+    }
+    if (!candidate.accepted) {
+      node.append(
+        el(
+          "p",
+          {},
+          el("code", { text: candidate.rejectionReason ?? "rejected" }),
+          el("span", { text: ` ${candidate.rejectionMessage ?? ""}` }),
+        ),
+      );
+    } else if (deps.canWrite && candidate.resolvedUrl) {
+      const url = candidate.resolvedUrl;
+      node.append(
+        button("Inspect agent package", () => void openUrl(url, view.finalUrl), {
+          variant: "primary",
+          disabled: busy !== null,
+          title: "Download and verify it through the control plane. Nothing is authorized or run.",
+        }),
+      );
+    }
+    return node;
+  }
+
+  function renderWebsiteDetails(view: WebsiteDiscoveryViewType): HTMLElement {
+    const details = el("details", { className: "ab-receipt" });
+    details.append(el("summary", { text: "Discovery details (technical)" }));
+    const page = view.page;
+    details.append(
+      definition([
+        ["Requested", view.requestedUrl],
+        ["Page", view.finalUrl],
+        ["Origin", view.pageOrigin],
+        [
+          "Redirects",
+          view.redirects.map((hop) => `${hop.status} ${hop.fromUrl} → ${hop.toUrl}`).join(" · ") ||
+            "none",
+        ],
+        [
+          "Content",
+          `${page.contentType} · read as ${page.decodedAs} (${page.encodingSource}) · ${page.contentCoding}`,
+        ],
+        [
+          "Read",
+          `${bytes(page.bytesRead)}${page.truncated ? " (the beginning only; the head ended inside it)" : ""}`,
+        ],
+        ["Page SHA-256", el("code", { text: page.htmlSha256 })],
+        ["<base> element", page.baseElementIgnored ? "present, not used" : "none"],
+        [
+          "Profile",
+          `${view.profile.name} · rel ${view.profile.rel} · ${
+            view.profile.sameOriginRequired ? "same origin only" : "any origin"
+          } · at most ${view.profile.maxRedirects} redirects`,
+        ],
+        ["Advertisements", `${view.acceptedCount} accepted, ${view.rejectedCount} rejected`],
+        ["Discovered", whenText(view.discoveredAt)],
+        ["Package fetched", "no"],
+        ["Verified or trusted", "no"],
+        ["Executed", "no"],
+      ]),
+    );
+    return details;
+  }
+
   function renderHeaderCard(pkg: PackageViewType): HTMLElement {
     const node = el("section", { className: "ab-card ab-package-header" });
+    const advertised = advertisedOn.get(pkg.sessionId);
     node.append(
       el("h2", { className: "ab-package-name", text: pkg.identity.name }),
       el("p", { className: "ab-package-id", text: `${pkg.identity.packageId} · version ${pkg.identity.version}` }),
@@ -740,6 +986,14 @@ export function mountAgentBrowser(container: HTMLElement, deps: PageDeps): () =>
         text: `${pkg.source.kind === "url" ? "Downloaded from" : "Opened from"} ${pkg.source.display}`,
       }),
     );
+    if (advertised) {
+      node.append(
+        el("p", {
+          className: "ab-hint ab-advertised",
+          text: `Advertised on ${advertised}. An advertisement only said where to look; everything below comes from the package itself.`,
+        }),
+      );
+    }
     if (deps.canWrite) {
       node.append(button("Close package", () => void closeSession(pkg.sessionId)));
     }

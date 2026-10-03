@@ -86,6 +86,9 @@ describe("the generic execution path", () => {
         "crossref",
         "meeting",
         "agenda",
+        // Website discovery is generic too: no site, airline or demo origin.
+        "webair",
+        "airline",
       ]) {
         expect(source.includes(word), `${file} mentions ${word}`).toBe(false);
       }

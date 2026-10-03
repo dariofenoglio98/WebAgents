@@ -22,6 +22,7 @@ from .. import __version__
 from ..errors import AgentPkgError, ValidationError
 from ..package import Package, read_regular_bytes, sha256
 from ..signing import embedded_public_key
+from . import discovery
 from .authorization import (
     BrowserPolicy,
     blocking_reasons,
@@ -158,12 +159,14 @@ def _now() -> str:
 class ControlPlane:
     """Thread-safe control plane. Holds no signing key and runs no package code."""
 
-    def __init__(self, config: ControlPlaneConfig, *, transport=None):
+    def __init__(self, config: ControlPlaneConfig, *, transport=None, discovery_network=None):
         self.config = config
         self.instance_id = str(uuid4())
         self.started_at = _now()
         self.trust = TrustStore(config.trust_store_path)
         self._transport = transport
+        # Trusted test seam for website discovery: DNS and socket mechanics only.
+        self._discovery_network = discovery_network
         self._sessions: dict[str, Session] = {}
         self._pending = 0  # Opens that reserved capacity but have not registered yet.
         self._pending_bytes = 0
@@ -307,6 +310,17 @@ class ControlPlane:
         finally:
             staging.unlink(missing_ok=True)
         return self._open_bytes(data, {"kind": "url", "display": str(url)})
+
+    def discover_website(self, url) -> dict:
+        """Report the agent packages one HTTPS web page advertises. Open none.
+
+        Discovery is not acquisition. It reads one HTML page under the same URL
+        and address policy as `open_url`, and it creates no session, writes no
+        snapshot, touches no trust and fetches no package. Every candidate it
+        returns is an untrusted location; inspecting one is a separate
+        `open_url` call that a person makes.
+        """
+        return discovery.discover_website(url, network=self._discovery_network)
 
     def _check_capacity(self, incoming: int) -> None:
         """Concurrent opens must not collectively exceed a limit each one passes."""
@@ -1085,6 +1099,8 @@ class ControlPlane:
                 "capabilities": {
                     "open_file": True,
                     "open_url": True,
+                    # Reads one web page for advertised candidates; opens none.
+                    "discover_website": True,
                     "authorize": True,
                     "evaluate_models": True,
                     "evaluate_tools": True,
@@ -1099,6 +1115,7 @@ class ControlPlane:
                 ),
                 "execution_modes": list(EXECUTION_MODES),
                 "binding_strategies": [BINDING_SINGLE_MODEL],
+                "website_discovery": discovery.profile(),
                 "host_model_catalog": {
                     "source": "supplied_by_host",
                     "note": (

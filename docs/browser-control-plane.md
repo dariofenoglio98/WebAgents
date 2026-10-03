@@ -26,7 +26,7 @@ and it is not a substitute for the future infrastructure it stands in for.
 ## 1. Lifecycle
 
 ```text
- package source (local .agent.pkg | HTTPS URL)
+ package source (local .agent.pkg | HTTPS URL, typed or advertised by a website — §3a)
         │
         ▼  bytes captured exactly once
  immutable snapshot  →  archive_sha256, private 0600 file in the service cache
@@ -131,6 +131,178 @@ TLS pinning is exercised against real hosts only; tests drive the same policy
 function with stubbed resolver/connector mechanics. Certificate validation uses
 the system trust store. There is no proxy support, no revocation checking, no
 Tor/onion handling, and no allowlist of package registries yet.
+
+## 3a. Website discovery
+
+A person may give the browser an ordinary website address instead of a package
+URL. `POST /v0/websites/discover {"url": "https://…"}` reads that one page and
+reports every `<link rel="agent-package">` in its head as an **untrusted
+candidate** (`agentpkg.browser.discovery`):
+
+```text
+ website URL, e.g. https://webair.example/
+      │  the package URL policy, in a killable child; same-origin redirects only
+      ▼
+ one HTML page: bounded, tokenized, never rendered
+      │  document head only; no script runs, nothing it references is fetched
+      ▼
+ rel="agent-package" links, resolved against the page's final URL
+      │  same-origin profile: anything else is reported and never fetched
+      ▼
+ untrusted candidate(s): a location and nothing more
+      │  a person chooses Inspect
+      ▼
+ open-url → snapshot → validation → signature → trust → permissions → authorization
+```
+
+`rel="agent-package"` and `application/vnd.webagents.agent-package` are an
+**experimental WebAgents convention**. Neither is a registered link relation or
+media type, and nothing here is a web standard.
+
+**An advertisement conveys a location, and nothing else.** Not identity — the
+page's metadata is never shown as the package's name, publisher or version;
+not integrity or a valid signature; not publisher trust, which stays a key the
+operator pinned; not permission, authorization or a tool binding; and not
+execution. Discovery creates no session, writes nothing to the cache or the
+trust store, and does not fetch the candidate. Inspecting one is
+`POST /v0/packages/open-url` with its `resolved_url`: the same operation,
+policy and verdicts as a typed package URL, including its refusal of
+redirects. A package opened that way can still be invalid, unsigned, signed
+by an unknown key, or an impersonation, and is reported exactly so.
+
+### Network policy
+
+| | Package download (`open-url`) | Website discovery |
+|---|---|---|
+| Syntax | HTTPS, port 443, no credentials, no fragment, ≤ 2048 characters | The same function. A fragment is dropped rather than refused, since it is never sent |
+| Resolution | Every answer must be public (`agentpkg.netaddr`) | The same, again for every redirect hop, so a second answer cannot carry a later hop somewhere private |
+| Connection | Pinned to the validated address, TLS bound to the hostname | The same connector |
+| Redirects | Refused | Followed only within one origin (scheme, host, effective port), at most 5, each hop validated, resolved and classified again. Any other target is refused (`discovery_redirect_refused`) and reported, never contacted |
+| Response | `200`, any bytes, ≤ 32 MiB | `200` with an HTML Content-Type (`text/html`, `application/xhtml+xml`); identity, gzip or deflate content, at most 1 MiB read and decompressed under the same cap |
+| Request | No cookie, credential or proxy | `Accept` HTML, `Accept-Encoding: identity`, the browser's User-Agent; no `Cookie`, `Authorization`, `Referer` or `Origin`; `Set-Cookie` is ignored |
+| Time | 60 s | 20 s for the whole discovery, every hop included |
+| Process | Killable child | The same helper (`run_in_killable_child`), which also runs the parse |
+
+Never followed or fetched: `<meta http-equiv="refresh">`, scripts, styles,
+images, frames, preload or icon links, and the advertised package itself.
+
+### Which links count
+
+* **Only the document head**, by the HTML tree builder's rules: the head ends
+  at the first start tag that cannot be in it, the first non-whitespace text,
+  or `</body>`, `</html>` or `</br>`; a link between `</head>` and the body
+  still belongs to it. A link relation that is not body-ok is conforming only
+  in the head, and the rule keeps text a site's visitors can post into its body
+  out of discovery. Reading stops where the head ends; a page whose head does
+  not end within 1 MiB is refused (`discovery_too_large`) rather than judged
+  on part of it.
+* Ignored, as a browser would: links inside comments, inside `script`, `style`,
+  `title`, `noframes` and other text-only elements (`<script/>` still opens a
+  script, since HTML ignores the slash), and inside `<template>` contents. Of
+  duplicated attributes the first wins.
+* `rel` is a set of ASCII-whitespace-separated tokens compared ASCII
+  case-insensitively, so `rel="stylesheet agent-package"` counts and
+  `rel="agent-packages"` does not.
+* A `type` attribute, when present, must name the media type above
+  (parameters and case ignored). It is a hint about the link, never evidence
+  about the bytes; the package path judges those.
+* Encoding: a byte-order mark, then the HTTP charset, then a `<meta>`
+  declaration in the first 1024 bytes. Markup and every URL this profile
+  accepts are ASCII, which every ASCII-compatible encoding writes the same
+  way, so those pages are read as UTF-8 with replacement characters; UTF-16 is
+  decoded as UTF-16; ISO-2022-JP and the WHATWG "replacement" encodings are
+  refused. Malformed bytes never fail a page.
+* The tokenizer is the standard library's `html.parser`; no regular expression
+  reads HTML. Text-only elements and templates are tracked by discovery itself,
+  so the result is the same on every supported Python version.
+
+### Resolution and the same-origin profile
+
+A candidate's `href` is resolved against the page's final URL after redirects,
+by RFC 3986 reference resolution (`urljoin`), which agrees with browsers on
+every href this profile accepts. `<base href>` is deliberately not used (the
+result says when one was present): page markup cannot re-anchor where its
+advertisements point. An href that a browser and this resolver could read
+differently is refused before resolution: internal whitespace or control
+characters, a backslash, non-ASCII characters, or more than 2048 characters.
+
+For `https://airline.example/travel/`, `/agent.pkg` is
+`https://airline.example/agent.pkg` and `agents/current.agent.pkg` is
+`https://airline.example/travel/agents/current.agent.pkg`.
+
+A candidate is accepted only as an `https:` URL without credentials, on the
+page's **own origin** — same scheme, host and effective port (`example.com.`
+and `example.com` are different hosts, as in browsers) — without a fragment,
+not the page itself, and passing the package URL policy. Each rejection has a
+stable reason: `href_missing`, `href_empty`, `href_malformed`,
+`fragment_only`, `unsupported_scheme`, `credentials_not_allowed`,
+`cross_origin`, `fragment_not_allowed`, `points_to_page`, `url_rejected`,
+`unsupported_type`, `duplicate`. Untrusted text in a rejected href is shown
+with non-printable characters escaped, so it cannot hide behind control or
+bidirectional-override characters.
+
+A cross-origin advertisement is reported (`cross_origin`, naming what
+differs) and never resolved, contacted or fetched. Letting one origin
+delegate its package to another would need an explicit, verifiable delegation
+mechanism; that is possible future work and not part of this prototype.
+
+Several acceptable candidates are all listed (`multiple_candidates`) and none
+is chosen: HTML defines no priority among them, and this profile invents none.
+The same URL advertised twice is listed once (`duplicate`).
+
+### Result
+
+```json
+{
+  "schema": "agentpkg-website-discovery-v0",
+  "requested_url": "https://webair.example/",
+  "final_url": "https://webair.example/",
+  "page_origin": "https://webair.example",
+  "redirects": [],
+  "discovery_status": "candidate",
+  "candidates": [{
+    "index": 0, "href": "/agent.pkg",
+    "type_hint": "application/vnd.webagents.agent-package",
+    "resolved_url": "https://webair.example/agent.pkg", "same_origin": true,
+    "accepted": true, "rejection_reason": null, "rejection_message": null
+  }],
+  "accepted_count": 1, "rejected_count": 0, "links_not_listed": 0,
+  "page": {"content_type": "text/html", "declared_charset": "utf-8", "decoded_as": "utf-8",
+           "encoding_source": "http", "content_coding": "identity", "bytes_read": 3862,
+           "truncated": false, "head_ended": true, "html_sha256": "…",
+           "base_element_ignored": false},
+  "profile": {"name": "same-origin-v0", "rel": "agent-package", "…": "…"},
+  "trust": {"conveys": "location_only", "package_verified": false,
+            "publisher_trusted": false, "permissions_granted": false, "note": "…"},
+  "execution": {"performed": false, "package_fetched": false, "note": "…"},
+  "discovered_at": "…"
+}
+```
+
+`discovery_status` is `candidate`, `multiple_candidates`, `no_candidate` or
+`candidates_rejected`. The page itself is not kept: no HTML, cookie or
+response header is returned, only a SHA-256 of the bytes read. A page that
+cannot be read is a typed error: `url_rejected`, `url_unresolvable`,
+`url_destination_denied`, `discovery_redirect_refused`,
+`discovery_http_status`, `discovery_not_html`,
+`discovery_encoding_unsupported`, `discovery_too_large`, `discovery_timeout`
+or `discovery_failed`.
+
+**Audit.** The control plane has no event log for pre-execution actions: its
+records are sessions and receipts, and the hash-linked audit belongs to runs.
+Discovery creates neither a session nor an execution, so it is not written
+into any audit chain. Its typed result carries what an audit would — the
+requested URL, final origin, redirects, every candidate with its verdict and
+reason — and the Agent Browser backend writes one structured Gateway log line
+when a discovery starts and one when it finishes or is refused.
+
+**Tests.** `agentpkg/tests/test_browser_discovery.py` drives the production
+path with only DNS and sockets replaced (`agentpkg/tests/web_fixtures.py`),
+against WebAir's own pages (`examples/webair-site.json`, generated by
+`demo/webair/publisher`) and its real signed package, a second unrelated
+origin, and hostile pages. The offline acceptance record is
+[`webair-010-discovery.json`](../examples/verification/webair-010-discovery.json),
+written by `scripts/verify_webair_discovery.py`.
 
 ## 4. Validation layers are reported separately
 
@@ -342,6 +514,7 @@ Loopback HTTP, JSON in and out, versioned under `/v0`. Everything except
 | GET | `/v0/status` | Instance, limits, cache, trust-store state, capabilities. |
 | POST | `/v0/packages/open-file` | `{"path": "…"}` — trusted operator's local artifact. |
 | POST | `/v0/packages/open-url` | `{"url": "https://…"}` — SSRF-hardened download. |
+| POST | `/v0/websites/discover` | `{"url": "https://…"}` — read one web page and report the agent packages its head advertises (§3a). Opens nothing; `200`. |
 | GET | `/v0/packages` | Open sessions with identity, trust and authorization state. |
 | GET | `/v0/packages/{id}` | Full browser summary. |
 | GET | `/v0/packages/{id}/permissions` | Authorization request, all decisions defaulting to deny. |
@@ -367,7 +540,9 @@ include `unauthorized`, `not_found`, `method_not_allowed`, `invalid_request`,
 `unknown_field`, `request_too_large`, `source_rejected`, `package_rejected`,
 `package_too_large`, `url_rejected`, `url_unresolvable`,
 `url_destination_denied`, `download_redirect_denied`, `download_too_large`,
-`download_timeout`, `download_failed`, `session_unknown`,
+`download_timeout`, `download_failed`, `discovery_redirect_refused`,
+`discovery_http_status`, `discovery_not_html`, `discovery_encoding_unsupported`,
+`discovery_too_large`, `discovery_timeout`, `discovery_failed`, `session_unknown`,
 `session_limit_reached`, `cache_limit_reached`, `digest_mismatch`,
 `unknown_permission`, `invalid_decision`, `unsupported_decision`,
 `trust_entry_exists`, `trust_entry_unknown`, `trust_private_key_refused`,
@@ -437,8 +612,9 @@ service from starting (`cache_unsafe`). On a multi-user Linux host, pass a priva
 
 The control plane **must not** instantiate `Workflow`, invoke a `ModelRouter` or
 `ToolHandler`, contact Citation Resolver or scholarly providers, create workers,
-or execute package skills. Package download is the only package-related network
-activity in the whole service. Evaluating model compatibility and preparing a run
+or execute package skills. Package download and website discovery (one HTML
+page per request, §3a) are the only network activity in the whole service, and
+both run under the same URL and address policy. Evaluating model compatibility and preparing a run
 plan are arithmetic and set membership over declared data: `hostmodels.py` and
 `runplan.py` contact nothing, and a test asserts neither module so much as
 mentions `complete(`, `count_tokens`, `ModelRouter`, `router.`, `http` or
@@ -507,8 +683,11 @@ and reference validation; separate layer reporting; Ed25519 self-consistency
 checking; operator-pinned publisher trust with two-sided mismatch detection;
 deny-by-default permissions; digest-bound receipts; session TTLs, counts, byte
 caps and startup cleanup; HTTPS-only SSRF-hardened downloads with destination
-classification, pinned connections, no redirects and a killable child; and a
-statically tested non-execution boundary.
+classification, pinned connections, no redirects and a killable child;
+website discovery under the same policy, with same-origin redirects only,
+head-only parsing that runs nothing and fetches nothing else, and same-origin
+candidates that are reported as locations, never opened; and a statically
+tested non-execution boundary.
 
 **Not implemented here (future OpenClaw/runtime work):** executing an authorized
 package; a persistent host authorization store (hence no `always`); NANDA

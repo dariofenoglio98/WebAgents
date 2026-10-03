@@ -98,6 +98,8 @@ export const ERROR_CODES = [
   "not_allowed",
   "url_rejected",
   "download_failed",
+  "discovery_failed",
+  "discovery_not_html",
   "package_rejected",
   "source_rejected",
   "session_expired",
@@ -138,6 +140,8 @@ export const FeatureError = Obj({
     Type.Literal("not_allowed"),
     Type.Literal("url_rejected"),
     Type.Literal("download_failed"),
+    Type.Literal("discovery_failed"),
+    Type.Literal("discovery_not_html"),
     Type.Literal("package_rejected"),
     Type.Literal("source_rejected"),
     Type.Literal("session_expired"),
@@ -1621,6 +1625,90 @@ export const FileCapabilityView = Obj({
 });
 export type FileCapabilityViewType = Static<typeof FileCapabilityView>;
 
+// -- website discovery ------------------------------------------------------
+export const DISCOVERY_STATUSES = [
+  "candidate",
+  "multiple_candidates",
+  "no_candidate",
+  "candidates_rejected",
+] as const;
+
+/**
+ * One `rel="agent-package"` link a web page advertised, as the control plane
+ * judged it. A candidate is a location and nothing more: what is at
+ * `resolvedUrl` is unknown until a person inspects it with
+ * `packages.open-url`, the same operation as for any package URL.
+ */
+export const WebsiteCandidateView = Obj({
+  /** Position among the page's advertisements, in document order. */
+  index: Type.Integer({ minimum: 0 }),
+  /** The href as the page wrote it; non-printable characters are shown escaped. */
+  href: Nullable(Text(2048)),
+  /** The advertised media type. A hint about the link, never evidence about the bytes. */
+  typeHint: Nullable(Text(128)),
+  resolvedUrl: Nullable(Text(2048)),
+  sameOrigin: Nullable(Type.Boolean()),
+  /** Whether this profile would let a person inspect it. Not verification. */
+  accepted: Type.Boolean(),
+  rejectionReason: Nullable(Text(64)),
+  rejectionMessage: Nullable(Text(1024)),
+});
+export type WebsiteCandidateViewType = Static<typeof WebsiteCandidateView>;
+
+/**
+ * What one web page advertises. The trailing literals are part of the schema
+ * on purpose: a discovery result cannot represent a verified package, a
+ * trusted publisher, a granted permission, a fetched package or a run.
+ */
+export const WebsiteDiscoveryView = Obj({
+  requestedUrl: Text(2048),
+  finalUrl: Text(2048),
+  pageOrigin: Text(512),
+  /** Same-origin hops followed; the control plane follows at most five. */
+  redirects: Type.Array(
+    Obj({ status: Type.Integer(), fromUrl: Text(2048), toUrl: Text(2048) }),
+    { maxItems: 5 },
+  ),
+  status: Type.Union([
+    Type.Literal("candidate"),
+    Type.Literal("multiple_candidates"),
+    Type.Literal("no_candidate"),
+    Type.Literal("candidates_rejected"),
+  ]),
+  candidates: Type.Array(WebsiteCandidateView, { maxItems: 16 }),
+  acceptedCount: Type.Integer({ minimum: 0 }),
+  rejectedCount: Type.Integer({ minimum: 0 }),
+  /** Advertisements past the control plane's bound, counted but not listed. */
+  linksNotListed: Type.Integer({ minimum: 0 }),
+  page: Obj({
+    contentType: Text(128),
+    declaredCharset: Nullable(Text(128)),
+    decodedAs: Text(32),
+    encodingSource: Text(16),
+    contentCoding: Text(16),
+    bytesRead: Type.Integer({ minimum: 0 }),
+    truncated: Type.Boolean(),
+    headEnded: Type.Boolean(),
+    htmlSha256: Text(64),
+    baseElementIgnored: Type.Boolean(),
+  }),
+  profile: Obj({
+    name: Text(64),
+    rel: Text(64),
+    mediaType: Text(128),
+    sameOriginRequired: Type.Boolean(),
+    maxRedirects: Type.Integer({ minimum: 0 }),
+    maxHtmlBytes: Type.Integer({ minimum: 0 }),
+  }),
+  discoveredAt: Text(64),
+  packageVerified: Type.Literal(false),
+  publisherTrusted: Type.Literal(false),
+  permissionsGranted: Type.Literal(false),
+  packageFetched: Type.Literal(false),
+  executionPerformed: Type.Literal(false),
+});
+export type WebsiteDiscoveryViewType = Static<typeof WebsiteDiscoveryView>;
+
 const SessionId = Type.String({ minLength: 8, maxLength: 128, pattern: "^[A-Za-z0-9_-]+$" });
 const FileId = Type.String({ pattern: "^file_[0-9a-f]{32}$" });
 /** Run ids are issued by this backend and nothing else has their shape. */
@@ -1763,6 +1851,16 @@ export const contract = defineFeatureContract({
       description: "Open an agent package from an HTTPS URL through the control plane.",
       input: Obj({ url: Type.String({ minLength: 8, maxLength: 2048 }) }),
       output: Result(PackageView),
+    },
+    "websites.discover": {
+      kind: "action",
+      description:
+        "Read one HTTPS web page through the control plane and report the agent packages its " +
+        'head advertises with <link rel="agent-package"> (experimental WebAgents metadata, ' +
+        "not a web standard). Each candidate is an untrusted location: nothing is downloaded, " +
+        "verified, trusted, authorized or run. Inspecting one is a separate packages.open-url.",
+      input: Obj({ url: Type.String({ minLength: 8, maxLength: 2048 }) }),
+      output: Result(WebsiteDiscoveryView),
     },
     "packages.open-local": {
       kind: "action",

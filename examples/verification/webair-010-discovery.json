@@ -1,0 +1,280 @@
+{
+  "passed": true,
+  "checks": {
+    "scenario_A_webair": true,
+    "scenario_B_no_agent": true,
+    "scenario_C_cross_origin_advertisement": true,
+    "scenario_D_invalid_package": true,
+    "scenario_E_valid_signature_untrusted_signer": true,
+    "second_origin": true,
+    "multiple_candidates": true,
+    "policy": true,
+    "control_plane_executes_nothing": true,
+    "no_site_or_package_name_in_generic_code": true
+  },
+  "convention": {
+    "element": "<link rel=\"agent-package\" type=\"application/vnd.webagents.agent-package\" href=\"...\">",
+    "rel": "agent-package",
+    "media_type": "application/vnd.webagents.agent-package",
+    "status": "experimental WebAgents metadata; not a registered link relation or media type and not a web standard",
+    "conveys": "a location only: no identity, integrity, trust, permission or authority",
+    "profile": "same-origin-v0: document head only, same-origin candidates only, at most 5 same-origin redirects, 1 MiB"
+  },
+  "fixture": {
+    "web": "agentpkg/tests/web_fixtures.py: synthetic public origins served by one local server; only DNS answers and socket connections are replaced",
+    "webair_pages": {
+      "source": "examples/webair-site.json",
+      "generated_by": "demo/webair/publisher (python -m publisher sync|check)",
+      "pages": {
+        "/": "3f48c4760621af28a6bff10be5d73876bd633e49f1369fb0f62ceb2aedf03348",
+        "/flight/WA101-20261009?passengers=1": "0b1ed3300ae18beac882a39d623e9aed86d56048ba215574a5bf0d20a8341304"
+      }
+    },
+    "webair_package": {
+      "path": "dist/webair-0.1.0.agent.pkg",
+      "archive_sha256": "73872c3177a9ec281a8875ae154023a72ff10f9fe96c5a82ed1639a34ecb470c",
+      "digest": "3b7c61a7bd9584e0217dda802065248c86dd135d210b8a06ab25239835cc2fb6"
+    },
+    "trust_store": "empty; scenario A pins WebAir's public key explicitly through the operator API and removes it again"
+  },
+  "scenarios": {
+    "A_webair": {
+      "website": "https://webair.example/",
+      "advertised_link": "<link rel=\"agent-package\" type=\"application/vnd.webagents.agent-package\" href=\"/agent.pkg\">",
+      "advertised": "https://webair.example/agent.pkg",
+      "discovery": {
+        "http_status": 200,
+        "status": "candidate",
+        "candidate": {
+          "href": "/agent.pkg",
+          "resolved_url": "https://webair.example/agent.pkg",
+          "same_origin": true,
+          "accepted": true,
+          "type_hint": "application/vnd.webagents.agent-package",
+          "rejection_reason": null
+        },
+        "requests_made": [
+          "https://webair.example/"
+        ],
+        "sessions_after_discovery": 0,
+        "trust": {
+          "conveys": "location_only",
+          "package_verified": false,
+          "publisher_trusted": false,
+          "permissions_granted": false
+        },
+        "execution": {
+          "performed": false,
+          "package_fetched": false
+        }
+      },
+      "deeper_page": {
+        "website": "https://webair.example/flight/WA101-20261009?passengers=1",
+        "advertised": [
+          "https://webair.example/agent.pkg"
+        ]
+      },
+      "inspection": {
+        "operation": "POST /v0/packages/open-url",
+        "http_status": 201,
+        "package_id": "org.webagents.webair",
+        "version": "0.1.0",
+        "digest": "3b7c61a7bd9584e0217dda802065248c86dd135d210b8a06ab25239835cc2fb6",
+        "archive_sha256": "73872c3177a9ec281a8875ae154023a72ff10f9fe96c5a82ed1639a34ecb470c",
+        "validation": {
+          "container_status": "valid",
+          "integrity_status": "valid",
+          "schema_status": "valid",
+          "runtime_status": "compatible"
+        },
+        "signature_status": "valid",
+        "signer_fingerprint": "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b"
+      },
+      "publisher_trust": {
+        "empty_trust_store": "unknown",
+        "explicit_operator_pin": {
+          "http_status": 201,
+          "key": "examples/keys/webair-publisher.pub.pem",
+          "publisher_id": "webair-demo",
+          "package_id_prefix": "org.webagents.webair"
+        },
+        "after_pin": "trusted",
+        "pin_removed_afterwards": true
+      },
+      "permissions": {
+        "default_decisions": [
+          "deny"
+        ],
+        "tool_approvals_default": [
+          false
+        ]
+      },
+      "authorization": {
+        "everything_granted_before_pin": {
+          "runnable": false,
+          "blocking_reasons": [
+            "publisher_not_trusted"
+          ]
+        },
+        "everything_granted_after_pin": {
+          "runnable": true,
+          "blocking_reasons": []
+        },
+        "execution_performed": false
+      },
+      "automatic_execution": false,
+      "passed": true
+    },
+    "B_no_agent": {
+      "website": "https://news.example/",
+      "status": "no_candidate",
+      "candidates": 0,
+      "sessions": 0,
+      "passed": true
+    },
+    "C_cross_origin_advertisement": {
+      "website": "https://victim.example/",
+      "advertised": "https://other.example/evil.agent.pkg",
+      "status": "candidates_rejected",
+      "candidate": {
+        "href": "https://other.example/evil.agent.pkg",
+        "resolved_url": "https://other.example/evil.agent.pkg",
+        "same_origin": false,
+        "accepted": false,
+        "type_hint": "application/vnd.webagents.agent-package",
+        "rejection_reason": "cross_origin"
+      },
+      "rejection_message": "The package is advertised at https://other.example, not at this page's origin https://victim.example (different host). This discovery profile accepts only packages served by the page's own origin.",
+      "requests_to_other_origin": 0,
+      "other_origin_resolved": false,
+      "sessions": 0,
+      "passed": true
+    },
+    "D_invalid_package": {
+      "broken_archive": {
+        "website": "https://broken.example/",
+        "discovery": "candidate",
+        "inspection": {
+          "http_status": 422,
+          "error": "package_rejected",
+          "validation": {
+            "container_status": "invalid",
+            "integrity_status": "not_evaluated",
+            "schema_status": "not_evaluated",
+            "runtime_status": "not_evaluated"
+          }
+        }
+      },
+      "tampered_after_signing": {
+        "website": "https://tampered.example/",
+        "discovery": "candidate",
+        "inspection": {
+          "integrity_status": "valid",
+          "signature_status": "invalid",
+          "trust_status": "unknown",
+          "trust_reason": "no_valid_signature"
+        }
+      },
+      "passed": true
+    },
+    "E_valid_signature_untrusted_signer": {
+      "website": "https://stranger.example/",
+      "package": "agents/webair built and signed by a throwaway key nobody pinned",
+      "discovery": "candidate",
+      "signature_status": "valid",
+      "signer_is_webair_key": false,
+      "claimed_publisher": "webair-demo",
+      "trust_status": "unknown",
+      "with_webair_key_pinned": {
+        "trust_status": "mismatch",
+        "trust_reason": "claimed_publisher_pinned_to_other_key"
+      },
+      "passed": true
+    }
+  },
+  "second_origin": {
+    "website": "https://meetings.example/team/",
+    "advertised_href": "tools/agenda.agent.pkg",
+    "advertised": "https://meetings.example/team/tools/agenda.agent.pkg",
+    "package_id": "org.webagents.meeting-agenda",
+    "signature_status": "valid",
+    "trust_status": "unknown",
+    "passed": true
+  },
+  "multiple_candidates": {
+    "website": "https://multi.example/",
+    "status": "multiple_candidates",
+    "advertised": [
+      "https://multi.example/stable.agent.pkg",
+      "https://multi.example/beta.agent.pkg"
+    ],
+    "chosen": null,
+    "sessions": 0,
+    "passed": true
+  },
+  "policy": {
+    "refused": {
+      "http://webair.example/": {
+        "http_status": 400,
+        "code": "url_rejected"
+      },
+      "http://127.0.0.1:8040/": {
+        "http_status": 400,
+        "code": "url_rejected"
+      },
+      "https://127.0.0.1/": {
+        "http_status": 403,
+        "code": "url_destination_denied"
+      },
+      "https://localhost/": {
+        "http_status": 403,
+        "code": "url_destination_denied"
+      },
+      "https://[::1]/": {
+        "http_status": 403,
+        "code": "url_destination_denied"
+      },
+      "https://10.0.0.5/": {
+        "http_status": 403,
+        "code": "url_destination_denied"
+      },
+      "https://169.254.169.254/latest/meta-data/": {
+        "http_status": 403,
+        "code": "url_destination_denied"
+      },
+      "https://user:secret@webair.example/": {
+        "http_status": 400,
+        "code": "url_rejected"
+      },
+      "https://webair.example:8443/": {
+        "http_status": 400,
+        "code": "url_rejected"
+      },
+      "https://moved.example/": {
+        "http_status": 502,
+        "code": "discovery_redirect_refused"
+      },
+      "https://webair.example/agent.pkg": {
+        "http_status": 502,
+        "code": "discovery_not_html"
+      }
+    },
+    "hosts_ever_connected": [
+      "broken.example",
+      "meetings.example",
+      "moved.example",
+      "multi.example",
+      "news.example",
+      "stranger.example",
+      "tampered.example",
+      "victim.example",
+      "webair.example"
+    ],
+    "passed": true
+  },
+  "genericity": {
+    "files_mentioning_webair_or_a_package_id": [],
+    "clean": true
+  },
+  "scope": "offline: the production control plane over its HTTP API, its discovery and package paths, against a fixture web; no real network, origin server, model, OpenClaw host or Agent Browser page. The page's behaviour is covered by the plugin's tests."
+}

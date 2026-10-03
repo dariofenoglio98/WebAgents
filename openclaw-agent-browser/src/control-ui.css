@@ -418,6 +418,31 @@
   margin: 0 0 8px;
 }
 
+/* -- website discovery ---------------------------------------------------- */
+.ab-website {
+  display: grid;
+  gap: 8px;
+}
+.ab-website p {
+  margin: 0;
+}
+.ab-website-url code {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.95rem;
+  word-break: break-all;
+}
+/* An advertised address is unverified: the amber of an unknown publisher. */
+.ab-candidate {
+  border-color: #b26a00;
+}
+.ab-candidate-rejected {
+  border-style: dashed;
+  border-color: var(--border, #d0d0d0);
+}
+.ab-candidate .ab-button {
+  margin-top: 6px;
+}
+
 /* -- model selection and run plan ---------------------------------------- */
 .ab-model,
 .ab-runplan {

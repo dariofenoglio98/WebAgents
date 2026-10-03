@@ -54,12 +54,21 @@ const MAPPING: Record<string, { code: ErrorCode; title: string; retryable?: bool
   busy: { code: "service_unavailable", title: "Service busy", retryable: true },
 
   url_rejected: { code: "url_rejected", title: "This URL cannot be opened" },
-  url_unresolvable: { code: "download_failed", title: "Package host not reachable", retryable: true },
+  // Shared by package URLs and website discovery, which apply the same URL policy.
+  url_unresolvable: { code: "download_failed", title: "Host not reachable", retryable: true },
   url_destination_denied: { code: "url_rejected", title: "This destination is not allowed" },
   download_redirect_denied: { code: "download_failed", title: "Download refused" },
   download_too_large: { code: "download_failed", title: "Package too large" },
   download_timeout: { code: "download_failed", title: "Download timed out", retryable: true },
   download_failed: { code: "download_failed", title: "Download failed", retryable: true },
+
+  discovery_redirect_refused: { code: "discovery_failed", title: "Website redirect not followed" },
+  discovery_http_status: { code: "discovery_failed", title: "No page at this address", retryable: true },
+  discovery_not_html: { code: "discovery_not_html", title: "Not a web page" },
+  discovery_encoding_unsupported: { code: "discovery_failed", title: "Page encoding not supported" },
+  discovery_too_large: { code: "discovery_failed", title: "Page head too large" },
+  discovery_timeout: { code: "discovery_failed", title: "Website timed out", retryable: true },
+  discovery_failed: { code: "discovery_failed", title: "Website could not be read", retryable: true },
 
   source_rejected: { code: "source_rejected", title: "This file cannot be opened" },
   package_too_large: { code: "source_rejected", title: "Package too large" },

@@ -21,18 +21,18 @@ each claim). Reports are historical: a later report or the current artifacts in
 | [getting-started.md](getting-started.md) | Installation, OpenClaw plugin setup, model configuration (Ollama, hosted OpenAI) |
 | [architecture.md](architecture.md) | Architecture and concrete design decisions |
 | [threat-model.md](threat-model.md) | Assets, trust boundaries and what the prototype does and does not defend |
-| [browser-control-plane.md](browser-control-plane.md) | `agentpkg browser-serve`: opening, snapshots, validation, trust, authorization |
+| [browser-control-plane.md](browser-control-plane.md) | `agentpkg browser-serve`: opening, snapshots, validation, trust, authorization, and experimental website discovery (`rel="agent-package"`, §3a) |
 | [model-selection-and-run-plan.md](model-selection-and-run-plan.md) | Model compatibility semantics and the run-plan schema |
 | [model-availability.md](model-availability.md) | Which host view means "this model can be used" |
 | [model-router.md](model-router.md) | The host model-router interface |
 | [model-router-bridge.md](model-router-bridge.md) | How a run plan reaches the selected model through OpenClaw |
 | [package-execution.md](package-execution.md) | Executing a signed package: lease, re-verification, runner, run record |
 | [tool-broker.md](tool-broker.md) | Host tool bindings, approvals and the built-in tool implementations |
-| [openclaw-agent-browser.md](openclaw-agent-browser.md) | The OpenClaw Agent Browser plugin: architecture, trust semantics, limitations |
+| [openclaw-agent-browser.md](openclaw-agent-browser.md) | The OpenClaw Agent Browser plugin: architecture, trust semantics, website discovery in the page (§5b), limitations |
 | [openclaw-integration.md](openclaw-integration.md) | The older verified-workspace staging adapter (`install-openclaw`) |
 | [workflow-migration.md](workflow-migration.md) | Migration from the legacy Literature Review runner to generic execution |
 | [literature-walkthrough.md](literature-walkthrough.md) | Walkthrough of the reference package layout |
-| [../demo/webair/README.md](../demo/webair/README.md) | WebAir demo: a fictional airline origin publishing its HTML site and a signed `agent.pkg` over one service |
+| [../demo/webair/README.md](../demo/webair/README.md) | WebAir demo: a fictional airline origin publishing its HTML site and a signed `agent.pkg` over one service, and how the Agent Browser discovers it |
 | [releasing.md](releasing.md) | Release procedure, artifact SHA-256 manifest, and the public-release checklist |
 | [release-notes-v0.1.0.md](release-notes-v0.1.0.md) | Draft notes for the first public release |
 | [../THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md) | Third-party material in the repository and the plugin artifact, and its terms |

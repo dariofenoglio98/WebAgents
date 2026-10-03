@@ -241,6 +241,12 @@ PORT=8080 python3 package-origin/server.py      # plain HTTP; deploy behind TLS 
 It serves plain HTTP on `$PORT`. To open it from the page, deploy it behind an HTTPS front end, for
 example a container platform that terminates TLS. A localhost origin is refused by design.
 
+The address bar also takes a website's address. The control plane then reads that one page, under
+the same policy, for an experimental `<link rel="agent-package" href="…">` in its head, and the page
+lists what it found as unverified addresses; **Inspect** opens one exactly as if you had typed it.
+Only packages on the page's own origin are offered
+([details](browser-control-plane.md#3a-website-discovery)).
+
 ## Troubleshooting
 
 | Symptom | Likely cause |

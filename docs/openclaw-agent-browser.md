@@ -163,6 +163,7 @@ not by this plugin.
 | `files.list` | query | The PDF capabilities this session holds |
 | `trust.list` | query | Publisher keys pinned by this operator |
 | `packages.open-url` | action | Open an HTTPS package through the control plane |
+| `websites.discover` | action | Read one web page through the control plane and list the packages its head advertises, as untrusted candidates (§5b) |
 | `packages.open-local` | action | Open a file inside an operator-configured root |
 | `packages.close` | action | Close a session and delete its snapshot |
 | `packages.authorize` | action | Record decisions, receive a receipt |
@@ -187,7 +188,8 @@ and `contracts.tools` is empty in the manifest.
 handler error to a bare message, which a UI cannot branch on. Fallible
 operations therefore return `{ ok: true, value } | { ok: false, error }` where
 `error.code` is one of a closed set: `service_unavailable`, `invalid_request`,
-`not_allowed`, `url_rejected`, `download_failed`, `package_rejected`,
+`not_allowed`, `url_rejected`, `download_failed`, `discovery_failed`,
+`discovery_not_html`, `package_rejected`,
 `source_rejected`, `session_expired`, `digest_mismatch`, `trust_conflict`,
 `signature_not_valid`, `limit_reached`, `control_plane_error`,
 `model_catalog_unavailable`, `model_unknown`, `run_plan_refused`,
@@ -219,7 +221,8 @@ acceptance found the first three by exceeding them.
 | Section | Content |
 |---|---|
 | Header | Service state chip, control-plane version, whether runs are available, Retry when unavailable |
-| Address bar | HTTPS URL entry; optional local-path entry when roots are configured |
+| Address bar | One HTTPS address: a website, read for an advertised package, or a package URL; optional local-path entry when roots are configured |
+| Website | After a website was read and while no package is open: its address, each advertised candidate as an unverified location with **Inspect**, rejected advertisements with their reasons, and discovery details — see §5b |
 | Open packages | Session tabs with trust status |
 | Package header | Name, package ID, version, description, execution profile, file count, session expiry, source |
 | **Run panel** | Checklist, task form, Run button, live progress, Cancel, result, artifacts, technical details — see §5a |
@@ -288,6 +291,56 @@ every check re-verified before start. A run that finds nothing grounded
 completes with the package's own *No sufficiently grounded literature found*
 text and empty tables — shown as a completed run, not an error. A failed run
 names its error code, the node and the package check that stopped it.
+
+## 5b. Website discovery
+
+The address bar takes an ordinary website as well as a package URL. An
+address whose last path segment ends in `.pkg` opens that package directly,
+exactly as before; anything else is sent to `websites.discover`, and the
+control plane reads that one page for `<link rel="agent-package">` in its head
+([the control plane, §3a](browser-control-plane.md#3a-website-discovery)).
+This routing only chooses which operation to ask: both apply the control
+plane's full URL policy. `rel="agent-package"` is experimental WebAgents
+metadata, not a web standard, and the page says so.
+
+```text
+ Website
+ https://webair.example/
+ [Agent package advertised]
+ This website says an agent package is available at the address below. That is
+ only a location: who published it, whether it is intact and signed, and what
+ it would be allowed to do are unknown until you inspect it.
+
+   https://webair.example/agent.pkg   [Unverified candidate] [advertised type …]
+   [Inspect agent package]
+```
+
+* A candidate is shown as an address with an amber *Unverified candidate*
+  chip. Nothing from the page is presented as the package's name, publisher,
+  version or permissions; the result's schema cannot even carry a verified,
+  trusted, authorized, fetched or executed candidate (`packageVerified`,
+  `publisherTrusted`, `permissionsGranted`, `packageFetched` and
+  `executionPerformed` are the literal `false`), and the backend refuses a
+  control-plane answer that says otherwise.
+* **Inspect agent package** calls `packages.open-url` with the candidate's
+  resolved URL — the same operation as typing it — so everything after it is
+  the ordinary flow: snapshot, layered validation, signature, publisher trust,
+  deny-by-default permissions, authorization, model, run plan. The package
+  header then adds *Advertised on https://webair.example/*, which only labels
+  where the address came from.
+* Several candidates are listed with one **Inspect** each, and none is
+  chosen. A page with no advertisement says so. A rejected advertisement —
+  another origin, an unsupported scheme, a malformed or fragment-only href —
+  is shown with its reason and has no Inspect button; it was never fetched.
+* An address that answers with something other than an HTML page is reported
+  as *Not a web page*, with **Open as agent package** as an explicit choice.
+* Discovering a website replaces the package view the way a new address does;
+  open sessions stay in their tabs. Closing a package opened from a candidate
+  returns to the website card.
+* Discovery never authorizes, plans or runs anything, and emits no change
+  event. The backend writes one structured Gateway log line when a discovery
+  starts and one when it finishes (origin, status, accepted and rejected
+  candidate URLs with reasons) or is refused (code).
 
 ## 6. Trust user experience
 
@@ -381,6 +434,7 @@ visible.
 | Artifacts by name, not path | One plain filename matching `^[A-Za-z0-9_-][A-Za-z0-9_.-]{0,127}$`, listed in that run's own directory, opened with `O_NOFOLLOW`; traversal, absolute and encoded names are refused (live probes) |
 | Downloads are verified | Assembled from 48 KiB slices and checked against the whole file's SHA-256 before saving |
 | No new network or process from the browser | A structural test: the browser half imports only the contract, its own modules and the Control UI SDK, and has no `fetch`, socket or subprocess |
+| A website cannot vouch for a package | Discovery runs in the control plane under the package URL policy and reports same-origin locations only; the result's schema fixes every verification, trust, permission, fetch and execution field to `false`; inspecting a candidate is the ordinary `packages.open-url`, chosen by the person |
 
 One implementation note worth keeping: the backend talks to the control plane
 with `node:http`, not global `fetch`. Node's fetch sends `sec-fetch-mode: cors`,
@@ -403,7 +457,10 @@ it.
   tool implementation.
 * **No automatic or best-model selection**, no per-worker or per-node routing,
   no fallback chains, no cost optimization and no quality ranking.
-* **No NANDA, Muse, Instinct or Maritime.** The address bar takes raw HTTPS URLs.
+* **No NANDA, Muse, Instinct or Maritime.** The address bar takes HTTPS URLs: a
+  package's own, or a website's, read only for a same-origin
+  `rel="agent-package"` advertisement (§5b). There is no registry, search or
+  cross-origin delegation.
 * **No persistent authorization.** Receipts live and die with their control-plane
   session, which is why *Always* is not offered.
 * **No file picker.** OpenClaw 2026.9.5 exposes no native file-picker component
@@ -460,9 +517,12 @@ packs, installs into a throwaway OpenClaw configuration, inspects what the host
 loaded, and runs the test suite. Saved output:
 [`agent-browser-plugin.json`](../examples/verification/agent-browser-plugin.json).
 
-391 tests cover the contract, the supervisor against a real `agentpkg
+485 tests cover the contract, the supervisor against a real `agentpkg
 browser-serve` child, the backend against a real control plane with both shipped
-packages, host model discovery against a stubbed OpenClaw catalog, run-plan
+packages, website discovery end to end (`test/discovery.test.ts`: the backend
+against a real control plane whose network is a fixture web serving WebAir's
+own pages and signed package, plus hostile origins) and in the page
+(`test/ui-discovery.test.ts`), host model discovery against a stubbed OpenClaw catalog, run-plan
 preparation and staleness end to end, the Run surface (gate, start, progress,
 cancel, reload, artifacts, file input) against a real control plane and runner,
 the page and the Run panel in a DOM, safe Markdown, the host's output limits
@@ -494,9 +554,11 @@ remains, deliberately not built:
    host implementations, no package change.
 3. **Other execution profiles** (`conversation.v0`, `service.v0`); there is no
    chat.
-4. **Discovery and locators** (NANDA, registries), Muse / Instinct, Maritime /
-   sandboxed execution, a package update flow, richer evals and attestations,
-   and model-provider redundancy.
+4. **Discovery and locators** beyond one page's same-origin advertisement
+   (NANDA, registries, an explicit and verifiable way for one origin to
+   delegate its package to another), Muse / Instinct, Maritime / sandboxed
+   execution, a package update flow, richer evals and attestations, and
+   model-provider redundancy.
 
 See also: [the control plane](browser-control-plane.md), [model selection and the
 run plan](model-selection-and-run-plan.md) with its [milestone

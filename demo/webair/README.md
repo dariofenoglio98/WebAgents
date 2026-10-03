@@ -51,16 +51,19 @@ gives the same answer whichever interface asks.
 | Semantic JSON API | [`origin/api.py`](origin/api.py) |
 | Experimental discovery hint plus a fixed `/agent.pkg` route | [`origin/agent_package.py`](origin/agent_package.py) |
 | **The signed WebAir agent package** (milestone 2) | source [`agents/webair/`](../../agents/webair/README.md); artifact [`dist/webair-0.1.0.agent.pkg`](../../dist/README.md#demo) |
-| Publisher tooling: tool schemas from the API contract, the recorded fixture, example tasks | [`publisher/`](publisher/) |
+| Publisher tooling: tool schemas from the API contract, the recorded fixture, example tasks, the captured pages | [`publisher/`](publisher/) |
 | Tests: service, API, HTML journey, discovery, safety; package contract, package runs, package serving | [`tests/`](tests/) |
+| **Agent Browser discovery of this origin** (milestone 3): generic `rel="agent-package"` discovery, tested offline against these pages and this package | [below](#how-the-agent-browser-discovers-webair); evidence [`webair-010-discovery.json`](../../examples/verification/webair-010-discovery.json) |
 
 ### Not implemented yet (on purpose)
 
-Agent Browser discovery of the `rel="agent-package"` link, or opening a package from this
-origin. Host tool bindings for WebAir's operations in the Agent Browser (its tool registry has
-none, so a browser run plan would report all four tools `unbound`). A public HTTPS deployment.
-Host-owned personal-data and payment capabilities, mid-run authorization, NANDA. Real airline
-or payment services. **No generic WebAgents code was changed or special-cased for WebAir.**
+Host tool bindings for WebAir's operations in the Agent Browser (its tool registry has none, so
+a browser run plan would report all four tools `unbound`). A public HTTPS deployment, and so a
+live discovery of this origin: the Agent Browser refuses the local `http://127.0.0.1:8040/` by
+design. Host-owned personal-data and payment capabilities, mid-run authorization, NANDA. Real
+airline or payment services. **No generic WebAgents code was changed or special-cased for
+WebAir:** discovery works on any origin that publishes the link, and the browser's code
+mentions no site (`scripts/verify_webair.py` and the plugin's structural tests check this).
 
 ## Running it
 
@@ -318,15 +321,51 @@ signed bytes: `X-Agent-Package-SHA256` and the ETag carry
 downloaded file succeeds against WebAir's pinned key
 ([`tests/test_package_serving.py`](tests/test_package_serving.py); a recorded `curl` check is in
 [`examples/verification/webair-010-serving.json`](../../examples/verification/webair-010-serving.json)).
-**The Agent Browser does not fetch it.** Its acquisition policy (HTTPS, public addresses only)
-refuses this loopback origin, and that policy is unchanged. Discovery is the next milestone.
+
+### How the Agent Browser discovers WebAir
+
+Give the Agent Browser WebAir's address instead of the package's:
+
+```text
+ https://webair.example/                      the human page
+      │  read once, under the browser's URL policy; nothing on it runs or loads
+      ▼
+ <link rel="agent-package" … href="/agent.pkg">   in the page's head
+      │  resolved against the page, accepted because it is WebAir's own origin
+      ▼
+ https://webair.example/agent.pkg              an untrusted candidate: an address
+      │  the person presses "Inspect agent package"
+      ▼
+ the ordinary package path: snapshot, validation, signature, publisher trust,
+ deny-by-default permissions, authorization, model, run plan
+```
+
+The page only says *where* the package is. It does not say who published it, whether it is
+intact, or what it may do: the Agent Browser verifies the signed bytes it then downloads, reports
+WebAir's key as **unknown** until an operator pins it, and starts every permission at *Deny*.
+Nothing about this is WebAir-specific in the browser — any origin that publishes the link is
+discovered the same way, and WebAir's own pages pass only because they publish it. The design and
+its limits (head only, same-origin only, no `<base>`, at most five same-origin redirects, 1 MiB) are
+in [the control plane, §3a](../../docs/browser-control-plane.md#3a-website-discovery) and
+[the Agent Browser, §5b](../../docs/openclaw-agent-browser.md#5b-website-discovery).
+
+**Tested offline, not yet live.** The local origin above is plain HTTP on loopback, which the
+browser refuses by design, and that policy is unchanged. The discovery tests serve WebAir's own
+pages instead, captured from this origin by `python -m publisher sync` into
+[`examples/webair-site.json`](../../examples/webair-site.json) (and checked by
+`publisher check`), together with the real signed `dist/webair-0.1.0.agent.pkg`, through a
+fixture that replaces only DNS and sockets. The recorded acceptance,
+[`webair-010-discovery.json`](../../examples/verification/webair-010-discovery.json)
+(`agentpkg/.venv/bin/python scripts/verify_webair_discovery.py`), covers five scenarios: WebAir's
+page leading to a valid signature and an unknown, then pinned, publisher; an ordinary site with no
+advertisement; a cross-origin advertisement, rejected and never fetched; a valid advertisement of
+an invalid or tampered package, failing inspection; and a valid signature by a stranger's key,
+untrusted and reported as an impersonation once WebAir's key is pinned.
 
 ## Next steps
 
-1. **Generic browser discovery**: the Agent Browser notices `rel="agent-package"` on any origin,
-   then fetches, verifies and authorizes the package through the existing generic path, tested
-   on safe fixtures and against a public HTTPS WebAir deployment, never by relaxing the
-   loopback policy.
+1. **A public HTTPS deployment**, for a live discovery of WebAir from the Agent Browser, never
+   by relaxing the loopback policy.
 2. **Host bindings** for the four declared tools (the generic `json_http` adapter already speaks
    this API's request and status shape), and a package version declaring the deployment's host.
 3. **Host-owned personal and payment capabilities**: passenger details and a payment method

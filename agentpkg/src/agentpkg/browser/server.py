@@ -79,6 +79,8 @@ class BrowserAPI:
             return self._only(method, "POST", lambda: self._open_file(body))
         if route == ["packages", "open-url"]:
             return self._only(method, "POST", lambda: self._open_url(body))
+        if route == ["websites", "discover"]:
+            return self._only(method, "POST", lambda: self._discover_website(body))
         if route == ["trust"]:
             if method == "GET":
                 return 200, self.control.trust_list()
@@ -220,6 +222,11 @@ class BrowserAPI:
     def _open_url(self, body):
         payload = _object(body, {"url"}, {"url"})
         return 201, self.control.open_url(payload["url"])
+
+    def _discover_website(self, body):
+        # 200, not 201: discovery creates nothing, it only reports a page.
+        payload = _object(body, {"url"}, {"url"})
+        return 200, self.control.discover_website(payload["url"])
 
     def _authorize(self, session_id, body):
         payload = _object(

@@ -5,10 +5,11 @@
     .venv/bin/python -m publisher check   # exit 1 if any of them differs from the origin now
 
 Generated: `agents/webair/schemas/api/*.json` (WebAir's published API contract),
-`agents/webair/fixtures/workflow.json` (the package's recorded fixture) and the example
-tasks `examples/webair-*.json`. Everything else in `agents/webair/` (manifest, graph,
-policy, tool declarations, skills, package-authored schemas) is written by hand, and the
-contract tests check it against the origin.
+`agents/webair/fixtures/workflow.json` (the package's recorded fixture), the example
+tasks `examples/webair-*.json`, and `examples/webair-site.json` (the origin's own HTML
+pages, which offline website-discovery fixtures serve). Everything else in
+`agents/webair/` (manifest, graph, policy, tool declarations, skills, package-authored
+schemas) is written by hand, and the contract tests check it against the origin.
 """
 
 from __future__ import annotations
@@ -21,6 +22,7 @@ from pathlib import Path
 from .contract import PACKAGE_SOURCE, REPO_ROOT, contract_files
 from .fixture import FIXTURE_PATH, record_fixture, source_files
 from .scenarios import scenario, scenarios
+from .site import capture_site
 
 EXAMPLES = REPO_ROOT / "examples"
 
@@ -41,6 +43,7 @@ def example_files() -> dict[Path, dict]:
                 for s in scenarios()
             ],
         },
+        EXAMPLES / "webair-site.json": capture_site(),
     }
 
 

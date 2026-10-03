@@ -158,7 +158,10 @@ in the Control UI sidebar.
    `agentpkg browser-serve` for you. If it says unavailable, the detail line
    explains why and **Retry** restarts it.
 3. Open a package — paste an HTTPS URL, or expand *Open a local package* and
-   enter `<repo>/dist/literature-review.agent.pkg`.
+   enter `<repo>/dist/literature-review.agent.pkg`. A website's address works
+   too: the page is read for an experimental `rel="agent-package"`
+   advertisement, shown as an unverified address until you press *Inspect*
+   ([§5b of the plugin doc](../docs/openclaw-agent-browser.md#5b-website-discovery)).
 4. Read the result:
    - **Container / Integrity / Schema / Runtime** each report their own status;
    - **Signature** says *Cryptographically valid*;

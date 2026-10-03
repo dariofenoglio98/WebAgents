@@ -295,6 +295,7 @@ const plugin = defineFeaturePlugin({
       "packages.permissions": ({ sessionId }) => active().getPermissions(sessionId),
       "packages.authorization": ({ sessionId }) => active().getAuthorization(sessionId),
       "packages.open-url": ({ url }) => active().openUrl(url),
+      "websites.discover": ({ url }) => active().discoverWebsite(url),
       "packages.open-local": ({ path }) => active().openLocal(path),
       "packages.close": ({ sessionId }) => active().closeSession(sessionId),
       "packages.authorize": ({ sessionId, packageDigest, decisions, toolApprovals }) =>

@@ -277,6 +277,28 @@ describe.runIf(runs)("backend feature operations", () => {
     expect(file.ok).toBe(false);
   }, 120_000);
 
+  it("applies the same URL policy to website discovery", async () => {
+    const before = unwrap(await backend.listSessions()).sessions.length;
+    for (const url of [
+      "http://shop.example/",
+      "file:///etc/passwd",
+      "https://user:secret@shop.example/",
+      "https://shop.example:8443/",
+    ]) {
+      const result = await backend.discoverWebsite(url);
+      expect(result.ok, url).toBe(false);
+      if (!result.ok) expect(result.error.code).toBe("url_rejected");
+    }
+    // Resolved by the real resolver inside the control plane's own killable child.
+    const loopback = await backend.discoverWebsite("https://localhost/");
+    expect(loopback.ok).toBe(false);
+    if (!loopback.ok) {
+      expect(loopback.error.code).toBe("url_rejected");
+      expect(loopback.error.detail).toMatch(/loopback/iu);
+    }
+    expect(unwrap(await backend.listSessions()).sessions).toHaveLength(before);
+  }, 120_000);
+
   it("rejects a malformed package with its layered validation", async () => {
     const broken = join(stateDir, "broken.agent.pkg");
     await writeFile(broken, "PK\u0003\u0004 not a package");

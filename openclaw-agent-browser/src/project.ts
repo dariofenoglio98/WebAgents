@@ -23,7 +23,9 @@ import {
   type RunPlanViewType,
   type TaskInputViewType,
   type ToolRegistryViewType,
+  type WebsiteDiscoveryViewType,
 } from "./contract.js";
+import { AgentBrowserError } from "./errors.js";
 import { BUDGETS, fitsJson } from "./json-limits.js";
 
 type Json = Record<string, unknown>;
@@ -566,6 +568,113 @@ export function projectTrustEntry(entry: unknown) {
 
 export function projectPublisher(publisher: unknown): PackageViewType["publisher"] {
   return projectPackage({ publisher }).publisher;
+}
+
+// -- website discovery -------------------------------------------------------
+const MAX_CANDIDATES = 16;
+const text = (value: unknown, max: number): string => {
+  const value_ = str(value);
+  return value_.length > max ? `${value_.slice(0, max - 1)}…` : value_;
+};
+const nullableText = (value: unknown, max: number): string | null =>
+  typeof value === "string" ? text(value, max) : null;
+
+function unexpectedDiscovery(detail: string): AgentBrowserError {
+  return new AgentBrowserError("control_plane_error", "Unexpected discovery result", detail);
+}
+
+/**
+ * What one web page advertises, bounded for the page.
+ *
+ * Every verdict is the control plane's. Two facts are checked rather than
+ * merely copied, and a result that contradicts them is refused instead of
+ * shown: discovery never verified, trusted, authorized, fetched or ran
+ * anything, and an accepted candidate's URL reaches the page exactly as the
+ * control plane resolved it, because that is what Inspect will open.
+ */
+export function projectDiscovery(value: unknown): WebsiteDiscoveryViewType {
+  const source = rec(value);
+  const page = rec(source.page);
+  const profile = rec(source.profile);
+  const trust = rec(source.trust);
+  const execution = rec(source.execution);
+  const claims = [
+    trust.package_verified,
+    trust.publisher_trusted,
+    trust.permissions_granted,
+    execution.package_fetched,
+    execution.performed,
+  ];
+  if (claims.some((claim) => claim !== false)) {
+    throw unexpectedDiscovery(
+      "The control plane described an advertised package as more than an untrusted location.",
+    );
+  }
+  const listed = Array.isArray(source.candidates) ? source.candidates : [];
+  const candidates = listed.slice(0, MAX_CANDIDATES).map((item) => {
+    const candidate = rec(item);
+    const accepted = bool(candidate.accepted);
+    const resolvedUrl = nullableText(candidate.resolved_url, 2048);
+    if (accepted && (resolvedUrl === null || resolvedUrl !== candidate.resolved_url)) {
+      throw unexpectedDiscovery("An accepted candidate has no usable address.");
+    }
+    return {
+      index: Math.max(0, int(candidate.index)),
+      href: nullableText(candidate.href, 2048),
+      typeHint: nullableText(candidate.type_hint, 128),
+      resolvedUrl,
+      sameOrigin: typeof candidate.same_origin === "boolean" ? candidate.same_origin : null,
+      accepted,
+      rejectionReason: nullableText(candidate.rejection_reason, 64),
+      rejectionMessage: nullableText(candidate.rejection_message, 1024),
+    };
+  });
+  return {
+    requestedUrl: text(source.requested_url, 2048),
+    finalUrl: text(source.final_url, 2048),
+    pageOrigin: text(source.page_origin, 512),
+    redirects: arr(source.redirects, 5).map((item) => {
+      const hop = rec(item);
+      return {
+        status: int(hop.status),
+        fromUrl: text(hop.from_url, 2048),
+        toUrl: text(hop.to_url, 2048),
+      };
+    }),
+    // Copied as given; the contract's own schema refuses any other value.
+    status: str(source.discovery_status) as WebsiteDiscoveryViewType["status"],
+    candidates,
+    acceptedCount: Math.max(0, int(source.accepted_count)),
+    rejectedCount: Math.max(0, int(source.rejected_count)),
+    linksNotListed:
+      Math.max(0, int(source.links_not_listed)) + Math.max(0, listed.length - candidates.length),
+    page: {
+      contentType: text(page.content_type, 128),
+      declaredCharset: nullableText(page.declared_charset, 128),
+      decodedAs: text(page.decoded_as, 32),
+      encodingSource: text(page.encoding_source, 16),
+      contentCoding: text(page.content_coding, 16),
+      bytesRead: Math.max(0, int(page.bytes_read)),
+      truncated: bool(page.truncated),
+      headEnded: bool(page.head_ended),
+      htmlSha256: text(page.html_sha256, 64),
+      baseElementIgnored: bool(page.base_element_ignored),
+    },
+    profile: {
+      name: text(profile.name, 64),
+      rel: text(profile.rel, 64),
+      mediaType: text(profile.media_type, 128),
+      sameOriginRequired: bool(profile.same_origin_required),
+      maxRedirects: Math.max(0, int(profile.max_redirects)),
+      maxHtmlBytes: Math.max(0, int(profile.max_html_bytes)),
+    },
+    discoveredAt: text(source.discovered_at, 64),
+    packageVerified: false,
+    publisherTrusted: false,
+    permissionsGranted: false,
+    packageFetched: false,
+    executionPerformed: false,
+  };
 }
 
 // -- models and run plans ----------------------------------------------------

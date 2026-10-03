@@ -18,6 +18,7 @@ import {
   type ModelHost,
 } from "./host-models.js";
 import {
+  projectDiscovery,
   projectEvaluation,
   projectInputValidation,
   projectPackage,
@@ -137,6 +138,15 @@ function positiveInt(value: unknown, fallback: number, max: number): number {
   return typeof value === "number" && Number.isInteger(value) && value > 0
     ? Math.min(value, max)
     : fallback;
+}
+
+/** Scheme, host and port of an operator-typed address, for a log line only. */
+function originOf(url: string): string {
+  try {
+    return clip(new URL(url).origin, 512);
+  } catch {
+    return "(not a URL)";
+  }
 }
 
 async function guard<T>(run: () => Promise<T>): Promise<Ok<T> | Err> {
@@ -444,6 +454,49 @@ export class AgentBrowserBackend {
       const summary = await client.openFile(resolved);
       this.options.onChange?.("packages");
       return projectPackage(summary);
+    });
+  }
+
+  // -- websites -------------------------------------------------------------
+  /**
+   * Which agent packages one web page advertises.
+   *
+   * The control plane reads and parses the page under its own URL policy;
+   * this projects its answer and records it in the Gateway log. Nothing is
+   * opened, trusted or run, so nothing changes and no event is sent: a
+   * candidate becomes a package only through `openUrl`, chosen separately.
+   * Discovery is not an execution event and has no run audit to join.
+   */
+  discoverWebsite(url: string) {
+    return guard(async () => {
+      const client = await this.client();
+      const log = this.options.logger;
+      log.info("agent-browser: website discovery started", { origin: originOf(url) });
+      try {
+        const view = projectDiscovery(await client.discoverWebsite(url));
+        log.info("agent-browser: website discovery finished", {
+          origin: view.pageOrigin,
+          redirects: view.redirects.length,
+          status: view.status,
+          candidates: view.candidates.length,
+          accepted: view.candidates
+            .filter((item) => item.accepted)
+            .map((item) => clip(item.resolvedUrl ?? "", 512)),
+          rejected: view.candidates
+            .filter((item) => !item.accepted)
+            .map((item) => ({
+              url: clip(item.resolvedUrl ?? item.href ?? "", 512),
+              reason: item.rejectionReason,
+            })),
+        });
+        return view;
+      } catch (error) {
+        log.info("agent-browser: website discovery refused", {
+          origin: originOf(url),
+          code: error instanceof AgentBrowserError ? error.code : "control_plane_error",
+        });
+        throw error;
+      }
     });
   }
 

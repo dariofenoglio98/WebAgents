@@ -30,7 +30,7 @@ import { BUDGETS, fitsJson } from "../src/json-limits.js";
 import { fitCatalog, projectTaskInput } from "../src/project.js";
 import { MAX_RECORDS, RunManager } from "../src/run-manager.js";
 import { RUN_ID, literatureView, runRecord, screeningProgress } from "./run-fixtures.js";
-import { hostModel, modelCatalogView } from "./fixtures.js";
+import { discoveryView, hostModel, modelCatalogView, websiteCandidate } from "./fixtures.js";
 
 // The pinned OpenClaw build this plugin is tested against (see package.json).
 const HOST_DIST = join(dirname(fileURLToPath(import.meta.url)), "..", "node_modules", "openclaw", "dist");
@@ -247,5 +247,45 @@ describe("the model catalog", () => {
     expect(fitted.notes[0]!.detail).toContain(`${128 - fitted.models.length} of the 128 models`);
     // The counts still describe the whole catalog.
     expect(fitted.counts).toEqual(view.counts);
+  });
+});
+
+describe("website discovery", () => {
+  it("carries the largest discovery view the control plane can produce", () => {
+    // Every string at its bound and made of characters JSON must escape, so the
+    // serialized answer is as large as the schema allows.
+    const url = "\\".repeat(2048);
+    const view = discoveryView({
+      requestedUrl: url,
+      finalUrl: url,
+      pageOrigin: "\\".repeat(512),
+      redirects: Array.from({ length: 5 }, () => ({ status: 308, fromUrl: url, toUrl: url })),
+      candidates: Array.from({ length: 16 }, (_, index) =>
+        websiteCandidate({
+          index,
+          href: url,
+          typeHint: '"'.repeat(128),
+          resolvedUrl: url,
+          rejectionReason: '"'.repeat(64),
+          rejectionMessage: '"'.repeat(1024),
+        }),
+      ),
+      linksNotListed: 1000,
+    });
+    expect(JSON.stringify(view).length).toBeGreaterThan(200_000);
+    expect(carries("websites.discover", view)).toBe(true);
+    expect(carries("websites.discover", discoveryView())).toBe(true);
+  });
+
+  it("refuses, by schema, a discovery view that claims anything was verified or run", () => {
+    for (const claim of [
+      "packageVerified",
+      "publisherTrusted",
+      "permissionsGranted",
+      "packageFetched",
+      "executionPerformed",
+    ] as const) {
+      expect(carries("websites.discover", { ...discoveryView(), [claim]: true }), claim).toBe(false);
+    }
   });
 });

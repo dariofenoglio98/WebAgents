@@ -9,6 +9,8 @@ import type {
   ReceiptViewType,
   RunPlanStateViewType,
   ServiceStatusView,
+  WebsiteCandidateViewType,
+  WebsiteDiscoveryViewType,
 } from "../src/contract.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -506,5 +508,64 @@ export const runPlanStateView = (
     toolBindingsBound: 1,
   },
   executionSupported: false,
+  ...overrides,
+});
+
+export const PACKAGE_MEDIA_TYPE = "application/vnd.webagents.agent-package";
+
+/** One advertised candidate, as the control plane reports it. */
+export const websiteCandidate = (
+  overrides: Partial<WebsiteCandidateViewType> = {},
+): WebsiteCandidateViewType => ({
+  index: 0,
+  href: "/agent.pkg",
+  typeHint: PACKAGE_MEDIA_TYPE,
+  resolvedUrl: "https://shop.example/agent.pkg",
+  sameOrigin: true,
+  accepted: true,
+  rejectionReason: null,
+  rejectionMessage: null,
+  ...overrides,
+});
+
+/** A web page that advertises one same-origin candidate. */
+export const discoveryView = (
+  overrides: Partial<WebsiteDiscoveryViewType> = {},
+): WebsiteDiscoveryViewType => ({
+  requestedUrl: "https://shop.example/",
+  finalUrl: "https://shop.example/",
+  pageOrigin: "https://shop.example",
+  redirects: [],
+  status: "candidate",
+  candidates: [websiteCandidate()],
+  acceptedCount: 1,
+  rejectedCount: 0,
+  linksNotListed: 0,
+  page: {
+    contentType: "text/html",
+    declaredCharset: "utf-8",
+    decodedAs: "utf-8",
+    encodingSource: "http",
+    contentCoding: "identity",
+    bytesRead: 3862,
+    truncated: false,
+    headEnded: true,
+    htmlSha256: "d".repeat(64),
+    baseElementIgnored: false,
+  },
+  profile: {
+    name: "same-origin-v0",
+    rel: "agent-package",
+    mediaType: PACKAGE_MEDIA_TYPE,
+    sameOriginRequired: true,
+    maxRedirects: 5,
+    maxHtmlBytes: 1048576,
+  },
+  discoveredAt: "2026-10-02T10:00:00.000Z",
+  packageVerified: false,
+  publisherTrusted: false,
+  permissionsGranted: false,
+  packageFetched: false,
+  executionPerformed: false,
   ...overrides,
 });

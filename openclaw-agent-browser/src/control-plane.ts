@@ -204,6 +204,11 @@ export class ControlPlaneClient {
     return this.request("/v0/packages/open-url", { method: "POST", body: { url }, timeoutMs });
   }
 
+  /** Read one web page for advertised agent packages. Opens nothing. */
+  discoverWebsite(url: string, timeoutMs = 60_000): Promise<unknown> {
+    return this.request("/v0/websites/discover", { method: "POST", body: { url }, timeoutMs });
+  }
+
   openFile(path: string, timeoutMs = 60_000): Promise<unknown> {
     return this.request("/v0/packages/open-file", { method: "POST", body: { path }, timeoutMs });
   }

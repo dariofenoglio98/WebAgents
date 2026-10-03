@@ -88,7 +88,7 @@ jobs:
         run: |
           for script in verify_workflow verify_browser verify_literature_022 \
                         verify_literature_023 verify_literature_024 verify_literature_025 \
-                        verify_webair; do
+                        verify_webair verify_webair_discovery; do
             report="$RUNNER_TEMP/$script.json"
             agentpkg/.venv/bin/python "scripts/$script.py" > "$report"
             # The scripts report failures in their JSON, not in their exit status.
