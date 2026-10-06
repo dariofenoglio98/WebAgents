@@ -19,9 +19,17 @@ export function fromHex(text: string): Uint8Array {
   return out;
 }
 
+/**
+ * A view typed over a plain ArrayBuffer, which is what WebCrypto's DOM typings accept. The
+ * core only ever holds views over ordinary buffers; this is a typing adjustment, not a copy.
+ */
+export function bufferSource(bytes: Uint8Array): Uint8Array<ArrayBuffer> {
+  return bytes as Uint8Array<ArrayBuffer>;
+}
+
 /** Lowercase hex SHA-256 of exact bytes, as `hashlib.sha256(data).hexdigest()`. */
 export async function sha256Hex(data: Uint8Array): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", data);
+  const digest = await crypto.subtle.digest("SHA-256", bufferSource(data));
   return toHex(new Uint8Array(digest));
 }
 
