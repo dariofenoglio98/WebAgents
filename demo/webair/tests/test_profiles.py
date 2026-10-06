@@ -177,6 +177,18 @@ def test_every_rule_catches_its_violation(case, declared):
 SCHEMA_BROKEN = {
     "unknown field": lambda p, _: p["search"].update(default=True),
     "a title on two lines": lambda p, _: p["search"].update(title="Search\nflights"),
+    # Python's `$` matches before a final newline: an anchored pattern would let these through.
+    "a title ending in a newline": lambda p, _: p["search"].update(title="Search flights\n"),
+    "a description ending in a newline": lambda p, _: p["search"].update(
+        description=p["search"]["description"] + "\n"
+    ),
+    "an id ending in a newline": lambda p, _: p["search"].update(id="search\n"),
+    "a member ending in a newline": lambda p, _: p["search"]["tools"].append("search-flights\n"),
+    "a line separator in a description": lambda p, _: p["search"].update(
+        description="Search flights\u2028and compare fares"
+    ),
+    "a C1 control in the notes": lambda p, _: p["search"]["estimate"].update(notes="Two\u0085runs"),
+    "a tab in a title": lambda p, _: p["search"].update(title="Search\tflights"),
     "an empty estimate": lambda p, _: p["search"].update(estimate={}),
     "a negative estimate": lambda p, _: p["search"]["estimate"].update(tokens=-1),
     "a repeated member": lambda p, _: p["search"]["tools"].append("search-flights"),
@@ -193,13 +205,24 @@ def test_the_schema_rejects_malformed_values(case, declared):
     assert problems and all(problem.startswith("schema: ") for problem in problems), problems
 
 
+def test_one_line_text_may_use_any_printable_character(declared):
+    manifest, policy, tools = declared
+    _edit(
+        manifest,
+        lambda p, _: p["search"].update(
+            title="Zürich ↔ 東京", description="Fares — “économie” and 'premium', 0–2 stops."
+        ),
+    )
+    assert profiles.profile_problems(manifest, policy, tools) == []
+
+
 def test_publisher_check_fails_on_a_broken_profile(monkeypatch, capsys):
     files = source_files()
     manifest = json.loads(files["MANIFEST.agent"])
     by_id(manifest)["search"]["tools"].append("simulate-purchase")
     broken = {**files, "MANIFEST.agent": json.dumps(manifest).encode()}
-    monkeypatch.setattr(publisher_cli, "drift", lambda: [])
-    monkeypatch.setattr(profiles, "source_files", lambda root: broken)
+    monkeypatch.setattr(publisher_cli, "drift", lambda files: [])
+    monkeypatch.setattr(publisher_cli, "source_files", lambda: broken)
     assert publisher_cli.main(["check"]) == 1
     report = json.loads(capsys.readouterr().out)
     assert report["stale"] == []

@@ -64,7 +64,12 @@ All objects are closed: an unknown field fails validation.
 | `estimate.tokens` | integer ≥ 0 | Total tokens the model provider reports (input and output). |
 | `estimate.notes` | one line, ≤ 240 characters | How the estimate was obtained, or what makes a run larger. |
 
-"One line" means a nonempty string without control characters (no newline, no tab).
+"One line" means a nonempty string with no control character (U+0000 to U+001F, U+007F to
+U+009F) and no line or paragraph separator (U+2028, U+2029) anywhere, a trailing newline included:
+no newline, no tab. Identifiers exclude the same characters. The schema states both rules as an
+unanchored search for a forbidden character, which every regular-expression engine evaluates
+alike; an anchored `^…$` pattern does not, because Python's `$` also matches before a final
+newline.
 
 ## 4. Consistency rules
 
