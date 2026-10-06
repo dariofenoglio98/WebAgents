@@ -1,16 +1,16 @@
-"""Acceptance of host-owned capabilities, with WebAir 0.3.0 as the package.
+"""Acceptance of host-owned capabilities, with WebAir 0.4.0 as the package.
 
     agentpkg/.venv/bin/python scripts/verify_webair_capabilities.py [--report PATH]
         [--private-key PATH]
 
 Three parts, one report:
 
-1. The signed artifact: `dist/webair-0.3.0.agent.pkg` verifies against WebAir's pinned
+1. The signed artifact: `dist/webair-0.4.0.agent.pkg` verifies against WebAir's pinned
    publisher key, the source rebuilds to its exact payload (and, given `--private-key`,
    re-signs to its exact bytes), its signed bytes hold no personal data, and the
    host-resource requests and action authority it declares.
 2. Discovery: the production control plane, over its HTTP API, discovers WebAir's package
-   link on WebAir's own pages (`examples/webair-site.json`) and inspects the exact 0.3.0
+   link on WebAir's own pages (`examples/webair-site.json`) and inspects the exact 0.4.0
    bytes served there, through the offline fixture web of `agentpkg/tests/web_fixtures.py`.
 3. The host: `openclaw-agent-browser/test/webair-capabilities.test.ts`, run with vitest,
    drives scenarios A-H through the real control plane, authorization with host-resource
@@ -49,7 +49,7 @@ from agentpkg.package import build_package, load_package, sha256, write_new  # n
 from agentpkg.signing import sign_package, verify_package  # noqa: E402
 from web_fixtures import FixtureWeb, publish_webair  # noqa: E402
 
-ARCHIVE = ROOT / "dist/webair-0.3.0.agent.pkg"
+ARCHIVE = ROOT / "dist/webair-0.4.0.agent.pkg"
 PUBLIC_ORIGIN = "https://webagents-webair-production.up.railway.app"
 SOURCE = ROOT / "agents/webair"
 KEY = ROOT / "examples/keys/webair-publisher.pub.pem"
@@ -132,7 +132,7 @@ def artifact_facts(private_key: str | None) -> dict:
 
 
 def discovery() -> dict:
-    """WebAir's page, discovered by the production control plane, leads to the 0.3.0 bytes."""
+    """WebAir's page, discovered by the production control plane, leads to the 0.4.0 bytes."""
     import urllib.request
 
     with tempfile.TemporaryDirectory(prefix="webair-capabilities-") as directory:
@@ -267,7 +267,7 @@ def verify(private_key: str | None) -> dict:
         in (None, True),
         "no_personal_data_in_signed_bytes": not artifact["personal_data_in_signed_bytes"]
         and not artifact["email_addresses_in_signed_bytes"],
-        "discovery_leads_to_the_0_3_0_bytes": found["advertised"]
+        "discovery_leads_to_the_0_4_0_bytes": found["advertised"]
         == "https://webair.example/agent.pkg"
         and found["inspected"]["archive_sha256"] == artifact["archive_sha256"]
         and found["inspected"]["digest"] == artifact["package_digest"]

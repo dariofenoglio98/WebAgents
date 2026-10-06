@@ -13,7 +13,7 @@ against the exact bytes it describes.
 | `agentpkg-0.2.2-py3-none-any.whl` | agentpkg 0.2.2: the CLI, the browser control plane and the workflow.v0 runtime | Python ≥ 3.11 | SHA-256 below |
 | `literature-review.agent.pkg` | Literature Review 0.2.5, identical to `literature-review-0.2.5.agent.pkg` | agentpkg ≥ 0.2.1 | [`examples/keys/literature-review-publisher.pub.pem`](../examples/keys/literature-review-publisher.pub.pem) (`sha256:c5ca9763…5232`) |
 | `meeting-agenda.agent.pkg` | Meeting Agenda 0.2.2, identical to `meeting-agenda-0.2.2.agent.pkg` | agentpkg ≥ 0.2.2 | [`examples/keys/meeting-agenda-publisher.pub.pem`](../examples/keys/meeting-agenda-publisher.pub.pem) (`sha256:2bcc374a…c5c4`) |
-| `webair-0.3.0.agent.pkg` | WebAir Travel Agent 0.3.0, the package of the fictional WebAir origin's public deployment, `webagents-webair-production.up.railway.app`, which serves exactly these bytes at <https://webagents-webair-production.up.railway.app/agent.pkg> ([live demo](../docs/webair-live-demo.md)). It requests a travel profile, a passenger identity and a payment method from the person's host (`personal.read` permissions) and a separate, once-grantable simulated-purchase authority. No real booking or payment | the agentpkg 0.2.2 wheel in this directory (`371fb1eb…`); the v0.1.0 release's 0.2.2 wheel rejects `personal.read` | [`examples/keys/webair-publisher.pub.pem`](../examples/keys/webair-publisher.pub.pem) (`sha256:2e53acce…a20b`) |
+| `webair-0.4.0.agent.pkg` | WebAir Travel Agent 0.4.0, the package of the fictional WebAir origin: 0.3.0 with three publisher-declared profiles, "Search flights", "Search and quote" and "Book (simulated)" (the noncritical extension [`org.webagents:profiles-v0`](../spec/extensions/profiles-v0.md)). Like 0.3.0 it declares the public deployment `webagents-webair-production.up.railway.app`, which serves 0.3.0 until it is redeployed with this file. It requests a travel profile, a passenger identity and a payment method from the person's host (`personal.read` permissions) and a separate, once-grantable simulated-purchase authority. No real booking or payment | the agentpkg 0.2.2 wheel in this directory (`371fb1eb…`), which ignores the profiles; the v0.1.0 release's 0.2.2 wheel rejects `personal.read` | [`examples/keys/webair-publisher.pub.pem`](../examples/keys/webair-publisher.pub.pem) (`sha256:2e53acce…a20b`) |
 
 From the repository root:
 
@@ -24,7 +24,7 @@ python3 -m venv .venv && .venv/bin/python -m pip install dist/agentpkg-0.2.2-py3
   --trust-key examples/keys/literature-review-publisher.pub.pem
 .venv/bin/agentpkg verify dist/meeting-agenda.agent.pkg \
   --trust-key examples/keys/meeting-agenda-publisher.pub.pem
-.venv/bin/agentpkg verify dist/webair-0.3.0.agent.pkg \
+.venv/bin/agentpkg verify dist/webair-0.4.0.agent.pkg \
   --trust-key examples/keys/webair-publisher.pub.pem
 ```
 
@@ -68,21 +68,22 @@ into the wheel.
 ## WebAir
 
 The demo origin in [`demo/webair/`](../demo/webair/README.md) and its packages are new in v0.2.0.
-The current package is `webair-0.3.0.agent.pkg` (above); the two earlier versions stay for the
+The current package is `webair-0.4.0.agent.pkg` (above); the earlier versions stay for the
 milestone evidence that describes them.
 
 | Artifact | What it is | Requires | Verify with |
 |---|---|---|---|
+| `webair-0.3.0.agent.pkg` | WebAir Travel Agent 0.3.0, the first version that declares the public deployment, which serves exactly these bytes at <https://webagents-webair-production.up.railway.app/agent.pkg> until it is redeployed with 0.4.0. The [live demo](../docs/webair-live-demo.md) walk-through, the paper's Table I WebAir runs and the contract overhead benchmark describe these bytes. 0.4.0 differs from it only in the manifest (version, date and the profiles extension) and the package README | the agentpkg 0.2.2 wheel in this directory | [`examples/keys/webair-publisher.pub.pem`](../examples/keys/webair-publisher.pub.pem) (`sha256:2e53acce…a20b`) |
 | `webair-0.2.0.agent.pkg` | WebAir Travel Agent 0.2.0: the first version with host-owned capabilities (`personal.read` permissions with argument-free host-resource tools) and the simulated-purchase authority. It declares the reserved host `webair.example`, so it runs only against a local origin started with `--agent-package`. 0.3.0 differs from it only in the declared host (tool endpoints, the network permission's scope and policy), the manifest's version, date and origin, and the package README | the agentpkg 0.2.2 wheel in this directory | [`examples/keys/webair-publisher.pub.pem`](../examples/keys/webair-publisher.pub.pem) (`sha256:2e53acce…a20b`) |
 | `webair.agent.pkg` | WebAir Travel Agent 0.1.0, identical to `webair-0.1.0.agent.pkg`: the same four WebAir tools, without host-owned personal resources; it also declares `webair.example`. The website discovery milestone's evidence uses it | agentpkg ≥ 0.2.1 | [`examples/keys/webair-publisher.pub.pem`](../examples/keys/webair-publisher.pub.pem) (`sha256:2e53acce…a20b`) |
 
 Built and signed with the same generic commands as every package (`agentpkg build agents/webair
--o dist/webair-0.3.0.agent.pkg`, then `agentpkg sign`); rebuilding and re-signing with the same
-key reproduces the bytes (0.2.0 was built the same way from the source as it was then). The
+-o dist/webair-0.4.0.agent.pkg`, then `agentpkg sign`); rebuilding and re-signing with the same
+key reproduces the bytes (0.2.0 and 0.3.0 were built the same way from the source as it was then). The
 unversioned `webair.agent.pkg` stays 0.1.0, unlike the other two aliases: the recorded discovery,
 serving and live-demo evidence pins it to 0.1.0's bytes, and the contract overhead benchmark,
 whose results record its source hash, documents it as 0.1.0. Use the versioned
-`webair-0.3.0.agent.pkg` for the current package.
+`webair-0.4.0.agent.pkg` for the current package.
 
 ## Historical
 
@@ -123,5 +124,6 @@ e4c499f034b110ef2eca5aeecc87bc9336f6626e55b217d0fb087392ff120e35  meeting-agenda
 73872c3177a9ec281a8875ae154023a72ff10f9fe96c5a82ed1639a34ecb470c  webair-0.1.0.agent.pkg
 3f135be80c2ac43b93f42acbcb648a3460b1ab39a831c251122331c99107a616  webair-0.2.0.agent.pkg
 b537cf5cba06bce8137533eb75b491486f57caf3098af30f657343b741492887  webair-0.3.0.agent.pkg
+c12f9db3bd7b3b4b6721c67e1d0b8143ebd94381df0e5e57c196357b7ca77f63  webair-0.4.0.agent.pkg
 73872c3177a9ec281a8875ae154023a72ff10f9fe96c5a82ed1639a34ecb470c  webair.agent.pkg
 ```

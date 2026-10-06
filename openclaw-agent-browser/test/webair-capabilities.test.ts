@@ -4,7 +4,7 @@
  * Real `agentpkg browser-serve` control plane, real authorization with real
  * host-resource selections, real receipt and run plan, real preflight, real
  * execution lease, real `agentpkg execution-run` child running the signed
- * WebAir 0.3.0 graph, real `Runtime` permission checks, real tool bridge, real
+ * WebAir 0.4.0 graph, real `Runtime` permission checks, real tool bridge, real
  * broker with the real host-resource store, and WebAir's four tools bound
  * exactly as the live demo host binds them: through the operator bindings file
  * `demo/webair/host-bindings.json` (`tools.bindingsFile`) to the public
@@ -51,7 +51,7 @@ vi.mock("node:dns", async (importOriginal) => {
 
 const run = promisify(execFile);
 const runs = hasAgentpkg();
-const WEBAIR = join(DIST, "webair-0.3.0.agent.pkg");
+const WEBAIR = join(DIST, "webair-0.4.0.agent.pkg");
 const PUBLIC_HOST = "webagents-webair-production.up.railway.app";
 const PACKAGE_SOURCE = join(REPO_ROOT, "agents", "webair");
 const read = (path: string) => JSON.parse(readFileSync(path, "utf8")) as Record<string, any>;
