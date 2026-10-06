@@ -13,6 +13,7 @@ each claim). Reports are historical: a later report or the current artifacts in
 |---|---|
 | [spec/agent-pkg-v0.md](../spec/agent-pkg-v0.md) | The `agent.pkg` container: manifest, integrity statement, signature, parsing limits |
 | [spec/workflow-v0.md](../spec/workflow-v0.md) | The `workflow.v0` execution profile: node types, state, waves, validation |
+| [spec/extensions/profiles-v0.md](../spec/extensions/profiles-v0.md) | Publisher-declared profiles (`org.webagents:profiles-v0`), a noncritical manifest extension that groups declared authority and grants none |
 
 ## Guides
 

@@ -28,7 +28,7 @@ Browser:
 
 WebAir is a fictional airline. Its public demo origin, <https://webagents-webair-production.up.railway.app/>,
 serves ordinary HTML pages for people and, from the same origin, a signed agent package
-(`org.webagents.webair` 0.3.0). Nothing is ever booked, reserved or charged; every passenger and
+(`org.webagents.webair` 0.4.0). Nothing is ever booked, reserved or charged; every passenger and
 card in the demo is fictional. The package declares *what* WebAir can do. The Agent Browser — the
 person's own runtime — decides *whether* and *with what*: which publisher to trust, which model to
 use, which tool implementation to call, which of the person's resources to share, and for how
@@ -61,7 +61,7 @@ reach any server the host did not bind, and it owns none of my data. My runtime 
 Before the audience arrives (once per machine; [Reset](#l-reset-the-demo) before each talk):
 
 1. **OpenClaw 2026.9.5** with the Gateway running and **Settings → Labs → Custom plugin UI** on.
-2. **A runtime from v0.2.0 or later.** WebAir 0.3.0 declares the `personal.read` permission
+2. **A runtime from v0.2.0 or later.** WebAir 0.4.0 declares the `personal.read` permission
    kind, which agentpkg accepts from the v0.2.0 release on: use the repository's editable
    `agentpkg/.venv` (`python3 -m venv agentpkg/.venv && agentpkg/.venv/bin/python -m pip install -e './agentpkg[dev]'`)
    or the `dist/agentpkg-0.2.2-py3-none-any.whl` shipped with v0.2.0. The v0.1.0 release's
@@ -269,8 +269,8 @@ never the demo host's `host-resources.json` or `host-bindings.json`. See
 [demo/webair/README.md, Public deployment](../demo/webair/README.md#public-deployment-milestone-5).
 
 ```sh
-python3 demo/webair/deploy/bundle.py --package dist/webair-0.3.0.agent.pkg \
-  --expect-sha256 b537cf5cba06bce8137533eb75b491486f57caf3098af30f657343b741492887 --out /tmp/webair-bundle
+python3 demo/webair/deploy/bundle.py --package dist/webair-0.4.0.agent.pkg \
+  --expect-sha256 c12f9db3bd7b3b4b6721c67e1d0b8143ebd94381df0e5e57c196357b7ca77f63 --out /tmp/webair-bundle
 railway up /tmp/webair-bundle --path-as-root --service webagents-webair --environment production
 curl -sS https://webagents-webair-production.up.railway.app/agent.pkg | shasum -a 256
 ```
@@ -295,3 +295,7 @@ into the Gateway for the session (`NODE_OPTIONS=--import=…` in the Gateway's e
 `AGENT_BROWSER_TOOL_OBSERVER_HOSTS=webagents-webair-production.up.railway.app`): it records, per
 package model call and per WebAir request, a body digest and how many values of each class of host
 data it held — never the text or the values. Remove it from the Gateway's environment afterwards.
+
+The script was written for the recorded 0.3.0 acceptance: it checks that the origin serves
+exactly `dist/webair-0.3.0.agent.pkg` and that the source rebuilds to it. Once the origin serves
+0.4.0, point it at `dist/webair-0.4.0.agent.pkg` before re-running it.

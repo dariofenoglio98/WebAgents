@@ -102,7 +102,7 @@ a new signature and a new row in `dist/README.md`.
 [CI](../.github/workflows/ci.yml) repeats every check on Ubuntu and macOS: the Python suite on
 3.11 and 3.13 (Ubuntu) and 3.12 and 3.13 (macOS, where `setup-python` has no 3.11 newer than the
 unpatched 3.11.9), the offline acceptance scripts, the wheel and sdist build, an installed-wheel
-verification and fixture run of the packages (including WebAir 0.3.0), `check_release.py`, the
+verification and fixture run of the packages (including WebAir 0.3.0 and 0.4.0), `check_release.py`, the
 plugin suite on Node 24 and 26 with no skipped test, build, validation, packing, artifact
 inspection and isolated install, the WebAir origin and package-contract suite, the Citation
 Resolver suite and the experiments' test suites. It needs no credential, model, OpenClaw

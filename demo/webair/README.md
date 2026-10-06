@@ -83,11 +83,13 @@ gives the same answer whichever interface asks.
 | **Agent Browser discovery of this origin** (milestone 3): generic `rel="agent-package"` discovery, tested offline against these pages and this package | [below](#how-the-agent-browser-discovers-webair); evidence [`webair-010-discovery.json`](../../examples/verification/webair-010-discovery.json) |
 | **Host-owned capabilities** (milestone 4): WebAir 0.2.0 requests a travel profile, a passenger identity and a payment method from the person's host, and a separate simulated-purchase authority; the demo host's fictional resources | [below](#host-owned-capabilities-milestone-4); package [`dist/webair-0.2.0.agent.pkg`](../../dist/README.md#webair); host resources [`host-resources.json`](host-resources.json); evidence [`webair-020-host-capabilities.json`](../../examples/verification/webair-020-host-capabilities.json) |
 | **The live demo** (milestone 5): this origin deployed on Railway; WebAir 0.3.0 declaring its real hostname; the demo host's bindings of the four tools to it; discovery, trust, search, booking and a simulated purchase through the real Agent Browser | [below](#public-deployment-milestone-5); bindings [`host-bindings.json`](host-bindings.json); script [docs/webair-live-demo.md](../../docs/webair-live-demo.md); evidence [`webair-030-live-demo.json`](../../examples/verification/webair-030-live-demo.json), offline [`webair-030-host-capabilities.json`](../../examples/verification/webair-030-host-capabilities.json) |
+| **Publisher-declared profiles**: WebAir 0.4.0 groups what it declares into "Search flights", "Search and quote" and "Book (simulated)", a noncritical manifest extension that presents authority and grants none | [below](#profiles); specification [`spec/extensions/profiles-v0.md`](../../spec/extensions/profiles-v0.md); validator [`publisher/profiles.py`](publisher/profiles.py); evidence that the current runtimes ignore it [`webair-040-host-capabilities.json`](../../examples/verification/webair-040-host-capabilities.json) |
 
 ### Not implemented yet (on purpose)
 
 Mid-run authorization, NANDA, persistent personal accounts, Apple Wallet or any real wallet, card
-or payment service, and optional tools (a host must bind all seven of the package's tools). The
+or payment service, and optional tools in the agentpkg runtime (its Agent Browser binds and
+approves all seven of the package's tools; 0.4.0's profiles prepare runtimes that leave some out). The
 local origin stays plain HTTP on loopback, which the Agent Browser refuses by design; the live
 demo uses the public deployment instead, under the unchanged policy. **No generic WebAgents code
 was changed or special-cased for WebAir:** discovery works on any origin that publishes the link,
@@ -105,7 +107,7 @@ it):
 ```sh
 python3 -m venv demo/webair/.venv
 demo/webair/.venv/bin/python -m pip install -r demo/webair/requirements-dev.txt
-cd demo/webair && .venv/bin/python -m origin --agent-package ../../dist/webair-0.3.0.agent.pkg
+cd demo/webair && .venv/bin/python -m origin --agent-package ../../dist/webair-0.4.0.agent.pkg
 ```
 
 Then open **<http://127.0.0.1:8040/>**; the signed package is at
@@ -149,13 +151,13 @@ The origin writes nothing to disk and keeps nothing in memory between requests.
 
 | | |
 |---|---|
-| Package | `org.webagents.webair` **0.3.0**, "WebAir Travel Agent" |
+| Package | `org.webagents.webair` **0.4.0**, "WebAir Travel Agent" |
 | Publisher | `webair-demo`, "WebAir (fictional demo airline)": a dedicated demo key, `sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b` ([public key](../../examples/keys/webair-publisher.pub.pem)) |
-| Artifact | `dist/webair-0.3.0.agent.pkg`, 167,193 bytes, archive SHA-256 `b537cf5cba06bce8137533eb75b491486f57caf3098af30f657343b741492887`; 58 payload files |
-| Package digest | `ffe8f5b344f97c631498bb6da3e17217ae7e5730721935b0e66c5d595b335e94` |
-| Profile | `workflow.v0`, minimum runtime 0.2.2 *as released in v0.2.0* (it declares the `personal.read` permission kind, which the v0.1.0 release's 0.2.2 wheel refuses); 34 nodes, canonical operators only |
-| What changed from 0.2.0 | only the declared host (tool endpoints, the network permission's scope, the network policy) and the manifest's version, date and informational origin, plus the package README; graph, schemas, skills, fixture, permissions and budgets are byte-identical (`agentpkg/tests/test_webair_package.py`) |
-| Earlier | `dist/webair-0.2.0.agent.pkg` (declares the reserved `webair.example`), archive `3f135be8…a616`, digest `74f05a8d…b9e1`; `dist/webair-0.1.0.agent.pkg` (= `dist/webair.agent.pkg`, which stays 0.1.0 because the recorded evidence pins it), archive `73872c31…470c`, digest `3b7c61a7…2fb6`; both unchanged |
+| Artifact | `dist/webair-0.4.0.agent.pkg`, 170,725 bytes, archive SHA-256 `c12f9db3bd7b3b4b6721c67e1d0b8143ebd94381df0e5e57c196357b7ca77f63`; 58 payload files |
+| Package digest | `0e8317f11e8813e7d5b4b3f352f20148d114329dca3db8c725c5b0558af24fbb` |
+| Execution profile | `workflow.v0`, minimum runtime 0.2.2 *as released in v0.2.0* (it declares the `personal.read` permission kind, which the v0.1.0 release's 0.2.2 wheel refuses); 34 nodes, canonical operators only |
+| What changed from 0.3.0 | only the manifest's version, date and its [profiles](#profiles) (`org.webagents:profiles-v0`), plus the package README; graph, tools, schemas, skills, fixture, policy, permissions and budgets are byte-identical (`agentpkg/tests/test_webair_package.py`) |
+| Earlier | `dist/webair-0.3.0.agent.pkg` (the live demo's version, the first to declare the public host), archive `b537cf5c…2887`, digest `ffe8f5b3…5e94`; `dist/webair-0.2.0.agent.pkg` (declares the reserved `webair.example`), archive `3f135be8…a616`, digest `74f05a8d…b9e1`; `dist/webair-0.1.0.agent.pkg` (= `dist/webair.agent.pkg`, which stays 0.1.0 because the recorded evidence pins it), archive `73872c31…470c`, digest `3b7c61a7…2fb6`; all unchanged |
 
 ### The task
 
@@ -215,6 +217,30 @@ selects a URL, header, credential, path, command or host resource. Model tasks
 context window, routed by the host with no fallback; the package names no provider, model or
 credential. `get_flight` stays an origin-only operation.
 
+### Profiles
+
+0.4.0 groups what the package declares into three profiles, the noncritical manifest extension
+[`org.webagents:profiles-v0`](../../spec/extensions/profiles-v0.md). A runtime that implements it
+can offer them as a short path to authorization beside its per-item view; agentpkg 0.2.2 and the
+OpenClaw Agent Browser ignore them and run 0.4.0 exactly as 0.3.0
+([`webair-040-host-capabilities.json`](../../examples/verification/webair-040-host-capabilities.json)).
+
+| Profile | Adds | Personal data it lets the host use |
+|---|---|---|
+| `search` "Search flights" | `network.webair`, `model.reasoning`, `memory.session`; `search-flights`, `get-fare-rules` | none, so a request must say where the trip starts |
+| `quote` "Search and quote" | `profile.travel`, `identity.passenger`; `prepare-booking` and the two host-resource tools | the travel profile; the passenger identity, sent only to `prepare_booking` |
+| `book` "Book (simulated)" | `wallet.payment`, `booking.simulate_purchase`; `simulate-purchase`, `wallet.payment_method` | also the demo payment method, sent only to `simulate_purchase` |
+
+Each contains the previous one, and `book` is everything the package declares. A profile grants
+nothing: choosing one yields the decisions a person could make item by item, and everything
+outside it is denied. Each profile's estimate in the manifest (model calls, tool calls, tokens)
+is the largest recorded run of the same graph that the profile serves, tokens rounded up to the
+next 1,000, from the 0.3.0 runs in
+[`webair-030-table1-runs.json`](../../examples/verification/webair-030-table1-runs.json) and
+[`webair-030-live-demo.json`](../../examples/verification/webair-030-live-demo.json).
+[`tests/test_profiles.py`](tests/test_profiles.py) recomputes the estimates and checks the
+profiles against the extension's rules, which `python -m publisher check` enforces before a build.
+
 ### Keeping the package and the API aligned
 
 The package's host-resource schemas (`agents/webair/schemas/host/*.json`) are likewise
@@ -238,16 +264,16 @@ The built package contains no Python and never imports this directory.
 # refresh the generated files after an origin or host-resource change (then review the diff)
 (cd demo/webair && .venv/bin/python -m publisher sync)
 
-agentpkg/.venv/bin/agentpkg build agents/webair -o dist/webair-0.3.0.agent.pkg
-agentpkg/.venv/bin/agentpkg sign dist/webair-0.3.0.agent.pkg \
+agentpkg/.venv/bin/agentpkg build agents/webair -o dist/webair-0.4.0.agent.pkg
+agentpkg/.venv/bin/agentpkg sign dist/webair-0.4.0.agent.pkg \
   --private-key ~/.config/agentpkg/keys/webagents-webair.private.pem
-agentpkg/.venv/bin/agentpkg verify dist/webair-0.3.0.agent.pkg \
+agentpkg/.venv/bin/agentpkg verify dist/webair-0.4.0.agent.pkg \
   --trust-key examples/keys/webair-publisher.pub.pem
 
 # fixture run of the hero request: generic CLI, interpreter, model router and tool handlers,
-# with every personal permission denied (a search needs none). 0.3.0 has 0.2.0's permissions,
+# with every personal permission denied (a search needs none). 0.4.0 has 0.2.0's permissions,
 # so 0.2.0's grants file applies unchanged.
-agentpkg/.venv/bin/agentpkg run dist/webair-0.3.0.agent.pkg --mode fixture \
+agentpkg/.venv/bin/agentpkg run dist/webair-0.4.0.agent.pkg --mode fixture \
   --grants examples/webair-0.2.0-grants.json \
   --approve-tool search-flights --approve-tool get-fare-rules \
   --out examples/my-webair
@@ -282,13 +308,15 @@ $749**, all nonstop; only WA101 Standard includes a checked bag (one, 23 kg).
 - **The search outcome is classified by a model and verified by the graph.** workflow.v0 can
   test only `eq`/`ne` and cannot ask whether a field exists, and WebAir's answer and refusal
   share no field; a wrong classification stops the run instead of producing an answer.
-- **The declared host is one deployment.** 0.3.0 names `webagents-webair-production.up.railway.app`;
+- **The declared host is one deployment.** 0.3.0 and 0.4.0 name `webagents-webair-production.up.railway.app`;
   another deployment needs another package version and bindings (the host never redirects a
   declared endpoint).
 - **No optional tools in agent.pkg 0.1.** A host must bind and approve all seven tools to run
   the package at all, even for a search-only task — including the three host-resource tools,
-  so a host that holds no resources cannot run 0.3.0 (the personal permissions themselves are
-  optional, and a search never reads one).
+  so a host that holds no resources cannot run 0.3.0 or 0.4.0 through agentpkg (the personal
+  permissions themselves are optional, and a search never reads one). 0.4.0's "Search flights"
+  profile names the two tools a search needs; a runtime that honours profiles may leave the
+  rest out.
 - **One passenger per booking.** A quote is for the one identity the person grants; a request
   for several travelers cannot be quoted (the graph refuses rather than quoting fewer).
 - **Prices in the answer prose are not machine-checked**; ids and all structured fields are.
@@ -363,9 +391,9 @@ can name a path. There is no static directory mount and no directory listing, an
 invalid configured file stops the origin from starting. Without a configured package,
 `/agent.pkg` answers `404` with `{"error": {"code": "agent_package_unavailable", …}}`.
 
-Started with `--agent-package ../../dist/webair-0.3.0.agent.pkg` — as the public deployment is —
-the link resolves to the exact signed bytes: `X-Agent-Package-SHA256` and the ETag carry
-`b537cf5cba06bce8137533eb75b491486f57caf3098af30f657343b741492887`, and `agentpkg verify` on the
+Started with `--agent-package ../../dist/webair-0.4.0.agent.pkg` — as the public deployment's
+bundle is — the link resolves to the exact signed bytes: `X-Agent-Package-SHA256` and the ETag carry
+`c12f9db3bd7b3b4b6721c67e1d0b8143ebd94381df0e5e57c196357b7ca77f63`, and `agentpkg verify` on the
 downloaded file succeeds against WebAir's pinned key
 ([`tests/test_package_serving.py`](tests/test_package_serving.py) checks every signed version; the
 public origin's bytes, headers and signature are in
@@ -495,12 +523,14 @@ broker's transport:
 
 The recorded acceptance is
 [`webair-030-host-capabilities.json`](../../examples/verification/webair-030-host-capabilities.json)
-(`agentpkg/.venv/bin/python scripts/verify_webair_capabilities.py`), now against 0.3.0 with the
+(`agentpkg/.venv/bin/python scripts/verify_webair_capabilities.py`), against 0.3.0 with the
 four WebAir tools bound by the shipped [`host-bindings.json`](host-bindings.json) through the
 Agent Browser's `tools.bindingsFile`; the milestone-4 record of the same scenarios against 0.2.0
 is [`webair-020-host-capabilities.json`](../../examples/verification/webair-020-host-capabilities.json).
 Scenarios A–E then ran live, on the public origin with a real model:
-[`webair-030-live-demo.json`](../../examples/verification/webair-030-live-demo.json).
+[`webair-030-live-demo.json`](../../examples/verification/webair-030-live-demo.json). The same
+offline acceptance against 0.4.0, which the script now checks, is
+[`webair-040-host-capabilities.json`](../../examples/verification/webair-040-host-capabilities.json).
 
 ## Public deployment (milestone 5)
 
@@ -508,7 +538,7 @@ Scenarios A–E then ran live, on the public origin with a real model:
 |---|---|
 | Public URL | <https://webagents-webair-production.up.railway.app/> (DNS → Railway's edge, public addresses; TLS on 443) |
 | Platform | Railway, service `webagents-webair`, builder Railpack, Python 3.13 |
-| What runs | `python -m origin --host 0.0.0.0 --agent-package agent.pkg` — this origin, unchanged, publishing `dist/webair-0.3.0.agent.pkg` |
+| What runs | `python -m origin --host 0.0.0.0 --agent-package agent.pkg` — this origin, unchanged, publishing `dist/webair-0.4.0.agent.pkg` (0.3.0 until the deployment that publishes 0.4.0) |
 | Health check | `GET /health` (states only that this is the fictional demo and the published package's SHA-256) |
 | Environment | `PORT` (the platform's port; the service sets `8080`). No secret, database, external API or persistence |
 | Configuration | [`deploy/railway.toml`](deploy/railway.toml) (start, health check, restart policy), [`deploy/railpack.json`](deploy/railpack.json) (the start command again: Railpack plans the image before `railway.toml` applies), [`deploy/.python-version`](deploy/.python-version) |
@@ -524,15 +554,15 @@ email or label from `host-resources.json` appears, and is reproducible byte for 
 
 ```sh
 # from the repository root, with the Railway CLI signed in (railway login)
-python3 demo/webair/deploy/bundle.py --package dist/webair-0.3.0.agent.pkg \
-  --expect-sha256 b537cf5cba06bce8137533eb75b491486f57caf3098af30f657343b741492887 \
+python3 demo/webair/deploy/bundle.py --package dist/webair-0.4.0.agent.pkg \
+  --expect-sha256 c12f9db3bd7b3b4b6721c67e1d0b8143ebd94381df0e5e57c196357b7ca77f63 \
   --out /tmp/webair-bundle
 railway up /tmp/webair-bundle --path-as-root --service webagents-webair --environment production
 
 # then: the page, the health check, and the exact bytes
 curl -sS https://webagents-webair-production.up.railway.app/health
 curl -sS https://webagents-webair-production.up.railway.app/agent.pkg -o /tmp/public.agent.pkg
-cmp /tmp/public.agent.pkg dist/webair-0.3.0.agent.pkg && \
+cmp /tmp/public.agent.pkg dist/webair-0.4.0.agent.pkg && \
   agentpkg/.venv/bin/agentpkg verify /tmp/public.agent.pkg --trust-key examples/keys/webair-publisher.pub.pem
 ```
 
@@ -561,8 +591,8 @@ purchase → refused replay → denied purchase, 133 checks).
 
 ## Next steps
 
-1. **Optional tools** in a future agent.pkg version, so a host without resources could still run
-   a search.
+1. **Optional tools.** 0.4.0's profiles say which tools each kind of task needs; once a runtime
+   honours them, a host without resources can still run a search.
 2. **Moving the unversioned alias.** v0.2.0 ships a runtime that accepts `personal.read`,
    but `dist/webair.agent.pkg` stays 0.1.0 because the recorded discovery, serving and live-demo
    evidence pins it; a later release can move it to the newest WebAir together with that evidence.
