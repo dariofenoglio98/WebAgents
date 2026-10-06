@@ -9,8 +9,9 @@ generic code knows they exist.
 0.4.0 is the current package: 0.3.0, the live demo's package (0.2.0 with WebAir's public
 deployment as its declared host), plus publisher-declared profiles in the noncritical manifest
 extension `org.webagents:profiles-v0`, which agentpkg ignores. Like 0.2.0 and 0.3.0 it asks
-the person's host for a travel profile, a passenger identity and a payment method it does not own (`personal.read` permissions with argument-free host-resource tools)
-and for a separate, `once`-grantable purchase authority. These tests also pin what that
+the person's host for a travel profile, a passenger identity and a payment method it does not
+own (`personal.read` permissions with argument-free host-resource tools) and for a separate,
+`once`-grantable purchase authority. These tests also pin what that
 means for the signed bytes: no name, email, host resource id or label is in them. That the
 host resolves, binds and withholds those resources correctly is tested on the host side
 (`openclaw-agent-browser/test/webair-capabilities.test.ts`); that the tool contracts equal
