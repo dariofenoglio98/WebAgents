@@ -241,10 +241,20 @@ export class PackageSchemas {
     throw new ValidationError(`${label} does not match ${path} at ${location} (rule: ${first.keyword})`);
   }
 
+  /** The schema document a keyword location points into: one of this package's, or agentpkg's. */
+  resolveDocument(uri: string): unknown {
+    const hash = uri.indexOf("#");
+    const base = hash < 0 ? uri : uri.slice(0, hash);
+    return base.startsWith(this.base) ? this.documents.get(base.slice(this.base.length)) : agentpkgDocument(base);
+  }
+
+  /** The value of the failing keyword, e.g. the `required` list or the `enum` members. */
+  keywordValue(failure: SchemaFailure): unknown {
+    return keywordValue(failure, (uri) => this.resolveDocument(uri));
+  }
+
   describe(failure: SchemaFailure, instance: unknown): string {
-    return describeFailure(failure, instance, (uri) =>
-      uri.startsWith(this.base) ? this.documents.get(uri.slice(this.base.length)) : agentpkgDocument(uri),
-    );
+    return describeFailure(failure, instance, (uri) => this.resolveDocument(uri));
   }
 
   close(): void {

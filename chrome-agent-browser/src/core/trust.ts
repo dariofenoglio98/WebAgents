@@ -16,7 +16,9 @@ import { canonicalJson } from "./canonical.js";
 import { CoreError } from "./errors.js";
 import type { TrustEvaluator, TrustVerdict } from "./evaluation.js";
 import { sha256Hex } from "./hash.js";
+import type { JsonObject } from "./json.js";
 import { fingerprint, publicKeyFromRawBase64, rawBase64 } from "./keys.js";
+import { embeddedPublicKey } from "./signature.js";
 
 export const TRUST_STORE_FORMAT = "agentpkg-trust-store-v0";
 export const MAX_ENTRIES = 256;
@@ -275,6 +277,52 @@ export class TrustStore implements TrustEvaluator {
   async evaluate(input: { signerFingerprint: string | null; claimedPublisherId: string; packageId: string }): Promise<TrustVerdict> {
     return evaluateTrust(await this.entries(), input);
   }
+}
+
+export type PinScope = "package" | "publisher";
+
+/**
+ * `ControlPlane.trust_session_publisher`: pin the key that signed one open package, and
+ * nothing else. The key comes from that package's own verified signature envelope, so a
+ * caller never supplies key material and cannot pin a key belonging to a different
+ * artifact. The caller must echo the fingerprint it displayed. `package` (the default and
+ * narrowest scope) pins `publisher_id` and `package_id_prefix` set to this exact package
+ * id; `publisher` pins `publisher_id` only.
+ */
+export async function pinPackagePublisher(
+  store: TrustStore,
+  pkg: { manifest: JsonObject; signature: JsonObject | null },
+  publisher: { signature_status: string; signer_fingerprint: string | null },
+  options: { signerFingerprint: string; scope?: PinScope; notes?: string | null; replace?: boolean },
+): Promise<{ added: TrustEntry; scope: PinScope; trust_store: TrustState }> {
+  const scope = options.scope ?? "package";
+  if (scope !== "package" && scope !== "publisher") {
+    throw new CoreError("invalid_request", "scope must be 'package' (narrow) or 'publisher'");
+  }
+  if (publisher.signature_status !== "valid" || pkg.signature === null) {
+    throw new CoreError(
+      "signature_not_valid",
+      `Only a self-consistent signature can have its key pinned; this package's signature status is ${JSON.stringify(publisher.signature_status)}`,
+      { status: 409 },
+    );
+  }
+  if (options.signerFingerprint !== publisher.signer_fingerprint) {
+    throw new CoreError("fingerprint_mismatch", "signer_fingerprint does not match this session's signer; refusing to pin", {
+      status: 409,
+      details: { session_signer_fingerprint: publisher.signer_fingerprint },
+    });
+  }
+  const manifest = pkg.manifest;
+  const claimed = manifest.publisher as JsonObject;
+  const key = await embeddedPublicKey(pkg.signature);
+  const added = await store.add(key, {
+    displayName: String(claimed.name),
+    publisherId: String(claimed.id),
+    packageIdPrefix: scope === "package" ? String(manifest.package_id) : null,
+    notes: options.notes ?? null,
+    replace: options.replace ?? false,
+  });
+  return { added, scope, trust_store: await store.state() };
 }
 
 /** An in-memory storage for tests and for a CLI that was given no store. */
