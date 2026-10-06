@@ -61,11 +61,12 @@ def example_files(current: dict[str, bytes]) -> dict[Path, dict]:
     }
 
 
-def generated() -> dict[Path, dict]:
+def generated(files: dict[str, bytes] | None = None) -> dict[Path, dict]:
+    """Every generated file's document now, from the package source (or the given files)."""
     contract = {**contract_files(), **host_schema_files()}
     # Record the fixture against the schemas the origin and the host publish now.
     current = {
-        **source_files(),
+        **(source_files() if files is None else files),
         **{path: json.dumps(doc).encode() for path, doc in contract.items()},
     }
     documents = {PACKAGE_SOURCE / path: doc for path, doc in contract.items()}
@@ -81,9 +82,9 @@ def render(document: dict) -> str:
     return json.dumps(document, indent=2, ensure_ascii=False) + "\n"
 
 
-def drift() -> list[str]:
+def drift(files: dict[str, bytes] | None = None) -> list[str]:
     stale = []
-    for path, document in generated().items():
+    for path, document in generated(files).items():
         if not path.is_file() or json.loads(path.read_text()) != document:
             stale.append(path.relative_to(REPO_ROOT).as_posix())
     return stale
@@ -94,8 +95,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("command", choices=["sync", "check"])
     args = parser.parse_args(argv)
     if args.command == "check":
-        stale = drift()
-        profiles = source_profile_problems()
+        files = source_files()
+        stale = drift(files)
+        profiles = source_profile_problems(files)
         print(json.dumps({"stale": stale, "profile_problems": profiles}, indent=2))
         return 1 if stale or profiles else 0
     for path, document in generated().items():

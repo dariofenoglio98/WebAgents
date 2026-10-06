@@ -19,7 +19,6 @@ import json
 from collections.abc import Mapping
 from functools import cache
 
-from agentpkg.browser.hostresources import RESOURCE_PERMISSION_KINDS
 from jsonschema import Draft202012Validator
 
 from .contract import PACKAGE_SOURCE, REPO_ROOT
@@ -28,6 +27,10 @@ from .fixture import package_from_files, source_files
 EXTENSION = "org.webagents:profiles-v0"
 SCHEMA_PATH = REPO_ROOT / "spec" / "extensions" / "profiles-v0.schema.json"
 MEMBERS = ("permissions", "tools", "resources")
+# The permission kinds whose `resources` name host resource types: `personal.read` only, as the
+# spec's rules 1 and 4 say. Pinned here rather than taken from a host's control plane, so that a
+# kind a host adds later does not silently widen what the publisher accepts.
+RESOURCE_PERMISSION_KINDS = ("personal.read",)
 
 
 @cache
