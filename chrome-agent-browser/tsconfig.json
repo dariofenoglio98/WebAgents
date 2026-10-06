@@ -1,0 +1,24 @@
+{
+  // The shell, the CLI and the tests: DOM and Chrome types are available here. The core's
+  // own global allowlist is excluded because the DOM library already declares those names;
+  // the core is checked without that library by `tsconfig.core.json`.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "types": ["node", "chrome"],
+    "strict": true,
+    "noUncheckedIndexedAccess": false,
+    "exactOptionalPropertyTypes": false,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "declaration": false,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "verbatimModuleSyntax": false,
+    "resolveJsonModule": true
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts"],
+  "exclude": ["src/core/globals.d.ts"]
+}

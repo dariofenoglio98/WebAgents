@@ -1,0 +1,54 @@
+{
+  "type": "object",
+  "properties": {
+    "profile": {
+      "const": "workflow.fixture.v0"
+    },
+    "input": {},
+    "models": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "input": {},
+            "output": {}
+          },
+          "required": [
+            "input",
+            "output"
+          ],
+          "additionalProperties": false
+        },
+        "maxItems": 10000
+      }
+    },
+    "tools": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "input": {},
+            "output": {}
+          },
+          "required": [
+            "input",
+            "output"
+          ],
+          "additionalProperties": false
+        },
+        "maxItems": 10000
+      }
+    }
+  },
+  "required": [
+    "profile",
+    "input",
+    "models",
+    "tools"
+  ],
+  "additionalProperties": false
+}

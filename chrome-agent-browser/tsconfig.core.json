@@ -1,0 +1,23 @@
+{
+  // The portable core (D-024, D-031): no DOM, Node or Chrome type library. The only
+  // ambient globals it may use are the ones `src/core/globals.d.ts` declares, so a
+  // reference to `chrome`, `document`, `window` or a Node module is a compile error here.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2023"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "types": [],
+    "strict": true,
+    "noUncheckedIndexedAccess": false,
+    "exactOptionalPropertyTypes": false,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "declaration": false,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "verbatimModuleSyntax": false,
+    "resolveJsonModule": true
+  },
+  "include": ["src/core/**/*.ts"]
+}

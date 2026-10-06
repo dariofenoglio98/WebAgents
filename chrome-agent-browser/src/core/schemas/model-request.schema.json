@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "task": {
+      "type": "string"
+    },
+    "instructions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "data": {},
+    "output_schema": {
+      "type": [
+        "object",
+        "boolean"
+      ]
+    },
+    "requirements": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+        },
+        "capabilities": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+          },
+          "maxItems": 512,
+          "uniqueItems": true
+        },
+        "context_window": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "preferred_tier": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+        }
+      },
+      "required": [
+        "id",
+        "capabilities",
+        "context_window",
+        "preferred_tier"
+      ],
+      "additionalProperties": false
+    },
+    "budget_context": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "max_output_tokens": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "max_output_tokens"
+      ],
+      "additionalProperties": false
+    },
+    "audit_context": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "worker": {
+          "type": "string"
+        },
+        "node_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "worker",
+        "node_id"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "task",
+    "instructions",
+    "data",
+    "output_schema",
+    "requirements",
+    "budget_context",
+    "audit_context"
+  ],
+  "additionalProperties": false
+}

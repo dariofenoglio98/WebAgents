@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "audit.v0"
+    },
+    "run_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "action": {
+      "type": "string",
+      "pattern": "^[a-z]+(?:\\.[a-z_]+)+$"
+    },
+    "worker": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "role": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "parent": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "depth": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "node_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "previous_hash": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      ]
+    },
+    "event_hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "profile": {
+      "const": "workflow.v0"
+    },
+    "error_code": {
+      "enum": [
+        "cancelled",
+        "timeout",
+        "budget_exhausted",
+        "schema_validation",
+        "permission_denied",
+        "model_error",
+        "tool_error",
+        "worker_error"
+      ]
+    }
+  },
+  "required": [
+    "schema_version",
+    "run_id",
+    "sequence",
+    "timestamp",
+    "action",
+    "worker",
+    "role",
+    "parent",
+    "depth",
+    "node_id",
+    "previous_hash",
+    "event_hash"
+  ],
+  "additionalProperties": true,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "action": {
+            "pattern": "^(workflow|node)\\."
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "profile"
+        ]
+      }
+    }
+  ]
+}
