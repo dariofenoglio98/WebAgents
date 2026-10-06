@@ -1,0 +1,125 @@
+/**
+ * The side panel: the current tab's advertised packages, Inspect, and the agent page in
+ * compact form (D-035). A thin view over the service worker.
+ */
+import type { Candidate } from "../../core/discovery.js";
+import type { CandidateState, SessionView } from "../messages.js";
+import { renderAgentPage } from "../ui/agent-page.js";
+import { describeError, send, subscribe } from "../ui/client.js";
+import { button, card, el, replace } from "../ui/dom.js";
+import { renderWebsiteCard } from "../ui/website.js";
+
+const app = document.getElementById("app") as HTMLElement;
+
+interface PanelState {
+  tabId: number | null;
+  candidates: CandidateState | null;
+  open: SessionView | null;
+  busy: string | null;
+  error: { code: string; message: string } | null;
+}
+
+const state: PanelState = { tabId: null, candidates: null, open: null, busy: null, error: null };
+
+async function currentTab(): Promise<chrome.tabs.Tab | null> {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  return tab ?? null;
+}
+
+function emptyState(): HTMLElement {
+  return card(
+    "No agent package on this page",
+    el("p", { className: "ab-hint", text: "This extension looks for <link rel=\"agent-package\"> in a page's head: a website saying it publishes a signed agent that your browser can inspect and, later, run with your own models and permissions." }),
+    el("p", { className: "ab-hint", text: "Try the WebAir demo: https://webagents-webair-production.up.railway.app/" }),
+    button("Open the agent browser", () => openFullPage()),
+  );
+}
+
+function openFullPage(sessionId?: string): void {
+  const url = chrome.runtime.getURL(`browser.html${sessionId ? `#session=${encodeURIComponent(sessionId)}` : ""}`);
+  void chrome.tabs.create({ url });
+}
+
+async function inspect(candidate: Candidate): Promise<void> {
+  if (!candidate.resolved_url || !state.candidates) return;
+  state.busy = "Downloading and verifying the package…";
+  state.error = null;
+  render();
+  try {
+    state.open = await send<SessionView>({ type: "package.open", url: candidate.resolved_url, advertisedOn: state.candidates.pageUrl });
+  } catch (error) {
+    state.error = describeError(error);
+  } finally {
+    state.busy = null;
+    render();
+  }
+}
+
+async function trust(scope: "package" | "publisher"): Promise<void> {
+  if (!state.open) return;
+  const fingerprint = state.open.page.trust.signer_fingerprint;
+  if (!fingerprint) return;
+  try {
+    await send({ type: "trust.pin", sessionId: state.open.session.id, signerFingerprint: fingerprint, scope });
+    state.open = await send<SessionView>({ type: "package.get", sessionId: state.open.session.id });
+    state.error = null;
+  } catch (error) {
+    state.error = describeError(error);
+  }
+  render();
+}
+
+function render(): void {
+  const children: Array<HTMLElement | null> = [];
+  if (state.error) children.push(el("div", { className: "ab-error", attrs: { role: "alert" } }, el("strong", { text: state.error.code }), " ", el("span", { text: state.error.message })));
+  if (state.busy) children.push(el("p", { className: "ab-busy", text: state.busy }));
+  if (state.open) {
+    const open = state.open;
+    children.push(
+      renderAgentPage(open, {
+        compact: true,
+        onTrust: (scope) => void trust(scope),
+        onClose: () => {
+          state.open = null;
+          render();
+        },
+        onOpenFullPage: () => openFullPage(open.session.id),
+      }),
+    );
+  } else if (state.candidates && state.candidates.candidates.length > 0) {
+    children.push(renderWebsiteCard(state.candidates, (candidate) => void inspect(candidate)));
+  } else {
+    children.push(emptyState());
+  }
+  replace(app, children);
+}
+
+async function refresh(): Promise<void> {
+  const tab = await currentTab();
+  state.tabId = tab?.id ?? null;
+  state.candidates = state.tabId === null ? null : await send<CandidateState | null>({ type: "candidates.get", tabId: state.tabId });
+  render();
+}
+
+subscribe((event) => {
+  if (event.type === "event.candidates" && event.tabId === state.tabId) void refresh();
+  if (event.type === "event.sessions" && state.open) {
+    const id = state.open.session.id;
+    send<SessionView>({ type: "package.get", sessionId: id }).then(
+      (view) => {
+        state.open = view;
+        render();
+      },
+      () => {
+        state.open = null;
+        render();
+      },
+    );
+  }
+});
+chrome.tabs.onActivated.addListener(() => void refresh());
+chrome.tabs.onUpdated.addListener((tabId, change) => {
+  if (tabId === state.tabId && change.status === "complete") void refresh();
+});
+
+void refresh();
