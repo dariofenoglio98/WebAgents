@@ -2,13 +2,13 @@
   "spec_version": "0.1",
   "package_id": "org.webagents.webair",
   "name": "WebAir Travel Agent",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Search WebAir flights, explain fare rules, prepare a booking quote and simulate a purchase through WebAir's own semantic API, using a travel profile, a passenger identity and a payment method that the person's host owns and grants per run. WebAir publishes the behavior; the person's runtime supplies the authority. WebAir is a fictional demo airline: nothing is ever booked or charged.",
   "publisher": {
     "id": "webair-demo",
     "name": "WebAir (fictional demo airline)"
   },
-  "created_at": "2026-10-03T00:00:00Z",
+  "created_at": "2026-10-06T00:00:00Z",
   "runtime": {
     "api": "agentpkg-runtime-v0",
     "minimum_version": "0.2.2"
@@ -297,6 +297,94 @@
       "semantic_api_version": "v1",
       "note": "Informational only. Tool endpoints are upper bounds; the host chooses and the person approves every binding.",
       "host_resources": "The travel profile, passenger identity and payment method are requested as host-owned resource types (personal.read permissions and argument-free local tools). The package holds none of them; the person's host supplies the one the person grants."
+    },
+    "org.webagents:profiles-v0": {
+      "profiles": [
+        {
+          "id": "search",
+          "title": "Search flights",
+          "description": "Search WebAir flights and read their fare rules. Nothing personal is read or sent, so say where you fly from in the request.",
+          "permissions": [
+            "network.webair",
+            "model.reasoning",
+            "memory.session"
+          ],
+          "tools": [
+            "search-flights",
+            "get-fare-rules"
+          ],
+          "resources": [],
+          "estimate": {
+            "model_calls": 3,
+            "tool_calls": 4,
+            "tokens": 12000,
+            "notes": "From the publisher's recorded runs of the same graph; tokens vary with the model. Each fare whose rules are read is one more tool call."
+          }
+        },
+        {
+          "id": "quote",
+          "title": "Search and quote",
+          "description": "Also fills an unstated home airport or cabin from your travel profile, and sends your passenger identity to WebAir only to quote one fare. Nothing is booked.",
+          "permissions": [
+            "network.webair",
+            "profile.travel",
+            "identity.passenger",
+            "model.reasoning",
+            "memory.session"
+          ],
+          "tools": [
+            "search-flights",
+            "get-fare-rules",
+            "prepare-booking",
+            "personal.travel_profile",
+            "personal.passenger_identity"
+          ],
+          "resources": [
+            "personal.travel_profile",
+            "personal.passenger_identity"
+          ],
+          "estimate": {
+            "model_calls": 3,
+            "tool_calls": 9,
+            "tokens": 12000,
+            "notes": "From the publisher's recorded runs of the same graph; tokens vary with the model."
+          }
+        },
+        {
+          "id": "book",
+          "title": "Book (simulated)",
+          "description": "Also simulates purchasing one exact quote with the demo payment method you choose, in a separate run. Fictional: nothing is ever charged or booked.",
+          "permissions": [
+            "network.webair",
+            "profile.travel",
+            "identity.passenger",
+            "wallet.payment",
+            "booking.simulate_purchase",
+            "model.reasoning",
+            "memory.session"
+          ],
+          "tools": [
+            "search-flights",
+            "get-fare-rules",
+            "prepare-booking",
+            "simulate-purchase",
+            "personal.travel_profile",
+            "personal.passenger_identity",
+            "wallet.payment_method"
+          ],
+          "resources": [
+            "personal.travel_profile",
+            "personal.passenger_identity",
+            "wallet.payment_method"
+          ],
+          "estimate": {
+            "model_calls": 3,
+            "tool_calls": 9,
+            "tokens": 12000,
+            "notes": "From the publisher's recorded runs of the same graph; tokens vary with the model. A quote run is the largest; the simulated purchase run is smaller."
+          }
+        }
+      ]
     }
   }
 }
