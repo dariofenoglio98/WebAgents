@@ -42,8 +42,14 @@ const controller = new Controller({
   version: chrome.runtime.getManifest().version,
 });
 
+/**
+ * Who sent a message, from facts Chrome vouches for. An extension page is one whose frame URL
+ * is on the extension's own origin: the side panel (no tab) and `browser.html` (opened in a
+ * tab) alike. A content script's frame URL is the website's, so it never passes that test,
+ * and only the tab Chrome records for it, never anything it says, identifies the page.
+ */
 function senderOf(sender: chrome.runtime.MessageSender): Sender {
-  const fromExtensionPage = sender.id === chrome.runtime.id && typeof sender.url === "string" && sender.url.startsWith(`${extensionOrigin}/`) && !sender.tab;
+  const fromExtensionPage = sender.id === chrome.runtime.id && typeof sender.url === "string" && sender.url.startsWith(`${extensionOrigin}/`);
   return {
     extensionPage: fromExtensionPage,
     tabId: sender.tab?.id ?? null,
@@ -56,7 +62,7 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
   const who = senderOf(sender);
   (async () => {
     try {
-      if (who.tabId !== null && !who.extensionPage) {
+      if (!who.extensionPage) {
         // A content script: the one message it may send, judged against Chrome's view of the tab.
         await controller.contentLinks(parseContentMessage(message), who);
         return success({ received: true });

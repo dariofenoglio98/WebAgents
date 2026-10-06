@@ -24,6 +24,7 @@
     "@types/chrome": "^0.3.4",
     "@types/node": "^24.0.0",
     "esbuild": "0.28.2",
+    "fake-indexeddb": "^6.2.5",
     "happy-dom": "^20.0.0",
     "typescript": "^5.9.0",
     "vitest": "^5.0.1"

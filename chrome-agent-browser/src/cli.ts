@@ -8,10 +8,13 @@
  *   node dist/cli.js evaluate <package.agent.pkg> [--trust-store <trust.json>]
  *
  * `verify` prints the same JSON as `agentpkg verify` and exits 0 only when the signature was
- * made by exactly the supplied key. `inspect` prints `agentpkg inspect`'s report without any
- * claim about publisher trust. `evaluate` prints the control plane's layered view: the four
- * validation layers, the signature report and the trust verdict against an optional Python
- * `trust.json`, plus the browser summary. Nothing here executes a package.
+ * made by exactly the supplied key; like agentpkg, any refusal goes to stderr as one line
+ * (`agent-browser: <message>`) with exit status 2 and nothing on stdout. `inspect` prints
+ * `agentpkg inspect`'s report without any claim about publisher trust. `evaluate` prints the
+ * control plane's layered view: the archive SHA-256, the four validation layers, the signature
+ * report and the trust verdict against an optional Python `trust.json`, plus the browser
+ * summary; a package that fails a structural layer prints its layered report and exits 1.
+ * Nothing here executes a package.
  */
 import { readFileSync, writeFileSync } from "node:fs";
 
@@ -25,6 +28,7 @@ import {
   MemoryTrustStorage,
   publicKeyFromPem,
   publisherReport,
+  sha256Hex,
   SignatureError,
   TrustStore,
   ValidationError,
@@ -66,6 +70,12 @@ function failure(error: unknown): { code: string; message: string } {
   return { code: "error", message: error instanceof Error ? error.message : String(error) };
 }
 
+/** `agentpkg.cli.main`: one line on stderr, status 2, nothing on stdout. */
+function refuse(error: unknown): number {
+  process.stderr.write(`agent-browser: ${failure(error).message}\n`);
+  return 2;
+}
+
 /** A Python `trust.json` file as the trust storage, read-only unless written through `write`. */
 class FileTrustStorage implements TrustStorage {
   readonly location: string;
@@ -98,8 +108,7 @@ async function verify(args: string[]): Promise<number> {
     print(report);
     return 0;
   } catch (error) {
-    print({ valid: false, error: failure(error) });
-    return 1;
+    return refuse(error);
   }
 }
 
@@ -111,8 +120,7 @@ async function inspect(args: string[]): Promise<number> {
     print(inspectPackage(pkg));
     return 0;
   } catch (error) {
-    process.stderr.write(`${JSON.stringify({ error: failure(error) })}\n`);
-    return 1;
+    return refuse(error);
   }
 }
 
@@ -122,15 +130,16 @@ async function evaluate(args: string[]): Promise<number> {
   const storePath = option(args, "--trust-store");
   const trust = new TrustStore(storePath ? new FileTrustStorage(storePath) : new MemoryTrustStorage("none"));
   const bytes = new Uint8Array(readFileSync(archive));
+  const archiveSha256 = await sha256Hex(bytes);
   const evaluation = await evaluateSnapshot(bytes);
   const layers = evaluationLayers(evaluation);
   if (evaluation.package === null) {
-    print({ validation: layers, publisher: null, summary: null });
+    print({ archive_sha256: archiveSha256, archive_bytes: bytes.length, validation: layers, publisher: null, summary: null });
     return 1;
   }
   const publisher = await publisherReport(evaluation.package, trust);
   const summary = await buildSummary(evaluation.package, { evaluation: layers, publisher });
-  print({ validation: layers, publisher, trust_store: await trust.state(), summary });
+  print({ archive_sha256: archiveSha256, archive_bytes: bytes.length, validation: layers, publisher, trust_store: await trust.state(), summary });
   return 0;
 }
 
@@ -150,8 +159,5 @@ async function main(argv: string[]): Promise<number> {
 
 main(process.argv.slice(2)).then(
   (code) => process.exit(code),
-  (error: unknown) => {
-    process.stderr.write(`${JSON.stringify({ error: failure(error) })}\n`);
-    process.exit(1);
-  },
+  (error: unknown) => process.exit(refuse(error)),
 );

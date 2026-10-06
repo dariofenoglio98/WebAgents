@@ -10,7 +10,7 @@ import type { TrustEntry, TrustState } from "../../core/trust.js";
 import type { SessionDescriptor, SessionView, StatusInfo, WebsiteResult } from "../messages.js";
 import { renderAgentPage } from "../ui/agent-page.js";
 import { describeError, send, subscribe } from "../ui/client.js";
-import { button, card, chip, el, list, replace, row, shortHash, whenText } from "../ui/dom.js";
+import { button, card, chip, el, list, replace, row, whenText } from "../ui/dom.js";
 import { renderTrustPage } from "../ui/trust-page.js";
 import { renderWebsiteCard } from "../ui/website.js";
 
@@ -271,4 +271,3 @@ subscribe((event) => {
 });
 window.addEventListener("hashchange", route);
 route();
-export { shortHash };
