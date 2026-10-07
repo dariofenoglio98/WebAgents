@@ -260,14 +260,30 @@ describe("the built-in model contract and the provider factory", () => {
     await expect(adapter.complete(RENDERED, 10, new AbortController().signal)).rejects.toMatchObject({ code: "model_unavailable" });
   });
 
-  it("reports an answer whose byte bound exceeds the cap as a length stop, never as a completion the runtime must halt over", async () => {
+  it("measures input and output with the Prompt API's own tokenizer, hands the schema over as the constraint, and reports an answer above the cap as a length stop (D-072; T4 review 2, nit 6)", async () => {
     const answer = '{"focus":"ok","count":1}';
-    const port: BuiltinModelPort = { availability: async () => "available", createSession: async () => ({ prompt: async () => answer, measureInputUsage: async () => 5, inputQuota: 1000, destroy: () => undefined }) };
+    const sessions: Array<{ systemPrompt: string; responseConstraint: Record<string, unknown> | null }> = [];
+    // A tokenizer that counts words: a 1,500-byte answer under a 1,024-token cap must not be "length".
+    const tokens = (text: string) => text.split(/\s+/u).filter(Boolean).length;
+    const port: BuiltinModelPort = {
+      availability: async () => "available",
+      createSession: async (options) => {
+        sessions.push({ systemPrompt: options.systemPrompt, responseConstraint: options.responseConstraint ?? null });
+        return { prompt: async () => answer, measureInputUsage: async (text) => tokens(text), inputQuota: 1000, constrained: true, destroy: () => undefined };
+      },
+    };
     const adapter = new ChromeBuiltinAdapter(port, 4096);
     const short = await adapter.complete(RENDERED, 100, new AbortController().signal);
-    expect(short).toMatchObject({ text: answer, stop_reason: "stop", usage: { input_tokens: 5, output_tokens: answer.length } });
-    const long = await adapter.complete(RENDERED, 10, new AbortController().signal);
-    expect(long).toMatchObject({ stop_reason: "length", usage: { output_tokens: answer.length } });
+    expect(short).toMatchObject({ text: answer, stop_reason: "stop", constrained: true, usage: { input_tokens: tokens(`${RENDERED.system}\n${RENDERED.user}`), output_tokens: tokens(answer) } });
+    expect(sessions[0]).toMatchObject({ systemPrompt: RENDERED.system, responseConstraint: RENDERED.output_schema });
+    const wordy = "a ".repeat(30).trim();
+    const chatty: BuiltinModelPort = { ...port, createSession: async () => ({ prompt: async () => wordy, measureInputUsage: async (text) => tokens(text), inputQuota: 1000, destroy: () => undefined }) };
+    const long = await new ChromeBuiltinAdapter(chatty, 4096).complete(RENDERED, 10, new AbortController().signal);
+    expect(long).toMatchObject({ stop_reason: "length", constrained: false, usage: { output_tokens: 30 } });
+    // Bytes are not tokens: a long answer of few tokens is complete.
+    const bulky = "x".repeat(1500);
+    const bulk: BuiltinModelPort = { ...port, createSession: async () => ({ prompt: async () => bulky, measureInputUsage: async (text) => tokens(text), inputQuota: 1000, destroy: () => undefined }) };
+    expect(await new ChromeBuiltinAdapter(bulk, 4096).complete(RENDERED, 1024, new AbortController().signal)).toMatchObject({ stop_reason: "stop", usage: { output_tokens: 1 } });
   });
 
   it("builds the adapter the binding names, from host settings the binding does not carry", () => {

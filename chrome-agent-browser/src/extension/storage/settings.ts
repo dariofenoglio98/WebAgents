@@ -8,6 +8,7 @@
  *   vault         the vault document (types and records); digests are recomputed on open
  *   vaultKey      the HMAC key (base64, 32 bytes), generated once per profile
  *   instanceId    the control plane's instance id, generated once per install
+ *   spentReceipts receipt ids whose `once` grants a run already used (T5, D-065)
  */
 import { DEFAULT_PRESET, isPresetId } from "../../core/authorization.js";
 import { isRecord } from "../../core/fields.js";
@@ -21,6 +22,9 @@ export const PROVIDER_KEYS_KEY = "providerKeys";
 export const VAULT_KEY = "vault";
 export const VAULT_HMAC_KEY = "vaultKey";
 export const INSTANCE_ID_KEY = "instanceId";
+/** Receipt ids whose `once` grants a run already used (D-065): the lease registry's persisted half. */
+export const SPENT_RECEIPTS_KEY = "spentReceipts";
+const MAX_SPENT_RECEIPTS = 1024;
 
 /** A connection as stored and shown: the key itself is elsewhere, only its presence is reported. */
 export interface StoredConnection {
@@ -38,6 +42,11 @@ export interface Settings {
     /** The host model id (`provider/model`) the two-click path binds; null until the person picks one. */
     default_model: string | null;
   };
+  /** Test-mode switches (D-028): off by default, shown in Settings → About. */
+  developer: {
+    /** Record every outbound model and tool request body of a run to the observation store, for the privacy checks. */
+    record_requests: boolean;
+  };
 }
 
 export const DEFAULT_SETTINGS: Settings = Object.freeze({
@@ -52,6 +61,7 @@ export const DEFAULT_SETTINGS: Settings = Object.freeze({
     ],
     default_model: null,
   },
+  developer: { record_requests: false },
 }) as Settings;
 
 /** The minimal `chrome.storage.StorageArea` surface these adapters use. */
@@ -144,10 +154,12 @@ export function normalizeSettings(raw: unknown): Settings {
     }
   }
   const defaultModel = typeof models.default_model === "string" && models.default_model.length > 0 && models.default_model.length <= 300 ? models.default_model : null;
+  const developer = isRecord(raw.developer) ? raw.developer : {};
   return {
     schema: "chrome-agent-browser-settings-v0",
     preset: isPresetId(raw.preset) ? raw.preset : DEFAULT_PRESET,
     models: { connections: [...connections.values()], default_model: defaultModel },
+    developer: { record_requests: developer.record_requests === true },
   };
 }
 
@@ -231,6 +243,15 @@ export class SettingsStorage {
     const fresh = generateVaultKey();
     await this.area.set({ [VAULT_HMAC_KEY]: base64.encode(fresh) });
     return fresh;
+  }
+
+  async spentReceipts(): Promise<string[]> {
+    const stored = (await this.area.get(SPENT_RECEIPTS_KEY))[SPENT_RECEIPTS_KEY];
+    return Array.isArray(stored) ? stored.filter((item): item is string => typeof item === "string").slice(-MAX_SPENT_RECEIPTS) : [];
+  }
+
+  async saveSpentReceipts(receiptIds: readonly string[]): Promise<void> {
+    await this.area.set({ [SPENT_RECEIPTS_KEY]: [...new Set(receiptIds)].slice(-MAX_SPENT_RECEIPTS) });
   }
 
   async instanceId(): Promise<string> {

@@ -14,6 +14,10 @@ import { MemoryStorageArea, SettingsStorage } from "../../src/extension/storage/
 import { MemorySnapshotStore } from "../../src/extension/storage/snapshots.js";
 import { MemoryTabStateStore } from "../../src/extension/storage/tab-state.js";
 import { MemoryViewHolderStore } from "../../src/extension/storage/view-holders.js";
+import { MemoryRunStore } from "../../src/extension/storage/runs.js";
+import type { ExecutionHostBridge } from "../../src/extension/background/runs.js";
+import { InProcessHost, refusingTransport } from "./host.js";
+import type { HttpTransport } from "../../src/core/models/transport.js";
 import { generateKeyPair, signedArchive } from "./keys.js";
 import { readBytes, ROOT, SHIPPED } from "./paths.js";
 import { makeSource, writeText } from "./source.js";
@@ -150,6 +154,8 @@ export interface Harness {
   fetchLog: FetchLog[];
   routes: Record<string, Route>;
   clock: { now: Date };
+  runs: MemoryRunStore;
+  host: InProcessHost;
 }
 
 export function makeHarness(
@@ -161,6 +167,13 @@ export function makeHarness(
     liveDocuments?: Set<string>;
     /** Model-catalog answers; the Ollama qwen3:30b answers by default. */
     http?: Record<string, unknown>;
+    /** The run store (shared across "restarts"). */
+    runs?: MemoryRunStore;
+    /** The execution host's transports: a scripted model and a scripted origin; without them every run fails at its first call. */
+    transports?: { model: HttpTransport; tool: HttpTransport };
+    /** A host that refuses to start (no offscreen document) or reports no execution capability. */
+    hostOptions?: { available?: boolean; failStart?: boolean };
+    runIds?: () => string;
   } = {},
 ): Harness {
   const routes = options.routes ?? webairRoutes();
@@ -177,8 +190,14 @@ export function makeHarness(
   const events: Event[] = [];
   const clock = { now: new Date("2026-10-06T12:00:00Z") };
   let counter = 0;
+  let runCounter = 0;
   const trust = new TrustStore(trustStorage, () => clock.now.toISOString());
+  const runs = options.runs ?? new MemoryRunStore();
+  const host = new InProcessHost({ runs, snapshots, model: options.transports?.model ?? refusingTransport(), tool: options.transports?.tool ?? refusingTransport(), now: () => clock.now, ...(options.hostOptions ?? {}) });
   const deps: ControllerDeps = {
+    runs,
+    host: host as ExecutionHostBridge,
+    runId: options.runIds ?? (() => `run_${String((runCounter += 1)).padStart(32, "0")}`),
     fetch: fakeFetch(routes, fetchLog),
     snapshots,
     trust,
@@ -199,7 +218,9 @@ export function makeHarness(
     limits: options.limits,
     version: "0.1.0-test",
   };
-  return { controller: new Controller(deps), snapshots, trustStorage, trust, tabs, holders, settingsArea, settings, httpLog, builtin, badges, events, fetchLog, routes, clock };
+  const controller = new Controller(deps);
+  host.report = (type, runId) => controller.handle({ type, runId }, OFFSCREEN);
+  return { controller, snapshots, trustStorage, trust, tabs, holders, settingsArea, settings, httpLog, builtin, badges, events, fetchLog, routes, clock, runs, host };
 }
 
 const EXTENSION_ORIGIN = "chrome-extension://abcdefghijklmnopabcdefghijklmnop";
@@ -207,6 +228,8 @@ const EXTENSION_ORIGIN = "chrome-extension://abcdefghijklmnopabcdefghijklmnop";
 export const PAGE: Sender = { extensionPage: true, tabId: null, tabUrl: null, frameUrl: `${EXTENSION_ORIGIN}/sidepanel.html`, topFrame: false };
 /** `browser.html` opened in a tab: still an extension page. */
 export const PAGE_IN_TAB: Sender = { extensionPage: true, tabId: 9, tabUrl: `${EXTENSION_ORIGIN}/browser.html`, frameUrl: `${EXTENSION_ORIGIN}/browser.html`, topFrame: true };
+/** The offscreen execution host: an extension page, and the only sender of `host.*` reports. */
+export const OFFSCREEN: Sender = { extensionPage: true, tabId: null, tabUrl: null, frameUrl: `${EXTENSION_ORIGIN}/execution.html`, topFrame: false, offscreen: true };
 /** A content script in the WebAir tab's top frame, as Chrome reports it. */
 export const TAB: Sender = { extensionPage: false, tabId: 7, tabUrl: `${SITE_ORIGIN}/`, frameUrl: `${SITE_ORIGIN}/`, topFrame: true };
 

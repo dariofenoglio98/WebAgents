@@ -27,6 +27,7 @@ import { MODE_MODEL } from "../types.js";
 import { CancelledError } from "../workflow/errors.js";
 import { INTERPRETER, PROFILE, Workflow, type ExecutionReport } from "../workflow/interpreter.js";
 import { digest, type Grants } from "../workflow/runtime.js";
+import type { AuditEvent } from "../types.js";
 import type { ArtifactEvidence } from "./artifact.js";
 import { artifactRecords, type ArtifactRecord } from "./artifacts.js";
 import { ALREADY_STARTED, ARTIFACTS_FAILED, ExecutionError, INPUT_INVALID, invalid, NOT_BOUND, PERMISSION_DENIED, PLAN_INVALID, RUNTIME_REFUSED } from "./errors.js";
@@ -80,6 +81,12 @@ export interface SessionDeps {
   fixture?: FixtureSource | null;
   onProgress?: ProgressListener | null;
   progressIntervalSeconds?: number;
+  /**
+   * Every audit event as it is recorded (a copy; D-060's observer), for a host that checkpoints
+   * the run after each wave (`state.committed`, D-071). A listener that throws is ignored and
+   * never steers the run.
+   */
+  onAudit?: ((event: AuditEvent) => void) | null;
   now?: () => Date;
 }
 
@@ -306,6 +313,16 @@ export class ExecutionSession {
     const started = now();
     const tracker = new ProgressTracker(this.deps.onProgress ?? null, { intervalSeconds: this.deps.progressIntervalSeconds });
     this.tracker = tracker;
+    const onAudit = this.deps.onAudit ?? null;
+    const observer = (event: AuditEvent): void => {
+      tracker.observe(event);
+      if (onAudit === null) return;
+      try {
+        onAudit(event);
+      } catch {
+        // A checkpoint listener that fails never steers the run.
+      }
+    };
     let workflow: Workflow;
     try {
       workflow = await Workflow.create(this.package, {
@@ -314,7 +331,7 @@ export class ExecutionSession {
         router: this.router,
         limits: runtimeLimits(this.limits),
         approvedTools: this.approvedTools,
-        observer: tracker.observe,
+        observer,
       });
     } catch (error) {
       tracker.close();
@@ -424,6 +441,16 @@ export class ExecutionSession {
 
   get snapshot(): ProgressSnapshot | null {
     return this.tracker?.snapshot() ?? null;
+  }
+
+  /** The hash-chained audit recorded so far (a copy), for a host's checkpoint; empty before the run. */
+  auditSoFar(): AuditEvent[] {
+    return this.workflow === null ? [] : this.workflow.runtime.audit.map((event) => ({ ...event }));
+  }
+
+  /** The usage accounted so far, for a host's checkpoint; null before the run. */
+  usageSoFar(): JsonObject | null {
+    return this.workflow === null ? null : (JSON.parse(JSON.stringify(this.workflow.runtime.usage)) as JsonObject);
   }
 
   /** The declared tool's bound handler count, for hosts that report it before the run. */

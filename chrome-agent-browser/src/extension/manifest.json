@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "WebAgents Agent Browser",
   "version": "0.1.0",
-  "description": "Discover, verify and inspect signed agent.pkg packages that websites advertise. Inspection only in this version: nothing executes.",
+  "description": "Discover, verify, authorize and run signed agent.pkg packages that websites advertise, with your own models, permissions and data.",
   "minimum_chrome_version": "137",
   "icons": {
     "16": "icons/icon-16.png",
@@ -10,7 +10,7 @@
     "48": "icons/icon-48.png",
     "128": "icons/icon-128.png"
   },
-  "permissions": ["storage", "sidePanel", "unlimitedStorage"],
+  "permissions": ["storage", "sidePanel", "unlimitedStorage", "offscreen"],
   "host_permissions": ["https://*/*", "http://127.0.0.1/*", "http://localhost/*"],
   "background": {
     "service_worker": "service-worker.js",

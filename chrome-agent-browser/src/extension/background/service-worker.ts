@@ -6,12 +6,16 @@
 import type { BuiltinAvailability, Http } from "../../core/models/catalog.js";
 import { TrustStore } from "../../core/trust.js";
 import { failure, isEvent, parseContentMessage, parseRequest, success, type Event } from "../messages.js";
+import { isHostCommand } from "../execution/protocol.js";
+import { Database } from "../storage/database.js";
+import { IndexedDbRunStore } from "../storage/runs.js";
 import { SettingsStorage } from "../storage/settings.js";
 import { IndexedDbSnapshotStore } from "../storage/snapshots.js";
 import { ChromeTabStateStore } from "../storage/tab-state.js";
 import { ChromeTrustStorage } from "../storage/trust-storage.js";
 import { ChromeViewHolderStore } from "../storage/view-holders.js";
 import { Controller, type Sender } from "./controller.js";
+import { OffscreenHostBridge } from "./offscreen-host.js";
 
 const extensionOrigin = `chrome-extension://${chrome.runtime.id}`;
 const settings = new SettingsStorage(chrome.storage.local);
@@ -99,9 +103,12 @@ function broadcast(event: Event): void {
   });
 }
 
+const database = new Database();
 const controller = new Controller({
   fetch: (url, init) => fetch(url, init),
-  snapshots: new IndexedDbSnapshotStore(),
+  snapshots: new IndexedDbSnapshotStore(database),
+  runs: new IndexedDbRunStore(database),
+  host: new OffscreenHostBridge(),
   trust: new TrustStore(new ChromeTrustStorage()),
   tabs: new ChromeTabStateStore(),
   holders: new ChromeViewHolderStore(),
@@ -124,6 +131,8 @@ function senderOf(sender: chrome.runtime.MessageSender): Sender {
   const fromExtensionPage = sender.id === chrome.runtime.id && typeof sender.url === "string" && sender.url.startsWith(`${extensionOrigin}/`);
   return {
     extensionPage: fromExtensionPage,
+    // The offscreen document (the execution host) is the only sender of `host.*` reports.
+    offscreen: fromExtensionPage && sender.url === `${extensionOrigin}/execution.html`,
     tabId: sender.tab?.id ?? null,
     tabUrl: sender.tab?.url ?? null,
     frameUrl: typeof sender.url === "string" ? sender.url : null,
@@ -134,6 +143,7 @@ function senderOf(sender: chrome.runtime.MessageSender): Sender {
 
 chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) => {
   if (isEvent(message)) return false; // Our own broadcasts, echoed back.
+  if (isHostCommand(message)) return false; // Our own commands to the execution host; it answers them.
   const who = senderOf(sender);
   (async () => {
     try {

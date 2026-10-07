@@ -10,8 +10,10 @@
  */
 import type { AgentPageModel } from "../core/agent-page.js";
 import type { AuthorizationRequest, Decided } from "../core/authorization.js";
+import type { RunRecord } from "../core/execution/record.js";
 import type { CatalogEvaluation } from "../core/compatibility.js";
 import type { Candidate, DiscoveryResult, DiscoveryStatus } from "../core/discovery.js";
+import type { TaskValidation } from "../core/presentation.js";
 import { CoreError } from "../core/errors.js";
 import type { PublisherReport } from "../core/evaluation.js";
 import { isRecord } from "../core/fields.js";
@@ -22,9 +24,11 @@ import { PROVIDER_IDS } from "../core/models/catalog.js";
 import type { Profile } from "../core/profiles.js";
 import type { BrowserSummary } from "../core/summary.js";
 import type { PinScope, TrustEntry, TrustState } from "../core/trust.js";
+import type { JsonValue } from "../core/json.js";
 import type { AuthorizationReceipt, BrowserPolicy, PresetId, Reason, RunPlan, RunPlanPreflight } from "../core/types.js";
 import type { VaultRecordView, VaultTypeView } from "../core/vault.js";
 import type { Settings } from "./storage/settings.js";
+import type { StoredObservation } from "./storage/runs.js";
 
 export const MAX_URL = 2048;
 export const MAX_ID = 200;
@@ -76,7 +80,27 @@ export type Request =
   | { type: "vault.get" }
   | { type: "vault.putRecord"; record: unknown }
   | { type: "vault.deleteRecord"; recordId: string }
-  | { type: "vault.installDemo"; records: boolean };
+  | { type: "vault.installDemo"; records: boolean }
+  // -- runs (T5, D-070…D-073) ---------------------------------------------------------------
+  | { type: "run.readiness"; sessionId: string }
+  | { type: "run.validateInput"; sessionId: string; input: unknown }
+  | { type: "run.start"; sessionId: string; runPlanId: string; runPlanSha256: string; input: unknown }
+  | { type: "run.get"; runId: string }
+  | { type: "run.list"; sessionId?: string | null }
+  | { type: "run.cancel"; runId: string }
+  | { type: "run.artifact"; runId: string; name: string }
+  | { type: "run.artifactChunk"; runId: string; name: string; offset: number }
+  | { type: "run.export"; runId: string }
+  | { type: "run.clear"; runId: string }
+  /** The request bodies recorded in test mode for one run (D-028); empty unless recording was on. */
+  | { type: "run.observations"; runId: string }
+  /** From the execution host only: a run's stored record changed; the worker re-reads and rebroadcasts. */
+  | { type: "host.progress"; runId: string }
+  | { type: "host.finished"; runId: string };
+
+/** The task input a view may submit: bounded as the reference host bounds it. */
+export const MAX_INPUT_BYTES = 256 * 1024;
+export const ARTIFACT_NAME = /^[A-Za-z0-9_-][A-Za-z0-9_.-]{0,127}$/u;
 
 export interface ContentLink {
   href: string | null;
@@ -96,7 +120,9 @@ export type Event =
   | { type: "event.trust" }
   | { type: "event.authorization"; sessionId: string }
   | { type: "event.settings" }
-  | { type: "event.vault" };
+  | { type: "event.vault" }
+  /** A run's record changed (started, progressed, settled, cleared); views re-read `run.get`. */
+  | { type: "event.run"; runId: string; sessionId: string; status: string };
 
 export type Response<T = unknown> =
   | { ok: true; result: T }
@@ -240,7 +266,95 @@ export interface StatusInfo {
   cached_bytes: number;
   max_cache_bytes: number;
   session_ttl_seconds: number;
-  execution: "disabled";
+  /** `enabled` once the execution host (T5) is wired; the host limits every run is bounded by. */
+  execution: "enabled" | "disabled";
+  execution_limits: { total_tokens: number; max_remote_calls: number; max_parallel_workers: number; max_output_tokens_per_call: number; run_timeout_seconds: number; max_calls_per_tool: number; model_call_timeout_seconds: number } | null;
+  runs: { active: number; stored: number };
+}
+
+// -- run results (T5) ------------------------------------------------------------------
+/** The Run Record as a view reads it (`record.ts`, the reference plugin's field names) plus the task quote. */
+export interface RunView extends RunRecord {
+  taskText: string | null;
+  /** Whether this run's package session is still open in this browser. */
+  sessionOpen: boolean;
+  /** Which profile the authorization came from, when one was used (D-053 provenance). */
+  profileId: string | null;
+}
+
+export interface RunSummary {
+  runId: string;
+  sessionId: string;
+  runPlanId: string;
+  status: RunRecord["status"];
+  createdAt: string;
+  endedAt: string | null;
+  durationMs: number | null;
+  package: { packageId: string; name: string | null; version: string };
+  selectedModel: string | null;
+  cancelRequested: boolean;
+  errorCode: string | null;
+  taskText: string | null;
+}
+
+export interface RunListView {
+  runs: RunSummary[];
+  /** The run in flight for the session asked about (or any session), with its full record. */
+  active: RunView | null;
+}
+
+/** `execution.readiness`: whether Run may be pressed right now, and why not. */
+export interface RunReadiness {
+  session_id: string;
+  checked_at: string;
+  ready: boolean;
+  run_plan_id: string | null;
+  run_plan_sha256: string | null;
+  blocker: Reason | null;
+  /** What passed, in order, for the checklist. */
+  checks: string[];
+  receipt: { expires_at: string; remaining_seconds: number; required_seconds: number } | null;
+  active_run_id: string | null;
+  /** The preflight the readiness was computed from, when a plan exists. */
+  preflight: RunPlanPreflight | null;
+}
+
+export type InputValidationView = TaskValidation;
+
+export interface ArtifactContent {
+  run_id: string;
+  name: string;
+  bytes: number;
+  sha256: string;
+  truncated: boolean;
+  shown_bytes: number;
+  /** A small `.json` artifact, parsed. */
+  json?: JsonValue;
+  /** The text, up to the view limit. */
+  text?: string;
+}
+
+export interface ArtifactChunk {
+  run_id: string;
+  name: string;
+  bytes: number;
+  sha256: string;
+  offset: number;
+  length: number;
+  base64: string;
+  eof: boolean;
+}
+
+/** The export bundle (D-073): the run directory as the Python runtime would write it, plus the plan and the input. */
+export interface ExportBundle {
+  run_id: string;
+  entries: Array<{ name: string; bytes: number; sha256: string; base64: string }>;
+}
+
+export interface ObservationsView {
+  run_id: string;
+  recording: boolean;
+  observations: StoredObservation[];
 }
 
 export type WebsiteResult = DiscoveryResult;
@@ -303,6 +417,24 @@ function bounded(value: unknown, field: string): unknown {
   }
   if (encoded.length > MAX_SUBMITTED_BYTES) throw invalid(`${field} exceeds ${MAX_SUBMITTED_BYTES} bytes`);
   return JSON.parse(encoded) as unknown;
+}
+
+/** A task input: any JSON value, bounded in bytes (the reference host's `MAX_INPUT_BYTES`); the package schema judges it. */
+function boundedInput(value: unknown): unknown {
+  if (value === undefined) throw invalid("input is required");
+  let encoded: string;
+  try {
+    encoded = JSON.stringify(value) ?? "null";
+  } catch {
+    throw invalid("input must be JSON");
+  }
+  if (new TextEncoder().encode(encoded).length > MAX_INPUT_BYTES) throw invalid(`input exceeds ${MAX_INPUT_BYTES} bytes`);
+  return JSON.parse(encoded) as unknown;
+}
+
+function artifactName(value: unknown): string {
+  if (typeof value !== "string" || !ARTIFACT_NAME.test(value) || value.includes("..")) throw invalid("name must be an artifact name");
+  return value;
 }
 
 function provider(value: unknown): ProviderId {
@@ -430,6 +562,41 @@ export function parseRequest(value: unknown): Request {
     case "vault.installDemo":
       only(fields, ["type", "records"]);
       return { type, records: fields.records === true };
+    case "run.readiness":
+      only(fields, ["type", "sessionId"]);
+      return { type, sessionId: text(fields.sessionId, "sessionId", MAX_ID) };
+    case "run.validateInput":
+      only(fields, ["type", "sessionId", "input"]);
+      return { type, sessionId: text(fields.sessionId, "sessionId", MAX_ID), input: boundedInput(fields.input) };
+    case "run.start":
+      only(fields, ["type", "sessionId", "runPlanId", "runPlanSha256", "input"]);
+      return {
+        type,
+        sessionId: text(fields.sessionId, "sessionId", MAX_ID),
+        runPlanId: text(fields.runPlanId, "runPlanId", MAX_ID),
+        runPlanSha256: text(fields.runPlanSha256, "runPlanSha256", MAX_ID),
+        input: boundedInput(fields.input),
+      };
+    case "run.get":
+    case "run.cancel":
+    case "run.export":
+    case "run.clear":
+    case "run.observations":
+    case "host.progress":
+    case "host.finished":
+      only(fields, ["type", "runId"]);
+      return { type, runId: text(fields.runId, "runId", MAX_ID) };
+    case "run.list":
+      only(fields, ["type", "sessionId"]);
+      return { type, sessionId: optionalText(fields.sessionId, "sessionId", MAX_ID) };
+    case "run.artifact":
+      only(fields, ["type", "runId", "name"]);
+      return { type, runId: text(fields.runId, "runId", MAX_ID), name: artifactName(fields.name) };
+    case "run.artifactChunk": {
+      only(fields, ["type", "runId", "name", "offset"]);
+      if (typeof fields.offset !== "number" || !Number.isInteger(fields.offset) || fields.offset < 0) throw invalid("offset must be a non-negative integer");
+      return { type, runId: text(fields.runId, "runId", MAX_ID), name: artifactName(fields.name), offset: fields.offset };
+    }
     default:
       throw invalid(`unknown request type ${JSON.stringify(String(type).slice(0, 40))}`);
   }
