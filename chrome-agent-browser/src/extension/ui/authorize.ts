@@ -75,8 +75,14 @@ function authorityWords(view: AuthorizationView, permission: AuthorizationView["
       const request = view.resources.requests.find((item) => item.permission_id === permission.id);
       return `read your ${request?.type_display_name?.toLowerCase() ?? permission.resources.join(", ")} (you choose which)${once}`;
     }
-    case "payment":
-      return `simulate a purchase (fictional, nothing is charged)${decision === "once" ? ", one run only" : ""}`;
+    case "payment": {
+      // Generic on purpose: this host cannot know whether a package's payment is real, so it
+      // says where a payment would go and through which tool; the publisher's own account of it
+      // is quoted, attributed, on the summary card (D-052 as amended).
+      const through = permission.linked_tools.length > 0 ? ` through ${permission.linked_tools.join(", ")}` : "";
+      const hosts = permission.linked_domains.length > 0 ? permission.linked_domains : permission.resources;
+      return `make a payment${through}${hosts.length > 0 ? ` at ${hosts.join(", ")}` : ""}${decision === "once" ? ", one run only" : ""}`;
+    }
     case "files.read":
       return `read files you pick${once}`;
     case "files.write":
@@ -157,6 +163,9 @@ function summaryCard(input: AuthorizeInput, state: AuthorizeState, actions: Auth
       { className: "ab-summary" },
       el("h4", { text: "This agent will be able to" }),
       list(granted.map((permission) => authorityWords(view, permission, decided.decisions[permission.id]!))),
+      ...granted
+        .filter((permission) => permission.kind === "payment")
+        .map((permission) => el("p", { className: "ab-hint ab-payment-claim", text: `About this payment, in the publisher's words: “${permission.description}”` })),
       denied.length > 0 || deniedTools.length > 0
         ? el("p", { className: "ab-hint", text: `It will not: ${[...denied.map((permission) => authorityWords(view, permission, "session")), ...(deniedTools.length > 0 ? [`use ${deniedTools.join(", ")}`] : [])].join("; ")}.` })
         : null,
@@ -468,7 +477,9 @@ export function renderAuthorizeView(input: AuthorizeInput, state: AuthorizeState
           ...profiles.map((entry) =>
             profileCard(view, entry, entry.profile.id === state.selectedProfile, () => {
               state.selectedProfile = entry.profile.id;
-              state.draft = null;
+              // An open detailed view follows the chosen profile rather than vanishing behind a
+              // link that still reads "Hide the detailed settings" (review 1, nit 15).
+              state.draft = state.customize ? draftFrom(entry.decided, { profile_id: entry.profile.id, profile_title: entry.profile.title }) : null;
               actions.rerender();
             }),
           ),

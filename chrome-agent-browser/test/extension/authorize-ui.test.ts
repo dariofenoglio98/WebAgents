@@ -125,7 +125,9 @@ describe("two clicks to Ready to run (WebAir 0.4.0, Search flights)", () => {
     expect(cards.map((item) => item.dataset.profile)).toEqual(["search", "quote", "book"]);
     expect(cards[0]!.getAttribute("aria-pressed")).toBe("true");
     expect(cards[0]!.textContent).toContain("Gets: contact webagents-webair-production.up.railway.app");
-    expect(cards[2]!.textContent).toContain("simulate a purchase (fictional, nothing is charged), one run only");
+    // Generic payment words: the host cannot know a payment is fictional, only the publisher says so (review 1, finding 3).
+    expect(cards[2]!.textContent).toContain("make a payment through simulate-purchase at webagents-webair-production.up.railway.app, one run only");
+    expect(root.textContent).not.toContain("nothing is charged");
     expect(root.querySelector(".ab-summary")?.textContent).toContain("It will not: read your travel profile");
     expect(root.querySelector(".ab-summary")?.textContent).toContain("use personal.passenger_identity, personal.travel_profile, prepare-booking, simulate-purchase, wallet.payment_method");
     // Click 1: the profile card (already selected; pressing it again is harmless). Click 2: Use this agent.
@@ -145,6 +147,35 @@ describe("two clicks to Ready to run (WebAir 0.4.0, Search flights)", () => {
     expect(root.textContent).toContain("personal.passenger_identity, personal.travel_profile, prepare-booking, simulate-purchase, wallet.payment_method");
     // The page never carries a personal value or a key.
     expect(ui.text()).not.toContain("alex.traveler@example.com");
+  });
+
+  it("a payment is described generically, with the publisher's own words quoted and attributed (review 1, finding 3)", async () => {
+    const h = makeHarness();
+    const ui = mount(h, await openWebair(h));
+    const root = await ui.ready();
+    expect(root.querySelector(".ab-payment-claim")).toBeNull(); // Search flights grants no payment
+    ui.click('.ab-profile-card[data-profile="book"]');
+    const summary = root.querySelector<HTMLElement>(".ab-summary")!;
+    expect(summary.textContent).toContain("make a payment through simulate-purchase at webagents-webair-production.up.railway.app, one run only");
+    const claim = root.querySelector<HTMLElement>(".ab-payment-claim")!.textContent!;
+    expect(claim.startsWith("About this payment, in the publisher's words: “Simulate purchasing the one exact quote")).toBe(true);
+    expect(claim).toContain("charges nothing");
+  });
+
+  it("choosing another profile while the detailed view is open shows that profile's details (review 1, nit 15)", async () => {
+    const h = makeHarness();
+    const ui = mount(h, await openWebair(h));
+    const root = await ui.ready();
+    ui.button("Customize your settings").click();
+    expect(root.querySelector<HTMLSelectElement>('.ab-permission[data-permission="identity.passenger"] select')!.value).toBe("deny");
+    ui.click('.ab-profile-card[data-profile="quote"]');
+    expect(ui.state.customize).toBe(true);
+    expect(root.querySelector<HTMLSelectElement>('.ab-permission[data-permission="identity.passenger"] select')!.value).toBe("session");
+    expect(ui.button("Hide the detailed settings")).toBeTruthy();
+    ui.button("Hide the detailed settings").click();
+    expect(root.querySelector(".ab-permission")).toBeNull();
+    ui.click('.ab-profile-card[data-profile="search"]');
+    expect(ui.button("Customize your settings")).toBeTruthy();
   });
 
   it("re-rendering from the stored session keeps the plan hash", async () => {
