@@ -2,10 +2,11 @@
 
 The second runtime of WebAgents: a Chrome extension that discovers, verifies, inspects and
 **authorizes** signed `agent.pkg` packages that websites advertise, built on a portable
-TypeScript core that runs in Node as well. The core now **executes** `workflow.v0` packages
-(T4): the interpreter, the model and tool adapters, the runner and the Run Record live under
-`src/core/`, and the Node CLI runs any signed package in fixture or live mode. **The extension
-itself still runs nothing**: running from the browser is T5.
+TypeScript core that runs in Node as well. The core **executes** `workflow.v0` packages (T4):
+the interpreter, the model and tool adapters, the runner and the Run Record live under
+`src/core/`, and the Node CLI runs any signed package in fixture or live mode. The extension
+**runs them too** (T5): an authorized agent runs in an offscreen document's Worker with your own
+model, your permissions and your records, and the run survives the side panel being closed.
 
 What it shows today, on the WebAir demo site:
 
@@ -37,7 +38,26 @@ What it shows today, on the WebAir demo site:
    the model picker with its compatibility verdicts (authorizing there binds the model you
    picked), the declared limits. Every decision records
    who made it (you, the profile, or the preset). **Ready to run** shows the plan with its id and
-   hash under Technical details. Running arrives with T5; nothing runs yet.
+   hash under Technical details.
+7. **Run** (T5). Above the agent page, the run surface shows a checklist (package verified,
+   publisher trusted, permissions authorized, tools bound, model, your data selected, run plan
+   ready and not stale, authorization outlasting the run deadline, task valid) and the task form
+   built from the package's own input schema; Run is enabled only when every item holds, and it
+   names the first that does not. A run executes in an **offscreen document's Worker** (D-070):
+   closing the panel or the page does not touch it, and reopening shows it again. Progress by
+   stage and worker, model and tool calls, tokens; **Cancel** stops within one wave. The result is
+   the package's primary export as sanitized markdown, the artifacts with SHA-256-verified
+   downloads, and Technical details (plan and input hashes, every model call on the planned model,
+   tool bindings, permissions and who decided them, usage, cost, the audit chain, what was
+   re-verified before the start). **Runs** lists every run this browser made, opens a past run
+   read-only, exports a run directory as a zip and clears finished runs. A run whose host was
+   unloaded (the browser restarted) is marked interrupted and never resumed (D-071).
+8. **Settings → Models** connects the routes (D-023): Ollama on this machine (with the one-time
+   `OLLAMA_ORIGINS` commands to copy, and a diagnosis that tells "not running" apart from
+   "rejecting this extension's origin"), OpenAI and Anthropic with your own keys (typed into
+   `chrome.storage.local`, never shown again, never sent anywhere but the provider), and Chrome's
+   built-in model with its download state. About holds the run limits and a **test mode** switch
+   that records every outbound request body of a run for the privacy checks (D-028).
 7. **Settings → Models** lists the routes (local Ollama, OpenAI and Anthropic with your own
    keys, Chrome's built-in model), tests each connection, lets you state a model's limits and
    pick the default model (Ollama must run on this machine, started with `OLLAMA_ORIGINS`
@@ -157,6 +177,9 @@ renderer copied from the reference plugin, which builds DOM nodes and never pass
 npm run typecheck && npm test          # both TypeScript projects; the suite allows no skipped test
 npm run build && npm run pack          # a loadable extension and its zip
 node scripts/e2e-discovery.mjs         # headless Chrome against a local mock of the WebAir origin
+node scripts/e2e-webair-live.mjs --model ollama/qwen3:30b   # the live acceptance: real Chrome, the public origin, real runs
+agentpkg/.venv/bin/python ../scripts/verify_chrome_webair_live.py   # recompute its checks over the exported runs
+node scripts/measure-execution-host.mjs --minutes 30        # the D-027 host measurement (headed Chrome)
 ```
 
 The end-to-end harness launches the installed Google Chrome with the DevTools protocol over a
@@ -170,14 +193,24 @@ redirect and an `http://` address. The side panel cannot be opened headlessly (C
 a user gesture), so the harness checks that its page loads and leaves the panel to the manual
 walk-through. It needs `openssl` on the PATH and prints JSON with `"passed"`.
 
+The live harness (`scripts/e2e-webair-live.mjs`, T5) drives the full page in the same way
+against the **public** WebAir origin with a model you name (`ollama/…` is free; `openai/…` and
+`anthropic/…` read the key from `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` and type it into the
+throwaway profile's storage): discovery, trust, "Search flights" and a run (the page is reloaded
+mid-run and must adopt it), a cancelled search, "Search and quote" with the fictional demo
+passenger, "Book (simulated)" with a purchase granted once, the replay the page and the worker
+refuse, and a purchase denied without the grant. Every run is exported (run.json, run-plan.json,
+input.json, the artifacts, observations.json from test mode) under `examples/my-chrome-live-*/`,
+and `scripts/verify_chrome_webair_live.py` recomputes the checks: audit chains, the planned model,
+privacy (no sealed value in any model request; the identity only in `prepare_booking`, the payment
+identifier only in `simulate_purchase`), once spent, denial. The recorded evidence is
+`examples/verification/chrome-webair-040-live.json`.
+
 ## What it does not do yet
 
-- **Run from the browser.** The core executes (T4: the CLI runs any signed package in fixture
-  or live mode, and the Ollama smoke in the T4 report ran WebAir's search from Node), but the
-  extension does not yet start a run: the execution host in the service worker, the run surface,
-  the lease wiring (`LeaseRegistry`, with `once` spent by the first lease) and the model
-  connections are T5. In the extension a Run Plan is still a preflight artifact; Runs is a
-  placeholder that shows the intended layout; Library lists the open sessions only.
+- **Configurable run limits and the built-in model live.** Every run is bounded by the reference
+  plugin's default policy (600 s per run, 300 s per model call, 120,000 tokens; B-118); Gemini
+  Nano is wired and unit-tested but was not run live (B-119).
 - **Implement every local tool.** The host registry binds a generic HTTPS JSON adapter to each
   declared remote tool and a vault binding to each host-resource tool; other local tools
   (Literature Review's `paper-reader`) stay unbound until T6, and an approved unbound tool

@@ -79,7 +79,7 @@ const outDir = args.outDir ?? join(ROOT, "examples", `my-chrome-live-${stamp}`);
 mkdirSync(outDir, { recursive: true });
 
 const SEARCH_REQUEST = "Find me a nonstop flight from Boston to Zurich on 9 October under $900.";
-const BOOKING_REQUEST = "Prepare WA101 Standard for 9 October for me.";
+const BOOKING_REQUEST = "Search nonstop flights from Boston to Zurich on 9 October and prepare a booking quote for the WA101 Economy Standard fare for me.";
 const PICKS = { "profile.travel": "profile_demo_traveler", "identity.passenger": "passenger_demo_alex", "wallet.payment": "payment_demo_visa" };
 
 /** Page-side helpers for the extension's pages: controls by label, the native value setter, run state. */

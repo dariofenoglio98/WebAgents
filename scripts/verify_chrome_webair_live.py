@@ -43,7 +43,6 @@ sys.path.insert(0, str(ROOT / "agentpkg" / "src"))
 from agentpkg.execution.report import verify_audit_chain  # noqa: E402
 from agentpkg.package import load_package  # noqa: E402
 from agentpkg.signing import verify_package  # noqa: E402
-from cryptography.hazmat.primitives.serialization import load_pem_public_key  # noqa: E402
 
 SITE = "https://webagents-webair-production.up.railway.app"
 ARCHIVE = ROOT / "dist/webair-0.4.0.agent.pkg"
@@ -67,7 +66,12 @@ PROHIBITED_IN_MODEL_INPUT = (
     "resource_id",
     "resource_label",
 )
-IDENTITY = ("passenger_full_name", "passenger_email", "passenger_given_name_word", "passenger_family_name_word")
+IDENTITY = (
+    "passenger_full_name",
+    "passenger_email",
+    "passenger_given_name_word",
+    "passenger_family_name_word",
+)
 PAYMENT = ("payment_method_id", "payment_display")
 PHASES = ("search", "cancel", "quote", "purchase", "denial")
 
@@ -75,7 +79,13 @@ CHECKS: list[dict] = []
 
 
 def check(identifier: str, passed: bool, detail=None) -> bool:
-    CHECKS.append({"id": identifier, "passed": bool(passed), **({"detail": detail} if detail is not None else {})})
+    CHECKS.append(
+        {
+            "id": identifier,
+            "passed": bool(passed),
+            **({"detail": detail} if detail is not None else {}),
+        }
+    )
     return bool(passed)
 
 
@@ -103,7 +113,9 @@ def count(classes: dict[str, list[str]], text: str) -> dict[str, int]:
     counts: dict[str, int] = {}
     for name, values in classes.items():
         if name.endswith("_word"):
-            counts[name] = sum(1 for value in values if re.search(rf"(?<!\w){re.escape(value)}(?!\w)", text))
+            counts[name] = sum(
+                1 for value in values if re.search(rf"(?<!\w){re.escape(value)}(?!\w)", text)
+            )
         else:
             counts[name] = sum(1 for value in values if value in text)
     return counts
@@ -147,8 +159,16 @@ def run_facts(phase: str, directory: Path, classes: dict[str, list[str]], model:
     remote = [e for e in dispatched if e.get("remote")]
     settled = [e for e in audit if e.get("action") == "tool.settled" and e.get("resource_id")]
     called_tasks = [e.get("task") for e in audit if e.get("action") == "model.called"]
-    refused_tools = [e.get("tool") for e in audit if e.get("action") == "tool.failed" and e.get("error") == "PolicyError"]
-    evidence_text = "\n".join(path.read_text(errors="replace") for path in sorted(directory.iterdir()) if path.is_file() and path.name != "observations.json")
+    refused_tools = [
+        e.get("tool")
+        for e in audit
+        if e.get("action") == "tool.failed" and e.get("error") == "PolicyError"
+    ]
+    evidence_text = "\n".join(
+        path.read_text(errors="replace")
+        for path in sorted(directory.iterdir())
+        if path.is_file() and path.name != "observations.json"
+    )
     model_lines = [
         {
             "task": model_task(line["body"]),
@@ -174,104 +194,355 @@ def run_facts(phase: str, directory: Path, classes: dict[str, list[str]], model:
         "status": record["status"],
         "error_code": record.get("errorCode"),
         "failed_node": (record.get("failure") or {}).get("nodeId"),
-        "package": {"id": record["package"]["packageId"], "version": record["package"]["version"], "digest": record["package"]["digest"], "archive_sha256": record["package"]["archiveSha256"]},
-        "model": {**(record.get("model") or {}), "selected": (record.get("selectedModel") or {}).get("hostModelId"), "local": (record.get("selectedModel") or {}).get("local")},
-        "usage": record.get("usage") and {"tokens": record["usage"]["tokens"], "remote_calls": record["usage"]["remoteCalls"], "tool_calls": record["usage"]["toolCalls"]},
+        "package": {
+            "id": record["package"]["packageId"],
+            "version": record["package"]["version"],
+            "digest": record["package"]["digest"],
+            "archive_sha256": record["package"]["archiveSha256"],
+        },
+        "model": {
+            **(record.get("model") or {}),
+            "selected": (record.get("selectedModel") or {}).get("hostModelId"),
+            "local": (record.get("selectedModel") or {}).get("local"),
+        },
+        "usage": record.get("usage")
+        and {
+            "tokens": record["usage"]["tokens"],
+            "remote_calls": record["usage"]["remoteCalls"],
+            "tool_calls": record["usage"]["toolCalls"],
+        },
         "cost": record.get("cost"),
         "duration_ms": record.get("durationMs"),
-        "decisions": {item["permissionId"]: item["decision"] for item in record["grants"]["decisions"]},
-        "resource_grants": [{"permission": g["permissionId"], "type": g["resourceType"], "resource_id": g["resourceId"], "digest_prefix": g["resourceDigest"][:12]} for g in record.get("resources", [])],
+        "decisions": {
+            item["permissionId"]: item["decision"] for item in record["grants"]["decisions"]
+        },
+        "resource_grants": [
+            {
+                "permission": g["permissionId"],
+                "type": g["resourceType"],
+                "resource_id": g["resourceId"],
+                "digest_prefix": g["resourceDigest"][:12],
+            }
+            for g in record.get("resources", [])
+        ],
         "revalidated_before_start": len(record.get("revalidated", [])),
-        "run_plan": {"id": plan["run_plan_id"], "sha256": plan["run_plan_sha256"], "profile": (plan["authorization"].get("provenance") or {}).get("profile_id"), "denied_tools": plan["execution"]["denied_tool_ids"]},
+        "run_plan": {
+            "id": plan["run_plan_id"],
+            "sha256": plan["run_plan_sha256"],
+            "profile": (plan["authorization"].get("provenance") or {}).get("profile_id"),
+            "denied_tools": plan["execution"]["denied_tool_ids"],
+        },
         "audit": {
             "events": len(audit),
             "chain_valid": chain.get("valid") is True,
             "model_tasks": called_tasks,
-            "tool_dispatches": [{"tool": e.get("tool"), "binding_id": e.get("binding_id"), "endpoint_origin": e.get("endpoint_origin"), "method": e.get("method")} for e in dispatched],
-            "resources_resolved": [{"tool": e.get("tool"), "resource_id": e.get("resource_id"), "permission": e.get("resource_permission")} for e in settled],
+            "tool_dispatches": [
+                {
+                    "tool": e.get("tool"),
+                    "binding_id": e.get("binding_id"),
+                    "endpoint_origin": e.get("endpoint_origin"),
+                    "method": e.get("method"),
+                }
+                for e in dispatched
+            ],
+            "resources_resolved": [
+                {
+                    "tool": e.get("tool"),
+                    "resource_id": e.get("resource_id"),
+                    "permission": e.get("resource_permission"),
+                }
+                for e in settled
+            ],
             "tools_refused": refused_tools,
         },
         "observed_model_inputs": model_lines,
         "observed_webair_requests": tool_lines,
     }
     check(f"{phase}_audit_chain_valid", chain.get("valid") is True, chain)
-    check(f"{phase}_record_matches_audit", (record.get("audit") or {}).get("events") == len(audit) and (record.get("audit") or {}).get("chainValid") is True, record.get("audit"))
-    check(f"{phase}_used_the_selected_model_only", (record.get("model") or {}).get("planned") == model and ((record.get("model") or {}).get("allCallsUsedPlannedModel") is True or (record.get("model") or {}).get("calls") == 0), record.get("model"))
-    check(f"{phase}_every_model_call_observed", len(models) == (record.get("model") or {}).get("calls", 0) == len(called_tasks), {"observed": len(models), "recorded": (record.get("model") or {}).get("calls"), "called": len(called_tasks)})
-    check(f"{phase}_every_webair_call_observed", len(tools) == len(remote), {"observed": len(tools), "dispatched": len(remote)})
-    check(f"{phase}_webair_calls_went_to_the_public_origin", all(e.get("endpoint_origin") == SITE for e in remote) and all(line["origin"] == SITE for line in tool_lines), {"dispatched": sorted({e.get("endpoint_origin") for e in remote}), "observed": sorted({line["origin"] for line in tool_lines})})
+    check(
+        f"{phase}_record_matches_audit",
+        (record.get("audit") or {}).get("events") == len(audit)
+        and (record.get("audit") or {}).get("chainValid") is True,
+        record.get("audit"),
+    )
+    check(
+        f"{phase}_used_the_selected_model_only",
+        (record.get("model") or {}).get("planned") == model
+        and (
+            (record.get("model") or {}).get("allCallsUsedPlannedModel") is True
+            or (record.get("model") or {}).get("calls") == 0
+        ),
+        record.get("model"),
+    )
+    check(
+        f"{phase}_every_model_call_observed",
+        len(models) == (record.get("model") or {}).get("calls", 0) == len(called_tasks),
+        {
+            "observed": len(models),
+            "recorded": (record.get("model") or {}).get("calls"),
+            "called": len(called_tasks),
+        },
+    )
+    check(
+        f"{phase}_every_webair_call_observed",
+        len(tools) == len(remote),
+        {"observed": len(tools), "dispatched": len(remote)},
+    )
+    check(
+        f"{phase}_webair_calls_went_to_the_public_origin",
+        all(e.get("endpoint_origin") == SITE for e in remote)
+        and all(line["origin"] == SITE for line in tool_lines),
+        {
+            "dispatched": sorted({e.get("endpoint_origin") for e in remote}),
+            "observed": sorted({line["origin"] for line in tool_lines}),
+        },
+    )
     for line in model_lines:
         bad = [name for name in PROHIBITED_IN_MODEL_INPUT if name in line["classes_in_request"]]
-        check(f"{phase}_model_{line['task'] or 'unknown'}_holds_no_host_data", not bad and not line["card_like_digits"], bad or None)
-    leaked = [name for name in ("passenger_email", "passenger_full_name", "payment_method_id") if any(value in evidence_text for value in classes[name])]
+        check(
+            f"{phase}_model_{line['task'] or 'unknown'}_holds_no_host_data",
+            not bad and not line["card_like_digits"],
+            bad or None,
+        )
+    leaked = [
+        name
+        for name in ("passenger_email", "passenger_full_name", "payment_method_id")
+        if any(value in evidence_text for value in classes[name])
+    ]
     facts["artifacts_hold_no_identity_or_payment_identifier"] = not leaked
     check(f"{phase}_artifacts_hold_no_email_name_or_payment_identifier", not leaked, leaked or None)
     return facts
 
 
-def phase_checks(phase: str, facts: dict, directory: Path, harness: dict, quote: dict | None) -> dict | None:
+def phase_checks(
+    phase: str, facts: dict, directory: Path, harness: dict, quote: dict | None
+) -> dict | None:
     """The demo's properties per phase; returns the facts a later phase needs."""
     tool_paths = [line["path"] for line in facts["observed_webair_requests"]]
     if phase == "search":
         search = json.loads((directory / "search.json").read_text())
-        fares = [(fare["fare_id"], fare["price_usd"]) for flight in search.get("flights", []) for fare in flight.get("fares", [])]
-        check("search_completed_with_the_hero_fares", facts["status"] == "completed" and fares == HERO_FARES, fares)
-        check("search_used_no_identity_or_payment", not facts["resource_grants"] and not facts["audit"]["resources_resolved"])
-        check("search_called_only_search_and_fare_rules", set(tool_paths) <= {"/api/v1/search_flights", "/api/v1/get_fare_rules"} and len(tool_paths) == 4, tool_paths)
-        check("search_requests_carry_no_identity_or_payment", not any(set(line["classes_in_request"]) & set(IDENTITY + PAYMENT) for line in facts["observed_webair_requests"]))
-        check("search_model_calls_are_interpret_select_answer", facts["audit"]["model_tasks"] == ["interpret", "select", "answer"], facts["audit"]["model_tasks"])
+        fares = [
+            (fare["fare_id"], fare["price_usd"])
+            for flight in search.get("flights", [])
+            for fare in flight.get("fares", [])
+        ]
+        check(
+            "search_completed_with_the_hero_fares",
+            facts["status"] == "completed" and fares == HERO_FARES,
+            fares,
+        )
+        check(
+            "search_used_no_identity_or_payment",
+            not facts["resource_grants"] and not facts["audit"]["resources_resolved"],
+        )
+        check(
+            "search_called_only_search_and_fare_rules",
+            set(tool_paths) <= {"/api/v1/search_flights", "/api/v1/get_fare_rules"}
+            and len(tool_paths) == 4,
+            tool_paths,
+        )
+        check(
+            "search_requests_carry_no_identity_or_payment",
+            not any(
+                set(line["classes_in_request"]) & set(IDENTITY + PAYMENT)
+                for line in facts["observed_webair_requests"]
+            ),
+        )
+        check(
+            "search_model_calls_are_interpret_select_answer",
+            facts["audit"]["model_tasks"] == ["interpret", "select", "answer"],
+            facts["audit"]["model_tasks"],
+        )
         return None
     if phase == "cancel":
         record = json.loads((directory / "run.json").read_text())
-        check("cancel_settled_as_cancelled", facts["status"] == "cancelled" and facts["error_code"] == "cancelled" and record.get("cancelRequested") is True, {"status": facts["status"], "error_code": facts["error_code"]})
-        check("cancel_stopped_within_the_run_deadline", (facts["duration_ms"] or 0) < 600_000, facts["duration_ms"])
-        check("cancel_wrote_its_evidence", {"result.json", "audit.json", "usage.json", "provenance.json"} <= {p.name for p in directory.iterdir()})
+        check(
+            "cancel_settled_as_cancelled",
+            facts["status"] == "cancelled"
+            and facts["error_code"] == "cancelled"
+            and record.get("cancelRequested") is True,
+            {"status": facts["status"], "error_code": facts["error_code"]},
+        )
+        check(
+            "cancel_stopped_within_the_run_deadline",
+            (facts["duration_ms"] or 0) < 600_000,
+            facts["duration_ms"],
+        )
+        check(
+            "cancel_wrote_its_evidence",
+            {"result.json", "audit.json", "usage.json", "provenance.json"}
+            <= {p.name for p in directory.iterdir()},
+        )
         return None
     if phase == "quote":
         booking = json.loads((directory / "booking.json").read_text())
         quote_id = (booking.get("booking") or {}).get("quote_id")
-        check("booking_completed_with_a_quote", facts["status"] == "completed" and isinstance(quote_id, str) and QUOTE_ID.match(quote_id) is not None, quote_id)
-        check("booking_identity_resolved_through_the_host", sorted(r["tool"] for r in facts["audit"]["resources_resolved"]) == ["personal.passenger_identity", "personal.travel_profile"], facts["audit"]["resources_resolved"])
-        identity_paths = sorted({line["path"] for line in facts["observed_webair_requests"] if set(line["classes_in_request"]) & set(IDENTITY)})
-        check("booking_identity_reached_only_prepare_booking", identity_paths == ["/api/v1/prepare_booking"], identity_paths)
-        check("booking_requests_carry_no_payment", not any(set(line["classes_in_request"]) & set(PAYMENT) for line in facts["observed_webair_requests"]))
+        check(
+            "booking_completed_with_a_quote",
+            facts["status"] == "completed"
+            and isinstance(quote_id, str)
+            and QUOTE_ID.match(quote_id) is not None,
+            quote_id,
+        )
+        # The identity is resolved through the host; the travel profile only when the request leaves the origin unstated (the model's reading), so it is allowed but not required.
+        resolved_tools = sorted(r["tool"] for r in facts["audit"]["resources_resolved"])
+        check(
+            "booking_identity_resolved_through_the_host",
+            "personal.passenger_identity" in resolved_tools
+            and set(resolved_tools) <= {"personal.passenger_identity", "personal.travel_profile"},
+            facts["audit"]["resources_resolved"],
+        )
+        identity_paths = sorted(
+            {
+                line["path"]
+                for line in facts["observed_webair_requests"]
+                if set(line["classes_in_request"]) & set(IDENTITY)
+            }
+        )
+        check(
+            "booking_identity_reached_only_prepare_booking",
+            identity_paths == ["/api/v1/prepare_booking"],
+            identity_paths,
+        )
+        check(
+            "booking_requests_carry_no_payment",
+            not any(
+                set(line["classes_in_request"]) & set(PAYMENT)
+                for line in facts["observed_webair_requests"]
+            ),
+        )
         text = json.dumps(booking.get("booking"))
-        check("booking_result_is_redacted", "contact_email" not in text and "given_name" not in text)
-        return {"quote_id": quote_id, "fare_id": (booking.get("booking") or {}).get("fare_id"), "total_usd": (booking.get("booking") or {}).get("total_usd")}
+        check(
+            "booking_result_is_redacted", "contact_email" not in text and "given_name" not in text
+        )
+        return {
+            "quote_id": quote_id,
+            "fare_id": (booking.get("booking") or {}).get("fare_id"),
+            "total_usd": (booking.get("booking") or {}).get("total_usd"),
+        }
     if phase == "purchase":
         booking = json.loads((directory / "booking.json").read_text())
         purchase = booking.get("purchase") or {}
-        check("purchase_completed", facts["status"] == "completed" and purchase.get("status") == "purchase_simulated", {"status": facts["status"], "purchase_status": purchase.get("status")})
-        check("purchase_is_simulated_with_no_charge", purchase.get("simulated") is True and purchase.get("real_transaction") is False and purchase.get("amount_charged_usd") == 0, {k: purchase.get(k) for k in ("simulated", "real_transaction", "amount_charged_usd")})
-        check("purchase_authority_was_once", facts["decisions"].get("booking.simulate_purchase") == "once", facts["decisions"].get("booking.simulate_purchase"))
-        check("purchase_resolved_the_selected_payment_resource", [r["resource_id"] for r in facts["audit"]["resources_resolved"] if r["tool"] == "wallet.payment_method"] == ["payment_demo_visa"], facts["audit"]["resources_resolved"])
-        payment_paths = sorted({line["path"] for line in facts["observed_webair_requests"] if "payment_method_id" in line["classes_in_request"]})
-        check("purchase_payment_id_reached_only_simulate_purchase", payment_paths == ["/api/v1/simulate_purchase"], payment_paths)
-        check("purchase_revalidated_the_exact_quote", tool_paths == ["/api/v1/prepare_booking", "/api/v1/simulate_purchase"], tool_paths)
-        check("purchase_no_payment_display_reached_webair", not any("payment_display" in line["classes_in_request"] for line in facts["observed_webair_requests"]))
-        check("purchase_used_the_quote_the_booking_returned", quote is not None and purchase.get("quote_id") == quote["quote_id"], {"purchase": purchase.get("quote_id"), "booking": quote and quote["quote_id"]})
-        check("purchase_made_one_model_call_only", facts["audit"]["model_tasks"] == ["answer"], facts["audit"]["model_tasks"])
+        output = json.loads((directory / "result.json").read_text()).get("output") or {}
+        check(
+            "purchase_completed",
+            facts["status"] == "completed" and output.get("status") == "purchase_simulated",
+            {"status": facts["status"], "output_status": output.get("status")},
+        )
+        check(
+            "purchase_is_simulated_with_no_charge",
+            purchase.get("simulated") is True
+            and purchase.get("real_transaction") is False
+            and purchase.get("amount_charged_usd") == 0,
+            {k: purchase.get(k) for k in ("simulated", "real_transaction", "amount_charged_usd")},
+        )
+        check(
+            "purchase_authority_was_once",
+            facts["decisions"].get("booking.simulate_purchase") == "once",
+            facts["decisions"].get("booking.simulate_purchase"),
+        )
+        check(
+            "purchase_resolved_the_selected_payment_resource",
+            [
+                r["resource_id"]
+                for r in facts["audit"]["resources_resolved"]
+                if r["tool"] == "wallet.payment_method"
+            ]
+            == ["payment_demo_visa"],
+            facts["audit"]["resources_resolved"],
+        )
+        payment_paths = sorted(
+            {
+                line["path"]
+                for line in facts["observed_webair_requests"]
+                if "payment_method_id" in line["classes_in_request"]
+            }
+        )
+        check(
+            "purchase_payment_id_reached_only_simulate_purchase",
+            payment_paths == ["/api/v1/simulate_purchase"],
+            payment_paths,
+        )
+        check(
+            "purchase_revalidated_the_exact_quote",
+            tool_paths == ["/api/v1/prepare_booking", "/api/v1/simulate_purchase"],
+            tool_paths,
+        )
+        check(
+            "purchase_no_payment_display_reached_webair",
+            not any(
+                "payment_display" in line["classes_in_request"]
+                for line in facts["observed_webair_requests"]
+            ),
+        )
+        check(
+            "purchase_used_the_quote_the_booking_returned",
+            quote is not None and purchase.get("quote_id") == quote["quote_id"],
+            {"purchase": purchase.get("quote_id"), "booking": quote and quote["quote_id"]},
+        )
+        check(
+            "purchase_made_one_model_call_only",
+            facts["audit"]["model_tasks"] == ["answer"],
+            facts["audit"]["model_tasks"],
+        )
         replay = (harness.get("steps") or {}).get("replay") or {}
         button = replay.get("runButton") or {}
-        check("once_grant_refused_by_the_page", button.get("disabled") is True and "once" in (button.get("reason") or "").lower() and replay.get("newestRun") == facts["run_id"], button)
-        check("once_grant_refused_by_the_worker", isinstance(replay.get("workerRefusal"), str) and "run_plan_stale" in replay["workerRefusal"] and "once" in replay["workerRefusal"].lower(), replay.get("workerRefusal"))
+        check(
+            "once_grant_refused_by_the_page",
+            button.get("disabled") is True
+            and "once" in (button.get("reason") or "").lower()
+            and replay.get("newestRun") == facts["run_id"],
+            button,
+        )
+        check(
+            "once_grant_refused_by_the_worker",
+            isinstance(replay.get("workerRefusal"), str)
+            and "run_plan_stale" in replay["workerRefusal"]
+            and "once" in replay["workerRefusal"].lower(),
+            replay.get("workerRefusal"),
+        )
         return None
     if phase == "denial":
-        check("denial_failed_with_permission_denied", facts["status"] == "failed" and facts["error_code"] == "permission_denied", {"status": facts["status"], "error_code": facts["error_code"]})
-        check("denial_resolved_no_payment_resource", not any(r["tool"] == "wallet.payment_method" for r in facts["audit"]["resources_resolved"]), facts["audit"]["resources_resolved"])
-        check("denial_called_no_webair_operation", not facts["observed_webair_requests"] and not facts["audit"]["tool_dispatches"])
-        check("denial_made_no_model_call", not facts["observed_model_inputs"] and facts["model"].get("calls", 0) == 0)
+        check(
+            "denial_failed_with_permission_denied",
+            facts["status"] == "failed" and facts["error_code"] == "permission_denied",
+            {"status": facts["status"], "error_code": facts["error_code"]},
+        )
+        check(
+            "denial_resolved_no_payment_resource",
+            not any(
+                r["tool"] == "wallet.payment_method" for r in facts["audit"]["resources_resolved"]
+            ),
+            facts["audit"]["resources_resolved"],
+        )
+        check(
+            "denial_called_no_webair_operation",
+            not facts["observed_webair_requests"] and not facts["audit"]["tool_dispatches"],
+        )
+        check(
+            "denial_made_no_model_call",
+            not facts["observed_model_inputs"] and facts["model"].get("calls", 0) == 0,
+        )
         # Chrome refuses the unapproved tool before its permission is checked (D-022); the audit names it.
-        check("denial_refused_the_payment_tool", "wallet.payment_method" in facts["audit"]["tools_refused"] and facts["failed_node"] == "payment", {"refused": facts["audit"]["tools_refused"], "node": facts["failed_node"]})
-        check("denial_plan_denied_the_purchase_tools", {"simulate-purchase", "wallet.payment_method"} <= set(facts["run_plan"]["denied_tools"]), facts["run_plan"]["denied_tools"])
+        check(
+            "denial_refused_the_payment_tool",
+            "wallet.payment_method" in facts["audit"]["tools_refused"]
+            and facts["failed_node"] == "payment",
+            {"refused": facts["audit"]["tools_refused"], "node": facts["failed_node"]},
+        )
+        check(
+            "denial_plan_denied_the_purchase_tools",
+            {"simulate-purchase", "wallet.payment_method"}
+            <= set(facts["run_plan"]["denied_tools"]),
+            facts["run_plan"]["denied_tools"],
+        )
         return None
     return None
 
 
 def package_and_origin(network: bool) -> dict:
     package = load_package(ARCHIVE)
-    key = load_pem_public_key(KEY.read_bytes())
-    verification = verify_package(package, key)
+    verification = verify_package(ARCHIVE, KEY)
     local = ARCHIVE.read_bytes()
     facts = {
         "artifact": str(ARCHIVE.relative_to(ROOT)),
@@ -281,7 +552,11 @@ def package_and_origin(network: bool) -> dict:
         "signature_valid": bool(verification.get("valid")),
         "signer_fingerprint": verification.get("key_fingerprint"),
     }
-    check("package_signature_valid_for_webair_key", facts["signature_valid"] and facts["signer_fingerprint"] == FINGERPRINT, facts["signer_fingerprint"])
+    check(
+        "package_signature_valid_for_webair_key",
+        facts["signature_valid"] and facts["signer_fingerprint"] == FINGERPRINT,
+        facts["signer_fingerprint"],
+    )
     check("package_is_0_4_0", facts["version"] == "0.4.0", facts["version"])
     if network:
         with urllib.request.urlopen(f"{SITE}/health", timeout=30) as response:
@@ -289,14 +564,20 @@ def package_and_origin(network: bool) -> dict:
         with urllib.request.urlopen(f"{SITE}/agent.pkg", timeout=60) as response:
             served = response.read()
         facts["origin"] = {"health": health, "served_sha256": hashlib.sha256(served).hexdigest()}
-        check("origin_health_names_the_0_4_0_artifact", health.get("agent_package_sha256") == facts["archive_sha256"], health)
+        check(
+            "origin_health_names_the_0_4_0_artifact",
+            health.get("agent_package_sha256") == facts["archive_sha256"],
+            health,
+        )
         check("origin_serves_the_local_0_4_0_bytes", served == local)
     return facts
 
 
 def generic_code() -> dict:
     """No package-specific code in the Chrome runtime or shell (D-009): the demo data file and the two UI hints are the whole allowance."""
-    pattern = re.compile(r"(?i)webair|airline|passenger_demo|payment_demo|profile_demo|alex\.traveler")
+    pattern = re.compile(
+        r"(?i)webair|airline|passenger_demo|payment_demo|profile_demo|alex\.traveler"
+    )
     allowed = {"src/extension/data/demo-host-resources.json"}
     offenders: list[str] = []
     for path in sorted((ROOT / "chrome-agent-browser" / "src").rglob("*")):
@@ -312,25 +593,51 @@ def generic_code() -> dict:
             if pattern.search(line):
                 offenders.append(f"{relative}:{number}")
     # The two UI strings that name the demo (a hint and a button title) are presentation, not behaviour.
-    presentation = [o for o in offenders if o.startswith(("src/extension/sidepanel/sidepanel.ts", "src/extension/ui/vault-page.ts"))]
+    presentation = [
+        o
+        for o in offenders
+        if o.startswith(("src/extension/sidepanel/sidepanel.ts", "src/extension/ui/vault-page.ts"))
+    ]
     behaviour = [o for o in offenders if o not in presentation]
     check("no_webair_specific_generic_code", not behaviour, behaviour or None)
-    return {"scanned": "chrome-agent-browser/src (code lines)", "allowed_data_file": sorted(allowed), "presentation_mentions": presentation, "behaviour_offenders": behaviour}
+    return {
+        "scanned": "chrome-agent-browser/src (code lines)",
+        "allowed_data_file": sorted(allowed),
+        "presentation_mentions": presentation,
+        "behaviour_offenders": behaviour,
+    }
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--report", default=str(ROOT / "examples/verification/chrome-webair-040-live.json"))
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument(
+        "--report", default=str(ROOT / "examples/verification/chrome-webair-040-live.json")
+    )
     parser.add_argument("--no-network", action="store_true", help="skip the public-origin checks")
     args = parser.parse_args()
     report_path = Path(args.report)
     document = json.loads(report_path.read_text())
-    harness = document.get("harness") or {k: v for k, v in document.items() if k not in ("checks", "runs_verified", "verification", "passed_verification")}
+    harness = document.get("harness") or {
+        k: v
+        for k, v in document.items()
+        if k not in ("checks", "runs_verified", "verification", "passed_verification")
+    }
     model = harness["model"]
     classes = needles()
     check("harness_passed", harness.get("passed") is True, harness.get("failures"))
-    check("harness_recorded_in_test_mode", (harness.get("steps") or {}).get("setup", {}).get("testMode") is True)
-    check("reconnect_adopted_the_run_in_flight", ((harness.get("steps") or {}).get("reconnect") or {}).get("adoptedRunId") == ((harness.get("steps") or {}).get("reconnect") or {}).get("runId") and bool(((harness.get("steps") or {}).get("reconnect") or {}).get("runId")), (harness.get("steps") or {}).get("reconnect"))
+    check(
+        "harness_recorded_in_test_mode",
+        (harness.get("steps") or {}).get("setup", {}).get("testMode") is True,
+    )
+    check(
+        "reconnect_adopted_the_run_in_flight",
+        ((harness.get("steps") or {}).get("reconnect") or {}).get("adoptedRunId")
+        == ((harness.get("steps") or {}).get("reconnect") or {}).get("runId")
+        and bool(((harness.get("steps") or {}).get("reconnect") or {}).get("runId")),
+        (harness.get("steps") or {}).get("reconnect"),
+    )
     runs: dict = {}
     quote = None
     for phase in PHASES:
@@ -348,7 +655,10 @@ def main() -> int:
             quote = outcome
         runs[phase] = facts
     if "search" in runs and "purchase" in runs:
-        check("purchase_and_search_ran_the_same_package_bytes", runs["search"]["package"] == runs["purchase"]["package"])
+        check(
+            "purchase_and_search_ran_the_same_package_bytes",
+            runs["search"]["package"] == runs["purchase"]["package"],
+        )
     package = package_and_origin(not args.no_network)
     code = generic_code()
     document = {
@@ -361,7 +671,11 @@ def main() -> int:
         },
         "statement": "The built extension, loaded in a real headless Chrome, discovered WebAir 0.4.0 on the public origin, verified and trusted it, authorized three profiles, and ran it on the model named here: a search, a cancelled search, a quote with the fictional demo passenger, a simulated purchase under a once grant whose replay the page and the worker both refused, and a purchase denied without the grant. Every run's audit chain re-verifies with agentpkg; no model request carried a sealed or personal value; the identity reached only prepare_booking and the payment identifier only simulate_purchase.",
         "notice": "Fictional data throughout (WebAir does not exist; no payment occurs). The report holds no credential, no host-resource value and no path on the operator's machine; run directories are named relative to the repository.",
-        "model": {"selected": model, "provider": model.split("/")[0], "local": runs.get("search", {}).get("model", {}).get("local")},
+        "model": {
+            "selected": model,
+            "provider": model.split("/")[0],
+            "local": runs.get("search", {}).get("model", {}).get("local"),
+        },
         "package": package,
         "generic_code": code,
         "harness": harness,
@@ -371,7 +685,19 @@ def main() -> int:
     }
     text = json.dumps(document, indent=2, ensure_ascii=False) + "\n"
     report_path.write_text(text)
-    print(json.dumps({"report": str(report_path.relative_to(ROOT)) if report_path.is_relative_to(ROOT) else str(report_path), "checks": len(CHECKS), "failed": [c["id"] for c in CHECKS if not c["passed"]], "passed": document["passed"]}, indent=2))
+    print(
+        json.dumps(
+            {
+                "report": str(report_path.relative_to(ROOT))
+                if report_path.is_relative_to(ROOT)
+                else str(report_path),
+                "checks": len(CHECKS),
+                "failed": [c["id"] for c in CHECKS if not c["passed"]],
+                "passed": document["passed"],
+            },
+            indent=2,
+        )
+    )
     if not document["passed"]:
         print("FAILED: " + ", ".join(c["id"] for c in CHECKS if not c["passed"]), file=sys.stderr)
         return 1
