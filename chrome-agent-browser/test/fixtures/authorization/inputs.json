@@ -1,16 +1,16 @@
 {
-  "note": "Produce the Python control plane's receipt, run plan and evaluations for WebAir 0.4.0.\n\nThe Chrome core's tests compare their own output with these records (T3). Inputs are fixed\n(timestamps, ids, a one-model catalog, a tool registry derived exactly as the Chrome host\nderives its own, a resource registry with placeholder digests), so every hash is reproducible\nfrom `inputs.json` with the Python reference. Written once by the T3 session on 2026-10-06;\nrerun with agentpkg/.venv/bin/python to refresh after a reference change.",
+  "note": "Produce the Python control plane's receipt, run plan and evaluations for WebAir 0.4.0.\n\nThe Chrome core's tests compare their own output with these records (T3). Inputs are fixed\n(timestamps, ids, a one-model catalog, a tool registry derived exactly as the Chrome host\nderives its own, a resource registry with placeholder digests), so every hash is reproducible\nfrom `inputs.json` with the Python reference. Written by the T3 session on\n2026-10-06. Refresh after a reference change, from the repository root:\n\n    agentpkg/.venv/bin/python chrome-agent-browser/scripts/make-authorization-fixtures.py [--out DIR]\n\nSession and receipt ids and timestamps are new on every run; the Chrome tests rebuild every\nrecord from the written `inputs.json`, so they compare like with like.",
   "package": "dist/webair-0.4.0.agent.pkg",
   "session": {
-    "session_id": "AOCOYUWoGnxXdacJk1YsCdB7",
-    "expires_at": "2026-10-07T04:04:35.004282+00:00",
+    "session_id": "KqtGZchsOWpKOMKnd7_ptWDS",
+    "expires_at": "2026-10-07T13:33:39.625069+00:00",
     "archive_sha256": "c12f9db3bd7b3b4b6721c67e1d0b8143ebd94381df0e5e57c196357b7ca77f63",
     "source": {
       "kind": "file",
-      "display": "/Users/dariofenoglio/Desktop/WebAgents/dist/webair-0.4.0.agent.pkg",
-      "opened_at": "2026-10-07T03:49:35.004282+00:00"
+      "display": "dist/webair-0.4.0.agent.pkg",
+      "opened_at": "2026-10-07T13:18:39.625069+00:00"
     },
-    "instance_id": "8d15dccc-84cd-4063-95e6-20f951f7a026",
+    "instance_id": "e01512c2-bd95-465f-ad36-c1fc34b4a5bb",
     "evaluation": {
       "container_status": "valid",
       "integrity_status": "valid",
@@ -37,11 +37,11 @@
         "publisher_id": "webair-demo",
         "package_id_prefix": null,
         "notes": null,
-        "added_at": "2026-10-07T03:49:34.846144+00:00"
+        "added_at": "2026-10-07T13:18:39.448304+00:00"
       }
     },
     "trust_state": {
-      "path": "/var/folders/zx/c94b09b50v31fk6qp9h3h1cw0000gn/T/tmp3o8fa1el/trust.json",
+      "path": "/var/folders/zx/c94b09b50v31fk6qp9h3h1cw0000gn/T/tmpb7gqifph/trust.json",
       "entry_count": 1,
       "state_sha256": "2da5605d73f2d03b8e06404b74522ae68f2df4344a2a7aeed7afd6c51c59a0b7"
     },

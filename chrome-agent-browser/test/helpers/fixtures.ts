@@ -1,7 +1,7 @@
 /**
  * The Python control plane's records for WebAir 0.4.0 (`test/fixtures/authorization/`),
- * written by the T3 session's scratch script `make_authorization_fixtures.py` on 2026-10-06
- * from `agentpkg` 0.2.2: fixed inputs (`inputs.json`) and the reference's request, receipt,
+ * written by `scripts/make-authorization-fixtures.py` (run from the repository root with
+ * `agentpkg/.venv/bin/python`) from `agentpkg` 0.2.2: fixed inputs (`inputs.json`) and the reference's request, receipt,
  * evaluations, run plan and preflight. The Chrome core's tests rebuild each record from the
  * same inputs and compare, field by field and by hash.
  */

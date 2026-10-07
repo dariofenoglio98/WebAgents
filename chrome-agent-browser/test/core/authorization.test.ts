@@ -5,6 +5,9 @@
  * expands into ordinary decisions with everything outside it denied, presets supply
  * defaults with their provenance, and the first profile is the least.
  */
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import {
@@ -31,6 +34,7 @@ import type { JsonObject } from "../../src/core/json.js";
 import { readProfiles } from "../../src/core/profiles.js";
 import { DEFAULT_BROWSER_POLICY, hashReceipt, recordHashValid, type AuthorizationReceipt, type BrowserPolicy, type Provenance } from "../../src/core/types.js";
 import { fixture, inputs, webair040, without } from "../helpers/fixtures.js";
+import { PROJECT } from "../helpers/paths.js";
 
 function code(operation: () => unknown): string {
   try {
@@ -145,6 +149,14 @@ describe("the reference semantics", () => {
     expect(receipt.provenance).toBeNull();
     // The issued_at differs only by Python's ISO format (+00:00 vs Z) for the same instant.
     expect(new Date(receipt.issued_at).getTime()).toBe(new Date(reference.issued_at).getTime());
+  });
+
+  it("the reference records name the package by a repository-relative path, never a home directory (review 1, finding 7)", () => {
+    const directory = join(PROJECT, "test", "fixtures");
+    const files = readdirSync(directory, { recursive: true, encoding: "utf8" }).filter((name) => name.endsWith(".json"));
+    expect(files.length).toBeGreaterThan(8);
+    for (const name of files) expect(readFileSync(join(directory, name), "utf8"), name).not.toMatch(/\/(?:Users|home)\/|[A-Za-z]:\\\\/u);
+    expect(inputs().session.source.display).toBe("dist/webair-0.4.0.agent.pkg");
   });
 
   it("a receipt binds the exact bytes: a different archive hash or digest is a different receipt", async () => {

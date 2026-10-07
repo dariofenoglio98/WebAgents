@@ -258,7 +258,12 @@ with tempfile.TemporaryDirectory() as tmp:
     plane.trust_add(
         key, display_name="WebAir demo publisher", publisher_id="webair-demo"
     )
-    opened = plane.open_file(str(PKG))
+    # `open_file` records the absolute path of this checkout; the committed records must not
+    # carry a home directory (T3 review 1, finding 7), so the same bytes are opened with a
+    # repository-relative display. `_open_bytes` is what `open_file` calls after reading them.
+    opened = plane._open_bytes(
+        PKG.read_bytes(), {"kind": "file", "display": str(PKG.relative_to(ROOT))}
+    )
     session_id = opened["session"]["id"]
     session = plane._session(session_id)  # fixture inputs
     permissions = plane.permissions(session_id)
