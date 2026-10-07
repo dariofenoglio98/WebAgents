@@ -19,6 +19,54 @@ export class AssertionFailure extends ValidationError {
   }
 }
 
+/** JavaScript's safe-integer range: within it a JSON integral number is read as a Python int. */
+const SAFE_INTEGER = 2 ** 53;
+
+/**
+ * CPython's builtin `sum()` over JSON numbers, as `workflow_assertions.py` uses it (T4 review
+ * 1, finding 3). CPython >= 3.12 (`bltinmodule.c`) adds ints exactly while the running total is
+ * an int, converts once at the first float, and from there adds floats with Neumaier's
+ * compensated summation and ints plainly (`f_result += (double)value`); the compensation is
+ * added at the end unless it is not finite. So `sum([0.1, 0.2, 0.3]) == 0.6` holds in both
+ * runtimes, and a naive left fold would not.
+ *
+ * JavaScript reads a JSON `1.0` and a JSON `1` as the same number. The port treats an integral
+ * number within the safe-integer range as the int Python reads from `1`, which is the spelling
+ * Python's own `json.dumps` and the Chrome core's `pyjson` write for ints; a package whose
+ * values arrive spelled `1.0` between floats whose rounding error the compensation would have
+ * kept is the one documented divergence (`test/fixtures/py-sum-vectors.json`, D-066, B-115).
+ */
+export function pySum(values: readonly number[]): number {
+  let index = 0;
+  let total = 0;
+  const isInt = (value: number): boolean => Number.isInteger(value) && Math.abs(value) <= SAFE_INTEGER;
+  // The int phase: exact while every summand is an int (a double is exact within 2^53).
+  while (index < values.length && isInt(values[index]!)) {
+    total += values[index]!;
+    index += 1;
+  }
+  if (index === values.length) return total;
+  // The first float: `PyNumber_Add(int, float)`, one rounding, no compensation yet.
+  let result = total + values[index]!;
+  index += 1;
+  let compensation = 0;
+  for (; index < values.length; index += 1) {
+    const value = values[index]!;
+    if (isInt(value)) {
+      result += value;
+      continue;
+    }
+    const t = result + value;
+    if (Math.abs(result) >= Math.abs(value)) compensation += result - t + value;
+    else compensation += value - t + result;
+    result = t;
+  }
+  // "Avoid losing the sign on a negative result, and don't let adding the compensation convert
+  // an infinite or overflowed sum to a NaN."
+  if (compensation !== 0 && Number.isFinite(compensation)) result += compensation;
+  return result;
+}
+
 export function checkAssertions(assertions: readonly JsonValue[], env: Environment): void {
   assertions.forEach((raw, index) => {
     const rule = raw as JsonObject;
@@ -32,8 +80,7 @@ export function checkAssertions(assertions: readonly JsonValue[], env: Environme
       if (!Array.isArray(rows)) fail("rows_not_array", "rows must be an array");
       const values = (rows as JsonValue[]).map((row) => select(row, String(rule.path)));
       if (values.some((value) => typeof value !== "number")) fail("summand_not_number", "summands must be numbers", { path: rule.path! });
-      const sum = (values as number[]).reduce((total, value) => total + value, 0);
-      if (!pyEqual(sum, evaluate(rule.equals!, env))) fail("sum_differs", "sum differs from required value", { path: rule.path! });
+      if (!pyEqual(pySum(values as number[]), evaluate(rule.equals!, env))) fail("sum_differs", "sum differs from required value", { path: rule.path! });
     } else {
       const rows = evaluate(rule.rows!, env);
       const targets = evaluate(rule.targets!, env);
