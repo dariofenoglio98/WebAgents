@@ -10,6 +10,7 @@ import { CoreError } from "../../src/core/errors.js";
 import { publicKeyToPem } from "../../src/core/keys.js";
 import { MemoryTrustStorage } from "../../src/core/trust.js";
 import type { CandidateState, PinResult, SessionDescriptor, SessionView, StatusInfo, TrustList, WebsiteResult } from "../../src/extension/messages.js";
+import type { Sender } from "../../src/extension/background/controller.js";
 import { MemorySnapshotStore, type StoredSession } from "../../src/extension/storage/snapshots.js";
 import { MemoryTabStateStore } from "../../src/extension/storage/tab-state.js";
 import { generateKeyPair } from "../helpers/keys.js";
@@ -563,6 +564,45 @@ describe("sessions: limits, expiry, close and restore (D-032)", () => {
     // A session nobody ever held closes on its first release, as before.
     const alone = await open(h);
     expect((await h.controller.handle({ type: "package.release", sessionId: alone.session.id, viewId: "sidepanel:2" }, PAGE)) as { closed: boolean }).toMatchObject({ closed: true });
+  });
+
+  it("a hold survives a worker restart: Close in the panel still leaves the full page's session open (review 1 of T3, finding 5)", async () => {
+    const first = makeHarness();
+    const panel: Sender = { ...PAGE, documentId: "doc-panel" };
+    const page: Sender = { ...PAGE_IN_TAB, documentId: "doc-page" };
+    const view = (await first.controller.handle({ type: "package.open", url: PACKAGE_URL, advertisedOn: `${SITE_ORIGIN}/`, viewId: "sidepanel:1" }, panel)) as SessionView;
+    await first.controller.handle({ type: "package.get", sessionId: view.session.id, viewId: "browser:1" }, page);
+    expect(await first.holders.get(view.session.id)).toEqual([
+      { view_id: "sidepanel:1", document_id: "doc-panel" },
+      { view_id: "browser:1", document_id: "doc-page" },
+    ]);
+    // Chrome stops the idle worker; a new one starts over the same storage, both views still open.
+    const stores = { snapshots: first.snapshots, trustStorage: first.trustStorage, tabs: first.tabs, holders: first.holders };
+    const second = makeHarness({ stores, liveDocuments: new Set(["doc-panel", "doc-page"]) });
+    expect(await second.controller.handle({ type: "package.release", sessionId: view.session.id, viewId: "sidepanel:1" }, panel)).toEqual({ closed: false, session_id: view.session.id, holders: 1 });
+    expect(((await second.controller.handle({ type: "package.get", sessionId: view.session.id, viewId: "browser:1" }, page)) as SessionView).session.id).toBe(view.session.id);
+    expect(await second.controller.handle({ type: "package.release", sessionId: view.session.id, viewId: "browser:1" }, page)).toEqual({ closed: true, session_id: view.session.id, holders: 0 });
+    expect(await second.holders.get(view.session.id)).toEqual([]);
+  });
+
+  it("a view whose page closed without releasing stops holding its session", async () => {
+    const open = new Set(["doc-panel", "doc-page"]);
+    const h = makeHarness({ liveDocuments: open });
+    const view = (await h.controller.handle({ type: "package.open", url: PACKAGE_URL, advertisedOn: `${SITE_ORIGIN}/`, viewId: "sidepanel:1" }, { ...PAGE, documentId: "doc-panel" })) as SessionView;
+    await h.controller.handle({ type: "package.get", sessionId: view.session.id, viewId: "browser:1" }, { ...PAGE_IN_TAB, documentId: "doc-page" });
+    open.delete("doc-page"); // the full page's tab was closed
+    expect(await h.controller.handle({ type: "package.release", sessionId: view.session.id, viewId: "sidepanel:1" }, PAGE)).toMatchObject({ closed: true, holders: 0 });
+    // A reload is a new document and a new view id: the old holder goes on the next hold.
+    const again = (await h.controller.handle({ type: "package.open", url: PACKAGE_URL, advertisedOn: `${SITE_ORIGIN}/`, viewId: "browser:2" }, { ...PAGE_IN_TAB, documentId: "doc-old" })) as SessionView;
+    await h.controller.handle({ type: "package.get", sessionId: again.session.id, viewId: "browser:3" }, { ...PAGE_IN_TAB, documentId: "doc-page" });
+    open.add("doc-page");
+    await h.controller.handle({ type: "package.get", sessionId: again.session.id, viewId: "sidepanel:2" }, { ...PAGE, documentId: "doc-panel" });
+    expect((await h.holders.get(again.session.id)).map((holder) => holder.view_id)).toEqual(["browser:3", "sidepanel:2"]);
+    // When Chrome cannot say which documents are open, every holder still counts.
+    const unknown = makeHarness();
+    const held = (await unknown.controller.handle({ type: "package.open", url: PACKAGE_URL, advertisedOn: `${SITE_ORIGIN}/`, viewId: "a" }, { ...PAGE, documentId: "doc-a" })) as SessionView;
+    await unknown.controller.handle({ type: "package.get", sessionId: held.session.id, viewId: "b" }, { ...PAGE_IN_TAB, documentId: "doc-b" });
+    expect(await unknown.controller.handle({ type: "package.release", sessionId: held.session.id, viewId: "a" }, PAGE)).toMatchObject({ closed: false, holders: 1 });
   });
 
   it("refuses more than the session limit", async () => {

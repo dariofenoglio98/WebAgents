@@ -10,6 +10,7 @@ import { SettingsStorage } from "../storage/settings.js";
 import { IndexedDbSnapshotStore } from "../storage/snapshots.js";
 import { ChromeTabStateStore } from "../storage/tab-state.js";
 import { ChromeTrustStorage } from "../storage/trust-storage.js";
+import { ChromeViewHolderStore } from "../storage/view-holders.js";
 import { Controller, type Sender } from "./controller.js";
 
 const extensionOrigin = `chrome-extension://${chrome.runtime.id}`;
@@ -86,6 +87,12 @@ async function badge(tabId: number, count: number): Promise<void> {
   }
 }
 
+/** Which of these documents are still open: the side panel and full pages a view lives in. */
+async function liveDocuments(documentIds: string[]): Promise<Set<string>> {
+  const contexts = await chrome.runtime.getContexts({ documentIds });
+  return new Set(contexts.map((context) => context.documentId).filter((id): id is string => typeof id === "string"));
+}
+
 function broadcast(event: Event): void {
   chrome.runtime.sendMessage(event).catch(() => {
     // No page is listening; that is normal.
@@ -97,6 +104,8 @@ const controller = new Controller({
   snapshots: new IndexedDbSnapshotStore(),
   trust: new TrustStore(new ChromeTrustStorage()),
   tabs: new ChromeTabStateStore(),
+  holders: new ChromeViewHolderStore(),
+  liveDocuments,
   settings,
   http,
   builtin,
@@ -119,6 +128,7 @@ function senderOf(sender: chrome.runtime.MessageSender): Sender {
     tabUrl: sender.tab?.url ?? null,
     frameUrl: typeof sender.url === "string" ? sender.url : null,
     topFrame: sender.frameId === 0,
+    documentId: typeof sender.documentId === "string" ? sender.documentId : null,
   };
 }
 

@@ -19,7 +19,10 @@
  *   3. the full page: the package URL typed directly opens the same digest; a tampered package,
  *      a redirecting package URL and an http:// URL are refused with their codes;
  *   4. the side panel, when it can be opened headlessly; otherwise the report says it was left
- *      to the manual checklist (the spec allows this).
+ *      to the manual checklist (the spec allows this);
+ *   5. view holders (T3): the worker stores the full page's hold with the document Chrome
+ *      reported, `getContexts` finds that document open, and after Chrome stops the worker
+ *      another view's release leaves the full page's session open.
  * Prints JSON with "passed". No network beyond 127.0.0.1. Nothing executes a package.
  *
  *   node scripts/e2e-discovery.mjs [--chrome <path>] [--keep] [--out <report.json>]
@@ -418,17 +421,53 @@ async function main() {
     check("page", "a page without the link clears the badge", cleared === "cleared");
     report.steps.origin = { requests: origin.hits };
     check("origin", "the package was fetched from the mock origin only", origin.hits.filter((hit) => hit === "GET /agent.pkg").length >= 2 && !origin.hits.some((hit) => hit.includes("railway")), origin.hits);
+
+    // 5. view holders outlive the worker (T3 review 1, finding 5): Chrome names the sending
+    // document, getContexts finds it open, and after Chrome stops the worker (as it does after
+    // about 30 s idle) another view's release leaves the full page's session open.
+    const holdersKey = JSON.stringify(`holders:${direct.session}`);
+    const held = await cdp.evaluate(worker, `chrome.storage.session.get(${holdersKey}).then((items) => items[${holdersKey}] ?? null)`);
+    const pageDocument = Array.isArray(held) && held.length === 1 ? held[0].document_id : null;
+    report.steps.holders = { stored: held };
+    check("holders", "the full page's hold is stored with the document Chrome reported", typeof pageDocument === "string" && pageDocument.length > 0, held);
+    const contexts = await cdp.evaluate(worker, `chrome.runtime.getContexts({ documentIds: [${JSON.stringify(String(pageDocument))}] }).then((list) => list.map((c) => ({ type: c.contextType, url: c.documentUrl })))`);
+    check("holders", "getContexts reports that document as the open full page", contexts?.length === 1 && contexts[0].type === "TAB" && contexts[0].url?.startsWith(`${base}/browser.html`), contexts);
+    await cdp.evaluate(worker, "globalThis.__e2eBeforeStop = true");
+    await cdp.send("ServiceWorker.enable", {}, page);
+    await cdp.send("ServiceWorker.stopAllWorkers", {}, page);
+    const isWorker = (target) => target.type === "service_worker" && target.url === `${base}/service-worker.js`;
+    const stopDeadline = Date.now() + STEP_TIMEOUT_MS;
+    while (Date.now() < stopDeadline && (await cdp.targets()).some(isWorker)) await sleep(150);
+    check("holders", "Chrome stopped the service worker", !(await cdp.targets()).some(isWorker));
+    const released = await cdp.evaluate(
+      panelPage,
+      `(async () => {
+        const sessionId = ${JSON.stringify(direct.session)};
+        const got = await chrome.runtime.sendMessage({ type: "package.get", sessionId, viewId: "e2e-panel" });
+        if (!got.ok) return got.error;
+        const reply = await chrome.runtime.sendMessage({ type: "package.release", sessionId, viewId: "e2e-panel" });
+        return reply.ok ? reply.result : reply.error;
+      })()`,
+    );
+    const restarted = await cdp.attach((await cdp.waitForTarget(isWorker, "the restarted service worker")).targetId);
+    check("holders", "a new worker answered", (await cdp.evaluate(restarted, "globalThis.__e2eBeforeStop === undefined")) === true);
+    report.steps.holders.release = released;
+    check("holders", "another view's release leaves the full page's session open", released?.closed === false && released?.holders === 1, released);
   } catch (error) {
     report.failures.push(`harness: ${error.message}`);
   } finally {
+    // Wait for Chrome to exit before removing its profile: it writes there until it is gone
+    // (rmSync raced it with ENOTEMPTY; T3 review 1, nit 17).
+    const exited = chrome.exitCode !== null || chrome.signalCode !== null ? Promise.resolve() : new Promise((resolveExit) => chrome.once("exit", resolveExit));
     chrome.kill();
+    await Promise.race([exited, sleep(10_000)]);
     origin.server.close();
   }
   report.passed = report.failures.length === 0;
   const text = `${JSON.stringify(report, null, 2)}\n`;
   if (args.out) writeFileSync(args.out, text);
   process.stdout.write(text);
-  if (!args.keep) rmSync(run, { recursive: true, force: true });
+  if (!args.keep) rmSync(run, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
   process.exit(report.passed ? 0 : 1);
 }
 

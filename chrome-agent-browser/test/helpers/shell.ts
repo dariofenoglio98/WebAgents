@@ -13,6 +13,7 @@ import type { Event } from "../../src/extension/messages.js";
 import { MemoryStorageArea, SettingsStorage } from "../../src/extension/storage/settings.js";
 import { MemorySnapshotStore } from "../../src/extension/storage/snapshots.js";
 import { MemoryTabStateStore } from "../../src/extension/storage/tab-state.js";
+import { MemoryViewHolderStore } from "../../src/extension/storage/view-holders.js";
 import { generateKeyPair, signedArchive } from "./keys.js";
 import { readBytes, ROOT, SHIPPED } from "./paths.js";
 import { makeSource, writeText } from "./source.js";
@@ -139,6 +140,7 @@ export interface Harness {
   trustStorage: MemoryTrustStorage;
   trust: TrustStore;
   tabs: MemoryTabStateStore;
+  holders: MemoryViewHolderStore;
   settingsArea: MemoryStorageArea;
   settings: SettingsStorage;
   httpLog: HttpRequest[];
@@ -154,7 +156,9 @@ export function makeHarness(
   options: {
     routes?: Record<string, Route>;
     limits?: Partial<Limits>;
-    stores?: Pick<Harness, "snapshots" | "trustStorage" | "tabs"> & Partial<Pick<Harness, "settingsArea">>;
+    stores?: Pick<Harness, "snapshots" | "trustStorage" | "tabs"> & Partial<Pick<Harness, "settingsArea" | "holders">>;
+    /** The documents `chrome.runtime.getContexts` would still report open; absent: every holder counts. */
+    liveDocuments?: Set<string>;
     /** Model-catalog answers; the Ollama qwen3:30b answers by default. */
     http?: Record<string, unknown>;
   } = {},
@@ -165,6 +169,7 @@ export function makeHarness(
   const snapshots = options.stores?.snapshots ?? new MemorySnapshotStore();
   const trustStorage = options.stores?.trustStorage ?? new MemoryTrustStorage("chrome.storage.local:trustStore");
   const tabs = options.stores?.tabs ?? new MemoryTabStateStore();
+  const holders = options.stores?.holders ?? new MemoryViewHolderStore();
   const settingsArea = options.stores?.settingsArea ?? new MemoryStorageArea();
   const settings = new SettingsStorage(settingsArea);
   const builtin = { availability: null as BuiltinAvailability | null };
@@ -178,6 +183,8 @@ export function makeHarness(
     snapshots,
     trust,
     tabs,
+    holders,
+    liveDocuments: options.liveDocuments ? async (ids) => new Set(ids.filter((id) => options.liveDocuments!.has(id))) : undefined,
     settings,
     http: fakeHttp(options.http ?? OLLAMA_ANSWERS, httpLog),
     builtin: async () => builtin.availability,
@@ -192,7 +199,7 @@ export function makeHarness(
     limits: options.limits,
     version: "0.1.0-test",
   };
-  return { controller: new Controller(deps), snapshots, trustStorage, trust, tabs, settingsArea, settings, httpLog, builtin, badges, events, fetchLog, routes, clock };
+  return { controller: new Controller(deps), snapshots, trustStorage, trust, tabs, holders, settingsArea, settings, httpLog, builtin, badges, events, fetchLog, routes, clock };
 }
 
 const EXTENSION_ORIGIN = "chrome-extension://abcdefghijklmnopabcdefghijklmnop";

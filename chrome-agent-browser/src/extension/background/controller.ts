@@ -68,6 +68,7 @@ import {
 import { connectionsFor, endpointProblem, normalizeSettings, type Settings, type SettingsStorage } from "../storage/settings.js";
 import type { SnapshotStore, StoredSession } from "../storage/snapshots.js";
 import type { TabStateStore } from "../storage/tab-state.js";
+import type { ViewHolder, ViewHolderStore } from "../storage/view-holders.js";
 
 export interface Limits {
   sessionTtlSeconds: number;
@@ -102,6 +103,13 @@ export interface ControllerDeps {
   http: Http;
   /** Chrome's built-in model availability, read by the shell (`LanguageModel.availability()`); null when unknown. */
   builtin: () => Promise<BuiltinAvailability | null>;
+  /** Which views hold each session (`chrome.storage.session`, D-056 as amended). */
+  holders: ViewHolderStore;
+  /**
+   * Which of these documents are still open (`chrome.runtime.getContexts`), so a view that went
+   * away without releasing stops holding its session. Absent or failing: every holder counts.
+   */
+  liveDocuments?: (documentIds: string[]) => Promise<Set<string>>;
   badge: (tabId: number, count: number) => Promise<void>;
   broadcast: (event: Event) => void;
   clock?: () => Date;
@@ -121,6 +129,9 @@ interface LiveSession {
   onceSpent: boolean;
 }
 
+/** At most this many views hold one session; the oldest holder goes first. */
+const MAX_VIEW_HOLDERS = 16;
+
 /** How long a probed catalog is reused before the providers are asked again. */
 const CATALOG_TTL_MS = 60_000;
 
@@ -136,6 +147,8 @@ export interface Sender {
   frameUrl: string | null;
   /** Whether that frame is the tab's top frame. */
   topFrame: boolean;
+  /** The sending document's id as Chrome reports it (`MessageSender.documentId`), when it does. */
+  documentId?: string | null;
 }
 
 const EXECUTION_NOTE = "Opening and inspecting a package never executes it.";
@@ -177,8 +190,8 @@ function demoTypes(): Array<Omit<VaultDocument["types"][number], never>> {
 
 export class Controller {
   private readonly sessions = new Map<string, LiveSession>();
-  /** Which views currently show each session (review 2, nit 5): a release closes it only when none is left. */
-  private readonly holders = new Map<string, Set<string>>();
+  /** Serializes the read-modify-write of view holders in `chrome.storage.session`. */
+  private holderQueue: Promise<unknown> = Promise.resolve();
   /** Archive hashes of opens in progress (review 2, nit 6): their snapshots are never dropped as orphans. */
   private readonly inFlight = new Map<string, number>();
   private readonly limits: Limits;
@@ -205,12 +218,12 @@ export class Controller {
         return this.discoverWebsite(request.url);
       case "package.open": {
         const view = await this.openUrl(request.url, request.advertisedOn ?? null);
-        if (request.viewId) this.hold(view.session.id, request.viewId);
+        if (request.viewId) await this.hold(view.session.id, request.viewId, sender.documentId ?? null);
         return view;
       }
       case "package.get": {
         const live = await this.session(request.sessionId);
-        if (request.viewId) this.hold(request.sessionId, request.viewId);
+        if (request.viewId) await this.hold(request.sessionId, request.viewId, sender.documentId ?? null);
         return this.view(live);
       }
       case "package.release":
@@ -652,23 +665,47 @@ export class Controller {
   }
 
   // -- views ------------------------------------------------------------------------
-  private hold(sessionId: string, viewId: string): void {
-    const set = this.holders.get(sessionId) ?? new Set<string>();
-    set.add(viewId);
-    this.holders.set(sessionId, set);
+  /** Run one holder update at a time: two views asking at once must not overwrite each other. */
+  private holderUpdate<T>(update: () => Promise<T>): Promise<T> {
+    const next = this.holderQueue.then(update, update);
+    this.holderQueue = next.catch(() => undefined);
+    return next;
+  }
+
+  /** The holders whose document is still open; a holder Chrome named no document for always counts. */
+  private async stillOpen(holders: ViewHolder[]): Promise<ViewHolder[]> {
+    const ids = holders.map((holder) => holder.document_id).filter((id): id is string => id !== null);
+    if (ids.length === 0 || !this.deps.liveDocuments) return holders;
+    let open: Set<string>;
+    try {
+      open = await this.deps.liveDocuments(ids);
+    } catch {
+      return holders; // unknown is not closed: never end a session a page may still show
+    }
+    return holders.filter((holder) => holder.document_id === null || open.has(holder.document_id));
+  }
+
+  private async hold(sessionId: string, viewId: string, documentId: string | null): Promise<void> {
+    await this.holderUpdate(async () => {
+      const others = (await this.deps.holders.get(sessionId)).filter((holder) => holder.view_id !== viewId);
+      const holders = [...(await this.stillOpen(others)), { view_id: viewId, document_id: documentId }];
+      await this.deps.holders.set(sessionId, holders.slice(-MAX_VIEW_HOLDERS));
+    });
   }
 
   /**
-   * A view stops showing a session. The session ends only when no other view holds it, so
-   * Close in the side panel leaves a full page on the same session intact (review 2, nit 5).
+   * A view stops showing a session. The session ends only when no other open view holds it, so
+   * Close in the side panel leaves a full page on the same session intact (review 2, nit 5),
+   * also after the worker restarted in between (review 1 of T3, finding 5).
    */
   async release(sessionId: string, viewId: string): Promise<{ closed: boolean; session_id: string; holders: number }> {
     const live = await this.session(sessionId);
-    const set = this.holders.get(sessionId);
-    set?.delete(viewId);
-    const remaining = set?.size ?? 0;
+    const remaining = await this.holderUpdate(async () => {
+      const holders = await this.stillOpen((await this.deps.holders.get(sessionId)).filter((holder) => holder.view_id !== viewId));
+      if (holders.length > 0) await this.deps.holders.set(sessionId, holders);
+      return holders.length;
+    });
     if (remaining > 0) return { closed: false, session_id: sessionId, holders: remaining };
-    this.holders.delete(sessionId);
     await this.drop(live.stored);
     this.deps.broadcast({ type: "event.sessions" });
     return { closed: true, session_id: sessionId, holders: 0 };
@@ -683,7 +720,7 @@ export class Controller {
 
   private async drop(stored: StoredSession): Promise<void> {
     this.sessions.delete(stored.session_id);
-    this.holders.delete(stored.session_id);
+    await this.holderUpdate(() => this.deps.holders.clear(stored.session_id));
     await this.deps.snapshots.deleteSession(stored.session_id);
     if (this.inFlight.has(stored.archive_sha256)) return; // an open in progress owns the snapshot
     const others = (await this.deps.snapshots.listSessions()).some((session) => session.archive_sha256 === stored.archive_sha256);
