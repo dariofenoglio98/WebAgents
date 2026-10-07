@@ -22,13 +22,18 @@
  * dialects. Here the same property holds by two rules in `PackageSchemas.open`: only the
  * documents the manifest declares as schemas are registered, and only after
  * `registrable` has found no `$id`, `$vocabulary`, `$schema` other than draft 2020-12,
- * dynamic or recursive keyword anywhere in the tree (the same rules `validation.ts` applies
- * to declared schemas). Anything else is simply not addressable by `$ref`.
+ * `$dynamicRef`, `$recursiveRef`, and no `$ref` with a scheme, an authority or an absolute
+ * path anywhere in the tree (the same rules `validation.ts` applies to declared schemas;
+ * `$dynamicAnchor` and `$recursiveAnchor` are document-local without a dynamic reference and
+ * stay allowed, as the reference allows them). Anything else is simply not addressable by
+ * `$ref`, and the library's remote retrieval is disabled at import, so nothing a package
+ * writes can make this process fetch anything.
  *
  * `format` is an annotation here, as it is for the formats the reference checks nothing
  * about (`date-time`, `uri`); the reference's checker asserts a small set of other formats
  * that no agentpkg schema uses for package members.
  */
+import { removeUriSchemePlugin } from "@hyperjump/browser";
 import {
   InvalidSchemaError,
   registerSchema,
@@ -40,6 +45,14 @@ import { ValidationError } from "./errors.js";
 import { parseJson } from "./json.js";
 import { EXTENSION_SCHEMAS } from "./schemas/extensions/index.js";
 import { SCHEMAS } from "./schemas/index.js";
+import { urlsplit } from "./urls.js";
+
+// `@hyperjump/browser` retrieves a reference its registry does not hold over the network
+// (`http`, `https`) or, in Node, from disk (`file`). Package schemas resolve inside their
+// private base URI and nowhere else, so those plugins are removed once, before any schema is
+// registered (T1 review 2, finding 1). A reference that is not registered is then
+// unresolvable, never fetched; `failures` reports it as an invalid schema.
+for (const scheme of ["http", "https", "file"]) removeUriSchemePlugin(scheme);
 
 export const DIALECT = "https://json-schema.org/draft/2020-12/schema";
 const AGENTPKG_BASE = "https://agentpkg.local/spec/0.1/";
@@ -215,15 +228,35 @@ export async function checkSchema(schema: unknown, path: string): Promise<void> 
  * The declared schemas of one package, registered under a private base URI so that
  * package-relative references resolve offline and nothing else can be retrieved.
  */
-/** Keywords that would write into the library's global registry or dialect table. */
-const REGISTRY_KEYWORDS: ReadonlySet<string> = new Set(["$id", "$vocabulary", "$dynamicRef", "$dynamicAnchor", "$recursiveRef", "$recursiveAnchor"]);
+/**
+ * Keywords that would write into the library's global registry or dialect table, or resolve
+ * through it dynamically. `$dynamicAnchor` and `$recursiveAnchor` are not among them: without
+ * `$dynamicRef`/`$recursiveRef` (refused here and by `validation.py`) they are document-local
+ * names, and the reference accepts a declared schema that carries one (T1 review 2, finding 3).
+ */
+const REGISTRY_KEYWORDS: ReadonlySet<string> = new Set(["$id", "$vocabulary", "$dynamicRef", "$recursiveRef"]);
+
+/**
+ * `validation.py::_schema_reference`'s syntax rule, applied to a `$ref` before registration:
+ * no scheme, no authority, no absolute path, no backslash. A reference that passes resolves
+ * inside the package's private base; one that fails could only name somewhere else.
+ */
+export function localReference(ref: unknown): boolean {
+  if (typeof ref !== "string" || ref.includes("\\")) return false;
+  try {
+    const parsed = urlsplit(ref);
+    return !parsed.scheme && !parsed.netloc && !parsed.path.startsWith("/");
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Whether a package document may be handed to `registerSchema` without touching anything
  * outside its own private base URI: a boolean, or an object tree with none of
- * `REGISTRY_KEYWORDS` and no `$schema` other than draft 2020-12 at any depth. This is the
- * same rule `validation.ts` enforces on declared schemas, applied here as the registry's
- * own guard so that no caller can bypass it.
+ * `REGISTRY_KEYWORDS`, no `$schema` other than draft 2020-12 and no non-local `$ref` at any
+ * depth. This is the same rule `validation.ts` enforces on declared schemas, applied here as
+ * the registry's own guard so that no caller can bypass it.
  */
 export function registrable(document: unknown): boolean {
   if (typeof document === "boolean") return true;
@@ -236,6 +269,7 @@ function clean(value: object): boolean {
   for (const [key, item] of Object.entries(value)) {
     if (REGISTRY_KEYWORDS.has(key)) return false;
     if (key === "$schema" && item !== DIALECT) return false;
+    if (key === "$ref" && !localReference(item)) return false;
     if (typeof item === "object" && item !== null && !clean(item)) return false;
   }
   return true;
@@ -291,18 +325,28 @@ export class PackageSchemas {
     try {
       return await failures(`${this.base}${path}`, instance);
     } catch (error) {
-      if (error instanceof InvalidSchemaError) throw new ValidationError(`${path}: invalid JSON Schema`);
+      // An invalid schema, or a reference to a document that is not registered: with the
+      // retrieval plugins removed the library cannot fetch it and throws instead. Both are
+      // the same fact for a caller: this path is not a usable schema of this package.
+      if (error instanceof ValidationError) throw error;
+      if (error instanceof InvalidSchemaError || error instanceof Error) {
+        throw new ValidationError(`${path}: invalid JSON Schema`);
+      }
       throw error;
     }
   }
 
-  /** `validation.py::validate_instance`. */
+  /**
+   * `validation.py::validate_instance`. The thrown error carries the first failure as
+   * `schema_failure`, the way the reference's error carries its jsonschema cause, so the
+   * runtime can record which keyword refused a tool payload without recording the payload.
+   */
   async validateInstance(path: string, instance: unknown, label = "instance"): Promise<void> {
     const list = await this.failures(path, instance);
     if (list.length === 0) return;
     const first = list[0]!;
     const location = first.instancePath.join("/") || "<root>";
-    throw new ValidationError(`${label} does not match ${path} at ${location} (rule: ${first.keyword})`);
+    throw schemaError(`${label} does not match ${path} at ${location} (rule: ${first.keyword})`, first);
   }
 
   /** The schema document a keyword location points into: one of this package's, or agentpkg's. */
@@ -326,6 +370,45 @@ export class PackageSchemas {
     this.registered.clear();
     this.documents.clear();
   }
+}
+
+const ADHOC_BASE = "https://package.invalid/adhoc/";
+
+/**
+ * Failures of `instance` against a self-contained schema document that is not a package member:
+ * the bundled node schema a model request carries (`Draft202012Validator(output_schema)` in
+ * `runtime.py::call_model`). The document is registered under a private one-off base and
+ * unregistered again; it must be `registrable`, so it resolves only its own `#/$defs`.
+ */
+export async function failuresForSchema(schema: unknown, instance: unknown, label = "schema"): Promise<SchemaFailure[]> {
+  ensureAgentpkgSchemas();
+  if (!registrable(schema)) throw new ValidationError(`${label}: invalid JSON Schema`);
+  const uri = `${ADHOC_BASE}${crypto.randomUUID()}/schema.json`;
+  registerSchema(schema as never, uri, DIALECT);
+  try {
+    return await failures(uri, instance);
+  } catch (error) {
+    if (error instanceof ValidationError) throw error;
+    throw new ValidationError(`${label}: invalid JSON Schema`);
+  } finally {
+    unregisterSchema(uri);
+  }
+}
+
+/** Validate against a self-contained schema document, in the reference's phrasing. */
+export async function validateWithSchema(schema: unknown, instance: unknown, label = "instance"): Promise<void> {
+  const list = await failuresForSchema(schema, instance, label);
+  if (list.length === 0) return;
+  const first = list[0]!;
+  const location = first.instancePath.join("/") || "<root>";
+  throw schemaError(`${label} does not match schema at ${location} (rule: ${first.keyword})`, first);
+}
+
+/** A `ValidationError` that carries the failure that caused it (`exc.__cause__` in the reference). */
+export type SchemaValidationError = ValidationError & { schema_failure: SchemaFailure };
+
+export function schemaError(message: string, failure: SchemaFailure): SchemaValidationError {
+  return Object.assign(new ValidationError(message), { schema_failure: failure });
 }
 
 /** One-shot `validate_instance` over a package's files. */

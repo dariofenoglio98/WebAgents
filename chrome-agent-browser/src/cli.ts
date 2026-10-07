@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 /**
- * The core's Node CLI (D-024, D-036): `verify` and `inspect` with agentpkg's flag names and
- * report shapes, so the two runtimes can be compared side by side. T4 adds `run`.
+ * The core's Node CLI (D-024, D-036, D-038): `verify`, `inspect` and `evaluate` with agentpkg's
+ * flag names and report shapes, so the two runtimes can be compared side by side. `run` is
+ * T4's and lives in `cli-run.ts`.
  *
  *   node dist/cli.js verify  <package.agent.pkg> --trust-key <publisher.pub.pem>
  *   node dist/cli.js inspect <package.agent.pkg>
  *   node dist/cli.js evaluate <package.agent.pkg> [--trust-store <trust.json>]
+ *   node dist/cli.js run <package.agent.pkg> --mode fixture|live --grants <grants.json> …
  *
  * `verify` prints the same JSON as `agentpkg verify` and exits 0 only when the signature was
  * made by exactly the supplied key; like agentpkg, any refusal goes to stderr as one line
@@ -14,10 +16,16 @@
  * control plane's layered view: the archive SHA-256, the four validation layers, the signature
  * report and the trust verdict against an optional Python `trust.json`, plus the browser
  * summary; a package that fails a structural layer prints its layered report and exits 1.
- * Nothing here executes a package.
+ *
+ * Arguments are parsed the way `argparse` parses agentpkg's: an unknown flag, a surplus
+ * positional, a flag without its value or a missing required flag is refused on stderr with
+ * status 2 and argparse's wording (T1 review 2, nit 12), so T7 can compare the two CLIs by
+ * exit status.
  */
 import { readFileSync, writeFileSync } from "node:fs";
 
+import { runCommand } from "./cli-run.js";
+import { ArgumentError, parseArguments, type ArgumentSpec } from "./cli-arguments.js";
 import {
   buildSummary,
   CoreError,
@@ -37,33 +45,30 @@ import {
   type TrustStorage,
 } from "./core/index.js";
 
+export const USAGE = [
+  "usage: agent-browser-core <command> [options]",
+  "",
+  "  verify <package.agent.pkg> --trust-key <publisher.pub.pem>",
+  "  inspect <package.agent.pkg>",
+  "  evaluate <package.agent.pkg> [--trust-store <trust.json>]",
+  "  run <package.agent.pkg> --mode fixture|live --grants <grants.json> [--input <input.json>]",
+  "      [--approve-tool <tool-id>]... [--trust-key <publisher.pub.pem>] [--limits <limits.json>]",
+  "      [--out <new-directory>] [live: --model <provider/model> [--ollama-url <url>]",
+  "      [--context-tokens <n>] [--think] [--tool-bindings <bindings.json>]",
+  "      [--host-resources <resources.json>] [--resource-grant <permission>=<resource-id>]...]",
+  "",
+].join("\n");
+
 function usage(): never {
-  process.stderr.write(
-    [
-      "usage: agent-browser-core <command> [options]",
-      "",
-      "  verify <package.agent.pkg> --trust-key <publisher.pub.pem>",
-      "  inspect <package.agent.pkg>",
-      "  evaluate <package.agent.pkg> [--trust-store <trust.json>]",
-      "",
-    ].join("\n"),
-  );
+  process.stderr.write(USAGE);
   process.exit(2);
 }
 
-function option(args: string[], name: string): string | null {
-  const index = args.indexOf(name);
-  if (index < 0) return null;
-  const value = args[index + 1];
-  if (value === undefined || value.startsWith("--")) usage();
-  return value;
-}
-
-function print(value: unknown): void {
+export function print(value: unknown): void {
   process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
 }
 
-function failure(error: unknown): { code: string; message: string } {
+export function failure(error: unknown): { code: string; message: string } {
   if (error instanceof CoreError) return { code: error.code, message: error.message };
   if (error instanceof SignatureError) return { code: "signature_error", message: error.message };
   if (error instanceof ValidationError) return { code: "validation_error", message: error.message };
@@ -71,7 +76,7 @@ function failure(error: unknown): { code: string; message: string } {
 }
 
 /** `agentpkg.cli.main`: one line on stderr, status 2, nothing on stdout. */
-function refuse(error: unknown): number {
+export function refuse(error: unknown): number {
   process.stderr.write(`agent-browser: ${failure(error).message}\n`);
   return 2;
 }
@@ -98,13 +103,15 @@ class FileTrustStorage implements TrustStorage {
   }
 }
 
+const VERIFY: ArgumentSpec = { positional: ["package"], options: { "--trust-key": { kind: "value", required: true } } };
+const INSPECT: ArgumentSpec = { positional: ["package"], options: {} };
+const EVALUATE: ArgumentSpec = { positional: ["package"], options: { "--trust-store": { kind: "value" } } };
+
 async function verify(args: string[]): Promise<number> {
-  const archive = args[0];
-  const keyPath = option(args, "--trust-key");
-  if (!archive || !keyPath) usage();
+  const parsed = parseArguments("verify", args, VERIFY);
   try {
-    const pkg = await loadPackageBytes(new Uint8Array(readFileSync(archive)));
-    const report = await verifyWithTrustedKey(pkg, publicKeyFromPem(readFileSync(keyPath, "utf8")));
+    const pkg = await loadPackageBytes(new Uint8Array(readFileSync(parsed.positional.package!)));
+    const report = await verifyWithTrustedKey(pkg, publicKeyFromPem(readFileSync(parsed.value("--trust-key")!, "utf8")));
     print(report);
     return 0;
   } catch (error) {
@@ -113,10 +120,9 @@ async function verify(args: string[]): Promise<number> {
 }
 
 async function inspect(args: string[]): Promise<number> {
-  const archive = args[0];
-  if (!archive) usage();
+  const parsed = parseArguments("inspect", args, INSPECT);
   try {
-    const pkg = await loadPackageBytes(new Uint8Array(readFileSync(archive)));
+    const pkg = await loadPackageBytes(new Uint8Array(readFileSync(parsed.positional.package!)));
     print(inspectPackage(pkg));
     return 0;
   } catch (error) {
@@ -125,11 +131,10 @@ async function inspect(args: string[]): Promise<number> {
 }
 
 async function evaluate(args: string[]): Promise<number> {
-  const archive = args[0];
-  if (!archive) usage();
-  const storePath = option(args, "--trust-store");
+  const parsed = parseArguments("evaluate", args, EVALUATE);
+  const storePath = parsed.value("--trust-store");
   const trust = new TrustStore(storePath ? new FileTrustStorage(storePath) : new MemoryTrustStorage("none"));
-  const bytes = new Uint8Array(readFileSync(archive));
+  const bytes = new Uint8Array(readFileSync(parsed.positional.package!));
   const archiveSha256 = await sha256Hex(bytes);
   const evaluation = await evaluateSnapshot(bytes);
   const layers = evaluationLayers(evaluation);
@@ -145,15 +150,27 @@ async function evaluate(args: string[]): Promise<number> {
 
 async function main(argv: string[]): Promise<number> {
   const [command, ...args] = argv;
-  switch (command) {
-    case "verify":
-      return verify(args);
-    case "inspect":
-      return inspect(args);
-    case "evaluate":
-      return evaluate(args);
-    default:
-      return usage();
+  try {
+    switch (command) {
+      case "verify":
+        return await verify(args);
+      case "inspect":
+        return await inspect(args);
+      case "evaluate":
+        return await evaluate(args);
+      case "run":
+        return await runCommand(args);
+      default:
+        return usage();
+    }
+  } catch (error) {
+    if (error instanceof ArgumentError) {
+      // argparse prints its usage and `<prog>: error: <message>` and exits 2; the message
+      // text is argparse's, behind this CLI's one-line prefix (D-038).
+      process.stderr.write(`agent-browser: ${error.message}\n`);
+      return 2;
+    }
+    return refuse(error);
   }
 }
 

@@ -1,0 +1,145 @@
+{
+  "directory": "examples/my-t4-ollama-smoke-20261007T181423Z",
+  "run_id": "run_65ed66d269dc70afadbbed51870ff144",
+  "status": "completed",
+  "error_code": null,
+  "package": {
+    "packageId": "org.webagents.webair",
+    "name": "WebAir Travel Agent",
+    "version": "0.4.0",
+    "digest": "0e8317f11e8813e7d5b4b3f352f20148d114329dca3db8c725c5b0558af24fbb",
+    "archiveSha256": "c12f9db3bd7b3b4b6721c67e1d0b8143ebd94381df0e5e57c196357b7ca77f63",
+    "executionProfile": "workflow.v0"
+  },
+  "model": {
+    "planned": "ollama/qwen3:30b",
+    "invoked": [
+      "ollama/qwen3:30b"
+    ],
+    "calls": 3,
+    "allCallsUsedPlannedModel": true,
+    "providers": [
+      "ollama"
+    ],
+    "responseModels": [
+      "qwen3:30b"
+    ]
+  },
+  "selected_model": {
+    "hostModelId": "ollama/qwen3:30b",
+    "providerId": "ollama",
+    "modelId": "qwen3:30b",
+    "displayName": "qwen3:30b",
+    "local": true
+  },
+  "usage": {
+    "tokens": 8476,
+    "remote_calls": 4,
+    "tool_calls": {
+      "search-flights": 1,
+      "get-fare-rules": 3
+    },
+    "peak_parallel_workers": 3
+  },
+  "cost": {
+    "status": "unknown",
+    "totalUsd": null,
+    "calls": 3,
+    "callsWithReportedCost": 0
+  },
+  "audit": {
+    "events": 235,
+    "chain_valid": true,
+    "final_hash": "5e16e4d10ee5b7e725301c744a8388b787c8a39919590458e64ba51f5a2dcca7",
+    "actions": {
+      "runtime.started": 1,
+      "workflow.started": 1,
+      "permission.checked": 27,
+      "node.started": 40,
+      "delegation.checked": 12,
+      "worker.spawned": 12,
+      "worker.started": 12,
+      "model.count.called": 3,
+      "budget.updated": 14,
+      "model.called": 3,
+      "model.completed": 3,
+      "worker.completed": 12,
+      "node.completed": 40,
+      "state.committed": 24,
+      "node.skipped": 13,
+      "tool.called": 4,
+      "tool.dispatched": 4,
+      "tool.settled": 4,
+      "tool.completed": 4,
+      "workflow.completed": 1,
+      "memory.cleared": 1
+    }
+  },
+  "tools": [
+    {
+      "toolId": "get-fare-rules",
+      "bindingId": "chrome:json_http:get-fare-rules:1",
+      "bindingSha256": "f400418197e68d635ee4d5d6dc7852e63a0710f9346040fa38a91185757a0cf4",
+      "remote": true,
+      "calls": 3,
+      "displayName": "get-fare-rules: one HTTPS POST to https://webagents-webair-production.up.railway.app/api/v1/get_fare_rules"
+    },
+    {
+      "toolId": "search-flights",
+      "bindingId": "chrome:json_http:search-flights:1",
+      "bindingSha256": "a1830ee079f719d9603ab4414ab3144c9179c0d5c00f188b47c46db8c6c830af",
+      "remote": true,
+      "calls": 1,
+      "displayName": "search-flights: one HTTPS POST to https://webagents-webair-production.up.railway.app/api/v1/search_flights"
+    }
+  ],
+  "failure": null,
+  "duration_ms": 26614,
+  "files": [
+    {
+      "name": "answer.md",
+      "bytes": 662,
+      "sha256": "e7512d551804316bfee6eed434cd1a54edf19e07ae650ddb11d2571c8a9c699e"
+    },
+    {
+      "name": "audit.json",
+      "bytes": 146900,
+      "sha256": "6fc9f48db5c453cb1395cc7ff025a8581d38b0830e611796e14b2969fc06fc2a"
+    },
+    {
+      "name": "booking.json",
+      "bytes": 42,
+      "sha256": "38068a369bc780ebe17dbc2a84fc7a8d7fc6d7858af6e1c925ecc0a91dd16149"
+    },
+    {
+      "name": "fare-rules.json",
+      "bytes": 4321,
+      "sha256": "8e2cc3bda80907e01b8604509a63e552a3da59857f28caf798f7291f49948f44"
+    },
+    {
+      "name": "provenance.json",
+      "bytes": 240,
+      "sha256": "32fb8e5c1d3033504053dad8a90be9205e27e6e81d356ff3b1fc8edb225bea48"
+    },
+    {
+      "name": "result.json",
+      "bytes": 195089,
+      "sha256": "b0ca21bc76dd38565a01d9369a82bf99d5c3e7abdef41f7691f74d7f408f6e17"
+    },
+    {
+      "name": "run.json",
+      "bytes": 13372,
+      "sha256": "b9972bc691618b611f4efb1065197a537c5a449a1c8f9d488c92d953bee2a00a"
+    },
+    {
+      "name": "search.json",
+      "bytes": 2937,
+      "sha256": "238556cd158f91b859293a146a8ee5d97a7815dfee2f8a5fc7b21c588ef3fac8"
+    },
+    {
+      "name": "usage.json",
+      "bytes": 2021,
+      "sha256": "aca810093768a767ce21c750fd40cbfe39a7a9908eb35139a1ddaf653fb326ce"
+    }
+  ]
+}

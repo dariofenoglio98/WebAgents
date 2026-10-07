@@ -69,17 +69,17 @@ export function select(value: JsonValue, path: string, label = "value"): JsonVal
   let current: JsonValue = value;
   for (const key of tokens(path)) {
     if (Array.isArray(current)) {
-      if (!/^(?:0|[1-9][0-9]*)$/u.test(key)) throw new ValidationError(`${label}: missing data at ${JSON.stringify(path)}`);
+      if (!/^(?:0|[1-9][0-9]*)$/u.test(key)) throw new ValidationError(`${label}: missing data at ${pyRepr(path)}`);
       const index = Number(key);
-      if (index >= current.length) throw new ValidationError(`${label}: missing data at ${JSON.stringify(path)}`);
+      if (index >= current.length) throw new ValidationError(`${label}: missing data at ${pyRepr(path)}`);
       current = current[index]!;
     } else if (typeof current === "object" && current !== null) {
       if (!Object.prototype.hasOwnProperty.call(current, key)) {
-        throw new ValidationError(`${label}: missing data at ${JSON.stringify(path)}`);
+        throw new ValidationError(`${label}: missing data at ${pyRepr(path)}`);
       }
       current = current[key]!;
     } else {
-      throw new ValidationError(`${label}: missing data at ${JSON.stringify(path)}`);
+      throw new ValidationError(`${label}: missing data at ${pyRepr(path)}`);
     }
   }
   return deepCopy(current);

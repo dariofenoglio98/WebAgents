@@ -1,0 +1,164 @@
+{
+  "note": "Generated with agentpkg/.venv/bin/python (CPython 3.13): repr(float) and json.dumps layouts for the pyjson parity tests.",
+  "floats": [
+    {
+      "value": 0.5,
+      "repr": "0.5"
+    },
+    {
+      "value": 0.1,
+      "repr": "0.1"
+    },
+    {
+      "value": 0.25,
+      "repr": "0.25"
+    },
+    {
+      "value": 123.456,
+      "repr": "123.456"
+    },
+    {
+      "value": 1e-05,
+      "repr": "1e-05"
+    },
+    {
+      "value": 1.5e-07,
+      "repr": "1.5e-07"
+    },
+    {
+      "value": 2.5e+16,
+      "repr": "2.5e+16"
+    },
+    {
+      "value": 1.234e+20,
+      "repr": "1.234e+20"
+    },
+    {
+      "value": -0.75,
+      "repr": "-0.75"
+    },
+    {
+      "value": 3.14159,
+      "repr": "3.14159"
+    },
+    {
+      "value": 100.5,
+      "repr": "100.5"
+    },
+    {
+      "value": 0.0001,
+      "repr": "0.0001"
+    },
+    {
+      "value": 1e-05,
+      "repr": "1e-05"
+    },
+    {
+      "value": 1e+22,
+      "repr": "1e+22"
+    },
+    {
+      "value": 9999000000000000.0,
+      "repr": "9999000000000000.0"
+    },
+    {
+      "value": 1.1e+16,
+      "repr": "1.1e+16"
+    },
+    {
+      "value": 12345678.9,
+      "repr": "12345678.9"
+    },
+    {
+      "value": -1e-10,
+      "repr": "-1e-10"
+    },
+    {
+      "value": 0.3,
+      "repr": "0.3"
+    },
+    {
+      "value": 0.6666666666666666,
+      "repr": "0.6666666666666666"
+    },
+    {
+      "value": 1e+300,
+      "repr": "1e+300"
+    },
+    {
+      "value": 5e-324,
+      "repr": "5e-324"
+    },
+    {
+      "value": 12345678000000.0,
+      "repr": "12345678000000.0"
+    }
+  ],
+  "dumps": [
+    {
+      "value": {
+        "b": [
+          1,
+          2,
+          {
+            "z": null,
+            "a": true
+          }
+        ],
+        "a": "é \"\\\n\t\u001f",
+        "c": 0.5,
+        "d": -3,
+        "e": [],
+        "f": {}
+      },
+      "sorted": "{\"a\": \"é \\\"\\\\\\n\\t\\u001f\", \"b\": [1, 2, {\"a\": true, \"z\": null}], \"c\": 0.5, \"d\": -3, \"e\": [], \"f\": {}}",
+      "compact": "{\"a\":\"é \\\"\\\\\\n\\t\\u001f\",\"b\":[1,2,{\"a\":true,\"z\":null}],\"c\":0.5,\"d\":-3,\"e\":[],\"f\":{}}"
+    },
+    {
+      "value": [
+        1.5,
+        "x",
+        null,
+        false,
+        {
+          "k": [
+            0.1,
+            1e-05
+          ]
+        }
+      ],
+      "sorted": "[1.5, \"x\", null, false, {\"k\": [0.1, 1e-05]}]",
+      "compact": "[1.5,\"x\",null,false,{\"k\":[0.1,1e-05]}]"
+    },
+    {
+      "value": "plain",
+      "sorted": "\"plain\"",
+      "compact": "\"plain\""
+    },
+    {
+      "value": 42,
+      "sorted": "42",
+      "compact": "42"
+    },
+    {
+      "value": 1e-07,
+      "sorted": "1e-07",
+      "compact": "1e-07"
+    },
+    {
+      "value": {
+        "nested": {
+          "deep": {
+            "x": [
+              [
+                []
+              ]
+            ]
+          }
+        }
+      },
+      "sorted": "{\"nested\": {\"deep\": {\"x\": [[[]]]}}}",
+      "compact": "{\"nested\":{\"deep\":{\"x\":[[[]]]}}}"
+    }
+  ]
+}

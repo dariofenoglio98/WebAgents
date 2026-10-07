@@ -2,9 +2,10 @@
 
 The second runtime of WebAgents: a Chrome extension that discovers, verifies, inspects and
 **authorizes** signed `agent.pkg` packages that websites advertise, built on a portable
-TypeScript core that runs in Node as well. **This version executes nothing.** It is the
-foundation (T1) and the authorization path (T3) of Phase 2 that the execution core (T4) and
-runs from the browser (T5) build on.
+TypeScript core that runs in Node as well. The core now **executes** `workflow.v0` packages
+(T4): the interpreter, the model and tool adapters, the runner and the Run Record live under
+`src/core/`, and the Node CLI runs any signed package in fixture or live mode. **The extension
+itself still runs nothing**: running from the browser is T5.
 
 What it shows today, on the WebAir demo site:
 
@@ -85,18 +86,54 @@ node dist/cli.js evaluate ../dist/webair-0.3.0.agent.pkg [--trust-store trust.js
 
 `verify` prints what `agentpkg verify` prints and, like it, refuses on stderr with status 2.
 `evaluate` prints the control plane's layered view (archive hash, the four validation layers,
-the signature report, the trust verdict, the browser summary). `run` arrives with T4.
+the signature report, the trust verdict, the browser summary).
+
+`run` executes a signed `workflow.v0` package through the core's own execution layer, with
+`agentpkg run`'s flags and report (D-064):
+
+```sh
+# Fixture mode: the package's own recorded answers, no network, no model; agentpkg's file set.
+node dist/cli.js run ../dist/webair-0.4.0.agent.pkg --mode fixture \
+  --grants ../examples/webair-0.2.0-grants.json \
+  --approve-tool search-flights --approve-tool get-fare-rules \
+  --out ../examples/my-run
+
+# Live mode: a local Ollama model, the remote tools bound exactly as the Chrome host binds them.
+node dist/cli.js run ../dist/webair-0.4.0.agent.pkg --mode live \
+  --grants ../examples/webair-0.2.0-grants.json \
+  --approve-tool search-flights --approve-tool get-fare-rules \
+  --trust-key ../examples/keys/webair-publisher.pub.pem \
+  --input ../examples/webair-input.json --model ollama/qwen3:30b \
+  --out ../examples/my-live-run
+node scripts/summarize-run.mjs ../examples/my-live-run
+```
+
+The operator is the host: the grants file is the receipt and each `--approve-tool` is one tool
+approval (every other declared tool is denied and the runtime refuses to call it). `--limits F`
+lowers the host execution limits (`total_tokens`, `max_remote_calls`, `max_parallel_workers`,
+`max_output_tokens_per_call`, `run_timeout_seconds`, `max_calls_per_tool`,
+`model_call_timeout_seconds`); without it the package's own budget and deadline apply. Live
+mode binds `--model provider/model` (`ollama`, `openai`, `anthropic`) through the host's own
+catalog probe, takes `--ollama-url` (loopback only), `--context-tokens`, `--think`,
+`--tool-bindings F` (an operator bindings document for the remote tools), `--host-resources F`
+with `--resource-grant PERMISSION=RESOURCE_ID`, reads keys from `OPENAI_API_KEY` /
+`ANTHROPIC_API_KEY` only, and also writes `run.json`, the Run Record. A classified workflow
+failure writes the artifacts and exits 2 with `agent-browser: workflow.v0 <code> at node <id>`.
+The Chrome runner executes signed packages only.
+
+`test/conformance/fixture-parity.test.ts` runs both CLIs on every shipped fixture and compares
+the results under the rules of D-063; it needs `agentpkg/.venv/bin/agentpkg` (or `AGENTPKG_CLI`).
 
 ## Layout
 
 | Path | Role |
 |---|---|
-| `src/core/` | The portable core: strict ZIP_STORED reader, strict JSON and RFC 8785, SHA-256 and Ed25519 through WebCrypto (pure-JS fallback), schema and semantic validation over agentpkg's own JSON Schemas, the trust store, discovery, the browser summary, profiles, the agent-page model; authorization (receipts, profile expansion, presets), host resources, host tools (the derived registry), model compatibility, Run Plans and their preflight, the personal vault, and the model catalog probes (`models/catalog.ts`). No Chrome, no DOM, no Node. |
+| `src/core/` | The portable core: strict ZIP_STORED reader, strict JSON and RFC 8785, SHA-256 and Ed25519 through WebCrypto (pure-JS fallback), schema and semantic validation over agentpkg's own JSON Schemas, the trust store, discovery, the browser summary, profiles, the agent-page model; authorization (receipts, profile expansion, presets), host resources, host tools (the derived registry), model compatibility, Run Plans and their preflight, the personal vault, and the model catalog probes (`models/catalog.ts`). Execution (T4): `workflow/` (the `workflow.v0` interpreter and its mediator), `models/` (the bound router, the Ollama / OpenAI / Anthropic adapters over an injected transport, the built-in model contract), `tools/` (bindings, host definitions, the broker, the JSON-over-HTTPS and host-resource adapters, the egress guard), `execution/` (limits, policy, lease, runner, progress, report, artifacts, the `run.json` record). No Chrome, no DOM, no Node. |
 | `src/core/schemas/` | Byte-for-byte copies of `agentpkg/src/agentpkg/schemas/*.json` and, under `extensions/`, of `spec/extensions/*.schema.json`, written by `npm run sync-schemas`; tests assert equality. |
 | `src/extension/` | The Manifest V3 shell: `manifest.json`, the service worker (`background/`, the only place that holds state: sessions with their receipts and plans, the trust store, settings, keys, the vault, the model catalog), the content script (`content/`), the side panel, the full page (`browser/`), storage adapters (`storage/`), the message contract (`messages.ts`), the views (`ui/`: agent page, authorize view, settings, your data) and `data/demo-host-resources.json`, a copy of the demo host's resource definitions. |
-| `src/cli.ts` | The Node CLI over the core. |
-| `scripts/` | `build.mjs` (esbuild), `pack.mjs`, `sync-schemas.mjs`, `make-icons.mjs`, `e2e-discovery.mjs`, and `make-authorization-fixtures.py`, which writes the Python control plane's reference records for `test/fixtures/authorization/` (run with `agentpkg/.venv/bin/python`). |
-| `test/` | vitest: `core/` mirrors the Python suite's negative cases and asserts parity with the shipped packages; `extension/` covers the message contract, the controller, storage, the service worker over a fake `chrome`, the content script and the views. |
+| `src/cli.ts`, `src/cli-run.ts` | The Node CLI over the core; `run` (D-064) with the Node HTTP transport. |
+| `scripts/` | `build.mjs` (esbuild), `pack.mjs`, `sync-schemas.mjs`, `make-icons.mjs`, `e2e-discovery.mjs`, `summarize-run.mjs` (one run directory as a summary JSON), and `make-authorization-fixtures.py`, which writes the Python control plane's reference records for `test/fixtures/authorization/` (run with `agentpkg/.venv/bin/python`). |
+| `test/` | vitest: `core/` mirrors the Python suite's negative cases and asserts parity with the shipped packages (`core/workflow`, `core/models`, `core/tools`, `core/execution` port `test_workflow.py`, `test_runtime*.py`, the host-bridge, tool-bridge and execution suites); `conformance/` drives both CLIs; `extension/` covers the message contract, the controller, storage, the service worker over a fake `chrome`, the content script and the views. |
 
 ## The boundary rule
 
@@ -104,9 +141,11 @@ Nothing under `src/core` may depend on Chrome, the DOM or Node. Two checks enfor
 `tsconfig.core.json` compiles the core with no DOM, Node or Chrome type library and only the
 WHATWG globals `src/core/globals.d.ts` declares, so a `chrome` or `document` reference is a
 compile error; and `test/core/boundary.test.ts` scans the source text for forbidden globals and
-imports, so nothing can be smuggled past the compiler. The core imports exactly two runtime
-dependencies: `@hyperjump/json-schema` (an interpreter, because Manifest V3 pages forbid `eval`)
-and `@noble/ed25519` (the fallback when WebCrypto lacks Ed25519).
+imports, so nothing can be smuggled past the compiler. The core imports exactly three runtime
+dependencies: `@hyperjump/json-schema` (an interpreter, because Manifest V3 pages forbid `eval`),
+`@hyperjump/browser` (its registry, to remove the remote `http`, `https` and `file` retrieval
+schemes so a package schema can reach nothing) and `@noble/ed25519` (the fallback when WebCrypto
+lacks Ed25519). The network reaches the core only through an injected `HttpTransport`.
 
 Every package string reaches the document through `textContent`; the shell has no `innerHTML`
 (a test scans for every markup sink). The README of a package goes through the Markdown
@@ -133,19 +172,24 @@ walk-through. It needs `openssl` on the PATH and prints JSON with `"passed"`.
 
 ## What it does not do yet
 
-- **Execute.** No model call (beyond the catalog probes of Settings → Models, which list
-  models and never prompt one), no tool call, no run. A Run Plan is a preflight artifact; the
-  execution host, the model and tool adapters and the run record are T4 and T5, and `once`
-  grants are spent by a run, which no build can start yet. Runs is a placeholder that shows the
-  intended layout; Library lists the open sessions only.
+- **Run from the browser.** The core executes (T4: the CLI runs any signed package in fixture
+  or live mode, and the Ollama smoke in the T4 report ran WebAir's search from Node), but the
+  extension does not yet start a run: the execution host in the service worker, the run surface,
+  the lease wiring (`LeaseRegistry`, with `once` spent by the first lease) and the model
+  connections are T5. In the extension a Run Plan is still a preflight artifact; Runs is a
+  placeholder that shows the intended layout; Library lists the open sessions only.
 - **Implement every local tool.** The host registry binds a generic HTTPS JSON adapter to each
   declared remote tool and a vault binding to each host-resource tool; other local tools
   (Literature Review's `paper-reader`) stay unbound until T6, and an approved unbound tool
   blocks the plan, as in the reference.
-- **Classify addresses.** Package, site and tool URLs must be HTTPS on port 443 with a DNS
-  name (no IP literals, `localhost` or `.local`); the private-address, DNS-pinning and
-  connection-level checks of the Python runtime are Chrome's network stack's job here, and the
-  threat model will say so (T7).
+- **Classify addresses in the extension.** Package, site and tool URLs must be HTTPS on port
+  443 with a DNS name (no IP literals, `localhost` or `.local`). The Node CLI goes further
+  (`src/cli-net.ts`, D-067): it resolves every tool and model host, refuses any non-public address
+  with the Python runtime's class names (loopback, private, link-local, multicast, reserved,
+  cloud metadata, IPv4-mapped, 6to4, Teredo, NAT64), pins the connection to the address it
+  classified, streams the body and stops at the byte cap. An extension has no resolver and no
+  socket, so in Chrome those checks are the network stack's job, and the threat model will say
+  so (T7).
 - **Per-origin permissions.** The content script runs on every HTTPS page and reads only the
   advertised link elements; narrowing to opted-in origins is later hardening.
 - Firefox, the Meeting Agenda UI path, search over an index, and policy subscriptions are in the

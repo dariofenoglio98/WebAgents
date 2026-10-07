@@ -1,0 +1,41 @@
+/**
+ * The host model-router contract (`agentpkg/interfaces.py::ModelRouter`, spec §7). No vendor
+ * integration lives here; a router is bound to exactly one model id and selects nothing.
+ *
+ * `countTokens` must be a safe upper bound on every rendered input token: the runtime reserves
+ * against it and treats a reported input above it as a contract violation that halts the run.
+ * `complete` must enforce the output cap, report all billable and reasoning tokens, bound its
+ * I/O and stop when `signal` aborts.
+ */
+import type { JsonObject, JsonValue } from "../json.js";
+
+export interface ModelRequest {
+  task: string;
+  instructions: string[];
+  data: JsonValue;
+  output_schema: JsonValue;
+  requirements: JsonObject;
+  budget_context: { max_output_tokens: number };
+  audit_context: { worker: string; node_id: string | null };
+}
+
+export interface ModelResult {
+  output: JsonValue;
+  input_tokens: number;
+  output_tokens: number;
+  cost_usd?: number | null;
+}
+
+export interface ModelRouter {
+  readonly remote: boolean;
+  readonly model_id: string;
+  readonly router_id: string;
+  readonly capabilities: ReadonlySet<string>;
+  readonly context_window: number;
+  /** Network destinations the router reaches, recorded on `model.count.called` and `model.called`. */
+  readonly domains?: readonly string[];
+  /** A replay adapter whose accounting is a test unit, not a bill. */
+  readonly synthetic?: boolean;
+  countTokens(request: ModelRequest, signal: AbortSignal): Promise<number>;
+  complete(request: ModelRequest, maxOutputTokens: number, signal: AbortSignal): Promise<ModelResult>;
+}

@@ -143,20 +143,6 @@ function validateRecordShape(raw: unknown, field: string): VaultRecord {
   };
 }
 
-/** Every string in a JSON value, lower-cased, bounded (for T4's egress guard). */
-export function strings(value: unknown, found: string[] = [], depth = 0): string[] {
-  if (depth > 32 || found.length > 4096) return found;
-  if (typeof value === "string") found.push(value.toLowerCase());
-  else if (Array.isArray(value)) for (const item of value) strings(item, found, depth + 1);
-  else if (isRecord(value)) {
-    for (const [key, item] of Object.entries(value)) {
-      found.push(key.toLowerCase());
-      strings(item, found, depth + 1);
-    }
-  }
-  return found;
-}
-
 interface StoredRecord extends VaultRecord {
   digest: string;
   sealed: string[];

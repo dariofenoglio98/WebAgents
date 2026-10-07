@@ -279,39 +279,6 @@ export interface RunInvocation {
   run_invocation_sha256: string;
 }
 
-export type RunStatus = "running" | "completed" | "failed" | "cancelled" | "timeout" | "interrupted";
-
-/**
- * The run record the Agent Browser writes as `run.json` (camelCase, as the reference plugin
- * does). A draft for T4, which finalizes the fields it produces (D-027: an unloaded host marks
- * the run `interrupted`).
- */
-export interface RunRecord {
-  runId: string;
-  sessionId: string;
-  runPlanId: string;
-  runPlanSha256: string;
-  runInvocationSha256: string;
-  inputSha256: string;
-  status: RunStatus;
-  createdAt: string;
-  startedAt: string | null;
-  endedAt: string | null;
-  durationMs: number | null;
-  package: { packageId: string; name: string; version: string; digest: string; archiveSha256: string; executionProfile: string };
-  selectedModel: { hostModelId: string; providerId: string; modelId: string; displayName: string; local: boolean } | null;
-  model: { planned: string | null; invoked: string[]; calls: number; allCallsUsedPlannedModel: boolean };
-  grants: { decisions: Array<{ permission_id: string; decision: Decision }>; grantedPermissionIds: string[] };
-  usage: { tokens: number | null; remoteCalls: number; toolCalls: number; peakParallelWorkers: number };
-  cost: { status: "complete" | "partial" | "unknown"; totalUsd: number | null; calls: number; callsWithReportedCost: number };
-  audit: { events: number; chainValid: boolean; finalHash: string | null; actions: string[] };
-  outputSha256: string | null;
-  artifacts: Array<{ name: string; bytes: number; sha256: string }>;
-  errorCode: string | null;
-  errorDetail: JsonObject | null;
-  [key: string]: unknown;
-}
-
 // -- the audit event ----------------------------------------------------------------
 export const AUDIT_SCHEMA_VERSION = "audit.v0";
 export type AuditErrorCode =
