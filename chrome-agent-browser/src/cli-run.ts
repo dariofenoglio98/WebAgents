@@ -167,7 +167,8 @@ function modelBindingFromDescriptor(descriptor: ModelDescriptor, compatibility: 
     display_name: descriptor.display_name,
     compatibility_status: compatibility?.status ?? null,
     evidence_strength: compatibility?.evidence_strength ?? null,
-    capabilities: descriptor.capabilities,
+    // The catalog's answers carry `name` and `detail` beside `value` and `basis`; the binding keeps the two the runner reads.
+    capabilities: Object.fromEntries(Object.entries(descriptor.capabilities).map(([name, answer]) => [name, { value: answer.value ?? null, basis: answer.basis ?? null }])),
     limits: descriptor.limits,
     properties: { local: descriptor.properties.local },
     pricing: null,
@@ -261,7 +262,8 @@ async function bindLive(pkg: Package, parsed: ReturnType<typeof parseArguments>,
   });
   const approvals = Object.fromEntries(Object.keys(pkg.tools).map((toolId) => [toolId, approved.includes(toolId)]));
   const evaluation = await evaluateRegistry(pkg, registry, { decisions: grants as Record<string, "deny" | "once" | "session">, toolApprovals: approvals, now });
-  const toolBindings = normalizeToolBindings(planToolBindings(evaluation));
+  // As `buildRunPlan` (D-022): a plan binds the approved tools; a denied tool has no binding and the runtime refuses calls to it.
+  const toolBindings = normalizeToolBindings(planToolBindings(evaluation).filter((binding) => binding.approved));
   const observe = (request: { url: string }) => process.stderr.write(`agent-browser: tool request to ${request.url}\n`);
   const deps: SessionDeps = {
     archive: bytes,
