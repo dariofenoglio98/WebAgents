@@ -77,7 +77,9 @@ export async function verifyEd25519(
     }
   }
   try {
-    return await verifyAsync(signature, message, publicKey);
+    // RFC 8032 strictness, as OpenSSL (the reference's backend) verifies: the library's
+    // default ZIP215 branch is cofactored and accepts non-canonical encodings.
+    return await verifyAsync(signature, message, publicKey, { zip215: false });
   } catch {
     return false;
   }

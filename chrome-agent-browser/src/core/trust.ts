@@ -18,6 +18,7 @@ import type { TrustEvaluator, TrustVerdict } from "./evaluation.js";
 import { sha256Hex } from "./hash.js";
 import type { JsonObject } from "./json.js";
 import { fingerprint, publicKeyFromRawBase64, rawBase64 } from "./keys.js";
+import { pyRepr } from "./repr.js";
 import { embeddedPublicKey } from "./signature.js";
 
 export const TRUST_STORE_FORMAT = "agentpkg-trust-store-v0";
@@ -70,15 +71,35 @@ function invalid(message: string, options: { code?: string; status?: number } = 
   return new CoreError(options.code ?? "trust_invalid", message, { status: options.status ?? 400 });
 }
 
+/**
+ * The characters `str.isspace()` is true for (bidirectional classes WS, B and S, and the
+ * Zs category), which `str.strip()` removes. JavaScript's `trim()` differs at the edges: it
+ * strips U+FEFF, which Python keeps, and keeps U+001C..U+001F and U+0085, which Python strips.
+ */
+const PY_WHITESPACE = "[\t\n\u000b\f\r\u001c-\u001f \u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]";
+const PY_STRIP = new RegExp(`^${PY_WHITESPACE}+|${PY_WHITESPACE}+$`, "gu");
+
+/** `str.strip()`. */
+export function pyStrip(value: string): string {
+  return value.replace(PY_STRIP, "");
+}
+
+/** `len(str)`: code points, not UTF-16 units. */
+function codePoints(value: string): number {
+  let count = 0;
+  for (const _ of value) count += 1;
+  return count;
+}
+
 function text(value: unknown, field: string, options: { required?: boolean; status?: number } = {}): string | null {
   if (value === null || value === undefined) {
     if (options.required) throw invalid(`${field} is required`, options);
     return null;
   }
-  if (typeof value !== "string" || value.length > MAX_TEXT) {
+  if (typeof value !== "string" || codePoints(value) > MAX_TEXT) {
     throw invalid(`${field} must be a string of at most ${MAX_TEXT} characters`, options);
   }
-  const stripped = value.trim();
+  const stripped = pyStrip(value);
   if (!stripped) {
     if (options.required) throw invalid(`${field} is required`, options);
     return null;
@@ -242,6 +263,9 @@ export function evaluateTrust(
 
 /** A trust store over any storage: the reference's `TrustStore` with persistence injected. */
 export class TrustStore implements TrustEvaluator {
+  /** Mutations run one at a time: each read-modify-write sees the previous one's result. */
+  private queue: Promise<unknown> = Promise.resolve();
+
   constructor(
     private readonly storage: TrustStorage,
     private readonly clock: () => string = () => new Date().toISOString(),
@@ -258,16 +282,26 @@ export class TrustStore implements TrustEvaluator {
     await this.storage.write(document);
   }
 
+  private serialized<T>(mutation: () => Promise<T>): Promise<T> {
+    const run = this.queue.then(mutation, mutation);
+    this.queue = run.catch(() => undefined);
+    return run;
+  }
+
   async add(rawPublicKey: Uint8Array, options: PinOptions): Promise<TrustEntry> {
-    const { entry, entries } = await pinEntry(await this.entries(), rawPublicKey, options, this.clock());
-    await this.write(entries);
-    return entry;
+    return this.serialized(async () => {
+      const { entry, entries } = await pinEntry(await this.entries(), rawPublicKey, options, this.clock());
+      await this.write(entries);
+      return entry;
+    });
   }
 
   async remove(keyFingerprint: string): Promise<TrustEntry> {
-    const { removed, entries } = unpinEntry(await this.entries(), keyFingerprint);
-    await this.write(entries);
-    return removed;
+    return this.serialized(async () => {
+      const { removed, entries } = unpinEntry(await this.entries(), keyFingerprint);
+      await this.write(entries);
+      return removed;
+    });
   }
 
   async state(): Promise<TrustState> {
@@ -302,7 +336,7 @@ export async function pinPackagePublisher(
   if (publisher.signature_status !== "valid" || pkg.signature === null) {
     throw new CoreError(
       "signature_not_valid",
-      `Only a self-consistent signature can have its key pinned; this package's signature status is ${JSON.stringify(publisher.signature_status)}`,
+      `Only a self-consistent signature can have its key pinned; this package's signature status is ${pyRepr(publisher.signature_status)}`,
       { status: 409 },
     );
   }

@@ -2,7 +2,9 @@
  * Snapshots and sessions (D-032): the bytes of every opened package, captured once, and
  * the sessions that refer to them. The store is an interface so the controller can be tested
  * in Node; the extension uses IndexedDB (database `agent-browser`, stores `snapshots` keyed by
- * archive SHA-256 and `sessions` keyed by session id).
+ * archive SHA-256, `sessions` keyed by session id, and `sizes`: one small record per snapshot
+ * with its byte count, written in the same transaction, so that listing the cache never
+ * loads the archives themselves).
  */
 import type { SessionSource } from "../messages.js";
 
@@ -72,13 +74,24 @@ export class MemorySnapshotStore implements SnapshotStore {
   }
 }
 
-const DATABASE = "agent-browser";
-const VERSION = 1;
+export const DATABASE = "agent-browser";
+/** Version 2 added the `sizes` store; the upgrade fills it from the snapshots already stored. */
+export const VERSION = 2;
+
+type StoreName = "snapshots" | "sessions" | "sizes";
 
 function request<T>(value: IDBRequest<T>): Promise<T> {
   return new Promise((resolve, reject) => {
     value.onsuccess = () => resolve(value.result);
     value.onerror = () => reject(value.error ?? new Error("IndexedDB request failed"));
+  });
+}
+
+function completion(transaction: IDBTransaction): Promise<void> {
+  return new Promise((resolve, reject) => {
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error ?? new Error("IndexedDB transaction failed"));
+    transaction.onabort = () => reject(transaction.error ?? new Error("IndexedDB transaction aborted"));
   });
 }
 
@@ -88,26 +101,58 @@ export class IndexedDbSnapshotStore implements SnapshotStore {
 
   private open(): Promise<IDBDatabase> {
     if (this.database) return this.database;
-    this.database = new Promise((resolve, reject) => {
+    const opened = new Promise<IDBDatabase>((resolve, reject) => {
       const opening = indexedDB.open(DATABASE, VERSION);
-      opening.onupgradeneeded = () => {
+      opening.onupgradeneeded = (event) => {
         const db = opening.result;
         if (!db.objectStoreNames.contains("snapshots")) db.createObjectStore("snapshots", { keyPath: "archive_sha256" });
         if (!db.objectStoreNames.contains("sessions")) db.createObjectStore("sessions", { keyPath: "session_id" });
+        if (!db.objectStoreNames.contains("sizes")) {
+          const sizes = db.createObjectStore("sizes", { keyPath: "archive_sha256" });
+          if (event.oldVersion >= 1) {
+            // Upgrading from version 1: index every snapshot already stored.
+            const cursor = opening.transaction!.objectStore("snapshots").openCursor();
+            cursor.onsuccess = () => {
+              const current = cursor.result;
+              if (!current) return;
+              const record = current.value as SnapshotRecord;
+              sizes.put({ archive_sha256: record.archive_sha256, bytes: record.bytes.byteLength });
+              current.continue();
+            };
+          }
+        }
       };
       opening.onsuccess = () => resolve(opening.result);
       opening.onerror = () => reject(opening.error ?? new Error("IndexedDB open failed"));
     });
-    return this.database;
+    this.database = opened;
+    opened.catch(() => {
+      this.database = null; // A failed open is retried on the next call, never cached.
+    });
+    return opened;
   }
 
-  private async store(name: "snapshots" | "sessions", mode: IDBTransactionMode): Promise<IDBObjectStore> {
+  /** Close the connection (tests, and a future explicit shutdown); the next call reopens. */
+  async close(): Promise<void> {
+    const pending = this.database;
+    this.database = null;
+    if (pending) (await pending).close();
+  }
+
+  private async transaction(names: StoreName[], mode: IDBTransactionMode): Promise<IDBTransaction> {
     const db = await this.open();
-    return db.transaction(name, mode).objectStore(name);
+    return db.transaction(names, mode);
+  }
+
+  private async store(name: StoreName, mode: IDBTransactionMode): Promise<IDBObjectStore> {
+    return (await this.transaction([name], mode)).objectStore(name);
   }
 
   async putSnapshot(record: SnapshotRecord): Promise<void> {
-    await request((await this.store("snapshots", "readwrite")).put(record));
+    const transaction = await this.transaction(["snapshots", "sizes"], "readwrite");
+    transaction.objectStore("snapshots").put(record);
+    transaction.objectStore("sizes").put({ archive_sha256: record.archive_sha256, bytes: record.bytes.byteLength });
+    await completion(transaction);
   }
 
   async getSnapshot(archiveSha256: string): Promise<SnapshotRecord | null> {
@@ -116,12 +161,15 @@ export class IndexedDbSnapshotStore implements SnapshotStore {
   }
 
   async deleteSnapshot(archiveSha256: string): Promise<void> {
-    await request((await this.store("snapshots", "readwrite")).delete(archiveSha256));
+    const transaction = await this.transaction(["snapshots", "sizes"], "readwrite");
+    transaction.objectStore("snapshots").delete(archiveSha256);
+    transaction.objectStore("sizes").delete(archiveSha256);
+    await completion(transaction);
   }
 
   async listSnapshots(): Promise<Array<{ archive_sha256: string; bytes: number }>> {
-    const records = (await request((await this.store("snapshots", "readonly")).getAll())) as SnapshotRecord[];
-    return records.map((record) => ({ archive_sha256: record.archive_sha256, bytes: record.bytes.byteLength }));
+    const records = (await request((await this.store("sizes", "readonly")).getAll())) as Array<{ archive_sha256: string; bytes: number }>;
+    return records.map((record) => ({ archive_sha256: record.archive_sha256, bytes: record.bytes }));
   }
 
   async putSession(session: StoredSession): Promise<void> {

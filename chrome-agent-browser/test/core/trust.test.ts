@@ -70,6 +70,36 @@ describe("publisher trust is operator state, never package state (test_browser_t
     await expect(trust.add(DEV_KEY(), { displayName: "ok", packageIdPrefix: "org.x/y" })).rejects.toThrow(/letters, digits/u);
   });
 
+  it("measures text as Python does: code points, str.strip() (review 1, finding 11)", async () => {
+    const { store: trust } = store();
+    const emoji = "\u{1f600}";
+    const added = await trust.add(DEV_KEY(), { displayName: emoji.repeat(150) });
+    expect(added.display_name).toBe(emoji.repeat(150));
+    await trust.remove(added.fingerprint);
+    await expect(trust.add(DEV_KEY(), { displayName: emoji.repeat(201) })).rejects.toThrow(/at most 200/u);
+    // U+0085 and U+001F are whitespace to Python's strip(); U+FEFF is not (JavaScript's trim() has it backwards).
+    const stripped = await trust.add(DEV_KEY(), { displayName: "\u0085 name \u001f" });
+    expect(stripped.display_name).toBe("name");
+    await trust.remove(stripped.fingerprint);
+    const bom = await trust.add(DEV_KEY(), { displayName: "\ufeffname" });
+    expect(bom.display_name).toBe("\ufeffname");
+  });
+
+  it("serializes concurrent mutations so no pin is lost (review 1, finding 12)", async () => {
+    const { store: trust, storage } = store();
+    const keys = await Promise.all([generateKeyPair(), generateKeyPair(), generateKeyPair()]);
+    const added = await Promise.all(keys.map((key, index) => trust.add(key.publicKey, { displayName: `publisher ${index}` })));
+    expect(new Set(added.map((entry) => entry.fingerprint)).size).toBe(3);
+    expect((await trust.entries()).map((entry) => entry.display_name).sort()).toEqual(["publisher 0", "publisher 1", "publisher 2"]);
+    expect(storage.writes).toBe(3);
+    const [removed] = await Promise.all([trust.remove(added[0]!.fingerprint), trust.add(DEV_KEY(), { displayName: "dev" })]);
+    expect(removed.fingerprint).toBe(added[0]!.fingerprint);
+    expect((await trust.entries()).map((entry) => entry.display_name).sort()).toEqual(["dev", "publisher 1", "publisher 2"]);
+    // A failed mutation does not block the next one.
+    await expect(trust.remove("sha256:" + "0".repeat(64))).rejects.toThrow(CoreError);
+    expect((await trust.entries())).toHaveLength(3);
+  });
+
   it("a valid signature from an unknown key is not trusted", async () => {
     const { store: trust } = store();
     const { pkg } = await signedAgenda();

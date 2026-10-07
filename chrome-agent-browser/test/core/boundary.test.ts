@@ -91,10 +91,14 @@ function code(text: string, strings: "strip" | "keep" = "strip"): string {
 /**
  * Globals that are objects are only ever used through member access (`chrome.runtime`,
  * `document.head`, `process.env`); the callable ones also through a call or `new`. A local
- * function that happens to be called `document(path)` is therefore not a hit.
+ * function that happens to be called `document(path)` is therefore not a hit. The names in
+ * `FORBIDDEN_IDENTIFIERS` have no legitimate local use in the core at all, so any bare
+ * occurrence is a hit, including a cast such as `(globalThis as any).chrome` (review 1,
+ * finding 10) or a destructuring `const { chrome } = globalThis`.
  */
 const FORBIDDEN_OBJECTS = ["chrome", "browser", "document", "window", "self", "navigator", "localStorage", "sessionStorage", "indexedDB", "process", "__dirname"];
 const FORBIDDEN_CALLABLES = ["XMLHttpRequest", "WebSocket", "fetch", "require", "Buffer"];
+const FORBIDDEN_IDENTIFIERS = ["chrome", "globalThis", "window", "navigator", "localStorage", "sessionStorage", "indexedDB", "process", "__dirname", "XMLHttpRequest", "WebSocket"];
 const FORBIDDEN_IMPORTS = [/from\s+["']node:/u, /from\s+["']\.\.\/extension/u, /from\s+["']\.\.\/\.\.\/extension/u, /from\s+["']chrome/u, /import\s+["']node:/u, /\brequire\(/u, /import\(/u];
 const ALLOWED_DECLARATIONS = new Set(["TextEncoder", "TextDecoder", "URL", "crypto", "CoreCryptoKey", "CoreSubtleCrypto"]);
 
@@ -113,6 +117,8 @@ describe("the portable core has no Chrome, DOM, Node or shell dependency", () =>
         // A bare global used as a value: not preceded by `.`, a word character or a quote.
         ...FORBIDDEN_OBJECTS.map((global): [string, RegExp] => [global, new RegExp(`(?<![.\\w"'\`$])${global}\\s*[.\\[]`, "u")]),
         ...FORBIDDEN_CALLABLES.map((global): [string, RegExp] => [global, new RegExp(`(?<![.\\w"'\`$])${global}\\s*[.(\\[]`, "u")]),
+        // Any bare occurrence at all, however it is then used (`as any`, destructuring, passing).
+        ...FORBIDDEN_IDENTIFIERS.map((global): [string, RegExp] => [global, new RegExp(`(?<![.\\w$])${global}(?![\\w$])`, "u")]),
       ];
       for (const [global, pattern] of checks) {
         const match = pattern.exec(text);
