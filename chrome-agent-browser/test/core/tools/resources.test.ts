@@ -9,8 +9,9 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import type { JsonObject } from "../../../src/core/json.js";
-import { egressRefusal, strings } from "../../../src/core/tools/egress.js";
-import { MemoryResourceStore } from "../../../src/core/tools/resources.js";
+import { egressRefusal } from "../../../src/core/tools/egress.js";
+import { MemoryResourceStore, type ResourceResolver } from "../../../src/core/tools/resources.js";
+import { strings, Vault } from "../../../src/core/vault.js";
 import { ROOT } from "../../helpers/paths.js";
 
 const DOCUMENT = JSON.parse(readFileSync(join(ROOT, "demo", "webair", "host-resources.json"), "utf8")) as JsonObject;
@@ -31,7 +32,7 @@ describe("MemoryResourceStore", () => {
     const registry = store.registry();
     expect(registry.schema).toBe("agentpkg-host-resource-registry-v0");
     // Labels are display-safe by construction; no sealed value anywhere in the registry.
-    for (const sealed of store.sealedValues()) for (const value of sealed.values) expect(JSON.stringify(registry)).not.toContain(value);
+    for (const values of store.sealedValues().values()) for (const value of values) expect(JSON.stringify(registry)).not.toContain(value);
     const types = store.typeViews().map((type) => type.id);
     expect(types).toEqual(["personal.travel_profile", "personal.passenger_identity", "wallet.payment_method"]);
     const again = await MemoryResourceStore.load(DOCUMENT, { key: KEY });
@@ -81,7 +82,7 @@ describe("the egress guard", () => {
   it("refuses a sealed value of an ungranted resource anywhere, and a granted one outside its permission", async () => {
     const store = await MemoryResourceStore.load(DOCUMENT, { key: KEY });
     const sealed = store.sealedValues();
-    expect(sealed.length).toBeGreaterThan(0);
+    expect(sealed.size).toBeGreaterThan(0);
     const passenger = (DOCUMENT.resources as JsonObject[]).find((resource) => resource.type === "personal.passenger_identity")!;
     const email = (passenger.value as JsonObject).contact_email as string;
     const payment = (DOCUMENT.resources as JsonObject[]).find((resource) => resource.type === "wallet.payment_method")!;
@@ -96,6 +97,15 @@ describe("the egress guard", () => {
     // A key carrying the value is caught too; unsealed fields are ordinary data.
     expect(egressRefusal({ [email]: 1 }, grants, [], sealed)).toMatch(/does not link/u);
     expect(egressRefusal({ home_airport: "BOS", given_name: "Demo" }, [], [], sealed)).toBeNull();
-    expect(egressRefusal({ contact: email }, [], [], [])).toBeNull();
+    expect(egressRefusal({ contact: email }, [], [], new Map())).toBeNull();
+  });
+
+  it("the personal vault (T3) satisfies the resolver contract the broker depends on", async () => {
+    const vault = await Vault.open(KEY, { types: [], records: [] });
+    // Structural: `resolve`, `sealedValues` and `describe` have the shapes the broker calls (D-051).
+    const resolver: ResourceResolver = vault;
+    expect(resolver.sealedValues().size).toBe(0);
+    expect(resolver.describe("missing")).toBeUndefined();
+    expect(() => resolver.resolve({ permission_id: "p", resource_type: "t", resource_id: "missing", resource_digest: "0".repeat(64) })).toThrow();
   });
 });

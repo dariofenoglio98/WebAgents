@@ -18,6 +18,7 @@ import { deepCopy } from "../references.js";
 import type { ResourceGrant } from "../types.js";
 import { AdapterError } from "../workflow/errors.js";
 import { type ToolImplementationDefinition } from "./definitions.js";
+import { MAX_SEALED_FIELDS, MAX_VALUE_BYTES, MIN_SEALED_LENGTH } from "../vault.js";
 import type { SealedValues } from "./egress.js";
 
 export const HOST_RESOURCES_SCHEMA = "openclaw-host-resources-v0";
@@ -35,10 +36,6 @@ export const HOST_RESOURCE_INPUT_SCHEMA: JsonObject = Object.freeze({
 }) as JsonObject;
 export const MAX_RESOURCE_TYPES = 32;
 export const MAX_RESOURCES = 256;
-export const MAX_VALUE_BYTES = 16 * 1024;
-export const MAX_SEALED_FIELDS = 16;
-/** A sealed value shorter than this would match ordinary text by accident. */
-export const MIN_SEALED_LENGTH = 6;
 const IDENTIFIER = /^[A-Za-z][A-Za-z0-9_.:-]{0,127}$/u;
 const POINTER = /^(\/[^/]*)+$/u;
 const CONTROL = /[\u0000-\u001f\u007f]/u;
@@ -47,8 +44,8 @@ const CONTROL = /[\u0000-\u001f\u007f]/u;
 export interface ResourceResolver {
   /** The value of exactly the granted resource (id, type and digest all still holding), or a refusal. */
   resolve(grant: ResourceGrant): JsonObject;
-  /** The sealed strings of every resource the host holds, for the egress guard. */
-  sealedValues(): SealedValues[];
+  /** The sealed strings of every resource the host holds, by resource id, for the egress guard (the `Vault` shape). */
+  sealedValues(): SealedValues;
   /** The resource's view without its value, or undefined. */
   describe(resourceId: string): HostResourceView | undefined;
 }
@@ -262,7 +259,7 @@ export class MemoryResourceStore implements ResourceResolver {
     return deepCopy(stored.value);
   }
 
-  sealedValues(): SealedValues[] {
-    return [...this.resources.values()].filter((resource) => resource.sealed.length > 0).map((resource) => ({ resource_id: resource.id, values: [...resource.sealed] }));
+  sealedValues(): SealedValues {
+    return new Map([...this.resources.values()].filter((resource) => resource.sealed.length > 0).map((resource) => [resource.id, [...resource.sealed]]));
   }
 }
