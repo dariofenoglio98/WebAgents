@@ -11,7 +11,8 @@ import { describe, expect, it } from "vitest";
 import type { JsonObject } from "../../../src/core/json.js";
 import { egressRefusal } from "../../../src/core/tools/egress.js";
 import { MemoryResourceStore, type ResourceResolver } from "../../../src/core/tools/resources.js";
-import { strings, Vault } from "../../../src/core/vault.js";
+import { Vault } from "../../../src/core/vault.js";
+import { scanStrings } from "../../../src/core/tools/egress.js";
 import { ROOT } from "../../helpers/paths.js";
 
 const DOCUMENT = JSON.parse(readFileSync(join(ROOT, "demo", "webair", "host-resources.json"), "utf8")) as JsonObject;
@@ -76,7 +77,7 @@ describe("MemoryResourceStore", () => {
 
 describe("the egress guard", () => {
   it("collects every string and key, lower-cased", () => {
-    expect(strings({ A: ["X", { b: "Y" }], n: 1 })).toEqual(["a", "x", "b", "y", "n"]);
+    expect([...scanStrings({ A: ["X", { b: "Y" }], n: 1 })!].sort()).toEqual(["a", "b", "n", "x", "y"]);
   });
 
   it("refuses a sealed value of an ungranted resource anywhere, and a granted one outside its permission", async () => {

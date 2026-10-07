@@ -158,6 +158,48 @@ describe("issuing a lease", () => {
   });
 });
 
+describe("two issues at the same time (review 1, blocker 1)", () => {
+  const kinds = (settled: PromiseSettledResult<unknown>[]) => settled.map((result) => (result.status === "fulfilled" ? "lease" : (result.reason as ExecutionError).code));
+
+  it("a `once` receipt is spent by the first of two concurrent issues; the second is refused before any await", async () => {
+    const w = await world();
+    const registry = new LeaseRegistry();
+    const state = await ready(w, registry);
+    const input = { plan: w.plan, preflight: state, archive: ARCHIVE, now: NOW };
+    const settled = await Promise.allSettled([registry.issue(input), registry.issue(input)]);
+    expect(kinds(settled)).toEqual(["lease", "authorization_once_spent"]);
+    expect(registry.outstanding(NOW)).toHaveLength(1);
+    expect(registry.spentReceipts()).toEqual([w.plan.authorization.receipt_id]);
+  });
+
+  it("one session gets one lease even when two issues interleave", async () => {
+    const plain = await world({ decisions: Object.fromEntries(Object.keys(inputs().decisions).map((pid) => [pid, "session" as const])) });
+    const registry = new LeaseRegistry();
+    const state = await ready(plain, registry);
+    const input = { plan: plain.plan, preflight: state, archive: ARCHIVE, now: NOW };
+    const settled = await Promise.allSettled([registry.issue(input), registry.issue(input)]);
+    expect(kinds(settled)).toEqual(["lease", "execution_lease_active"]);
+    expect(registry.outstanding(NOW)).toHaveLength(1);
+    // The reservation is gone with the lease: after a release the session can lease again.
+    registry.release(registry.outstanding(NOW)[0]!.lease_id);
+    expect((await registry.issue(input)).session_id).toBe(plain.plan.session_id);
+  });
+
+  it("a refused issue releases its reservation; the concurrent second is refused closed, a later one succeeds", async () => {
+    const w = await world();
+    const registry = new LeaseRegistry();
+    const state = await ready(w, registry);
+    const good = { plan: w.plan, preflight: state, archive: ARCHIVE, now: NOW };
+    const settled = await Promise.allSettled([registry.issue({ ...good, archive: readBytes(SHIPPED.webair.archive) }), registry.issue(good)]);
+    expect(kinds(settled)).toEqual(["execution_artifact_mismatch", "authorization_once_spent"]);
+    expect(registry.outstanding(NOW)).toHaveLength(0);
+    expect(registry.spentReceipts()).toEqual([]);
+    const lease = await registry.issue(good);
+    expect(lease.consumed).toBe(false);
+    expect(registry.spentReceipts()).toEqual([w.plan.authorization.receipt_id]);
+  });
+});
+
 describe("consuming and releasing", () => {
   it("a lease is consumed once, for its own plan, before it expires; release drops it", async () => {
     const w = await world();

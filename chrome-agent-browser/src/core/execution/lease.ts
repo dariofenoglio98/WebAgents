@@ -83,8 +83,6 @@ export interface LeaseView extends JsonObject {
 const NOTE = "A one-time private copy of this session's immutable snapshot. The control plane does not execute it; a runner must re-verify its hash, digest and signature before running anything.";
 
 function base64url(bytes: Uint8Array): string {
-  let text = "";
-  for (const byte of bytes) text += String.fromCharCode(byte);
   // The core has no btoa in its allowlist; a small table keeps the id URL-safe.
   const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
   let out = "";
@@ -97,7 +95,6 @@ function base64url(bytes: Uint8Array): string {
     if (b !== undefined) out += alphabet[((b & 15) << 2) | ((c ?? 0) >> 6)]!;
     if (c !== undefined) out += alphabet[c & 63]!;
   }
-  void text;
   return out;
 }
 
@@ -134,6 +131,12 @@ function stale(reasons: readonly Reason[], fallback: string, detail: Record<stri
 export class LeaseRegistry {
   private readonly leases = new Map<string, ExecutionLease>();
   private readonly spent: Set<string>;
+  /**
+   * Sessions whose lease is being issued right now, with the receipt each is spending: the
+   * synchronous reservation that makes "one per session" and "`once` spent by the first lease"
+   * hold for two issues that interleave at the awaits below (review 1, blocker 1).
+   */
+  private readonly issuing = new Map<string, string>();
   private readonly ttl: number;
 
   constructor(options: { ttlSeconds?: number; spentReceipts?: Iterable<string> } = {}) {
@@ -162,10 +165,18 @@ export class LeaseRegistry {
   /**
    * Copy the snapshot into a new lease, verifying everything that can be verified here. A
    * mismatch at any step is a refusal, not a repair; nothing is recorded until every check passed.
+   *
+   * The checks before the first `await` (readiness, `once`, receipt lifetime, one lease per
+   * session) run synchronously, then the session and the receipt are reserved; the hashing and
+   * the artifact verification yield to the event loop, so a second `issue` for the same session
+   * or the same `once` receipt arriving meanwhile is refused instead of passing the same checks
+   * against a registry that has not recorded the first lease yet. A reservation outlives a
+   * refusal by nothing: a later check that refuses releases it.
    */
   async issue(input: LeaseInputs): Promise<ExecutionLease> {
     const { plan, preflight } = input;
     const now = input.now ?? new Date();
+    const once = grantsOnce(plan.authorization.decisions);
     if (preflight.run_plan_id !== plan.run_plan_id || preflight.run_plan_sha256 !== plan.run_plan_sha256) {
       throw new ExecutionError("run_plan_mismatch", "The preflight does not describe this run plan", { detail: { preflight_run_plan_id: preflight.run_plan_id } });
     }
@@ -181,6 +192,9 @@ export class LeaseRegistry {
     if (this.onceSpent(plan)) {
       // The caller's preflight should have said so; the registry is the authority either way.
       throw new ExecutionError(AUTHORIZATION_ONCE_SPENT, "This authorization granted something once, and a run has already used it. Authorize again to run again.", { detail: { receipt_id: plan.authorization.receipt_id } });
+    }
+    if (once && [...this.issuing.values()].includes(plan.authorization.receipt_id)) {
+      throw new ExecutionError(AUTHORIZATION_ONCE_SPENT, "This authorization granted something once, and a lease for it is already being issued.", { detail: { receipt_id: plan.authorization.receipt_id } });
     }
     revalidated.push("once_not_spent");
     const receiptExpiry = Date.parse(plan.authorization.expires_at);
@@ -201,9 +215,24 @@ export class LeaseRegistry {
       // One active execution per session: a second lease would be a second run against the same consent.
       throw new ExecutionError(LEASE_ACTIVE, "An execution lease is already outstanding for this session; release it first", { detail: { lease_id: live.lease_id } });
     }
-    if (plan.publisher.signer_fingerprint === null) {
+    if (this.issuing.has(plan.session_id)) {
+      throw new ExecutionError(LEASE_ACTIVE, "An execution lease is already being issued for this session", { detail: { session_id: plan.session_id } });
+    }
+    const signer = plan.publisher.signer_fingerprint;
+    if (signer === null) {
       throw stale([{ code: "signer_unknown", message: "This plan records no publisher signer, so the bytes cannot be matched to a trusted identity.", subject: null }], "signer", {});
     }
+    // Nothing above awaited. From here on the event loop may interleave another issue.
+    this.issuing.set(plan.session_id, plan.authorization.receipt_id);
+    try {
+      return await this.verifyAndRecord(input, plan, signer, now, revalidated, once);
+    } finally {
+      this.issuing.delete(plan.session_id);
+    }
+  }
+
+  /** The asynchronous half of `issue`: the bytes, the bindings, the resources, the model; then the record. */
+  private async verifyAndRecord(input: LeaseInputs, plan: RunPlan, signer: string, now: Date, revalidated: string[], once: boolean): Promise<ExecutionLease> {
     const archive = new Uint8Array(input.archive);
     const archiveSha256 = await sha256Hex(archive);
     if (archiveSha256 !== plan.package.archive_sha256) {
@@ -214,7 +243,7 @@ export class LeaseRegistry {
       digest: plan.package.digest,
       package_id: plan.package.package_id,
       version: plan.package.version,
-      signer_fingerprint: plan.publisher.signer_fingerprint,
+      signer_fingerprint: signer,
     });
     revalidated.push(...evidence.verified.map((name) => `artifact:${name}`));
     if (input.definitions !== undefined && input.definitions !== null) {
@@ -273,7 +302,7 @@ export class LeaseRegistry {
     };
     this.leases.set(lease.lease_id, lease);
     // Handing the bytes to a runner starts a run, and a run is what a one-time grant was for.
-    if (grantsOnce(plan.authorization.decisions)) this.spent.add(plan.authorization.receipt_id);
+    if (once) this.spent.add(plan.authorization.receipt_id);
     return lease;
   }
 
