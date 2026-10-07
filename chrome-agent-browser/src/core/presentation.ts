@@ -130,6 +130,11 @@ export async function inputForm(pkg: Package): Promise<InputForm> {
 }
 
 // -- validating a task ----------------------------------------------------------------
+/** The schema documents the manifest declares, which are the only ones a validator may address. */
+export function declaredSchemaPaths(pkg: Package): string[] {
+  return (pkg.manifest.schemas as JsonValue[]).map((entry) => String((entry as JsonObject).path));
+}
+
 function pointer(parts: readonly string[]): string {
   return parts.map((part) => `/${part.replace(/~/gu, "~0").replace(/\//gu, "~1")}`).join("");
 }
@@ -211,7 +216,9 @@ export async function validateTaskInput(pkg: Package, value: unknown): Promise<T
     report.error_count = 1;
     return report;
   }
-  const schemas = await PackageSchemas.open(pkg.files);
+  // Only the manifest-declared schemas are registered, as `workflow-static.ts` does: every
+  // other `.json` member stays inert data (T1 review 2, finding 1).
+  const schemas = await PackageSchemas.open(pkg.files, declaredSchemaPaths(pkg));
   try {
     const failures = await schemas.failures(path, value);
     const described: TaskValidation["errors"] = [];

@@ -17,6 +17,7 @@
     "e2e": "node scripts/e2e-discovery.mjs"
   },
   "dependencies": {
+    "@hyperjump/browser": "^1.5.1",
     "@hyperjump/json-schema": "^1.18.0",
     "@noble/ed25519": "^3.2.0"
   },
