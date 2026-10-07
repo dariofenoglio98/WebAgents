@@ -1,0 +1,29 @@
+{
+  "schema": "agentpkg-run-plan-preflight-v0",
+  "checked_at": "2026-10-07T13:18:39.636629+00:00",
+  "run_plan_id": "rp_907458f1b1094f16b10d3e246c640647",
+  "run_plan_sha256": "fff6e8b038a82d0c0d15ea09e2374c90ffc1dfcd8e08730a593534ca8e054981",
+  "state": "ready",
+  "ready": true,
+  "stale": false,
+  "stale_reasons": [],
+  "blocking_reasons": [],
+  "trust_store_changed": false,
+  "tool_bindings": {
+    "bound": 7,
+    "current": true,
+    "evaluated": true,
+    "registry_sha256": "ae5f3624c3de4fc9aefa7fd65d6d01617243fbe3cbe4bff508ee07ae7cdfb797",
+    "registry_changed": false
+  },
+  "resource_grants": {
+    "granted": 3,
+    "current": true,
+    "evaluated": true,
+    "registry_sha256": "f7c85983c0cd118a64b6d41b4daa96a2efa4c610caed3a39cc5deb1bc57a5b58"
+  },
+  "execution": {
+    "performed": false,
+    "note": "Execution is not implemented in this build."
+  }
+}

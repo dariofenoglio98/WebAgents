@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { JsonObject, JsonValue } from "../../src/core/json.js";
 import { loadPackageBytes, type Package } from "../../src/core/package.js";
 import { PROFILES_EXTENSION_KEY, readProfiles } from "../../src/core/profiles.js";
+import { extensionSchemaFailure } from "../../src/core/schema.js";
 import { readBytes, SHIPPED } from "../helpers/paths.js";
 
 /**
@@ -99,6 +100,18 @@ describe("publisher-declared profiles (spec/extensions/profiles-v0.md)", () => {
     ["shape: fractional estimate", (v) => (((v.profiles as JsonObject[])[0]!.estimate as JsonObject).model_calls = 1.5), /must be an integer between/u],
     ["shape: invalid id", (v) => ((v.profiles as JsonObject[])[0]!.id = "1bad"), /id must be an identifier/u],
   ];
+  it("the copied profiles-v0 schema (D-040) accepts the shipped value and refuses every shape violation the shape check refuses", async () => {
+    expect(await extensionSchemaFailure(WEBAIR_PROFILES, "profiles-v0")).toBeNull();
+    const shipped = (await loadPackageBytes(readBytes(SHIPPED.webair040.archive))).manifest.extensions as JsonObject;
+    expect(await extensionSchemaFailure(shipped[PROFILES_EXTENSION_KEY], "profiles-v0")).toBeNull();
+    for (const [label, mutate] of violations.filter(([name]) => name.startsWith("shape:"))) {
+      const failure = await extensionSchemaFailure(mutated(mutate), "profiles-v0");
+      expect(failure, `${label} should fail the schema`).not.toBeNull();
+    }
+    // The consistency rules (§4) are beyond the schema: the shape check alone catches them.
+    expect(await extensionSchemaFailure(mutated(violations.find(([name]) => name.startsWith("rule 7"))![1]), "profiles-v0")).toBeNull();
+  });
+
   for (const [label, mutate, pattern] of violations) {
     it(`ignores the whole value for ${label}`, async () => {
       const report = readProfiles(withProfiles(await webair(), mutated(mutate)));

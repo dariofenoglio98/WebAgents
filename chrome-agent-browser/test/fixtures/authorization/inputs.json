@@ -1,0 +1,461 @@
+{
+  "note": "Produce the Python control plane's receipt, run plan and evaluations for WebAir 0.4.0.\n\nThe Chrome core's tests compare their own output with these records (T3). Inputs are fixed\n(timestamps, ids, a one-model catalog, a tool registry derived exactly as the Chrome host\nderives its own, a resource registry with placeholder digests), so every hash is reproducible\nfrom `inputs.json` with the Python reference. Written by the T3 session on\n2026-10-06. Refresh after a reference change, from the repository root:\n\n    agentpkg/.venv/bin/python chrome-agent-browser/scripts/make-authorization-fixtures.py [--out DIR]\n\nSession and receipt ids and timestamps are new on every run; the Chrome tests rebuild every\nrecord from the written `inputs.json`, so they compare like with like.",
+  "package": "dist/webair-0.4.0.agent.pkg",
+  "session": {
+    "session_id": "KqtGZchsOWpKOMKnd7_ptWDS",
+    "expires_at": "2026-10-07T13:33:39.625069+00:00",
+    "archive_sha256": "c12f9db3bd7b3b4b6721c67e1d0b8143ebd94381df0e5e57c196357b7ca77f63",
+    "source": {
+      "kind": "file",
+      "display": "dist/webair-0.4.0.agent.pkg",
+      "opened_at": "2026-10-07T13:18:39.625069+00:00"
+    },
+    "instance_id": "e01512c2-bd95-465f-ad36-c1fc34b4a5bb",
+    "evaluation": {
+      "container_status": "valid",
+      "integrity_status": "valid",
+      "schema_status": "valid",
+      "runtime_status": "compatible",
+      "supported_execution_profiles": [
+        "workflow.v0"
+      ],
+      "errors": []
+    },
+    "publisher": {
+      "claimed_id": "webair-demo",
+      "claimed_name": "WebAir (fictional demo airline)",
+      "signature_status": "valid",
+      "signature_reason": "self_consistent_ed25519_signature",
+      "signer_fingerprint": "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b",
+      "signed_digest_matches": true,
+      "trust_status": "trusted",
+      "trust_reason": "operator_pinned_key",
+      "trust_entry": {
+        "fingerprint": "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b",
+        "public_key": "y9YfbzYJDTJqVLciie5O3aksIJnvmqBPpBR/xok4/LM=",
+        "display_name": "WebAir demo publisher",
+        "publisher_id": "webair-demo",
+        "package_id_prefix": null,
+        "notes": null,
+        "added_at": "2026-10-07T13:18:39.448304+00:00"
+      }
+    },
+    "trust_state": {
+      "path": "/var/folders/zx/c94b09b50v31fk6qp9h3h1cw0000gn/T/tmpb7gqifph/trust.json",
+      "entry_count": 1,
+      "state_sha256": "2da5605d73f2d03b8e06404b74522ae68f2df4344a2a7aeed7afd6c51c59a0b7"
+    },
+    "browser_policy": {
+      "require_valid_signature": true,
+      "require_trusted_publisher": true,
+      "require_supported_profile": true,
+      "require_confirmed_model_compatibility": true,
+      "require_confirmed_tool_contract": true
+    }
+  },
+  "decisions": {
+    "network.webair": "session",
+    "profile.travel": "session",
+    "identity.passenger": "session",
+    "wallet.payment": "session",
+    "booking.simulate_purchase": "once",
+    "model.reasoning": "session",
+    "memory.session": "session"
+  },
+  "tool_approvals": {
+    "search-flights": true,
+    "get-fare-rules": true,
+    "prepare-booking": true,
+    "simulate-purchase": true,
+    "personal.travel_profile": true,
+    "personal.passenger_identity": true,
+    "wallet.payment_method": true
+  },
+  "resource_selections": {
+    "profile.travel": "profile_demo_traveler",
+    "identity.passenger": "passenger_demo_alex",
+    "wallet.payment": "payment_demo_visa"
+  },
+  "tool_registry": {
+    "schema": "agentpkg-host-tool-registry-v0",
+    "host": {
+      "runtime": "chrome-agent-browser",
+      "runtime_version": "0.1.0",
+      "source": "chrome-agent-browser host tool registry (D-054): one generic HTTPS JSON binding per declared remote tool, derived from the signed declaration after the URL gate; one host-resource binding per vault type; other local tools unbound",
+      "captured_at": "2026-10-06T12:00:00.000Z",
+      "agent_id": null
+    },
+    "bindings": [
+      {
+        "id": "chrome:json_http:get-fare-rules:1",
+        "tool_id": "get-fare-rules",
+        "binding": "webair.get_fare_rules",
+        "implementation_kind": "json_http",
+        "implementation_id": "chrome.tool.json_http",
+        "implementation_version": "0.1.0",
+        "display_name": "get-fare-rules: one HTTPS POST to https://webagents-webair-production.up.railway.app/api/v1/get_fare_rules",
+        "description": "This browser's generic JSON-over-HTTPS adapter, bound to exactly the origin, path, method and schemas the package declares for this tool. No other request shape, path or destination is reachable through it; no credential is attached.",
+        "remote": true,
+        "available": true,
+        "enabled": true,
+        "endpoint": {
+          "origin": "https://webagents-webair-production.up.railway.app",
+          "path": "/api/v1/get_fare_rules",
+          "method": "POST"
+        },
+        "contract": {
+          "input_schema_sha256": "ad5ad98ed1b482225a8d623cf7004270e4042d825fd7cf166651a37a0492e1c8",
+          "output_schema_sha256": "70c5dbb27a550e396ae211b5fe484bc395a67a793fba8c2cafa142840dd50b11",
+          "permission_kinds": [
+            "network"
+          ],
+          "side_effects": "read"
+        },
+        "limits": {
+          "timeout_seconds": 20,
+          "max_request_bytes": 65536,
+          "max_response_bytes": 4194304,
+          "max_concurrent": 4
+        },
+        "credentials": {
+          "required": false,
+          "configured": false
+        }
+      },
+      {
+        "id": "chrome:host-resource:personal.passenger_identity:1",
+        "tool_id": "personal.passenger_identity",
+        "binding": "host.resource.personal.passenger_identity",
+        "implementation_kind": "host_resource",
+        "implementation_id": "chrome.tool.host_resource",
+        "implementation_version": "0.1.0",
+        "display_name": "Passenger identity (held in this browser's vault)",
+        "description": "Returns the one passenger identity the person granted for this run. It takes no arguments, so nothing a package sends can name another; it reaches no network and writes nothing.",
+        "remote": false,
+        "available": true,
+        "enabled": true,
+        "contract": {
+          "input_schema_sha256": "71fc596a20f27da3dec80050e5d1f553eba34aea24c2853b853488a811e6b892",
+          "output_schema_sha256": "ed3aa07a101767b46697661c503b135707f6d61a10080ab5e7c0f4fd4e06d539",
+          "permission_kinds": [
+            "personal.read"
+          ],
+          "side_effects": "read"
+        },
+        "limits": {
+          "timeout_seconds": 5,
+          "max_request_bytes": 64,
+          "max_response_bytes": 32768,
+          "max_concurrent": 4
+        },
+        "credentials": {
+          "required": false,
+          "configured": false
+        },
+        "resource_type": "personal.passenger_identity"
+      },
+      {
+        "id": "chrome:host-resource:personal.travel_profile:1",
+        "tool_id": "personal.travel_profile",
+        "binding": "host.resource.personal.travel_profile",
+        "implementation_kind": "host_resource",
+        "implementation_id": "chrome.tool.host_resource",
+        "implementation_version": "0.1.0",
+        "display_name": "Travel profile (held in this browser's vault)",
+        "description": "Returns the one travel profile the person granted for this run. It takes no arguments, so nothing a package sends can name another; it reaches no network and writes nothing.",
+        "remote": false,
+        "available": true,
+        "enabled": true,
+        "contract": {
+          "input_schema_sha256": "71fc596a20f27da3dec80050e5d1f553eba34aea24c2853b853488a811e6b892",
+          "output_schema_sha256": "fae6c1bbbed8ec3e8cd1abaa212baeca82b3cb4d34020cd21dfb7f15987c535b",
+          "permission_kinds": [
+            "personal.read"
+          ],
+          "side_effects": "read"
+        },
+        "limits": {
+          "timeout_seconds": 5,
+          "max_request_bytes": 64,
+          "max_response_bytes": 32768,
+          "max_concurrent": 4
+        },
+        "credentials": {
+          "required": false,
+          "configured": false
+        },
+        "resource_type": "personal.travel_profile"
+      },
+      {
+        "id": "chrome:json_http:prepare-booking:1",
+        "tool_id": "prepare-booking",
+        "binding": "webair.prepare_booking",
+        "implementation_kind": "json_http",
+        "implementation_id": "chrome.tool.json_http",
+        "implementation_version": "0.1.0",
+        "display_name": "prepare-booking: one HTTPS POST to https://webagents-webair-production.up.railway.app/api/v1/prepare_booking",
+        "description": "This browser's generic JSON-over-HTTPS adapter, bound to exactly the origin, path, method and schemas the package declares for this tool. No other request shape, path or destination is reachable through it; no credential is attached.",
+        "remote": true,
+        "available": true,
+        "enabled": true,
+        "endpoint": {
+          "origin": "https://webagents-webair-production.up.railway.app",
+          "path": "/api/v1/prepare_booking",
+          "method": "POST"
+        },
+        "contract": {
+          "input_schema_sha256": "b7d0f573905ae0c23987b305de00816118a5d52ffe29f4ea410dc89f5c586173",
+          "output_schema_sha256": "c632b8935b6c059abee0a609e8d88f1c33dee69d6bf99cc3576d85652fe4a842",
+          "permission_kinds": [
+            "network",
+            "personal.read"
+          ],
+          "side_effects": "read"
+        },
+        "limits": {
+          "timeout_seconds": 20,
+          "max_request_bytes": 65536,
+          "max_response_bytes": 4194304,
+          "max_concurrent": 4
+        },
+        "credentials": {
+          "required": false,
+          "configured": false
+        }
+      },
+      {
+        "id": "chrome:json_http:search-flights:1",
+        "tool_id": "search-flights",
+        "binding": "webair.search_flights",
+        "implementation_kind": "json_http",
+        "implementation_id": "chrome.tool.json_http",
+        "implementation_version": "0.1.0",
+        "display_name": "search-flights: one HTTPS POST to https://webagents-webair-production.up.railway.app/api/v1/search_flights",
+        "description": "This browser's generic JSON-over-HTTPS adapter, bound to exactly the origin, path, method and schemas the package declares for this tool. No other request shape, path or destination is reachable through it; no credential is attached.",
+        "remote": true,
+        "available": true,
+        "enabled": true,
+        "endpoint": {
+          "origin": "https://webagents-webair-production.up.railway.app",
+          "path": "/api/v1/search_flights",
+          "method": "POST"
+        },
+        "contract": {
+          "input_schema_sha256": "66cb6246e48442ed5101adf8b40d8ca29027a499a5acea7c8db5c7ef0f799ba8",
+          "output_schema_sha256": "824d0e39f171a09d424a7a7e40c38632db9747a3a4d1846b0f7a95e26893e4a7",
+          "permission_kinds": [
+            "network"
+          ],
+          "side_effects": "read"
+        },
+        "limits": {
+          "timeout_seconds": 20,
+          "max_request_bytes": 65536,
+          "max_response_bytes": 4194304,
+          "max_concurrent": 4
+        },
+        "credentials": {
+          "required": false,
+          "configured": false
+        }
+      },
+      {
+        "id": "chrome:json_http:simulate-purchase:1",
+        "tool_id": "simulate-purchase",
+        "binding": "webair.simulate_purchase",
+        "implementation_kind": "json_http",
+        "implementation_id": "chrome.tool.json_http",
+        "implementation_version": "0.1.0",
+        "display_name": "simulate-purchase: one HTTPS POST to https://webagents-webair-production.up.railway.app/api/v1/simulate_purchase",
+        "description": "This browser's generic JSON-over-HTTPS adapter, bound to exactly the origin, path, method and schemas the package declares for this tool. No other request shape, path or destination is reachable through it; no credential is attached.",
+        "remote": true,
+        "available": true,
+        "enabled": true,
+        "endpoint": {
+          "origin": "https://webagents-webair-production.up.railway.app",
+          "path": "/api/v1/simulate_purchase",
+          "method": "POST"
+        },
+        "contract": {
+          "input_schema_sha256": "01ebc6ec5fd4ff9be71d4a308650bad902366eee94d494db8a7d46469172fa71",
+          "output_schema_sha256": "debe54138360dd92e5bb98e33865bbf4da3bb64b2d0bd2c5a897f5051cf1f347",
+          "permission_kinds": [
+            "network",
+            "payment",
+            "personal.read"
+          ],
+          "side_effects": "write"
+        },
+        "limits": {
+          "timeout_seconds": 20,
+          "max_request_bytes": 65536,
+          "max_response_bytes": 4194304,
+          "max_concurrent": 4
+        },
+        "credentials": {
+          "required": false,
+          "configured": false
+        }
+      },
+      {
+        "id": "chrome:host-resource:wallet.payment_method:1",
+        "tool_id": "wallet.payment_method",
+        "binding": "host.resource.wallet.payment_method",
+        "implementation_kind": "host_resource",
+        "implementation_id": "chrome.tool.host_resource",
+        "implementation_version": "0.1.0",
+        "display_name": "Payment method (held in this browser's vault)",
+        "description": "Returns the one payment method the person granted for this run. It takes no arguments, so nothing a package sends can name another; it reaches no network and writes nothing.",
+        "remote": false,
+        "available": true,
+        "enabled": true,
+        "contract": {
+          "input_schema_sha256": "71fc596a20f27da3dec80050e5d1f553eba34aea24c2853b853488a811e6b892",
+          "output_schema_sha256": "3bd36ad1899ff7f97655f00d3f4a5b6e785e4ab6ee77d05e3057e4d1b80338d0",
+          "permission_kinds": [
+            "personal.read"
+          ],
+          "side_effects": "read"
+        },
+        "limits": {
+          "timeout_seconds": 5,
+          "max_request_bytes": 64,
+          "max_response_bytes": 32768,
+          "max_concurrent": 4
+        },
+        "credentials": {
+          "required": false,
+          "configured": false
+        },
+        "resource_type": "wallet.payment_method"
+      }
+    ],
+    "notes": []
+  },
+  "resource_registry": {
+    "schema": "agentpkg-host-resource-registry-v0",
+    "host": {
+      "runtime": "chrome-agent-browser",
+      "runtime_version": "0.1.0",
+      "source": "chrome-agent-browser personal vault (chrome.storage.local, HMAC-SHA256 digests under a per-profile key, D-051)",
+      "captured_at": "2026-10-06T12:00:00.000Z"
+    },
+    "types": [
+      {
+        "id": "personal.travel_profile",
+        "display_name": "Travel profile",
+        "description": "Travel preferences: home airport, preferred cabin, whether to prefer nonstop flights, and currency. Preferences, not identity or payment data.",
+        "permission_kind": "personal.read",
+        "schema_sha256": "fae6c1bbbed8ec3e8cd1abaa212baeca82b3cb4d34020cd21dfb7f15987c535b"
+      },
+      {
+        "id": "personal.passenger_identity",
+        "display_name": "Passenger identity",
+        "description": "The name and contact email of one traveler, for a booking.",
+        "permission_kind": "personal.read",
+        "schema_sha256": "ed3aa07a101767b46697661c503b135707f6d61a10080ab5e7c0f4fd4e06d539"
+      },
+      {
+        "id": "wallet.payment_method",
+        "display_name": "Payment method",
+        "description": "Which payment instrument to use, as the opaque identifier a merchant accepts and a display-safe label. Never a card number, security code or wallet credential.",
+        "permission_kind": "personal.read",
+        "schema_sha256": "3bd36ad1899ff7f97655f00d3f4a5b6e785e4ab6ee77d05e3057e4d1b80338d0"
+      }
+    ],
+    "resources": [
+      {
+        "id": "profile_demo_traveler",
+        "type": "personal.travel_profile",
+        "label": "Demo Traveler \u2014 BOS / Economy / Nonstop",
+        "digest": "095e119598f419bc525c6897c529f06f3ca3cc5757f810f6568c5b7df7be6305"
+      },
+      {
+        "id": "profile_demo_explorer",
+        "type": "personal.travel_profile",
+        "label": "Demo Explorer \u2014 JFK / Business / Any stops",
+        "digest": "aa63e17bf8d8d3b11f8746e591fc799d57f2be2d1b7c45594d2032b6d0d5f906"
+      },
+      {
+        "id": "passenger_demo_alex",
+        "type": "personal.passenger_identity",
+        "label": "Alex Traveler \u2014 a***@example.com",
+        "digest": "66bd5667d019fdca72c54c294fdcf9cf81233db0b9706891079281d34ea1136b"
+      },
+      {
+        "id": "passenger_demo_sam",
+        "type": "personal.passenger_identity",
+        "label": "Sam Traveler \u2014 s***@example.com",
+        "digest": "d144133127d5be3f21eec381d0eb017e9106b77ca94bc56c27407e80a949d4c6"
+      },
+      {
+        "id": "payment_demo_visa",
+        "type": "wallet.payment_method",
+        "label": "Demo Visa \u2022\u2022\u2022\u2022 4242",
+        "digest": "3affabc8e3ca9790efb72ad1a4348570eb41a426c5ff98a86abe5999055f3580"
+      },
+      {
+        "id": "payment_demo_travel",
+        "type": "wallet.payment_method",
+        "label": "Demo Travel Card \u2022\u2022\u2022\u2022 1234",
+        "digest": "86568f4dc90e2b032e24b94fa1ae2db9a44c7b798507675341bf33ac30b39af4"
+      }
+    ],
+    "notes": []
+  },
+  "catalog": {
+    "schema": "agentpkg-host-model-catalog-v0",
+    "host": {
+      "runtime": "chrome-agent-browser",
+      "runtime_version": "0.1.0",
+      "source": "fixture: one local model as Settings \u2192 Models would state it (STATE.md \u00a75)",
+      "captured_at": "2026-10-06T12:00:00.000Z",
+      "agent_id": null
+    },
+    "models": [
+      {
+        "id": "ollama/qwen3:30b",
+        "provider_id": "ollama",
+        "model_id": "qwen3:30b",
+        "display_name": "qwen3:30b",
+        "available": true,
+        "availability_reason": null,
+        "selectable": true,
+        "capabilities": {
+          "structured_output": {
+            "value": true,
+            "basis": "derived",
+            "detail": "The adapter requests a constrained response and validates every answer against the schema, failing closed. This is the adapter's guarantee, not a provider declaration."
+          },
+          "reasoning": {
+            "value": true,
+            "basis": "declared",
+            "detail": "Ollama /api/show capabilities: completion, tools, thinking."
+          },
+          "tool_use": {
+            "value": true,
+            "basis": "declared",
+            "detail": "Ollama /api/show capabilities: completion, tools, thinking."
+          }
+        },
+        "limits": {
+          "context_tokens": 65536,
+          "native_context_window": 262144,
+          "max_output_tokens": 16384
+        },
+        "properties": {
+          "local": true,
+          "privacy_class": "local",
+          "cost_class": "free",
+          "status": null,
+          "tags": [
+            "local",
+            "limits:settings",
+            "context:capped"
+          ]
+        }
+      }
+    ],
+    "notes": []
+  }
+}

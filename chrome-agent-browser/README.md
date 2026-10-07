@@ -1,9 +1,10 @@
 # Chrome Agent Browser
 
-The second runtime of WebAgents: a Chrome extension that discovers, verifies and inspects
-signed `agent.pkg` packages that websites advertise, built on a portable TypeScript core that
-runs in Node as well. **This version executes nothing.** It is the foundation (T1 of Phase 2)
-that authorization (T3), the execution core (T4) and runs from the browser (T5) build on.
+The second runtime of WebAgents: a Chrome extension that discovers, verifies, inspects and
+**authorizes** signed `agent.pkg` packages that websites advertise, built on a portable
+TypeScript core that runs in Node as well. **This version executes nothing.** It is the
+foundation (T1) and the authorization path (T3) of Phase 2 that the execution core (T4) and
+runs from the browser (T5) build on.
 
 What it shows today, on the WebAir demo site:
 
@@ -24,10 +25,35 @@ What it shows today, on the WebAir demo site:
    key grants no permission: permissions are decided per run, later.
 5. The full-page agent browser (`browser.html`) takes a website address or a package URL in its
    address bar and does the same without a tab.
+6. **Authorize in two clicks** (T3). Below the agent page, the publisher's profiles (WebAir
+   0.4.0 declares *Search flights*, *Search and quote*, *Book (simulated)*) appear as cards that
+   say what each one *gets*, in plain words derived from the decisions it would yield, never from
+   the publisher's text alone. One summary card states what the agent will and will not be able
+   to do, which of your records it may read (you choose which), the model and the preset; **Use
+   this agent** records the decisions as an authorization receipt and prepares a Run Plan on your
+   default model. **Customize your settings** expands the full per-item view: every permission
+   with Deny / Allow once / Allow for session, every tool approval, the record chooser per type,
+   the model picker with its compatibility verdicts (authorizing there binds the model you
+   picked), the declared limits. Every decision records
+   who made it (you, the profile, or the preset). **Ready to run** shows the plan with its id and
+   hash under Technical details. Running arrives with T5; nothing runs yet.
+7. **Settings → Models** lists the routes (local Ollama, OpenAI and Anthropic with your own
+   keys, Chrome's built-in model), tests each connection, lets you state a model's limits and
+   pick the default model (Ollama must run on this machine, started with `OLLAMA_ORIGINS`
+   including `chrome-extension://*`; a remote Ollama endpoint is refused, since its models would
+   not be local). Keys are typed once, stored in `chrome.storage.local`, never shown
+   again and never synced. **Settings → Policies** selects the host preset (privacy first,
+   balanced, convenience). **Your data** holds your records per type, with a one-click fictional
+   demo set that is clearly labelled and never pre-filled.
 
 Verification is the same as the Python reference runtime's (`agentpkg`): the core reports the
 same digest, archive SHA-256, signer fingerprint and validity, and the browser summary equals
-the Python control plane's output canonically for every shipped package.
+the Python control plane's output canonically for every shipped package. Authorization is
+too: the receipt, the Run Plan, the host-resource, tool and model evaluations and the
+preflight are compared field by field, and by hash, with records the Python control plane
+produced for WebAir 0.4.0 (`test/fixtures/authorization/`). The documented differences are
+the decision provenance, the denied-tool list, the model-availability check and the
+local-only check of the privacy-first preset (D-053).
 
 ## Load the unpacked extension
 
@@ -65,11 +91,11 @@ the signature report, the trust verdict, the browser summary). `run` arrives wit
 
 | Path | Role |
 |---|---|
-| `src/core/` | The portable core: strict ZIP_STORED reader, strict JSON and RFC 8785, SHA-256 and Ed25519 through WebCrypto (pure-JS fallback), schema and semantic validation over agentpkg's own JSON Schemas, the trust store, discovery, the browser summary, profiles, the agent-page model, and the receipt / Run Plan / run record / audit types. No Chrome, no DOM, no Node. |
-| `src/core/schemas/` | Byte-for-byte copies of `agentpkg/src/agentpkg/schemas/*.json`, written by `npm run sync-schemas`; a test asserts equality. |
-| `src/extension/` | The Manifest V3 shell: `manifest.json`, the service worker (`background/`, the only place that holds state), the content script (`content/`), the side panel, the full page (`browser/`), storage adapters (`storage/`), the message contract (`messages.ts`) and the views (`ui/`). |
+| `src/core/` | The portable core: strict ZIP_STORED reader, strict JSON and RFC 8785, SHA-256 and Ed25519 through WebCrypto (pure-JS fallback), schema and semantic validation over agentpkg's own JSON Schemas, the trust store, discovery, the browser summary, profiles, the agent-page model; authorization (receipts, profile expansion, presets), host resources, host tools (the derived registry), model compatibility, Run Plans and their preflight, the personal vault, and the model catalog probes (`models/catalog.ts`). No Chrome, no DOM, no Node. |
+| `src/core/schemas/` | Byte-for-byte copies of `agentpkg/src/agentpkg/schemas/*.json` and, under `extensions/`, of `spec/extensions/*.schema.json`, written by `npm run sync-schemas`; tests assert equality. |
+| `src/extension/` | The Manifest V3 shell: `manifest.json`, the service worker (`background/`, the only place that holds state: sessions with their receipts and plans, the trust store, settings, keys, the vault, the model catalog), the content script (`content/`), the side panel, the full page (`browser/`), storage adapters (`storage/`), the message contract (`messages.ts`), the views (`ui/`: agent page, authorize view, settings, your data) and `data/demo-host-resources.json`, a copy of the demo host's resource definitions. |
 | `src/cli.ts` | The Node CLI over the core. |
-| `scripts/` | `build.mjs` (esbuild), `pack.mjs`, `sync-schemas.mjs`, `make-icons.mjs`, `e2e-discovery.mjs`. |
+| `scripts/` | `build.mjs` (esbuild), `pack.mjs`, `sync-schemas.mjs`, `make-icons.mjs`, `e2e-discovery.mjs`, and `make-authorization-fixtures.py`, which writes the Python control plane's reference records for `test/fixtures/authorization/` (run with `agentpkg/.venv/bin/python`). |
 | `test/` | vitest: `core/` mirrors the Python suite's negative cases and asserts parity with the shipped packages; `extension/` covers the message contract, the controller, storage, the service worker over a fake `chrome`, the content script and the views. |
 
 ## The boundary rule
@@ -89,7 +115,7 @@ renderer copied from the reference plugin, which builds DOM nodes and never pass
 ## Checks
 
 ```sh
-npm run typecheck && npm test          # both TypeScript projects; 613 tests, none skipped
+npm run typecheck && npm test          # both TypeScript projects; the suite allows no skipped test
 npm run build && npm run pack          # a loadable extension and its zip
 node scripts/e2e-discovery.mjs         # headless Chrome against a local mock of the WebAir origin
 ```
@@ -107,10 +133,15 @@ walk-through. It needs `openssl` on the PATH and prints JSON with `"passed"`.
 
 ## What it does not do yet
 
-- **Execute.** No model call, no tool call, no run. Runs, Library and Settings are placeholders
-  that show the intended layout. Execution arrives with T4 and T5.
-- **Authorize.** Profiles are shown as the publisher declares them (`org.webagents:profiles-v0`,
-  once a package carries them); choosing one, the receipt and the Run Plan are T3.
+- **Execute.** No model call (beyond the catalog probes of Settings → Models, which list
+  models and never prompt one), no tool call, no run. A Run Plan is a preflight artifact; the
+  execution host, the model and tool adapters and the run record are T4 and T5, and `once`
+  grants are spent by a run, which no build can start yet. Runs is a placeholder that shows the
+  intended layout; Library lists the open sessions only.
+- **Implement every local tool.** The host registry binds a generic HTTPS JSON adapter to each
+  declared remote tool and a vault binding to each host-resource tool; other local tools
+  (Literature Review's `paper-reader`) stay unbound until T6, and an approved unbound tool
+  blocks the plan, as in the reference.
 - **Classify addresses.** Package, site and tool URLs must be HTTPS on port 443 with a DNS
   name (no IP literals, `localhost` or `.local`); the private-address, DNS-pinning and
   connection-level checks of the Python runtime are Chrome's network stack's job here, and the

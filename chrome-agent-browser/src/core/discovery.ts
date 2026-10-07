@@ -32,19 +32,16 @@ export const PACKAGE_MEDIA_TYPE = "application/vnd.webagents.agent-package";
 export const HTML_MEDIA_TYPES: ReadonlySet<string> = new Set(["text/html", "application/xhtml+xml"]);
 export const MAX_HTML_BYTES = 1024 * 1024;
 export const MAX_LINKS = 16;
-export const MAX_REDIRECTS = 5;
 export const DISCOVERY_TIMEOUT_SECONDS = 20;
 
 export interface DiscoveryLimits {
   maxHtmlBytes: number;
-  maxRedirects: number;
   timeoutSeconds: number;
   maxLinks: number;
 }
 
 export const DEFAULT_LIMITS: DiscoveryLimits = Object.freeze({
   maxHtmlBytes: MAX_HTML_BYTES,
-  maxRedirects: MAX_REDIRECTS,
   timeoutSeconds: DISCOVERY_TIMEOUT_SECONDS,
   maxLinks: MAX_LINKS,
 });
@@ -602,7 +599,9 @@ export function discoveryProfile(limits: DiscoveryLimits = DEFAULT_LIMITS): Reco
     convention: "experimental WebAgents metadata; not a registered link relation or a web standard",
     scope: "document head",
     same_origin_required: true,
-    // The reference follows same-origin hops; this runtime follows none (D-033 as amended, B-104).
+    // The reference follows same-origin hops; this runtime follows none (D-033 as amended, B-109),
+    // so there is no redirect limit to drive this from: the profile states 0 and the result's
+    // `redirects` list, kept for shape parity with `agentpkg-website-discovery-v0`, is always empty.
     redirects: "not followed; open the final address yourself",
     max_redirects: 0,
     max_html_bytes: limits.maxHtmlBytes,

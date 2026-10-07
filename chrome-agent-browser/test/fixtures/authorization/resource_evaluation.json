@@ -1,0 +1,102 @@
+{
+  "session_id": "KqtGZchsOWpKOMKnd7_ptWDS",
+  "schema": "agentpkg-host-resource-requests-v0",
+  "package_id": "org.webagents.webair",
+  "package_version": "0.4.0",
+  "package_digest": "0e8317f11e8813e7d5b4b3f352f20148d114329dca3db8c725c5b0558af24fbb",
+  "registry": {
+    "registry_sha256": "f7c85983c0cd118a64b6d41b4daa96a2efa4c610caed3a39cc5deb1bc57a5b58",
+    "type_count": 3,
+    "resource_count": 6
+  },
+  "requests": [
+    {
+      "permission_id": "profile.travel",
+      "kind": "personal.read",
+      "required": false,
+      "resource_type": "personal.travel_profile",
+      "resource_types": [
+        "personal.travel_profile"
+      ],
+      "type_display_name": "Travel profile",
+      "type_description": "Travel preferences: home airport, preferred cabin, whether to prefer nonstop flights, and currency. Preferences, not identity or payment data.",
+      "status": "offered",
+      "options": [
+        {
+          "resource_id": "profile_demo_traveler",
+          "label": "Demo Traveler \u2014 BOS / Economy / Nonstop"
+        },
+        {
+          "resource_id": "profile_demo_explorer",
+          "label": "Demo Explorer \u2014 JFK / Business / Any stops"
+        }
+      ],
+      "linked_tools": [
+        "personal.travel_profile"
+      ],
+      "decision": "deny",
+      "selected_resource_id": null
+    },
+    {
+      "permission_id": "identity.passenger",
+      "kind": "personal.read",
+      "required": false,
+      "resource_type": "personal.passenger_identity",
+      "resource_types": [
+        "personal.passenger_identity"
+      ],
+      "type_display_name": "Passenger identity",
+      "type_description": "The name and contact email of one traveler, for a booking.",
+      "status": "offered",
+      "options": [
+        {
+          "resource_id": "passenger_demo_alex",
+          "label": "Alex Traveler \u2014 a***@example.com"
+        },
+        {
+          "resource_id": "passenger_demo_sam",
+          "label": "Sam Traveler \u2014 s***@example.com"
+        }
+      ],
+      "linked_tools": [
+        "personal.passenger_identity",
+        "prepare-booking",
+        "simulate-purchase"
+      ],
+      "decision": "deny",
+      "selected_resource_id": null
+    },
+    {
+      "permission_id": "wallet.payment",
+      "kind": "personal.read",
+      "required": false,
+      "resource_type": "wallet.payment_method",
+      "resource_types": [
+        "wallet.payment_method"
+      ],
+      "type_display_name": "Payment method",
+      "type_description": "Which payment instrument to use, as the opaque identifier a merchant accepts and a display-safe label. Never a card number, security code or wallet credential.",
+      "status": "offered",
+      "options": [
+        {
+          "resource_id": "payment_demo_visa",
+          "label": "Demo Visa \u2022\u2022\u2022\u2022 4242"
+        },
+        {
+          "resource_id": "payment_demo_travel",
+          "label": "Demo Travel Card \u2022\u2022\u2022\u2022 1234"
+        }
+      ],
+      "linked_tools": [
+        "simulate-purchase",
+        "wallet.payment_method"
+      ],
+      "decision": "deny",
+      "selected_resource_id": null
+    }
+  ],
+  "resource_permission_kinds": [
+    "personal.read"
+  ],
+  "note": "A package can request a type of host resource; it can never name one. The host lists what it holds, and the person picks one when granting the permission. The values never leave the host: this evaluation carries ids, labels and digests."
+}

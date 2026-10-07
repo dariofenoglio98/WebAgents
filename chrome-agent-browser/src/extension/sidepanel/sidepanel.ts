@@ -3,8 +3,9 @@
  * compact form (D-035). A thin view over the service worker.
  */
 import type { Candidate } from "../../core/discovery.js";
-import type { CandidateState, SessionView } from "../messages.js";
+import type { AuthorizationView, CandidateState, ModelsView, SessionView } from "../messages.js";
 import { renderAgentPage } from "../ui/agent-page.js";
+import { bindAuthorization, type AuthorizationController } from "../ui/authorization-flow.js";
 import { describeError, send, subscribe } from "../ui/client.js";
 import { button, card, el, replace } from "../ui/dom.js";
 import { renderWebsiteCard } from "../ui/website.js";
@@ -15,11 +16,15 @@ interface PanelState {
   tabId: number | null;
   candidates: CandidateState | null;
   open: SessionView | null;
+  authorization: AuthorizationView | null;
+  models: ModelsView | null;
   busy: string | null;
   error: { code: string; message: string } | null;
 }
 
-const state: PanelState = { tabId: null, candidates: null, open: null, busy: null, error: null };
+const state: PanelState = { tabId: null, candidates: null, open: null, authorization: null, models: null, busy: null, error: null };
+/** This view's identity toward the service worker (D-035): a session ends when no view holds it. */
+const VIEW_ID = `sidepanel:${crypto.randomUUID()}`;
 
 async function currentTab(): Promise<chrome.tabs.Tab | null> {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -35,10 +40,32 @@ function emptyState(): HTMLElement {
   );
 }
 
-function openFullPage(sessionId?: string): void {
-  const url = chrome.runtime.getURL(`browser.html${sessionId ? `#session=${encodeURIComponent(sessionId)}` : ""}`);
+function openFullPage(sessionId?: string, hash?: string): void {
+  const url = chrome.runtime.getURL(`browser.html${hash ? `#${hash}` : sessionId ? `#session=${encodeURIComponent(sessionId)}` : ""}`);
   void chrome.tabs.create({ url });
 }
+
+/** The authorization flow for the open session (T3): loads the view and the models, renders below the agent page. */
+const flow: AuthorizationController = bindAuthorization({
+  session: () => state.open,
+  get: () => state.authorization,
+  set: (view) => {
+    state.authorization = view;
+  },
+  models: () => state.models,
+  setModels: (models) => {
+    state.models = models;
+  },
+  setBusy: (text) => {
+    state.busy = text;
+  },
+  setError: (error) => {
+    state.error = error;
+  },
+  openSettings: (section) => openFullPage(undefined, section === "data" ? "data" : `settings?section=${section}`),
+  rerender: () => render(),
+  compact: true,
+});
 
 async function inspect(candidate: Candidate): Promise<void> {
   if (!candidate.resolved_url || !state.candidates) return;
@@ -46,7 +73,9 @@ async function inspect(candidate: Candidate): Promise<void> {
   state.error = null;
   render();
   try {
-    state.open = await send<SessionView>({ type: "package.open", url: candidate.resolved_url, advertisedOn: state.candidates.pageUrl });
+    state.open = await send<SessionView>({ type: "package.open", url: candidate.resolved_url, advertisedOn: state.candidates.pageUrl, viewId: VIEW_ID });
+    flow.reset();
+    await flow.load();
   } catch (error) {
     state.error = describeError(error);
   } finally {
@@ -61,7 +90,8 @@ async function trust(scope: "package" | "publisher"): Promise<void> {
   if (!fingerprint) return;
   try {
     await send({ type: "trust.pin", sessionId: state.open.session.id, signerFingerprint: fingerprint, scope });
-    state.open = await send<SessionView>({ type: "package.get", sessionId: state.open.session.id });
+    state.open = await send<SessionView>({ type: "package.get", sessionId: state.open.session.id, viewId: VIEW_ID });
+    await flow.load();
     state.error = null;
   } catch (error) {
     state.error = describeError(error);
@@ -80,14 +110,17 @@ function render(): void {
         compact: true,
         onTrust: (scope) => void trust(scope),
         onClose: () => {
-          // Close the session too (as the full page does), or panel inspections would
-          // accumulate toward the session limit for the whole TTL.
-          void send({ type: "package.close", sessionId: open.session.id }).catch(() => undefined);
+          // Release this view's hold: the session ends only when no other view (a full page
+          // opened on it) still shows it, so panel inspections do not accumulate toward the
+          // session limit and Close here does not end a full page's session (review 2, nit 5).
+          void send({ type: "package.release", sessionId: open.session.id, viewId: VIEW_ID }).catch(() => undefined);
           state.open = null;
+          flow.reset();
           render();
         },
         onOpenFullPage: () => openFullPage(open.session.id),
       }),
+      flow.render((scope) => void trust(scope)),
     );
   } else if (state.candidates && state.candidates.candidates.length > 0) {
     children.push(renderWebsiteCard(state.candidates, (candidate) => void inspect(candidate)));
@@ -108,16 +141,20 @@ subscribe((event) => {
   if (event.type === "event.candidates" && event.tabId === state.tabId) void refresh();
   if (event.type === "event.sessions" && state.open) {
     const id = state.open.session.id;
-    send<SessionView>({ type: "package.get", sessionId: id }).then(
+    send<SessionView>({ type: "package.get", sessionId: id, viewId: VIEW_ID }).then(
       (view) => {
         state.open = view;
         render();
       },
       () => {
         state.open = null;
+        flow.reset();
         render();
       },
     );
+  }
+  if ((event.type === "event.authorization" && state.open && event.sessionId === state.open.session.id) || event.type === "event.vault" || event.type === "event.settings") {
+    void flow.load().then(() => render());
   }
 });
 chrome.tabs.onActivated.addListener(() => void refresh());

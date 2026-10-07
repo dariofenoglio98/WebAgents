@@ -1,0 +1,238 @@
+{
+  "schema": "agentpkg-model-evaluation-v0",
+  "evaluated_at": "2026-10-07T13:18:39.630505+00:00",
+  "package_id": "org.webagents.webair",
+  "package_version": "0.4.0",
+  "package_digest": "0e8317f11e8813e7d5b4b3f352f20148d114329dca3db8c725c5b0558af24fbb",
+  "requirements": {
+    "schema": "agentpkg-model-requirements-v0",
+    "package_id": "org.webagents.webair",
+    "package_version": "0.4.0",
+    "package_digest": "0e8317f11e8813e7d5b4b3f352f20148d114329dca3db8c725c5b0558af24fbb",
+    "routing": "host",
+    "fallback_policy": "deny",
+    "privacy": null,
+    "latency_preference": null,
+    "cost_sensitivity": null,
+    "tasks": [
+      {
+        "id": "interpret",
+        "capabilities": [
+          "structured_output",
+          "reasoning"
+        ],
+        "context_window": 16000,
+        "preferred_tier": "reasoning"
+      },
+      {
+        "id": "select",
+        "capabilities": [
+          "structured_output",
+          "reasoning"
+        ],
+        "context_window": 16000,
+        "preferred_tier": "reasoning"
+      },
+      {
+        "id": "answer",
+        "capabilities": [
+          "structured_output",
+          "reasoning"
+        ],
+        "context_window": 16000,
+        "preferred_tier": "reasoning"
+      }
+    ],
+    "hard_requirements": [
+      {
+        "id": "capability:reasoning",
+        "kind": "capability",
+        "subject": "reasoning",
+        "operator": "is_true",
+        "value": true,
+        "tasks": [
+          "answer",
+          "interpret",
+          "select"
+        ]
+      },
+      {
+        "id": "capability:structured_output",
+        "kind": "capability",
+        "subject": "structured_output",
+        "operator": "is_true",
+        "value": true,
+        "tasks": [
+          "answer",
+          "interpret",
+          "select"
+        ]
+      },
+      {
+        "id": "context_tokens:minimum",
+        "kind": "context_tokens",
+        "subject": "context_tokens",
+        "operator": "at_least",
+        "value": 16000,
+        "tasks": [
+          "answer",
+          "interpret",
+          "select"
+        ]
+      }
+    ],
+    "preferences": [
+      {
+        "id": "preferred_tier:reasoning",
+        "kind": "preferred_tier",
+        "subject": "reasoning"
+      }
+    ],
+    "binding_strategy": "single_model",
+    "note": "Hard requirements must hold for the one selected model, because this profile binds a single model to every declared task."
+  },
+  "catalog": {
+    "catalog_sha256": "9f5cf25f98e49091c4c5b9eea56a147831077d3fbb29161efd816f72be85c26f",
+    "model_count": 1,
+    "available_model_count": 1,
+    "host": {
+      "runtime": "chrome-agent-browser",
+      "runtime_version": "0.1.0",
+      "source": "fixture: one local model as Settings \u2192 Models would state it (STATE.md \u00a75)",
+      "captured_at": "2026-10-06T12:00:00.000Z",
+      "agent_id": null
+    }
+  },
+  "models": [
+    {
+      "model_id": "ollama/qwen3:30b",
+      "provider_id": "ollama",
+      "display_name": "qwen3:30b",
+      "available": true,
+      "availability_reason": null,
+      "selectable": true,
+      "status": "compatible",
+      "selectable_for_run_plan": true,
+      "evidence_strength": "derived",
+      "satisfied": [
+        "capability:reasoning",
+        "capability:structured_output",
+        "context_tokens:minimum"
+      ],
+      "violated": [],
+      "unknown": [],
+      "checks": [
+        {
+          "id": "capability:reasoning",
+          "kind": "capability",
+          "subject": "reasoning",
+          "operator": "is_true",
+          "value": true,
+          "tasks": [
+            "answer",
+            "interpret",
+            "select"
+          ],
+          "host_value": true,
+          "status": "satisfied",
+          "basis": "declared",
+          "source": "capabilities",
+          "detail": "Ollama /api/show capabilities: completion, tools, thinking."
+        },
+        {
+          "id": "capability:structured_output",
+          "kind": "capability",
+          "subject": "structured_output",
+          "operator": "is_true",
+          "value": true,
+          "tasks": [
+            "answer",
+            "interpret",
+            "select"
+          ],
+          "host_value": true,
+          "status": "satisfied",
+          "basis": "derived",
+          "source": "capabilities",
+          "detail": "The adapter requests a constrained response and validates every answer against the schema, failing closed. This is the adapter's guarantee, not a provider declaration."
+        },
+        {
+          "id": "context_tokens:minimum",
+          "kind": "context_tokens",
+          "subject": "context_tokens",
+          "operator": "at_least",
+          "value": 16000,
+          "tasks": [
+            "answer",
+            "interpret",
+            "select"
+          ],
+          "host_value": 65536,
+          "status": "satisfied",
+          "basis": "declared",
+          "source": "limits.context_tokens",
+          "detail": null
+        }
+      ],
+      "preferences": [
+        {
+          "id": "preferred_tier:reasoning",
+          "kind": "preferred_tier",
+          "subject": "reasoning",
+          "host_value": [
+            "local",
+            "limits:settings",
+            "context:capped"
+          ],
+          "status": "unknown"
+        }
+      ],
+      "limits": {
+        "context_tokens": 65536,
+        "native_context_window": 262144,
+        "max_output_tokens": 16384
+      },
+      "properties": {
+        "local": true,
+        "privacy_class": "local",
+        "cost_class": "free",
+        "status": null,
+        "tags": [
+          "local",
+          "limits:settings",
+          "context:capped"
+        ]
+      },
+      "capabilities": {
+        "reasoning": {
+          "value": true,
+          "basis": "declared",
+          "detail": "Ollama /api/show capabilities: completion, tools, thinking."
+        },
+        "structured_output": {
+          "value": true,
+          "basis": "derived",
+          "detail": "The adapter requests a constrained response and validates every answer against the schema, failing closed. This is the adapter's guarantee, not a provider declaration."
+        },
+        "tool_use": {
+          "value": true,
+          "basis": "declared",
+          "detail": "Ollama /api/show capabilities: completion, tools, thinking."
+        }
+      }
+    }
+  ],
+  "counts": {
+    "compatible": 1,
+    "unverified": 0,
+    "incompatible": 0,
+    "total": 1,
+    "available": 1,
+    "selectable": 1
+  },
+  "notes": [],
+  "execution": {
+    "performed": false,
+    "note": "Evaluating compatibility reads declarations only; no model was contacted."
+  }
+}

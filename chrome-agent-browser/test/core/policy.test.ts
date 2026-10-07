@@ -82,6 +82,12 @@ describe("the package URL policy (test_browser_fetch.py::test_unsafe_url_syntax_
     "https://webair.example\\@127.0.0.1/a.pkg",
     "https://999.1.1.1/a.agent.pkg",
     "https://foo.123/a.agent.pkg",
+    // Review 2, nit 11: every trailing dot is stripped before the local-name test, and an
+    // empty label anywhere else is not a DNS name.
+    "https://localhost../a.agent.pkg",
+    "https://printer.local.../a.agent.pkg",
+    "https://a..example/a.agent.pkg",
+    "https://.example.com/a.agent.pkg",
   ]) {
     it(`refuses ${JSON.stringify(url.slice(0, 60))}`, () => {
       const error = (() => {
@@ -126,6 +132,10 @@ describe("the package URL policy (test_browser_fetch.py::test_unsafe_url_syntax_
     expect(validatePackageUrl("https://b\u00fccher.example/a.agent.pkg").hostname).toBe("b\u00fccher.example");
     expect(validatePackageUrl("https://127.0.0.1.example/a.agent.pkg").hostname).toBe("127.0.0.1.example");
     expect(validatePackageUrl("https://localhost.example/a.agent.pkg").hostname).toBe("localhost.example");
+    expect(() => validatePackageUrl("https://localhost../a.agent.pkg")).toThrow(/local host/u);
+    expect(() => validatePackageUrl("https://a..example/a.agent.pkg")).toThrow(/empty label/u);
+    // One trailing dot is a fully qualified name and stays accepted.
+    expect(validatePackageUrl("https://example.com./a.agent.pkg").hostname).toBe("example.com.");
   });
 });
 

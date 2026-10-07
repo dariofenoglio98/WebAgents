@@ -1,0 +1,172 @@
+{
+  "schema": "openclaw-host-resources-v0",
+  "types": [
+    {
+      "id": "personal.travel_profile",
+      "display_name": "Travel profile",
+      "description": "Travel preferences: home airport, preferred cabin, whether to prefer nonstop flights, and currency. Preferences, not identity or payment data.",
+      "permission_kind": "personal.read",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "title": "Travel profile",
+        "type": "object",
+        "properties": {
+          "home_airport": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$"
+          },
+          "preferred_cabin": {
+            "enum": [
+              "economy",
+              "business"
+            ]
+          },
+          "prefer_nonstop": {
+            "type": "boolean"
+          },
+          "preferred_currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$"
+          }
+        },
+        "required": [
+          "home_airport",
+          "preferred_cabin",
+          "prefer_nonstop",
+          "preferred_currency"
+        ],
+        "additionalProperties": false
+      },
+      "sealed_fields": []
+    },
+    {
+      "id": "personal.passenger_identity",
+      "display_name": "Passenger identity",
+      "description": "The name and contact email of one traveler, for a booking.",
+      "permission_kind": "personal.read",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "title": "Passenger identity",
+        "type": "object",
+        "properties": {
+          "given_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          },
+          "family_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          },
+          "contact_email": {
+            "type": "string",
+            "minLength": 6,
+            "maxLength": 254
+          }
+        },
+        "required": [
+          "given_name",
+          "family_name",
+          "contact_email"
+        ],
+        "additionalProperties": false
+      },
+      "sealed_fields": [
+        "/contact_email"
+      ]
+    },
+    {
+      "id": "wallet.payment_method",
+      "display_name": "Payment method",
+      "description": "Which payment instrument to use, as the opaque identifier a merchant accepts and a display-safe label. Never a card number, security code or wallet credential.",
+      "permission_kind": "personal.read",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "title": "Payment method",
+        "type": "object",
+        "properties": {
+          "payment_method_id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]{5,63}$"
+          },
+          "display": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        },
+        "required": [
+          "payment_method_id",
+          "display"
+        ],
+        "additionalProperties": false
+      },
+      "sealed_fields": [
+        "/payment_method_id"
+      ]
+    }
+  ],
+  "resources": [
+    {
+      "id": "profile_demo_traveler",
+      "type": "personal.travel_profile",
+      "label": "Demo Traveler — BOS / Economy / Nonstop",
+      "value": {
+        "home_airport": "BOS",
+        "preferred_cabin": "economy",
+        "prefer_nonstop": true,
+        "preferred_currency": "USD"
+      }
+    },
+    {
+      "id": "profile_demo_explorer",
+      "type": "personal.travel_profile",
+      "label": "Demo Explorer — JFK / Business / Any stops",
+      "value": {
+        "home_airport": "JFK",
+        "preferred_cabin": "business",
+        "prefer_nonstop": false,
+        "preferred_currency": "USD"
+      }
+    },
+    {
+      "id": "passenger_demo_alex",
+      "type": "personal.passenger_identity",
+      "label": "Alex Traveler — a***@example.com",
+      "value": {
+        "given_name": "Alex",
+        "family_name": "Traveler",
+        "contact_email": "alex.traveler@example.com"
+      }
+    },
+    {
+      "id": "passenger_demo_sam",
+      "type": "personal.passenger_identity",
+      "label": "Sam Traveler — s***@example.com",
+      "value": {
+        "given_name": "Sam",
+        "family_name": "Traveler",
+        "contact_email": "sam.traveler@example.com"
+      }
+    },
+    {
+      "id": "payment_demo_visa",
+      "type": "wallet.payment_method",
+      "label": "Demo Visa •••• 4242",
+      "value": {
+        "payment_method_id": "demo-visa-4242",
+        "display": "Demo Visa •••• 4242"
+      }
+    },
+    {
+      "id": "payment_demo_travel",
+      "type": "wallet.payment_method",
+      "label": "Demo Travel Card •••• 1234",
+      "value": {
+        "payment_method_id": "demo-travel-1234",
+        "display": "Demo Travel Card •••• 1234"
+      }
+    }
+  ]
+}

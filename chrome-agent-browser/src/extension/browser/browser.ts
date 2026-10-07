@@ -5,31 +5,82 @@
  * the location hash.
  */
 import type { Candidate } from "../../core/discovery.js";
+import type { JsonObject } from "../../core/json.js";
 import { looksLikePackageUrl } from "../../core/policy.js";
 import type { TrustEntry, TrustState } from "../../core/trust.js";
-import type { SessionDescriptor, SessionView, StatusInfo, WebsiteResult } from "../messages.js";
+import type { AuthorizationView, ModelsView, SessionDescriptor, SessionView, SettingsView, StatusInfo, VaultView, WebsiteResult } from "../messages.js";
 import { renderAgentPage } from "../ui/agent-page.js";
+import { bindAuthorization, type AuthorizationController } from "../ui/authorization-flow.js";
 import { describeError, send, subscribe } from "../ui/client.js";
 import { button, card, chip, el, list, replace, row, whenText } from "../ui/dom.js";
+import { newSettingsPageState, renderSettingsPage, type SettingsPageState, type SettingsSection } from "../ui/settings-page.js";
 import { renderTrustPage } from "../ui/trust-page.js";
+import { newVaultPageState, renderVaultPage, type VaultPageState } from "../ui/vault-page.js";
 import { renderWebsiteCard } from "../ui/website.js";
 
-type View = "open" | "library" | "runs" | "trust" | "settings";
+type View = "open" | "library" | "runs" | "trust" | "settings" | "data";
 
 interface PageState {
   view: View;
   address: string;
   website: WebsiteResult | null;
   open: SessionView | null;
+  authorization: AuthorizationView | null;
+  models: ModelsView | null;
   sessions: SessionDescriptor[];
   trust: { entries: TrustEntry[]; state: TrustState } | null;
   status: StatusInfo | null;
+  settings: SettingsView | null;
+  settingsPage: SettingsPageState;
+  vault: VaultView | null;
+  vaultPage: VaultPageState;
   busy: string | null;
   error: { code: string; message: string; details: Record<string, unknown> } | null;
 }
 
 const app = document.getElementById("app") as HTMLElement;
-const state: PageState = { view: "open", address: "", website: null, open: null, sessions: [], trust: null, status: null, busy: null, error: null };
+/** This page's identity toward the service worker (D-035): a session ends when no view holds it. */
+const VIEW_ID = `browser:${crypto.randomUUID()}`;
+const state: PageState = {
+  view: "open",
+  address: "",
+  website: null,
+  open: null,
+  authorization: null,
+  models: null,
+  sessions: [],
+  trust: null,
+  status: null,
+  settings: null,
+  settingsPage: newSettingsPageState(),
+  vault: null,
+  vaultPage: newVaultPageState(),
+  busy: null,
+  error: null,
+};
+
+/** The authorization flow for the open session (T3). */
+const flow: AuthorizationController = bindAuthorization({
+  session: () => state.open,
+  get: () => state.authorization,
+  set: (view) => {
+    state.authorization = view;
+  },
+  models: () => state.models,
+  setModels: (models) => {
+    state.models = models;
+  },
+  setBusy: (text) => {
+    state.busy = text;
+  },
+  setError: (error) => {
+    state.error = error ? { ...error, details: {} } : null;
+  },
+  openSettings: (section) => {
+    location.hash = section === "data" ? "data" : `settings?section=${section}`;
+  },
+  rerender: () => render(),
+});
 
 function route(): void {
   const hash = location.hash.replace(/^#/u, "");
@@ -40,8 +91,10 @@ function route(): void {
     void showSession(decodeURIComponent(view.slice("session=".length)));
     return;
   }
-  state.view = (["open", "library", "runs", "trust", "settings"] as View[]).includes(view as View) ? (view as View) : "open";
+  state.view = (["open", "library", "runs", "trust", "settings", "data"] as View[]).includes(view as View) ? (view as View) : "open";
   if (params.get("url")) state.address = params.get("url")!;
+  const section = params.get("section");
+  if (state.view === "settings" && (section === "models" || section === "policies" || section === "about")) state.settingsPage.section = section as SettingsSection;
   void load();
 }
 
@@ -49,7 +102,11 @@ async function load(): Promise<void> {
   try {
     if (state.view === "trust") state.trust = await send({ type: "trust.list" });
     if (state.view === "library" || state.view === "open") state.sessions = (await send<{ sessions: SessionDescriptor[] }>({ type: "sessions.list" })).sessions;
-    if (state.view === "settings") state.status = await send({ type: "status.get" });
+    if (state.view === "settings") {
+      state.status = await send({ type: "status.get" });
+      state.settings = await send({ type: "settings.get" });
+    }
+    if (state.view === "data") state.vault = await send({ type: "vault.get" });
   } catch (error) {
     state.error = describeError(error);
   }
@@ -58,10 +115,13 @@ async function load(): Promise<void> {
 
 async function showSession(sessionId: string): Promise<void> {
   try {
-    state.open = await send<SessionView>({ type: "package.get", sessionId });
+    state.open = await send<SessionView>({ type: "package.get", sessionId, viewId: VIEW_ID });
     state.error = null;
+    if (state.authorization?.session_id !== sessionId) flow.reset();
+    await flow.load();
   } catch (error) {
     state.open = null;
+    flow.reset();
     state.error = describeError(error);
   }
   render();
@@ -74,7 +134,7 @@ async function openAddress(address: string): Promise<void> {
   render();
   try {
     if (looksLikePackageUrl(address)) {
-      state.open = await send<SessionView>({ type: "package.open", url: address, advertisedOn: null });
+      state.open = await send<SessionView>({ type: "package.open", url: address, advertisedOn: null, viewId: VIEW_ID });
       state.website = null;
       location.hash = `session=${encodeURIComponent(state.open.session.id)}`;
     } else {
@@ -94,7 +154,7 @@ async function inspect(candidate: Candidate): Promise<void> {
   state.busy = "Downloading and verifying the package…";
   render();
   try {
-    state.open = await send<SessionView>({ type: "package.open", url: candidate.resolved_url, advertisedOn: state.website.final_url });
+    state.open = await send<SessionView>({ type: "package.open", url: candidate.resolved_url, advertisedOn: state.website.final_url, viewId: VIEW_ID });
     state.error = null;
     location.hash = `session=${encodeURIComponent(state.open.session.id)}`;
   } catch (error) {
@@ -148,12 +208,14 @@ function openView(): HTMLElement[] {
       renderAgentPage(open, {
         onTrust: (scope) => void trustSession(scope),
         onClose: () => {
-          void send({ type: "package.close", sessionId: open.session.id }).catch(() => undefined);
+          void send({ type: "package.release", sessionId: open.session.id, viewId: VIEW_ID }).catch(() => undefined);
           state.open = null;
+          flow.reset();
           location.hash = "open";
           render();
         },
       }),
+      flow.render((scope) => void trustSession(scope)),
     );
   } else if (state.website) {
     nodes.push(
@@ -190,7 +252,7 @@ function libraryView(): HTMLElement[] {
   return [
     card(
       "Library",
-      el("p", { className: "ab-hint", text: "Agents you have inspected in this browser session. Saving agents for later, with their trusted keys and your preferred settings, arrives with authorization (T3)." }),
+      el("p", { className: "ab-hint", text: "Agents you have inspected in this browser session; open one to see its authorization and run plan. Saving agents for later arrives with runs from the browser (T5)." }),
       state.sessions.length === 0 ? el("p", { className: "ab-empty", text: "Nothing is open." }) : list(state.sessions.map((session) => sessionRow(session))),
     ),
   ];
@@ -234,40 +296,103 @@ function trustView(): HTMLElement[] {
 }
 
 function settingsView(): HTMLElement[] {
-  const status = state.status;
+  if (!state.settings) return [errorBox(), el("p", { className: "ab-busy", text: "Loading…" })].filter((node): node is HTMLElement => node !== null);
+  const refreshSettings = async () => {
+    state.settings = await send({ type: "settings.get" });
+    render();
+  };
   return [
-    card(
-      "Settings",
-      el("p", { className: "ab-hint", text: "Models, policies and your personal vault arrive with authorization (T3) and execution (T5). This page shows the limits in force." }),
-      status
-        ? el(
-            "div",
-            {},
-            row("Extension", status.version),
-            row("Core", `${status.core_version} (agentpkg-runtime-v0 ${status.runtime_version})`),
-            row("Open packages", `${status.sessions} of ${status.max_sessions}`),
-            row("Snapshot cache", `${(status.cached_bytes / (1024 * 1024)).toFixed(1)} of ${(status.max_cache_bytes / (1024 * 1024)).toFixed(0)} MiB`),
-            row("Session lifetime", `${status.session_ttl_seconds / 60} minutes`),
-            row("Execution", status.execution),
-          )
-        : el("p", { className: "ab-busy", text: "Loading…" }),
-      el("h4", { text: "Planned" }),
-      list(["Models: local Ollama (needs OLLAMA_ORIGINS to include chrome-extension://*), OpenAI and Anthropic with your own keys, Chrome built-in Gemini Nano", "Policies: privacy-first, balanced and convenience presets", "Your data: typed records a package can ask for by type, never by name"]),
-    ),
-  ];
+    errorBox(),
+    renderSettingsPage(state.settings, state.status, state.settingsPage, {
+      onSave: (settings) => {
+        send<SettingsView>({ type: "settings.set", settings }).then(
+          (saved) => {
+            state.settings = saved;
+            state.settingsPage.notice = "Saved.";
+            render();
+          },
+          (error: unknown) => {
+            state.error = describeError(error);
+            render();
+          },
+        );
+      },
+      onSetKey: (provider, key) => {
+        send<SettingsView>({ type: "settings.setKey", provider, key }).then(
+          (saved) => {
+            state.settings = saved;
+            state.settingsPage.notice = key ? "Key stored in this browser." : "Key removed.";
+            render();
+          },
+          (error: unknown) => {
+            state.error = describeError(error);
+            render();
+          },
+        );
+      },
+      onProbe: (provider) => {
+        state.settingsPage.probes[provider] = "running";
+        render();
+        send({ type: "models.probe", provider }).then(
+          (result) => {
+            state.settingsPage.probes[provider] = result as NonNullable<SettingsPageState["probes"][typeof provider]>;
+            void refreshSettings();
+          },
+          (error: unknown) => {
+            delete state.settingsPage.probes[provider];
+            state.error = describeError(error);
+            render();
+          },
+        );
+      },
+      rerender: () => render(),
+    }),
+  ].filter((node): node is HTMLElement => node !== null);
+}
+
+function dataView(): HTMLElement[] {
+  if (!state.vault) return [errorBox(), el("p", { className: "ab-busy", text: "Loading…" })].filter((node): node is HTMLElement => node !== null);
+  const apply = (request: Parameters<typeof send>[0], notice: string) => {
+    send<VaultView>(request).then(
+      (vault) => {
+        state.vault = vault;
+        state.vaultPage.editing = null;
+        state.vaultPage.notice = { text: notice, tone: "good" };
+        state.error = null;
+        render();
+      },
+      (error: unknown) => {
+        const described = describeError(error);
+        state.vaultPage.notice = { text: `${described.code}: ${described.message}`, tone: "bad" };
+        render();
+      },
+    );
+  };
+  return [
+    errorBox(),
+    renderVaultPage(state.vault, state.vaultPage, {
+      onPut: (record) => apply({ type: "vault.putRecord", record: record as unknown as JsonObject }, "Saved. A prepared run plan that named this record is now stale."),
+      onDelete: (recordId) => apply({ type: "vault.deleteRecord", recordId }, "Deleted."),
+      onInstallDemo: () => apply({ type: "vault.installDemo", records: true }, "Fictional demo data added. Every record is marked as such."),
+      rerender: () => render(),
+    }),
+  ].filter((node): node is HTMLElement => node !== null);
 }
 
 function render(): void {
   for (const link of document.querySelectorAll<HTMLAnchorElement>(".ab-nav a")) {
     link.classList.toggle("ab-nav-active", link.dataset.view === state.view);
   }
-  const children = state.view === "open" ? openView() : state.view === "library" ? libraryView() : state.view === "runs" ? runsView() : state.view === "trust" ? trustView() : settingsView();
+  const children =
+    state.view === "open" ? openView() : state.view === "library" ? libraryView() : state.view === "runs" ? runsView() : state.view === "trust" ? trustView() : state.view === "data" ? dataView() : settingsView();
   replace(app, children);
 }
 
 subscribe((event) => {
-  if (event.type === "event.sessions" || event.type === "event.trust") void load();
+  if (event.type === "event.sessions" || event.type === "event.trust" || event.type === "event.settings" || event.type === "event.vault") void load();
   if (event.type === "event.sessions" && state.open) void showSession(state.open.session.id);
+  if (event.type === "event.authorization" && state.open && event.sessionId === state.open.session.id) void flow.load().then(() => render());
+  if ((event.type === "event.vault" || event.type === "event.settings") && state.open) void flow.load().then(() => render());
 });
 window.addEventListener("hashchange", route);
 route();
