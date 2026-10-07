@@ -56,6 +56,8 @@ export interface JsonHttpCallOptions {
   credential?: string | null;
   /** Hook for a privacy observer: the exact body about to leave. */
   observe?: (request: { tool_id: string; binding_id: string; url: string; body: string | null }) => void;
+  /** The approved bounds (the described binding's, which the digest froze), when the caller holds them; else the definition's. */
+  limits?: { maxRequestBytes: number; maxResponseBytes: number };
 }
 
 export async function jsonHttpCall(options: JsonHttpCallOptions): Promise<{ output: JsonValue; status: number }> {
@@ -73,7 +75,7 @@ export async function jsonHttpCall(options: JsonHttpCallOptions): Promise<{ outp
     throw toolError("tool_unavailable", "this binding has no usable configured endpoint");
   }
   const body = method === "POST" ? JSON.stringify(args ?? null) : null;
-  const maxRequest = definition.maxRequestBytes ?? DEFAULT_MAX_REQUEST_BYTES;
+  const maxRequest = options.limits?.maxRequestBytes ?? definition.maxRequestBytes ?? DEFAULT_MAX_REQUEST_BYTES;
   if (body !== null && new TextEncoder().encode(body).length > maxRequest) {
     // Refused here, so a pathological document fails locally rather than at someone else's server.
     throw toolError("tool_request_invalid", "the tool arguments exceed this binding's limit");
@@ -92,7 +94,7 @@ export async function jsonHttpCall(options: JsonHttpCallOptions): Promise<{ outp
   const target = `https://${url.hostname}${path}`;
   options.observe?.({ tool_id: definition.toolId, binding_id: definition.id, url: target, body });
   if (signal.aborted) throw cancellationOf(signal);
-  const maxResponse = definition.maxResponseBytes ?? DEFAULT_MAX_RESPONSE_BYTES;
+  const maxResponse = options.limits?.maxResponseBytes ?? definition.maxResponseBytes ?? DEFAULT_MAX_RESPONSE_BYTES;
   let answer;
   try {
     answer = await options.transport({ url: target, method, headers, body, signal, maxResponseBytes: maxResponse });

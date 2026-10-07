@@ -240,6 +240,67 @@ describe("the JSON HTTP adapter's policy", () => {
   });
 });
 
+describe("the binding's own deadline (review 1, finding 5)", () => {
+  const hanging = { [ECHO_IMPLEMENTATION]: () => new Promise<JsonValue>(() => undefined) };
+
+  it("bounds the dispatch: a one-second binding ends a never-settling call as tool_timeout, long before the package's 10 s", async () => {
+    const { pkg } = await echoPackage();
+    const definition = { ...definitionFor(pkg, ECHO_TOOL), timeoutSeconds: 1 };
+    const { handlers } = toolHandlers([planBindingFor(pkg, definition)], { definitions: [definition], builtins: hanging, pacer: new Pacer() });
+    const started = Date.now();
+    const failure = await echoFailing(pkg, { handlers, approvedTools: [ECHO_TOOL] });
+    expect(Date.now() - started).toBeLessThan(5000);
+    expect(failure.code).toBe("tool_error");
+    const failed = (failure.execution_report!.audit as JsonObject[]).find((event) => event.action === "tool.failed")!;
+    expect(failed.reason).toBe("tool_timeout");
+    expect(failed.failure_facts).toMatchObject({ stage: "timeout", timeout: true });
+  });
+
+  it("bounds the wait for a slot too, and cancellation still wins over the deadline", async () => {
+    const { pkg } = await echoPackage();
+    // One slot for the implementation: a five-second binding holds it, a one-second binding waits for it.
+    const slow = { ...definitionFor(pkg, ECHO_TOOL), timeoutSeconds: 5, maxConcurrent: 1 };
+    const quick = { ...slow, timeoutSeconds: 1 };
+    const pacer = new Pacer();
+    const holder = new BoundToolHandler(planBindingFor(pkg, slow), slow, { definitions: [slow], builtins: hanging, pacer });
+    const waiter = new BoundToolHandler(planBindingFor(pkg, quick), quick, { definitions: [quick], builtins: hanging, pacer });
+    const holding = new AbortController();
+    const held = holder.call(context, { value: "a" }, holding.signal);
+    const started = Date.now();
+    await expect(waiter.call(context, { value: "b" }, new AbortController().signal)).rejects.toMatchObject({ code: "tool_timeout", message: "the call waited for its turn longer than the binding allows", audit_facts: { stage: "timeout", timeout: true } });
+    expect(Date.now() - started).toBeLessThan(4000);
+    holding.abort(new CancelledError());
+    await expect(held).rejects.toBeInstanceOf(CancelledError);
+    expect(waiter.calls.map((call) => call.outcome)).toEqual(["failed"]);
+    expect(holder.calls.map((call) => call.outcome)).toEqual(["failed"]);
+  });
+
+  it("enforces the response cap the plan approved: the host ceiling when it is the smaller (review 1, nit 10)", async () => {
+    const { pkg } = await echoPackage({ remoteOrigin: "https://service.example" });
+    const definition = definitionFor(pkg, ECHO_TOOL);
+    expect(definition.kind).toBe("json_http");
+    const net = scripted(() => ({ status: 200, body: JSON.stringify({ value: "y".repeat(150) }) }));
+    const run = async (ceiling: number) => {
+      const describe = { maxResponseBytes: ceiling };
+      const binding = planBindingFor(pkg, definition, { binding_sha256: bindingDigest(describeDefinition(definition, describe)) });
+      const { handlers } = toolHandlers([binding], { definitions: [definition], transport: net.transport, pacer: new Pacer(), describe });
+      try {
+        return await runWorkflow(pkg, ECHO_INPUT, { handlers, grants: sessionGrants(pkg), approvedTools: [ECHO_TOOL] });
+      } catch (error) {
+        return error as { code?: string; execution_report?: Record<string, unknown> };
+      }
+    };
+    expect((await run(4096)) as { status?: string }).toMatchObject({ status: "completed" });
+    const refused = (await run(128)) as { code?: string; execution_report?: Record<string, unknown> };
+    expect(refused.code).toBe("tool_error");
+    const failed = (refused.execution_report!.audit as JsonObject[]).find((event) => event.action === "tool.failed")!;
+    expect(failed.reason).toBe("tool_response_invalid");
+    expect(failed.failure_facts).toMatchObject({ stage: "body_size", body_exceeded: true });
+    // The transport was asked for the approved cap, not the definition's default.
+    expect(net.requests.map((request) => request.maxResponseBytes)).toEqual([4096, 128]);
+  });
+});
+
 describe("WebAir through operator bindings and a scripted origin", () => {
   it("binds the four demo tools and completes a search by replaying the fixture's answers over HTTP", async () => {
     const { loadPackageBytes } = await import("../../../src/core/package.js");

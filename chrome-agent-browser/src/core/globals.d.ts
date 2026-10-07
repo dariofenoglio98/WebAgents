@@ -81,4 +81,8 @@ declare class AbortSignal {
   addEventListener(type: "abort", listener: () => void, options?: { once?: boolean }): void;
   removeEventListener(type: "abort", listener: () => void): void;
   throwIfAborted(): void;
+  /** A signal that aborts after `milliseconds` with a `TimeoutError` (Chrome 103+, Node 17.3+). */
+  static timeout(milliseconds: number): AbortSignal;
+  /** A signal that aborts when any of `signals` does, with that signal's reason (Chrome 116+, Node 20.3+). */
+  static any(signals: AbortSignal[]): AbortSignal;
 }

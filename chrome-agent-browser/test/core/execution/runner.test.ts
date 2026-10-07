@@ -262,7 +262,7 @@ describe("budgets, deadlines and cancellation", () => {
   }, 10_000);
 
   it("cancellation within a wave stops the in-flight call and reports cancelled with a valid chain", async () => {
-    let aborted = false;
+    // The builtin never settles: the run can only come back because the broker raced it against the signal.
     const { session } = await echoSession({ builtin: () => new Promise<JsonValue>(() => undefined) });
     const running = session.run();
     await new Promise((resolve) => setTimeout(resolve, 30));
@@ -270,8 +270,6 @@ describe("budgets, deadlines and cancellation", () => {
     const stop = session.cancel();
     expect(stop).toEqual({ cancel_requested: true, running: true });
     const outcome = await running;
-    aborted = true;
-    expect(aborted).toBe(true);
     expect(outcome.result.status).toBe("cancelled");
     expect(outcome.result.error_code).toBe("cancelled");
     expect(outcome.result.cancel_requested).toBe(true);

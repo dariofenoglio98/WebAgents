@@ -10,8 +10,11 @@
  *   among the definitions *this run* was constructed with;
  * - before a slot, a socket or a resolver, it refuses arguments that carry a sealed host value
  *   bound for a tool it was not granted to reach (`egress.ts`);
- * - it serves at most the binding's concurrency and spacing (`pacer.ts`);
- * - it bounds the arguments and the output, and a `host_resource` answer must be attributed to
+ * - it serves at most the binding's concurrency and spacing (`pacer.ts`), and the binding's own
+ *   deadline bounds the wait for a slot and the dispatch (the package's timeout runs in the
+ *   runtime above, so a call ends at whichever is earlier, as the reference's `min` does);
+ * - it bounds the arguments and the output to the limits the plan approved (the described
+ *   binding's, which the digest froze), and a `host_resource` answer must be attributed to
  *   exactly one grant of this plan;
  * - it records `tool.dispatched` and `tool.settled` in the runtime's own audit: the binding
  *   identity and, for a resource, the grant it came from, never the value.
@@ -145,12 +148,18 @@ export class BoundToolHandler {
         const refusal = egressRefusal(payload, this.deps.resources.grants, this.binding.required_permission_ids, this.deps.resources.resolver.sealedValues());
         if (refusal) throw toolError("tool_request_invalid", refusal);
       }
-      const limits = { maxConcurrent: definition.maxConcurrent ?? 4, minIntervalMs: definition.minIntervalMs ?? 0 };
+      // The bounds the plan approved: the described binding's limits are what the digest froze
+      // (`describe.maxResponseBytes` is the host's own ceiling, applied as a minimum).
+      const described = describeDefinition(definition, this.deps.describe);
+      const deadline = AbortSignal.timeout(Math.max(1, described.limits.timeout_seconds) * 1000);
+      const bounded = AbortSignal.any([signal, deadline]);
+      const limits = { maxConcurrent: described.limits.max_concurrent, minIntervalMs: described.limits.min_interval_ms ?? 0 };
       let release: () => void;
       try {
-        release = await (this.deps.pacer ?? HOST_PACER).acquire(definition.id, limits, signal);
+        release = await (this.deps.pacer ?? HOST_PACER).acquire(definition.id, limits, bounded);
       } catch (error) {
         if (signal.aborted) throw cancellationOf(signal);
+        if (deadline.aborted) throw toolError("tool_timeout", "the call waited for its turn longer than the binding allows");
         throw error;
       }
       let answer: { output: JsonValue; status: number | null; resource?: ResourceGrant };
@@ -158,17 +167,22 @@ export class BoundToolHandler {
         if (definition.kind === "local_builtin") {
           const builtin = this.deps.builtins?.[definition.implementationId];
           if (builtin === undefined) throw toolError("tool_unavailable", "this host has no code for that local implementation");
-          answer = { output: await abortable(Promise.resolve().then(() => builtin(payload)), signal), status: null };
+          answer = { output: await abortable(Promise.resolve().then(() => builtin(payload)), bounded), status: null };
         } else if (definition.kind === "host_resource") {
           const resolved = hostResourceCall(definition, this.binding, payload, this.deps.resources ?? null);
           answer = { output: resolved.output, status: null, resource: resolved.resource };
         } else if (definition.kind === "json_http") {
           if (!this.deps.transport) throw toolError("tool_unavailable", "this host has no network transport for tool calls");
           const credential = definition.credential ? (this.deps.credentials?.(definition.credential) ?? null) : null;
-          answer = await abortable(jsonHttpCall({ definition, args: payload, transport: this.deps.transport, signal, credential, observe: this.deps.observe }), signal);
+          const bytes = { maxRequestBytes: described.limits.max_request_bytes, maxResponseBytes: described.limits.max_response_bytes };
+          answer = await abortable(jsonHttpCall({ definition, args: payload, transport: this.deps.transport, signal: bounded, credential, observe: this.deps.observe, limits: bytes }), bounded);
         } else {
           throw toolError("tool_unavailable", "this host has no implementation for that category yet");
         }
+      } catch (error) {
+        if (signal.aborted) throw cancellationOf(signal);
+        if (deadline.aborted) throw toolError("tool_timeout", "the tool host did not answer in time");
+        throw error;
       } finally {
         release();
       }

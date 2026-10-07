@@ -6,6 +6,7 @@
  * and raw model output never appears.
  */
 import type { JsonObject, JsonValue } from "../json.js";
+import { sameModel } from "../models/router.js";
 import type { AuditEvent } from "../types.js";
 import { digest } from "../workflow/runtime.js";
 
@@ -139,7 +140,13 @@ export interface InvocationEvidence {
 
 const unique = (values: Array<string | null | undefined>): string[] => [...new Set(values.filter((value): value is string => typeof value === "string" && value.length > 0))].sort();
 
-/** Which model actually answered each call, straight from the adapter. */
+/**
+ * Which model actually answered each call, straight from the adapter. `invoked` lists the ids
+ * the provider reported; `all_calls_used_planned_model` judges them the way the router did
+ * (`sameModel`: the bound id or a dated snapshot of it), so a hosted run answered by
+ * `gpt-4o-2024-08-06` for a plan bound to `gpt-4o` is reported as the planned model it is
+ * (review 1, finding 6).
+ */
 export function modelEvidence(router: { invocations?: readonly InvocationEvidence[] } | null, plannedModel: string): JsonObject {
   const invocations = [...(router?.invocations ?? [])];
   const invoked = unique(invocations.map((item) => item.model_id));
@@ -147,7 +154,7 @@ export function modelEvidence(router: { invocations?: readonly InvocationEvidenc
     planned: plannedModel,
     invoked: invoked.slice(0, MAX_MODELS),
     calls: invocations.length,
-    all_calls_used_planned_model: invocations.length > 0 && invoked.length === 1 && invoked[0] === plannedModel,
+    all_calls_used_planned_model: invocations.length > 0 && invocations.every((item) => sameModel(plannedModel, item.model_id ?? null)),
     providers: unique(invocations.map((item) => item.provider_id)).slice(0, MAX_MODELS),
     response_models: unique(invocations.map((item) => item.response_model)).slice(0, MAX_MODELS),
     constrained_by_host: invocations.length > 0 ? invocations.every((item) => item.constrained_by_host === true) : null,

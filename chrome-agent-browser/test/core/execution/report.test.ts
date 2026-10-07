@@ -76,6 +76,10 @@ describe("the audit chain", () => {
     expect(modelEvidence(router, "m")).toMatchObject({ planned: "m", invoked: ["m"], calls: 2, all_calls_used_planned_model: true, providers: ["p"], response_models: ["m-2026-01-01"], constrained_by_host: true, token_bound_basis: ["utf8_upper_bound"] });
     expect(modelEvidence({ invocations: [{ model_id: "other", provider_id: "p" }] }, "m")).toMatchObject({ invoked: ["other"], all_calls_used_planned_model: false });
     expect(modelEvidence(null, "m")).toMatchObject({ calls: 0, all_calls_used_planned_model: false, constrained_by_host: null });
+    // A dated snapshot of the bound id is the planned model, as the router judged it (review 1, finding 6); a different id is not.
+    expect(modelEvidence({ invocations: [{ model_id: "openai/gpt-4o-2024-08-06", provider_id: "openai" }, { model_id: "openai/gpt-4o", provider_id: "openai" }] }, "openai/gpt-4o")).toMatchObject({ invoked: ["openai/gpt-4o", "openai/gpt-4o-2024-08-06"], all_calls_used_planned_model: true });
+    expect(modelEvidence({ invocations: [{ model_id: "openai/gpt-4o-mini", provider_id: "openai" }] }, "openai/gpt-4o")).toMatchObject({ all_calls_used_planned_model: false });
+    expect(modelEvidence({ invocations: [{ model_id: null, provider_id: "openai" }] }, "openai/gpt-4o")).toMatchObject({ all_calls_used_planned_model: false });
   });
 
   it("a real runtime chain verifies end to end and the summary agrees with the usage", async () => {

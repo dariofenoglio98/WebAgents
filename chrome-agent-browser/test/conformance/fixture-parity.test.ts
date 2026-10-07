@@ -130,7 +130,8 @@ function normalizeAudit(audit: JsonObject[], allowTokens: boolean): JsonValue[] 
     }
     const facts: JsonValue[] = [action, event.node_id ?? null, event.role ?? null, event.task ?? event.tool ?? event.permission ?? null];
     if (action === "permission.checked") facts.push(event.allowed ?? null, event.grant ?? null);
-    if (action === "model.completed" && !allowTokens) facts.push(event.input_tokens ?? null, event.output_tokens ?? null);
+    // The runtime records the settled count as `tokens` (review 1, finding 8).
+    if (action === "model.completed" && !allowTokens) facts.push(event.tokens ?? null);
     wave.push(JSON.stringify(facts));
   }
   flush();
@@ -169,6 +170,14 @@ describe("the two runtimes agree on every shipped fixture (D-063)", () => {
       const nodeResult = decode(node.files["result.json"]!) as JsonObject;
       expect((nodeResult.provenance as JsonObject).interpreter).toBe("chrome-agent-browser.workflow.Workflow");
       expect((pyResult.provenance as JsonObject).interpreter).toBe("agentpkg.workflow.Workflow");
+      // usage.json and provenance.json: each equals its own result's section, and the two
+      // runtimes' files agree under result.json's normalisation (review 1, finding 8).
+      expect(decode(node.files["usage.json"]!)).toEqual(nodeResult.usage);
+      expect(decode(python.files["usage.json"]!)).toEqual(pyResult.usage);
+      expect(normalizeUsage(decode(node.files["usage.json"]!) as JsonObject, testCase.tokensAllowlisted)).toEqual(normalizeUsage(decode(python.files["usage.json"]!) as JsonObject, testCase.tokensAllowlisted));
+      const masked = (files: Record<string, Uint8Array>) => ({ ...(decode(files["provenance.json"]!) as JsonObject), interpreter: "<interpreter>" });
+      expect(masked(node.files)).toEqual(masked(python.files));
+      expect(masked(node.files)).toEqual({ ...(nodeResult.provenance as JsonObject), interpreter: "<interpreter>" });
       for (const result of [pyResult, nodeResult]) {
         (result.provenance as JsonObject).interpreter = "<interpreter>";
         result.usage = normalizeUsage(result.usage as JsonObject, testCase.tokensAllowlisted);
@@ -182,7 +191,6 @@ describe("the two runtimes agree on every shipped fixture (D-063)", () => {
         if (name.endsWith(".json")) expect(decode(node.files[name]!), name).toEqual(decode(python.files[name]!));
         else expect(Buffer.from(node.files[name]!).equals(Buffer.from(python.files[name]!)), name).toBe(true);
       }
-      expect(decode(node.files["usage.json"]!)).toEqual(nodeResult.usage === undefined ? null : decode(node.files["usage.json"]!));
       // The audit: same length, same backbone, same multiset per wave.
       const pyEvents = pyAudit as JsonObject[];
       const nodeEvents = nodeAudit as JsonObject[];

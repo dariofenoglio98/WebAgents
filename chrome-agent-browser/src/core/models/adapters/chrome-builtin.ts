@@ -46,7 +46,10 @@ export class UnavailableBuiltinPort implements BuiltinModelPort {
  * The adapter shape T5 completes over a real port. `complete` is specified here so the
  * router's handling of its answers is fixed; the accounting rule (D-072) is T5's decision and
  * the default below is the conservative one: the measured input count and a byte-bound output
- * count, never a guess of zero.
+ * count, never a guess of zero. The Prompt API has no output cap of its own, so an answer whose
+ * byte bound exceeds the node's cap is reported as a `length` stop (the router fails the node
+ * as truncated) rather than as a completion the runtime would have to halt over (review 1,
+ * nit 9: an output count above the cap trips the accounting contract).
  */
 export class ChromeBuiltinAdapter implements ProviderAdapter {
   readonly provider_id = CHROME_BUILTIN_PROVIDER;
@@ -62,7 +65,7 @@ export class ChromeBuiltinAdapter implements ProviderAdapter {
     readonly context_window: number,
   ) {}
 
-  async complete(rendered: RenderedRequest, _maxOutputTokens: number, signal: AbortSignal): Promise<ProviderCompletion> {
+  async complete(rendered: RenderedRequest, maxOutputTokens: number, signal: AbortSignal): Promise<ProviderCompletion> {
     if ((await this.port.availability()) !== "available") {
       throw new AdapterError("model_unavailable", "The built-in model is not available on this host");
     }
@@ -70,12 +73,13 @@ export class ChromeBuiltinAdapter implements ProviderAdapter {
     try {
       const inputTokens = await session.measureInputUsage(`${rendered.system}\n${rendered.user}`);
       const text = await session.prompt(rendered.user, signal);
+      const outputTokens = new TextEncoder().encode(text).length;
       return {
         text,
         model_id: this.host_model_id,
         response_model: this.model_id,
-        stop_reason: "stop",
-        usage: { input_tokens: inputTokens, output_tokens: new TextEncoder().encode(text).length, cache_read_tokens: null, cache_write_tokens: null, total_tokens: null, cost_usd: null },
+        stop_reason: outputTokens > maxOutputTokens ? "length" : "stop",
+        usage: { input_tokens: inputTokens, output_tokens: outputTokens, cache_read_tokens: null, cache_write_tokens: null, total_tokens: null, cost_usd: null },
         constrained: false,
         constraint_detail: "The Prompt API's responseConstraint is wired by the extension adapter (T5); this core adapter parses and validates the response.",
       };

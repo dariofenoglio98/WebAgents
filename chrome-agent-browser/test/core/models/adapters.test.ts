@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 
 import type { JsonObject } from "../../../src/core/json.js";
 import { AnthropicAdapter } from "../../../src/core/models/adapters/anthropic.js";
-import { ChromeBuiltinAdapter, UnavailableBuiltinPort } from "../../../src/core/models/adapters/chrome-builtin.js";
+import { ChromeBuiltinAdapter, UnavailableBuiltinPort, type BuiltinModelPort } from "../../../src/core/models/adapters/chrome-builtin.js";
 import { OllamaAdapter } from "../../../src/core/models/adapters/ollama.js";
 import { OpenAIAdapter } from "../../../src/core/models/adapters/openai.js";
 import { providerBaseUrl } from "../../../src/core/models/adapters/shared.js";
@@ -258,6 +258,16 @@ describe("the built-in model contract and the provider factory", () => {
     expect(await port.availability()).toBe("unavailable");
     const adapter = new ChromeBuiltinAdapter(port, 4096);
     await expect(adapter.complete(RENDERED, 10, new AbortController().signal)).rejects.toMatchObject({ code: "model_unavailable" });
+  });
+
+  it("reports an answer whose byte bound exceeds the cap as a length stop, never as a completion the runtime must halt over", async () => {
+    const answer = '{"focus":"ok","count":1}';
+    const port: BuiltinModelPort = { availability: async () => "available", createSession: async () => ({ prompt: async () => answer, measureInputUsage: async () => 5, inputQuota: 1000, destroy: () => undefined }) };
+    const adapter = new ChromeBuiltinAdapter(port, 4096);
+    const short = await adapter.complete(RENDERED, 100, new AbortController().signal);
+    expect(short).toMatchObject({ text: answer, stop_reason: "stop", usage: { input_tokens: 5, output_tokens: answer.length } });
+    const long = await adapter.complete(RENDERED, 10, new AbortController().signal);
+    expect(long).toMatchObject({ stop_reason: "length", usage: { output_tokens: answer.length } });
   });
 
   it("builds the adapter the binding names, from host settings the binding does not carry", () => {

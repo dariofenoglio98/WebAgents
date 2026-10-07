@@ -56,6 +56,8 @@ export class Workflow {
   private cancelRequested = false;
   private readonly root = new CancelToken();
   private output: JsonValue = null;
+  /** Bundled model schemas by path: the package is immutable for the run, so one bundle per schema (review 1, nit 13). */
+  private readonly modelSchemas = new Map<string, JsonValue>();
 
   private constructor(pkg: Package, schemas: PackageSchemas, options: WorkflowOptions) {
     this.package = pkg;
@@ -215,6 +217,8 @@ export class Workflow {
 
   /** `_model_schema`: bundle package-relative references into one local `$defs` namespace. */
   modelSchema(path: string): JsonValue {
+    const cached = this.modelSchemas.get(path);
+    if (cached !== undefined) return cached;
     const docs = new Map<string, JsonValue>();
     for (const entry of this.package.manifest.schemas as JsonObject[]) {
       const schemaPath = String(entry.path);
@@ -250,7 +254,9 @@ export class Workflow {
       included[names.get(current)!] = bundle(docs.get(current)!, current);
       discover(docs.get(current)!, current);
     }
-    return { $ref: `#/$defs/${names.get(path)!}`, $defs: included };
+    const bundled: JsonValue = { $ref: `#/$defs/${names.get(path)!}`, $defs: included };
+    this.modelSchemas.set(path, bundled);
+    return bundled;
   }
 
   private async step(node: Node, env: Environment, ctx: Context, token: CancelToken): Promise<JsonValue> {
