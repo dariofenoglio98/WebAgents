@@ -1,0 +1,305 @@
+{
+  "profile": "chrome-execution-host-measurement-v0",
+  "recordedAt": "2026-10-07T21:23:04.658Z",
+  "minutes": 30,
+  "holdSeconds": 1500,
+  "chrome": "Chrome/154.0.8037.99",
+  "headed": true,
+  "timeline": [
+    {
+      "t": 1,
+      "what": "extension loaded; server address stored; hosts being created"
+    },
+    {
+      "t": 1,
+      "what": "offscreen target type=background_page; tab target type=page"
+    },
+    {
+      "t": 61,
+      "what": "minute 1: alive={\"offscreen\":true,\"tab\":true,\"worker\":true} {\"offscreen\":{\"ticks\":60,\"maxGapMs\":1003,\"gapsOver2s\":0,\"pings\":12,\"hold\":null,\"lastReportAgoS\":0},\"tab\":{\"ticks\":30,\"maxGapMs\":2002,\"gapsOver2s\":4,\"pings\":6,\"hold\":null,\"lastReportAgoS\":1},\"sw\":{\"ticks\":50,\"maxGapMs\":1009,\"pings\":11,\"hold\":null,\"lastReportAgoS\":10}}"
+    },
+    {
+      "t": 121,
+      "what": "minute 2: alive={\"offscreen\":true,\"tab\":true,\"worker\":true} {\"offscreen\":{\"ticks\":110,\"maxGapMs\":1003,\"gapsOver2s\":0,\"pings\":23,\"hold\":null,\"lastReportAgoS\":10},\"tab\":{\"ticks\":30,\"maxGapMs\":2002,\"gapsOver2s\":4,\"pings\":6,\"hold\":null,\"lastReportAgoS\":61},\"sw\":{\"ticks\":110,\"maxGapMs\":1011,\"pings\":23,\"hold\":null,\"lastReportAgoS\":10}}"
+    },
+    {
+      "t": 181,
+      "what": "minute 3: alive={\"offscreen\":true,\"tab\":true,\"worker\":true} {\"offscreen\":{\"ticks\":170,\"maxGapMs\":1003,\"gapsOver2s\":0,\"pings\":35,\"hold\":null,\"lastReportAgoS\":10},\"tab\":{\"ticks\":30,\"maxGapMs\":2002,\"gapsOver2s\":4,\"pings\":6,\"hold\":null,\"lastReportAgoS\":121},\"sw\":{\"ticks\":170,\"maxGapMs\":1012,\"pings\":35,\"hold\":null,\"lastReportAgoS\":9}}"
+    },
+    {
+      "t": 181,
+      "what": "stop at minute 3: worker alive before=true, after stop=false"
+    },
+    {
+      "t": 241,
+      "what": "minute 4: alive={\"offscreen\":true,\"tab\":true,\"worker\":false} {\"offscreen\":{\"ticks\":230,\"maxGapMs\":1004,\"gapsOver2s\":0,\"pings\":47,\"hold\":null,\"lastReportAgoS\":10},\"tab\":{\"ticks\":30,\"maxGapMs\":2002,\"gapsOver2s\":4,\"pings\":6,\"hold\":null,\"lastReportAgoS\":181},\"sw\":{\"ticks\":170,\"maxGapMs\":1012,\"pings\":35,\"hold\":null,\"lastReportAgoS\":69}}"
+    },
+    {
+      "t": 301,
+      "what": "minute 5: alive={\"offscreen\":true,\"tab\":true,\"worker\":false} {\"offscreen\":{\"ticks\":290,\"maxGapMs\":1004,\"gapsOver2s\":0,\"pings\":59,\"hold\":null,\"lastReportAgoS\":10},\"tab\":{\"ticks\":30,\"maxGapMs\":2002,\"gapsOver2s\":4,\"pings\":6,\"hold\":null,\"lastReportAgoS\":241},\"sw\":{\"ticks\":170,\"maxGapMs\":1012,\"pings\":35,\"hold\":null,\"lastReportAgoS\":129}}"
+    },
+    {
+      "t": 361,
+      "what": "minute 6: alive={\"offscreen\":true,\"tab\":true,\"worker\":false} {\"offscreen\":{\"ticks\":350,\"maxGapMs\":1004,\"gapsOver2s\":0,\"pings\":71,\"hold\":null,\"lastReportAgoS\":10},\"tab\":{\"ticks\":30,\"maxGapMs\":2002,\"gapsOver2s\":4,\"pings\":7,\"hold\":null,\"lastReportAgoS\":301},\"sw\":{\"ticks\":170,\"maxGapMs\":1012,\"pings\":35,\"hold\":null,\"lastReportAgoS\":189}}"
+    },
+    {
+      "t": 421,
+      "what": "minute 7: alive={\"offscreen\":true,\"tab\":true,\"worker\":false} {\"offscreen\":{\"ticks\":410,\"maxGapMs\":1004,\"gapsOver2s\":0,\"pings\":83,\"hold\":null,\"lastReportAgoS\":9},\"tab\":{\"ticks\":30,\"maxGapMs\":2002,\"gapsOver2s\":4,\"pings\":7,\"hold\":null,\"lastReportAgoS\":361},\"sw\":{\"ticks\":170,\"maxGapMs\":1012,\"pings\":35,\"hold\":null,\"lastReportAgoS\":249}}"
+    },
+    {
+      "t": 481,
+      "what": "minute 8: alive={\"offscreen\":true,\"tab\":true,\"worker\":false} {\"offscreen\":{\"ticks\":470,\"maxGapMs\":1004,\"gapsOver2s\":0,\"pings\":95,\"hold\":null,\"lastReportAgoS\":9},\"tab\":{\"ticks\":30,\"maxGapMs\":2002,\"gapsOver2s\":4,\"pings\":7,\"hold\":null,\"lastReportAgoS\":421},\"sw\":{\"ticks\":170,\"maxGapMs\":1012,\"pings\":35,\"hold\":null,\"lastReportAgoS\":309}}"
+    },
+    {
+      "t": 541,
+      "what": "minute 9: alive={\"offscreen\":true,\"tab\":true,\"worker\":false} {\"offscreen\":{\"ticks\":530,\"maxGapMs\":1004,\"gapsOver2s\":0,\"pings\":107,\"hold\":null,\"lastReportAgoS\":9},\"tab\":{\"ticks\":30,\"maxGapMs\":2002,\"gapsOver2s\":4,\"pings\":7,\"hold\":null,\"lastReportAgoS\":481},\"sw\":{\"ticks\":170,\"maxGapMs\":1012,\"pings\":35,\"hold\":null,\"lastReportAgoS\":369}}"
+    },
+    {
+      "t": 601,
+      "what": "minute 10: alive={\"offscreen\":true,\"tab\":true,\"worker\":false} {\"offscreen\":{\"ticks\":590,\"maxGapMs\":1004,\"gapsOver2s\":0,\"pings\":119,\"hold\":null,\"lastReportAgoS\":9},\"tab\":{\"ticks\":30,\"maxGapMs\":2002,\"gapsOver2s\":4,\"pings\":7,\"hold\":null,\"lastReportAgoS\":541},\"sw\":{\"ticks\":170,\"maxGapMs\":1012,\"pings\":35,\"hold\":null,\"lastReportAgoS\":429}}"
+    },
+    {
+      "t": 661,
+      "what": "minute 11: alive={\"offscreen\":true,\"tab\":true,\"worker\":false} {\"offscreen\":{\"ticks\":650,\"maxGapMs\":1004,\"gapsOver2s\":0,\"pings\":131,\"hold\":null,\"lastReportAgoS\":9},\"tab\":{\"ticks\":40,\"maxGapMs\":60001,\"gapsOver2s\":14,\"pings\":8,\"hold\":null,\"lastReportAgoS\":50},\"sw\":{\"ticks\":170,\"maxGapMs\":1012,\"pings\":35,\"hold\":null,\"lastReportAgoS\":489}}"
+    },
+    {
+      "t": 721,
+      "what": "minute 12: alive={\"offscreen\":true,\"tab\":true,\"worker\":false} {\"offscreen\":{\"ticks\":710,\"maxGapMs\":1004,\"gapsOver2s\":0,\"pings\":143,\"hold\":null,\"lastReportAgoS\":9},\"tab\":{\"ticks\":40,\"maxGapMs\":60001,\"gapsOver2s\":14,\"pings\":8,\"hold\":null,\"lastReportAgoS\":110},\"sw\":{\"ticks\":170,\"maxGapMs\":1012,\"pings\":35,\"hold\":null,\"lastReportAgoS\":549}}"
+    },
+    {
+      "t": 781,
+      "what": "minute 13: alive={\"offscreen\":true,\"tab\":true,\"worker\":false} {\"offscreen\":{\"ticks\":770,\"maxGapMs\":1004,\"gapsOver2s\":0,\"pings\":155,\"hold\":null,\"lastReportAgoS\":9},\"tab\":{\"ticks\":40,\"maxGapMs\":60001,\"gapsOver2s\":14,\"pings\":8,\"hold\":null,\"lastReportAgoS\":170},\"sw\":{\"ticks\":170,\"maxGapMs\":1012,\"pings\":35,\"hold\":null,\"lastReportAgoS\":609}}"
+    },
+    {
+      "t": 841,
+      "what": "minute 14: alive={\"offscreen\":true,\"tab\":true,\"worker\":false} {\"offscreen\":{\"ticks\":830,\"maxGapMs\":1004,\"gapsOver2s\":0,\"pings\":167,\"hold\":null,\"lastReportAgoS\":9},\"tab\":{\"ticks\":40,\"maxGapMs\":60001,\"gapsOver2s\":14,\"pings\":8,\"hold\":null,\"lastReportAgoS\":230},\"sw\":{\"ticks\":170,\"maxGapMs\":1012,\"pings\":35,\"hold\":null,\"lastReportAgoS\":669}}"
+    },
+    {
+      "t": 901,
+      "what": "minute 15: alive={\"offscreen\":true,\"tab\":true,\"worker\":false} {\"offscreen\":{\"ticks\":890,\"maxGapMs\":1004,\"gapsOver2s\":0,\"pings\":179,\"hold\":null,\"lastReportAgoS\":9},\"tab\":{\"ticks\":40,\"maxGapMs\":60001,\"gapsOver2s\":14,\"pings\":8,\"hold\":null,\"lastReportAgoS\":290},\"sw\":{\"ticks\":170,\"maxGapMs\":1012,\"pings\":35,\"hold\":null,\"lastReportAgoS\":729}}"
+    },
+    {
+      "t": 961,
+      "what": "minute 16: alive={\"offscreen\":true,\"tab\":true,\"worker\":false} {\"offscreen\":{\"ticks\":950,\"maxGapMs\":1004,\"gapsOver2s\":0,\"pings\":191,\"hold\":null,\"lastReportAgoS\":9},\"tab\":{\"ticks\":40,\"maxGapMs\":60001,\"gapsOver2s\":14,\"pings\":9,\"hold\":null,\"lastReportAgoS\":350},\"sw\":{\"ticks\":170,\"maxGapMs\":1012,\"pings\":35,\"hold\":null,\"lastReportAgoS\":789}}"
+    },
+    {
+      "t": 1021,
+      "what": "minute 17: alive={\"offscreen\":true,\"tab\":true,\"worker\":false} {\"offscreen\":{\"ticks\":1010,\"maxGapMs\":1004,\"gapsOver2s\":0,\"pings\":203,\"hold\":null,\"lastReportAgoS\":8},\"tab\":{\"ticks\":40,\"maxGapMs\":60001,\"gapsOver2s\":14,\"pings\":9,\"hold\":null,\"lastReportAgoS\":410},\"sw\":{\"ticks\":170,\"maxGapMs\":1012,\"pings\":35,\"hold\":null,\"lastReportAgoS\":849}}"
+    },
+    {
+      "t": 1081,
+      "what": "minute 18: alive={\"offscreen\":true,\"tab\":true,\"worker\":false} {\"offscreen\":{\"ticks\":1070,\"maxGapMs\":1004,\"gapsOver2s\":0,\"pings\":215,\"hold\":null,\"lastReportAgoS\":8},\"tab\":{\"ticks\":40,\"maxGapMs\":60001,\"gapsOver2s\":14,\"pings\":9,\"hold\":null,\"lastReportAgoS\":470},\"sw\":{\"ticks\":170,\"maxGapMs\":1012,\"pings\":35,\"hold\":null,\"lastReportAgoS\":909}}"
+    },
+    {
+      "t": 1141,
+      "what": "minute 19: alive={\"offscreen\":true,\"tab\":true,\"worker\":false} {\"offscreen\":{\"ticks\":1130,\"maxGapMs\":1004,\"gapsOver2s\":0,\"pings\":227,\"hold\":null,\"lastReportAgoS\":8},\"tab\":{\"ticks\":40,\"maxGapMs\":60001,\"gapsOver2s\":14,\"pings\":9,\"hold\":null,\"lastReportAgoS\":530},\"sw\":{\"ticks\":170,\"maxGapMs\":1012,\"pings\":35,\"hold\":null,\"lastReportAgoS\":969}}"
+    },
+    {
+      "t": 1201,
+      "what": "minute 20: alive={\"offscreen\":true,\"tab\":true,\"worker\":false} {\"offscreen\":{\"ticks\":1190,\"maxGapMs\":1004,\"gapsOver2s\":0,\"pings\":239,\"hold\":null,\"lastReportAgoS\":8},\"tab\":{\"ticks\":40,\"maxGapMs\":60001,\"gapsOver2s\":14,\"pings\":9,\"hold\":null,\"lastReportAgoS\":590},\"sw\":{\"ticks\":170,\"maxGapMs\":1012,\"pings\":35,\"hold\":null,\"lastReportAgoS\":1029}}"
+    },
+    {
+      "t": 1201,
+      "what": "stop at minute 20: worker alive before=false, after stop=false"
+    },
+    {
+      "t": 1261,
+      "what": "minute 21: alive={\"offscreen\":true,\"tab\":true,\"worker\":false} {\"offscreen\":{\"ticks\":1250,\"maxGapMs\":1004,\"gapsOver2s\":0,\"pings\":251,\"hold\":null,\"lastReportAgoS\":8},\"tab\":{\"ticks\":50,\"maxGapMs\":60008,\"gapsOver2s\":24,\"pings\":10,\"hold\":null,\"lastReportAgoS\":50},\"sw\":{\"ticks\":170,\"maxGapMs\":1012,\"pings\":35,\"hold\":null,\"lastReportAgoS\":1089}}"
+    },
+    {
+      "t": 1321,
+      "what": "minute 22: alive={\"offscreen\":true,\"tab\":true,\"worker\":false} {\"offscreen\":{\"ticks\":1310,\"maxGapMs\":1004,\"gapsOver2s\":0,\"pings\":263,\"hold\":null,\"lastReportAgoS\":8},\"tab\":{\"ticks\":50,\"maxGapMs\":60008,\"gapsOver2s\":24,\"pings\":10,\"hold\":null,\"lastReportAgoS\":110},\"sw\":{\"ticks\":170,\"maxGapMs\":1012,\"pings\":35,\"hold\":null,\"lastReportAgoS\":1149}}"
+    },
+    {
+      "t": 1381,
+      "what": "minute 23: alive={\"offscreen\":true,\"tab\":true,\"worker\":false} {\"offscreen\":{\"ticks\":1370,\"maxGapMs\":1004,\"gapsOver2s\":0,\"pings\":275,\"hold\":null,\"lastReportAgoS\":8},\"tab\":{\"ticks\":50,\"maxGapMs\":60008,\"gapsOver2s\":24,\"pings\":10,\"hold\":null,\"lastReportAgoS\":170},\"sw\":{\"ticks\":170,\"maxGapMs\":1012,\"pings\":35,\"hold\":null,\"lastReportAgoS\":1209}}"
+    },
+    {
+      "t": 1441,
+      "what": "minute 24: alive={\"offscreen\":true,\"tab\":true,\"worker\":false} {\"offscreen\":{\"ticks\":1430,\"maxGapMs\":1004,\"gapsOver2s\":0,\"pings\":287,\"hold\":null,\"lastReportAgoS\":8},\"tab\":{\"ticks\":50,\"maxGapMs\":60008,\"gapsOver2s\":24,\"pings\":10,\"hold\":null,\"lastReportAgoS\":230},\"sw\":{\"ticks\":170,\"maxGapMs\":1012,\"pings\":35,\"hold\":null,\"lastReportAgoS\":1269}}"
+    },
+    {
+      "t": 1501,
+      "what": "minute 25: alive={\"offscreen\":true,\"tab\":true,\"worker\":false} {\"offscreen\":{\"ticks\":1490,\"maxGapMs\":1004,\"gapsOver2s\":0,\"pings\":299,\"hold\":null,\"lastReportAgoS\":8},\"tab\":{\"ticks\":50,\"maxGapMs\":60008,\"gapsOver2s\":24,\"pings\":10,\"hold\":null,\"lastReportAgoS\":290},\"sw\":{\"ticks\":170,\"maxGapMs\":1012,\"pings\":35,\"hold\":null,\"lastReportAgoS\":1329}}"
+    },
+    {
+      "t": 1561,
+      "what": "minute 26: alive={\"offscreen\":true,\"tab\":true,\"worker\":false} {\"offscreen\":{\"ticks\":1550,\"maxGapMs\":1004,\"gapsOver2s\":0,\"pings\":311,\"hold\":\"ok:200:held 1500s\",\"lastReportAgoS\":8},\"tab\":{\"ticks\":50,\"maxGapMs\":60008,\"gapsOver2s\":24,\"pings\":11,\"hold\":null,\"lastReportAgoS\":350},\"sw\":{\"ticks\":170,\"maxGapMs\":1012,\"pings\":35,\"hold\":null,\"lastReportAgoS\":1389}}"
+    },
+    {
+      "t": 1621,
+      "what": "minute 27: alive={\"offscreen\":true,\"tab\":true,\"worker\":false} {\"offscreen\":{\"ticks\":1610,\"maxGapMs\":1004,\"gapsOver2s\":0,\"pings\":323,\"hold\":\"ok:200:held 1500s\",\"lastReportAgoS\":8},\"tab\":{\"ticks\":50,\"maxGapMs\":60008,\"gapsOver2s\":24,\"pings\":11,\"hold\":null,\"lastReportAgoS\":410},\"sw\":{\"ticks\":170,\"maxGapMs\":1012,\"pings\":35,\"hold\":null,\"lastReportAgoS\":1449}}"
+    },
+    {
+      "t": 1681,
+      "what": "minute 28: alive={\"offscreen\":true,\"tab\":true,\"worker\":false} {\"offscreen\":{\"ticks\":1670,\"maxGapMs\":1004,\"gapsOver2s\":0,\"pings\":335,\"hold\":\"ok:200:held 1500s\",\"lastReportAgoS\":7},\"tab\":{\"ticks\":50,\"maxGapMs\":60008,\"gapsOver2s\":24,\"pings\":11,\"hold\":null,\"lastReportAgoS\":470},\"sw\":{\"ticks\":170,\"maxGapMs\":1012,\"pings\":35,\"hold\":null,\"lastReportAgoS\":1509}}"
+    },
+    {
+      "t": 1741,
+      "what": "minute 29: alive={\"offscreen\":true,\"tab\":true,\"worker\":false} {\"offscreen\":{\"ticks\":1730,\"maxGapMs\":1004,\"gapsOver2s\":0,\"pings\":347,\"hold\":\"ok:200:held 1500s\",\"lastReportAgoS\":7},\"tab\":{\"ticks\":50,\"maxGapMs\":60008,\"gapsOver2s\":24,\"pings\":11,\"hold\":null,\"lastReportAgoS\":530},\"sw\":{\"ticks\":170,\"maxGapMs\":1012,\"pings\":35,\"hold\":null,\"lastReportAgoS\":1569}}"
+    },
+    {
+      "t": 1801,
+      "what": "minute 30: alive={\"offscreen\":true,\"tab\":true,\"worker\":false} {\"offscreen\":{\"ticks\":1790,\"maxGapMs\":1004,\"gapsOver2s\":0,\"pings\":359,\"hold\":\"ok:200:held 1500s\",\"lastReportAgoS\":7},\"tab\":{\"ticks\":50,\"maxGapMs\":60008,\"gapsOver2s\":24,\"pings\":11,\"hold\":null,\"lastReportAgoS\":590},\"sw\":{\"ticks\":170,\"maxGapMs\":1012,\"pings\":35,\"hold\":null,\"lastReportAgoS\":1629}}"
+    }
+  ],
+  "workerStops": [
+    {
+      "at": 181,
+      "label": "stop at minute 3",
+      "workerAliveBefore": true,
+      "workerAliveAfter": false
+    },
+    {
+      "at": 1201,
+      "label": "stop at minute 20",
+      "workerAliveBefore": false,
+      "workerAliveAfter": false
+    }
+  ],
+  "hosts": {
+    "offscreen": {
+      "alive_at_end": true,
+      "last_report": {
+        "mode": "offscreen",
+        "started": 1791408185752,
+        "ticks": 1790,
+        "maxGapMs": 1004,
+        "gapsOver2s": 0,
+        "gapsOver10s": 0,
+        "lastTick": 1791409978775,
+        "pings": 357,
+        "pingFailures": 0,
+        "pingMaxMs": 12,
+        "idbWrites": 1789,
+        "idbFailures": 0,
+        "hold": {
+          "started": 1,
+          "settled": 1500014,
+          "outcome": "ok:200:held 1500s"
+        },
+        "visibility": [
+          {
+            "t": 0,
+            "v": "visible/false"
+          }
+        ],
+        "hasLanguageModel": true,
+        "reports": 180,
+        "now": 1791409978775,
+        "receivedAt": 1791409978777
+      },
+      "pings": {
+        "count": 359,
+        "first_at_s": 6,
+        "last_at_s": 1799,
+        "max_gap_ms": 5019
+      }
+    },
+    "tab": {
+      "alive_at_end": true,
+      "last_report": {
+        "mode": "tab",
+        "started": 1791408185784,
+        "ticks": 50,
+        "maxGapMs": 60008,
+        "gapsOver2s": 24,
+        "gapsOver10s": 20,
+        "lastTick": 1791409396369,
+        "pings": 9,
+        "pingFailures": 0,
+        "pingMaxMs": 3,
+        "idbWrites": 49,
+        "idbFailures": 0,
+        "hold": {
+          "started": 0,
+          "settled": null,
+          "outcome": null
+        },
+        "visibility": [
+          {
+            "t": 0,
+            "v": "hidden/true"
+          }
+        ],
+        "hasLanguageModel": true,
+        "reports": 6,
+        "now": 1791409396370,
+        "receivedAt": 1791409396371
+      },
+      "pings": {
+        "count": 11,
+        "first_at_s": 11,
+        "last_at_s": 1512,
+        "max_gap_ms": 300013
+      }
+    },
+    "sw": {
+      "alive_at_end": false,
+      "last_report": {
+        "mode": "sw",
+        "started": 1791408185675,
+        "ticks": 170,
+        "maxGapMs": 1012,
+        "now": 1791408356543,
+        "lifetime": 170868,
+        "receivedAt": 1791408356544
+      },
+      "pings": {
+        "count": 35,
+        "first_at_s": 6,
+        "last_at_s": 177,
+        "max_gap_ms": 5031
+      }
+    }
+  },
+  "passed": true,
+  "note": "Headed Chrome (not headless), fresh profile, window 480x360; the host tab is hidden behind an about:blank tab in the same window.",
+  "targets": {
+    "offscreen": {
+      "type": "background_page"
+    },
+    "tab": {
+      "type": "page"
+    }
+  },
+  "holds": [
+    {
+      "mode": "offscreen",
+      "startedAt": 1791408185756,
+      "seconds": 1500,
+      "answeredAt": 1791409685765,
+      "clientClosedAt": null,
+      "startedAtS": 1,
+      "answeredAfterS": 1500,
+      "clientClosedAfterS": null
+    },
+    {
+      "mode": "tab",
+      "startedAt": 1791408185785,
+      "seconds": 1500,
+      "answeredAt": 1791409685792,
+      "clientClosedAt": null,
+      "startedAtS": 1,
+      "answeredAfterS": 1500,
+      "clientClosedAfterS": null
+    }
+  ],
+  "worker_probe": {
+    "note": "A 1-minute re-run with scripts/measure-host-extension/probe-worker.js: what a dedicated Worker inside each host context exposes.",
+    "recordedAt": "2026-10-07T21:53:31.694Z",
+    "offscreen": {
+      "hasLanguageModel": true,
+      "workerHasLanguageModel": true,
+      "workerHasIndexedDB": true,
+      "workerFetch": true
+    },
+    "tab": {
+      "hasLanguageModel": true,
+      "workerHasLanguageModel": true,
+      "workerHasIndexedDB": true,
+      "workerFetch": true
+    }
+  },
+  "command": "node chrome-agent-browser/scripts/measure-execution-host.mjs --minutes 30 --out <json>"
+}
