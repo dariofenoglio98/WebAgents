@@ -64,6 +64,23 @@ const http: Http = async (request) => {
   }
 };
 
+/**
+ * B-117: whether anything answers at a URL. A `no-cors` fetch succeeds (opaquely) when a server
+ * is up even if it refuses this origin, and fails when nothing listens; nothing is read.
+ */
+async function reachable(url: string): Promise<boolean> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 3000);
+  try {
+    await fetch(url, { method: "GET", mode: "no-cors", credentials: "omit", cache: "no-store", referrerPolicy: "no-referrer", redirect: "manual", signal: controller.signal });
+    return true;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /** Chrome's built-in model (Prompt API), as this context exposes it; never a network request. */
 async function builtin(): Promise<BuiltinAvailability | null> {
   const api = (globalThis as { LanguageModel?: { availability?: () => Promise<string> } }).LanguageModel;
@@ -116,6 +133,7 @@ const controller = new Controller({
   settings,
   http,
   builtin,
+  reachable,
   badge,
   broadcast,
   version: chrome.runtime.getManifest().version,

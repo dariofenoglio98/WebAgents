@@ -34,7 +34,7 @@ import { evaluateResources, normalizeResourceSelections, RESOURCE_PERMISSION_KIN
 import { buildHostToolRegistry, evaluateRegistry, type RegistryEvaluation, type ToolRegistry } from "../../core/hosttools.js";
 import type { JsonObject, JsonValue } from "../../core/json.js";
 import { publicKeyFromPem } from "../../core/keys.js";
-import { buildHostCatalog, probeProvider, PROVIDER_IDS, type BuiltinAvailability, type Http, type ProbeResult, type ProviderId } from "../../core/models/catalog.js";
+import { buildHostCatalog, DEFAULT_BASE_URLS, probeProvider, PROVIDER_IDS, type BuiltinAvailability, type Http, type ProbeResult, type ProviderId } from "../../core/models/catalog.js";
 import type { Package } from "../../core/package.js";
 import { documentUrl, origin, originText, sameOrigin, validatePackageUrl } from "../../core/policy.js";
 import { readProfiles } from "../../core/profiles.js";
@@ -54,6 +54,7 @@ import {
   type Event,
   type ModelsView,
   type PinResult,
+  type ProbeView,
   type Request,
   type RunPlanState,
   type SessionDescriptor,
@@ -124,6 +125,12 @@ export interface ControllerDeps {
   /** The execution host (an offscreen document in the extension; in-process in tests). */
   host: ExecutionHostBridge;
   runId?: () => string;
+  /**
+   * Whether something answers at a URL at all, without reading the answer (a `no-cors` fetch):
+   * tells "Ollama is not running" apart from "Ollama rejects this extension's origin" (B-117).
+   * Absent: the diagnosis is `unknown`.
+   */
+  reachable?: (url: string) => Promise<boolean>;
 }
 
 interface LiveSession {
@@ -1000,16 +1007,31 @@ export class Controller {
     return result;
   }
 
-  async probe(provider: ProviderId): Promise<ProbeResult> {
+  async probe(provider: ProviderId): Promise<ProbeView> {
     const settings = await this.deps.settings.settings();
     const connection = connectionsFor(settings, await this.deps.settings.keyPresence()).find((item) => item.provider === provider);
     if (!connection) throw reject("invalid_request", `No connection for ${provider}`);
     if (provider === "chrome-builtin") {
       const availability = await this.deps.builtin();
-      return { provider, ok: availability !== null && availability.availability === "available", models: [], notes: [], error: availability ? (availability.availability === "available" ? null : availability.availability) : "The Prompt API is not available in this context." };
+      return { provider, ok: availability !== null && availability.availability === "available", models: [], notes: [], error: availability ? (availability.availability === "available" ? null : availability.availability) : "The Prompt API is not available in this context.", diagnosis: null };
     }
     this.catalogCache = null;
-    return probeProvider({ ...connection, enabled: true }, this.deps.http);
+    const result = await probeProvider({ ...connection, enabled: true }, this.deps.http);
+    return { ...result, diagnosis: provider === "ollama" && !result.ok ? await this.ollamaDiagnosis(connection.base_url ?? DEFAULT_BASE_URLS.ollama) : null };
+  }
+
+  /** B-117: a failed Ollama probe is one of two things a person can act on, when the shell can tell them apart. */
+  private async ollamaDiagnosis(base: string): Promise<ProbeView["diagnosis"]> {
+    if (!this.deps.reachable) return { state: "unknown", hint: "Ollama did not answer. Check that it is running and that OLLAMA_ORIGINS includes chrome-extension://*." };
+    let reachable: boolean;
+    try {
+      reachable = await this.deps.reachable(`${base.replace(/\/+$/u, "")}/api/tags`);
+    } catch {
+      reachable = false;
+    }
+    return reachable
+      ? { state: "rejecting_origin", hint: `Ollama is running at ${base} but rejects requests from this extension's origin. Set OLLAMA_ORIGINS to include chrome-extension://* and restart Ollama (the commands are above).` }
+      : { state: "not_running", hint: `Nothing answers at ${base}. Start Ollama (with OLLAMA_ORIGINS set), or correct the endpoint.` };
   }
 
   async evaluateModels(sessionId: string, refresh: boolean): Promise<ModelsView> {

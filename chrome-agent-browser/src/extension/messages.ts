@@ -351,6 +351,11 @@ export interface ExportBundle {
   entries: Array<{ name: string; bytes: number; sha256: string; base64: string }>;
 }
 
+/** `models.probe`'s answer: the core's probe plus, for Ollama, the B-117 diagnosis of a failed probe. */
+export interface ProbeView extends ProbeResult {
+  diagnosis: { state: "not_running" | "rejecting_origin" | "unknown"; hint: string } | null;
+}
+
 export interface ObservationsView {
   run_id: string;
   recording: boolean;

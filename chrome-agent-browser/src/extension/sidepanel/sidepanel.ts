@@ -8,6 +8,7 @@ import { renderAgentPage } from "../ui/agent-page.js";
 import { bindAuthorization, type AuthorizationController } from "../ui/authorization-flow.js";
 import { describeError, send, subscribe } from "../ui/client.js";
 import { button, card, el, replace } from "../ui/dom.js";
+import { RunPanel } from "../ui/run.js";
 import { renderWebsiteCard } from "../ui/website.js";
 
 const app = document.getElementById("app") as HTMLElement;
@@ -67,6 +68,18 @@ const flow: AuthorizationController = bindAuthorization({
   compact: true,
 });
 
+/** The run surface (T5): compact in the panel; the full page has the Runs history. */
+const runs = new RunPanel({
+  send,
+  loaded: () => (state.open ? { session: state.open, authorization: state.authorization } : null),
+  compact: true,
+  reveal: (section) => {
+    if (section === "trust" || section === "authorization" || section === "plan") document.querySelector(".ab-authorize")?.scrollIntoView({ block: "start" });
+    else openFullPage(undefined, "settings?section=models");
+  },
+  changed: () => render(),
+});
+
 async function inspect(candidate: Candidate): Promise<void> {
   if (!candidate.resolved_url || !state.candidates) return;
   state.busy = "Downloading and verifying the package…";
@@ -75,7 +88,9 @@ async function inspect(candidate: Candidate): Promise<void> {
   try {
     state.open = await send<SessionView>({ type: "package.open", url: candidate.resolved_url, advertisedOn: state.candidates.pageUrl, viewId: VIEW_ID });
     flow.reset();
+    runs.detach();
     await flow.load();
+    await runs.attachSession(state.open.session.id);
   } catch (error) {
     state.error = describeError(error);
   } finally {
@@ -105,7 +120,12 @@ function render(): void {
   if (state.busy) children.push(el("p", { className: "ab-busy", text: state.busy }));
   if (state.open) {
     const open = state.open;
+    // The run surface sits above the agent page once the agent is authorized, so a running or
+    // finished run is the first thing a reopened panel shows; before that, the authorize flow leads.
+    const showRun = state.authorization?.receipt !== null && state.authorization !== null;
+    if (!runs.hasSession()) void runs.attachSession(open.session.id);
     children.push(
+      showRun ? runs.root : null,
       renderAgentPage(open, {
         compact: true,
         onTrust: (scope) => void trust(scope),
@@ -116,6 +136,7 @@ function render(): void {
           void send({ type: "package.release", sessionId: open.session.id, viewId: VIEW_ID }).catch(() => undefined);
           state.open = null;
           flow.reset();
+          runs.detach();
           render();
         },
         onOpenFullPage: () => openFullPage(open.session.id),
@@ -154,8 +175,12 @@ subscribe((event) => {
     );
   }
   if ((event.type === "event.authorization" && state.open && event.sessionId === state.open.session.id) || event.type === "event.vault" || event.type === "event.settings") {
-    void flow.load().then(() => render());
+    void flow.load().then(() => {
+      render();
+      runs.sync();
+    });
   }
+  if (event.type === "event.run") runs.onRunEvent(event);
 });
 chrome.tabs.onActivated.addListener(() => void refresh());
 chrome.tabs.onUpdated.addListener((tabId, change) => {

@@ -156,6 +156,8 @@ export interface Harness {
   clock: { now: Date };
   runs: MemoryRunStore;
   host: InProcessHost;
+  /** Wait for every run the host started to finish and report. */
+  h_drain: () => Promise<void>;
 }
 
 export function makeHarness(
@@ -220,7 +222,7 @@ export function makeHarness(
   };
   const controller = new Controller(deps);
   host.report = (type, runId) => controller.handle({ type, runId }, OFFSCREEN);
-  return { controller, snapshots, trustStorage, trust, tabs, holders, settingsArea, settings, httpLog, builtin, badges, events, fetchLog, routes, clock, runs, host };
+  return { controller, snapshots, trustStorage, trust, tabs, holders, settingsArea, settings, httpLog, builtin, badges, events, fetchLog, routes, clock, runs, host, h_drain: () => host.drain() };
 }
 
 const EXTENSION_ORIGIN = "chrome-extension://abcdefghijklmnopabcdefghijklmnop";
