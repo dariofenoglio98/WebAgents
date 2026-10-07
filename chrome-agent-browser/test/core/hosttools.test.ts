@@ -149,6 +149,17 @@ describe("the Chrome host registry (D-054)", () => {
     expect(registry.bindings.map((binding) => binding.tool_id)).toEqual(["get-fare-rules", "prepare-booking", "simulate-purchase"]);
     expect(registry.notes.map((note) => note.code).sort()).toEqual(["resource_type_unknown", "resource_type_unknown", "resource_type_unknown", "tool_endpoint_refused"]);
     expect(registry.notes.find((note) => note.code === "tool_endpoint_refused")?.detail).toMatch(/search-flights: Tool endpoint URLs must name a DNS host/u);
+    // A path the URL gate accepts but the registry's endpoint rules refuse (review 1, nit 11):
+    // that one tool stays unbound, and the rest of the package still evaluates.
+    for (const [path, message] of [
+      ["/api/../v1/search_flights", /Tool endpoint path must be an absolute path with no query, fragment or '\.\.'/u],
+      [`/${"a".repeat(300)}`, /Tool endpoint path/u],
+    ] as const) {
+      const odd = { ...pkg, tools: { ...pkg.tools, "search-flights": { ...pkg.tools["search-flights"]!, endpoint: `https://webagents-webair-production.up.railway.app${path}` } } };
+      const built = await buildHostToolRegistry(odd, { resourceTypes: [], runtimeVersion: null });
+      expect(built.bindings.map((binding) => binding.tool_id)).toEqual(["get-fare-rules", "prepare-booking", "simulate-purchase"]);
+      expect(built.notes.find((note) => note.code === "tool_endpoint_refused")?.detail).toMatch(message);
+    }
   });
 
   it("a binding whose endpoint lands outside the declared domains is incompatible, not bound", async () => {

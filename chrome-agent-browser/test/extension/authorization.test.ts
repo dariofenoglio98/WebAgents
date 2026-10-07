@@ -9,7 +9,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { CoreError } from "../../src/core/errors.js";
 import { parseRequest, type AuthorizationView, type AuthorizeResult, type ModelsView, type RunPlanState, type SessionView, type SettingsView, type VaultView } from "../../src/extension/messages.js";
@@ -209,6 +209,22 @@ describe("two clicks: a profile becomes a ready plan (D-022)", () => {
     const view = (await h.controller.handle({ type: "authorization.get", sessionId: session.session.id }, PAGE)) as AuthorizationView;
     expect(view.receipt?.receipt_id).toBe(result.receipt.receipt_id);
     expect(view.run_plan).toBeNull();
+  });
+
+  it("a plan on a hosted model prepared under balanced goes stale when privacy-first is chosen (review 1, nit 9)", async () => {
+    const h = makeHarness({ http: { ...OLLAMA_ANSWERS, "GET https://api.openai.com/v1/models": { data: [{ id: "gpt-5.6-luna" }] } } });
+    const session = await openWebair(h, { defaultModel: "openai/gpt-5.6-luna" });
+    let settings = ((await h.controller.handle({ type: "settings.get" }, PAGE)) as SettingsView).settings;
+    settings.models.connections = settings.models.connections.map((connection) => (connection.provider === "openai" ? { ...connection, enabled: true } : connection));
+    await h.controller.handle({ type: "settings.set", settings }, PAGE);
+    await h.controller.handle({ type: "settings.setKey", provider: "openai", key: "sk-test-not-a-real-key" }, PAGE);
+    const result = (await h.controller.handle({ type: "authorization.useProfile", sessionId: session.session.id, packageDigest: SHIPPED.webair040.digest, profileId: "search", resourceSelections: {}, prepare: true }, PAGE)) as AuthorizeResult;
+    expect(result.run_plan?.preflight.ready).toBe(true);
+    settings = ((await h.controller.handle({ type: "settings.get" }, PAGE)) as SettingsView).settings;
+    await h.controller.handle({ type: "settings.set", settings: { ...settings, preset: "privacy-first" } }, PAGE);
+    const state = (await h.controller.handle({ type: "runplan.get", sessionId: session.session.id }, PAGE)) as RunPlanState;
+    expect(state.preflight.stale_reasons.map((reason) => [reason.code, reason.subject])).toEqual([["model_not_local", "openai/gpt-5.6-luna"]]);
+    expect(state.preflight.ready).toBe(false);
   });
 
   it("the privacy-first preset refuses a hosted default model with model_not_local", async () => {
@@ -416,6 +432,18 @@ describe("models, settings and the vault", () => {
     expect(((await h.controller.handle({ type: "settings.get" }, PAGE)) as SettingsView).keys).toEqual({});
     expect([...h.settingsArea.data.keys()].sort()).toEqual(["providerKeys", "settings"]);
     expect(h.events).toContainEqual({ type: "event.settings" });
+  });
+
+  it("concurrent first reads of a fresh vault open it once, under one HMAC key (review 1, nit 12)", async () => {
+    const h = makeHarness();
+    const opened = vi.spyOn(h.settings, "vaultKey");
+    const [first, second] = (await Promise.all([h.controller.handle({ type: "vault.get" }, PAGE), h.controller.handle({ type: "vault.get" }, PAGE)])) as VaultView[];
+    expect(opened).toHaveBeenCalledTimes(1);
+    expect(first).toEqual(second);
+    const stored = h.settingsArea.data.get("vaultKey");
+    await h.controller.handle({ type: "vault.get" }, PAGE);
+    expect(h.settingsArea.data.get("vaultKey")).toBe(stored);
+    expect(opened).toHaveBeenCalledTimes(1);
   });
 
   it("the vault starts with the demo types and no record, adds the fictional set only on request, validates records and persists without digests", async () => {

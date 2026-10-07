@@ -277,6 +277,16 @@ describe("preflight: the plan is frozen, readiness is not", () => {
     expect(codes(check(w, { resourceRegistry: null }))).toEqual(["resource_registry_unknown"]);
     expect(codes(check(w, { onceSpent: true }))).toEqual(["authorization_once_spent"]);
     expect(check(w, { catalog: null }).model_still_available).toBeNull();
+    // The contract a binding was matched against moved (review 1, nit 10).
+    const moved = JSON.parse(JSON.stringify(w.toolEvaluation)) as typeof w.toolEvaluation;
+    moved.tools.find((tool) => tool.tool_id === "search-flights")!.contract_sha256 = "0".repeat(64);
+    expect(check(w, { toolEvaluation: moved }).stale_reasons.map((reason) => [reason.code, reason.subject])).toEqual([["tool_contract_changed", "search-flights"]]);
+    // A preset that allows local models only, chosen after preparation (review 1, nit 9): the
+    // recorded local model passes, a hosted one goes stale.
+    expect(codes(check(w, { localModelsOnly: true }))).toEqual([]);
+    const hosted = JSON.parse(JSON.stringify(w.plan)) as typeof w.plan;
+    (hosted.model_binding!.descriptor.properties as Record<string, unknown>).local = false;
+    expect(preflight(hosted, { pkg: { digest: hosted.package.digest } as never, publisher: w.publisher, receipt: w.receipt, trustState: inputs().session.trust_state, policy: w.policy, toolEvaluation: w.toolEvaluation, resourceRegistry: w.resourceRegistry, catalog: w.catalog, now: NOW, localModelsOnly: true }).stale_reasons.map((reason) => reason.code)).toEqual(["model_not_local"]);
     // The same receipt id and hash with an approval withdrawn cannot happen (the hash covers the
     // approvals); the check is still independent, as in the reference.
     const withdrawn = { ...w.receipt, tool_approvals: { ...w.receipt.tool_approvals, "search-flights": false } };

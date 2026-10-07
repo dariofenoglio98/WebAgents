@@ -815,6 +815,11 @@ export async function buildHostToolRegistry(pkg: Package, options: HostToolRegis
       }
       try {
         validatePackageUrl(endpoint, "Tool endpoint");
+        // The registry's own endpoint rules (a path with '..' or over 256 characters passes the
+        // URL gate): a value `normalizeRegistry` would refuse leaves this one tool unbound
+        // instead of failing the whole registry (review 1, nit 11).
+        originField(contract.endpoint_origin, "Tool endpoint origin");
+        pathField(contract.endpoint_path, "Tool endpoint path");
       } catch (error) {
         notes.push({ code: "tool_endpoint_refused", detail: `${toolId}: ${error instanceof Error ? error.message : "the declared endpoint is refused by the URL policy"}` });
         continue;

@@ -794,7 +794,8 @@ export class Controller {
   }
 
   // -- settings, keys and the vault (D-050, D-051, D-055) ------------------------------------
-  private vaultCache: Vault | null = null;
+  /** The opening, not only the opened vault, so concurrent first calls share one key and one document (review 1, nit 12). */
+  private vaultCache: Promise<Vault> | null = null;
 
   async settingsView(): Promise<SettingsView> {
     return { settings: await this.deps.settings.settings(), keys: await this.deps.settings.keyPresence() };
@@ -828,8 +829,17 @@ export class Controller {
     return this.settingsView();
   }
 
-  private async vault(): Promise<Vault> {
-    if (this.vaultCache) return this.vaultCache;
+  private vault(): Promise<Vault> {
+    if (!this.vaultCache) {
+      this.vaultCache = this.openVault().catch((error: unknown) => {
+        this.vaultCache = null; // a failed opening is retried by the next call
+        throw error;
+      });
+    }
+    return this.vaultCache;
+  }
+
+  private async openVault(): Promise<Vault> {
     const key = await this.deps.settings.vaultKey();
     let document = await this.deps.settings.vaultDocument();
     let vault: Vault;
@@ -846,13 +856,12 @@ export class Controller {
       document = vault.toDocument();
       await this.deps.settings.saveVaultDocument(document);
     }
-    this.vaultCache = vault;
     return vault;
   }
 
   private async saveVault(vault: Vault): Promise<void> {
     await this.deps.settings.saveVaultDocument(vault.toDocument());
-    this.vaultCache = vault;
+    this.vaultCache = Promise.resolve(vault);
     this.deps.broadcast({ type: "event.vault" });
   }
 
@@ -1173,6 +1182,7 @@ export class Controller {
   async runPlanState(live: LiveSession): Promise<RunPlanState> {
     if (live.plan === null) throw reject("run_plan_absent", "This session has no run plan", 404);
     const { evaluation: toolEvaluation } = await this.toolEvaluation(live, live.receipt?.decisions, live.receipt?.tool_approvals);
+    const settings = await this.deps.settings.settings();
     return {
       run_plan: live.plan,
       preflight: preflight(live.plan, {
@@ -1185,6 +1195,7 @@ export class Controller {
         resourceRegistry: await this.resourceRegistry(),
         catalog: this.catalogCache?.catalog ?? null,
         onceSpent: live.onceSpent && live.receipt !== null && grantsOnce(live.receipt),
+        localModelsOnly: PRESETS[settings.preset].local_models_only,
         now: this.clock(),
       }),
     };

@@ -207,14 +207,18 @@ export class Vault {
     const previous = this.types.get(type.id);
     this.types.set(type.id, view);
     if (previous) {
-      for (const record of [...this.records.values()].filter((item) => item.type === type.id)) {
-        const { digest: _oldDigest, sealed: _oldSealed, ...plainRecord } = record;
-        try {
+      const affected = [...this.records.values()].filter((item) => item.type === type.id);
+      try {
+        for (const record of affected) {
+          const { digest: _oldDigest, sealed: _oldSealed, ...plainRecord } = record;
           await this.putRecord(plainRecord, { allowReplace: true });
-        } catch (error) {
-          this.types.set(type.id, previous);
-          throw error;
         }
+      } catch (error) {
+        // All or nothing: the type and every record already re-digested under it go back, so no
+        // record keeps a digest for a schema the vault does not hold (review 1, nit 13).
+        this.types.set(type.id, previous);
+        for (const record of affected) this.records.set(record.id, record);
+        throw error;
       }
     }
     return view;

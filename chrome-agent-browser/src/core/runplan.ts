@@ -373,6 +373,8 @@ export interface PreflightInputs {
   /** The host's current model catalog; null when unknown (unknown is not unavailable). */
   catalog?: HostCatalog | null;
   onceSpent?: boolean;
+  /** The host preset allows local models only now (D-050); a plan bound to another model is stale. */
+  localModelsOnly?: boolean;
   now?: Date;
 }
 
@@ -428,6 +430,11 @@ export function preflight(plan: RunPlan, input: PreflightInputs): RunPlanPreflig
       reasons.push(reason("model_no_longer_available", `This host no longer offers ${plan.model_binding.host_model_id} as a usable choice, so the run plan's model cannot be invoked. Prepare a new plan with a model this host offers.`, plan.model_binding.host_model_id));
     }
   }
+  // A Chrome addition (D-050, D-053): a preset that allows local models only applies to plans
+  // prepared before it was chosen, not only to new ones.
+  if (input.localModelsOnly === true && plan.model_binding !== null && (plan.model_binding.descriptor.properties as JsonObject | undefined)?.local !== true) {
+    reasons.push(reason("model_not_local", `The current preset allows local models only, and this plan binds ${plan.model_binding.host_model_id}, which is not local. Prepare a new plan with a local model, or change the preset in Settings → Policies.`, plan.model_binding.host_model_id));
+  }
   if (input.onceSpent) {
     reasons.push(reason("authorization_once_spent", "This authorization granted something once, and a run has already used it. Authorize again to run again."));
   }
@@ -449,6 +456,9 @@ export function preflight(plan: RunPlan, input: PreflightInputs): RunPlanPreflig
       current: toolReasons.length === 0,
       evaluated: toolEvaluation !== null,
       registry_sha256: toolEvaluation ? toolEvaluation.registry.registry_sha256 : null,
+      // As in the reference plugin, `captured_at` is inside the hashed registry, so this is true
+      // whenever the registry was rebuilt, changed or not; staleness compares binding digests
+      // instead (BACKLOG B-113, T3 review 1, nit 14).
       registry_changed: Boolean(toolEvaluation && plan.tool_registry && toolEvaluation.registry.registry_sha256 !== plan.tool_registry.registry_sha256),
     },
     resource_grants: grantsReport(plan.resource_grants, input.resourceRegistry ?? null),

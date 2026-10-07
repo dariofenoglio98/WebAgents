@@ -83,6 +83,16 @@ describe("digests", () => {
     expect(vault.describe("profile_demo_traveler")!.digest).not.toBe(after.digest);
     expect(vault.describe("passenger_demo_alex")!.digest).toBe((await Vault.open(KEY, demoDocument())).describe("passenger_demo_alex")!.digest);
   });
+
+  it("a type replacement that one of its records fails changes nothing, not even the records it re-digested first (review 1, nit 13)", async () => {
+    const vault = await Vault.open(KEY, demoDocument());
+    const type = vault.typeViews().find((item) => item.id === "personal.travel_profile")!;
+    const before = { traveler: vault.describe("profile_demo_traveler")!.digest, explorer: vault.describe("profile_demo_explorer")!.digest, type: type.schema_sha256 };
+    // BOS only: the traveler (BOS, first) re-validates, the explorer (JFK) does not.
+    const narrowed = { ...type, schema: { ...type.schema, properties: { ...(type.schema.properties as JsonObject), home_airport: { type: "string", enum: ["BOS"] } } } };
+    await expect(vault.putType(narrowed)).rejects.toThrow(/does not match the Travel profile schema/u);
+    expect({ traveler: vault.describe("profile_demo_traveler")!.digest, explorer: vault.describe("profile_demo_explorer")!.digest, type: vault.typeViews().find((item) => item.id === "personal.travel_profile")!.schema_sha256 }).toEqual(before);
+  });
 });
 
 describe("the registry and resolution", () => {
