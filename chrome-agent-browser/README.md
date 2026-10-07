@@ -93,7 +93,7 @@ the signature report, the trust verdict, the browser summary). `run` arrives wit
 | `src/core/schemas/` | Byte-for-byte copies of `agentpkg/src/agentpkg/schemas/*.json` and, under `extensions/`, of `spec/extensions/*.schema.json`, written by `npm run sync-schemas`; tests assert equality. |
 | `src/extension/` | The Manifest V3 shell: `manifest.json`, the service worker (`background/`, the only place that holds state: sessions with their receipts and plans, the trust store, settings, keys, the vault, the model catalog), the content script (`content/`), the side panel, the full page (`browser/`), storage adapters (`storage/`), the message contract (`messages.ts`), the views (`ui/`: agent page, authorize view, settings, your data) and `data/demo-host-resources.json`, a copy of the demo host's resource definitions. |
 | `src/cli.ts` | The Node CLI over the core. |
-| `scripts/` | `build.mjs` (esbuild), `pack.mjs`, `sync-schemas.mjs`, `make-icons.mjs`, `e2e-discovery.mjs`. |
+| `scripts/` | `build.mjs` (esbuild), `pack.mjs`, `sync-schemas.mjs`, `make-icons.mjs`, `e2e-discovery.mjs`, and `make-authorization-fixtures.py`, which writes the Python control plane's reference records for `test/fixtures/authorization/` (run with `agentpkg/.venv/bin/python`). |
 | `test/` | vitest: `core/` mirrors the Python suite's negative cases and asserts parity with the shipped packages; `extension/` covers the message contract, the controller, storage, the service worker over a fake `chrome`, the content script and the views. |
 
 ## The boundary rule
