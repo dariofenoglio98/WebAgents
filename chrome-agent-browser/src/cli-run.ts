@@ -15,13 +15,14 @@
  * through the host's own catalog probe, derives the tool bindings from the signed declaration
  * exactly as the Chrome host does (or takes an operator bindings file), and also writes
  * `run.json`, the Run Record. Keys come from `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` only.
+ * Every request leaves through `cli-net.ts` (D-067): resolved, classified, pinned, capped.
  */
 import { randomBytes } from "node:crypto";
 import { existsSync, lstatSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
-import { isIP } from "node:net";
 import { dirname, join, resolve } from "node:path";
 
 import { ArgumentError, parseArguments, type ArgumentSpec } from "./cli-arguments.js";
+import { catalogHttp, nodeTransport } from "./cli-net.js";
 import { AgentPkgError, ValidationError } from "./core/errors.js";
 import { evaluateCatalog, type ModelDescriptor } from "./core/compatibility.js";
 import { completeRunRecord, initialRunRecord } from "./core/execution/record.js";
@@ -34,10 +35,9 @@ import { buildHostToolRegistry, evaluateRegistry, normalizeRegistry, planToolBin
 import type { JsonObject, JsonValue } from "./core/json.js";
 import { fingerprint, publicKeyFromPem } from "./core/keys.js";
 import { normalizeModelBinding, type ModelBindingDescriptor } from "./core/models/binding.js";
-import { buildHostCatalog, type Http, type ProviderConnection, type ProviderId } from "./core/models/catalog.js";
+import { buildHostCatalog, type ProviderConnection, type ProviderId } from "./core/models/catalog.js";
 import { adapterFor } from "./core/models/providers.js";
 import { BoundModelRouter } from "./core/models/router.js";
-import type { HttpTransport } from "./core/models/transport.js";
 import { loadPackageBytes, type Package } from "./core/package.js";
 import { embeddedPublicKey, verifyWithTrustedKey } from "./core/signature.js";
 import { normalizeToolBindings } from "./core/tools/bindings.js";
@@ -69,7 +69,6 @@ const RUN: ArgumentSpec = {
 
 export const HOST_RUNTIME = "chrome-agent-browser";
 const PROVIDERS: readonly ProviderId[] = ["ollama", "openai", "anthropic"];
-const HOSTNAME_REFUSED = /(?:^|\.)(?:localhost|local|internal|home|arpa)$/u;
 
 function print(value: unknown): void {
   process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
@@ -111,52 +110,6 @@ function prepareOutput(out: string): string {
 function writeFiles(directory: string, files: ReadonlyArray<readonly [string, Uint8Array]>): void {
   mkdirSync(directory, { mode: 0o700 });
   for (const [name, data] of files) writeFileSync(join(directory, name), data, { flag: "wx", mode: 0o600 });
-}
-
-/**
- * The Node transport (D-024): one request, no redirects followed (a 3xx comes back as its
- * status for the adapter to refuse), the response capped at the adapter's byte limit, and an
- * address policy for tool destinations: an IP literal, a loopback or a site-local name is not
- * a declared public origin and is refused before any connection (the model transport allows
- * the loopback Ollama host and nothing else off HTTPS).
- */
-export function nodeTransport(options: { allowLoopbackHttp: boolean }): HttpTransport {
-  return async (request) => {
-    const url = new URL(request.url);
-    const loopback = url.hostname === "127.0.0.1" || url.hostname === "localhost" || url.hostname === "[::1]";
-    if (!(options.allowLoopbackHttp && loopback)) {
-      if (url.protocol !== "https:") throw new Error("only HTTPS destinations are reached");
-      if (isIP(url.hostname.replace(/^\[|\]$/gu, "")) !== 0 || HOSTNAME_REFUSED.test(url.hostname)) throw new Error("destination refused by the address policy");
-    }
-    const response = await fetch(request.url, { method: request.method, headers: request.headers, body: request.body ?? undefined, redirect: "manual", signal: request.signal });
-    const headers: Record<string, string> = {};
-    response.headers.forEach((value, key) => {
-      headers[key.toLowerCase()] = value;
-    });
-    if (response.status >= 300 && response.status < 400) return { status: response.status, headers, body: "" };
-    const buffer = new Uint8Array(await response.arrayBuffer());
-    if (buffer.length > request.maxResponseBytes) throw new Error(`the response exceeds ${request.maxResponseBytes} bytes`);
-    return { status: response.status, headers, body: new TextDecoder().decode(buffer) };
-  };
-}
-
-/** The catalog probe's HTTP: adds the provider's credential header, parses JSON. */
-function catalogHttp(keys: { openai: string | null; anthropic: string | null }): Http {
-  return async (request) => {
-    const headers: Record<string, string> = { accept: "application/json", ...request.headers };
-    if (request.provider === "openai" && keys.openai) headers.authorization = `Bearer ${keys.openai}`;
-    if (request.provider === "anthropic" && keys.anthropic) headers["x-api-key"] = keys.anthropic;
-    if (request.body !== undefined) headers["content-type"] = "application/json";
-    const response = await fetch(request.url, { method: request.method, headers, body: request.body === undefined ? undefined : JSON.stringify(request.body), redirect: "manual" });
-    const text = await response.text();
-    let body: unknown = null;
-    try {
-      body = JSON.parse(text);
-    } catch {
-      body = null;
-    }
-    return { status: response.status, body };
-  };
 }
 
 function modelBindingFromDescriptor(descriptor: ModelDescriptor, compatibility: { status: string; evidence_strength: string } | null): ModelBindingDescriptor {

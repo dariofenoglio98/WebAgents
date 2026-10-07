@@ -17,11 +17,13 @@
  *    anything else `tool_transport_error`.
  *
  * Address classification (loopback, private, metadata ranges) is not possible from an
- * extension and is Chrome's network stack's job (D-026); in Node the CLI's transport performs
- * it before connecting.
+ * extension and is Chrome's network stack's job (D-026). The Node CLI's transport
+ * (`src/cli-net.ts`, D-067) resolves the host, refuses any non-public address and pins the
+ * connection before this adapter's request leaves; its refusals arrive here as a
+ * `TransportError` and keep their stage.
  */
 import type { JsonValue } from "../../json.js";
-import type { HttpTransport } from "../../models/transport.js";
+import { TransportError, type HttpTransport } from "../../models/transport.js";
 import { AdapterError, CancelledError } from "../../workflow/errors.js";
 import { DEFAULT_MAX_REQUEST_BYTES, DEFAULT_MAX_RESPONSE_BYTES, type ToolImplementationDefinition } from "../definitions.js";
 import { contentTypeCategory, type ToolFailureFacts } from "../facts.js";
@@ -97,6 +99,13 @@ export async function jsonHttpCall(options: JsonHttpCallOptions): Promise<{ outp
   } catch (error) {
     if (signal.aborted) throw cancellationOf(signal);
     if (error instanceof AdapterError || error instanceof CancelledError) throw error;
+    if (error instanceof TransportError) {
+      const { stage, http_status, response_bytes } = error.facts;
+      if (stage === "body_size") {
+        throw toolError("tool_response_invalid", "the tool response is too large", { stage, body_exceeded: true, ...(http_status !== undefined ? { http_status } : {}), ...(response_bytes !== undefined ? { response_bytes } : {}) });
+      }
+      throw toolError(stage === "timeout" ? "tool_timeout" : "tool_transport_error", error.message, { stage });
+    }
     throw toolError("tool_transport_error", "the tool request failed");
   }
   if (answer.status >= 300 && answer.status < 400) {

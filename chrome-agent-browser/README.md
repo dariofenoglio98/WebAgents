@@ -182,10 +182,14 @@ walk-through. It needs `openssl` on the PATH and prints JSON with `"passed"`.
   declared remote tool and a vault binding to each host-resource tool; other local tools
   (Literature Review's `paper-reader`) stay unbound until T6, and an approved unbound tool
   blocks the plan, as in the reference.
-- **Classify addresses.** Package, site and tool URLs must be HTTPS on port 443 with a DNS
-  name (no IP literals, `localhost` or `.local`; the Node CLI's tool transport refuses them before
-  connecting); the private-address, DNS-pinning and connection-level checks of the Python runtime
-  are Chrome's network stack's job here, and the threat model will say so (T7).
+- **Classify addresses in the extension.** Package, site and tool URLs must be HTTPS on port
+  443 with a DNS name (no IP literals, `localhost` or `.local`). The Node CLI goes further
+  (`src/cli-net.ts`, D-067): it resolves every tool and model host, refuses any non-public address
+  with the Python runtime's class names (loopback, private, link-local, multicast, reserved,
+  cloud metadata, IPv4-mapped, 6to4, Teredo, NAT64), pins the connection to the address it
+  classified, streams the body and stops at the byte cap. An extension has no resolver and no
+  socket, so in Chrome those checks are the network stack's job, and the threat model will say
+  so (T7).
 - **Per-origin permissions.** The content script runs on every HTTPS page and reads only the
   advertised link elements; narrowing to opted-in origins is later hardening.
 - Firefox, the Meeting Agenda UI path, search over an index, and policy subscriptions are in the

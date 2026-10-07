@@ -6,7 +6,7 @@
  * retries, or reads a credential from anywhere but the host's settings.
  */
 import { AdapterError, CancelledError } from "../../workflow/errors.js";
-import type { HttpTransport, ModelRequestObserver } from "../transport.js";
+import { TransportError, type HttpTransport, type ModelRequestObserver } from "../transport.js";
 
 export const MAX_PROVIDER_RESPONSE_BYTES = 8 * 1024 * 1024;
 export const MAX_PROVIDER_REQUEST_BYTES = 16 * 1024 * 1024;
@@ -70,6 +70,11 @@ export async function postJson(
   } catch (error) {
     if (request.signal.aborted) throw (request.signal.reason as Error | undefined) ?? new CancelledError();
     if (error instanceof AdapterError) throw error;
+    if (error instanceof TransportError) {
+      const { stage, http_status } = error.facts;
+      if (stage === "body_size") throw new AdapterError("model_response_invalid", "The provider response is too large", { audit_facts: { stage, ...(http_status !== undefined ? { http_status } : {}) } });
+      throw new AdapterError(stage === "timeout" ? "model_call_timeout" : "model_transport_error", error.message, { audit_facts: { stage } });
+    }
     throw new AdapterError("model_transport_error", "The provider request failed", { audit_facts: { stage: "transport" } });
   }
   let json: unknown;
