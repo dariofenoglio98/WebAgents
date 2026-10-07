@@ -4,7 +4,7 @@
  * Opens, parses, verifies and summarizes `agent.pkg` packages exactly as `agentpkg` does,
  * with no browser dependency. Everything here runs in Node, in an extension's service
  * worker and in a web page alike; the shell under `src/extension` is one consumer, the CLI
- * another. Nothing in this module executes a package.
+ * another. Execution lives under `execution/` (T4) and runs only what a verified lease hands it.
  */
 export * from "./agent-page.js";
 export * from "./archive.js";
@@ -53,3 +53,4 @@ export { validateWorkflow } from "./workflow-static.js";
 export * from "./workflow/index.js";
 export * from "./models/index.js";
 export * from "./tools/index.js";
+export * from "./execution/index.js";

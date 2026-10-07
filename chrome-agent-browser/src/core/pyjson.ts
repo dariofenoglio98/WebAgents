@@ -48,13 +48,16 @@ export interface DumpsOptions {
   sortKeys?: boolean;
   /** `separators=(",", ":")`; the default is Python's `(", ", ": ")`. */
   compact?: boolean;
+  /** `indent=N`: one member per line, N spaces per level, `,` between members (Python's indented item separator). */
+  indent?: number;
 }
 
 /** `json.dumps(value, ensure_ascii=False, allow_nan=False, …)`. */
 export function pyJsonDumps(value: unknown, options: DumpsOptions = {}): string {
-  const item = options.compact ? "," : ", ";
+  const indent = options.indent;
+  const item = indent !== undefined || options.compact ? "," : ", ";
   const key = options.compact ? ":" : ": ";
-  const encode = (node: unknown): string => {
+  const encode = (node: unknown, level: number): string => {
     if (node === null) return "null";
     switch (typeof node) {
       case "boolean":
@@ -64,17 +67,23 @@ export function pyJsonDumps(value: unknown, options: DumpsOptions = {}): string 
       case "string":
         return JSON.stringify(node);
       case "object": {
-        if (Array.isArray(node)) return `[${node.map(encode).join(item)}]`;
+        const inner = indent === undefined ? "" : `\n${" ".repeat(indent * (level + 1))}`;
+        const outer = indent === undefined ? "" : `\n${" ".repeat(indent * level)}`;
+        if (Array.isArray(node)) {
+          if (node.length === 0) return "[]";
+          return `[${inner}${node.map((entry) => encode(entry, level + 1)).join(`${item}${inner}`)}${outer}]`;
+        }
         const record = node as Record<string, unknown>;
         const keys = Object.keys(record);
+        if (keys.length === 0) return "{}";
         if (options.sortKeys) keys.sort();
-        return `{${keys.map((name) => `${JSON.stringify(name)}${key}${encode(record[name])}`).join(item)}}`;
+        return `{${inner}${keys.map((name) => `${JSON.stringify(name)}${key}${encode(record[name], level + 1)}`).join(`${item}${inner}`)}${outer}}`;
       }
       default:
         throw new TypeError(`Object of type ${typeof node} is not JSON serializable`);
     }
   };
-  return encode(value);
+  return encode(value, 0);
 }
 
 /** UTF-8 byte length of a string. */

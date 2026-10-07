@@ -44,6 +44,15 @@ describe("Python layouts", () => {
     }
   });
 
+  it("reproduces json.dumps(indent=2) for the run artifacts, including empty containers", () => {
+    const vectors = JSON.parse(readFileSync(join(PROJECT, "test", "fixtures", "py-json-indent-vectors.json"), "utf8")) as Array<{ value: unknown; indent2: string; plain: string }>;
+    expect(vectors.length).toBeGreaterThan(5);
+    for (const { value, indent2, plain } of vectors) {
+      expect(pyJsonDumps(value, { indent: 2 })).toBe(indent2);
+      expect(pyJsonDumps(value)).toBe(plain);
+    }
+  });
+
   it("isoformat: microseconds from milliseconds, +00:00, no fraction at zero", () => {
     expect(pyIsoTimestamp(new Date("2026-10-06T12:00:00.123Z"))).toBe("2026-10-06T12:00:00.123000+00:00");
     expect(pyIsoTimestamp(new Date("2026-10-06T12:00:00.000Z"))).toBe("2026-10-06T12:00:00+00:00");

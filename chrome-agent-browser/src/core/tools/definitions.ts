@@ -289,3 +289,73 @@ export function bindingDigest(descriptor: ToolBindingDescriptor): string {
 export function findDefinition(definitions: readonly ToolImplementationDefinition[], bindingId: string): ToolImplementationDefinition | undefined {
   return definitions.find((definition) => definition.id === bindingId);
 }
+
+/** The host tool registry's binding descriptor (T3's `hosttools.ts`), as this module reads it. */
+export interface RegistryBindingLike {
+  id: string;
+  tool_id: string;
+  binding: string;
+  implementation_kind: string;
+  implementation_id: string;
+  implementation_version: string;
+  display_name: string;
+  description: string | null;
+  remote: boolean;
+  enabled: boolean;
+  endpoint: { origin: string; path: string; method: "GET" | "POST" } | null;
+  contract: { input_schema_sha256: string | null; output_schema_sha256: string | null; permission_kinds: string[]; side_effects: "read" | "write" };
+  limits: { timeout_seconds: number | null; max_request_bytes: number | null; max_response_bytes: number | null; max_concurrent: number | null; min_interval_ms: number | null };
+  credentials: { required: boolean; configured: boolean; source: string | null };
+  resource_type?: string;
+  binding_sha256: string;
+}
+
+/**
+ * The definitions behind a host tool registry's bindings: what the broker holds when the plan it
+ * executes was prepared from that registry (the Chrome host's own `buildHostToolRegistry`). Each
+ * definition describes back to the same descriptor and the same digest, so a plan binding frozen
+ * from the registry names exactly one definition here; `test/core/execution/lease.test.ts` checks
+ * the digests agree for every binding of the WebAir registry. A binding whose credential source
+ * is unknown to this host is skipped: nothing here can hold a secret for it.
+ */
+export function definitionsFromRegistry(registry: { bindings: readonly RegistryBindingLike[] }): ToolImplementationDefinition[] {
+  const definitions: ToolImplementationDefinition[] = [];
+  for (const binding of registry.bindings) {
+    const kind = binding.implementation_kind as ToolImplementationKind;
+    if (!["json_http", "local_builtin", "selected_file", "host_resource"].includes(kind)) continue;
+    const definition: ToolImplementationDefinition = {
+      id: binding.id,
+      toolId: binding.tool_id,
+      binding: binding.binding,
+      kind,
+      implementationId: binding.implementation_id,
+      implementationVersion: binding.implementation_version,
+      displayName: binding.display_name,
+      inputSchemaSha256: binding.contract.input_schema_sha256,
+      outputSchemaSha256: binding.contract.output_schema_sha256,
+      permissionKinds: [...binding.contract.permission_kinds],
+      sideEffects: binding.contract.side_effects,
+      timeoutSeconds: binding.limits.timeout_seconds ?? 30,
+      enabled: binding.enabled,
+    };
+    if (binding.description !== null) definition.description = binding.description;
+    if (binding.limits.max_request_bytes !== null) definition.maxRequestBytes = binding.limits.max_request_bytes;
+    if (binding.limits.max_response_bytes !== null) definition.maxResponseBytes = binding.limits.max_response_bytes;
+    if (binding.limits.max_concurrent !== null) definition.maxConcurrent = binding.limits.max_concurrent;
+    if (binding.limits.min_interval_ms !== null) definition.minIntervalMs = binding.limits.min_interval_ms;
+    if (binding.endpoint !== null) {
+      definition.origin = binding.endpoint.origin;
+      definition.path = binding.endpoint.path;
+      definition.method = binding.endpoint.method;
+    }
+    if (binding.resource_type !== undefined) definition.resourceType = binding.resource_type;
+    if (binding.credentials.required) {
+      const source = binding.credentials.source ?? "";
+      const [sourceKind, ...rest] = source.split(":");
+      if ((sourceKind !== "env" && sourceKind !== "settings") || rest.length === 0) continue;
+      definition.credential = { kind: sourceKind, name: rest.join(":") };
+    }
+    definitions.push(definition);
+  }
+  return definitions;
+}
