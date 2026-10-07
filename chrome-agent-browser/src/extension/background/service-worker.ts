@@ -3,14 +3,74 @@
  * APIs to the controller and nothing else: messages from extension pages and content
  * scripts, tab navigation and removal, the action badge, and the side panel behaviour.
  */
+import type { BuiltinAvailability, Http } from "../../core/models/catalog.js";
 import { TrustStore } from "../../core/trust.js";
 import { failure, isEvent, parseContentMessage, parseRequest, success, type Event } from "../messages.js";
+import { SettingsStorage } from "../storage/settings.js";
 import { IndexedDbSnapshotStore } from "../storage/snapshots.js";
 import { ChromeTabStateStore } from "../storage/tab-state.js";
 import { ChromeTrustStorage } from "../storage/trust-storage.js";
 import { Controller, type Sender } from "./controller.js";
 
 const extensionOrigin = `chrome-extension://${chrome.runtime.id}`;
+const settings = new SettingsStorage(chrome.storage.local);
+/** A model-catalog probe never waits longer than this. */
+const PROBE_TIMEOUT_MS = 10_000;
+const MAX_PROBE_BYTES = 2 * 1024 * 1024;
+
+/**
+ * The catalog transport (D-055): the only place a provider key is read. It is added as the
+ * provider's own header here and never leaves this worker; the core sees `key_configured` only.
+ * Requests go to the configured origins alone, with no credentials or referrer of the browser's.
+ */
+const http: Http = async (request) => {
+  const headers: Record<string, string> = { accept: "application/json", ...request.headers };
+  if (request.provider === "openai") {
+    const key = await settings.key("openai");
+    if (key) headers.authorization = `Bearer ${key}`;
+  } else if (request.provider === "anthropic") {
+    const key = await settings.key("anthropic");
+    if (key) headers["x-api-key"] = key;
+  }
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
+  try {
+    const response = await fetch(request.url, {
+      method: request.method,
+      headers,
+      body: request.body === undefined ? undefined : JSON.stringify(request.body),
+      credentials: "omit",
+      cache: "no-store",
+      referrerPolicy: "no-referrer",
+      redirect: "error",
+      signal: controller.signal,
+    });
+    const text = await response.text();
+    if (text.length > MAX_PROBE_BYTES) return { status: response.status, body: null };
+    let body: unknown = null;
+    try {
+      body = text ? (JSON.parse(text) as unknown) : null;
+    } catch {
+      body = null;
+    }
+    return { status: response.status, body };
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
+/** Chrome's built-in model (Prompt API), as this context exposes it; never a network request. */
+async function builtin(): Promise<BuiltinAvailability | null> {
+  const api = (globalThis as { LanguageModel?: { availability?: () => Promise<string> } }).LanguageModel;
+  if (!api || typeof api.availability !== "function") return { availability: "unsupported", input_quota: null };
+  try {
+    const availability = await api.availability();
+    const known = ["available", "downloadable", "downloading", "unavailable"] as const;
+    return { availability: (known as readonly string[]).includes(availability) ? (availability as (typeof known)[number]) : "unavailable", input_quota: null };
+  } catch {
+    return null;
+  }
+}
 
 async function badge(tabId: number, count: number): Promise<void> {
   try {
@@ -37,6 +97,9 @@ const controller = new Controller({
   snapshots: new IndexedDbSnapshotStore(),
   trust: new TrustStore(new ChromeTrustStorage()),
   tabs: new ChromeTabStateStore(),
+  settings,
+  http,
+  builtin,
   badge,
   broadcast,
   version: chrome.runtime.getManifest().version,

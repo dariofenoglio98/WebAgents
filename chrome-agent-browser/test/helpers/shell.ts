@@ -6,9 +6,11 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
+import type { BuiltinAvailability, Http, HttpRequest } from "../../src/core/models/catalog.js";
 import { MemoryTrustStorage, TrustStore } from "../../src/core/trust.js";
 import { Controller, type ControllerDeps, type Fetch, type Limits, type Sender } from "../../src/extension/background/controller.js";
 import type { Event } from "../../src/extension/messages.js";
+import { MemoryStorageArea, SettingsStorage } from "../../src/extension/storage/settings.js";
 import { MemorySnapshotStore } from "../../src/extension/storage/snapshots.js";
 import { MemoryTabStateStore } from "../../src/extension/storage/tab-state.js";
 import { generateKeyPair, signedArchive } from "./keys.js";
@@ -20,6 +22,8 @@ export const SITE_ORIGIN = "https://webair.example";
 export const PACKAGE_URL = `${SITE_ORIGIN}/agent.pkg`;
 export const PACKAGE_MEDIA_TYPE = "application/vnd.webagents.agent-package";
 export const LITERATURE_URL = "https://research.example/literature-review.agent.pkg";
+/** WebAir 0.4.0 (profiles), served beside the 0.3.0 the captured site advertises. */
+export const WEBAIR_040_URL = `${SITE_ORIGIN}/agent-0.4.0.pkg`;
 
 export interface Route {
   status?: number;
@@ -104,8 +108,30 @@ export function webairRoutes(): Record<string, Route> {
   };
   const literature = readBytes(SHIPPED.literatureReview.archive);
   routes[LITERATURE_URL] = { headers: { "content-type": PACKAGE_MEDIA_TYPE, "content-length": String(literature.length) }, body: literature };
+  const webair040 = readBytes(SHIPPED.webair040.archive);
+  routes[WEBAIR_040_URL] = { headers: { "content-type": PACKAGE_MEDIA_TYPE, "content-length": String(webair040.length) }, body: webair040 };
   return routes;
 }
+
+/** The model-catalog transport over declared answers (`METHOD url` → body); `SHOW <model>` answers Ollama's /api/show. */
+export function fakeHttp(answers: Record<string, unknown>, log: HttpRequest[] = []): Http {
+  return async (request) => {
+    log.push(request);
+    const key = `${request.method} ${request.url}`;
+    if (key in answers) return { status: 200, body: answers[key] };
+    if (request.method === "POST" && request.url.endsWith("/api/show")) {
+      const shown = answers[`SHOW ${(request.body as { model: string }).model}`];
+      if (shown !== undefined) return { status: 200, body: shown };
+    }
+    return { status: 404, body: null };
+  };
+}
+
+/** One local model as Settings → Models would state it after the STATE.md §5 override (qwen3:30b). */
+export const OLLAMA_ANSWERS: Record<string, unknown> = {
+  "GET http://127.0.0.1:11434/api/tags": { models: [{ name: "qwen3:30b", model: "qwen3:30b" }] },
+  "SHOW qwen3:30b": { capabilities: ["completion", "tools", "thinking"], model_info: { "qwen3moe.context_length": 262144 } },
+};
 
 export interface Harness {
   controller: Controller;
@@ -113,6 +139,10 @@ export interface Harness {
   trustStorage: MemoryTrustStorage;
   trust: TrustStore;
   tabs: MemoryTabStateStore;
+  settingsArea: MemoryStorageArea;
+  settings: SettingsStorage;
+  httpLog: HttpRequest[];
+  builtin: { availability: BuiltinAvailability | null };
   badges: Array<[tabId: number, count: number]>;
   events: Event[];
   fetchLog: FetchLog[];
@@ -121,13 +151,23 @@ export interface Harness {
 }
 
 export function makeHarness(
-  options: { routes?: Record<string, Route>; limits?: Partial<Limits>; stores?: Pick<Harness, "snapshots" | "trustStorage" | "tabs"> } = {},
+  options: {
+    routes?: Record<string, Route>;
+    limits?: Partial<Limits>;
+    stores?: Pick<Harness, "snapshots" | "trustStorage" | "tabs"> & Partial<Pick<Harness, "settingsArea">>;
+    /** Model-catalog answers; the Ollama qwen3:30b answers by default. */
+    http?: Record<string, unknown>;
+  } = {},
 ): Harness {
   const routes = options.routes ?? webairRoutes();
   const fetchLog: FetchLog[] = [];
+  const httpLog: HttpRequest[] = [];
   const snapshots = options.stores?.snapshots ?? new MemorySnapshotStore();
   const trustStorage = options.stores?.trustStorage ?? new MemoryTrustStorage("chrome.storage.local:trustStore");
   const tabs = options.stores?.tabs ?? new MemoryTabStateStore();
+  const settingsArea = options.stores?.settingsArea ?? new MemoryStorageArea();
+  const settings = new SettingsStorage(settingsArea);
+  const builtin = { availability: null as BuiltinAvailability | null };
   const badges: Array<[number, number]> = [];
   const events: Event[] = [];
   const clock = { now: new Date("2026-10-06T12:00:00Z") };
@@ -138,6 +178,9 @@ export function makeHarness(
     snapshots,
     trust,
     tabs,
+    settings,
+    http: fakeHttp(options.http ?? OLLAMA_ANSWERS, httpLog),
+    builtin: async () => builtin.availability,
     badge: async (tabId, count) => {
       badges.push([tabId, count]);
     },
@@ -149,7 +192,7 @@ export function makeHarness(
     limits: options.limits,
     version: "0.1.0-test",
   };
-  return { controller: new Controller(deps), snapshots, trustStorage, trust, tabs, badges, events, fetchLog, routes, clock };
+  return { controller: new Controller(deps), snapshots, trustStorage, trust, tabs, settingsArea, settings, httpLog, builtin, badges, events, fetchLog, routes, clock };
 }
 
 const EXTENSION_ORIGIN = "chrome-extension://abcdefghijklmnopabcdefghijklmnop";

@@ -11,30 +11,60 @@
  */
 import { agentPageModel } from "../../core/agent-page.js";
 import { MAX_ARCHIVE_BYTES } from "../../core/archive.js";
+import {
+  blockingReasons,
+  buildReceipt,
+  buildRequest,
+  defaultDecisions,
+  normalizeDecisions,
+  normalizeProvenance,
+  normalizeToolApprovals,
+  PRESETS,
+  profileDecisions,
+  type Decided,
+} from "../../core/authorization.js";
+import { evaluateCatalog, findModel, type HostCatalog } from "../../core/compatibility.js";
 import { classifyLinks, DEFAULT_LIMITS, discoverFromPage, mediaType, type FetchedPage } from "../../core/discovery.js";
 import { CoreError } from "../../core/errors.js";
 import { evaluateSnapshot, evaluationLayers, publisherReport, structurallyValid, type EvaluationLayers, type PublisherReport } from "../../core/evaluation.js";
 import { sha256Hex } from "../../core/hash.js";
+import { evaluateResources, normalizeResourceSelections, RESOURCE_PERMISSION_KINDS, type ResourceRegistry } from "../../core/hostresources.js";
+import { buildHostToolRegistry, evaluateRegistry, type RegistryEvaluation, type ToolRegistry } from "../../core/hosttools.js";
+import type { JsonObject, JsonValue } from "../../core/json.js";
 import { publicKeyFromPem } from "../../core/keys.js";
+import { buildHostCatalog, probeProvider, type BuiltinAvailability, type Http, type ProbeResult, type ProviderId } from "../../core/models/catalog.js";
 import type { Package } from "../../core/package.js";
 import { documentUrl, origin, originText, sameOrigin, validatePackageUrl } from "../../core/policy.js";
+import { readProfiles } from "../../core/profiles.js";
+import { buildRunPlan, grantsOnce, MODE_MODEL, modePermissionIds, preflight, preparationBlockers } from "../../core/runplan.js";
 import { buildSummary, type BrowserSummary } from "../../core/summary.js";
 import { pyRepr } from "../../core/repr.js";
 import { pinPackagePublisher, type TrustStore } from "../../core/trust.js";
+import { DEFAULT_BROWSER_POLICY, DENY, type AuthorizationReceipt, type Decision, type Provenance, type Reason, type RunPlan, type SourceRef } from "../../core/types.js";
+import { Vault, type VaultDocument } from "../../core/vault.js";
 import { CORE_VERSION, SUPPORTED_RUNTIME_VERSION } from "../../core/version.js";
+import demoHostResources from "../data/demo-host-resources.json" with { type: "json" };
 import {
+  type AuthorizationView,
+  type AuthorizeResult,
   type CandidateState,
   type ContentMessage,
   type Event,
+  type ModelsView,
   type PinResult,
   type Request,
+  type RunPlanState,
   type SessionDescriptor,
   type SessionSource,
   type SessionView,
+  type SettingsView,
   type StatusInfo,
+  type ToolOffer,
   type TrustList,
+  type VaultView,
   type WebsiteResult,
 } from "../messages.js";
+import { connectionsFor, normalizeSettings, type Settings, type SettingsStorage } from "../storage/settings.js";
 import type { SnapshotStore, StoredSession } from "../storage/snapshots.js";
 import type { TabStateStore } from "../storage/tab-state.js";
 
@@ -65,6 +95,12 @@ export interface ControllerDeps {
   snapshots: SnapshotStore;
   trust: TrustStore;
   tabs: TabStateStore;
+  /** Settings, keys, the vault and the install id (`chrome.storage.local`, D-032/D-051). */
+  settings: SettingsStorage;
+  /** The model-catalog transport: the shell adds credential headers and performs the request (D-055). */
+  http: Http;
+  /** Chrome's built-in model availability, read by the shell (`LanguageModel.availability()`); null when unknown. */
+  builtin: () => Promise<BuiltinAvailability | null>;
   badge: (tabId: number, count: number) => Promise<void>;
   broadcast: (event: Event) => void;
   clock?: () => Date;
@@ -79,7 +115,13 @@ interface LiveSession {
   evaluation: EvaluationLayers;
   publisher: PublisherReport;
   summary: BrowserSummary;
+  receipt: AuthorizationReceipt | null;
+  plan: RunPlan | null;
+  onceSpent: boolean;
 }
+
+/** How long a probed catalog is reused before the providers are asked again. */
+const CATALOG_TTL_MS = 60_000;
 
 /** The sender facts the service worker vouches for; a page cannot forge them. */
 export interface Sender {
@@ -113,6 +155,23 @@ function withoutFragment(url: string): string {
 
 function reject(code: string, message: string, status = 400, details: Record<string, unknown> | null = null): CoreError {
   return new CoreError(code, message, { status, details });
+}
+
+/** The session source as the receipt and plan record it (`SourceRef`): the same fields, as JSON. */
+function sourceRef(source: SessionSource): SourceRef {
+  return { kind: source.kind, display: source.display, advertised_on: source.advertised_on, opened_at: source.opened_at };
+}
+
+/** The demo host's resource types (schemas and sealed fields only; no record). */
+function demoTypes(): Array<Omit<VaultDocument["types"][number], never>> {
+  return demoHostResources.types.map((type) => ({
+    id: type.id,
+    display_name: type.display_name,
+    description: type.description ?? null,
+    permission_kind: type.permission_kind,
+    schema: type.schema as unknown as JsonObject,
+    sealed_fields: type.sealed_fields ?? [],
+  }));
 }
 
 export class Controller {
@@ -169,6 +228,36 @@ export class Controller {
         return this.unpin(request.fingerprint);
       case "status.get":
         return this.status();
+      case "authorization.get":
+        return this.authorizationView(await this.session(request.sessionId));
+      case "authorization.authorize":
+        return this.authorize(request.sessionId, request);
+      case "authorization.useProfile":
+        return this.useProfile(request.sessionId, request);
+      case "models.evaluate":
+        return this.evaluateModels(request.sessionId, request.refresh);
+      case "models.probe":
+        return this.probe(request.provider);
+      case "runplan.prepare":
+        return this.prepareRunPlan(request.sessionId, request);
+      case "runplan.get":
+        return this.runPlanState(await this.session(request.sessionId));
+      case "runplan.clear":
+        return this.clearRunPlan(request.sessionId);
+      case "settings.get":
+        return this.settingsView();
+      case "settings.set":
+        return this.setSettings(request.settings);
+      case "settings.setKey":
+        return this.setKey(request.provider, request.key);
+      case "vault.get":
+        return this.vaultView();
+      case "vault.putRecord":
+        return this.putVaultRecord(request.record);
+      case "vault.deleteRecord":
+        return this.deleteVaultRecord(request.recordId);
+      case "vault.installDemo":
+        return this.installDemo(request.records);
     }
   }
 
@@ -444,10 +533,19 @@ export class Controller {
     return this.view(live);
   }
 
-  private async evaluate(stored: StoredSession, pkg: Package, layers: EvaluationLayers): Promise<LiveSession> {
+  private async evaluate(stored: StoredSession, pkg: Package, layers: EvaluationLayers, previous?: Pick<LiveSession, "receipt" | "plan" | "onceSpent">): Promise<LiveSession> {
     const publisher = await publisherReport(pkg, this.deps.trust);
     const summary = await buildSummary(pkg, { evaluation: layers, publisher });
-    return { stored, pkg, evaluation: layers, publisher, summary };
+    return {
+      stored,
+      pkg,
+      evaluation: layers,
+      publisher,
+      summary,
+      receipt: previous?.receipt ?? stored.authorization ?? null,
+      plan: previous?.plan ?? stored.run_plan ?? null,
+      onceSpent: previous?.onceSpent ?? stored.once_spent ?? false,
+    };
   }
 
   private view(live: LiveSession): SessionView {
@@ -469,8 +567,16 @@ export class Controller {
         },
         archiveSha256: live.stored.archive_sha256,
       }),
+      authorization: live.receipt ? { state: "issued", receipt_id: live.receipt.receipt_id, runnable: live.receipt.runnable } : { state: "none", receipt_id: null, runnable: false },
+      run_plan: live.plan ? { state: "prepared", run_plan_id: live.plan.run_plan_id, ready: live.plan.readiness.ready } : { state: "absent", run_plan_id: null, ready: false },
       execution: { performed: false, note: EXECUTION_NOTE },
     };
+  }
+
+  /** Persist the session's consent and plan beside it (D-056). */
+  private async persist(live: LiveSession): Promise<void> {
+    live.stored = { ...live.stored, authorization: live.receipt, run_plan: live.plan, once_spent: live.onceSpent };
+    await this.deps.snapshots.putSession(live.stored);
   }
 
   private descriptor(live: LiveSession): SessionDescriptor {
@@ -527,6 +633,7 @@ export class Controller {
           continue;
         }
         this.sessions.set(stored.session_id, await this.evaluate(stored, evaluated.pkg, evaluated.layers));
+        // The stored receipt and plan came back with the session; the next read re-checks them.
       }
     })();
     this.restored = attempt.catch((error: unknown) => {
@@ -624,7 +731,7 @@ export class Controller {
   }
 
   private async refreshTrust(): Promise<void> {
-    for (const [id, live] of this.sessions) this.sessions.set(id, await this.evaluate(live.stored, live.pkg, live.evaluation));
+    for (const [id, live] of this.sessions) this.sessions.set(id, await this.evaluate(live.stored, live.pkg, live.evaluation, live));
     this.deps.broadcast({ type: "event.trust" });
     this.deps.broadcast({ type: "event.sessions" });
   }
@@ -646,6 +753,399 @@ export class Controller {
     await this.deps.trust.remove(fingerprint);
     await this.refreshTrust();
     return this.trustList();
+  }
+
+  // -- settings, keys and the vault (D-050, D-051, D-055) ------------------------------------
+  private vaultCache: Vault | null = null;
+
+  async settingsView(): Promise<SettingsView> {
+    return { settings: await this.deps.settings.settings(), keys: await this.deps.settings.keyPresence() };
+  }
+
+  async setSettings(raw: unknown): Promise<SettingsView> {
+    const saved = await this.deps.settings.saveSettings(normalizeSettings(raw));
+    this.catalogCache = null; // connections or caps may have changed
+    this.deps.broadcast({ type: "event.settings" });
+    return { settings: saved, keys: await this.deps.settings.keyPresence() };
+  }
+
+  async setKey(provider: ProviderId, key: string | null): Promise<SettingsView> {
+    if (provider === "ollama" || provider === "chrome-builtin") throw reject("invalid_request", `${provider} takes no API key`);
+    try {
+      await this.deps.settings.setKey(provider, key);
+    } catch (error) {
+      throw reject("invalid_request", error instanceof Error ? error.message : "invalid key");
+    }
+    this.catalogCache = null;
+    this.deps.broadcast({ type: "event.settings" });
+    return this.settingsView();
+  }
+
+  private async vault(): Promise<Vault> {
+    if (this.vaultCache) return this.vaultCache;
+    const key = await this.deps.settings.vaultKey();
+    let document = await this.deps.settings.vaultDocument();
+    let vault: Vault;
+    try {
+      vault = await Vault.open(key, document);
+    } catch (error) {
+      // A document this build cannot read is left in place and reported, never silently replaced.
+      throw reject("vault_unreadable", `The stored vault could not be opened: ${error instanceof Error ? error.message : "invalid"}`, 500);
+    }
+    // A fresh profile starts with the demo host's resource *types* (schemas, no personal data), so
+    // a package's requests can be explained and records can be created; records are never pre-filled.
+    if (vault.typeViews().length === 0 && document.records.length === 0) {
+      for (const type of demoTypes()) await vault.putType(type);
+      document = vault.toDocument();
+      await this.deps.settings.saveVaultDocument(document);
+    }
+    this.vaultCache = vault;
+    return vault;
+  }
+
+  private async saveVault(vault: Vault): Promise<void> {
+    await this.deps.settings.saveVaultDocument(vault.toDocument());
+    this.vaultCache = vault;
+    this.deps.broadcast({ type: "event.vault" });
+  }
+
+  async vaultView(): Promise<VaultView> {
+    const vault = await this.vault();
+    return { types: vault.typeViews(), records: vault.recordViews(), demo_available: true };
+  }
+
+  async putVaultRecord(raw: unknown): Promise<VaultView> {
+    const vault = await this.vault();
+    try {
+      await vault.putRecord(raw, { allowReplace: true, now: this.clock() });
+    } catch (error) {
+      if (error instanceof CoreError) throw error;
+      throw reject("vault_invalid", error instanceof Error ? error.message : "invalid record");
+    }
+    await this.saveVault(vault);
+    return this.vaultView();
+  }
+
+  async deleteVaultRecord(recordId: string): Promise<VaultView> {
+    const vault = await this.vault();
+    if (!vault.deleteRecord(recordId)) throw reject("vault_record_unknown", `No vault record ${pyRepr(recordId)}`, 404);
+    await this.saveVault(vault);
+    return this.vaultView();
+  }
+
+  /** Add the clearly labelled fictional demo set: its types always, its records only when asked. */
+  async installDemo(records: boolean): Promise<VaultView> {
+    const vault = await this.vault();
+    for (const type of demoTypes()) if (!vault.typeViews().some((existing) => existing.id === type.id)) await vault.putType(type);
+    if (records) {
+      for (const resource of demoHostResources.resources) {
+        await vault.putRecord({ id: resource.id, type: resource.type, label: resource.label, value: resource.value as unknown as JsonObject, demo: true }, { allowReplace: true, now: this.clock() });
+      }
+    }
+    await this.saveVault(vault);
+    return this.vaultView();
+  }
+
+  // -- the host registries for one session ---------------------------------------------------
+  private async resourceRegistry(): Promise<ResourceRegistry> {
+    return (await this.vault()).registry({ runtimeVersion: this.version, now: this.clock() });
+  }
+
+  private async toolRegistry(live: LiveSession): Promise<ToolRegistry> {
+    const types = (await this.vault()).typeViews().map((type) => ({ id: type.id, display_name: type.display_name, permission_kind: type.permission_kind, schema_sha256: type.schema_sha256 }));
+    return buildHostToolRegistry(live.pkg, { resourceTypes: types, runtimeVersion: this.version, now: this.clock() });
+  }
+
+  private async toolEvaluation(live: LiveSession, decisions?: Record<string, Decision>, approvals?: Record<string, boolean>): Promise<{ registry: ToolRegistry; evaluation: RegistryEvaluation }> {
+    const registry = await this.toolRegistry(live);
+    const evaluation = await evaluateRegistry(live.pkg, registry, { decisions, toolApprovals: approvals, now: this.clock() });
+    return { registry, evaluation };
+  }
+
+  // -- the model catalog (D-023, D-055) ------------------------------------------------------
+  private catalogCache: { catalog: HostCatalog; probes: ProbeResult[]; at: number } | null = null;
+
+  private async catalog(refresh = false): Promise<{ catalog: HostCatalog; probes: ProbeResult[] }> {
+    const now = this.clock().getTime();
+    if (!refresh && this.catalogCache && now - this.catalogCache.at < CATALOG_TTL_MS) return this.catalogCache;
+    const settings = await this.deps.settings.settings();
+    const connections = connectionsFor(settings, await this.deps.settings.keyPresence());
+    const builtin = connections.some((connection) => connection.provider === "chrome-builtin" && connection.enabled) ? await this.deps.builtin() : null;
+    const result = await buildHostCatalog(connections, this.deps.http, { builtin, runtimeVersion: this.version, now: this.clock() });
+    this.catalogCache = { ...result, at: now };
+    return result;
+  }
+
+  async probe(provider: ProviderId): Promise<ProbeResult> {
+    const settings = await this.deps.settings.settings();
+    const connection = connectionsFor(settings, await this.deps.settings.keyPresence()).find((item) => item.provider === provider);
+    if (!connection) throw reject("invalid_request", `No connection for ${provider}`);
+    if (provider === "chrome-builtin") {
+      const availability = await this.deps.builtin();
+      return { provider, ok: availability !== null && availability.availability === "available", models: [], notes: [], error: availability ? (availability.availability === "available" ? null : availability.availability) : "The Prompt API is not available in this context." };
+    }
+    this.catalogCache = null;
+    return probeProvider({ ...connection, enabled: true }, this.deps.http);
+  }
+
+  async evaluateModels(sessionId: string, refresh: boolean): Promise<ModelsView> {
+    const live = await this.session(sessionId);
+    const settings = await this.deps.settings.settings();
+    const { catalog, probes } = await this.catalog(refresh);
+    const required = modePermissionIds(live.pkg, MODE_MODEL);
+    return {
+      evaluation: evaluateCatalog(live.pkg, catalog, this.clock()),
+      probes,
+      default_model: settings.models.default_model,
+      local_models_only: PRESETS[settings.preset].local_models_only,
+      execution_mode_permission_ids: required,
+      execution_mode_permissions_granted: required.length > 0 && required.every((id) => (live.receipt?.decisions[id] ?? DENY) !== DENY),
+      captured_at: catalog.host.captured_at,
+    };
+  }
+
+  // -- authorization (authorization.py, D-022, D-050, D-053) ----------------------------------
+  private requireDigest(live: LiveSession, digest: string): void {
+    if (digest !== live.pkg.digest) {
+      throw reject("digest_mismatch", "package_digest does not match the package this session holds; reload the view before deciding", 409, {
+        session_digest: live.pkg.digest,
+      });
+    }
+  }
+
+  async authorizationView(live: LiveSession): Promise<AuthorizationView> {
+    const settings = await this.deps.settings.settings();
+    const request = buildRequest(live.pkg, { sessionId: live.stored.session_id, decisions: live.receipt?.decisions ?? {}, toolApprovals: live.receipt?.tool_approvals ?? {} });
+    const policy = DEFAULT_BROWSER_POLICY;
+    const vault = await this.vault();
+    const registry = await this.resourceRegistry();
+    const profiles = readProfiles(live.pkg);
+    const requestedTypes = (live.pkg.policy.permissions as JsonObject[])
+      .filter((permission) => RESOURCE_PERMISSION_KINDS.includes(String(permission.kind)))
+      .flatMap((permission) => (permission.resources as JsonValue[]).map(String));
+    const known = new Set(vault.typeViews().map((type) => type.id));
+    const { evaluation } = await this.toolEvaluation(live);
+    return {
+      session_id: live.stored.session_id,
+      package_digest: live.pkg.digest,
+      preset: settings.preset,
+      local_models_only: PRESETS[settings.preset].local_models_only,
+      request: {
+        ...request,
+        blocking_reasons: blockingReasons(live.pkg, { evaluation: live.evaluation, publisher: live.publisher, decisions: live.receipt?.decisions ?? {}, policy }),
+        browser_policy: { ...policy },
+      },
+      profiles: profiles.profiles ? profiles.profiles.map((profile) => ({ profile, decided: profileDecisions(live.pkg, profile, settings.preset) })) : null,
+      profile_notes: profiles.notes,
+      defaults: defaultDecisions(live.pkg, settings.preset),
+      resources: evaluateResources(live.pkg, registry, { decisions: live.receipt?.decisions ?? {}, grants: live.receipt?.resource_grants ?? [] }),
+      missing_resource_types: [...new Set(requestedTypes.filter((type) => !known.has(type)))].sort(),
+      tools: evaluation.tools.map(
+        (tool): ToolOffer => ({
+          tool_id: tool.tool_id,
+          binding_name: tool.binding_name,
+          status: tool.status,
+          reason: tool.reason,
+          implementation_kind: tool.binding?.implementation_kind ?? null,
+          display_name: tool.binding?.display_name ?? null,
+          side_effects: tool.side_effects,
+          approval_required: tool.approval_required,
+          permission_ids: tool.permission_ids,
+          resource_type: tool.binding?.resource_type ?? null,
+        }),
+      ),
+      receipt: live.receipt,
+      run_plan: live.plan ? await this.runPlanState(live) : null,
+      default_model: settings.models.default_model,
+    };
+  }
+
+  /** `control.py::authorize`: record explicit decisions and issue a digest-bound receipt; a new receipt discards the plan. */
+  async authorize(
+    sessionId: string,
+    input: { packageDigest: string; decisions: Record<string, string>; toolApprovals: Record<string, boolean>; resourceSelections: Record<string, string>; provenance: unknown | null; prepare: boolean },
+  ): Promise<AuthorizeResult> {
+    const live = await this.session(sessionId);
+    this.requireDigest(live, input.packageDigest);
+    const decisions = normalizeDecisions(live.pkg, input.decisions);
+    const approvals = normalizeToolApprovals(live.pkg, input.toolApprovals);
+    const registry = await this.resourceRegistry();
+    const grants = normalizeResourceSelections(live.pkg, registry, decisions, input.resourceSelections);
+    const provenance = normalizeProvenance(live.pkg, input.provenance, decisions, approvals, grants);
+    return this.issue(live, decisions, approvals, grants, registry, provenance, input.prepare);
+  }
+
+  /** The two-click path (D-022): a selected profile becomes decisions under the current preset, with the person's picks. */
+  async useProfile(sessionId: string, input: { packageDigest: string; profileId: string; resourceSelections: Record<string, string>; prepare: boolean }): Promise<AuthorizeResult> {
+    const live = await this.session(sessionId);
+    this.requireDigest(live, input.packageDigest);
+    const profiles = readProfiles(live.pkg);
+    const profile = profiles.profiles?.find((item) => item.id === input.profileId);
+    if (!profile) throw reject("profile_unknown", `This package declares no usable profile ${pyRepr(input.profileId)}`, 404, { notes: profiles.notes });
+    const settings = await this.deps.settings.settings();
+    const decided: Decided = profileDecisions(live.pkg, profile, settings.preset);
+    const registry = await this.resourceRegistry();
+    const grants = normalizeResourceSelections(live.pkg, registry, decided.decisions, input.resourceSelections);
+    const provenance: Provenance = { ...decided.provenance, resource_selections: Object.fromEntries(grants.map((grant) => [grant.permission_id, "user" as const])) };
+    return this.issue(live, decided.decisions, decided.tool_approvals, grants, registry, provenance, input.prepare);
+  }
+
+  private async issue(
+    live: LiveSession,
+    decisions: Record<string, Decision>,
+    approvals: Record<string, boolean>,
+    grants: ReturnType<typeof normalizeResourceSelections>,
+    registry: ResourceRegistry,
+    provenance: Provenance | null,
+    prepare: boolean,
+  ): Promise<AuthorizeResult> {
+    const receipt = await buildReceipt(live.pkg, {
+      sessionId: live.stored.session_id,
+      source: sourceRef(live.stored.source),
+      archiveSha256: live.stored.archive_sha256,
+      evaluation: live.evaluation,
+      publisher: live.publisher,
+      trustState: await this.deps.trust.state(),
+      decisions,
+      toolApprovals: approvals,
+      policy: DEFAULT_BROWSER_POLICY,
+      instanceId: await this.deps.settings.instanceId(),
+      expiresAt: live.stored.expires_at,
+      resourceGrants: grants,
+      resourceRegistry: registry,
+      provenance,
+      now: this.clock(),
+    });
+    // A new consent decision supersedes any plan prepared under the old one, and starts unspent.
+    live.receipt = receipt;
+    live.plan = null;
+    live.onceSpent = false;
+    await this.persist(live);
+    const result: AuthorizeResult = { receipt, run_plan: null, plan_refused: null, model_id: null };
+    if (prepare) {
+      const settings = await this.deps.settings.settings();
+      result.model_id = settings.models.default_model;
+      if (settings.models.default_model === null) {
+        result.plan_refused = [{ code: "model_not_selected", message: "Choose a default model in Settings → Models, or pick one under Customize your settings.", subject: null }];
+      } else {
+        try {
+          result.run_plan = await this.prepareRunPlan(live.stored.session_id, { packageDigest: live.pkg.digest, receiptId: receipt.receipt_id, modelId: settings.models.default_model });
+        } catch (error) {
+          if (!(error instanceof CoreError) || error.code !== "run_plan_refused") throw error;
+          result.plan_refused = (error.details.blocking_reasons as Reason[] | undefined) ?? [{ code: error.code, message: error.message, subject: null }];
+        }
+      }
+    }
+    this.deps.broadcast({ type: "event.authorization", sessionId: live.stored.session_id });
+    this.deps.broadcast({ type: "event.sessions" });
+    return result;
+  }
+
+  // -- run plans (runplan.py) ---------------------------------------------------------------
+  /** `control.py::prepare_run_plan`: freeze one package + authorization + model + tools into a plan, or refuse by name. */
+  async prepareRunPlan(sessionId: string, input: { packageDigest: string; receiptId: string; modelId: string }): Promise<RunPlanState> {
+    const live = await this.session(sessionId);
+    this.requireDigest(live, input.packageDigest);
+    if (live.receipt === null) throw reject("authorization_absent", "Authorize this package before preparing a run plan", 409);
+    if (input.receiptId !== live.receipt.receipt_id) {
+      throw reject("receipt_mismatch", "receipt_id does not match this session's current authorization receipt", 409, { session_receipt_id: live.receipt.receipt_id });
+    }
+    const settings = await this.deps.settings.settings();
+    const { catalog } = await this.catalog();
+    const descriptor = findModel(catalog, input.modelId);
+    if (descriptor === null) throw reject("model_unknown", `No model ${pyRepr(input.modelId)} in this browser's model catalog`, 409);
+    const evaluation = evaluateCatalog(live.pkg, catalog, this.clock());
+    const compatibility = evaluation.models.find((item) => item.model_id === input.modelId) ?? null;
+    const blockers: Reason[] = [];
+    if (PRESETS[settings.preset].local_models_only && descriptor.properties.local !== true) {
+      blockers.push({ code: "model_not_local", message: `The ${PRESETS[settings.preset].title} preset allows local models only; ${input.modelId} is not reported as local. Change the preset in Settings → Policies or choose a local model.`, subject: input.modelId });
+    }
+    const { registry: toolRegistry, evaluation: toolEvaluation } = await this.toolEvaluation(live, live.receipt.decisions, live.receipt.tool_approvals);
+    const resourceRegistry = await this.resourceRegistry();
+    blockers.push(
+      ...preparationBlockers(live.pkg, {
+        mode: MODE_MODEL,
+        evaluation,
+        receipt: live.receipt,
+        publisher: live.publisher,
+        compatibility,
+        policy: DEFAULT_BROWSER_POLICY,
+        toolEvaluation,
+        resourceRegistry,
+      }),
+    );
+    if (blockers.length > 0) {
+      // A run plan exists only when it is ready (runplan.py): every reason is returned so a UI can
+      // send the person to the exact control that fixes it.
+      throw reject("run_plan_refused", blockers[0]!.message, 409, { blocking_reasons: blockers });
+    }
+    const plan = await buildRunPlan(live.pkg, {
+      sessionId: live.stored.session_id,
+      source: sourceRef(live.stored.source),
+      archiveSha256: live.stored.archive_sha256,
+      evaluation,
+      catalog,
+      descriptor,
+      compatibility,
+      receipt: live.receipt,
+      publisher: live.publisher,
+      trustState: await this.deps.trust.state(),
+      evaluationLayers: live.evaluation,
+      policy: DEFAULT_BROWSER_POLICY,
+      instanceId: await this.deps.settings.instanceId(),
+      mode: MODE_MODEL,
+      bindingStrategy: "single_model",
+      expiresAt: live.stored.expires_at,
+      blockingReasons: blockers,
+      toolEvaluation,
+      toolRegistry,
+      resourceRegistry,
+      now: this.clock(),
+    });
+    live.plan = plan;
+    await this.persist(live);
+    this.deps.broadcast({ type: "event.authorization", sessionId: live.stored.session_id });
+    this.deps.broadcast({ type: "event.sessions" });
+    return this.runPlanState(live);
+  }
+
+  /** The plan plus a preflight recomputed against the vault, the host registry and the last catalog. */
+  async runPlanState(live: LiveSession): Promise<RunPlanState> {
+    if (live.plan === null) throw reject("run_plan_absent", "This session has no run plan", 404);
+    const { evaluation: toolEvaluation } = await this.toolEvaluation(live, live.receipt?.decisions, live.receipt?.tool_approvals);
+    return {
+      run_plan: live.plan,
+      preflight: preflight(live.plan, {
+        pkg: live.pkg,
+        publisher: live.publisher,
+        receipt: live.receipt,
+        trustState: await this.deps.trust.state(),
+        policy: DEFAULT_BROWSER_POLICY,
+        toolEvaluation,
+        resourceRegistry: await this.resourceRegistry(),
+        catalog: this.catalogCache?.catalog ?? null,
+        onceSpent: live.onceSpent && live.receipt !== null && grantsOnce(live.receipt),
+        now: this.clock(),
+      }),
+    };
+  }
+
+  async clearRunPlan(sessionId: string): Promise<{ cleared: boolean; session_id: string }> {
+    const live = await this.session(sessionId);
+    const had = live.plan !== null;
+    live.plan = null;
+    await this.persist(live);
+    this.deps.broadcast({ type: "event.authorization", sessionId });
+    this.deps.broadcast({ type: "event.sessions" });
+    return { cleared: had, session_id: sessionId };
+  }
+
+  /** The execution host (T5) records that a run under this receipt began, spending its `once` grants. */
+  async markOnceSpent(sessionId: string): Promise<void> {
+    const live = await this.session(sessionId);
+    live.onceSpent = true;
+    await this.persist(live);
+    this.deps.broadcast({ type: "event.authorization", sessionId });
   }
 
   // -- status ----------------------------------------------------------------------------

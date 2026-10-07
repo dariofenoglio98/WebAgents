@@ -6,6 +6,7 @@
  * with its byte count, written in the same transaction, so that listing the cache never
  * loads the archives themselves).
  */
+import type { AuthorizationReceipt, RunPlan } from "../../core/types.js";
 import type { SessionSource } from "../messages.js";
 
 export interface SnapshotRecord {
@@ -21,6 +22,11 @@ export interface StoredSession {
   created_at: string;
   expires_at: string;
   source: SessionSource;
+  /** The session's receipt and plan (D-056): stored with the session so a plan survives a worker restart or a page reload. */
+  authorization?: AuthorizationReceipt | null;
+  run_plan?: RunPlan | null;
+  /** Whether a run has spent this receipt's `once` grants (set by the execution host, T5). */
+  once_spent?: boolean;
 }
 
 export interface SnapshotStore {
