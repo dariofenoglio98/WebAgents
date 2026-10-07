@@ -46,6 +46,21 @@ export const DEFAULT_HOST_LIMITS: Readonly<HostExecutionLimits> = Object.freeze(
   model_call_timeout_seconds: DEFAULT_MODEL_CALL_TIMEOUT_SECONDS,
 });
 
+/**
+ * Limits that lower nothing: every ceiling at its supported maximum, so `min()` with the
+ * package's declarations yields the declarations. What `agentpkg run` applies when the operator
+ * passes no `--limits`; the model-call timeout keeps its default, since a package declares none.
+ */
+export const PERMISSIVE_HOST_LIMITS: Readonly<HostExecutionLimits> = Object.freeze({
+  total_tokens: MAX_TOTAL_TOKENS,
+  max_remote_calls: MAX_REMOTE_CALLS,
+  max_parallel_workers: MAX_PARALLEL_WORKERS,
+  max_output_tokens_per_call: MAX_OUTPUT_TOKENS_PER_CALL,
+  run_timeout_seconds: MAX_RUN_TIMEOUT_SECONDS,
+  max_calls_per_tool: MAX_CALLS_PER_TOOL,
+  model_call_timeout_seconds: DEFAULT_MODEL_CALL_TIMEOUT_SECONDS,
+});
+
 const MAXIMA: Record<keyof HostExecutionLimits, number> = {
   total_tokens: MAX_TOTAL_TOKENS,
   max_remote_calls: MAX_REMOTE_CALLS,
