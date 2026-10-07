@@ -100,7 +100,19 @@ const FORBIDDEN_OBJECTS = ["chrome", "browser", "document", "window", "self", "n
 const FORBIDDEN_CALLABLES = ["XMLHttpRequest", "WebSocket", "fetch", "require", "Buffer"];
 const FORBIDDEN_IDENTIFIERS = ["chrome", "globalThis", "window", "navigator", "localStorage", "sessionStorage", "indexedDB", "process", "__dirname", "XMLHttpRequest", "WebSocket"];
 const FORBIDDEN_IMPORTS = [/from\s+["']node:/u, /from\s+["']\.\.\/extension/u, /from\s+["']\.\.\/\.\.\/extension/u, /from\s+["']chrome/u, /import\s+["']node:/u, /\brequire\(/u, /import\(/u];
-const ALLOWED_DECLARATIONS = new Set(["TextEncoder", "TextDecoder", "URL", "crypto", "CoreCryptoKey", "CoreSubtleCrypto"]);
+const ALLOWED_DECLARATIONS = new Set([
+  "TextEncoder",
+  "TextDecoder",
+  "URL",
+  "crypto",
+  "CoreCryptoKey",
+  "CoreSubtleCrypto",
+  // T4: deadlines and cancellation (WHATWG timers and abort signals).
+  "setTimeout",
+  "clearTimeout",
+  "AbortController",
+  "AbortSignal",
+]);
 
 describe("the portable core has no Chrome, DOM, Node or shell dependency", () => {
   const files = [...walk(CORE)].filter((path) => !path.endsWith("globals.d.ts"));
@@ -133,7 +145,7 @@ describe("the portable core has no Chrome, DOM, Node or shell dependency", () =>
 
   it("the global allowlist declares only the WHATWG surface the core may use", () => {
     const text = readFileSync(join(CORE, "globals.d.ts"), "utf8");
-    const declared = [...text.matchAll(/^(?:declare\s+(?:class|const)|interface)\s+(\w+)/gmu)].map((match) => match[1]!);
+    const declared = [...text.matchAll(/^(?:declare\s+(?:class|const|function)|interface)\s+(\w+)/gmu)].map((match) => match[1]!);
     expect(declared.length).toBeGreaterThan(0);
     for (const name of declared) expect(ALLOWED_DECLARATIONS.has(name), `unexpected global ${name}`).toBe(true);
   });

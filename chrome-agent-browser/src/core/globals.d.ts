@@ -49,7 +49,7 @@ interface CoreSubtleCrypto {
     extractable: boolean,
     keyUsages: readonly string[],
   ): Promise<CoreCryptoKey>;
-  /** HMAC-SHA256 for the vault's resource digests (D-051). */
+  /** HMAC-SHA256 for the vault's resource digests (D-051) and the tool layer's resource digests. */
   sign(algorithm: { name: string }, key: CoreCryptoKey, data: ArrayBuffer | ArrayBufferView): Promise<ArrayBuffer>;
   verify(
     algorithm: { name: string },
@@ -64,3 +64,21 @@ declare const crypto: {
   getRandomValues<T extends ArrayBufferView>(array: T): T;
   randomUUID(): string;
 };
+
+// Timers and abort signals (T4): deadlines and cancellation in the interpreter and the
+// adapters. Both are the WHATWG surface, identical in Node, extension contexts and pages.
+declare function setTimeout(handler: () => void, timeout?: number): unknown;
+declare function clearTimeout(handle: unknown): void;
+
+declare class AbortController {
+  readonly signal: AbortSignal;
+  abort(reason?: unknown): void;
+}
+
+declare class AbortSignal {
+  readonly aborted: boolean;
+  readonly reason: unknown;
+  addEventListener(type: "abort", listener: () => void, options?: { once?: boolean }): void;
+  removeEventListener(type: "abort", listener: () => void): void;
+  throwIfAborted(): void;
+}

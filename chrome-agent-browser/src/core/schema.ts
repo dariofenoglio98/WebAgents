@@ -336,13 +336,17 @@ export class PackageSchemas {
     }
   }
 
-  /** `validation.py::validate_instance`. */
+  /**
+   * `validation.py::validate_instance`. The thrown error carries the first failure as
+   * `schema_failure`, the way the reference's error carries its jsonschema cause, so the
+   * runtime can record which keyword refused a tool payload without recording the payload.
+   */
   async validateInstance(path: string, instance: unknown, label = "instance"): Promise<void> {
     const list = await this.failures(path, instance);
     if (list.length === 0) return;
     const first = list[0]!;
     const location = first.instancePath.join("/") || "<root>";
-    throw new ValidationError(`${label} does not match ${path} at ${location} (rule: ${first.keyword})`);
+    throw schemaError(`${label} does not match ${path} at ${location} (rule: ${first.keyword})`, first);
   }
 
   /** The schema document a keyword location points into: one of this package's, or agentpkg's. */
@@ -366,6 +370,45 @@ export class PackageSchemas {
     this.registered.clear();
     this.documents.clear();
   }
+}
+
+const ADHOC_BASE = "https://package.invalid/adhoc/";
+
+/**
+ * Failures of `instance` against a self-contained schema document that is not a package member:
+ * the bundled node schema a model request carries (`Draft202012Validator(output_schema)` in
+ * `runtime.py::call_model`). The document is registered under a private one-off base and
+ * unregistered again; it must be `registrable`, so it resolves only its own `#/$defs`.
+ */
+export async function failuresForSchema(schema: unknown, instance: unknown, label = "schema"): Promise<SchemaFailure[]> {
+  ensureAgentpkgSchemas();
+  if (!registrable(schema)) throw new ValidationError(`${label}: invalid JSON Schema`);
+  const uri = `${ADHOC_BASE}${crypto.randomUUID()}/schema.json`;
+  registerSchema(schema as never, uri, DIALECT);
+  try {
+    return await failures(uri, instance);
+  } catch (error) {
+    if (error instanceof ValidationError) throw error;
+    throw new ValidationError(`${label}: invalid JSON Schema`);
+  } finally {
+    unregisterSchema(uri);
+  }
+}
+
+/** Validate against a self-contained schema document, in the reference's phrasing. */
+export async function validateWithSchema(schema: unknown, instance: unknown, label = "instance"): Promise<void> {
+  const list = await failuresForSchema(schema, instance, label);
+  if (list.length === 0) return;
+  const first = list[0]!;
+  const location = first.instancePath.join("/") || "<root>";
+  throw schemaError(`${label} does not match schema at ${location} (rule: ${first.keyword})`, first);
+}
+
+/** A `ValidationError` that carries the failure that caused it (`exc.__cause__` in the reference). */
+export type SchemaValidationError = ValidationError & { schema_failure: SchemaFailure };
+
+export function schemaError(message: string, failure: SchemaFailure): SchemaValidationError {
+  return Object.assign(new ValidationError(message), { schema_failure: failure });
 }
 
 /** One-shot `validate_instance` over a package's files. */
