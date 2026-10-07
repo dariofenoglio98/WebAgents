@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentpkg.local/spec/0.1/integrity.schema.json",
+  "type": "object",
+  "properties": {
+    "format": {
+      "const": "agent.pkg-integrity-v0.1"
+    },
+    "files": {
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 256,
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-][A-Za-z0-9_.-]*(?:/[A-Za-z0-9_-][A-Za-z0-9_.-]*)*$",
+        "maxLength": 240
+      },
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{64}$"
+      }
+    }
+  },
+  "required": [
+    "format",
+    "files"
+  ],
+  "additionalProperties": false
+}

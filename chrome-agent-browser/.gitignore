@@ -1,0 +1,4 @@
+# Build output: `npm run build` writes dist/extension and dist/cli.js; `npm run pack` the zip.
+/dist/
+# Throwaway Chrome profiles and certificates of the e2e harness.
+/.e2e/

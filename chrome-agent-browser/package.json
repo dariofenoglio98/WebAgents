@@ -1,0 +1,32 @@
+{
+  "name": "chrome-agent-browser",
+  "version": "0.1.0",
+  "description": "Chrome Agent Browser: a portable TypeScript core that opens, verifies and summarizes signed agent.pkg packages, and a Manifest V3 extension shell that discovers them on websites. Inspection only in this version; nothing executes.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=24.16"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.core.json --noEmit && tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "build": "node scripts/build.mjs",
+    "pack": "node scripts/pack.mjs",
+    "sync-schemas": "node scripts/sync-schemas.mjs",
+    "e2e": "node scripts/e2e-discovery.mjs"
+  },
+  "dependencies": {
+    "@hyperjump/json-schema": "^1.18.0",
+    "@noble/ed25519": "^3.2.0"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.3.4",
+    "@types/node": "^24.0.0",
+    "esbuild": "0.28.2",
+    "fake-indexeddb": "^6.2.5",
+    "happy-dom": "^20.0.0",
+    "typescript": "^5.9.0",
+    "vitest": "^5.0.1"
+  }
+}

@@ -1,0 +1,383 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentpkg.local/spec/0.1/manifest.schema.json",
+  "type": "object",
+  "properties": {
+    "spec_version": {
+      "const": "0.1"
+    },
+    "package_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[A-Za-z0-9.-]+)?$"
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096
+    },
+    "publisher": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "runtime": {
+      "type": "object",
+      "properties": {
+        "api": {
+          "const": "agentpkg-runtime-v0"
+        },
+        "minimum_version": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[A-Za-z0-9.-]+)?$"
+        }
+      },
+      "required": [
+        "api",
+        "minimum_version"
+      ],
+      "additionalProperties": false
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+      },
+      "maxItems": 512,
+      "uniqueItems": true
+    },
+    "entrypoint": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+    },
+    "graph": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-][A-Za-z0-9_.-]*(?:/[A-Za-z0-9_-][A-Za-z0-9_.-]*)*$",
+      "maxLength": 240
+    },
+    "policy": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-][A-Za-z0-9_.-]*(?:/[A-Za-z0-9_-][A-Za-z0-9_.-]*)*$",
+      "maxLength": 240
+    },
+    "skills": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+          },
+          "version": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[A-Za-z0-9.-]+)?$"
+          },
+          "path": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-][A-Za-z0-9_.-]*(?:/[A-Za-z0-9_-][A-Za-z0-9_.-]*)*$",
+            "maxLength": 240
+          }
+        },
+        "required": [
+          "id",
+          "version",
+          "path"
+        ],
+        "additionalProperties": false
+      },
+      "maxItems": 512
+    },
+    "tools": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+          },
+          "path": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-][A-Za-z0-9_.-]*(?:/[A-Za-z0-9_-][A-Za-z0-9_.-]*)*$",
+            "maxLength": 240
+          }
+        },
+        "required": [
+          "id",
+          "path"
+        ],
+        "additionalProperties": false
+      },
+      "maxItems": 512
+    },
+    "schemas": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+          },
+          "path": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-][A-Za-z0-9_.-]*(?:/[A-Za-z0-9_-][A-Za-z0-9_.-]*)*$",
+            "maxLength": 240
+          }
+        },
+        "required": [
+          "id",
+          "path"
+        ],
+        "additionalProperties": false
+      },
+      "maxItems": 512
+    },
+    "model_requirements": {
+      "type": "object",
+      "properties": {
+        "tasks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+              },
+              "capabilities": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+                },
+                "maxItems": 512,
+                "uniqueItems": true
+              },
+              "context_window": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 2147483647
+              },
+              "preferred_tier": {
+                "type": "string",
+                "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+              }
+            },
+            "required": [
+              "id",
+              "capabilities",
+              "context_window",
+              "preferred_tier"
+            ],
+            "additionalProperties": false
+          },
+          "maxItems": 512
+        },
+        "routing": {
+          "const": "host"
+        },
+        "fallback_policy": {
+          "enum": [
+            "deny",
+            "compatible"
+          ]
+        },
+        "extensions": {
+          "type": "object",
+          "propertyNames": {
+            "pattern": "^[a-z][a-z0-9.-]*:[A-Za-z][A-Za-z0-9_.-]*$"
+          },
+          "additionalProperties": true
+        },
+        "privacy": {
+          "enum": [
+            "host-policy",
+            "local-only"
+          ]
+        },
+        "latency_preference": {
+          "enum": [
+            "interactive",
+            "batch",
+            "unspecified"
+          ]
+        },
+        "cost_sensitivity": {
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ]
+        }
+      },
+      "required": [
+        "tasks",
+        "routing",
+        "fallback_policy",
+        "extensions"
+      ],
+      "additionalProperties": false
+    },
+    "evals": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+          },
+          "kind": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+          },
+          "path": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-][A-Za-z0-9_.-]*(?:/[A-Za-z0-9_-][A-Za-z0-9_.-]*)*$",
+            "maxLength": 240
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "path"
+        ],
+        "additionalProperties": false
+      },
+      "maxItems": 512
+    },
+    "attestations": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-][A-Za-z0-9_.-]*(?:/[A-Za-z0-9_-][A-Za-z0-9_.-]*)*$",
+        "maxLength": 240
+      },
+      "maxItems": 512,
+      "uniqueItems": true
+    },
+    "dependencies": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "properties": {
+          "package_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+          },
+          "version": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[A-Za-z0-9.-]+)?$"
+          },
+          "digest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "locator": {
+            "type": "string",
+            "pattern": "^(https://|nanda:).+",
+            "maxLength": 2048
+          }
+        },
+        "required": [
+          "package_id",
+          "version",
+          "digest",
+          "locator"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "update": {
+      "type": "object",
+      "properties": {
+        "channel": {
+          "enum": [
+            "stable",
+            "preview",
+            "local"
+          ]
+        },
+        "locator": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uri",
+              "pattern": "^(https://|nanda:)",
+              "maxLength": 4096
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "channel",
+        "locator"
+      ],
+      "additionalProperties": false
+    },
+    "extensions": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9.-]*:[A-Za-z][A-Za-z0-9_.-]*$"
+      },
+      "additionalProperties": true
+    }
+  },
+  "required": [
+    "spec_version",
+    "package_id",
+    "name",
+    "version",
+    "description",
+    "publisher",
+    "created_at",
+    "runtime",
+    "capabilities",
+    "entrypoint",
+    "graph",
+    "policy",
+    "skills",
+    "tools",
+    "schemas",
+    "model_requirements",
+    "evals",
+    "attestations",
+    "dependencies",
+    "update",
+    "extensions"
+  ],
+  "additionalProperties": false
+}

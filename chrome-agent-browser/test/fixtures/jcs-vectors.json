@@ -1,0 +1,201 @@
+[
+ {
+  "input": "9007199254740991",
+  "canonical": "9007199254740991"
+ },
+ {
+  "input": "9007199254740992",
+  "canonical": null,
+  "rejected": "IntegerDomainError"
+ },
+ {
+  "input": "-9007199254740991",
+  "canonical": "-9007199254740991"
+ },
+ {
+  "input": "-9007199254740992",
+  "canonical": null,
+  "rejected": "IntegerDomainError"
+ },
+ {
+  "input": "12345678901234567890",
+  "canonical": null,
+  "rejected": "IntegerDomainError"
+ },
+ {
+  "input": "1e21",
+  "canonical": "1e+21"
+ },
+ {
+  "input": "1e20",
+  "canonical": "100000000000000000000"
+ },
+ {
+  "input": "0.1",
+  "canonical": "0.1"
+ },
+ {
+  "input": "1e-7",
+  "canonical": "1e-7"
+ },
+ {
+  "input": "123456789012345680000.0",
+  "canonical": "123456789012345680000"
+ },
+ {
+  "input": "1.0",
+  "canonical": "1"
+ },
+ {
+  "input": "-0.0",
+  "canonical": "0"
+ },
+ {
+  "input": "0.0",
+  "canonical": "0"
+ },
+ {
+  "input": "-0",
+  "canonical": "0"
+ },
+ {
+  "input": "5e-324",
+  "canonical": "5e-324"
+ },
+ {
+  "input": "1.7976931348623157e308",
+  "canonical": "1.7976931348623157e+308"
+ },
+ {
+  "input": "100",
+  "canonical": "100"
+ },
+ {
+  "input": "1e2",
+  "canonical": "100"
+ },
+ {
+  "input": "1E2",
+  "canonical": "100"
+ },
+ {
+  "input": "0.000001",
+  "canonical": "0.000001"
+ },
+ {
+  "input": "0.0000001",
+  "canonical": "1e-7"
+ },
+ {
+  "input": "1e400",
+  "canonical": null,
+  "rejected": "FloatDomainError"
+ },
+ {
+  "input": "-1e400",
+  "canonical": null,
+  "rejected": "FloatDomainError"
+ },
+ {
+  "input": "2.5e-5",
+  "canonical": "0.000025"
+ },
+ {
+  "input": "1234567.125",
+  "canonical": "1234567.125"
+ },
+ {
+  "input": "3.141592653589793",
+  "canonical": "3.141592653589793"
+ },
+ {
+  "input": "1e15",
+  "canonical": "1000000000000000"
+ },
+ {
+  "input": "1e16",
+  "canonical": "10000000000000000"
+ },
+ {
+  "input": "1e17",
+  "canonical": "100000000000000000"
+ },
+ {
+  "input": "123e-20",
+  "canonical": "1.23e-18"
+ },
+ {
+  "input": "0.1e1",
+  "canonical": "1"
+ },
+ {
+  "input": "[1,1.0]",
+  "canonical": "[1,1]"
+ },
+ {
+  "input": "{\"b\":1,\"a\":2,\"B\":3,\"\\u00e9\":4,\"\\ud83d\\ude00\":5,\"aa\":6,\"\":7,\"a\\u0000\":8}",
+  "canonical": "{\"\":7,\"B\":3,\"a\":2,\"a\\u0000\":8,\"aa\":6,\"b\":1,\"é\":4,\"😀\":5}"
+ },
+ {
+  "input": "\"\\u2028\\u2029\\u007f\\u001f\\u0000\\b\\f\\n\\r\\t\\\"\\\\/<>&\\u00e9\\ud83d\\ude00\"",
+  "canonical": "\"  \\u001f\\u0000\\b\\f\\n\\r\\t\\\"\\\\/<>&é😀\""
+ },
+ {
+  "input": "{\"nested\":{\"z\":[true,false,null],\"y\":{\"k\":\"v\"}},\"list\":[{\"b\":2,\"a\":1},[],{}]}",
+  "canonical": "{\"list\":[{\"a\":1,\"b\":2},[],{}],\"nested\":{\"y\":{\"k\":\"v\"},\"z\":[true,false,null]}}"
+ },
+ {
+  "input": "true",
+  "canonical": "true"
+ },
+ {
+  "input": "false",
+  "canonical": "false"
+ },
+ {
+  "input": "null",
+  "canonical": "null"
+ },
+ {
+  "input": "\"\"",
+  "canonical": "\"\""
+ },
+ {
+  "input": "[]",
+  "canonical": "[]"
+ },
+ {
+  "input": "{}",
+  "canonical": "{}"
+ },
+ {
+  "input": "\"\\u0080\\u00ff\\u0100\"",
+  "canonical": "\"ÿĀ\""
+ },
+ {
+  "input": "{\"\\u0041\":1,\"\\u0061\":2,\"\\u005b\":3,\"\\u005f\":4,\"\\u007b\":5,\"\\u0030\":6}",
+  "canonical": "{\"0\":6,\"A\":1,\"[\":3,\"_\":4,\"a\":2,\"{\":5}"
+ },
+ {
+  "input": "{\"\\ud800\\udc00\":1,\"\\uffff\":2,\"\\ue000\":3}",
+  "canonical": "{\"𐀀\":1,\"\":3,\"￿\":2}"
+ },
+ {
+  "input": "{\"files\": {\"MANIFEST.agent\": \"4362c2d8dec72488f992ef8f13305d0ed21611a79836bcffd0dcdb918c247275\", \"README.md\": \"bda835afa53aa3d8565a1006e712282bfe0e1020092371f8b04cceeb129cd805\", \"fixtures/workflow.json\": \"23dcd42549e2ef6be6b55c4d2e9ba25f4df75c2e3882b334a7b842a9b7830052\", \"graph.json\": \"0874dd41bead0dfabb98ea6d346c9225d06a2c8953d4ea872a73729ea7dc47a5\", \"policy/policy.json\": \"1fd5a32fe5bc5824ba545bb80d37caf17951d7eba0d527da354da435e2ec6e9e\", \"schemas/answer.schema.json\": \"83589f4f5e1301ba69074f4d9ea691586e083401c2b28ac8307ed6e24fbcc6a8\", \"schemas/api/get_fare_rules.input.schema.json\": \"ad5ad98ed1b482225a8d623cf7004270e4042d825fd7cf166651a37a0492e1c8\", \"schemas/api/get_fare_rules.output.schema.json\": \"70c5dbb27a550e396ae211b5fe484bc395a67a793fba8c2cafa142840dd50b11\", \"schemas/api/prepare_booking.input.schema.json\": \"b7d0f573905ae0c23987b305de00816118a5d52ffe29f4ea410dc89f5c586173\", \"schemas/api/prepare_booking.output.schema.json\": \"c632b8935b6c059abee0a609e8d88f1c33dee69d6bf99cc3576d85652fe4a842\", \"schemas/api/search_flights.input.schema.json\": \"66cb6246e48442ed5101adf8b40d8ca29027a499a5acea7c8db5c7ef0f799ba8\", \"schemas/api/search_flights.output.schema.json\": \"824d0e39f171a09d424a7a7e40c38632db9747a3a4d1846b0f7a95e26893e4a7\", \"schemas/api/simulate_purchase.input.schema.json\": \"01ebc6ec5fd4ff9be71d4a308650bad902366eee94d494db8a7d46469172fa71\", \"schemas/api/simulate_purchase.output.schema.json\": \"debe54138360dd92e5bb98e33865bbf4da3bb64b2d0bd2c5a897f5051cf1f347\", \"schemas/booking-fare.schema.json\": \"a2e8232ea35edab7e9d855c8f51fe1dc2d0e07cff94dcefd616d20cae20aad3a\", \"schemas/booking-quote.schema.json\": \"78044236ea3d58efc04384bad93fdcdda478c8eb499e5c0dcdc6482a075f6736\", \"schemas/booking-request.schema.json\": \"4be455e6d7e9effdd09e4d103c8a21cec75ad2d8a2ec8acc950e416df03b0ea2\", \"schemas/booking-summary.schema.json\": \"f45548382cda29269ca22ac0101ef431b59498a2b1d4776ba6db3a128b314d56\", \"schemas/confirmation.schema.json\": \"9bab0aa400109ea4296f1da2b6d006f733eeff4fedb918c85126c3eb23844195\", \"schemas/fare-id.schema.json\": \"e74a37000590e5602425f54ac53742b2969c2b6baa4fb4faa08d6a4e1995cf4c\", \"schemas/fare-refs.schema.json\": \"5f8731cf114cc6c4bcc025237471d9763ec92004fafce01dabca002082c050df\", \"schemas/fare-rule.schema.json\": \"981dc5daa2b0ea1e07fbbd20a2025a3495a66304450d9396a38875a6667644bd\", \"schemas/fare-rules.schema.json\": \"44ddba71698010bd546728c4e79bef180ea7ff7b5ff9aa203b7b8096cfbc3964\", \"schemas/host/empty-input.schema.json\": \"71fc596a20f27da3dec80050e5d1f553eba34aea24c2853b853488a811e6b892\", \"schemas/host/personal.passenger_identity.schema.json\": \"ed3aa07a101767b46697661c503b135707f6d61a10080ab5e7c0f4fd4e06d539\", \"schemas/host/personal.travel_profile.schema.json\": \"fae6c1bbbed8ec3e8cd1abaa212baeca82b3cb4d34020cd21dfb7f15987c535b\", \"schemas/host/wallet.payment_method.schema.json\": \"3bd36ad1899ff7f97655f00d3f4a5b6e785e4ab6ee77d05e3057e4d1b80338d0\", \"schemas/input.schema.json\": \"02b45840e6a10bacc8a7ab906b8e64c4fde82dcbb3a97a18ed37b363b5cc0138\", \"schemas/offered-fares.schema.json\": \"c5a0227bab053705d925f2f3b94d04458b1d9d999759846e1acf83369ebd15bc\", \"schemas/offered-flights.schema.json\": \"6903739b01fc0f08cc116920e9f833c7a9ed5ae70e192b187a486f98649eb008\", \"schemas/passenger.schema.json\": \"e0cfce56cd191d62a8b64afe4f7f671ac430ec2e6bee86d0bd96032616cc9263\", \"schemas/payment.schema.json\": \"f115cf2926777385cd039079a56c8a1f875d249959f582cb7892da010c1bb293\", \"schemas/plan.schema.json\": \"33648ed569b812affb175d5aabdf1affb5598304b1c102e5dffbac1d1788f400\", \"schemas/purchase-request.schema.json\": \"fca8f81fca7b13910551b3caddb4d3705a2ab1bce98650da338547b574ec54d0\", \"schemas/purchase-result.schema.json\": \"5cee89c9bed7d69a4cf48587a1ff15cee9e6ac3c624de9700590c5294fd873cc\", \"schemas/purchase-summary.schema.json\": \"d67eda27b51b656255d29b7feb493f444b14f851dfff4e6a89b3c88f5b61b65e\", \"schemas/quote.schema.json\": \"d61e77ee7d2a913f05dddc4d46027e17588275ed1ca57ed711669295caa14c3c\", \"schemas/refusal.schema.json\": \"12af9286420666017d195406ec819d63fd2b596e4ef0d4ddf70dd91e3066d56c\", \"schemas/result.schema.json\": \"8107a03a167e05d2360c5cf1dd9bfb546c21f06574244261c5e6ad1d8ba6999e\", \"schemas/scrub.schema.json\": \"31c59f6df6c97555e14f7e8eed86366d2e4a2010e3432976754e28b799c346b8\", \"schemas/search-outcome.schema.json\": \"d77068ca89194c39d9e4360a74fe73858f46e5c527a1435587cc5655d3253011\", \"schemas/search-request.schema.json\": \"6f472655fecb9a92a3a9645f80edfa65e678e86b7ea8c8112ce98aa1f3232566\", \"schemas/selection.schema.json\": \"6e1355e4bfd1fbe128c614208693804e4488405751414bbffe3cadf8dfa8d7fc\", \"schemas/simulated-confirmation.schema.json\": \"1732cd21237648e7cd5f6e116b670c64f8b7412cdd32803f2ba1428a67c017d7\", \"schemas/state.schema.json\": \"9d508a659b2f97e221e9ce49cbef98f064bec13a8590c46bdff9542af923d3d4\", \"schemas/status.schema.json\": \"9ed03d7781ff74cd24d0470f509fa0cbf1db25fb7fc01cdf9a513acba11500f1\", \"schemas/travel-preferences.schema.json\": \"94cd68a971350d1f7d42a16a22f47c5d717b76962df9b1405930a88803310471\", \"skills/answer-writing/SKILL.md\": \"f3ef6fed732c1ca4a9daed7f3e3f01b95e8a9cdef659e6669ea7a2eb9e05b6d8\", \"skills/fare-selection/SKILL.md\": \"11f123d06c3bc7b8368366db8960513c680294461b6cc32649ef9ee64126c0f2\", \"skills/travel-request/SKILL.md\": \"f817863722591a88dbf74e26aa4029afc007d6c62235c4f6caa3a2f7404caac4\", \"skills/webair-domain/SKILL.md\": \"35e3f81835147cd4efa12dc31da33ae8b67c46b23b8a21baeebc04d8b4c74656\", \"tools/get-fare-rules.tool.json\": \"06802d5df3fb4476d1bf170e165c666e703e4db7998f5f55cffe3ba9142074f9\", \"tools/host-passenger-identity.tool.json\": \"25357a94d9e32e171ea9bfdc03cc804b180e8abcc08ede90ff49c3b3ab50bee5\", \"tools/host-payment-method.tool.json\": \"ca55e018283c1a56d5e2725cd18330ce43787949361d5bad0115baf95e05db8a\", \"tools/host-travel-profile.tool.json\": \"3b6f6fe4a3ccff05d0d33e795bb34457965f4eebf802b56ed5c9b25e969be872\", \"tools/prepare-booking.tool.json\": \"9f17d5c634347ac6e0c056c7c6fe9291e5aef96b1d349507ffc88145ea3cf442\", \"tools/search-flights.tool.json\": \"8e31c1e30d2ff45e51e3d86fc4cbc901948d86e65403e542d70e28c775691151\", \"tools/simulate-purchase.tool.json\": \"93db84e3f4d982ebf3481e7f80736bbdbcea79ef8d0eeb8a01253a05d44f0cc8\"}, \"format\": \"agent.pkg-integrity-v0.1\"}",
+  "canonical": "{\"files\":{\"MANIFEST.agent\":\"4362c2d8dec72488f992ef8f13305d0ed21611a79836bcffd0dcdb918c247275\",\"README.md\":\"bda835afa53aa3d8565a1006e712282bfe0e1020092371f8b04cceeb129cd805\",\"fixtures/workflow.json\":\"23dcd42549e2ef6be6b55c4d2e9ba25f4df75c2e3882b334a7b842a9b7830052\",\"graph.json\":\"0874dd41bead0dfabb98ea6d346c9225d06a2c8953d4ea872a73729ea7dc47a5\",\"policy/policy.json\":\"1fd5a32fe5bc5824ba545bb80d37caf17951d7eba0d527da354da435e2ec6e9e\",\"schemas/answer.schema.json\":\"83589f4f5e1301ba69074f4d9ea691586e083401c2b28ac8307ed6e24fbcc6a8\",\"schemas/api/get_fare_rules.input.schema.json\":\"ad5ad98ed1b482225a8d623cf7004270e4042d825fd7cf166651a37a0492e1c8\",\"schemas/api/get_fare_rules.output.schema.json\":\"70c5dbb27a550e396ae211b5fe484bc395a67a793fba8c2cafa142840dd50b11\",\"schemas/api/prepare_booking.input.schema.json\":\"b7d0f573905ae0c23987b305de00816118a5d52ffe29f4ea410dc89f5c586173\",\"schemas/api/prepare_booking.output.schema.json\":\"c632b8935b6c059abee0a609e8d88f1c33dee69d6bf99cc3576d85652fe4a842\",\"schemas/api/search_flights.input.schema.json\":\"66cb6246e48442ed5101adf8b40d8ca29027a499a5acea7c8db5c7ef0f799ba8\",\"schemas/api/search_flights.output.schema.json\":\"824d0e39f171a09d424a7a7e40c38632db9747a3a4d1846b0f7a95e26893e4a7\",\"schemas/api/simulate_purchase.input.schema.json\":\"01ebc6ec5fd4ff9be71d4a308650bad902366eee94d494db8a7d46469172fa71\",\"schemas/api/simulate_purchase.output.schema.json\":\"debe54138360dd92e5bb98e33865bbf4da3bb64b2d0bd2c5a897f5051cf1f347\",\"schemas/booking-fare.schema.json\":\"a2e8232ea35edab7e9d855c8f51fe1dc2d0e07cff94dcefd616d20cae20aad3a\",\"schemas/booking-quote.schema.json\":\"78044236ea3d58efc04384bad93fdcdda478c8eb499e5c0dcdc6482a075f6736\",\"schemas/booking-request.schema.json\":\"4be455e6d7e9effdd09e4d103c8a21cec75ad2d8a2ec8acc950e416df03b0ea2\",\"schemas/booking-summary.schema.json\":\"f45548382cda29269ca22ac0101ef431b59498a2b1d4776ba6db3a128b314d56\",\"schemas/confirmation.schema.json\":\"9bab0aa400109ea4296f1da2b6d006f733eeff4fedb918c85126c3eb23844195\",\"schemas/fare-id.schema.json\":\"e74a37000590e5602425f54ac53742b2969c2b6baa4fb4faa08d6a4e1995cf4c\",\"schemas/fare-refs.schema.json\":\"5f8731cf114cc6c4bcc025237471d9763ec92004fafce01dabca002082c050df\",\"schemas/fare-rule.schema.json\":\"981dc5daa2b0ea1e07fbbd20a2025a3495a66304450d9396a38875a6667644bd\",\"schemas/fare-rules.schema.json\":\"44ddba71698010bd546728c4e79bef180ea7ff7b5ff9aa203b7b8096cfbc3964\",\"schemas/host/empty-input.schema.json\":\"71fc596a20f27da3dec80050e5d1f553eba34aea24c2853b853488a811e6b892\",\"schemas/host/personal.passenger_identity.schema.json\":\"ed3aa07a101767b46697661c503b135707f6d61a10080ab5e7c0f4fd4e06d539\",\"schemas/host/personal.travel_profile.schema.json\":\"fae6c1bbbed8ec3e8cd1abaa212baeca82b3cb4d34020cd21dfb7f15987c535b\",\"schemas/host/wallet.payment_method.schema.json\":\"3bd36ad1899ff7f97655f00d3f4a5b6e785e4ab6ee77d05e3057e4d1b80338d0\",\"schemas/input.schema.json\":\"02b45840e6a10bacc8a7ab906b8e64c4fde82dcbb3a97a18ed37b363b5cc0138\",\"schemas/offered-fares.schema.json\":\"c5a0227bab053705d925f2f3b94d04458b1d9d999759846e1acf83369ebd15bc\",\"schemas/offered-flights.schema.json\":\"6903739b01fc0f08cc116920e9f833c7a9ed5ae70e192b187a486f98649eb008\",\"schemas/passenger.schema.json\":\"e0cfce56cd191d62a8b64afe4f7f671ac430ec2e6bee86d0bd96032616cc9263\",\"schemas/payment.schema.json\":\"f115cf2926777385cd039079a56c8a1f875d249959f582cb7892da010c1bb293\",\"schemas/plan.schema.json\":\"33648ed569b812affb175d5aabdf1affb5598304b1c102e5dffbac1d1788f400\",\"schemas/purchase-request.schema.json\":\"fca8f81fca7b13910551b3caddb4d3705a2ab1bce98650da338547b574ec54d0\",\"schemas/purchase-result.schema.json\":\"5cee89c9bed7d69a4cf48587a1ff15cee9e6ac3c624de9700590c5294fd873cc\",\"schemas/purchase-summary.schema.json\":\"d67eda27b51b656255d29b7feb493f444b14f851dfff4e6a89b3c88f5b61b65e\",\"schemas/quote.schema.json\":\"d61e77ee7d2a913f05dddc4d46027e17588275ed1ca57ed711669295caa14c3c\",\"schemas/refusal.schema.json\":\"12af9286420666017d195406ec819d63fd2b596e4ef0d4ddf70dd91e3066d56c\",\"schemas/result.schema.json\":\"8107a03a167e05d2360c5cf1dd9bfb546c21f06574244261c5e6ad1d8ba6999e\",\"schemas/scrub.schema.json\":\"31c59f6df6c97555e14f7e8eed86366d2e4a2010e3432976754e28b799c346b8\",\"schemas/search-outcome.schema.json\":\"d77068ca89194c39d9e4360a74fe73858f46e5c527a1435587cc5655d3253011\",\"schemas/search-request.schema.json\":\"6f472655fecb9a92a3a9645f80edfa65e678e86b7ea8c8112ce98aa1f3232566\",\"schemas/selection.schema.json\":\"6e1355e4bfd1fbe128c614208693804e4488405751414bbffe3cadf8dfa8d7fc\",\"schemas/simulated-confirmation.schema.json\":\"1732cd21237648e7cd5f6e116b670c64f8b7412cdd32803f2ba1428a67c017d7\",\"schemas/state.schema.json\":\"9d508a659b2f97e221e9ce49cbef98f064bec13a8590c46bdff9542af923d3d4\",\"schemas/status.schema.json\":\"9ed03d7781ff74cd24d0470f509fa0cbf1db25fb7fc01cdf9a513acba11500f1\",\"schemas/travel-preferences.schema.json\":\"94cd68a971350d1f7d42a16a22f47c5d717b76962df9b1405930a88803310471\",\"skills/answer-writing/SKILL.md\":\"f3ef6fed732c1ca4a9daed7f3e3f01b95e8a9cdef659e6669ea7a2eb9e05b6d8\",\"skills/fare-selection/SKILL.md\":\"11f123d06c3bc7b8368366db8960513c680294461b6cc32649ef9ee64126c0f2\",\"skills/travel-request/SKILL.md\":\"f817863722591a88dbf74e26aa4029afc007d6c62235c4f6caa3a2f7404caac4\",\"skills/webair-domain/SKILL.md\":\"35e3f81835147cd4efa12dc31da33ae8b67c46b23b8a21baeebc04d8b4c74656\",\"tools/get-fare-rules.tool.json\":\"06802d5df3fb4476d1bf170e165c666e703e4db7998f5f55cffe3ba9142074f9\",\"tools/host-passenger-identity.tool.json\":\"25357a94d9e32e171ea9bfdc03cc804b180e8abcc08ede90ff49c3b3ab50bee5\",\"tools/host-payment-method.tool.json\":\"ca55e018283c1a56d5e2725cd18330ce43787949361d5bad0115baf95e05db8a\",\"tools/host-travel-profile.tool.json\":\"3b6f6fe4a3ccff05d0d33e795bb34457965f4eebf802b56ed5c9b25e969be872\",\"tools/prepare-booking.tool.json\":\"9f17d5c634347ac6e0c056c7c6fe9291e5aef96b1d349507ffc88145ea3cf442\",\"tools/search-flights.tool.json\":\"8e31c1e30d2ff45e51e3d86fc4cbc901948d86e65403e542d70e28c775691151\",\"tools/simulate-purchase.tool.json\":\"93db84e3f4d982ebf3481e7f80736bbdbcea79ef8d0eeb8a01253a05d44f0cc8\"},\"format\":\"agent.pkg-integrity-v0.1\"}",
+  "digest": "ffe8f5b344f97c631498bb6da3e17217ae7e5730721935b0e66c5d595b335e94",
+  "package": "webair-0.3.0"
+ },
+ {
+  "input": "{\"files\": {\"MANIFEST.agent\": \"00c1f7ce4b7f615589bd7b9f23488255f18379810413b0dfe8efc481c830bb3c\", \"README.md\": \"9079594cec0070925c195de94d0f4cc2571e2b72a69785d662024d0c01d0df3e\", \"attestations/provenance.json\": \"1507a370e8dd9543f6f133ccdb202b5f8935d8b9920cee8686c46794360acd3b\", \"attestations/runtime-components.json\": \"72687a59ea3308b524a02f1cdc9fc28a563a8ecbd6df04d85fca91568dfa5385\", \"evals/deterministic.json\": \"c76f313cecbc429c994a8395bfe1e48a82d034187d7f0784786a938be9474ea5\", \"evals/semantic.json\": \"6ee17e1138fdd393a9e8b9a99988cdd1387551c5b02761750754995a05e37c40\", \"fixtures/review.json\": \"9af95b95e02db041efdeb95281e2507009544c6d353017199e18cc9620cb1f51\", \"fixtures/workflow.json\": \"577fb1bc68465841d625c63b3ac761e4b4ad4f281d2f9348dd42514e56703ffd\", \"graph.json\": \"b3aa051e7f5f684800e7526a8f102e9c865045c1596436062919fddbbabe063b\", \"policy/policy.json\": \"51e7c6427f4bbd3a189f631441745652e576d0b73d0f43bc81b8e1f7e1cebfc6\", \"schemas/bibliography-entry.schema.json\": \"507833beb8faee0f8bcca237c8f90c68daa9e1183c0f77eee97727d02c9e43a8\", \"schemas/bibliography-ref.schema.json\": \"ebfa2eebf8537d6f939324843be2a06ddf14d06c0320dcb617301a7f094ef6ea\", \"schemas/bibliography.schema.json\": \"1e03302d39c364a40e0e9005d057bdff1a1b9e615b99774c77cce35c66faff93\", \"schemas/citation-record.schema.json\": \"1fcc26287be7b308fdd8fb22f8cb10d0f50f83192b66ece86f954822ddf37aca\", \"schemas/claim-draft.schema.json\": \"2faabe52c3aeb4a289dca01a4dae4d606d37cb776ad19e637dfce219aa24f34c\", \"schemas/claim.schema.json\": \"b1f866fd49c598db072e86341308b450d1284dd80e72a3a7c7eb41e1dc1e550e\", \"schemas/claims.schema.json\": \"965164ee41269ce341c7579d3f61f635651c49d48abe0f6745c4e8245bfb4119\", \"schemas/evidence-batches.schema.json\": \"46f0a8cb32992b54517a94c4b7aa7b210ddc17063938e9a35ea2cd2b9304a783\", \"schemas/evidence-job.schema.json\": \"0523fbce9fd1c19cb07b2a177ab92a9bb6ede4981d305314ce97a6b95ec5fb45\", \"schemas/evidence-jobs.schema.json\": \"f9f2b27b163590f62f516cdc1c978a9b94661bcece7051d7d9ffc5d70c603297\", \"schemas/evidence-list.schema.json\": \"51fa70e8c828d9059c75158c63626c44a819797ac28bd71edb23281c21c3ba16\", \"schemas/evidence-ref.schema.json\": \"90a0f35de0cae9435d68adb599d44794efa1b07c72cd40c9b4a58ac2304ee998\", \"schemas/evidence.schema.json\": \"a35e1f32577964264af80b59c3f9eced235b283e6a4d33caa095933f0862f6ff\", \"schemas/normalize.schema.json\": \"280e6b480c73e17916bf37a1550b14c05577b389a9b9122c7b13438d9ad7c9a2\", \"schemas/paper-evidence.schema.json\": \"23fbf1fe70e3e8dc683d70fd2710c1d86922c18990b5635e5a35139dc5a1711e\", \"schemas/paper.schema.json\": \"94c9110cbbe203e29ca1fec0445cb5166d461c4635397f734acfb14f2856af71\", \"schemas/papers.schema.json\": \"7760c44e20a313ee7b57e7c00175cfad36766f61387ebf37298744518d04de88\", \"schemas/plan.schema.json\": \"63513bf8ca2bd77043e98a128aafc3251e6ade47e60c74f0cb60a173176d1c50\", \"schemas/preparation-batches.schema.json\": \"c7981397407ae5bc49a08a78c90f2a998ffec320de6f31b9129a70fdf7993bb5\", \"schemas/prepare.schema.json\": \"e026bc1892d3887f8d62e991b272846918460f60ae5fef9dea8a4e088bbfe9a2\", \"schemas/query.schema.json\": \"9ac136edb99a2063b3091602181c8d2022fdccb5b514991319d58544c2e57e95\", \"schemas/raw-papers.schema.json\": \"32e76dd83bd6843f681e4621394c7ccf1371421dd852f18c8565908ea37c5b6f\", \"schemas/reader-input.schema.json\": \"5b1df5dc0d13ca9a8b76cce86d93639f2b13baf3eb66ec895a725fc9169686ca\", \"schemas/reader-maybe.schema.json\": \"28d1d0776851ce789c8684fed67e4d6e32cac68b5f54cfdd911cbb0ce0297a54\", \"schemas/reader-output.schema.json\": \"4feee1362ccba94d82ffbd56e106525c1fab7643e664172d63469ec241ab3167\", \"schemas/records.schema.json\": \"ba6919f3a55d8eab550cc14478ed622e8c27bb885040ce56993e3deec77bfbbd\", \"schemas/research-state.schema.json\": \"b5fd7d300f0f96605cad1e9c57c42c6d6682fe715de9bead0531bd8c85d39566\", \"schemas/resolved-job.schema.json\": \"dfcc4f4718cf003b04c4f15a44d8574b87d79d7f659a6a6fb5375db6b3a91ecc\", \"schemas/resolved-jobs.schema.json\": \"83d8c22f31f14089d197079321013380f64abd8d64ef45cbc328fecb354a1951\", \"schemas/resolver-input.schema.json\": \"6ebcf0d39ab472236ac42275a84e9299c64d22273847898c95e46096363d9b83\", \"schemas/resolver-output.schema.json\": \"0122dc2ac551935269f43020a1b97dcfabb2f180fe07fbdf02734dcb7c1a14f9\", \"schemas/responses.schema.json\": \"da7bc7ee261296ee2c5bb33c1c099f87d5cd6d5e821f55c4cc0b5e0a65793fb3\", \"schemas/review-draft.schema.json\": \"1534f19a1865e19269467a50f51cf247659767b3816f7f7e3a6da0a3bf901ba0\", \"schemas/review-output.schema.json\": \"027718654a9cd4ce6c7eea9ded4814a70722f29642be317201aa7127177439ee\", \"schemas/screen-job.schema.json\": \"e6930e298133a495c7e3779fbb8432b65ab79bdc9988185b5ae33239c6612b85\", \"schemas/search-batches.schema.json\": \"7cb9a3a2c71ab33909b61315b59cc3711c3209e674a6ed9b0be14c81d527aead\", \"schemas/search-input.schema.json\": \"f8a6f920b23bf1731a85d5275c10eee77a9d055fb14917be114c1b9e8249baf2\", \"schemas/search-output.schema.json\": \"eb83100404221fd9a489046d6741a046aae07c31c672ab6dc2daabffeda3c9ee\", \"schemas/selection.schema.json\": \"b8b4b23587cfc656df56d3c06104618fa6d1fed063e3e1c145f6ed7ae34b6638\", \"schemas/synthesis.schema.json\": \"257e89730934509547d5dc12dbafb2e591f19128dcdcd1e68d76c5b53e4de5ce\", \"schemas/synthetic-flag.schema.json\": \"7cb541e84f226754a46c21c79f131fa2898354e1242456e6fd1c162bce319553\", \"schemas/theme.schema.json\": \"9f3cb6dafa9a85cd8dfc7b20b0c2a7e8d78dc3266607f6b99ade60b05eb41e00\", \"schemas/unresolved.schema.json\": \"b9a4c6f50020a10d37de58de7ce7cde02da648800ac05f3d394464b9c674317e\", \"schemas/verification.schema.json\": \"ca466f7699e8c70a122a8b3ac031559cde43ad84852b60af7db324373e5dc4a9\", \"schemas/workflow-input.schema.json\": \"571175dd23e0c400e5d9ac2818595315bdb7515f2cb78de5065930d0b951181b\", \"schemas/written.schema.json\": \"a3e2f4bebc2e0d4734f6dd7333626982a81764dbbf8ad6db2eb01792ab87a9e5\", \"skills/citation-resolution/SKILL.md\": \"037685b7216b5711b703faffe21a9ffb98bc58dcf2413e0c8d9da1f30f7cf40d\", \"skills/claim-and-citation-verification/SKILL.md\": \"55ec7bb5392c3952f397c2e829767c86a2b199194f73eba9979e79720a49bbb6\", \"skills/evidence-extraction/SKILL.md\": \"a7e60ce58bd3a80c94f1d4f91cdc4b31d663371a503ce9a5bc040e9dd47185d0\", \"skills/evidence-synthesis/SKILL.md\": \"bdf7e22c58a7389a2de191c292375b53f3b375e4a503a8681c96ebf9c5ad92c2\", \"skills/literature-search/SKILL.md\": \"f3ee5da08513b62010a12c775701f13d3ac05ee2876a3ebf7524692d7d3c9ba0\", \"skills/paper-screening/SKILL.md\": \"9b682136c0111217c92f011a4b2c511158922a01fd57b37bf8c0561a28894795\", \"skills/related-work-writing/SKILL.md\": \"2df5ea664f037a2ef217de1d36ad5b3ae1d7eeab4ed674721be35e9005cccd88\", \"tools/citation-resolver.tool.json\": \"b340cb0855bc1becf0e55ceb89d297b927c5302f8694b31be8b60fa0e84bb35b\", \"tools/paper-reader.tool.json\": \"060750d2a95f065b18b4bf2c45dc5289f71f8c64c2a032a9386957746ab64ecf\", \"tools/scholarly-search.tool.json\": \"3b24647f4fd202b0702058b77555ce4cbd37877c983ec5cd8a0621a3a0d0f6f6\"}, \"format\": \"agent.pkg-integrity-v0.1\"}",
+  "canonical": "{\"files\":{\"MANIFEST.agent\":\"00c1f7ce4b7f615589bd7b9f23488255f18379810413b0dfe8efc481c830bb3c\",\"README.md\":\"9079594cec0070925c195de94d0f4cc2571e2b72a69785d662024d0c01d0df3e\",\"attestations/provenance.json\":\"1507a370e8dd9543f6f133ccdb202b5f8935d8b9920cee8686c46794360acd3b\",\"attestations/runtime-components.json\":\"72687a59ea3308b524a02f1cdc9fc28a563a8ecbd6df04d85fca91568dfa5385\",\"evals/deterministic.json\":\"c76f313cecbc429c994a8395bfe1e48a82d034187d7f0784786a938be9474ea5\",\"evals/semantic.json\":\"6ee17e1138fdd393a9e8b9a99988cdd1387551c5b02761750754995a05e37c40\",\"fixtures/review.json\":\"9af95b95e02db041efdeb95281e2507009544c6d353017199e18cc9620cb1f51\",\"fixtures/workflow.json\":\"577fb1bc68465841d625c63b3ac761e4b4ad4f281d2f9348dd42514e56703ffd\",\"graph.json\":\"b3aa051e7f5f684800e7526a8f102e9c865045c1596436062919fddbbabe063b\",\"policy/policy.json\":\"51e7c6427f4bbd3a189f631441745652e576d0b73d0f43bc81b8e1f7e1cebfc6\",\"schemas/bibliography-entry.schema.json\":\"507833beb8faee0f8bcca237c8f90c68daa9e1183c0f77eee97727d02c9e43a8\",\"schemas/bibliography-ref.schema.json\":\"ebfa2eebf8537d6f939324843be2a06ddf14d06c0320dcb617301a7f094ef6ea\",\"schemas/bibliography.schema.json\":\"1e03302d39c364a40e0e9005d057bdff1a1b9e615b99774c77cce35c66faff93\",\"schemas/citation-record.schema.json\":\"1fcc26287be7b308fdd8fb22f8cb10d0f50f83192b66ece86f954822ddf37aca\",\"schemas/claim-draft.schema.json\":\"2faabe52c3aeb4a289dca01a4dae4d606d37cb776ad19e637dfce219aa24f34c\",\"schemas/claim.schema.json\":\"b1f866fd49c598db072e86341308b450d1284dd80e72a3a7c7eb41e1dc1e550e\",\"schemas/claims.schema.json\":\"965164ee41269ce341c7579d3f61f635651c49d48abe0f6745c4e8245bfb4119\",\"schemas/evidence-batches.schema.json\":\"46f0a8cb32992b54517a94c4b7aa7b210ddc17063938e9a35ea2cd2b9304a783\",\"schemas/evidence-job.schema.json\":\"0523fbce9fd1c19cb07b2a177ab92a9bb6ede4981d305314ce97a6b95ec5fb45\",\"schemas/evidence-jobs.schema.json\":\"f9f2b27b163590f62f516cdc1c978a9b94661bcece7051d7d9ffc5d70c603297\",\"schemas/evidence-list.schema.json\":\"51fa70e8c828d9059c75158c63626c44a819797ac28bd71edb23281c21c3ba16\",\"schemas/evidence-ref.schema.json\":\"90a0f35de0cae9435d68adb599d44794efa1b07c72cd40c9b4a58ac2304ee998\",\"schemas/evidence.schema.json\":\"a35e1f32577964264af80b59c3f9eced235b283e6a4d33caa095933f0862f6ff\",\"schemas/normalize.schema.json\":\"280e6b480c73e17916bf37a1550b14c05577b389a9b9122c7b13438d9ad7c9a2\",\"schemas/paper-evidence.schema.json\":\"23fbf1fe70e3e8dc683d70fd2710c1d86922c18990b5635e5a35139dc5a1711e\",\"schemas/paper.schema.json\":\"94c9110cbbe203e29ca1fec0445cb5166d461c4635397f734acfb14f2856af71\",\"schemas/papers.schema.json\":\"7760c44e20a313ee7b57e7c00175cfad36766f61387ebf37298744518d04de88\",\"schemas/plan.schema.json\":\"63513bf8ca2bd77043e98a128aafc3251e6ade47e60c74f0cb60a173176d1c50\",\"schemas/preparation-batches.schema.json\":\"c7981397407ae5bc49a08a78c90f2a998ffec320de6f31b9129a70fdf7993bb5\",\"schemas/prepare.schema.json\":\"e026bc1892d3887f8d62e991b272846918460f60ae5fef9dea8a4e088bbfe9a2\",\"schemas/query.schema.json\":\"9ac136edb99a2063b3091602181c8d2022fdccb5b514991319d58544c2e57e95\",\"schemas/raw-papers.schema.json\":\"32e76dd83bd6843f681e4621394c7ccf1371421dd852f18c8565908ea37c5b6f\",\"schemas/reader-input.schema.json\":\"5b1df5dc0d13ca9a8b76cce86d93639f2b13baf3eb66ec895a725fc9169686ca\",\"schemas/reader-maybe.schema.json\":\"28d1d0776851ce789c8684fed67e4d6e32cac68b5f54cfdd911cbb0ce0297a54\",\"schemas/reader-output.schema.json\":\"4feee1362ccba94d82ffbd56e106525c1fab7643e664172d63469ec241ab3167\",\"schemas/records.schema.json\":\"ba6919f3a55d8eab550cc14478ed622e8c27bb885040ce56993e3deec77bfbbd\",\"schemas/research-state.schema.json\":\"b5fd7d300f0f96605cad1e9c57c42c6d6682fe715de9bead0531bd8c85d39566\",\"schemas/resolved-job.schema.json\":\"dfcc4f4718cf003b04c4f15a44d8574b87d79d7f659a6a6fb5375db6b3a91ecc\",\"schemas/resolved-jobs.schema.json\":\"83d8c22f31f14089d197079321013380f64abd8d64ef45cbc328fecb354a1951\",\"schemas/resolver-input.schema.json\":\"6ebcf0d39ab472236ac42275a84e9299c64d22273847898c95e46096363d9b83\",\"schemas/resolver-output.schema.json\":\"0122dc2ac551935269f43020a1b97dcfabb2f180fe07fbdf02734dcb7c1a14f9\",\"schemas/responses.schema.json\":\"da7bc7ee261296ee2c5bb33c1c099f87d5cd6d5e821f55c4cc0b5e0a65793fb3\",\"schemas/review-draft.schema.json\":\"1534f19a1865e19269467a50f51cf247659767b3816f7f7e3a6da0a3bf901ba0\",\"schemas/review-output.schema.json\":\"027718654a9cd4ce6c7eea9ded4814a70722f29642be317201aa7127177439ee\",\"schemas/screen-job.schema.json\":\"e6930e298133a495c7e3779fbb8432b65ab79bdc9988185b5ae33239c6612b85\",\"schemas/search-batches.schema.json\":\"7cb9a3a2c71ab33909b61315b59cc3711c3209e674a6ed9b0be14c81d527aead\",\"schemas/search-input.schema.json\":\"f8a6f920b23bf1731a85d5275c10eee77a9d055fb14917be114c1b9e8249baf2\",\"schemas/search-output.schema.json\":\"eb83100404221fd9a489046d6741a046aae07c31c672ab6dc2daabffeda3c9ee\",\"schemas/selection.schema.json\":\"b8b4b23587cfc656df56d3c06104618fa6d1fed063e3e1c145f6ed7ae34b6638\",\"schemas/synthesis.schema.json\":\"257e89730934509547d5dc12dbafb2e591f19128dcdcd1e68d76c5b53e4de5ce\",\"schemas/synthetic-flag.schema.json\":\"7cb541e84f226754a46c21c79f131fa2898354e1242456e6fd1c162bce319553\",\"schemas/theme.schema.json\":\"9f3cb6dafa9a85cd8dfc7b20b0c2a7e8d78dc3266607f6b99ade60b05eb41e00\",\"schemas/unresolved.schema.json\":\"b9a4c6f50020a10d37de58de7ce7cde02da648800ac05f3d394464b9c674317e\",\"schemas/verification.schema.json\":\"ca466f7699e8c70a122a8b3ac031559cde43ad84852b60af7db324373e5dc4a9\",\"schemas/workflow-input.schema.json\":\"571175dd23e0c400e5d9ac2818595315bdb7515f2cb78de5065930d0b951181b\",\"schemas/written.schema.json\":\"a3e2f4bebc2e0d4734f6dd7333626982a81764dbbf8ad6db2eb01792ab87a9e5\",\"skills/citation-resolution/SKILL.md\":\"037685b7216b5711b703faffe21a9ffb98bc58dcf2413e0c8d9da1f30f7cf40d\",\"skills/claim-and-citation-verification/SKILL.md\":\"55ec7bb5392c3952f397c2e829767c86a2b199194f73eba9979e79720a49bbb6\",\"skills/evidence-extraction/SKILL.md\":\"a7e60ce58bd3a80c94f1d4f91cdc4b31d663371a503ce9a5bc040e9dd47185d0\",\"skills/evidence-synthesis/SKILL.md\":\"bdf7e22c58a7389a2de191c292375b53f3b375e4a503a8681c96ebf9c5ad92c2\",\"skills/literature-search/SKILL.md\":\"f3ee5da08513b62010a12c775701f13d3ac05ee2876a3ebf7524692d7d3c9ba0\",\"skills/paper-screening/SKILL.md\":\"9b682136c0111217c92f011a4b2c511158922a01fd57b37bf8c0561a28894795\",\"skills/related-work-writing/SKILL.md\":\"2df5ea664f037a2ef217de1d36ad5b3ae1d7eeab4ed674721be35e9005cccd88\",\"tools/citation-resolver.tool.json\":\"b340cb0855bc1becf0e55ceb89d297b927c5302f8694b31be8b60fa0e84bb35b\",\"tools/paper-reader.tool.json\":\"060750d2a95f065b18b4bf2c45dc5289f71f8c64c2a032a9386957746ab64ecf\",\"tools/scholarly-search.tool.json\":\"3b24647f4fd202b0702058b77555ce4cbd37877c983ec5cd8a0621a3a0d0f6f6\"},\"format\":\"agent.pkg-integrity-v0.1\"}",
+  "digest": "cef9ebd68df9db3b36c1ffeac9069d734b0e41a40d58445aaba1a60eaac155b5",
+  "package": "literature-review-0.2.5"
+ },
+ {
+  "input": "{\"files\": {\"MANIFEST.agent\": \"6d5c1ae18a8fb7ceea10e3764a14268b73880f4a5727e3fa889253408463a0c1\", \"README.md\": \"8d9044a31a1d10820fad47d6700ec07ff8585038d8c3f2eeddc6b4b34105f270\", \"fixtures/workflow.json\": \"a090d6a95d3a3aa22bbccfa1902d50b5335d05906c88a052c4b4b6d8c13b3271\", \"graph.json\": \"fe1b7b357fbfa07bd4029385095666cef77cb582457b7170219c818f01b06e53\", \"policy/policy.json\": \"478c00007935568e94b1daafdb2c8eb4092f2ef3e83c899c7db6d235fc131c66\", \"schemas/agenda.schema.json\": \"625b2033ee1d99ff78b27589e6d51dc97aed8234065573c54098c6e75bc094fd\", \"schemas/batches.schema.json\": \"992e5dba6a401e5f0156c1128e5dc7178d1b620ef68cee59b67eedc3c67240dc\", \"schemas/draft.schema.json\": \"2d5b40b06b3f1d621a967288fe90646aaca7230c5e83e44708fa3cdb1d9b7885\", \"schemas/input.schema.json\": \"20882b29417ed30839f117eecae048272ea067205ba5779f08c882fea6ba787c\", \"schemas/participant.schema.json\": \"dcee316aaa7869a0b70e5deeaf6995cd2263ec1be55323a0f07936ff30310bd5\", \"schemas/perspective.schema.json\": \"f84b968970a86869ca67e12680937c9e3af1dbe0577512b8406170b4cd23a39c\", \"schemas/perspectives.schema.json\": \"8dccb761ff74050b35a4ad5cdad621df52ec0d8f0b3543c96948fcdac6cfa214\", \"schemas/plan.schema.json\": \"18690ce56cda081a4f0f157bb6e5dd1729613d9a868de0bbbc7c4c22ef2aad68\", \"schemas/state.schema.json\": \"817d3190f80475989dcff127b6e6aa2e5e94665a3d6b69e43fc9800786cfe6b8\", \"skills/perspective/SKILL.md\": \"0f6e689ffa13d56e869bfee7d073b6db098d5d759b40a3b2cdd8427506eeb759\", \"skills/planning/SKILL.md\": \"497616886788418a95691ff6bfddd8ec2eccbb9ba2d1b88d8c2e443700352af1\", \"skills/writing/SKILL.md\": \"b4f327d597b6ecbe5cc43d7e7e327a55954093a288f013caaf84aa219d327ad6\"}, \"format\": \"agent.pkg-integrity-v0.1\"}",
+  "canonical": "{\"files\":{\"MANIFEST.agent\":\"6d5c1ae18a8fb7ceea10e3764a14268b73880f4a5727e3fa889253408463a0c1\",\"README.md\":\"8d9044a31a1d10820fad47d6700ec07ff8585038d8c3f2eeddc6b4b34105f270\",\"fixtures/workflow.json\":\"a090d6a95d3a3aa22bbccfa1902d50b5335d05906c88a052c4b4b6d8c13b3271\",\"graph.json\":\"fe1b7b357fbfa07bd4029385095666cef77cb582457b7170219c818f01b06e53\",\"policy/policy.json\":\"478c00007935568e94b1daafdb2c8eb4092f2ef3e83c899c7db6d235fc131c66\",\"schemas/agenda.schema.json\":\"625b2033ee1d99ff78b27589e6d51dc97aed8234065573c54098c6e75bc094fd\",\"schemas/batches.schema.json\":\"992e5dba6a401e5f0156c1128e5dc7178d1b620ef68cee59b67eedc3c67240dc\",\"schemas/draft.schema.json\":\"2d5b40b06b3f1d621a967288fe90646aaca7230c5e83e44708fa3cdb1d9b7885\",\"schemas/input.schema.json\":\"20882b29417ed30839f117eecae048272ea067205ba5779f08c882fea6ba787c\",\"schemas/participant.schema.json\":\"dcee316aaa7869a0b70e5deeaf6995cd2263ec1be55323a0f07936ff30310bd5\",\"schemas/perspective.schema.json\":\"f84b968970a86869ca67e12680937c9e3af1dbe0577512b8406170b4cd23a39c\",\"schemas/perspectives.schema.json\":\"8dccb761ff74050b35a4ad5cdad621df52ec0d8f0b3543c96948fcdac6cfa214\",\"schemas/plan.schema.json\":\"18690ce56cda081a4f0f157bb6e5dd1729613d9a868de0bbbc7c4c22ef2aad68\",\"schemas/state.schema.json\":\"817d3190f80475989dcff127b6e6aa2e5e94665a3d6b69e43fc9800786cfe6b8\",\"skills/perspective/SKILL.md\":\"0f6e689ffa13d56e869bfee7d073b6db098d5d759b40a3b2cdd8427506eeb759\",\"skills/planning/SKILL.md\":\"497616886788418a95691ff6bfddd8ec2eccbb9ba2d1b88d8c2e443700352af1\",\"skills/writing/SKILL.md\":\"b4f327d597b6ecbe5cc43d7e7e327a55954093a288f013caaf84aa219d327ad6\"},\"format\":\"agent.pkg-integrity-v0.1\"}",
+  "digest": "dbd2eb816bb8687d4a5b3448f5b82bc0716c3884f9fee8a2c578af0c5e894679",
+  "package": "meeting-agenda-0.2.2"
+ }
+]

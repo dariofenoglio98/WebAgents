@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentpkg.local/spec/0.1/tool.schema.json",
+  "type": "object",
+  "properties": {
+    "spec_version": {
+      "const": "0.1"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[A-Za-z0-9.-]+)?$"
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096
+    },
+    "execution": {
+      "enum": [
+        "local",
+        "remote",
+        "agent"
+      ]
+    },
+    "binding": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+    },
+    "endpoint": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https://"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "method": {
+      "anyOf": [
+        {
+          "enum": [
+            "GET",
+            "POST"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "input_schema": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-][A-Za-z0-9_.-]*(?:/[A-Za-z0-9_-][A-Za-z0-9_.-]*)*$",
+      "maxLength": 240
+    },
+    "output_schema": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-][A-Za-z0-9_.-]*(?:/[A-Za-z0-9_-][A-Za-z0-9_.-]*)*$",
+      "maxLength": 240
+    },
+    "permissions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+      },
+      "maxItems": 512,
+      "uniqueItems": true
+    },
+    "domains": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 4096
+      },
+      "maxItems": 512,
+      "uniqueItems": true
+    },
+    "timeout_seconds": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "maximum": 120
+    },
+    "retries": {
+      "const": 0
+    },
+    "side_effects": {
+      "enum": [
+        "read",
+        "write"
+      ]
+    },
+    "approval_required": {
+      "type": "boolean"
+    },
+    "extensions": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9.-]*:[A-Za-z][A-Za-z0-9_.-]*$"
+      },
+      "additionalProperties": true
+    }
+  },
+  "required": [
+    "spec_version",
+    "id",
+    "version",
+    "description",
+    "execution",
+    "binding",
+    "endpoint",
+    "method",
+    "input_schema",
+    "output_schema",
+    "permissions",
+    "domains",
+    "timeout_seconds",
+    "retries",
+    "side_effects",
+    "approval_required",
+    "extensions"
+  ],
+  "additionalProperties": false
+}
