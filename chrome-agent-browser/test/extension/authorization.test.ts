@@ -14,7 +14,7 @@ import { describe, expect, it } from "vitest";
 import { CoreError } from "../../src/core/errors.js";
 import { parseRequest, type AuthorizationView, type AuthorizeResult, type ModelsView, type RunPlanState, type SessionView, type SettingsView, type VaultView } from "../../src/extension/messages.js";
 import { MemoryTrustStorage } from "../../src/core/trust.js";
-import { MemoryStorageArea } from "../../src/extension/storage/settings.js";
+import { MemoryStorageArea, normalizeSettings } from "../../src/extension/storage/settings.js";
 import { MemorySnapshotStore } from "../../src/extension/storage/snapshots.js";
 import { MemoryTabStateStore } from "../../src/extension/storage/tab-state.js";
 import { ROOT, SHIPPED } from "../helpers/paths.js";
@@ -377,9 +377,17 @@ describe("models, settings and the vault", () => {
 
   it("settings normalize strictly, keys are stored apart and reported by presence only, and nothing goes to storage.sync", async () => {
     const h = makeHarness();
-    const saved = (await h.controller.handle({ type: "settings.set", settings: { preset: "convenience", models: { connections: [{ provider: "ollama", enabled: true, base_url: "http://evil.example:11434" }, { provider: "openai", enabled: true, base_url: "https://proxy.example/v1/" }], default_model: QWEN } } }, PAGE)) as SettingsView;
+    // A remote Ollama would be described as local and free, so it is refused by name (review 1, finding 2).
+    for (const remote of ["http://evil.example:11434", "https://ollama.example.com", "https://10.0.0.5:11434"]) {
+      const error = await refused(h.controller.handle({ type: "settings.set", settings: { models: { connections: [{ provider: "ollama", enabled: true, base_url: remote }] } } }, PAGE));
+      expect([error.code, error.message]).toEqual(["settings_invalid", "The ollama endpoint must be on this machine (127.0.0.1, localhost, [::1]), over HTTP or HTTPS: a remote Ollama's models would not be local."]);
+    }
+    expect((await refused(h.controller.handle({ type: "settings.set", settings: { models: { connections: [{ provider: "openai", enabled: true, base_url: "http://proxy.example/v1" }] } } }, PAGE))).message).toBe("The openai endpoint must use HTTPS.");
+    const saved = (await h.controller.handle({ type: "settings.set", settings: { preset: "convenience", models: { connections: [{ provider: "ollama", enabled: true, base_url: "http://localhost:11500/" }, { provider: "openai", enabled: true, base_url: "https://proxy.example/v1/" }], default_model: QWEN } } }, PAGE)) as SettingsView;
     expect(saved.settings.preset).toBe("convenience");
-    expect(saved.settings.models.connections.find((connection) => connection.provider === "ollama")?.base_url).toBeNull(); // not loopback: dropped
+    expect(saved.settings.models.connections.find((connection) => connection.provider === "ollama")?.base_url).toBe("http://localhost:11500");
+    // A stored document that somehow names a remote Ollama reads back as the default endpoint.
+    expect(normalizeSettings({ models: { connections: [{ provider: "ollama", enabled: true, base_url: "https://ollama.example.com" }] } }).models.connections.find((connection) => connection.provider === "ollama")?.base_url).toBeNull();
     expect(saved.settings.models.connections.find((connection) => connection.provider === "openai")?.base_url).toBe("https://proxy.example/v1");
     expect(saved.keys).toEqual({});
     const defaulted = (await h.controller.handle({ type: "settings.set", settings: { preset: "yolo" } }, PAGE)) as SettingsView;

@@ -27,12 +27,13 @@ import { evaluateCatalog, findModel, type HostCatalog } from "../../core/compati
 import { classifyLinks, DEFAULT_LIMITS, discoverFromPage, mediaType, type FetchedPage } from "../../core/discovery.js";
 import { CoreError } from "../../core/errors.js";
 import { evaluateSnapshot, evaluationLayers, publisherReport, structurallyValid, type EvaluationLayers, type PublisherReport } from "../../core/evaluation.js";
+import { isRecord } from "../../core/fields.js";
 import { sha256Hex } from "../../core/hash.js";
 import { evaluateResources, normalizeResourceSelections, RESOURCE_PERMISSION_KINDS, type ResourceRegistry } from "../../core/hostresources.js";
 import { buildHostToolRegistry, evaluateRegistry, type RegistryEvaluation, type ToolRegistry } from "../../core/hosttools.js";
 import type { JsonObject, JsonValue } from "../../core/json.js";
 import { publicKeyFromPem } from "../../core/keys.js";
-import { buildHostCatalog, probeProvider, type BuiltinAvailability, type Http, type ProbeResult, type ProviderId } from "../../core/models/catalog.js";
+import { buildHostCatalog, probeProvider, PROVIDER_IDS, type BuiltinAvailability, type Http, type ProbeResult, type ProviderId } from "../../core/models/catalog.js";
 import type { Package } from "../../core/package.js";
 import { documentUrl, origin, originText, sameOrigin, validatePackageUrl } from "../../core/policy.js";
 import { readProfiles } from "../../core/profiles.js";
@@ -64,7 +65,7 @@ import {
   type VaultView,
   type WebsiteResult,
 } from "../messages.js";
-import { connectionsFor, normalizeSettings, type Settings, type SettingsStorage } from "../storage/settings.js";
+import { connectionsFor, endpointProblem, normalizeSettings, type Settings, type SettingsStorage } from "../storage/settings.js";
 import type { SnapshotStore, StoredSession } from "../storage/snapshots.js";
 import type { TabStateStore } from "../storage/tab-state.js";
 
@@ -763,6 +764,15 @@ export class Controller {
   }
 
   async setSettings(raw: unknown): Promise<SettingsView> {
+    // An endpoint the settings would silently drop is refused by name instead, so the person
+    // learns why their Ollama or provider address was not kept.
+    const connections = isRecord(raw) && isRecord(raw.models) && Array.isArray(raw.models.connections) ? raw.models.connections : [];
+    for (const connection of connections) {
+      if (!isRecord(connection) || typeof connection.base_url !== "string" || connection.base_url.trim().length === 0) continue;
+      if (!(PROVIDER_IDS as readonly unknown[]).includes(connection.provider) || connection.provider === "chrome-builtin") continue;
+      const problem = endpointProblem(connection.provider as ProviderId, connection.base_url);
+      if (problem !== null) throw reject("settings_invalid", `The ${String(connection.provider)} endpoint ${problem}.`, 400, { provider: connection.provider });
+    }
     const saved = await this.deps.settings.saveSettings(normalizeSettings(raw));
     this.catalogCache = null; // connections or caps may have changed
     this.deps.broadcast({ type: "event.settings" });

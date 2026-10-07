@@ -12,7 +12,7 @@
 import { DEFAULT_PRESET, isPresetId } from "../../core/authorization.js";
 import { isRecord } from "../../core/fields.js";
 import type { ModelOverride, ProviderConnection, ProviderId } from "../../core/models/catalog.js";
-import { PROVIDER_IDS } from "../../core/models/catalog.js";
+import { isLoopbackBase, OLLAMA_LOOPBACK_HOSTS, PROVIDER_IDS } from "../../core/models/catalog.js";
 import type { PresetId } from "../../core/types.js";
 import { emptyVaultDocument, generateVaultKey, KEY_BYTES, type VaultDocument } from "../../core/vault.js";
 
@@ -92,20 +92,29 @@ function normalizeOverrides(raw: unknown): Record<string, ModelOverride> {
   return out;
 }
 
-function normalizeBaseUrl(provider: ProviderId, raw: unknown): string | null {
-  if (typeof raw !== "string" || raw.trim().length === 0) return null;
+/**
+ * Why an endpoint cannot be used for this provider, or null when it can. Ollama is reached on
+ * this machine only (its models are described as local and free); a hosted provider over HTTPS
+ * only. No credentials, query or fragment in either.
+ */
+export function endpointProblem(provider: ProviderId, raw: string): string | null {
   let url: URL;
   try {
     url = new URL(raw.trim());
   } catch {
-    return null;
+    return "is not a URL";
   }
-  // Ollama is reached over loopback HTTP; a hosted provider over HTTPS only. Nothing else.
   if (provider === "ollama") {
-    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
-    if (url.protocol === "http:" && url.hostname !== "127.0.0.1" && url.hostname !== "localhost") return null;
-  } else if (url.protocol !== "https:") return null;
-  if (url.username || url.password || url.search || url.hash) return null;
+    if (!isLoopbackBase(url.href)) return `must be on this machine (${OLLAMA_LOOPBACK_HOSTS.join(", ")}), over HTTP or HTTPS: a remote Ollama's models would not be local`;
+  } else if (url.protocol !== "https:") return "must use HTTPS";
+  if (url.username || url.password || url.search || url.hash) return "must not carry credentials, a query or a fragment";
+  return null;
+}
+
+function normalizeBaseUrl(provider: ProviderId, raw: unknown): string | null {
+  if (typeof raw !== "string" || raw.trim().length === 0) return null;
+  if (endpointProblem(provider, raw) !== null) return null;
+  const url = new URL(raw.trim());
   return url.origin + (url.pathname === "/" ? "" : url.pathname.replace(/\/+$/u, ""));
 }
 

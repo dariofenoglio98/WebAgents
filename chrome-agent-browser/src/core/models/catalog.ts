@@ -7,6 +7,9 @@
  * probe goes through an injected `Http`, which the shell implements with `fetch` and to which
  * the shell alone adds the credential header for a provider. Keys never enter this module.
  *
+ * An Ollama connection is loopback only (`isLoopbackBase`): its models are described as local,
+ * private and free, which a remote endpoint would make false.
+ *
  * What the catalog says about limits, and how strongly (`compatibility.ts` bases):
  * - **Ollama** reports each model's native context window (`/api/show`, `model_info`). The
  *   context this host will actually request is the person's cap for the model (Settings → Models
@@ -32,6 +35,24 @@ export const DEFAULT_BASE_URLS: Readonly<Record<Exclude<ProviderId, "chrome-buil
   openai: "https://api.openai.com",
   anthropic: "https://api.anthropic.com",
 });
+
+/** The hosts an Ollama connection may name: this machine only, so "local" and "free" stay true. */
+export const OLLAMA_LOOPBACK_HOSTS: readonly string[] = Object.freeze(["127.0.0.1", "localhost", "[::1]"]);
+
+/**
+ * Whether a base URL reaches Ollama on this machine (HTTP or HTTPS on a loopback host). Every
+ * Ollama model is described as local, private and free, which is only true on loopback, so a
+ * remote endpoint is refused rather than reclassified (review 1 of T3, finding 2).
+ */
+export function isLoopbackBase(url: string): boolean {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return false;
+  }
+  return (parsed.protocol === "http:" || parsed.protocol === "https:") && OLLAMA_LOOPBACK_HOSTS.includes(parsed.hostname);
+}
 
 /** The reference host's cap on discovered local models (STATE.md §5), applied unless the person raises it. */
 export const DEFAULT_OLLAMA_CONTEXT_CAP = 32_768;
@@ -158,6 +179,9 @@ function reasoningAnswer(override: ModelOverride, fallback: Omit<CapabilityAnswe
 async function probeOllama(connection: ProviderConnection, http: Http): Promise<ProbeResult> {
   const root = base(connection);
   const notes: CatalogNote[] = [];
+  if (!isLoopbackBase(root)) {
+    return { provider: "ollama", ok: false, models: [], notes, error: `Ollama is reached on this machine only (${OLLAMA_LOOPBACK_HOSTS.join(", ")}); ${root} is not, so its models would not be local.` };
+  }
   const tags = await http({ provider: "ollama", method: "GET", url: `${root}/api/tags`, headers: {} });
   if (tags.status !== 200 || !isRecord(tags.body) || !Array.isArray(tags.body.models)) {
     return { provider: "ollama", ok: false, models: [], notes, error: `Ollama answered HTTP ${tags.status} to /api/tags` };

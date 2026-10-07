@@ -12,6 +12,7 @@ import {
   buildHostCatalog,
   builtinDescriptor,
   DEFAULT_OLLAMA_CONTEXT_CAP,
+  isLoopbackBase,
   probeProvider,
   type Http,
   type HttpRequest,
@@ -50,6 +51,20 @@ const OLLAMA = {
 };
 
 describe("Ollama", () => {
+  it("is reached on this machine only: a remote endpoint is not probed, so no remote model is ever called local and free (review 1, finding 2)", async () => {
+    for (const remote of ["https://ollama.example.com", "http://192.168.1.20:11434", "https://localhost.example:11434"]) {
+      const log: HttpRequest[] = [];
+      const result = await probeProvider(connection("ollama", { base_url: remote }), fakeHttp(OLLAMA, log));
+      expect(result).toMatchObject({ ok: false, models: [] });
+      expect(result.error).toContain("is not, so its models would not be local");
+      expect(log).toEqual([]);
+    }
+    for (const local of ["http://localhost:11434", "http://[::1]:11434", "https://127.0.0.1:11434"]) expect(isLoopbackBase(local)).toBe(true);
+    const answers = Object.fromEntries(Object.entries(OLLAMA).map(([key, value]) => [key.replace("http://127.0.0.1:11434", "http://localhost:11434"), value]));
+    const result = await probeProvider(connection("ollama", { base_url: "http://localhost:11434" }), fakeHttp(answers));
+    expect((result.models[0] as { properties: { local: boolean; privacy_class: string; cost_class: string } }).properties).toMatchObject({ local: true, privacy_class: "local", cost_class: "free" });
+  });
+
   it("lists models from /api/tags, reads the native window and capabilities from /api/show, and caps the context at the reference host's default", async () => {
     const log: HttpRequest[] = [];
     const result = await probeProvider(connection("ollama"), fakeHttp(OLLAMA, log));
