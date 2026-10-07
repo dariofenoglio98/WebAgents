@@ -405,7 +405,25 @@ describe("Settings and Your data", () => {
     root.querySelector<HTMLInputElement>('input[name="record-label"]')!.dispatchEvent(new Event("input"));
     root.querySelector<HTMLInputElement>('input[name="field-home_airport"]')!.value = "ZRH";
     root.querySelector<HTMLInputElement>('input[name="field-home_airport"]')!.dispatchEvent(new Event("input"));
+    root.querySelector<HTMLInputElement>('input[name="field-preferred_currency"]')!.value = "CHF";
+    root.querySelector<HTMLInputElement>('input[name="field-preferred_currency"]')!.dispatchEvent(new Event("input"));
+    root.querySelector<HTMLSelectElement>('select[name="field-preferred_cabin"]')!.value = "economy";
+    root.querySelector<HTMLSelectElement>('select[name="field-preferred_cabin"]')!.dispatchEvent(new Event("change"));
+    // "prefer_nonstop" is required and left unchecked: it is saved as false (review 1, finding 6).
     [...root.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent === "Save")!.click();
-    expect(puts[0]).toMatchObject({ type: "personal.travel_profile", label: "Me", value: { home_airport: "ZRH" }, demo: false });
+    expect(puts[0]).toMatchObject({ type: "personal.travel_profile", label: "Me", value: { home_airport: "ZRH", preferred_cabin: "economy", prefer_nonstop: false, preferred_currency: "CHF" }, demo: false });
+    // The worker accepts exactly what the form sends.
+    const saved = (await h.controller.handle({ type: "vault.putRecord", record: puts[0] }, PAGE)) as VaultView;
+    expect(saved.records.find((record) => record.label === "Me")?.value).toEqual({ home_airport: "ZRH", preferred_cabin: "economy", prefer_nonstop: false, preferred_currency: "CHF" });
+    // Editing a fictional demo record keeps its label (review 1, nit 15).
+    root = render(saved);
+    [...root.querySelector<HTMLElement>('.ab-vault-record[data-record="profile_demo_traveler"]')!.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent === "Edit")!.click();
+    root = render(saved);
+    root.querySelector<HTMLInputElement>('input[name="field-home_airport"]')!.value = "GVA";
+    root.querySelector<HTMLInputElement>('input[name="field-home_airport"]')!.dispatchEvent(new Event("input"));
+    [...root.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent === "Save")!.click();
+    expect(puts[1]).toMatchObject({ id: "profile_demo_traveler", demo: true, value: { home_airport: "GVA" } });
+    const edited = (await h.controller.handle({ type: "vault.putRecord", record: puts[1] }, PAGE)) as VaultView;
+    expect(edited.records.find((record) => record.id === "profile_demo_traveler")).toMatchObject({ demo: true, value: { home_airport: "GVA" } });
   });
 });

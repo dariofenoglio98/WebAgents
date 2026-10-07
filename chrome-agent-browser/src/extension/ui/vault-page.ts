@@ -10,7 +10,8 @@ import type { VaultView } from "../messages.js";
 import { button, card, chip, definition, el, list, shortHash, whenText } from "./dom.js";
 
 export interface VaultPageState {
-  editing: { type: string; id: string | null; draft: Record<string, JsonValue>; label: string } | null;
+  /** `demo` is kept from the record being edited, so a fictional record keeps its label (review 1, nit 15). */
+  editing: { type: string; id: string | null; draft: Record<string, JsonValue>; label: string; demo: boolean } | null;
   notice: { text: string; tone: "good" | "warn" | "bad" } | null;
 }
 
@@ -112,10 +113,16 @@ function editor(view: VaultView, state: VaultPageState, actions: VaultPageAction
           const value: JsonObject = {};
           for (const [name, schema] of properties(type)) {
             const raw = editing.draft[name];
+            // A checkbox always has a value: unchecked is `false`, not absent, so a required
+            // boolean the person left off is saved (review 1, finding 6).
+            if (schema.type === "boolean") {
+              value[name] = raw === true;
+              continue;
+            }
             if (raw === undefined || raw === "") continue;
-            value[name] = schema.type === "boolean" ? raw === true : raw;
+            value[name] = raw;
           }
-          actions.onPut({ id: editing.id ?? recordId(), type: type.id, label: editing.label.trim(), value, demo: false });
+          actions.onPut({ id: editing.id ?? recordId(), type: type.id, label: editing.label.trim(), value, demo: editing.demo });
         },
         { variant: "primary" },
       ),
@@ -149,7 +156,7 @@ function recordCard(view: VaultView, record: VaultRecordView, state: VaultPageSt
       "div",
       { className: "ab-inline" },
       button("Edit", () => {
-        state.editing = { type: record.type, id: record.id, draft: { ...record.value }, label: record.label };
+        state.editing = { type: record.type, id: record.id, draft: { ...record.value }, label: record.label, demo: record.demo };
         actions.rerender();
       }),
       remove,
@@ -182,7 +189,7 @@ export function renderVaultPage(view: VaultView, state: VaultPageState, actions:
         type.sealed_fields.length > 0 ? el("p", { className: "ab-hint", text: `Sealed fields: ${type.sealed_fields.map((pointer) => pointer.slice(1)).join(", ")}` }) : null,
         (byType.get(type.id) ?? []).length > 0 ? list((byType.get(type.id) ?? []).map((record) => recordCard(view, record, state, actions)), "ab-vault-list") : el("p", { className: "ab-empty", text: `No ${type.display_name.toLowerCase()} yet.` }),
         button(`Add a ${type.display_name.toLowerCase()}`, () => {
-          state.editing = { type: type.id, id: null, draft: {}, label: "" };
+          state.editing = { type: type.id, id: null, draft: {}, label: "", demo: false };
           actions.rerender();
         }),
       ),
