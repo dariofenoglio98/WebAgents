@@ -28,7 +28,7 @@ Browser:
 
 WebAir is a fictional airline. Its public demo origin, <https://webagents-webair-production.up.railway.app/>,
 serves ordinary HTML pages for people and, from the same origin, a signed agent package
-(`org.webagents.webair` 0.4.0; the public origin serves 0.3.0 until the 0.4.0 bundle is deployed).
+(`org.webagents.webair` 0.4.0, served since 2026-10-06; the recorded acceptance below used 0.3.0).
 Nothing is ever booked, reserved or charged; every passenger and
 card in the demo is fictional. The package declares *what* WebAir can do. The Agent Browser — the
 person's own runtime — decides *whether* and *with what*: which publisher to trust, which model to
@@ -299,6 +299,5 @@ data it held — never the text or the values. Remove it from the Gateway's envi
 
 The script was written for the recorded 0.3.0 acceptance: it checks that the origin serves
 exactly `dist/webair-0.3.0.agent.pkg` and that the source rebuilds to it. The source in
-`agents/webair/` is already 0.4.0, so that rebuild check fails today; the script is out of date
-until it is pointed at `dist/webair-0.4.0.agent.pkg`, which can be done once the origin serves
-0.4.0.
+`agents/webair/` is already 0.4.0 and the origin has served 0.4.0 since 2026-10-06, so both checks
+fail today; the script is out of date until it is pointed at `dist/webair-0.4.0.agent.pkg`.

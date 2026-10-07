@@ -538,7 +538,7 @@ offline acceptance against 0.4.0, which the script now checks, is
 |---|---|
 | Public URL | <https://webagents-webair-production.up.railway.app/> (DNS → Railway's edge, public addresses; TLS on 443) |
 | Platform | Railway, service `webagents-webair`, builder Railpack, Python 3.13 |
-| What runs | `python -m origin --host 0.0.0.0 --agent-package agent.pkg` — this origin, unchanged, publishing `dist/webair-0.4.0.agent.pkg` (0.3.0 until the deployment that publishes 0.4.0) |
+| What runs | `python -m origin --host 0.0.0.0 --agent-package agent.pkg` — this origin, unchanged, publishing `dist/webair-0.4.0.agent.pkg` (since 2026-10-06; 0.3.0 before) |
 | Health check | `GET /health` (states only that this is the fictional demo and the published package's SHA-256) |
 | Environment | `PORT` (the platform's port; the service sets `8080`). No secret, database, external API or persistence |
 | Configuration | [`deploy/railway.toml`](deploy/railway.toml) (start, health check, restart policy), [`deploy/railpack.json`](deploy/railpack.json) (the start command again: Railpack plans the image before `railway.toml` applies), [`deploy/.python-version`](deploy/.python-version) |
