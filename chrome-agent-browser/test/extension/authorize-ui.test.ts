@@ -238,7 +238,7 @@ describe("Customize your settings", () => {
       ["model.reasoning", "session"],
     ]);
     expect(root.querySelector<HTMLElement>('.ab-permission[data-permission="files.pdfs"]')!.textContent).toContain("decided by preset");
-    // The recorded OpenClaw decisions deny files.pdfs: one change, recorded as the person's own.
+    // Some recorded OpenClaw runs deny files.pdfs: one change, recorded as the person's own.
     const pdfs = root.querySelector<HTMLSelectElement>('.ab-permission[data-permission="files.pdfs"] select')!;
     pdfs.value = "deny";
     pdfs.dispatchEvent(new Event("change"));

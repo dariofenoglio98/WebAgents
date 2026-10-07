@@ -6,6 +6,9 @@
  * a removed model makes the plan stale with the ported codes; receipts and plans survive a
  * worker restart with their hashes; settings, keys and the vault live in storage.local.
  */
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import { CoreError } from "../../src/core/errors.js";
@@ -14,7 +17,7 @@ import { MemoryTrustStorage } from "../../src/core/trust.js";
 import { MemoryStorageArea } from "../../src/extension/storage/settings.js";
 import { MemorySnapshotStore } from "../../src/extension/storage/snapshots.js";
 import { MemoryTabStateStore } from "../../src/extension/storage/tab-state.js";
-import { SHIPPED } from "../helpers/paths.js";
+import { ROOT, SHIPPED } from "../helpers/paths.js";
 import { LITERATURE_URL, makeHarness, OLLAMA_ANSWERS, PAGE, SITE_ORIGIN, WEBAIR_040_URL, type Harness } from "../helpers/shell.js";
 
 async function refused(promise: Promise<unknown>): Promise<CoreError> {
@@ -226,8 +229,10 @@ describe("the customize path: Literature Review 0.2.5 with today's OpenClaw deci
       ["scholarly-search", "bound"],
       ["paper-reader", "unbound"],
     ]);
-    // Today's OpenClaw decisions: the recorded session grants (files.pdfs denied in the recorded local runs).
-    const decisions = { "network.scholarly": "session", "network.citations": "session", "files.pdfs": "deny", "model.reasoning": "session", "memory.session": "session" };
+    // Today's OpenClaw decisions: the recorded grants, every permission for the session (the recorded
+    // runs in ~/.openclaw/agent-browser/runs grant files.pdfs in some runs and deny it in others).
+    const decisions = JSON.parse(readFileSync(resolve(ROOT, "examples/literature-review-grants.json"), "utf8")) as Record<string, string>;
+    expect(decisions).toEqual({ "network.scholarly": "session", "network.citations": "session", "files.pdfs": "session", "model.reasoning": "session", "memory.session": "session" });
     const toolApprovals = { "scholarly-search": true, "citation-resolver": true, "paper-reader": true };
     const result = (await h.controller.handle(
       { type: "authorization.authorize", sessionId: session.session.id, packageDigest: SHIPPED.literatureReview.digest, decisions, toolApprovals, resourceSelections: {}, provenance: null, prepare: true },
@@ -239,7 +244,7 @@ describe("the customize path: Literature Review 0.2.5 with today's OpenClaw deci
     // An approved tool this host does not implement blocks the plan, as in the reference (D-022 covers denied tools only).
     expect(result.run_plan).toBeNull();
     expect(result.plan_refused?.map((reason) => [reason.code, reason.subject])).toEqual([["tool_not_bound", "paper-reader"]]);
-    // Leaving paper-reader unapproved (its permission is denied anyway): the plan is ready and carries the three approvals.
+    // Leaving paper-reader unapproved until T6 implements it: under D-022 it is denied, and the plan is ready and carries the three approval entries.
     const ready = (await h.controller.handle(
       { type: "authorization.authorize", sessionId: session.session.id, packageDigest: SHIPPED.literatureReview.digest, decisions, toolApprovals: { ...toolApprovals, "paper-reader": false }, resourceSelections: {}, provenance: null, prepare: true },
       PAGE,
