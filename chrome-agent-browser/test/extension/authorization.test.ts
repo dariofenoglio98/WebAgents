@@ -195,6 +195,22 @@ describe("two clicks: a profile becomes a ready plan (D-022)", () => {
     expect(blocked.plan_refused?.map((reason) => reason.code)).toEqual(["authorization_not_runnable", "publisher_not_trusted"]);
   });
 
+  it("with the default model's provider unreachable the receipt stands, the plan is refused by name, and every view hears of it (review 1, finding 4)", async () => {
+    // Ollama is not running: /api/tags does not answer, so the catalog lists no qwen3:30b.
+    const h = makeHarness({ http: {} });
+    const session = await openWebair(h);
+    h.events.length = 0;
+    const result = (await h.controller.handle({ type: "authorization.useProfile", sessionId: session.session.id, packageDigest: SHIPPED.webair040.digest, profileId: "search", resourceSelections: {}, prepare: true }, PAGE)) as AuthorizeResult;
+    expect(result.receipt.runnable).toBe(true);
+    expect(result.run_plan).toBeNull();
+    expect(result.plan_refused?.map((reason) => [reason.code, reason.subject])).toEqual([["model_unknown", QWEN]]);
+    expect(result.plan_refused?.[0]?.message).toContain("Test the connection in Settings → Models. Ollama must be running");
+    expect(h.events).toEqual([{ type: "event.authorization", sessionId: session.session.id }, { type: "event.sessions" }]);
+    const view = (await h.controller.handle({ type: "authorization.get", sessionId: session.session.id }, PAGE)) as AuthorizationView;
+    expect(view.receipt?.receipt_id).toBe(result.receipt.receipt_id);
+    expect(view.run_plan).toBeNull();
+  });
+
   it("the privacy-first preset refuses a hosted default model with model_not_local", async () => {
     const h = makeHarness({ http: { ...OLLAMA_ANSWERS, "GET https://api.openai.com/v1/models": { data: [{ id: "gpt-5.6-luna" }] } } });
     const session = await openWebair(h, { defaultModel: "openai/gpt-5.6-luna", preset: "privacy-first" });

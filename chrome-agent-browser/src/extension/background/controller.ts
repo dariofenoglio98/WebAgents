@@ -1033,23 +1033,31 @@ export class Controller {
     live.onceSpent = false;
     await this.persist(live);
     const result: AuthorizeResult = { receipt, run_plan: null, plan_refused: null, model_id: null };
-    if (prepare) {
-      // The model picked under Customize your settings, else the default model.
-      const chosen = modelId ?? (await this.deps.settings.settings()).models.default_model;
-      result.model_id = chosen;
-      if (chosen === null) {
-        result.plan_refused = [{ code: "model_not_selected", message: "Choose a default model in Settings → Models, or pick one under Customize your settings.", subject: null }];
-      } else {
-        try {
-          result.run_plan = await this.prepareRunPlan(live.stored.session_id, { packageDigest: live.pkg.digest, receiptId: receipt.receipt_id, modelId: chosen });
-        } catch (error) {
-          if (!(error instanceof CoreError) || error.code !== "run_plan_refused") throw error;
-          result.plan_refused = (error.details.blocking_reasons as Reason[] | undefined) ?? [{ code: error.code, message: error.message, subject: null }];
+    try {
+      if (prepare) {
+        // The model picked under Customize your settings, else the default model.
+        const chosen = modelId ?? (await this.deps.settings.settings()).models.default_model;
+        result.model_id = chosen;
+        if (chosen === null) {
+          result.plan_refused = [{ code: "model_not_selected", message: "Choose a default model in Settings → Models, or pick one under Customize your settings.", subject: null }];
+        } else {
+          try {
+            result.run_plan = await this.prepareRunPlan(live.stored.session_id, { packageDigest: live.pkg.digest, receiptId: receipt.receipt_id, modelId: chosen });
+          } catch (error) {
+            // The receipt is recorded whatever happens to the plan, so every refusal of the plan
+            // (an unreachable provider's `model_unknown` included) is reported beside it rather
+            // than as a failure of the authorization (review 1, finding 4).
+            if (!(error instanceof CoreError)) throw error;
+            const reasons = error.code === "run_plan_refused" ? (error.details.blocking_reasons as Reason[] | undefined) : undefined;
+            result.plan_refused = reasons ?? [{ code: error.code, message: error.message, subject: error.code === "model_unknown" ? chosen : null }];
+          }
         }
       }
+    } finally {
+      // Every view learns of the new receipt, even when preparing its plan failed.
+      this.deps.broadcast({ type: "event.authorization", sessionId: live.stored.session_id });
+      this.deps.broadcast({ type: "event.sessions" });
     }
-    this.deps.broadcast({ type: "event.authorization", sessionId: live.stored.session_id });
-    this.deps.broadcast({ type: "event.sessions" });
     return result;
   }
 
@@ -1065,7 +1073,10 @@ export class Controller {
     const settings = await this.deps.settings.settings();
     const { catalog } = await this.catalog();
     const descriptor = findModel(catalog, input.modelId);
-    if (descriptor === null) throw reject("model_unknown", `No model ${pyRepr(input.modelId)} in this browser's model catalog`, 409);
+    if (descriptor === null) {
+      const hint = input.modelId.startsWith("ollama/") ? " Ollama must be running, with OLLAMA_ORIGINS allowing chrome-extension://*." : "";
+      throw reject("model_unknown", `No model ${pyRepr(input.modelId)} in this browser's model catalog: its provider did not list it. Test the connection in Settings → Models.${hint}`, 409);
+    }
     const evaluation = evaluateCatalog(live.pkg, catalog, this.clock());
     const compatibility = evaluation.models.find((item) => item.model_id === input.modelId) ?? null;
     const blockers: Reason[] = [];
