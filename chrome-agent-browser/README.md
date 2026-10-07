@@ -39,8 +39,9 @@ What it shows today, on the WebAir demo site:
    hash under Technical details. Running arrives with T5; nothing runs yet.
 7. **Settings → Models** lists the routes (local Ollama, OpenAI and Anthropic with your own
    keys, Chrome's built-in model), tests each connection, lets you state a model's limits and
-   pick the default model (Ollama must be started with `OLLAMA_ORIGINS` including
-   `chrome-extension://*`). Keys are typed once, stored in `chrome.storage.local`, never shown
+   pick the default model (Ollama must run on this machine, started with `OLLAMA_ORIGINS`
+   including `chrome-extension://*`; a remote Ollama endpoint is refused, since its models would
+   not be local). Keys are typed once, stored in `chrome.storage.local`, never shown
    again and never synced. **Settings → Policies** selects the host preset (privacy first,
    balanced, convenience). **Your data** holds your records per type, with a one-click fictional
    demo set that is clearly labelled and never pre-filled.
@@ -51,7 +52,8 @@ the Python control plane's output canonically for every shipped package. Authori
 too: the receipt, the Run Plan, the host-resource, tool and model evaluations and the
 preflight are compared field by field, and by hash, with records the Python control plane
 produced for WebAir 0.4.0 (`test/fixtures/authorization/`). The documented differences are
-the decision provenance, the denied-tool list and the model-availability check (D-053).
+the decision provenance, the denied-tool list, the model-availability check and the
+local-only check of the privacy-first preset (D-053).
 
 ## Load the unpacked extension
 
