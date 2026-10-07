@@ -38,10 +38,12 @@ import {
 
 import { ValidationError } from "./errors.js";
 import { parseJson } from "./json.js";
+import { EXTENSION_SCHEMAS } from "./schemas/extensions/index.js";
 import { SCHEMAS } from "./schemas/index.js";
 
 export const DIALECT = "https://json-schema.org/draft/2020-12/schema";
 const AGENTPKG_BASE = "https://agentpkg.local/spec/0.1/";
+const EXTENSION_BASE = "https://webagents.invalid/extensions/";
 const PACKAGE_BASE = "https://package.invalid/";
 
 export interface SchemaFailure {
@@ -60,7 +62,24 @@ function ensureAgentpkgSchemas(): void {
   for (const [name, schema] of Object.entries(SCHEMAS)) {
     registerSchema(schema as never, `${AGENTPKG_BASE}${name}.schema.json`, DIALECT);
   }
+  for (const [name, schema] of Object.entries(EXTENSION_SCHEMAS)) {
+    registerSchema(schema as never, `${EXTENSION_BASE}${name}.schema.json`, DIALECT);
+  }
   agentpkgRegistered = true;
+}
+
+/**
+ * One of the noncritical-extension schemas copied from `spec/extensions` (D-040), applied to
+ * a manifest extension value. Returns the first failure's description, or null when valid.
+ */
+export async function extensionSchemaFailure(value: unknown, schemaName: string): Promise<string | null> {
+  ensureAgentpkgSchemas();
+  if (!Object.hasOwn(EXTENSION_SCHEMAS, schemaName)) throw new Error(`unknown extension schema ${schemaName}`);
+  const list = await failures(`${EXTENSION_BASE}${schemaName}.schema.json`, value);
+  if (list.length === 0) return null;
+  const first = list[0]!;
+  const path = first.instancePath.join("/") || "<root>";
+  return `${path}: ${describeFailure(first, value, (uri) => (uri.startsWith(EXTENSION_BASE) ? EXTENSION_SCHEMAS[uri.slice(EXTENSION_BASE.length).replace(/\.schema\.json$/u, "")] : agentpkgDocument(uri)))}`;
 }
 
 function pointerTokens(pointer: string): string[] {
