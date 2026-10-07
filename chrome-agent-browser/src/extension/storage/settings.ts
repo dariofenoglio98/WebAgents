@@ -111,11 +111,18 @@ export function endpointProblem(provider: ProviderId, raw: string): string | nul
   return null;
 }
 
-function normalizeBaseUrl(provider: ProviderId, raw: unknown): string | null {
+/**
+ * A pasted endpoint may end in the `/v1` the provider documents (`https://api.openai.com/v1`);
+ * the catalog and the adapters append `/v1/...` themselves, so that suffix is dropped once
+ * rather than doubled into `/v1/v1/models` (user feedback 2026-10-07, U4).
+ */
+export function normalizeBaseUrl(provider: ProviderId, raw: unknown): string | null {
   if (typeof raw !== "string" || raw.trim().length === 0) return null;
   if (endpointProblem(provider, raw) !== null) return null;
   const url = new URL(raw.trim());
-  return url.origin + (url.pathname === "/" ? "" : url.pathname.replace(/\/+$/u, ""));
+  let path = url.pathname === "/" ? "" : url.pathname.replace(/\/+$/u, "");
+  if (provider !== "ollama" && path.endsWith("/v1")) path = path.slice(0, -3);
+  return url.origin + path;
 }
 
 /** Validate a stored or submitted settings object; unknown and malformed fields fall back to the defaults. */

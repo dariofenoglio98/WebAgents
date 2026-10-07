@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import tempfile
 from pathlib import Path
@@ -246,9 +247,13 @@ selections = {
 }
 
 with tempfile.TemporaryDirectory() as tmp:
+    # The trust store records the path it was given (`trust.state()["path"]`), and the committed
+    # records must name no machine (T3 review 2, nit 21): the plane runs from the temporary
+    # directory with relative paths, so the recorded path is `trust.json`, nowhere.
+    os.chdir(tmp)
     config = ControlPlaneConfig(
-        cache_dir=Path(tmp) / "cache",
-        trust_store_path=Path(tmp) / "trust.json",
+        cache_dir=Path("cache"),
+        trust_store_path=Path("trust.json"),
         policy=BrowserPolicy(),
     )
     plane = ControlPlane(config)

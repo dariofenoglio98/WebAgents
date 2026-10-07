@@ -24,9 +24,14 @@ export interface HttpResponse {
 
 export type HttpTransport = (request: HttpRequest) => Promise<HttpResponse>;
 
-/** Why a transport refused or could not finish a request: a stage from the closed facts vocabulary and, for a stopped body, the counts. */
+/**
+ * Why a transport refused or could not finish a request: a stage from the closed facts
+ * vocabulary and, for a stopped body, the counts. A deadline is not a transport stage: an
+ * aborted signal rejects with the signal's own reason, and the caller that set the deadline
+ * classifies it (T4 review 2, nit 10).
+ */
 export interface TransportFacts {
-  stage: "transport" | "tls" | "address_policy" | "body_size" | "timeout";
+  stage: "transport" | "tls" | "address_policy" | "body_size";
   http_status?: number;
   response_bytes?: number;
   reason?: string;

@@ -685,8 +685,19 @@ export class Controller {
     return holders.filter((holder) => holder.document_id === null || open.has(holder.document_id));
   }
 
+  /**
+   * A view shows one session at a time: holding this one drops the view's holds on every other
+   * session, so a full page that moved on (address bar, Library) no longer keeps the previous
+   * session open past another view's Close (T3 review 2, nit 20). The sessions it stops
+   * holding stay open until a release or their TTL; navigating is not closing.
+   */
   private async hold(sessionId: string, viewId: string, documentId: string | null): Promise<void> {
     await this.holderUpdate(async () => {
+      for (const other of this.sessions.keys()) {
+        if (other === sessionId) continue;
+        const holders = await this.deps.holders.get(other);
+        if (holders.some((holder) => holder.view_id === viewId)) await this.deps.holders.set(other, holders.filter((holder) => holder.view_id !== viewId));
+      }
       const others = (await this.deps.holders.get(sessionId)).filter((holder) => holder.view_id !== viewId);
       const holders = [...(await this.stillOpen(others)), { view_id: viewId, document_id: documentId }];
       await this.deps.holders.set(sessionId, holders.slice(-MAX_VIEW_HOLDERS));
@@ -700,13 +711,16 @@ export class Controller {
    */
   async release(sessionId: string, viewId: string): Promise<{ closed: boolean; session_id: string; holders: number }> {
     const live = await this.session(sessionId);
+    // The "no holder left" decision and the clearing of the holders are one queued step, so a
+    // hold that arrives in between cannot be wiped by a clear decided on stale facts (nit 20).
     const remaining = await this.holderUpdate(async () => {
       const holders = await this.stillOpen((await this.deps.holders.get(sessionId)).filter((holder) => holder.view_id !== viewId));
       if (holders.length > 0) await this.deps.holders.set(sessionId, holders);
+      else await this.deps.holders.clear(sessionId);
       return holders.length;
     });
     if (remaining > 0) return { closed: false, session_id: sessionId, holders: remaining };
-    await this.drop(live.stored);
+    await this.drop(live.stored, { holdersCleared: true });
     this.deps.broadcast({ type: "event.sessions" });
     return { closed: true, session_id: sessionId, holders: 0 };
   }
@@ -718,9 +732,9 @@ export class Controller {
     return live;
   }
 
-  private async drop(stored: StoredSession): Promise<void> {
+  private async drop(stored: StoredSession, options: { holdersCleared?: boolean } = {}): Promise<void> {
     this.sessions.delete(stored.session_id);
-    await this.holderUpdate(() => this.deps.holders.clear(stored.session_id));
+    if (!options.holdersCleared) await this.holderUpdate(() => this.deps.holders.clear(stored.session_id));
     await this.deps.snapshots.deleteSession(stored.session_id);
     if (this.inFlight.has(stored.archive_sha256)) return; // an open in progress owns the snapshot
     const others = (await this.deps.snapshots.listSessions()).some((session) => session.archive_sha256 === stored.archive_sha256);

@@ -566,6 +566,22 @@ describe("sessions: limits, expiry, close and restore (D-032)", () => {
     expect((await h.controller.handle({ type: "package.release", sessionId: alone.session.id, viewId: "sidepanel:2" }, PAGE)) as { closed: boolean }).toMatchObject({ closed: true });
   });
 
+  it("a view holds one session at a time: showing another drops its hold on the previous one (T3 review 2, nit 20)", async () => {
+    const h = makeHarness();
+    // The full page shows A, the panel shows A too; the full page moves on to B.
+    const a = (await h.controller.handle({ type: "package.open", url: PACKAGE_URL, advertisedOn: null, viewId: "browser:1" }, PAGE_IN_TAB)) as SessionView;
+    await h.controller.handle({ type: "package.get", sessionId: a.session.id, viewId: "sidepanel:1" }, PAGE);
+    const b = (await h.controller.handle({ type: "package.open", url: LITERATURE_URL, advertisedOn: null, viewId: "browser:1" }, PAGE_IN_TAB)) as SessionView;
+    expect((await h.holders.get(a.session.id)).map((holder) => holder.view_id)).toEqual(["sidepanel:1"]);
+    expect((await h.holders.get(b.session.id)).map((holder) => holder.view_id)).toEqual(["browser:1"]);
+    // Navigating is not closing: A is still open for the panel.
+    expect((await get(h, a.session.id)).session.id).toBe(a.session.id);
+    // Close in the panel now ends A, because the page's stale hold is gone; B is untouched.
+    expect(await h.controller.handle({ type: "package.release", sessionId: a.session.id, viewId: "sidepanel:1" }, PAGE)).toEqual({ closed: true, session_id: a.session.id, holders: 0 });
+    expect(await h.holders.get(a.session.id)).toEqual([]);
+    expect((await sessions(h)).map((session) => session.session_id)).toEqual([b.session.id]);
+  });
+
   it("a hold survives a worker restart: Close in the panel still leaves the full page's session open (review 1 of T3, finding 5)", async () => {
     const first = makeHarness();
     const panel: Sender = { ...PAGE, documentId: "doc-panel" };

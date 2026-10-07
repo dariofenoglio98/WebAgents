@@ -14,7 +14,7 @@ import { describe, expect, it, vi } from "vitest";
 import { CoreError } from "../../src/core/errors.js";
 import { parseRequest, type AuthorizationView, type AuthorizeResult, type ModelsView, type RunPlanState, type SessionView, type SettingsView, type VaultView } from "../../src/extension/messages.js";
 import { MemoryTrustStorage } from "../../src/core/trust.js";
-import { MemoryStorageArea, normalizeSettings } from "../../src/extension/storage/settings.js";
+import { MemoryStorageArea, normalizeSettings, normalizeBaseUrl } from "../../src/extension/storage/settings.js";
 import { MemorySnapshotStore } from "../../src/extension/storage/snapshots.js";
 import { MemoryTabStateStore } from "../../src/extension/storage/tab-state.js";
 import { ROOT, SHIPPED } from "../helpers/paths.js";
@@ -420,7 +420,13 @@ describe("models, settings and the vault", () => {
     expect(saved.settings.models.connections.find((connection) => connection.provider === "ollama")?.base_url).toBe("http://localhost:11500");
     // A stored document that somehow names a remote Ollama reads back as the default endpoint.
     expect(normalizeSettings({ models: { connections: [{ provider: "ollama", enabled: true, base_url: "https://ollama.example.com" }] } }).models.connections.find((connection) => connection.provider === "ollama")?.base_url).toBeNull();
-    expect(saved.settings.models.connections.find((connection) => connection.provider === "openai")?.base_url).toBe("https://proxy.example/v1");
+    // A documented `/v1` endpoint is normalized once, never doubled into `/v1/v1/models` (user feedback 2026-10-07).
+    expect(saved.settings.models.connections.find((connection) => connection.provider === "openai")?.base_url).toBe("https://proxy.example");
+    expect(normalizeBaseUrl("openai", "https://api.openai.com/v1")).toBe("https://api.openai.com");
+    expect(normalizeBaseUrl("anthropic", "https://api.anthropic.com/v1/")).toBe("https://api.anthropic.com");
+    expect(normalizeBaseUrl("openai", "https://gateway.example/openai/v1")).toBe("https://gateway.example/openai");
+    expect(normalizeBaseUrl("openai", "https://gateway.example/v1beta")).toBe("https://gateway.example/v1beta");
+    expect(normalizeBaseUrl("ollama", "http://127.0.0.1:11434/v1")).toBe("http://127.0.0.1:11434/v1");
     expect(saved.keys).toEqual({});
     const defaulted = (await h.controller.handle({ type: "settings.set", settings: { preset: "yolo" } }, PAGE)) as SettingsView;
     expect(defaulted.settings.preset).toBe("balanced");

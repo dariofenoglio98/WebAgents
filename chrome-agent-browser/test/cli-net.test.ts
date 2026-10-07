@@ -54,13 +54,24 @@ describe("resolveDestination", () => {
     await expect(resolveDestination("https://service.example/v1", { allowLoopbackHttp: false, resolve: async () => [] })).rejects.toMatchObject({ facts: { stage: "transport" } });
   });
 
-  it("pins a public name to its first address on 443 with the request target", async () => {
+  it("pins a public name to its first address on 443 with the request target, keeping every classified address for fallback (T4 review 2, nit 1)", async () => {
     const destination = await resolveDestination("https://service.example/v1/call?x=1", { allowLoopbackHttp: false, resolve: async () => ["93.184.216.34", "2606:2800:220:1:248:1893:25c8:1946"] });
-    expect(destination).toEqual({ hostname: "service.example", address: "93.184.216.34", port: 443, tls: true, path: "/v1/call?x=1", hostHeader: "service.example" });
+    expect(destination).toEqual({ hostname: "service.example", address: "93.184.216.34", addresses: ["93.184.216.34", "2606:2800:220:1:248:1893:25c8:1946"], port: 443, tls: true, path: "/v1/call?x=1", hostHeader: "service.example" });
+  });
+
+  it("the resolver is raced against the signal: a hanging lookup ends with the signal's reason (T4 review 2, nit 5)", async () => {
+    const hanging: Resolver = () => new Promise(() => undefined);
+    const controller = new AbortController();
+    const transport = nodeTransport({ allowLoopbackHttp: false, resolve: hanging });
+    const pending = transport({ url: "https://service.example/v1", method: "GET", headers: {}, body: null, signal: controller.signal, maxResponseBytes: 1024 });
+    setTimeout(() => controller.abort(new CancelledError()), 30);
+    const started = Date.now();
+    await expect(pending).rejects.toBeInstanceOf(CancelledError);
+    expect(Date.now() - started).toBeLessThan(2000);
   });
 
   it("the loopback exception belongs to the model transport, for a name that resolves to this machine only", async () => {
-    expect(await resolveDestination("http://127.0.0.1:11434/api/chat", { allowLoopbackHttp: true, resolve: never })).toEqual({ hostname: "127.0.0.1", address: "127.0.0.1", port: 11434, tls: false, path: "/api/chat", hostHeader: "127.0.0.1:11434" });
+    expect(await resolveDestination("http://127.0.0.1:11434/api/chat", { allowLoopbackHttp: true, resolve: never })).toEqual({ hostname: "127.0.0.1", address: "127.0.0.1", addresses: ["127.0.0.1"], port: 11434, tls: false, path: "/api/chat", hostHeader: "127.0.0.1:11434" });
     expect(await resolveDestination("http://localhost:11434/api/tags", { allowLoopbackHttp: true, resolve: async () => ["::1"] })).toMatchObject({ hostname: "localhost", address: "::1", tls: false });
     expect(await resolveDestination("http://[::1]:11434/api/tags", { allowLoopbackHttp: true, resolve: never })).toMatchObject({ address: "::1", port: 11434 });
     await expect(resolveDestination("http://localhost:11434/api/tags", { allowLoopbackHttp: true, resolve: async () => ["8.8.8.8"] })).rejects.toMatchObject({ facts: { stage: "address_policy", reason: "loopback_expected" } });
@@ -86,7 +97,7 @@ describe("the transport over a local server", () => {
       incoming.on("end", () => {
         if (incoming.url === "/echo") {
           outgoing.writeHead(200, { "Content-Type": "application/json", "X-Answered": "Yes" });
-          outgoing.end(JSON.stringify({ got: JSON.parse(body || "null"), host: incoming.headers.host, agent: incoming.headers["user-agent"] ?? null }));
+          outgoing.end(JSON.stringify({ got: JSON.parse(body || "null"), host: incoming.headers.host, agent: incoming.headers["user-agent"] ?? null, te: incoming.headers["transfer-encoding"] ?? null, cl: incoming.headers["content-length"] ?? null }));
         } else if (incoming.url === "/big") {
           outgoing.writeHead(200, { "content-type": "application/json" });
           const chunk = Buffer.alloc(64 * 1024, 0x61);
@@ -133,8 +144,20 @@ describe("the transport over a local server", () => {
     expect(answer.status).toBe(200);
     expect(answer.headers["content-type"]).toBe("application/json");
     expect(answer.headers["x-answered"]).toBe("Yes");
-    expect(JSON.parse(answer.body)).toEqual({ got: { a: 1 }, host: new URL(base).host, agent: null });
+    // The body travels with a Content-Length, never chunked (T4 review 2, nit 2).
+    expect(JSON.parse(answer.body)).toEqual({ got: { a: 1 }, host: new URL(base).host, agent: null, te: null, cl: "7" });
     expect(seen.filter((line) => line.endsWith("/echo"))).toHaveLength(1);
+  });
+
+  it("tries the next classified address when the first refuses the connection (T4 review 2, nit 1)", async () => {
+    // The server listens on 127.0.0.1 only; a resolver that answers ::1 first makes the first dial fail.
+    const port = (server.address() as AddressInfo).port;
+    const fallback = nodeTransport({ allowLoopbackHttp: true, resolve: async () => ["::1", "127.0.0.1"] });
+    const answer = await fallback(request("/echo", { url: `http://localhost:${port}/echo` }));
+    expect(answer.status).toBe(200);
+    // Every address refusing is the last failure, a transport stage.
+    const refusing = nodeTransport({ allowLoopbackHttp: true, resolve: async () => ["::1", "::1"] });
+    await expect(refusing(request("/echo", { url: `http://localhost:1/echo` }))).rejects.toMatchObject({ name: "TransportError", facts: { stage: "transport" } });
   });
 
   it("stops a streamed body at the cap instead of buffering it, and refuses a declared length above the cap before reading", async () => {
@@ -167,12 +190,16 @@ describe("the transport over a local server", () => {
     await expect(transport(request("/x", { url: "http://127.0.0.1:1/x" }))).rejects.toMatchObject({ name: "TransportError", facts: { stage: "transport" } });
   });
 
-  it("the catalog probe parses JSON, sends the provider's credential header only, and times out on its own", async () => {
+  it("the catalog probe parses JSON, sends the provider's credential header only, and runs under one deadline for the whole probe (T4 review 2, nit 4)", async () => {
     const http = catalogHttp({ openai: "sk-test", anthropic: null }, { timeoutMs: 300 });
     const answer = await http({ provider: "openai", method: "POST", url: `${base}/echo`, headers: {}, body: { probe: true } });
     expect(answer.status).toBe(200);
     expect(answer.body).toMatchObject({ got: { probe: true } });
     await expect(http({ provider: "ollama", method: "GET", url: `${base}/hang`, headers: {} })).rejects.toMatchObject({ name: "TimeoutError" });
-    expect((await http({ provider: "ollama", method: "GET", url: `${base}/missing`, headers: {} })).body).toEqual({});
+    // The deadline is the probe's, not the request's: once spent, the next request of the same probe is refused at once.
+    const started = Date.now();
+    await expect(http({ provider: "ollama", method: "GET", url: `${base}/missing`, headers: {} })).rejects.toMatchObject({ name: "TimeoutError" });
+    expect(Date.now() - started).toBeLessThan(200);
+    expect((await catalogHttp({ openai: null, anthropic: null })({ provider: "ollama", method: "GET", url: `${base}/missing`, headers: {} })).body).toEqual({});
   });
 });

@@ -353,6 +353,10 @@ describe("Settings and Your data", () => {
     let root = render();
     expect(root.textContent).toContain("Ollama (local)");
     expect(root.textContent).toContain("no key");
+    // The endpoint placeholder names the endpoint actually used when the field is empty (user feedback 2026-10-07).
+    expect(root.querySelector<HTMLInputElement>('input[name="base-url-openai"]')?.placeholder).toBe("https://api.openai.com (default)");
+    expect(root.querySelector<HTMLInputElement>('input[name="base-url-anthropic"]')?.placeholder).toBe("https://api.anthropic.com (default)");
+    expect(root.querySelector<HTMLInputElement>('input[name="base-url-ollama"]')?.placeholder).toBe("http://127.0.0.1:11434 (default)");
     const keyInput = root.querySelector<HTMLInputElement>('input[name="key-openai"]')!;
     expect(keyInput.type).toBe("password");
     keyInput.value = "sk-test-secret";
@@ -376,6 +380,42 @@ describe("Settings and Your data", () => {
     privacy.checked = true;
     privacy.dispatchEvent(new Event("change"));
     expect((saved.at(-1) as SettingsView["settings"]).preset).toBe("privacy-first");
+  });
+
+  it("an optional boolean a record never had stays absent on edit; a touched one is saved either way (T3 review 2, nit 22)", () => {
+    const type = {
+      id: "personal.newsletter_choice",
+      display_name: "Newsletter choice",
+      description: null,
+      permission_kind: "personal.read",
+      schema: { type: "object", additionalProperties: false, required: ["name"], properties: { name: { type: "string" }, weekly: { type: "boolean" }, confirmed: { type: "boolean" } } },
+      sealed_fields: [],
+      schema_sha256: "0".repeat(64),
+    };
+    const record = { id: "rec_newsletter", type: type.id, label: "Mine", value: { name: "Sam", confirmed: true }, demo: false, created_at: "2026-10-07T00:00:00Z", updated_at: "2026-10-07T00:00:00Z", digest: "1".repeat(64) };
+    const view = { types: [type], records: [record], demo_available: false } as unknown as VaultView;
+    const state = newVaultPageState();
+    const puts: Array<{ value: Record<string, unknown> }> = [];
+    const render = () => renderVaultPage(view, state, { onPut: (put) => puts.push(put as { value: Record<string, unknown> }), onDelete: () => undefined, onInstallDemo: () => undefined, rerender: () => undefined });
+    let root = render();
+    [...root.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent === "Edit")!.click();
+    root = render();
+    // Editing another field only: `weekly` was never set and is not saved as false.
+    root.querySelector<HTMLInputElement>('input[name="field-name"]')!.value = "Samira";
+    root.querySelector<HTMLInputElement>('input[name="field-name"]')!.dispatchEvent(new Event("input"));
+    [...root.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent === "Save")!.click();
+    expect(puts[0]!.value).toEqual({ name: "Samira", confirmed: true });
+    // Unticking a boolean the record had saves false; ticking the absent one saves true.
+    [...root.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent === "Edit")!.click();
+    root = render();
+    const confirmed = root.querySelector<HTMLInputElement>('input[name="field-confirmed"]')!;
+    confirmed.checked = false;
+    confirmed.dispatchEvent(new Event("change"));
+    const weekly = root.querySelector<HTMLInputElement>('input[name="field-weekly"]')!;
+    weekly.checked = true;
+    weekly.dispatchEvent(new Event("change"));
+    [...root.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent === "Save")!.click();
+    expect(puts[1]!.value).toEqual({ name: "Sam", confirmed: false, weekly: true });
   });
 
   it("Your data starts empty with the demo types, adds the fictional set only on the button, and builds a form from the type's schema", async () => {

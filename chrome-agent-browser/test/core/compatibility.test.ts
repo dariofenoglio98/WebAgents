@@ -92,6 +92,19 @@ describe("requirements and verdicts", () => {
     expect(verdict.preferences.map((item) => item.status)).toEqual(["unknown"]);
   });
 
+  it("a capability named like an Object.prototype member is undeclared, not inherited: unverified, as Python says (T3 review 2, nit 19)", async () => {
+    // The venv's reference: `evaluate_catalog` over the fixture catalog with these task capabilities
+    // answers `unverified` with unknown ['capability:constructor', 'capability:toString', 'capability:valueOf'].
+    const pkg = await webair040();
+    const declared = pkg.manifest.model_requirements as JsonObject;
+    const tasks = (declared.tasks as JsonObject[]).map((task) => ({ ...task, capabilities: ["constructor", "toString", "valueOf"] }));
+    const requirements = requirementSet({ ...pkg, manifest: { ...pkg.manifest, model_requirements: { ...declared, tasks } } });
+    const verdict = evaluateModel(requirements, qwen({}));
+    expect(verdict.status).toBe("unverified");
+    expect([...verdict.unknown].sort()).toEqual(["capability:constructor", "capability:toString", "capability:valueOf"]);
+    expect(verdict.checks.filter((check) => check.kind === "capability").map((check) => check.basis)).toEqual(["absent", "absent", "absent"]);
+  });
+
   it("local-only privacy becomes a hard property requirement, and an unavailable model is evaluated but not selectable", async () => {
     const pkg = await webair040();
     const manifest = { ...pkg.manifest, model_requirements: { ...(pkg.manifest.model_requirements as JsonObject), privacy: "local-only" } };

@@ -155,7 +155,9 @@ describe("the reference semantics", () => {
     const directory = join(PROJECT, "test", "fixtures");
     const files = readdirSync(directory, { recursive: true, encoding: "utf8" }).filter((name) => name.endsWith(".json"));
     expect(files.length).toBeGreaterThan(8);
-    for (const name of files) expect(readFileSync(join(directory, name), "utf8"), name).not.toMatch(/\/(?:Users|home)\/|[A-Za-z]:\\\\/u);
+    // Nor a temporary directory of the generator's machine (T3 review 2, nit 21): the trust store is recorded as `trust.json`, nowhere.
+    for (const name of files) expect(readFileSync(join(directory, name), "utf8"), name).not.toMatch(/\/(?:Users|home)\/|[A-Za-z]:\\\\|\/var\/folders|\/private\/var|\/tmp\//u);
+    expect(inputs().session.trust_state.path).toBe("trust.json");
     expect(inputs().session.source.display).toBe("dist/webair-0.4.0.agent.pkg");
   });
 

@@ -5,7 +5,7 @@
  */
 import type { PresetId } from "../../core/types.js";
 import { PRESETS } from "../../core/authorization.js";
-import type { ProbeResult, ProviderId } from "../../core/models/catalog.js";
+import { DEFAULT_BASE_URLS, type ProbeResult, type ProviderId } from "../../core/models/catalog.js";
 import type { SettingsView, StatusInfo } from "../messages.js";
 import type { Settings, StoredConnection } from "../storage/settings.js";
 import { button, card, chip, definition, el, list, row } from "./dom.js";
@@ -54,7 +54,9 @@ function connectionCard(view: SettingsView, connection: StoredConnection, state:
     el("p", { className: "ab-hint", text: PROVIDER_HINTS[provider] }),
   ];
   if (provider !== "chrome-builtin") {
-    const url = el("input", { className: "ab-input", attrs: { name: `base-url-${provider}`, placeholder: provider === "ollama" ? "http://127.0.0.1:11434 (default)" : "default endpoint", autocomplete: "off" } });
+    // The placeholder is the endpoint actually used when the field is empty (user feedback,
+    // 2026-10-07): a person who pastes the documented `/v1` form sees it normalized on save.
+    const url = el("input", { className: "ab-input", attrs: { name: `base-url-${provider}`, placeholder: `${DEFAULT_BASE_URLS[provider]} (default)`, autocomplete: "off" } });
     url.value = connection.base_url ?? "";
     children.push(el("label", { className: "ab-field" }, el("span", { className: "ab-row-label", text: "Endpoint " }), url, button("Save", () => actions.onSave(withConnection(view.settings, provider, (item) => ({ ...item, base_url: url.value.trim() || null }))))));
   }
