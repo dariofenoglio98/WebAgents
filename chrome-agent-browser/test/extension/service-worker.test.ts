@@ -89,7 +89,7 @@ const fakeChrome = {
   },
 };
 
-const contentScript = { id: EXTENSION_ID, url: `${SITE_ORIGIN}/`, tab: { id: 7, url: `${SITE_ORIGIN}/` } } as unknown as chrome.runtime.MessageSender;
+const contentScript = { id: EXTENSION_ID, url: `${SITE_ORIGIN}/`, frameId: 0, tab: { id: 7, url: `${SITE_ORIGIN}/` } } as unknown as chrome.runtime.MessageSender;
 const sidePanel = { id: EXTENSION_ID, url: `chrome-extension://${EXTENSION_ID}/sidepanel.html` } as unknown as chrome.runtime.MessageSender;
 const fullPageInTab = {
   id: EXTENSION_ID,

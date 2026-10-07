@@ -80,6 +80,9 @@ function render(): void {
         compact: true,
         onTrust: (scope) => void trust(scope),
         onClose: () => {
+          // Close the session too (as the full page does), or panel inspections would
+          // accumulate toward the session limit for the whole TTL.
+          void send({ type: "package.close", sessionId: open.session.id }).catch(() => undefined);
           state.open = null;
           render();
         },

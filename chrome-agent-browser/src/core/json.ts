@@ -14,6 +14,7 @@
  * as UTF-8 later), and nesting deeper than `MAX_DEPTH` is refused instead of relying on a
  * recursion limit.
  */
+import { pyRepr } from "./repr.js";
 import { ValidationError } from "./errors.js";
 
 export type JsonValue = null | boolean | number | string | JsonValue[] | JsonObject;
@@ -125,7 +126,7 @@ class Parser {
       this.skipWhitespace();
       const value = this.value(depth + 1);
       if (Object.prototype.hasOwnProperty.call(result, key)) {
-        throw new ValidationError(`${this.name}: duplicate JSON key ${JSON.stringify(key)}`);
+        throw new ValidationError(`${this.name}: duplicate JSON key ${pyRepr(key)}`);
       }
       // A plain object; `__proto__` as an own data property, never as a prototype write.
       Object.defineProperty(result, key, { value, enumerable: true, writable: true, configurable: true });

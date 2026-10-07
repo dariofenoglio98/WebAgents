@@ -20,6 +20,8 @@
  */
 import { CoreError } from "./errors.js";
 import { sha256Hex } from "./hash.js";
+import { HTML5_ENTITIES, INVALID_CHARREFS, INVALID_CODEPOINTS } from "./html-entities.js";
+import { pyRepr } from "./repr.js";
 import { canonicalUrl, MAX_URL_CHARS, origin, originText, sameOrigin, validatePackageUrl } from "./policy.js";
 import { urlsplit } from "./urls.js";
 
@@ -114,7 +116,7 @@ export function mediaType(value: string | null | undefined): [string, Record<str
     const equals = part.indexOf("=");
     if (equals < 0) continue;
     const name = asciiLower(stripAsciiWhitespace(part.slice(0, equals)));
-    if (!(name in parameters)) parameters[name] = stripAsciiWhitespace(part.slice(equals + 1)).replace(/^"|"$/gu, "");
+    if (!Object.hasOwn(parameters, name)) parameters[name] = stripAsciiWhitespace(part.slice(equals + 1)).replace(/^"|"$/gu, "");
   }
   return [asciiLower(stripAsciiWhitespace(essence)), parameters];
 }
@@ -136,19 +138,41 @@ type Token =
   | { kind: "data"; text: string }
   | { kind: "other" };
 
-/** Character references in attribute values: the named set the WebAir page and tests need. */
-const NAMED_REFERENCES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };
+/**
+ * CPython's `html.unescape`, which the reference's `HTMLParser` applies to every attribute
+ * value: the full HTML5 named set (with the legacy names that need no semicolon and the
+ * longest-prefix rule), the numeric forms with the standard's remapped and invalid code
+ * points. An attribute such as `href="&sol;&sol;evil.example/x.pkg"` therefore resolves to
+ * the same cross-origin URL in both runtimes and is refused for the same reason.
+ */
+const CHARREF = /&(#[0-9]+;?|#[xX][0-9a-fA-F]+;?|[^\t\n\f <&#;]{1,32};?)/gu;
 
-function unescapeAttribute(value: string): string {
-  return value.replace(/&(#[0-9]+|#[xX][0-9a-fA-F]+|[A-Za-z0-9]+);?/gu, (whole, body: string) => {
-    if (body[0] === "#") {
-      const hex = body[1] === "x" || body[1] === "X";
-      const code = Number.parseInt(body.slice(hex ? 2 : 1), hex ? 16 : 10);
-      if (!Number.isFinite(code) || code > 0x10ffff || (code >= 0xd800 && code <= 0xdfff)) return "�";
-      return code === 0 ? "�" : String.fromCodePoint(code);
-    }
-    return NAMED_REFERENCES[body] ?? whole;
-  });
+function replaceCharref(whole: string, body: string): string {
+  if (body[0] === "#") {
+    const hex = body[1] === "x" || body[1] === "X";
+    const digits = body.slice(hex ? 2 : 1).replace(/;$/u, "");
+    const code = Number.parseInt(digits, hex ? 16 : 10);
+    const remapped = INVALID_CHARREFS.get(code);
+    if (remapped !== undefined) return remapped;
+    if ((code >= 0xd800 && code <= 0xdfff) || code > 0x10ffff || !Number.isFinite(code)) return "\ufffd";
+    if (INVALID_CODEPOINTS.has(code)) return "";
+    return String.fromCodePoint(code);
+  }
+  const exact = HTML5_ENTITIES.get(body);
+  if (exact !== undefined) return exact;
+  // The longest matching name, as the standard defines it, over code points.
+  const points = Array.from(body);
+  for (let x = points.length - 1; x > 1; x -= 1) {
+    const value = HTML5_ENTITIES.get(points.slice(0, x).join(""));
+    if (value !== undefined) return value + points.slice(x).join("");
+  }
+  return whole;
+}
+
+/** `html.unescape`. */
+export function unescapeAttribute(value: string): string {
+  if (!value.includes("&")) return value;
+  return value.replace(CHARREF, (whole, body: string) => replaceCharref(whole, body));
 }
 
 /**
@@ -350,7 +374,7 @@ export function chooseDecoding(body: Uint8Array, httpCharset: string | null): [c
   if (REFUSED_LABELS.has(declared)) {
     throw reject(
       "discovery_encoding_unsupported",
-      `The page declares the ${JSON.stringify(declared)} character encoding, which discovery does not read`,
+      `The page declares the ${pyRepr(declared)} character encoding, which discovery does not read`,
     );
   }
   // Per the HTML standard a <meta> cannot switch a page to UTF-16.
@@ -526,7 +550,7 @@ export function classifyCandidate(index: number, link: HeadLink, pageUrl: string
   const parts = urlsplit(resolved);
   candidate.resolved_url = printable(resolved, MAX_URL_CHARS);
   if (parts.scheme !== "http" && parts.scheme !== "https") {
-    return rejected(candidate, "unsupported_scheme", `Only https:// candidates are accepted; this link uses ${JSON.stringify(parts.scheme || "no")}.`);
+    return rejected(candidate, "unsupported_scheme", `Only https:// candidates are accepted; this link uses ${pyRepr(parts.scheme || "no")}.`);
   }
   if (parts.username !== null || parts.password !== null || parts.netloc.includes("@")) {
     return rejected(candidate, "credentials_not_allowed", "The URL embeds credentials, which are refused.");
@@ -557,7 +581,7 @@ export function classifyCandidate(index: number, link: HeadLink, pageUrl: string
     return rejected(candidate, "url_rejected", (error as Error).message);
   }
   if (typeHint && mediaType(typeHint)[0] !== PACKAGE_MEDIA_TYPE) {
-    return rejected(candidate, "unsupported_type", `The link declares type ${JSON.stringify(printable(typeHint, 128))}, not ${PACKAGE_MEDIA_TYPE}.`);
+    return rejected(candidate, "unsupported_type", `The link declares type ${pyRepr(printable(typeHint, 128))}, not ${PACKAGE_MEDIA_TYPE}.`);
   }
   return candidate;
 }
@@ -578,8 +602,9 @@ export function discoveryProfile(limits: DiscoveryLimits = DEFAULT_LIMITS): Reco
     convention: "experimental WebAgents metadata; not a registered link relation or a web standard",
     scope: "document head",
     same_origin_required: true,
-    redirects: "same origin only",
-    max_redirects: limits.maxRedirects,
+    // The reference follows same-origin hops; this runtime follows none (D-033 as amended, B-104).
+    redirects: "not followed; open the final address yourself",
+    max_redirects: 0,
     max_html_bytes: limits.maxHtmlBytes,
     max_links: limits.maxLinks,
     timeout_seconds: limits.timeoutSeconds,
@@ -637,7 +662,7 @@ export interface DiscoveryResult {
 export async function discoverFromPage(page: FetchedPage, limits: DiscoveryLimits = DEFAULT_LIMITS, now: Date = new Date()): Promise<DiscoveryResult> {
   const [essence] = mediaType(page.content_type);
   if (!HTML_MEDIA_TYPES.has(essence)) {
-    throw reject("discovery_not_html", `The website did not answer with an HTML page (Content-Type ${JSON.stringify(printable(essence, 128) || "absent")})`, {
+    throw reject("discovery_not_html", `The website did not answer with an HTML page (Content-Type ${pyRepr(printable(essence, 128) || "absent")})`, {
       details: { content_type: printable(essence, 128) || null },
     });
   }

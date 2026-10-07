@@ -286,7 +286,7 @@ export function agentPageModel(
 /** A declared-only extension value for the technical view, never interpreted. */
 export function extensionValue(pkg: Package, key: string): JsonValue | null {
   const extensions = isJsonObject(pkg.manifest.extensions) ? pkg.manifest.extensions : {};
-  return key in extensions ? extensions[key]! : null;
+  return Object.hasOwn(extensions, key) ? extensions[key]! : null;
 }
 
 export { packageJson };

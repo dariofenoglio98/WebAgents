@@ -8,7 +8,7 @@ import { validateInstance } from "../../src/core/schema.js";
 import { checkDomain, validatePayload } from "../../src/core/validation.js";
 import { readBytes, SHIPPED } from "../helpers/paths.js";
 import { addTool, makeSource, mutate, writeJson, writeText } from "../helpers/source.js";
-import { archiveBytes } from "../helpers/zip.js";
+import { archiveBytes, listMembers } from "../helpers/zip.js";
 
 async function load(source: Map<string, Uint8Array>) {
   return loadPackageBytes(await archiveBytes(source));
@@ -222,5 +222,69 @@ describe("the generic format tests (test_format.py) on an unrelated offline pack
     expect(payload.graph.coordinator).toBe("Coordinator");
     expect(payload.policy.spec_version).toBe("0.1");
     expect(payload.tools).toEqual({});
+  });
+});
+
+describe("package data named after Object.prototype members (review 1, finding 5)", () => {
+  const encoder = new TextEncoder();
+  const decoder = new TextDecoder();
+
+  /** The shipped Meeting Agenda payload, unsigned, with its workflow graph edited. */
+  async function agendaWith(edit: (graph: JsonObject) => void): Promise<Uint8Array> {
+    const members = listMembers(readBytes(SHIPPED.meetingAgenda.archive));
+    members.delete("integrity.json");
+    members.delete("signatures/publisher.json");
+    const graph = JSON.parse(decoder.decode(members.get("graph.json")!)) as JsonObject;
+    edit(graph);
+    members.set("graph.json", encoder.encode(JSON.stringify(graph)));
+    return archiveBytes(members);
+  }
+
+  const node = (graph: JsonObject, id: string): JsonObject => (graph.nodes as JsonObject[]).find((item) => item.id === id)!;
+
+  const cases: Array<[string, (graph: JsonObject) => void, RegExp]> = [
+    ["a step reference to /constructor", (graph) => (node(graph, "perspectives").yield = { from: "steps", path: "/constructor" }), /unknown or forward step reference/u],
+    [
+      "a tool named constructor",
+      (graph) => {
+        const plan = node(graph, "plan");
+        delete plan.task;
+        delete plan.max_output_tokens;
+        Object.assign(plan, { type: "tool", tool: "constructor" });
+      },
+      /unknown tool 'constructor'/u,
+    ],
+    [
+      "a state path through toString where the schema forbids extra properties (the reference's wording)",
+      (graph) => (node(graph, "plan").input = { from: "state", path: "/request/toString" }),
+      /state\/data path component 'toString' not declared/u,
+    ],
+  ];
+  for (const [label, edit, pattern] of cases) {
+    it(`refuses ${label} as a validation error, never an internal one`, async () => {
+      const bytes = await agendaWith(edit);
+      await expect(loadPackageBytes(bytes)).rejects.toThrow(ValidationError);
+      await expect(loadPackageBytes(bytes)).rejects.toThrow(pattern);
+      const evaluation = await evaluateSnapshot(bytes);
+      expect(evaluation.schema_status).toBe("invalid");
+      expect(evaluation.errors.map((error) => error.layer)).toEqual(["schema"]);
+      expect(evaluation.errors[0]?.message).toMatch(pattern);
+    });
+  }
+
+  it("a state path through a property the schema leaves open is accepted, as the reference accepts it", async () => {
+    // `schemas/plan.schema.json` is referenced through an anyOf; the request schema is closed.
+    // An open object schema accepts any component, `toString` included: give the graph one.
+    const members = listMembers(readBytes(SHIPPED.meetingAgenda.archive));
+    members.delete("integrity.json");
+    members.delete("signatures/publisher.json");
+    const input = JSON.parse(decoder.decode(members.get("schemas/input.schema.json")!)) as JsonObject;
+    delete input.additionalProperties;
+    members.set("schemas/input.schema.json", encoder.encode(JSON.stringify(input)));
+    const graph = JSON.parse(decoder.decode(members.get("graph.json")!)) as JsonObject;
+    node(graph, "plan").input = { from: "state", path: "/request/toString" };
+    members.set("graph.json", encoder.encode(JSON.stringify(graph)));
+    const pkg = await loadPackageBytes(await archiveBytes(members));
+    expect(pkg.manifest.package_id).toBe(SHIPPED.meetingAgenda.packageId);
   });
 });

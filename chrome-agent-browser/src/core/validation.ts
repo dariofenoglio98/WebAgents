@@ -11,6 +11,7 @@
 import { ValidationError } from "./errors.js";
 import { isJsonObject, parseJson, type JsonObject, type JsonValue } from "./json.js";
 import { schemaReference, unique } from "./references.js";
+import { pyRepr } from "./repr.js";
 import { checkSchema, validateDocument } from "./schema.js";
 import { urlsplit } from "./urls.js";
 import { compareRelease, SUPPORTED_RUNTIME_VERSION } from "./version.js";
@@ -27,7 +28,7 @@ const LABEL = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/u;
 
 /** `validation.py::_domain`: an exact, lowercase, public DNS name. */
 export function checkDomain(value: unknown): void {
-  const shown = JSON.stringify(value);
+  const shown = pyRepr(value);
   if (typeof value !== "string" || value.length > 253 || value !== value.toLowerCase() || !value.includes(".")) {
     throw new ValidationError(`invalid explicit network domain ${shown}`);
   }
@@ -72,7 +73,7 @@ export function walkSchema(value: JsonValue, path: string, documents: Map<string
     if ("$ref" in value) {
       const [target, fragment] = schemaReference(path, String(value.$ref));
       if (!documents.has(target)) {
-        throw new ValidationError(`${path}: missing or undeclared schema reference ${JSON.stringify(target)}`);
+        throw new ValidationError(`${path}: missing or undeclared schema reference ${pyRepr(target)}`);
       }
       let current: JsonValue = documents.get(target)!;
       if (fragment) {
@@ -157,7 +158,7 @@ export async function validatePayload(files: ReadonlyMap<string, Uint8Array>): P
   for (const [toolId, declaration] of declarations) {
     const tool = await object(String(declaration.path), "tool");
     if (tool.id !== toolId) {
-      throw new ValidationError(`tool id mismatch: manifest ${JSON.stringify(toolId)} vs document ${JSON.stringify(tool.id)}`);
+      throw new ValidationError(`tool id mismatch: manifest ${pyRepr(toolId)} vs document ${pyRepr(tool.id)}`);
     }
     for (const field of ["input_schema", "output_schema"] as const) {
       if (!schemaPaths.has(String(tool[field]))) {
@@ -166,7 +167,7 @@ export async function validatePayload(files: ReadonlyMap<string, Uint8Array>): P
     }
     for (const permissionId of tool.permissions as JsonValue[]) {
       if (!permissions.has(String(permissionId))) {
-        throw new ValidationError(`tool ${toolId}: unknown permission ${JSON.stringify(permissionId)}`);
+        throw new ValidationError(`tool ${toolId}: unknown permission ${pyRepr(permissionId)}`);
       }
     }
     const toolDomains = (tool.domains as JsonValue[]).map(String);
@@ -250,7 +251,7 @@ export async function validatePayload(files: ReadonlyMap<string, Uint8Array>): P
     ] as const) {
       const unknown = (worker[field] as JsonValue[]).map(String).filter((id) => !declared.has(id)).sort();
       if (unknown.length > 0) {
-        throw new ValidationError(`worker ${role}: unknown ${field}: ${JSON.stringify(unknown)}`);
+        throw new ValidationError(`worker ${role}: unknown ${field}: ${pyRepr(unknown)}`);
       }
     }
     const workerBudget = worker.budget as JsonObject;

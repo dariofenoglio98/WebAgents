@@ -19,6 +19,7 @@ import { publicKeyFromPem } from "../../core/keys.js";
 import type { Package } from "../../core/package.js";
 import { documentUrl, origin, originText, sameOrigin, validatePackageUrl } from "../../core/policy.js";
 import { buildSummary, type BrowserSummary } from "../../core/summary.js";
+import { pyRepr } from "../../core/repr.js";
 import { pinPackagePublisher, type TrustStore } from "../../core/trust.js";
 import { CORE_VERSION, SUPPORTED_RUNTIME_VERSION } from "../../core/version.js";
 import {
@@ -88,6 +89,10 @@ export interface Sender {
   tabId: number | null;
   /** The tab's URL as Chrome reports it, never as the page says. */
   tabUrl: string | null;
+  /** The URL of the frame the message came from, as Chrome reports it. */
+  frameUrl: string | null;
+  /** Whether that frame is the tab's top frame. */
+  topFrame: boolean;
 }
 
 const EXECUTION_NOTE = "Opening and inspecting a package never executes it.";
@@ -142,18 +147,27 @@ export class Controller {
   }
 
   // -- content scripts --------------------------------------------------------------
-  /** The links a tab's content script saw, judged against the tab's URL as Chrome reports it. */
+  /**
+   * The links a tab's content script saw, judged against the URL of the document they were
+   * read from, as Chrome reports it for the sending frame. The frame URL, not the tab URL,
+   * is the page the links belong to: a report that arrives after the tab has moved on
+   * names the old document, so when the two disagree in origin it is dropped rather than
+   * attributed to the new page.
+   */
   async contentLinks(message: ContentMessage, sender: Sender): Promise<void> {
-    if (sender.tabId === null || !sender.tabUrl) throw reject("not_allowed", "content.links is accepted from a tab only", 403);
-    const where = origin(sender.tabUrl);
+    if (sender.tabId === null || !sender.frameUrl || !sender.topFrame) {
+      throw reject("not_allowed", "content.links is accepted from a tab's top frame only", 403);
+    }
+    const where = origin(sender.frameUrl);
     if (!where || where[0] !== "https") {
       await this.clearTab(sender.tabId);
       return;
     }
-    const judged = classifyLinks(message.links, sender.tabUrl);
+    if (sender.tabUrl !== null && !sameOrigin(origin(sender.tabUrl), where)) return; // stale: the tab navigated
+    const judged = classifyLinks(message.links, sender.frameUrl);
     const state: CandidateState = {
       tabId: sender.tabId,
-      pageUrl: sender.tabUrl,
+      pageUrl: sender.frameUrl,
       pageOrigin: originText(where),
       status: judged.status,
       candidates: judged.candidates,
@@ -181,7 +195,7 @@ export class Controller {
     try {
       response = await this.deps.fetch(requested, {
         method: "GET",
-        redirect: "follow",
+        redirect: "manual",
         credentials: "omit",
         cache: "no-store",
         referrerPolicy: "no-referrer",
@@ -194,13 +208,23 @@ export class Controller {
       throw reject("discovery_failed", `Reading the website failed: ${error instanceof Error ? error.name : "error"}`, 502);
     }
     try {
-      // The browser followed any redirect; the final URL must still be on the requested origin.
+      // No redirect is followed (D-033 as amended): the reference re-validates and re-resolves
+      // every hop, and an extension cannot see a hop before Chrome requests it, so a hop to a
+      // loopback or private address would be fetched blind. The person opens the final address.
+      if (response.type === "opaqueredirect" || (response.status >= 300 && response.status < 400)) {
+        throw reject(
+          "discovery_redirect_refused",
+          `The website answered with a redirect. This browser does not follow redirects while reading a website, because it cannot check each hop against the address policy before Chrome requests it; open the address the website redirects to yourself.`,
+          502,
+          { reason: "redirect_not_followed" },
+        );
+      }
       const finalUrl = response.url || requested;
       const finalOrigin = origin(finalUrl);
       if (!sameOrigin(finalOrigin, requestedOrigin)) {
         throw reject(
           "discovery_redirect_refused",
-          `The website redirected to ${finalOrigin ? originText(finalOrigin) : "a non-web location"}, a different origin from ${originText(requestedOrigin)}. Discovery follows redirects only within one origin; open that address yourself to inspect it.`,
+          `The website's answer came from ${finalOrigin ? originText(finalOrigin) : "a non-web location"}, not from ${originText(requestedOrigin)}.`,
           502,
           { reason: "cross_origin", location: finalOrigin ? finalUrl : null },
         );
@@ -211,7 +235,7 @@ export class Controller {
       const contentType = response.headers.get("content-type") ?? "";
       const [essence, parameters] = mediaType(contentType);
       if (essence !== "text/html" && essence !== "application/xhtml+xml") {
-        throw reject("discovery_not_html", `The website did not answer with an HTML page (Content-Type ${JSON.stringify(essence || "absent")})`, 502, {
+        throw reject("discovery_not_html", `The website did not answer with an HTML page (Content-Type ${pyRepr(essence || "absent")})`, 502, {
           content_type: essence || null,
         });
       }
@@ -363,13 +387,20 @@ export class Controller {
       source,
     };
     await this.deps.snapshots.putSnapshot({ archive_sha256: archiveSha256, bytes, stored_at: stored.created_at });
-    // The snapshot is authoritative from here on; confirm it is byte-identical.
-    const written = await this.deps.snapshots.getSnapshot(archiveSha256);
-    if (!written || (await sha256Hex(written.bytes)) !== archiveSha256) {
-      throw reject("snapshot_unstable", "Snapshot bytes changed while being stored", 500);
+    let live: LiveSession;
+    try {
+      // The snapshot is authoritative from here on; confirm it is byte-identical.
+      const written = await this.deps.snapshots.getSnapshot(archiveSha256);
+      if (!written || (await sha256Hex(written.bytes)) !== archiveSha256) {
+        throw reject("snapshot_unstable", "Snapshot bytes changed while being stored", 500);
+      }
+      live = await this.evaluate(stored, evaluation.package, layers);
+      await this.deps.snapshots.putSession(stored);
+    } catch (error) {
+      // A snapshot no session refers to must not stay in the cache and count against its cap.
+      await this.dropOrphanSnapshot(archiveSha256);
+      throw error;
     }
-    const live = await this.evaluate(stored, evaluation.package, layers);
-    await this.deps.snapshots.putSession(stored);
     this.sessions.set(stored.session_id, live);
     this.deps.broadcast({ type: "event.sessions" });
     return this.view(live);
@@ -422,10 +453,15 @@ export class Controller {
   }
 
   // -- sessions -----------------------------------------------------------------------
-  /** Rebuild live sessions from stored bytes after a service-worker restart. */
+  /**
+   * Rebuild live sessions from stored bytes after a service-worker restart. One attempt is
+   * shared by concurrent requests; a failed attempt (a storage error, say) is not memoized,
+   * so the next request tries again instead of failing for the rest of the worker's life. A
+   * stored session whose bytes cannot be evaluated is dropped, and the others still load.
+   */
   private restore(): Promise<void> {
     if (this.restored) return this.restored;
-    this.restored = (async () => {
+    const attempt = (async () => {
       for (const stored of await this.deps.snapshots.listSessions()) {
         if (this.sessions.has(stored.session_id)) continue;
         if (new Date(stored.expires_at).getTime() <= this.clock().getTime()) {
@@ -437,15 +473,32 @@ export class Controller {
           await this.deps.snapshots.deleteSession(stored.session_id);
           continue;
         }
-        const evaluation = await evaluateSnapshot(snapshot.bytes);
-        if (evaluation.package === null || (await sha256Hex(snapshot.bytes)) !== stored.archive_sha256) {
+        let live: LiveSession | null = null;
+        try {
+          const evaluation = await evaluateSnapshot(snapshot.bytes);
+          if (evaluation.package !== null && (await sha256Hex(snapshot.bytes)) === stored.archive_sha256) {
+            live = await this.evaluate(stored, evaluation.package, evaluationLayers(evaluation));
+          }
+        } catch {
+          live = null;
+        }
+        if (live === null) {
           await this.drop(stored);
           continue;
         }
-        this.sessions.set(stored.session_id, await this.evaluate(stored, evaluation.package, evaluationLayers(evaluation)));
+        this.sessions.set(stored.session_id, live);
       }
     })();
+    this.restored = attempt.catch((error: unknown) => {
+      this.restored = null;
+      throw error;
+    });
     return this.restored;
+  }
+
+  private async dropOrphanSnapshot(archiveSha256: string): Promise<void> {
+    const referenced = (await this.deps.snapshots.listSessions()).some((session) => session.archive_sha256 === archiveSha256);
+    if (!referenced) await this.deps.snapshots.deleteSnapshot(archiveSha256);
   }
 
   private async session(sessionId: string): Promise<LiveSession> {

@@ -5,6 +5,7 @@
  */
 import { ValidationError } from "./errors.js";
 import type { JsonObject, JsonValue } from "./json.js";
+import { pyRepr } from "./repr.js";
 import { unquote, urlsplit } from "./urls.js";
 
 export function unique(items: readonly JsonValue[], label: string): Map<string, JsonObject> {
@@ -12,7 +13,7 @@ export function unique(items: readonly JsonValue[], label: string): Map<string, 
   for (const item of items) {
     const record = item as JsonObject;
     const key = String(record.id);
-    if (result.has(key)) throw new ValidationError(`${label}: duplicate id ${JSON.stringify(key)}`);
+    if (result.has(key)) throw new ValidationError(`${label}: duplicate id ${pyRepr(key)}`);
     result.set(key, record);
   }
   return result;
@@ -31,14 +32,14 @@ export function schemaReference(base: string, ref: string): [string, string] {
   try {
     parsed = urlsplit(ref);
   } catch {
-    throw new ValidationError(`${base}: only offline package-relative JSON Schema references allowed: ${JSON.stringify(ref)}`);
+    throw new ValidationError(`${base}: only offline package-relative JSON Schema references allowed: ${pyRepr(ref)}`);
   }
   if (parsed.scheme || parsed.netloc || parsed.query || parsed.path.startsWith("/") || ref.includes("\\")) {
-    throw new ValidationError(`${base}: only offline package-relative JSON Schema references allowed: ${JSON.stringify(ref)}`);
+    throw new ValidationError(`${base}: only offline package-relative JSON Schema references allowed: ${pyRepr(ref)}`);
   }
   const decoded = unquote(parsed.path);
   if (decoded.split("/").some((part) => part === "..")) {
-    throw new ValidationError(`${base}: schema reference traversal is forbidden: ${JSON.stringify(ref)}`);
+    throw new ValidationError(`${base}: schema reference traversal is forbidden: ${pyRepr(ref)}`);
   }
   const target = decoded ? joinRelative(base, decoded) : base;
   return [target, unquote(parsed.fragment)];

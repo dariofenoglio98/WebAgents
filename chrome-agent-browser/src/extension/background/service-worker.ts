@@ -54,6 +54,8 @@ function senderOf(sender: chrome.runtime.MessageSender): Sender {
     extensionPage: fromExtensionPage,
     tabId: sender.tab?.id ?? null,
     tabUrl: sender.tab?.url ?? null,
+    frameUrl: typeof sender.url === "string" ? sender.url : null,
+    topFrame: sender.frameId === 0,
   };
 }
 

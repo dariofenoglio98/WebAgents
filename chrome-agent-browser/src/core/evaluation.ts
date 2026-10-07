@@ -7,6 +7,7 @@
  * without any layer implying another. Nothing downstream of a failed layer is evaluated,
  * because values read out of an unverified payload would not mean anything.
  */
+import { pyRepr } from "./repr.js";
 import { readArchiveBytes } from "./archive.js";
 import { IntegrityError, ValidationError } from "./errors.js";
 import { packageDigest, type Package } from "./package.js";
@@ -110,7 +111,7 @@ export async function evaluateSnapshot(bytes: Uint8Array): Promise<Evaluation> {
   if (!compatible) {
     report.errors.push({
       layer: "runtime",
-      message: `Execution profile ${JSON.stringify(profile)} is not installed in this host; the package remains inspectable but cannot be authorized for execution`,
+      message: `Execution profile ${pyRepr(profile)} is not installed in this host; the package remains inspectable but cannot be authorized for execution`,
     });
   }
   return report;

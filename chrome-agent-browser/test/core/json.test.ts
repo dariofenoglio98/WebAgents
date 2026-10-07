@@ -15,7 +15,7 @@ describe("strict JSON parsing (validation.py::parse_json and the rfc8785 domain 
   });
 
   it("refuses duplicate keys, as the reference does", () => {
-    expect(() => parseJson('{"a":1,"a":2}', "extra.json")).toThrow(/extra\.json: duplicate JSON key "a"/u);
+    expect(() => parseJson('{"a":1,"a":2}', "extra.json")).toThrow(/extra\.json: duplicate JSON key 'a'/u);
     expect(() => parseJson('{"x":{"a":1,"b":2,"a":3}}', "n")).toThrow(/duplicate JSON key/u);
   });
 

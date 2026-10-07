@@ -90,19 +90,19 @@ function shape(raw: JsonValue): Profile[] {
     if (!isJsonObject(entry)) fail(`${where}: must be an object`);
     for (const key of Object.keys(entry)) if (!PROFILE_FIELDS.has(key)) fail(`${where}: unknown field ${JSON.stringify(key)}`);
     for (const key of ["id", "title", "description", "permissions", "tools", "resources"]) {
-      if (!(key in entry)) fail(`${where}: ${key} is required`);
+      if (!Object.hasOwn(entry, key)) fail(`${where}: ${key} is required`);
     }
     const id = typeof entry.id === "string" && IDENTIFIER.test(entry.id) ? entry.id : fail(`${where}: id must be an identifier`);
     let estimate: ProfileEstimate | null = null;
-    if ("estimate" in entry) {
+    if (Object.hasOwn(entry, "estimate")) {
       const value = entry.estimate;
       if (!isJsonObject(value) || Object.keys(value).length === 0) fail(`${where}: estimate must be an object with at least one field`);
       for (const key of Object.keys(value)) if (!ESTIMATE_FIELDS.has(key)) fail(`${where}: estimate has unknown field ${JSON.stringify(key)}`);
       estimate = {};
-      if ("model_calls" in value) estimate.model_calls = count(value.model_calls, "model_calls", where, 100000);
-      if ("tool_calls" in value) estimate.tool_calls = count(value.tool_calls, "tool_calls", where, 100000);
-      if ("tokens" in value) estimate.tokens = count(value.tokens, "tokens", where, 1000000000);
-      if ("notes" in value) estimate.notes = line(value.notes, "estimate.notes", where, MAX_LINE);
+      if (Object.hasOwn(value, "model_calls")) estimate.model_calls = count(value.model_calls, "model_calls", where, 100000);
+      if (Object.hasOwn(value, "tool_calls")) estimate.tool_calls = count(value.tool_calls, "tool_calls", where, 100000);
+      if (Object.hasOwn(value, "tokens")) estimate.tokens = count(value.tokens, "tokens", where, 1000000000);
+      if (Object.hasOwn(value, "notes")) estimate.notes = line(value.notes, "estimate.notes", where, MAX_LINE);
     }
     return {
       id,
@@ -138,7 +138,8 @@ function consistency(profiles: Profile[], pkg: { manifest: JsonObject; policy: J
     seen.add(profile.id);
     // 1. Declared only.
     for (const id of profile.permissions) if (!permissions.has(id)) fail(`${where}: undeclared permission ${JSON.stringify(id)}`);
-    for (const id of profile.tools) if (!(id in pkg.tools)) fail(`${where}: undeclared tool ${JSON.stringify(id)}`);
+    // Own properties only: a profile naming `toString` or `constructor` is an undeclared tool.
+    for (const id of profile.tools) if (!Object.hasOwn(pkg.tools, id)) fail(`${where}: undeclared tool ${JSON.stringify(id)}`);
     for (const type of profile.resources) if (!resourceTypes.has(type)) fail(`${where}: undeclared resource type ${JSON.stringify(type)}`);
     // 2. Required permissions included.
     for (const id of required) if (!profile.permissions.includes(id)) fail(`${where}: required permission ${JSON.stringify(id)} is missing`);
@@ -159,7 +160,7 @@ function consistency(profiles: Profile[], pkg: { manifest: JsonObject; policy: J
         fail(`${where}: estimate.tokens exceeds hard_tokens`);
       }
       if (profile.estimate.tool_calls !== undefined) {
-        const allowed = profile.tools.reduce((sum, id) => sum + ((perTool[id] as number | undefined) ?? 0), 0);
+        const allowed = profile.tools.reduce((sum, id) => sum + (Object.hasOwn(perTool, id) ? (perTool[id] as number) : 0), 0);
         if (profile.estimate.tool_calls > allowed) fail(`${where}: estimate.tool_calls exceeds the tools' call budgets`);
       }
     }
@@ -176,7 +177,7 @@ function consistency(profiles: Profile[], pkg: { manifest: JsonObject; policy: J
 /** Validate and return the package's profiles, or null with notes when the value is unusable. */
 export function readProfiles(pkg: { manifest: JsonObject; policy: JsonObject; tools: Readonly<Record<string, JsonObject>> }): ProfilesReport {
   const extensions = isJsonObject(pkg.manifest.extensions) ? pkg.manifest.extensions : {};
-  if (!(PROFILES_EXTENSION_KEY in extensions)) return { declared: false, profiles: null, notes: [] };
+  if (!Object.hasOwn(extensions, PROFILES_EXTENSION_KEY)) return { declared: false, profiles: null, notes: [] };
   try {
     const profiles = shape(extensions[PROFILES_EXTENSION_KEY]!);
     consistency(profiles, pkg);

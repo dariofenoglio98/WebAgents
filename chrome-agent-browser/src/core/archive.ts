@@ -21,6 +21,7 @@ import { crc32 } from "./crc32.js";
 import { IntegrityError, ValidationError } from "./errors.js";
 import { bytesEqual, sha256Hex } from "./hash.js";
 import { decodeUtf8, isJsonObject, parseJson, type JsonObject } from "./json.js";
+import { pyBytesRepr, pyRepr } from "./repr.js";
 import { validateDocument } from "./schema.js";
 
 export const MAX_FILES = 256;
@@ -49,6 +50,14 @@ const CREDENTIAL_CONTENT = /-----BEGIN (?:[A-Z ]+ )?PRIVATE KEY-----|\b(?:sk-pro
 const LOCAL_HEADER = 0x04034b50;
 const CENTRAL_HEADER = 0x02014b50;
 const END_OF_CENTRAL_DIRECTORY = 0x06054b50;
+const ZIP64_LOCATOR = 0x07064b50;
+const ZIP64_END_OF_CENTRAL_DIRECTORY = 0x06064b50;
+/** General-purpose flag bits: 3 (data descriptor), 0 (encryption), 5 and 6 are refused by name; 11 (UTF-8 names) is the only accepted bit. */
+const FLAG_ENCRYPTED = 0x1;
+const FLAG_DATA_DESCRIPTOR = 0x8;
+const FLAG_COMPRESSED_PATCH = 0x20;
+const FLAG_STRONG_ENCRYPTION = 0x40;
+const FLAG_UTF8_NAMES = 0x800;
 const S_IFMT = 0o170000;
 const S_IFREG = 0o100000;
 
@@ -71,14 +80,14 @@ function suffix(name: string): string {
 /** `package.py::_safe_name`. */
 export function safeName(name: string): void {
   if (name.length > 240 || !PORTABLE_PATH.test(name)) {
-    throw new ValidationError(`unsafe/nonportable package path: ${JSON.stringify(name)}`);
+    throw new ValidationError(`unsafe/nonportable package path: ${pyRepr(name)}`);
   }
   for (const part of name.split("/")) {
     if (part.endsWith(".") || WINDOWS_RESERVED.has(part.split(".")[0]!.toUpperCase())) {
-      throw new ValidationError(`nonportable reserved path component: ${JSON.stringify(part)}`);
+      throw new ValidationError(`nonportable reserved path component: ${pyRepr(part)}`);
     }
     if (FORBIDDEN_COMPONENTS.has(part.toLowerCase())) {
-      throw new ValidationError(`forbidden package directory/file: ${JSON.stringify(part)}`);
+      throw new ValidationError(`forbidden package directory/file: ${pyRepr(part)}`);
     }
   }
   if (name !== "MANIFEST.agent" && !ALLOWED_SUFFIXES.has(suffix(name))) {
@@ -153,6 +162,8 @@ interface CentralRecord {
   size: number;
   extraLength: number;
   commentLength: number;
+  diskNumberStart: number;
+  internalAttributes: number;
   externalAttributes: number;
   headerOffset: number;
 }
@@ -162,7 +173,7 @@ function invalidZip(reason: string): ValidationError {
 }
 
 function decodeName(bytes: Uint8Array, flags: number): string {
-  if (flags & 0x800) {
+  if (flags & FLAG_UTF8_NAMES) {
     try {
       return new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes);
     } catch {
@@ -208,6 +219,14 @@ export async function readArchiveBytes(raw: Uint8Array): Promise<ArchiveContents
   ) {
     throw new ValidationError("split, extended, or noncanonical ZIP directory unsupported");
   }
+  // `zipfile._EndRecData64`: the 20 bytes before the end record are read as a ZIP64
+  // locator when they carry its signature, and a multi-disk locator is refused there. In
+  // this layout those bytes belong to the last central record, so the same bytes must give
+  // the same verdict; a ZIP64 end record, which the format forbids, is refused outright.
+  if (raw.length >= 42 && u32(end - 20) === ZIP64_LOCATOR) {
+    if (u32(end - 16) !== 0 || u32(end - 4) > 1) throw invalidZip("zipfiles that span multiple disks are not supported");
+    if (raw.length >= 98 && u32(end - 76) === ZIP64_END_OF_CENTRAL_DIRECTORY) throw new ValidationError("ZIP64 archives unsupported");
+  }
 
   // The central directory, as `zipfile.infolist()` would report it.
   const records: CentralRecord[] = [];
@@ -236,6 +255,8 @@ export async function readArchiveBytes(raw: Uint8Array): Promise<ArchiveContents
       size: u32(position + 24),
       extraLength,
       commentLength: entryCommentLength,
+      diskNumberStart: u16(position + 34),
+      internalAttributes: u16(position + 36),
       externalAttributes: u32(position + 38),
       headerOffset: u32(position + 42),
     });
@@ -248,8 +269,13 @@ export async function readArchiveBytes(raw: Uint8Array): Promise<ArchiveContents
   let expectedOffset = 0;
   let total = 0;
   for (const info of [...records].sort((a, b) => a.headerOffset - b.headerOffset)) {
-    if (info.headerOffset !== expectedOffset || info.extraLength || info.commentLength || info.flags & 8) {
+    if (info.headerOffset !== expectedOffset || info.extraLength || info.commentLength || info.flags & FLAG_DATA_DESCRIPTOR) {
       throw new ValidationError("ZIP gaps, extra fields, entry comments, and data descriptors unsupported");
+    }
+    // The reference ignores these two fields; a canonical builder writes zero to both, and a
+    // nonzero value is where a multi-disk marker could be smuggled in (see `ZIP64_LOCATOR`).
+    if (info.diskNumberStart !== 0 || info.internalAttributes !== 0) {
+      throw new ValidationError("noncanonical ZIP central directory record: disk number or internal attributes set");
     }
     const header = info.headerOffset;
     if (header + 30 > raw.length) throw new ValidationError("truncated ZIP local header");
@@ -274,22 +300,30 @@ export async function readArchiveBytes(raw: Uint8Array): Promise<ArchiveContents
     if ((format !== 0 && format !== S_IFREG) || mode & 0o111) {
       throw new ValidationError(`${name}: symlink, special or executable archive member forbidden`);
     }
-    if (info.flags & 1 || info.method !== 0) {
+    if (info.flags & FLAG_ENCRYPTED || info.method !== 0) {
       throw new ValidationError(`${name}: encrypted/compressed members unsupported; use ZIP_STORED`);
     }
     total += info.size;
     if (info.size > MAX_MEMBER_BYTES || total > MAX_TOTAL_BYTES) {
       throw new ValidationError(`${name}: archive resource limit exceeded`);
     }
-    // What `archive.open(info)` checks before handing the bytes back.
+    // What `archive.open(info)` checks before handing the bytes back, in its order.
+    if (info.flags & FLAG_COMPRESSED_PATCH) throw invalidZip("compressed patched data (flag bit 5)");
+    if (info.flags & FLAG_STRONG_ENCRYPTION) throw invalidZip("strong encryption (flag bit 6)");
+    // The reference reads past any other flag bit; this reader accepts only the UTF-8 name bit.
+    if (info.flags & ~(FLAG_UTF8_NAMES | FLAG_ENCRYPTED | FLAG_DATA_DESCRIPTOR | FLAG_COMPRESSED_PATCH | FLAG_STRONG_ENCRYPTION)) {
+      throw new ValidationError(`${name}: unsupported ZIP general-purpose flag bits 0x${info.flags.toString(16)}`);
+    }
     const localName = raw.slice(header + 30, header + 30 + localNameLength);
-    if (!bytesEqual(localName, info.nameBytes)) throw invalidZip("file name in directory and header differ");
+    if (!bytesEqual(localName, info.nameBytes)) {
+      throw invalidZip(`File name in directory ${pyRepr(info.name)} and header ${pyBytesRepr(localName)} differ.`);
+    }
     const dataStart = header + 30 + localNameLength;
     const dataEnd = dataStart + info.compressedSize;
     if (dataEnd > raw.length) throw invalidZip("truncated member data");
     if (info.compressedSize !== info.size) throw invalidZip("stored member sizes differ");
     const data = raw.slice(dataStart, dataEnd);
-    if (crc32(data) !== info.crc) throw invalidZip(`Bad CRC-32 for file ${name}`);
+    if (crc32(data) !== info.crc) throw invalidZip(`Bad CRC-32 for file ${pyRepr(name)}`);
     files.set(name, data);
   }
   if (expectedOffset !== directoryOffset) throw new ValidationError("archive directory layout is inconsistent");
@@ -316,11 +350,9 @@ export async function readArchiveBytes(raw: Uint8Array): Promise<ArchiveContents
     const declared = isJsonObject(statement) && isJsonObject(statement.files) ? statement.files : {};
     const expectedFiles = expected.files as Record<string, string>;
     const missing = Object.keys(declared).filter((name) => !files.has(name)).sort();
-    const extra = [...files.keys()].filter((name) => !(name in declared)).sort();
-    const changed = [...files.keys()].filter((name) => name in declared && declared[name] !== expectedFiles[name]);
-    throw new IntegrityError(
-      `content integrity mismatch: missing=${JSON.stringify(missing)}, extra=${JSON.stringify(extra)}, changed=${JSON.stringify(changed)}`,
-    );
+    const extra = [...files.keys()].filter((name) => !Object.hasOwn(declared, name)).sort();
+    const changed = [...files.keys()].filter((name) => Object.hasOwn(declared, name) && declared[name] !== expectedFiles[name]);
+    throw new IntegrityError(`content integrity mismatch: missing=${pyRepr(missing)}, extra=${pyRepr(extra)}, changed=${pyRepr(changed)}`);
   }
   return { files, integrity: statement, signature };
 }

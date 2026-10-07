@@ -8,7 +8,10 @@ import { describe, expect, it } from "vitest";
 
 import { CoreError } from "../../src/core/errors.js";
 import { publicKeyToPem } from "../../src/core/keys.js";
+import { MemoryTrustStorage } from "../../src/core/trust.js";
 import type { CandidateState, PinResult, SessionDescriptor, SessionView, StatusInfo, TrustList, WebsiteResult } from "../../src/extension/messages.js";
+import { MemorySnapshotStore, type StoredSession } from "../../src/extension/storage/snapshots.js";
+import { MemoryTabStateStore } from "../../src/extension/storage/tab-state.js";
 import { generateKeyPair } from "../helpers/keys.js";
 import { readBytes, readText, SHIPPED } from "../helpers/paths.js";
 import {
@@ -336,15 +339,30 @@ describe("candidates from content scripts (D-026, D-035)", () => {
     expect(h.fetchLog).toHaveLength(0);
   });
 
-  it("a sender without a tab is refused", async () => {
+  it("a sender without a tab, or not in the tab's top frame, is refused", async () => {
     const h = makeHarness();
     expect((await refused(h.controller.contentLinks({ type: "content.links", links }, PAGE))).code).toBe("not_allowed");
+    expect((await refused(h.controller.contentLinks({ type: "content.links", links }, { ...TAB, topFrame: false }))).code).toBe("not_allowed");
+    expect((await refused(h.controller.contentLinks({ type: "content.links", links }, { ...TAB, frameUrl: null }))).code).toBe("not_allowed");
+    expect(await h.tabs.get(7)).toBeNull();
   });
 
-  it("a non-https tab clears its state", async () => {
+  it("judges links against the frame's own document URL, and drops a report from a page the tab has left (review 1, finding 13)", async () => {
+    const h = makeHarness();
+    await h.controller.contentLinks({ type: "content.links", links: [{ href: "agent.pkg", type: null, title: null }] }, { ...TAB, frameUrl: `${SITE_ORIGIN}/flights/` });
+    const state = (await h.controller.handle({ type: "candidates.get", tabId: 7 }, PAGE)) as CandidateState;
+    expect(state.pageUrl).toBe(`${SITE_ORIGIN}/flights/`);
+    expect(state.candidates[0]?.resolved_url).toBe(`${SITE_ORIGIN}/flights/agent.pkg`);
+    // A late report from the previous page: the tab is on WebAir now, the frame URL says old.example.
+    await h.controller.contentLinks({ type: "content.links", links }, { ...TAB, frameUrl: "https://old.example/", tabUrl: `${SITE_ORIGIN}/` });
+    expect(((await h.controller.handle({ type: "candidates.get", tabId: 7 }, PAGE)) as CandidateState).pageUrl).toBe(`${SITE_ORIGIN}/flights/`);
+    expect(h.badges.filter(([tabId]) => tabId === 7)).toHaveLength(1);
+  });
+
+  it("a non-https page clears its tab's state", async () => {
     const h = makeHarness();
     await h.controller.contentLinks({ type: "content.links", links }, TAB);
-    await h.controller.contentLinks({ type: "content.links", links }, { ...TAB, tabUrl: "http://webair.example/" });
+    await h.controller.contentLinks({ type: "content.links", links }, { ...TAB, frameUrl: "http://webair.example/", tabUrl: "http://webair.example/" });
     expect(await h.controller.handle({ type: "candidates.get", tabId: 7 }, PAGE)).toBeNull();
     expect(h.badges.at(-1)).toEqual([7, 0]);
   });
@@ -367,17 +385,22 @@ describe("website discovery from the address bar (discovery.py)", () => {
     expect(result.trust).toMatchObject({ conveys: "location_only", package_verified: false, publisher_trusted: false, permissions_granted: false });
     expect(result.execution).toMatchObject({ performed: false, package_fetched: false });
     const request = h.fetchLog[0]!;
-    expect(request.init).toMatchObject({ redirect: "follow", credentials: "omit", referrerPolicy: "no-referrer" });
+    expect(request.init).toMatchObject({ redirect: "manual", credentials: "omit", referrerPolicy: "no-referrer" });
     expect(h.fetchLog).toHaveLength(1);
   });
 
-  it("refuses a redirect to another origin", async () => {
+  it("follows no redirect at all, so no hop is ever requested blind (review 1, finding 3; D-033 amended)", async () => {
     const h = makeHarness();
-    h.routes[`${SITE_ORIGIN}/moved`] = { redirectTo: "https://elsewhere.example/" };
-    h.routes["https://elsewhere.example/"] = { headers: { "content-type": "text/html" }, body: "<html><head></head></html>" };
+    h.routes[`${SITE_ORIGIN}/moved`] = { redirectTo: "http://127.0.0.1:11434/" };
+    h.routes["http://127.0.0.1:11434/"] = { headers: { "content-type": "text/html" }, body: "<html><head></head></html>" };
     const error = await refused(h.controller.handle({ type: "website.discover", url: `${SITE_ORIGIN}/moved` }, PAGE));
     expect(error.code).toBe("discovery_redirect_refused");
-    expect(error.details).toMatchObject({ reason: "cross_origin" });
+    expect(error.details).toMatchObject({ reason: "redirect_not_followed" });
+    expect(error.message).toMatch(/open the address the website redirects to yourself/u);
+    expect(h.fetchLog.map((entry) => entry.url)).toEqual([`${SITE_ORIGIN}/moved`]);
+    // The same for a same-origin hop: the person opens the final address.
+    h.routes[`${SITE_ORIGIN}/old`] = { redirectTo: `${SITE_ORIGIN}/` };
+    expect((await refused(h.controller.handle({ type: "website.discover", url: `${SITE_ORIGIN}/old` }, PAGE))).code).toBe("discovery_redirect_refused");
   });
 
   it("refuses a non-HTML answer, an HTTP error and a deadline", async () => {
@@ -391,7 +414,53 @@ describe("website discovery from the address bar (discovery.py)", () => {
   });
 });
 
+class FlakySnapshots extends MemorySnapshotStore {
+  listFailures = 0;
+  putSessionFailures = 0;
+
+  override async listSessions(): Promise<StoredSession[]> {
+    if (this.listFailures > 0) {
+      this.listFailures -= 1;
+      throw new Error("IndexedDB unavailable");
+    }
+    return super.listSessions();
+  }
+
+  override async putSession(session: StoredSession): Promise<void> {
+    if (this.putSessionFailures > 0) {
+      this.putSessionFailures -= 1;
+      throw new Error("IndexedDB write failed");
+    }
+    return super.putSession(session);
+  }
+}
+
 describe("sessions: limits, expiry, close and restore (D-032)", () => {
+  it("a failed restore is retried on the next request instead of poisoning the worker (review 1, finding 6)", async () => {
+    const snapshots = new FlakySnapshots();
+    snapshots.listFailures = 1;
+    const h = makeHarness({ stores: { snapshots, trustStorage: new MemoryTrustStorage(), tabs: new MemoryTabStateStore() } });
+    await expect(h.controller.handle({ type: "status.get" }, PAGE)).rejects.toThrow(/IndexedDB unavailable/u);
+    const status = (await h.controller.handle({ type: "status.get" }, PAGE)) as StatusInfo;
+    expect(status.sessions).toBe(0);
+    expect((await open(h)).summary.package.digest).toBe(SHIPPED.webair.digest);
+  });
+
+  it("a snapshot stored for a session that could not be created is removed again (review 1, finding 12)", async () => {
+    const snapshots = new FlakySnapshots();
+    snapshots.putSessionFailures = 1;
+    const h = makeHarness({ stores: { snapshots, trustStorage: new MemoryTrustStorage(), tabs: new MemoryTabStateStore() } });
+    await expect(open(h)).rejects.toThrow(/IndexedDB write failed/u);
+    expect(await h.snapshots.listSnapshots()).toEqual([]);
+    expect(await sessions(h)).toEqual([]);
+    // Nothing is lost that another session still needs: the second open shares the snapshot.
+    const first = await open(h);
+    snapshots.putSessionFailures = 1;
+    await expect(open(h, PACKAGE_URL, null)).rejects.toThrow(/IndexedDB write failed/u);
+    expect(await h.snapshots.listSnapshots()).toHaveLength(1);
+    expect((await get(h, first.session.id)).session.id).toBe(first.session.id);
+  });
+
   it("refuses more than the session limit", async () => {
     const h = makeHarness({ limits: { maxSessions: 1 } });
     await open(h);

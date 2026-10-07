@@ -74,6 +74,8 @@ describe("publisher-declared profiles (spec/extensions/profiles-v0.md)", () => {
   const violations: Array<[string, (value: JsonObject) => void, RegExp]> = [
     ["rule 1: undeclared permission", (v) => ((v.profiles as JsonObject[])[0]!.permissions as string[]).push("network.other"), /undeclared permission/u],
     ["rule 1: undeclared tool", (v) => ((v.profiles as JsonObject[])[0]!.tools as string[]).push("teleport"), /undeclared tool/u],
+    ["rule 1: a tool named after an Object.prototype member (review 1, finding 5)", (v) => ((v.profiles as JsonObject[])[0]!.tools as string[]).push("toString"), /undeclared tool "toString"/u],
+    ["rule 1: a permission named constructor", (v) => ((v.profiles as JsonObject[])[0]!.permissions as string[]).push("constructor"), /undeclared permission/u],
     ["rule 1: undeclared resource type", (v) => ((v.profiles as JsonObject[])[2]!.resources as string[]).push("personal.other"), /undeclared resource type/u],
     ["rule 2: required permission missing", (v) => ((v.profiles as JsonObject[])[0]!.permissions = ["model.reasoning", "memory.session"]), /required permission/u],
     ["rule 3: tool without its permission", (v) => ((v.profiles as JsonObject[])[0]!.tools as string[]).push("prepare-booking"), /needs permission/u],

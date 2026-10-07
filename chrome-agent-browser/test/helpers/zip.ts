@@ -33,6 +33,9 @@ export interface EntryOptions {
   localExtra?: Uint8Array;
   dosTime?: number;
   dosDate?: number;
+  /** Central-record fields a canonical builder leaves at zero. */
+  diskNumberStart?: number;
+  internalAttributes?: number;
 }
 
 export interface ArchiveOptions {
@@ -128,8 +131,8 @@ export function writeZip(entries: Entry[] | Map<string, Uint8Array>, options: Ar
         u16(name.length),
         u16(extra.length),
         u16(comment.length),
-        u16(0),
-        u16(0),
+        u16(entry.diskNumberStart ?? 0),
+        u16(entry.internalAttributes ?? 0),
         u32(entry.externalAttributes ?? DEFAULT_EXTERNAL),
         u32(offset),
         name,

@@ -178,9 +178,20 @@ describe("archive attacks are refused (test_archive_attacks_rejected and more)",
     ["data descriptor flag", (e) => [...e, ["extra.txt", hostile, { dataDescriptor: true }]], /data descriptors/u],
     ["local extra field", (e) => [...e, ["extra.txt", hostile, { localExtra: new Uint8Array([0, 0, 0, 0]) }]], /inconsistent ZIP local header/u],
     ["local/central size disagreement", (e) => [...e, ["extra.txt", hostile, { compressedSize: 3, size: 3 }]], /invalid ZIP artifact|inconsistent/u],
-    ["local name differs", (e) => [...e, ["extra.txt", hostile, { localName: "other.txt" }]], /file name in directory and header differ|inconsistent|layout/u],
+    ["local name differs", (e) => [...e, ["extra.txt", hostile, { localName: "other.txt" }]], /File name in directory 'extra\.txt' and header b'other\.txt' differ\.|inconsistent|layout/u],
     ["bad CRC", (e) => [...e, ["extra.txt", hostile, { crc: 0xdeadbeef }]], /Bad CRC-32/u],
     ["missing integrity", (e) => e.filter(([name]) => name !== INTEGRITY_PATH), /missing generated integrity\.json/u],
+    // Review 1, finding 4: layouts the reference refuses that this reader used to accept.
+    ["compressed patched data flag (bit 5)", (e) => [...e, ["extra.txt", hostile, { flags: 0x20 }]], /compressed patched data \(flag bit 5\)/u],
+    ["strong encryption flag (bit 6)", (e) => [...e, ["extra.txt", hostile, { flags: 0x40 }]], /strong encryption \(flag bit 6\)/u],
+    ["another general-purpose flag bit (stricter than the reference; B-103)", (e) => [...e, ["extra.txt", hostile, { flags: 0x2 }]], /unsupported ZIP general-purpose flag bits 0x2/u],
+    ["a disk number start (stricter than the reference; B-103)", (e) => [...e, ["extra.txt", hostile, { diskNumberStart: 1 }]], /noncanonical ZIP central directory record/u],
+    ["internal attributes (stricter than the reference; B-103)", (e) => [...e, ["extra.txt", hostile, { internalAttributes: 1 }]], /noncanonical ZIP central directory record/u],
+    [
+      "a multi-disk ZIP64 locator spelled by the last record's disk and attribute fields (zipfile._EndRecData64)",
+      (e) => [...e, ["zzzz.txt", hostile, { diskNumberStart: 0x4b50, internalAttributes: 0x0706 }]],
+      /zipfiles that span multiple disks are not supported/u,
+    ],
   ];
 
   for (const [label, mutate, pattern] of cases) {
@@ -223,15 +234,15 @@ describe("archive attacks are refused (test_archive_attacks_rejected and more)",
     const tampered = new Map(files);
     tampered.set(skill, text("Tampered instructions"));
     await expect(readArchiveBytes(writeZip([...tampered, ...envelope]))).rejects.toThrow(IntegrityError);
-    await expect(readArchiveBytes(writeZip([...tampered, ...envelope]))).rejects.toThrow(/integrity mismatch.*changed=\["skills/u);
+    await expect(readArchiveBytes(writeZip([...tampered, ...envelope]))).rejects.toThrow(/integrity mismatch.*changed=\['skills/u);
 
     const extra = new Map(files);
     extra.set("extra.txt", text("Unhashed member"));
-    await expect(readArchiveBytes(writeZip([...extra, ...envelope]))).rejects.toThrow(/integrity mismatch.*extra=\["extra\.txt"\]/u);
+    await expect(readArchiveBytes(writeZip([...extra, ...envelope]))).rejects.toThrow(/integrity mismatch.*extra=\['extra\.txt'\]/u);
 
     const missing = new Map(files);
     missing.delete(skill);
-    await expect(readArchiveBytes(writeZip([...missing, ...envelope]))).rejects.toThrow(/integrity mismatch: missing=\["skills/u);
+    await expect(readArchiveBytes(writeZip([...missing, ...envelope]))).rejects.toThrow(/integrity mismatch: missing=\['skills/u);
 
     // A container failure is a ValidationError that is not an IntegrityError.
     const container = writeZip([...files, ...envelope, ["extra.txt", hostile, { method: 8 }]]);

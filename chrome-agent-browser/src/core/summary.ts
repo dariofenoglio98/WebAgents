@@ -68,7 +68,7 @@ function tools(pkg: Package): JsonObject[] {
   return Object.keys(pkg.tools)
     .sort()
     .map((toolId) => {
-      const tool = pkg.tools[toolId]!;
+      const tool = pkg.tools[toolId]!; // own keys only: `Object.keys` above
       const endpoint = tool.endpoint;
       let endpointOrigin: string | null = null;
       if (typeof endpoint === "string" && endpoint) {

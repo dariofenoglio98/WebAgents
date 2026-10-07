@@ -142,12 +142,13 @@ export function makeHarness(
   return { controller: new Controller(deps), snapshots, trustStorage, trust, tabs, badges, events, fetchLog, routes, clock };
 }
 
+const EXTENSION_ORIGIN = "chrome-extension://abcdefghijklmnopabcdefghijklmnop";
 /** The side panel: an extension page outside any tab. */
-export const PAGE: Sender = { extensionPage: true, tabId: null, tabUrl: null };
+export const PAGE: Sender = { extensionPage: true, tabId: null, tabUrl: null, frameUrl: `${EXTENSION_ORIGIN}/sidepanel.html`, topFrame: false };
 /** `browser.html` opened in a tab: still an extension page. */
-export const PAGE_IN_TAB: Sender = { extensionPage: true, tabId: 9, tabUrl: "chrome-extension://abcdefghijklmnopabcdefghijklmnop/browser.html" };
-/** A content script in the WebAir tab, as Chrome reports it. */
-export const TAB: Sender = { extensionPage: false, tabId: 7, tabUrl: `${SITE_ORIGIN}/` };
+export const PAGE_IN_TAB: Sender = { extensionPage: true, tabId: 9, tabUrl: `${EXTENSION_ORIGIN}/browser.html`, frameUrl: `${EXTENSION_ORIGIN}/browser.html`, topFrame: true };
+/** A content script in the WebAir tab's top frame, as Chrome reports it. */
+export const TAB: Sender = { extensionPage: false, tabId: 7, tabUrl: `${SITE_ORIGIN}/`, frameUrl: `${SITE_ORIGIN}/`, topFrame: true };
 
 /** The shipped WebAir bytes with one payload byte changed: the hashes no longer agree. */
 export function tamperedWebair(): Uint8Array {
