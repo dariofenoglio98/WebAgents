@@ -1,0 +1,306 @@
+{
+  "schema": "agentpkg-authorization-request-v0",
+  "session_id": "AOCOYUWoGnxXdacJk1YsCdB7",
+  "package_id": "org.webagents.webair",
+  "package_version": "0.4.0",
+  "package_digest": "0e8317f11e8813e7d5b4b3f352f20148d114329dca3db8c725c5b0558af24fbb",
+  "decision_model": {
+    "supported": [
+      "deny",
+      "once",
+      "session"
+    ],
+    "default": "deny",
+    "unsupported": {
+      "always": "Not offered: this host has no persistent authorization store. The runtime accepts 'always', but that grant lasts only for a single Runtime instance, so presenting it as durable consent would misinform the user. Use 'session'."
+    },
+    "note": "Authority is granted per permission ID and expires with this session."
+  },
+  "permissions": [
+    {
+      "id": "network.webair",
+      "kind": "network",
+      "description": "Call WebAir's semantic API (a fictional demo airline): search flights, read fare rules, request a booking quote and, only with the separate purchase permission, simulate a purchase.",
+      "required": true,
+      "resources": [
+        "webagents-webair-production.up.railway.app"
+      ],
+      "decision": "deny",
+      "linked_tools": [
+        "get-fare-rules",
+        "prepare-booking",
+        "search-flights",
+        "simulate-purchase"
+      ],
+      "linked_domains": [
+        "webagents-webair-production.up.railway.app"
+      ]
+    },
+    {
+      "id": "profile.travel",
+      "kind": "personal.read",
+      "description": "Read the travel profile you choose (home airport, preferred cabin, nonstop preference) when a request leaves those unstated. The profile becomes search criteria sent to WebAir; it is never shown to a model as a profile.",
+      "required": false,
+      "resources": [
+        "personal.travel_profile"
+      ],
+      "decision": "deny",
+      "linked_tools": [
+        "personal.travel_profile"
+      ],
+      "linked_domains": []
+    },
+    {
+      "id": "identity.passenger",
+      "kind": "personal.read",
+      "description": "Read the passenger identity you choose (name and contact email) and send it to WebAir for a booking quote or a simulated purchase, and nowhere else. No model sees it.",
+      "required": false,
+      "resources": [
+        "personal.passenger_identity"
+      ],
+      "decision": "deny",
+      "linked_tools": [
+        "personal.passenger_identity",
+        "prepare-booking",
+        "simulate-purchase"
+      ],
+      "linked_domains": [
+        "webagents-webair-production.up.railway.app"
+      ]
+    },
+    {
+      "id": "wallet.payment",
+      "kind": "personal.read",
+      "description": "Read which payment method you choose (an opaque demo identifier and a display label, never a card number) and send the identifier to WebAir with a simulated purchase, and nowhere else. No model sees it.",
+      "required": false,
+      "resources": [
+        "wallet.payment_method"
+      ],
+      "decision": "deny",
+      "linked_tools": [
+        "simulate-purchase",
+        "wallet.payment_method"
+      ],
+      "linked_domains": [
+        "webagents-webair-production.up.railway.app"
+      ]
+    },
+    {
+      "id": "booking.simulate_purchase",
+      "kind": "payment",
+      "description": "Simulate purchasing the one exact quote a task names, with the payment method you choose. Fictional: WebAir performs no real transaction and charges nothing. Consequential by design: grant it once, for one run.",
+      "required": false,
+      "resources": [
+        "webagents-webair-production.up.railway.app"
+      ],
+      "decision": "deny",
+      "linked_tools": [
+        "simulate-purchase"
+      ],
+      "linked_domains": [
+        "webagents-webair-production.up.railway.app"
+      ]
+    },
+    {
+      "id": "model.reasoning",
+      "kind": "model",
+      "description": "Use the host-selected model router to interpret the request, choose fares and write the answer.",
+      "required": true,
+      "resources": [
+        "host-router"
+      ],
+      "decision": "deny",
+      "linked_tools": [],
+      "linked_domains": []
+    },
+    {
+      "id": "memory.session",
+      "kind": "memory",
+      "description": "Read and write explicit worker state views for this run only.",
+      "required": true,
+      "resources": [
+        "session"
+      ],
+      "decision": "deny",
+      "linked_tools": [],
+      "linked_domains": []
+    }
+  ],
+  "required_permission_ids": [
+    "memory.session",
+    "model.reasoning",
+    "network.webair"
+  ],
+  "optional_permission_ids": [
+    "booking.simulate_purchase",
+    "identity.passenger",
+    "profile.travel",
+    "wallet.payment"
+  ],
+  "tool_approvals": [
+    {
+      "tool_id": "get-fare-rules",
+      "approval_required": false,
+      "side_effects": "read",
+      "execution": "remote",
+      "binding": "webair.get_fare_rules",
+      "domains": [
+        "webagents-webair-production.up.railway.app"
+      ],
+      "permissions": [
+        "network.webair"
+      ],
+      "decision": false
+    },
+    {
+      "tool_id": "personal.passenger_identity",
+      "approval_required": true,
+      "side_effects": "read",
+      "execution": "local",
+      "binding": "host.resource.personal.passenger_identity",
+      "domains": [],
+      "permissions": [
+        "identity.passenger"
+      ],
+      "decision": false
+    },
+    {
+      "tool_id": "personal.travel_profile",
+      "approval_required": true,
+      "side_effects": "read",
+      "execution": "local",
+      "binding": "host.resource.personal.travel_profile",
+      "domains": [],
+      "permissions": [
+        "profile.travel"
+      ],
+      "decision": false
+    },
+    {
+      "tool_id": "prepare-booking",
+      "approval_required": true,
+      "side_effects": "read",
+      "execution": "remote",
+      "binding": "webair.prepare_booking",
+      "domains": [
+        "webagents-webair-production.up.railway.app"
+      ],
+      "permissions": [
+        "network.webair",
+        "identity.passenger"
+      ],
+      "decision": false
+    },
+    {
+      "tool_id": "search-flights",
+      "approval_required": false,
+      "side_effects": "read",
+      "execution": "remote",
+      "binding": "webair.search_flights",
+      "domains": [
+        "webagents-webair-production.up.railway.app"
+      ],
+      "permissions": [
+        "network.webair"
+      ],
+      "decision": false
+    },
+    {
+      "tool_id": "simulate-purchase",
+      "approval_required": true,
+      "side_effects": "write",
+      "execution": "remote",
+      "binding": "webair.simulate_purchase",
+      "domains": [
+        "webagents-webair-production.up.railway.app"
+      ],
+      "permissions": [
+        "network.webair",
+        "booking.simulate_purchase",
+        "identity.passenger",
+        "wallet.payment"
+      ],
+      "decision": false
+    },
+    {
+      "tool_id": "wallet.payment_method",
+      "approval_required": true,
+      "side_effects": "read",
+      "execution": "local",
+      "binding": "host.resource.wallet.payment_method",
+      "domains": [],
+      "permissions": [
+        "wallet.payment"
+      ],
+      "decision": false
+    }
+  ],
+  "tool_approval_note": "Every declared tool needs its own approval. A granted permission describes a class of authority; an approval names one host implementation of one tool.",
+  "network": {
+    "allow_redirects": false,
+    "allowed_domains": [
+      "webagents-webair-production.up.railway.app"
+    ],
+    "https_only": true
+  },
+  "memory": {
+    "raw_documents": false,
+    "retention": "session",
+    "scope": "session",
+    "sharing": "explicit_views",
+    "state_schema": "schemas/state.schema.json"
+  },
+  "budget": {
+    "approval_threshold_tokens": null,
+    "estimated_cost_usd": null,
+    "estimated_tokens": 24000,
+    "hard_tokens": 120000,
+    "max_calls_per_tool": {
+      "get-fare-rules": 6,
+      "personal.passenger_identity": 1,
+      "personal.travel_profile": 1,
+      "prepare-booking": 1,
+      "search-flights": 1,
+      "simulate-purchase": 1,
+      "wallet.payment_method": 1
+    },
+    "max_parallel_workers": 3,
+    "max_remote_calls": 20
+  },
+  "delegation": {
+    "allow_remote": false,
+    "approved_roles": [
+      "Interpreter",
+      "Personal",
+      "Searcher",
+      "Selector",
+      "Booker",
+      "Writer"
+    ],
+    "max_depth": 1
+  },
+  "blocking_reasons": [
+    {
+      "code": "required_permission_denied",
+      "message": "Required permission 'network.webair' is denied.",
+      "subject": "network.webair"
+    },
+    {
+      "code": "required_permission_denied",
+      "message": "Required permission 'model.reasoning' is denied.",
+      "subject": "model.reasoning"
+    },
+    {
+      "code": "required_permission_denied",
+      "message": "Required permission 'memory.session' is denied.",
+      "subject": "memory.session"
+    }
+  ],
+  "browser_policy": {
+    "require_valid_signature": true,
+    "require_trusted_publisher": true,
+    "require_supported_profile": true,
+    "require_confirmed_model_compatibility": true,
+    "require_confirmed_tool_contract": true
+  }
+}

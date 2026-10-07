@@ -45,10 +45,12 @@ interface CoreSubtleCrypto {
   importKey(
     format: "raw",
     keyData: ArrayBuffer | ArrayBufferView,
-    algorithm: { name: string },
+    algorithm: { name: string; hash?: string },
     extractable: boolean,
     keyUsages: readonly string[],
   ): Promise<CoreCryptoKey>;
+  /** HMAC-SHA256 for the vault's resource digests (D-051). */
+  sign(algorithm: { name: string }, key: CoreCryptoKey, data: ArrayBuffer | ArrayBufferView): Promise<ArrayBuffer>;
   verify(
     algorithm: { name: string },
     key: CoreCryptoKey,

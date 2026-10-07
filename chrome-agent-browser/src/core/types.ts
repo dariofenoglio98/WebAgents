@@ -100,6 +100,27 @@ export interface RegistryRef {
   [key: string]: JsonValue | undefined;
 }
 
+// -- decision provenance (Chrome addition, D-053) -------------------------------------
+/** Who made a decision: the person, a selected publisher profile, or the host preset. */
+export type DecidedBy = "user" | "profile" | "preset";
+export type PresetId = "privacy-first" | "balanced" | "convenience";
+export const PROVENANCE_SCHEMA = "org.webagents:decision-provenance-v0";
+
+/**
+ * Recorded beside the decisions in a receipt and copied into the plan's `authorization`. It
+ * changes the meaning of no reference field: the decisions themselves are ordinary
+ * `deny | once | session` and `true | false` values, enforced exactly as before (D-022).
+ */
+export interface Provenance {
+  schema: typeof PROVENANCE_SCHEMA;
+  profile_id: string | null;
+  profile_title: string | null;
+  preset: PresetId;
+  decisions: Record<string, DecidedBy>;
+  tool_approvals: Record<string, DecidedBy>;
+  resource_selections: Record<string, DecidedBy>;
+}
+
 // -- the authorization receipt ------------------------------------------------------
 export const RECEIPT_SCHEMA = "agentpkg-authorization-receipt-v0";
 export const REQUEST_SCHEMA = "agentpkg-authorization-request-v0";
@@ -125,6 +146,8 @@ export interface AuthorizationReceipt {
   runnable: boolean;
   blocking_reasons: Reason[];
   execution: { performed: false; note: string };
+  /** Chrome addition (D-053): who made each decision; null when the receipt came from elsewhere. */
+  provenance: Provenance | null;
   /** SHA-256 of the canonical receipt without this field. */
   receipt_sha256: string;
 }
@@ -179,20 +202,30 @@ export interface RunPlan {
     decisions: Record<string, Decision>;
     tool_approvals: Record<string, boolean>;
     granted_permission_ids: string[];
+    /** Chrome addition (D-053), copied from the receipt. */
+    provenance: Provenance | null;
   };
   execution: {
     profile: string;
     mode: ExecutionMode;
     binding_strategy: typeof BINDING_SINGLE_MODEL;
     required_permission_ids: string[];
+    /** The approved tools (Chrome, D-022); the reference lists every declared tool here. */
     required_tool_ids: string[];
+    /** Chrome addition (D-022, D-053): declared tools the receipt did not approve; the runtime refuses calls to them. */
+    denied_tool_ids: string[];
     probe_tool_id: string | null;
     tool_binding_count: number;
     performed: false;
     note: string;
   };
   tool_bindings: ToolBinding[];
-  tool_registry: RegistryRef | null;
+  tool_registry: {
+    registry_sha256: string;
+    binding_count: number;
+    available_binding_count: number;
+    host: { runtime: string; runtime_version: string | null; source: string; captured_at: string; agent_id: string | null };
+  } | null;
   resource_grants: ResourceGrant[];
   resource_registry: RegistryRef | null;
   model_binding: ModelBinding | null;
@@ -220,7 +253,9 @@ export interface RunPlanPreflight {
   blocking_reasons: Reason[];
   trust_store_changed: boolean;
   tool_bindings: { bound: number; current: boolean; evaluated: boolean; registry_sha256: string | null; registry_changed: boolean };
-  resource_grants: JsonObject;
+  resource_grants: { granted: number; current: boolean; evaluated: boolean; registry_sha256: string | null };
+  /** The reference plugin's field: null when no current catalog was supplied (unknown is not unavailable). */
+  model_still_available: boolean | null;
   execution: { performed: false; note: string };
 }
 

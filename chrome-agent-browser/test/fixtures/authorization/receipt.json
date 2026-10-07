@@ -1,0 +1,115 @@
+{
+  "schema": "agentpkg-authorization-receipt-v0",
+  "receipt_id": "6280cc52-be25-43c1-87e2-e24c7823e433",
+  "issued_at": "2026-10-07T03:49:35.006316+00:00",
+  "expires_at": "2026-10-07T04:04:35.004282+00:00",
+  "session_id": "AOCOYUWoGnxXdacJk1YsCdB7",
+  "control_plane": {
+    "service": "agentpkg-browser-control-plane",
+    "api_version": "v0",
+    "instance_id": "8d15dccc-84cd-4063-95e6-20f951f7a026"
+  },
+  "source": {
+    "kind": "file",
+    "display": "/Users/dariofenoglio/Desktop/WebAgents/dist/webair-0.4.0.agent.pkg",
+    "opened_at": "2026-10-07T03:49:35.004282+00:00"
+  },
+  "package": {
+    "package_id": "org.webagents.webair",
+    "name": "WebAir Travel Agent",
+    "version": "0.4.0",
+    "digest": "0e8317f11e8813e7d5b4b3f352f20148d114329dca3db8c725c5b0558af24fbb",
+    "archive_sha256": "c12f9db3bd7b3b4b6721c67e1d0b8143ebd94381df0e5e57c196357b7ca77f63",
+    "entrypoint": "workflow.v0",
+    "execution_profile": "workflow.v0"
+  },
+  "publisher": {
+    "claimed_id": "webair-demo",
+    "claimed_name": "WebAir (fictional demo airline)",
+    "signer_fingerprint": "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b",
+    "signature_status": "valid",
+    "trust_status": "trusted",
+    "trust_reason": "operator_pinned_key"
+  },
+  "trust_store": {
+    "path": "/var/folders/zx/c94b09b50v31fk6qp9h3h1cw0000gn/T/tmp3o8fa1el/trust.json",
+    "entry_count": 1,
+    "state_sha256": "2da5605d73f2d03b8e06404b74522ae68f2df4344a2a7aeed7afd6c51c59a0b7"
+  },
+  "validation": {
+    "container_status": "valid",
+    "integrity_status": "valid",
+    "schema_status": "valid",
+    "runtime_status": "compatible",
+    "supported_execution_profiles": [
+      "workflow.v0"
+    ],
+    "errors": []
+  },
+  "browser_policy": {
+    "require_valid_signature": true,
+    "require_trusted_publisher": true,
+    "require_supported_profile": true,
+    "require_confirmed_model_compatibility": true,
+    "require_confirmed_tool_contract": true
+  },
+  "decisions": {
+    "booking.simulate_purchase": "once",
+    "identity.passenger": "session",
+    "memory.session": "session",
+    "model.reasoning": "session",
+    "network.webair": "session",
+    "profile.travel": "session",
+    "wallet.payment": "session"
+  },
+  "tool_approvals": {
+    "get-fare-rules": true,
+    "personal.passenger_identity": true,
+    "personal.travel_profile": true,
+    "prepare-booking": true,
+    "search-flights": true,
+    "simulate-purchase": true,
+    "wallet.payment_method": true
+  },
+  "granted_permission_ids": [
+    "booking.simulate_purchase",
+    "identity.passenger",
+    "memory.session",
+    "model.reasoning",
+    "network.webair",
+    "profile.travel",
+    "wallet.payment"
+  ],
+  "resource_grants": [
+    {
+      "permission_id": "identity.passenger",
+      "resource_type": "personal.passenger_identity",
+      "resource_id": "passenger_demo_alex",
+      "resource_digest": "66bd5667d019fdca72c54c294fdcf9cf81233db0b9706891079281d34ea1136b"
+    },
+    {
+      "permission_id": "profile.travel",
+      "resource_type": "personal.travel_profile",
+      "resource_id": "profile_demo_traveler",
+      "resource_digest": "095e119598f419bc525c6897c529f06f3ca3cc5757f810f6568c5b7df7be6305"
+    },
+    {
+      "permission_id": "wallet.payment",
+      "resource_type": "wallet.payment_method",
+      "resource_id": "payment_demo_visa",
+      "resource_digest": "3affabc8e3ca9790efb72ad1a4348570eb41a426c5ff98a86abe5999055f3580"
+    }
+  ],
+  "resource_registry": {
+    "registry_sha256": "f7c85983c0cd118a64b6d41b4daa96a2efa4c610caed3a39cc5deb1bc57a5b58",
+    "type_count": 3,
+    "resource_count": 6
+  },
+  "runnable": true,
+  "blocking_reasons": [],
+  "execution": {
+    "performed": false,
+    "note": "This control plane never executes packages. A later run milestone consumes this receipt and must re-verify the digest and archive hash first."
+  },
+  "receipt_sha256": "825218b7d20f4314118883161a4a450b412b74c1e19c72ea92c17f139d4a097a"
+}
