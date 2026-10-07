@@ -349,7 +349,7 @@ describe("candidates from content scripts (D-026, D-035)", () => {
 
   it("judges links against the frame's own document URL, and drops a report from a page the tab has left (review 1, finding 13)", async () => {
     const h = makeHarness();
-    await h.controller.contentLinks({ type: "content.links", links: [{ href: "agent.pkg", type: null, title: null }] }, { ...TAB, frameUrl: `${SITE_ORIGIN}/flights/` });
+    await h.controller.contentLinks({ type: "content.links", links: [{ href: "agent.pkg", type: null, title: null }] }, { ...TAB, frameUrl: `${SITE_ORIGIN}/flights/`, tabUrl: `${SITE_ORIGIN}/flights/` });
     const state = (await h.controller.handle({ type: "candidates.get", tabId: 7 }, PAGE)) as CandidateState;
     expect(state.pageUrl).toBe(`${SITE_ORIGIN}/flights/`);
     expect(state.candidates[0]?.resolved_url).toBe(`${SITE_ORIGIN}/flights/agent.pkg`);
@@ -357,6 +357,19 @@ describe("candidates from content scripts (D-026, D-035)", () => {
     await h.controller.contentLinks({ type: "content.links", links }, { ...TAB, frameUrl: "https://old.example/", tabUrl: `${SITE_ORIGIN}/` });
     expect(((await h.controller.handle({ type: "candidates.get", tabId: 7 }, PAGE)) as CandidateState).pageUrl).toBe(`${SITE_ORIGIN}/flights/`);
     expect(h.badges.filter(([tabId]) => tabId === 7)).toHaveLength(1);
+  });
+
+  it("drops a late report from another path of the same origin (review 2, nit 7)", async () => {
+    const h = makeHarness();
+    await h.controller.contentLinks({ type: "content.links", links: [{ href: "agent.pkg", type: null, title: null }] }, { ...TAB, frameUrl: `${SITE_ORIGIN}/b`, tabUrl: `${SITE_ORIGIN}/b` });
+    // The tab is on /b now; a report that still names /a is stale even though the origin matches.
+    await h.controller.contentLinks({ type: "content.links", links }, { ...TAB, frameUrl: `${SITE_ORIGIN}/a`, tabUrl: `${SITE_ORIGIN}/b` });
+    const state = (await h.controller.handle({ type: "candidates.get", tabId: 7 }, PAGE)) as CandidateState;
+    expect(state.pageUrl).toBe(`${SITE_ORIGIN}/b`);
+    expect(state.candidates[0]?.resolved_url).toBe(`${SITE_ORIGIN}/agent.pkg`);
+    // A fragment is not part of the document: the same page with a hash is not stale.
+    await h.controller.contentLinks({ type: "content.links", links }, { ...TAB, frameUrl: `${SITE_ORIGIN}/b`, tabUrl: `${SITE_ORIGIN}/b#fares` });
+    expect(((await h.controller.handle({ type: "candidates.get", tabId: 7 }, PAGE)) as CandidateState).candidates[0]?.resolved_url).toBe(PACKAGE_URL);
   });
 
   it("a non-https page clears its tab's state", async () => {
@@ -401,6 +414,24 @@ describe("website discovery from the address bar (discovery.py)", () => {
     // The same for a same-origin hop: the person opens the final address.
     h.routes[`${SITE_ORIGIN}/old`] = { redirectTo: `${SITE_ORIGIN}/` };
     expect((await refused(h.controller.handle({ type: "website.discover", url: `${SITE_ORIGIN}/old` }, PAGE))).code).toBe("discovery_redirect_refused");
+  });
+
+  it("an IDN website is one origin in two spellings, not a redirect (review 2, should-fix 2)", async () => {
+    const h = makeHarness();
+    // Chrome requests the Unicode name and reports `response.url` with the punycode host.
+    h.routes["https://xn--bcher-kva.example/"] = {
+      headers: { "content-type": "text/html; charset=utf-8" },
+      body: '<html><head><link rel="agent-package" href="/agent.pkg" type="application/vnd.webagents.agent-package"></head><body></body></html>',
+    };
+    const result = (await h.controller.handle({ type: "website.discover", url: "https://bücher.example/" }, PAGE)) as WebsiteResult;
+    expect(result.discovery_status).toBe("candidate");
+    expect(result.final_url).toBe("https://xn--bcher-kva.example/");
+    expect(result.candidates[0]).toMatchObject({ accepted: true, resolved_url: "https://xn--bcher-kva.example/agent.pkg" });
+    expect(h.fetchLog.map((entry) => entry.url)).toEqual(["https://bücher.example/"]);
+    // A genuinely different origin is still refused.
+    h.routes["https://other.example/"] = { headers: { "content-type": "text/html" }, body: "<html><head></head></html>" };
+    h.routes[`${SITE_ORIGIN}/elsewhere`] = { redirectTo: "https://other.example/" };
+    expect((await refused(h.controller.handle({ type: "website.discover", url: `${SITE_ORIGIN}/elsewhere` }, PAGE))).code).toBe("discovery_redirect_refused");
   });
 
   it("refuses a non-HTML answer, an HTTP error and a deadline", async () => {
@@ -459,6 +490,79 @@ describe("sessions: limits, expiry, close and restore (D-032)", () => {
     await expect(open(h, PACKAGE_URL, null)).rejects.toThrow(/IndexedDB write failed/u);
     expect(await h.snapshots.listSnapshots()).toHaveLength(1);
     expect((await get(h, first.session.id)).session.id).toBe(first.session.id);
+  });
+
+  it("a storage error while reading the trust store during restore is retried, not a dropped session (review 2, nit 4)", async () => {
+    const first = makeHarness();
+    const view = await open(first);
+    const trustStorage = new MemoryTrustStorage("chrome.storage.local:trustStore");
+    let failures = 1;
+    const read = trustStorage.read.bind(trustStorage);
+    trustStorage.read = async () => {
+      if (failures > 0) {
+        failures -= 1;
+        throw new Error("chrome.storage unavailable");
+      }
+      return read();
+    };
+    const second = makeHarness({ stores: { snapshots: first.snapshots, trustStorage, tabs: first.tabs } });
+    await expect(second.controller.handle({ type: "sessions.list" }, PAGE)).rejects.toThrow(/chrome.storage unavailable/u);
+    // The session and its snapshot survived the failed attempt; the next request restores it.
+    expect((await sessions(second)).map((session) => session.session_id)).toEqual([view.session.id]);
+    expect(await second.snapshots.listSnapshots()).toHaveLength(1);
+  });
+
+  it("a concurrent open of the same bytes keeps the snapshot a failing open would drop as an orphan (review 2, nit 6)", async () => {
+    class GatedSnapshots extends MemorySnapshotStore {
+      gate: Promise<void> | null = null;
+      failNext = false;
+      /** Resolves when a putSession has started waiting at the gate. */
+      entered!: () => void;
+      waiting = new Promise<void>((resolve) => {
+        this.entered = resolve;
+      });
+      override async putSession(session: StoredSession): Promise<void> {
+        if (this.failNext) {
+          this.failNext = false;
+          throw new Error("IndexedDB write failed");
+        }
+        if (this.gate) {
+          this.entered();
+          await this.gate;
+        }
+        return super.putSession(session);
+      }
+    }
+    const snapshots = new GatedSnapshots();
+    const h = makeHarness({ stores: { snapshots, trustStorage: new MemoryTrustStorage(), tabs: new MemoryTabStateStore() } });
+    let release!: () => void;
+    snapshots.gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    // B has stored the snapshot and is waiting to store its session when A's open fails.
+    const b = open(h, PACKAGE_URL, null);
+    await snapshots.waiting;
+    snapshots.gate = null;
+    snapshots.failNext = true;
+    await expect(open(h)).rejects.toThrow(/IndexedDB write failed/u);
+    release();
+    const view = await b;
+    expect(await h.snapshots.listSnapshots()).toEqual([{ archive_sha256: SHIPPED.webair.archiveSha256, bytes: WEBAIR_BYTES }]);
+    expect((await get(h, view.session.id)).summary.package.digest).toBe(SHIPPED.webair.digest);
+  });
+
+  it("a view's release ends the session only when no other view holds it (review 2, nit 5)", async () => {
+    const h = makeHarness();
+    const view = (await h.controller.handle({ type: "package.open", url: PACKAGE_URL, advertisedOn: `${SITE_ORIGIN}/`, viewId: "sidepanel:1" }, PAGE)) as SessionView;
+    await h.controller.handle({ type: "package.get", sessionId: view.session.id, viewId: "browser:1" }, PAGE_IN_TAB);
+    expect(await h.controller.handle({ type: "package.release", sessionId: view.session.id, viewId: "sidepanel:1" }, PAGE)).toEqual({ closed: false, session_id: view.session.id, holders: 1 });
+    expect((await get(h, view.session.id)).session.id).toBe(view.session.id);
+    expect(await h.controller.handle({ type: "package.release", sessionId: view.session.id, viewId: "browser:1" }, PAGE_IN_TAB)).toEqual({ closed: true, session_id: view.session.id, holders: 0 });
+    expect((await refused(get(h, view.session.id))).code).toBe("session_unknown");
+    expect(await h.snapshots.listSnapshots()).toEqual([]);
+    // A session nobody ever held closes on its first release, as before.
+    const alone = await open(h);
+    expect((await h.controller.handle({ type: "package.release", sessionId: alone.session.id, viewId: "sidepanel:2" }, PAGE)) as { closed: boolean }).toMatchObject({ closed: true });
   });
 
   it("refuses more than the session limit", async () => {

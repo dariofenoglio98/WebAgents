@@ -55,9 +55,13 @@ function isFetchedIpLiteral(hostname: string): boolean {
   return hostname.startsWith("[") || DOTTED_DECIMAL.test(hostname);
 }
 
-/** `localhost`, `.localhost`, `.local` and the `/etc/hosts` loopback aliases, one trailing dot ignored. */
+/**
+ * `localhost`, `.localhost`, `.local` and the `/etc/hosts` loopback aliases. Every trailing dot
+ * is ignored before the test (T1 review 2, nit 11: `localhost..` is otherwise read as a name
+ * ending in `localhost.`); an empty label anywhere else is refused by `validatePackageUrl`.
+ */
 function isLocalName(hostname: string): boolean {
-  const name = hostname.endsWith(".") ? hostname.slice(0, -1) : hostname;
+  const name = hostname.replace(/\.+$/u, "");
   return (
     name === "localhost" ||
     name === "ip6-localhost" ||
@@ -65,6 +69,12 @@ function isLocalName(hostname: string): boolean {
     name.endsWith(".localhost") ||
     name.endsWith(".local")
   );
+}
+
+function hasEmptyLabel(hostname: string): boolean {
+  if (hostname.startsWith("[")) return false; // an IPv6 literal, refused separately
+  const name = hostname.endsWith(".") ? hostname.slice(0, -1) : hostname;
+  return name.split(".").includes("");
 }
 
 /**
@@ -114,6 +124,10 @@ export function validatePackageUrl(url: unknown, subject = "Package"): { hostnam
   }
   if (isLocalName(hostname) || isLocalName(fetchedHost)) {
     throw reject(`${subject} URLs must not name a local host (${hostname})`, 403);
+  }
+  // One trailing dot is a fully qualified name; any other empty label is not a DNS name.
+  if (hasEmptyLabel(hostname) || hasEmptyLabel(fetchedHost)) {
+    throw reject(`${subject} URL host ${pyRepr(hostname)} has an empty label`);
   }
   // An ASCII host both parsers read must be the same host; a disagreement means the policy
   // would judge one name and Chrome would connect to another. Non-ASCII names differ only

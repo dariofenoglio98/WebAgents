@@ -29,6 +29,8 @@ interface PageState {
 }
 
 const app = document.getElementById("app") as HTMLElement;
+/** This page's identity toward the service worker (D-035): a session ends when no view holds it. */
+const VIEW_ID = `browser:${crypto.randomUUID()}`;
 const state: PageState = { view: "open", address: "", website: null, open: null, sessions: [], trust: null, status: null, busy: null, error: null };
 
 function route(): void {
@@ -58,7 +60,7 @@ async function load(): Promise<void> {
 
 async function showSession(sessionId: string): Promise<void> {
   try {
-    state.open = await send<SessionView>({ type: "package.get", sessionId });
+    state.open = await send<SessionView>({ type: "package.get", sessionId, viewId: VIEW_ID });
     state.error = null;
   } catch (error) {
     state.open = null;
@@ -74,7 +76,7 @@ async function openAddress(address: string): Promise<void> {
   render();
   try {
     if (looksLikePackageUrl(address)) {
-      state.open = await send<SessionView>({ type: "package.open", url: address, advertisedOn: null });
+      state.open = await send<SessionView>({ type: "package.open", url: address, advertisedOn: null, viewId: VIEW_ID });
       state.website = null;
       location.hash = `session=${encodeURIComponent(state.open.session.id)}`;
     } else {
@@ -94,7 +96,7 @@ async function inspect(candidate: Candidate): Promise<void> {
   state.busy = "Downloading and verifying the package…";
   render();
   try {
-    state.open = await send<SessionView>({ type: "package.open", url: candidate.resolved_url, advertisedOn: state.website.final_url });
+    state.open = await send<SessionView>({ type: "package.open", url: candidate.resolved_url, advertisedOn: state.website.final_url, viewId: VIEW_ID });
     state.error = null;
     location.hash = `session=${encodeURIComponent(state.open.session.id)}`;
   } catch (error) {
@@ -148,7 +150,7 @@ function openView(): HTMLElement[] {
       renderAgentPage(open, {
         onTrust: (scope) => void trustSession(scope),
         onClose: () => {
-          void send({ type: "package.close", sessionId: open.session.id }).catch(() => undefined);
+          void send({ type: "package.release", sessionId: open.session.id, viewId: VIEW_ID }).catch(() => undefined);
           state.open = null;
           location.hash = "open";
           render();

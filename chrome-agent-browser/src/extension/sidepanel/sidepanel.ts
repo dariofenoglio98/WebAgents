@@ -20,6 +20,8 @@ interface PanelState {
 }
 
 const state: PanelState = { tabId: null, candidates: null, open: null, busy: null, error: null };
+/** This view's identity toward the service worker (D-035): a session ends when no view holds it. */
+const VIEW_ID = `sidepanel:${crypto.randomUUID()}`;
 
 async function currentTab(): Promise<chrome.tabs.Tab | null> {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -46,7 +48,7 @@ async function inspect(candidate: Candidate): Promise<void> {
   state.error = null;
   render();
   try {
-    state.open = await send<SessionView>({ type: "package.open", url: candidate.resolved_url, advertisedOn: state.candidates.pageUrl });
+    state.open = await send<SessionView>({ type: "package.open", url: candidate.resolved_url, advertisedOn: state.candidates.pageUrl, viewId: VIEW_ID });
   } catch (error) {
     state.error = describeError(error);
   } finally {
@@ -61,7 +63,7 @@ async function trust(scope: "package" | "publisher"): Promise<void> {
   if (!fingerprint) return;
   try {
     await send({ type: "trust.pin", sessionId: state.open.session.id, signerFingerprint: fingerprint, scope });
-    state.open = await send<SessionView>({ type: "package.get", sessionId: state.open.session.id });
+    state.open = await send<SessionView>({ type: "package.get", sessionId: state.open.session.id, viewId: VIEW_ID });
     state.error = null;
   } catch (error) {
     state.error = describeError(error);
@@ -80,9 +82,10 @@ function render(): void {
         compact: true,
         onTrust: (scope) => void trust(scope),
         onClose: () => {
-          // Close the session too (as the full page does), or panel inspections would
-          // accumulate toward the session limit for the whole TTL.
-          void send({ type: "package.close", sessionId: open.session.id }).catch(() => undefined);
+          // Release this view's hold: the session ends only when no other view (a full page
+          // opened on it) still shows it, so panel inspections do not accumulate toward the
+          // session limit and Close here does not end a full page's session (review 2, nit 5).
+          void send({ type: "package.release", sessionId: open.session.id, viewId: VIEW_ID }).catch(() => undefined);
           state.open = null;
           render();
         },
@@ -108,7 +111,7 @@ subscribe((event) => {
   if (event.type === "event.candidates" && event.tabId === state.tabId) void refresh();
   if (event.type === "event.sessions" && state.open) {
     const id = state.open.session.id;
-    send<SessionView>({ type: "package.get", sessionId: id }).then(
+    send<SessionView>({ type: "package.get", sessionId: id, viewId: VIEW_ID }).then(
       (view) => {
         state.open = view;
         render();

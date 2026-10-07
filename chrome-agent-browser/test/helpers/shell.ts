@@ -59,11 +59,21 @@ function withUrl(response: Response, url: string): Response {
   return response;
 }
 
-/** A `fetch` over declared routes; unknown URLs answer 404. */
+/** `response.url` as Chrome reports it: the WHATWG serialization, with an IDN host in punycode. */
+function reportedUrl(url: string): string {
+  try {
+    return new URL(url).href;
+  } catch {
+    return url;
+  }
+}
+
+/** A `fetch` over declared routes (looked up as requested or as Chrome would serialize them); unknown URLs answer 404. */
 export function fakeFetch(routes: Record<string, Route>, log: FetchLog[] = []): Fetch {
-  return async (url, init) => {
-    log.push({ url, init });
-    const route = routes[url];
+  return async (requested, init) => {
+    log.push({ url: requested, init });
+    const route = routes[requested] ?? routes[reportedUrl(requested)];
+    const url = reportedUrl(requested);
     if (!route) return withUrl(new Response("not found", { status: 404 }), url);
     if (route.fail) throw new TypeError("fetch failed");
     if (route.hang) {

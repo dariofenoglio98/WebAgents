@@ -89,7 +89,7 @@ renderer copied from the reference plugin, which builds DOM nodes and never pass
 ## Checks
 
 ```sh
-npm run typecheck && npm test          # both TypeScript projects; 613 tests, none skipped
+npm run typecheck && npm test          # both TypeScript projects; the suite allows no skipped test
 npm run build && npm run pack          # a loadable extension and its zip
 node scripts/e2e-discovery.mjs         # headless Chrome against a local mock of the WebAir origin
 ```

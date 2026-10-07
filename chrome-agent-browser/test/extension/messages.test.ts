@@ -22,13 +22,16 @@ describe("requests from extension pages", () => {
   it("accepts every request type with exactly its fields", () => {
     expect(parseRequest({ type: "candidates.get", tabId: 3 })).toEqual({ type: "candidates.get", tabId: 3 });
     expect(parseRequest({ type: "website.discover", url: "https://a.example/" })).toEqual({ type: "website.discover", url: "https://a.example/" });
-    expect(parseRequest({ type: "package.open", url: "https://a.example/x.pkg" })).toEqual({ type: "package.open", url: "https://a.example/x.pkg", advertisedOn: null });
-    expect(parseRequest({ type: "package.open", url: "https://a.example/x.pkg", advertisedOn: "https://a.example/" })).toEqual({
+    expect(parseRequest({ type: "package.open", url: "https://a.example/x.pkg" })).toEqual({ type: "package.open", url: "https://a.example/x.pkg", advertisedOn: null, viewId: null });
+    expect(parseRequest({ type: "package.open", url: "https://a.example/x.pkg", advertisedOn: "https://a.example/", viewId: "sidepanel:1" })).toEqual({
       type: "package.open",
       url: "https://a.example/x.pkg",
       advertisedOn: "https://a.example/",
+      viewId: "sidepanel:1",
     });
-    expect(parseRequest({ type: "package.get", sessionId: "s1" })).toEqual({ type: "package.get", sessionId: "s1" });
+    expect(parseRequest({ type: "package.get", sessionId: "s1" })).toEqual({ type: "package.get", sessionId: "s1", viewId: null });
+    expect(parseRequest({ type: "package.get", sessionId: "s1", viewId: "browser:1" })).toEqual({ type: "package.get", sessionId: "s1", viewId: "browser:1" });
+    expect(parseRequest({ type: "package.release", sessionId: "s1", viewId: "browser:1" })).toEqual({ type: "package.release", sessionId: "s1", viewId: "browser:1" });
     expect(parseRequest({ type: "package.close", sessionId: "s1" })).toEqual({ type: "package.close", sessionId: "s1" });
     for (const type of ["sessions.list", "trust.list", "status.get"]) expect(parseRequest({ type })).toEqual({ type });
     expect(parseRequest({ type: "trust.pin", sessionId: "s1", signerFingerprint: "sha256:ab" })).toEqual({
@@ -52,6 +55,8 @@ describe("requests from extension pages", () => {
     expect(code(() => parseRequest({ type: "package.run", sessionId: "s1" }))).toBe("invalid_request");
     expect(code(() => parseRequest({ type: "status.get", extra: 1 }))).toBe("invalid_request");
     expect(code(() => parseRequest({ type: "package.get", sessionId: "" }))).toBe("invalid_request");
+    expect(code(() => parseRequest({ type: "package.release", sessionId: "s1" }))).toBe("invalid_request");
+    expect(code(() => parseRequest({ type: "package.close", sessionId: "s1", viewId: "x" }))).toBe("invalid_request");
     expect(code(() => parseRequest({ type: "package.get", sessionId: "s".repeat(201) }))).toBe("invalid_request");
     expect(code(() => parseRequest({ type: "website.discover", url: `https://a.example/${"h".repeat(MAX_URL)}` }))).toBe("invalid_request");
     expect(code(() => parseRequest({ type: "candidates.get", tabId: -1 }))).toBe("invalid_request");

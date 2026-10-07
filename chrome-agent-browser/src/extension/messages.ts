@@ -22,8 +22,11 @@ export const MAX_LINKS = 16;
 export type Request =
   | { type: "candidates.get"; tabId: number }
   | { type: "website.discover"; url: string }
-  | { type: "package.open"; url: string; advertisedOn?: string | null }
-  | { type: "package.get"; sessionId: string }
+  | { type: "package.open"; url: string; advertisedOn?: string | null; viewId?: string | null }
+  | { type: "package.get"; sessionId: string; viewId?: string | null }
+  /** A view stops showing a session; the session ends when no view holds it (review 2, nit 5). */
+  | { type: "package.release"; sessionId: string; viewId: string }
+  /** End a session for every view (Library). */
   | { type: "package.close"; sessionId: string }
   | { type: "sessions.list" }
   | { type: "trust.list" }
@@ -160,9 +163,19 @@ export function parseRequest(value: unknown): Request {
       only(fields, ["type", "url"]);
       return { type, url: text(fields.url, "url", MAX_URL) };
     case "package.open":
-      only(fields, ["type", "url", "advertisedOn"]);
-      return { type, url: text(fields.url, "url", MAX_URL), advertisedOn: optionalText(fields.advertisedOn, "advertisedOn", MAX_URL) };
+      only(fields, ["type", "url", "advertisedOn", "viewId"]);
+      return {
+        type,
+        url: text(fields.url, "url", MAX_URL),
+        advertisedOn: optionalText(fields.advertisedOn, "advertisedOn", MAX_URL),
+        viewId: optionalText(fields.viewId, "viewId", MAX_ID),
+      };
     case "package.get":
+      only(fields, ["type", "sessionId", "viewId"]);
+      return { type, sessionId: text(fields.sessionId, "sessionId", MAX_ID), viewId: optionalText(fields.viewId, "viewId", MAX_ID) };
+    case "package.release":
+      only(fields, ["type", "sessionId", "viewId"]);
+      return { type, sessionId: text(fields.sessionId, "sessionId", MAX_ID), viewId: text(fields.viewId, "viewId", MAX_ID) };
     case "package.close":
       only(fields, ["type", "sessionId"]);
       return { type, sessionId: text(fields.sessionId, "sessionId", MAX_ID) };

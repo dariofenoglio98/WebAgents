@@ -97,12 +97,30 @@ export interface Sender {
 
 const EXECUTION_NOTE = "Opening and inspecting a package never executes it.";
 
+/** The origin as the WHATWG parser serializes it (IDNA-encoded host), or null for a non-URL. */
+function whatwgOrigin(url: string): string | null {
+  try {
+    return new URL(url).origin;
+  } catch {
+    return null;
+  }
+}
+
+function withoutFragment(url: string): string {
+  const hash = url.indexOf("#");
+  return hash >= 0 ? url.slice(0, hash) : url;
+}
+
 function reject(code: string, message: string, status = 400, details: Record<string, unknown> | null = null): CoreError {
   return new CoreError(code, message, { status, details });
 }
 
 export class Controller {
   private readonly sessions = new Map<string, LiveSession>();
+  /** Which views currently show each session (review 2, nit 5): a release closes it only when none is left. */
+  private readonly holders = new Map<string, Set<string>>();
+  /** Archive hashes of opens in progress (review 2, nit 6): their snapshots are never dropped as orphans. */
+  private readonly inFlight = new Map<string, number>();
   private readonly limits: Limits;
   private readonly clock: () => Date;
   private readonly randomId: () => string;
@@ -125,10 +143,18 @@ export class Controller {
         return this.deps.tabs.get(request.tabId);
       case "website.discover":
         return this.discoverWebsite(request.url);
-      case "package.open":
-        return this.openUrl(request.url, request.advertisedOn ?? null);
-      case "package.get":
-        return this.view(await this.session(request.sessionId));
+      case "package.open": {
+        const view = await this.openUrl(request.url, request.advertisedOn ?? null);
+        if (request.viewId) this.hold(view.session.id, request.viewId);
+        return view;
+      }
+      case "package.get": {
+        const live = await this.session(request.sessionId);
+        if (request.viewId) this.hold(request.sessionId, request.viewId);
+        return this.view(live);
+      }
+      case "package.release":
+        return this.release(request.sessionId, request.viewId);
       case "package.close":
         return this.close(request.sessionId);
       case "sessions.list":
@@ -163,7 +189,9 @@ export class Controller {
       await this.clearTab(sender.tabId);
       return;
     }
-    if (sender.tabUrl !== null && !sameOrigin(origin(sender.tabUrl), where)) return; // stale: the tab navigated
+    // Stale when the tab has moved on, even within one origin (review 2, nit 7): a late report
+    // from /a must not be attributed to /b. Fragments never reach a document, so they are ignored.
+    if (sender.tabUrl !== null && withoutFragment(sender.tabUrl) !== withoutFragment(sender.frameUrl)) return;
     const judged = classifyLinks(message.links, sender.frameUrl);
     const state: CandidateState = {
       tabId: sender.tabId,
@@ -221,7 +249,10 @@ export class Controller {
       }
       const finalUrl = response.url || requested;
       const finalOrigin = origin(finalUrl);
-      if (!sameOrigin(finalOrigin, requestedOrigin)) {
+      // Chrome reports `response.url` with the host in punycode while the requested URL keeps
+      // the Unicode name, so the two are compared as the WHATWG parser serializes them (review
+      // 2, should-fix 2): one origin, two spellings, is not a redirect.
+      if (!sameOrigin(finalOrigin, requestedOrigin) && whatwgOrigin(finalUrl) !== whatwgOrigin(requested)) {
         throw reject(
           "discovery_redirect_refused",
           `The website's answer came from ${finalOrigin ? originText(finalOrigin) : "a non-web location"}, not from ${originText(requestedOrigin)}.`,
@@ -386,20 +417,27 @@ export class Controller {
       expires_at: new Date(now.getTime() + this.limits.sessionTtlSeconds * 1000).toISOString(),
       source,
     };
-    await this.deps.snapshots.putSnapshot({ archive_sha256: archiveSha256, bytes, stored_at: stored.created_at });
+    this.inFlight.set(archiveSha256, (this.inFlight.get(archiveSha256) ?? 0) + 1);
     let live: LiveSession;
     try {
-      // The snapshot is authoritative from here on; confirm it is byte-identical.
-      const written = await this.deps.snapshots.getSnapshot(archiveSha256);
-      if (!written || (await sha256Hex(written.bytes)) !== archiveSha256) {
-        throw reject("snapshot_unstable", "Snapshot bytes changed while being stored", 500);
+      await this.deps.snapshots.putSnapshot({ archive_sha256: archiveSha256, bytes, stored_at: stored.created_at });
+      try {
+        // The snapshot is authoritative from here on; confirm it is byte-identical.
+        const written = await this.deps.snapshots.getSnapshot(archiveSha256);
+        if (!written || (await sha256Hex(written.bytes)) !== archiveSha256) {
+          throw reject("snapshot_unstable", "Snapshot bytes changed while being stored", 500);
+        }
+        live = await this.evaluate(stored, evaluation.package, layers);
+        await this.deps.snapshots.putSession(stored);
+      } catch (error) {
+        // A snapshot no session refers to must not stay in the cache and count against its cap.
+        await this.dropOrphanSnapshot(archiveSha256);
+        throw error;
       }
-      live = await this.evaluate(stored, evaluation.package, layers);
-      await this.deps.snapshots.putSession(stored);
-    } catch (error) {
-      // A snapshot no session refers to must not stay in the cache and count against its cap.
-      await this.dropOrphanSnapshot(archiveSha256);
-      throw error;
+    } finally {
+      const remaining = (this.inFlight.get(archiveSha256) ?? 1) - 1;
+      if (remaining <= 0) this.inFlight.delete(archiveSha256);
+      else this.inFlight.set(archiveSha256, remaining);
     }
     this.sessions.set(stored.session_id, live);
     this.deps.broadcast({ type: "event.sessions" });
@@ -473,20 +511,22 @@ export class Controller {
           await this.deps.snapshots.deleteSession(stored.session_id);
           continue;
         }
-        let live: LiveSession | null = null;
+        // Only the evaluation of the bytes is caught (review 2, nit 4): unusable bytes drop the
+        // session, while a storage error in the trust read below propagates to the retry path.
+        let evaluated: { pkg: Package; layers: EvaluationLayers } | null = null;
         try {
           const evaluation = await evaluateSnapshot(snapshot.bytes);
           if (evaluation.package !== null && (await sha256Hex(snapshot.bytes)) === stored.archive_sha256) {
-            live = await this.evaluate(stored, evaluation.package, evaluationLayers(evaluation));
+            evaluated = { pkg: evaluation.package, layers: evaluationLayers(evaluation) };
           }
         } catch {
-          live = null;
+          evaluated = null;
         }
-        if (live === null) {
+        if (evaluated === null) {
           await this.drop(stored);
           continue;
         }
-        this.sessions.set(stored.session_id, live);
+        this.sessions.set(stored.session_id, await this.evaluate(stored, evaluated.pkg, evaluated.layers));
       }
     })();
     this.restored = attempt.catch((error: unknown) => {
@@ -496,9 +536,34 @@ export class Controller {
     return this.restored;
   }
 
+  /** Delete a snapshot no stored session refers to, unless another open of the same bytes is in flight. */
   private async dropOrphanSnapshot(archiveSha256: string): Promise<void> {
+    if ((this.inFlight.get(archiveSha256) ?? 0) > 1) return; // another open owns these bytes right now
     const referenced = (await this.deps.snapshots.listSessions()).some((session) => session.archive_sha256 === archiveSha256);
     if (!referenced) await this.deps.snapshots.deleteSnapshot(archiveSha256);
+  }
+
+  // -- views ------------------------------------------------------------------------
+  private hold(sessionId: string, viewId: string): void {
+    const set = this.holders.get(sessionId) ?? new Set<string>();
+    set.add(viewId);
+    this.holders.set(sessionId, set);
+  }
+
+  /**
+   * A view stops showing a session. The session ends only when no other view holds it, so
+   * Close in the side panel leaves a full page on the same session intact (review 2, nit 5).
+   */
+  async release(sessionId: string, viewId: string): Promise<{ closed: boolean; session_id: string; holders: number }> {
+    const live = await this.session(sessionId);
+    const set = this.holders.get(sessionId);
+    set?.delete(viewId);
+    const remaining = set?.size ?? 0;
+    if (remaining > 0) return { closed: false, session_id: sessionId, holders: remaining };
+    this.holders.delete(sessionId);
+    await this.drop(live.stored);
+    this.deps.broadcast({ type: "event.sessions" });
+    return { closed: true, session_id: sessionId, holders: 0 };
   }
 
   private async session(sessionId: string): Promise<LiveSession> {
@@ -510,7 +575,9 @@ export class Controller {
 
   private async drop(stored: StoredSession): Promise<void> {
     this.sessions.delete(stored.session_id);
+    this.holders.delete(stored.session_id);
     await this.deps.snapshots.deleteSession(stored.session_id);
+    if (this.inFlight.has(stored.archive_sha256)) return; // an open in progress owns the snapshot
     const others = (await this.deps.snapshots.listSessions()).some((session) => session.archive_sha256 === stored.archive_sha256);
     if (!others) await this.deps.snapshots.deleteSnapshot(stored.archive_sha256);
   }

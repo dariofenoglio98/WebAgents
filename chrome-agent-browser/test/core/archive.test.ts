@@ -184,9 +184,9 @@ describe("archive attacks are refused (test_archive_attacks_rejected and more)",
     // Review 1, finding 4: layouts the reference refuses that this reader used to accept.
     ["compressed patched data flag (bit 5)", (e) => [...e, ["extra.txt", hostile, { flags: 0x20 }]], /compressed patched data \(flag bit 5\)/u],
     ["strong encryption flag (bit 6)", (e) => [...e, ["extra.txt", hostile, { flags: 0x40 }]], /strong encryption \(flag bit 6\)/u],
-    ["another general-purpose flag bit (stricter than the reference; B-103)", (e) => [...e, ["extra.txt", hostile, { flags: 0x2 }]], /unsupported ZIP general-purpose flag bits 0x2/u],
-    ["a disk number start (stricter than the reference; B-103)", (e) => [...e, ["extra.txt", hostile, { diskNumberStart: 1 }]], /noncanonical ZIP central directory record/u],
-    ["internal attributes (stricter than the reference; B-103)", (e) => [...e, ["extra.txt", hostile, { internalAttributes: 1 }]], /noncanonical ZIP central directory record/u],
+    ["another general-purpose flag bit (stricter than the reference; B-108)", (e) => [...e, ["extra.txt", hostile, { flags: 0x2 }]], /unsupported ZIP general-purpose flag bits 0x2/u],
+    ["a disk number start (stricter than the reference; B-108)", (e) => [...e, ["extra.txt", hostile, { diskNumberStart: 1 }]], /noncanonical ZIP central directory record/u],
+    ["internal attributes (stricter than the reference; B-108)", (e) => [...e, ["extra.txt", hostile, { internalAttributes: 1 }]], /noncanonical ZIP central directory record/u],
     [
       "a multi-disk ZIP64 locator spelled by the last record's disk and attribute fields (zipfile._EndRecData64)",
       (e) => [...e, ["zzzz.txt", hostile, { diskNumberStart: 0x4b50, internalAttributes: 0x0706 }]],
