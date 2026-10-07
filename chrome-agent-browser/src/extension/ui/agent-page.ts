@@ -91,7 +91,7 @@ function trustCard(model: AgentPageModel, actions: AgentPageActions): HTMLElemen
 }
 
 /** Two deliberate presses, narrowest scope first; the key never travels through the page. */
-function pinControls(model: AgentPageModel, onTrust: (scope: "package" | "publisher") => void): HTMLElement {
+export function pinControls(model: AgentPageModel, onTrust: (scope: "package" | "publisher") => void): HTMLElement {
   const container = el("div", { className: "ab-pin" });
   let armed = false;
   const scope = el("select", { className: "ab-select", attrs: { name: "trust-scope", "aria-label": "Trust scope" } });

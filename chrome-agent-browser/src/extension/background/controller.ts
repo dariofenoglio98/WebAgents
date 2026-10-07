@@ -963,7 +963,7 @@ export class Controller {
   /** `control.py::authorize`: record explicit decisions and issue a digest-bound receipt; a new receipt discards the plan. */
   async authorize(
     sessionId: string,
-    input: { packageDigest: string; decisions: Record<string, string>; toolApprovals: Record<string, boolean>; resourceSelections: Record<string, string>; provenance: unknown | null; prepare: boolean },
+    input: { packageDigest: string; decisions: Record<string, string>; toolApprovals: Record<string, boolean>; resourceSelections: Record<string, string>; provenance: unknown | null; prepare: boolean; modelId?: string | null },
   ): Promise<AuthorizeResult> {
     const live = await this.session(sessionId);
     this.requireDigest(live, input.packageDigest);
@@ -972,7 +972,7 @@ export class Controller {
     const registry = await this.resourceRegistry();
     const grants = normalizeResourceSelections(live.pkg, registry, decisions, input.resourceSelections);
     const provenance = normalizeProvenance(live.pkg, input.provenance, decisions, approvals, grants);
-    return this.issue(live, decisions, approvals, grants, registry, provenance, input.prepare);
+    return this.issue(live, decisions, approvals, grants, registry, provenance, input.prepare, input.modelId ?? null);
   }
 
   /** The two-click path (D-022): a selected profile becomes decisions under the current preset, with the person's picks. */
@@ -998,6 +998,7 @@ export class Controller {
     registry: ResourceRegistry,
     provenance: Provenance | null,
     prepare: boolean,
+    modelId: string | null = null,
   ): Promise<AuthorizeResult> {
     const receipt = await buildReceipt(live.pkg, {
       sessionId: live.stored.session_id,
@@ -1023,13 +1024,14 @@ export class Controller {
     await this.persist(live);
     const result: AuthorizeResult = { receipt, run_plan: null, plan_refused: null, model_id: null };
     if (prepare) {
-      const settings = await this.deps.settings.settings();
-      result.model_id = settings.models.default_model;
-      if (settings.models.default_model === null) {
+      // The model picked under Customize your settings, else the default model.
+      const chosen = modelId ?? (await this.deps.settings.settings()).models.default_model;
+      result.model_id = chosen;
+      if (chosen === null) {
         result.plan_refused = [{ code: "model_not_selected", message: "Choose a default model in Settings → Models, or pick one under Customize your settings.", subject: null }];
       } else {
         try {
-          result.run_plan = await this.prepareRunPlan(live.stored.session_id, { packageDigest: live.pkg.digest, receiptId: receipt.receipt_id, modelId: settings.models.default_model });
+          result.run_plan = await this.prepareRunPlan(live.stored.session_id, { packageDigest: live.pkg.digest, receiptId: receipt.receipt_id, modelId: chosen });
         } catch (error) {
           if (!(error instanceof CoreError) || error.code !== "run_plan_refused") throw error;
           result.plan_refused = (error.details.blocking_reasons as Reason[] | undefined) ?? [{ code: error.code, message: error.message, subject: null }];

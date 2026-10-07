@@ -59,8 +59,10 @@ export type Request =
       toolApprovals: Record<string, boolean>;
       resourceSelections: Record<string, string>;
       provenance: unknown | null;
-      /** Also prepare a run plan with the default model, when one is set. */
+      /** Also prepare a run plan, with `modelId` or else the default model, when one is set. */
       prepare: boolean;
+      /** The model the person picked under "Customize your settings"; null or absent means the default model. */
+      modelId?: string | null;
     }
   | { type: "authorization.useProfile"; sessionId: string; packageDigest: string; profileId: string; resourceSelections: Record<string, string>; prepare: boolean }
   | { type: "models.evaluate"; sessionId: string; refresh: boolean }
@@ -373,7 +375,7 @@ export function parseRequest(value: unknown): Request {
       only(fields, ["type", "sessionId"]);
       return { type, sessionId: text(fields.sessionId, "sessionId", MAX_ID) };
     case "authorization.authorize":
-      only(fields, ["type", "sessionId", "packageDigest", "decisions", "toolApprovals", "resourceSelections", "provenance", "prepare"]);
+      only(fields, ["type", "sessionId", "packageDigest", "decisions", "toolApprovals", "resourceSelections", "provenance", "prepare", "modelId"]);
       return {
         type,
         sessionId: text(fields.sessionId, "sessionId", MAX_ID),
@@ -383,6 +385,7 @@ export function parseRequest(value: unknown): Request {
         resourceSelections: stringMap(fields.resourceSelections, "resourceSelections"),
         provenance: bounded(fields.provenance, "provenance"),
         prepare: fields.prepare === true,
+        modelId: optionalText(fields.modelId, "modelId", 300),
       };
     case "authorization.useProfile":
       only(fields, ["type", "sessionId", "packageDigest", "profileId", "resourceSelections", "prepare"]);
