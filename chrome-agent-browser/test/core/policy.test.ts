@@ -61,6 +61,27 @@ describe("the package URL policy (test_browser_fetch.py::test_unsafe_url_syntax_
     "https://localhost/a.agent.pkg",
     "https://dev.localhost/a.agent.pkg",
     "https://printer.local/a.agent.pkg",
+    // Review 1, finding 2: forms the WHATWG parser (and so Chrome) folds into an IP literal
+    // or a local name, which `urlsplit` alone reads as ordinary DNS names.
+    "https://2130706433/a.agent.pkg",
+    "https://127.1/a.agent.pkg",
+    "https://0x7f.1/a.agent.pkg",
+    "https://0177.0.0.1/a.agent.pkg",
+    "https://0x0a000001/a.agent.pkg",
+    "https://1.2.3/a.agent.pkg",
+    "https://%31%32%37.0.0.1/a.agent.pkg",
+    "https://\uff11\uff12\uff17.\uff10.\uff10.\uff11/a.agent.pkg",
+    "https://\uff4c\uff4f\uff43\uff41\uff4c\uff48\uff4f\uff53\uff54/a.agent.pkg",
+    "https://169.254.169.254./a.agent.pkg",
+    "https://127.0.0.1./a.agent.pkg",
+    "https://[::ffff:127.0.0.1]/a.agent.pkg",
+    "https://localhost./a.agent.pkg",
+    "https://printer.local./a.agent.pkg",
+    "https://ip6-localhost/a.agent.pkg",
+    "https://127.0.0.1\\a.pkg/b.pkg",
+    "https://webair.example\\@127.0.0.1/a.pkg",
+    "https://999.1.1.1/a.agent.pkg",
+    "https://foo.123/a.agent.pkg",
   ]) {
     it(`refuses ${JSON.stringify(url.slice(0, 60))}`, () => {
       const error = (() => {
@@ -87,9 +108,24 @@ describe("the package URL policy (test_browser_fetch.py::test_unsafe_url_syntax_
     );
   });
 
-  it("names the subject in its messages", () => {
-    expect(() => validatePackageUrl("http://x.example/", "Website")).toThrow(/Only https:\/\/ website URLs/u);
+  it("names the subject in its messages, quoting as the reference does", () => {
+    expect(() => validatePackageUrl("http://x.example/", "Website")).toThrow(/Only https:\/\/ website URLs are accepted; refused scheme 'http'/u);
+    expect(() => validatePackageUrl("x.example/a.pkg")).toThrow(/refused scheme 'none'/u);
     expect(() => validatePackageUrl(42)).toThrow(/Package URL must be a string/u);
+  });
+
+  it("judges the host Chrome will connect to, not only the urlsplit host (D-039)", () => {
+    expect(() => validatePackageUrl("https://127.1/a.agent.pkg")).toThrow(/IP literal/u);
+    expect(() => validatePackageUrl("https://2130706433/a.agent.pkg")).toThrow(/IP literal/u);
+    expect(() => validatePackageUrl("https://localhost./a.agent.pkg")).toThrow(/local host/u);
+    expect(() => validatePackageUrl("https://127.0.0.1\\a.pkg/b.pkg")).toThrow(/backslash/u);
+    expect(() => validatePackageUrl("https://%31%32%37.0.0.1/a.agent.pkg")).toThrow(/IP literal/u);
+    expect(() => validatePackageUrl("https://a%2eb.example/a.agent.pkg")).toThrow(/browser would connect to 'a.b.example'/u);
+    // DNS names Chrome and the reference read alike are accepted: trailing dot, mixed case, IDN.
+    expect(validatePackageUrl("https://webair.example./a.agent.pkg").hostname).toBe("webair.example.");
+    expect(validatePackageUrl("https://b\u00fccher.example/a.agent.pkg").hostname).toBe("b\u00fccher.example");
+    expect(validatePackageUrl("https://127.0.0.1.example/a.agent.pkg").hostname).toBe("127.0.0.1.example");
+    expect(validatePackageUrl("https://localhost.example/a.agent.pkg").hostname).toBe("localhost.example");
   });
 });
 

@@ -13,6 +13,18 @@
  *   (`schema_validator` / `validate_instance`). Each opened package gets its own synthetic
  *   base URI, so loads never collide in the library's registry, and `close()` removes it.
  *
+ * The library's schema registry and its dialect table are process-global, and registering
+ * a document that carries `$id` or `$vocabulary` writes into both before any duplicate
+ * check (a member with `"$id": "https://json-schema.org/draft/2020-12/schema"` and a
+ * reduced `$vocabulary` would redefine the draft 2020-12 dialect for the rest of the
+ * process, and every later manifest, integrity or signature check would accept anything).
+ * The reference builds a fresh per-call registry, so package data can never reach its
+ * dialects. Here the same property holds by two rules in `PackageSchemas.open`: only the
+ * documents the manifest declares as schemas are registered, and only after
+ * `registrable` has found no `$id`, `$vocabulary`, `$schema` other than draft 2020-12,
+ * dynamic or recursive keyword anywhere in the tree (the same rules `validation.ts` applies
+ * to declared schemas). Anything else is simply not addressable by `$ref`.
+ *
  * `format` is an annotation here, as it is for the formats the reference checks nothing
  * about (`date-time`, `uri`); the reference's checker asserts a small set of other formats
  * that no agentpkg schema uses for package members.
@@ -162,7 +174,7 @@ function agentpkgDocument(uri: string): unknown {
 /** `validation.py::validate_document`: one of agentpkg's own schemas, first error reported. */
 export async function validateDocument(value: unknown, schemaName: string, label: string): Promise<void> {
   ensureAgentpkgSchemas();
-  if (!(schemaName in SCHEMAS)) throw new Error(`unknown agentpkg schema ${schemaName}`);
+  if (!Object.hasOwn(SCHEMAS, schemaName)) throw new Error(`unknown agentpkg schema ${schemaName}`);
   const list = await failures(`${AGENTPKG_BASE}${schemaName}.schema.json`, value);
   if (list.length === 0) return;
   const first = list[0]!;
@@ -184,38 +196,70 @@ export async function checkSchema(schema: unknown, path: string): Promise<void> 
  * The declared schemas of one package, registered under a private base URI so that
  * package-relative references resolve offline and nothing else can be retrieved.
  */
+/** Keywords that would write into the library's global registry or dialect table. */
+const REGISTRY_KEYWORDS: ReadonlySet<string> = new Set(["$id", "$vocabulary", "$dynamicRef", "$dynamicAnchor", "$recursiveRef", "$recursiveAnchor"]);
+
+/**
+ * Whether a package document may be handed to `registerSchema` without touching anything
+ * outside its own private base URI: a boolean, or an object tree with none of
+ * `REGISTRY_KEYWORDS` and no `$schema` other than draft 2020-12 at any depth. This is the
+ * same rule `validation.ts` enforces on declared schemas, applied here as the registry's
+ * own guard so that no caller can bypass it.
+ */
+export function registrable(document: unknown): boolean {
+  if (typeof document === "boolean") return true;
+  if (typeof document !== "object" || document === null || Array.isArray(document)) return false;
+  return clean(document);
+}
+
+function clean(value: object): boolean {
+  if (Array.isArray(value)) return value.every((item) => typeof item !== "object" || item === null || clean(item));
+  for (const [key, item] of Object.entries(value)) {
+    if (REGISTRY_KEYWORDS.has(key)) return false;
+    if (key === "$schema" && item !== DIALECT) return false;
+    if (typeof item === "object" && item !== null && !clean(item)) return false;
+  }
+  return true;
+}
+
 export class PackageSchemas {
   private constructor(
     private readonly base: string,
     private readonly documents: Map<string, unknown>,
+    private readonly registered: Set<string>,
   ) {}
 
-  static async open(files: ReadonlyMap<string, Uint8Array>): Promise<PackageSchemas> {
+  /**
+   * Open the schemas of one package. `paths` names the documents the manifest declares as
+   * schemas; only those are parsed and registered, and only when `registrable`. Without
+   * `paths`, every `.json` member is a candidate, still behind the same guard.
+   */
+  static async open(files: ReadonlyMap<string, Uint8Array>, paths?: Iterable<string>): Promise<PackageSchemas> {
     ensureAgentpkgSchemas();
     const base = `${PACKAGE_BASE}${crypto.randomUUID()}/`;
     const documents = new Map<string, unknown>();
-    const registered: string[] = [];
+    const registered = new Set<string>();
+    const wanted = paths === undefined ? null : new Set(paths);
     try {
       for (const [name, data] of files) {
         if (!name.endsWith(".json")) continue;
+        if (wanted !== null && !wanted.has(name)) continue;
         const document = parseJson(data, name);
         documents.set(name, document);
-        if (typeof document === "boolean" || (typeof document === "object" && document !== null && !Array.isArray(document))) {
-          try {
-            registerSchema(document as never, `${base}${name}`, DIALECT);
-            registered.push(`${base}${name}`);
-          } catch {
-            // A JSON member that is not usable as a schema document (for example one
-            // declaring another dialect) is simply not addressable by `$ref`; the walk in
-            // validation.ts refuses any reference that lands on it.
-          }
+        if (!registrable(document)) continue;
+        try {
+          registerSchema(document as never, `${base}${name}`, DIALECT);
+          registered.add(name);
+        } catch {
+          // Not usable as a schema document; it is simply not addressable by `$ref`, and
+          // the walk in validation.ts refuses any reference that lands on it.
         }
       }
     } catch (error) {
-      for (const uri of registered) unregisterSchema(uri);
+      for (const name of registered) unregisterSchema(`${base}${name}`);
       throw error;
     }
-    return new PackageSchemas(base, documents);
+    return new PackageSchemas(base, documents, registered);
   }
 
   document(path: string): unknown {
@@ -224,6 +268,7 @@ export class PackageSchemas {
 
   async failures(path: string, instance: unknown): Promise<SchemaFailure[]> {
     if (!this.documents.has(path)) throw new ValidationError(`undeclared schema ${JSON.stringify(path)}`);
+    if (!this.registered.has(path)) throw new ValidationError(`${path}: invalid JSON Schema`);
     try {
       return await failures(`${this.base}${path}`, instance);
     } catch (error) {
@@ -258,13 +303,8 @@ export class PackageSchemas {
   }
 
   close(): void {
-    for (const name of this.documents.keys()) {
-      try {
-        unregisterSchema(`${this.base}${name}`);
-      } catch {
-        // Not every document was registrable; see `open`.
-      }
-    }
+    for (const name of this.registered) unregisterSchema(`${this.base}${name}`);
+    this.registered.clear();
     this.documents.clear();
   }
 }
@@ -275,8 +315,9 @@ export async function validateInstance(
   path: string,
   instance: unknown,
   label = "instance",
+  paths?: Iterable<string>,
 ): Promise<void> {
-  const schemas = await PackageSchemas.open(files);
+  const schemas = await PackageSchemas.open(files, paths);
   try {
     await schemas.validateInstance(path, instance, label);
   } finally {

@@ -11,6 +11,7 @@ import { canonicalString } from "./canonical.js";
 import { ValidationError } from "./errors.js";
 import { isJsonObject, parseJson, type JsonObject, type JsonValue } from "./json.js";
 import { references, schemaReference, select, tokens, unique } from "./references.js";
+import { pyRepr } from "./repr.js";
 import { PackageSchemas, validateDocument } from "./schema.js";
 
 type Documents = Map<string, JsonValue>;
@@ -36,7 +37,7 @@ function atSchema(
     const key = JSON.stringify([target, fragment, parts]);
     if (seen.has(key)) throw new ValidationError(`${label}: recursive projection cannot be resolved`);
     const document = documents.get(target);
-    if (document === undefined) throw new ValidationError(`${path}: missing or undeclared schema reference ${JSON.stringify(target)}`);
+    if (document === undefined) throw new ValidationError(`${path}: missing or undeclared schema reference ${pyRepr(target)}`);
     return atSchema(select(document, fragment, label), parts, target, documents, label, new Set([...seen, key]));
   }
   if (parts.length === 0) return schema;
@@ -64,8 +65,9 @@ function atSchema(
     const types = typeof declared === "string" ? [declared] : (declared as JsonValue[]);
     if (!types.includes("object")) throw new ValidationError(`${label}: cannot traverse a scalar schema`);
     const properties = isJsonObject(schema.properties) ? schema.properties : {};
-    child = properties[key] ?? schema.additionalProperties ?? true;
-    if (child === false) throw new ValidationError(`${label}: state/data path component ${JSON.stringify(key)} not declared`);
+    // `properties.get(key)`: an own property only, never `Object.prototype`'s.
+    child = (Object.hasOwn(properties, key) ? properties[key] : undefined) ?? schema.additionalProperties ?? true;
+    if (child === false) throw new ValidationError(`${label}: state/data path component ${pyRepr(key)} not declared`);
   }
   return atSchema(child, rest, path, documents, label, seen);
 }
@@ -102,7 +104,7 @@ export async function validateWorkflow(
 
   const schema = (path: unknown, label: string): Schema => {
     const text = String(path);
-    if (!schemaPaths.has(text)) throw new ValidationError(`${label}: undeclared schema ${JSON.stringify(text)}`);
+    if (!schemaPaths.has(text)) throw new ValidationError(`${label}: undeclared schema ${pyRepr(text)}`);
     return [documents.get(text)!, text];
   };
   schema(graph.input_schema, "workflow input");
@@ -119,7 +121,7 @@ export async function validateWorkflow(
     const found = new Set<string>();
     for (const raw of node.depends_on as JsonValue[]) {
       const dependency = String(raw);
-      if (!nodes.has(dependency)) throw new ValidationError(`workflow node ${nodeId}: unknown dependency ${JSON.stringify(dependency)}`);
+      if (!nodes.has(dependency)) throw new ValidationError(`workflow node ${nodeId}: unknown dependency ${pyRepr(dependency)}`);
       found.add(dependency);
       for (const item of visit(dependency)) found.add(item);
     }
@@ -147,7 +149,7 @@ export async function validateWorkflow(
 
   const expression = (value: JsonValue, env: Env, label: string, role: string | null = null, nodeId: string | null = null): void => {
     for (const [source, pointer] of references(value)) {
-      if (!(source in env)) throw new ValidationError(`${label}: source ${JSON.stringify(source)} is unavailable in this scope`);
+      if (!Object.hasOwn(env, source)) throw new ValidationError(`${label}: source ${pyRepr(source)} is unavailable in this scope`);
       let parts = tokens(pointer);
       let root: JsonValue;
       let path: string;
@@ -160,7 +162,7 @@ export async function validateWorkflow(
       }
       if (source === "steps") {
         const steps = env.steps as Record<string, Schema>;
-        if (parts.length === 0 || !(parts[0]! in steps)) throw new ValidationError(`${label}: unknown or forward step reference`);
+        if (parts.length === 0 || !Object.hasOwn(steps, parts[0]!)) throw new ValidationError(`${label}: unknown or forward step reference`);
         [root, path] = steps[parts[0]!]!;
         parts = parts.slice(1);
       } else {
@@ -188,11 +190,11 @@ export async function validateWorkflow(
     }
     const kind = node.type;
     if (kind === "llm" && !tasks.has(String(node.task))) {
-      throw new ValidationError(`${label}: undeclared model task ${JSON.stringify(node.task)}`);
+      throw new ValidationError(`${label}: undeclared model task ${pyRepr(node.task)}`);
     }
     if (kind === "tool") {
       const tool = String(node.tool);
-      if (!(tool in tools)) throw new ValidationError(`${label}: unknown tool ${JSON.stringify(tool)}`);
+      if (!Object.hasOwn(tools, tool)) throw new ValidationError(`${label}: unknown tool ${pyRepr(node.tool)}`);
       if (!(workers.get(role)!.tools as JsonValue[]).map(String).includes(tool)) {
         throw new ValidationError(`${label}: tool is not authorized for worker ${role}`);
       }
@@ -219,7 +221,7 @@ export async function validateWorkflow(
   for (const [nodeId, node] of nodes) {
     const role = String(node.worker);
     const label = `workflow node ${nodeId}`;
-    if (!workers.has(role)) throw new ValidationError(`${label}: unknown worker ${JSON.stringify(role)}`);
+    if (!workers.has(role)) throw new ValidationError(`${label}: unknown worker ${pyRepr(role)}`);
     const env: Env = { state: [documents.get(statePath)!, statePath] };
     operation(node, role, env, label, nodeId);
     const stateWrite = (workers.get(role)!.state_write as JsonValue[]).map(String);
@@ -241,7 +243,7 @@ export async function validateWorkflow(
       if (a === b || ancestors.get(b)!.has(a) || ancestors.get(a)!.has(b)) continue;
       const conflict = [...writes.get(a)!].filter((key) => reads.get(b)!.has(key) || writes.get(b)!.has(key)).sort();
       if (conflict.length > 0) {
-        throw new ValidationError(`workflow nodes ${a}/${b}: unordered state conflict ${JSON.stringify(conflict)}; add a dependency`);
+        throw new ValidationError(`workflow nodes ${a}/${b}: unordered state conflict ${pyRepr(conflict)}; add a dependency`);
       }
     }
   }
@@ -255,7 +257,7 @@ export async function validateWorkflow(
       for (const dependency of ancestors.get(nodeId)!) for (const key of writes.get(dependency)!) available.add(key);
       const missing = [...reads.get(nodeId)!].filter((key) => !available.has(key)).sort();
       if (missing.length > 0) {
-        throw new ValidationError(`workflow node ${nodeId}: read before initialization ${JSON.stringify(missing)}`);
+        throw new ValidationError(`workflow node ${nodeId}: read before initialization ${pyRepr(missing)}`);
       }
     }
   }
@@ -275,7 +277,7 @@ export async function validateWorkflow(
     if (data === undefined) throw new ValidationError(`missing workflow fixture ${path}`);
     const fixture = parseJson(data, path) as JsonObject;
     await validateDocument(fixture, "workflow-fixture", path);
-    const schemas = await PackageSchemas.open(files);
+    const schemas = await PackageSchemas.open(files, schemaPaths);
     try {
       await schemas.validateInstance(String(graph.input_schema), fixture.input, "fixture input");
       const models = fixture.models as JsonObject;
@@ -284,7 +286,7 @@ export async function validateWorkflow(
         const inputs = (cases as JsonValue[]).map((item) => canonicalString((item as JsonObject).input));
         if (new Set(inputs).size !== inputs.length) throw new ValidationError("fixture contains duplicate input cases");
       }
-      if (Object.keys(models).some((task) => !tasks.has(task)) || Object.keys(fixtureTools).some((tool) => !(tool in tools))) {
+      if (Object.keys(models).some((task) => !tasks.has(task)) || Object.keys(fixtureTools).some((tool) => !Object.hasOwn(tools, tool))) {
         throw new ValidationError("fixture contains undeclared model task/tool");
       }
       for (const [toolId, cases] of Object.entries(fixtureTools)) {
