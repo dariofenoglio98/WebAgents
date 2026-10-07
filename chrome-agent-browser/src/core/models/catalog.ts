@@ -125,7 +125,7 @@ function base(connection: ProviderConnection): string {
 }
 
 function overrideFor(connection: ProviderConnection, modelId: string): ModelOverride {
-  return connection.overrides[modelId] ?? {};
+  return Object.hasOwn(connection.overrides, modelId) ? connection.overrides[modelId]! : {};
 }
 
 function knownLimit(modelId: string): KnownLimit | null {

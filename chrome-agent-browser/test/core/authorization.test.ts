@@ -105,6 +105,16 @@ describe("the reference semantics", () => {
     expect(normalizeToolApprovals(pkg, { "search-flights": true })).toMatchObject({ "search-flights": true, "prepare-booking": false });
   });
 
+  it("inherited property names are not declared ids or decisions (review 1, finding 1)", async () => {
+    const pkg = await webair040();
+    // JSON.parse makes `__proto__` an own key, as a message from a view would carry it.
+    for (const name of ["constructor", "toString", "hasOwnProperty", "__proto__", "valueOf"]) {
+      expect(code(() => normalizeDecisions(pkg, JSON.parse(`{"${name}": "session"}`)))).toBe("unknown_permission");
+      expect(code(() => normalizeToolApprovals(pkg, JSON.parse(`{"${name}": true}`)))).toBe("unknown_tool_approval");
+      expect(code(() => normalizeDecisions(pkg, { "network.webair": name }))).toBe("invalid_decision");
+    }
+  });
+
   it("blocking reasons carry the reference's codes and subjects", async () => {
     const pkg = await webair040();
     const input = inputs();
@@ -267,5 +277,42 @@ describe("presets (D-050)", () => {
     // A missing entry defaults to the person's own decision.
     expect(normalizeProvenance(pkg, { ...raw, decisions: {} }, decisions, approvals, grants)?.decisions["network.webair"]).toBe("user");
     void (0 as unknown as JsonObject);
+  });
+
+  it("believes a provenance claim only when the profile or the preset yields that exact decision (review 1, nit 8)", async () => {
+    const pkg = await webair040();
+    const search = readProfiles(pkg).profiles!.find((profile) => profile.id === "search")!;
+    const decided = profileDecisions(pkg, search, "balanced");
+    const all = (by: "profile" | "preset" | "user", record: Record<string, unknown>) => Object.fromEntries(Object.keys(record).map((id) => [id, by]));
+    const raw = {
+      schema: "org.webagents:decision-provenance-v0",
+      profile_id: "search",
+      profile_title: "A title the view made up",
+      preset: "balanced",
+      decisions: all("profile", decided.decisions),
+      tool_approvals: all("profile", decided.tool_approvals),
+      resource_selections: {},
+    };
+    // The person then grants the travel profile by hand, but the view still says "profile".
+    const changed = { ...decided.decisions, "profile.travel": "session" as const };
+    const registry = await normalizeResourceRegistry(inputs().resource_registry);
+    const grants = normalizeResourceSelections(pkg, registry, changed, { "profile.travel": "profile_demo_traveler" });
+    const normalized = normalizeProvenance(pkg, { ...raw, resource_selections: { "profile.travel": "profile" } }, changed, decided.tool_approvals, grants)!;
+    expect(normalized.profile_title).toBe(search.title); // the package's title, never the view's
+    expect(normalized.decisions["profile.travel"]).toBe("user"); // the profile denies it
+    expect(normalized.decisions["network.webair"]).toBe("profile");
+    expect(normalized.resource_selections).toEqual({ "profile.travel": "user" }); // picks are always the person's
+    // An undeclared profile is no profile: every "profile" claim becomes the person's.
+    const unknown = normalizeProvenance(pkg, { ...raw, profile_id: "everything" }, decided.decisions, decided.tool_approvals, [])!;
+    expect([unknown.profile_id, unknown.profile_title]).toEqual([null, null]);
+    expect(new Set(Object.values(unknown.decisions))).toEqual(new Set(["user"]));
+    // A "preset" claim stands where the preset's defaults agree, and nowhere else.
+    const defaults = defaultDecisions(pkg, "privacy-first");
+    const claimed = normalizeProvenance(pkg, { ...raw, profile_id: null, preset: "privacy-first", decisions: all("preset", defaults.decisions), tool_approvals: all("preset", defaults.tool_approvals) }, { ...defaults.decisions, "model.reasoning": "once" }, defaults.tool_approvals, [])!;
+    expect(claimed.decisions["network.webair"]).toBe("preset");
+    expect(claimed.decisions["model.reasoning"]).toBe("user");
+    expect(new Set(Object.values(claimed.tool_approvals))).toEqual(new Set(["preset"]));
+    expect(code(() => normalizeProvenance(pkg, { ...raw, profile_id: 7 }, decided.decisions, decided.tool_approvals, []))).toBe("invalid_request");
+    expect(code(() => normalizeProvenance(pkg, { ...raw, resource_selections: { "wallet.payment": "user" } }, decided.decisions, decided.tool_approvals, []))).toBe("invalid_request");
   });
 });

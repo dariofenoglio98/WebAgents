@@ -26,7 +26,7 @@ export function closedRecord(value: unknown, field: string, allowed: readonly st
   if (!isRecord(value)) throw invalid(`${field} must be an object`);
   const unknown = Object.keys(value).filter((key) => !allowed.includes(key)).sort();
   if (unknown.length > 0) throw invalid(`Unknown fields in ${field}: ${pyRepr(unknown)}`, "unknown_field");
-  const missing = required.filter((key) => !(key in value)).sort();
+  const missing = required.filter((key) => !Object.hasOwn(value, key)).sort();
   if (missing.length > 0) throw invalid(`Missing fields in ${field}: ${pyRepr(missing)}`);
   return value;
 }

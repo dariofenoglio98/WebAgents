@@ -307,7 +307,7 @@ export function normalizeResourceSelections(
     grants.push({ permission_id: permissionId, resource_type: resource.type, resource_id: resource.id, resource_digest: resource.digest });
   }
   for (const [permissionId, request] of requests) {
-    if (request.status === OFFERED && (decisions[permissionId] ?? DENY) !== DENY && !(permissionId in picks)) {
+    if (request.status === OFFERED && (decisions[permissionId] ?? DENY) !== DENY && !Object.hasOwn(picks, permissionId)) {
       throw new CoreError(
         "resource_selection_required",
         `Permission ${pyRepr(permissionId)} grants access to a ${request.type_display_name ?? "host resource"}; choose which one, or deny the permission.`,

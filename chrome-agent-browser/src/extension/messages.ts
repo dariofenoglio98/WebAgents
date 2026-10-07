@@ -277,20 +277,19 @@ function only(fields: Record<string, unknown>, allowed: readonly string[]): void
 function stringMap(value: unknown, field: string): Record<string, string> {
   if (value === undefined || value === null) return {};
   if (!isRecord(value) || Object.keys(value).length > MAX_DECISIONS) throw invalid(`${field} must be an object of at most ${MAX_DECISIONS} entries`);
-  const out: Record<string, string> = {};
-  for (const [key, item] of Object.entries(value)) out[text(key, `${field} key`, MAX_ID)] = text(item, `${field}[${key}]`, MAX_ID);
-  return out;
+  // Object.fromEntries defines own keys, so a `__proto__` key reaches the core and is refused by name.
+  return Object.fromEntries(Object.entries(value).map(([key, item]) => [text(key, `${field} key`, MAX_ID), text(item, `${field}[${key}]`, MAX_ID)]));
 }
 
 function booleanMap(value: unknown, field: string): Record<string, boolean> {
   if (value === undefined || value === null) return {};
   if (!isRecord(value) || Object.keys(value).length > MAX_DECISIONS) throw invalid(`${field} must be an object of at most ${MAX_DECISIONS} entries`);
-  const out: Record<string, boolean> = {};
-  for (const [key, item] of Object.entries(value)) {
-    if (typeof item !== "boolean") throw invalid(`${field}[${key}] must be a boolean`);
-    out[text(key, `${field} key`, MAX_ID)] = item;
-  }
-  return out;
+  return Object.fromEntries(
+    Object.entries(value).map(([key, item]) => {
+      if (typeof item !== "boolean") throw invalid(`${field}[${key}] must be a boolean`);
+      return [text(key, `${field} key`, MAX_ID), item];
+    }),
+  );
 }
 
 /** An opaque JSON value the core validates; only its size is bounded here. */

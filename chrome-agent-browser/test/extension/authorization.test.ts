@@ -12,7 +12,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { CoreError } from "../../src/core/errors.js";
-import type { AuthorizationView, AuthorizeResult, ModelsView, RunPlanState, SessionView, SettingsView, VaultView } from "../../src/extension/messages.js";
+import { parseRequest, type AuthorizationView, type AuthorizeResult, type ModelsView, type RunPlanState, type SessionView, type SettingsView, type VaultView } from "../../src/extension/messages.js";
 import { MemoryTrustStorage } from "../../src/core/trust.js";
 import { MemoryStorageArea } from "../../src/extension/storage/settings.js";
 import { MemorySnapshotStore } from "../../src/extension/storage/snapshots.js";
@@ -267,6 +267,15 @@ describe("the customize path: Literature Review 0.2.5 with today's OpenClaw deci
     expect((await refused(h.controller.handle({ ...base, decisions: { "network.webair": "always" } }, PAGE))).code).toBe("unsupported_decision");
     expect((await refused(h.controller.handle({ ...base, decisions: { ghost: "session" } }, PAGE))).code).toBe("unknown_permission");
     expect((await refused(h.controller.handle({ ...base, decisions: {}, packageDigest: "0".repeat(64) }, PAGE))).code).toBe("digest_mismatch");
+    // Inherited names are not declared ids (review 1, finding 1): through the message parser, as a view sends them.
+    const viaParser = (body: string) => h.controller.handle(parseRequest(JSON.parse(body)), PAGE);
+    const message = (decisions: string, approvals = "{}") =>
+      `{"type": "authorization.authorize", "sessionId": "${session.session.id}", "packageDigest": "${SHIPPED.webair040.digest}", "decisions": ${decisions}, "toolApprovals": ${approvals}, "resourceSelections": {}, "provenance": null, "prepare": false}`;
+    for (const name of ["constructor", "toString", "hasOwnProperty", "__proto__"]) {
+      expect((await refused(viaParser(message(`{"${name}": "session"}`)))).code).toBe("unknown_permission");
+      expect((await refused(viaParser(message("{}", `{"${name}": true}`)))).code).toBe("unknown_tool_approval");
+    }
+    expect(((await h.controller.handle({ type: "authorization.get", sessionId: session.session.id }, PAGE)) as AuthorizationView).receipt).toBeNull();
     const silent = (await h.controller.handle({ ...base, decisions: {} }, PAGE)) as AuthorizeResult;
     expect(Object.values(silent.receipt.decisions).every((decision) => decision === "deny")).toBe(true);
     expect(silent.receipt.runnable).toBe(false);

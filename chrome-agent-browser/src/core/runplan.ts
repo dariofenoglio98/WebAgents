@@ -187,7 +187,7 @@ export function preparationBlockers(pkg: Package, input: PreparationInputs): Rea
   );
   if (input.mode === MODE_TOOL_PROBE) {
     if (probe === null) reasons.push(reason("tool_probe_tool_missing", "A tool probe must name the tool it is for."));
-    else if (!(probe in pkg.tools)) reasons.push(reason("tool_not_declared", `This package declares no tool named ${pyRepr(probe)}.`, probe));
+    else if (!Object.hasOwn(pkg.tools, probe)) reasons.push(reason("tool_not_declared", `This package declares no tool named ${pyRepr(probe)}.`, probe));
     return reasons;
   }
   const compatibility = input.compatibility;

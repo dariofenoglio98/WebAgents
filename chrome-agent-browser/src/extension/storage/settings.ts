@@ -82,7 +82,7 @@ function normalizeOverrides(raw: unknown): Record<string, ModelOverride> {
   const out: Record<string, ModelOverride> = {};
   if (!isRecord(raw)) return out;
   for (const [modelId, value] of Object.entries(raw).slice(0, 64)) {
-    if (!isRecord(value) || modelId.length === 0 || modelId.length > 256) continue;
+    if (!isRecord(value) || modelId.length === 0 || modelId.length > 256 || modelId === "__proto__") continue;
     const override: ModelOverride = {};
     if ("context_tokens" in value) override.context_tokens = positiveInt(value.context_tokens);
     if ("max_output_tokens" in value) override.max_output_tokens = positiveInt(value.max_output_tokens);

@@ -18,7 +18,7 @@ import { sha256Hex } from "./hash.js";
 import { resourceRegistryReference, type ResourceRegistry } from "./hostresources.js";
 import type { JsonObject, JsonValue } from "./json.js";
 import type { Package } from "./package.js";
-import type { Profile } from "./profiles.js";
+import { readProfiles, type Profile } from "./profiles.js";
 import { pyRepr } from "./repr.js";
 import type { TrustState } from "./trust.js";
 import {
@@ -154,8 +154,9 @@ export function normalizeDecisions(pkg: Package, submitted: unknown): Record<str
   if (submitted === null || submitted === undefined) return decisions;
   if (!isRecord(submitted)) throw new CoreError("invalid_request", "decisions must be an object of permission ID to decision");
   for (const [permissionId, decision] of Object.entries(submitted)) {
-    if (!(permissionId in decisions)) throw new CoreError("unknown_permission", `${pyRepr(permissionId)} is not declared by this package`);
-    if (typeof decision === "string" && decision in UNSUPPORTED_DECISIONS) throw new CoreError("unsupported_decision", UNSUPPORTED_DECISIONS[decision]!, { status: 400 });
+    // Own keys only: `in` would admit inherited names (`constructor`, `toString`) as declared.
+    if (!Object.hasOwn(decisions, permissionId)) throw new CoreError("unknown_permission", `${pyRepr(permissionId)} is not declared by this package`);
+    if (typeof decision === "string" && Object.hasOwn(UNSUPPORTED_DECISIONS, decision)) throw new CoreError("unsupported_decision", UNSUPPORTED_DECISIONS[decision]!, { status: 400 });
     if (typeof decision !== "string" || !(SUPPORTED_DECISIONS as readonly string[]).includes(decision)) {
       throw new CoreError("invalid_decision", `Decision must be one of ${pyRepr([...SUPPORTED_DECISIONS])}; got ${pyRepr(decision)}`);
     }
@@ -169,7 +170,7 @@ export function normalizeToolApprovals(pkg: Package, submitted: unknown): Record
   if (submitted === null || submitted === undefined) return approvals;
   if (!isRecord(submitted)) throw new CoreError("invalid_request", "tool_approvals must be an object");
   for (const [toolId, approved] of Object.entries(submitted)) {
-    if (!(toolId in approvals)) throw new CoreError("unknown_tool_approval", `${pyRepr(toolId)} does not require a separate host approval in this package`);
+    if (!Object.hasOwn(approvals, toolId)) throw new CoreError("unknown_tool_approval", `${pyRepr(toolId)} does not require a separate host approval in this package`);
     if (typeof approved !== "boolean") throw new CoreError("invalid_request", "tool approvals must be booleans");
     approvals[toolId] = approved;
   }
@@ -404,33 +405,53 @@ export function defaultDecisions(pkg: Package, preset: PresetId): Decided {
   return { decisions, tool_approvals: approvals, provenance: provenance(preset, null, "preset", decisions, approvals) };
 }
 
-/** Validate a submitted provenance object against the decisions it accompanies, or refuse. */
+/**
+ * Validate a submitted provenance object against the decisions it accompanies, or refuse. A
+ * view states who decided each item, but the worker believes only what it can recompute: a
+ * `profile` claim stands only when that declared profile, expanded under the stated preset,
+ * yields the same decision; a `preset` claim only when the preset's defaults do; anything else
+ * is recorded as the person's own. Resource picks are always the person's (D-050, D-053), and
+ * the profile title comes from the package, never from the view.
+ */
 export function normalizeProvenance(pkg: Package, submitted: unknown, decisions: Record<string, Decision>, approvals: Record<string, boolean>, grants: readonly ResourceGrant[]): Provenance | null {
   if (submitted === null || submitted === undefined) return null;
   if (!isRecord(submitted)) throw new CoreError("invalid_request", "provenance must be an object");
   if (!isPresetId(submitted.preset)) throw new CoreError("invalid_request", `provenance.preset must be one of ${pyRepr([...PRESET_IDS])}`);
-  const by = (value: unknown, field: string): DecidedBy => {
+  const preset = submitted.preset;
+  const claimedProfile = submitted.profile_id === undefined || submitted.profile_id === null ? null : submitted.profile_id;
+  if (claimedProfile !== null && typeof claimedProfile !== "string") throw new CoreError("invalid_request", "provenance.profile_id must be a string or null");
+  const profile = claimedProfile === null ? null : (readProfiles(pkg).profiles?.find((item) => item.id === claimedProfile) ?? null);
+  const fromProfile = profile ? profileDecisions(pkg, profile, preset) : null;
+  const fromPreset = defaultDecisions(pkg, preset);
+  const claim = (value: unknown, field: string): DecidedBy => {
     if (value === "user" || value === "profile" || value === "preset") return value;
     throw new CoreError("invalid_request", `${field} must be user, profile or preset`);
   };
-  const map = (raw: unknown, keys: string[], field: string): Record<string, DecidedBy> => {
+  const map = <T>(raw: unknown, actual: Record<string, T>, field: string, expansion: (decided: Decided) => Record<string, T>): Record<string, DecidedBy> => {
     if (raw === undefined || raw === null) raw = {};
     if (!isRecord(raw)) throw new CoreError("invalid_request", `${field} must be an object`);
+    for (const key of Object.keys(raw)) if (!Object.hasOwn(actual, key)) throw new CoreError("invalid_request", `${field} names ${pyRepr(key)}, which has no decision`);
     const out: Record<string, DecidedBy> = {};
-    for (const key of keys) out[key] = by(raw[key] ?? "user", `${field}[${key}]`);
-    for (const key of Object.keys(raw)) if (!keys.includes(key)) throw new CoreError("invalid_request", `${field} names ${pyRepr(key)}, which has no decision`);
+    for (const key of Object.keys(actual).sort()) {
+      const by = claim(Object.hasOwn(raw, key) ? raw[key] : "user", `${field}[${key}]`);
+      const source = by === "profile" ? fromProfile : by === "preset" ? fromPreset : null;
+      out[key] = source !== null && expansion(source)[key] === actual[key] ? by : "user";
+    }
     return out;
   };
-  const profileId = submitted.profile_id === undefined || submitted.profile_id === null ? null : String(submitted.profile_id).slice(0, 128);
-  const profileTitle = submitted.profile_title === undefined || submitted.profile_title === null ? null : String(submitted.profile_title).slice(0, 60);
-  void pkg;
+  const picks = submitted.resource_selections ?? {};
+  if (!isRecord(picks)) throw new CoreError("invalid_request", "provenance.resource_selections must be an object");
+  const granted = new Set(grants.map((grant) => grant.permission_id));
+  for (const key of Object.keys(picks)) {
+    if (!granted.has(key)) throw new CoreError("invalid_request", `provenance.resource_selections names ${pyRepr(key)}, which has no decision`);
+  }
   return {
     schema: PROVENANCE_SCHEMA,
-    profile_id: profileId,
-    profile_title: profileTitle,
-    preset: submitted.preset,
-    decisions: map(submitted.decisions, Object.keys(decisions).sort(), "provenance.decisions"),
-    tool_approvals: map(submitted.tool_approvals, Object.keys(approvals).sort(), "provenance.tool_approvals"),
-    resource_selections: map(submitted.resource_selections, grants.map((grant) => grant.permission_id).sort(), "provenance.resource_selections"),
+    profile_id: profile ? profile.id : null,
+    profile_title: profile ? profile.title : null,
+    preset,
+    decisions: map(submitted.decisions, decisions, "provenance.decisions", (decided) => decided.decisions),
+    tool_approvals: map(submitted.tool_approvals, approvals, "provenance.tool_approvals", (decided) => decided.tool_approvals),
+    resource_selections: Object.fromEntries([...granted].sort().map((id) => [id, "user" as const])),
   };
 }
