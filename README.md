@@ -73,7 +73,7 @@ Agent Browser run has been accepted on Linux.
 | Workers | 3 parallel perspectives | bounded parallel map workers (peak 3) | bounded fare-rule workers (peak 3) |
 | Validation | goal and duration copied from input; minutes must sum exactly | paper-scoped evidence ids, exact quotes and bibliography copied from trusted data, whole-row checks, explicit no-results outcome | the model only chooses among flights and fares WebAir returned; quotes and purchases are checked against the authorized fare; no model sees the identity or payment method; personal state is cleared before output |
 | Typical live run (search) | ~30 s hosted, ~2.5 min local | ~7 min hosted, ~25 min local | ~20 s hosted, ~1.5 min local |
-| Current version | 0.2.2 ([dist](dist/meeting-agenda.agent.pkg)) | 0.2.5 ([dist](dist/literature-review.agent.pkg)) | 0.3.0 ([dist](dist/webair-0.3.0.agent.pkg)) |
+| Current version | 0.2.2 ([dist](dist/meeting-agenda.agent.pkg)) | 0.2.5 ([dist](dist/literature-review.agent.pkg)) | 0.4.0 ([dist](dist/webair-0.4.0.agent.pkg)) |
 
 ## Quickstart: offline, about five minutes
 
@@ -93,7 +93,7 @@ agentpkg/.venv/bin/agentpkg verify dist/meeting-agenda.agent.pkg \
   --trust-key examples/keys/meeting-agenda-publisher.pub.pem
 agentpkg/.venv/bin/agentpkg verify dist/literature-review.agent.pkg \
   --trust-key examples/keys/literature-review-publisher.pub.pem
-agentpkg/.venv/bin/agentpkg verify dist/webair-0.3.0.agent.pkg \
+agentpkg/.venv/bin/agentpkg verify dist/webair-0.4.0.agent.pkg \
   --trust-key examples/keys/webair-publisher.pub.pem
 
 # 2. Run Meeting Agenda (model only)
@@ -108,7 +108,7 @@ agentpkg/.venv/bin/agentpkg run dist/literature-review.agent.pkg \
   --out examples/my-review
 
 # 4. Run a WebAir flight search (every personal resource denied: a search needs none)
-agentpkg/.venv/bin/agentpkg run dist/webair-0.3.0.agent.pkg \
+agentpkg/.venv/bin/agentpkg run dist/webair-0.4.0.agent.pkg \
   --mode fixture --grants examples/webair-0.2.0-grants.json \
   --approve-tool search-flights --approve-tool get-fare-rules \
   --out examples/my-webair
@@ -378,7 +378,7 @@ boundary; data-flow policies; persistent ("always") authorization; federated sch
 | `openclaw-agent-browser/` | OpenClaw plugin (TypeScript): backend, Control UI page, tests, operator scripts |
 | `agents/` | package sources: `meeting-agenda`, `literature-review`, `webair`, `literature-review-legacy` |
 | `dist/` | signed packages and wheels, current and historical, with SHA-256 ([dist/README.md](dist/README.md)) |
-| `spec/` | the `agent.pkg` and `workflow.v0` specifications |
+| `spec/` | the `agent.pkg` and `workflow.v0` specifications; `spec/extensions/` for noncritical manifest extensions (publisher-declared profiles) |
 | `docs/` | guides and dated milestone reports ([index](docs/README.md)) |
 | `examples/` | grants, inputs, public development keys, recorded runs, verification evidence ([examples/README.md](examples/README.md)) |
 | `scripts/` | offline acceptance and verification scripts |

@@ -2,7 +2,8 @@
 
     cd demo/webair
     .venv/bin/python -m publisher sync    # rewrite the generated files from the origin
-    .venv/bin/python -m publisher check   # exit 1 if any of them differs from the origin now
+    .venv/bin/python -m publisher check   # exit 1 if any of them differs from the origin now,
+                                          # or if the package's profiles break their rules
 
 Generated: `agents/webair/schemas/api/*.json` (WebAir's published API contract),
 `agents/webair/schemas/host/*.json` (the demo host's resource type schemas, which the
@@ -14,7 +15,9 @@ capability demo's tasks, grants, picks, model scripts and WebAir's answers),
 fixtures serve) and `demo/webair/host-bindings.json` (the demo host's operator bindings of
 the four WebAir tools to the public origin). Everything else in `agents/webair/` (manifest,
 graph, policy, tool declarations, skills, package-authored schemas) is written by hand, and
-the contract tests check it against the origin.
+the contract tests check it against the origin. The manifest's profiles
+(`org.webagents:profiles-v0`) are hand-written too; `check` also validates them against
+their schema and rules (`profiles.py`).
 """
 
 from __future__ import annotations
@@ -29,6 +32,7 @@ from .contract import PACKAGE_SOURCE, REPO_ROOT, contract_files
 from .fixture import FIXTURE_PATH, record_fixture, source_files
 from .host import host_schema_files
 from .host_bindings import HOST_BINDINGS, host_bindings_document
+from .profiles import source_profile_problems
 from .scenarios import capability_scenario, scenario, scenarios
 from .site import capture_site
 
@@ -57,11 +61,12 @@ def example_files(current: dict[str, bytes]) -> dict[Path, dict]:
     }
 
 
-def generated() -> dict[Path, dict]:
+def generated(files: dict[str, bytes] | None = None) -> dict[Path, dict]:
+    """Every generated file's document now, from the package source (or the given files)."""
     contract = {**contract_files(), **host_schema_files()}
     # Record the fixture against the schemas the origin and the host publish now.
     current = {
-        **source_files(),
+        **(source_files() if files is None else files),
         **{path: json.dumps(doc).encode() for path, doc in contract.items()},
     }
     documents = {PACKAGE_SOURCE / path: doc for path, doc in contract.items()}
@@ -77,9 +82,9 @@ def render(document: dict) -> str:
     return json.dumps(document, indent=2, ensure_ascii=False) + "\n"
 
 
-def drift() -> list[str]:
+def drift(files: dict[str, bytes] | None = None) -> list[str]:
     stale = []
-    for path, document in generated().items():
+    for path, document in generated(files).items():
         if not path.is_file() or json.loads(path.read_text()) != document:
             stale.append(path.relative_to(REPO_ROOT).as_posix())
     return stale
@@ -90,9 +95,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("command", choices=["sync", "check"])
     args = parser.parse_args(argv)
     if args.command == "check":
-        stale = drift()
-        print(json.dumps({"stale": stale}, indent=2))
-        return 1 if stale else 0
+        files = source_files()
+        stale = drift(files)
+        profiles = source_profile_problems(files)
+        print(json.dumps({"stale": stale, "profile_problems": profiles}, indent=2))
+        return 1 if stale or profiles else 0
     for path, document in generated().items():
         path.write_text(render(document))
         print(f"wrote {path.relative_to(REPO_ROOT).as_posix()}")

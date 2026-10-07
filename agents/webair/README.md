@@ -1,16 +1,16 @@
 # WebAir Travel Agent — workflow.v0
 
-`org.webagents.webair` 0.3.0, published by the fictional WebAir demo airline
+`org.webagents.webair` 0.4.0, published by the fictional WebAir demo airline
 (`demo/webair/`), whose public demo origin is <https://webagents-webair-production.up.railway.app/>.
 WebAir serves the same business logic two ways: HTML pages and forms for people, and this
 signed package for an agent-native host. **The package never touches WebAir's HTML.** It
 declares WebAir's semantic operations as tools and carries the domain knowledge and
 orchestration to use them. Nothing is ever booked or charged: WebAir is not an airline.
 
-0.3.0 is 0.2.0 for the live deployment: the tools' declared endpoints, the network
-permission's scope, the network policy and the manifest's informational origin name the
-public host instead of 0.2.0's reserved, never-resolving placeholder name. The graph, schemas, skills, fixture,
-permissions and budgets are unchanged.
+0.4.0 is 0.3.0 with [profiles](#profiles): three named groups of what the package already
+declares, which a host can offer as a short path to authorization. The graph, tools, schemas,
+skills, fixture, policy, permissions and budgets are unchanged. (0.3.0 was 0.2.0 for the live
+deployment: it names the public host instead of 0.2.0's reserved, never-resolving placeholder.)
 
 **WebAir publishes the behavior. The person's runtime supplies the authority.** This version
 asks the person's host for three personal resources it does not own — a travel profile, a
@@ -112,9 +112,29 @@ credential. Required permissions: `network.webair`, `model.reasoning`, `memory.s
 optional: `profile.travel`, `identity.passenger`, `wallet.payment`, `booking.simulate_purchase`.
 Budgets: 120,000 tokens, 20 remote calls, at most 1 search, 6 fare-rule reads, 1 quote, 1
 purchase and 1 read of each host resource per run, 3 parallel workers. It declares
-`personal.read`, a permission kind only agentpkg from after the v0.1.0 release accepts (the
-`demo/webair` branch; its runtime still reports 0.2.2, the package's minimum): the released
-0.2.2 wheel rejects the package.
+`personal.read`, a permission kind agentpkg accepts since the WebAgents v0.2.0 release, whose
+runtime reports 0.2.2, the package's minimum; the v0.1.0 release's wheel carries the same
+version number and rejects the package.
+
+## Profiles
+
+The manifest's noncritical extension `org.webagents:profiles-v0`
+([specification](../../spec/extensions/profiles-v0.md)) groups what the package declares into
+three profiles, each containing the previous one:
+
+| Profile | Permissions | Tools | Host resources |
+|---|---|---|---|
+| `search` "Search flights" | `network.webair`, `model.reasoning`, `memory.session` | `search-flights`, `get-fare-rules` | none |
+| `quote` "Search and quote" | adds `profile.travel`, `identity.passenger` | adds `prepare-booking`, `personal.travel_profile`, `personal.passenger_identity` | travel profile, passenger identity |
+| `book` "Book (simulated)" | adds `wallet.payment`, `booking.simulate_purchase` | adds `simulate-purchase`, `wallet.payment_method` | adds the payment method |
+
+A profile presents authority; it grants nothing. Choosing one gives the host the decisions a
+person could make item by item: the profile's permissions and tools are granted and approved
+under the host's own rules, the person picks one resource of each listed type, and everything
+else is denied. "Search flights" reads nothing personal, so its requests must say where the
+trip starts. Each profile's estimate (model calls, tool calls, tokens) comes from the
+publisher's recorded runs of this graph and is information, not a limit: the budgets above are
+the limits. A host that does not implement profiles ignores them, as agentpkg 0.2.2 does.
 
 ## Fixture
 

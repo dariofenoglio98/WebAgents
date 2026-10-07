@@ -6,16 +6,19 @@ packages: they verify with the standard tooling, run through the unchanged CLI a
 interpreter with the package's own fixture, ask for nothing they do not declare, and no
 generic code knows they exist.
 
-0.3.0 is the live demo's package: 0.2.0 with WebAir's public deployment as its declared host.
-Like 0.2.0 it asks the person's host for a travel profile, a passenger identity and a payment
-method it does not own (`personal.read` permissions with argument-free host-resource tools)
-and for a separate, `once`-grantable purchase authority. These tests also pin what that
+0.4.0 is the current package: 0.3.0, the live demo's package (0.2.0 with WebAir's public
+deployment as its declared host), plus publisher-declared profiles in the noncritical manifest
+extension `org.webagents:profiles-v0`, which agentpkg ignores. Like 0.2.0 and 0.3.0 it asks
+the person's host for a travel profile, a passenger identity and a payment method it does not
+own (`personal.read` permissions with argument-free host-resource tools) and for a separate,
+`once`-grantable purchase authority. These tests also pin what that
 means for the signed bytes: no name, email, host resource id or label is in them. That the
 host resolves, binds and withholds those resources correctly is tested on the host side
 (`openclaw-agent-browser/test/webair-capabilities.test.ts`); that the tool contracts equal
 WebAir's published API is tested on the origin side (`demo/webair/tests/`).
 
-0.1.0 and 0.2.0 stay here unchanged and verifiable: earlier evidence describes those exact bytes.
+0.1.0, 0.2.0 and 0.3.0 stay here unchanged and verifiable: earlier evidence describes those
+exact bytes.
 """
 
 from __future__ import annotations
@@ -38,7 +41,8 @@ from agentpkg.workflow import run_workflow
 
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "agents/webair"
-ARCHIVE = ROOT / "dist/webair-0.3.0.agent.pkg"
+ARCHIVE = ROOT / "dist/webair-0.4.0.agent.pkg"
+ARCHIVE_030 = ROOT / "dist/webair-0.3.0.agent.pkg"
 ARCHIVE_020 = ROOT / "dist/webair-0.2.0.agent.pkg"
 ARCHIVE_010 = ROOT / "dist/webair-0.1.0.agent.pkg"
 ALIAS = ROOT / "dist/webair.agent.pkg"
@@ -48,11 +52,14 @@ HOST_RESOURCES = json.loads((ROOT / "demo/webair/host-resources.json").read_text
 SCENARIOS = json.loads((ROOT / "examples/webair-scenarios.json").read_text())["scenarios"]
 
 PACKAGE_ID = "org.webagents.webair"
-VERSION = "0.3.0"
-DIGEST = "ffe8f5b344f97c631498bb6da3e17217ae7e5730721935b0e66c5d595b335e94"
-ARCHIVE_SHA256 = "b537cf5cba06bce8137533eb75b491486f57caf3098af30f657343b741492887"
-# WebAir's public demo deployment: the one host 0.3.0 declares for its API.
+VERSION = "0.4.0"
+DIGEST = "0e8317f11e8813e7d5b4b3f352f20148d114329dca3db8c725c5b0558af24fbb"
+ARCHIVE_SHA256 = "c12f9db3bd7b3b4b6721c67e1d0b8143ebd94381df0e5e57c196357b7ca77f63"
+# WebAir's public demo deployment: the one host 0.3.0 and 0.4.0 declare for its API.
 PUBLIC_HOST = "webagents-webair-production.up.railway.app"
+PROFILES = "org.webagents:profiles-v0"
+DIGEST_030 = "ffe8f5b344f97c631498bb6da3e17217ae7e5730721935b0e66c5d595b335e94"
+ARCHIVE_SHA256_030 = "b537cf5cba06bce8137533eb75b491486f57caf3098af30f657343b741492887"
 DIGEST_020 = "74f05a8d98b6ed7436ac6297bfd6e5b16cd625839405180cddfc31965ccab9e1"
 ARCHIVE_SHA256_020 = "3f135be80c2ac43b93f42acbcb648a3460b1ab39a831c251122331c99107a616"
 DIGEST_010 = "3b7c61a7bd9584e0217dda802065248c86dd135d210b8a06ab25239835cc2fb6"
@@ -88,7 +95,7 @@ def test_shipped_artifact_identity_and_signature(package):
     assert report["valid"] is True
     assert report["key_fingerprint"] == FINGERPRINT == package.signature["key_fingerprint"]
     # The unversioned name stays 0.1.0: the recorded discovery, serving and live-demo
-    # evidence pins it (0.2.0 and 0.3.0 declare `personal.read`, which the v0.1.0 release's
+    # evidence pins it (0.2.0 and later declare `personal.read`, which the v0.1.0 release's
     # 0.2.2 wheel rejects).
     assert ALIAS.read_bytes() == ARCHIVE_010.read_bytes()
 
@@ -122,8 +129,59 @@ def test_0_2_0_is_unchanged_and_still_verifies():
     assert verify_package(ARCHIVE_020, KEY)["key_fingerprint"] == FINGERPRINT
 
 
-def test_0_3_0_differs_from_0_2_0_only_for_the_live_host(package):
+def test_0_3_0_is_unchanged_and_still_verifies():
+    earlier = load_package(ARCHIVE_030)
+    assert earlier.manifest["version"] == "0.3.0"
+    assert earlier.digest == DIGEST_030
+    assert sha256(ARCHIVE_030.read_bytes()) == ARCHIVE_SHA256_030
+    assert verify_package(ARCHIVE_030, KEY)["key_fingerprint"] == FINGERPRINT
+    assert PROFILES not in earlier.manifest["extensions"]
+
+
+def test_0_4_0_differs_from_0_3_0_only_by_its_profiles(package):
+    """The profiles version adds a noncritical manifest extension and changes nothing it does."""
+    earlier = load_package(ARCHIVE_030)
+    changed = sorted(
+        name
+        for name in set(earlier.files) | set(package.files)
+        if earlier.files.get(name) != package.files.get(name)
+    )
+    assert changed == ["MANIFEST.agent", "README.md"]
+    now = json.loads(package.files["MANIFEST.agent"])
+    then = json.loads(earlier.files["MANIFEST.agent"])
+    assert (then["version"], now["version"]) == ("0.3.0", "0.4.0")
+    profiles = now["extensions"].pop(PROFILES)["profiles"]
+    assert [profile["id"] for profile in profiles] == ["search", "quote", "book"]
+    for key in ("version", "created_at"):
+        now.pop(key)
+        then.pop(key)
+    assert now == then
+
+
+def test_agentpkg_runs_0_4_0_exactly_as_0_3_0(package):
+    """agentpkg ignores the profiles: the same task, grants and fixture give the same result."""
+    earlier = load_package(ARCHIVE_030)
+    results = []
+    for archive in (earlier, package):
+        router, handlers, _ = fixture_adapters(archive)
+        result = asyncio.run(
+            run_workflow(
+                archive,
+                SCENARIOS[0]["input"],
+                router=router,
+                handlers=handlers,
+                grants=json.loads(GRANTS.read_text()),
+                approved_tools=["get-fare-rules", "search-flights"],
+            )
+        )
+        results.append((result["status"], result["output"], result["usage"]["tool_calls"]))
+    assert results[0] == results[1]
+    assert results[1][0] == "completed"
+
+
+def test_0_3_0_differs_from_0_2_0_only_for_the_live_host():
     """The live version changes where WebAir is declared to be, and nothing it does."""
+    package = load_package(ARCHIVE_030)
     earlier = load_package(ARCHIVE_020)
     changed = sorted(
         name
