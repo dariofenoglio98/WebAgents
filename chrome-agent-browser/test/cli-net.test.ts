@@ -6,7 +6,7 @@
  */
 import { readFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
-import type { AddressInfo } from "node:net";
+import { createServer as createTcpServer, type AddressInfo } from "node:net";
 import { join } from "node:path";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -172,6 +172,30 @@ describe("the transport over a local server", () => {
     // Whereas a refused connection (nothing listening on the first address) still moves on.
     const refusedThenOk = nodeTransport({ allowLoopbackHttp: true, resolve: async () => ["::1", "127.0.0.1"] });
     expect((await refusedThenOk(request("/echo", { url: `http://localhost:${port}/echo` }))).status).toBe(200);
+  });
+
+  it("over TLS a reset during the handshake is still this address's failure: the next address is tried (T5 review 2, nit 6)", async () => {
+    // Two raw listeners on the same port, one per loopback address, each closing the connection as
+    // soon as it is accepted: the TCP connect succeeds, the handshake never completes, and no
+    // request byte can have reached either, so both must be tried.
+    const connections: string[] = [];
+    const listener = (name: string) =>
+      createTcpServer((socket) => {
+        connections.push(name);
+        socket.destroy();
+      });
+    const v4 = listener("127.0.0.1");
+    await new Promise<void>((resolve) => v4.listen(0, "127.0.0.1", resolve));
+    const tlsPort = (v4.address() as AddressInfo).port;
+    const v6 = listener("::1");
+    await new Promise<void>((resolve) => v6.listen(tlsPort, "::1", resolve));
+    try {
+      const both = nodeTransport({ allowLoopbackHttp: true, resolve: async () => ["::1", "127.0.0.1"] });
+      await expect(both(request("/echo", { url: `https://localhost:${tlsPort}/echo` }))).rejects.toMatchObject({ name: "TransportError", facts: { stage: "transport" } });
+      expect(connections.sort()).toEqual(["127.0.0.1", "::1"]);
+    } finally {
+      await Promise.all([new Promise((resolve) => v4.close(resolve)), new Promise((resolve) => v6.close(resolve))]);
+    }
   });
 
   it("stops a streamed body at the cap instead of buffering it, and refuses a declared length above the cap before reading", async () => {

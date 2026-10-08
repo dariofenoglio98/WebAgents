@@ -100,6 +100,14 @@ const runs = new RunPanel({
     else document.querySelector(".ab-authorize")?.scrollIntoView({ block: "start" });
   },
   changed: () => void load(),
+  runChanged: (runId) => {
+    // The panel moved to another run on its own (a click in "Earlier runs", an active run
+    // adopted): the Runs page keeps showing it and the address names it (review 2, nit 4).
+    if (state.view !== "runs" || runId === null || runId === state.runsShowing) return;
+    state.runsShowing = runId;
+    history.replaceState(null, "", `#run=${encodeURIComponent(runId)}`);
+    render();
+  },
 });
 const RUN_VIEW_ID = `run:${crypto.randomUUID()}`;
 

@@ -6,7 +6,7 @@
  */
 import { describe, expect, it, vi } from "vitest";
 
-import type { AuthorizeResult, Event, RunView, SessionView, SettingsView } from "../../src/extension/messages.js";
+import type { AuthorizationView, AuthorizeResult, Event, RunView, SessionView, SettingsView } from "../../src/extension/messages.js";
 import { failure, success } from "../../src/extension/messages.js";
 import { scriptedOllama, scriptedOrigin, webairModelAnswers } from "../helpers/host.js";
 import { SHIPPED } from "../helpers/paths.js";
@@ -92,5 +92,33 @@ describe("the full-page browser's Runs page", () => {
     expect([...back!.querySelectorAll("button")].map((item) => item.textContent)).toContain("New run");
     await go("#open");
     expect(app().querySelector<HTMLElement>(".ab-run")).not.toBeNull();
+  });
+
+  it("keeps showing the panel when it moves to another run from 'Earlier runs', and the address follows (review 2, nit 4)", async () => {
+    // A second run of the open package, so the first has an "earlier" sibling.
+    const sessionId = ((await h.controller.handle({ type: "sessions.list" }, PAGE_IN_TAB)) as { sessions: Array<{ session_id: string }> }).sessions[0]!.session_id;
+    const authorization = (await h.controller.handle({ type: "authorization.get", sessionId }, PAGE_IN_TAB)) as AuthorizationView;
+    const plan = authorization.run_plan!.run_plan;
+    const secondRun = (await h.controller.handle({ type: "run.start", sessionId, runPlanId: plan.run_plan_id, runPlanSha256: plan.run_plan_sha256, input: { request: SEARCH_TEXT, booking: false, purchase: { quote_id: "", fare_id: "" } } }, PAGE_IN_TAB)) as RunView;
+    await h.h_drain();
+    const second = secondRun.runId;
+    const list = (await h.controller.handle({ type: "run.list", sessionId }, PAGE_IN_TAB)) as { runs: Array<{ runId: string }> };
+    const first = list.runs.find((run) => run.runId !== second)!.runId;
+
+    await go(`#run=${encodeURIComponent(first)}`);
+    const shown = app().querySelector<HTMLElement>(".ab-run");
+    expect(shown).not.toBeNull();
+    const earlier = shown!.querySelector<HTMLButtonElement>(`.ab-run-list li[data-run="${second}"] button`);
+    expect(earlier, "the other run is listed under 'Earlier runs of this agent'").not.toBeNull();
+    earlier!.click();
+    await settle();
+    await settle();
+    // The panel switched runs on its own; the page still shows it, and the address names the run now shown.
+    expect(location.hash).toBe(`#run=${encodeURIComponent(second)}`);
+    const after = app().querySelector<HTMLElement>(".ab-run");
+    expect(after, "the run detail stays on the Runs page after the panel moved to another run").not.toBeNull();
+    expect(after!.dataset.state).toBe("completed");
+    expect(after!.querySelector(`.ab-run-list li[data-run="${first}"]`), "the earlier list now names the first run").not.toBeNull();
+    expect(after!.querySelector(`.ab-run-list li[data-run="${second}"]`)).toBeNull();
   });
 });

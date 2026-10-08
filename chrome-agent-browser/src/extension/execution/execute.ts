@@ -11,7 +11,10 @@
  * Every write is one atomic step that leaves a settled record alone (T5 review 1, finding 1):
  * when the service worker has already ended this run (it declared the host gone, D-071, or
  * cleared the run), the host's execution stops at its next checkpoint and writes nothing more,
- * so a record the worker settled is never overwritten by a host that was still alive.
+ * so a record the worker settled is never overwritten by a host that was still alive. A cancel
+ * the service worker stored is never lost either (T5 review 2, finding 1): the host reads the
+ * flag when it starts and merges it on every write, so a Cancel accepted while the run was
+ * still preparing, when no Worker existed to receive `host.cancel`, still ends the run.
  */
 import { ExecutionError } from "../../core/execution/errors.js";
 import type { ProgressSnapshot } from "../../core/execution/progress.js";
@@ -94,18 +97,33 @@ export function executeRun(deps: ExecuteDeps): ExecutionHandle {
     }
   };
 
+  /** A cancel reached this execution: from the service worker's stored flag or from `host.cancel`. */
+  const requestCancel = (): void => {
+    cancelRequested = true;
+    session.cancel();
+  };
+
   /**
    * Write `run` unless the stored record is already settled. Returns true when written; false
    * when the worker owns the record now (settled or cleared), in which case this execution is
    * abandoned: cancelled, and silent from here on.
+   *
+   * The service worker's cancel flag is merged, never overwritten (T5 review 2, finding 1): a
+   * flag the worker stored between this host's read and this write stays in the record, and it
+   * is honoured here as if `host.cancel` had reached this Worker, which it may never do while
+   * the run is still preparing.
    */
   const write = async (run: StoredRun): Promise<boolean> => {
     let applied = false;
+    let flagged = false;
     const written = await deps.runs.updateRun(runId, (current) => {
       if (isTerminalStatus(current.record.status)) return null;
       applied = true;
+      flagged = current.record.cancelRequested;
+      if (flagged && !run.record.cancelRequested) run.record = { ...run.record, cancelRequested: true };
       return run;
     });
+    if (flagged && !cancelRequested) requestCancel();
     if (applied && written !== null) return true;
     abandoned = true;
     session.cancel();
@@ -169,6 +187,11 @@ export function executeRun(deps: ExecuteDeps): ExecutionHandle {
       throw new ExecutionError(RUN_NOT_PREPARING, `Run ${JSON.stringify(runId)} is ${found.record.status}, not preparing: a host executes a run exactly once`);
     }
     stored = found;
+    // A Cancel the service worker accepted while this run was still preparing (the offscreen
+    // document being created, this Worker loading) reached no Worker: the stored flag is the
+    // cancel (T5 review 2, finding 1). The bytes are still re-verified and the record written
+    // the usual way; the session cancels before its first wave, so nothing is dispatched.
+    if (found.record.cancelRequested) requestCancel();
     const run = stored;
     const created = new Date(run.created_at);
     try {
@@ -255,9 +278,6 @@ export function executeRun(deps: ExecuteDeps): ExecutionHandle {
   return {
     runId,
     done,
-    cancel: () => {
-      cancelRequested = true;
-      session.cancel();
-    },
+    cancel: requestCancel,
   };
 }

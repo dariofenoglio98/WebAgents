@@ -218,6 +218,40 @@ describe("the run panel", () => {
     closed.dispose();
   });
 
+  it("opening another package's run drops the attached session's earlier runs and readiness (review 2, nit 5)", async () => {
+    const h = scripted();
+    const session = await openWebair(h);
+    const run = async (sessionId: string, profileId: "search"): Promise<RunView> => {
+      const result = (await h.controller.handle({ type: "authorization.useProfile", sessionId, packageDigest: SHIPPED.webair040.digest, profileId, resourceSelections: {}, prepare: true }, PAGE)) as AuthorizeResult;
+      const plan = result.run_plan!.run_plan;
+      const started = (await h.controller.handle({ type: "run.start", sessionId, runPlanId: plan.run_plan_id, runPlanSha256: plan.run_plan_sha256, input: { request: SEARCH_TEXT, booking: false, purchase: { quote_id: "", fare_id: "" } } }, PAGE)) as RunView;
+      await h.h_drain();
+      return started;
+    };
+    // Two runs of this session, so its panel lists an earlier one; and one run of a second session of the same package.
+    await run(session.session.id, "search");
+    await run(session.session.id, "search");
+    const other = (await h.controller.handle({ type: "package.open", url: WEBAIR_040_URL, advertisedOn: `${SITE_ORIGIN}/`, viewId: "other" }, PAGE)) as SessionView;
+    expect(other.session.id).not.toBe(session.session.id);
+    const foreign = await run(other.session.id, "search");
+    const mounted = mountPanel(h, session);
+    await mounted.sync();
+    await mounted.panel.attachSession(session.session.id);
+    await mounted.settle(200);
+    expect(mounted.text()).toContain("Earlier runs of this agent (1)");
+    mounted.button("New run")!.click();
+    await mounted.settle(200);
+    expect(mounted.panel.root.querySelector(".ab-run-checklist")!.textContent, "the attached session's readiness checklist").not.toBe("");
+    // The Runs page opens the other session's run on this panel: nothing of the attached session applies to it.
+    await mounted.panel.openRun(foreign.runId);
+    await mounted.settle(100);
+    expect(mounted.panel.currentRun()?.runId).toBe(foreign.runId);
+    expect(mounted.panel.hasSession()).toBe(false);
+    expect(mounted.text()).not.toContain("Earlier runs of this agent");
+    expect(mounted.panel.root.querySelector(".ab-run-checklist")!.textContent).toBe("");
+    mounted.panel.dispose();
+  });
+
   it("Download verifies the bytes against the hash the run recorded, not only against the worker's recomputation (review 1, nit 9)", async () => {
     const h = scripted();
     const session = await openWebair(h);

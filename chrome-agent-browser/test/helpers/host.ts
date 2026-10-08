@@ -127,6 +127,8 @@ export interface InProcessHostOptions {
   workerDies?: boolean;
   /** `status()` rejects this many times before answering (the document's listener not loaded yet; nit 6). */
   statusFailures?: number;
+  /** `cancel()` rejects: a document that exists but never answers (T5 review 2, nit 2). */
+  cancelUnreachable?: boolean;
 }
 
 /** `executeRun` in this process: the offscreen document and its Worker, without Chrome. */
@@ -177,8 +179,10 @@ export class InProcessHost implements ExecutionHostBridge {
     this.settled = Promise.all([this.settled, finished]);
   }
 
-  async cancel(runId: string): Promise<void> {
+  async cancel(runId: string): Promise<boolean> {
+    if (this.options.cancelUnreachable) throw new Error("the execution host did not answer");
     this.handles.get(runId)?.cancel();
+    return true; // the document answered, whether or not it still held the run
   }
 
   async status(): Promise<HostStatusReply | null> {

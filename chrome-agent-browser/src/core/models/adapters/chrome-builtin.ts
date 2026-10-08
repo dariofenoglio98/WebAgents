@@ -44,6 +44,10 @@ export class UnavailableBuiltinPort implements BuiltinModelPort {
   }
 }
 
+function quotaExceeded(error: unknown): boolean {
+  return typeof error === "object" && error !== null && (error as { name?: unknown }).name === "QuotaExceededError";
+}
+
 /**
  * The adapter over a `BuiltinModelPort` (D-072). Accounting uses the Prompt API's own tokenizer
  * for both directions: input = `measureInputUsage(system + user)`, output =
@@ -56,10 +60,6 @@ export class UnavailableBuiltinPort implements BuiltinModelPort {
  * API (the prompt does not fit the session's `inputQuota`) is the request's fault, not the
  * model's absence: `model_request_invalid` (D-072; T5 review 1, nit 10).
  */
-function quotaExceeded(error: unknown): boolean {
-  return typeof error === "object" && error !== null && (error as { name?: unknown }).name === "QuotaExceededError";
-}
-
 export class ChromeBuiltinAdapter implements ProviderAdapter {
   readonly provider_id = CHROME_BUILTIN_PROVIDER;
   readonly model_id = CHROME_BUILTIN_MODEL;

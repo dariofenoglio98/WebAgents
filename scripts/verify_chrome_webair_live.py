@@ -24,9 +24,10 @@ portable checks of `scripts/verify_webair_live.py` (the OpenClaw live acceptance
 The needle values come from `demo/webair/host-resources.json` (the fictional demo set); only class
 names and counts reach the report. The report is rewritten in place with `checks`, `runs` and
 `verification`; `passed` is false if any check fails. The run directories live under the
-git-ignored `examples/my-chrome-live-*`: when any of them is missing (a clean checkout) the script
-refuses and writes nothing, so the committed evidence is never overwritten with a failing report
-(T5 review 1, nit 8).
+git-ignored `examples/my-chrome-live-*`: when any of them is missing (a clean checkout) and the
+report is the committed one, the script refuses and writes nothing, so the committed evidence is
+never overwritten with a failing report (T5 review 1, nit 8). With an explicit `--report` elsewhere
+a partial or failed attempt is verified and the missing phases fail (T5 review 2, nit 7).
 """
 
 from __future__ import annotations
@@ -41,6 +42,7 @@ import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_REPORT = ROOT / "examples/verification/chrome-webair-040-live.json"
 sys.path.insert(0, str(ROOT / "agentpkg" / "src"))
 
 from agentpkg.execution.report import verify_audit_chain  # noqa: E402
@@ -650,10 +652,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    parser.add_argument(
-        "--report",
-        default=str(ROOT / "examples/verification/chrome-webair-040-live.json"),
-    )
+    parser.add_argument("--report", default=str(DEFAULT_REPORT))
     parser.add_argument(
         "--no-network", action="store_true", help="skip the public-origin checks"
     )
@@ -675,14 +674,17 @@ def main() -> int:
             / "run.json"
         ).exists()
     ]
-    if missing:
+    if missing and report_path.resolve() == DEFAULT_REPORT.resolve():
+        # The committed evidence is rewritten only from a complete attempt (T5 review 1, nit 8).
+        # An explicit --report elsewhere may verify a partial or failed attempt: its missing
+        # phases become `<phase>_run_recorded` failures below (T5 review 2, nit 7).
         print(
             json.dumps(
                 {
                     "report": str(report_path),
                     "error": "exported run directories are missing; nothing was written",
                     "missing_phases": missing,
-                    "hint": "run chrome-agent-browser/scripts/e2e-webair-live.mjs first, or verify on the machine that holds examples/my-chrome-live-*",
+                    "hint": "run chrome-agent-browser/scripts/e2e-webair-live.mjs first, or verify on the machine that holds examples/my-chrome-live-*; pass --report <other path> to verify a partial attempt",
                 },
                 indent=2,
             ),

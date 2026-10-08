@@ -34,6 +34,8 @@ export interface RunPanelHost {
   reveal?: (section: "trust" | "authorization" | "model" | "plan") => void;
   /** Something changed that other cards should re-read (a run started or settled). */
   changed?: () => void;
+  /** The panel now shows another run (a click in "Earlier runs", an active run adopted), or none (T5 review 2, nit 4). */
+  runChanged?: (runId: string | null) => void;
 }
 
 export const HOST_ARTIFACTS = new Set(["result.json", "audit.json", "usage.json", "provenance.json", "run.json"]);
@@ -302,10 +304,15 @@ export class RunPanel {
       return;
     }
     if (record.sessionId !== this.sessionId) {
+      // Another package's run: nothing of the session that was attached applies to it, neither
+      // its earlier runs nor its readiness (T5 review 2, nit 5).
       this.stopTimers();
       this.sessionId = null;
       this.form = null;
       this.formKey = "";
+      this.history = [];
+      this.readiness = null;
+      this.readinessFor = "";
     }
     this.show(record);
   }
@@ -318,7 +325,9 @@ export class RunPanel {
     this.run = null;
     this.history = [];
     this.readiness = null;
+    this.readinessFor = "";
     this.render();
+    this.host.runChanged?.(null);
   }
 
   /** The page's loaded state changed (authorization, model, plan). */
@@ -430,6 +439,7 @@ export class RunPanel {
 
   // -- the run -------------------------------------------------------------------------------
   private show(record: RunView): void {
+    const changed = this.run?.runId !== record.runId;
     this.run = record;
     this.artifacts = new Map();
     this.viewing = null;
@@ -437,6 +447,7 @@ export class RunPanel {
     this.render();
     if (isTerminal(record)) void this.loadResult(record);
     else this.startPolling();
+    if (changed) this.host.runChanged?.(record.runId);
   }
 
   private startPolling(): void {

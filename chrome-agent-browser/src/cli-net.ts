@@ -299,12 +299,15 @@ function perform(destination: Destination, address: string, request: HttpRequest
     // A failure before the socket connected is a failure of this address (the next one may
     // answer); a failure after it is the request's own: the server may have received the
     // request, and a second send could perform its side effect twice (T5 review 1, finding 4).
+    // Over TLS "connected" means the handshake completed (`secureConnect`): no request byte
+    // can leave before it, so a reset during the handshake is still this address's failure
+    // (T5 review 2, nit 6); a handshake or certificate failure is never retried.
     const failed = (error: NodeJS.ErrnoException): Error => {
       if (request.signal.aborted) return request.signal.reason as Error;
       const failure = connectionFailure(error);
       return connected || failure.facts.stage === "tls" ? failure : new ConnectionFailed(failure);
     };
-    socket.once("connect", () => {
+    socket.once(destination.tls ? "secureConnect" : "connect", () => {
       connected = true;
     });
     socket.on("error", (error: NodeJS.ErrnoException) => finish(() => reject(failed(error))));

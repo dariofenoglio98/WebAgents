@@ -43,6 +43,8 @@ export const MAX_ECHOED_INPUT_BYTES = 16 * 1024;
 export const BROWSER_EXECUTION_LIMITS: Readonly<HostExecutionLimits> = DEFAULT_HOST_LIMITS;
 /** The host reported a run as finished without settling its record: its Worker died (T5 review 1, finding 2). */
 export const HOST_FAILED = "host_failed";
+/** The person cancelled, and no execution host could be reached to take the cancel (T5 review 2, nit 2). */
+export const HOST_UNREACHABLE = "host_unreachable";
 /** Artifacts the host writes beside the package's exports, as the reference plugin names them. */
 export const HOST_ARTIFACTS = new Set(["result.json", "audit.json", "usage.json", "provenance.json", "run.json"]);
 
@@ -78,7 +80,12 @@ export interface RunHooks {
 export interface ExecutionHostBridge {
   available(): boolean;
   start(message: HostStartMessage): Promise<void>;
-  cancel(runId: string): Promise<void>;
+  /**
+   * Ask the host to cancel a run. Resolves true when the host took the request (it answered, or
+   * it is being created and will read the stored flag when it starts), false when there is no
+   * host to take it; rejects when a host exists but did not answer (T5 review 2, nit 2).
+   */
+  cancel(runId: string): Promise<boolean>;
   /** The runs the host is executing right now, or null when there is no host at all. */
   status(): Promise<HostStatusReply | null>;
 }
@@ -241,7 +248,7 @@ export class RunManager {
       if (isTerminal(current.record.status)) return null;
       return { ...current, record: failRunRecord(current.record, failure, now, "interrupted"), updated_at: now.toISOString() };
     });
-    this.leases.delete(run.run_id);
+    await this.releaseLease(run.run_id);
     if (updated === null || updated.record.status !== "interrupted") return false;
     this.deps.broadcast({ type: "event.run", runId: run.run_id, sessionId: run.session_id, status: "interrupted" });
     await this.deps.hooks.runSettled?.(run.invocation.archive_sha256);
@@ -414,13 +421,17 @@ export class RunManager {
     return { received: true };
   }
 
-  async hostFinished(runId: string): Promise<{ received: true }> {
-    const run = await this.deps.runs.getRun(runId);
+  /** The lease a run in flight holds, if this worker issued it: released once, idempotent. */
+  private async releaseLease(runId: string): Promise<void> {
     const lease = this.leases.get(runId);
-    if (lease) {
-      (await this.leaseRegistry()).release(lease.lease_id);
-      this.leases.delete(runId);
-    }
+    if (!lease) return;
+    this.leases.delete(runId);
+    (await this.leaseRegistry()).release(lease.lease_id);
+  }
+
+  async hostFinished(runId: string): Promise<{ received: true }> {
+    let run = await this.deps.runs.getRun(runId);
+    await this.releaseLease(runId);
     if (run === null) return { received: true };
     if (!isTerminal(run.record.status)) {
       // The host says the run ended, but its record was never settled: the Worker died (a load
@@ -431,6 +442,8 @@ export class RunManager {
         message: "The execution Worker ended without settling this run (it failed to load, threw, or ran out of memory). Run state is checkpointed up to its last wave but never resumed: an interrupted run ends here, with the audit it had written.",
       });
       if (interrupted) return { received: true };
+      // The host settled the record between the read and the interrupt: broadcast what it wrote, not the stale status (review 2, nit 3).
+      run = (await this.deps.runs.getRun(runId)) ?? run;
     }
     this.deps.broadcast({ type: "event.run", runId, sessionId: run.session_id, status: run.record.status });
     await this.deps.hooks.runSettled?.(run.invocation.archive_sha256);
@@ -496,7 +509,28 @@ export class RunManager {
     const now = this.clock().toISOString();
     const updated = await this.deps.runs.updateRun(runId, (current) => (isTerminal(current.record.status) ? null : { ...current, record: { ...current.record, cancelRequested: true }, updated_at: now }));
     if (updated === null) throw reject("run_unknown", "This browser holds no run with that id.", 404);
-    if (!isTerminal(updated.record.status)) await this.deps.host.cancel(runId);
+    if (!isTerminal(updated.record.status)) {
+      // The flag is stored before the host is asked, and the host reads it when it starts and
+      // merges it on every write (review 2, finding 1), so a Cancel accepted while the run is
+      // still preparing, when no Worker exists to receive `host.cancel`, is not lost. A start in
+      // progress hands the host a record that already carries the flag.
+      let reached: boolean;
+      try {
+        reached = (await this.deps.host.cancel(runId)) || this.starting.has(updated.session_id);
+      } catch {
+        reached = false;
+      }
+      if (!reached) {
+        // No host could take the cancel: none exists, or one exists and does not answer. The
+        // person asked for a way out, and D-074 gives it: the run is interrupted now, and an
+        // execution that is somehow still alive abandons itself at its next write (review 2, nit 2).
+        const interrupted = await this.interrupt(updated, {
+          code: HOST_UNREACHABLE,
+          message: "Cancel was requested, but no execution host could be reached to take it (the host is gone or does not answer). The run is interrupted here, with the audit it had written; it is never resumed, and a host that is still alive stops at its next checkpoint.",
+        });
+        if (interrupted) return this.view((await this.deps.runs.getRun(runId)) ?? updated);
+      }
+    }
     this.deps.broadcast({ type: "event.run", runId, sessionId: updated.session_id, status: updated.record.status });
     return this.view(updated);
   }

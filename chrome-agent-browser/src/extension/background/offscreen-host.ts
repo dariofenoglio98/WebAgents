@@ -48,9 +48,12 @@ export class OffscreenHostBridge implements ExecutionHostBridge {
     await this.send<{ started: true }>(message);
   }
 
-  async cancel(runId: string): Promise<void> {
-    if (!(await chrome.offscreen.hasDocument())) return;
+  async cancel(runId: string): Promise<boolean> {
+    // No document yet: one being created reads the stored cancel flag when it starts the run
+    // (review 2, finding 1); none at all cannot take the cancel, and the worker interrupts the run.
+    if (!(await chrome.offscreen.hasDocument())) return this.creating !== null;
     await this.send<{ cancelled: boolean }>({ type: "host.cancel", runId });
+    return true;
   }
 
   async status(): Promise<HostStatusReply | null> {

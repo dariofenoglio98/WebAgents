@@ -333,7 +333,7 @@ describe("cancel, interruption and clearing", () => {
 });
 
 /** A session on a model that never answers: the run stays inside its first model call until something ends it. */
-async function hangingWorld(options: { runs?: MemoryRunStore; hostOptions?: { workerDies?: boolean } } = {}): Promise<{ w: World; reached: () => number }> {
+async function hangingWorld(options: { runs?: MemoryRunStore; hostOptions?: { workerDies?: boolean; cancelUnreachable?: boolean } } = {}): Promise<{ w: World; reached: () => number }> {
   let reached = 0;
   const hanging: HttpTransport = (request) =>
     new Promise((_resolve, reject) => {
@@ -459,5 +459,105 @@ describe("review 1: the host owns a record in flight", () => {
     await w.h.host.drain();
     expect(((await w.h.controller.handle({ type: "run.get", runId: started.runId }, PAGE)) as RunView).status).toBe("cancelled");
     expect(await w.h.snapshots.listSnapshots()).toEqual([]);
+  });
+});
+
+describe("review 2: a cancel is never lost", () => {
+  it("a Cancel accepted while the run is still preparing ends it: the host reads the stored flag when it starts (finding 1)", async () => {
+    // The host starts late (the first run's offscreen document is being created, the Worker is
+    // loading): `host.cancel` reaches no Worker, and only the stored flag can carry the cancel.
+    const w = await world();
+    const result = await authorize(w, "search");
+    let open!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      open = resolve;
+    });
+    const original = w.h.host.start.bind(w.h.host);
+    w.h.host.start = async (message) => {
+      await gate;
+      await original(message);
+    };
+    const starting = startRun(w, result, SEARCH);
+    await until(() => w.h.events.some((event) => event.type === "event.run" && event.status === "preparing"), "the preparing event");
+    const runId = (w.h.events.find((event) => event.type === "event.run" && event.status === "preparing") as { runId: string }).runId;
+    const accepted = (await w.h.controller.handle({ type: "run.cancel", runId }, PAGE)) as RunView;
+    expect(accepted).toMatchObject({ status: "preparing", cancelRequested: true });
+    open();
+    expect((await starting).status).toBe("preparing");
+    const settled = await finished(w, runId);
+    expect(settled).toMatchObject({ status: "cancelled", cancelRequested: true, errorCode: "cancelled" });
+    expect(settled.audit?.chainValid).toBe(true);
+    expect(settled.artifacts.map((artifact) => artifact.name)).toContain("result.json");
+    // Nothing was dispatched: no model request, no WebAir call (a `once` purchase would not have gone through).
+    expect(w.modelSeen).toHaveLength(0);
+    expect(w.toolSeen).toHaveLength(0);
+    expect(w.h.events.filter((event) => event.type === "event.run" && event.runId === runId).at(-1)).toMatchObject({ status: "cancelled" });
+    const readiness = (await w.h.controller.handle({ type: "run.readiness", sessionId: w.session.session.id }, PAGE)) as RunReadiness;
+    expect(readiness.ready, JSON.stringify(readiness.blocker)).toBe(true);
+  });
+
+  it("a checkpoint landing after the worker stored the flag keeps it and honours it, even when host.cancel never reaches the Worker (finding 1)", async () => {
+    // The host's writes (they add a checkpoint) wait at a gate; the worker's flag write goes through.
+    class HeldHostWrites extends MemoryRunStore {
+      gate: Promise<void> | null = null;
+      held = 0;
+      override async updateRun(runId: string, mutate: (run: StoredRun) => StoredRun | null): Promise<StoredRun | null> {
+        const current = this.runs.get(runId);
+        const probe = current ? mutate(structuredClone(current)) : null;
+        if (this.gate && current && probe !== null && probe.checkpoints > current.checkpoints) {
+          this.held += 1;
+          await this.gate;
+        }
+        return super.updateRun(runId, mutate);
+      }
+    }
+    const runs = new HeldHostWrites();
+    const w = await world({ runs });
+    const result = await authorize(w, "search");
+    let open!: () => void;
+    runs.gate = new Promise((resolve) => {
+      open = resolve;
+    });
+    // The page's `host.cancel` answers but finds no Worker for this run (the B-122 window).
+    w.h.host.cancel = async () => true;
+    const started = await startRun(w, result, SEARCH);
+    await until(() => runs.held === 1, "the host's first checkpoint waiting at the gate");
+    const accepted = (await w.h.controller.handle({ type: "run.cancel", runId: started.runId }, PAGE)) as RunView;
+    expect(accepted).toMatchObject({ status: "preparing", cancelRequested: true });
+    expect((await runs.getRun(started.runId))!.record.cancelRequested).toBe(true);
+    runs.gate = null;
+    open();
+    const settled = await finished(w, started.runId);
+    // The checkpoint merged the stored flag instead of erasing it, and the run stopped before its first wave.
+    expect(settled).toMatchObject({ status: "cancelled", cancelRequested: true, errorCode: "cancelled" });
+    expect(settled.audit?.chainValid).toBe(true);
+    expect(w.modelSeen).toHaveLength(0);
+    expect((await runs.getRun(started.runId))!.checkpoints).toBeGreaterThanOrEqual(2);
+  });
+
+  it("a Cancel whose host cannot be reached interrupts the run (host_unreachable), frees the plan, and a stale execution cannot revive it (nit 2, D-074)", async () => {
+    const { w, reached } = await hangingWorld({ hostOptions: { cancelUnreachable: true } });
+    const result = await authorize(w, "search");
+    const started = await startRun(w, result, SEARCH);
+    await until(() => reached() === 1, "the model call in flight");
+    const answered = (await w.h.controller.handle({ type: "run.cancel", runId: started.runId }, PAGE)) as RunView;
+    expect(answered).toMatchObject({ status: "interrupted", errorCode: "host_unreachable", cancelRequested: true });
+    expect(answered.errorDetail).toContain("no execution host could be reached");
+    expect(w.h.events.filter((event) => event.type === "event.run" && event.runId === started.runId).at(-1)).toMatchObject({ status: "interrupted" });
+    // The plan and the session are free: a new run starts (the lease was released).
+    const readiness = (await w.h.controller.handle({ type: "run.readiness", sessionId: w.session.session.id }, PAGE)) as RunReadiness;
+    expect(readiness.ready, JSON.stringify(readiness.blocker)).toBe(true);
+    const again = await startRun(w, result, SEARCH);
+    expect(again.status).toBe("preparing");
+    await until(() => reached() === 2, "the second run's model call");
+    // The first execution lived on in the unreachable host: D-074 makes it abandon itself at its
+    // next write (a progress checkpoint), and whatever stops it first writes nothing over the settled record.
+    const before = await w.h.runs.getRun(started.runId);
+    w.h.host.handles.get(started.runId)?.cancel();
+    w.h.host.handles.get(again.runId)!.cancel();
+    await w.h.host.drain();
+    expect(w.h.host.handles.has(started.runId)).toBe(false);
+    expect(await w.h.runs.getRun(started.runId)).toEqual(before);
+    expect(((await w.h.controller.handle({ type: "run.get", runId: again.runId }, PAGE)) as RunView).status).toBe("cancelled");
   });
 });

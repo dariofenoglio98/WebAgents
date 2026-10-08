@@ -45,7 +45,9 @@ What it shows today, on the WebAir demo site:
    built from the package's own input schema; Run is enabled only when every item holds, and it
    names the first that does not. A run executes in an **offscreen document's Worker** (D-070):
    closing the panel or the page does not touch it, and reopening shows it again. Progress by
-   stage and worker, model and tool calls, tokens; **Cancel** stops within one wave. The result is
+   stage and worker, model and tool calls, tokens; **Cancel** stops within one wave, is never
+   lost (a cancel accepted before the Worker exists is stored and read when it starts), and a
+   cancel no host can take interrupts the run (D-075). The result is
    the package's primary export as sanitized markdown, the artifacts with SHA-256-verified
    downloads, and Technical details (plan and input hashes, every model call on the planned model,
    tool bindings, permissions and who decided them, usage, cost, the audit chain, what was
