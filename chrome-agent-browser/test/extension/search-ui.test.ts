@@ -110,7 +110,7 @@ describe("search, Library and policy on the full page (T8)", () => {
     await go("#open");
     const input = app().querySelector<HTMLInputElement>(".ab-address-input")!;
     input.value = "literature review";
-    await press("Go");
+    await press("Open", app().querySelector("form.ab-address")!);
     const results = app().querySelectorAll<HTMLElement>(".ab-result");
     expect(results).toHaveLength(1);
     expect(results[0]!.dataset.packageId).toBe(SHIPPED.literatureReview.packageId);
@@ -145,7 +145,7 @@ describe("search, Library and policy on the full page (T8)", () => {
     await go("#open");
     const address = app().querySelector<HTMLInputElement>(".ab-address-input")!;
     address.value = `${ORIGIN}/agent.pkg`;
-    await press("Go");
+    await press("Open", app().querySelector("form.ab-address")!);
     await settle();
     expect(app().textContent).toContain("Signed by a publisher your policy trusts");
     expect(app().textContent).toContain("pre-decided by your policy WebAgents research policy (org.webagents.research@1.0.0)");

@@ -439,7 +439,7 @@ async function trustSession(scope: "package" | "publisher"): Promise<void> {
 function addressBar(): HTMLElement {
   const input = el("input", { className: "ab-input ab-address-input", attrs: { name: "package-url", type: "text", placeholder: "Search agents (words or name@host), or https://… a website or a package URL", autocomplete: "off", "aria-label": "Search agents or open an address" } });
   input.value = state.address;
-  const form = el("form", { className: "ab-address" }, input, button("Go", () => void openAddress(input.value.trim()), { variant: "primary" }));
+  const form = el("form", { className: "ab-address" }, input, button("Open", () => void openAddress(input.value.trim()), { variant: "primary" }));
   form.addEventListener("submit", (event) => {
     event.preventDefault();
     void openAddress(input.value.trim());
