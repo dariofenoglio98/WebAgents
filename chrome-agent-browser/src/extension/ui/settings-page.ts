@@ -1,18 +1,47 @@
 /**
  * Settings: Models (the routes of D-023, a connection test per provider, keys that are typed
- * here and never shown again, per-model limits, the default model) and Policies (the host
- * preset of D-050). A thin view over the worker's `SettingsView`.
+ * here and never shown again, per-model limits, the default model), Policies (the host preset of
+ * D-050 and the run limits, B-118), Files (the PDFs runs may read, T6) and Services (the Crossref
+ * contact address, T6). A thin view over the worker's `SettingsView` and `FilesView`.
  */
 import { isRecord } from "../../core/fields.js";
 import type { PresetId } from "../../core/types.js";
 import { PRESETS } from "../../core/authorization.js";
 import { DEFAULT_BASE_URLS, type ProbeResult, type ProviderId } from "../../core/models/catalog.js";
-import type { ProbeView, SettingsView, StatusInfo } from "../messages.js";
+import { DEFAULT_HOST_LIMITS, type HostExecutionLimits } from "../../core/execution/limits.js";
+import type { FilesView, ProbeView, SettingsView, StatusInfo } from "../messages.js";
 import type { Settings, StoredConnection } from "../storage/settings.js";
 import { downloadBuiltinModel, languageModelApi } from "../execution/builtin-port.js";
 import { button, card, chip, definition, el, list, row } from "./dom.js";
 
-export type SettingsSection = "models" | "policies" | "about";
+export type SettingsSection = "models" | "policies" | "files" | "services" | "about";
+export const SETTINGS_SECTIONS: readonly SettingsSection[] = ["models", "policies", "files", "services", "about"];
+const SECTION_TITLES: Record<SettingsSection, string> = { models: "Models", policies: "Policies", files: "Files", services: "Services", about: "About" };
+
+/**
+ * The limits the reference host was configured with for Literature Review (STATE.md §4: 180,000
+ * tokens, 45 remote calls, 4,500 s per run, 1,200 s per model call); one button sets them, so a
+ * long local run is not stopped by the 600 s default (B-118, D-084).
+ */
+export const LONG_RUN_LIMITS: Readonly<HostExecutionLimits> = Object.freeze({
+  total_tokens: 180_000,
+  max_remote_calls: 45,
+  max_parallel_workers: 3,
+  max_output_tokens_per_call: 16_000,
+  run_timeout_seconds: 4_500,
+  max_calls_per_tool: 32,
+  model_call_timeout_seconds: 1_200,
+});
+
+const LIMIT_FIELDS: ReadonlyArray<{ key: keyof HostExecutionLimits; label: string; unit: string }> = [
+  { key: "total_tokens", label: "Tokens per run", unit: "tokens" },
+  { key: "max_remote_calls", label: "Remote calls per run", unit: "calls" },
+  { key: "max_parallel_workers", label: "Parallel workers", unit: "workers" },
+  { key: "max_output_tokens_per_call", label: "Output tokens per model call", unit: "tokens" },
+  { key: "run_timeout_seconds", label: "Time per run", unit: "seconds" },
+  { key: "max_calls_per_tool", label: "Calls per tool", unit: "calls" },
+  { key: "model_call_timeout_seconds", label: "Time per model call", unit: "seconds" },
+];
 
 export interface SettingsPageState {
   section: SettingsSection;
@@ -76,6 +105,9 @@ export interface SettingsPageActions {
   rerender: () => void;
   /** Write text to the clipboard; the page's own `navigator.clipboard` by default. */
   copy?: (text: string) => Promise<void>;
+  /** Settings → Files: pick PDFs (the File System Access picker, or a file input), and remove one. */
+  onPickFiles?: () => void;
+  onRemoveFile?: (fileId: string) => void;
 }
 
 /** The one-time Ollama setup (B-117): the commands a person copies, per way of running Ollama. */
@@ -297,6 +329,94 @@ function policiesView(view: SettingsView, actions: SettingsPageActions): HTMLEle
         ["Tools without a profile", PRESETS[view.settings.preset].approve_tools === "all" ? "all approved" : "approved when every permission they need is granted"],
       ]),
     ),
+    limitsCard(view, actions),
+  ];
+}
+
+/** Run limits (B-118, D-084): the host bounds every run is held to; the package's own budget applies beneath them. */
+function limitsCard(view: SettingsView, actions: SettingsPageActions): HTMLElement {
+  const current = view.settings.limits;
+  const inputs = new Map<keyof HostExecutionLimits, HTMLInputElement>();
+  const fields = LIMIT_FIELDS.map((field) => {
+    const input = el("input", { className: "ab-input", attrs: { type: "number", min: "1", step: "1", name: `limit-${field.key}`, "aria-label": field.label } });
+    input.value = String(current[field.key]);
+    inputs.set(field.key, input);
+    return el("label", { className: "ab-field" }, el("span", { text: `${field.label} (${field.unit})` }), input);
+  });
+  const save = (limits: HostExecutionLimits) => actions.onSave({ ...view.settings, limits });
+  const read = (): HostExecutionLimits => {
+    const limits = { ...current };
+    for (const [key, input] of inputs) limits[key] = Number(input.value);
+    return limits;
+  };
+  const isDefault = LIMIT_FIELDS.every((field) => current[field.key] === DEFAULT_HOST_LIMITS[field.key]);
+  return card(
+    "Run limits",
+    el("p", { className: "ab-hint", text: `Every run in this browser is bounded by these limits; a package's own budget and deadline apply beneath them, so raising a limit never gives a package more than it declares. The defaults are the reference host's (${DEFAULT_HOST_LIMITS.run_timeout_seconds} s per run, ${DEFAULT_HOST_LIMITS.total_tokens.toLocaleString()} tokens, ${DEFAULT_HOST_LIMITS.max_remote_calls} remote calls). A long research run on a local model needs more: the long-run limits are what the reference host was configured with for Literature Review. An authorization must outlast the time per run by a minute.` }),
+    isDefault ? chip("defaults", "neutral") : chip("changed", "warn"),
+    el("div", { className: "ab-limits" }, ...fields),
+    el(
+      "div",
+      { className: "ab-actions" },
+      button("Save limits", () => save(read()), { variant: "primary" }),
+      button("Use the long-run limits", () => save({ ...LONG_RUN_LIMITS }), { variant: "ghost" }),
+      button("Restore the defaults", () => save({ ...DEFAULT_HOST_LIMITS }), { variant: "ghost", disabled: isDefault }),
+    ),
+  );
+}
+
+function bytesText(count: number): string {
+  return count >= 1024 * 1024 ? `${(count / (1024 * 1024)).toFixed(1)} MiB` : count >= 1024 ? `${Math.round(count / 1024)} KiB` : `${count} bytes`;
+}
+
+/** Settings → Files (T6, D-083): the PDFs runs may read, copied into this browser at the pick. */
+function filesView(files: FilesView | null, actions: SettingsPageActions): HTMLElement[] {
+  if (files === null) return [el("p", { className: "ab-busy", text: "Loading…" })];
+  const total = files.files.reduce((sum, file) => sum + file.bytes, 0);
+  return [
+    card(
+      "Files your runs may read",
+      el("p", { className: "ab-hint", text: "Pick the PDFs an agent may read for you, such as papers for a literature review. Each one is copied into this browser once, with its SHA-256, so a run reads exactly what you picked even if the file changes on disk. A run is given only the documents its task names, by an opaque id; the names and your folders never reach a package, a model or a run record. Nothing is uploaded." }),
+      el(
+        "div",
+        { className: "ab-actions" },
+        button("Pick PDFs…", () => actions.onPickFiles?.(), { variant: "primary", disabled: !actions.onPickFiles || files.files.length >= files.max_files }),
+        el("span", { className: "ab-hint", text: `${files.files.length} of ${files.max_files} files · ${bytesText(total)} of ${bytesText(files.max_total_bytes)} · at most ${bytesText(files.max_file_bytes)} each` }),
+      ),
+      files.files.length === 0
+        ? el("p", { className: "ab-hint", text: "No PDFs picked yet." })
+        : list(
+            files.files.map((file) =>
+              el(
+                "div",
+                { className: "ab-file-row", attrs: { "data-file-id": file.file_id } },
+                el("strong", { text: file.display_name }),
+                el("span", { className: "ab-muted", text: ` · ${bytesText(file.bytes)} · sha256:${file.sha256.slice(0, 12)}… · picked ${new Date(file.selected_at).toLocaleString()}` }),
+                button("Remove", () => actions.onRemoveFile?.(file.file_id), { variant: "ghost", disabled: !actions.onRemoveFile }),
+              ),
+            ),
+          ),
+    ),
+  ];
+}
+
+/** Settings → Services (T6, D-081): what a tool implementation sends on the person's behalf. */
+function servicesView(view: SettingsView, actions: SettingsPageActions): HTMLElement[] {
+  const contact = el("input", { className: "ab-input", attrs: { type: "email", name: "crossref-contact", autocomplete: "email", placeholder: "you@example.org", "aria-label": "Crossref contact e-mail" } });
+  contact.value = view.settings.services.crossref_contact ?? "";
+  return [
+    card(
+      "Crossref (scholarly search)",
+      el("p", { className: "ab-hint", text: "Crossref asks clients to name a contact address to use its \u201cpolite pool\u201d. Leave this empty to send none. When set, the address is sent to Crossref, as mailto, with each search an agent makes through this browser, and nowhere else. Searches stay at one at a time, one per second, either way. Whether an address is sent is part of what you approve: changing it makes prepared run plans stale." }),
+      el("label", { className: "ab-field" }, el("span", { text: "Contact e-mail (optional)" }), contact),
+      el(
+        "div",
+        { className: "ab-actions" },
+        button("Save", () => actions.onSave({ ...view.settings, services: { ...view.settings.services, crossref_contact: contact.value.trim() === "" ? null : contact.value.trim() } }), { variant: "primary" }),
+        view.settings.services.crossref_contact ? button("Clear", () => actions.onSave({ ...view.settings, services: { ...view.settings.services, crossref_contact: null } }), { variant: "ghost" }) : null,
+      ),
+      row("Sent now", view.settings.services.crossref_contact ? "a contact address (mailto)" : "no contact address"),
+    ),
   ];
 }
 
@@ -331,12 +451,12 @@ function aboutView(view: SettingsView, status: StatusInfo | null, actions: Setti
   ];
 }
 
-export function renderSettingsPage(view: SettingsView, status: StatusInfo | null, state: SettingsPageState, actions: SettingsPageActions): HTMLElement {
+export function renderSettingsPage(view: SettingsView, status: StatusInfo | null, state: SettingsPageState, actions: SettingsPageActions, files: FilesView | null = null): HTMLElement {
   const tabs = el(
     "div",
     { className: "ab-tabs", attrs: { role: "tablist" } },
-    ...(["models", "policies", "about"] as SettingsSection[]).map((section) => {
-      const tab = button(section === "models" ? "Models" : section === "policies" ? "Policies" : "About", () => {
+    ...SETTINGS_SECTIONS.map((section) => {
+      const tab = button(SECTION_TITLES[section], () => {
         // Only a change of section re-tests: a click on the Models tab already shown does not (review 1, nit 6).
         const opening = section === "models" && state.section !== "models";
         state.section = section;
@@ -348,7 +468,16 @@ export function renderSettingsPage(view: SettingsView, status: StatusInfo | null
       return tab;
     }),
   );
-  const body = state.section === "models" ? view.settings.models.connections.map((connection) => connectionCard(view, connection, state, actions)) : state.section === "policies" ? policiesView(view, actions) : aboutView(view, status, actions);
+  const body =
+    state.section === "models"
+      ? view.settings.models.connections.map((connection) => connectionCard(view, connection, state, actions))
+      : state.section === "policies"
+        ? policiesView(view, actions)
+        : state.section === "files"
+          ? filesView(files, actions)
+          : state.section === "services"
+            ? servicesView(view, actions)
+            : aboutView(view, status, actions);
   return el(
     "div",
     { className: "ab-settings" },

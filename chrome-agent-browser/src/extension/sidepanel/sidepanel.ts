@@ -77,6 +77,7 @@ const runs = new RunPanel({
     if (section === "trust" || section === "authorization" || section === "plan") document.querySelector(".ab-authorize")?.scrollIntoView({ block: "start" });
     else openFullPage(undefined, "settings?section=models");
   },
+  openFiles: () => openFullPage(undefined, "settings?section=files"),
   changed: () => render(),
 });
 
@@ -224,6 +225,7 @@ subscribe((event) => {
     });
   }
   if (event.type === "event.run") runs.onRunEvent(event);
+  if (event.type === "event.files") runs.onFilesEvent();
 });
 chrome.tabs.onActivated.addListener(() => void refresh());
 chrome.tabs.onUpdated.addListener((tabId, change) => {

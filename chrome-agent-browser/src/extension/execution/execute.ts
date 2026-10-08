@@ -28,11 +28,14 @@ import { adapterFor } from "../../core/models/providers.js";
 import { BoundModelRouter } from "../../core/models/router.js";
 import type { HttpTransport, ModelRequestObserver } from "../../core/models/transport.js";
 import { loadPackageBytes } from "../../core/package.js";
-import { definitionsFromRegistry } from "../../core/tools/definitions.js";
+import type { PdfTextReader, SelectedFileAttachment, SelectedFiles } from "../../core/tools/adapters/selected-file.js";
+import { CROSSREF_CONTACT_SOURCE } from "../../core/hosttools.js";
+import { definitionsFromRegistry, type CredentialSource } from "../../core/tools/definitions.js";
 import { Pacer } from "../../core/tools/pacer.js";
 import type { AuditEvent } from "../../core/types.js";
 import { Vault } from "../../core/vault.js";
 import { AdapterError, CancelledError } from "../../core/workflow/errors.js";
+import type { FileStore } from "../storage/files.js";
 import type { SnapshotStore } from "../storage/snapshots.js";
 import { artifactKey, type RunStore, type StoredRun } from "../storage/runs.js";
 import type { HostStartMessage } from "./protocol.js";
@@ -48,6 +51,10 @@ export interface ExecuteDeps {
   transports: { model: HttpTransport; tool: HttpTransport };
   /** The Prompt API port of this context, when it has one. */
   builtin?: BuiltinModelPort | null;
+  /** The picked files' stored copies (T6, D-083); a run reads only its attachments from it. */
+  files?: Pick<FileStore, "get"> | null;
+  /** The PDF parser: a killable Worker per read in the extension, in-process in tests (D-082). */
+  pdfReader?: PdfTextReader | null;
   now?: () => Date;
   /** Called after every checkpoint or record change was written, so the host can notify the worker. */
   onCheckpoint?: ((runId: string, status: RunRecord["status"]) => void) | null;
@@ -201,10 +208,12 @@ export function executeRun(deps: ExecuteDeps): ExecutionHandle {
       // The package, for the host tool registry (the same derivation the plan was frozen from, D-054).
       const pkg = await loadPackageBytes(archive);
       const vault = await Vault.open(decodeBase64(message.vault.key), message.vault.document);
+      const contact = message.settings.crossrefContact ?? null;
       const registry = await buildHostToolRegistry(pkg, {
         resourceTypes: vault.typeViews().map((type) => ({ id: type.id, display_name: type.display_name, permission_kind: type.permission_kind, schema_sha256: type.schema_sha256 })),
         runtimeVersion: message.settings.runtimeVersion,
         now: now(),
+        contactConfigured: contact !== null,
       });
       const definitions = definitionsFromRegistry(registry);
       const plan = run.invocation.plan;
@@ -226,10 +235,33 @@ export function executeRun(deps: ExecuteDeps): ExecutionHandle {
         ...(deps.builtin ? { builtin: deps.builtin } : {}),
       });
       const router = new BoundModelRouter(adapter, { requestTimeoutSeconds: run.invocation.limits.model_call_timeout_seconds });
+      // The picked files this run was given (its invocation's attachments) and nothing else; their
+      // stored copies are read and re-verified at call time (D-082, D-083).
+      const attachments: SelectedFileAttachment[] = run.invocation.attachments ?? [];
+      const store = deps.files ?? null;
+      const files: SelectedFiles = {
+        attached: new Map(attachments.map((file) => [file.file_id, file])),
+        source: store === null ? null : { read: async (file) => {
+          const held = await store.get(file.file_id);
+          if (held === null) throw new Error("not held");
+          return held.data;
+        } },
+        reader: deps.pdfReader ?? null,
+      };
+      // The one optional setting a binding may send: the person's Crossref contact (D-081).
+      const optional = (credential: CredentialSource): string | null => (`${credential.kind}:${credential.name}` === CROSSREF_CONTACT_SOURCE ? contact : null);
       const sessionDeps: SessionDeps = {
         archive,
         router,
-        tools: { definitions, transport: deps.transports.tool, credentials: () => null, pacer: new Pacer(), observe: (request) => record("tool", request.tool_id, request.url, request.body) },
+        tools: {
+          definitions,
+          transport: deps.transports.tool,
+          credentials: optional,
+          describe: { credentialConfigured: (credential) => optional(credential) !== null },
+          files,
+          pacer: new Pacer(),
+          observe: (request) => record("tool", request.tool_id, request.url, request.body),
+        },
         resolver: vault,
         onProgress: () => void checkpoint(),
         // D-071: a checkpoint after every wave, the moment its patches are committed.
@@ -239,7 +271,7 @@ export function executeRun(deps: ExecuteDeps): ExecutionHandle {
         now,
       };
       const begin: BeginReport = await session.begin(
-        { run_id: runId, run_plan: plan, authorization: run.invocation.authorization, input: run.invocation.input, limits: run.invocation.limits, host: { runtime: HOST_RUNTIME, runtime_version: message.settings.runtimeVersion, verified_version: message.settings.verifiedVersion } },
+        { run_id: runId, run_plan: plan, authorization: run.invocation.authorization, input: run.invocation.input, attachments, limits: run.invocation.limits, host: { runtime: HOST_RUNTIME, runtime_version: message.settings.runtimeVersion, verified_version: message.settings.verifiedVersion } },
         sessionDeps,
       );
       const started = now();

@@ -8,6 +8,7 @@ import { TrustStore } from "../../core/trust.js";
 import { failure, isEvent, parseContentMessage, parseRequest, success, type Event } from "../messages.js";
 import { isHostCommand } from "../execution/protocol.js";
 import { Database } from "../storage/database.js";
+import { IndexedDbFileStore } from "../storage/files.js";
 import { IndexedDbRunStore } from "../storage/runs.js";
 import { SettingsStorage } from "../storage/settings.js";
 import { IndexedDbSnapshotStore } from "../storage/snapshots.js";
@@ -125,6 +126,7 @@ const controller = new Controller({
   fetch: (url, init) => fetch(url, init),
   snapshots: new IndexedDbSnapshotStore(database),
   runs: new IndexedDbRunStore(database),
+  files: new IndexedDbFileStore(database),
   host: new OffscreenHostBridge(),
   trust: new TrustStore(new ChromeTrustStorage()),
   tabs: new ChromeTabStateStore(),

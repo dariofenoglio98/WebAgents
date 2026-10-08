@@ -15,6 +15,7 @@ import { MemorySnapshotStore } from "../../src/extension/storage/snapshots.js";
 import { MemoryTabStateStore } from "../../src/extension/storage/tab-state.js";
 import { MemoryViewHolderStore } from "../../src/extension/storage/view-holders.js";
 import { MemoryRunStore } from "../../src/extension/storage/runs.js";
+import { MemoryFileStore } from "../../src/extension/storage/files.js";
 import type { ExecutionHostBridge } from "../../src/extension/background/runs.js";
 import { InProcessHost, refusingTransport } from "./host.js";
 import type { HttpTransport } from "../../src/core/models/transport.js";
@@ -156,6 +157,8 @@ export interface Harness {
   clock: { now: Date };
   runs: MemoryRunStore;
   host: InProcessHost;
+  /** The picked PDFs (Settings → Files, T6). */
+  files: MemoryFileStore;
   /** Wait for every run the host started to finish and report. */
   h_drain: () => Promise<void>;
 }
@@ -180,6 +183,8 @@ export function makeHarness(
     runIds?: () => string;
     /** Also deliver every broadcast here (a page's `subscribe`, in the browser-page tests). */
     onEvent?: (event: Event) => void;
+    /** The picked-file store (T6), shared by the controller and the in-process host. */
+    files?: MemoryFileStore;
   } = {},
 ): Harness {
   const routes = options.routes ?? webairRoutes();
@@ -199,9 +204,11 @@ export function makeHarness(
   let runCounter = 0;
   const trust = new TrustStore(trustStorage, () => clock.now.toISOString());
   const runs = options.runs ?? new MemoryRunStore();
-  const host = new InProcessHost({ runs, snapshots, model: options.transports?.model ?? refusingTransport(), tool: options.transports?.tool ?? refusingTransport(), now: () => clock.now, ...(options.hostOptions ?? {}) });
+  const files = options.files ?? new MemoryFileStore();
+  const host = new InProcessHost({ runs, snapshots, files, model: options.transports?.model ?? refusingTransport(), tool: options.transports?.tool ?? refusingTransport(), now: () => clock.now, ...(options.hostOptions ?? {}) });
   const deps: ControllerDeps = {
     runs,
+    files,
     host: host as ExecutionHostBridge,
     runId: options.runIds ?? (() => `run_${String((runCounter += 1)).padStart(32, "0")}`),
     fetch: fakeFetch(routes, fetchLog),
@@ -232,7 +239,7 @@ export function makeHarness(
   };
   const controller = new Controller(deps);
   host.report = (type, runId) => controller.handle({ type, runId }, OFFSCREEN);
-  return { controller, snapshots, trustStorage, trust, tabs, holders, settingsArea, settings, httpLog, builtin, badges, events, fetchLog, routes, clock, runs, host, h_drain: () => host.drain() };
+  return { controller, snapshots, trustStorage, trust, tabs, holders, settingsArea, settings, httpLog, builtin, badges, events, fetchLog, routes, clock, runs, host, files, h_drain: () => host.drain() };
 }
 
 const EXTENSION_ORIGIN = "chrome-extension://abcdefghijklmnopabcdefghijklmnop";

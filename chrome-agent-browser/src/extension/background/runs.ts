@@ -22,6 +22,7 @@ import type { ToolRegistry } from "../../core/hosttools.js";
 import type { JsonValue } from "../../core/json.js";
 import type { Package } from "../../core/package.js";
 import { validateTaskInput } from "../../core/presentation.js";
+import { FILE_ID_PATTERN, type SelectedFileAttachment } from "../../core/tools/adapters/selected-file.js";
 import { definitionsFromRegistry } from "../../core/tools/definitions.js";
 import type { Reason, RunPlan, RunPlanPreflight } from "../../core/types.js";
 import type { Vault } from "../../core/vault.js";
@@ -31,6 +32,7 @@ import type { ArtifactChunk, ArtifactContent, Event, ExportBundle, ObservationsV
 import { connectionsFor, type SettingsStorage } from "../storage/settings.js";
 import type { StoredSession } from "../storage/snapshots.js";
 import type { RunStore, StoredRun } from "../storage/runs.js";
+import { attachmentOf, type FileView } from "../storage/files.js";
 
 /** The reference plugin's `RECEIPT_MARGIN_SECONDS`: an authorization must outlast the run deadline by this much. */
 export const RECEIPT_MARGIN_SECONDS = 60;
@@ -39,8 +41,14 @@ export const MAX_ARTIFACT_VIEW_BYTES = 48 * 1024;
 export const ARTIFACT_CHUNK_BYTES = 48 * 1024;
 export const MAX_EXPORT_BYTES = 32 * 1024 * 1024;
 export const MAX_ECHOED_INPUT_BYTES = 16 * 1024;
-/** The host limits every browser run is bounded by (the reference plugin's `DEFAULT_POLICY`); the package's own declarations apply beneath them. */
+/**
+ * The host limits a browser run is bounded by when the person changed nothing: the reference
+ * plugin's `DEFAULT_POLICY`. Settings → Run limits replaces them (B-118, T6 D-084); the package's
+ * own declarations apply beneath whichever is in force.
+ */
 export const BROWSER_EXECUTION_LIMITS: Readonly<HostExecutionLimits> = DEFAULT_HOST_LIMITS;
+/** At most this many picked files in one task (the invocation's `MAX_ATTACHMENTS`). */
+export const MAX_RUN_FILES = 16;
 /** The host reported a run as finished without settling its record: its Worker died (T5 review 1, finding 2). */
 export const HOST_FAILED = "host_failed";
 /** The person cancelled, and no execution host could be reached to take the cancel (T5 review 2, nit 2). */
@@ -74,6 +82,8 @@ export interface RunHooks {
   markOnceSpent(sessionId: string): Promise<void>;
   /** A run settled (by the host, or interrupted here): the snapshot it read may be dropped if nothing else refers to it (review 1, nit 7). */
   runSettled?(archiveSha256: string): Promise<void>;
+  /** One picked file's view (Settings → Files, T6), or null when this browser holds no such file. */
+  file?(fileId: string): Promise<FileView | null>;
 }
 
 /** The execution host as the worker sees it: an offscreen document in the extension, an in-process host in tests. */
@@ -107,6 +117,25 @@ function reject(code: string, message: string, status = 400, details: Record<str
 }
 
 /** `contract.ts::taskText`: a string input itself, else the longest top-level string of an object. */
+/**
+ * The picked-file ids a task names (`execution.ts::referencedFileIds`): every string, value or key,
+ * that is exactly an opaque file id. A run is given exactly these files and nothing else.
+ */
+export function referencedFileIds(value: unknown, found = new Set<string>(), depth = 0): Set<string> {
+  if (depth > 32) return found;
+  if (typeof value === "string") {
+    if (FILE_ID_PATTERN.test(value)) found.add(value);
+  } else if (Array.isArray(value)) {
+    for (const item of value) referencedFileIds(item, found, depth + 1);
+  } else if (typeof value === "object" && value !== null) {
+    for (const [key, item] of Object.entries(value)) {
+      if (FILE_ID_PATTERN.test(key)) found.add(key);
+      referencedFileIds(item, found, depth + 1);
+    }
+  }
+  return found;
+}
+
 export function taskText(input: unknown): string | null {
   if (typeof input === "string") return input.trim() || null;
   if (typeof input !== "object" || input === null || Array.isArray(input)) return null;
@@ -125,7 +154,7 @@ function encodeBase64(bytes: Uint8Array): string {
 }
 
 /** The record of a run that was leased but has not begun: identifiers and the plan's facts, nothing counted yet. */
-export function preparingRunRecord(input: { runId: string; sessionId: string; plan: ExecutionPlan; runPlan: RunPlan; createdAt: Date; limits: HostExecutionLimits; revalidated: string[]; inputBytes: number; runtimeVersion: string }): RunRecord {
+export function preparingRunRecord(input: { runId: string; sessionId: string; plan: ExecutionPlan; runPlan: RunPlan; createdAt: Date; limits: HostExecutionLimits; revalidated: string[]; inputBytes: number; runtimeVersion: string; attachments?: SelectedFileAttachment[] }): RunRecord {
   const { plan, runPlan } = input;
   return {
     schema: RUN_RECORD_SCHEMA,
@@ -161,7 +190,7 @@ export function preparingRunRecord(input: { runId: string; sessionId: string; pl
     errorDetail: null,
     revalidated: [...input.revalidated, `input_bytes:${input.inputBytes}`],
     packageExecution: { workflowInstantiated: false, packageInstructionsLoaded: false, toolHandlersInstalled: plan.tool_bindings.length, toolCalls: 0 },
-    task: { inputBytes: input.inputBytes, attachments: [] },
+    task: { inputBytes: input.inputBytes, attachments: (input.attachments ?? []).map((file) => ({ fileId: file.file_id, sha256: file.sha256, bytes: file.bytes, mediaType: file.media_type })) },
     progress: null,
     tools: plan.tool_bindings.map((binding) => ({ toolId: binding.tool_id, bindingId: binding.binding_id, bindingSha256: binding.binding_sha256, remote: binding.remote, calls: 0, displayName: binding.display_name })),
     failure: null,
@@ -172,7 +201,8 @@ export function preparingRunRecord(input: { runId: string; sessionId: string; pl
 export class RunManager {
   private readonly clock: () => Date;
   private readonly randomId: () => string;
-  private readonly limits: HostExecutionLimits;
+  /** Limits fixed by the embedder (tests); otherwise each run reads Settings → Run limits. */
+  private readonly fixedLimits: HostExecutionLimits | null;
   private registry: LeaseRegistry | null = null;
   /** Leases consumed for runs in flight, released when the host reports the run settled. */
   private readonly leases = new Map<string, ExecutionLease>();
@@ -183,11 +213,17 @@ export class RunManager {
   constructor(private readonly deps: RunManagerDeps) {
     this.clock = deps.clock ?? (() => new Date());
     this.randomId = deps.randomId ?? (() => `run_${crypto.randomUUID().replace(/-/gu, "")}`);
-    this.limits = normalizeHostLimits(deps.limits ?? BROWSER_EXECUTION_LIMITS);
+    this.fixedLimits = deps.limits ? normalizeHostLimits(deps.limits) : null;
   }
 
-  hostLimits(): HostExecutionLimits {
-    return { ...this.limits };
+  /** The limits a run started now is bounded by: Settings → Run limits, or the embedder's. */
+  async hostLimits(): Promise<HostExecutionLimits> {
+    if (this.fixedLimits !== null) return { ...this.fixedLimits };
+    try {
+      return normalizeHostLimits((await this.deps.settings.settings()).limits ?? BROWSER_EXECUTION_LIMITS);
+    } catch {
+      return { ...BROWSER_EXECUTION_LIMITS };
+    }
   }
 
   private async leaseRegistry(): Promise<LeaseRegistry> {
@@ -261,14 +297,16 @@ export class RunManager {
     return runs.find((run) => !isTerminal(run.record.status) && ((sessionId !== null && run.session_id === sessionId) || (runPlanId !== null && run.record.runPlanId === runPlanId))) ?? null;
   }
 
-  private requiredSeconds(): number {
-    return this.limits.run_timeout_seconds + RECEIPT_MARGIN_SECONDS;
+  private requiredSeconds(limits: HostExecutionLimits): number {
+    return limits.run_timeout_seconds + RECEIPT_MARGIN_SECONDS;
   }
 
   async readiness(sessionId: string): Promise<RunReadiness> {
     await this.restore();
     const facts = await this.deps.hooks.session(sessionId);
     const now = this.clock();
+    const limits = await this.hostLimits();
+    const required = this.requiredSeconds(limits);
     const checks: string[] = [];
     const base: RunReadiness = { session_id: sessionId, checked_at: now.toISOString(), ready: false, run_plan_id: null, run_plan_sha256: null, blocker: null, checks, receipt: null, active_run_id: null, preflight: null };
     const blocked = (code: string, message: string, subject: string | null = null): RunReadiness => ({ ...base, blocker: { code, message, subject } });
@@ -280,7 +318,7 @@ export class RunManager {
     base.run_plan_sha256 = plan.run_plan_sha256;
     const expiresAt = Date.parse(plan.authorization.expires_at);
     const remaining = Number.isFinite(expiresAt) ? Math.floor((expiresAt - now.getTime()) / 1000) : 0;
-    base.receipt = { expires_at: plan.authorization.expires_at, remaining_seconds: Math.max(0, remaining), required_seconds: this.requiredSeconds() };
+    base.receipt = { expires_at: plan.authorization.expires_at, remaining_seconds: Math.max(0, remaining), required_seconds: required };
     if (plan.execution.mode !== "model") return blocked("run_plan_mode", "This plan is authority for one tool probe, not for running the package.");
     checks.push("plan_mode_model");
     const preflight = await this.deps.hooks.preflight(sessionId);
@@ -290,8 +328,8 @@ export class RunManager {
       return blocked(preflight.stale ? "run_plan_stale" : "run_plan_blocked", reason?.message ?? (preflight.stale ? "The run plan is stale; prepare a new one." : "The run plan is not ready."), reason?.subject ?? null);
     }
     checks.push("preflight_ready");
-    if (remaining < this.requiredSeconds()) {
-      return blocked("authorization_expiring", `A run may take up to ${this.requiredSeconds()}s and this authorization has ${Math.max(0, remaining)}s left. Authorize again and prepare a new run plan before starting, so consent does not lapse in the middle of a run.`);
+    if (remaining < required) {
+      return blocked("authorization_expiring", `A run may take up to ${required}s and this authorization has ${Math.max(0, remaining)}s left. Authorize again and prepare a new run plan before starting, so consent does not lapse in the middle of a run.`);
     }
     checks.push("receipt_outlasts_run_deadline");
     const active = await this.activeRun(sessionId, plan.run_plan_id);
@@ -327,9 +365,12 @@ export class RunManager {
       const blocker = readiness.blocker!;
       throw reject(blocker.code, blocker.message, 409, { readiness: readiness as unknown as Record<string, unknown> });
     }
+    // The picked files the task names are the files this run is given, and nothing else (T6, D-083).
+    const attachments = await this.attachmentsFor(input.input, plan);
     if (this.starting.has(sessionId)) throw reject("execution_active", "A run is already being started for this package.", 409);
     this.starting.add(sessionId);
     try {
+      const limits = await this.hostLimits();
       const archive = await this.deps.hooks.snapshotBytes(facts.stored.archive_sha256);
       if (archive === null) throw reject("execution_artifact_mismatch", "The session snapshot is no longer stored", 500);
       const registry = await this.deps.hooks.toolRegistry(sessionId);
@@ -345,7 +386,7 @@ export class RunManager {
           definitions: definitionsFromRegistry(registry),
           resolver: vault,
           modelAvailable: (hostModelId) => stillAvailable(catalog, hostModelId),
-          minimumReceiptRemainingSeconds: this.requiredSeconds(),
+          minimumReceiptRemainingSeconds: this.requiredSeconds(limits),
           sessionExpiresAt: facts.stored.expires_at,
           now: this.clock(),
         });
@@ -366,8 +407,8 @@ export class RunManager {
         session_id: sessionId,
         created_at: created.toISOString(),
         updated_at: created.toISOString(),
-        record: preparingRunRecord({ runId, sessionId, plan: executionPlan, runPlan: plan, createdAt: created, limits: this.limits, revalidated: [...lease.revalidated], inputBytes, runtimeVersion: this.deps.runtimeVersion }),
-        invocation: { plan: executionPlan, authorization, run_plan: plan, input: input.input as JsonValue, limits: this.limits, archive_sha256: lease.archive_sha256, profile_id: plan.authorization.provenance?.profile_id ?? null },
+        record: preparingRunRecord({ runId, sessionId, plan: executionPlan, runPlan: plan, createdAt: created, limits, revalidated: [...lease.revalidated], inputBytes, runtimeVersion: this.deps.runtimeVersion, attachments }),
+        invocation: { plan: executionPlan, authorization, run_plan: plan, input: input.input as JsonValue, attachments, limits, archive_sha256: lease.archive_sha256, profile_id: plan.authorization.provenance?.profile_id ?? null },
         task_text: taskText(input.input),
         checkpoints: 0,
         progress: null,
@@ -399,6 +440,41 @@ export class RunManager {
     }
   }
 
+  /**
+   * The files a task names, resolved against this browser's picked files, or a refusal before
+   * anything is leased (`execution.ts::attach`, `checkReferencedFiles`, `checkFilePermission`):
+   * every named id must be a file this browser holds; naming any means the plan must bind a tool
+   * that reads selected files, approved, with its permissions granted. A task that names none is
+   * given none.
+   */
+  private async attachmentsFor(input: unknown, plan: RunPlan): Promise<SelectedFileAttachment[]> {
+    const ids = [...referencedFileIds(input)].sort();
+    if (ids.length === 0) return [];
+    if (ids.length > MAX_RUN_FILES) throw reject("input_invalid", `A run may be given at most ${MAX_RUN_FILES} picked files.`, 422);
+    const attachments: SelectedFileAttachment[] = [];
+    for (const fileId of ids) {
+      const file = (await this.deps.hooks.file?.(fileId)) ?? null;
+      if (file === null) {
+        throw reject("file_unknown", "The task names a document this browser does not hold (it was removed in Settings → Files, or never picked here). Pick it again and choose it in the task.", 422, { file_id: fileId });
+      }
+      attachments.push(attachmentOf(file));
+    }
+    const readers = (plan.tool_bindings as unknown as Array<{ implementation_kind?: unknown; required_permission_ids?: unknown; approved?: unknown }>).filter((binding) => binding.implementation_kind === "selected_file");
+    if (readers.length === 0) throw reject("execution_refused", "This package reads no picked files: the run plan binds no tool that reads them, so the task cannot name one.", 409);
+    const decisions = plan.authorization.decisions;
+    const permissionIds = (binding: { required_permission_ids?: unknown }): string[] => (Array.isArray(binding.required_permission_ids) ? binding.required_permission_ids.filter((id): id is string => typeof id === "string") : []);
+    const denied = [...new Set(readers.flatMap((binding) => permissionIds(binding).filter((id) => (decisions[id] ?? "deny") === "deny")))].sort();
+    if (denied.length > 0 || readers.some((binding) => binding.approved !== true)) {
+      throw reject(
+        "execution_refused",
+        `Reading the picked documents requires ${denied.length > 0 ? denied.join(", ") : "the approved file reader"}, which this authorization denies. Allow it under "Customize your settings", authorize again and prepare a new run plan, or run without documents.`,
+        409,
+        { denied_permission_ids: denied },
+      );
+    }
+    return attachments;
+  }
+
   /** What the host needs and nothing it does not: the keys and the vault for this run, in memory. */
   private async startMessage(runId: string): Promise<HostStartMessage> {
     const settings = await this.deps.settings.settings();
@@ -410,7 +486,7 @@ export class RunManager {
       runId,
       credentials: { openai: await this.deps.settings.key("openai"), anthropic: await this.deps.settings.key("anthropic") },
       vault: { key: encodeBase64(key), document: await this.deps.settings.vaultDocument() },
-      settings: { ollamaBaseUrl: ollama?.base_url ?? null, think: false, recordRequests: settings.developer.record_requests, runtimeVersion: this.deps.runtimeVersion, verifiedVersion: this.deps.runtimeVersion },
+      settings: { ollamaBaseUrl: ollama?.base_url ?? null, think: false, recordRequests: settings.developer.record_requests, runtimeVersion: this.deps.runtimeVersion, verifiedVersion: this.deps.runtimeVersion, crossrefContact: settings.services.crossref_contact },
     };
   }
 

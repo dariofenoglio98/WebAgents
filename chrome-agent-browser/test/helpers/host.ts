@@ -6,6 +6,9 @@
  * assertions of D-028 are made: no sealed value in any model request, a granted value only on
  * the tool endpoint that links its permission.
  */
+import type { PdfTextReader } from "../../src/core/tools/adapters/selected-file.js";
+import type { FileStore } from "../../src/extension/storage/files.js";
+import { extractPdfText } from "../../src/pdf/extract.js";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -129,6 +132,10 @@ export interface InProcessHostOptions {
   statusFailures?: number;
   /** `cancel()` rejects: a document that exists but never answers (T5 review 2, nit 2). */
   cancelUnreachable?: boolean;
+  /** The picked files' store the host reads attachments from (T6), shared with the controller. */
+  files?: FileStore | null;
+  /** The PDF parser; in-process pdf.js by default. */
+  pdfReader?: PdfTextReader | null;
 }
 
 /** `executeRun` in this process: the offscreen document and its Worker, without Chrome. */
@@ -158,6 +165,8 @@ export class InProcessHost implements ExecutionHostBridge {
       message,
       transports: { model: this.options.model, tool: this.options.tool },
       builtin: this.options.builtin ?? null,
+      files: this.options.files ?? null,
+      pdfReader: this.options.pdfReader === undefined ? (data, signal) => extractPdfText(data, undefined, signal) : this.options.pdfReader,
       now: this.options.now,
       onCheckpoint: (runId) => {
         if (this.options.workerDies && !died) {

@@ -52,6 +52,7 @@ import {
   type CandidateState,
   type ContentMessage,
   type Event,
+  type FilesView,
   type ModelsView,
   type PinResult,
   type ProbeView,
@@ -68,7 +69,8 @@ import {
   type VaultView,
   type WebsiteResult,
 } from "../messages.js";
-import { connectionsFor, endpointProblem, normalizeSettings, type Settings, type SettingsStorage } from "../storage/settings.js";
+import { FileRefusal, MemoryFileStore, MAX_FILE_BYTES, MAX_FILES, MAX_TOTAL_FILE_BYTES, newFile, viewOf, type FileStore } from "../storage/files.js";
+import { connectionsFor, endpointProblem, normalizeSettings, settingsProblem, type Settings, type SettingsStorage } from "../storage/settings.js";
 import type { SnapshotStore, StoredSession } from "../storage/snapshots.js";
 import type { TabStateStore } from "../storage/tab-state.js";
 import type { ViewHolder, ViewHolderStore } from "../storage/view-holders.js";
@@ -123,6 +125,8 @@ export interface ControllerDeps {
   version?: string;
   /** Runs, their checkpoints and artifacts (IndexedDB, D-071). */
   runs: RunStore;
+  /** The PDFs the person picked in Settings → Files (IndexedDB, T6 D-083); memory when absent (tests). */
+  files?: FileStore;
   /** The execution host (an offscreen document in the extension; in-process in tests). */
   host: ExecutionHostBridge;
   runId?: () => string;
@@ -222,6 +226,7 @@ export class Controller {
   private readonly randomId: () => string;
   private readonly version: string;
   private restored: Promise<void> | null = null;
+  private readonly files: FileStore;
 
   /** Runs from the browser (T5): decides whether a run starts; the host executes. */
   readonly runs: RunManager;
@@ -231,6 +236,7 @@ export class Controller {
     this.clock = deps.clock ?? (() => new Date());
     this.randomId = deps.randomId ?? (() => crypto.randomUUID().replace(/-/gu, "").slice(0, 24));
     this.version = deps.version ?? CORE_VERSION;
+    this.files = deps.files ?? new MemoryFileStore();
     const hooks: RunHooks = {
       session: async (sessionId) => {
         const live = await this.session(sessionId);
@@ -243,6 +249,10 @@ export class Controller {
       catalog: async () => (await this.currentCatalog()).catalog,
       snapshotBytes: async (archiveSha256) => (await this.deps.snapshots.getSnapshot(archiveSha256))?.bytes ?? null,
       markOnceSpent: (sessionId) => this.markOnceSpent(sessionId),
+      file: async (fileId) => {
+        const file = await this.files.get(fileId);
+        return file === null ? null : viewOf(file);
+      },
       // The run that kept a closed session's snapshot alive has settled: drop the bytes if nothing else refers to them.
       runSettled: (archiveSha256) => this.dropUnreferencedSnapshot(archiveSha256),
     };
@@ -314,6 +324,12 @@ export class Controller {
         return this.deleteVaultRecord(request.recordId);
       case "vault.installDemo":
         return this.installDemo(request.records);
+      case "files.list":
+        return this.filesView();
+      case "files.add":
+        return this.addFile(request.name, request.base64);
+      case "files.remove":
+        return this.removeFile(request.fileId);
       case "run.readiness":
         return this.runs.readiness(request.sessionId);
       case "run.validateInput":
@@ -942,6 +958,9 @@ export class Controller {
   }
 
   async setSettings(raw: unknown): Promise<SettingsView> {
+    // A contact or a limit the settings would silently drop is refused by name (T6).
+    const problem = settingsProblem(raw);
+    if (problem !== null) throw reject("settings_invalid", problem, 400);
     // An endpoint the settings would silently drop is refused by name instead, so the person
     // learns why their Ollama or provider address was not kept.
     const connections = isRecord(raw) && isRecord(raw.models) && Array.isArray(raw.models.connections) ? raw.models.connections : [];
@@ -1042,6 +1061,41 @@ export class Controller {
     return this.vaultView();
   }
 
+  // -- Settings → Files: the person's picked PDFs (T6, D-083) ---------------------------------
+  async filesView(): Promise<FilesView> {
+    return { files: await this.files.list(), max_files: MAX_FILES, max_file_bytes: MAX_FILE_BYTES, max_total_bytes: MAX_TOTAL_FILE_BYTES };
+  }
+
+  /** Copy one picked PDF into the store, after the reference's refusals; the view never learns more than its id, hash and size. */
+  async addFile(name: string, base64: string): Promise<FilesView> {
+    let data: Uint8Array;
+    try {
+      const binary = atob(base64);
+      data = new Uint8Array(binary.length);
+      for (let index = 0; index < binary.length; index += 1) data[index] = binary.charCodeAt(index);
+    } catch {
+      throw reject("file_invalid", "The picked file's bytes did not arrive intact.");
+    }
+    let file;
+    try {
+      const randomHex = () => [...crypto.getRandomValues(new Uint8Array(16))].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+      file = newFile(name, data, await this.files.list(), this.clock(), randomHex);
+    } catch (error) {
+      if (error instanceof FileRefusal) throw reject(error.code, error.message, error.code === "file_limit" ? 413 : 400);
+      throw error;
+    }
+    await this.files.put(file);
+    this.deps.broadcast({ type: "event.files" });
+    return this.filesView();
+  }
+
+  /** Remove a picked file. A run already given it fails its read ("no longer held"); its plan is unaffected. */
+  async removeFile(fileId: string): Promise<FilesView> {
+    if (!(await this.files.remove(fileId))) throw reject("file_unknown", "This browser holds no picked file with that id.", 404);
+    this.deps.broadcast({ type: "event.files" });
+    return this.filesView();
+  }
+
   // -- the host registries for one session ---------------------------------------------------
   private async resourceRegistry(): Promise<ResourceRegistry> {
     return (await this.vault()).registry({ runtimeVersion: this.version, now: this.clock() });
@@ -1049,7 +1103,8 @@ export class Controller {
 
   private async toolRegistry(live: LiveSession): Promise<ToolRegistry> {
     const types = (await this.vault()).typeViews().map((type) => ({ id: type.id, display_name: type.display_name, permission_kind: type.permission_kind, schema_sha256: type.schema_sha256 }));
-    return buildHostToolRegistry(live.pkg, { resourceTypes: types, runtimeVersion: this.version, now: this.clock() });
+    const contactConfigured = (await this.deps.settings.settings()).services.crossref_contact !== null;
+    return buildHostToolRegistry(live.pkg, { resourceTypes: types, runtimeVersion: this.version, now: this.clock(), contactConfigured });
   }
 
   private async toolEvaluation(live: LiveSession, decisions?: Record<string, Decision>, approvals?: Record<string, boolean>): Promise<{ registry: ToolRegistry; evaluation: RegistryEvaluation }> {
@@ -1450,7 +1505,7 @@ export class Controller {
       max_cache_bytes: this.limits.maxCacheBytes,
       session_ttl_seconds: this.limits.sessionTtlSeconds,
       execution: available ? "enabled" : "disabled",
-      execution_limits: available ? this.runs.hostLimits() : null,
+      execution_limits: available ? await this.runs.hostLimits() : null,
       runs: { active: await this.runs.activeCount(), stored: await this.runs.storedCount() },
     };
   }
