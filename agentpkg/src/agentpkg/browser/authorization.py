@@ -264,6 +264,7 @@ def build_receipt(
     expires_at: str,
     resource_grants: list | None = None,
     resource_registry: dict | None = None,
+    profile: dict | None = None,
 ) -> dict:
     """Bind decisions to these exact bytes, this signer, and this trust state.
 
@@ -272,6 +273,12 @@ def build_receipt(
     `resource_registry`: opaque id, type and digest, never a value or a label.
     They are part of the receipt hash, so a plan that names this receipt names
     exactly these resources.
+
+    `profile` is the publisher-declared profile the person chose, if any
+    (D-022, D-090). It grants nothing: the decisions above are the authority.
+    It is recorded with the declared tools it left out that the person did not
+    approve, which a plan may then leave unbound; the runtime refuses any call
+    to them. A receipt without a profile has exactly its earlier shape.
     """
     reasons = blocking_reasons(
         package,
@@ -329,5 +336,17 @@ def build_receipt(
             ),
         },
     }
+    if profile is not None:
+        receipt["profile"] = {
+            "id": profile["id"],
+            "title": profile["title"],
+            "permission_ids": sorted(profile["permissions"]),
+            "tool_ids": sorted(profile["tools"]),
+            "denied_tool_ids": sorted(
+                tool_id
+                for tool_id in package.tools
+                if tool_id not in profile["tools"] and tool_approvals.get(tool_id) is not True
+            ),
+        }
     receipt["receipt_sha256"] = sha256(canonical_json(receipt))
     return receipt

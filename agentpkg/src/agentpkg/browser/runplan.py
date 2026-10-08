@@ -57,6 +57,7 @@ from .hosttools import (
     plan_tool_bindings,
     registry_reference,
 )
+from .profiles import profile_denied_tools
 
 RUN_PLAN_SCHEMA = "agentpkg-run-plan-v0"
 RUN_PLAN_VERSION = "0.1"
@@ -68,7 +69,9 @@ RUN_PLAN_VERSION = "0.1"
 # `model` is authority to run the package's own graph: it needs a model, and it
 # needs *every* declared tool bound, approved and permitted, because a run that
 # discovered an unbound tool halfway through would already have spent whatever
-# came before it.
+# came before it. The one exception is a tool the person's selected profile
+# left out and that they did not approve (D-022, D-090): it is denied, never
+# bound, and the runtime refuses any call to it.
 #
 # `tool_probe` is authority to make **one mediated call to one declared tool**
 # and nothing else. It is a strictly smaller thing, and it is a separate mode
@@ -176,9 +179,16 @@ def tool_blockers(
             )
         ]
     reasons: list[dict] = []
+    denied = profile_denied_tools(receipt)
     for tool in evaluation["tools"]:
         subject = tool["tool_id"]
         if only is not None and subject != only:
+            continue
+        if subject in denied and only is None:
+            # Outside the profile the person chose and not approved (D-022,
+            # D-090): it gets no binding, blocks nothing, and the runtime
+            # refuses any call to it. A probe of it is refused below as any
+            # unapproved tool is.
             continue
         blocker = _TOOL_BLOCKERS.get(tool["status"])
         if blocker is not None:
@@ -322,7 +332,8 @@ def preparation_blockers(
     # A package declaring tools cannot be partially ready. Every declared tool
     # needs an implementation, an approval and its permissions before any of
     # the graph may run, because a run that discovers an unbound tool halfway
-    # through has already spent whatever came before it.
+    # through has already spent whatever came before it. A tool the selected
+    # profile denied is not part of the run at all (D-090).
     if package.tools:
         reasons.extend(
             tool_blockers(tool_evaluation, receipt=receipt, policy=policy, only=probe_tool_id)
@@ -425,6 +436,10 @@ def build_run_plan(
     """Freeze one decision into a hashed, self-describing artifact."""
     created = datetime.now(UTC)
     tool_bindings = plan_tool_bindings(tool_evaluation) if tool_evaluation else []
+    # A tool the selected profile left out and the person did not approve is
+    # denied (D-090): the plan binds no implementation of it and says so.
+    denied = profile_denied_tools(receipt)
+    tool_bindings = [item for item in tool_bindings if item["tool_id"] not in denied]
     if probe_tool_id is not None:
         # A probe binds the one tool it is for. Carrying the others would make
         # the artifact look like authority it is not.
@@ -477,7 +492,9 @@ def build_run_plan(
             "binding_strategy": binding_strategy,
             "required_permission_ids": mode_permission_ids(package, mode),
             "required_tool_ids": (
-                [probe_tool_id] if probe_tool_id is not None else sorted(package.tools)
+                [probe_tool_id]
+                if probe_tool_id is not None
+                else sorted(set(package.tools) - denied)
             ),
             "probe_tool_id": probe_tool_id,
             "tool_binding_count": len(tool_bindings),
@@ -534,6 +551,14 @@ def build_run_plan(
             "blocking_reasons": blocking_reasons,
         },
     }
+    if receipt.get("profile") is not None:
+        # Only a plan made through a profile carries these, so every other
+        # plan keeps exactly its earlier shape and hash.
+        plan["execution"]["denied_tool_ids"] = sorted(denied)
+        plan["execution"]["note"] += (
+            " Declared tools the selected profile left out and the person did not approve are "
+            "listed in denied_tool_ids; the runtime refuses any call to them (D-022)."
+        )
     plan["run_plan_sha256"] = sha256(canonical_json(plan))
     return plan
 

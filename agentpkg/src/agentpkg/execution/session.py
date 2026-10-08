@@ -145,6 +145,7 @@ def normalize_execution_plan(raw) -> dict:
             "required_tool_ids",
             "probe_tool_id",
             "tool_binding_count",
+            "denied_tool_ids",
         },
         {"mode"},
     )
@@ -163,6 +164,9 @@ def normalize_execution_plan(raw) -> dict:
     required_tools = execution.get("required_tool_ids") or []
     if not isinstance(required_tools, list) or len(required_tools) > MAX_IDS:
         raise invalid("run_plan.execution.required_tool_ids must be a bounded list")
+    denied_tools = execution.get("denied_tool_ids") or []
+    if not isinstance(denied_tools, list) or len(denied_tools) > MAX_IDS:
+        raise invalid("run_plan.execution.denied_tool_ids must be a bounded list")
     bindings = normalize_tool_bindings(record.get("tool_bindings"))
     missing = sorted(
         {_text(item, "required_tool_ids[]", limit=200) for item in required_tools}
@@ -221,6 +225,11 @@ def normalize_execution_plan(raw) -> dict:
             ],
             "required_tool_ids": sorted(
                 {_text(item, "required_tool_ids[]", limit=200) for item in required_tools}
+            ),
+            # D-090: declared tools a selected profile left out, unapproved and
+            # unbound; `check_capabilities` and the approvals check them below.
+            "denied_tool_ids": sorted(
+                {_text(item, "denied_tool_ids[]", limit=200) for item in denied_tools}
             ),
         },
         "model_binding": (normalize_binding(record["model_binding"]) if mode == "model" else None),
@@ -348,7 +357,12 @@ class ExecutionSession:
 
         # 2. What this host can and cannot run, from the graph's declarations.
         capabilities = (
-            check_capabilities(package, limits, tool_bindings=plan["tool_bindings"])
+            check_capabilities(
+                package,
+                limits,
+                tool_bindings=plan["tool_bindings"],
+                denied_tools=plan["execution"]["denied_tool_ids"],
+            )
             if plan["execution"]["mode"] == "model"
             else {
                 "tools_declared": len(package.tools),
@@ -376,6 +390,19 @@ class ExecutionSession:
         #     person actually gave. Permission and approval are separate
         #     questions and both are asked.
         tools = check_tools(package, plan["tool_bindings"], grants, authorization["tool_approvals"])
+        approved_but_denied = [
+            tool_id
+            for tool_id in plan["execution"]["denied_tool_ids"]
+            if authorization["tool_approvals"].get(tool_id) is True
+        ]
+        if approved_but_denied:
+            # A tool the person approved is never "denied": the plan would be
+            # dropping an approved tool's binding, which no profile can do.
+            raise ExecutionError(
+                TOOL_NOT_BOUND,
+                "The run plan denies a tool the authorization approved.",
+                detail={"tool_ids": approved_but_denied[:32]},
+            )
         # 3c. The host resources the person picked, by reference only, each
         #     re-checked against the signed package's own declarations.
         resources = check_resource_grants(package, plan["resource_grants"], grants)

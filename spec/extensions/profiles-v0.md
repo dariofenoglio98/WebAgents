@@ -122,9 +122,12 @@ The publisher's tooling checks these rules before signing; for WebAir that is
 - **Hosts that do not implement it** ignore the key like any unknown extension. The package remains
   valid and usable through per-item decisions.
 
-Reference runtimes: `agentpkg` 0.2.2 ignores this extension. Its control plane also still requires
-an approval for every declared tool before a run, so a profile that leaves tools out cannot yet be
-used there; a runtime that honours profiles refuses calls to the tools a profile left out.
+Reference runtimes: since T7 the `agentpkg` control plane validates this extension and accepts the
+selected profile with an authorization (`profile_id`). A declared tool outside it that the person
+did not approve is then recorded as denied in the receipt and the run plan, gets no binding, and
+the runtime refuses any call to it; without a profile every declared tool still needs an approval
+([`docs/tool-broker.md`](../../docs/tool-broker.md) §6a). The Chrome Agent Browser applies the same
+rule and records who decided each item.
 
 ## 6. Estimates
 
