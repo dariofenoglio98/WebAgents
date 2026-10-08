@@ -158,7 +158,7 @@ def test_an_integral_float_estimate_is_an_integer_as_in_the_chrome_core():
 
 def test_lengths_count_code_points_as_the_chrome_core_does():
     # 60 astral characters are 60 characters, not 120 UTF-16 units (T7 review 1, finding 3).
-    astral = "\U0001F6EB" * 60
+    astral = "\U0001f6eb" * 60
     report = read_profiles(_with_profiles(lambda p: p[0].update(title=astral)))
     assert report["notes"] == [] and report["profiles"][0]["title"] == astral
     longer = read_profiles(_with_profiles(lambda p: p[0].update(title=astral + "x")))
