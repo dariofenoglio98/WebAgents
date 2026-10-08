@@ -59,6 +59,16 @@ export interface AuthorizeInput {
 }
 
 const DECISION_LABELS: Record<Decision, string> = { deny: "Deny", once: "Allow once", session: "Allow for session" };
+
+/** Who decided, in words: the policy is named by id and version (T8, D-102). */
+function decidedByText(by: DecidedBy | undefined, view: AuthorizationView): string {
+  if (by === "policy") return `decided by policy ${view.policy?.label ?? "(no longer in force)"}`;
+  return `decided by ${by ?? "preset"}`;
+}
+
+function decidedByTone(by: DecidedBy | undefined): "good" | "neutral" {
+  return by === "user" ? "good" : "neutral";
+}
 const PRESET_TITLES: Record<string, string> = { "privacy-first": "Privacy first", balanced: "Balanced", convenience: "Convenience" };
 
 /** What a granted permission lets the agent do, in a person's words (D-052). */
@@ -177,7 +187,13 @@ function summaryCard(input: AuthorizeInput, state: AuthorizeState, actions: Auth
           : el("span", {}, "none chosen yet — ", linkButton("choose one in Settings → Models", () => actions.onOpenSettings("models"))),
       ),
       row("Preset", `${PRESET_TITLES[view.preset] ?? view.preset} (payments stay single-use; nothing is granted beyond what is listed)`),
-      row("Decided by", profile ? `the “${profile.title}” profile, with the ${PRESET_TITLES[view.preset] ?? view.preset} preset's durations` : `the ${PRESET_TITLES[view.preset] ?? view.preset} preset's defaults`),
+      view.policy
+        ? row(
+            "Your policy",
+            el("span", {}, `${view.policy.reference.title} `, el("code", { text: view.policy.label }), `: ${[...view.policy.limits_capped, view.policy.local_only ? "local models only" : null, view.policy.max_cost_usd_per_run !== null ? `models at most $${view.policy.max_cost_usd_per_run} per run` : null, view.policy.bindings_restricted ? "only the services it lists" : null].filter(Boolean).join("; ") || "no limits of its own"}.`),
+          )
+        : null,
+      row("Decided by", decidedByLine(view, decided, profile)),
       el(
         "div",
         { className: "ab-summary-actions" },
@@ -199,6 +215,15 @@ function summaryCard(input: AuthorizeInput, state: AuthorizeState, actions: Auth
       el("p", { className: "ab-hint", text: "Using the agent records your decisions and prepares a run plan. Nothing runs yet, and nothing is granted beyond what is listed above." }),
     ),
   );
+}
+
+/** "Decided by" in one line: the profile or the preset's defaults, and the policy for what it decided. */
+function decidedByLine(view: AuthorizationView, decided: Decided, profile: Profile | null): string {
+  const preset = PRESET_TITLES[view.preset] ?? view.preset;
+  const base = profile ? `the “${profile.title}” profile, with the ${preset} preset's durations` : `the ${preset} preset's defaults`;
+  const byPolicy = [...Object.values(decided.provenance.decisions), ...Object.values(decided.provenance.tool_approvals)].filter((by) => by === "policy").length;
+  if (!view.policy || byPolicy === 0) return base;
+  return `${base}; ${byPolicy} item${byPolicy === 1 ? "" : "s"} pre-decided by your policy ${view.policy.reference.title} (${view.policy.label}). Change any of them under Customize your settings and it is recorded as yours.`;
 }
 
 function linkButton(text: string, onClick: () => void): HTMLButtonElement {
@@ -265,7 +290,7 @@ function permissionRow(view: AuthorizationView, draft: NonNullable<AuthorizeStat
     el(
       "div",
       { className: "ab-permission-body" },
-      el("div", { className: "ab-access-head" }, el("code", { className: "ab-id", text: permission.id }), chip(permission.kind), chip(permission.required ? "Required" : "Optional", permission.required ? "warn" : "neutral"), chip(`decided by ${draft.decidedBy[permission.id] ?? "preset"}`, draft.decidedBy[permission.id] === "user" ? "good" : "neutral")),
+      el("div", { className: "ab-access-head" }, el("code", { className: "ab-id", text: permission.id }), chip(permission.kind), chip(permission.required ? "Required" : "Optional", permission.required ? "warn" : "neutral"), chip(decidedByText(draft.decidedBy[permission.id], view), decidedByTone(draft.decidedBy[permission.id]))),
       el("p", { className: "ab-access-text", text: permission.description }),
       request && draft.decisions[permission.id] !== "deny" ? resourcePicker(request, state, actions, draft.decisions[permission.id]!) : null,
       permission.linked_domains.length > 0 ? el("p", { className: "ab-hint", text: `Network: ${permission.linked_domains.join(", ")}` }) : null,
@@ -291,7 +316,7 @@ function toolRow(view: AuthorizationView, draft: NonNullable<AuthorizeState["dra
     el(
       "span",
       { className: "ab-approval-body" },
-      el("span", { className: "ab-access-head" }, el("code", { className: "ab-id", text: tool.tool_id }), chip(tool.side_effects === "write" ? "writes" : "reads", tool.side_effects === "write" ? "warn" : "neutral"), tool.approval_required ? chip("approval required", "warn") : null, chip(status === "bound" ? "this browser can run it" : status, status === "bound" ? "good" : "bad"), chip(`decided by ${draft.approvedBy[tool.tool_id] ?? "preset"}`, draft.approvedBy[tool.tool_id] === "user" ? "good" : "neutral")),
+      el("span", { className: "ab-access-head" }, el("code", { className: "ab-id", text: tool.tool_id }), chip(tool.side_effects === "write" ? "writes" : "reads", tool.side_effects === "write" ? "warn" : "neutral"), tool.approval_required ? chip("approval required", "warn") : null, chip(status === "bound" ? "this browser can run it" : status, status === "bound" ? "good" : "bad"), chip(decidedByText(draft.approvedBy[tool.tool_id], view), decidedByTone(draft.approvedBy[tool.tool_id]))),
       el("span", { className: "ab-hint", text: offer?.display_name ?? offer?.reason ?? tool.binding }),
       el("span", { className: "ab-hint", text: `Needs: ${tool.permissions.join(", ") || "no permission"}` }),
     ),
@@ -302,9 +327,11 @@ function compatibilityTone(status: string): "good" | "warn" | "bad" {
   return status === "compatible" ? "good" : status === "unverified" ? "warn" : "bad";
 }
 
-function modelRow(model: ModelCompatibility, state: AuthorizeState, actions: AuthorizeActions, localOnly: boolean): HTMLElement {
+function modelRow(model: ModelCompatibility, state: AuthorizeState, actions: AuthorizeActions, localOnly: boolean, policy: ModelsView["model_policy"] = null): HTMLElement {
   const notLocal = localOnly && model.properties.local !== true;
-  const selectable = model.selectable_for_run_plan && !notLocal;
+  // A cost cap admits only models whose cost this browser can bound: free (local) ones (D-102).
+  const unpriced = policy !== null && policy.max_cost_usd_per_run !== null && model.properties.local !== true && model.properties.cost_class !== "free";
+  const selectable = model.selectable_for_run_plan && !notLocal && !unpriced;
   const input = el("input", { attrs: { type: "radio", name: "agent-browser-model", value: model.model_id } });
   input.checked = state.selectedModel === model.model_id;
   input.disabled = !selectable;
@@ -323,7 +350,7 @@ function modelRow(model: ModelCompatibility, state: AuthorizeState, actions: Aut
       "label",
       { className: "ab-model-label" },
       input,
-      el("span", { className: "ab-model-head" }, el("strong", { text: model.display_name }), el("code", { className: "ab-model-id", text: model.model_id }), model.available ? chip(model.status, compatibilityTone(model.status)) : chip("Not available", "bad"), model.properties.local === true ? chip("Local, free", "good") : chip("Hosted, metered", "warn"), notLocal ? chip("excluded by the privacy-first preset", "warn") : null),
+      el("span", { className: "ab-model-head" }, el("strong", { text: model.display_name }), el("code", { className: "ab-model-id", text: model.model_id }), model.available ? chip(model.status, compatibilityTone(model.status)) : chip("Not available", "bad"), model.properties.local === true ? chip("Local, free", "good") : chip("Hosted, metered", "warn"), notLocal ? chip(policy?.local_only ? `excluded by your policy (${policy.label}): local models only` : "excluded by the privacy-first preset", "warn") : null, unpriced ? chip(`excluded by your policy's cost cap ($${policy!.max_cost_usd_per_run} per run; no price known)`, "warn") : null),
     ),
     el("p", { className: "ab-hint", text: facts.join(" · ") }),
     // An unavailable model is reported as such, with its provider's answer: what it might lack is beside the point until it answers (D-077).
@@ -364,7 +391,7 @@ function customizeView(input: AuthorizeInput, state: AuthorizeState, actions: Au
           { className: "ab-models", attrs: { role: "radiogroup" } },
           el("p", { className: "ab-hint", text: `${models.evaluation.counts.available ?? 0} of ${models.evaluation.counts.total ?? 0} models available · ${models.evaluation.counts.compatible ?? 0} compatible, ${models.evaluation.counts.unverified ?? 0} unverified, ${models.evaluation.counts.incompatible ?? 0} incompatible. The package names no provider; you choose.` }),
           ...models.evaluation.notes.map((note) => el("p", { className: "ab-hint" }, el("code", { text: note.code }), " ", el("span", { text: note.detail ?? "" }))),
-          ...models.evaluation.models.map((model) => modelRow(model, state, actions, models.local_models_only)),
+          ...models.evaluation.models.map((model) => modelRow(model, state, actions, models.local_models_only, models.model_policy ?? null)),
           button("Refresh models", actions.onRefreshModels),
         )
       : el("p", { className: "ab-hint" }, "Models are listed once the catalog is read. ", linkButton("Read it now", actions.onRefreshModels)),
@@ -413,7 +440,7 @@ function planCard(input: AuthorizeInput, actions: AuthorizeActions): HTMLElement
           ["Tools it may call", plan.run_plan.execution.required_tool_ids.join(", ") || "none"],
           ["Tools it may not call", plan.run_plan.execution.denied_tool_ids.join(", ") || "none"],
           ["Your data", plan.run_plan.resource_grants.map((grant) => grant.permission_id).join(", ") || "none"],
-          ["Decided by", receipt.provenance ? `${receipt.provenance.profile_title ? `profile “${receipt.provenance.profile_title}”` : "your own settings"}, ${PRESET_TITLES[receipt.provenance.preset] ?? receipt.provenance.preset} preset` : "the receipt states no provenance"],
+          ["Decided by", receipt.provenance ? `${receipt.provenance.profile_title ? `profile “${receipt.provenance.profile_title}”` : "your own settings"}, ${PRESET_TITLES[receipt.provenance.preset] ?? receipt.provenance.preset} preset${receipt.provenance.policy ? `, policy ${receipt.provenance.policy.policy_id}@${receipt.provenance.policy.version}` : ""}${receipt.provenance.decisions && Object.values(receipt.provenance.decisions).includes("user") ? "; some items by you" : ""}` : "the receipt states no provenance"],
         ])
       : null,
     details(

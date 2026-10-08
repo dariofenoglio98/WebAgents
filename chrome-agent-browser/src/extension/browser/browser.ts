@@ -8,7 +8,9 @@ import type { Candidate } from "../../core/discovery.js";
 import type { JsonObject } from "../../core/json.js";
 import { looksLikePackageUrl } from "../../core/policy.js";
 import type { TrustEntry, TrustState } from "../../core/trust.js";
-import type { AuthorizationView, ExportBundle, FilesView, ModelsView, RunListView, RunSummary, RunView, SessionDescriptor, SessionView, SettingsView, StatusInfo, VaultView, WebsiteResult } from "../messages.js";
+import type { AuthorizationView, ExportBundle, FilesView, IndexesView, LibraryItemView, LibraryView, ModelsView, PolicyView, RunListView, RunSummary, RunView, SearchResultView, SearchView, SessionDescriptor, SessionView, SettingsView, StatusInfo, VaultView, WebsiteResult } from "../messages.js";
+import { addressKind } from "../../core/resolve/types.js";
+import { renderFoundVia, renderLibrary, renderSearchResults } from "../ui/search.js";
 import { renderAgentPage } from "../ui/agent-page.js";
 import { bindAuthorization, type AuthorizationController } from "../ui/authorization-flow.js";
 import { describeError, send, subscribe } from "../ui/client.js";
@@ -45,6 +47,12 @@ interface PageState {
   runsNotice: string | null;
   /** The run chosen on the Runs page (`#run=…`), shown under the list; null for the list alone. */
   runsShowing: string | null;
+  /** The last search's results (T8): shown on the Open page until an agent or a website is opened. */
+  search: SearchView | null;
+  library: LibraryView | null;
+  /** Settings → Search and the policy subscription (T8). */
+  indexes: IndexesView | null;
+  policy: PolicyView | null;
 }
 
 const app = document.getElementById("app") as HTMLElement;
@@ -70,6 +78,10 @@ const state: PageState = {
   runs: null,
   runsNotice: null,
   runsShowing: null,
+  search: null,
+  library: null,
+  indexes: null,
+  policy: null,
 };
 
 /** The authorization flow for the open session (T3). */
@@ -195,10 +207,13 @@ async function load(): Promise<void> {
   try {
     if (state.view === "trust") state.trust = await send({ type: "trust.list" });
     if (state.view === "library" || state.view === "open") state.sessions = (await send<{ sessions: SessionDescriptor[] }>({ type: "sessions.list" })).sessions;
+    if (state.view === "library") state.library = await send<LibraryView>({ type: "library.get" });
     if (state.view === "settings") {
       state.status = await send({ type: "status.get" });
       state.settings = await send({ type: "settings.get" });
       if (state.settingsPage.section === "files") state.files = await send<FilesView>({ type: "files.list" });
+      if (state.settingsPage.section === "search") state.indexes = await send<IndexesView>({ type: "indexes.list" });
+      if (state.settingsPage.section === "policies") state.policy = await send<PolicyView>({ type: "policy.get" });
     }
     if (state.view === "data") state.vault = await send({ type: "vault.get" });
     if (state.view === "runs") state.runs = await send({ type: "run.list", sessionId: null });
@@ -286,9 +301,16 @@ async function clearRun(runId: string): Promise<void> {
   await load();
 }
 
+/**
+ * The address bar (T8): an address opens as before (a package, or a website whose advertised
+ * agents are listed); words or an agent name such as `name@host.example` search the enabled
+ * indexes, and the results are agent cards.
+ */
 async function openAddress(address: string): Promise<void> {
+  if (address.length > 0 && addressKind(address) === "search") return runSearch(address);
   state.address = address;
   state.error = null;
+  state.search = null;
   state.busy = looksLikePackageUrl(address) ? "Downloading and verifying the package…" : "Reading the website…";
   render();
   try {
@@ -306,6 +328,85 @@ async function openAddress(address: string): Promise<void> {
     state.busy = null;
     render();
   }
+}
+
+async function runSearch(text: string): Promise<void> {
+  state.address = text;
+  state.error = null;
+  state.busy = "Searching your indexes…";
+  render();
+  try {
+    state.search = await send<SearchView>({ type: "search.query", text });
+    state.website = null;
+    if (state.open) {
+      // Searching leaves the agent shown so far: its session stays open under Library → Open now.
+      state.open = null;
+      flow.reset();
+      runs.detach();
+      history.replaceState(null, "", "#open");
+    }
+  } catch (error) {
+    state.error = describeError(error);
+  } finally {
+    state.busy = null;
+    render();
+  }
+}
+
+/** Open a search result: the ordinary open-and-verify, telling the worker which index it came from. */
+async function openResult(result: SearchResultView): Promise<void> {
+  state.busy = "Downloading and verifying the package…";
+  render();
+  try {
+    const foundVia = result.candidate.source.resolver === "static-index" ? { indexId: result.candidate.source.resolver_id } : null;
+    state.open = await send<SessionView>({ type: "package.open", url: result.candidate.package_url, advertisedOn: null, viewId: VIEW_ID, foundVia });
+    state.error = null;
+    location.hash = `session=${encodeURIComponent(state.open.session.id)}`;
+  } catch (error) {
+    state.error = describeError(error);
+  } finally {
+    state.busy = null;
+    render();
+  }
+}
+
+/** Open a Library entry again: download and verify, as from the address bar. */
+async function openLibraryEntry(entry: LibraryItemView): Promise<void> {
+  state.view = "open";
+  state.busy = "Downloading and verifying the package…";
+  render();
+  try {
+    state.open = await send<SessionView>({ type: "package.open", url: entry.package_url, advertisedOn: entry.advertised_on, viewId: VIEW_ID });
+    state.error = null;
+    location.hash = `session=${encodeURIComponent(state.open.session.id)}`;
+  } catch (error) {
+    state.error = describeError(error);
+    location.hash = "open";
+  } finally {
+    state.busy = null;
+    render();
+  }
+}
+
+async function setPinned(pinned: boolean): Promise<void> {
+  if (!state.open) return;
+  try {
+    await send(pinned ? { type: "library.pin", sessionId: state.open.session.id } : { type: "library.unpin", packageUrl: state.open.source.display });
+    await showSession(state.open.session.id);
+  } catch (error) {
+    state.error = describeError(error);
+    render();
+  }
+}
+
+/** Where the open agent came from (an index's claims compared) and whether it is pinned. */
+function sessionExtras(open: SessionView): HTMLElement {
+  return el(
+    "div",
+    { className: "ab-session-extras" },
+    open.found_via ? renderFoundVia(open.found_via) : null,
+    el("div", { className: "ab-actions" }, button(open.pinned ? "Unpin from Library" : "Pin to Library", () => void setPinned(!open.pinned), { variant: "ghost" })),
+  );
 }
 
 async function inspect(candidate: Candidate): Promise<void> {
@@ -336,9 +437,9 @@ async function trustSession(scope: "package" | "publisher"): Promise<void> {
 }
 
 function addressBar(): HTMLElement {
-  const input = el("input", { className: "ab-input ab-address-input", attrs: { name: "package-url", type: "url", placeholder: "https://… a website, or a package URL ending in .pkg", autocomplete: "off" } });
+  const input = el("input", { className: "ab-input ab-address-input", attrs: { name: "package-url", type: "text", placeholder: "Search agents (words or name@host), or https://… a website or a package URL", autocomplete: "off", "aria-label": "Search agents or open an address" } });
   input.value = state.address;
-  const form = el("form", { className: "ab-address" }, input, button("Open", () => void openAddress(input.value.trim()), { variant: "primary" }));
+  const form = el("form", { className: "ab-address" }, input, button("Go", () => void openAddress(input.value.trim()), { variant: "primary" }));
   form.addEventListener("submit", (event) => {
     event.preventDefault();
     void openAddress(input.value.trim());
@@ -366,6 +467,7 @@ function openView(): HTMLElement[] {
     const showRun = state.authorization !== null && state.authorization.receipt !== null;
     nodes.push(
       showRun ? runs.root : null,
+      sessionExtras(open),
       renderAgentPage(open, {
         onTrust: (scope) => void trustSession(scope),
         onClose: () => {
@@ -386,11 +488,13 @@ function openView(): HTMLElement[] {
         (candidate) => void inspect(candidate),
       ),
     );
+  } else if (state.search) {
+    nodes.push(renderSearchResults(state.search, { open: (result) => void openResult(result), settings: () => (location.hash = "settings?section=search") }));
   } else if (!state.busy) {
     nodes.push(
       card(
         "Open an agent",
-        el("p", { className: "ab-hint", text: "Enter a website address to see which agent package it advertises, or a package address to inspect it directly. Nothing runs until you authorize an agent and press Run." }),
+        el("p", { className: "ab-hint", text: "Type words or an agent name (name@host) to search the indexes you added, a website address to see which agent package it advertises, or a package address to inspect it directly. Nothing runs until you authorize an agent and press Run." }),
         state.sessions.length > 0 ? el("h4", { text: "Open now" }) : null,
         state.sessions.length > 0 ? list(state.sessions.map((session) => sessionRow(session))) : null,
       ),
@@ -411,13 +515,27 @@ function sessionRow(session: SessionDescriptor): HTMLElement {
 }
 
 function libraryView(): HTMLElement[] {
+  const apply = (request: Parameters<typeof send>[0]) => {
+    send<LibraryView>(request).then(
+      (library) => {
+        state.library = library;
+        render();
+      },
+      (error: unknown) => {
+        state.error = describeError(error);
+        render();
+      },
+    );
+  };
   return [
-    card(
-      "Library",
-      el("p", { className: "ab-hint", text: "Agents open in this browser session; open one to see its authorization, run plan and runs. Past runs stay under Runs after a session ends." }),
-      state.sessions.length === 0 ? el("p", { className: "ab-empty", text: "Nothing is open." }) : list(state.sessions.map((session) => sessionRow(session))),
-    ),
-  ];
+    errorBox(),
+    ...renderLibrary(state.library, state.sessions, sessionRow, {
+      open: (entry) => void openLibraryEntry(entry),
+      show: (sessionId) => (location.hash = `session=${encodeURIComponent(sessionId)}`),
+      unpin: (entry) => apply({ type: "library.unpin", packageUrl: entry.package_url }),
+      forget: (entry) => apply({ type: "library.forget", packageUrl: entry.package_url }),
+    }),
+  ].filter((node): node is HTMLElement => node !== null);
 }
 
 function runsView(): HTMLElement[] {
@@ -515,9 +633,46 @@ function settingsView(): HTMLElement[] {
       },
       rerender: () => {
         if (state.settingsPage.section === "files" && state.files === null) void load();
+        if ((state.settingsPage.section === "search" && state.indexes === null) || (state.settingsPage.section === "policies" && state.policy === null)) void load();
         render();
       },
-    }, state.files),
+      onIndex: (request) => {
+        state.settingsPage.notice = request.type === "indexes.add" ? "Fetching and verifying the index…" : null;
+        render();
+        send<IndexesView>(request).then(
+          (indexes) => {
+            state.indexes = indexes;
+            state.error = null;
+            state.settingsPage.notice = request.type === "indexes.add" ? "Index added and verified." : request.type === "indexes.refresh" ? "Checked for updates." : null;
+            if (request.type === "indexes.add") state.settingsPage.forms.indexUrl = state.settingsPage.forms.indexPem = "";
+            render();
+          },
+          (error: unknown) => {
+            state.error = describeError(error);
+            state.settingsPage.notice = null;
+            render();
+          },
+        );
+      },
+      onPolicy: (request) => {
+        state.settingsPage.notice = request.type === "policy.subscribe" ? "Fetching and verifying the policy…" : null;
+        render();
+        send<PolicyView>(request).then(
+          (policy) => {
+            state.policy = policy;
+            state.error = null;
+            state.settingsPage.notice = request.type === "policy.subscribe" ? "Subscribed. The policy now pre-decides your authorizations; every decision it makes says so." : request.type === "policy.unsubscribe" ? "Unsubscribed. Plans authorized under the policy are stale; authorize again." : "Checked for updates.";
+            if (request.type === "policy.subscribe") state.settingsPage.forms.policyUrl = state.settingsPage.forms.policyPem = "";
+            render();
+          },
+          (error: unknown) => {
+            state.error = describeError(error);
+            state.settingsPage.notice = null;
+            render();
+          },
+        );
+      },
+    }, state.files, { indexes: state.indexes, policy: state.policy }),
   ].filter((node): node is HTMLElement => node !== null);
 }
 
@@ -610,6 +765,7 @@ function render(): void {
 
 subscribe((event) => {
   if (event.type === "event.sessions" || event.type === "event.trust" || event.type === "event.settings" || event.type === "event.vault") void load();
+  if ((event.type === "event.library" && state.view === "library") || ((event.type === "event.indexes" || event.type === "event.policy") && state.view === "settings")) void load();
   if (event.type === "event.sessions" && state.open) void showSession(state.open.session.id);
   if (event.type === "event.authorization" && state.open && event.sessionId === state.open.session.id) {
     void flow.load().then(() => {

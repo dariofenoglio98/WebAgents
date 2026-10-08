@@ -9,14 +9,15 @@ import type { PresetId } from "../../core/types.js";
 import { PRESETS } from "../../core/authorization.js";
 import { DEFAULT_BASE_URLS, type ProbeResult, type ProviderId } from "../../core/models/catalog.js";
 import { DEFAULT_HOST_LIMITS, type HostExecutionLimits } from "../../core/execution/limits.js";
-import type { FilesView, ProbeView, SettingsView, StatusInfo } from "../messages.js";
+import type { FilesView, IndexesView, IndexView, PolicyView, ProbeView, Request, SettingsView, StatusInfo } from "../messages.js";
+import demoDocuments from "../data/demo-documents.json" with { type: "json" };
 import type { Settings, StoredConnection } from "../storage/settings.js";
 import { downloadBuiltinModel, languageModelApi } from "../execution/builtin-port.js";
-import { button, bytes, card, chip, definition, el, list, row } from "./dom.js";
+import { button, bytes, card, chip, definition, details, el, list, row } from "./dom.js";
 
-export type SettingsSection = "models" | "policies" | "files" | "services" | "about";
-export const SETTINGS_SECTIONS: readonly SettingsSection[] = ["models", "policies", "files", "services", "about"];
-const SECTION_TITLES: Record<SettingsSection, string> = { models: "Models", policies: "Policies", files: "Files", services: "Services", about: "About" };
+export type SettingsSection = "models" | "policies" | "search" | "files" | "services" | "about";
+export const SETTINGS_SECTIONS: readonly SettingsSection[] = ["models", "policies", "search", "files", "services", "about"];
+const SECTION_TITLES: Record<SettingsSection, string> = { models: "Models", policies: "Policies", search: "Search", files: "Files", services: "Services", about: "About" };
 
 /**
  * The limits the reference host was configured with for Literature Review (STATE.md §4: 180,000
@@ -53,10 +54,12 @@ export interface SettingsPageState {
   builtinDownload: { fraction: number; done: boolean; error: string | null } | null;
   /** The last command copied, for the confirmation beside it. */
   copied: string | null;
+  /** What the person typed into the add-an-index and subscribe forms (T8), kept across re-renders. */
+  forms: { indexUrl: string; indexPem: string; policyUrl: string; policyPem: string };
 }
 
 export function newSettingsPageState(section: SettingsSection = "models"): SettingsPageState {
-  return { section, probes: {}, checkedAt: {}, notice: null, builtinDownload: null, copied: null };
+  return { section, probes: {}, checkedAt: {}, notice: null, builtinDownload: null, copied: null, forms: { indexUrl: "", indexPem: "", policyUrl: "", policyPem: "" } };
 }
 
 /** `14:02:31` in the person's locale, 24-hour: when a connection was last tested. */
@@ -108,6 +111,16 @@ export interface SettingsPageActions {
   /** Settings → Files: pick PDFs (the File System Access picker, or a file input), and remove one. */
   onPickFiles?: () => void;
   onRemoveFile?: (fileId: string) => void;
+  /** Settings → Search (T8): add, refresh, enable or remove an index. */
+  onIndex?: (request: Extract<Request, { type: "indexes.add" | "indexes.refresh" | "indexes.remove" | "indexes.enable" }>) => void;
+  /** Settings → Policies (T8): subscribe, refresh or unsubscribe. */
+  onPolicy?: (request: Extract<Request, { type: "policy.subscribe" | "policy.refresh" | "policy.unsubscribe" }>) => void;
+}
+
+/** What Settings → Search and → Policies show besides the settings (T8). */
+export interface SettingsExtras {
+  indexes: IndexesView | null;
+  policy: PolicyView | null;
 }
 
 /** The one-time Ollama setup (B-117): the commands a person copies, per way of running Ollama. */
@@ -308,8 +321,134 @@ function withConnection(settings: Settings, provider: ProviderId, change: (conne
   return { ...settings, models: { ...settings.models, connections: settings.models.connections.map((connection) => (connection.provider === provider ? change(connection) : connection)) } };
 }
 
-function policiesView(view: SettingsView, actions: SettingsPageActions): HTMLElement[] {
+/** A URL field and a key field bound to the page state, so a re-render keeps what was typed. */
+function keyedForm(state: SettingsPageState, fields: { url: "indexUrl" | "policyUrl"; pem: "indexPem" | "policyPem" }, labels: { url: string; pem: string }): HTMLElement {
+  const url = el("input", { className: "ab-input", attrs: { type: "url", name: fields.url, placeholder: "https://…", autocomplete: "off", "aria-label": labels.url } });
+  url.value = state.forms[fields.url];
+  url.addEventListener("input", () => (state.forms[fields.url] = url.value));
+  const pem = el("textarea", { className: "ab-input ab-pem", attrs: { name: fields.pem, rows: "3", placeholder: "-----BEGIN PUBLIC KEY-----", "aria-label": labels.pem } });
+  pem.value = state.forms[fields.pem];
+  pem.addEventListener("input", () => (state.forms[fields.pem] = pem.value));
+  return el("div", { className: "ab-keyed-form" }, el("label", { className: "ab-field" }, el("span", { text: labels.url }), url), el("label", { className: "ab-field" }, el("span", { text: labels.pem }), pem));
+}
+
+function demoLink(text: string, apply: () => void): HTMLButtonElement {
+  const node = el("button", { className: "ab-link", text });
+  node.type = "button";
+  node.addEventListener("click", apply);
+  return node;
+}
+
+const STATE_TONE: Record<string, "good" | "warn" | "bad" | "neutral"> = { current: "good", expired: "bad", not_yet_valid: "warn", unverified: "bad", never_fetched: "warn" };
+const STATE_WORDS: Record<string, string> = { current: "verified, current", expired: "expired: not used", not_yet_valid: "not valid yet: not used", unverified: "does not verify: not used", never_fetched: "not fetched" };
+
+function indexRow(item: IndexView, actions: SettingsPageActions): HTMLElement {
+  const index = item.index;
+  return el(
+    "div",
+    { className: "ab-index-row", attrs: { "data-index-url": item.url } },
+    el("div", { className: "ab-result-head" }, el("strong", { text: index ? `${index.title} ${index.version}` : item.url }), chip(STATE_WORDS[item.state] ?? item.state, STATE_TONE[item.state] ?? "neutral"), item.enabled ? chip("searched", "good") : chip("disabled")),
+    index?.description ? el("p", { className: "ab-hint", text: index.description }) : null,
+    el("p", { className: "ab-hint", text: `${item.url} · ${index ? `${index.entries} agent${index.entries === 1 ? "" : "s"} · published by ${index.publisher} · valid until ${index.expires_at} · ` : ""}key you pinned ${item.key_fingerprint} · fetched ${item.fetched_at ? whenTextSafe(item.fetched_at) : "never"}` }),
+    ...(index?.notes ?? []).map((note) => el("p", { className: "ab-hint" }, el("code", { text: note.code }), " ", el("span", { text: note.detail ?? "" }))),
+    item.last_error ? el("p", { className: "ab-banner ab-banner-warn", text: `Last check (${whenTextSafe(item.last_error.at)}): ${item.last_error.code}: ${item.last_error.message}` }) : null,
+    el(
+      "div",
+      { className: "ab-actions" },
+      button("Check for updates", () => actions.onIndex?.({ type: "indexes.refresh", url: item.url })),
+      button(item.enabled ? "Disable" : "Enable", () => actions.onIndex?.({ type: "indexes.enable", url: item.url, enabled: !item.enabled }), { variant: "ghost" }),
+      button("Remove", () => actions.onIndex?.({ type: "indexes.remove", url: item.url }), { variant: "danger" }),
+    ),
+  );
+}
+
+function whenTextSafe(iso: string): string {
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime()) ? iso : date.toLocaleString();
+}
+
+/** Settings → Search (T8): the agent indexes the address bar searches, each with the key pinned for it. */
+function searchView(indexes: IndexesView | null, state: SettingsPageState, actions: SettingsPageActions): HTMLElement[] {
+  if (indexes === null) return [el("p", { className: "ab-busy", text: "Loading…" })];
   return [
+    card(
+      "Agent indexes",
+      el("p", { className: "ab-hint", text: "The address bar searches these when you type words or an agent name. An index is a signed list of where agents are and what their publishers say they do: it is fetched only when you add it, check it, or search it after an hour, and only with the key you pinned for it. Results are metadata: opening one verifies the package itself, and the index's claims are compared with what the package proves." }),
+      indexes.indexes.length === 0 ? el("p", { className: "ab-empty", text: "No index added yet." }) : list(indexes.indexes.map((item) => indexRow(item, actions))),
+    ),
+    card(
+      "Add an index",
+      keyedForm(state, { url: "indexUrl", pem: "indexPem" }, { url: "Index address", pem: "Its publisher's key (PEM)" }),
+      el(
+        "div",
+        { className: "ab-actions" },
+        button("Add and verify", () => actions.onIndex?.({ type: "indexes.add", url: state.forms.indexUrl.trim(), publicKeyPem: state.forms.indexPem.trim() }), { variant: "primary", disabled: indexes.indexes.length >= indexes.max_indexes }),
+        demoLink("Fill in the WebAgents demo index", () => {
+          state.forms.indexUrl = demoDocuments.index.url;
+          state.forms.indexPem = demoDocuments.index.public_key_pem;
+          actions.rerender();
+        }),
+      ),
+      el("p", { className: "ab-hint", text: `The demo index is signed with a development key (${demoDocuments.index.key_fingerprint}); filling it in still leaves the decision to add it to you.` }),
+    ),
+    card("NANDA index", chip("not available in this build", "warn"), el("p", { className: "ab-hint", text: indexes.nanda.note })),
+  ];
+}
+
+/** The policy subscription card (T8, D-103): one policy at a time, what it decides, and how to leave it. */
+function policyCard(policy: PolicyView | null, state: SettingsPageState, actions: SettingsPageActions): HTMLElement {
+  if (policy === null) return card("Policy subscription", el("p", { className: "ab-busy", text: "Loading…" }));
+  const form = (replace: boolean) => [
+    keyedForm(state, { url: "policyUrl", pem: "policyPem" }, { url: "Policy address", pem: "Its issuer's key (PEM)" }),
+    el(
+      "div",
+      { className: "ab-actions" },
+      button(replace ? "Replace the current policy with this one" : "Subscribe", () => actions.onPolicy?.({ type: "policy.subscribe", url: state.forms.policyUrl.trim(), publicKeyPem: state.forms.policyPem.trim(), replace }), { variant: replace ? "danger" : "primary" }),
+      demoLink("Fill in the example WebAgents research policy", () => {
+        state.forms.policyUrl = demoDocuments.policy.url;
+        state.forms.policyPem = demoDocuments.policy.public_key_pem;
+        actions.rerender();
+      }),
+    ),
+  ];
+  if (!policy.subscribed) {
+    return card(
+      "Policy subscription",
+      el("p", { className: "ab-hint", text: "Follow one signed policy, from your lab, school or employer, and it decides for you: which publishers to trust, what to allow by default, run limits and which models and services to use. Every decision it makes is shown as the policy's, and you can change any of them for one agent. The policy never grants more than an agent asks for or than your preset allows." }),
+      ...form(false),
+    );
+  }
+  const bundle = policy.bundle;
+  const decisions = bundle ? Object.entries(bundle.decisions).map(([kind, decision]) => `${kind}: ${decision}`) : [];
+  const anchors = bundle?.trust_anchors ?? [];
+  return card(
+    "Policy subscription",
+    el("div", { className: "ab-result-head" }, el("strong", { text: policy.reference ? `${policy.reference.title}` : policy.url }), chip(STATE_WORDS[policy.state] ?? policy.state, STATE_TONE[policy.state] ?? "neutral"), policy.reference ? el("code", { text: `${policy.reference.policy_id}@${policy.reference.version}` }) : null),
+    bundle?.description ? el("p", { className: "ab-hint", text: bundle.description }) : null,
+    el("p", { className: "ab-hint", text: `${policy.url} · issued by ${bundle?.issuer.name ?? "unknown"} · signed by the key you pinned, ${policy.key_fingerprint} · valid until ${bundle?.expires_at ?? "unknown"} · checked ${whenTextSafe(policy.fetched_at)}` }),
+    policy.last_error ? el("p", { className: "ab-banner ab-banner-warn", text: `Last check (${whenTextSafe(policy.last_error.at)}): ${policy.last_error.code}: ${policy.last_error.message}` }) : null,
+    bundle
+      ? definition([
+          ["Trusts", anchors.length === 0 ? "no publisher" : list(anchors.map((anchor) => (anchor.kind === "publisher_key" ? `${anchor.display_name} (${anchor.publisher_id}), for ${anchor.package_id_prefix}…, key ${anchor.fingerprint}` : `${anchor.display_name}: a credential issuer for ${anchor.scope.package_id_prefix}…; declared, not applied in this version`)))],
+          ["Decides by default", decisions.join(" · ") || "nothing"],
+          ["Run limits", Object.entries(bundle.budget_caps).map(([field, value]) => `${field} ≤ ${value}`).join(" · ") || "no cap"],
+          ["Models", `${bundle.models.local_only ? "local only" : "local or hosted"}${bundle.models.max_cost_usd_per_run !== null ? ` · at most $${bundle.models.max_cost_usd_per_run} per run (a model whose price this browser does not know is excluded)` : ""}`],
+          ["Services", bundle.bindings === null ? "any" : bundle.bindings.allow.map((item) => `${item.kind}${item.origins ? ` (${item.origins.join(", ")})` : ""}`).join(" · ")],
+        ])
+      : null,
+    el(
+      "div",
+      { className: "ab-actions" },
+      button("Check for updates", () => actions.onPolicy?.({ type: "policy.refresh" })),
+      button("Unsubscribe", () => actions.onPolicy?.({ type: "policy.unsubscribe" }), { variant: "danger" }),
+    ),
+    details("Follow another policy instead", false, ...form(true)),
+  );
+}
+
+function policiesView(view: SettingsView, actions: SettingsPageActions, state: SettingsPageState, extras: SettingsExtras): HTMLElement[] {
+  return [
+    policyCard(extras.policy, state, actions),
     card(
       "Host preset",
       el("p", { className: "ab-hint", text: "The preset supplies the defaults a profile or the customize view starts from, and records them as decided by the preset. Payments stay single-use under every preset; no preset ever picks one of your records or offers “always”." }),
@@ -454,7 +593,7 @@ function aboutView(view: SettingsView, status: StatusInfo | null, actions: Setti
   ];
 }
 
-export function renderSettingsPage(view: SettingsView, status: StatusInfo | null, state: SettingsPageState, actions: SettingsPageActions, files: FilesView | null = null): HTMLElement {
+export function renderSettingsPage(view: SettingsView, status: StatusInfo | null, state: SettingsPageState, actions: SettingsPageActions, files: FilesView | null = null, extras: SettingsExtras = { indexes: null, policy: null }): HTMLElement {
   const tabs = el(
     "div",
     { className: "ab-tabs", attrs: { role: "tablist" } },
@@ -475,8 +614,10 @@ export function renderSettingsPage(view: SettingsView, status: StatusInfo | null
     state.section === "models"
       ? view.settings.models.connections.map((connection) => connectionCard(view, connection, state, actions))
       : state.section === "policies"
-        ? policiesView(view, actions)
-        : state.section === "files"
+        ? policiesView(view, actions, state, extras)
+        : state.section === "search"
+          ? searchView(extras.indexes, state, actions)
+          : state.section === "files"
           ? filesView(files, actions)
           : state.section === "services"
             ? servicesView(view, actions)

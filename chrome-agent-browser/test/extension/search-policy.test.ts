@@ -189,7 +189,7 @@ describe("policy subscriptions (deliverable 4)", () => {
     expect(search.decided.provenance.decisions).toMatchObject({ "network.webair": "policy", "model.reasoning": "policy", "memory.session": "policy", "profile.travel": "profile", "wallet.payment": "profile" });
     expect(search.decided.provenance.policy).toMatchObject({ policy_id: "org.webagents.research", version: "1.0.0" });
     // The two-click path: the receipt records who decided each item, and names the policy.
-    const used = await send<AuthorizeResult>(h, { type: "authorization.useProfile", sessionId: session.session.id, packageDigest: session.summary.digest ?? view.package_digest, profileId: "search", resourceSelections: {}, prepare: true });
+    const used = await send<AuthorizeResult>(h, { type: "authorization.useProfile", sessionId: session.session.id, packageDigest: view.package_digest, profileId: "search", resourceSelections: {}, prepare: true });
     expect(used.receipt.runnable).toBe(true);
     expect(used.receipt.provenance).toMatchObject({ profile_id: "search", policy: { policy_id: "org.webagents.research", version: "1.0.0" }, decisions: { "network.webair": "policy", "memory.session": "policy", "booking.simulate_purchase": "profile" } });
     expect(used.receipt.publisher.trust_reason).toBe("policy_anchor");
