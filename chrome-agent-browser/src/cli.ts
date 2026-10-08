@@ -25,6 +25,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 
 import { runCommand } from "./cli-run.js";
+import { PdfRefusal } from "./core/tools/adapters/selected-file.js";
 import { ArgumentError, parseArguments, type ArgumentSpec } from "./cli-arguments.js";
 import {
   buildSummary,
@@ -56,6 +57,7 @@ export const USAGE = [
   "      [--out <new-directory>] [live: --model <provider/model> [--ollama-url <url>]",
   "      [--context-tokens <n>] [--think] [--tool-bindings <bindings.json>]",
   "      [--host-resources <resources.json>] [--resource-grant <permission>=<resource-id>]...]",
+  "  pdf-text <document.pdf>",
   "",
 ].join("\n");
 
@@ -148,6 +150,31 @@ async function evaluate(args: string[]): Promise<number> {
   return 0;
 }
 
+/**
+ * `pdf-text <file>`: the paper reader's parser over one local PDF (T6, D-082), the Chrome host's
+ * counterpart of `agentpkg host-pdf-read`: `{pages, sha256, source}` on stdout and status 0, or
+ * `{"error": reason}` and status 3 for a document the parser refuses (a stable reason, never
+ * content). The live verifier uses it to re-extract a picked document with the parser the run
+ * used, so a quote can be checked against the text that run saw.
+ */
+async function pdfText(args: string[]): Promise<number> {
+  if (args.length !== 1 || args[0]!.startsWith("-")) return usage();
+  const data = new Uint8Array(readFileSync(args[0]!));
+  // Loaded here only: pdf.js's Node polyfills print to stderr when they load, and every other
+  // command's stderr is agentpkg's exactly (D-038).
+  const { extractPdfText } = await import("./pdf/extract.js");
+  try {
+    print(await extractPdfText(data));
+    return 0;
+  } catch (error) {
+    if (error instanceof PdfRefusal) {
+      print({ error: error.reason });
+      return 3;
+    }
+    throw error;
+  }
+}
+
 async function main(argv: string[]): Promise<number> {
   const [command, ...args] = argv;
   try {
@@ -160,6 +187,8 @@ async function main(argv: string[]): Promise<number> {
         return await evaluate(args);
       case "run":
         return await runCommand(args);
+      case "pdf-text":
+        return await pdfText(args);
       default:
         return usage();
     }
