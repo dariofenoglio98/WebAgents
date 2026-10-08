@@ -43,12 +43,12 @@
   },
   "harness": {
     "profile": "chrome-webair-040-live-v0",
-    "recordedAt": "2026-10-08T00:18:13.928Z",
+    "recordedAt": "2026-10-08T01:55:30.315Z",
     "site": "https://webagents-webair-production.up.railway.app/",
     "model": "ollama/qwen3:30b",
     "extension": "chrome-agent-browser/dist/extension",
     "chrome": "Chrome/154.0.8037.99",
-    "outputDirectory": "examples/my-chrome-live-2026-10-08T00-18-13-928Z",
+    "outputDirectory": "examples/my-chrome-live-2026-10-08T01-55-30-315Z",
     "steps": {
       "setup": {
         "probe": {
@@ -77,7 +77,7 @@
         "the public origin advertises the package": "ok"
       },
       "inspect": {
-        "sessionId": "0c22cdf9dcf040678ca04c2d",
+        "sessionId": "2db81060abab449495f685a7",
         "name": "WebAir Travel Agent",
         "version": "0.4.0",
         "digest": "0e8317f11e8813e7d5b4b3f352f20148d114329dca3db8c725c5b0558af24fbb",
@@ -93,9 +93,9 @@
       },
       "searchAuthorization": {
         "banner": "Ready to run",
-        "receiptId": "0a1b8f6d-db5d-426c-883d-a68a12052ff4",
-        "runPlanId": "rp_bf1bd605cc0146298696bd32f0903452",
-        "runPlanSha256": "b3e2b7720e414e0b3326d4b17284460ab74d9cc70004447d4815b2e7420dab38",
+        "receiptId": "dc9f9c54-623e-4b3c-a40f-844b64e9a92d",
+        "runPlanId": "rp_861a69bc49604ab99720a5fea1fec2c2",
+        "runPlanSha256": "f5c3553fd5307eeab89182fbdfb3ae858952bad9d4d78ec8a4d0540aab32d056",
         "ready": true,
         "decisions": {
           "booking.simulate_purchase": "deny",
@@ -116,20 +116,20 @@
       },
       "reconnect": {
         "stateAfterReload": "running",
-        "adoptedRunId": "run_1bc13e40e6cb49dea9b236968134cc4d",
-        "runId": "run_1bc13e40e6cb49dea9b236968134cc4d",
+        "adoptedRunId": "run_7d6eee4b4daa42568e15a34b1248d102",
+        "runId": "run_7d6eee4b4daa42568e15a34b1248d102",
         "the reloaded page shows the run that was in flight": "ok"
       },
       "cancel": {
-        "pressedAtS": 37,
+        "pressedAtS": 41,
         "the run settled as cancelled": "ok",
         "the audit chain of the cancelled run is valid": "ok"
       },
       "quoteAuthorization": {
         "banner": "Ready to run",
-        "receiptId": "cab7777d-4582-45d6-a99c-acf07b1573bf",
-        "runPlanId": "rp_f46b06d26c604d0eb1a93741669df144",
-        "runPlanSha256": "4a117981caed60cbadbdca2a64104598f7ed3a0e67feda731fac24ddebafc4c7",
+        "receiptId": "eee8b34f-4aa6-42be-b467-b6144d2ad3dd",
+        "runPlanId": "rp_ad1108a482e8487e88648081296b9500",
+        "runPlanSha256": "6bf073be422252cfb792e67c6fc1018e8288f187ba728ed6a919007e0f3b8584",
         "ready": true,
         "decisions": {
           "booking.simulate_purchase": "deny",
@@ -153,9 +153,9 @@
       },
       "purchaseAuthorization": {
         "banner": "Ready to run",
-        "receiptId": "7f21a600-323b-4876-854a-2d7c0ea28f28",
-        "runPlanId": "rp_c96bd585b8b74704917bcf4f5de4b3ff",
-        "runPlanSha256": "e8caa534222e25c6e80879f5528a1d303b977da2950bbb6f240abb771a06d1a1",
+        "receiptId": "fdcf249b-616d-44de-8842-0d8481975ce5",
+        "runPlanId": "rp_98f6028305fa4ca8ac3c79aed0753b7a",
+        "runPlanSha256": "77022de9c9c342530351e3f4f44aaffe8305403da941d838f7853d08f68a81c7",
         "ready": true,
         "decisions": {
           "booking.simulate_purchase": "once",
@@ -184,7 +184,7 @@
           "reason": "The run plan is stale: This authorization granted something once, and a run has already used it. Authorize again to run again."
         },
         "workerRefusal": "run.start: run_plan_stale: This authorization granted something once, and a run has already used it. Authorize again to run again.",
-        "newestRun": "run_8dd918caae094910b7bdf1c3df178c19",
+        "newestRun": "run_f934f6b8739d4fd299dce7d12dd72e17",
         "the page disables Run because the once grant is spent": "ok",
         "the worker refuses the start as a stale plan (once spent)": "ok",
         "no new run was created": "ok"
@@ -197,17 +197,17 @@
     },
     "runs": {
       "search": {
-        "directory": "examples/my-chrome-live-2026-10-08T00-18-13-928Z/search",
+        "directory": "examples/my-chrome-live-2026-10-08T01-55-30-315Z/search",
         "files": [
           {
             "name": "run.json",
             "bytes": 13792,
-            "sha256": "1aeede6689897a8a3e3585139d638a4f124164bc2bbed98ee8df7acffd1e6fe1"
+            "sha256": "603ebd0bcaa7f5b2616060677524280ee1769a80e4caa010043be7b4e442c251"
           },
           {
             "name": "run-plan.json",
             "bytes": 16102,
-            "sha256": "7b617b260df9b6ea55b616d245a920a5df4f93c5eb4c7f8914580d51d423cf85"
+            "sha256": "ef7cfd119c4a5e9fe75b2adbb429029ae8482884780b5c72a0fda5ae25b779b6"
           },
           {
             "name": "input.json",
@@ -216,13 +216,13 @@
           },
           {
             "name": "answer.md",
-            "bytes": 583,
-            "sha256": "85347a77b42cb2a7b8a33d0643fcac581a9f516fcf32c2d361b80bb597fae099"
+            "bytes": 620,
+            "sha256": "188caa2950c3e0fadbbc6bf836dadfdc128b3ee72a41a007ded32fe0a987f310"
           },
           {
             "name": "audit.json",
             "bytes": 146900,
-            "sha256": "24497c63a6f32fa0acda6ad83f78f50c8106bb857f77651085bbb2acaabf7430"
+            "sha256": "e95605b58178e3cdac144ad59d58eb528a9e0e9b2d12586ca2dd0a568313521f"
           },
           {
             "name": "booking.json",
@@ -241,8 +241,8 @@
           },
           {
             "name": "result.json",
-            "bytes": 194955,
-            "sha256": "a3b1ee48b90713d618a7d24cfb5f53dc3e29590798253856964cb799724f7239"
+            "bytes": 195160,
+            "sha256": "07f0130a93b717796d8538ebeaccd6ed0ab11cb48cf11c234208cdc4d6d200b9"
           },
           {
             "name": "search.json",
@@ -252,12 +252,12 @@
           {
             "name": "usage.json",
             "bytes": 2021,
-            "sha256": "386d0cbd845553fc9fe813c14598f1db94d621a3bb93e4edf2e7733670f315b5"
+            "sha256": "b14c808ab93f825441aac3d0b1e4920b4198ffde50facbce202962346f3ab180"
           }
         ],
         "observations": 7,
         "record": {
-          "runId": "run_1bc13e40e6cb49dea9b236968134cc4d",
+          "runId": "run_7d6eee4b4daa42568e15a34b1248d102",
           "status": "completed",
           "errorCode": null,
           "model": {
@@ -276,7 +276,7 @@
           },
           "selectedModel": "ollama/qwen3:30b",
           "usage": {
-            "tokens": 8450,
+            "tokens": 8521,
             "remoteCalls": 4,
             "toolCalls": 4
           },
@@ -290,7 +290,7 @@
             "events": 235,
             "chainValid": true
           },
-          "durationMs": 25264,
+          "durationMs": 26618,
           "resources": [],
           "decisions": {
             "booking.simulate_purchase": "deny",
@@ -310,17 +310,17 @@
         "finalStatus": "completed"
       },
       "cancel": {
-        "directory": "examples/my-chrome-live-2026-10-08T00-18-13-928Z/cancel",
+        "directory": "examples/my-chrome-live-2026-10-08T01-55-30-315Z/cancel",
         "files": [
           {
             "name": "run.json",
             "bytes": 6688,
-            "sha256": "1b6bbb7c729d235d2c52340dd499e9136646109d8eec600f086d1f9ea4f4609d"
+            "sha256": "2de0ceeed915ade1b72bb2e7a2084018c3ed61c4de93a976764b520812302ff0"
           },
           {
             "name": "run-plan.json",
             "bytes": 16102,
-            "sha256": "93ed2f2be21c26d05fd546079c4fb15800c4ec8fa61b120f56ea05267f4561b3"
+            "sha256": "f38ef92dba76608ead5249156c86173457de7738b90ddf6f1863007ae3919880"
           },
           {
             "name": "input.json",
@@ -330,7 +330,7 @@
           {
             "name": "audit.json",
             "bytes": 2617,
-            "sha256": "21111d6437a730531b7039ea48fc54d3f794c6bc375d4b5043bae24e123463e1"
+            "sha256": "e86520e352547f8ed5cb8e4a490da88e4fc8cd848afcb7786376ada2b06bb20a"
           },
           {
             "name": "provenance.json",
@@ -340,7 +340,7 @@
           {
             "name": "result.json",
             "bytes": 3868,
-            "sha256": "3f3473e2a7bc146f0374afd8694466abad755169030c18ca90beeb207ce1edc3"
+            "sha256": "12153ff66cc175c91c4fd75d108a0dc323301dee5368420c9f82e65343f1a314"
           },
           {
             "name": "usage.json",
@@ -350,7 +350,7 @@
         ],
         "observations": 0,
         "record": {
-          "runId": "run_0ad02462a20f45ac99fe6fff08bd58b9",
+          "runId": "run_6b700e084cec457cb6b26ef525510e69",
           "status": "cancelled",
           "errorCode": "cancelled",
           "model": {
@@ -377,7 +377,7 @@
             "events": 4,
             "chainValid": true
           },
-          "durationMs": 32,
+          "durationMs": 31,
           "resources": [],
           "decisions": {
             "booking.simulate_purchase": "deny",
@@ -397,17 +397,17 @@
         "finalStatus": "cancelled"
       },
       "quote": {
-        "directory": "examples/my-chrome-live-2026-10-08T00-18-13-928Z/quote",
+        "directory": "examples/my-chrome-live-2026-10-08T01-55-30-315Z/quote",
         "files": [
           {
             "name": "run.json",
-            "bytes": 16522,
-            "sha256": "ddb79e2f30ad7ffba63734949d1a7ae5b8badaa7b09843bbd0a9adf1f5822e6a"
+            "bytes": 16523,
+            "sha256": "6178c4f3480e45b99d00a4d6576957af70f69e1f1926dd3b9386d1f2cb1de01c"
           },
           {
             "name": "run-plan.json",
             "bytes": 20627,
-            "sha256": "c3e7b8be264ff2bb9a3c717995c7fb23dee16974c288817c19698c67e460eb1d"
+            "sha256": "36447862ae827dcb7c00466ecee66507e7cd755a0b0f6fec18254da28bdc7914"
           },
           {
             "name": "input.json",
@@ -416,13 +416,13 @@
           },
           {
             "name": "answer.md",
-            "bytes": 652,
-            "sha256": "95c22a7e95a50d2db26306d30c3b6197b1497c51707997132b5fc06ce7efb0ab"
+            "bytes": 448,
+            "sha256": "db8f881d72edd76f9fdb0fd9ee519d5a5bd91d8c877e9f57888c4808d44a8193"
           },
           {
             "name": "audit.json",
-            "bytes": 191458,
-            "sha256": "6685ff2b630d76844a5304ef66f2d39f3f2cd03478983ef20356e09f38bd25d2"
+            "bytes": 191460,
+            "sha256": "a867a0172cf71be1cfa2a03e242d5869f6adadfff3eaa438d3388b50c240193e"
           },
           {
             "name": "booking.json",
@@ -441,8 +441,8 @@
           },
           {
             "name": "result.json",
-            "bytes": 270238,
-            "sha256": "09c4c890f9543cadf8fe5ba70b2d07ddbb22686671323159e1e43a28eb050568"
+            "bytes": 269628,
+            "sha256": "117d1c09360f63805feb199d38d94efc1866a609140cc37cecf1ed9f83aeb61f"
           },
           {
             "name": "search.json",
@@ -452,12 +452,12 @@
           {
             "name": "usage.json",
             "bytes": 2560,
-            "sha256": "63c1c03882a0c9f2c5e6067349b6fe6e7d85df9b6df9bc524295803861f54aaf"
+            "sha256": "7d5e801e69e98409f43032b9d4540b3fbb989e016296bc06fc3302ecb5d76965"
           }
         ],
         "observations": 11,
         "record": {
-          "runId": "run_04cacfd0c80944a58ab2a94ae2e05cd6",
+          "runId": "run_85467e0b570847b6bb5ff77a143cabec",
           "status": "completed",
           "errorCode": null,
           "model": {
@@ -476,7 +476,7 @@
           },
           "selectedModel": "ollama/qwen3:30b",
           "usage": {
-            "tokens": 10451,
+            "tokens": 10411,
             "remoteCalls": 8,
             "toolCalls": 9
           },
@@ -490,7 +490,7 @@
             "events": 302,
             "chainValid": true
           },
-          "durationMs": 14388,
+          "durationMs": 13886,
           "resources": [
             "passenger_demo_alex",
             "profile_demo_traveler"
@@ -513,17 +513,17 @@
         "finalStatus": "completed"
       },
       "purchase": {
-        "directory": "examples/my-chrome-live-2026-10-08T00-18-13-928Z/purchase",
+        "directory": "examples/my-chrome-live-2026-10-08T01-55-30-315Z/purchase",
         "files": [
           {
             "name": "run.json",
             "bytes": 15512,
-            "sha256": "917daf64560a4189e35b11e9cd84f3f2b0b5a49fae834847349f36c93162d76c"
+            "sha256": "b3a7044646b251a7c216270a257889ff9e9e8abcdc1f224f3eebb97f20bf44b9"
           },
           {
             "name": "run-plan.json",
             "bytes": 23626,
-            "sha256": "c2890c57bdcfa0b67bd5b344b0fcce6e3651a6127191db27416e5375b07ce05b"
+            "sha256": "5d21c4e7de8b189a6b6d8f8c8c28d314239f6612c07b36f4b558bd814709e4c5"
           },
           {
             "name": "input.json",
@@ -532,13 +532,13 @@
           },
           {
             "name": "answer.md",
-            "bytes": 528,
-            "sha256": "1c20877e1255dd0b4f3143ee0c7e637054ab0ba90d8695898954eb6bc7717a7f"
+            "bytes": 545,
+            "sha256": "f96a79d53a68d7cf7d7fecaa237008f8ac21ffa5b8cbaded6f9eb30e30f52a2d"
           },
           {
             "name": "audit.json",
             "bytes": 126293,
-            "sha256": "9797503dc72e18a4698032c217eaa908c322a568f43c89a43ab07cf0555cb964"
+            "sha256": "ba5b354c15d6a5c05d41175708cb87fe4c7f39261d9606963a446620d9c47bf0"
           },
           {
             "name": "booking.json",
@@ -557,8 +557,8 @@
           },
           {
             "name": "result.json",
-            "bytes": 146057,
-            "sha256": "601db398055e89ca4890a81890c14011c95d32ae891f4d2e6108980030daac75"
+            "bytes": 146108,
+            "sha256": "35d6c224b2a6f91c38bf035444613d882880efa5f74ac45a04af4e2dec3d5957"
           },
           {
             "name": "search.json",
@@ -568,12 +568,12 @@
           {
             "name": "usage.json",
             "bytes": 1828,
-            "sha256": "2325430271e6c45e43660d930f6f44f26d16b8921e059659643c90593d31aae7"
+            "sha256": "dcc425be88edbc5f0d1f5c922cf17b76a1348b83a134656db9c57aa8f52a4d08"
           }
         ],
         "observations": 3,
         "record": {
-          "runId": "run_8dd918caae094910b7bdf1c3df178c19",
+          "runId": "run_f934f6b8739d4fd299dce7d12dd72e17",
           "status": "completed",
           "errorCode": null,
           "model": {
@@ -592,7 +592,7 @@
           },
           "selectedModel": "ollama/qwen3:30b",
           "usage": {
-            "tokens": 2579,
+            "tokens": 2571,
             "remoteCalls": 2,
             "toolCalls": 4
           },
@@ -606,7 +606,7 @@
             "events": 202,
             "chainValid": true
           },
-          "durationMs": 3972,
+          "durationMs": 3925,
           "resources": [
             "passenger_demo_alex",
             "profile_demo_traveler",
@@ -630,17 +630,17 @@
         "finalStatus": "completed"
       },
       "denial": {
-        "directory": "examples/my-chrome-live-2026-10-08T00-18-13-928Z/denial",
+        "directory": "examples/my-chrome-live-2026-10-08T01-55-30-315Z/denial",
         "files": [
           {
             "name": "run.json",
             "bytes": 11694,
-            "sha256": "7ed6bede7c433745922d0c843c6c1c0cebb9db73eb6b3f5256c4e9f0bd4954b3"
+            "sha256": "63e9d71312e2e3995502a2d31b48c4803bf58a763c62a1d7f1b19fd907b63acc"
           },
           {
             "name": "run-plan.json",
             "bytes": 20627,
-            "sha256": "a6a8931b606b54b039f1399dd012b55bda7642e8d5b164747867bc1dc62e8671"
+            "sha256": "2dcffe42b0cc00d132d7ecac0676ea4cb0ca5ea9c02222e6a9130e08f4228dea"
           },
           {
             "name": "input.json",
@@ -650,7 +650,7 @@
           {
             "name": "audit.json",
             "bytes": 49187,
-            "sha256": "557391f8544943de7e2419a39395832829f42b87b44af1bcfe5bdee7a161896b"
+            "sha256": "d8643ea624f47c0e870940e63a77ae9e64546d2f8754c3f47596b2d068aec949"
           },
           {
             "name": "provenance.json",
@@ -660,7 +660,7 @@
           {
             "name": "result.json",
             "bytes": 53732,
-            "sha256": "16797a0c4f5c6a9cc1b942d5f67c3e2cf39459d6fb6c6444cb03a5e435421d91"
+            "sha256": "0f6930724e9ce52c36349a1244dd11c3c4137de1b42089c641147de9a11f0d66"
           },
           {
             "name": "usage.json",
@@ -670,7 +670,7 @@
         ],
         "observations": 0,
         "record": {
-          "runId": "run_90da6a8e20b04b6f97841ebd553c4f39",
+          "runId": "run_b953683d05444556a9e73c363f62bead",
           "status": "failed",
           "errorCode": "permission_denied",
           "model": {
@@ -697,7 +697,7 @@
             "events": 81,
             "chainValid": true
           },
-          "durationMs": 80,
+          "durationMs": 78,
           "resources": [
             "passenger_demo_alex",
             "profile_demo_traveler"
@@ -738,7 +738,7 @@
   },
   "runs": {
     "search": {
-      "run_id": "run_1bc13e40e6cb49dea9b236968134cc4d",
+      "run_id": "run_7d6eee4b4daa42568e15a34b1248d102",
       "status": "completed",
       "error_code": null,
       "failed_node": null,
@@ -765,7 +765,7 @@
         "local": true
       },
       "usage": {
-        "tokens": 8450,
+        "tokens": 8521,
         "remote_calls": 4,
         "tool_calls": 4
       },
@@ -775,7 +775,7 @@
         "calls": 3,
         "callsWithReportedCost": 0
       },
-      "duration_ms": 25264,
+      "duration_ms": 26618,
       "decisions": {
         "booking.simulate_purchase": "deny",
         "identity.passenger": "deny",
@@ -788,8 +788,8 @@
       "resource_grants": [],
       "revalidated_before_start": 28,
       "run_plan": {
-        "id": "rp_bf1bd605cc0146298696bd32f0903452",
-        "sha256": "b3e2b7720e414e0b3326d4b17284460ab74d9cc70004447d4815b2e7420dab38",
+        "id": "rp_861a69bc49604ab99720a5fea1fec2c2",
+        "sha256": "f5c3553fd5307eeab89182fbdfb3ae858952bad9d4d78ec8a4d0540aab32d056",
         "profile": "search",
         "denied_tools": [
           "personal.passenger_identity",
@@ -892,7 +892,7 @@
       "artifacts_hold_no_identity_or_payment_identifier": true
     },
     "cancel": {
-      "run_id": "run_0ad02462a20f45ac99fe6fff08bd58b9",
+      "run_id": "run_6b700e084cec457cb6b26ef525510e69",
       "status": "cancelled",
       "error_code": "cancelled",
       "failed_node": null,
@@ -923,7 +923,7 @@
         "calls": 0,
         "callsWithReportedCost": 0
       },
-      "duration_ms": 32,
+      "duration_ms": 31,
       "decisions": {
         "booking.simulate_purchase": "deny",
         "identity.passenger": "deny",
@@ -936,8 +936,8 @@
       "resource_grants": [],
       "revalidated_before_start": 28,
       "run_plan": {
-        "id": "rp_756d2ac49f8a46f583f61bf5cc02046c",
-        "sha256": "6ef00e5c66589ebe027a723decab6bd6e686083b16cc1d05ea3d899f96515fb1",
+        "id": "rp_9825f95a44504423bcb5ee99004fe6e3",
+        "sha256": "fa25edad95b046285c803bc26c60e15870a69268e41d778212fbb6d1f60b026f",
         "profile": "search",
         "denied_tools": [
           "personal.passenger_identity",
@@ -960,7 +960,7 @@
       "artifacts_hold_no_identity_or_payment_identifier": true
     },
     "quote": {
-      "run_id": "run_04cacfd0c80944a58ab2a94ae2e05cd6",
+      "run_id": "run_85467e0b570847b6bb5ff77a143cabec",
       "status": "completed",
       "error_code": null,
       "failed_node": null,
@@ -987,7 +987,7 @@
         "local": true
       },
       "usage": {
-        "tokens": 10451,
+        "tokens": 10411,
         "remote_calls": 8,
         "tool_calls": 9
       },
@@ -997,7 +997,7 @@
         "calls": 3,
         "callsWithReportedCost": 0
       },
-      "duration_ms": 14388,
+      "duration_ms": 13886,
       "decisions": {
         "booking.simulate_purchase": "deny",
         "identity.passenger": "session",
@@ -1012,19 +1012,19 @@
           "permission": "identity.passenger",
           "type": "personal.passenger_identity",
           "resource_id": "passenger_demo_alex",
-          "digest_prefix": "099fed734e5d"
+          "digest_prefix": "56b7f09e5cb8"
         },
         {
           "permission": "profile.travel",
           "type": "personal.travel_profile",
           "resource_id": "profile_demo_traveler",
-          "digest_prefix": "27a777af7653"
+          "digest_prefix": "d30826008cc1"
         }
       ],
       "revalidated_before_start": 32,
       "run_plan": {
-        "id": "rp_f46b06d26c604d0eb1a93741669df144",
-        "sha256": "4a117981caed60cbadbdca2a64104598f7ed3a0e67feda731fac24ddebafc4c7",
+        "id": "rp_ad1108a482e8487e88648081296b9500",
+        "sha256": "6bf073be422252cfb792e67c6fc1018e8288f187ba728ed6a919007e0f3b8584",
         "profile": "quote",
         "denied_tools": [
           "simulate-purchase",
@@ -1192,7 +1192,7 @@
       "artifacts_hold_no_identity_or_payment_identifier": true
     },
     "purchase": {
-      "run_id": "run_8dd918caae094910b7bdf1c3df178c19",
+      "run_id": "run_f934f6b8739d4fd299dce7d12dd72e17",
       "status": "completed",
       "error_code": null,
       "failed_node": null,
@@ -1219,7 +1219,7 @@
         "local": true
       },
       "usage": {
-        "tokens": 2579,
+        "tokens": 2571,
         "remote_calls": 2,
         "tool_calls": 4
       },
@@ -1229,7 +1229,7 @@
         "calls": 1,
         "callsWithReportedCost": 0
       },
-      "duration_ms": 3972,
+      "duration_ms": 3925,
       "decisions": {
         "booking.simulate_purchase": "once",
         "identity.passenger": "session",
@@ -1244,25 +1244,25 @@
           "permission": "identity.passenger",
           "type": "personal.passenger_identity",
           "resource_id": "passenger_demo_alex",
-          "digest_prefix": "099fed734e5d"
+          "digest_prefix": "56b7f09e5cb8"
         },
         {
           "permission": "profile.travel",
           "type": "personal.travel_profile",
           "resource_id": "profile_demo_traveler",
-          "digest_prefix": "27a777af7653"
+          "digest_prefix": "d30826008cc1"
         },
         {
           "permission": "wallet.payment",
           "type": "wallet.payment_method",
           "resource_id": "payment_demo_visa",
-          "digest_prefix": "87673a644b8e"
+          "digest_prefix": "c0c30c44f954"
         }
       ],
       "revalidated_before_start": 34,
       "run_plan": {
-        "id": "rp_c96bd585b8b74704917bcf4f5de4b3ff",
-        "sha256": "e8caa534222e25c6e80879f5528a1d303b977da2950bbb6f240abb771a06d1a1",
+        "id": "rp_98f6028305fa4ca8ac3c79aed0753b7a",
+        "sha256": "77022de9c9c342530351e3f4f44aaffe8305403da941d838f7853d08f68a81c7",
         "profile": "book",
         "denied_tools": []
       },
@@ -1349,7 +1349,7 @@
       "artifacts_hold_no_identity_or_payment_identifier": true
     },
     "denial": {
-      "run_id": "run_90da6a8e20b04b6f97841ebd553c4f39",
+      "run_id": "run_b953683d05444556a9e73c363f62bead",
       "status": "failed",
       "error_code": "permission_denied",
       "failed_node": "payment",
@@ -1380,7 +1380,7 @@
         "calls": 0,
         "callsWithReportedCost": 0
       },
-      "duration_ms": 80,
+      "duration_ms": 78,
       "decisions": {
         "booking.simulate_purchase": "deny",
         "identity.passenger": "session",
@@ -1395,19 +1395,19 @@
           "permission": "identity.passenger",
           "type": "personal.passenger_identity",
           "resource_id": "passenger_demo_alex",
-          "digest_prefix": "099fed734e5d"
+          "digest_prefix": "56b7f09e5cb8"
         },
         {
           "permission": "profile.travel",
           "type": "personal.travel_profile",
           "resource_id": "profile_demo_traveler",
-          "digest_prefix": "27a777af7653"
+          "digest_prefix": "d30826008cc1"
         }
       ],
       "revalidated_before_start": 32,
       "run_plan": {
-        "id": "rp_eff19f15914c43a8a10b480a55ec6062",
-        "sha256": "7c1b700404cddaca608fd1b51223af326dd3a894ad13fe4a337e35047ab8581d",
+        "id": "rp_fa56062ff58243fdae7812ef6cdd791b",
+        "sha256": "dde5284a3f349cc130b77f10baa789c8abf16cccf9a2abf7de1dfc3c08047092",
         "profile": "quote",
         "denied_tools": [
           "simulate-purchase",
@@ -1444,8 +1444,8 @@
       "passed": true,
       "detail": {
         "stateAfterReload": "running",
-        "adoptedRunId": "run_1bc13e40e6cb49dea9b236968134cc4d",
-        "runId": "run_1bc13e40e6cb49dea9b236968134cc4d",
+        "adoptedRunId": "run_7d6eee4b4daa42568e15a34b1248d102",
+        "runId": "run_7d6eee4b4daa42568e15a34b1248d102",
         "the reloaded page shows the run that was in flight": "ok"
       }
     },
@@ -1456,7 +1456,7 @@
         "events": 235,
         "valid": true,
         "broken": [],
-        "final_hash": "083df23e42be9306d2c3701639bd574a2e863302d5f332f2af5f4fe0762e34c6",
+        "final_hash": "bd2e351a6817a4ad3dd1df727c0ff0fa5dab837cf908701c19f79f8a9ba44850",
         "note": "A local hash chain. It binds these events to each other; it is not an external tamper-proof audit service."
       }
     },
@@ -1466,7 +1466,7 @@
       "detail": {
         "events": 235,
         "chainValid": true,
-        "finalHash": "083df23e42be9306d2c3701639bd574a2e863302d5f332f2af5f4fe0762e34c6",
+        "finalHash": "bd2e351a6817a4ad3dd1df727c0ff0fa5dab837cf908701c19f79f8a9ba44850",
         "actions": [
           {
             "action": "budget.updated",
@@ -1703,7 +1703,7 @@
         "events": 4,
         "valid": true,
         "broken": [],
-        "final_hash": "9faa0e722979ba1ed94d2524140876094c234f0199317fecb5b61156c72a9c52",
+        "final_hash": "0dc7630191b1a97a3774ac9776df9a68553df86359be4b4bd352842bff6523d9",
         "note": "A local hash chain. It binds these events to each other; it is not an external tamper-proof audit service."
       }
     },
@@ -1713,7 +1713,7 @@
       "detail": {
         "events": 4,
         "chainValid": true,
-        "finalHash": "9faa0e722979ba1ed94d2524140876094c234f0199317fecb5b61156c72a9c52",
+        "finalHash": "0dc7630191b1a97a3774ac9776df9a68553df86359be4b4bd352842bff6523d9",
         "actions": [
           {
             "action": "memory.cleared",
@@ -1794,7 +1794,7 @@
     {
       "id": "cancel_stopped_within_the_run_deadline",
       "passed": true,
-      "detail": 32
+      "detail": 31
     },
     {
       "id": "cancel_wrote_its_evidence",
@@ -1807,7 +1807,7 @@
         "events": 302,
         "valid": true,
         "broken": [],
-        "final_hash": "e9d035d73d9e6f255b0631f90eff3a4d27ff4d73f95a1683efe71f30d41809a5",
+        "final_hash": "13b1d1d1b18d7af228bea9218620b961172fd6fecddb657d4ea6e52f7371549c",
         "note": "A local hash chain. It binds these events to each other; it is not an external tamper-proof audit service."
       }
     },
@@ -1817,7 +1817,7 @@
       "detail": {
         "events": 302,
         "chainValid": true,
-        "finalHash": "e9d035d73d9e6f255b0631f90eff3a4d27ff4d73f95a1683efe71f30d41809a5",
+        "finalHash": "13b1d1d1b18d7af228bea9218620b961172fd6fecddb657d4ea6e52f7371549c",
         "actions": [
           {
             "action": "budget.updated",
@@ -2043,7 +2043,7 @@
         "events": 202,
         "valid": true,
         "broken": [],
-        "final_hash": "3909fe89b7eaeccc747ee90d32c9729bbf8fa5142ed6cb0afab827d36cf82363",
+        "final_hash": "40b84ceac8e12ad0f3bf204b900139fbf92edb0eaf3d9991c366f9c7370398af",
         "note": "A local hash chain. It binds these events to each other; it is not an external tamper-proof audit service."
       }
     },
@@ -2053,7 +2053,7 @@
       "detail": {
         "events": 202,
         "chainValid": true,
-        "finalHash": "3909fe89b7eaeccc747ee90d32c9729bbf8fa5142ed6cb0afab827d36cf82363",
+        "finalHash": "40b84ceac8e12ad0f3bf204b900139fbf92edb0eaf3d9991c366f9c7370398af",
         "actions": [
           {
             "action": "budget.updated",
@@ -2312,7 +2312,7 @@
         "events": 81,
         "valid": true,
         "broken": [],
-        "final_hash": "696d794bda9a955091dd4b5b90425d8c235687ecf2863d1a22c4e0bbc80ccbec",
+        "final_hash": "6dfaff2e9a348b5c27fdd2403c78e8855b5144d750aaa1c31b2543e5d4c610d0",
         "note": "A local hash chain. It binds these events to each other; it is not an external tamper-proof audit service."
       }
     },
@@ -2322,7 +2322,7 @@
       "detail": {
         "events": 81,
         "chainValid": true,
-        "finalHash": "696d794bda9a955091dd4b5b90425d8c235687ecf2863d1a22c4e0bbc80ccbec",
+        "finalHash": "6dfaff2e9a348b5c27fdd2403c78e8855b5144d750aaa1c31b2543e5d4c610d0",
         "actions": [
           {
             "action": "delegation.checked",
