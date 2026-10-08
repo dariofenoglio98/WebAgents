@@ -71,9 +71,9 @@ What it shows today, on the WebAir demo site:
    reason by default (`openai/gpt-5.6-luna`, `openai/gpt-6-astra`); a statement in Settings →
    Models overrides that either way (D-078). About holds the run limits and a **test mode**
    switch that records every outbound request body of a run for the privacy checks (D-028).
-9. **Settings → Models** lists the routes (local Ollama, OpenAI and Anthropic with your own
-   keys, Chrome's built-in model), tests each connection, lets you state a model's limits and
-   pick the default model (Ollama must run on this machine, started with `OLLAMA_ORIGINS`
+9. **Model limits, policies and your data.** Settings → Models lists the routes (local Ollama,
+   OpenAI and Anthropic with your own keys, Chrome's built-in model), tests each connection, lets
+   you state a model's limits and pick the default model (Ollama must run on this machine, started with `OLLAMA_ORIGINS`
    including `chrome-extension://*`; a remote Ollama endpoint is refused, since its models would
    not be local). Keys are typed once, stored in `chrome.storage.local`, never shown
    again and never synced. **Settings → Policies** selects the host preset (privacy first,

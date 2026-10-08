@@ -111,7 +111,8 @@ describe("an unreachable provider is unavailable, not 'unverified' (D-077)", () 
     const session = await openWebair(h);
     expect((await useSearch(h, session.session.id)).run_plan?.preflight.ready).toBe(true);
     state.mode = "show-fails";
-    // A view opening on the session re-reads the catalog (the flow's first `models.evaluate` refreshes).
+    // A view opening on the session a little later re-reads the catalog (the flow's first `models.evaluate` refreshes).
+    h.clock.now = new Date(h.clock.now.getTime() + 10_000);
     const models = (await h.controller.handle({ type: "models.evaluate", sessionId: session.session.id, refresh: true }, PAGE)) as ModelsView;
     expect(models.evaluation.models.find((model) => model.model_id === QWEN)).toMatchObject({ available: false, availability_reason: "Ollama stopped answering at http://127.0.0.1:11434 (/api/show failed)." });
     const plan = (await h.controller.handle({ type: "runplan.get", sessionId: session.session.id }, PAGE)) as RunPlanState;
@@ -119,6 +120,64 @@ describe("an unreachable provider is unavailable, not 'unverified' (D-077)", () 
     expect(plan.preflight.stale_reasons[0]!.message).toContain("Ollama stopped answering at http://127.0.0.1:11434 (/api/show failed). Test the connection in Settings → Models.");
     const readiness = (await h.controller.handle({ type: "run.readiness", sessionId: session.session.id }, PAGE)) as RunReadiness;
     expect(readiness.blocker).toMatchObject({ code: "run_plan_stale", message: expect.stringContaining("Ollama stopped answering at http://127.0.0.1:11434") });
+  });
+
+  it("following the stale plan's advice (Test connection in Settings → Models) keeps the plan stale and refuses the run (review 1, finding 1)", async () => {
+    const { http, state } = switchableOllama();
+    const h = makeHarness({ catalogHttp: http });
+    const session = await openWebair(h);
+    const plan = (await useSearch(h, session.session.id)).run_plan!;
+    expect(plan.preflight.ready).toBe(true);
+    state.mode = "show-fails";
+    h.clock.now = new Date(h.clock.now.getTime() + 10_000);
+    await h.controller.handle({ type: "models.evaluate", sessionId: session.session.id, refresh: true }, PAGE);
+    expect(((await h.controller.handle({ type: "run.readiness", sessionId: session.session.id }, PAGE)) as RunReadiness).blocker?.code).toBe("run_plan_stale");
+    // Settings → Models tests every enabled connection when it opens; the fresh answer replaces
+    // Ollama's part of the catalog, so the plan stays stale rather than becoming "unknown".
+    await h.controller.handle({ type: "models.probe", provider: "ollama" }, PAGE);
+    const readiness = (await h.controller.handle({ type: "run.readiness", sessionId: session.session.id }, PAGE)) as RunReadiness;
+    expect(readiness.blocker).toMatchObject({ code: "run_plan_stale", message: expect.stringContaining("Ollama stopped answering at http://127.0.0.1:11434") });
+    const start = await refused(h.controller.handle({ type: "run.start", sessionId: session.session.id, runPlanId: plan.run_plan.run_plan_id, runPlanSha256: plan.run_plan.run_plan_sha256, input: SEARCH }, PAGE));
+    expect(start.code).toBe("run_plan_stale");
+    // Settings saved meanwhile drop the catalog: the next readiness check reads a new one, never "no opinion".
+    const settings = ((await h.controller.handle({ type: "settings.get" }, PAGE)) as SettingsView).settings;
+    await h.controller.handle({ type: "settings.set", settings }, PAGE);
+    expect(((await h.controller.handle({ type: "run.readiness", sessionId: session.session.id }, PAGE)) as RunReadiness).blocker?.code).toBe("run_plan_stale");
+    // Ollama answers again, a Test says so, and the same plan is ready without another probe round.
+    state.mode = "up";
+    await h.controller.handle({ type: "models.probe", provider: "ollama" }, PAGE);
+    expect(((await h.controller.handle({ type: "run.readiness", sessionId: session.session.id }, PAGE)) as RunReadiness).ready).toBe(true);
+  });
+
+  it("the first 'Use this agent' asks each provider once: the views reloading on its broadcast reuse that read (review 1, finding 3)", async () => {
+    const h = makeHarness();
+    const session = await openWebair(h);
+    const tags = () => h.httpLog.filter((request) => request.url.endsWith("/api/tags")).length;
+    const before = tags();
+    expect((await useSearch(h, session.session.id)).run_plan?.preflight.ready).toBe(true);
+    expect(tags() - before, "preparing the plan probes").toBe(1);
+    // The flow's first model read for the session asks for a refresh; the plan's probe is a moment old.
+    await h.controller.handle({ type: "models.evaluate", sessionId: session.session.id, refresh: true }, PAGE);
+    expect(tags() - before).toBe(1);
+    h.clock.now = new Date(h.clock.now.getTime() + 10_000);
+    await h.controller.handle({ type: "models.evaluate", sessionId: session.session.id, refresh: true }, PAGE);
+    expect(tags() - before, "a refresh some seconds later asks again").toBe(2);
+  });
+
+  it("Test connection replaces one provider's part of the catalog without asking the others", async () => {
+    const h = makeHarness({ http: { ...OLLAMA_ANSWERS, "GET https://api.openai.com/v1/models": { data: [{ id: "gpt-5.6-luna" }] } } });
+    const session = await openWebair(h);
+    const settings = ((await h.controller.handle({ type: "settings.get" }, PAGE)) as SettingsView).settings;
+    settings.models.connections = settings.models.connections.map((connection) => (connection.provider === "openai" ? { ...connection, enabled: true } : connection));
+    await h.controller.handle({ type: "settings.set", settings }, PAGE);
+    await h.controller.handle({ type: "settings.setKey", provider: "openai", key: "sk-test-not-a-real-key" }, PAGE);
+    await h.controller.handle({ type: "models.evaluate", sessionId: session.session.id, refresh: true }, PAGE);
+    const before = h.httpLog.length;
+    await h.controller.handle({ type: "models.probe", provider: "ollama" }, PAGE);
+    expect(h.httpLog.slice(before).filter((request) => request.url.includes("api.openai.com"))).toEqual([]);
+    const models = (await h.controller.handle({ type: "models.evaluate", sessionId: session.session.id, refresh: false }, PAGE)) as ModelsView;
+    expect(models.evaluation.models.map((model) => model.model_id)).toEqual(expect.arrayContaining([QWEN, "openai/gpt-5.6-luna"]));
+    expect(h.httpLog.slice(before).filter((request) => request.url.includes("api.openai.com"))).toEqual([]);
   });
 
   it("concurrent refreshes share one probe", async () => {

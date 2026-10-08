@@ -137,8 +137,8 @@ describe("two clicks: a profile becomes a ready plan (D-022)", () => {
     const state = (await second.controller.handle({ type: "runplan.get", sessionId: session.session.id }, PAGE)) as RunPlanState;
     expect(state.run_plan).toEqual(result.run_plan!.run_plan);
     expect(state.run_plan.run_plan_sha256).toBe(result.run_plan!.run_plan.run_plan_sha256);
-    // No catalog has been probed in the new worker yet: model availability is unknown, not stale.
-    expect(state.preflight).toMatchObject({ state: "ready", ready: true, stale: false, model_still_available: null });
+    // The new worker holds no catalog yet: it reads one for the check rather than calling availability unknown (D-077).
+    expect(state.preflight).toMatchObject({ state: "ready", ready: true, stale: false, model_still_available: true });
     const view = (await second.controller.handle({ type: "authorization.get", sessionId: session.session.id }, PAGE)) as AuthorizationView;
     expect(view.receipt?.receipt_sha256).toBe(result.receipt.receipt_sha256);
   });
@@ -348,6 +348,8 @@ describe("staleness through the worker", () => {
     // The cached catalog still lists the model until it is refreshed.
     let state = (await h.controller.handle({ type: "runplan.get", sessionId: session.session.id }, PAGE)) as RunPlanState;
     expect(state.preflight.model_still_available).toBe(true);
+    // A view refreshing a few seconds later (a refresh within 5 s of the last probe reuses it).
+    h.clock.now = new Date(h.clock.now.getTime() + 10_000);
     await h.controller.handle({ type: "models.evaluate", sessionId: session.session.id, refresh: true }, PAGE);
     state = (await h.controller.handle({ type: "runplan.get", sessionId: session.session.id }, PAGE)) as RunPlanState;
     expect(state.preflight.stale_reasons.map((reason) => reason.code)).toEqual(["model_no_longer_available"]);

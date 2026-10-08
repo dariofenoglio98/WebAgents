@@ -119,6 +119,7 @@ function route(): void {
   const hash = location.hash.replace(/^#/u, "");
   const [view, query] = hash.split("?");
   const params = new URLSearchParams(query ?? "");
+  const wasOnModels = state.view === "settings" && state.settingsPage.section === "models";
   const opening = firstRoute;
   firstRoute = false;
   if (view?.startsWith("session=")) {
@@ -142,7 +143,8 @@ function route(): void {
   if (state.view === "settings" && (section === "models" || section === "policies" || section === "about")) state.settingsPage.section = section as SettingsSection;
   void load().then(() => {
     // Settings → Models opened: test the enabled connections now, rather than show an old answer.
-    if (state.view === "settings" && state.settingsPage.section === "models") openModels();
+    // A route that stays on it (the same address again) leaves the results as they are (review 1, nit 6).
+    if (state.view === "settings" && state.settingsPage.section === "models" && !wasOnModels) openModels();
   });
 }
 

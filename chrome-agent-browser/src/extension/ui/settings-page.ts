@@ -3,6 +3,7 @@
  * here and never shown again, per-model limits, the default model) and Policies (the host
  * preset of D-050). A thin view over the worker's `SettingsView`.
  */
+import { isRecord } from "../../core/fields.js";
 import type { PresetId } from "../../core/types.js";
 import { PRESETS } from "../../core/authorization.js";
 import { DEFAULT_BASE_URLS, type ProbeResult, type ProviderId } from "../../core/models/catalog.js";
@@ -29,12 +30,24 @@ export function newSettingsPageState(section: SettingsSection = "models"): Setti
   return { section, probes: {}, checkedAt: {}, notice: null, builtinDownload: null, copied: null };
 }
 
-/** `14:02:31`, local time: when a connection was last tested. */
+/** `14:02:31` in the person's locale, 24-hour: when a connection was last tested. */
 export function clockTime(iso: string): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "unknown";
-  const pad = (value: number) => String(value).padStart(2, "0");
-  return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+  return date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" });
+}
+
+/**
+ * What a test found, in a few words: a provider that answered but stopped part way (some models
+ * not answering) says how many models are usable, so the chip never reads "reachable" over a list
+ * that is mostly unavailable (review 1, nit 4).
+ */
+export function probeSummary(probe: ProbeView | ProbeResult): { text: string; tone: "good" | "warn" | "bad" } {
+  if (!probe.ok) return { text: `failed: ${probe.error ?? "unknown"}`, tone: "bad" };
+  const total = probe.models.length;
+  const usable = probe.models.filter((model) => !(isRecord(model) && model.available === false)).length;
+  if (usable < total) return { text: `reachable · ${usable} of ${total} models usable`, tone: "warn" };
+  return { text: `reachable · ${total} model${total === 1 ? "" : "s"}`, tone: "good" };
 }
 
 /**
@@ -153,7 +166,7 @@ function connectionCard(view: SettingsView, connection: StoredConnection, state:
       "div",
       { className: "ab-inline" },
       button(probe === "running" ? "Testing…" : "Test connection", () => actions.onProbe(provider), { disabled: probe === "running" || !connection.enabled }),
-      probe && probe !== "running" ? chip(`${probe.ok ? `reachable · ${probe.models.length} model${probe.models.length === 1 ? "" : "s"}` : `failed: ${probe.error ?? "unknown"}`}${state.checkedAt[provider] ? ` · checked ${clockTime(state.checkedAt[provider]!)}` : ""}`, probe.ok ? "good" : "bad") : null,
+      probe && probe !== "running" ? chip(`${probeSummary(probe).text}${state.checkedAt[provider] ? ` · checked ${clockTime(state.checkedAt[provider]!)}` : ""}`, probeSummary(probe).tone) : null,
     ),
     diagnosis ? el("p", { className: `ab-banner ab-banner-${diagnosis.state === "unknown" ? "neutral" : "warn"} ab-diagnosis`, text: diagnosis.hint, attrs: { "data-diagnosis": diagnosis.state, role: "status" } }) : null,
   );
@@ -324,8 +337,10 @@ export function renderSettingsPage(view: SettingsView, status: StatusInfo | null
     { className: "ab-tabs", attrs: { role: "tablist" } },
     ...(["models", "policies", "about"] as SettingsSection[]).map((section) => {
       const tab = button(section === "models" ? "Models" : section === "policies" ? "Policies" : "About", () => {
+        // Only a change of section re-tests: a click on the Models tab already shown does not (review 1, nit 6).
+        const opening = section === "models" && state.section !== "models";
         state.section = section;
-        if (section === "models") actions.onOpenModels?.();
+        if (opening) actions.onOpenModels?.();
         actions.rerender();
       }, { variant: state.section === section ? "primary" : "ghost" });
       tab.setAttribute("role", "tab");

@@ -401,6 +401,9 @@ export class RunPanel {
     this.readiness = readiness;
     this.renderChecklist();
     this.renderActions();
+    // A run in flight this surface does not show (its history could not be read when it attached,
+    // the worker restarting): read the history again, which shows it (T5a review 1, finding 2).
+    if (readiness.active_run_id !== null && readiness.active_run_id !== this.run?.runId) void this.loadHistory(false);
   }
 
   private scheduleValidation(): void {

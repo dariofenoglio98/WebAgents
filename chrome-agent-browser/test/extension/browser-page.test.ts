@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { AuthorizationView, AuthorizeResult, Event, ProbeView, RunView, SessionView, SettingsView } from "../../src/extension/messages.js";
 import { failure, success } from "../../src/extension/messages.js";
+import { probeSummary } from "../../src/extension/ui/settings-page.js";
 import { scriptedOllama, scriptedOrigin, webairModelAnswers } from "../helpers/host.js";
 import { SHIPPED } from "../helpers/paths.js";
 import { makeHarness, PAGE_IN_TAB, SITE_ORIGIN, WEBAIR_040_URL } from "../helpers/shell.js";
@@ -160,5 +161,18 @@ describe("Settings → Models: the connection chips describe the providers now (
     await settle();
     expect(ollamaChip()?.textContent).toBe("failed: Ollama did not answer at http://127.0.0.1:11434 (/api/tags failed: TypeError) · checked 14:05:00");
     expect(ollamaCard().textContent).toContain("Nothing answers at http://127.0.0.1:11434.");
+    // A click on the Models tab already shown is not a reopening: the answer stays, nothing is tested (review 1, nit 6).
+    probe.mockClear();
+    tab("Models").click();
+    await settle(20);
+    expect(probe).not.toHaveBeenCalled();
+    expect(ollamaChip()?.textContent).toContain("checked 14:05:00");
+  });
+
+  it("a provider that answered and then stopped part way says how many models are usable, not a plain 'reachable' (review 1, nit 4)", () => {
+    const model = (name: string, available: boolean) => ({ id: `ollama/${name}`, available });
+    expect(probeSummary({ provider: "ollama", ok: true, models: [model("a", true), model("b", false), model("c", false)], notes: [], error: null })).toEqual({ text: "reachable · 1 of 3 models usable", tone: "warn" });
+    expect(probeSummary({ provider: "ollama", ok: true, models: [model("a", true)], notes: [], error: null })).toEqual({ text: "reachable · 1 model", tone: "good" });
+    expect(probeSummary({ provider: "ollama", ok: false, models: [], notes: [], error: "Ollama stopped answering" })).toEqual({ text: "failed: Ollama stopped answering", tone: "bad" });
   });
 });

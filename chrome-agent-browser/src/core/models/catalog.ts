@@ -25,6 +25,7 @@
  *   is the adapter's guarantee rather than a provider declaration.
  */
 import { CATALOG_SCHEMA, normalizeCatalog, type CapabilityAnswer, type CatalogNote, type HostCatalog } from "../compatibility.js";
+import { thrownName } from "../errors.js";
 import { isRecord } from "../fields.js";
 
 export type ProviderId = "ollama" | "openai" | "anthropic" | "chrome-builtin";
@@ -151,10 +152,6 @@ function base(connection: ProviderConnection): string {
   return configured && configured.length > 0 ? configured : DEFAULT_BASE_URLS[connection.provider as Exclude<ProviderId, "chrome-builtin">];
 }
 
-function errorName(error: unknown): string {
-  return error instanceof Error ? error.name : "error";
-}
-
 function overrideFor(connection: ProviderConnection, modelId: string): ModelOverride {
   return Object.hasOwn(connection.overrides, modelId) ? connection.overrides[modelId]! : {};
 }
@@ -198,7 +195,7 @@ async function probeOllama(connection: ProviderConnection, http: Http): Promise<
   } catch (error) {
     // Nothing answered, or Chrome refused the answer (an origin Ollama does not allow): either
     // way no model can be reached, and the error names where it was looked for (D-077).
-    return { provider: "ollama", ok: false, models: [], notes, error: `Ollama did not answer at ${root} (/api/tags failed: ${errorName(error)})` };
+    return { provider: "ollama", ok: false, models: [], notes, error: `Ollama did not answer at ${root} (/api/tags failed: ${thrownName(error)})` };
   }
   if (tags.status !== 200 || !isRecord(tags.body) || !Array.isArray(tags.body.models)) {
     return { provider: "ollama", ok: false, models: [], notes, error: `Ollama answered HTTP ${tags.status} to /api/tags` };
@@ -219,7 +216,7 @@ async function probeOllama(connection: ProviderConnection, http: Http): Promise<
     try {
       shown.set(name, await http({ provider: "ollama", method: "POST", url: `${root}/api/show`, headers: { "content-type": "application/json" }, body: { model: name } }));
     } catch (error) {
-      failure = errorName(error);
+      failure = thrownName(error);
       notes.push({ code: "ollama_show_failed", detail: `${name}: /api/show did not answer at ${root} (${failure}); Ollama's models are unavailable until it answers again.` });
       break;
     }
@@ -406,7 +403,7 @@ export async function probeProvider(connection: ProviderConnection, http: Http):
         return { provider: "chrome-builtin", ok: true, models: [], notes: [], error: null };
     }
   } catch (error) {
-    return { provider: connection.provider, ok: false, models: [], notes: [], error: `${connection.provider}: ${error instanceof Error ? error.name : "the request failed"}` };
+    return { provider: connection.provider, ok: false, models: [], notes: [], error: `${connection.provider}: ${thrownName(error, "the request failed")}` };
   }
 }
 
@@ -414,6 +411,8 @@ export interface CatalogOptions {
   builtin: BuiltinAvailability | null;
   runtimeVersion: string | null;
   now?: Date;
+  /** Answers already in hand, by provider: those providers are not asked again (a single Test connection merged into the last catalog). */
+  probed?: ReadonlyMap<ProviderId, ProbeResult>;
 }
 
 /** Probe every enabled connection and assemble the host catalog, bound to its content hash. */
@@ -428,7 +427,7 @@ export async function buildHostCatalog(connections: readonly ProviderConnection[
       probes.push({ provider: "chrome-builtin", ok: options.builtin !== null, models: [], notes: [], error: options.builtin === null ? "The Prompt API is not available in this context." : null });
       continue;
     }
-    const result = await probeProvider(connection, http);
+    const result = options.probed?.get(connection.provider) ?? (await probeProvider(connection, http));
     probes.push(result);
     models.push(...result.models);
     notes.push(...result.notes);

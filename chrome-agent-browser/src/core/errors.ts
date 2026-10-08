@@ -9,6 +9,11 @@
  * the stable `code` the shell and the CLI branch on, never on prose.
  */
 
+/** The name of a thrown value, never its message (which could quote a page or a provider body). */
+export function thrownName(error: unknown, fallback = "error"): string {
+  return error instanceof Error ? error.name : fallback;
+}
+
 export class AgentPkgError extends Error {
   override readonly name: string = "AgentPkgError";
 }

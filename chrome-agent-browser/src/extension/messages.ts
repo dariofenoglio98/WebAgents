@@ -14,7 +14,7 @@ import type { RunRecord } from "../core/execution/record.js";
 import type { CatalogEvaluation } from "../core/compatibility.js";
 import type { Candidate, DiscoveryResult, DiscoveryStatus } from "../core/discovery.js";
 import type { TaskValidation } from "../core/presentation.js";
-import { CoreError } from "../core/errors.js";
+import { CoreError, thrownName } from "../core/errors.js";
 import type { PublisherReport } from "../core/evaluation.js";
 import { isRecord } from "../core/fields.js";
 import type { ResourceEvaluation } from "../core/hostresources.js";
@@ -649,5 +649,5 @@ export function failure(error: unknown): Response<never> {
     return { ok: false, error: payload };
   }
   // Never carry an unexpected error's text (it could quote a page or a provider body).
-  return { ok: false, error: { code: "internal_error", message: `The operation failed (${error instanceof Error ? error.name : "error"}).` } };
+  return { ok: false, error: { code: "internal_error", message: `The operation failed (${thrownName(error)}).` } };
 }

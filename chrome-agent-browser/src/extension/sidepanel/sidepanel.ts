@@ -96,6 +96,8 @@ async function inspect(candidate: Candidate): Promise<void> {
   state.error = null;
   render();
   try {
+    // A panel still finding its run finishes first, so the hold this Inspect takes is the last one (D-076).
+    await reattaching;
     // The same bytes from the same page while a run of them is in flight come back as that run's
     // session (D-076), so Inspect pressed again shows the run rather than a fresh copy.
     await showSession(await send<SessionView>({ type: "package.open", url: candidate.resolved_url, advertisedOn: state.candidates.pageUrl, viewId: VIEW_ID }));
@@ -175,12 +177,19 @@ async function reattach(): Promise<void> {
     return; // nothing to reattach to is not an error the person can act on
   }
   if (run === null || run.sessionId === null || state.open || state.busy) return;
+  let view: SessionView;
   try {
-    const view = await send<SessionView>({ type: "package.get", sessionId: run.sessionId, viewId: VIEW_ID });
-    if (state.open || state.busy) return;
-    await showSession(view);
+    view = await send<SessionView>({ type: "package.get", sessionId: run.sessionId, viewId: VIEW_ID });
   } catch {
     return; // the session ended in between: the website card stays
+  }
+  // Inspect pressed meanwhile waits for this to finish and then takes this view's hold itself.
+  if (state.open || state.busy) return;
+  try {
+    await showSession(view);
+  } catch {
+    // The view holds the session and shows it even if its run could not be read yet (the worker
+    // restarting): `render()` attaches the run surface again (review 1, finding 2).
   }
   render();
 }
@@ -221,6 +230,7 @@ chrome.tabs.onUpdated.addListener((tabId, change) => {
   if (tabId === state.tabId && change.status === "complete") void refresh();
 });
 
-void refresh()
+const reattaching: Promise<void> = refresh()
   .catch(() => undefined)
-  .then(() => reattach());
+  .then(() => reattach())
+  .catch(() => undefined);

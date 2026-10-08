@@ -41,6 +41,9 @@ const h = makeHarness({
   },
 });
 
+/** Message types the worker fails once, as a restarting worker would (finding 2 of review 1). */
+const failOnce = new Set<string>();
+
 /** `chrome` as one side-panel document sees it: messages carry its document id, the active tab is WebAir. */
 function chromeFor(documentId: string) {
   const sender: Sender = { ...PAGE, documentId };
@@ -49,6 +52,8 @@ function chromeFor(documentId: string) {
       id: "abcdefghijklmnopabcdefghijklmnop",
       getURL: (path: string) => `chrome-extension://abcdefghijklmnopabcdefghijklmnop/${path}`,
       sendMessage: async (message: unknown) => {
+        const type = (message as { type: string }).type;
+        if (failOnce.delete(type)) return { ok: false, error: { code: "worker_unavailable", message: "The service worker restarted" } };
         try {
           return success(await h.controller.handle(message as Parameters<typeof h.controller.handle>[0], sender));
         } catch (error) {
@@ -123,7 +128,8 @@ describe("the side panel finds its run again (T5a, D-076)", () => {
     await until(() => reached === 1, "the model call in flight");
     await until(() => runSurface()?.dataset.runId === runId, "the run in the first panel");
 
-    // The person closes the panel (no message) and opens it again: a new document, nothing open.
+    // The person closes the panel (no message) and opens it again a little later: a new document, nothing open.
+    h.clock.now = new Date(h.clock.now.getTime() + 10_000);
     const tagsBefore = h.httpLog.filter((request) => request.url.endsWith("/api/tags")).length;
     await openPanel("panel-2");
     await until(() => runSurface() !== null, "the run surface in the reopened panel");
@@ -136,6 +142,16 @@ describe("the side panel finds its run again (T5a, D-076)", () => {
     // The reopened panel holds the run's session as its own view, so its Close works as before.
     const holders = await h.holders.get(sessionId);
     expect(holders.map((holder) => holder.document_id)).toContain("panel-2");
+  });
+
+  it("a reopened panel whose run history cannot be read at first (the worker restarting) still shows the run and its session", async () => {
+    failOnce.add("run.list");
+    await openPanel("panel-3");
+    await until(() => runSurface()?.dataset.runId === runId, "the run found by the readiness check");
+    expect(runSurface()!.dataset.state).toBe("running");
+    expect(failOnce.size, "the history read did fail once").toBe(0);
+    expect(app().textContent).not.toContain("Inspect agent package");
+    expect((await h.holders.get(sessionId)).map((holder) => holder.document_id)).toContain("panel-3");
   });
 
   it("Inspect pressed again from the same page brings the same run back", async () => {
