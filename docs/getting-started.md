@@ -1,6 +1,6 @@
 # Getting started
 
-This guide installs WebAgents from a fresh checkout. It has three levels, and each one works on
+This guide installs WebAgents from a fresh checkout. It has four levels, and each one works on
 its own:
 
 1. **Offline CLI** — install `agentpkg`, verify the signed example packages, and run them in
@@ -9,6 +9,9 @@ its own:
    package from the OpenClaw Control UI.
 3. **Live runs** — bind a real model (local Ollama or a hosted OpenAI model) and run a package from
    the browser. The Literature Review package also calls live scholarly services.
+4. **Chrome Agent Browser** — build the Chrome extension, the second runtime, and discover,
+   authorize and run packages in Chrome with your own model; no OpenClaw or Python needed
+   ([§6](#6-chrome-agent-browser-level-4)).
 
 All commands run from the repository root unless a `cd` is shown. `$PWD`-based commands make
 absolute paths for your own checkout.
@@ -21,6 +24,7 @@ absolute paths for your own checkout.
 | Node 24 (≥ 24.16) or ≥ 26.1, and npm | building the plugin | Node 26.9.0 | the range the pinned `openclaw` devDependency declares; only needed to build, test and pack `openclaw-agent-browser` |
 | OpenClaw **2026.9.5** | Agent Browser, live runs | 2026.9.5 (`ec9c1a1`) | the plugin APIs are experimental; execution refuses another OpenClaw release unless you opt out (see below) |
 | Ollama | optional, local models | 0.34.0, `qwen3:30b` | the recorded local runs used Apple M3 Max, 36 GB |
+| Google Chrome 137 or newer | the Chrome Agent Browser (level 4) | Chrome 154 | Ed25519 in WebCrypto arrived in Chrome 137; building the extension needs the same Node as the plugin |
 | OpenAI account in OpenClaw | optional, hosted models | `openai/gpt-5.6-luna` | configured as an OpenClaw provider; WebAgents never sees the credential |
 
 The prototype was developed on macOS (Apple Silicon), and every recorded live run was made there.
@@ -246,6 +250,64 @@ the same policy, for an experimental `<link rel="agent-package" href="…">` in 
 lists what it found as unverified addresses; **Inspect** opens one exactly as if you had typed it.
 Only packages on the page's own origin are offered
 ([details](browser-control-plane.md#3a-website-discovery)).
+
+## 6. Chrome Agent Browser (level 4)
+
+The Chrome Agent Browser is a Manifest V3 extension over a TypeScript port of the runtime
+([design](chrome-agent-browser.md), [user guide](../chrome-agent-browser/README.md)). It needs Node
+to build and Chrome to run; it does not use OpenClaw, Python or the control plane.
+
+```sh
+cd chrome-agent-browser
+npm ci
+npm run typecheck && npm test      # optional; the fixture-parity test also needs agentpkg/.venv (level 1)
+npm run build                      # dist/extension/ (the extension) and dist/cli.js (the Node CLI)
+npm run pack && npm run check-pack # optional: the zip a store upload would use, and its checks
+```
+
+**Load it.** In Chrome open `chrome://extensions`, enable **Developer mode**, choose **Load
+unpacked** and select `chrome-agent-browser/dist/extension`. Pin the WebAgents action.
+
+**Connect a model.** Open the extension's full page (the action's side panel links to it) →
+Settings → Models.
+
+- *Ollama on this machine.* Chrome extensions are a different origin from the ones Ollama allows by
+  default, so start Ollama with `OLLAMA_ORIGINS="chrome-extension://*"`. For the macOS app:
+  `launchctl setenv OLLAMA_ORIGINS "chrome-extension://*"`, then quit and reopen Ollama. Settings
+  shows the exact commands and tells *not running* apart from *rejecting this extension*. Only
+  `127.0.0.1` and `localhost` are accepted. The context note of §3 applies: Settings → Models lets
+  you state a larger context for a model whose window Ollama reports.
+- *OpenAI or Anthropic.* Type your own API key. It is stored in this Chrome profile
+  (`chrome.storage.local`), never shown again, never synced, and sent only to that provider.
+
+**Use it.** Visit `https://webagents-webair-production.up.railway.app/`: the badge shows the number
+of advertised packages; the side panel lists them; **Inspect** verifies one; **Trust this publisher
+key**; choose *Search flights* and **Use this agent**; type a request and **Run**. The extension
+opens packages only over HTTPS, so Literature Review needs an origin that serves it, such as
+[`package-origin/`](../package-origin/) behind TLS (§5); type its package URL into the full page's
+address bar. (The Chrome harness `scripts/e2e-literature-live.mjs` serves it from a local HTTPS
+origin under a throwaway certificate instead.) For a long run choose Settings → Policies → Run
+limits → **Use the long-run limits**, and pick the PDFs a run may read under Settings → Files.
+
+**From a terminal.** `node dist/cli.js verify | inspect | evaluate | run` takes `agentpkg`'s
+flags; `run --mode fixture` needs nothing else, `run --mode live --model ollama/qwen3:30b` a local
+model ([CLI reference](../chrome-agent-browser/README.md#the-node-cli)).
+
+**Compare the two runtimes.** With level 1 installed and the core built:
+
+```sh
+node conformance/run.mjs      # from the repository root; no network, model or key
+```
+
+It prints one line per case and writes `conformance/results/<timestamp>/report.md`
+([what it compares](../conformance/README.md)).
+
+| Symptom (Chrome) | Likely cause |
+|---|---|
+| Settings → Models: Ollama *rejecting this extension* | `OLLAMA_ORIGINS` does not include `chrome-extension://*`, or Ollama was not restarted after setting it |
+| a model shows *not available* | its provider stopped answering; Test connection names the address that failed |
+| **Run** stays disabled | the checklist above it names the first item that does not hold |
+| a run shows *interrupted* | the browser was closed or restarted while it ran; runs never resume, start it again |
 
 ## Troubleshooting
 
