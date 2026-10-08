@@ -25,6 +25,7 @@
  *   is the adapter's guarantee rather than a provider declaration.
  */
 import { CATALOG_SCHEMA, normalizeCatalog, type CapabilityAnswer, type CatalogNote, type HostCatalog } from "../compatibility.js";
+import { thrownName } from "../errors.js";
 import { isRecord } from "../fields.js";
 
 export type ProviderId = "ollama" | "openai" | "anthropic" | "chrome-builtin";
@@ -122,6 +123,12 @@ export const KNOWN_LIMITS: readonly KnownLimit[] = Object.freeze([
     max_output_tokens: null,
     source: "the host catalog row recorded for this model in docs/model-selection-and-run-plan.md §2",
   },
+  {
+    pattern: /^gpt-6-astra$/u,
+    context_tokens: 272_000,
+    max_output_tokens: null,
+    source: "the host catalog listing recorded for this model in docs/model-selection-report.md (OpenClaw 2026.9.5, ctx 272,000)",
+  },
   { pattern: /^claude-/u, context_tokens: 200_000, max_output_tokens: null, source: "Anthropic's model documentation: a 200,000-token context window for current Claude models" },
 ]);
 
@@ -182,7 +189,14 @@ async function probeOllama(connection: ProviderConnection, http: Http): Promise<
   if (!isLoopbackBase(root)) {
     return { provider: "ollama", ok: false, models: [], notes, error: `Ollama is reached on this machine only (${OLLAMA_LOOPBACK_HOSTS.join(", ")}); ${root} is not, so its models would not be local.` };
   }
-  const tags = await http({ provider: "ollama", method: "GET", url: `${root}/api/tags`, headers: {} });
+  let tags: HttpResponse;
+  try {
+    tags = await http({ provider: "ollama", method: "GET", url: `${root}/api/tags`, headers: {} });
+  } catch (error) {
+    // Nothing answered, or Chrome refused the answer (an origin Ollama does not allow): either
+    // way no model can be reached, and the error names where it was looked for (D-077).
+    return { provider: "ollama", ok: false, models: [], notes, error: `Ollama did not answer at ${root} (/api/tags failed: ${thrownName(error)})` };
+  }
   if (tags.status !== 200 || !isRecord(tags.body) || !Array.isArray(tags.body.models)) {
     return { provider: "ollama", ok: false, models: [], notes, error: `Ollama answered HTTP ${tags.status} to /api/tags` };
   }
@@ -191,23 +205,34 @@ async function probeOllama(connection: ProviderConnection, http: Http): Promise<
     .filter((name): name is string => name !== null)
     .slice(0, MAX_PROBED_MODELS);
   const models: unknown[] = [];
-  for (const [index, name] of names.entries()) {
+  const shown = new Map<string, HttpResponse>();
+  // A show that throws or times out is Ollama not answering (stopping, stopped, or refusing this
+  // origin), not a model that states nothing: the model is unavailable, never "unverified" (D-077).
+  // The probe stops asking at the first such failure, since every later show would wait out the
+  // same timeout, and the models it did not ask about are unavailable too. A show that answers,
+  // with or without a capability list, is an answer: absent capabilities stay absent, as before.
+  let failure: string | null = null;
+  for (const name of names.slice(0, MAX_OLLAMA_SHOW)) {
+    try {
+      shown.set(name, await http({ provider: "ollama", method: "POST", url: `${root}/api/show`, headers: { "content-type": "application/json" }, body: { model: name } }));
+    } catch (error) {
+      failure = thrownName(error);
+      notes.push({ code: "ollama_show_failed", detail: `${name}: /api/show did not answer at ${root} (${failure}); Ollama's models are unavailable until it answers again.` });
+      break;
+    }
+  }
+  for (const name of names) {
     let native: number | null = null;
     let capabilities: string[] | null = null;
-    if (index < MAX_OLLAMA_SHOW) {
-      try {
-        const show = await http({ provider: "ollama", method: "POST", url: `${root}/api/show`, headers: { "content-type": "application/json" }, body: { model: name } });
-        if (show.status === 200 && isRecord(show.body)) {
-          const info = isRecord(show.body.model_info) ? show.body.model_info : {};
-          for (const [key, value] of Object.entries(info)) {
-            if (key.endsWith(".context_length") && positiveInt(value)) native = value as number;
-          }
-          if (Array.isArray(show.body.capabilities)) capabilities = show.body.capabilities.filter((item): item is string => typeof item === "string");
-        }
-      } catch {
-        notes.push({ code: "ollama_show_failed", detail: `${name}: /api/show did not answer; the native context window is unknown.` });
+    const show = shown.get(name);
+    if (show && show.status === 200 && isRecord(show.body)) {
+      const info = isRecord(show.body.model_info) ? show.body.model_info : {};
+      for (const [key, value] of Object.entries(info)) {
+        if (key.endsWith(".context_length") && positiveInt(value)) native = value as number;
       }
+      if (Array.isArray(show.body.capabilities)) capabilities = show.body.capabilities.filter((item): item is string => typeof item === "string");
     }
+    const unavailable = failure !== null && !shown.has(name);
     const override = overrideFor(connection, name);
     const cap = positiveInt(override.context_tokens) ?? DEFAULT_OLLAMA_CONTEXT_CAP;
     const context = native === null ? cap : Math.min(cap, native);
@@ -225,8 +250,8 @@ async function probeOllama(connection: ProviderConnection, http: Http): Promise<
       provider_id: "ollama",
       model_id: name,
       display_name: name,
-      available: true,
-      availability_reason: null,
+      available: !unavailable,
+      availability_reason: unavailable ? `Ollama stopped answering at ${root} (/api/show failed).` : null,
       selectable: true,
       capabilities: {
         structured_output: capability(derivedStructuredOutput()),
@@ -238,11 +263,19 @@ async function probeOllama(connection: ProviderConnection, http: Http): Promise<
     });
   }
   if (models.length === 0) notes.push({ code: "ollama_no_models", detail: "Ollama is reachable but lists no model; pull one (for example `ollama pull qwen3:30b`)." });
+  // Not one show answered: Ollama listed its models and then stopped answering.
+  if (failure !== null && shown.size === 0) return { provider: "ollama", ok: false, models, notes, error: `Ollama stopped answering at ${root} (/api/show failed: ${failure})` };
   return { provider: "ollama", ok: true, models, notes, error: null };
 }
 
 // -- OpenAI --------------------------------------------------------------------------------
 const OPENAI_CHAT = /^(?:gpt-|o[0-9]|chatgpt-)/u;
+/**
+ * The OpenAI families this host states reasoning for by default (D-078): the o-series, GPT-5 and
+ * GPT-6 (`gpt-5`, `gpt-5.6-luna`, `gpt-6-astra`; not `gpt-4.1` or `gpt-50`). A family rule is the
+ * Chrome host's own `host_default` (D-055); a statement in Settings → Models overrides it either way.
+ */
+export const OPENAI_REASONING_FAMILIES = /^(?:o[0-9]|gpt-[56](?:[.-]|$))/u;
 const OPENAI_NOT_CHAT = /(?:embedding|tts|whisper|dall-e|realtime|audio|transcribe|moderation|image|search-preview|instruct)/u;
 
 async function probeOpenAi(connection: ProviderConnection, http: Http): Promise<ProbeResult> {
@@ -261,8 +294,8 @@ async function probeOpenAi(connection: ProviderConnection, http: Http): Promise<
     const { limits, tags } = hostedLimits(connection, id);
     const reasoning = reasoningAnswer(
       override,
-      /^(?:o[0-9]|gpt-5)/u.test(id)
-        ? { value: true, basis: "host_default", detail: "OpenAI documents reasoning for the o-series and GPT-5 families; stated per family, not per model." }
+      OPENAI_REASONING_FAMILIES.test(id)
+        ? { value: true, basis: "host_default", detail: "OpenAI documents reasoning for the o-series, GPT-5 and GPT-6 families; stated per family, not per model." }
         : absent("OpenAI's model list states no reasoning capability; state it in Settings → Models if known."),
     );
     return {
@@ -370,7 +403,7 @@ export async function probeProvider(connection: ProviderConnection, http: Http):
         return { provider: "chrome-builtin", ok: true, models: [], notes: [], error: null };
     }
   } catch (error) {
-    return { provider: connection.provider, ok: false, models: [], notes: [], error: `${connection.provider}: ${error instanceof Error ? error.name : "the request failed"}` };
+    return { provider: connection.provider, ok: false, models: [], notes: [], error: `${connection.provider}: ${thrownName(error, "the request failed")}` };
   }
 }
 
@@ -378,6 +411,8 @@ export interface CatalogOptions {
   builtin: BuiltinAvailability | null;
   runtimeVersion: string | null;
   now?: Date;
+  /** Answers already in hand, by provider: those providers are not asked again (a single Test connection merged into the last catalog). */
+  probed?: ReadonlyMap<ProviderId, ProbeResult>;
 }
 
 /** Probe every enabled connection and assemble the host catalog, bound to its content hash. */
@@ -392,7 +427,7 @@ export async function buildHostCatalog(connections: readonly ProviderConnection[
       probes.push({ provider: "chrome-builtin", ok: options.builtin !== null, models: [], notes: [], error: options.builtin === null ? "The Prompt API is not available in this context." : null });
       continue;
     }
-    const result = await probeProvider(connection, http);
+    const result = options.probed?.get(connection.provider) ?? (await probeProvider(connection, http));
     probes.push(result);
     models.push(...result.models);
     notes.push(...result.notes);

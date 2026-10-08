@@ -278,6 +278,34 @@ describe("Customize your settings", () => {
   });
 });
 
+describe("a model whose provider stopped answering (T5a, D-077)", () => {
+  it("is shown as not available with Ollama's address, never as 'unverified', in the summary and in Customize", async () => {
+    let stopped = false;
+    const h = makeHarness({
+      catalogHttp: async (request) => {
+        if (stopped && request.url.endsWith("/api/show")) throw new TypeError("Failed to fetch");
+        const key = `${request.method} ${request.url}`;
+        if (key in OLLAMA_ANSWERS) return { status: 200, body: OLLAMA_ANSWERS[key] };
+        if (request.url.endsWith("/api/show")) return { status: 200, body: OLLAMA_ANSWERS[`SHOW ${(request.body as { model: string }).model}`] ?? null };
+        return { status: 404, body: null };
+      },
+    });
+    const session = await openWebair(h);
+    stopped = true;
+    const ui = mount(h, session);
+    await ui.ready();
+    ui.button("Customize your settings").click();
+    ui.button("Read it now").click();
+    await vi.waitFor(() => expect(ui.root.querySelector(`.ab-model-row[data-model="${QWEN}"]`)).not.toBeNull());
+    const row = ui.root.querySelector<HTMLElement>(`.ab-model-row[data-model="${QWEN}"]`)!;
+    expect(row.textContent).toContain("Not available");
+    expect(row.querySelector(".ab-model-unavailable")?.textContent).toBe("Not available: Ollama stopped answering at http://127.0.0.1:11434 (/api/show failed). Test the connection in Settings → Models.");
+    expect(row.textContent).not.toContain("unverified");
+    expect(row.textContent).not.toContain("Not enough is known");
+    expect(row.querySelector<HTMLInputElement>("input[type=radio]")!.disabled).toBe(true);
+  });
+});
+
 describe("the shared flow module over the message contract", () => {
   afterEach(() => {
     vi.unstubAllGlobals();

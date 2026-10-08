@@ -173,7 +173,7 @@ function summaryCard(input: AuthorizeInput, state: AuthorizeState, actions: Auth
       row(
         "Model",
         view.default_model
-          ? el("span", {}, el("code", { text: view.default_model }), model ? chip(model.status, model.status === "compatible" ? "good" : model.status === "unverified" ? "warn" : "bad") : null, model?.properties.local === true ? chip("local, free") : model ? chip("hosted, metered", "warn") : null)
+          ? el("span", {}, el("code", { text: view.default_model }), model ? (model.available ? chip(model.status, compatibilityTone(model.status)) : chip("not available", "bad")) : null, model?.properties.local === true ? chip("local, free") : model ? chip("hosted, metered", "warn") : null)
           : el("span", {}, "none chosen yet — ", linkButton("choose one in Settings → Models", () => actions.onOpenSettings("models"))),
       ),
       row("Preset", `${PRESET_TITLES[view.preset] ?? view.preset} (payments stay single-use; nothing is granted beyond what is listed)`),
@@ -315,7 +315,6 @@ function modelRow(model: ModelCompatibility, state: AuthorizeState, actions: Aut
   const facts: string[] = [`Provider ${model.provider_id}`];
   facts.push(model.limits.context_tokens !== null ? `context ${model.limits.context_tokens.toLocaleString()} tokens` : "context not reported");
   if (model.limits.max_output_tokens !== null) facts.push(`output up to ${model.limits.max_output_tokens.toLocaleString()}`);
-  if (!model.available && model.availability_reason) facts.push(`unavailable: ${model.availability_reason}`);
   facts.push(...model.properties.tags);
   return el(
     "div",
@@ -324,11 +323,13 @@ function modelRow(model: ModelCompatibility, state: AuthorizeState, actions: Aut
       "label",
       { className: "ab-model-label" },
       input,
-      el("span", { className: "ab-model-head" }, el("strong", { text: model.display_name }), el("code", { className: "ab-model-id", text: model.model_id }), chip(model.status, compatibilityTone(model.status)), model.available ? null : chip("Not available", "bad"), model.properties.local === true ? chip("Local, free", "good") : chip("Hosted, metered", "warn"), notLocal ? chip("excluded by the privacy-first preset", "warn") : null),
+      el("span", { className: "ab-model-head" }, el("strong", { text: model.display_name }), el("code", { className: "ab-model-id", text: model.model_id }), model.available ? chip(model.status, compatibilityTone(model.status)) : chip("Not available", "bad"), model.properties.local === true ? chip("Local, free", "good") : chip("Hosted, metered", "warn"), notLocal ? chip("excluded by the privacy-first preset", "warn") : null),
     ),
     el("p", { className: "ab-hint", text: facts.join(" · ") }),
-    model.status === "unverified" ? el("p", { className: "ab-hint", text: `Not enough is known to confirm: ${model.unknown.join(", ")}. State the model's limits in Settings → Models to make it usable.` }) : null,
-    model.status === "incompatible" ? el("p", { className: "ab-hint", text: `Requirement not satisfied: ${model.violated.join(", ")}.` }) : null,
+    // An unavailable model is reported as such, with its provider's answer: what it might lack is beside the point until it answers (D-077).
+    !model.available ? el("p", { className: "ab-hint ab-model-unavailable", text: `Not available: ${model.availability_reason ?? "its provider does not offer it now."} Test the connection in Settings → Models.` }) : null,
+    model.available && model.status === "unverified" ? el("p", { className: "ab-hint", text: `Not enough is known to confirm: ${model.unknown.join(", ")}. State the model's limits in Settings → Models to make it usable.` }) : null,
+    model.available && model.status === "incompatible" ? el("p", { className: "ab-hint", text: `Requirement not satisfied: ${model.violated.join(", ")}.` }) : null,
     details(
       "Compatibility details",
       false,

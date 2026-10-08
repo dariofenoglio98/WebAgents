@@ -169,6 +169,8 @@ export function makeHarness(
     liveDocuments?: Set<string>;
     /** Model-catalog answers; the Ollama qwen3:30b answers by default. */
     http?: Record<string, unknown>;
+    /** The model-catalog transport itself, replacing `http` (a provider that stops answering, T5a). */
+    catalogHttp?: Http;
     /** The run store (shared across "restarts"). */
     runs?: MemoryRunStore;
     /** The execution host's transports: a scripted model and a scripted origin; without them every run fails at its first call. */
@@ -209,7 +211,12 @@ export function makeHarness(
     holders,
     liveDocuments: options.liveDocuments ? async (ids) => new Set(ids.filter((id) => options.liveDocuments!.has(id))) : undefined,
     settings,
-    http: fakeHttp(options.http ?? OLLAMA_ANSWERS, httpLog),
+    http: options.catalogHttp
+      ? async (request) => {
+          httpLog.push(request);
+          return options.catalogHttp!(request);
+        }
+      : fakeHttp(options.http ?? OLLAMA_ANSWERS, httpLog),
     builtin: async () => builtin.availability,
     badge: async (tabId, count) => {
       badges.push([tabId, count]);

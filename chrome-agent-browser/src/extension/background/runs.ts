@@ -67,8 +67,8 @@ export interface RunHooks {
   preflight(sessionId: string): Promise<RunPlanPreflight>;
   toolRegistry(sessionId: string): Promise<ToolRegistry>;
   vault(): Promise<Vault>;
-  /** The last probed catalog, or null when none was read (unknown is not unavailable). */
-  catalog(): HostCatalog | null;
+  /** The catalog readiness was checked against; a missing one is read again, never taken as "unknown" (D-077). */
+  catalog(): Promise<HostCatalog>;
   snapshotBytes(archiveSha256: string): Promise<Uint8Array | null>;
   /** A run under this session's receipt began: its `once` grants are spent (D-065). */
   markOnceSpent(sessionId: string): Promise<void>;
@@ -334,7 +334,7 @@ export class RunManager {
       if (archive === null) throw reject("execution_artifact_mismatch", "The session snapshot is no longer stored", 500);
       const registry = await this.deps.hooks.toolRegistry(sessionId);
       const vault = await this.deps.hooks.vault();
-      const catalog = this.deps.hooks.catalog();
+      const catalog = await this.deps.hooks.catalog();
       const leases = await this.leaseRegistry();
       let lease: ExecutionLease;
       try {
@@ -344,7 +344,7 @@ export class RunManager {
           archive,
           definitions: definitionsFromRegistry(registry),
           resolver: vault,
-          modelAvailable: catalog === null ? null : (hostModelId) => stillAvailable(catalog, hostModelId),
+          modelAvailable: (hostModelId) => stillAvailable(catalog, hostModelId),
           minimumReceiptRemainingSeconds: this.requiredSeconds(),
           sessionExpiresAt: facts.stored.expires_at,
           now: this.clock(),

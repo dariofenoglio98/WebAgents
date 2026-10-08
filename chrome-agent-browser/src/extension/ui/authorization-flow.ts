@@ -36,6 +36,8 @@ export interface AuthorizationController {
 export function bindAuthorization(host: AuthorizationHost): AuthorizationController {
   let state = newAuthorizeState();
   let busy: string | null = null;
+  /** The session whose model list was last re-probed: a view opening on a session re-reads the providers once (D-077). */
+  let probedFor: string | null = null;
 
   const session = () => host.session();
 
@@ -51,7 +53,12 @@ export function bindAuthorization(host: AuthorizationHost): AuthorizationControl
       host.set(view);
       if (view.receipt && !state.selectedModel) state.selectedModel = view.run_plan?.run_plan.model_binding?.host_model_id ?? view.default_model;
       // Models follow authorization, as in the reference plugin: before a receipt exists the catalog is only read on request.
-      if (view.receipt || state.customize) host.setModels(await send<ModelsView>({ type: "models.evaluate", sessionId: open.session.id, refresh: false }));
+      // The first read for a session asks the providers again, so a stopped Ollama shows as unavailable when the view opens, not a minute later.
+      if (view.receipt || state.customize) {
+        const refresh = probedFor !== open.session.id;
+        host.setModels(await send<ModelsView>({ type: "models.evaluate", sessionId: open.session.id, refresh }));
+        probedFor = open.session.id;
+      }
     } catch (error) {
       host.setError(describeError(error));
     }
@@ -91,6 +98,7 @@ export function bindAuthorization(host: AuthorizationHost): AuthorizationControl
     load,
     reset: () => {
       state = newAuthorizeState();
+      probedFor = null;
       host.set(null);
       host.setModels(null);
     },

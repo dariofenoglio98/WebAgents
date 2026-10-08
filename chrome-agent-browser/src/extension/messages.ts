@@ -14,7 +14,7 @@ import type { RunRecord } from "../core/execution/record.js";
 import type { CatalogEvaluation } from "../core/compatibility.js";
 import type { Candidate, DiscoveryResult, DiscoveryStatus } from "../core/discovery.js";
 import type { TaskValidation } from "../core/presentation.js";
-import { CoreError } from "../core/errors.js";
+import { CoreError, thrownName } from "../core/errors.js";
 import type { PublisherReport } from "../core/evaluation.js";
 import { isRecord } from "../core/fields.js";
 import type { ResourceEvaluation } from "../core/hostresources.js";
@@ -87,6 +87,11 @@ export type Request =
   | { type: "run.start"; sessionId: string; runPlanId: string; runPlanSha256: string; input: unknown }
   | { type: "run.get"; runId: string }
   | { type: "run.list"; sessionId?: string | null }
+  /**
+   * The run in flight a view that just opened should show (D-076): on an open session, the one
+   * opened from `pageUrl` first, else the most recent; null when none.
+   */
+  | { type: "run.active"; pageUrl?: string | null }
   | { type: "run.cancel"; runId: string }
   | { type: "run.artifact"; runId: string; name: string }
   | { type: "run.artifactChunk"; runId: string; name: string; offset: number }
@@ -594,6 +599,9 @@ export function parseRequest(value: unknown): Request {
     case "run.list":
       only(fields, ["type", "sessionId"]);
       return { type, sessionId: optionalText(fields.sessionId, "sessionId", MAX_ID) };
+    case "run.active":
+      only(fields, ["type", "pageUrl"]);
+      return { type, pageUrl: optionalText(fields.pageUrl, "pageUrl", MAX_URL) };
     case "run.artifact":
       only(fields, ["type", "runId", "name"]);
       return { type, runId: text(fields.runId, "runId", MAX_ID), name: artifactName(fields.name) };
@@ -641,5 +649,5 @@ export function failure(error: unknown): Response<never> {
     return { ok: false, error: payload };
   }
   // Never carry an unexpected error's text (it could quote a page or a provider body).
-  return { ok: false, error: { code: "internal_error", message: `The operation failed (${error instanceof Error ? error.name : "error"}).` } };
+  return { ok: false, error: { code: "internal_error", message: `The operation failed (${thrownName(error)}).` } };
 }

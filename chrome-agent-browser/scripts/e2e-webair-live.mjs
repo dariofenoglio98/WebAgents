@@ -225,9 +225,42 @@ async function main() {
       const previous = (await send({ type: "authorization.get", sessionId })).receipt?.receipt_id ?? null;
       await cdp.evaluate(page, `__ab.click("Use this agent")`);
       // A new receipt supersedes the old plan: wait for the receipt to change and its plan to exist, not for a banner the previous plan may still show.
-      const authorization = await cdp.waitFor(page, `__ab.send({ type: "authorization.get", sessionId: ${JSON.stringify(sessionId)} }).then((r) => r.ok && r.result.receipt && r.result.receipt.receipt_id !== ${JSON.stringify(previous)} && r.result.run_plan ? r.result : null)`, `a new receipt and plan after ${profileId}`, 120_000, 500);
+      let authorization;
+      try {
+        authorization = await cdp.waitFor(page, `__ab.send({ type: "authorization.get", sessionId: ${JSON.stringify(sessionId)} }).then((r) => r.ok && r.result.receipt && r.result.receipt.receipt_id !== ${JSON.stringify(previous)} && r.result.run_plan ? r.result : null)`, `a new receipt and plan after ${profileId}`, 120_000, 500);
+      } catch (error) {
+        // Say why no plan came (T5a): the receipt, the readiness blocker and the page's own notice, not a bare `null`.
+        throw new Error(`${error.message}; ${await whyNoPlan(previous)}`);
+      }
       const banner = await cdp.waitFor(page, `__ab.planBanner()`, "the plan banner", 30_000);
       return { banner, receiptId: authorization.receipt?.receipt_id ?? null, runPlanId: authorization.run_plan?.run_plan.run_plan_id ?? null, runPlanSha256: authorization.run_plan?.run_plan.run_plan_sha256 ?? null, ready: authorization.run_plan?.preflight.ready ?? false, decisions: authorization.receipt?.decisions ?? null, grants: (authorization.receipt?.resource_grants ?? []).map((grant) => grant.resource_id) };
+    };
+    /** The last authorization and readiness facts, for a failure that would otherwise say only that nothing came. */
+    const whyNoPlan = async (previousReceiptId) => {
+      const parts = [];
+      try {
+        const view = await send({ type: "authorization.get", sessionId });
+        const receiptId = view.receipt?.receipt_id ?? null;
+        parts.push(receiptId === null ? "no receipt" : receiptId === previousReceiptId ? `receipt unchanged (${receiptId})` : `receipt ${receiptId}`);
+        parts.push(view.run_plan ? `plan ${view.run_plan.run_plan.run_plan_id}` : "no run plan");
+        const blocking = view.request?.blocking_reasons?.[0];
+        if (blocking) parts.push(`authorization blocker ${blocking.code}: ${blocking.message}`);
+      } catch (error) {
+        parts.push(`authorization.get failed: ${error.message}`);
+      }
+      try {
+        const readiness = await send({ type: "run.readiness", sessionId });
+        if (readiness.blocker) parts.push(`readiness blocker ${readiness.blocker.code}: ${readiness.blocker.message}`);
+      } catch (error) {
+        parts.push(`run.readiness failed: ${error.message}`);
+      }
+      try {
+        const notice = await cdp.evaluate(page, `(() => { const n = document.querySelector(".ab-authorize .ab-banner[role=status] span"); return n ? n.textContent : null; })()`);
+        if (notice) parts.push(`page notice: ${notice}`);
+      } catch {
+        // The page itself may be the problem; the facts above stand.
+      }
+      return parts.join("; ");
     };
     const fillTask = async (task) => {
       await cdp.waitFor(page, `document.querySelector("textarea#ab-field-request") !== null`, "the task form", 30_000);

@@ -3,7 +3,7 @@
  * compact form (D-035). A thin view over the service worker.
  */
 import type { Candidate } from "../../core/discovery.js";
-import type { AuthorizationView, CandidateState, ModelsView, SessionView } from "../messages.js";
+import type { AuthorizationView, CandidateState, ModelsView, RunView, SessionView } from "../messages.js";
 import { renderAgentPage } from "../ui/agent-page.js";
 import { bindAuthorization, type AuthorizationController } from "../ui/authorization-flow.js";
 import { describeError, send, subscribe } from "../ui/client.js";
@@ -80,17 +80,27 @@ const runs = new RunPanel({
   changed: () => render(),
 });
 
+/** Show a session this view now holds: its authorization flow and its run surface, from the start. */
+async function showSession(view: SessionView): Promise<void> {
+  state.open = view;
+  flow.reset();
+  runs.detach();
+  await flow.load();
+  // Adopts the session's run in flight, or its latest run (`loadHistory(true)`).
+  await runs.attachSession(view.session.id);
+}
+
 async function inspect(candidate: Candidate): Promise<void> {
   if (!candidate.resolved_url || !state.candidates) return;
   state.busy = "Downloading and verifying the package…";
   state.error = null;
   render();
   try {
-    state.open = await send<SessionView>({ type: "package.open", url: candidate.resolved_url, advertisedOn: state.candidates.pageUrl, viewId: VIEW_ID });
-    flow.reset();
-    runs.detach();
-    await flow.load();
-    await runs.attachSession(state.open.session.id);
+    // A panel still finding its run finishes first, so the hold this Inspect takes is the last one (D-076).
+    await reattaching;
+    // The same bytes from the same page while a run of them is in flight come back as that run's
+    // session (D-076), so Inspect pressed again shows the run rather than a fresh copy.
+    await showSession(await send<SessionView>({ type: "package.open", url: candidate.resolved_url, advertisedOn: state.candidates.pageUrl, viewId: VIEW_ID }));
   } catch (error) {
     state.error = describeError(error);
   } finally {
@@ -151,6 +161,39 @@ function render(): void {
   replace(app, children);
 }
 
+/**
+ * D-076: a panel that opens while a run is in flight shows that run, not the website card. Chrome
+ * gives a closing panel no chance to release its session, so the session and its run are still
+ * in the service worker; a reopened panel (a new document, a new view id, nothing open) only has
+ * to find them: a run opened from the active tab's page first, else the most recent one. The
+ * panel then holds that session as if it had just opened it.
+ */
+async function reattach(): Promise<void> {
+  if (state.open || state.busy) return;
+  let run: RunView | null;
+  try {
+    run = await send<RunView | null>({ type: "run.active", pageUrl: state.candidates?.pageUrl ?? null });
+  } catch {
+    return; // nothing to reattach to is not an error the person can act on
+  }
+  if (run === null || run.sessionId === null || state.open || state.busy) return;
+  let view: SessionView;
+  try {
+    view = await send<SessionView>({ type: "package.get", sessionId: run.sessionId, viewId: VIEW_ID });
+  } catch {
+    return; // the session ended in between: the website card stays
+  }
+  // Inspect pressed meanwhile waits for this to finish and then takes this view's hold itself.
+  if (state.open || state.busy) return;
+  try {
+    await showSession(view);
+  } catch {
+    // The view holds the session and shows it even if its run could not be read yet (the worker
+    // restarting): `render()` attaches the run surface again (review 1, finding 2).
+  }
+  render();
+}
+
 async function refresh(): Promise<void> {
   const tab = await currentTab();
   state.tabId = tab?.id ?? null;
@@ -187,4 +230,7 @@ chrome.tabs.onUpdated.addListener((tabId, change) => {
   if (tabId === state.tabId && change.status === "complete") void refresh();
 });
 
-void refresh();
+const reattaching: Promise<void> = refresh()
+  .catch(() => undefined)
+  .then(() => reattach())
+  .catch(() => undefined);

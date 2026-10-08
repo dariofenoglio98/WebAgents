@@ -26,7 +26,7 @@ import {
 } from "../../core/authorization.js";
 import { evaluateCatalog, findModel, type HostCatalog } from "../../core/compatibility.js";
 import { classifyLinks, DEFAULT_LIMITS, discoverFromPage, mediaType, type FetchedPage } from "../../core/discovery.js";
-import { CoreError } from "../../core/errors.js";
+import { CoreError, thrownName } from "../../core/errors.js";
 import { evaluateSnapshot, evaluationLayers, publisherReport, structurallyValid, type EvaluationLayers, type PublisherReport } from "../../core/evaluation.js";
 import { isRecord } from "../../core/fields.js";
 import { sha256Hex } from "../../core/hash.js";
@@ -57,6 +57,7 @@ import {
   type ProbeView,
   type Request,
   type RunPlanState,
+  type RunView,
   type SessionDescriptor,
   type SessionSource,
   type SessionView,
@@ -149,6 +150,11 @@ const MAX_VIEW_HOLDERS = 16;
 
 /** How long a probed catalog is reused before the providers are asked again. */
 const CATALOG_TTL_MS = 60_000;
+/**
+ * A view's refresh accepts a catalog read this recently: preparing a plan probes, and the views
+ * reloading on its broadcast would otherwise ask every provider again at once (D-077, review 1).
+ */
+const CATALOG_FRESH_MS = 5_000;
 
 /** The sender facts the service worker vouches for; a page cannot forge them. */
 export interface Sender {
@@ -234,7 +240,7 @@ export class Controller {
       preflight: async (sessionId) => (await this.runPlanState(await this.session(sessionId))).preflight,
       toolRegistry: async (sessionId) => this.toolRegistry(await this.session(sessionId)),
       vault: () => this.vault(),
-      catalog: () => this.catalogCache?.catalog ?? null,
+      catalog: async () => (await this.currentCatalog()).catalog,
       snapshotBytes: async (archiveSha256) => (await this.deps.snapshots.getSnapshot(archiveSha256))?.bytes ?? null,
       markOnceSpent: (sessionId) => this.markOnceSpent(sessionId),
       // The run that kept a closed session's snapshot alive has settled: drop the bytes if nothing else refers to them.
@@ -318,6 +324,8 @@ export class Controller {
         return this.runs.get(request.runId);
       case "run.list":
         return this.runs.list(request.sessionId ?? null);
+      case "run.active":
+        return this.activeRun(request.pageUrl ?? null);
       case "run.cancel":
         return this.runs.cancel(request.runId);
       case "run.artifact":
@@ -399,7 +407,7 @@ export class Controller {
     } catch (error) {
       clearTimeout(timer);
       if (controller.signal.aborted) throw reject("discovery_timeout", "Website discovery deadline exceeded", 504);
-      throw reject("discovery_failed", `Reading the website failed: ${error instanceof Error ? error.name : "error"}`, 502);
+      throw reject("discovery_failed", `Reading the website failed: ${thrownName(error)}`, 502);
     }
     try {
       // No redirect is followed (D-033 as amended): the reference re-validates and re-resolves
@@ -485,7 +493,7 @@ export class Controller {
     } catch (error) {
       clearTimeout(timer);
       if (controller.signal.aborted) throw reject("download_timeout", "Package download deadline exceeded", 504);
-      throw reject("download_failed", `Cannot connect to package host: ${error instanceof Error ? error.name : "error"}`, 502);
+      throw reject("download_failed", `Cannot connect to package host: ${thrownName(error)}`, 502);
     }
     try {
       if (response.type === "opaqueredirect" || (response.status >= 300 && response.status < 400)) {
@@ -544,7 +552,7 @@ export class Controller {
       }
     } catch (error) {
       if (signal.aborted) throw reject(timeoutCode, `${operation === "download" ? "Package download" : "Website discovery"} deadline exceeded`, 504);
-      throw reject(failedCode, `${operation === "download" ? "Package download" : "Reading the website"} failed: ${error instanceof Error ? error.name : "error"}`, 502);
+      throw reject(failedCode, `${operation === "download" ? "Package download" : "Reading the website"} failed: ${thrownName(error)}`, 502);
     }
     const bytes = new Uint8Array(Math.min(total, cap));
     let offset = 0;
@@ -564,6 +572,8 @@ export class Controller {
     }
     const archiveSha256 = await sha256Hex(bytes);
     await this.purgeExpired();
+    const running = await this.sessionWithRunInFlight(archiveSha256, source);
+    if (running !== null) return this.view(running);
     await this.checkCapacity(bytes.length, archiveSha256);
     const evaluation = await evaluateSnapshot(bytes);
     const layers = evaluationLayers(evaluation);
@@ -608,6 +618,44 @@ export class Controller {
     this.sessions.set(stored.session_id, live);
     this.deps.broadcast({ type: "event.sessions" });
     return this.view(live);
+  }
+
+  /**
+   * D-076: the same bytes opened again from the same place (the same package URL, advertised on
+   * the same page) while a run planned on an open session of them is in flight are that session,
+   * so the person who presses Inspect again sees their run instead of a fresh, unauthorized copy.
+   * Anything else opens a new session, as before: a session with no run in flight is not reused.
+   */
+  private async sessionWithRunInFlight(archiveSha256: string, source: SessionSource): Promise<LiveSession | null> {
+    const page = (url: string | null) => (url === null ? null : withoutFragment(url));
+    const candidates = [...this.sessions.values()].filter(
+      (live) => live.stored.archive_sha256 === archiveSha256 && live.stored.source.kind === source.kind && live.stored.source.display === source.display && page(live.stored.source.advertised_on) === page(source.advertised_on),
+    );
+    if (candidates.length === 0) return null;
+    const inFlight = (await this.deps.runs.listRuns()).filter((run) => !isTerminal(run.record.status)).sort((a, b) => (a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : 0));
+    for (const run of inFlight) {
+      const live = candidates.find((item) => item.stored.session_id === run.session_id);
+      if (live) return live;
+    }
+    return null;
+  }
+
+  /**
+   * D-076: the run in flight a view that just opened should reattach to. Only runs whose session
+   * is still open qualify (a view can hold nothing else); among them, a session opened from the
+   * page the view is looking at comes first, then the most recent run.
+   */
+  async activeRun(pageUrl: string | null): Promise<RunView | null> {
+    await this.purgeExpired();
+    const { runs } = await this.runs.list(null);
+    const inFlight = runs.filter((run) => !isTerminal(run.status) && this.sessions.has(run.sessionId));
+    const page = pageUrl === null ? null : withoutFragment(pageUrl);
+    const fromPage = page === null ? undefined : inFlight.find((run) => {
+      const advertised = this.sessions.get(run.sessionId)!.stored.source.advertised_on;
+      return advertised !== null && withoutFragment(advertised) === page;
+    });
+    const chosen = fromPage ?? inFlight[0];
+    return chosen === undefined ? null : this.runs.get(chosen.runId);
   }
 
   private async evaluate(stored: StoredSession, pkg: Package, layers: EvaluationLayers, previous?: Pick<LiveSession, "receipt" | "plan" | "onceSpent">): Promise<LiveSession> {
@@ -904,7 +952,7 @@ export class Controller {
       if (problem !== null) throw reject("settings_invalid", `The ${String(connection.provider)} endpoint ${problem}.`, 400, { provider: connection.provider });
     }
     const saved = await this.deps.settings.saveSettings(normalizeSettings(raw));
-    this.catalogCache = null; // connections or caps may have changed
+    this.invalidateCatalog(); // connections or caps may have changed
     this.deps.broadcast({ type: "event.settings" });
     return { settings: saved, keys: await this.deps.settings.keyPresence() };
   }
@@ -916,7 +964,7 @@ export class Controller {
     } catch (error) {
       throw reject("invalid_request", error instanceof Error ? error.message : "invalid key");
     }
-    this.catalogCache = null;
+    this.invalidateCatalog();
     this.deps.broadcast({ type: "event.settings" });
     return this.settingsView();
   }
@@ -1012,16 +1060,74 @@ export class Controller {
 
   // -- the model catalog (D-023, D-055) ------------------------------------------------------
   private catalogCache: { catalog: HostCatalog; probes: ProbeResult[]; at: number } | null = null;
+  /** The probe in progress: concurrent refreshes (two views opening at once) share one (D-077). */
+  private catalogProbe: Promise<{ catalog: HostCatalog; probes: ProbeResult[] }> | null = null;
+  /** Bumped when the settings change: a probe started before then does not write the cache. */
+  private catalogGeneration = 0;
 
-  private async catalog(refresh = false): Promise<{ catalog: HostCatalog; probes: ProbeResult[] }> {
-    const now = this.clock().getTime();
-    if (!refresh && this.catalogCache && now - this.catalogCache.at < CATALOG_TTL_MS) return this.catalogCache;
-    const settings = await this.deps.settings.settings();
-    const connections = connectionsFor(settings, await this.deps.settings.keyPresence());
-    const builtin = connections.some((connection) => connection.provider === "chrome-builtin" && connection.enabled) ? await this.deps.builtin() : null;
-    const result = await buildHostCatalog(connections, this.deps.http, { builtin, runtimeVersion: this.version, now: this.clock() });
-    this.catalogCache = { ...result, at: now };
-    return result;
+  private invalidateCatalog(): void {
+    this.catalogCache = null;
+    this.catalogProbe = null;
+    this.catalogGeneration += 1;
+  }
+
+  /** The catalog no older than `maxAgeMs`, probing the providers (or joining the probe in progress) otherwise. */
+  private async catalog(maxAgeMs = CATALOG_TTL_MS, probed?: ReadonlyMap<ProviderId, ProbeResult>): Promise<{ catalog: HostCatalog; probes: ProbeResult[] }> {
+    if (this.catalogCache && this.clock().getTime() - this.catalogCache.at < maxAgeMs) return this.catalogCache;
+    if (this.catalogProbe && !probed) return this.catalogProbe;
+    const generation = this.catalogGeneration;
+    const probe = (async () => {
+      const settings = await this.deps.settings.settings();
+      const connections = connectionsFor(settings, await this.deps.settings.keyPresence());
+      const builtin = connections.some((connection) => connection.provider === "chrome-builtin" && connection.enabled) ? await this.deps.builtin() : null;
+      const result = await buildHostCatalog(connections, this.deps.http, { builtin, runtimeVersion: this.version, now: this.clock(), probed });
+      // Stamped when the answers land, and only if the settings did not change meanwhile.
+      if (this.catalogGeneration === generation) this.catalogCache = { ...result, at: this.clock().getTime() };
+      return result;
+    })();
+    this.catalogProbe = probe;
+    try {
+      return await probe;
+    } finally {
+      if (this.catalogProbe === probe) this.catalogProbe = null;
+    }
+  }
+
+  /**
+   * The catalog a check is made against: the last one whatever its age, or a new one when none is
+   * held. A missing catalog is never read as "no opinion" (D-077, review 1): readiness and the
+   * lease would otherwise accept a plan whose model its provider just stopped serving.
+   */
+  private async currentCatalog(): Promise<{ catalog: HostCatalog; probes: ProbeResult[] }> {
+    return this.catalogCache ?? (await this.catalog());
+  }
+
+  /** One provider's fresh answer (Test connection) replaces its part of the last catalog; the others are not asked again. */
+  private async mergeProbe(result: ProbeResult): Promise<void> {
+    if (this.catalogProbe) await this.catalogProbe.catch(() => undefined);
+    const held = this.catalogCache;
+    if (held === null) return; // the next check builds a whole catalog
+    const probed = new Map<ProviderId, ProbeResult>(held.probes.map((item) => [item.provider, item]));
+    probed.set(result.provider, result);
+    await this.catalog(0, probed);
+  }
+
+  /**
+   * Why a model cannot be used, in words a person can act on (D-077): the provider's own answer
+   * from the last probe (which names its address), and where to test the connection.
+   */
+  private modelProblem(modelId: string, read: { catalog: HostCatalog; probes: readonly ProbeResult[] }): string {
+    const provider = modelId.slice(0, Math.max(0, modelId.indexOf("/")));
+    const descriptor = findModel(read.catalog, modelId);
+    const probe = read.probes.find((item) => item.provider === provider) ?? null;
+    const said = descriptor && !descriptor.available && descriptor.availability_reason ? descriptor.availability_reason : probe && !probe.ok && probe.error ? `${probe.error}.` : null;
+    const ollama = provider === "ollama" ? " Ollama must be running, with OLLAMA_ORIGINS allowing chrome-extension://*." : "";
+    return `${said ? `${said} ` : ""}Test the connection in Settings → Models.${ollama}`;
+  }
+
+  /** The readiness and plan messages for a model that is no longer offered, with the provider's answer (D-077). */
+  private explainModelReasons(reasons: Reason[], read: { catalog: HostCatalog; probes: readonly ProbeResult[] }): Reason[] {
+    return reasons.map((item) => (item.code === "model_no_longer_available" && item.subject ? { ...item, message: `${item.message} ${this.modelProblem(item.subject, read)}` } : item));
   }
 
   async probe(provider: ProviderId): Promise<ProbeView> {
@@ -1032,8 +1138,8 @@ export class Controller {
       const availability = await this.deps.builtin();
       return { provider, ok: availability !== null && availability.availability === "available", models: [], notes: [], error: availability ? (availability.availability === "available" ? null : availability.availability) : "The Prompt API is not available in this context.", diagnosis: null };
     }
-    this.catalogCache = null;
     const result = await probeProvider({ ...connection, enabled: true }, this.deps.http);
+    await this.mergeProbe(result);
     return { ...result, diagnosis: provider === "ollama" && !result.ok ? await this.ollamaDiagnosis(connection.base_url ?? DEFAULT_BASE_URLS.ollama) : null };
   }
 
@@ -1054,7 +1160,7 @@ export class Controller {
   async evaluateModels(sessionId: string, refresh: boolean): Promise<ModelsView> {
     const live = await this.session(sessionId);
     const settings = await this.deps.settings.settings();
-    const { catalog, probes } = await this.catalog(refresh);
+    const { catalog, probes } = await this.catalog(refresh ? CATALOG_FRESH_MS : CATALOG_TTL_MS);
     const required = modePermissionIds(live.pkg, MODE_MODEL);
     return {
       evaluation: evaluateCatalog(live.pkg, catalog, this.clock()),
@@ -1202,7 +1308,7 @@ export class Controller {
             // than as a failure of the authorization (review 1, finding 4).
             if (!(error instanceof CoreError)) throw error;
             const reasons = error.code === "run_plan_refused" ? (error.details.blocking_reasons as Reason[] | undefined) : undefined;
-            result.plan_refused = reasons ?? [{ code: error.code, message: error.message, subject: error.code === "model_unknown" ? chosen : null }];
+            result.plan_refused = reasons ?? [{ code: error.code, message: error.message, subject: error.code === "model_unknown" || error.code === "model_unavailable" ? chosen : null }];
           }
         }
       }
@@ -1224,11 +1330,16 @@ export class Controller {
       throw reject("receipt_mismatch", "receipt_id does not match this session's current authorization receipt", 409, { session_receipt_id: live.receipt.receipt_id });
     }
     const settings = await this.deps.settings.settings();
-    const { catalog } = await this.catalog();
+    // A plan is frozen against what the providers answer now, not against a catalog read up to a
+    // minute ago: a provider that stopped answering must refuse the plan by name (D-077).
+    const read = await this.catalog(0);
+    const { catalog } = read;
     const descriptor = findModel(catalog, input.modelId);
     if (descriptor === null) {
-      const hint = input.modelId.startsWith("ollama/") ? " Ollama must be running, with OLLAMA_ORIGINS allowing chrome-extension://*." : "";
-      throw reject("model_unknown", `No model ${pyRepr(input.modelId)} in this browser's model catalog: its provider did not list it. Test the connection in Settings → Models.${hint}`, 409);
+      throw reject("model_unknown", `No model ${pyRepr(input.modelId)} in this browser's model catalog: its provider did not list it. ${this.modelProblem(input.modelId, read)}`, 409);
+    }
+    if (!descriptor.available) {
+      throw reject("model_unavailable", `${input.modelId} is not usable now. ${this.modelProblem(input.modelId, read)}`, 409, { model_id: input.modelId });
     }
     const evaluation = evaluateCatalog(live.pkg, catalog, this.clock());
     const compatibility = evaluation.models.find((item) => item.model_id === input.modelId) ?? null;
@@ -1290,22 +1401,21 @@ export class Controller {
     if (live.plan === null) throw reject("run_plan_absent", "This session has no run plan", 404);
     const { evaluation: toolEvaluation } = await this.toolEvaluation(live, live.receipt?.decisions, live.receipt?.tool_approvals);
     const settings = await this.deps.settings.settings();
-    return {
-      run_plan: live.plan,
-      preflight: preflight(live.plan, {
-        pkg: live.pkg,
-        publisher: live.publisher,
-        receipt: live.receipt,
-        trustState: await this.deps.trust.state(),
-        policy: DEFAULT_BROWSER_POLICY,
-        toolEvaluation,
-        resourceRegistry: await this.resourceRegistry(),
-        catalog: this.catalogCache?.catalog ?? null,
-        onceSpent: live.onceSpent && live.receipt !== null && grantsOnce(live.receipt),
-        localModelsOnly: PRESETS[settings.preset].local_models_only,
-        now: this.clock(),
-      }),
-    };
+    const read = await this.currentCatalog();
+    const checked = preflight(live.plan, {
+      pkg: live.pkg,
+      publisher: live.publisher,
+      receipt: live.receipt,
+      trustState: await this.deps.trust.state(),
+      policy: DEFAULT_BROWSER_POLICY,
+      toolEvaluation,
+      resourceRegistry: await this.resourceRegistry(),
+      catalog: read.catalog,
+      onceSpent: live.onceSpent && live.receipt !== null && grantsOnce(live.receipt),
+      localModelsOnly: PRESETS[settings.preset].local_models_only,
+      now: this.clock(),
+    });
+    return { run_plan: live.plan, preflight: { ...checked, stale_reasons: this.explainModelReasons(checked.stale_reasons, read) } };
   }
 
   async clearRunPlan(sessionId: string): Promise<{ cleared: boolean; session_id: string }> {
