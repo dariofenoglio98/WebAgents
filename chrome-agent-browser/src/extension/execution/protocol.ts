@@ -25,6 +25,12 @@ export interface HostRunSettings {
   recordRequests: boolean;
   runtimeVersion: string;
   verifiedVersion: string;
+  /**
+   * The person's Crossref contact address (Settings → Services, D-081), sent as `mailto` by the
+   * scholarly-search adapter only; null when none was entered. Travels like the keys: in memory,
+   * for this run, never in a record.
+   */
+  crossrefContact: string | null;
 }
 
 export interface HostStartMessage {

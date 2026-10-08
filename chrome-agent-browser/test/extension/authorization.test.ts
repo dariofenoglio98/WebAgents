@@ -246,7 +246,7 @@ describe("two clicks: a profile becomes a ready plan (D-022)", () => {
 });
 
 describe("the customize path: Literature Review 0.2.5 with today's OpenClaw decisions", () => {
-  it("records the recorded decisions (examples/literature-review-grants.json), approves the three tools, and the plan carries them; paper-reader has no implementation here yet", async () => {
+  it("records the recorded decisions (examples/literature-review-grants.json), approves the three tools, and the plan binds all three (T6: the paper reader exists)", async () => {
     const h = makeHarness();
     const session = (await h.controller.handle({ type: "package.open", url: LITERATURE_URL, advertisedOn: null }, PAGE)) as SessionView;
     await h.controller.handle({ type: "trust.pin", sessionId: session.session.id, signerFingerprint: SHIPPED.literatureReview.fingerprint, scope: "publisher" }, PAGE);
@@ -258,8 +258,8 @@ describe("the customize path: Literature Review 0.2.5 with today's OpenClaw deci
     expect(view.profiles).toBeNull();
     expect(view.tools.map((tool) => [tool.tool_id, tool.status])).toEqual([
       ["citation-resolver", "bound"],
+      ["paper-reader", "bound"],
       ["scholarly-search", "bound"],
-      ["paper-reader", "unbound"],
     ]);
     // Today's OpenClaw decisions: the recorded grants, every permission for the session (the recorded
     // runs in ~/.openclaw/agent-browser/runs grant files.pdfs in some runs and deny it in others).
@@ -273,23 +273,24 @@ describe("the customize path: Literature Review 0.2.5 with today's OpenClaw deci
     expect(result.receipt.decisions).toEqual(decisions);
     expect(result.receipt.tool_approvals).toEqual({ "citation-resolver": true, "paper-reader": true, "scholarly-search": true });
     expect(result.receipt.runnable).toBe(true);
-    // An approved tool this host does not implement blocks the plan, as in the reference (D-022 covers denied tools only).
-    expect(result.run_plan).toBeNull();
-    expect(result.plan_refused?.map((reason) => [reason.code, reason.subject])).toEqual([["tool_not_bound", "paper-reader"]]);
-    // Leaving paper-reader unapproved until T6 implements it: under D-022 it is denied, and the plan is ready and carries the three approval entries.
-    const ready = (await h.controller.handle(
-      { type: "authorization.authorize", sessionId: session.session.id, packageDigest: SHIPPED.literatureReview.digest, decisions, toolApprovals: { ...toolApprovals, "paper-reader": false }, resourceSelections: {}, provenance: null, prepare: true },
+    expect(result.plan_refused ?? null).toBeNull();
+    expect(result.run_plan?.preflight.ready).toBe(true);
+    expect(result.run_plan?.run_plan.execution).toMatchObject({ required_tool_ids: ["citation-resolver", "paper-reader", "scholarly-search"], denied_tool_ids: [], required_permission_ids: ["model.reasoning"] });
+    expect(result.run_plan?.run_plan.tool_bindings.map((binding) => [binding.tool_id, binding.implementation_kind, binding.implementation_id, binding.endpoint_origin])).toEqual([
+      ["citation-resolver", "json_http", "chrome.tool.json_http", "https://webagents-citation-resolver-production.up.railway.app"],
+      ["paper-reader", "selected_file", "chrome.tool.selected_pdf_text", null],
+      ["scholarly-search", "json_http", "chrome.tool.crossref_works_search", "https://api.crossref.org"],
+    ]);
+    // "Metadata only": denying files.pdfs keeps the reader bound but not usable; the plan is still ready
+    // (files.pdfs is optional), and a run cannot be given documents (runs.ts checks it at start).
+    const metadataOnly = (await h.controller.handle(
+      { type: "authorization.authorize", sessionId: session.session.id, packageDigest: SHIPPED.literatureReview.digest, decisions: { ...decisions, "files.pdfs": "deny" }, toolApprovals, resourceSelections: {}, provenance: null, prepare: true },
       PAGE,
     )) as AuthorizeResult;
-    expect(ready.run_plan?.preflight.ready).toBe(true);
-    expect(Object.keys(ready.run_plan!.run_plan.authorization.tool_approvals).sort()).toEqual(["citation-resolver", "paper-reader", "scholarly-search"]);
-    expect(ready.run_plan?.run_plan.execution).toMatchObject({ required_tool_ids: ["citation-resolver", "scholarly-search"], denied_tool_ids: ["paper-reader"], required_permission_ids: ["model.reasoning"] });
-    expect(ready.run_plan?.run_plan.tool_bindings.map((binding) => [binding.tool_id, binding.endpoint_origin])).toEqual([
-      ["citation-resolver", "https://webagents-citation-resolver-production.up.railway.app"],
-      ["scholarly-search", "https://api.crossref.org"],
-    ]);
-    // A new receipt superseded the first plan attempt's receipt.
-    expect(ready.receipt.receipt_id).not.toBe(result.receipt.receipt_id);
+    expect(metadataOnly.run_plan?.preflight.ready).toBe(true);
+    expect(metadataOnly.run_plan?.run_plan.tool_bindings.find((binding) => binding.tool_id === "paper-reader")?.usable).toBe(false);
+    // A new receipt superseded the first one.
+    expect(metadataOnly.receipt.receipt_id).not.toBe(result.receipt.receipt_id);
   });
 
   it("refuses 'always', unknown permissions and a stale digest with the reference's codes, and never grants by silence", async () => {

@@ -8,13 +8,15 @@
  *   runs          run records with their checkpoints, keyed by run id (version 3, D-071)
  *   artifacts     a run's files as bytes, keyed by `<run id>/<name>` (version 3)
  *   observations  outbound request bodies recorded in test mode, auto-keyed (version 3, D-028)
+ *   files         the PDFs the person picked in Settings → Files: the copied bytes, their hash
+ *                 and size, keyed by opaque file id (version 4, T6, D-083)
  */
 
 export const DATABASE = "agent-browser";
-/** Version 2 added the `sizes` store; version 3 the run, artifact and observation stores. */
-export const VERSION = 3;
+/** Version 2 added the `sizes` store; version 3 the run, artifact and observation stores; version 4 the `files` store. */
+export const VERSION = 4;
 
-export type StoreName = "snapshots" | "sessions" | "sizes" | "runs" | "artifacts" | "observations";
+export type StoreName = "snapshots" | "sessions" | "sizes" | "runs" | "artifacts" | "observations" | "files";
 
 export function request<T>(value: IDBRequest<T>): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -62,6 +64,7 @@ function upgrade(opening: IDBOpenDBRequest, event: IDBVersionChangeEvent): void 
     const observations = db.createObjectStore("observations", { keyPath: "id", autoIncrement: true });
     observations.createIndex("run_id", "run_id", { unique: false });
   }
+  if (!db.objectStoreNames.contains("files")) db.createObjectStore("files", { keyPath: "file_id" });
 }
 
 /** A lazily opened connection; a failed open is retried on the next call, never cached. */

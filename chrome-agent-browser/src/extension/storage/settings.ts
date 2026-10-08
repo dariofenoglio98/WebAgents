@@ -14,6 +14,8 @@ import { DEFAULT_PRESET, isPresetId } from "../../core/authorization.js";
 import { isRecord } from "../../core/fields.js";
 import type { ModelOverride, ProviderConnection, ProviderId } from "../../core/models/catalog.js";
 import { isLoopbackBase, OLLAMA_LOOPBACK_HOSTS, PROVIDER_IDS } from "../../core/models/catalog.js";
+import { DEFAULT_HOST_LIMITS, normalizeHostLimits, type HostExecutionLimits } from "../../core/execution/limits.js";
+import { validContact } from "../../core/tools/adapters/crossref.js";
 import type { PresetId } from "../../core/types.js";
 import { emptyVaultDocument, generateVaultKey, KEY_BYTES, type VaultDocument } from "../../core/vault.js";
 
@@ -32,6 +34,12 @@ export interface StoredConnection {
   enabled: boolean;
   base_url: string | null;
   overrides: Record<string, ModelOverride>;
+  /**
+   * Ollama only (T6): send `think: true`, as the reference host's Ollama route did for the
+   * accepted local Literature Review runs. Off by default (D-062): with `format` plus thinking,
+   * Ollama can exceed a node's output cap, which halts the run.
+   */
+  think?: boolean;
 }
 
 export interface Settings {
@@ -42,6 +50,18 @@ export interface Settings {
     /** The host model id (`provider/model`) the two-click path binds; null until the person picks one. */
     default_model: string | null;
   };
+  /**
+   * Services a tool implementation reaches on the person's behalf (T6, D-081). `crossref_contact`
+   * is the address Crossref's polite pool asks for (`mailto`); none is sent unless the person
+   * enters one here. Whether one is set is part of the scholarly-search binding's digest.
+   */
+  services: { crossref_contact: string | null };
+  /**
+   * The host limits every run is bounded by (B-118, T6 D-084): the reference plugin's
+   * `DEFAULT_POLICY` unless the person raises or lowers them in Settings → Run limits, each
+   * within `limits.ts`'s maxima. The package's own budget and deadline still apply beneath them.
+   */
+  limits: HostExecutionLimits;
   /** Test-mode switches (D-028): off by default, shown in Settings → About. */
   developer: {
     /** Record every outbound model and tool request body of a run to the observation store, for the privacy checks. */
@@ -61,6 +81,8 @@ export const DEFAULT_SETTINGS: Settings = Object.freeze({
     ],
     default_model: null,
   },
+  services: { crossref_contact: null },
+  limits: { ...DEFAULT_HOST_LIMITS },
   developer: { record_requests: false },
 }) as Settings;
 
@@ -150,17 +172,54 @@ export function normalizeSettings(raw: unknown): Settings {
         enabled: item.enabled === true,
         base_url: provider === "chrome-builtin" ? null : normalizeBaseUrl(provider, item.base_url),
         overrides: normalizeOverrides(item.overrides),
+        ...(provider === "ollama" && item.think === true ? { think: true } : {}),
       });
     }
   }
   const defaultModel = typeof models.default_model === "string" && models.default_model.length > 0 && models.default_model.length <= 300 ? models.default_model : null;
   const developer = isRecord(raw.developer) ? raw.developer : {};
+  const services = isRecord(raw.services) ? raw.services : {};
   return {
     schema: "chrome-agent-browser-settings-v0",
     preset: isPresetId(raw.preset) ? raw.preset : DEFAULT_PRESET,
     models: { connections: [...connections.values()], default_model: defaultModel },
+    services: { crossref_contact: validContact(services.crossref_contact) },
+    limits: limitsOrDefaults(raw.limits),
     developer: { record_requests: developer.record_requests === true },
   };
+}
+
+/** Stored limits, or the defaults when absent or not valid (a submitted value is checked by `settingsProblem` first). */
+function limitsOrDefaults(raw: unknown): HostExecutionLimits {
+  if (raw === undefined || raw === null) return { ...DEFAULT_HOST_LIMITS };
+  try {
+    return normalizeHostLimits(raw);
+  } catch {
+    return { ...DEFAULT_HOST_LIMITS };
+  }
+}
+
+/**
+ * What in a submitted settings object would be silently dropped by `normalizeSettings`, named so
+ * the person learns why a value was not kept: a contact that is not one address, limits outside
+ * `limits.ts`'s bounds. Null when nothing would be dropped.
+ */
+export function settingsProblem(raw: unknown): string | null {
+  if (!isRecord(raw)) return null;
+  if (isRecord(raw.services)) {
+    const contact = raw.services.crossref_contact;
+    if (contact !== null && contact !== undefined && !(typeof contact === "string" && contact.trim() === "") && validContact(contact) === null) {
+      return "The Crossref contact must be one e-mail address (or empty).";
+    }
+  }
+  if (raw.limits !== undefined && raw.limits !== null) {
+    try {
+      normalizeHostLimits(raw.limits);
+    } catch (error) {
+      return `Run limits: ${error instanceof Error ? error.message : "invalid"}.`;
+    }
+  }
+  return null;
 }
 
 /** The connections as the catalog builder needs them: the key's presence beside each stored connection. */

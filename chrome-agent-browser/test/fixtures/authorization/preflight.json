@@ -1,8 +1,8 @@
 {
   "schema": "agentpkg-run-plan-preflight-v0",
-  "checked_at": "2026-10-07T21:21:52.918432+00:00",
-  "run_plan_id": "rp_9ecef06696934169b1c5f6d97d5243f8",
-  "run_plan_sha256": "e3925317b275ea609ea608912d6b9156e367df0cac68d6c51abf8b2df92f962e",
+  "checked_at": "2026-10-08T16:57:29.790034+00:00",
+  "run_plan_id": "rp_10bab4c2609b425e82cd572a22e9123c",
+  "run_plan_sha256": "66bdd31c01994442aea6326139cc9596ed73895a5a530db92cea125ad3150641",
   "state": "ready",
   "ready": true,
   "stale": false,
@@ -13,7 +13,7 @@
     "bound": 7,
     "current": true,
     "evaluated": true,
-    "registry_sha256": "ae5f3624c3de4fc9aefa7fd65d6d01617243fbe3cbe4bff508ee07ae7cdfb797",
+    "registry_sha256": "84beabb3d4b7a88873172e93abac3c9dda7f8613e3d63e7735152dacd57d3e3c",
     "registry_changed": false
   },
   "resource_grants": {

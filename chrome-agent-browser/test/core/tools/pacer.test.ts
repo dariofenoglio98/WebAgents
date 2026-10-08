@@ -40,6 +40,33 @@ describe("Pacer", () => {
     second();
   });
 
+  it("spaces the next start from the previous answer too, so a slow first call cannot crowd the second (D-081 as amended)", async () => {
+    let now = 0;
+    const pacer = new Pacer(() => now);
+    const limits = { maxConcurrent: 1, minIntervalMs: 40 };
+    const first = await pacer.acquire("e", limits, new AbortController().signal);
+    const second = pacer.acquire("e", limits, new AbortController().signal);
+    // The first call takes longer than the interval (a connection being set up), then answers.
+    now = 100;
+    const answeredAt = Date.now();
+    first();
+    // Measured from the start alone the second could leave at once (0 + 40 < 100); from the answer it waits 40 ms.
+    await second;
+    expect(Date.now() - answeredAt).toBeGreaterThanOrEqual(30);
+  });
+
+  it("a call cancelled while waiting for its start sent nothing, so no interval follows it", async () => {
+    let now = 0;
+    const pacer = new Pacer(() => now);
+    const limits = { maxConcurrent: 1, minIntervalMs: 10_000 };
+    (await pacer.acquire("f", limits, new AbortController().signal))(false);
+    now = 20_000;
+    const started = Date.now();
+    const next = await pacer.acquire("f", limits, new AbortController().signal);
+    expect(Date.now() - started).toBeLessThan(50);
+    next();
+  });
+
   it("a waiter that is cancelled leaves the queue and holds nothing", async () => {
     const pacer = new Pacer();
     const release = await pacer.acquire("d", { maxConcurrent: 1, minIntervalMs: 0 }, new AbortController().signal);

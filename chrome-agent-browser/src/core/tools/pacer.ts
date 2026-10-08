@@ -4,6 +4,15 @@
  * process. A call that cannot start yet waits its turn (first in, first out) rather than being
  * refused; the wait is bounded by the caller's signal, so pacing can delay a call but never
  * outlive it. Nothing here retries a request.
+ *
+ * The interval also separates a call's **answer** from the next start (D-081 as amended, T6): a
+ * browser reuses one connection to a service, so only the first request pays the connection's
+ * setup and reaches the service late, and a second request started one interval after the first
+ * *started* reached Crossref under a second after it and was refused with 429 (the first live
+ * Chrome run, 2026-10-08). The reference's Node transport opens a connection per request, so its
+ * start-to-start spacing survives the trip; measuring from the answer as well restores that
+ * guarantee here. It only ever adds delay; the values (`maxConcurrent`, `minIntervalMs`) are the
+ * binding's, unchanged.
  */
 import { CancelledError } from "../workflow/errors.js";
 
@@ -44,7 +53,7 @@ export class Pacer {
   }
 
   /** Wait for a turn, then return the function that gives it back. Rejects with the signal's reason when cancelled while waiting. */
-  async acquire(key: string, limits: PaceLimits, signal: AbortSignal): Promise<() => void> {
+  async acquire(key: string, limits: PaceLimits, signal: AbortSignal): Promise<(answered?: boolean) => void> {
     const lane = this.lane(key);
     const maxConcurrent = Math.max(1, Math.floor(limits.maxConcurrent));
     const interval = Math.max(0, Math.floor(limits.minIntervalMs));
@@ -68,9 +77,11 @@ export class Pacer {
       });
     }
     let released = false;
-    const release = () => {
+    /** Give the slot back; `answered` (the call reached the service) also starts an interval from now. */
+    const release = (answered = true) => {
       if (released) return;
       released = true;
+      if (answered && interval > 0) lane.nextStart = Math.max(lane.nextStart, this.now() + interval);
       const next = lane.queue.shift();
       if (next) next();
       else lane.active -= 1;
@@ -94,7 +105,8 @@ export class Pacer {
           signal.addEventListener("abort", onAbort, { once: true });
         });
       } catch (error) {
-        release();
+        // Cancelled while waiting for its start: nothing was sent, so no interval follows it.
+        release(false);
         throw error;
       }
     }

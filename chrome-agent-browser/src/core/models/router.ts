@@ -101,6 +101,12 @@ export interface ModelInvocation {
   cost_usd: number | null;
 }
 
+/** `{thinking}` when the adapter states whether it asks the model to think (Ollama), else nothing. */
+function thinkingOf(adapter: ProviderAdapter): { thinking?: boolean } {
+  const thinking = (adapter as unknown as { thinking?: unknown }).thinking;
+  return typeof thinking === "boolean" ? { thinking } : {};
+}
+
 export class BoundModelRouter implements ModelRouter {
   readonly router_id = ROUTER_ID;
   readonly model_id: string;
@@ -141,6 +147,8 @@ export class BoundModelRouter implements ModelRouter {
       remote: this.remote,
       capabilities: [...this.capabilities].sort(),
       context_window: this.context_window,
+      // A provider option the host chose for the run, recorded so the evidence says it (T6).
+      ...thinkingOf(this.adapter),
       not_declared: ["multimodal", "tool_use"],
       note:
         "Capabilities describe what this adapter delivers. tool_use is withheld because the adapter exposes no tools to the model, and multimodal because it sends text only.",

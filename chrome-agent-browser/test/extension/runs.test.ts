@@ -519,7 +519,7 @@ describe("review 2: a cancel is never lost", () => {
       open = resolve;
     });
     // The page's `host.cancel` answers but finds no Worker for this run (the B-122 window).
-    w.h.host.cancel = async () => true;
+    w.h.host.cancel = async () => "not_held" as const;
     const started = await startRun(w, result, SEARCH);
     await until(() => runs.held === 1, "the host's first checkpoint waiting at the gate");
     const accepted = (await w.h.controller.handle({ type: "run.cancel", runId: started.runId }, PAGE)) as RunView;
@@ -559,5 +559,70 @@ describe("review 2: a cancel is never lost", () => {
     expect(w.h.host.handles.has(started.runId)).toBe(false);
     expect(await w.h.runs.getRun(started.runId)).toEqual(before);
     expect(((await w.h.controller.handle({ type: "run.get", runId: again.runId }, PAGE)) as RunView).status).toBe("cancelled");
+  });
+});
+
+describe("T5 review 3 carry-overs: the cancel path", () => {
+  it("a running run whose document holds no Worker is unreachable: interrupted, not left in flight (nit 3)", async () => {
+    const { w, reached } = await hangingWorld();
+    const result = await authorize(w, "search");
+    const started = await startRun(w, result, SEARCH);
+    await until(() => reached() === 1, "the model call in flight");
+    expect(((await w.h.controller.handle({ type: "run.get", runId: started.runId }, PAGE)) as RunView).status).toBe("running");
+    // The page answers, but no Worker holds the run (killed without an event, B-122).
+    w.h.host.cancel = async () => "not_held" as const;
+    const answered = (await w.h.controller.handle({ type: "run.cancel", runId: started.runId }, PAGE)) as RunView;
+    expect(answered).toMatchObject({ status: "interrupted", errorCode: "host_unreachable", cancelRequested: true });
+    w.h.host.handles.get(started.runId)?.cancel();
+    await w.h.host.drain();
+  });
+
+  it("a start in progress when Cancel is pressed counts as taken even if it completes during the host's answer (nit 2)", async () => {
+    const { w, reached } = await hangingWorld();
+    const result = await authorize(w, "search");
+    // The host's start waits at a gate, so the session is still starting when Cancel arrives.
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const realStart = w.h.host.start.bind(w.h.host);
+    w.h.host.start = async (message) => {
+      await gate;
+      await realStart(message);
+    };
+    const plan = result.run_plan!.run_plan;
+    const starting = w.h.controller.handle({ type: "run.start", sessionId: w.session.session.id, runPlanId: plan.run_plan_id, runPlanSha256: plan.run_plan_sha256, input: SEARCH }, PAGE) as Promise<RunView>;
+    await until(() => w.h.events.some((event) => event.type === "event.run" && event.status === "preparing"), "the run recorded as preparing");
+    const runId = (w.h.events.find((event) => event.type === "event.run") as { runId: string }).runId;
+    // While the host is asked, the start completes; the host then says nothing holds the run.
+    w.h.host.cancel = async () => {
+      release();
+      await starting;
+      return "no_host" as const;
+    };
+    const answered = (await w.h.controller.handle({ type: "run.cancel", runId }, PAGE)) as RunView;
+    expect(answered.status).not.toBe("interrupted");
+    expect(answered.cancelRequested).toBe(true);
+    await w.h.host.drain();
+    const settled = (await w.h.controller.handle({ type: "run.get", runId }, PAGE)) as RunView;
+    expect(settled.status).toBe("cancelled");
+    expect(reached()).toBe(0);
+  });
+
+  it("an interrupt that loses the race with the host's final write reports what the host wrote, not the stale status (nit 1)", async () => {
+    const w = await world();
+    const result = await authorize(w, "search");
+    const started = await startRun(w, result, SEARCH);
+    // The host cannot be reached for the cancel, but the run completes meanwhile.
+    w.h.host.cancel = async () => {
+      await w.h.host.drain();
+      throw new Error("the execution host did not answer");
+    };
+    const answered = (await w.h.controller.handle({ type: "run.cancel", runId: started.runId }, PAGE)) as RunView;
+    // The host settled the run itself (it honoured the stored flag, D-075); the answer and the last
+    // broadcast are that settled status, never the `preparing`/`running` the flag write returned.
+    const stored = (await w.h.runs.getRun(started.runId))!;
+    expect(["completed", "cancelled"]).toContain(stored.record.status);
+    expect(answered.status).toBe(stored.record.status);
+    expect(answered.errorCode).not.toBe("host_unreachable");
+    expect(w.h.events.filter((event) => event.type === "event.run" && event.runId === started.runId).at(-1)).toMatchObject({ status: stored.record.status });
   });
 });

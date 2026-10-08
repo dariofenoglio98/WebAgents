@@ -69,7 +69,7 @@ const START: HostStartMessage = {
   runId: "run_1",
   credentials: { openai: "sk-test", anthropic: null },
   vault: { key: "AAAA", document: { schema: "x", records: [] } as unknown as HostStartMessage["vault"]["document"] },
-  settings: { ollamaBaseUrl: null, think: false, recordRequests: false, runtimeVersion: "0.1.0", verifiedVersion: "0.1.0" },
+  settings: { ollamaBaseUrl: null, think: false, recordRequests: false, runtimeVersion: "0.1.0", verifiedVersion: "0.1.0", crossrefContact: null },
 };
 
 function ask(message: unknown, sender: chrome.runtime.MessageSender): { reply: unknown; returned: boolean | undefined } {

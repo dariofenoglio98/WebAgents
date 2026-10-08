@@ -8,7 +8,9 @@ import { IndexedDbSnapshotStore } from "../storage/snapshots.js";
 import { IndexedDbRunStore } from "../storage/runs.js";
 import { Database } from "../storage/database.js";
 import { languageModelApi, LanguageModelPort } from "./builtin-port.js";
+import { IndexedDbFileStore } from "../storage/files.js";
 import { executeRun, type ExecutionHandle } from "./execute.js";
+import { PDF_WORKER_SCRIPT, workerPdfReader, type WorkerLike } from "./pdf-reader.js";
 import type { WorkerCommand, WorkerEvent } from "./protocol.js";
 import { browserTransport } from "./transport.js";
 
@@ -30,6 +32,9 @@ scope.onmessage = (event) => {
     message: command.message,
     transports: { model: browserTransport({ allowLoopbackHttp: true }), tool: browserTransport({ allowLoopbackHttp: false }) },
     builtin: api ? new LanguageModelPort(api) : null,
+    files: new IndexedDbFileStore(database),
+    // One parser Worker per read, nested in this run's Worker, terminated when it answers or is stopped (D-082).
+    pdfReader: workerPdfReader(() => new Worker(new URL(PDF_WORKER_SCRIPT, self.location.href), { type: "module" }) as unknown as WorkerLike),
     onCheckpoint: (runId) => scope.postMessage({ kind: "progress", runId }),
   });
   void handle.done.then((status) => {

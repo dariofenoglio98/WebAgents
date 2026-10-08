@@ -17,7 +17,7 @@
 import type { PresentationHints } from "../../core/presentation.js";
 import type { ArtifactChunk, ArtifactContent, AuthorizationView, InputValidationView, Request, RunListView, RunReadiness, RunSummary, RunView, SessionView } from "../messages.js";
 import { button, bytes, chip, clear, definition, el, shortHash, whenText } from "./dom.js";
-import { buildFormModel, hintsFrom, humanize, TaskForm } from "./form.js";
+import { buildFormModel, hintsFrom, humanize, TaskForm, type FormFile } from "./form.js";
 import { renderMarkdown } from "./markdown.js";
 
 export interface RunPanelLoaded {
@@ -36,6 +36,8 @@ export interface RunPanelHost {
   changed?: () => void;
   /** The panel now shows another run (a click in "Earlier runs", an active run adopted), or none (T5 review 2, nit 4). */
   runChanged?: (runId: string | null) => void;
+  /** Open Settings → Files, where the PDFs a task may name are picked (T6). */
+  openFiles?: () => void;
 }
 
 export const HOST_ARTIFACTS = new Set(["result.json", "audit.json", "usage.json", "provenance.json", "run.json"]);
@@ -236,6 +238,12 @@ export class RunPanel {
   private validateTimer: ReturnType<typeof setTimeout> | null = null;
   private elapsedEl: HTMLElement | null = null;
   private disposed = false;
+  /** The PDFs this browser holds for runs (Settings → Files), for the task form's document picker (T6). */
+  private files: FormFile[] = [];
+  /** Bumped by every `openRun`: a reply to an earlier request never replaces a later one (T5 review 3, nit 5). */
+  private openSequence = 0;
+  /** The person named the run shown (the Runs page, "Earlier runs"): an active run does not replace it (nit 5). */
+  private named = false;
 
   constructor(private readonly host: RunPanelHost) {
     this.root = el("section", { className: `ab-card ab-run${host.compact ? " ab-run-compact" : ""}`, attrs: { "aria-label": "Run" } }, this.headEl, this.checklistEl, this.formHost, this.summaryEl, this.actionsEl, this.runEl, this.historyEl);
@@ -259,22 +267,18 @@ export class RunPanel {
   /** A package session was opened or re-read. */
   async attachSession(sessionId: string): Promise<void> {
     if (this.sessionId !== sessionId) {
-      this.stopTimers();
-      this.sessionId = sessionId;
-      this.form = null;
-      this.formKey = "";
+      this.resetSession(sessionId);
       this.taskValue = undefined;
       this.validation = { key: "", state: "idle", report: null };
-      this.readiness = null;
-      this.readinessFor = "";
       this.run = null;
-      this.history = [];
       this.artifacts = new Map();
       this.viewing = null;
       this.startError = null;
       this.adoptedFor = null;
+      this.named = false;
     }
     this.render();
+    void this.loadFiles();
     await this.loadHistory(true);
     if (this.disposed || this.sessionId !== sessionId) return;
     this.render();
@@ -287,47 +291,70 @@ export class RunPanel {
     }
   }
 
-  /** Show one run by id, with or without its package session still open (the Runs page). */
-  async openRun(runId: string): Promise<void> {
+  /**
+   * Show one run by id, with or without its package session still open (the Runs page). The
+   * person named it: a later reply to an earlier request does not replace it, and a run that
+   * becomes active elsewhere does not either (T5 review 3, nit 5).
+   */
+  async openRun(runId: string, options: { named?: boolean } = {}): Promise<void> {
+    const sequence = (this.openSequence += 1);
     let record: RunView | null = null;
     try {
       record = await this.host.send<RunView | null>({ type: "run.get", runId });
     } catch (error) {
+      if (sequence !== this.openSequence) return;
       this.startError = describe(error);
       this.render();
       return;
     }
-    if (this.disposed) return;
+    if (this.disposed || sequence !== this.openSequence) return;
     if (!record) {
       this.startError = { code: "run_unknown", message: "This browser holds no run with that id." };
       this.render();
       return;
     }
-    if (record.sessionId !== this.sessionId) {
-      // Another package's run: nothing of the session that was attached applies to it, neither
-      // its earlier runs nor its readiness (T5 review 2, nit 5).
-      this.stopTimers();
-      this.sessionId = null;
-      this.form = null;
-      this.formKey = "";
-      this.history = [];
-      this.readiness = null;
-      this.readinessFor = "";
-    }
+    // Another package's run: nothing of the session that was attached applies to it, neither
+    // its earlier runs nor its readiness (T5 review 2, nit 5).
+    if (record.sessionId !== this.sessionId) this.resetSession(null);
+    this.named = options.named !== false;
     this.show(record);
   }
 
-  detach(): void {
+  /** Forget everything of the attached session (T5 review 3, nit 7): one reset for `detach` and a foreign run. */
+  private resetSession(sessionId: string | null): void {
     this.stopTimers();
-    this.sessionId = null;
+    this.sessionId = sessionId;
     this.form = null;
     this.formKey = "";
-    this.run = null;
     this.history = [];
     this.readiness = null;
     this.readinessFor = "";
+  }
+
+  detach(): void {
+    this.resetSession(null);
+    this.run = null;
+    this.named = false;
     this.render();
     this.host.runChanged?.(null);
+  }
+
+  /** The picked files changed (an `event.files` broadcast): re-read them for the document picker. */
+  onFilesEvent(): void {
+    void this.loadFiles();
+  }
+
+  private async loadFiles(): Promise<void> {
+    let files: FormFile[];
+    try {
+      files = (await this.host.send<{ files: FormFile[] }>({ type: "files.list" })).files;
+    } catch {
+      return;
+    }
+    if (this.disposed) return;
+    const changed = JSON.stringify(files.map((file) => file.file_id)) !== JSON.stringify(this.files.map((file) => file.file_id));
+    this.files = files;
+    if (changed) this.form?.refresh();
   }
 
   /** The page's loaded state changed (authorization, model, plan). */
@@ -371,8 +398,8 @@ export class RunPanel {
       // Reconnect once per attach: an active run first, otherwise the most recent one.
       this.adoptedFor = sessionId;
       if (result.active) this.show(result.active);
-      else if (this.history[0]) await this.openRun(this.history[0].runId);
-    } else if (result.active && result.active.runId !== this.run?.runId && (!this.run || isTerminal(this.run))) {
+      else if (this.history[0]) await this.openRun(this.history[0].runId, { named: false });
+    } else if (result.active && result.active.runId !== this.run?.runId && (!this.run || (isTerminal(this.run) && !this.named))) {
       this.show(result.active);
     }
     this.renderHistory();
@@ -403,7 +430,8 @@ export class RunPanel {
     this.renderActions();
     // A run in flight this surface does not show (its history could not be read when it attached,
     // the worker restarting): read the history again, which shows it (T5a review 1, finding 2).
-    if (readiness.active_run_id !== null && readiness.active_run_id !== this.run?.runId) void this.loadHistory(false);
+    // Only when nothing is shown, so a run the person named stays on screen (T5a review 2, nit 4).
+    if (readiness.active_run_id !== null && this.run === null) void this.loadHistory(false);
   }
 
   private scheduleValidation(): void {
@@ -523,6 +551,9 @@ export class RunPanel {
       void this.refreshReadiness();
       return;
     }
+    // The run just started is the one to show: a pending `openRun` reply does not replace it.
+    this.openSequence += 1;
+    this.named = false;
     this.show(record);
     void this.loadHistory(false);
     this.host.changed?.();
@@ -671,7 +702,8 @@ export class RunPanel {
       id: "tools",
       label: declared > 0 ? (plan ? `Tools bound (${plan.tool_bindings.length} of ${approved} approved; ${plan.execution.denied_tool_ids.length} denied)` : "Tools bound") : "No tools declared",
       ok: declared === 0 || (Boolean(plan) && preflight?.tool_bindings.current !== false && plan!.tool_bindings.length === approved),
-      reason: plan ? "A tool implementation changed or disappeared after the plan was prepared. Prepare a new run plan." : "Every approved tool needs a host implementation before a plan can bind it.",
+      // No plan is the usual case here, and its fix is the button, not a host implementation (Demo 3 rehearsal, F-09).
+      reason: !plan ? "No run plan yet: press Use this agent." : plan.tool_bindings.length !== approved ? "Every approved tool needs a host implementation before a plan can bind it." : "A tool implementation changed or disappeared after the plan was prepared. Prepare a new run plan.",
       section: "model",
     });
     items.push({
@@ -817,7 +849,7 @@ export class RunPanel {
     clear(this.formHost);
     const model = buildFormModel(input?.document ?? null, hintsFrom(presentation));
     const previous = this.taskValue && typeof this.taskValue === "object" && !Array.isArray(this.taskValue) ? (this.taskValue as Record<string, unknown>) : null;
-    this.form = new TaskForm(model, previous, { canWrite: true }, (value, errors) => {
+    this.form = new TaskForm(model, previous, { canWrite: true, files: () => this.files, openFiles: this.host.openFiles }, (value, errors) => {
       this.taskValue = value;
       this.localErrors = new Map(errors);
       this.scheduleValidation();

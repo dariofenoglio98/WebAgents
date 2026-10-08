@@ -30,6 +30,7 @@ import type { ResourceGrant } from "../types.js";
 import { AdapterError } from "../workflow/errors.js";
 import { hostResourceCall } from "./adapters/host-resource.js";
 import { cancellationOf, jsonHttpCall, toolError } from "./adapters/json-http.js";
+import { selectedFileCall, type SelectedFiles } from "./adapters/selected-file.js";
 import { normalizeToolBindings, type ToolBindingRecord } from "./bindings.js";
 import { bindingDigest, describeDefinition, findDefinition, type CredentialSource, type DescribeOptions, type ToolImplementationDefinition } from "./definitions.js";
 import { egressRefusal } from "./egress.js";
@@ -61,6 +62,11 @@ export interface BrokerDeps {
   credentials?: (credential: CredentialSource) => string | null;
   /** The host resources this run was granted and the store that holds them. Present whenever the host holds any resource. */
   resources?: { grants: readonly ResourceGrant[]; resolver: ResourceResolver } | null;
+  /**
+   * The selected files this run was given, by opaque id, and the host code that reads them
+   * (T6, D-082). A `selected_file` binding can read exactly these; nothing else.
+   */
+  files?: SelectedFiles | null;
   /** Local built-ins by implementation id (`chrome.tool.echo` is the conformance one). */
   builtins?: Record<string, (args: JsonValue) => Promise<JsonValue> | JsonValue>;
   pacer?: Pacer;
@@ -171,7 +177,7 @@ export class BoundToolHandler {
         if (byDeadline(error)) throw toolError("tool_timeout", "the call waited for its turn longer than the binding allows");
         throw error;
       }
-      let answer: { output: JsonValue; status: number | null; resource?: ResourceGrant };
+      let answer: { output: JsonValue; status: number | null; resource?: ResourceGrant; file?: { file_id: string; sha256: string } };
       try {
         if (definition.kind === "local_builtin") {
           const builtin = this.deps.builtins?.[definition.implementationId];
@@ -180,11 +186,16 @@ export class BoundToolHandler {
         } else if (definition.kind === "host_resource") {
           const resolved = hostResourceCall(definition, this.binding, payload, this.deps.resources ?? null);
           answer = { output: resolved.output, status: null, resource: resolved.resource };
+        } else if (definition.kind === "selected_file") {
+          const output = await abortable(selectedFileCall(definition, this.binding, payload, this.deps.files ?? null, bounded, this.limits.max_request_bytes), bounded);
+          const fileId = (payload as { file_id: string }).file_id;
+          answer = { output, status: null, file: { file_id: fileId, sha256: this.deps.files!.attached.get(fileId)!.sha256 } };
         } else if (definition.kind === "json_http") {
           if (!this.deps.transport) throw toolError("tool_unavailable", "this host has no network transport for tool calls");
           const credential = definition.credential ? (this.deps.credentials?.(definition.credential) ?? null) : null;
+          const contact = definition.optionalCredential ? (this.deps.credentials?.(definition.optionalCredential) ?? null) : null;
           const bytes = { maxRequestBytes: this.limits.max_request_bytes, maxResponseBytes: this.limits.max_response_bytes };
-          answer = await abortable(jsonHttpCall({ definition, args: payload, transport: this.deps.transport, signal: bounded, credential, observe: this.deps.observe, limits: bytes }), bounded);
+          answer = await abortable(jsonHttpCall({ definition, args: payload, transport: this.deps.transport, signal: bounded, credential, contact, observe: this.deps.observe, limits: bytes, now: this.deps.now }), bounded);
         } else {
           throw toolError("tool_unavailable", "this host has no implementation for that category yet");
         }
@@ -210,6 +221,8 @@ export class BoundToolHandler {
         // Which granted host resource answered, by opaque id and digest: the authority is
         // auditable, the value is not recorded.
         ...(resource ? { resource_permission: resource.permission_id, resource_type: resource.resource_type, resource_id: resource.resource_id, resource_digest: resource.resource_digest } : {}),
+        // Which of the person's selected files was read, by opaque id and hash: never a name or a path.
+        ...(answer.file ? { file_id: answer.file.file_id, file_sha256: answer.file.sha256 } : {}),
       });
       return output;
     } finally {

@@ -6,12 +6,15 @@
  * assertions of D-028 are made: no sealed value in any model request, a granted value only on
  * the tool endpoint that links its permission.
  */
+import type { PdfTextReader } from "../../src/core/tools/adapters/selected-file.js";
+import type { FileStore } from "../../src/extension/storage/files.js";
+import { extractPdfText } from "../../src/pdf/extract.js";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import type { BuiltinModelPort } from "../../src/core/models/adapters/chrome-builtin.js";
 import { TransportError, type HttpRequest, type HttpTransport } from "../../src/core/models/transport.js";
-import type { ExecutionHostBridge } from "../../src/extension/background/runs.js";
+import type { ExecutionHostBridge, HostCancelAnswer } from "../../src/extension/background/runs.js";
 import { executeRun, type ExecutionHandle } from "../../src/extension/execution/execute.js";
 import type { HostStartMessage, HostStatusReply } from "../../src/extension/execution/protocol.js";
 import type { RunStore } from "../../src/extension/storage/runs.js";
@@ -129,6 +132,10 @@ export interface InProcessHostOptions {
   statusFailures?: number;
   /** `cancel()` rejects: a document that exists but never answers (T5 review 2, nit 2). */
   cancelUnreachable?: boolean;
+  /** The picked files' store the host reads attachments from (T6), shared with the controller. */
+  files?: FileStore | null;
+  /** The PDF parser; in-process pdf.js by default. */
+  pdfReader?: PdfTextReader | null;
 }
 
 /** `executeRun` in this process: the offscreen document and its Worker, without Chrome. */
@@ -158,6 +165,8 @@ export class InProcessHost implements ExecutionHostBridge {
       message,
       transports: { model: this.options.model, tool: this.options.tool },
       builtin: this.options.builtin ?? null,
+      files: this.options.files ?? null,
+      pdfReader: this.options.pdfReader === undefined ? (data, signal) => extractPdfText(data, undefined, signal) : this.options.pdfReader,
       now: this.options.now,
       onCheckpoint: (runId) => {
         if (this.options.workerDies && !died) {
@@ -179,10 +188,12 @@ export class InProcessHost implements ExecutionHostBridge {
     this.settled = Promise.all([this.settled, finished]);
   }
 
-  async cancel(runId: string): Promise<boolean> {
+  async cancel(runId: string): Promise<HostCancelAnswer> {
     if (this.options.cancelUnreachable) throw new Error("the execution host did not answer");
-    this.handles.get(runId)?.cancel();
-    return true; // the document answered, whether or not it still held the run
+    const handle = this.handles.get(runId);
+    handle?.cancel();
+    // As the offscreen page answers: whether a Worker held the run.
+    return handle ? "taken" : "not_held";
   }
 
   async status(): Promise<HostStatusReply | null> {

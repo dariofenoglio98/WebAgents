@@ -52,6 +52,7 @@ import {
   type CandidateState,
   type ContentMessage,
   type Event,
+  type FilesView,
   type ModelsView,
   type PinResult,
   type ProbeView,
@@ -68,7 +69,8 @@ import {
   type VaultView,
   type WebsiteResult,
 } from "../messages.js";
-import { connectionsFor, endpointProblem, normalizeSettings, type Settings, type SettingsStorage } from "../storage/settings.js";
+import { FileRefusal, MemoryFileStore, MAX_FILE_BYTES, MAX_FILES, MAX_TOTAL_FILE_BYTES, newFile, viewOf, type FileStore } from "../storage/files.js";
+import { connectionsFor, endpointProblem, normalizeSettings, settingsProblem, type Settings, type SettingsStorage } from "../storage/settings.js";
 import type { SnapshotStore, StoredSession } from "../storage/snapshots.js";
 import type { TabStateStore } from "../storage/tab-state.js";
 import type { ViewHolder, ViewHolderStore } from "../storage/view-holders.js";
@@ -123,6 +125,8 @@ export interface ControllerDeps {
   version?: string;
   /** Runs, their checkpoints and artifacts (IndexedDB, D-071). */
   runs: RunStore;
+  /** The PDFs the person picked in Settings → Files (IndexedDB, T6 D-083); memory when absent (tests). */
+  files?: FileStore;
   /** The execution host (an offscreen document in the extension; in-process in tests). */
   host: ExecutionHostBridge;
   runId?: () => string;
@@ -222,6 +226,7 @@ export class Controller {
   private readonly randomId: () => string;
   private readonly version: string;
   private restored: Promise<void> | null = null;
+  private readonly files: FileStore;
 
   /** Runs from the browser (T5): decides whether a run starts; the host executes. */
   readonly runs: RunManager;
@@ -231,6 +236,7 @@ export class Controller {
     this.clock = deps.clock ?? (() => new Date());
     this.randomId = deps.randomId ?? (() => crypto.randomUUID().replace(/-/gu, "").slice(0, 24));
     this.version = deps.version ?? CORE_VERSION;
+    this.files = deps.files ?? new MemoryFileStore();
     const hooks: RunHooks = {
       session: async (sessionId) => {
         const live = await this.session(sessionId);
@@ -243,6 +249,10 @@ export class Controller {
       catalog: async () => (await this.currentCatalog()).catalog,
       snapshotBytes: async (archiveSha256) => (await this.deps.snapshots.getSnapshot(archiveSha256))?.bytes ?? null,
       markOnceSpent: (sessionId) => this.markOnceSpent(sessionId),
+      file: async (fileId) => {
+        const file = await this.files.get(fileId);
+        return file === null ? null : viewOf(file);
+      },
       // The run that kept a closed session's snapshot alive has settled: drop the bytes if nothing else refers to them.
       runSettled: (archiveSha256) => this.dropUnreferencedSnapshot(archiveSha256),
     };
@@ -314,6 +324,12 @@ export class Controller {
         return this.deleteVaultRecord(request.recordId);
       case "vault.installDemo":
         return this.installDemo(request.records);
+      case "files.list":
+        return this.filesView();
+      case "files.add":
+        return this.addFile(request.name, request.base64);
+      case "files.remove":
+        return this.removeFile(request.fileId);
       case "run.readiness":
         return this.runs.readiness(request.sessionId);
       case "run.validateInput":
@@ -466,13 +482,19 @@ export class Controller {
     const { hostname } = validatePackageUrl(url);
     void hostname;
     if (advertisedOn !== null) documentUrl(advertisedOn);
-    const bytes = await this.download(url);
     const source: SessionSource = {
       kind: advertisedOn === null ? "url" : "website",
       display: url,
       advertised_on: advertisedOn,
       opened_at: this.clock().toISOString(),
     };
+    // D-076 as amended (T5a review 2): Inspect again from the same place while a run of that
+    // session is in flight is that session, found before any download, so it neither downloads
+    // again nor fails when the origin stopped answering.
+    await this.purgeExpired();
+    const running = await this.sessionWithRunInFlight(null, source);
+    if (running !== null) return this.view(running);
+    const bytes = await this.download(url);
     return this.openBytes(bytes, source);
   }
 
@@ -626,10 +648,11 @@ export class Controller {
    * so the person who presses Inspect again sees their run instead of a fresh, unauthorized copy.
    * Anything else opens a new session, as before: a session with no run in flight is not reused.
    */
-  private async sessionWithRunInFlight(archiveSha256: string, source: SessionSource): Promise<LiveSession | null> {
+  private async sessionWithRunInFlight(archiveSha256: string | null, source: SessionSource): Promise<LiveSession | null> {
     const page = (url: string | null) => (url === null ? null : withoutFragment(url));
+    // `archiveSha256` null: matched on the source alone, before any download (`openUrl`).
     const candidates = [...this.sessions.values()].filter(
-      (live) => live.stored.archive_sha256 === archiveSha256 && live.stored.source.kind === source.kind && live.stored.source.display === source.display && page(live.stored.source.advertised_on) === page(source.advertised_on),
+      (live) => (archiveSha256 === null || live.stored.archive_sha256 === archiveSha256) && live.stored.source.kind === source.kind && live.stored.source.display === source.display && page(live.stored.source.advertised_on) === page(source.advertised_on),
     );
     if (candidates.length === 0) return null;
     const inFlight = (await this.deps.runs.listRuns()).filter((run) => !isTerminal(run.record.status)).sort((a, b) => (a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : 0));
@@ -942,6 +965,9 @@ export class Controller {
   }
 
   async setSettings(raw: unknown): Promise<SettingsView> {
+    // A contact or a limit the settings would silently drop is refused by name (T6).
+    const problem = settingsProblem(raw);
+    if (problem !== null) throw reject("settings_invalid", problem, 400);
     // An endpoint the settings would silently drop is refused by name instead, so the person
     // learns why their Ollama or provider address was not kept.
     const connections = isRecord(raw) && isRecord(raw.models) && Array.isArray(raw.models.connections) ? raw.models.connections : [];
@@ -1042,6 +1068,41 @@ export class Controller {
     return this.vaultView();
   }
 
+  // -- Settings → Files: the person's picked PDFs (T6, D-083) ---------------------------------
+  async filesView(): Promise<FilesView> {
+    return { files: await this.files.list(), max_files: MAX_FILES, max_file_bytes: MAX_FILE_BYTES, max_total_bytes: MAX_TOTAL_FILE_BYTES };
+  }
+
+  /** Copy one picked PDF into the store, after the reference's refusals; the view never learns more than its id, hash and size. */
+  async addFile(name: string, base64: string): Promise<FilesView> {
+    let data: Uint8Array;
+    try {
+      const binary = atob(base64);
+      data = new Uint8Array(binary.length);
+      for (let index = 0; index < binary.length; index += 1) data[index] = binary.charCodeAt(index);
+    } catch {
+      throw reject("file_invalid", "The picked file's bytes did not arrive intact.");
+    }
+    let file;
+    try {
+      const randomHex = () => [...crypto.getRandomValues(new Uint8Array(16))].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+      file = newFile(name, data, await this.files.list(), this.clock(), randomHex);
+    } catch (error) {
+      if (error instanceof FileRefusal) throw reject(error.code, error.message, error.code === "file_limit" ? 413 : 400);
+      throw error;
+    }
+    await this.files.put(file);
+    this.deps.broadcast({ type: "event.files" });
+    return this.filesView();
+  }
+
+  /** Remove a picked file. A run already given it fails its read ("no longer held"); its plan is unaffected. */
+  async removeFile(fileId: string): Promise<FilesView> {
+    if (!(await this.files.remove(fileId))) throw reject("file_unknown", "This browser holds no picked file with that id.", 404);
+    this.deps.broadcast({ type: "event.files" });
+    return this.filesView();
+  }
+
   // -- the host registries for one session ---------------------------------------------------
   private async resourceRegistry(): Promise<ResourceRegistry> {
     return (await this.vault()).registry({ runtimeVersion: this.version, now: this.clock() });
@@ -1049,7 +1110,8 @@ export class Controller {
 
   private async toolRegistry(live: LiveSession): Promise<ToolRegistry> {
     const types = (await this.vault()).typeViews().map((type) => ({ id: type.id, display_name: type.display_name, permission_kind: type.permission_kind, schema_sha256: type.schema_sha256 }));
-    return buildHostToolRegistry(live.pkg, { resourceTypes: types, runtimeVersion: this.version, now: this.clock() });
+    const contactConfigured = (await this.deps.settings.settings()).services.crossref_contact !== null;
+    return buildHostToolRegistry(live.pkg, { resourceTypes: types, runtimeVersion: this.version, now: this.clock(), contactConfigured });
   }
 
   private async toolEvaluation(live: LiveSession, decisions?: Record<string, Decision>, approvals?: Record<string, boolean>): Promise<{ registry: ToolRegistry; evaluation: RegistryEvaluation }> {
@@ -1071,8 +1133,12 @@ export class Controller {
     this.catalogGeneration += 1;
   }
 
-  /** The catalog no older than `maxAgeMs`, probing the providers (or joining the probe in progress) otherwise. */
-  private async catalog(maxAgeMs = CATALOG_TTL_MS, probed?: ReadonlyMap<ProviderId, ProbeResult>): Promise<{ catalog: HostCatalog; probes: ProbeResult[] }> {
+  /**
+   * The catalog no older than `maxAgeMs`, probing the providers (or joining the probe in progress)
+   * otherwise. `stampAt` dates a catalog built from answers already in hand (`mergeProbe`) by its
+   * oldest source rather than by now (T5a review 2).
+   */
+  private async catalog(maxAgeMs = CATALOG_TTL_MS, probed?: ReadonlyMap<ProviderId, ProbeResult>, stampAt?: number): Promise<{ catalog: HostCatalog; probes: ProbeResult[] }> {
     if (this.catalogCache && this.clock().getTime() - this.catalogCache.at < maxAgeMs) return this.catalogCache;
     if (this.catalogProbe && !probed) return this.catalogProbe;
     const generation = this.catalogGeneration;
@@ -1081,8 +1147,9 @@ export class Controller {
       const connections = connectionsFor(settings, await this.deps.settings.keyPresence());
       const builtin = connections.some((connection) => connection.provider === "chrome-builtin" && connection.enabled) ? await this.deps.builtin() : null;
       const result = await buildHostCatalog(connections, this.deps.http, { builtin, runtimeVersion: this.version, now: this.clock(), probed });
-      // Stamped when the answers land, and only if the settings did not change meanwhile.
-      if (this.catalogGeneration === generation) this.catalogCache = { ...result, at: this.clock().getTime() };
+      // Stamped when the answers land (or with its oldest source's time), and only if the settings
+      // did not change meanwhile.
+      if (this.catalogGeneration === generation) this.catalogCache = { ...result, at: stampAt ?? this.clock().getTime() };
       return result;
     })();
     this.catalogProbe = probe;
@@ -1102,14 +1169,21 @@ export class Controller {
     return this.catalogCache ?? (await this.catalog());
   }
 
-  /** One provider's fresh answer (Test connection) replaces its part of the last catalog; the others are not asked again. */
-  private async mergeProbe(result: ProbeResult): Promise<void> {
+  /**
+   * One provider's fresh answer (Test connection) replaces its part of the last catalog; the
+   * others are not asked again. The merged catalog keeps the held catalog's time: every other
+   * provider's part is that old, and a Test connection of one provider must not make an old answer
+   * of another look fresh (T5a review 2). A settings change since the test started (`generation`)
+   * means the answer may describe the old endpoint, so it is not merged at all.
+   */
+  private async mergeProbe(result: ProbeResult, generation: number): Promise<void> {
     if (this.catalogProbe) await this.catalogProbe.catch(() => undefined);
+    if (generation !== this.catalogGeneration) return;
     const held = this.catalogCache;
     if (held === null) return; // the next check builds a whole catalog
     const probed = new Map<ProviderId, ProbeResult>(held.probes.map((item) => [item.provider, item]));
     probed.set(result.provider, result);
-    await this.catalog(0, probed);
+    await this.catalog(0, probed, held.at);
   }
 
   /**
@@ -1138,8 +1212,11 @@ export class Controller {
       const availability = await this.deps.builtin();
       return { provider, ok: availability !== null && availability.availability === "available", models: [], notes: [], error: availability ? (availability.availability === "available" ? null : availability.availability) : "The Prompt API is not available in this context.", diagnosis: null };
     }
+    // Captured before the provider is asked: a settings save while it answers must not let the old
+    // endpoint's answer into the new catalog (T5a review 2).
+    const generation = this.catalogGeneration;
     const result = await probeProvider({ ...connection, enabled: true }, this.deps.http);
-    await this.mergeProbe(result);
+    await this.mergeProbe(result, generation);
     return { ...result, diagnosis: provider === "ollama" && !result.ok ? await this.ollamaDiagnosis(connection.base_url ?? DEFAULT_BASE_URLS.ollama) : null };
   }
 
@@ -1450,7 +1527,7 @@ export class Controller {
       max_cache_bytes: this.limits.maxCacheBytes,
       session_ttl_seconds: this.limits.sessionTtlSeconds,
       execution: available ? "enabled" : "disabled",
-      execution_limits: available ? this.runs.hostLimits() : null,
+      execution_limits: available ? await this.runs.hostLimits() : null,
       runs: { active: await this.runs.activeCount(), stored: await this.runs.storedCount() },
     };
   }

@@ -62,11 +62,14 @@ for entry in host_resources["types"]:
         "schema_sha256": sha256(canonical_json(entry["schema"])),
     }
 
-# -- the tool registry exactly as chrome-agent-browser/src/core/hosttools.ts derives it (D-054)
+# -- the tool registry exactly as chrome-agent-browser/src/core/hosttools.ts derives it (D-054).
+# WebAir declares only remote POST tools and host-resource tools, so the service and selected-file
+# branches T6 added (D-081, D-082) never apply here; only the source text names them.
 SOURCE = (
-    "chrome-agent-browser host tool registry (D-054): one generic HTTPS JSON binding per declared "
-    "remote tool, derived from the signed declaration after the URL gate; one host-resource binding "
-    "per vault type; other local tools unbound"
+    "chrome-agent-browser host tool registry (D-054, D-081, D-082): one generic HTTPS JSON binding "
+    "per declared remote POST tool, derived from the signed declaration after the URL gate; the "
+    "host's Crossref search for scholarly.search at Crossref's works endpoint; the selected-PDF "
+    "reader for paper.read; one host-resource binding per vault type; other tools unbound"
 )
 bindings = []
 for tool_id in sorted(package.tools):

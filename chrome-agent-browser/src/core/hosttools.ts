@@ -16,9 +16,17 @@
  *   that what the compatibility check establishes is "this host will call exactly what the
  *   package declared, and nothing else", and the person's approval is of that exact call;
  * - one **host-resource binding** per type the vault holds, exactly as the reference plugin
- *   derives them: tool id = type id, an argument-free input schema, the type's schema as output.
+ *   derives them: tool id = type id, an argument-free input schema, the type's schema as output;
+ * - since T6, the host's own **service and file implementations** of two abstract capabilities
+ *   (`SERVICE_IMPLEMENTATIONS`, `LOCAL_IMPLEMENTATIONS`): `scholarly.search` at Crossref's
+ *   `GET /works` is served by the Crossref adapter (D-081), and `paper.read` by the selected-PDF
+ *   reader (D-082). Each states the contract digests *this host* speaks, pinned here as the
+ *   reference pins its built-ins, so a package whose schemas differ evaluates `incompatible`
+ *   rather than being served a shape it did not declare.
  *
- * Every other local tool is `unbound` here with a note; T6 adds the selected-file adapter.
+ * A remote tool declared as a GET with no service implementation stays `unbound`: the generic
+ * adapter's contract is one JSON body, and a GET would drop every argument. Every other local
+ * tool is `unbound` here with a note.
  */
 import { canonicalJson } from "./canonical.js";
 import { closedRecord, flag, hex64, invalid, positiveCount, requiredText, sortedUnique, text } from "./fields.js";
@@ -29,6 +37,8 @@ import { validatePackageUrl } from "./policy.js";
 import { pyRepr } from "./repr.js";
 import { DENY, type Decision } from "./types.js";
 import { urlsplit } from "./urls.js";
+import { CROSSREF_IMPLEMENTATION } from "./tools/adapters/crossref.js";
+import { SELECTED_PDF_IMPLEMENTATION } from "./tools/adapters/selected-file.js";
 
 export const REGISTRY_SCHEMA = "agentpkg-host-tool-registry-v0";
 export const BINDING_SCHEMA = "agentpkg-host-tool-binding-v0";
@@ -788,10 +798,93 @@ export interface HostToolRegistryOptions {
   resourceTypes: readonly HostResourceTypeFacts[];
   runtimeVersion: string | null;
   now?: Date;
+  /** Whether the person entered a Crossref contact address in Settings → Services (D-081). */
+  contactConfigured?: boolean;
 }
 
 export const CHROME_TOOL_REGISTRY_SOURCE =
-  "chrome-agent-browser host tool registry (D-054): one generic HTTPS JSON binding per declared remote tool, derived from the signed declaration after the URL gate; one host-resource binding per vault type; other local tools unbound";
+  "chrome-agent-browser host tool registry (D-054, D-081, D-082): one generic HTTPS JSON binding per declared remote POST tool, derived from the signed declaration after the URL gate; the host's Crossref search for scholarly.search at Crossref's works endpoint; the selected-PDF reader for paper.read; one host-resource binding per vault type; other tools unbound";
+
+/** Where the Crossref adapter's optional contact address comes from (Settings → Services, D-081). */
+export const CROSSREF_CONTACT_SOURCE = "settings:crossref.contact";
+
+interface HostImplementation {
+  binding: string;
+  kind: ImplementationKind;
+  implementation: { id: string; version: string };
+  display_name: string;
+  description: string;
+  /** For a remote implementation: the exact endpoint a declaration must name for this host to serve it. */
+  endpoint?: { origin: string; path: string; method: "GET" | "POST" };
+  input_schema_sha256: string;
+  output_schema_sha256: string;
+  permission_kinds: string[];
+  limits: { timeout_seconds: number; max_request_bytes: number; max_response_bytes: number; max_concurrent: number; min_interval_ms?: number };
+  /** Whether the implementation sends the person's optional contact address when one is set. */
+  contact?: boolean;
+}
+
+/**
+ * The service implementations this host ships. The digests are the canonical-JSON SHA-256 of the
+ * request and response contract each adapter speaks, the same values the reference plugin pins
+ * (`tool-registry.ts::BUILT_IN_BINDINGS`); `test/core/tools/service-bindings.test.ts` checks them
+ * against Literature Review 0.2.5's declared schemas, which is how "the host and the package agree"
+ * is established rather than assumed.
+ */
+export const SERVICE_IMPLEMENTATIONS: readonly HostImplementation[] = Object.freeze([
+  {
+    binding: "scholarly.search",
+    kind: KIND_JSON_HTTP,
+    implementation: CROSSREF_IMPLEMENTATION,
+    display_name: "Crossref works search",
+    description:
+      "One GET to https://api.crossref.org/works with exactly four parameters (query.bibliographic, rows, a fixed field selection and a fixed filter to scholarly work types) whose names and fixed values are host code, plus mailto when you entered a contact address in Settings → Services. At most one call at a time and one start per second, as Crossref's public pool asks. The answer is reduced to the declared search result, with markup rendered to text as the Citation Resolver renders the same fields.",
+    endpoint: { origin: "https://api.crossref.org", path: "/works", method: "GET" },
+    input_schema_sha256: "f8a6f920b23bf1731a85d5275c10eee77a9d055fb14917be114c1b9e8249baf2",
+    output_schema_sha256: "eb83100404221fd9a489046d6741a046aae07c31c672ab6dc2daabffeda3c9ee",
+    permission_kinds: ["network"],
+    // A GET carries its arguments in the URL; this bounds that URL.
+    limits: { timeout_seconds: 25, max_request_bytes: 4 * 1024, max_response_bytes: 512 * 1024, max_concurrent: 1, min_interval_ms: 1000 },
+    contact: true,
+  },
+]);
+
+/** The local implementations this host ships beside the host-resource ones. */
+export const LOCAL_IMPLEMENTATIONS: readonly HostImplementation[] = Object.freeze([
+  {
+    binding: "paper.read",
+    kind: KIND_SELECTED_FILE,
+    implementation: SELECTED_PDF_IMPLEMENTATION,
+    display_name: "Selected PDF text",
+    description:
+      "Extracts page text from one PDF you picked in Settings → Files and gave this run, named by an opaque id. No path is accepted, no other file is readable, and nothing is fetched, rendered, executed or OCRed; the parser runs in its own Worker under the reference's page and text limits.",
+    input_schema_sha256: "5b1df5dc0d13ca9a8b76cce86d93639f2b13baf3eb66ec895a725fc9169686ca",
+    output_schema_sha256: "4feee1362ccba94d82ffbd56e106525c1fab7643e664172d63469ec241ab3167",
+    permission_kinds: ["files.read"],
+    limits: { timeout_seconds: 20, max_request_bytes: 1024, max_response_bytes: 512 * 1024, max_concurrent: 2 },
+  },
+]);
+
+function implementationBinding(toolId: string, contract: ToolContract, item: HostImplementation, options: HostToolRegistryOptions): JsonObject {
+  const timeout = Math.min(Math.max(contract.timeout_seconds, 1), item.limits.timeout_seconds);
+  return {
+    id: `chrome:${item.implementation.id.split(".").pop()}:${toolId}:1`,
+    tool_id: toolId,
+    binding: item.binding,
+    implementation_kind: item.kind,
+    implementation_id: item.implementation.id,
+    implementation_version: item.implementation.version,
+    display_name: item.display_name,
+    description: item.description,
+    remote: item.kind === KIND_JSON_HTTP,
+    available: true,
+    enabled: true,
+    ...(item.endpoint ? { endpoint: { ...item.endpoint } } : {}),
+    contract: { input_schema_sha256: item.input_schema_sha256, output_schema_sha256: item.output_schema_sha256, permission_kinds: [...item.permission_kinds], side_effects: "read" },
+    limits: { ...item.limits, timeout_seconds: timeout },
+    credentials: item.contact ? { required: false, configured: options.contactConfigured === true, source: CROSSREF_CONTACT_SOURCE } : { required: false, configured: false },
+  };
+}
 
 /**
  * The registry this Chrome host offers for one package. Derived, not configured: see the
@@ -822,6 +915,16 @@ export async function buildHostToolRegistry(pkg: Package, options: HostToolRegis
         pathField(contract.endpoint_path, "Tool endpoint path");
       } catch (error) {
         notes.push({ code: "tool_endpoint_refused", detail: `${toolId}: ${error instanceof Error ? error.message : "the declared endpoint is refused by the URL policy"}` });
+        continue;
+      }
+      const service = SERVICE_IMPLEMENTATIONS.find((item) => item.binding === contract.binding && item.endpoint?.origin === contract.endpoint_origin && item.endpoint.path === contract.endpoint_path && item.endpoint.method === contract.method);
+      if (service) {
+        bindings.push(implementationBinding(toolId, contract, service, options));
+        continue;
+      }
+      if (contract.method !== "POST") {
+        // The generic adapter's contract is one JSON request body; a GET would drop every argument.
+        notes.push({ code: "tool_method_unsupported", detail: `${toolId}: the generic HTTPS JSON adapter sends one POST body, and this browser has no service adapter for a ${contract.method} to ${contract.endpoint_origin}${contract.endpoint_path}, so the tool stays unbound.` });
         continue;
       }
       bindings.push({
@@ -872,6 +975,11 @@ export async function buildHostToolRegistry(pkg: Package, options: HostToolRegis
         credentials: { required: false, configured: false },
         resource_type: type.id,
       });
+      continue;
+    }
+    const local = LOCAL_IMPLEMENTATIONS.find((item) => item.binding === contract.binding);
+    if (local) {
+      bindings.push(implementationBinding(toolId, contract, local, options));
       continue;
     }
     notes.push({ code: "local_tool_unimplemented", detail: `${toolId} (${contract.binding}): this version of the browser implements no local tool of that binding, so it stays unbound.` });

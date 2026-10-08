@@ -1,0 +1,110 @@
+{
+  "profile": "chrome-paper-reader-e2e-v0",
+  "recordedAt": "2026-10-08T17:22:54.219Z",
+  "chrome": "Chrome/154.0.8037.99",
+  "model": "ollama/qwen3:30b",
+  "outputDirectory": "examples/my-chrome-reader-2026-10-08T17-22-54-219Z",
+  "package": {
+    "digest": "d322d2a24473e04db7018170608e18591f54adf41efc38c1e86dc3f37169f00a",
+    "archiveSha256": "94d308b071cb8acda281da957efa0e865be988cae815482046572362a980f8c5",
+    "bytes": 6952,
+    "signer": "sha256:bd624512c74b107e04000edd99bbec2401948b241dae650c482c2e4663f0ec69",
+    "note": "built from test/fixtures/reader-package and signed under a throwaway key for this run only"
+  },
+  "file": {
+    "file_id": "file_b05f438100208b5e1c39fde8c03825f1",
+    "sha256": "d78cd0dd40c6d8fa23e24444343269a317e6046f11d3c25e6e3e32cd0c08ad9f",
+    "bytes": 1055
+  },
+  "run": {
+    "runId": "run_cdee53705e304869a7ecc4505d14bf3c",
+    "status": "completed",
+    "errorCode": null,
+    "durationMs": 79,
+    "attachments": [
+      {
+        "fileId": "file_b05f438100208b5e1c39fde8c03825f1",
+        "sha256": "d78cd0dd40c6d8fa23e24444343269a317e6046f11d3c25e6e3e32cd0c08ad9f",
+        "bytes": 1055,
+        "mediaType": "application/pdf"
+      }
+    ],
+    "auditEvents": 23,
+    "chainValid": true,
+    "toolSettled": [
+      {
+        "tool": "paper-reader",
+        "file_id": "file_b05f438100208b5e1c39fde8c03825f1",
+        "file_sha256": "d78cd0dd40c6d8fa23e24444343269a317e6046f11d3c25e6e3e32cd0c08ad9f",
+        "binding_id": "chrome:selected_pdf_text:paper-reader:1"
+      }
+    ],
+    "exported": [
+      {
+        "name": "run.json",
+        "bytes": 7412,
+        "sha256": "a3b765e6d11c726b57ef995182e5300ee7d9773c989087e71fa96c088d808f03"
+      },
+      {
+        "name": "run-plan.json",
+        "bytes": 11834,
+        "sha256": "87b0c241e408e731573f286500001a24d3da0c55af0a12470d80fcba8ca36412"
+      },
+      {
+        "name": "input.json",
+        "bytes": 57,
+        "sha256": "0b61ace5a26ff7a1bda2d70bbad2214753253c07a58726311db55c64a22aa9ff"
+      },
+      {
+        "name": "audit.json",
+        "bytes": 14519,
+        "sha256": "d573d0ef1b71c89ff64500758dbe9f21ee7209c5c5d423564c0461e42d63d719"
+      },
+      {
+        "name": "provenance.json",
+        "bytes": 238,
+        "sha256": "e637635db546df1a8eee9491809dfd702037538645e56997cd9045826f4ecde9"
+      },
+      {
+        "name": "result.json",
+        "bytes": 17406,
+        "sha256": "b719f43e0feb6ff6f6b82fc0a17538a68d4d6288c79b96260ffdcfcdd865ebfe"
+      },
+      {
+        "name": "usage.json",
+        "bytes": 642,
+        "sha256": "d5e62486d1c6b2b07bbba360a95346e9a38cd871dcc8ea147529f7ebc21fc465"
+      }
+    ],
+    "observations": 0
+  },
+  "refusals": {
+    "unknownFile": "file_unknown",
+    "filesDenied": "execution_refused"
+  },
+  "checks": {
+    "Ollama answers and offers a model the plan can bind": "ok",
+    "the parser Worker loads in Chrome and reads the probe PDF": "ok",
+    "the picked PDF is copied with its SHA-256 and size": "ok",
+    "the list carries no bytes": "ok",
+    "the plan is ready and binds the selected-PDF reader": "ok",
+    "the run completed": "ok",
+    "the output is the probe document's pages, read by pdf.js in the nested Worker": "ok",
+    "the record's attachments name the file by id and hash": "ok",
+    "the audit names the read by opaque id and SHA-256": "ok",
+    "the selected-PDF binding answered": "ok",
+    "the audit chain is valid": "ok",
+    "no model request was made": "ok",
+    "the picked file's name appears in no exported file, record or observation": "ok",
+    "a task naming a file this browser does not hold is refused": "ok",
+    "with files.pdfs denied, a task naming the picked file is refused": "ok"
+  },
+  "failures": [],
+  "passed": true,
+  "parserWorker": {
+    "ok": true,
+    "pages": 2,
+    "sha256": "d78cd0dd40c6d8fa23e24444343269a317e6046f11d3c25e6e3e32cd0c08ad9f",
+    "first": "SYNTHETIC PROBE DOCUMENT - not a real paper.\nPage one exists"
+  }
+}

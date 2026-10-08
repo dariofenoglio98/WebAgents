@@ -1,0 +1,1157 @@
+{
+  "profile": "chrome-literature-review-live-v0",
+  "recordedAt": "2026-10-08T17:37:59.829Z",
+  "model": "ollama/qwen3:30b",
+  "think": true,
+  "package": {
+    "path": "dist/literature-review-0.2.5.agent.pkg",
+    "archiveSha256": "1669f83fafac3434748fc19d38a8d3d2c3352da83cf1cbb84796ce313bd4f571",
+    "servedAs": "https://research.example/literature-review.agent.pkg"
+  },
+  "input": "examples/literature-review-live-input.json",
+  "documents": [],
+  "crossrefContact": null,
+  "extension": "chrome-agent-browser/dist/extension",
+  "chrome": "Chrome/154.0.8037.99",
+  "outputDirectory": "examples/my-chrome-lit-local-2026-10-08c",
+  "steps": {
+    "setup": {
+      "probe": {
+        "ok": true,
+        "models": 4,
+        "error": null
+      },
+      "testMode": true,
+      "keyFromEnvironment": null,
+      "limits": {
+        "total_tokens": 180000,
+        "max_remote_calls": 45,
+        "max_parallel_workers": 3,
+        "max_output_tokens_per_call": 16000,
+        "run_timeout_seconds": 4500,
+        "max_calls_per_tool": 32,
+        "model_call_timeout_seconds": 1200
+      },
+      "the ollama connection answers": "ok",
+      "the model is offered": "ok",
+      "execution is enabled under the long-run limits": "ok"
+    },
+    "files": [],
+    "inspect": {
+      "sessionId": "8fc771252f4f4079ba54cca5",
+      "name": "Literature Review Agent",
+      "version": "0.2.5",
+      "digest": "cef9ebd68df9db3b36c1ffeac9069d734b0e41a40d58445aaba1a60eaac155b5",
+      "signature": "valid",
+      "Literature Review 0.2.5, signed": "ok"
+    },
+    "authorization": {
+      "decisions": {
+        "files.pdfs": "session",
+        "memory.session": "session",
+        "model.reasoning": "session",
+        "network.citations": "session",
+        "network.scholarly": "session"
+      },
+      "ready": true,
+      "runPlanId": "rp_b8cd05a3e0d24bf099589895dfe7abad",
+      "bindings": [
+        {
+          "tool": "citation-resolver",
+          "implementation": "chrome.tool.json_http",
+          "binding_id": "chrome:json_http:citation-resolver:1",
+          "usable": true,
+          "contact": false
+        },
+        {
+          "tool": "paper-reader",
+          "implementation": "chrome.tool.selected_pdf_text",
+          "binding_id": "chrome:selected_pdf_text:paper-reader:1",
+          "usable": true,
+          "contact": false
+        },
+        {
+          "tool": "scholarly-search",
+          "implementation": "chrome.tool.crossref_works_search",
+          "binding_id": "chrome:crossref_works_search:scholarly-search:1",
+          "usable": true,
+          "contact": false
+        }
+      ],
+      "the plan is ready": "ok",
+      "the three tools bind to the host's Crossref search, the declared resolver and the PDF reader": "ok"
+    },
+    "reconnect": {
+      "shown": "run_a00acf1b11744798ba6f953883cc9d5f",
+      "state": "running",
+      "the reloaded page shows the run in flight": "ok"
+    },
+    "run": {
+      "settled as completed (the honest-empty outcome is a completed run)": "ok",
+      "the audit chain is valid": "ok"
+    }
+  },
+  "run": {
+    "runId": "run_a00acf1b11744798ba6f953883cc9d5f",
+    "status": "completed",
+    "errorCode": null,
+    "pageState": "completed",
+    "durationMs": 1063446,
+    "selectedModel": "ollama/qwen3:30b",
+    "model": {
+      "planned": "ollama/qwen3:30b",
+      "invoked": [
+        "ollama/qwen3:30b"
+      ],
+      "calls": 17,
+      "allCallsUsedPlannedModel": true,
+      "providers": [
+        "ollama"
+      ],
+      "responseModels": [
+        "qwen3:30b"
+      ]
+    },
+    "usage": {
+      "tokens": 75595,
+      "remoteCalls": 6,
+      "toolCalls": 6,
+      "peakParallelWorkers": 3
+    },
+    "cost": {
+      "status": "unknown",
+      "totalUsd": null,
+      "calls": 17,
+      "callsWithReportedCost": 0
+    },
+    "audit": {
+      "events": 564,
+      "chainValid": true
+    },
+    "attachments": [],
+    "failure": null,
+    "files": [
+      {
+        "name": "run.json",
+        "bytes": 23013,
+        "sha256": "630773394b7e84ca69bee811efcfbd8400f1ddbeb69282ed651faef06f0e94c7"
+      },
+      {
+        "name": "run-plan.json",
+        "bytes": 18399,
+        "sha256": "a989e4f5373a95c62071e1e2360291603b037493e98213d1076c1f36704a83c7"
+      },
+      {
+        "name": "input.json",
+        "bytes": 330,
+        "sha256": "812420fec96de3ebd4a5f70d51e507abe0c102364f794c06e1ce76ce96e39e6f"
+      },
+      {
+        "name": "audit.json",
+        "bytes": 367846,
+        "sha256": "098b00eabd9ee7015a6c053a51040d4b0dc8a6bdc31d031de554e4f9cb395c98"
+      },
+      {
+        "name": "bibliography.json",
+        "bytes": 3097,
+        "sha256": "45e0f9729e56b5d39e5c9989749b3e97576ffbce64090ff2e8ed6b1f5b0a340c"
+      },
+      {
+        "name": "evidence-table.json",
+        "bytes": 2624,
+        "sha256": "a09d5460cdf79af9abdacaec8f65736356bafcb41a040f82139b7edbd70f38d6"
+      },
+      {
+        "name": "provenance.json",
+        "bytes": 251,
+        "sha256": "8884c56265968b26d2cc213d66aaf2545a833de939f3bb8a213cae11b61303a3"
+      },
+      {
+        "name": "related-work.md",
+        "bytes": 686,
+        "sha256": "58ccfec285b326026eb8504992e365ddcd6359ab5522f7488aaa4cc97f92feb0"
+      },
+      {
+        "name": "result.json",
+        "bytes": 574815,
+        "sha256": "4298eb5766b67d9f40c12065ed41e17180bac33b490d9efa53ef344b7c4900d2"
+      },
+      {
+        "name": "unresolved.json",
+        "bytes": 3,
+        "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      },
+      {
+        "name": "usage.json",
+        "bytes": 4550,
+        "sha256": "61ce6c22a9474ef71da13506dbd03d2d35dc744eeb329512f4a3f0b96b1094dc"
+      },
+      {
+        "name": "verification.json",
+        "bytes": 987,
+        "sha256": "94ab158568dd3d4c4584b7ef000ec7c596e45117d8e8af19b453e521882fdb43"
+      }
+    ],
+    "observations": 23
+  },
+  "failures": [],
+  "passed": true,
+  "checks": [
+    {
+      "id": "package_verifies_with_the_publisher_key",
+      "passed": true,
+      "detail": {
+        "digest": "cef9ebd68df9db3b36c1ffeac9069d734b0e41a40d58445aaba1a60eaac155b5"
+      }
+    },
+    {
+      "id": "run_bound_to_the_shipped_archive",
+      "passed": true,
+      "detail": {
+        "record": "1669f83fafac3434748fc19d38a8d3d2c3352da83cf1cbb84796ce313bd4f571",
+        "dist": "1669f83fafac3434748fc19d38a8d3d2c3352da83cf1cbb84796ce313bd4f571"
+      }
+    },
+    {
+      "id": "plan_names_the_package",
+      "passed": true
+    },
+    {
+      "id": "audit_chain_valid",
+      "passed": true,
+      "detail": {
+        "events": 564,
+        "valid": true,
+        "broken": [],
+        "final_hash": "c9dcac0592f7dcee2ed9d4813b8857bc7c2cb8cfe1308f6438f11e0a5d19bf4f",
+        "note": "A local hash chain. It binds these events to each other; it is not an external tamper-proof audit service."
+      }
+    },
+    {
+      "id": "record_matches_audit",
+      "passed": true,
+      "detail": {
+        "events": 564,
+        "chainValid": true,
+        "finalHash": "c9dcac0592f7dcee2ed9d4813b8857bc7c2cb8cfe1308f6438f11e0a5d19bf4f",
+        "actions": [
+          {
+            "action": "budget.updated",
+            "count": 46
+          },
+          {
+            "action": "delegation.checked",
+            "count": 36
+          },
+          {
+            "action": "memory.cleared",
+            "count": 1
+          },
+          {
+            "action": "model.called",
+            "count": 17
+          },
+          {
+            "action": "model.completed",
+            "count": 17
+          },
+          {
+            "action": "model.count.called",
+            "count": 17
+          },
+          {
+            "action": "node.completed",
+            "count": 84
+          },
+          {
+            "action": "node.skipped",
+            "count": 23
+          },
+          {
+            "action": "node.started",
+            "count": 84
+          },
+          {
+            "action": "permission.checked",
+            "count": 83
+          },
+          {
+            "action": "runtime.started",
+            "count": 1
+          },
+          {
+            "action": "state.committed",
+            "count": 21
+          },
+          {
+            "action": "tool.called",
+            "count": 6
+          },
+          {
+            "action": "tool.completed",
+            "count": 6
+          },
+          {
+            "action": "tool.dispatched",
+            "count": 6
+          },
+          {
+            "action": "tool.settled",
+            "count": 6
+          },
+          {
+            "action": "worker.completed",
+            "count": 36
+          },
+          {
+            "action": "worker.spawned",
+            "count": 36
+          },
+          {
+            "action": "worker.started",
+            "count": 36
+          },
+          {
+            "action": "workflow.completed",
+            "count": 1
+          },
+          {
+            "action": "workflow.started",
+            "count": 1
+          }
+        ],
+        "workers": [
+          "CitationWorker:15",
+          "CitationWorker:16",
+          "CitationWorker:17",
+          "CitationWorker:18",
+          "CitationWorker:19",
+          "CitationWorker:20",
+          "CitationWorker:21",
+          "CitationWorker:22",
+          "CitationWorker:23",
+          "CitationWorker:30",
+          "EvidenceWorker:24",
+          "EvidenceWorker:25",
+          "EvidenceWorker:26",
+          "PlanningWorker:1",
+          "PlanningWorker:5",
+          "ScreeningWorker:10",
+          "ScreeningWorker:11",
+          "ScreeningWorker:12",
+          "ScreeningWorker:13",
+          "ScreeningWorker:14",
+          "ScreeningWorker:6",
+          "ScreeningWorker:7",
+          "ScreeningWorker:8",
+          "ScreeningWorker:9",
+          "SearchWorker:2",
+          "SearchWorker:3",
+          "SearchWorker:4",
+          "SynthesisWorker:27",
+          "VerificationWorker:29",
+          "VerificationWorker:31",
+          "VerificationWorker:32",
+          "VerificationWorker:33",
+          "VerificationWorker:34",
+          "VerificationWorker:35",
+          "VerificationWorker:36",
+          "WritingWorker:28",
+          "coordinator"
+        ],
+        "workersSpawned": 36,
+        "nodesCompleted": 84,
+        "modelCalls": 17,
+        "toolCalls": 6,
+        "tasksCalled": [
+          {
+            "task": "extract",
+            "count": 3
+          },
+          {
+            "task": "normalize",
+            "count": 1
+          },
+          {
+            "task": "plan",
+            "count": 1
+          },
+          {
+            "task": "screen",
+            "count": 8
+          },
+          {
+            "task": "select",
+            "count": 1
+          },
+          {
+            "task": "synthesize",
+            "count": 1
+          },
+          {
+            "task": "verify",
+            "count": 1
+          },
+          {
+            "task": "write",
+            "count": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "every_artifact_matches_the_record",
+      "passed": true
+    },
+    {
+      "id": "input_is_the_harness_input",
+      "passed": true
+    },
+    {
+      "id": "run_completed",
+      "passed": true,
+      "detail": {
+        "status": "completed",
+        "errorCode": null,
+        "failure": null
+      }
+    },
+    {
+      "id": "used_the_selected_model_only",
+      "passed": true,
+      "detail": {
+        "planned": "ollama/qwen3:30b",
+        "invoked": [
+          "ollama/qwen3:30b"
+        ],
+        "calls": 17,
+        "allCallsUsedPlannedModel": true,
+        "providers": [
+          "ollama"
+        ],
+        "responseModels": [
+          "qwen3:30b"
+        ]
+      }
+    },
+    {
+      "id": "every_model_call_observed",
+      "passed": true,
+      "detail": {
+        "observed": 17,
+        "recorded": 17,
+        "called": 17
+      }
+    },
+    {
+      "id": "every_tool_call_went_to_the_planned_binding",
+      "passed": true
+    },
+    {
+      "id": "the_plan_binds_the_host_implementations",
+      "passed": true,
+      "detail": {
+        "citation-resolver": "chrome:json_http:citation-resolver:1",
+        "paper-reader": "chrome:selected_pdf_text:paper-reader:1",
+        "scholarly-search": "chrome:crossref_works_search:scholarly-search:1"
+      }
+    },
+    {
+      "id": "every_remote_tool_call_observed",
+      "passed": true,
+      "detail": {
+        "observed": 6,
+        "answered": 6,
+        "dispatched": 6
+      }
+    },
+    {
+      "id": "crossref_requests_have_the_reference_shape",
+      "passed": true,
+      "detail": {
+        "requests": 3,
+        "ok": 3
+      }
+    },
+    {
+      "id": "at_most_one_crossref_request_per_search_call_no_retry",
+      "passed": true,
+      "detail": {
+        "requests": 3,
+        "answered": 3,
+        "calls": 3
+      }
+    },
+    {
+      "id": "crossref_paced_one_per_second",
+      "passed": true,
+      "detail": {
+        "gaps_s": [
+          1.44,
+          1.235
+        ]
+      }
+    },
+    {
+      "id": "crossref_answered_every_search",
+      "passed": true,
+      "detail": {
+        "statuses": [
+          200,
+          200,
+          200
+        ],
+        "failures": []
+      }
+    },
+    {
+      "id": "resolver_calls_went_to_the_declared_origin",
+      "passed": true,
+      "detail": {
+        "resolver": 3,
+        "crossref": 3,
+        "tools": 6
+      }
+    },
+    {
+      "id": "attachments_are_the_picked_documents",
+      "passed": true,
+      "detail": {
+        "attachments": [],
+        "picked": []
+      }
+    },
+    {
+      "id": "the_parser_text_describes_the_picked_bytes",
+      "passed": true
+    },
+    {
+      "id": "documents_read_by_opaque_id_and_hash_only",
+      "passed": true,
+      "detail": []
+    },
+    {
+      "id": "no_document_name_in_any_run_file",
+      "passed": true
+    },
+    {
+      "id": "held_to_the_long_run_limits",
+      "passed": true,
+      "detail": {
+        "totalTokens": 180000,
+        "maxRemoteCalls": 45,
+        "maxParallelWorkers": 3,
+        "maxOutputTokensPerCall": 16000,
+        "runTimeoutSeconds": 4500,
+        "modelCallTimeoutSeconds": 1200
+      }
+    },
+    {
+      "id": "usage_within_the_limits",
+      "passed": true,
+      "detail": {
+        "tokens": 75595,
+        "remoteCalls": 6,
+        "peakParallelWorkers": 3,
+        "toolCalls": 6,
+        "limits": {
+          "hardTokens": 180000,
+          "maxRemoteCalls": 45,
+          "maxParallelWorkers": 3
+        },
+        "workers": [
+          {
+            "worker": "coordinator",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "PlanningWorker:1",
+            "tokens": 2521,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "SearchWorker:2",
+            "tokens": 0,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "SearchWorker:3",
+            "tokens": 0,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "SearchWorker:4",
+            "tokens": 0,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "PlanningWorker:5",
+            "tokens": 13720,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "ScreeningWorker:6",
+            "tokens": 1568,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "ScreeningWorker:7",
+            "tokens": 2067,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "ScreeningWorker:8",
+            "tokens": 2505,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "ScreeningWorker:9",
+            "tokens": 2464,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "ScreeningWorker:10",
+            "tokens": 2340,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "ScreeningWorker:11",
+            "tokens": 2477,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "ScreeningWorker:12",
+            "tokens": 2059,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "ScreeningWorker:13",
+            "tokens": 2450,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "ScreeningWorker:14",
+            "tokens": 7259,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "CitationWorker:15",
+            "tokens": 0,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "CitationWorker:16",
+            "tokens": 0,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "CitationWorker:17",
+            "tokens": 0,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "CitationWorker:18",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "CitationWorker:19",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "CitationWorker:20",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "CitationWorker:21",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "CitationWorker:22",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "CitationWorker:23",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "EvidenceWorker:24",
+            "tokens": 2004,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "EvidenceWorker:25",
+            "tokens": 9103,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "EvidenceWorker:26",
+            "tokens": 2319,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "SynthesisWorker:27",
+            "tokens": 6987,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "WritingWorker:28",
+            "tokens": 3249,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:29",
+            "tokens": 10503,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "CitationWorker:30",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:31",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:32",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:33",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:34",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:35",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:36",
+            "tokens": 0,
+            "remoteCalls": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "evidence_quotes_occur_in_genuine_sources",
+      "passed": true,
+      "detail": {
+        "items": 3,
+        "in_sources": 3
+      }
+    },
+    {
+      "id": "evidence_table_rows_match_items",
+      "passed": true
+    },
+    {
+      "id": "bibliography_all_resolved_and_exact",
+      "passed": true
+    },
+    {
+      "id": "claims_reference_existing_evidence",
+      "passed": true
+    },
+    {
+      "id": "claims_cite_evidence_and_papers",
+      "passed": true
+    },
+    {
+      "id": "claims_reference_resolved_papers",
+      "passed": true
+    },
+    {
+      "id": "verification_results_match_claims",
+      "passed": true
+    },
+    {
+      "id": "related_work_mentions_only_bibliography",
+      "passed": true
+    },
+    {
+      "id": "grounded_review_or_honest_empty",
+      "passed": true,
+      "detail": {
+        "claims": 3,
+        "honest_empty": false
+      }
+    }
+  ],
+  "grounding": {
+    "evidence_items": 3,
+    "evidence_quotes_in_genuine_sources": 3,
+    "evidence_quote_results": [
+      {
+        "evidence_id": "10.2139/ssrn.6532560:e1",
+        "paper_id": "10.2139/ssrn.6532560",
+        "scope": "abstract",
+        "quote_in_genuine_source": true,
+        "synthetic": false
+      },
+      {
+        "evidence_id": "10.2139/ssrn.6532560:e2",
+        "paper_id": "10.2139/ssrn.6532560",
+        "scope": "abstract",
+        "quote_in_genuine_source": true,
+        "synthetic": false
+      },
+      {
+        "evidence_id": "10.2139/ssrn.6532560:e3",
+        "paper_id": "10.2139/ssrn.6532560",
+        "scope": "abstract",
+        "quote_in_genuine_source": true,
+        "synthetic": false
+      }
+    ],
+    "evidence_table_rows": 3,
+    "evidence_table_rows_match_items": true,
+    "bibliography": [
+      {
+        "paper_id": "10.2139/ssrn.6532560",
+        "resolved": true,
+        "metadata_equals_resolver_record": true,
+        "title": "Optimizing Multi‑Agent LLM Collaboration via Communication‑Flow Control​",
+        "doi": "10.2139/ssrn.6532560"
+      }
+    ],
+    "bibliography_all_resolved_and_exact": true,
+    "claims": 3,
+    "claims_reference_existing_evidence": true,
+    "claims_cite_evidence_and_papers": true,
+    "claims_reference_resolved_papers": true,
+    "verification_results": 3,
+    "verification_results_match_claims": true,
+    "unsupported_or_overstated": 0,
+    "related_work_chars": 686,
+    "related_work_paper_ids_mentioned": [],
+    "related_work_mentions_only_bibliography": true,
+    "unresolved": 0,
+    "honest_empty": false
+  },
+  "search": {
+    "queries": [
+      "dynamic agent selection criteria multi-agent LLM",
+      "communication topology adaptation mechanisms multi-agent LLM",
+      "efficiency trade-offs dynamic agent selection multi-agent LLM"
+    ],
+    "batches": [
+      {
+        "query": "dynamic agent selection criteria multi-agent LLM",
+        "source": "crossref",
+        "papers": 3,
+        "with_abstract": 0
+      },
+      {
+        "query": "communication topology adaptation mechanisms multi-agent LLM",
+        "source": "crossref",
+        "papers": 3,
+        "with_abstract": 3
+      },
+      {
+        "query": "efficiency trade-offs dynamic agent selection multi-agent LLM",
+        "source": "crossref",
+        "papers": 3,
+        "with_abstract": 0
+      }
+    ],
+    "candidate_papers": 8,
+    "screened": [
+      {
+        "paper_id": "10.1145/3749421.3749436",
+        "status": "include",
+        "doi": "10.1145/3749421.3749436"
+      },
+      {
+        "paper_id": "10.2139/ssrn.5290350",
+        "status": "maybe",
+        "doi": "10.2139/ssrn.5290350"
+      },
+      {
+        "paper_id": "10.5220/0014473600004052",
+        "status": "maybe",
+        "doi": "10.5220/0014473600004052"
+      },
+      {
+        "paper_id": "10.2139/ssrn.7162224",
+        "status": "exclude",
+        "doi": "10.2139/ssrn.7162224"
+      },
+      {
+        "paper_id": "10.2139/ssrn.6532560",
+        "status": "include",
+        "doi": "10.2139/ssrn.6532560"
+      },
+      {
+        "paper_id": "10.36227/techrxiv.176539617.79044553/v1",
+        "status": "exclude",
+        "doi": "10.36227/techrxiv.176539617.79044553/v1"
+      },
+      {
+        "paper_id": "10.1109/usbereit70063.2026.11580460",
+        "status": "include",
+        "doi": "10.1109/usbereit70063.2026.11580460"
+      },
+      {
+        "paper_id": "10.1109/icisessc68634.2026.11542788",
+        "status": "maybe",
+        "doi": "10.1109/icisessc68634.2026.11542788"
+      }
+    ],
+    "resolver_statuses": [
+      {
+        "paper_id": "10.1145/3749421.3749436",
+        "status": "resolved"
+      },
+      {
+        "paper_id": "10.2139/ssrn.6532560",
+        "status": "resolved"
+      },
+      {
+        "paper_id": "10.1109/usbereit70063.2026.11580460",
+        "status": "resolved"
+      }
+    ]
+  },
+  "verification": {
+    "script": "scripts/verify_chrome_literature_live.py",
+    "checks": 33,
+    "failed": [],
+    "run": {
+      "durationMs": 1063446,
+      "usage": {
+        "tokens": 75595,
+        "remoteCalls": 6,
+        "peakParallelWorkers": 3,
+        "toolCalls": 6,
+        "limits": {
+          "hardTokens": 180000,
+          "maxRemoteCalls": 45,
+          "maxParallelWorkers": 3
+        },
+        "workers": [
+          {
+            "worker": "coordinator",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "PlanningWorker:1",
+            "tokens": 2521,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "SearchWorker:2",
+            "tokens": 0,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "SearchWorker:3",
+            "tokens": 0,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "SearchWorker:4",
+            "tokens": 0,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "PlanningWorker:5",
+            "tokens": 13720,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "ScreeningWorker:6",
+            "tokens": 1568,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "ScreeningWorker:7",
+            "tokens": 2067,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "ScreeningWorker:8",
+            "tokens": 2505,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "ScreeningWorker:9",
+            "tokens": 2464,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "ScreeningWorker:10",
+            "tokens": 2340,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "ScreeningWorker:11",
+            "tokens": 2477,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "ScreeningWorker:12",
+            "tokens": 2059,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "ScreeningWorker:13",
+            "tokens": 2450,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "ScreeningWorker:14",
+            "tokens": 7259,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "CitationWorker:15",
+            "tokens": 0,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "CitationWorker:16",
+            "tokens": 0,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "CitationWorker:17",
+            "tokens": 0,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "CitationWorker:18",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "CitationWorker:19",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "CitationWorker:20",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "CitationWorker:21",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "CitationWorker:22",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "CitationWorker:23",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "EvidenceWorker:24",
+            "tokens": 2004,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "EvidenceWorker:25",
+            "tokens": 9103,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "EvidenceWorker:26",
+            "tokens": 2319,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "SynthesisWorker:27",
+            "tokens": 6987,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "WritingWorker:28",
+            "tokens": 3249,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:29",
+            "tokens": 10503,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "CitationWorker:30",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:31",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:32",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:33",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:34",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:35",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:36",
+            "tokens": 0,
+            "remoteCalls": 0
+          }
+        ]
+      },
+      "cost": {
+        "status": "unknown",
+        "totalUsd": null,
+        "calls": 17,
+        "callsWithReportedCost": 0
+      },
+      "model": {
+        "planned": "ollama/qwen3:30b",
+        "invoked": [
+          "ollama/qwen3:30b"
+        ],
+        "calls": 17,
+        "allCallsUsedPlannedModel": true,
+        "providers": [
+          "ollama"
+        ],
+        "responseModels": [
+          "qwen3:30b"
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,741 @@
+{
+ "generator": "chrome-agent-browser/scripts/make-crossref-reference.mjs",
+ "reference": "openclaw-agent-browser/src/tool-adapters.ts CROSSREF_WORKS_ADAPTER",
+ "retrieved_at": "2026-09-23T12:00:00.000Z",
+ "select": "DOI,title,author,published,published-print,published-online,issued,container-title,abstract,URL",
+ "filter": "type:journal-article,type:proceedings-article,type:posted-content,type:book-chapter,type:book,type:monograph,type:report,type:dissertation",
+ "requests": [
+  {
+   "args": {
+    "query": "communication topology multi-agent LLM",
+    "limit": 10
+   },
+   "query": [
+    [
+     "query.bibliographic",
+     "communication topology multi-agent LLM"
+    ],
+    [
+     "rows",
+     "10"
+    ],
+    [
+     "select",
+     "DOI,title,author,published,published-print,published-online,issued,container-title,abstract,URL"
+    ],
+    [
+     "filter",
+     "type:journal-article,type:proceedings-article,type:posted-content,type:book-chapter,type:book,type:monograph,type:report,type:dissertation"
+    ]
+   ],
+   "encoded": "query.bibliographic=communication+topology+multi-agent+LLM&rows=10&select=DOI%2Ctitle%2Cauthor%2Cpublished%2Cpublished-print%2Cpublished-online%2Cissued%2Ccontainer-title%2Cabstract%2CURL&filter=type%3Ajournal-article%2Ctype%3Aproceedings-article%2Ctype%3Aposted-content%2Ctype%3Abook-chapter%2Ctype%3Abook%2Ctype%3Amonograph%2Ctype%3Areport%2Ctype%3Adissertation"
+  },
+  {
+   "args": {
+    "query": "Graph-of-Agents: “adaptive” topology & selection? #LLM+routing é/../x=1&rows=99",
+    "limit": 3
+   },
+   "query": [
+    [
+     "query.bibliographic",
+     "Graph-of-Agents: “adaptive” topology & selection? #LLM+routing é/../x=1&rows=99"
+    ],
+    [
+     "rows",
+     "3"
+    ],
+    [
+     "select",
+     "DOI,title,author,published,published-print,published-online,issued,container-title,abstract,URL"
+    ],
+    [
+     "filter",
+     "type:journal-article,type:proceedings-article,type:posted-content,type:book-chapter,type:book,type:monograph,type:report,type:dissertation"
+    ]
+   ],
+   "encoded": "query.bibliographic=Graph-of-Agents%3A+%E2%80%9Cadaptive%E2%80%9D+topology+%26+selection%3F+%23LLM%2Brouting+%C3%A9%2F..%2Fx%3D1%26rows%3D99&rows=3&select=DOI%2Ctitle%2Cauthor%2Cpublished%2Cpublished-print%2Cpublished-online%2Cissued%2Ccontainer-title%2Cabstract%2CURL&filter=type%3Ajournal-article%2Ctype%3Aproceedings-article%2Ctype%3Aposted-content%2Ctype%3Abook-chapter%2Ctype%3Abook%2Ctype%3Amonograph%2Ctype%3Areport%2Ctype%3Adissertation"
+  }
+ ],
+ "answers": [
+  {
+   "name": "captured",
+   "args": {
+    "query": "communication topology multi-agent LLM",
+    "limit": 10
+   },
+   "output": {
+    "papers": [
+     {
+      "title": "Self-Refining Topology Optimization via an LLM-Based Multi-Agent Framework",
+      "doi": "10.2139/ssrn.7162224",
+      "arxiv_id": null,
+      "authors": [
+       {
+        "name": "Hyunjee Park"
+       },
+       {
+        "name": "Hayoung Chung"
+       }
+      ],
+      "year": 2026,
+      "venue": null,
+      "abstract": "Topology optimization is a widely used design method that produces optimized material distributions for prescribed objectives and constraints through well-established numerical algorithms. Throughout the workflow, engineers make a series of decisions ranging from setting and adjusting numerical parameters to assessing whether the converged design meets considerations beyond those explicitly included in the optimization problem, such as physical feasibility. These decisions, which draw on domain expertise, interfere with the autonomous design process.To address this difficulty, this study presents TopOptAgents, a multi-agent system for automating not only the design process but also decision-making during the key stages of the topology optimization process. TopOptAgents consists of six LLM-based agents collaborating through iterative self-refinement cycles spanning problem formulation, validation, code generation and execution, and quality assessment of the optimized structure. This process enables error correction and progressive improvement of both the optimization setup and resulting design. The framework is demonstrated on optimization problems selected to cover a range of settings that differ in their literature coverage and numerical characteristics.The benefits of iterative self-refinement are found to be particularly pronounced for problem classes where the pretrained language model has limited prior exposure, such as formulations whose literature and open-source implementations are comparatively sparse. In such cases, the proposed framework reliably produces converged designs where a single state-of-the-art LLM struggles, suggesting that self-refinement broadens the range of topology optimization problems that LLM-based automation can reliably address.",
+      "url": "https://doi.org/10.2139/ssrn.7162224",
+      "source": "crossref",
+      "provenance": [
+       {
+        "source": "crossref",
+        "query": "communication topology multi-agent LLM",
+        "locator": "10.2139/ssrn.7162224",
+        "synthetic": false,
+        "retrieved_at": "2026-09-23T12:00:00.000Z"
+       }
+      ]
+     },
+     {
+      "title": "Optimizing Multi‑Agent LLM Collaboration via Communication‑Flow Control​",
+      "doi": "10.2139/ssrn.6532560",
+      "arxiv_id": null,
+      "authors": [
+       {
+        "name": "Chuan Tian"
+       },
+       {
+        "name": "yilei zhang"
+       }
+      ],
+      "year": 2026,
+      "venue": null,
+      "abstract": "Multi-agent systems based on Large Language Models (LLMs) have shown promise in automating complex engineering tasks, including code generation for Finite Element Analysis (FEA). However, despite models demonstrating the capability to produce correct solutions, task success rates remain low. This study investigates the mechanisms limiting the effectiveness of multi-agent LLM collaboration through two complementary perspectives: agent role composition and communication flow dynamics. We evaluate seven agent combinations across four increasingly complex FEA tasks through 1,120 controlled experimental trials using the AutoGen framework with GPT-3.5-Turbo. From the agent-role perspective, we find that neither adding more reviewers nor varying team composition yields consistent performance gains; instead, agents designed to provide critical evaluation fail to do so in practice. From a communication-flow perspective, we identify early agreements (i.e., approval messages such as ‘looks good’ or ‘execution succeeded’ that may falsely indicate task completion) as a dominant failure mechanism that prematurely halts iterative code refinement, leaving the model’s coding capability systematically underutilized. Based on these findings, we suggest an approach to optimize communication flow: removing misleading agreements while preserving necessary guidance. This approach significantly improves task success rates (Task 2: 10.7% to 77.5%; Tasks 3-4: 0.7% to 45.0%) without requiring additional training or external information. These results establish that communication dynamics, rather than agent quantity or role diversity, are the primary determinant of multi-agent collaboration effectiveness in engineering code generation.",
+      "url": "https://doi.org/10.2139/ssrn.6532560",
+      "source": "crossref",
+      "provenance": [
+       {
+        "source": "crossref",
+        "query": "communication topology multi-agent LLM",
+        "locator": "10.2139/ssrn.6532560",
+        "synthetic": false,
+        "retrieved_at": "2026-09-23T12:00:00.000Z"
+       }
+      ]
+     },
+     {
+      "title": "Towards Communication Efficient Multi-Agent Cooperations: Reinforcement Learning and LLM",
+      "doi": "10.36227/techrxiv.173739115.54193062/v2",
+      "arxiv_id": null,
+      "authors": [
+       {
+        "name": "Yang Su"
+       },
+       {
+        "name": "Yali Du"
+       },
+       {
+        "name": "Yansha Deng"
+       },
+       {
+        "name": "Mischa Dohler"
+       }
+      ],
+      "year": 2025,
+      "venue": null,
+      "abstract": "Multi-agent systems (MAS) have gained popularity due to their effectiveness in diverse applications. Among these, decentralized approaches, which rely on inter-agent communication, have emerged as a promising alternative to centralized MAS coordination methods. However, existing communication protocols often learn abstract representations that are difficult for humans to interpret. Also, the limited wireless bandwidth in real-world applications imposes a significant challenge on efficient communication among agents. To address these issues, in this paper, we consider a multi-robot navigation scenario and propose a goal-oriented human-interpretable feature communication protocol, enabling robots to transmit only the most semantically important features. Building on this protocol, we first introduce a Multi-Agent Proximal Policy Optimization (MAPPO)-based Bandwidth-Adaptive Dual-Policy (MAPPO-BDP) framework, which employs a dual-policy architecture to jointly optimize feature selection and navigation under bandwidth constraints. However, as MAPPO-BDP requires retraining for different bandwidth constraints, we further propose a Large Language Model (LLM)-based Bandwidth-Adaptive Dual-Policy (LLM-BDP) framework. By leveraging LLM-based multi-agents, LLM-BDP can adapt to varying bandwidth constraints by simply modifying the input prompt, thereby eliminating the need for retraining. Experimental results show that both MAPPO-BDP and LLM-BDP frameworks successfully complete navigation tasks within a limited number of steps by effectively communicating the most important features under bandwidth constraints. We demonstrate that LLM-BDP achieves better reasoning adaptability by utilizing more advanced LLMs and engineering example prompts. Notably, with human-interpretable feature communication protocol, robots trained with the MAPPO-BDP framework can seamlessly collaborate with robots from the LLM-BDP framework to complete tasks, even without co-training, demonstrating the practical applicability of the proposed communication protocol in new scenarios.",
+      "url": "https://doi.org/10.36227/techrxiv.173739115.54193062/v2",
+      "source": "crossref",
+      "provenance": [
+       {
+        "source": "crossref",
+        "query": "communication topology multi-agent LLM",
+        "locator": "10.36227/techrxiv.173739115.54193062/v2",
+        "synthetic": false,
+        "retrieved_at": "2026-09-23T12:00:00.000Z"
+       }
+      ]
+     },
+     {
+      "title": "Towards Communication Efficient Multi-Agent Cooperations: Reinforcement Learning and LLM",
+      "doi": "10.36227/techrxiv.173739115.54193062/v1",
+      "arxiv_id": null,
+      "authors": [
+       {
+        "name": "Yang Su"
+       },
+       {
+        "name": "Yali Du"
+       },
+       {
+        "name": "Yansha Deng"
+       },
+       {
+        "name": "Mischa Dohler"
+       }
+      ],
+      "year": 2025,
+      "venue": null,
+      "abstract": "Multi-agent systems (MAS) have gained popularity due to their effectiveness in diverse applications. Among these, decentralized approaches, which rely on inter-agent communication, have emerged as a promising alternative to centralized MAS coordination methods. However, existing communication protocols often learn abstract representations that are difficult for humans to interpret. Also, the limited wireless bandwidth in real-world applications imposes a significant challenge on efficient communication among agents. To address these issues, in this paper, we consider a multi-robot navigation scenario and propose a goal-oriented human-interpretable feature communication protocol, enabling robots to transmit only the most semantically important features. Building on this protocol, we first introduce a Multi-Agent Proximal Policy Optimization (MAPPO)-based Bandwidth-Adaptive Dual-Policy (MAPPO-BDP) framework, which employs a dual-policy architecture to jointly optimize feature selection and navigation under bandwidth constraints. However, as MAPPO-BDP requires retraining for different bandwidth constraints, we further propose a Large Language Model (LLM)-based Bandwidth-Adaptive Dual-Policy (LLM-BDP) framework. By leveraging LLM-based multi-agents, LLM-BDP can adapt to varying bandwidth constraints by simply modifying the input prompt, thereby eliminating the need for retraining. Experimental results show that both MAPPO-BDP and LLM-BDP frameworks successfully complete navigation tasks within a limited number of steps by effectively communicating the most important features under bandwidth constraints. We demonstrate that LLM-BDP achieves better reasoning adaptability by utilizing more advanced LLMs and engineering example prompts. Notably, with human-interpretable feature communication protocol, robots trained with the MAPPO-BDP framework can seamlessly collaborate with robots from the LLM-BDP framework to complete tasks, even without co-training, demonstrating the practical applicability of the proposed communication protocol in new scenarios.",
+      "url": "https://doi.org/10.36227/techrxiv.173739115.54193062/v1",
+      "source": "crossref",
+      "provenance": [
+       {
+        "source": "crossref",
+        "query": "communication topology multi-agent LLM",
+        "locator": "10.36227/techrxiv.173739115.54193062/v1",
+        "synthetic": false,
+        "retrieved_at": "2026-09-23T12:00:00.000Z"
+       }
+      ]
+     },
+     {
+      "title": "WirelessLLM-Agent: A Unified LLM-Based Agent Framework for Multi-Task Wireless Communication Decision-Making",
+      "doi": "10.20944/preprints202604.0849.v1",
+      "arxiv_id": null,
+      "authors": [
+       {
+        "name": "Gregory Yu"
+       },
+       {
+        "name": "Ian Butler"
+       },
+       {
+        "name": "Aaron Collins"
+       }
+      ],
+      "year": 2026,
+      "venue": null,
+      "abstract": "The integration of large language models into wireless communication has shown promising results for individual tasks. However, existing approaches are typically designed for single-task scenarios and rely on supervised fine-tuning that fails to optimize for long-term decision quality. In this paper, we propose WirelessLLM-Agent, a unified LLM-based agent framework for multi-task wireless communication decision-making. Our framework integrates a semantic state serialization module that transforms heterogeneous wireless states into structured textual representations, a multi-task adapter architecture based on MoE-LoRA for parameter-efficient knowledge sharing, and a two-stage training paradigm combining SFT warm-start with GRPO reinforcement learning enhanced by lookahead collaborative simulation. Extensive experiments on channel multi-task learning, mobile edge computing task offloading, and cooperative edge caching demonstrate that WirelessLLM-Agent consistently outperforms existing methods while exhibiting strong zero-shot generalization.",
+      "url": "https://doi.org/10.20944/preprints202604.0849.v1",
+      "source": "crossref",
+      "provenance": [
+       {
+        "source": "crossref",
+        "query": "communication topology multi-agent LLM",
+        "locator": "10.20944/preprints202604.0849.v1",
+        "synthetic": false,
+        "retrieved_at": "2026-09-23T12:00:00.000Z"
+       }
+      ]
+     },
+     {
+      "title": "ALAS: A Stateful Multi-LLM Agent Framework for Disruption-Aware Planning",
+      "doi": "10.1145/3749421.3749436",
+      "arxiv_id": null,
+      "authors": [],
+      "year": 2025,
+      "venue": "Multi-LLM Agent Collaborative Intelligence",
+      "abstract": null,
+      "url": "https://doi.org/10.1145/3749421.3749436",
+      "source": "crossref",
+      "provenance": [
+       {
+        "source": "crossref",
+        "query": "communication topology multi-agent LLM",
+        "locator": "10.1145/3749421.3749436",
+        "synthetic": false,
+        "retrieved_at": "2026-09-23T12:00:00.000Z"
+       }
+      ]
+     },
+     {
+      "title": "AMAS: Adaptively Determining Communication Topology for LLM-based Multi-agent System",
+      "doi": "10.18653/v1/2025.emnlp-industry.144",
+      "arxiv_id": null,
+      "authors": [
+       {
+        "name": "Hui Yi Leong"
+       },
+       {
+        "name": "Yuheng Li"
+       },
+       {
+        "name": "Yuqing Wu"
+       },
+       {
+        "name": "Wenwen Ouyang"
+       },
+       {
+        "name": "Wei Zhu"
+       },
+       {
+        "name": "Jiechao Gao"
+       },
+       {
+        "name": "Wei Han"
+       }
+      ],
+      "year": 2025,
+      "venue": "Proceedings of the 2025 Conference on Empirical Methods in Natural Language Processing: Industry Track",
+      "abstract": null,
+      "url": "https://doi.org/10.18653/v1/2025.emnlp-industry.144",
+      "source": "crossref",
+      "provenance": [
+       {
+        "source": "crossref",
+        "query": "communication topology multi-agent LLM",
+        "locator": "10.18653/v1/2025.emnlp-industry.144",
+        "synthetic": false,
+        "retrieved_at": "2026-09-23T12:00:00.000Z"
+       }
+      ]
+     },
+     {
+      "title": "SocraSynth: Adversarial Multi-LLM Reasoning",
+      "doi": "10.1145/3749421.3749430",
+      "arxiv_id": null,
+      "authors": [],
+      "year": 2025,
+      "venue": "Multi-LLM Agent Collaborative Intelligence",
+      "abstract": null,
+      "url": "https://doi.org/10.1145/3749421.3749430",
+      "source": "crossref",
+      "provenance": [
+       {
+        "source": "crossref",
+        "query": "communication topology multi-agent LLM",
+        "locator": "10.1145/3749421.3749430",
+        "synthetic": false,
+        "retrieved_at": "2026-09-23T12:00:00.000Z"
+       }
+      ]
+     },
+     {
+      "title": "An LLM-Assisted Multi-agent Framework for Context-aware Triage of Android Inter-component Communication Security Findings",
+      "doi": "10.2139/ssrn.7233718",
+      "arxiv_id": null,
+      "authors": [
+       {
+        "name": "Pradyumna Sharma Kattel"
+       }
+      ],
+      "year": 2026,
+      "venue": null,
+      "abstract": "Android security analysis tools are highly effective at identifying potentially dangerous behaviors, particularly those related to Inter-Component Communication (ICC). However, traditional static analysis approaches generate a massive volume of false positives by indiscriminately flagging legitimate Android components. This excessive noise creates a severe manual verification burden for security analysts. This paper presents a novel LLM-assisted multi-agent framework designed for the context-aware triage of Android ICC security findings. We introduce a collaborative three-agent reasoning pipeline (Context, Security, and Decision agents) that debates component purpose, exposure characteristics, and threat models before finalizing classifications. We evaluate the framework against traditional rule-based scanners and single-agent LLM baselines using 75 ICC findings extracted from 21 mature open-source applications. The multi-agent system successfully identified 33.3% of findings as benign false positives and prioritized the remaining 66.7% with structured contexts for manual review, all while avoiding the hallucinated vulnerability claims common in single-agent setups. Our empirical evaluation and cost analysis demonstrate that multi-agent LLM systems are a viable, cost-effective intermediate triage layer, dramatically improving precision over single-agent baselines while radically enhancing the efficiency of security analysts and modern Android security workflows.",
+      "url": "https://doi.org/10.2139/ssrn.7233718",
+      "source": "crossref",
+      "provenance": [
+       {
+        "source": "crossref",
+        "query": "communication topology multi-agent LLM",
+        "locator": "10.2139/ssrn.7233718",
+        "synthetic": false,
+        "retrieved_at": "2026-09-23T12:00:00.000Z"
+       }
+      ]
+     },
+     {
+      "title": "CIA: Inferring the Communication Topology from LLM-based Multi-Agent Systems",
+      "doi": "10.18653/v1/2026.acl-long.815",
+      "arxiv_id": null,
+      "authors": [
+       {
+        "name": "Yongxuan Wu"
+       },
+       {
+        "name": "Xixun Lin"
+       },
+       {
+        "name": "He Zhang"
+       },
+       {
+        "name": "Nan Sun"
+       },
+       {
+        "name": "Kun Wang"
+       },
+       {
+        "name": "Chuan Zhou"
+       },
+       {
+        "name": "Shirui Pan"
+       },
+       {
+        "name": "Yanan Cao"
+       }
+      ],
+      "year": 2026,
+      "venue": "Proceedings of the 64th Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers)",
+      "abstract": null,
+      "url": "https://doi.org/10.18653/v1/2026.acl-long.815",
+      "source": "crossref",
+      "provenance": [
+       {
+        "source": "crossref",
+        "query": "communication topology multi-agent LLM",
+        "locator": "10.18653/v1/2026.acl-long.815",
+        "synthetic": false,
+        "retrieved_at": "2026-09-23T12:00:00.000Z"
+       }
+      ]
+     }
+    ],
+    "query": "communication topology multi-agent LLM",
+    "source": "crossref",
+    "skipped_records": 0
+   },
+   "input": "crossref-works-select.json"
+  },
+  {
+   "name": "captured_limit_3",
+   "args": {
+    "query": "q",
+    "limit": 3
+   },
+   "output": {
+    "papers": [
+     {
+      "title": "Self-Refining Topology Optimization via an LLM-Based Multi-Agent Framework",
+      "doi": "10.2139/ssrn.7162224",
+      "arxiv_id": null,
+      "authors": [
+       {
+        "name": "Hyunjee Park"
+       },
+       {
+        "name": "Hayoung Chung"
+       }
+      ],
+      "year": 2026,
+      "venue": null,
+      "abstract": "Topology optimization is a widely used design method that produces optimized material distributions for prescribed objectives and constraints through well-established numerical algorithms. Throughout the workflow, engineers make a series of decisions ranging from setting and adjusting numerical parameters to assessing whether the converged design meets considerations beyond those explicitly included in the optimization problem, such as physical feasibility. These decisions, which draw on domain expertise, interfere with the autonomous design process.To address this difficulty, this study presents TopOptAgents, a multi-agent system for automating not only the design process but also decision-making during the key stages of the topology optimization process. TopOptAgents consists of six LLM-based agents collaborating through iterative self-refinement cycles spanning problem formulation, validation, code generation and execution, and quality assessment of the optimized structure. This process enables error correction and progressive improvement of both the optimization setup and resulting design. The framework is demonstrated on optimization problems selected to cover a range of settings that differ in their literature coverage and numerical characteristics.The benefits of iterative self-refinement are found to be particularly pronounced for problem classes where the pretrained language model has limited prior exposure, such as formulations whose literature and open-source implementations are comparatively sparse. In such cases, the proposed framework reliably produces converged designs where a single state-of-the-art LLM struggles, suggesting that self-refinement broadens the range of topology optimization problems that LLM-based automation can reliably address.",
+      "url": "https://doi.org/10.2139/ssrn.7162224",
+      "source": "crossref",
+      "provenance": [
+       {
+        "source": "crossref",
+        "query": "q",
+        "locator": "10.2139/ssrn.7162224",
+        "synthetic": false,
+        "retrieved_at": "2026-09-23T12:00:00.000Z"
+       }
+      ]
+     },
+     {
+      "title": "Optimizing Multi‑Agent LLM Collaboration via Communication‑Flow Control​",
+      "doi": "10.2139/ssrn.6532560",
+      "arxiv_id": null,
+      "authors": [
+       {
+        "name": "Chuan Tian"
+       },
+       {
+        "name": "yilei zhang"
+       }
+      ],
+      "year": 2026,
+      "venue": null,
+      "abstract": "Multi-agent systems based on Large Language Models (LLMs) have shown promise in automating complex engineering tasks, including code generation for Finite Element Analysis (FEA). However, despite models demonstrating the capability to produce correct solutions, task success rates remain low. This study investigates the mechanisms limiting the effectiveness of multi-agent LLM collaboration through two complementary perspectives: agent role composition and communication flow dynamics. We evaluate seven agent combinations across four increasingly complex FEA tasks through 1,120 controlled experimental trials using the AutoGen framework with GPT-3.5-Turbo. From the agent-role perspective, we find that neither adding more reviewers nor varying team composition yields consistent performance gains; instead, agents designed to provide critical evaluation fail to do so in practice. From a communication-flow perspective, we identify early agreements (i.e., approval messages such as ‘looks good’ or ‘execution succeeded’ that may falsely indicate task completion) as a dominant failure mechanism that prematurely halts iterative code refinement, leaving the model’s coding capability systematically underutilized. Based on these findings, we suggest an approach to optimize communication flow: removing misleading agreements while preserving necessary guidance. This approach significantly improves task success rates (Task 2: 10.7% to 77.5%; Tasks 3-4: 0.7% to 45.0%) without requiring additional training or external information. These results establish that communication dynamics, rather than agent quantity or role diversity, are the primary determinant of multi-agent collaboration effectiveness in engineering code generation.",
+      "url": "https://doi.org/10.2139/ssrn.6532560",
+      "source": "crossref",
+      "provenance": [
+       {
+        "source": "crossref",
+        "query": "q",
+        "locator": "10.2139/ssrn.6532560",
+        "synthetic": false,
+        "retrieved_at": "2026-09-23T12:00:00.000Z"
+       }
+      ]
+     },
+     {
+      "title": "Towards Communication Efficient Multi-Agent Cooperations: Reinforcement Learning and LLM",
+      "doi": "10.36227/techrxiv.173739115.54193062/v2",
+      "arxiv_id": null,
+      "authors": [
+       {
+        "name": "Yang Su"
+       },
+       {
+        "name": "Yali Du"
+       },
+       {
+        "name": "Yansha Deng"
+       },
+       {
+        "name": "Mischa Dohler"
+       }
+      ],
+      "year": 2025,
+      "venue": null,
+      "abstract": "Multi-agent systems (MAS) have gained popularity due to their effectiveness in diverse applications. Among these, decentralized approaches, which rely on inter-agent communication, have emerged as a promising alternative to centralized MAS coordination methods. However, existing communication protocols often learn abstract representations that are difficult for humans to interpret. Also, the limited wireless bandwidth in real-world applications imposes a significant challenge on efficient communication among agents. To address these issues, in this paper, we consider a multi-robot navigation scenario and propose a goal-oriented human-interpretable feature communication protocol, enabling robots to transmit only the most semantically important features. Building on this protocol, we first introduce a Multi-Agent Proximal Policy Optimization (MAPPO)-based Bandwidth-Adaptive Dual-Policy (MAPPO-BDP) framework, which employs a dual-policy architecture to jointly optimize feature selection and navigation under bandwidth constraints. However, as MAPPO-BDP requires retraining for different bandwidth constraints, we further propose a Large Language Model (LLM)-based Bandwidth-Adaptive Dual-Policy (LLM-BDP) framework. By leveraging LLM-based multi-agents, LLM-BDP can adapt to varying bandwidth constraints by simply modifying the input prompt, thereby eliminating the need for retraining. Experimental results show that both MAPPO-BDP and LLM-BDP frameworks successfully complete navigation tasks within a limited number of steps by effectively communicating the most important features under bandwidth constraints. We demonstrate that LLM-BDP achieves better reasoning adaptability by utilizing more advanced LLMs and engineering example prompts. Notably, with human-interpretable feature communication protocol, robots trained with the MAPPO-BDP framework can seamlessly collaborate with robots from the LLM-BDP framework to complete tasks, even without co-training, demonstrating the practical applicability of the proposed communication protocol in new scenarios.",
+      "url": "https://doi.org/10.36227/techrxiv.173739115.54193062/v2",
+      "source": "crossref",
+      "provenance": [
+       {
+        "source": "crossref",
+        "query": "q",
+        "locator": "10.36227/techrxiv.173739115.54193062/v2",
+        "synthetic": false,
+        "retrieved_at": "2026-09-23T12:00:00.000Z"
+       }
+      ]
+     }
+    ],
+    "query": "q",
+    "source": "crossref",
+    "skipped_records": 0
+   },
+   "input": "crossref-works-select.json"
+  },
+  {
+   "name": "rendering",
+   "args": {
+    "query": "q",
+    "limit": 5
+   },
+   "output": {
+    "papers": [
+     {
+      "title": "A marked title & more",
+      "doi": "10.1234/abc.def",
+      "arxiv_id": null,
+      "authors": [
+       {
+        "name": "Ada Lovelace"
+       },
+       {
+        "name": "The Consortium"
+       }
+      ],
+      "year": 2024,
+      "venue": "Proceedings of \"X\"",
+      "abstract": "AbstractWe study x.",
+      "url": "https://doi.org/10.1234/abc.def",
+      "source": "crossref",
+      "provenance": [
+       {
+        "source": "crossref",
+        "query": "q",
+        "locator": "10.1234/abc.def",
+        "synthetic": false,
+        "retrieved_at": "2026-09-23T12:00:00.000Z"
+       }
+      ]
+     }
+    ],
+    "query": "q",
+    "source": "crossref",
+    "skipped_records": 0
+   },
+   "input": {
+    "status": "ok",
+    "message": {
+     "items": [
+      {
+       "DOI": "10.1234/ABC.Def",
+       "title": [
+        "A <i>marked</i> title &amp; more"
+       ],
+       "author": [
+        {
+         "given": "Ada",
+         "family": "Lovelace"
+        },
+        {
+         "name": "The <b>Consortium</b>"
+        },
+        {
+         "family": ""
+        },
+        "not an author"
+       ],
+       "published-online": {
+        "date-parts": [
+         [
+          2024,
+          5
+         ]
+        ]
+       },
+       "issued": {
+        "date-parts": [
+         [
+          2023
+         ]
+        ]
+       },
+       "container-title": [
+        "Proceedings of &quot;X&quot;"
+       ],
+       "abstract": "<jats:title>Abstract</jats:title><jats:p>We   study x.</jats:p>",
+       "URL": "https://doi.org/10.1234/abc.def"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "name": "missing",
+   "args": {
+    "query": "q",
+    "limit": 20
+   },
+   "output": {
+    "papers": [
+     {
+      "title": "Only a title",
+      "doi": null,
+      "arxiv_id": null,
+      "authors": [],
+      "year": null,
+      "venue": null,
+      "abstract": null,
+      "url": null,
+      "source": "crossref",
+      "provenance": [
+       {
+        "source": "crossref",
+        "query": "q",
+        "locator": null,
+        "synthetic": false,
+        "retrieved_at": "2026-09-23T12:00:00.000Z"
+       }
+      ]
+     },
+     {
+      "title": "No DOI at all",
+      "doi": null,
+      "arxiv_id": null,
+      "authors": [],
+      "year": null,
+      "venue": null,
+      "abstract": null,
+      "url": null,
+      "source": "crossref",
+      "provenance": [
+       {
+        "source": "crossref",
+        "query": "q",
+        "locator": null,
+        "synthetic": false,
+        "retrieved_at": "2026-09-23T12:00:00.000Z"
+       }
+      ]
+     },
+     {
+      "title": "Bad dates",
+      "doi": null,
+      "arxiv_id": null,
+      "authors": [],
+      "year": null,
+      "venue": null,
+      "abstract": null,
+      "url": null,
+      "source": "crossref",
+      "provenance": [
+       {
+        "source": "crossref",
+        "query": "q",
+        "locator": null,
+        "synthetic": false,
+        "retrieved_at": "2026-09-23T12:00:00.000Z"
+       }
+      ]
+     },
+     {
+      "title": "Spaces",
+      "doi": null,
+      "arxiv_id": null,
+      "authors": [],
+      "year": null,
+      "venue": null,
+      "abstract": null,
+      "url": null,
+      "source": "crossref",
+      "provenance": [
+       {
+        "source": "crossref",
+        "query": "q",
+        "locator": null,
+        "synthetic": false,
+        "retrieved_at": "2026-09-23T12:00:00.000Z"
+       }
+      ]
+     },
+     {
+      "title": "Short registrant",
+      "doi": null,
+      "arxiv_id": null,
+      "authors": [],
+      "year": null,
+      "venue": null,
+      "abstract": null,
+      "url": null,
+      "source": "crossref",
+      "provenance": [
+       {
+        "source": "crossref",
+        "query": "q",
+        "locator": null,
+        "synthetic": false,
+        "retrieved_at": "2026-09-23T12:00:00.000Z"
+       }
+      ]
+     }
+    ],
+    "query": "q",
+    "source": "crossref",
+    "skipped_records": 3
+   },
+   "input": {
+    "status": "ok",
+    "message": {
+     "items": [
+      {
+       "DOI": "10.1/a",
+       "title": []
+      },
+      {
+       "DOI": "10.1/b"
+      },
+      {
+       "DOI": "10.1/c",
+       "title": [
+        "Only a title"
+       ]
+      },
+      {
+       "title": [
+        "No DOI at all"
+       ],
+       "URL": "javascript:alert(1)",
+       "author": "nobody"
+      },
+      {
+       "title": [
+        "Bad dates"
+       ],
+       "issued": {
+        "date-parts": [
+         [
+          null
+         ]
+        ]
+       },
+       "published": {
+        "date-parts": [
+         [
+          "2020"
+         ]
+        ]
+       }
+      },
+      7,
+      {
+       "DOI": " 10.5555/Upper Case ",
+       "title": [
+        "Spaces"
+       ],
+       "URL": "http://user:pw@example.org/x"
+      },
+      {
+       "DOI": "10.12/short",
+       "title": [
+        "Short registrant"
+       ],
+       "URL": "ftp://example.org"
+      }
+     ]
+    }
+   }
+  }
+ ]
+}

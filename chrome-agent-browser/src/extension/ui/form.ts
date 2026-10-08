@@ -1,9 +1,11 @@
 /**
  * A form for a workflow.v0 task, rendered from the package's own input schema.
  *
- * Ported from `openclaw-agent-browser/src/ui/form.ts` (the frozen reference plugin, D-029) with
- * the selected-file capability left out (document selection arrives with T6): a `selected_files`
- * hint renders as a plain map of names to ids. Never imported across the two projects.
+ * Ported from `openclaw-agent-browser/src/ui/form.ts` (the frozen reference plugin, D-029). A
+ * `selected_files` hint on a string map renders as documents (T6, D-083): each row a key (the hint's
+ * `key_label`, e.g. a DOI) and one of the PDFs the person picked in Settings → Files, by its name;
+ * the value written into the task is the file's opaque id, never a name or a path. Never imported
+ * across the two projects.
  *
  * Generic by construction: nothing here knows a package, a field name or a domain. It reads a
  * bounded JSON Schema document (bundled by the core, `inputForm`) and optional presentation hints,
@@ -22,7 +24,27 @@ type Schema = Record<string, unknown>;
 /** One field's hints, as the core validated them. */
 export type Hint = { field: string } & Record<string, string | number>;
 
-export type FieldKind = "text" | "multiline" | "enum" | "number" | "integer" | "boolean" | "list" | "objectList" | "object" | "map" | "json";
+export type FieldKind = "text" | "multiline" | "enum" | "number" | "integer" | "boolean" | "list" | "objectList" | "object" | "map" | "files" | "json";
+
+/** A picked PDF as the form offers it (Settings → Files): a name for the person, an opaque id for the task. */
+export interface FormFile {
+  file_id: string;
+  display_name: string;
+  bytes: number;
+}
+
+/** What the form may read from its host page: whether it may write, and the person's picked files. */
+export interface FormContext {
+  canWrite: boolean;
+  /** The PDFs this browser holds for runs; absent where the page offers none. */
+  files?: () => readonly FormFile[];
+  /** Open Settings → Files, where PDFs are picked. */
+  openFiles?: () => void;
+}
+
+function sizeText(count: number): string {
+  return count >= 1024 * 1024 ? `${(count / (1024 * 1024)).toFixed(1)} MiB` : count >= 1024 ? `${Math.round(count / 1024)} KiB` : `${count} bytes`;
+}
 
 export type FieldModel = {
   name: string;
@@ -124,6 +146,7 @@ function defaultFor(schema: Schema, kind: FieldKind, required: boolean, columns:
     case "objectList":
       return [];
     case "map":
+    case "files":
       return {};
     case "boolean":
       return false;
@@ -166,8 +189,8 @@ function field(name: string, raw: unknown, root: Schema | null, required: boolea
     const props = isRecord(schema.properties) ? Object.entries(schema.properties) : [];
     const extra = schema.additionalProperties;
     if (props.length === 0 && isRecord(extra) && isPrimitive(resolve(extra, root))) {
-      kind = "map";
       itemSchema = resolve(extra, root);
+      kind = hint?.widget === "selected_files" && typesOf(itemSchema)[0] === "string" ? "files" : "map";
     } else if (props.length > 0 && props.length <= 16) {
       const resolved = props.map(([key, value]) => [key, resolve(value, root)] as const);
       if (resolved.every(([, value]) => isPrimitive(value))) {
@@ -262,7 +285,7 @@ export class TaskForm {
   constructor(
     readonly model: FormModel,
     initial: Record<string, Json> | null,
-    private readonly context: { canWrite: boolean },
+    private readonly context: FormContext,
     private readonly onChange: (value: Json, localErrors: ReadonlyMap<string, string>) => void,
   ) {
     this.value = structuredClone(initial ?? initialValue(model));
@@ -361,6 +384,11 @@ export class TaskForm {
       for (const item of groups[group]) details.append(this.renderField(item));
       this.root.append(details);
     }
+  }
+
+  /** Render again with the host's current data (the picked files changed), keeping the value. */
+  refresh(): void {
+    this.render();
   }
 
   private toggleJson(): void {
@@ -469,7 +497,9 @@ export class TaskForm {
       case "object":
         return this.renderObject(item, disabled);
       case "map":
-        return this.renderMap(item, disabled);
+        return this.renderMap(item, disabled, false);
+      case "files":
+        return this.renderMap(item, disabled, true);
       default:
         return this.renderJsonField(item, id, disabled);
     }
@@ -559,14 +589,26 @@ export class TaskForm {
     return group;
   }
 
-  private renderMap(item: FieldModel, disabled: boolean): HTMLElement {
-    const box = el("div", { className: "ab-list-editor" });
+  private renderMap(item: FieldModel, disabled: boolean, files: boolean): HTMLElement {
+    const box = el("div", { className: files ? "ab-files" : "ab-list-editor" });
     if (!this.mapRows.has(item.name)) this.mapRows.set(item.name, isRecord(this.value[item.name]) ? Object.entries(this.value[item.name] as Record<string, Json>) : []);
     const entries = this.mapRows.get(item.name)!;
+    const available = files ? (this.context.files?.() ?? []) : [];
+    const held = new Set(available.map((file) => file.file_id));
+    // Blank rows are ignored; a half-filled row, or a document this browser no longer holds, is a
+    // local error that keeps Run disabled.
     const check = () => {
       const empty = (value: Json) => value === "" || value === undefined || value === null;
       const incomplete = entries.some(([key, value]) => (key === "") !== empty(value));
-      if (incomplete) this.localErrors.set(item.name, "Each entry needs both a key and a value.");
+      const stale = files && entries.some(([, value]) => typeof value === "string" && value !== "" && !held.has(value));
+      const message = stale
+        ? "A chosen document is no longer held by this browser; pick it again in Settings → Files."
+        : incomplete
+          ? files
+            ? `Each document needs both a ${(item.keyLabel ?? "key").toLowerCase()} and a picked PDF.`
+            : "Each entry needs both a key and a value."
+          : null;
+      if (message) this.localErrors.set(item.name, message);
       else this.localErrors.delete(item.name);
       for (const node of this.root.querySelectorAll<HTMLElement>("[data-field-error]")) if (node.dataset.fieldError === item.name) node.textContent = this.shownError(item.name);
     };
@@ -585,24 +627,51 @@ export class TaskForm {
         entries[index] = [key.value, entries[index]![1]];
         commit();
       });
-      const input = el("input", { className: "ab-input", attrs: { type: "text", "aria-label": `${item.label} ${index + 1} value`, placeholder: item.itemPlaceholder ?? "value" } });
-      input.value = entry[1] === undefined || entry[1] === null ? "" : String(entry[1]);
-      input.disabled = disabled;
-      input.addEventListener("input", () => {
-        entries[index] = [entries[index]![0], input.value];
-        commit();
-      });
-      box.append(el("div", { className: "ab-list-row" }, key, input, ghostButton("Remove", () => {
+      let valueControl: HTMLElement;
+      if (files) {
+        const select = el("select", { className: "ab-select", attrs: { "aria-label": `${item.label} ${index + 1} document` } });
+        const none = el("option", { text: available.length > 0 ? "Choose a picked PDF…" : "No PDF picked yet" });
+        none.value = "";
+        select.append(none);
+        for (const file of available) {
+          const option = el("option", { text: `${file.display_name} · ${sizeText(file.bytes)}` });
+          option.value = file.file_id;
+          if (entry[1] === file.file_id) option.selected = true;
+          select.append(option);
+        }
+        select.disabled = disabled;
+        select.addEventListener("change", () => {
+          entries[index] = [entries[index]![0], select.value];
+          commit();
+        });
+        valueControl = select;
+      } else {
+        const input = el("input", { className: "ab-input", attrs: { type: "text", "aria-label": `${item.label} ${index + 1} value`, placeholder: item.itemPlaceholder ?? "value" } });
+        input.value = entry[1] === undefined || entry[1] === null ? "" : String(entry[1]);
+        input.disabled = disabled;
+        input.addEventListener("input", () => {
+          entries[index] = [entries[index]![0], input.value];
+          commit();
+        });
+        valueControl = input;
+      }
+      box.append(el("div", { className: "ab-list-row" }, key, valueControl, ghostButton("Remove", () => {
         entries.splice(index, 1);
         commit();
         this.render();
       }, disabled)));
     });
-    box.append(ghostButton("Add an entry", () => {
+    box.append(ghostButton(files ? "Add a document" : "Add an entry", () => {
       entries.push(["", ""]);
       commit();
       this.render();
-    }, disabled));
+    }, disabled || (files && available.length === 0)));
+    if (files) {
+      // The package receives opaque ids only; the names are for the person and stay in this browser.
+      const hint = el("p", { className: "ab-hint", text: available.length === 0 ? "Pick the PDFs a run may read in Settings → Files; they are copied into this browser once, and a run is given only the ones you choose here." : "A run is given only the documents chosen here, by an opaque id; their names and your folders never reach the package or a model." });
+      box.append(hint);
+      if (this.context.openFiles) box.append(ghostButton("Settings → Files", () => this.context.openFiles?.(), false));
+    }
     return box;
   }
 

@@ -27,6 +27,7 @@ import type { PinScope, TrustEntry, TrustState } from "../core/trust.js";
 import type { JsonValue } from "../core/json.js";
 import type { AuthorizationReceipt, BrowserPolicy, PresetId, Reason, RunPlan, RunPlanPreflight } from "../core/types.js";
 import type { VaultRecordView, VaultTypeView } from "../core/vault.js";
+import type { FileView } from "./storage/files.js";
 import type { Settings } from "./storage/settings.js";
 import type { StoredObservation } from "./storage/runs.js";
 
@@ -81,6 +82,10 @@ export type Request =
   | { type: "vault.putRecord"; record: unknown }
   | { type: "vault.deleteRecord"; recordId: string }
   | { type: "vault.installDemo"; records: boolean }
+  // Settings → Files (T6, D-083): the person's picked PDFs; the bytes travel once, as base64.
+  | { type: "files.list" }
+  | { type: "files.add"; name: string; base64: string }
+  | { type: "files.remove"; fileId: string }
   // -- runs (T5, D-070…D-073) ---------------------------------------------------------------
   | { type: "run.readiness"; sessionId: string }
   | { type: "run.validateInput"; sessionId: string; input: unknown }
@@ -105,6 +110,8 @@ export type Request =
 
 /** The task input a view may submit: bounded as the reference host bounds it. */
 export const MAX_INPUT_BYTES = 256 * 1024;
+/** A picked file's bytes as base64: 20 MiB (the reader's limit) is 27,962,028 characters. */
+export const MAX_FILE_BASE64 = 4 * Math.ceil((20 * 1024 * 1024) / 3);
 export const ARTIFACT_NAME = /^[A-Za-z0-9_-][A-Za-z0-9_.-]{0,127}$/u;
 
 export interface ContentLink {
@@ -126,6 +133,7 @@ export type Event =
   | { type: "event.authorization"; sessionId: string }
   | { type: "event.settings" }
   | { type: "event.vault" }
+  | { type: "event.files" }
   /** A run's record changed (started, progressed, settled, cleared); views re-read `run.get`. */
   | { type: "event.run"; runId: string; sessionId: string; status: string };
 
@@ -241,6 +249,14 @@ export interface SettingsView {
   settings: Settings;
   /** Which hosted providers have a key; never the key. */
   keys: Record<string, boolean>;
+}
+
+/** Settings → Files: what this browser holds for runs to read, and the bounds (T6, D-083). */
+export interface FilesView {
+  files: FileView[];
+  max_files: number;
+  max_file_bytes: number;
+  max_total_bytes: number;
 }
 
 export interface VaultView {
@@ -572,6 +588,17 @@ export function parseRequest(value: unknown): Request {
     case "vault.installDemo":
       only(fields, ["type", "records"]);
       return { type, records: fields.records === true };
+    case "files.list":
+      only(fields, ["type"]);
+      return { type };
+    case "files.add": {
+      only(fields, ["type", "name", "base64"]);
+      if (typeof fields.base64 !== "string" || fields.base64.length > MAX_FILE_BASE64 || !/^[A-Za-z0-9+/]*={0,2}$/u.test(fields.base64)) throw invalid(`base64 must be the file's bytes in base64, at most ${MAX_FILE_BASE64} characters`);
+      return { type, name: text(fields.name, "name", 512), base64: fields.base64 };
+    }
+    case "files.remove":
+      only(fields, ["type", "fileId"]);
+      return { type, fileId: text(fields.fileId, "fileId", MAX_ID) };
     case "run.readiness":
       only(fields, ["type", "sessionId"]);
       return { type, sessionId: text(fields.sessionId, "sessionId", MAX_ID) };

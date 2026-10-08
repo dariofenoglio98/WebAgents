@@ -3,6 +3,7 @@
  * 2 on refusal, and argparse's refusals for a command line that does not fit (T1 review 2,
  * nit 12).
  */
+import { createHash } from "node:crypto";
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -91,6 +92,25 @@ describe("the command line is parsed as argparse parses agentpkg's (nit 12)", ()
   it("the usage text names every command", () => {
     const source = readFileSync(new URL("../src/cli.ts", import.meta.url), "utf8");
     for (const command of ["verify", "inspect", "evaluate", "run"]) expect(source).toContain(`  ${command} <package.agent.pkg>`);
+    expect(source).toContain("  pdf-text <document.pdf>");
+  });
+});
+
+describe("pdf-text (T6, D-082)", () => {
+  it("prints the probe PDF's pages and the hash of its bytes, as agentpkg host-pdf-read does", () => {
+    const path = join(ROOT, "examples", "probe-files", "paper-reader-probe.pdf");
+    const result = cli.run(["pdf-text", path]);
+    expect(result.status).toBe(0);
+    const answer = JSON.parse(result.stdout) as { pages: Array<{ page: number; text: string }>; sha256: string; source: string };
+    expect(answer.source).toBe("user_pdf");
+    expect(answer.sha256).toBe(createHash("sha256").update(readFileSync(path)).digest("hex"));
+    expect(answer.pages.map((page) => page.page)).toEqual([1, 2]);
+  });
+
+  it("refuses what is not a PDF with a stable reason and status 3", () => {
+    const result = cli.run(["pdf-text", join(ROOT, "README.md")]);
+    expect(result.status).toBe(3);
+    expect(JSON.parse(result.stdout)).toEqual({ error: "not_a_pdf" });
   });
 });
 

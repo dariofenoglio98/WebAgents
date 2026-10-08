@@ -274,7 +274,8 @@ describe("Customize your settings", () => {
     pdfs.value = "deny";
     pdfs.dispatchEvent(new Event("change"));
     expect(root.querySelector<HTMLElement>('.ab-permission[data-permission="files.pdfs"]')!.textContent).toContain("decided by user");
-    expect(root.querySelector<HTMLElement>('.ab-approval[data-tool="paper-reader"]')!.textContent).toContain("unbound");
+    // T6: the paper reader is this browser's own selected-PDF reader, bound like the other two tools.
+    expect(root.querySelector<HTMLElement>('.ab-approval[data-tool="paper-reader"]')!.textContent).toContain("Selected PDF text");
   });
 });
 

@@ -11,6 +11,7 @@ import type { ProgressSnapshot } from "../../core/execution/progress.js";
 import type { RunRecord } from "../../core/execution/record.js";
 import type { HostExecutionLimits } from "../../core/execution/limits.js";
 import type { JsonObject, JsonValue } from "../../core/json.js";
+import type { SelectedFileAttachment } from "../../core/tools/adapters/selected-file.js";
 import type { AuditEvent, RunPlan } from "../../core/types.js";
 import { completion, Database, request } from "./database.js";
 
@@ -21,6 +22,8 @@ export interface RunInvocation {
   /** T3's full Run Plan, for the export and the Technical details ("Decided by"). */
   run_plan: RunPlan;
   input: JsonValue;
+  /** The picked files this run was given (the ones its task names), path-free (T6, D-083); absent on runs recorded before T6. */
+  attachments?: SelectedFileAttachment[];
   limits: HostExecutionLimits;
   archive_sha256: string;
   /** The receipt's model, tool and resource facts a view shows beside the run. */

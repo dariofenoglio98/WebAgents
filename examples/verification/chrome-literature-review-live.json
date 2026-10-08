@@ -1,0 +1,1096 @@
+{
+  "profile": "chrome-literature-review-live-v0",
+  "recordedAt": "2026-10-08T18:22:05.093Z",
+  "model": "openai/gpt-5.6-luna",
+  "think": false,
+  "package": {
+    "path": "dist/literature-review-0.2.5.agent.pkg",
+    "archiveSha256": "1669f83fafac3434748fc19d38a8d3d2c3352da83cf1cbb84796ce313bd4f571",
+    "servedAs": "https://research.example/literature-review.agent.pkg"
+  },
+  "input": "examples/literature-review-live-input.json",
+  "documents": [],
+  "crossrefContact": null,
+  "extension": "chrome-agent-browser/dist/extension",
+  "chrome": "Chrome/154.0.8037.99",
+  "outputDirectory": "examples/my-chrome-lit-2026-10-08T18-22-05-093Z",
+  "steps": {
+    "setup": {
+      "probe": {
+        "ok": true,
+        "models": 64,
+        "error": null
+      },
+      "testMode": true,
+      "keyFromEnvironment": "OPENAI_API_KEY",
+      "limits": {
+        "total_tokens": 180000,
+        "max_remote_calls": 45,
+        "max_parallel_workers": 3,
+        "max_output_tokens_per_call": 16000,
+        "run_timeout_seconds": 4500,
+        "max_calls_per_tool": 32,
+        "model_call_timeout_seconds": 1200
+      },
+      "the openai connection answers": "ok",
+      "the model is offered": "ok",
+      "execution is enabled under the long-run limits": "ok"
+    },
+    "files": [],
+    "inspect": {
+      "sessionId": "d31907beea0a4fc5af376ea2",
+      "name": "Literature Review Agent",
+      "version": "0.2.5",
+      "digest": "cef9ebd68df9db3b36c1ffeac9069d734b0e41a40d58445aaba1a60eaac155b5",
+      "signature": "valid",
+      "Literature Review 0.2.5, signed": "ok"
+    },
+    "authorization": {
+      "decisions": {
+        "files.pdfs": "session",
+        "memory.session": "session",
+        "model.reasoning": "session",
+        "network.citations": "session",
+        "network.scholarly": "session"
+      },
+      "ready": true,
+      "runPlanId": "rp_54ff76424cf24fea8c26e45ed67d12a6",
+      "bindings": [
+        {
+          "tool": "citation-resolver",
+          "implementation": "chrome.tool.json_http",
+          "binding_id": "chrome:json_http:citation-resolver:1",
+          "usable": true,
+          "contact": false
+        },
+        {
+          "tool": "paper-reader",
+          "implementation": "chrome.tool.selected_pdf_text",
+          "binding_id": "chrome:selected_pdf_text:paper-reader:1",
+          "usable": true,
+          "contact": false
+        },
+        {
+          "tool": "scholarly-search",
+          "implementation": "chrome.tool.crossref_works_search",
+          "binding_id": "chrome:crossref_works_search:scholarly-search:1",
+          "usable": true,
+          "contact": false
+        }
+      ],
+      "the plan is ready": "ok",
+      "the three tools bind to the host's Crossref search, the declared resolver and the PDF reader": "ok"
+    },
+    "reconnect": {
+      "shown": "run_d75b49412cea4f0e9975d420c2477f85",
+      "state": "running",
+      "the reloaded page shows the run in flight": "ok"
+    },
+    "run": {
+      "settled as completed (the honest-empty outcome is a completed run)": "ok",
+      "the audit chain is valid": "ok"
+    }
+  },
+  "run": {
+    "runId": "run_d75b49412cea4f0e9975d420c2477f85",
+    "status": "completed",
+    "errorCode": null,
+    "pageState": "completed",
+    "durationMs": 115063,
+    "selectedModel": "openai/gpt-5.6-luna",
+    "model": {
+      "planned": "openai/gpt-5.6-luna",
+      "invoked": [
+        "openai/gpt-5.6-luna"
+      ],
+      "calls": 14,
+      "allCallsUsedPlannedModel": true,
+      "providers": [
+        "openai"
+      ],
+      "responseModels": [
+        "gpt-5.6-luna"
+      ]
+    },
+    "usage": {
+      "tokens": 44021,
+      "remoteCalls": 32,
+      "toolCalls": 4,
+      "peakParallelWorkers": 3
+    },
+    "cost": {
+      "status": "unknown",
+      "totalUsd": null,
+      "calls": 14,
+      "callsWithReportedCost": 0
+    },
+    "audit": {
+      "events": 484,
+      "chainValid": true
+    },
+    "attachments": [],
+    "failure": null,
+    "files": [
+      {
+        "name": "run.json",
+        "bytes": 21275,
+        "sha256": "65b36ca2fab14ed5d2f871d47e8c2a1e2bd0221cbe2326eb6af92e758e7cf669"
+      },
+      {
+        "name": "run-plan.json",
+        "bytes": 18134,
+        "sha256": "a4524cd099da120af296e50f9bb2249528eebcdbfd23bd662abe8970ca07727f"
+      },
+      {
+        "name": "input.json",
+        "bytes": 330,
+        "sha256": "812420fec96de3ebd4a5f70d51e507abe0c102364f794c06e1ce76ce96e39e6f"
+      },
+      {
+        "name": "audit.json",
+        "bytes": 314170,
+        "sha256": "103ebfb53b4f415068a96633e851a4c2662e6d9d327f17a588772d2a5b5e2b9c"
+      },
+      {
+        "name": "bibliography.json",
+        "bytes": 2486,
+        "sha256": "76243dc1ccfe8c69664bf3b91c4bf850897ddccafc545a380ffd2ef03b9cb3de"
+      },
+      {
+        "name": "evidence-table.json",
+        "bytes": 3115,
+        "sha256": "a98df26959337373e67beb91cb9faf03cad05ee0e4bc3de47d565fd959f8ecf9"
+      },
+      {
+        "name": "provenance.json",
+        "bytes": 251,
+        "sha256": "8884c56265968b26d2cc213d66aaf2545a833de939f3bb8a213cae11b61303a3"
+      },
+      {
+        "name": "related-work.md",
+        "bytes": 754,
+        "sha256": "3537d8864e8e17cb1404732b8af2d5990354db0ef4512e8a456288b870d944eb"
+      },
+      {
+        "name": "result.json",
+        "bytes": 506877,
+        "sha256": "1604d0c30b130c91fbc7a4f1e4319c5cfc94495d0563c8b6b386190cde97de91"
+      },
+      {
+        "name": "unresolved.json",
+        "bytes": 3,
+        "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      },
+      {
+        "name": "usage.json",
+        "bytes": 3966,
+        "sha256": "e4a9c7a4d20eda3b871bb7bce84c26d66396003ded19b27be80724cb6abf9987"
+      },
+      {
+        "name": "verification.json",
+        "bytes": 2109,
+        "sha256": "152c35c1eeaeaf30634bae88e02ea43e0d6d4886dcd1e6e1edb938c344809c5f"
+      }
+    ],
+    "observations": 18
+  },
+  "failures": [],
+  "passed": true,
+  "checks": [
+    {
+      "id": "package_verifies_with_the_publisher_key",
+      "passed": true,
+      "detail": {
+        "digest": "cef9ebd68df9db3b36c1ffeac9069d734b0e41a40d58445aaba1a60eaac155b5"
+      }
+    },
+    {
+      "id": "run_bound_to_the_shipped_archive",
+      "passed": true,
+      "detail": {
+        "record": "1669f83fafac3434748fc19d38a8d3d2c3352da83cf1cbb84796ce313bd4f571",
+        "dist": "1669f83fafac3434748fc19d38a8d3d2c3352da83cf1cbb84796ce313bd4f571"
+      }
+    },
+    {
+      "id": "plan_names_the_package",
+      "passed": true
+    },
+    {
+      "id": "audit_chain_valid",
+      "passed": true,
+      "detail": {
+        "events": 484,
+        "valid": true,
+        "broken": [],
+        "final_hash": "2eef88805bc53b6bdf7df6e4a638b3e170b40b41e23be7cde9760127eff3a8c6",
+        "note": "A local hash chain. It binds these events to each other; it is not an external tamper-proof audit service."
+      }
+    },
+    {
+      "id": "record_matches_audit",
+      "passed": true,
+      "detail": {
+        "events": 484,
+        "chainValid": true,
+        "finalHash": "2eef88805bc53b6bdf7df6e4a638b3e170b40b41e23be7cde9760127eff3a8c6",
+        "actions": [
+          {
+            "action": "budget.updated",
+            "count": 64
+          },
+          {
+            "action": "delegation.checked",
+            "count": 31
+          },
+          {
+            "action": "memory.cleared",
+            "count": 1
+          },
+          {
+            "action": "model.called",
+            "count": 14
+          },
+          {
+            "action": "model.completed",
+            "count": 14
+          },
+          {
+            "action": "model.count.called",
+            "count": 14
+          },
+          {
+            "action": "node.completed",
+            "count": 65
+          },
+          {
+            "action": "node.skipped",
+            "count": 15
+          },
+          {
+            "action": "node.started",
+            "count": 65
+          },
+          {
+            "action": "permission.checked",
+            "count": 68
+          },
+          {
+            "action": "runtime.started",
+            "count": 1
+          },
+          {
+            "action": "state.committed",
+            "count": 21
+          },
+          {
+            "action": "tool.called",
+            "count": 4
+          },
+          {
+            "action": "tool.completed",
+            "count": 4
+          },
+          {
+            "action": "tool.dispatched",
+            "count": 4
+          },
+          {
+            "action": "tool.settled",
+            "count": 4
+          },
+          {
+            "action": "worker.completed",
+            "count": 31
+          },
+          {
+            "action": "worker.spawned",
+            "count": 31
+          },
+          {
+            "action": "worker.started",
+            "count": 31
+          },
+          {
+            "action": "workflow.completed",
+            "count": 1
+          },
+          {
+            "action": "workflow.started",
+            "count": 1
+          }
+        ],
+        "workers": [
+          "CitationWorker:14",
+          "CitationWorker:15",
+          "CitationWorker:16",
+          "CitationWorker:17",
+          "CitationWorker:18",
+          "CitationWorker:23",
+          "EvidenceWorker:19",
+          "PlanningWorker:1",
+          "PlanningWorker:5",
+          "ScreeningWorker:10",
+          "ScreeningWorker:11",
+          "ScreeningWorker:12",
+          "ScreeningWorker:13",
+          "ScreeningWorker:6",
+          "ScreeningWorker:7",
+          "ScreeningWorker:8",
+          "ScreeningWorker:9",
+          "SearchWorker:2",
+          "SearchWorker:3",
+          "SearchWorker:4",
+          "SynthesisWorker:20",
+          "VerificationWorker:22",
+          "VerificationWorker:24",
+          "VerificationWorker:25",
+          "VerificationWorker:26",
+          "VerificationWorker:27",
+          "VerificationWorker:28",
+          "VerificationWorker:29",
+          "VerificationWorker:30",
+          "VerificationWorker:31",
+          "WritingWorker:21",
+          "coordinator"
+        ],
+        "workersSpawned": 31,
+        "nodesCompleted": 65,
+        "modelCalls": 14,
+        "toolCalls": 4,
+        "tasksCalled": [
+          {
+            "task": "extract",
+            "count": 1
+          },
+          {
+            "task": "normalize",
+            "count": 1
+          },
+          {
+            "task": "plan",
+            "count": 1
+          },
+          {
+            "task": "screen",
+            "count": 7
+          },
+          {
+            "task": "select",
+            "count": 1
+          },
+          {
+            "task": "synthesize",
+            "count": 1
+          },
+          {
+            "task": "verify",
+            "count": 1
+          },
+          {
+            "task": "write",
+            "count": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "every_artifact_matches_the_record",
+      "passed": true
+    },
+    {
+      "id": "input_is_the_harness_input",
+      "passed": true
+    },
+    {
+      "id": "run_completed",
+      "passed": true,
+      "detail": {
+        "status": "completed",
+        "errorCode": null,
+        "failure": null
+      }
+    },
+    {
+      "id": "used_the_selected_model_only",
+      "passed": true,
+      "detail": {
+        "planned": "openai/gpt-5.6-luna",
+        "invoked": [
+          "openai/gpt-5.6-luna"
+        ],
+        "calls": 14,
+        "allCallsUsedPlannedModel": true,
+        "providers": [
+          "openai"
+        ],
+        "responseModels": [
+          "gpt-5.6-luna"
+        ]
+      }
+    },
+    {
+      "id": "every_model_call_observed",
+      "passed": true,
+      "detail": {
+        "observed": 14,
+        "recorded": 14,
+        "called": 14
+      }
+    },
+    {
+      "id": "every_tool_call_went_to_the_planned_binding",
+      "passed": true
+    },
+    {
+      "id": "the_plan_binds_the_host_implementations",
+      "passed": true,
+      "detail": {
+        "citation-resolver": "chrome:json_http:citation-resolver:1",
+        "paper-reader": "chrome:selected_pdf_text:paper-reader:1",
+        "scholarly-search": "chrome:crossref_works_search:scholarly-search:1"
+      }
+    },
+    {
+      "id": "every_remote_tool_call_observed",
+      "passed": true,
+      "detail": {
+        "observed": 4,
+        "answered": 4,
+        "dispatched": 4
+      }
+    },
+    {
+      "id": "crossref_requests_have_the_reference_shape",
+      "passed": true,
+      "detail": {
+        "requests": 3,
+        "ok": 3
+      }
+    },
+    {
+      "id": "at_most_one_crossref_request_per_search_call_no_retry",
+      "passed": true,
+      "detail": {
+        "requests": 3,
+        "answered": 3,
+        "calls": 3
+      }
+    },
+    {
+      "id": "crossref_paced_one_per_second",
+      "passed": true,
+      "detail": {
+        "gaps_s": [
+          1.391,
+          1.193
+        ]
+      }
+    },
+    {
+      "id": "crossref_answered_every_search",
+      "passed": true,
+      "detail": {
+        "statuses": [
+          200,
+          200,
+          200
+        ],
+        "failures": []
+      }
+    },
+    {
+      "id": "resolver_calls_went_to_the_declared_origin",
+      "passed": true,
+      "detail": {
+        "resolver": 1,
+        "crossref": 3,
+        "tools": 4
+      }
+    },
+    {
+      "id": "attachments_are_the_picked_documents",
+      "passed": true,
+      "detail": {
+        "attachments": [],
+        "picked": []
+      }
+    },
+    {
+      "id": "the_parser_text_describes_the_picked_bytes",
+      "passed": true
+    },
+    {
+      "id": "documents_read_by_opaque_id_and_hash_only",
+      "passed": true,
+      "detail": []
+    },
+    {
+      "id": "no_document_name_in_any_run_file",
+      "passed": true
+    },
+    {
+      "id": "held_to_the_long_run_limits",
+      "passed": true,
+      "detail": {
+        "totalTokens": 180000,
+        "maxRemoteCalls": 45,
+        "maxParallelWorkers": 3,
+        "maxOutputTokensPerCall": 16000,
+        "runTimeoutSeconds": 4500,
+        "modelCallTimeoutSeconds": 1200
+      }
+    },
+    {
+      "id": "usage_within_the_limits",
+      "passed": true,
+      "detail": {
+        "tokens": 44021,
+        "remoteCalls": 32,
+        "peakParallelWorkers": 3,
+        "toolCalls": 4,
+        "limits": {
+          "hardTokens": 180000,
+          "maxRemoteCalls": 45,
+          "maxParallelWorkers": 3
+        },
+        "workers": [
+          {
+            "worker": "coordinator",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "PlanningWorker:1",
+            "tokens": 809,
+            "remoteCalls": 2
+          },
+          {
+            "worker": "SearchWorker:2",
+            "tokens": 0,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "SearchWorker:3",
+            "tokens": 0,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "SearchWorker:4",
+            "tokens": 0,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "PlanningWorker:5",
+            "tokens": 10804,
+            "remoteCalls": 2
+          },
+          {
+            "worker": "ScreeningWorker:6",
+            "tokens": 2013,
+            "remoteCalls": 2
+          },
+          {
+            "worker": "ScreeningWorker:7",
+            "tokens": 2389,
+            "remoteCalls": 2
+          },
+          {
+            "worker": "ScreeningWorker:8",
+            "tokens": 2374,
+            "remoteCalls": 2
+          },
+          {
+            "worker": "ScreeningWorker:9",
+            "tokens": 2108,
+            "remoteCalls": 2
+          },
+          {
+            "worker": "ScreeningWorker:10",
+            "tokens": 1801,
+            "remoteCalls": 2
+          },
+          {
+            "worker": "ScreeningWorker:11",
+            "tokens": 2117,
+            "remoteCalls": 2
+          },
+          {
+            "worker": "ScreeningWorker:12",
+            "tokens": 2293,
+            "remoteCalls": 2
+          },
+          {
+            "worker": "ScreeningWorker:13",
+            "tokens": 4720,
+            "remoteCalls": 2
+          },
+          {
+            "worker": "CitationWorker:14",
+            "tokens": 0,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "CitationWorker:15",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "CitationWorker:16",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "CitationWorker:17",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "CitationWorker:18",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "EvidenceWorker:19",
+            "tokens": 2729,
+            "remoteCalls": 2
+          },
+          {
+            "worker": "SynthesisWorker:20",
+            "tokens": 3013,
+            "remoteCalls": 2
+          },
+          {
+            "worker": "WritingWorker:21",
+            "tokens": 1894,
+            "remoteCalls": 2
+          },
+          {
+            "worker": "VerificationWorker:22",
+            "tokens": 4957,
+            "remoteCalls": 2
+          },
+          {
+            "worker": "CitationWorker:23",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:24",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:25",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:26",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:27",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:28",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:29",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:30",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:31",
+            "tokens": 0,
+            "remoteCalls": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "evidence_quotes_occur_in_genuine_sources",
+      "passed": true,
+      "detail": {
+        "items": 4,
+        "in_sources": 4
+      }
+    },
+    {
+      "id": "evidence_table_rows_match_items",
+      "passed": true
+    },
+    {
+      "id": "bibliography_all_resolved_and_exact",
+      "passed": true
+    },
+    {
+      "id": "claims_reference_existing_evidence",
+      "passed": true
+    },
+    {
+      "id": "claims_cite_evidence_and_papers",
+      "passed": true
+    },
+    {
+      "id": "claims_reference_resolved_papers",
+      "passed": true
+    },
+    {
+      "id": "verification_results_match_claims",
+      "passed": true
+    },
+    {
+      "id": "related_work_mentions_only_bibliography",
+      "passed": true
+    },
+    {
+      "id": "grounded_review_or_honest_empty",
+      "passed": true,
+      "detail": {
+        "claims": 4,
+        "honest_empty": false
+      }
+    }
+  ],
+  "grounding": {
+    "evidence_items": 4,
+    "evidence_quotes_in_genuine_sources": 4,
+    "evidence_quote_results": [
+      {
+        "evidence_id": "10.20944/preprints202603.0176.v1:e1",
+        "paper_id": "10.20944/preprints202603.0176.v1",
+        "scope": "abstract",
+        "quote_in_genuine_source": true,
+        "synthetic": false
+      },
+      {
+        "evidence_id": "10.20944/preprints202603.0176.v1:e2",
+        "paper_id": "10.20944/preprints202603.0176.v1",
+        "scope": "abstract",
+        "quote_in_genuine_source": true,
+        "synthetic": false
+      },
+      {
+        "evidence_id": "10.20944/preprints202603.0176.v1:e3",
+        "paper_id": "10.20944/preprints202603.0176.v1",
+        "scope": "abstract",
+        "quote_in_genuine_source": true,
+        "synthetic": false
+      },
+      {
+        "evidence_id": "10.20944/preprints202603.0176.v1:e4",
+        "paper_id": "10.20944/preprints202603.0176.v1",
+        "scope": "abstract",
+        "quote_in_genuine_source": true,
+        "synthetic": false
+      }
+    ],
+    "evidence_table_rows": 4,
+    "evidence_table_rows_match_items": true,
+    "bibliography": [
+      {
+        "paper_id": "10.20944/preprints202603.0176.v1",
+        "resolved": true,
+        "metadata_equals_resolver_record": true,
+        "title": "Adaptive Sparse Dense Communication Network for Multi-Agent LLMs",
+        "doi": "10.20944/preprints202603.0176.v1"
+      }
+    ],
+    "bibliography_all_resolved_and_exact": true,
+    "claims": 4,
+    "claims_reference_existing_evidence": true,
+    "claims_cite_evidence_and_papers": true,
+    "claims_reference_resolved_papers": true,
+    "verification_results": 4,
+    "verification_results_match_claims": true,
+    "unsupported_or_overstated": 0,
+    "related_work_chars": 754,
+    "related_work_paper_ids_mentioned": [],
+    "related_work_mentions_only_bibliography": true,
+    "unresolved": 0,
+    "honest_empty": false
+  },
+  "search": {
+    "queries": [
+      "(\"multi-agent large language model\" OR \"LLM agents\") AND (dynamic agent selection OR adaptive agent selection OR agent routing OR planner) AND (communication topology OR interaction structure OR delegation)",
+      "(\"multi-agent LLM\" OR \"multi-agent language model\") AND (adaptive communication OR dynamic communication graph OR topology adaptation OR sparse communication) AND (agent selection OR role selection OR team composition)",
+      "(\"multi-agent large language model\" OR \"LLM-based multi-agent system\") AND (agent selection OR communication topology) AND (efficiency OR scalability OR communication cost OR latency OR ablation OR benchmark)"
+    ],
+    "batches": [
+      {
+        "query": "(\"multi-agent large language model\" OR \"LLM agents\") AND (dynamic agent selection OR adaptive agent selection OR agent routing OR planner) AND (communication topology OR interaction structure OR delegation)",
+        "source": "crossref",
+        "papers": 3,
+        "with_abstract": 2
+      },
+      {
+        "query": "(\"multi-agent LLM\" OR \"multi-agent language model\") AND (adaptive communication OR dynamic communication graph OR topology adaptation OR sparse communication) AND (agent selection OR role selection OR team composition)",
+        "source": "crossref",
+        "papers": 3,
+        "with_abstract": 1
+      },
+      {
+        "query": "(\"multi-agent large language model\" OR \"LLM-based multi-agent system\") AND (agent selection OR communication topology) AND (efficiency OR scalability OR communication cost OR latency OR ablation OR benchmark)",
+        "source": "crossref",
+        "papers": 3,
+        "with_abstract": 2
+      }
+    ],
+    "candidate_papers": 7,
+    "screened": [
+      {
+        "paper_id": "10.2139/ssrn.5193257",
+        "status": "maybe",
+        "doi": "10.2139/ssrn.5193257"
+      },
+      {
+        "paper_id": "10.20944/preprints202604.0413.v2",
+        "status": "exclude",
+        "doi": "10.20944/preprints202604.0413.v2"
+      },
+      {
+        "paper_id": "10.20944/preprints202604.0413.v1",
+        "status": "exclude",
+        "doi": "10.20944/preprints202604.0413.v1"
+      },
+      {
+        "paper_id": "10.20944/preprints202603.0176.v1",
+        "status": "include",
+        "doi": "10.20944/preprints202603.0176.v1"
+      },
+      {
+        "paper_id": "10.1109/eccst68196.2025.11441200",
+        "status": "maybe",
+        "doi": "10.1109/eccst68196.2025.11441200"
+      },
+      {
+        "paper_id": "10.4018/979-8-3373-1419-8.ch007",
+        "status": "maybe",
+        "doi": "10.4018/979-8-3373-1419-8.ch007"
+      },
+      {
+        "paper_id": "10.26434/chemrxiv.15001153/v1",
+        "status": "exclude",
+        "doi": "10.26434/chemrxiv.15001153/v1"
+      }
+    ],
+    "resolver_statuses": [
+      {
+        "paper_id": "10.20944/preprints202603.0176.v1",
+        "status": "resolved"
+      }
+    ]
+  },
+  "verification": {
+    "script": "scripts/verify_chrome_literature_live.py",
+    "checks": 33,
+    "failed": [],
+    "run": {
+      "durationMs": 115063,
+      "usage": {
+        "tokens": 44021,
+        "remoteCalls": 32,
+        "peakParallelWorkers": 3,
+        "toolCalls": 4,
+        "limits": {
+          "hardTokens": 180000,
+          "maxRemoteCalls": 45,
+          "maxParallelWorkers": 3
+        },
+        "workers": [
+          {
+            "worker": "coordinator",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "PlanningWorker:1",
+            "tokens": 809,
+            "remoteCalls": 2
+          },
+          {
+            "worker": "SearchWorker:2",
+            "tokens": 0,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "SearchWorker:3",
+            "tokens": 0,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "SearchWorker:4",
+            "tokens": 0,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "PlanningWorker:5",
+            "tokens": 10804,
+            "remoteCalls": 2
+          },
+          {
+            "worker": "ScreeningWorker:6",
+            "tokens": 2013,
+            "remoteCalls": 2
+          },
+          {
+            "worker": "ScreeningWorker:7",
+            "tokens": 2389,
+            "remoteCalls": 2
+          },
+          {
+            "worker": "ScreeningWorker:8",
+            "tokens": 2374,
+            "remoteCalls": 2
+          },
+          {
+            "worker": "ScreeningWorker:9",
+            "tokens": 2108,
+            "remoteCalls": 2
+          },
+          {
+            "worker": "ScreeningWorker:10",
+            "tokens": 1801,
+            "remoteCalls": 2
+          },
+          {
+            "worker": "ScreeningWorker:11",
+            "tokens": 2117,
+            "remoteCalls": 2
+          },
+          {
+            "worker": "ScreeningWorker:12",
+            "tokens": 2293,
+            "remoteCalls": 2
+          },
+          {
+            "worker": "ScreeningWorker:13",
+            "tokens": 4720,
+            "remoteCalls": 2
+          },
+          {
+            "worker": "CitationWorker:14",
+            "tokens": 0,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "CitationWorker:15",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "CitationWorker:16",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "CitationWorker:17",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "CitationWorker:18",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "EvidenceWorker:19",
+            "tokens": 2729,
+            "remoteCalls": 2
+          },
+          {
+            "worker": "SynthesisWorker:20",
+            "tokens": 3013,
+            "remoteCalls": 2
+          },
+          {
+            "worker": "WritingWorker:21",
+            "tokens": 1894,
+            "remoteCalls": 2
+          },
+          {
+            "worker": "VerificationWorker:22",
+            "tokens": 4957,
+            "remoteCalls": 2
+          },
+          {
+            "worker": "CitationWorker:23",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:24",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:25",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:26",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:27",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:28",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:29",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:30",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:31",
+            "tokens": 0,
+            "remoteCalls": 0
+          }
+        ]
+      },
+      "cost": {
+        "status": "unknown",
+        "totalUsd": null,
+        "calls": 14,
+        "callsWithReportedCost": 0
+      },
+      "model": {
+        "planned": "openai/gpt-5.6-luna",
+        "invoked": [
+          "openai/gpt-5.6-luna"
+        ],
+        "calls": 14,
+        "allCallsUsedPlannedModel": true,
+        "providers": [
+          "openai"
+        ],
+        "responseModels": [
+          "gpt-5.6-luna"
+        ]
+      }
+    }
+  }
+}

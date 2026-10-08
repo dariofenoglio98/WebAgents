@@ -2,15 +2,15 @@
   "note": "Produce the Python control plane's receipt, run plan and evaluations for WebAir 0.4.0.\n\nThe Chrome core's tests compare their own output with these records (T3). Inputs are fixed\n(timestamps, ids, a one-model catalog, a tool registry derived exactly as the Chrome host\nderives its own, a resource registry with placeholder digests), so every hash is reproducible\nfrom `inputs.json` with the Python reference. Written by the T3 session on\n2026-10-06. Refresh after a reference change, from the repository root:\n\n    agentpkg/.venv/bin/python chrome-agent-browser/scripts/make-authorization-fixtures.py [--out DIR]\n\nSession and receipt ids and timestamps are new on every run; the Chrome tests rebuild every\nrecord from the written `inputs.json`, so they compare like with like.",
   "package": "dist/webair-0.4.0.agent.pkg",
   "session": {
-    "session_id": "2un3HYc_efXZu61HvHglirnf",
-    "expires_at": "2026-10-07T21:36:52.905817+00:00",
+    "session_id": "dihKmcpCKlplc1wBVPE24iQ5",
+    "expires_at": "2026-10-08T17:12:29.778388+00:00",
     "archive_sha256": "c12f9db3bd7b3b4b6721c67e1d0b8143ebd94381df0e5e57c196357b7ca77f63",
     "source": {
       "kind": "file",
       "display": "dist/webair-0.4.0.agent.pkg",
-      "opened_at": "2026-10-07T21:21:52.905817+00:00"
+      "opened_at": "2026-10-08T16:57:29.778388+00:00"
     },
-    "instance_id": "26d5bafd-92fe-4327-884b-57e53dac4bac",
+    "instance_id": "aa14f9ce-e444-4377-87d6-0c93b2690aef",
     "evaluation": {
       "container_status": "valid",
       "integrity_status": "valid",
@@ -37,7 +37,7 @@
         "publisher_id": "webair-demo",
         "package_id_prefix": null,
         "notes": null,
-        "added_at": "2026-10-07T21:21:52.723955+00:00"
+        "added_at": "2026-10-08T16:57:29.606475+00:00"
       }
     },
     "trust_state": {
@@ -81,7 +81,7 @@
     "host": {
       "runtime": "chrome-agent-browser",
       "runtime_version": "0.1.0",
-      "source": "chrome-agent-browser host tool registry (D-054): one generic HTTPS JSON binding per declared remote tool, derived from the signed declaration after the URL gate; one host-resource binding per vault type; other local tools unbound",
+      "source": "chrome-agent-browser host tool registry (D-054, D-081, D-082): one generic HTTPS JSON binding per declared remote POST tool, derived from the signed declaration after the URL gate; the host's Crossref search for scholarly.search at Crossref's works endpoint; the selected-PDF reader for paper.read; one host-resource binding per vault type; other tools unbound",
       "captured_at": "2026-10-06T12:00:00.000Z",
       "agent_id": null
     },

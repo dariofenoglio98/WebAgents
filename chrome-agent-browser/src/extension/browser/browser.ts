@@ -8,12 +8,12 @@ import type { Candidate } from "../../core/discovery.js";
 import type { JsonObject } from "../../core/json.js";
 import { looksLikePackageUrl } from "../../core/policy.js";
 import type { TrustEntry, TrustState } from "../../core/trust.js";
-import type { AuthorizationView, ExportBundle, ModelsView, RunListView, RunSummary, RunView, SessionDescriptor, SessionView, SettingsView, StatusInfo, VaultView, WebsiteResult } from "../messages.js";
+import type { AuthorizationView, ExportBundle, FilesView, ModelsView, RunListView, RunSummary, RunView, SessionDescriptor, SessionView, SettingsView, StatusInfo, VaultView, WebsiteResult } from "../messages.js";
 import { renderAgentPage } from "../ui/agent-page.js";
 import { bindAuthorization, type AuthorizationController } from "../ui/authorization-flow.js";
 import { describeError, send, subscribe } from "../ui/client.js";
 import { button, card, chip, el, list, replace, row, whenText } from "../ui/dom.js";
-import { newSettingsPageState, refreshProbes, renderSettingsPage, type SettingsPageState, type SettingsSection } from "../ui/settings-page.js";
+import { newSettingsPageState, refreshProbes, renderSettingsPage, SETTINGS_SECTIONS, type SettingsPageState, type SettingsSection } from "../ui/settings-page.js";
 import type { ProviderId } from "../../core/models/catalog.js";
 import { renderTrustPage } from "../ui/trust-page.js";
 import { newVaultPageState, renderVaultPage, type VaultPageState } from "../ui/vault-page.js";
@@ -35,6 +35,8 @@ interface PageState {
   status: StatusInfo | null;
   settings: SettingsView | null;
   settingsPage: SettingsPageState;
+  /** Settings → Files (T6): the PDFs runs may read. */
+  files: FilesView | null;
   vault: VaultView | null;
   vaultPage: VaultPageState;
   busy: string | null;
@@ -60,6 +62,7 @@ const state: PageState = {
   status: null,
   settings: null,
   settingsPage: newSettingsPageState(),
+  files: null,
   vault: null,
   vaultPage: newVaultPageState(),
   busy: null,
@@ -99,6 +102,9 @@ const runs = new RunPanel({
   reveal: (section) => {
     if (section === "model") location.hash = "settings?section=models";
     else document.querySelector(".ab-authorize")?.scrollIntoView({ block: "start" });
+  },
+  openFiles: () => {
+    location.hash = "settings?section=files";
   },
   changed: () => void load(),
   runChanged: (runId) => {
@@ -140,7 +146,7 @@ function route(): void {
   if (opening && state.view === "open" && !params.get("url")) void adoptRunInFlight();
   if (params.get("url")) state.address = params.get("url")!;
   const section = params.get("section");
-  if (state.view === "settings" && (section === "models" || section === "policies" || section === "about")) state.settingsPage.section = section as SettingsSection;
+  if (state.view === "settings" && (SETTINGS_SECTIONS as readonly string[]).includes(section ?? "")) state.settingsPage.section = section as SettingsSection;
   void load().then(() => {
     // Settings → Models opened: test the enabled connections now, rather than show an old answer.
     // A route that stays on it (the same address again) leaves the results as they are (review 1, nit 6).
@@ -157,10 +163,19 @@ function probeProvider(provider: ProviderId): void {
     (result) => {
       state.settingsPage.probes[provider] = result as NonNullable<SettingsPageState["probes"][typeof provider]>;
       state.settingsPage.checkedAt[provider] = new Date().toISOString();
-      void send<SettingsView>({ type: "settings.get" }).then((settings) => {
-        state.settings = settings;
-        render();
-      });
+      // The chip shows the result now, whatever the follow-up read does (T5a review 2: it stayed at
+      // "Testing…" until the settings came back, and a failed read was an unhandled rejection).
+      render();
+      send<SettingsView>({ type: "settings.get" }).then(
+        (settings) => {
+          state.settings = settings;
+          render();
+        },
+        (error: unknown) => {
+          state.error = describeError(error);
+          render();
+        },
+      );
     },
     (error: unknown) => {
       delete state.settingsPage.probes[provider];
@@ -183,6 +198,7 @@ async function load(): Promise<void> {
     if (state.view === "settings") {
       state.status = await send({ type: "status.get" });
       state.settings = await send({ type: "settings.get" });
+      if (state.settingsPage.section === "files") state.files = await send<FilesView>({ type: "files.list" });
     }
     if (state.view === "data") state.vault = await send({ type: "vault.get" });
     if (state.view === "runs") state.runs = await send({ type: "run.list", sessionId: null });
@@ -483,9 +499,72 @@ function settingsView(): HTMLElement[] {
       },
       onProbe: (provider) => probeProvider(provider),
       onOpenModels: () => openModels(),
-      rerender: () => render(),
-    }),
+      onPickFiles: () => void pickFiles(),
+      onRemoveFile: (fileId) => {
+        send<FilesView>({ type: "files.remove", fileId }).then(
+          (files) => {
+            state.files = files;
+            state.settingsPage.notice = "Removed. A run already given it can no longer read it.";
+            render();
+          },
+          (error: unknown) => {
+            state.error = describeError(error);
+            render();
+          },
+        );
+      },
+      rerender: () => {
+        if (state.settingsPage.section === "files" && state.files === null) void load();
+        render();
+      },
+    }, state.files),
   ].filter((node): node is HTMLElement => node !== null);
+}
+
+/** Read one picked file as base64 for `files.add`; the bytes travel once, to the service worker. */
+async function base64Of(file: Blob): Promise<string> {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  let binary = "";
+  for (let index = 0; index < bytes.length; index += 0x8000) binary += String.fromCharCode(...bytes.subarray(index, index + 0x8000));
+  return btoa(binary);
+}
+
+/**
+ * Settings → Files → Pick PDFs (T6, D-083): the File System Access picker where Chrome offers it,
+ * else a file input. Each picked file is copied into this browser by the service worker; no
+ * handle is kept, so a run reads exactly the bytes picked here.
+ */
+async function pickFiles(): Promise<void> {
+  const picker = (window as unknown as { showOpenFilePicker?: (options: unknown) => Promise<Array<{ getFile(): Promise<File> }>> }).showOpenFilePicker;
+  let files: File[] = [];
+  try {
+    if (typeof picker === "function") {
+      const handles = await picker({ multiple: true, types: [{ description: "PDF documents", accept: { "application/pdf": [".pdf"] } }], excludeAcceptAllOption: true });
+      files = await Promise.all(handles.map((handle) => handle.getFile()));
+    } else {
+      files = await new Promise<File[]>((resolve) => {
+        const input = document.createElement("input");
+        input.type = "file";
+        input.accept = "application/pdf,.pdf";
+        input.multiple = true;
+        input.addEventListener("change", () => resolve([...(input.files ?? [])]));
+        input.click();
+      });
+    }
+  } catch {
+    return; // The person closed the picker.
+  }
+  let added = 0;
+  for (const file of files) {
+    try {
+      state.files = await send<FilesView>({ type: "files.add", name: file.name, base64: await base64Of(file) });
+      added += 1;
+    } catch (error) {
+      state.error = describeError(error);
+    }
+  }
+  if (added > 0) state.settingsPage.notice = `${added} PDF${added === 1 ? "" : "s"} copied into this browser.`;
+  render();
 }
 
 function dataView(): HTMLElement[] {
@@ -544,6 +623,10 @@ subscribe((event) => {
   if (event.type === "event.run") {
     runs.onRunEvent(event);
     if (state.view === "runs") void load();
+  }
+  if (event.type === "event.files") {
+    runs.onFilesEvent();
+    if (state.view === "settings" && state.settingsPage.section === "files") void load();
   }
 });
 void RUN_VIEW_ID;

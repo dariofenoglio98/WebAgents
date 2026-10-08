@@ -5,7 +5,7 @@
  *   dist/extension/   manifest.json, service-worker.js (ES module), content-script.js (classic
  *                     script, as Manifest V3 requires), sidepanel.html + .js, browser.html + .js,
  *                     execution.html + execution-page.js + execution-worker.js (the offscreen
- *                     execution host, T5), styles.css, icons/
+ *                     execution host, T5), pdf-worker.js (the paper reader's parser, T6), styles.css, icons/
  *   dist/cli.js       the Node CLI, self-contained
  *
  * Nothing is minified: the shipped code must stay reviewable. The extension targets Chrome 137,
@@ -67,6 +67,8 @@ await build({ ...common, entryPoints: [join(source, "browser", "browser.ts")], o
 // The execution host (T5, D-070): the offscreen document's page script and the per-run Worker (an ES module Worker).
 await build({ ...common, entryPoints: [join(source, "execution", "execution-page.ts")], outfile: join(out, "execution-page.js") });
 await build({ ...common, entryPoints: [join(source, "execution", "execution-worker.ts")], outfile: join(out, "execution-worker.js") });
+// The paper reader's parser (T6, D-082): pdf.js in its own short-lived Worker per document.
+await build({ ...common, entryPoints: [join(source, "execution", "pdf-worker.ts")], outfile: join(out, "pdf-worker.js") });
 await build({
   ...common,
   plugins: [],
@@ -78,7 +80,7 @@ await build({
 
 // The extension bundles must be free of Node built-ins: a `node:` specifier that survived
 // bundling would fail at load time in Chrome, long after `npm run build` reported success.
-for (const name of ["service-worker.js", "content-script.js", "sidepanel.js", "browser.js", "execution-page.js", "execution-worker.js"]) {
+for (const name of ["service-worker.js", "content-script.js", "sidepanel.js", "browser.js", "execution-page.js", "execution-worker.js", "pdf-worker.js"]) {
   const text = readFileSync(join(out, name), "utf8");
   const hit = /(?:from\s*|import\s*\(\s*|require\s*\(\s*)["']node:[^"']*["']/u.exec(text);
   if (hit) throw new Error(`${name} still references a Node built-in: ${hit[0]}`);

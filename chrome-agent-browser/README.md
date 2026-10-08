@@ -79,6 +79,32 @@ What it shows today, on the WebAir demo site:
    again and never synced. **Settings → Policies** selects the host preset (privacy first,
    balanced, convenience). **Your data** holds your records per type, with a one-click fictional
    demo set that is clearly labelled and never pre-filled.
+   "Stop Ollama" in a walk-through means quitting the Ollama menu-bar app (or `pkill -x Ollama`):
+   on macOS the app runs its own `ollama serve` and keeps answering on 11434 whatever a terminal
+   does, so a chip that still says reachable after `ollama serve` was stopped in a terminal is
+   right (Demo 3 rehearsal, F-05).
+10. **Literature Review** (T6). The second package runs end to end: the host binds its three
+   tools to its own implementations, never to anything the package ships: `scholarly-search` to
+   a **Crossref** adapter (one `GET /works` with four host-named parameters, the reference's
+   field selection and work-type filter, markup rendered exactly as the Citation Resolver renders
+   it; at most one call at a time, one second after the previous call's start and its answer;
+   no retry; D-081), `citation-resolver` to the generic JSON POST at the origin the package
+   declares, and `paper-reader` to the **selected-PDF reader** (pdf.js in its own Worker per
+   document, terminated when it answers or is stopped, under the reference parser's limits:
+   20 MiB, 100 pages, 64 KiB of text per page, 256 KiB in all; D-082). Literature Review declares
+   no profiles: **Use this agent** applies your preset; "metadata only" is one change under
+   Customize your settings (`files.pdfs` → deny; D-080).
+11. **Settings → Files** (T6, D-083): pick the PDFs an agent may read (the File System Access
+   picker); each is copied into this browser once with its SHA-256, so a run reads exactly what
+   you picked. The task form's documents field offers them by name; a run is given only the ones
+   its task names, by an opaque `file_<id>`, and the audit records the read by that id and the
+   hash, never a name or a folder. **Settings → Services**: an optional Crossref contact e-mail
+   (Crossref's "polite pool"); none is sent unless you enter one, and whether one is set is part
+   of what you approve (changing it makes prepared plans stale). **Settings → Policies → Run
+   limits** (B-118, D-084): the bounds every run is held to, the reference's defaults (600 s,
+   120,000 tokens, 32 remote calls) unless you change them; **Use the long-run limits** sets what
+   the reference host used for Literature Review (4,500 s, 180,000 tokens, 45 remote calls,
+   1,200 s per model call). A package's own budget still applies beneath them.
 
 Verification is the same as the Python reference runtime's (`agentpkg`): the core reports the
 same digest, archive SHA-256, signer fingerprint and validity, and the browser summary equals
@@ -154,6 +180,10 @@ with `--resource-grant PERMISSION=RESOURCE_ID`, reads keys from `OPENAI_API_KEY`
 failure writes the artifacts and exits 2 with `agent-browser: workflow.v0 <code> at node <id>`.
 The Chrome runner executes signed packages only.
 
+`node dist/cli.js pdf-text <document.pdf>` runs the paper reader's parser over one PDF and prints
+`{pages, sha256, source}` (status 0) or `{"error": reason}` (status 3), the counterpart of
+`agentpkg host-pdf-read`.
+
 `test/conformance/fixture-parity.test.ts` runs both CLIs on every shipped fixture and compares
 the results under the rules of D-063; it needs `agentpkg/.venv/bin/agentpkg` (or `AGENTPKG_CLI`).
 
@@ -165,7 +195,7 @@ the results under the rules of D-063; it needs `agentpkg/.venv/bin/agentpkg` (or
 | `src/core/schemas/` | Byte-for-byte copies of `agentpkg/src/agentpkg/schemas/*.json` and, under `extensions/`, of `spec/extensions/*.schema.json`, written by `npm run sync-schemas`; tests assert equality. |
 | `src/extension/` | The Manifest V3 shell: `manifest.json`, the service worker (`background/`, the only place that holds state: sessions with their receipts and plans, the trust store, settings, keys, the vault, the model catalog), the content script (`content/`), the side panel, the full page (`browser/`), storage adapters (`storage/`), the message contract (`messages.ts`), the views (`ui/`: agent page, authorize view, settings, your data) and `data/demo-host-resources.json`, a copy of the demo host's resource definitions. |
 | `src/cli.ts`, `src/cli-run.ts` | The Node CLI over the core; `run` (D-064) with the Node HTTP transport. |
-| `scripts/` | `build.mjs` (esbuild), `pack.mjs`, `sync-schemas.mjs`, `make-icons.mjs`, `e2e-discovery.mjs`, `summarize-run.mjs` (one run directory as a summary JSON), and `make-authorization-fixtures.py`, which writes the Python control plane's reference records for `test/fixtures/authorization/` (run with `agentpkg/.venv/bin/python`). |
+| `scripts/` | `build.mjs` (esbuild), `pack.mjs`, `sync-schemas.mjs`, `make-icons.mjs`, `e2e-discovery.mjs`, `e2e-webair-live.mjs`, `e2e-paper-reader.mjs`, `e2e-literature-live.mjs`, `summarize-run.mjs` (one run directory as a summary JSON), `make-crossref-reference.mjs` and `make-pdf-text-vectors.py` (the reference answers the Crossref adapter and the PDF reader are held to), and `make-authorization-fixtures.py`, which writes the Python control plane's reference records for `test/fixtures/authorization/` (run with `agentpkg/.venv/bin/python`). |
 | `test/` | vitest: `core/` mirrors the Python suite's negative cases and asserts parity with the shipped packages (`core/workflow`, `core/models`, `core/tools`, `core/execution` port `test_workflow.py`, `test_runtime*.py`, the host-bridge, tool-bridge and execution suites); `conformance/` drives both CLIs; `extension/` covers the message contract, the controller, storage, the service worker over a fake `chrome`, the content script and the views. |
 
 ## The boundary rule
@@ -192,6 +222,9 @@ npm run build && npm run pack          # a loadable extension and its zip
 node scripts/e2e-discovery.mjs         # headless Chrome against a local mock of the WebAir origin
 node scripts/e2e-webair-live.mjs --model ollama/qwen3:30b   # the live acceptance: real Chrome, the public origin, real runs
 agentpkg/.venv/bin/python ../scripts/verify_chrome_webair_live.py   # recompute its checks over the exported runs
+node scripts/e2e-paper-reader.mjs      # a picked PDF read by a run in headless Chrome (no model call)
+node scripts/e2e-literature-live.mjs --model openai/gpt-5.6-luna   # Literature Review live: real Chrome, Crossref, the resolver
+agentpkg/.venv/bin/python ../scripts/verify_chrome_literature_live.py  # recompute its checks, grounding included
 node scripts/measure-execution-host.mjs --minutes 30        # the D-027 host measurement (headed Chrome)
 ```
 
@@ -219,15 +252,39 @@ privacy (no sealed value in any model request; the identity only in `prepare_boo
 identifier only in `simulate_purchase`), once spent, denial. The recorded evidence is
 `examples/verification/chrome-webair-040-live.json`. A failed harness attempt never replaces a report that passed (it is written beside its run directories), and the verifier refuses to write when the exported run directories are missing, so the committed evidence is never overwritten by a run that did not happen here.
 
+The paper-reader check (`scripts/e2e-paper-reader.mjs`, T6) builds the reader test package
+(`test/fixtures/reader-package/`, one `paper.read` call and no model call) with agentpkg, signs
+it under a throwaway key, serves it from the same kind of local HTTPS origin, picks the probe PDF
+into Settings → Files and runs it: the parser Worker loads under the extension's CSP, the run's
+Worker reads the stored copy through a nested parser Worker, the audit names the file by opaque id
+and hash, and a task naming an unknown file or a denied `files.pdfs` is refused. It needs a local
+Ollama model for the plan to bind (never called); the evidence is
+`examples/verification/chrome-paper-reader-e2e.json`.
+
+The Literature Review harness (`scripts/e2e-literature-live.mjs`, T6) serves the signed 0.2.5
+from a local HTTPS origin and runs it with the model you name against the real Crossref API and
+the hosted Citation Resolver: settings (test mode, the long-run limits, `--crossref-contact` only
+if you pass one), open, trust, **Use this agent**, the question from
+`examples/literature-review-live-input.json` (and `--document DOI=/path.pdf` for a picked paper),
+Run, the page reloaded mid-run, the run followed to its end. It exports the run with
+`observations.json` and `documents.json` (each picked PDF's text from `dist/cli.js pdf-text`) under
+`examples/my-chrome-lit-*/`; `scripts/verify_chrome_literature_live.py` recomputes the record and
+the chain, the bindings, Crossref's request shape and pacing, the documents read by opaque id, the
+limits, and the reference driver's grounding checks. The evidence is
+`examples/verification/chrome-literature-review-live.json` (hosted model) and
+`examples/verification/chrome-literature-review-live-local.json` (`ollama/qwen3:30b` with
+`--think`; its duration, usage, claims and checks are in that file).
+
 ## What it does not do yet
 
-- **Configurable run limits and the built-in model live.** Every run is bounded by the reference
-  plugin's default policy (600 s per run, 300 s per model call, 120,000 tokens; B-118); Gemini
-  Nano is wired and unit-tested but was not run live (B-119).
-- **Implement every local tool.** The host registry binds a generic HTTPS JSON adapter to each
-  declared remote tool and a vault binding to each host-resource tool; other local tools
-  (Literature Review's `paper-reader`) stay unbound until T6, and an approved unbound tool
-  blocks the plan, as in the reference.
+- **The built-in model live.** Gemini Nano is wired and unit-tested but was not run live (B-119).
+- **Implement every local tool, or any GET service.** The host binds a generic HTTPS JSON POST to
+  each declared remote POST tool, its Crossref adapter to `scholarly.search` at Crossref's works
+  endpoint, its PDF reader to `paper.read` and a vault binding to each host-resource tool; any
+  other local tool, and a remote GET no service adapter serves, stays unbound, and an approved
+  unbound tool blocks the plan, as in the reference. Scholarly search is Crossref only (B-53).
+- **Pace a service across concurrent runs.** Each run's Worker paces its own calls; two runs of
+  different packages at once could each call Crossref once a second (BACKLOG).
 - **Classify addresses in the extension.** Package, site and tool URLs must be HTTPS on port
   443 with a DNS name (no IP literals, `localhost` or `.local`). The Node CLI goes further
   (`src/cli-net.ts`, D-067): it resolves every tool and model host, refuses any non-public address
