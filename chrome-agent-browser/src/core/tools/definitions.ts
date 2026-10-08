@@ -62,6 +62,13 @@ export interface ToolImplementationDefinition {
   maxConcurrent?: number;
   minIntervalMs?: number;
   credential?: CredentialSource;
+  /**
+   * An optional setting the implementation sends when the person entered one, never required
+   * (T6, D-081: Crossref's `mailto` contact). Whether it is set is part of the binding digest,
+   * so a plan frozen without it goes stale when it is set, and the other way round; its value
+   * is read at call time, like a credential's, and never hashed or stored.
+   */
+  optionalCredential?: CredentialSource;
   enabled?: boolean;
   /** Required for `host_resource`: the resource type this binding returns. */
   resourceType?: string;
@@ -260,7 +267,9 @@ export function describeDefinition(definition: ToolImplementationDefinition, opt
       max_concurrent: definition.maxConcurrent ?? DEFAULT_MAX_CONCURRENT,
       min_interval_ms: definition.minIntervalMs && definition.minIntervalMs > 0 ? definition.minIntervalMs : null,
     },
-    credentials: { required, configured, source: definition.credential ? `${definition.credential.kind}:${definition.credential.name}` : null },
+    credentials: definition.credential || !definition.optionalCredential
+      ? { required, configured, source: definition.credential ? `${definition.credential.kind}:${definition.credential.name}` : null }
+      : { required: false, configured: options.credentialConfigured?.(definition.optionalCredential) ?? false, source: `${definition.optionalCredential.kind}:${definition.optionalCredential.name}` },
     ...(definition.kind === "host_resource" && definition.resourceType ? { resource_type: definition.resourceType } : {}),
   };
 }
@@ -349,12 +358,12 @@ export function definitionsFromRegistry(registry: { bindings: readonly RegistryB
       definition.method = binding.endpoint.method;
     }
     if (binding.resource_type !== undefined) definition.resourceType = binding.resource_type;
-    if (binding.credentials.required) {
-      const source = binding.credentials.source ?? "";
-      const [sourceKind, ...rest] = source.split(":");
+    if (binding.credentials.source !== null) {
+      const [sourceKind, ...rest] = binding.credentials.source.split(":");
       if ((sourceKind !== "env" && sourceKind !== "settings") || rest.length === 0) continue;
-      definition.credential = { kind: sourceKind, name: rest.join(":") };
-    }
+      if (binding.credentials.required) definition.credential = { kind: sourceKind, name: rest.join(":") };
+      else definition.optionalCredential = { kind: sourceKind, name: rest.join(":") };
+    } else if (binding.credentials.required) continue;
     definitions.push(definition);
   }
   return definitions;

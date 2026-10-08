@@ -1,6 +1,6 @@
 {
   "schema": "agentpkg-tool-evaluation-v0",
-  "evaluated_at": "2026-10-07T21:21:52.911589+00:00",
+  "evaluated_at": "2026-10-08T16:57:29.783498+00:00",
   "package_id": "org.webagents.webair",
   "package_version": "0.4.0",
   "package_digest": "0e8317f11e8813e7d5b4b3f352f20148d114329dca3db8c725c5b0558af24fbb",
@@ -13,13 +13,13 @@
     "note": "agent.pkg 0.1 declares no optional tools, so every declared tool must have an approved host binding before a run plan can be ready."
   },
   "registry": {
-    "registry_sha256": "ae5f3624c3de4fc9aefa7fd65d6d01617243fbe3cbe4bff508ee07ae7cdfb797",
+    "registry_sha256": "84beabb3d4b7a88873172e93abac3c9dda7f8613e3d63e7735152dacd57d3e3c",
     "binding_count": 7,
     "available_binding_count": 7,
     "host": {
       "runtime": "chrome-agent-browser",
       "runtime_version": "0.1.0",
-      "source": "chrome-agent-browser host tool registry (D-054): one generic HTTPS JSON binding per declared remote tool, derived from the signed declaration after the URL gate; one host-resource binding per vault type; other local tools unbound",
+      "source": "chrome-agent-browser host tool registry (D-054, D-081, D-082): one generic HTTPS JSON binding per declared remote POST tool, derived from the signed declaration after the URL gate; the host's Crossref search for scholarly.search at Crossref's works endpoint; the selected-PDF reader for paper.read; one host-resource binding per vault type; other tools unbound",
       "captured_at": "2026-10-06T12:00:00.000Z",
       "agent_id": null
     }

@@ -1,18 +1,18 @@
 {
   "schema": "agentpkg-authorization-receipt-v0",
-  "receipt_id": "cda394be-1f1d-422e-8b50-80568a98cf7b",
-  "issued_at": "2026-10-07T21:21:52.908485+00:00",
-  "expires_at": "2026-10-07T21:36:52.905817+00:00",
-  "session_id": "2un3HYc_efXZu61HvHglirnf",
+  "receipt_id": "92578718-af0c-44cd-adc3-e0446acff852",
+  "issued_at": "2026-10-08T16:57:29.780607+00:00",
+  "expires_at": "2026-10-08T17:12:29.778388+00:00",
+  "session_id": "dihKmcpCKlplc1wBVPE24iQ5",
   "control_plane": {
     "service": "agentpkg-browser-control-plane",
     "api_version": "v0",
-    "instance_id": "26d5bafd-92fe-4327-884b-57e53dac4bac"
+    "instance_id": "aa14f9ce-e444-4377-87d6-0c93b2690aef"
   },
   "source": {
     "kind": "file",
     "display": "dist/webair-0.4.0.agent.pkg",
-    "opened_at": "2026-10-07T21:21:52.905817+00:00"
+    "opened_at": "2026-10-08T16:57:29.778388+00:00"
   },
   "package": {
     "package_id": "org.webagents.webair",
@@ -111,5 +111,5 @@
     "performed": false,
     "note": "This control plane never executes packages. A later run milestone consumes this receipt and must re-verify the digest and archive hash first."
   },
-  "receipt_sha256": "2098aac2bd81947ce8821b1ccfdbebe371ff83f0623f0ffc0187707c8cd41f60"
+  "receipt_sha256": "dd79206b6ab8227d2f4002d07ebc29439f48175dbbbfbeabe89f20794dde0e8f"
 }

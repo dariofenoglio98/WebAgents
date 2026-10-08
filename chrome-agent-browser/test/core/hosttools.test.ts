@@ -132,13 +132,13 @@ describe("the Chrome host registry (D-054)", () => {
     await expect(toolContract(pkg, "ghost")).rejects.toThrow(/declares no tool named 'ghost'/u);
   });
 
-  it("a declared tool with no implementation on this host stays unbound with a note (Literature Review's paper-reader)", async () => {
+  it("a declared local tool with no implementation on this host stays unbound with a note", async () => {
     const pkg = await literatureReview();
-    const registry = await buildHostToolRegistry(pkg, { resourceTypes: await vaultTypes(), runtimeVersion: "0.1.0", now: new Date("2026-10-06T12:00:00.000Z") });
+    const renamed = { ...pkg, tools: { ...pkg.tools, "paper-reader": { ...pkg.tools["paper-reader"]!, binding: "paper.render" } } };
+    const registry = await buildHostToolRegistry(renamed, { resourceTypes: await vaultTypes(), runtimeVersion: "0.1.0", now: new Date("2026-10-06T12:00:00.000Z") });
     expect(registry.bindings.map((binding) => binding.tool_id)).toEqual(["citation-resolver", "scholarly-search"]);
-    expect(registry.bindings.find((binding) => binding.tool_id === "scholarly-search")?.endpoint).toEqual({ origin: "https://api.crossref.org", path: "/works", method: "GET" });
-    expect(registry.notes).toEqual([{ code: "local_tool_unimplemented", detail: expect.stringContaining("paper-reader (paper.read)") }]);
-    const evaluation = await evaluateRegistry(pkg, registry);
+    expect(registry.notes).toEqual([{ code: "local_tool_unimplemented", detail: expect.stringContaining("paper-reader (paper.render)") }]);
+    const evaluation = await evaluateRegistry(renamed, registry);
     expect(Object.fromEntries(evaluation.tools.map((tool) => [tool.tool_id, tool.status]))).toEqual({ "citation-resolver": BOUND, "scholarly-search": BOUND, "paper-reader": UNBOUND });
   });
 

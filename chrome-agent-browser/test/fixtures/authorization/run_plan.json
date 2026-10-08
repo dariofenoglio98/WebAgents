@@ -1,19 +1,19 @@
 {
   "schema": "agentpkg-run-plan-v0",
   "run_plan_version": "0.1",
-  "run_plan_id": "rp_9ecef06696934169b1c5f6d97d5243f8",
-  "created_at": "2026-10-07T21:21:52.915671+00:00",
-  "expires_at": "2026-10-07T21:36:52.905817+00:00",
-  "session_id": "2un3HYc_efXZu61HvHglirnf",
+  "run_plan_id": "rp_10bab4c2609b425e82cd572a22e9123c",
+  "created_at": "2026-10-08T16:57:29.787409+00:00",
+  "expires_at": "2026-10-08T17:12:29.778388+00:00",
+  "session_id": "dihKmcpCKlplc1wBVPE24iQ5",
   "control_plane": {
     "service": "agentpkg-browser-control-plane",
     "api_version": "v0",
-    "instance_id": "26d5bafd-92fe-4327-884b-57e53dac4bac"
+    "instance_id": "aa14f9ce-e444-4377-87d6-0c93b2690aef"
   },
   "source": {
     "kind": "file",
     "display": "dist/webair-0.4.0.agent.pkg",
-    "opened_at": "2026-10-07T21:21:52.905817+00:00"
+    "opened_at": "2026-10-08T16:57:29.778388+00:00"
   },
   "package": {
     "package_id": "org.webagents.webair",
@@ -48,10 +48,10 @@
     "errors": []
   },
   "authorization": {
-    "receipt_id": "cda394be-1f1d-422e-8b50-80568a98cf7b",
-    "receipt_sha256": "2098aac2bd81947ce8821b1ccfdbebe371ff83f0623f0ffc0187707c8cd41f60",
-    "issued_at": "2026-10-07T21:21:52.908485+00:00",
-    "expires_at": "2026-10-07T21:36:52.905817+00:00",
+    "receipt_id": "92578718-af0c-44cd-adc3-e0446acff852",
+    "receipt_sha256": "dd79206b6ab8227d2f4002d07ebc29439f48175dbbbfbeabe89f20794dde0e8f",
+    "issued_at": "2026-10-08T16:57:29.780607+00:00",
+    "expires_at": "2026-10-08T17:12:29.778388+00:00",
     "runnable": true,
     "decisions": {
       "booking.simulate_purchase": "once",
@@ -308,13 +308,13 @@
     }
   ],
   "tool_registry": {
-    "registry_sha256": "ae5f3624c3de4fc9aefa7fd65d6d01617243fbe3cbe4bff508ee07ae7cdfb797",
+    "registry_sha256": "84beabb3d4b7a88873172e93abac3c9dda7f8613e3d63e7735152dacd57d3e3c",
     "binding_count": 7,
     "available_binding_count": 7,
     "host": {
       "runtime": "chrome-agent-browser",
       "runtime_version": "0.1.0",
-      "source": "chrome-agent-browser host tool registry (D-054): one generic HTTPS JSON binding per declared remote tool, derived from the signed declaration after the URL gate; one host-resource binding per vault type; other local tools unbound",
+      "source": "chrome-agent-browser host tool registry (D-054, D-081, D-082): one generic HTTPS JSON binding per declared remote POST tool, derived from the signed declaration after the URL gate; the host's Crossref search for scholarly.search at Crossref's works endpoint; the selected-PDF reader for paper.read; one host-resource binding per vault type; other tools unbound",
       "captured_at": "2026-10-06T12:00:00.000Z",
       "agent_id": null
     }
@@ -346,7 +346,7 @@
   },
   "model_binding": {
     "strategy": "single_model",
-    "selected_at": "2026-10-07T21:21:52.915671+00:00",
+    "selected_at": "2026-10-08T16:57:29.787409+00:00",
     "host_model_id": "ollama/qwen3:30b",
     "provider_id": "ollama",
     "model_id": "qwen3:30b",
@@ -627,5 +627,5 @@
     "compatibility_status": "compatible",
     "blocking_reasons": []
   },
-  "run_plan_sha256": "e3925317b275ea609ea608912d6b9156e367df0cac68d6c51abf8b2df92f962e"
+  "run_plan_sha256": "66bdd31c01994442aea6326139cc9596ed73895a5a530db92cea125ad3150641"
 }
