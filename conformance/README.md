@@ -114,6 +114,9 @@ side changes.
 
 ## Results
 
+The kept report of T7 is [`results/2026-10-08T19-22-58-250Z/`](results/2026-10-08T19-22-58-250Z/report.md)
+(its case and check counts are in the report; commit, versions and platform in its header).
+
 `results/<timestamp>/report.json` and `report.md`, one directory per run that someone chose to keep
 (commit, versions, platform and the SHA-256 of each shipped package are in the report). CI runs the
 suite on every push and keeps the report as a build artifact; it never writes into this directory.
