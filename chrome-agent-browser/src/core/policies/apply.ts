@@ -4,7 +4,7 @@
  * - **Trust.** A publisher-key anchor makes a signer trusted for its scope, as an operator pin
  *   of the same scope would, but only where the person's own trust store has no opinion: a key
  *   the person pinned, or a publisher the person pinned to another key, is decided by the store
- *   first. Issuer anchors confer nothing in v0 (D-100).
+ *   first. Issuer anchors confer nothing in v0 (D-101).
  * - **Decisions.** For each declared permission of a kind the policy names, the policy's decision,
  *   lowered to the person's ceiling (the preset's duration for that kind; `always` is never
  *   possible). Inside a selected profile only the profile's members are decided; everything

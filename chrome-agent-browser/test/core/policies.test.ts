@@ -116,7 +116,7 @@ describe("trust anchors behind the person's own store", () => {
     expect(await new PolicyTrust(new TrustStore(new MemoryTrustStorage()), async () => null).evaluate(webairInput)).toMatchObject({ trust_status: "unknown", trust_reason: "signer_key_not_pinned" });
   });
 
-  it("an issuer anchor confers no trust in v0 (D-100)", async () => {
+  it("an issuer anchor confers no trust in v0 (D-101)", async () => {
     const issuer = newSigner();
     const content = variant((c) => (c.trust_anchors = []));
     (content.trust_anchors as JsonValue[]).push({ kind: "issuer", public_key: rawKeyBase64(issuer.publicKey), fingerprint: await fingerprint(issuer.publicKey), display_name: "A credential issuer", scope: { package_id_prefix: "org.webagents" } });

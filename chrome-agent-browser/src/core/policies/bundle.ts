@@ -45,7 +45,7 @@ export interface PublisherKeyAnchor {
 /**
  * An issuer the policy would accept publisher credentials from. Declared and shown, never
  * applied in v0: no credential format exists yet (BACKLOG B-20), so an issuer anchor confers no
- * trust here (D-100).
+ * trust here (D-101).
  */
 export interface IssuerAnchor {
   kind: "issuer";
