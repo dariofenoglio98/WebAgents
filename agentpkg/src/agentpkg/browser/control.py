@@ -52,6 +52,7 @@ from .lease import DEFAULT_LEASE_TTL_SECONDS, ExecutionLease
 from .lease import issue as issue_lease
 from .lease import release as release_lease
 from .presentation import validate_task_input
+from .profiles import find_profile, read_profiles
 from .runplan import (
     BINDING_SINGLE_MODEL,
     EXECUTION_MODES,
@@ -574,15 +575,33 @@ class ControlPlane:
         tool_approvals=None,
         resource_registry=None,
         resource_selections=None,
+        profile_id=None,
     ):
         """Record explicit decisions and issue a digest-bound receipt.
 
         A permission that requests a host resource carries the person's pick,
         validated here against the host resource registry supplied with the
         same call, and frozen into the receipt by id and digest.
+
+        `profile_id` names the publisher-declared profile the decisions were
+        made through (D-022, D-090). The decisions stay the person's; the
+        profile only lets declared tools outside it stay unapproved.
         """
         session = self._session(session_id)
         self._require_digest(session, package_digest)
+        profile = None
+        if profile_id is not None:
+            if not isinstance(profile_id, str) or not profile_id:
+                raise ControlPlaneError("invalid_request", "profile_id must be a non-empty string")
+            profile = find_profile(session.package, profile_id)
+            if profile is None:
+                # The Chrome worker's code and status for the same refusal.
+                raise ControlPlaneError(
+                    "profile_unknown",
+                    f"This package declares no usable profile {profile_id!r}",
+                    status=404,
+                    details={"notes": read_profiles(session.package)["notes"]},
+                )
         granted = normalize_decisions(session.package, decisions)
         approvals = normalize_tool_approvals(session.package, tool_approvals)
         registry = (
@@ -608,6 +627,7 @@ class ControlPlane:
             expires_at=session.expires_at,
             resource_grants=resource_grants,
             resource_registry=registry,
+            profile=profile,
         )
         with self._lock:
             session.decisions = granted

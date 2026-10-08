@@ -12,7 +12,7 @@ import { DEFAULT_HOST_LIMITS, type HostExecutionLimits } from "../../core/execut
 import type { FilesView, ProbeView, SettingsView, StatusInfo } from "../messages.js";
 import type { Settings, StoredConnection } from "../storage/settings.js";
 import { downloadBuiltinModel, languageModelApi } from "../execution/builtin-port.js";
-import { button, card, chip, definition, el, list, row } from "./dom.js";
+import { button, bytes, card, chip, definition, el, list, row } from "./dom.js";
 
 export type SettingsSection = "models" | "policies" | "files" | "services" | "about";
 export const SETTINGS_SECTIONS: readonly SettingsSection[] = ["models", "policies", "files", "services", "about"];
@@ -372,10 +372,6 @@ function limitsCard(view: SettingsView, actions: SettingsPageActions): HTMLEleme
   );
 }
 
-function bytesText(count: number): string {
-  return count >= 1024 * 1024 ? `${(count / (1024 * 1024)).toFixed(1)} MiB` : count >= 1024 ? `${Math.round(count / 1024)} KiB` : `${count} bytes`;
-}
-
 /** Settings → Files (T6, D-083): the PDFs runs may read, copied into this browser at the pick. */
 function filesView(files: FilesView | null, actions: SettingsPageActions): HTMLElement[] {
   if (files === null) return [el("p", { className: "ab-busy", text: "Loading…" })];
@@ -388,7 +384,7 @@ function filesView(files: FilesView | null, actions: SettingsPageActions): HTMLE
         "div",
         { className: "ab-actions" },
         button("Pick PDFs…", () => actions.onPickFiles?.(), { variant: "primary", disabled: !actions.onPickFiles || files.files.length >= files.max_files }),
-        el("span", { className: "ab-hint", text: `${files.files.length} of ${files.max_files} files · ${bytesText(total)} of ${bytesText(files.max_total_bytes)} · at most ${bytesText(files.max_file_bytes)} each` }),
+        el("span", { className: "ab-hint", text: `${files.files.length} of ${files.max_files} files · ${bytes(total)} of ${bytes(files.max_total_bytes)} · at most ${bytes(files.max_file_bytes)} each` }),
       ),
       files.files.length === 0
         ? el("p", { className: "ab-hint", text: "No PDFs picked yet." })
@@ -398,7 +394,7 @@ function filesView(files: FilesView | null, actions: SettingsPageActions): HTMLE
                 "div",
                 { className: "ab-file-row", attrs: { "data-file-id": file.file_id } },
                 el("strong", { text: file.display_name }),
-                el("span", { className: "ab-muted", text: ` · ${bytesText(file.bytes)} · sha256:${file.sha256.slice(0, 12)}… · picked ${new Date(file.selected_at).toLocaleString()}` }),
+                el("span", { className: "ab-muted", text: ` · ${bytes(file.bytes)} · sha256:${file.sha256.slice(0, 12)}… · picked ${new Date(file.selected_at).toLocaleString()}` }),
                 button("Remove", () => actions.onRemoveFile?.(file.file_id), { variant: "ghost", disabled: !actions.onRemoveFile }),
               ),
             ),

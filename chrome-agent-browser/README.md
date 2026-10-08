@@ -130,7 +130,12 @@ Then in Chrome (137 or newer; Ed25519 verification needs its WebCrypto): open
 shows `1`; the action click opens the side panel; **Inspect** shows the agent page.
 
 `npm run pack` writes `dist/chrome-agent-browser-<version>.zip` for distribution (a deterministic
-archive written by the script itself; no system `zip` is needed).
+archive written by the script itself; no system `zip` is needed) and beside it
+`chrome-agent-browser-<version>.contents.txt`, the SHA-256 and size of every member and of the zip.
+The build puts `LICENSE.txt` and `THIRD_PARTY_NOTICES.txt` (the license of every bundled package,
+read from esbuild's metafile) into the extension; `npm run check-pack` verifies the file set, the
+manifest version, the listing and the notices. Design, storage, permissions and limits:
+[docs/chrome-agent-browser.md](../docs/chrome-agent-browser.md).
 
 ## The Node CLI
 
@@ -186,6 +191,8 @@ The Chrome runner executes signed packages only.
 
 `test/conformance/fixture-parity.test.ts` runs both CLIs on every shipped fixture and compares
 the results under the rules of D-063; it needs `agentpkg/.venv/bin/agentpkg` (or `AGENTPKG_CLI`).
+The full cross-runtime suite, with the negative cases and the control-plane scenarios, is
+[`../conformance/`](../conformance/README.md) (`node conformance/run.mjs` from the repository root).
 
 ## Layout
 
@@ -291,8 +298,8 @@ limits, and the reference driver's grounding checks. The evidence is
   with the Python runtime's class names (loopback, private, link-local, multicast, reserved,
   cloud metadata, IPv4-mapped, 6to4, Teredo, NAT64), pins the connection to the address it
   classified, streams the body and stops at the byte cap. An extension has no resolver and no
-  socket, so in Chrome those checks are the network stack's job, and the threat model will say
-  so (T7).
+  socket, so in Chrome those checks are the network stack's job
+  ([threat model](../docs/threat-model.md#chrome-agent-browser-t7)).
 - **Per-origin permissions.** The content script runs on every HTTPS page and reads only the
   advertised link elements; narrowing to opted-in origins is later hardening.
 - Firefox, the Meeting Agenda UI path, search over an index, and policy subscriptions are in the

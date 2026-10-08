@@ -413,6 +413,34 @@ A denied permission and a missing approval are different refusals, and a denied
 The reference review package uses exactly this: `files.pdfs` is optional and
 its `paper-reader` steps are conditional.
 
+### 6a. A selected profile, and tools left out of it
+
+A package may declare publisher **profiles** (`org.webagents:profiles-v0`,
+[`spec/extensions/profiles-v0.md`](../spec/extensions/profiles-v0.md)): named
+groups of permissions and tools it already declares. A profile grants nothing.
+Since T7 (D-022, D-090) the control plane accepts the profile a person chose,
+`profile_id` in `POST /v0/sessions/{id}/authorize`, and changes exactly one
+thing:
+
+* a declared tool **outside** the selected profile that the person did **not**
+  approve is **denied**. The receipt lists it in `profile.denied_tool_ids`; a
+  `model` plan binds no implementation of it, leaves it out of
+  `required_tool_ids` and lists it in `execution.denied_tool_ids`; the runner
+  accepts it unbound (`check_capabilities`), refuses a plan that denies a tool
+  it also binds or that the person approved, and `Runtime.call_tool` refuses
+  any call to it, because it is not an approved tool;
+* a tool **inside** the profile still needs its own approval, binding and
+  permissions, and a receipt **without** a profile is unchanged: every declared
+  tool needs an approval before a plan exists.
+
+So a host that implements only WebAir's two search tools can run its `search`
+profile, and the five tools the search does not need are never reachable. The
+Chrome Agent Browser goes one step further and treats every unapproved tool as
+denied, profile or not, because its authorization view records each tool
+decision explicitly; the reference control plane cannot tell an unanswered
+approval from a refused one, so it keeps the stricter rule outside a profile
+(D-090).
+
 ## 7. The HTTP adapter's policy
 
 `json_http` applies this in order, with no exception path:
@@ -506,7 +534,7 @@ A plan now binds tools as well as bytes, signer, trust, consent and model:
 
 | Mode | Authority | Binds a model | Tools it requires |
 |---|---|---|---|
-| `model` | run this package's own graph | yes | **every** declared tool bound, approved, required-permissions granted |
+| `model` | run this package's own graph | yes | **every** declared tool bound, approved, required-permissions granted, except a tool the selected profile denied (§6a) |
 | `tool_probe` | **one** mediated call to **one** declared tool | **no** | that one tool only |
 
 They are separate modes rather than one relaxed mode so that neither artifact

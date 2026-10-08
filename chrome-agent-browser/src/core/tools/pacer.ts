@@ -86,8 +86,15 @@ export class Pacer {
       if (next) next();
       else lane.active -= 1;
     };
+    // A slot handed over in the same microtask as a cancellation: nothing has been sent yet,
+    // so give the slot back rather than sleeping an interval while holding it (T6 review, nit 3).
+    if (signal.aborted) {
+      release(false);
+      throw reasonOf(signal);
+    }
     // Reserve this call's start before waiting, so two calls that hold slots at the same
     // time still start at least one interval apart.
+    const previous = lane.nextStart;
     const start = Math.max(this.now(), lane.nextStart);
     lane.nextStart = start + interval;
     const wait = start - this.now();
@@ -105,7 +112,10 @@ export class Pacer {
           signal.addEventListener("abort", onAbort, { once: true });
         });
       } catch (error) {
-        // Cancelled while waiting for its start: nothing was sent, so no interval follows it.
+        // Cancelled while waiting for its start: nothing was sent, so no interval follows it,
+        // and its own start reservation is withdrawn unless a later call already reserved
+        // after it (T6 review, nit 2; that call's start stays where it was promised).
+        if (lane.nextStart === start + interval) lane.nextStart = previous;
         release(false);
         throw error;
       }

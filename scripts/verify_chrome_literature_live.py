@@ -336,7 +336,8 @@ def main() -> int:
         canonical(task)
         == canonical(
             json.loads((ROOT / report["input"]).read_text())
-            | ({"documents": task.get("documents", {})})
+            # The harness adds the picked files' ids under `documents`, and only then.
+            | ({"documents": task["documents"]} if "documents" in task else {})
         ),
     )
     check(
@@ -507,7 +508,8 @@ def main() -> int:
     usage = record.get("usage") or {}
     check(
         "usage_within_the_limits",
-        usage.get("tokens", 10**9) <= 180_000 and usage.get("remoteCalls", 10**9) <= 45,
+        usage.get("tokens", 10**9) <= LONG_RUN_LIMITS["totalTokens"]
+        and usage.get("remoteCalls", 10**9) <= LONG_RUN_LIMITS["maxRemoteCalls"],
         usage,
     )
 

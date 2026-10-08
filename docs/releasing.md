@@ -92,6 +92,19 @@ python3 -m venv agentpkg/.venv && agentpkg/.venv/bin/pip install -e './agentpkg[
 agentpkg/.venv/bin/python scripts/check_release.py --built-wheel /tmp/agentpkg-dist/agentpkg-0.2.2-py3-none-any.whl
 ```
 
+The Chrome Agent Browser's zip (not part of v0.2.0; a store upload is U5):
+
+```sh
+(cd chrome-agent-browser && npm ci && npm run build && npm run pack && npm run check-pack)
+# dist/chrome-agent-browser-<version>.zip and .contents.txt (sha256, bytes, path per member;
+# the zip's own hash last). The zip carries LICENSE.txt and THIRD_PARTY_NOTICES.txt.
+```
+
+The same sources and Node release pack to the same bytes. Across Node releases the members stay
+identical while the deflate stream may not (each Node ships its own zlib), so publish the
+`.contents.txt` beside the zip and record the Node version that packed it (D-093). The version is
+`package.json`'s and the manifest's, which `check-pack` holds equal.
+
 Use Python 3.11 ≥ 3.11.10, 3.12 ≥ 3.12.4 or 3.13 for every environment here: earlier patch releases
 lack CPython's `ipaddress` fix (CVE-2024-4032), and the URL-policy tests fail on them.
 
@@ -105,7 +118,9 @@ unpatched 3.11.9), the offline acceptance scripts, the wheel and sdist build, an
 verification and fixture run of the packages (including WebAir 0.3.0 and 0.4.0), `check_release.py`, the
 plugin suite on Node 24 and 26 with no skipped test, build, validation, packing, artifact
 inspection and isolated install, the WebAir origin and package-contract suite, the Citation
-Resolver suite and the experiments' test suites. It needs no credential, model, OpenClaw
+Resolver suite and the experiments' test suites; and, since T7, the Chrome Agent Browser on Node 24
+and 26 (typecheck, tests with no skip, build, pack, the zip's structure check, a second build that
+must pack to the same bytes) and the cross-runtime conformance suite. It needs no credential, model, OpenClaw
 configuration, Ollama, live Crossref, hosted resolver or WebAir deployment. It runs on pushes to
 `main` and on pull requests.
 

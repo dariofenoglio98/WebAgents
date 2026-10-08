@@ -1304,6 +1304,8 @@ def test_the_shared_child_still_runs_package_downloads(tmp_path):
 def test_discovery_code_names_no_site_package_or_publisher():
     browser = ROOT / "agentpkg/src/agentpkg/browser"
     for module in sorted(browser.glob("*.py")):
-        text = module.read_text().lower()
+        # The profiles extension's key is a format identifier the spec defines
+        # (`spec/extensions/profiles-v0.md`), not a site, package or publisher.
+        text = module.read_text().lower().replace("org.webagents:profiles-v0", "")
         for word in ("webair", "org.webagents", "airline", "webair-demo"):
             assert word not in text, f"{module.name} mentions {word}"

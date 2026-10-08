@@ -18,7 +18,8 @@ In four lines:
 - **WebAgents** is a research prototype, not a product.
 - **`agent.pkg`** is a signed, portable, declarative agent artifact: data only, no executable code.
 - The **OpenClaw Agent Browser** is the host-controlled runtime that opens, verifies, authorizes
-  and runs a package with the host's own models and tools.
+  and runs a package with the host's own models and tools; the **Chrome Agent Browser** is a
+  second, independent runtime that does the same inside Chrome.
 - **A package declares what it needs; the host and its user grant the authority.**
 
 ## At a glance
@@ -56,6 +57,14 @@ meeting planner, a literature review that calls live scholarly services, and a t
 (fictional) airline website publishes beside its HTML pages. The travel agent uses the site's
 semantic API and personal resources that only the user's host holds. See
 [Status](#status-verified-experimental-future) for exactly what is verified.
+
+**Is there a second runtime?** Yes, since the paper: the [Chrome Agent
+Browser](docs/chrome-agent-browser.md), a Chrome extension built on a TypeScript port of the
+runtime that also runs in Node. It discovers packages on websites, authorizes them through
+publisher-declared profiles or per item, and runs WebAir and Literature Review with your own
+Ollama model or your own OpenAI or Anthropic key. A [conformance suite](conformance/README.md)
+runs both runtimes on the same packages and compares what they produce and what they refuse.
+See [Running in Chrome](#running-in-chrome).
 
 **Tested host:** OpenClaw **2026.9.5** (`ec9c1a1`), Python 3.13, Node 26, Ollama 0.34, macOS on
 Apple Silicon. Execution refuses other OpenClaw releases by default. Every recorded live run was made
@@ -141,6 +150,47 @@ openclaw gateway restart && openclaw dashboard        # choose "Agent Browser" i
 Models are whatever your OpenClaw host reports. The recorded runs used `ollama/qwen3:30b` locally
 and `openai/gpt-5.6-luna` hosted. WebAgents never sees a provider credential: the plugin calls
 the model through OpenClaw, bound to exactly the model in the Run Plan, with no fallback.
+
+## Running in Chrome
+
+The Chrome Agent Browser needs Chrome 137 or newer and Node 24 (≥ 24.16) or ≥ 26.1 to build it;
+no OpenClaw, no Python. Its user guide is
+[`chrome-agent-browser/README.md`](chrome-agent-browser/README.md), its design
+[docs/chrome-agent-browser.md](docs/chrome-agent-browser.md), and the full setup level 4 of
+[getting-started](docs/getting-started.md#6-chrome-agent-browser-level-4).
+
+```sh
+cd chrome-agent-browser && npm ci && npm run build      # dist/extension/ and dist/cli.js
+```
+
+In Chrome, open `chrome://extensions`, enable **Developer mode**, **Load unpacked** →
+`chrome-agent-browser/dist/extension`, and pin the action. Then:
+
+1. **Connect a model.** Settings → Models: Ollama on this machine (start it with
+   `OLLAMA_ORIGINS="chrome-extension://*"`; the page gives the commands), or your own OpenAI or
+   Anthropic key, typed into the extension and kept in this browser profile.
+2. **Visit a site that publishes an agent**, for example the fictional
+   <https://webagents-webair-production.up.railway.app/>. The badge counts the packages the page
+   advertises; the side panel lists them; **Inspect** verifies one and shows who signed it and what
+   it asks for.
+3. **Trust the publisher key**, choose a profile such as *Search flights* and press **Use this
+   agent**, or open **Customize your settings** to decide permission by permission.
+4. **Run.** The run happens in the extension's own background host with the model, permissions
+   and records you chose; closing the panel does not stop it. **Runs** keeps every run with its
+   audit chain and artifacts.
+
+The same core runs from a terminal with `agentpkg`'s flags, for example
+`node chrome-agent-browser/dist/cli.js run dist/webair-0.4.0.agent.pkg --mode fixture --grants
+examples/webair-0.2.0-grants.json --approve-tool search-flights --approve-tool get-fare-rules
+--out examples/my-chrome-webair`, and the conformance suite compares it with `agentpkg`:
+
+```sh
+node conformance/run.mjs      # needs agentpkg/.venv and the built core; no network, model or key
+```
+
+The recorded live runs in Chrome (WebAir on a local and a hosted model, Literature Review on both)
+and the checks recomputed over them are in [examples/verification/](examples/verification/)
+(`chrome-*.json`).
 
 ## Demo: the Literature Review agent from the browser
 
@@ -289,6 +339,8 @@ same outcome for every one of the 9,099 cases ([docs/releasing.md](docs/releasin
 | Control plane | `agentpkg.browser` (`agentpkg browser-serve`) | loopback, token-protected: snapshots, layered validation, publisher trust, authorization receipts, model compatibility, Run Plans. It never executes. |
 | Execution | `agentpkg.execution`, `agentpkg.hostbridge`, `agentpkg.toolbridge` | leases the verified snapshot, re-verifies, runs the graph, and reaches models and tools only through host bridges |
 | Browser plugin | [`openclaw-agent-browser/`](openclaw-agent-browser/) | the Control UI page and the Gateway-side backend; the only part that knows OpenClaw |
+| Chrome runtime | [`chrome-agent-browser/`](chrome-agent-browser/) | a portable TypeScript core (format, verification, trust, authorization, interpreter, adapters, execution, audit) with a Node CLI, and a Manifest V3 extension around it ([design](docs/chrome-agent-browser.md)) |
+| Conformance | [`conformance/`](conformance/README.md) | both runtimes on the same packages: fixture parity, a negative suite and the control-plane scenarios, with the recorded differences |
 | Example packages | [`agents/`](agents/) → [`dist/`](dist/README.md) | Meeting Agenda, Literature Review, WebAir (and the archived pre-`workflow.v0` legacy package) |
 | Services | [`citation-resolver/`](citation-resolver/), [`demo/webair/`](demo/webair/README.md), [`package-origin/`](package-origin/) | the remote Citation Resolver used by Literature Review; the fictional WebAir origin (HTML site, semantic API, signed package, discovery link) and its publisher tooling; a minimal static package origin |
 
@@ -320,6 +372,14 @@ Design rationale: [docs/architecture.md](docs/architecture.md). Threat model:
 - Execution from the Agent Browser page on OpenClaw 2026.9.5, with every model call on the
   planned model, host tool bindings, budgets, deadlines, cancellation and valid audit chains. See
   [Recorded results](#recorded-results).
+- A second runtime, the Chrome Agent Browser: its core gives the same results as `agentpkg` on
+  every shipped package in fixture mode and the same refusals on the cases of the
+  [conformance suite](conformance/README.md), whose differences are each recorded with their
+  reason; live WebAir and Literature Review runs in Chrome on a local and a hosted model are
+  recorded and recomputed under [examples/verification/](examples/verification/).
+- Publisher-declared profiles (`org.webagents:profiles-v0`): a profile groups declared
+  authority and grants none; tools outside the chosen profile may stay unapproved and are
+  refused if called, in the Chrome runtime and in `agentpkg`'s control plane.
 
 **Experimental** (works on the development host, but limited or lightly exercised):
 
@@ -339,9 +399,16 @@ Design rationale: [docs/architecture.md](docs/architecture.md). Threat model:
   host, so a new host is a new package version. Fixture-mode runs and CI never contact it.
 - `rel="agent-package"` and `application/vnd.webagents.agent-package` are an experimental
   WebAgents convention, not a registered link relation or media type.
-- `agent.pkg` 0.1 has no optional tools. The Agent Browser must bind and approve all seven WebAir
-  tools before any run, so a host that holds none of the three resource types cannot run WebAir
-  0.2.0 or later, even for a search that reads none of them.
+- `agent.pkg` 0.1 has no optional tools. A publisher-declared profile lets a host leave the tools
+  outside it unapproved (the Chrome runtime and `agentpkg`'s control plane do), but the OpenClaw
+  Agent Browser page does not offer profiles, so there every WebAir tool must still be bound and
+  approved, and a host that holds none of the three resource types cannot run WebAir 0.2.0 or
+  later even for a search.
+- The Chrome extension cannot classify the address a DNS name resolves to: the private-address
+  checks and connection pinning of `agentpkg` and of the Chrome CLI are Chrome's network stack's
+  job in the extension ([threat model](docs/threat-model.md#chrome-agent-browser-t7)). Its
+  built-in model route (Gemini Nano) has not been run live, and it is not published in the Chrome
+  Web Store.
 - Local-model runs are slow and sensitive to the host's resource limits. The packages' timing
   and budget policy was set from measurements on one machine.
 - Opening a package by HTTPS URL is covered by tests against a mock origin. The minimal origin in
@@ -352,7 +419,7 @@ Design rationale: [docs/architecture.md](docs/architecture.md). Threat model:
 credentials or certification for publishers; MCP and A2A integration through host adapters;
 conversational and persistent-service execution profiles; executable modules under an isolation
 boundary; data-flow policies; persistent ("always") authorization; federated scholarly search
-(arXiv, OpenAlex); conformance tests across independent runtimes.
+(arXiv, OpenAlex); conformance beyond fixture mode (live runs compared across runtimes).
 
 ## Limitations
 
@@ -367,8 +434,9 @@ boundary; data-flow policies; persistent ("always") authorization; federated sch
   not the same as keeping it local.
 - **Cancellation is not rollback.** Failed waves do not commit workflow state, but side effects
   that external services have already completed are not undone.
-- **Single runtime.** Only one runtime implementation exists, so cross-runtime interoperability is
-  untested.
+- **Two runtimes, one comparison.** The conformance suite shows identical fixture behaviour and
+  identical refusals on its listed cases. It does not prove the runtimes equivalent, and two
+  implementations can agree and both be wrong.
 
 ## Repository layout
 
@@ -376,6 +444,8 @@ boundary; data-flow policies; persistent ("always") authorization; federated sch
 |---|---|
 | `agentpkg/` | Python package: format, CLI, interpreter, control plane, execution, tests |
 | `openclaw-agent-browser/` | OpenClaw plugin (TypeScript): backend, Control UI page, tests, operator scripts |
+| `chrome-agent-browser/` | the Chrome Agent Browser (TypeScript): portable core, Node CLI, Manifest V3 extension, tests, headless-Chrome harnesses ([README](chrome-agent-browser/README.md)) |
+| `conformance/` | the cross-runtime conformance suite and its kept reports ([README](conformance/README.md)) |
 | `agents/` | package sources: `meeting-agenda`, `literature-review`, `webair`, `literature-review-legacy` |
 | `dist/` | signed packages and wheels, current and historical, with SHA-256 ([dist/README.md](dist/README.md)) |
 | `spec/` | the `agent.pkg` and `workflow.v0` specifications; `spec/extensions/` for noncritical manifest extensions (publisher-declared profiles) |
@@ -402,6 +472,8 @@ agentpkg/.venv/bin/python scripts/check_release.py     # package identities, dis
 (cd citation-resolver && python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt && .venv/bin/python -m pytest)
 python3 -m venv demo/webair/.venv && demo/webair/.venv/bin/pip install -r demo/webair/requirements-dev.txt
 (cd demo/webair && .venv/bin/python -m pytest && .venv/bin/python -m publisher check)
+(cd chrome-agent-browser && npm ci && npm run typecheck && npm test && npm run build && npm run pack && npm run check-pack)
+node conformance/run.mjs
 ```
 
 Package sources must not contain stray files: the builder refuses names such as `.DS_Store`
@@ -423,8 +495,9 @@ How the prototype got here, milestone by milestone: [docs/development-history.md
 
 WebAgents is licensed under the [Apache License, Version 2.0](LICENSE) (SPDX: `Apache-2.0`).
 Third-party material it contains or bundles, including tables and expressions derived from
-CPython's `html` module and the dependencies bundled into the plugin artifact, is listed with its
-terms in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Release procedure and checklist:
+CPython's `html` module and the dependencies bundled into the plugin artifact and the Chrome
+extension, is listed with its terms in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md); the
+extension's zip carries its own notices. Release procedure and checklist:
 [docs/releasing.md](docs/releasing.md).
 
 ## Citation

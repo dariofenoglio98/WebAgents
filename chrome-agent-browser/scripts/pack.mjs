@@ -7,7 +7,12 @@
  * sorted path order, deflate (stored when deflate does not shrink a member), timestamp
  * 1980-01-01 00:00:00, Unix regular-file mode 0644, no comments or extra fields. The same
  * build therefore always produces the same bytes. Requires `npm run build` first.
+ *
+ * Beside the zip it writes `chrome-agent-browser-<version>.contents.txt`, the reproducible
+ * content listing (T7): one `sha256  bytes  path` line per member, then the zip's own SHA-256.
+ * `npm run check-pack` verifies the zip against it and against the expected file set.
  */
+import { createHash } from "node:crypto";
 import { crc32, deflateRawSync } from "node:zlib";
 import { existsSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
@@ -89,12 +94,19 @@ const manifest = JSON.parse(readFileSync(join(extension, "manifest.json"), "utf8
 const target = join(project, "dist", `chrome-agent-browser-${manifest.version}.zip`);
 rmSync(target, { force: true });
 writeFileSync(target, archive);
+const sha256 = (data) => createHash("sha256").update(data).digest("hex");
+const listing = [
+  ...members.map(({ name, data }) => `${sha256(data)}  ${String(data.length).padStart(9)}  ${name}`),
+  `${sha256(archive)}  ${String(archive.length).padStart(9)}  ${relative(join(project, "dist"), target)}`,
+].join("\n");
+writeFileSync(target.replace(/\.zip$/u, ".contents.txt"), `${listing}\n`);
 console.log(
   JSON.stringify({
     zip: target,
     version: manifest.version,
     files: members.length,
     zip_bytes: archive.length,
+    zip_sha256: sha256(archive),
     uncompressed_bytes: members.reduce((sum, member) => sum + member.data.length, 0),
   }),
 );

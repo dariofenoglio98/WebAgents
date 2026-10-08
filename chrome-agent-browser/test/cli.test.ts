@@ -166,7 +166,8 @@ describe("run (D-064)", () => {
     expect(ok.status, ok.stderr).toBe(0);
     const denied = cli.run(["run", SHIPPED.webair040.archive, "--mode", "fixture", "--grants", grants, "--approve-tool", "get-fare-rules", "--input", input, "--out", join(scratch, "denied")]);
     expect(denied.status).toBe(2);
-    expect(denied.stderr).toMatch(/^agent-browser: workflow\.v0 permission_denied at node /u);
+    // agentpkg's line exactly: the node, never a step (`search`, not `search/search-query`).
+    expect(denied.stderr).toBe("agent-browser: workflow.v0 permission_denied at node search\n");
     expect(existsSync(join(scratch, "denied", "result.json"))).toBe(true);
   });
 

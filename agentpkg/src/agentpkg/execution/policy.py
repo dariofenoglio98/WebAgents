@@ -211,7 +211,9 @@ def _operations(graph):
                 yield f"{node['id']}/{step['id']}", step
 
 
-def check_capabilities(package, limits: HostExecutionLimits, *, tool_bindings=()) -> dict:
+def check_capabilities(
+    package, limits: HostExecutionLimits, *, tool_bindings=(), denied_tools=()
+) -> dict:
     """Refuse a package this execution host cannot run, before anything starts.
 
     These are limits of the host, not of the package format. A package that
@@ -223,11 +225,26 @@ def check_capabilities(package, limits: HostExecutionLimits, *, tool_bindings=()
     checked separately by `check_tools`, which compares each one against the
     signed declaration; this function only asks whether every declared tool and
     every `tool` operation in the graph has one at all.
+
+    `denied_tools` are the declared tools the person's selected profile left
+    out and that they did not approve (D-022, D-090). They have no binding by
+    design and the runtime refuses any call to them, so their absence is not a
+    limit of the host; they count as accounted for. A denied tool must be
+    declared and must not also be bound.
     """
     graph = package.graph
     declared_tools = [tool["id"] for tool in package.manifest["tools"]]
     tool_nodes = [name for name, op in _operations(graph) if op["type"] == "tool"]
-    bound = {binding["tool_id"] for binding in tool_bindings}
+    implemented = {binding["tool_id"] for binding in tool_bindings}
+    denied = set(denied_tools)
+    if denied - set(declared_tools) or denied & implemented:
+        raise ExecutionError(
+            TOOL_NOT_BOUND,
+            "The run plan denies a tool this package does not declare, or one it also binds.",
+            detail={"denied_tools": sorted(denied)[:32]},
+        )
+    # Every declared tool is accounted for: bound to one implementation, or denied.
+    bound = implemented | denied
     if (declared_tools or tool_nodes) and not bound:
         raise ExecutionError(
             TOOLS_NOT_SUPPORTED,
@@ -280,7 +297,8 @@ def check_capabilities(package, limits: HostExecutionLimits, *, tool_bindings=()
     return {
         "tools_declared": len(declared_tools),
         "tool_nodes": len(tool_nodes),
-        "tool_bindings": len(bound),
+        "tool_bindings": len(implemented),
+        **({"denied_tools": sorted(denied)} if denied else {}),
         "llm_operations": caps,
         "max_requested_output_tokens": max((c["max_output_tokens"] for c in caps), default=0),
         "host_max_output_tokens_per_call": limits.max_output_tokens_per_call,

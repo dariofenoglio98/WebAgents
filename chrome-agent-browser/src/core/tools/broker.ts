@@ -169,7 +169,7 @@ export class BoundToolHandler {
       // another error that settles at the same moment keeps its own name (T4 review 2, nit 7).
       const byDeadline = (error: unknown): boolean => deadline.aborted && error === deadline.reason;
       const limits = { maxConcurrent: this.limits.max_concurrent, minIntervalMs: this.limits.min_interval_ms ?? 0 };
-      let release: () => void;
+      let release: (answered?: boolean) => void;
       try {
         release = await (this.deps.pacer ?? HOST_PACER).acquire(definition.id, limits, bounded);
       } catch (error) {
@@ -178,6 +178,10 @@ export class BoundToolHandler {
         throw error;
       }
       let answer: { output: JsonValue; status: number | null; resource?: ResourceGrant; file?: { file_id: string; sha256: string } };
+      // Whether a request left for the service: an interval follows only a request that did
+      // (D-081); one the adapter refused locally starts none (T6 review, nit 4). Local
+      // implementations reach no service, and their pacing is unchanged.
+      let sent = definition.kind !== "json_http";
       try {
         if (definition.kind === "local_builtin") {
           const builtin = this.deps.builtins?.[definition.implementationId];
@@ -195,7 +199,12 @@ export class BoundToolHandler {
           const credential = definition.credential ? (this.deps.credentials?.(definition.credential) ?? null) : null;
           const contact = definition.optionalCredential ? (this.deps.credentials?.(definition.optionalCredential) ?? null) : null;
           const bytes = { maxRequestBytes: this.limits.max_request_bytes, maxResponseBytes: this.limits.max_response_bytes };
-          answer = await abortable(jsonHttpCall({ definition, args: payload, transport: this.deps.transport, signal: bounded, credential, contact, observe: this.deps.observe, limits: bytes, now: this.deps.now }), bounded);
+          const network = this.deps.transport;
+          const transport: HttpTransport = (request) => {
+            sent = true;
+            return network(request);
+          };
+          answer = await abortable(jsonHttpCall({ definition, args: payload, transport, signal: bounded, credential, contact, observe: this.deps.observe, limits: bytes, now: this.deps.now }), bounded);
         } else {
           throw toolError("tool_unavailable", "this host has no implementation for that category yet");
         }
@@ -204,7 +213,7 @@ export class BoundToolHandler {
         if (byDeadline(error)) throw toolError("tool_timeout", "the tool host did not answer in time");
         throw error;
       } finally {
-        release();
+        release(sent);
       }
       const output = this.settle(answer);
       status = answer.status;

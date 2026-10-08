@@ -251,6 +251,7 @@ class BrowserAPI:
                 "tool_approvals",
                 "resource_registry",
                 "resource_selections",
+                "profile_id",
             },
             {"package_digest"},
         )
@@ -261,6 +262,7 @@ class BrowserAPI:
             tool_approvals=payload.get("tool_approvals"),
             resource_registry=payload.get("resource_registry"),
             resource_selections=payload.get("resource_selections"),
+            profile_id=payload.get("profile_id"),
         )
         return 201, receipt
 

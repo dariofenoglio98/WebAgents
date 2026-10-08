@@ -17,7 +17,7 @@
  * `textContent`.
  */
 import type { PresentationHints } from "../../core/presentation.js";
-import { clear, el } from "./dom.js";
+import { bytes, clear, el } from "./dom.js";
 
 type Json = unknown;
 type Schema = Record<string, unknown>;
@@ -40,10 +40,6 @@ export interface FormContext {
   files?: () => readonly FormFile[];
   /** Open Settings → Files, where PDFs are picked. */
   openFiles?: () => void;
-}
-
-function sizeText(count: number): string {
-  return count >= 1024 * 1024 ? `${(count / (1024 * 1024)).toFixed(1)} MiB` : count >= 1024 ? `${Math.round(count / 1024)} KiB` : `${count} bytes`;
 }
 
 export type FieldModel = {
@@ -634,7 +630,7 @@ export class TaskForm {
         none.value = "";
         select.append(none);
         for (const file of available) {
-          const option = el("option", { text: `${file.display_name} · ${sizeText(file.bytes)}` });
+          const option = el("option", { text: `${file.display_name} · ${bytes(file.bytes)}` });
           option.value = file.file_id;
           if (entry[1] === file.file_id) option.selected = true;
           select.append(option);

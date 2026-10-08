@@ -3,7 +3,8 @@
 # Ollama, a configured OpenClaw host, live Crossref, the hosted Citation Resolver or a signing
 # key: package runs use fixture mode, and the plugin tests drive a real control plane against
 # throwaway state. Live-provider tests stay opt-in (AGENTPKG_TEST_LIVE_MODEL,
-# AGENTPKG_TEST_OPENCLAW) and are skipped here.
+# AGENTPKG_TEST_OPENCLAW) and are skipped here. The Chrome Agent Browser's tests use fakes for
+# Chrome, providers and services; the conformance suite runs both runtimes in fixture mode.
 name: CI
 
 on:
@@ -337,6 +338,110 @@ jobs:
           fi
       - name: Install the artifact into a throwaway OpenClaw configuration
         run: npm run verify
+
+  chrome-agent-browser:
+    name: Chrome Agent Browser (${{ matrix.os }}, Node ${{ matrix.node }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        node: ["24", "26"]
+    defaults:
+      run:
+        shell: bash
+        working-directory: chrome-agent-browser
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - name: Install agentpkg (the fixture-parity test runs agentpkg/.venv/bin/agentpkg)
+        working-directory: .
+        run: |
+          python -m venv agentpkg/.venv
+          agentpkg/.venv/bin/python -m pip install -e ./agentpkg
+          test -x agentpkg/.venv/bin/agentpkg
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+          cache-dependency-path: chrome-agent-browser/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Typecheck (the core compiles with no DOM, Node or Chrome types)
+        run: npm run typecheck
+      - name: Tests (no test may be skipped)
+        run: |
+          npx vitest run --reporter=default --reporter=json --outputFile="$RUNNER_TEMP/chrome-vitest.json"
+          node -e '
+            const r = JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8"));
+            console.log({ total: r.numTotalTests, passed: r.numPassedTests,
+                          failed: r.numFailedTests, skipped: r.numPendingTests, todo: r.numTodoTests });
+            process.exit(r.success && r.numFailedTests === 0 && r.numPendingTests === 0 && r.numTodoTests === 0 ? 0 : 1);
+          ' "$RUNNER_TEMP/chrome-vitest.json"
+      - name: Build, pack and check the extension zip
+        run: |
+          npm run build
+          npm run pack
+          npm run check-pack
+          cat dist/chrome-agent-browser-*.contents.txt
+      - name: The same sources pack to the same bytes
+        run: |
+          first=$(node -e 'process.stdout.write(require("node:crypto").createHash("sha256").update(require("node:fs").readFileSync(process.argv[1])).digest("hex"))' dist/chrome-agent-browser-*.zip)
+          npm run build > /dev/null
+          npm run pack > /dev/null
+          second=$(node -e 'process.stdout.write(require("node:crypto").createHash("sha256").update(require("node:fs").readFileSync(process.argv[1])).digest("hex"))' dist/chrome-agent-browser-*.zip)
+          echo "first $first"; echo "second $second"
+          test "$first" = "$second"
+      - name: Keep the packed extension
+        if: matrix.os == 'ubuntu-latest' && matrix.node == '26'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: chrome-agent-browser-extension
+          path: |
+            chrome-agent-browser/dist/chrome-agent-browser-*.zip
+            chrome-agent-browser/dist/chrome-agent-browser-*.contents.txt
+          retention-days: 14
+
+  conformance:
+    name: cross-runtime conformance suite (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "26"
+          cache: npm
+          cache-dependency-path: chrome-agent-browser/package-lock.json
+      - name: Install agentpkg and build the Chrome core
+        run: |
+          python -m venv agentpkg/.venv
+          agentpkg/.venv/bin/python -m pip install -e ./agentpkg
+          (cd chrome-agent-browser && npm ci && npm run build)
+      - name: Run both runtimes on the shipped packages and the negative suite
+        # Fixture mode and control-plane scenarios only: no model, network or credential.
+        run: node conformance/run.mjs --out "$RUNNER_TEMP/conformance"
+      - name: Keep the report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: conformance-report-${{ matrix.os }}
+          path: ${{ runner.temp }}/conformance
+          retention-days: 30
 
   citation-resolver:
     name: Citation Resolver (${{ matrix.os }})

@@ -51,7 +51,7 @@ describe("Literature Review's documents field offers the picked PDFs", () => {
     key.value = "10.1234/example";
     key.dispatchEvent(new Event("input"));
     const select = form.root.querySelector<HTMLSelectElement>('select[aria-label="Documents 1 document"]')!;
-    expect([...select.options].map((option) => option.textContent)).toEqual(["Choose a picked PDF…", expect.stringMatching(/^attention-paper\.pdf · 1 KiB$/u)]);
+    expect([...select.options].map((option) => option.textContent)).toEqual(["Choose a picked PDF…", expect.stringMatching(/^attention-paper\.pdf · 1\.\d KiB$/u)]);
     select.value = files[0]!.file_id;
     select.dispatchEvent(new Event("change"));
     const last = values.at(-1) as { documents?: Record<string, string> };

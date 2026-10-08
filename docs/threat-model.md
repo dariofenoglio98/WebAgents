@@ -248,3 +248,57 @@ integrity without domain code in the interpreter. They do not establish semantic
 truth of arbitrary prose or completeness of model-selected data. Trusted adapters
 and pathological schema CPU use remain outside an OS-enforced sandbox.
 See [the execution profile](../spec/workflow-v0.md) for precise limits.
+
+## Chrome Agent Browser (T7)
+
+The Chrome Agent Browser ([guide](chrome-agent-browser.md)) applies the boundaries above with the
+reference runtime's semantics, ported to a portable TypeScript core, inside a Manifest V3
+extension. The same package checks, authorization, Run Plan, mediation and audit rules hold; the
+conformance suite ([`conformance/`](../conformance/README.md)) shows the two runtimes give the same
+fixture results and the same refusals on its listed cases. What changes is the host, and with it
+four things this section states plainly.
+
+**Chrome's network stack.** In the extension every request leaves through Chrome's `fetch`. Before
+that, the core's URL gate (D-026, D-039) requires HTTPS on port 443 and a DNS name, refuses IP
+literals in any spelling either URL parser accepts, `localhost` and `.local` names, userinfo and
+backslashes, and refuses a URL its two parsers read differently; package and website downloads
+follow no redirect; tool calls make one request, follow no redirect and never retry; a provider is
+reached only at its own API origin, Ollama only on `127.0.0.1` or `localhost`. What an extension
+cannot do is see where a DNS name resolves: it has no resolver and no socket, so the private-
+address classification and connection pinning the Python runtime and the Chrome **CLI** perform
+(`src/cli-net.ts`, D-067) are not performed in the extension. A public name that resolves to a
+private or loopback address would be fetched by Chrome. The residual exposure is bounded by what a
+request can carry (only a package-declared HTTPS endpoint, with the package's own schema-checked
+arguments, no cookie or credential of the person's browsing, `credentials: "omit"`) and by what it
+can reach (the person's own network). TLS and certificate checks are Chrome's.
+
+**Storage at rest.** `chrome.storage.local` and IndexedDB live in the Chrome profile directory,
+protected by the operating-system account and by whatever disk encryption the machine uses, not by
+the extension. Provider API keys, the personal vault's values and the HMAC key that digests them
+are stored there unencrypted; anyone who can read the profile can read them, and so can any code
+running with this extension's authority. The vault's keyed digests keep values out of receipts,
+plans, audits and exports; they are not at-rest encryption. Package snapshots, run records,
+artifacts and picked PDFs are kept until the person removes them (Runs → clear, Settings → Files)
+or uninstalls the extension. Test mode records outbound request bodies (prompts included) in
+`observations` for the privacy checks; it is off by default. Nothing is written to `storage.sync`,
+and nothing is sent anywhere at install or start.
+
+**Host permissions.** The extension holds `https://*/*` and the two loopback names (D-026): it can
+read any HTTPS response it requests, and its content script runs on every HTTPS page. The content
+script reads only `link[rel="agent-package"]` elements and sends at most sixteen bounded link
+records; pages cannot message the extension, and every message is validated structurally by its
+receiver (D-033). The authority is broad because packages may declare tool endpoints on any HTTPS
+origin; a compromised extension build would hold all of it. Per-origin optional permissions,
+granted when a person authorizes a package's declared domains, are later hardening (B-96). The
+offscreen execution host obeys only the extension's own service worker (D-070); the run messages
+that carry keys travel over `chrome.runtime.sendMessage`, which every extension context receives,
+all of which already hold the same storage authority (a point-to-point port is B-122).
+
+**Extension review.** The extension is unminified, built reproducibly (the same sources and Node
+release give the same zip bytes, and a content listing identifies a build across Node releases,
+D-093), and carries the notices of exactly the libraries it bundles. That makes it reviewable; it
+does not make it reviewed. A Chrome Web Store listing would add Google's review and automatic
+updates, so a person would then also trust whoever controls the store listing to publish only
+reviewed builds; the extension is not published (U5). Loading it unpacked trusts the checkout it
+was built from. As everywhere in this prototype, a package's signature says which key signed it,
+not that its workflow is safe, and the extension's own integrity rests on how it was obtained.
