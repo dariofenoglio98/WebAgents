@@ -24,6 +24,7 @@
  */
 import { readFileSync, writeFileSync } from "node:fs";
 
+import { documentCommand } from "./cli-document.js";
 import { runCommand } from "./cli-run.js";
 import { PdfRefusal } from "./core/tools/adapters/selected-file.js";
 import { ArgumentError, parseArguments, type ArgumentSpec } from "./cli-arguments.js";
@@ -58,6 +59,8 @@ export const USAGE = [
   "      [--context-tokens <n>] [--think] [--tool-bindings <bindings.json>]",
   "      [--host-resources <resources.json>] [--resource-grant <permission>=<resource-id>]...]",
   "  pdf-text <document.pdf>",
+  "  document sign --type agent-index|policy-bundle --key <private.pem> <content.json> --out <signed.json>",
+  "  document verify --type agent-index|policy-bundle --key <public.pem> <signed.json>",
   "",
 ].join("\n");
 
@@ -189,6 +192,8 @@ async function main(argv: string[]): Promise<number> {
         return await runCommand(args);
       case "pdf-text":
         return await pdfText(args);
+      case "document":
+        return await documentCommand(args);
       default:
         return usage();
     }

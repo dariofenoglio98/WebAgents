@@ -36,6 +36,8 @@ import type { JsonObject, JsonValue } from "./json.js";
 import type { Package } from "./package.js";
 import { pyRepr } from "./repr.js";
 import type { TrustState } from "./trust.js";
+import { modelPolicyReasons, type ActivePolicy } from "./policies/apply.js";
+import { policyLabel, samePolicy } from "./policies/bundle.js";
 import {
   BINDING_SINGLE_MODEL,
   DENY,
@@ -46,6 +48,7 @@ import {
   type AuthorizationReceipt,
   type BrowserPolicy,
   type ExecutionMode,
+  type Provenance,
   type Reason,
   type RunPlan,
   type RunPlanPreflight,
@@ -375,6 +378,12 @@ export interface PreflightInputs {
   onceSpent?: boolean;
   /** The host preset allows local models only now (D-050); a plan bound to another model is stale. */
   localModelsOnly?: boolean;
+  /**
+   * The policy subscription in force now (T8, D-102): null for none, absent when the caller does
+   * not take part (the reference's semantics). A plan authorized under a policy that is gone or
+   * changed is stale, and the policy's model constraints apply to every plan.
+   */
+  subscription?: ActivePolicy | null;
   now?: Date;
 }
 
@@ -434,6 +443,20 @@ export function preflight(plan: RunPlan, input: PreflightInputs): RunPlanPreflig
   // prepared before it was chosen, not only to new ones.
   if (input.localModelsOnly === true && plan.model_binding !== null && (plan.model_binding.descriptor.properties as JsonObject | undefined)?.local !== true) {
     reasons.push(reason("model_not_local", `The current preset allows local models only, and this plan binds ${plan.model_binding.host_model_id}, which is not local. Prepare a new plan with a local model, or change the preset in Settings → Policies.`, plan.model_binding.host_model_id));
+  }
+  if (input.subscription !== undefined) {
+    const planned = (plan.authorization.provenance as Provenance | null | undefined)?.policy ?? null;
+    const current = input.subscription?.reference ?? null;
+    if (planned !== null && !samePolicy(planned, current)) {
+      reasons.push(
+        current === null
+          ? reason("policy_withdrawn", `This plan was authorized under the policy ${planned.title} (${policyLabel(planned)}), which no longer applies (unsubscribed or expired). Authorize again.`)
+          : reason("policy_changed", `This plan was authorized under the policy ${policyLabel(planned)}; the policy in force is now ${policyLabel(current)}. Authorize again.`),
+      );
+    }
+    if (plan.model_binding !== null) {
+      reasons.push(...modelPolicyReasons(input.subscription, { id: plan.model_binding.host_model_id, properties: (plan.model_binding.descriptor.properties ?? {}) as { local?: unknown; cost_class?: unknown } }));
+    }
   }
   if (input.onceSpent) {
     reasons.push(reason("authorization_once_spent", "This authorization granted something once, and a run has already used it. Authorize again to run again."));

@@ -42,6 +42,9 @@ export {
   type SchemaValidationError,
 } from "./schema.js";
 export * from "./signature.js";
+export * from "./signed-document.js";
+export * as resolve from "./resolve/index.js";
+export * as policies from "./policies/index.js";
 export * from "./summary.js";
 export * from "./trust.js";
 export * from "./types.js";
