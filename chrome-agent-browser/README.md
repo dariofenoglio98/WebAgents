@@ -273,7 +273,7 @@ the chain, the bindings, Crossref's request shape and pacing, the documents read
 limits, and the reference driver's grounding checks. The evidence is
 `examples/verification/chrome-literature-review-live.json` (hosted model) and
 `examples/verification/chrome-literature-review-live-local.json` (`ollama/qwen3:30b` with
-`--think`: completed in 1,063 s, three grounded claims, 33 checks passed).
+`--think`; its duration, usage, claims and checks are in that file).
 
 ## What it does not do yet
 
