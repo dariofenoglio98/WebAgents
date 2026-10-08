@@ -1,0 +1,63 @@
+{
+  "spec_version": "0.1",
+  "permissions": [
+    {
+      "id": "files.pdfs",
+      "kind": "files.read",
+      "description": "Read only individually selected local PDF files.",
+      "required": false,
+      "resources": [
+        "user-selected-pdfs"
+      ]
+    },
+    {
+      "id": "model.reasoning",
+      "kind": "model",
+      "description": "Declared so a run plan can bind a model; this graph calls none.",
+      "required": false,
+      "resources": [
+        "host-router"
+      ]
+    },
+    {
+      "id": "memory.session",
+      "kind": "memory",
+      "description": "Session state only.",
+      "required": true,
+      "resources": [
+        "session"
+      ]
+    }
+  ],
+  "network": {
+    "allowed_domains": [],
+    "https_only": true,
+    "allow_redirects": false
+  },
+  "memory": {
+    "scope": "session",
+    "retention": "session",
+    "raw_documents": false,
+    "state_schema": "schemas/state.schema.json",
+    "sharing": "explicit_views"
+  },
+  "budget": {
+    "estimated_tokens": 10,
+    "hard_tokens": 1000,
+    "max_remote_calls": 4,
+    "max_calls_per_tool": {
+      "paper-reader": 2
+    },
+    "max_parallel_workers": 1,
+    "estimated_cost_usd": null,
+    "approval_threshold_tokens": null
+  },
+  "delegation": {
+    "max_depth": 1,
+    "approved_roles": [
+      "ReaderWorker"
+    ],
+    "allow_remote": false
+  },
+  "extensions": {}
+}

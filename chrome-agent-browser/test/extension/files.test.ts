@@ -18,7 +18,8 @@ import { DEFAULT_HOST_LIMITS } from "../../src/core/execution/limits.js";
 import type { AuthorizationView, AuthorizeResult, FilesView, RunReadiness, RunView, SessionView, SettingsView } from "../../src/extension/messages.js";
 import { parseRequest } from "../../src/extension/messages.js";
 import { LONG_RUN_LIMITS } from "../../src/extension/ui/settings-page.js";
-import { readerPackage, READER_URL, sha } from "../helpers/reader-package.js";
+import { literatureReview } from "../helpers/fixtures.js";
+import { readerPackage, readerSource, READER_URL, sha } from "../helpers/reader-package.js";
 import { ROOT, SHIPPED } from "../helpers/paths.js";
 import { LITERATURE_URL, makeHarness, PACKAGE_MEDIA_TYPE, PAGE, type Harness } from "../helpers/shell.js";
 
@@ -62,6 +63,14 @@ async function start(h: Harness, session: SessionView, result: AuthorizeResult, 
   const plan = result.run_plan!.run_plan;
   return (await h.controller.handle({ type: "run.start", sessionId: session.session.id, runPlanId: plan.run_plan_id, runPlanSha256: plan.run_plan_sha256, input }, PAGE)) as RunView;
 }
+
+describe("the reader test package", () => {
+  it("carries Literature Review 0.2.5's reader schemas byte for byte", async () => {
+    const lr = await literatureReview();
+    const source = readerSource();
+    for (const name of ["schemas/reader-input.schema.json", "schemas/reader-output.schema.json"]) expect(new TextDecoder().decode(source.get(name)!)).toBe(new TextDecoder().decode(lr.files.get(name)!));
+  });
+});
 
 describe("Settings → Files: a pick is copied, hashed and bounded (D-083)", () => {
   it("copies a PDF with its hash and size, lists it without its bytes, and removes it", async () => {

@@ -1,0 +1,13 @@
+{
+  "type": "object",
+  "properties": {
+    "file_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "file_id"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

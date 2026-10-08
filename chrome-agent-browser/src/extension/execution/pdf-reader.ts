@@ -6,7 +6,7 @@
  * core adapter checks it describes the bytes it was given (`readPdfAnswer`).
  */
 import { PdfRefusal, type PdfText, type PdfTextReader } from "../../core/tools/adapters/selected-file.js";
-import type { PdfWorkerAnswer } from "./pdf-worker.js";
+import { PDF_ANSWER_KIND, type PdfWorkerAnswer } from "./pdf-worker.js";
 
 export const PDF_WORKER_SCRIPT = "pdf-worker.js";
 
@@ -44,9 +44,11 @@ export function workerPdfReader(spawn: () => WorkerLike): PdfTextReader {
       const onAbort = (): void => finish(() => reject(signal.reason));
       signal.addEventListener("abort", onAbort, { once: true });
       worker.onmessage = (event) => {
-        const answer = event.data;
-        if (answer && answer.ok === true) finish(() => resolve(answer.result as PdfText));
-        else finish(() => reject(new PdfRefusal(answer && answer.ok === false && typeof answer.reason === "string" ? answer.reason : "parse_failed")));
+        const answer = event.data as PdfWorkerAnswer | { kind?: unknown } | null;
+        // Only this protocol's answer counts: pdf.js's own "ready" announcement is not one.
+        if (typeof answer !== "object" || answer === null || answer.kind !== PDF_ANSWER_KIND) return;
+        if ("ok" in answer && answer.ok === true) finish(() => resolve(answer.result as PdfText));
+        else finish(() => reject(new PdfRefusal("ok" in answer && answer.ok === false && typeof answer.reason === "string" ? answer.reason : "parse_failed")));
       };
       worker.onerror = () => finish(() => reject(new PdfRefusal("parse_failed")));
       worker.onmessageerror = () => finish(() => reject(new PdfRefusal("parse_failed")));

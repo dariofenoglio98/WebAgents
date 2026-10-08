@@ -1,0 +1,101 @@
+{
+  "spec_version": "0.1",
+  "profile": "workflow.v0",
+  "coordinator": "ReaderCoordinator",
+  "workers": [
+    {
+      "id": "ReaderCoordinator",
+      "kind": "packaged",
+      "skills": [],
+      "tools": [],
+      "max_instances": 1,
+      "budget": {
+        "tokens": 1000,
+        "remote_calls": 4
+      },
+      "state_read": [
+        "request",
+        "document"
+      ],
+      "state_write": [
+        "document"
+      ]
+    },
+    {
+      "id": "ReaderWorker",
+      "kind": "packaged",
+      "skills": [
+        "read"
+      ],
+      "tools": [
+        "paper-reader"
+      ],
+      "max_instances": 1,
+      "budget": {
+        "tokens": 1000,
+        "remote_calls": 4
+      },
+      "state_read": [
+        "request"
+      ],
+      "state_write": [
+        "document"
+      ]
+    }
+  ],
+  "input_schema": "schemas/reader-input.schema.json",
+  "output_schema": "schemas/reader-output.schema.json",
+  "initial_state": {
+    "object": {
+      "request": {
+        "from": "input",
+        "path": ""
+      },
+      "document": {
+        "literal": null
+      }
+    }
+  },
+  "deadline_seconds": 120,
+  "nodes": [
+    {
+      "id": "read",
+      "type": "tool",
+      "worker": "ReaderWorker",
+      "tool": "paper-reader",
+      "depends_on": [],
+      "input": {
+        "object": {
+          "file_id": {
+            "from": "state",
+            "path": "/request/file_id"
+          }
+        }
+      },
+      "output_schema": "schemas/reader-output.schema.json",
+      "timeout_seconds": 60,
+      "writes": {
+        "/document": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "id": "result",
+      "type": "output",
+      "worker": "ReaderCoordinator",
+      "depends_on": [
+        "read"
+      ],
+      "input": {
+        "from": "state",
+        "path": "/document"
+      },
+      "output_schema": "schemas/reader-output.schema.json",
+      "timeout_seconds": 10,
+      "writes": {}
+    }
+  ],
+  "extensions": {}
+}
