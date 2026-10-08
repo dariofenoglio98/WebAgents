@@ -9,11 +9,13 @@
  * The model transport may reach Ollama on the loopback host over plain HTTP (D-055); the tool
  * transport refuses any non-HTTPS destination before connecting.
  */
+import { OLLAMA_LOOPBACK_HOSTS } from "../../core/models/catalog.js";
 import { TransportError, type HttpRequest, type HttpResponse, type HttpTransport } from "../../core/models/transport.js";
 
 export type FetchLike = (url: string, init: RequestInit) => Promise<Response>;
 
-const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost", "[::1]"]);
+/** The one list of loopback names (`catalog.ts`), not a copy of it (T5 review 1, nit 11). */
+const LOOPBACK_HOSTS = new Set(OLLAMA_LOOPBACK_HOSTS);
 
 function cancelled(signal: AbortSignal): Error {
   return (signal.reason as Error | undefined) ?? new TransportError("the request was cancelled", { stage: "transport" });

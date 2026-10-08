@@ -1,7 +1,7 @@
 {
   "profile": "chrome-webair-040-live-demo-v0",
   "milestone": "T5: WebAir 0.4.0 end to end in the Chrome Agent Browser (Demo 3)",
-  "recorded": "2026-10-07",
+  "recorded": "2026-10-08",
   "commands": {
     "harness": "node chrome-agent-browser/scripts/e2e-webair-live.mjs --model ollama/qwen3:30b",
     "verify": "agentpkg/.venv/bin/python scripts/verify_chrome_webair_live.py"
@@ -43,12 +43,12 @@
   },
   "harness": {
     "profile": "chrome-webair-040-live-v0",
-    "recordedAt": "2026-10-07T23:01:26.737Z",
+    "recordedAt": "2026-10-08T00:18:13.928Z",
     "site": "https://webagents-webair-production.up.railway.app/",
     "model": "ollama/qwen3:30b",
     "extension": "chrome-agent-browser/dist/extension",
     "chrome": "Chrome/154.0.8037.99",
-    "outputDirectory": "examples/my-chrome-live-2026-10-07T23-01-26-737Z",
+    "outputDirectory": "examples/my-chrome-live-2026-10-08T00-18-13-928Z",
     "steps": {
       "setup": {
         "probe": {
@@ -77,7 +77,7 @@
         "the public origin advertises the package": "ok"
       },
       "inspect": {
-        "sessionId": "d91d6e63269f4322a7d7a95e",
+        "sessionId": "0c22cdf9dcf040678ca04c2d",
         "name": "WebAir Travel Agent",
         "version": "0.4.0",
         "digest": "0e8317f11e8813e7d5b4b3f352f20148d114329dca3db8c725c5b0558af24fbb",
@@ -93,9 +93,9 @@
       },
       "searchAuthorization": {
         "banner": "Ready to run",
-        "receiptId": "88b60a91-90e1-4a17-a60b-4e5f772b7164",
-        "runPlanId": "rp_de8bafd6dbb34aa08a74eadefadf52b6",
-        "runPlanSha256": "ec066a7306d03567486edcec2af191c31e1318c62352018f534ee5b4f9b6831a",
+        "receiptId": "0a1b8f6d-db5d-426c-883d-a68a12052ff4",
+        "runPlanId": "rp_bf1bd605cc0146298696bd32f0903452",
+        "runPlanSha256": "b3e2b7720e414e0b3326d4b17284460ab74d9cc70004447d4815b2e7420dab38",
         "ready": true,
         "decisions": {
           "booking.simulate_purchase": "deny",
@@ -116,20 +116,20 @@
       },
       "reconnect": {
         "stateAfterReload": "running",
-        "adoptedRunId": "run_021287ce387c4a0288d196c71416f02e",
-        "runId": "run_021287ce387c4a0288d196c71416f02e",
+        "adoptedRunId": "run_1bc13e40e6cb49dea9b236968134cc4d",
+        "runId": "run_1bc13e40e6cb49dea9b236968134cc4d",
         "the reloaded page shows the run that was in flight": "ok"
       },
       "cancel": {
-        "pressedAtS": 35,
+        "pressedAtS": 37,
         "the run settled as cancelled": "ok",
         "the audit chain of the cancelled run is valid": "ok"
       },
       "quoteAuthorization": {
         "banner": "Ready to run",
-        "receiptId": "29d806b9-2d5b-46ae-92e3-0c1b828a63ae",
-        "runPlanId": "rp_dedfaf5f1bfd43668455fb0ec893b0da",
-        "runPlanSha256": "e865ec50ac56778d4dd7516d6499a852f9ccb7cb6511cfffe9bb5254982c4fd4",
+        "receiptId": "cab7777d-4582-45d6-a99c-acf07b1573bf",
+        "runPlanId": "rp_f46b06d26c604d0eb1a93741669df144",
+        "runPlanSha256": "4a117981caed60cbadbdca2a64104598f7ed3a0e67feda731fac24ddebafc4c7",
         "ready": true,
         "decisions": {
           "booking.simulate_purchase": "deny",
@@ -153,9 +153,9 @@
       },
       "purchaseAuthorization": {
         "banner": "Ready to run",
-        "receiptId": "f3f54423-8fcc-4bcd-9ec5-a641064d1831",
-        "runPlanId": "rp_b7ffef264eaa436ba2d04d343ac68f33",
-        "runPlanSha256": "f62936e957e1d3f9926fe51baa73f7f02e83592a5ac0091bec67e8b7b648aafa",
+        "receiptId": "7f21a600-323b-4876-854a-2d7c0ea28f28",
+        "runPlanId": "rp_c96bd585b8b74704917bcf4f5de4b3ff",
+        "runPlanSha256": "e8caa534222e25c6e80879f5528a1d303b977da2950bbb6f240abb771a06d1a1",
         "ready": true,
         "decisions": {
           "booking.simulate_purchase": "once",
@@ -184,7 +184,7 @@
           "reason": "The run plan is stale: This authorization granted something once, and a run has already used it. Authorize again to run again."
         },
         "workerRefusal": "run.start: run_plan_stale: This authorization granted something once, and a run has already used it. Authorize again to run again.",
-        "newestRun": "run_4db5beab215748df8c8b650a8823b23e",
+        "newestRun": "run_8dd918caae094910b7bdf1c3df178c19",
         "the page disables Run because the once grant is spent": "ok",
         "the worker refuses the start as a stale plan (once spent)": "ok",
         "no new run was created": "ok"
@@ -197,17 +197,17 @@
     },
     "runs": {
       "search": {
-        "directory": "examples/my-chrome-live-2026-10-07T23-01-26-737Z/search",
+        "directory": "examples/my-chrome-live-2026-10-08T00-18-13-928Z/search",
         "files": [
           {
             "name": "run.json",
             "bytes": 13792,
-            "sha256": "b06b7853ce9ff93bdc495cd7c81d8cf16cd511636365954e0433c4bd45633621"
+            "sha256": "1aeede6689897a8a3e3585139d638a4f124164bc2bbed98ee8df7acffd1e6fe1"
           },
           {
             "name": "run-plan.json",
             "bytes": 16102,
-            "sha256": "0884add1bbec83a2f924f5c9c895eebe7ea158f2e2f0ef4b050adb41cd92f190"
+            "sha256": "7b617b260df9b6ea55b616d245a920a5df4f93c5eb4c7f8914580d51d423cf85"
           },
           {
             "name": "input.json",
@@ -216,13 +216,13 @@
           },
           {
             "name": "answer.md",
-            "bytes": 766,
-            "sha256": "884d5a90646441ca546391c45a9cf605a29929e33778423e3a577d564cdd799a"
+            "bytes": 583,
+            "sha256": "85347a77b42cb2a7b8a33d0643fcac581a9f516fcf32c2d361b80bb597fae099"
           },
           {
             "name": "audit.json",
-            "bytes": 146893,
-            "sha256": "ca80f27ec61ec0ae1bd7653a69e180ec499bf6bcd8ff6ae939b00444a17720fb"
+            "bytes": 146900,
+            "sha256": "24497c63a6f32fa0acda6ad83f78f50c8106bb857f77651085bbb2acaabf7430"
           },
           {
             "name": "booking.json",
@@ -241,8 +241,8 @@
           },
           {
             "name": "result.json",
-            "bytes": 195591,
-            "sha256": "b37b44d0fb4ed658c86d56d956e4313bba4c60fdca3c6bef7fe6ada9d7c3a8f7"
+            "bytes": 194955,
+            "sha256": "a3b1ee48b90713d618a7d24cfb5f53dc3e29590798253856964cb799724f7239"
           },
           {
             "name": "search.json",
@@ -252,12 +252,12 @@
           {
             "name": "usage.json",
             "bytes": 2021,
-            "sha256": "a8e17da6210091068f226a45ae26a0ecbc5532e2ef7592f050ea1f1e53c9a463"
+            "sha256": "386d0cbd845553fc9fe813c14598f1db94d621a3bb93e4edf2e7733670f315b5"
           }
         ],
         "observations": 7,
         "record": {
-          "runId": "run_021287ce387c4a0288d196c71416f02e",
+          "runId": "run_1bc13e40e6cb49dea9b236968134cc4d",
           "status": "completed",
           "errorCode": null,
           "model": {
@@ -276,7 +276,7 @@
           },
           "selectedModel": "ollama/qwen3:30b",
           "usage": {
-            "tokens": 8537,
+            "tokens": 8450,
             "remoteCalls": 4,
             "toolCalls": 4
           },
@@ -290,7 +290,7 @@
             "events": 235,
             "chainValid": true
           },
-          "durationMs": 24844,
+          "durationMs": 25264,
           "resources": [],
           "decisions": {
             "booking.simulate_purchase": "deny",
@@ -310,17 +310,17 @@
         "finalStatus": "completed"
       },
       "cancel": {
-        "directory": "examples/my-chrome-live-2026-10-07T23-01-26-737Z/cancel",
+        "directory": "examples/my-chrome-live-2026-10-08T00-18-13-928Z/cancel",
         "files": [
           {
             "name": "run.json",
             "bytes": 6688,
-            "sha256": "1a157dc2fbf7616495d495a036708b3e2bb8a4772a85e1d912987c888572ee8c"
+            "sha256": "1b6bbb7c729d235d2c52340dd499e9136646109d8eec600f086d1f9ea4f4609d"
           },
           {
             "name": "run-plan.json",
             "bytes": 16102,
-            "sha256": "745f6ee7a2c463af3dbd0001f3b530f9bdaf4250d1c031476a01654041cc22b4"
+            "sha256": "93ed2f2be21c26d05fd546079c4fb15800c4ec8fa61b120f56ea05267f4561b3"
           },
           {
             "name": "input.json",
@@ -330,7 +330,7 @@
           {
             "name": "audit.json",
             "bytes": 2617,
-            "sha256": "384c477c71036223f66f43f3fed236fc541b7d996c913b5f06b19a41708167da"
+            "sha256": "21111d6437a730531b7039ea48fc54d3f794c6bc375d4b5043bae24e123463e1"
           },
           {
             "name": "provenance.json",
@@ -340,7 +340,7 @@
           {
             "name": "result.json",
             "bytes": 3868,
-            "sha256": "abbfcf637438f97dffae49c1fd8df1c5d230b69361f2db2403db26eba7b40d27"
+            "sha256": "3f3473e2a7bc146f0374afd8694466abad755169030c18ca90beeb207ce1edc3"
           },
           {
             "name": "usage.json",
@@ -350,7 +350,7 @@
         ],
         "observations": 0,
         "record": {
-          "runId": "run_7b1944be72104abaa68b376520962e39",
+          "runId": "run_0ad02462a20f45ac99fe6fff08bd58b9",
           "status": "cancelled",
           "errorCode": "cancelled",
           "model": {
@@ -377,7 +377,7 @@
             "events": 4,
             "chainValid": true
           },
-          "durationMs": 34,
+          "durationMs": 32,
           "resources": [],
           "decisions": {
             "booking.simulate_purchase": "deny",
@@ -397,17 +397,17 @@
         "finalStatus": "cancelled"
       },
       "quote": {
-        "directory": "examples/my-chrome-live-2026-10-07T23-01-26-737Z/quote",
+        "directory": "examples/my-chrome-live-2026-10-08T00-18-13-928Z/quote",
         "files": [
           {
             "name": "run.json",
-            "bytes": 16524,
-            "sha256": "dad3d1af7db807d5f72e7a2cbb92b3cbc3df87379d09b5ad6d8c68789df1a707"
+            "bytes": 16522,
+            "sha256": "ddb79e2f30ad7ffba63734949d1a7ae5b8badaa7b09843bbd0a9adf1f5822e6a"
           },
           {
             "name": "run-plan.json",
             "bytes": 20627,
-            "sha256": "8b4242dcbf68ad64118355b3223ac91f64435b7cfa0166f3110f252a8cbf33d3"
+            "sha256": "c3e7b8be264ff2bb9a3c717995c7fb23dee16974c288817c19698c67e460eb1d"
           },
           {
             "name": "input.json",
@@ -416,13 +416,13 @@
           },
           {
             "name": "answer.md",
-            "bytes": 489,
-            "sha256": "7e98c538ec93c61c9ae4f966c6aef3346c04c20e9750a426a343dbc3ebe46795"
+            "bytes": 652,
+            "sha256": "95c22a7e95a50d2db26306d30c3b6197b1497c51707997132b5fc06ce7efb0ab"
           },
           {
             "name": "audit.json",
-            "bytes": 191461,
-            "sha256": "27a1c88a2acb6367b3f3772356bdd109f8709ac77937b1fc4f1abeef8d139177"
+            "bytes": 191458,
+            "sha256": "6685ff2b630d76844a5304ef66f2d39f3f2cd03478983ef20356e09f38bd25d2"
           },
           {
             "name": "booking.json",
@@ -441,8 +441,8 @@
           },
           {
             "name": "result.json",
-            "bytes": 269752,
-            "sha256": "2681d3c4051ba0c9e18642d6d4fafd1389c0dbcdddbf5e9c82c4087b9ae7d8e6"
+            "bytes": 270238,
+            "sha256": "09c4c890f9543cadf8fe5ba70b2d07ddbb22686671323159e1e43a28eb050568"
           },
           {
             "name": "search.json",
@@ -452,12 +452,12 @@
           {
             "name": "usage.json",
             "bytes": 2560,
-            "sha256": "e077f2b3d266b559c24ddab37ea243719c2d446ce8376722881947a40a2dbb0a"
+            "sha256": "63c1c03882a0c9f2c5e6067349b6fe6e7d85df9b6df9bc524295803861f54aaf"
           }
         ],
         "observations": 11,
         "record": {
-          "runId": "run_1d01f1ca2cc84f8b948be8b26de08962",
+          "runId": "run_04cacfd0c80944a58ab2a94ae2e05cd6",
           "status": "completed",
           "errorCode": null,
           "model": {
@@ -476,7 +476,7 @@
           },
           "selectedModel": "ollama/qwen3:30b",
           "usage": {
-            "tokens": 10419,
+            "tokens": 10451,
             "remoteCalls": 8,
             "toolCalls": 9
           },
@@ -490,7 +490,7 @@
             "events": 302,
             "chainValid": true
           },
-          "durationMs": 14059,
+          "durationMs": 14388,
           "resources": [
             "passenger_demo_alex",
             "profile_demo_traveler"
@@ -513,17 +513,17 @@
         "finalStatus": "completed"
       },
       "purchase": {
-        "directory": "examples/my-chrome-live-2026-10-07T23-01-26-737Z/purchase",
+        "directory": "examples/my-chrome-live-2026-10-08T00-18-13-928Z/purchase",
         "files": [
           {
             "name": "run.json",
-            "bytes": 15513,
-            "sha256": "2cc1ef2b991070c6142b8f4fbd90cc17776867f153c7aa5e15f1adf5ff73e2be"
+            "bytes": 15512,
+            "sha256": "917daf64560a4189e35b11e9cd84f3f2b0b5a49fae834847349f36c93162d76c"
           },
           {
             "name": "run-plan.json",
             "bytes": 23626,
-            "sha256": "673646b4c5e37b7a49ce0250b0947bcd19d716db0b1564932cbafe346f5b8118"
+            "sha256": "c2890c57bdcfa0b67bd5b344b0fcce6e3651a6127191db27416e5375b07ce05b"
           },
           {
             "name": "input.json",
@@ -532,13 +532,13 @@
           },
           {
             "name": "answer.md",
-            "bytes": 505,
-            "sha256": "a2b835eb458d20e60740ee2c9c2aa6cda91ac29cb992901e5a4a6ce003fa1651"
+            "bytes": 528,
+            "sha256": "1c20877e1255dd0b4f3143ee0c7e637054ab0ba90d8695898954eb6bc7717a7f"
           },
           {
             "name": "audit.json",
             "bytes": 126293,
-            "sha256": "46a53072e42b63ec1a73e74bb207d0bcb8db1b523a9f42cf5f7a447b5c38ad71"
+            "sha256": "9797503dc72e18a4698032c217eaa908c322a568f43c89a43ab07cf0555cb964"
           },
           {
             "name": "booking.json",
@@ -557,8 +557,8 @@
           },
           {
             "name": "result.json",
-            "bytes": 145988,
-            "sha256": "756c2b57704d4fc76e57dcb8b70ba6ce65444b16bb52affda860eba00253dfd1"
+            "bytes": 146057,
+            "sha256": "601db398055e89ca4890a81890c14011c95d32ae891f4d2e6108980030daac75"
           },
           {
             "name": "search.json",
@@ -568,12 +568,12 @@
           {
             "name": "usage.json",
             "bytes": 1828,
-            "sha256": "711d7915f18af407a602b08a8e553666a75b30468cbcf48d640bb5e0ef2a55d2"
+            "sha256": "2325430271e6c45e43660d930f6f44f26d16b8921e059659643c90593d31aae7"
           }
         ],
         "observations": 3,
         "record": {
-          "runId": "run_4db5beab215748df8c8b650a8823b23e",
+          "runId": "run_8dd918caae094910b7bdf1c3df178c19",
           "status": "completed",
           "errorCode": null,
           "model": {
@@ -592,7 +592,7 @@
           },
           "selectedModel": "ollama/qwen3:30b",
           "usage": {
-            "tokens": 2570,
+            "tokens": 2579,
             "remoteCalls": 2,
             "toolCalls": 4
           },
@@ -606,7 +606,7 @@
             "events": 202,
             "chainValid": true
           },
-          "durationMs": 3747,
+          "durationMs": 3972,
           "resources": [
             "passenger_demo_alex",
             "profile_demo_traveler",
@@ -630,17 +630,17 @@
         "finalStatus": "completed"
       },
       "denial": {
-        "directory": "examples/my-chrome-live-2026-10-07T23-01-26-737Z/denial",
+        "directory": "examples/my-chrome-live-2026-10-08T00-18-13-928Z/denial",
         "files": [
           {
             "name": "run.json",
             "bytes": 11694,
-            "sha256": "d79c8151cdbc564347d8270dcc284e10905fcb44723944547cc0408266302e2c"
+            "sha256": "7ed6bede7c433745922d0c843c6c1c0cebb9db73eb6b3f5256c4e9f0bd4954b3"
           },
           {
             "name": "run-plan.json",
             "bytes": 20627,
-            "sha256": "db75bd3f287ccfbaf52bc493ba0ab42cb6e17db9aa04b6d0206f1200f47d9f23"
+            "sha256": "a6a8931b606b54b039f1399dd012b55bda7642e8d5b164747867bc1dc62e8671"
           },
           {
             "name": "input.json",
@@ -650,7 +650,7 @@
           {
             "name": "audit.json",
             "bytes": 49187,
-            "sha256": "3518662eaca54ca85dd9be2c8ff82a3d12c0c5650bdd29b0413c5a170faafd04"
+            "sha256": "557391f8544943de7e2419a39395832829f42b87b44af1bcfe5bdee7a161896b"
           },
           {
             "name": "provenance.json",
@@ -660,7 +660,7 @@
           {
             "name": "result.json",
             "bytes": 53732,
-            "sha256": "6f13b084a649a9f630d48904b6e60bddda5729d5acfae2bcf41b57eb2009471d"
+            "sha256": "16797a0c4f5c6a9cc1b942d5f67c3e2cf39459d6fb6c6444cb03a5e435421d91"
           },
           {
             "name": "usage.json",
@@ -670,7 +670,7 @@
         ],
         "observations": 0,
         "record": {
-          "runId": "run_ed5237812e6942af85c359c34ee49945",
+          "runId": "run_90da6a8e20b04b6f97841ebd553c4f39",
           "status": "failed",
           "errorCode": "permission_denied",
           "model": {
@@ -697,7 +697,7 @@
             "events": 81,
             "chainValid": true
           },
-          "durationMs": 84,
+          "durationMs": 80,
           "resources": [
             "passenger_demo_alex",
             "profile_demo_traveler"
@@ -738,7 +738,7 @@
   },
   "runs": {
     "search": {
-      "run_id": "run_021287ce387c4a0288d196c71416f02e",
+      "run_id": "run_1bc13e40e6cb49dea9b236968134cc4d",
       "status": "completed",
       "error_code": null,
       "failed_node": null,
@@ -765,7 +765,7 @@
         "local": true
       },
       "usage": {
-        "tokens": 8537,
+        "tokens": 8450,
         "remote_calls": 4,
         "tool_calls": 4
       },
@@ -775,7 +775,7 @@
         "calls": 3,
         "callsWithReportedCost": 0
       },
-      "duration_ms": 24844,
+      "duration_ms": 25264,
       "decisions": {
         "booking.simulate_purchase": "deny",
         "identity.passenger": "deny",
@@ -788,8 +788,8 @@
       "resource_grants": [],
       "revalidated_before_start": 28,
       "run_plan": {
-        "id": "rp_de8bafd6dbb34aa08a74eadefadf52b6",
-        "sha256": "ec066a7306d03567486edcec2af191c31e1318c62352018f534ee5b4f9b6831a",
+        "id": "rp_bf1bd605cc0146298696bd32f0903452",
+        "sha256": "b3e2b7720e414e0b3326d4b17284460ab74d9cc70004447d4815b2e7420dab38",
         "profile": "search",
         "denied_tools": [
           "personal.passenger_identity",
@@ -892,7 +892,7 @@
       "artifacts_hold_no_identity_or_payment_identifier": true
     },
     "cancel": {
-      "run_id": "run_7b1944be72104abaa68b376520962e39",
+      "run_id": "run_0ad02462a20f45ac99fe6fff08bd58b9",
       "status": "cancelled",
       "error_code": "cancelled",
       "failed_node": null,
@@ -923,7 +923,7 @@
         "calls": 0,
         "callsWithReportedCost": 0
       },
-      "duration_ms": 34,
+      "duration_ms": 32,
       "decisions": {
         "booking.simulate_purchase": "deny",
         "identity.passenger": "deny",
@@ -936,8 +936,8 @@
       "resource_grants": [],
       "revalidated_before_start": 28,
       "run_plan": {
-        "id": "rp_3b8f9a6c73424eee98ecce55f12dff2a",
-        "sha256": "3a12d30d7dc89e40afcad9bcf32de088037a2c3e1af08fbce6edc63a2c16e64d",
+        "id": "rp_756d2ac49f8a46f583f61bf5cc02046c",
+        "sha256": "6ef00e5c66589ebe027a723decab6bd6e686083b16cc1d05ea3d899f96515fb1",
         "profile": "search",
         "denied_tools": [
           "personal.passenger_identity",
@@ -960,7 +960,7 @@
       "artifacts_hold_no_identity_or_payment_identifier": true
     },
     "quote": {
-      "run_id": "run_1d01f1ca2cc84f8b948be8b26de08962",
+      "run_id": "run_04cacfd0c80944a58ab2a94ae2e05cd6",
       "status": "completed",
       "error_code": null,
       "failed_node": null,
@@ -987,7 +987,7 @@
         "local": true
       },
       "usage": {
-        "tokens": 10419,
+        "tokens": 10451,
         "remote_calls": 8,
         "tool_calls": 9
       },
@@ -997,7 +997,7 @@
         "calls": 3,
         "callsWithReportedCost": 0
       },
-      "duration_ms": 14059,
+      "duration_ms": 14388,
       "decisions": {
         "booking.simulate_purchase": "deny",
         "identity.passenger": "session",
@@ -1012,19 +1012,19 @@
           "permission": "identity.passenger",
           "type": "personal.passenger_identity",
           "resource_id": "passenger_demo_alex",
-          "digest_prefix": "847b6e1eee0a"
+          "digest_prefix": "099fed734e5d"
         },
         {
           "permission": "profile.travel",
           "type": "personal.travel_profile",
           "resource_id": "profile_demo_traveler",
-          "digest_prefix": "49c696887f83"
+          "digest_prefix": "27a777af7653"
         }
       ],
       "revalidated_before_start": 32,
       "run_plan": {
-        "id": "rp_dedfaf5f1bfd43668455fb0ec893b0da",
-        "sha256": "e865ec50ac56778d4dd7516d6499a852f9ccb7cb6511cfffe9bb5254982c4fd4",
+        "id": "rp_f46b06d26c604d0eb1a93741669df144",
+        "sha256": "4a117981caed60cbadbdca2a64104598f7ed3a0e67feda731fac24ddebafc4c7",
         "profile": "quote",
         "denied_tools": [
           "simulate-purchase",
@@ -1192,7 +1192,7 @@
       "artifacts_hold_no_identity_or_payment_identifier": true
     },
     "purchase": {
-      "run_id": "run_4db5beab215748df8c8b650a8823b23e",
+      "run_id": "run_8dd918caae094910b7bdf1c3df178c19",
       "status": "completed",
       "error_code": null,
       "failed_node": null,
@@ -1219,7 +1219,7 @@
         "local": true
       },
       "usage": {
-        "tokens": 2570,
+        "tokens": 2579,
         "remote_calls": 2,
         "tool_calls": 4
       },
@@ -1229,7 +1229,7 @@
         "calls": 1,
         "callsWithReportedCost": 0
       },
-      "duration_ms": 3747,
+      "duration_ms": 3972,
       "decisions": {
         "booking.simulate_purchase": "once",
         "identity.passenger": "session",
@@ -1244,25 +1244,25 @@
           "permission": "identity.passenger",
           "type": "personal.passenger_identity",
           "resource_id": "passenger_demo_alex",
-          "digest_prefix": "847b6e1eee0a"
+          "digest_prefix": "099fed734e5d"
         },
         {
           "permission": "profile.travel",
           "type": "personal.travel_profile",
           "resource_id": "profile_demo_traveler",
-          "digest_prefix": "49c696887f83"
+          "digest_prefix": "27a777af7653"
         },
         {
           "permission": "wallet.payment",
           "type": "wallet.payment_method",
           "resource_id": "payment_demo_visa",
-          "digest_prefix": "cafbdd292239"
+          "digest_prefix": "87673a644b8e"
         }
       ],
       "revalidated_before_start": 34,
       "run_plan": {
-        "id": "rp_b7ffef264eaa436ba2d04d343ac68f33",
-        "sha256": "f62936e957e1d3f9926fe51baa73f7f02e83592a5ac0091bec67e8b7b648aafa",
+        "id": "rp_c96bd585b8b74704917bcf4f5de4b3ff",
+        "sha256": "e8caa534222e25c6e80879f5528a1d303b977da2950bbb6f240abb771a06d1a1",
         "profile": "book",
         "denied_tools": []
       },
@@ -1349,7 +1349,7 @@
       "artifacts_hold_no_identity_or_payment_identifier": true
     },
     "denial": {
-      "run_id": "run_ed5237812e6942af85c359c34ee49945",
+      "run_id": "run_90da6a8e20b04b6f97841ebd553c4f39",
       "status": "failed",
       "error_code": "permission_denied",
       "failed_node": "payment",
@@ -1380,7 +1380,7 @@
         "calls": 0,
         "callsWithReportedCost": 0
       },
-      "duration_ms": 84,
+      "duration_ms": 80,
       "decisions": {
         "booking.simulate_purchase": "deny",
         "identity.passenger": "session",
@@ -1395,19 +1395,19 @@
           "permission": "identity.passenger",
           "type": "personal.passenger_identity",
           "resource_id": "passenger_demo_alex",
-          "digest_prefix": "847b6e1eee0a"
+          "digest_prefix": "099fed734e5d"
         },
         {
           "permission": "profile.travel",
           "type": "personal.travel_profile",
           "resource_id": "profile_demo_traveler",
-          "digest_prefix": "49c696887f83"
+          "digest_prefix": "27a777af7653"
         }
       ],
       "revalidated_before_start": 32,
       "run_plan": {
-        "id": "rp_05e5f3a2a03745649564b8bd24cf2ae6",
-        "sha256": "130c84aca5073d94ae0b1018fd7a1deb7ba5b8bc35f2054b32aff7032d00e554",
+        "id": "rp_eff19f15914c43a8a10b480a55ec6062",
+        "sha256": "7c1b700404cddaca608fd1b51223af326dd3a894ad13fe4a337e35047ab8581d",
         "profile": "quote",
         "denied_tools": [
           "simulate-purchase",
@@ -1444,8 +1444,8 @@
       "passed": true,
       "detail": {
         "stateAfterReload": "running",
-        "adoptedRunId": "run_021287ce387c4a0288d196c71416f02e",
-        "runId": "run_021287ce387c4a0288d196c71416f02e",
+        "adoptedRunId": "run_1bc13e40e6cb49dea9b236968134cc4d",
+        "runId": "run_1bc13e40e6cb49dea9b236968134cc4d",
         "the reloaded page shows the run that was in flight": "ok"
       }
     },
@@ -1456,7 +1456,7 @@
         "events": 235,
         "valid": true,
         "broken": [],
-        "final_hash": "ddb3a35a95a96c3ff562e79826d173121ade650f4176cb3c0daa89d8a9ee36f0",
+        "final_hash": "083df23e42be9306d2c3701639bd574a2e863302d5f332f2af5f4fe0762e34c6",
         "note": "A local hash chain. It binds these events to each other; it is not an external tamper-proof audit service."
       }
     },
@@ -1466,7 +1466,7 @@
       "detail": {
         "events": 235,
         "chainValid": true,
-        "finalHash": "ddb3a35a95a96c3ff562e79826d173121ade650f4176cb3c0daa89d8a9ee36f0",
+        "finalHash": "083df23e42be9306d2c3701639bd574a2e863302d5f332f2af5f4fe0762e34c6",
         "actions": [
           {
             "action": "budget.updated",
@@ -1703,7 +1703,7 @@
         "events": 4,
         "valid": true,
         "broken": [],
-        "final_hash": "d3d7125d87a3d0409bdce6a25138c082e33a263eefbc611df3d47da3a601f10f",
+        "final_hash": "9faa0e722979ba1ed94d2524140876094c234f0199317fecb5b61156c72a9c52",
         "note": "A local hash chain. It binds these events to each other; it is not an external tamper-proof audit service."
       }
     },
@@ -1713,7 +1713,7 @@
       "detail": {
         "events": 4,
         "chainValid": true,
-        "finalHash": "d3d7125d87a3d0409bdce6a25138c082e33a263eefbc611df3d47da3a601f10f",
+        "finalHash": "9faa0e722979ba1ed94d2524140876094c234f0199317fecb5b61156c72a9c52",
         "actions": [
           {
             "action": "memory.cleared",
@@ -1794,7 +1794,7 @@
     {
       "id": "cancel_stopped_within_the_run_deadline",
       "passed": true,
-      "detail": 34
+      "detail": 32
     },
     {
       "id": "cancel_wrote_its_evidence",
@@ -1807,7 +1807,7 @@
         "events": 302,
         "valid": true,
         "broken": [],
-        "final_hash": "5162131f160b693d78fc77f9600c15bf5eb894149e232cc5153048b792945b38",
+        "final_hash": "e9d035d73d9e6f255b0631f90eff3a4d27ff4d73f95a1683efe71f30d41809a5",
         "note": "A local hash chain. It binds these events to each other; it is not an external tamper-proof audit service."
       }
     },
@@ -1817,7 +1817,7 @@
       "detail": {
         "events": 302,
         "chainValid": true,
-        "finalHash": "5162131f160b693d78fc77f9600c15bf5eb894149e232cc5153048b792945b38",
+        "finalHash": "e9d035d73d9e6f255b0631f90eff3a4d27ff4d73f95a1683efe71f30d41809a5",
         "actions": [
           {
             "action": "budget.updated",
@@ -2043,7 +2043,7 @@
         "events": 202,
         "valid": true,
         "broken": [],
-        "final_hash": "3d4b3b541e316d119fa6eeff5bd21c3d464517c9310ab719f7e395b0468ff624",
+        "final_hash": "3909fe89b7eaeccc747ee90d32c9729bbf8fa5142ed6cb0afab827d36cf82363",
         "note": "A local hash chain. It binds these events to each other; it is not an external tamper-proof audit service."
       }
     },
@@ -2053,7 +2053,7 @@
       "detail": {
         "events": 202,
         "chainValid": true,
-        "finalHash": "3d4b3b541e316d119fa6eeff5bd21c3d464517c9310ab719f7e395b0468ff624",
+        "finalHash": "3909fe89b7eaeccc747ee90d32c9729bbf8fa5142ed6cb0afab827d36cf82363",
         "actions": [
           {
             "action": "budget.updated",
@@ -2312,7 +2312,7 @@
         "events": 81,
         "valid": true,
         "broken": [],
-        "final_hash": "8a7d17ba6b838f0d1ea0d672d0516aaabeff6efb7ed808b2c75899aef01caa0c",
+        "final_hash": "696d794bda9a955091dd4b5b90425d8c235687ecf2863d1a22c4e0bbc80ccbec",
         "note": "A local hash chain. It binds these events to each other; it is not an external tamper-proof audit service."
       }
     },
@@ -2322,7 +2322,7 @@
       "detail": {
         "events": 81,
         "chainValid": true,
-        "finalHash": "8a7d17ba6b838f0d1ea0d672d0516aaabeff6efb7ed808b2c75899aef01caa0c",
+        "finalHash": "696d794bda9a955091dd4b5b90425d8c235687ecf2863d1a22c4e0bbc80ccbec",
         "actions": [
           {
             "action": "delegation.checked",

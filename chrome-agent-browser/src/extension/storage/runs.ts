@@ -75,9 +75,19 @@ export function artifactKey(runId: string, name: string): string {
 export interface RunStore {
   putRun(run: StoredRun): Promise<void>;
   getRun(runId: string): Promise<StoredRun | null>;
+  /**
+   * One atomic read-modify-write on a run: `mutate` sees the record as stored at that moment and
+   * returns the record to write, or null to leave it as it is. The result is what is stored
+   * afterwards (null when the run is unknown). The service worker uses it for every write to a
+   * run the execution host owns, so a settled run is never written back as in flight by a
+   * writer that read it a moment earlier (T5 review 1, finding 1).
+   */
+  updateRun(runId: string, mutate: (run: StoredRun) => StoredRun | null): Promise<StoredRun | null>;
   listRuns(): Promise<StoredRun[]>;
   /** Removes the run, its artifacts and its observations. */
   deleteRun(runId: string): Promise<void>;
+  /** Removes the run's artifacts only (a host whose final record was refused takes its files back). */
+  deleteArtifacts(runId: string): Promise<void>;
   putArtifact(artifact: StoredArtifact): Promise<void>;
   getArtifact(runId: string, name: string): Promise<StoredArtifact | null>;
   listArtifacts(runId: string): Promise<Array<{ name: string; bytes: number; sha256: string }>>;
@@ -102,6 +112,15 @@ export class MemoryRunStore implements RunStore {
     return run ? clone(run) : null;
   }
 
+  async updateRun(runId: string, mutate: (run: StoredRun) => StoredRun | null): Promise<StoredRun | null> {
+    // No await between the read and the write: the step is atomic in this process.
+    const current = this.runs.get(runId);
+    if (!current) return null;
+    const next = mutate(clone(current));
+    if (next !== null) this.runs.set(runId, clone(next));
+    return clone(this.runs.get(runId)!);
+  }
+
   async listRuns(): Promise<StoredRun[]> {
     return [...this.runs.values()].map((run) => clone(run));
   }
@@ -110,6 +129,10 @@ export class MemoryRunStore implements RunStore {
     this.runs.delete(runId);
     for (const key of [...this.artifacts.keys()]) if (this.artifacts.get(key)!.run_id === runId) this.artifacts.delete(key);
     for (let index = this.observations.length - 1; index >= 0; index -= 1) if (this.observations[index]!.run_id === runId) this.observations.splice(index, 1);
+  }
+
+  async deleteArtifacts(runId: string): Promise<void> {
+    for (const key of [...this.artifacts.keys()]) if (this.artifacts.get(key)!.run_id === runId) this.artifacts.delete(key);
   }
 
   async putArtifact(artifact: StoredArtifact): Promise<void> {
@@ -134,6 +157,17 @@ export class MemoryRunStore implements RunStore {
   }
 }
 
+function deleteByRunId(transaction: IDBTransaction, name: "artifacts" | "observations", runId: string): void {
+  const index = transaction.objectStore(name).index("run_id");
+  const cursor = index.openKeyCursor(IDBKeyRange.only(runId));
+  cursor.onsuccess = () => {
+    const current = cursor.result;
+    if (!current) return;
+    transaction.objectStore(name).delete(current.primaryKey);
+    current.continue();
+  };
+}
+
 /** The IndexedDB store, shared by the service worker and the execution host. */
 export class IndexedDbRunStore implements RunStore {
   constructor(private readonly database: Database = new Database()) {}
@@ -151,6 +185,19 @@ export class IndexedDbRunStore implements RunStore {
     return run ?? null;
   }
 
+  async updateRun(runId: string, mutate: (run: StoredRun) => StoredRun | null): Promise<StoredRun | null> {
+    // The read and the write share one readwrite transaction: IndexedDB serializes it against
+    // the host's writes on the same store, so what `mutate` sees is what the write replaces.
+    const transaction = await this.database.transaction(["runs"], "readwrite");
+    const store = transaction.objectStore("runs");
+    const current = (await request(store.get(runId))) as StoredRun | undefined;
+    if (current === undefined) return null;
+    const next = mutate(current);
+    if (next !== null) store.put(next);
+    await completion(transaction);
+    return next ?? current;
+  }
+
   async listRuns(): Promise<StoredRun[]> {
     return (await request((await this.database.store("runs", "readonly")).getAll())) as StoredRun[];
   }
@@ -158,16 +205,13 @@ export class IndexedDbRunStore implements RunStore {
   async deleteRun(runId: string): Promise<void> {
     const transaction = await this.database.transaction(["runs", "artifacts", "observations"], "readwrite");
     transaction.objectStore("runs").delete(runId);
-    for (const name of ["artifacts", "observations"] as const) {
-      const index = transaction.objectStore(name).index("run_id");
-      const cursor = index.openKeyCursor(IDBKeyRange.only(runId));
-      cursor.onsuccess = () => {
-        const current = cursor.result;
-        if (!current) return;
-        transaction.objectStore(name).delete(current.primaryKey);
-        current.continue();
-      };
-    }
+    for (const name of ["artifacts", "observations"] as const) deleteByRunId(transaction, name, runId);
+    await completion(transaction);
+  }
+
+  async deleteArtifacts(runId: string): Promise<void> {
+    const transaction = await this.database.transaction(["artifacts"], "readwrite");
+    deleteByRunId(transaction, "artifacts", runId);
     await completion(transaction);
   }
 

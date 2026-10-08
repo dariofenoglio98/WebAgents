@@ -12,9 +12,12 @@
  * host: Ollama on this machine over plain HTTP, and only when the name resolves to loopback.
  * One request, no redirect followed, the body streamed and stopped at the cap, the signal
  * honoured from resolution to the last byte (the resolver is raced against it; T4 review 2,
- * nit 5). Every classified address is kept: when the connection to one fails before any byte
- * of an answer, the next is tried in the resolver's order (nit 1), so an AAAA-first answer on
- * a host without an IPv6 route still reaches the destination.
+ * nit 5). Every classified address is kept: when the connection to one fails **before the
+ * socket connected**, the next is tried in the resolver's order (nit 1), so an AAAA-first
+ * answer on a host without an IPv6 route still reaches the destination. Once a socket has
+ * connected the request may have reached the server, so nothing is ever sent twice: a reset
+ * after the body was written is that request's own failure, never a retry (T5 review 1,
+ * finding 4; tool calls such as a simulated purchase are not idempotent).
  */
 import { lookup as dnsLookup } from "node:dns";
 import { request as httpRequest, type IncomingMessage, type RequestOptions } from "node:http";
@@ -263,7 +266,7 @@ function connectionFailure(error: NodeJS.ErrnoException): TransportError {
   return new TransportError(tls ? "the destination's TLS handshake or certificate failed" : "the connection to the destination failed", { stage: tls ? "tls" : "transport" });
 }
 
-/** A connection to one address failed before any byte of an answer arrived: the next classified address may be tried. */
+/** The connection to one address failed before the socket ever connected: the next classified address may be tried. */
 class ConnectionFailed extends Error {
   override readonly name = "ConnectionFailed";
   constructor(readonly failure: TransportError) {
@@ -275,7 +278,8 @@ class ConnectionFailed extends Error {
 function perform(destination: Destination, address: string, request: HttpRequest): Promise<HttpResponse> {
   return new Promise<HttpResponse>((resolve, reject) => {
     let settled = false;
-    let answered = false;
+    /** The TCP connection was established: from here on the request may have reached the server. */
+    let connected = false;
     const finish = (outcome: () => void) => {
       if (settled) return;
       settled = true;
@@ -292,13 +296,17 @@ function perform(destination: Destination, address: string, request: HttpRequest
       finish(() => reject(new ConnectionFailed(connectionFailure(error as NodeJS.ErrnoException))));
       return;
     }
-    // A failure before the response started is a failure of this address (the next one may
-    // answer); a failure after it is the request's own.
+    // A failure before the socket connected is a failure of this address (the next one may
+    // answer); a failure after it is the request's own: the server may have received the
+    // request, and a second send could perform its side effect twice (T5 review 1, finding 4).
     const failed = (error: NodeJS.ErrnoException): Error => {
       if (request.signal.aborted) return request.signal.reason as Error;
       const failure = connectionFailure(error);
-      return answered || failure.facts.stage === "tls" ? failure : new ConnectionFailed(failure);
+      return connected || failure.facts.stage === "tls" ? failure : new ConnectionFailed(failure);
     };
+    socket.once("connect", () => {
+      connected = true;
+    });
     socket.on("error", (error: NodeJS.ErrnoException) => finish(() => reject(failed(error))));
     const headers: Record<string, string> = { ...request.headers, host: destination.hostHeader };
     // No `agent` at all: with one, even `agent: false`, Node ignores `createConnection` and
@@ -313,7 +321,7 @@ function perform(destination: Destination, address: string, request: HttpRequest
       signal: request.signal,
     };
     const onResponse = (response: IncomingMessage) => {
-      answered = true;
+      connected = true;
       const status = response.statusCode ?? 0;
       const responseHeaders: Record<string, string> = {};
       for (const [name, value] of Object.entries(response.headers)) {
@@ -363,7 +371,7 @@ function perform(destination: Destination, address: string, request: HttpRequest
   });
 }
 
-/** Try the classified addresses in order; a connection that fails before any answer moves to the next. */
+/** Try the classified addresses in order; a connection that fails before it was established moves to the next. */
 async function performAny(destination: Destination, request: HttpRequest): Promise<HttpResponse> {
   let last: TransportError | null = null;
   for (const address of destination.addresses) {

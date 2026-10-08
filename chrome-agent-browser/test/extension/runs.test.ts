@@ -13,7 +13,7 @@ import type { HttpTransport } from "../../src/core/models/transport.js";
 import { verifyAuditChain } from "../../src/core/execution/report.js";
 import type { JsonObject } from "../../src/core/json.js";
 import type { ArtifactChunk, ArtifactContent, AuthorizeResult, ExportBundle, ObservationsView, RunListView, RunReadiness, RunView, SessionView, SettingsView } from "../../src/extension/messages.js";
-import { MemoryRunStore } from "../../src/extension/storage/runs.js";
+import { MemoryRunStore, type StoredRun } from "../../src/extension/storage/runs.js";
 import { originAnswers, scriptedOllama, scriptedOrigin, webairModelAnswers, type SeenRequest } from "../helpers/host.js";
 import { SHIPPED } from "../helpers/paths.js";
 import { makeHarness, OFFSCREEN, PAGE, SITE_ORIGIN, WEBAIR_040_URL, type Harness } from "../helpers/shell.js";
@@ -329,5 +329,135 @@ describe("cancel, interruption and clearing", () => {
     const quiet = await world();
     const quietRun = await finished(quiet, (await startRun(quiet, await authorize(quiet, "search"), SEARCH)).runId);
     expect(((await quiet.h.controller.handle({ type: "run.observations", runId: quietRun.runId }, PAGE)) as ObservationsView)).toMatchObject({ recording: false, observations: [] });
+  });
+});
+
+/** A session on a model that never answers: the run stays inside its first model call until something ends it. */
+async function hangingWorld(options: { runs?: MemoryRunStore; hostOptions?: { workerDies?: boolean } } = {}): Promise<{ w: World; reached: () => number }> {
+  let reached = 0;
+  const hanging: HttpTransport = (request) =>
+    new Promise((_resolve, reject) => {
+      reached += 1;
+      request.signal.addEventListener("abort", () => reject(request.signal.reason), { once: true });
+    });
+  const h = makeHarness({ transports: { model: hanging, tool: scriptedOrigin().transport }, runs: options.runs, hostOptions: options.hostOptions });
+  const view = (await h.controller.handle({ type: "package.open", url: WEBAIR_040_URL, advertisedOn: `${SITE_ORIGIN}/`, viewId: "test" }, PAGE)) as SessionView;
+  await h.controller.handle({ type: "trust.pin", sessionId: view.session.id, signerFingerprint: SHIPPED.webair040.fingerprint, scope: "publisher" }, PAGE);
+  const current = (await h.controller.handle({ type: "settings.get" }, PAGE)) as SettingsView;
+  await h.controller.handle({ type: "settings.set", settings: { ...current.settings, models: { ...current.settings.models, default_model: QWEN } } }, PAGE);
+  return { w: { h, session: view, modelSeen: [], toolSeen: [] }, reached: () => reached };
+}
+
+async function until(condition: () => boolean, what: string): Promise<void> {
+  for (let attempt = 0; attempt < 300 && !condition(); attempt += 1) await new Promise((resolve) => setTimeout(resolve, 10));
+  expect(condition(), what).toBe(true);
+}
+
+describe("review 1: the host owns a record in flight", () => {
+  it("Cancel racing the host's final write never puts a completed run back in flight (finding 1)", async () => {
+    // The service worker is scheduled late: its one atomic write happens after the host settled.
+    class LateStore extends MemoryRunStore {
+      gate: Promise<void> = Promise.resolve();
+      override async updateRun(runId: string, mutate: (run: StoredRun) => StoredRun | null): Promise<StoredRun | null> {
+        // Hold the worker's flag write only (it adds no checkpoint); the host's checkpoints and final write go through.
+        const current = this.runs.get(runId);
+        const probe = current ? mutate(structuredClone(current)) : null;
+        if (current && probe !== null && probe.checkpoints === current.checkpoints) await this.gate;
+        return super.updateRun(runId, mutate);
+      }
+    }
+    const runs = new LateStore();
+    const w = await world({ runs });
+    const result = await authorize(w, "search");
+    const started = await startRun(w, result, SEARCH);
+    expect(started.status).toBe("preparing");
+    let open!: () => void;
+    runs.gate = new Promise((resolve) => {
+      open = resolve;
+    });
+    const cancelling = w.h.controller.handle({ type: "run.cancel", runId: started.runId }, PAGE) as Promise<RunView>;
+    await w.h.host.drain(); // the host completes the run while Cancel waits between its read and its write
+    open();
+    const answered = await cancelling;
+    expect(answered).toMatchObject({ status: "completed", cancelRequested: false });
+    const after = (await w.h.controller.handle({ type: "run.get", runId: started.runId }, PAGE)) as RunView;
+    expect(after.status).toBe("completed");
+    expect(after.artifacts.map((artifact) => artifact.name)).toContain("result.json");
+    expect(after.audit?.chainValid).toBe(true);
+    // The package is free again, and the host was not asked to cancel a run it no longer had.
+    const readiness = (await w.h.controller.handle({ type: "run.readiness", sessionId: w.session.session.id }, PAGE)) as RunReadiness;
+    expect(readiness.blocker?.code).not.toBe("execution_active");
+    expect(w.h.events.filter((event) => event.type === "event.run" && event.runId === started.runId).at(-1)).toMatchObject({ status: "completed" });
+    // A later worker start finds a completed run, not one to interrupt.
+    const second = makeHarness({ runs, stores: { snapshots: w.h.snapshots, trustStorage: w.h.trustStorage, tabs: w.h.tabs, settingsArea: w.h.settingsArea } });
+    expect(((await second.controller.handle({ type: "run.get", runId: started.runId }, PAGE)) as RunView).status).toBe("completed");
+    // And a cancel that lands while the run is in flight still sets the flag in one step and reaches the host.
+    const next = await startRun(w, result, SEARCH);
+    const flagged = (await w.h.controller.handle({ type: "run.cancel", runId: next.runId }, PAGE)) as RunView;
+    expect(flagged.cancelRequested).toBe(true);
+    await w.h.host.drain();
+  });
+
+  it("a Worker that dies leaves no run in flight: the host's finished report interrupts it (finding 2, D-071)", async () => {
+    const { w, reached } = await hangingWorld({ hostOptions: { workerDies: true } });
+    const result = await authorize(w, "search");
+    const started = await startRun(w, result, SEARCH);
+    await until(() => w.h.events.some((event) => event.type === "event.run" && event.runId === started.runId && event.status === "interrupted"), "the interrupted event");
+    const view = (await w.h.controller.handle({ type: "run.get", runId: started.runId }, PAGE)) as RunView;
+    expect(view).toMatchObject({ status: "interrupted", errorCode: "host_failed" });
+    expect(view.errorDetail).toContain("never resumed");
+    const kept = (await w.h.runs.getRun(started.runId))!;
+    expect(kept.checkpoints).toBeGreaterThanOrEqual(1); // the last checkpoint is kept
+    // The plan and the session are free: readiness is not blocked by the dead run, and a new run starts.
+    const readiness = (await w.h.controller.handle({ type: "run.readiness", sessionId: w.session.session.id }, PAGE)) as RunReadiness;
+    expect(readiness.ready, JSON.stringify(readiness.blocker)).toBe(true);
+    const again = await startRun(w, result, SEARCH);
+    expect(again.status).toBe("preparing");
+    expect(reached()).toBeGreaterThanOrEqual(1);
+  });
+
+  it("the host executes a run exactly once: a start naming a settled run writes and calls nothing (finding 3)", async () => {
+    const w = await world();
+    const result = await authorize(w, "search");
+    const record = await finished(w, (await startRun(w, result, SEARCH)).runId);
+    expect(record.status).toBe("completed");
+    const before = await w.h.runs.getRun(record.runId);
+    const modelCalls = w.modelSeen.length;
+    const toolCalls = w.toolSeen.length;
+    // The same `host.start` again (what a forged command naming a completed `once` purchase would be): refused by the host, nothing re-runs.
+    await w.h.host.start(w.h.host.started[0]!);
+    await w.h.host.drain();
+    expect(await w.h.runs.getRun(record.runId)).toEqual(before);
+    expect(w.modelSeen).toHaveLength(modelCalls);
+    expect(w.toolSeen).toHaveLength(toolCalls);
+  });
+
+  it("a host that exists but did not answer decides nothing: the runs stay and the next call asks again (nit 6)", async () => {
+    const runs = new MemoryRunStore();
+    const first = await world({ runs, hostOptions: { failStart: true } });
+    await refused(startRun(first, await authorize(first, "search"), SEARCH));
+    const stored = (await runs.listRuns())[0]!;
+    stored.record = { ...stored.record, status: "running", errorCode: null, errorDetail: null, endedAt: null };
+    await runs.putRun(stored);
+    const second = makeHarness({ runs, stores: { snapshots: first.h.snapshots, trustStorage: first.h.trustStorage, tabs: first.h.tabs, settingsArea: first.h.settingsArea }, hostOptions: { statusFailures: 1 } });
+    expect(((await second.controller.handle({ type: "run.get", runId: stored.run_id }, PAGE)) as RunView).status).toBe("running");
+    expect(second.events.some((event) => event.type === "event.run" && event.status === "interrupted")).toBe(false);
+    expect(((await second.controller.handle({ type: "run.get", runId: stored.run_id }, PAGE)) as RunView)).toMatchObject({ status: "interrupted", errorCode: "host_unloaded" });
+    expect(second.host.statusCalls).toBe(2);
+  });
+
+  it("Close keeps the snapshot a run in flight still has to read; it goes when the run settles (nit 7)", async () => {
+    const { w, reached } = await hangingWorld();
+    const result = await authorize(w, "search");
+    const started = await startRun(w, result, SEARCH);
+    await until(() => reached() === 1, "the model call in flight");
+    const closed = await w.h.controller.handle({ type: "package.release", sessionId: w.session.session.id, viewId: "test" }, PAGE);
+    expect(closed).toMatchObject({ closed: true });
+    expect(await w.h.controller.handle({ type: "sessions.list" }, PAGE)).toEqual({ sessions: [] });
+    expect(await w.h.snapshots.listSnapshots()).toHaveLength(1);
+    await w.h.controller.handle({ type: "run.cancel", runId: started.runId }, PAGE);
+    await w.h.host.drain();
+    expect(((await w.h.controller.handle({ type: "run.get", runId: started.runId }, PAGE)) as RunView).status).toBe("cancelled");
+    expect(await w.h.snapshots.listSnapshots()).toEqual([]);
   });
 });

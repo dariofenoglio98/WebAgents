@@ -204,7 +204,7 @@ input.json, the artifacts, observations.json from test mode) under `examples/my-
 and `scripts/verify_chrome_webair_live.py` recomputes the checks: audit chains, the planned model,
 privacy (no sealed value in any model request; the identity only in `prepare_booking`, the payment
 identifier only in `simulate_purchase`), once spent, denial. The recorded evidence is
-`examples/verification/chrome-webair-040-live.json`.
+`examples/verification/chrome-webair-040-live.json`. A failed harness attempt never replaces a report that passed (it is written beside its run directories), and the verifier refuses to write when the exported run directories are missing, so the committed evidence is never overwritten by a run that did not happen here.
 
 ## What it does not do yet
 

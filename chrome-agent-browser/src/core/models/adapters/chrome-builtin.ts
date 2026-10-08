@@ -52,8 +52,14 @@ export class UnavailableBuiltinPort implements BuiltinModelPort {
  * that measures above the node's cap is reported as a `length` stop (the router fails the node
  * as truncated) rather than as a completion the runtime would have to halt over (T4 review 1,
  * nit 9). The bundled output schema is handed to the port as `responseConstraint` (a hint,
- * D-062); the router still parses and validates every answer.
+ * D-062); the router still parses and validates every answer. A `QuotaExceededError` from the
+ * API (the prompt does not fit the session's `inputQuota`) is the request's fault, not the
+ * model's absence: `model_request_invalid` (D-072; T5 review 1, nit 10).
  */
+function quotaExceeded(error: unknown): boolean {
+  return typeof error === "object" && error !== null && (error as { name?: unknown }).name === "QuotaExceededError";
+}
+
 export class ChromeBuiltinAdapter implements ProviderAdapter {
   readonly provider_id = CHROME_BUILTIN_PROVIDER;
   readonly model_id = CHROME_BUILTIN_MODEL;
@@ -73,10 +79,22 @@ export class ChromeBuiltinAdapter implements ProviderAdapter {
       throw new AdapterError("model_unavailable", "The built-in model is not available on this host");
     }
     const constraint = rendered.output_schema !== null && typeof rendered.output_schema === "object" && !Array.isArray(rendered.output_schema) ? (rendered.output_schema as Record<string, unknown>) : null;
-    const session = await this.port.createSession({ systemPrompt: rendered.system, responseConstraint: constraint, signal });
+    let session: BuiltinSession;
+    try {
+      session = await this.port.createSession({ systemPrompt: rendered.system, responseConstraint: constraint, signal });
+    } catch (error) {
+      if (quotaExceeded(error)) throw new AdapterError("model_request_invalid", "The system prompt exceeds the built-in model's session quota");
+      throw error;
+    }
     try {
       const inputTokens = await session.measureInputUsage(`${rendered.system}\n${rendered.user}`);
-      const text = await session.prompt(rendered.user, signal);
+      let text: string;
+      try {
+        text = await session.prompt(rendered.user, signal);
+      } catch (error) {
+        if (quotaExceeded(error)) throw new AdapterError("model_request_invalid", `The request (${inputTokens} tokens) exceeds the built-in model's session quota of ${session.inputQuota} tokens`, { detail: { input_tokens: inputTokens, input_quota: session.inputQuota } });
+        throw error;
+      }
       const outputTokens = await session.measureInputUsage(text);
       const constrained = session.constrained === true;
       return {

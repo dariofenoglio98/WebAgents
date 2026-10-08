@@ -121,6 +121,9 @@ describe("the transport over a local server", () => {
           outgoing.end("moved");
         } else if (incoming.url === "/hang") {
           // never answers
+        } else if (incoming.url === "/reset") {
+          // Reads the whole request (the side effect would have happened), then resets the connection.
+          incoming.socket.destroy();
         } else {
           outgoing.writeHead(404, { "content-type": "application/json" });
           outgoing.end("{}");
@@ -158,6 +161,17 @@ describe("the transport over a local server", () => {
     // Every address refusing is the last failure, a transport stage.
     const refusing = nodeTransport({ allowLoopbackHttp: true, resolve: async () => ["::1", "::1"] });
     await expect(refusing(request("/echo", { url: `http://localhost:1/echo` }))).rejects.toMatchObject({ name: "TransportError", facts: { stage: "transport" } });
+  });
+
+  it("never sends a request twice: a reset after the body was written is the request's failure, not a reason to try the next address (T5 review 1, finding 4)", async () => {
+    const before = seen.filter((line) => line.endsWith("/reset")).length;
+    const port = (server.address() as AddressInfo).port;
+    const twoAddresses = nodeTransport({ allowLoopbackHttp: true, resolve: async () => ["127.0.0.1", "127.0.0.1"] });
+    await expect(twoAddresses(request("/reset", { url: `http://localhost:${port}/reset` }))).rejects.toMatchObject({ name: "TransportError", facts: { stage: "transport" } });
+    expect(seen.filter((line) => line.endsWith("/reset")).length - before).toBe(1);
+    // Whereas a refused connection (nothing listening on the first address) still moves on.
+    const refusedThenOk = nodeTransport({ allowLoopbackHttp: true, resolve: async () => ["::1", "127.0.0.1"] });
+    expect((await refusedThenOk(request("/echo", { url: `http://localhost:${port}/echo` }))).status).toBe(200);
   });
 
   it("stops a streamed body at the cap instead of buffering it, and refuses a declared length above the cap before reading", async () => {

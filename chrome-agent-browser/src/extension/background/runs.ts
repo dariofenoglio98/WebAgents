@@ -16,7 +16,7 @@ import { ExecutionError } from "../../core/execution/errors.js";
 import { LeaseRegistry, type ExecutionLease } from "../../core/execution/lease.js";
 import { DEFAULT_HOST_LIMITS, normalizeHostLimits, type HostExecutionLimits } from "../../core/execution/limits.js";
 import { authorizationFromRunPlan, executionPlanFromRunPlan, type ExecutionPlan } from "../../core/execution/plan.js";
-import { failRunRecord, HOST_RUNTIME, RUN_RECORD_SCHEMA, type RunRecord } from "../../core/execution/record.js";
+import { failRunRecord, HOST_RUNTIME, isTerminalStatus, RUN_RECORD_SCHEMA, type RunRecord } from "../../core/execution/record.js";
 import { sha256HexSync } from "../../core/hash.js";
 import type { ToolRegistry } from "../../core/hosttools.js";
 import type { JsonValue } from "../../core/json.js";
@@ -41,12 +41,13 @@ export const MAX_EXPORT_BYTES = 32 * 1024 * 1024;
 export const MAX_ECHOED_INPUT_BYTES = 16 * 1024;
 /** The host limits every browser run is bounded by (the reference plugin's `DEFAULT_POLICY`); the package's own declarations apply beneath them. */
 export const BROWSER_EXECUTION_LIMITS: Readonly<HostExecutionLimits> = DEFAULT_HOST_LIMITS;
-const TERMINAL = new Set<RunRecord["status"]>(["completed", "failed", "cancelled", "interrupted"]);
+/** The host reported a run as finished without settling its record: its Worker died (T5 review 1, finding 2). */
+export const HOST_FAILED = "host_failed";
 /** Artifacts the host writes beside the package's exports, as the reference plugin names them. */
 export const HOST_ARTIFACTS = new Set(["result.json", "audit.json", "usage.json", "provenance.json", "run.json"]);
 
 export function isTerminal(status: RunRecord["status"]): boolean {
-  return TERMINAL.has(status);
+  return isTerminalStatus(status);
 }
 
 /** The facts about one open session the manager reads (the controller lends them). */
@@ -69,6 +70,8 @@ export interface RunHooks {
   snapshotBytes(archiveSha256: string): Promise<Uint8Array | null>;
   /** A run under this session's receipt began: its `once` grants are spent (D-065). */
   markOnceSpent(sessionId: string): Promise<void>;
+  /** A run settled (by the host, or interrupted here): the snapshot it read may be dropped if nothing else refers to it (review 1, nit 7). */
+  runSettled?(archiveSha256: string): Promise<void>;
 }
 
 /** The execution host as the worker sees it: an offscreen document in the extension, an in-process host in tests. */
@@ -190,43 +193,59 @@ export class RunManager {
    * On the worker's first use after a start: every run the store says is in flight is checked
    * against the host. A run the host does not report (no offscreen document, or a document that
    * never heard of it) is marked `interrupted` with its last checkpoint kept; nothing resumes.
+   * A host that exists but did not answer (its listener still loading, a transient failure)
+   * decides nothing: the runs stay as they are and the next call asks again (review 1, nit 6).
    */
   restore(): Promise<void> {
     if (this.restored) return this.restored;
+    let askAgain = false;
     const attempt = (async () => {
       const inFlight = (await this.deps.runs.listRuns()).filter((run) => !isTerminal(run.record.status));
       if (inFlight.length === 0) return;
-      let reported: Set<string> | null = null;
+      let reported: Set<string>;
       try {
         const status = await this.deps.host.status();
         reported = status === null ? new Set() : new Set(status.runs.map((run) => run.run_id));
       } catch {
-        reported = new Set();
+        askAgain = true;
+        return;
       }
       for (const run of inFlight) {
         if (reported.has(run.run_id)) continue;
-        await this.interrupt(run);
+        await this.interrupt(run, {
+          code: HOST_UNLOADED,
+          message: "The execution host was unloaded while this run was in flight (the browser or the extension restarted). Run state is checkpointed but never resumed: an interrupted run ends here, with the audit it had written.",
+        });
       }
     })();
-    this.restored = attempt.catch((error: unknown) => {
-      this.restored = null;
-      throw error;
-    });
+    this.restored = attempt.then(
+      () => {
+        if (askAgain) this.restored = null;
+      },
+      (error: unknown) => {
+        this.restored = null;
+        throw error;
+      },
+    );
     return this.restored;
   }
 
-  private async interrupt(run: StoredRun): Promise<void> {
+  /**
+   * Mark a run in flight `interrupted` (D-071) with its last checkpoint kept. One atomic step on
+   * the store that leaves a run the host settled in the meantime untouched (finding 1): the
+   * host's final write and this one can never produce a settled run shown as in flight.
+   */
+  private async interrupt(run: StoredRun, failure: { code: string; message: string }): Promise<boolean> {
     const now = this.clock();
-    run.record = failRunRecord(
-      run.record,
-      { code: HOST_UNLOADED, message: "The execution host was unloaded while this run was in flight (the browser or the extension restarted). Run state is checkpointed but never resumed: an interrupted run ends here, with the audit it had written." },
-      now,
-      "interrupted",
-    );
-    run.updated_at = now.toISOString();
-    await this.deps.runs.putRun(run);
+    const updated = await this.deps.runs.updateRun(run.run_id, (current) => {
+      if (isTerminal(current.record.status)) return null;
+      return { ...current, record: failRunRecord(current.record, failure, now, "interrupted"), updated_at: now.toISOString() };
+    });
     this.leases.delete(run.run_id);
+    if (updated === null || updated.record.status !== "interrupted") return false;
     this.deps.broadcast({ type: "event.run", runId: run.run_id, sessionId: run.session_id, status: "interrupted" });
+    await this.deps.hooks.runSettled?.(run.invocation.archive_sha256);
+    return true;
   }
 
   // -- readiness and validation --------------------------------------------------------------
@@ -358,13 +377,14 @@ export class RunManager {
         await this.deps.host.start(await this.startMessage(runId));
       } catch (error) {
         const now = this.clock();
-        stored.record = failRunRecord(stored.record, { code: "execution_unavailable", message: `The execution host could not be started: ${error instanceof Error ? error.message : "error"}` }, now);
-        stored.updated_at = now.toISOString();
-        await this.deps.runs.putRun(stored);
+        const detail = `The execution host could not be started: ${error instanceof Error ? error.message : "error"}`;
+        // Atomic, and never over a record the host may already have settled (finding 1).
+        const failed = await this.deps.runs.updateRun(runId, (current) => (isTerminal(current.record.status) ? null : { ...current, record: failRunRecord(current.record, { code: "execution_unavailable", message: detail }, now), updated_at: now.toISOString() }));
         leases.release(lease.lease_id);
         this.leases.delete(runId);
-        this.deps.broadcast({ type: "event.run", runId, sessionId, status: "failed" });
-        throw reject("execution_unavailable", stored.record.errorDetail ?? "The execution host could not be started", 503);
+        this.deps.broadcast({ type: "event.run", runId, sessionId, status: failed?.record.status ?? "failed" });
+        await this.deps.hooks.runSettled?.(stored.invocation.archive_sha256);
+        throw reject("execution_unavailable", detail, 503);
       }
       return this.view(stored);
     } finally {
@@ -401,7 +421,19 @@ export class RunManager {
       (await this.leaseRegistry()).release(lease.lease_id);
       this.leases.delete(runId);
     }
-    if (run !== null) this.deps.broadcast({ type: "event.run", runId, sessionId: run.session_id, status: run.record.status });
+    if (run === null) return { received: true };
+    if (!isTerminal(run.record.status)) {
+      // The host says the run ended, but its record was never settled: the Worker died (a load
+      // failure, an uncaught exception, out of memory) before writing. D-071: interrupted, with
+      // the last checkpoint kept, never resumed (review 1, finding 2).
+      const interrupted = await this.interrupt(run, {
+        code: HOST_FAILED,
+        message: "The execution Worker ended without settling this run (it failed to load, threw, or ran out of memory). Run state is checkpointed up to its last wave but never resumed: an interrupted run ends here, with the audit it had written.",
+      });
+      if (interrupted) return { received: true };
+    }
+    this.deps.broadcast({ type: "event.run", runId, sessionId: run.session_id, status: run.record.status });
+    await this.deps.hooks.runSettled?.(run.invocation.archive_sha256);
     return { received: true };
   }
 
@@ -458,12 +490,15 @@ export class RunManager {
     await this.restore();
     const run = await this.require(runId);
     if (isTerminal(run.record.status)) return this.view(run);
-    run.record = { ...run.record, cancelRequested: true };
-    run.updated_at = this.clock().toISOString();
-    await this.deps.runs.putRun(run);
-    await this.deps.host.cancel(runId);
-    this.deps.broadcast({ type: "event.run", runId, sessionId: run.session_id, status: run.record.status });
-    return this.view(run);
+    // The host owns this record while the run is in flight and may settle it at any moment. The
+    // flag is written in one atomic step that leaves a settled record alone, so a Cancel racing
+    // the host's final write can never put a completed run back in flight (review 1, finding 1).
+    const now = this.clock().toISOString();
+    const updated = await this.deps.runs.updateRun(runId, (current) => (isTerminal(current.record.status) ? null : { ...current, record: { ...current.record, cancelRequested: true }, updated_at: now }));
+    if (updated === null) throw reject("run_unknown", "This browser holds no run with that id.", 404);
+    if (!isTerminal(updated.record.status)) await this.deps.host.cancel(runId);
+    this.deps.broadcast({ type: "event.run", runId, sessionId: updated.session_id, status: updated.record.status });
+    return this.view(updated);
   }
 
   /** The host-written files plus the record itself, the plan and the input as the export names them (D-073). */

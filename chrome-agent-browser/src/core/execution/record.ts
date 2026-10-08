@@ -230,6 +230,13 @@ export function completeRunRecord(record: RunRecord, result: ExecutionResult, en
 }
 
 /** The record for a run that failed before or outside the interpreter (a refusal, a host error). */
+/** The statuses after which a record never changes again. */
+export const TERMINAL_STATUSES: ReadonlySet<RunStatus> = new Set<RunStatus>(["completed", "failed", "cancelled", "interrupted"]);
+
+export function isTerminalStatus(status: RunStatus): boolean {
+  return TERMINAL_STATUSES.has(status);
+}
+
 export function failRunRecord(record: RunRecord, error: { code?: string; message: string }, endedAt: Date, status: RunStatus = "failed"): RunRecord {
   const started = record.startedAt ? Date.parse(record.startedAt) : null;
   return { ...record, status, endedAt: endedAt.toISOString(), durationMs: started !== null ? Math.max(0, endedAt.getTime() - started) : null, errorCode: error.code ?? "execution_refused", errorDetail: clip(error.message, 4096) };

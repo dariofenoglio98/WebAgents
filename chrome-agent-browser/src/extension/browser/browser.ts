@@ -40,6 +40,8 @@ interface PageState {
   error: { code: string; message: string; details: Record<string, unknown> } | null;
   runs: RunListView | null;
   runsNotice: string | null;
+  /** The run chosen on the Runs page (`#run=…`), shown under the list; null for the list alone. */
+  runsShowing: string | null;
 }
 
 const app = document.getElementById("app") as HTMLElement;
@@ -63,6 +65,7 @@ const state: PageState = {
   error: null,
   runs: null,
   runsNotice: null,
+  runsShowing: null,
 };
 
 /** The authorization flow for the open session (T3). */
@@ -112,10 +115,13 @@ function route(): void {
   if (view?.startsWith("run=")) {
     // A past run, read-only, with or without its session.
     state.view = "runs";
-    void openStoredRun(decodeURIComponent(view.slice("run=".length)));
+    state.runsShowing = decodeURIComponent(view.slice("run=".length));
+    void openStoredRun(state.runsShowing);
     return;
   }
   state.view = (["open", "library", "runs", "trust", "settings", "data"] as View[]).includes(view as View) ? (view as View) : "open";
+  state.runsShowing = null;
+  if (state.view === "open") void reattachRuns();
   if (params.get("url")) state.address = params.get("url")!;
   const section = params.get("section");
   if (state.view === "settings" && (section === "models" || section === "policies" || section === "about")) state.settingsPage.section = section as SettingsSection;
@@ -153,6 +159,14 @@ async function showSession(sessionId: string): Promise<void> {
     runs.detach();
     state.error = describeError(error);
   }
+  render();
+}
+
+/** The Runs page showed another run on the shared panel: back on the open package, attach its session again (review 1, finding 5). */
+async function reattachRuns(): Promise<void> {
+  if (!state.open || runs.hasSession()) return;
+  await runs.attachSession(state.open.session.id);
+  runs.sync();
   render();
 }
 
@@ -339,7 +353,8 @@ function runsView(): HTMLElement[] {
       state.runsNotice ? el("div", { className: "ab-banner ab-banner-neutral", attrs: { role: "status" } }, el("span", { text: state.runsNotice })) : null,
       !list ? el("p", { className: "ab-busy", text: "Loading…" }) : list.runs.length === 0 ? el("p", { className: "ab-empty", text: "No run yet. Authorize an agent and press Run." }) : renderRunList(list.runs, { open, export: (runId) => void exportRun(runId), clear: (runId) => void clearRun(runId) }),
     ),
-    current && !state.open ? runs.root : null,
+    // The chosen run, whether or not a package is open in this tab (review 1, finding 5).
+    current && state.runsShowing === current.runId ? runs.root : null,
   ].filter((node): node is HTMLElement => node !== null);
 }
 

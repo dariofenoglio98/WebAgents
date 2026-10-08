@@ -218,6 +218,39 @@ describe("the run panel", () => {
     closed.dispose();
   });
 
+  it("Download verifies the bytes against the hash the run recorded, not only against the worker's recomputation (review 1, nit 9)", async () => {
+    const h = scripted();
+    const session = await openWebair(h);
+    const result = (await h.controller.handle({ type: "authorization.useProfile", sessionId: session.session.id, packageDigest: SHIPPED.webair040.digest, profileId: "search", resourceSelections: {}, prepare: true }, PAGE)) as AuthorizeResult;
+    const plan = result.run_plan!.run_plan;
+    const started = (await h.controller.handle({ type: "run.start", sessionId: session.session.id, runPlanId: plan.run_plan_id, runPlanSha256: plan.run_plan_sha256, input: { request: SEARCH_TEXT, booking: false, purchase: { quote_id: "", fare_id: "" } } }, PAGE)) as RunView;
+    await h.h_drain();
+    const { panel, settle } = mountPanel(h, session);
+    await panel.attachSession(session.session.id);
+    await settle(100);
+    expect(panel.root.dataset.state).toBe("completed");
+    const downloadOf = (name: string) => [...panel.root.querySelectorAll<HTMLElement>(".ab-artifact")].find((row) => row.querySelector("code")?.textContent === name)!.querySelector<HTMLButtonElement>("button:last-of-type")!;
+    // The saved file is what the browser's download sees; the note names the record as the reference.
+    const saved: string[] = [];
+    URL.createObjectURL = () => "blob:test";
+    URL.revokeObjectURL = () => undefined;
+    HTMLAnchorElement.prototype.click = function click(this: HTMLAnchorElement) {
+      saved.push(this.download);
+    };
+    downloadOf("search.json").click();
+    await settle(100);
+    expect(saved).toEqual(["search.json"]);
+    expect(panel.root.textContent).toContain("SHA-256 verified against the run record");
+    // The stored bytes change after the host wrote them (the record keeps the hash it recorded): the download is refused.
+    const stored = h.runs.artifacts.get(`${started.runId}/search.json`)!;
+    stored.bytes = new TextEncoder().encode(JSON.stringify({ tampered: true }));
+    downloadOf("search.json").click();
+    await settle(100);
+    expect(saved).toEqual(["search.json"]);
+    expect(panel.root.textContent).toContain("do not match the SHA-256 the run recorded");
+    panel.dispose();
+  });
+
   it("Cancel is offered while a run is in flight and the panel settles as cancelled", async () => {
     let reached = 0;
     const hanging: HttpTransport = (request) =>

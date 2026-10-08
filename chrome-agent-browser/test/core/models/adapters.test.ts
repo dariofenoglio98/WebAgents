@@ -286,6 +286,42 @@ describe("the built-in model contract and the provider factory", () => {
     expect(await new ChromeBuiltinAdapter(bulk, 4096).complete(RENDERED, 1024, new AbortController().signal)).toMatchObject({ stop_reason: "stop", usage: { output_tokens: 1 } });
   });
 
+  it("a QuotaExceededError from the Prompt API is the request's fault, not the model's absence: model_request_invalid (D-072; T5 review 1, nit 10)", async () => {
+    const quota = Object.assign(new Error("The input is too large"), { name: "QuotaExceededError" });
+    const port: BuiltinModelPort = {
+      availability: async () => "available",
+      createSession: async () => ({
+        prompt: async () => {
+          throw quota;
+        },
+        measureInputUsage: async () => 5000,
+        inputQuota: 4096,
+        destroy: () => undefined,
+      }),
+    };
+    await expect(new ChromeBuiltinAdapter(port, 4096).complete(RENDERED, 100, new AbortController().signal)).rejects.toMatchObject({ name: "AdapterError", code: "model_request_invalid", detail: { input_tokens: 5000, input_quota: 4096 } });
+    const atCreate: BuiltinModelPort = {
+      ...port,
+      createSession: async () => {
+        throw quota;
+      },
+    };
+    await expect(new ChromeBuiltinAdapter(atCreate, 4096).complete(RENDERED, 100, new AbortController().signal)).rejects.toMatchObject({ code: "model_request_invalid" });
+    // Any other failure of the API is reported as it is.
+    const other: BuiltinModelPort = {
+      ...port,
+      createSession: async () => ({
+        prompt: async () => {
+          throw new Error("boom");
+        },
+        measureInputUsage: async () => 1,
+        inputQuota: 4096,
+        destroy: () => undefined,
+      }),
+    };
+    await expect(new ChromeBuiltinAdapter(other, 4096).complete(RENDERED, 100, new AbortController().signal)).rejects.toThrow("boom");
+  });
+
   it("builds the adapter the binding names, from host settings the binding does not carry", () => {
     const transport: HttpTransport = async () => ({ status: 200, headers: {}, body: "{}" });
     const binding = (provider: string, model: string) =>

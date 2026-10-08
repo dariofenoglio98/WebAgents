@@ -174,8 +174,10 @@ export function makeHarness(
     /** The execution host's transports: a scripted model and a scripted origin; without them every run fails at its first call. */
     transports?: { model: HttpTransport; tool: HttpTransport };
     /** A host that refuses to start (no offscreen document) or reports no execution capability. */
-    hostOptions?: { available?: boolean; failStart?: boolean };
+    hostOptions?: { available?: boolean; failStart?: boolean; workerDies?: boolean; statusFailures?: number };
     runIds?: () => string;
+    /** Also deliver every broadcast here (a page's `subscribe`, in the browser-page tests). */
+    onEvent?: (event: Event) => void;
   } = {},
 ): Harness {
   const routes = options.routes ?? webairRoutes();
@@ -214,6 +216,7 @@ export function makeHarness(
     },
     broadcast: (event) => {
       events.push(event);
+      options.onEvent?.(event);
     },
     clock: () => clock.now,
     randomId: () => `session${(counter += 1)}`,

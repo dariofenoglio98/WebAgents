@@ -72,7 +72,7 @@ import type { SnapshotStore, StoredSession } from "../storage/snapshots.js";
 import type { TabStateStore } from "../storage/tab-state.js";
 import type { ViewHolder, ViewHolderStore } from "../storage/view-holders.js";
 import type { RunStore } from "../storage/runs.js";
-import { RunManager, type ExecutionHostBridge, type RunHooks } from "./runs.js";
+import { isTerminal, RunManager, type ExecutionHostBridge, type RunHooks } from "./runs.js";
 
 export interface Limits {
   sessionTtlSeconds: number;
@@ -237,6 +237,8 @@ export class Controller {
       catalog: () => this.catalogCache?.catalog ?? null,
       snapshotBytes: async (archiveSha256) => (await this.deps.snapshots.getSnapshot(archiveSha256))?.bytes ?? null,
       markOnceSpent: (sessionId) => this.markOnceSpent(sessionId),
+      // The run that kept a closed session's snapshot alive has settled: drop the bytes if nothing else refers to them.
+      runSettled: (archiveSha256) => this.dropUnreferencedSnapshot(archiveSha256),
     };
     this.runs = new RunManager({ runs: deps.runs, host: deps.host, settings: deps.settings, hooks, broadcast: deps.broadcast, clock: this.clock, randomId: deps.runId, runtimeVersion: this.version });
   }
@@ -718,11 +720,27 @@ export class Controller {
     return this.restored;
   }
 
-  /** Delete a snapshot no stored session refers to, unless another open of the same bytes is in flight. */
+  /**
+   * Whether anything still needs these bytes: a stored session, or a run in flight that was
+   * planned on them. The execution host reads a run's snapshot only after `host.start`, so Run
+   * followed at once by Close must not take the bytes away from the run (T5 review 1, nit 7);
+   * the snapshot goes when that run settles (`RunHooks.runSettled`).
+   */
+  private async snapshotReferenced(archiveSha256: string): Promise<boolean> {
+    if ((await this.deps.snapshots.listSessions()).some((session) => session.archive_sha256 === archiveSha256)) return true;
+    return (await this.deps.runs.listRuns()).some((run) => !isTerminal(run.record.status) && run.invocation.archive_sha256 === archiveSha256);
+  }
+
+  /** Delete a snapshot no stored session refers to, unless another open of the same bytes is in flight (called by an open that failed). */
   private async dropOrphanSnapshot(archiveSha256: string): Promise<void> {
     if ((this.inFlight.get(archiveSha256) ?? 0) > 1) return; // another open owns these bytes right now
-    const referenced = (await this.deps.snapshots.listSessions()).some((session) => session.archive_sha256 === archiveSha256);
-    if (!referenced) await this.deps.snapshots.deleteSnapshot(archiveSha256);
+    if (!(await this.snapshotReferenced(archiveSha256))) await this.deps.snapshots.deleteSnapshot(archiveSha256);
+  }
+
+  /** Delete a snapshot nothing refers to any more (called when a run settles; no open of ours is in progress here). */
+  private async dropUnreferencedSnapshot(archiveSha256: string): Promise<void> {
+    if ((this.inFlight.get(archiveSha256) ?? 0) > 0) return;
+    if (!(await this.snapshotReferenced(archiveSha256))) await this.deps.snapshots.deleteSnapshot(archiveSha256);
   }
 
   // -- views ------------------------------------------------------------------------
@@ -798,8 +816,7 @@ export class Controller {
     if (!options.holdersCleared) await this.holderUpdate(() => this.deps.holders.clear(stored.session_id));
     await this.deps.snapshots.deleteSession(stored.session_id);
     if (this.inFlight.has(stored.archive_sha256)) return; // an open in progress owns the snapshot
-    const others = (await this.deps.snapshots.listSessions()).some((session) => session.archive_sha256 === stored.archive_sha256);
-    if (!others) await this.deps.snapshots.deleteSnapshot(stored.archive_sha256);
+    if (!(await this.snapshotReferenced(stored.archive_sha256))) await this.deps.snapshots.deleteSnapshot(stored.archive_sha256);
   }
 
   private async purgeExpired(): Promise<void> {

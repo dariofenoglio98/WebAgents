@@ -123,6 +123,10 @@ export interface InProcessHostOptions {
   available?: boolean;
   /** Fail `start` without running (an offscreen document that could not be created). */
   failStart?: boolean;
+  /** The Worker dies after its first checkpoint: the host reports `host.finished` while the record is still in flight, and nothing settles it (finding 2). */
+  workerDies?: boolean;
+  /** `status()` rejects this many times before answering (the document's listener not loaded yet; nit 6). */
+  statusFailures?: number;
 }
 
 /** `executeRun` in this process: the offscreen document and its Worker, without Chrome. */
@@ -133,6 +137,8 @@ export class InProcessHost implements ExecutionHostBridge {
   report: (type: "host.progress" | "host.finished", runId: string) => Promise<unknown> = async () => undefined;
   /** Settles when every run started so far has finished and reported. */
   private settled: Promise<unknown> = Promise.resolve();
+  /** How often `status()` was asked. */
+  statusCalls = 0;
 
   constructor(private readonly options: InProcessHostOptions) {}
 
@@ -143,6 +149,7 @@ export class InProcessHost implements ExecutionHostBridge {
   async start(message: HostStartMessage): Promise<void> {
     if (this.options.failStart) throw new Error("the offscreen document could not be created");
     this.started.push(message);
+    let died = false;
     const handle = executeRun({
       runs: this.options.runs,
       snapshots: this.options.snapshots,
@@ -150,9 +157,19 @@ export class InProcessHost implements ExecutionHostBridge {
       transports: { model: this.options.model, tool: this.options.tool },
       builtin: this.options.builtin ?? null,
       now: this.options.now,
-      onCheckpoint: (runId) => void this.report("host.progress", runId).catch(() => undefined),
+      onCheckpoint: (runId) => {
+        if (this.options.workerDies && !died) {
+          // The offscreen page's `worker.onerror`: the run is forgotten and reported finished, its record left as it is.
+          died = true;
+          this.handles.delete(runId);
+          void this.report("host.finished", runId).catch(() => undefined);
+          return;
+        }
+        if (!died) void this.report("host.progress", runId).catch(() => undefined);
+      },
     });
     this.handles.set(message.runId, handle);
+    if (this.options.workerDies) return; // the dangling execution never reports again
     const finished = handle.done.then(async () => {
       this.handles.delete(message.runId);
       await this.report("host.finished", message.runId).catch(() => undefined);
@@ -165,6 +182,8 @@ export class InProcessHost implements ExecutionHostBridge {
   }
 
   async status(): Promise<HostStatusReply | null> {
+    this.statusCalls += 1;
+    if ((this.options.statusFailures ?? 0) >= this.statusCalls) throw new Error("the execution host did not answer");
     return { runs: [...this.handles.keys()].map((run_id) => ({ run_id, status: "running" as const })) };
   }
 

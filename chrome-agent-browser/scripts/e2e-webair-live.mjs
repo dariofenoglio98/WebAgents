@@ -25,7 +25,7 @@
  *   into the extension's storage for this throwaway profile and never written anywhere by this script.
  */
 import { spawn } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -367,9 +367,19 @@ async function main() {
   }
   report.passed = report.failures.length === 0;
   const text = `${JSON.stringify(report, null, 2)}\n`;
-  writeFileSync(args.out, text);
+  // A failed attempt never replaces a report that passed (the committed evidence is the default
+  // `--out`): it goes beside its run directories instead (T5 review 1, after nit 8).
+  let out = args.out;
+  if (!report.passed && existsSync(args.out)) {
+    try {
+      if (JSON.parse(readFileSync(args.out, "utf8")).passed === true) out = join(outDir, "report.json");
+    } catch {
+      // unreadable: overwrite as asked
+    }
+  }
+  writeFileSync(out, text);
   process.stdout.write(text);
-  log(`report written to ${relative(ROOT, args.out)}; run directories under ${relative(ROOT, outDir)}`);
+  log(`report written to ${relative(ROOT, out)}${out !== args.out ? ` (the passing report at ${relative(ROOT, args.out)} was kept)` : ""}; run directories under ${relative(ROOT, outDir)}`);
   process.exit(report.passed ? 0 : 1);
 }
 

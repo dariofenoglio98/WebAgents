@@ -52,6 +52,16 @@ export interface HostStatusReply {
 
 export const HOST_COMMAND_TYPES: readonly HostCommand["type"][] = ["host.start", "host.cancel", "host.status"];
 
+/**
+ * The service worker's script, as the manifest names it (`background.service_worker`; a test
+ * holds the two equal). The execution host accepts `host.*` commands only from a sender whose
+ * URL is this script's: Chrome reports a service worker sender with its id and the worker
+ * script URL and nothing else (observed in Chrome 154 through the live harness). An offscreen
+ * document cannot read the manifest (`chrome.runtime.getManifest` is not exposed there), so the
+ * name is a shared constant.
+ */
+export const SERVICE_WORKER_SCRIPT = "service-worker.js";
+
 export function isHostCommand(value: unknown): value is HostCommand {
   return typeof value === "object" && value !== null && (HOST_COMMAND_TYPES as readonly string[]).includes((value as { type?: unknown }).type as string);
 }

@@ -565,6 +565,9 @@ export class RunPanel {
     try {
       const parts: Uint8Array[] = [];
       let offset = 0;
+      // The hash the host recorded when it wrote the artifact: the bytes must match *that*, not
+      // merely the hash the worker recomputed from the same stored bytes (review 1, nit 9).
+      const recorded = record.artifacts.find((item) => item.name === name)?.sha256 ?? null;
       let expected = "";
       let complete = false;
       for (let index = 0; index < MAX_CHUNKS; index += 1) {
@@ -579,11 +582,12 @@ export class RunPanel {
         }
       }
       if (!complete) throw new Error("The artifact is larger than this page downloads.");
+      if (recorded !== null && expected !== recorded) throw new Error("The stored bytes do not match the SHA-256 the run recorded for this artifact.");
       const blob = new Blob(parts as BlobPart[], { type: mimeFor(name) });
       const actual = await sha256HexOf(blob).catch(() => null);
-      if (actual && actual !== expected) throw new Error("The downloaded bytes do not match the artifact's SHA-256.");
+      if (actual && actual !== (recorded ?? expected)) throw new Error("The downloaded bytes do not match the artifact's SHA-256.");
       await saveBlob(name, blob);
-      this.downloadNote = actual ? `Saved ${name} (${bytes(blob.size)}, SHA-256 verified).` : `Saved ${name} (${bytes(blob.size)}).`;
+      this.downloadNote = actual ? `Saved ${name} (${bytes(blob.size)}, SHA-256 verified${recorded !== null ? " against the run record" : ""}).` : `Saved ${name} (${bytes(blob.size)}).`;
     } catch (error) {
       this.downloadNote = `Download failed: ${(error as Error).message}`;
     }

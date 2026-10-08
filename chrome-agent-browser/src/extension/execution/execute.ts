@@ -7,10 +7,15 @@
  * progress snapshot, the audit so far and the usage so far. At the end it writes the artifacts
  * and the settled record. Nothing here decides authority: the plan, the authorization and the
  * input were frozen by the service worker; the host refuses what does not re-verify.
+ *
+ * Every write is one atomic step that leaves a settled record alone (T5 review 1, finding 1):
+ * when the service worker has already ended this run (it declared the host gone, D-071, or
+ * cleared the run), the host's execution stops at its next checkpoint and writes nothing more,
+ * so a record the worker settled is never overwritten by a host that was still alive.
  */
 import { ExecutionError } from "../../core/execution/errors.js";
 import type { ProgressSnapshot } from "../../core/execution/progress.js";
-import { completeRunRecord, failRunRecord, initialRunRecord, type RunRecord } from "../../core/execution/record.js";
+import { completeRunRecord, failRunRecord, HOST_RUNTIME, initialRunRecord, isTerminalStatus, type RunRecord } from "../../core/execution/record.js";
 import { ExecutionSession, type BeginReport, type ExecutionOutcome, type SessionDeps } from "../../core/execution/runner.js";
 import { sha256HexSync } from "../../core/hash.js";
 import { buildHostToolRegistry } from "../../core/hosttools.js";
@@ -30,7 +35,8 @@ import { artifactKey, type RunStore, type StoredRun } from "../storage/runs.js";
 import type { HostStartMessage } from "./protocol.js";
 
 export const HOST_UNLOADED = "host_unloaded";
-export const HOST_RUNTIME = "chrome-agent-browser";
+/** The host was asked to run a record that is not a freshly leased one (T5 review 1, finding 3). */
+export const RUN_NOT_PREPARING = "execution_refused";
 
 export interface ExecuteDeps {
   runs: RunStore;
@@ -76,6 +82,8 @@ export function executeRun(deps: ExecuteDeps): ExecutionHandle {
   const session = new ExecutionSession();
   const queue = new StoreQueue();
   let cancelRequested = false;
+  /** The service worker settled or cleared this run while it ran: the record is the worker's; nothing more is written. */
+  let abandoned = false;
   let stored: StoredRun | null = null;
 
   const notify = (status: RunRecord["status"]): void => {
@@ -86,10 +94,28 @@ export function executeRun(deps: ExecuteDeps): ExecutionHandle {
     }
   };
 
+  /**
+   * Write `run` unless the stored record is already settled. Returns true when written; false
+   * when the worker owns the record now (settled or cleared), in which case this execution is
+   * abandoned: cancelled, and silent from here on.
+   */
+  const write = async (run: StoredRun): Promise<boolean> => {
+    let applied = false;
+    const written = await deps.runs.updateRun(runId, (current) => {
+      if (isTerminalStatus(current.record.status)) return null;
+      applied = true;
+      return run;
+    });
+    if (applied && written !== null) return true;
+    abandoned = true;
+    session.cancel();
+    return false;
+  };
+
   /** Write the current record with the session's progress, audit and usage so far. */
   const checkpoint = (mutate?: (run: StoredRun) => void): Promise<void> =>
     queue.run(async () => {
-      if (stored === null) return;
+      if (stored === null || abandoned) return;
       const run = stored;
       mutate?.(run);
       const snapshot: ProgressSnapshot | null = session.snapshot;
@@ -99,15 +125,17 @@ export function executeRun(deps: ExecuteDeps): ExecutionHandle {
       run.usage = session.usageSoFar();
       run.checkpoints += 1;
       run.updated_at = now().toISOString();
-      await deps.runs.putRun(run);
-      notify(run.record.status);
+      if (await write(run)) notify(run.record.status);
     });
 
   const settle = async (final: (run: StoredRun) => void, outcome: ExecutionOutcome | null): Promise<RunRecord["status"]> => {
     await queue.run(async () => {
-      if (stored === null) return;
+      if (stored === null || abandoned) return;
       const run = stored;
       final(run);
+      // A cancel that reached this host is part of the record even when the service worker's
+      // own flag write lost the race with this final write (finding 1).
+      run.record = { ...run.record, cancelRequested: run.record.cancelRequested || cancelRequested };
       if (outcome !== null) {
         for (const [name, data] of outcome.files) {
           await deps.runs.putArtifact({ key: artifactKey(runId, name), run_id: runId, name, bytes: data, sha256: sha256HexSync(data) });
@@ -119,15 +147,28 @@ export function executeRun(deps: ExecuteDeps): ExecutionHandle {
       }
       run.checkpoints += 1;
       run.updated_at = now().toISOString();
-      await deps.runs.putRun(run);
-      notify(run.record.status);
+      if (await write(run)) {
+        notify(run.record.status);
+      } else if (outcome !== null) {
+        // The worker settled this run first: its record stands, and the files of an outcome it never recorded go.
+        await deps.runs.deleteArtifacts(runId).catch(() => undefined);
+      }
     });
+    if (abandoned) return "interrupted";
     return stored?.record.status ?? "failed";
   };
 
   const work = async (): Promise<RunRecord["status"]> => {
-    stored = await deps.runs.getRun(runId);
-    if (stored === null) throw new ExecutionError("run_unknown", `No stored run ${JSON.stringify(runId)}`);
+    const found = await deps.runs.getRun(runId);
+    if (found === null) throw new ExecutionError("run_unknown", `No stored run ${JSON.stringify(runId)}`);
+    if (found.record.status !== "preparing") {
+      // The host executes a run exactly once, and only one the service worker has just leased
+      // and written as `preparing`. A completed, cancelled, failed, interrupted or running record
+      // is never executed again, whoever asks: the lease and the `once` accounting live in the
+      // service worker, not here (finding 3). Nothing is written.
+      throw new ExecutionError(RUN_NOT_PREPARING, `Run ${JSON.stringify(runId)} is ${found.record.status}, not preparing: a host executes a run exactly once`);
+    }
+    stored = found;
     const run = stored;
     const created = new Date(run.created_at);
     try {

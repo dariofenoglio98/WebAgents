@@ -23,7 +23,10 @@ portable checks of `scripts/verify_webair_live.py` (the OpenClaw live acceptance
 
 The needle values come from `demo/webair/host-resources.json` (the fictional demo set); only class
 names and counts reach the report. The report is rewritten in place with `checks`, `runs` and
-`verification`; `passed` is false if any check fails.
+`verification`; `passed` is false if any check fails. The run directories live under the
+git-ignored `examples/my-chrome-live-*`: when any of them is missing (a clean checkout) the script
+refuses and writes nothing, so the committed evidence is never overwritten with a failing report
+(T5 review 1, nit 8).
 """
 
 from __future__ import annotations
@@ -99,7 +102,9 @@ def needles() -> dict[str, list[str]]:
         value = resource["value"]
         if resource["type"] == "personal.passenger_identity":
             classes["passenger_email"].append(value["contact_email"])
-            classes["passenger_full_name"].append(f"{value['given_name']} {value['family_name']}")
+            classes["passenger_full_name"].append(
+                f"{value['given_name']} {value['family_name']}"
+            )
             classes["passenger_given_name_word"].append(value["given_name"])
             classes["passenger_family_name_word"].append(value["family_name"])
         if resource["type"] == "wallet.payment_method":
@@ -114,7 +119,9 @@ def count(classes: dict[str, list[str]], text: str) -> dict[str, int]:
     for name, values in classes.items():
         if name.endswith("_word"):
             counts[name] = sum(
-                1 for value in values if re.search(rf"(?<!\w){re.escape(value)}(?!\w)", text)
+                1
+                for value in values
+                if re.search(rf"(?<!\w){re.escape(value)}(?!\w)", text)
             )
         else:
             counts[name] = sum(1 for value in values if value in text)
@@ -146,7 +153,9 @@ def model_task(body: str) -> str | None:
     return None
 
 
-def run_facts(phase: str, directory: Path, classes: dict[str, list[str]], model: str) -> dict:
+def run_facts(
+    phase: str, directory: Path, classes: dict[str, list[str]], model: str
+) -> dict:
     record = json.loads((directory / "run.json").read_text())
     audit = json.loads((directory / "audit.json").read_text())
     plan = json.loads((directory / "run-plan.json").read_text())
@@ -157,7 +166,9 @@ def run_facts(phase: str, directory: Path, classes: dict[str, list[str]], model:
     tools = [line for line in lines if line["kind"] == "tool"]
     dispatched = [e for e in audit if e.get("action") == "tool.dispatched"]
     remote = [e for e in dispatched if e.get("remote")]
-    settled = [e for e in audit if e.get("action") == "tool.settled" and e.get("resource_id")]
+    settled = [
+        e for e in audit if e.get("action") == "tool.settled" and e.get("resource_id")
+    ]
     called_tasks = [e.get("task") for e in audit if e.get("action") == "model.called"]
     refused_tools = [
         e.get("tool")
@@ -214,7 +225,8 @@ def run_facts(phase: str, directory: Path, classes: dict[str, list[str]], model:
         "cost": record.get("cost"),
         "duration_ms": record.get("durationMs"),
         "decisions": {
-            item["permissionId"]: item["decision"] for item in record["grants"]["decisions"]
+            item["permissionId"]: item["decision"]
+            for item in record["grants"]["decisions"]
         },
         "resource_grants": [
             {
@@ -229,7 +241,9 @@ def run_facts(phase: str, directory: Path, classes: dict[str, list[str]], model:
         "run_plan": {
             "id": plan["run_plan_id"],
             "sha256": plan["run_plan_sha256"],
-            "profile": (plan["authorization"].get("provenance") or {}).get("profile_id"),
+            "profile": (plan["authorization"].get("provenance") or {}).get(
+                "profile_id"
+            ),
             "denied_tools": plan["execution"]["denied_tool_ids"],
         },
         "audit": {
@@ -298,7 +312,11 @@ def run_facts(phase: str, directory: Path, classes: dict[str, list[str]], model:
         },
     )
     for line in model_lines:
-        bad = [name for name in PROHIBITED_IN_MODEL_INPUT if name in line["classes_in_request"]]
+        bad = [
+            name
+            for name in PROHIBITED_IN_MODEL_INPUT
+            if name in line["classes_in_request"]
+        ]
         check(
             f"{phase}_model_{line['task'] or 'unknown'}_holds_no_host_data",
             not bad and not line["card_like_digits"],
@@ -310,7 +328,11 @@ def run_facts(phase: str, directory: Path, classes: dict[str, list[str]], model:
         if any(value in evidence_text for value in classes[name])
     ]
     facts["artifacts_hold_no_identity_or_payment_identifier"] = not leaked
-    check(f"{phase}_artifacts_hold_no_email_name_or_payment_identifier", not leaked, leaked or None)
+    check(
+        f"{phase}_artifacts_hold_no_email_name_or_payment_identifier",
+        not leaked,
+        leaked or None,
+    )
     return facts
 
 
@@ -389,7 +411,8 @@ def phase_checks(
         check(
             "booking_identity_resolved_through_the_host",
             "personal.passenger_identity" in resolved_tools
-            and set(resolved_tools) <= {"personal.passenger_identity", "personal.travel_profile"},
+            and set(resolved_tools)
+            <= {"personal.passenger_identity", "personal.travel_profile"},
             facts["audit"]["resources_resolved"],
         )
         identity_paths = sorted(
@@ -413,7 +436,8 @@ def phase_checks(
         )
         text = json.dumps(booking.get("booking"))
         check(
-            "booking_result_is_redacted", "contact_email" not in text and "given_name" not in text
+            "booking_result_is_redacted",
+            "contact_email" not in text and "given_name" not in text,
         )
         return {
             "quote_id": quote_id,
@@ -426,7 +450,8 @@ def phase_checks(
         output = json.loads((directory / "result.json").read_text()).get("output") or {}
         check(
             "purchase_completed",
-            facts["status"] == "completed" and output.get("status") == "purchase_simulated",
+            facts["status"] == "completed"
+            and output.get("status") == "purchase_simulated",
             {"status": facts["status"], "output_status": output.get("status")},
         )
         check(
@@ -434,7 +459,10 @@ def phase_checks(
             purchase.get("simulated") is True
             and purchase.get("real_transaction") is False
             and purchase.get("amount_charged_usd") == 0,
-            {k: purchase.get(k) for k in ("simulated", "real_transaction", "amount_charged_usd")},
+            {
+                k: purchase.get(k)
+                for k in ("simulated", "real_transaction", "amount_charged_usd")
+            },
         )
         check(
             "purchase_authority_was_once",
@@ -478,7 +506,10 @@ def phase_checks(
         check(
             "purchase_used_the_quote_the_booking_returned",
             quote is not None and purchase.get("quote_id") == quote["quote_id"],
-            {"purchase": purchase.get("quote_id"), "booking": quote and quote["quote_id"]},
+            {
+                "purchase": purchase.get("quote_id"),
+                "booking": quote and quote["quote_id"],
+            },
         )
         check(
             "purchase_made_one_model_call_only",
@@ -511,13 +542,15 @@ def phase_checks(
         check(
             "denial_resolved_no_payment_resource",
             not any(
-                r["tool"] == "wallet.payment_method" for r in facts["audit"]["resources_resolved"]
+                r["tool"] == "wallet.payment_method"
+                for r in facts["audit"]["resources_resolved"]
             ),
             facts["audit"]["resources_resolved"],
         )
         check(
             "denial_called_no_webair_operation",
-            not facts["observed_webair_requests"] and not facts["audit"]["tool_dispatches"],
+            not facts["observed_webair_requests"]
+            and not facts["audit"]["tool_dispatches"],
         )
         check(
             "denial_made_no_model_call",
@@ -563,7 +596,10 @@ def package_and_origin(network: bool) -> dict:
             health = json.loads(response.read())
         with urllib.request.urlopen(f"{SITE}/agent.pkg", timeout=60) as response:
             served = response.read()
-        facts["origin"] = {"health": health, "served_sha256": hashlib.sha256(served).hexdigest()}
+        facts["origin"] = {
+            "health": health,
+            "served_sha256": hashlib.sha256(served).hexdigest(),
+        }
         check(
             "origin_health_names_the_0_4_0_artifact",
             health.get("agent_package_sha256") == facts["archive_sha256"],
@@ -596,7 +632,9 @@ def generic_code() -> dict:
     presentation = [
         o
         for o in offenders
-        if o.startswith(("src/extension/sidepanel/sidepanel.ts", "src/extension/ui/vault-page.ts"))
+        if o.startswith(
+            ("src/extension/sidepanel/sidepanel.ts", "src/extension/ui/vault-page.ts")
+        )
     ]
     behaviour = [o for o in offenders if o not in presentation]
     check("no_webair_specific_generic_code", not behaviour, behaviour or None)
@@ -613,9 +651,12 @@ def main() -> int:
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     parser.add_argument(
-        "--report", default=str(ROOT / "examples/verification/chrome-webair-040-live.json")
+        "--report",
+        default=str(ROOT / "examples/verification/chrome-webair-040-live.json"),
     )
-    parser.add_argument("--no-network", action="store_true", help="skip the public-origin checks")
+    parser.add_argument(
+        "--no-network", action="store_true", help="skip the public-origin checks"
+    )
     args = parser.parse_args()
     report_path = Path(args.report)
     document = json.loads(report_path.read_text())
@@ -625,6 +666,29 @@ def main() -> int:
         if k not in ("checks", "runs_verified", "verification", "passed_verification")
     }
     model = harness["model"]
+    missing = [
+        phase
+        for phase in PHASES
+        if not (
+            ROOT
+            / ((harness.get("runs") or {}).get(phase) or {}).get("directory", "<none>")
+            / "run.json"
+        ).exists()
+    ]
+    if missing:
+        print(
+            json.dumps(
+                {
+                    "report": str(report_path),
+                    "error": "exported run directories are missing; nothing was written",
+                    "missing_phases": missing,
+                    "hint": "run chrome-agent-browser/scripts/e2e-webair-live.mjs first, or verify on the machine that holds examples/my-chrome-live-*",
+                },
+                indent=2,
+            ),
+            file=sys.stderr,
+        )
+        return 2
     classes = needles()
     check("harness_passed", harness.get("passed") is True, harness.get("failures"))
     check(
@@ -647,7 +711,9 @@ def main() -> int:
             continue
         directory = ROOT / entry["directory"]
         if not (directory / "run.json").exists():
-            check(f"{phase}_run_recorded", False, f"missing {entry['directory']}/run.json")
+            check(
+                f"{phase}_run_recorded", False, f"missing {entry['directory']}/run.json"
+            )
             continue
         facts = run_facts(phase, directory, classes, model)
         outcome = phase_checks(phase, facts, directory, harness, quote)
@@ -699,7 +765,10 @@ def main() -> int:
         )
     )
     if not document["passed"]:
-        print("FAILED: " + ", ".join(c["id"] for c in CHECKS if not c["passed"]), file=sys.stderr)
+        print(
+            "FAILED: " + ", ".join(c["id"] for c in CHECKS if not c["passed"]),
+            file=sys.stderr,
+        )
         return 1
     return 0
 
