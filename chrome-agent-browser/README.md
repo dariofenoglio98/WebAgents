@@ -44,7 +44,11 @@ What it shows today, on the WebAir demo site:
    ready and not stale, authorization outlasting the run deadline, task valid) and the task form
    built from the package's own input schema; Run is enabled only when every item holds, and it
    names the first that does not. A run executes in an **offscreen document's Worker** (D-070):
-   closing the panel or the page does not touch it, and reopening shows it again. Progress by
+   closing the panel or the page does not touch it. A reopened side panel, or a full page opened
+   without a session, asks the service worker for the run in flight (the one opened from the
+   active tab's page first, else the most recent) and shows it again with Cancel; **Inspect**
+   pressed again on the same page while that run is in flight returns the same session (D-076).
+   Progress by
    stage and worker, model and tool calls, tokens; **Cancel** stops within one wave, is never
    lost (a cancel accepted before the Worker exists is stored and read when it starts), and a
    cancel no host can take interrupts the run (D-075). The result is
@@ -58,9 +62,16 @@ What it shows today, on the WebAir demo site:
    `OLLAMA_ORIGINS` commands to copy, and a diagnosis that tells "not running" apart from
    "rejecting this extension's origin"), OpenAI and Anthropic with your own keys (typed into
    `chrome.storage.local`, never shown again, never sent anywhere but the provider), and Chrome's
-   built-in model with its download state. About holds the run limits and a **test mode** switch
-   that records every outbound request body of a run for the privacy checks (D-028).
-7. **Settings → Models** lists the routes (local Ollama, OpenAI and Anthropic with your own
+   built-in model with its download state. Each connection chip says when it was checked
+   ("reachable · 4 models · checked 14:02:31"); opening the Models section clears the old answers
+   and tests every enabled connection again. A provider that stops answering makes its models
+   **not available**, with its address ("Ollama stopped answering at http://127.0.0.1:11434"),
+   never "unverified"; preparing a plan re-reads the providers first, and the plan and Run
+   messages point to Test connection (D-077). OpenAI's o-series, GPT-5 and GPT-6 families
+   reason by default (`openai/gpt-5.6-luna`, `openai/gpt-6-astra`); a statement in Settings →
+   Models overrides that either way (D-078). About holds the run limits and a **test mode**
+   switch that records every outbound request body of a run for the privacy checks (D-028).
+9. **Settings → Models** lists the routes (local Ollama, OpenAI and Anthropic with your own
    keys, Chrome's built-in model), tests each connection, lets you state a model's limits and
    pick the default model (Ollama must run on this machine, started with `OLLAMA_ORIGINS`
    including `chrome-extension://*`; a remote Ollama endpoint is refused, since its models would
