@@ -302,7 +302,9 @@ export async function runCommand(args: string[]): Promise<number> {
   const result = outcome.result;
   if (result.status !== "completed") {
     const failure = result.failure as JsonObject | null;
-    const node = failure && typeof failure.node_id === "string" ? `${failure.node_id}${typeof failure.step_id === "string" ? `/${failure.step_id}` : ""}` : null;
+    // agentpkg's line (D-064): the node only. The step stays in result.json's audit; naming it
+    // here made the two runtimes' refusals differ (found by the conformance suite, T7).
+    const node = failure && typeof failure.node_id === "string" ? failure.node_id : null;
     process.stderr.write(`agent-browser: workflow.v0 ${result.error_code ?? "worker_error"}${node ? ` at node ${node}` : ""}\n`);
     return 2;
   }

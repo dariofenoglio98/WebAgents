@@ -239,7 +239,7 @@ def test_a_probe_of_a_denied_tool_is_refused(control):
 
 def test_an_unknown_or_malformed_profile_is_refused(control):
     session, digest = opened(control)
-    for profile_id, code in (("everything", "unknown_profile"), ("", "invalid_request")):
+    for profile_id, code in (("everything", "profile_unknown"), ("", "invalid_request")):
         with pytest.raises(ControlPlaneError) as refused:
             control.authorize(
                 session,
@@ -252,7 +252,7 @@ def test_an_unknown_or_malformed_profile_is_refused(control):
     other, other_digest = opened(control, WEBAIR_030)
     with pytest.raises(ControlPlaneError) as refused:
         control.authorize(other, package_digest=other_digest, decisions={}, profile_id="search")
-    assert refused.value.code == "unknown_profile"
+    assert refused.value.code == "profile_unknown"
 
 
 # -- the runner ----------------------------------------------------------------

@@ -1,0 +1,74 @@
+{
+  "stale_trust_revoked": {
+    "title": "Stale plan: the publisher's key is unpinned after the plan was prepared",
+    "decisions": {
+      "booking.simulate_purchase": "session"
+    },
+    "then": [
+      "lease",
+      "revoke_trust",
+      "lease"
+    ]
+  },
+  "stale_tool_changed": {
+    "title": "Stale plan: the host's implementation of a bound tool changed after the plan was prepared",
+    "decisions": {
+      "booking.simulate_purchase": "session"
+    },
+    "then": [
+      "lease",
+      "change_tool:search-flights",
+      "lease"
+    ]
+  },
+  "once_replayed": {
+    "title": "Replayed once: a receipt that grants the purchase once is used for a second lease",
+    "then": [
+      "lease",
+      "lease"
+    ]
+  },
+  "profile_search": {
+    "title": "Profile-scoped approvals: the 'search' profile, its two tools approved, the other five left unapproved and unimplemented",
+    "profile_id": "search",
+    "decisions": {
+      "profile.travel": "deny",
+      "identity.passenger": "deny",
+      "wallet.payment": "deny",
+      "booking.simulate_purchase": "deny"
+    },
+    "tool_approvals": {
+      "prepare-booking": false,
+      "simulate-purchase": false,
+      "personal.travel_profile": false,
+      "personal.passenger_identity": false,
+      "wallet.payment_method": false
+    },
+    "registry_only": [
+      "get-fare-rules",
+      "search-flights"
+    ],
+    "then": [
+      "lease"
+    ]
+  },
+  "partial_approvals_without_profile": {
+    "title": "The same decisions without a profile, every tool implemented: Python requires every declared tool approved, Chrome denies the unapproved ones (D-090)",
+    "decisions": {
+      "profile.travel": "deny",
+      "identity.passenger": "deny",
+      "wallet.payment": "deny",
+      "booking.simulate_purchase": "deny"
+    },
+    "tool_approvals": {
+      "prepare-booking": false,
+      "simulate-purchase": false,
+      "personal.travel_profile": false,
+      "personal.passenger_identity": false,
+      "wallet.payment_method": false
+    },
+    "then": [
+      "lease"
+    ]
+  }
+}

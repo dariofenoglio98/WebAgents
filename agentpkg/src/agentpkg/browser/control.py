@@ -595,10 +595,12 @@ class ControlPlane:
                 raise ControlPlaneError("invalid_request", "profile_id must be a non-empty string")
             profile = find_profile(session.package, profile_id)
             if profile is None:
+                # The Chrome worker's code and status for the same refusal.
                 raise ControlPlaneError(
-                    "unknown_profile",
-                    f"This package declares no valid profile {profile_id!r}",
-                    details={"profiles": read_profiles(session.package)},
+                    "profile_unknown",
+                    f"This package declares no usable profile {profile_id!r}",
+                    status=404,
+                    details={"notes": read_profiles(session.package)["notes"]},
                 )
         granted = normalize_decisions(session.package, decisions)
         approvals = normalize_tool_approvals(session.package, tool_approvals)
