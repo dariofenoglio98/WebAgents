@@ -72,6 +72,23 @@ describe("publisher-declared profiles (spec/extensions/profiles-v0.md)", () => {
     expect(report.profiles?.[0]?.estimate?.notes).toMatch(/recorded runs/u);
   });
 
+  it("counts characters as code points, as JSON Schema and the Python runtime do (T7 review 1, finding 3)", async () => {
+    const astral = "\u{1F6EB}".repeat(60);
+    expect(astral.length).toBe(120);
+    const value = mutated((v) => ((v.profiles as JsonObject[])[0]!.title = astral));
+    expect(await extensionSchemaFailure(value, "profiles-v0")).toBeNull();
+    const report = readProfiles(withProfiles(await webair(), value));
+    expect(report.notes).toEqual([]);
+    expect(report.profiles?.[0]?.title).toBe(astral);
+    const longer = readProfiles(withProfiles(await webair(), mutated((v) => ((v.profiles as JsonObject[])[0]!.title = `${astral}x`))));
+    expect(longer.notes[0]).toMatch(/title must be one line of at most 60 characters/u);
+  });
+
+  it("quotes an unknown field name as the Python runtime does, control characters included", async () => {
+    const report = readProfiles(withProfiles(await webair(), mutated((v) => ((v.profiles as JsonObject[])[0]!["a\u0001b"] = 1))));
+    expect(report.notes[0]).toMatch(/unknown field "a\\u0001b"$/u);
+  });
+
   const violations: Array<[string, (value: JsonObject) => void, RegExp]> = [
     ["rule 1: undeclared permission", (v) => ((v.profiles as JsonObject[])[0]!.permissions as string[]).push("network.other"), /undeclared permission/u],
     ["rule 1: undeclared tool", (v) => ((v.profiles as JsonObject[])[0]!.tools as string[]).push("teleport"), /undeclared tool/u],

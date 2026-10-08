@@ -87,6 +87,30 @@ describe("Pacer", () => {
     expect(pacer.load("g")).toEqual({ active: 0, waiting: 0 });
   });
 
+  it("withdrawing a cancelled reservation keeps the floor an answer set meanwhile (T7 review 1, finding 1)", async () => {
+    let now = 0;
+    const pacer = new Pacer(() => now);
+    const limits = { maxConcurrent: 2, minIntervalMs: 1_000 };
+    // A starts at 0; B reserves 1 s and waits for it.
+    const a = await pacer.acquire("i", limits, new AbortController().signal);
+    const controller = new AbortController();
+    const b = pacer.acquire("i", limits, controller.signal);
+    // A answers at 0.3 s: the next start may not come before 1.3 s.
+    now = 300;
+    a();
+    // B is cancelled at 0.5 s, before its start: its 1 s reservation is withdrawn.
+    now = 500;
+    controller.abort(new CancelledError());
+    await expect(b).rejects.toBeInstanceOf(CancelledError);
+    // C at 1 s must still wait for 1.3 s (one interval after A's answer), not start at once.
+    now = 1_000;
+    const started = Date.now();
+    const c = await pacer.acquire("i", limits, new AbortController().signal);
+    expect(Date.now() - started).toBeGreaterThanOrEqual(250);
+    c();
+    expect(pacer.load("i")).toEqual({ active: 0, waiting: 0 });
+  });
+
   it("a slot handed to a waiter whose signal aborted in the same turn is given back at once (T6 review, nit 3)", async () => {
     let now = 0;
     const pacer = new Pacer(() => now);

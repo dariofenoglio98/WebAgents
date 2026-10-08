@@ -16,6 +16,7 @@ so a plan may leave it unbound, and the runtime refuses any call to it.
 
 from __future__ import annotations
 
+import json
 import re
 
 from ..package import Package
@@ -41,8 +42,8 @@ def _fail(message: str):
 
 
 def _quote(value: str) -> str:
-    # JSON.stringify's spelling, so both runtimes write the same notes.
-    return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
+    # JSON.stringify's spelling, so both runtimes write the same notes (control characters too).
+    return json.dumps(value, ensure_ascii=False)
 
 
 def _identifiers(value, field: str, where: str) -> list[str]:
@@ -65,10 +66,13 @@ def _line(value, field: str, where: str, limit: int) -> str:
 
 
 def _count(value, field: str, where: str) -> int:
+    # JSON Schema's "integer": any number with a zero fractional part, so `1000.0` counts as
+    # the Chrome core's `Number.isInteger` reads it (spec §3; T7 review 1, finding 2).
     maximum = _ESTIMATE_LIMITS[field]
-    if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= maximum:
+    integral = isinstance(value, int) or (isinstance(value, float) and value.is_integer())
+    if isinstance(value, bool) or not integral or not 0 <= value <= maximum:
         _fail(f"{where}: estimate.{field} must be an integer between 0 and {maximum}")
-    return value
+    return int(value)
 
 
 def _shape(raw) -> list[dict]:

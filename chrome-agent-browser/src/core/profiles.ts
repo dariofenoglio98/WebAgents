@@ -64,8 +64,15 @@ function identifiers(value: JsonValue | undefined, field: string, where: string)
   return out;
 }
 
+/** Characters are Unicode code points, as JSON Schema's `maxLength` and Python's `len` count them (spec §3; T7 review 1, finding 3). */
+function codePoints(value: string): number {
+  let count = 0;
+  for (const _ of value) count += 1;
+  return count;
+}
+
 function line(value: JsonValue | undefined, field: string, where: string, limit: number): string {
-  if (typeof value !== "string" || !LINE.test(value) || value.length > limit) {
+  if (typeof value !== "string" || !LINE.test(value) || codePoints(value) > limit) {
     fail(`${where}: ${field} must be one line of at most ${limit} characters`);
   }
   return value;

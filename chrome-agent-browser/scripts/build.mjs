@@ -52,6 +52,9 @@ function browserFieldPlugin() {
 }
 
 const common = {
+  // Inputs (and the metafile's paths) resolve against the package, whatever the caller's working
+  // directory: `node chrome-agent-browser/scripts/build.mjs` from the repository root works too.
+  absWorkingDir: project,
   bundle: true,
   minify: false,
   sourcemap: false,

@@ -56,7 +56,7 @@ def main(name: str) -> dict:
     )
     entry = plane.trust_add(KEY, display_name="WebAir demo publisher", publisher_id="webair-demo")
     package_path = ROOT / WORLD["package"]
-    opened = plane._open_bytes(package_path.read_bytes(), {"kind": "file", "display": "pkg"})
+    opened = plane.open_file(str(package_path))
     session = opened["session"]["id"]
     digest = opened["package"]["digest"]
     decisions = {**WORLD["decisions"], **scenario.get("decisions", {})}

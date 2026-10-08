@@ -137,6 +137,39 @@ def test_an_invalid_value_is_ignored_as_a_whole(mutate, note):
     assert note in report["notes"][0], report["notes"]
 
 
+def _with_profiles(mutate):
+    import copy
+
+    package = load_package(WEBAIR)
+    manifest = copy.deepcopy(package.manifest)
+    mutate(manifest["extensions"][PROFILES_EXTENSION]["profiles"])
+    return SimpleNamespace(manifest=manifest, policy=package.policy, tools=package.tools)
+
+
+def test_an_integral_float_estimate_is_an_integer_as_in_the_chrome_core():
+    # JSON Schema's integer and the Chrome core's Number.isInteger (T7 review 1, finding 2).
+    report = read_profiles(_with_profiles(lambda p: p[0]["estimate"].update(tokens=1000.0)))
+    assert report["notes"] == [] and report["profiles"][0]["estimate"]["tokens"] == 1000
+    assert type(report["profiles"][0]["estimate"]["tokens"]) is int
+    fractional = read_profiles(_with_profiles(lambda p: p[0]["estimate"].update(tokens=1000.5)))
+    assert fractional["profiles"] is None
+    assert "estimate.tokens must be an integer between 0 and" in fractional["notes"][0]
+
+
+def test_lengths_count_code_points_as_the_chrome_core_does():
+    # 60 astral characters are 60 characters, not 120 UTF-16 units (T7 review 1, finding 3).
+    astral = "\U0001F6EB" * 60
+    report = read_profiles(_with_profiles(lambda p: p[0].update(title=astral)))
+    assert report["notes"] == [] and report["profiles"][0]["title"] == astral
+    longer = read_profiles(_with_profiles(lambda p: p[0].update(title=astral + "x")))
+    assert "title must be one line of at most 60 characters" in longer["notes"][0]
+
+
+def test_an_unknown_field_name_is_quoted_as_json_stringify_quotes_it():
+    report = read_profiles(_with_profiles(lambda p: p[0].update({"a\u0001b": 1})))
+    assert report["notes"][0].endswith('unknown field "a\\u0001b"'), report["notes"]
+
+
 # -- the control plane -------------------------------------------------------
 def test_a_profile_lets_tools_outside_it_stay_unapproved_and_unbound(control):
     session, digest = opened(control)

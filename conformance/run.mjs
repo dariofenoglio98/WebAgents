@@ -62,7 +62,11 @@ function spawn(command, argv, { cwd = ROOT, env = {} } = {}) {
 function collect(directory) {
   const files = {};
   if (!existsSync(directory)) return files;
-  for (const name of readdirSync(directory).sort()) files[name] = new Uint8Array(readFileSync(join(directory, name)));
+  for (const entry of readdirSync(directory, { withFileTypes: true }).sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))) {
+    // A subdirectory is reported as an entry of its own, so a runtime that writes one shows up as
+    // a file-set difference rather than a crashed case (T7 review 1, nit 6).
+    files[entry.isDirectory() ? `${entry.name}/` : entry.name] = entry.isDirectory() ? new Uint8Array() : new Uint8Array(readFileSync(join(directory, entry.name)));
+  }
   return files;
 }
 
