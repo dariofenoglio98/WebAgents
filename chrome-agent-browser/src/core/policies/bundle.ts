@@ -148,12 +148,12 @@ export async function readPolicyBundle(content: JsonObject): Promise<PolicyBundl
 }
 
 /** A verified policy-bundle document as this browser holds it. */
-export async function heldPolicy(document: VerifiedDocument): Promise<HeldPolicy> {
-  const bundle = await readPolicyBundle(document.content);
+export async function heldPolicy(verified: VerifiedDocument): Promise<HeldPolicy> {
+  const bundle = await readPolicyBundle(verified.content);
   return {
     bundle,
-    reference: { policy_id: bundle.policy_id, version: bundle.version, title: bundle.title, content_sha256: document.content_sha256, signer_fingerprint: document.signer_fingerprint },
-    document_sha256: document.document_sha256,
+    reference: { policy_id: bundle.policy_id, version: bundle.version, title: bundle.title, content_sha256: verified.content_sha256, signer_fingerprint: verified.signer_fingerprint },
+    document_sha256: verified.document_sha256,
   };
 }
 

@@ -117,8 +117,8 @@ export function readAgentIndex(content: JsonObject): AgentIndex {
 }
 
 /** A verified agent-index document as this browser holds it. */
-export function verifiedIndex(document: VerifiedDocument): VerifiedIndex {
-  return { index: readAgentIndex(document.content), signer_fingerprint: document.signer_fingerprint, content_sha256: document.content_sha256, document_sha256: document.document_sha256 };
+export function verifiedIndex(verified: VerifiedDocument): VerifiedIndex {
+  return { index: readAgentIndex(verified.content), signer_fingerprint: verified.signer_fingerprint, content_sha256: verified.content_sha256, document_sha256: verified.document_sha256 };
 }
 
 /** Whether an index may be used at `now`: inside its validity window (a few minutes of clock skew allowed at the start). */
