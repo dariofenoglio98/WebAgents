@@ -302,3 +302,43 @@ updates, so a person would then also trust whoever controls the store listing to
 reviewed builds; the extension is not published (U5). Loading it unpacked trusts the checkout it
 was built from. As everywhere in this prototype, a package's signature says which key signed it,
 not that its workflow is safe, and the extension's own integrity rests on how it was obtained.
+
+## Search and policy subscriptions (T8)
+
+The Chrome Agent Browser can search signed agent indexes and follow one signed policy bundle
+([guide](chrome-agent-browser.md#9-finding-agents-and-following-a-policy-t8);
+formats in [`spec/extensions/`](../spec/extensions/)). Both are new inputs from the web; this is
+what they can and cannot do.
+
+**An index is metadata.** A compromised, stale or dishonest index can list a package that is not
+what it says, at a URL the index publisher chose, or claim a digest or signer that does not match.
+None of that grants anything: opening a result downloads the package under the same URL rules,
+verifies it, evaluates its signer against the person's trust store and starts authorization from
+nothing; the index's claims are compared with the bytes and a difference is shown. What an index can
+do is steer attention: put a look-alike agent in front of the person. The defences are the agent
+page (the trust words come from the person's own pins, not from the index), ranking only by the
+person's trust in the claimed signer and the index's own order, and the person's choice of which
+indexes to add. An index is fetched only from a URL the person added, under a key they pinned, never
+in the background; a refresh that rolls the version back or reuses it for other content is refused.
+
+**A policy is delegated trust and delegated defaults.** Whoever holds the policy's signing key can,
+for everyone subscribed, make a publisher key trusted within the scope its anchor states and change
+the defaults offered within each profile. That is the point of a policy (F-02), and it is why the
+key is pinned by the person at subscription and the subscription is one explicit choice that names
+its issuer. The bounds, which hold whatever a compromised policy says: the person's own trust pins
+decide before any anchor (a publisher they pinned to another key stays an impersonation signal); an
+anchor needs both a publisher id and a package-id prefix; issuer anchors confer nothing in v0; no
+decision exceeds what the package declares, what the selected profile contains or the person's preset
+duration for its kind (a payment is never more than `once`, `always` does not exist); a policy never
+picks a personal record; caps only lower limits; every decision it made is labelled and can be
+overridden; and unsubscribing withdraws everything at once, making the plans made under it stale. A
+policy cannot make the runtime do anything a receipt does not record. What remains: a malicious
+policy can make an untrusted publisher look trusted within its anchors' scope, so a person who
+subscribes to a policy trusts its issuer as they would trust a key they pin themselves; a policy key
+compromise is a trust-store compromise for everyone subscribed, until they unsubscribe. There is no
+revocation feed (B-22): a withdrawn policy keeps applying until the person refreshes it (a newer
+version) or unsubscribes, or until it expires.
+
+**The NANDA resolver is a stub.** It defines how AgentAddr and AgentFacts map to a package
+candidate and returns nothing in this build. Certification and evaluation fields from AgentFacts
+would be shown as the registry's claims, never as trust.

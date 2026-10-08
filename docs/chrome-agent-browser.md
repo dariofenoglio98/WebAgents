@@ -57,7 +57,7 @@ same packages and reports where they agree and where they differ.
 | | Manifest V3 extension | Node CLI (`dist/cli.js`) |
 |---|---|---|
 | For | people: discover, inspect, authorize, run, review runs | operators and tests: the same core from a terminal |
-| Entry points | service worker, content script, side panel, full page, offscreen document, run Worker, PDF Worker | `verify`, `inspect`, `evaluate`, `run`, `pdf-text` |
+| Entry points | service worker, content script, side panel, full page, offscreen document, run Worker, PDF Worker | `verify`, `inspect`, `evaluate`, `run`, `pdf-text`, `document sign\|verify` |
 | Authorization | profiles, presets, the per-item view, the vault, the model catalog, receipts and Run Plans | the grants file is the receipt, each `--approve-tool` one approval, every other tool denied (D-064) |
 | Network | Chrome's `fetch`, after the core's URL gate (D-026, D-039) | `src/cli-net.ts`: resolves, classifies every address as the Python runtime does, pins the connection (D-067) |
 | Output | IndexedDB records, the run surface, a zip export per run (D-073) | `agentpkg run`'s file set and report; refusals as one stderr line with status 2 (D-038) |
@@ -87,7 +87,7 @@ runtimes accept the same packages and gate on the same minimum version.
 
 | Where | What | Notes |
 |---|---|---|
-| `chrome.storage.local` | `trustStore` (the `agentpkg-trust-store-v0` format), `settings` (presets, model connections and limits, run limits, services), `providerKeys`, `vault` and `vaultKey`, `instanceId`, `spentReceipts` (receipts whose `once` a run used) | never `storage.sync`; keys are typed once and never shown again |
+| `chrome.storage.local` | `trustStore` (the `agentpkg-trust-store-v0` format), `settings` (presets, model connections and limits, run limits, services), `providerKeys`, `vault` and `vaultKey`, `instanceId`, `spentReceipts` (receipts whose `once` a run used), `indexes` (agent indexes with their pinned keys and the signed text last fetched), `policySubscription` (the one followed policy, its pinned key and signed text), `library` (pinned and recently opened agents) | never `storage.sync`; keys are typed once and never shown again; signed documents are re-verified when read |
 | `chrome.storage.session` | per-tab candidates, which views hold which session | cleared when the browser closes |
 | IndexedDB `agent-browser` | `snapshots` (package bytes, by archive SHA-256), `sessions` (with their receipt and Run Plan), `runs` (Run Record, progress, audit, usage, checkpoints), `artifacts` (bytes and SHA-256), `files` (picked PDFs, copied), `observations` (outbound request bodies, test mode only) | `unlimitedStorage`; caps refuse, never evict silently |
 
@@ -156,10 +156,49 @@ zip bytes; across Node releases the members are identical but the deflate stream
 (each Node ships its own zlib), so the content listing, not the zip hash, identifies a build
 across Node versions (D-093).
 
-## 9. What it does not do yet
+## 9. Finding agents and following a policy (T8)
+
+**Resolvers** (`src/core/resolve/`) answer what a person types into the full page's address bar
+when it is not an address: free text, or an agent name in the form `name@host`. Each answer is a
+*candidate*: what a source says a package is and where it is, never authority (paper §VI-a).
+`StaticIndexResolver` searches a signed agent index ([format](../spec/extensions/agent-index-v0.md))
+the person added with its publisher's key; `NandaResolver` is a stub that defines the mapping from a
+NANDA AgentAddr and AgentFacts to a candidate and returns nothing until a registry is configured and
+its signatures can be verified. Results are ranked by the trust status of the signer each source
+claims, then by the source's own order, and by nothing else. **Open and verify** is `package.open`
+of the candidate's URL; the worker compares the index's claims (package id, version, digest,
+archive SHA-256, signer) with the opened bytes and shows the comparison on the agent page.
+
+**Signed documents** ([format](../spec/extensions/signed-document-v0.md)): an index and a policy
+travel in one envelope signed with Ed25519 over a domain string, the content type and the canonical
+content; the envelope names its key by fingerprint and the verifier uses only the key the person
+pinned. Both are fetched under the package rules (HTTPS on 443 to a DNS name, no redirect, no
+credentials, 1 MiB), never in the background, and a refresh never rolls a version back or reuses one
+for other content.
+
+**Policy subscriptions** ([format](../spec/extensions/policy-bundle-v0.md)) are the third way to
+decide at human scale, after publisher profiles and host presets (F-02). One policy at a time; while
+it is current, `PolicyTrust` consults its publisher-key anchors after the person's own trust store,
+`applyPolicy` decides each permission kind it names inside the selected profile and under the
+preset's duration for that kind, tool approvals follow the granted permissions and the policy's
+binding allowlist, every item it decided records `policy`, and the receipt names the policy (D-102).
+The person can override any decision; the worker re-checks every `policy` claim against the policy
+in force. Budget caps lower the run limits; `local_only` and a cost cap refuse models the browser
+cannot keep within them. Unsubscribing, a new version, or expiry makes plans authorized under the
+old policy stale (`policy_withdrawn`, `policy_changed`). The **Library** keeps pinned and recently
+opened agents; opening one downloads and verifies it again.
+
+The demo index and the example "WebAgents research policy" are signed with development keys
+(`examples/keys/webagents-index.pub.pem`, `webagents-policy.pub.pem`) and served beside the WebAir
+origin (and by `package-origin/`). The acceptance harness `scripts/e2e-search-policy.mjs` runs the
+whole path in a real Chrome against a local HTTPS mock of that origin; its evidence is
+[`examples/verification/chrome-search-policy-e2e.json`](../examples/verification/chrome-search-policy-e2e.json).
+
+## 10. What it does not do yet
 
 See the README's [What it does not do yet](../chrome-agent-browser/README.md#what-it-does-not-do-yet):
 the built-in model has not run live, local tools other than the PDF reader and GET services other
 than Crossref stay unbound, pacing is per run rather than per browser, the extension cannot
-classify the addresses DNS names resolve to, and per-origin permissions, Firefox, the Meeting
-Agenda path, search over an index and policy subscriptions are later work.
+classify the addresses DNS names resolve to, NANDA resolution is a stub, a policy's issuer anchors
+are not applied and one policy is followed at a time, and per-origin permissions, Firefox and the
+Meeting Agenda path are later work.
