@@ -490,7 +490,7 @@ export class RunManager {
       runId,
       credentials: { openai: await this.deps.settings.key("openai"), anthropic: await this.deps.settings.key("anthropic") },
       vault: { key: encodeBase64(key), document: await this.deps.settings.vaultDocument() },
-      settings: { ollamaBaseUrl: ollama?.base_url ?? null, think: false, recordRequests: settings.developer.record_requests, runtimeVersion: this.deps.runtimeVersion, verifiedVersion: this.deps.runtimeVersion, crossrefContact: settings.services.crossref_contact },
+      settings: { ollamaBaseUrl: ollama?.base_url ?? null, think: settings.models.connections.find((connection) => connection.provider === "ollama")?.think === true, recordRequests: settings.developer.record_requests, runtimeVersion: this.deps.runtimeVersion, verifiedVersion: this.deps.runtimeVersion, crossrefContact: settings.services.crossref_contact },
     };
   }
 

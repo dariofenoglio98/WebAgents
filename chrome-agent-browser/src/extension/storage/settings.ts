@@ -34,6 +34,12 @@ export interface StoredConnection {
   enabled: boolean;
   base_url: string | null;
   overrides: Record<string, ModelOverride>;
+  /**
+   * Ollama only (T6): send `think: true`, as the reference host's Ollama route did for the
+   * accepted local Literature Review runs. Off by default (D-062): with `format` plus thinking,
+   * Ollama can exceed a node's output cap, which halts the run.
+   */
+  think?: boolean;
 }
 
 export interface Settings {
@@ -166,6 +172,7 @@ export function normalizeSettings(raw: unknown): Settings {
         enabled: item.enabled === true,
         base_url: provider === "chrome-builtin" ? null : normalizeBaseUrl(provider, item.base_url),
         overrides: normalizeOverrides(item.overrides),
+        ...(provider === "ollama" && item.think === true ? { think: true } : {}),
       });
     }
   }

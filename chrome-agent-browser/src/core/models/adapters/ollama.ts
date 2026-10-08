@@ -39,7 +39,8 @@ export class OllamaAdapter implements ProviderAdapter {
   readonly domains: readonly string[];
   readonly pricing: ModelPricing | null;
   readonly baseUrl: string;
-  private readonly think: boolean;
+  /** Whether requests carry `think: true` (the host's setting, recorded in the router's description). */
+  readonly thinking: boolean;
 
   constructor(private readonly options: OllamaAdapterOptions) {
     this.model_id = options.model;
@@ -52,7 +53,7 @@ export class OllamaAdapter implements ProviderAdapter {
     this.context_window = options.contextWindow;
     this.domains = this.remote ? [host] : [];
     this.pricing = options.pricing ?? null;
-    this.think = options.think ?? false;
+    this.thinking = options.think ?? false;
   }
 
   async complete(rendered: RenderedRequest, maxOutputTokens: number, signal: AbortSignal): Promise<ProviderCompletion> {
@@ -64,7 +65,7 @@ export class OllamaAdapter implements ProviderAdapter {
         { role: "user", content: rendered.user },
       ],
       stream: false,
-      think: this.think,
+      think: this.thinking,
       options: { num_ctx: this.context_window, num_predict: maxOutputTokens },
     };
     if (format !== null) body.format = format;

@@ -21,10 +21,11 @@
  *   npm run build && node scripts/e2e-literature-live.mjs --model openai/gpt-5.6-luna
  *        [--input examples/literature-review-live-input.json] [--document DOI=/abs/paper.pdf]...
  *        [--crossref-contact you@example.org] [--out report.json] [--out-dir examples/my-chrome-lit-<ts>]
- *        [--chrome path] [--no-reload] [--keep]
+ *        [--chrome path] [--no-reload] [--think] [--keep]
  *   A hosted model needs OPENAI_API_KEY or ANTHROPIC_API_KEY in the environment; the key is typed
  *   into this throwaway profile's storage and written nowhere by this script. A local Ollama model
- *   gets the explicit 65,536 / 16,384 limits the reference host used (STATE.md §5).
+ *   gets the explicit 65,536 / 16,384 limits the reference host used (STATE.md §5); `--think` turns
+ *   on Settings → Models → "Let local models think", as the reference's accepted local runs had it.
  */
 import { execFileSync, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -48,7 +49,7 @@ const PACKAGE_URL = `https://${SITE_HOST}/literature-review.agent.pkg`;
 const LONG_RUN_LIMITS = { total_tokens: 180_000, max_remote_calls: 45, max_parallel_workers: 3, max_output_tokens_per_call: 16_000, run_timeout_seconds: 4_500, max_calls_per_tool: 32, model_call_timeout_seconds: 1_200 };
 const TERMINAL = ["completed", "failed", "cancelled", "interrupted"];
 
-const args = { chrome: process.env.CHROME_PATH || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", model: null, input: join(ROOT, "examples", "literature-review-live-input.json"), documents: [], contact: null, out: join(ROOT, "examples", "verification", "chrome-literature-review-live.json"), outDir: null, reload: true, keep: false };
+const args = { chrome: process.env.CHROME_PATH || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", model: null, input: join(ROOT, "examples", "literature-review-live-input.json"), documents: [], contact: null, out: join(ROOT, "examples", "verification", "chrome-literature-review-live.json"), outDir: null, reload: true, think: false, keep: false };
 for (let index = 2; index < process.argv.length; index += 1) {
   const argument = process.argv[index];
   if (argument === "--chrome") args.chrome = process.argv[(index += 1)];
@@ -66,6 +67,7 @@ for (let index = 2; index < process.argv.length; index += 1) {
   else if (argument === "--out") args.out = resolve(process.argv[(index += 1)]);
   else if (argument === "--out-dir") args.outDir = resolve(process.argv[(index += 1)]);
   else if (argument === "--no-reload") args.reload = false;
+  else if (argument === "--think") args.think = true;
   else if (argument === "--keep") args.keep = true;
   else {
     console.error(`unknown argument ${argument}`);
@@ -100,6 +102,7 @@ const report = {
   profile: "chrome-literature-review-live-v0",
   recordedAt: startedAt.toISOString(),
   model: args.model,
+  think: args.think,
   package: { path: relative(ROOT, PACKAGE), archiveSha256: sha256(readFileSync(PACKAGE)), servedAs: PACKAGE_URL },
   input: relative(ROOT, args.input),
   documents: args.documents.map((item) => ({ doi: item.doi, file: basename(item.path), sha256: sha256(readFileSync(item.path)) })),
@@ -209,7 +212,7 @@ async function main() {
     settings.models.connections = settings.models.connections.map((connection) => {
       if (connection.provider !== provider) return connection;
       const modelId = args.model.slice(provider.length + 1);
-      return { ...connection, enabled: true, overrides: provider === "ollama" ? { ...connection.overrides, [modelId]: { context_tokens: 65_536, max_output_tokens: 16_384 } } : connection.overrides };
+      return { ...connection, enabled: true, ...(provider === "ollama" ? { think: args.think } : {}), overrides: provider === "ollama" ? { ...connection.overrides, [modelId]: { context_tokens: 65_536, max_output_tokens: 16_384 } } : connection.overrides };
     });
     await send({ type: "settings.set", settings });
     if (keyEnv) await send({ type: "settings.setKey", provider, key: process.env[keyEnv] });

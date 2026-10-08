@@ -142,6 +142,13 @@ function connectionCard(view: SettingsView, connection: StoredConnection, state:
     el("p", { className: "ab-hint", text: PROVIDER_HINTS[provider] }),
   ];
   if (provider === "ollama") {
+    const think = el("input", { attrs: { type: "checkbox", name: "ollama-think", "aria-label": "Let local models think" } });
+    think.checked = connection.think === true;
+    think.addEventListener("change", () => actions.onSave(withConnection(view.settings, provider, (item) => ({ ...item, think: think.checked }))));
+    children.push(
+      el("label", { className: "ab-field ab-inline" }, think, " ", el("span", { text: "Let local models think" })),
+      el("p", { className: "ab-hint", text: "Sends Ollama's think option, as the reference host did for its accepted local research runs: slower, and needed by reasoning-heavy agents on models such as qwen3:30b. Off by default because Ollama can then write more than a step's output cap, and a run that does is stopped." }),
+    );
     // The one-time setup, as copyable commands (B-117): after the command, restart Ollama, then Test connection.
     children.push(
       el("h4", { text: "Allow this extension in Ollama (once)" }),

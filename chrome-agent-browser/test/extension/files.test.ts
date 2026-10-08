@@ -196,3 +196,23 @@ describe("Settings → Run limits (B-118, D-084)", () => {
     await h.host.drain();
   });
 });
+
+describe("Settings → Models → Let local models think (T6)", () => {
+  it("is off by default; when on, the run's Ollama requests carry think: true and the router's description says so", async () => {
+    const { h, session, result } = await readerWorld();
+    const settings = ((await h.controller.handle({ type: "settings.get" }, PAGE)) as SettingsView).settings;
+    expect(settings.models.connections.find((connection) => connection.provider === "ollama")?.think).toBeUndefined();
+    await h.controller.handle({ type: "settings.set", settings: { ...settings, models: { ...settings.models, connections: settings.models.connections.map((connection) => (connection.provider === "ollama" ? { ...connection, think: true } : connection)) } } }, PAGE);
+    const stored = ((await h.controller.handle({ type: "settings.get" }, PAGE)) as SettingsView).settings;
+    expect(stored.models.connections.find((connection) => connection.provider === "ollama")?.think).toBe(true);
+    // Another provider cannot carry the switch.
+    expect(stored.models.connections.find((connection) => connection.provider === "openai")?.think).toBeUndefined();
+    const file = ((await h.controller.handle({ type: "files.add", name: "probe.pdf", base64: b64(PROBE) }, PAGE)) as FilesView).files[0]!;
+    const run = await start(h, session, result, { file_id: file.file_id });
+    expect(h.host.started.at(-1)!.settings.think).toBe(true);
+    await h.host.drain();
+    // The execution result (the host's record of the run) describes the router it was given.
+    const executed = (await h.runs.getRun(run.runId))!.result as { router: { thinking?: boolean } };
+    expect(executed.router.thinking).toBe(true);
+  });
+});
