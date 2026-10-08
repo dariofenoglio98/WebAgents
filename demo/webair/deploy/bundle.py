@@ -10,6 +10,10 @@ The bundle holds exactly what the public origin runs:
     requirements.txt                       the origin's pinned runtime dependencies
     origin/**.py, **.html, **.css          the origin's code, templates and stylesheet
     agent.pkg                              the one signed package /agent.pkg serves, verbatim
+    demo/agent-index.json                  the WebAgents demo documents served beside the
+    demo/policies/webagents-research.json  airline (T8, `origin/demo_documents.py`): the signed
+    demo/packages/literature-review-…      index, the signed example policy, and the signed
+                                           Literature Review package the index lists, verbatim
     BUNDLE.json                            what is in it: every file's size and SHA-256
 
 Nothing else from the repository goes in. In particular the demo host's own configuration
@@ -35,6 +39,18 @@ from pathlib import Path
 DEPLOY = Path(__file__).resolve().parent
 DEMO = DEPLOY.parent
 ORIGIN = DEMO / "origin"
+REPO = DEMO.parent.parent
+# The WebAgents demo documents (T8): bundle path → repository source, all signed artifacts.
+DEMO_DOCUMENTS = {
+    "demo/agent-index.json": REPO / "examples" / "agent-index.json",
+    "demo/policies/webagents-research.json": REPO
+    / "examples"
+    / "policies"
+    / "webagents-research.json",
+    "demo/packages/literature-review-0.2.5.agent.pkg": REPO
+    / "dist"
+    / "literature-review-0.2.5.agent.pkg",
+}
 HOST_RESOURCES = DEMO / "host-resources.json"
 MAX_PACKAGE_BYTES = 16 * 1024 * 1024
 ORIGIN_SUFFIXES = {".py", ".html", ".css"}
@@ -69,6 +85,8 @@ def allowlist(package: Path) -> dict[str, bytes]:
         "requirements.txt": (DEMO / "requirements.txt").read_bytes(),
         "agent.pkg": package.read_bytes(),
     }
+    for name, source in DEMO_DOCUMENTS.items():
+        files[name] = source.read_bytes()
     for path in sorted(ORIGIN.rglob("*")):
         if path.is_file() and path.suffix in ORIGIN_SUFFIXES and "__pycache__" not in path.parts:
             files[f"origin/{path.relative_to(ORIGIN).as_posix()}"] = path.read_bytes()
@@ -103,7 +121,7 @@ def leaks(files: dict[str, bytes]) -> list[str]:
         if Path(name).name in HOST_FILES:
             found.append(f"{name}: a host configuration file")
             continue
-        if name == "agent.pkg":
+        if name.endswith("agent.pkg"):
             continue  # signed bytes, checked by the package's own tests and by verification
         text = data.decode("utf-8", errors="replace")
         found += [f"{name}: {value!r}" for value in values if value in text]

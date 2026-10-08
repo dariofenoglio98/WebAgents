@@ -12,6 +12,32 @@ EXPECTED_SHA256 = (
 
 VERSIONED_PATH = "/literature-review-0.2.5.agent.pkg"
 LATEST_PATH = "/literature-review.agent.pkg"
+# The path the WebAgents demo index names for this package (T8), as the WebAir deployment serves it.
+INDEXED_PATH = "/packages/literature-review-0.2.5.agent.pkg"
+
+# The signed WebAgents demo documents (T8): fixed paths, pinned bytes, read once at startup.
+# Their signatures are the documents' own; this server only refuses bytes it was not built with.
+DOCUMENTS = {
+    "/agent-index.json": (
+        Path(__file__).parent / "documents" / "agent-index.json",
+        "9db7d450e645c9dcbe4474d910b150cf5d6764814c92e1e9b1680e78180a7267",
+    ),
+    "/policies/webagents-research.json": (
+        Path(__file__).parent / "documents" / "policies" / "webagents-research.json",
+        "aa36d133aeb71eb6a77306822396f57ea34efa76a9e1636904365f04c35dca75",
+    ),
+}
+
+
+def load_documents():
+    loaded = {}
+    for path, (source, expected) in DOCUMENTS.items():
+        data = source.read_bytes()
+        digest = hashlib.sha256(data).hexdigest()
+        if digest != expected:
+            raise RuntimeError(f"{source.name} SHA-256 mismatch: expected {expected}, got {digest}")
+        loaded[path] = (data, digest)
+    return loaded
 
 
 def verify_package():
@@ -26,6 +52,7 @@ def verify_package():
 
 
 PACKAGE_SHA256 = verify_package()
+LOADED_DOCUMENTS = load_documents()
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -40,7 +67,19 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(body)
             return
 
-        if self.path in (VERSIONED_PATH, LATEST_PATH):
+        if self.path in LOADED_DOCUMENTS:
+            data, digest = LOADED_DOCUMENTS[self.path]
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(data)))
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("X-Content-SHA256", digest)
+            self.send_header("Cache-Control", "no-cache")
+            self.end_headers()
+            self.wfile.write(data)
+            return
+
+        if self.path in (VERSIONED_PATH, LATEST_PATH, INDEXED_PATH):
             data = PACKAGE.read_bytes()
 
             self.send_response(200)
@@ -49,7 +88,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("X-Content-Type-Options", "nosniff")
             self.send_header("X-Agent-Package-SHA256", PACKAGE_SHA256)
 
-            if self.path == VERSIONED_PATH:
+            if self.path in (VERSIONED_PATH, INDEXED_PATH):
                 self.send_header(
                     "Cache-Control",
                     "public, max-age=31536000, immutable",
@@ -66,7 +105,17 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_HEAD(self):
-        if self.path in (VERSIONED_PATH, LATEST_PATH):
+        if self.path in LOADED_DOCUMENTS:
+            data, digest = LOADED_DOCUMENTS[self.path]
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(data)))
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("X-Content-SHA256", digest)
+            self.end_headers()
+            return
+
+        if self.path in (VERSIONED_PATH, LATEST_PATH, INDEXED_PATH):
             size = PACKAGE.stat().st_size
 
             self.send_response(200)

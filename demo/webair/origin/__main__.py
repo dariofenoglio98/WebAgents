@@ -10,6 +10,7 @@ import uvicorn
 
 from .agent_package import AgentPackageConfigError
 from .app import create_app
+from .demo_documents import DemoDocumentsConfigError
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -26,10 +27,18 @@ def main(argv: list[str] | None = None) -> int:
         help="the one file to publish at /agent.pkg (default: $WEBAIR_AGENT_PACKAGE; "
         "unset means /agent.pkg answers 404)",
     )
+    parser.add_argument(
+        "--demo-documents",
+        default=os.environ.get("WEBAIR_DEMO_DOCUMENTS") or None,
+        metavar="DIR",
+        help="the directory holding the WebAgents demo index, policy and Literature Review "
+        "package to serve beside the airline (default: $WEBAIR_DEMO_DOCUMENTS; unset means "
+        "those paths answer 404)",
+    )
     args = parser.parse_args(argv)
     try:
-        app = create_app(args.agent_package)
-    except AgentPackageConfigError as exc:
+        app = create_app(args.agent_package, args.demo_documents)
+    except (AgentPackageConfigError, DemoDocumentsConfigError) as exc:
         print(f"webair: {exc}", file=sys.stderr)
         return 2
     package = app.state.agent_package
@@ -38,6 +47,12 @@ def main(argv: list[str] | None = None) -> int:
     print(
         "  agent.pkg:   "
         + (f"published, sha256 {package.sha256}" if package else "not published (404)"),
+        flush=True,
+    )
+    documents = app.state.demo_documents
+    print(
+        "  demo docs:   "
+        + (f"published, {len(documents.documents)} files" if documents else "not published (404)"),
         flush=True,
     )
     uvicorn.run(

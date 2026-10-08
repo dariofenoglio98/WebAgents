@@ -134,6 +134,16 @@ def test_the_origin_serves_exactly_its_routes(client):
         | {("/api/v1/schemas", "GET")}
         | {("/static/webair.css", "GET"), ("/health", "GET")}
         | {("/agent.pkg", "GET"), ("/agent.pkg", "HEAD")}
+        # T8: the WebAgents demo documents, three fixed paths read from one configured directory.
+        | {
+            (path, method)
+            for path in (
+                "/agent-index.json",
+                "/policies/webagents-research.json",
+                "/packages/literature-review-0.2.5.agent.pkg",
+            )
+            for method in ("GET", "HEAD")
+        }
     )
     # And by behaviour: nothing that would expose source, configuration or a listing.
     for path in (
@@ -171,6 +181,7 @@ def test_health_states_only_public_facts(package_file, package_bytes):
         "service": "webair-origin",
         "fictional": True,
         "agent_package_sha256": None,
+        "demo_documents": None,
     }
     assert published.json()["agent_package_sha256"] == hashlib.sha256(package_bytes).hexdigest()
     assert published.headers["cache-control"] == "no-store"
@@ -324,9 +335,10 @@ def test_the_origin_needs_no_environment(monkeypatch):
 
 
 def test_the_only_environment_variables_read_are_the_package_path_and_the_port():
-    """The launcher reads where the package is and, on a hosting platform, which port to use.
+    """The launcher reads where the package is, where the WebAgents demo documents are (T8)
+    and, on a hosting platform, which port to use.
 
-    Neither is a credential, and nothing a request does depends on either.
+    None is a credential, and nothing a request does depends on any of them.
     """
     names = set()
     for path in SOURCES:
@@ -340,4 +352,8 @@ def test_the_only_environment_variables_read_are_the_package_path_and_the_port()
                 names.add((path.name, node.args[0].value))
             elif isinstance(node, ast.Subscript) and ast.unparse(node.value) == "os.environ":
                 names.add((path.name, ast.unparse(node.slice)))
-    assert names == {("__main__.py", "WEBAIR_AGENT_PACKAGE"), ("__main__.py", "PORT")}
+    assert names == {
+        ("__main__.py", "WEBAIR_AGENT_PACKAGE"),
+        ("__main__.py", "WEBAIR_DEMO_DOCUMENTS"),
+        ("__main__.py", "PORT"),
+    }

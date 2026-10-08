@@ -4,6 +4,7 @@ WORKDIR /app
 
 COPY server.py /app/server.py
 COPY packages /app/packages
+COPY documents /app/documents
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
