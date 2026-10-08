@@ -1,0 +1,174 @@
+{
+  "profile": "chrome-search-policy-e2e-v0",
+  "recordedAt": "2026-10-08T21:54:20.807Z",
+  "chrome": "Chrome/154.0.8037.99",
+  "served": {
+    "/agent-index.json": {
+      "source": "examples/agent-index.json",
+      "sha256": "9db7d450e645c9dcbe4474d910b150cf5d6764814c92e1e9b1680e78180a7267"
+    },
+    "/policies/webagents-research.json": {
+      "source": "examples/policies/webagents-research.json",
+      "sha256": "aa36d133aeb71eb6a77306822396f57ea34efa76a9e1636904365f04c35dca75"
+    },
+    "/packages/literature-review-0.2.5.agent.pkg": {
+      "source": "dist/literature-review-0.2.5.agent.pkg",
+      "sha256": "1669f83fafac3434748fc19d38a8d3d2c3352da83cf1cbb84796ce313bd4f571"
+    },
+    "/agent.pkg": {
+      "source": "dist/webair-0.4.0.agent.pkg",
+      "sha256": "c12f9db3bd7b3b4b6721c67e1d0b8143ebd94381df0e5e57c196357b7ca77f63"
+    }
+  },
+  "steps": {
+    "index": {
+      "row": "WebAgents demo index 1.0.0verified, currentsearchedThe agents of the WebAgents research prototype: a literature-review agent and a fictional airline's agent. Signed with a development key, for demonstrations only; every entry is metadata, and each package is verified when you open it.https://webagen",
+      "signer": "sha256:e0e7022b5836da157d7d55a9d7b00cb58e236d5270ab103162e63706b49f5103",
+      "version": "1.0.0",
+      "entries": 2
+    },
+    "search": {
+      "results": [
+        {
+          "id": "org.webagents.literature-review",
+          "url": "https://webagents-webair-production.up.railway.app/packages/literature-review-0.2.5.agent.pkg"
+        }
+      ],
+      "source": "Found in WebAgents demo index 1.0.0, signed by sha256:e0e7022b5836d…5103 (the key you pinned for it) "
+    },
+    "open": {
+      "headline": "Signed, publisher unknown",
+      "signature": "valid",
+      "signer": "sha256:c5ca9763f9fc71253298ca381ec14c4d7432009c74dacc69df6344b71de05232",
+      "archiveSha256": "1669f83fafac3434748fc19d38a8d3d2c3352da83cf1cbb84796ce313bd4f571",
+      "validation": {
+        "container_status": "valid",
+        "integrity_status": "valid",
+        "schema_status": "valid",
+        "runtime_status": "compatible",
+        "supported_execution_profiles": [
+          "workflow.v0"
+        ],
+        "errors": []
+      },
+      "foundVia": {
+        "index_id": "org.webagents.demo-index",
+        "label": "WebAgents demo index",
+        "version": "1.0.0",
+        "position": 0,
+        "claims": {
+          "package_id": "matches",
+          "version": "matches",
+          "digest": "matches",
+          "archive_sha256": "matches",
+          "signer_fingerprint": "matches"
+        }
+      },
+      "banner": "matches"
+    },
+    "library": {
+      "pinned": "https://webagents-webair-production.up.railway.app/packages/literature-review-0.2.5.agent.pkg"
+    },
+    "policy": {
+      "state": "current",
+      "reference": {
+        "policy_id": "org.webagents.research",
+        "version": "1.0.0",
+        "title": "WebAgents research policy",
+        "content_sha256": "8f923d748796560ae60c090567013b52eb9ec3c7f960c378ca207d761f3491fc",
+        "signer_fingerprint": "sha256:829e28368a71c10bc346a563205ad4b699351d8bed06b21d9671db132c197d7a"
+      },
+      "key": "sha256:829e28368a71c10bc346a563205ad4b699351d8bed06b21d9671db132c197d7a"
+    },
+    "useProfile": {
+      "profile": "search",
+      "receipt": "4a7280b4-89bc-4964-8595-1e23da0e30ab",
+      "provenance": {
+        "schema": "org.webagents:decision-provenance-v0",
+        "profile_id": "search",
+        "profile_title": "Search flights",
+        "preset": "balanced",
+        "decisions": {
+          "booking.simulate_purchase": "profile",
+          "identity.passenger": "profile",
+          "memory.session": "policy",
+          "model.reasoning": "policy",
+          "network.webair": "policy",
+          "profile.travel": "profile",
+          "wallet.payment": "profile"
+        },
+        "tool_approvals": {
+          "get-fare-rules": "profile",
+          "personal.passenger_identity": "profile",
+          "personal.travel_profile": "profile",
+          "prepare-booking": "profile",
+          "search-flights": "profile",
+          "simulate-purchase": "profile",
+          "wallet.payment_method": "profile"
+        },
+        "resource_selections": {},
+        "policy": {
+          "policy_id": "org.webagents.research",
+          "version": "1.0.0",
+          "title": "WebAgents research policy",
+          "content_sha256": "8f923d748796560ae60c090567013b52eb9ec3c7f960c378ca207d761f3491fc",
+          "signer_fingerprint": "sha256:829e28368a71c10bc346a563205ad4b699351d8bed06b21d9671db132c197d7a"
+        }
+      },
+      "trust_reason": "policy_anchor",
+      "decisions": {
+        "booking.simulate_purchase": "deny",
+        "identity.passenger": "deny",
+        "memory.session": "session",
+        "model.reasoning": "session",
+        "network.webair": "session",
+        "profile.travel": "deny",
+        "wallet.payment": "deny"
+      }
+    },
+    "override": {
+      "receipt": "a0f9362b-88fd-410f-bdfd-f089a4b12517",
+      "memory": "once",
+      "provenance": {
+        "booking.simulate_purchase": "profile",
+        "identity.passenger": "profile",
+        "memory.session": "user",
+        "model.reasoning": "policy",
+        "network.webair": "policy",
+        "profile.travel": "profile",
+        "wallet.payment": "profile"
+      }
+    },
+    "revoke": {
+      "trust": "unknown",
+      "reason": "signer_key_not_pinned"
+    },
+    "origin": {
+      "requests": [
+        "GET /agent-index.json",
+        "GET /packages/literature-review-0.2.5.agent.pkg",
+        "GET /policies/webagents-research.json",
+        "GET /agent.pkg"
+      ]
+    }
+  },
+  "checks": {
+    "the demo index is added and verified under the development key": "ok",
+    "a search for 'literature review' lists the package from the demo index": "ok",
+    "it opens verified: all four layers valid and the signature valid": "ok",
+    "the opened bytes are the shipped Literature Review 0.2.5": "ok",
+    "the index's claims match the bytes, and the page says so": "ok",
+    "the pinned agent is on the Library page": "ok",
+    "subscribed to the research policy under the development policy key": "ok",
+    "WebAir opened in its own session": "ok",
+    "WebAir's publisher is trusted through the policy, and the page says so": "ok",
+    "'Search flights' is pre-decided by the policy with visible provenance": "ok",
+    "the summary card names the policy": "ok",
+    "the detailed view names the policy on its decisions": "ok",
+    "overriding one decision records the person as its decider; the rest stay the policy's": "ok",
+    "after unsubscribing, WebAir's publisher is unknown again": "ok",
+    "only the four served files were requested": "ok"
+  },
+  "failures": [],
+  "passed": true
+}

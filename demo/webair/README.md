@@ -538,8 +538,8 @@ offline acceptance against 0.4.0, which the script now checks, is
 |---|---|
 | Public URL | <https://webagents-webair-production.up.railway.app/> (DNS → Railway's edge, public addresses; TLS on 443) |
 | Platform | Railway, service `webagents-webair`, builder Railpack, Python 3.13 |
-| What runs | `python -m origin --host 0.0.0.0 --agent-package agent.pkg` — this origin, unchanged, publishing `dist/webair-0.4.0.agent.pkg` (since 2026-10-06; 0.3.0 before) |
-| Health check | `GET /health` (states only that this is the fictional demo and the published package's SHA-256) |
+| What runs | `python -m origin --host 0.0.0.0 --agent-package agent.pkg --demo-documents demo` — this origin, publishing `dist/webair-0.4.0.agent.pkg` (since 2026-10-06; 0.3.0 before) and, since T8, the WebAgents demo documents beside it (below) |
+| Health check | `GET /health` (states only that this is the fictional demo, the published package's SHA-256 and the demo documents' SHA-256s) |
 | Environment | `PORT` (the platform's port; the service sets `8080`). No secret, database, external API or persistence |
 | Configuration | [`deploy/railway.toml`](deploy/railway.toml) (start, health check, restart policy), [`deploy/railpack.json`](deploy/railpack.json) (the start command again: Railpack plans the image before `railway.toml` applies), [`deploy/.python-version`](deploy/.python-version) |
 
@@ -564,6 +564,24 @@ curl -sS https://webagents-webair-production.up.railway.app/health
 curl -sS https://webagents-webair-production.up.railway.app/agent.pkg -o /tmp/public.agent.pkg
 cmp /tmp/public.agent.pkg dist/webair-0.4.0.agent.pkg && \
   agentpkg/.venv/bin/agentpkg verify /tmp/public.agent.pkg --trust-key examples/keys/webair-publisher.pub.pem
+```
+
+**WebAgents demo documents (T8).** The Chrome Agent Browser's search and policy subscription need
+a public home for the signed demo index, the signed example research policy and the Literature
+Review package the index lists. They do not belong to the airline; they are served here because this
+is the demo deployment that exists. `origin/demo_documents.py` reads exactly three files from the
+directory named by `--demo-documents` (`$WEBAIR_DEMO_DOCUMENTS`) once at startup and serves each at
+one fixed path: `/agent-index.json`, `/policies/webagents-research.json`,
+`/packages/literature-review-0.2.5.agent.pkg`. The bundle carries them under `demo/`, byte for byte
+from `examples/` and `dist/`; without the option the paths answer 404. After a redeploy:
+
+```sh
+for path in agent-index.json policies/webagents-research.json; do
+  curl -sS "https://webagents-webair-production.up.railway.app/$path" | cmp - "examples/$path"; done
+node chrome-agent-browser/dist/cli.js document verify --type agent-index \
+  --key examples/keys/webagents-index.pub.pem examples/agent-index.json
+curl -sS https://webagents-webair-production.up.railway.app/packages/literature-review-0.2.5.agent.pkg \
+  | cmp - dist/literature-review-0.2.5.agent.pkg
 ```
 
 To reproduce it in another Railway account: create a service, set `PORT=8080`, generate a domain

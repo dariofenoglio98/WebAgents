@@ -25,6 +25,11 @@ interface Lane {
   active: number;
   /** The earliest moment the next call may start; each start reserves its own. */
   nextStart: number;
+  /**
+   * One interval after the latest answer (D-081 as amended): kept apart from the reservations, so
+   * withdrawing a cancelled call's reservation never drops below it (T7 review 1, finding 1).
+   */
+  answeredFloor: number;
   queue: Array<() => void>;
 }
 
@@ -40,7 +45,7 @@ export class Pacer {
   private lane(key: string): Lane {
     let lane = this.lanes.get(key);
     if (!lane) {
-      lane = { active: 0, nextStart: Number.NEGATIVE_INFINITY, queue: [] };
+      lane = { active: 0, nextStart: Number.NEGATIVE_INFINITY, answeredFloor: Number.NEGATIVE_INFINITY, queue: [] };
       this.lanes.set(key, lane);
     }
     return lane;
@@ -81,7 +86,10 @@ export class Pacer {
     const release = (answered = true) => {
       if (released) return;
       released = true;
-      if (answered && interval > 0) lane.nextStart = Math.max(lane.nextStart, this.now() + interval);
+      if (answered && interval > 0) {
+        lane.answeredFloor = Math.max(lane.answeredFloor, this.now() + interval);
+        lane.nextStart = Math.max(lane.nextStart, lane.answeredFloor);
+      }
       const next = lane.queue.shift();
       if (next) next();
       else lane.active -= 1;
@@ -114,8 +122,9 @@ export class Pacer {
       } catch (error) {
         // Cancelled while waiting for its start: nothing was sent, so no interval follows it,
         // and its own start reservation is withdrawn unless a later call already reserved
-        // after it (T6 review, nit 2; that call's start stays where it was promised).
-        if (lane.nextStart === start + interval) lane.nextStart = previous;
+        // after it (T6 review, nit 2; that call's start stays where it was promised). An answer
+        // that arrived meanwhile still holds the next start back (T7 review 1, finding 1).
+        if (lane.nextStart === start + interval) lane.nextStart = Math.max(previous, lane.answeredFloor);
         release(false);
         throw error;
       }

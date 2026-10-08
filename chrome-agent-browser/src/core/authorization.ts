@@ -32,6 +32,7 @@ import {
   type BrowserPolicy,
   type DecidedBy,
   type Decision,
+  type PolicyReference,
   type PresetId,
   type Provenance,
   type Reason,
@@ -413,7 +414,20 @@ export function defaultDecisions(pkg: Package, preset: PresetId): Decided {
  * is recorded as the person's own. Resource picks are always the person's (D-050, D-053), and
  * the profile title comes from the package, never from the view.
  */
-export function normalizeProvenance(pkg: Package, submitted: unknown, decisions: Record<string, Decision>, approvals: Record<string, boolean>, grants: readonly ResourceGrant[]): Provenance | null {
+export interface ProvenancePolicy {
+  reference: PolicyReference;
+  /** The subscribed policy applied to a profile's (or, without one, the preset's) decisions (`policies/apply.ts::applyPolicy`). */
+  expand: (profile: Profile | null, preset: PresetId) => Decided;
+}
+
+export function normalizeProvenance(
+  pkg: Package,
+  submitted: unknown,
+  decisions: Record<string, Decision>,
+  approvals: Record<string, boolean>,
+  grants: readonly ResourceGrant[],
+  options: { policy?: ProvenancePolicy | null } = {},
+): Provenance | null {
   if (submitted === null || submitted === undefined) return null;
   if (!isRecord(submitted)) throw new CoreError("invalid_request", "provenance must be an object");
   if (!isPresetId(submitted.preset)) throw new CoreError("invalid_request", `provenance.preset must be one of ${pyRepr([...PRESET_IDS])}`);
@@ -423,19 +437,24 @@ export function normalizeProvenance(pkg: Package, submitted: unknown, decisions:
   const profile = claimedProfile === null ? null : (readProfiles(pkg).profiles?.find((item) => item.id === claimedProfile) ?? null);
   const fromProfile = profile ? profileDecisions(pkg, profile, preset) : null;
   const fromPreset = defaultDecisions(pkg, preset);
+  // A `policy` claim is checked against the policy in force now, applied to the same profile or
+  // preset; with no policy in force it cannot stand (T8, D-102).
+  const fromPolicy = options.policy ? options.policy.expand(profile, preset) : null;
   const claim = (value: unknown, field: string): DecidedBy => {
-    if (value === "user" || value === "profile" || value === "preset") return value;
-    throw new CoreError("invalid_request", `${field} must be user, profile or preset`);
+    if (value === "user" || value === "profile" || value === "preset" || value === "policy") return value;
+    throw new CoreError("invalid_request", `${field} must be user, profile, preset or policy`);
   };
-  const map = <T>(raw: unknown, actual: Record<string, T>, field: string, expansion: (decided: Decided) => Record<string, T>): Record<string, DecidedBy> => {
+  const map = <T>(raw: unknown, actual: Record<string, T>, field: string, expansion: (decided: Decided) => Record<string, T>, by: (decided: Decided) => Record<string, DecidedBy>): Record<string, DecidedBy> => {
     if (raw === undefined || raw === null) raw = {};
     if (!isRecord(raw)) throw new CoreError("invalid_request", `${field} must be an object`);
     for (const key of Object.keys(raw)) if (!Object.hasOwn(actual, key)) throw new CoreError("invalid_request", `${field} names ${pyRepr(key)}, which has no decision`);
     const out: Record<string, DecidedBy> = {};
     for (const key of Object.keys(actual).sort()) {
-      const by = claim(Object.hasOwn(raw, key) ? raw[key] : "user", `${field}[${key}]`);
-      const source = by === "profile" ? fromProfile : by === "preset" ? fromPreset : null;
-      out[key] = source !== null && expansion(source)[key] === actual[key] ? by : "user";
+      const claimed = claim(Object.hasOwn(raw, key) ? raw[key] : "user", `${field}[${key}]`);
+      const source = claimed === "profile" ? fromProfile : claimed === "preset" ? fromPreset : claimed === "policy" ? fromPolicy : null;
+      // The policy's claim also needs the policy to have decided that very item, not merely agreed with it.
+      const stands = source !== null && expansion(source)[key] === actual[key] && (claimed !== "policy" || by(source)[key] === "policy");
+      out[key] = stands ? claimed : "user";
     }
     return out;
   };
@@ -445,13 +464,17 @@ export function normalizeProvenance(pkg: Package, submitted: unknown, decisions:
   for (const key of Object.keys(picks)) {
     if (!granted.has(key)) throw new CoreError("invalid_request", `provenance.resource_selections names ${pyRepr(key)}, which has no decision`);
   }
-  return {
+  const provenance: Provenance = {
     schema: PROVENANCE_SCHEMA,
     profile_id: profile ? profile.id : null,
     profile_title: profile ? profile.title : null,
     preset,
-    decisions: map(submitted.decisions, decisions, "provenance.decisions", (decided) => decided.decisions),
-    tool_approvals: map(submitted.tool_approvals, approvals, "provenance.tool_approvals", (decided) => decided.tool_approvals),
+    decisions: map(submitted.decisions, decisions, "provenance.decisions", (decided) => decided.decisions, (decided) => decided.provenance.decisions),
+    tool_approvals: map(submitted.tool_approvals, approvals, "provenance.tool_approvals", (decided) => decided.tool_approvals, (decided) => decided.provenance.tool_approvals),
     resource_selections: Object.fromEntries([...granted].sort().map((id) => [id, "user" as const])),
   };
+  // Made while a policy was in force: the receipt names it, whoever decided each item, so that
+  // revoking or replacing the policy makes the plan stale (D-102).
+  if (options.policy) provenance.policy = { ...options.policy.reference };
+  return provenance;
 }

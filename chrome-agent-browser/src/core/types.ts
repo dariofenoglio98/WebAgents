@@ -101,8 +101,11 @@ export interface RegistryRef {
 }
 
 // -- decision provenance (Chrome addition, D-053) -------------------------------------
-/** Who made a decision: the person, a selected publisher profile, or the host preset. */
-export type DecidedBy = "user" | "profile" | "preset";
+/**
+ * Who made a decision: the person, a selected publisher profile, the host preset, or the policy
+ * the person subscribed to (T8, D-102; the policy is named by `Provenance.policy`).
+ */
+export type DecidedBy = "user" | "profile" | "preset" | "policy";
 export type PresetId = "privacy-first" | "balanced" | "convenience";
 export const PROVENANCE_SCHEMA = "org.webagents:decision-provenance-v0";
 
@@ -119,6 +122,21 @@ export interface Provenance {
   decisions: Record<string, DecidedBy>;
   tool_approvals: Record<string, DecidedBy>;
   resource_selections: Record<string, DecidedBy>;
+  /**
+   * The subscribed policy this authorization was made under (T8, D-102). Present only when one
+   * was in force, so a receipt made without a policy keeps exactly its earlier shape and hash.
+   */
+  policy?: PolicyReference;
+}
+
+/** How a receipt, a plan and a decision name the policy bundle they came from (T8). */
+export interface PolicyReference {
+  policy_id: string;
+  version: string;
+  title: string;
+  /** SHA-256 of the bundle's canonical content: the exact bundle, whatever its transport bytes. */
+  content_sha256: string;
+  signer_fingerprint: string;
 }
 
 // -- the authorization receipt ------------------------------------------------------

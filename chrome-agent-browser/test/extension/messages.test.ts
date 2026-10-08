@@ -22,12 +22,13 @@ describe("requests from extension pages", () => {
   it("accepts every request type with exactly its fields", () => {
     expect(parseRequest({ type: "candidates.get", tabId: 3 })).toEqual({ type: "candidates.get", tabId: 3 });
     expect(parseRequest({ type: "website.discover", url: "https://a.example/" })).toEqual({ type: "website.discover", url: "https://a.example/" });
-    expect(parseRequest({ type: "package.open", url: "https://a.example/x.pkg" })).toEqual({ type: "package.open", url: "https://a.example/x.pkg", advertisedOn: null, viewId: null });
+    expect(parseRequest({ type: "package.open", url: "https://a.example/x.pkg" })).toEqual({ type: "package.open", url: "https://a.example/x.pkg", advertisedOn: null, viewId: null, foundVia: null });
     expect(parseRequest({ type: "package.open", url: "https://a.example/x.pkg", advertisedOn: "https://a.example/", viewId: "sidepanel:1" })).toEqual({
       type: "package.open",
       url: "https://a.example/x.pkg",
       advertisedOn: "https://a.example/",
       viewId: "sidepanel:1",
+      foundVia: null,
     });
     expect(parseRequest({ type: "package.get", sessionId: "s1" })).toEqual({ type: "package.get", sessionId: "s1", viewId: null });
     expect(parseRequest({ type: "package.get", sessionId: "s1", viewId: "browser:1" })).toEqual({ type: "package.get", sessionId: "s1", viewId: "browser:1" });
@@ -49,6 +50,24 @@ describe("requests from extension pages", () => {
       packageIdPrefix: null,
     });
     expect(parseRequest({ type: "trust.unpin", fingerprint: "sha256:ab" })).toEqual({ type: "trust.unpin", fingerprint: "sha256:ab" });
+  });
+
+  it("search, indexes, the policy subscription and the Library (T8): exactly their fields, bounded", () => {
+    expect(parseRequest({ type: "search.query", text: "literature review" })).toEqual({ type: "search.query", text: "literature review" });
+    expect(code(() => parseRequest({ type: "search.query", text: "" }))).toBe("invalid_request");
+    expect(code(() => parseRequest({ type: "search.query", text: "x".repeat(513) }))).toBe("invalid_request");
+    for (const type of ["indexes.list", "policy.get", "policy.refresh", "policy.unsubscribe", "library.get"]) {
+      expect(parseRequest({ type })).toEqual({ type });
+      expect(code(() => parseRequest({ type, extra: 1 }))).toBe("invalid_request");
+    }
+    expect(parseRequest({ type: "indexes.add", url: "https://a.example/i.json", publicKeyPem: "PEM" })).toEqual({ type: "indexes.add", url: "https://a.example/i.json", publicKeyPem: "PEM" });
+    expect(parseRequest({ type: "indexes.enable", url: "https://a.example/i.json", enabled: false })).toEqual({ type: "indexes.enable", url: "https://a.example/i.json", enabled: false });
+    expect(code(() => parseRequest({ type: "indexes.enable", url: "https://a.example/i.json", enabled: "no" }))).toBe("invalid_request");
+    expect(parseRequest({ type: "policy.subscribe", url: "https://a.example/p.json", publicKeyPem: "PEM" })).toEqual({ type: "policy.subscribe", url: "https://a.example/p.json", publicKeyPem: "PEM", replace: false });
+    expect(parseRequest({ type: "library.pin", sessionId: "s1" })).toEqual({ type: "library.pin", sessionId: "s1" });
+    expect(parseRequest({ type: "library.unpin", packageUrl: "https://a.example/x.pkg" })).toEqual({ type: "library.unpin", packageUrl: "https://a.example/x.pkg" });
+    expect(parseRequest({ type: "package.open", url: "https://a.example/x.pkg", foundVia: { indexId: "org.example.index" } })).toMatchObject({ foundVia: { indexId: "org.example.index" } });
+    expect(code(() => parseRequest({ type: "package.open", url: "https://a.example/x.pkg", foundVia: { indexId: "i", digest: "forged" } }))).toBe("invalid_request");
   });
 
   it("run.active (T5a, D-076): an optional page URL, bounded, and nothing else", () => {

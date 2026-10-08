@@ -1,0 +1,15 @@
+{
+  "note": "The WebAgents demo index and research policy (T8, D-105): what Settings \u2192 Search and Settings \u2192 Policies fill in when the person asks for the demo. Development keys; the person still presses Add or Subscribe, and the documents are verified against these keys. Kept equal to examples/keys/ by test/extension/search-ui.test.ts.",
+  "index": {
+    "label": "WebAgents demo index",
+    "url": "https://webagents-webair-production.up.railway.app/agent-index.json",
+    "public_key_pem": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAMIwq9KIoChZZho3/4/qRkHmzYVqI9DgFu9ETZsl+eCM=\n-----END PUBLIC KEY-----\n",
+    "key_fingerprint": "sha256:e0e7022b5836da157d7d55a9d7b00cb58e236d5270ab103162e63706b49f5103"
+  },
+  "policy": {
+    "label": "WebAgents research policy",
+    "url": "https://webagents-webair-production.up.railway.app/policies/webagents-research.json",
+    "public_key_pem": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAMcF7Ha5iOVObnmXqrEg6VzYSLpiPYvUP/TrI6He/X2k=\n-----END PUBLIC KEY-----\n",
+    "key_fingerprint": "sha256:829e28368a71c10bc346a563205ad4b699351d8bed06b21d9671db132c197d7a"
+  }
+}

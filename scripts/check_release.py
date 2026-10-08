@@ -150,6 +150,15 @@ def check_packages() -> dict:
     report["package_origin_copy_identical"] = (
         origin.read_bytes() == (DIST / "literature-review.agent.pkg").read_bytes()
     )
+    # T8: the signed demo index and policy package-origin serves are the ones in examples/.
+    documents = {
+        "agent-index.json": "examples/agent-index.json",
+        "policies/webagents-research.json": "examples/policies/webagents-research.json",
+    }
+    report["package_origin_documents_identical"] = all(
+        (ROOT / "package-origin/documents" / name).read_bytes() == (ROOT / source).read_bytes()
+        for name, source in documents.items()
+    )
     return report
 
 
@@ -251,6 +260,7 @@ def main() -> int:
     report["passed"] = (
         all(packages[name]["passed"] for name in CURRENT_PACKAGES)
         and packages["package_origin_copy_identical"]
+        and packages["package_origin_documents_identical"]
         and all(section["passed"] for key, section in report.items() if key != "packages")
     )
     print(json.dumps(report, indent=2))

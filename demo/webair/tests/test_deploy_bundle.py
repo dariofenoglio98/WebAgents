@@ -19,7 +19,12 @@ from publisher.contract import REPO_ROOT
 
 DEPLOY = Path(__file__).resolve().parents[1] / "deploy"
 ARTIFACT = REPO_ROOT / "dist" / "webair-0.4.0.agent.pkg"
-START = "python -m origin --host 0.0.0.0 --agent-package agent.pkg"
+START = "python -m origin --host 0.0.0.0 --agent-package agent.pkg --demo-documents demo"
+DEMO_DOCUMENTS = {
+    "demo/agent-index.json",
+    "demo/policies/webagents-research.json",
+    "demo/packages/literature-review-0.2.5.agent.pkg",
+}
 
 
 @pytest.fixture(scope="module")
@@ -44,6 +49,7 @@ def test_the_bundle_is_exactly_the_allowlist(bundler, tmp_path):
         files
         == {"railway.toml", "railpack.json", ".python-version", "requirements.txt", "agent.pkg"}
         | origin
+        | DEMO_DOCUMENTS
     )
     written = {
         path.relative_to(tmp_path / "bundle").as_posix()
@@ -105,3 +111,31 @@ def test_the_platform_starts_the_origin_on_the_published_file():
     for name in ("railway.toml", "railpack.json"):
         text = (DEPLOY / name).read_text().lower()
         assert not any(word in text for word in ("token", "secret", "password", "key"))
+
+
+def test_the_bundle_carries_the_signed_demo_documents_and_the_bundled_origin_serves_them(
+    bundler, tmp_path
+):
+    """T8: the index, the policy and the package it lists, verbatim, at their fixed paths."""
+    from fastapi.testclient import TestClient
+
+    from origin.app import create_app
+
+    bundler.assemble(ARTIFACT, tmp_path / "bundle")
+    sources = {
+        "demo/agent-index.json": REPO_ROOT / "examples" / "agent-index.json",
+        "demo/policies/webagents-research.json": REPO_ROOT
+        / "examples"
+        / "policies"
+        / "webagents-research.json",
+        "demo/packages/literature-review-0.2.5.agent.pkg": REPO_ROOT
+        / "dist"
+        / "literature-review-0.2.5.agent.pkg",
+    }
+    for name, source in sources.items():
+        assert (tmp_path / "bundle" / name).read_bytes() == source.read_bytes()
+    client = TestClient(create_app(tmp_path / "bundle" / "agent.pkg", tmp_path / "bundle" / "demo"))
+    for name, source in sources.items():
+        response = client.get("/" + name.removeprefix("demo/"))
+        assert response.status_code == 200
+        assert response.content == source.read_bytes()

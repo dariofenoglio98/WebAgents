@@ -1,0 +1,66 @@
+{
+  "policy_id": "org.webagents.research",
+  "version": "1.0.0",
+  "title": "WebAgents research policy",
+  "description": "An example institutional policy for the WebAgents demos: it trusts the WebAir and Literature Review publisher keys for their own packages, grants network, model and working memory for the session and personal data or picked files for one run, never a payment, caps every run, and admits only the services the demo agents use. Signed with a development key.",
+  "issuer": {
+    "name": "WebAgents research prototype (development key)"
+  },
+  "issued_at": "2026-10-08T00:00:00Z",
+  "expires_at": "2027-12-31T23:59:59Z",
+  "trust_anchors": [
+    {
+      "kind": "publisher_key",
+      "public_key": "y9YfbzYJDTJqVLciie5O3aksIJnvmqBPpBR/xok4/LM=",
+      "fingerprint": "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b",
+      "display_name": "WebAir (fictional demo airline)",
+      "publisher_id": "webair-demo",
+      "package_id_prefix": "org.webagents.webair"
+    },
+    {
+      "kind": "publisher_key",
+      "public_key": "XsBbds/yF0nyoLkB8SW7r5kwB6dn0GIbZ7LqcoDM41o=",
+      "fingerprint": "sha256:c5ca9763f9fc71253298ca381ec14c4d7432009c74dacc69df6344b71de05232",
+      "display_name": "WebAgents Research Prototype",
+      "publisher_id": "webagents-research",
+      "package_id_prefix": "org.webagents.literature-review"
+    }
+  ],
+  "decisions": {
+    "network": "session",
+    "model": "session",
+    "memory": "session",
+    "personal.read": "once",
+    "files.read": "once",
+    "files.write": "deny",
+    "shell": "deny",
+    "payment": "deny"
+  },
+  "budget_caps": {
+    "total_tokens": 200000,
+    "max_remote_calls": 50,
+    "run_timeout_seconds": 4500
+  },
+  "models": {
+    "local_only": false,
+    "max_cost_usd_per_run": null
+  },
+  "bindings": {
+    "allow": [
+      {
+        "kind": "json_http",
+        "origins": [
+          "https://api.crossref.org",
+          "https://webagents-citation-resolver-production.up.railway.app",
+          "https://webagents-webair-production.up.railway.app"
+        ]
+      },
+      {
+        "kind": "host_resource"
+      },
+      {
+        "kind": "selected_file"
+      }
+    ]
+  }
+}

@@ -178,6 +178,11 @@ In Chrome, open `chrome://extensions`, enable **Developer mode**, **Load unpacke
 4. **Run.** The run happens in the extension's own background host with the model, permissions
    and records you chose; closing the panel does not stop it. **Runs** keeps every run with its
    audit chain and artifacts.
+5. **Find agents and follow a policy.** Settings → Search adds a signed agent index (the WebAgents
+   demo index is one click to fill in); the full page's address bar then searches it by words or
+   by an agent name, and **Open and verify** checks the package itself. Settings → Policies →
+   Policy subscription follows one signed policy that trusts publishers, pre-decides permissions
+   and caps runs for you, and names itself on every decision it makes.
 
 The same core runs from a terminal with `agentpkg`'s flags, for example
 `node chrome-agent-browser/dist/cli.js run dist/webair-0.4.0.agent.pkg --mode fixture --grants
@@ -380,6 +385,12 @@ Design rationale: [docs/architecture.md](docs/architecture.md). Threat model:
 - Publisher-declared profiles (`org.webagents:profiles-v0`): a profile groups declared
   authority and grants none; tools outside the chosen profile may stay unapproved and are
   refused if called, in the Chrome runtime and in `agentpkg`'s control plane.
+- In Chrome, search over signed agent indexes and one signed policy subscription
+  ([`spec/extensions/`](spec/extensions/)): results are metadata and every package is verified when
+  opened; a policy trusts the publishers it anchors after the person's own pins, pre-decides within
+  the chosen profile and the person's preset, and labels every decision it made (recorded in a real
+  Chrome: [`chrome-search-policy-e2e.json`](examples/verification/chrome-search-policy-e2e.json)).
+  NANDA resolution is a stub with the mapping defined.
 
 **Experimental** (works on the development host, but limited or lightly exercised):
 

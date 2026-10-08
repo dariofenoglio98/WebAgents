@@ -64,6 +64,11 @@ All objects are closed: an unknown field fails validation.
 | `estimate.tokens` | integer ≥ 0 | Total tokens the model provider reports (input and output). |
 | `estimate.notes` | one line, ≤ 240 characters | How the estimate was obtained, or what makes a run larger. |
 
+"Characters" are Unicode code points, as JSON Schema's `maxLength` counts them (a character
+outside the Basic Multilingual Plane is one character, not two UTF-16 units). An "integer" is any
+JSON number with a zero fractional part, as JSON Schema's `integer` type defines it: `1000` and
+`1000.0` are the same estimate.
+
 "One line" means a nonempty string with no control character (U+0000 to U+001F, U+007F to
 U+009F) and no line or paragraph separator (U+2028, U+2029) anywhere, a trailing newline included:
 no newline, no tab. Identifiers exclude the same characters. The schema states both rules as an

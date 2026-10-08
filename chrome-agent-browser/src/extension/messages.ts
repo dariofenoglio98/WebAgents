@@ -25,8 +25,11 @@ import type { Profile } from "../core/profiles.js";
 import type { BrowserSummary } from "../core/summary.js";
 import type { PinScope, TrustEntry, TrustState } from "../core/trust.js";
 import type { JsonValue } from "../core/json.js";
-import type { AuthorizationReceipt, BrowserPolicy, PresetId, Reason, RunPlan, RunPlanPreflight } from "../core/types.js";
+import type { AuthorizationReceipt, BrowserPolicy, PolicyReference, PresetId, Reason, RunPlan, RunPlanPreflight } from "../core/types.js";
 import type { VaultRecordView, VaultTypeView } from "../core/vault.js";
+import type { PolicyBundle } from "../core/policies/bundle.js";
+import type { AgentCandidate, ResolveQuery } from "../core/resolve/types.js";
+import type { LibraryEntry } from "./storage/subscriptions.js";
 import type { FileView } from "./storage/files.js";
 import type { Settings } from "./storage/settings.js";
 import type { StoredObservation } from "./storage/runs.js";
@@ -38,11 +41,14 @@ export const MAX_LINKS = 16;
 export const MAX_DECISIONS = 256;
 /** Bound on a submitted settings, provenance or vault record (JSON text). */
 export const MAX_SUBMITTED_BYTES = 64 * 1024;
+/** Bound on a search query (the core reads at most 200 characters of it). */
+export const MAX_QUERY_TEXT = 512;
 
 export type Request =
   | { type: "candidates.get"; tabId: number }
   | { type: "website.discover"; url: string }
-  | { type: "package.open"; url: string; advertisedOn?: string | null; viewId?: string | null }
+  /** `foundVia`: the index (by id) whose search result the person opened, so its claims are compared with the bytes (T8). */
+  | { type: "package.open"; url: string; advertisedOn?: string | null; viewId?: string | null; foundVia?: { indexId: string } | null }
   | { type: "package.get"; sessionId: string; viewId?: string | null }
   /** A view stops showing a session; the session ends when no view holds it (review 2, nit 5). */
   | { type: "package.release"; sessionId: string; viewId: string }
@@ -106,7 +112,25 @@ export type Request =
   | { type: "run.observations"; runId: string }
   /** From the execution host only: a run's stored record changed; the worker re-reads and rebroadcasts. */
   | { type: "host.progress"; runId: string }
-  | { type: "host.finished"; runId: string };
+  | { type: "host.finished"; runId: string }
+  // -- search, indexes, policy subscription, Library (T8) ------------------------------------
+  /** Free text or a locator against the enabled indexes (and the NANDA stub for a locator). */
+  | { type: "search.query"; text: string }
+  | { type: "indexes.list" }
+  /** Add an index by URL with the key the person pins for it; it is fetched and verified at once. */
+  | { type: "indexes.add"; url: string; publicKeyPem: string }
+  | { type: "indexes.refresh"; url: string }
+  | { type: "indexes.remove"; url: string }
+  | { type: "indexes.enable"; url: string; enabled: boolean }
+  | { type: "policy.get" }
+  /** Subscribe to one policy bundle by URL, verified against the key the person pins; `replace` confirms replacing the current one (D-103). */
+  | { type: "policy.subscribe"; url: string; publicKeyPem: string; replace: boolean }
+  | { type: "policy.refresh" }
+  | { type: "policy.unsubscribe" }
+  | { type: "library.get" }
+  | { type: "library.pin"; sessionId: string }
+  | { type: "library.unpin"; packageUrl: string }
+  | { type: "library.forget"; packageUrl: string };
 
 /** The task input a view may submit: bounded as the reference host bounds it. */
 export const MAX_INPUT_BYTES = 256 * 1024;
@@ -135,7 +159,10 @@ export type Event =
   | { type: "event.vault" }
   | { type: "event.files" }
   /** A run's record changed (started, progressed, settled, cleared); views re-read `run.get`. */
-  | { type: "event.run"; runId: string; sessionId: string; status: string };
+  | { type: "event.run"; runId: string; sessionId: string; status: string }
+  | { type: "event.indexes" }
+  | { type: "event.policy" }
+  | { type: "event.library" };
 
 export type Response<T = unknown> =
   | { ok: true; result: T }
@@ -184,6 +211,99 @@ export interface SessionView {
   authorization: { state: "none" | "issued"; receipt_id: string | null; runnable: boolean };
   run_plan: { state: "absent" | "prepared"; run_plan_id: string | null; ready: boolean };
   execution: { performed: false; note: string };
+  /** The index search result this session was opened from, with its claims compared with the bytes (T8). */
+  found_via: FoundVia | null;
+  /** Whether this package's URL is pinned in the Library. */
+  pinned: boolean;
+}
+
+/** How an index's claims about a package compare with the bytes that were opened (metadata, never authority). */
+export type ClaimCheck = "matches" | "differs" | "not_stated";
+
+export interface FoundVia {
+  index_id: string;
+  label: string;
+  version: string;
+  position: number;
+  claims: { digest: ClaimCheck; archive_sha256: ClaimCheck; signer_fingerprint: ClaimCheck; package_id: ClaimCheck; version: ClaimCheck };
+}
+
+// -- search, indexes, policy, Library (T8) ---------------------------------------------------
+export interface SearchResultView {
+  candidate: AgentCandidate;
+  /** The trust store's (and the policy's) verdict on the signer the source *claims*: checked again when opened. */
+  trust: { status: "trusted" | "unknown" | "mismatch"; reason: string };
+}
+
+export interface SearchView {
+  query: ResolveQuery;
+  results: SearchResultView[];
+  notes: Array<{ source: string; code: string; detail: string | null }>;
+  /** The indexes searched, with their versions; none when no index is enabled. */
+  searched: Array<{ index_id: string; label: string; version: string }>;
+  enabled_indexes: number;
+}
+
+export interface IndexView {
+  url: string;
+  key_fingerprint: string;
+  enabled: boolean;
+  added_at: string;
+  fetched_at: string | null;
+  /** `current`, `expired`, `not_yet_valid` for a verified copy; `unverified` when the stored copy no longer verifies; `never_fetched`. */
+  state: "current" | "expired" | "not_yet_valid" | "unverified" | "never_fetched";
+  index: { index_id: string; title: string; description: string | null; version: string; publisher: string; issued_at: string; expires_at: string; entries: number; notes: Array<{ code: string; detail: string | null }> } | null;
+  signer_fingerprint: string | null;
+  content_sha256: string | null;
+  last_error: { code: string; message: string; at: string } | null;
+}
+
+export interface IndexesView {
+  indexes: IndexView[];
+  max_indexes: number;
+  /** The NANDA resolver's state in this build (a stub; D-104). */
+  nanda: { configured: false; note: string };
+}
+
+export type PolicyView =
+  | { subscribed: false }
+  | {
+      subscribed: true;
+      url: string;
+      key_fingerprint: string;
+      subscribed_at: string;
+      fetched_at: string;
+      /** Only a `current` policy applies; an expired one decides nothing and stales the plans made under it. */
+      state: "current" | "expired" | "not_yet_valid" | "unverified";
+      reference: PolicyReference | null;
+      bundle: PolicyBundle | null;
+      last_error: { code: string; message: string; at: string } | null;
+    };
+
+/** The policy in force, as the authorize view states it. */
+export interface AuthorizationPolicyView {
+  reference: PolicyReference;
+  label: string;
+  /** The run limits a run would get: the person's, lowered by the policy's caps. */
+  limits_capped: string[];
+  local_only: boolean;
+  max_cost_usd_per_run: number | null;
+  /** Whether the policy restricts which host implementations tools are approved for by default. */
+  bindings_restricted: boolean;
+}
+
+export interface LibraryItemView extends LibraryEntry {
+  /** The trust verdict on the signer as recorded when it was last opened, evaluated now. */
+  trust_status: "trusted" | "unknown" | "mismatch";
+  trust_reason: string;
+  pinned: boolean;
+  /** An open session of the same bytes from the same URL, when there is one. */
+  open_session_id: string | null;
+}
+
+export interface LibraryView {
+  pinned: LibraryItemView[];
+  recent: LibraryItemView[];
 }
 
 // -- authorization results (T3) --------------------------------------------------------
@@ -225,6 +345,8 @@ export interface AuthorizationView {
   receipt: AuthorizationReceipt | null;
   run_plan: RunPlanState | null;
   default_model: string | null;
+  /** The subscribed policy in force (T8), applied to `profiles[].decided` and `defaults`; null when none. */
+  policy: AuthorizationPolicyView | null;
 }
 
 export interface AuthorizeResult {
@@ -243,6 +365,8 @@ export interface ModelsView {
   execution_mode_permission_ids: string[];
   execution_mode_permissions_granted: boolean;
   captured_at: string;
+  /** The subscribed policy's model constraints (T8), when one is in force. */
+  model_policy: { label: string; title: string; local_only: boolean; max_cost_usd_per_run: number | null } | null;
 }
 
 export interface SettingsView {
@@ -481,14 +605,22 @@ export function parseRequest(value: unknown): Request {
     case "website.discover":
       only(fields, ["type", "url"]);
       return { type, url: text(fields.url, "url", MAX_URL) };
-    case "package.open":
-      only(fields, ["type", "url", "advertisedOn", "viewId"]);
+    case "package.open": {
+      only(fields, ["type", "url", "advertisedOn", "viewId", "foundVia"]);
+      let foundVia: { indexId: string } | null = null;
+      if (fields.foundVia !== undefined && fields.foundVia !== null) {
+        const via = record(fields.foundVia);
+        only(via, ["indexId"]);
+        foundVia = { indexId: text(via.indexId, "foundVia.indexId", MAX_ID) };
+      }
       return {
         type,
         url: text(fields.url, "url", MAX_URL),
         advertisedOn: optionalText(fields.advertisedOn, "advertisedOn", MAX_URL),
         viewId: optionalText(fields.viewId, "viewId", MAX_ID),
+        foundVia,
       };
+    }
     case "package.get":
       only(fields, ["type", "sessionId", "viewId"]);
       return { type, sessionId: text(fields.sessionId, "sessionId", MAX_ID), viewId: optionalText(fields.viewId, "viewId", MAX_ID) };
@@ -637,6 +769,37 @@ export function parseRequest(value: unknown): Request {
       if (typeof fields.offset !== "number" || !Number.isInteger(fields.offset) || fields.offset < 0) throw invalid("offset must be a non-negative integer");
       return { type, runId: text(fields.runId, "runId", MAX_ID), name: artifactName(fields.name), offset: fields.offset };
     }
+    case "search.query":
+      only(fields, ["type", "text"]);
+      return { type, text: text(fields.text, "text", MAX_QUERY_TEXT) };
+    case "indexes.list":
+    case "policy.get":
+    case "policy.refresh":
+    case "policy.unsubscribe":
+    case "library.get":
+      only(fields, ["type"]);
+      return { type };
+    case "indexes.add":
+      only(fields, ["type", "url", "publicKeyPem"]);
+      return { type, url: text(fields.url, "url", MAX_URL), publicKeyPem: text(fields.publicKeyPem, "publicKeyPem", 16 * 1024) };
+    case "indexes.refresh":
+    case "indexes.remove":
+      only(fields, ["type", "url"]);
+      return { type, url: text(fields.url, "url", MAX_URL) };
+    case "indexes.enable":
+      only(fields, ["type", "url", "enabled"]);
+      if (typeof fields.enabled !== "boolean") throw invalid("enabled must be a boolean");
+      return { type, url: text(fields.url, "url", MAX_URL), enabled: fields.enabled };
+    case "policy.subscribe":
+      only(fields, ["type", "url", "publicKeyPem", "replace"]);
+      return { type, url: text(fields.url, "url", MAX_URL), publicKeyPem: text(fields.publicKeyPem, "publicKeyPem", 16 * 1024), replace: fields.replace === true };
+    case "library.pin":
+      only(fields, ["type", "sessionId"]);
+      return { type, sessionId: text(fields.sessionId, "sessionId", MAX_ID) };
+    case "library.unpin":
+    case "library.forget":
+      only(fields, ["type", "packageUrl"]);
+      return { type, packageUrl: text(fields.packageUrl, "packageUrl", MAX_URL) };
     default:
       throw invalid(`unknown request type ${JSON.stringify(String(type).slice(0, 40))}`);
   }

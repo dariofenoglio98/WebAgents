@@ -1,4 +1,7 @@
-"""The WebAir origin: one ASGI app serving the human site, the semantic API and /agent.pkg."""
+"""The WebAir origin: one ASGI app serving the human site, the semantic API and /agent.pkg.
+
+Beside them, when configured, the WebAgents demo documents (`demo_documents.py`, T8).
+"""
 
 from __future__ import annotations
 
@@ -8,7 +11,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, Response
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import agent_package, api, web
+from . import agent_package, api, demo_documents, web
 from .service import WebAirService
 
 STYLESHEET_PATH = "/static/webair.css"
@@ -27,11 +30,20 @@ _SECURITY_HEADERS = {
 }
 
 
-def create_app(agent_package_path: str | Path | None = None) -> FastAPI:
-    """Build the origin. `agent_package_path` is the only file /agent.pkg may ever serve."""
+def create_app(
+    agent_package_path: str | Path | None = None,
+    demo_documents_path: str | Path | None = None,
+) -> FastAPI:
+    """Build the origin. `agent_package_path` is the only file /agent.pkg may ever serve;
+    `demo_documents_path` the only directory the three demo-document paths read from (T8)."""
     package = (
         agent_package.PublishedPackage.load(agent_package_path)
         if agent_package_path is not None
+        else None
+    )
+    documents = (
+        demo_documents.DemoDocuments.load(demo_documents_path)
+        if demo_documents_path is not None
         else None
     )
     stylesheet = (Path(__file__).parent / "static" / "webair.css").read_bytes()
@@ -48,6 +60,7 @@ def create_app(agent_package_path: str | Path | None = None) -> FastAPI:
     )
     app.state.service = WebAirService()
     app.state.agent_package = package
+    app.state.demo_documents = documents
 
     @app.middleware("http")
     async def security_headers(request: Request, call_next):
@@ -88,6 +101,7 @@ def create_app(agent_package_path: str | Path | None = None) -> FastAPI:
                 "service": "webair-origin",
                 "fictional": True,
                 "agent_package_sha256": package.sha256 if package else None,
+                "demo_documents": documents.health() if documents else None,
             },
             headers={"Cache-Control": "no-store"},
         )
@@ -95,4 +109,5 @@ def create_app(agent_package_path: str | Path | None = None) -> FastAPI:
     app.include_router(web.router(templates))
     app.include_router(api.router())
     app.include_router(agent_package.router(package))
+    app.include_router(demo_documents.router(documents))
     return app

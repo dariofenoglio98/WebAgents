@@ -7,7 +7,7 @@
  * loads the archives themselves).
  */
 import type { AuthorizationReceipt, RunPlan } from "../../core/types.js";
-import type { SessionSource } from "../messages.js";
+import type { FoundVia, SessionSource } from "../messages.js";
 import { completion, Database, request } from "./database.js";
 
 export interface SnapshotRecord {
@@ -28,6 +28,8 @@ export interface StoredSession {
   run_plan?: RunPlan | null;
   /** Whether a run has spent this receipt's `once` grants (set by the execution host, T5). */
   once_spent?: boolean;
+  /** The index search result it was opened from, with the index's claims compared with the bytes (T8). */
+  found_via?: FoundVia | null;
 }
 
 export interface SnapshotStore {

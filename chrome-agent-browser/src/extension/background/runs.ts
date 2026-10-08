@@ -15,6 +15,7 @@ import { CoreError } from "../../core/errors.js";
 import { ExecutionError } from "../../core/execution/errors.js";
 import { LeaseRegistry, type ExecutionLease } from "../../core/execution/lease.js";
 import { DEFAULT_HOST_LIMITS, normalizeHostLimits, type HostExecutionLimits } from "../../core/execution/limits.js";
+import { cappedLimits } from "../../core/policies/apply.js";
 import { authorizationFromRunPlan, executionPlanFromRunPlan, type ExecutionPlan } from "../../core/execution/plan.js";
 import { failRunRecord, HOST_RUNTIME, isTerminalStatus, RUN_RECORD_SCHEMA, type RunRecord } from "../../core/execution/record.js";
 import { sha256HexSync } from "../../core/hash.js";
@@ -84,6 +85,8 @@ export interface RunHooks {
   runSettled?(archiveSha256: string): Promise<void>;
   /** One picked file's view (Settings → Files, T6), or null when this browser holds no such file. */
   file?(fileId: string): Promise<FileView | null>;
+  /** The subscribed policy's budget caps (T8, D-102), which lower the person's run limits; null when none. */
+  limitCaps?(): Promise<Partial<HostExecutionLimits> | null>;
 }
 
 /** The execution host as the worker sees it: an offscreen document in the extension, an in-process host in tests. */
@@ -220,14 +223,21 @@ export class RunManager {
     this.fixedLimits = deps.limits ? normalizeHostLimits(deps.limits) : null;
   }
 
-  /** The limits a run started now is bounded by: Settings → Run limits, or the embedder's. */
+  /**
+   * The limits a run started now is bounded by: Settings → Run limits (or the embedder's), each
+   * lowered to the subscribed policy's cap where it states one (T8, D-102). A cap never raises a limit.
+   */
   async hostLimits(): Promise<HostExecutionLimits> {
-    if (this.fixedLimits !== null) return { ...this.fixedLimits };
-    try {
-      return normalizeHostLimits((await this.deps.settings.settings()).limits ?? BROWSER_EXECUTION_LIMITS);
-    } catch {
-      return { ...BROWSER_EXECUTION_LIMITS };
+    let limits: HostExecutionLimits;
+    if (this.fixedLimits !== null) limits = { ...this.fixedLimits };
+    else {
+      try {
+        limits = normalizeHostLimits((await this.deps.settings.settings()).limits ?? BROWSER_EXECUTION_LIMITS);
+      } catch {
+        limits = { ...BROWSER_EXECUTION_LIMITS };
+      }
     }
+    return cappedLimits(limits, (await this.deps.hooks.limitCaps?.()) ?? null);
   }
 
   private async leaseRegistry(): Promise<LeaseRegistry> {

@@ -105,6 +105,22 @@ What it shows today, on the WebAir demo site:
    120,000 tokens, 32 remote calls) unless you change them; **Use the long-run limits** sets what
    the reference host used for Literature Review (4,500 s, 180,000 tokens, 45 remote calls,
    1,200 s per model call). A package's own budget still applies beneath them.
+12. **Search, the Library and policies** (T8). **Settings → Search** adds a signed agent index by
+   URL with its publisher's key ("Fill in the WebAgents demo index" fills both); the address bar
+   then searches it when you type words or an agent name (`name@host`), and shows agent cards with
+   the index as their source. **Open and verify** is the ordinary download and verification; what
+   the index claimed (digest, signer) is compared with the bytes and shown, never obeyed. Results
+   are ordered by whether you trust the claimed publisher key, then by the index's own order. An
+   index is fetched only when you add it, check it, or search it after an hour. The **Library**
+   lists agents you pinned and the ones you opened recently. **Settings → Policies → Policy
+   subscription** follows one signed policy ("Fill in the example WebAgents research policy"): it
+   trusts the publisher keys it anchors (your own pins decide first), pre-decides permissions by
+   kind within the profile you pick and never above your preset's durations, caps run limits,
+   can restrict models and services, and names itself on every decision it made; change any of
+   them under Customize your settings and it is recorded as yours. Unsubscribing withdraws its
+   trust and makes plans made under it stale. Formats: `spec/extensions/agent-index-v0.md`,
+   `policy-bundle-v0.md`, `signed-document-v0.md`; publisher tool: `node dist/cli.js document
+   sign|verify`.
 
 Verification is the same as the Python reference runtime's (`agentpkg`): the core reports the
 same digest, archive SHA-256, signer fingerprint and validity, and the browser summary equals
@@ -302,8 +318,10 @@ limits, and the reference driver's grounding checks. The evidence is
   ([threat model](../docs/threat-model.md#chrome-agent-browser-t7)).
 - **Per-origin permissions.** The content script runs on every HTTPS page and reads only the
   advertised link elements; narrowing to opted-in origins is later hardening.
-- Firefox, the Meeting Agenda UI path, search over an index, and policy subscriptions are in the
-  backlog.
+- Firefox and the Meeting Agenda UI path are in the backlog. NANDA resolution is a stub: the
+  mapping from AgentAddr and AgentFacts to a package is defined (`src/core/resolve/nanda.ts`), but
+  no registry is configured and AgentAddr signatures are not verified. A policy's issuer anchors are
+  shown and not applied (no credential format yet), and one policy can be followed at a time.
 
 Nothing here contacts any network at install or start, carries no telemetry, and never messages
 a web page.

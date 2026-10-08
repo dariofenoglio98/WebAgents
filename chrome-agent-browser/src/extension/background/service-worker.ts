@@ -11,6 +11,7 @@ import { Database } from "../storage/database.js";
 import { IndexedDbFileStore } from "../storage/files.js";
 import { IndexedDbRunStore } from "../storage/runs.js";
 import { SettingsStorage } from "../storage/settings.js";
+import { SubscriptionStorage } from "../storage/subscriptions.js";
 import { IndexedDbSnapshotStore } from "../storage/snapshots.js";
 import { ChromeTabStateStore } from "../storage/tab-state.js";
 import { ChromeTrustStorage } from "../storage/trust-storage.js";
@@ -127,6 +128,7 @@ const controller = new Controller({
   snapshots: new IndexedDbSnapshotStore(database),
   runs: new IndexedDbRunStore(database),
   files: new IndexedDbFileStore(database),
+  subscriptions: new SubscriptionStorage(chrome.storage.local),
   host: new OffscreenHostBridge(),
   trust: new TrustStore(new ChromeTrustStorage()),
   tabs: new ChromeTabStateStore(),

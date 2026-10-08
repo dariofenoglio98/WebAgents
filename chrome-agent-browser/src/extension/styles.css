@@ -212,3 +212,16 @@ a { color: var(--ab-accent); }
 .ab-command { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .ab-command-text { background: var(--ab-neutral-bg); padding: 4px 8px; border-radius: 6px; overflow-wrap: anywhere; }
 .ab-diagnosis { margin: 6px 0; }
+
+/* T8: search results, the Library, indexes and the policy subscription */
+.ab-results, .ab-results > li { list-style: none; padding: 0; margin: 0; }
+.ab-result, .ab-library-row, .ab-index-row { border: 1px solid var(--ab-border); border-radius: var(--ab-radius); padding: 10px 12px; margin: 8px 0; background: var(--ab-surface); }
+.ab-result-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.ab-result-name { font-size: 1.02rem; }
+.ab-result-publisher { margin: 4px 0; color: var(--ab-muted); }
+.ab-result-source { font-size: 0.85rem; }
+.ab-found-via { margin: 8px 0; }
+.ab-session-extras .ab-actions { justify-content: flex-end; }
+.ab-keyed-form { display: grid; gap: 8px; margin: 8px 0; }
+.ab-pem { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.8rem; width: 100%; box-sizing: border-box; }
+.ab-notes { margin-top: 8px; }
