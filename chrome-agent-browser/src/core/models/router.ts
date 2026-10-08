@@ -66,6 +66,8 @@ export interface ProviderAdapter {
   readonly context_window: number;
   readonly domains: readonly string[];
   readonly pricing: ModelPricing | null;
+  /** Whether the adapter asks the model to think (Ollama, D-085); absent where the host has no such switch. */
+  readonly thinking?: boolean;
   complete(rendered: RenderedRequest, maxOutputTokens: number, signal: AbortSignal): Promise<ProviderCompletion>;
 }
 
@@ -103,8 +105,7 @@ export interface ModelInvocation {
 
 /** `{thinking}` when the adapter states whether it asks the model to think (Ollama), else nothing. */
 function thinkingOf(adapter: ProviderAdapter): { thinking?: boolean } {
-  const thinking = (adapter as unknown as { thinking?: unknown }).thinking;
-  return typeof thinking === "boolean" ? { thinking } : {};
+  return typeof adapter.thinking === "boolean" ? { thinking: adapter.thinking } : {};
 }
 
 export class BoundModelRouter implements ModelRouter {

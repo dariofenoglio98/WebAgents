@@ -325,6 +325,24 @@ describe("the binding's own deadline (review 1, finding 5)", () => {
   });
 });
 
+describe("pacing follows what reached the service", () => {
+  it("a request the adapter refuses locally gives its slot back as unsent; one that was sent, as answered (T6 review, nit 4)", async () => {
+    const { pkg } = await echoPackage({ remoteOrigin: "https://service.example" });
+    // A binding whose request bound a long value exceeds: refused before any request leaves.
+    const definition = { ...definitionFor(pkg, ECHO_TOOL), maxRequestBytes: 32 };
+    const net = scripted(() => ({ status: 200, body: JSON.stringify({ value: "ok" }) }));
+    const released: Array<boolean | undefined> = [];
+    const recording = { acquire: async () => (answered?: boolean) => void released.push(answered) } as unknown as Pacer;
+    const handler = new BoundToolHandler(planBindingFor(pkg, definition), definition, { definitions: [definition], transport: net.transport, pacer: recording });
+    await expect(handler.call(context, { value: "x".repeat(100) }, new AbortController().signal)).rejects.toMatchObject({ code: "tool_request_invalid" });
+    expect(net.requests).toHaveLength(0);
+    expect(await handler.call(context, { value: "a" }, new AbortController().signal)).toEqual({ value: "ok" });
+    expect(net.requests).toHaveLength(1);
+    // `false` starts no interval (the pacer's own tests cover what each value does).
+    expect(released).toEqual([false, true]);
+  });
+});
+
 describe("WebAir through operator bindings and a scripted origin", () => {
   it("binds the four demo tools and completes a search by replaying the fixture's answers over HTTP", async () => {
     const { loadPackageBytes } = await import("../../../src/core/package.js");

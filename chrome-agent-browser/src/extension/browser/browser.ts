@@ -548,6 +548,9 @@ async function pickFiles(): Promise<void> {
         input.accept = "application/pdf,.pdf";
         input.multiple = true;
         input.addEventListener("change", () => resolve([...(input.files ?? [])]));
+        // A closed dialog fires `cancel` (Chrome 113+) and no `change`: settle with nothing
+        // picked rather than leave the promise pending (T6 review, nit 9).
+        input.addEventListener("cancel", () => resolve([]));
         input.click();
       });
     }

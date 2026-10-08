@@ -63,6 +63,14 @@ export const CROSSREF_SELECT = ["DOI", "title", "author", "published", "publishe
 export const CROSSREF_TYPES = ["journal-article", "proceedings-article", "posted-content", "book-chapter", "book", "monograph", "report", "dissertation"];
 export const CROSSREF_FILTER = CROSSREF_TYPES.map((type) => `type:${type}`).join(",");
 
+/**
+ * The query's own bound, in characters, as the reference adapter states it. The URL the query
+ * becomes is bounded separately by the binding's `maxRequestBytes` (4 KiB, in the binding's
+ * digest), exactly as in the reference broker, so a query of non-ASCII characters can pass this
+ * check and still be refused by that one (500 four-byte characters percent-encode to 6,000
+ * bytes). Both refusals are `tool_request_invalid` before any request; neither runtime clips a
+ * package's value to fit (T6 review, nit 5: kept for parity, documented here).
+ */
 export const CROSSREF_MAX_QUERY_CHARS = 500;
 export const CROSSREF_MAX_ROWS = 20;
 /** A contact address for the polite pool: one address, no spaces or controls, bounded. */

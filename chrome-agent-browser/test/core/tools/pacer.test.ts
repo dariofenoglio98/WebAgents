@@ -67,6 +67,48 @@ describe("Pacer", () => {
     next();
   });
 
+  it("a call cancelled during its timed wait withdraws its start reservation (T6 review, nit 2)", async () => {
+    let now = 0;
+    const pacer = new Pacer(() => now);
+    const limits = { maxConcurrent: 4, minIntervalMs: 10_000 };
+    const first = await pacer.acquire("g", limits, new AbortController().signal);
+    // The second reserves its start at 10 s and waits for it; it is cancelled before then.
+    const controller = new AbortController();
+    const second = pacer.acquire("g", limits, controller.signal);
+    controller.abort(new CancelledError());
+    await expect(second).rejects.toBeInstanceOf(CancelledError);
+    // The third starts where the second would have: 10 s after the first, not 20 s.
+    now = 10_000;
+    const started = Date.now();
+    const third = await pacer.acquire("g", limits, new AbortController().signal);
+    expect(Date.now() - started).toBeLessThan(50);
+    first();
+    third();
+    expect(pacer.load("g")).toEqual({ active: 0, waiting: 0 });
+  });
+
+  it("a slot handed to a waiter whose signal aborted in the same turn is given back at once (T6 review, nit 3)", async () => {
+    let now = 0;
+    const pacer = new Pacer(() => now);
+    const limits = { maxConcurrent: 1, minIntervalMs: 10_000 };
+    const first = await pacer.acquire("h", limits, new AbortController().signal);
+    const controller = new AbortController();
+    const waiting = pacer.acquire("h", limits, controller.signal);
+    // The release hands the slot over (resolving the waiter's promise); the abort lands before
+    // the waiter runs again, so its abort listener has already been removed.
+    first(false);
+    controller.abort(new CancelledError());
+    await expect(waiting).rejects.toBeInstanceOf(CancelledError);
+    expect(pacer.load("h")).toEqual({ active: 0, waiting: 0 });
+    // Nothing was sent and the waiter reserved nothing: at the first call's own spacing (10 s
+    // after its start) the next call starts at once, not another interval later.
+    now = 10_000;
+    const started = Date.now();
+    const next = await pacer.acquire("h", limits, new AbortController().signal);
+    expect(Date.now() - started).toBeLessThan(50);
+    next();
+  });
+
   it("a waiter that is cancelled leaves the queue and holds nothing", async () => {
     const pacer = new Pacer();
     const release = await pacer.acquire("d", { maxConcurrent: 1, minIntervalMs: 0 }, new AbortController().signal);

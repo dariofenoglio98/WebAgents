@@ -176,3 +176,33 @@ describe("Settings → Models: the connection chips describe the providers now (
     expect(probeSummary({ provider: "ollama", ok: false, models: [], notes: [], error: "Ollama stopped answering" })).toEqual({ text: "failed: Ollama stopped answering", tone: "bad" });
   });
 });
+
+describe("Settings → Files: the file-input fallback (T6 review, nit 9)", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("a closed dialog settles the pick with nothing copied, so the page renders again and a later pick still works", async () => {
+    // happy-dom has no File System Access picker, so Pick PDFs… takes the <input type=file> path.
+    expect((window as unknown as { showOpenFilePicker?: unknown }).showOpenFilePicker).toBeUndefined();
+    const inputs: HTMLInputElement[] = [];
+    const create = document.createElement.bind(document);
+    vi.spyOn(document, "createElement").mockImplementation(((tag: string, options?: ElementCreationOptions) => {
+      const node = create(tag, options);
+      if (tag === "input") inputs.push(node as HTMLInputElement);
+      return node;
+    }) as typeof document.createElement);
+    const send = vi.spyOn(h.controller, "handle");
+    await go("#settings?section=files");
+    const pick = () => [...app().querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent === "Pick PDFs…")!;
+    pick().click();
+    const input = inputs.find((node) => node.type === "file")!;
+    expect(input).toBeDefined();
+    const before = app().firstElementChild;
+    input.dispatchEvent(new Event("cancel"));
+    await settle();
+    // `pickFiles` finished: it re-rendered the page and copied nothing.
+    expect(app().firstElementChild).not.toBe(before);
+    expect(send.mock.calls.filter(([message]) => (message as { type: string }).type === "files.add")).toHaveLength(0);
+    pick().click();
+    expect(inputs.filter((node) => node.type === "file")).toHaveLength(2);
+  });
+});
