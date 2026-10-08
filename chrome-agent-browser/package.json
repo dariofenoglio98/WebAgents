@@ -1,7 +1,7 @@
 {
   "name": "chrome-agent-browser",
   "version": "0.1.0",
-  "description": "Chrome Agent Browser: a portable TypeScript core that opens, verifies, authorizes and executes signed agent.pkg packages (workflow.v0), a Node CLI with agentpkg's shape, and a Manifest V3 extension shell that discovers and authorizes them on websites. The extension itself does not run packages yet (T5).",
+  "description": "Chrome Agent Browser: a portable TypeScript core that opens, verifies, authorizes and executes signed agent.pkg packages (workflow.v0), a Node CLI with agentpkg's shape, and a Manifest V3 extension that discovers packages on websites, authorizes them and runs them with the person's own models.",
   "license": "Apache-2.0",
   "type": "module",
   "private": true,
@@ -13,6 +13,7 @@
     "test": "vitest run",
     "build": "node scripts/build.mjs",
     "pack": "node scripts/pack.mjs",
+    "check-pack": "node scripts/check-pack.mjs",
     "sync-schemas": "node scripts/sync-schemas.mjs",
     "e2e": "node scripts/e2e-discovery.mjs"
   },
