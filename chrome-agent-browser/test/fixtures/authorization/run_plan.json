@@ -1,19 +1,19 @@
 {
   "schema": "agentpkg-run-plan-v0",
   "run_plan_version": "0.1",
-  "run_plan_id": "rp_907458f1b1094f16b10d3e246c640647",
-  "created_at": "2026-10-07T13:18:39.634016+00:00",
-  "expires_at": "2026-10-07T13:33:39.625069+00:00",
-  "session_id": "KqtGZchsOWpKOMKnd7_ptWDS",
+  "run_plan_id": "rp_9ecef06696934169b1c5f6d97d5243f8",
+  "created_at": "2026-10-07T21:21:52.915671+00:00",
+  "expires_at": "2026-10-07T21:36:52.905817+00:00",
+  "session_id": "2un3HYc_efXZu61HvHglirnf",
   "control_plane": {
     "service": "agentpkg-browser-control-plane",
     "api_version": "v0",
-    "instance_id": "e01512c2-bd95-465f-ad36-c1fc34b4a5bb"
+    "instance_id": "26d5bafd-92fe-4327-884b-57e53dac4bac"
   },
   "source": {
     "kind": "file",
     "display": "dist/webair-0.4.0.agent.pkg",
-    "opened_at": "2026-10-07T13:18:39.625069+00:00"
+    "opened_at": "2026-10-07T21:21:52.905817+00:00"
   },
   "package": {
     "package_id": "org.webagents.webair",
@@ -33,7 +33,7 @@
     "trust_reason": "operator_pinned_key"
   },
   "trust_store": {
-    "path": "/var/folders/zx/c94b09b50v31fk6qp9h3h1cw0000gn/T/tmpb7gqifph/trust.json",
+    "path": "trust.json",
     "entry_count": 1,
     "state_sha256": "2da5605d73f2d03b8e06404b74522ae68f2df4344a2a7aeed7afd6c51c59a0b7"
   },
@@ -48,10 +48,10 @@
     "errors": []
   },
   "authorization": {
-    "receipt_id": "994568d4-2ce7-4db9-bc3d-57e796dae009",
-    "receipt_sha256": "6838d14b031ef89ce61cce041fcf81c2717f45e157a14b20554d017023c7d6dc",
-    "issued_at": "2026-10-07T13:18:39.627230+00:00",
-    "expires_at": "2026-10-07T13:33:39.625069+00:00",
+    "receipt_id": "cda394be-1f1d-422e-8b50-80568a98cf7b",
+    "receipt_sha256": "2098aac2bd81947ce8821b1ccfdbebe371ff83f0623f0ffc0187707c8cd41f60",
+    "issued_at": "2026-10-07T21:21:52.908485+00:00",
+    "expires_at": "2026-10-07T21:36:52.905817+00:00",
     "runnable": true,
     "decisions": {
       "booking.simulate_purchase": "once",
@@ -346,7 +346,7 @@
   },
   "model_binding": {
     "strategy": "single_model",
-    "selected_at": "2026-10-07T13:18:39.634016+00:00",
+    "selected_at": "2026-10-07T21:21:52.915671+00:00",
     "host_model_id": "ollama/qwen3:30b",
     "provider_id": "ollama",
     "model_id": "qwen3:30b",
@@ -627,5 +627,5 @@
     "compatibility_status": "compatible",
     "blocking_reasons": []
   },
-  "run_plan_sha256": "fff6e8b038a82d0c0d15ea09e2374c90ffc1dfcd8e08730a593534ca8e054981"
+  "run_plan_sha256": "e3925317b275ea609ea608912d6b9156e367df0cac68d6c51abf8b2df92f962e"
 }

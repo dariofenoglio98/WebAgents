@@ -11,7 +11,13 @@
  * TLS still authenticating the name. The one exception is the model transport's loopback
  * host: Ollama on this machine over plain HTTP, and only when the name resolves to loopback.
  * One request, no redirect followed, the body streamed and stopped at the cap, the signal
- * honoured from resolution to the last byte.
+ * honoured from resolution to the last byte (the resolver is raced against it; T4 review 2,
+ * nit 5). Every classified address is kept: when the connection to one fails **before the
+ * socket connected**, the next is tried in the resolver's order (nit 1), so an AAAA-first
+ * answer on a host without an IPv6 route still reaches the destination. Once a socket has
+ * connected the request may have reached the server, so nothing is ever sent twice: a reset
+ * after the body was written is that request's own failure, never a retry (T5 review 1,
+ * finding 4; tool calls such as a simulated purchase are not idempotent).
  */
 import { lookup as dnsLookup } from "node:dns";
 import { request as httpRequest, type IncomingMessage, type RequestOptions } from "node:http";
@@ -20,7 +26,7 @@ import { connect as netConnect, isIP, type Socket } from "node:net";
 import { connect as tlsConnect } from "node:tls";
 
 import { CoreError } from "./core/errors.js";
-import type { Http } from "./core/models/catalog.js";
+import { OLLAMA_LOOPBACK_HOSTS, type Http } from "./core/models/catalog.js";
 import { TransportError, type HttpRequest, type HttpResponse, type HttpTransport } from "./core/models/transport.js";
 import { validatePackageUrl } from "./core/policy.js";
 
@@ -28,7 +34,6 @@ export const MAX_RESOLVED_ADDRESSES = 8;
 /** The catalog probe's own bounds: a hanging provider cannot block `run --mode live` before any deadline applies. */
 export const CATALOG_PROBE_TIMEOUT_MS = 20_000;
 export const CATALOG_PROBE_MAX_BYTES = 4 * 1024 * 1024;
-const LOOPBACK_NAMES: readonly string[] = ["127.0.0.1", "localhost", "[::1]"];
 
 // -- address classes (agentpkg.netaddr.public_address_reason, CPython 3.13 ipaddress) --------
 
@@ -188,7 +193,10 @@ export const defaultResolver: Resolver = (hostname) =>
 
 export interface Destination {
   hostname: string;
+  /** The address the connection is pinned to first. */
   address: string;
+  /** Every classified address, in the resolver's order; `address` is the first. */
+  addresses: string[];
   port: number;
   tls: boolean;
   path: string;
@@ -208,14 +216,14 @@ export async function resolveDestination(url: string, options: { allowLoopbackHt
   } catch {
     throw new TransportError("the destination is not a URL", { stage: "address_policy" });
   }
-  if (options.allowLoopbackHttp && LOOPBACK_NAMES.includes(parsed.hostname) && (parsed.protocol === "http:" || parsed.protocol === "https:")) {
+  if (options.allowLoopbackHttp && OLLAMA_LOOPBACK_HOSTS.includes(parsed.hostname) && (parsed.protocol === "http:" || parsed.protocol === "https:")) {
     const host = parsed.hostname.replace(/^\[|\]$/gu, "");
     const addresses = isIP(host) !== 0 ? [host] : await resolve(host);
     if (addresses.length === 0 || addresses.some((address) => addressRejection(address) !== "loopback_address")) {
       throw new TransportError("the local model host does not resolve to this machine", { stage: "address_policy", reason: "loopback_expected" });
     }
     const tls = parsed.protocol === "https:";
-    return { hostname: host, address: addresses[0]!, port: parsed.port ? Number(parsed.port) : tls ? 443 : 80, tls, path: `${parsed.pathname}${parsed.search}`, hostHeader: parsed.host };
+    return { hostname: host, address: addresses[0]!, addresses: [...addresses], port: parsed.port ? Number(parsed.port) : tls ? 443 : 80, tls, path: `${parsed.pathname}${parsed.search}`, hostHeader: parsed.host };
   }
   let gate: { hostname: string; target: string };
   try {
@@ -229,7 +237,26 @@ export async function resolveDestination(url: string, options: { allowLoopbackHt
     const reason = addressRejection(address);
     if (reason !== null) throw new TransportError(`the destination host resolves to a non-public address (${reason})`, { stage: "address_policy", reason });
   }
-  return { hostname: gate.hostname, address: addresses[0]!, port: 443, tls: true, path: gate.target, hostHeader: gate.hostname };
+  return { hostname: gate.hostname, address: addresses[0]!, addresses: [...addresses], port: 443, tls: true, path: gate.target, hostHeader: gate.hostname };
+}
+
+/** `work` settled, or the signal's reason as soon as it aborts: a hanging resolver must not outlast a deadline (T4 review 2, nit 5). */
+export function raced<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
+  if (signal.aborted) return Promise.reject((signal.reason as Error | undefined) ?? new TransportError("the request was cancelled", { stage: "transport" }));
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject((signal.reason as Error | undefined) ?? new TransportError("the request was cancelled", { stage: "transport" }));
+    signal.addEventListener("abort", onAbort, { once: true });
+    work.then(
+      (value) => {
+        signal.removeEventListener("abort", onAbort);
+        resolve(value);
+      },
+      (error: unknown) => {
+        signal.removeEventListener("abort", onAbort);
+        reject(error);
+      },
+    );
+  });
 }
 
 // -- the request -------------------------------------------------------------------------------
@@ -239,10 +266,20 @@ function connectionFailure(error: NodeJS.ErrnoException): TransportError {
   return new TransportError(tls ? "the destination's TLS handshake or certificate failed" : "the connection to the destination failed", { stage: tls ? "tls" : "transport" });
 }
 
-/** One request on a pinned connection; the body streamed and stopped at the cap; no redirect followed. */
-function perform(destination: Destination, request: HttpRequest): Promise<HttpResponse> {
+/** The connection to one address failed before the socket ever connected: the next classified address may be tried. */
+class ConnectionFailed extends Error {
+  override readonly name = "ConnectionFailed";
+  constructor(readonly failure: TransportError) {
+    super(failure.message);
+  }
+}
+
+/** One request on a connection pinned to `address`; the body streamed and stopped at the cap; no redirect followed. */
+function perform(destination: Destination, address: string, request: HttpRequest): Promise<HttpResponse> {
   return new Promise<HttpResponse>((resolve, reject) => {
     let settled = false;
+    /** The TCP connection was established: from here on the request may have reached the server. */
+    let connected = false;
     const finish = (outcome: () => void) => {
       if (settled) return;
       settled = true;
@@ -253,13 +290,27 @@ function perform(destination: Destination, request: HttpRequest): Promise<HttpRe
       // The connection is pinned to the address this process classified; TLS still verifies the
       // certificate against the name the binding or the provider holds.
       socket = destination.tls
-        ? tlsConnect({ host: destination.address, port: destination.port, ...(isIP(destination.hostname) === 0 ? { servername: destination.hostname } : {}), ALPNProtocols: ["http/1.1"] })
-        : netConnect({ host: destination.address, port: destination.port });
+        ? tlsConnect({ host: address, port: destination.port, ...(isIP(destination.hostname) === 0 ? { servername: destination.hostname } : {}), ALPNProtocols: ["http/1.1"] })
+        : netConnect({ host: address, port: destination.port });
     } catch (error) {
-      finish(() => reject(connectionFailure(error as NodeJS.ErrnoException)));
+      finish(() => reject(new ConnectionFailed(connectionFailure(error as NodeJS.ErrnoException))));
       return;
     }
-    socket.on("error", (error: NodeJS.ErrnoException) => finish(() => reject(request.signal.aborted ? (request.signal.reason as Error) : connectionFailure(error))));
+    // A failure before the socket connected is a failure of this address (the next one may
+    // answer); a failure after it is the request's own: the server may have received the
+    // request, and a second send could perform its side effect twice (T5 review 1, finding 4).
+    // Over TLS "connected" means the handshake completed (`secureConnect`): no request byte
+    // can leave before it, so a reset during the handshake is still this address's failure
+    // (T5 review 2, nit 6); a handshake or certificate failure is never retried.
+    const failed = (error: NodeJS.ErrnoException): Error => {
+      if (request.signal.aborted) return request.signal.reason as Error;
+      const failure = connectionFailure(error);
+      return connected || failure.facts.stage === "tls" ? failure : new ConnectionFailed(failure);
+    };
+    socket.once(destination.tls ? "secureConnect" : "connect", () => {
+      connected = true;
+    });
+    socket.on("error", (error: NodeJS.ErrnoException) => finish(() => reject(failed(error))));
     const headers: Record<string, string> = { ...request.headers, host: destination.hostHeader };
     // No `agent` at all: with one, even `agent: false`, Node ignores `createConnection` and
     // dials the host name itself, which would resolve it a second time (BACKLOG B-116 for the
@@ -273,6 +324,7 @@ function perform(destination: Destination, request: HttpRequest): Promise<HttpRe
       signal: request.signal,
     };
     const onResponse = (response: IncomingMessage) => {
+      connected = true;
       const status = response.statusCode ?? 0;
       const responseHeaders: Record<string, string> = {};
       for (const [name, value] of Object.entries(response.headers)) {
@@ -313,11 +365,28 @@ function perform(destination: Destination, request: HttpRequest): Promise<HttpRe
     const outbound = destination.tls ? httpsRequest(options, onResponse) : httpRequest(options, onResponse);
     outbound.on("error", (error: NodeJS.ErrnoException) => {
       socket.destroy();
-      finish(() => reject(request.signal.aborted ? (request.signal.reason as Error) : connectionFailure(error)));
+      finish(() => reject(failed(error)));
     });
-    if (request.body !== null) outbound.write(request.body);
-    outbound.end();
+    // `end(body)` lets Node send a Content-Length; `write` then `end` would send the body
+    // chunked, which some gateways answer with 411 (T4 review 2, nit 2).
+    if (request.body !== null) outbound.end(request.body);
+    else outbound.end();
   });
+}
+
+/** Try the classified addresses in order; a connection that fails before it was established moves to the next. */
+async function performAny(destination: Destination, request: HttpRequest): Promise<HttpResponse> {
+  let last: TransportError | null = null;
+  for (const address of destination.addresses) {
+    if (request.signal.aborted) throw (request.signal.reason as Error | undefined) ?? new TransportError("the request was cancelled", { stage: "transport" });
+    try {
+      return await perform(destination, address, request);
+    } catch (error) {
+      if (!(error instanceof ConnectionFailed)) throw error;
+      last = error.failure;
+    }
+  }
+  throw last ?? new TransportError("the destination host has no addresses", { stage: "transport" });
 }
 
 /**
@@ -326,16 +395,20 @@ function perform(destination: Destination, request: HttpRequest): Promise<HttpRe
  */
 export function nodeTransport(options: { allowLoopbackHttp: boolean; resolve?: Resolver }): HttpTransport {
   return async (request) => {
-    if (request.signal.aborted) throw (request.signal.reason as Error | undefined) ?? new TransportError("the request was cancelled", { stage: "transport" });
-    const destination = await resolveDestination(request.url, options);
-    if (request.signal.aborted) throw (request.signal.reason as Error | undefined) ?? new TransportError("the request was cancelled", { stage: "transport" });
-    return perform(destination, request);
+    const destination = await raced(resolveDestination(request.url, options), request.signal);
+    return performAny(destination, request);
   };
 }
 
-/** The catalog probe's HTTP over the same transport: the provider's credential header, a deadline of its own, a bounded JSON body. */
-export function catalogHttp(keys: { openai: string | null; anthropic: string | null }, options: { resolve?: Resolver; timeoutMs?: number } = {}): Http {
+/**
+ * The catalog probe's HTTP over the same transport: the provider's credential header, a bounded
+ * JSON body, and **one** deadline for every request made through the returned function, so a
+ * provider that stalls each of its up to 33 sequential answers cannot hold the probe for longer
+ * than the deadline as a whole (T4 review 2, nit 4). A caller makes a new `catalogHttp` per probe.
+ */
+export function catalogHttp(keys: { openai: string | null; anthropic: string | null }, options: { resolve?: Resolver; timeoutMs?: number; signal?: AbortSignal } = {}): Http {
   const transport = nodeTransport({ allowLoopbackHttp: true, resolve: options.resolve });
+  const deadline = options.signal ?? AbortSignal.timeout(options.timeoutMs ?? CATALOG_PROBE_TIMEOUT_MS);
   return async (request) => {
     const headers: Record<string, string> = { accept: "application/json", ...request.headers };
     if (request.provider === "openai" && keys.openai) headers.authorization = `Bearer ${keys.openai}`;
@@ -346,7 +419,7 @@ export function catalogHttp(keys: { openai: string | null; anthropic: string | n
       method: request.method,
       headers,
       body: request.body === undefined ? null : JSON.stringify(request.body),
-      signal: AbortSignal.timeout(options.timeoutMs ?? CATALOG_PROBE_TIMEOUT_MS),
+      signal: deadline,
       maxResponseBytes: CATALOG_PROBE_MAX_BYTES,
     });
     let body: unknown = null;

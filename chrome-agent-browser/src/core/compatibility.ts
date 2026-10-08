@@ -331,7 +331,10 @@ export function requirementSet(pkg: Package): RequirementSet {
 
 // -- evaluation --------------------------------------------------------------
 function hostCapability(descriptor: ModelDescriptor, name: string): CapabilityAnswer {
-  return descriptor.capabilities[name] ?? { name, value: null, basis: "absent", detail: null };
+  // Own entries only: a task capability named `constructor` or `toString` is not declared by a
+  // host whose answers merely inherit Object.prototype (T3 review 2, nit 19); Python's dict
+  // lookup has no such ancestry, and both runtimes must answer "unverified" for it.
+  return Object.hasOwn(descriptor.capabilities, name) ? descriptor.capabilities[name]! : { name, value: null, basis: "absent", detail: null };
 }
 
 function contextValue(descriptor: ModelDescriptor): [number | null, string] {

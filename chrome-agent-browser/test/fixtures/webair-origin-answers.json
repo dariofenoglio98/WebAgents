@@ -1,0 +1,464 @@
+{
+  "fare_rules": {
+    "WA101-20261009-BASIC": {
+      "available": true,
+      "baggage": {
+        "cabin_bag_kg": 8,
+        "checked_bag_kg": null,
+        "checked_bags": 0,
+        "personal_item": true
+      },
+      "booking_class": "V",
+      "cabin": "economy",
+      "changes": {
+        "allowed": false,
+        "fee_usd": null,
+        "summary": "Changes not permitted"
+      },
+      "currency": "USD",
+      "fare_family": "BASIC",
+      "fare_id": "WA101-20261009-BASIC",
+      "fare_name": "Economy Basic",
+      "flight": {
+        "arrival_day_offset": 1,
+        "arrival_local": "2026-10-10T07:40",
+        "date": "2026-10-09",
+        "departure_local": "2026-10-09T18:05",
+        "destination": "ZRH",
+        "duration_minutes": 455,
+        "flight_id": "WA101-20261009",
+        "flight_numbers": [
+          "WA101"
+        ],
+        "layover_minutes": [],
+        "origin": "BOS",
+        "segments": [
+          {
+            "aircraft": "Airbus A330-300",
+            "arrival_local": "2026-10-10T07:40",
+            "departure_local": "2026-10-09T18:05",
+            "destination": "ZRH",
+            "duration_minutes": 455,
+            "flight_number": "WA101",
+            "origin": "BOS"
+          }
+        ],
+        "stops": 0,
+        "via": []
+      },
+      "passengers": 1,
+      "price_per_passenger_usd": 704,
+      "refunds": {
+        "fee_usd": null,
+        "refundable": false,
+        "summary": "Non-refundable"
+      },
+      "seat_selection": "Seat assigned at check-in",
+      "seats_left": 9,
+      "total_usd": 704
+    },
+    "WA101-20261009-STANDARD": {
+      "available": true,
+      "baggage": {
+        "cabin_bag_kg": 8,
+        "checked_bag_kg": 23,
+        "checked_bags": 1,
+        "personal_item": true
+      },
+      "booking_class": "M",
+      "cabin": "economy",
+      "changes": {
+        "allowed": true,
+        "fee_usd": 150,
+        "summary": "Changes for $150 per passenger plus fare difference"
+      },
+      "currency": "USD",
+      "fare_family": "STANDARD",
+      "fare_id": "WA101-20261009-STANDARD",
+      "fare_name": "Economy Standard",
+      "flight": {
+        "arrival_day_offset": 1,
+        "arrival_local": "2026-10-10T07:40",
+        "date": "2026-10-09",
+        "departure_local": "2026-10-09T18:05",
+        "destination": "ZRH",
+        "duration_minutes": 455,
+        "flight_id": "WA101-20261009",
+        "flight_numbers": [
+          "WA101"
+        ],
+        "layover_minutes": [],
+        "origin": "BOS",
+        "segments": [
+          {
+            "aircraft": "Airbus A330-300",
+            "arrival_local": "2026-10-10T07:40",
+            "departure_local": "2026-10-09T18:05",
+            "destination": "ZRH",
+            "duration_minutes": 455,
+            "flight_number": "WA101",
+            "origin": "BOS"
+          }
+        ],
+        "stops": 0,
+        "via": []
+      },
+      "passengers": 1,
+      "price_per_passenger_usd": 858,
+      "refunds": {
+        "fee_usd": null,
+        "refundable": false,
+        "summary": "Non-refundable"
+      },
+      "seat_selection": "Standard seat selection included",
+      "seats_left": 24,
+      "total_usd": 858
+    },
+    "WA105-20261009-BASIC": {
+      "available": true,
+      "baggage": {
+        "cabin_bag_kg": 8,
+        "checked_bag_kg": null,
+        "checked_bags": 0,
+        "personal_item": true
+      },
+      "booking_class": "V",
+      "cabin": "economy",
+      "changes": {
+        "allowed": false,
+        "fee_usd": null,
+        "summary": "Changes not permitted"
+      },
+      "currency": "USD",
+      "fare_family": "BASIC",
+      "fare_id": "WA105-20261009-BASIC",
+      "fare_name": "Economy Basic",
+      "flight": {
+        "arrival_day_offset": 1,
+        "arrival_local": "2026-10-10T11:20",
+        "date": "2026-10-09",
+        "departure_local": "2026-10-09T21:40",
+        "destination": "ZRH",
+        "duration_minutes": 460,
+        "flight_id": "WA105-20261009",
+        "flight_numbers": [
+          "WA105"
+        ],
+        "layover_minutes": [],
+        "origin": "BOS",
+        "segments": [
+          {
+            "aircraft": "Boeing 787-9",
+            "arrival_local": "2026-10-10T11:20",
+            "departure_local": "2026-10-09T21:40",
+            "destination": "ZRH",
+            "duration_minutes": 460,
+            "flight_number": "WA105",
+            "origin": "BOS"
+          }
+        ],
+        "stops": 0,
+        "via": []
+      },
+      "passengers": 1,
+      "price_per_passenger_usd": 749,
+      "refunds": {
+        "fee_usd": null,
+        "refundable": false,
+        "summary": "Non-refundable"
+      },
+      "seat_selection": "Seat assigned at check-in",
+      "seats_left": 4,
+      "total_usd": 749
+    }
+  },
+  "note": "Answers of the real WebAir origin (demo/webair, package 0.4.0) to the requests the scripted origin of the privacy tests serves; generated by the T5 session with FastAPI's TestClient. Fictional data; nothing is charged.",
+  "prepare_booking": {
+    "input": {
+      "contact_email": "alex.traveler@example.com",
+      "fare_id": "WA101-20261009-STANDARD",
+      "passengers": [
+        {
+          "family_name": "Traveler",
+          "given_name": "Alex"
+        }
+      ]
+    },
+    "output": {
+      "contact_email": "alex.traveler@example.com",
+      "currency": "USD",
+      "fare": {
+        "available": true,
+        "baggage": {
+          "cabin_bag_kg": 8,
+          "checked_bag_kg": 23,
+          "checked_bags": 1,
+          "personal_item": true
+        },
+        "booking_class": "M",
+        "cabin": "economy",
+        "changes": {
+          "allowed": true,
+          "fee_usd": 150,
+          "summary": "Changes for $150 per passenger plus fare difference"
+        },
+        "currency": "USD",
+        "fare_family": "STANDARD",
+        "fare_id": "WA101-20261009-STANDARD",
+        "fare_name": "Economy Standard",
+        "flight": {
+          "arrival_day_offset": 1,
+          "arrival_local": "2026-10-10T07:40",
+          "date": "2026-10-09",
+          "departure_local": "2026-10-09T18:05",
+          "destination": "ZRH",
+          "duration_minutes": 455,
+          "flight_id": "WA101-20261009",
+          "flight_numbers": [
+            "WA101"
+          ],
+          "layover_minutes": [],
+          "origin": "BOS",
+          "segments": [
+            {
+              "aircraft": "Airbus A330-300",
+              "arrival_local": "2026-10-10T07:40",
+              "departure_local": "2026-10-09T18:05",
+              "destination": "ZRH",
+              "duration_minutes": 455,
+              "flight_number": "WA101",
+              "origin": "BOS"
+            }
+          ],
+          "stops": 0,
+          "via": []
+        },
+        "passengers": 1,
+        "price_per_passenger_usd": 858,
+        "refunds": {
+          "fee_usd": null,
+          "refundable": false,
+          "summary": "Non-refundable"
+        },
+        "seat_selection": "Standard seat selection included",
+        "seats_left": 24,
+        "total_usd": 858
+      },
+      "notice": "Demo quote. Nothing is reserved and nothing will be charged.",
+      "passengers": [
+        {
+          "family_name": "Traveler",
+          "given_name": "Alex"
+        }
+      ],
+      "payment_methods": [
+        {
+          "demo": true,
+          "id": "demo-visa-4242",
+          "label": "Demo Visa \u2022\u2022\u2022\u2022 4242"
+        },
+        {
+          "demo": true,
+          "id": "demo-travel-1234",
+          "label": "Demo Travel Card \u2022\u2022\u2022\u2022 1234"
+        }
+      ],
+      "quote_id": "WAQ-C82CB5B08515FAE6",
+      "simulated": true,
+      "total_usd": 858
+    }
+  },
+  "search": {
+    "input": {
+      "cabin": null,
+      "date": "2026-10-09",
+      "destination": "ZRH",
+      "max_price_usd": 900,
+      "nonstop_only": true,
+      "origin": "BOS",
+      "passengers": 1
+    },
+    "output": {
+      "currency": "USD",
+      "flights": [
+        {
+          "arrival_day_offset": 1,
+          "arrival_local": "2026-10-10T07:40",
+          "currency": "USD",
+          "date": "2026-10-09",
+          "departure_local": "2026-10-09T18:05",
+          "destination": "ZRH",
+          "duration_minutes": 455,
+          "fares": [
+            {
+              "available": true,
+              "booking_class": "V",
+              "cabin": "economy",
+              "changeable": false,
+              "checked_bags": 0,
+              "fare_family": "BASIC",
+              "fare_id": "WA101-20261009-BASIC",
+              "fare_name": "Economy Basic",
+              "price_usd": 704,
+              "refundable": false,
+              "seats_left": 9
+            },
+            {
+              "available": true,
+              "booking_class": "M",
+              "cabin": "economy",
+              "changeable": true,
+              "checked_bags": 1,
+              "fare_family": "STANDARD",
+              "fare_id": "WA101-20261009-STANDARD",
+              "fare_name": "Economy Standard",
+              "price_usd": 858,
+              "refundable": false,
+              "seats_left": 24
+            }
+          ],
+          "flight_id": "WA101-20261009",
+          "flight_numbers": [
+            "WA101"
+          ],
+          "layover_minutes": [],
+          "lowest_price_usd": 704,
+          "origin": "BOS",
+          "segments": [
+            {
+              "aircraft": "Airbus A330-300",
+              "arrival_local": "2026-10-10T07:40",
+              "departure_local": "2026-10-09T18:05",
+              "destination": "ZRH",
+              "duration_minutes": 455,
+              "flight_number": "WA101",
+              "origin": "BOS"
+            }
+          ],
+          "stops": 0,
+          "via": []
+        },
+        {
+          "arrival_day_offset": 1,
+          "arrival_local": "2026-10-10T11:20",
+          "currency": "USD",
+          "date": "2026-10-09",
+          "departure_local": "2026-10-09T21:40",
+          "destination": "ZRH",
+          "duration_minutes": 460,
+          "fares": [
+            {
+              "available": true,
+              "booking_class": "V",
+              "cabin": "economy",
+              "changeable": false,
+              "checked_bags": 0,
+              "fare_family": "BASIC",
+              "fare_id": "WA105-20261009-BASIC",
+              "fare_name": "Economy Basic",
+              "price_usd": 749,
+              "refundable": false,
+              "seats_left": 4
+            }
+          ],
+          "flight_id": "WA105-20261009",
+          "flight_numbers": [
+            "WA105"
+          ],
+          "layover_minutes": [],
+          "lowest_price_usd": 749,
+          "origin": "BOS",
+          "segments": [
+            {
+              "aircraft": "Boeing 787-9",
+              "arrival_local": "2026-10-10T11:20",
+              "departure_local": "2026-10-09T21:40",
+              "destination": "ZRH",
+              "duration_minutes": 460,
+              "flight_number": "WA105",
+              "origin": "BOS"
+            }
+          ],
+          "stops": 0,
+          "via": []
+        }
+      ],
+      "query": {
+        "cabin": null,
+        "date": "2026-10-09",
+        "destination": "ZRH",
+        "max_price_usd": 900,
+        "nonstop_only": true,
+        "origin": "BOS",
+        "passengers": 1
+      }
+    }
+  },
+  "simulate_purchase": {
+    "input": {
+      "booking": {
+        "contact_email": "alex.traveler@example.com",
+        "fare_id": "WA101-20261009-STANDARD",
+        "passengers": [
+          {
+            "family_name": "Traveler",
+            "given_name": "Alex"
+          }
+        ]
+      },
+      "payment_method_id": "demo-visa-4242",
+      "quote_id": "WAQ-C82CB5B08515FAE6"
+    },
+    "output": {
+      "amount_charged_usd": 0,
+      "confirmation_id": "WA-DEMO-TYD4M",
+      "currency": "USD",
+      "fare_id": "WA101-20261009-STANDARD",
+      "fare_name": "Economy Standard",
+      "flight": {
+        "arrival_day_offset": 1,
+        "arrival_local": "2026-10-10T07:40",
+        "date": "2026-10-09",
+        "departure_local": "2026-10-09T18:05",
+        "destination": "ZRH",
+        "duration_minutes": 455,
+        "flight_id": "WA101-20261009",
+        "flight_numbers": [
+          "WA101"
+        ],
+        "layover_minutes": [],
+        "origin": "BOS",
+        "segments": [
+          {
+            "aircraft": "Airbus A330-300",
+            "arrival_local": "2026-10-10T07:40",
+            "departure_local": "2026-10-09T18:05",
+            "destination": "ZRH",
+            "duration_minutes": 455,
+            "flight_number": "WA101",
+            "origin": "BOS"
+          }
+        ],
+        "stops": 0,
+        "via": []
+      },
+      "message": "No real transaction was performed.",
+      "passengers": [
+        {
+          "family_name": "Traveler",
+          "given_name": "Alex"
+        }
+      ],
+      "payment_method": {
+        "demo": true,
+        "id": "demo-visa-4242",
+        "label": "Demo Visa \u2022\u2022\u2022\u2022 4242"
+      },
+      "quote_id": "WAQ-C82CB5B08515FAE6",
+      "real_transaction": false,
+      "simulated": true,
+      "status": "simulated",
+      "total_usd": 858
+    }
+  }
+}

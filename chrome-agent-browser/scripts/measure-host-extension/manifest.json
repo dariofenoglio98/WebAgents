@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+  "name": "WebAgents execution-host measurement",
+  "version": "0.0.1",
+  "description": "Measures how an offscreen document, a hidden extension tab and the service worker behave while idle for 30 minutes (D-027). Not part of the shipped extension.",
+  "minimum_chrome_version": "137",
+  "permissions": ["offscreen", "storage", "tabs"],
+  "host_permissions": ["http://127.0.0.1/*"],
+  "background": { "service_worker": "sw.js", "type": "module" },
+  "content_security_policy": { "extension_pages": "script-src 'self'; object-src 'self'; connect-src http://127.0.0.1:*" }
+}

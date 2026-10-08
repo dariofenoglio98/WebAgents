@@ -77,10 +77,12 @@ export const ECHO_IMPLEMENTATION = "chrome.tool.echo";
  * Settle with the dispatch or, as soon as the signal aborts, refuse as `tool_cancelled`: an
  * implementation that ignores its signal cannot keep a cancelled run waiting.
  */
+/** `work`, or the signal's own reason the moment it aborts (the deadline's reason, or the runtime's cancellation), so the caller can tell which one it was. */
 function abortable<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
-  if (signal.aborted) return Promise.reject(cancellationOf(signal));
+  const reason = () => (signal.reason as Error | undefined) ?? cancellationOf(signal);
+  if (signal.aborted) return Promise.reject(reason());
   return new Promise<T>((resolve, reject) => {
-    const onAbort = () => reject(cancellationOf(signal));
+    const onAbort = () => reject(reason());
     signal.addEventListener("abort", onAbort, { once: true });
     work.then(
       (value) => {
@@ -100,6 +102,9 @@ export class BoundToolHandler {
   readonly remote: boolean;
   readonly calls: ToolCallRecord[] = [];
 
+  /** The bounds the plan approved: the described binding's limits, computed once (T4 review 2, nit 8). */
+  private readonly limits: { timeout_seconds: number; max_concurrent: number; min_interval_ms: number | null; max_request_bytes: number; max_response_bytes: number };
+
   constructor(
     readonly binding: ToolBindingRecord,
     private readonly definition: ToolImplementationDefinition,
@@ -107,6 +112,10 @@ export class BoundToolHandler {
   ) {
     this.tool_id = binding.tool_id;
     this.remote = binding.remote;
+    // The described binding's limits are what the digest froze (`describe.maxResponseBytes` is
+    // the host's own ceiling, applied as a minimum); they cannot change for the life of the handler.
+    const described = describeDefinition(definition, deps.describe);
+    this.limits = { ...described.limits };
   }
 
   /** The `ToolHandler` the runtime installs under the binding name. */
@@ -148,18 +157,18 @@ export class BoundToolHandler {
         const refusal = egressRefusal(payload, this.deps.resources.grants, this.binding.required_permission_ids, this.deps.resources.resolver.sealedValues());
         if (refusal) throw toolError("tool_request_invalid", refusal);
       }
-      // The bounds the plan approved: the described binding's limits are what the digest froze
-      // (`describe.maxResponseBytes` is the host's own ceiling, applied as a minimum).
-      const described = describeDefinition(definition, this.deps.describe);
-      const deadline = AbortSignal.timeout(Math.max(1, described.limits.timeout_seconds) * 1000);
+      const deadline = AbortSignal.timeout(Math.max(1, this.limits.timeout_seconds) * 1000);
       const bounded = AbortSignal.any([signal, deadline]);
-      const limits = { maxConcurrent: described.limits.max_concurrent, minIntervalMs: described.limits.min_interval_ms ?? 0 };
+      // The deadline's own reason is what the pacer and `abortable` reject with when it fires;
+      // another error that settles at the same moment keeps its own name (T4 review 2, nit 7).
+      const byDeadline = (error: unknown): boolean => deadline.aborted && error === deadline.reason;
+      const limits = { maxConcurrent: this.limits.max_concurrent, minIntervalMs: this.limits.min_interval_ms ?? 0 };
       let release: () => void;
       try {
         release = await (this.deps.pacer ?? HOST_PACER).acquire(definition.id, limits, bounded);
       } catch (error) {
         if (signal.aborted) throw cancellationOf(signal);
-        if (deadline.aborted) throw toolError("tool_timeout", "the call waited for its turn longer than the binding allows");
+        if (byDeadline(error)) throw toolError("tool_timeout", "the call waited for its turn longer than the binding allows");
         throw error;
       }
       let answer: { output: JsonValue; status: number | null; resource?: ResourceGrant };
@@ -174,14 +183,14 @@ export class BoundToolHandler {
         } else if (definition.kind === "json_http") {
           if (!this.deps.transport) throw toolError("tool_unavailable", "this host has no network transport for tool calls");
           const credential = definition.credential ? (this.deps.credentials?.(definition.credential) ?? null) : null;
-          const bytes = { maxRequestBytes: described.limits.max_request_bytes, maxResponseBytes: described.limits.max_response_bytes };
+          const bytes = { maxRequestBytes: this.limits.max_request_bytes, maxResponseBytes: this.limits.max_response_bytes };
           answer = await abortable(jsonHttpCall({ definition, args: payload, transport: this.deps.transport, signal: bounded, credential, observe: this.deps.observe, limits: bytes }), bounded);
         } else {
           throw toolError("tool_unavailable", "this host has no implementation for that category yet");
         }
       } catch (error) {
         if (signal.aborted) throw cancellationOf(signal);
-        if (deadline.aborted) throw toolError("tool_timeout", "the tool host did not answer in time");
+        if (byDeadline(error)) throw toolError("tool_timeout", "the tool host did not answer in time");
         throw error;
       } finally {
         release();

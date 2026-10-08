@@ -111,12 +111,15 @@ function editor(view: VaultView, state: VaultPageState, actions: VaultPageAction
         "Save",
         () => {
           const value: JsonObject = {};
-          for (const [name, schema] of properties(type)) {
+          for (const [name, schema, required] of properties(type)) {
             const raw = editing.draft[name];
             // A checkbox always has a value: unchecked is `false`, not absent, so a required
-            // boolean the person left off is saved (review 1, finding 6).
+            // boolean the person left off is saved (review 1, finding 6). An *optional* boolean
+            // the record never had and the person never touched stays absent, so editing another
+            // field does not change the record's digest through a `false` nobody chose (T3
+            // review 2, nit 22).
             if (schema.type === "boolean") {
-              value[name] = raw === true;
+              if (required || raw !== undefined) value[name] = raw === true;
               continue;
             }
             if (raw === undefined || raw === "") continue;

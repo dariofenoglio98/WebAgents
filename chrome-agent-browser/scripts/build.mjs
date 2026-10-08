@@ -4,7 +4,8 @@
  *
  *   dist/extension/   manifest.json, service-worker.js (ES module), content-script.js (classic
  *                     script, as Manifest V3 requires), sidepanel.html + .js, browser.html + .js,
- *                     styles.css, icons/
+ *                     execution.html + execution-page.js + execution-worker.js (the offscreen
+ *                     execution host, T5), styles.css, icons/
  *   dist/cli.js       the Node CLI, self-contained
  *
  * Nothing is minified: the shipped code must stay reviewable. The extension targets Chrome 137,
@@ -63,6 +64,9 @@ await build({ ...common, entryPoints: [join(source, "background", "service-worke
 await build({ ...common, format: "iife", entryPoints: [join(source, "content", "content-script.ts")], outfile: join(out, "content-script.js") });
 await build({ ...common, entryPoints: [join(source, "sidepanel", "sidepanel.ts")], outfile: join(out, "sidepanel.js") });
 await build({ ...common, entryPoints: [join(source, "browser", "browser.ts")], outfile: join(out, "browser.js") });
+// The execution host (T5, D-070): the offscreen document's page script and the per-run Worker (an ES module Worker).
+await build({ ...common, entryPoints: [join(source, "execution", "execution-page.ts")], outfile: join(out, "execution-page.js") });
+await build({ ...common, entryPoints: [join(source, "execution", "execution-worker.ts")], outfile: join(out, "execution-worker.js") });
 await build({
   ...common,
   plugins: [],
@@ -74,7 +78,7 @@ await build({
 
 // The extension bundles must be free of Node built-ins: a `node:` specifier that survived
 // bundling would fail at load time in Chrome, long after `npm run build` reported success.
-for (const name of ["service-worker.js", "content-script.js", "sidepanel.js", "browser.js"]) {
+for (const name of ["service-worker.js", "content-script.js", "sidepanel.js", "browser.js", "execution-page.js", "execution-worker.js"]) {
   const text = readFileSync(join(out, name), "utf8");
   const hit = /(?:from\s*|import\s*\(\s*|require\s*\(\s*)["']node:[^"']*["']/u.exec(text);
   if (hit) throw new Error(`${name} still references a Node built-in: ${hit[0]}`);
@@ -83,6 +87,7 @@ for (const name of ["service-worker.js", "content-script.js", "sidepanel.js", "b
 for (const name of ["manifest.json", "styles.css"]) cpSync(join(source, name), join(out, name));
 cpSync(join(source, "sidepanel", "sidepanel.html"), join(out, "sidepanel.html"));
 cpSync(join(source, "browser", "browser.html"), join(out, "browser.html"));
+cpSync(join(source, "execution", "execution.html"), join(out, "execution.html"));
 cpSync(join(source, "icons"), join(out, "icons"), { recursive: true });
 
 const files = readdirSync(out).sort();

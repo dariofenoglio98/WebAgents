@@ -1,14 +1,14 @@
 /**
  * The full-page agent browser (D-035): an address bar that takes a package URL or a website
- * URL, the website card, the agent page, the Trust page, and Library, Runs and Settings as
- * placeholders with their intended layout. A thin view over the service worker; routing is
- * the location hash.
+ * URL, the website card, the agent page with its authorization flow and run surface (T5), the
+ * Runs history, the Trust page, Your data and Settings. A thin view over the service worker;
+ * routing is the location hash.
  */
 import type { Candidate } from "../../core/discovery.js";
 import type { JsonObject } from "../../core/json.js";
 import { looksLikePackageUrl } from "../../core/policy.js";
 import type { TrustEntry, TrustState } from "../../core/trust.js";
-import type { AuthorizationView, ModelsView, SessionDescriptor, SessionView, SettingsView, StatusInfo, VaultView, WebsiteResult } from "../messages.js";
+import type { AuthorizationView, ExportBundle, ModelsView, RunListView, RunSummary, SessionDescriptor, SessionView, SettingsView, StatusInfo, VaultView, WebsiteResult } from "../messages.js";
 import { renderAgentPage } from "../ui/agent-page.js";
 import { bindAuthorization, type AuthorizationController } from "../ui/authorization-flow.js";
 import { describeError, send, subscribe } from "../ui/client.js";
@@ -17,6 +17,8 @@ import { newSettingsPageState, renderSettingsPage, type SettingsPageState, type 
 import { renderTrustPage } from "../ui/trust-page.js";
 import { newVaultPageState, renderVaultPage, type VaultPageState } from "../ui/vault-page.js";
 import { renderWebsiteCard } from "../ui/website.js";
+import { mimeFor, renderRunList, RunPanel, saveBlob } from "../ui/run.js";
+import { writeZip } from "../ui/zip.js";
 
 type View = "open" | "library" | "runs" | "trust" | "settings" | "data";
 
@@ -36,6 +38,10 @@ interface PageState {
   vaultPage: VaultPageState;
   busy: string | null;
   error: { code: string; message: string; details: Record<string, unknown> } | null;
+  runs: RunListView | null;
+  runsNotice: string | null;
+  /** The run chosen on the Runs page (`#run=…`), shown under the list; null for the list alone. */
+  runsShowing: string | null;
 }
 
 const app = document.getElementById("app") as HTMLElement;
@@ -57,6 +63,9 @@ const state: PageState = {
   vaultPage: newVaultPageState(),
   busy: null,
   error: null,
+  runs: null,
+  runsNotice: null,
+  runsShowing: null,
 };
 
 /** The authorization flow for the open session (T3). */
@@ -82,6 +91,26 @@ const flow: AuthorizationController = bindAuthorization({
   rerender: () => render(),
 });
 
+/** The run surface (T5) for the open session; on the Runs page it shows one past run read-only. */
+const runs = new RunPanel({
+  send,
+  loaded: () => (state.open ? { session: state.open, authorization: state.authorization } : null),
+  reveal: (section) => {
+    if (section === "model") location.hash = "settings?section=models";
+    else document.querySelector(".ab-authorize")?.scrollIntoView({ block: "start" });
+  },
+  changed: () => void load(),
+  runChanged: (runId) => {
+    // The panel moved to another run on its own (a click in "Earlier runs", an active run
+    // adopted): the Runs page keeps showing it and the address names it (review 2, nit 4).
+    if (state.view !== "runs" || runId === null || runId === state.runsShowing) return;
+    state.runsShowing = runId;
+    history.replaceState(null, "", `#run=${encodeURIComponent(runId)}`);
+    render();
+  },
+});
+const RUN_VIEW_ID = `run:${crypto.randomUUID()}`;
+
 function route(): void {
   const hash = location.hash.replace(/^#/u, "");
   const [view, query] = hash.split("?");
@@ -91,7 +120,16 @@ function route(): void {
     void showSession(decodeURIComponent(view.slice("session=".length)));
     return;
   }
+  if (view?.startsWith("run=")) {
+    // A past run, read-only, with or without its session.
+    state.view = "runs";
+    state.runsShowing = decodeURIComponent(view.slice("run=".length));
+    void openStoredRun(state.runsShowing);
+    return;
+  }
   state.view = (["open", "library", "runs", "trust", "settings", "data"] as View[]).includes(view as View) ? (view as View) : "open";
+  state.runsShowing = null;
+  if (state.view === "open") void reattachRuns();
   if (params.get("url")) state.address = params.get("url")!;
   const section = params.get("section");
   if (state.view === "settings" && (section === "models" || section === "policies" || section === "about")) state.settingsPage.section = section as SettingsSection;
@@ -107,6 +145,7 @@ async function load(): Promise<void> {
       state.settings = await send({ type: "settings.get" });
     }
     if (state.view === "data") state.vault = await send({ type: "vault.get" });
+    if (state.view === "runs") state.runs = await send({ type: "run.list", sessionId: null });
   } catch (error) {
     state.error = describeError(error);
   }
@@ -119,12 +158,59 @@ async function showSession(sessionId: string): Promise<void> {
     state.error = null;
     if (state.authorization?.session_id !== sessionId) flow.reset();
     await flow.load();
+    render();
+    await runs.attachSession(sessionId);
+    runs.sync();
   } catch (error) {
     state.open = null;
     flow.reset();
+    runs.detach();
     state.error = describeError(error);
   }
   render();
+}
+
+/** The Runs page showed another run on the shared panel: back on the open package, attach its session again (review 1, finding 5). */
+async function reattachRuns(): Promise<void> {
+  if (!state.open || runs.hasSession()) return;
+  await runs.attachSession(state.open.session.id);
+  runs.sync();
+  render();
+}
+
+async function openStoredRun(runId: string): Promise<void> {
+  await load();
+  await runs.openRun(runId);
+  render();
+}
+
+async function exportRun(runId: string): Promise<void> {
+  state.runsNotice = `Exporting ${runId}…`;
+  render();
+  try {
+    const bundle = await send<ExportBundle>({ type: "run.export", runId });
+    const decode = (text: string) => Uint8Array.from(atob(text), (character) => character.charCodeAt(0));
+    const zip = writeZip(bundle.entries.map((entry) => ({ name: entry.name, bytes: decode(entry.base64) })));
+    const name = `${runId}.zip`;
+    const hash = await saveBlob(name, new Blob([zip as BlobPart], { type: mimeFor(name) }));
+    state.runsNotice = `Saved ${name} (${bundle.entries.length} files${hash ? `, zip sha256:${hash.slice(0, 16)}…` : ""}).`;
+  } catch (error) {
+    const described = describeError(error);
+    state.runsNotice = `Export failed: ${described.code}: ${described.message}`;
+  }
+  render();
+}
+
+async function clearRun(runId: string): Promise<void> {
+  try {
+    await send({ type: "run.clear", runId });
+    state.runsNotice = `Cleared ${runId}.`;
+    if (runs.currentRun()?.runId === runId) runs.detach();
+  } catch (error) {
+    const described = describeError(error);
+    state.runsNotice = `${described.code}: ${described.message}`;
+  }
+  await load();
 }
 
 async function openAddress(address: string): Promise<void> {
@@ -204,13 +290,16 @@ function openView(): HTMLElement[] {
   const nodes: Array<HTMLElement | null> = [addressBar(), errorBox(), state.busy ? el("p", { className: "ab-busy", text: state.busy }) : null];
   if (state.open) {
     const open = state.open;
+    const showRun = state.authorization !== null && state.authorization.receipt !== null;
     nodes.push(
+      showRun ? runs.root : null,
       renderAgentPage(open, {
         onTrust: (scope) => void trustSession(scope),
         onClose: () => {
           void send({ type: "package.release", sessionId: open.session.id, viewId: VIEW_ID }).catch(() => undefined);
           state.open = null;
           flow.reset();
+          runs.detach();
           location.hash = "open";
           render();
         },
@@ -228,7 +317,7 @@ function openView(): HTMLElement[] {
     nodes.push(
       card(
         "Open an agent",
-        el("p", { className: "ab-hint", text: "Enter a website address to see which agent package it advertises, or a package address to inspect it directly. Nothing runs in this version: the browser verifies and shows what an agent would need." }),
+        el("p", { className: "ab-hint", text: "Enter a website address to see which agent package it advertises, or a package address to inspect it directly. Nothing runs until you authorize an agent and press Run." }),
         state.sessions.length > 0 ? el("h4", { text: "Open now" }) : null,
         state.sessions.length > 0 ? list(state.sessions.map((session) => sessionRow(session))) : null,
       ),
@@ -252,20 +341,29 @@ function libraryView(): HTMLElement[] {
   return [
     card(
       "Library",
-      el("p", { className: "ab-hint", text: "Agents you have inspected in this browser session; open one to see its authorization and run plan. Saving agents for later arrives with runs from the browser (T5)." }),
+      el("p", { className: "ab-hint", text: "Agents open in this browser session; open one to see its authorization, run plan and runs. Past runs stay under Runs after a session ends." }),
       state.sessions.length === 0 ? el("p", { className: "ab-empty", text: "Nothing is open." }) : list(state.sessions.map((session) => sessionRow(session))),
     ),
   ];
 }
 
 function runsView(): HTMLElement[] {
+  const list = state.runs;
+  const current = runs.currentRun();
+  const open = (runId: string) => {
+    location.hash = `run=${encodeURIComponent(runId)}`;
+  };
   return [
+    errorBox(),
     card(
       "Runs",
-      el("p", { className: "ab-hint", text: "This version of the extension executes nothing. Runs, their progress, results and hash-linked audit trails arrive with the execution core (T4, T5)." }),
-      el("div", { className: "ab-placeholder" }, row("Status", "no runs"), row("Model routes", "local Ollama, OpenAI, Anthropic, Chrome built-in (planned)"), row("Audit", "hash-linked, verified before display (planned)")),
+      el("p", { className: "ab-hint", text: "Every run this browser made, newest first, from its own records (IndexedDB). Open one to read its result, artifacts and audit; Export writes the run directory as a zip (run.json, run-plan.json, input.json and every artifact); Clear removes a finished run." }),
+      state.runsNotice ? el("div", { className: "ab-banner ab-banner-neutral", attrs: { role: "status" } }, el("span", { text: state.runsNotice })) : null,
+      !list ? el("p", { className: "ab-busy", text: "Loading…" }) : list.runs.length === 0 ? el("p", { className: "ab-empty", text: "No run yet. Authorize an agent and press Run." }) : renderRunList(list.runs, { open, export: (runId) => void exportRun(runId), clear: (runId) => void clearRun(runId) }),
     ),
-  ];
+    // The chosen run, whether or not a package is open in this tab (review 1, finding 5).
+    current && state.runsShowing === current.runId ? runs.root : null,
+  ].filter((node): node is HTMLElement => node !== null);
 }
 
 function trustView(): HTMLElement[] {
@@ -391,8 +489,23 @@ function render(): void {
 subscribe((event) => {
   if (event.type === "event.sessions" || event.type === "event.trust" || event.type === "event.settings" || event.type === "event.vault") void load();
   if (event.type === "event.sessions" && state.open) void showSession(state.open.session.id);
-  if (event.type === "event.authorization" && state.open && event.sessionId === state.open.session.id) void flow.load().then(() => render());
-  if ((event.type === "event.vault" || event.type === "event.settings") && state.open) void flow.load().then(() => render());
+  if (event.type === "event.authorization" && state.open && event.sessionId === state.open.session.id) {
+    void flow.load().then(() => {
+      render();
+      runs.sync();
+    });
+  }
+  if ((event.type === "event.vault" || event.type === "event.settings") && state.open) {
+    void flow.load().then(() => {
+      render();
+      runs.sync();
+    });
+  }
+  if (event.type === "event.run") {
+    runs.onRunEvent(event);
+    if (state.view === "runs") void load();
+  }
 });
+void RUN_VIEW_ID;
 window.addEventListener("hashchange", route);
 route();

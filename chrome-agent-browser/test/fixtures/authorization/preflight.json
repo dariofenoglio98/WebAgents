@@ -1,8 +1,8 @@
 {
   "schema": "agentpkg-run-plan-preflight-v0",
-  "checked_at": "2026-10-07T13:18:39.636629+00:00",
-  "run_plan_id": "rp_907458f1b1094f16b10d3e246c640647",
-  "run_plan_sha256": "fff6e8b038a82d0c0d15ea09e2374c90ffc1dfcd8e08730a593534ca8e054981",
+  "checked_at": "2026-10-07T21:21:52.918432+00:00",
+  "run_plan_id": "rp_9ecef06696934169b1c5f6d97d5243f8",
+  "run_plan_sha256": "e3925317b275ea609ea608912d6b9156e367df0cac68d6c51abf8b2df92f962e",
   "state": "ready",
   "ready": true,
   "stale": false,

@@ -11,7 +11,7 @@ import { describe, expect, it } from "vitest";
 
 import type { JsonObject, JsonValue } from "../../../src/core/json.js";
 import type { HttpRequest, HttpTransport } from "../../../src/core/models/transport.js";
-import { jsonHttpCall } from "../../../src/core/tools/adapters/json-http.js";
+import { jsonHttpCall, toolError as toolErrorFor } from "../../../src/core/tools/adapters/json-http.js";
 import { BoundToolHandler, ECHO_IMPLEMENTATION, toolHandlers, type BrokerDeps } from "../../../src/core/tools/broker.js";
 import { bindingDigest, describeDefinition, parseOperatorBindings, type ToolImplementationDefinition } from "../../../src/core/tools/definitions.js";
 import type { ToolContext } from "../../../src/core/tools/handler.js";
@@ -273,6 +273,30 @@ describe("the binding's own deadline (review 1, finding 5)", () => {
     await expect(held).rejects.toBeInstanceOf(CancelledError);
     expect(waiter.calls.map((call) => call.outcome)).toEqual(["failed"]);
     expect(holder.calls.map((call) => call.outcome)).toEqual(["failed"]);
+  });
+
+  it("relabels only the deadline's own rejection as tool_timeout; another error settling after the deadline keeps its name (T4 review 2, nit 7)", async () => {
+    const { pkg } = await echoPackage();
+    const definition = { ...definitionFor(pkg, ECHO_TOOL), timeoutSeconds: 1 };
+    // A pacer that answers the deadline with its own refusal: the deadline has fired, the error is not its reason.
+    const pacer = { acquire: (_key: string, _limits: unknown, signal: AbortSignal) => new Promise<() => void>((_resolve, reject) => signal.addEventListener("abort", () => reject(toolErrorFor("tool_unavailable", "the lane closed")), { once: true })) } as unknown as Pacer;
+    const handler = new BoundToolHandler(planBindingFor(pkg, definition), definition, { definitions: [definition], builtins: ECHO_BUILTINS, pacer });
+    await expect(handler.call(context, { value: "a" }, new AbortController().signal)).rejects.toMatchObject({ code: "tool_unavailable", message: "the lane closed" });
+    // The deadline's own rejection is the timeout.
+    const waiting = { acquire: (_key: string, _limits: unknown, signal: AbortSignal) => new Promise<() => void>((_resolve, reject) => signal.addEventListener("abort", () => reject(signal.reason), { once: true })) } as unknown as Pacer;
+    const timed = new BoundToolHandler(planBindingFor(pkg, definition), definition, { definitions: [definition], builtins: ECHO_BUILTINS, pacer: waiting });
+    await expect(timed.call(context, { value: "a" }, new AbortController().signal)).rejects.toMatchObject({ code: "tool_timeout" });
+  });
+
+  it("reads the described limits once: a later change to the host's describe options does not move the enforced cap (T4 review 2, nit 8)", async () => {
+    const { pkg } = await echoPackage({ remoteOrigin: "https://service.example" });
+    const definition = definitionFor(pkg, ECHO_TOOL);
+    const net = scripted(() => ({ status: 200, body: JSON.stringify({ value: "y".repeat(150) }) }));
+    const describe = { maxResponseBytes: 4096 };
+    const handler = new BoundToolHandler(planBindingFor(pkg, definition, { binding_sha256: bindingDigest(describeDefinition(definition, describe)) }), definition, { definitions: [definition], transport: net.transport, pacer: new Pacer(), describe });
+    describe.maxResponseBytes = 128; // mutated after construction: the handler keeps the limits the plan approved
+    expect(await handler.call(context, { value: "a" }, new AbortController().signal)).toEqual({ value: "y".repeat(150) });
+    expect(net.requests.map((request) => request.maxResponseBytes)).toEqual([4096]);
   });
 
   it("enforces the response cap the plan approved: the host ceiling when it is the smaller (review 1, nit 10)", async () => {

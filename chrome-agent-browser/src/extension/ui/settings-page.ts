@@ -5,21 +5,26 @@
  */
 import type { PresetId } from "../../core/types.js";
 import { PRESETS } from "../../core/authorization.js";
-import type { ProbeResult, ProviderId } from "../../core/models/catalog.js";
-import type { SettingsView, StatusInfo } from "../messages.js";
+import { DEFAULT_BASE_URLS, type ProbeResult, type ProviderId } from "../../core/models/catalog.js";
+import type { ProbeView, SettingsView, StatusInfo } from "../messages.js";
 import type { Settings, StoredConnection } from "../storage/settings.js";
+import { downloadBuiltinModel, languageModelApi } from "../execution/builtin-port.js";
 import { button, card, chip, definition, el, list, row } from "./dom.js";
 
 export type SettingsSection = "models" | "policies" | "about";
 
 export interface SettingsPageState {
   section: SettingsSection;
-  probes: Partial<Record<ProviderId, ProbeResult | "running">>;
+  probes: Partial<Record<ProviderId, ProbeView | ProbeResult | "running">>;
   notice: string | null;
+  /** The built-in model's download, when one was started from this page: a fraction, or a message. */
+  builtinDownload: { fraction: number; done: boolean; error: string | null } | null;
+  /** The last command copied, for the confirmation beside it. */
+  copied: string | null;
 }
 
 export function newSettingsPageState(section: SettingsSection = "models"): SettingsPageState {
-  return { section, probes: {}, notice: null };
+  return { section, probes: {}, notice: null, builtinDownload: null, copied: null };
 }
 
 export interface SettingsPageActions {
@@ -27,7 +32,16 @@ export interface SettingsPageActions {
   onSetKey: (provider: ProviderId, key: string | null) => void;
   onProbe: (provider: ProviderId) => void;
   rerender: () => void;
+  /** Write text to the clipboard; the page's own `navigator.clipboard` by default. */
+  copy?: (text: string) => Promise<void>;
 }
+
+/** The one-time Ollama setup (B-117): the commands a person copies, per way of running Ollama. */
+export const OLLAMA_ORIGIN_COMMANDS: ReadonlyArray<{ label: string; command: string }> = [
+  { label: "macOS app (Ollama in the menu bar)", command: 'launchctl setenv OLLAMA_ORIGINS "chrome-extension://*"' },
+  { label: "Started from a terminal", command: 'OLLAMA_ORIGINS="chrome-extension://*" ollama serve' },
+  { label: "Linux service (systemd)", command: 'sudo systemctl edit ollama   # add: Environment="OLLAMA_ORIGINS=chrome-extension://*"' },
+];
 
 const PROVIDER_TITLES: Record<ProviderId, string> = {
   ollama: "Ollama (local)",
@@ -53,8 +67,35 @@ function connectionCard(view: SettingsView, connection: StoredConnection, state:
     el("label", { className: "ab-field ab-inline" }, enabled, " ", el("span", { text: "Enabled" })),
     el("p", { className: "ab-hint", text: PROVIDER_HINTS[provider] }),
   ];
+  if (provider === "ollama") {
+    // The one-time setup, as copyable commands (B-117): after the command, restart Ollama, then Test connection.
+    children.push(
+      el("h4", { text: "Allow this extension in Ollama (once)" }),
+      list(
+        OLLAMA_ORIGIN_COMMANDS.map((entry) =>
+          el(
+            "div",
+            { className: "ab-command" },
+            el("span", { className: "ab-hint", text: entry.label }),
+            el("code", { className: "ab-command-text", text: entry.command }),
+            button(state.copied === entry.command ? "Copied" : "Copy", () => {
+              const copy = actions.copy ?? ((text: string) => navigator.clipboard.writeText(text));
+              void copy(entry.command).then(() => {
+                state.copied = entry.command;
+                actions.rerender();
+              });
+            }),
+          ),
+        ),
+      ),
+      el("p", { className: "ab-hint", text: "Then restart Ollama and press Test connection. Ollama must allow this extension's origin because the browser, not a server, calls it." }),
+    );
+  }
+  if (provider === "chrome-builtin") children.push(builtinControls(state, actions));
   if (provider !== "chrome-builtin") {
-    const url = el("input", { className: "ab-input", attrs: { name: `base-url-${provider}`, placeholder: provider === "ollama" ? "http://127.0.0.1:11434 (default)" : "default endpoint", autocomplete: "off" } });
+    // The placeholder is the endpoint actually used when the field is empty (user feedback,
+    // 2026-10-07): a person who pastes the documented `/v1` form sees it normalized on save.
+    const url = el("input", { className: "ab-input", attrs: { name: `base-url-${provider}`, placeholder: `${DEFAULT_BASE_URLS[provider]} (default)`, autocomplete: "off" } });
     url.value = connection.base_url ?? "";
     children.push(el("label", { className: "ab-field" }, el("span", { className: "ab-row-label", text: "Endpoint " }), url, button("Save", () => actions.onSave(withConnection(view.settings, provider, (item) => ({ ...item, base_url: url.value.trim() || null }))))));
   }
@@ -77,6 +118,7 @@ function connectionCard(view: SettingsView, connection: StoredConnection, state:
       el("p", { className: "ab-hint", text: "Keys live in chrome.storage.local, never in sync storage, and leave this browser only as the provider's own header. This page shows whether a key is stored, never the key." }),
     );
   }
+  const diagnosis = probe && probe !== "running" && "diagnosis" in probe ? probe.diagnosis : null;
   children.push(
     el(
       "div",
@@ -84,6 +126,7 @@ function connectionCard(view: SettingsView, connection: StoredConnection, state:
       button(probe === "running" ? "Testing…" : "Test connection", () => actions.onProbe(provider), { disabled: probe === "running" || !connection.enabled }),
       probe && probe !== "running" ? chip(probe.ok ? `reachable · ${probe.models.length} model${probe.models.length === 1 ? "" : "s"}` : `failed: ${probe.error ?? "unknown"}`, probe.ok ? "good" : "bad") : null,
     ),
+    diagnosis ? el("p", { className: `ab-banner ab-banner-${diagnosis.state === "unknown" ? "neutral" : "warn"} ab-diagnosis`, text: diagnosis.hint, attrs: { "data-diagnosis": diagnosis.state, role: "status" } }) : null,
   );
   if (probe && probe !== "running" && probe.ok && probe.models.length > 0) {
     children.push(el("h4", { text: "Models" }), list(probe.models.map((model) => modelRow(view, connection, model as ProbedModel, actions))));
@@ -139,6 +182,47 @@ function modelRow(view: SettingsView, connection: StoredConnection, model: Probe
   );
 }
 
+/** The built-in model's state and, when Chrome can download it, the download (D-023, D-072). */
+function builtinControls(state: SettingsPageState, actions: SettingsPageActions): HTMLElement {
+  const api = languageModelApi();
+  const probe = state.probes["chrome-builtin"];
+  const availability = probe && probe !== "running" ? (probe.ok ? "available" : (probe.error ?? "unknown")) : null;
+  const download = state.builtinDownload;
+  return el(
+    "div",
+    { className: "ab-builtin" },
+    row("Prompt API", api ? chip("exposed to this page", "good") : chip("not exposed in this Chrome", "warn")),
+    availability ? row("Model", chip(availability, availability === "available" ? "good" : availability === "downloadable" || availability === "downloading" ? "warn" : "bad")) : null,
+    api && (availability === "downloadable" || availability === "downloading" || download)
+      ? el(
+          "div",
+          { className: "ab-inline" },
+          button(download && !download.done && !download.error ? `Downloading… ${Math.round(download.fraction * 100)}%` : "Download the built-in model", () => {
+            state.builtinDownload = { fraction: 0, done: false, error: null };
+            actions.rerender();
+            void downloadBuiltinModel(api, (fraction) => {
+              state.builtinDownload = { fraction, done: false, error: null };
+              actions.rerender();
+            }).then(
+              () => {
+                state.builtinDownload = { fraction: 1, done: true, error: null };
+                actions.rerender();
+                actions.onProbe("chrome-builtin");
+              },
+              (error: unknown) => {
+                state.builtinDownload = { fraction: 0, done: false, error: error instanceof Error ? error.message : "download failed" };
+                actions.rerender();
+              },
+            );
+          }, { disabled: Boolean(download && !download.done && !download.error) }),
+          download?.done ? chip("downloaded", "good") : null,
+          download?.error ? chip(`failed: ${download.error}`, "bad") : null,
+        )
+      : null,
+    el("p", { className: "ab-hint", text: "Gemini Nano runs on this device through Chrome's Prompt API; nothing leaves the computer. Token counts come from the API's own tokenizer, and the bundled output schema is passed as the response constraint (D-072)." }),
+  );
+}
+
 function withConnection(settings: Settings, provider: ProviderId, change: (connection: StoredConnection) => StoredConnection): Settings {
   return { ...settings, models: { ...settings.models, connections: settings.models.connections.map((connection) => (connection.provider === provider ? change(connection) : connection)) } };
 }
@@ -174,7 +258,11 @@ function policiesView(view: SettingsView, actions: SettingsPageActions): HTMLEle
   ];
 }
 
-function aboutView(status: StatusInfo | null): HTMLElement[] {
+function aboutView(view: SettingsView, status: StatusInfo | null, actions: SettingsPageActions): HTMLElement[] {
+  const limits = status?.execution_limits ?? null;
+  const record = el("input", { attrs: { type: "checkbox", name: "developer-record-requests", "aria-label": "Record outbound request bodies (test mode)" } });
+  record.checked = view.settings.developer.record_requests;
+  record.addEventListener("change", () => actions.onSave({ ...view.settings, developer: { ...view.settings.developer, record_requests: record.checked } }));
   return [
     card(
       "This browser",
@@ -187,9 +275,16 @@ function aboutView(status: StatusInfo | null): HTMLElement[] {
             row("Open packages", `${status.sessions} of ${status.max_sessions}`),
             row("Snapshot cache", `${(status.cached_bytes / (1024 * 1024)).toFixed(1)} of ${(status.max_cache_bytes / (1024 * 1024)).toFixed(0)} MiB`),
             row("Session lifetime", `${status.session_ttl_seconds / 60} minutes`),
-            row("Execution", status.execution),
+            row("Execution", status.execution === "enabled" ? "enabled: runs execute in this browser, in an offscreen document's Worker" : "disabled: this Chrome exposes no offscreen documents"),
+            row("Runs", `${status.runs.active} active · ${status.runs.stored} stored`),
+            limits ? row("Run limits", `${limits.total_tokens.toLocaleString()} tokens · ${limits.max_remote_calls} remote calls · ${limits.max_parallel_workers} parallel workers · ${limits.max_output_tokens_per_call.toLocaleString()} output tokens per call · ${limits.run_timeout_seconds} s per run · ${limits.model_call_timeout_seconds} s per model call (the package's own budget applies beneath them)`) : null,
           )
         : el("p", { className: "ab-busy", text: "Loading…" }),
+    ),
+    card(
+      "Test mode",
+      el("label", { className: "ab-field ab-inline" }, record, " ", el("span", { text: "Record every outbound model and tool request body of a run (for the privacy checks of the live harness)" })),
+      el("p", { className: "ab-hint", text: "Off by default. When on, the execution host stores the bodies it sends, including any personal value a granted tool call carries, in this browser's IndexedDB beside the run, so a verifier can assert that no sealed value reached a model and that a granted value reached only the tool that links its permission (D-028). Nothing leaves the browser." }),
     ),
   ];
 }
@@ -208,7 +303,7 @@ export function renderSettingsPage(view: SettingsView, status: StatusInfo | null
       return tab;
     }),
   );
-  const body = state.section === "models" ? view.settings.models.connections.map((connection) => connectionCard(view, connection, state, actions)) : state.section === "policies" ? policiesView(view, actions) : aboutView(status);
+  const body = state.section === "models" ? view.settings.models.connections.map((connection) => connectionCard(view, connection, state, actions)) : state.section === "policies" ? policiesView(view, actions) : aboutView(view, status, actions);
   return el(
     "div",
     { className: "ab-settings" },

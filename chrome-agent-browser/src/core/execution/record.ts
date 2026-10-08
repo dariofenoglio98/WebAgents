@@ -229,6 +229,13 @@ export function completeRunRecord(record: RunRecord, result: ExecutionResult, en
   };
 }
 
+/** The statuses after which a record never changes again. */
+export const TERMINAL_STATUSES: ReadonlySet<RunStatus> = new Set<RunStatus>(["completed", "failed", "cancelled", "interrupted"]);
+
+export function isTerminalStatus(status: RunStatus): boolean {
+  return TERMINAL_STATUSES.has(status);
+}
+
 /** The record for a run that failed before or outside the interpreter (a refusal, a host error). */
 export function failRunRecord(record: RunRecord, error: { code?: string; message: string }, endedAt: Date, status: RunStatus = "failed"): RunRecord {
   const started = record.startedAt ? Date.parse(record.startedAt) : null;

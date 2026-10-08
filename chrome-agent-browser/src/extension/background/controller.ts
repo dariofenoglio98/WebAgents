@@ -7,7 +7,8 @@
  * hashed, stored, and every later answer about the session derives from the stored bytes;
  * container, integrity, schema and runtime are reported as separate layers; signature
  * validity and publisher trust are separate facts; a trust change re-evaluates every open
- * session. Nothing here executes a package.
+ * session. Nothing here executes a package: starting a run is the `RunManager`'s decision and
+ * the execution host's work (T5, D-070).
  */
 import { agentPageModel } from "../../core/agent-page.js";
 import { MAX_ARCHIVE_BYTES } from "../../core/archive.js";
@@ -33,7 +34,7 @@ import { evaluateResources, normalizeResourceSelections, RESOURCE_PERMISSION_KIN
 import { buildHostToolRegistry, evaluateRegistry, type RegistryEvaluation, type ToolRegistry } from "../../core/hosttools.js";
 import type { JsonObject, JsonValue } from "../../core/json.js";
 import { publicKeyFromPem } from "../../core/keys.js";
-import { buildHostCatalog, probeProvider, PROVIDER_IDS, type BuiltinAvailability, type Http, type ProbeResult, type ProviderId } from "../../core/models/catalog.js";
+import { buildHostCatalog, DEFAULT_BASE_URLS, probeProvider, PROVIDER_IDS, type BuiltinAvailability, type Http, type ProbeResult, type ProviderId } from "../../core/models/catalog.js";
 import type { Package } from "../../core/package.js";
 import { documentUrl, origin, originText, sameOrigin, validatePackageUrl } from "../../core/policy.js";
 import { readProfiles } from "../../core/profiles.js";
@@ -53,6 +54,7 @@ import {
   type Event,
   type ModelsView,
   type PinResult,
+  type ProbeView,
   type Request,
   type RunPlanState,
   type SessionDescriptor,
@@ -69,6 +71,8 @@ import { connectionsFor, endpointProblem, normalizeSettings, type Settings, type
 import type { SnapshotStore, StoredSession } from "../storage/snapshots.js";
 import type { TabStateStore } from "../storage/tab-state.js";
 import type { ViewHolder, ViewHolderStore } from "../storage/view-holders.js";
+import type { RunStore } from "../storage/runs.js";
+import { isTerminal, RunManager, type ExecutionHostBridge, type RunHooks } from "./runs.js";
 
 export interface Limits {
   sessionTtlSeconds: number;
@@ -116,6 +120,17 @@ export interface ControllerDeps {
   randomId?: () => string;
   limits?: Partial<Limits>;
   version?: string;
+  /** Runs, their checkpoints and artifacts (IndexedDB, D-071). */
+  runs: RunStore;
+  /** The execution host (an offscreen document in the extension; in-process in tests). */
+  host: ExecutionHostBridge;
+  runId?: () => string;
+  /**
+   * Whether something answers at a URL at all, without reading the answer (a `no-cors` fetch):
+   * tells "Ollama is not running" apart from "Ollama rejects this extension's origin" (B-117).
+   * Absent: the diagnosis is `unknown`.
+   */
+  reachable?: (url: string) => Promise<boolean>;
 }
 
 interface LiveSession {
@@ -149,9 +164,11 @@ export interface Sender {
   topFrame: boolean;
   /** The sending document's id as Chrome reports it (`MessageSender.documentId`), when it does. */
   documentId?: string | null;
+  /** True for the extension's own offscreen document (the execution host): the only sender of `host.*` reports. */
+  offscreen?: boolean;
 }
 
-const EXECUTION_NOTE = "Opening and inspecting a package never executes it.";
+const EXECUTION_NOTE = "Opening and inspecting a package never executes it. A run starts only from the Run button, under a ready run plan.";
 
 /** The origin as the WHATWG parser serializes it (IDNA-encoded host), or null for a non-URL. */
 function whatwgOrigin(url: string): string | null {
@@ -200,11 +217,30 @@ export class Controller {
   private readonly version: string;
   private restored: Promise<void> | null = null;
 
+  /** Runs from the browser (T5): decides whether a run starts; the host executes. */
+  readonly runs: RunManager;
+
   constructor(private readonly deps: ControllerDeps) {
     this.limits = { ...DEFAULT_CONTROLLER_LIMITS, ...(deps.limits ?? {}) };
     this.clock = deps.clock ?? (() => new Date());
     this.randomId = deps.randomId ?? (() => crypto.randomUUID().replace(/-/gu, "").slice(0, 24));
     this.version = deps.version ?? CORE_VERSION;
+    const hooks: RunHooks = {
+      session: async (sessionId) => {
+        const live = await this.session(sessionId);
+        return { stored: live.stored, pkg: live.pkg, plan: live.plan, onceSpent: live.onceSpent };
+      },
+      isSessionOpen: (sessionId) => this.sessions.has(sessionId),
+      preflight: async (sessionId) => (await this.runPlanState(await this.session(sessionId))).preflight,
+      toolRegistry: async (sessionId) => this.toolRegistry(await this.session(sessionId)),
+      vault: () => this.vault(),
+      catalog: () => this.catalogCache?.catalog ?? null,
+      snapshotBytes: async (archiveSha256) => (await this.deps.snapshots.getSnapshot(archiveSha256))?.bytes ?? null,
+      markOnceSpent: (sessionId) => this.markOnceSpent(sessionId),
+      // The run that kept a closed session's snapshot alive has settled: drop the bytes if nothing else refers to them.
+      runSettled: (archiveSha256) => this.dropUnreferencedSnapshot(archiveSha256),
+    };
+    this.runs = new RunManager({ runs: deps.runs, host: deps.host, settings: deps.settings, hooks, broadcast: deps.broadcast, clock: this.clock, randomId: deps.runId, runtimeVersion: this.version });
   }
 
   // -- requests from extension pages ----------------------------------------------
@@ -272,6 +308,33 @@ export class Controller {
         return this.deleteVaultRecord(request.recordId);
       case "vault.installDemo":
         return this.installDemo(request.records);
+      case "run.readiness":
+        return this.runs.readiness(request.sessionId);
+      case "run.validateInput":
+        return this.runs.validateInput(request.sessionId, request.input);
+      case "run.start":
+        return this.runs.start(request.sessionId, { runPlanId: request.runPlanId, runPlanSha256: request.runPlanSha256, input: request.input });
+      case "run.get":
+        return this.runs.get(request.runId);
+      case "run.list":
+        return this.runs.list(request.sessionId ?? null);
+      case "run.cancel":
+        return this.runs.cancel(request.runId);
+      case "run.artifact":
+        return this.runs.artifact(request.runId, request.name);
+      case "run.artifactChunk":
+        return this.runs.artifactChunk(request.runId, request.name, request.offset);
+      case "run.export":
+        return this.runs.exportBundle(request.runId);
+      case "run.clear":
+        return this.runs.clear(request.runId);
+      case "run.observations":
+        return this.runs.observations(request.runId);
+      case "host.progress":
+      case "host.finished":
+        // Only the execution host reports on runs; a view cannot forge a host report.
+        if (!sender.offscreen) throw reject("not_allowed", "Only the execution host may report on runs", 403);
+        return request.type === "host.progress" ? this.runs.hostProgress(request.runId) : this.runs.hostFinished(request.runId);
     }
   }
 
@@ -657,11 +720,27 @@ export class Controller {
     return this.restored;
   }
 
-  /** Delete a snapshot no stored session refers to, unless another open of the same bytes is in flight. */
+  /**
+   * Whether anything still needs these bytes: a stored session, or a run in flight that was
+   * planned on them. The execution host reads a run's snapshot only after `host.start`, so Run
+   * followed at once by Close must not take the bytes away from the run (T5 review 1, nit 7);
+   * the snapshot goes when that run settles (`RunHooks.runSettled`).
+   */
+  private async snapshotReferenced(archiveSha256: string): Promise<boolean> {
+    if ((await this.deps.snapshots.listSessions()).some((session) => session.archive_sha256 === archiveSha256)) return true;
+    return (await this.deps.runs.listRuns()).some((run) => !isTerminal(run.record.status) && run.invocation.archive_sha256 === archiveSha256);
+  }
+
+  /** Delete a snapshot no stored session refers to, unless another open of the same bytes is in flight (called by an open that failed). */
   private async dropOrphanSnapshot(archiveSha256: string): Promise<void> {
     if ((this.inFlight.get(archiveSha256) ?? 0) > 1) return; // another open owns these bytes right now
-    const referenced = (await this.deps.snapshots.listSessions()).some((session) => session.archive_sha256 === archiveSha256);
-    if (!referenced) await this.deps.snapshots.deleteSnapshot(archiveSha256);
+    if (!(await this.snapshotReferenced(archiveSha256))) await this.deps.snapshots.deleteSnapshot(archiveSha256);
+  }
+
+  /** Delete a snapshot nothing refers to any more (called when a run settles; no open of ours is in progress here). */
+  private async dropUnreferencedSnapshot(archiveSha256: string): Promise<void> {
+    if ((this.inFlight.get(archiveSha256) ?? 0) > 0) return;
+    if (!(await this.snapshotReferenced(archiveSha256))) await this.deps.snapshots.deleteSnapshot(archiveSha256);
   }
 
   // -- views ------------------------------------------------------------------------
@@ -685,8 +764,19 @@ export class Controller {
     return holders.filter((holder) => holder.document_id === null || open.has(holder.document_id));
   }
 
+  /**
+   * A view shows one session at a time: holding this one drops the view's holds on every other
+   * session, so a full page that moved on (address bar, Library) no longer keeps the previous
+   * session open past another view's Close (T3 review 2, nit 20). The sessions it stops
+   * holding stay open until a release or their TTL; navigating is not closing.
+   */
   private async hold(sessionId: string, viewId: string, documentId: string | null): Promise<void> {
     await this.holderUpdate(async () => {
+      for (const other of this.sessions.keys()) {
+        if (other === sessionId) continue;
+        const holders = await this.deps.holders.get(other);
+        if (holders.some((holder) => holder.view_id === viewId)) await this.deps.holders.set(other, holders.filter((holder) => holder.view_id !== viewId));
+      }
       const others = (await this.deps.holders.get(sessionId)).filter((holder) => holder.view_id !== viewId);
       const holders = [...(await this.stillOpen(others)), { view_id: viewId, document_id: documentId }];
       await this.deps.holders.set(sessionId, holders.slice(-MAX_VIEW_HOLDERS));
@@ -700,13 +790,16 @@ export class Controller {
    */
   async release(sessionId: string, viewId: string): Promise<{ closed: boolean; session_id: string; holders: number }> {
     const live = await this.session(sessionId);
+    // The "no holder left" decision and the clearing of the holders are one queued step, so a
+    // hold that arrives in between cannot be wiped by a clear decided on stale facts (nit 20).
     const remaining = await this.holderUpdate(async () => {
       const holders = await this.stillOpen((await this.deps.holders.get(sessionId)).filter((holder) => holder.view_id !== viewId));
       if (holders.length > 0) await this.deps.holders.set(sessionId, holders);
+      else await this.deps.holders.clear(sessionId);
       return holders.length;
     });
     if (remaining > 0) return { closed: false, session_id: sessionId, holders: remaining };
-    await this.drop(live.stored);
+    await this.drop(live.stored, { holdersCleared: true });
     this.deps.broadcast({ type: "event.sessions" });
     return { closed: true, session_id: sessionId, holders: 0 };
   }
@@ -718,13 +811,12 @@ export class Controller {
     return live;
   }
 
-  private async drop(stored: StoredSession): Promise<void> {
+  private async drop(stored: StoredSession, options: { holdersCleared?: boolean } = {}): Promise<void> {
     this.sessions.delete(stored.session_id);
-    await this.holderUpdate(() => this.deps.holders.clear(stored.session_id));
+    if (!options.holdersCleared) await this.holderUpdate(() => this.deps.holders.clear(stored.session_id));
     await this.deps.snapshots.deleteSession(stored.session_id);
     if (this.inFlight.has(stored.archive_sha256)) return; // an open in progress owns the snapshot
-    const others = (await this.deps.snapshots.listSessions()).some((session) => session.archive_sha256 === stored.archive_sha256);
-    if (!others) await this.deps.snapshots.deleteSnapshot(stored.archive_sha256);
+    if (!(await this.snapshotReferenced(stored.archive_sha256))) await this.deps.snapshots.deleteSnapshot(stored.archive_sha256);
   }
 
   private async purgeExpired(): Promise<void> {
@@ -932,16 +1024,31 @@ export class Controller {
     return result;
   }
 
-  async probe(provider: ProviderId): Promise<ProbeResult> {
+  async probe(provider: ProviderId): Promise<ProbeView> {
     const settings = await this.deps.settings.settings();
     const connection = connectionsFor(settings, await this.deps.settings.keyPresence()).find((item) => item.provider === provider);
     if (!connection) throw reject("invalid_request", `No connection for ${provider}`);
     if (provider === "chrome-builtin") {
       const availability = await this.deps.builtin();
-      return { provider, ok: availability !== null && availability.availability === "available", models: [], notes: [], error: availability ? (availability.availability === "available" ? null : availability.availability) : "The Prompt API is not available in this context." };
+      return { provider, ok: availability !== null && availability.availability === "available", models: [], notes: [], error: availability ? (availability.availability === "available" ? null : availability.availability) : "The Prompt API is not available in this context.", diagnosis: null };
     }
     this.catalogCache = null;
-    return probeProvider({ ...connection, enabled: true }, this.deps.http);
+    const result = await probeProvider({ ...connection, enabled: true }, this.deps.http);
+    return { ...result, diagnosis: provider === "ollama" && !result.ok ? await this.ollamaDiagnosis(connection.base_url ?? DEFAULT_BASE_URLS.ollama) : null };
+  }
+
+  /** B-117: a failed Ollama probe is one of two things a person can act on, when the shell can tell them apart. */
+  private async ollamaDiagnosis(base: string): Promise<ProbeView["diagnosis"]> {
+    if (!this.deps.reachable) return { state: "unknown", hint: "Ollama did not answer. Check that it is running and that OLLAMA_ORIGINS includes chrome-extension://*." };
+    let reachable: boolean;
+    try {
+      reachable = await this.deps.reachable(`${base.replace(/\/+$/u, "")}/api/tags`);
+    } catch {
+      reachable = false;
+    }
+    return reachable
+      ? { state: "rejecting_origin", hint: `Ollama is running at ${base} but rejects requests from this extension's origin. Set OLLAMA_ORIGINS to include chrome-extension://* and restart Ollama (the commands are above).` }
+      : { state: "not_running", hint: `Nothing answers at ${base}. Start Ollama (with OLLAMA_ORIGINS set), or correct the endpoint.` };
   }
 
   async evaluateModels(sessionId: string, refresh: boolean): Promise<ModelsView> {
@@ -1222,6 +1329,7 @@ export class Controller {
   // -- status ----------------------------------------------------------------------------
   async status(): Promise<StatusInfo> {
     const stored = await this.deps.snapshots.listSnapshots();
+    const available = this.deps.host.available();
     return {
       version: this.version,
       core_version: CORE_VERSION,
@@ -1231,7 +1339,9 @@ export class Controller {
       cached_bytes: stored.reduce((sum, item) => sum + item.bytes, 0),
       max_cache_bytes: this.limits.maxCacheBytes,
       session_ttl_seconds: this.limits.sessionTtlSeconds,
-      execution: "disabled",
+      execution: available ? "enabled" : "disabled",
+      execution_limits: available ? this.runs.hostLimits() : null,
+      runs: { active: await this.runs.activeCount(), stored: await this.runs.storedCount() },
     };
   }
 }

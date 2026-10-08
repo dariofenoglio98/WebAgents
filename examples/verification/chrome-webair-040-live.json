@@ -1,0 +1,2521 @@
+{
+  "profile": "chrome-webair-040-live-demo-v0",
+  "milestone": "T5: WebAir 0.4.0 end to end in the Chrome Agent Browser (Demo 3)",
+  "recorded": "2026-10-08",
+  "commands": {
+    "harness": "node chrome-agent-browser/scripts/e2e-webair-live.mjs --model ollama/qwen3:30b",
+    "verify": "agentpkg/.venv/bin/python scripts/verify_chrome_webair_live.py"
+  },
+  "statement": "The built extension, loaded in a real headless Chrome, discovered WebAir 0.4.0 on the public origin, verified and trusted it, authorized three profiles, and ran it on the model named here: a search, a cancelled search, a quote with the fictional demo passenger, a simulated purchase under a once grant whose replay the page and the worker both refused, and a purchase denied without the grant. Every run's audit chain re-verifies with agentpkg; no model request carried a sealed or personal value; the identity reached only prepare_booking and the payment identifier only simulate_purchase.",
+  "notice": "Fictional data throughout (WebAir does not exist; no payment occurs). The report holds no credential, no host-resource value and no path on the operator's machine; run directories are named relative to the repository.",
+  "model": {
+    "selected": "ollama/qwen3:30b",
+    "provider": "ollama",
+    "local": true
+  },
+  "package": {
+    "artifact": "dist/webair-0.4.0.agent.pkg",
+    "version": "0.4.0",
+    "archive_sha256": "c12f9db3bd7b3b4b6721c67e1d0b8143ebd94381df0e5e57c196357b7ca77f63",
+    "package_digest": "0e8317f11e8813e7d5b4b3f352f20148d114329dca3db8c725c5b0558af24fbb",
+    "signature_valid": true,
+    "signer_fingerprint": "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b",
+    "origin": {
+      "health": {
+        "status": "ok",
+        "service": "webair-origin",
+        "fictional": true,
+        "agent_package_sha256": "c12f9db3bd7b3b4b6721c67e1d0b8143ebd94381df0e5e57c196357b7ca77f63"
+      },
+      "served_sha256": "c12f9db3bd7b3b4b6721c67e1d0b8143ebd94381df0e5e57c196357b7ca77f63"
+    }
+  },
+  "generic_code": {
+    "scanned": "chrome-agent-browser/src (code lines)",
+    "allowed_data_file": [
+      "src/extension/data/demo-host-resources.json"
+    ],
+    "presentation_mentions": [
+      "src/extension/sidepanel/sidepanel.ts:39",
+      "src/extension/ui/vault-page.ts:183"
+    ],
+    "behaviour_offenders": []
+  },
+  "harness": {
+    "profile": "chrome-webair-040-live-v0",
+    "recordedAt": "2026-10-08T00:18:13.928Z",
+    "site": "https://webagents-webair-production.up.railway.app/",
+    "model": "ollama/qwen3:30b",
+    "extension": "chrome-agent-browser/dist/extension",
+    "chrome": "Chrome/154.0.8037.99",
+    "outputDirectory": "examples/my-chrome-live-2026-10-08T00-18-13-928Z",
+    "steps": {
+      "setup": {
+        "probe": {
+          "ok": true,
+          "models": 4,
+          "error": null,
+          "diagnosis": null
+        },
+        "testMode": true,
+        "keyFromEnvironment": null,
+        "the ollama connection answers": "ok",
+        "the model is offered": "ok",
+        "execution is enabled": "ok",
+        "executionLimits": {
+          "total_tokens": 120000,
+          "max_remote_calls": 32,
+          "max_parallel_workers": 3,
+          "max_output_tokens_per_call": 16000,
+          "run_timeout_seconds": 600,
+          "max_calls_per_tool": 32,
+          "model_call_timeout_seconds": 300
+        }
+      },
+      "discovery": {
+        "candidate": "https://webagents-webair-production.up.railway.app/agent.pkg",
+        "the public origin advertises the package": "ok"
+      },
+      "inspect": {
+        "sessionId": "0c22cdf9dcf040678ca04c2d",
+        "name": "WebAir Travel Agent",
+        "version": "0.4.0",
+        "digest": "0e8317f11e8813e7d5b4b3f352f20148d114329dca3db8c725c5b0558af24fbb",
+        "archiveSha256": "c12f9db3bd7b3b4b6721c67e1d0b8143ebd94381df0e5e57c196357b7ca77f63",
+        "trust": "unknown",
+        "signature": "valid",
+        "WebAir 0.4.0, signed": "ok",
+        "publisher unknown before trust": "ok"
+      },
+      "trust": {
+        "trust": "trusted",
+        "two presses trust the key": "ok"
+      },
+      "searchAuthorization": {
+        "banner": "Ready to run",
+        "receiptId": "0a1b8f6d-db5d-426c-883d-a68a12052ff4",
+        "runPlanId": "rp_bf1bd605cc0146298696bd32f0903452",
+        "runPlanSha256": "b3e2b7720e414e0b3326d4b17284460ab74d9cc70004447d4815b2e7420dab38",
+        "ready": true,
+        "decisions": {
+          "booking.simulate_purchase": "deny",
+          "identity.passenger": "deny",
+          "memory.session": "session",
+          "model.reasoning": "session",
+          "network.webair": "session",
+          "profile.travel": "deny",
+          "wallet.payment": "deny"
+        },
+        "grants": []
+      },
+      "search": {
+        "the search plan is ready": "ok",
+        "completed": "ok",
+        "every model call used the planned model": "ok",
+        "the audit chain is valid": "ok"
+      },
+      "reconnect": {
+        "stateAfterReload": "running",
+        "adoptedRunId": "run_1bc13e40e6cb49dea9b236968134cc4d",
+        "runId": "run_1bc13e40e6cb49dea9b236968134cc4d",
+        "the reloaded page shows the run that was in flight": "ok"
+      },
+      "cancel": {
+        "pressedAtS": 37,
+        "the run settled as cancelled": "ok",
+        "the audit chain of the cancelled run is valid": "ok"
+      },
+      "quoteAuthorization": {
+        "banner": "Ready to run",
+        "receiptId": "cab7777d-4582-45d6-a99c-acf07b1573bf",
+        "runPlanId": "rp_f46b06d26c604d0eb1a93741669df144",
+        "runPlanSha256": "4a117981caed60cbadbdca2a64104598f7ed3a0e67feda731fac24ddebafc4c7",
+        "ready": true,
+        "decisions": {
+          "booking.simulate_purchase": "deny",
+          "identity.passenger": "session",
+          "memory.session": "session",
+          "model.reasoning": "session",
+          "network.webair": "session",
+          "profile.travel": "session",
+          "wallet.payment": "deny"
+        },
+        "grants": [
+          "passenger_demo_alex",
+          "profile_demo_traveler"
+        ]
+      },
+      "quote": {
+        "quoteId": "WAQ-C82CB5B08515FAE6",
+        "fareId": "WA101-20261009-STANDARD",
+        "totalUsd": 858,
+        "a quote id came back": "ok"
+      },
+      "purchaseAuthorization": {
+        "banner": "Ready to run",
+        "receiptId": "7f21a600-323b-4876-854a-2d7c0ea28f28",
+        "runPlanId": "rp_c96bd585b8b74704917bcf4f5de4b3ff",
+        "runPlanSha256": "e8caa534222e25c6e80879f5528a1d303b977da2950bbb6f240abb771a06d1a1",
+        "ready": true,
+        "decisions": {
+          "booking.simulate_purchase": "once",
+          "identity.passenger": "session",
+          "memory.session": "session",
+          "model.reasoning": "session",
+          "network.webair": "session",
+          "profile.travel": "session",
+          "wallet.payment": "session"
+        },
+        "grants": [
+          "passenger_demo_alex",
+          "profile_demo_traveler",
+          "payment_demo_visa"
+        ]
+      },
+      "purchase": {
+        "the book plan is ready with the purchase granted once": "ok",
+        "completed": "ok",
+        "the purchase permission was once": "ok"
+      },
+      "replay": {
+        "runButton": {
+          "disabled": true,
+          "label": "Run WebAir",
+          "reason": "The run plan is stale: This authorization granted something once, and a run has already used it. Authorize again to run again."
+        },
+        "workerRefusal": "run.start: run_plan_stale: This authorization granted something once, and a run has already used it. Authorize again to run again.",
+        "newestRun": "run_8dd918caae094910b7bdf1c3df178c19",
+        "the page disables Run because the once grant is spent": "ok",
+        "the worker refuses the start as a stale plan (once spent)": "ok",
+        "no new run was created": "ok"
+      },
+      "denial": {
+        "the quote plan is ready again": "ok",
+        "failed with permission_denied": "ok",
+        "no model call and no WebAir call": "ok"
+      }
+    },
+    "runs": {
+      "search": {
+        "directory": "examples/my-chrome-live-2026-10-08T00-18-13-928Z/search",
+        "files": [
+          {
+            "name": "run.json",
+            "bytes": 13792,
+            "sha256": "1aeede6689897a8a3e3585139d638a4f124164bc2bbed98ee8df7acffd1e6fe1"
+          },
+          {
+            "name": "run-plan.json",
+            "bytes": 16102,
+            "sha256": "7b617b260df9b6ea55b616d245a920a5df4f93c5eb4c7f8914580d51d423cf85"
+          },
+          {
+            "name": "input.json",
+            "bytes": 170,
+            "sha256": "05fc50bf6225b8d5c2cca9e9987fa17e195776617fb9ec51e168ccbb3188c29b"
+          },
+          {
+            "name": "answer.md",
+            "bytes": 583,
+            "sha256": "85347a77b42cb2a7b8a33d0643fcac581a9f516fcf32c2d361b80bb597fae099"
+          },
+          {
+            "name": "audit.json",
+            "bytes": 146900,
+            "sha256": "24497c63a6f32fa0acda6ad83f78f50c8106bb857f77651085bbb2acaabf7430"
+          },
+          {
+            "name": "booking.json",
+            "bytes": 42,
+            "sha256": "38068a369bc780ebe17dbc2a84fc7a8d7fc6d7858af6e1c925ecc0a91dd16149"
+          },
+          {
+            "name": "fare-rules.json",
+            "bytes": 4321,
+            "sha256": "8e2cc3bda80907e01b8604509a63e552a3da59857f28caf798f7291f49948f44"
+          },
+          {
+            "name": "provenance.json",
+            "bytes": 240,
+            "sha256": "32fb8e5c1d3033504053dad8a90be9205e27e6e81d356ff3b1fc8edb225bea48"
+          },
+          {
+            "name": "result.json",
+            "bytes": 194955,
+            "sha256": "a3b1ee48b90713d618a7d24cfb5f53dc3e29590798253856964cb799724f7239"
+          },
+          {
+            "name": "search.json",
+            "bytes": 2937,
+            "sha256": "238556cd158f91b859293a146a8ee5d97a7815dfee2f8a5fc7b21c588ef3fac8"
+          },
+          {
+            "name": "usage.json",
+            "bytes": 2021,
+            "sha256": "386d0cbd845553fc9fe813c14598f1db94d621a3bb93e4edf2e7733670f315b5"
+          }
+        ],
+        "observations": 7,
+        "record": {
+          "runId": "run_1bc13e40e6cb49dea9b236968134cc4d",
+          "status": "completed",
+          "errorCode": null,
+          "model": {
+            "planned": "ollama/qwen3:30b",
+            "invoked": [
+              "ollama/qwen3:30b"
+            ],
+            "calls": 3,
+            "allCallsUsedPlannedModel": true,
+            "providers": [
+              "ollama"
+            ],
+            "responseModels": [
+              "qwen3:30b"
+            ]
+          },
+          "selectedModel": "ollama/qwen3:30b",
+          "usage": {
+            "tokens": 8450,
+            "remoteCalls": 4,
+            "toolCalls": 4
+          },
+          "cost": {
+            "status": "unknown",
+            "totalUsd": null,
+            "calls": 3,
+            "callsWithReportedCost": 0
+          },
+          "audit": {
+            "events": 235,
+            "chainValid": true
+          },
+          "durationMs": 25264,
+          "resources": [],
+          "decisions": {
+            "booking.simulate_purchase": "deny",
+            "identity.passenger": "deny",
+            "memory.session": "session",
+            "model.reasoning": "session",
+            "network.webair": "session",
+            "profile.travel": "deny",
+            "wallet.payment": "deny"
+          },
+          "revalidated": 28,
+          "failure": null
+        },
+        "runLabel": "Run WebAir",
+        "startedState": "preparing",
+        "pageState": "completed",
+        "finalStatus": "completed"
+      },
+      "cancel": {
+        "directory": "examples/my-chrome-live-2026-10-08T00-18-13-928Z/cancel",
+        "files": [
+          {
+            "name": "run.json",
+            "bytes": 6688,
+            "sha256": "1b6bbb7c729d235d2c52340dd499e9136646109d8eec600f086d1f9ea4f4609d"
+          },
+          {
+            "name": "run-plan.json",
+            "bytes": 16102,
+            "sha256": "93ed2f2be21c26d05fd546079c4fb15800c4ec8fa61b120f56ea05267f4561b3"
+          },
+          {
+            "name": "input.json",
+            "bytes": 170,
+            "sha256": "05fc50bf6225b8d5c2cca9e9987fa17e195776617fb9ec51e168ccbb3188c29b"
+          },
+          {
+            "name": "audit.json",
+            "bytes": 2617,
+            "sha256": "21111d6437a730531b7039ea48fc54d3f794c6bc375d4b5043bae24e123463e1"
+          },
+          {
+            "name": "provenance.json",
+            "bytes": 240,
+            "sha256": "32fb8e5c1d3033504053dad8a90be9205e27e6e81d356ff3b1fc8edb225bea48"
+          },
+          {
+            "name": "result.json",
+            "bytes": 3868,
+            "sha256": "3f3473e2a7bc146f0374afd8694466abad755169030c18ca90beeb207ce1edc3"
+          },
+          {
+            "name": "usage.json",
+            "bytes": 689,
+            "sha256": "b8f74bdf1f279523f86c11dcb7573dc7fef1ee439e1060321f7c325954555649"
+          }
+        ],
+        "observations": 0,
+        "record": {
+          "runId": "run_0ad02462a20f45ac99fe6fff08bd58b9",
+          "status": "cancelled",
+          "errorCode": "cancelled",
+          "model": {
+            "planned": "ollama/qwen3:30b",
+            "invoked": [],
+            "calls": 0,
+            "allCallsUsedPlannedModel": false,
+            "providers": [],
+            "responseModels": []
+          },
+          "selectedModel": "ollama/qwen3:30b",
+          "usage": {
+            "tokens": 0,
+            "remoteCalls": 0,
+            "toolCalls": 0
+          },
+          "cost": {
+            "status": "unknown",
+            "totalUsd": null,
+            "calls": 0,
+            "callsWithReportedCost": 0
+          },
+          "audit": {
+            "events": 4,
+            "chainValid": true
+          },
+          "durationMs": 32,
+          "resources": [],
+          "decisions": {
+            "booking.simulate_purchase": "deny",
+            "identity.passenger": "deny",
+            "memory.session": "session",
+            "model.reasoning": "session",
+            "network.webair": "session",
+            "profile.travel": "deny",
+            "wallet.payment": "deny"
+          },
+          "revalidated": 28,
+          "failure": null
+        },
+        "runLabel": "Run WebAir",
+        "startedState": "preparing",
+        "pageState": "cancelled",
+        "finalStatus": "cancelled"
+      },
+      "quote": {
+        "directory": "examples/my-chrome-live-2026-10-08T00-18-13-928Z/quote",
+        "files": [
+          {
+            "name": "run.json",
+            "bytes": 16522,
+            "sha256": "ddb79e2f30ad7ffba63734949d1a7ae5b8badaa7b09843bbd0a9adf1f5822e6a"
+          },
+          {
+            "name": "run-plan.json",
+            "bytes": 20627,
+            "sha256": "c3e7b8be264ff2bb9a3c717995c7fb23dee16974c288817c19698c67e460eb1d"
+          },
+          {
+            "name": "input.json",
+            "bytes": 227,
+            "sha256": "7ea14fecac997a027222d65b850a3e8e509ded7add8985c9ab8ae3ddfa707056"
+          },
+          {
+            "name": "answer.md",
+            "bytes": 652,
+            "sha256": "95c22a7e95a50d2db26306d30c3b6197b1497c51707997132b5fc06ce7efb0ab"
+          },
+          {
+            "name": "audit.json",
+            "bytes": 191458,
+            "sha256": "6685ff2b630d76844a5304ef66f2d39f3f2cd03478983ef20356e09f38bd25d2"
+          },
+          {
+            "name": "booking.json",
+            "bytes": 1111,
+            "sha256": "f18bf9a337c2d1282ce25e8febe890d2e8061c5f91e77ba836c0e780e0f72a34"
+          },
+          {
+            "name": "fare-rules.json",
+            "bytes": 8724,
+            "sha256": "bfd7e151b4cf72a6f291e35c3ffa4222fc850c18539cfd8832d059ecf6ebf69b"
+          },
+          {
+            "name": "provenance.json",
+            "bytes": 240,
+            "sha256": "32fb8e5c1d3033504053dad8a90be9205e27e6e81d356ff3b1fc8edb225bea48"
+          },
+          {
+            "name": "result.json",
+            "bytes": 270238,
+            "sha256": "09c4c890f9543cadf8fe5ba70b2d07ddbb22686671323159e1e43a28eb050568"
+          },
+          {
+            "name": "search.json",
+            "bytes": 4074,
+            "sha256": "ee0d0ed52fabaf5e6ddae5f56f8f3cd5a347164fe11136227814272d8b388e30"
+          },
+          {
+            "name": "usage.json",
+            "bytes": 2560,
+            "sha256": "63c1c03882a0c9f2c5e6067349b6fe6e7d85df9b6df9bc524295803861f54aaf"
+          }
+        ],
+        "observations": 11,
+        "record": {
+          "runId": "run_04cacfd0c80944a58ab2a94ae2e05cd6",
+          "status": "completed",
+          "errorCode": null,
+          "model": {
+            "planned": "ollama/qwen3:30b",
+            "invoked": [
+              "ollama/qwen3:30b"
+            ],
+            "calls": 3,
+            "allCallsUsedPlannedModel": true,
+            "providers": [
+              "ollama"
+            ],
+            "responseModels": [
+              "qwen3:30b"
+            ]
+          },
+          "selectedModel": "ollama/qwen3:30b",
+          "usage": {
+            "tokens": 10451,
+            "remoteCalls": 8,
+            "toolCalls": 9
+          },
+          "cost": {
+            "status": "unknown",
+            "totalUsd": null,
+            "calls": 3,
+            "callsWithReportedCost": 0
+          },
+          "audit": {
+            "events": 302,
+            "chainValid": true
+          },
+          "durationMs": 14388,
+          "resources": [
+            "passenger_demo_alex",
+            "profile_demo_traveler"
+          ],
+          "decisions": {
+            "booking.simulate_purchase": "deny",
+            "identity.passenger": "session",
+            "memory.session": "session",
+            "model.reasoning": "session",
+            "network.webair": "session",
+            "profile.travel": "session",
+            "wallet.payment": "deny"
+          },
+          "revalidated": 32,
+          "failure": null
+        },
+        "runLabel": "Run WebAir",
+        "startedState": "preparing",
+        "pageState": "completed",
+        "finalStatus": "completed"
+      },
+      "purchase": {
+        "directory": "examples/my-chrome-live-2026-10-08T00-18-13-928Z/purchase",
+        "files": [
+          {
+            "name": "run.json",
+            "bytes": 15512,
+            "sha256": "917daf64560a4189e35b11e9cd84f3f2b0b5a49fae834847349f36c93162d76c"
+          },
+          {
+            "name": "run-plan.json",
+            "bytes": 23626,
+            "sha256": "c2890c57bdcfa0b67bd5b344b0fcce6e3651a6127191db27416e5375b07ce05b"
+          },
+          {
+            "name": "input.json",
+            "bytes": 190,
+            "sha256": "808dd4f500a1331ba3e4b384865efad06125ef285fabc510a07b32cb2c3c29e8"
+          },
+          {
+            "name": "answer.md",
+            "bytes": 528,
+            "sha256": "1c20877e1255dd0b4f3143ee0c7e637054ab0ba90d8695898954eb6bc7717a7f"
+          },
+          {
+            "name": "audit.json",
+            "bytes": 126293,
+            "sha256": "9797503dc72e18a4698032c217eaa908c322a568f43c89a43ab07cf0555cb964"
+          },
+          {
+            "name": "booking.json",
+            "bytes": 1531,
+            "sha256": "33a6e10632d11ce4f86564a8aefe0097a91f576cf03f3be615ee51c49700a867"
+          },
+          {
+            "name": "fare-rules.json",
+            "bytes": 3,
+            "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+          },
+          {
+            "name": "provenance.json",
+            "bytes": 240,
+            "sha256": "32fb8e5c1d3033504053dad8a90be9205e27e6e81d356ff3b1fc8edb225bea48"
+          },
+          {
+            "name": "result.json",
+            "bytes": 146057,
+            "sha256": "601db398055e89ca4890a81890c14011c95d32ae891f4d2e6108980030daac75"
+          },
+          {
+            "name": "search.json",
+            "bytes": 5,
+            "sha256": "38e0b9de817f645c4bec37c0d4a3e58baecccb040f5718dc069a72c7385a0bed"
+          },
+          {
+            "name": "usage.json",
+            "bytes": 1828,
+            "sha256": "2325430271e6c45e43660d930f6f44f26d16b8921e059659643c90593d31aae7"
+          }
+        ],
+        "observations": 3,
+        "record": {
+          "runId": "run_8dd918caae094910b7bdf1c3df178c19",
+          "status": "completed",
+          "errorCode": null,
+          "model": {
+            "planned": "ollama/qwen3:30b",
+            "invoked": [
+              "ollama/qwen3:30b"
+            ],
+            "calls": 1,
+            "allCallsUsedPlannedModel": true,
+            "providers": [
+              "ollama"
+            ],
+            "responseModels": [
+              "qwen3:30b"
+            ]
+          },
+          "selectedModel": "ollama/qwen3:30b",
+          "usage": {
+            "tokens": 2579,
+            "remoteCalls": 2,
+            "toolCalls": 4
+          },
+          "cost": {
+            "status": "unknown",
+            "totalUsd": null,
+            "calls": 1,
+            "callsWithReportedCost": 0
+          },
+          "audit": {
+            "events": 202,
+            "chainValid": true
+          },
+          "durationMs": 3972,
+          "resources": [
+            "passenger_demo_alex",
+            "profile_demo_traveler",
+            "payment_demo_visa"
+          ],
+          "decisions": {
+            "booking.simulate_purchase": "once",
+            "identity.passenger": "session",
+            "memory.session": "session",
+            "model.reasoning": "session",
+            "network.webair": "session",
+            "profile.travel": "session",
+            "wallet.payment": "session"
+          },
+          "revalidated": 34,
+          "failure": null
+        },
+        "runLabel": "Run WebAir",
+        "startedState": "preparing",
+        "pageState": "completed",
+        "finalStatus": "completed"
+      },
+      "denial": {
+        "directory": "examples/my-chrome-live-2026-10-08T00-18-13-928Z/denial",
+        "files": [
+          {
+            "name": "run.json",
+            "bytes": 11694,
+            "sha256": "7ed6bede7c433745922d0c843c6c1c0cebb9db73eb6b3f5256c4e9f0bd4954b3"
+          },
+          {
+            "name": "run-plan.json",
+            "bytes": 20627,
+            "sha256": "a6a8931b606b54b039f1399dd012b55bda7642e8d5b164747867bc1dc62e8671"
+          },
+          {
+            "name": "input.json",
+            "bytes": 190,
+            "sha256": "808dd4f500a1331ba3e4b384865efad06125ef285fabc510a07b32cb2c3c29e8"
+          },
+          {
+            "name": "audit.json",
+            "bytes": 49187,
+            "sha256": "557391f8544943de7e2419a39395832829f42b87b44af1bcfe5bdee7a161896b"
+          },
+          {
+            "name": "provenance.json",
+            "bytes": 240,
+            "sha256": "32fb8e5c1d3033504053dad8a90be9205e27e6e81d356ff3b1fc8edb225bea48"
+          },
+          {
+            "name": "result.json",
+            "bytes": 53732,
+            "sha256": "16797a0c4f5c6a9cc1b942d5f67c3e2cf39459d6fb6c6444cb03a5e435421d91"
+          },
+          {
+            "name": "usage.json",
+            "bytes": 1162,
+            "sha256": "e05aef9209f4fff880b5b9698ecac881a3e008f225c212299df9c4b06a05ee20"
+          }
+        ],
+        "observations": 0,
+        "record": {
+          "runId": "run_90da6a8e20b04b6f97841ebd553c4f39",
+          "status": "failed",
+          "errorCode": "permission_denied",
+          "model": {
+            "planned": "ollama/qwen3:30b",
+            "invoked": [],
+            "calls": 0,
+            "allCallsUsedPlannedModel": false,
+            "providers": [],
+            "responseModels": []
+          },
+          "selectedModel": "ollama/qwen3:30b",
+          "usage": {
+            "tokens": 0,
+            "remoteCalls": 0,
+            "toolCalls": 0
+          },
+          "cost": {
+            "status": "unknown",
+            "totalUsd": null,
+            "calls": 0,
+            "callsWithReportedCost": 0
+          },
+          "audit": {
+            "events": 81,
+            "chainValid": true
+          },
+          "durationMs": 80,
+          "resources": [
+            "passenger_demo_alex",
+            "profile_demo_traveler"
+          ],
+          "decisions": {
+            "booking.simulate_purchase": "deny",
+            "identity.passenger": "session",
+            "memory.session": "session",
+            "model.reasoning": "session",
+            "network.webair": "session",
+            "profile.travel": "session",
+            "wallet.payment": "deny"
+          },
+          "revalidated": 32,
+          "failure": {
+            "nodeId": "payment",
+            "stepId": null,
+            "errorCode": "permission_denied",
+            "failedCheck": null,
+            "call": {
+              "kind": "tool",
+              "action": "tool.failed",
+              "tool": "wallet.payment_method",
+              "task": null,
+              "reason": null
+            }
+          }
+        },
+        "runLabel": "Run WebAir",
+        "startedState": "preparing",
+        "pageState": "failed",
+        "finalStatus": "failed"
+      }
+    },
+    "failures": [],
+    "passed": true,
+    "extensionId": "pgnkbncmhggkoccndjahdkonmkjnakih"
+  },
+  "runs": {
+    "search": {
+      "run_id": "run_1bc13e40e6cb49dea9b236968134cc4d",
+      "status": "completed",
+      "error_code": null,
+      "failed_node": null,
+      "package": {
+        "id": "org.webagents.webair",
+        "version": "0.4.0",
+        "digest": "0e8317f11e8813e7d5b4b3f352f20148d114329dca3db8c725c5b0558af24fbb",
+        "archive_sha256": "c12f9db3bd7b3b4b6721c67e1d0b8143ebd94381df0e5e57c196357b7ca77f63"
+      },
+      "model": {
+        "planned": "ollama/qwen3:30b",
+        "invoked": [
+          "ollama/qwen3:30b"
+        ],
+        "calls": 3,
+        "allCallsUsedPlannedModel": true,
+        "providers": [
+          "ollama"
+        ],
+        "responseModels": [
+          "qwen3:30b"
+        ],
+        "selected": "ollama/qwen3:30b",
+        "local": true
+      },
+      "usage": {
+        "tokens": 8450,
+        "remote_calls": 4,
+        "tool_calls": 4
+      },
+      "cost": {
+        "status": "unknown",
+        "totalUsd": null,
+        "calls": 3,
+        "callsWithReportedCost": 0
+      },
+      "duration_ms": 25264,
+      "decisions": {
+        "booking.simulate_purchase": "deny",
+        "identity.passenger": "deny",
+        "memory.session": "session",
+        "model.reasoning": "session",
+        "network.webair": "session",
+        "profile.travel": "deny",
+        "wallet.payment": "deny"
+      },
+      "resource_grants": [],
+      "revalidated_before_start": 28,
+      "run_plan": {
+        "id": "rp_bf1bd605cc0146298696bd32f0903452",
+        "sha256": "b3e2b7720e414e0b3326d4b17284460ab74d9cc70004447d4815b2e7420dab38",
+        "profile": "search",
+        "denied_tools": [
+          "personal.passenger_identity",
+          "personal.travel_profile",
+          "prepare-booking",
+          "simulate-purchase",
+          "wallet.payment_method"
+        ]
+      },
+      "audit": {
+        "events": 235,
+        "chain_valid": true,
+        "model_tasks": [
+          "interpret",
+          "select",
+          "answer"
+        ],
+        "tool_dispatches": [
+          {
+            "tool": "search-flights",
+            "binding_id": "chrome:json_http:search-flights:1",
+            "endpoint_origin": "https://webagents-webair-production.up.railway.app",
+            "method": "POST"
+          },
+          {
+            "tool": "get-fare-rules",
+            "binding_id": "chrome:json_http:get-fare-rules:1",
+            "endpoint_origin": "https://webagents-webair-production.up.railway.app",
+            "method": "POST"
+          },
+          {
+            "tool": "get-fare-rules",
+            "binding_id": "chrome:json_http:get-fare-rules:1",
+            "endpoint_origin": "https://webagents-webair-production.up.railway.app",
+            "method": "POST"
+          },
+          {
+            "tool": "get-fare-rules",
+            "binding_id": "chrome:json_http:get-fare-rules:1",
+            "endpoint_origin": "https://webagents-webair-production.up.railway.app",
+            "method": "POST"
+          }
+        ],
+        "resources_resolved": [],
+        "tools_refused": []
+      },
+      "observed_model_inputs": [
+        {
+          "task": "interpret",
+          "body_sha256": "b2a1b24e99e59dbf8074a4d1c01af167f1ad8042636307e99d886a585b1617ac",
+          "body_bytes": 11179,
+          "classes_in_request": [],
+          "card_like_digits": false
+        },
+        {
+          "task": "select",
+          "body_sha256": "026f74e0f254f980c5747473b49cd869f304321731806abb746bae1ab17f8c2d",
+          "body_bytes": 9985,
+          "classes_in_request": [],
+          "card_like_digits": false
+        },
+        {
+          "task": "answer",
+          "body_sha256": "d34de60055e6b72ba559d51eccb97f5018cf885c570ee977f2ea8b211cc85164",
+          "body_bytes": 14189,
+          "classes_in_request": [],
+          "card_like_digits": false
+        }
+      ],
+      "observed_webair_requests": [
+        {
+          "path": "/api/v1/search_flights",
+          "origin": "https://webagents-webair-production.up.railway.app",
+          "body_sha256": "5293325cee44f0fed020225ee8bd37a4eba250bed3f7e26d7beba7f54e39ee8c",
+          "body_bytes": 124,
+          "classes_in_request": []
+        },
+        {
+          "path": "/api/v1/get_fare_rules",
+          "origin": "https://webagents-webair-production.up.railway.app",
+          "body_sha256": "febe90fff29f1a048dda5e1023e590333e376eb67298b10b70283aabbce9a68d",
+          "body_bytes": 49,
+          "classes_in_request": []
+        },
+        {
+          "path": "/api/v1/get_fare_rules",
+          "origin": "https://webagents-webair-production.up.railway.app",
+          "body_sha256": "37860d5302a01869b6d56d83b281e90d9183521b5cebafdaddb50fda9326ab25",
+          "body_bytes": 52,
+          "classes_in_request": []
+        },
+        {
+          "path": "/api/v1/get_fare_rules",
+          "origin": "https://webagents-webair-production.up.railway.app",
+          "body_sha256": "9429c24e697420c8e9389f5af220247973ea9b44e651d320f92497a9ef89aaf6",
+          "body_bytes": 49,
+          "classes_in_request": []
+        }
+      ],
+      "artifacts_hold_no_identity_or_payment_identifier": true
+    },
+    "cancel": {
+      "run_id": "run_0ad02462a20f45ac99fe6fff08bd58b9",
+      "status": "cancelled",
+      "error_code": "cancelled",
+      "failed_node": null,
+      "package": {
+        "id": "org.webagents.webair",
+        "version": "0.4.0",
+        "digest": "0e8317f11e8813e7d5b4b3f352f20148d114329dca3db8c725c5b0558af24fbb",
+        "archive_sha256": "c12f9db3bd7b3b4b6721c67e1d0b8143ebd94381df0e5e57c196357b7ca77f63"
+      },
+      "model": {
+        "planned": "ollama/qwen3:30b",
+        "invoked": [],
+        "calls": 0,
+        "allCallsUsedPlannedModel": false,
+        "providers": [],
+        "responseModels": [],
+        "selected": "ollama/qwen3:30b",
+        "local": true
+      },
+      "usage": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": 0
+      },
+      "cost": {
+        "status": "unknown",
+        "totalUsd": null,
+        "calls": 0,
+        "callsWithReportedCost": 0
+      },
+      "duration_ms": 32,
+      "decisions": {
+        "booking.simulate_purchase": "deny",
+        "identity.passenger": "deny",
+        "memory.session": "session",
+        "model.reasoning": "session",
+        "network.webair": "session",
+        "profile.travel": "deny",
+        "wallet.payment": "deny"
+      },
+      "resource_grants": [],
+      "revalidated_before_start": 28,
+      "run_plan": {
+        "id": "rp_756d2ac49f8a46f583f61bf5cc02046c",
+        "sha256": "6ef00e5c66589ebe027a723decab6bd6e686083b16cc1d05ea3d899f96515fb1",
+        "profile": "search",
+        "denied_tools": [
+          "personal.passenger_identity",
+          "personal.travel_profile",
+          "prepare-booking",
+          "simulate-purchase",
+          "wallet.payment_method"
+        ]
+      },
+      "audit": {
+        "events": 4,
+        "chain_valid": true,
+        "model_tasks": [],
+        "tool_dispatches": [],
+        "resources_resolved": [],
+        "tools_refused": []
+      },
+      "observed_model_inputs": [],
+      "observed_webair_requests": [],
+      "artifacts_hold_no_identity_or_payment_identifier": true
+    },
+    "quote": {
+      "run_id": "run_04cacfd0c80944a58ab2a94ae2e05cd6",
+      "status": "completed",
+      "error_code": null,
+      "failed_node": null,
+      "package": {
+        "id": "org.webagents.webair",
+        "version": "0.4.0",
+        "digest": "0e8317f11e8813e7d5b4b3f352f20148d114329dca3db8c725c5b0558af24fbb",
+        "archive_sha256": "c12f9db3bd7b3b4b6721c67e1d0b8143ebd94381df0e5e57c196357b7ca77f63"
+      },
+      "model": {
+        "planned": "ollama/qwen3:30b",
+        "invoked": [
+          "ollama/qwen3:30b"
+        ],
+        "calls": 3,
+        "allCallsUsedPlannedModel": true,
+        "providers": [
+          "ollama"
+        ],
+        "responseModels": [
+          "qwen3:30b"
+        ],
+        "selected": "ollama/qwen3:30b",
+        "local": true
+      },
+      "usage": {
+        "tokens": 10451,
+        "remote_calls": 8,
+        "tool_calls": 9
+      },
+      "cost": {
+        "status": "unknown",
+        "totalUsd": null,
+        "calls": 3,
+        "callsWithReportedCost": 0
+      },
+      "duration_ms": 14388,
+      "decisions": {
+        "booking.simulate_purchase": "deny",
+        "identity.passenger": "session",
+        "memory.session": "session",
+        "model.reasoning": "session",
+        "network.webair": "session",
+        "profile.travel": "session",
+        "wallet.payment": "deny"
+      },
+      "resource_grants": [
+        {
+          "permission": "identity.passenger",
+          "type": "personal.passenger_identity",
+          "resource_id": "passenger_demo_alex",
+          "digest_prefix": "099fed734e5d"
+        },
+        {
+          "permission": "profile.travel",
+          "type": "personal.travel_profile",
+          "resource_id": "profile_demo_traveler",
+          "digest_prefix": "27a777af7653"
+        }
+      ],
+      "revalidated_before_start": 32,
+      "run_plan": {
+        "id": "rp_f46b06d26c604d0eb1a93741669df144",
+        "sha256": "4a117981caed60cbadbdca2a64104598f7ed3a0e67feda731fac24ddebafc4c7",
+        "profile": "quote",
+        "denied_tools": [
+          "simulate-purchase",
+          "wallet.payment_method"
+        ]
+      },
+      "audit": {
+        "events": 302,
+        "chain_valid": true,
+        "model_tasks": [
+          "interpret",
+          "select",
+          "answer"
+        ],
+        "tool_dispatches": [
+          {
+            "tool": "search-flights",
+            "binding_id": "chrome:json_http:search-flights:1",
+            "endpoint_origin": "https://webagents-webair-production.up.railway.app",
+            "method": "POST"
+          },
+          {
+            "tool": "get-fare-rules",
+            "binding_id": "chrome:json_http:get-fare-rules:1",
+            "endpoint_origin": "https://webagents-webair-production.up.railway.app",
+            "method": "POST"
+          },
+          {
+            "tool": "get-fare-rules",
+            "binding_id": "chrome:json_http:get-fare-rules:1",
+            "endpoint_origin": "https://webagents-webair-production.up.railway.app",
+            "method": "POST"
+          },
+          {
+            "tool": "get-fare-rules",
+            "binding_id": "chrome:json_http:get-fare-rules:1",
+            "endpoint_origin": "https://webagents-webair-production.up.railway.app",
+            "method": "POST"
+          },
+          {
+            "tool": "get-fare-rules",
+            "binding_id": "chrome:json_http:get-fare-rules:1",
+            "endpoint_origin": "https://webagents-webair-production.up.railway.app",
+            "method": "POST"
+          },
+          {
+            "tool": "get-fare-rules",
+            "binding_id": "chrome:json_http:get-fare-rules:1",
+            "endpoint_origin": "https://webagents-webair-production.up.railway.app",
+            "method": "POST"
+          },
+          {
+            "tool": "get-fare-rules",
+            "binding_id": "chrome:json_http:get-fare-rules:1",
+            "endpoint_origin": "https://webagents-webair-production.up.railway.app",
+            "method": "POST"
+          },
+          {
+            "tool": "personal.passenger_identity",
+            "binding_id": "chrome:host-resource:personal.passenger_identity:1",
+            "endpoint_origin": null,
+            "method": null
+          },
+          {
+            "tool": "prepare-booking",
+            "binding_id": "chrome:json_http:prepare-booking:1",
+            "endpoint_origin": "https://webagents-webair-production.up.railway.app",
+            "method": "POST"
+          }
+        ],
+        "resources_resolved": [
+          {
+            "tool": "personal.passenger_identity",
+            "resource_id": "passenger_demo_alex",
+            "permission": "identity.passenger"
+          }
+        ],
+        "tools_refused": []
+      },
+      "observed_model_inputs": [
+        {
+          "task": "interpret",
+          "body_sha256": "856159273fe7caf3579f218da2af554c68f516b8a23dc5d9adbfed64c631b6ec",
+          "body_bytes": 11237,
+          "classes_in_request": [],
+          "card_like_digits": false
+        },
+        {
+          "task": "select",
+          "body_sha256": "0d89bad91aa6b048680370cc13b09b1b6a72316c9ac020009c2b4a653f23044a",
+          "body_bytes": 10836,
+          "classes_in_request": [],
+          "card_like_digits": false
+        },
+        {
+          "task": "answer",
+          "body_sha256": "6e63e0a03e213c9fd46d94308f60e2ef412d423442c733c4a3483df1e2dfb70e",
+          "body_bytes": 19503,
+          "classes_in_request": [],
+          "card_like_digits": false
+        }
+      ],
+      "observed_webair_requests": [
+        {
+          "path": "/api/v1/search_flights",
+          "origin": "https://webagents-webair-production.up.railway.app",
+          "body_sha256": "dd6f812958579447ea8892e52d14898cd110631628956a24e84ad1ce0343cfca",
+          "body_bytes": 130,
+          "classes_in_request": []
+        },
+        {
+          "path": "/api/v1/get_fare_rules",
+          "origin": "https://webagents-webair-production.up.railway.app",
+          "body_sha256": "febe90fff29f1a048dda5e1023e590333e376eb67298b10b70283aabbce9a68d",
+          "body_bytes": 49,
+          "classes_in_request": []
+        },
+        {
+          "path": "/api/v1/get_fare_rules",
+          "origin": "https://webagents-webair-production.up.railway.app",
+          "body_sha256": "37860d5302a01869b6d56d83b281e90d9183521b5cebafdaddb50fda9326ab25",
+          "body_bytes": 52,
+          "classes_in_request": []
+        },
+        {
+          "path": "/api/v1/get_fare_rules",
+          "origin": "https://webagents-webair-production.up.railway.app",
+          "body_sha256": "d0a30523f1612eb98c8e0fc2ba0e68b96421855eb7cbacc6536078b141f0ca66",
+          "body_bytes": 48,
+          "classes_in_request": []
+        },
+        {
+          "path": "/api/v1/get_fare_rules",
+          "origin": "https://webagents-webair-production.up.railway.app",
+          "body_sha256": "9429c24e697420c8e9389f5af220247973ea9b44e651d320f92497a9ef89aaf6",
+          "body_bytes": 49,
+          "classes_in_request": []
+        },
+        {
+          "path": "/api/v1/get_fare_rules",
+          "origin": "https://webagents-webair-production.up.railway.app",
+          "body_sha256": "cd6765b8799280f5eb7f0bd8a0dde14633d6a92782bee88bb7db8b85ee638af9",
+          "body_bytes": 52,
+          "classes_in_request": []
+        },
+        {
+          "path": "/api/v1/get_fare_rules",
+          "origin": "https://webagents-webair-production.up.railway.app",
+          "body_sha256": "61e027332ceba9d1610169d24f237cac778fc49b82dfaea051d9f41eeb63caf8",
+          "body_bytes": 48,
+          "classes_in_request": []
+        },
+        {
+          "path": "/api/v1/prepare_booking",
+          "origin": "https://webagents-webair-production.up.railway.app",
+          "body_sha256": "c2b5d42d0e85d43226914c8b5ae829932ffd0e8fa4512e529242f1495b0728a8",
+          "body_bytes": 143,
+          "classes_in_request": [
+            "passenger_email",
+            "passenger_family_name_word",
+            "passenger_given_name_word"
+          ]
+        }
+      ],
+      "artifacts_hold_no_identity_or_payment_identifier": true
+    },
+    "purchase": {
+      "run_id": "run_8dd918caae094910b7bdf1c3df178c19",
+      "status": "completed",
+      "error_code": null,
+      "failed_node": null,
+      "package": {
+        "id": "org.webagents.webair",
+        "version": "0.4.0",
+        "digest": "0e8317f11e8813e7d5b4b3f352f20148d114329dca3db8c725c5b0558af24fbb",
+        "archive_sha256": "c12f9db3bd7b3b4b6721c67e1d0b8143ebd94381df0e5e57c196357b7ca77f63"
+      },
+      "model": {
+        "planned": "ollama/qwen3:30b",
+        "invoked": [
+          "ollama/qwen3:30b"
+        ],
+        "calls": 1,
+        "allCallsUsedPlannedModel": true,
+        "providers": [
+          "ollama"
+        ],
+        "responseModels": [
+          "qwen3:30b"
+        ],
+        "selected": "ollama/qwen3:30b",
+        "local": true
+      },
+      "usage": {
+        "tokens": 2579,
+        "remote_calls": 2,
+        "tool_calls": 4
+      },
+      "cost": {
+        "status": "unknown",
+        "totalUsd": null,
+        "calls": 1,
+        "callsWithReportedCost": 0
+      },
+      "duration_ms": 3972,
+      "decisions": {
+        "booking.simulate_purchase": "once",
+        "identity.passenger": "session",
+        "memory.session": "session",
+        "model.reasoning": "session",
+        "network.webair": "session",
+        "profile.travel": "session",
+        "wallet.payment": "session"
+      },
+      "resource_grants": [
+        {
+          "permission": "identity.passenger",
+          "type": "personal.passenger_identity",
+          "resource_id": "passenger_demo_alex",
+          "digest_prefix": "099fed734e5d"
+        },
+        {
+          "permission": "profile.travel",
+          "type": "personal.travel_profile",
+          "resource_id": "profile_demo_traveler",
+          "digest_prefix": "27a777af7653"
+        },
+        {
+          "permission": "wallet.payment",
+          "type": "wallet.payment_method",
+          "resource_id": "payment_demo_visa",
+          "digest_prefix": "87673a644b8e"
+        }
+      ],
+      "revalidated_before_start": 34,
+      "run_plan": {
+        "id": "rp_c96bd585b8b74704917bcf4f5de4b3ff",
+        "sha256": "e8caa534222e25c6e80879f5528a1d303b977da2950bbb6f240abb771a06d1a1",
+        "profile": "book",
+        "denied_tools": []
+      },
+      "audit": {
+        "events": 202,
+        "chain_valid": true,
+        "model_tasks": [
+          "answer"
+        ],
+        "tool_dispatches": [
+          {
+            "tool": "wallet.payment_method",
+            "binding_id": "chrome:host-resource:wallet.payment_method:1",
+            "endpoint_origin": null,
+            "method": null
+          },
+          {
+            "tool": "personal.passenger_identity",
+            "binding_id": "chrome:host-resource:personal.passenger_identity:1",
+            "endpoint_origin": null,
+            "method": null
+          },
+          {
+            "tool": "prepare-booking",
+            "binding_id": "chrome:json_http:prepare-booking:1",
+            "endpoint_origin": "https://webagents-webair-production.up.railway.app",
+            "method": "POST"
+          },
+          {
+            "tool": "simulate-purchase",
+            "binding_id": "chrome:json_http:simulate-purchase:1",
+            "endpoint_origin": "https://webagents-webair-production.up.railway.app",
+            "method": "POST"
+          }
+        ],
+        "resources_resolved": [
+          {
+            "tool": "wallet.payment_method",
+            "resource_id": "payment_demo_visa",
+            "permission": "wallet.payment"
+          },
+          {
+            "tool": "personal.passenger_identity",
+            "resource_id": "passenger_demo_alex",
+            "permission": "identity.passenger"
+          }
+        ],
+        "tools_refused": []
+      },
+      "observed_model_inputs": [
+        {
+          "task": "answer",
+          "body_sha256": "32d53fde5fc0751940fcc793a7b0a9e4de3bb1a30d4095fdc2c67f08e2109dda",
+          "body_bytes": 10120,
+          "classes_in_request": [],
+          "card_like_digits": false
+        }
+      ],
+      "observed_webair_requests": [
+        {
+          "path": "/api/v1/prepare_booking",
+          "origin": "https://webagents-webair-production.up.railway.app",
+          "body_sha256": "c2b5d42d0e85d43226914c8b5ae829932ffd0e8fa4512e529242f1495b0728a8",
+          "body_bytes": 143,
+          "classes_in_request": [
+            "passenger_email",
+            "passenger_family_name_word",
+            "passenger_given_name_word"
+          ]
+        },
+        {
+          "path": "/api/v1/simulate_purchase",
+          "origin": "https://webagents-webair-production.up.railway.app",
+          "body_sha256": "d29592328bd93548d93880e224d4c54fdc30a9151438095ff75fdac907f1b4df",
+          "body_bytes": 226,
+          "classes_in_request": [
+            "passenger_email",
+            "passenger_family_name_word",
+            "passenger_given_name_word",
+            "payment_method_id"
+          ]
+        }
+      ],
+      "artifacts_hold_no_identity_or_payment_identifier": true
+    },
+    "denial": {
+      "run_id": "run_90da6a8e20b04b6f97841ebd553c4f39",
+      "status": "failed",
+      "error_code": "permission_denied",
+      "failed_node": "payment",
+      "package": {
+        "id": "org.webagents.webair",
+        "version": "0.4.0",
+        "digest": "0e8317f11e8813e7d5b4b3f352f20148d114329dca3db8c725c5b0558af24fbb",
+        "archive_sha256": "c12f9db3bd7b3b4b6721c67e1d0b8143ebd94381df0e5e57c196357b7ca77f63"
+      },
+      "model": {
+        "planned": "ollama/qwen3:30b",
+        "invoked": [],
+        "calls": 0,
+        "allCallsUsedPlannedModel": false,
+        "providers": [],
+        "responseModels": [],
+        "selected": "ollama/qwen3:30b",
+        "local": true
+      },
+      "usage": {
+        "tokens": 0,
+        "remote_calls": 0,
+        "tool_calls": 0
+      },
+      "cost": {
+        "status": "unknown",
+        "totalUsd": null,
+        "calls": 0,
+        "callsWithReportedCost": 0
+      },
+      "duration_ms": 80,
+      "decisions": {
+        "booking.simulate_purchase": "deny",
+        "identity.passenger": "session",
+        "memory.session": "session",
+        "model.reasoning": "session",
+        "network.webair": "session",
+        "profile.travel": "session",
+        "wallet.payment": "deny"
+      },
+      "resource_grants": [
+        {
+          "permission": "identity.passenger",
+          "type": "personal.passenger_identity",
+          "resource_id": "passenger_demo_alex",
+          "digest_prefix": "099fed734e5d"
+        },
+        {
+          "permission": "profile.travel",
+          "type": "personal.travel_profile",
+          "resource_id": "profile_demo_traveler",
+          "digest_prefix": "27a777af7653"
+        }
+      ],
+      "revalidated_before_start": 32,
+      "run_plan": {
+        "id": "rp_eff19f15914c43a8a10b480a55ec6062",
+        "sha256": "7c1b700404cddaca608fd1b51223af326dd3a894ad13fe4a337e35047ab8581d",
+        "profile": "quote",
+        "denied_tools": [
+          "simulate-purchase",
+          "wallet.payment_method"
+        ]
+      },
+      "audit": {
+        "events": 81,
+        "chain_valid": true,
+        "model_tasks": [],
+        "tool_dispatches": [],
+        "resources_resolved": [],
+        "tools_refused": [
+          "wallet.payment_method"
+        ]
+      },
+      "observed_model_inputs": [],
+      "observed_webair_requests": [],
+      "artifacts_hold_no_identity_or_payment_identifier": true
+    }
+  },
+  "checks": [
+    {
+      "id": "harness_passed",
+      "passed": true,
+      "detail": []
+    },
+    {
+      "id": "harness_recorded_in_test_mode",
+      "passed": true
+    },
+    {
+      "id": "reconnect_adopted_the_run_in_flight",
+      "passed": true,
+      "detail": {
+        "stateAfterReload": "running",
+        "adoptedRunId": "run_1bc13e40e6cb49dea9b236968134cc4d",
+        "runId": "run_1bc13e40e6cb49dea9b236968134cc4d",
+        "the reloaded page shows the run that was in flight": "ok"
+      }
+    },
+    {
+      "id": "search_audit_chain_valid",
+      "passed": true,
+      "detail": {
+        "events": 235,
+        "valid": true,
+        "broken": [],
+        "final_hash": "083df23e42be9306d2c3701639bd574a2e863302d5f332f2af5f4fe0762e34c6",
+        "note": "A local hash chain. It binds these events to each other; it is not an external tamper-proof audit service."
+      }
+    },
+    {
+      "id": "search_record_matches_audit",
+      "passed": true,
+      "detail": {
+        "events": 235,
+        "chainValid": true,
+        "finalHash": "083df23e42be9306d2c3701639bd574a2e863302d5f332f2af5f4fe0762e34c6",
+        "actions": [
+          {
+            "action": "budget.updated",
+            "count": 14
+          },
+          {
+            "action": "delegation.checked",
+            "count": 12
+          },
+          {
+            "action": "memory.cleared",
+            "count": 1
+          },
+          {
+            "action": "model.called",
+            "count": 3
+          },
+          {
+            "action": "model.completed",
+            "count": 3
+          },
+          {
+            "action": "model.count.called",
+            "count": 3
+          },
+          {
+            "action": "node.completed",
+            "count": 40
+          },
+          {
+            "action": "node.skipped",
+            "count": 13
+          },
+          {
+            "action": "node.started",
+            "count": 40
+          },
+          {
+            "action": "permission.checked",
+            "count": 27
+          },
+          {
+            "action": "runtime.started",
+            "count": 1
+          },
+          {
+            "action": "state.committed",
+            "count": 24
+          },
+          {
+            "action": "tool.called",
+            "count": 4
+          },
+          {
+            "action": "tool.completed",
+            "count": 4
+          },
+          {
+            "action": "tool.dispatched",
+            "count": 4
+          },
+          {
+            "action": "tool.settled",
+            "count": 4
+          },
+          {
+            "action": "worker.completed",
+            "count": 12
+          },
+          {
+            "action": "worker.spawned",
+            "count": 12
+          },
+          {
+            "action": "worker.started",
+            "count": 12
+          },
+          {
+            "action": "workflow.completed",
+            "count": 1
+          },
+          {
+            "action": "workflow.started",
+            "count": 1
+          }
+        ],
+        "workers": [
+          "Booker:10",
+          "Booker:11",
+          "Interpreter:1",
+          "Personal:2",
+          "Personal:8",
+          "Personal:9",
+          "Searcher:3",
+          "Searcher:5",
+          "Searcher:6",
+          "Searcher:7",
+          "Selector:4",
+          "Writer:12",
+          "coordinator"
+        ],
+        "workersSpawned": 12,
+        "nodesCompleted": 40,
+        "modelCalls": 3,
+        "toolCalls": 4,
+        "tasksCalled": [
+          {
+            "task": "answer",
+            "count": 1
+          },
+          {
+            "task": "interpret",
+            "count": 1
+          },
+          {
+            "task": "select",
+            "count": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "search_used_the_selected_model_only",
+      "passed": true,
+      "detail": {
+        "planned": "ollama/qwen3:30b",
+        "invoked": [
+          "ollama/qwen3:30b"
+        ],
+        "calls": 3,
+        "allCallsUsedPlannedModel": true,
+        "providers": [
+          "ollama"
+        ],
+        "responseModels": [
+          "qwen3:30b"
+        ]
+      }
+    },
+    {
+      "id": "search_every_model_call_observed",
+      "passed": true,
+      "detail": {
+        "observed": 3,
+        "recorded": 3,
+        "called": 3
+      }
+    },
+    {
+      "id": "search_every_webair_call_observed",
+      "passed": true,
+      "detail": {
+        "observed": 4,
+        "dispatched": 4
+      }
+    },
+    {
+      "id": "search_webair_calls_went_to_the_public_origin",
+      "passed": true,
+      "detail": {
+        "dispatched": [
+          "https://webagents-webair-production.up.railway.app"
+        ],
+        "observed": [
+          "https://webagents-webair-production.up.railway.app"
+        ]
+      }
+    },
+    {
+      "id": "search_model_interpret_holds_no_host_data",
+      "passed": true
+    },
+    {
+      "id": "search_model_select_holds_no_host_data",
+      "passed": true
+    },
+    {
+      "id": "search_model_answer_holds_no_host_data",
+      "passed": true
+    },
+    {
+      "id": "search_artifacts_hold_no_email_name_or_payment_identifier",
+      "passed": true
+    },
+    {
+      "id": "search_completed_with_the_hero_fares",
+      "passed": true,
+      "detail": [
+        [
+          "WA101-20261009-BASIC",
+          704
+        ],
+        [
+          "WA101-20261009-STANDARD",
+          858
+        ],
+        [
+          "WA105-20261009-BASIC",
+          749
+        ]
+      ]
+    },
+    {
+      "id": "search_used_no_identity_or_payment",
+      "passed": true
+    },
+    {
+      "id": "search_called_only_search_and_fare_rules",
+      "passed": true,
+      "detail": [
+        "/api/v1/search_flights",
+        "/api/v1/get_fare_rules",
+        "/api/v1/get_fare_rules",
+        "/api/v1/get_fare_rules"
+      ]
+    },
+    {
+      "id": "search_requests_carry_no_identity_or_payment",
+      "passed": true
+    },
+    {
+      "id": "search_model_calls_are_interpret_select_answer",
+      "passed": true,
+      "detail": [
+        "interpret",
+        "select",
+        "answer"
+      ]
+    },
+    {
+      "id": "cancel_audit_chain_valid",
+      "passed": true,
+      "detail": {
+        "events": 4,
+        "valid": true,
+        "broken": [],
+        "final_hash": "9faa0e722979ba1ed94d2524140876094c234f0199317fecb5b61156c72a9c52",
+        "note": "A local hash chain. It binds these events to each other; it is not an external tamper-proof audit service."
+      }
+    },
+    {
+      "id": "cancel_record_matches_audit",
+      "passed": true,
+      "detail": {
+        "events": 4,
+        "chainValid": true,
+        "finalHash": "9faa0e722979ba1ed94d2524140876094c234f0199317fecb5b61156c72a9c52",
+        "actions": [
+          {
+            "action": "memory.cleared",
+            "count": 1
+          },
+          {
+            "action": "runtime.started",
+            "count": 1
+          },
+          {
+            "action": "workflow.cancelled",
+            "count": 1
+          },
+          {
+            "action": "workflow.started",
+            "count": 1
+          }
+        ],
+        "workers": [
+          "coordinator"
+        ],
+        "workersSpawned": 0,
+        "nodesCompleted": 0,
+        "modelCalls": 0,
+        "toolCalls": 0,
+        "tasksCalled": []
+      }
+    },
+    {
+      "id": "cancel_used_the_selected_model_only",
+      "passed": true,
+      "detail": {
+        "planned": "ollama/qwen3:30b",
+        "invoked": [],
+        "calls": 0,
+        "allCallsUsedPlannedModel": false,
+        "providers": [],
+        "responseModels": []
+      }
+    },
+    {
+      "id": "cancel_every_model_call_observed",
+      "passed": true,
+      "detail": {
+        "observed": 0,
+        "recorded": 0,
+        "called": 0
+      }
+    },
+    {
+      "id": "cancel_every_webair_call_observed",
+      "passed": true,
+      "detail": {
+        "observed": 0,
+        "dispatched": 0
+      }
+    },
+    {
+      "id": "cancel_webair_calls_went_to_the_public_origin",
+      "passed": true,
+      "detail": {
+        "dispatched": [],
+        "observed": []
+      }
+    },
+    {
+      "id": "cancel_artifacts_hold_no_email_name_or_payment_identifier",
+      "passed": true
+    },
+    {
+      "id": "cancel_settled_as_cancelled",
+      "passed": true,
+      "detail": {
+        "status": "cancelled",
+        "error_code": "cancelled"
+      }
+    },
+    {
+      "id": "cancel_stopped_within_the_run_deadline",
+      "passed": true,
+      "detail": 32
+    },
+    {
+      "id": "cancel_wrote_its_evidence",
+      "passed": true
+    },
+    {
+      "id": "quote_audit_chain_valid",
+      "passed": true,
+      "detail": {
+        "events": 302,
+        "valid": true,
+        "broken": [],
+        "final_hash": "e9d035d73d9e6f255b0631f90eff3a4d27ff4d73f95a1683efe71f30d41809a5",
+        "note": "A local hash chain. It binds these events to each other; it is not an external tamper-proof audit service."
+      }
+    },
+    {
+      "id": "quote_record_matches_audit",
+      "passed": true,
+      "detail": {
+        "events": 302,
+        "chainValid": true,
+        "finalHash": "e9d035d73d9e6f255b0631f90eff3a4d27ff4d73f95a1683efe71f30d41809a5",
+        "actions": [
+          {
+            "action": "budget.updated",
+            "count": 23
+          },
+          {
+            "action": "delegation.checked",
+            "count": 15
+          },
+          {
+            "action": "memory.cleared",
+            "count": 1
+          },
+          {
+            "action": "model.called",
+            "count": 3
+          },
+          {
+            "action": "model.completed",
+            "count": 3
+          },
+          {
+            "action": "model.count.called",
+            "count": 3
+          },
+          {
+            "action": "node.completed",
+            "count": 46
+          },
+          {
+            "action": "node.skipped",
+            "count": 12
+          },
+          {
+            "action": "node.started",
+            "count": 46
+          },
+          {
+            "action": "permission.checked",
+            "count": 42
+          },
+          {
+            "action": "runtime.started",
+            "count": 1
+          },
+          {
+            "action": "state.committed",
+            "count": 24
+          },
+          {
+            "action": "tool.called",
+            "count": 9
+          },
+          {
+            "action": "tool.completed",
+            "count": 9
+          },
+          {
+            "action": "tool.dispatched",
+            "count": 9
+          },
+          {
+            "action": "tool.settled",
+            "count": 9
+          },
+          {
+            "action": "worker.completed",
+            "count": 15
+          },
+          {
+            "action": "worker.spawned",
+            "count": 15
+          },
+          {
+            "action": "worker.started",
+            "count": 15
+          },
+          {
+            "action": "workflow.completed",
+            "count": 1
+          },
+          {
+            "action": "workflow.started",
+            "count": 1
+          }
+        ],
+        "workers": [
+          "Booker:13",
+          "Booker:14",
+          "Interpreter:1",
+          "Personal:11",
+          "Personal:12",
+          "Personal:2",
+          "Searcher:10",
+          "Searcher:3",
+          "Searcher:5",
+          "Searcher:6",
+          "Searcher:7",
+          "Searcher:8",
+          "Searcher:9",
+          "Selector:4",
+          "Writer:15",
+          "coordinator"
+        ],
+        "workersSpawned": 15,
+        "nodesCompleted": 46,
+        "modelCalls": 3,
+        "toolCalls": 9,
+        "tasksCalled": [
+          {
+            "task": "answer",
+            "count": 1
+          },
+          {
+            "task": "interpret",
+            "count": 1
+          },
+          {
+            "task": "select",
+            "count": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "quote_used_the_selected_model_only",
+      "passed": true,
+      "detail": {
+        "planned": "ollama/qwen3:30b",
+        "invoked": [
+          "ollama/qwen3:30b"
+        ],
+        "calls": 3,
+        "allCallsUsedPlannedModel": true,
+        "providers": [
+          "ollama"
+        ],
+        "responseModels": [
+          "qwen3:30b"
+        ]
+      }
+    },
+    {
+      "id": "quote_every_model_call_observed",
+      "passed": true,
+      "detail": {
+        "observed": 3,
+        "recorded": 3,
+        "called": 3
+      }
+    },
+    {
+      "id": "quote_every_webair_call_observed",
+      "passed": true,
+      "detail": {
+        "observed": 8,
+        "dispatched": 8
+      }
+    },
+    {
+      "id": "quote_webair_calls_went_to_the_public_origin",
+      "passed": true,
+      "detail": {
+        "dispatched": [
+          "https://webagents-webair-production.up.railway.app"
+        ],
+        "observed": [
+          "https://webagents-webair-production.up.railway.app"
+        ]
+      }
+    },
+    {
+      "id": "quote_model_interpret_holds_no_host_data",
+      "passed": true
+    },
+    {
+      "id": "quote_model_select_holds_no_host_data",
+      "passed": true
+    },
+    {
+      "id": "quote_model_answer_holds_no_host_data",
+      "passed": true
+    },
+    {
+      "id": "quote_artifacts_hold_no_email_name_or_payment_identifier",
+      "passed": true
+    },
+    {
+      "id": "booking_completed_with_a_quote",
+      "passed": true,
+      "detail": "WAQ-C82CB5B08515FAE6"
+    },
+    {
+      "id": "booking_identity_resolved_through_the_host",
+      "passed": true,
+      "detail": [
+        {
+          "tool": "personal.passenger_identity",
+          "resource_id": "passenger_demo_alex",
+          "permission": "identity.passenger"
+        }
+      ]
+    },
+    {
+      "id": "booking_identity_reached_only_prepare_booking",
+      "passed": true,
+      "detail": [
+        "/api/v1/prepare_booking"
+      ]
+    },
+    {
+      "id": "booking_requests_carry_no_payment",
+      "passed": true
+    },
+    {
+      "id": "booking_result_is_redacted",
+      "passed": true
+    },
+    {
+      "id": "purchase_audit_chain_valid",
+      "passed": true,
+      "detail": {
+        "events": 202,
+        "valid": true,
+        "broken": [],
+        "final_hash": "3909fe89b7eaeccc747ee90d32c9729bbf8fa5142ed6cb0afab827d36cf82363",
+        "note": "A local hash chain. It binds these events to each other; it is not an external tamper-proof audit service."
+      }
+    },
+    {
+      "id": "purchase_record_matches_audit",
+      "passed": true,
+      "detail": {
+        "events": 202,
+        "chainValid": true,
+        "finalHash": "3909fe89b7eaeccc747ee90d32c9729bbf8fa5142ed6cb0afab827d36cf82363",
+        "actions": [
+          {
+            "action": "budget.updated",
+            "count": 8
+          },
+          {
+            "action": "delegation.checked",
+            "count": 9
+          },
+          {
+            "action": "memory.cleared",
+            "count": 1
+          },
+          {
+            "action": "model.called",
+            "count": 1
+          },
+          {
+            "action": "model.completed",
+            "count": 1
+          },
+          {
+            "action": "model.count.called",
+            "count": 1
+          },
+          {
+            "action": "node.completed",
+            "count": 34
+          },
+          {
+            "action": "node.skipped",
+            "count": 15
+          },
+          {
+            "action": "node.started",
+            "count": 34
+          },
+          {
+            "action": "permission.checked",
+            "count": 28
+          },
+          {
+            "action": "runtime.started",
+            "count": 1
+          },
+          {
+            "action": "state.committed",
+            "count": 24
+          },
+          {
+            "action": "tool.called",
+            "count": 4
+          },
+          {
+            "action": "tool.completed",
+            "count": 4
+          },
+          {
+            "action": "tool.dispatched",
+            "count": 4
+          },
+          {
+            "action": "tool.settled",
+            "count": 4
+          },
+          {
+            "action": "worker.completed",
+            "count": 9
+          },
+          {
+            "action": "worker.spawned",
+            "count": 9
+          },
+          {
+            "action": "worker.started",
+            "count": 9
+          },
+          {
+            "action": "workflow.completed",
+            "count": 1
+          },
+          {
+            "action": "workflow.started",
+            "count": 1
+          }
+        ],
+        "workers": [
+          "Booker:7",
+          "Booker:8",
+          "Interpreter:1",
+          "Personal:2",
+          "Personal:5",
+          "Personal:6",
+          "Searcher:3",
+          "Selector:4",
+          "Writer:9",
+          "coordinator"
+        ],
+        "workersSpawned": 9,
+        "nodesCompleted": 34,
+        "modelCalls": 1,
+        "toolCalls": 4,
+        "tasksCalled": [
+          {
+            "task": "answer",
+            "count": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "purchase_used_the_selected_model_only",
+      "passed": true,
+      "detail": {
+        "planned": "ollama/qwen3:30b",
+        "invoked": [
+          "ollama/qwen3:30b"
+        ],
+        "calls": 1,
+        "allCallsUsedPlannedModel": true,
+        "providers": [
+          "ollama"
+        ],
+        "responseModels": [
+          "qwen3:30b"
+        ]
+      }
+    },
+    {
+      "id": "purchase_every_model_call_observed",
+      "passed": true,
+      "detail": {
+        "observed": 1,
+        "recorded": 1,
+        "called": 1
+      }
+    },
+    {
+      "id": "purchase_every_webair_call_observed",
+      "passed": true,
+      "detail": {
+        "observed": 2,
+        "dispatched": 2
+      }
+    },
+    {
+      "id": "purchase_webair_calls_went_to_the_public_origin",
+      "passed": true,
+      "detail": {
+        "dispatched": [
+          "https://webagents-webair-production.up.railway.app"
+        ],
+        "observed": [
+          "https://webagents-webair-production.up.railway.app"
+        ]
+      }
+    },
+    {
+      "id": "purchase_model_answer_holds_no_host_data",
+      "passed": true
+    },
+    {
+      "id": "purchase_artifacts_hold_no_email_name_or_payment_identifier",
+      "passed": true
+    },
+    {
+      "id": "purchase_completed",
+      "passed": true,
+      "detail": {
+        "status": "completed",
+        "output_status": "purchase_simulated"
+      }
+    },
+    {
+      "id": "purchase_is_simulated_with_no_charge",
+      "passed": true,
+      "detail": {
+        "simulated": true,
+        "real_transaction": false,
+        "amount_charged_usd": 0
+      }
+    },
+    {
+      "id": "purchase_authority_was_once",
+      "passed": true,
+      "detail": "once"
+    },
+    {
+      "id": "purchase_resolved_the_selected_payment_resource",
+      "passed": true,
+      "detail": [
+        {
+          "tool": "wallet.payment_method",
+          "resource_id": "payment_demo_visa",
+          "permission": "wallet.payment"
+        },
+        {
+          "tool": "personal.passenger_identity",
+          "resource_id": "passenger_demo_alex",
+          "permission": "identity.passenger"
+        }
+      ]
+    },
+    {
+      "id": "purchase_payment_id_reached_only_simulate_purchase",
+      "passed": true,
+      "detail": [
+        "/api/v1/simulate_purchase"
+      ]
+    },
+    {
+      "id": "purchase_revalidated_the_exact_quote",
+      "passed": true,
+      "detail": [
+        "/api/v1/prepare_booking",
+        "/api/v1/simulate_purchase"
+      ]
+    },
+    {
+      "id": "purchase_no_payment_display_reached_webair",
+      "passed": true
+    },
+    {
+      "id": "purchase_used_the_quote_the_booking_returned",
+      "passed": true,
+      "detail": {
+        "purchase": "WAQ-C82CB5B08515FAE6",
+        "booking": "WAQ-C82CB5B08515FAE6"
+      }
+    },
+    {
+      "id": "purchase_made_one_model_call_only",
+      "passed": true,
+      "detail": [
+        "answer"
+      ]
+    },
+    {
+      "id": "once_grant_refused_by_the_page",
+      "passed": true,
+      "detail": {
+        "disabled": true,
+        "label": "Run WebAir",
+        "reason": "The run plan is stale: This authorization granted something once, and a run has already used it. Authorize again to run again."
+      }
+    },
+    {
+      "id": "once_grant_refused_by_the_worker",
+      "passed": true,
+      "detail": "run.start: run_plan_stale: This authorization granted something once, and a run has already used it. Authorize again to run again."
+    },
+    {
+      "id": "denial_audit_chain_valid",
+      "passed": true,
+      "detail": {
+        "events": 81,
+        "valid": true,
+        "broken": [],
+        "final_hash": "696d794bda9a955091dd4b5b90425d8c235687ecf2863d1a22c4e0bbc80ccbec",
+        "note": "A local hash chain. It binds these events to each other; it is not an external tamper-proof audit service."
+      }
+    },
+    {
+      "id": "denial_record_matches_audit",
+      "passed": true,
+      "detail": {
+        "events": 81,
+        "chainValid": true,
+        "finalHash": "696d794bda9a955091dd4b5b90425d8c235687ecf2863d1a22c4e0bbc80ccbec",
+        "actions": [
+          {
+            "action": "delegation.checked",
+            "count": 5
+          },
+          {
+            "action": "memory.cleared",
+            "count": 1
+          },
+          {
+            "action": "node.completed",
+            "count": 15
+          },
+          {
+            "action": "node.failed",
+            "count": 1
+          },
+          {
+            "action": "node.skipped",
+            "count": 8
+          },
+          {
+            "action": "node.started",
+            "count": 16
+          },
+          {
+            "action": "permission.checked",
+            "count": 6
+          },
+          {
+            "action": "runtime.started",
+            "count": 1
+          },
+          {
+            "action": "state.committed",
+            "count": 10
+          },
+          {
+            "action": "tool.failed",
+            "count": 1
+          },
+          {
+            "action": "worker.completed",
+            "count": 4
+          },
+          {
+            "action": "worker.failed",
+            "count": 1
+          },
+          {
+            "action": "worker.spawned",
+            "count": 5
+          },
+          {
+            "action": "worker.started",
+            "count": 5
+          },
+          {
+            "action": "workflow.failed",
+            "count": 1
+          },
+          {
+            "action": "workflow.started",
+            "count": 1
+          }
+        ],
+        "workers": [
+          "Interpreter:1",
+          "Personal:2",
+          "Personal:5",
+          "Searcher:3",
+          "Selector:4",
+          "coordinator"
+        ],
+        "workersSpawned": 5,
+        "nodesCompleted": 15,
+        "modelCalls": 0,
+        "toolCalls": 0,
+        "tasksCalled": []
+      }
+    },
+    {
+      "id": "denial_used_the_selected_model_only",
+      "passed": true,
+      "detail": {
+        "planned": "ollama/qwen3:30b",
+        "invoked": [],
+        "calls": 0,
+        "allCallsUsedPlannedModel": false,
+        "providers": [],
+        "responseModels": []
+      }
+    },
+    {
+      "id": "denial_every_model_call_observed",
+      "passed": true,
+      "detail": {
+        "observed": 0,
+        "recorded": 0,
+        "called": 0
+      }
+    },
+    {
+      "id": "denial_every_webair_call_observed",
+      "passed": true,
+      "detail": {
+        "observed": 0,
+        "dispatched": 0
+      }
+    },
+    {
+      "id": "denial_webair_calls_went_to_the_public_origin",
+      "passed": true,
+      "detail": {
+        "dispatched": [],
+        "observed": []
+      }
+    },
+    {
+      "id": "denial_artifacts_hold_no_email_name_or_payment_identifier",
+      "passed": true
+    },
+    {
+      "id": "denial_failed_with_permission_denied",
+      "passed": true,
+      "detail": {
+        "status": "failed",
+        "error_code": "permission_denied"
+      }
+    },
+    {
+      "id": "denial_resolved_no_payment_resource",
+      "passed": true,
+      "detail": []
+    },
+    {
+      "id": "denial_called_no_webair_operation",
+      "passed": true
+    },
+    {
+      "id": "denial_made_no_model_call",
+      "passed": true
+    },
+    {
+      "id": "denial_refused_the_payment_tool",
+      "passed": true,
+      "detail": {
+        "refused": [
+          "wallet.payment_method"
+        ],
+        "node": "payment"
+      }
+    },
+    {
+      "id": "denial_plan_denied_the_purchase_tools",
+      "passed": true,
+      "detail": [
+        "simulate-purchase",
+        "wallet.payment_method"
+      ]
+    },
+    {
+      "id": "purchase_and_search_ran_the_same_package_bytes",
+      "passed": true
+    },
+    {
+      "id": "package_signature_valid_for_webair_key",
+      "passed": true,
+      "detail": "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b"
+    },
+    {
+      "id": "package_is_0_4_0",
+      "passed": true,
+      "detail": "0.4.0"
+    },
+    {
+      "id": "origin_health_names_the_0_4_0_artifact",
+      "passed": true,
+      "detail": {
+        "status": "ok",
+        "service": "webair-origin",
+        "fictional": true,
+        "agent_package_sha256": "c12f9db3bd7b3b4b6721c67e1d0b8143ebd94381df0e5e57c196357b7ca77f63"
+      }
+    },
+    {
+      "id": "origin_serves_the_local_0_4_0_bytes",
+      "passed": true
+    },
+    {
+      "id": "no_webair_specific_generic_code",
+      "passed": true
+    }
+  ],
+  "passed": true
+}

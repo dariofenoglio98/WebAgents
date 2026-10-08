@@ -106,7 +106,7 @@ export async function jsonHttpCall(options: JsonHttpCallOptions): Promise<{ outp
       if (stage === "body_size") {
         throw toolError("tool_response_invalid", "the tool response is too large", { stage, body_exceeded: true, ...(http_status !== undefined ? { http_status } : {}), ...(response_bytes !== undefined ? { response_bytes } : {}) });
       }
-      throw toolError(stage === "timeout" ? "tool_timeout" : "tool_transport_error", error.message, { stage });
+      throw toolError("tool_transport_error", error.message, { stage });
     }
     throw toolError("tool_transport_error", "the tool request failed");
   }
