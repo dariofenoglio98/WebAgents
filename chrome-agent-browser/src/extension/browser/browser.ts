@@ -8,12 +8,13 @@ import type { Candidate } from "../../core/discovery.js";
 import type { JsonObject } from "../../core/json.js";
 import { looksLikePackageUrl } from "../../core/policy.js";
 import type { TrustEntry, TrustState } from "../../core/trust.js";
-import type { AuthorizationView, ExportBundle, ModelsView, RunListView, RunSummary, SessionDescriptor, SessionView, SettingsView, StatusInfo, VaultView, WebsiteResult } from "../messages.js";
+import type { AuthorizationView, ExportBundle, ModelsView, RunListView, RunSummary, RunView, SessionDescriptor, SessionView, SettingsView, StatusInfo, VaultView, WebsiteResult } from "../messages.js";
 import { renderAgentPage } from "../ui/agent-page.js";
 import { bindAuthorization, type AuthorizationController } from "../ui/authorization-flow.js";
 import { describeError, send, subscribe } from "../ui/client.js";
 import { button, card, chip, el, list, replace, row, whenText } from "../ui/dom.js";
-import { newSettingsPageState, renderSettingsPage, type SettingsPageState, type SettingsSection } from "../ui/settings-page.js";
+import { newSettingsPageState, refreshProbes, renderSettingsPage, type SettingsPageState, type SettingsSection } from "../ui/settings-page.js";
+import type { ProviderId } from "../../core/models/catalog.js";
 import { renderTrustPage } from "../ui/trust-page.js";
 import { newVaultPageState, renderVaultPage, type VaultPageState } from "../ui/vault-page.js";
 import { renderWebsiteCard } from "../ui/website.js";
@@ -111,10 +112,15 @@ const runs = new RunPanel({
 });
 const RUN_VIEW_ID = `run:${crypto.randomUUID()}`;
 
+/** True until the page's first route: only a page that just opened adopts a run in flight. */
+let firstRoute = true;
+
 function route(): void {
   const hash = location.hash.replace(/^#/u, "");
   const [view, query] = hash.split("?");
   const params = new URLSearchParams(query ?? "");
+  const opening = firstRoute;
+  firstRoute = false;
   if (view?.startsWith("session=")) {
     state.view = "open";
     void showSession(decodeURIComponent(view.slice("session=".length)));
@@ -130,10 +136,42 @@ function route(): void {
   state.view = (["open", "library", "runs", "trust", "settings", "data"] as View[]).includes(view as View) ? (view as View) : "open";
   state.runsShowing = null;
   if (state.view === "open") void reattachRuns();
+  if (opening && state.view === "open" && !params.get("url")) void adoptRunInFlight();
   if (params.get("url")) state.address = params.get("url")!;
   const section = params.get("section");
   if (state.view === "settings" && (section === "models" || section === "policies" || section === "about")) state.settingsPage.section = section as SettingsSection;
-  void load();
+  void load().then(() => {
+    // Settings → Models opened: test the enabled connections now, rather than show an old answer.
+    if (state.view === "settings" && state.settingsPage.section === "models") openModels();
+  });
+}
+
+/** Test one connection; at most one test per provider is in flight, and its chip names when it ran. */
+function probeProvider(provider: ProviderId): void {
+  if (state.settingsPage.probes[provider] === "running") return;
+  state.settingsPage.probes[provider] = "running";
+  render();
+  send({ type: "models.probe", provider }).then(
+    (result) => {
+      state.settingsPage.probes[provider] = result as NonNullable<SettingsPageState["probes"][typeof provider]>;
+      state.settingsPage.checkedAt[provider] = new Date().toISOString();
+      void send<SettingsView>({ type: "settings.get" }).then((settings) => {
+        state.settings = settings;
+        render();
+      });
+    },
+    (error: unknown) => {
+      delete state.settingsPage.probes[provider];
+      delete state.settingsPage.checkedAt[provider];
+      state.error = describeError(error);
+      render();
+    },
+  );
+}
+
+function openModels(): void {
+  if (state.settings) refreshProbes(state.settings, state.settingsPage, probeProvider);
+  render();
 }
 
 async function load(): Promise<void> {
@@ -168,6 +206,23 @@ async function showSession(sessionId: string): Promise<void> {
     state.error = describeError(error);
   }
   render();
+}
+
+/**
+ * D-076, as in the side panel: a full page opened fresh (no `#session=`, e.g. from the panel's
+ * "Open the agent browser") while a run is in flight shows that run's session. Only on the page's
+ * first route, so Close followed by `#open` does not bring the session straight back.
+ */
+async function adoptRunInFlight(): Promise<void> {
+  let run: RunView | null;
+  try {
+    run = await send<RunView | null>({ type: "run.active", pageUrl: null });
+  } catch {
+    return;
+  }
+  if (run === null || run.sessionId === null || state.open || state.website || state.busy || state.view !== "open") return;
+  history.replaceState(null, "", `#session=${encodeURIComponent(run.sessionId)}`);
+  await showSession(run.sessionId);
 }
 
 /** The Runs page showed another run on the shared panel: back on the open package, attach its session again (review 1, finding 5). */
@@ -395,10 +450,6 @@ function trustView(): HTMLElement[] {
 
 function settingsView(): HTMLElement[] {
   if (!state.settings) return [errorBox(), el("p", { className: "ab-busy", text: "Loading…" })].filter((node): node is HTMLElement => node !== null);
-  const refreshSettings = async () => {
-    state.settings = await send({ type: "settings.get" });
-    render();
-  };
   return [
     errorBox(),
     renderSettingsPage(state.settings, state.status, state.settingsPage, {
@@ -428,21 +479,8 @@ function settingsView(): HTMLElement[] {
           },
         );
       },
-      onProbe: (provider) => {
-        state.settingsPage.probes[provider] = "running";
-        render();
-        send({ type: "models.probe", provider }).then(
-          (result) => {
-            state.settingsPage.probes[provider] = result as NonNullable<SettingsPageState["probes"][typeof provider]>;
-            void refreshSettings();
-          },
-          (error: unknown) => {
-            delete state.settingsPage.probes[provider];
-            state.error = describeError(error);
-            render();
-          },
-        );
-      },
+      onProbe: (provider) => probeProvider(provider),
+      onOpenModels: () => openModels(),
       rerender: () => render(),
     }),
   ].filter((node): node is HTMLElement => node !== null);

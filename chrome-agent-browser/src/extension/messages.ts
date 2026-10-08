@@ -87,6 +87,11 @@ export type Request =
   | { type: "run.start"; sessionId: string; runPlanId: string; runPlanSha256: string; input: unknown }
   | { type: "run.get"; runId: string }
   | { type: "run.list"; sessionId?: string | null }
+  /**
+   * The run in flight a view that just opened should show (D-076): on an open session, the one
+   * opened from `pageUrl` first, else the most recent; null when none.
+   */
+  | { type: "run.active"; pageUrl?: string | null }
   | { type: "run.cancel"; runId: string }
   | { type: "run.artifact"; runId: string; name: string }
   | { type: "run.artifactChunk"; runId: string; name: string; offset: number }
@@ -594,6 +599,9 @@ export function parseRequest(value: unknown): Request {
     case "run.list":
       only(fields, ["type", "sessionId"]);
       return { type, sessionId: optionalText(fields.sessionId, "sessionId", MAX_ID) };
+    case "run.active":
+      only(fields, ["type", "pageUrl"]);
+      return { type, pageUrl: optionalText(fields.pageUrl, "pageUrl", MAX_URL) };
     case "run.artifact":
       only(fields, ["type", "runId", "name"]);
       return { type, runId: text(fields.runId, "runId", MAX_ID), name: artifactName(fields.name) };

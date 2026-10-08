@@ -4,9 +4,9 @@
  * controller: the Runs page shows the chosen run while a package is open in the same tab, and
  * going back to the package re-attaches its run surface (T5 review 1, finding 5).
  */
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { AuthorizationView, AuthorizeResult, Event, RunView, SessionView, SettingsView } from "../../src/extension/messages.js";
+import type { AuthorizationView, AuthorizeResult, Event, ProbeView, RunView, SessionView, SettingsView } from "../../src/extension/messages.js";
 import { failure, success } from "../../src/extension/messages.js";
 import { scriptedOllama, scriptedOrigin, webairModelAnswers } from "../helpers/host.js";
 import { SHIPPED } from "../helpers/paths.js";
@@ -120,5 +120,45 @@ describe("the full-page browser's Runs page", () => {
     expect(after!.dataset.state).toBe("completed");
     expect(after!.querySelector(`.ab-run-list li[data-run="${first}"]`), "the earlier list now names the first run").not.toBeNull();
     expect(after!.querySelector(`.ab-run-list li[data-run="${second}"]`)).toBeNull();
+  });
+});
+
+describe("Settings → Models: the connection chips describe the providers now (T5a, D-077)", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  const ollamaCard = () => [...app().querySelectorAll<HTMLElement>(".ab-card")].find((node) => node.querySelector(".ab-card-title")?.textContent === "Ollama (local)")!;
+  const ollamaChip = () => [...ollamaCard().querySelectorAll<HTMLElement>(".ab-chip")].find((node) => /reachable|failed/u.test(node.textContent ?? "")) ?? null;
+  const tab = (label: string) => [...app().querySelectorAll<HTMLButtonElement>(".ab-tabs button")].find((node) => node.textContent === label)!;
+
+  it("opening the section tests the enabled connections, the chip says when, and reopening clears the old answer and tests again, once per provider", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2026, 9, 8, 14, 2, 31));
+    const probe = vi.spyOn(h.controller, "probe");
+    await go("#settings?section=models");
+    // (`go` also dispatches the hashchange happy-dom fires itself, so the page routes twice here.)
+    expect(new Set(probe.mock.calls.map(([provider]) => provider)), "the enabled connections, without pressing Test").toEqual(new Set(["ollama", "chrome-builtin"]));
+    expect(ollamaChip()?.textContent).toBe("reachable · 1 model · checked 14:02:31");
+
+    // Ollama is stopped meanwhile; the person opens the Models section again a few minutes later.
+    const answers = new Map<string, (value: ProbeView) => void>();
+    probe.mockImplementation((provider) => new Promise<ProbeView>((resolve) => answers.set(provider, resolve)));
+    probe.mockClear();
+    vi.setSystemTime(new Date(2026, 9, 8, 14, 5, 0));
+    tab("Policies").click();
+    tab("Models").click();
+    await settle(20);
+    expect(ollamaChip(), "the old 'reachable' is gone while the new test runs").toBeNull();
+    expect(ollamaCard().textContent).toContain("Testing…");
+    tab("Models").click(); // opened again while the tests are still running: no second test of either
+    await settle(20);
+    expect(probe.mock.calls.map(([provider]) => provider).sort()).toEqual(["chrome-builtin", "ollama"]);
+    answers.get("chrome-builtin")!({ provider: "chrome-builtin", ok: false, models: [], notes: [], error: "unsupported", diagnosis: null });
+    answers.get("ollama")!({ provider: "ollama", ok: false, models: [], notes: [], error: "Ollama did not answer at http://127.0.0.1:11434 (/api/tags failed: TypeError)", diagnosis: { state: "not_running", hint: "Nothing answers at http://127.0.0.1:11434." } });
+    await settle();
+    expect(ollamaChip()?.textContent).toBe("failed: Ollama did not answer at http://127.0.0.1:11434 (/api/tags failed: TypeError) · checked 14:05:00");
+    expect(ollamaCard().textContent).toContain("Nothing answers at http://127.0.0.1:11434.");
   });
 });

@@ -18,7 +18,7 @@ import {
   type HttpRequest,
   type ProviderConnection,
 } from "../../src/core/models/catalog.js";
-import { literatureReview } from "../helpers/fixtures.js";
+import { literatureReview, webair040 } from "../helpers/fixtures.js";
 
 const connection = (provider: ProviderConnection["provider"], extra: Partial<ProviderConnection> = {}): ProviderConnection => ({
   provider,
@@ -98,10 +98,79 @@ describe("Ollama", () => {
     const failing: Http = async () => {
       throw new TypeError("fetch failed");
     };
-    expect(await probeProvider(connection("ollama"), failing)).toMatchObject({ ok: false, error: "ollama: TypeError" });
+    expect(await probeProvider(connection("ollama"), failing)).toMatchObject({ ok: false, error: "Ollama did not answer at http://127.0.0.1:11434 (/api/tags failed: TypeError)" });
     const { catalog } = await buildHostCatalog([connection("ollama")], fakeHttp({}), { builtin: null, runtimeVersion: null });
     expect(catalog.models).toEqual([]);
     expect(catalog.notes.map((note) => note.code)).toEqual(["ollama_unreachable", "no_models_available"]);
+  });
+});
+
+describe("T5a: an Ollama that stops answering (D-077)", () => {
+  /** /api/tags answers; /api/show throws (Ollama stopping, or the probe's timeout) after `answered` shows. */
+  function stopping(answered: number, log: HttpRequest[] = []): Http {
+    let shows = 0;
+    const answers = fakeHttp(OLLAMA, log);
+    return async (request) => {
+      if (request.url.endsWith("/api/show") && (shows += 1) > answered) {
+        log.push(request);
+        throw new DOMException("The operation was aborted", "AbortError");
+      }
+      return answers(request);
+    };
+  }
+
+  it("a failed /api/show makes the model unavailable with a reason naming Ollama's address, never 'unverified'; every show failing fails the probe", async () => {
+    const log: HttpRequest[] = [];
+    const result = await probeProvider(connection("ollama"), stopping(0, log));
+    expect(result).toMatchObject({ ok: false, error: "Ollama stopped answering at http://127.0.0.1:11434 (/api/show failed: AbortError)" });
+    // The probe stops at the first failure instead of waiting out a timeout per model.
+    expect(log.map((request) => request.url)).toEqual(["http://127.0.0.1:11434/api/tags", "http://127.0.0.1:11434/api/show"]);
+    for (const model of result.models as Array<{ available: boolean; availability_reason: string | null }>) {
+      expect(model).toMatchObject({ available: false, availability_reason: "Ollama stopped answering at http://127.0.0.1:11434 (/api/show failed)." });
+    }
+    const { catalog } = await buildHostCatalog([connection("ollama")], stopping(0), { builtin: null, runtimeVersion: null });
+    const evaluation = evaluateCatalog(await webair040(), catalog);
+    const qwen = evaluation.models.find((model) => model.model_id === "ollama/qwen3:30b")!;
+    expect(qwen).toMatchObject({ available: false, selectable_for_run_plan: false });
+    expect(catalog.notes.map((note) => note.code)).toEqual(["ollama_show_failed", "ollama_unreachable"]);
+  });
+
+  it("a show that fails after another answered marks only the models it could not ask about; a show answering without a list is an answer", async () => {
+    const partial = await probeProvider(connection("ollama"), stopping(1));
+    expect(partial.ok).toBe(true);
+    expect((partial.models as Array<{ model_id: string; available: boolean }>).map((model) => [model.model_id, model.available])).toEqual([
+      ["qwen3:30b", true],
+      ["tiny:1b", false],
+    ]);
+    const silent = await probeProvider(connection("ollama"), fakeHttp({ "GET http://127.0.0.1:11434/api/tags": { models: [{ name: "plain:1b" }] }, "SHOW plain:1b": {} }));
+    expect(silent.ok).toBe(true);
+    expect(silent.models[0]).toMatchObject({ available: true, capabilities: { reasoning: { value: null, basis: "absent" } } });
+  });
+});
+
+describe("T5a: the OpenAI reasoning families (D-078)", () => {
+  const answers = { "GET https://api.openai.com/v1/models": { data: [{ id: "gpt-5.6-luna" }, { id: "gpt-6-astra" }, { id: "gpt-4.1" }, { id: "gpt-5" }, { id: "o3" }] } };
+
+  it("GPT-5 and GPT-6 reason by default (host_default), with Astra's documented window; gpt-4.1 stays absent; Settings overrides both ways", async () => {
+    const result = await probeProvider(connection("openai"), fakeHttp(answers));
+    const byId = new Map((result.models as Array<{ model_id: string; capabilities: { reasoning: { value: boolean | null; basis: string; detail: string } }; limits: { context_tokens: number | null }; properties: { tags: string[] } }>).map((model) => [model.model_id, model]));
+    for (const id of ["gpt-5.6-luna", "gpt-6-astra", "gpt-5", "o3"]) expect(byId.get(id)!.capabilities.reasoning).toMatchObject({ value: true, basis: "host_default", detail: expect.stringContaining("GPT-5 and GPT-6") });
+    expect(byId.get("gpt-4.1")!.capabilities.reasoning).toMatchObject({ value: null, basis: "absent" });
+    expect(byId.get("gpt-6-astra")!.limits.context_tokens).toBe(272000);
+    expect(byId.get("gpt-6-astra")!.properties.tags).toEqual(["hosted", "limits:documented"]);
+    const overridden = await probeProvider(connection("openai", { overrides: { "gpt-6-astra": { reasoning: false }, "gpt-4.1": { reasoning: true } } }), fakeHttp(answers));
+    const reasoning = (id: string) => (overridden.models as Array<{ model_id: string; capabilities: { reasoning: unknown } }>).find((model) => model.model_id === id)!.capabilities.reasoning;
+    expect(reasoning("gpt-6-astra")).toMatchObject({ value: false, basis: "declared" });
+    expect(reasoning("gpt-4.1")).toMatchObject({ value: true, basis: "declared" });
+  });
+
+  it("WebAir 0.4.0 finds Luna and Astra compatible; gpt-4.1 is unverified", async () => {
+    const { catalog } = await buildHostCatalog([connection("openai")], fakeHttp(answers), { builtin: null, runtimeVersion: null });
+    const evaluation = evaluateCatalog(await webair040(), catalog);
+    const status = (id: string) => evaluation.models.find((model) => model.model_id === id)!.status;
+    expect(status("openai/gpt-5.6-luna")).toBe("compatible");
+    expect(status("openai/gpt-6-astra")).toBe("compatible");
+    expect(status("openai/gpt-4.1")).toBe("unverified");
   });
 });
 

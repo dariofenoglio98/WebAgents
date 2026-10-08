@@ -51,6 +51,16 @@ describe("requests from extension pages", () => {
     expect(parseRequest({ type: "trust.unpin", fingerprint: "sha256:ab" })).toEqual({ type: "trust.unpin", fingerprint: "sha256:ab" });
   });
 
+  it("run.active (T5a, D-076): an optional page URL, bounded, and nothing else", () => {
+    expect(parseRequest({ type: "run.active" })).toEqual({ type: "run.active", pageUrl: null });
+    expect(parseRequest({ type: "run.active", pageUrl: null })).toEqual({ type: "run.active", pageUrl: null });
+    expect(parseRequest({ type: "run.active", pageUrl: "https://a.example/" })).toEqual({ type: "run.active", pageUrl: "https://a.example/" });
+    expect(code(() => parseRequest({ type: "run.active", pageUrl: "" }))).toBe("invalid_request");
+    expect(code(() => parseRequest({ type: "run.active", pageUrl: 7 }))).toBe("invalid_request");
+    expect(code(() => parseRequest({ type: "run.active", pageUrl: `https://a.example/${"h".repeat(MAX_URL)}` }))).toBe("invalid_request");
+    expect(code(() => parseRequest({ type: "run.active", sessionId: "s1" }))).toBe("invalid_request");
+  });
+
   it("refuses unknown types, unknown fields, empty or oversized strings and bad ids", () => {
     expect(code(() => parseRequest({ type: "package.run", sessionId: "s1" }))).toBe("invalid_request");
     expect(code(() => parseRequest({ type: "status.get", extra: 1 }))).toBe("invalid_request");

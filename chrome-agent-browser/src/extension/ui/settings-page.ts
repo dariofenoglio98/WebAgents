@@ -16,6 +16,8 @@ export type SettingsSection = "models" | "policies" | "about";
 export interface SettingsPageState {
   section: SettingsSection;
   probes: Partial<Record<ProviderId, ProbeView | ProbeResult | "running">>;
+  /** When each shown result was probed (ISO time), so a chip never passes off an old answer as current. */
+  checkedAt: Partial<Record<ProviderId, string>>;
   notice: string | null;
   /** The built-in model's download, when one was started from this page: a fraction, or a message. */
   builtinDownload: { fraction: number; done: boolean; error: string | null } | null;
@@ -24,13 +26,40 @@ export interface SettingsPageState {
 }
 
 export function newSettingsPageState(section: SettingsSection = "models"): SettingsPageState {
-  return { section, probes: {}, notice: null, builtinDownload: null, copied: null };
+  return { section, probes: {}, checkedAt: {}, notice: null, builtinDownload: null, copied: null };
+}
+
+/** `14:02:31`, local time: when a connection was last tested. */
+export function clockTime(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "unknown";
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+
+/**
+ * The Models section opened (again): earlier results go, and every enabled connection is tested
+ * afresh, so the chips describe the providers as they are now (D-077). A test already running is
+ * left to finish and not started twice; `probe` is the page's single entry point per provider.
+ */
+export function refreshProbes(view: SettingsView, state: SettingsPageState, probe: (provider: ProviderId) => void): void {
+  for (const provider of Object.keys(state.probes) as ProviderId[]) {
+    if (state.probes[provider] !== "running") {
+      delete state.probes[provider];
+      delete state.checkedAt[provider];
+    }
+  }
+  for (const connection of view.settings.models.connections) {
+    if (connection.enabled && state.probes[connection.provider] !== "running") probe(connection.provider);
+  }
 }
 
 export interface SettingsPageActions {
   onSave: (settings: Settings) => void;
   onSetKey: (provider: ProviderId, key: string | null) => void;
   onProbe: (provider: ProviderId) => void;
+  /** The Models tab was chosen: clear the results and test the enabled connections again (`refreshProbes`). */
+  onOpenModels?: () => void;
   rerender: () => void;
   /** Write text to the clipboard; the page's own `navigator.clipboard` by default. */
   copy?: (text: string) => Promise<void>;
@@ -124,7 +153,7 @@ function connectionCard(view: SettingsView, connection: StoredConnection, state:
       "div",
       { className: "ab-inline" },
       button(probe === "running" ? "Testing…" : "Test connection", () => actions.onProbe(provider), { disabled: probe === "running" || !connection.enabled }),
-      probe && probe !== "running" ? chip(probe.ok ? `reachable · ${probe.models.length} model${probe.models.length === 1 ? "" : "s"}` : `failed: ${probe.error ?? "unknown"}`, probe.ok ? "good" : "bad") : null,
+      probe && probe !== "running" ? chip(`${probe.ok ? `reachable · ${probe.models.length} model${probe.models.length === 1 ? "" : "s"}` : `failed: ${probe.error ?? "unknown"}`}${state.checkedAt[provider] ? ` · checked ${clockTime(state.checkedAt[provider]!)}` : ""}`, probe.ok ? "good" : "bad") : null,
     ),
     diagnosis ? el("p", { className: `ab-banner ab-banner-${diagnosis.state === "unknown" ? "neutral" : "warn"} ab-diagnosis`, text: diagnosis.hint, attrs: { "data-diagnosis": diagnosis.state, role: "status" } }) : null,
   );
@@ -296,6 +325,7 @@ export function renderSettingsPage(view: SettingsView, status: StatusInfo | null
     ...(["models", "policies", "about"] as SettingsSection[]).map((section) => {
       const tab = button(section === "models" ? "Models" : section === "policies" ? "Policies" : "About", () => {
         state.section = section;
+        if (section === "models") actions.onOpenModels?.();
         actions.rerender();
       }, { variant: state.section === section ? "primary" : "ghost" });
       tab.setAttribute("role", "tab");

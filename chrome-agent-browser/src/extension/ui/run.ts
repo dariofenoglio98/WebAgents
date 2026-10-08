@@ -898,6 +898,9 @@ export class RunPanel {
     this.elapsedEl = null;
     const record = this.run;
     this.root.dataset.state = record ? record.status : "idle";
+    // Which run is shown, for a view's tests and the live harness (T5a): the state alone cannot tell two runs apart.
+    if (record) this.root.dataset.runId = record.runId;
+    else delete this.root.dataset.runId;
     if (!record) return;
     this.runEl.append(isTerminal(record) ? this.renderOutcome(record) : this.renderProgress(record));
   }
