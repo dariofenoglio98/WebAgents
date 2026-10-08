@@ -23,11 +23,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "agentpkg" / "src"))
 
-from cryptography.hazmat.primitives.serialization import load_pem_public_key  # noqa: E402
-
 from agentpkg.browser.control import ControlPlane, ControlPlaneConfig  # noqa: E402
 from agentpkg.browser.errors import ControlPlaneError  # noqa: E402
 from agentpkg.signing import fingerprint  # noqa: E402
+from cryptography.hazmat.primitives.serialization import load_pem_public_key  # noqa: E402
 
 WORLD = json.loads(
     (ROOT / "chrome-agent-browser/test/fixtures/authorization/inputs.json").read_text()
