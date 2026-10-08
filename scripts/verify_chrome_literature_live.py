@@ -27,7 +27,8 @@ the Chrome parser, `dist/cli.js pdf-text`). This script reads those files and re
 
 The report is rewritten in place with `checks`, `grounding`, `search` and `verification`;
 `passed` is false if any check fails. When the run directory is missing (a clean checkout) and
-the report is the committed one, the script refuses and writes nothing.
+the report is a committed one (under `examples/verification/`), the script refuses and writes
+nothing.
 """
 
 from __future__ import annotations
@@ -255,7 +256,9 @@ def main() -> int:
     directory = ROOT / report["outputDirectory"]
     required = ["run.json", "run-plan.json", "input.json", "audit.json", "observations.json"]
     if not all((directory / name).exists() for name in required):
-        if report_path == DEFAULT_REPORT.resolve():
+        # A committed report (under examples/verification/) is never rewritten from a checkout
+        # that does not hold its run directory.
+        if report_path.parent == DEFAULT_REPORT.parent.resolve():
             print(
                 f"verify_chrome_literature_live: the run directory {report['outputDirectory']} "
                 "is missing; the committed report is left as it is",

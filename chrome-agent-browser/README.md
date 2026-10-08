@@ -271,7 +271,9 @@ Run, the page reloaded mid-run, the run followed to its end. It exports the run 
 `examples/my-chrome-lit-*/`; `scripts/verify_chrome_literature_live.py` recomputes the record and
 the chain, the bindings, Crossref's request shape and pacing, the documents read by opaque id, the
 limits, and the reference driver's grounding checks. The evidence is
-`examples/verification/chrome-literature-review-live.json`.
+`examples/verification/chrome-literature-review-live.json` (hosted model) and
+`examples/verification/chrome-literature-review-live-local.json` (`ollama/qwen3:30b` with
+`--think`: completed in 1,063 s, three grounded claims, 33 checks passed).
 
 ## What it does not do yet
 
