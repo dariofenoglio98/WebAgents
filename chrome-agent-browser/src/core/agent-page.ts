@@ -141,6 +141,16 @@ export function trustWords(publisher: PublisherReport): TrustWords {
       tone: "bad",
     };
   }
+  if (publisher.trust_status === "trusted" && publisher.trust_reason === "policy_anchor") {
+    // Trusted because a policy the person subscribed to vouches for this key (T8, D-101): said as such.
+    const entry = (publisher.trust_entry ?? {}) as Record<string, unknown>;
+    return {
+      ...base,
+      headline: "Signed by a publisher your policy trusts",
+      detail: `The signature is intact and the policy you subscribed to, ${String(entry.policy_title ?? "a policy")} (${String(entry.policy ?? "unknown")}), trusts this key${entry.display_name ? ` as “${String(entry.display_name)}”` : ""} for ${String(entry.package_id_prefix ?? "these packages")}. Unsubscribing from the policy withdraws this trust.`,
+      tone: "good",
+    };
+  }
   if (publisher.trust_status === "trusted") {
     return {
       ...base,
@@ -154,6 +164,9 @@ export function trustWords(publisher: PublisherReport): TrustWords {
       claimed_publisher_pinned_to_other_key: `This package says it is from ${publisher.claimed_name}, but the key you trust for that publisher is a different one. A key rotation and an impersonation look the same; check with the publisher before trusting this key.`,
       pinned_key_bound_to_other_publisher: "You trust this key for a different publisher than the one this package claims.",
       package_id_outside_pinned_prefix: "You trust this key only for other package ids, not for this one.",
+      policy_claimed_publisher_pinned_to_other_key: `This package says it is from ${publisher.claimed_name}, but the policy you subscribed to trusts a different key for that publisher. Treat it as an impersonation risk.`,
+      policy_pinned_key_bound_to_other_publisher: "Your policy trusts this key for a different publisher than the one this package claims.",
+      policy_package_id_outside_pinned_prefix: "Your policy trusts this key only for other package ids, not for this one.",
     };
     return {
       ...base,

@@ -33,22 +33,39 @@ import { sha256Hex } from "../../core/hash.js";
 import { evaluateResources, normalizeResourceSelections, RESOURCE_PERMISSION_KINDS, type ResourceRegistry } from "../../core/hostresources.js";
 import { buildHostToolRegistry, evaluateRegistry, type RegistryEvaluation, type ToolRegistry } from "../../core/hosttools.js";
 import type { JsonObject, JsonValue } from "../../core/json.js";
-import { publicKeyFromPem } from "../../core/keys.js";
+import { publicKeyFromPem, publicKeyFromRawBase64, rawBase64, fingerprint as keyFingerprint } from "../../core/keys.js";
+import { applyPolicy, cappedLimits, modelPolicyReasons, PolicyTrust, type ActivePolicy, type ToolBindingFacts } from "../../core/policies/apply.js";
+import { heldPolicy, policyLabel, policyState, type HeldPolicy } from "../../core/policies/bundle.js";
+import { NandaResolver } from "../../core/resolve/nanda.js";
+import { indexState, StaticIndexResolver, verifiedIndex, type VerifiedIndex } from "../../core/resolve/static-index.js";
+import { readQuery, type AgentCandidate, type ResolveNote } from "../../core/resolve/types.js";
+import { AGENT_INDEX_TYPE, MAX_DOCUMENT_BYTES, POLICY_BUNDLE_TYPE, verifySignedDocument, type DocumentContentType, type VerifiedDocument } from "../../core/signed-document.js";
+import { compareRelease } from "../../core/version.js";
 import { buildHostCatalog, DEFAULT_BASE_URLS, probeProvider, PROVIDER_IDS, type BuiltinAvailability, type Http, type ProbeResult, type ProviderId } from "../../core/models/catalog.js";
 import type { Package } from "../../core/package.js";
 import { documentUrl, origin, originText, sameOrigin, validatePackageUrl } from "../../core/policy.js";
-import { readProfiles } from "../../core/profiles.js";
+import { readProfiles, type Profile } from "../../core/profiles.js";
 import { buildRunPlan, grantsOnce, MODE_MODEL, modePermissionIds, preflight, preparationBlockers } from "../../core/runplan.js";
 import { buildSummary, type BrowserSummary } from "../../core/summary.js";
 import { pyRepr } from "../../core/repr.js";
 import { pinPackagePublisher, type TrustStore } from "../../core/trust.js";
-import { DEFAULT_BROWSER_POLICY, DENY, type AuthorizationReceipt, type Decision, type Provenance, type Reason, type RunPlan, type SourceRef } from "../../core/types.js";
+import { DEFAULT_BROWSER_POLICY, DENY, type AuthorizationReceipt, type Decision, type PresetId, type Provenance, type Reason, type RunPlan, type SourceRef } from "../../core/types.js";
 import { Vault, type VaultDocument } from "../../core/vault.js";
 import { CORE_VERSION, SUPPORTED_RUNTIME_VERSION } from "../../core/version.js";
 import demoHostResources from "../data/demo-host-resources.json" with { type: "json" };
 import {
+  type AuthorizationPolicyView,
   type AuthorizationView,
   type AuthorizeResult,
+  type ClaimCheck,
+  type FoundVia,
+  type IndexesView,
+  type IndexView,
+  type LibraryItemView,
+  type LibraryView,
+  type PolicyView,
+  type SearchResultView,
+  type SearchView,
   type CandidateState,
   type ContentMessage,
   type Event,
@@ -70,8 +87,9 @@ import {
   type WebsiteResult,
 } from "../messages.js";
 import { FileRefusal, MemoryFileStore, MAX_FILE_BYTES, MAX_FILES, MAX_TOTAL_FILE_BYTES, newFile, viewOf, type FileStore } from "../storage/files.js";
-import { connectionsFor, endpointProblem, normalizeSettings, settingsProblem, type Settings, type SettingsStorage } from "../storage/settings.js";
+import { connectionsFor, endpointProblem, MemoryStorageArea, normalizeSettings, settingsProblem, type Settings, type SettingsStorage } from "../storage/settings.js";
 import type { SnapshotStore, StoredSession } from "../storage/snapshots.js";
+import { MAX_INDEXES, SubscriptionStorage, type LibraryEntry, type StoredIndex, type StoredPolicy } from "../storage/subscriptions.js";
 import type { TabStateStore } from "../storage/tab-state.js";
 import type { ViewHolder, ViewHolderStore } from "../storage/view-holders.js";
 import type { RunStore } from "../storage/runs.js";
@@ -127,6 +145,8 @@ export interface ControllerDeps {
   runs: RunStore;
   /** The PDFs the person picked in Settings → Files (IndexedDB, T6 D-083); memory when absent (tests). */
   files?: FileStore;
+  /** Indexes, the policy subscription and the Library (`chrome.storage.local`, T8); memory when absent (tests). */
+  subscriptions?: SubscriptionStorage;
   /** The execution host (an offscreen document in the extension; in-process in tests). */
   host: ExecutionHostBridge;
   runId?: () => string;
@@ -147,6 +167,8 @@ interface LiveSession {
   receipt: AuthorizationReceipt | null;
   plan: RunPlan | null;
   onceSpent: boolean;
+  /** The index search result it was opened from (T8), with the index's claims compared with the bytes. */
+  foundVia: FoundVia | null;
 }
 
 /** At most this many views hold one session; the oldest holder goes first. */
@@ -159,6 +181,14 @@ const CATALOG_TTL_MS = 60_000;
  * reloading on its broadcast would otherwise ask every provider again at once (D-077, review 1).
  */
 const CATALOG_FRESH_MS = 5_000;
+/**
+ * An enabled index older than this is fetched again when the person searches (T8). Nothing is
+ * fetched in the background: only adding, refreshing or searching an enabled index fetches it.
+ */
+const INDEX_REFRESH_MS = 60 * 60_000;
+/** A signed document (index, policy) must arrive within this. */
+const DOCUMENT_TIMEOUT_MS = 30_000;
+const TRUST_RANK: Readonly<Record<string, number>> = Object.freeze({ trusted: 0, unknown: 1, mismatch: 2 });
 
 /** The sender facts the service worker vouches for; a page cannot forge them. */
 export interface Sender {
@@ -215,6 +245,15 @@ function demoTypes(): Array<Omit<VaultDocument["types"][number], never>> {
   }));
 }
 
+/** The host implementation each declared tool would be bound to, as a policy's binding allowlist judges it (T8). */
+function bindingFacts(evaluation: RegistryEvaluation): Record<string, ToolBindingFacts | null> {
+  const facts: Record<string, ToolBindingFacts | null> = {};
+  for (const tool of evaluation.tools) facts[tool.tool_id] = tool.binding ? { kind: tool.binding.implementation_kind, origin: tool.binding.endpoint_origin } : null;
+  return facts;
+}
+
+const claimCheck = (claimed: string | null, actual: string | null): ClaimCheck => (claimed === null ? "not_stated" : claimed === actual ? "matches" : "differs");
+
 export class Controller {
   private readonly sessions = new Map<string, LiveSession>();
   /** Serializes the read-modify-write of view holders in `chrome.storage.session`. */
@@ -227,6 +266,11 @@ export class Controller {
   private readonly version: string;
   private restored: Promise<void> | null = null;
   private readonly files: FileStore;
+  private readonly subscriptions: SubscriptionStorage;
+  /** The person's trust store, then the subscribed policy's anchors (T8, D-101). */
+  private readonly trust: PolicyTrust;
+  /** Verified documents by type, key and text: re-verification is skipped only for identical bytes. */
+  private readonly verifiedDocuments = new Map<string, VerifiedDocument>();
 
   /** Runs from the browser (T5): decides whether a run starts; the host executes. */
   readonly runs: RunManager;
@@ -237,6 +281,8 @@ export class Controller {
     this.randomId = deps.randomId ?? (() => crypto.randomUUID().replace(/-/gu, "").slice(0, 24));
     this.version = deps.version ?? CORE_VERSION;
     this.files = deps.files ?? new MemoryFileStore();
+    this.subscriptions = deps.subscriptions ?? new SubscriptionStorage(new MemoryStorageArea());
+    this.trust = new PolicyTrust(deps.trust, () => this.activePolicy());
     const hooks: RunHooks = {
       session: async (sessionId) => {
         const live = await this.session(sessionId);
@@ -255,6 +301,8 @@ export class Controller {
       },
       // The run that kept a closed session's snapshot alive has settled: drop the bytes if nothing else refers to them.
       runSettled: (archiveSha256) => this.dropUnreferencedSnapshot(archiveSha256),
+      // The subscribed policy's budget caps lower the person's run limits (T8, D-102).
+      limitCaps: async () => (await this.activePolicy())?.bundle.budget_caps ?? null,
     };
     this.runs = new RunManager({ runs: deps.runs, host: deps.host, settings: deps.settings, hooks, broadcast: deps.broadcast, clock: this.clock, randomId: deps.runId, runtimeVersion: this.version });
   }
@@ -269,7 +317,7 @@ export class Controller {
       case "website.discover":
         return this.discoverWebsite(request.url);
       case "package.open": {
-        const view = await this.openUrl(request.url, request.advertisedOn ?? null);
+        const view = await this.openUrl(request.url, request.advertisedOn ?? null, request.foundVia?.indexId ?? null);
         if (request.viewId) await this.hold(view.session.id, request.viewId, sender.documentId ?? null);
         return view;
       }
@@ -359,6 +407,34 @@ export class Controller {
         // Only the execution host reports on runs; a view cannot forge a host report.
         if (!sender.offscreen) throw reject("not_allowed", "Only the execution host may report on runs", 403);
         return request.type === "host.progress" ? this.runs.hostProgress(request.runId) : this.runs.hostFinished(request.runId);
+      case "search.query":
+        return this.search(request.text);
+      case "indexes.list":
+        return this.indexesView();
+      case "indexes.add":
+        return this.addIndex(request.url, request.publicKeyPem);
+      case "indexes.refresh":
+        return this.refreshIndex(request.url);
+      case "indexes.remove":
+        return this.removeIndex(request.url);
+      case "indexes.enable":
+        return this.enableIndex(request.url, request.enabled);
+      case "policy.get":
+        return this.policyView();
+      case "policy.subscribe":
+        return this.subscribePolicy(request.url, request.publicKeyPem, request.replace);
+      case "policy.refresh":
+        return this.refreshPolicy();
+      case "policy.unsubscribe":
+        return this.unsubscribePolicy();
+      case "library.get":
+        return this.libraryView();
+      case "library.pin":
+        return this.pinToLibrary(request.sessionId);
+      case "library.unpin":
+        return this.unpinFromLibrary(request.packageUrl);
+      case "library.forget":
+        return this.forgetRecent(request.packageUrl);
     }
   }
 
@@ -478,7 +554,7 @@ export class Controller {
   }
 
   // -- opening packages ---------------------------------------------------------------
-  async openUrl(url: string, advertisedOn: string | null): Promise<SessionView> {
+  async openUrl(url: string, advertisedOn: string | null, foundViaIndex: string | null = null): Promise<SessionView> {
     const { hostname } = validatePackageUrl(url);
     void hostname;
     if (advertisedOn !== null) documentUrl(advertisedOn);
@@ -494,13 +570,31 @@ export class Controller {
     await this.purgeExpired();
     const running = await this.sessionWithRunInFlight(null, source);
     if (running !== null) return this.view(running);
+    // The index entry is read before the download, so a refused id is refused before any byte moves.
+    const claimed = foundViaIndex === null ? null : await this.indexEntry(foundViaIndex, url);
     const bytes = await this.download(url);
-    return this.openBytes(bytes, source);
+    const view = await this.openBytes(bytes, source);
+    const live = this.sessions.get(view.session.id);
+    if (live && claimed !== null && live.foundVia === null) {
+      live.foundVia = this.compareClaims(claimed, live);
+      live.stored = { ...live.stored, found_via: live.foundVia };
+      await this.deps.snapshots.putSession(live.stored);
+    }
+    if (live) await this.rememberRecent(live);
+    return live ? this.view(live) : view;
   }
 
-  private async download(url: string): Promise<Uint8Array> {
+  /**
+   * Fetch one URL's bytes the way a package is downloaded (D-033): the URL gate first, one
+   * request, no redirect, no credentials, no referrer, bounded while streaming, a deadline. Used
+   * for packages and, with their own bound, for signed documents (T8).
+   */
+  private async download(url: string, options: { subject?: string; cap?: number; timeoutMs?: number } = {}): Promise<Uint8Array> {
+    const subject = options.subject ?? "Package";
+    const cap = options.cap ?? this.limits.maxPackageBytes;
+    if (subject !== "Package") validatePackageUrl(url, subject);
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), this.limits.downloadTimeoutMs);
+    const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? this.limits.downloadTimeoutMs);
     let response: globalThis.Response;
     try {
       response = await this.deps.fetch(url, {
@@ -514,28 +608,28 @@ export class Controller {
       });
     } catch (error) {
       clearTimeout(timer);
-      if (controller.signal.aborted) throw reject("download_timeout", "Package download deadline exceeded", 504);
-      throw reject("download_failed", `Cannot connect to package host: ${thrownName(error)}`, 502);
+      if (controller.signal.aborted) throw reject("download_timeout", `${subject} download deadline exceeded`, 504);
+      throw reject("download_failed", `Cannot connect to ${subject.toLowerCase()} host: ${thrownName(error)}`, 502);
     }
     try {
       if (response.type === "opaqueredirect" || (response.status >= 300 && response.status < 400)) {
         throw reject(
           "download_redirect_denied",
-          "Package host returned a redirect; redirects are disabled because each hop would need the full destination policy re-applied",
+          `${subject} host returned a redirect; redirects are disabled because each hop would need the full destination policy re-applied`,
           502,
         );
       }
-      if (response.status !== 200) throw reject("download_failed", `Package host returned HTTP ${response.status}`, 502);
+      if (response.status !== 200) throw reject("download_failed", `${subject} host returned HTTP ${response.status}`, 502);
       const declared = response.headers.get("content-length");
       if (declared !== null) {
         const length = Number(declared);
-        if (!Number.isInteger(length) || length < 0) throw reject("download_failed", "Package host sent an invalid Content-Length", 502);
-        if (length > this.limits.maxPackageBytes) {
-          throw reject("download_too_large", `Declared package size exceeds the ${this.limits.maxPackageBytes}-byte limit`, 413);
+        if (!Number.isInteger(length) || length < 0) throw reject("download_failed", `${subject} host sent an invalid Content-Length`, 502);
+        if (length > cap) {
+          throw reject("download_too_large", `Declared ${subject.toLowerCase()} size exceeds the ${cap}-byte limit`, 413);
         }
       }
-      const { bytes, truncated } = await this.readBounded(response, this.limits.maxPackageBytes, controller.signal, "download");
-      if (truncated) throw reject("download_too_large", `Package exceeds the ${this.limits.maxPackageBytes}-byte download limit`, 413);
+      const { bytes, truncated } = await this.readBounded(response, cap, controller.signal, "download");
+      if (truncated) throw reject("download_too_large", `${subject} exceeds the ${cap}-byte download limit`, 413);
       return bytes;
     } finally {
       clearTimeout(timer);
@@ -681,8 +775,8 @@ export class Controller {
     return chosen === undefined ? null : this.runs.get(chosen.runId);
   }
 
-  private async evaluate(stored: StoredSession, pkg: Package, layers: EvaluationLayers, previous?: Pick<LiveSession, "receipt" | "plan" | "onceSpent">): Promise<LiveSession> {
-    const publisher = await publisherReport(pkg, this.deps.trust);
+  private async evaluate(stored: StoredSession, pkg: Package, layers: EvaluationLayers, previous?: Pick<LiveSession, "receipt" | "plan" | "onceSpent" | "foundVia">): Promise<LiveSession> {
+    const publisher = await publisherReport(pkg, this.trust);
     const summary = await buildSummary(pkg, { evaluation: layers, publisher });
     return {
       stored,
@@ -693,10 +787,12 @@ export class Controller {
       receipt: previous?.receipt ?? stored.authorization ?? null,
       plan: previous?.plan ?? stored.run_plan ?? null,
       onceSpent: previous?.onceSpent ?? stored.once_spent ?? false,
+      foundVia: previous?.foundVia ?? stored.found_via ?? null,
     };
   }
 
-  private view(live: LiveSession): SessionView {
+  private async view(live: LiveSession): Promise<SessionView> {
+    const pinned = (await this.subscriptions.library()).pinned.some((entry) => entry.package_url === live.stored.source.display);
     return {
       session: {
         id: live.stored.session_id,
@@ -718,6 +814,8 @@ export class Controller {
       authorization: live.receipt ? { state: "issued", receipt_id: live.receipt.receipt_id, runnable: live.receipt.runnable } : { state: "none", receipt_id: null, runnable: false },
       run_plan: live.plan ? { state: "prepared", run_plan_id: live.plan.run_plan_id, ready: live.plan.readiness.ready } : { state: "absent", run_plan_id: null, ready: false },
       execution: { performed: false, note: EXECUTION_NOTE },
+      found_via: live.foundVia,
+      pinned,
     };
   }
 
@@ -1239,14 +1337,16 @@ export class Controller {
     const settings = await this.deps.settings.settings();
     const { catalog, probes } = await this.catalog(refresh ? CATALOG_FRESH_MS : CATALOG_TTL_MS);
     const required = modePermissionIds(live.pkg, MODE_MODEL);
+    const policy = await this.activePolicy();
     return {
       evaluation: evaluateCatalog(live.pkg, catalog, this.clock()),
       probes,
       default_model: settings.models.default_model,
-      local_models_only: PRESETS[settings.preset].local_models_only,
+      local_models_only: PRESETS[settings.preset].local_models_only || policy?.bundle.models.local_only === true,
       execution_mode_permission_ids: required,
       execution_mode_permissions_granted: required.length > 0 && required.every((id) => (live.receipt?.decisions[id] ?? DENY) !== DENY),
       captured_at: catalog.host.captured_at,
+      model_policy: policy ? { label: policyLabel(policy.reference), title: policy.reference.title, local_only: policy.bundle.models.local_only, max_cost_usd_per_run: policy.bundle.models.max_cost_usd_per_run } : null,
     };
   }
 
@@ -1271,19 +1371,22 @@ export class Controller {
       .flatMap((permission) => (permission.resources as JsonValue[]).map(String));
     const known = new Set(vault.typeViews().map((type) => type.id));
     const { evaluation } = await this.toolEvaluation(live);
+    // The subscribed policy pre-decides inside each profile and on the preset's defaults (T8, D-102).
+    const subscription = await this.activePolicy();
+    const decide = this.decider(live.pkg, subscription, bindingFacts(evaluation));
     return {
       session_id: live.stored.session_id,
       package_digest: live.pkg.digest,
       preset: settings.preset,
-      local_models_only: PRESETS[settings.preset].local_models_only,
+      local_models_only: PRESETS[settings.preset].local_models_only || subscription?.bundle.models.local_only === true,
       request: {
         ...request,
         blocking_reasons: blockingReasons(live.pkg, { evaluation: live.evaluation, publisher: live.publisher, decisions: live.receipt?.decisions ?? {}, policy }),
         browser_policy: { ...policy },
       },
-      profiles: profiles.profiles ? profiles.profiles.map((profile) => ({ profile, decided: profileDecisions(live.pkg, profile, settings.preset) })) : null,
+      profiles: profiles.profiles ? profiles.profiles.map((profile) => ({ profile, decided: decide(profile, settings.preset) })) : null,
       profile_notes: profiles.notes,
-      defaults: defaultDecisions(live.pkg, settings.preset),
+      defaults: decide(null, settings.preset),
       resources: evaluateResources(live.pkg, registry, { decisions: live.receipt?.decisions ?? {}, grants: live.receipt?.resource_grants ?? [] }),
       missing_resource_types: [...new Set(requestedTypes.filter((type) => !known.has(type)))].sort(),
       tools: evaluation.tools.map(
@@ -1303,6 +1406,41 @@ export class Controller {
       receipt: live.receipt,
       run_plan: live.plan ? await this.runPlanState(live) : null,
       default_model: settings.models.default_model,
+      policy: subscription ? this.policyForAuthorization(subscription, settings) : null,
+    };
+  }
+
+  /** The decisions a profile (or, with none, the preset) yields, with the subscribed policy applied when one is in force. */
+  private decider(pkg: Package, policy: ActivePolicy | null, bindings: Record<string, ToolBindingFacts | null>): (profile: Profile | null, preset: PresetId) => Decided {
+    return (profile, preset) => {
+      const base = profile ? profileDecisions(pkg, profile, preset) : defaultDecisions(pkg, preset);
+      return policy ? applyPolicy(pkg, base, { policy, preset, profile, bindings }) : base;
+    };
+  }
+
+  private policyForAuthorization(policy: ActivePolicy, settings: Settings): AuthorizationPolicyView {
+    const caps = policy.bundle.budget_caps;
+    const capped = cappedLimits(settings.limits, caps);
+    const words: Record<string, string> = {
+      total_tokens: "tokens per run",
+      max_remote_calls: "remote calls per run",
+      max_parallel_workers: "parallel workers",
+      max_output_tokens_per_call: "output tokens per model call",
+      run_timeout_seconds: "seconds per run",
+      max_calls_per_tool: "calls per tool",
+      model_call_timeout_seconds: "seconds per model call",
+    };
+    const limits = Object.entries(caps).map(([field, value]) => {
+      const lowered = capped[field as keyof typeof capped] < settings.limits[field as keyof typeof capped];
+      return `at most ${(value as number).toLocaleString("en-US")} ${words[field] ?? field}${lowered ? " (lower than your own limit)" : ""}`;
+    });
+    return {
+      reference: { ...policy.reference },
+      label: policyLabel(policy.reference),
+      limits_capped: limits,
+      local_only: policy.bundle.models.local_only,
+      max_cost_usd_per_run: policy.bundle.models.max_cost_usd_per_run,
+      bindings_restricted: policy.bundle.bindings !== null,
     };
   }
 
@@ -1317,7 +1455,10 @@ export class Controller {
     const approvals = normalizeToolApprovals(live.pkg, input.toolApprovals);
     const registry = await this.resourceRegistry();
     const grants = normalizeResourceSelections(live.pkg, registry, decisions, input.resourceSelections);
-    const provenance = normalizeProvenance(live.pkg, input.provenance, decisions, approvals, grants);
+    // A `policy` claim is checked against the policy in force now (D-102); with one in force the receipt names it.
+    const policy = await this.activePolicy();
+    const expand = policy ? this.decider(live.pkg, policy, bindingFacts((await this.toolEvaluation(live)).evaluation)) : null;
+    const provenance = normalizeProvenance(live.pkg, input.provenance, decisions, approvals, grants, { policy: policy && expand ? { reference: policy.reference, expand } : null });
     return this.issue(live, decisions, approvals, grants, registry, provenance, input.prepare, input.modelId ?? null);
   }
 
@@ -1329,7 +1470,8 @@ export class Controller {
     const profile = profiles.profiles?.find((item) => item.id === input.profileId);
     if (!profile) throw reject("profile_unknown", `This package declares no usable profile ${pyRepr(input.profileId)}`, 404, { notes: profiles.notes });
     const settings = await this.deps.settings.settings();
-    const decided: Decided = profileDecisions(live.pkg, profile, settings.preset);
+    const policy = await this.activePolicy();
+    const decided: Decided = this.decider(live.pkg, policy, bindingFacts((await this.toolEvaluation(live)).evaluation))(profile, settings.preset);
     const registry = await this.resourceRegistry();
     const grants = normalizeResourceSelections(live.pkg, registry, decided.decisions, input.resourceSelections);
     const provenance: Provenance = { ...decided.provenance, resource_selections: Object.fromEntries(grants.map((grant) => [grant.permission_id, "user" as const])) };
@@ -1424,6 +1566,8 @@ export class Controller {
     if (PRESETS[settings.preset].local_models_only && descriptor.properties.local !== true) {
       blockers.push({ code: "model_not_local", message: `The ${PRESETS[settings.preset].title} preset allows local models only; ${input.modelId} is not reported as local. Change the preset in Settings → Policies or choose a local model.`, subject: input.modelId });
     }
+    // The subscribed policy's model constraints (T8, D-102): local only, or a cost this browser can bound.
+    blockers.push(...modelPolicyReasons(await this.activePolicy(), { id: input.modelId, properties: descriptor.properties as { local?: unknown; cost_class?: unknown } }));
     const { registry: toolRegistry, evaluation: toolEvaluation } = await this.toolEvaluation(live, live.receipt.decisions, live.receipt.tool_approvals);
     const resourceRegistry = await this.resourceRegistry();
     blockers.push(
@@ -1490,6 +1634,7 @@ export class Controller {
       catalog: read.catalog,
       onceSpent: live.onceSpent && live.receipt !== null && grantsOnce(live.receipt),
       localModelsOnly: PRESETS[settings.preset].local_models_only,
+      subscription: await this.activePolicy(),
       now: this.clock(),
     });
     return { run_plan: live.plan, preflight: { ...checked, stale_reasons: this.explainModelReasons(checked.stale_reasons, read) } };
@@ -1511,6 +1656,373 @@ export class Controller {
     live.onceSpent = true;
     await this.persist(live);
     this.deps.broadcast({ type: "event.authorization", sessionId });
+  }
+
+  // -- signed documents: agent indexes and the policy subscription (T8) -----------------------------
+  /** Verify a stored or fetched document against its pinned key; identical bytes are verified once per worker. */
+  private async verifiedDocument(text: string, type: DocumentContentType, key: string): Promise<VerifiedDocument> {
+    const bytes = new TextEncoder().encode(text);
+    const cacheKey = `${type} ${key} ${await sha256Hex(bytes)}`;
+    const cached = this.verifiedDocuments.get(cacheKey);
+    if (cached) return cached;
+    const verified = await verifySignedDocument(bytes, type, [publicKeyFromRawBase64(key)]);
+    if (this.verifiedDocuments.size >= 16) this.verifiedDocuments.delete(this.verifiedDocuments.keys().next().value!);
+    this.verifiedDocuments.set(cacheKey, verified);
+    return verified;
+  }
+
+  /** One signed document over the package download's rules (D-033), bounded at 1 MiB, as UTF-8 text. */
+  private async fetchDocument(url: string, subject: "Index" | "Policy"): Promise<string> {
+    const bytes = await this.download(url, { subject, cap: MAX_DOCUMENT_BYTES, timeoutMs: DOCUMENT_TIMEOUT_MS });
+    try {
+      return new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes);
+    } catch {
+      throw reject("document_invalid", `The ${subject.toLowerCase()} is not UTF-8 text.`, 422);
+    }
+  }
+
+  /** The key a person pasted, as the raw base64 the stores keep and its fingerprint. */
+  private async pinnedKey(pem: string): Promise<{ key: string; fingerprint: string }> {
+    let raw: Uint8Array;
+    try {
+      raw = publicKeyFromPem(pem);
+    } catch (error) {
+      if (error instanceof CoreError) throw error;
+      throw reject("key_invalid", "The key must be an Ed25519 public key in PEM form (BEGIN PUBLIC KEY).");
+    }
+    return { key: rawBase64(raw), fingerprint: await keyFingerprint(raw) };
+  }
+
+  /** A newer copy of a document replaces the held one only if it is not older and does not reuse a version for other content. */
+  private checkSuccession(held: { version: string; content_sha256: string }, next: { version: string; content_sha256: string }, what: string): void {
+    const order = compareRelease(next.version, held.version);
+    if (order < 0) throw reject("document_rollback", `The ${what} at this address is now version ${next.version}, older than the version ${held.version} held here; the newer copy is kept.`, 409);
+    if (order === 0 && next.content_sha256 !== held.content_sha256) {
+      throw reject("document_version_reused", `The ${what} at this address states version ${next.version} again with different content; the copy held here is kept. A changed ${what} must carry a new version.`, 409);
+    }
+  }
+
+  private failureOf(error: unknown): { code: string; message: string; at: string } {
+    return error instanceof CoreError ? { code: error.code, message: error.message, at: this.clock().toISOString() } : { code: "internal_error", message: `The operation failed (${thrownName(error)}).`, at: this.clock().toISOString() };
+  }
+
+  private async heldIndex(stored: StoredIndex): Promise<{ held: VerifiedIndex | null; error: string | null }> {
+    if (stored.document === null) return { held: null, error: null };
+    try {
+      return { held: verifiedIndex(await this.verifiedDocument(stored.document.text, AGENT_INDEX_TYPE, stored.key)), error: null };
+    } catch (error) {
+      return { held: null, error: error instanceof Error ? error.message : "does not verify" };
+    }
+  }
+
+  private async indexView(stored: StoredIndex): Promise<IndexView> {
+    const { held } = await this.heldIndex(stored);
+    const index = held?.index ?? null;
+    return {
+      url: stored.url,
+      key_fingerprint: stored.key_fingerprint,
+      enabled: stored.enabled,
+      added_at: stored.added_at,
+      fetched_at: stored.document?.fetched_at ?? null,
+      state: stored.document === null ? "never_fetched" : held === null ? "unverified" : indexState(held.index, this.clock()),
+      index: index ? { index_id: index.index_id, title: index.title, description: index.description, version: index.version, publisher: index.publisher.name, issued_at: index.issued_at, expires_at: index.expires_at, entries: index.entries.length, notes: index.notes } : null,
+      signer_fingerprint: held?.signer_fingerprint ?? null,
+      content_sha256: held?.content_sha256 ?? null,
+      last_error: stored.last_error,
+    };
+  }
+
+  async indexesView(): Promise<IndexesView> {
+    const indexes = await this.subscriptions.indexes();
+    return {
+      indexes: await Promise.all(indexes.map((stored) => this.indexView(stored))),
+      max_indexes: MAX_INDEXES,
+      nanda: { configured: false, note: (await new NandaResolver().query({ kind: "locator", text: "" })).notes[0]?.detail ?? "Not configured." },
+    };
+  }
+
+  /** Add an index by URL with the key the person pins for it: fetched and verified now, or not added at all. */
+  async addIndex(url: string, pem: string): Promise<IndexesView> {
+    validatePackageUrl(url, "Index");
+    const pin = await this.pinnedKey(pem);
+    const existing = await this.subscriptions.indexes();
+    if (existing.some((item) => item.url === url)) throw reject("index_exists", "This index is already added; refresh it instead.", 409);
+    if (existing.length >= MAX_INDEXES) throw reject("index_limit", `At most ${MAX_INDEXES} indexes can be added; remove one first.`, 409);
+    const text = await this.fetchDocument(url, "Index");
+    const held = verifiedIndex(await this.verifiedDocument(text, AGENT_INDEX_TYPE, pin.key));
+    for (const other of existing) {
+      if ((await this.heldIndex(other)).held?.index.index_id === held.index.index_id) throw reject("index_exists", `An index with the id ${pyRepr(held.index.index_id)} is already added from ${other.url}.`, 409);
+    }
+    const now = this.clock().toISOString();
+    await this.subscriptions.updateIndexes((list) => [...list.filter((item) => item.url !== url), { url, key: pin.key, key_fingerprint: pin.fingerprint, added_at: now, enabled: true, document: { text, fetched_at: now }, last_error: null }]);
+    this.deps.broadcast({ type: "event.indexes" });
+    return this.indexesView();
+  }
+
+  /** Fetch an index again; on any refusal the held copy stays and the failure is recorded beside it. */
+  private async refetchIndex(stored: StoredIndex): Promise<StoredIndex> {
+    let updated: StoredIndex;
+    try {
+      const text = await this.fetchDocument(stored.url, "Index");
+      const next = verifiedIndex(await this.verifiedDocument(text, AGENT_INDEX_TYPE, stored.key));
+      const current = (await this.heldIndex(stored)).held;
+      if (current !== null) this.checkSuccession({ version: current.index.version, content_sha256: current.content_sha256 }, { version: next.index.version, content_sha256: next.content_sha256 }, "index");
+      updated = { ...stored, document: { text, fetched_at: this.clock().toISOString() }, last_error: null };
+    } catch (error) {
+      updated = { ...stored, last_error: this.failureOf(error) };
+    }
+    await this.subscriptions.updateIndexes((list) => list.map((item) => (item.url === stored.url ? updated : item)));
+    this.deps.broadcast({ type: "event.indexes" });
+    return updated;
+  }
+
+  private async storedIndex(url: string): Promise<StoredIndex> {
+    const stored = (await this.subscriptions.indexes()).find((item) => item.url === url);
+    if (!stored) throw reject("index_unknown", "No index is added from this address.", 404);
+    return stored;
+  }
+
+  async refreshIndex(url: string): Promise<IndexesView> {
+    await this.refetchIndex(await this.storedIndex(url));
+    return this.indexesView();
+  }
+
+  async removeIndex(url: string): Promise<IndexesView> {
+    await this.storedIndex(url);
+    await this.subscriptions.updateIndexes((list) => list.filter((item) => item.url !== url));
+    this.deps.broadcast({ type: "event.indexes" });
+    return this.indexesView();
+  }
+
+  async enableIndex(url: string, enabled: boolean): Promise<IndexesView> {
+    await this.storedIndex(url);
+    await this.subscriptions.updateIndexes((list) => list.map((item) => (item.url === url ? { ...item, enabled } : item)));
+    this.deps.broadcast({ type: "event.indexes" });
+    return this.indexesView();
+  }
+
+  /**
+   * Search the enabled indexes in the order they were added (and, for a locator, the NANDA stub).
+   * Results are ranked by the trust status of the signer each source claims, then by source order
+   * and the index's own order; nothing else (D-104). An index older than an hour is fetched again
+   * first, because the person is searching it now; nothing is fetched otherwise.
+   */
+  async search(text: string): Promise<SearchView> {
+    const query = readQuery(text);
+    if (query === null) throw reject("invalid_request", "Type what you are looking for: words, or an agent name such as name@host.example.");
+    const notes: SearchView["notes"] = [];
+    const searched: SearchView["searched"] = [];
+    const found: Array<{ candidate: AgentCandidate; order: number }> = [];
+    const enabled = (await this.subscriptions.indexes()).filter((item) => item.enabled);
+    for (const [order, initial] of enabled.entries()) {
+      let stored = initial;
+      const age = stored.document ? this.clock().getTime() - Date.parse(stored.document.fetched_at) : Number.POSITIVE_INFINITY;
+      const refreshed = age > INDEX_REFRESH_MS;
+      if (refreshed) stored = await this.refetchIndex(stored);
+      const { held, error } = await this.heldIndex(stored);
+      if (held === null) {
+        notes.push({ source: stored.url, code: stored.last_error?.code ?? "index_unverified", detail: stored.last_error?.message ?? error ?? "This index has no verified copy; refresh it in Settings → Search." });
+        continue;
+      }
+      if (refreshed && stored.last_error !== null) notes.push({ source: held.index.title, code: stored.last_error.code, detail: `Could not refresh it (${stored.last_error.message}); searched the copy fetched ${stored.document?.fetched_at}.` });
+      const result = await new StaticIndexResolver(held, this.clock).query(query);
+      searched.push({ index_id: held.index.index_id, label: held.index.title, version: held.index.version });
+      notes.push(...result.notes.map((note: ResolveNote) => ({ source: held.index.title, code: note.code, detail: note.detail })));
+      for (const candidate of result.candidates) found.push({ candidate, order });
+    }
+    if (query.kind === "locator") {
+      const nanda = await new NandaResolver().query(query);
+      notes.push(...nanda.notes.map((note) => ({ source: "NANDA index", code: note.code, detail: note.detail })));
+    }
+    const ranked: Array<SearchResultView & { order: number }> = [];
+    for (const { candidate, order } of found) {
+      const verdict = await this.trust.evaluate({ signerFingerprint: candidate.signer_fingerprint, claimedPublisherId: candidate.publisher.id ?? "", packageId: candidate.package_id });
+      ranked.push({ candidate, trust: { status: verdict.trust_status, reason: candidate.signer_fingerprint === null ? "signer_not_stated" : verdict.trust_reason }, order });
+    }
+    ranked.sort((a, b) => TRUST_RANK[a.trust.status]! - TRUST_RANK[b.trust.status]! || a.order - b.order || a.candidate.source.position - b.candidate.source.position);
+    return { query, results: ranked.map(({ candidate, trust }) => ({ candidate, trust })), notes, searched, enabled_indexes: enabled.length };
+  }
+
+  /** The entry an opened search result came from, or null when that index (or the entry) is not held here. */
+  private async indexEntry(indexId: string, url: string): Promise<AgentCandidate | null> {
+    for (const stored of await this.subscriptions.indexes()) {
+      const { held } = await this.heldIndex(stored);
+      if (held !== null && held.index.index_id === indexId) return new StaticIndexResolver(held, this.clock).entryFor(url);
+    }
+    return null;
+  }
+
+  /** What the index said, against what the bytes say: metadata compared, never authority. */
+  private compareClaims(candidate: AgentCandidate, live: LiveSession): FoundVia {
+    return {
+      index_id: candidate.source.resolver_id,
+      label: candidate.source.label,
+      version: candidate.source.version ?? "",
+      position: candidate.source.position,
+      claims: {
+        package_id: claimCheck(candidate.package_id, String(live.pkg.manifest.package_id)),
+        version: claimCheck(candidate.version, String(live.pkg.manifest.version)),
+        digest: claimCheck(candidate.digest, live.pkg.digest),
+        archive_sha256: claimCheck(candidate.archive_sha256, live.stored.archive_sha256),
+        signer_fingerprint: claimCheck(candidate.signer_fingerprint, live.publisher.signer_fingerprint),
+      },
+    };
+  }
+
+  // The policy subscription (D-103: one at a time).
+  private async heldPolicyOf(stored: StoredPolicy): Promise<HeldPolicy> {
+    return heldPolicy(await this.verifiedDocument(stored.document.text, POLICY_BUNDLE_TYPE, stored.key));
+  }
+
+  /** The subscribed policy, when it verifies and is inside its validity window; null otherwise (an expired policy decides nothing). */
+  async activePolicy(): Promise<ActivePolicy | null> {
+    const stored = await this.subscriptions.policy();
+    if (stored === null) return null;
+    let held: HeldPolicy;
+    try {
+      held = await this.heldPolicyOf(stored);
+    } catch {
+      return null;
+    }
+    return policyState(held.bundle, this.clock()) === "current" ? { bundle: held.bundle, reference: held.reference } : null;
+  }
+
+  async policyView(): Promise<PolicyView> {
+    const stored = await this.subscriptions.policy();
+    if (stored === null) return { subscribed: false };
+    let held: HeldPolicy | null = null;
+    try {
+      held = await this.heldPolicyOf(stored);
+    } catch {
+      held = null;
+    }
+    return {
+      subscribed: true,
+      url: stored.url,
+      key_fingerprint: stored.key_fingerprint,
+      subscribed_at: stored.subscribed_at,
+      fetched_at: stored.document.fetched_at,
+      state: held === null ? "unverified" : policyState(held.bundle, this.clock()),
+      reference: held?.reference ?? null,
+      bundle: held?.bundle ?? null,
+      last_error: stored.last_error,
+    };
+  }
+
+  /**
+   * Subscribe to a policy by URL, verified against the key the person pins. One at a time
+   * (D-103): replacing the current one needs `replace`; the same address and key again is a
+   * refresh. Only a bundle inside its validity window is taken.
+   */
+  async subscribePolicy(url: string, pem: string, replace: boolean): Promise<PolicyView> {
+    validatePackageUrl(url, "Policy");
+    const pin = await this.pinnedKey(pem);
+    const current = await this.subscriptions.policy();
+    const same = current !== null && current.url === url && current.key === pin.key;
+    if (current !== null && !same && !replace) {
+      const label = await this.heldPolicyOf(current).then((held) => `${held.reference.title} (${policyLabel(held.reference)})`, () => current.url);
+      throw reject("policy_exists", `You already follow ${label}. One policy at a time: replace it to follow this one.`, 409, { current_url: current.url });
+    }
+    const text = await this.fetchDocument(url, "Policy");
+    const held = await heldPolicy(await this.verifiedDocument(text, POLICY_BUNDLE_TYPE, pin.key));
+    const state = policyState(held.bundle, this.clock());
+    if (state !== "current") throw reject("policy_not_current", `This policy is valid from ${held.bundle.issued_at} to ${held.bundle.expires_at}; it is ${state === "expired" ? "expired" : "not valid yet"} and was not subscribed to.`, 422);
+    if (same) {
+      const previous = await this.heldPolicyOf(current!).catch(() => null);
+      if (previous !== null) this.checkSuccession({ version: previous.bundle.version, content_sha256: previous.reference.content_sha256 }, { version: held.bundle.version, content_sha256: held.reference.content_sha256 }, "policy");
+    }
+    const now = this.clock().toISOString();
+    await this.subscriptions.savePolicy({ url, key: pin.key, key_fingerprint: pin.fingerprint, subscribed_at: same ? current!.subscribed_at : now, document: { text, fetched_at: now }, last_error: null });
+    await this.policyChanged();
+    return this.policyView();
+  }
+
+  /** Fetch the subscribed policy again; a refusal keeps the held copy and is recorded beside it. */
+  async refreshPolicy(): Promise<PolicyView> {
+    const stored = await this.subscriptions.policy();
+    if (stored === null) throw reject("policy_absent", "No policy is subscribed to.", 404);
+    try {
+      const text = await this.fetchDocument(stored.url, "Policy");
+      const next = await heldPolicy(await this.verifiedDocument(text, POLICY_BUNDLE_TYPE, stored.key));
+      const previous = await this.heldPolicyOf(stored).catch(() => null);
+      if (previous !== null) this.checkSuccession({ version: previous.bundle.version, content_sha256: previous.reference.content_sha256 }, { version: next.bundle.version, content_sha256: next.reference.content_sha256 }, "policy");
+      await this.subscriptions.savePolicy({ ...stored, document: { text, fetched_at: this.clock().toISOString() }, last_error: null });
+    } catch (error) {
+      await this.subscriptions.savePolicy({ ...stored, last_error: this.failureOf(error) });
+    }
+    await this.policyChanged();
+    return this.policyView();
+  }
+
+  /** Revoke: the policy's anchors and decisions stop applying, and plans authorized under it go stale (D-102). */
+  async unsubscribePolicy(): Promise<PolicyView> {
+    await this.subscriptions.savePolicy(null);
+    await this.policyChanged();
+    return { subscribed: false };
+  }
+
+  /** Every open session's trust is evaluated again, and every view reloads its authorization. */
+  private async policyChanged(): Promise<void> {
+    await this.refreshTrust();
+    this.deps.broadcast({ type: "event.policy" });
+    for (const sessionId of this.sessions.keys()) this.deps.broadcast({ type: "event.authorization", sessionId });
+  }
+
+  // -- the Library (T8) --------------------------------------------------------------------------
+  private libraryEntry(live: LiveSession): LibraryEntry {
+    const manifest = live.pkg.manifest;
+    const publisher = manifest.publisher as JsonObject;
+    return {
+      package_url: live.stored.source.display,
+      advertised_on: live.stored.source.advertised_on,
+      package_id: String(manifest.package_id),
+      name: String(manifest.name),
+      version: String(manifest.version),
+      publisher: { id: String(publisher.id), name: String(publisher.name) },
+      digest: live.pkg.digest,
+      archive_sha256: live.stored.archive_sha256,
+      signer_fingerprint: live.publisher.signer_fingerprint,
+      at: this.clock().toISOString(),
+    };
+  }
+
+  /** An agent opened by its address joins the recent list (newest first). */
+  private async rememberRecent(live: LiveSession): Promise<void> {
+    const entry = this.libraryEntry(live);
+    await this.subscriptions.updateLibrary((library) => ({ ...library, recent: [entry, ...library.recent.filter((item) => item.package_url !== entry.package_url)] }));
+    this.deps.broadcast({ type: "event.library" });
+  }
+
+  async libraryView(): Promise<LibraryView> {
+    const library = await this.subscriptions.library();
+    const pinnedUrls = new Set(library.pinned.map((entry) => entry.package_url));
+    const item = async (entry: LibraryEntry): Promise<LibraryItemView> => {
+      const verdict = await this.trust.evaluate({ signerFingerprint: entry.signer_fingerprint, claimedPublisherId: entry.publisher.id, packageId: entry.package_id });
+      const open = [...this.sessions.values()].find((live) => live.stored.source.display === entry.package_url && live.stored.archive_sha256 === entry.archive_sha256);
+      return { ...entry, trust_status: verdict.trust_status, trust_reason: verdict.trust_reason, pinned: pinnedUrls.has(entry.package_url), open_session_id: open?.stored.session_id ?? null };
+    };
+    return { pinned: await Promise.all(library.pinned.map(item)), recent: await Promise.all(library.recent.map(item)) };
+  }
+
+  async pinToLibrary(sessionId: string): Promise<LibraryView> {
+    const entry = this.libraryEntry(await this.session(sessionId));
+    await this.subscriptions.updateLibrary((library) => ({ ...library, pinned: [entry, ...library.pinned.filter((item) => item.package_url !== entry.package_url)] }));
+    this.deps.broadcast({ type: "event.library" });
+    this.deps.broadcast({ type: "event.sessions" });
+    return this.libraryView();
+  }
+
+  async unpinFromLibrary(packageUrl: string): Promise<LibraryView> {
+    await this.subscriptions.updateLibrary((library) => ({ ...library, pinned: library.pinned.filter((item) => item.package_url !== packageUrl) }));
+    this.deps.broadcast({ type: "event.library" });
+    this.deps.broadcast({ type: "event.sessions" });
+    return this.libraryView();
+  }
+
+  async forgetRecent(packageUrl: string): Promise<LibraryView> {
+    await this.subscriptions.updateLibrary((library) => ({ ...library, recent: library.recent.filter((item) => item.package_url !== packageUrl) }));
+    this.deps.broadcast({ type: "event.library" });
+    return this.libraryView();
   }
 
   // -- status ----------------------------------------------------------------------------
