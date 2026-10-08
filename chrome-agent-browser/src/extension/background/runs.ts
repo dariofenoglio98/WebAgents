@@ -91,14 +91,18 @@ export interface ExecutionHostBridge {
   available(): boolean;
   start(message: HostStartMessage): Promise<void>;
   /**
-   * Ask the host to cancel a run. Resolves true when the host took the request (it answered, or
-   * it is being created and will read the stored flag when it starts), false when there is no
-   * host to take it; rejects when a host exists but did not answer (T5 review 2, nit 2).
+   * Ask the host to cancel a run (T5 review 3, nit 3). Resolves `taken` when a Worker received it,
+   * or the document is being created for this very run (it reads the stored flag when it starts);
+   * `not_held` when a document answered but no Worker holds the run; `no_host` when there is no
+   * document and none is being created for it. Rejects when a document exists but did not answer
+   * (T5 review 2, nit 2).
    */
-  cancel(runId: string): Promise<boolean>;
+  cancel(runId: string): Promise<HostCancelAnswer>;
   /** The runs the host is executing right now, or null when there is no host at all. */
   status(): Promise<HostStatusReply | null>;
 }
+
+export type HostCancelAnswer = "taken" | "not_held" | "no_host";
 
 export interface RunManagerDeps {
   runs: RunStore;
@@ -589,10 +593,16 @@ export class RunManager {
       // The flag is stored before the host is asked, and the host reads it when it starts and
       // merges it on every write (review 2, finding 1), so a Cancel accepted while the run is
       // still preparing, when no Worker exists to receive `host.cancel`, is not lost. A start in
-      // progress hands the host a record that already carries the flag.
+      // progress hands the host a record that already carries the flag; whether one is in
+      // progress is read before the host is asked, so a start that completes meanwhile is not
+      // taken for an unreachable host (T5 review 3, nit 2).
+      const startingBefore = this.starting.has(updated.session_id);
       let reached: boolean;
       try {
-        reached = (await this.deps.host.cancel(runId)) || this.starting.has(updated.session_id);
+        const answer = await this.deps.host.cancel(runId);
+        // A document that holds no Worker for a `preparing` run will read the flag when the run
+        // starts; for a `running` run nothing holds it, so nobody can take the cancel (nit 3).
+        reached = answer === "taken" || startingBefore || (answer === "not_held" && updated.record.status === "preparing");
       } catch {
         reached = false;
       }
@@ -605,6 +615,11 @@ export class RunManager {
           message: "Cancel was requested, but no execution host could be reached to take it (the host is gone or does not answer). The run is interrupted here, with the audit it had written; it is never resumed, and a host that is still alive stops at its next checkpoint.",
         });
         if (interrupted) return this.view((await this.deps.runs.getRun(runId)) ?? updated);
+        // The host settled the run between the flag and the interrupt: report what it wrote, not
+        // the stale status the flag write returned (T5 review 3, nit 1).
+        const latest = (await this.deps.runs.getRun(runId)) ?? updated;
+        this.deps.broadcast({ type: "event.run", runId, sessionId: latest.session_id, status: latest.record.status });
+        return this.view(latest);
       }
     }
     this.deps.broadcast({ type: "event.run", runId, sessionId: updated.session_id, status: updated.record.status });

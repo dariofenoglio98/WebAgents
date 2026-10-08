@@ -180,6 +180,53 @@ describe("an unreachable provider is unavailable, not 'unverified' (D-077)", () 
     expect(h.httpLog.slice(before).filter((request) => request.url.includes("api.openai.com"))).toEqual([]);
   });
 
+  it("a Test connection of OpenAI does not make an old Ollama answer fresh (T5a review 2: the merged catalog keeps the held time)", async () => {
+    const h = makeHarness({ http: { ...OLLAMA_ANSWERS, "GET https://api.openai.com/v1/models": { data: [{ id: "gpt-5.6-luna" }] } } });
+    const session = await openWebair(h);
+    const settings = ((await h.controller.handle({ type: "settings.get" }, PAGE)) as SettingsView).settings;
+    settings.models.connections = settings.models.connections.map((connection) => (connection.provider === "openai" ? { ...connection, enabled: true } : connection));
+    await h.controller.handle({ type: "settings.set", settings }, PAGE);
+    await h.controller.handle({ type: "settings.setKey", provider: "openai", key: "sk-test-not-a-real-key" }, PAGE);
+    await h.controller.handle({ type: "models.evaluate", sessionId: session.session.id, refresh: true }, PAGE);
+    const tags = () => h.httpLog.filter((request) => request.url.endsWith("/api/tags")).length;
+    const before = tags();
+    // 50 s later the person tests OpenAI; one second after that a view refreshes.
+    h.clock.now = new Date(h.clock.now.getTime() + 50_000);
+    await h.controller.handle({ type: "models.probe", provider: "openai" }, PAGE);
+    h.clock.now = new Date(h.clock.now.getTime() + 1_000);
+    await h.controller.handle({ type: "models.evaluate", sessionId: session.session.id, refresh: true }, PAGE);
+    expect(tags() - before, "Ollama's 51-second-old answer is asked again, not reused as if just read").toBe(1);
+  });
+
+  it("a settings save while a Test connection is answering keeps the old endpoint's answer out of the new catalog (T5a review 2)", async () => {
+    let releaseShow: (() => void) | null = null;
+    const answer = fakeHttp(OLLAMA_ANSWERS);
+    let holdShow = false;
+    const http: Http = async (request) => {
+      if (holdShow && request.provider === "ollama" && request.url.endsWith("/api/show")) await new Promise<void>((resolve) => (releaseShow = resolve));
+      return answer(request);
+    };
+    const h = makeHarness({ catalogHttp: http });
+    const session = await openWebair(h);
+    await h.controller.handle({ type: "models.evaluate", sessionId: session.session.id, refresh: true }, PAGE);
+    holdShow = true;
+    const probing = h.controller.handle({ type: "models.probe", provider: "ollama" }, PAGE);
+    await until(() => releaseShow !== null, "the probe waiting for /api/show");
+    // The person saves settings (a different Ollama endpoint on this machine) while the old one answers.
+    const settings = ((await h.controller.handle({ type: "settings.get" }, PAGE)) as SettingsView).settings;
+    settings.models.connections = settings.models.connections.map((connection) => (connection.provider === "ollama" ? { ...connection, base_url: "http://localhost:11500" } : connection));
+    await h.controller.handle({ type: "settings.set", settings }, PAGE);
+    // A view reads the catalog for the new endpoint (nothing answers there) before the old test lands.
+    holdShow = false;
+    await h.controller.handle({ type: "models.evaluate", sessionId: session.session.id, refresh: true }, PAGE);
+    releaseShow!();
+    await probing;
+    // The old endpoint's answer was not merged: qwen3:30b is still not offered by the new one.
+    const models = (await h.controller.handle({ type: "models.evaluate", sessionId: session.session.id, refresh: false }, PAGE)) as ModelsView;
+    const qwen = models.evaluation.models.find((model) => model.model_id === QWEN);
+    expect(qwen === undefined || qwen.available === false, JSON.stringify(qwen ?? null)).toBe(true);
+  });
+
   it("concurrent refreshes share one probe", async () => {
     const h = makeHarness();
     const session = await openWebair(h);
@@ -260,8 +307,14 @@ describe("a view that just opened finds the run in flight (D-076)", () => {
     await until(() => model.reached() === 1, "the model call");
     const sessions = () => h.controller.handle({ type: "sessions.list" }, PAGE) as Promise<{ sessions: unknown[] }>;
     const count = (await sessions()).sessions.length;
+    // T5a review 2: found before any download, so the origin no longer answering changes nothing.
+    const fetches = h.fetchLog.length;
+    const route = h.routes[WEBAIR_040_URL]!;
+    delete h.routes[WEBAIR_040_URL];
     const again = (await h.controller.handle({ type: "package.open", url: WEBAIR_040_URL, advertisedOn: `${SITE_ORIGIN}/#again`, viewId: "panel-2" }, PAGE)) as SessionView;
     expect(again.session.id, "the run's session, so the person sees their run").toBe(first.session.id);
+    expect(h.fetchLog.length, "no second download").toBe(fetches);
+    h.routes[WEBAIR_040_URL] = route;
     expect(again.authorization.state).toBe("issued");
     expect((await sessions()).sessions).toHaveLength(count);
     expect(((await h.controller.handle({ type: "run.list", sessionId: again.session.id }, PAGE)) as { active: RunView | null }).active?.runId).toBe(run.runId);

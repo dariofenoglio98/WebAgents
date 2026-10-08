@@ -14,7 +14,7 @@ import { join } from "node:path";
 
 import type { BuiltinModelPort } from "../../src/core/models/adapters/chrome-builtin.js";
 import { TransportError, type HttpRequest, type HttpTransport } from "../../src/core/models/transport.js";
-import type { ExecutionHostBridge } from "../../src/extension/background/runs.js";
+import type { ExecutionHostBridge, HostCancelAnswer } from "../../src/extension/background/runs.js";
 import { executeRun, type ExecutionHandle } from "../../src/extension/execution/execute.js";
 import type { HostStartMessage, HostStatusReply } from "../../src/extension/execution/protocol.js";
 import type { RunStore } from "../../src/extension/storage/runs.js";
@@ -188,10 +188,12 @@ export class InProcessHost implements ExecutionHostBridge {
     this.settled = Promise.all([this.settled, finished]);
   }
 
-  async cancel(runId: string): Promise<boolean> {
+  async cancel(runId: string): Promise<HostCancelAnswer> {
     if (this.options.cancelUnreachable) throw new Error("the execution host did not answer");
-    this.handles.get(runId)?.cancel();
-    return true; // the document answered, whether or not it still held the run
+    const handle = this.handles.get(runId);
+    handle?.cancel();
+    // As the offscreen page answers: whether a Worker held the run.
+    return handle ? "taken" : "not_held";
   }
 
   async status(): Promise<HostStatusReply | null> {

@@ -278,7 +278,11 @@ class ConnectionFailed extends Error {
 function perform(destination: Destination, address: string, request: HttpRequest): Promise<HttpResponse> {
   return new Promise<HttpResponse>((resolve, reject) => {
     let settled = false;
-    /** The TCP connection was established: from here on the request may have reached the server. */
+    /**
+     * The connection is usable: `connect` over plain TCP, `secureConnect` (the completed handshake)
+     * over TLS, since no request byte can leave before it. From here on the request may have
+     * reached the server, so it is never sent to another address (D-067 as amended).
+     */
     let connected = false;
     const finish = (outcome: () => void) => {
       if (settled) return;

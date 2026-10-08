@@ -482,13 +482,19 @@ export class Controller {
     const { hostname } = validatePackageUrl(url);
     void hostname;
     if (advertisedOn !== null) documentUrl(advertisedOn);
-    const bytes = await this.download(url);
     const source: SessionSource = {
       kind: advertisedOn === null ? "url" : "website",
       display: url,
       advertised_on: advertisedOn,
       opened_at: this.clock().toISOString(),
     };
+    // D-076 as amended (T5a review 2): Inspect again from the same place while a run of that
+    // session is in flight is that session, found before any download, so it neither downloads
+    // again nor fails when the origin stopped answering.
+    await this.purgeExpired();
+    const running = await this.sessionWithRunInFlight(null, source);
+    if (running !== null) return this.view(running);
+    const bytes = await this.download(url);
     return this.openBytes(bytes, source);
   }
 
@@ -642,10 +648,11 @@ export class Controller {
    * so the person who presses Inspect again sees their run instead of a fresh, unauthorized copy.
    * Anything else opens a new session, as before: a session with no run in flight is not reused.
    */
-  private async sessionWithRunInFlight(archiveSha256: string, source: SessionSource): Promise<LiveSession | null> {
+  private async sessionWithRunInFlight(archiveSha256: string | null, source: SessionSource): Promise<LiveSession | null> {
     const page = (url: string | null) => (url === null ? null : withoutFragment(url));
+    // `archiveSha256` null: matched on the source alone, before any download (`openUrl`).
     const candidates = [...this.sessions.values()].filter(
-      (live) => live.stored.archive_sha256 === archiveSha256 && live.stored.source.kind === source.kind && live.stored.source.display === source.display && page(live.stored.source.advertised_on) === page(source.advertised_on),
+      (live) => (archiveSha256 === null || live.stored.archive_sha256 === archiveSha256) && live.stored.source.kind === source.kind && live.stored.source.display === source.display && page(live.stored.source.advertised_on) === page(source.advertised_on),
     );
     if (candidates.length === 0) return null;
     const inFlight = (await this.deps.runs.listRuns()).filter((run) => !isTerminal(run.record.status)).sort((a, b) => (a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : 0));
@@ -1126,8 +1133,12 @@ export class Controller {
     this.catalogGeneration += 1;
   }
 
-  /** The catalog no older than `maxAgeMs`, probing the providers (or joining the probe in progress) otherwise. */
-  private async catalog(maxAgeMs = CATALOG_TTL_MS, probed?: ReadonlyMap<ProviderId, ProbeResult>): Promise<{ catalog: HostCatalog; probes: ProbeResult[] }> {
+  /**
+   * The catalog no older than `maxAgeMs`, probing the providers (or joining the probe in progress)
+   * otherwise. `stampAt` dates a catalog built from answers already in hand (`mergeProbe`) by its
+   * oldest source rather than by now (T5a review 2).
+   */
+  private async catalog(maxAgeMs = CATALOG_TTL_MS, probed?: ReadonlyMap<ProviderId, ProbeResult>, stampAt?: number): Promise<{ catalog: HostCatalog; probes: ProbeResult[] }> {
     if (this.catalogCache && this.clock().getTime() - this.catalogCache.at < maxAgeMs) return this.catalogCache;
     if (this.catalogProbe && !probed) return this.catalogProbe;
     const generation = this.catalogGeneration;
@@ -1136,8 +1147,9 @@ export class Controller {
       const connections = connectionsFor(settings, await this.deps.settings.keyPresence());
       const builtin = connections.some((connection) => connection.provider === "chrome-builtin" && connection.enabled) ? await this.deps.builtin() : null;
       const result = await buildHostCatalog(connections, this.deps.http, { builtin, runtimeVersion: this.version, now: this.clock(), probed });
-      // Stamped when the answers land, and only if the settings did not change meanwhile.
-      if (this.catalogGeneration === generation) this.catalogCache = { ...result, at: this.clock().getTime() };
+      // Stamped when the answers land (or with its oldest source's time), and only if the settings
+      // did not change meanwhile.
+      if (this.catalogGeneration === generation) this.catalogCache = { ...result, at: stampAt ?? this.clock().getTime() };
       return result;
     })();
     this.catalogProbe = probe;
@@ -1157,14 +1169,21 @@ export class Controller {
     return this.catalogCache ?? (await this.catalog());
   }
 
-  /** One provider's fresh answer (Test connection) replaces its part of the last catalog; the others are not asked again. */
-  private async mergeProbe(result: ProbeResult): Promise<void> {
+  /**
+   * One provider's fresh answer (Test connection) replaces its part of the last catalog; the
+   * others are not asked again. The merged catalog keeps the held catalog's time: every other
+   * provider's part is that old, and a Test connection of one provider must not make an old answer
+   * of another look fresh (T5a review 2). A settings change since the test started (`generation`)
+   * means the answer may describe the old endpoint, so it is not merged at all.
+   */
+  private async mergeProbe(result: ProbeResult, generation: number): Promise<void> {
     if (this.catalogProbe) await this.catalogProbe.catch(() => undefined);
+    if (generation !== this.catalogGeneration) return;
     const held = this.catalogCache;
     if (held === null) return; // the next check builds a whole catalog
     const probed = new Map<ProviderId, ProbeResult>(held.probes.map((item) => [item.provider, item]));
     probed.set(result.provider, result);
-    await this.catalog(0, probed);
+    await this.catalog(0, probed, held.at);
   }
 
   /**
@@ -1193,8 +1212,11 @@ export class Controller {
       const availability = await this.deps.builtin();
       return { provider, ok: availability !== null && availability.availability === "available", models: [], notes: [], error: availability ? (availability.availability === "available" ? null : availability.availability) : "The Prompt API is not available in this context.", diagnosis: null };
     }
+    // Captured before the provider is asked: a settings save while it answers must not let the old
+    // endpoint's answer into the new catalog (T5a review 2).
+    const generation = this.catalogGeneration;
     const result = await probeProvider({ ...connection, enabled: true }, this.deps.http);
-    await this.mergeProbe(result);
+    await this.mergeProbe(result, generation);
     return { ...result, diagnosis: provider === "ollama" && !result.ok ? await this.ollamaDiagnosis(connection.base_url ?? DEFAULT_BASE_URLS.ollama) : null };
   }
 
