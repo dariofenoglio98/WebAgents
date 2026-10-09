@@ -9,6 +9,8 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -49,3 +51,12 @@ def test_a_stale_pin_or_a_missing_one_fails():
     assert module.pin_mismatches(missing, DOCUMENTS)["mismatched"] == [
         "/policies/webagents-research.json"
     ]
+
+
+def test_a_documents_value_that_is_not_a_dict_is_named_as_such():
+    """T9 review 1, nit 9: a non-dict DOCUMENTS read as "defines no DOCUMENTS dict"."""
+    module = _check_release()
+    with pytest.raises(ValueError, match="DOCUMENTS must be a dict literal"):
+        module.document_pins("DOCUMENTS = [1]\n")
+    with pytest.raises(ValueError, match="defines no DOCUMENTS dict"):
+        module.document_pins("OTHER = {}\n")

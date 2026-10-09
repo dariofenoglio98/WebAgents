@@ -14,6 +14,8 @@
  * `textContent` like everything else a package wrote. A closed panel reconnects by reading the
  * stored record again (`run.list`'s `active`, `run.get`), since the run lives on the host (D-070).
  */
+import { decisiveCallFailure } from "../../core/execution/report.js";
+import type { JsonObject } from "../../core/json.js";
 import type { PresentationHints } from "../../core/presentation.js";
 import type { ArtifactChunk, ArtifactContent, AuthorizationView, InputValidationView, Request, RunListView, RunReadiness, RunSummary, RunView, SessionView } from "../messages.js";
 import { button, bytes, chip, clear, definition, el, shortHash, whenText } from "./dom.js";
@@ -88,7 +90,7 @@ export const REFUSAL_WORDS: Record<string, { title: string; detail: string }> = 
 export const MODEL_FAILURE_WORDS: Record<string, { title: string; detail: string }> = {
   model_output_not_conforming: {
     title: "The model's answer did not match the package's format",
-    detail: "The model answered, but not in the shape the package requires, so the runtime refused the answer rather than accept or repair it. Hosted models are asked for the format, not forced into it, so this varies from run to run: running again usually works; a model that follows formats more reliably also helps.",
+    detail: "The model answered, but not in the shape the package requires, so the runtime refused the answer rather than accept or repair it. Where the provider can enforce the format (OpenAI's strict mode) the runtime asks it to; otherwise the format is requested and checked, and an answer that misses it is asked for once more when the step's budget allows. Running again usually works; in Settings → Models a higher reasoning effort, or a model that follows formats more reliably, also helps.",
   },
   model_output_truncated: {
     title: "The model ran out of output tokens",
@@ -108,10 +110,16 @@ function fieldOf(location: unknown): string | null {
   return names.length > 0 ? names.join(".").replace(/\.\[\]/gu, "[]") : null;
 }
 
+/** The call failure that decided the run (`decisiveCallFailure`, as the record's `failure.call`), when it is the kind asked for. */
+function decisiveEvent(audit: unknown, action: string): Record<string, unknown> | null {
+  const events = Array.isArray(audit) ? audit : audit && typeof audit === "object" && Array.isArray((audit as { events?: unknown }).events) ? (audit as { events: unknown[] }).events : [];
+  const decisive = decisiveCallFailure(events.filter((item): item is JsonObject => Boolean(item) && typeof item === "object" && !Array.isArray(item)));
+  return decisive !== null && decisive.action === action ? decisive : null;
+}
+
 /** The failed model call's facts, from the run's audit: how it ended and where the answer broke the schema. */
 export function modelFailureFigures(audit: unknown): string | null {
-  const events = Array.isArray(audit) ? audit : audit && typeof audit === "object" && Array.isArray((audit as { events?: unknown }).events) ? (audit as { events: unknown[] }).events : [];
-  const event = events.find((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object" && (item as { action?: unknown }).action === "model.failed");
+  const event = decisiveEvent(audit, "model.failed");
   const facts = event && typeof event.failure_facts === "object" && event.failure_facts !== null ? (event.failure_facts as Record<string, unknown>) : null;
   if (!event || !facts) return null;
   const out = typeof facts.reported_output_tokens === "number" ? facts.reported_output_tokens.toLocaleString("en-US") : null;
@@ -124,13 +132,22 @@ export function modelFailureFigures(audit: unknown): string | null {
     where = `It broke the schema's “${String(facts.schema_keyword ?? "?")}” rule${field ? ` at ${field}` : ""}${count !== null && count > 1 ? ` (${count} violations in all)` : ""}.`;
   } else if (facts.output_failure === "not_json") where = "It was not a single JSON document.";
   else if (facts.output_failure === "no_text") where = "It contained no text.";
-  return [ended, where].filter(Boolean).join(" ") || null;
+  return [ended, where, attemptsOf(audit, event)].filter(Boolean).join(" ") || null;
+}
+
+/** How many times the failed call was asked (D-115), or why it was not asked again (D-124), from the audit. */
+function attemptsOf(audit: unknown, failed: Record<string, unknown>): string | null {
+  const events = (Array.isArray(audit) ? audit : audit && typeof audit === "object" && Array.isArray((audit as { events?: unknown }).events) ? (audit as { events: unknown[] }).events : []) as Array<Record<string, unknown>>;
+  const same = (event: Record<string, unknown>) => Boolean(event) && event.worker === failed.worker && event.node_id === failed.node_id;
+  if (events.some((event) => same(event) && event.action === "model.called" && event.attempt === 2)) return "The runtime asked once more with the same request, and the second answer did not match either.";
+  const skipped = events.find((event) => same(event) && event.action === "model.retry_skipped");
+  if (skipped) return "It was not asked again: a second request would not have fit the step's token budget.";
+  return null;
 }
 
 /** The refused call's numbers, from the run's audit: what was reserved against which bound. */
 export function refusalFigures(audit: unknown): string | null {
-  const events = Array.isArray(audit) ? audit : audit && typeof audit === "object" && Array.isArray((audit as { events?: unknown }).events) ? (audit as { events: unknown[] }).events : [];
-  const event = events.find((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object" && (item as { action?: unknown }).action === "model.refused");
+  const event = decisiveEvent(audit, "model.refused");
   if (!event) return null;
   const n = (value: unknown) => (typeof value === "number" && Number.isFinite(value) ? value.toLocaleString("en-US") : null);
   const reserved = n(event.reserved_tokens);

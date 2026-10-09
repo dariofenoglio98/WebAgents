@@ -100,6 +100,23 @@ export function costSummary(audit: readonly JsonObject[]): JsonObject {
   };
 }
 
+/**
+ * The call failure that decided a run: the first failed model or tool call, or refused model call,
+ * **that its own retry did not follow** (D-115). A `model.failed` followed by `model.called` with
+ * `attempt: 2` for the same worker and node was recovered from or superseded by that attempt, so it
+ * is skipped (T9 review 1, finding 1). Without a retry this is the first failed call, as the
+ * reference's `failure_summary` reads it.
+ */
+export function decisiveCallFailure(audit: readonly JsonObject[]): JsonObject | null {
+  for (let index = 0; index < audit.length; index += 1) {
+    const event = audit[index]!;
+    if (!["model.failed", "tool.failed", "model.refused"].includes(String(event.action))) continue;
+    const retried = event.action === "model.failed" && audit.slice(index + 1).some((later) => later.action === "model.called" && later.attempt === 2 && later.worker === event.worker && later.node_id === event.node_id);
+    if (!retried) return event;
+  }
+  return null;
+}
+
 /** Where a run stopped and which declared check or call refused it: pointers, identifiers and codes only. */
 export function failureSummary(audit: readonly JsonObject[]): JsonObject | null {
   const failed = audit.filter((event) => event.action === "node.failed");
@@ -110,7 +127,7 @@ export function failureSummary(audit: readonly JsonObject[]): JsonObject | null 
   const slash = node.indexOf("/");
   const top = slash >= 0 ? node.slice(0, slash) : node;
   const step = slash >= 0 ? node.slice(slash + 1) : "";
-  const call = audit.find((item) => ["model.failed", "tool.failed", "model.refused"].includes(String(item.action))) ?? null;
+  const call = decisiveCallFailure(audit);
   return {
     node_id: top || null,
     step_id: step || null,

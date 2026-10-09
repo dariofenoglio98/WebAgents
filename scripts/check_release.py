@@ -193,7 +193,7 @@ def document_pins(source: str) -> dict[str, str]:
     for node in ast.parse(source).body:
         if isinstance(node, ast.Assign) and any(isinstance(t, ast.Name) and t.id == "DOCUMENTS" for t in node.targets):
             if not isinstance(node.value, ast.Dict):
-                break
+                raise ValueError("server.py DOCUMENTS must be a dict literal")
             pins = {}
             for key, value in zip(node.value.keys, node.value.values):
                 if not (isinstance(key, ast.Constant) and isinstance(value, ast.Tuple) and len(value.elts) == 2):
