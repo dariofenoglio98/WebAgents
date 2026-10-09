@@ -389,7 +389,9 @@ Design rationale: [docs/architecture.md](docs/architecture.md). Threat model:
   ([`spec/extensions/`](spec/extensions/)): results are metadata and every package is verified when
   opened; a policy trusts the publishers it anchors after the person's own pins, pre-decides within
   the chosen profile and the person's preset, and labels every decision it made (recorded in a real
-  Chrome: [`chrome-search-policy-e2e.json`](examples/verification/chrome-search-policy-e2e.json)).
+  Chrome: [`chrome-search-policy-e2e.json`](examples/verification/chrome-search-policy-e2e.json);
+  over demo index 1.1.0, which lists Literature Review 0.2.6 and WebAir 0.5.0:
+  [`chrome-search-policy-e2e-index-110.json`](examples/verification/chrome-search-policy-e2e-index-110.json)).
   NANDA resolution is a stub with the mapping defined.
 
 **Experimental** (works on the development host, but limited or lightly exercised):

@@ -235,8 +235,9 @@ Meeting Agenda uses no tools and no network apart from the model.
 
 The Agent Browser also opens packages from HTTPS URLs. It accepts only HTTPS, no redirects and
 no private-network destinations, and bounds the download size. [`package-origin/`](../package-origin/)
-is a minimal static origin that serves `literature-review-0.2.5.agent.pkg` and checks its SHA-256 at
-startup:
+is a minimal static origin that serves `literature-review-0.2.5.agent.pkg` (and, at
+`/packages/literature-review-0.2.6.agent.pkg`, the 0.2.6 that the demo index lists) and checks each
+SHA-256 at startup:
 
 ```sh
 PORT=8080 python3 package-origin/server.py      # plain HTTP; deploy behind TLS (see its Dockerfile)

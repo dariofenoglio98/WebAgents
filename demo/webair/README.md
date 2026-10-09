@@ -569,19 +569,23 @@ cmp /tmp/public.agent.pkg dist/webair-0.5.0.agent.pkg && \
 **WebAgents demo documents (T8).** The Chrome Agent Browser's search and policy subscription need
 a public home for the signed demo index, the signed example research policy and the Literature
 Review package the index lists. They do not belong to the airline; they are served here because this
-is the demo deployment that exists. `origin/demo_documents.py` reads exactly three files from the
+is the demo deployment that exists. `origin/demo_documents.py` reads exactly four files from the
 directory named by `--demo-documents` (`$WEBAIR_DEMO_DOCUMENTS`) once at startup and serves each at
 one fixed path: `/agent-index.json`, `/policies/webagents-research.json`,
-`/packages/literature-review-0.2.5.agent.pkg`. The bundle carries them under `demo/`, byte for byte
-from `examples/` and `dist/`; without the option the paths answer 404. After a redeploy:
+`/packages/literature-review-0.2.6.agent.pkg` (the package index 1.1.0 lists, T11) and
+`/packages/literature-review-0.2.5.agent.pkg` (the one index 1.0.0 listed, kept so its URL still
+resolves). The bundle carries them under `demo/`, byte for byte from `examples/` and `dist/`; without
+the option the paths answer 404. Index 1.1.0 names WebAir 0.5.0, so it is deployed in the same bundle
+as `dist/webair-0.5.0.agent.pkg`. After a redeploy:
 
 ```sh
 for path in agent-index.json policies/webagents-research.json; do
   curl -sS "https://webagents-webair-production.up.railway.app/$path" | cmp - "examples/$path"; done
 node chrome-agent-browser/dist/cli.js document verify --type agent-index \
   --key examples/keys/webagents-index.pub.pem examples/agent-index.json
-curl -sS https://webagents-webair-production.up.railway.app/packages/literature-review-0.2.5.agent.pkg \
-  | cmp - dist/literature-review-0.2.5.agent.pkg
+for version in 0.2.6 0.2.5; do
+  curl -sS "https://webagents-webair-production.up.railway.app/packages/literature-review-$version.agent.pkg" \
+    | cmp - "dist/literature-review-$version.agent.pkg"; done
 ```
 
 To reproduce it in another Railway account: create a service, set `PORT=8080`, generate a domain
