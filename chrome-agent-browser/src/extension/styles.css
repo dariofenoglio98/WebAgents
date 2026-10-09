@@ -98,7 +98,7 @@ a { color: var(--ab-accent); }
 .ab-session-row { padding: 6px 0; }
 
 @media (max-width: 700px) {
-  .ab-shell { grid-template-columns: 1fr; }
+  .ab-shell { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
   .ab-nav { flex-direction: row; flex-wrap: wrap; align-items: center; border-right: 0; border-bottom: 1px solid var(--ab-border); }
   .ab-brand { padding-bottom: 6px; width: 100%; }
 }
