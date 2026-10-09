@@ -17,7 +17,7 @@ import { describe, expect, it } from "vitest";
 import type { HttpTransport } from "../../src/core/models/transport.js";
 import type { AuthorizationView, AuthorizeResult, ProbeView, Request, RunSummary, RunView, SessionView, SettingsView } from "../../src/extension/messages.js";
 import { buildFormModel, descriptionAdds, hintsFrom, TaskForm } from "../../src/extension/ui/form.js";
-import { formatElapsed, refusalFigures, renderRunList, RunPanel, stagesFor } from "../../src/extension/ui/run.js";
+import { formatElapsed, modelFailureFigures, refusalFigures, renderRunList, RunPanel, stagesFor } from "../../src/extension/ui/run.js";
 import { newSettingsPageState, OLLAMA_ORIGIN_COMMANDS, renderSettingsPage } from "../../src/extension/ui/settings-page.js";
 import { writeZip } from "../../src/extension/ui/zip.js";
 import { scriptedOllama, scriptedOrigin, webairModelAnswers } from "../helpers/host.js";
@@ -409,6 +409,36 @@ describe("the run panel", () => {
     expect(banner.textContent).toContain("raise its context in Settings → Models");
     expect(banner.textContent).not.toContain("A budget limit was reached");
     expect(banner.querySelector(".ab-refusal-figures")?.textContent).toMatch(/^Reserved [\d,]+ tokens \(the request counted as [\d,]+, plus 6,000 for the answer\); the model's context is 16,000\.$/u);
+    panel.dispose();
+  });
+
+  it("modelFailureFigures says how a rejected answer ended and where it broke the schema (the Luna runs of 2026-10-09)", () => {
+    const webair = [{ action: "model.failed", task: "interpret", reason: "model_output_not_conforming", failure_facts: { stop_reason: "stop", reported_input_tokens: 2442, reported_output_tokens: 60, output_failure: "schema", schema_keyword: "pattern", schema_location: "$defs/s27/properties/search/properties/date/pattern", schema_violations: 1 } }];
+    expect(modelFailureFigures(webair)).toBe("The answer was complete (it stopped normally after 60 output tokens): this is not a token limit. It broke the schema's “pattern” rule at search.date.");
+    const review = { events: [{ action: "model.failed", task: "normalize", reason: "model_output_not_conforming", failure_facts: { stop_reason: "stop", reported_output_tokens: 8965, output_failure: "schema", schema_keyword: "required", schema_location: "$defs/s15/required", schema_violations: 8 } }] };
+    expect(modelFailureFigures(review)).toBe("The answer was complete (it stopped normally after 8,965 output tokens): this is not a token limit. It broke the schema's “required” rule (8 violations in all).");
+    expect(modelFailureFigures([{ action: "model.failed", reason: "model_output_truncated", failure_facts: { stop_reason: "length", reported_output_tokens: 6000 } }])).toBe("It stopped at its output limit after 6,000 output tokens.");
+    expect(modelFailureFigures([{ action: "model.failed", reason: "model_output_not_conforming", failure_facts: { stop_reason: "stop", output_failure: "not_json" } }])).toBe("The answer was complete (it stopped normally): this is not a token limit. It was not a single JSON document.");
+    expect(modelFailureFigures([{ action: "model.called" }])).toBeNull();
+  });
+
+  it("a run whose model answer broke the package's schema says so on the panel, with the field (T9)", async () => {
+    // The scripted model answers interpret with a date that breaks the plan schema's pattern.
+    const answers = webairModelAnswers();
+    const interpret = answers.interpret!;
+    const h = makeHarness({ transports: { model: scriptedOllama({ ...answers, interpret: (user, system) => { const plan = interpret(user, system) as { search: Record<string, unknown> }; return { ...plan, search: { ...plan.search, date: "9 October 2026" } }; } }).transport, tool: scriptedOrigin().transport } });
+    const session = await openWebair(h);
+    const result = (await h.controller.handle({ type: "authorization.useProfile", sessionId: session.session.id, packageDigest: SHIPPED.webair040.digest, profileId: "search", resourceSelections: {}, prepare: true }, PAGE)) as AuthorizeResult;
+    const plan = result.run_plan!.run_plan;
+    await h.controller.handle({ type: "run.start", sessionId: session.session.id, runPlanId: plan.run_plan_id, runPlanSha256: plan.run_plan_sha256, input: { request: SEARCH_TEXT, booking: false, purchase: { quote_id: "", fare_id: "" } } }, PAGE);
+    await h.h_drain();
+    const { panel, settle } = mountPanel(h, session);
+    await panel.attachSession(session.session.id);
+    await settle(200);
+    const banner = panel.root.querySelector(".ab-outcome .ab-banner")!;
+    expect(banner.querySelector("strong")?.textContent).toBe("The model's answer did not match the package's format");
+    expect(banner.textContent).toContain("model_error");
+    expect(banner.querySelector(".ab-refusal-figures")?.textContent).toMatch(/this is not a token limit\. It broke the schema's “pattern” rule at search\.date\.$/u);
     panel.dispose();
   });
 

@@ -84,6 +84,49 @@ export const REFUSAL_WORDS: Record<string, { title: string; detail: string }> = 
   },
 };
 
+/** A model answer the router did not accept, by reason (`model.failed`), in words a person can act on (T9). */
+export const MODEL_FAILURE_WORDS: Record<string, { title: string; detail: string }> = {
+  model_output_not_conforming: {
+    title: "The model's answer did not match the package's format",
+    detail: "The model answered, but not in the shape the package requires, so the runtime refused the answer rather than accept or repair it. Hosted models are asked for the format, not forced into it, so this varies from run to run: running again usually works; a model that follows formats more reliably also helps.",
+  },
+  model_output_truncated: {
+    title: "The model ran out of output tokens",
+    detail: "The model stopped at the step's output limit before its answer was complete. The limit is the package's per-step cap, or a lower one in Settings → Policies → Run limits (\"Output tokens per model call\").",
+  },
+};
+
+/** A schema location as a person reads it: `$defs/s27/properties/search/properties/date/pattern` → `search.date`. */
+function fieldOf(location: unknown): string | null {
+  if (typeof location !== "string") return null;
+  const parts = location.split("/").filter((part) => part !== "" && part !== "#");
+  const names: string[] = [];
+  for (let index = 0; index < parts.length; index += 1) {
+    if (parts[index] === "properties" && index + 1 < parts.length) names.push(parts[(index += 1)]!);
+    else if (parts[index] === "items") names.push("[]");
+  }
+  return names.length > 0 ? names.join(".").replace(/\.\[\]/gu, "[]") : null;
+}
+
+/** The failed model call's facts, from the run's audit: how it ended and where the answer broke the schema. */
+export function modelFailureFigures(audit: unknown): string | null {
+  const events = Array.isArray(audit) ? audit : audit && typeof audit === "object" && Array.isArray((audit as { events?: unknown }).events) ? (audit as { events: unknown[] }).events : [];
+  const event = events.find((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object" && (item as { action?: unknown }).action === "model.failed");
+  const facts = event && typeof event.failure_facts === "object" && event.failure_facts !== null ? (event.failure_facts as Record<string, unknown>) : null;
+  if (!event || !facts) return null;
+  const out = typeof facts.reported_output_tokens === "number" ? facts.reported_output_tokens.toLocaleString("en-US") : null;
+  if (event.reason === "model_output_truncated") return `It stopped at its output limit${out !== null ? ` after ${out} output tokens` : ""}.`;
+  const ended = facts.stop_reason === "stop" ? `The answer was complete (it stopped normally${out !== null ? ` after ${out} output tokens` : ""}): this is not a token limit.` : null;
+  let where: string | null = null;
+  if (facts.output_failure === "schema") {
+    const field = fieldOf(facts.schema_location);
+    const count = typeof facts.schema_violations === "number" ? facts.schema_violations : null;
+    where = `It broke the schema's “${String(facts.schema_keyword ?? "?")}” rule${field ? ` at ${field}` : ""}${count !== null && count > 1 ? ` (${count} violations in all)` : ""}.`;
+  } else if (facts.output_failure === "not_json") where = "It was not a single JSON document.";
+  else if (facts.output_failure === "no_text") where = "It contained no text.";
+  return [ended, where].filter(Boolean).join(" ") || null;
+}
+
 /** The refused call's numbers, from the run's audit: what was reserved against which bound. */
 export function refusalFigures(audit: unknown): string | null {
   const events = Array.isArray(audit) ? audit : audit && typeof audit === "object" && Array.isArray((audit as { events?: unknown }).events) ? (audit as { events: unknown[] }).events : [];
@@ -652,12 +695,13 @@ export class RunPanel {
     this.renderRun();
   }
 
-  /** A refused model call's figures, read from the run's verified audit (it is often larger than the inline view). */
+  /** A refused or failed model call's figures, read from the run's verified audit (it is often larger than the inline view). */
   private async loadRefusal(record: RunView): Promise<void> {
-    if (record.failure?.call?.action !== "model.refused" || !record.artifacts.some((item) => item.name === "audit.json")) return;
+    const action = record.failure?.call?.action;
+    if ((action !== "model.refused" && action !== "model.failed") || !record.artifacts.some((item) => item.name === "audit.json")) return;
     try {
       const audit = JSON.parse(await (await this.artifactBytes(record, "audit.json")).text()) as unknown;
-      if (this.run?.runId === record.runId) this.refusal = { runId: record.runId, figures: refusalFigures(audit) };
+      if (this.run?.runId === record.runId) this.refusal = { runId: record.runId, figures: action === "model.refused" ? refusalFigures(audit) : modelFailureFigures(audit) };
     } catch {
       // The wording stands without the numbers.
     }
@@ -1133,7 +1177,7 @@ export class RunPanel {
       node.append(el("div", { className: "ab-banner ab-banner-good ab-receipt-ok" }, el("strong", { text: `✓ ${presentation?.task.completed_label ?? "Run completed"}` }), el("p", { text: `Finished in ${formatElapsed(this.elapsedMs(record))}. Every result below was checked by the package's own validations before it was accepted.` })));
     } else {
       const failure = record.failure ?? null;
-      const refusal = failure?.call?.action === "model.refused" ? (REFUSAL_WORDS[failure.call.reason ?? ""] ?? null) : null;
+      const refusal = failure?.call?.action === "model.refused" ? (REFUSAL_WORDS[failure.call.reason ?? ""] ?? null) : failure?.call?.action === "model.failed" ? (MODEL_FAILURE_WORDS[failure.call.reason ?? ""] ?? null) : null;
       const known = refusal ?? RUN_ERRORS[record.errorCode ?? ""] ?? RUN_ERRORS[record.status] ?? null;
       const where = failure?.nodeId ? `Stopped at ${this.nodeWhere(record, failure.nodeId)}${failure.stepId ? ` / ${failure.stepId}` : ""}.` : null;
       const check = failure?.failedCheck && typeof failure.failedCheck === "object" ? Object.entries(failure.failedCheck as Record<string, unknown>).map(([key, value]) => `${key}=${typeof value === "object" ? JSON.stringify(value) : String(value)}`).join(" · ") : null;
