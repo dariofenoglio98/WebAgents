@@ -20,7 +20,7 @@ import type { JsonValue } from "../../json.js";
 import { AdapterError } from "../../workflow/errors.js";
 import type { RenderedRequest } from "../render.js";
 import type { ProviderAdapter, ProviderCompletion } from "../router.js";
-import { openAiConstraint, RESPONSE_FORMAT_NAME, type ConstraintDecoding } from "../schema-format.js";
+import { openAiConstraint, RESPONSE_FORMAT_NAME, type ConstraintDecoding, type OpenAiConstraint } from "../schema-format.js";
 import type { ModelPricing } from "../usage.js";
 import { checkCredential, isRecord, postJson, providerBaseUrl, providerError, type ProviderHttpOptions } from "./shared.js";
 
@@ -29,6 +29,8 @@ export const OPENAI_REASONING_EFFORTS = ["low", "medium", "high"] as const;
 export type OpenAIReasoningEffort = (typeof OPENAI_REASONING_EFFORTS)[number];
 /** D-123: `medium` gave Literature Review's copy-heavy steps their full coverage where `low` shortcut them (T10). */
 export const DEFAULT_OPENAI_REASONING_EFFORT: OpenAIReasoningEffort = "medium";
+/** How many node schemas one adapter keeps the constraint of; a package declares a few dozen at most. */
+const MAX_HELD_CONSTRAINTS = 64;
 
 export interface OpenAIAdapterOptions extends ProviderHttpOptions {
   model: string;
@@ -56,6 +58,8 @@ export class OpenAIAdapter implements ProviderAdapter {
   private readonly key: string;
   /** Strict copies OpenAI refused, by their exact text, with OpenAI's message: sent non-strict from then on. */
   private readonly refusedStrict = new Map<string, string | null>();
+  /** The constraint per package schema text, computed once per adapter (a run asks the same node schemas again and again). */
+  private readonly constraints = new Map<string, { constraint: OpenAiConstraint; strictKey: string | null }>();
 
   constructor(private readonly options: OpenAIAdapterOptions) {
     this.model_id = options.model;
@@ -69,8 +73,20 @@ export class OpenAIAdapter implements ProviderAdapter {
     if (this.reasoning) this.reasoning_effort = options.reasoningEffort ?? DEFAULT_OPENAI_REASONING_EFFORT;
   }
 
+  private constraintFor(schema: JsonValue): { constraint: OpenAiConstraint; strictKey: string | null } {
+    const text = JSON.stringify(schema);
+    let held = this.constraints.get(text);
+    if (held === undefined) {
+      const constraint = openAiConstraint(schema);
+      held = { constraint, strictKey: constraint.strict !== null ? JSON.stringify(constraint.strict) : null };
+      if (this.constraints.size >= MAX_HELD_CONSTRAINTS) this.constraints.delete(this.constraints.keys().next().value!);
+      this.constraints.set(text, held);
+    }
+    return held;
+  }
+
   async complete(rendered: RenderedRequest, maxOutputTokens: number, signal: AbortSignal): Promise<ProviderCompletion> {
-    const constraint = openAiConstraint(rendered.output_schema);
+    const { constraint, strictKey } = this.constraintFor(rendered.output_schema);
     const bodyWith = (format: JsonValue | null): Record<string, JsonValue> => {
       const body: Record<string, JsonValue> = {
         model: this.model_id,
@@ -87,7 +103,6 @@ export class OpenAIAdapter implements ProviderAdapter {
       postJson(this.options, { provider_id: this.provider_id, model_id: this.model_id, url: `${this.baseUrl}/v1/responses`, headers: { authorization: `Bearer ${this.key}` }, body, signal });
     const strictFormat = constraint.strict !== null ? { type: "json_schema", name: RESPONSE_FORMAT_NAME, schema: constraint.strict, strict: true } : null;
     const nonStrictFormat = constraint.nonStrict !== null ? { type: "json_schema", name: RESPONSE_FORMAT_NAME, schema: constraint.nonStrict, strict: false } : null;
-    const strictKey = constraint.strict !== null ? JSON.stringify(constraint.strict) : null;
     type Mode = "strict" | "non_strict" | "non_strict_after_refusal" | "none_after_refusal" | "none";
     const afterRefusal = (): Mode => (nonStrictFormat !== null ? "non_strict_after_refusal" : "none_after_refusal");
     let mode: Mode = strictFormat !== null ? "strict" : nonStrictFormat !== null ? "non_strict" : "none";

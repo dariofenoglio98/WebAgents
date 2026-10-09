@@ -110,10 +110,15 @@ function fieldOf(location: unknown): string | null {
   return names.length > 0 ? names.join(".").replace(/\.\[\]/gu, "[]") : null;
 }
 
+/** The run's audit events (the record's `audit.events`, or a bare list), objects only. */
+function auditEvents(audit: unknown): JsonObject[] {
+  const events = Array.isArray(audit) ? audit : audit && typeof audit === "object" && Array.isArray((audit as { events?: unknown }).events) ? (audit as { events: unknown[] }).events : [];
+  return events.filter((item): item is JsonObject => Boolean(item) && typeof item === "object" && !Array.isArray(item));
+}
+
 /** The call failure that decided the run (`decisiveCallFailure`, as the record's `failure.call`), when it is the kind asked for. */
 function decisiveEvent(audit: unknown, action: string): Record<string, unknown> | null {
-  const events = Array.isArray(audit) ? audit : audit && typeof audit === "object" && Array.isArray((audit as { events?: unknown }).events) ? (audit as { events: unknown[] }).events : [];
-  const decisive = decisiveCallFailure(events.filter((item): item is JsonObject => Boolean(item) && typeof item === "object" && !Array.isArray(item)));
+  const decisive = decisiveCallFailure(auditEvents(audit));
   return decisive !== null && decisive.action === action ? decisive : null;
 }
 
@@ -135,13 +140,28 @@ export function modelFailureFigures(audit: unknown): string | null {
   return [ended, where, attemptsOf(audit, event)].filter(Boolean).join(" ") || null;
 }
 
+/**
+ * The limit a skipped retry would have passed (`model.retry_skipped`'s `bound`, D-124), as a person
+ * names it; the token budgets read as `REFUSAL_WORDS` titles them (T10 review 1, finding 2).
+ */
+export const RETRY_BOUND_WORDS: Record<string, string> = {
+  global_token_budget: "the run's token budget",
+  worker_token_budget: "the step's token budget",
+  approval_threshold: "the token amount above which the run would need your approval",
+  global_remote_calls: "the run's limit on remote model calls",
+  worker_remote_calls: "the step's limit on remote model calls",
+};
+
 /** How many times the failed call was asked (D-115), or why it was not asked again (D-124), from the audit. */
 function attemptsOf(audit: unknown, failed: Record<string, unknown>): string | null {
-  const events = (Array.isArray(audit) ? audit : audit && typeof audit === "object" && Array.isArray((audit as { events?: unknown }).events) ? (audit as { events: unknown[] }).events : []) as Array<Record<string, unknown>>;
-  const same = (event: Record<string, unknown>) => Boolean(event) && event.worker === failed.worker && event.node_id === failed.node_id;
+  const events = auditEvents(audit);
+  const same = (event: JsonObject) => event.worker === failed.worker && event.node_id === failed.node_id;
   if (events.some((event) => same(event) && event.action === "model.called" && event.attempt === 2)) return "The runtime asked once more with the same request, and the second answer did not match either.";
   const skipped = events.find((event) => same(event) && event.action === "model.retry_skipped");
-  if (skipped) return "It was not asked again: a second request would not have fit the step's token budget.";
+  if (skipped) {
+    const limit = typeof skipped.bound === "string" && Object.hasOwn(RETRY_BOUND_WORDS, skipped.bound) ? RETRY_BOUND_WORDS[skipped.bound] : "one of the run's limits";
+    return `It was not asked again: a second request would have passed ${limit}.`;
+  }
   return null;
 }
 

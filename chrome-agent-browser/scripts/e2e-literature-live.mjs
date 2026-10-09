@@ -119,7 +119,14 @@ if (keyEnv && !process.env[keyEnv]) {
 const startedAt = new Date();
 const stamp = startedAt.toISOString().replace(/[:.]/gu, "-");
 const outDir = args.outDir ?? join(ROOT, "examples", `my-chrome-lit-${stamp}`);
-mkdirSync(outDir, { recursive: true });
+// A manual walk-through writes no run files (T10 review 1, nit 3).
+if (!args.manual) mkdirSync(outDir, { recursive: true });
+// The effort a run gets when none is chosen, read from the adapter's own constant (T10 review 1, nit 8).
+const DEFAULT_EFFORT = /export const DEFAULT_OPENAI_REASONING_EFFORT: OpenAIReasoningEffort = "(\w+)";/u.exec(readFileSync(join(PROJECT, "src", "core", "models", "adapters", "openai.ts"), "utf8"))?.[1];
+if (!DEFAULT_EFFORT) {
+  console.error("DEFAULT_OPENAI_REASONING_EFFORT not found in src/core/models/adapters/openai.ts");
+  process.exit(2);
+}
 const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const log = (text) => process.stderr.write(`[${Math.round((Date.now() - startedAt.getTime()) / 1000)}s] ${text}\n`);
 
@@ -129,7 +136,7 @@ const report = {
   model: args.model,
   think: args.think,
   contextTokens: args.contextTokens,
-  reasoningEffort: provider === "openai" ? (args.effort ?? "medium (default)") : null,
+  reasoningEffort: provider === "openai" ? (args.effort ?? `${DEFAULT_EFFORT} (default)`) : null,
   package: { path: relative(ROOT, PACKAGE), archiveSha256: sha256(readFileSync(PACKAGE)), servedAs: PACKAGE_URL },
   input: relative(ROOT, args.input),
   documents: args.documents.map((item) => ({ doi: item.doi, file: basename(item.path), sha256: sha256(readFileSync(item.path)) })),
@@ -363,10 +370,11 @@ async function main() {
     }
     served?.server.close();
     if (!args.keep) rmSync(scratch, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
-  }
-  if (args.manual) {
-    if (report.failures.length > 0) console.error(report.failures.join("\n"));
-    process.exit(report.failures.length > 0 ? 1 : 0);
+    // A manual walk-through ends here on every path, its window closed or a setup check failed (T10 review 1, nit 3).
+    if (args.manual) {
+      if (report.failures.length > 0) console.error(report.failures.join("\n"));
+      process.exit(report.failures.length > 0 ? 1 : 0);
+    }
   }
   report.passed = report.failures.length === 0;
   const text = `${JSON.stringify(report, null, 2)}\n`;

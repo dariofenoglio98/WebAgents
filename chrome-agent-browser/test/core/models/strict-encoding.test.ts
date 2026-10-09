@@ -146,6 +146,55 @@ describe("reading an answer back (D-121, D-122)", () => {
     expect(decodeConstrained({ a: null }, single, { envelope: false, optional_nulls: true }).value).toEqual({});
   });
 
+  it("a schema whose forced null the decoder could not read back keeps the non-strict request (T10 review 1, finding 1; D-132)", async () => {
+    // Two object branches with optional properties: a strict copy would force `a: null` into an
+    // answer that the decoder, finding two matching branches, leaves for validation to refuse.
+    const ambiguous: JsonObject = {
+      type: "object",
+      additionalProperties: false,
+      required: ["pick"],
+      properties: {
+        pick: {
+          anyOf: [
+            { type: "object", additionalProperties: false, required: ["kind"], properties: { kind: { const: "a" }, a: { type: "string" } } },
+            { type: "object", additionalProperties: false, required: ["kind"], properties: { kind: { const: "b" }, b: { type: "string" } } },
+          ],
+        },
+      },
+    };
+    const forced = { pick: { kind: "a", a: null, b: null } };
+    expect(decodeConstrained(forced, ambiguous, { envelope: false, optional_nulls: true }).value).toEqual(forced);
+    expect((await failuresForSchema(ambiguous, forced, "x")).length).toBeGreaterThan(0);
+    const constraint = openAiConstraint(ambiguous);
+    expect(constraint).toMatchObject({ strict: null, encodedOptional: false });
+    expect(constraint.nonStrict).not.toBeNull();
+    // The same through a reference, and with an untyped branch (it matches every type).
+    const viaRef: JsonObject = { $ref: "#/$defs/r", $defs: { r: { type: "object", additionalProperties: false, required: ["pick"], properties: { pick: { anyOf: [{ $ref: "#/$defs/o" }, { enum: ["none"] }] } } }, o: { type: "object", additionalProperties: false, required: [], properties: { note: { type: "string" } } } } };
+    expect(openAiConstraint(viaRef).strict).toBeNull();
+    // An integer branch and a number branch both match an integer value.
+    const numeric: JsonObject = { type: "object", additionalProperties: false, required: ["v"], properties: { v: { anyOf: [{ type: "integer" }, { type: "number" }] }, note: { type: "string" } } };
+    expect(openAiConstraint(numeric).strict).not.toBeNull(); // no optional beneath the anyOf: decodable
+  });
+
+  it("an anyOf whose branches differ by type, or that holds nothing encoded, stays strict and decodes", async () => {
+    const distinct: JsonObject = {
+      type: "object",
+      additionalProperties: false,
+      required: ["pick"],
+      properties: { pick: { anyOf: [{ type: "string" }, { type: "object", additionalProperties: false, required: ["kind"], properties: { kind: { type: "string" }, note: { type: "string" } } }] } },
+    };
+    const constraint = openAiConstraint(distinct);
+    expect(constraint).toMatchObject({ encodedOptional: true });
+    expect(constraint.strict).not.toBeNull();
+    const decoded = decodeConstrained({ pick: { kind: "k", note: null } }, distinct, { envelope: false, optional_nulls: true }).value;
+    expect(decoded).toEqual({ pick: { kind: "k" } });
+    expect(await failuresForSchema(distinct, decoded, "x")).toEqual([]);
+    // Two object branches with every property required: nothing is forced, so nothing to read back.
+    const closed: JsonObject = { type: "object", additionalProperties: false, required: ["pick"], properties: { pick: { anyOf: [{ type: "object", additionalProperties: false, required: ["a"], properties: { a: { type: "string" } } }, { type: "object", additionalProperties: false, required: ["b"], properties: { b: { type: "string" } } }] } } };
+    expect(openAiConstraint(closed)).toMatchObject({ encodedOptional: false });
+    expect(openAiConstraint(closed).strict).not.toBeNull();
+  });
+
   it("does nothing when the request encoded nothing", () => {
     const answer = { title: "T", venue: null, provenance: [] };
     expect(decodeConstrained(answer, PAPER, { envelope: false, optional_nulls: false })).toEqual({ value: answer, unwrapped: false, nullsDropped: 0 });

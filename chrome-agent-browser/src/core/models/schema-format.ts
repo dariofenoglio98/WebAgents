@@ -118,13 +118,15 @@ function strictShape(value: JsonValue, inProperties = false): boolean {
   return Object.entries(value).every(([key, child]) => strictShape(child, key === "properties" || key === "$defs"));
 }
 
-const LOCAL_REF = /^#\/\$defs\/([^/]+)$/u;
-
-/** Follow local `#/$defs/<name>` references against the document root (bounded). */
+/**
+ * Follow local `#/$defs/<name>` references against the document root (bounded). Unlike
+ * `inlineRootRef`, which rewrites a document's root once and keeps its sibling keys, this reads
+ * the schema a reference stands for, wherever it occurs.
+ */
 function resolveLocal(schema: JsonValue, root: JsonValue): JsonValue {
   let current = schema;
   for (let hops = 0; hops < 32 && isJsonObject(current) && typeof current.$ref === "string"; hops += 1) {
-    const name = LOCAL_REF.exec(current.$ref)?.[1];
+    const name = LOCAL_DEFS_REF.exec(current.$ref)?.[1];
     const defs = isJsonObject(root) ? root.$defs : undefined;
     if (!name || !isJsonObject(defs) || !Object.hasOwn(defs, name)) return current;
     current = defs[name]!;
@@ -181,6 +183,61 @@ function encodeOptional(value: JsonValue, root: JsonValue): { schema: JsonValue;
   return { schema: walk(value), encoded };
 }
 
+/** The JSON types a schema admits, `integer` read as `number` (an integer value matches both); null for "any". */
+function admittedTypes(schema: JsonValue): Set<string> | null {
+  if (!isJsonObject(schema) || schema.type === undefined) return null;
+  const types = Array.isArray(schema.type) ? schema.type : [schema.type];
+  return new Set(types.map((type) => (type === "integer" ? "number" : String(type))));
+}
+
+/** Whether some value's JSON type matches both schemas, as `typeMatches` reads them. */
+function typesOverlap(a: JsonValue, b: JsonValue): boolean {
+  const left = admittedTypes(a);
+  const right = admittedTypes(b);
+  return left === null || right === null || [...left].some((type) => right.has(type));
+}
+
+/** Whether a schema, followed through local references, `properties`, `items` and `anyOf`, holds an optional property the strict copy would encode as nullable. */
+function holdsEncodedOptional(schema: JsonValue, root: JsonValue, seen = new Set<JsonValue>()): boolean {
+  const resolved = resolveLocal(schema, root);
+  if (!isJsonObject(resolved) || seen.has(resolved)) return false;
+  seen.add(resolved);
+  const children: JsonValue[] = [];
+  if (isJsonObject(resolved.properties)) {
+    const required = new Set(Array.isArray(resolved.required) ? resolved.required.map(String) : []);
+    for (const [name, sub] of Object.entries(resolved.properties)) {
+      if (!required.has(name) && !admitsNull(sub, root)) return true;
+      children.push(sub);
+    }
+  }
+  if (resolved.items !== undefined) children.push(...(Array.isArray(resolved.items) ? resolved.items : [resolved.items]));
+  if (Array.isArray(resolved.anyOf)) children.push(...resolved.anyOf);
+  return children.some((child) => holdsEncodedOptional(child, root, seen));
+}
+
+/**
+ * Whether `decodeConstrained` could meet a forced null it cannot read back (T10 review 1, finding 1;
+ * D-132): an `anyOf` anywhere in the package schema with two branches some value matches by type,
+ * one of which holds an optional property the strict copy encodes. The decoder follows an `anyOf`
+ * only when exactly one branch matches, so such a schema keeps the non-strict request.
+ */
+function ambiguousOptional(schema: JsonValue): boolean {
+  const visit = (node: JsonValue): boolean => {
+    if (Array.isArray(node)) return node.some(visit);
+    if (!isJsonObject(node)) return false;
+    if (Array.isArray(node.anyOf)) {
+      const branches = node.anyOf.map((branch) => resolveLocal(branch, schema));
+      for (let i = 0; i < branches.length; i += 1) {
+        for (let j = i + 1; j < branches.length; j += 1) {
+          if (typesOverlap(branches[i]!, branches[j]!) && (holdsEncodedOptional(branches[i]!, schema) || holdsEncodedOptional(branches[j]!, schema))) return true;
+        }
+      }
+    }
+    return Object.values(node).some(visit);
+  };
+  return visit(schema);
+}
+
 /** The key an array root is wrapped under for a provider that takes object roots only (D-122). */
 export const ENVELOPE_KEY = "items";
 
@@ -211,7 +268,8 @@ export interface OpenAiConstraint {
 
 /**
  * The OpenAI constraint for a package schema (D-115, D-121, D-122): a strict copy where the schema
- * allows one (optional properties encoded), the non-strict copy otherwise, an array root wrapped.
+ * allows one (optional properties encoded) and its answer can be read back (D-132), the non-strict
+ * copy otherwise, an array root wrapped.
  */
 export function openAiConstraint(schema: JsonValue): OpenAiConstraint {
   const wrapped = envelopeArrayRoot(schema);
@@ -222,7 +280,8 @@ export function openAiConstraint(schema: JsonValue): OpenAiConstraint {
   let encodedOptional = false;
   if (projected !== null && strictShape(projected)) {
     const encoding = encodeOptional(projected, projected);
-    if (utf8Length(JSON.stringify(encoding.schema)) <= MAX_RESPONSE_FORMAT_BYTES) {
+    const decodable = !encoding.encoded || !ambiguousOptional(schema);
+    if (decodable && utf8Length(JSON.stringify(encoding.schema)) <= MAX_RESPONSE_FORMAT_BYTES) {
       strict = encoding.schema as JsonObject;
       encodedOptional = encoding.encoded;
     }
