@@ -1,0 +1,1544 @@
+{
+  "profile": "chrome-literature-review-live-v0",
+  "recordedAt": "2026-10-09T14:00:14.373Z",
+  "model": "openai/gpt-5.6-sol",
+  "think": false,
+  "contextTokens": 128000,
+  "reasoningEffort": "medium (default)",
+  "package": {
+    "path": "dist/literature-review-0.2.6.agent.pkg",
+    "archiveSha256": "685dcc97232d278eb2a5b777dcbc621573de5c48818a95d522e647c9267ee8f1",
+    "servedAs": "https://research.example/literature-review.agent.pkg"
+  },
+  "input": "examples/literature-review-live-input-prompt-injection-recent.json",
+  "documents": [],
+  "crossrefContact": null,
+  "extension": "chrome-agent-browser/dist/extension",
+  "chrome": "Chrome/154.0.8037.99",
+  "outputDirectory": "examples/my-chrome-lit-2026-10-09T14-00-14-373Z",
+  "steps": {
+    "setup": {
+      "probe": {
+        "ok": true,
+        "models": 64,
+        "error": null
+      },
+      "testMode": true,
+      "keyFromEnvironment": "OPENAI_API_KEY",
+      "limits": {
+        "total_tokens": 180000,
+        "max_remote_calls": 45,
+        "max_parallel_workers": 3,
+        "max_output_tokens_per_call": 16000,
+        "run_timeout_seconds": 4500,
+        "max_calls_per_tool": 32,
+        "model_call_timeout_seconds": 1200
+      },
+      "the openai connection answers": "ok",
+      "the model is offered": "ok",
+      "execution is enabled under the long-run limits": "ok"
+    },
+    "files": [],
+    "inspect": {
+      "sessionId": "d7b19a1db4164498b80e70f9",
+      "name": "Literature Review Agent",
+      "version": "0.2.6",
+      "digest": "09399b953afd487ee87dcf321a32ff1e735c8d862ac662ea2c4ee1f8ef1b6e4e",
+      "signature": "valid",
+      "Literature Review 0.2.6, signed": "ok"
+    },
+    "authorization": {
+      "decisions": {
+        "files.pdfs": "session",
+        "memory.session": "session",
+        "model.reasoning": "session",
+        "network.citations": "session",
+        "network.scholarly": "session"
+      },
+      "ready": true,
+      "runPlanId": "rp_58b173cff98d430c8bc1685691af1f6f",
+      "bindings": [
+        {
+          "tool": "citation-resolver",
+          "implementation": "chrome.tool.json_http",
+          "binding_id": "chrome:json_http:citation-resolver:1",
+          "usable": true,
+          "contact": false
+        },
+        {
+          "tool": "paper-reader",
+          "implementation": "chrome.tool.selected_pdf_text",
+          "binding_id": "chrome:selected_pdf_text:paper-reader:1",
+          "usable": true,
+          "contact": false
+        },
+        {
+          "tool": "scholarly-search",
+          "implementation": "chrome.tool.crossref_works_search",
+          "binding_id": "chrome:crossref_works_search:scholarly-search:1",
+          "usable": true,
+          "contact": false
+        }
+      ],
+      "the plan is ready": "ok",
+      "the three tools bind to the host's Crossref search, the declared resolver and the PDF reader": "ok"
+    },
+    "reconnect": {
+      "shown": "run_05e785cae7d64279baf4bee5c1324265",
+      "state": "running",
+      "the reloaded page shows the run in flight": "ok"
+    },
+    "run": {
+      "settled as completed (the honest-empty outcome is a completed run)": "ok",
+      "the audit chain is valid": "ok"
+    }
+  },
+  "run": {
+    "runId": "run_05e785cae7d64279baf4bee5c1324265",
+    "status": "completed",
+    "errorCode": null,
+    "pageState": "completed",
+    "durationMs": 167816,
+    "selectedModel": "openai/gpt-5.6-sol",
+    "model": {
+      "planned": "openai/gpt-5.6-sol",
+      "invoked": [
+        "openai/gpt-5.6-sol"
+      ],
+      "calls": 17,
+      "allCallsUsedPlannedModel": true,
+      "providers": [
+        "openai"
+      ],
+      "responseModels": [
+        "gpt-5.6-sol"
+      ]
+    },
+    "usage": {
+      "tokens": 73131,
+      "remoteCalls": 23,
+      "toolCalls": 6,
+      "peakParallelWorkers": 3
+    },
+    "cost": {
+      "status": "unknown",
+      "totalUsd": null,
+      "calls": 17,
+      "callsWithReportedCost": 0
+    },
+    "audit": {
+      "events": 798,
+      "chainValid": true
+    },
+    "attachments": [],
+    "failure": null,
+    "files": [
+      {
+        "name": "run.json",
+        "bytes": 32996,
+        "sha256": "117d725abbd903c7c8eca989e4324334f8f17306724ce7955f48e0f1bcf62b47"
+      },
+      {
+        "name": "run-plan.json",
+        "bytes": 18120,
+        "sha256": "3c233e9f5081cbb3b375625d2dd3af4f048c7ec009a07bf6743ef75748c049d7"
+      },
+      {
+        "name": "input.json",
+        "bytes": 148,
+        "sha256": "7364d05b4f133aca98a360e671da145378625ac8631065519cbdaf8566e1faf9"
+      },
+      {
+        "name": "audit.json",
+        "bytes": 522740,
+        "sha256": "d3f67355daefcbd836c936dbd77aa147f79766ff1784cce2fa40c95b9a3c0e76"
+      },
+      {
+        "name": "bibliography.json",
+        "bytes": 9800,
+        "sha256": "1ad7464b258d1f53b2dc35e2b9eca554965f59fc7a2444303c1f9caa3e569169"
+      },
+      {
+        "name": "evidence-table.json",
+        "bytes": 10092,
+        "sha256": "92e196f3d4640929bfbc9d17f01efc2c8152b3c2d83d7bf5d46e2f2a8c150a1f"
+      },
+      {
+        "name": "provenance.json",
+        "bytes": 251,
+        "sha256": "27e8d1056e217afb8a5d1b0d7ad708a46619efcbaf62c07419b01cf2c153fc7f"
+      },
+      {
+        "name": "related-work.md",
+        "bytes": 2234,
+        "sha256": "2a29a7f9911cedb2b2899cdc95086c32ffb90c262635dfea8afc05e76a7cd8b7"
+      },
+      {
+        "name": "result.json",
+        "bytes": 960492,
+        "sha256": "42d5ebd9386e28b98cd86b3c46112ca9349f6cb80ecf4d32fe3cf0cd0fd97bd9"
+      },
+      {
+        "name": "unresolved.json",
+        "bytes": 3,
+        "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      },
+      {
+        "name": "usage.json",
+        "bytes": 7341,
+        "sha256": "1dda8ddb0e88e08a1a8a5d4dbc50a53e7285fce5cb07ff333ccca5f48d93945b"
+      },
+      {
+        "name": "verification.json",
+        "bytes": 5786,
+        "sha256": "34c225743e26c4d6e0b16d1ab6f6668489b51bdd406f2f3217db752a3a1e0270"
+      }
+    ],
+    "observations": 23
+  },
+  "failures": [],
+  "passed": true,
+  "modelRequests": {
+    "requests": 17,
+    "reasoning_effort": {
+      "medium": 17
+    },
+    "text_format": {
+      "strict": 10,
+      "strict_wrapped": 4,
+      "non_strict": 3
+    }
+  },
+  "checks": [
+    {
+      "id": "package_verifies_with_the_publisher_key",
+      "passed": true,
+      "detail": {
+        "digest": "09399b953afd487ee87dcf321a32ff1e735c8d862ac662ea2c4ee1f8ef1b6e4e"
+      }
+    },
+    {
+      "id": "run_bound_to_the_shipped_archive",
+      "passed": true,
+      "detail": {
+        "record": "685dcc97232d278eb2a5b777dcbc621573de5c48818a95d522e647c9267ee8f1",
+        "dist": "685dcc97232d278eb2a5b777dcbc621573de5c48818a95d522e647c9267ee8f1"
+      }
+    },
+    {
+      "id": "plan_names_the_package",
+      "passed": true
+    },
+    {
+      "id": "audit_chain_valid",
+      "passed": true,
+      "detail": {
+        "events": 798,
+        "valid": true,
+        "broken": [],
+        "final_hash": "02bd5e2700f449d5c6c68e542609f5b7057cebf977cbbe28304de4d8555dfd38",
+        "note": "A local hash chain. It binds these events to each other; it is not an external tamper-proof audit service."
+      }
+    },
+    {
+      "id": "record_matches_audit",
+      "passed": true,
+      "detail": {
+        "events": 798,
+        "chainValid": true,
+        "finalHash": "02bd5e2700f449d5c6c68e542609f5b7057cebf977cbbe28304de4d8555dfd38",
+        "actions": [
+          {
+            "action": "budget.updated",
+            "count": 63
+          },
+          {
+            "action": "delegation.checked",
+            "count": 63
+          },
+          {
+            "action": "memory.cleared",
+            "count": 1
+          },
+          {
+            "action": "model.called",
+            "count": 17
+          },
+          {
+            "action": "model.completed",
+            "count": 17
+          },
+          {
+            "action": "model.count.called",
+            "count": 17
+          },
+          {
+            "action": "node.completed",
+            "count": 120
+          },
+          {
+            "action": "node.skipped",
+            "count": 31
+          },
+          {
+            "action": "node.started",
+            "count": 120
+          },
+          {
+            "action": "permission.checked",
+            "count": 110
+          },
+          {
+            "action": "runtime.started",
+            "count": 1
+          },
+          {
+            "action": "state.committed",
+            "count": 23
+          },
+          {
+            "action": "tool.called",
+            "count": 6
+          },
+          {
+            "action": "tool.completed",
+            "count": 6
+          },
+          {
+            "action": "tool.dispatched",
+            "count": 6
+          },
+          {
+            "action": "tool.settled",
+            "count": 6
+          },
+          {
+            "action": "worker.completed",
+            "count": 63
+          },
+          {
+            "action": "worker.spawned",
+            "count": 63
+          },
+          {
+            "action": "worker.started",
+            "count": 63
+          },
+          {
+            "action": "workflow.completed",
+            "count": 1
+          },
+          {
+            "action": "workflow.started",
+            "count": 1
+          }
+        ],
+        "workers": [
+          "CitationWorker:24",
+          "CitationWorker:25",
+          "CitationWorker:26",
+          "CitationWorker:27",
+          "CitationWorker:28",
+          "CitationWorker:29",
+          "CitationWorker:30",
+          "CitationWorker:31",
+          "CitationWorker:32",
+          "CitationWorker:39",
+          "CitationWorker:40",
+          "CitationWorker:41",
+          "EvidenceWorker:33",
+          "EvidenceWorker:34",
+          "EvidenceWorker:35",
+          "PlanningWorker:1",
+          "PlanningWorker:10",
+          "PlanningWorker:11",
+          "PlanningWorker:12",
+          "PlanningWorker:13",
+          "PlanningWorker:14",
+          "PlanningWorker:5",
+          "PlanningWorker:6",
+          "PlanningWorker:7",
+          "PlanningWorker:8",
+          "PlanningWorker:9",
+          "ScreeningWorker:15",
+          "ScreeningWorker:16",
+          "ScreeningWorker:17",
+          "ScreeningWorker:18",
+          "ScreeningWorker:19",
+          "ScreeningWorker:20",
+          "ScreeningWorker:21",
+          "ScreeningWorker:22",
+          "ScreeningWorker:23",
+          "SearchWorker:2",
+          "SearchWorker:3",
+          "SearchWorker:4",
+          "SynthesisWorker:36",
+          "VerificationWorker:38",
+          "VerificationWorker:42",
+          "VerificationWorker:43",
+          "VerificationWorker:44",
+          "VerificationWorker:45",
+          "VerificationWorker:46",
+          "VerificationWorker:47",
+          "VerificationWorker:48",
+          "VerificationWorker:49",
+          "VerificationWorker:50",
+          "VerificationWorker:51",
+          "VerificationWorker:52",
+          "VerificationWorker:53",
+          "VerificationWorker:54",
+          "VerificationWorker:55",
+          "VerificationWorker:56",
+          "VerificationWorker:57",
+          "VerificationWorker:58",
+          "VerificationWorker:59",
+          "VerificationWorker:60",
+          "VerificationWorker:61",
+          "VerificationWorker:62",
+          "VerificationWorker:63",
+          "WritingWorker:37",
+          "coordinator"
+        ],
+        "workersSpawned": 63,
+        "nodesCompleted": 120,
+        "modelCalls": 17,
+        "toolCalls": 6,
+        "tasksCalled": [
+          {
+            "task": "extract",
+            "count": 3
+          },
+          {
+            "task": "normalize",
+            "count": 1
+          },
+          {
+            "task": "plan",
+            "count": 1
+          },
+          {
+            "task": "screen",
+            "count": 8
+          },
+          {
+            "task": "select",
+            "count": 1
+          },
+          {
+            "task": "synthesize",
+            "count": 1
+          },
+          {
+            "task": "verify",
+            "count": 1
+          },
+          {
+            "task": "write",
+            "count": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "every_artifact_matches_the_record",
+      "passed": true
+    },
+    {
+      "id": "input_is_the_harness_input",
+      "passed": true
+    },
+    {
+      "id": "run_completed",
+      "passed": true,
+      "detail": {
+        "status": "completed",
+        "errorCode": null,
+        "failure": null
+      }
+    },
+    {
+      "id": "used_the_selected_model_only",
+      "passed": true,
+      "detail": {
+        "planned": "openai/gpt-5.6-sol",
+        "invoked": [
+          "openai/gpt-5.6-sol"
+        ],
+        "calls": 17,
+        "allCallsUsedPlannedModel": true,
+        "providers": [
+          "openai"
+        ],
+        "responseModels": [
+          "gpt-5.6-sol"
+        ]
+      }
+    },
+    {
+      "id": "every_model_call_observed",
+      "passed": true,
+      "detail": {
+        "observed": 17,
+        "recorded": 17,
+        "called": 17
+      }
+    },
+    {
+      "id": "every_tool_call_went_to_the_planned_binding",
+      "passed": true
+    },
+    {
+      "id": "the_plan_binds_the_host_implementations",
+      "passed": true,
+      "detail": {
+        "citation-resolver": "chrome:json_http:citation-resolver:1",
+        "paper-reader": "chrome:selected_pdf_text:paper-reader:1",
+        "scholarly-search": "chrome:crossref_works_search:scholarly-search:1"
+      }
+    },
+    {
+      "id": "every_remote_tool_call_observed",
+      "passed": true,
+      "detail": {
+        "observed": 6,
+        "answered": 6,
+        "dispatched": 6
+      }
+    },
+    {
+      "id": "crossref_requests_have_the_reference_shape",
+      "passed": true,
+      "detail": {
+        "requests": 3,
+        "ok": 3
+      }
+    },
+    {
+      "id": "at_most_one_crossref_request_per_search_call_no_retry",
+      "passed": true,
+      "detail": {
+        "requests": 3,
+        "answered": 3,
+        "calls": 3
+      }
+    },
+    {
+      "id": "crossref_paced_one_per_second",
+      "passed": true,
+      "detail": {
+        "gaps_s": [
+          1.375,
+          1.376
+        ]
+      }
+    },
+    {
+      "id": "crossref_answered_every_search",
+      "passed": true,
+      "detail": {
+        "statuses": [
+          200,
+          200,
+          200
+        ],
+        "failures": []
+      }
+    },
+    {
+      "id": "resolver_calls_went_to_the_declared_origin",
+      "passed": true,
+      "detail": {
+        "resolver": 3,
+        "crossref": 3,
+        "tools": 6
+      }
+    },
+    {
+      "id": "attachments_are_the_picked_documents",
+      "passed": true,
+      "detail": {
+        "attachments": [],
+        "picked": []
+      }
+    },
+    {
+      "id": "the_parser_text_describes_the_picked_bytes",
+      "passed": true
+    },
+    {
+      "id": "documents_read_by_opaque_id_and_hash_only",
+      "passed": true,
+      "detail": []
+    },
+    {
+      "id": "no_document_name_in_any_run_file",
+      "passed": true
+    },
+    {
+      "id": "held_to_the_long_run_limits",
+      "passed": true,
+      "detail": {
+        "totalTokens": 180000,
+        "maxRemoteCalls": 45,
+        "maxParallelWorkers": 3,
+        "maxOutputTokensPerCall": 16000,
+        "runTimeoutSeconds": 4500,
+        "modelCallTimeoutSeconds": 1200
+      }
+    },
+    {
+      "id": "usage_within_the_limits",
+      "passed": true,
+      "detail": {
+        "tokens": 73131,
+        "remoteCalls": 23,
+        "peakParallelWorkers": 3,
+        "toolCalls": 6,
+        "limits": {
+          "hardTokens": 180000,
+          "maxRemoteCalls": 45,
+          "maxParallelWorkers": 3
+        },
+        "workers": [
+          {
+            "worker": "coordinator",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "PlanningWorker:1",
+            "tokens": 805,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "SearchWorker:2",
+            "tokens": 0,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "SearchWorker:3",
+            "tokens": 0,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "SearchWorker:4",
+            "tokens": 0,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "PlanningWorker:5",
+            "tokens": 10761,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "PlanningWorker:6",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "PlanningWorker:7",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "PlanningWorker:8",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "PlanningWorker:9",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "PlanningWorker:10",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "PlanningWorker:11",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "PlanningWorker:12",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "PlanningWorker:13",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "PlanningWorker:14",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "ScreeningWorker:15",
+            "tokens": 2596,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "ScreeningWorker:16",
+            "tokens": 2068,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "ScreeningWorker:17",
+            "tokens": 3123,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "ScreeningWorker:18",
+            "tokens": 2225,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "ScreeningWorker:19",
+            "tokens": 2029,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "ScreeningWorker:20",
+            "tokens": 1779,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "ScreeningWorker:21",
+            "tokens": 2495,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "ScreeningWorker:22",
+            "tokens": 2137,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "ScreeningWorker:23",
+            "tokens": 7822,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "CitationWorker:24",
+            "tokens": 0,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "CitationWorker:25",
+            "tokens": 0,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "CitationWorker:26",
+            "tokens": 0,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "CitationWorker:27",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "CitationWorker:28",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "CitationWorker:29",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "CitationWorker:30",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "CitationWorker:31",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "CitationWorker:32",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "EvidenceWorker:33",
+            "tokens": 3457,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "EvidenceWorker:34",
+            "tokens": 3047,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "EvidenceWorker:35",
+            "tokens": 3494,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "SynthesisWorker:36",
+            "tokens": 8121,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "WritingWorker:37",
+            "tokens": 4089,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "VerificationWorker:38",
+            "tokens": 13083,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "CitationWorker:39",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "CitationWorker:40",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "CitationWorker:41",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:42",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:43",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:44",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:45",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:46",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:47",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:48",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:49",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:50",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:51",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:52",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:53",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:54",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:55",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:56",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:57",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:58",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:59",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:60",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:61",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:62",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:63",
+            "tokens": 0,
+            "remoteCalls": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "evidence_quotes_occur_in_genuine_sources",
+      "passed": true,
+      "detail": {
+        "items": 12,
+        "in_sources": 12
+      }
+    },
+    {
+      "id": "evidence_table_rows_match_items",
+      "passed": true
+    },
+    {
+      "id": "bibliography_all_resolved_and_exact",
+      "passed": true
+    },
+    {
+      "id": "claims_reference_existing_evidence",
+      "passed": true
+    },
+    {
+      "id": "claims_cite_evidence_and_papers",
+      "passed": true
+    },
+    {
+      "id": "claims_reference_resolved_papers",
+      "passed": true
+    },
+    {
+      "id": "verification_results_match_claims",
+      "passed": true
+    },
+    {
+      "id": "related_work_mentions_only_bibliography",
+      "passed": true
+    },
+    {
+      "id": "grounded_review_or_honest_empty",
+      "passed": true,
+      "detail": {
+        "claims": 11,
+        "honest_empty": false
+      }
+    }
+  ],
+  "grounding": {
+    "evidence_items": 12,
+    "evidence_quotes_in_genuine_sources": 12,
+    "evidence_quote_results": [
+      {
+        "evidence_id": "10.2139/ssrn.6246379:e1",
+        "paper_id": "10.2139/ssrn.6246379",
+        "scope": "abstract",
+        "quote_in_genuine_source": true,
+        "synthetic": false
+      },
+      {
+        "evidence_id": "10.2139/ssrn.6246379:e2",
+        "paper_id": "10.2139/ssrn.6246379",
+        "scope": "abstract",
+        "quote_in_genuine_source": true,
+        "synthetic": false
+      },
+      {
+        "evidence_id": "10.2139/ssrn.6246379:e3",
+        "paper_id": "10.2139/ssrn.6246379",
+        "scope": "abstract",
+        "quote_in_genuine_source": true,
+        "synthetic": false
+      },
+      {
+        "evidence_id": "10.2139/ssrn.6246379:e4",
+        "paper_id": "10.2139/ssrn.6246379",
+        "scope": "abstract",
+        "quote_in_genuine_source": true,
+        "synthetic": false
+      },
+      {
+        "evidence_id": "10.36227/techrxiv.171822345.56781952/v1:e1",
+        "paper_id": "10.36227/techrxiv.171822345.56781952/v1",
+        "scope": "abstract",
+        "quote_in_genuine_source": true,
+        "synthetic": false
+      },
+      {
+        "evidence_id": "10.36227/techrxiv.171822345.56781952/v1:e2",
+        "paper_id": "10.36227/techrxiv.171822345.56781952/v1",
+        "scope": "abstract",
+        "quote_in_genuine_source": true,
+        "synthetic": false
+      },
+      {
+        "evidence_id": "10.36227/techrxiv.171822345.56781952/v1:e3",
+        "paper_id": "10.36227/techrxiv.171822345.56781952/v1",
+        "scope": "abstract",
+        "quote_in_genuine_source": true,
+        "synthetic": false
+      },
+      {
+        "evidence_id": "10.36227/techrxiv.171822345.56781952/v1:e4",
+        "paper_id": "10.36227/techrxiv.171822345.56781952/v1",
+        "scope": "abstract",
+        "quote_in_genuine_source": true,
+        "synthetic": false
+      },
+      {
+        "evidence_id": "10.2139/ssrn.6870178:e1",
+        "paper_id": "10.2139/ssrn.6870178",
+        "scope": "abstract",
+        "quote_in_genuine_source": true,
+        "synthetic": false
+      },
+      {
+        "evidence_id": "10.2139/ssrn.6870178:e2",
+        "paper_id": "10.2139/ssrn.6870178",
+        "scope": "abstract",
+        "quote_in_genuine_source": true,
+        "synthetic": false
+      },
+      {
+        "evidence_id": "10.2139/ssrn.6870178:e3",
+        "paper_id": "10.2139/ssrn.6870178",
+        "scope": "abstract",
+        "quote_in_genuine_source": true,
+        "synthetic": false
+      },
+      {
+        "evidence_id": "10.2139/ssrn.6870178:e4",
+        "paper_id": "10.2139/ssrn.6870178",
+        "scope": "abstract",
+        "quote_in_genuine_source": true,
+        "synthetic": false
+      }
+    ],
+    "evidence_table_rows": 11,
+    "evidence_table_rows_match_items": true,
+    "bibliography": [
+      {
+        "paper_id": "10.2139/ssrn.6246379",
+        "resolved": true,
+        "metadata_equals_resolver_record": true,
+        "title": "Evaluating Hybrid Guardrail Architectures for Prompt Injection Defense in Large Language Models",
+        "doi": "10.2139/ssrn.6246379"
+      },
+      {
+        "paper_id": "10.36227/techrxiv.171822345.56781952/v1",
+        "resolved": true,
+        "metadata_equals_resolver_record": true,
+        "title": "Dynamic Moving Target Defense for Mitigating Targeted LLM Prompt Injection",
+        "doi": "10.36227/techrxiv.171822345.56781952/v1"
+      },
+      {
+        "paper_id": "10.2139/ssrn.6870178",
+        "resolved": true,
+        "metadata_equals_resolver_record": true,
+        "title": "Ariadne: Adaptive, Human-in-the-Loop Defense for AI Agents against Indirect Prompt Injection",
+        "doi": "10.2139/ssrn.6870178"
+      }
+    ],
+    "bibliography_all_resolved_and_exact": true,
+    "claims": 11,
+    "claims_reference_existing_evidence": true,
+    "claims_cite_evidence_and_papers": true,
+    "claims_reference_resolved_papers": true,
+    "verification_results": 11,
+    "verification_results_match_claims": true,
+    "unsupported_or_overstated": 0,
+    "related_work_chars": 2230,
+    "related_work_paper_ids_mentioned": [],
+    "related_work_mentions_only_bibliography": true,
+    "unresolved": 0,
+    "honest_empty": false
+  },
+  "search": {
+    "queries": [
+      "(\"prompt injection\" OR \"indirect prompt injection\") AND (defense OR mitigation OR prevention) AND (\"large language model\" OR LLM)",
+      "(\"prompt injection\") AND (\"instruction hierarchy\" OR \"prompt isolation\" OR sandboxing OR \"information flow control\" OR detection OR filtering OR alignment) AND (LLM OR \"large language model\")",
+      "(\"prompt injection\" OR \"indirect prompt injection\") AND (benchmark OR evaluation OR robustness OR attack OR \"attack success rate\") AND defense AND (2023 OR 2024 OR 2025 OR 2026)"
+    ],
+    "batches": [
+      {
+        "query": "(\"prompt injection\" OR \"indirect prompt injection\") AND (defense OR mitigation OR prevention) AND (\"large language model\" OR LLM)",
+        "source": "crossref",
+        "papers": 3,
+        "with_abstract": 3
+      },
+      {
+        "query": "(\"prompt injection\") AND (\"instruction hierarchy\" OR \"prompt isolation\" OR sandboxing OR \"information flow control\" OR detection OR filtering OR alignment) AND (LLM OR \"large language model\")",
+        "source": "crossref",
+        "papers": 3,
+        "with_abstract": 3
+      },
+      {
+        "query": "(\"prompt injection\" OR \"indirect prompt injection\") AND (benchmark OR evaluation OR robustness OR attack OR \"attack success rate\") AND defense AND (2023 OR 2024 OR 2025 OR 2026)",
+        "source": "crossref",
+        "papers": 3,
+        "with_abstract": 2
+      }
+    ],
+    "candidate_papers": 8,
+    "screened": [
+      {
+        "paper_id": "10.2139/ssrn.6246379",
+        "status": "include",
+        "doi": "10.2139/ssrn.6246379"
+      },
+      {
+        "paper_id": "10.36227/techrxiv.171822345.56781952/v1",
+        "status": "include",
+        "doi": "10.36227/techrxiv.171822345.56781952/v1"
+      },
+      {
+        "paper_id": "10.2139/ssrn.6740060",
+        "status": "include",
+        "doi": "10.2139/ssrn.6740060"
+      },
+      {
+        "paper_id": "10.68232/cj.e026",
+        "status": "include",
+        "doi": "10.68232/cj.e026"
+      },
+      {
+        "paper_id": "10.21203/rs.3.rs-10302085/v1",
+        "status": "include",
+        "doi": "10.21203/rs.3.rs-10302085/v1"
+      },
+      {
+        "paper_id": "10.30546/2225-0530.14.2.2025.2013",
+        "status": "maybe",
+        "doi": "10.30546/2225-0530.14.2.2025.2013"
+      },
+      {
+        "paper_id": "10.2139/ssrn.6870178",
+        "status": "include",
+        "doi": "10.2139/ssrn.6870178"
+      },
+      {
+        "paper_id": "10.1186/s42400-026-00650-y",
+        "status": "exclude",
+        "doi": "10.1186/s42400-026-00650-y"
+      }
+    ],
+    "resolver_statuses": [
+      {
+        "paper_id": "10.2139/ssrn.6246379",
+        "status": "resolved"
+      },
+      {
+        "paper_id": "10.36227/techrxiv.171822345.56781952/v1",
+        "status": "resolved"
+      },
+      {
+        "paper_id": "10.2139/ssrn.6870178",
+        "status": "resolved"
+      }
+    ]
+  },
+  "verification": {
+    "script": "scripts/verify_chrome_literature_live.py",
+    "checks": 33,
+    "failed": [],
+    "run": {
+      "durationMs": 167816,
+      "usage": {
+        "tokens": 73131,
+        "remoteCalls": 23,
+        "peakParallelWorkers": 3,
+        "toolCalls": 6,
+        "limits": {
+          "hardTokens": 180000,
+          "maxRemoteCalls": 45,
+          "maxParallelWorkers": 3
+        },
+        "workers": [
+          {
+            "worker": "coordinator",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "PlanningWorker:1",
+            "tokens": 805,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "SearchWorker:2",
+            "tokens": 0,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "SearchWorker:3",
+            "tokens": 0,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "SearchWorker:4",
+            "tokens": 0,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "PlanningWorker:5",
+            "tokens": 10761,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "PlanningWorker:6",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "PlanningWorker:7",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "PlanningWorker:8",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "PlanningWorker:9",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "PlanningWorker:10",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "PlanningWorker:11",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "PlanningWorker:12",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "PlanningWorker:13",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "PlanningWorker:14",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "ScreeningWorker:15",
+            "tokens": 2596,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "ScreeningWorker:16",
+            "tokens": 2068,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "ScreeningWorker:17",
+            "tokens": 3123,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "ScreeningWorker:18",
+            "tokens": 2225,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "ScreeningWorker:19",
+            "tokens": 2029,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "ScreeningWorker:20",
+            "tokens": 1779,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "ScreeningWorker:21",
+            "tokens": 2495,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "ScreeningWorker:22",
+            "tokens": 2137,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "ScreeningWorker:23",
+            "tokens": 7822,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "CitationWorker:24",
+            "tokens": 0,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "CitationWorker:25",
+            "tokens": 0,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "CitationWorker:26",
+            "tokens": 0,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "CitationWorker:27",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "CitationWorker:28",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "CitationWorker:29",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "CitationWorker:30",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "CitationWorker:31",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "CitationWorker:32",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "EvidenceWorker:33",
+            "tokens": 3457,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "EvidenceWorker:34",
+            "tokens": 3047,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "EvidenceWorker:35",
+            "tokens": 3494,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "SynthesisWorker:36",
+            "tokens": 8121,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "WritingWorker:37",
+            "tokens": 4089,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "VerificationWorker:38",
+            "tokens": 13083,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "CitationWorker:39",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "CitationWorker:40",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "CitationWorker:41",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:42",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:43",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:44",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:45",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:46",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:47",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:48",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:49",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:50",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:51",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:52",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:53",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:54",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:55",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:56",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:57",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:58",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:59",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:60",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:61",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:62",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:63",
+            "tokens": 0,
+            "remoteCalls": 0
+          }
+        ]
+      },
+      "cost": {
+        "status": "unknown",
+        "totalUsd": null,
+        "calls": 17,
+        "callsWithReportedCost": 0
+      },
+      "model": {
+        "planned": "openai/gpt-5.6-sol",
+        "invoked": [
+          "openai/gpt-5.6-sol"
+        ],
+        "calls": 17,
+        "allCallsUsedPlannedModel": true,
+        "providers": [
+          "openai"
+        ],
+        "responseModels": [
+          "gpt-5.6-sol"
+        ]
+      }
+    }
+  }
+}

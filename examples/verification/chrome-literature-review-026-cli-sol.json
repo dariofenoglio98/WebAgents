@@ -1,0 +1,155 @@
+{
+  "profile": "chrome-cli-live-runs-v0",
+  "label": "T10: Literature Review 0.2.6, three consecutive live Chrome-CLI runs on openai/gpt-5.6-sol (reasoning effort medium, the default; context stated as 128,000), the user's question and the T6 harness question",
+  "runs": [
+    {
+      "directory": "examples/my-t10-accept/sol-1-pi",
+      "run_id": "run_b53caef50b8d1ee79be522949b74fdbf",
+      "status": "completed",
+      "error_code": null,
+      "duration_ms": 167645,
+      "package": {
+        "version": "0.2.6",
+        "digest": "09399b953afd487ee87dcf321a32ff1e735c8d862ac662ea2c4ee1f8ef1b6e4e",
+        "archiveSha256": "685dcc97232d278eb2a5b777dcbc621573de5c48818a95d522e647c9267ee8f1"
+      },
+      "model": {
+        "planned": "openai/gpt-5.6-sol",
+        "invoked": [
+          "openai/gpt-5.6-sol"
+        ],
+        "calls": 18,
+        "allCallsUsedPlannedModel": true,
+        "providers": [
+          "openai"
+        ],
+        "responseModels": [
+          "gpt-5.6-sol"
+        ]
+      },
+      "question": "what defenses have been proposed against prompt injection in LLMs recently?",
+      "usage": {
+        "tokens": 77081,
+        "remote_calls": 24,
+        "tool_calls": {
+          "scholarly-search": 3,
+          "citation-resolver": 3
+        }
+      },
+      "funnel": {
+        "raw_candidates": 9,
+        "screening_jobs": 9,
+        "screened_papers": 9,
+        "citation_jobs": 3,
+        "evidence_items": 12,
+        "claims": 10
+      },
+      "model_calls": 18,
+      "second_attempts": 0,
+      "call_failures": [],
+      "conforming": true,
+      "audit_chain_valid": true
+    },
+    {
+      "directory": "examples/my-t10-accept/sol-2-t6",
+      "run_id": "run_444380a81ec88db224b2a895b55c9c5c",
+      "status": "completed",
+      "error_code": null,
+      "duration_ms": 110988,
+      "package": {
+        "version": "0.2.6",
+        "digest": "09399b953afd487ee87dcf321a32ff1e735c8d862ac662ea2c4ee1f8ef1b6e4e",
+        "archiveSha256": "685dcc97232d278eb2a5b777dcbc621573de5c48818a95d522e647c9267ee8f1"
+      },
+      "model": {
+        "planned": "openai/gpt-5.6-sol",
+        "invoked": [
+          "openai/gpt-5.6-sol"
+        ],
+        "calls": 15,
+        "allCallsUsedPlannedModel": true,
+        "providers": [
+          "openai"
+        ],
+        "responseModels": [
+          "gpt-5.6-sol"
+        ]
+      },
+      "question": "What methods have been proposed for dynamically selecting agents and adapting communication topology in multi-agent LLM systems? Compare their selection criteria, topology adaptation mechanisms, and efficiency trade-offs, focusing on representative methods.",
+      "usage": {
+        "tokens": 50834,
+        "remote_calls": 20,
+        "tool_calls": {
+          "scholarly-search": 3,
+          "citation-resolver": 2
+        }
+      },
+      "funnel": {
+        "raw_candidates": 9,
+        "screening_jobs": 7,
+        "screened_papers": 7,
+        "citation_jobs": 2,
+        "evidence_items": 8,
+        "claims": 4
+      },
+      "model_calls": 15,
+      "second_attempts": 0,
+      "call_failures": [],
+      "conforming": true,
+      "audit_chain_valid": true
+    },
+    {
+      "directory": "examples/my-t10-accept/sol-3-pi",
+      "run_id": "run_220a6b9819ac62e135d8e5e146d18679",
+      "status": "completed",
+      "error_code": null,
+      "duration_ms": 167677,
+      "package": {
+        "version": "0.2.6",
+        "digest": "09399b953afd487ee87dcf321a32ff1e735c8d862ac662ea2c4ee1f8ef1b6e4e",
+        "archiveSha256": "685dcc97232d278eb2a5b777dcbc621573de5c48818a95d522e647c9267ee8f1"
+      },
+      "model": {
+        "planned": "openai/gpt-5.6-sol",
+        "invoked": [
+          "openai/gpt-5.6-sol"
+        ],
+        "calls": 16,
+        "allCallsUsedPlannedModel": true,
+        "providers": [
+          "openai"
+        ],
+        "responseModels": [
+          "gpt-5.6-sol"
+        ]
+      },
+      "question": "what defenses have been proposed against prompt injection in LLMs recently?",
+      "usage": {
+        "tokens": 72311,
+        "remote_calls": 22,
+        "tool_calls": {
+          "scholarly-search": 3,
+          "citation-resolver": 3
+        }
+      },
+      "funnel": {
+        "raw_candidates": 9,
+        "screening_jobs": 7,
+        "screened_papers": 7,
+        "citation_jobs": 3,
+        "evidence_items": 12,
+        "claims": 11
+      },
+      "model_calls": 16,
+      "second_attempts": 0,
+      "call_failures": [],
+      "conforming": true,
+      "audit_chain_valid": true
+    }
+  ],
+  "consecutive_runs": 3,
+  "conforming_runs": 3,
+  "completed_runs": 3,
+  "grounded_runs": 3,
+  "passed": true
+}

@@ -371,6 +371,10 @@ def main() -> int:
         {"observed": len(models), "recorded": model.get("calls"), "called": len(called)},
     )
 
+    # How each model request was shaped, read from the bodies test mode recorded (T10, D-121…D-123):
+    # the reasoning effort sent, and the text format (strict, non-strict, wrapped array root, none).
+    report["modelRequests"] = request_shapes(models)
+
     # The tools: bindings, Crossref's request shape and pacing, the resolver's origin, the reader.
     dispatched = [event for event in audit if event.get("action") == "tool.dispatched"]
     wrong = [
@@ -561,6 +565,29 @@ def main() -> int:
             "model": model,
         },
     )
+
+
+def request_shapes(models: list) -> dict:
+    """Counts of the reasoning effort and text format in the recorded model request bodies."""
+    efforts: dict[str, int] = {}
+    formats: dict[str, int] = {}
+    for line in models:
+        try:
+            body = json.loads(line.get("body") or "{}")
+        except ValueError:
+            body = {}
+        reasoning = body.get("reasoning") if isinstance(body.get("reasoning"), dict) else {}
+        effort = str(reasoning.get("effort")) if reasoning else "none"
+        efforts[effort] = efforts.get(effort, 0) + 1
+        text = body.get("text") if isinstance(body.get("text"), dict) else {}
+        form = text.get("format") if isinstance(text.get("format"), dict) else None
+        if form is None:
+            shape = "none" if "format" not in body else "ollama_format"
+        else:
+            wrapped = "items" in ((form.get("schema") or {}).get("properties") or {})
+            shape = ("strict" if form.get("strict") else "non_strict") + ("_wrapped" if wrapped else "")
+        formats[shape] = formats.get(shape, 0) + 1
+    return {"requests": len(models), "reasoning_effort": efforts, "text_format": formats}
 
 
 def finish(report: dict, report_path: Path, facts: dict, search: dict, run: dict) -> int:
