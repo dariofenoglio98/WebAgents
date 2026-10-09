@@ -63,8 +63,6 @@ a { color: var(--ab-accent); }
 .ab-button:disabled { opacity: 0.5; cursor: default; }
 .ab-input, .ab-textarea, .ab-select { font: inherit; padding: 7px 10px; border: 1px solid var(--ab-border); border-radius: 8px; background: var(--ab-surface); color: var(--ab-text); width: 100%; }
 .ab-field { display: block; margin: 6px 0; }
-.ab-address { display: flex; gap: 8px; }
-.ab-address-input { flex: 1; }
 .ab-error { background: var(--ab-bad-bg); color: var(--ab-bad-text); border-radius: 8px; padding: 10px 12px; }
 
 .ab-agent-head { display: flex; flex-direction: column; gap: 4px; }
@@ -101,7 +99,7 @@ a { color: var(--ab-accent); }
 
 @media (max-width: 700px) {
   .ab-shell { grid-template-columns: 1fr; }
-  .ab-nav { flex-direction: row; flex-wrap: wrap; border-right: 0; border-bottom: 1px solid var(--ab-border); }
+  .ab-nav { flex-direction: row; flex-wrap: wrap; align-items: center; border-right: 0; border-bottom: 1px solid var(--ab-border); }
   .ab-brand { padding-bottom: 6px; width: 100%; }
 }
 
@@ -225,3 +223,53 @@ a { color: var(--ab-accent); }
 .ab-keyed-form { display: grid; gap: 8px; margin: 8px 0; }
 .ab-pem { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.8rem; width: 100%; box-sizing: border-box; }
 .ab-notes { margin-top: 8px; }
+
+/* T12: the Open view as a start page and a compact page (D-140); the wordmark (D-141) */
+:root {
+  --ab-mark-1: #0b6e4f;
+  --ab-mark-2: #2a6fb0;
+  --ab-mark-3: #c06a12;
+  --ab-mark-4: #a23b5c;
+  --ab-pill-shadow: 0 1px 6px rgba(27, 31, 36, 0.16);
+}
+.ab-open { display: flex; flex-direction: column; gap: 12px; width: 100%; }
+.ab-open-head { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.ab-wordmark { margin: 0; font-weight: 600; letter-spacing: -0.035em; line-height: 1; white-space: nowrap; }
+.ab-wordmark span:nth-child(4n + 1) { color: var(--ab-mark-1); }
+.ab-wordmark span:nth-child(4n + 2) { color: var(--ab-mark-2); }
+.ab-wordmark span:nth-child(4n + 3) { color: var(--ab-mark-3); }
+.ab-wordmark span:nth-child(4n + 4) { color: var(--ab-mark-4); }
+.ab-tagline { color: var(--ab-muted); margin: 0; }
+.ab-address { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px; padding: 0 6px 0 16px; background: var(--ab-surface); border: 1px solid var(--ab-border); border-radius: 24px; transition: box-shadow 0.15s; }
+.ab-address:hover, .ab-address:focus-within { box-shadow: var(--ab-pill-shadow); border-color: transparent; }
+.ab-address:focus-within { outline: 2px solid var(--ab-accent); outline-offset: 2px; }
+.ab-address-icon { flex: none; width: 20px; height: 20px; color: var(--ab-muted); }
+.ab-address .ab-address-input { flex: 1; min-width: 0; border: 0; padding: 10px 0; background: transparent; font-size: 16px; outline: none; }
+.ab-address .ab-button { flex: none; border-radius: 18px; padding: 7px 18px; }
+.ab-address .ab-button:focus-visible { outline: 2px solid var(--ab-accent); outline-offset: 2px; }
+.ab-open-start { display: flex; flex-direction: column; gap: 6px; }
+.ab-open-start .ab-open-intro { margin: 0; }
+.ab-open-links { margin: 0; font-size: 0.9rem; }
+.ab-open-start h4 { margin-top: 18px; }
+.ab-open .ab-result { padding: 14px 16px; margin: 12px 0; }
+.ab-open .ab-result-head { gap: 8px; }
+.ab-open .ab-result-publisher { margin: 6px 0 8px; }
+.ab-open .ab-result-source { margin-top: 8px; }
+/* start: nothing shown yet; a centred column in the upper third */
+.ab-open--start { max-width: 640px; margin: 0 auto; padding-top: 14vh; gap: 20px; }
+.ab-open--start .ab-open-head { gap: 10px; margin-bottom: 8px; }
+.ab-open--start .ab-wordmark { font-size: 68px; }
+.ab-open--start .ab-open-start { padding: 0 16px; }
+.ab-open--start .ab-open-intro, .ab-open--start .ab-open-links { text-align: center; }
+/* compact: a small wordmark beside the box; results and the start block in the box's column */
+.ab-open--compact .ab-open-head { flex-direction: row; gap: 20px; }
+.ab-open--compact .ab-wordmark { font-size: 26px; flex: 0 0 136px; }
+.ab-open--compact .ab-tagline { display: none; }
+.ab-open--compact .ab-open-results, .ab-open--compact .ab-open-start { margin-left: 156px; }
+@media (max-width: 640px) {
+  .ab-open--start { padding-top: 6vh; }
+  .ab-open--start .ab-wordmark { font-size: 52px; }
+  .ab-open--compact .ab-open-head { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .ab-open--compact .ab-wordmark { flex: none; }
+  .ab-open--compact .ab-open-results, .ab-open--compact .ab-open-start { margin-left: 0; }
+}
