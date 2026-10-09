@@ -200,10 +200,12 @@ function positiveCases() {
   const fixtureRun = (archive, grants, tools, extra = []) => ["run", archive, "--mode", "fixture", "--grants", grants, "--out", "{out}", ...approve(tools), ...extra];
   const cases = [
     { id: "webair-0.4.0/fixture", title: "WebAir 0.4.0, its fixture input, every tool approved", argv: fixtureRun(DIST("webair-0.4.0.agent.pkg"), EXAMPLES("webair-0.2.0-grants.json"), webairTools) },
+    { id: "webair-0.5.0/fixture", title: "WebAir 0.5.0, its fixture input, every tool approved", argv: fixtureRun(DIST("webair-0.5.0.agent.pkg"), EXAMPLES("webair-0.2.0-grants.json"), webairTools) },
+    // The search scenarios are the current package's: 0.5.0 adds no-departure, which 0.4.0's fixture cannot replay (T9).
     ...scenarios.map((scenario) => ({
-      id: `webair-0.4.0/scenario-${scenario.id}`,
-      title: `WebAir 0.4.0, scenario ${scenario.id}`,
-      argv: fixtureRun(DIST("webair-0.4.0.agent.pkg"), EXAMPLES("webair-0.2.0-grants.json"), webairTools, ["--input", writeInput(`scenario-${scenario.id}.json`, JSON.stringify(scenario.input))]),
+      id: `webair-0.5.0/scenario-${scenario.id}`,
+      title: `WebAir 0.5.0, scenario ${scenario.id}`,
+      argv: fixtureRun(DIST("webair-0.5.0.agent.pkg"), EXAMPLES("webair-0.2.0-grants.json"), webairTools, ["--input", writeInput(`scenario-${scenario.id}.json`, JSON.stringify(scenario.input))]),
     })),
     { id: "webair-0.4.0/search-tools-only", title: "WebAir 0.4.0, only the two search tools approved (the 'search' profile's tools)", argv: fixtureRun(DIST("webair-0.4.0.agent.pkg"), EXAMPLES("webair-0.2.0-grants.json"), ["search-flights", "get-fare-rules"]) },
     { id: "literature-review-0.2.5/fixture", title: "Literature Review 0.2.5, its fixture input", argv: fixtureRun(DIST("literature-review.agent.pkg"), EXAMPLES("literature-review-grants.json"), ["scholarly-search", "paper-reader", "citation-resolver"]), allowTokens: true },
@@ -396,7 +398,7 @@ function environment() {
     chrome_core: `chrome-agent-browser ${readJson(join(ROOT, "chrome-agent-browser/package.json")).version}`,
     node: process.version,
     platform: `${process.platform}-${process.arch}`,
-    packages: Object.fromEntries(["webair-0.4.0.agent.pkg", "literature-review.agent.pkg", "meeting-agenda.agent.pkg"].map((name) => [name, sha(DIST(name))])),
+    packages: Object.fromEntries(["webair-0.4.0.agent.pkg", "webair-0.5.0.agent.pkg", "literature-review.agent.pkg", "meeting-agenda.agent.pkg"].map((name) => [name, sha(DIST(name))])),
   };
 }
 

@@ -6,9 +6,10 @@ packages: they verify with the standard tooling, run through the unchanged CLI a
 interpreter with the package's own fixture, ask for nothing they do not declare, and no
 generic code knows they exist.
 
-0.4.0 is the current package: 0.3.0, the live demo's package (0.2.0 with WebAir's public
-deployment as its declared host), plus publisher-declared profiles in the noncritical manifest
-extension `org.webagents:profiles-v0`, which agentpkg ignores. Like 0.2.0 and 0.3.0 it asks
+0.5.0 is the current package: 0.4.0 (0.3.0, the live demo's package, plus publisher-declared
+profiles in the noncritical manifest extension `org.webagents:profiles-v0`, which agentpkg
+ignores) with a request that names no departure airport answered instead of failing its own
+check (a `search-origin` node), and a shorter request description. Like 0.2.0 to 0.4.0 it asks
 the person's host for a travel profile, a passenger identity and a payment method it does not
 own (`personal.read` permissions with argument-free host-resource tools) and for a separate,
 `once`-grantable purchase authority. These tests also pin what that
@@ -17,7 +18,7 @@ host resolves, binds and withholds those resources correctly is tested on the ho
 (`openclaw-agent-browser/test/webair-capabilities.test.ts`); that the tool contracts equal
 WebAir's published API is tested on the origin side (`demo/webair/tests/`).
 
-0.1.0, 0.2.0 and 0.3.0 stay here unchanged and verifiable: earlier evidence describes those
+0.1.0, 0.2.0, 0.3.0 and 0.4.0 stay here unchanged and verifiable: earlier evidence describes those
 exact bytes.
 """
 
@@ -41,7 +42,8 @@ from agentpkg.workflow import run_workflow
 
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "agents/webair"
-ARCHIVE = ROOT / "dist/webair-0.4.0.agent.pkg"
+ARCHIVE = ROOT / "dist/webair-0.5.0.agent.pkg"
+ARCHIVE_040 = ROOT / "dist/webair-0.4.0.agent.pkg"
 ARCHIVE_030 = ROOT / "dist/webair-0.3.0.agent.pkg"
 ARCHIVE_020 = ROOT / "dist/webair-0.2.0.agent.pkg"
 ARCHIVE_010 = ROOT / "dist/webair-0.1.0.agent.pkg"
@@ -52,10 +54,12 @@ HOST_RESOURCES = json.loads((ROOT / "demo/webair/host-resources.json").read_text
 SCENARIOS = json.loads((ROOT / "examples/webair-scenarios.json").read_text())["scenarios"]
 
 PACKAGE_ID = "org.webagents.webair"
-VERSION = "0.4.0"
-DIGEST = "0e8317f11e8813e7d5b4b3f352f20148d114329dca3db8c725c5b0558af24fbb"
-ARCHIVE_SHA256 = "c12f9db3bd7b3b4b6721c67e1d0b8143ebd94381df0e5e57c196357b7ca77f63"
-# WebAir's public demo deployment: the one host 0.3.0 and 0.4.0 declare for its API.
+VERSION = "0.5.0"
+DIGEST = "6192614e86ae4b18ba135f17120d4f616feac082c4ab09283221da7194c0bb48"
+ARCHIVE_SHA256 = "4b087557cbd2b0ff186391dfd00f9068739f9a727ab2fd916a6512da1fde101b"
+DIGEST_040 = "0e8317f11e8813e7d5b4b3f352f20148d114329dca3db8c725c5b0558af24fbb"
+ARCHIVE_SHA256_040 = "c12f9db3bd7b3b4b6721c67e1d0b8143ebd94381df0e5e57c196357b7ca77f63"
+# WebAir's public demo deployment: the one host 0.3.0 to 0.5.0 declare for its API.
 PUBLIC_HOST = "webagents-webair-production.up.railway.app"
 PROFILES = "org.webagents:profiles-v0"
 DIGEST_030 = "ffe8f5b344f97c631498bb6da3e17217ae7e5730721935b0e66c5d595b335e94"
@@ -138,8 +142,44 @@ def test_0_3_0_is_unchanged_and_still_verifies():
     assert PROFILES not in earlier.manifest["extensions"]
 
 
-def test_0_4_0_differs_from_0_3_0_only_by_its_profiles(package):
+def test_0_4_0_is_unchanged_and_still_verifies():
+    earlier = load_package(ARCHIVE_040)
+    assert earlier.manifest["version"] == "0.4.0"
+    assert earlier.digest == DIGEST_040
+    assert sha256(ARCHIVE_040.read_bytes()) == ARCHIVE_SHA256_040
+    assert verify_package(ARCHIVE_040, KEY)["key_fingerprint"] == FINGERPRINT
+
+
+def test_0_5_0_changes_what_0_4_0_did_only_without_a_departure_airport(package):
+    """0.5.0 adds the departure-airport node and its schema, a shorter request description, a
+    fixture scenario and the answer rule for it; tools, permissions, budgets and profiles stay."""
+    earlier = load_package(ARCHIVE_040)
+    changed = sorted(
+        name
+        for name in set(earlier.files) | set(package.files)
+        if earlier.files.get(name) != package.files.get(name)
+    )
+    assert changed == [
+        "MANIFEST.agent",
+        "README.md",
+        "fixtures/workflow.json",
+        "graph.json",
+        "schemas/input.schema.json",
+        "schemas/search-origin.schema.json",
+        "schemas/state.schema.json",
+        "skills/answer-writing/SKILL.md",
+    ]
+    now = json.loads(package.files["MANIFEST.agent"])
+    then = json.loads(earlier.files["MANIFEST.agent"])
+    assert (then["version"], now["version"]) == ("0.4.0", "0.5.0")
+    for key in ("tools", "policy", "model_requirements", "extensions", "publisher", "runtime"):
+        assert now[key] == then[key], key
+    assert package.tools == earlier.tools
+
+
+def test_0_4_0_differs_from_0_3_0_only_by_its_profiles():
     """The profiles version adds a noncritical manifest extension and changes nothing it does."""
+    package = load_package(ARCHIVE_040)
     earlier = load_package(ARCHIVE_030)
     changed = sorted(
         name
@@ -158,11 +198,11 @@ def test_0_4_0_differs_from_0_3_0_only_by_its_profiles(package):
     assert now == then
 
 
-def test_agentpkg_runs_0_4_0_exactly_as_0_3_0(package):
-    """agentpkg ignores the profiles: the same task, grants and fixture give the same result."""
-    earlier = load_package(ARCHIVE_030)
+def test_agentpkg_runs_0_4_0_and_0_5_0_exactly_as_0_3_0_on_a_stated_origin(package):
+    """agentpkg ignores the profiles, and a request that states its origin is untouched by
+    0.5.0's departure-airport node: the same task, grants and fixture give the same result."""
     results = []
-    for archive in (earlier, package):
+    for archive in (load_package(ARCHIVE_030), load_package(ARCHIVE_040), package):
         router, handlers, _ = fixture_adapters(archive)
         result = asyncio.run(
             run_workflow(
@@ -175,8 +215,8 @@ def test_agentpkg_runs_0_4_0_exactly_as_0_3_0(package):
             )
         )
         results.append((result["status"], result["output"], result["usage"]["tool_calls"]))
-    assert results[0] == results[1]
-    assert results[1][0] == "completed"
+    assert results[0] == results[1] == results[2]
+    assert results[2][0] == "completed"
 
 
 def test_0_3_0_differs_from_0_2_0_only_for_the_live_host():
@@ -458,7 +498,7 @@ def test_workflow_uses_only_canonical_operators(package):
         s["type"] for n in nodes for s in n.get("steps", [])
     }
     assert types <= {"llm", "tool", "map", "join", "validate", "output"}
-    assert len(nodes) == 34
+    assert len(nodes) == 35  # 0.5.0 adds search-origin
 
 
 def test_no_generic_code_knows_webair_or_its_demo_resources():

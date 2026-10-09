@@ -1,6 +1,6 @@
 """Assemble the public WebAir origin's deployment bundle: an allowlist, never a directory.
 
-    python3 demo/webair/deploy/bundle.py --package dist/webair-0.4.0.agent.pkg --out <new dir>
+    python3 demo/webair/deploy/bundle.py --package dist/webair-0.5.0.agent.pkg --out <new dir>
 
 The bundle holds exactly what the public origin runs:
 

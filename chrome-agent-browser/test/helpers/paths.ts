@@ -36,6 +36,17 @@ export const SHIPPED = {
     archiveSha256: "c12f9db3bd7b3b4b6721c67e1d0b8143ebd94381df0e5e57c196357b7ca77f63",
     fingerprint: "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b",
   },
+  /** T9's WebAir 0.5.0: 0.4.0 plus the departure-airport answer (`agentpkg verify` and `shasum`, 2026-10-09, T9 progress log). */
+  webair050: {
+    archive: resolve(ROOT, "dist/webair-0.5.0.agent.pkg"),
+    key: resolve(ROOT, "examples/keys/webair-publisher.pub.pem"),
+    packageId: "org.webagents.webair",
+    version: "0.5.0",
+    publisherId: "webair-demo",
+    digest: "6192614e86ae4b18ba135f17120d4f616feac082c4ab09283221da7194c0bb48",
+    archiveSha256: "4b087557cbd2b0ff186391dfd00f9068739f9a727ab2fd916a6512da1fde101b",
+    fingerprint: "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b",
+  },
   literatureReview: {
     archive: resolve(ROOT, "dist/literature-review-0.2.5.agent.pkg"),
     key: resolve(ROOT, "examples/keys/literature-review-publisher.pub.pem"),

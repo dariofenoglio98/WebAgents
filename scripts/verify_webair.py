@@ -2,7 +2,7 @@
 
     agentpkg/.venv/bin/python scripts/verify_webair.py [--report PATH]
 
-Verifies the signed 0.4.0 artifact against WebAir's pinned publisher key, checks that the
+Verifies the signed 0.5.0 artifact against WebAir's pinned publisher key, checks that the
 source tree rebuilds to the same payload and that the signed bytes carry no personal data,
 then runs every search scenario in `examples/webair-scenarios.json` through
 `agentpkg.workflow` with agentpkg's own fixture adapters (exact-input replay of the package's
@@ -12,11 +12,12 @@ fixture's tool answers are WebAir's real answers is established separately by
 `demo/webair/tests/test_package_contract.py`; the host-owned capability scenarios run on the
 Agent Browser host (`scripts/verify_webair_capabilities.py`).
 
-0.1.0, 0.2.0 and 0.3.0 are checked to be unchanged: earlier evidence describes those exact
+0.1.0, 0.2.0, 0.3.0 and 0.4.0 are checked to be unchanged: earlier evidence describes those exact
 bytes, and the unversioned `dist/webair.agent.pkg` stays 0.1.0, which the v0.1.0 release's
 runtime can read (0.2.0 and later declare the `personal.read` permission kind). The permission
-ids, and so the grants file, are the same for 0.2.0, 0.3.0 and 0.4.0. 0.4.0 adds only
-publisher-declared profiles (`org.webagents:profiles-v0`), which agentpkg ignores.
+ids, and so the grants file, are the same for 0.2.0 to 0.5.0. 0.4.0 adds only
+publisher-declared profiles (`org.webagents:profiles-v0`), which agentpkg ignores; 0.5.0 answers
+a request that names no departure airport instead of failing (T9).
 
 Prints a JSON report; `passed` is false if any check fails.
 """
@@ -38,7 +39,9 @@ from agentpkg.signing import verify_package
 from agentpkg.workflow import run_workflow
 
 ROOT = Path(__file__).resolve().parents[1]
-ARCHIVE = ROOT / "dist/webair-0.4.0.agent.pkg"
+ARCHIVE = ROOT / "dist/webair-0.5.0.agent.pkg"
+ARCHIVE_040 = ROOT / "dist/webair-0.4.0.agent.pkg"
+ARCHIVE_040_SHA256 = "c12f9db3bd7b3b4b6721c67e1d0b8143ebd94381df0e5e57c196357b7ca77f63"
 ARCHIVE_030 = ROOT / "dist/webair-0.3.0.agent.pkg"
 ARCHIVE_030_SHA256 = "b537cf5cba06bce8137533eb75b491486f57caf3098af30f657343b741492887"
 ARCHIVE_020 = ROOT / "dist/webair-0.2.0.agent.pkg"
@@ -212,6 +215,8 @@ def verify() -> dict:
         and verify_package(ARCHIVE_020, KEY)["valid"] is True,
         "release_0_3_0_unchanged": sha256(ARCHIVE_030.read_bytes()) == ARCHIVE_030_SHA256
         and verify_package(ARCHIVE_030, KEY)["valid"] is True,
+        "release_0_4_0_unchanged": sha256(ARCHIVE_040.read_bytes()) == ARCHIVE_040_SHA256
+        and verify_package(ARCHIVE_040, KEY)["valid"] is True,
         "alias_is_newest_release_runtime_compatible": ALIAS.read_bytes()
         == ARCHIVE_010.read_bytes(),
         "source_rebuilds_to_signed_payload": rebuild_matches(package),

@@ -20,9 +20,10 @@ venv paths. A run takes about 25 seconds.
 
 ## What is compared
 
-**Fixture parity** (11 cases): WebAir 0.4.0 on its fixture input, on the seven inputs of
-[`examples/webair-scenarios.json`](../examples/webair-scenarios.json) and with only its two search
-tools approved; Literature Review 0.2.5; Meeting Agenda 0.2.2. `agentpkg run --mode fixture` and
+**Fixture parity** (13 cases): WebAir 0.4.0 on its fixture input and with only its two search
+tools approved; WebAir 0.5.0 on its fixture input and on the eight inputs of
+[`examples/webair-scenarios.json`](../examples/webair-scenarios.json) (0.5.0 added `no-departure`,
+which 0.4.0's fixture cannot replay); Literature Review 0.2.5; Meeting Agenda 0.2.2. `agentpkg run --mode fixture` and
 `node chrome-agent-browser/dist/cli.js run --mode fixture`, compared under the rules of D-063:
 
 | Compared exactly | Normalized first |

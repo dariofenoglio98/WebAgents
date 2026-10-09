@@ -239,7 +239,8 @@ def recorded_runs() -> dict[str, list[dict]]:
     """Model calls, tool calls (all, and WebAir's own) and tokens of every recorded run.
 
     WebAir 0.3.0's live runs: the two Table I searches and the accepted walk-through (search,
-    quote, simulated purchase). 0.4.0 adds only the profiles; its graph is 0.3.0's.
+    quote, simulated purchase). 0.4.0 adds only the profiles; its graph is 0.3.0's. 0.5.0's
+    new node runs no model or tool, so a run that states its origin is counted the same.
     """
     table = json.loads((VERIFICATION / "webair-030-table1-runs.json").read_text())
     live = json.loads((VERIFICATION / "webair-030-live-demo.json").read_text())
