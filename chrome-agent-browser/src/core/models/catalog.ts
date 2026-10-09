@@ -389,8 +389,22 @@ export function builtinDescriptor(connection: ProviderConnection, builtin: Built
   };
 }
 
+/**
+ * The built-in model's probe (D-113): its one descriptor, whatever the availability, so Settings →
+ * Models can show its row (and "Make default" once Chrome says `available`), and the probe is `ok`
+ * only when the model can be used now. `builtin` is what the shell read from the Prompt API; null
+ * means the API did not answer in that context. Never a network request.
+ */
+export function probeBuiltin(connection: ProviderConnection, builtin: BuiltinAvailability | null): ProbeResult {
+  const descriptor = builtinDescriptor(connection, builtin);
+  const availability = builtin?.availability ?? null;
+  const error = availability === "available" ? null : availability === null ? "The Prompt API is not available in this context." : availability;
+  return { provider: "chrome-builtin", ok: availability === "available", models: [descriptor], notes: [], error };
+}
+
 // -- the catalog ---------------------------------------------------------------------------
-export async function probeProvider(connection: ProviderConnection, http: Http): Promise<ProbeResult> {
+/** One provider's probe; `builtin` is the shell's Prompt API reading, used for `chrome-builtin` only. */
+export async function probeProvider(connection: ProviderConnection, http: Http, builtin: BuiltinAvailability | null = null): Promise<ProbeResult> {
   try {
     switch (connection.provider) {
       case "ollama":
@@ -400,7 +414,7 @@ export async function probeProvider(connection: ProviderConnection, http: Http):
       case "anthropic":
         return await probeAnthropic(connection, http);
       case "chrome-builtin":
-        return { provider: "chrome-builtin", ok: true, models: [], notes: [], error: null };
+        return probeBuiltin(connection, builtin);
     }
   } catch (error) {
     return { provider: connection.provider, ok: false, models: [], notes: [], error: `${connection.provider}: ${thrownName(error, "the request failed")}` };
@@ -422,16 +436,12 @@ export async function buildHostCatalog(connections: readonly ProviderConnection[
   const probes: ProbeResult[] = [];
   for (const connection of connections) {
     if (!connection.enabled) continue;
-    if (connection.provider === "chrome-builtin") {
-      models.push(builtinDescriptor(connection, options.builtin));
-      probes.push({ provider: "chrome-builtin", ok: options.builtin !== null, models: [], notes: [], error: options.builtin === null ? "The Prompt API is not available in this context." : null });
-      continue;
-    }
-    const result = options.probed?.get(connection.provider) ?? (await probeProvider(connection, http));
+    const result = options.probed?.get(connection.provider) ?? (await probeProvider(connection, http, options.builtin));
     probes.push(result);
     models.push(...result.models);
     notes.push(...result.notes);
-    if (!result.ok) notes.push({ code: `${connection.provider}_unreachable`, detail: result.error });
+    // A built-in model Chrome has not made available is described by its own availability reason, not as an unreachable route.
+    if (!result.ok && connection.provider !== "chrome-builtin") notes.push({ code: `${connection.provider}_unreachable`, detail: result.error });
   }
   if (models.length === 0) notes.push({ code: "no_models_available", detail: "No model route is configured or reachable. Start Ollama (with OLLAMA_ORIGINS including chrome-extension://*) or enter an API key in Settings → Models." });
   const catalog = await normalizeCatalog({

@@ -1306,14 +1306,13 @@ export class Controller {
     const settings = await this.deps.settings.settings();
     const connection = connectionsFor(settings, await this.deps.settings.keyPresence()).find((item) => item.provider === provider);
     if (!connection) throw reject("invalid_request", `No connection for ${provider}`);
-    if (provider === "chrome-builtin") {
-      const availability = await this.deps.builtin();
-      return { provider, ok: availability !== null && availability.availability === "available", models: [], notes: [], error: availability ? (availability.availability === "available" ? null : availability.availability) : "The Prompt API is not available in this context.", diagnosis: null };
-    }
     // Captured before the provider is asked: a settings save while it answers must not let the old
     // endpoint's answer into the new catalog (T5a review 2).
     const generation = this.catalogGeneration;
-    const result = await probeProvider({ ...connection, enabled: true }, this.deps.http);
+    // The built-in model is read from the Prompt API, never over the network, and its one model row
+    // comes back like any provider's (D-113), so Settings → Models can make it the default.
+    const builtin = provider === "chrome-builtin" ? await this.deps.builtin() : null;
+    const result = await probeProvider({ ...connection, enabled: true }, this.deps.http, builtin);
     await this.mergeProbe(result, generation);
     return { ...result, diagnosis: provider === "ollama" && !result.ok ? await this.ollamaDiagnosis(connection.base_url ?? DEFAULT_BASE_URLS.ollama) : null };
   }

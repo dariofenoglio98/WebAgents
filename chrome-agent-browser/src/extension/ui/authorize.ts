@@ -432,6 +432,10 @@ function planCard(input: AuthorizeInput, actions: AuthorizeActions): HTMLElement
     "Run plan",
     el("div", { className: `ab-banner ab-banner-${tone}`, attrs: { role: "status" } }, el("strong", { text: headline }), el("p", { text: ready ? "Everything this run needs is bound and current. Running arrives with the execution host (T5); nothing has run." : plan ? "This plan cannot be used as it stands; the reasons are below." : receipt.runnable ? "Choose a model under Customize your settings, or a default model in Settings → Models, to prepare a run plan." : "Adjust the decisions, or resolve the reasons below, then authorize again." })),
     reasons(problems, "Why not"),
+    // A plan keeps the model it was prepared with (D-113): a later change of the default is said, not applied.
+    plan?.run_plan.model_binding && view.default_model && plan.run_plan.model_binding.host_model_id !== view.default_model
+      ? el("p", { className: "ab-hint ab-plan-model-note", text: `This plan runs on ${plan.run_plan.model_binding.host_model_id}. Your default model is now ${view.default_model}: press “Use this agent” to prepare a plan on it.` })
+      : null,
     plan
       ? definition([
           ["Agent", `${plan.run_plan.package.name} ${plan.run_plan.package.version}`],

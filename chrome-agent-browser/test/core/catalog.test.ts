@@ -218,7 +218,9 @@ describe("Chrome built-in", () => {
     const { catalog, probes } = await buildHostCatalog([connection("chrome-builtin")], fakeHttp({}, log), { builtin: { availability: "downloadable", input_quota: null }, runtimeVersion: null });
     expect(log).toEqual([]);
     expect(catalog.models[0]).toMatchObject({ id: "chrome-builtin/gemini-nano", available: false, selectable: false, availability_reason: expect.stringContaining("download"), properties: { local: true, status: "downloadable" } });
-    expect(probes[0]).toMatchObject({ provider: "chrome-builtin", ok: true });
+    // The probe carries the one model whatever its availability, and is ok only when it can be used now (D-113).
+    expect(probes[0]).toMatchObject({ provider: "chrome-builtin", ok: false, error: "downloadable", models: [expect.objectContaining({ id: "chrome-builtin/gemini-nano", available: false })] });
+    expect(catalog.notes.map((note) => note.code)).not.toContain("chrome-builtin_unreachable");
     const ready = builtinDescriptor(connection("chrome-builtin"), { availability: "available", input_quota: 6144 }) as { available: boolean; limits: Record<string, number | null> };
     expect(ready.available).toBe(true);
     expect(ready.limits).toEqual({ context_tokens: 6144, native_context_window: 6144, max_output_tokens: null });

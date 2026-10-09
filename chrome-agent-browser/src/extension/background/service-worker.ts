@@ -3,7 +3,8 @@
  * APIs to the controller and nothing else: messages from extension pages and content
  * scripts, tab navigation and removal, the action badge, and the side panel behaviour.
  */
-import type { BuiltinAvailability, Http } from "../../core/models/catalog.js";
+import type { Http } from "../../core/models/catalog.js";
+import { builtinReader } from "../execution/builtin-port.js";
 import { TrustStore } from "../../core/trust.js";
 import { failure, isEvent, parseContentMessage, parseRequest, success, type Event } from "../messages.js";
 import { isHostCommand } from "../execution/protocol.js";
@@ -83,18 +84,8 @@ async function reachable(url: string): Promise<boolean> {
   }
 }
 
-/** Chrome's built-in model (Prompt API), as this context exposes it; never a network request. */
-async function builtin(): Promise<BuiltinAvailability | null> {
-  const api = (globalThis as { LanguageModel?: { availability?: () => Promise<string> } }).LanguageModel;
-  if (!api || typeof api.availability !== "function") return { availability: "unsupported", input_quota: null };
-  try {
-    const availability = await api.availability();
-    const known = ["available", "downloadable", "downloading", "unavailable"] as const;
-    return { availability: (known as readonly string[]).includes(availability) ? (availability as (typeof known)[number]) : "unavailable", input_quota: null };
-  } catch {
-    return null;
-  }
-}
+/** Chrome's built-in model as this worker's Prompt API reports it (D-113); the quota is measured once per worker. */
+const builtin = builtinReader();
 
 async function badge(tabId: number, count: number): Promise<void> {
   try {

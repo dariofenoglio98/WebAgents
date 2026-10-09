@@ -222,7 +222,8 @@ function connectionCard(view: SettingsView, connection: StoredConnection, state:
     ),
     diagnosis ? el("p", { className: `ab-banner ab-banner-${diagnosis.state === "unknown" ? "neutral" : "warn"} ab-diagnosis`, text: diagnosis.hint, attrs: { "data-diagnosis": diagnosis.state, role: "status" } }) : null,
   );
-  if (probe && probe !== "running" && probe.ok && probe.models.length > 0) {
+  // A row for every model the provider described, usable or not: an unavailable one says so and offers no "Make default" (D-113).
+  if (probe && probe !== "running" && probe.models.length > 0) {
     children.push(el("h4", { text: "Models" }), list(probe.models.map((model) => modelRow(view, connection, model as ProbedModel, actions))));
   }
   for (const [modelId, override] of Object.entries(connection.overrides)) {
@@ -240,9 +241,27 @@ interface ProbedModel {
   properties: { local: boolean | null; tags: string[] };
 }
 
-/** One probed model: make it the default, or state its limits (recorded as `declared`). */
+const REASONING_CHOICES: ReadonlyArray<{ value: "" | "yes" | "no"; text: string }> = [
+  { value: "", text: "Reasons: as the provider states" },
+  { value: "yes", text: "Reasons: yes (stated by you)" },
+  { value: "no", text: "Reasons: no (stated by you)" },
+];
+
+/**
+ * One probed model: make it the default (only when it is available now), or state its limits and
+ * whether it reasons, recorded as `declared` (D-055, D-113). Stating reasoning is how a model whose
+ * provider says nothing about it (Chrome's built-in model) meets a package that requires it.
+ */
 function modelRow(view: SettingsView, connection: StoredConnection, model: ProbedModel, actions: SettingsPageActions): HTMLElement {
   const isDefault = view.settings.models.default_model === model.id;
+  const stated = connection.overrides[model.model_id]?.reasoning;
+  const reasoning = el("select", { className: "ab-select", attrs: { name: `reasoning-${model.id}`, "aria-label": `Whether ${model.display_name} reasons` } });
+  for (const choice of REASONING_CHOICES) reasoning.append(el("option", { text: choice.text, attrs: { value: choice.value } }));
+  reasoning.value = stated === true ? "yes" : stated === false ? "no" : "";
+  reasoning.addEventListener("change", () => {
+    const value = reasoning.value === "yes" ? true : reasoning.value === "no" ? false : null;
+    actions.onSave(withConnection(view.settings, connection.provider, (item) => ({ ...item, overrides: { ...item.overrides, [model.model_id]: { ...item.overrides[model.model_id], reasoning: value } } })));
+  });
   const context = el("input", { className: "ab-input ab-input-short", attrs: { type: "number", min: "1", name: `context-${model.id}`, placeholder: model.limits.native_context_window ? `native ${model.limits.native_context_window}` : "context tokens" } });
   context.value = connection.overrides[model.model_id]?.context_tokens ? String(connection.overrides[model.model_id]!.context_tokens) : "";
   const output = el("input", { className: "ab-input ab-input-short", attrs: { type: "number", min: "1", name: `output-${model.id}`, placeholder: "max output tokens" } });
@@ -255,7 +274,7 @@ function modelRow(view: SettingsView, connection: StoredConnection, model: Probe
     el(
       "div",
       { className: "ab-inline" },
-      isDefault ? null : button("Make default", () => actions.onSave({ ...view.settings, models: { ...view.settings.models, default_model: model.id } }), { variant: "primary", disabled: !model.available }),
+      isDefault || !model.available ? null : button("Make default", () => actions.onSave({ ...view.settings, models: { ...view.settings.models, default_model: model.id } }), { variant: "primary" }),
       context,
       output,
       button("State limits", () => {
@@ -272,7 +291,8 @@ function modelRow(view: SettingsView, connection: StoredConnection, model: Probe
         );
       }),
     ),
-    el("p", { className: "ab-hint", text: "Limits you state here are recorded as declared by you in every run plan that binds this model." }),
+    el("div", { className: "ab-inline" }, reasoning),
+    el("p", { className: "ab-hint", text: "What you state here (limits, and whether the model reasons) is recorded as declared by you in every run plan that binds this model." }),
   );
 }
 

@@ -5,6 +5,7 @@
  * `measureInputUsage` for the token counts the adapter records. Nothing leaves the device.
  */
 import type { BuiltinAvailability, BuiltinModelPort, BuiltinSession } from "../../core/models/adapters/chrome-builtin.js";
+import type { BuiltinAvailability as CatalogBuiltin } from "../../core/models/catalog.js";
 
 /** The subset of the Prompt API this port uses, typed here because `@types/chrome` carries none of it. */
 export interface LanguageModelApi {
@@ -65,4 +66,38 @@ export async function downloadBuiltinModel(api: LanguageModelApi, onProgress: (f
     },
   });
   session.destroy();
+}
+
+/**
+ * The catalog's reading of the built-in model (D-055, D-113), as a function the service worker
+ * calls on every probe: `availability()` as the API answers it (`unsupported` when this context
+ * exposes no Prompt API, null when the call throws), and, once Chrome reports `available`, the
+ * session quota, read by creating one session that is never prompted and destroying it. The quota
+ * is a property of the model, so it is measured once per reader; a failure leaves it unknown and
+ * the person can state the context in Settings → Models. Never a network request.
+ */
+export function builtinReader(scope: unknown = globalThis): () => Promise<CatalogBuiltin | null> {
+  let quota: number | null = null;
+  return async () => {
+    const api = (scope as { LanguageModel?: { availability?: () => Promise<string>; create?: () => Promise<{ inputQuota?: unknown; destroy?: () => void }> } }).LanguageModel;
+    if (!api || typeof api.availability !== "function") return { availability: "unsupported", input_quota: null };
+    let answer: string;
+    try {
+      answer = await api.availability();
+    } catch {
+      return null;
+    }
+    const availability = (KNOWN as readonly string[]).includes(answer) ? (answer as BuiltinAvailability) : "unavailable";
+    if (availability !== "available") return { availability, input_quota: null };
+    if (quota === null && typeof api.create === "function") {
+      try {
+        const session = await api.create();
+        if (typeof session.inputQuota === "number" && Number.isSafeInteger(session.inputQuota) && session.inputQuota > 0) quota = session.inputQuota;
+        session.destroy?.();
+      } catch {
+        // unknown stays unknown
+      }
+    }
+    return { availability, input_quota: quota };
+  };
 }
