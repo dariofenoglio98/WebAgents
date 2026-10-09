@@ -28,15 +28,15 @@
  *
  *   npm run build && node scripts/e2e-search-policy.mjs [--chrome <path>] [--out <report.json>] [--keep]
  */
-import { execFileSync, spawn } from "node:child_process";
+import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
-import { createServer } from "node:https";
 import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { Cdp, sleep } from "./lib/cdp.mjs";
+import { certificate, serveFiles } from "./lib/origin.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PROJECT = resolve(here, "..");
@@ -89,30 +89,6 @@ const check = (name, condition, detail) => {
   if (!condition) report.failures.push(`${name}${detail === undefined ? "" : ` (${JSON.stringify(detail).slice(0, 400)})`}`);
 };
 
-function certificate(directory) {
-  const key = join(directory, "key.pem");
-  const cert = join(directory, "cert.pem");
-  execFileSync("openssl", ["req", "-x509", "-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:P-256", "-nodes", "-keyout", key, "-out", cert, "-days", "2", "-subj", `/CN=${HOST}`, "-addext", `subjectAltName=DNS:${HOST}`], { stdio: ["ignore", "ignore", "ignore"] });
-  const spki = execFileSync("openssl", ["pkey", "-pubin", "-outform", "der"], { input: execFileSync("openssl", ["x509", "-in", cert, "-pubkey", "-noout"]) });
-  return { key: readFileSync(key), cert: readFileSync(cert), spkiHash: createHash("sha256").update(spki).digest("base64") };
-}
-
-function origin(tls) {
-  const hits = [];
-  const server = createServer({ key: tls.key, cert: tls.cert }, (request, response) => {
-    hits.push(`${request.method} ${request.url}`);
-    const file = FILES[request.url];
-    if (!file) {
-      response.writeHead(404, { "content-type": "text/plain" });
-      return response.end("not found");
-    }
-    const bytes = readFileSync(file.path);
-    response.writeHead(200, { "content-type": file.type, "content-length": String(bytes.length), "cache-control": "no-cache", "x-content-type-options": "nosniff" });
-    return response.end(bytes);
-  });
-  return new Promise((resolveServer) => server.listen(0, "127.0.0.1", () => resolveServer({ server, port: server.address().port, hits })));
-}
-
 const HELPERS = String.raw`
 window.__t8 = {
   click(label, scope) {
@@ -149,8 +125,8 @@ async function main() {
   let served = null;
   let snapshot = async () => null;
   try {
-    const tls = certificate(scratch);
-    served = await origin(tls);
+    const tls = certificate(scratch, HOST);
+    served = await serveFiles(tls, FILES);
     chrome = spawn(args.chrome, ["--headless=new", "--remote-debugging-pipe", "--enable-unsafe-extension-debugging", `--user-data-dir=${join(scratch, "profile")}`, "--no-first-run", "--no-default-browser-check", `--host-resolver-rules=MAP ${HOST} 127.0.0.1:${served.port}`, `--ignore-certificate-errors-spki-list=${tls.spkiHash}`, "--window-size=1280,1800", "about:blank"], { stdio: ["ignore", "ignore", "ignore", "pipe", "pipe"] });
     const cdp = new Cdp(chrome);
     report.chrome = (await cdp.send("Browser.getVersion")).product;
@@ -250,12 +226,13 @@ async function main() {
     check("after unsubscribing, WebAir's publisher is unknown again", after.page.trust.trust_status === "unknown", report.steps.revoke);
 
     // 7. WebAir from the index (T11): the entry names 0.5.0, the bytes the origin serves, so its claims match.
+    //    Waits for WebAir's own card, not any card: step 2's results may still be on the page (T12, B-147 nit 8).
     await go("#open");
     await cdp.waitFor(page, `document.querySelector('input[name="package-url"]') !== null`, "the address bar");
     await cdp.evaluate(page, `__t8.type('input[name="package-url"]', "flights@webair.example") && __t8.click("Open", "form.ab-address")`);
-    const webairCards = await cdp.waitFor(page, `(() => { const cards = [...document.querySelectorAll(".ab-result")]; return cards.length ? cards.map((card) => ({ id: card.dataset.packageId, url: card.dataset.packageUrl, text: card.textContent })) : null; })()`, "the WebAir search result");
+    const webairCards = await cdp.waitFor(page, `(() => { const cards = [...document.querySelectorAll(".ab-result")]; return document.querySelector('.ab-result[data-package-id="org.webagents.webair"]') ? cards.map((card) => ({ id: card.dataset.packageId, url: card.dataset.packageUrl, text: card.textContent })) : null; })()`, "the WebAir search result");
     check("a search for WebAir's locator lists WebAir 0.5.0 from the demo index", webairCards.length === 1 && webairCards[0].id === "org.webagents.webair" && webairCards[0].url === `${ORIGIN}/agent.pkg` && webairCards[0].text.includes("0.5.0"), webairCards);
-    await cdp.evaluate(page, `__t8.click("Open and verify", ".ab-result")`);
+    await cdp.evaluate(page, `__t8.click("Open and verify", '.ab-result[data-package-id="org.webagents.webair"]')`);
     await cdp.waitFor(page, `(document.querySelector("article.ab-agent h2")?.textContent ?? "").includes("WebAir") && document.querySelector(".ab-found-via") !== null`, "WebAir's agent page from the index");
     const fromIndex = await send({ type: "package.get", sessionId: await sessionId() });
     report.steps.webairFromIndex = { results: webairCards.map((card) => ({ id: card.id, url: card.url })), version: fromIndex.page.identity.version, archiveSha256: fromIndex.snapshot.archive_sha256, foundVia: fromIndex.found_via, banner: await cdp.evaluate(page, `document.querySelector(".ab-found-via")?.dataset.claims ?? null`) };

@@ -579,8 +579,8 @@ the option the paths answer 404. Index 1.1.0 names WebAir 0.5.0, so it is deploy
 as `dist/webair-0.5.0.agent.pkg`. After a redeploy:
 
 ```sh
-for path in agent-index.json policies/webagents-research.json; do
-  curl -sS "https://webagents-webair-production.up.railway.app/$path" | cmp - "examples/$path"; done
+for doc in agent-index.json policies/webagents-research.json; do
+  curl -sS "https://webagents-webair-production.up.railway.app/$doc" | cmp - "examples/$doc"; done
 node chrome-agent-browser/dist/cli.js document verify --type agent-index \
   --key examples/keys/webagents-index.pub.pem examples/agent-index.json
 for version in 0.2.6 0.2.5; do

@@ -436,10 +436,29 @@ async function trustSession(scope: "package" | "publisher"): Promise<void> {
   }
 }
 
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+/** A magnifier drawn inline: no image file and no remote resource (D-140). */
+function searchIcon(): SVGSVGElement {
+  const svg = document.createElementNS(SVG_NS, "svg");
+  for (const [name, value] of Object.entries({ class: "ab-address-icon", viewBox: "0 0 24 24", "aria-hidden": "true", focusable: "false", fill: "none", stroke: "currentColor", "stroke-width": "2", "stroke-linecap": "round" })) svg.setAttribute(name, value);
+  const lens = document.createElementNS(SVG_NS, "circle");
+  for (const [name, value] of Object.entries({ cx: "10.5", cy: "10.5", r: "6.5" })) lens.setAttribute(name, value);
+  const handle = document.createElementNS(SVG_NS, "path");
+  handle.setAttribute("d", "M15.5 15.5 21 21");
+  svg.append(lens, handle);
+  return svg;
+}
+
+/** "WebAgents" as text: one coloured span per letter, the name read once from the heading (D-141). */
+function wordmark(): HTMLElement {
+  return el("h1", { className: "ab-wordmark", attrs: { "aria-label": "WebAgents" } }, ...[..."WebAgents"].map((letter) => el("span", { text: letter, attrs: { "aria-hidden": "true" } })));
+}
+
 function addressBar(): HTMLElement {
-  const input = el("input", { className: "ab-input ab-address-input", attrs: { name: "package-url", type: "text", placeholder: "Search agents (words or name@host), or https://… a website or a package URL", autocomplete: "off", "aria-label": "Search agents or open an address" } });
+  const input = el("input", { className: "ab-input ab-address-input", attrs: { name: "package-url", type: "text", placeholder: "Search agents, or paste an agent.pkg URL or a locator like flights@webair.example", autocomplete: "off", "aria-label": "Search agents or open an address" } });
   input.value = state.address;
-  const form = el("form", { className: "ab-address" }, input, button("Open", () => void openAddress(input.value.trim()), { variant: "primary" }));
+  const form = el("form", { className: "ab-address" }, searchIcon(), input, button("Open", () => void openAddress(input.value.trim()), { variant: "primary" }));
   form.addEventListener("submit", (event) => {
     event.preventDefault();
     void openAddress(input.value.trim());
@@ -460,8 +479,15 @@ function errorBox(): HTMLElement | null {
   );
 }
 
+/**
+ * The Open view (D-140): a start page (the wordmark, the box, a hint and the open sessions) while
+ * nothing is shown, and a compact page (a small wordmark beside the same box, the content below) once
+ * there are results, a website, an agent, a busy state or an error. Only the layout differs.
+ */
 function openView(): HTMLElement[] {
-  const nodes: Array<HTMLElement | null> = [addressBar(), errorBox(), state.busy ? el("p", { className: "ab-busy", text: state.busy }) : null];
+  const start = !state.open && !state.website && !state.search && !state.busy && !state.error;
+  const head = el("div", { className: "ab-open-head" }, wordmark(), el("p", { className: "ab-tagline", text: "Find agents on the web. Run them on your terms." }), addressBar());
+  const nodes: Array<HTMLElement | null> = [head, errorBox(), state.busy ? el("p", { className: "ab-busy", text: state.busy }) : null];
   if (state.open) {
     const open = state.open;
     const showRun = state.authorization !== null && state.authorization.receipt !== null;
@@ -489,18 +515,20 @@ function openView(): HTMLElement[] {
       ),
     );
   } else if (state.search) {
-    nodes.push(renderSearchResults(state.search, { open: (result) => void openResult(result), settings: () => (location.hash = "settings?section=search") }));
+    nodes.push(el("div", { className: "ab-open-results" }, renderSearchResults(state.search, { open: (result) => void openResult(result), settings: () => (location.hash = "settings?section=search") })));
   } else if (!state.busy) {
     nodes.push(
-      card(
-        "Open an agent",
-        el("p", { className: "ab-hint", text: "Type words or an agent name (name@host) to search the indexes you added, a website address to see which agent package it advertises, or a package address to inspect it directly. Nothing runs until you authorize an agent and press Run." }),
+      el(
+        "div",
+        { className: "ab-open-start" },
+        el("p", { className: "ab-hint ab-open-intro", text: "Words or name@host search your indexes; a website shows the agents it advertises; a package URL opens it to inspect. Nothing runs until you authorize an agent and press Run." }),
+        el("p", { className: "ab-open-links" }, el("a", { text: "Manage indexes", attrs: { href: "#settings?section=search" } })),
         state.sessions.length > 0 ? el("h4", { text: "Open now" }) : null,
         state.sessions.length > 0 ? list(state.sessions.map((session) => sessionRow(session))) : null,
       ),
     );
   }
-  return nodes.filter((node): node is HTMLElement => node !== null);
+  return [el("section", { className: `ab-open ab-open--${start ? "start" : "compact"}` }, ...nodes)];
 }
 
 function sessionRow(session: SessionDescriptor): HTMLElement {

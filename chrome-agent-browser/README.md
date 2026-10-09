@@ -26,7 +26,11 @@ What it shows today, on the WebAir demo site:
    package id by default or to the publisher. The Trust page lists and removes pins. Trusting a
    key grants no permission: permissions are decided per run, later.
 5. The full-page agent browser (`browser.html`) takes a website address or a package URL in its
-   address bar and does the same without a tab.
+   address bar and does the same without a tab. Its Open page starts like a search engine's start
+   page: the "WebAgents" wordmark, one search box (words, `name@host`, a website or a package URL)
+   and the agents open now; once results, a website, an agent or an error are shown it turns
+   compact, a small wordmark beside the same box (T12; `scripts/screenshot-open-page.mjs` records
+   both layouts at 1280 and 480 px in `examples/verification/chrome-open-page/`).
 6. **Authorize in two clicks** (T3). Below the agent page, "Ways to use it" shows the publisher's
    profiles (WebAir declares *Search flights*, *Search and quote*, *Book (simulated)*) as cards
    with the title, the description, what each one *gets*, in plain words derived from the

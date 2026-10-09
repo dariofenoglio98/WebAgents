@@ -201,6 +201,13 @@ which index 1.0.0 listed (kept as `examples/agent-index-1.0.0.json`). Evidence: 
 
 ## 10. Using it: what the pages show (T9)
 
+- **The Open page** is a start page while nothing is shown: the "WebAgents" wordmark (text in four
+  colours of the extension's palette, no image or web font), one rounded search box that takes
+  words, an agent name (`name@host`), a website or a package URL, a two-line hint, "Manage indexes"
+  and the agents open now. Results, a website, an open agent, a busy state or an error switch it to
+  a compact page: a small wordmark beside the same box (above it on a narrow window), the content
+  below. Only the layout changes; the box, its messages and the results are the same (T12, D-140,
+  D-141).
 - **The task form** shows a field's description only when it adds something to the placeholder
   (the publisher's example) and the label (D-110).
 - **One way to choose a profile.** The agent page no longer lists the profiles; the authorize
