@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Departure airport",
+  "description": "The WebAir airport the search departs from: the request's own, else the granted travel profile's home airport; null when neither states one, and then nothing is searched.",
+  "enum": [
+    "BOS",
+    "JFK",
+    "ZRH",
+    "GVA",
+    "LHR",
+    "KEF",
+    null
+  ]
+}

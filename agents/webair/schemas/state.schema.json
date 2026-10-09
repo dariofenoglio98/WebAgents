@@ -26,6 +26,9 @@
         }
       ]
     },
+    "search_origin": {
+      "$ref": "search-origin.schema.json"
+    },
     "search_request": {
       "$ref": "search-request.schema.json"
     },
@@ -128,6 +131,7 @@
     "request",
     "plan",
     "profile",
+    "search_origin",
     "search_request",
     "search",
     "selection",

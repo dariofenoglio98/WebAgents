@@ -17,6 +17,7 @@
         "request",
         "plan",
         "profile",
+        "search_origin",
         "search_request",
         "search",
         "selection",
@@ -42,6 +43,7 @@
         "result"
       ],
       "state_write": [
+        "search_origin",
         "search_request",
         "offered_flights",
         "offered_fares",
@@ -218,6 +220,9 @@
       "profile": {
         "literal": null
       },
+      "search_origin": {
+        "literal": null
+      },
       "search_request": {
         "literal": null
       },
@@ -371,7 +376,7 @@
       }
     },
     {
-      "id": "search-request",
+      "id": "search-origin",
       "type": "validate",
       "worker": "Coordinator",
       "input": {
@@ -388,18 +393,51 @@
         }
       },
       "otherwise": {
+        "coalesce": [
+          {
+            "from": "state",
+            "path": "/plan/search/origin"
+          },
+          {
+            "from": "state",
+            "path": "/profile/home_airport"
+          }
+        ]
+      },
+      "output_schema": "schemas/search-origin.schema.json",
+      "timeout_seconds": 10,
+      "depends_on": [
+        "profile"
+      ],
+      "writes": {
+        "/search_origin": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "id": "search-request",
+      "type": "validate",
+      "worker": "Coordinator",
+      "input": {
+        "literal": null
+      },
+      "when": {
+        "left": {
+          "from": "state",
+          "path": "/search_origin"
+        },
+        "op": "eq",
+        "right": {
+          "literal": null
+        }
+      },
+      "otherwise": {
         "object": {
           "origin": {
-            "coalesce": [
-              {
-                "from": "state",
-                "path": "/plan/search/origin"
-              },
-              {
-                "from": "state",
-                "path": "/profile/home_airport"
-              }
-            ]
+            "from": "state",
+            "path": "/search_origin"
           },
           "destination": {
             "from": "state",
@@ -449,7 +487,7 @@
       "output_schema": "schemas/search-request.schema.json",
       "timeout_seconds": 10,
       "depends_on": [
-        "profile"
+        "search-origin"
       ],
       "writes": {
         "/search_request": {
@@ -2070,7 +2108,7 @@
         "request": {
           "widget": "multiline",
           "rows": 3,
-          "placeholder": "Find me a flight to Zurich on 9 October under $900."
+          "placeholder": "Find me a flight from Boston to Zurich on 9 October under $900"
         },
         "booking": {
           "label": "Prepare a booking quote for the passenger I grant",
@@ -2084,6 +2122,7 @@
       "nodes": {
         "interpret": "Understand the request",
         "profile": "Travel profile (host)",
+        "search-origin": "Departure airport",
         "search-request": "Fill unstated criteria",
         "search": "Search WebAir",
         "select": "Choose fares",

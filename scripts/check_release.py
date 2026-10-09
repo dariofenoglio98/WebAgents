@@ -55,8 +55,29 @@ CURRENT_PACKAGES = {
     },
     # The fictional WebAir origin's packages (demo/webair), new in v0.2.0. The current one has no
     # unversioned alias: `webair.agent.pkg` stays 0.1.0, which the recorded evidence pins.
-    # 0.4.0 is the current one (0.3.0 plus publisher-declared profiles); 0.3.0, which the
-    # recorded live and Table I evidence and the contract overhead benchmark describe, stays pinned.
+    # 0.5.0 is the current one (0.4.0 plus the departure-airport answer, T9); 0.4.0, which the
+    # Chrome live acceptance, the conformance reports and the demo index describe, and 0.3.0,
+    # which the recorded live and Table I evidence and the contract overhead benchmark
+    # describe, stay pinned.
+    "webair-0.5.0": {
+        "stem": "webair",
+        "alias": False,
+        "package_id": "org.webagents.webair",
+        "version": "0.5.0",
+        "digest": "6192614e86ae4b18ba135f17120d4f616feac082c4ab09283221da7194c0bb48",
+        "archive_sha256": "4b087557cbd2b0ff186391dfd00f9068739f9a727ab2fd916a6512da1fde101b",
+        "key": "examples/keys/webair-publisher.pub.pem",
+        "fingerprint": "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b",
+        "tools": [
+            "get-fare-rules",
+            "personal.passenger_identity",
+            "personal.travel_profile",
+            "prepare-booking",
+            "search-flights",
+            "simulate-purchase",
+            "wallet.payment_method",
+        ],
+    },
     "webair-0.4.0": {
         "stem": "webair",
         "alias": False,

@@ -114,6 +114,22 @@
         "status": "request_not_supported",
         "selected_fare_id": null
       }
+    },
+    {
+      "id": "no-departure",
+      "summary": "the request names no departure airport and no travel profile supplies one (0.5.0, B-124): nothing is searched and the answer asks where the trip starts",
+      "input": {
+        "request": "Find me a flight to Zurich on 9 October under $900.",
+        "booking": false,
+        "purchase": {
+          "quote_id": "",
+          "fare_id": ""
+        }
+      },
+      "expect": {
+        "status": "request_not_supported",
+        "selected_fare_id": null
+      }
     }
   ]
 }

@@ -78,6 +78,37 @@
       },
       {
         "input": {
+          "request": "Find me a flight to Zurich on 9 October under $900.",
+          "interpreted_request": {
+            "search": {
+              "origin": null,
+              "destination": "ZRH",
+              "date": "2026-10-09",
+              "passengers": 1,
+              "nonstop_only": null,
+              "max_price_usd": 900,
+              "cabin": null
+            },
+            "unsupported_reason": null,
+            "needs_travel_profile": false
+          },
+          "selection": {
+            "outcome": "request_not_supported",
+            "fare_ids": [],
+            "selected_fare_id": null
+          },
+          "search": null,
+          "fare_rules": [],
+          "booking_quote": null,
+          "simulated_purchase": null
+        },
+        "output": {
+          "answer": "I did not search: your request does not say where you depart from. Tell me your departure airport (Boston, New York JFK, Zurich, Geneva, London Heathrow or Reykjavik), or use the agent in a way that lets it read your travel profile. Nothing was booked.",
+          "mentioned_fare_ids": []
+        }
+      },
+      {
+        "input": {
           "request": "Find me a nonstop flight from Boston to Zurich on 9 October 2028 under $900.",
           "interpreted_request": {
             "search": {
@@ -1258,6 +1289,24 @@
         "output": {
           "search": null,
           "unsupported_reason": "WebAir does not serve Paris; it flies only between Boston, New York JFK, Zurich, Geneva, London Heathrow and Reykjavik.",
+          "needs_travel_profile": false
+        }
+      },
+      {
+        "input": {
+          "request": "Find me a flight to Zurich on 9 October under $900."
+        },
+        "output": {
+          "search": {
+            "origin": null,
+            "destination": "ZRH",
+            "date": "2026-10-09",
+            "passengers": 1,
+            "nonstop_only": null,
+            "max_price_usd": 900,
+            "cabin": null
+          },
+          "unsupported_reason": null,
           "needs_travel_profile": false
         }
       },
