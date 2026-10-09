@@ -46,6 +46,7 @@ export type FieldModel = {
   name: string;
   kind: FieldKind;
   label: string;
+  /** The schema's description when it adds to the label and placeholder (`descriptionAdds`, D-110), else null. */
   description: string | null;
   required: boolean;
   group: "primary" | "optional" | "advanced";
@@ -70,6 +71,33 @@ export type FormModel = {
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
+
+/** Text as a comparison sees it: NFKC, case-folded, whitespace collapsed, quotes and closing punctuation dropped. */
+function comparable(text: string): string {
+  return text
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/["'“”‘’«»]/gu, "")
+    .replace(/\s+/gu, " ")
+    .trim()
+    .replace(/[\s.!?…:;,]+$/u, "");
+}
+
+/**
+ * Whether a field's description is shown under it (D-110): not when it repeats what the empty box
+ * already shows (it contains the placeholder, which is the publisher's example), and not when it
+ * only restates the label. Otherwise it is shown in full. Generic: the same rule for every package.
+ */
+export function descriptionAdds(description: string | null, placeholder: string | null, label: string): boolean {
+  if (description === null) return false;
+  const said = comparable(description);
+  if (said.length === 0) return false;
+  if (placeholder !== null) {
+    const shown = comparable(placeholder);
+    if (shown.length > 0 && said.includes(shown)) return false;
+  }
+  return said !== comparable(label);
+}
 
 export function humanize(name: string): string {
   const words = name.replace(/[._-]+/gu, " ").trim();
@@ -199,15 +227,18 @@ function field(name: string, raw: unknown, root: Schema | null, required: boolea
   const examples = Array.isArray(schema.examples) ? schema.examples : [];
   const title = typeof schema.title === "string" ? schema.title : null;
   const group = hint?.group;
+  const label = text(hint, "label") ?? title ?? humanize(name);
+  const placeholder = text(hint, "placeholder") ?? (typeof examples[0] === "string" ? (examples[0] as string) : null);
+  const description = typeof schema.description === "string" ? schema.description : null;
   return {
     name,
     kind,
-    label: text(hint, "label") ?? title ?? humanize(name),
-    description: typeof schema.description === "string" ? schema.description : null,
+    label,
+    description: descriptionAdds(description, placeholder, label) ? description : null,
     required,
     group: group === "optional" || group === "advanced" ? group : "primary",
     schema,
-    placeholder: text(hint, "placeholder") ?? (typeof examples[0] === "string" ? (examples[0] as string) : null),
+    placeholder,
     rows: typeof hint?.rows === "number" ? hint.rows : 4,
     options: Array.isArray(schema.enum) ? schema.enum : [],
     itemKind,

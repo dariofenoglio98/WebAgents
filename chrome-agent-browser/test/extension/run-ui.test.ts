@@ -11,7 +11,7 @@ import { describe, expect, it } from "vitest";
 
 import type { HttpTransport } from "../../src/core/models/transport.js";
 import type { AuthorizationView, AuthorizeResult, ProbeView, Request, RunSummary, RunView, SessionView, SettingsView } from "../../src/extension/messages.js";
-import { buildFormModel, hintsFrom, TaskForm } from "../../src/extension/ui/form.js";
+import { buildFormModel, descriptionAdds, hintsFrom, TaskForm } from "../../src/extension/ui/form.js";
 import { formatElapsed, renderRunList, RunPanel, stagesFor } from "../../src/extension/ui/run.js";
 import { newSettingsPageState, OLLAMA_ORIGIN_COMMANDS, renderSettingsPage } from "../../src/extension/ui/settings-page.js";
 import { writeZip } from "../../src/extension/ui/zip.js";
@@ -95,6 +95,31 @@ describe("the task form from the package's input schema", () => {
     area.dispatchEvent(new Event("input"));
     expect(form.errors().get("")).toBe("The task is not valid JSON.");
     expect(form.current()).toBeUndefined();
+  });
+
+  it("shows a field's description only when it adds to the placeholder and the label (F-11, D-110)", async () => {
+    const session = await openWebair(scripted());
+    const model = buildFormModel(session.summary.workflow.input!.document, hintsFrom(session.summary.workflow.presentation));
+    const request = model.fields.find((field) => field.name === "request")!;
+    // WebAir 0.4.0's description ends with the example the empty box already shows: not repeated.
+    expect(request.placeholder).toBe("Find me a flight to Zurich on 9 October under $900.");
+    expect(request.description).toBeNull();
+    expect(model.fields.find((field) => field.name === "booking")!.description).toMatch(/^Ask WebAir for a booking quote/u);
+    const form = new TaskForm(model, null, { canWrite: true }, () => undefined);
+    const wrapper = form.root.querySelector("textarea#ab-field-request")!.closest(".ab-field")!;
+    expect(wrapper.querySelector(".ab-hint")).toBeNull();
+    // The rule itself: an example from `examples[0]` counts as the placeholder; case, quotes, spacing and final punctuation do not matter.
+    const schema = { type: "object", properties: { topic: { type: "string", description: "The topic, for example “Multi-agent  LLM systems”.", examples: ["multi-agent LLM systems"] }, note: { type: "string", description: "Note." }, style: { type: "string", description: "One short paragraph, in the tone you would use for a colleague." } } };
+    const fields = buildFormModel(schema).fields;
+    expect(fields.map((field) => [field.name, field.placeholder, field.description])).toEqual([
+      ["topic", "multi-agent LLM systems", null],
+      ["note", null, null],
+      ["style", null, "One short paragraph, in the tone you would use for a colleague."],
+    ]);
+    expect(descriptionAdds("Your travel request, in your own words.", "Find me a flight from Boston to Zurich on 9 October under $900", "Request")).toBe(true);
+    expect(descriptionAdds("Request", null, "Request")).toBe(false);
+    expect(descriptionAdds("   ", "x", "y")).toBe(false);
+    expect(descriptionAdds(null, "x", "y")).toBe(false);
   });
 
   it("groups stages from the graph when the package declares none, and keeps the package's stage hints when it does", () => {
