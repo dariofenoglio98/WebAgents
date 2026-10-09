@@ -517,299 +517,37 @@
               "screening_rationale": ""
             }
           ],
-          "screening_jobs": [
+          "screening_refs": [
             {
-              "paper": {
-                "paper_id": "paper-9787df51408912ec",
-                "title": "SYNTHETIC: Dynamic Agent Selection with Task Routing",
-                "doi": "10.0000/synthetic-router",
-                "arxiv_id": null,
-                "authors": [
-                  {
-                    "name": "Synthetic Example Author"
-                  }
-                ],
-                "year": 2026,
-                "venue": "Synthetic Fixture Proceedings",
-                "abstract": "Dynamic agent selection routes each task to a subset of language-model agents using task features. The synthetic evaluation compares routed teams with a fixed all-agent baseline. Reported findings concern the simulated workload only.",
-                "url": null,
-                "source": "synthetic-fixture",
-                "provenance": [
-                  {
-                    "source": "synthetic-fixture",
-                    "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
-                    "locator": "10.0000/synthetic-router",
-                    "synthetic": true
-                  },
-                  {
-                    "source": "synthetic-fixture",
-                    "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
-                    "locator": "10.0000/synthetic-router",
-                    "synthetic": true
-                  },
-                  {
-                    "source": "synthetic-fixture",
-                    "query": null,
-                    "locator": "fixture:router",
-                    "synthetic": true
-                  }
-                ],
-                "full_text_available": false,
-                "screening_status": "pending",
-                "screening_rationale": ""
-              },
+              "paper_id": "paper-9787df51408912ec",
               "file_id": "synthetic-router-pdf"
             },
             {
-              "paper": {
-                "paper_id": "paper-0b480b1da362cc50",
-                "title": "SYNTHETIC: Adaptive Communication Topology for Agent Teams",
-                "doi": "10.0000/synthetic-topology",
-                "arxiv_id": null,
-                "authors": [
-                  {
-                    "name": "Synthetic Example Author"
-                  }
-                ],
-                "year": 2026,
-                "venue": "Synthetic Fixture Proceedings",
-                "abstract": "Adaptive communication topology changes message edges between language-model agents during a task. The synthetic method uses intermediate agreement signals to choose a communication graph. Its abstract does not report evaluation sample sizes.",
-                "url": null,
-                "source": "synthetic-fixture",
-                "provenance": [
-                  {
-                    "source": "synthetic-fixture",
-                    "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
-                    "locator": "10.0000/synthetic-topology",
-                    "synthetic": true
-                  },
-                  {
-                    "source": "synthetic-fixture",
-                    "query": null,
-                    "locator": "fixture:topology",
-                    "synthetic": true
-                  }
-                ],
-                "full_text_available": false,
-                "screening_status": "pending",
-                "screening_rationale": ""
-              },
+              "paper_id": "paper-0b480b1da362cc50",
               "file_id": null
             },
             {
-              "paper": {
-                "paper_id": "paper-40b8ac03b20bbf20",
-                "title": "SYNTHETIC: Joint Agent and Communication Selection",
-                "doi": "10.0000/synthetic-joint",
-                "arxiv_id": null,
-                "authors": [
-                  {
-                    "name": "Synthetic Example Author"
-                  }
-                ],
-                "year": 2026,
-                "venue": "Synthetic Fixture Proceedings",
-                "abstract": "Dynamic agent selection and topology adaptation jointly choose participants and communication edges. The synthetic study distinguishes selection costs from communication costs. Transfer beyond the simulated task distribution is not established.",
-                "url": null,
-                "source": "synthetic-fixture",
-                "provenance": [
-                  {
-                    "source": "synthetic-fixture",
-                    "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
-                    "locator": "10.0000/synthetic-joint",
-                    "synthetic": true
-                  },
-                  {
-                    "source": "synthetic-fixture",
-                    "query": null,
-                    "locator": "fixture:joint",
-                    "synthetic": true
-                  }
-                ],
-                "full_text_available": false,
-                "screening_status": "pending",
-                "screening_rationale": ""
-              },
+              "paper_id": "paper-40b8ac03b20bbf20",
               "file_id": null
             },
             {
-              "paper": {
-                "paper_id": "paper-6ca8546b03d7f153",
-                "title": "SYNTHETIC: Dynamic Agent Networks",
-                "doi": "10.0000/synthetic-ambiguous",
-                "arxiv_id": null,
-                "authors": [
-                  {
-                    "name": "Synthetic Example Author"
-                  }
-                ],
-                "year": 2026,
-                "venue": "Synthetic Fixture Proceedings",
-                "abstract": "Dynamic agent networks select language-model agents and adapt communication topology. This title deliberately has multiple fixture matches.",
-                "url": null,
-                "source": "synthetic-fixture",
-                "provenance": [
-                  {
-                    "source": "synthetic-fixture",
-                    "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
-                    "locator": "10.0000/synthetic-ambiguous",
-                    "synthetic": true
-                  },
-                  {
-                    "source": "synthetic-fixture",
-                    "query": null,
-                    "locator": "fixture:ambiguous",
-                    "synthetic": true
-                  }
-                ],
-                "full_text_available": false,
-                "screening_status": "pending",
-                "screening_rationale": ""
-              },
+              "paper_id": "paper-6ca8546b03d7f153",
               "file_id": null
             },
             {
-              "paper": {
-                "paper_id": "paper-c9fff587e292f1f3",
-                "title": "SYNTHETIC: Missing Agent Selection Paper",
-                "doi": "10.0000/synthetic-missing",
-                "arxiv_id": null,
-                "authors": [
-                  {
-                    "name": "Synthetic Example Author"
-                  }
-                ],
-                "year": 2026,
-                "venue": "Synthetic Fixture Proceedings",
-                "abstract": "Dynamic language-model agent selection is discussed in this synthetic search record. Its citation is deliberately absent from fixture indexes.",
-                "url": null,
-                "source": "synthetic-fixture",
-                "provenance": [
-                  {
-                    "source": "synthetic-fixture",
-                    "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
-                    "locator": "10.0000/synthetic-missing",
-                    "synthetic": true
-                  },
-                  {
-                    "source": "synthetic-fixture",
-                    "query": null,
-                    "locator": "fixture:missing",
-                    "synthetic": true
-                  }
-                ],
-                "full_text_available": false,
-                "screening_status": "pending",
-                "screening_rationale": ""
-              },
+              "paper_id": "paper-c9fff587e292f1f3",
               "file_id": null
             },
             {
-              "paper": {
-                "paper_id": "paper-ec09484d4252cc0a",
-                "title": "SYNTHETIC: Unavailable Topology Provider",
-                "doi": "10.0000/synthetic-failure",
-                "arxiv_id": null,
-                "authors": [
-                  {
-                    "name": "Synthetic Example Author"
-                  }
-                ],
-                "year": 2026,
-                "venue": "Synthetic Fixture Proceedings",
-                "abstract": "Dynamic agent selection and adaptive communication topology appear in this synthetic record. Its citation fixture simulates a provider outage.",
-                "url": null,
-                "source": "synthetic-fixture",
-                "provenance": [
-                  {
-                    "source": "synthetic-fixture",
-                    "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-                    "locator": "10.0000/synthetic-failure",
-                    "synthetic": true
-                  },
-                  {
-                    "source": "synthetic-fixture",
-                    "query": null,
-                    "locator": "fixture:failure",
-                    "synthetic": true
-                  }
-                ],
-                "full_text_available": false,
-                "screening_status": "pending",
-                "screening_rationale": ""
-              },
+              "paper_id": "paper-ec09484d4252cc0a",
               "file_id": null
             },
             {
-              "paper": {
-                "paper_id": "paper-466bc780ad415433",
-                "title": "SYNTHETIC: Dynamic Agent Selection Without An Abstract",
-                "doi": "10.0000/synthetic-title-only",
-                "arxiv_id": null,
-                "authors": [
-                  {
-                    "name": "Synthetic Example Author"
-                  }
-                ],
-                "year": 2026,
-                "venue": "Synthetic Fixture Proceedings",
-                "abstract": null,
-                "url": null,
-                "source": "synthetic-fixture",
-                "provenance": [
-                  {
-                    "source": "synthetic-fixture",
-                    "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-                    "locator": "10.0000/synthetic-title-only",
-                    "synthetic": true
-                  },
-                  {
-                    "source": "synthetic-fixture",
-                    "query": null,
-                    "locator": "fixture:title-only",
-                    "synthetic": true
-                  }
-                ],
-                "full_text_available": false,
-                "screening_status": "pending",
-                "screening_rationale": ""
-              },
+              "paper_id": "paper-466bc780ad415433",
               "file_id": null
             },
             {
-              "paper": {
-                "paper_id": "paper-e35ac4234542ac58",
-                "title": "SYNTHETIC: Ceramic Agent Topology",
-                "doi": "10.0000/synthetic-irrelevant",
-                "arxiv_id": null,
-                "authors": [
-                  {
-                    "name": "Synthetic Example Author"
-                  }
-                ],
-                "year": 2026,
-                "venue": "Synthetic Fixture Proceedings",
-                "abstract": "This synthetic article studies ceramic grain topology under furnace heating. Experiments measure thermal properties.",
-                "url": null,
-                "source": "synthetic-fixture",
-                "provenance": [
-                  {
-                    "source": "synthetic-fixture",
-                    "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
-                    "locator": "10.0000/synthetic-irrelevant",
-                    "synthetic": true
-                  },
-                  {
-                    "source": "synthetic-fixture",
-                    "query": null,
-                    "locator": "fixture:irrelevant",
-                    "synthetic": true
-                  }
-                ],
-                "full_text_available": false,
-                "screening_status": "pending",
-                "screening_rationale": ""
-              },
+              "paper_id": "paper-e35ac4234542ac58",
               "file_id": null
             }
           ]
@@ -2068,7 +1806,7 @@
             "provenance": {
               "source": "crossref",
               "locator": "10.0000/synthetic-topology",
-              "source_sha256": "fb16738786324beeb9571536e1f0965b83d28faebe09ed637170869da77fc8b1",
+              "source_sha256": "",
               "synthetic": true
             }
           },
@@ -2088,7 +1826,7 @@
             "provenance": {
               "source": "crossref",
               "locator": "10.0000/synthetic-topology",
-              "source_sha256": "fb16738786324beeb9571536e1f0965b83d28faebe09ed637170869da77fc8b1",
+              "source_sha256": "",
               "synthetic": true
             }
           },
@@ -2108,7 +1846,7 @@
             "provenance": {
               "source": "crossref",
               "locator": "10.0000/synthetic-topology",
-              "source_sha256": "fb16738786324beeb9571536e1f0965b83d28faebe09ed637170869da77fc8b1",
+              "source_sha256": "",
               "synthetic": true
             }
           }
@@ -2216,7 +1954,7 @@
               "provenance": {
                 "source": "crossref",
                 "locator": "10.0000/synthetic-topology",
-                "source_sha256": "fb16738786324beeb9571536e1f0965b83d28faebe09ed637170869da77fc8b1",
+                "source_sha256": "",
                 "synthetic": true
               }
             },
@@ -2236,7 +1974,7 @@
               "provenance": {
                 "source": "crossref",
                 "locator": "10.0000/synthetic-topology",
-                "source_sha256": "fb16738786324beeb9571536e1f0965b83d28faebe09ed637170869da77fc8b1",
+                "source_sha256": "",
                 "synthetic": true
               }
             },
@@ -2256,7 +1994,7 @@
               "provenance": {
                 "source": "crossref",
                 "locator": "10.0000/synthetic-topology",
-                "source_sha256": "fb16738786324beeb9571536e1f0965b83d28faebe09ed637170869da77fc8b1",
+                "source_sha256": "",
                 "synthetic": true
               }
             }
@@ -2982,7 +2720,7 @@
               "provenance": {
                 "source": "crossref",
                 "locator": "10.0000/synthetic-topology",
-                "source_sha256": "fb16738786324beeb9571536e1f0965b83d28faebe09ed637170869da77fc8b1",
+                "source_sha256": "",
                 "synthetic": true
               }
             },
@@ -3002,7 +2740,7 @@
               "provenance": {
                 "source": "crossref",
                 "locator": "10.0000/synthetic-topology",
-                "source_sha256": "fb16738786324beeb9571536e1f0965b83d28faebe09ed637170869da77fc8b1",
+                "source_sha256": "",
                 "synthetic": true
               }
             },
@@ -3022,7 +2760,7 @@
               "provenance": {
                 "source": "crossref",
                 "locator": "10.0000/synthetic-topology",
-                "source_sha256": "fb16738786324beeb9571536e1f0965b83d28faebe09ed637170869da77fc8b1",
+                "source_sha256": "",
                 "synthetic": true
               }
             }
@@ -3220,7 +2958,7 @@
           ]
         },
         "output": {
-          "related_work": "# Related Work\n\nExecuted by workflow.v0 with deterministic fixture replay; no model inference.\n\n**SYNTHETIC DEMONSTRATION \u2014 all bundled papers, identifiers, and findings are invented test data. Do not cite this as research.**\n\nThis extractive baseline groups source quotations; it does not perform semantic method comparison or establish research gaps.\n\n## Communication structure\n\nAn abstract states: \u201cAdaptive communication topology changes message edges between language-model agents during a task.\u201d [1] An abstract states: \u201cThe synthetic method uses intermediate agreement signals to choose a communication graph.\u201d [1]\n\n## Reported limitations\n\nThe supplied full text states: \u201cA limitation is that the simulated workload does not establish performance on real tasks.\u201d [2] An abstract states: \u201cIts abstract does not report evaluation sample sizes.\u201d [1]\n\n## Selection and evaluation\n\nThe supplied full text states: \u201cDynamic agent selection routes each task to a subset of language-model agents using task features.\u201d [2] The supplied full text states: \u201cThe simulated experimental setup uses ten invented task families.\u201d [2] The supplied full text states: \u201cThe synthetic evaluation compares routed teams with a fixed all-agent baseline.\u201d [2]\n\nEvidence coverage: 3 abstract-derived items and 4 supplied full-text items. Search coverage is bounded; this is not a systematic or exhaustive review.\n\n2 records require follow-up; ambiguous citations are excluded from the prose.\n",
+          "related_work": "# Related Work\n\nExecuted by workflow.v0 with deterministic fixture replay; no model inference.\n\n**SYNTHETIC DEMONSTRATION — all bundled papers, identifiers, and findings are invented test data. Do not cite this as research.**\n\nThis extractive baseline groups source quotations; it does not perform semantic method comparison or establish research gaps.\n\n## Communication structure\n\nAn abstract states: “Adaptive communication topology changes message edges between language-model agents during a task.” [1] An abstract states: “The synthetic method uses intermediate agreement signals to choose a communication graph.” [1]\n\n## Reported limitations\n\nThe supplied full text states: “A limitation is that the simulated workload does not establish performance on real tasks.” [2] An abstract states: “Its abstract does not report evaluation sample sizes.” [1]\n\n## Selection and evaluation\n\nThe supplied full text states: “Dynamic agent selection routes each task to a subset of language-model agents using task features.” [2] The supplied full text states: “The simulated experimental setup uses ten invented task families.” [2] The supplied full text states: “The synthetic evaluation compares routed teams with a fixed all-agent baseline.” [2]\n\nEvidence coverage: 3 abstract-derived items and 4 supplied full-text items. Search coverage is bounded; this is not a systematic or exhaustive review.\n\n2 records require follow-up; ambiguous citations are excluded from the prose.\n",
           "bibliography": [
             {
               "reference": 1,
@@ -3332,7 +3070,7 @@
               "provenance": {
                 "source": "crossref",
                 "locator": "10.0000/synthetic-topology",
-                "source_sha256": "fb16738786324beeb9571536e1f0965b83d28faebe09ed637170869da77fc8b1",
+                "source_sha256": "",
                 "synthetic": true
               },
               "reference": 1
@@ -3353,7 +3091,7 @@
               "provenance": {
                 "source": "crossref",
                 "locator": "10.0000/synthetic-topology",
-                "source_sha256": "fb16738786324beeb9571536e1f0965b83d28faebe09ed637170869da77fc8b1",
+                "source_sha256": "",
                 "synthetic": true
               },
               "reference": 1
@@ -3374,7 +3112,7 @@
               "provenance": {
                 "source": "crossref",
                 "locator": "10.0000/synthetic-topology",
-                "source_sha256": "fb16738786324beeb9571536e1f0965b83d28faebe09ed637170869da77fc8b1",
+                "source_sha256": "",
                 "synthetic": true
               },
               "reference": 1

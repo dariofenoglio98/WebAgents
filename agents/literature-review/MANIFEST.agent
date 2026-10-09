@@ -2,7 +2,7 @@
   "spec_version": "0.1",
   "package_id": "org.webagents.literature-review",
   "name": "Literature Review Agent",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "A constrained coordinator-worker review with structured evidence and verified citations. Bundled demo data are synthetic.",
   "publisher": {
     "id": "webagents-research",
@@ -24,7 +24,7 @@
   "skills": [
     {
       "id": "literature-search",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "path": "skills/literature-search/SKILL.md"
     },
     {
@@ -39,7 +39,7 @@
     },
     {
       "id": "evidence-extraction",
-      "version": "0.1.2",
+      "version": "0.1.3",
       "path": "skills/evidence-extraction/SKILL.md"
     },
     {
@@ -256,6 +256,18 @@
     {
       "id": "evidence-ref",
       "path": "schemas/evidence-ref.schema.json"
+    },
+    {
+      "id": "screen-ref",
+      "path": "schemas/screen-ref.schema.json"
+    },
+    {
+      "id": "screen-refs",
+      "path": "schemas/screen-refs.schema.json"
+    },
+    {
+      "id": "screening-jobs",
+      "path": "schemas/screening-jobs.schema.json"
     }
   ],
   "model_requirements": {

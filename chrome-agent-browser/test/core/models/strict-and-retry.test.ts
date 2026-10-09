@@ -81,6 +81,8 @@ describe("openAiStrictSchema", () => {
       "schemas/synthesis.schema.json": false,
       "schemas/written.schema.json": false,
     });
+    // 0.2.6 (T10): normalize asks for references, still strict.
+    expect(await strictness(SHIPPED.literatureReview026.archive, ["schemas/normalize.schema.json", "schemas/paper-evidence.schema.json"])).toEqual({ "schemas/normalize.schema.json": true, "schemas/paper-evidence.schema.json": true });
   });
 });
 

@@ -3,7 +3,7 @@
     agentpkg/.venv/bin/python scripts/verify_chrome_literature_live.py \\
         [--report examples/verification/chrome-literature-review-live.json]
 
-`chrome-agent-browser/scripts/e2e-literature-live.mjs` ran the signed Literature Review 0.2.5 in a
+`chrome-agent-browser/scripts/e2e-literature-live.mjs` ran the signed Literature Review (0.2.5 for T6, 0.2.6 since T10) in a
 real Chrome with the person's model against the real Crossref API and the hosted Citation Resolver,
 and exported the run (run.json, run-plan.json, input.json, the artifacts), observations.json (every
 outbound model and tool request body, test mode) and documents.json (each picked PDF's text from
@@ -50,7 +50,9 @@ from agentpkg.execution.report import verify_audit_chain  # noqa: E402
 from agentpkg.package import load_package  # noqa: E402
 from agentpkg.signing import verify_package  # noqa: E402
 
-ARCHIVE = ROOT / "dist/literature-review-0.2.5.agent.pkg"
+# The signed archive the harness served, named in its report (0.2.5 for T6's, 0.2.6 since T10);
+# only a versioned Literature Review in dist/ is accepted.
+ARCHIVE_NAME = re.compile(r"^dist/literature-review-0\.2\.[5-9]\.agent\.pkg$")
 KEY = ROOT / "examples/keys/literature-review-publisher.pub.pem"
 CROSSREF_REFERENCE = ROOT / "chrome-agent-browser/test/fixtures/crossref/reference-answers.json"
 CROSSREF = "https://api.crossref.org"
@@ -292,6 +294,10 @@ def main() -> int:
     )
 
     # The package the run was bound to: the signed archive in dist/, verified with its key.
+    named = report["package"]["path"]
+    if not ARCHIVE_NAME.match(named):
+        raise SystemExit(f"verify_chrome_literature_live: unexpected package path {named!r}")
+    ARCHIVE = ROOT / named
     package = load_package(ARCHIVE)
     verified = verify_package(ARCHIVE, KEY)
     archive_sha256 = hashlib.sha256(ARCHIVE.read_bytes()).hexdigest()

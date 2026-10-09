@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Literature Review live acceptance in Chrome (T6, Demo 4; D-028): the built extension in a real
- * headless Chrome runs the signed Literature Review 0.2.5 with the person's model against the real
+ * headless Chrome runs the signed Literature Review (0.2.6 by default, `--version 0.2.5` for T6's) with the person's model against the real
  * services the package names (Crossref through the host's Crossref adapter, the hosted Citation
  * Resolver), driving the full page the way a person does:
  *
@@ -21,7 +21,11 @@
  *   npm run build && node scripts/e2e-literature-live.mjs --model openai/gpt-5.6-luna
  *        [--input examples/literature-review-live-input.json] [--document DOI=/abs/paper.pdf]...
  *        [--crossref-contact you@example.org] [--out report.json] [--out-dir examples/my-chrome-lit-<ts>]
- *        [--chrome path] [--no-reload] [--think] [--keep]
+ *        [--chrome path] [--no-reload] [--think] [--keep] [--version 0.2.6]
+ *        [--context-tokens N] [--reasoning-effort low|medium|high]
+ *   `--context-tokens` states the model's context in Settings → Models (a hosted model the catalog
+ *   has no figure for, such as gpt-5.6-sol); `--reasoning-effort` sets the OpenAI connection's
+ *   effort (D-123; default medium).
  *   A hosted model needs OPENAI_API_KEY or ANTHROPIC_API_KEY in the environment; the key is typed
  *   into this throwaway profile's storage and written nowhere by this script. A local Ollama model
  *   gets the explicit 65,536 / 16,384 limits the reference host used (STATE.md §5); `--think` turns
@@ -42,14 +46,13 @@ const PROJECT = resolve(here, "..");
 const ROOT = resolve(PROJECT, "..");
 const EXTENSION = join(PROJECT, "dist", "extension");
 const CLI = join(PROJECT, "dist", "cli.js");
-const PACKAGE = join(ROOT, "dist", "literature-review-0.2.5.agent.pkg");
 const SITE_HOST = "research.example";
 const PACKAGE_URL = `https://${SITE_HOST}/literature-review.agent.pkg`;
 /** The reference host's configuration for Literature Review (STATE.md §4), the "long-run limits" of Settings (D-084). */
 const LONG_RUN_LIMITS = { total_tokens: 180_000, max_remote_calls: 45, max_parallel_workers: 3, max_output_tokens_per_call: 16_000, run_timeout_seconds: 4_500, max_calls_per_tool: 32, model_call_timeout_seconds: 1_200 };
 const TERMINAL = ["completed", "failed", "cancelled", "interrupted"];
 
-const args = { chrome: process.env.CHROME_PATH || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", model: null, input: join(ROOT, "examples", "literature-review-live-input.json"), documents: [], contact: null, out: join(ROOT, "examples", "verification", "chrome-literature-review-live.json"), outDir: null, reload: true, think: false, keep: false };
+const args = { chrome: process.env.CHROME_PATH || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", model: null, input: join(ROOT, "examples", "literature-review-live-input.json"), documents: [], contact: null, out: null, outDir: null, reload: true, think: false, keep: false, version: "0.2.6", contextTokens: null, effort: null };
 for (let index = 2; index < process.argv.length; index += 1) {
   const argument = process.argv[index];
   if (argument === "--chrome") args.chrome = process.argv[(index += 1)];
@@ -69,16 +72,34 @@ for (let index = 2; index < process.argv.length; index += 1) {
   else if (argument === "--no-reload") args.reload = false;
   else if (argument === "--think") args.think = true;
   else if (argument === "--keep") args.keep = true;
+  else if (argument === "--version") args.version = process.argv[(index += 1)];
+  else if (argument === "--context-tokens") args.contextTokens = Number(process.argv[(index += 1)]);
+  else if (argument === "--reasoning-effort") args.effort = process.argv[(index += 1)];
   else {
     console.error(`unknown argument ${argument}`);
     process.exit(2);
   }
 }
+if (!/^0\.2\.[5-9]$/u.test(args.version)) {
+  console.error("--version names a signed Literature Review in dist/ (0.2.5 or later)");
+  process.exit(2);
+}
+if (args.contextTokens !== null && !(Number.isInteger(args.contextTokens) && args.contextTokens > 0)) {
+  console.error("--context-tokens must be a positive integer");
+  process.exit(2);
+}
+if (args.effort !== null && !["low", "medium", "high"].includes(args.effort)) {
+  console.error("--reasoning-effort is low, medium or high");
+  process.exit(2);
+}
+const PACKAGE = join(ROOT, "dist", `literature-review-${args.version}.agent.pkg`);
+// T6's report keeps its name; a later version's report is named after it and never overwrites it.
+if (args.out === null) args.out = join(ROOT, "examples", "verification", args.version === "0.2.5" ? "chrome-literature-review-live.json" : `chrome-literature-review-${args.version.replaceAll(".", "")}-live.json`);
 if (!args.model || !args.model.includes("/")) {
   console.error("--model provider/model is required (ollama/qwen3:30b, openai/<id>, anthropic/<id>)");
   process.exit(2);
 }
-for (const [path, hint] of [[join(EXTENSION, "manifest.json"), "run `npm run build` first"], [CLI, "run `npm run build` first"], [PACKAGE, "the signed Literature Review 0.2.5 (dist/README.md)"], [args.input, "--input"], [args.chrome, "--chrome"], ...args.documents.map((item) => [item.path, `--document ${item.doi}`])]) {
+for (const [path, hint] of [[join(EXTENSION, "manifest.json"), "run `npm run build` first"], [CLI, "run `npm run build` first"], [PACKAGE, `the signed Literature Review ${args.version} (dist/README.md)`], [args.input, "--input"], [args.chrome, "--chrome"], ...args.documents.map((item) => [item.path, `--document ${item.doi}`])]) {
   if (!existsSync(path)) {
     console.error(`${path} is missing: ${hint}`);
     process.exit(2);
@@ -103,6 +124,8 @@ const report = {
   recordedAt: startedAt.toISOString(),
   model: args.model,
   think: args.think,
+  contextTokens: args.contextTokens,
+  reasoningEffort: provider === "openai" ? (args.effort ?? "medium (default)") : null,
   package: { path: relative(ROOT, PACKAGE), archiveSha256: sha256(readFileSync(PACKAGE)), servedAs: PACKAGE_URL },
   input: relative(ROOT, args.input),
   documents: args.documents.map((item) => ({ doi: item.doi, file: basename(item.path), sha256: sha256(readFileSync(item.path)) })),
@@ -212,7 +235,8 @@ async function main() {
     settings.models.connections = settings.models.connections.map((connection) => {
       if (connection.provider !== provider) return connection;
       const modelId = args.model.slice(provider.length + 1);
-      return { ...connection, enabled: true, ...(provider === "ollama" ? { think: args.think } : {}), overrides: provider === "ollama" ? { ...connection.overrides, [modelId]: { context_tokens: 65_536, max_output_tokens: 16_384 } } : connection.overrides };
+      const overrides = provider === "ollama" ? { ...connection.overrides, [modelId]: { context_tokens: args.contextTokens ?? 65_536, max_output_tokens: 16_384 } } : args.contextTokens !== null ? { ...connection.overrides, [modelId]: { ...connection.overrides[modelId], context_tokens: args.contextTokens } } : connection.overrides;
+      return { ...connection, enabled: true, ...(provider === "ollama" ? { think: args.think } : {}), ...(provider === "openai" && args.effort !== null ? { reasoning_effort: args.effort } : {}), overrides };
     });
     await send({ type: "settings.set", settings });
     if (keyEnv) await send({ type: "settings.setKey", provider, key: process.env[keyEnv] });
@@ -238,7 +262,7 @@ async function main() {
     const sessionId = await cdp.waitFor(page, `__ab.session()`, "the agent page", 60_000);
     const inspected = await send({ type: "package.get", sessionId });
     report.steps.inspect = { sessionId, name: inspected.page.identity.name, version: inspected.page.identity.version, digest: inspected.page.technical.digest, signature: inspected.page.trust.signature_status };
-    check("inspect", "Literature Review 0.2.5, signed", inspected.page.identity.version === "0.2.5" && inspected.page.trust.signature_status === "valid", report.steps.inspect);
+    check("inspect", `Literature Review ${args.version}, signed`, inspected.page.identity.version === args.version && inspected.page.trust.signature_status === "valid", report.steps.inspect);
     if (inspected.page.trust.trust_status !== "trusted") {
       await cdp.waitFor(page, `__ab.click("Trust this publisher key", document.querySelector(".ab-pin"))`, "the trust control");
       await cdp.evaluate(page, `__ab.click("Press again to trust this key", document.querySelector(".ab-pin"))`);

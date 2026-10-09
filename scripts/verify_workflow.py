@@ -24,6 +24,7 @@ SHIPPED_SIGNER_KEY = {
     "literature-review": ROOT / "examples/keys/literature-review-publisher.pub.pem",
     "meeting-agenda": ROOT / "examples/keys/meeting-agenda-publisher.pub.pem",
 }
+SHIPPED_ARTIFACT = {"literature-review": "literature-review-0.2.6.agent.pkg"}
 
 
 async def execute(package):
@@ -85,7 +86,9 @@ def verify_all():
             b = asyncio.run(execute(package))
             assert a["output"] == b["output"] and a["state"] == b["state"]
             assert a["usage"] == b["usage"], "Nondeterministic fixture accounting"
-            shipped = ROOT / "dist" / f"{name}.agent.pkg"
+            # The signed release of the current source. Literature Review's unversioned alias
+            # stays 0.2.5 (dist/README.md, T10), so its current release is named by version.
+            shipped = ROOT / "dist" / SHIPPED_ARTIFACT.get(name, f"{name}.agent.pkg")
             shipped_verification = verify_package(shipped, SHIPPED_SIGNER_KEY[name])
             assert shipped_verification["digest"] == package.digest, (
                 "Stale distribution artifact"
