@@ -7,6 +7,11 @@
  * list with Export and Clear, the zip writer the export uses, and the Settings additions (the
  * Ollama commands, the B-117 diagnosis, the test-mode switch).
  */
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import type { HttpTransport } from "../../src/core/models/transport.js";
@@ -16,7 +21,7 @@ import { formatElapsed, renderRunList, RunPanel, stagesFor } from "../../src/ext
 import { newSettingsPageState, OLLAMA_ORIGIN_COMMANDS, renderSettingsPage } from "../../src/extension/ui/settings-page.js";
 import { writeZip } from "../../src/extension/ui/zip.js";
 import { scriptedOllama, scriptedOrigin, webairModelAnswers } from "../helpers/host.js";
-import { SHIPPED } from "../helpers/paths.js";
+import { ROOT, SHIPPED } from "../helpers/paths.js";
 import { makeHarness, PAGE, SITE_ORIGIN, WEBAIR_040_URL, type Harness } from "../helpers/shell.js";
 import { listMembers } from "../helpers/zip.js";
 
@@ -194,6 +199,9 @@ describe("the run panel", () => {
     // The result: answer.md through the markdown renderer, the summary of the JSON exports, the artifacts and the technical details.
     await settle(100);
     expect(panel.root.querySelector(".ab-result .ab-markdown")?.textContent).toContain("Boston to Zurich");
+    // The files are behind Inspect (F-13): closed by default, opened on request.
+    expect(panel.root.querySelector(".ab-artifact")).toBeNull();
+    button("Inspect")!.click();
     const artifactNames = [...panel.root.querySelectorAll(".ab-artifact code")].map((node) => node.textContent ?? "");
     // Package exports first (in the graph's export order), then the run evidence with run.json last.
     expect(artifactNames.slice(0, 4).sort()).toEqual(["answer.md", "booking.json", "fare-rules.json", "search.json"]);
@@ -288,6 +296,7 @@ describe("the run panel", () => {
     await panel.attachSession(session.session.id);
     await settle(100);
     expect(panel.root.dataset.state).toBe("completed");
+    [...panel.root.querySelectorAll<HTMLButtonElement>("button")].find((item) => item.textContent === "Inspect")!.click();
     const downloadOf = (name: string) => [...panel.root.querySelectorAll<HTMLElement>(".ab-artifact")].find((row) => row.querySelector("code")?.textContent === name)!.querySelector<HTMLButtonElement>("button:last-of-type")!;
     // The saved file is what the browser's download sees; the note names the record as the reference.
     const saved: string[] = [];
@@ -307,6 +316,74 @@ describe("the run panel", () => {
     await settle(100);
     expect(saved).toEqual(["search.json"]);
     expect(panel.root.textContent).toContain("do not match the SHA-256 the run recorded");
+    panel.dispose();
+  });
+
+  it("a finished run shows its files collapsed; Inspect opens the list; Download saves one verified zip of every file (F-13, D-112)", async () => {
+    const h = scripted();
+    const session = await openWebair(h);
+    const result = (await h.controller.handle({ type: "authorization.useProfile", sessionId: session.session.id, packageDigest: SHIPPED.webair040.digest, profileId: "search", resourceSelections: {}, prepare: true }, PAGE)) as AuthorizeResult;
+    const plan = result.run_plan!.run_plan;
+    const started = (await h.controller.handle({ type: "run.start", sessionId: session.session.id, runPlanId: plan.run_plan_id, runPlanSha256: plan.run_plan_sha256, input: { request: SEARCH_TEXT, booking: false, purchase: { quote_id: "", fare_id: "" } } }, PAGE)) as RunView;
+    await h.h_drain();
+    const { panel, settle, button } = mountPanel(h, session);
+    await panel.attachSession(session.session.id);
+    await settle(100);
+    expect(panel.root.dataset.state).toBe("completed");
+    // The result summary stays open; the files are a count and two buttons.
+    expect(panel.root.querySelector(".ab-result-summary")).not.toBeNull();
+    expect(panel.root.querySelector(".ab-artifact")).toBeNull();
+    expect(panel.root.querySelector(".ab-artifacts-counts")?.textContent).toBe("4 package exports · 5 evidence files");
+    const inspect = () => panel.root.querySelector<HTMLButtonElement>(".ab-artifacts-inspect")!;
+    expect([inspect().textContent, inspect().getAttribute("aria-expanded")]).toEqual(["Inspect", "false"]);
+    inspect().click();
+    expect([inspect().textContent, inspect().getAttribute("aria-expanded")]).toEqual(["Hide files", "true"]);
+    expect([...panel.root.querySelectorAll(".ab-artifact-files h4")].map((node) => node.textContent)).toEqual(["Package exports", "Run evidence"]);
+    expect(panel.root.querySelectorAll(".ab-artifact")).toHaveLength(9);
+    inspect().click();
+    expect(panel.root.querySelector(".ab-artifact")).toBeNull();
+    // Download: one zip named after the run, every listed file under exports/ and evidence/, run.json at the top.
+    const saved: Array<{ name: string; blob: Blob }> = [];
+    let pendingBlob: Blob | null = null;
+    URL.createObjectURL = (blob: Blob) => {
+      pendingBlob = blob;
+      return "blob:test";
+    };
+    URL.revokeObjectURL = () => undefined;
+    HTMLAnchorElement.prototype.click = function click(this: HTMLAnchorElement) {
+      saved.push({ name: this.download, blob: pendingBlob! });
+    };
+    panel.root.querySelector<HTMLButtonElement>(".ab-artifacts-download")!.click();
+    for (let attempt = 0; attempt < 100 && saved.length === 0; attempt += 1) await settle(20);
+    expect(saved.map((item) => item.name)).toEqual([`${started.runId}.zip`]);
+    const zip = new Uint8Array(await saved[0]!.blob.arrayBuffer());
+    const record = (await h.controller.handle({ type: "run.get", runId: started.runId }, PAGE)) as RunView;
+    const exports = record.artifacts.filter((item) => !["result.json", "audit.json", "usage.json", "provenance.json", "run.json"].includes(item.name)).map((item) => item.name);
+    const expected = ["run.json", ...exports.map((name) => `exports/${name}`), ...["result.json", "audit.json", "usage.json", "provenance.json"].map((name) => `evidence/${name}`)];
+    expect([...listMembers(zip).keys()]).toEqual(expected);
+    expect(exports.sort()).toEqual(["answer.md", "booking.json", "fare-rules.json", "search.json"]);
+    // Read back by an independent reader (Python's zipfile, from the agentpkg venv the suite already needs): valid, every CRC right, the same names and bytes.
+    const scratch = mkdtempSync(join(realpathSync(tmpdir()), "t9-zip-"));
+    try {
+      const path = join(scratch, `${started.runId}.zip`);
+      writeFileSync(path, zip);
+      const python = process.env.AGENTPKG_PYTHON ?? join(ROOT, "agentpkg", ".venv", "bin", "python");
+      const read = JSON.parse(execFileSync(python, ["-I", "-c", "import hashlib, json, sys, zipfile\nz = zipfile.ZipFile(sys.argv[1])\nprint(json.dumps({'bad': z.testzip(), 'names': z.namelist(), 'sha256': {n: hashlib.sha256(z.read(n)).hexdigest() for n in z.namelist()}}))", path], { encoding: "utf8" })) as { bad: string | null; names: string[]; sha256: Record<string, string> };
+      expect(read.bad).toBeNull();
+      expect(read.names).toEqual(expected);
+      for (const item of record.artifacts.filter((artifact) => artifact.name !== "run.json")) {
+        expect(read.sha256[exports.includes(item.name) ? `exports/${item.name}` : `evidence/${item.name}`], item.name).toBe(item.sha256);
+      }
+    } finally {
+      rmSync(scratch, { recursive: true, force: true });
+    }
+    expect(panel.root.textContent).toContain(`Saved ${started.runId}.zip (9 files`);
+    // A file whose stored bytes no longer match the record stops the zip; nothing is saved.
+    h.runs.artifacts.get(`${started.runId}/search.json`)!.bytes = new TextEncoder().encode("{}");
+    button("Download")!.click();
+    await settle(200);
+    expect(saved).toHaveLength(1);
+    expect(panel.root.textContent).toContain("Download failed: The stored bytes of search.json do not match the SHA-256 the run recorded");
     panel.dispose();
   });
 

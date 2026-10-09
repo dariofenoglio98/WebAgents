@@ -19,6 +19,7 @@ import type { ArtifactChunk, ArtifactContent, AuthorizationView, InputValidation
 import { button, bytes, chip, clear, definition, el, shortHash, whenText } from "./dom.js";
 import { buildFormModel, hintsFrom, humanize, TaskForm, type FormFile } from "./form.js";
 import { renderMarkdown } from "./markdown.js";
+import { writeZip } from "./zip.js";
 
 export interface RunPanelLoaded {
   session: SessionView;
@@ -179,6 +180,26 @@ export async function saveBlob(name: string, blob: Blob): Promise<string | null>
   return actual;
 }
 
+/** The run's files as the Artifacts section lists them: the package exports, then the host's evidence with `run.json` last. */
+export function artifactGroups(record: Pick<RunView, "artifacts">): { exports: RunView["artifacts"]; evidence: RunView["artifacts"] } {
+  const exports = record.artifacts.filter((item) => !HOST_ARTIFACTS.has(item.name));
+  const evidence = record.artifacts.filter((item) => HOST_ARTIFACTS.has(item.name) && item.name !== "run.json");
+  evidence.push(record.artifacts.find((item) => item.name === "run.json") ?? { name: "run.json", bytes: 0, sha256: "" });
+  return { exports, evidence };
+}
+
+/** The run archive's layout (D-112): `run.json` at the top, exports under `exports/`, the other evidence under `evidence/`. */
+export function archiveMembers(exports: readonly string[], evidence: readonly string[]): Array<{ path: string; artifact: string }> {
+  return [
+    { path: "run.json", artifact: "run.json" },
+    ...exports.map((name) => ({ path: `exports/${name}`, artifact: name })),
+    ...evidence.filter((name) => name !== "run.json").map((name) => ({ path: `evidence/${name}`, artifact: name })),
+  ];
+}
+
+/** The most the run archive gathers in the page, as the Runs export (D-073). */
+const MAX_ARCHIVE_BYTES = 32 * 1024 * 1024;
+
 function artifactJson(content: ArtifactContent): unknown {
   if (content.json !== undefined) return content.json;
   if (content.truncated || !content.name.endsWith(".json") || typeof content.text !== "string") return undefined;
@@ -231,6 +252,8 @@ export class RunPanel {
   private startError: ErrorBox | null = null;
   private artifacts = new Map<string, ArtifactContent | { error: ErrorBox }>();
   private viewing: string | null = null;
+  /** Whether Inspect has opened the per-file list (closed by default, F-13). */
+  private inspecting = false;
   private downloadNote: string | null = null;
   private pollTimer: ReturnType<typeof setTimeout> | null = null;
   private tickTimer: ReturnType<typeof setInterval> | null = null;
@@ -474,6 +497,7 @@ export class RunPanel {
     this.run = record;
     this.artifacts = new Map();
     this.viewing = null;
+    if (changed) this.inspecting = false;
     this.downloadNote = null;
     this.render();
     if (isTerminal(record)) void this.loadResult(record);
@@ -602,37 +626,77 @@ export class RunPanel {
     }
   }
 
+  /**
+   * One artifact's bytes, read in chunks and checked against the hash the host recorded when it
+   * wrote the artifact: the bytes must match *that*, not merely the hash the worker recomputed from
+   * the same stored bytes (review 1, nit 9).
+   */
+  private async artifactBytes(record: RunView, name: string): Promise<Blob> {
+    const parts: Uint8Array[] = [];
+    let offset = 0;
+    const recorded = record.artifacts.find((item) => item.name === name)?.sha256 ?? null;
+    let expected = "";
+    let complete = false;
+    for (let index = 0; index < MAX_CHUNKS; index += 1) {
+      const chunk = await this.host.send<ArtifactChunk>({ type: "run.artifactChunk", runId: record.runId, name, offset });
+      const data = base64Bytes(chunk.base64);
+      parts.push(data);
+      offset += data.length;
+      expected = chunk.sha256;
+      if (chunk.eof || data.length === 0) {
+        complete = chunk.eof;
+        break;
+      }
+    }
+    if (!complete) throw new Error(`${name} is larger than this page downloads.`);
+    if (recorded !== null && expected !== recorded) throw new Error(`The stored bytes of ${name} do not match the SHA-256 the run recorded for this artifact.`);
+    const blob = new Blob(parts as BlobPart[], { type: mimeFor(name) });
+    const actual = await sha256HexOf(blob).catch(() => null);
+    if (actual && actual !== (recorded ?? expected)) throw new Error(`The downloaded bytes of ${name} do not match the artifact's SHA-256.`);
+    return blob;
+  }
+
   private async download(name: string): Promise<void> {
     const record = this.run;
     if (!record) return;
     this.downloadNote = `Downloading ${name}…`;
     this.renderRun();
     try {
-      const parts: Uint8Array[] = [];
-      let offset = 0;
-      // The hash the host recorded when it wrote the artifact: the bytes must match *that*, not
-      // merely the hash the worker recomputed from the same stored bytes (review 1, nit 9).
       const recorded = record.artifacts.find((item) => item.name === name)?.sha256 ?? null;
-      let expected = "";
-      let complete = false;
-      for (let index = 0; index < MAX_CHUNKS; index += 1) {
-        const chunk = await this.host.send<ArtifactChunk>({ type: "run.artifactChunk", runId: record.runId, name, offset });
-        const data = base64Bytes(chunk.base64);
-        parts.push(data);
-        offset += data.length;
-        expected = chunk.sha256;
-        if (chunk.eof || data.length === 0) {
-          complete = chunk.eof;
-          break;
-        }
-      }
-      if (!complete) throw new Error("The artifact is larger than this page downloads.");
-      if (recorded !== null && expected !== recorded) throw new Error("The stored bytes do not match the SHA-256 the run recorded for this artifact.");
-      const blob = new Blob(parts as BlobPart[], { type: mimeFor(name) });
-      const actual = await sha256HexOf(blob).catch(() => null);
-      if (actual && actual !== (recorded ?? expected)) throw new Error("The downloaded bytes do not match the artifact's SHA-256.");
-      await saveBlob(name, blob);
+      const blob = await this.artifactBytes(record, name);
+      const actual = await saveBlob(name, blob);
       this.downloadNote = actual ? `Saved ${name} (${bytes(blob.size)}, SHA-256 verified${recorded !== null ? " against the run record" : ""}).` : `Saved ${name} (${bytes(blob.size)}).`;
+    } catch (error) {
+      this.downloadNote = `Download failed: ${(error as Error).message}`;
+    }
+    if (!this.disposed) this.renderRun();
+  }
+
+  /**
+   * Every file the Artifacts section lists, in one zip named `<run_id>.zip` (F-13, D-112): the
+   * package exports under `exports/`, the run evidence under `evidence/`, and `run.json` at the top.
+   * Each file is read and verified as a single Download is; one that fails stops the zip.
+   */
+  private async downloadAll(): Promise<void> {
+    const record = this.run;
+    if (!record) return;
+    const { exports, evidence } = artifactGroups(record);
+    const members = archiveMembers(exports.map((item) => item.name), evidence.map((item) => item.name));
+    const name = `${record.runId}.zip`;
+    this.downloadNote = `Preparing ${name} (${members.length} files)…`;
+    this.renderRun();
+    try {
+      const entries: Array<{ name: string; bytes: Uint8Array }> = [];
+      let total = 0;
+      for (const member of members) {
+        const blob = await this.artifactBytes(record, member.artifact);
+        total += blob.size;
+        if (total > MAX_ARCHIVE_BYTES) throw new Error(`The run's files exceed ${bytes(MAX_ARCHIVE_BYTES)}; download them one by one under Inspect.`);
+        entries.push({ name: member.path, bytes: new Uint8Array(await blob.arrayBuffer()) });
+      }
+      const zip = new Blob([writeZip(entries) as BlobPart], { type: mimeFor(name) });
+      const hash = await saveBlob(name, zip);
+      this.downloadNote = `Saved ${name} (${members.length} files, ${bytes(zip.size)}, each verified against the run record${hash ? `; zip sha256:${hash.slice(0, 16)}…` : ""}).`;
     } catch (error) {
       this.downloadNote = `Download failed: ${(error as Error).message}`;
     }
@@ -1122,19 +1186,34 @@ export class RunPanel {
     return box;
   }
 
+  /**
+   * The run's files, collapsed (F-13, D-112): a count of package exports and evidence files, then
+   * Inspect (the per-file list with View and Download, closed by default) and Download (one zip of
+   * every listed file). The result summary above is unaffected.
+   */
   private renderArtifacts(record: RunView): HTMLElement {
+    const { exports, evidence } = artifactGroups(record);
     const box = el("section", { className: "ab-artifacts" }, el("h3", { text: "Artifacts" }));
-    const exports = record.artifacts.filter((item) => !HOST_ARTIFACTS.has(item.name));
-    const technical = record.artifacts.filter((item) => HOST_ARTIFACTS.has(item.name));
-    const evidence = [...technical];
-    if (!evidence.some((item) => item.name === "run.json")) evidence.push({ name: "run.json", bytes: 0, sha256: "" });
+    const counts = [`${exports.length} package export${exports.length === 1 ? "" : "s"}`, `${evidence.length} evidence file${evidence.length === 1 ? "" : "s"}`].join(" · ");
+    const inspect = button(this.inspecting ? "Hide files" : "Inspect", () => {
+      this.inspecting = !this.inspecting;
+      if (!this.inspecting) this.viewing = null;
+      this.renderRun();
+    });
+    inspect.setAttribute("aria-expanded", this.inspecting ? "true" : "false");
+    inspect.classList.add("ab-artifacts-inspect");
+    const download = button("Download", () => void this.downloadAll());
+    download.classList.add("ab-artifacts-download");
+    box.append(el("div", { className: "ab-inline ab-artifacts-bar" }, el("span", { className: "ab-muted ab-artifacts-counts", text: counts }), inspect, download));
+    if (this.downloadNote) box.append(el("p", { className: "ab-hint", text: this.downloadNote, attrs: { role: "status" } }));
+    if (!this.inspecting) return box;
+    const files = el("div", { className: "ab-artifact-files" });
     const row = (item: { name: string; bytes: number; sha256: string }) =>
       el("li", { className: "ab-artifact" }, el("code", { text: item.name }), item.bytes > 0 ? el("span", { className: "ab-muted", text: ` ${bytes(item.bytes)}` }) : null, button("View", () => void this.view(item.name)), button("Download", () => void this.download(item.name)));
-    if (exports.length > 0) box.append(el("h4", { text: "Package exports" }), el("ul", { className: "ab-plain-list" }, ...exports.map(row)));
-    else if (record.status === "completed") box.append(el("p", { className: "ab-hint", text: "This package declares no exports." }));
-    else box.append(el("p", { className: "ab-hint", text: "A run that did not complete writes no package exports; its evidence is below." }));
-    box.append(el("h4", { text: "Run evidence" }), el("ul", { className: "ab-plain-list" }, ...evidence.map(row)));
-    if (this.downloadNote) box.append(el("p", { className: "ab-hint", text: this.downloadNote, attrs: { role: "status" } }));
+    if (exports.length > 0) files.append(el("h4", { text: "Package exports" }), el("ul", { className: "ab-plain-list" }, ...exports.map(row)));
+    else if (record.status === "completed") files.append(el("p", { className: "ab-hint", text: "This package declares no exports." }));
+    else files.append(el("p", { className: "ab-hint", text: "A run that did not complete writes no package exports; its evidence is below." }));
+    files.append(el("h4", { text: "Run evidence" }), el("ul", { className: "ab-plain-list" }, ...evidence.map(row)));
     if (this.viewing) {
       const content = this.artifacts.get(this.viewing);
       const viewer = el("div", { className: "ab-viewer" }, el("div", { className: "ab-inline" }, el("strong", { text: this.viewing }), button("Close", () => {
@@ -1149,8 +1228,9 @@ export class RunPanel {
         else viewer.append(el("pre", { className: "ab-pre", text: displayText(content) }));
         viewer.append(el("p", { className: "ab-muted", text: `sha256:${content.sha256}` }));
       }
-      box.append(viewer);
+      files.append(viewer);
     }
+    box.append(files);
     return box;
   }
 
