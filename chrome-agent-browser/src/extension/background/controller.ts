@@ -1003,8 +1003,9 @@ export class Controller {
   }
 
   private async checkCapacity(incoming: number, archiveSha256: string): Promise<void> {
+    if (this.sessions.size >= this.limits.maxSessions) await this.endUnshownSessions(this.sessions.size - this.limits.maxSessions + 1);
     if (this.sessions.size >= this.limits.maxSessions) {
-      throw reject("session_limit_reached", `At most ${this.limits.maxSessions} packages can be open; close one first`, 429);
+      throw reject("session_limit_reached", `At most ${this.limits.maxSessions} packages can be open and every one is shown in an open page or panel, or has a run in flight; close one first`, 429);
     }
     const stored = await this.deps.snapshots.listSnapshots();
     const cached = stored.reduce((sum, item) => sum + item.bytes, 0);
@@ -1012,6 +1013,34 @@ export class Controller {
     if (!already && cached + incoming > this.limits.maxCacheBytes) {
       throw reject("cache_limit_reached", "The snapshot cache is full; close a package first", 429);
     }
+  }
+
+  /**
+   * Make room for a new session (T9, the user's report of 2026-10-09): end up to `count` sessions
+   * that no open view holds and that no run in flight was planned on, oldest first. Navigating a
+   * full page to another agent, or closing a side panel, stops showing a session without ending it
+   * (`hold`; Chrome sends nothing when a panel closes), so such sessions used to fill the limit
+   * until their TTL. A session a page still shows, or whose document Chrome cannot rule out
+   * (`stillOpen`), is never ended here; past runs stay readable without their session.
+   */
+  private async endUnshownSessions(count: number): Promise<void> {
+    const inFlight = new Set((await this.deps.runs.listRuns()).filter((run) => !isTerminal(run.record.status)).map((run) => run.session_id));
+    const oldest = [...this.sessions.values()].sort((a, b) => (a.stored.created_at < b.stored.created_at ? -1 : a.stored.created_at > b.stored.created_at ? 1 : 0));
+    let ended = 0;
+    for (const live of oldest) {
+      if (ended >= count) break;
+      if (inFlight.has(live.stored.session_id)) continue;
+      const unshown = await this.holderUpdate(async () => {
+        const holders = await this.stillOpen(await this.deps.holders.get(live.stored.session_id));
+        if (holders.length > 0) return false;
+        await this.deps.holders.clear(live.stored.session_id);
+        return true;
+      });
+      if (!unshown) continue;
+      await this.drop(live.stored, { holdersCleared: true });
+      ended += 1;
+    }
+    if (ended > 0) this.deps.broadcast({ type: "event.sessions" });
   }
 
   async close(sessionId: string): Promise<{ closed: true; session_id: string }> {

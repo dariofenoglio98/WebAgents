@@ -420,6 +420,27 @@ describe("the run panel", () => {
     expect(refusalFigures(null)).toBeNull();
   });
 
+  it("a session with a run in flight is never ended to make room for another (T9)", async () => {
+    const hanging: HttpTransport = (request) => new Promise((_resolve, reject) => request.signal.addEventListener("abort", () => reject(request.signal.reason), { once: true }));
+    const h = makeHarness({ limits: { maxSessions: 1 }, transports: { model: hanging, tool: scriptedOrigin().transport } });
+    // Opened without a view, so only its run can keep it.
+    const session = (await h.controller.handle({ type: "package.open", url: WEBAIR_040_URL, advertisedOn: `${SITE_ORIGIN}/` }, PAGE)) as SessionView;
+    await h.controller.handle({ type: "trust.pin", sessionId: session.session.id, signerFingerprint: SHIPPED.webair040.fingerprint, scope: "publisher" }, PAGE);
+    const settings = ((await h.controller.handle({ type: "settings.get" }, PAGE)) as SettingsView).settings;
+    settings.models.default_model = QWEN;
+    await h.controller.handle({ type: "settings.set", settings }, PAGE);
+    const result = (await h.controller.handle({ type: "authorization.useProfile", sessionId: session.session.id, packageDigest: SHIPPED.webair040.digest, profileId: "search", resourceSelections: {}, prepare: true }, PAGE)) as AuthorizeResult;
+    const plan = result.run_plan!.run_plan;
+    const started = (await h.controller.handle({ type: "run.start", sessionId: session.session.id, runPlanId: plan.run_plan_id, runPlanSha256: plan.run_plan_sha256, input: { request: SEARCH_TEXT, booking: false, purchase: { quote_id: "", fare_id: "" } } }, PAGE)) as RunView;
+    const other = h.controller.handle({ type: "package.open", url: WEBAIR_040_URL, advertisedOn: null }, PAGE);
+    await expect(other).rejects.toMatchObject({ code: "session_limit_reached" });
+    await h.controller.handle({ type: "run.cancel", runId: started.runId }, PAGE);
+    await h.h_drain();
+    // Settled: the session is no longer needed by a run and makes room.
+    const opened = (await h.controller.handle({ type: "package.open", url: WEBAIR_040_URL, advertisedOn: null }, PAGE)) as SessionView;
+    expect(opened.session.id).not.toBe(session.session.id);
+  });
+
   it("Cancel is offered while a run is in flight and the panel settles as cancelled", async () => {
     let reached = 0;
     const hanging: HttpTransport = (request) =>

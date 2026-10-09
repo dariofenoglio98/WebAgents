@@ -621,10 +621,33 @@ describe("sessions: limits, expiry, close and restore (D-032)", () => {
     expect(await unknown.controller.handle({ type: "package.release", sessionId: held.session.id, viewId: "a" }, PAGE)).toMatchObject({ closed: false, holders: 1 });
   });
 
-  it("refuses more than the session limit", async () => {
-    const h = makeHarness({ limits: { maxSessions: 1 } });
-    await open(h);
+  it("refuses more than the session limit when every session is shown", async () => {
+    const h = makeHarness({ limits: { maxSessions: 1 }, liveDocuments: new Set(["doc-page"]) });
+    await h.controller.handle({ type: "package.open", url: PACKAGE_URL, advertisedOn: `${SITE_ORIGIN}/`, viewId: "browser:1" }, { ...PAGE_IN_TAB, documentId: "doc-page" });
     expect((await refused(open(h))).code).toBe("session_limit_reached");
+  });
+
+  it("at the limit, ends the oldest sessions no open page shows and no run needs, instead of refusing (T9)", async () => {
+    const live = new Set(["doc-shown"]);
+    const h = makeHarness({ limits: { maxSessions: 3 }, liveDocuments: live });
+    const asView = (viewId: string, documentId: string) => h.controller.handle({ type: "package.open", url: PACKAGE_URL, advertisedOn: `${SITE_ORIGIN}/`, viewId }, { ...PAGE_IN_TAB, documentId }) as Promise<SessionView>;
+    const shown = await asView("browser:shown", "doc-shown"); // a page still shows it
+    h.clock.now = new Date(h.clock.now.getTime() + 1000);
+    const closedPanel = await asView("sidepanel:gone", "doc-gone"); // its panel was closed: Chrome no longer reports the document
+    h.clock.now = new Date(h.clock.now.getTime() + 1000);
+    const neverHeld = await open(h); // opened without a view
+    expect((await sessions(h)).map((item) => item.session_id).sort()).toEqual([shown, closedPanel, neverHeld].map((view) => view.session.id).sort());
+    // The fourth open ends the oldest unshown session (the closed panel's), not the shown one.
+    const fourth = await open(h);
+    expect((await sessions(h)).map((item) => item.session_id).sort()).toEqual([shown, neverHeld, fourth].map((view) => view.session.id).sort());
+    expect(h.events.some((event) => event.type === "event.sessions")).toBe(true);
+    // Shown sessions are never ended: with all three shown, the limit refuses by name.
+    live.add("doc-a").add("doc-b");
+    await h.controller.handle({ type: "package.get", sessionId: neverHeld.session.id, viewId: "browser:a" }, { ...PAGE_IN_TAB, documentId: "doc-a" });
+    await h.controller.handle({ type: "package.get", sessionId: fourth.session.id, viewId: "browser:b" }, { ...PAGE_IN_TAB, documentId: "doc-b" });
+    const error = await refused(open(h));
+    expect(error.code).toBe("session_limit_reached");
+    expect(error.message).toContain("shown in an open page or panel");
   });
 
   it("refuses a cache overflow but reopens an already cached package", async () => {
