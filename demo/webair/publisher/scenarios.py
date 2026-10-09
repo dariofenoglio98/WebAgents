@@ -299,6 +299,26 @@ def scenarios() -> list[Scenario]:
             },
             expect={"status": "request_not_supported", "selected_fare_id": None},
         ),
+        Scenario(
+            id="no-departure",
+            summary="the request names no departure airport and no travel profile supplies one "
+            "(0.5.0, B-124): nothing is searched and the answer asks where the trip starts",
+            input=_task("Find me a flight to Zurich on 9 October under $900."),
+            models={
+                # The interpreter leaves the origin open without asking for the profile, as a
+                # local model did in the 2026-10-08 rehearsal; 0.4.0 then failed its own check.
+                "interpret": [_search(None, "ZRH", "2026-10-09", nonstop=None, max_price=900)],
+                "answer": [
+                    _answer(
+                        "I did not search: your request does not say where you depart from. "
+                        "Tell me your departure airport (Boston, New York JFK, Zurich, Geneva, "
+                        "London Heathrow or Reykjavik), or use the agent in a way that lets it "
+                        "read your travel profile. Nothing was booked."
+                    )
+                ],
+            },
+            expect={"status": "request_not_supported", "selected_fare_id": None},
+        ),
     ]
 
 

@@ -38,6 +38,9 @@ import type { AgentCandidate, CandidateClaim, ResolveQuery, ResolveResult, Resol
 
 export const AGENT_PACKAGE_MEMBER = "org.webagents:agent-package-v0";
 
+/** What this build says about NANDA (D-104): the note `NandaResolver` returns without ports, and Settings → Search shows. */
+export const NANDA_NOT_CONFIGURED = "NANDA resolution is not available in this build: the mapping is defined (core/resolve/nanda.ts), no registry endpoint is configured, and AgentAddr signatures are not verified yet.";
+
 /** The lean index's answer for one agent name (the paper's Table 3). */
 export interface AgentAddr {
   agent_id: string;
@@ -124,7 +127,7 @@ export class NandaResolver implements Resolver {
 
   async query(query: ResolveQuery, signal?: AbortSignal): Promise<ResolveResult> {
     if (this.ports === null) {
-      return { candidates: [], notes: [{ code: "nanda_not_configured", detail: "NANDA resolution is not available in this build: the mapping is defined (core/resolve/nanda.ts), no registry endpoint is configured, and AgentAddr signatures are not verified yet." }] };
+      return { candidates: [], notes: [{ code: "nanda_not_configured", detail: NANDA_NOT_CONFIGURED }] };
     }
     // A lean index resolves names, not free text: only a locator is looked up.
     if (query.kind !== "locator") return { candidates: [], notes: [{ code: "nanda_needs_locator", detail: "The NANDA index resolves agent names such as name@host; free text is not searched." }] };

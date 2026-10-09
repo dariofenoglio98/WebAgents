@@ -454,7 +454,9 @@ def genericity() -> dict:
         for path in sorted(base.rglob("*")):
             if path.is_file() and path.suffix in suffixes:
                 text = path.read_text(errors="replace").lower()
-                if "webair" in text or "org.webagents" in text:
+                # A package id is `org.webagents.<name>`; the extension namespace
+                # `org.webagents:<extension>` (profiles-v0, read generically) is not one (T9).
+                if "webair" in text or "org.webagents." in text:
                     hits.append(path.relative_to(ROOT).as_posix())
     return {"files_mentioning_webair_or_a_package_id": hits, "clean": not hits}
 

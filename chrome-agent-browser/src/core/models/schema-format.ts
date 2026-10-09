@@ -83,3 +83,46 @@ export function constraintSchema(schema: JsonValue, rules: ConstraintRules): Jso
   if (utf8Length(JSON.stringify(projected)) > MAX_RESPONSE_FORMAT_BYTES) return null;
   return projected;
 }
+
+/**
+ * OpenAI's strict json_schema format (D-115): constrained decoding, so an accepted schema is a
+ * guarantee rather than a hint. The copy drops the bounds strict mode refuses (string lengths,
+ * `uniqueItems`, property counts, `format`, `default`, `examples`) and closes every object; the
+ * router still validates the answer against the full package schema.
+ */
+export const OPENAI_STRICT_RULES: ConstraintRules = {
+  dropKeywords: ["minLength", "maxLength", "uniqueItems", "minProperties", "maxProperties", "format", "default", "examples"],
+  closeObjects: true,
+  arrayRoot: false,
+};
+
+/** Keywords strict mode cannot express; a schema that uses one keeps the non-strict request. */
+const STRICT_UNSUPPORTED = new Set(["allOf", "oneOf", "not", "if", "then", "else", "patternProperties", "dependentRequired", "dependentSchemas", "unevaluatedProperties", "unevaluatedItems", "propertyNames", "contains", "prefixItems", "additionalItems", "$dynamicRef", "$anchor"]);
+
+/** Whether a projected schema meets strict mode's shape rules: every object lists properties, all of them required. */
+function strictShape(value: JsonValue, inProperties = false): boolean {
+  if (Array.isArray(value)) return value.every((item) => strictShape(item));
+  if (!isJsonObject(value)) return true;
+  if (inProperties) return Object.values(value).every((child) => strictShape(child));
+  for (const key of Object.keys(value)) if (STRICT_UNSUPPORTED.has(key)) return false;
+  const types = Array.isArray(value.type) ? value.type : [value.type];
+  const isObject = types.includes("object") || isJsonObject(value.properties);
+  if (isObject) {
+    // A free-form map (no named properties) or an optional property cannot be strict without changing the schema's meaning.
+    if (!isJsonObject(value.properties) || Object.keys(value.properties).length === 0) return false;
+    const required = new Set(Array.isArray(value.required) ? value.required.map(String) : []);
+    if (!Object.keys(value.properties).every((name) => required.has(name))) return false;
+  }
+  return Object.entries(value).every(([key, child]) => strictShape(child, key === "properties" || key === "$defs"));
+}
+
+/**
+ * The strict constraint for an OpenAI request, or null when the package schema cannot be one
+ * without changing what it means (an optional property, a free-form map, `allOf`, `if`, …); the
+ * caller then sends the non-strict request as before (D-062).
+ */
+export function openAiStrictSchema(schema: JsonValue): JsonObject | null {
+  const projected = constraintSchema(schema, OPENAI_STRICT_RULES);
+  return projected !== null && strictShape(projected) ? projected : null;
+}
+

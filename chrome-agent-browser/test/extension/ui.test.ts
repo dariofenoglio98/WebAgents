@@ -57,6 +57,23 @@ describe("the agent page", () => {
     expect(article.querySelector(".ab-profiles")).toBeNull();
   });
 
+  it("shows no Profiles card for a package with profiles; Technical details lists every profile's members and notes (F-12, D-111)", async () => {
+    const view = await makeHarness().controller.openBytes(readBytes(SHIPPED.webair040.archive), SOURCE);
+    const article = renderAgentPage(view);
+    expect(texts(article, ".ab-card-title")).toEqual(["Publisher", "What it does", "Access", "Origin and cost"]);
+    expect(article.textContent).not.toContain("Ways to use it, as the publisher describes them");
+    const technical = [...article.querySelectorAll("details.ab-details")].find((node) => node.querySelector("summary")?.textContent === "Technical details")!;
+    const profiles = [...technical.querySelectorAll<HTMLElement>(".ab-profiles .ab-profile")];
+    expect(profiles.map((node) => node.dataset.profile)).toEqual(["search", "quote", "book"]);
+    // Nothing a profile declares is lost: member ids, the estimate and its notes.
+    const search = profiles[0]!.textContent!;
+    expect(search).toContain("network.webair, model.reasoning, memory.session");
+    expect(search).toContain("search-flights, get-fare-rules");
+    expect(search).toContain("3 model calls · about 12,000 tokens · 4 tool calls");
+    expect(search).toContain("From the publisher's recorded runs of the same graph");
+    expect(profiles[2]!.textContent).toContain("wallet.payment, booking.simulate_purchase");
+  });
+
   it("offers the full page from the compact panel view and closes", async () => {
     const view = await webairView();
     let opened = 0;

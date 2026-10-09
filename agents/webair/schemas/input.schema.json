@@ -7,7 +7,10 @@
       "type": "string",
       "minLength": 1,
       "maxLength": 2000,
-      "description": "The person's travel request in their own words, for example: Find me a flight to Zurich on 9 October under $900."
+      "description": "Your travel request, in your own words.",
+      "examples": [
+        "Find me a flight from Boston to Zurich on 9 October under $900"
+      ]
     },
     "booking": {
       "type": "boolean",

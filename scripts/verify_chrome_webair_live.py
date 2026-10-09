@@ -1,7 +1,7 @@
 """Live acceptance of WebAir in the Chrome Agent Browser (T5, Demo 3): recompute the checks.
 
     agentpkg/.venv/bin/python scripts/verify_chrome_webair_live.py \\
-        [--report examples/verification/chrome-webair-040-live.json] [--no-network]
+        [--report examples/verification/chrome-webair-050-live.json] [--no-network]
 
 `chrome-agent-browser/scripts/e2e-webair-live.mjs` drove the built extension in a real Chrome
 against the public WebAir origin and exported every run it made (run.json, run-plan.json,
@@ -18,8 +18,9 @@ portable checks of `scripts/verify_webair_live.py` (the OpenClaw live acceptance
   charged $0 under a `once` grant, the replay refused by the page and by the worker, the denied
   purchase that resolved, called and modelled nothing, the cancelled run's chain, the reloaded
   page adopting a run in flight;
-* the package and the origin: `dist/webair-0.4.0.agent.pkg` verifies with the WebAir key and is
-  what the public origin serves (`/health`, the bytes), unless `--no-network`.
+* the package and the origin: `dist/webair-<version>.agent.pkg` verifies with the WebAir key and is
+  what the public origin serves (`/health`, the bytes), unless `--no-network`. The version is the
+  report's `packageVersion` (T9; 0.4.0 for reports recorded before it, which carry none).
 
 The needle values come from `demo/webair/host-resources.json` (the fictional demo set); only class
 names and counts reach the report. The report is rewritten in place with `checks`, `runs` and
@@ -43,6 +44,13 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_REPORT = ROOT / "examples/verification/chrome-webair-040-live.json"
+# The committed reports, one per version; none is ever overwritten from a clean checkout.
+COMMITTED_REPORTS = (
+    DEFAULT_REPORT,
+    ROOT / "examples/verification/chrome-webair-040-live-hosted.json",
+    ROOT / "examples/verification/chrome-webair-050-live.json",
+    ROOT / "examples/verification/chrome-webair-050-live-hosted.json",
+)
 sys.path.insert(0, str(ROOT / "agentpkg" / "src"))
 
 from agentpkg.execution.report import verify_audit_chain  # noqa: E402
@@ -50,7 +58,10 @@ from agentpkg.package import load_package  # noqa: E402
 from agentpkg.signing import verify_package  # noqa: E402
 
 SITE = "https://webagents-webair-production.up.railway.app"
-ARCHIVE = ROOT / "dist/webair-0.4.0.agent.pkg"
+
+def archive_for(version: str) -> Path:
+    return ROOT / f"dist/webair-{version}.agent.pkg"
+
 KEY = ROOT / "examples/keys/webair-publisher.pub.pem"
 FINGERPRINT = "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b"
 HOST_RESOURCES = ROOT / "demo/webair/host-resources.json"
@@ -575,12 +586,13 @@ def phase_checks(
     return None
 
 
-def package_and_origin(network: bool) -> dict:
-    package = load_package(ARCHIVE)
-    verification = verify_package(ARCHIVE, KEY)
-    local = ARCHIVE.read_bytes()
+def package_and_origin(network: bool, version: str) -> dict:
+    archive = archive_for(version)
+    package = load_package(archive)
+    verification = verify_package(archive, KEY)
+    local = archive.read_bytes()
     facts = {
-        "artifact": str(ARCHIVE.relative_to(ROOT)),
+        "artifact": str(archive.relative_to(ROOT)),
         "version": package.manifest["version"],
         "archive_sha256": hashlib.sha256(local).hexdigest(),
         "package_digest": package.digest,
@@ -592,7 +604,8 @@ def package_and_origin(network: bool) -> dict:
         facts["signature_valid"] and facts["signer_fingerprint"] == FINGERPRINT,
         facts["signer_fingerprint"],
     )
-    check("package_is_0_4_0", facts["version"] == "0.4.0", facts["version"])
+    tag = version.replace(".", "_")  # 0.4.0 reports keep their check names
+    check(f"package_is_{tag}", facts["version"] == version, facts["version"])
     if network:
         with urllib.request.urlopen(f"{SITE}/health", timeout=30) as response:
             health = json.loads(response.read())
@@ -603,20 +616,24 @@ def package_and_origin(network: bool) -> dict:
             "served_sha256": hashlib.sha256(served).hexdigest(),
         }
         check(
-            "origin_health_names_the_0_4_0_artifact",
+            f"origin_health_names_the_{tag}_artifact",
             health.get("agent_package_sha256") == facts["archive_sha256"],
             health,
         )
-        check("origin_serves_the_local_0_4_0_bytes", served == local)
+        check(f"origin_serves_the_local_{tag}_bytes", served == local)
     return facts
 
 
 def generic_code() -> dict:
-    """No package-specific code in the Chrome runtime or shell (D-009): the demo data file and the two UI hints are the whole allowance."""
+    """No package-specific code in the Chrome runtime or shell (D-009): the two demo data files and the two UI hints are the whole allowance.
+
+    `demo-documents.json` (T8, D-105) names the demo index and policy by the WebAir deployment's
+    hostname, where they are served; it is data the Settings pages fill in, not behaviour (T9).
+    """
     pattern = re.compile(
         r"(?i)webair|airline|passenger_demo|payment_demo|profile_demo|alex\.traveler"
     )
-    allowed = {"src/extension/data/demo-host-resources.json"}
+    allowed = {"src/extension/data/demo-host-resources.json", "src/extension/data/demo-documents.json"}
     offenders: list[str] = []
     for path in sorted((ROOT / "chrome-agent-browser" / "src").rglob("*")):
         if not path.is_file() or path.suffix not in {".ts", ".json", ".css", ".html"}:
@@ -674,7 +691,7 @@ def main() -> int:
             / "run.json"
         ).exists()
     ]
-    if missing and report_path.resolve() == DEFAULT_REPORT.resolve():
+    if missing and report_path.resolve() in {path.resolve() for path in COMMITTED_REPORTS}:
         # The committed evidence is rewritten only from a complete attempt (T5 review 1, nit 8).
         # An explicit --report elsewhere may verify a partial or failed attempt: its missing
         # phases become `<phase>_run_recorded` failures below (T5 review 2, nit 7).
@@ -727,17 +744,20 @@ def main() -> int:
             "purchase_and_search_ran_the_same_package_bytes",
             runs["search"]["package"] == runs["purchase"]["package"],
         )
-    package = package_and_origin(not args.no_network)
+    version = harness.get("packageVersion") or "0.4.0"
+    package = package_and_origin(not args.no_network, version)
     code = generic_code()
     document = {
         "profile": "chrome-webair-040-live-demo-v0",
-        "milestone": "T5: WebAir 0.4.0 end to end in the Chrome Agent Browser (Demo 3)",
+        "milestone": f"T5: WebAir {version} end to end in the Chrome Agent Browser (Demo 3)"
+        + ("" if version == "0.4.0" else "; T9 for 0.5.0"),
         "recorded": harness["recordedAt"][:10],
         "commands": {
-            "harness": f"node chrome-agent-browser/scripts/e2e-webair-live.mjs --model {model}",
+            "harness": f"node chrome-agent-browser/scripts/e2e-webair-live.mjs --model {model}"
+            + ("" if version == "0.4.0" else f" --version {version}"),
             "verify": "agentpkg/.venv/bin/python scripts/verify_chrome_webair_live.py",
         },
-        "statement": "The built extension, loaded in a real headless Chrome, discovered WebAir 0.4.0 on the public origin, verified and trusted it, authorized three profiles, and ran it on the model named here: a search, a cancelled search, a quote with the fictional demo passenger, a simulated purchase under a once grant whose replay the page and the worker both refused, and a purchase denied without the grant. Every run's audit chain re-verifies with agentpkg; no model request carried a sealed or personal value; the identity reached only prepare_booking and the payment identifier only simulate_purchase.",
+        "statement": f"The built extension, loaded in a real headless Chrome, discovered WebAir {version} on the public origin, verified and trusted it, authorized three profiles, and ran it on the model named here: a search, a cancelled search, a quote with the fictional demo passenger, a simulated purchase under a once grant whose replay the page and the worker both refused, and a purchase denied without the grant. Every run's audit chain re-verifies with agentpkg; no model request carried a sealed or personal value; the identity reached only prepare_booking and the payment identifier only simulate_purchase.",
         "notice": "Fictional data throughout (WebAir does not exist; no payment occurs). The report holds no credential, no host-resource value and no path on the operator's machine; run directories are named relative to the repository.",
         "model": {
             "selected": model,

@@ -18,7 +18,7 @@ import pytest
 from publisher.contract import REPO_ROOT
 
 DEPLOY = Path(__file__).resolve().parents[1] / "deploy"
-ARTIFACT = REPO_ROOT / "dist" / "webair-0.4.0.agent.pkg"
+ARTIFACT = REPO_ROOT / "dist" / "webair-0.5.0.agent.pkg"
 START = "python -m origin --host 0.0.0.0 --agent-package agent.pkg --demo-documents demo"
 DEMO_DOCUMENTS = {
     "demo/agent-index.json",
@@ -66,9 +66,9 @@ def test_the_bundle_publishes_the_signed_artifact_byte_for_byte(bundler, tmp_pat
     data = ARTIFACT.read_bytes()
     assert (tmp_path / "bundle" / "agent.pkg").read_bytes() == data
     assert manifest["agent_package"] == {
-        "source": "webair-0.4.0.agent.pkg",
+        "source": "webair-0.5.0.agent.pkg",
         "package_id": "org.webagents.webair",
-        "version": "0.4.0",
+        "version": "0.5.0",
         "bytes": len(data),
         "sha256": hashlib.sha256(data).hexdigest(),
     }

@@ -36,6 +36,19 @@ export interface ModelRouter {
   readonly domains?: readonly string[];
   /** A replay adapter whose accounting is a test unit, not a bill. */
   readonly synthetic?: boolean;
+  /**
+   * How many more times the runtime sends the same request when the answer does not match the
+   * output schema (`model_output_not_conforming`): 1 for the live router (D-115), absent (0) for a
+   * replay router, whose answer would not change.
+   */
+  readonly nonconformingRetries?: number;
+  /**
+   * Whether `countTokens` itself reaches the network. Absent means it may (the reference's rule:
+   * the count preflight of a remote router is a separately budgeted remote call); the Chrome bound
+   * router counts locally (a UTF-8 bound) and says `false`, so only the requests it sends are
+   * charged as remote calls (D-115).
+   */
+  readonly remoteCount?: boolean;
   countTokens(request: ModelRequest, signal: AbortSignal): Promise<number>;
   complete(request: ModelRequest, maxOutputTokens: number, signal: AbortSignal): Promise<ModelResult>;
 }

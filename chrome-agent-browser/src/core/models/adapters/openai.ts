@@ -2,8 +2,12 @@
  * OpenAI through the Responses API with the person's own key (D-023, D-062).
  *
  * `instructions` carries the rendered system text and `input` the user text;
- * `text.format` is the json_schema constraint (non-strict, so any package schema is accepted
- * and the model is guided rather than guaranteed; the router validates every answer anyway);
+ * `text.format` is the json_schema constraint: **strict** when the package schema can be one
+ * without changing its meaning (`openAiStrictSchema`, D-115: constrained decoding, a guarantee),
+ * else non-strict (any package schema is accepted and the model is guided rather than guaranteed,
+ * D-062). When OpenAI refuses a strict schema (HTTP 400 naming the format or schema), the same
+ * request is sent once more non-strict: no answer was produced, so nothing is retried but the
+ * request's shape. The router validates every answer against the full schema either way;
  * `max_output_tokens` is the node's cap; `store: false`. Usage: `input_tokens` (cached tokens
  * are already inside it, so they are not added again) and `output_tokens` (reasoning tokens
  * included). A `completed` response is a finished turn; `incomplete` with
@@ -14,7 +18,7 @@ import type { JsonValue } from "../../json.js";
 import { AdapterError } from "../../workflow/errors.js";
 import type { RenderedRequest } from "../render.js";
 import type { ProviderAdapter, ProviderCompletion } from "../router.js";
-import { constraintSchema, OPENAI_RULES, RESPONSE_FORMAT_NAME } from "../schema-format.js";
+import { constraintSchema, OPENAI_RULES, openAiStrictSchema, RESPONSE_FORMAT_NAME } from "../schema-format.js";
 import type { ModelPricing } from "../usage.js";
 import { checkCredential, isRecord, postJson, providerBaseUrl, providerError, type ProviderHttpOptions } from "./shared.js";
 
@@ -56,23 +60,30 @@ export class OpenAIAdapter implements ProviderAdapter {
 
   async complete(rendered: RenderedRequest, maxOutputTokens: number, signal: AbortSignal): Promise<ProviderCompletion> {
     const schema = constraintSchema(rendered.output_schema, OPENAI_RULES);
-    const body: Record<string, JsonValue> = {
-      model: this.model_id,
-      instructions: rendered.system,
-      input: rendered.user,
-      max_output_tokens: maxOutputTokens,
-      store: false,
+    const strict = openAiStrictSchema(rendered.output_schema);
+    const bodyWith = (format: JsonValue | null): Record<string, JsonValue> => {
+      const body: Record<string, JsonValue> = {
+        model: this.model_id,
+        instructions: rendered.system,
+        input: rendered.user,
+        max_output_tokens: maxOutputTokens,
+        store: false,
+      };
+      if (format !== null) body.text = { format };
+      if (this.reasoning) body.reasoning = { effort: this.options.reasoningEffort ?? "low" };
+      return body;
     };
-    if (schema !== null) body.text = { format: { type: "json_schema", name: RESPONSE_FORMAT_NAME, schema, strict: false } };
-    if (this.reasoning) body.reasoning = { effort: this.options.reasoningEffort ?? "low" };
-    const { status, json } = await postJson(this.options, {
-      provider_id: this.provider_id,
-      model_id: this.model_id,
-      url: `${this.baseUrl}/v1/responses`,
-      headers: { authorization: `Bearer ${this.key}` },
-      body,
-      signal,
-    });
+    const send = (body: Record<string, JsonValue>) =>
+      postJson(this.options, { provider_id: this.provider_id, model_id: this.model_id, url: `${this.baseUrl}/v1/responses`, headers: { authorization: `Bearer ${this.key}` }, body, signal });
+    const nonStrict = schema !== null ? { type: "json_schema", name: RESPONSE_FORMAT_NAME, schema, strict: false } : null;
+    let mode: "strict" | "non_strict" | "non_strict_after_refusal" | "none" = strict !== null ? "strict" : nonStrict !== null ? "non_strict" : "none";
+    let refusedBecause: string | null = null;
+    let { status, json } = await send(bodyWith(strict !== null ? { type: "json_schema", name: RESPONSE_FORMAT_NAME, schema: strict, strict: true } : nonStrict));
+    if (mode === "strict" && strictSchemaRefused(status, json)) {
+      refusedBecause = errorMessage(json);
+      mode = "non_strict_after_refusal";
+      ({ status, json } = await send(bodyWith(nonStrict)));
+    }
     if (status !== 200) throw providerError(status, json);
     if (!isRecord(json)) throw new AdapterError("model_response_invalid", "OpenAI answered with no response object");
     const texts: string[] = [];
@@ -110,11 +121,30 @@ export class OpenAIAdapter implements ProviderAdapter {
             cost_usd: null,
           }
         : null,
-      constrained: schema !== null,
+      constrained: mode !== "none",
       constraint_detail:
-        schema !== null
-          ? "Requested as a non-strict json_schema text format on the Responses API. Conformance is still enforced by parse-and-validate."
-          : "This output schema cannot carry a provider-native constraint; the adapter parses and validates the response instead.",
+        mode === "strict"
+          ? "Requested as a strict json_schema text format on the Responses API (constrained decoding, D-115). Conformance is still enforced by parse-and-validate against the full schema."
+          : mode === "non_strict_after_refusal"
+            ? `OpenAI refused the strict json_schema (${refusedBecause ?? "HTTP 400"}); requested again as a non-strict json_schema text format. Conformance is still enforced by parse-and-validate.`
+            : mode === "non_strict"
+              ? "Requested as a non-strict json_schema text format on the Responses API (the schema cannot be strict without changing its meaning). Conformance is still enforced by parse-and-validate."
+              : "This output schema cannot carry a provider-native constraint; the adapter parses and validates the response instead.",
     };
   }
 }
+
+/** OpenAI's answer to a strict schema it cannot use: HTTP 400 naming the response format or the schema. */
+export function strictSchemaRefused(status: number, json: unknown): boolean {
+  if (status !== 400 || !isRecord(json) || !isRecord(json.error)) return false;
+  const param = typeof json.error.param === "string" ? json.error.param : "";
+  const message = typeof json.error.message === "string" ? json.error.message : "";
+  return /^text(\.format)?/u.test(param) || /schema|strict|response[_ ]format|text\.format/iu.test(message);
+}
+
+/** The provider's own error message, bounded, for the constraint detail (never a credential: OpenAI's messages name parameters). */
+function errorMessage(json: unknown): string | null {
+  if (!isRecord(json) || !isRecord(json.error) || typeof json.error.message !== "string") return null;
+  return json.error.message.replace(/\s+/gu, " ").slice(0, 200);
+}
+

@@ -27,10 +27,11 @@ What it shows today, on the WebAir demo site:
    key grants no permission: permissions are decided per run, later.
 5. The full-page agent browser (`browser.html`) takes a website address or a package URL in its
    address bar and does the same without a tab.
-6. **Authorize in two clicks** (T3). Below the agent page, the publisher's profiles (WebAir
-   0.4.0 declares *Search flights*, *Search and quote*, *Book (simulated)*) appear as cards that
-   say what each one *gets*, in plain words derived from the decisions it would yield, never from
-   the publisher's text alone. One summary card states what the agent will and will not be able
+6. **Authorize in two clicks** (T3). Below the agent page, "Ways to use it" shows the publisher's
+   profiles (WebAir declares *Search flights*, *Search and quote*, *Book (simulated)*) as cards
+   with the title, the description, what each one *gets*, in plain words derived from the
+   decisions it would yield, never from the publisher's text alone, and one estimate line. The
+   agent page itself lists each profile's members only under Technical details (D-111). One summary card states what the agent will and will not be able
    to do, which of your records it may read (you choose which), the model and the preset; **Use
    this agent** records the decisions as an authorization receipt and prepares a Run Plan on your
    default model. **Customize your settings** expands the full per-item view: every permission
@@ -52,8 +53,9 @@ What it shows today, on the WebAir demo site:
    stage and worker, model and tool calls, tokens; **Cancel** stops within one wave, is never
    lost (a cancel accepted before the Worker exists is stored and read when it starts), and a
    cancel no host can take interrupts the run (D-075). The result is
-   the package's primary export as sanitized markdown, the artifacts with SHA-256-verified
-   downloads, and Technical details (plan and input hashes, every model call on the planned model,
+   the package's primary export as sanitized markdown, the artifacts (a count, **Inspect** for the
+   per-file list, and **Download** for one `<run_id>.zip` of every file, each checked against the
+   hash the run recorded, D-112), and Technical details (plan and input hashes, every model call on the planned model,
    tool bindings, permissions and who decided them, usage, cost, the audit chain, what was
    re-verified before the start). **Runs** lists every run this browser made, opens a past run
    read-only, exports a run directory as a zip and clears finished runs. A run whose host was
@@ -62,7 +64,10 @@ What it shows today, on the WebAir demo site:
    `OLLAMA_ORIGINS` commands to copy, and a diagnosis that tells "not running" apart from
    "rejecting this extension's origin"), OpenAI and Anthropic with your own keys (typed into
    `chrome.storage.local`, never shown again, never sent anywhere but the provider), and Chrome's
-   built-in model with its download state. Each connection chip says when it was checked
+   built-in model with its download state and, once Chrome reports it available, a model row
+   with **Make default** (its context is the measured session quota; every row can state whether
+   the model reasons, which a package requiring reasoning needs for the built-in model, D-113).
+   Each connection chip says when it was checked
    ("reachable · 4 models · checked 14:02:31"); opening the Models section clears the old answers
    and tests every enabled connection again. A provider that stops answering makes its models
    **not available**, with its address ("Ollama stopped answering at http://127.0.0.1:11434"),
@@ -300,7 +305,9 @@ limits, and the reference driver's grounding checks. The evidence is
 
 ## What it does not do yet
 
-- **The built-in model live.** Gemini Nano is wired and unit-tested but was not run live (B-119).
+- **The built-in model live.** Gemini Nano is wired, can be made the default and is unit-tested
+  over a stubbed Prompt API, but has not run live: headless Chrome reports it `downloadable` on a
+  fresh profile (B-119; the person's walk-through is T9's User run).
 - **Implement every local tool, or any GET service.** The host binds a generic HTTPS JSON POST to
   each declared remote POST tool, its Crossref adapter to `scholarly.search` at Crossref's works
   endpoint, its PDF reader to `paper.read` and a vault binding to each host-resource tool; any

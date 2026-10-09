@@ -15,6 +15,7 @@ Prints a JSON report and exits 1 if any check fails.
 from __future__ import annotations
 
 import argparse
+import ast
 import hashlib
 import json
 import re
@@ -54,8 +55,29 @@ CURRENT_PACKAGES = {
     },
     # The fictional WebAir origin's packages (demo/webair), new in v0.2.0. The current one has no
     # unversioned alias: `webair.agent.pkg` stays 0.1.0, which the recorded evidence pins.
-    # 0.4.0 is the current one (0.3.0 plus publisher-declared profiles); 0.3.0, which the
-    # recorded live and Table I evidence and the contract overhead benchmark describe, stays pinned.
+    # 0.5.0 is the current one (0.4.0 plus the departure-airport answer, T9); 0.4.0, which the
+    # Chrome live acceptance, the conformance reports and the demo index describe, and 0.3.0,
+    # which the recorded live and Table I evidence and the contract overhead benchmark
+    # describe, stay pinned.
+    "webair-0.5.0": {
+        "stem": "webair",
+        "alias": False,
+        "package_id": "org.webagents.webair",
+        "version": "0.5.0",
+        "digest": "6192614e86ae4b18ba135f17120d4f616feac082c4ab09283221da7194c0bb48",
+        "archive_sha256": "4b087557cbd2b0ff186391dfd00f9068739f9a727ab2fd916a6512da1fde101b",
+        "key": "examples/keys/webair-publisher.pub.pem",
+        "fingerprint": "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b",
+        "tools": [
+            "get-fare-rules",
+            "personal.passenger_identity",
+            "personal.travel_profile",
+            "prepare-booking",
+            "search-flights",
+            "simulate-purchase",
+            "wallet.payment_method",
+        ],
+    },
     "webair-0.4.0": {
         "stem": "webair",
         "alias": False,
@@ -159,7 +181,41 @@ def check_packages() -> dict:
         (ROOT / "package-origin/documents" / name).read_bytes() == (ROOT / source).read_bytes()
         for name, source in documents.items()
     )
+    # T9 (T8 review 1, nit 4): the SHA-256 pins server.py refuses to start without are the
+    # documents' own, so a re-signed document fails here rather than at container start.
+    pins = document_pins((ROOT / "package-origin/server.py").read_text(encoding="utf-8"))
+    report["package_origin_document_pins"] = pin_mismatches(pins, documents)
     return report
+
+
+def document_pins(source: str) -> dict[str, str]:
+    """The `DOCUMENTS` pins of package-origin/server.py, read without importing it: path → SHA-256."""
+    for node in ast.parse(source).body:
+        if isinstance(node, ast.Assign) and any(isinstance(t, ast.Name) and t.id == "DOCUMENTS" for t in node.targets):
+            if not isinstance(node.value, ast.Dict):
+                break
+            pins = {}
+            for key, value in zip(node.value.keys, node.value.values):
+                if not (isinstance(key, ast.Constant) and isinstance(value, ast.Tuple) and len(value.elts) == 2):
+                    raise ValueError("server.py DOCUMENTS entries must be 'path': (source, sha256)")
+                digest = value.elts[1]
+                if not (isinstance(digest, ast.Constant) and isinstance(digest.value, str)):
+                    raise ValueError("server.py DOCUMENTS pins must be string literals")
+                pins[key.value] = digest.value
+            return pins
+    raise ValueError("server.py defines no DOCUMENTS dict")
+
+
+def pin_mismatches(pins: dict[str, str], documents: dict[str, str]) -> dict:
+    """Each served path's pin against the SHA-256 of the document in examples/ it serves."""
+    expected = {
+        f"/{name}": hashlib.sha256((ROOT / source).read_bytes()).hexdigest()
+        for name, source in documents.items()
+    }
+    mismatched = sorted(
+        path for path in set(pins) | set(expected) if pins.get(path) != expected.get(path)
+    )
+    return {"pins": pins, "mismatched": mismatched, "passed": not mismatched}
 
 
 def check_dist_manifest() -> dict:
@@ -261,6 +317,7 @@ def main() -> int:
         all(packages[name]["passed"] for name in CURRENT_PACKAGES)
         and packages["package_origin_copy_identical"]
         and packages["package_origin_documents_identical"]
+        and packages["package_origin_document_pins"]["passed"]
         and all(section["passed"] for key, section in report.items() if key != "packages")
     )
     print(json.dumps(report, indent=2))

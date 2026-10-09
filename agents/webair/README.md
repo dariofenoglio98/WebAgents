@@ -1,15 +1,19 @@
 # WebAir Travel Agent — workflow.v0
 
-`org.webagents.webair` 0.4.0, published by the fictional WebAir demo airline
+`org.webagents.webair` 0.5.0, published by the fictional WebAir demo airline
 (`demo/webair/`), whose public demo origin is <https://webagents-webair-production.up.railway.app/>.
 WebAir serves the same business logic two ways: HTML pages and forms for people, and this
 signed package for an agent-native host. **The package never touches WebAir's HTML.** It
 declares WebAir's semantic operations as tools and carries the domain knowledge and
 orchestration to use them. Nothing is ever booked or charged: WebAir is not an airline.
 
-0.4.0 is 0.3.0 with [profiles](#profiles): three named groups of what the package already
-declares, which a host can offer as a short path to authorization. The graph, tools, schemas,
-skills, fixture, policy, permissions and budgets are unchanged. (0.3.0 was 0.2.0 for the live
+0.5.0 is 0.4.0 with two changes. A request that says nowhere where the trip starts, run
+without a travel profile that supplies a home airport, is now **answered** ("say where you
+depart from") instead of failing the package's own search-request check: a new `search-origin`
+node resolves the departure airport first, and the search runs only when there is one. And the
+task's request field carries one short description and the example *"Find me a flight from
+Boston to Zurich on 9 October under $900"*. Tools, permissions, budgets, policy and profiles
+are unchanged. (0.4.0 was 0.3.0 with [profiles](#profiles); 0.3.0 was 0.2.0 for the live
 deployment: it names the public host instead of 0.2.0's reserved, never-resolving placeholder.)
 
 **WebAir publishes the behavior. The person's runtime supplies the authority.** This version
@@ -19,24 +23,25 @@ purchase. The package holds none of these: no name, email or payment record is i
 
 ## What it does
 
-One task: a travel request in plain language, for example *"Find me a flight to Zurich on
-9 October under $900."* Optionally a booking quote of the selected fare (`booking: true`),
+One task: a travel request in plain language, for example *"Find me a flight from Boston to
+Zurich on 9 October under $900"*. Optionally a booking quote of the selected fare (`booking: true`),
 or, in a separate run, a simulated purchase of one exact quote an earlier run returned
 (`purchase: {quote_id, fare_id}`). Both are the person's choice in the task, never a model's.
 
 ```text
 interpret (model: the request only)
   └─► travel profile (host, only when the request leaves the origin unstated)
-        └─► fill unstated criteria ─► search_flights ─► select (model) ─► checks ─► get_fare_rules × ≤6
+        └─► departure airport (the request's, else the profile's; none: nothing is searched)
+              └─► fill unstated criteria ─► search_flights ─► select (model) ─► checks ─► get_fare_rules × ≤6
 booking:  passenger identity (host) ─► prepare_booking ─► check ─► quote summary (no identity)
 purchase: payment method (host) ─► passenger identity (host) ─► prepare_booking (re-quote)
           ─► check it is the authorized quote ─► simulate_purchase ─► check ─► summary
 answer (model: summaries only) ─► assemble + validate ─► clear personal state ─► output
 ```
 
-34 nodes, all canonical workflow.v0 operators: 3 `llm`, 6 `tool` (the three host resources,
+35 nodes, all canonical workflow.v0 operators: 3 `llm`, 6 `tool` (the three host resources,
 search, quote, purchase), 1 `map` (fare rules: a `tool` step and a `validate` step per fare),
-2 `join`, 21 `validate`, 1 `output`.
+2 `join`, 22 `validate`, 1 `output`.
 
 ## Host-owned resources: requested, never owned
 
@@ -132,13 +137,15 @@ A profile presents authority; it grants nothing. Choosing one gives the host the
 person could make item by item: the profile's permissions and tools are granted and approved
 under the host's own rules, the person picks one resource of each listed type, and everything
 else is denied. "Search flights" reads nothing personal, so its requests must say where the
-trip starts. Each profile's estimate (model calls, tool calls, tokens) comes from the
+trip starts; one that does not is answered with that request, and searches nothing. (The graph
+cannot see the person's grants: if the interpreting model asks for the travel profile under
+"Search flights", the runtime refuses that call and the run stops as `permission_denied`.) Each profile's estimate (model calls, tool calls, tokens) comes from the
 publisher's recorded runs of this graph and is information, not a limit: the budgets above are
 the limits. A host that does not implement profiles ignores them, as agentpkg 0.2.2 does.
 
 ## Fixture
 
-`fixtures/workflow.json` replays seven search scenarios (the default input is the hero
+`fixtures/workflow.json` replays eight search scenarios (the default input is the hero
 request). They involve no host resource, so the signed fixture holds no personal data. Its
 model outputs are scripted; its tool answers were recorded from WebAir's own API by
 `demo/webair/publisher` (`python -m publisher sync`). The host-capability scenarios — profile,

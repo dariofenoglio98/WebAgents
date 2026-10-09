@@ -8,16 +8,21 @@
 import type { FoundVia, LibraryItemView, LibraryView, SearchResultView, SearchView, SessionDescriptor } from "../messages.js";
 import { button, card, chip, el, list, shortHash, whenText, type Child } from "./dom.js";
 
+/**
+ * The verdict on the signer the index *claims* (D-104): ranking uses it, but any index can copy a
+ * trusted fingerprint into an entry, so the chip says "claims" until the download shows the real
+ * signer (T8 review 1, finding 2). The agent page's verdict words stay as they are.
+ */
 const TRUST_WORDS: Record<string, [text: string, tone: "good" | "warn" | "bad"]> = {
-  trusted: ["publisher key trusted", "good"],
-  unknown: ["publisher key not trusted yet", "warn"],
+  trusted: ["claims a key you trust", "good"],
+  unknown: ["claims a key you have not trusted", "warn"],
   mismatch: ["possible impersonation", "bad"],
 };
 
-function trustChip(status: string, reason: string): HTMLElement {
+export function trustChip(status: string, reason: string): HTMLElement {
   if (reason === "signer_not_stated") return chip("signer not stated by the index", "warn");
   const [text, tone] = TRUST_WORDS[status] ?? ["unknown", "warn"];
-  return chip(reason === "policy_anchor" ? "publisher key trusted by your policy" : text, tone);
+  return chip(reason === "policy_anchor" ? "claims a key your policy trusts" : text, tone);
 }
 
 function resultCard(result: SearchResultView, onOpen: (result: SearchResultView) => void): HTMLElement {

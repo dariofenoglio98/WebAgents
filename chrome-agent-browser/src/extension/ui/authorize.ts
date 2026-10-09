@@ -16,7 +16,7 @@ import type { Profile } from "../../core/profiles.js";
 import { PROVENANCE_SCHEMA, type DecidedBy, type Decision, type Provenance, type Reason } from "../../core/types.js";
 import type { ResourceRequest } from "../../core/hostresources.js";
 import type { AuthorizationView, ModelsView, SessionView } from "../messages.js";
-import { pinControls } from "./agent-page.js";
+import { estimateLine, pinControls } from "./agent-page.js";
 import { button, card, chip, definition, details, el, list, row, shortHash, whenText, type Child } from "./dom.js";
 
 export interface AuthorizeState {
@@ -137,20 +137,17 @@ function reasons(items: readonly Reason[], title: string): HTMLElement | null {
 // -- profiles and the summary card --------------------------------------------------------------
 function profileCard(view: AuthorizationView, entry: { profile: Profile; decided: Decided }, selected: boolean, onSelect: () => void): HTMLElement {
   const profile = entry.profile;
-  const estimate = profile.estimate;
-  const parts: string[] = [];
-  if (estimate?.model_calls !== undefined) parts.push(`${estimate.model_calls} model call${estimate.model_calls === 1 ? "" : "s"}`);
-  if (estimate?.tool_calls !== undefined) parts.push(`${estimate.tool_calls} tool call${estimate.tool_calls === 1 ? "" : "s"}`);
-  if (estimate?.tokens !== undefined) parts.push(`about ${estimate.tokens.toLocaleString()} tokens`);
+  const estimate = estimateLine(profile.estimate);
   const granted = view.request.permissions.filter((permission) => entry.decided.decisions[permission.id] !== "deny");
   const node = el(
     "button",
     { className: `ab-profile-card${selected ? " ab-profile-selected" : ""}`, attrs: { type: "button", "data-profile": profile.id, "aria-pressed": selected ? "true" : "false" } },
     el("span", { className: "ab-profile-card-title", text: profile.title }),
     el("span", { className: "ab-profile-card-text", text: profile.description }),
-    // The members, not only the words (spec §5): what it gets, in plain words.
+    // The members, not only the words (spec §5, D-052): what it gets, in plain words.
     el("span", { className: "ab-profile-card-gets", text: `Gets: ${granted.map((permission) => authorityWords(view, permission, entry.decided.decisions[permission.id]!)).join("; ") || "nothing"}` }),
-    el("span", { className: "ab-hint", text: parts.length > 0 ? `Publisher's estimate: ${parts.join(", ")}` : "No estimate stated" }),
+    // One short line from the publisher (D-111); the notes and the member ids are under the agent page's Technical details.
+    estimate ? el("span", { className: "ab-hint ab-profile-card-estimate", text: `Estimate: ${estimate}` }) : null,
   );
   node.addEventListener("click", onSelect);
   return node;
@@ -432,6 +429,10 @@ function planCard(input: AuthorizeInput, actions: AuthorizeActions): HTMLElement
     "Run plan",
     el("div", { className: `ab-banner ab-banner-${tone}`, attrs: { role: "status" } }, el("strong", { text: headline }), el("p", { text: ready ? "Everything this run needs is bound and current. Running arrives with the execution host (T5); nothing has run." : plan ? "This plan cannot be used as it stands; the reasons are below." : receipt.runnable ? "Choose a model under Customize your settings, or a default model in Settings → Models, to prepare a run plan." : "Adjust the decisions, or resolve the reasons below, then authorize again." })),
     reasons(problems, "Why not"),
+    // A plan keeps the model it was prepared with (D-113): a later change of the default is said, not applied.
+    plan?.run_plan.model_binding && view.default_model && plan.run_plan.model_binding.host_model_id !== view.default_model
+      ? el("p", { className: "ab-hint ab-plan-model-note", text: `This plan runs on ${plan.run_plan.model_binding.host_model_id}. Your default model is now ${view.default_model}: press “Use this agent” to prepare a plan on it.` })
+      : null,
     plan
       ? definition([
           ["Agent", `${plan.run_plan.package.name} ${plan.run_plan.package.version}`],
@@ -498,7 +499,7 @@ export function renderAuthorizeView(input: AuthorizeInput, state: AuthorizeState
     children.push(
       card(
         "Ways to use it",
-        el("p", { className: "ab-hint", text: "The publisher groups what this agent needs into a few choices. Pick one; the full detailed view is one click away." }),
+        el("p", { className: "ab-hint", text: "The publisher's ways to use this agent. Pick one." }),
         el(
           "div",
           { className: "ab-profile-cards" },

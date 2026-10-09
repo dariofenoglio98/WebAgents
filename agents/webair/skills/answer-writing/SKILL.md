@@ -30,8 +30,12 @@ Otherwise, by `selection.outcome`:
 - **no_matching_flights**: WebAir returned no flights for this search. Restate the route,
   date and filters searched. Do not suggest flights WebAir did not return.
 - **request_refused**: WebAir refused the search; give its reason from `search.error`.
-- **request_not_supported**: nothing was searched; explain
-  `interpreted_request.unsupported_reason`.
+- **request_not_supported**: nothing was searched. When
+  `interpreted_request.unsupported_reason` is set, explain it. When it is null,
+  `interpreted_request.search` names a destination and a date but its `origin` is null and no
+  travel profile supplied one: say in one sentence that you did not search because the request
+  does not say where the person departs from, and ask them to name their departure airport
+  (one of WebAir's six) or to use the agent in a way that lets it read their travel profile.
 
 Then, if present:
 

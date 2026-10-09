@@ -7,16 +7,21 @@
  * list with Export and Clear, the zip writer the export uses, and the Settings additions (the
  * Ollama commands, the B-117 diagnosis, the test-mode switch).
  */
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import type { HttpTransport } from "../../src/core/models/transport.js";
 import type { AuthorizationView, AuthorizeResult, ProbeView, Request, RunSummary, RunView, SessionView, SettingsView } from "../../src/extension/messages.js";
-import { buildFormModel, hintsFrom, TaskForm } from "../../src/extension/ui/form.js";
-import { formatElapsed, renderRunList, RunPanel, stagesFor } from "../../src/extension/ui/run.js";
+import { buildFormModel, descriptionAdds, hintsFrom, TaskForm } from "../../src/extension/ui/form.js";
+import { formatElapsed, modelFailureFigures, refusalFigures, renderRunList, RunPanel, stagesFor } from "../../src/extension/ui/run.js";
 import { newSettingsPageState, OLLAMA_ORIGIN_COMMANDS, renderSettingsPage } from "../../src/extension/ui/settings-page.js";
 import { writeZip } from "../../src/extension/ui/zip.js";
 import { scriptedOllama, scriptedOrigin, webairModelAnswers } from "../helpers/host.js";
-import { SHIPPED } from "../helpers/paths.js";
+import { ROOT, SHIPPED } from "../helpers/paths.js";
 import { makeHarness, PAGE, SITE_ORIGIN, WEBAIR_040_URL, type Harness } from "../helpers/shell.js";
 import { listMembers } from "../helpers/zip.js";
 
@@ -97,6 +102,31 @@ describe("the task form from the package's input schema", () => {
     expect(form.current()).toBeUndefined();
   });
 
+  it("shows a field's description only when it adds to the placeholder and the label (F-11, D-110)", async () => {
+    const session = await openWebair(scripted());
+    const model = buildFormModel(session.summary.workflow.input!.document, hintsFrom(session.summary.workflow.presentation));
+    const request = model.fields.find((field) => field.name === "request")!;
+    // WebAir 0.4.0's description ends with the example the empty box already shows: not repeated.
+    expect(request.placeholder).toBe("Find me a flight to Zurich on 9 October under $900.");
+    expect(request.description).toBeNull();
+    expect(model.fields.find((field) => field.name === "booking")!.description).toMatch(/^Ask WebAir for a booking quote/u);
+    const form = new TaskForm(model, null, { canWrite: true }, () => undefined);
+    const wrapper = form.root.querySelector("textarea#ab-field-request")!.closest(".ab-field")!;
+    expect(wrapper.querySelector(".ab-hint")).toBeNull();
+    // The rule itself: an example from `examples[0]` counts as the placeholder; case, quotes, spacing and final punctuation do not matter.
+    const schema = { type: "object", properties: { topic: { type: "string", description: "The topic, for example “Multi-agent  LLM systems”.", examples: ["multi-agent LLM systems"] }, note: { type: "string", description: "Note." }, style: { type: "string", description: "One short paragraph, in the tone you would use for a colleague." } } };
+    const fields = buildFormModel(schema).fields;
+    expect(fields.map((field) => [field.name, field.placeholder, field.description])).toEqual([
+      ["topic", "multi-agent LLM systems", null],
+      ["note", null, null],
+      ["style", null, "One short paragraph, in the tone you would use for a colleague."],
+    ]);
+    expect(descriptionAdds("Your travel request, in your own words.", "Find me a flight from Boston to Zurich on 9 October under $900", "Request")).toBe(true);
+    expect(descriptionAdds("Request", null, "Request")).toBe(false);
+    expect(descriptionAdds("   ", "x", "y")).toBe(false);
+    expect(descriptionAdds(null, "x", "y")).toBe(false);
+  });
+
   it("groups stages from the graph when the package declares none, and keeps the package's stage hints when it does", () => {
     const nodes = [
       { id: "interpret", type: "llm" },
@@ -169,6 +199,9 @@ describe("the run panel", () => {
     // The result: answer.md through the markdown renderer, the summary of the JSON exports, the artifacts and the technical details.
     await settle(100);
     expect(panel.root.querySelector(".ab-result .ab-markdown")?.textContent).toContain("Boston to Zurich");
+    // The files are behind Inspect (F-13): closed by default, opened on request.
+    expect(panel.root.querySelector(".ab-artifact")).toBeNull();
+    button("Inspect")!.click();
     const artifactNames = [...panel.root.querySelectorAll(".ab-artifact code")].map((node) => node.textContent ?? "");
     // Package exports first (in the graph's export order), then the run evidence with run.json last.
     expect(artifactNames.slice(0, 4).sort()).toEqual(["answer.md", "booking.json", "fare-rules.json", "search.json"]);
@@ -263,6 +296,7 @@ describe("the run panel", () => {
     await panel.attachSession(session.session.id);
     await settle(100);
     expect(panel.root.dataset.state).toBe("completed");
+    [...panel.root.querySelectorAll<HTMLButtonElement>("button")].find((item) => item.textContent === "Inspect")!.click();
     const downloadOf = (name: string) => [...panel.root.querySelectorAll<HTMLElement>(".ab-artifact")].find((row) => row.querySelector("code")?.textContent === name)!.querySelector<HTMLButtonElement>("button:last-of-type")!;
     // The saved file is what the browser's download sees; the note names the record as the reference.
     const saved: string[] = [];
@@ -283,6 +317,158 @@ describe("the run panel", () => {
     expect(saved).toEqual(["search.json"]);
     expect(panel.root.textContent).toContain("do not match the SHA-256 the run recorded");
     panel.dispose();
+  });
+
+  it("a finished run shows its files collapsed; Inspect opens the list; Download saves one verified zip of every file (F-13, D-112)", async () => {
+    const h = scripted();
+    const session = await openWebair(h);
+    const result = (await h.controller.handle({ type: "authorization.useProfile", sessionId: session.session.id, packageDigest: SHIPPED.webair040.digest, profileId: "search", resourceSelections: {}, prepare: true }, PAGE)) as AuthorizeResult;
+    const plan = result.run_plan!.run_plan;
+    const started = (await h.controller.handle({ type: "run.start", sessionId: session.session.id, runPlanId: plan.run_plan_id, runPlanSha256: plan.run_plan_sha256, input: { request: SEARCH_TEXT, booking: false, purchase: { quote_id: "", fare_id: "" } } }, PAGE)) as RunView;
+    await h.h_drain();
+    const { panel, settle, button } = mountPanel(h, session);
+    await panel.attachSession(session.session.id);
+    await settle(100);
+    expect(panel.root.dataset.state).toBe("completed");
+    // The result summary stays open; the files are a count and two buttons.
+    expect(panel.root.querySelector(".ab-result-summary")).not.toBeNull();
+    expect(panel.root.querySelector(".ab-artifact")).toBeNull();
+    expect(panel.root.querySelector(".ab-artifacts-counts")?.textContent).toBe("4 package exports · 5 evidence files");
+    const inspect = () => panel.root.querySelector<HTMLButtonElement>(".ab-artifacts-inspect")!;
+    expect([inspect().textContent, inspect().getAttribute("aria-expanded")]).toEqual(["Inspect", "false"]);
+    inspect().click();
+    expect([inspect().textContent, inspect().getAttribute("aria-expanded")]).toEqual(["Hide files", "true"]);
+    expect([...panel.root.querySelectorAll(".ab-artifact-files h4")].map((node) => node.textContent)).toEqual(["Package exports", "Run evidence"]);
+    expect(panel.root.querySelectorAll(".ab-artifact")).toHaveLength(9);
+    inspect().click();
+    expect(panel.root.querySelector(".ab-artifact")).toBeNull();
+    // Download: one zip named after the run, every listed file under exports/ and evidence/, run.json at the top.
+    const saved: Array<{ name: string; blob: Blob }> = [];
+    let pendingBlob: Blob | null = null;
+    URL.createObjectURL = (blob: Blob) => {
+      pendingBlob = blob;
+      return "blob:test";
+    };
+    URL.revokeObjectURL = () => undefined;
+    HTMLAnchorElement.prototype.click = function click(this: HTMLAnchorElement) {
+      saved.push({ name: this.download, blob: pendingBlob! });
+    };
+    panel.root.querySelector<HTMLButtonElement>(".ab-artifacts-download")!.click();
+    for (let attempt = 0; attempt < 100 && saved.length === 0; attempt += 1) await settle(20);
+    expect(saved.map((item) => item.name)).toEqual([`${started.runId}.zip`]);
+    const zip = new Uint8Array(await saved[0]!.blob.arrayBuffer());
+    const record = (await h.controller.handle({ type: "run.get", runId: started.runId }, PAGE)) as RunView;
+    const exports = record.artifacts.filter((item) => !["result.json", "audit.json", "usage.json", "provenance.json", "run.json"].includes(item.name)).map((item) => item.name);
+    const expected = ["run.json", ...exports.map((name) => `exports/${name}`), ...["result.json", "audit.json", "usage.json", "provenance.json"].map((name) => `evidence/${name}`)];
+    expect([...listMembers(zip).keys()]).toEqual(expected);
+    expect(exports.sort()).toEqual(["answer.md", "booking.json", "fare-rules.json", "search.json"]);
+    // Read back by an independent reader (Python's zipfile, from the agentpkg venv the suite already needs): valid, every CRC right, the same names and bytes.
+    const scratch = mkdtempSync(join(realpathSync(tmpdir()), "t9-zip-"));
+    try {
+      const path = join(scratch, `${started.runId}.zip`);
+      writeFileSync(path, zip);
+      const python = process.env.AGENTPKG_PYTHON ?? join(ROOT, "agentpkg", ".venv", "bin", "python");
+      const read = JSON.parse(execFileSync(python, ["-I", "-c", "import hashlib, json, sys, zipfile\nz = zipfile.ZipFile(sys.argv[1])\nprint(json.dumps({'bad': z.testzip(), 'names': z.namelist(), 'sha256': {n: hashlib.sha256(z.read(n)).hexdigest() for n in z.namelist()}}))", path], { encoding: "utf8" })) as { bad: string | null; names: string[]; sha256: Record<string, string> };
+      expect(read.bad).toBeNull();
+      expect(read.names).toEqual(expected);
+      for (const item of record.artifacts.filter((artifact) => artifact.name !== "run.json")) {
+        expect(read.sha256[exports.includes(item.name) ? `exports/${item.name}` : `evidence/${item.name}`], item.name).toBe(item.sha256);
+      }
+    } finally {
+      rmSync(scratch, { recursive: true, force: true });
+    }
+    expect(panel.root.textContent).toContain(`Saved ${started.runId}.zip (9 files`);
+    // A file whose stored bytes no longer match the record stops the zip; nothing is saved.
+    h.runs.artifacts.get(`${started.runId}/search.json`)!.bytes = new TextEncoder().encode("{}");
+    button("Download")!.click();
+    await settle(200);
+    expect(saved).toHaveLength(1);
+    expect(panel.root.textContent).toContain("Download failed: The stored bytes of search.json do not match the SHA-256 the run recorded");
+    panel.dispose();
+  });
+
+  it("a model call refused for its context window says so, with the figures from the audit, not 'a budget limit' (T9)", async () => {
+    const h = scripted();
+    const session = await openWebair(h);
+    // The smallest context WebAir accepts (16,000): its first request, counted as one token per byte plus 6,000 for the answer, does not fit.
+    const settings = ((await h.controller.handle({ type: "settings.get" }, PAGE)) as SettingsView).settings;
+    settings.models.connections = settings.models.connections.map((connection) => (connection.provider === "ollama" ? { ...connection, overrides: { "qwen3:30b": { context_tokens: 16000 } } } : connection));
+    await h.controller.handle({ type: "settings.set", settings }, PAGE);
+    const result = (await h.controller.handle({ type: "authorization.useProfile", sessionId: session.session.id, packageDigest: SHIPPED.webair040.digest, profileId: "search", resourceSelections: {}, prepare: true }, PAGE)) as AuthorizeResult;
+    const plan = result.run_plan!.run_plan;
+    const started = (await h.controller.handle({ type: "run.start", sessionId: session.session.id, runPlanId: plan.run_plan_id, runPlanSha256: plan.run_plan_sha256, input: { request: SEARCH_TEXT, booking: false, purchase: { quote_id: "", fare_id: "" } } }, PAGE)) as RunView;
+    await h.h_drain();
+    const record = (await h.controller.handle({ type: "run.get", runId: started.runId }, PAGE)) as RunView;
+    expect([record.status, record.errorCode, record.failure?.call?.action, record.failure?.call?.reason]).toEqual(["failed", "budget_exhausted", "model.refused", "context_window"]);
+    const { panel, settle } = mountPanel(h, session);
+    await panel.attachSession(session.session.id);
+    await settle(200);
+    const banner = panel.root.querySelector(".ab-outcome .ab-banner")!;
+    expect(banner.querySelector("strong")?.textContent).toBe("The request was larger than the model's context window");
+    expect(banner.textContent).toContain("budget_exhausted"); // the code is still shown
+    expect(banner.textContent).toContain("raise its context in Settings → Models");
+    expect(banner.textContent).not.toContain("A budget limit was reached");
+    expect(banner.querySelector(".ab-refusal-figures")?.textContent).toMatch(/^Reserved [\d,]+ tokens \(the request counted as [\d,]+, plus 6,000 for the answer\); the model's context is 16,000\.$/u);
+    panel.dispose();
+  });
+
+  it("modelFailureFigures says how a rejected answer ended and where it broke the schema (the Luna runs of 2026-10-09)", () => {
+    const webair = [{ action: "model.failed", task: "interpret", reason: "model_output_not_conforming", failure_facts: { stop_reason: "stop", reported_input_tokens: 2442, reported_output_tokens: 60, output_failure: "schema", schema_keyword: "pattern", schema_location: "$defs/s27/properties/search/properties/date/pattern", schema_violations: 1 } }];
+    expect(modelFailureFigures(webair)).toBe("The answer was complete (it stopped normally after 60 output tokens): this is not a token limit. It broke the schema's “pattern” rule at search.date.");
+    const review = { events: [{ action: "model.failed", task: "normalize", reason: "model_output_not_conforming", failure_facts: { stop_reason: "stop", reported_output_tokens: 8965, output_failure: "schema", schema_keyword: "required", schema_location: "$defs/s15/required", schema_violations: 8 } }] };
+    expect(modelFailureFigures(review)).toBe("The answer was complete (it stopped normally after 8,965 output tokens): this is not a token limit. It broke the schema's “required” rule (8 violations in all).");
+    expect(modelFailureFigures([{ action: "model.failed", reason: "model_output_truncated", failure_facts: { stop_reason: "length", reported_output_tokens: 6000 } }])).toBe("It stopped at its output limit after 6,000 output tokens.");
+    expect(modelFailureFigures([{ action: "model.failed", reason: "model_output_not_conforming", failure_facts: { stop_reason: "stop", output_failure: "not_json" } }])).toBe("The answer was complete (it stopped normally): this is not a token limit. It was not a single JSON document.");
+    expect(modelFailureFigures([{ action: "model.called" }])).toBeNull();
+  });
+
+  it("a run whose model answer broke the package's schema says so on the panel, with the field (T9)", async () => {
+    // The scripted model answers interpret with a date that breaks the plan schema's pattern.
+    const answers = webairModelAnswers();
+    const interpret = answers.interpret!;
+    const h = makeHarness({ transports: { model: scriptedOllama({ ...answers, interpret: (user, system) => { const plan = interpret(user, system) as { search: Record<string, unknown> }; return { ...plan, search: { ...plan.search, date: "9 October 2026" } }; } }).transport, tool: scriptedOrigin().transport } });
+    const session = await openWebair(h);
+    const result = (await h.controller.handle({ type: "authorization.useProfile", sessionId: session.session.id, packageDigest: SHIPPED.webair040.digest, profileId: "search", resourceSelections: {}, prepare: true }, PAGE)) as AuthorizeResult;
+    const plan = result.run_plan!.run_plan;
+    await h.controller.handle({ type: "run.start", sessionId: session.session.id, runPlanId: plan.run_plan_id, runPlanSha256: plan.run_plan_sha256, input: { request: SEARCH_TEXT, booking: false, purchase: { quote_id: "", fare_id: "" } } }, PAGE);
+    await h.h_drain();
+    const { panel, settle } = mountPanel(h, session);
+    await panel.attachSession(session.session.id);
+    await settle(200);
+    const banner = panel.root.querySelector(".ab-outcome .ab-banner")!;
+    expect(banner.querySelector("strong")?.textContent).toBe("The model's answer did not match the package's format");
+    expect(banner.textContent).toContain("model_error");
+    expect(banner.querySelector(".ab-refusal-figures")?.textContent).toMatch(/this is not a token limit\. It broke the schema's “pattern” rule at search\.date\.$/u);
+    panel.dispose();
+  });
+
+  it("refusalFigures reads the refused call's numbers (the Literature Review run of 2026-10-09)", () => {
+    const audit = [{ action: "model.called", task: "plan", reserved_tokens: 14916 }, { action: "model.refused", task: "normalize", reason: "context_window", input_bound: 18917, max_output_tokens: 16000, reserved_tokens: 34917, context_window: 32700 }];
+    expect(refusalFigures(audit)).toBe("Reserved 34,917 tokens (the request counted as 18,917, plus 16,000 for the answer); the model's context is 32,700.");
+    expect(refusalFigures({ events: [{ action: "model.refused", reason: "global_token_budget", input_bound: 10, max_output_tokens: 5, reserved_tokens: 15, used_tokens: 119990, limit: 120000 }] })).toBe("Reserved 15 tokens (the request counted as 10, plus 5 for the answer); 119,990 already used of 120,000.");
+    expect(refusalFigures([{ action: "model.called" }])).toBeNull();
+    expect(refusalFigures(null)).toBeNull();
+  });
+
+  it("a session with a run in flight is never ended to make room for another (T9)", async () => {
+    const hanging: HttpTransport = (request) => new Promise((_resolve, reject) => request.signal.addEventListener("abort", () => reject(request.signal.reason), { once: true }));
+    const h = makeHarness({ limits: { maxSessions: 1 }, transports: { model: hanging, tool: scriptedOrigin().transport } });
+    // Opened without a view, so only its run can keep it.
+    const session = (await h.controller.handle({ type: "package.open", url: WEBAIR_040_URL, advertisedOn: `${SITE_ORIGIN}/` }, PAGE)) as SessionView;
+    await h.controller.handle({ type: "trust.pin", sessionId: session.session.id, signerFingerprint: SHIPPED.webair040.fingerprint, scope: "publisher" }, PAGE);
+    const settings = ((await h.controller.handle({ type: "settings.get" }, PAGE)) as SettingsView).settings;
+    settings.models.default_model = QWEN;
+    await h.controller.handle({ type: "settings.set", settings }, PAGE);
+    const result = (await h.controller.handle({ type: "authorization.useProfile", sessionId: session.session.id, packageDigest: SHIPPED.webair040.digest, profileId: "search", resourceSelections: {}, prepare: true }, PAGE)) as AuthorizeResult;
+    const plan = result.run_plan!.run_plan;
+    const started = (await h.controller.handle({ type: "run.start", sessionId: session.session.id, runPlanId: plan.run_plan_id, runPlanSha256: plan.run_plan_sha256, input: { request: SEARCH_TEXT, booking: false, purchase: { quote_id: "", fare_id: "" } } }, PAGE)) as RunView;
+    const other = h.controller.handle({ type: "package.open", url: WEBAIR_040_URL, advertisedOn: null }, PAGE);
+    await expect(other).rejects.toMatchObject({ code: "session_limit_reached" });
+    await h.controller.handle({ type: "run.cancel", runId: started.runId }, PAGE);
+    await h.h_drain();
+    // Settled: the session is no longer needed by a run and makes room.
+    const opened = (await h.controller.handle({ type: "package.open", url: WEBAIR_040_URL, advertisedOn: null }, PAGE)) as SessionView;
+    expect(opened.session.id).not.toBe(session.session.id);
   });
 
   it("Cancel is offered while a run is in flight and the panel settles as cancelled", async () => {

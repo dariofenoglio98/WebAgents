@@ -112,6 +112,10 @@ export class BoundModelRouter implements ModelRouter {
   readonly router_id = ROUTER_ID;
   readonly model_id: string;
   readonly provider_id: string;
+  /** A non-conforming answer is asked for once more (D-115). */
+  readonly nonconformingRetries = 1;
+  /** `countTokens` is a local UTF-8 bound: it sends nothing, so it is not a remote call (D-115). */
+  readonly remoteCount = false;
   readonly remote: boolean;
   readonly capabilities: ReadonlySet<string>;
   readonly context_window: number;

@@ -54,6 +54,16 @@ const str = (value: unknown): string => String(value);
 const optional = (value: unknown): string | null => (typeof value === "string" ? value : null);
 const strings = (value: unknown): string[] => (Array.isArray(value) ? value.map(str) : []);
 
+/** An absolute https URL with a host, as WHATWG reads it; nothing else is asked of display-only links. */
+function isHttpsUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && url.hostname.length > 0 && url.username === "" && url.password === "";
+  } catch {
+    return false;
+  }
+}
+
 function invalid(message: string): CoreError {
   return new CoreError("document_content_invalid", `The agent index is signed, but ${message}`, { status: 422 });
 }
@@ -95,10 +105,15 @@ export function readAgentIndex(content: JsonObject): AgentIndex {
     urls.add(entry.package_url);
     try {
       validatePackageUrl(entry.package_url, "Package");
-      if (entry.homepage !== null) validatePackageUrl(entry.homepage, "Homepage");
     } catch (error) {
       notes.push({ code: "entry_url_refused", detail: `entries[${position}] (${key}): ${error instanceof Error ? error.message : "refused"}` });
       return;
+    }
+    // The homepage is display metadata, never fetched by this browser: an https URL is enough, and
+    // one that is not loses the homepage, not the entry (T8 review 1, finding 3).
+    if (entry.homepage !== null && !isHttpsUrl(entry.homepage)) {
+      notes.push({ code: "entry_homepage_dropped", detail: `entries[${position}] (${key}): the homepage is not an https URL and is not shown.` });
+      entry.homepage = null;
     }
     entries.push(entry);
   });

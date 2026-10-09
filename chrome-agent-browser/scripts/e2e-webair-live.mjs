@@ -20,6 +20,8 @@
  * recomputes the checks over those files. Nothing here decides a check; it records.
  *
  *   node scripts/e2e-webair-live.mjs --model ollama/qwen3:30b [--site URL] [--out report.json]
+ *        [--version 0.5.0]   (the WebAir version the origin must serve; the default report is
+ *                             examples/verification/chrome-webair-<050>-live.json, T9)
  *        [--out-dir examples/my-chrome-live-<ts>] [--chrome path] [--keep] [--phases all|search,cancel,quote,purchase,denial]
  *   A hosted model needs OPENAI_API_KEY or ANTHROPIC_API_KEY in the environment; the key is typed
  *   into the extension's storage for this throwaway profile and never written anywhere by this script.
@@ -40,12 +42,13 @@ const DEFAULT_CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Ch
 const DEFAULT_SITE = "https://webagents-webair-production.up.railway.app/";
 const RUN_TIMEOUT_MS = 20 * 60 * 1000;
 
-const args = { chrome: process.env.CHROME_PATH || DEFAULT_CHROME, site: DEFAULT_SITE, model: null, out: join(ROOT, "examples", "verification", "chrome-webair-040-live.json"), outDir: null, keep: false, phases: ["search", "cancel", "quote", "purchase", "denial"] };
+const args = { chrome: process.env.CHROME_PATH || DEFAULT_CHROME, site: DEFAULT_SITE, model: null, version: "0.5.0", out: null, outDir: null, keep: false, phases: ["search", "cancel", "quote", "purchase", "denial"] };
 for (let index = 2; index < process.argv.length; index += 1) {
   const argument = process.argv[index];
   if (argument === "--chrome") args.chrome = process.argv[(index += 1)];
   else if (argument === "--site") args.site = process.argv[(index += 1)];
   else if (argument === "--model") args.model = process.argv[(index += 1)];
+  else if (argument === "--version") args.version = process.argv[(index += 1)];
   else if (argument === "--out") args.out = resolve(process.argv[(index += 1)]);
   else if (argument === "--out-dir") args.outDir = resolve(process.argv[(index += 1)]);
   else if (argument === "--keep") args.keep = true;
@@ -55,6 +58,8 @@ for (let index = 2; index < process.argv.length; index += 1) {
     process.exit(2);
   }
 }
+// Each version's evidence has its own report; the committed 0.4.0 one is never overwritten by a 0.5.0 run.
+if (args.out === null) args.out = join(ROOT, "examples", "verification", `chrome-webair-${args.version.replaceAll(".", "")}-live.json`);
 if (!args.model || !args.model.includes("/")) {
   console.error("--model provider/model is required (ollama/qwen3:30b, openai/<id>, anthropic/<id>)");
   process.exit(2);
@@ -127,6 +132,7 @@ true;
 const report = {
   profile: "chrome-webair-040-live-v0",
   recordedAt: startedAt.toISOString(),
+  packageVersion: args.version,
   site: args.site,
   model: args.model,
   extension: relative(ROOT, EXTENSION),
@@ -204,7 +210,7 @@ async function main() {
     const sessionId = await cdp.waitFor(page, `__ab.session()`, "the agent page", 60_000);
     const inspected = await send({ type: "package.get", sessionId });
     report.steps.inspect = { sessionId, name: inspected.page.identity.name, version: inspected.page.identity.version, digest: inspected.page.technical.digest, archiveSha256: inspected.page.technical.archive_sha256, trust: inspected.page.trust.trust_status, signature: inspected.page.trust.signature_status };
-    check("inspect", "WebAir 0.4.0, signed", inspected.page.identity.version === "0.4.0" && inspected.page.trust.signature_status === "valid", report.steps.inspect);
+    check("inspect", `WebAir ${args.version}, signed`, inspected.page.identity.version === args.version && inspected.page.trust.signature_status === "valid", report.steps.inspect);
     check("inspect", "publisher unknown before trust", inspected.page.trust.trust_status === "unknown", inspected.page.trust.trust_status);
     await cdp.waitFor(page, `__ab.click("Trust this publisher key", document.querySelector(".ab-pin"))`, "the trust control");
     await cdp.evaluate(page, `__ab.click("Press again to trust this key", document.querySelector(".ab-pin"))`);

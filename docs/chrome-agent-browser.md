@@ -122,7 +122,8 @@ has no `innerHTML`. Per-origin optional permissions are later hardening (BACKLOG
 | Package and page downloads | HTTPS on port 443, a DNS name, no redirect followed, 60 s | D-026, D-033, D-039 |
 | Run limits (Settings → Policies → Run limits) | the reference plugin's defaults; "Use the long-run limits" sets the values the reference host used for Literature Review | D-084, `src/core/execution/limits.ts` |
 | A package's own budget and deadline | always apply beneath the host's limits; the host never raises them | D-064 |
-| Model calls | one bound model per plan, no fallback; a per-call deadline; output capped at the node's `max_output_tokens` | D-023, D-061, D-062 |
+| Model calls | one bound model per plan, no fallback; a per-call deadline; output capped at the node's `max_output_tokens`. OpenAI is sent a strict json_schema (constrained decoding) when the package schema can be one without changing its meaning, else non-strict; an answer that still breaks the schema is asked for once more (counted, audited as `attempt: 2`), never repaired | D-023, D-061, D-062, D-115 |
+| A model call's size | before each call the runtime reserves the request counted as one token per UTF-8 byte (a safe upper bound; no tokenizer runs in the browser, and the Python runtime counts the same way) plus the node's `max_output_tokens`, and refuses the call when that exceeds the model's context. The run surface then says "The request was larger than the model's context window" with the reserved tokens and the context (T9). Local Ollama models are capped at 32,768 tokens until the person raises the context in Settings → Models; Literature Review's larger steps need 65,536 | D-055, `src/core/workflow/runtime.ts` |
 | Tool calls | one request, no redirect, no retry, bounded request and response bytes, the binding's own pacing | D-054, D-066, D-081 |
 | Selected PDFs | the reference parser's limits (size, pages, text per page, text in all) | D-082 |
 | One active run | per session and per plan; a receipt must outlast the run deadline by 60 s | D-071 |
@@ -194,7 +195,27 @@ origin (and by `package-origin/`). The acceptance harness `scripts/e2e-search-po
 whole path in a real Chrome against a local HTTPS mock of that origin; its evidence is
 [`examples/verification/chrome-search-policy-e2e.json`](../examples/verification/chrome-search-policy-e2e.json).
 
-## 10. What it does not do yet
+## 10. Using it: what the pages show (T9)
+
+- **The task form** shows a field's description only when it adds something to the placeholder
+  (the publisher's example) and the label (D-110).
+- **One way to choose a profile.** The agent page no longer lists the profiles; the authorize
+  view's "Ways to use it" does, each card with its title, its description, what it grants ("Gets:
+  …") and one estimate line. Every profile's members, estimate and notes stay under the agent
+  page's Technical details → "Profiles (declared by the publisher)" (D-111).
+- **A finished run's files** are a count and two buttons: Inspect opens the list of package
+  exports and run evidence (View and Download per file), and Download saves `<run_id>.zip` with
+  `run.json`, `exports/` and `evidence/`, every file checked against the hash the run recorded
+  (D-112). The Runs page's Export stays the verifier bundle (plan and input included, D-073).
+- **Chrome's built-in model** (Gemini Nano) has a row in Settings → Models like any model; "Make
+  default" appears once Chrome reports it available. Its context is the Prompt API's measured
+  session quota. The Prompt API states no reasoning, so a package that requires reasoning (WebAir)
+  gets a plan on it only after the person states "Reasons: yes" on its row, recorded as declared
+  by them; any model's row offers the same statement (D-113). A plan keeps the model it was
+  prepared with; after the default changes, the plan card says so and "Use this agent" prepares a
+  plan on the new default.
+
+## 11. What it does not do yet
 
 See the README's [What it does not do yet](../chrome-agent-browser/README.md#what-it-does-not-do-yet):
 the built-in model has not run live, local tools other than the PDF reader and GET services other

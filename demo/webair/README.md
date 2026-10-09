@@ -107,7 +107,7 @@ it):
 ```sh
 python3 -m venv demo/webair/.venv
 demo/webair/.venv/bin/python -m pip install -r demo/webair/requirements-dev.txt
-cd demo/webair && .venv/bin/python -m origin --agent-package ../../dist/webair-0.4.0.agent.pkg
+cd demo/webair && .venv/bin/python -m origin --agent-package ../../dist/webair-0.5.0.agent.pkg
 ```
 
 Then open **<http://127.0.0.1:8040/>**; the signed package is at
@@ -151,23 +151,23 @@ The origin writes nothing to disk and keeps nothing in memory between requests.
 
 | | |
 |---|---|
-| Package | `org.webagents.webair` **0.4.0**, "WebAir Travel Agent" |
+| Package | `org.webagents.webair` **0.5.0**, "WebAir Travel Agent" |
 | Publisher | `webair-demo`, "WebAir (fictional demo airline)": a dedicated demo key, `sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b` ([public key](../../examples/keys/webair-publisher.pub.pem)) |
-| Artifact | `dist/webair-0.4.0.agent.pkg`, 170,725 bytes, archive SHA-256 `c12f9db3bd7b3b4b6721c67e1d0b8143ebd94381df0e5e57c196357b7ca77f63`; 58 payload files |
-| Package digest | `0e8317f11e8813e7d5b4b3f352f20148d114329dca3db8c725c5b0558af24fbb` |
-| Execution profile | `workflow.v0`, minimum runtime 0.2.2 *as released in v0.2.0* (it declares the `personal.read` permission kind, which the v0.1.0 release's 0.2.2 wheel refuses); 34 nodes, canonical operators only |
-| What changed from 0.3.0 | only the manifest's version, date and its [profiles](#profiles) (`org.webagents:profiles-v0`), plus the package README; graph, tools, schemas, skills, fixture, policy, permissions and budgets are byte-identical (`agentpkg/tests/test_webair_package.py`) |
-| Earlier | `dist/webair-0.3.0.agent.pkg` (the live demo's version, the first to declare the public host), archive `b537cf5c…2887`, digest `ffe8f5b3…5e94`; `dist/webair-0.2.0.agent.pkg` (declares the reserved `webair.example`), archive `3f135be8…a616`, digest `74f05a8d…b9e1`; `dist/webair-0.1.0.agent.pkg` (= `dist/webair.agent.pkg`, which stays 0.1.0 because the recorded evidence pins it), archive `73872c31…470c`, digest `3b7c61a7…2fb6`; all unchanged |
+| Artifact | `dist/webair-0.5.0.agent.pkg`, 174,116 bytes, archive SHA-256 `4b087557cbd2b0ff186391dfd00f9068739f9a727ab2fd916a6512da1fde101b` |
+| Package digest | `6192614e86ae4b18ba135f17120d4f616feac082c4ab09283221da7194c0bb48` |
+| Execution profile | `workflow.v0`, minimum runtime 0.2.2 *as released in v0.2.0* (it declares the `personal.read` permission kind, which the v0.1.0 release's 0.2.2 wheel refuses); 35 nodes, canonical operators only |
+| What changed from 0.4.0 | a request that names no departure airport, with no travel profile that supplies one, is answered ("say where you depart from") instead of failing the package's own search-request check: the `search-origin` node resolves the airport first and the search runs only when there is one (B-124); the request field's description is one sentence and its example *"Find me a flight from Boston to Zurich on 9 October under $900"* (F-11); the answer-writing skill (0.3.0), one fixture scenario (`no-departure`), the manifest and the package README. Tools, permissions, budgets, policy and profiles are unchanged (`agentpkg/tests/test_webair_package.py`). Under "Search flights" a model that asks for the travel profile still stops the run as `permission_denied`: the graph cannot see the person's grants |
+| Earlier | `dist/webair-0.4.0.agent.pkg` (0.3.0 plus the profiles; the public origin's package since 2026-10-06 until 0.5.0 is deployed), archive `c12f9db3…7f63`, digest `0e8317f1…4fbb`; `dist/webair-0.3.0.agent.pkg` (the live demo's version, the first to declare the public host), archive `b537cf5c…2887`, digest `ffe8f5b3…5e94`; `dist/webair-0.2.0.agent.pkg` (declares the reserved `webair.example`), archive `3f135be8…a616`, digest `74f05a8d…b9e1`; `dist/webair-0.1.0.agent.pkg` (= `dist/webair.agent.pkg`, which stays 0.1.0 because the recorded evidence pins it), archive `73872c31…470c`, digest `3b7c61a7…2fb6`; all unchanged |
 
 ### The task
 
-One travel request in plain language, for example *"Find me a flight to Zurich on 9 October
-under $900."*, *"Prepare WA101 Standard for 9 October for me."* or *"What are the change and
+One travel request in plain language, for example *"Find me a flight from Boston to Zurich on 9
+October under $900"*, *"Prepare WA101 Standard for 9 October for me."* or *"What are the change and
 refund rules for the Standard fare on the nonstop flights from Boston to Zurich on 9 October?"*.
 Task input:
 
 ```json
-{"request": "Find me a flight to Zurich on 9 October under $900.",
+{"request": "Find me a flight from Boston to Zurich on 9 October under $900",
  "booking": false, "purchase": {"quote_id": "", "fare_id": ""}}
 ```
 
@@ -264,22 +264,22 @@ The built package contains no Python and never imports this directory.
 # refresh the generated files after an origin or host-resource change (then review the diff)
 (cd demo/webair && .venv/bin/python -m publisher sync)
 
-agentpkg/.venv/bin/agentpkg build agents/webair -o dist/webair-0.4.0.agent.pkg
-agentpkg/.venv/bin/agentpkg sign dist/webair-0.4.0.agent.pkg \
-  --private-key ~/.config/agentpkg/keys/webagents-webair.private.pem
-agentpkg/.venv/bin/agentpkg verify dist/webair-0.4.0.agent.pkg \
+agentpkg/.venv/bin/agentpkg build agents/webair -o /tmp/webair-0.5.0.unsigned.agent.pkg
+agentpkg/.venv/bin/agentpkg sign /tmp/webair-0.5.0.unsigned.agent.pkg \
+  --private-key ~/.config/agentpkg/keys/webagents-webair.private.pem -o dist/webair-0.5.0.agent.pkg
+agentpkg/.venv/bin/agentpkg verify dist/webair-0.5.0.agent.pkg \
   --trust-key examples/keys/webair-publisher.pub.pem
 
 # fixture run of the hero request: generic CLI, interpreter, model router and tool handlers,
-# with every personal permission denied (a search needs none). 0.4.0 has 0.2.0's permissions,
+# with every personal permission denied (a search needs none). 0.5.0 has 0.2.0's permissions,
 # so 0.2.0's grants file applies unchanged.
-agentpkg/.venv/bin/agentpkg run dist/webair-0.4.0.agent.pkg --mode fixture \
+agentpkg/.venv/bin/agentpkg run dist/webair-0.5.0.agent.pkg --mode fixture \
   --grants examples/webair-0.2.0-grants.json \
   --approve-tool search-flights --approve-tool get-fare-rules \
   --out examples/my-webair
 
 agentpkg/.venv/bin/python scripts/verify_webair.py               # search scenarios, offline
-agentpkg/.venv/bin/python scripts/verify_webair_capabilities.py  # host capabilities, offline (needs Node)
+agentpkg/.venv/bin/python scripts/verify_webair_capabilities.py  # host capabilities on 0.4.0, offline (needs Node; its source-rebuild check describes 0.4.0's source)
 ```
 
 Because the package declares the public deployment's hostname, a change of hostname is a new
@@ -391,9 +391,9 @@ can name a path. There is no static directory mount and no directory listing, an
 invalid configured file stops the origin from starting. Without a configured package,
 `/agent.pkg` answers `404` with `{"error": {"code": "agent_package_unavailable", …}}`.
 
-Started with `--agent-package ../../dist/webair-0.4.0.agent.pkg` — as the public deployment's
+Started with `--agent-package ../../dist/webair-0.5.0.agent.pkg` — as the public deployment's
 bundle is — the link resolves to the exact signed bytes: `X-Agent-Package-SHA256` and the ETag carry
-`c12f9db3bd7b3b4b6721c67e1d0b8143ebd94381df0e5e57c196357b7ca77f63`, and `agentpkg verify` on the
+`4b087557cbd2b0ff186391dfd00f9068739f9a727ab2fd916a6512da1fde101b`, and `agentpkg verify` on the
 downloaded file succeeds against WebAir's pinned key
 ([`tests/test_package_serving.py`](tests/test_package_serving.py) checks every signed version; the
 public origin's bytes, headers and signature are in
@@ -538,7 +538,7 @@ offline acceptance against 0.4.0, which the script now checks, is
 |---|---|
 | Public URL | <https://webagents-webair-production.up.railway.app/> (DNS → Railway's edge, public addresses; TLS on 443) |
 | Platform | Railway, service `webagents-webair`, builder Railpack, Python 3.13 |
-| What runs | `python -m origin --host 0.0.0.0 --agent-package agent.pkg --demo-documents demo` — this origin, publishing `dist/webair-0.4.0.agent.pkg` (since 2026-10-06; 0.3.0 before) and, since T8, the WebAgents demo documents beside it (below) |
+| What runs | `python -m origin --host 0.0.0.0 --agent-package agent.pkg --demo-documents demo` — this origin, publishing `dist/webair-0.4.0.agent.pkg` (since 2026-10-06; 0.3.0 before; 0.5.0 from the next deploy) and, since T8, the WebAgents demo documents beside it (below) |
 | Health check | `GET /health` (states only that this is the fictional demo, the published package's SHA-256 and the demo documents' SHA-256s) |
 | Environment | `PORT` (the platform's port; the service sets `8080`). No secret, database, external API or persistence |
 | Configuration | [`deploy/railway.toml`](deploy/railway.toml) (start, health check, restart policy), [`deploy/railpack.json`](deploy/railpack.json) (the start command again: Railpack plans the image before `railway.toml` applies), [`deploy/.python-version`](deploy/.python-version) |
@@ -554,15 +554,15 @@ email or label from `host-resources.json` appears, and is reproducible byte for 
 
 ```sh
 # from the repository root, with the Railway CLI signed in (railway login)
-python3 demo/webair/deploy/bundle.py --package dist/webair-0.4.0.agent.pkg \
-  --expect-sha256 c12f9db3bd7b3b4b6721c67e1d0b8143ebd94381df0e5e57c196357b7ca77f63 \
+python3 demo/webair/deploy/bundle.py --package dist/webair-0.5.0.agent.pkg \
+  --expect-sha256 4b087557cbd2b0ff186391dfd00f9068739f9a727ab2fd916a6512da1fde101b \
   --out /tmp/webair-bundle
 railway up /tmp/webair-bundle --path-as-root --service webagents-webair --environment production
 
 # then: the page, the health check, and the exact bytes
 curl -sS https://webagents-webair-production.up.railway.app/health
 curl -sS https://webagents-webair-production.up.railway.app/agent.pkg -o /tmp/public.agent.pkg
-cmp /tmp/public.agent.pkg dist/webair-0.4.0.agent.pkg && \
+cmp /tmp/public.agent.pkg dist/webair-0.5.0.agent.pkg && \
   agentpkg/.venv/bin/agentpkg verify /tmp/public.agent.pkg --trust-key examples/keys/webair-publisher.pub.pem
 ```
 

@@ -256,6 +256,8 @@ export interface IndexView {
   signer_fingerprint: string | null;
   content_sha256: string | null;
   last_error: { code: string; message: string; at: string } | null;
+  /** Why the stored copy does not verify (state `unverified`), else null. */
+  unverified_reason: string | null;
 }
 
 export interface IndexesView {

@@ -147,6 +147,8 @@ jobs:
             --trust-key examples/keys/webair-publisher.pub.pem > "$RUNNER_TEMP/verify-webair-030.json"
           "$agentpkg" verify dist/webair-0.4.0.agent.pkg \
             --trust-key examples/keys/webair-publisher.pub.pem > "$RUNNER_TEMP/verify-webair-040.json"
+          "$agentpkg" verify dist/webair-0.5.0.agent.pkg \
+            --trust-key examples/keys/webair-publisher.pub.pem > "$RUNNER_TEMP/verify-webair-050.json"
           python - "$RUNNER_TEMP" <<'PY'
           import json, sys
           from pathlib import Path
@@ -160,6 +162,8 @@ jobs:
               "verify-webair-030.json": ("org.webagents.webair", "0.3.0",
                   "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b"),
               "verify-webair-040.json": ("org.webagents.webair", "0.4.0",
+                  "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b"),
+              "verify-webair-050.json": ("org.webagents.webair", "0.5.0",
                   "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b"),
           }
           for name, (package_id, version, fingerprint) in expected.items():
@@ -199,6 +203,11 @@ jobs:
             --grants examples/webair-0.2.0-grants.json \
             --approve-tool search-flights --approve-tool get-fare-rules \
             --out "$RUNNER_TEMP/my-webair-040" > "$RUNNER_TEMP/run-webair-040.json"
+          # WebAir 0.5.0 answers a request without a departure airport instead of failing (T9).
+          "$agentpkg" run dist/webair-0.5.0.agent.pkg --mode fixture \
+            --grants examples/webair-0.2.0-grants.json \
+            --approve-tool search-flights --approve-tool get-fare-rules \
+            --out "$RUNNER_TEMP/my-webair-050" > "$RUNNER_TEMP/run-webair-050.json"
           python - "$RUNNER_TEMP" <<'PY'
           import json, sys
           from pathlib import Path
@@ -210,6 +219,7 @@ jobs:
               "webair": ["answer.md", "search.json", "fare-rules.json", "booking.json"],
               "webair-030": ["answer.md", "search.json", "fare-rules.json", "booking.json"],
               "webair-040": ["answer.md", "search.json", "fare-rules.json", "booking.json"],
+              "webair-050": ["answer.md", "search.json", "fare-rules.json", "booking.json"],
           }
           for name, declared in exports.items():
               report = json.loads((temp / f"run-{name}.json").read_text())

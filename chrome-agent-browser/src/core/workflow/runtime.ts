@@ -27,7 +27,7 @@ import { schemaFacts } from "../tools/facts.js";
 import type { AuditEvent } from "../types.js";
 import { urlsplit } from "../urls.js";
 import { CancelToken, withDeadline } from "./cancel.js";
-import { BudgetError, CancelledError, errorName, PolicyError, TimeoutError } from "./errors.js";
+import { AdapterError, BudgetError, CancelledError, errorName, PolicyError, TimeoutError } from "./errors.js";
 import { Semaphore } from "./sync.js";
 
 export type GrantDecision = "once" | "session" | "always" | "deny";
@@ -541,7 +541,8 @@ export class Runtime {
     const permissions = this.permissionKind("model");
     if (permissions.length === 0) throw new PolicyError("Model use requires an explicit model permission");
     this.authorize(permissions, { context: ctx });
-    if (router.remote) this.remote(ctx); // Token-count preflight is a separately budgeted call.
+    // Token-count preflight is a separately budgeted call when it reaches the network (D-115).
+    if (router.remote && router.remoteCount !== false) this.remote(ctx);
     // One logical model authorization covers both count and completion. Consume it before
     // sending any private context to a remote tokenizer.
     this.authorize(permissions, { consume: true, context: ctx });
@@ -582,80 +583,105 @@ export class Runtime {
     if (reservation > router.context_window) {
       refuse("context_window", "Model request exceeds configured context window", { context_window: router.context_window });
     }
-    const own = this.usageByWorker.get(ctx.worker_id)!;
-    this.checkContext(ctx);
-    const hardTokens = this.budget.hard_tokens as number;
-    if (this.global.tokens + this.global.reserved_tokens + reservation > hardTokens) {
-      refuse("global_token_budget", "Global token budget exhausted before model dispatch", {
-        used_tokens: this.global.tokens,
-        held_tokens: this.global.reserved_tokens,
-        limit: hardTokens,
-      });
-    }
-    const roleTokens = (this.roles[ctx.role]!.budget as JsonObject).tokens as number;
-    if (own.tokens + own.reserved_tokens + reservation > roleTokens) {
-      refuse("worker_token_budget", `Token budget exhausted for ${ctx.worker_id}`, {
-        used_tokens: own.tokens,
-        held_tokens: own.reserved_tokens,
-        limit: roleTokens,
-      });
-    }
-    const threshold = this.budget.approval_threshold_tokens;
-    if (typeof threshold === "number" && this.global.tokens + this.global.reserved_tokens + reservation > threshold) {
-      throw new BudgetError("Token approval threshold exceeded; a new host grant is required");
-    }
-    if (router.remote) this.remote(ctx);
-    own.reserved_tokens += reservation;
-    this.global.reserved_tokens += reservation;
-    this.record("budget.updated", { context: ctx, tokens: this.global.tokens, reserved_tokens: this.global.reserved_tokens });
-    this.record("model.called", {
-      context: ctx,
-      task,
-      model: router.model_id,
-      router: router.router_id,
-      domains,
-      input_hash: digest(request),
-      reserved_tokens: reservation,
-      permissions,
-    });
-    let used = reservation; // Unknown usage/errors consume reservation conservatively.
-    try {
-      const result = await router.complete(request, maxOutputTokens, token.signal);
-      const inp = (result as { input_tokens?: unknown }).input_tokens;
-      const out = (result as { output_tokens?: unknown }).output_tokens;
-      const count = (value: unknown): value is number => typeof value === "number" && Number.isInteger(value) && value >= 0;
-      const validCounts = count(inp) && count(out);
-      if (validCounts) used = inp + out; // Report known overruns honestly, even above the cap.
-      if (!validCounts || inp > inputBound || out > maxOutputTokens) {
-        this.halted = "router violated token accounting contract";
-        throw new PolicyError("Router violated token accounting contract; execution halted");
-      }
+    // One attempt: reserve against every bound, send, account. A live router's answer that does
+    // not match the output schema is asked for once more with the same request (D-115): a fresh
+    // reservation, remote call and audit pair, under the same one logical authorization. Nothing
+    // is repaired; the second answer is validated exactly as the first.
+    const attemptOnce = async (attempt: number): Promise<JsonValue> => {
+      const own = this.usageByWorker.get(ctx.worker_id)!;
       this.checkContext(ctx);
-      await validateDocument(result, "model-result", "model response");
-      const failures = await failuresForSchema(outputSchema, result.output, "model output");
-      if (failures.length > 0) {
-        const first = failures[0]!;
-        throw new ValidationError(`model output does not match schema at ${first.instancePath.join("/") || "<root>"} (rule: ${first.keyword})`);
+      const hardTokens = this.budget.hard_tokens as number;
+      if (this.global.tokens + this.global.reserved_tokens + reservation > hardTokens) {
+        refuse("global_token_budget", "Global token budget exhausted before model dispatch", {
+          used_tokens: this.global.tokens,
+          held_tokens: this.global.reserved_tokens,
+          limit: hardTokens,
+        });
       }
-      this.record("model.completed", {
+      const roleTokens = (this.roles[ctx.role]!.budget as JsonObject).tokens as number;
+      if (own.tokens + own.reserved_tokens + reservation > roleTokens) {
+        refuse("worker_token_budget", `Token budget exhausted for ${ctx.worker_id}`, {
+          used_tokens: own.tokens,
+          held_tokens: own.reserved_tokens,
+          limit: roleTokens,
+        });
+      }
+      const threshold = this.budget.approval_threshold_tokens;
+      if (typeof threshold === "number" && this.global.tokens + this.global.reserved_tokens + reservation > threshold) {
+        throw new BudgetError("Token approval threshold exceeded; a new host grant is required");
+      }
+      if (router.remote) this.remote(ctx);
+      own.reserved_tokens += reservation;
+      this.global.reserved_tokens += reservation;
+      this.record("budget.updated", { context: ctx, tokens: this.global.tokens, reserved_tokens: this.global.reserved_tokens });
+      this.record("model.called", {
         context: ctx,
         task,
         model: router.model_id,
-        tokens: used,
-        cost_usd: (result.cost_usd ?? null) as JsonValue,
-        status: "ok",
-        result_hash: digest(result.output),
+        router: router.router_id,
+        domains,
+        input_hash: digest(request),
+        reserved_tokens: reservation,
+        permissions,
+        ...(attempt > 1 ? { attempt } : {}),
       });
-      return deepCopy(result.output);
-    } catch (error) {
-      this.record("model.failed", { context: ctx, task, error: errorName(error), tokens_charged: used, ...failureReason(error) });
-      throw error;
-    } finally {
-      own.reserved_tokens -= reservation;
-      this.global.reserved_tokens -= reservation;
-      own.tokens += used;
-      this.global.tokens += used;
-      this.record("budget.updated", { context: ctx, tokens: this.global.tokens, reserved_tokens: this.global.reserved_tokens });
+      let used = reservation; // Unknown usage/errors consume reservation conservatively.
+      try {
+        const result = await router.complete(request, maxOutputTokens, token.signal);
+        const inp = (result as { input_tokens?: unknown }).input_tokens;
+        const out = (result as { output_tokens?: unknown }).output_tokens;
+        const count = (value: unknown): value is number => typeof value === "number" && Number.isInteger(value) && value >= 0;
+        const validCounts = count(inp) && count(out);
+        if (validCounts) used = inp + out; // Report known overruns honestly, even above the cap.
+        if (!validCounts || inp > inputBound || out > maxOutputTokens) {
+          this.halted = "router violated token accounting contract";
+          throw new PolicyError("Router violated token accounting contract; execution halted");
+        }
+        this.checkContext(ctx);
+        await validateDocument(result, "model-result", "model response");
+        const failures = await failuresForSchema(outputSchema, result.output, "model output");
+        if (failures.length > 0) {
+          const first = failures[0]!;
+          throw new ValidationError(`model output does not match schema at ${first.instancePath.join("/") || "<root>"} (rule: ${first.keyword})`);
+        }
+        this.record("model.completed", {
+          context: ctx,
+          task,
+          model: router.model_id,
+          tokens: used,
+          cost_usd: (result.cost_usd ?? null) as JsonValue,
+          status: "ok",
+          result_hash: digest(result.output),
+        });
+        return deepCopy(result.output);
+      } catch (error) {
+        // A non-conforming answer the provider reported in full is charged what it reported, so the
+        // one retry (D-115) is not paid for twice at the conservative reservation; any other failure
+        // keeps the reservation. The counts are bounded exactly as a successful call's are.
+        if (error instanceof AdapterError && error.code === "model_output_not_conforming") {
+          const reportedIn = error.audit_facts.reported_input_tokens;
+          const reportedOut = error.audit_facts.reported_output_tokens;
+          const whole = (value: unknown): value is number => typeof value === "number" && Number.isInteger(value) && value >= 0;
+          if (whole(reportedIn) && whole(reportedOut) && reportedIn <= inputBound && reportedOut <= maxOutputTokens) used = reportedIn + reportedOut;
+        }
+        this.record("model.failed", { context: ctx, task, error: errorName(error), tokens_charged: used, ...failureReason(error) });
+        throw error;
+      } finally {
+        own.reserved_tokens -= reservation;
+        this.global.reserved_tokens -= reservation;
+        own.tokens += used;
+        this.global.tokens += used;
+        this.record("budget.updated", { context: ctx, tokens: this.global.tokens, reserved_tokens: this.global.reserved_tokens });
+      }
+    };
+    const retries = Math.max(0, Math.min(1, router.nonconformingRetries ?? 0));
+    for (let attempt = 1; ; attempt += 1) {
+      try {
+        return await attemptOnce(attempt);
+      } catch (error) {
+        const retry = attempt <= retries && error instanceof AdapterError && error.code === "model_output_not_conforming" && !token.signal.aborted && this.halted === null;
+        if (!retry) throw error;
+      }
     }
   }
 
