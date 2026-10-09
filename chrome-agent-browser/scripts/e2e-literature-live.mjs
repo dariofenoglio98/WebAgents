@@ -22,7 +22,10 @@
  *        [--input examples/literature-review-live-input.json] [--document DOI=/abs/paper.pdf]...
  *        [--crossref-contact you@example.org] [--out report.json] [--out-dir examples/my-chrome-lit-<ts>]
  *        [--chrome path] [--no-reload] [--think] [--keep] [--version 0.2.6]
- *        [--context-tokens N] [--reasoning-effort low|medium|high]
+ *        [--context-tokens N] [--reasoning-effort low|medium|high] [--manual]
+ *   `--manual` (a person's walk-through, T10): a visible Chrome with the same setup, the package
+ *   served, opened and its key trusted; the harness then stops driving and waits until you close
+ *   the window. Nothing is run for you and no report is written.
  *   `--context-tokens` states the model's context in Settings → Models (a hosted model the catalog
  *   has no figure for, such as gpt-5.6-sol); `--reasoning-effort` sets the OpenAI connection's
  *   effort (D-123; default medium).
@@ -52,7 +55,7 @@ const PACKAGE_URL = `https://${SITE_HOST}/literature-review.agent.pkg`;
 const LONG_RUN_LIMITS = { total_tokens: 180_000, max_remote_calls: 45, max_parallel_workers: 3, max_output_tokens_per_call: 16_000, run_timeout_seconds: 4_500, max_calls_per_tool: 32, model_call_timeout_seconds: 1_200 };
 const TERMINAL = ["completed", "failed", "cancelled", "interrupted"];
 
-const args = { chrome: process.env.CHROME_PATH || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", model: null, input: join(ROOT, "examples", "literature-review-live-input.json"), documents: [], contact: null, out: null, outDir: null, reload: true, think: false, keep: false, version: "0.2.6", contextTokens: null, effort: null };
+const args = { chrome: process.env.CHROME_PATH || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", model: null, input: join(ROOT, "examples", "literature-review-live-input.json"), documents: [], contact: null, out: null, outDir: null, reload: true, think: false, keep: false, version: "0.2.6", contextTokens: null, effort: null, manual: false };
 for (let index = 2; index < process.argv.length; index += 1) {
   const argument = process.argv[index];
   if (argument === "--chrome") args.chrome = process.argv[(index += 1)];
@@ -75,6 +78,7 @@ for (let index = 2; index < process.argv.length; index += 1) {
   else if (argument === "--version") args.version = process.argv[(index += 1)];
   else if (argument === "--context-tokens") args.contextTokens = Number(process.argv[(index += 1)]);
   else if (argument === "--reasoning-effort") args.effort = process.argv[(index += 1)];
+  else if (argument === "--manual") args.manual = true;
   else {
     console.error(`unknown argument ${argument}`);
     process.exit(2);
@@ -205,7 +209,7 @@ async function main() {
   try {
     const tls = certificate(scratch);
     served = await origin(tls, readFileSync(PACKAGE));
-    chrome = spawn(args.chrome, ["--headless=new", "--remote-debugging-pipe", "--enable-unsafe-extension-debugging", `--user-data-dir=${profile}`, "--no-first-run", "--no-default-browser-check", `--host-resolver-rules=MAP ${SITE_HOST} 127.0.0.1:${served.port}`, `--ignore-certificate-errors-spki-list=${tls.spkiHash}`, "--window-size=1280,2200", "about:blank"], { stdio: ["ignore", "ignore", "ignore", "pipe", "pipe"] });
+    chrome = spawn(args.chrome, [...(args.manual ? [] : ["--headless=new"]), "--remote-debugging-pipe", "--enable-unsafe-extension-debugging", `--user-data-dir=${profile}`, "--no-first-run", "--no-default-browser-check", `--host-resolver-rules=MAP ${SITE_HOST} 127.0.0.1:${served.port}`, `--ignore-certificate-errors-spki-list=${tls.spkiHash}`, args.manual ? "--window-size=1400,1000" : "--window-size=1280,2200", "about:blank"], { stdio: ["ignore", "ignore", "ignore", "pipe", "pipe"] });
     const cdp = new Cdp(chrome);
     report.chrome = (await cdp.send("Browser.getVersion")).product;
     const { id: extensionId } = await cdp.send("Extensions.loadUnpacked", { path: EXTENSION });
@@ -268,6 +272,11 @@ async function main() {
       await cdp.evaluate(page, `__ab.click("Press again to trust this key", document.querySelector(".ab-pin"))`);
     }
     await cdp.waitFor(page, `__ab.trust() === "trusted"`, "the trusted agent page");
+    if (args.manual) {
+      log(`manual mode: Chrome shows Literature Review ${args.version} (${PACKAGE_URL}), its key trusted, ${args.model} the default model. Press "Use this agent", type your question, Run. Settings → Models and Runs are in the same window. Close the window when you are done.`);
+      await new Promise((resolveExit) => (chrome.exitCode !== null ? resolveExit() : chrome.once("exit", resolveExit)));
+      return;
+    }
     await cdp.waitFor(page, `__ab.click("Use this agent")`, "the Use this agent button", 60_000);
     const authorization = await cdp.waitFor(page, `__ab.send({ type: "authorization.get", sessionId: ${JSON.stringify(sessionId)} }).then((r) => r.ok && r.result.receipt && r.result.run_plan ? r.result : null)`, "a receipt and a run plan", 180_000, 500);
     const plan = authorization.run_plan.run_plan;
@@ -354,6 +363,10 @@ async function main() {
     }
     served?.server.close();
     if (!args.keep) rmSync(scratch, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+  }
+  if (args.manual) {
+    if (report.failures.length > 0) console.error(report.failures.join("\n"));
+    process.exit(report.failures.length > 0 ? 1 : 0);
   }
   report.passed = report.failures.length === 0;
   const text = `${JSON.stringify(report, null, 2)}\n`;
