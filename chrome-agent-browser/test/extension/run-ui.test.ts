@@ -17,7 +17,7 @@ import { describe, expect, it } from "vitest";
 import type { HttpTransport } from "../../src/core/models/transport.js";
 import type { AuthorizationView, AuthorizeResult, ProbeView, Request, RunSummary, RunView, SessionView, SettingsView } from "../../src/extension/messages.js";
 import { buildFormModel, descriptionAdds, hintsFrom, TaskForm } from "../../src/extension/ui/form.js";
-import { formatElapsed, renderRunList, RunPanel, stagesFor } from "../../src/extension/ui/run.js";
+import { formatElapsed, refusalFigures, renderRunList, RunPanel, stagesFor } from "../../src/extension/ui/run.js";
 import { newSettingsPageState, OLLAMA_ORIGIN_COMMANDS, renderSettingsPage } from "../../src/extension/ui/settings-page.js";
 import { writeZip } from "../../src/extension/ui/zip.js";
 import { scriptedOllama, scriptedOrigin, webairModelAnswers } from "../helpers/host.js";
@@ -385,6 +385,39 @@ describe("the run panel", () => {
     expect(saved).toHaveLength(1);
     expect(panel.root.textContent).toContain("Download failed: The stored bytes of search.json do not match the SHA-256 the run recorded");
     panel.dispose();
+  });
+
+  it("a model call refused for its context window says so, with the figures from the audit, not 'a budget limit' (T9)", async () => {
+    const h = scripted();
+    const session = await openWebair(h);
+    // The smallest context WebAir accepts (16,000): its first request, counted as one token per byte plus 6,000 for the answer, does not fit.
+    const settings = ((await h.controller.handle({ type: "settings.get" }, PAGE)) as SettingsView).settings;
+    settings.models.connections = settings.models.connections.map((connection) => (connection.provider === "ollama" ? { ...connection, overrides: { "qwen3:30b": { context_tokens: 16000 } } } : connection));
+    await h.controller.handle({ type: "settings.set", settings }, PAGE);
+    const result = (await h.controller.handle({ type: "authorization.useProfile", sessionId: session.session.id, packageDigest: SHIPPED.webair040.digest, profileId: "search", resourceSelections: {}, prepare: true }, PAGE)) as AuthorizeResult;
+    const plan = result.run_plan!.run_plan;
+    const started = (await h.controller.handle({ type: "run.start", sessionId: session.session.id, runPlanId: plan.run_plan_id, runPlanSha256: plan.run_plan_sha256, input: { request: SEARCH_TEXT, booking: false, purchase: { quote_id: "", fare_id: "" } } }, PAGE)) as RunView;
+    await h.h_drain();
+    const record = (await h.controller.handle({ type: "run.get", runId: started.runId }, PAGE)) as RunView;
+    expect([record.status, record.errorCode, record.failure?.call?.action, record.failure?.call?.reason]).toEqual(["failed", "budget_exhausted", "model.refused", "context_window"]);
+    const { panel, settle } = mountPanel(h, session);
+    await panel.attachSession(session.session.id);
+    await settle(200);
+    const banner = panel.root.querySelector(".ab-outcome .ab-banner")!;
+    expect(banner.querySelector("strong")?.textContent).toBe("The request was larger than the model's context window");
+    expect(banner.textContent).toContain("budget_exhausted"); // the code is still shown
+    expect(banner.textContent).toContain("raise its context in Settings → Models");
+    expect(banner.textContent).not.toContain("A budget limit was reached");
+    expect(banner.querySelector(".ab-refusal-figures")?.textContent).toMatch(/^Reserved [\d,]+ tokens \(the request counted as [\d,]+, plus 6,000 for the answer\); the model's context is 16,000\.$/u);
+    panel.dispose();
+  });
+
+  it("refusalFigures reads the refused call's numbers (the Literature Review run of 2026-10-09)", () => {
+    const audit = [{ action: "model.called", task: "plan", reserved_tokens: 14916 }, { action: "model.refused", task: "normalize", reason: "context_window", input_bound: 18917, max_output_tokens: 16000, reserved_tokens: 34917, context_window: 32700 }];
+    expect(refusalFigures(audit)).toBe("Reserved 34,917 tokens (the request counted as 18,917, plus 16,000 for the answer); the model's context is 32,700.");
+    expect(refusalFigures({ events: [{ action: "model.refused", reason: "global_token_budget", input_bound: 10, max_output_tokens: 5, reserved_tokens: 15, used_tokens: 119990, limit: 120000 }] })).toBe("Reserved 15 tokens (the request counted as 10, plus 5 for the answer); 119,990 already used of 120,000.");
+    expect(refusalFigures([{ action: "model.called" }])).toBeNull();
+    expect(refusalFigures(null)).toBeNull();
   });
 
   it("Cancel is offered while a run is in flight and the panel settles as cancelled", async () => {

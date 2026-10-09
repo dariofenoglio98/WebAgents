@@ -64,6 +64,42 @@ export const RUN_ERRORS: Record<string, { title: string; detail: string }> = {
   interrupted: { title: "The run was interrupted", detail: "The browser or the extension restarted while this run was in flight." },
 };
 
+/**
+ * A model call the runtime refused before sending it (`model.refused`, a `budget_exhausted` run),
+ * in words a person can act on: which bound refused it and what to change. The numbers come from
+ * the run's own audit event when it can be read (T9, the Literature Review report of 2026-10-09).
+ */
+export const REFUSAL_WORDS: Record<string, { title: string; detail: string }> = {
+  context_window: {
+    title: "The request was larger than the model's context window",
+    detail: "Before each model call the runtime reserves the request's size, counted as one token per byte (a safe upper bound, since no tokenizer runs in the browser), plus the step's output allowance. That did not fit the context this browser states for the model. If the model supports more, raise its context in Settings → Models (local Ollama models are capped at 32,768 tokens until you raise them), or choose a model with a larger window.",
+  },
+  global_token_budget: {
+    title: "The run's token budget was used up",
+    detail: "The next model call would have passed the run's token limit (the package's hard limit, or a lower one in Settings → Policies → Run limits).",
+  },
+  worker_token_budget: {
+    title: "A step's token budget was used up",
+    detail: "The next model call would have passed the token budget the package gives this worker.",
+  },
+};
+
+/** The refused call's numbers, from the run's audit: what was reserved against which bound. */
+export function refusalFigures(audit: unknown): string | null {
+  const events = Array.isArray(audit) ? audit : audit && typeof audit === "object" && Array.isArray((audit as { events?: unknown }).events) ? (audit as { events: unknown[] }).events : [];
+  const event = events.find((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object" && (item as { action?: unknown }).action === "model.refused");
+  if (!event) return null;
+  const n = (value: unknown) => (typeof value === "number" && Number.isFinite(value) ? value.toLocaleString("en-US") : null);
+  const reserved = n(event.reserved_tokens);
+  const input = n(event.input_bound);
+  const output = n(event.max_output_tokens);
+  if (reserved === null) return null;
+  const parts = `Reserved ${reserved} tokens${input !== null && output !== null ? ` (the request counted as ${input}, plus ${output} for the answer)` : ""}`;
+  if (event.reason === "context_window" && n(event.context_window) !== null) return `${parts}; the model's context is ${n(event.context_window)}.`;
+  if (n(event.limit) !== null) return `${parts}; ${n(event.used_tokens) ?? "0"} already used of ${n(event.limit)}.`;
+  return `${parts}.`;
+}
+
 const STATUS_ICON: Record<string, string> = { completed: "✓", active: "●", pending: "○", failed: "✗", skipped: "–", cancelled: "⊘", queued: "○" };
 
 function titleCase(value: string): string {
@@ -252,6 +288,8 @@ export class RunPanel {
   private startError: ErrorBox | null = null;
   private artifacts = new Map<string, ArtifactContent | { error: ErrorBox }>();
   private viewing: string | null = null;
+  /** The figures of a refused model call, for the run shown (`loadRefusal`). */
+  private refusal: { runId: string; figures: string | null } | null = null;
   /** Whether Inspect has opened the per-file list (closed by default, F-13). */
   private inspecting = false;
   private downloadNote: string | null = null;
@@ -609,9 +647,20 @@ export class RunPanel {
   }
 
   private async loadResult(record: RunView): Promise<void> {
-    await Promise.all(this.resultArtifactNames(record).map((name) => this.loadArtifact(record.runId, name)));
+    await Promise.all([...this.resultArtifactNames(record).map((name) => this.loadArtifact(record.runId, name)), this.loadRefusal(record)]);
     if (this.disposed || this.run?.runId !== record.runId) return;
     this.renderRun();
+  }
+
+  /** A refused model call's figures, read from the run's verified audit (it is often larger than the inline view). */
+  private async loadRefusal(record: RunView): Promise<void> {
+    if (record.failure?.call?.action !== "model.refused" || !record.artifacts.some((item) => item.name === "audit.json")) return;
+    try {
+      const audit = JSON.parse(await (await this.artifactBytes(record, "audit.json")).text()) as unknown;
+      if (this.run?.runId === record.runId) this.refusal = { runId: record.runId, figures: refusalFigures(audit) };
+    } catch {
+      // The wording stands without the numbers.
+    }
   }
 
   private async loadArtifact(runId: string, name: string): Promise<void> {
@@ -1083,8 +1132,9 @@ export class RunPanel {
     if (record.status === "completed") {
       node.append(el("div", { className: "ab-banner ab-banner-good ab-receipt-ok" }, el("strong", { text: `✓ ${presentation?.task.completed_label ?? "Run completed"}` }), el("p", { text: `Finished in ${formatElapsed(this.elapsedMs(record))}. Every result below was checked by the package's own validations before it was accepted.` })));
     } else {
-      const known = RUN_ERRORS[record.errorCode ?? ""] ?? RUN_ERRORS[record.status] ?? null;
       const failure = record.failure ?? null;
+      const refusal = failure?.call?.action === "model.refused" ? (REFUSAL_WORDS[failure.call.reason ?? ""] ?? null) : null;
+      const known = refusal ?? RUN_ERRORS[record.errorCode ?? ""] ?? RUN_ERRORS[record.status] ?? null;
       const where = failure?.nodeId ? `Stopped at ${this.nodeWhere(record, failure.nodeId)}${failure.stepId ? ` / ${failure.stepId}` : ""}.` : null;
       const check = failure?.failedCheck && typeof failure.failedCheck === "object" ? Object.entries(failure.failedCheck as Record<string, unknown>).map(([key, value]) => `${key}=${typeof value === "object" ? JSON.stringify(value) : String(value)}`).join(" · ") : null;
       node.append(
@@ -1093,7 +1143,8 @@ export class RunPanel {
           { className: `ab-banner ${record.status === "cancelled" ? "ab-banner-warn" : "ab-banner-bad"}`, attrs: { role: "status" } },
           el("strong", { text: record.status === "cancelled" ? "Run cancelled" : (known?.title ?? "The run did not complete") }),
           record.errorCode ? el("span", { className: "ab-error-code", text: ` ${record.errorCode}` }) : null,
-          el("p", { text: record.errorDetail ?? known?.detail ?? "" }),
+          el("p", { text: refusal?.detail ?? record.errorDetail ?? known?.detail ?? "" }),
+          refusal && this.refusal?.runId === record.runId && this.refusal.figures ? el("p", { className: "ab-refusal-figures", text: this.refusal.figures }) : null,
           where ? el("p", { className: "ab-muted", text: where }) : null,
           check ? el("p", { className: "ab-muted", text: `Declared check: ${check}` }) : null,
           failure?.call ? el("p", { className: "ab-muted", text: `First failed call: ${failure.call.action}${failure.call.tool ? ` ${failure.call.tool}` : ""}${failure.call.reason ? ` — ${failure.call.reason}` : ""}` }) : null,
