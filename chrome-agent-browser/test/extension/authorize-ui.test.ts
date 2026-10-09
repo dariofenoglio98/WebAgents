@@ -125,6 +125,13 @@ describe("two clicks to Ready to run (WebAir 0.4.0, Search flights)", () => {
     expect(cards.map((item) => item.dataset.profile)).toEqual(["search", "quote", "book"]);
     expect(cards[0]!.getAttribute("aria-pressed")).toBe("true");
     expect(cards[0]!.textContent).toContain("Gets: contact webagents-webair-production.up.railway.app");
+    // One chooser with less text (F-12, D-111): title, description, what it gets, one estimate line; no notes, no member lists.
+    expect(cards[0]!.querySelector(".ab-profile-card-estimate")?.textContent).toBe("Estimate: 3 model calls · about 12,000 tokens · 4 tool calls");
+    for (const card of cards) {
+      expect(card.textContent).not.toContain("recorded runs");
+      expect(card.textContent).not.toMatch(/Permissions|Tools/u);
+      expect([...card.children].map((node) => node.className)).toEqual(["ab-profile-card-title", "ab-profile-card-text", "ab-profile-card-gets", "ab-hint ab-profile-card-estimate"]);
+    }
     // Generic payment words: the host cannot know a payment is fictional, only the publisher says so (review 1, finding 3).
     expect(cards[2]!.textContent).toContain("make a payment through simulate-purchase at webagents-webair-production.up.railway.app, one run only");
     expect(root.textContent).not.toContain("nothing is charged");

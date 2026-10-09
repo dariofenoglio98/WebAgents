@@ -2,8 +2,9 @@
  * The agent page (D-034), rendered from the core's model with DOM calls only.
  *
  * A person-first card first: name, publisher and trust in words, what it does, what it will
- * be able to access grouped by kind, profiles when declared, where it came from, the cost.
- * Then "Technical details" behind a disclosure. Every package string reaches the document
+ * be able to access grouped by kind, where it came from, the cost. Then "Technical details"
+ * behind a disclosure, which also lists each declared profile's members; the profiles themselves
+ * are chosen in the authorize view's "Ways to use it" (D-111). Every package string reaches the document
  * through `textContent`; the README goes through the copied Markdown sanitizer only.
  */
 import type { AccessGroup, AgentPageModel, Tone } from "../../core/agent-page.js";
@@ -54,25 +55,35 @@ function accessGroup(group: AccessGroup): HTMLElement {
   );
 }
 
-function profileCard(profile: Profile): HTMLElement {
-  const estimate = profile.estimate;
+/**
+ * A profile's estimate in one short line, in the order a person reads cost (D-111): model calls,
+ * tokens, tool calls. Empty when the publisher stated none of them.
+ */
+export function estimateLine(estimate: Profile["estimate"]): string {
   const parts: string[] = [];
   if (estimate?.model_calls !== undefined) parts.push(`${estimate.model_calls} model call${estimate.model_calls === 1 ? "" : "s"}`);
-  if (estimate?.tool_calls !== undefined) parts.push(`${estimate.tool_calls} tool call${estimate.tool_calls === 1 ? "" : "s"}`);
   if (estimate?.tokens !== undefined) parts.push(`about ${estimate.tokens.toLocaleString()} tokens`);
+  if (estimate?.tool_calls !== undefined) parts.push(`${estimate.tool_calls} tool call${estimate.tool_calls === 1 ? "" : "s"}`);
+  return parts.join(" · ");
+}
+
+/**
+ * Everything a profile declares, by id, under Technical details (D-111): the chooser itself lives
+ * in the authorize view's "Ways to use it", and nothing a profile declares is lost from the page.
+ */
+function profileDetails(profile: Profile): HTMLElement {
   return el(
     "div",
     { className: "ab-profile", attrs: { "data-profile": profile.id } },
-    el("h4", { className: "ab-profile-title", text: profile.title }),
-    el("p", { className: "ab-profile-text", text: profile.description }),
-    // The members, not only the words: a misleading title cannot hide a payment permission.
+    el("h5", { className: "ab-profile-title" }, el("code", { text: profile.id }), ` ${profile.title}`),
+    el("p", { className: "ab-hint", text: profile.description }),
     definition([
       ["Permissions", profile.permissions.join(", ") || "none"],
       ["Tools", profile.tools.join(", ") || "none"],
       ["Your data", profile.resources.join(", ") || "none"],
-      ["Publisher's estimate", parts.length > 0 ? parts.join(", ") : "not stated"],
+      ["Publisher's estimate", estimateLine(profile.estimate) || "not stated"],
+      ...(profile.estimate?.notes ? ([["Estimate notes", profile.estimate.notes]] as Array<[string, Child]>) : []),
     ]),
-    estimate?.notes ? el("p", { className: "ab-hint", text: estimate.notes }) : null,
   );
 }
 
@@ -154,18 +165,6 @@ export function renderAgentPage(view: SessionView, actions: AgentPageActions = {
       : null,
   );
 
-  const profiles = model.profiles
-    ? el(
-        "div",
-        { className: "ab-profiles" },
-        el("h3", { text: "Ways to use it, as the publisher describes them" }),
-        el("p", { className: "ab-hint", text: "Declared by the publisher. Choosing one is a later step; nothing here grants anything." }),
-        ...model.profiles.map(profileCard),
-      )
-    : model.profile_notes.length > 0
-      ? el("p", { className: "ab-hint", text: model.profile_notes.join(" ") })
-      : null;
-
   const where = el(
     "div",
     { className: "ab-source" },
@@ -211,6 +210,8 @@ export function renderAgentPage(view: SessionView, actions: AgentPageActions = {
           ),
         ),
       ),
+      el("h4", { text: "Profiles (declared by the publisher)" }),
+      model.profiles ? el("div", { className: "ab-profiles" }, ...model.profiles.map(profileDetails)) : el("p", { className: "ab-hint", text: model.profile_notes.join(" ") || "none declared" }),
       el("h4", { text: "Workers" }),
       list(model.technical.workers.map((worker) => `${String(worker.id)} (${String(worker.kind)}${worker.is_coordinator ? ", coordinator" : ""}), up to ${String(worker.max_instances)} at once`)),
       el("h4", { text: "Workflow" }),
@@ -238,7 +239,6 @@ export function renderAgentPage(view: SessionView, actions: AgentPageActions = {
     card("Publisher", trustCard(model, actions)),
     card("What it does", about),
     card("Access", access),
-    profiles ? card("Profiles", profiles) : null,
     card("Origin and cost", where),
     technical,
     el("p", { className: "ab-hint ab-execution-note", text: view.execution.note }),
