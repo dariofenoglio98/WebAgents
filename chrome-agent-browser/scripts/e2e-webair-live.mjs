@@ -130,7 +130,8 @@ true;
 `;
 
 const report = {
-  profile: "chrome-webair-040-live-v0",
+  // Named after the package version, as the report file is (T9 review 1, nit 8).
+  profile: `chrome-webair-${args.version.replaceAll(".", "")}-live-v0`,
   recordedAt: startedAt.toISOString(),
   packageVersion: args.version,
   site: args.site,

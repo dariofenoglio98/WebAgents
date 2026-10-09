@@ -189,3 +189,21 @@ describe("a WebAir plan on the built-in model", () => {
     expect(second.run_plan!.run_plan.model_binding).toMatchObject({ host_model_id: CHROME_BUILTIN_MODEL_ID });
   });
 });
+
+describe("Settings → Models → OpenAI → Reasoning effort (T10, D-123)", () => {
+  it("the OpenAI card's select shows the default and saves only a non-default choice", async () => {
+    const h = makeHarness();
+    const view = (await h.controller.handle({ type: "settings.get" }, PAGE)) as SettingsView;
+    const saved: Settings[] = [];
+    const root = renderSettingsPage(view, null, newSettingsPageState("models"), { onSave: (next) => saved.push(next), onSetKey: () => undefined, onProbe: () => undefined, rerender: () => undefined });
+    const select = root.querySelector<HTMLSelectElement>('select[name="openai-reasoning-effort"]')!;
+    expect(select.value).toBe("medium");
+    expect([...select.options].map((option) => option.textContent)).toEqual(["Reasoning effort: low", "Reasoning effort: medium (default)", "Reasoning effort: high"]);
+    select.value = "high";
+    select.dispatchEvent(new Event("change"));
+    expect(saved.at(-1)!.models.connections.find((item) => item.provider === "openai")!.reasoning_effort).toBe("high");
+    select.value = "medium";
+    select.dispatchEvent(new Event("change"));
+    expect(saved.at(-1)!.models.connections.find((item) => item.provider === "openai")!).not.toHaveProperty("reasoning_effort");
+  });
+});

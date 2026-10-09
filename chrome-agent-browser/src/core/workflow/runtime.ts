@@ -674,6 +674,22 @@ export class Runtime {
         this.record("budget.updated", { context: ctx, tokens: this.global.tokens, reserved_tokens: this.global.reserved_tokens });
       }
     };
+    // The one more request (D-115) is sent only when its fresh reservation fits every bound the
+    // first attempt was checked against (D-124): otherwise the node fails with the answer that was
+    // not conforming, not with the budget that a retry would have exceeded.
+    const retryBlockedBy = (): Record<string, JsonValue> | null => {
+      const own = this.usageByWorker.get(ctx.worker_id)!;
+      const roleBudget = this.roles[ctx.role]!.budget as JsonObject;
+      const hardTokens = this.budget.hard_tokens as number;
+      const facts = (bound: string, used: number, held: number, limit: number): Record<string, JsonValue> => ({ bound, reserved_tokens: reservation, used_tokens: used, held_tokens: held, limit });
+      if (this.global.tokens + this.global.reserved_tokens + reservation > hardTokens) return facts("global_token_budget", this.global.tokens, this.global.reserved_tokens, hardTokens);
+      if (own.tokens + own.reserved_tokens + reservation > (roleBudget.tokens as number)) return facts("worker_token_budget", own.tokens, own.reserved_tokens, roleBudget.tokens as number);
+      const threshold = this.budget.approval_threshold_tokens;
+      if (typeof threshold === "number" && this.global.tokens + this.global.reserved_tokens + reservation > threshold) return facts("approval_threshold", this.global.tokens, this.global.reserved_tokens, threshold);
+      if (router.remote && this.global.remote_calls + 1 > (this.budget.max_remote_calls as number)) return { bound: "global_remote_calls", remote_calls: this.global.remote_calls, limit: this.budget.max_remote_calls as number };
+      if (router.remote && own.remote_calls + 1 > (roleBudget.remote_calls as number)) return { bound: "worker_remote_calls", remote_calls: own.remote_calls, limit: roleBudget.remote_calls as number };
+      return null;
+    };
     const retries = Math.max(0, Math.min(1, router.nonconformingRetries ?? 0));
     for (let attempt = 1; ; attempt += 1) {
       try {
@@ -681,6 +697,11 @@ export class Runtime {
       } catch (error) {
         const retry = attempt <= retries && error instanceof AdapterError && error.code === "model_output_not_conforming" && !token.signal.aborted && this.halted === null;
         if (!retry) throw error;
+        const blocked = retryBlockedBy();
+        if (blocked !== null) {
+          this.record("model.retry_skipped", { context: ctx, task, reason: "budget", ...blocked });
+          throw error;
+        }
       }
     }
   }

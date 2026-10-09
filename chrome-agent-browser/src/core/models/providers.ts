@@ -7,7 +7,7 @@ import { AdapterError } from "../workflow/errors.js";
 import { AnthropicAdapter } from "./adapters/anthropic.js";
 import { ChromeBuiltinAdapter, type BuiltinModelPort } from "./adapters/chrome-builtin.js";
 import { OllamaAdapter } from "./adapters/ollama.js";
-import { OpenAIAdapter } from "./adapters/openai.js";
+import { OpenAIAdapter, type OpenAIReasoningEffort } from "./adapters/openai.js";
 import { contextWindowFor, reasoningFor, type ModelBindingDescriptor } from "./binding.js";
 import type { ProviderAdapter } from "./router.js";
 import type { HttpTransport, ModelRequestObserver } from "./transport.js";
@@ -16,7 +16,7 @@ export interface ProviderHostSettings {
   transport: HttpTransport;
   observer?: ModelRequestObserver | null;
   ollama?: { baseUrl?: string; think?: boolean };
-  openai?: { apiKey?: string | null; baseUrl?: string };
+  openai?: { apiKey?: string | null; baseUrl?: string; reasoningEffort?: OpenAIReasoningEffort };
   anthropic?: { apiKey?: string | null; baseUrl?: string; effort?: "low" | "medium" | "high" | "xhigh" | "max" };
   builtin?: BuiltinModelPort;
 }
@@ -29,7 +29,7 @@ export function adapterFor(binding: ModelBindingDescriptor, host: ProviderHostSe
     case "ollama":
       return new OllamaAdapter({ ...common, model: binding.model_id, baseUrl: host.ollama?.baseUrl, think: host.ollama?.think });
     case "openai":
-      return new OpenAIAdapter({ ...common, model: binding.model_id, apiKey: host.openai?.apiKey, baseUrl: host.openai?.baseUrl });
+      return new OpenAIAdapter({ ...common, model: binding.model_id, apiKey: host.openai?.apiKey, baseUrl: host.openai?.baseUrl, reasoningEffort: host.openai?.reasoningEffort });
     case "anthropic":
       return new AnthropicAdapter({ ...common, model: binding.model_id, apiKey: host.anthropic?.apiKey, baseUrl: host.anthropic?.baseUrl, effort: host.anthropic?.effort });
     case "chrome-builtin":

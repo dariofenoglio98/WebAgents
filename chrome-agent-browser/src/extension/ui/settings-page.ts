@@ -8,6 +8,7 @@ import { isRecord } from "../../core/fields.js";
 import type { PresetId } from "../../core/types.js";
 import { PRESETS } from "../../core/authorization.js";
 import { DEFAULT_BASE_URLS, type ProbeResult, type ProviderId } from "../../core/models/catalog.js";
+import { DEFAULT_OPENAI_REASONING_EFFORT, OPENAI_REASONING_EFFORTS } from "../../core/models/adapters/openai.js";
 import { DEFAULT_HOST_LIMITS, type HostExecutionLimits } from "../../core/execution/limits.js";
 import type { FilesView, IndexesView, IndexView, PolicyView, ProbeView, Request, SettingsView, StatusInfo } from "../messages.js";
 import demoDocuments from "../data/demo-documents.json" with { type: "json" };
@@ -154,6 +155,23 @@ function connectionCard(view: SettingsView, connection: StoredConnection, state:
     el("label", { className: "ab-field ab-inline" }, enabled, " ", el("span", { text: "Enabled" })),
     el("p", { className: "ab-hint", text: PROVIDER_HINTS[provider] }),
   ];
+  if (provider === "openai") {
+    const effort = el("select", { className: "ab-select", attrs: { name: "openai-reasoning-effort", "aria-label": "Reasoning effort" } });
+    for (const choice of OPENAI_REASONING_EFFORTS) effort.append(el("option", { text: `Reasoning effort: ${choice}${choice === DEFAULT_OPENAI_REASONING_EFFORT ? " (default)" : ""}`, attrs: { value: choice } }));
+    effort.value = connection.reasoning_effort ?? DEFAULT_OPENAI_REASONING_EFFORT;
+    effort.addEventListener("change", () =>
+      actions.onSave(
+        withConnection(view.settings, provider, (item) => {
+          const { reasoning_effort: _previous, ...rest } = item;
+          return effort.value === DEFAULT_OPENAI_REASONING_EFFORT ? rest : { ...rest, reasoning_effort: effort.value as StoredConnection["reasoning_effort"] };
+        }),
+      ),
+    );
+    children.push(
+      el("label", { className: "ab-field" }, effort),
+      el("p", { className: "ab-hint", text: "How much a reasoning model thinks before it answers. Medium is the default: on low, models skipped work in multi-step research agents. A run records the effort it used." }),
+    );
+  }
   if (provider === "ollama") {
     const think = el("input", { attrs: { type: "checkbox", name: "ollama-think", "aria-label": "Let local models think" } });
     think.checked = connection.think === true;

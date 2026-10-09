@@ -748,7 +748,8 @@ def main() -> int:
     package = package_and_origin(not args.no_network, version)
     code = generic_code()
     document = {
-        "profile": "chrome-webair-040-live-demo-v0",
+        # Named after the package version, as the report file is (T9 review 1, nit 8).
+        "profile": f"chrome-webair-{version.replace('.', '')}-live-demo-v0",
         "milestone": f"T5: WebAir {version} end to end in the Chrome Agent Browser (Demo 3)"
         + ("" if version == "0.4.0" else "; T9 for 0.5.0"),
         "recorded": harness["recordedAt"][:10],

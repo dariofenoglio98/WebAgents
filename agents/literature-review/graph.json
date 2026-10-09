@@ -74,13 +74,16 @@
         "raw_candidates",
         "research_question",
         "seed_references",
-        "seed_results"
+        "seed_results",
+        "candidate_papers",
+        "screening_refs"
       ],
       "state_write": [
         "candidate_papers",
         "screening_jobs",
         "search_plan",
-        "search_queries"
+        "search_queries",
+        "screening_refs"
       ]
     },
     {
@@ -555,13 +558,100 @@
           "from": "result",
           "path": "/candidate_papers"
         },
-        "/screening_jobs": {
+        "/screening_refs": {
           "from": "result",
-          "path": "/screening_jobs"
+          "path": "/screening_refs"
         }
       },
       "task": "normalize",
       "max_output_tokens": 16000
+    },
+    {
+      "id": "check-screening-refs",
+      "type": "validate",
+      "worker": "PlanningWorker",
+      "depends_on": [
+        "normalize"
+      ],
+      "input": {
+        "from": "state",
+        "path": "/screening_refs"
+      },
+      "writes": {},
+      "output_schema": "schemas/screen-refs.schema.json",
+      "timeout_seconds": 10,
+      "assertions": [
+        {
+          "kind": "relation",
+          "rows": {
+            "from": "state",
+            "path": "/screening_refs"
+          },
+          "targets": {
+            "from": "state",
+            "path": "/candidate_papers"
+          },
+          "row_key": "/paper_id",
+          "target_key": "/paper_id"
+        }
+      ]
+    },
+    {
+      "id": "screening-jobs",
+      "type": "map",
+      "worker": "PlanningWorker",
+      "depends_on": [
+        "check-screening-refs"
+      ],
+      "input": {
+        "from": "state",
+        "path": "/candidate_papers"
+      },
+      "output_schema": "schemas/screening-jobs.schema.json",
+      "timeout_seconds": 60,
+      "writes": {
+        "/screening_jobs": {
+          "from": "result",
+          "path": ""
+        }
+      },
+      "item_schema": "schemas/paper.schema.json",
+      "max_items": 20,
+      "max_parallel": 1,
+      "steps": [
+        {
+          "id": "job",
+          "type": "validate",
+          "input": {
+            "object": {
+              "paper": {
+                "from": "item",
+                "path": ""
+              },
+              "file_id": {
+                "lookup": {
+                  "in": {
+                    "from": "state",
+                    "path": "/screening_refs"
+                  },
+                  "key": "/paper_id",
+                  "equals": {
+                    "from": "item",
+                    "path": "/paper_id"
+                  },
+                  "path": "/file_id"
+                }
+              }
+            }
+          },
+          "output_schema": "schemas/screen-job.schema.json",
+          "timeout_seconds": 10
+        }
+      ],
+      "yield": {
+        "from": "steps",
+        "path": "/job"
+      }
     },
     {
       "id": "screening",
@@ -574,7 +664,7 @@
       "output_schema": "schemas/papers.schema.json",
       "timeout_seconds": 1200,
       "depends_on": [
-        "normalize"
+        "screening-jobs"
       ],
       "writes": {
         "/screened_papers": {
@@ -1405,6 +1495,9 @@
                       },
                       "page": {
                         "literal": null
+                      },
+                      "source_sha256": {
+                        "literal": ""
                       }
                     }
                   }
@@ -1426,6 +1519,11 @@
                 {
                   "left": "/location/page",
                   "right": "/page",
+                  "op": "eq"
+                },
+                {
+                  "left": "/provenance/source_sha256",
+                  "right": "/source_sha256",
                   "op": "eq"
                 }
               ]
@@ -2229,7 +2327,7 @@
       "task": {
         "prompt": "What would you like me to research?",
         "run_label": "Run Research",
-        "running_label": "Researching\u2026",
+        "running_label": "Researching…",
         "completed_label": "Research completed"
       },
       "input": {

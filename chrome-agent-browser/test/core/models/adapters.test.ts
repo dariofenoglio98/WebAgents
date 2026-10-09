@@ -172,8 +172,9 @@ describe("OpenAIAdapter", () => {
     expect(body.input).toBe(RENDERED.user);
     expect(body.max_output_tokens).toBe(100);
     expect(body.store).toBe(false);
-    expect(((body.text as JsonObject).format as JsonObject)).toMatchObject({ type: "json_schema", name: "agentpkg_node_output", strict: false });
-    expect(body.reasoning).toEqual({ effort: "low" });
+    // `tags` is optional: strict since D-121, encoded as required and nullable.
+    expect(((body.text as JsonObject).format as JsonObject)).toMatchObject({ type: "json_schema", name: "agentpkg_node_output", strict: true });
+    expect(body.reasoning).toEqual({ effort: "medium" });
     expect(request.body).not.toContain("sk-test-secret");
     expect(answer).toMatchObject({ text: '{"focus":"ok","count":2}', model_id: "openai/gpt-5.6-luna-2026-05-01", response_model: "gpt-5.6-luna-2026-05-01", stop_reason: "stop" });
     expect(answer.usage).toMatchObject({ input_tokens: 300, output_tokens: 40, total_tokens: 340, cache_read_tokens: null });

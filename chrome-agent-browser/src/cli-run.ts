@@ -6,6 +6,7 @@
  *   run <package.agent.pkg> --mode fixture|live --grants F [--input F] [--approve-tool ID]...
  *       [--trust-key PEM] [--limits F] --out DIR
  *       live: --model provider/model [--ollama-url URL] [--context-tokens N] [--think]
+ *             [--reasoning-effort low|medium|high]
  *             [--tool-bindings F] [--host-resources F] [--resource-grant PERM=ID]...
  *
  * The operator is the host here: the grants file is the receipt and `--approve-tool` is the
@@ -36,6 +37,7 @@ import type { JsonObject, JsonValue } from "./core/json.js";
 import { fingerprint, publicKeyFromPem } from "./core/keys.js";
 import { normalizeModelBinding, type ModelBindingDescriptor } from "./core/models/binding.js";
 import { buildHostCatalog, type ProviderConnection, type ProviderId } from "./core/models/catalog.js";
+import { OPENAI_REASONING_EFFORTS, type OpenAIReasoningEffort } from "./core/models/adapters/openai.js";
 import { adapterFor } from "./core/models/providers.js";
 import { BoundModelRouter } from "./core/models/router.js";
 import { loadPackageBytes, type Package } from "./core/package.js";
@@ -61,6 +63,7 @@ const RUN: ArgumentSpec = {
     "--ollama-url": { kind: "value" },
     "--context-tokens": { kind: "value" },
     "--think": { kind: "flag" },
+    "--reasoning-effort": { kind: "value", choices: [...OPENAI_REASONING_EFFORTS] },
     "--tool-bindings": { kind: "value" },
     "--host-resources": { kind: "value" },
     "--resource-grant": { kind: "list" },
@@ -172,7 +175,7 @@ async function bindLive(pkg: Package, parsed: ReturnType<typeof parseArguments>,
   const adapter = adapterFor(binding, {
     transport: nodeTransport({ allowLoopbackHttp: provider === "ollama" }),
     ollama: { baseUrl: ollamaUrl ?? undefined, think: parsed.flag("--think") },
-    openai: { apiKey: keys.openai },
+    openai: { apiKey: keys.openai, ...(parsed.value("--reasoning-effort") !== null ? { reasoningEffort: parsed.value("--reasoning-effort") as OpenAIReasoningEffort } : {}) },
     anthropic: { apiKey: keys.anthropic },
   });
   const router = new BoundModelRouter(adapter, { requestTimeoutSeconds: modelCallTimeout });
@@ -254,7 +257,7 @@ export async function runCommand(args: string[]): Promise<number> {
   let deps: SessionDeps;
   let live: LiveBinding | null = null;
   if (mode === "fixture") {
-    for (const flag of ["--model", "--ollama-url", "--context-tokens", "--tool-bindings", "--host-resources"]) {
+    for (const flag of ["--model", "--ollama-url", "--context-tokens", "--reasoning-effort", "--tool-bindings", "--host-resources"]) {
       if (parsed.value(flag) !== null) throw new AgentPkgError(`${flag} applies to --mode live only`);
     }
     if (parsed.flag("--think") || parsed.list("--resource-grant").length > 0) throw new AgentPkgError("--think and --resource-grant apply to --mode live only");

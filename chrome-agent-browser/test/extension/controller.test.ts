@@ -10,7 +10,7 @@ import { CoreError } from "../../src/core/errors.js";
 import { publicKeyToPem } from "../../src/core/keys.js";
 import { MemoryTrustStorage } from "../../src/core/trust.js";
 import type { CandidateState, PinResult, SessionDescriptor, SessionView, StatusInfo, TrustList, WebsiteResult } from "../../src/extension/messages.js";
-import type { Sender } from "../../src/extension/background/controller.js";
+import { SESSION_HOLD_GRACE_MS, type Sender } from "../../src/extension/background/controller.js";
 import { MemorySnapshotStore, type StoredSession } from "../../src/extension/storage/snapshots.js";
 import { MemoryTabStateStore } from "../../src/extension/storage/tab-state.js";
 import { generateKeyPair } from "../helpers/keys.js";
@@ -637,6 +637,9 @@ describe("sessions: limits, expiry, close and restore (D-032)", () => {
     h.clock.now = new Date(h.clock.now.getTime() + 1000);
     const neverHeld = await open(h); // opened without a view
     expect((await sessions(h)).map((item) => item.session_id).sort()).toEqual([shown, closedPanel, neverHeld].map((view) => view.session.id).sort());
+    // Within the grace a fresh session is not ended even when unheld: the limit refuses instead (T10).
+    expect((await refused(open(h))).code).toBe("session_limit_reached");
+    h.clock.now = new Date(h.clock.now.getTime() + SESSION_HOLD_GRACE_MS + 1);
     // The fourth open ends the oldest unshown session (the closed panel's), not the shown one.
     const fourth = await open(h);
     expect((await sessions(h)).map((item) => item.session_id).sort()).toEqual([shown, neverHeld, fourth].map((view) => view.session.id).sort());

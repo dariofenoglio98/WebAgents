@@ -74,7 +74,10 @@ What it shows today, on the WebAir demo site:
    never "unverified"; preparing a plan re-reads the providers first, and the plan and Run
    messages point to Test connection (D-077). OpenAI's o-series, GPT-5 and GPT-6 families
    reason by default (`openai/gpt-5.6-luna`, `openai/gpt-6-astra`); a statement in Settings →
-   Models overrides that either way (D-078). About holds the run limits and a **test mode**
+   Models overrides that either way (D-078). The OpenAI card has **Reasoning effort** (low,
+   medium, high; default medium, recorded on every run, D-123): on low, models skipped work in
+   Literature Review's copy-heavy steps. A hosted model the catalog has no context figure for
+   (`openai/gpt-5.6-sol`) needs its context stated on its row before a plan can bind it. About holds the run limits and a **test mode**
    switch that records every outbound request body of a run for the privacy checks (D-028).
 9. **Model limits, policies and your data.** Settings → Models lists the routes (local Ollama,
    OpenAI and Anthropic with your own keys, Chrome's built-in model), tests each connection, lets

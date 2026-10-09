@@ -1,8 +1,9 @@
 # Release artifacts
 
 Everything a user needs to run the current packages is in the first table. The unversioned
-`.agent.pkg` names are byte-identical copies of a versioned file: the newest one for Meeting Agenda
-and Literature Review, and WebAir 0.1.0 for `webair.agent.pkg` (see [WebAir](#webair)). Earlier
+`.agent.pkg` names are byte-identical copies of a versioned file: the newest one for Meeting Agenda,
+Literature Review 0.2.5 for `literature-review.agent.pkg` (see [Literature Review](#literature-review)),
+and WebAir 0.1.0 for `webair.agent.pkg` (see [WebAir](#webair)). Earlier
 signed archives and wheels stay here unchanged so that every milestone report can be re-checked
 against the exact bytes it describes.
 
@@ -11,6 +12,7 @@ against the exact bytes it describes.
 | Artifact | What it is | Requires | Verify with |
 |---|---|---|---|
 | `agentpkg-0.2.2-py3-none-any.whl` | agentpkg 0.2.2: the CLI, the browser control plane and the workflow.v0 runtime | Python ≥ 3.11 | SHA-256 below |
+| `literature-review-0.2.6.agent.pkg` | Literature Review 0.2.6: 0.2.5 with screening jobs built by the graph from the candidates (the model writes one `{paper_id, file_id}` reference per candidate, checked both ways) and an explicit empty source hash for abstract evidence, asserted by `check-abstract` (T10: on hosted models 0.2.5 silently thinned or emptied the review) | agentpkg ≥ 0.2.1 | [`examples/keys/literature-review-publisher.pub.pem`](../examples/keys/literature-review-publisher.pub.pem) (`sha256:c5ca9763…5232`) |
 | `literature-review.agent.pkg` | Literature Review 0.2.5, identical to `literature-review-0.2.5.agent.pkg` | agentpkg ≥ 0.2.1 | [`examples/keys/literature-review-publisher.pub.pem`](../examples/keys/literature-review-publisher.pub.pem) (`sha256:c5ca9763…5232`) |
 | `meeting-agenda.agent.pkg` | Meeting Agenda 0.2.2, identical to `meeting-agenda-0.2.2.agent.pkg` | agentpkg ≥ 0.2.2 | [`examples/keys/meeting-agenda-publisher.pub.pem`](../examples/keys/meeting-agenda-publisher.pub.pem) (`sha256:2bcc374a…c5c4`) |
 | `webair-0.5.0.agent.pkg` | WebAir Travel Agent 0.5.0, the package of the fictional WebAir origin: 0.4.0 (three publisher-declared profiles, "Search flights", "Search and quote" and "Book (simulated)", in the noncritical extension [`org.webagents:profiles-v0`](../spec/extensions/profiles-v0.md)) with a request that names no departure airport answered instead of failing (a `search-origin` node; nothing is searched without one) and a one-sentence request description with the example "Find me a flight from Boston to Zurich on 9 October under $900". It declares the public deployment `webagents-webair-production.up.railway.app`, which serves 0.4.0 until this file is deployed there. It requests a travel profile, a passenger identity and a payment method from the person's host (`personal.read` permissions) and a separate, once-grantable simulated-purchase authority. No real booking or payment | the agentpkg 0.2.2 wheel in this directory (`371fb1eb…`), which ignores the profiles; the v0.1.0 release's 0.2.2 wheel rejects `personal.read` | [`examples/keys/webair-publisher.pub.pem`](../examples/keys/webair-publisher.pub.pem) (`sha256:2e53acce…a20b`) |
@@ -20,6 +22,8 @@ From the repository root:
 ```sh
 python3 -m venv .venv && .venv/bin/python -m pip install dist/agentpkg-0.2.2-py3-none-any.whl
 # fingerprints in the table above, and in each command's own output
+.venv/bin/agentpkg verify dist/literature-review-0.2.6.agent.pkg \
+  --trust-key examples/keys/literature-review-publisher.pub.pem
 .venv/bin/agentpkg verify dist/literature-review.agent.pkg \
   --trust-key examples/keys/literature-review-publisher.pub.pem
 .venv/bin/agentpkg verify dist/meeting-agenda.agent.pkg \
@@ -64,6 +68,19 @@ SOURCE_DATE_EPOCH=1790965957 /tmp/build-env/bin/python -m build --no-isolation -
 
 Build from a clean checkout: a stale `agentpkg/build/` directory from an earlier build can leak
 into the wheel.
+
+## Literature Review
+
+The current package is `literature-review-0.2.6.agent.pkg` (above), built and signed with the same
+generic commands (`agentpkg build agents/literature-review -o …`, then `agentpkg sign` with the
+Literature Review key); rebuilding and re-signing reproduces its bytes. 0.2.6 differs from 0.2.5 in
+the graph (`normalize` writes `screening_refs`; new `check-screening-refs` and `screening-jobs` nodes;
+one more `check-abstract` comparison), three new schemas, `normalize.schema.json`,
+`research-state.schema.json`, the literature-search (0.1.2) and evidence-extraction (0.1.3) skills,
+the replay fixture, the manifest and the package README. **The unversioned
+`literature-review.agent.pkg` stays 0.2.5**, as `webair.agent.pkg` stays 0.1.0: the paper's contract
+enforcement and contract overhead experiments read that file and record version 0.2.5, and the
+Chrome conformance reports, the signed demo agent index and the search harness describe 0.2.5's bytes.
 
 ## WebAir
 
@@ -116,6 +133,7 @@ c1b1c4b260dbca874dc9e343397e6fad1311f498c3a6df27c1a1deeeb0b18f71  agentpkg-0.1.0
 32304cad852d162084a3bdd9a444e04e31423f1e660f7cefdaeee442c1520dff  literature-review-0.2.3.agent.pkg
 f513e68ea23e045ed3665d8d71e46531147f017f0da80f999fb343afc3e1fe24  literature-review-0.2.4.agent.pkg
 1669f83fafac3434748fc19d38a8d3d2c3352da83cf1cbb84796ce313bd4f571  literature-review-0.2.5.agent.pkg
+685dcc97232d278eb2a5b777dcbc621573de5c48818a95d522e647c9267ee8f1  literature-review-0.2.6.agent.pkg
 fb7357ebdf2e8415a32033971ba448dd21a9b20eb35a32a6ec71e1a5240cc03b  literature-review-legacy.agent.pkg
 1669f83fafac3434748fc19d38a8d3d2c3352da83cf1cbb84796ce313bd4f571  literature-review.agent.pkg
 664b39b12ed26ee2b7524cc5b0afb8a91ebc64b76948696e65f34cbd768c32cb  meeting-agenda-0.2.0.agent.pkg

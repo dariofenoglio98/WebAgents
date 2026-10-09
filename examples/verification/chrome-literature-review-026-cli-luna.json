@@ -1,0 +1,249 @@
+{
+  "profile": "chrome-cli-live-runs-v0",
+  "label": "T10: Literature Review 0.2.6, five consecutive live Chrome-CLI runs on openai/gpt-5.6-luna (reasoning effort medium, the default), the user's question and the T6 harness question alternating",
+  "runs": [
+    {
+      "directory": "examples/my-t10-accept/luna-1-pi",
+      "run_id": "run_887609b4b95c1bed3b67a61992c81e7f",
+      "status": "completed",
+      "error_code": null,
+      "duration_ms": 157284,
+      "package": {
+        "version": "0.2.6",
+        "digest": "09399b953afd487ee87dcf321a32ff1e735c8d862ac662ea2c4ee1f8ef1b6e4e",
+        "archiveSha256": "685dcc97232d278eb2a5b777dcbc621573de5c48818a95d522e647c9267ee8f1"
+      },
+      "model": {
+        "planned": "openai/gpt-5.6-luna",
+        "invoked": [
+          "openai/gpt-5.6-luna"
+        ],
+        "calls": 17,
+        "allCallsUsedPlannedModel": true,
+        "providers": [
+          "openai"
+        ],
+        "responseModels": [
+          "gpt-5.6-luna"
+        ]
+      },
+      "question": "what defenses have been proposed against prompt injection in LLMs recently?",
+      "usage": {
+        "tokens": 75230,
+        "remote_calls": 23,
+        "tool_calls": {
+          "scholarly-search": 3,
+          "citation-resolver": 3
+        }
+      },
+      "funnel": {
+        "raw_candidates": 9,
+        "screening_jobs": 8,
+        "screened_papers": 8,
+        "citation_jobs": 3,
+        "evidence_items": 12,
+        "claims": 14
+      },
+      "model_calls": 17,
+      "second_attempts": 0,
+      "call_failures": [],
+      "conforming": true,
+      "audit_chain_valid": true
+    },
+    {
+      "directory": "examples/my-t10-accept/luna-2-t6",
+      "run_id": "run_50bd18acb009c3cf26db3c649b20a6a2",
+      "status": "completed",
+      "error_code": null,
+      "duration_ms": 50270,
+      "package": {
+        "version": "0.2.6",
+        "digest": "09399b953afd487ee87dcf321a32ff1e735c8d862ac662ea2c4ee1f8ef1b6e4e",
+        "archiveSha256": "685dcc97232d278eb2a5b777dcbc621573de5c48818a95d522e647c9267ee8f1"
+      },
+      "model": {
+        "planned": "openai/gpt-5.6-luna",
+        "invoked": [
+          "openai/gpt-5.6-luna"
+        ],
+        "calls": 11,
+        "allCallsUsedPlannedModel": true,
+        "providers": [
+          "openai"
+        ],
+        "responseModels": [
+          "gpt-5.6-luna"
+        ]
+      },
+      "question": "What methods have been proposed for dynamically selecting agents and adapting communication topology in multi-agent LLM systems? Compare their selection criteria, topology adaptation mechanisms, and efficiency trade-offs, focusing on representative methods.",
+      "usage": {
+        "tokens": 28153,
+        "remote_calls": 14,
+        "tool_calls": {
+          "scholarly-search": 3
+        }
+      },
+      "funnel": {
+        "raw_candidates": 9,
+        "screening_jobs": 8,
+        "screened_papers": 8,
+        "citation_jobs": 0,
+        "evidence_items": 0,
+        "claims": 0
+      },
+      "model_calls": 11,
+      "second_attempts": 0,
+      "call_failures": [],
+      "conforming": true,
+      "audit_chain_valid": true
+    },
+    {
+      "directory": "examples/my-t10-accept/luna-3-pi",
+      "run_id": "run_a517a638e62accff95b988d0031ef732",
+      "status": "completed",
+      "error_code": null,
+      "duration_ms": 143159,
+      "package": {
+        "version": "0.2.6",
+        "digest": "09399b953afd487ee87dcf321a32ff1e735c8d862ac662ea2c4ee1f8ef1b6e4e",
+        "archiveSha256": "685dcc97232d278eb2a5b777dcbc621573de5c48818a95d522e647c9267ee8f1"
+      },
+      "model": {
+        "planned": "openai/gpt-5.6-luna",
+        "invoked": [
+          "openai/gpt-5.6-luna"
+        ],
+        "calls": 17,
+        "allCallsUsedPlannedModel": true,
+        "providers": [
+          "openai"
+        ],
+        "responseModels": [
+          "gpt-5.6-luna"
+        ]
+      },
+      "question": "what defenses have been proposed against prompt injection in LLMs recently?",
+      "usage": {
+        "tokens": 73655,
+        "remote_calls": 23,
+        "tool_calls": {
+          "scholarly-search": 3,
+          "citation-resolver": 3
+        }
+      },
+      "funnel": {
+        "raw_candidates": 9,
+        "screening_jobs": 8,
+        "screened_papers": 8,
+        "citation_jobs": 3,
+        "evidence_items": 12,
+        "claims": 7
+      },
+      "model_calls": 17,
+      "second_attempts": 0,
+      "call_failures": [],
+      "conforming": true,
+      "audit_chain_valid": true
+    },
+    {
+      "directory": "examples/my-t10-accept/luna-4-t6",
+      "run_id": "run_1712d87a3f55d8a7ec6fbf791530417c",
+      "status": "completed",
+      "error_code": null,
+      "duration_ms": 45382,
+      "package": {
+        "version": "0.2.6",
+        "digest": "09399b953afd487ee87dcf321a32ff1e735c8d862ac662ea2c4ee1f8ef1b6e4e",
+        "archiveSha256": "685dcc97232d278eb2a5b777dcbc621573de5c48818a95d522e647c9267ee8f1"
+      },
+      "model": {
+        "planned": "openai/gpt-5.6-luna",
+        "invoked": [
+          "openai/gpt-5.6-luna"
+        ],
+        "calls": 10,
+        "allCallsUsedPlannedModel": true,
+        "providers": [
+          "openai"
+        ],
+        "responseModels": [
+          "gpt-5.6-luna"
+        ]
+      },
+      "question": "What methods have been proposed for dynamically selecting agents and adapting communication topology in multi-agent LLM systems? Compare their selection criteria, topology adaptation mechanisms, and efficiency trade-offs, focusing on representative methods.",
+      "usage": {
+        "tokens": 27091,
+        "remote_calls": 13,
+        "tool_calls": {
+          "scholarly-search": 3
+        }
+      },
+      "funnel": {
+        "raw_candidates": 9,
+        "screening_jobs": 7,
+        "screened_papers": 7,
+        "citation_jobs": 0,
+        "evidence_items": 0,
+        "claims": 0
+      },
+      "model_calls": 10,
+      "second_attempts": 0,
+      "call_failures": [],
+      "conforming": true,
+      "audit_chain_valid": true
+    },
+    {
+      "directory": "examples/my-t10-accept/luna-5-pi",
+      "run_id": "run_d90a7e000b3e3f1cac978bac7108b36b",
+      "status": "completed",
+      "error_code": null,
+      "duration_ms": 154405,
+      "package": {
+        "version": "0.2.6",
+        "digest": "09399b953afd487ee87dcf321a32ff1e735c8d862ac662ea2c4ee1f8ef1b6e4e",
+        "archiveSha256": "685dcc97232d278eb2a5b777dcbc621573de5c48818a95d522e647c9267ee8f1"
+      },
+      "model": {
+        "planned": "openai/gpt-5.6-luna",
+        "invoked": [
+          "openai/gpt-5.6-luna"
+        ],
+        "calls": 17,
+        "allCallsUsedPlannedModel": true,
+        "providers": [
+          "openai"
+        ],
+        "responseModels": [
+          "gpt-5.6-luna"
+        ]
+      },
+      "question": "what defenses have been proposed against prompt injection in LLMs recently?",
+      "usage": {
+        "tokens": 74778,
+        "remote_calls": 23,
+        "tool_calls": {
+          "scholarly-search": 3,
+          "citation-resolver": 3
+        }
+      },
+      "funnel": {
+        "raw_candidates": 9,
+        "screening_jobs": 8,
+        "screened_papers": 8,
+        "citation_jobs": 3,
+        "evidence_items": 12,
+        "claims": 14
+      },
+      "model_calls": 17,
+      "second_attempts": 0,
+      "call_failures": [],
+      "conforming": true,
+      "audit_chain_valid": true
+    }
+  ],
+  "consecutive_runs": 5,
+  "conforming_runs": 5,
+  "completed_runs": 5,
+  "grounded_runs": 3,
+  "passed": true
+}

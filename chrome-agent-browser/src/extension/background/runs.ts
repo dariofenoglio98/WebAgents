@@ -10,6 +10,7 @@
  * Nothing here is package-specific (D-009): every fact comes from the plan, the receipt, the
  * registry and the stores.
  */
+import type { OpenAIReasoningEffort } from "../../core/models/adapters/openai.js";
 import { stillAvailable, type HostCatalog } from "../../core/compatibility.js";
 import { CoreError } from "../../core/errors.js";
 import { ExecutionError } from "../../core/execution/errors.js";
@@ -30,7 +31,7 @@ import type { Vault } from "../../core/vault.js";
 import { HOST_UNLOADED } from "../execution/execute.js";
 import type { HostStartMessage, HostStatusReply } from "../execution/protocol.js";
 import type { ArtifactChunk, ArtifactContent, Event, ExportBundle, ObservationsView, RunListView, RunReadiness, RunSummary, RunView } from "../messages.js";
-import { connectionsFor, type SettingsStorage } from "../storage/settings.js";
+import { connectionsFor, type Settings, type SettingsStorage } from "../storage/settings.js";
 import type { StoredSession } from "../storage/snapshots.js";
 import type { RunStore, StoredRun } from "../storage/runs.js";
 import { attachmentOf, type FileView } from "../storage/files.js";
@@ -500,7 +501,7 @@ export class RunManager {
       runId,
       credentials: { openai: await this.deps.settings.key("openai"), anthropic: await this.deps.settings.key("anthropic") },
       vault: { key: encodeBase64(key), document: await this.deps.settings.vaultDocument() },
-      settings: { ollamaBaseUrl: ollama?.base_url ?? null, think: settings.models.connections.find((connection) => connection.provider === "ollama")?.think === true, recordRequests: settings.developer.record_requests, runtimeVersion: this.deps.runtimeVersion, verifiedVersion: this.deps.runtimeVersion, crossrefContact: settings.services.crossref_contact },
+      settings: { ollamaBaseUrl: ollama?.base_url ?? null, think: settings.models.connections.find((connection) => connection.provider === "ollama")?.think === true, ...openaiEffortOf(settings), recordRequests: settings.developer.record_requests, runtimeVersion: this.deps.runtimeVersion, verifiedVersion: this.deps.runtimeVersion, crossrefContact: settings.services.crossref_contact },
     };
   }
 
@@ -701,4 +702,10 @@ export class RunManager {
     const settings = await this.deps.settings.settings();
     return { run_id: runId, recording: settings.developer.record_requests, observations: await this.deps.runs.listObservations(runId) };
   }
+}
+
+/** The OpenAI connection's stated reasoning effort for a run's settings, when one is stated (D-123). */
+function openaiEffortOf(settings: Settings): { openaiReasoningEffort?: OpenAIReasoningEffort } {
+  const effort = settings.models.connections.find((connection) => connection.provider === "openai")?.reasoning_effort;
+  return effort !== undefined ? { openaiReasoningEffort: effort } : {};
 }

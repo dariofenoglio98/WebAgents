@@ -254,6 +254,9 @@ function bindingFacts(evaluation: RegistryEvaluation): Record<string, ToolBindin
 
 const claimCheck = (claimed: string | null, actual: string | null): ClaimCheck => (claimed === null ? "not_stated" : claimed === actual ? "matches" : "differs");
 
+
+/** How long a newly opened session is kept from `endUnshownSessions` while its view's hold lands (T10). */
+export const SESSION_HOLD_GRACE_MS = 10_000;
 export class Controller {
   private readonly sessions = new Map<string, LiveSession>();
   /** Serializes the read-modify-write of view holders in `chrome.storage.session`. */
@@ -1026,10 +1029,14 @@ export class Controller {
   private async endUnshownSessions(count: number): Promise<void> {
     const inFlight = new Set((await this.deps.runs.listRuns()).filter((run) => !isTerminal(run.record.status)).map((run) => run.session_id));
     const oldest = [...this.sessions.values()].sort((a, b) => (a.stored.created_at < b.stored.created_at ? -1 : a.stored.created_at > b.stored.created_at ? 1 : 0));
+    // A session opened moments ago may not be held yet: the opening view's `hold` lands only after
+    // `package.open` returns, so it is never ended here within the grace (T9 review 1, finding 3).
+    const graceStart = this.clock().getTime() - SESSION_HOLD_GRACE_MS;
     let ended = 0;
     for (const live of oldest) {
       if (ended >= count) break;
       if (inFlight.has(live.stored.session_id)) continue;
+      if (Date.parse(live.stored.created_at) > graceStart) continue;
       const unshown = await this.holderUpdate(async () => {
         const holders = await this.stillOpen(await this.deps.holders.get(live.stored.session_id));
         if (holders.length > 0) return false;

@@ -209,6 +209,7 @@ function positiveCases() {
     })),
     { id: "webair-0.4.0/search-tools-only", title: "WebAir 0.4.0, only the two search tools approved (the 'search' profile's tools)", argv: fixtureRun(DIST("webair-0.4.0.agent.pkg"), EXAMPLES("webair-0.2.0-grants.json"), ["search-flights", "get-fare-rules"]) },
     { id: "literature-review-0.2.5/fixture", title: "Literature Review 0.2.5, its fixture input", argv: fixtureRun(DIST("literature-review.agent.pkg"), EXAMPLES("literature-review-grants.json"), ["scholarly-search", "paper-reader", "citation-resolver"]), allowTokens: true },
+    { id: "literature-review-0.2.6/fixture", title: "Literature Review 0.2.6 (screening jobs built from the candidates, T10), its fixture input", argv: fixtureRun(DIST("literature-review-0.2.6.agent.pkg"), EXAMPLES("literature-review-grants.json"), ["scholarly-search", "paper-reader", "citation-resolver"]), allowTokens: true },
     { id: "meeting-agenda-0.2.2/fixture", title: "Meeting Agenda 0.2.2, its fixture input", argv: fixtureRun(DIST("meeting-agenda.agent.pkg"), EXAMPLES("meeting-agenda-grants.json"), []) },
   ];
   return cases.map((testCase) => ({ ...testCase, kind: "fixture parity", run: () => runPositive(testCase) }));
@@ -398,7 +399,7 @@ function environment() {
     chrome_core: `chrome-agent-browser ${readJson(join(ROOT, "chrome-agent-browser/package.json")).version}`,
     node: process.version,
     platform: `${process.platform}-${process.arch}`,
-    packages: Object.fromEntries(["webair-0.4.0.agent.pkg", "webair-0.5.0.agent.pkg", "literature-review.agent.pkg", "meeting-agenda.agent.pkg"].map((name) => [name, sha(DIST(name))])),
+    packages: Object.fromEntries(["webair-0.4.0.agent.pkg", "webair-0.5.0.agent.pkg", "literature-review.agent.pkg", "literature-review-0.2.6.agent.pkg", "meeting-agenda.agent.pkg"].map((name) => [name, sha(DIST(name))])),
   };
 }
 

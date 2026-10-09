@@ -3,7 +3,7 @@
     agentpkg/.venv/bin/python scripts/verify_chrome_literature_live.py \\
         [--report examples/verification/chrome-literature-review-live.json]
 
-`chrome-agent-browser/scripts/e2e-literature-live.mjs` ran the signed Literature Review 0.2.5 in a
+`chrome-agent-browser/scripts/e2e-literature-live.mjs` ran the signed Literature Review (0.2.5 for T6, 0.2.6 since T10) in a
 real Chrome with the person's model against the real Crossref API and the hosted Citation Resolver,
 and exported the run (run.json, run-plan.json, input.json, the artifacts), observations.json (every
 outbound model and tool request body, test mode) and documents.json (each picked PDF's text from
@@ -50,7 +50,9 @@ from agentpkg.execution.report import verify_audit_chain  # noqa: E402
 from agentpkg.package import load_package  # noqa: E402
 from agentpkg.signing import verify_package  # noqa: E402
 
-ARCHIVE = ROOT / "dist/literature-review-0.2.5.agent.pkg"
+# The signed archive the harness served, named in its report (0.2.5 for T6's, 0.2.6 since T10);
+# only a versioned Literature Review in dist/ is accepted.
+ARCHIVE_NAME = re.compile(r"^dist/literature-review-0\.2\.[5-9]\.agent\.pkg$")
 KEY = ROOT / "examples/keys/literature-review-publisher.pub.pem"
 CROSSREF_REFERENCE = ROOT / "chrome-agent-browser/test/fixtures/crossref/reference-answers.json"
 CROSSREF = "https://api.crossref.org"
@@ -292,6 +294,10 @@ def main() -> int:
     )
 
     # The package the run was bound to: the signed archive in dist/, verified with its key.
+    named = report["package"]["path"]
+    if not ARCHIVE_NAME.match(named):
+        raise SystemExit(f"verify_chrome_literature_live: unexpected package path {named!r}")
+    ARCHIVE = ROOT / named
     package = load_package(ARCHIVE)
     verified = verify_package(ARCHIVE, KEY)
     archive_sha256 = hashlib.sha256(ARCHIVE.read_bytes()).hexdigest()
@@ -364,6 +370,10 @@ def main() -> int:
         len(models) == model.get("calls", -1) == len(called),
         {"observed": len(models), "recorded": model.get("calls"), "called": len(called)},
     )
+
+    # How each model request was shaped, read from the bodies test mode recorded (T10, D-121…D-123):
+    # the reasoning effort sent, and the text format (strict, non-strict, wrapped array root, none).
+    report["modelRequests"] = request_shapes(models)
 
     # The tools: bindings, Crossref's request shape and pacing, the resolver's origin, the reader.
     dispatched = [event for event in audit if event.get("action") == "tool.dispatched"]
@@ -555,6 +565,29 @@ def main() -> int:
             "model": model,
         },
     )
+
+
+def request_shapes(models: list) -> dict:
+    """Counts of the reasoning effort and text format in the recorded model request bodies."""
+    efforts: dict[str, int] = {}
+    formats: dict[str, int] = {}
+    for line in models:
+        try:
+            body = json.loads(line.get("body") or "{}")
+        except ValueError:
+            body = {}
+        reasoning = body.get("reasoning") if isinstance(body.get("reasoning"), dict) else {}
+        effort = str(reasoning.get("effort")) if reasoning else "none"
+        efforts[effort] = efforts.get(effort, 0) + 1
+        text = body.get("text") if isinstance(body.get("text"), dict) else {}
+        form = text.get("format") if isinstance(text.get("format"), dict) else None
+        if form is None:
+            shape = "none" if "format" not in body else "ollama_format"
+        else:
+            wrapped = "items" in ((form.get("schema") or {}).get("properties") or {})
+            shape = ("strict" if form.get("strict") else "non_strict") + ("_wrapped" if wrapped else "")
+        formats[shape] = formats.get(shape, 0) + 1
+    return {"requests": len(models), "reasoning_effort": efforts, "text_format": formats}
 
 
 def finish(report: dict, report_path: Path, facts: dict, search: dict, run: dict) -> int:

@@ -7,6 +7,7 @@
  * list with Export and Clear, the zip writer the export uses, and the Settings additions (the
  * Ollama commands, the B-117 diagnosis, the test-mode switch).
  */
+import { SESSION_HOLD_GRACE_MS } from "../../src/extension/background/controller.js";
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -18,6 +19,8 @@ import type { HttpTransport } from "../../src/core/models/transport.js";
 import type { AuthorizationView, AuthorizeResult, ProbeView, Request, RunSummary, RunView, SessionView, SettingsView } from "../../src/extension/messages.js";
 import { buildFormModel, descriptionAdds, hintsFrom, TaskForm } from "../../src/extension/ui/form.js";
 import { formatElapsed, modelFailureFigures, refusalFigures, renderRunList, RunPanel, stagesFor } from "../../src/extension/ui/run.js";
+import { decisiveCallFailure } from "../../src/core/execution/report.js";
+import type { JsonObject } from "../../src/core/json.js";
 import { newSettingsPageState, OLLAMA_ORIGIN_COMMANDS, renderSettingsPage } from "../../src/extension/ui/settings-page.js";
 import { writeZip } from "../../src/extension/ui/zip.js";
 import { scriptedOllama, scriptedOrigin, webairModelAnswers } from "../helpers/host.js";
@@ -422,6 +425,27 @@ describe("the run panel", () => {
     expect(modelFailureFigures([{ action: "model.called" }])).toBeNull();
   });
 
+  it("after a retry the figures are the decisive call's, not an earlier recovered attempt's; the attempts are said (T9 review 1, findings 1 and 7)", () => {
+    const facts = (keyword: string, location: string, out: number) => ({ stop_reason: "stop", reported_output_tokens: out, output_failure: "schema", schema_keyword: keyword, schema_location: location, schema_violations: 1 });
+    const recovered = [
+      { action: "model.called", worker: "Interpreter:1", node_id: "interpret" },
+      { action: "model.failed", worker: "Interpreter:1", node_id: "interpret", reason: "model_output_not_conforming", failure_facts: facts("pattern", "$defs/s27/properties/search/properties/date/pattern", 60) },
+      { action: "model.called", worker: "Interpreter:1", node_id: "interpret", attempt: 2 },
+      { action: "model.completed", worker: "Interpreter:1", node_id: "interpret" },
+      { action: "model.called", worker: "Writer:2", node_id: "answer" },
+      { action: "model.failed", worker: "Writer:2", node_id: "answer", reason: "model_output_not_conforming", failure_facts: facts("required", "$defs/s3/required", 90) },
+      { action: "model.retry_skipped", worker: "Writer:2", node_id: "answer", reason: "budget", bound: "worker_token_budget" },
+    ];
+    expect(decisiveCallFailure(recovered as unknown as JsonObject[])).toMatchObject({ node_id: "answer" });
+    expect(modelFailureFigures(recovered)).toBe("The answer was complete (it stopped normally after 90 output tokens): this is not a token limit. It broke the schema's “required” rule. It was not asked again: a second request would not have fit the step's token budget.");
+    const twice = recovered.slice(0, 3).concat([{ action: "model.failed", worker: "Interpreter:1", node_id: "interpret", reason: "model_output_not_conforming", failure_facts: facts("pattern", "$defs/s27/properties/search/properties/date/pattern", 61) }]);
+    expect(decisiveCallFailure(twice as unknown as JsonObject[])).toMatchObject({ failure_facts: { reported_output_tokens: 61 } });
+    expect(modelFailureFigures(twice)).toContain("after 61 output tokens");
+    expect(modelFailureFigures(twice)).toContain("The runtime asked once more with the same request");
+    // Without a retry the decisive failure is the first, as the reference's failure_summary reads it.
+    expect(decisiveCallFailure([recovered[0], recovered[1], recovered[5]] as unknown as JsonObject[])).toBe(recovered[1]);
+  });
+
   it("a run whose model answer broke the package's schema says so on the panel, with the field (T9)", async () => {
     // The scripted model answers interpret with a date that breaks the plan schema's pattern.
     const answers = webairModelAnswers();
@@ -438,7 +462,8 @@ describe("the run panel", () => {
     const banner = panel.root.querySelector(".ab-outcome .ab-banner")!;
     expect(banner.querySelector("strong")?.textContent).toBe("The model's answer did not match the package's format");
     expect(banner.textContent).toContain("model_error");
-    expect(banner.querySelector(".ab-refusal-figures")?.textContent).toMatch(/this is not a token limit\. It broke the schema's “pattern” rule at search\.date\.$/u);
+    // The scripted model breaks the pattern on both attempts: the live router asked once more (D-115).
+    expect(banner.querySelector(".ab-refusal-figures")?.textContent).toMatch(/this is not a token limit\. It broke the schema's “pattern” rule at search\.date\. The runtime asked once more with the same request, and the second answer did not match either\.$/u);
     panel.dispose();
   });
 
@@ -462,6 +487,8 @@ describe("the run panel", () => {
     const result = (await h.controller.handle({ type: "authorization.useProfile", sessionId: session.session.id, packageDigest: SHIPPED.webair040.digest, profileId: "search", resourceSelections: {}, prepare: true }, PAGE)) as AuthorizeResult;
     const plan = result.run_plan!.run_plan;
     const started = (await h.controller.handle({ type: "run.start", sessionId: session.session.id, runPlanId: plan.run_plan_id, runPlanSha256: plan.run_plan_sha256, input: { request: SEARCH_TEXT, booking: false, purchase: { quote_id: "", fare_id: "" } } }, PAGE)) as RunView;
+    // Past the fresh-session grace (T10), so only the run in flight keeps it.
+    h.clock.now = new Date(h.clock.now.getTime() + SESSION_HOLD_GRACE_MS + 1);
     const other = h.controller.handle({ type: "package.open", url: WEBAIR_040_URL, advertisedOn: null }, PAGE);
     await expect(other).rejects.toMatchObject({ code: "session_limit_reached" });
     await h.controller.handle({ type: "run.cancel", runId: started.runId }, PAGE);

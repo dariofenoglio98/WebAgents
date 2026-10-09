@@ -138,7 +138,10 @@ export class ProgressTracker {
         row.state = action === "worker.completed" ? "completed" : event.error === "CancelledError" ? "cancelled" : "failed";
         if (row.started !== null) row.duration_ms = Math.round((this.clock() - row.started) * 10000) / 10;
       }
-    } else if (action === "model.called") this.modelStarted += 1;
+    } else if (action === "model.called") {
+      // A second attempt of the same logical call (D-115) is not another started call (T9 review 1, finding 2).
+      if (!(typeof event.attempt === "number" && event.attempt > 1)) this.modelStarted += 1;
+    }
     else if (action === "model.completed") {
       this.modelCompleted += 1;
       const row = this.workers.get(worker ?? "");

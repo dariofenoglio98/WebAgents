@@ -159,6 +159,7 @@ class ScriptedReview:
         self.tasks: list[str] = []
         self.schemas: dict[str, dict] = {}
         self.active_extractions = 0
+        self.abstract_hash_empty = False
         self.peak_extractions = 0
         self._barrier = asyncio.Event()
 
@@ -170,6 +171,10 @@ class ScriptedReview:
         self.tasks.append(task)
         data = copy.deepcopy(request["data"])
         if task == "extract":
+            # 0.2.6's evidence-extraction skill: abstract evidence states no source hash.
+            self.abstract_hash_empty = any(
+                'exactly the empty string ""' in text for text in request.get("instructions", [])
+            )
             self.active_extractions += 1
             self.peak_extractions = max(self.peak_extractions, self.active_extractions)
             try:
@@ -227,6 +232,10 @@ class ScriptedReview:
                     "screening_rationale": "",
                 }
             )
+        if _asks_for_screening_refs(self.output_schema):
+            # 0.2.6: one reference per candidate; the graph builds the jobs.
+            refs = [{"paper_id": paper["paper_id"], "file_id": None} for paper in candidates]
+            return {"candidate_papers": candidates, "screening_refs": refs}
         return {
             "candidate_papers": candidates,
             "screening_jobs": [{"paper": paper, "file_id": None} for paper in candidates],
@@ -302,7 +311,7 @@ class ScriptedReview:
                     "provenance": {
                         "source": "crossref",
                         "locator": paper["doi"],
-                        "source_sha256": _sha(text),
+                        "source_sha256": "" if self.abstract_hash_empty else _sha(text),
                         "synthetic": True,
                     },
                 }
@@ -402,6 +411,10 @@ def _follow(schema: dict, root: dict) -> dict:
             target = target[part.replace("~1", "/").replace("~0", "~")]
         schema = target
     return schema
+
+
+def _asks_for_screening_refs(schema):
+    return "screening_refs" in _follow(schema, schema).get("properties", {})
 
 
 def _draft_quotes(schema):

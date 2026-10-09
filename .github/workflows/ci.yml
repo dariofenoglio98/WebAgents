@@ -89,6 +89,7 @@ jobs:
         run: |
           for script in verify_workflow verify_browser verify_literature_022 \
                         verify_literature_023 verify_literature_024 verify_literature_025 \
+                        verify_literature_026 \
                         verify_webair verify_webair_discovery; do
             report="$RUNNER_TEMP/$script.json"
             agentpkg/.venv/bin/python "scripts/$script.py" > "$report"
@@ -141,6 +142,8 @@ jobs:
             --trust-key examples/keys/meeting-agenda-publisher.pub.pem > "$RUNNER_TEMP/verify-agenda.json"
           "$agentpkg" verify dist/literature-review.agent.pkg \
             --trust-key examples/keys/literature-review-publisher.pub.pem > "$RUNNER_TEMP/verify-review.json"
+          "$agentpkg" verify dist/literature-review-0.2.6.agent.pkg \
+            --trust-key examples/keys/literature-review-publisher.pub.pem > "$RUNNER_TEMP/verify-review-026.json"
           "$agentpkg" verify dist/webair.agent.pkg \
             --trust-key examples/keys/webair-publisher.pub.pem > "$RUNNER_TEMP/verify-webair.json"
           "$agentpkg" verify dist/webair-0.3.0.agent.pkg \
@@ -156,6 +159,8 @@ jobs:
               "verify-agenda.json": ("org.webagents.meeting-agenda", "0.2.2",
                   "sha256:2bcc374a7fe18e50622042b7d0375fcb24eb3607879a236f9f3c3ede1922c5c4"),
               "verify-review.json": ("org.webagents.literature-review", "0.2.5",
+                  "sha256:c5ca9763f9fc71253298ca381ec14c4d7432009c74dacc69df6344b71de05232"),
+              "verify-review-026.json": ("org.webagents.literature-review", "0.2.6",
                   "sha256:c5ca9763f9fc71253298ca381ec14c4d7432009c74dacc69df6344b71de05232"),
               "verify-webair.json": ("org.webagents.webair", "0.1.0",
                   "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b"),
@@ -189,6 +194,10 @@ jobs:
             --grants examples/literature-review-grants.json \
             --approve-tool scholarly-search --approve-tool citation-resolver --approve-tool paper-reader \
             --out "$RUNNER_TEMP/my-review" > "$RUNNER_TEMP/run-review.json"
+          "$agentpkg" run dist/literature-review-0.2.6.agent.pkg --mode fixture \
+            --grants examples/literature-review-grants.json \
+            --approve-tool scholarly-search --approve-tool citation-resolver --approve-tool paper-reader \
+            --out "$RUNNER_TEMP/my-review-026" > "$RUNNER_TEMP/run-review-026.json"
           "$agentpkg" run dist/webair.agent.pkg --mode fixture \
             --grants examples/webair-grants.json \
             --approve-tool search-flights --approve-tool get-fare-rules \
@@ -216,6 +225,8 @@ jobs:
               "agenda": ["agenda.json"],
               "review": ["related-work.md", "bibliography.json", "evidence-table.json",
                          "unresolved.json", "verification.json"],
+              "review-026": ["related-work.md", "bibliography.json", "evidence-table.json",
+                             "unresolved.json", "verification.json"],
               "webair": ["answer.md", "search.json", "fare-rules.json", "booking.json"],
               "webair-030": ["answer.md", "search.json", "fare-rules.json", "booking.json"],
               "webair-040": ["answer.md", "search.json", "fare-rules.json", "booking.json"],

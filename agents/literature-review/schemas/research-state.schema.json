@@ -588,6 +588,12 @@
         "$ref": "screen-job.schema.json"
       }
     },
+    "screening_refs": {
+      "type": "array",
+      "items": {
+        "$ref": "screen-ref.schema.json"
+      }
+    },
     "citation_jobs": {
       "$ref": "papers.schema.json"
     },

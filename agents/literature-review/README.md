@@ -1,8 +1,17 @@
 # Literature Review Agent — workflow.v0
 
-Version 0.2.5 is a data-only package executed by the same generic interpreter as Meeting Agenda. `MANIFEST.agent` selects `workflow.v0`; **graph.json is the only authoritative execution graph**. The seven skills describe domain behavior; schemas and declared validation assertions enforce the structured contracts.
+Version 0.2.6 is a data-only package executed by the same generic interpreter as Meeting Agenda. `MANIFEST.agent` selects `workflow.v0`; **graph.json is the only authoritative execution graph**. The seven skills describe domain behavior; schemas and declared validation assertions enforce the structured contracts.
 
 The graph performs planning, seed resolution, parallel search, join/normalization/deduplication, parallel screening, citation resolution, evidence preparation and parallel extraction, synthesis, writing, verification and declared exports. Citation Resolver remains a remote tool consumed through its existing contract. Conditional selected-PDF reads remain worker-local. Exact quote/page checks, record links and resolver metadata checks use generic validation nodes.
+
+## 0.2.6: screening jobs are built from the candidates; an abstract has no source hash
+
+Two package faults found by running 0.2.5 on hosted OpenAI models in the Chrome Agent Browser (T10, 2026-10-09). Both let a run complete with less literature than the search found, without saying so.
+
+- **Screening jobs no longer pass through a model.** In 0.2.5 `normalize` returned every candidate twice: once in `candidate_papers` and once inside each screening job. Nothing compared the two copies. One model wrote a single job for seven candidates, another blanked every abstract in the job copies, and screening then excluded papers it had no text for. Now `normalize` returns `screening_refs`, one `{paper_id, file_id}` per candidate (`schemas/screen-ref.schema.json`). `check-screening-refs` requires every reference to name exactly one candidate. The new `screening-jobs` map builds each job from the candidate's own record, taking its `file_id` from the references with `lookup`. Every candidate must have exactly one reference, or the run stops. `normalize` writes about half as much as before.
+- **Abstract evidence states no source hash.** `evidence.provenance.source_sha256` is required, and only a supplied document's reader output carries a hash. For an abstract, nothing in the input supplies one. One model returned no evidence at all rather than invent a hash, and the review reported "no sufficiently grounded literature". The evidence-extraction skill (0.1.3) now says the hash is exactly `""` for abstract evidence. `check-abstract` asserts it, so a fabricated hash fails closed. The replay fixture's abstract evidence, which carried the SHA-256 of the abstract (a value no live model can compute), now carries `""`.
+
+The literature-search skill is 0.1.2 (references instead of job copies). No permission, tool contract, budget, timing or other assertion changed. The package still requires agentpkg 0.2.1 or later. The signed 0.2.5 archive is preserved separately.
 
 ## 0.2.5: the exported evidence table is the extraction record
 

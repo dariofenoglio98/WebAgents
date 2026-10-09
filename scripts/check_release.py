@@ -53,6 +53,19 @@ CURRENT_PACKAGES = {
         "fingerprint": "sha256:c5ca9763f9fc71253298ca381ec14c4d7432009c74dacc69df6344b71de05232",
         "tools": ["citation-resolver", "paper-reader", "scholarly-search"],
     },
+    # T10: the current Literature Review, by version. The unversioned alias above stays 0.2.5,
+    # which the paper's experiments, the conformance reports and the demo index describe.
+    "literature-review-0.2.6": {
+        "stem": "literature-review",
+        "alias": False,
+        "package_id": "org.webagents.literature-review",
+        "version": "0.2.6",
+        "digest": "09399b953afd487ee87dcf321a32ff1e735c8d862ac662ea2c4ee1f8ef1b6e4e",
+        "archive_sha256": "685dcc97232d278eb2a5b777dcbc621573de5c48818a95d522e647c9267ee8f1",
+        "key": "examples/keys/literature-review-publisher.pub.pem",
+        "fingerprint": "sha256:c5ca9763f9fc71253298ca381ec14c4d7432009c74dacc69df6344b71de05232",
+        "tools": ["citation-resolver", "paper-reader", "scholarly-search"],
+    },
     # The fictional WebAir origin's packages (demo/webair), new in v0.2.0. The current one has no
     # unversioned alias: `webair.agent.pkg` stays 0.1.0, which the recorded evidence pins.
     # 0.5.0 is the current one (0.4.0 plus the departure-airport answer, T9); 0.4.0, which the
@@ -193,7 +206,7 @@ def document_pins(source: str) -> dict[str, str]:
     for node in ast.parse(source).body:
         if isinstance(node, ast.Assign) and any(isinstance(t, ast.Name) and t.id == "DOCUMENTS" for t in node.targets):
             if not isinstance(node.value, ast.Dict):
-                break
+                raise ValueError("server.py DOCUMENTS must be a dict literal")
             pins = {}
             for key, value in zip(node.value.keys, node.value.values):
                 if not (isinstance(key, ast.Constant) and isinstance(value, ast.Tuple) and len(value.elts) == 2):

@@ -113,6 +113,13 @@ describe("progress", () => {
     const snapshot = tracker.snapshot();
     expect(snapshot).toMatchObject({ events: 12, last_action: "node.completed", active_nodes: [], completed_nodes: ["a"], skipped_nodes: ["b"], nodes_completed: 1, steps_completed: 1, workers_spawned: 1, workers_active: 0, peak_parallel_workers: 1, model_calls_started: 1, model_calls_completed: 1, tool_calls_started: 1, tool_calls_completed: 1, tokens: 42, remote_calls: 1 });
     expect(snapshot.workers[0]).toMatchObject({ id: "W:1", role: "W", node: "a", state: "cancelled", model_calls: 1, tool_calls: 1 });
+    // A second attempt of the same logical call (D-115) is not another started call (T9 review 1, finding 2).
+    const retried = new ProgressTracker(null);
+    retried.observe(event("model.called", { worker: "W:1" }));
+    retried.observe(event("model.failed", { worker: "W:1" }));
+    retried.observe(event("model.called", { worker: "W:1", attempt: 2 }));
+    retried.observe(event("model.completed", { worker: "W:1" }));
+    expect(retried.snapshot()).toMatchObject({ model_calls_started: 1, model_calls_completed: 1 });
     const many = new ProgressTracker(null);
     for (let index = 0; index < 100; index += 1) many.observe(event("worker.spawned", { worker: `W:${index}` }));
     expect(many.snapshot().workers).toHaveLength(64);
