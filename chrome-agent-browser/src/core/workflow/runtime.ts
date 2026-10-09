@@ -416,11 +416,36 @@ export class Runtime {
     return settled.map((entry) => (entry as { ok: true; value: T }).value);
   }
 
+  /** The first remote-call bound `count` more calls would pass, with its figures; null when they fit. */
+  private remoteBound(ctx: Context, count = 1): { bound: "global_remote_calls" | "worker_remote_calls"; remote_calls: number; limit: number } | null {
+    const own = this.usageByWorker.get(ctx.worker_id)!;
+    const limit = this.budget.max_remote_calls as number;
+    if (this.global.remote_calls + count > limit) return { bound: "global_remote_calls", remote_calls: this.global.remote_calls, limit };
+    const roleLimit = (this.roles[ctx.role]!.budget as JsonObject).remote_calls as number;
+    if (own.remote_calls + count > roleLimit) return { bound: "worker_remote_calls", remote_calls: own.remote_calls, limit: roleLimit };
+    return null;
+  }
+
+  /**
+   * The first token bound a model reservation would pass, in the order a call is checked (the run's
+   * budget, the worker's, the approval threshold), with its figures; null when it fits. One reading
+   * for the first attempt and the retry (D-124; T10 review 1, nit 4).
+   */
+  private tokenBound(ctx: Context, reservation: number): { bound: "global_token_budget" | "worker_token_budget" | "approval_threshold"; used_tokens: number; held_tokens: number; limit: number } | null {
+    const own = this.usageByWorker.get(ctx.worker_id)!;
+    const hardTokens = this.budget.hard_tokens as number;
+    if (this.global.tokens + this.global.reserved_tokens + reservation > hardTokens) return { bound: "global_token_budget", used_tokens: this.global.tokens, held_tokens: this.global.reserved_tokens, limit: hardTokens };
+    const roleTokens = (this.roles[ctx.role]!.budget as JsonObject).tokens as number;
+    if (own.tokens + own.reserved_tokens + reservation > roleTokens) return { bound: "worker_token_budget", used_tokens: own.tokens, held_tokens: own.reserved_tokens, limit: roleTokens };
+    const threshold = this.budget.approval_threshold_tokens;
+    if (typeof threshold === "number" && this.global.tokens + this.global.reserved_tokens + reservation > threshold) return { bound: "approval_threshold", used_tokens: this.global.tokens, held_tokens: this.global.reserved_tokens, limit: threshold };
+    return null;
+  }
+
   private remote(ctx: Context, count = 1): void {
     const own = this.usageByWorker.get(ctx.worker_id)!;
-    if (this.global.remote_calls + count > (this.budget.max_remote_calls as number)) throw new BudgetError("Global remote-call budget exhausted");
-    const roleBudget = this.roles[ctx.role]!.budget as JsonObject;
-    if (own.remote_calls + count > (roleBudget.remote_calls as number)) throw new BudgetError(`Remote-call budget exhausted for ${ctx.worker_id}`);
+    const exceeded = this.remoteBound(ctx, count);
+    if (exceeded !== null) throw new BudgetError(exceeded.bound === "global_remote_calls" ? "Global remote-call budget exhausted" : `Remote-call budget exhausted for ${ctx.worker_id}`);
     own.remote_calls += count;
     this.global.remote_calls += count;
     this.record("budget.updated", { context: ctx, remote_calls: this.global.remote_calls });
@@ -590,24 +615,11 @@ export class Runtime {
     const attemptOnce = async (attempt: number): Promise<JsonValue> => {
       const own = this.usageByWorker.get(ctx.worker_id)!;
       this.checkContext(ctx);
-      const hardTokens = this.budget.hard_tokens as number;
-      if (this.global.tokens + this.global.reserved_tokens + reservation > hardTokens) {
-        refuse("global_token_budget", "Global token budget exhausted before model dispatch", {
-          used_tokens: this.global.tokens,
-          held_tokens: this.global.reserved_tokens,
-          limit: hardTokens,
-        });
-      }
-      const roleTokens = (this.roles[ctx.role]!.budget as JsonObject).tokens as number;
-      if (own.tokens + own.reserved_tokens + reservation > roleTokens) {
-        refuse("worker_token_budget", `Token budget exhausted for ${ctx.worker_id}`, {
-          used_tokens: own.tokens,
-          held_tokens: own.reserved_tokens,
-          limit: roleTokens,
-        });
-      }
-      const threshold = this.budget.approval_threshold_tokens;
-      if (typeof threshold === "number" && this.global.tokens + this.global.reserved_tokens + reservation > threshold) {
+      const exceeded = this.tokenBound(ctx, reservation);
+      if (exceeded !== null) {
+        const { bound, ...figures } = exceeded;
+        if (bound === "global_token_budget") refuse(bound, "Global token budget exhausted before model dispatch", figures);
+        if (bound === "worker_token_budget") refuse(bound, `Token budget exhausted for ${ctx.worker_id}`, figures);
         throw new BudgetError("Token approval threshold exceeded; a new host grant is required");
       }
       if (router.remote) this.remote(ctx);
@@ -678,17 +690,12 @@ export class Runtime {
     // first attempt was checked against (D-124): otherwise the node fails with the answer that was
     // not conforming, not with the budget that a retry would have exceeded.
     const retryBlockedBy = (): Record<string, JsonValue> | null => {
-      const own = this.usageByWorker.get(ctx.worker_id)!;
-      const roleBudget = this.roles[ctx.role]!.budget as JsonObject;
-      const hardTokens = this.budget.hard_tokens as number;
-      const facts = (bound: string, used: number, held: number, limit: number): Record<string, JsonValue> => ({ bound, reserved_tokens: reservation, used_tokens: used, held_tokens: held, limit });
-      if (this.global.tokens + this.global.reserved_tokens + reservation > hardTokens) return facts("global_token_budget", this.global.tokens, this.global.reserved_tokens, hardTokens);
-      if (own.tokens + own.reserved_tokens + reservation > (roleBudget.tokens as number)) return facts("worker_token_budget", own.tokens, own.reserved_tokens, roleBudget.tokens as number);
-      const threshold = this.budget.approval_threshold_tokens;
-      if (typeof threshold === "number" && this.global.tokens + this.global.reserved_tokens + reservation > threshold) return facts("approval_threshold", this.global.tokens, this.global.reserved_tokens, threshold);
-      if (router.remote && this.global.remote_calls + 1 > (this.budget.max_remote_calls as number)) return { bound: "global_remote_calls", remote_calls: this.global.remote_calls, limit: this.budget.max_remote_calls as number };
-      if (router.remote && own.remote_calls + 1 > (roleBudget.remote_calls as number)) return { bound: "worker_remote_calls", remote_calls: own.remote_calls, limit: roleBudget.remote_calls as number };
-      return null;
+      const tokens = this.tokenBound(ctx, reservation);
+      if (tokens !== null) {
+        const { bound, ...figures } = tokens;
+        return { bound, reserved_tokens: reservation, ...figures };
+      }
+      return router.remote ? this.remoteBound(ctx) : null;
     };
     const retries = Math.max(0, Math.min(1, router.nonconformingRetries ?? 0));
     for (let attempt = 1; ; attempt += 1) {

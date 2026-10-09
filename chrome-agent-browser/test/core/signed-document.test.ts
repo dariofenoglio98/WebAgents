@@ -4,6 +4,7 @@
  * its own code; and the shipped demo index and research policy verify under their development
  * keys and name exactly the shipped packages.
  */
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -81,7 +82,7 @@ describe("signed documents", () => {
     const index = readAgentIndex(verified.content);
     expect(index.notes).toEqual([]);
     const byId = Object.fromEntries(index.entries.map((entry) => [entry.package_id, entry]));
-    for (const shipped of [SHIPPED.literatureReview, SHIPPED.webair040]) {
+    for (const shipped of [SHIPPED.literatureReview026, SHIPPED.webair050]) {
       const entry = byId[shipped.packageId]!;
       expect(entry.version).toBe(shipped.version);
       expect(entry.digest).toBe(shipped.digest);
@@ -89,6 +90,20 @@ describe("signed documents", () => {
       expect(entry.signer_fingerprint).toBe(shipped.fingerprint);
       expect(entry.publisher.id).toBe(shipped.publisherId);
     }
+  });
+
+  it("the demo index 1.0.0 is kept byte for byte where recorded evidence pins it, and still names 0.2.5 and 0.4.0 (T11, D-131)", async () => {
+    const key = publicKeyFromPem(readFileSync(resolve(ROOT, "examples/keys/webagents-index.pub.pem"), "utf8"));
+    const bytes = new Uint8Array(readFileSync(resolve(ROOT, "examples/agent-index-1.0.0.json")));
+    // The T8 harness report records these bytes as the index it served.
+    const evidence = JSON.parse(readFileSync(resolve(ROOT, "examples/verification/chrome-search-policy-e2e.json"), "utf8")) as { served: Record<string, { sha256: string }> };
+    expect(createHash("sha256").update(bytes).digest("hex")).toBe(evidence.served["/agent-index.json"]!.sha256);
+    const index = readAgentIndex((await verifySignedDocument(bytes, AGENT_INDEX_TYPE, [key])).content);
+    expect(index.version).toBe("1.0.0");
+    expect(index.entries.map((entry) => [entry.package_id, entry.version, entry.digest])).toEqual([
+      [SHIPPED.literatureReview.packageId, SHIPPED.literatureReview.version, SHIPPED.literatureReview.digest],
+      [SHIPPED.webair040.packageId, SHIPPED.webair040.version, SHIPPED.webair040.digest],
+    ]);
   });
 
   it("the shipped research policy verifies under its development key and anchors exactly the two publishers, each to its own package", async () => {

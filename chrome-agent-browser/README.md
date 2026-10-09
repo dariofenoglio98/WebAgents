@@ -66,7 +66,8 @@ What it shows today, on the WebAir demo site:
    `chrome.storage.local`, never shown again, never sent anywhere but the provider), and Chrome's
    built-in model with its download state and, once Chrome reports it available, a model row
    with **Make default** (its context is the measured session quota; every row can state whether
-   the model reasons, which a package requiring reasoning needs for the built-in model, D-113).
+   the model reasons, which a package requiring reasoning needs for the built-in model, D-113; the
+   run honours the statement too, D-130).
    Each connection chip says when it was checked
    ("reachable · 4 models · checked 14:02:31"); opening the Models section clears the old answers
    and tests every enabled connection again. A provider that stops answering makes its models
@@ -309,8 +310,10 @@ limits, and the reference driver's grounding checks. The evidence is
 ## What it does not do yet
 
 - **The built-in model live.** Gemini Nano is wired, can be made the default and is unit-tested
-  over a stubbed Prompt API, but has not run live: headless Chrome reports it `downloadable` on a
-  fresh profile (B-119; the person's walk-through is T9's User run).
+  over a stubbed Prompt API (a whole WebAir run included), but has not completed a live run:
+  headless Chrome reports it `downloadable` on a fresh profile (B-119). The first live attempt
+  (2026-10-09) stopped at start with `execution_model_incompatible` although "Reasons: yes" was
+  stated; fixed in T11 (D-130), and the person's walk-through is T11's User run.
 - **Implement every local tool, or any GET service.** The host binds a generic HTTPS JSON POST to
   each declared remote POST tool, its Crossref adapter to `scholarly.search` at Crossref's works
   endpoint, its PDF reader to `paper.read` and a vault binding to each host-resource tool; any

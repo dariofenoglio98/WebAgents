@@ -85,6 +85,32 @@ export function scriptedOllama(answers: TaskAnswers, seen: SeenRequest[] = [], m
   return { transport, seen };
 }
 
+/**
+ * Chrome's built-in model (the Prompt API port, D-072) as a table of answers per task, like
+ * `scriptedOllama`: a session per call, the system prompt's `## Task` line picks the answer, and
+ * the Prompt API's tokenizer is stood in for by a character count.
+ */
+export function scriptedBuiltin(answers: TaskAnswers, prompts: string[] = []): { port: BuiltinModelPort; prompts: string[] } {
+  const port: BuiltinModelPort = {
+    availability: async () => "available",
+    createSession: async ({ systemPrompt }) => ({
+      prompt: async (text, signal) => {
+        if (signal.aborted) throw signal.reason;
+        prompts.push(text);
+        const task = /^## Task\n(.+)$/mu.exec(systemPrompt)?.[1] ?? "";
+        const answer = answers[task];
+        if (!answer) throw new Error(`no scripted answer for task ${JSON.stringify(task)}`);
+        return JSON.stringify(answer(JSON.parse(text), systemPrompt));
+      },
+      measureInputUsage: async (text) => Math.ceil(text.length / 4),
+      inputQuota: 1_000_000,
+      constrained: true,
+      destroy: () => undefined,
+    }),
+  };
+  return { port, prompts };
+}
+
 /** The WebAir search, booking and purchase answers a scripted model gives for the demo requests. */
 export function webairModelAnswers(): TaskAnswers {
   const search = { origin: "BOS", destination: "ZRH", date: "2026-10-09", passengers: 1, nonstop_only: true, max_price_usd: 900, cabin: null };

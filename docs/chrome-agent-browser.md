@@ -192,8 +192,12 @@ opened agents; opening one downloads and verifies it again.
 The demo index and the example "WebAgents research policy" are signed with development keys
 (`examples/keys/webagents-index.pub.pem`, `webagents-policy.pub.pem`) and served beside the WebAir
 origin (and by `package-origin/`). The acceptance harness `scripts/e2e-search-policy.mjs` runs the
-whole path in a real Chrome against a local HTTPS mock of that origin; its evidence is
-[`examples/verification/chrome-search-policy-e2e.json`](../examples/verification/chrome-search-policy-e2e.json).
+whole path in a real Chrome against a local HTTPS mock of that origin. Index **1.1.0** (T11, D-131)
+lists Literature Review 0.2.6 and WebAir 0.5.0; both origins also keep serving Literature Review 0.2.5,
+which index 1.0.0 listed (kept as `examples/agent-index-1.0.0.json`). Evidence: index 1.1.0,
+[`chrome-search-policy-e2e-index-110.json`](../examples/verification/chrome-search-policy-e2e-index-110.json)
+(also finds WebAir by its locator and its claims match); index 1.0.0 (T8),
+[`chrome-search-policy-e2e.json`](../examples/verification/chrome-search-policy-e2e.json).
 
 ## 10. Using it: what the pages show (T9)
 
@@ -211,7 +215,11 @@ whole path in a real Chrome against a local HTTPS mock of that origin; its evide
   default" appears once Chrome reports it available. Its context is the Prompt API's measured
   session quota. The Prompt API states no reasoning, so a package that requires reasoning (WebAir)
   gets a plan on it only after the person states "Reasons: yes" on its row, recorded as declared
-  by them; any model's row offers the same statement (D-113). A plan keeps the model it was
+  by them; any model's row offers the same statement (D-113). The run then uses that statement as
+  well: what a model delivers at execution is read from the plan's model descriptor for every
+  provider, so a plan that was prepared is not refused at start for reasoning (T11, D-130; before,
+  the built-in route stated no reasoning at execution and such a run failed
+  `execution_model_incompatible`). A plan keeps the model it was
   prepared with; after the default changes, the plan card says so and "Use this agent" prepares a
   plan on the new default.
 

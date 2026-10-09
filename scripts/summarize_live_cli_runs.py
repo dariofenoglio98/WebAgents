@@ -8,6 +8,7 @@ directory (git-ignored, under examples/my-*). Everything reported is read from t
 run record (`run.json`), `result.json` and its hash-chained audit, re-verified with agentpkg. A run
 counts as conforming when no model call in its audit failed (`model.failed`), was refused before
 dispatch (`model.refused`) or skipped its retry (`model.retry_skipped`). Refuses to overwrite.
+RUN_DIR and --out are read relative to the working directory, like any command-line path.
 """
 
 from __future__ import annotations
@@ -34,6 +35,11 @@ FUNNEL = (
 CALL_FAILURES = ("model.failed", "model.refused", "model.retry_skipped")
 
 
+def shown(path: Path) -> str:
+    """A path as the record names it: relative to the repository when inside it, else absolute."""
+    return str(path.relative_to(ROOT)) if path.is_relative_to(ROOT) else str(path)
+
+
 def summarize(directory: Path) -> dict:
     record = json.loads((directory / "run.json").read_text())
     result = json.loads((directory / "result.json").read_text())
@@ -48,7 +54,7 @@ def summarize(directory: Path) -> dict:
         if event.get("action") in CALL_FAILURES
     ]
     return {
-        "directory": str(directory.relative_to(ROOT)),
+        "directory": shown(directory),
         "run_id": record["runId"],
         "status": record["status"],
         "error_code": result.get("error_code"),
@@ -84,9 +90,7 @@ def main() -> int:
     args = parser.parse_args()
     runs = []
     for name in args.directories:
-        directory = (
-            (ROOT / name).resolve() if not Path(name).is_absolute() else Path(name)
-        )
+        directory = Path(name).resolve()
         summary = summarize(directory)
         question = directory.parent / f"{directory.name}.input.json"
         if question.exists():

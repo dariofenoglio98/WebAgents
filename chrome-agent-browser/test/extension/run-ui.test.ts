@@ -18,7 +18,7 @@ import { describe, expect, it } from "vitest";
 import type { HttpTransport } from "../../src/core/models/transport.js";
 import type { AuthorizationView, AuthorizeResult, ProbeView, Request, RunSummary, RunView, SessionView, SettingsView } from "../../src/extension/messages.js";
 import { buildFormModel, descriptionAdds, hintsFrom, TaskForm } from "../../src/extension/ui/form.js";
-import { formatElapsed, modelFailureFigures, refusalFigures, renderRunList, RunPanel, stagesFor } from "../../src/extension/ui/run.js";
+import { formatElapsed, modelFailureFigures, refusalFigures, renderRunList, RETRY_BOUND_WORDS, RunPanel, stagesFor } from "../../src/extension/ui/run.js";
 import { decisiveCallFailure } from "../../src/core/execution/report.js";
 import type { JsonObject } from "../../src/core/json.js";
 import { newSettingsPageState, OLLAMA_ORIGIN_COMMANDS, renderSettingsPage } from "../../src/extension/ui/settings-page.js";
@@ -437,13 +437,25 @@ describe("the run panel", () => {
       { action: "model.retry_skipped", worker: "Writer:2", node_id: "answer", reason: "budget", bound: "worker_token_budget" },
     ];
     expect(decisiveCallFailure(recovered as unknown as JsonObject[])).toMatchObject({ node_id: "answer" });
-    expect(modelFailureFigures(recovered)).toBe("The answer was complete (it stopped normally after 90 output tokens): this is not a token limit. It broke the schema's “required” rule. It was not asked again: a second request would not have fit the step's token budget.");
+    expect(modelFailureFigures(recovered)).toBe("The answer was complete (it stopped normally after 90 output tokens): this is not a token limit. It broke the schema's “required” rule. It was not asked again: a second request would have passed the step's token budget.");
     const twice = recovered.slice(0, 3).concat([{ action: "model.failed", worker: "Interpreter:1", node_id: "interpret", reason: "model_output_not_conforming", failure_facts: facts("pattern", "$defs/s27/properties/search/properties/date/pattern", 61) }]);
     expect(decisiveCallFailure(twice as unknown as JsonObject[])).toMatchObject({ failure_facts: { reported_output_tokens: 61 } });
     expect(modelFailureFigures(twice)).toContain("after 61 output tokens");
     expect(modelFailureFigures(twice)).toContain("The runtime asked once more with the same request");
     // Without a retry the decisive failure is the first, as the reference's failure_summary reads it.
     expect(decisiveCallFailure([recovered[0], recovered[1], recovered[5]] as unknown as JsonObject[])).toBe(recovered[1]);
+  });
+
+  it("a skipped retry names the limit it would have passed, from the event's bound; a null event is skipped (T10 review 1, finding 2 and nit 6)", () => {
+    const failed = { action: "model.failed", worker: "W:1", node_id: "n", reason: "model_output_not_conforming", failure_facts: { stop_reason: "stop", output_failure: "no_text" } };
+    const skipped = (bound: unknown) => modelFailureFigures([null, failed, { action: "model.retry_skipped", worker: "W:1", node_id: "n", reason: "budget", bound }]);
+    expect(skipped("global_token_budget")).toContain("a second request would have passed the run's token budget.");
+    expect(skipped("worker_token_budget")).toContain("a second request would have passed the step's token budget.");
+    expect(skipped("approval_threshold")).toContain("a second request would have passed the token amount above which the run would need your approval.");
+    expect(skipped("global_remote_calls")).toContain("a second request would have passed the run's limit on remote model calls.");
+    expect(skipped("worker_remote_calls")).toContain("a second request would have passed the step's limit on remote model calls.");
+    expect(skipped("something_new")).toContain("a second request would have passed one of the run's limits.");
+    expect(Object.keys(RETRY_BOUND_WORDS).sort()).toEqual(["approval_threshold", "global_remote_calls", "global_token_budget", "worker_remote_calls", "worker_token_budget"]);
   });
 
   it("a run whose model answer broke the package's schema says so on the panel, with the field (T9)", async () => {

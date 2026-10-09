@@ -1,7 +1,12 @@
 /**
- * From a Run Plan's model binding to a provider adapter (D-023): three routes, each bound to
+ * From a Run Plan's model binding to a provider adapter (D-023): four routes, each bound to
  * exactly one model id, no fallback. The host supplies what the binding deliberately does not
  * carry: the transport, base URLs, the person's keys, and the built-in model port.
+ *
+ * What the model delivers comes from the binding alone, for every route (D-130): the context
+ * window (`contextWindowFor`) and reasoning (`reasoningFor`) are read from the frozen descriptor
+ * that preflight evaluated, so the router's capabilities (`BoundModelRouter`) and the policy's
+ * model check agree with the plan by construction.
  */
 import { AdapterError } from "../workflow/errors.js";
 import { AnthropicAdapter } from "./adapters/anthropic.js";
@@ -34,7 +39,7 @@ export function adapterFor(binding: ModelBindingDescriptor, host: ProviderHostSe
       return new AnthropicAdapter({ ...common, model: binding.model_id, apiKey: host.anthropic?.apiKey, baseUrl: host.anthropic?.baseUrl, effort: host.anthropic?.effort });
     case "chrome-builtin":
       if (!host.builtin) throw new AdapterError("model_unavailable", "This host has no built-in model port");
-      return new ChromeBuiltinAdapter(host.builtin, contextWindow);
+      return new ChromeBuiltinAdapter(host.builtin, { contextWindow, reasoning });
     default:
       throw new AdapterError("selected_model_unavailable", `No adapter exists for provider ${JSON.stringify(binding.provider_id)}`);
   }

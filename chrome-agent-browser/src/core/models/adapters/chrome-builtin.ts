@@ -59,20 +59,33 @@ function quotaExceeded(error: unknown): boolean {
  * D-062); the router still parses and validates every answer. A `QuotaExceededError` from the
  * API (the prompt does not fit the session's `inputQuota`) is the request's fault, not the
  * model's absence: `model_request_invalid` (D-072; T5 review 1, nit 10).
+ *
+ * `reasoning` is what the bound model descriptor states (D-130): the Prompt API states none, so it
+ * is true only when the person said so in Settings → Models (D-113). It has no default, so no
+ * route can deliver less than the plan was prepared with.
  */
+export interface ChromeBuiltinAdapterOptions {
+  contextWindow: number;
+  reasoning: boolean;
+}
+
 export class ChromeBuiltinAdapter implements ProviderAdapter {
   readonly provider_id = CHROME_BUILTIN_PROVIDER;
   readonly model_id = CHROME_BUILTIN_MODEL;
   readonly host_model_id = CHROME_BUILTIN_HOST_MODEL_ID;
   readonly remote = false;
-  readonly reasoning = false;
+  readonly reasoning: boolean;
+  readonly context_window: number;
   readonly domains: readonly string[] = [];
   readonly pricing: ModelPricing | null = null;
 
   constructor(
     private readonly port: BuiltinModelPort,
-    readonly context_window: number,
-  ) {}
+    options: ChromeBuiltinAdapterOptions,
+  ) {
+    this.context_window = options.contextWindow;
+    this.reasoning = options.reasoning;
+  }
 
   async complete(rendered: RenderedRequest, maxOutputTokens: number, signal: AbortSignal): Promise<ProviderCompletion> {
     if ((await this.port.availability()) !== "available") {
