@@ -10,14 +10,21 @@ import { describe, expect, it, vi } from "vitest";
 
 import { CHROME_BUILTIN_MODEL_ID } from "../../src/core/models/catalog.js";
 import { builtinReader } from "../../src/extension/execution/builtin-port.js";
-import type { AuthorizationView, AuthorizeResult, ProbeView, SessionView, SettingsView } from "../../src/extension/messages.js";
+import type { AuthorizationView, AuthorizeResult, ProbeView, RunView, SessionView, SettingsView } from "../../src/extension/messages.js";
+import type { HttpTransport } from "../../src/core/models/transport.js";
 import { newAuthorizeState, renderAuthorizeView } from "../../src/extension/ui/authorize.js";
 import { newSettingsPageState, renderSettingsPage } from "../../src/extension/ui/settings-page.js";
 import type { Settings } from "../../src/extension/storage/settings.js";
 import { SHIPPED } from "../helpers/paths.js";
 import { makeHarness, PAGE, SITE_ORIGIN, WEBAIR_040_URL, type Harness } from "../helpers/shell.js";
+import { scriptedBuiltin, scriptedOrigin, webairModelAnswers } from "../helpers/host.js";
 
 const QWEN = "ollama/qwen3:30b";
+const SEARCH = { request: "Find me a nonstop flight from Boston to Zurich on 9 October under $900.", booking: false, purchase: { quote_id: "", fare_id: "" } };
+/** No model endpoint may be reached: the built-in model answers in the browser. */
+const refusing: HttpTransport = async (request) => {
+  throw new Error(`unexpected model request to ${request.url}`);
+};
 
 /** A stubbed `LanguageModel` global: its availability answer and the quota of the sessions it creates. */
 function promptApi(availability: string, inputQuota = 9216) {
@@ -187,6 +194,32 @@ describe("a WebAir plan on the built-in model", () => {
     expect(root.querySelector(".ab-plan-model-note")?.textContent).toBe(`This plan runs on ${QWEN}. Your default model is now ${CHROME_BUILTIN_MODEL_ID}: press “Use this agent” to prepare a plan on it.`);
     const second = (await h.controller.handle({ type: "authorization.useProfile", sessionId: session.session.id, packageDigest: SHIPPED.webair040.digest, profileId: "search", resourceSelections: {}, prepare: true }, PAGE)) as AuthorizeResult;
     expect(second.run_plan!.run_plan.model_binding).toMatchObject({ host_model_id: CHROME_BUILTIN_MODEL_ID });
+  });
+});
+
+describe("a WebAir run on the built-in model (T11, D-130)", () => {
+  it("the person's \"Reasons: yes\" reaches execution: the run passes the policy's model check and completes on the scripted Prompt API", async () => {
+    const builtin = scriptedBuiltin(webairModelAnswers());
+    const origin = scriptedOrigin();
+    const h = makeHarness({ builtinPort: builtin.port, transports: { model: refusing, tool: origin.transport } });
+    h.builtin.availability = { availability: "available", input_quota: 9216 };
+    const session = await openWebair(h);
+    // As the user had it (2026-10-09): the built-in model is the default, "Reasons: yes", and a stated context.
+    await save(h, (settings) => ({ ...builtinOverride(settings, { reasoning: true, context_tokens: 65536 }), models: { ...builtinOverride(settings, { reasoning: true, context_tokens: 65536 }).models, default_model: CHROME_BUILTIN_MODEL_ID } }));
+    const result = (await h.controller.handle({ type: "authorization.useProfile", sessionId: session.session.id, packageDigest: SHIPPED.webair040.digest, profileId: "search", resourceSelections: {}, prepare: true }, PAGE)) as AuthorizeResult;
+    expect(result.run_plan?.preflight.ready, JSON.stringify(result.plan_refused)).toBe(true);
+    const plan = result.run_plan!.run_plan;
+    expect(plan.model_binding).toMatchObject({ host_model_id: CHROME_BUILTIN_MODEL_ID, descriptor: { capabilities: { reasoning: { value: true, basis: "declared" } } } });
+    const started = (await h.controller.handle({ type: "run.start", sessionId: session.session.id, runPlanId: plan.run_plan_id, runPlanSha256: plan.run_plan_sha256, input: SEARCH }, PAGE)) as RunView;
+    await h.host.drain();
+    const run = (await h.controller.handle({ type: "run.get", runId: started.runId }, PAGE)) as RunView;
+    // Before the fix the adapter stated no reasoning, and the run failed here with execution_model_incompatible.
+    expect(run.errorCode ?? null, run.errorDetail ?? "").toBeNull();
+    expect(run.status).toBe("completed");
+    expect(run.model).toMatchObject({ planned: CHROME_BUILTIN_MODEL_ID, invoked: [CHROME_BUILTIN_MODEL_ID], providers: ["chrome-builtin"], allCallsUsedPlannedModel: true });
+    // The built-in model answered every model step; nothing went to a model endpoint.
+    expect(builtin.prompts).toHaveLength(run.model!.calls);
+    expect(origin.seen.map((request) => new URL(request.url).pathname)).toContain("/api/v1/search_flights");
   });
 });
 

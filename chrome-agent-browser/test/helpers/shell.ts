@@ -7,6 +7,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import type { BuiltinAvailability, Http, HttpRequest } from "../../src/core/models/catalog.js";
+import type { BuiltinModelPort } from "../../src/core/models/adapters/chrome-builtin.js";
 import { MemoryTrustStorage, TrustStore } from "../../src/core/trust.js";
 import { Controller, type ControllerDeps, type Fetch, type Limits, type Sender } from "../../src/extension/background/controller.js";
 import type { Event } from "../../src/extension/messages.js";
@@ -185,6 +186,8 @@ export function makeHarness(
     onEvent?: (event: Event) => void;
     /** The picked-file store (T6), shared by the controller and the in-process host. */
     files?: MemoryFileStore;
+    /** The execution host's built-in model port (the Prompt API, D-072); absent: the host has none. */
+    builtinPort?: BuiltinModelPort;
   } = {},
 ): Harness {
   const routes = options.routes ?? webairRoutes();
@@ -205,7 +208,7 @@ export function makeHarness(
   const trust = new TrustStore(trustStorage, () => clock.now.toISOString());
   const runs = options.runs ?? new MemoryRunStore();
   const files = options.files ?? new MemoryFileStore();
-  const host = new InProcessHost({ runs, snapshots, files, model: options.transports?.model ?? refusingTransport(), tool: options.transports?.tool ?? refusingTransport(), now: () => clock.now, ...(options.hostOptions ?? {}) });
+  const host = new InProcessHost({ runs, snapshots, files, model: options.transports?.model ?? refusingTransport(), tool: options.transports?.tool ?? refusingTransport(), builtin: options.builtinPort ?? null, now: () => clock.now, ...(options.hostOptions ?? {}) });
   const deps: ControllerDeps = {
     runs,
     files,
