@@ -6,8 +6,8 @@
  * `e2e-discovery.mjs` does, D-037). A local HTTPS server answers for the WebAir deployment's
  * hostname (`--host-resolver-rules`, a throwaway certificate whose key alone is trusted) with
  * exactly the files that deployment serves beside the airline (D-105): the signed demo index,
- * the signed research policy, Literature Review 0.2.5 and WebAir 0.4.0, all byte for byte from
- * the repository. Nothing in the extension is relaxed, and nothing reaches the network.
+ * the signed research policy, Literature Review 0.2.6 (and 0.2.5, which index 1.0.0 named) and
+ * WebAir 0.5.0, all byte for byte from the repository (T11: demo index 1.1.0, D-131). Nothing in the extension is relaxed, and nothing reaches the network.
  *
  * Through the extension's own pages, as a person would:
  *   1. Settings → Search: fill in the demo index, Add and verify → listed as verified, signed by
@@ -21,7 +21,10 @@
  *      "Search flights" → the receipt names the policy and records `policy` for the decisions it
  *      made; Customize → memory once → the receipt records the person for that decision;
  *   6. Unsubscribe → WebAir's publisher is unknown again.
- * Writes JSON with "passed" (default `examples/verification/chrome-search-policy-e2e.json`).
+ *   7. the address bar: "flights@webair.example" → WebAir 0.5.0 from the demo index → Open and
+ *      verify → every claim matches the bytes (T11).
+ * Writes JSON with "passed" (default `examples/verification/chrome-search-policy-e2e-index-110.json`;
+ * `chrome-search-policy-e2e.json` is the T8 run over index 1.0.0, kept as recorded).
  *
  *   npm run build && node scripts/e2e-search-policy.mjs [--chrome <path>] [--out <report.json>] [--keep]
  */
@@ -44,13 +47,14 @@ const ORIGIN = `https://${HOST}`;
 const FILES = {
   "/agent-index.json": { path: join(ROOT, "examples", "agent-index.json"), type: "application/json" },
   "/policies/webagents-research.json": { path: join(ROOT, "examples", "policies", "webagents-research.json"), type: "application/json" },
+  "/packages/literature-review-0.2.6.agent.pkg": { path: join(ROOT, "dist", "literature-review-0.2.6.agent.pkg"), type: "application/vnd.webagents.agent-package" },
   "/packages/literature-review-0.2.5.agent.pkg": { path: join(ROOT, "dist", "literature-review-0.2.5.agent.pkg"), type: "application/vnd.webagents.agent-package" },
-  "/agent.pkg": { path: join(ROOT, "dist", "webair-0.4.0.agent.pkg"), type: "application/vnd.webagents.agent-package" },
+  "/agent.pkg": { path: join(ROOT, "dist", "webair-0.5.0.agent.pkg"), type: "application/vnd.webagents.agent-package" },
 };
 const INDEX_FINGERPRINT = "sha256:e0e7022b5836da157d7d55a9d7b00cb58e236d5270ab103162e63706b49f5103";
 const POLICY_FINGERPRINT = "sha256:829e28368a71c10bc346a563205ad4b699351d8bed06b21d9671db132c197d7a";
 
-const args = { chrome: process.env.CHROME_PATH || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", out: join(ROOT, "examples", "verification", "chrome-search-policy-e2e.json"), keep: false };
+const args = { chrome: process.env.CHROME_PATH || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", out: join(ROOT, "examples", "verification", "chrome-search-policy-e2e-index-110.json"), keep: false };
 for (let index = 2; index < process.argv.length; index += 1) {
   const argument = process.argv[index];
   if (argument === "--chrome") args.chrome = process.argv[(index += 1)];
@@ -183,14 +187,14 @@ async function main() {
     await cdp.evaluate(page, `__t8.type('input[name="package-url"]', "literature review") && __t8.click("Open", "form.ab-address")`);
     const cards = await cdp.waitFor(page, `(() => { const cards = [...document.querySelectorAll(".ab-result")]; return cards.length ? cards.map((card) => ({ id: card.dataset.packageId, url: card.dataset.packageUrl, text: card.textContent })) : null; })()`, "the search results");
     report.steps.search = { results: cards.map((card) => ({ id: card.id, url: card.url })), source: cards[0]?.text.match(/Found in [^·]+/u)?.[0] ?? null };
-    check("a search for 'literature review' lists the package from the demo index", cards.length === 1 && cards[0].id === "org.webagents.literature-review" && cards[0].text.includes("Found in WebAgents demo index 1.0.0"), cards);
+    check("a search for 'literature review' lists the package from the demo index", cards.length === 1 && cards[0].id === "org.webagents.literature-review" && cards[0].text.includes("Found in WebAgents demo index 1.1.0") && cards[0].url === `${ORIGIN}/packages/literature-review-0.2.6.agent.pkg`, cards);
     await cdp.evaluate(page, `__t8.click("Open and verify", ".ab-result")`);
     await cdp.waitFor(page, `document.querySelector("article.ab-agent") !== null && document.querySelector(".ab-found-via") !== null`, "the agent page");
     const literatureSession = await sessionId();
     const literature = await send({ type: "package.get", sessionId: literatureSession });
     report.steps.open = { headline: await cdp.evaluate(page, `__t8.headline()`), signature: literature.page.trust.signature_status, signer: literature.page.trust.signer_fingerprint, archiveSha256: literature.snapshot.archive_sha256, validation: literature.summary.validation, foundVia: literature.found_via, banner: await cdp.evaluate(page, `document.querySelector(".ab-found-via")?.dataset.claims ?? null`) };
     check("it opens verified: all four layers valid and the signature valid", ["container_status", "integrity_status", "schema_status"].every((layer) => literature.summary.validation?.[layer] === "valid") && literature.page.trust.signature_status === "valid", report.steps.open);
-    check("the opened bytes are the shipped Literature Review 0.2.5", literature.snapshot.archive_sha256 === report.served["/packages/literature-review-0.2.5.agent.pkg"].sha256, literature.snapshot.archive_sha256);
+    check("the opened bytes are the shipped Literature Review 0.2.6", literature.snapshot.archive_sha256 === report.served["/packages/literature-review-0.2.6.agent.pkg"].sha256 && literature.page.identity.version === "0.2.6", { archive: literature.snapshot.archive_sha256, version: literature.page.identity.version });
     check("the index's claims match the bytes, and the page says so", literature.found_via && Object.values(literature.found_via.claims).every((claim) => claim === "matches") && report.steps.open.banner === "matches", literature.found_via);
 
     // 3. The Library.
@@ -199,7 +203,7 @@ async function main() {
     await go("#library");
     const pinned = await cdp.waitFor(page, `(() => { const row = document.querySelector(".ab-library-row"); return row ? row.dataset.packageUrl : null; })()`, "the Library");
     report.steps.library = { pinned };
-    check("the pinned agent is on the Library page", pinned === `${ORIGIN}/packages/literature-review-0.2.5.agent.pkg`, pinned);
+    check("the pinned agent is on the Library page", pinned === `${ORIGIN}/packages/literature-review-0.2.6.agent.pkg`, pinned);
 
     // 4. Settings → Policies: subscribe to the research policy.
     await go("#settings?section=policies");
@@ -244,8 +248,21 @@ async function main() {
     const after = await send({ type: "package.get", sessionId: webairSession });
     report.steps.revoke = { trust: after.page.trust.trust_status, reason: after.page.trust.trust_reason };
     check("after unsubscribing, WebAir's publisher is unknown again", after.page.trust.trust_status === "unknown", report.steps.revoke);
+
+    // 7. WebAir from the index (T11): the entry names 0.5.0, the bytes the origin serves, so its claims match.
+    await go("#open");
+    await cdp.waitFor(page, `document.querySelector('input[name="package-url"]') !== null`, "the address bar");
+    await cdp.evaluate(page, `__t8.type('input[name="package-url"]', "flights@webair.example") && __t8.click("Open", "form.ab-address")`);
+    const webairCards = await cdp.waitFor(page, `(() => { const cards = [...document.querySelectorAll(".ab-result")]; return cards.length ? cards.map((card) => ({ id: card.dataset.packageId, url: card.dataset.packageUrl, text: card.textContent })) : null; })()`, "the WebAir search result");
+    check("a search for WebAir's locator lists WebAir 0.5.0 from the demo index", webairCards.length === 1 && webairCards[0].id === "org.webagents.webair" && webairCards[0].url === `${ORIGIN}/agent.pkg` && webairCards[0].text.includes("0.5.0"), webairCards);
+    await cdp.evaluate(page, `__t8.click("Open and verify", ".ab-result")`);
+    await cdp.waitFor(page, `(document.querySelector("article.ab-agent h2")?.textContent ?? "").includes("WebAir") && document.querySelector(".ab-found-via") !== null`, "WebAir's agent page from the index");
+    const fromIndex = await send({ type: "package.get", sessionId: await sessionId() });
+    report.steps.webairFromIndex = { results: webairCards.map((card) => ({ id: card.id, url: card.url })), version: fromIndex.page.identity.version, archiveSha256: fromIndex.snapshot.archive_sha256, foundVia: fromIndex.found_via, banner: await cdp.evaluate(page, `document.querySelector(".ab-found-via")?.dataset.claims ?? null`) };
+    check("WebAir opened from the index is 0.5.0, the served bytes, and every claim matches", fromIndex.page.identity.version === "0.5.0" && fromIndex.snapshot.archive_sha256 === report.served["/agent.pkg"].sha256 && fromIndex.found_via && Object.values(fromIndex.found_via.claims).every((claim) => claim === "matches") && report.steps.webairFromIndex.banner === "matches", report.steps.webairFromIndex);
+
     report.steps.origin = { requests: served.hits };
-    check("only the four served files were requested", served.hits.every((hit) => Object.keys(FILES).some((path) => hit.endsWith(path))), served.hits);
+    check("only the served files were requested", served.hits.every((hit) => Object.keys(FILES).some((path) => hit.endsWith(path))), served.hits);
   } catch (error) {
     report.failures.push(`harness: ${error instanceof Error ? error.message : String(error)}`);
     report.steps.lastPage = await snapshot().catch(() => null);

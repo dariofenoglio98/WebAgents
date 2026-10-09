@@ -13,7 +13,8 @@ The bundle holds exactly what the public origin runs:
     demo/agent-index.json                  the WebAgents demo documents served beside the
     demo/policies/webagents-research.json  airline (T8, `origin/demo_documents.py`): the signed
     demo/packages/literature-review-…      index, the signed example policy, and the signed
-                                           Literature Review package the index lists, verbatim
+                                           Literature Review packages (0.2.6, which the index
+                                           lists, and 0.2.5, which index 1.0.0 listed), verbatim
     BUNDLE.json                            what is in it: every file's size and SHA-256
 
 Nothing else from the repository goes in. In particular the demo host's own configuration
@@ -47,6 +48,9 @@ DEMO_DOCUMENTS = {
     / "examples"
     / "policies"
     / "webagents-research.json",
+    "demo/packages/literature-review-0.2.6.agent.pkg": REPO
+    / "dist"
+    / "literature-review-0.2.6.agent.pkg",
     "demo/packages/literature-review-0.2.5.agent.pkg": REPO
     / "dist"
     / "literature-review-0.2.5.agent.pkg",

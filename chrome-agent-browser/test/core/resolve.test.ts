@@ -54,7 +54,7 @@ describe("what the address bar searches", () => {
 describe("the agent index (spec §4)", () => {
   it("reads the demo index in its own order", () => {
     const index = readAgentIndex(CONTENT);
-    expect(index.entries.map((entry) => entry.package_id)).toEqual([SHIPPED.literatureReview.packageId, SHIPPED.webair040.packageId]);
+    expect(index.entries.map((entry) => entry.package_id)).toEqual([SHIPPED.literatureReview026.packageId, SHIPPED.webair050.packageId]);
     expect(index.notes).toEqual([]);
   });
 
@@ -68,8 +68,8 @@ describe("the agent index (spec §4)", () => {
       }
     };
     expect(code(variant((c) => (c.expires_at = c.issued_at)))).toMatch(/document_content_invalid: .*expires_at/u);
-    expect(code(variant((c) => c.entries.push({ ...c.entries[0]!, package_url: "https://other.example/x.agent.pkg" })))).toMatch(/lists org\.webagents\.literature-review@0\.2\.5 twice/u);
-    expect(code(variant((c) => c.entries.push({ ...c.entries[0]!, version: "0.2.6" })))).toMatch(/package URL .* twice/u);
+    expect(code(variant((c) => c.entries.push({ ...c.entries[0]!, package_url: "https://other.example/x.agent.pkg" })))).toMatch(/lists org\.webagents\.literature-review@0\.2\.6 twice/u);
+    expect(code(variant((c) => c.entries.push({ ...c.entries[0]!, version: "0.2.7" })))).toMatch(/package URL .* twice/u);
   });
 
   it.each([
@@ -79,7 +79,7 @@ describe("the agent index (spec §4)", () => {
     ["https://example.org:8443/a.agent.pkg", /port 443/u],
   ])("leaves out an entry whose URL the browser's gate refuses (%s)", (url, why) => {
     const index = readAgentIndex(variant((c) => (c.entries[0]!.package_url = url)));
-    expect(index.entries.map((entry) => entry.package_id)).toEqual([SHIPPED.webair040.packageId]);
+    expect(index.entries.map((entry) => entry.package_id)).toEqual([SHIPPED.webair050.packageId]);
     expect(index.notes).toHaveLength(1);
     expect(index.notes[0]!.code).toBe("entry_url_refused");
     expect(index.notes[0]!.detail).toMatch(why);
@@ -101,18 +101,18 @@ describe("StaticIndexResolver", () => {
     expect(result.notes).toEqual([]);
     expect(result.candidates).toHaveLength(1);
     const candidate = result.candidates[0]!;
-    expect(candidate).toMatchObject({ package_id: SHIPPED.literatureReview.packageId, version: "0.2.5", digest: SHIPPED.literatureReview.digest, signer_fingerprint: SHIPPED.literatureReview.fingerprint });
-    expect(candidate.source).toEqual({ resolver: "static-index", resolver_id: "org.webagents.demo-index", label: "WebAgents demo index", version: "1.0.0", verified_by: `sha256:${"a".repeat(64)}`, content_sha256: "b".repeat(64), position: 0 });
+    expect(candidate).toMatchObject({ package_id: SHIPPED.literatureReview026.packageId, version: "0.2.6", digest: SHIPPED.literatureReview026.digest, signer_fingerprint: SHIPPED.literatureReview026.fingerprint });
+    expect(candidate.source).toEqual({ resolver: "static-index", resolver_id: "org.webagents.demo-index", label: "WebAgents demo index", version: "1.1.0", verified_by: `sha256:${"a".repeat(64)}`, content_sha256: "b".repeat(64), position: 0 });
   });
 
   it("matches every word anywhere, a locator exactly, and keeps the index's order", async () => {
-    expect((await resolver.query(q("fictional airline"))).candidates.map((c) => c.package_id)).toEqual([SHIPPED.webair040.packageId]);
-    expect((await resolver.query(q("flights@webair.example"))).candidates.map((c) => c.package_id)).toEqual([SHIPPED.webair040.packageId]);
+    expect((await resolver.query(q("fictional airline"))).candidates.map((c) => c.package_id)).toEqual([SHIPPED.webair050.packageId]);
+    expect((await resolver.query(q("flights@webair.example"))).candidates.map((c) => c.package_id)).toEqual([SHIPPED.webair050.packageId]);
     expect((await resolver.query(q("webair.example"))).candidates).toHaveLength(1);
     expect((await resolver.query(q("flights@other.example"))).candidates).toEqual([]);
     expect((await resolver.query(q("quantum teleportation"))).candidates).toEqual([]);
     expect((await resolver.query({ kind: "text", text: "" })).candidates.map((c) => c.source.position)).toEqual([0, 1]);
-    expect(resolver.entryFor(`https://webagents-webair-production.up.railway.app/agent.pkg`)?.package_id).toBe(SHIPPED.webair040.packageId);
+    expect(resolver.entryFor(`https://webagents-webair-production.up.railway.app/agent.pkg`)?.package_id).toBe(SHIPPED.webair050.packageId);
   });
 
   it("answers nothing from an expired index, and says so", async () => {

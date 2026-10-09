@@ -57,7 +57,7 @@ export const SHIPPED = {
     archiveSha256: "1669f83fafac3434748fc19d38a8d3d2c3352da83cf1cbb84796ce313bd4f571",
     fingerprint: "sha256:c5ca9763f9fc71253298ca381ec14c4d7432009c74dacc69df6344b71de05232",
   },
-  /** T10: the current Literature Review; `literatureReview` stays 0.2.5, which the index, the reader schemas and the summaries describe. */
+  /** T10: the current Literature Review, which the demo index 1.1.0 names (T11); `literatureReview` stays 0.2.5, which index 1.0.0, the reader schemas and the summaries describe. */
   literatureReview026: {
     archive: resolve(ROOT, "dist/literature-review-0.2.6.agent.pkg"),
     key: resolve(ROOT, "examples/keys/literature-review-publisher.pub.pem"),

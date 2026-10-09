@@ -185,6 +185,11 @@ def check_packages() -> dict:
     report["package_origin_copy_identical"] = (
         origin.read_bytes() == (DIST / "literature-review.agent.pkg").read_bytes()
     )
+    # T11 (D-131): the package the demo index 1.1.0 names, served at its indexed path too.
+    current = ROOT / "package-origin/packages/literature-review-0.2.6.agent.pkg"
+    report["package_origin_current_copy_identical"] = (
+        current.read_bytes() == (DIST / "literature-review-0.2.6.agent.pkg").read_bytes()
+    )
     # T8: the signed demo index and policy package-origin serves are the ones in examples/.
     documents = {
         "agent-index.json": "examples/agent-index.json",
@@ -329,6 +334,7 @@ def main() -> int:
     report["passed"] = (
         all(packages[name]["passed"] for name in CURRENT_PACKAGES)
         and packages["package_origin_copy_identical"]
+        and packages["package_origin_current_copy_identical"]
         and packages["package_origin_documents_identical"]
         and packages["package_origin_document_pins"]["passed"]
         and all(section["passed"] for key, section in report.items() if key != "packages")

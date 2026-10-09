@@ -35,7 +35,7 @@ def create_app(
     demo_documents_path: str | Path | None = None,
 ) -> FastAPI:
     """Build the origin. `agent_package_path` is the only file /agent.pkg may ever serve;
-    `demo_documents_path` the only directory the three demo-document paths read from (T8)."""
+    `demo_documents_path` the only directory the demo-document paths read from (T8)."""
     package = (
         agent_package.PublishedPackage.load(agent_package_path)
         if agent_package_path is not None
