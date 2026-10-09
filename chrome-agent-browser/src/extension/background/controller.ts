@@ -36,7 +36,7 @@ import type { JsonObject, JsonValue } from "../../core/json.js";
 import { publicKeyFromPem, publicKeyFromRawBase64, rawBase64, fingerprint as keyFingerprint } from "../../core/keys.js";
 import { applyPolicy, cappedLimits, modelPolicyReasons, PolicyTrust, type ActivePolicy, type ToolBindingFacts } from "../../core/policies/apply.js";
 import { heldPolicy, policyLabel, policyState, type HeldPolicy } from "../../core/policies/bundle.js";
-import { NandaResolver } from "../../core/resolve/nanda.js";
+import { NANDA_NOT_CONFIGURED, NandaResolver } from "../../core/resolve/nanda.js";
 import { indexState, StaticIndexResolver, verifiedIndex, type VerifiedIndex } from "../../core/resolve/static-index.js";
 import { readQuery, type AgentCandidate, type ResolveNote } from "../../core/resolve/types.js";
 import { AGENT_INDEX_TYPE, MAX_DOCUMENT_BYTES, POLICY_BUNDLE_TYPE, verifySignedDocument, type DocumentContentType, type VerifiedDocument } from "../../core/signed-document.js";
@@ -89,7 +89,7 @@ import {
 import { FileRefusal, MemoryFileStore, MAX_FILE_BYTES, MAX_FILES, MAX_TOTAL_FILE_BYTES, newFile, viewOf, type FileStore } from "../storage/files.js";
 import { connectionsFor, endpointProblem, MemoryStorageArea, normalizeSettings, settingsProblem, type Settings, type SettingsStorage } from "../storage/settings.js";
 import type { SnapshotStore, StoredSession } from "../storage/snapshots.js";
-import { MAX_INDEXES, SubscriptionStorage, type LibraryEntry, type StoredIndex, type StoredPolicy } from "../storage/subscriptions.js";
+import { MAX_INDEXES, MAX_PINNED, SubscriptionStorage, type LibraryEntry, type StoredIndex, type StoredPolicy } from "../storage/subscriptions.js";
 import type { TabStateStore } from "../storage/tab-state.js";
 import type { ViewHolder, ViewHolderStore } from "../storage/view-holders.js";
 import type { RunStore } from "../storage/runs.js";
@@ -271,6 +271,8 @@ export class Controller {
   private readonly trust: PolicyTrust;
   /** Verified documents by type, key and text: re-verification is skipped only for identical bytes. */
   private readonly verifiedDocuments = new Map<string, VerifiedDocument>();
+  /** The last subscribed policy read (`heldPolicyOf`), by its stored text and pinned key. */
+  private heldPolicyCache: { text: string; key: string; held: HeldPolicy } | null = null;
 
   /** Runs from the browser (T5): decides whether a run starts; the host executes. */
   readonly runs: RunManager;
@@ -1715,7 +1717,7 @@ export class Controller {
   }
 
   private async indexView(stored: StoredIndex): Promise<IndexView> {
-    const { held } = await this.heldIndex(stored);
+    const { held, error } = await this.heldIndex(stored);
     const index = held?.index ?? null;
     return {
       url: stored.url,
@@ -1728,6 +1730,7 @@ export class Controller {
       signer_fingerprint: held?.signer_fingerprint ?? null,
       content_sha256: held?.content_sha256 ?? null,
       last_error: stored.last_error,
+      unverified_reason: held === null ? error : null,
     };
   }
 
@@ -1736,7 +1739,7 @@ export class Controller {
     return {
       indexes: await Promise.all(indexes.map((stored) => this.indexView(stored))),
       max_indexes: MAX_INDEXES,
-      nanda: { configured: false, note: (await new NandaResolver().query({ kind: "locator", text: "" })).notes[0]?.detail ?? "Not configured." },
+      nanda: { configured: false, note: NANDA_NOT_CONFIGURED },
     };
   }
 
@@ -1815,9 +1818,14 @@ export class Controller {
     const enabled = (await this.subscriptions.indexes()).filter((item) => item.enabled);
     for (const [order, initial] of enabled.entries()) {
       let stored = initial;
-      const age = stored.document ? this.clock().getTime() - Date.parse(stored.document.fetched_at) : Number.POSITIVE_INFINITY;
+      const now = this.clock().getTime();
+      const age = stored.document ? now - Date.parse(stored.document.fetched_at) : Number.POSITIVE_INFINITY;
       const refreshed = age > INDEX_REFRESH_MS;
-      if (refreshed) stored = await this.refetchIndex(stored);
+      // A refresh that failed within the hour is not tried again on every search: each attempt can
+      // wait out the document timeout while the host is down (T8 review 1, finding 1). Refresh in
+      // Settings → Search always fetches.
+      const failedRecently = stored.last_error !== null && now - Date.parse(stored.last_error.at) < INDEX_REFRESH_MS;
+      if (refreshed && !failedRecently) stored = await this.refetchIndex(stored);
       const { held, error } = await this.heldIndex(stored);
       if (held === null) {
         notes.push({ source: stored.url, code: stored.last_error?.code ?? "index_unverified", detail: stored.last_error?.message ?? error ?? "This index has no verified copy; refresh it in Settings → Search." });
@@ -1869,8 +1877,16 @@ export class Controller {
   }
 
   // The policy subscription (D-103: one at a time).
+  /**
+   * The subscribed bundle, verified and read once per stored text and key (T8 review 1, nit 5):
+   * `activePolicy` is asked per search candidate and per Library row, and the bytes rarely change.
+   */
   private async heldPolicyOf(stored: StoredPolicy): Promise<HeldPolicy> {
-    return heldPolicy(await this.verifiedDocument(stored.document.text, POLICY_BUNDLE_TYPE, stored.key));
+    const cached = this.heldPolicyCache;
+    if (cached !== null && cached.text === stored.document.text && cached.key === stored.key) return cached.held;
+    const held = await heldPolicy(await this.verifiedDocument(stored.document.text, POLICY_BUNDLE_TYPE, stored.key));
+    this.heldPolicyCache = { text: stored.document.text, key: stored.key, held };
+    return held;
   }
 
   /** The subscribed policy, when it verifies and is inside its validity window; null otherwise (an expired policy decides nothing). */
@@ -2005,7 +2021,12 @@ export class Controller {
 
   async pinToLibrary(sessionId: string): Promise<LibraryView> {
     const entry = this.libraryEntry(await this.session(sessionId));
-    await this.subscriptions.updateLibrary((library) => ({ ...library, pinned: [entry, ...library.pinned.filter((item) => item.package_url !== entry.package_url)] }));
+    await this.subscriptions.updateLibrary((library) => {
+      const others = library.pinned.filter((item) => item.package_url !== entry.package_url);
+      // Refused by name, as `addIndex` does, rather than silently dropping the oldest pin (T8 review 1, nit 6).
+      if (others.length >= MAX_PINNED) throw reject("library_limit", `At most ${MAX_PINNED} agents can be pinned; unpin one first.`, 409);
+      return { ...library, pinned: [entry, ...others] };
+    });
     this.deps.broadcast({ type: "event.library" });
     this.deps.broadcast({ type: "event.sessions" });
     return this.libraryView();

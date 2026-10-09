@@ -12,7 +12,9 @@ import { describe, expect, it } from "vitest";
 
 import { CoreError } from "../../src/core/errors.js";
 import type { JsonObject } from "../../src/core/json.js";
+import { NANDA_NOT_CONFIGURED } from "../../src/core/resolve/nanda.js";
 import { AGENT_INDEX_TYPE, POLICY_BUNDLE_TYPE } from "../../src/core/signed-document.js";
+import { MAX_PINNED, type SubscriptionStorage } from "../../src/extension/storage/subscriptions.js";
 import type { AuthorizationView, AuthorizeResult, IndexesView, LibraryView, PolicyView, RunPlanState, SearchView, SessionView, SettingsView, StatusInfo } from "../../src/extension/messages.js";
 import { readBytes, ROOT, SHIPPED } from "../helpers/paths.js";
 import { makeHarness, PAGE, type Harness, type Route } from "../helpers/shell.js";
@@ -284,5 +286,89 @@ describe("the Library (deliverable 3)", () => {
     expect((await send<LibraryView>(h, { type: "library.get" })).pinned[0]).toMatchObject({ trust_status: "trusted", trust_reason: "policy_anchor" });
     expect((await send<LibraryView>(h, { type: "library.unpin", packageUrl: LITERATURE_URL })).pinned).toEqual([]);
     expect((await send<LibraryView>(h, { type: "library.forget", packageUrl: WEBAIR_URL })).recent.map((entry) => entry.package_id)).toEqual([SHIPPED.literatureReview.packageId]);
+  });
+});
+
+describe("T8 review carry-overs (T9, B-136)", () => {
+  it("a failed refresh is not tried again on every search within the hour; Refresh still fetches (finding 1)", async () => {
+    const h = harness();
+    await send(h, { type: "indexes.add", url: INDEX_URL, publicKeyPem: INDEX_PEM });
+    const fetches = () => h.fetchLog.filter((entry) => entry.url === INDEX_URL).length;
+    h.clock.now = new Date(AFTER_ISSUE.getTime() + 2 * 3600_000);
+    h.routes[INDEX_URL] = { fail: true };
+    const first = await send<SearchView>(h, { type: "search.query", text: "review" });
+    expect(fetches()).toBe(2);
+    expect(first.results).toHaveLength(1); // the held copy is searched
+    expect(first.notes.map((note) => note.detail)).toContainEqual(expect.stringContaining("Could not refresh it"));
+    // Ten minutes later: no new attempt, the same note.
+    h.clock.now = new Date(h.clock.now.getTime() + 10 * 60_000);
+    const second = await send<SearchView>(h, { type: "search.query", text: "review" });
+    expect(fetches()).toBe(2);
+    expect(second.notes.map((note) => note.detail)).toContainEqual(expect.stringContaining("Could not refresh it"));
+    // An explicit refresh always asks; an hour after the last failure a search tries again.
+    await send(h, { type: "indexes.refresh", url: INDEX_URL });
+    expect(fetches()).toBe(3);
+    h.clock.now = new Date(h.clock.now.getTime() + 61 * 60_000);
+    h.routes[INDEX_URL] = demoRoutes()[INDEX_URL]!;
+    const recovered = await send<SearchView>(h, { type: "search.query", text: "review" });
+    expect(fetches()).toBe(4);
+    expect(recovered.notes.map((note) => note.code)).not.toContain("download_failed");
+    expect((await send<IndexesView>(h, { type: "indexes.list" })).indexes[0]!.last_error).toBeNull();
+  });
+
+  it("an entry's display-only homepage is checked as an https URL, not as a package URL; a bad one loses the homepage, not the entry (finding 3)", async () => {
+    const signer = newSigner();
+    const url = "https://index.example/homepages.json";
+    const base = INDEX_CONTENT.entries as JsonObject[];
+    // A port and a fragment fail the package URL gate (443, no fragment) but are fine for a link; credentials are not.
+    const entries: JsonObject[] = [{ ...base[0]!, homepage: "https://docs.example:8443/agent#about" }, { ...base[1]!, homepage: "https://someone@docs.example/" }];
+    const h = harness({ [url]: { body: await signedBytes(AGENT_INDEX_TYPE, { ...INDEX_CONTENT, index_id: "org.example.homepages", entries }, signer) } });
+    const added = await send<IndexesView>(h, { type: "indexes.add", url, publicKeyPem: signer.pem });
+    expect(added.indexes[0]!.index).toMatchObject({ entries: 2 });
+    expect(added.indexes[0]!.index!.notes.map((note) => note.code)).toEqual(["entry_homepage_dropped"]);
+    const found = new Map<string, string | null>();
+    for (const entry of entries) {
+      for (const item of (await send<SearchView>(h, { type: "search.query", text: String(entry.package_id) })).results) found.set(item.candidate.package_id, item.candidate.homepage);
+    }
+    expect(found).toEqual(new Map([[String(entries[0]!.package_id), "https://docs.example:8443/agent#about"], [String(entries[1]!.package_id), null]]));
+  });
+
+  it("the held policy is read once per stored copy (nit 5)", async () => {
+    const h = harness();
+    await send(h, { type: "policy.subscribe", url: POLICY_URL, publicKeyPem: POLICY_PEM, replace: false });
+    const first = await h.controller.activePolicy();
+    const second = await h.controller.activePolicy();
+    expect(first).not.toBeNull();
+    expect(second!.bundle).toBe(first!.bundle);
+  });
+
+  it("the 65th pin is refused by name instead of dropping the oldest (nit 6)", async () => {
+    const h = harness();
+    const session = await send<SessionView>(h, { type: "package.open", url: LITERATURE_URL, viewId: "test" });
+    const pinned = (await send<LibraryView>(h, { type: "library.pin", sessionId: session.session.id })).pinned[0]!;
+    const entry = { package_url: pinned.package_url, advertised_on: pinned.advertised_on, package_id: pinned.package_id, name: pinned.name, version: pinned.version, publisher: pinned.publisher, digest: pinned.digest, archive_sha256: pinned.archive_sha256, signer_fingerprint: pinned.signer_fingerprint, at: pinned.at };
+    const others = Array.from({ length: MAX_PINNED }, (_, index) => ({ ...entry, package_url: `https://agents.example/${index}.agent.pkg` }));
+    // The controller's own subscription storage (the harness keeps it in memory).
+    const storage = (h.controller as unknown as { subscriptions: SubscriptionStorage }).subscriptions;
+    await storage.updateLibrary(() => ({ pinned: others, recent: [] }));
+    expect((await send<LibraryView>(h, { type: "library.get" })).pinned).toHaveLength(MAX_PINNED);
+    const error = await refused(send(h, { type: "library.pin", sessionId: session.session.id }));
+    expect([error.code, error.message]).toEqual(["library_limit", `At most ${MAX_PINNED} agents can be pinned; unpin one first.`]);
+    const after = await send<LibraryView>(h, { type: "library.get" });
+    expect(after.pinned.map((item) => item.package_url)).toEqual(others.map((item) => item.package_url));
+    // Re-pinning one already pinned is not a 65th.
+    await storage.updateLibrary(() => ({ pinned: [...others.slice(1), entry], recent: [] }));
+    expect((await send<LibraryView>(h, { type: "library.pin", sessionId: session.session.id })).pinned[0]!.package_url).toBe(LITERATURE_URL);
+  });
+
+  it("an index whose held copy no longer verifies says why; the NANDA note is the resolver's constant (nits 7, 8)", async () => {
+    const h = harness();
+    await send(h, { type: "indexes.add", url: INDEX_URL, publicKeyPem: INDEX_PEM });
+    // The held copy changes under the worker (storage edited outside it): it no longer verifies.
+    const storage = (h.controller as unknown as { subscriptions: SubscriptionStorage }).subscriptions;
+    await storage.updateIndexes((list) => list.map((item) => ({ ...item, document: { ...item.document!, text: item.document!.text.replace("WebAgents demo index", "WebAgents demo indeX") } })));
+    const view = await send<IndexesView>(h, { type: "indexes.list" });
+    expect(view.indexes[0]).toMatchObject({ state: "unverified", unverified_reason: expect.stringMatching(/signature/iu) });
+    expect(view.nanda).toEqual({ configured: false, note: NANDA_NOT_CONFIGURED });
   });
 });

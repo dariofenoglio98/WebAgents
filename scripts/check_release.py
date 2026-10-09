@@ -15,6 +15,7 @@ Prints a JSON report and exits 1 if any check fails.
 from __future__ import annotations
 
 import argparse
+import ast
 import hashlib
 import json
 import re
@@ -159,7 +160,41 @@ def check_packages() -> dict:
         (ROOT / "package-origin/documents" / name).read_bytes() == (ROOT / source).read_bytes()
         for name, source in documents.items()
     )
+    # T9 (T8 review 1, nit 4): the SHA-256 pins server.py refuses to start without are the
+    # documents' own, so a re-signed document fails here rather than at container start.
+    pins = document_pins((ROOT / "package-origin/server.py").read_text(encoding="utf-8"))
+    report["package_origin_document_pins"] = pin_mismatches(pins, documents)
     return report
+
+
+def document_pins(source: str) -> dict[str, str]:
+    """The `DOCUMENTS` pins of package-origin/server.py, read without importing it: path → SHA-256."""
+    for node in ast.parse(source).body:
+        if isinstance(node, ast.Assign) and any(isinstance(t, ast.Name) and t.id == "DOCUMENTS" for t in node.targets):
+            if not isinstance(node.value, ast.Dict):
+                break
+            pins = {}
+            for key, value in zip(node.value.keys, node.value.values):
+                if not (isinstance(key, ast.Constant) and isinstance(value, ast.Tuple) and len(value.elts) == 2):
+                    raise ValueError("server.py DOCUMENTS entries must be 'path': (source, sha256)")
+                digest = value.elts[1]
+                if not (isinstance(digest, ast.Constant) and isinstance(digest.value, str)):
+                    raise ValueError("server.py DOCUMENTS pins must be string literals")
+                pins[key.value] = digest.value
+            return pins
+    raise ValueError("server.py defines no DOCUMENTS dict")
+
+
+def pin_mismatches(pins: dict[str, str], documents: dict[str, str]) -> dict:
+    """Each served path's pin against the SHA-256 of the document in examples/ it serves."""
+    expected = {
+        f"/{name}": hashlib.sha256((ROOT / source).read_bytes()).hexdigest()
+        for name, source in documents.items()
+    }
+    mismatched = sorted(
+        path for path in set(pins) | set(expected) if pins.get(path) != expected.get(path)
+    )
+    return {"pins": pins, "mismatched": mismatched, "passed": not mismatched}
 
 
 def check_dist_manifest() -> dict:
@@ -261,6 +296,7 @@ def main() -> int:
         all(packages[name]["passed"] for name in CURRENT_PACKAGES)
         and packages["package_origin_copy_identical"]
         and packages["package_origin_documents_identical"]
+        and packages["package_origin_document_pins"]["passed"]
         and all(section["passed"] for key, section in report.items() if key != "packages")
     )
     print(json.dumps(report, indent=2))

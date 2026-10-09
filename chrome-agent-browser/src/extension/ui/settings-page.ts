@@ -371,6 +371,7 @@ function indexRow(item: IndexView, actions: SettingsPageActions): HTMLElement {
     index?.description ? el("p", { className: "ab-hint", text: index.description }) : null,
     el("p", { className: "ab-hint", text: `${item.url} · ${index ? `${index.entries} agent${index.entries === 1 ? "" : "s"} · published by ${index.publisher} · valid until ${index.expires_at} · ` : ""}key you pinned ${item.key_fingerprint} · fetched ${item.fetched_at ? whenTextSafe(item.fetched_at) : "never"}` }),
     ...(index?.notes ?? []).map((note) => el("p", { className: "ab-hint" }, el("code", { text: note.code }), " ", el("span", { text: note.detail ?? "" }))),
+    item.unverified_reason ? el("p", { className: "ab-banner ab-banner-bad ab-index-unverified", text: `The copy held here does not verify: ${item.unverified_reason}` }) : null,
     item.last_error ? el("p", { className: "ab-banner ab-banner-warn", text: `Last check (${whenTextSafe(item.last_error.at)}): ${item.last_error.code}: ${item.last_error.message}` }) : null,
     el(
       "div",
