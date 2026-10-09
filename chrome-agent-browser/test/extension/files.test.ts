@@ -216,3 +216,26 @@ describe("Settings → Models → Let local models think (T6)", () => {
     expect(executed.router.thinking).toBe(true);
   });
 });
+
+describe("Settings → Models → OpenAI → Reasoning effort (T10, D-123)", () => {
+  it("defaults to medium (nothing stored); a stated effort is kept for OpenAI only, an unknown value is dropped, and a run's host settings carry it", async () => {
+    const { h, session, result } = await readerWorld();
+    const settings = ((await h.controller.handle({ type: "settings.get" }, PAGE)) as SettingsView).settings;
+    expect(settings.models.connections.find((connection) => connection.provider === "openai")?.reasoning_effort).toBeUndefined();
+    const withEffort = (openai: unknown, ollama: unknown) => ({
+      ...settings,
+      models: { ...settings.models, connections: settings.models.connections.map((connection) => (connection.provider === "openai" ? { ...connection, reasoning_effort: openai } : connection.provider === "ollama" ? { ...connection, reasoning_effort: ollama } : connection)) },
+    });
+    await h.controller.handle({ type: "settings.set", settings: withEffort("max", "high") as never }, PAGE);
+    let stored = ((await h.controller.handle({ type: "settings.get" }, PAGE)) as SettingsView).settings;
+    expect(stored.models.connections.find((connection) => connection.provider === "openai")?.reasoning_effort).toBeUndefined();
+    await h.controller.handle({ type: "settings.set", settings: withEffort("low", "high") as never }, PAGE);
+    stored = ((await h.controller.handle({ type: "settings.get" }, PAGE)) as SettingsView).settings;
+    expect(stored.models.connections.find((connection) => connection.provider === "openai")?.reasoning_effort).toBe("low");
+    expect(stored.models.connections.find((connection) => connection.provider === "ollama")?.reasoning_effort).toBeUndefined();
+    const file = ((await h.controller.handle({ type: "files.add", name: "probe.pdf", base64: b64(PROBE) }, PAGE)) as FilesView).files[0]!;
+    await start(h, session, result, { file_id: file.file_id });
+    expect(h.host.started.at(-1)!.settings.openaiReasoningEffort).toBe("low");
+    await h.host.drain();
+  });
+});

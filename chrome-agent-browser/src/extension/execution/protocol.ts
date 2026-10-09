@@ -10,6 +10,7 @@
  * values the egress guard refuses anywhere else). They live in `chrome.storage.local` and in the
  * host's memory for the run; no record, checkpoint or artifact carries them.
  */
+import type { OpenAIReasoningEffort } from "../../core/models/adapters/openai.js";
 import type { VaultDocument } from "../../core/vault.js";
 
 export interface HostCredentials {
@@ -21,6 +22,8 @@ export interface HostRunSettings {
   /** Ollama's base URL (loopback only, D-055), or null for the default. */
   ollamaBaseUrl: string | null;
   think: boolean;
+  /** OpenAI's reasoning effort (Settings → Models, D-123); absent means the adapter's default, `medium`. */
+  openaiReasoningEffort?: OpenAIReasoningEffort;
   /** Test mode (D-028): record every outbound model and tool request body to the observation store. */
   recordRequests: boolean;
   runtimeVersion: string;

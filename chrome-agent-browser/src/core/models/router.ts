@@ -27,6 +27,7 @@ import { failuresForSchema } from "../schema.js";
 import { AdapterError, CancelledError } from "../workflow/errors.js";
 import type { ModelRequest, ModelResult, ModelRouter } from "./contract.js";
 import { render, tokenUpperBound, type RenderedRequest } from "./render.js";
+import { decodeConstrained, type ConstraintDecoding } from "./schema-format.js";
 import { classifyTermination, parseStructured, type ParseMode } from "./structured.js";
 import { priceUsage, projectUsage, type ModelPricing, type ProjectedUsage, type UsageReport } from "./usage.js";
 
@@ -51,6 +52,8 @@ export interface ProviderCompletion {
   /** Whether a provider-native output constraint was sent with the request. */
   constrained: boolean;
   constraint_detail: string;
+  /** How the answer is read back from the constraint's own encoding before validation (D-121, D-122). */
+  decoding?: ConstraintDecoding;
 }
 
 /**
@@ -68,6 +71,8 @@ export interface ProviderAdapter {
   readonly pricing: ModelPricing | null;
   /** Whether the adapter asks the model to think (Ollama, D-085); absent where the host has no such switch. */
   readonly thinking?: boolean;
+  /** The reasoning effort the adapter sends (OpenAI, D-123); absent where the host has no such setting. */
+  readonly reasoning_effort?: string;
   complete(rendered: RenderedRequest, maxOutputTokens: number, signal: AbortSignal): Promise<ProviderCompletion>;
 }
 
@@ -103,9 +108,12 @@ export interface ModelInvocation {
   cost_usd: number | null;
 }
 
-/** `{thinking}` when the adapter states whether it asks the model to think (Ollama), else nothing. */
-function thinkingOf(adapter: ProviderAdapter): { thinking?: boolean } {
-  return typeof adapter.thinking === "boolean" ? { thinking: adapter.thinking } : {};
+/** `{thinking}` / `{reasoning_effort}` when the adapter states how it asks the model to reason (D-085, D-123), else nothing. */
+function thinkingOf(adapter: ProviderAdapter): { thinking?: boolean; reasoning_effort?: string } {
+  return {
+    ...(typeof adapter.thinking === "boolean" ? { thinking: adapter.thinking } : {}),
+    ...(typeof adapter.reasoning_effort === "string" ? { reasoning_effort: adapter.reasoning_effort } : {}),
+  };
 }
 
 export class BoundModelRouter implements ModelRouter {
@@ -207,6 +215,12 @@ export class BoundModelRouter implements ModelRouter {
       if (error instanceof AdapterError) error.audit_facts = { ...facts, output_failure: "not_json" };
       throw error;
     }
+    let decoded: Record<string, JsonValue> | null = null;
+    if (answer.decoding !== undefined) {
+      const reading = decodeConstrained(output, rendered.output_schema, answer.decoding);
+      output = reading.value;
+      decoded = { envelope_unwrapped: reading.unwrapped, nulls_read_as_absent: reading.nullsDropped };
+    }
     const failures = await failuresForSchema(rendered.output_schema, output, "model output");
     if (failures.length > 0) {
       const first = failures[0]!;
@@ -229,6 +243,7 @@ export class BoundModelRouter implements ModelRouter {
       constrained_by_host: answer.constrained,
       constraint_detail: answer.constraint_detail,
       parse: parseMode,
+      ...(decoded !== null ? { decoded } : {}),
       max_output_tokens: maxOutputTokens,
       usage: { input_tokens: usage.input_tokens, output_tokens: usage.output_tokens, cost_usd: cost, reported: usage.reported },
     };

@@ -10,6 +10,7 @@
  *   instanceId    the control plane's instance id, generated once per install
  *   spentReceipts receipt ids whose `once` grants a run already used (T5, D-065)
  */
+import { OPENAI_REASONING_EFFORTS, type OpenAIReasoningEffort } from "../../core/models/adapters/openai.js";
 import { DEFAULT_PRESET, isPresetId } from "../../core/authorization.js";
 import { isRecord } from "../../core/fields.js";
 import type { ModelOverride, ProviderConnection, ProviderId } from "../../core/models/catalog.js";
@@ -40,6 +41,11 @@ export interface StoredConnection {
    * Ollama can exceed a node's output cap, which halts the run.
    */
   think?: boolean;
+  /**
+   * OpenAI only (T10, D-123): the `reasoning.effort` sent to models that reason. Absent means the
+   * default, `medium`; `low` shortcut Literature Review's copy-heavy steps in the T10 diagnosis.
+   */
+  reasoning_effort?: OpenAIReasoningEffort;
 }
 
 export interface Settings {
@@ -173,6 +179,7 @@ export function normalizeSettings(raw: unknown): Settings {
         base_url: provider === "chrome-builtin" ? null : normalizeBaseUrl(provider, item.base_url),
         overrides: normalizeOverrides(item.overrides),
         ...(provider === "ollama" && item.think === true ? { think: true } : {}),
+        ...(provider === "openai" && (OPENAI_REASONING_EFFORTS as readonly unknown[]).includes(item.reasoning_effort) ? { reasoning_effort: item.reasoning_effort as OpenAIReasoningEffort } : {}),
       });
     }
   }

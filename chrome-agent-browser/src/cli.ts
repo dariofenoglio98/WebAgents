@@ -56,7 +56,7 @@ export const USAGE = [
   "  run <package.agent.pkg> --mode fixture|live --grants <grants.json> [--input <input.json>]",
   "      [--approve-tool <tool-id>]... [--trust-key <publisher.pub.pem>] [--limits <limits.json>]",
   "      [--out <new-directory>] [live: --model <provider/model> [--ollama-url <url>]",
-  "      [--context-tokens <n>] [--think] [--tool-bindings <bindings.json>]",
+  "      [--context-tokens <n>] [--think] [--reasoning-effort low|medium|high] [--tool-bindings <bindings.json>]",
   "      [--host-resources <resources.json>] [--resource-grant <permission>=<resource-id>]...]",
   "  pdf-text <document.pdf>",
   "  document sign --type agent-index|policy-bundle --key <private.pem> <content.json> --out <signed.json>",

@@ -58,13 +58,11 @@ describe("openAiStrictSchema", () => {
       change((copy.$defs as Record<string, JsonObject>).s0!);
       return copy;
     };
-    expect(openAiStrictSchema(variant((root) => (root.required = ["date", "rows"]))), "an optional property").toBeNull();
     expect(openAiStrictSchema(variant((root) => (root.allOf = [{ required: ["date"] }]))), "allOf").toBeNull();
     expect(openAiStrictSchema(variant((root) => ((root.properties as JsonObject).extra = { type: "object", additionalProperties: { type: "string" } }) && (root.required as string[]).push("extra"))), "a free-form map").toBeNull();
-    expect(openAiStrictSchema({ type: "array", items: { type: "string" } }), "an array root").toBeNull();
   });
 
-  it("on the shipped packages: WebAir's three model steps are strict; Literature Review's normalize is not (optional fields)", async () => {
+  it("on the shipped packages: WebAir's three model steps are strict; so are Literature Review's normalize, screen, select and extract (D-121, D-122), not its allOf/if steps", async () => {
     const strictness = async (archive: string, paths: string[]) => {
       const pkg = await loadPackageBytes(readBytes(archive));
       const workflow = await createWorkflow(pkg);
@@ -75,7 +73,14 @@ describe("openAiStrictSchema", () => {
       "schemas/selection.schema.json": true,
       "schemas/answer.schema.json": true,
     });
-    expect(await strictness(SHIPPED.literatureReview.archive, ["schemas/normalize.schema.json"])).toEqual({ "schemas/normalize.schema.json": false });
+    expect(await strictness(SHIPPED.literatureReview.archive, ["schemas/normalize.schema.json", "schemas/paper.schema.json", "schemas/selection.schema.json", "schemas/paper-evidence.schema.json", "schemas/synthesis.schema.json", "schemas/written.schema.json"])).toEqual({
+      "schemas/normalize.schema.json": true,
+      "schemas/paper.schema.json": true,
+      "schemas/selection.schema.json": true,
+      "schemas/paper-evidence.schema.json": true,
+      "schemas/synthesis.schema.json": false,
+      "schemas/written.schema.json": false,
+    });
   });
 });
 
@@ -130,7 +135,7 @@ describe("OpenAIAdapter: strict where possible, non-strict otherwise", () => {
 
   it("sends a schema that cannot be strict non-strict, as before", async () => {
     const loose = JSON.parse(JSON.stringify(CLOSED)) as JsonObject;
-    ((loose.$defs as Record<string, JsonObject>).s0!).required = ["date"];
+    ((loose.$defs as Record<string, JsonObject>).s0!).allOf = [{ required: ["date"] }];
     const rendered = render({ ...JSON.parse(JSON.stringify({ task: "interpret", instructions: [], data: {}, requirements: { id: "interpret", capabilities: [], context_window: 16000 }, budget_context: { max_output_tokens: 100 }, audit_context: { worker: "W:1", node_id: "n" } })), output_schema: loose } as ModelRequest);
     const net = scripted([{ status: 200, body: OK }]);
     const answer = await new OpenAIAdapter({ transport: net.transport, model: "gpt-5.6-luna", apiKey: "sk-test", contextWindow: 272000 }).complete(rendered, 100, new AbortController().signal);
@@ -154,9 +159,10 @@ class FlakyRouter implements ModelRouter {
     private readonly wrapped: ModelRouter,
     private bad: number,
     readonly nonconformingRetries?: number,
+    private readonly inputBound = 5_000,
   ) {}
   async countTokens(): Promise<number> {
-    return 5_000;
+    return this.inputBound;
   }
   async complete(request: ModelRequest, max: number, signal: AbortSignal): Promise<ModelResult> {
     this.calls += 1;
@@ -200,5 +206,21 @@ describe("one more request for a non-conforming answer (runtime)", () => {
     const replay = await webair((fixture) => new FlakyRouter(fixture, 1));
     await expect(replay.run()).rejects.toBeInstanceOf(WorkflowError);
     expect((replay.built as FlakyRouter).calls).toBe(1);
+  });
+
+  it("a retry whose fresh reservation would exceed a bound is not sent: the node fails with the non-conforming answer, not as budget_exhausted (D-124)", async () => {
+    // Interpreter: 40,000 tokens. The reservation is 33,000 + 6,000; attempt 1 is charged its
+    // reported 2,060, so a second reservation (41,060 in all) cannot fit. This is luna-pi-2's shape
+    // (T10): PlanningWorker 50,000, 14,095 charged, 43,696 more reserved.
+    const tight = await webair((fixture) => new FlakyRouter(fixture, 1, 1, 33_000));
+    const error = await tight.run().then(() => null, (caught: unknown) => caught);
+    expect(error).toBeInstanceOf(WorkflowError);
+    expect((error as WorkflowError).code).toBe("model_error");
+    expect((tight.built as FlakyRouter).calls).toBe(1);
+    const audit = (error as WorkflowError).execution_report!.audit as JsonObject[];
+    expect(audit.some((event) => event.action === "model.refused")).toBe(false);
+    expect(audit.filter((event) => event.action === "model.called")).toHaveLength(1);
+    expect(audit.find((event) => event.action === "model.failed")).toMatchObject({ reason: "model_output_not_conforming", tokens_charged: 2_060 });
+    expect(audit.find((event) => event.action === "model.retry_skipped")).toMatchObject({ task: "interpret", reason: "budget", bound: "worker_token_budget", reserved_tokens: 39_000, used_tokens: 2_060, held_tokens: 0, limit: 40_000 });
   });
 });

@@ -230,7 +230,7 @@ export function executeRun(deps: ExecuteDeps): ExecutionHandle {
         transport: deps.transports.model,
         observer,
         ollama: { baseUrl: message.settings.ollamaBaseUrl ?? undefined, think: message.settings.think },
-        openai: { apiKey: message.credentials.openai },
+        openai: { apiKey: message.credentials.openai, ...(message.settings.openaiReasoningEffort !== undefined ? { reasoningEffort: message.settings.openaiReasoningEffort } : {}) },
         anthropic: { apiKey: message.credentials.anthropic },
         ...(deps.builtin ? { builtin: deps.builtin } : {}),
       });
