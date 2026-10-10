@@ -1,22 +1,15 @@
 {
   "type": "object",
   "properties": {
-    "candidate_papers": {
+    "candidates": {
       "type": "array",
       "items": {
-        "$ref": "paper.schema.json"
-      }
-    },
-    "screening_refs": {
-      "type": "array",
-      "items": {
-        "$ref": "screen-ref.schema.json"
+        "$ref": "candidate-ref.schema.json"
       }
     }
   },
   "required": [
-    "candidate_papers",
-    "screening_refs"
+    "candidates"
   ],
   "additionalProperties": false
 }

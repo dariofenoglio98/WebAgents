@@ -48,264 +48,6 @@
         "type": "string"
       }
     },
-    "candidate_papers": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "paper_id": {
-            "type": "string"
-          },
-          "title": {
-            "type": "string"
-          },
-          "doi": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "arxiv_id": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "authors": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "name": {
-                  "type": "string"
-                }
-              },
-              "required": [
-                "name"
-              ],
-              "additionalProperties": true
-            }
-          },
-          "year": {
-            "type": [
-              "integer",
-              "null"
-            ]
-          },
-          "venue": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "abstract": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "url": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "source": {
-            "type": "string"
-          },
-          "provenance": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "source": {
-                  "type": "string"
-                },
-                "query": {
-                  "type": [
-                    "string",
-                    "null"
-                  ]
-                },
-                "locator": {
-                  "type": [
-                    "string",
-                    "null"
-                  ]
-                },
-                "synthetic": {
-                  "type": "boolean"
-                }
-              },
-              "required": [
-                "source"
-              ],
-              "additionalProperties": true
-            }
-          },
-          "full_text_available": {
-            "type": "boolean"
-          },
-          "screening_status": {
-            "enum": [
-              "include",
-              "maybe",
-              "exclude",
-              "pending"
-            ]
-          },
-          "screening_rationale": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "paper_id",
-          "title",
-          "doi",
-          "arxiv_id",
-          "authors",
-          "year",
-          "venue",
-          "abstract",
-          "url",
-          "source",
-          "provenance",
-          "full_text_available",
-          "screening_status",
-          "screening_rationale"
-        ],
-        "additionalProperties": false
-      }
-    },
-    "screened_papers": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "paper_id": {
-            "type": "string"
-          },
-          "title": {
-            "type": "string"
-          },
-          "doi": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "arxiv_id": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "authors": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "name": {
-                  "type": "string"
-                }
-              },
-              "required": [
-                "name"
-              ],
-              "additionalProperties": true
-            }
-          },
-          "year": {
-            "type": [
-              "integer",
-              "null"
-            ]
-          },
-          "venue": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "abstract": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "url": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "source": {
-            "type": "string"
-          },
-          "provenance": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "source": {
-                  "type": "string"
-                },
-                "query": {
-                  "type": [
-                    "string",
-                    "null"
-                  ]
-                },
-                "locator": {
-                  "type": [
-                    "string",
-                    "null"
-                  ]
-                },
-                "synthetic": {
-                  "type": "boolean"
-                }
-              },
-              "required": [
-                "source"
-              ],
-              "additionalProperties": true
-            }
-          },
-          "full_text_available": {
-            "type": "boolean"
-          },
-          "screening_status": {
-            "enum": [
-              "include",
-              "maybe",
-              "exclude",
-              "pending"
-            ]
-          },
-          "screening_rationale": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "paper_id",
-          "title",
-          "doi",
-          "arxiv_id",
-          "authors",
-          "year",
-          "venue",
-          "abstract",
-          "url",
-          "source",
-          "provenance",
-          "full_text_available",
-          "screening_status",
-          "screening_rationale"
-        ],
-        "additionalProperties": false
-      }
-    },
     "citation_records": {
       "$ref": "records.schema.json"
     },
@@ -576,26 +318,11 @@
     "search_batches": {
       "$ref": "search-batches.schema.json"
     },
-    "seed_results": {
-      "$ref": "responses.schema.json"
-    },
     "raw_candidates": {
       "$ref": "raw-papers.schema.json"
     },
-    "screening_jobs": {
-      "type": "array",
-      "items": {
-        "$ref": "screen-job.schema.json"
-      }
-    },
-    "screening_refs": {
-      "type": "array",
-      "items": {
-        "$ref": "screen-ref.schema.json"
-      }
-    },
     "citation_jobs": {
-      "$ref": "papers.schema.json"
+      "$ref": "paper-ids.schema.json"
     },
     "resolved_jobs": {
       "$ref": "resolved-jobs.schema.json"
@@ -646,6 +373,39 @@
     },
     "evidence_table": {
       "$ref": "evidence-list.schema.json"
+    },
+    "seed_batches": {
+      "$ref": "search-batches.schema.json"
+    },
+    "all_batches": {
+      "$ref": "search-batches.schema.json"
+    },
+    "identified": {
+      "$ref": "identified.schema.json"
+    },
+    "found_papers": {
+      "$ref": "papers.schema.json"
+    },
+    "found_refs": {
+      "$ref": "candidate-refs.schema.json"
+    },
+    "normalize_documents": {
+      "$ref": "documents.schema.json"
+    },
+    "candidate_refs": {
+      "$ref": "candidate-refs.schema.json"
+    },
+    "screening_batches": {
+      "$ref": "screening-batches.schema.json"
+    },
+    "included_papers": {
+      "$ref": "papers.schema.json"
+    },
+    "selection": {
+      "$ref": "selection.schema.json"
+    },
+    "papers_found": {
+      "$ref": "papers-found.schema.json"
     }
   },
   "required": [
@@ -654,8 +414,6 @@
     "reasoning_mode",
     "search_plan",
     "search_queries",
-    "candidate_papers",
-    "screened_papers",
     "citation_records",
     "evidence_items",
     "themes",

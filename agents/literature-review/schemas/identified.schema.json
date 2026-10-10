@@ -1,0 +1,29 @@
+{
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "paper": {
+        "type": "array",
+        "items": {
+          "$ref": "paper.schema.json"
+        },
+        "minItems": 1,
+        "maxItems": 1
+      },
+      "ref": {
+        "type": "array",
+        "items": {
+          "$ref": "candidate-ref.schema.json"
+        },
+        "minItems": 1,
+        "maxItems": 1
+      }
+    },
+    "required": [
+      "paper",
+      "ref"
+    ],
+    "additionalProperties": false
+  }
+}

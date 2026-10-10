@@ -2,7 +2,7 @@
   "spec_version": "0.1",
   "id": "citation-resolver",
   "version": "0.1.0",
-  "description": "Existing Citation Resolver API; ambiguous best_match is never accepted.",
+  "description": "Existing Citation Resolver API; ambiguous best_match is never accepted. When the resolver is unavailable, a host may answer a DOI query from Crossref's DOI lookup instead.",
   "execution": "remote",
   "binding": "citation.resolve",
   "endpoint": "https://webagents-citation-resolver-production.up.railway.app/resolve",
@@ -13,7 +13,8 @@
     "network.citations"
   ],
   "domains": [
-    "webagents-citation-resolver-production.up.railway.app"
+    "webagents-citation-resolver-production.up.railway.app",
+    "api.crossref.org"
   ],
   "timeout_seconds": 45,
   "retries": 0,

@@ -1,2365 +1,99 @@
 {
-  "spec_version": "0.1",
-  "profile": "workflow.v0",
   "coordinator": "LiteratureReviewCoordinator",
-  "workers": [
-    {
-      "id": "LiteratureReviewCoordinator",
-      "kind": "packaged",
-      "skills": [],
-      "tools": [],
-      "max_instances": 1,
-      "budget": {
-        "tokens": 30000,
-        "remote_calls": 15
-      },
-      "state_read": [
-        "bibliography",
-        "candidate_papers",
-        "citation_records",
-        "claims",
-        "draft",
-        "evidence_batches",
-        "evidence_items",
-        "final",
-        "mode",
-        "reasoning_mode",
-        "research_question",
-        "resolved_jobs",
-        "review",
-        "screened_papers",
-        "search_batches",
-        "search_plan",
-        "search_queries",
-        "themes",
-        "unresolved",
-        "verification_results",
-        "evidence_jobs",
-        "materialized_claims",
-        "evidence_table"
-      ],
-      "state_write": [
-        "candidate_papers",
-        "citation_records",
-        "claims",
-        "draft",
-        "evidence_items",
-        "final",
-        "mode",
-        "raw_candidates",
-        "reasoning_mode",
-        "research_question",
-        "screened_papers",
-        "search_plan",
-        "search_queries",
-        "themes",
-        "unresolved",
-        "verification_results"
-      ]
-    },
-    {
-      "id": "PlanningWorker",
-      "kind": "packaged",
-      "skills": [
-        "literature-search"
-      ],
-      "tools": [],
-      "max_instances": 1,
-      "budget": {
-        "tokens": 50000,
-        "remote_calls": 15
-      },
-      "state_read": [
-        "document_refs",
-        "raw_candidates",
-        "research_question",
-        "seed_references",
-        "seed_results",
-        "candidate_papers",
-        "screening_refs"
-      ],
-      "state_write": [
-        "candidate_papers",
-        "screening_jobs",
-        "search_plan",
-        "search_queries",
-        "screening_refs"
-      ]
-    },
-    {
-      "id": "SearchWorker",
-      "kind": "packaged",
-      "skills": [
-        "literature-search"
-      ],
-      "tools": [
-        "scholarly-search"
-      ],
-      "max_instances": 3,
-      "budget": {
-        "tokens": 30000,
-        "remote_calls": 15
-      },
-      "state_read": [
-        "research_question",
-        "search_queries"
-      ],
-      "state_write": [
-        "candidate_papers",
-        "search_batches",
-        "unresolved"
-      ]
-    },
-    {
-      "id": "ScreeningWorker",
-      "kind": "packaged",
-      "skills": [
-        "paper-screening"
-      ],
-      "tools": [
-        "paper-reader"
-      ],
-      "max_instances": 3,
-      "budget": {
-        "tokens": 45000,
-        "remote_calls": 15
-      },
-      "state_read": [
-        "candidate_papers",
-        "document_refs",
-        "research_question",
-        "screened_papers",
-        "screening_jobs"
-      ],
-      "state_write": [
-        "citation_jobs",
-        "screened_papers"
-      ]
-    },
-    {
-      "id": "CitationWorker",
-      "kind": "packaged",
-      "skills": [
-        "citation-resolution"
-      ],
-      "tools": [
-        "citation-resolver"
-      ],
-      "max_instances": 3,
-      "budget": {
-        "tokens": 50000,
-        "remote_calls": 15
-      },
-      "state_read": [
-        "candidate_papers",
-        "citation_jobs",
-        "document_refs",
-        "resolved_jobs",
-        "review",
-        "search_plan",
-        "screening_jobs",
-        "mode",
-        "preparation_batches"
-      ],
-      "state_write": [
-        "bibliography",
-        "candidate_papers",
-        "citation_records",
-        "evidence_jobs",
-        "resolved_jobs",
-        "seed_results",
-        "unresolved",
-        "preparation_batches"
-      ]
-    },
-    {
-      "id": "EvidenceWorker",
-      "kind": "packaged",
-      "skills": [
-        "evidence-extraction"
-      ],
-      "tools": [
-        "paper-reader"
-      ],
-      "max_instances": 3,
-      "budget": {
-        "tokens": 30000,
-        "remote_calls": 15
-      },
-      "state_read": [
-        "candidate_papers",
-        "citation_records",
-        "document_refs",
-        "evidence_jobs",
-        "research_question"
-      ],
-      "state_write": [
-        "evidence_batches",
-        "evidence_items",
-        "unresolved"
-      ]
-    },
-    {
-      "id": "SynthesisWorker",
-      "kind": "packaged",
-      "skills": [
-        "evidence-synthesis"
-      ],
-      "tools": [],
-      "max_instances": 1,
-      "budget": {
-        "tokens": 45000,
-        "remote_calls": 15
-      },
-      "state_read": [
-        "citation_records",
-        "evidence_items",
-        "research_question"
-      ],
-      "state_write": [
-        "claims",
-        "themes"
-      ]
-    },
-    {
-      "id": "WritingWorker",
-      "kind": "packaged",
-      "skills": [
-        "related-work-writing"
-      ],
-      "tools": [],
-      "max_instances": 1,
-      "budget": {
-        "tokens": 30000,
-        "remote_calls": 15
-      },
-      "state_read": [
-        "claims",
-        "research_question",
-        "themes"
-      ],
-      "state_write": [
-        "claims",
-        "draft"
-      ]
-    },
-    {
-      "id": "VerificationWorker",
-      "kind": "packaged",
-      "skills": [
-        "claim-and-citation-verification"
-      ],
-      "tools": [],
-      "max_instances": 1,
-      "budget": {
-        "tokens": 60000,
-        "remote_calls": 15
-      },
-      "state_read": [
-        "citation_records",
-        "claims",
-        "draft",
-        "evidence_items",
-        "mode",
-        "research_question",
-        "themes",
-        "unresolved",
-        "review"
-      ],
-      "state_write": [
-        "claims",
-        "review",
-        "verification_results",
-        "materialized_claims",
-        "evidence_table"
-      ]
-    }
-  ],
-  "input_schema": "schemas/workflow-input.schema.json",
-  "output_schema": "schemas/review-output.schema.json",
-  "initial_state": {
-    "object": {
-      "research_question": {
-        "from": "input",
-        "path": "/question"
-      },
-      "mode": {
-        "from": "input",
-        "path": "/mode"
-      },
-      "reasoning_mode": {
-        "literal": "model"
-      },
-      "search_plan": {
-        "literal": {
-          "queries": [],
-          "rationale": ""
-        }
-      },
-      "search_queries": {
-        "literal": []
-      },
-      "candidate_papers": {
-        "literal": []
-      },
-      "screened_papers": {
-        "literal": []
-      },
-      "citation_records": {
-        "literal": []
-      },
-      "evidence_items": {
-        "literal": []
-      },
-      "themes": {
-        "literal": []
-      },
-      "claims": {
-        "literal": []
-      },
-      "draft": {
-        "literal": {
-          "title": "Related Work",
-          "claim_ids": []
-        }
-      },
-      "verification_results": {
-        "literal": []
-      },
-      "unresolved": {
-        "literal": []
-      },
-      "seed_references": {
-        "from": "input",
-        "path": "/seeds"
-      },
-      "search_batches": {
-        "literal": []
-      },
-      "seed_results": {
-        "literal": []
-      },
-      "raw_candidates": {
-        "literal": []
-      },
-      "screening_jobs": {
-        "literal": []
-      },
-      "citation_jobs": {
-        "literal": []
-      },
-      "resolved_jobs": {
-        "literal": []
-      },
-      "evidence_jobs": {
-        "literal": []
-      },
-      "evidence_batches": {
-        "literal": []
-      },
-      "final": {
-        "literal": {}
-      },
-      "document_refs": {
-        "from": "input",
-        "path": "/documents"
-      },
-      "review": {
-        "literal": {}
-      },
-      "bibliography": {
-        "literal": []
-      }
-    }
-  },
   "deadline_seconds": 4500,
-  "nodes": [
+  "exports": [
     {
-      "id": "planning",
-      "type": "llm",
-      "worker": "PlanningWorker",
-      "input": {
-        "object": {
-          "research_question": {
-            "from": "state",
-            "path": "/research_question"
-          },
-          "seed_references": {
-            "from": "state",
-            "path": "/seed_references"
-          }
-        }
-      },
-      "output_schema": "schemas/plan.schema.json",
-      "timeout_seconds": 360,
-      "depends_on": [],
-      "writes": {
-        "/search_plan": {
-          "from": "result",
-          "path": ""
-        },
-        "/search_queries": {
-          "from": "result",
-          "path": "/queries"
-        }
-      },
-      "task": "plan",
-      "max_output_tokens": 12000
-    },
-    {
-      "id": "seed-discovery",
-      "type": "map",
-      "worker": "CitationWorker",
-      "input": {
-        "from": "state",
-        "path": "/search_plan/seed_queries"
-      },
-      "output_schema": "schemas/responses.schema.json",
-      "timeout_seconds": 120,
-      "depends_on": [
-        "planning"
-      ],
-      "writes": {
-        "/seed_results": {
-          "from": "result",
-          "path": ""
-        }
-      },
-      "item_schema": "schemas/query.schema.json",
-      "max_items": 20,
-      "max_parallel": 3,
-      "steps": [
-        {
-          "id": "resolve-seed",
-          "type": "tool",
-          "input": {
-            "object": {
-              "query": {
-                "from": "item",
-                "path": ""
-              },
-              "query_type": {
-                "literal": "auto"
-              },
-              "format": {
-                "literal": "bibtex"
-              }
-            }
-          },
-          "output_schema": "schemas/resolver-output.schema.json",
-          "timeout_seconds": 60,
-          "tool": "citation-resolver"
-        }
-      ],
-      "yield": {
-        "from": "steps",
-        "path": "/resolve-seed"
+      "format": "text",
+      "path": "related-work.md",
+      "value": {
+        "from": "result",
+        "path": "/related_work"
       }
     },
     {
-      "id": "search",
-      "type": "map",
-      "worker": "SearchWorker",
-      "input": {
-        "from": "state",
-        "path": "/search_queries"
-      },
-      "output_schema": "schemas/search-batches.schema.json",
-      "timeout_seconds": 120,
-      "depends_on": [
-        "seed-discovery"
-      ],
-      "writes": {
-        "/search_batches": {
-          "from": "result",
-          "path": ""
-        }
-      },
-      "item_schema": "schemas/query.schema.json",
-      "max_items": 3,
-      "max_parallel": 3,
-      "steps": [
-        {
-          "id": "search-query",
-          "type": "tool",
-          "input": {
-            "object": {
-              "query": {
-                "from": "item",
-                "path": ""
-              },
-              "limit": {
-                "literal": 3
-              }
-            }
-          },
-          "output_schema": "schemas/search-output.schema.json",
-          "timeout_seconds": 60,
-          "tool": "scholarly-search"
-        }
-      ],
-      "yield": {
-        "from": "steps",
-        "path": "/search-query"
+      "path": "papers-found.json",
+      "format": "json",
+      "value": {
+        "from": "result",
+        "path": "/papers_found"
       }
     },
     {
-      "id": "join-search",
-      "type": "join",
-      "worker": "LiteratureReviewCoordinator",
-      "input": {
-        "from": "state",
-        "path": "/search_batches"
-      },
-      "output_schema": "schemas/raw-papers.schema.json",
-      "timeout_seconds": 120,
-      "depends_on": [
-        "search"
-      ],
-      "writes": {
-        "/raw_candidates": {
-          "from": "result",
-          "path": ""
-        }
-      },
-      "select": "/papers"
-    },
-    {
-      "id": "normalize",
-      "type": "llm",
-      "worker": "PlanningWorker",
-      "input": {
-        "object": {
-          "research_question": {
-            "from": "state",
-            "path": "/research_question"
-          },
-          "candidates": {
-            "from": "state",
-            "path": "/raw_candidates"
-          },
-          "seed_results": {
-            "from": "state",
-            "path": "/seed_results"
-          },
-          "documents": {
-            "from": "state",
-            "path": "/document_refs"
-          }
-        }
-      },
-      "output_schema": "schemas/normalize.schema.json",
-      "timeout_seconds": 900,
-      "depends_on": [
-        "join-search"
-      ],
-      "writes": {
-        "/candidate_papers": {
-          "from": "result",
-          "path": "/candidate_papers"
-        },
-        "/screening_refs": {
-          "from": "result",
-          "path": "/screening_refs"
-        }
-      },
-      "task": "normalize",
-      "max_output_tokens": 16000
-    },
-    {
-      "id": "check-screening-refs",
-      "type": "validate",
-      "worker": "PlanningWorker",
-      "depends_on": [
-        "normalize"
-      ],
-      "input": {
-        "from": "state",
-        "path": "/screening_refs"
-      },
-      "writes": {},
-      "output_schema": "schemas/screen-refs.schema.json",
-      "timeout_seconds": 10,
-      "assertions": [
-        {
-          "kind": "relation",
-          "rows": {
-            "from": "state",
-            "path": "/screening_refs"
-          },
-          "targets": {
-            "from": "state",
-            "path": "/candidate_papers"
-          },
-          "row_key": "/paper_id",
-          "target_key": "/paper_id"
-        }
-      ]
-    },
-    {
-      "id": "screening-jobs",
-      "type": "map",
-      "worker": "PlanningWorker",
-      "depends_on": [
-        "check-screening-refs"
-      ],
-      "input": {
-        "from": "state",
-        "path": "/candidate_papers"
-      },
-      "output_schema": "schemas/screening-jobs.schema.json",
-      "timeout_seconds": 60,
-      "writes": {
-        "/screening_jobs": {
-          "from": "result",
-          "path": ""
-        }
-      },
-      "item_schema": "schemas/paper.schema.json",
-      "max_items": 20,
-      "max_parallel": 1,
-      "steps": [
-        {
-          "id": "job",
-          "type": "validate",
-          "input": {
-            "object": {
-              "paper": {
-                "from": "item",
-                "path": ""
-              },
-              "file_id": {
-                "lookup": {
-                  "in": {
-                    "from": "state",
-                    "path": "/screening_refs"
-                  },
-                  "key": "/paper_id",
-                  "equals": {
-                    "from": "item",
-                    "path": "/paper_id"
-                  },
-                  "path": "/file_id"
-                }
-              }
-            }
-          },
-          "output_schema": "schemas/screen-job.schema.json",
-          "timeout_seconds": 10
-        }
-      ],
-      "yield": {
-        "from": "steps",
-        "path": "/job"
+      "format": "json",
+      "path": "bibliography.json",
+      "value": {
+        "from": "result",
+        "path": "/bibliography"
       }
     },
     {
-      "id": "screening",
-      "type": "map",
-      "worker": "ScreeningWorker",
-      "input": {
-        "from": "state",
-        "path": "/screening_jobs"
-      },
-      "output_schema": "schemas/papers.schema.json",
-      "timeout_seconds": 1200,
-      "depends_on": [
-        "screening-jobs"
-      ],
-      "writes": {
-        "/screened_papers": {
-          "from": "result",
-          "path": ""
-        }
-      },
-      "item_schema": "schemas/screen-job.schema.json",
-      "max_items": 20,
-      "max_parallel": 3,
-      "steps": [
-        {
-          "id": "read-source",
-          "type": "tool",
-          "input": {
-            "object": {
-              "file_id": {
-                "from": "item",
-                "path": "/file_id"
-              }
-            }
-          },
-          "output_schema": "schemas/reader-maybe.schema.json",
-          "timeout_seconds": 60,
-          "tool": "paper-reader",
-          "when": {
-            "left": {
-              "from": "item",
-              "path": "/file_id"
-            },
-            "op": "ne",
-            "right": {
-              "literal": null
-            }
-          },
-          "otherwise": {
-            "literal": null
-          }
-        },
-        {
-          "id": "screen-one",
-          "type": "llm",
-          "input": {
-            "object": {
-              "research_question": {
-                "from": "state",
-                "path": "/research_question"
-              },
-              "paper": {
-                "from": "item",
-                "path": "/paper"
-              },
-              "document": {
-                "from": "steps",
-                "path": "/read-source"
-              }
-            }
-          },
-          "output_schema": "schemas/paper.schema.json",
-          "timeout_seconds": 600,
-          "task": "screen",
-          "max_output_tokens": 12000
-        }
-      ],
-      "yield": {
-        "from": "steps",
-        "path": "/screen-one"
+      "format": "json",
+      "path": "evidence-table.json",
+      "value": {
+        "from": "result",
+        "path": "/evidence_table"
       }
     },
     {
-      "id": "select-included",
-      "type": "llm",
-      "worker": "ScreeningWorker",
-      "input": {
-        "object": {
-          "screened_papers": {
-            "from": "state",
-            "path": "/screened_papers"
-          }
-        }
-      },
-      "output_schema": "schemas/selection.schema.json",
-      "timeout_seconds": 480,
-      "depends_on": [
-        "screening"
-      ],
-      "writes": {
-        "/citation_jobs": {
-          "from": "result",
-          "path": ""
-        }
-      },
-      "task": "select",
-      "max_output_tokens": 12000
-    },
-    {
-      "id": "citations",
-      "type": "map",
-      "worker": "CitationWorker",
-      "input": {
-        "from": "state",
-        "path": "/citation_jobs"
-      },
-      "output_schema": "schemas/resolved-jobs.schema.json",
-      "timeout_seconds": 120,
-      "depends_on": [
-        "select-included"
-      ],
-      "writes": {
-        "/resolved_jobs": {
-          "from": "result",
-          "path": ""
-        }
-      },
-      "item_schema": "schemas/paper.schema.json",
-      "max_items": 20,
-      "max_parallel": 3,
-      "steps": [
-        {
-          "id": "resolve-one",
-          "type": "tool",
-          "input": {
-            "object": {
-              "query": {
-                "coalesce": [
-                  {
-                    "from": "item",
-                    "path": "/doi"
-                  },
-                  {
-                    "from": "item",
-                    "path": "/arxiv_id"
-                  },
-                  {
-                    "from": "item",
-                    "path": "/title"
-                  }
-                ]
-              },
-              "query_type": {
-                "literal": "auto"
-              },
-              "format": {
-                "literal": "bibtex"
-              }
-            }
-          },
-          "output_schema": "schemas/resolver-output.schema.json",
-          "timeout_seconds": 60,
-          "tool": "citation-resolver"
-        },
-        {
-          "id": "check-identity",
-          "type": "validate",
-          "input": {
-            "from": "steps",
-            "path": "/resolve-one"
-          },
-          "output_schema": "schemas/resolver-output.schema.json",
-          "timeout_seconds": 10,
-          "when": {
-            "left": {
-              "from": "item",
-              "path": "/doi"
-            },
-            "op": "ne",
-            "right": {
-              "literal": null
-            }
-          },
-          "otherwise": {
-            "from": "steps",
-            "path": "/resolve-one"
-          },
-          "assertions": [
-            {
-              "kind": "relation",
-              "rows": {
-                "array": [
-                  {
-                    "from": "steps",
-                    "path": "/resolve-one"
-                  }
-                ]
-              },
-              "targets": {
-                "array": [
-                  {
-                    "from": "item",
-                    "path": ""
-                  }
-                ]
-              },
-              "row_key": "/best_match/doi",
-              "target_key": "/doi",
-              "where": {
-                "path": "/status",
-                "equals": "resolved"
-              }
-            }
-          ]
-        }
-      ],
-      "yield": {
-        "object": {
-          "paper": {
-            "from": "item",
-            "path": ""
-          },
-          "response": {
-            "from": "steps",
-            "path": "/check-identity"
-          }
-        }
+      "format": "json",
+      "path": "unresolved.json",
+      "value": {
+        "from": "result",
+        "path": "/unresolved"
       }
     },
     {
-      "id": "prepare-evidence",
-      "type": "map",
-      "worker": "CitationWorker",
-      "depends_on": [
-        "citations"
-      ],
-      "input": {
-        "from": "state",
-        "path": "/resolved_jobs"
-      },
-      "output_schema": "schemas/preparation-batches.schema.json",
-      "timeout_seconds": 60,
-      "writes": {
-        "/preparation_batches": {
-          "from": "result",
-          "path": ""
-        }
-      },
-      "item_schema": "schemas/resolved-job.schema.json",
-      "max_items": 20,
-      "max_parallel": 3,
-      "steps": [
-        {
-          "id": "synthetic",
-          "type": "validate",
-          "input": {
-            "literal": false
-          },
-          "output_schema": "schemas/synthetic-flag.schema.json",
-          "timeout_seconds": 10,
-          "when": {
-            "left": {
-              "from": "state",
-              "path": "/mode"
-            },
-            "op": "eq",
-            "right": {
-              "literal": "live"
-            }
-          },
-          "otherwise": {
-            "literal": true
-          }
-        },
-        {
-          "id": "record",
-          "type": "validate",
-          "input": {
-            "object": {
-              "query": {
-                "from": "item",
-                "path": "/response/query"
-              },
-              "status": {
-                "from": "item",
-                "path": "/response/status"
-              },
-              "alternatives": {
-                "from": "item",
-                "path": "/response/alternatives"
-              },
-              "sources": {
-                "from": "item",
-                "path": "/response/sources"
-              },
-              "warnings": {
-                "from": "item",
-                "path": "/response/warnings"
-              },
-              "message": {
-                "from": "item",
-                "path": "/response/message"
-              },
-              "paper_id": {
-                "from": "item",
-                "path": "/paper/paper_id"
-              },
-              "metadata": {
-                "literal": null
-              },
-              "synthetic": {
-                "from": "steps",
-                "path": "/synthetic"
-              }
-            }
-          },
-          "output_schema": "schemas/citation-record.schema.json",
-          "timeout_seconds": 10,
-          "when": {
-            "left": {
-              "from": "item",
-              "path": "/response/status"
-            },
-            "op": "ne",
-            "right": {
-              "literal": "resolved"
-            }
-          },
-          "otherwise": {
-            "object": {
-              "query": {
-                "from": "item",
-                "path": "/response/query"
-              },
-              "status": {
-                "from": "item",
-                "path": "/response/status"
-              },
-              "alternatives": {
-                "from": "item",
-                "path": "/response/alternatives"
-              },
-              "sources": {
-                "from": "item",
-                "path": "/response/sources"
-              },
-              "warnings": {
-                "from": "item",
-                "path": "/response/warnings"
-              },
-              "message": {
-                "from": "item",
-                "path": "/response/message"
-              },
-              "paper_id": {
-                "from": "item",
-                "path": "/paper/paper_id"
-              },
-              "metadata": {
-                "from": "item",
-                "path": "/response/best_match"
-              },
-              "synthetic": {
-                "from": "steps",
-                "path": "/synthetic"
-              }
-            }
-          }
-        },
-        {
-          "id": "job",
-          "type": "validate",
-          "input": {
-            "literal": []
-          },
-          "output_schema": "schemas/evidence-jobs.schema.json",
-          "timeout_seconds": 10,
-          "when": {
-            "left": {
-              "from": "item",
-              "path": "/response/status"
-            },
-            "op": "ne",
-            "right": {
-              "literal": "resolved"
-            }
-          },
-          "otherwise": {
-            "array": [
-              {
-                "object": {
-                  "paper": {
-                    "from": "item",
-                    "path": "/paper"
-                  },
-                  "record": {
-                    "from": "steps",
-                    "path": "/record"
-                  },
-                  "file_id": {
-                    "lookup": {
-                      "in": {
-                        "from": "state",
-                        "path": "/screening_jobs"
-                      },
-                      "key": "/paper/paper_id",
-                      "equals": {
-                        "from": "item",
-                        "path": "/paper/paper_id"
-                      },
-                      "path": "/file_id"
-                    }
-                  }
-                }
-              }
-            ]
-          }
-        },
-        {
-          "id": "unresolved",
-          "type": "validate",
-          "input": {
-            "literal": []
-          },
-          "output_schema": "schemas/unresolved.schema.json",
-          "timeout_seconds": 10,
-          "when": {
-            "left": {
-              "from": "item",
-              "path": "/response/status"
-            },
-            "op": "eq",
-            "right": {
-              "literal": "resolved"
-            }
-          },
-          "otherwise": {
-            "array": [
-              {
-                "object": {
-                  "paper_id": {
-                    "from": "steps",
-                    "path": "/record/paper_id"
-                  },
-                  "status": {
-                    "from": "steps",
-                    "path": "/record/status"
-                  },
-                  "message": {
-                    "from": "steps",
-                    "path": "/record/message"
-                  },
-                  "alternatives": {
-                    "from": "steps",
-                    "path": "/record/alternatives"
-                  }
-                }
-              }
-            ]
-          }
-        }
-      ],
-      "yield": {
-        "object": {
-          "citation_records": {
-            "array": [
-              {
-                "from": "steps",
-                "path": "/record"
-              }
-            ]
-          },
-          "evidence_jobs": {
-            "from": "steps",
-            "path": "/job"
-          },
-          "unresolved": {
-            "from": "steps",
-            "path": "/unresolved"
-          }
-        }
+      "format": "json",
+      "path": "verification.json",
+      "value": {
+        "from": "result",
+        "path": "/verification_results"
       }
-    },
-    {
-      "id": "join-citation-records",
-      "type": "join",
-      "worker": "CitationWorker",
-      "depends_on": [
-        "prepare-evidence"
-      ],
-      "input": {
-        "from": "state",
-        "path": "/preparation_batches"
-      },
-      "select": "/citation_records",
-      "output_schema": "schemas/records.schema.json",
-      "timeout_seconds": 10,
-      "writes": {
-        "/citation_records": {
-          "from": "result",
-          "path": ""
-        }
-      }
-    },
-    {
-      "id": "join-evidence-jobs",
-      "type": "join",
-      "worker": "CitationWorker",
-      "depends_on": [
-        "prepare-evidence"
-      ],
-      "input": {
-        "from": "state",
-        "path": "/preparation_batches"
-      },
-      "select": "/evidence_jobs",
-      "output_schema": "schemas/evidence-jobs.schema.json",
-      "timeout_seconds": 10,
-      "writes": {
-        "/evidence_jobs": {
-          "from": "result",
-          "path": ""
-        }
-      }
-    },
-    {
-      "id": "join-unresolved",
-      "type": "join",
-      "worker": "CitationWorker",
-      "depends_on": [
-        "prepare-evidence"
-      ],
-      "input": {
-        "from": "state",
-        "path": "/preparation_batches"
-      },
-      "select": "/unresolved",
-      "output_schema": "schemas/unresolved.schema.json",
-      "timeout_seconds": 10,
-      "writes": {
-        "/unresolved": {
-          "from": "result",
-          "path": ""
-        }
-      }
-    },
-    {
-      "id": "check-records",
-      "type": "validate",
-      "worker": "LiteratureReviewCoordinator",
-      "depends_on": [
-        "join-citation-records",
-        "join-evidence-jobs",
-        "join-unresolved"
-      ],
-      "input": {
-        "from": "state",
-        "path": "/citation_records"
-      },
-      "writes": {},
-      "output_schema": "schemas/records.schema.json",
-      "timeout_seconds": 10,
-      "assertions": [
-        {
-          "kind": "relation",
-          "rows": {
-            "from": "state",
-            "path": "/citation_records"
-          },
-          "targets": {
-            "from": "state",
-            "path": "/resolved_jobs"
-          },
-          "row_key": "/paper_id",
-          "target_key": "/paper/paper_id",
-          "compare": [
-            {
-              "left": "/status",
-              "right": "/response/status",
-              "op": "eq"
-            }
-          ]
-        },
-        {
-          "kind": "relation",
-          "rows": {
-            "from": "state",
-            "path": "/citation_records"
-          },
-          "targets": {
-            "from": "state",
-            "path": "/resolved_jobs"
-          },
-          "row_key": "/paper_id",
-          "target_key": "/paper/paper_id",
-          "where": {
-            "path": "/status",
-            "equals": "resolved"
-          },
-          "compare": [
-            {
-              "left": "/metadata",
-              "right": "/response/best_match",
-              "op": "eq"
-            }
-          ]
-        },
-        {
-          "kind": "relation",
-          "rows": {
-            "from": "state",
-            "path": "/resolved_jobs"
-          },
-          "targets": {
-            "from": "state",
-            "path": "/citation_records"
-          },
-          "row_key": "/paper/paper_id",
-          "target_key": "/paper_id"
-        },
-        {
-          "kind": "relation",
-          "rows": {
-            "from": "state",
-            "path": "/citation_records"
-          },
-          "targets": {
-            "from": "state",
-            "path": "/evidence_jobs"
-          },
-          "row_key": "/paper_id",
-          "target_key": "/record/paper_id",
-          "where": {
-            "path": "/status",
-            "equals": "resolved"
-          }
-        },
-        {
-          "kind": "relation",
-          "rows": {
-            "from": "state",
-            "path": "/evidence_jobs"
-          },
-          "targets": {
-            "from": "state",
-            "path": "/citation_records"
-          },
-          "row_key": "/record/paper_id",
-          "target_key": "/paper_id",
-          "target_values": {
-            "/status": "resolved"
-          },
-          "compare": [
-            {
-              "left": "/record",
-              "right": "",
-              "op": "eq"
-            }
-          ]
-        },
-        {
-          "kind": "relation",
-          "rows": {
-            "from": "state",
-            "path": "/evidence_jobs"
-          },
-          "targets": {
-            "from": "state",
-            "path": "/resolved_jobs"
-          },
-          "row_key": "/paper/paper_id",
-          "target_key": "/paper/paper_id",
-          "compare": [
-            {
-              "left": "/paper",
-              "right": "/paper",
-              "op": "eq"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "id": "evidence",
-      "type": "map",
-      "worker": "EvidenceWorker",
-      "input": {
-        "from": "state",
-        "path": "/evidence_jobs"
-      },
-      "output_schema": "schemas/evidence-batches.schema.json",
-      "timeout_seconds": 1020,
-      "depends_on": [
-        "check-records"
-      ],
-      "writes": {
-        "/evidence_batches": {
-          "from": "result",
-          "path": ""
-        }
-      },
-      "item_schema": "schemas/evidence-job.schema.json",
-      "max_items": 20,
-      "max_parallel": 3,
-      "steps": [
-        {
-          "id": "read-source",
-          "type": "tool",
-          "input": {
-            "object": {
-              "file_id": {
-                "from": "item",
-                "path": "/file_id"
-              }
-            }
-          },
-          "output_schema": "schemas/reader-maybe.schema.json",
-          "timeout_seconds": 60,
-          "tool": "paper-reader",
-          "when": {
-            "left": {
-              "from": "item",
-              "path": "/file_id"
-            },
-            "op": "ne",
-            "right": {
-              "literal": null
-            }
-          },
-          "otherwise": {
-            "literal": null
-          }
-        },
-        {
-          "id": "extract-one",
-          "type": "llm",
-          "input": {
-            "object": {
-              "research_question": {
-                "from": "state",
-                "path": "/research_question"
-              },
-              "paper": {
-                "from": "item",
-                "path": "/paper"
-              },
-              "record": {
-                "from": "item",
-                "path": "/record"
-              },
-              "document": {
-                "from": "steps",
-                "path": "/read-source"
-              }
-            }
-          },
-          "output_schema": "schemas/paper-evidence.schema.json",
-          "timeout_seconds": 900,
-          "task": "extract",
-          "max_output_tokens": 12000
-        },
-        {
-          "type": "validate",
-          "input": {
-            "from": "steps",
-            "path": "/extract-one"
-          },
-          "output_schema": "schemas/evidence-list.schema.json",
-          "timeout_seconds": 10,
-          "id": "check-abstract",
-          "when": {
-            "left": {
-              "from": "item",
-              "path": "/file_id"
-            },
-            "op": "eq",
-            "right": {
-              "literal": null
-            }
-          },
-          "otherwise": {
-            "from": "steps",
-            "path": "/extract-one"
-          },
-          "assertions": [
-            {
-              "kind": "equal",
-              "left": {
-                "from": "item",
-                "path": "/record/status"
-              },
-              "right": {
-                "literal": "resolved"
-              }
-            },
-            {
-              "kind": "relation",
-              "rows": {
-                "from": "steps",
-                "path": "/extract-one"
-              },
-              "targets": {
-                "array": [
-                  {
-                    "from": "item",
-                    "path": "/paper"
-                  }
-                ]
-              },
-              "row_key": "/paper_id",
-              "target_key": "/paper_id"
-            },
-            {
-              "kind": "relation",
-              "rows": {
-                "from": "steps",
-                "path": "/extract-one"
-              },
-              "targets": {
-                "array": [
-                  {
-                    "object": {
-                      "paper_id": {
-                        "from": "item",
-                        "path": "/paper/paper_id"
-                      },
-                      "text": {
-                        "coalesce": [
-                          {
-                            "from": "item",
-                            "path": "/record/metadata/abstract"
-                          },
-                          {
-                            "from": "item",
-                            "path": "/paper/abstract"
-                          }
-                        ]
-                      },
-                      "scope": {
-                        "literal": "abstract"
-                      },
-                      "page": {
-                        "literal": null
-                      },
-                      "source_sha256": {
-                        "literal": ""
-                      }
-                    }
-                  }
-                ]
-              },
-              "row_key": "/paper_id",
-              "target_key": "/paper_id",
-              "compare": [
-                {
-                  "left": "/quote",
-                  "right": "/text",
-                  "op": "contained_in"
-                },
-                {
-                  "left": "/scope",
-                  "right": "/scope",
-                  "op": "eq"
-                },
-                {
-                  "left": "/location/page",
-                  "right": "/page",
-                  "op": "eq"
-                },
-                {
-                  "left": "/provenance/source_sha256",
-                  "right": "/source_sha256",
-                  "op": "eq"
-                }
-              ]
-            }
-          ]
-        },
-        {
-          "type": "validate",
-          "input": {
-            "from": "steps",
-            "path": "/extract-one"
-          },
-          "output_schema": "schemas/evidence-list.schema.json",
-          "timeout_seconds": 10,
-          "id": "check-document",
-          "when": {
-            "left": {
-              "from": "item",
-              "path": "/file_id"
-            },
-            "op": "ne",
-            "right": {
-              "literal": null
-            }
-          },
-          "otherwise": {
-            "from": "steps",
-            "path": "/extract-one"
-          },
-          "assertions": [
-            {
-              "kind": "equal",
-              "left": {
-                "from": "item",
-                "path": "/record/status"
-              },
-              "right": {
-                "literal": "resolved"
-              }
-            },
-            {
-              "kind": "relation",
-              "rows": {
-                "from": "steps",
-                "path": "/extract-one"
-              },
-              "targets": {
-                "array": [
-                  {
-                    "from": "item",
-                    "path": "/paper"
-                  }
-                ]
-              },
-              "row_key": "/paper_id",
-              "target_key": "/paper_id"
-            },
-            {
-              "kind": "relation",
-              "rows": {
-                "from": "steps",
-                "path": "/extract-one"
-              },
-              "targets": {
-                "from": "steps",
-                "path": "/read-source/pages"
-              },
-              "row_key": "/location/page",
-              "target_key": "/page",
-              "compare": [
-                {
-                  "left": "/quote",
-                  "right": "/text",
-                  "op": "contained_in"
-                }
-              ]
-            }
-          ]
-        }
-      ],
-      "yield": {
-        "from": "steps",
-        "path": "/extract-one"
-      }
-    },
-    {
-      "id": "join-evidence",
-      "type": "join",
-      "worker": "LiteratureReviewCoordinator",
-      "input": {
-        "from": "state",
-        "path": "/evidence_batches"
-      },
-      "output_schema": "schemas/evidence-list.schema.json",
-      "timeout_seconds": 120,
-      "depends_on": [
-        "evidence"
-      ],
-      "writes": {
-        "/evidence_items": {
-          "from": "result",
-          "path": ""
-        }
-      }
-    },
-    {
-      "id": "check-evidence",
-      "type": "validate",
-      "worker": "LiteratureReviewCoordinator",
-      "depends_on": [
-        "join-evidence"
-      ],
-      "input": {
-        "from": "state",
-        "path": "/evidence_items"
-      },
-      "writes": {},
-      "output_schema": "schemas/evidence-list.schema.json",
-      "timeout_seconds": 10,
-      "assertions": [
-        {
-          "kind": "relation",
-          "rows": {
-            "from": "state",
-            "path": "/evidence_items"
-          },
-          "targets": {
-            "from": "state",
-            "path": "/evidence_items"
-          },
-          "row_key": "/evidence_id",
-          "target_key": "/evidence_id"
-        }
-      ]
-    },
-    {
-      "id": "synthesis",
-      "type": "llm",
-      "worker": "SynthesisWorker",
-      "input": {
-        "object": {
-          "research_question": {
-            "from": "state",
-            "path": "/research_question"
-          },
-          "evidence_items": {
-            "from": "state",
-            "path": "/evidence_items"
-          },
-          "citation_records": {
-            "from": "state",
-            "path": "/citation_records"
-          }
-        }
-      },
-      "output_schema": "schemas/synthesis.schema.json",
-      "timeout_seconds": 600,
-      "depends_on": [
-        "check-evidence"
-      ],
-      "writes": {
-        "/themes": {
-          "from": "result",
-          "path": "/themes"
-        },
-        "/claims": {
-          "from": "result",
-          "path": "/claims"
-        }
-      },
-      "task": "synthesize",
-      "max_output_tokens": 12000,
-      "when": {
-        "left": {
-          "from": "state",
-          "path": "/evidence_items"
-        },
-        "op": "ne",
-        "right": {
-          "literal": []
-        }
-      },
-      "otherwise": {
-        "literal": {
-          "themes": [],
-          "claims": []
-        }
-      }
-    },
-    {
-      "id": "writing",
-      "type": "llm",
-      "worker": "WritingWorker",
-      "input": {
-        "object": {
-          "research_question": {
-            "from": "state",
-            "path": "/research_question"
-          },
-          "themes": {
-            "from": "state",
-            "path": "/themes"
-          },
-          "claims": {
-            "from": "state",
-            "path": "/claims"
-          }
-        }
-      },
-      "output_schema": "schemas/written.schema.json",
-      "timeout_seconds": 360,
-      "depends_on": [
-        "synthesis"
-      ],
-      "writes": {
-        "/draft": {
-          "from": "result",
-          "path": "/draft"
-        },
-        "/claims": {
-          "from": "result",
-          "path": "/claims"
-        }
-      },
-      "task": "write",
-      "max_output_tokens": 12000,
-      "when": {
-        "left": {
-          "from": "state",
-          "path": "/claims"
-        },
-        "op": "ne",
-        "right": {
-          "literal": []
-        }
-      },
-      "otherwise": {
-        "literal": {
-          "draft": {
-            "title": "Related Work",
-            "claim_ids": []
-          },
-          "claims": []
-        }
-      }
-    },
-    {
-      "id": "verification",
-      "type": "llm",
-      "worker": "VerificationWorker",
-      "input": {
-        "object": {
-          "research_question": {
-            "from": "state",
-            "path": "/research_question"
-          },
-          "mode": {
-            "from": "state",
-            "path": "/mode"
-          },
-          "claims": {
-            "from": "state",
-            "path": "/claims"
-          },
-          "evidence_items": {
-            "from": "state",
-            "path": "/evidence_items"
-          },
-          "citation_records": {
-            "from": "state",
-            "path": "/citation_records"
-          },
-          "themes": {
-            "from": "state",
-            "path": "/themes"
-          },
-          "draft": {
-            "from": "state",
-            "path": "/draft"
-          },
-          "unresolved": {
-            "from": "state",
-            "path": "/unresolved"
-          }
-        }
-      },
-      "output_schema": "schemas/review-draft.schema.json",
-      "timeout_seconds": 720,
-      "depends_on": [
-        "writing"
-      ],
-      "writes": {
-        "/review": {
-          "from": "result",
-          "path": ""
-        },
-        "/claims": {
-          "from": "result",
-          "path": "/claims"
-        },
-        "/verification_results": {
-          "from": "result",
-          "path": "/verification_results"
-        }
-      },
-      "task": "verify",
-      "max_output_tokens": 16000,
-      "when": {
-        "left": {
-          "from": "state",
-          "path": "/claims"
-        },
-        "op": "ne",
-        "right": {
-          "literal": []
-        }
-      },
-      "otherwise": {
-        "object": {
-          "related_work": {
-            "literal": "## No sufficiently grounded literature found\n\nNo sufficiently grounded literature was found within this bounded search. No retrieved paper yielded verbatim evidence supporting a claim about this question, so this review makes no claims and cites no sources.\n\nThe search is bounded: at most three scholarly-search queries of three results each, at most three included papers, and only abstracts or explicitly selected documents as evidence. Papers that were found but could not be verified, if any, are listed as unresolved. A narrower or differently worded question, seed references or selected documents may find grounded sources.\n"
-          },
-          "bibliography": {
-            "literal": []
-          },
-          "evidence_table": {
-            "literal": []
-          },
-          "unresolved": {
-            "from": "state",
-            "path": "/unresolved"
-          },
-          "verification_results": {
-            "literal": []
-          },
-          "claims": {
-            "literal": []
-          }
-        }
-      }
-    },
-    {
-      "id": "materialize-claims",
-      "type": "map",
-      "worker": "VerificationWorker",
-      "depends_on": [
-        "verification"
-      ],
-      "input": {
-        "from": "state",
-        "path": "/review/claims"
-      },
-      "output_schema": "schemas/claims.schema.json",
-      "timeout_seconds": 60,
-      "writes": {
-        "/materialized_claims": {
-          "from": "result",
-          "path": ""
-        }
-      },
-      "item_schema": "schemas/claim-draft.schema.json",
-      "max_items": 200,
-      "max_parallel": 1,
-      "steps": [
-        {
-          "id": "check-direct-source",
-          "type": "validate",
-          "input": {
-            "from": "item",
-            "path": ""
-          },
-          "output_schema": "schemas/claim-draft.schema.json",
-          "timeout_seconds": 10,
-          "when": {
-            "left": {
-              "from": "item",
-              "path": "/support_type"
-            },
-            "op": "eq",
-            "right": {
-              "literal": "direct_quote"
-            }
-          },
-          "otherwise": {
-            "from": "item",
-            "path": ""
-          },
-          "assertions": [
-            {
-              "kind": "equal",
-              "left": {
-                "from": "item",
-                "path": "/paper_ids/0"
-              },
-              "right": {
-                "lookup": {
-                  "in": {
-                    "from": "state",
-                    "path": "/evidence_items"
-                  },
-                  "key": "/evidence_id",
-                  "equals": {
-                    "from": "item",
-                    "path": "/evidence_ids/0"
-                  },
-                  "path": "/paper_id"
-                }
-              }
-            }
-          ]
-        },
-        {
-          "id": "attach-quote",
-          "type": "validate",
-          "input": {
-            "from": "item",
-            "path": ""
-          },
-          "output_schema": "schemas/claim.schema.json",
-          "timeout_seconds": 10,
-          "when": {
-            "left": {
-              "from": "item",
-              "path": "/support_type"
-            },
-            "op": "ne",
-            "right": {
-              "literal": "direct_quote"
-            }
-          },
-          "otherwise": {
-            "object": {
-              "claim_id": {
-                "from": "item",
-                "path": "/claim_id"
-              },
-              "text": {
-                "lookup": {
-                  "in": {
-                    "from": "state",
-                    "path": "/evidence_items"
-                  },
-                  "key": "/evidence_id",
-                  "equals": {
-                    "from": "item",
-                    "path": "/evidence_ids/0"
-                  },
-                  "path": "/quote"
-                }
-              },
-              "paper_ids": {
-                "from": "item",
-                "path": "/paper_ids"
-              },
-              "evidence_ids": {
-                "from": "item",
-                "path": "/evidence_ids"
-              },
-              "support_type": {
-                "from": "item",
-                "path": "/support_type"
-              },
-              "strength": {
-                "from": "item",
-                "path": "/strength"
-              },
-              "verification_status": {
-                "from": "item",
-                "path": "/verification_status"
-              },
-              "theme_id": {
-                "from": "item",
-                "path": "/theme_id"
-              }
-            }
-          }
-        }
-      ],
-      "yield": {
-        "from": "steps",
-        "path": "/attach-quote"
-      }
-    },
-    {
-      "id": "materialize-evidence",
-      "type": "map",
-      "worker": "VerificationWorker",
-      "depends_on": [
-        "verification"
-      ],
-      "input": {
-        "from": "state",
-        "path": "/review/evidence_table"
-      },
-      "output_schema": "schemas/evidence-list.schema.json",
-      "timeout_seconds": 60,
-      "writes": {
-        "/evidence_table": {
-          "from": "result",
-          "path": ""
-        }
-      },
-      "item_schema": "schemas/evidence-ref.schema.json",
-      "max_items": 200,
-      "max_parallel": 1,
-      "steps": [
-        {
-          "id": "attach-evidence",
-          "type": "validate",
-          "input": {
-            "lookup": {
-              "in": {
-                "from": "state",
-                "path": "/evidence_items"
-              },
-              "key": "/evidence_id",
-              "equals": {
-                "from": "item",
-                "path": "/evidence_id"
-              },
-              "path": ""
-            }
-          },
-          "output_schema": "schemas/evidence.schema.json",
-          "timeout_seconds": 10
-        }
-      ],
-      "yield": {
-        "from": "steps",
-        "path": "/attach-evidence"
-      }
-    },
-    {
-      "id": "bibliography",
-      "type": "map",
-      "worker": "CitationWorker",
-      "input": {
-        "from": "state",
-        "path": "/review/bibliography"
-      },
-      "output_schema": "schemas/bibliography.schema.json",
-      "timeout_seconds": 60,
-      "depends_on": [
-        "verification"
-      ],
-      "writes": {
-        "/bibliography": {
-          "from": "result",
-          "path": ""
-        }
-      },
-      "item_schema": "schemas/bibliography-ref.schema.json",
-      "max_items": 20,
-      "max_parallel": 3,
-      "steps": [
-        {
-          "id": "attach-metadata",
-          "type": "validate",
-          "input": {
-            "object": {
-              "reference": {
-                "from": "item",
-                "path": "/reference"
-              },
-              "paper_id": {
-                "from": "item",
-                "path": "/paper_id"
-              },
-              "metadata": {
-                "lookup": {
-                  "in": {
-                    "from": "state",
-                    "path": "/resolved_jobs"
-                  },
-                  "key": "/paper/paper_id",
-                  "equals": {
-                    "from": "item",
-                    "path": "/paper_id"
-                  },
-                  "path": "/response/best_match"
-                }
-              }
-            }
-          },
-          "output_schema": "schemas/bibliography-entry.schema.json",
-          "timeout_seconds": 10
-        }
-      ],
-      "yield": {
-        "from": "steps",
-        "path": "/attach-metadata"
-      }
-    },
-    {
-      "id": "assemble-output",
-      "type": "validate",
-      "worker": "LiteratureReviewCoordinator",
-      "depends_on": [
-        "bibliography",
-        "materialize-claims",
-        "materialize-evidence"
-      ],
-      "input": {
-        "object": {
-          "related_work": {
-            "from": "state",
-            "path": "/review/related_work"
-          },
-          "bibliography": {
-            "from": "state",
-            "path": "/bibliography"
-          },
-          "evidence_table": {
-            "from": "state",
-            "path": "/evidence_table"
-          },
-          "unresolved": {
-            "from": "state",
-            "path": "/review/unresolved"
-          },
-          "verification_results": {
-            "from": "state",
-            "path": "/review/verification_results"
-          },
-          "claims": {
-            "from": "state",
-            "path": "/materialized_claims"
-          }
-        }
-      },
-      "output_schema": "schemas/review-output.schema.json",
-      "timeout_seconds": 10,
-      "writes": {
-        "/final": {
-          "from": "result",
-          "path": ""
-        }
-      }
-    },
-    {
-      "id": "validate-output",
-      "type": "validate",
-      "worker": "LiteratureReviewCoordinator",
-      "input": {
-        "from": "state",
-        "path": "/final"
-      },
-      "output_schema": "schemas/review-output.schema.json",
-      "timeout_seconds": 120,
-      "depends_on": [
-        "assemble-output"
-      ],
-      "writes": {},
-      "assertions": [
-        {
-          "kind": "relation",
-          "rows": {
-            "from": "state",
-            "path": "/final/bibliography"
-          },
-          "targets": {
-            "from": "state",
-            "path": "/resolved_jobs"
-          },
-          "row_key": "/paper_id",
-          "target_key": "/paper/paper_id",
-          "target_values": {
-            "/response/status": "resolved"
-          },
-          "compare": [
-            {
-              "left": "/metadata",
-              "right": "/response/best_match",
-              "op": "eq"
-            }
-          ]
-        },
-        {
-          "kind": "relation",
-          "rows": {
-            "from": "state",
-            "path": "/final/evidence_table"
-          },
-          "targets": {
-            "from": "state",
-            "path": "/evidence_items"
-          },
-          "row_key": "/evidence_id",
-          "target_key": "/evidence_id",
-          "compare": [
-            {
-              "left": "/paper_id",
-              "right": "/paper_id",
-              "op": "eq"
-            },
-            {
-              "left": "/quote",
-              "right": "/quote",
-              "op": "eq"
-            },
-            {
-              "left": "/scope",
-              "right": "/scope",
-              "op": "eq"
-            },
-            {
-              "left": "/location",
-              "right": "/location",
-              "op": "eq"
-            },
-            {
-              "left": "/provenance",
-              "right": "/provenance",
-              "op": "eq"
-            },
-            {
-              "left": "",
-              "right": "",
-              "op": "eq"
-            }
-          ]
-        },
-        {
-          "kind": "relation",
-          "rows": {
-            "from": "state",
-            "path": "/final/claims"
-          },
-          "targets": {
-            "from": "state",
-            "path": "/evidence_items"
-          },
-          "row_key": "/evidence_ids",
-          "target_key": "/evidence_id",
-          "many": true
-        },
-        {
-          "kind": "relation",
-          "rows": {
-            "from": "state",
-            "path": "/final/claims"
-          },
-          "targets": {
-            "from": "state",
-            "path": "/citation_records"
-          },
-          "row_key": "/paper_ids",
-          "target_key": "/paper_id",
-          "many": true,
-          "target_values": {
-            "/status": "resolved"
-          }
-        },
-        {
-          "kind": "relation",
-          "rows": {
-            "from": "state",
-            "path": "/final/claims"
-          },
-          "targets": {
-            "from": "state",
-            "path": "/evidence_items"
-          },
-          "row_key": "/evidence_ids",
-          "target_key": "/evidence_id",
-          "many": true,
-          "where": {
-            "path": "/support_type",
-            "equals": "direct_quote"
-          },
-          "compare": [
-            {
-              "left": "/text",
-              "right": "/quote",
-              "op": "eq"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "id": "outputs",
-      "type": "output",
-      "worker": "LiteratureReviewCoordinator",
-      "input": {
-        "from": "state",
-        "path": "/final"
-      },
-      "output_schema": "schemas/review-output.schema.json",
-      "timeout_seconds": 120,
-      "depends_on": [
-        "validate-output"
-      ],
-      "writes": {}
     }
   ],
-  "fixture": "fixtures/workflow.json",
   "extensions": {
     "agentpkg:presentation": {
-      "schema": "agentpkg-presentation-v0",
-      "task": {
-        "prompt": "What would you like me to research?",
-        "run_label": "Run Research",
-        "running_label": "Researching…",
-        "completed_label": "Research completed"
-      },
       "input": {
+        "documents": {
+          "group": "optional",
+          "key_label": "Paper DOI",
+          "key_placeholder": "10.1234/example",
+          "widget": "selected_files"
+        },
+        "mode": {
+          "group": "advanced"
+        },
         "question": {
-          "widget": "multiline",
+          "placeholder": "What defenses have been proposed against prompt injection attacks on LLM-integrated applications?",
           "rows": 4,
-          "placeholder": "What defenses have been proposed against prompt injection attacks on LLM-integrated applications?"
+          "widget": "multiline"
         },
         "seeds": {
           "group": "optional",
           "item_placeholder": "A title, DOI or arXiv id"
-        },
-        "documents": {
-          "group": "optional",
-          "widget": "selected_files",
-          "key_label": "Paper DOI",
-          "key_placeholder": "10.1234/example"
-        },
-        "mode": {
-          "group": "advanced"
         }
       },
       "nodes": {
         "planning": "Planning",
         "seed-discovery": "Seed references",
         "search": "Scholarly search",
-        "join-search": "Merge search results",
-        "normalize": "Deduplicate candidates",
+        "join-batches": "Merge search and seed results",
+        "join-search": "Remove duplicate records",
+        "identify": "Identify papers",
+        "join-found": "Collect found papers",
+        "join-found-refs": "Collect paper references",
+        "normalize-gate": "Check for selected documents",
+        "normalize": "Match selected documents",
         "screening": "Screening",
+        "join-included": "Collect included papers",
+        "papers-found": "List papers found",
         "select-included": "Select papers",
+        "join-selection": "Collect selected papers",
         "citations": "Citations",
         "prepare-evidence": "Prepare evidence",
+        "join-citation-records": "Collect citation records",
+        "join-evidence-jobs": "Collect evidence jobs",
+        "join-unresolved": "Collect unresolved citations",
         "check-records": "Check citation records",
         "evidence": "Evidence extraction",
         "join-evidence": "Merge evidence",
@@ -2367,16 +101,39 @@
         "synthesis": "Synthesis",
         "writing": "Writing",
         "verification": "Verification",
+        "materialize-claims": "Attach exact quotes",
+        "materialize-evidence": "Attach exact evidence",
         "bibliography": "Attach citation metadata",
         "assemble-output": "Assemble result",
         "validate-output": "Validate result",
-        "outputs": "Outputs",
-        "join-citation-records": "Collect citation records",
-        "join-evidence-jobs": "Collect evidence jobs",
-        "join-unresolved": "Collect unresolved citations",
-        "materialize-claims": "Attach exact quotes",
-        "materialize-evidence": "Attach exact evidence"
+        "outputs": "Outputs"
       },
+      "result": {
+        "primary_export": "related-work.md",
+        "summary": [
+          {
+            "label": "Papers found",
+            "export": "papers-found.json"
+          },
+          {
+            "export": "bibliography.json",
+            "label": "Papers included"
+          },
+          {
+            "export": "evidence-table.json",
+            "label": "Evidence items"
+          },
+          {
+            "export": "verification.json",
+            "label": "Claims verified"
+          },
+          {
+            "export": "unresolved.json",
+            "label": "Unresolved"
+          }
+        ]
+      },
+      "schema": "agentpkg-presentation-v0",
       "stages": [
         {
           "label": "Planning",
@@ -2389,15 +146,23 @@
           "label": "Scholarly search",
           "nodes": [
             "search",
-            "join-search"
+            "join-batches",
+            "join-search",
+            "identify",
+            "join-found",
+            "join-found-refs"
           ]
         },
         {
           "label": "Screening",
           "nodes": [
+            "normalize-gate",
             "normalize",
             "screening",
-            "select-included"
+            "join-included",
+            "papers-found",
+            "select-included",
+            "join-selection"
           ]
         },
         {
@@ -2444,69 +209,3141 @@
           ]
         }
       ],
-      "result": {
-        "primary_export": "related-work.md",
-        "summary": [
-          {
-            "label": "Papers included",
-            "export": "bibliography.json"
-          },
-          {
-            "label": "Evidence items",
-            "export": "evidence-table.json"
-          },
-          {
-            "label": "Claims verified",
-            "export": "verification.json"
-          },
-          {
-            "label": "Unresolved",
-            "export": "unresolved.json"
-          }
-        ]
+      "task": {
+        "completed_label": "Research completed",
+        "prompt": "What would you like me to research?",
+        "run_label": "Run Research",
+        "running_label": "Researching…"
       }
     }
   },
-  "exports": [
+  "fixture": "fixtures/workflow.json",
+  "initial_state": {
+    "object": {
+      "bibliography": {
+        "literal": []
+      },
+      "citation_jobs": {
+        "literal": []
+      },
+      "citation_records": {
+        "literal": []
+      },
+      "claims": {
+        "literal": []
+      },
+      "document_refs": {
+        "from": "input",
+        "path": "/documents"
+      },
+      "draft": {
+        "literal": {
+          "claim_ids": [],
+          "title": "Related Work"
+        }
+      },
+      "evidence_batches": {
+        "literal": []
+      },
+      "evidence_items": {
+        "literal": []
+      },
+      "evidence_jobs": {
+        "literal": []
+      },
+      "final": {
+        "literal": {}
+      },
+      "mode": {
+        "from": "input",
+        "path": "/mode"
+      },
+      "reasoning_mode": {
+        "literal": "model"
+      },
+      "research_question": {
+        "from": "input",
+        "path": "/question"
+      },
+      "resolved_jobs": {
+        "literal": []
+      },
+      "review": {
+        "literal": {}
+      },
+      "search_batches": {
+        "literal": []
+      },
+      "search_plan": {
+        "literal": {
+          "queries": [],
+          "rationale": ""
+        }
+      },
+      "search_queries": {
+        "literal": []
+      },
+      "seed_references": {
+        "from": "input",
+        "path": "/seeds"
+      },
+      "themes": {
+        "literal": []
+      },
+      "unresolved": {
+        "literal": []
+      },
+      "verification_results": {
+        "literal": []
+      }
+    }
+  },
+  "input_schema": "schemas/workflow-input.schema.json",
+  "nodes": [
     {
-      "path": "related-work.md",
-      "format": "text",
-      "value": {
-        "from": "result",
-        "path": "/related_work"
+      "depends_on": [],
+      "id": "planning",
+      "input": {
+        "object": {
+          "research_question": {
+            "from": "state",
+            "path": "/research_question"
+          },
+          "seed_references": {
+            "from": "state",
+            "path": "/seed_references"
+          }
+        }
+      },
+      "max_output_tokens": 12000,
+      "output_schema": "schemas/plan.schema.json",
+      "task": "plan",
+      "timeout_seconds": 360,
+      "type": "llm",
+      "worker": "PlanningWorker",
+      "writes": {
+        "/search_plan": {
+          "from": "result",
+          "path": ""
+        },
+        "/search_queries": {
+          "from": "result",
+          "path": "/queries"
+        }
       }
     },
     {
-      "path": "bibliography.json",
-      "format": "json",
-      "value": {
-        "from": "result",
-        "path": "/bibliography"
+      "depends_on": [
+        "planning"
+      ],
+      "id": "seed-discovery",
+      "input": {
+        "from": "state",
+        "path": "/search_plan/seed_queries"
+      },
+      "item_schema": "schemas/query.schema.json",
+      "max_items": 20,
+      "max_parallel": 3,
+      "output_schema": "schemas/search-batches.schema.json",
+      "steps": [
+        {
+          "id": "resolve-seed",
+          "input": {
+            "object": {
+              "format": {
+                "literal": "bibtex"
+              },
+              "query": {
+                "from": "item",
+                "path": ""
+              },
+              "query_type": {
+                "literal": "auto"
+              }
+            }
+          },
+          "output_schema": "schemas/resolver-output.schema.json",
+          "timeout_seconds": 60,
+          "tool": "citation-resolver",
+          "type": "tool"
+        },
+        {
+          "id": "seed-paper",
+          "type": "validate",
+          "input": {
+            "literal": []
+          },
+          "output_schema": "schemas/raw-papers.schema.json",
+          "timeout_seconds": 10,
+          "when": {
+            "left": {
+              "from": "steps",
+              "path": "/resolve-seed/status"
+            },
+            "op": "ne",
+            "right": {
+              "literal": "resolved"
+            }
+          },
+          "otherwise": {
+            "array": [
+              {
+                "object": {
+                  "title": {
+                    "from": "steps",
+                    "path": "/resolve-seed/best_match/title"
+                  },
+                  "doi": {
+                    "from": "steps",
+                    "path": "/resolve-seed/best_match/doi"
+                  },
+                  "arxiv_id": {
+                    "from": "steps",
+                    "path": "/resolve-seed/best_match/arxiv_id"
+                  },
+                  "authors": {
+                    "from": "steps",
+                    "path": "/resolve-seed/best_match/authors"
+                  },
+                  "year": {
+                    "from": "steps",
+                    "path": "/resolve-seed/best_match/year"
+                  },
+                  "venue": {
+                    "from": "steps",
+                    "path": "/resolve-seed/best_match/venue"
+                  },
+                  "abstract": {
+                    "from": "steps",
+                    "path": "/resolve-seed/best_match/abstract"
+                  },
+                  "url": {
+                    "from": "steps",
+                    "path": "/resolve-seed/best_match/url"
+                  },
+                  "source": {
+                    "from": "steps",
+                    "path": "/resolve-seed/best_match/source"
+                  },
+                  "provenance": {
+                    "array": [
+                      {
+                        "object": {
+                          "source": {
+                            "literal": "citation-resolver"
+                          },
+                          "query": {
+                            "from": "item",
+                            "path": ""
+                          },
+                          "locator": {
+                            "from": "steps",
+                            "path": "/resolve-seed/best_match/doi"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "timeout_seconds": 120,
+      "type": "map",
+      "worker": "CitationWorker",
+      "writes": {
+        "/seed_batches": {
+          "from": "result",
+          "path": ""
+        }
+      },
+      "yield": {
+        "object": {
+          "papers": {
+            "from": "steps",
+            "path": "/seed-paper"
+          },
+          "query": {
+            "from": "item",
+            "path": ""
+          },
+          "source": {
+            "literal": "citation-resolver"
+          }
+        }
       }
     },
     {
-      "path": "evidence-table.json",
-      "format": "json",
-      "value": {
-        "from": "result",
-        "path": "/evidence_table"
+      "depends_on": [
+        "seed-discovery"
+      ],
+      "id": "search",
+      "input": {
+        "from": "state",
+        "path": "/search_queries"
+      },
+      "item_schema": "schemas/query.schema.json",
+      "max_items": 3,
+      "max_parallel": 3,
+      "output_schema": "schemas/search-batches.schema.json",
+      "steps": [
+        {
+          "id": "search-query",
+          "input": {
+            "object": {
+              "limit": {
+                "literal": 3
+              },
+              "query": {
+                "from": "item",
+                "path": ""
+              }
+            }
+          },
+          "output_schema": "schemas/search-output.schema.json",
+          "timeout_seconds": 60,
+          "tool": "scholarly-search",
+          "type": "tool"
+        }
+      ],
+      "timeout_seconds": 120,
+      "type": "map",
+      "worker": "SearchWorker",
+      "writes": {
+        "/search_batches": {
+          "from": "result",
+          "path": ""
+        }
+      },
+      "yield": {
+        "from": "steps",
+        "path": "/search-query"
       }
     },
     {
-      "path": "unresolved.json",
-      "format": "json",
-      "value": {
-        "from": "result",
-        "path": "/unresolved"
+      "id": "join-batches",
+      "type": "join",
+      "worker": "LiteratureReviewCoordinator",
+      "depends_on": [
+        "search"
+      ],
+      "input": {
+        "array": [
+          {
+            "from": "state",
+            "path": "/search_batches"
+          },
+          {
+            "from": "state",
+            "path": "/seed_batches"
+          }
+        ]
+      },
+      "output_schema": "schemas/search-batches.schema.json",
+      "timeout_seconds": 10,
+      "writes": {
+        "/all_batches": {
+          "from": "result",
+          "path": ""
+        }
       }
     },
     {
-      "path": "verification.json",
-      "format": "json",
-      "value": {
-        "from": "result",
-        "path": "/verification_results"
+      "depends_on": [
+        "join-batches"
+      ],
+      "id": "join-search",
+      "input": {
+        "from": "state",
+        "path": "/all_batches"
+      },
+      "output_schema": "schemas/raw-papers.schema.json",
+      "select": "/papers",
+      "timeout_seconds": 120,
+      "type": "join",
+      "worker": "LiteratureReviewCoordinator",
+      "writes": {
+        "/raw_candidates": {
+          "from": "result",
+          "path": ""
+        }
+      },
+      "unique_by": [
+        "/doi",
+        "/arxiv_id"
+      ]
+    },
+    {
+      "id": "identify",
+      "type": "map",
+      "worker": "SearchWorker",
+      "depends_on": [
+        "join-search"
+      ],
+      "input": {
+        "from": "state",
+        "path": "/raw_candidates"
+      },
+      "output_schema": "schemas/identified.schema.json",
+      "timeout_seconds": 60,
+      "writes": {
+        "/identified": {
+          "from": "result",
+          "path": ""
+        }
+      },
+      "item_schema": "schemas/raw-paper.schema.json",
+      "max_items": 32,
+      "max_parallel": 3,
+      "steps": [
+        {
+          "id": "paper",
+          "type": "validate",
+          "input": {
+            "object": {
+              "paper_id": {
+                "coalesce": [
+                  {
+                    "from": "item",
+                    "path": "/doi"
+                  },
+                  {
+                    "from": "item",
+                    "path": "/arxiv_id"
+                  },
+                  {
+                    "from": "item",
+                    "path": "/url"
+                  },
+                  {
+                    "from": "item",
+                    "path": "/title"
+                  }
+                ]
+              },
+              "title": {
+                "from": "item",
+                "path": "/title"
+              },
+              "doi": {
+                "from": "item",
+                "path": "/doi"
+              },
+              "arxiv_id": {
+                "from": "item",
+                "path": "/arxiv_id"
+              },
+              "authors": {
+                "from": "item",
+                "path": "/authors"
+              },
+              "year": {
+                "from": "item",
+                "path": "/year"
+              },
+              "venue": {
+                "from": "item",
+                "path": "/venue"
+              },
+              "abstract": {
+                "from": "item",
+                "path": "/abstract"
+              },
+              "url": {
+                "from": "item",
+                "path": "/url"
+              },
+              "source": {
+                "from": "item",
+                "path": "/source"
+              },
+              "provenance": {
+                "from": "item",
+                "path": "/provenance"
+              },
+              "full_text_available": {
+                "literal": false
+              },
+              "screening_status": {
+                "literal": "pending"
+              },
+              "screening_rationale": {
+                "literal": ""
+              }
+            }
+          },
+          "output_schema": "schemas/paper.schema.json",
+          "timeout_seconds": 10
+        }
+      ],
+      "yield": {
+        "object": {
+          "paper": {
+            "array": [
+              {
+                "from": "steps",
+                "path": "/paper"
+              }
+            ]
+          },
+          "ref": {
+            "array": [
+              {
+                "object": {
+                  "paper_id": {
+                    "from": "steps",
+                    "path": "/paper/paper_id"
+                  },
+                  "file_id": {
+                    "literal": null
+                  }
+                }
+              }
+            ]
+          }
+        }
       }
+    },
+    {
+      "id": "join-found",
+      "type": "join",
+      "worker": "LiteratureReviewCoordinator",
+      "depends_on": [
+        "identify"
+      ],
+      "input": {
+        "from": "state",
+        "path": "/identified"
+      },
+      "select": "/paper",
+      "unique_by": [
+        "/paper_id"
+      ],
+      "limit": 20,
+      "output_schema": "schemas/papers.schema.json",
+      "timeout_seconds": 10,
+      "writes": {
+        "/found_papers": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "id": "join-found-refs",
+      "type": "join",
+      "worker": "LiteratureReviewCoordinator",
+      "depends_on": [
+        "identify"
+      ],
+      "input": {
+        "from": "state",
+        "path": "/identified"
+      },
+      "select": "/ref",
+      "unique_by": [
+        "/paper_id"
+      ],
+      "limit": 20,
+      "output_schema": "schemas/candidate-refs.schema.json",
+      "timeout_seconds": 10,
+      "writes": {
+        "/found_refs": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "id": "normalize-gate",
+      "type": "validate",
+      "worker": "LiteratureReviewCoordinator",
+      "depends_on": [
+        "join-found-refs"
+      ],
+      "input": {
+        "from": "state",
+        "path": "/document_refs"
+      },
+      "output_schema": "schemas/documents.schema.json",
+      "timeout_seconds": 10,
+      "when": {
+        "left": {
+          "from": "state",
+          "path": "/found_refs"
+        },
+        "op": "ne",
+        "right": {
+          "literal": []
+        }
+      },
+      "otherwise": {
+        "literal": {}
+      },
+      "writes": {
+        "/normalize_documents": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "id": "normalize",
+      "type": "llm",
+      "worker": "PlanningWorker",
+      "input": {
+        "object": {
+          "research_question": {
+            "from": "state",
+            "path": "/research_question"
+          },
+          "candidates": {
+            "from": "state",
+            "path": "/found_papers"
+          },
+          "documents": {
+            "from": "state",
+            "path": "/normalize_documents"
+          }
+        }
+      },
+      "output_schema": "schemas/normalize.schema.json",
+      "timeout_seconds": 1200,
+      "depends_on": [
+        "join-found",
+        "normalize-gate"
+      ],
+      "writes": {
+        "/candidate_refs": {
+          "from": "result",
+          "path": "/candidates"
+        }
+      },
+      "task": "normalize",
+      "max_output_tokens": 16000,
+      "when": {
+        "left": {
+          "from": "state",
+          "path": "/normalize_documents"
+        },
+        "op": "ne",
+        "right": {
+          "literal": {}
+        }
+      },
+      "otherwise": {
+        "object": {
+          "candidates": {
+            "from": "state",
+            "path": "/found_refs"
+          }
+        }
+      },
+      "checks": [
+        {
+          "kind": "relation",
+          "rows": {
+            "from": "result",
+            "path": "/candidates"
+          },
+          "targets": {
+            "from": "state",
+            "path": "/found_refs"
+          },
+          "row_key": "/paper_id",
+          "target_key": "/paper_id"
+        },
+        {
+          "kind": "relation",
+          "rows": {
+            "from": "state",
+            "path": "/found_refs"
+          },
+          "targets": {
+            "from": "result",
+            "path": "/candidates"
+          },
+          "row_key": "/paper_id",
+          "target_key": "/paper_id"
+        }
+      ]
+    },
+    {
+      "depends_on": [
+        "normalize"
+      ],
+      "id": "screening",
+      "input": {
+        "from": "state",
+        "path": "/candidate_refs"
+      },
+      "item_schema": "schemas/candidate-ref.schema.json",
+      "max_items": 20,
+      "max_parallel": 3,
+      "output_schema": "schemas/screening-batches.schema.json",
+      "steps": [
+        {
+          "id": "paper",
+          "type": "validate",
+          "input": {
+            "lookup": {
+              "in": {
+                "from": "state",
+                "path": "/found_papers"
+              },
+              "key": "/paper_id",
+              "equals": {
+                "from": "item",
+                "path": "/paper_id"
+              },
+              "path": ""
+            }
+          },
+          "output_schema": "schemas/paper.schema.json",
+          "timeout_seconds": 10
+        },
+        {
+          "id": "full-text",
+          "type": "validate",
+          "input": {
+            "literal": true
+          },
+          "output_schema": "schemas/full-text-flag.schema.json",
+          "timeout_seconds": 10,
+          "when": {
+            "left": {
+              "from": "item",
+              "path": "/file_id"
+            },
+            "op": "ne",
+            "right": {
+              "literal": null
+            }
+          },
+          "otherwise": {
+            "literal": false
+          }
+        },
+        {
+          "id": "read-source",
+          "input": {
+            "object": {
+              "file_id": {
+                "from": "item",
+                "path": "/file_id"
+              }
+            }
+          },
+          "otherwise": {
+            "literal": null
+          },
+          "output_schema": "schemas/reader-maybe.schema.json",
+          "timeout_seconds": 60,
+          "tool": "paper-reader",
+          "type": "tool",
+          "when": {
+            "left": {
+              "from": "item",
+              "path": "/file_id"
+            },
+            "op": "ne",
+            "right": {
+              "literal": null
+            }
+          }
+        },
+        {
+          "id": "screen-one",
+          "type": "llm",
+          "input": {
+            "object": {
+              "research_question": {
+                "from": "state",
+                "path": "/research_question"
+              },
+              "paper": {
+                "from": "steps",
+                "path": "/paper"
+              },
+              "document": {
+                "from": "steps",
+                "path": "/read-source"
+              }
+            }
+          },
+          "output_schema": "schemas/screen-verdict.schema.json",
+          "timeout_seconds": 600,
+          "task": "screen",
+          "max_output_tokens": 12000,
+          "checks": [
+            {
+              "kind": "equal",
+              "left": {
+                "from": "result",
+                "path": "/paper_id"
+              },
+              "right": {
+                "from": "steps",
+                "path": "/paper/paper_id"
+              }
+            }
+          ]
+        },
+        {
+          "id": "screened",
+          "type": "validate",
+          "input": {
+            "object": {
+              "paper_id": {
+                "from": "steps",
+                "path": "/paper/paper_id"
+              },
+              "title": {
+                "from": "steps",
+                "path": "/paper/title"
+              },
+              "doi": {
+                "from": "steps",
+                "path": "/paper/doi"
+              },
+              "arxiv_id": {
+                "from": "steps",
+                "path": "/paper/arxiv_id"
+              },
+              "authors": {
+                "from": "steps",
+                "path": "/paper/authors"
+              },
+              "year": {
+                "from": "steps",
+                "path": "/paper/year"
+              },
+              "venue": {
+                "from": "steps",
+                "path": "/paper/venue"
+              },
+              "abstract": {
+                "from": "steps",
+                "path": "/paper/abstract"
+              },
+              "url": {
+                "from": "steps",
+                "path": "/paper/url"
+              },
+              "source": {
+                "from": "steps",
+                "path": "/paper/source"
+              },
+              "provenance": {
+                "from": "steps",
+                "path": "/paper/provenance"
+              },
+              "full_text_available": {
+                "from": "steps",
+                "path": "/full-text"
+              },
+              "screening_status": {
+                "from": "steps",
+                "path": "/screen-one/screening_status"
+              },
+              "screening_rationale": {
+                "from": "steps",
+                "path": "/screen-one/screening_rationale"
+              }
+            }
+          },
+          "output_schema": "schemas/paper.schema.json",
+          "timeout_seconds": 10
+        },
+        {
+          "id": "included",
+          "type": "validate",
+          "input": {
+            "literal": []
+          },
+          "output_schema": "schemas/papers.schema.json",
+          "timeout_seconds": 10,
+          "when": {
+            "left": {
+              "from": "steps",
+              "path": "/screen-one/screening_status"
+            },
+            "op": "ne",
+            "right": {
+              "literal": "include"
+            }
+          },
+          "otherwise": {
+            "array": [
+              {
+                "from": "steps",
+                "path": "/screened"
+              }
+            ]
+          }
+        },
+        {
+          "id": "found",
+          "type": "validate",
+          "input": {
+            "object": {
+              "paper_id": {
+                "from": "steps",
+                "path": "/screened/paper_id"
+              },
+              "title": {
+                "from": "steps",
+                "path": "/screened/title"
+              },
+              "year": {
+                "from": "steps",
+                "path": "/screened/year"
+              },
+              "venue": {
+                "from": "steps",
+                "path": "/screened/venue"
+              },
+              "doi": {
+                "from": "steps",
+                "path": "/screened/doi"
+              },
+              "url": {
+                "from": "steps",
+                "path": "/screened/url"
+              },
+              "screening_status": {
+                "from": "steps",
+                "path": "/screen-one/screening_status"
+              },
+              "screening_rationale": {
+                "from": "steps",
+                "path": "/screen-one/screening_rationale"
+              }
+            }
+          },
+          "output_schema": "schemas/paper-found.schema.json",
+          "timeout_seconds": 10
+        }
+      ],
+      "timeout_seconds": 1800,
+      "type": "map",
+      "worker": "ScreeningWorker",
+      "writes": {
+        "/screening_batches": {
+          "from": "result",
+          "path": ""
+        }
+      },
+      "yield": {
+        "object": {
+          "included": {
+            "from": "steps",
+            "path": "/included"
+          },
+          "found": {
+            "array": [
+              {
+                "from": "steps",
+                "path": "/found"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "join-included",
+      "type": "join",
+      "worker": "LiteratureReviewCoordinator",
+      "depends_on": [
+        "screening"
+      ],
+      "input": {
+        "from": "state",
+        "path": "/screening_batches"
+      },
+      "select": "/included",
+      "output_schema": "schemas/papers.schema.json",
+      "timeout_seconds": 10,
+      "writes": {
+        "/included_papers": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "id": "papers-found",
+      "type": "join",
+      "worker": "LiteratureReviewCoordinator",
+      "depends_on": [
+        "screening"
+      ],
+      "input": {
+        "from": "state",
+        "path": "/screening_batches"
+      },
+      "select": "/found",
+      "output_schema": "schemas/papers-found.schema.json",
+      "timeout_seconds": 10,
+      "writes": {
+        "/papers_found": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "depends_on": [
+        "join-included"
+      ],
+      "id": "select-included",
+      "input": {
+        "object": {
+          "research_question": {
+            "from": "state",
+            "path": "/research_question"
+          },
+          "included_papers": {
+            "from": "state",
+            "path": "/included_papers"
+          }
+        }
+      },
+      "max_output_tokens": 12000,
+      "output_schema": "schemas/selection.schema.json",
+      "task": "select",
+      "timeout_seconds": 480,
+      "type": "llm",
+      "worker": "ScreeningWorker",
+      "writes": {
+        "/selection": {
+          "from": "result",
+          "path": ""
+        }
+      },
+      "when": {
+        "left": {
+          "from": "state",
+          "path": "/included_papers"
+        },
+        "op": "ne",
+        "right": {
+          "literal": []
+        }
+      },
+      "otherwise": {
+        "literal": {
+          "paper_ids": []
+        }
+      },
+      "checks": [
+        {
+          "kind": "relation",
+          "rows": {
+            "array": [
+              {
+                "from": "result",
+                "path": ""
+              }
+            ]
+          },
+          "targets": {
+            "from": "state",
+            "path": "/included_papers"
+          },
+          "row_key": "/paper_ids",
+          "target_key": "/paper_id",
+          "many": true
+        }
+      ]
+    },
+    {
+      "id": "join-selection",
+      "type": "join",
+      "worker": "LiteratureReviewCoordinator",
+      "depends_on": [
+        "select-included"
+      ],
+      "input": {
+        "array": [
+          {
+            "from": "state",
+            "path": "/selection/paper_ids"
+          }
+        ]
+      },
+      "unique_by": [
+        ""
+      ],
+      "output_schema": "schemas/paper-ids.schema.json",
+      "timeout_seconds": 10,
+      "writes": {
+        "/citation_jobs": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "depends_on": [
+        "join-selection"
+      ],
+      "id": "citations",
+      "input": {
+        "from": "state",
+        "path": "/citation_jobs"
+      },
+      "item_schema": "schemas/paper-id.schema.json",
+      "max_items": 20,
+      "max_parallel": 3,
+      "output_schema": "schemas/resolved-jobs.schema.json",
+      "steps": [
+        {
+          "id": "paper",
+          "type": "validate",
+          "input": {
+            "lookup": {
+              "in": {
+                "from": "state",
+                "path": "/included_papers"
+              },
+              "key": "/paper_id",
+              "equals": {
+                "from": "item",
+                "path": ""
+              },
+              "path": ""
+            }
+          },
+          "output_schema": "schemas/paper.schema.json",
+          "timeout_seconds": 10
+        },
+        {
+          "id": "resolve-one",
+          "input": {
+            "object": {
+              "format": {
+                "literal": "bibtex"
+              },
+              "query": {
+                "coalesce": [
+                  {
+                    "from": "steps",
+                    "path": "/paper/doi"
+                  },
+                  {
+                    "from": "steps",
+                    "path": "/paper/arxiv_id"
+                  },
+                  {
+                    "from": "steps",
+                    "path": "/paper/title"
+                  }
+                ]
+              },
+              "query_type": {
+                "literal": "auto"
+              }
+            }
+          },
+          "output_schema": "schemas/resolver-output.schema.json",
+          "timeout_seconds": 60,
+          "tool": "citation-resolver",
+          "type": "tool"
+        },
+        {
+          "assertions": [
+            {
+              "kind": "relation",
+              "row_key": "/best_match/doi",
+              "rows": {
+                "array": [
+                  {
+                    "from": "steps",
+                    "path": "/resolve-one"
+                  }
+                ]
+              },
+              "target_key": "/doi",
+              "targets": {
+                "array": [
+                  {
+                    "from": "steps",
+                    "path": "/paper"
+                  }
+                ]
+              },
+              "where": {
+                "equals": "resolved",
+                "path": "/status"
+              }
+            }
+          ],
+          "id": "check-identity",
+          "input": {
+            "from": "steps",
+            "path": "/resolve-one"
+          },
+          "otherwise": {
+            "from": "steps",
+            "path": "/resolve-one"
+          },
+          "output_schema": "schemas/resolver-output.schema.json",
+          "timeout_seconds": 10,
+          "type": "validate",
+          "when": {
+            "left": {
+              "from": "steps",
+              "path": "/paper/doi"
+            },
+            "op": "ne",
+            "right": {
+              "literal": null
+            }
+          }
+        }
+      ],
+      "timeout_seconds": 120,
+      "type": "map",
+      "worker": "CitationWorker",
+      "writes": {
+        "/resolved_jobs": {
+          "from": "result",
+          "path": ""
+        }
+      },
+      "yield": {
+        "object": {
+          "paper": {
+            "from": "steps",
+            "path": "/paper"
+          },
+          "response": {
+            "from": "steps",
+            "path": "/check-identity"
+          }
+        }
+      }
+    },
+    {
+      "depends_on": [
+        "citations"
+      ],
+      "id": "prepare-evidence",
+      "input": {
+        "from": "state",
+        "path": "/resolved_jobs"
+      },
+      "item_schema": "schemas/resolved-job.schema.json",
+      "max_items": 20,
+      "max_parallel": 3,
+      "output_schema": "schemas/preparation-batches.schema.json",
+      "steps": [
+        {
+          "id": "synthetic",
+          "input": {
+            "literal": false
+          },
+          "otherwise": {
+            "literal": true
+          },
+          "output_schema": "schemas/synthetic-flag.schema.json",
+          "timeout_seconds": 10,
+          "type": "validate",
+          "when": {
+            "left": {
+              "from": "state",
+              "path": "/mode"
+            },
+            "op": "eq",
+            "right": {
+              "literal": "live"
+            }
+          }
+        },
+        {
+          "id": "record",
+          "input": {
+            "object": {
+              "alternatives": {
+                "from": "item",
+                "path": "/response/alternatives"
+              },
+              "message": {
+                "from": "item",
+                "path": "/response/message"
+              },
+              "metadata": {
+                "literal": null
+              },
+              "paper_id": {
+                "from": "item",
+                "path": "/paper/paper_id"
+              },
+              "query": {
+                "from": "item",
+                "path": "/response/query"
+              },
+              "sources": {
+                "from": "item",
+                "path": "/response/sources"
+              },
+              "status": {
+                "from": "item",
+                "path": "/response/status"
+              },
+              "synthetic": {
+                "from": "steps",
+                "path": "/synthetic"
+              },
+              "warnings": {
+                "from": "item",
+                "path": "/response/warnings"
+              }
+            }
+          },
+          "otherwise": {
+            "object": {
+              "alternatives": {
+                "from": "item",
+                "path": "/response/alternatives"
+              },
+              "message": {
+                "from": "item",
+                "path": "/response/message"
+              },
+              "metadata": {
+                "from": "item",
+                "path": "/response/best_match"
+              },
+              "paper_id": {
+                "from": "item",
+                "path": "/paper/paper_id"
+              },
+              "query": {
+                "from": "item",
+                "path": "/response/query"
+              },
+              "sources": {
+                "from": "item",
+                "path": "/response/sources"
+              },
+              "status": {
+                "from": "item",
+                "path": "/response/status"
+              },
+              "synthetic": {
+                "from": "steps",
+                "path": "/synthetic"
+              },
+              "warnings": {
+                "from": "item",
+                "path": "/response/warnings"
+              }
+            }
+          },
+          "output_schema": "schemas/citation-record.schema.json",
+          "timeout_seconds": 10,
+          "type": "validate",
+          "when": {
+            "left": {
+              "from": "item",
+              "path": "/response/status"
+            },
+            "op": "ne",
+            "right": {
+              "literal": "resolved"
+            }
+          }
+        },
+        {
+          "id": "job",
+          "input": {
+            "literal": []
+          },
+          "otherwise": {
+            "array": [
+              {
+                "object": {
+                  "file_id": {
+                    "lookup": {
+                      "equals": {
+                        "from": "item",
+                        "path": "/paper/paper_id"
+                      },
+                      "in": {
+                        "from": "state",
+                        "path": "/candidate_refs"
+                      },
+                      "key": "/paper_id",
+                      "path": "/file_id"
+                    }
+                  },
+                  "paper": {
+                    "from": "item",
+                    "path": "/paper"
+                  },
+                  "record": {
+                    "from": "steps",
+                    "path": "/record"
+                  }
+                }
+              }
+            ]
+          },
+          "output_schema": "schemas/evidence-jobs.schema.json",
+          "timeout_seconds": 10,
+          "type": "validate",
+          "when": {
+            "left": {
+              "from": "item",
+              "path": "/response/status"
+            },
+            "op": "ne",
+            "right": {
+              "literal": "resolved"
+            }
+          }
+        },
+        {
+          "id": "unresolved",
+          "input": {
+            "literal": []
+          },
+          "otherwise": {
+            "array": [
+              {
+                "object": {
+                  "alternatives": {
+                    "from": "steps",
+                    "path": "/record/alternatives"
+                  },
+                  "message": {
+                    "from": "steps",
+                    "path": "/record/message"
+                  },
+                  "paper_id": {
+                    "from": "steps",
+                    "path": "/record/paper_id"
+                  },
+                  "status": {
+                    "from": "steps",
+                    "path": "/record/status"
+                  }
+                }
+              }
+            ]
+          },
+          "output_schema": "schemas/unresolved.schema.json",
+          "timeout_seconds": 10,
+          "type": "validate",
+          "when": {
+            "left": {
+              "from": "item",
+              "path": "/response/status"
+            },
+            "op": "eq",
+            "right": {
+              "literal": "resolved"
+            }
+          }
+        }
+      ],
+      "timeout_seconds": 60,
+      "type": "map",
+      "worker": "CitationWorker",
+      "writes": {
+        "/preparation_batches": {
+          "from": "result",
+          "path": ""
+        }
+      },
+      "yield": {
+        "object": {
+          "citation_records": {
+            "array": [
+              {
+                "from": "steps",
+                "path": "/record"
+              }
+            ]
+          },
+          "evidence_jobs": {
+            "from": "steps",
+            "path": "/job"
+          },
+          "unresolved": {
+            "from": "steps",
+            "path": "/unresolved"
+          }
+        }
+      }
+    },
+    {
+      "depends_on": [
+        "prepare-evidence"
+      ],
+      "id": "join-citation-records",
+      "input": {
+        "from": "state",
+        "path": "/preparation_batches"
+      },
+      "output_schema": "schemas/records.schema.json",
+      "select": "/citation_records",
+      "timeout_seconds": 10,
+      "type": "join",
+      "worker": "CitationWorker",
+      "writes": {
+        "/citation_records": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "depends_on": [
+        "prepare-evidence"
+      ],
+      "id": "join-evidence-jobs",
+      "input": {
+        "from": "state",
+        "path": "/preparation_batches"
+      },
+      "output_schema": "schemas/evidence-jobs.schema.json",
+      "select": "/evidence_jobs",
+      "timeout_seconds": 10,
+      "type": "join",
+      "worker": "CitationWorker",
+      "writes": {
+        "/evidence_jobs": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "depends_on": [
+        "prepare-evidence"
+      ],
+      "id": "join-unresolved",
+      "input": {
+        "from": "state",
+        "path": "/preparation_batches"
+      },
+      "output_schema": "schemas/unresolved.schema.json",
+      "select": "/unresolved",
+      "timeout_seconds": 10,
+      "type": "join",
+      "worker": "CitationWorker",
+      "writes": {
+        "/unresolved": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "assertions": [
+        {
+          "compare": [
+            {
+              "left": "/status",
+              "op": "eq",
+              "right": "/response/status"
+            }
+          ],
+          "kind": "relation",
+          "row_key": "/paper_id",
+          "rows": {
+            "from": "state",
+            "path": "/citation_records"
+          },
+          "target_key": "/paper/paper_id",
+          "targets": {
+            "from": "state",
+            "path": "/resolved_jobs"
+          }
+        },
+        {
+          "compare": [
+            {
+              "left": "/metadata",
+              "op": "eq",
+              "right": "/response/best_match"
+            }
+          ],
+          "kind": "relation",
+          "row_key": "/paper_id",
+          "rows": {
+            "from": "state",
+            "path": "/citation_records"
+          },
+          "target_key": "/paper/paper_id",
+          "targets": {
+            "from": "state",
+            "path": "/resolved_jobs"
+          },
+          "where": {
+            "equals": "resolved",
+            "path": "/status"
+          }
+        },
+        {
+          "kind": "relation",
+          "row_key": "/paper/paper_id",
+          "rows": {
+            "from": "state",
+            "path": "/resolved_jobs"
+          },
+          "target_key": "/paper_id",
+          "targets": {
+            "from": "state",
+            "path": "/citation_records"
+          }
+        },
+        {
+          "kind": "relation",
+          "row_key": "/paper_id",
+          "rows": {
+            "from": "state",
+            "path": "/citation_records"
+          },
+          "target_key": "/record/paper_id",
+          "targets": {
+            "from": "state",
+            "path": "/evidence_jobs"
+          },
+          "where": {
+            "equals": "resolved",
+            "path": "/status"
+          }
+        },
+        {
+          "compare": [
+            {
+              "left": "/record",
+              "op": "eq",
+              "right": ""
+            }
+          ],
+          "kind": "relation",
+          "row_key": "/record/paper_id",
+          "rows": {
+            "from": "state",
+            "path": "/evidence_jobs"
+          },
+          "target_key": "/paper_id",
+          "target_values": {
+            "/status": "resolved"
+          },
+          "targets": {
+            "from": "state",
+            "path": "/citation_records"
+          }
+        },
+        {
+          "compare": [
+            {
+              "left": "/paper",
+              "op": "eq",
+              "right": "/paper"
+            }
+          ],
+          "kind": "relation",
+          "row_key": "/paper/paper_id",
+          "rows": {
+            "from": "state",
+            "path": "/evidence_jobs"
+          },
+          "target_key": "/paper/paper_id",
+          "targets": {
+            "from": "state",
+            "path": "/resolved_jobs"
+          }
+        }
+      ],
+      "depends_on": [
+        "join-citation-records",
+        "join-evidence-jobs",
+        "join-unresolved"
+      ],
+      "id": "check-records",
+      "input": {
+        "from": "state",
+        "path": "/citation_records"
+      },
+      "output_schema": "schemas/records.schema.json",
+      "timeout_seconds": 10,
+      "type": "validate",
+      "worker": "LiteratureReviewCoordinator",
+      "writes": {}
+    },
+    {
+      "depends_on": [
+        "check-records"
+      ],
+      "id": "evidence",
+      "input": {
+        "from": "state",
+        "path": "/evidence_jobs"
+      },
+      "item_schema": "schemas/evidence-job.schema.json",
+      "max_items": 20,
+      "max_parallel": 3,
+      "output_schema": "schemas/evidence-batches.schema.json",
+      "steps": [
+        {
+          "id": "check-job",
+          "type": "validate",
+          "input": {
+            "from": "item",
+            "path": ""
+          },
+          "output_schema": "schemas/evidence-job.schema.json",
+          "timeout_seconds": 10,
+          "assertions": [
+            {
+              "kind": "equal",
+              "left": {
+                "from": "item",
+                "path": "/record/status"
+              },
+              "right": {
+                "literal": "resolved"
+              }
+            }
+          ]
+        },
+        {
+          "id": "read-source",
+          "input": {
+            "object": {
+              "file_id": {
+                "from": "item",
+                "path": "/file_id"
+              }
+            }
+          },
+          "otherwise": {
+            "literal": null
+          },
+          "output_schema": "schemas/reader-maybe.schema.json",
+          "timeout_seconds": 60,
+          "tool": "paper-reader",
+          "type": "tool",
+          "when": {
+            "left": {
+              "from": "item",
+              "path": "/file_id"
+            },
+            "op": "ne",
+            "right": {
+              "literal": null
+            }
+          }
+        },
+        {
+          "id": "pages",
+          "type": "validate",
+          "input": {
+            "literal": []
+          },
+          "output_schema": "schemas/pages.schema.json",
+          "timeout_seconds": 10,
+          "when": {
+            "left": {
+              "from": "item",
+              "path": "/file_id"
+            },
+            "op": "eq",
+            "right": {
+              "literal": null
+            }
+          },
+          "otherwise": {
+            "from": "steps",
+            "path": "/read-source/pages"
+          }
+        },
+        {
+          "id": "extract-one",
+          "input": {
+            "object": {
+              "document": {
+                "from": "steps",
+                "path": "/read-source"
+              },
+              "paper": {
+                "from": "item",
+                "path": "/paper"
+              },
+              "record": {
+                "from": "item",
+                "path": "/record"
+              },
+              "research_question": {
+                "from": "state",
+                "path": "/research_question"
+              }
+            }
+          },
+          "max_output_tokens": 12000,
+          "output_schema": "schemas/paper-evidence.schema.json",
+          "task": "extract",
+          "timeout_seconds": 900,
+          "type": "llm",
+          "checks": [
+            {
+              "kind": "relation",
+              "row_key": "/paper_id",
+              "rows": {
+                "from": "result",
+                "path": ""
+              },
+              "target_key": "/paper_id",
+              "targets": {
+                "array": [
+                  {
+                    "from": "item",
+                    "path": "/paper"
+                  }
+                ]
+              }
+            },
+            {
+              "kind": "relation",
+              "rows": {
+                "from": "result",
+                "path": ""
+              },
+              "targets": {
+                "from": "result",
+                "path": ""
+              },
+              "row_key": "/evidence_id",
+              "target_key": "/evidence_id"
+            },
+            {
+              "compare": [
+                {
+                  "left": "/quote",
+                  "op": "contained_in",
+                  "right": "/text"
+                },
+                {
+                  "left": "/location/page",
+                  "op": "eq",
+                  "right": "/page"
+                },
+                {
+                  "left": "/provenance/source_sha256",
+                  "op": "eq",
+                  "right": "/source_sha256"
+                }
+              ],
+              "kind": "relation",
+              "row_key": "/paper_id",
+              "rows": {
+                "from": "result",
+                "path": ""
+              },
+              "target_key": "/paper_id",
+              "targets": {
+                "array": [
+                  {
+                    "object": {
+                      "page": {
+                        "literal": null
+                      },
+                      "paper_id": {
+                        "from": "item",
+                        "path": "/paper/paper_id"
+                      },
+                      "scope": {
+                        "literal": "abstract"
+                      },
+                      "source_sha256": {
+                        "literal": ""
+                      },
+                      "text": {
+                        "coalesce": [
+                          {
+                            "from": "item",
+                            "path": "/record/metadata/abstract"
+                          },
+                          {
+                            "from": "item",
+                            "path": "/paper/abstract"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                ]
+              },
+              "where": {
+                "path": "/scope",
+                "equals": "abstract"
+              }
+            },
+            {
+              "compare": [
+                {
+                  "left": "/quote",
+                  "op": "contained_in",
+                  "right": "/text"
+                }
+              ],
+              "kind": "relation",
+              "row_key": "/location/page",
+              "rows": {
+                "from": "result",
+                "path": ""
+              },
+              "target_key": "/page",
+              "targets": {
+                "from": "steps",
+                "path": "/pages"
+              },
+              "where": {
+                "path": "/scope",
+                "equals": "full_text"
+              }
+            }
+          ]
+        }
+      ],
+      "timeout_seconds": 1500,
+      "type": "map",
+      "worker": "EvidenceWorker",
+      "writes": {
+        "/evidence_batches": {
+          "from": "result",
+          "path": ""
+        }
+      },
+      "yield": {
+        "from": "steps",
+        "path": "/extract-one"
+      }
+    },
+    {
+      "depends_on": [
+        "evidence"
+      ],
+      "id": "join-evidence",
+      "input": {
+        "from": "state",
+        "path": "/evidence_batches"
+      },
+      "output_schema": "schemas/evidence-list.schema.json",
+      "timeout_seconds": 120,
+      "type": "join",
+      "worker": "LiteratureReviewCoordinator",
+      "writes": {
+        "/evidence_items": {
+          "from": "result",
+          "path": ""
+        }
+      },
+      "unique_by": [
+        "/evidence_id"
+      ]
+    },
+    {
+      "assertions": [
+        {
+          "kind": "relation",
+          "row_key": "/evidence_id",
+          "rows": {
+            "from": "state",
+            "path": "/evidence_items"
+          },
+          "target_key": "/evidence_id",
+          "targets": {
+            "from": "state",
+            "path": "/evidence_items"
+          }
+        }
+      ],
+      "depends_on": [
+        "join-evidence"
+      ],
+      "id": "check-evidence",
+      "input": {
+        "from": "state",
+        "path": "/evidence_items"
+      },
+      "output_schema": "schemas/evidence-list.schema.json",
+      "timeout_seconds": 10,
+      "type": "validate",
+      "worker": "LiteratureReviewCoordinator",
+      "writes": {}
+    },
+    {
+      "depends_on": [
+        "check-evidence"
+      ],
+      "id": "synthesis",
+      "input": {
+        "object": {
+          "citation_records": {
+            "from": "state",
+            "path": "/citation_records"
+          },
+          "evidence_items": {
+            "from": "state",
+            "path": "/evidence_items"
+          },
+          "research_question": {
+            "from": "state",
+            "path": "/research_question"
+          }
+        }
+      },
+      "max_output_tokens": 12000,
+      "otherwise": {
+        "literal": {
+          "claims": [],
+          "themes": []
+        }
+      },
+      "output_schema": "schemas/synthesis.schema.json",
+      "task": "synthesize",
+      "timeout_seconds": 600,
+      "type": "llm",
+      "when": {
+        "left": {
+          "from": "state",
+          "path": "/evidence_items"
+        },
+        "op": "ne",
+        "right": {
+          "literal": []
+        }
+      },
+      "worker": "SynthesisWorker",
+      "writes": {
+        "/claims": {
+          "from": "result",
+          "path": "/claims"
+        },
+        "/themes": {
+          "from": "result",
+          "path": "/themes"
+        }
+      },
+      "checks": [
+        {
+          "kind": "relation",
+          "rows": {
+            "from": "result",
+            "path": "/claims"
+          },
+          "targets": {
+            "from": "state",
+            "path": "/evidence_items"
+          },
+          "row_key": "/evidence_ids",
+          "target_key": "/evidence_id",
+          "many": true
+        },
+        {
+          "kind": "relation",
+          "rows": {
+            "from": "result",
+            "path": "/claims"
+          },
+          "targets": {
+            "from": "state",
+            "path": "/citation_records"
+          },
+          "row_key": "/paper_ids",
+          "target_key": "/paper_id",
+          "many": true,
+          "target_values": {
+            "/status": "resolved"
+          }
+        },
+        {
+          "kind": "relation",
+          "rows": {
+            "from": "result",
+            "path": "/claims"
+          },
+          "targets": {
+            "from": "state",
+            "path": "/evidence_items"
+          },
+          "row_key": "/evidence_ids",
+          "target_key": "/evidence_id",
+          "many": true,
+          "where": {
+            "path": "/support_type",
+            "equals": "direct_quote"
+          },
+          "compare": [
+            {
+              "left": "/paper_ids/0",
+              "right": "/paper_id",
+              "op": "eq"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "depends_on": [
+        "synthesis"
+      ],
+      "id": "writing",
+      "input": {
+        "object": {
+          "claims": {
+            "from": "state",
+            "path": "/claims"
+          },
+          "research_question": {
+            "from": "state",
+            "path": "/research_question"
+          },
+          "themes": {
+            "from": "state",
+            "path": "/themes"
+          }
+        }
+      },
+      "max_output_tokens": 12000,
+      "otherwise": {
+        "literal": {
+          "claims": [],
+          "draft": {
+            "claim_ids": [],
+            "title": "Related Work"
+          }
+        }
+      },
+      "output_schema": "schemas/written.schema.json",
+      "task": "write",
+      "timeout_seconds": 360,
+      "type": "llm",
+      "when": {
+        "left": {
+          "from": "state",
+          "path": "/claims"
+        },
+        "op": "ne",
+        "right": {
+          "literal": []
+        }
+      },
+      "worker": "WritingWorker",
+      "writes": {
+        "/claims": {
+          "from": "result",
+          "path": "/claims"
+        },
+        "/draft": {
+          "from": "result",
+          "path": "/draft"
+        }
+      },
+      "checks": [
+        {
+          "kind": "relation",
+          "rows": {
+            "from": "result",
+            "path": "/claims"
+          },
+          "targets": {
+            "from": "state",
+            "path": "/evidence_items"
+          },
+          "row_key": "/evidence_ids",
+          "target_key": "/evidence_id",
+          "many": true
+        },
+        {
+          "kind": "relation",
+          "rows": {
+            "from": "result",
+            "path": "/claims"
+          },
+          "targets": {
+            "from": "state",
+            "path": "/citation_records"
+          },
+          "row_key": "/paper_ids",
+          "target_key": "/paper_id",
+          "many": true,
+          "target_values": {
+            "/status": "resolved"
+          }
+        },
+        {
+          "kind": "relation",
+          "rows": {
+            "from": "result",
+            "path": "/claims"
+          },
+          "targets": {
+            "from": "state",
+            "path": "/evidence_items"
+          },
+          "row_key": "/evidence_ids",
+          "target_key": "/evidence_id",
+          "many": true,
+          "where": {
+            "path": "/support_type",
+            "equals": "direct_quote"
+          },
+          "compare": [
+            {
+              "left": "/paper_ids/0",
+              "right": "/paper_id",
+              "op": "eq"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "depends_on": [
+        "writing"
+      ],
+      "id": "verification",
+      "input": {
+        "object": {
+          "citation_records": {
+            "from": "state",
+            "path": "/citation_records"
+          },
+          "claims": {
+            "from": "state",
+            "path": "/claims"
+          },
+          "draft": {
+            "from": "state",
+            "path": "/draft"
+          },
+          "evidence_items": {
+            "from": "state",
+            "path": "/evidence_items"
+          },
+          "mode": {
+            "from": "state",
+            "path": "/mode"
+          },
+          "research_question": {
+            "from": "state",
+            "path": "/research_question"
+          },
+          "themes": {
+            "from": "state",
+            "path": "/themes"
+          },
+          "unresolved": {
+            "from": "state",
+            "path": "/unresolved"
+          }
+        }
+      },
+      "max_output_tokens": 16000,
+      "otherwise": {
+        "object": {
+          "bibliography": {
+            "literal": []
+          },
+          "claims": {
+            "literal": []
+          },
+          "evidence_table": {
+            "literal": []
+          },
+          "related_work": {
+            "literal": "## No sufficiently grounded literature found\n\nNo sufficiently grounded literature was found within this bounded search. No retrieved paper yielded verbatim evidence supporting a claim about this question, so this review makes no claims and cites no sources.\n\nEvery paper the search found is listed in papers-found.json, with the screening verdict and the reason for it.\n\nThe search is bounded: at most three scholarly-search queries of three results each, at most three included papers, and only abstracts or explicitly selected documents as evidence. Papers that were found but could not be verified, if any, are listed as unresolved. A narrower or differently worded question, seed references or selected documents may find grounded sources.\n"
+          },
+          "unresolved": {
+            "from": "state",
+            "path": "/unresolved"
+          },
+          "verification_results": {
+            "literal": []
+          }
+        }
+      },
+      "output_schema": "schemas/review-draft.schema.json",
+      "task": "verify",
+      "timeout_seconds": 720,
+      "type": "llm",
+      "when": {
+        "left": {
+          "from": "state",
+          "path": "/claims"
+        },
+        "op": "ne",
+        "right": {
+          "literal": []
+        }
+      },
+      "worker": "VerificationWorker",
+      "writes": {
+        "/claims": {
+          "from": "result",
+          "path": "/claims"
+        },
+        "/review": {
+          "from": "result",
+          "path": ""
+        },
+        "/verification_results": {
+          "from": "result",
+          "path": "/verification_results"
+        }
+      },
+      "checks": [
+        {
+          "kind": "relation",
+          "rows": {
+            "from": "result",
+            "path": "/claims"
+          },
+          "targets": {
+            "from": "state",
+            "path": "/evidence_items"
+          },
+          "row_key": "/evidence_ids",
+          "target_key": "/evidence_id",
+          "many": true
+        },
+        {
+          "kind": "relation",
+          "rows": {
+            "from": "result",
+            "path": "/claims"
+          },
+          "targets": {
+            "from": "state",
+            "path": "/citation_records"
+          },
+          "row_key": "/paper_ids",
+          "target_key": "/paper_id",
+          "many": true,
+          "target_values": {
+            "/status": "resolved"
+          }
+        },
+        {
+          "kind": "relation",
+          "rows": {
+            "from": "result",
+            "path": "/claims"
+          },
+          "targets": {
+            "from": "state",
+            "path": "/evidence_items"
+          },
+          "row_key": "/evidence_ids",
+          "target_key": "/evidence_id",
+          "many": true,
+          "where": {
+            "path": "/support_type",
+            "equals": "direct_quote"
+          },
+          "compare": [
+            {
+              "left": "/paper_ids/0",
+              "right": "/paper_id",
+              "op": "eq"
+            }
+          ]
+        },
+        {
+          "kind": "relation",
+          "rows": {
+            "from": "result",
+            "path": "/evidence_table"
+          },
+          "targets": {
+            "from": "state",
+            "path": "/evidence_items"
+          },
+          "row_key": "/evidence_id",
+          "target_key": "/evidence_id"
+        },
+        {
+          "kind": "relation",
+          "rows": {
+            "from": "result",
+            "path": "/bibliography"
+          },
+          "targets": {
+            "from": "state",
+            "path": "/citation_records"
+          },
+          "row_key": "/paper_id",
+          "target_key": "/paper_id",
+          "target_values": {
+            "/status": "resolved"
+          }
+        }
+      ]
+    },
+    {
+      "depends_on": [
+        "verification"
+      ],
+      "id": "materialize-claims",
+      "input": {
+        "from": "state",
+        "path": "/review/claims"
+      },
+      "item_schema": "schemas/claim-draft.schema.json",
+      "max_items": 200,
+      "max_parallel": 1,
+      "output_schema": "schemas/claims.schema.json",
+      "steps": [
+        {
+          "assertions": [
+            {
+              "kind": "equal",
+              "left": {
+                "from": "item",
+                "path": "/paper_ids/0"
+              },
+              "right": {
+                "lookup": {
+                  "equals": {
+                    "from": "item",
+                    "path": "/evidence_ids/0"
+                  },
+                  "in": {
+                    "from": "state",
+                    "path": "/evidence_items"
+                  },
+                  "key": "/evidence_id",
+                  "path": "/paper_id"
+                }
+              }
+            }
+          ],
+          "id": "check-direct-source",
+          "input": {
+            "from": "item",
+            "path": ""
+          },
+          "otherwise": {
+            "from": "item",
+            "path": ""
+          },
+          "output_schema": "schemas/claim-draft.schema.json",
+          "timeout_seconds": 10,
+          "type": "validate",
+          "when": {
+            "left": {
+              "from": "item",
+              "path": "/support_type"
+            },
+            "op": "eq",
+            "right": {
+              "literal": "direct_quote"
+            }
+          }
+        },
+        {
+          "id": "attach-quote",
+          "input": {
+            "from": "item",
+            "path": ""
+          },
+          "otherwise": {
+            "object": {
+              "claim_id": {
+                "from": "item",
+                "path": "/claim_id"
+              },
+              "evidence_ids": {
+                "from": "item",
+                "path": "/evidence_ids"
+              },
+              "paper_ids": {
+                "from": "item",
+                "path": "/paper_ids"
+              },
+              "strength": {
+                "from": "item",
+                "path": "/strength"
+              },
+              "support_type": {
+                "from": "item",
+                "path": "/support_type"
+              },
+              "text": {
+                "lookup": {
+                  "equals": {
+                    "from": "item",
+                    "path": "/evidence_ids/0"
+                  },
+                  "in": {
+                    "from": "state",
+                    "path": "/evidence_items"
+                  },
+                  "key": "/evidence_id",
+                  "path": "/quote"
+                }
+              },
+              "theme_id": {
+                "from": "item",
+                "path": "/theme_id"
+              },
+              "verification_status": {
+                "from": "item",
+                "path": "/verification_status"
+              }
+            }
+          },
+          "output_schema": "schemas/claim.schema.json",
+          "timeout_seconds": 10,
+          "type": "validate",
+          "when": {
+            "left": {
+              "from": "item",
+              "path": "/support_type"
+            },
+            "op": "ne",
+            "right": {
+              "literal": "direct_quote"
+            }
+          }
+        }
+      ],
+      "timeout_seconds": 60,
+      "type": "map",
+      "worker": "VerificationWorker",
+      "writes": {
+        "/materialized_claims": {
+          "from": "result",
+          "path": ""
+        }
+      },
+      "yield": {
+        "from": "steps",
+        "path": "/attach-quote"
+      }
+    },
+    {
+      "depends_on": [
+        "verification"
+      ],
+      "id": "materialize-evidence",
+      "input": {
+        "from": "state",
+        "path": "/review/evidence_table"
+      },
+      "item_schema": "schemas/evidence-ref.schema.json",
+      "max_items": 200,
+      "max_parallel": 1,
+      "output_schema": "schemas/evidence-list.schema.json",
+      "steps": [
+        {
+          "id": "attach-evidence",
+          "input": {
+            "lookup": {
+              "equals": {
+                "from": "item",
+                "path": "/evidence_id"
+              },
+              "in": {
+                "from": "state",
+                "path": "/evidence_items"
+              },
+              "key": "/evidence_id",
+              "path": ""
+            }
+          },
+          "output_schema": "schemas/evidence.schema.json",
+          "timeout_seconds": 10,
+          "type": "validate"
+        }
+      ],
+      "timeout_seconds": 60,
+      "type": "map",
+      "worker": "VerificationWorker",
+      "writes": {
+        "/evidence_table": {
+          "from": "result",
+          "path": ""
+        }
+      },
+      "yield": {
+        "from": "steps",
+        "path": "/attach-evidence"
+      }
+    },
+    {
+      "depends_on": [
+        "verification"
+      ],
+      "id": "bibliography",
+      "input": {
+        "from": "state",
+        "path": "/review/bibliography"
+      },
+      "item_schema": "schemas/bibliography-ref.schema.json",
+      "max_items": 20,
+      "max_parallel": 3,
+      "output_schema": "schemas/bibliography.schema.json",
+      "steps": [
+        {
+          "id": "attach-metadata",
+          "input": {
+            "object": {
+              "metadata": {
+                "lookup": {
+                  "equals": {
+                    "from": "item",
+                    "path": "/paper_id"
+                  },
+                  "in": {
+                    "from": "state",
+                    "path": "/resolved_jobs"
+                  },
+                  "key": "/paper/paper_id",
+                  "path": "/response/best_match"
+                }
+              },
+              "paper_id": {
+                "from": "item",
+                "path": "/paper_id"
+              },
+              "reference": {
+                "from": "item",
+                "path": "/reference"
+              }
+            }
+          },
+          "output_schema": "schemas/bibliography-entry.schema.json",
+          "timeout_seconds": 10,
+          "type": "validate"
+        }
+      ],
+      "timeout_seconds": 60,
+      "type": "map",
+      "worker": "CitationWorker",
+      "writes": {
+        "/bibliography": {
+          "from": "result",
+          "path": ""
+        }
+      },
+      "yield": {
+        "from": "steps",
+        "path": "/attach-metadata"
+      }
+    },
+    {
+      "depends_on": [
+        "bibliography",
+        "materialize-claims",
+        "materialize-evidence",
+        "papers-found"
+      ],
+      "id": "assemble-output",
+      "input": {
+        "object": {
+          "bibliography": {
+            "from": "state",
+            "path": "/bibliography"
+          },
+          "claims": {
+            "from": "state",
+            "path": "/materialized_claims"
+          },
+          "evidence_table": {
+            "from": "state",
+            "path": "/evidence_table"
+          },
+          "related_work": {
+            "from": "state",
+            "path": "/review/related_work"
+          },
+          "unresolved": {
+            "from": "state",
+            "path": "/review/unresolved"
+          },
+          "verification_results": {
+            "from": "state",
+            "path": "/review/verification_results"
+          },
+          "papers_found": {
+            "from": "state",
+            "path": "/papers_found"
+          }
+        }
+      },
+      "output_schema": "schemas/review-output.schema.json",
+      "timeout_seconds": 10,
+      "type": "validate",
+      "worker": "LiteratureReviewCoordinator",
+      "writes": {
+        "/final": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "assertions": [
+        {
+          "compare": [
+            {
+              "left": "/metadata",
+              "op": "eq",
+              "right": "/response/best_match"
+            }
+          ],
+          "kind": "relation",
+          "row_key": "/paper_id",
+          "rows": {
+            "from": "state",
+            "path": "/final/bibliography"
+          },
+          "target_key": "/paper/paper_id",
+          "target_values": {
+            "/response/status": "resolved"
+          },
+          "targets": {
+            "from": "state",
+            "path": "/resolved_jobs"
+          }
+        },
+        {
+          "compare": [
+            {
+              "left": "/paper_id",
+              "op": "eq",
+              "right": "/paper_id"
+            },
+            {
+              "left": "/quote",
+              "op": "eq",
+              "right": "/quote"
+            },
+            {
+              "left": "/scope",
+              "op": "eq",
+              "right": "/scope"
+            },
+            {
+              "left": "/location",
+              "op": "eq",
+              "right": "/location"
+            },
+            {
+              "left": "/provenance",
+              "op": "eq",
+              "right": "/provenance"
+            },
+            {
+              "left": "",
+              "op": "eq",
+              "right": ""
+            }
+          ],
+          "kind": "relation",
+          "row_key": "/evidence_id",
+          "rows": {
+            "from": "state",
+            "path": "/final/evidence_table"
+          },
+          "target_key": "/evidence_id",
+          "targets": {
+            "from": "state",
+            "path": "/evidence_items"
+          }
+        },
+        {
+          "kind": "relation",
+          "many": true,
+          "row_key": "/evidence_ids",
+          "rows": {
+            "from": "state",
+            "path": "/final/claims"
+          },
+          "target_key": "/evidence_id",
+          "targets": {
+            "from": "state",
+            "path": "/evidence_items"
+          }
+        },
+        {
+          "kind": "relation",
+          "many": true,
+          "row_key": "/paper_ids",
+          "rows": {
+            "from": "state",
+            "path": "/final/claims"
+          },
+          "target_key": "/paper_id",
+          "target_values": {
+            "/status": "resolved"
+          },
+          "targets": {
+            "from": "state",
+            "path": "/citation_records"
+          }
+        },
+        {
+          "compare": [
+            {
+              "left": "/text",
+              "op": "eq",
+              "right": "/quote"
+            }
+          ],
+          "kind": "relation",
+          "many": true,
+          "row_key": "/evidence_ids",
+          "rows": {
+            "from": "state",
+            "path": "/final/claims"
+          },
+          "target_key": "/evidence_id",
+          "targets": {
+            "from": "state",
+            "path": "/evidence_items"
+          },
+          "where": {
+            "equals": "direct_quote",
+            "path": "/support_type"
+          }
+        },
+        {
+          "kind": "relation",
+          "rows": {
+            "from": "state",
+            "path": "/final/papers_found"
+          },
+          "targets": {
+            "from": "state",
+            "path": "/found_papers"
+          },
+          "row_key": "/paper_id",
+          "target_key": "/paper_id",
+          "compare": [
+            {
+              "left": "/title",
+              "right": "/title",
+              "op": "eq"
+            },
+            {
+              "left": "/doi",
+              "right": "/doi",
+              "op": "eq"
+            }
+          ]
+        },
+        {
+          "kind": "relation",
+          "rows": {
+            "from": "state",
+            "path": "/found_papers"
+          },
+          "targets": {
+            "from": "state",
+            "path": "/final/papers_found"
+          },
+          "row_key": "/paper_id",
+          "target_key": "/paper_id"
+        }
+      ],
+      "depends_on": [
+        "assemble-output"
+      ],
+      "id": "validate-output",
+      "input": {
+        "from": "state",
+        "path": "/final"
+      },
+      "output_schema": "schemas/review-output.schema.json",
+      "timeout_seconds": 120,
+      "type": "validate",
+      "worker": "LiteratureReviewCoordinator",
+      "writes": {}
+    },
+    {
+      "depends_on": [
+        "validate-output"
+      ],
+      "id": "outputs",
+      "input": {
+        "from": "state",
+        "path": "/final"
+      },
+      "output_schema": "schemas/review-output.schema.json",
+      "timeout_seconds": 120,
+      "type": "output",
+      "worker": "LiteratureReviewCoordinator",
+      "writes": {}
+    }
+  ],
+  "output_schema": "schemas/review-output.schema.json",
+  "profile": "workflow.v0",
+  "spec_version": "0.1",
+  "workers": [
+    {
+      "budget": {
+        "remote_calls": 15,
+        "tokens": 30000
+      },
+      "id": "LiteratureReviewCoordinator",
+      "kind": "packaged",
+      "max_instances": 1,
+      "skills": [],
+      "state_read": [
+        "all_batches",
+        "bibliography",
+        "citation_records",
+        "document_refs",
+        "evidence_batches",
+        "evidence_items",
+        "evidence_jobs",
+        "evidence_table",
+        "final",
+        "found_papers",
+        "found_refs",
+        "identified",
+        "materialized_claims",
+        "papers_found",
+        "resolved_jobs",
+        "review",
+        "screening_batches",
+        "search_batches",
+        "seed_batches",
+        "selection"
+      ],
+      "state_write": [
+        "all_batches",
+        "citation_jobs",
+        "evidence_items",
+        "final",
+        "found_papers",
+        "found_refs",
+        "included_papers",
+        "normalize_documents",
+        "papers_found",
+        "raw_candidates"
+      ],
+      "tools": []
+    },
+    {
+      "budget": {
+        "remote_calls": 15,
+        "tokens": 75000
+      },
+      "id": "PlanningWorker",
+      "kind": "packaged",
+      "max_instances": 1,
+      "skills": [
+        "literature-search"
+      ],
+      "state_read": [
+        "found_papers",
+        "found_refs",
+        "normalize_documents",
+        "research_question",
+        "seed_references"
+      ],
+      "state_write": [
+        "candidate_refs",
+        "search_plan",
+        "search_queries"
+      ],
+      "tools": []
+    },
+    {
+      "budget": {
+        "remote_calls": 15,
+        "tokens": 30000
+      },
+      "id": "SearchWorker",
+      "kind": "packaged",
+      "max_instances": 3,
+      "skills": [
+        "literature-search"
+      ],
+      "state_read": [
+        "raw_candidates",
+        "search_queries"
+      ],
+      "state_write": [
+        "identified",
+        "search_batches"
+      ],
+      "tools": [
+        "scholarly-search"
+      ]
+    },
+    {
+      "budget": {
+        "remote_calls": 15,
+        "tokens": 64000
+      },
+      "id": "ScreeningWorker",
+      "kind": "packaged",
+      "max_instances": 3,
+      "skills": [
+        "paper-screening"
+      ],
+      "state_read": [
+        "candidate_refs",
+        "found_papers",
+        "included_papers",
+        "research_question"
+      ],
+      "state_write": [
+        "screening_batches",
+        "selection"
+      ],
+      "tools": [
+        "paper-reader"
+      ]
+    },
+    {
+      "budget": {
+        "remote_calls": 15,
+        "tokens": 50000
+      },
+      "id": "CitationWorker",
+      "kind": "packaged",
+      "max_instances": 3,
+      "skills": [
+        "citation-resolution"
+      ],
+      "state_read": [
+        "candidate_refs",
+        "citation_jobs",
+        "included_papers",
+        "mode",
+        "preparation_batches",
+        "resolved_jobs",
+        "review",
+        "search_plan"
+      ],
+      "state_write": [
+        "bibliography",
+        "citation_records",
+        "evidence_jobs",
+        "preparation_batches",
+        "resolved_jobs",
+        "seed_batches",
+        "unresolved"
+      ],
+      "tools": [
+        "citation-resolver"
+      ]
+    },
+    {
+      "budget": {
+        "remote_calls": 15,
+        "tokens": 45000
+      },
+      "id": "EvidenceWorker",
+      "kind": "packaged",
+      "max_instances": 3,
+      "skills": [
+        "evidence-extraction"
+      ],
+      "state_read": [
+        "evidence_jobs",
+        "research_question"
+      ],
+      "state_write": [
+        "evidence_batches"
+      ],
+      "tools": [
+        "paper-reader"
+      ]
+    },
+    {
+      "budget": {
+        "remote_calls": 15,
+        "tokens": 56000
+      },
+      "id": "SynthesisWorker",
+      "kind": "packaged",
+      "max_instances": 1,
+      "skills": [
+        "evidence-synthesis"
+      ],
+      "state_read": [
+        "citation_records",
+        "evidence_items",
+        "research_question"
+      ],
+      "state_write": [
+        "claims",
+        "themes"
+      ],
+      "tools": []
+    },
+    {
+      "budget": {
+        "remote_calls": 15,
+        "tokens": 36000
+      },
+      "id": "WritingWorker",
+      "kind": "packaged",
+      "max_instances": 1,
+      "skills": [
+        "related-work-writing"
+      ],
+      "state_read": [
+        "citation_records",
+        "claims",
+        "evidence_items",
+        "research_question",
+        "themes"
+      ],
+      "state_write": [
+        "claims",
+        "draft"
+      ],
+      "tools": []
+    },
+    {
+      "budget": {
+        "remote_calls": 15,
+        "tokens": 80000
+      },
+      "id": "VerificationWorker",
+      "kind": "packaged",
+      "max_instances": 1,
+      "skills": [
+        "claim-and-citation-verification"
+      ],
+      "state_read": [
+        "citation_records",
+        "claims",
+        "draft",
+        "evidence_items",
+        "mode",
+        "research_question",
+        "review",
+        "themes",
+        "unresolved"
+      ],
+      "state_write": [
+        "claims",
+        "evidence_table",
+        "materialized_claims",
+        "review",
+        "verification_results"
+      ],
+      "tools": []
     }
   ]
 }

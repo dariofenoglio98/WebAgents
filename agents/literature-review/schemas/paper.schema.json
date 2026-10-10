@@ -32,7 +32,7 @@
         "required": [
           "name"
         ],
-        "additionalProperties": false
+        "additionalProperties": true
       }
     },
     "year": {
@@ -92,7 +92,7 @@
         "required": [
           "source"
         ],
-        "additionalProperties": false
+        "additionalProperties": true
       }
     },
     "full_text_available": {

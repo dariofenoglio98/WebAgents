@@ -202,6 +202,15 @@ class ScriptedReview:
         }
 
     def normalize(self, data):
+        if _asks_for_candidate_refs(self.output_schema):
+            # 0.2.7: the graph has named and deduplicated the papers; only file ids are asked for.
+            documents = data["documents"]
+            return {
+                "candidates": [
+                    {"paper_id": paper["paper_id"], "file_id": documents.get(paper["doi"])}
+                    for paper in data["candidates"]
+                ]
+            }
         candidates, seen = [], set()
         for raw in data["candidates"]:
             if raw["doi"] in seen:
@@ -244,15 +253,21 @@ class ScriptedReview:
     def screen(self, data):
         paper = data["paper"]
         include = self.scenario.include
-        return {
-            **paper,
+        verdict = {
             "screening_status": "include" if include else "exclude",
             "screening_rationale": (
                 "The abstract describes a defense." if include else "Unrelated to the question."
             ),
         }
+        if _asks_for_verdict(self.output_schema):
+            # 0.2.7: the verdict only; the graph keeps the paper's record.
+            return {"paper_id": paper["paper_id"], **verdict}
+        return {**paper, **verdict}
 
     def select(self, data):
+        if "included_papers" in data:
+            # 0.2.7: ids chosen from the included papers.
+            return {"paper_ids": [paper["paper_id"] for paper in data["included_papers"]][:3]}
         return [
             paper for paper in data["screened_papers"] if paper["screening_status"] == "include"
         ][:3]
@@ -411,6 +426,14 @@ def _follow(schema: dict, root: dict) -> dict:
             target = target[part.replace("~1", "/").replace("~0", "~")]
         schema = target
     return schema
+
+
+def _asks_for_candidate_refs(schema):
+    return "candidates" in _follow(schema, schema).get("properties", {})
+
+
+def _asks_for_verdict(schema):
+    return "title" not in _follow(schema, schema).get("properties", {})
 
 
 def _asks_for_screening_refs(schema):
