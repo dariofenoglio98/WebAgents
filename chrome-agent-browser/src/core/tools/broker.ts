@@ -17,7 +17,11 @@
  *   binding's, which the digest froze), and a `host_resource` answer must be attributed to
  *   exactly one grant of this plan;
  * - it records `tool.dispatched` and `tool.settled` in the runtime's own audit: the binding
- *   identity and, for a resource, the grant it came from, never the value.
+ *   identity and, for a resource, the grant it came from, never the value;
+ * - a remote call that both the binding and the package declare a read, and that failed
+ *   transiently, is sent again up to twice (D-152), each retry a remote call the runtime checks
+ *   against its budgets; a `citation.resolve` binding whose descriptor names the built-in Crossref
+ *   lookup may have a DOI answered by it when the resolver stays unavailable (D-153).
  *
  * Codes are shared verbatim with `agentpkg.toolbridge.errors` (`tool_not_bound`,
  * `tool_binding_stale`, `tool_request_invalid`, `tool_response_invalid`, `tool_unavailable`,
