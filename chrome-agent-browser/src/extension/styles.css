@@ -207,6 +207,9 @@ a { color: var(--ab-accent); }
 .ab-run-row:last-child { border-bottom: none; }
 .ab-run-row-main { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .ab-run-row-task { overflow-wrap: anywhere; }
+.ab-runs-back { margin: 0 0 8px; scroll-margin-top: 16px; }
+/* The shown run's heading takes the focus from a script (D-160): it is a target, not a control. */
+.ab-run-title h2:focus { outline: none; }
 .ab-command { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .ab-command-text { background: var(--ab-neutral-bg); padding: 4px 8px; border-radius: 6px; overflow-wrap: anywhere; }
 .ab-diagnosis { margin: 6px 0; }

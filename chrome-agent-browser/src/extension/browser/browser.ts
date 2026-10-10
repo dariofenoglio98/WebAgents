@@ -45,7 +45,7 @@ interface PageState {
   error: { code: string; message: string; details: Record<string, unknown> } | null;
   runs: RunListView | null;
   runsNotice: string | null;
-  /** The run chosen on the Runs page (`#run=…`), shown under the list; null for the list alone. */
+  /** The run chosen on the Runs page (`#run=…`), shown above the list (D-160); null for the list alone. */
   runsShowing: string | null;
   /** The last search's results (T8): shown on the Open page until an agent or a website is opened. */
   search: SearchView | null;
@@ -126,6 +126,7 @@ const runs = new RunPanel({
     state.runsShowing = runId;
     history.replaceState(null, "", `#run=${encodeURIComponent(runId)}`);
     render();
+    revealRun();
   },
 });
 const RUN_VIEW_ID = `run:${crypto.randomUUID()}`;
@@ -135,6 +136,8 @@ let firstRoute = true;
 
 function route(): void {
   const hash = location.hash.replace(/^#/u, "");
+  // An error belongs to the view it happened on: a new address starts without one (D-161).
+  state.error = null;
   const [view, query] = hash.split("?");
   const params = new URLSearchParams(query ?? "");
   const wasOnModels = state.view === "settings" && state.settingsPage.section === "models";
@@ -266,10 +269,28 @@ async function reattachRuns(): Promise<void> {
   render();
 }
 
+/**
+ * Show one stored run on the Runs page (D-160): above the list, scrolled to and focused. A run
+ * that cannot be shown says why on the Runs page, and the list stays (D-161).
+ */
 async function openStoredRun(runId: string): Promise<void> {
   await load();
-  await runs.openRun(runId);
+  const failed = await runs.openRun(runId);
+  if (state.view !== "runs" || state.runsShowing !== runId) return;
+  state.error = failed ? { ...failed, details: {} } : null;
   render();
+  if (!failed) revealRun();
+}
+
+/** Bring the shown run to the top of the window and give its heading the focus (D-160). */
+function revealRun(): void {
+  const heading = runs.root.querySelector<HTMLElement>(".ab-run-title h2");
+  if (!heading || !runs.root.isConnected) return;
+  heading.tabIndex = -1;
+  // The "All runs" line above the run comes into view with it, so the heading is not flush with the edge.
+  const back = runs.root.previousElementSibling;
+  (back?.classList.contains("ab-runs-back") ? back : heading).scrollIntoView({ block: "start" });
+  heading.focus({ preventScroll: true });
 }
 
 async function exportRun(runId: string): Promise<void> {
@@ -570,18 +591,25 @@ function runsView(): HTMLElement[] {
   const list = state.runs;
   const current = runs.currentRun();
   const open = (runId: string) => {
-    location.hash = `run=${encodeURIComponent(runId)}`;
+    const hash = `#run=${encodeURIComponent(runId)}`;
+    // The run already in the address: no hashchange follows, so show it again here (D-160).
+    if (location.hash === hash) {
+      state.runsShowing = runId;
+      void openStoredRun(runId);
+    } else location.hash = hash;
   };
+  const shown = current && state.runsShowing === current.runId ? current : null;
   return [
     errorBox(),
+    // The chosen run first, whether or not a package is open in this tab (D-160; review 1, finding 5).
+    shown ? el("p", { className: "ab-runs-back" }, el("a", { text: "← All runs", attrs: { href: "#runs" } })) : null,
+    shown ? runs.root : null,
     card(
       "Runs",
       el("p", { className: "ab-hint", text: "Every run this browser made, newest first, from its own records (IndexedDB). Open one to read its result, artifacts and audit; Export writes the run directory as a zip (run.json, run-plan.json, input.json and every artifact); Clear removes a finished run." }),
       state.runsNotice ? el("div", { className: "ab-banner ab-banner-neutral", attrs: { role: "status" } }, el("span", { text: state.runsNotice })) : null,
       !list ? el("p", { className: "ab-busy", text: "Loading…" }) : list.runs.length === 0 ? el("p", { className: "ab-empty", text: "No run yet. Authorize an agent and press Run." }) : renderRunList(list.runs, { open, export: (runId) => void exportRun(runId), clear: (runId) => void clearRun(runId) }),
     ),
-    // The chosen run, whether or not a package is open in this tab (review 1, finding 5).
-    current && state.runsShowing === current.runId ? runs.root : null,
   ].filter((node): node is HTMLElement => node !== null);
 }
 

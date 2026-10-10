@@ -449,30 +449,32 @@ export class RunPanel {
   /**
    * Show one run by id, with or without its package session still open (the Runs page). The
    * person named it: a later reply to an earlier request does not replace it, and a run that
-   * becomes active elsewhere does not either (T5 review 3, nit 5).
+   * becomes active elsewhere does not either (T5 review 3, nit 5). Answers the error that kept
+   * the run from being shown (also kept for the panel), or null: the Runs page shows it (D-161).
    */
-  async openRun(runId: string, options: { named?: boolean } = {}): Promise<void> {
+  async openRun(runId: string, options: { named?: boolean } = {}): Promise<ErrorBox | null> {
     const sequence = (this.openSequence += 1);
     let record: RunView | null = null;
     try {
       record = await this.host.send<RunView | null>({ type: "run.get", runId });
     } catch (error) {
-      if (sequence !== this.openSequence) return;
+      if (sequence !== this.openSequence) return null;
       this.startError = describe(error);
       this.render();
-      return;
+      return this.startError;
     }
-    if (this.disposed || sequence !== this.openSequence) return;
+    if (this.disposed || sequence !== this.openSequence) return null;
     if (!record) {
       this.startError = { code: "run_unknown", message: "This browser holds no run with that id." };
       this.render();
-      return;
+      return this.startError;
     }
     // Another package's run: nothing of the session that was attached applies to it, neither
     // its earlier runs nor its readiness (T5 review 2, nit 5).
     if (record.sessionId !== this.sessionId) this.resetSession(null);
     this.named = options.named !== false;
     this.show(record);
+    return null;
   }
 
   /** Forget everything of the attached session (T5 review 3, nit 7): one reset for `detach` and a foreign run. */
