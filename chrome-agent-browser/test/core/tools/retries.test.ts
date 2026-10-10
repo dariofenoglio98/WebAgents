@@ -18,7 +18,8 @@ import { MAX_TOOL_RETRIES, RETRY_BACKOFF_MS, toolHandlers, transientFailure } fr
 import { normalizeToolBindings } from "../../../src/core/tools/bindings.js";
 import { bindingDigest, definitionsFromRegistry, describeDefinition, type ToolImplementationDefinition } from "../../../src/core/tools/definitions.js";
 import { Pacer } from "../../../src/core/tools/pacer.js";
-import type { ToolContext } from "../../../src/core/tools/handler.js";
+import type { ToolCallBounds, ToolContext } from "../../../src/core/tools/handler.js";
+import { runWorkflow } from "../../../src/core/workflow/interpreter.js";
 import { AdapterError, CancelledError } from "../../../src/core/workflow/errors.js";
 import { citationFiles, citationPackage, json, RESOLVED, RESOLVER_HOST, runCitations, scriptedNetwork, SEARCH_ANSWER, text, work, type Script } from "../../helpers/citation-package.js";
 import { change } from "../../helpers/source-tree.js";
@@ -151,6 +152,27 @@ describe("retries of a read-only call through the runtime (D-152)", () => {
     expect(searches[1]!.at - searches[0]!.at).toBeGreaterThanOrEqual(1000);
     expect(events(run.audit, "tool.retried")).toEqual([expect.objectContaining({ tool: "scholarly-search", attempt: 2, reason: "http_status", http_status: 429 })]);
   }, 10_000);
+});
+
+describe("what the runtime tells a handler (D-152)", () => {
+  it("the call's earliest deadline (the tool's here, inside its step's and node's) and the package's declared side effects", async () => {
+    const pkg = await citationPackage();
+    const seen: Array<{ tool: string; bounds: ToolCallBounds; at: number }> = [];
+    const record = (tool: string, bounds: ToolCallBounds | undefined) => seen.push({ tool, bounds: bounds!, at: Date.now() });
+    const handlers = {
+      "scholarly.search": async (_context: ToolContext, _payload: JsonValue, _signal: AbortSignal, bounds?: ToolCallBounds) => (record("search", bounds), { papers: [], query: "q", source: "crossref", skipped_records: 0 }),
+      "citation.resolve": async (_context: ToolContext, payload: JsonValue, _signal: AbortSignal, bounds?: ToolCallBounds) => (record("resolve", bounds), RESOLVED(String((payload as JsonObject).query))),
+    };
+    const result = await runWorkflow(pkg, input([DOI]), { handlers, grants: { "network.scholarly": "session", "network.citations": "session", "memory.session": "session" }, approvedTools: ["citation-resolver", "scholarly-search"] });
+    expect(result.status).toBe("completed");
+    // scholarly-search declares 25 s inside a 60 s node; citation-resolver 45 s inside a 120 s step and a 300 s node.
+    for (const [tool, seconds] of [["search", 25], ["resolve", 45]] as const) {
+      const call = seen.find((item) => item.tool === tool)!;
+      expect(call.bounds.side_effects, tool).toBe("read");
+      expect(call.bounds.deadline! - call.at, tool).toBeGreaterThan(seconds * 1000 - 2000);
+      expect(call.bounds.deadline! - call.at, tool).toBeLessThanOrEqual(seconds * 1000);
+    }
+  });
 });
 
 /** A context like the runtime's, with a remote-call budget of `room` more requests. */
@@ -345,6 +367,22 @@ describe("the citation fallback to Crossref (D-153)", () => {
     expect(described).not.toHaveProperty("fallback");
     const subject = { schema: "agentpkg-tool-binding-digest-v0", binding_id: described.id, tool_id: described.tool_id, binding: described.binding, implementation_kind: described.implementation_kind, implementation_id: described.implementation_id, implementation_version: described.implementation_version, remote: described.remote, endpoint: described.endpoint, contract: described.contract, limits: described.limits, credentials: described.credentials };
     expect(bindingDigest(described)).toBe(sha256HexSync(canonicalJson(subject)));
+  });
+
+  it("whether the person's Crossref contact is set is part of the citation binding's digest, as for the search; only Crossref requests carry it", async () => {
+    const pkg = await citationPackage();
+    const now = new Date("2026-10-10T12:00:00Z");
+    const citation = async (contactConfigured: boolean) => (await buildHostToolRegistry(pkg, { resourceTypes: [], runtimeVersion: "0.1.0", now, contactConfigured })).bindings.find((item) => item.tool_id === "citation-resolver")!;
+    const unset = await citation(false);
+    const set = await citation(true);
+    expect(unset.credentials).toEqual({ required: false, configured: false, source: "settings:crossref.contact" });
+    expect(set.credentials.configured).toBe(true);
+    expect(set.binding_sha256).not.toBe(unset.binding_sha256);
+    const net = scriptedNetwork({ search: okSearch, resolver: () => down(), lookup: () => json(200, work(DOI)) });
+    const run = await runCitations(pkg, input([DOI]), net.transport, { sleep: async () => undefined, credentials: (source) => (source.name === "crossref.contact" ? "reader@example.org" : null) });
+    expect(run.error).toBeNull();
+    expect(net.seen.find((call) => call.kind === "lookup")!.url).toBe("https://api.crossref.org/works/10.1145%2F3442188.3445922?mailto=reader%40example.org");
+    for (const call of net.seen.filter((item) => item.kind === "resolver")) expect(`${call.url} ${call.body}`).not.toContain("reader");
   });
 
   it("a registry binding may name only this host's own lookup, and only for citation.resolve", async () => {

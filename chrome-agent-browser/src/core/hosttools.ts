@@ -971,7 +971,9 @@ export async function buildHostToolRegistry(pkg: Package, options: HostToolRegis
           side_effects: contract.side_effects,
         },
         limits: { timeout_seconds: Math.min(Math.max(contract.timeout_seconds, 1), 120), max_request_bytes: 64 * 1024, max_response_bytes: 4 * 1024 * 1024, max_concurrent: 4 },
-        credentials: { required: false, configured: false },
+        // The fallback's Crossref lookup sends the person's contact address when one is set, as the
+        // search binding does, so whether one is set is part of this binding's digest too (D-081, D-153).
+        credentials: fallback ? { required: false, configured: options.contactConfigured === true, source: CROSSREF_CONTACT_SOURCE } : { required: false, configured: false },
         ...(fallback ? { fallback } : {}),
       });
       continue;

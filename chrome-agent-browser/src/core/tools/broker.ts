@@ -94,9 +94,6 @@ export interface BrokerDeps {
   observe?: (request: { tool_id: string; binding_id: string; url: string; body: string | null }) => void;
 }
 
-/** The setting the person's Crossref contact address lives under (Settings → Services, D-081). */
-const CROSSREF_CONTACT_SETTING = "crossref.contact";
-
 /** A failure's code and closed facts, for an audit event: never a message. */
 function failureFacts(error: unknown): Record<string, JsonValue> {
   if (!(error instanceof AdapterError)) return { code: "tool_error" };
@@ -485,7 +482,8 @@ export class BoundToolHandler {
       return null;
     }
     context.event("tool.fallback", facts);
-    const contact = this.deps.credentials?.({ kind: "settings", name: CROSSREF_CONTACT_SETTING }) ?? null;
+    // The person's Crossref contact, only through the optional credential this binding's digest names.
+    const contact = this.definition.optionalCredential ? (this.deps.credentials?.(this.definition.optionalCredential) ?? null) : null;
     try {
       const answer = await this.withRetries(context, signal, bounds, to, true, () => (trail.fallbackAttempts += 1), () =>
         this.attempt(this.crossrefLane(), signal, false, (bounded, markSent) =>
