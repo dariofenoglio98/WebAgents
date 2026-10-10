@@ -2,7 +2,8 @@
 /**
  * The full-page agent browser (`browser/browser.ts`) over a fake `chrome.runtime` routed to the
  * controller: the Runs page shows the chosen run while a package is open in the same tab, and
- * going back to the package re-attaches its run surface (T5 review 1, finding 5).
+ * going back to the package re-attaches its run surface (T5 review 1, finding 5); Open shows the
+ * chosen run before the list and focuses it, and an open error is shown on the Runs page (T14).
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -81,10 +82,10 @@ describe("the full-page browser's Runs page", () => {
     expect(app().querySelector(".ab-run")).toBeNull(); // the list alone until a run is chosen
     await go(`#run=${encodeURIComponent(started.runId)}`);
     const shown = app().querySelector<HTMLElement>(".ab-run");
-    expect(shown, "the chosen run is rendered under the list while the package stays open").not.toBeNull();
+    expect(shown, "the chosen run is rendered while the package stays open").not.toBeNull();
     expect(shown!.dataset.state).toBe("completed");
     expect(shown!.textContent).toContain("WebAir answered");
-    expect(app().textContent).toContain("Export"); // the list stays above it
+    expect(app().textContent).toContain("Export"); // the list stays, below the run (D-160)
 
     // Back on the open package: the run surface is attached to the session again (its form and checklist, not a read-only view).
     await go(`#session=${encodeURIComponent(sessionId)}`);
@@ -121,6 +122,78 @@ describe("the full-page browser's Runs page", () => {
     expect(after!.dataset.state).toBe("completed");
     expect(after!.querySelector(`.ab-run-list li[data-run="${first}"]`), "the earlier list now names the first run").not.toBeNull();
     expect(after!.querySelector(`.ab-run-list li[data-run="${second}"]`)).toBeNull();
+  });
+});
+
+describe("Runs → Open shows the run (T14, D-160, D-161)", () => {
+  const listRow = (runId: string) => app().querySelector<HTMLElement>(`.ab-card .ab-run-list li[data-run="${runId}"]`);
+  const openButton = (runId: string) => [...(listRow(runId)?.querySelectorAll<HTMLButtonElement>("button") ?? [])].find((node) => node.textContent === "Open") ?? null;
+  const shownRun = () => app().querySelector<HTMLElement>(":scope > .ab-run");
+  const heading = () => shownRun()?.querySelector<HTMLElement>(".ab-run-title h2") ?? null;
+
+  it("with at least 10 runs listed, Open renders the chosen run before the list and focuses its heading; Open on it again re-shows it", async () => {
+    const sessionId = ((await h.controller.handle({ type: "sessions.list" }, PAGE_IN_TAB)) as { sessions: Array<{ session_id: string }> }).sessions[0]!.session_id;
+    const plan = ((await h.controller.handle({ type: "authorization.get", sessionId }, PAGE_IN_TAB)) as AuthorizationView).run_plan!.run_plan;
+    for (let index = 0; index < 9; index += 1) {
+      await h.controller.handle({ type: "run.start", sessionId, runPlanId: plan.run_plan_id, runPlanSha256: plan.run_plan_sha256, input: { request: SEARCH_TEXT, booking: false, purchase: { quote_id: "", fare_id: "" } } }, PAGE_IN_TAB);
+      await h.h_drain();
+    }
+    await go("#runs");
+    const rows = await vi.waitFor(() => {
+      const found = app().querySelectorAll<HTMLElement>(".ab-card .ab-run-list li[data-run]");
+      expect(found.length).toBeGreaterThanOrEqual(10);
+      return [...found];
+    });
+    expect(shownRun()).toBeNull();
+    const oldest = rows.at(-1)!.dataset.run!;
+
+    openButton(oldest)!.click();
+    await vi.waitFor(() => expect(shownRun()?.dataset.state).toBe("completed"));
+    expect(location.hash).toBe(`#run=${encodeURIComponent(oldest)}`);
+    expect(shownRun()!.dataset.runId).toBe(oldest);
+    const children = [...app().children];
+    const listCard = listRow(oldest)!.closest(".ab-card")!;
+    expect(children.indexOf(shownRun()!), "the run comes before the list").toBeLessThan(children.indexOf(listCard as HTMLElement));
+    expect(app().querySelector(".ab-runs-back a")?.getAttribute("href")).toBe("#runs");
+    await vi.waitFor(() => expect(document.activeElement).toBe(heading()));
+
+    // Open again on the run already in the address: no hashchange, and the page shows and focuses it again.
+    (document.activeElement as HTMLElement).blur();
+    expect(document.activeElement).not.toBe(heading());
+    const scrolled = vi.spyOn(HTMLElement.prototype, "scrollIntoView");
+    openButton(oldest)!.click();
+    await vi.waitFor(() => expect(document.activeElement).toBe(heading()));
+    expect(scrolled).toHaveBeenCalled();
+    scrolled.mockRestore();
+    expect(shownRun()!.dataset.runId).toBe(oldest);
+  });
+
+  it("an unknown run id shows run_unknown on the Runs page, and the list stays usable", async () => {
+    await go("#run=run_does_not_exist");
+    const box = await vi.waitFor(() => {
+      const found = app().querySelector<HTMLElement>(".ab-error");
+      expect(found).not.toBeNull();
+      return found!;
+    });
+    expect(box.textContent).toContain("run_unknown");
+    expect(box.textContent).toContain("This browser holds no run with that id.");
+    expect(shownRun()).toBeNull();
+    const first = app().querySelector<HTMLElement>(".ab-card .ab-run-list li[data-run]")!.dataset.run!;
+    openButton(first)!.click();
+    await vi.waitFor(() => expect(shownRun()?.dataset.runId).toBe(first));
+    expect(app().querySelector(".ab-error"), "the error goes once a run is shown").toBeNull();
+  });
+
+  it("an error from another view does not follow the person to the next address (B-150 item 4, D-161)", async () => {
+    // A session id this browser does not hold: the Open page shows the error.
+    await go("#session=no_such_session");
+    await vi.waitFor(() => expect(app().querySelector(".ab-error")).not.toBeNull());
+    await go("#runs");
+    await vi.waitFor(() => expect(app().querySelector(".ab-card .ab-run-list li[data-run]")).not.toBeNull());
+    expect(app().querySelector(".ab-error"), "the Open page's error stays there").toBeNull();
+    await go("#open");
+    expect(app().querySelector(".ab-error")).toBeNull();
+    expect(app().querySelector(".ab-open")?.classList.contains("ab-open--start"), "nothing is shown, so the start page (a stale error kept it compact)").toBe(true);
   });
 });
 

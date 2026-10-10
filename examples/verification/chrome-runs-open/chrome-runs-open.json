@@ -1,0 +1,168 @@
+{
+  "profile": "chrome-runs-open-v0",
+  "recordedAt": "2026-10-10T15:31:20.135Z",
+  "build": {
+    "commit": "73b80857b5b536d8be73d5a06945a03878c954e7",
+    "tree_clean": true,
+    "extension": {
+      "manifest.json": "9d17f46bbf2dca9b6bd6502156ed5ccf2e9c6b29505e5497848106e4e1179fd1",
+      "browser.html": "041089815adf7f3f14e2c0237bb47a024ae98b38223c0fb38db4e7ca3c3c5daa",
+      "browser.js": "b89186d9cf8f14ad372dd6ea85376a8f1f8a32a5ab83c3802060551415054d76",
+      "styles.css": "97ecf75e9e1a9f8f73503d093ea152a00179d020ab3c771ae7245c446c12a542"
+    }
+  },
+  "chrome": "Chrome/154.0.8037.99",
+  "viewport": {
+    "width": 1280,
+    "height": 860
+  },
+  "served": {
+    "/agent.pkg": {
+      "source": "dist/webair-0.5.0.agent.pkg",
+      "sha256": "4b087557cbd2b0ff186391dfd00f9068739f9a727ab2fd916a6512da1fde101b"
+    }
+  },
+  "trusted": "the package's own signer, read from package.get",
+  "runs": [
+    {
+      "runId": "run_67b0193d169f476e98e911e9fbd3648d",
+      "status": "completed"
+    },
+    {
+      "runId": "run_50f4f02cf2234ad88938ddf1cb973ea1",
+      "status": "completed"
+    },
+    {
+      "runId": "run_63735bdc1f4441ae9b4c9d20ad288bc2",
+      "status": "completed"
+    },
+    {
+      "runId": "run_c3ca9b7e5fea4f0bac01299dcc0becb8",
+      "status": "completed"
+    },
+    {
+      "runId": "run_873f4235ac614156b7a7b6bd5bb27a9d",
+      "status": "completed"
+    },
+    {
+      "runId": "run_516aca26745849d9a0aab4a25ede030d",
+      "status": "completed"
+    },
+    {
+      "runId": "run_e53471d863334a658143fe66feeb53c9",
+      "status": "completed"
+    },
+    {
+      "runId": "run_ee8e440c5ebe446087ab3d0d947c3245",
+      "status": "completed"
+    },
+    {
+      "runId": "run_59cf9f9cdba24038a1d33fc242bf385e",
+      "status": "completed"
+    },
+    {
+      "runId": "run_3ebcbef802cd4653b0e5e1c88285644c",
+      "status": "completed"
+    },
+    {
+      "runId": "run_081e057de5404f94bfb63525d158148e",
+      "status": "completed"
+    },
+    {
+      "runId": "run_a4cb20239abe4713a9a208a16d6491d6",
+      "status": "completed"
+    }
+  ],
+  "shots": {
+    "list": {
+      "file": "runs-list-1280.png",
+      "rows": 12,
+      "hash": "#runs",
+      "scrollY": 0,
+      "pageHeight": 985,
+      "innerHeight": 860,
+      "runState": null,
+      "runId": null,
+      "heading": null,
+      "headingInViewport": false,
+      "headingFocused": false,
+      "runBeforeList": null,
+      "error": null
+    },
+    "opened": {
+      "file": "runs-opened-1280.png",
+      "hash": "#run=run_67b0193d169f476e98e911e9fbd3648d",
+      "scrollY": 0,
+      "pageHeight": 1633,
+      "innerHeight": 860,
+      "rows": 12,
+      "runState": "completed",
+      "runId": "run_67b0193d169f476e98e911e9fbd3648d",
+      "heading": {
+        "text": "Run · WebAir Travel Agent 0.5.0",
+        "top": 72,
+        "bottom": 87
+      },
+      "headingInViewport": true,
+      "headingFocused": true,
+      "runBeforeList": true,
+      "error": null
+    },
+    "again": {
+      "hash": "#run=run_67b0193d169f476e98e911e9fbd3648d",
+      "scrollY": 0,
+      "pageHeight": 1633,
+      "innerHeight": 860,
+      "rows": 12,
+      "runState": "completed",
+      "runId": "run_67b0193d169f476e98e911e9fbd3648d",
+      "heading": {
+        "text": "Run · WebAir Travel Agent 0.5.0",
+        "top": 72,
+        "bottom": 87
+      },
+      "headingInViewport": true,
+      "headingFocused": true,
+      "runBeforeList": true,
+      "error": null
+    },
+    "unknown": {
+      "hash": "#run=run_does_not_exist",
+      "scrollY": 0,
+      "pageHeight": 1037,
+      "innerHeight": 860,
+      "rows": 12,
+      "runState": null,
+      "runId": null,
+      "heading": null,
+      "headingInViewport": false,
+      "headingFocused": false,
+      "runBeforeList": null,
+      "error": "run_unknown This browser holds no run with that id."
+    }
+  },
+  "checks": {
+    "the fake Ollama answers the catalog probe": "ok",
+    "WebAir 0.5.0 opened, signature valid": "ok",
+    "the search profile gives a run plan": "ok",
+    "12 runs, all completed": "ok",
+    "the Runs view lists at least 10 runs (12)": "ok",
+    "the list alone: no run shown before Open": "ok",
+    "the oldest run's row has an Open button": "ok",
+    "Open: the address names the run": "ok",
+    "Open: the run's heading is inside the viewport": "ok",
+    "Open: the run's heading has the focus": "ok",
+    "Open: the run is shown before the list": "ok",
+    "before the second Open the heading is out of view": "ok",
+    "Open on the run already shown: the heading is back in view": "ok",
+    "Open on the run already shown: the heading has the focus": "ok",
+    "an unknown run id: the Runs view shows run_unknown": "ok",
+    "an unknown run id: the list stays": "ok"
+  },
+  "failures": [],
+  "passed": true,
+  "origin": {
+    "requests": 49,
+    "ollama": 40
+  }
+}

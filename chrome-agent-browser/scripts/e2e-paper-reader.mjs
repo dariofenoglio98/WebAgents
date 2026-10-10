@@ -28,12 +28,12 @@
 import { execFileSync, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
-import { createServer } from "node:https";
 import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { Cdp } from "./lib/cdp.mjs";
+import { certificate, serveFiles } from "./lib/origin.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PROJECT = resolve(here, "..");
@@ -88,24 +88,9 @@ function buildPackage(scratch) {
   return { bytes: readFileSync(signed), digest: verified.digest, fingerprint: verified.key_fingerprint };
 }
 
-function certificate(directory) {
-  const key = join(directory, "key.pem");
-  const cert = join(directory, "cert.pem");
-  execFileSync("openssl", ["req", "-x509", "-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:P-256", "-nodes", "-keyout", key, "-out", cert, "-days", "2", "-subj", `/CN=${SITE_HOST}`, "-addext", `subjectAltName=DNS:${SITE_HOST}`], { stdio: ["ignore", "ignore", "ignore"] });
-  const spki = execFileSync("openssl", ["pkey", "-pubin", "-outform", "der"], { input: execFileSync("openssl", ["x509", "-in", cert, "-pubkey", "-noout"]) });
-  return { key: readFileSync(key), cert: readFileSync(cert), spkiHash: createHash("sha256").update(spki).digest("base64") };
-}
-
+/** The package at `/reader.agent.pkg`, from the shared harness origin (B-150 item 9). */
 function origin(tls, bytes) {
-  const server = createServer({ key: tls.key, cert: tls.cert }, (request, response) => {
-    if (request.url === "/reader.agent.pkg") {
-      response.writeHead(200, { "content-type": "application/vnd.webagents.agent-package", "content-length": String(bytes.length), "cache-control": "no-cache" });
-      return response.end(bytes);
-    }
-    response.writeHead(404, { "content-type": "text/plain" });
-    response.end("not found");
-  });
-  return new Promise((resolveServer) => server.listen(0, "127.0.0.1", () => resolveServer({ server, port: server.address().port })));
+  return serveFiles(tls, { "/reader.agent.pkg": { bytes, type: "application/vnd.webagents.agent-package" } });
 }
 
 async function main() {
@@ -117,7 +102,7 @@ async function main() {
   try {
     const pkg = buildPackage(scratch);
     report.package = { digest: pkg.digest, archiveSha256: sha256(pkg.bytes), bytes: pkg.bytes.length, signer: pkg.fingerprint, note: "built from test/fixtures/reader-package and signed under a throwaway key for this run only" };
-    const tls = certificate(scratch);
+    const tls = certificate(scratch, SITE_HOST);
     served = await origin(tls, pkg.bytes);
     chrome = spawn(args.chrome, ["--headless=new", "--remote-debugging-pipe", "--enable-unsafe-extension-debugging", `--user-data-dir=${profile}`, "--no-first-run", "--no-default-browser-check", `--host-resolver-rules=MAP ${SITE_HOST} 127.0.0.1:${served.port}`, `--ignore-certificate-errors-spki-list=${tls.spkiHash}`, "about:blank"], { stdio: ["ignore", "ignore", "ignore", "pipe", "pipe"] });
     const cdp = new Cdp(chrome);

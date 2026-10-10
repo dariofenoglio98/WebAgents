@@ -1,0 +1,675 @@
+{
+  "profile": "chrome-open-page-v0",
+  "recordedAt": "2026-10-10T15:31:33.577Z",
+  "build": {
+    "commit": "73b80857b5b536d8be73d5a06945a03878c954e7",
+    "tree_clean": true,
+    "extension": {
+      "manifest.json": "9d17f46bbf2dca9b6bd6502156ed5ccf2e9c6b29505e5497848106e4e1179fd1",
+      "browser.html": "041089815adf7f3f14e2c0237bb47a024ae98b38223c0fb38db4e7ca3c3c5daa",
+      "browser.js": "b89186d9cf8f14ad372dd6ea85376a8f1f8a32a5ab83c3802060551415054d76",
+      "styles.css": "97ecf75e9e1a9f8f73503d093ea152a00179d020ab3c771ae7245c446c12a542"
+    }
+  },
+  "chrome": "Chrome/154.0.8037.99",
+  "widths": [
+    1280,
+    640,
+    480
+  ],
+  "served": {
+    "/agent-index.json": {
+      "source": "examples/agent-index.json",
+      "sha256": "caf08869f8628307e06979354a6863346e9918131c2b12059827998d6d04e74b"
+    },
+    "/packages/literature-review-0.2.6.agent.pkg": {
+      "source": "dist/literature-review-0.2.6.agent.pkg",
+      "sha256": "685dcc97232d278eb2a5b777dcbc621573de5c48818a95d522e647c9267ee8f1"
+    },
+    "/packages/literature-review-0.2.7.agent.pkg": {
+      "source": "dist/literature-review-0.2.7.agent.pkg",
+      "sha256": "8951a14bb1f42bca1590bc7d0c9cc00cccba75b36f1488969b6b3ff47063fe61"
+    },
+    "/agent.pkg": {
+      "source": "dist/webair-0.5.0.agent.pkg",
+      "sha256": "4b087557cbd2b0ff186391dfd00f9068739f9a727ab2fd916a6512da1fde101b"
+    }
+  },
+  "palette": {
+    "--ab-mark-1": "#0b6e4f",
+    "--ab-mark-2": "#2a6fb0",
+    "--ab-mark-3": "#c06a12",
+    "--ab-mark-4": "#a23b5c",
+    "--ab-bg": "#f6f7f9",
+    "contrast": {
+      "--ab-mark-1": 5.83,
+      "--ab-mark-2": 4.9,
+      "--ab-mark-3": 3.69,
+      "--ab-mark-4": 5.91
+    }
+  },
+  "shots": {
+    "start-1280": {
+      "file": "open-start-1280.png",
+      "layout": "ab-open--start",
+      "viewport": {
+        "width": 1280,
+        "scrollWidth": 1280
+      },
+      "home": null,
+      "counts": {
+        "wordmark": 1,
+        "form": 1,
+        "input": 1,
+        "openButtons": 1
+      },
+      "wordmark": {
+        "name": "WebAgents",
+        "text": "WebAgents",
+        "fontSize": "68px",
+        "fontWeight": "600",
+        "fontFamily": "-apple-system, \"system-ui\", \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif",
+        "colors": [
+          "rgb(11, 110, 79)",
+          "rgb(42, 111, 176)",
+          "rgb(192, 106, 18)",
+          "rgb(162, 59, 92)",
+          "rgb(11, 110, 79)",
+          "rgb(42, 111, 176)",
+          "rgb(192, 106, 18)",
+          "rgb(162, 59, 92)",
+          "rgb(11, 110, 79)"
+        ]
+      },
+      "background": "rgb(246, 247, 249)",
+      "radius": "24px",
+      "boxes": {
+        "wordmark": {
+          "left": 574,
+          "top": 136,
+          "width": 332,
+          "height": 68
+        },
+        "form": {
+          "left": 420,
+          "top": 245,
+          "width": 640,
+          "height": 48
+        },
+        "button": {
+          "left": 980,
+          "top": 251,
+          "width": 73,
+          "height": 36
+        },
+        "results": null,
+        "result": null,
+        "sessions": {
+          "left": 436,
+          "top": 433,
+          "width": 608,
+          "height": 77
+        },
+        "nav": {
+          "left": 0,
+          "top": 0,
+          "width": 200,
+          "height": 860
+        },
+        "navOpen": {
+          "left": 12,
+          "top": 62,
+          "width": 175,
+          "height": 36
+        }
+      }
+    },
+    "compact-1280": {
+      "file": "open-compact-1280.png",
+      "layout": "ab-open--compact",
+      "viewport": {
+        "width": 1280,
+        "scrollWidth": 1280
+      },
+      "home": {
+        "href": "#open",
+        "holdsWordmark": true
+      },
+      "counts": {
+        "wordmark": 1,
+        "form": 1,
+        "input": 1,
+        "openButtons": 1
+      },
+      "wordmark": {
+        "name": "WebAgents",
+        "text": "WebAgents",
+        "fontSize": "26px",
+        "fontWeight": "600",
+        "fontFamily": "-apple-system, \"system-ui\", \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif",
+        "colors": [
+          "rgb(11, 110, 79)",
+          "rgb(42, 111, 176)",
+          "rgb(192, 106, 18)",
+          "rgb(162, 59, 92)",
+          "rgb(11, 110, 79)",
+          "rgb(42, 111, 176)",
+          "rgb(192, 106, 18)",
+          "rgb(162, 59, 92)",
+          "rgb(11, 110, 79)"
+        ]
+      },
+      "background": "rgb(246, 247, 249)",
+      "radius": "24px",
+      "boxes": {
+        "wordmark": {
+          "left": 306,
+          "top": 27,
+          "width": 129,
+          "height": 26
+        },
+        "form": {
+          "left": 455,
+          "top": 16,
+          "width": 719,
+          "height": 48
+        },
+        "button": {
+          "left": 1094,
+          "top": 22,
+          "width": 73,
+          "height": 36
+        },
+        "results": {
+          "left": 455,
+          "top": 76,
+          "width": 719,
+          "height": 423
+        },
+        "result": {
+          "left": 472,
+          "top": 164,
+          "width": 685,
+          "height": 308
+        },
+        "sessions": null,
+        "nav": {
+          "left": 0,
+          "top": 0,
+          "width": 200,
+          "height": 860
+        },
+        "navOpen": {
+          "left": 12,
+          "top": 62,
+          "width": 175,
+          "height": 36
+        }
+      }
+    },
+    "compact-1280-verdana": {
+      "fontFamily": "Verdana, sans-serif",
+      "boxes": {
+        "wordmark": {
+          "left": 306,
+          "top": 27,
+          "width": 158,
+          "height": 26
+        },
+        "form": {
+          "left": 484,
+          "top": 16,
+          "width": 690,
+          "height": 48
+        },
+        "button": {
+          "left": 1094,
+          "top": 22,
+          "width": 73,
+          "height": 36
+        },
+        "results": {
+          "left": 484,
+          "top": 76,
+          "width": 690,
+          "height": 440
+        },
+        "result": {
+          "left": 501,
+          "top": 164,
+          "width": 656,
+          "height": 325
+        },
+        "sessions": null,
+        "nav": {
+          "left": 0,
+          "top": 0,
+          "width": 200,
+          "height": 860
+        },
+        "navOpen": {
+          "left": 12,
+          "top": 62,
+          "width": 175,
+          "height": 36
+        }
+      }
+    },
+    "start-640": {
+      "file": "open-start-640.png",
+      "layout": "ab-open--start",
+      "viewport": {
+        "width": 640,
+        "scrollWidth": 640
+      },
+      "home": null,
+      "counts": {
+        "wordmark": 1,
+        "form": 1,
+        "input": 1,
+        "openButtons": 1
+      },
+      "wordmark": {
+        "name": "WebAgents",
+        "text": "WebAgents",
+        "fontSize": "68px",
+        "fontWeight": "600",
+        "fontFamily": "-apple-system, \"system-ui\", \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif",
+        "colors": [
+          "rgb(11, 110, 79)",
+          "rgb(42, 111, 176)",
+          "rgb(192, 106, 18)",
+          "rgb(162, 59, 92)",
+          "rgb(11, 110, 79)",
+          "rgb(42, 111, 176)",
+          "rgb(192, 106, 18)",
+          "rgb(162, 59, 92)",
+          "rgb(11, 110, 79)"
+        ]
+      },
+      "background": "rgb(246, 247, 249)",
+      "radius": "24px",
+      "boxes": {
+        "wordmark": {
+          "left": 154,
+          "top": 250,
+          "width": 332,
+          "height": 68
+        },
+        "form": {
+          "left": 16,
+          "top": 358,
+          "width": 608,
+          "height": 48
+        },
+        "button": {
+          "left": 544,
+          "top": 364,
+          "width": 73,
+          "height": 36
+        },
+        "results": null,
+        "result": null,
+        "sessions": {
+          "left": 32,
+          "top": 547,
+          "width": 576,
+          "height": 77
+        },
+        "nav": {
+          "left": 0,
+          "top": 0,
+          "width": 640,
+          "height": 108
+        },
+        "navOpen": {
+          "left": 12,
+          "top": 54,
+          "width": 55,
+          "height": 36
+        }
+      }
+    },
+    "compact-640": {
+      "file": "open-compact-640.png",
+      "layout": "ab-open--compact",
+      "viewport": {
+        "width": 640,
+        "scrollWidth": 640
+      },
+      "home": {
+        "href": "#open",
+        "holdsWordmark": true
+      },
+      "counts": {
+        "wordmark": 1,
+        "form": 1,
+        "input": 1,
+        "openButtons": 1
+      },
+      "wordmark": {
+        "name": "WebAgents",
+        "text": "WebAgents",
+        "fontSize": "26px",
+        "fontWeight": "600",
+        "fontFamily": "-apple-system, \"system-ui\", \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif",
+        "colors": [
+          "rgb(11, 110, 79)",
+          "rgb(42, 111, 176)",
+          "rgb(192, 106, 18)",
+          "rgb(162, 59, 92)",
+          "rgb(11, 110, 79)",
+          "rgb(42, 111, 176)",
+          "rgb(192, 106, 18)",
+          "rgb(162, 59, 92)",
+          "rgb(11, 110, 79)"
+        ]
+      },
+      "background": "rgb(246, 247, 249)",
+      "radius": "24px",
+      "boxes": {
+        "wordmark": {
+          "left": 16,
+          "top": 135,
+          "width": 129,
+          "height": 26
+        },
+        "form": {
+          "left": 165,
+          "top": 124,
+          "width": 459,
+          "height": 48
+        },
+        "button": {
+          "left": 544,
+          "top": 129,
+          "width": 73,
+          "height": 36
+        },
+        "results": {
+          "left": 165,
+          "top": 184,
+          "width": 459,
+          "height": 565
+        },
+        "result": {
+          "left": 182,
+          "top": 290,
+          "width": 425,
+          "height": 431
+        },
+        "sessions": null,
+        "nav": {
+          "left": 0,
+          "top": 0,
+          "width": 640,
+          "height": 108
+        },
+        "navOpen": {
+          "left": 12,
+          "top": 54,
+          "width": 55,
+          "height": 36
+        }
+      }
+    },
+    "start-480": {
+      "file": "open-start-480.png",
+      "layout": "ab-open--start",
+      "viewport": {
+        "width": 480,
+        "scrollWidth": 480
+      },
+      "home": null,
+      "counts": {
+        "wordmark": 1,
+        "form": 1,
+        "input": 1,
+        "openButtons": 1
+      },
+      "wordmark": {
+        "name": "WebAgents",
+        "text": "WebAgents",
+        "fontSize": "52px",
+        "fontWeight": "600",
+        "fontFamily": "-apple-system, \"system-ui\", \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif",
+        "colors": [
+          "rgb(11, 110, 79)",
+          "rgb(42, 111, 176)",
+          "rgb(192, 106, 18)",
+          "rgb(162, 59, 92)",
+          "rgb(11, 110, 79)",
+          "rgb(42, 111, 176)",
+          "rgb(192, 106, 18)",
+          "rgb(162, 59, 92)",
+          "rgb(11, 110, 79)"
+        ]
+      },
+      "background": "rgb(246, 247, 249)",
+      "radius": "24px",
+      "boxes": {
+        "wordmark": {
+          "left": 112,
+          "top": 184,
+          "width": 256,
+          "height": 52
+        },
+        "form": {
+          "left": 16,
+          "top": 276,
+          "width": 448,
+          "height": 48
+        },
+        "button": {
+          "left": 384,
+          "top": 282,
+          "width": 73,
+          "height": 36
+        },
+        "results": null,
+        "result": null,
+        "sessions": {
+          "left": 32,
+          "top": 483,
+          "width": 416,
+          "height": 77
+        },
+        "nav": {
+          "left": 0,
+          "top": 0,
+          "width": 480,
+          "height": 108
+        },
+        "navOpen": {
+          "left": 12,
+          "top": 54,
+          "width": 55,
+          "height": 36
+        }
+      }
+    },
+    "compact-480": {
+      "file": "open-compact-480.png",
+      "layout": "ab-open--compact",
+      "viewport": {
+        "width": 480,
+        "scrollWidth": 480
+      },
+      "home": {
+        "href": "#open",
+        "holdsWordmark": true
+      },
+      "counts": {
+        "wordmark": 1,
+        "form": 1,
+        "input": 1,
+        "openButtons": 1
+      },
+      "wordmark": {
+        "name": "WebAgents",
+        "text": "WebAgents",
+        "fontSize": "26px",
+        "fontWeight": "600",
+        "fontFamily": "-apple-system, \"system-ui\", \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif",
+        "colors": [
+          "rgb(11, 110, 79)",
+          "rgb(42, 111, 176)",
+          "rgb(192, 106, 18)",
+          "rgb(162, 59, 92)",
+          "rgb(11, 110, 79)",
+          "rgb(42, 111, 176)",
+          "rgb(192, 106, 18)",
+          "rgb(162, 59, 92)",
+          "rgb(11, 110, 79)"
+        ]
+      },
+      "background": "rgb(246, 247, 249)",
+      "radius": "24px",
+      "boxes": {
+        "wordmark": {
+          "left": 16,
+          "top": 124,
+          "width": 129,
+          "height": 26
+        },
+        "form": {
+          "left": 16,
+          "top": 160,
+          "width": 448,
+          "height": 48
+        },
+        "button": {
+          "left": 384,
+          "top": 165,
+          "width": 73,
+          "height": 36
+        },
+        "results": {
+          "left": 16,
+          "top": 218,
+          "width": 448,
+          "height": 565
+        },
+        "result": {
+          "left": 33,
+          "top": 324,
+          "width": 414,
+          "height": 431
+        },
+        "sessions": null,
+        "nav": {
+          "left": 0,
+          "top": 0,
+          "width": 480,
+          "height": 108
+        },
+        "navOpen": {
+          "left": 12,
+          "top": 54,
+          "width": 55,
+          "height": 36
+        }
+      }
+    }
+  },
+  "checks": {
+    "the demo index is added and current": "ok",
+    "WebAir is open, so the start page has a session row": "ok",
+    "1280px: the box has its ring while typing": "ok",
+    "1280px: tabbing to Open shows one ring, the button's": "ok",
+    "start at 1280px: the start layout": "ok",
+    "start at 1280px: one wordmark, one form, one input, one Open button": "ok",
+    "start at 1280px: the wordmark's accessible name is WebAgents, nine letters in four colours": "ok",
+    "start at 1280px: no horizontal scroll": "ok",
+    "start at 1280px: the box is a pill at least 44px high, inside the viewport": "ok",
+    "start at 1280px: the Open button sits inside the box": "ok",
+    "start at 1280px: a large wordmark centred above the box": "ok",
+    "start at 1280px: the box is at most about 640px wide and in the upper half": "ok",
+    "start at 1280px: the open session is listed below the box": "ok",
+    "start at 1280px: the wordmark is not a link on the start page": "ok",
+    "compact at 1280px in Verdana: the wordmark still beside the box, the results still in the box's column": "ok",
+    "compact at 1280px: a click on the home link leads to the start page with an empty, focused box": "ok",
+    "compact at 1280px: the compact layout": "ok",
+    "compact at 1280px: one wordmark, one form, one input, one Open button": "ok",
+    "compact at 1280px: the wordmark's accessible name is WebAgents, nine letters in four colours": "ok",
+    "compact at 1280px: no horizontal scroll": "ok",
+    "compact at 1280px: the box is a pill at least 44px high, inside the viewport": "ok",
+    "compact at 1280px: the Open button sits inside the box": "ok",
+    "compact at 1280px: a small wordmark": "ok",
+    "compact at 1280px: the wordmark beside the box, in one row": "ok",
+    "compact at 1280px: the results in the box's column, below it": "ok",
+    "compact at 1280px: the wordmark is the link back to the start page (D-162)": "ok",
+    "start at 640px: the start layout": "ok",
+    "start at 640px: one wordmark, one form, one input, one Open button": "ok",
+    "start at 640px: the wordmark's accessible name is WebAgents, nine letters in four colours": "ok",
+    "start at 640px: no horizontal scroll": "ok",
+    "start at 640px: the box is a pill at least 44px high, inside the viewport": "ok",
+    "start at 640px: the Open button sits inside the box": "ok",
+    "start at 640px: the narrow nav is one short band above the page, its links not stretched": "ok",
+    "start at 640px: a large wordmark centred above the box": "ok",
+    "start at 640px: the box is at most about 640px wide and in the upper half": "ok",
+    "start at 640px: the open session is listed below the box": "ok",
+    "start at 640px: the wordmark is not a link on the start page": "ok",
+    "compact at 640px: the compact layout": "ok",
+    "compact at 640px: one wordmark, one form, one input, one Open button": "ok",
+    "compact at 640px: the wordmark's accessible name is WebAgents, nine letters in four colours": "ok",
+    "compact at 640px: no horizontal scroll": "ok",
+    "compact at 640px: the box is a pill at least 44px high, inside the viewport": "ok",
+    "compact at 640px: the Open button sits inside the box": "ok",
+    "compact at 640px: the narrow nav is one short band above the page, its links not stretched": "ok",
+    "compact at 640px: a small wordmark": "ok",
+    "compact at 640px: the wordmark beside the box, in one row": "ok",
+    "compact at 640px: the results in the box's column, below it": "ok",
+    "compact at 640px: the wordmark is the link back to the start page (D-162)": "ok",
+    "start at 480px: the start layout": "ok",
+    "start at 480px: one wordmark, one form, one input, one Open button": "ok",
+    "start at 480px: the wordmark's accessible name is WebAgents, nine letters in four colours": "ok",
+    "start at 480px: no horizontal scroll": "ok",
+    "start at 480px: the box is a pill at least 44px high, inside the viewport": "ok",
+    "start at 480px: the Open button sits inside the box": "ok",
+    "start at 480px: the narrow nav is one short band above the page, its links not stretched": "ok",
+    "start at 480px: a large wordmark centred above the box": "ok",
+    "start at 480px: the box is at most about 640px wide and in the upper half": "ok",
+    "start at 480px: the open session is listed below the box": "ok",
+    "start at 480px: the wordmark is not a link on the start page": "ok",
+    "compact at 480px: the compact layout": "ok",
+    "compact at 480px: one wordmark, one form, one input, one Open button": "ok",
+    "compact at 480px: the wordmark's accessible name is WebAgents, nine letters in four colours": "ok",
+    "compact at 480px: no horizontal scroll": "ok",
+    "compact at 480px: the box is a pill at least 44px high, inside the viewport": "ok",
+    "compact at 480px: the Open button sits inside the box": "ok",
+    "compact at 480px: the narrow nav is one short band above the page, its links not stretched": "ok",
+    "compact at 480px: a small wordmark": "ok",
+    "compact at 480px: the wordmark above the box": "ok",
+    "compact at 480px: the results in the box's column, below it": "ok",
+    "compact at 480px: the wordmark is the link back to the start page (D-162)": "ok",
+    "each wordmark colour has at least 3:1 contrast on the page background (large text)": "ok"
+  },
+  "failures": [],
+  "passed": true,
+  "focusRings": {
+    "inBox": {
+      "form": "solid",
+      "button": "none",
+      "focused": "INPUT"
+    },
+    "onButton": {
+      "form": "none",
+      "button": "solid",
+      "focused": "button"
+    }
+  },
+  "homeClick": {
+    "hash": "#open",
+    "layout": "ab-open ab-open--start",
+    "rows": 1,
+    "focused": "package-url",
+    "value": ""
+  },
+  "origin": {
+    "requests": [
+      "GET /agent-index.json",
+      "GET /agent.pkg"
+    ]
+  }
+}

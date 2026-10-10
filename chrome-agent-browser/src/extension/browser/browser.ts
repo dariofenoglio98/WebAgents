@@ -45,7 +45,7 @@ interface PageState {
   error: { code: string; message: string; details: Record<string, unknown> } | null;
   runs: RunListView | null;
   runsNotice: string | null;
-  /** The run chosen on the Runs page (`#run=…`), shown under the list; null for the list alone. */
+  /** The run chosen on the Runs page (`#run=…`), shown above the list (D-160); null for the list alone. */
   runsShowing: string | null;
   /** The last search's results (T8): shown on the Open page until an agent or a website is opened. */
   search: SearchView | null;
@@ -126,6 +126,7 @@ const runs = new RunPanel({
     state.runsShowing = runId;
     history.replaceState(null, "", `#run=${encodeURIComponent(runId)}`);
     render();
+    revealRun();
   },
 });
 const RUN_VIEW_ID = `run:${crypto.randomUUID()}`;
@@ -133,8 +134,28 @@ const RUN_VIEW_ID = `run:${crypto.randomUUID()}`;
 /** True until the page's first route: only a page that just opened adopts a run in flight. */
 let firstRoute = true;
 
+/** An error raised as the page leaves for another address, which that address shows (D-161; review 1, finding 1). */
+let errorForNextRoute: PageState["error"] = null;
+
+/**
+ * Go to `hash` and show `error` there. Setting the error before the address would lose it: the
+ * `hashchange` that follows runs `route()`, which starts the new address without an error.
+ */
+function navigateWithError(hash: string, error: NonNullable<PageState["error"]>): void {
+  if (location.hash === `#${hash}`) {
+    state.error = error;
+    return;
+  }
+  errorForNextRoute = error;
+  location.hash = hash;
+}
+
 function route(): void {
   const hash = location.hash.replace(/^#/u, "");
+  // An error belongs to the view it happened on: a new address starts without one, unless the
+  // page navigated here because of it (D-161).
+  state.error = errorForNextRoute;
+  errorForNextRoute = null;
   const [view, query] = hash.split("?");
   const params = new URLSearchParams(query ?? "");
   const wasOnModels = state.view === "settings" && state.settingsPage.section === "models";
@@ -266,10 +287,31 @@ async function reattachRuns(): Promise<void> {
   render();
 }
 
+/**
+ * Show one stored run on the Runs page (D-160): above the list, scrolled to and focused. A run
+ * that cannot be shown says why on the Runs page, and the list stays (D-161).
+ */
 async function openStoredRun(runId: string): Promise<void> {
+  // Both entries (the address, and Open on the run already in it) start without the last error.
+  state.error = null;
   await load();
-  await runs.openRun(runId);
+  const failed = await runs.openRun(runId);
+  if (state.view !== "runs" || state.runsShowing !== runId) return;
+  // A run shown keeps an error `load()` met reading the list; a run not shown says why (review 1, nit 4).
+  if (failed) state.error = { ...failed, details: {} };
   render();
+  if (!failed) revealRun();
+}
+
+/** Bring the shown run to the top of the window and give its heading the focus (D-160). */
+function revealRun(): void {
+  const heading = runs.root.querySelector<HTMLElement>(".ab-run-title h2");
+  if (!heading || !runs.root.isConnected) return;
+  heading.tabIndex = -1;
+  // The "All runs" line above the run comes into view with it, so the heading is not flush with the edge.
+  const back = runs.root.previousElementSibling;
+  (back?.classList.contains("ab-runs-back") ? back : heading).scrollIntoView({ block: "start" });
+  heading.focus({ preventScroll: true });
 }
 
 async function exportRun(runId: string): Promise<void> {
@@ -380,8 +422,7 @@ async function openLibraryEntry(entry: LibraryItemView): Promise<void> {
     state.error = null;
     location.hash = `session=${encodeURIComponent(state.open.session.id)}`;
   } catch (error) {
-    state.error = describeError(error);
-    location.hash = "open";
+    navigateWithError("open", describeError(error));
   } finally {
     state.busy = null;
     render();
@@ -455,9 +496,48 @@ function wordmark(): HTMLElement {
   return el("h1", { className: "ab-wordmark", attrs: { "aria-label": "WebAgents" } }, ...[..."WebAgents"].map((letter) => el("span", { text: letter, attrs: { "aria-hidden": "true" } })));
 }
 
+/** The compact page's wordmark leads back to the start page (D-162). */
+function homeLink(): HTMLElement {
+  const link = el("a", { className: "ab-wordmark-home", attrs: { href: "#open", title: "Back to the start page" } }, wordmark());
+  link.addEventListener("click", (event) => {
+    // A middle click or a click with a modifier opens the start page elsewhere, as links do (review 1, nit 7).
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    goHome();
+  });
+  return link;
+}
+
+/**
+ * Back to the start page (D-162): the search, the website card, the error and the box's text go.
+ * An open agent is set aside, not closed: its session stays listed under "Open now".
+ */
+function goHome(): void {
+  // An open or a search in flight would land on the start page afterwards: let it finish (review 1, nit 6).
+  if (state.busy) return;
+  state.search = null;
+  state.website = null;
+  state.error = null;
+  state.address = "";
+  if (state.open) {
+    state.open = null;
+    flow.reset();
+    runs.detach();
+  }
+  if (location.hash !== "#open") history.pushState(null, "", "#open");
+  state.view = "open";
+  void load();
+  render();
+  document.querySelector<HTMLInputElement>('input[name="package-url"]')?.focus();
+}
+
 function addressBar(): HTMLElement {
   const input = el("input", { className: "ab-input ab-address-input", attrs: { name: "package-url", type: "text", placeholder: "Search agents, or paste an agent.pkg URL or a locator like flights@webair.example", autocomplete: "off", "aria-label": "Search agents or open an address" } });
   input.value = state.address;
+  // What is typed survives a re-render from an event (B-150 item 6).
+  input.addEventListener("input", () => {
+    state.address = input.value;
+  });
   const form = el("form", { className: "ab-address" }, searchIcon(), input, button("Open", () => void openAddress(input.value.trim()), { variant: "primary" }));
   form.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -486,7 +566,7 @@ function errorBox(): HTMLElement | null {
  */
 function openView(): HTMLElement[] {
   const start = !state.open && !state.website && !state.search && !state.busy && !state.error;
-  const head = el("div", { className: "ab-open-head" }, wordmark(), el("p", { className: "ab-tagline", text: "Find agents on the web. Run them on your terms." }), addressBar());
+  const head = el("div", { className: "ab-open-head" }, start ? wordmark() : homeLink(), el("p", { className: "ab-tagline", text: "Find agents on the web. Run them on your terms." }), addressBar());
   const nodes: Array<HTMLElement | null> = [head, errorBox(), state.busy ? el("p", { className: "ab-busy", text: state.busy }) : null];
   if (state.open) {
     const open = state.open;
@@ -570,18 +650,25 @@ function runsView(): HTMLElement[] {
   const list = state.runs;
   const current = runs.currentRun();
   const open = (runId: string) => {
-    location.hash = `run=${encodeURIComponent(runId)}`;
+    const hash = `#run=${encodeURIComponent(runId)}`;
+    // The run already in the address: no hashchange follows, so show it again here (D-160).
+    if (location.hash === hash) {
+      state.runsShowing = runId;
+      void openStoredRun(runId);
+    } else location.hash = hash;
   };
+  const shown = current && state.runsShowing === current.runId ? current : null;
   return [
     errorBox(),
+    // The chosen run first, whether or not a package is open in this tab (D-160; review 1, finding 5).
+    shown ? el("p", { className: "ab-runs-back" }, el("a", { text: "← All runs", attrs: { href: "#runs" } })) : null,
+    shown ? runs.root : null,
     card(
       "Runs",
       el("p", { className: "ab-hint", text: "Every run this browser made, newest first, from its own records (IndexedDB). Open one to read its result, artifacts and audit; Export writes the run directory as a zip (run.json, run-plan.json, input.json and every artifact); Clear removes a finished run." }),
       state.runsNotice ? el("div", { className: "ab-banner ab-banner-neutral", attrs: { role: "status" } }, el("span", { text: state.runsNotice })) : null,
       !list ? el("p", { className: "ab-busy", text: "Loading…" }) : list.runs.length === 0 ? el("p", { className: "ab-empty", text: "No run yet. Authorize an agent and press Run." }) : renderRunList(list.runs, { open, export: (runId) => void exportRun(runId), clear: (runId) => void clearRun(runId) }),
     ),
-    // The chosen run, whether or not a package is open in this tab (review 1, finding 5).
-    current && state.runsShowing === current.runId ? runs.root : null,
   ].filter((node): node is HTMLElement => node !== null);
 }
 

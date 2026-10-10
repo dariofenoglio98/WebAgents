@@ -17,17 +17,33 @@ export function certificate(directory, host) {
   return { key: readFileSync(key), cert: readFileSync(cert), spkiHash: createHash("sha256").update(spki).digest("base64") };
 }
 
-/** Serve `files` (`{ "/path": { path, type } }`) on 127.0.0.1; every other path is a 404. */
-export function serveFiles(tls, files) {
+/**
+ * Serve `files` (`{ "/path": { path, type } }`, or `{ bytes, type }` for bytes held in memory) on
+ * 127.0.0.1; every other path is a 404, unless `answer(method, path, body)` returns
+ * `{ status, value }` for it (a JSON answer, T14).
+ */
+export function serveFiles(tls, files, answer = null) {
   const hits = [];
   const server = createServer({ key: tls.key, cert: tls.cert }, (request, response) => {
     hits.push(`${request.method} ${request.url}`);
     const file = files[request.url];
+    if (!file && answer) {
+      // Chunks joined as bytes first: a UTF-8 sequence split across two chunks stays whole (T14 review 1, nit 8).
+      const chunks = [];
+      request.on("data", (chunk) => chunks.push(chunk));
+      request.on("end", () => {
+        const answered = answer(request.method, request.url, Buffer.concat(chunks).toString("utf8"));
+        const text = answered ? JSON.stringify(answered.value) : "not found";
+        response.writeHead(answered ? answered.status : 404, { "content-type": answered ? "application/json" : "text/plain", "content-length": String(Buffer.byteLength(text)), "cache-control": "no-cache", "x-content-type-options": "nosniff" });
+        response.end(text);
+      });
+      return undefined;
+    }
     if (!file) {
       response.writeHead(404, { "content-type": "text/plain" });
       return response.end("not found");
     }
-    const bytes = readFileSync(file.path);
+    const bytes = file.bytes ?? readFileSync(file.path);
     response.writeHead(200, { "content-type": file.type, "content-length": String(bytes.length), "cache-control": "no-cache", "x-content-type-options": "nosniff" });
     return response.end(bytes);
   });

@@ -4,7 +4,8 @@
  * wordmark, the box, a hint, the open sessions) until something is shown, then a compact page with
  * the same box (D-140, D-141). Only the layout changes: the form, its input and button, the results
  * and the session rows are the elements the harnesses and the other tests select. happy-dom does no
- * layout; the geometry is checked in real Chrome by `scripts/screenshot-open-page.mjs`.
+ * layout; the geometry is checked in real Chrome by `scripts/screenshot-open-page.mjs`. T14: the
+ * compact wordmark leads back to the start page (D-162), and typed text survives a re-render.
  */
 import { resolve } from "node:path";
 
@@ -13,6 +14,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { Event, SessionView } from "../../src/extension/messages.js";
 import { failure, success } from "../../src/extension/messages.js";
 import { readBytes, ROOT, SHIPPED } from "../helpers/paths.js";
+import { until } from "../helpers/page.js";
 import { makeHarness, PAGE_IN_TAB, type Route } from "../helpers/shell.js";
 
 const ORIGIN = "https://webagents-webair-production.up.railway.app";
@@ -127,7 +129,8 @@ describe("the Open view as a start page (T12, D-140, D-141)", () => {
     expect(rows[0]!.querySelector(".ab-chip")?.textContent).toBe("unknown");
   });
 
-  it("switches to the compact layout on a search, submitted with Enter, and keeps the result cards", async () => {
+  // The form's submit event, as Enter in the box sends it; a real Enter is pressed in Chrome by `scripts/screenshot-open-page.mjs` (B-150 item 3).
+  it("switches to the compact layout on a search, submitted from the box, and keeps the result cards", async () => {
     await go("#settings?section=search");
     await press("Fill in the WebAgents demo index");
     await press("Add and verify");
@@ -171,5 +174,70 @@ describe("the Open view as a start page (T12, D-140, D-141)", () => {
     expectAddressBar("compact");
     expect(app().querySelector("article.ab-agent")).not.toBeNull();
     expect(app().querySelector(".ab-open-start")).toBeNull();
+  });
+});
+
+describe("the way back to the start page and the box's text (T14, D-162, B-150 items 5 and 6)", () => {
+  const home = () => app().querySelector<HTMLAnchorElement>("a.ab-wordmark-home");
+  const box = () => app().querySelector<HTMLInputElement>('input[name="package-url"]')!;
+
+  it("the compact page's wordmark is a link to the start page; the start page's is not", async () => {
+    await go("#open");
+    expectAddressBar("compact"); // the agent from the last test is still shown
+    expect(home()?.getAttribute("href")).toBe("#open");
+    expect(home()!.querySelector("h1.ab-wordmark")).not.toBeNull();
+  });
+
+  it("from an open agent: the start page, the agent set aside under Open now, not closed", async () => {
+    const before = ((await h.controller.handle({ type: "sessions.list" }, PAGE_IN_TAB)) as { sessions: Array<{ session_id: string }> }).sessions;
+    expect(app().querySelector("article.ab-agent")).not.toBeNull();
+    home()!.click();
+    // The click renders the start page at once; `load()` renders it again when the sessions answer.
+    const first = box();
+    await until(() => box() !== first && app().querySelector(".ab-open--start .ab-session-row"), "the start page re-rendered with its session row");
+    expectAddressBar("start");
+    // The box has the focus after that second render too (review 1, finding 2).
+    expect(document.activeElement).toBe(box());
+    expect(home()).toBeNull();
+    expect(location.hash).toBe("#open");
+    expect(app().querySelector("article.ab-agent")).toBeNull();
+    const after = ((await h.controller.handle({ type: "sessions.list" }, PAGE_IN_TAB)) as { sessions: Array<{ session_id: string }> }).sessions;
+    expect(after.map((item) => item.session_id)).toEqual(before.map((item) => item.session_id));
+    expect(app().querySelector(`.ab-session-row a[href="#session=${encodeURIComponent(before[0]!.session_id)}"]`)).not.toBeNull();
+  });
+
+  it("from search results: the start page with an empty box", async () => {
+    box().value = "flights@webair.example";
+    app().querySelector("form.ab-address")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+    await until(() => app().querySelector(".ab-open--compact .ab-result"), "the results");
+    home()!.click();
+    await until(() => app().querySelector(".ab-open--start"), "the start page");
+    expect(app().querySelector(".ab-result")).toBeNull();
+    expect(box().value).toBe("");
+  });
+
+  it("text typed in the box survives a re-render caused by an event, with the focus and the caret", async () => {
+    box().focus();
+    box().value = "half-typed que";
+    box().dispatchEvent(new Event("input", { bubbles: true }));
+    box().setSelectionRange(4, 4);
+    const typed = box();
+    for (const listener of listeners) listener({ type: "event.sessions" });
+    await until(() => box() !== typed, "a re-render of the page");
+    expect(box().value).toBe("half-typed que");
+    expect(document.activeElement).toBe(box());
+    expect([box().selectionStart, box().selectionEnd]).toEqual([4, 4]);
+  });
+
+  it("a click with a modifier on the home link is left to the browser (review 1, nit 7)", async () => {
+    box().value = "flights@webair.example";
+    app().querySelector("form.ab-address")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+    await until(() => app().querySelector(".ab-open--compact .ab-result"), "the results");
+    const click = new MouseEvent("click", { bubbles: true, cancelable: true, metaKey: true });
+    home()!.dispatchEvent(click);
+    expect(click.defaultPrevented).toBe(false);
+    expect(app().querySelector(".ab-open--compact .ab-result")).not.toBeNull();
+    home()!.click();
+    await until(() => app().querySelector(".ab-open--start"), "the start page");
   });
 });
