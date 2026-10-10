@@ -22,8 +22,8 @@
           "name": "WebAgents Research Prototype"
         },
         "package_url": "https://webagents-webair-production.up.railway.app/packages/literature-review-0.2.7.agent.pkg",
-        "digest": "8c461a5631fb64e735cf5030d38cc388036acf096d5cd465150c1949fec28875",
-        "archive_sha256": "5c91031633d80278e6aa191cef579cf14c49077214eedd25c1d46ec5ebf8beda",
+        "digest": "8bb4b802c5932a011168e20a0b9f31d106079537438fca46be281d65e236d55a",
+        "archive_sha256": "598d83594f128b77c11b0759468cc0eb749ba65ddcb9bec0a52d2a926799752d",
         "signer_fingerprint": "sha256:c5ca9763f9fc71253298ca381ec14c4d7432009c74dacc69df6344b71de05232",
         "locators": [
           "literature-review@webagents.example"
@@ -64,6 +64,6 @@
   "signature": {
     "algorithm": "ed25519",
     "key_fingerprint": "sha256:e0e7022b5836da157d7d55a9d7b00cb58e236d5270ab103162e63706b49f5103",
-    "value": "g+1trLIPG5q9DOeFZ53psxHJ1BSCGUxMB8kUrw/+8bEmYik72GtQe5yhUAuRo31hpjh5z8fGgvCMuGbpf6yaDw=="
+    "value": "toQLHBgGK7ijDKqgf5VgE4cEZQf5EvMJa6BTm22IM7RUM1EC1DcdGFUru4zdcK+IbXYfHVGf4J1n9E53NMU3Dg=="
   }
 }

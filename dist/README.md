@@ -84,8 +84,8 @@ into the wheel.
 
 ## Literature Review
 
-The current package is `literature-review-0.2.7.agent.pkg` (above; digest `8c461a56…8875`, archive
-`5c910316…beda`, 222,213 bytes), built and signed with the same generic commands (`agentpkg build
+The current package is `literature-review-0.2.7.agent.pkg` (above; digest `8bb4b802…d55a`, archive
+`598d8359…752d`, 225,630 bytes), built and signed with the same generic commands (`agentpkg build
 agents/literature-review -o …`, then `agentpkg sign` with the Literature Review key); rebuilding and
 re-signing reproduces its bytes. 0.2.7 differs from 0.2.6 in the graph (37 nodes: `join-batches`,
 `identify`, `join-found`, `join-found-refs`, `normalize-gate`, `join-included`, `papers-found`,
@@ -159,7 +159,7 @@ c1b1c4b260dbca874dc9e343397e6fad1311f498c3a6df27c1a1deeeb0b18f71  agentpkg-0.1.0
 f513e68ea23e045ed3665d8d71e46531147f017f0da80f999fb343afc3e1fe24  literature-review-0.2.4.agent.pkg
 1669f83fafac3434748fc19d38a8d3d2c3352da83cf1cbb84796ce313bd4f571  literature-review-0.2.5.agent.pkg
 685dcc97232d278eb2a5b777dcbc621573de5c48818a95d522e647c9267ee8f1  literature-review-0.2.6.agent.pkg
-5c91031633d80278e6aa191cef579cf14c49077214eedd25c1d46ec5ebf8beda  literature-review-0.2.7.agent.pkg
+598d83594f128b77c11b0759468cc0eb749ba65ddcb9bec0a52d2a926799752d  literature-review-0.2.7.agent.pkg
 fb7357ebdf2e8415a32033971ba448dd21a9b20eb35a32a6ec71e1a5240cc03b  literature-review-legacy.agent.pkg
 1669f83fafac3434748fc19d38a8d3d2c3352da83cf1cbb84796ce313bd4f571  literature-review.agent.pkg
 664b39b12ed26ee2b7524cc5b0afb8a91ebc64b76948696e65f34cbd768c32cb  meeting-agenda-0.2.0.agent.pkg

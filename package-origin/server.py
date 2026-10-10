@@ -24,7 +24,7 @@ INDEXED_PACKAGES = {
     ),
     "/packages/literature-review-0.2.7.agent.pkg": (
         Path(__file__).parent / "packages" / "literature-review-0.2.7.agent.pkg",
-        "5c91031633d80278e6aa191cef579cf14c49077214eedd25c1d46ec5ebf8beda",
+        "598d83594f128b77c11b0759468cc0eb749ba65ddcb9bec0a52d2a926799752d",
     ),
 }
 
@@ -33,7 +33,7 @@ INDEXED_PACKAGES = {
 DOCUMENTS = {
     "/agent-index.json": (
         Path(__file__).parent / "documents" / "agent-index.json",
-        "4481d625c4f35b0560c8629a26bd3152c6abfa04b6681f00dc28430ce18c6c69",
+        "116920ec713309503e90000689a952e3034382d93fafe7db3cd97804e2a71e5b",
     ),
     "/policies/webagents-research.json": (
         Path(__file__).parent / "documents" / "policies" / "webagents-research.json",
