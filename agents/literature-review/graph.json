@@ -2116,7 +2116,7 @@
           "max_output_tokens": 12000,
           "output_schema": "schemas/paper-evidence.schema.json",
           "task": "extract",
-          "timeout_seconds": 900,
+          "timeout_seconds": 1200,
           "type": "llm",
           "checks": [
             {
@@ -2336,7 +2336,7 @@
       },
       "output_schema": "schemas/synthesis.schema.json",
       "task": "synthesize",
-      "timeout_seconds": 600,
+      "timeout_seconds": 720,
       "type": "llm",
       "when": {
         "left": {
@@ -3265,7 +3265,7 @@
     {
       "budget": {
         "remote_calls": 15,
-        "tokens": 75000
+        "tokens": 84000
       },
       "id": "PlanningWorker",
       "kind": "packaged",
@@ -3313,7 +3313,7 @@
     {
       "budget": {
         "remote_calls": 15,
-        "tokens": 64000
+        "tokens": 70000
       },
       "id": "ScreeningWorker",
       "kind": "packaged",
@@ -3394,7 +3394,7 @@
     {
       "budget": {
         "remote_calls": 15,
-        "tokens": 56000
+        "tokens": 76000
       },
       "id": "SynthesisWorker",
       "kind": "packaged",
@@ -3416,7 +3416,7 @@
     {
       "budget": {
         "remote_calls": 15,
-        "tokens": 36000
+        "tokens": 43000
       },
       "id": "WritingWorker",
       "kind": "packaged",
@@ -3440,7 +3440,7 @@
     {
       "budget": {
         "remote_calls": 15,
-        "tokens": 80000
+        "tokens": 94000
       },
       "id": "VerificationWorker",
       "kind": "packaged",

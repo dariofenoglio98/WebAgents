@@ -336,14 +336,14 @@ def test_what_changed_from_0_2_6(review, previous):
     budgets = {w["id"]: w["budget"] for w in review.graph["workers"]}
     assert {k: v["tokens"] for k, v in budgets.items()} == {
         "LiteratureReviewCoordinator": 30000,
-        "PlanningWorker": 75000,
+        "PlanningWorker": 84000,
         "SearchWorker": 30000,
-        "ScreeningWorker": 64000,
+        "ScreeningWorker": 70000,
         "CitationWorker": 50000,
         "EvidenceWorker": 76000,
-        "SynthesisWorker": 56000,
-        "WritingWorker": 36000,
-        "VerificationWorker": 80000,
+        "SynthesisWorker": 76000,
+        "WritingWorker": 43000,
+        "VerificationWorker": 94000,
     }
     assert {v["remote_calls"] for v in budgets.values()} == {15}
     assert review.policy["budget"] == previous.policy["budget"]
@@ -353,6 +353,9 @@ def test_what_changed_from_0_2_6(review, previous):
         1800,
         1500,
     )
+    assert timeouts["synthesis"] == 720
+    (evidence,) = [n for n in review.graph["nodes"] if n["id"] == "evidence"]
+    assert {s["id"]: s["timeout_seconds"] for s in evidence["steps"]}["extract-one"] == 1200
 
 
 def test_signed_artifact_matches_source_and_replays(review):
