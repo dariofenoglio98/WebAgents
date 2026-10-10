@@ -1,13 +1,13 @@
 {
   "profile": "chrome-open-page-v0",
-  "recordedAt": "2026-10-10T04:35:58.546Z",
+  "recordedAt": "2026-10-10T15:27:07.728Z",
   "build": {
-    "commit": "3629f09007d5ddc12c0b23919d2e84e67e569f31",
-    "tree_clean": true,
+    "commit": "a9c802b24bb1bdb9720e25f2913db294531d9752",
+    "tree_clean": false,
     "extension": {
       "manifest.json": "9d17f46bbf2dca9b6bd6502156ed5ccf2e9c6b29505e5497848106e4e1179fd1",
       "browser.html": "041089815adf7f3f14e2c0237bb47a024ae98b38223c0fb38db4e7ca3c3c5daa",
-      "browser.js": "e85381ac823f51e312fea75c472ecc014d6fa1f611940e4db4b3a61d6d2c64f8",
+      "browser.js": "b89186d9cf8f14ad372dd6ea85376a8f1f8a32a5ab83c3802060551415054d76",
       "styles.css": "97ecf75e9e1a9f8f73503d093ea152a00179d020ab3c771ae7245c446c12a542"
     }
   },
@@ -584,6 +584,7 @@
     "start at 1280px: the open session is listed below the box": "ok",
     "start at 1280px: the wordmark is not a link on the start page": "ok",
     "compact at 1280px in Verdana: the wordmark still beside the box, the results still in the box's column": "ok",
+    "compact at 1280px: a click on the home link leads to the start page with an empty, focused box": "ok",
     "compact at 1280px: the compact layout": "ok",
     "compact at 1280px: one wordmark, one form, one input, one Open button": "ok",
     "compact at 1280px: the wordmark's accessible name is WebAgents, nine letters in four colours": "ok",
@@ -653,6 +654,13 @@
       "button": "solid",
       "focused": "button"
     }
+  },
+  "homeClick": {
+    "hash": "#open",
+    "layout": "ab-open ab-open--start",
+    "rows": 1,
+    "focused": "package-url",
+    "value": ""
   },
   "origin": {
     "requests": [

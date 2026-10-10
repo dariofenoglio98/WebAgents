@@ -1,13 +1,13 @@
 {
   "profile": "chrome-runs-open-v0",
-  "recordedAt": "2026-10-10T04:35:44.513Z",
+  "recordedAt": "2026-10-10T15:26:51.372Z",
   "build": {
-    "commit": "3629f09007d5ddc12c0b23919d2e84e67e569f31",
-    "tree_clean": true,
+    "commit": "a9c802b24bb1bdb9720e25f2913db294531d9752",
+    "tree_clean": false,
     "extension": {
       "manifest.json": "9d17f46bbf2dca9b6bd6502156ed5ccf2e9c6b29505e5497848106e4e1179fd1",
       "browser.html": "041089815adf7f3f14e2c0237bb47a024ae98b38223c0fb38db4e7ca3c3c5daa",
-      "browser.js": "e85381ac823f51e312fea75c472ecc014d6fa1f611940e4db4b3a61d6d2c64f8",
+      "browser.js": "b89186d9cf8f14ad372dd6ea85376a8f1f8a32a5ab83c3802060551415054d76",
       "styles.css": "97ecf75e9e1a9f8f73503d093ea152a00179d020ab3c771ae7245c446c12a542"
     }
   },
@@ -25,51 +25,51 @@
   "trusted": "the package's own signer, read from package.get",
   "runs": [
     {
-      "runId": "run_73a57775f5f24f8986c1fc25da375ec1",
+      "runId": "run_f47da7144964466f8bf699695c042ef8",
       "status": "completed"
     },
     {
-      "runId": "run_eee5c24b8d59499db321a9cb65b1cfd4",
+      "runId": "run_3665d62ff2df4109834547748d28c6c7",
       "status": "completed"
     },
     {
-      "runId": "run_597dfbac04194334a4f77409c7d5d93e",
+      "runId": "run_bc52babe56fd42188c1b098594d09eaa",
       "status": "completed"
     },
     {
-      "runId": "run_7055dbe29f7e4f0aa3a8ed4a3d7dea80",
+      "runId": "run_7ec50c60dbeb43e681a3c98d84302db6",
       "status": "completed"
     },
     {
-      "runId": "run_7234ec2f1324410aa0fdd7be4585fb6a",
+      "runId": "run_b882fffbb28e4c4facbaa5b6969a1e71",
       "status": "completed"
     },
     {
-      "runId": "run_ff56cc9be17141f5bbbea9354836393d",
+      "runId": "run_0a7f3dcc17a44ae580733a916ffcdafd",
       "status": "completed"
     },
     {
-      "runId": "run_35b428f00ff54d189ed712e4b658f900",
+      "runId": "run_a08d0cb827004a52b3d1511020cac750",
       "status": "completed"
     },
     {
-      "runId": "run_6abaa76438954505a563810b861ba148",
+      "runId": "run_c86bac3cc5de4d3381e8c4ae03b34ff1",
       "status": "completed"
     },
     {
-      "runId": "run_0883404a0b9f42c48c9bef4297e42455",
+      "runId": "run_738890576c1b4aeb827d0dfe0a484a68",
       "status": "completed"
     },
     {
-      "runId": "run_b6843c76d7ad46528a0bcfa4fc74d36b",
+      "runId": "run_f9335109a53744e6bf7bf88bda0ba5c8",
       "status": "completed"
     },
     {
-      "runId": "run_3434ffb25b574064a57d9b03d466bd66",
+      "runId": "run_56ff6757cb6b43378b73afbd327bafb2",
       "status": "completed"
     },
     {
-      "runId": "run_0db8dfc26b0d4e81ba07f345cf8d5e6b",
+      "runId": "run_63c135611950488db44b4bd95ad0abf7",
       "status": "completed"
     }
   ],
@@ -91,13 +91,13 @@
     },
     "opened": {
       "file": "runs-opened-1280.png",
-      "hash": "#run=run_73a57775f5f24f8986c1fc25da375ec1",
+      "hash": "#run=run_f47da7144964466f8bf699695c042ef8",
       "scrollY": 0,
       "pageHeight": 1633,
       "innerHeight": 860,
       "rows": 12,
       "runState": "completed",
-      "runId": "run_73a57775f5f24f8986c1fc25da375ec1",
+      "runId": "run_f47da7144964466f8bf699695c042ef8",
       "heading": {
         "text": "Run · WebAir Travel Agent 0.5.0",
         "top": 72,
@@ -109,13 +109,13 @@
       "error": null
     },
     "again": {
-      "hash": "#run=run_73a57775f5f24f8986c1fc25da375ec1",
+      "hash": "#run=run_f47da7144964466f8bf699695c042ef8",
       "scrollY": 0,
       "pageHeight": 1633,
       "innerHeight": 860,
       "rows": 12,
       "runState": "completed",
-      "runId": "run_73a57775f5f24f8986c1fc25da375ec1",
+      "runId": "run_f47da7144964466f8bf699695c042ef8",
       "heading": {
         "text": "Run · WebAir Travel Agent 0.5.0",
         "top": 72,

@@ -1,6 +1,6 @@
 {
   "profile": "chrome-search-policy-e2e-v0",
-  "recordedAt": "2026-10-10T04:36:03.596Z",
+  "recordedAt": "2026-10-10T15:28:20.356Z",
   "chrome": "Chrome/154.0.8037.99",
   "served": {
     "/agent-index.json": {
@@ -86,7 +86,7 @@
     },
     "useProfile": {
       "profile": "search",
-      "receipt": "f1fcebc3-072e-49c6-badf-98da3cc24683",
+      "receipt": "abe41437-1de7-44ab-ad85-f83ea777d560",
       "provenance": {
         "schema": "org.webagents:decision-provenance-v0",
         "profile_id": "search",
@@ -131,7 +131,7 @@
       }
     },
     "override": {
-      "receipt": "a1882680-cd80-42fe-a93d-9e2a0c19221c",
+      "receipt": "832812d2-fe77-4a5b-bc3f-59388693d2fd",
       "memory": "once",
       "provenance": {
         "booking.simulate_purchase": "profile",
