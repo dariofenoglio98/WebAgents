@@ -56,8 +56,20 @@ CURRENT_PACKAGES = {
         "fingerprint": "sha256:c5ca9763f9fc71253298ca381ec14c4d7432009c74dacc69df6344b71de05232",
         "tools": ["citation-resolver", "paper-reader", "scholarly-search"],
     },
-    # T10: the current Literature Review, by version. The unversioned alias above stays 0.2.5,
-    # which the paper's experiments, the conformance reports and the demo index describe.
+    # T15: the current Literature Review, by version. The unversioned alias above stays 0.2.5,
+    # which the paper's experiments and the conformance reports describe; 0.2.6 (T10), which demo
+    # index 1.1.0 names, stays pinned below.
+    "literature-review-0.2.7": {
+        "stem": "literature-review",
+        "alias": False,
+        "package_id": "org.webagents.literature-review",
+        "version": "0.2.7",
+        "digest": "8c461a5631fb64e735cf5030d38cc388036acf096d5cd465150c1949fec28875",
+        "archive_sha256": "5c91031633d80278e6aa191cef579cf14c49077214eedd25c1d46ec5ebf8beda",
+        "key": "examples/keys/literature-review-publisher.pub.pem",
+        "fingerprint": "sha256:c5ca9763f9fc71253298ca381ec14c4d7432009c74dacc69df6344b71de05232",
+        "tools": ["citation-resolver", "paper-reader", "scholarly-search"],
+    },
     "literature-review-0.2.6": {
         "stem": "literature-review",
         "alias": False,
@@ -188,10 +200,15 @@ def check_packages() -> dict:
     report["package_origin_copy_identical"] = (
         origin.read_bytes() == (DIST / "literature-review.agent.pkg").read_bytes()
     )
-    # T11 (D-131): the package the demo index 1.1.0 names, served at its indexed path too.
-    current = ROOT / "package-origin/packages/literature-review-0.2.6.agent.pkg"
+    # T15 (D-174): the package the demo index 1.2.0 names, served at its indexed path too; 0.2.6,
+    # which index 1.1.0 named (T11, D-131), stays served.
+    current = ROOT / "package-origin/packages/literature-review-0.2.7.agent.pkg"
     report["package_origin_current_copy_identical"] = (
-        current.read_bytes() == (DIST / "literature-review-0.2.6.agent.pkg").read_bytes()
+        current.read_bytes() == (DIST / "literature-review-0.2.7.agent.pkg").read_bytes()
+    )
+    previous = ROOT / "package-origin/packages/literature-review-0.2.6.agent.pkg"
+    report["package_origin_0_2_6_copy_identical"] = (
+        previous.read_bytes() == (DIST / "literature-review-0.2.6.agent.pkg").read_bytes()
     )
     # T8: the signed demo index and policy package-origin serves are the ones in examples/.
     documents = {
@@ -338,6 +355,7 @@ def main() -> int:
         all(packages[name]["passed"] for name in CURRENT_PACKAGES)
         and packages["package_origin_copy_identical"]
         and packages["package_origin_current_copy_identical"]
+        and packages["package_origin_0_2_6_copy_identical"]
         and packages["package_origin_documents_identical"]
         and packages["package_origin_document_pins"]["passed"]
         and all(section["passed"] for key, section in report.items() if key != "packages")

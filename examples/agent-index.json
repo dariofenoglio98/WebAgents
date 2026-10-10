@@ -3,27 +3,27 @@
   "content_type": "org.webagents:agent-index-v0",
   "content": {
     "index_id": "org.webagents.demo-index",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "title": "WebAgents demo index",
     "description": "The agents of the WebAgents research prototype: a literature-review agent and a fictional airline's agent. Signed with a development key, for demonstrations only; every entry is metadata, and each package is verified when you open it.",
     "publisher": {
       "name": "WebAgents research prototype (development key)"
     },
-    "issued_at": "2026-10-09T00:00:00Z",
+    "issued_at": "2026-10-10T00:00:00Z",
     "expires_at": "2027-12-31T23:59:59Z",
     "entries": [
       {
         "package_id": "org.webagents.literature-review",
         "name": "Literature Review Agent",
-        "version": "0.2.6",
-        "description": "A constrained coordinator-worker literature review: searches Crossref, screens and reads candidate papers (and PDFs you pick), resolves citations and writes a related-work draft with verified quotes.",
+        "version": "0.2.7",
+        "description": "A constrained coordinator-worker literature review: searches Crossref, screens and reads candidate papers (and PDFs you pick), resolves citations and writes a related-work draft with verified quotes, and lists every paper it found with its screening verdict.",
         "publisher": {
           "id": "webagents-research",
           "name": "WebAgents Research Prototype"
         },
-        "package_url": "https://webagents-webair-production.up.railway.app/packages/literature-review-0.2.6.agent.pkg",
-        "digest": "09399b953afd487ee87dcf321a32ff1e735c8d862ac662ea2c4ee1f8ef1b6e4e",
-        "archive_sha256": "685dcc97232d278eb2a5b777dcbc621573de5c48818a95d522e647c9267ee8f1",
+        "package_url": "https://webagents-webair-production.up.railway.app/packages/literature-review-0.2.7.agent.pkg",
+        "digest": "8c461a5631fb64e735cf5030d38cc388036acf096d5cd465150c1949fec28875",
+        "archive_sha256": "5c91031633d80278e6aa191cef579cf14c49077214eedd25c1d46ec5ebf8beda",
         "signer_fingerprint": "sha256:c5ca9763f9fc71253298ca381ec14c4d7432009c74dacc69df6344b71de05232",
         "locators": [
           "literature-review@webagents.example"
@@ -64,6 +64,6 @@
   "signature": {
     "algorithm": "ed25519",
     "key_fingerprint": "sha256:e0e7022b5836da157d7d55a9d7b00cb58e236d5270ab103162e63706b49f5103",
-    "value": "WjKa/MOsdVT9B54K1mqBtAzgIw5Plai5yX1J9TGFlrcErDx5xDtja4MBTICnigzOrhHmN5ONv72SCm1gSCaRDA=="
+    "value": "g+1trLIPG5q9DOeFZ53psxHJ1BSCGUxMB8kUrw/+8bEmYik72GtQe5yhUAuRo31hpjh5z8fGgvCMuGbpf6yaDw=="
   }
 }
