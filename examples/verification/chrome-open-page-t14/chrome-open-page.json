@@ -1,9 +1,9 @@
 {
   "profile": "chrome-open-page-v0",
-  "recordedAt": "2026-10-10T15:27:07.728Z",
+  "recordedAt": "2026-10-10T15:31:33.577Z",
   "build": {
-    "commit": "a9c802b24bb1bdb9720e25f2913db294531d9752",
-    "tree_clean": false,
+    "commit": "73b80857b5b536d8be73d5a06945a03878c954e7",
+    "tree_clean": true,
     "extension": {
       "manifest.json": "9d17f46bbf2dca9b6bd6502156ed5ccf2e9c6b29505e5497848106e4e1179fd1",
       "browser.html": "041089815adf7f3f14e2c0237bb47a024ae98b38223c0fb38db4e7ca3c3c5daa",
@@ -20,11 +20,15 @@
   "served": {
     "/agent-index.json": {
       "source": "examples/agent-index.json",
-      "sha256": "79d4492cda8bb1d6252358aad1c5efbb2cb0f0dad521ac268b68aa37cc711898"
+      "sha256": "caf08869f8628307e06979354a6863346e9918131c2b12059827998d6d04e74b"
     },
     "/packages/literature-review-0.2.6.agent.pkg": {
       "source": "dist/literature-review-0.2.6.agent.pkg",
       "sha256": "685dcc97232d278eb2a5b777dcbc621573de5c48818a95d522e647c9267ee8f1"
+    },
+    "/packages/literature-review-0.2.7.agent.pkg": {
+      "source": "dist/literature-review-0.2.7.agent.pkg",
+      "sha256": "8951a14bb1f42bca1590bc7d0c9cc00cccba75b36f1488969b6b3ff47063fe61"
     },
     "/agent.pkg": {
       "source": "dist/webair-0.5.0.agent.pkg",
@@ -180,13 +184,13 @@
           "left": 455,
           "top": 76,
           "width": 719,
-          "height": 403
+          "height": 423
         },
         "result": {
           "left": 472,
           "top": 164,
           "width": 685,
-          "height": 287
+          "height": 308
         },
         "sessions": null,
         "nav": {
@@ -386,13 +390,13 @@
           "left": 165,
           "top": 184,
           "width": 459,
-          "height": 545
+          "height": 565
         },
         "result": {
           "left": 182,
           "top": 290,
           "width": 425,
-          "height": 411
+          "height": 431
         },
         "sessions": null,
         "nav": {
@@ -544,13 +548,13 @@
           "left": 16,
           "top": 218,
           "width": 448,
-          "height": 545
+          "height": 565
         },
         "result": {
           "left": 33,
           "top": 324,
           "width": 414,
-          "height": 411
+          "height": 431
         },
         "sessions": null,
         "nav": {

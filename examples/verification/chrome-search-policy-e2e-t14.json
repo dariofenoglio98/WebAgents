@@ -1,15 +1,19 @@
 {
   "profile": "chrome-search-policy-e2e-v0",
-  "recordedAt": "2026-10-10T15:28:20.356Z",
+  "recordedAt": "2026-10-10T15:31:39.369Z",
   "chrome": "Chrome/154.0.8037.99",
   "served": {
     "/agent-index.json": {
       "source": "examples/agent-index.json",
-      "sha256": "79d4492cda8bb1d6252358aad1c5efbb2cb0f0dad521ac268b68aa37cc711898"
+      "sha256": "caf08869f8628307e06979354a6863346e9918131c2b12059827998d6d04e74b"
     },
     "/policies/webagents-research.json": {
       "source": "examples/policies/webagents-research.json",
       "sha256": "aa36d133aeb71eb6a77306822396f57ea34efa76a9e1636904365f04c35dca75"
+    },
+    "/packages/literature-review-0.2.7.agent.pkg": {
+      "source": "dist/literature-review-0.2.7.agent.pkg",
+      "sha256": "8951a14bb1f42bca1590bc7d0c9cc00cccba75b36f1488969b6b3ff47063fe61"
     },
     "/packages/literature-review-0.2.6.agent.pkg": {
       "source": "dist/literature-review-0.2.6.agent.pkg",
@@ -26,25 +30,25 @@
   },
   "steps": {
     "index": {
-      "row": "WebAgents demo index 1.1.0verified, currentsearchedThe agents of the WebAgents research prototype: a literature-review agent and a fictional airline's agent. Signed with a development key, for demonstrations only; every entry is metadata, and each package is verified when you open it.https://webagen",
+      "row": "WebAgents demo index 1.2.0verified, currentsearchedThe agents of the WebAgents research prototype: a literature-review agent and a fictional airline's agent. Signed with a development key, for demonstrations only; every entry is metadata, and each package is verified when you open it.https://webagen",
       "signer": "sha256:e0e7022b5836da157d7d55a9d7b00cb58e236d5270ab103162e63706b49f5103",
-      "version": "1.1.0",
+      "version": "1.2.0",
       "entries": 2
     },
     "search": {
       "results": [
         {
           "id": "org.webagents.literature-review",
-          "url": "https://webagents-webair-production.up.railway.app/packages/literature-review-0.2.6.agent.pkg"
+          "url": "https://webagents-webair-production.up.railway.app/packages/literature-review-0.2.7.agent.pkg"
         }
       ],
-      "source": "Found in WebAgents demo index 1.1.0, signed by sha256:e0e7022b5836d…5103 (the key you pinned for it) "
+      "source": "Found in WebAgents demo index 1.2.0, signed by sha256:e0e7022b5836d…5103 (the key you pinned for it) "
     },
     "open": {
       "headline": "Signed, publisher unknown",
       "signature": "valid",
       "signer": "sha256:c5ca9763f9fc71253298ca381ec14c4d7432009c74dacc69df6344b71de05232",
-      "archiveSha256": "685dcc97232d278eb2a5b777dcbc621573de5c48818a95d522e647c9267ee8f1",
+      "archiveSha256": "8951a14bb1f42bca1590bc7d0c9cc00cccba75b36f1488969b6b3ff47063fe61",
       "validation": {
         "container_status": "valid",
         "integrity_status": "valid",
@@ -58,7 +62,7 @@
       "foundVia": {
         "index_id": "org.webagents.demo-index",
         "label": "WebAgents demo index",
-        "version": "1.1.0",
+        "version": "1.2.0",
         "position": 0,
         "claims": {
           "package_id": "matches",
@@ -71,7 +75,7 @@
       "banner": "matches"
     },
     "library": {
-      "pinned": "https://webagents-webair-production.up.railway.app/packages/literature-review-0.2.6.agent.pkg"
+      "pinned": "https://webagents-webair-production.up.railway.app/packages/literature-review-0.2.7.agent.pkg"
     },
     "policy": {
       "state": "current",
@@ -86,7 +90,7 @@
     },
     "useProfile": {
       "profile": "search",
-      "receipt": "abe41437-1de7-44ab-ad85-f83ea777d560",
+      "receipt": "d30cf959-4095-41c0-b1ea-a381caf35a41",
       "provenance": {
         "schema": "org.webagents:decision-provenance-v0",
         "profile_id": "search",
@@ -131,7 +135,7 @@
       }
     },
     "override": {
-      "receipt": "832812d2-fe77-4a5b-bc3f-59388693d2fd",
+      "receipt": "9ef2f811-0e3c-41a4-960c-e4c93940909e",
       "memory": "once",
       "provenance": {
         "booking.simulate_purchase": "profile",
@@ -159,7 +163,7 @@
       "foundVia": {
         "index_id": "org.webagents.demo-index",
         "label": "WebAgents demo index",
-        "version": "1.1.0",
+        "version": "1.2.0",
         "position": 1,
         "claims": {
           "package_id": "matches",
@@ -174,7 +178,7 @@
     "origin": {
       "requests": [
         "GET /agent-index.json",
-        "GET /packages/literature-review-0.2.6.agent.pkg",
+        "GET /packages/literature-review-0.2.7.agent.pkg",
         "GET /policies/webagents-research.json",
         "GET /agent.pkg",
         "GET /agent.pkg"
@@ -185,7 +189,7 @@
     "the demo index is added and verified under the development key": "ok",
     "a search for 'literature review' lists the package from the demo index": "ok",
     "it opens verified: all four layers valid and the signature valid": "ok",
-    "the opened bytes are the shipped Literature Review 0.2.6": "ok",
+    "the opened bytes are the shipped Literature Review 0.2.7": "ok",
     "the index's claims match the bytes, and the page says so": "ok",
     "the pinned agent is on the Library page": "ok",
     "subscribed to the research policy under the development policy key": "ok",
