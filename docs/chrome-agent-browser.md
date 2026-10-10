@@ -192,9 +192,11 @@ opened agents; opening one downloads and verifies it again.
 The demo index and the example "WebAgents research policy" are signed with development keys
 (`examples/keys/webagents-index.pub.pem`, `webagents-policy.pub.pem`) and served beside the WebAir
 origin (and by `package-origin/`). The acceptance harness `scripts/e2e-search-policy.mjs` runs the
-whole path in a real Chrome against a local HTTPS mock of that origin. Index **1.1.0** (T11, D-131)
-lists Literature Review 0.2.6 and WebAir 0.5.0; both origins also keep serving Literature Review 0.2.5,
-which index 1.0.0 listed (kept as `examples/agent-index-1.0.0.json`). Evidence: index 1.1.0,
+whole path in a real Chrome against a local HTTPS mock of that origin. Index **1.2.0** (T15, D-174)
+lists Literature Review 0.2.7 and WebAir 0.5.0; both origins also keep serving Literature Review 0.2.6
+and 0.2.5, which indexes 1.1.0 (T11, D-131) and 1.0.0 listed (kept as `examples/agent-index-1.1.0.json`
+and `examples/agent-index-1.0.0.json`). Evidence: index 1.2.0,
+[`chrome-search-policy-e2e-index-120.json`](../examples/verification/chrome-search-policy-e2e-index-120.json); index 1.1.0,
 [`chrome-search-policy-e2e-index-110.json`](../examples/verification/chrome-search-policy-e2e-index-110.json)
 (also finds WebAir by its locator and its claims match); index 1.0.0 (T8),
 [`chrome-search-policy-e2e.json`](../examples/verification/chrome-search-policy-e2e.json).

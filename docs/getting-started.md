@@ -82,7 +82,7 @@ agentpkg/.venv/bin/python -m ruff check agentpkg
 agentpkg/.venv/bin/python -m ruff format --check agentpkg
 agentpkg/.venv/bin/python scripts/verify_workflow.py         # both packages, fixture mode
 agentpkg/.venv/bin/python scripts/verify_browser.py          # control plane, no execution
-agentpkg/.venv/bin/python scripts/verify_literature_025.py   # current Literature Review
+agentpkg/.venv/bin/python scripts/verify_literature_027.py   # current Literature Review
 agentpkg/.venv/bin/python scripts/check_release.py           # package identities and dist/ hashes
 ```
 
@@ -213,11 +213,14 @@ the package schema before accepting it.
 | Service | Used by | Notes |
 |---|---|---|
 | Crossref REST API (`api.crossref.org`) | `scholarly-search` host adapter | public API; the adapter sends at most one request at a time, ≥ 1 s apart; coverage of recent AI topics is thin, so a run may include only a few papers |
-| Citation Resolver (`webagents-citation-resolver-production.up.railway.app`) | `citation-resolver` | a small FastAPI service in [`citation-resolver/`](../citation-resolver/README.md), hosted by the authors as an external research/demo dependency with **no availability guarantee** |
+| Citation Resolver (`webagents-citation-resolver-production.up.railway.app`) | `citation-resolver` | a small FastAPI service in [`citation-resolver/`](../citation-resolver/README.md), hosted by the authors as an external research/demo dependency with **no availability guarantee**. Since Literature Review 0.2.7 the tool also names `api.crossref.org`, so the Chrome Agent Browser answers a DOI query from Crossref's DOI lookup when the resolver fails (D-153) |
 | Selected PDFs | `paper-reader` | only files the operator selects under `localFiles.roots`; the package sees opaque ids, never paths |
 
 Both services are outside this repository's control. Their availability, rate limits and
-coverage decide whether a **live** Literature Review run completes and how much it finds. They do
+coverage decide whether a **live** Literature Review run completes and how much it finds. Since
+0.2.7 every completed run also exports `papers-found.json`: every paper the search found, with its
+title, year, venue, DOI, URL and the screening verdict and its reason, also when nothing was
+grounded enough to cite. They do
 not affect fixture-mode runs, the offline verification scripts, the test suites or CI, which
 replay recorded or synthetic answers and never contact them.
 
@@ -236,8 +239,8 @@ Meeting Agenda uses no tools and no network apart from the model.
 The Agent Browser also opens packages from HTTPS URLs. It accepts only HTTPS, no redirects and
 no private-network destinations, and bounds the download size. [`package-origin/`](../package-origin/)
 is a minimal static origin that serves `literature-review-0.2.5.agent.pkg` (and, at
-`/packages/literature-review-0.2.6.agent.pkg`, the 0.2.6 that the demo index lists) and checks each
-SHA-256 at startup:
+`/packages/literature-review-0.2.7.agent.pkg`, the 0.2.7 that the demo index 1.2.0 lists, beside
+the 0.2.6 that index 1.1.0 listed) and checks each SHA-256 at startup:
 
 ```sh
 PORT=8080 python3 package-origin/server.py      # plain HTTP; deploy behind TLS (see its Dockerfile)
