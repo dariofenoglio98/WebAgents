@@ -1,6 +1,6 @@
 {
   "type": "array",
   "items": {
-    "$ref": "screen-ref.schema.json"
+    "$ref": "paper-id.schema.json"
   }
 }

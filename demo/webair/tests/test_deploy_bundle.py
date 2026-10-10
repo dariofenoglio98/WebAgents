@@ -23,6 +23,7 @@ START = "python -m origin --host 0.0.0.0 --agent-package agent.pkg --demo-docume
 DEMO_DOCUMENTS = {
     "demo/agent-index.json",
     "demo/policies/webagents-research.json",
+    "demo/packages/literature-review-0.2.7.agent.pkg",
     "demo/packages/literature-review-0.2.6.agent.pkg",
     "demo/packages/literature-review-0.2.5.agent.pkg",
 }
@@ -129,6 +130,9 @@ def test_the_bundle_carries_the_signed_demo_documents_and_the_bundled_origin_ser
         / "examples"
         / "policies"
         / "webagents-research.json",
+        "demo/packages/literature-review-0.2.7.agent.pkg": REPO_ROOT
+        / "dist"
+        / "literature-review-0.2.7.agent.pkg",
         "demo/packages/literature-review-0.2.6.agent.pkg": REPO_ROOT
         / "dist"
         / "literature-review-0.2.6.agent.pkg",

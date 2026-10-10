@@ -391,7 +391,9 @@ Design rationale: [docs/architecture.md](docs/architecture.md). Threat model:
   the chosen profile and the person's preset, and labels every decision it made (recorded in a real
   Chrome: [`chrome-search-policy-e2e.json`](examples/verification/chrome-search-policy-e2e.json);
   over demo index 1.1.0, which lists Literature Review 0.2.6 and WebAir 0.5.0:
-  [`chrome-search-policy-e2e-index-110.json`](examples/verification/chrome-search-policy-e2e-index-110.json)).
+  [`chrome-search-policy-e2e-index-110.json`](examples/verification/chrome-search-policy-e2e-index-110.json);
+  over demo index 1.2.0, which lists Literature Review 0.2.7:
+  [`chrome-search-policy-e2e-index-120.json`](examples/verification/chrome-search-policy-e2e-index-120.json)).
   NANDA resolution is a stub with the mapping defined.
 
 **Experimental** (works on the development host, but limited or lightly exercised):

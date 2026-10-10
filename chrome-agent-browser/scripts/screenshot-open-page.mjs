@@ -36,6 +36,7 @@ const PACKAGE_TYPE = "application/vnd.webagents.agent-package";
 const FILES = {
   "/agent-index.json": { path: join(ROOT, "examples", "agent-index.json"), type: "application/json" },
   "/packages/literature-review-0.2.6.agent.pkg": { path: join(ROOT, "dist", "literature-review-0.2.6.agent.pkg"), type: PACKAGE_TYPE },
+  "/packages/literature-review-0.2.7.agent.pkg": { path: join(ROOT, "dist", "literature-review-0.2.7.agent.pkg"), type: PACKAGE_TYPE },
   "/agent.pkg": { path: join(ROOT, "dist", "webair-0.5.0.agent.pkg"), type: PACKAGE_TYPE },
 };
 const WIDTHS = [

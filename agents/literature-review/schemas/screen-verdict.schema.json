@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "A screening judgement as the model writes it: which paper, the verdict and why. The workflow attaches it to the paper's own record.",
+  "type": "object",
+  "properties": {
+    "paper_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "screening_status": {
+      "enum": [
+        "include",
+        "maybe",
+        "exclude"
+      ]
+    },
+    "screening_rationale": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "paper_id",
+    "screening_status",
+    "screening_rationale"
+  ],
+  "additionalProperties": false
+}

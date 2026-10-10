@@ -1,8 +1,41 @@
 # Literature Review Agent — workflow.v0
 
-Version 0.2.6 is a data-only package executed by the same generic interpreter as Meeting Agenda. `MANIFEST.agent` selects `workflow.v0`; **graph.json is the only authoritative execution graph**. The seven skills describe domain behavior; schemas and declared validation assertions enforce the structured contracts.
+Version 0.2.7 is a data-only package executed by the same generic interpreter as Meeting Agenda. `MANIFEST.agent` selects `workflow.v0`; **graph.json is the only authoritative execution graph**. The seven skills describe domain behavior; schemas and declared validation assertions enforce the structured contracts.
 
 The graph performs planning, seed resolution, parallel search, join/normalization/deduplication, parallel screening, citation resolution, evidence preparation and parallel extraction, synthesis, writing, verification and declared exports. Citation Resolver remains a remote tool consumed through its existing contract. Conditional selected-PDF reads remain worker-local. Exact quote/page checks, record links and resolver metadata checks use generic validation nodes.
+
+## 0.2.7: the models judge, the graph keeps the records, and every run lists the papers found
+
+The user's runs of 2026-10-09 stopped or emptied 0.2.6 in steps where a model did bookkeeping. On `openai/gpt-5.6-luna` `normalize` gave two candidates the same `paper_id` (twice), so `check-screening-refs` stopped the run. On `qwen3:30b` `normalize` dropped all nine candidates, and `select-included`, given nothing, invented a paper. 0.2.7 keeps the workflow (planning, normalizing, screening, selecting, extracting, synthesizing, writing and verifying, with the same workers and tools) and moves the bookkeeping into the graph:
+
+- **Ids from identifiers, before any model.** `join-search` removes exact duplicates by DOI, then arXiv id. `identify` names every paper by its DOI, else its arXiv id, else its URL, else its title, and `join-found` keeps the first paper per id. A resolved seed becomes a search-shaped record (`seed-discovery`) and is screened like any search result. At most 20 papers continue; a cut is audited (`node.truncated`).
+- **normalize is asked only when it has something to judge.** With no selected document there is nothing to match, so every found paper goes to screening with `file_id: null`. With documents, `normalize` returns `{candidates: [{paper_id, file_id}]}`. Two answer checks require every candidate to be a found paper and every found paper to appear exactly once, so a duplicate or a missing paper is refused on the answer.
+- **The model judges, the graph keeps the record.** Screening answers `{paper_id, screening_status, screening_rationale}` (`schemas/screen-verdict.schema.json`), and a check ties the answer's `paper_id` to the job's. The screened record is the found record with that verdict attached. The included papers are collected by verdict. `select-included` runs only when one is included and answers `{paper_ids}` (one to three), checked against the included list. The graph copies the chosen records.
+- **After selection, papers are named P1, P2, P3.** `selection-slots` pads the chosen ids to three positions and `assign-handles` names them in order. `citation-jobs` copies each chosen paper's record under its handle. From then on the citation records, evidence (`P1:e1` … `P1:e4`, listed for the extraction model and checked), claims and bibliography rows name the handle, while the bibliography entry carries the resolver's record with the DOI. In a live run Luna garbled a digit-heavy DOI id in 6 of 8 synthesis answers, and in 0 of 12 with handles. The output's `unresolved` list is the graph's own (citations that did not resolve), not the verifier's copy.
+- **Answer checks** (workflow.v0 `checks`; the package now requires agentpkg 0.3.0):
+  - on `extract-one`: every item names the job's paper, ids are unique, and every quote is verbatim in the abstract (the resolver's, else the search's) or in a supplied page. The 0.2.6 `check-abstract` and `check-document` relations became these checks.
+  - on `synthesis`, `writing` and `verification`: every cited evidence item exists, every cited paper is resolved, and a direct quote's paper is its evidence's paper.
+  - on `verification` also: every evidence-table and bibliography row points at a real item or resolved paper.
+  - A host that re-asks (the Chrome Agent Browser, up to twice) names the failed check in its correction. `validate-output` keeps every assertion it had, and adds two that tie `papers_found` to the found papers.
+- **`papers-found.json`**, in every completed run: one entry per found paper (`paper_id`, `title`, `year`, `venue`, `doi`, `url`, `screening_status`, `screening_rationale`), built by the graph from the found records and the screening verdicts. The "No sufficiently grounded literature found" text points to it, and the result summary shows it first.
+- **A selected document reaches the model as its first pages:** two for screening, three for extraction (`join.limit`, audited). A whole 16-page paper made one screening call's reservation 81,066 tokens, more than any worker budget and more than a local model's context. The quote check reads the same pages the model saw.
+- **The citation fallback.** The citation-resolver tool and `network.citations` also name `api.crossref.org`, so a host may answer a DOI query from Crossref's DOI lookup when the Citation Resolver is unavailable.
+- **Budgets for re-asks.** Each worker's tokens fit its largest step three times (two re-asks): twice the largest charge plus the largest reservation recorded in 0.2.6's and 0.2.7's live runs, with a 15% margin. EvidenceWorker is sized for three dense document pages.
+  - PlanningWorker 84,000
+  - ScreeningWorker 70,000
+  - EvidenceWorker 76,000
+  - SynthesisWorker 76,000
+  - WritingWorker 43,000
+  - VerificationWorker 94,000
+
+  The run total (180,000 tokens, 45 remote calls, 4,500 s) is unchanged. Timeouts fit three of the slowest attempt seen on a local model with one model slot: normalize 1,200 s, screening 1,800 s, evidence 1,500 s (one extraction 1,200 s), synthesis 720 s.
+- **Skills:**
+  - literature-search 0.1.3: keep the supplied ids.
+  - paper-screening 0.1.2: a verdict, ids for selection, the first two pages.
+  - evidence-extraction 0.1.4: the paper's handle and its evidence ids, the first three pages.
+  - claim-and-citation-verification 0.1.4: "SYNTHETIC DEMONSTRATION" only when `mode` is fixture. Every live 0.2.6 review on Luna carried that label.
+
+The signed 0.2.6 and 0.2.5 archives are preserved separately.
 
 ## 0.2.6: screening jobs are built from the candidates; an abstract has no source hash
 
@@ -82,18 +115,18 @@ No assertion was removed or loosened: exact quote containment, record links, res
 
 ## Replay fixture
 
-`fixtures/workflow.json` owns the exact-input model/tool replay scenario; in 0.2.2 its evidence ids follow the `<paper_id>:e<n>` contract, and in 0.2.3 its verifier bibliography rows carry no metadata. It is synthetic: three searches of three results each (nine raw candidates, eight after deduplication by DOI), eight screening decisions, three selected papers, three citation resolutions (two resolved, one ambiguous), two bibliography entries and seven evidence items, four of them from a selected PDF. Replay does not infer answers to new questions or establish model quality. The original fixture dataset and application schemas remain available; old specialized eval definitions are historical data and are not claimed as the new generic eval harness.
+`fixtures/workflow.json` owns the exact-input model/tool replay scenario; in 0.2.2 its evidence ids follow the `<paper_id>:e<n>` contract, and in 0.2.3 its verifier bibliography rows carry no metadata. It is synthetic: three searches of three results each (nine records, eight found papers after exact deduplication by DOI), one selected document, so `normalize` is asked, eight screening decisions and eight `papers-found` entries, three selected papers, three citation resolutions (two resolved, one ambiguous), two bibliography entries and seven evidence items, four of them from a selected PDF. Replay does not infer answers to new questions or establish model quality. The original fixture dataset and application schemas remain available; old specialized eval definitions are historical data and are not claimed as the new generic eval harness.
 
 ```sh
 # Run from repository root, with a new output directory.
-agentpkg/.venv/bin/agentpkg run dist/literature-review.agent.pkg \
+agentpkg/.venv/bin/agentpkg run dist/literature-review-0.2.7.agent.pkg \
   --mode fixture --input examples/literature-review-input.json \
   --grants examples/literature-review-grants.json \
   --approve-tool scholarly-search --approve-tool citation-resolver --approve-tool paper-reader \
   --out examples/my-workflow-review
 ```
 
-`result.json`, `audit.json`, `usage.json` and `provenance.json` identify `agentpkg.workflow.Workflow`. Graph-declared exports include Related Work Markdown, bibliography, evidence table, unresolved records and verification results.
+`result.json`, `audit.json`, `usage.json` and `provenance.json` identify `agentpkg.workflow.Workflow`. Graph-declared exports include Related Work Markdown, the papers found, bibliography, evidence table, unresolved records and verification results.
 
 The package retains session memory, depth-one local workers, three concurrent workers, 180,000 synthetic/model token units, 45 remote dispatches and the existing per-tool limits. Actual authority comes from host grants and explicit tool approvals. Fixtures use the same enforcement path and consume declared remote dispatch capacity despite making no network requests.
 

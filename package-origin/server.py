@@ -15,19 +15,25 @@ LATEST_PATH = "/literature-review.agent.pkg"
 # The path the WebAgents demo index 1.0.0 named for this package (T8), as the WebAir deployment serves it.
 INDEXED_PATH = "/packages/literature-review-0.2.5.agent.pkg"
 
-# The package the demo index 1.1.0 names (T11, D-131), at the same path as the WebAir deployment serves it.
-CURRENT_PACKAGE = Path(__file__).parent / "packages" / "literature-review-0.2.6.agent.pkg"
-CURRENT_EXPECTED_SHA256 = (
-    "685dcc97232d278eb2a5b777dcbc621573de5c48818a95d522e647c9267ee8f1"
-)
-CURRENT_INDEXED_PATH = "/packages/literature-review-0.2.6.agent.pkg"
+# The packages a demo index names at the WebAir deployment's paths, pinned by SHA-256: Literature
+# Review 0.2.6, which index 1.1.0 named (T11, D-131), and 0.2.7, which index 1.2.0 names (T15, D-174).
+INDEXED_PACKAGES = {
+    "/packages/literature-review-0.2.6.agent.pkg": (
+        Path(__file__).parent / "packages" / "literature-review-0.2.6.agent.pkg",
+        "685dcc97232d278eb2a5b777dcbc621573de5c48818a95d522e647c9267ee8f1",
+    ),
+    "/packages/literature-review-0.2.7.agent.pkg": (
+        Path(__file__).parent / "packages" / "literature-review-0.2.7.agent.pkg",
+        "8951a14bb1f42bca1590bc7d0c9cc00cccba75b36f1488969b6b3ff47063fe61",
+    ),
+}
 
 # The signed WebAgents demo documents (T8): fixed paths, pinned bytes, read once at startup.
 # Their signatures are the documents' own; this server only refuses bytes it was not built with.
 DOCUMENTS = {
     "/agent-index.json": (
         Path(__file__).parent / "documents" / "agent-index.json",
-        "79d4492cda8bb1d6252358aad1c5efbb2cb0f0dad521ac268b68aa37cc711898",
+        "caf08869f8628307e06979354a6863346e9918131c2b12059827998d6d04e74b",
     ),
     "/policies/webagents-research.json": (
         Path(__file__).parent / "documents" / "policies" / "webagents-research.json",
@@ -61,7 +67,9 @@ def verify_package(package=None, expected=None):
 
 
 PACKAGE_SHA256 = verify_package()
-CURRENT_PACKAGE_SHA256 = verify_package(CURRENT_PACKAGE, CURRENT_EXPECTED_SHA256)
+INDEXED_SHA256 = {
+    path: verify_package(source, expected) for path, (source, expected) in INDEXED_PACKAGES.items()
+}
 LOADED_DOCUMENTS = load_documents()
 
 
@@ -89,14 +97,14 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(data)
             return
 
-        if self.path == CURRENT_INDEXED_PATH:
-            data = CURRENT_PACKAGE.read_bytes()
+        if self.path in INDEXED_PACKAGES:
+            data = INDEXED_PACKAGES[self.path][0].read_bytes()
 
             self.send_response(200)
             self.send_header("Content-Type", "application/octet-stream")
             self.send_header("Content-Length", str(len(data)))
             self.send_header("X-Content-Type-Options", "nosniff")
-            self.send_header("X-Agent-Package-SHA256", CURRENT_PACKAGE_SHA256)
+            self.send_header("X-Agent-Package-SHA256", INDEXED_SHA256[self.path])
             self.send_header("Cache-Control", "public, max-age=31536000, immutable")
             self.end_headers()
             self.wfile.write(data)
@@ -138,12 +146,12 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             return
 
-        if self.path == CURRENT_INDEXED_PATH:
+        if self.path in INDEXED_PACKAGES:
             self.send_response(200)
             self.send_header("Content-Type", "application/octet-stream")
-            self.send_header("Content-Length", str(CURRENT_PACKAGE.stat().st_size))
+            self.send_header("Content-Length", str(INDEXED_PACKAGES[self.path][0].stat().st_size))
             self.send_header("X-Content-Type-Options", "nosniff")
-            self.send_header("X-Agent-Package-SHA256", CURRENT_PACKAGE_SHA256)
+            self.send_header("X-Agent-Package-SHA256", INDEXED_SHA256[self.path])
             self.end_headers()
             return
 

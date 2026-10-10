@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "One paper the search found, as the papers-found export lists it, with the screening verdict and its rationale.",
+  "type": "object",
+  "properties": {
+    "paper_id": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "year": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "venue": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "doi": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "url": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "screening_status": {
+      "enum": [
+        "include",
+        "maybe",
+        "exclude"
+      ]
+    },
+    "screening_rationale": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "paper_id",
+    "title",
+    "year",
+    "venue",
+    "doi",
+    "url",
+    "screening_status",
+    "screening_rationale"
+  ],
+  "additionalProperties": false
+}

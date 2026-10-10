@@ -25,7 +25,7 @@ from literature_scenarios import Scenario, ScriptedReview, run_scenario
 from shipped_keys import LITERATURE_FINGERPRINT, LITERATURE_KEY
 
 from agentpkg.fixtures import fixture_adapters
-from agentpkg.package import build_package, load_package
+from agentpkg.package import load_package
 from agentpkg.signing import verify_package
 from agentpkg.workflow import WorkflowError, run_workflow
 
@@ -165,8 +165,9 @@ def test_signed_artifact_matches_source_and_replays(review, tmp_path):
     checked = verify_package(ARCHIVE, LITERATURE_KEY)
     assert checked["valid"] and checked["key_fingerprint"] == LITERATURE_FINGERPRINT
     assert checked["version"] == "0.2.6"
-    rebuilt = build_package(ROOT / "agents/literature-review", tmp_path / "rebuilt.agent.pkg")
-    assert load_package(rebuilt).digest == review.digest
+    # The source has moved on to 0.2.7 (test_literature_027); this archive is the preserved 0.2.6
+    # release, checked as published.
+    assert checked["digest"] == review.digest
     router, handlers, value = fixture_adapters(review)
     result = asyncio.run(
         run_workflow(

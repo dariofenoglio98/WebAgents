@@ -1,0 +1,6 @@
+{
+  "type": "array",
+  "items": {
+    "$ref": "candidate-ref.schema.json"
+  }
+}

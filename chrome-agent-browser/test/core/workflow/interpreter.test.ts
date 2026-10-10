@@ -48,14 +48,20 @@ describe("the same interpreter runs both reference packages from their sources",
       expect(new Set(topDone)).toEqual(new Set((pkg.graph.nodes as JsonObject[]).map((node) => node.id)));
       if (name === "literature-review") {
         expect(result.usage.tool_calls).toEqual({ "scholarly-search": 3, "citation-resolver": 3, "paper-reader": 2 });
-        expect((result.state.raw_candidates as JsonValue[]).length).toBe(9);
-        expect((result.state.candidate_papers as JsonValue[]).length).toBe(8);
+        // 0.2.7 (D-170): join-search removes the search's duplicate DOI before any model sees it,
+        // and every found paper is screened and listed.
+        expect((result.state.search_batches as JsonObject[]).reduce((sum, batch) => sum + (batch.papers as JsonValue[]).length, 0)).toBe(9);
+        expect((result.state.raw_candidates as JsonValue[]).length).toBe(8);
+        expect((result.state.found_papers as JsonValue[]).length).toBe(8);
+        expect(((result.output as JsonObject).papers_found as JsonValue[]).length).toBe(8);
         expect((result.state.citation_jobs as JsonValue[]).length).toBe(3);
         const output = result.output as JsonObject;
         expect((output.bibliography as JsonValue[]).length).toBe(2);
         expect((output.evidence_table as JsonValue[]).length).toBe(7);
         expect(new Set((result.state.citation_records as JsonObject[]).map((record) => record.status))).toEqual(new Set(["resolved", "ambiguous"]));
-        expect((output.unresolved as JsonObject[]).map((item) => item.status)).toEqual(["ambiguous", "screening_maybe"]);
+        // 0.2.7: the unresolved list is the graph's own; a paper screened "maybe" is in papers_found.
+        expect((output.unresolved as JsonObject[]).map((item) => item.status)).toEqual(["ambiguous"]);
+        expect((output.papers_found as JsonObject[]).some((paper) => paper.screening_status === "maybe")).toBe(true);
         expect(String(output.related_work)).toContain("SYNTHETIC DEMONSTRATION");
       } else {
         const output = result.output as JsonObject;
@@ -330,11 +336,13 @@ describe("validation and failure attribution", () => {
     change(files, "fixtures/workflow.json", (fixture) => (((((fixture.models as JsonObject).extract as JsonObject[])[0]!.output as JsonObject[])[0]!).quote = "A fabricated quote not in the source."));
     const failure = await executeFailing(await loadSource(files));
     expect(failure.node_id).toBe("evidence");
-    expect(failure.code).toBe("schema_validation");
+    // Since 0.2.7 (D-171) the quote relation is an answer check on extract-one: a non-conforming
+    // answer, which a replay router never re-asks.
+    expect(failure.code).toBe("model_error");
     const audit = failure.execution_report!.audit as JsonObject[];
-    const failed = audit.find((event) => event.action === "node.failed" && event.node_id === "evidence/check-document") ?? audit.find((event) => event.action === "node.failed" && "failed_check" in event)!;
+    const failed = audit.find((event) => event.action === "node.failed" && event.node_id === "evidence/extract-one")!;
     const check = failed.failed_check as JsonObject;
-    expect(check.check).toBe("assertion");
+    expect(check.check).toBe("answer_check");
     expect(check.kind).toBe("relation");
     expect(check.failure).toBe("fields_do_not_match");
     expect((check.compare as JsonObject).op).toBe("contained_in");

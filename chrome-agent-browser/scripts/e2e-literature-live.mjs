@@ -1,14 +1,15 @@
 #!/usr/bin/env node
 /**
  * Literature Review live acceptance in Chrome (T6, Demo 4; D-028): the built extension in a real
- * headless Chrome runs the signed Literature Review (0.2.6 by default, `--version 0.2.5` for T6's) with the person's model against the real
+ * headless Chrome runs the signed Literature Review (0.2.7 by default, `--version 0.2.5` for T6's) with the person's model against the real
  * services the package names (Crossref through the host's Crossref adapter, the hosted Citation
  * Resolver), driving the full page the way a person does:
  *
  *   Settings (test mode, the model, the long-run limits, an optional Crossref contact) →
  *   open the package URL → Trust (two presses) → Use this agent (the Balanced preset; Literature
- *   Review declares no profiles, D-080) → the question (and, with --document, a picked PDF keyed by
- *   its DOI) → Run → the page reloaded mid-run adopts the run → the run settles.
+ *   Review declares no profiles, D-080) → the question (with the input's seed papers, and, with
+ *   --document, a picked PDF keyed by its DOI) → Run → the page reloaded mid-run adopts the run →
+ *   the run settles.
  *
  * The package is served from a local HTTPS origin as `https://research.example/literature-review.agent.pkg`
  * (`--host-resolver-rules`, only that certificate's key trusted); everything else is the real
@@ -21,8 +22,8 @@
  *   npm run build && node scripts/e2e-literature-live.mjs --model openai/gpt-5.6-luna
  *        [--input examples/literature-review-live-input.json] [--document DOI=/abs/paper.pdf]...
  *        [--crossref-contact you@example.org] [--out report.json] [--out-dir examples/my-chrome-lit-<ts>]
- *        [--chrome path] [--no-reload] [--think] [--keep] [--version 0.2.6]
- *        [--context-tokens N] [--reasoning-effort low|medium|high] [--manual]
+ *        [--chrome path] [--no-reload] [--think] [--keep] [--version 0.2.7]
+ *        [--context-tokens N] [--reasoning-effort low|medium|high] [--manual] [--package dev.agent.pkg --out x.json]
  *   `--manual` (a person's walk-through, T10): a visible Chrome with the same setup, the package
  *   served, opened and its key trusted; the harness then stops driving and waits until you close
  *   the window. Nothing is run for you and no report is written.
@@ -55,7 +56,7 @@ const PACKAGE_URL = `https://${SITE_HOST}/literature-review.agent.pkg`;
 const LONG_RUN_LIMITS = { total_tokens: 180_000, max_remote_calls: 45, max_parallel_workers: 3, max_output_tokens_per_call: 16_000, run_timeout_seconds: 4_500, max_calls_per_tool: 32, model_call_timeout_seconds: 1_200 };
 const TERMINAL = ["completed", "failed", "cancelled", "interrupted"];
 
-const args = { chrome: process.env.CHROME_PATH || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", model: null, input: join(ROOT, "examples", "literature-review-live-input.json"), documents: [], contact: null, out: null, outDir: null, reload: true, think: false, keep: false, version: "0.2.6", contextTokens: null, effort: null, manual: false };
+const args = { chrome: process.env.CHROME_PATH || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", model: null, input: join(ROOT, "examples", "literature-review-live-input.json"), documents: [], contact: null, out: null, outDir: null, reload: true, think: false, keep: false, version: "0.2.7", contextTokens: null, effort: null, manual: false, package: null };
 for (let index = 2; index < process.argv.length; index += 1) {
   const argument = process.argv[index];
   if (argument === "--chrome") args.chrome = process.argv[(index += 1)];
@@ -79,6 +80,7 @@ for (let index = 2; index < process.argv.length; index += 1) {
   else if (argument === "--context-tokens") args.contextTokens = Number(process.argv[(index += 1)]);
   else if (argument === "--reasoning-effort") args.effort = process.argv[(index += 1)];
   else if (argument === "--manual") args.manual = true;
+  else if (argument === "--package") args.package = resolve(process.argv[(index += 1)]);
   else {
     console.error(`unknown argument ${argument}`);
     process.exit(2);
@@ -96,7 +98,13 @@ if (args.effort !== null && !["low", "medium", "high"].includes(args.effort)) {
   console.error("--reasoning-effort is low, medium or high");
   process.exit(2);
 }
-const PACKAGE = join(ROOT, "dist", `literature-review-${args.version}.agent.pkg`);
+// `--package` (T15): a development build of `--version`, signed by any key (the page pins it like a
+// publisher's); its report must be written outside examples/verification (`--out`), never as evidence.
+const PACKAGE = args.package ?? join(ROOT, "dist", `literature-review-${args.version}.agent.pkg`);
+if (args.package !== null && (args.out === null || args.out.startsWith(join(ROOT, "examples", "verification")))) {
+  console.error("--package needs --out outside examples/verification: a development build is not evidence");
+  process.exit(2);
+}
 // T6's report keeps its name; a later version's report is named after it and never overwrites it.
 if (args.out === null) args.out = join(ROOT, "examples", "verification", args.version === "0.2.5" ? "chrome-literature-review-live.json" : `chrome-literature-review-${args.version.replaceAll(".", "")}-live.json`);
 if (!args.model || !args.model.includes("/")) {
@@ -176,6 +184,15 @@ window.__ab = {
     if (!node || ![...node.options].some((o) => o.value === value)) return false;
     node.value = value;
     node.dispatchEvent(new Event("change", { bubbles: true }));
+    return true;
+  },
+  field(name) { return document.querySelector('label[for="ab-field-' + name + '"]')?.closest(".ab-field") ?? null; },
+  setLastEntry(name, value) {
+    const inputs = [...(this.field(name)?.querySelectorAll("input.ab-input") ?? [])];
+    const node = inputs[inputs.length - 1];
+    if (!node || node.value !== "") return false;
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(node, value);
+    node.dispatchEvent(new Event("input", { bubbles: true }));
     return true;
   },
   runState() { const node = document.querySelector(".ab-run"); return node ? node.dataset.state : null; },
@@ -295,6 +312,11 @@ async function main() {
     const task = JSON.parse(readFileSync(args.input, "utf8"));
     await cdp.waitFor(page, `document.querySelector("textarea#ab-field-question") !== null`, "the task form", 60_000);
     await cdp.evaluate(page, `__ab.setInput("textarea#ab-field-question", ${JSON.stringify(task.question)})`);
+    for (const seed of task.seeds ?? []) {
+      // Seed papers (T15): one "Add" per entry in the optional Seed papers list, then type it.
+      await cdp.waitFor(page, `__ab.click("Add", __ab.field("seeds"))`, "the seeds Add button", 30_000);
+      await cdp.waitFor(page, `__ab.setLastEntry("seeds", ${JSON.stringify(seed)})`, "the new seed field", 10_000);
+    }
     for (const [index, item] of picked.entries()) {
       // The picker lists the picked files once the run surface has read them (event.files); add a row per document.
       await cdp.waitFor(page, `__ab.click("Add a document")`, "the Add a document button", 30_000);

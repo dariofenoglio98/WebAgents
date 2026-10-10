@@ -1,0 +1,8 @@
+{
+  "type": "object",
+  "description": "Selected documents keyed by the DOI of the paper each one is: opaque document IDs, never paths.",
+  "additionalProperties": {
+    "type": "string",
+    "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$"
+  }
+}

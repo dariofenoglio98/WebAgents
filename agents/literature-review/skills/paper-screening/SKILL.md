@@ -9,4 +9,4 @@ Use the question and supplied abstracts or full text to assess methods and resea
 
 ## workflow.v0 task contract
 
-For screen return the complete input paper with screening_status and rationale. Never include without source text. For select return only records whose screening_status is include, and at most three: when more are included, keep the three whose source text most directly addresses the research question. Preserve every field exactly.
+For screen return the input paper's paper_id, copied character for character, its screening_status (include, maybe or exclude) and a short screening_rationale; the workflow keeps the paper's own record and attaches your verdict to it. Never include without source text. A selected document is supplied as its first two pages. For select return paper_ids: one to three paper_ids copied exactly from the supplied included papers; when more than three are included, keep the three whose source text most directly addresses the research question.

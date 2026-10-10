@@ -1,7 +1,19 @@
 {
-  "type": "array",
-  "items": {
-    "$ref": "paper.schema.json"
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "The included papers chosen for citation, by paper_id. The workflow copies each chosen paper from the included list.",
+  "type": "object",
+  "properties": {
+    "paper_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "maxItems": 3
+    }
   },
-  "maxItems": 3
+  "required": [
+    "paper_ids"
+  ],
+  "additionalProperties": false
 }

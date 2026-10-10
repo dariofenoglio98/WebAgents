@@ -1,0 +1,958 @@
+{
+  "profile": "literature-review-027-live-campaign-v0",
+  "label": "T15: Literature Review 0.2.7 (signed 9274a5ce…99cb), final live campaign through the Chrome CLI: openai/gpt-5.6-luna on four questions twice, openai/gpt-5.6-sol on two, ollama/qwen3:30b (thinking, 65,536 context) on four; reasoning effort medium; the long-run limits",
+  "package": {
+    "path": "dist/literature-review-0.2.7.agent.pkg",
+    "version": "0.2.7",
+    "digest": "9274a5ce46275e6817ae2706791c19a8066e523776cb9eb348a76b83396a99cb",
+    "archive_sha256": "8951a14bb1f42bca1590bc7d0c9cc00cccba75b36f1488969b6b3ff47063fe61",
+    "signer": "sha256:c5ca9763f9fc71253298ca381ec14c4d7432009c74dacc69df6344b71de05232"
+  },
+  "script": "scripts/summarize_literature_027_campaign.py",
+  "by_model": {
+    "openai/gpt-5.6-luna": {
+      "runs": 8,
+      "completed": 8,
+      "grounded": 6,
+      "honest_empty": 2,
+      "failed_at": [],
+      "reasks": 0,
+      "tool_retries": 0,
+      "fallbacks": 0
+    },
+    "ollama/qwen3:30b": {
+      "runs": 4,
+      "completed": 4,
+      "grounded": 4,
+      "honest_empty": 0,
+      "failed_at": [],
+      "reasks": 3,
+      "tool_retries": 0,
+      "fallbacks": 0
+    },
+    "openai/gpt-5.6-sol": {
+      "runs": 2,
+      "completed": 2,
+      "grounded": 2,
+      "honest_empty": 0,
+      "failed_at": [],
+      "reasks": 0,
+      "tool_retries": 0,
+      "fallbacks": 0
+    }
+  },
+  "runs": [
+    {
+      "directory": "examples/my-t15/runs/h-luna-abx-1",
+      "run_id": "run_d0edb70e0e7913455bccaf68ea8ef013",
+      "question": "What interventions reduce antibiotic prescribing in primary care?",
+      "model": "openai/gpt-5.6-luna",
+      "models_invoked": [
+        "openai/gpt-5.6-luna"
+      ],
+      "status": "completed",
+      "error_code": null,
+      "failed": null,
+      "duration_ms": 64385,
+      "package": {
+        "packageId": "org.webagents.literature-review",
+        "name": "Literature Review Agent",
+        "version": "0.2.7",
+        "digest": "9274a5ce46275e6817ae2706791c19a8066e523776cb9eb348a76b83396a99cb",
+        "archiveSha256": "8951a14bb1f42bca1590bc7d0c9cc00cccba75b36f1488969b6b3ff47063fe61",
+        "executionProfile": "workflow.v0"
+      },
+      "ran_the_signed_0_2_7": true,
+      "usage": {
+        "tokens": 38346,
+        "remoteCalls": 21,
+        "toolCalls": 5
+      },
+      "funnel": {
+        "search_records": 9,
+        "found": 9,
+        "included": 3,
+        "cited": 2,
+        "evidence_items": 8,
+        "claims": 9
+      },
+      "papers_found": {
+        "listed": 9,
+        "verdicts": {
+          "include": 3,
+          "maybe": 5,
+          "exclude": 1
+        }
+      },
+      "normalize_asked": false,
+      "model_calls": 16,
+      "reasks": [],
+      "reasks_skipped": [],
+      "tool_retries": [],
+      "fallbacks": [],
+      "honest_empty": false,
+      "audit_chain_valid": true,
+      "grounding": {
+        "evidence_items": 8,
+        "quotes_verbatim_in_sources": 8,
+        "evidence_table_is_the_items": true,
+        "bibliography_is_the_resolver_record": true,
+        "claims_cite_existing_evidence_and_resolved_papers": true,
+        "no_invented_paper": true,
+        "papers_found_lists_every_found_paper_once": true
+      },
+      "accepted": true
+    },
+    {
+      "directory": "examples/my-t15/runs/h-luna-abx-2",
+      "run_id": "run_543061a46298b9afeee1265c86285f82",
+      "question": "What interventions reduce antibiotic prescribing in primary care?",
+      "model": "openai/gpt-5.6-luna",
+      "models_invoked": [
+        "openai/gpt-5.6-luna"
+      ],
+      "status": "completed",
+      "error_code": null,
+      "failed": null,
+      "duration_ms": 45106,
+      "package": {
+        "packageId": "org.webagents.literature-review",
+        "name": "Literature Review Agent",
+        "version": "0.2.7",
+        "digest": "9274a5ce46275e6817ae2706791c19a8066e523776cb9eb348a76b83396a99cb",
+        "archiveSha256": "8951a14bb1f42bca1590bc7d0c9cc00cccba75b36f1488969b6b3ff47063fe61",
+        "executionProfile": "workflow.v0"
+      },
+      "ran_the_signed_0_2_7": true,
+      "usage": {
+        "tokens": 25302,
+        "remoteCalls": 18,
+        "toolCalls": 4
+      },
+      "funnel": {
+        "search_records": 9,
+        "found": 8,
+        "included": 2,
+        "cited": 1,
+        "evidence_items": 4,
+        "claims": 4
+      },
+      "papers_found": {
+        "listed": 8,
+        "verdicts": {
+          "include": 2,
+          "maybe": 6,
+          "exclude": 0
+        }
+      },
+      "normalize_asked": false,
+      "model_calls": 14,
+      "reasks": [],
+      "reasks_skipped": [],
+      "tool_retries": [],
+      "fallbacks": [],
+      "honest_empty": false,
+      "audit_chain_valid": true,
+      "grounding": {
+        "evidence_items": 4,
+        "quotes_verbatim_in_sources": 4,
+        "evidence_table_is_the_items": true,
+        "bibliography_is_the_resolver_record": true,
+        "claims_cite_existing_evidence_and_resolved_papers": true,
+        "no_invented_paper": true,
+        "papers_found_lists_every_found_paper_once": true
+      },
+      "accepted": true
+    },
+    {
+      "directory": "examples/my-t15/runs/h-luna-pi-1",
+      "run_id": "run_724d740e6089315d04ad43eabce68def",
+      "question": "what defenses have been proposed against prompt-injection in LLMs recently?",
+      "model": "openai/gpt-5.6-luna",
+      "models_invoked": [
+        "openai/gpt-5.6-luna"
+      ],
+      "status": "completed",
+      "error_code": null,
+      "failed": null,
+      "duration_ms": 62712,
+      "package": {
+        "packageId": "org.webagents.literature-review",
+        "name": "Literature Review Agent",
+        "version": "0.2.7",
+        "digest": "9274a5ce46275e6817ae2706791c19a8066e523776cb9eb348a76b83396a99cb",
+        "archiveSha256": "8951a14bb1f42bca1590bc7d0c9cc00cccba75b36f1488969b6b3ff47063fe61",
+        "executionProfile": "workflow.v0"
+      },
+      "ran_the_signed_0_2_7": true,
+      "usage": {
+        "tokens": 42487,
+        "remoteCalls": 21,
+        "toolCalls": 6
+      },
+      "funnel": {
+        "search_records": 9,
+        "found": 7,
+        "included": 5,
+        "cited": 3,
+        "evidence_items": 12,
+        "claims": 8
+      },
+      "papers_found": {
+        "listed": 7,
+        "verdicts": {
+          "include": 5,
+          "maybe": 2,
+          "exclude": 0
+        }
+      },
+      "normalize_asked": false,
+      "model_calls": 15,
+      "reasks": [],
+      "reasks_skipped": [],
+      "tool_retries": [],
+      "fallbacks": [],
+      "honest_empty": false,
+      "audit_chain_valid": true,
+      "grounding": {
+        "evidence_items": 12,
+        "quotes_verbatim_in_sources": 12,
+        "evidence_table_is_the_items": true,
+        "bibliography_is_the_resolver_record": true,
+        "claims_cite_existing_evidence_and_resolved_papers": true,
+        "no_invented_paper": true,
+        "papers_found_lists_every_found_paper_once": true
+      },
+      "accepted": true
+    },
+    {
+      "directory": "examples/my-t15/runs/h-luna-pi-2",
+      "run_id": "run_2692b5688c6b5cbab53cc41c84e60d12",
+      "question": "what defenses have been proposed against prompt-injection in LLMs recently?",
+      "model": "openai/gpt-5.6-luna",
+      "models_invoked": [
+        "openai/gpt-5.6-luna"
+      ],
+      "status": "completed",
+      "error_code": null,
+      "failed": null,
+      "duration_ms": 74383,
+      "package": {
+        "packageId": "org.webagents.literature-review",
+        "name": "Literature Review Agent",
+        "version": "0.2.7",
+        "digest": "9274a5ce46275e6817ae2706791c19a8066e523776cb9eb348a76b83396a99cb",
+        "archiveSha256": "8951a14bb1f42bca1590bc7d0c9cc00cccba75b36f1488969b6b3ff47063fe61",
+        "executionProfile": "workflow.v0"
+      },
+      "ran_the_signed_0_2_7": true,
+      "usage": {
+        "tokens": 44769,
+        "remoteCalls": 22,
+        "toolCalls": 6
+      },
+      "funnel": {
+        "search_records": 9,
+        "found": 8,
+        "included": 5,
+        "cited": 3,
+        "evidence_items": 12,
+        "claims": 8
+      },
+      "papers_found": {
+        "listed": 8,
+        "verdicts": {
+          "include": 5,
+          "maybe": 3,
+          "exclude": 0
+        }
+      },
+      "normalize_asked": false,
+      "model_calls": 16,
+      "reasks": [],
+      "reasks_skipped": [],
+      "tool_retries": [],
+      "fallbacks": [],
+      "honest_empty": false,
+      "audit_chain_valid": true,
+      "grounding": {
+        "evidence_items": 12,
+        "quotes_verbatim_in_sources": 12,
+        "evidence_table_is_the_items": true,
+        "bibliography_is_the_resolver_record": true,
+        "claims_cite_existing_evidence_and_resolved_papers": true,
+        "no_invented_paper": true,
+        "papers_found_lists_every_found_paper_once": true
+      },
+      "accepted": true
+    },
+    {
+      "directory": "examples/my-t15/runs/h-luna-rag-1",
+      "run_id": "run_26bd3bc74034481587c190cc1d6775cd",
+      "question": "How is the factual accuracy of retrieval-augmented generation evaluated?",
+      "model": "openai/gpt-5.6-luna",
+      "models_invoked": [
+        "openai/gpt-5.6-luna"
+      ],
+      "status": "completed",
+      "error_code": null,
+      "failed": null,
+      "duration_ms": 11997,
+      "package": {
+        "packageId": "org.webagents.literature-review",
+        "name": "Literature Review Agent",
+        "version": "0.2.7",
+        "digest": "9274a5ce46275e6817ae2706791c19a8066e523776cb9eb348a76b83396a99cb",
+        "archiveSha256": "8951a14bb1f42bca1590bc7d0c9cc00cccba75b36f1488969b6b3ff47063fe61",
+        "executionProfile": "workflow.v0"
+      },
+      "ran_the_signed_0_2_7": true,
+      "usage": {
+        "tokens": 9771,
+        "remoteCalls": 13,
+        "toolCalls": 3
+      },
+      "funnel": {
+        "search_records": 9,
+        "found": 9,
+        "included": 0,
+        "cited": 0,
+        "evidence_items": 0,
+        "claims": 0
+      },
+      "papers_found": {
+        "listed": 9,
+        "verdicts": {
+          "include": 0,
+          "maybe": 9,
+          "exclude": 0
+        }
+      },
+      "normalize_asked": false,
+      "model_calls": 10,
+      "reasks": [],
+      "reasks_skipped": [],
+      "tool_retries": [],
+      "fallbacks": [],
+      "honest_empty": true,
+      "audit_chain_valid": true,
+      "grounding": {
+        "evidence_items": 0,
+        "quotes_verbatim_in_sources": 0,
+        "evidence_table_is_the_items": true,
+        "bibliography_is_the_resolver_record": true,
+        "claims_cite_existing_evidence_and_resolved_papers": true,
+        "no_invented_paper": true,
+        "papers_found_lists_every_found_paper_once": true
+      },
+      "accepted": true
+    },
+    {
+      "directory": "examples/my-t15/runs/h-luna-rag-2",
+      "run_id": "run_57c0e3898993a09460990af3c8819e39",
+      "question": "How is the factual accuracy of retrieval-augmented generation evaluated?",
+      "model": "openai/gpt-5.6-luna",
+      "models_invoked": [
+        "openai/gpt-5.6-luna"
+      ],
+      "status": "completed",
+      "error_code": null,
+      "failed": null,
+      "duration_ms": 62891,
+      "package": {
+        "packageId": "org.webagents.literature-review",
+        "name": "Literature Review Agent",
+        "version": "0.2.7",
+        "digest": "9274a5ce46275e6817ae2706791c19a8066e523776cb9eb348a76b83396a99cb",
+        "archiveSha256": "8951a14bb1f42bca1590bc7d0c9cc00cccba75b36f1488969b6b3ff47063fe61",
+        "executionProfile": "workflow.v0"
+      },
+      "ran_the_signed_0_2_7": true,
+      "usage": {
+        "tokens": 31857,
+        "remoteCalls": 19,
+        "toolCalls": 5
+      },
+      "funnel": {
+        "search_records": 9,
+        "found": 7,
+        "included": 4,
+        "cited": 2,
+        "evidence_items": 8,
+        "claims": 8
+      },
+      "papers_found": {
+        "listed": 7,
+        "verdicts": {
+          "include": 4,
+          "maybe": 3,
+          "exclude": 0
+        }
+      },
+      "normalize_asked": false,
+      "model_calls": 14,
+      "reasks": [],
+      "reasks_skipped": [],
+      "tool_retries": [],
+      "fallbacks": [],
+      "honest_empty": false,
+      "audit_chain_valid": true,
+      "grounding": {
+        "evidence_items": 8,
+        "quotes_verbatim_in_sources": 8,
+        "evidence_table_is_the_items": true,
+        "bibliography_is_the_resolver_record": true,
+        "claims_cite_existing_evidence_and_resolved_papers": true,
+        "no_invented_paper": true,
+        "papers_found_lists_every_found_paper_once": true
+      },
+      "accepted": true
+    },
+    {
+      "directory": "examples/my-t15/runs/h-luna-t6-1",
+      "run_id": "run_f298b4ec1a529e55bdaeb8741aea13ae",
+      "question": "What methods have been proposed for dynamically selecting agents and adapting communication topology in multi-agent LLM systems? Compare their selection criteria, topology adaptation mechanisms, and efficiency trade-offs, focusing on representative methods.",
+      "model": "openai/gpt-5.6-luna",
+      "models_invoked": [
+        "openai/gpt-5.6-luna"
+      ],
+      "status": "completed",
+      "error_code": null,
+      "failed": null,
+      "duration_ms": 14932,
+      "package": {
+        "packageId": "org.webagents.literature-review",
+        "name": "Literature Review Agent",
+        "version": "0.2.7",
+        "digest": "9274a5ce46275e6817ae2706791c19a8066e523776cb9eb348a76b83396a99cb",
+        "archiveSha256": "8951a14bb1f42bca1590bc7d0c9cc00cccba75b36f1488969b6b3ff47063fe61",
+        "executionProfile": "workflow.v0"
+      },
+      "ran_the_signed_0_2_7": true,
+      "usage": {
+        "tokens": 11629,
+        "remoteCalls": 13,
+        "toolCalls": 3
+      },
+      "funnel": {
+        "search_records": 9,
+        "found": 9,
+        "included": 0,
+        "cited": 0,
+        "evidence_items": 0,
+        "claims": 0
+      },
+      "papers_found": {
+        "listed": 9,
+        "verdicts": {
+          "include": 0,
+          "maybe": 6,
+          "exclude": 3
+        }
+      },
+      "normalize_asked": false,
+      "model_calls": 10,
+      "reasks": [],
+      "reasks_skipped": [],
+      "tool_retries": [],
+      "fallbacks": [],
+      "honest_empty": true,
+      "audit_chain_valid": true,
+      "grounding": {
+        "evidence_items": 0,
+        "quotes_verbatim_in_sources": 0,
+        "evidence_table_is_the_items": true,
+        "bibliography_is_the_resolver_record": true,
+        "claims_cite_existing_evidence_and_resolved_papers": true,
+        "no_invented_paper": true,
+        "papers_found_lists_every_found_paper_once": true
+      },
+      "accepted": true
+    },
+    {
+      "directory": "examples/my-t15/runs/h-luna-t6-2",
+      "run_id": "run_4f3b774d3bbb88561a7e389fe1a409af",
+      "question": "What methods have been proposed for dynamically selecting agents and adapting communication topology in multi-agent LLM systems? Compare their selection criteria, topology adaptation mechanisms, and efficiency trade-offs, focusing on representative methods.",
+      "model": "openai/gpt-5.6-luna",
+      "models_invoked": [
+        "openai/gpt-5.6-luna"
+      ],
+      "status": "completed",
+      "error_code": null,
+      "failed": null,
+      "duration_ms": 51208,
+      "package": {
+        "packageId": "org.webagents.literature-review",
+        "name": "Literature Review Agent",
+        "version": "0.2.7",
+        "digest": "9274a5ce46275e6817ae2706791c19a8066e523776cb9eb348a76b83396a99cb",
+        "archiveSha256": "8951a14bb1f42bca1590bc7d0c9cc00cccba75b36f1488969b6b3ff47063fe61",
+        "executionProfile": "workflow.v0"
+      },
+      "ran_the_signed_0_2_7": true,
+      "usage": {
+        "tokens": 25531,
+        "remoteCalls": 18,
+        "toolCalls": 4
+      },
+      "funnel": {
+        "search_records": 9,
+        "found": 8,
+        "included": 1,
+        "cited": 1,
+        "evidence_items": 4,
+        "claims": 4
+      },
+      "papers_found": {
+        "listed": 8,
+        "verdicts": {
+          "include": 1,
+          "maybe": 3,
+          "exclude": 4
+        }
+      },
+      "normalize_asked": false,
+      "model_calls": 14,
+      "reasks": [],
+      "reasks_skipped": [],
+      "tool_retries": [],
+      "fallbacks": [],
+      "honest_empty": false,
+      "audit_chain_valid": true,
+      "grounding": {
+        "evidence_items": 4,
+        "quotes_verbatim_in_sources": 4,
+        "evidence_table_is_the_items": true,
+        "bibliography_is_the_resolver_record": true,
+        "claims_cite_existing_evidence_and_resolved_papers": true,
+        "no_invented_paper": true,
+        "papers_found_lists_every_found_paper_once": true
+      },
+      "accepted": true
+    },
+    {
+      "directory": "examples/my-t15/runs/h-qwen-abx-1",
+      "run_id": "run_d6822be78c76253bcda8cdfece5469d7",
+      "question": "What interventions reduce antibiotic prescribing in primary care?",
+      "model": "ollama/qwen3:30b",
+      "models_invoked": [
+        "ollama/qwen3:30b"
+      ],
+      "status": "completed",
+      "error_code": null,
+      "failed": null,
+      "duration_ms": 740156,
+      "package": {
+        "packageId": "org.webagents.literature-review",
+        "name": "Literature Review Agent",
+        "version": "0.2.7",
+        "digest": "9274a5ce46275e6817ae2706791c19a8066e523776cb9eb348a76b83396a99cb",
+        "archiveSha256": "8951a14bb1f42bca1590bc7d0c9cc00cccba75b36f1488969b6b3ff47063fe61",
+        "executionProfile": "workflow.v0"
+      },
+      "ran_the_signed_0_2_7": true,
+      "usage": {
+        "tokens": 56757,
+        "remoteCalls": 6,
+        "toolCalls": 6
+      },
+      "funnel": {
+        "search_records": 9,
+        "found": 8,
+        "included": 4,
+        "cited": 1,
+        "evidence_items": 5,
+        "claims": 2
+      },
+      "papers_found": {
+        "listed": 8,
+        "verdicts": {
+          "include": 4,
+          "maybe": 4,
+          "exclude": 0
+        }
+      },
+      "normalize_asked": false,
+      "model_calls": 16,
+      "reasks": [],
+      "reasks_skipped": [],
+      "tool_retries": [],
+      "fallbacks": [],
+      "honest_empty": false,
+      "audit_chain_valid": true,
+      "grounding": {
+        "evidence_items": 5,
+        "quotes_verbatim_in_sources": 5,
+        "evidence_table_is_the_items": true,
+        "bibliography_is_the_resolver_record": true,
+        "claims_cite_existing_evidence_and_resolved_papers": true,
+        "no_invented_paper": true,
+        "papers_found_lists_every_found_paper_once": true
+      },
+      "accepted": true
+    },
+    {
+      "directory": "examples/my-t15/runs/h-qwen-pi-1",
+      "run_id": "run_b6153f6ba6c05bdc118498cf7200062d",
+      "question": "what defenses have been proposed against prompt-injection in LLMs recently?",
+      "model": "ollama/qwen3:30b",
+      "models_invoked": [
+        "ollama/qwen3:30b"
+      ],
+      "status": "completed",
+      "error_code": null,
+      "failed": null,
+      "duration_ms": 1057858,
+      "package": {
+        "packageId": "org.webagents.literature-review",
+        "name": "Literature Review Agent",
+        "version": "0.2.7",
+        "digest": "9274a5ce46275e6817ae2706791c19a8066e523776cb9eb348a76b83396a99cb",
+        "archiveSha256": "8951a14bb1f42bca1590bc7d0c9cc00cccba75b36f1488969b6b3ff47063fe61",
+        "executionProfile": "workflow.v0"
+      },
+      "ran_the_signed_0_2_7": true,
+      "usage": {
+        "tokens": 77533,
+        "remoteCalls": 6,
+        "toolCalls": 6
+      },
+      "funnel": {
+        "search_records": 9,
+        "found": 9,
+        "included": 7,
+        "cited": 3,
+        "evidence_items": 10,
+        "claims": 4
+      },
+      "papers_found": {
+        "listed": 9,
+        "verdicts": {
+          "include": 7,
+          "maybe": 1,
+          "exclude": 1
+        }
+      },
+      "normalize_asked": false,
+      "model_calls": 19,
+      "reasks": [
+        {
+          "node_id": "evidence/extract-one",
+          "attempt": 2,
+          "after": {
+            "output_failure": "check",
+            "failed_check": {
+              "check": "answer_check",
+              "index": 3,
+              "kind": "relation",
+              "failure": "fields_do_not_match",
+              "compare": {
+                "left": "/quote",
+                "right": "/text",
+                "op": "contained_in"
+              }
+            }
+          }
+        },
+        {
+          "node_id": "evidence/extract-one",
+          "attempt": 3,
+          "after": {
+            "output_failure": "check",
+            "failed_check": {
+              "check": "answer_check",
+              "index": 3,
+              "kind": "relation",
+              "failure": "fields_do_not_match",
+              "compare": {
+                "left": "/location/page",
+                "right": "/page",
+                "op": "eq"
+              }
+            }
+          }
+        }
+      ],
+      "reasks_skipped": [],
+      "tool_retries": [],
+      "fallbacks": [],
+      "honest_empty": false,
+      "audit_chain_valid": true,
+      "grounding": {
+        "evidence_items": 10,
+        "quotes_verbatim_in_sources": 10,
+        "evidence_table_is_the_items": true,
+        "bibliography_is_the_resolver_record": true,
+        "claims_cite_existing_evidence_and_resolved_papers": true,
+        "no_invented_paper": true,
+        "papers_found_lists_every_found_paper_once": true
+      },
+      "accepted": true
+    },
+    {
+      "directory": "examples/my-t15/runs/h-qwen-rag-1",
+      "run_id": "run_096788530a0c4eaeb5856a90f5d6d174",
+      "question": "How is the factual accuracy of retrieval-augmented generation evaluated?",
+      "model": "ollama/qwen3:30b",
+      "models_invoked": [
+        "ollama/qwen3:30b"
+      ],
+      "status": "completed",
+      "error_code": null,
+      "failed": null,
+      "duration_ms": 1085803,
+      "package": {
+        "packageId": "org.webagents.literature-review",
+        "name": "Literature Review Agent",
+        "version": "0.2.7",
+        "digest": "9274a5ce46275e6817ae2706791c19a8066e523776cb9eb348a76b83396a99cb",
+        "archiveSha256": "8951a14bb1f42bca1590bc7d0c9cc00cccba75b36f1488969b6b3ff47063fe61",
+        "executionProfile": "workflow.v0"
+      },
+      "ran_the_signed_0_2_7": true,
+      "usage": {
+        "tokens": 71128,
+        "remoteCalls": 6,
+        "toolCalls": 6
+      },
+      "funnel": {
+        "search_records": 9,
+        "found": 7,
+        "included": 4,
+        "cited": 3,
+        "evidence_items": 8,
+        "claims": 3
+      },
+      "papers_found": {
+        "listed": 7,
+        "verdicts": {
+          "include": 4,
+          "maybe": 2,
+          "exclude": 1
+        }
+      },
+      "normalize_asked": false,
+      "model_calls": 16,
+      "reasks": [
+        {
+          "node_id": "evidence/extract-one",
+          "attempt": 2,
+          "after": {
+            "output_failure": "check",
+            "failed_check": {
+              "check": "answer_check",
+              "index": 3,
+              "kind": "relation",
+              "failure": "fields_do_not_match",
+              "compare": {
+                "left": "/location/page",
+                "right": "/page",
+                "op": "eq"
+              }
+            }
+          }
+        }
+      ],
+      "reasks_skipped": [],
+      "tool_retries": [],
+      "fallbacks": [],
+      "honest_empty": false,
+      "audit_chain_valid": true,
+      "grounding": {
+        "evidence_items": 8,
+        "quotes_verbatim_in_sources": 8,
+        "evidence_table_is_the_items": true,
+        "bibliography_is_the_resolver_record": true,
+        "claims_cite_existing_evidence_and_resolved_papers": true,
+        "no_invented_paper": true,
+        "papers_found_lists_every_found_paper_once": true
+      },
+      "accepted": true
+    },
+    {
+      "directory": "examples/my-t15/runs/h-qwen-t6-1",
+      "run_id": "run_d13f45abe354ab463d6c8c4c204142e8",
+      "question": "What methods have been proposed for dynamically selecting agents and adapting communication topology in multi-agent LLM systems? Compare their selection criteria, topology adaptation mechanisms, and efficiency trade-offs, focusing on representative methods.",
+      "model": "ollama/qwen3:30b",
+      "models_invoked": [
+        "ollama/qwen3:30b"
+      ],
+      "status": "completed",
+      "error_code": null,
+      "failed": null,
+      "duration_ms": 407727,
+      "package": {
+        "packageId": "org.webagents.literature-review",
+        "name": "Literature Review Agent",
+        "version": "0.2.7",
+        "digest": "9274a5ce46275e6817ae2706791c19a8066e523776cb9eb348a76b83396a99cb",
+        "archiveSha256": "8951a14bb1f42bca1590bc7d0c9cc00cccba75b36f1488969b6b3ff47063fe61",
+        "executionProfile": "workflow.v0"
+      },
+      "ran_the_signed_0_2_7": true,
+      "usage": {
+        "tokens": 37217,
+        "remoteCalls": 5,
+        "toolCalls": 5
+      },
+      "funnel": {
+        "search_records": 9,
+        "found": 7,
+        "included": 2,
+        "cited": 2,
+        "evidence_items": 2,
+        "claims": 2
+      },
+      "papers_found": {
+        "listed": 7,
+        "verdicts": {
+          "include": 2,
+          "maybe": 2,
+          "exclude": 3
+        }
+      },
+      "normalize_asked": false,
+      "model_calls": 14,
+      "reasks": [],
+      "reasks_skipped": [],
+      "tool_retries": [],
+      "fallbacks": [],
+      "honest_empty": false,
+      "audit_chain_valid": true,
+      "grounding": {
+        "evidence_items": 2,
+        "quotes_verbatim_in_sources": 2,
+        "evidence_table_is_the_items": true,
+        "bibliography_is_the_resolver_record": true,
+        "claims_cite_existing_evidence_and_resolved_papers": true,
+        "no_invented_paper": true,
+        "papers_found_lists_every_found_paper_once": true
+      },
+      "accepted": true
+    },
+    {
+      "directory": "examples/my-t15/runs/h-sol-pi-1",
+      "run_id": "run_770f4907505aea21ab6d2ef4c975ee3c",
+      "question": "what defenses have been proposed against prompt-injection in LLMs recently?",
+      "model": "openai/gpt-5.6-sol",
+      "models_invoked": [
+        "openai/gpt-5.6-sol"
+      ],
+      "status": "completed",
+      "error_code": null,
+      "failed": null,
+      "duration_ms": 78253,
+      "package": {
+        "packageId": "org.webagents.literature-review",
+        "name": "Literature Review Agent",
+        "version": "0.2.7",
+        "digest": "9274a5ce46275e6817ae2706791c19a8066e523776cb9eb348a76b83396a99cb",
+        "archiveSha256": "8951a14bb1f42bca1590bc7d0c9cc00cccba75b36f1488969b6b3ff47063fe61",
+        "executionProfile": "workflow.v0"
+      },
+      "ran_the_signed_0_2_7": true,
+      "usage": {
+        "tokens": 48891,
+        "remoteCalls": 23,
+        "toolCalls": 6
+      },
+      "funnel": {
+        "search_records": 9,
+        "found": 9,
+        "included": 8,
+        "cited": 3,
+        "evidence_items": 12,
+        "claims": 6
+      },
+      "papers_found": {
+        "listed": 9,
+        "verdicts": {
+          "include": 8,
+          "maybe": 1,
+          "exclude": 0
+        }
+      },
+      "normalize_asked": false,
+      "model_calls": 17,
+      "reasks": [],
+      "reasks_skipped": [],
+      "tool_retries": [],
+      "fallbacks": [],
+      "honest_empty": false,
+      "audit_chain_valid": true,
+      "grounding": {
+        "evidence_items": 12,
+        "quotes_verbatim_in_sources": 12,
+        "evidence_table_is_the_items": true,
+        "bibliography_is_the_resolver_record": true,
+        "claims_cite_existing_evidence_and_resolved_papers": true,
+        "no_invented_paper": true,
+        "papers_found_lists_every_found_paper_once": true
+      },
+      "accepted": true
+    },
+    {
+      "directory": "examples/my-t15/runs/h-sol-rag-1",
+      "run_id": "run_46b648cfc427662a0f4b8914057a8d78",
+      "question": "How is the factual accuracy of retrieval-augmented generation evaluated?",
+      "model": "openai/gpt-5.6-sol",
+      "models_invoked": [
+        "openai/gpt-5.6-sol"
+      ],
+      "status": "completed",
+      "error_code": null,
+      "failed": null,
+      "duration_ms": 63182,
+      "package": {
+        "packageId": "org.webagents.literature-review",
+        "name": "Literature Review Agent",
+        "version": "0.2.7",
+        "digest": "9274a5ce46275e6817ae2706791c19a8066e523776cb9eb348a76b83396a99cb",
+        "archiveSha256": "8951a14bb1f42bca1590bc7d0c9cc00cccba75b36f1488969b6b3ff47063fe61",
+        "executionProfile": "workflow.v0"
+      },
+      "ran_the_signed_0_2_7": true,
+      "usage": {
+        "tokens": 37124,
+        "remoteCalls": 23,
+        "toolCalls": 6
+      },
+      "funnel": {
+        "search_records": 9,
+        "found": 9,
+        "included": 4,
+        "cited": 3,
+        "evidence_items": 11,
+        "claims": 6
+      },
+      "papers_found": {
+        "listed": 9,
+        "verdicts": {
+          "include": 4,
+          "maybe": 4,
+          "exclude": 1
+        }
+      },
+      "normalize_asked": false,
+      "model_calls": 17,
+      "reasks": [],
+      "reasks_skipped": [],
+      "tool_retries": [],
+      "fallbacks": [],
+      "honest_empty": false,
+      "audit_chain_valid": true,
+      "grounding": {
+        "evidence_items": 11,
+        "quotes_verbatim_in_sources": 11,
+        "evidence_table_is_the_items": true,
+        "bibliography_is_the_resolver_record": true,
+        "claims_cite_existing_evidence_and_resolved_papers": true,
+        "no_invented_paper": true,
+        "papers_found_lists_every_found_paper_once": true
+      },
+      "accepted": true
+    }
+  ],
+  "hosted_all_completed": true,
+  "passed": true
+}

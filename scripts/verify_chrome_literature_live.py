@@ -3,7 +3,7 @@
     agentpkg/.venv/bin/python scripts/verify_chrome_literature_live.py \\
         [--report examples/verification/chrome-literature-review-live.json]
 
-`chrome-agent-browser/scripts/e2e-literature-live.mjs` ran the signed Literature Review (0.2.5 for T6, 0.2.6 since T10) in a
+`chrome-agent-browser/scripts/e2e-literature-live.mjs` ran the signed Literature Review (0.2.5 for T6, 0.2.6 since T10, 0.2.7 since T15) in a
 real Chrome with the person's model against the real Crossref API and the hosted Citation Resolver,
 and exported the run (run.json, run-plan.json, input.json, the artifacts), observations.json (every
 outbound model and tool request body, test mode) and documents.json (each picked PDF's text from
@@ -50,7 +50,8 @@ from agentpkg.execution.report import verify_audit_chain  # noqa: E402
 from agentpkg.package import load_package  # noqa: E402
 from agentpkg.signing import verify_package  # noqa: E402
 
-# The signed archive the harness served, named in its report (0.2.5 for T6's, 0.2.6 since T10);
+# The signed archive the harness served, named in its report (0.2.5 for T6's, 0.2.6 since T10,
+# 0.2.7 since T15);
 # only a versioned Literature Review in dist/ is accepted.
 ARCHIVE_NAME = re.compile(r"^dist/literature-review-0\.2\.[5-9]\.agent\.pkg$")
 KEY = ROOT / "examples/keys/literature-review-publisher.pub.pem"
@@ -114,7 +115,10 @@ def grounding(output: dict, state: dict, documents: dict[str, list[str]]) -> dic
         for batch in (state.get("search_batches") or [])
         for paper in (batch.get("papers") or [])
     ]
-    by_paper = {(job.get("paper") or {}).get("paper_id"): job for job in resolved_jobs}
+    # Since 0.2.7 the review names a chosen paper by its handle (P1-P3), which its job carries.
+    by_paper = {
+        job.get("handle") or (job.get("paper") or {}).get("paper_id"): job for job in resolved_jobs
+    }
 
     def genuine_texts(paper_id):
         job = by_paper.get(paper_id) or {}
@@ -165,7 +169,13 @@ def grounding(output: dict, state: dict, documents: dict[str, list[str]]) -> dic
     results = output.get("verification_results") or []
     claim_ids = {claim.get("claim_id") for claim in claims}
     text = output.get("related_work") or ""
-    mentioned = sorted(set(re.findall(r"paper-[0-9a-f]{8,}", text)))
+    # 0.2.6 and earlier named papers `paper-<hash>`; since 0.2.7 a paper's id is its DOI (or
+    # arXiv id, URL, title), so any found paper's id that the text names counts as a mention.
+    found_ids = {paper.get("paper_id") for paper in state.get("found_papers") or []}
+    mentioned = sorted(
+        set(re.findall(r"paper-[0-9a-f]{8,}", text))
+        | {pid for pid in found_ids if isinstance(pid, str) and len(pid) > 6 and pid in text}
+    )
     bib_ids = {entry["paper_id"] for entry in bibliography}
     table = output.get("evidence_table") or []
     return {
@@ -227,6 +237,8 @@ def search_summary(state: dict) -> dict:
             for batch in state.get("search_batches") or []
         ],
         "candidate_papers": len(state.get("candidate_papers") or []),
+        "found_papers": len(state.get("found_papers") or []),
+        "screened_or_listed": len(state.get("papers_found") or []),
         "screened": [
             {
                 "paper_id": paper.get("paper_id"),
@@ -398,7 +410,13 @@ def main() -> int:
         {"observed": len(tools), "answered": len(answered), "dispatched": len(remote)},
     )
     reference = json.loads(CROSSREF_REFERENCE.read_text())
-    crossref = [line for line in tools if line["url"].startswith(f"{CROSSREF}/")]
+    # Crossref's search (`/works`) and, since T13, the citation fallback's DOI lookup
+    # (`/works/{doi}`, D-153) share one origin and one pacing lane.
+    everything_crossref = [line for line in tools if line["url"].startswith(f"{CROSSREF}/")]
+    crossref = [
+        line for line in everything_crossref if urllib.parse.urlsplit(line["url"]).path == "/works"
+    ]
+    lookups = [line for line in everything_crossref if line not in crossref]
     contact_set = report.get("crossrefContact") is not None
     shapes = []
     for line in crossref:
@@ -431,12 +449,23 @@ def main() -> int:
         for event in audit
         if event.get("action") == "tool.settled" and event.get("tool") == "scholarly-search"
     ]
+    # One request per search call, plus the host's retries of a transient failure (D-152).
+    retried = [
+        event
+        for event in audit
+        if event.get("action") == "tool.retried" and event.get("tool") == "scholarly-search"
+    ]
     check(
-        "at_most_one_crossref_request_per_search_call_no_retry",
-        len(searched) <= len(crossref) <= len(searches),
-        {"requests": len(crossref), "answered": len(searched), "calls": len(searches)},
+        "one_crossref_request_per_search_call_and_retry",
+        len(searched) <= len(crossref) <= len(searches) + len(retried),
+        {
+            "requests": len(crossref),
+            "answered": len(searched),
+            "calls": len(searches),
+            "retries": len(retried),
+        },
     )
-    starts = sorted(when(line["at"]) for line in crossref)
+    starts = sorted(when(line["at"]) for line in everything_crossref)
     gaps = [round(later - earlier, 3) for earlier, later in zip(starts, starts[1:])]
     check("crossref_paced_one_per_second", all(gap >= 0.999 for gap in gaps), {"gaps_s": gaps})
     statuses = [
@@ -458,8 +487,21 @@ def main() -> int:
     check(
         "resolver_calls_went_to_the_declared_origin",
         all(urllib.parse.urlsplit(line["url"]).path == "/resolve" for line in resolver)
-        and len(resolver) + len(crossref) == len(tools),
-        {"resolver": len(resolver), "crossref": len(crossref), "tools": len(tools)},
+        and len(resolver) + len(everything_crossref) == len(tools),
+        {
+            "resolver": len(resolver),
+            "crossref_search": len(crossref),
+            "crossref_doi_lookup": len(lookups),
+            "tools": len(tools),
+        },
+    )
+    fallbacks = [event for event in audit if event.get("action") == "tool.fallback"]
+    check(
+        "a_doi_lookup_only_as_the_declared_fallback",
+        len(lookups) <= len(fallbacks)
+        + sum(1 for event in audit if event.get("action") == "tool.retried")
+        and all(event.get("tool") == "citation-resolver" for event in fallbacks),
+        {"lookups": len(lookups), "fallbacks": len(fallbacks)},
     )
 
     # Picked documents: read by opaque id only, the attachments are the harness's picks.
@@ -548,6 +590,31 @@ def main() -> int:
         "related_work_mentions_only_bibliography",
     ):
         check(name, facts[name] is True)
+    if tuple(int(x) for x in package.manifest["version"].split(".")) >= (0, 2, 7):
+        state = result.get("state") or {}
+        found = [paper.get("paper_id") for paper in state.get("found_papers") or []]
+        listed_path = directory / "papers-found.json"
+        listed = json.loads(listed_path.read_text()) if listed_path.exists() else None
+        check(
+            "papers_found_lists_every_found_paper_once",
+            isinstance(listed, list)
+            and sorted(row.get("paper_id") for row in listed) == sorted(found)
+            and len(set(found)) == len(found),
+            {"found": len(found), "listed": None if listed is None else len(listed)},
+        )
+        check(
+            "every_listed_paper_has_a_verdict",
+            isinstance(listed, list)
+            and all(
+                row.get("screening_status") in ("include", "maybe", "exclude") for row in listed
+            ),
+        )
+        asked = sum(1 for event in called if event.get("task") == "normalize")
+        check(
+            "normalize_asked_only_with_documents",
+            (asked > 0) == bool(picked and found),
+            {"normalize_calls": asked, "documents": len(picked)},
+        )
     check(
         "grounded_review_or_honest_empty",
         facts["claims"] > 0 or facts["honest_empty"],

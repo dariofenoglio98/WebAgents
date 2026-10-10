@@ -34,6 +34,9 @@
       "items": {
         "$ref": "claim.schema.json"
       }
+    },
+    "papers_found": {
+      "$ref": "papers-found.schema.json"
     }
   },
   "required": [
@@ -42,7 +45,8 @@
     "evidence_table",
     "unresolved",
     "verification_results",
-    "claims"
+    "claims",
+    "papers_found"
   ],
   "additionalProperties": false
 }
