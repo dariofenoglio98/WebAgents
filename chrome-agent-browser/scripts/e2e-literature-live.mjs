@@ -1,14 +1,15 @@
 #!/usr/bin/env node
 /**
  * Literature Review live acceptance in Chrome (T6, Demo 4; D-028): the built extension in a real
- * headless Chrome runs the signed Literature Review (0.2.6 by default, `--version 0.2.5` for T6's) with the person's model against the real
+ * headless Chrome runs the signed Literature Review (0.2.7 by default, `--version 0.2.5` for T6's) with the person's model against the real
  * services the package names (Crossref through the host's Crossref adapter, the hosted Citation
  * Resolver), driving the full page the way a person does:
  *
  *   Settings (test mode, the model, the long-run limits, an optional Crossref contact) →
  *   open the package URL → Trust (two presses) → Use this agent (the Balanced preset; Literature
- *   Review declares no profiles, D-080) → the question (and, with --document, a picked PDF keyed by
- *   its DOI) → Run → the page reloaded mid-run adopts the run → the run settles.
+ *   Review declares no profiles, D-080) → the question (with the input's seed papers, and, with
+ *   --document, a picked PDF keyed by its DOI) → Run → the page reloaded mid-run adopts the run →
+ *   the run settles.
  *
  * The package is served from a local HTTPS origin as `https://research.example/literature-review.agent.pkg`
  * (`--host-resolver-rules`, only that certificate's key trusted); everything else is the real
@@ -21,7 +22,7 @@
  *   npm run build && node scripts/e2e-literature-live.mjs --model openai/gpt-5.6-luna
  *        [--input examples/literature-review-live-input.json] [--document DOI=/abs/paper.pdf]...
  *        [--crossref-contact you@example.org] [--out report.json] [--out-dir examples/my-chrome-lit-<ts>]
- *        [--chrome path] [--no-reload] [--think] [--keep] [--version 0.2.6]
+ *        [--chrome path] [--no-reload] [--think] [--keep] [--version 0.2.7]
  *        [--context-tokens N] [--reasoning-effort low|medium|high] [--manual] [--package dev.agent.pkg --out x.json]
  *   `--manual` (a person's walk-through, T10): a visible Chrome with the same setup, the package
  *   served, opened and its key trusted; the harness then stops driving and waits until you close
@@ -55,7 +56,7 @@ const PACKAGE_URL = `https://${SITE_HOST}/literature-review.agent.pkg`;
 const LONG_RUN_LIMITS = { total_tokens: 180_000, max_remote_calls: 45, max_parallel_workers: 3, max_output_tokens_per_call: 16_000, run_timeout_seconds: 4_500, max_calls_per_tool: 32, model_call_timeout_seconds: 1_200 };
 const TERMINAL = ["completed", "failed", "cancelled", "interrupted"];
 
-const args = { chrome: process.env.CHROME_PATH || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", model: null, input: join(ROOT, "examples", "literature-review-live-input.json"), documents: [], contact: null, out: null, outDir: null, reload: true, think: false, keep: false, version: "0.2.6", contextTokens: null, effort: null, manual: false, package: null };
+const args = { chrome: process.env.CHROME_PATH || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", model: null, input: join(ROOT, "examples", "literature-review-live-input.json"), documents: [], contact: null, out: null, outDir: null, reload: true, think: false, keep: false, version: "0.2.7", contextTokens: null, effort: null, manual: false, package: null };
 for (let index = 2; index < process.argv.length; index += 1) {
   const argument = process.argv[index];
   if (argument === "--chrome") args.chrome = process.argv[(index += 1)];

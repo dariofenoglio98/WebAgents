@@ -68,6 +68,17 @@ export const SHIPPED = {
     archiveSha256: "685dcc97232d278eb2a5b777dcbc621573de5c48818a95d522e647c9267ee8f1",
     fingerprint: "sha256:c5ca9763f9fc71253298ca381ec14c4d7432009c74dacc69df6344b71de05232",
   },
+  /** T15: the current Literature Review, which the demo index 1.2.0 names; 0.2.6 above stays what index 1.1.0 named. */
+  literatureReview027: {
+    archive: resolve(ROOT, "dist/literature-review-0.2.7.agent.pkg"),
+    key: resolve(ROOT, "examples/keys/literature-review-publisher.pub.pem"),
+    packageId: "org.webagents.literature-review",
+    version: "0.2.7",
+    publisherId: "webagents-research",
+    digest: "8c461a5631fb64e735cf5030d38cc388036acf096d5cd465150c1949fec28875",
+    archiveSha256: "5c91031633d80278e6aa191cef579cf14c49077214eedd25c1d46ec5ebf8beda",
+    fingerprint: "sha256:c5ca9763f9fc71253298ca381ec14c4d7432009c74dacc69df6344b71de05232",
+  },
   meetingAgenda: {
     archive: resolve(ROOT, "dist/meeting-agenda-0.2.2.agent.pkg"),
     key: resolve(ROOT, "examples/keys/meeting-agenda-publisher.pub.pem"),

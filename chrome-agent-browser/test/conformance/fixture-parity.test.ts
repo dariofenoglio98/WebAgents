@@ -46,6 +46,7 @@ const CASES: Case[] = [
   ...scenarios.map((scenario) => ({ name: `webair-0.5.0 scenario ${scenario.id}`, archive: SHIPPED.webair050.archive, grants: join(ROOT, "examples", "webair-0.2.0-grants.json"), tools: webairTools, input: scenario.input, tokensAllowlisted: false })),
   { name: "literature-review-0.2.5 fixture input", archive: SHIPPED.literatureReview.archive, grants: join(ROOT, "examples", "literature-review-grants.json"), tools: ["scholarly-search", "paper-reader", "citation-resolver"], input: null, tokensAllowlisted: true },
   { name: "literature-review-0.2.6 fixture input", archive: SHIPPED.literatureReview026.archive, grants: join(ROOT, "examples", "literature-review-grants.json"), tools: ["scholarly-search", "paper-reader", "citation-resolver"], input: null, tokensAllowlisted: true },
+  { name: "literature-review-0.2.7 fixture input", archive: SHIPPED.literatureReview027.archive, grants: join(ROOT, "examples", "literature-review-grants.json"), tools: ["scholarly-search", "paper-reader", "citation-resolver"], input: null, tokensAllowlisted: true },
   { name: "meeting-agenda-0.2.2 fixture input", archive: SHIPPED.meetingAgenda.archive, grants: join(ROOT, "examples", "meeting-agenda-grants.json"), tools: [], input: null, tokensAllowlisted: false },
 ];
 
