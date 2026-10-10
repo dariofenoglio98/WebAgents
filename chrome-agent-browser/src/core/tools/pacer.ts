@@ -3,7 +3,7 @@
  * per binding id and at least `minIntervalMs` between two starts, shared by every run in this
  * process. A call that cannot start yet waits its turn (first in, first out) rather than being
  * refused; the wait is bounded by the caller's signal, so pacing can delay a call but never
- * outlive it. Nothing here retries a request.
+ * outlive it. Nothing here retries a request; a broker retry (D-152) acquires its own turn.
  *
  * The interval also separates a call's **answer** from the next start (D-081 as amended, T6): a
  * browser reuses one connection to a service, so only the first request pays the connection's

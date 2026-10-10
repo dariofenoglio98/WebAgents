@@ -101,8 +101,10 @@ What it shows today, on the WebAir demo site:
    a **Crossref** adapter (one `GET /works` with four host-named parameters, the reference's
    field selection and work-type filter, markup rendered exactly as the Citation Resolver renders
    it; at most one call at a time, one second after the previous call's start and its answer;
-   no retry; D-081), `citation-resolver` to the generic JSON POST at the origin the package
-   declares, and `paper-reader` to the **selected-PDF reader** (pdf.js in its own Worker per
+   D-081), `citation-resolver` to the generic JSON POST at the origin the package declares (a
+   transient failure of either read is retried up to twice within the run's budgets, D-152; a
+   package whose citation tool also declares `api.crossref.org` has a DOI looked up at Crossref
+   when the resolver stays unavailable, D-153), and `paper-reader` to the **selected-PDF reader** (pdf.js in its own Worker per
    document, terminated when it answers or is stopped, under the reference parser's limits:
    20 MiB, 100 pages, 64 KiB of text per page, 256 KiB in all; D-082). Literature Review declares
    no profiles: **Use this agent** applies your preset; "metadata only" is one change under

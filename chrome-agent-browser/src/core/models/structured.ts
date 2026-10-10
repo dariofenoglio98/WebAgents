@@ -3,8 +3,8 @@
  * (`hostbridge/router.py`: `parse_structured`, `classify_termination`).
  *
  * Three readings in decreasing order of how well the model followed the contract, then
- * failure. There is deliberately no repair loop: a second call to fix the first would spend
- * tokens the runtime already reserved against a single completion.
+ * failure. Nothing here repairs an answer: the runtime may ask the model again (D-151), with a
+ * fresh reservation, and every answer is read and validated exactly as the first.
  */
 import type { JsonValue } from "../json.js";
 import { utf8Length } from "../pyjson.js";

@@ -262,7 +262,9 @@ four things this section states plainly.
 that, the core's URL gate (D-026, D-039) requires HTTPS on port 443 and a DNS name, refuses IP
 literals in any spelling either URL parser accepts, `localhost` and `.local` names, userinfo and
 backslashes, and refuses a URL its two parsers read differently; package and website downloads
-follow no redirect; tool calls make one request, follow no redirect and never retry; a provider is
+follow no redirect; tool calls make one request at a time and follow no redirect, and only a call
+whose package and binding both declare it a read is ever sent again (a transient failure, at most
+twice, each a remote call within the run's budgets, D-152); a provider is
 reached only at its own API origin, Ollama only on `127.0.0.1` or `localhost`. What an extension
 cannot do is see where a DNS name resolves: it has no resolver and no socket, so the private-
 address classification and connection pinning the Python runtime and the Chrome **CLI** perform
