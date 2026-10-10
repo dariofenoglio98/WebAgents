@@ -1,5 +1,5 @@
 {
- "note": "Generated with agentpkg/.venv/bin/python from agentpkg.hostbridge.router (render, token_upper_bound, closed_root_properties, parse_structured, classify_termination, project_usage) on 2026-10-07; the TypeScript bound router must reproduce every entry.",
+ "note": "Generated with agentpkg/.venv/bin/python from agentpkg.hostbridge.router (render, token_upper_bound, closed_root_properties, parse_structured, classify_termination, project_usage) on 2026-10-07; the TypeScript bound router must reproduce every entry; the render entry with a `feedback` line (Meeting Agenda `plan`, a re-ask, D-151) was added the same way on 2026-10-10 (T13).",
  "framing_allowance": 512,
  "render": [
   {
@@ -389,6 +389,69 @@
     "decisions",
     "preparation_items",
     "questions"
+   ]
+  },
+  {
+   "package": "org.webagents.meeting-agenda",
+   "node": "plan",
+   "request": {
+    "task": "plan",
+    "instructions": [
+     "---\nname: planning\ndescription: Identify the decisions needed to achieve the meeting goal and return focus items.\n---\n\nIdentify the decisions needed to achieve the meeting goal and return focus items. The graph uses the supplied participants directly for perspective workers.\n"
+    ],
+    "data": {
+     "request": "Find me a flight to Zürich — nonstop, under $900.",
+     "n": [
+      1,
+      2.5,
+      null,
+      true
+     ]
+    },
+    "output_schema": {
+     "$ref": "#/$defs/s7",
+     "$defs": {
+      "s7": {
+       "additionalProperties": false,
+       "properties": {
+        "focus": {
+         "items": {
+          "type": "string"
+         },
+         "type": "array"
+        }
+       },
+       "required": [
+        "focus"
+       ],
+       "type": "object"
+      }
+     }
+    },
+    "requirements": {
+     "capabilities": [
+      "structured_output",
+      "reasoning"
+     ],
+     "context_window": 16000,
+     "id": "plan",
+     "preferred_tier": "reasoning"
+    },
+    "budget_context": {
+     "max_output_tokens": 12000
+    },
+    "audit_context": {
+     "worker": "W:1",
+     "node_id": "plan"
+    },
+    "feedback": "The previous answer was not accepted: answer check 0 (relation) failed: duplicate_target_key for \"Select the pilot team\". Return the complete JSON document again, corrected."
+   },
+   "system": "You are a bounded execution step inside a host agent runtime. You are given instructions and one JSON input document, and you return one JSON output document. You have no tools, no network access and no memory between calls.\n\n## Task\nplan\n\n## Instructions\n---\nname: planning\ndescription: Identify the decisions needed to achieve the meeting goal and return focus items.\n---\n\nIdentify the decisions needed to achieve the meeting goal and return focus items. The graph uses the supplied participants directly for perspective workers.\n\n\n## Output contract\nReturn exactly one JSON document that validates against the JSON Schema below. Emit the JSON document alone: no prose before or after it, no explanation, no markdown code fence. It is one JSON object with exactly these top-level properties and no others: focus.\n\n{\"$defs\":{\"s7\":{\"additionalProperties\":false,\"properties\":{\"focus\":{\"items\":{\"type\":\"string\"},\"type\":\"array\"}},\"required\":[\"focus\"],\"type\":\"object\"}},\"$ref\":\"#/$defs/s7\"}\n\n## Correction\nThe previous answer was not accepted: answer check 0 (relation) failed: duplicate_target_key for \"Select the pilot team\". Return the complete JSON document again, corrected.",
+   "user": "{\"n\":[1,2.5,null,true],\"request\":\"Find me a flight to Zürich — nonstop, under $900.\"}",
+   "schema_text": "{\"$defs\":{\"s7\":{\"additionalProperties\":false,\"properties\":{\"focus\":{\"items\":{\"type\":\"string\"},\"type\":\"array\"}},\"required\":[\"focus\"],\"type\":\"object\"}},\"$ref\":\"#/$defs/s7\"}",
+   "bound": 1945,
+   "closed_root": [
+    "focus"
    ]
   }
  ],

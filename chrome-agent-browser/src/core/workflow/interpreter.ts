@@ -17,7 +17,7 @@ import { deepCopy, schemaReference, select, tokens } from "../references.js";
 import { PackageSchemas } from "../schema.js";
 import type { AuditEvent } from "../types.js";
 import { validatePayload } from "../validation.js";
-import { checkAssertions } from "./assertions.js";
+import { checkAnswer, checkAssertions } from "./assertions.js";
 import { CancelToken, withDeadline, yieldPoint } from "./cancel.js";
 import { BudgetError, CancelledError, failedCheck, failureCode, PolicyError, TimeoutError, WorkflowError } from "./errors.js";
 import { Context, digest, Runtime, type RuntimeOptions } from "./runtime.js";
@@ -126,11 +126,15 @@ export class Workflow {
     if (kind === "llm") {
       // The router receives a bundled, offline schema. The host is authoritative.
       const schema = this.modelSchema(String(node.output_schema));
+      const checks = (node.checks as JsonValue[] | undefined) ?? [];
+      // Evaluated by the runtime on the schema-valid answer, before it is accepted (D-150).
+      const options = checks.length > 0 ? { check: (answer: JsonValue) => checkAnswer(checks, env, answer) } : {};
       try {
-        result = await ctx.model(String(node.task), value, schema, node.max_output_tokens as number, token);
+        result = await ctx.model(String(node.task), value, schema, node.max_output_tokens as number, token, options);
       } catch (error) {
         if (error instanceof PolicyError || error instanceof TimeoutError || error instanceof CancelledError) throw error;
-        throw new WorkflowError(error instanceof ValidationError ? "schema_validation" : "model_error", String(node.id), { cause: error });
+        // A refused answer check names itself on node.failed too.
+        throw Object.assign(new WorkflowError(error instanceof ValidationError ? "schema_validation" : "model_error", String(node.id), { cause: error }), failedCheck(error));
       }
       // Also use the closed package validator, including formats and local refs.
       if ((await this.schemas.failures(String(node.output_schema), result)).length > 0) {

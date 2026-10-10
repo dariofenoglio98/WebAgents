@@ -538,6 +538,13 @@
           "items": {
             "$ref": "#/$defs/assertion"
           }
+        },
+        "checks": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "$ref": "#/$defs/assertion"
+          }
         }
       },
       "required": [
@@ -968,6 +975,20 @@
               }
             }
           }
+        },
+        {
+          "if": {
+            "required": [
+              "checks"
+            ]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "const": "llm"
+              }
+            }
+          }
         }
       ]
     },
@@ -1084,6 +1105,13 @@
           "maximum": 10000
         },
         "assertions": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "$ref": "#/$defs/assertion"
+          }
+        },
+        "checks": {
           "type": "array",
           "maxItems": 64,
           "items": {
@@ -1513,6 +1541,20 @@
             "properties": {
               "type": {
                 "const": "validate"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "checks"
+            ]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "const": "llm"
               }
             }
           }

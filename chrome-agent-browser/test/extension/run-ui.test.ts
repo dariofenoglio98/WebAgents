@@ -441,7 +441,7 @@ describe("the run panel", () => {
     const twice = recovered.slice(0, 3).concat([{ action: "model.failed", worker: "Interpreter:1", node_id: "interpret", reason: "model_output_not_conforming", failure_facts: facts("pattern", "$defs/s27/properties/search/properties/date/pattern", 61) }]);
     expect(decisiveCallFailure(twice as unknown as JsonObject[])).toMatchObject({ failure_facts: { reported_output_tokens: 61 } });
     expect(modelFailureFigures(twice)).toContain("after 61 output tokens");
-    expect(modelFailureFigures(twice)).toContain("The runtime asked once more with the same request");
+    expect(modelFailureFigures(twice)).toContain("The runtime asked once more, naming what was wrong, and that answer was not accepted either.");
     // Without a retry the decisive failure is the first, as the reference's failure_summary reads it.
     expect(decisiveCallFailure([recovered[0], recovered[1], recovered[5]] as unknown as JsonObject[])).toBe(recovered[1]);
   });
@@ -456,6 +456,17 @@ describe("the run panel", () => {
     expect(skipped("worker_remote_calls")).toContain("a second request would have passed the step's limit on remote model calls.");
     expect(skipped("something_new")).toContain("a second request would have passed one of the run's limits.");
     expect(Object.keys(RETRY_BOUND_WORDS).sort()).toEqual(["approval_threshold", "global_remote_calls", "global_token_budget", "worker_remote_calls", "worker_token_budget"]);
+  });
+
+  it("re-asks with a named check are said, with the check and why no further request was sent (D-151)", () => {
+    const failed = (attempt?: number) => ({ action: "model.failed", worker: "Writer:5", node_id: "write", reason: "model_output_not_conforming", failure_facts: { output_failure: "check" }, failed_check: { check: "answer_check", index: 0, kind: "relation", failure: "missing_target_key", row_key: "/owner", target_key: "/name" }, ...(attempt ? { attempt } : {}) });
+    const called = (attempt?: number) => ({ action: "model.called", worker: "Writer:5", node_id: "write", ...(attempt ? { attempt } : {}) });
+    const three = [called(), failed(), called(2), failed(), called(3), failed()];
+    expect(modelFailureFigures(three)).toBe("It failed the package's answer check 0 (relation: missing_target_key at /owner). The runtime asked twice more, each time naming what was wrong, and no answer was accepted.");
+    const skip = (fields: Record<string, unknown>) => modelFailureFigures([called(), failed(), called(2), failed(), { action: "model.retry_skipped", worker: "Writer:5", node_id: "write", attempt: 3, ...fields }]);
+    expect(skip({ reason: "budget", bound: "worker_token_budget" })).toBe("It failed the package's answer check 0 (relation: missing_target_key at /owner). The runtime asked once more, naming what was wrong, and that answer was not accepted either. It was not asked again: a third request would have passed the step's token budget.");
+    expect(skip({ reason: "context_window" })).toContain("It was not asked again: a third request, with its correction, would not have fit the model's context.");
+    expect(skip({ reason: "deadline" })).toContain("It was not asked again: less time was left before the step's deadline than the last answer took.");
   });
 
   it("a run whose model answer broke the package's schema says so on the panel, with the field (T9)", async () => {
@@ -474,8 +485,9 @@ describe("the run panel", () => {
     const banner = panel.root.querySelector(".ab-outcome .ab-banner")!;
     expect(banner.querySelector("strong")?.textContent).toBe("The model's answer did not match the package's format");
     expect(banner.textContent).toContain("model_error");
-    // The scripted model breaks the pattern on both attempts: the live router asked once more (D-115).
-    expect(banner.querySelector(".ab-refusal-figures")?.textContent).toMatch(/this is not a token limit\. It broke the schema's “pattern” rule at search\.date\. The runtime asked once more with the same request, and the second answer did not match either\.$/u);
+    // The scripted model breaks the pattern every time: the live router asked twice more, naming the
+    // miss each time (D-151). The scripted route is local Ollama, so no remote-call bound stops it.
+    expect(banner.querySelector(".ab-refusal-figures")?.textContent).toMatch(/this is not a token limit\. It broke the schema's “pattern” rule at search\.date\. The runtime asked twice more, each time naming what was wrong, and no answer was accepted\.$/u);
     panel.dispose();
   });
 

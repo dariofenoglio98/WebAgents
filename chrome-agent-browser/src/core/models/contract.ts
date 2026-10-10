@@ -17,6 +17,8 @@ export interface ModelRequest {
   requirements: JsonObject;
   budget_context: { max_output_tokens: number };
   audit_context: { worker: string; node_id: string | null };
+  /** A re-ask's one line naming why the previous answer was not accepted (D-151); absent on a first request. */
+  feedback?: string;
 }
 
 export interface ModelResult {
@@ -37,9 +39,10 @@ export interface ModelRouter {
   /** A replay adapter whose accounting is a test unit, not a bill. */
   readonly synthetic?: boolean;
   /**
-   * How many more times the runtime sends the same request when the answer does not match the
-   * output schema (`model_output_not_conforming`): 1 for the live router (D-115), absent (0) for a
-   * replay router, whose answer would not change.
+   * How many more times the runtime asks when the answer is not accepted
+   * (`model_output_not_conforming`: a schema miss, no JSON, or a failed answer check): 2 for the
+   * live router (D-151; 1 under D-115), absent (0) for a replay router, whose answer would not
+   * change. Each re-ask is the request plus one `feedback` line naming what was wrong.
    */
   readonly nonconformingRetries?: number;
   /**

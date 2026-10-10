@@ -26,8 +26,10 @@ import type { ToolContext, ToolHandler } from "../tools/handler.js";
 import { schemaFacts } from "../tools/facts.js";
 import type { AuditEvent } from "../types.js";
 import { urlsplit } from "../urls.js";
+import { AnswerCheckFailure } from "./assertions.js";
 import { CancelToken, withDeadline } from "./cancel.js";
-import { AdapterError, BudgetError, CancelledError, errorName, PolicyError, TimeoutError } from "./errors.js";
+import { AdapterError, BudgetError, CancelledError, errorName, failedCheck, PolicyError, TimeoutError } from "./errors.js";
+import { disclosedScalars, feedbackLine, type Refusal } from "./feedback.js";
 import { Semaphore } from "./sync.js";
 
 export type GrantDecision = "once" | "session" | "always" | "deny";
@@ -41,6 +43,18 @@ export interface HostLimits {
 }
 
 export type Observer = (event: AuditEvent) => void;
+
+/** At most this many re-asks of one model call, whatever a router declares (D-151; one under D-115). */
+export const MAX_REASKS = 2;
+
+/** What a model call needs beyond the request itself. */
+export interface ModelCallOptions {
+  /**
+   * The node's answer checks (D-150): called with a copy of the schema-valid answer; throws an
+   * `AnswerCheckFailure` to refuse it, which the call treats as a non-conforming answer.
+   */
+  check?: (answer: JsonValue) => void;
+}
 
 export interface RuntimeOptions {
   grants?: Grants | null;
@@ -116,8 +130,8 @@ export class Context implements ToolContext {
     return this.runtime.callTool(this, toolId, payload, token);
   }
 
-  model(task: string, payload: JsonValue, outputSchema: JsonValue, maxOutputTokens: number, token: CancelToken): Promise<JsonValue> {
-    return this.runtime.callModel(this, task, payload, outputSchema, maxOutputTokens, token);
+  model(task: string, payload: JsonValue, outputSchema: JsonValue, maxOutputTokens: number, token: CancelToken, options: ModelCallOptions = {}): Promise<JsonValue> {
+    return this.runtime.callModel(this, task, payload, outputSchema, maxOutputTokens, token, options);
   }
 
   event(action: string, metadata: Record<string, JsonValue | undefined> = {}): void {
@@ -531,7 +545,7 @@ export class Runtime {
     }
   }
 
-  async callModel(ctx: Context, task: string, payload: JsonValue, outputSchema: JsonValue, maxOutputTokens: number, token: CancelToken): Promise<JsonValue> {
+  async callModel(ctx: Context, task: string, payload: JsonValue, outputSchema: JsonValue, maxOutputTokens: number, token: CancelToken, options: ModelCallOptions = {}): Promise<JsonValue> {
     this.checkContext(ctx);
     const router = this.router;
     if (router === null) throw new PolicyError("No model router configured; select fixture/extractive mode explicitly");
@@ -572,25 +586,32 @@ export class Runtime {
     // sending any private context to a remote tokenizer.
     this.authorize(permissions, { consume: true, context: ctx });
     const domains = [...(router.domains ?? [])];
-    this.record("model.count.called", {
-      context: ctx,
-      task,
-      model: router.model_id,
-      router: router.router_id,
-      domains,
-      input_hash: digest(request),
-      permissions,
-    });
-    let inputBound: number;
-    try {
-      inputBound = await router.countTokens(request, token.signal);
-    } catch (error) {
-      this.record("model.count.failed", { context: ctx, task, error: errorName(error), ...failureReason(error) });
-      throw error;
-    }
-    if (typeof inputBound !== "number" || !Number.isInteger(inputBound) || inputBound < 0) {
-      throw new PolicyError("Router returned an invalid input token count");
-    }
+    // The count preflight of one request (the first, or a re-ask with its feedback line): what the
+    // model will see is bounded before anything is reserved or sent.
+    const count = async (asked: ModelRequest, attempt: number): Promise<number> => {
+      this.record("model.count.called", {
+        context: ctx,
+        task,
+        model: router.model_id,
+        router: router.router_id,
+        domains,
+        input_hash: digest(asked),
+        permissions,
+        ...(attempt > 1 ? { attempt } : {}),
+      });
+      let bound: number;
+      try {
+        bound = await router.countTokens(asked, token.signal);
+      } catch (error) {
+        this.record("model.count.failed", { context: ctx, task, error: errorName(error), ...failureReason(error), ...(attempt > 1 ? { attempt } : {}) });
+        throw error;
+      }
+      if (typeof bound !== "number" || !Number.isInteger(bound) || bound < 0) {
+        throw new PolicyError("Router returned an invalid input token count");
+      }
+      return bound;
+    };
+    const inputBound = await count(request, 1);
     const reservation = inputBound + maxOutputTokens;
     const refuse = (reason: string, message: string, facts: Record<string, JsonValue>): never => {
       // Which bound refused the call, in numbers, so a failed run can be classified from its audit.
@@ -608,14 +629,16 @@ export class Runtime {
     if (reservation > router.context_window) {
       refuse("context_window", "Model request exceeds configured context window", { context_window: router.context_window });
     }
-    // One attempt: reserve against every bound, send, account. A live router's answer that does
-    // not match the output schema is asked for once more with the same request (D-115): a fresh
-    // reservation, remote call and audit pair, under the same one logical authorization. Nothing
-    // is repaired; the second answer is validated exactly as the first.
-    const attemptOnce = async (attempt: number): Promise<JsonValue> => {
+    // One attempt: reserve against every bound, send, account. An answer that is not accepted (a
+    // schema miss, no JSON, a refused answer check) may be asked for again (D-115, D-151): the
+    // request plus one feedback line, recounted, with a fresh reservation, remote call and audit
+    // pair, under the same one logical authorization. Nothing is repaired; every answer is
+    // validated and checked exactly as the first.
+    let refusedAnswer: JsonValue = null;
+    const attemptOnce = async (attempt: number, asked: ModelRequest, askedBound: number, reserved: number, after: JsonObject | null): Promise<JsonValue> => {
       const own = this.usageByWorker.get(ctx.worker_id)!;
       this.checkContext(ctx);
-      const exceeded = this.tokenBound(ctx, reservation);
+      const exceeded = this.tokenBound(ctx, reserved);
       if (exceeded !== null) {
         const { bound, ...figures } = exceeded;
         if (bound === "global_token_budget") refuse(bound, "Global token budget exhausted before model dispatch", figures);
@@ -623,8 +646,8 @@ export class Runtime {
         throw new BudgetError("Token approval threshold exceeded; a new host grant is required");
       }
       if (router.remote) this.remote(ctx);
-      own.reserved_tokens += reservation;
-      this.global.reserved_tokens += reservation;
+      own.reserved_tokens += reserved;
+      this.global.reserved_tokens += reserved;
       this.record("budget.updated", { context: ctx, tokens: this.global.tokens, reserved_tokens: this.global.reserved_tokens });
       this.record("model.called", {
         context: ctx,
@@ -632,20 +655,21 @@ export class Runtime {
         model: router.model_id,
         router: router.router_id,
         domains,
-        input_hash: digest(request),
-        reserved_tokens: reservation,
+        input_hash: digest(asked),
+        reserved_tokens: reserved,
         permissions,
-        ...(attempt > 1 ? { attempt } : {}),
+        // A re-ask names the refusal that triggered it, by the package's pointers or the schema's (D-151).
+        ...(attempt > 1 ? { attempt, after: after! } : {}),
       });
-      let used = reservation; // Unknown usage/errors consume reservation conservatively.
+      let used = reserved; // Unknown usage/errors consume reservation conservatively.
       try {
-        const result = await router.complete(request, maxOutputTokens, token.signal);
+        const result = await router.complete(asked, maxOutputTokens, token.signal);
         const inp = (result as { input_tokens?: unknown }).input_tokens;
         const out = (result as { output_tokens?: unknown }).output_tokens;
-        const count = (value: unknown): value is number => typeof value === "number" && Number.isInteger(value) && value >= 0;
-        const validCounts = count(inp) && count(out);
+        const whole = (value: unknown): value is number => typeof value === "number" && Number.isInteger(value) && value >= 0;
+        const validCounts = whole(inp) && whole(out);
         if (validCounts) used = inp + out; // Report known overruns honestly, even above the cap.
-        if (!validCounts || inp > inputBound || out > maxOutputTokens) {
+        if (!validCounts || inp > askedBound || out > maxOutputTokens) {
           this.halted = "router violated token accounting contract";
           throw new PolicyError("Router violated token accounting contract; execution halted");
         }
@@ -655,6 +679,13 @@ export class Runtime {
         if (failures.length > 0) {
           const first = failures[0]!;
           throw new ValidationError(`model output does not match schema at ${first.instancePath.join("/") || "<root>"} (rule: ${first.keyword})`);
+        }
+        if (options.check) {
+          // The node's answer checks (D-150) on the schema-valid answer; a refusal is a
+          // non-conforming answer, charged what the router reported.
+          refusedAnswer = deepCopy(result.output);
+          options.check(deepCopy(result.output));
+          refusedAnswer = null;
         }
         this.record("model.completed", {
           context: ctx,
@@ -667,48 +698,76 @@ export class Runtime {
         });
         return deepCopy(result.output);
       } catch (error) {
-        // A non-conforming answer the provider reported in full is charged what it reported, so the
-        // one retry (D-115) is not paid for twice at the conservative reservation; any other failure
-        // keeps the reservation. The counts are bounded exactly as a successful call's are.
+        // A non-conforming answer the provider reported in full is charged what it reported, so a
+        // re-ask (D-115, D-151) is not paid for twice at the conservative reservation; any other
+        // failure keeps the reservation. The counts are bounded exactly as a successful call's are.
         if (error instanceof AdapterError && error.code === "model_output_not_conforming") {
           const reportedIn = error.audit_facts.reported_input_tokens;
           const reportedOut = error.audit_facts.reported_output_tokens;
           const whole = (value: unknown): value is number => typeof value === "number" && Number.isInteger(value) && value >= 0;
-          if (whole(reportedIn) && whole(reportedOut) && reportedIn <= inputBound && reportedOut <= maxOutputTokens) used = reportedIn + reportedOut;
+          if (whole(reportedIn) && whole(reportedOut) && reportedIn <= askedBound && reportedOut <= maxOutputTokens) used = reportedIn + reportedOut;
         }
-        this.record("model.failed", { context: ctx, task, error: errorName(error), tokens_charged: used, ...failureReason(error) });
+        this.record("model.failed", { context: ctx, task, error: errorName(error), tokens_charged: used, ...failureReason(error), ...failedCheck(error) });
         throw error;
       } finally {
-        own.reserved_tokens -= reservation;
-        this.global.reserved_tokens -= reservation;
+        own.reserved_tokens -= reserved;
+        this.global.reserved_tokens -= reserved;
         own.tokens += used;
         this.global.tokens += used;
         this.record("budget.updated", { context: ctx, tokens: this.global.tokens, reserved_tokens: this.global.reserved_tokens });
       }
     };
-    // The one more request (D-115) is sent only when its fresh reservation fits every bound the
-    // first attempt was checked against (D-124): otherwise the node fails with the answer that was
-    // not conforming, not with the budget that a retry would have exceeded.
-    const retryBlockedBy = (): Record<string, JsonValue> | null => {
-      const tokens = this.tokenBound(ctx, reservation);
+    // A re-ask is sent only when it fits (D-124, D-151): its fresh reservation within the context
+    // window and every bound the first attempt was checked against, and enough time before the
+    // earliest deadline for an attempt as long as the one that failed. Otherwise the node fails
+    // with the answer that was not accepted, never with the bound a re-ask would have passed.
+    const reaskBlockedBy = (reserved: number, elapsedMs: number): Record<string, JsonValue> | null => {
+      if (reserved > router.context_window) return { reason: "context_window", reserved_tokens: reserved, context_window: router.context_window };
+      const tokens = this.tokenBound(ctx, reserved);
       if (tokens !== null) {
         const { bound, ...figures } = tokens;
-        return { bound, reserved_tokens: reservation, ...figures };
+        return { reason: "budget", bound, reserved_tokens: reserved, ...figures };
       }
-      return router.remote ? this.remoteBound(ctx) : null;
+      const remote = router.remote ? this.remoteBound(ctx) : null;
+      if (remote !== null) return { reason: "budget", ...remote };
+      const remaining = token.deadline - Date.now();
+      if (remaining < elapsedMs) return { reason: "deadline", remaining_ms: Math.max(0, Math.floor(remaining)), last_attempt_ms: Math.floor(elapsedMs) };
+      return null;
     };
-    const retries = Math.max(0, Math.min(1, router.nonconformingRetries ?? 0));
+    const retries = Math.max(0, Math.min(MAX_REASKS, router.nonconformingRetries ?? 0));
+    let asked = request;
+    let askedBound = inputBound;
+    let reserved = reservation;
+    let after: JsonObject | null = null;
     for (let attempt = 1; ; attempt += 1) {
+      const started = Date.now();
+      refusedAnswer = null;
       try {
-        return await attemptOnce(attempt);
+        return await attemptOnce(attempt, asked, askedBound, reserved, after);
       } catch (error) {
-        const retry = attempt <= retries && error instanceof AdapterError && error.code === "model_output_not_conforming" && !token.signal.aborted && this.halted === null;
-        if (!retry) throw error;
-        const blocked = retryBlockedBy();
+        const notAccepted = (error instanceof AdapterError || error instanceof AnswerCheckFailure) && error.code === "model_output_not_conforming";
+        if (!(attempt <= retries && notAccepted && !token.signal.aborted && this.halted === null)) throw error;
+        const elapsed = Date.now() - started;
+        const next: ModelRequest = { ...request, feedback: feedbackLine(refusalOf(error), disclosedScalars(request.data, refusedAnswer)) };
+        // A router whose count reaches the network pays for it as a remote call (D-115, D-125).
+        if (router.remote && router.remoteCount !== false) {
+          const remote = this.remoteBound(ctx);
+          if (remote !== null) {
+            this.record("model.retry_skipped", { context: ctx, task, attempt: attempt + 1, reason: "budget", ...remote });
+            throw error;
+          }
+          this.remote(ctx);
+        }
+        const nextBound = await count(next, attempt + 1);
+        const blocked = reaskBlockedBy(nextBound + maxOutputTokens, elapsed);
         if (blocked !== null) {
-          this.record("model.retry_skipped", { context: ctx, task, reason: "budget", ...blocked });
+          this.record("model.retry_skipped", { context: ctx, task, attempt: attempt + 1, ...blocked });
           throw error;
         }
+        asked = next;
+        askedBound = nextBound;
+        reserved = nextBound + maxOutputTokens;
+        after = afterOf(error);
       }
     }
   }
@@ -733,6 +792,27 @@ export class Runtime {
     for (const key of Object.keys(this.state)) delete this.state[key];
     this.record("memory.cleared", { context: this.root, scope: (this.policy.memory as JsonObject).scope! });
   }
+}
+
+/** Why an answer was not accepted, as a re-ask's feedback line names it (D-151). */
+function refusalOf(error: unknown): Refusal {
+  if (error instanceof AnswerCheckFailure) return { kind: "check", failed_check: error.failed_check, offending: error.offending };
+  const refusal = error instanceof AdapterError ? (error.detail.refusal as Record<string, unknown> | undefined) : undefined;
+  if (refusal?.kind === "not_json" || refusal?.kind === "no_text") return { kind: refusal.kind };
+  const strings = (value: unknown): value is string[] => Array.isArray(value) && value.every((item) => typeof item === "string");
+  if (refusal?.kind === "schema" && typeof refusal.keyword === "string" && strings(refusal.instance_path) && strings(refusal.missing)) {
+    return { kind: "schema", keyword: refusal.keyword, instance_path: refusal.instance_path, missing: refusal.missing };
+  }
+  return { kind: "unknown" };
+}
+
+/** What a re-ask's `model.called` records about the refusal that triggered it: structure only, never data. */
+function afterOf(error: unknown): JsonObject {
+  if (error instanceof AnswerCheckFailure) return { output_failure: "check", failed_check: error.failed_check };
+  const facts = error instanceof AdapterError ? safeFacts(error.audit_facts) : {};
+  const after: JsonObject = { output_failure: typeof facts.output_failure === "string" ? facts.output_failure : "unknown" };
+  for (const key of ["schema_keyword", "schema_location"]) if (typeof facts[key] === "string") after[key] = facts[key]!;
+  return after;
 }
 
 /** `exc.code = …; exc.audit_facts = …` on a validation error, so `failureReason` reads them. */
