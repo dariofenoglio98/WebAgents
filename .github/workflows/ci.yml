@@ -127,14 +127,14 @@ jobs:
       - name: Install the shipped wheel in a fresh environment
         run: |
           python -m venv "$RUNNER_TEMP/wheel-env"
-          "$RUNNER_TEMP/wheel-env/bin/python" -m pip install dist/agentpkg-0.2.2-py3-none-any.whl
+          "$RUNNER_TEMP/wheel-env/bin/python" -m pip install dist/agentpkg-0.3.0-py3-none-any.whl
           cd "$RUNNER_TEMP"
           wheel-env/bin/agentpkg --version
           wheel-env/bin/python -c 'import agentpkg; assert "site-packages" in agentpkg.__file__, agentpkg.__file__'
       - name: Release-tree checks (package identities, dist/ SHA-256 list, licenses, wheel = source)
         run: |
           "$RUNNER_TEMP/wheel-env/bin/python" scripts/check_release.py \
-            --built-wheel "$RUNNER_TEMP/agentpkg-dist/agentpkg-0.2.2-py3-none-any.whl"
+            --built-wheel "$RUNNER_TEMP/agentpkg-dist/agentpkg-0.3.0-py3-none-any.whl"
       - name: Verify the signed packages with the installed wheel
         run: |
           agentpkg="$RUNNER_TEMP/wheel-env/bin/agentpkg"

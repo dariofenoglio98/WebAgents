@@ -126,9 +126,9 @@ agentpkg/.venv/bin/agentpkg run dist/webair-0.4.0.agent.pkg \
 Each run prints a JSON report ending in `"passed": true`, and writes `result.json`,
 `audit.json`, `usage.json`, `provenance.json` and the package's declared exports to the new
 `--out` directory (`examples/my-*` is git-ignored). You can also install the prebuilt wheel
-instead of the editable checkout: `pip install dist/agentpkg-0.2.2-py3-none-any.whl`. Use the one
-in this release: the v0.1.0 release's wheel of the same version cannot read WebAir 0.2.0 or later
-([dist/README.md](dist/README.md)).
+instead of the editable checkout: `pip install dist/agentpkg-0.3.0-py3-none-any.whl` (the
+development line; the v0.2.0 release's `agentpkg-0.2.2` wheel stays beside it, and the v0.1.0
+release's wheel of that version cannot read WebAir 0.2.0 or later; [dist/README.md](dist/README.md)).
 
 The example keys are development keys. They show which key signed an artifact; they do not
 certify the publisher.

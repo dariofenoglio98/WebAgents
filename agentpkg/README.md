@@ -1,4 +1,4 @@
-# agentpkg 0.2.2
+# agentpkg 0.3.0
 
 Installable tooling for agent.pkg format 0.1 and the generic workflow.v0 interpreter. From the repository root:
 
@@ -44,4 +44,4 @@ Current adapters are generic fixture replay, the pre-existing vendor-neutral HTT
 
 The old application runner is now the explicit development command `agentpkg-legacy` (or `python -m agentpkg.dev.legacy_cli`), operating on the archived legacy package. Its `--question`, seed/PDF options and specialized eval harness remain there. Python callers migrate old imports to `agentpkg.dev.literature` and `agentpkg.dev.literature_evals`; new callers use `agentpkg.workflow`.
 
-See the [normative workflow spec](../spec/workflow-v0.md), [migration notes](../docs/workflow-migration.md), and [repository commands](../README.md).
+See the [normative workflow spec](../spec/workflow-v0.md), [migration notes](../docs/workflow-migration.md), [the changes by version](CHANGELOG.md), and [repository commands](../README.md).

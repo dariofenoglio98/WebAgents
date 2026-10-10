@@ -37,8 +37,8 @@ OpenClaw host has been accepted. Windows is not supported.
 
 ```sh
 python3 -m venv agentpkg/.venv
-agentpkg/.venv/bin/python -m pip install -e './agentpkg[dev]'   # or: pip install dist/agentpkg-0.2.2-py3-none-any.whl
-agentpkg/.venv/bin/agentpkg --version                            # agentpkg 0.2.2 (agent.pkg 0.1, workflow.v0)
+agentpkg/.venv/bin/python -m pip install -e './agentpkg[dev]'   # or: pip install dist/agentpkg-0.3.0-py3-none-any.whl
+agentpkg/.venv/bin/agentpkg --version                            # agentpkg 0.3.0 (agent.pkg 0.1, workflow.v0)
 ```
 
 Verify both shipped packages against their publisher keys. A valid result reports the package

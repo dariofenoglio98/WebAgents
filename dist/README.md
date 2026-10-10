@@ -11,7 +11,8 @@ against the exact bytes it describes.
 
 | Artifact | What it is | Requires | Verify with |
 |---|---|---|---|
-| `agentpkg-0.2.2-py3-none-any.whl` | agentpkg 0.2.2: the CLI, the browser control plane and the workflow.v0 runtime | Python ≥ 3.11 | SHA-256 below |
+| `agentpkg-0.3.0-py3-none-any.whl` | agentpkg 0.3.0, the development line's runtime (D-019): 0.2.2 plus answer checks on model answers (`checks` on `llm` nodes and map `llm` steps, workflow.v0), an optional `feedback` line in the model-request contract, and the profile-scoped approvals of the control plane (T7, D-090), which the 0.2.2 wheel below predates. It runs every package in this directory | Python ≥ 3.11 | SHA-256 below |
+| `agentpkg-0.2.2-py3-none-any.whl` | agentpkg 0.2.2, the v0.2.0 release's wheel (the paper line, `paper-cic2026`): the CLI, the browser control plane and the workflow.v0 runtime. It cannot load a package that uses answer checks (they declare runtime minimum 0.3.0) | Python ≥ 3.11 | SHA-256 below |
 | `literature-review-0.2.6.agent.pkg` | Literature Review 0.2.6: 0.2.5 with screening jobs built by the graph from the candidates (the model writes one `{paper_id, file_id}` reference per candidate, checked both ways) and an explicit empty source hash for abstract evidence, asserted by `check-abstract` (T10: on hosted models 0.2.5 silently thinned or emptied the review) | agentpkg ≥ 0.2.1 | [`examples/keys/literature-review-publisher.pub.pem`](../examples/keys/literature-review-publisher.pub.pem) (`sha256:c5ca9763…5232`) |
 | `literature-review.agent.pkg` | Literature Review 0.2.5, identical to `literature-review-0.2.5.agent.pkg` | agentpkg ≥ 0.2.1 | [`examples/keys/literature-review-publisher.pub.pem`](../examples/keys/literature-review-publisher.pub.pem) (`sha256:c5ca9763…5232`) |
 | `meeting-agenda.agent.pkg` | Meeting Agenda 0.2.2, identical to `meeting-agenda-0.2.2.agent.pkg` | agentpkg ≥ 0.2.2 | [`examples/keys/meeting-agenda-publisher.pub.pem`](../examples/keys/meeting-agenda-publisher.pub.pem) (`sha256:2bcc374a…c5c4`) |
@@ -20,7 +21,7 @@ against the exact bytes it describes.
 From the repository root:
 
 ```sh
-python3 -m venv .venv && .venv/bin/python -m pip install dist/agentpkg-0.2.2-py3-none-any.whl
+python3 -m venv .venv && .venv/bin/python -m pip install dist/agentpkg-0.3.0-py3-none-any.whl
 # fingerprints in the table above, and in each command's own output
 .venv/bin/agentpkg verify dist/literature-review-0.2.6.agent.pkg \
   --trust-key examples/keys/literature-review-publisher.pub.pem
@@ -35,8 +36,17 @@ python3 -m venv .venv && .venv/bin/python -m pip install dist/agentpkg-0.2.2-py3
 The keys are development keys: they establish which key signed an artifact, not an independent
 certification of its publisher.
 
-**The 0.2.2 wheel has been rebuilt twice since its first build,** each time from the current
-`agentpkg/` source and without a version change.
+**The 0.3.0 wheel** (SHA-256 `096897b0…31df`, T13) was built from a clean export of `agentpkg/` at
+the commit that added it, with the command below; two such builds produced identical bytes, and CI
+rebuilds it from source and checks that every file matches. The version moved to 0.3.0 because
+graphs that use answer checks must be refused by an older runtime by their declared minimum, not by
+an unknown field. On `main` the contract enforcement experiment's runtime-version cases for 0.2.3
+and 0.3.0 are therefore no longer newer than the runtime; the paper's results are the v0.2.0
+line's (D-019), and a new series on this line needs its own catalog version.
+
+**The 0.2.2 wheel has been rebuilt twice since its first build,** each time from the then current
+`agentpkg/` source and without a version change. It predates the control plane's profile-scoped
+approvals (T7, D-090), so it is no longer the source's wheel; it stays for the v0.2.0 release.
 
 - **For v0.1.0** (SHA-256 `cc28762b…ce59`). It differs from the first 0.2.2 build (SHA-256
   `c0ea47ef…eabd`, recorded in `examples/verification/agentpkg-022-wheel-smoke.json`) in exactly
@@ -127,6 +137,7 @@ none is needed to run the current packages.
 c1b1c4b260dbca874dc9e343397e6fad1311f498c3a6df27c1a1deeeb0b18f71  agentpkg-0.1.0-py3-none-any.whl
 5859ca592d7ced2261e07bd3451ba2a67fcca926627534faf092a93dcfd70adb  agentpkg-0.2.0-py3-none-any.whl
 371fb1eb8c70abc3511a09e7208742ab313bc47dfda6999675ce716d14731cd1  agentpkg-0.2.2-py3-none-any.whl
+096897b02d3e4bc212395eb35bf6522c67fedb5f80309e9e42744cbe777d31df  agentpkg-0.3.0-py3-none-any.whl
 5fdde862352598fc68e4fe5a2f5c2dee19bf952112446b3fc13bc77763533b0b  literature-review-0.2.0.agent.pkg
 0fb8b65bbff4578d4815ee70b29a0cb789b2cc95ce181d011d467b4be22c8e42  literature-review-0.2.1.agent.pkg
 4804ea8f4c2ad40439641f8348c2d65b798f4d52802f6ad751b71114e4f27c04  literature-review-0.2.2.agent.pkg
