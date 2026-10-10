@@ -1,0 +1,21 @@
+{
+  "type": "object",
+  "properties": {
+    "query": {
+      "type": "string",
+      "minLength": 1
+    },
+    "identifiers": {
+      "type": "array",
+      "maxItems": 4,
+      "items": {
+        "$ref": "query.schema.json"
+      }
+    }
+  },
+  "required": [
+    "query",
+    "identifiers"
+  ],
+  "additionalProperties": false
+}

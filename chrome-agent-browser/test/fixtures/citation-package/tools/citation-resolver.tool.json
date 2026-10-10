@@ -1,0 +1,24 @@
+{
+  "spec_version": "0.1",
+  "id": "citation-resolver",
+  "version": "0.1.0",
+  "description": "Existing Citation Resolver API; declares Crossref so the host's built-in DOI lookup may answer when it is unavailable.",
+  "execution": "remote",
+  "binding": "citation.resolve",
+  "endpoint": "https://webagents-citation-resolver-production.up.railway.app/resolve",
+  "method": "POST",
+  "input_schema": "schemas/resolver-input.schema.json",
+  "output_schema": "schemas/resolver-output.schema.json",
+  "permissions": [
+    "network.citations"
+  ],
+  "domains": [
+    "webagents-citation-resolver-production.up.railway.app",
+    "api.crossref.org"
+  ],
+  "timeout_seconds": 45,
+  "retries": 0,
+  "side_effects": "read",
+  "approval_required": false,
+  "extensions": {}
+}

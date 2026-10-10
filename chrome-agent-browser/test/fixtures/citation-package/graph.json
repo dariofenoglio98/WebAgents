@@ -1,0 +1,186 @@
+{
+  "spec_version": "0.1",
+  "profile": "workflow.v0",
+  "coordinator": "Coordinator",
+  "workers": [
+    {
+      "id": "Coordinator",
+      "kind": "packaged",
+      "skills": [],
+      "tools": [],
+      "max_instances": 1,
+      "budget": {
+        "tokens": 1000,
+        "remote_calls": 0
+      },
+      "state_read": [
+        "request",
+        "found",
+        "resolved"
+      ],
+      "state_write": []
+    },
+    {
+      "id": "SearchWorker",
+      "kind": "packaged",
+      "skills": [
+        "cite"
+      ],
+      "tools": [
+        "scholarly-search"
+      ],
+      "max_instances": 1,
+      "budget": {
+        "tokens": 1000,
+        "remote_calls": 3
+      },
+      "state_read": [
+        "request"
+      ],
+      "state_write": [
+        "found"
+      ]
+    },
+    {
+      "id": "CitationWorker",
+      "kind": "packaged",
+      "skills": [
+        "cite"
+      ],
+      "tools": [
+        "citation-resolver"
+      ],
+      "max_instances": 1,
+      "budget": {
+        "tokens": 1000,
+        "remote_calls": 6
+      },
+      "state_read": [
+        "request"
+      ],
+      "state_write": [
+        "resolved"
+      ]
+    }
+  ],
+  "input_schema": "schemas/input.schema.json",
+  "output_schema": "schemas/output.schema.json",
+  "initial_state": {
+    "object": {
+      "request": {
+        "from": "input",
+        "path": ""
+      },
+      "found": {
+        "literal": null
+      },
+      "resolved": {
+        "literal": null
+      }
+    }
+  },
+  "deadline_seconds": 600,
+  "nodes": [
+    {
+      "id": "search",
+      "type": "tool",
+      "worker": "SearchWorker",
+      "tool": "scholarly-search",
+      "depends_on": [],
+      "input": {
+        "object": {
+          "query": {
+            "from": "state",
+            "path": "/request/query"
+          },
+          "limit": {
+            "literal": 2
+          }
+        }
+      },
+      "output_schema": "schemas/search-output.schema.json",
+      "timeout_seconds": 60,
+      "writes": {
+        "/found": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "id": "resolve",
+      "type": "map",
+      "worker": "CitationWorker",
+      "depends_on": [
+        "search"
+      ],
+      "input": {
+        "from": "state",
+        "path": "/request/identifiers"
+      },
+      "item_schema": "schemas/query.schema.json",
+      "max_items": 4,
+      "max_parallel": 1,
+      "output_schema": "schemas/responses.schema.json",
+      "timeout_seconds": 300,
+      "writes": {
+        "/resolved": {
+          "from": "result",
+          "path": ""
+        }
+      },
+      "steps": [
+        {
+          "id": "resolve-one",
+          "type": "tool",
+          "tool": "citation-resolver",
+          "input": {
+            "object": {
+              "query": {
+                "from": "item",
+                "path": ""
+              },
+              "query_type": {
+                "literal": "auto"
+              },
+              "format": {
+                "literal": "json"
+              }
+            }
+          },
+          "output_schema": "schemas/resolver-output.schema.json",
+          "timeout_seconds": 120
+        }
+      ],
+      "yield": {
+        "from": "steps",
+        "path": "/resolve-one"
+      }
+    },
+    {
+      "id": "output",
+      "type": "output",
+      "worker": "Coordinator",
+      "depends_on": [
+        "resolve"
+      ],
+      "input": {
+        "object": {
+          "found": {
+            "from": "state",
+            "path": "/found"
+          },
+          "resolved": {
+            "from": "state",
+            "path": "/resolved"
+          }
+        }
+      },
+      "output_schema": "schemas/output.schema.json",
+      "timeout_seconds": 10,
+      "writes": {}
+    }
+  ],
+  "exports": [],
+  "extensions": {}
+}

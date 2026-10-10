@@ -1,0 +1,34 @@
+{
+  "type": "object",
+  "properties": {
+    "request": {
+      "$ref": "input.schema.json"
+    },
+    "found": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "search-output.schema.json"
+        }
+      ]
+    },
+    "resolved": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "responses.schema.json"
+        }
+      ]
+    }
+  },
+  "required": [
+    "request",
+    "found",
+    "resolved"
+  ],
+  "additionalProperties": false
+}

@@ -22,7 +22,7 @@ import { pyIsoTimestamp } from "../pyjson.js";
 import { deepCopy } from "../references.js";
 import { pyRepr } from "../repr.js";
 import { failuresForSchema, validateDocument, type PackageSchemas } from "../schema.js";
-import type { ToolContext, ToolHandler } from "../tools/handler.js";
+import type { RemoteCallBound, ToolContext, ToolHandler } from "../tools/handler.js";
 import { schemaFacts } from "../tools/facts.js";
 import type { AuditEvent } from "../types.js";
 import { urlsplit } from "../urls.js";
@@ -137,6 +137,10 @@ export class Context implements ToolContext {
   event(action: string, metadata: Record<string, JsonValue | undefined> = {}): void {
     this.runtime.checkContext(this);
     this.runtime.record(action, { context: this, ...metadata });
+  }
+
+  remoteCall(charge: boolean): RemoteCallBound | null {
+    return this.runtime.extraRemoteCall(this, charge);
   }
 }
 
@@ -456,6 +460,20 @@ export class Runtime {
     return null;
   }
 
+  /**
+   * One more remote request inside a tool call the runtime already charged (a host retry of a
+   * read-only call, or a host fallback; D-152, D-153): the bound it would pass, or null, and
+   * with `charge` the call is counted when it fits. It is checked exactly as every remote call is;
+   * it is not another tool call.
+   */
+  extraRemoteCall(ctx: Context, charge: boolean): RemoteCallBound | null {
+    this.checkContext(ctx);
+    const exceeded = this.remoteBound(ctx);
+    if (exceeded !== null || !charge) return exceeded;
+    this.remote(ctx);
+    return null;
+  }
+
   private remote(ctx: Context, count = 1): void {
     const own = this.usageByWorker.get(ctx.worker_id)!;
     const exceeded = this.remoteBound(ctx, count);
@@ -523,7 +541,7 @@ export class Runtime {
         input_hash: digest(payload),
         remote_calls: this.global.remote_calls,
       });
-      const result = await withDeadline(tool.timeout_seconds as number, token, (bounded) => handler(ctx, deepCopy(payload), bounded.signal));
+      const result = await withDeadline(tool.timeout_seconds as number, token, (bounded) => handler(ctx, deepCopy(payload), bounded.signal, { deadline: bounded.deadline, side_effects: tool.side_effects === "read" ? "read" : "write" }));
       try {
         await this.schemas.validateInstance(String(tool.output_schema), result, "tool output");
       } catch (error) {

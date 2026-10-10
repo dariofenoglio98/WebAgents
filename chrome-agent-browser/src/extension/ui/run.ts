@@ -1406,7 +1406,7 @@ export class RunPanel {
       ["Run invocation", el("code", { text: record.runInvocationSha256 ? `sha256:${record.runInvocationSha256}` : "—" })],
       ["Task input", el("code", { text: record.inputSha256 ? `sha256:${record.inputSha256}` : "—" })],
       ["Model", record.selectedModel ? `${record.selectedModel.hostModelId} (${record.selectedModel.providerId})${record.model ? ` · ${record.model.calls} calls · ${record.model.allCallsUsedPlannedModel ? "every call used the planned model" : `invoked: ${record.model.invoked.join(", ") || "none"}`}` : ""}` : "—"],
-      ["Tools", record.tools.length > 0 ? record.tools.map((tool) => `${tool.toolId} → ${tool.displayName ?? tool.bindingId} (${tool.remote ? "remote" : "local"}, ${tool.calls} calls, binding sha256:${shortHash(tool.bindingSha256)})`).join(" · ") : "none"],
+      ["Tools", record.tools.length > 0 ? record.tools.map((tool) => `${tool.toolId} → ${tool.displayName ?? tool.bindingId} (${tool.remote ? "remote" : "local"}, ${tool.calls} calls${tool.retries > 0 ? `, ${tool.retries} retried after a transient failure` : ""}${tool.fallbackAnswers > 0 ? `, ${tool.fallbackAnswers} answered by the built-in Crossref DOI lookup` : ""}, binding sha256:${shortHash(tool.bindingSha256)})`).join(" · ") : "none"],
       ["Permissions", record.grants.decisions.map((item) => `${item.permissionId}=${item.decision}`).join(" · ") || "—"],
       ["Decided by", decidedBy],
       ["Your data", record.resources.length > 0 ? record.resources.map((grant) => `${grant.permissionId} → ${grant.resourceId} (${shortHash(grant.resourceDigest)})`).join(" · ") : "none"],

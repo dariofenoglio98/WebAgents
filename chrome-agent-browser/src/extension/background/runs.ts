@@ -200,7 +200,7 @@ export function preparingRunRecord(input: { runId: string; sessionId: string; pl
     packageExecution: { workflowInstantiated: false, packageInstructionsLoaded: false, toolHandlersInstalled: plan.tool_bindings.length, toolCalls: 0 },
     task: { inputBytes: input.inputBytes, attachments: (input.attachments ?? []).map((file) => ({ fileId: file.file_id, sha256: file.sha256, bytes: file.bytes, mediaType: file.media_type })) },
     progress: null,
-    tools: plan.tool_bindings.map((binding) => ({ toolId: binding.tool_id, bindingId: binding.binding_id, bindingSha256: binding.binding_sha256, remote: binding.remote, calls: 0, displayName: binding.display_name })),
+    tools: plan.tool_bindings.map((binding) => ({ toolId: binding.tool_id, bindingId: binding.binding_id, bindingSha256: binding.binding_sha256, remote: binding.remote, calls: 0, displayName: binding.display_name, retries: 0, fallbackAnswers: 0 })),
     failure: null,
     origin: "live",
   };

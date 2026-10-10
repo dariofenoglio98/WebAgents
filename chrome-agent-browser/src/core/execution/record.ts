@@ -47,7 +47,8 @@ export interface RunRecord {
   packageExecution: { workflowInstantiated: boolean; packageInstructionsLoaded: boolean; toolHandlersInstalled: number; toolCalls: number };
   task: { inputBytes: number; attachments: Array<{ fileId: string; sha256: string; bytes: number; mediaType: string }> };
   progress: ProgressSnapshot | null;
-  tools: Array<{ toolId: string; bindingId: string; bindingSha256: string; remote: boolean; calls: number; displayName: string | null }>;
+  /** Per bound tool: its calls, the transient retries they took (D-152) and how many a host fallback answered (D-153). */
+  tools: Array<{ toolId: string; bindingId: string; bindingSha256: string; remote: boolean; calls: number; displayName: string | null; retries: number; fallbackAnswers: number }>;
   failure: { nodeId: string | null; stepId: string | null; errorCode: string | null; failedCheck: JsonValue | null; call: { kind: string; action: string; tool: string | null; task: string | null; reason: string | null } | null } | null;
   origin: "live" | "fixture";
 }
@@ -138,7 +139,7 @@ export function initialRunRecord(input: RecordInputs): RunRecord {
       attachments: (Array.isArray(begin.invocation.attachments) ? (begin.invocation.attachments as JsonObject[]) : []).map((file) => ({ fileId: str(file.file_id), sha256: str(file.sha256), bytes: int(file.bytes), mediaType: str(file.media_type) })),
     },
     progress: null,
-    tools: plan.tool_bindings.map((binding) => ({ toolId: binding.tool_id, bindingId: binding.binding_id, bindingSha256: binding.binding_sha256, remote: binding.remote, calls: 0, displayName: binding.display_name ? clip(binding.display_name, 512) : null })),
+    tools: plan.tool_bindings.map((binding) => ({ toolId: binding.tool_id, bindingId: binding.binding_id, bindingSha256: binding.binding_sha256, remote: binding.remote, calls: 0, displayName: binding.display_name ? clip(binding.display_name, 512) : null, retries: 0, fallbackAnswers: 0 })),
     failure: null,
     origin: input.origin,
   };
@@ -223,7 +224,13 @@ export function completeRunRecord(record: RunRecord, result: ExecutionResult, en
       toolHandlersInstalled: int(rec(result.package_execution).tool_handlers_installed),
       toolCalls: int(rec(result.package_execution).tool_calls),
     },
-    tools: record.tools.map((tool) => ({ ...tool, calls: int(toolCalls[tool.toolId]) })),
+    tools: record.tools.map((tool) => {
+      // Which implementation answered each call (the runner's `tool_dispatches`, D-152, D-153).
+      const dispatches = (Array.isArray(result.tool_dispatches) ? (result.tool_dispatches as JsonObject[]) : []).filter((item) => item.tool_id === tool.toolId);
+      const retries = dispatches.reduce<number>((total, item) => total + Math.max(0, int(item.attempts) - 1) + Math.max(0, int(item.fallback_attempts) - 1), 0);
+      const fallbackAnswers = dispatches.filter((item) => item.outcome === "ok" && item.answered_by_fallback === true).length;
+      return { ...tool, calls: int(toolCalls[tool.toolId]), retries, fallbackAnswers };
+    }),
     progress: (result.progress as unknown as ProgressSnapshot | null) ?? null,
     failure: status === "completed" ? null : projectFailure(result.failure),
   };

@@ -1,0 +1,100 @@
+{
+  "spec_version": "0.1",
+  "package_id": "org.example.citations",
+  "name": "Citations",
+  "version": "0.1.0",
+  "description": "Searches Crossref once and resolves a list of identifiers; a test package for the Chrome broker's retries and citation fallback (T13), never shipped.",
+  "publisher": {
+    "id": "example",
+    "name": "Example"
+  },
+  "created_at": "2026-10-10T00:00:00Z",
+  "runtime": {
+    "api": "agentpkg-runtime-v0",
+    "minimum_version": "0.2.0"
+  },
+  "capabilities": [
+    "citations"
+  ],
+  "entrypoint": "workflow.v0",
+  "graph": "graph.json",
+  "policy": "policy/policy.json",
+  "skills": [
+    {
+      "id": "cite",
+      "version": "0.1.0",
+      "path": "skills/cite/SKILL.md"
+    }
+  ],
+  "tools": [
+    {
+      "id": "citation-resolver",
+      "path": "tools/citation-resolver.tool.json"
+    },
+    {
+      "id": "scholarly-search",
+      "path": "tools/scholarly-search.tool.json"
+    }
+  ],
+  "schemas": [
+    {
+      "id": "input",
+      "path": "schemas/input.schema.json"
+    },
+    {
+      "id": "output",
+      "path": "schemas/output.schema.json"
+    },
+    {
+      "id": "query",
+      "path": "schemas/query.schema.json"
+    },
+    {
+      "id": "resolver-input",
+      "path": "schemas/resolver-input.schema.json"
+    },
+    {
+      "id": "resolver-output",
+      "path": "schemas/resolver-output.schema.json"
+    },
+    {
+      "id": "responses",
+      "path": "schemas/responses.schema.json"
+    },
+    {
+      "id": "search-input",
+      "path": "schemas/search-input.schema.json"
+    },
+    {
+      "id": "search-output",
+      "path": "schemas/search-output.schema.json"
+    },
+    {
+      "id": "state",
+      "path": "schemas/state.schema.json"
+    }
+  ],
+  "model_requirements": {
+    "tasks": [
+      {
+        "id": "cite",
+        "capabilities": [
+          "structured_output"
+        ],
+        "context_window": 1000,
+        "preferred_tier": "any"
+      }
+    ],
+    "routing": "host",
+    "fallback_policy": "deny",
+    "extensions": {}
+  },
+  "evals": [],
+  "attestations": [],
+  "dependencies": [],
+  "update": {
+    "channel": "local",
+    "locator": null
+  },
+  "extensions": {}
+}
