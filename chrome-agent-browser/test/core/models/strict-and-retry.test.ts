@@ -20,6 +20,7 @@ import type { HttpRequest, HttpTransport } from "../../../src/core/models/transp
 import { loadPackageBytes } from "../../../src/core/package.js";
 import { AdapterError, WorkflowError } from "../../../src/core/workflow/errors.js";
 import { readBytes, SHIPPED } from "../../helpers/paths.js";
+import { loadSource, sourceTree } from "../../helpers/source-tree.js";
 import { createWorkflow, sessionGrants } from "../../helpers/workflow.js";
 import { runWorkflow } from "../../../src/core/workflow/interpreter.js";
 
@@ -83,6 +84,10 @@ describe("openAiStrictSchema", () => {
     });
     // 0.2.6 (T10): normalize asks for references, still strict.
     expect(await strictness(SHIPPED.literatureReview026.archive, ["schemas/normalize.schema.json", "schemas/paper-evidence.schema.json"])).toEqual({ "schemas/normalize.schema.json": true, "schemas/paper-evidence.schema.json": true });
+    // 0.2.7 (T15): every answer a model writes about papers is a short, strict one.
+    const source = await createWorkflow(await loadSource(sourceTree("literature-review")));
+    const v027 = ["schemas/normalize.schema.json", "schemas/screen-verdict.schema.json", "schemas/selection.schema.json", "schemas/paper-evidence.schema.json"];
+    expect(Object.fromEntries(v027.map((path) => [path, openAiStrictSchema(source.modelSchema(path)) !== null]))).toEqual(Object.fromEntries(v027.map((path) => [path, true])));
   });
 });
 
