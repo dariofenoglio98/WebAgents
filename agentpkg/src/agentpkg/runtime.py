@@ -102,9 +102,9 @@ class Context:
     async def tool(self, tool_id, payload):
         return await self._runtime.call_tool(self, tool_id, payload)
 
-    async def model(self, task, payload, output_schema, max_output_tokens=2048):
+    async def model(self, task, payload, output_schema, max_output_tokens=2048, check=None):
         return await self._runtime.call_model(
-            self, task, payload, output_schema, max_output_tokens=max_output_tokens
+            self, task, payload, output_schema, max_output_tokens=max_output_tokens, check=check
         )
 
     def event(self, action, **metadata):
@@ -462,7 +462,14 @@ class Runtime:
             )
             raise
 
-    async def call_model(self, ctx, task, payload, output_schema, *, max_output_tokens):
+    async def call_model(self, ctx, task, payload, output_schema, *, max_output_tokens, check=None):
+        """One model call: authorize, count, reserve, complete, account, validate.
+
+        `check`, when given, is the node's answer checks (workflow.v0, agentpkg 0.3.0): it is
+        called with a copy of the schema-valid answer and raises to refuse it, which fails the
+        call as a non-conforming answer, charged what the router reported. This runtime asks
+        no model twice; a host that re-asks does so within these same bounds (spec section 7).
+        """
         self._check_context(ctx)
         router = self.router
         if router is None:
@@ -630,6 +637,8 @@ class Runtime:
             self._check_context(ctx)
             validate_document(result, "model-result", "model response")
             Draft202012Validator(output_schema).validate(result["output"])
+            if check is not None:
+                check(copy.deepcopy(result["output"]))
             self.record(
                 "model.completed",
                 context=ctx,
@@ -642,6 +651,8 @@ class Runtime:
             )
             return copy.deepcopy(result["output"])
         except BaseException as exc:
+            # Which answer check refused the answer, by the package's own pointers; never data.
+            refused = getattr(exc, "failed_check", None)
             self.record(
                 "model.failed",
                 context=ctx,
@@ -649,6 +660,7 @@ class Runtime:
                 error=type(exc).__name__,
                 tokens_charged=used,
                 **failure_reason(exc),
+                **({"failed_check": refused} if isinstance(refused, dict) else {}),
             )
             raise
         finally:

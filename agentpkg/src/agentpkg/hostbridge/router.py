@@ -170,6 +170,13 @@ def render(request: dict) -> dict:
     if names:
         contract += " " + _CLOSED_ROOT_CONTRACT.format(names=", ".join(names))
     sections.append(f"## Output contract\n{contract}\n\n{schema_text}")
+    feedback = request.get("feedback")
+    if feedback is not None:
+        # A host's re-ask (spec section 7): one line naming why the previous answer was not
+        # accepted. It is part of the system text, so the count below includes it.
+        if not isinstance(feedback, str) or not feedback:
+            raise BridgeError("model_request_invalid", "Request feedback must be a nonempty string")
+        sections.append(f"## Correction\n{feedback}")
     return {
         "system": "\n\n".join(sections),
         "user": _canonical(request.get("data")),

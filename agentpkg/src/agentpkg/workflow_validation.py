@@ -52,9 +52,25 @@ def _at_schema(schema, parts, path, documents, label, seen=None):
     return _at_schema(child, rest, path, documents, label, seen)
 
 
+#: The first runtime that evaluates answer checks (`checks` on an llm node or map llm step).
+CHECKS_MINIMUM_VERSION = (0, 3, 0)
+
+
+def _declares_checks(graph):
+    for node in graph["nodes"]:
+        if "checks" in node or any("checks" in step for step in node.get("steps", [])):
+            return True
+    return False
+
+
 def validate_workflow(manifest, graph, policy, tools, files):
     if manifest["entrypoint"] != "workflow.v0":
         raise ValidationError("workflow.v0 graph requires entrypoint workflow.v0")
+    minimum = tuple(int(x) for x in manifest["runtime"]["minimum_version"].split("-")[0].split("."))
+    if _declares_checks(graph) and minimum < CHECKS_MINIMUM_VERSION:
+        # An older runtime would refuse the unknown field anyway; declaring the minimum makes it
+        # refuse the package by its version, with the reason a person can act on.
+        raise ValidationError("answer checks require runtime.minimum_version 0.3.0 or later")
     schema_paths = {s["path"] for s in manifest["schemas"]}
     documents = {p: parse_json(files[p], p) for p in schema_paths}
     workers = {r["id"]: r for r in graph["workers"]}
@@ -142,6 +158,12 @@ def validate_workflow(manifest, graph, policy, tools, files):
             for key in ("left", "right", "rows", "targets", "equals"):
                 if key in assertion:
                     expression(assertion[key], env, label + "/assertions/" + key, role, nid)
+        # Answer checks see the operation's own sources and the answer itself as `result`.
+        answer_env = env | {"result": schema(node["output_schema"], label)}
+        for check in node.get("checks", []):
+            for key in ("left", "right", "rows", "targets", "equals"):
+                if key in check:
+                    expression(check[key], answer_env, label + "/checks/" + key, role, nid)
         kind = node["type"]
         if kind == "llm" and node["task"] not in tasks:
             raise ValidationError(f"{label}: undeclared model task {node['task']!r}")
