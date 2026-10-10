@@ -138,7 +138,7 @@ class Reviewer implements ProviderAdapter {
       case "write":
         return { draft: { title: "Related Work", claim_ids: (data.claims as JsonObject[]).map((claim) => claim.claim_id!) }, claims: data.claims! };
       case "verify": {
-        const claims = (data.claims as JsonObject[]).map((claim) => ({ ...claim, verification_status: "supported" }));
+        const claims: JsonObject[] = (data.claims as JsonObject[]).map((claim) => ({ ...claim, verification_status: "supported" }));
         const cited = [...new Set(claims.flatMap((claim) => claim.paper_ids as string[]))].sort();
         const evidence = new Map((data.evidence_items as JsonObject[]).map((item) => [item.evidence_id as string, item]));
         return {
@@ -258,7 +258,10 @@ describe("model slips that stopped or emptied 0.2.6 (B-151)", () => {
   }, 30_000);
 
   it("an empty normalize answer: 0.2.6 completes with nothing screened and nothing cited; 0.2.7 screens all five", async () => {
-    const empty: Fault = (task, _attempt, answer) => (task !== "normalize" ? undefined : Array.isArray((answer as JsonObject).candidate_papers) ? { candidate_papers: [], screening_refs: [] } : { candidates: [] });
+    const empty: Fault = (task, _attempt, answer): JsonValue | undefined => {
+      if (task !== "normalize") return undefined;
+      return Array.isArray((answer as JsonObject).candidate_papers) ? { candidate_papers: [], screening_refs: [] } : { candidates: [] };
+    };
     // 0.2.6 then asks select to choose from nothing, which a careful model answers with nothing.
     const before = await review(await v026(), { fault: empty });
     expect(before.result!.status).toBe("completed");
