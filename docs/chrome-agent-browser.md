@@ -122,9 +122,9 @@ has no `innerHTML`. Per-origin optional permissions are later hardening (BACKLOG
 | Package and page downloads | HTTPS on port 443, a DNS name, no redirect followed, 60 s | D-026, D-033, D-039 |
 | Run limits (Settings → Policies → Run limits) | the reference plugin's defaults; "Use the long-run limits" sets the values the reference host used for Literature Review | D-084, `src/core/execution/limits.ts` |
 | A package's own budget and deadline | always apply beneath the host's limits; the host never raises them | D-064 |
-| Model calls | one bound model per plan, no fallback; a per-call deadline; output capped at the node's `max_output_tokens`. OpenAI is sent a strict json_schema (constrained decoding) when the package schema can be one without changing its meaning: optional properties are sent as required and nullable and a null for one is read back as absent, an array root is wrapped as `{"items": …}` and unwrapped; otherwise non-strict. The full package schema always decides. OpenAI's reasoning effort is a setting (Settings → Models, default medium) recorded on the run. An answer that still breaks the schema is asked for once more when the retry fits the step's budget (counted, audited as `attempt: 2`; otherwise `model.retry_skipped`), never repaired | D-023, D-061, D-062, D-115, D-121…D-124 |
+| Model calls | one bound model per plan, no fallback; a per-call deadline; output capped at the node's `max_output_tokens`. OpenAI is sent a strict json_schema (constrained decoding) when the package schema can be one without changing its meaning: optional properties are sent as required and nullable and a null for one is read back as absent, an array root is wrapped as `{"items": …}` and unwrapped; otherwise non-strict. The full package schema always decides. OpenAI's reasoning effort is a setting (Settings → Models, default medium) recorded on the run. An answer that is not accepted (it breaks the schema, is not JSON, or fails one of the package's answer checks) is asked for again, up to twice, each time with one line naming what was wrong, when the re-ask fits (see "A re-ask and a retry in a run record" below); never repaired | D-023, D-061, D-062, D-115, D-121…D-124, D-150, D-151 |
 | A model call's size | before each call the runtime reserves the request counted as one token per UTF-8 byte (a safe upper bound; no tokenizer runs in the browser, and the Python runtime counts the same way) plus the node's `max_output_tokens`, and refuses the call when that exceeds the model's context. The run surface then says "The request was larger than the model's context window" with the reserved tokens and the context (T9). Local Ollama models are capped at 32,768 tokens until the person raises the context in Settings → Models; Literature Review's larger steps need 65,536 | D-055, `src/core/workflow/runtime.ts` |
-| Tool calls | one request, no redirect, no retry, bounded request and response bytes, the binding's own pacing | D-054, D-066, D-081 |
+| Tool calls | one request at a time, no redirect, bounded request and response bytes, the binding's own pacing. A read-only remote call that fails transiently (429, 500, 503, 504, a 502 that is not data, a connection failure, the binding's timeout) is sent again up to twice, after 1 s and 3 s or the server's `Retry-After` up to 10 s, each retry a remote call within the run's budgets; a tool with side effects is never sent twice. A `citation.resolve` call for a DOI whose resolver stays unavailable is answered by the built-in Crossref lookup when the package declares `api.crossref.org` | D-054, D-066, D-081, D-152, D-153 |
 | Selected PDFs | the reference parser's limits (size, pages, text per page, text in all) | D-082 |
 | One active run | per session and per plan; a receipt must outlast the run deadline by 60 s | D-071 |
 
@@ -229,6 +229,36 @@ which index 1.0.0 listed (kept as `examples/agent-index-1.0.0.json`). Evidence: 
   `execution_model_incompatible`). A plan keeps the model it was
   prepared with; after the default changes, the plan card says so and "Use this agent" prepares a
   plan on the new default.
+
+### A re-ask and a retry in a run record (T13)
+
+Both are in the run's audit (`evidence/audit.json` in the Download, `audit.json` in the CLI's
+output directory) and summarized in its record:
+
+- **A re-ask.** The refused attempt is a `model.failed` with `reason: model_output_not_conforming`
+  and `failure_facts.output_failure` (`schema`, `not_json`, `no_text` or `check`); for a refused
+  answer check it also carries `failed_check`, e.g. `{check: "answer_check", index: 0, kind:
+  "relation", failure: "missing_target_key", row_key: "/owner", target_key: "/name"}`. The re-ask
+  follows as `model.count.called` and `model.called` with `attempt: 2` (then 3) and `after`, the
+  same structure without any value. The model alone is shown the reason, as the last section of the
+  request: `## Correction` and `The previous answer was not accepted: answer check 0 (relation)
+  failed: missing_target_key at /owner for "Dana". Return the complete JSON document again,
+  corrected.` A re-ask that would not fit is `model.retry_skipped` with `reason` `budget` (and the
+  `bound`), `context_window` or `deadline`. The run surface says it in words, for example "It
+  failed the package's answer check 0 (relation: missing_target_key at /owner). The runtime asked
+  twice more, each time naming what was wrong, and no answer was accepted."
+- **A retry.** One `tool.called` for the call; each retry is `tool.retried` (`attempt`, `reason`
+  `http_status`, `transport` or `timeout`, `http_status`, `delay_ms`) and one more remote call in
+  `usage`; `tool.settled` says `attempts` and `answered_by`. A retry that would not fit is
+  `tool.retry_skipped` (`budget`, `deadline`, or `retry_after` when the server asked for more than
+  10 s). The citation fallback adds `tool.fallback` (`from`, `to`, `reason`), and
+  `tool.fallback_failed` or `tool.fallback_skipped` when it could not answer; its answer carries
+  the warning "The Citation Resolver was unavailable, so this browser looked the DOI up at Crossref
+  only (built-in fallback)." The record's Technical details list per tool how many calls were
+  retried and how many the built-in lookup answered.
+
+Fixture runs show neither: a replay router asks no model twice and fixture tools are never retried,
+so the two runtimes still replay every package identically (`conformance/`).
 
 ## 11. What it does not do yet
 
