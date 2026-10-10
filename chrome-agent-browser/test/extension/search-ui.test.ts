@@ -17,6 +17,7 @@ import type { Event, SessionView } from "../../src/extension/messages.js";
 import { failure, success } from "../../src/extension/messages.js";
 import demoDocuments from "../../src/extension/data/demo-documents.json" with { type: "json" };
 import { readBytes, ROOT, SHIPPED } from "../helpers/paths.js";
+import { until } from "../helpers/page.js";
 import { makeHarness, PAGE_IN_TAB, type Route } from "../helpers/shell.js";
 
 const ORIGIN = "https://webagents-webair-production.up.railway.app";
@@ -60,24 +61,37 @@ vi.stubGlobal("chrome", {
 await import("../../src/extension/browser/browser.js");
 
 const app = () => document.getElementById("app")!;
-const settle = (ms = 120) => new Promise((resolve) => setTimeout(resolve, ms));
-async function go(hash: string): Promise<void> {
+/** The page's text contains `text` (B-149: every step waits for what it needs, with a deadline, never a fixed sleep). */
+const shows = (text: string) => until(() => app().textContent?.includes(text), `"${text}" on the page; it shows: ${app().textContent?.slice(0, 300)}`);
+const element = <T extends HTMLElement = HTMLElement>(selector: string) => until(() => app().querySelector<T>(selector), selector);
+
+async function go(hash: string, ready: () => unknown): Promise<void> {
   location.hash = hash;
   window.dispatchEvent(new Event("hashchange"));
-  await settle();
-  await settle();
+  await until(ready, `the page at ${hash}`);
 }
 
-function buttonNamed(text: string, root: ParentNode = app()): HTMLButtonElement {
-  const found = [...root.querySelectorAll<HTMLButtonElement>("button")].find((node) => node.textContent?.trim() === text);
-  if (!found) throw new Error(`no button "${text}" in: ${app().textContent?.slice(0, 400)}`);
-  return found;
+function buttonNamed(text: string, root: ParentNode = app()): HTMLButtonElement | null {
+  return [...root.querySelectorAll<HTMLButtonElement>("button")].find((node) => node.textContent?.trim() === text && !node.disabled) ?? null;
 }
 
-async function press(text: string, root?: ParentNode): Promise<void> {
-  buttonNamed(text, root).click();
-  await settle();
-  await settle();
+/**
+ * Press the button named `text` once it is there, then wait for `after`. A press can land on a node
+ * a re-render is about to replace, so the button is found and pressed again (at most every second)
+ * until `after` holds or the deadline passes.
+ */
+async function press(text: string, after: () => unknown, root?: () => ParentNode | null, timeoutMs = 10_000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const button = await until(() => buttonNamed(text, root?.() ?? app()), `a button "${text}"; the page shows: ${app().textContent?.slice(0, 300)}`, Math.max(1, deadline - Date.now()));
+    button.click();
+    try {
+      await until(after, `the page after "${text}"`, Math.min(1_000, Math.max(1, deadline - Date.now())));
+      return;
+    } catch (error) {
+      if (Date.now() >= deadline) throw error;
+    }
+  }
 }
 
 describe("the demo values the page fills in", () => {
@@ -97,20 +111,19 @@ describe("the demo values the page fills in", () => {
 describe("search, Library and policy on the full page (T8)", () => {
   it("adds the demo index, finds Literature Review, opens it verified, pins it, then a subscribed policy shows on WebAir's authorization", async () => {
     // Settings → Search: fill in the demo index and add it.
-    await go("#settings?section=search");
-    expect(app().textContent).toContain("No index added yet.");
-    await press("Fill in the WebAgents demo index");
+    await go("#settings?section=search", () => app().textContent?.includes("No index added yet."));
+    await press("Fill in the WebAgents demo index", () => app().querySelector<HTMLInputElement>("input[name=indexUrl]")?.value);
     expect(app().querySelector<HTMLInputElement>("input[name=indexUrl]")!.value).toBe(demoDocuments.index.url);
-    await press("Add and verify");
-    const indexRow = app().querySelector<HTMLElement>(".ab-index-row")!;
+    await press("Add and verify", () => app().querySelector(".ab-index-row"));
+    const indexRow = await element(".ab-index-row");
     expect(indexRow.textContent).toContain("WebAgents demo index 1.1.0");
     expect(indexRow.textContent).toContain("verified, current");
 
     // The address bar searches words.
-    await go("#open");
+    await go("#open", () => app().querySelector(".ab-address-input"));
     const input = app().querySelector<HTMLInputElement>(".ab-address-input")!;
     input.value = "literature review";
-    await press("Open", app().querySelector("form.ab-address")!);
+    await press("Open", () => app().querySelector(".ab-result"), () => app().querySelector("form.ab-address"));
     const results = app().querySelectorAll<HTMLElement>(".ab-result");
     expect(results).toHaveLength(1);
     expect(results[0]!.dataset.packageId).toBe(SHIPPED.literatureReview026.packageId);
@@ -119,8 +132,8 @@ describe("search, Library and policy on the full page (T8)", () => {
     expect(results[0]!.textContent).toContain("claims a key you have not trusted");
 
     // Open and verify: the agent page, with what the index said compared with the bytes.
-    await press("Open and verify", results[0]!);
-    await settle();
+    const result = results[0]!;
+    await press("Open and verify", () => app().querySelector(".ab-found-via") && app().textContent?.includes("Signed, publisher unknown"), () => result);
     expect(location.hash).toMatch(/^#session=/u);
     const banner = app().querySelector<HTMLElement>(".ab-found-via")!;
     expect(banner.dataset.claims).toBe("matches");
@@ -128,29 +141,30 @@ describe("search, Library and policy on the full page (T8)", () => {
     expect(app().textContent).toContain("Signed, publisher unknown");
 
     // Pin it, and find it in the Library.
-    await press("Pin to Library");
-    await go("#library");
+    await press("Pin to Library", () => buttonNamed("Pin to Library") === null);
+    await go("#library", () => app().querySelector(".ab-library-row") && app().textContent?.includes("Recently opened"));
     const pinned = app().querySelector<HTMLElement>(".ab-library-row")!;
     expect(pinned.dataset.packageUrl).toBe(`${ORIGIN}/packages/literature-review-0.2.6.agent.pkg`);
     expect(app().textContent).toContain("Recently opened");
 
     // Settings → Policies: subscribe to the example research policy.
-    await go("#settings?section=policies");
-    await press("Fill in the example WebAgents research policy");
-    await press("Subscribe");
+    await go("#settings?section=policies", () => buttonNamed("Fill in the example WebAgents research policy"));
+    await press("Fill in the example WebAgents research policy", () => buttonNamed("Subscribe"));
+    await press("Subscribe", () => app().textContent?.includes("org.webagents.research@1.0.0"));
     expect(app().textContent).toContain("WebAgents research policy");
     expect(app().textContent).toContain("org.webagents.research@1.0.0");
     expect(app().textContent).toContain("WebAir (fictional demo airline) (webair-demo), for org.webagents.webair…");
 
     // WebAir by address: trusted through the policy, and its decisions name the policy.
-    await go("#open");
+    await go("#open", () => app().querySelector(".ab-address-input"));
     const address = app().querySelector<HTMLInputElement>(".ab-address-input")!;
     address.value = `${ORIGIN}/agent.pkg`;
-    await press("Open", app().querySelector("form.ab-address")!);
-    await settle();
-    expect(app().textContent).toContain("Signed by a publisher your policy trusts");
+    await press("Open", () => app().textContent?.includes("pre-decided by your policy"), () => app().querySelector("form.ab-address"));
+    await shows("Signed by a publisher your policy trusts");
     expect(app().textContent).toContain("pre-decided by your policy WebAgents research policy (org.webagents.research@1.0.0)");
-    await press("Customize your settings");
+    // The flaky step before B-149: the customize view renders after its own reads, so wait for its chip.
+    await press("Customize your settings", () => app().querySelector("[data-permission='network.webair']"));
+    await until(() => [...app().querySelectorAll<HTMLElement>("[data-permission='network.webair'] .ab-chip, [data-permission='network.webair'] span")].some((node) => node.textContent === "decided by policy org.webagents.research@1.0.0"), "the policy chip on network.webair");
     const chips = [...app().querySelectorAll<HTMLElement>("[data-permission='network.webair'] .ab-chip, [data-permission='network.webair'] span")].map((node) => node.textContent);
     expect(chips).toContain("decided by policy org.webagents.research@1.0.0");
     const opened = (await h.controller.handle({ type: "sessions.list" }, PAGE_IN_TAB)) as { sessions: Array<Pick<SessionView["session"], "id">> };

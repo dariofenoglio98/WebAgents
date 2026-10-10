@@ -476,9 +476,44 @@ function wordmark(): HTMLElement {
   return el("h1", { className: "ab-wordmark", attrs: { "aria-label": "WebAgents" } }, ...[..."WebAgents"].map((letter) => el("span", { text: letter, attrs: { "aria-hidden": "true" } })));
 }
 
+/** The compact page's wordmark leads back to the start page (D-162). */
+function homeLink(): HTMLElement {
+  const link = el("a", { className: "ab-wordmark-home", attrs: { href: "#open", title: "Back to the start page" } }, wordmark());
+  link.addEventListener("click", (event) => {
+    event.preventDefault();
+    goHome();
+  });
+  return link;
+}
+
+/**
+ * Back to the start page (D-162): the search, the website card, the error and the box's text go.
+ * An open agent is set aside, not closed: its session stays listed under "Open now".
+ */
+function goHome(): void {
+  state.search = null;
+  state.website = null;
+  state.error = null;
+  state.address = "";
+  if (state.open) {
+    state.open = null;
+    flow.reset();
+    runs.detach();
+  }
+  if (location.hash !== "#open") history.pushState(null, "", "#open");
+  state.view = "open";
+  void load();
+  render();
+  document.querySelector<HTMLInputElement>('input[name="package-url"]')?.focus();
+}
+
 function addressBar(): HTMLElement {
   const input = el("input", { className: "ab-input ab-address-input", attrs: { name: "package-url", type: "text", placeholder: "Search agents, or paste an agent.pkg URL or a locator like flights@webair.example", autocomplete: "off", "aria-label": "Search agents or open an address" } });
   input.value = state.address;
+  // What is typed survives a re-render from an event (B-150 item 6).
+  input.addEventListener("input", () => {
+    state.address = input.value;
+  });
   const form = el("form", { className: "ab-address" }, searchIcon(), input, button("Open", () => void openAddress(input.value.trim()), { variant: "primary" }));
   form.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -507,7 +542,7 @@ function errorBox(): HTMLElement | null {
  */
 function openView(): HTMLElement[] {
   const start = !state.open && !state.website && !state.search && !state.busy && !state.error;
-  const head = el("div", { className: "ab-open-head" }, wordmark(), el("p", { className: "ab-tagline", text: "Find agents on the web. Run them on your terms." }), addressBar());
+  const head = el("div", { className: "ab-open-head" }, start ? wordmark() : homeLink(), el("p", { className: "ab-tagline", text: "Find agents on the web. Run them on your terms." }), addressBar());
   const nodes: Array<HTMLElement | null> = [head, errorBox(), state.busy ? el("p", { className: "ab-busy", text: state.busy }) : null];
   if (state.open) {
     const open = state.open;
