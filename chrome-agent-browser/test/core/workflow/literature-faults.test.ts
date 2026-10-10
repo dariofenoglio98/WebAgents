@@ -306,7 +306,8 @@ describe("model slips that stopped or emptied 0.2.6 (B-151)", () => {
     const before = await review(await v026(), { fault: paraphrase });
     expect([before.error?.code, before.error?.node_id]).toEqual(["schema_validation", "evidence"]);
     const after = await review(await v027(), { fault: paraphrase });
-    recoveredByReask(after, "extract", /answer check 3 \(relation\) failed: fields_do_not_match/u);
+    // The correction names the evidence item whose quote was not found (the check is keyed by evidence id).
+    recoveredByReask(after, "extract", /answer check 3 \(relation\) failed: fields_do_not_match at \/quote contained_in \/text for "P[1-3]:e1"\./u);
     expect(actions(after, "model.called").filter((event) => event.attempt === 2)).toHaveLength(3);
   }, 30_000);
 

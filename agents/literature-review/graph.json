@@ -2436,22 +2436,109 @@
                 }
               ],
               "kind": "relation",
-              "row_key": "/paper_id",
+              "row_key": "/evidence_id",
               "rows": {
                 "from": "result",
                 "path": ""
               },
-              "target_key": "/paper_id",
+              "target_key": "/evidence_id",
               "targets": {
                 "array": [
                   {
                     "object": {
+                      "evidence_id": {
+                        "from": "item",
+                        "path": "/evidence_ids/0"
+                      },
                       "page": {
                         "literal": null
                       },
-                      "paper_id": {
+                      "scope": {
+                        "literal": "abstract"
+                      },
+                      "source_sha256": {
+                        "literal": ""
+                      },
+                      "text": {
+                        "coalesce": [
+                          {
+                            "from": "item",
+                            "path": "/record/metadata/abstract"
+                          },
+                          {
+                            "from": "item",
+                            "path": "/paper/abstract"
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "object": {
+                      "evidence_id": {
                         "from": "item",
-                        "path": "/handle"
+                        "path": "/evidence_ids/1"
+                      },
+                      "page": {
+                        "literal": null
+                      },
+                      "scope": {
+                        "literal": "abstract"
+                      },
+                      "source_sha256": {
+                        "literal": ""
+                      },
+                      "text": {
+                        "coalesce": [
+                          {
+                            "from": "item",
+                            "path": "/record/metadata/abstract"
+                          },
+                          {
+                            "from": "item",
+                            "path": "/paper/abstract"
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "object": {
+                      "evidence_id": {
+                        "from": "item",
+                        "path": "/evidence_ids/2"
+                      },
+                      "page": {
+                        "literal": null
+                      },
+                      "scope": {
+                        "literal": "abstract"
+                      },
+                      "source_sha256": {
+                        "literal": ""
+                      },
+                      "text": {
+                        "coalesce": [
+                          {
+                            "from": "item",
+                            "path": "/record/metadata/abstract"
+                          },
+                          {
+                            "from": "item",
+                            "path": "/paper/abstract"
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "object": {
+                      "evidence_id": {
+                        "from": "item",
+                        "path": "/evidence_ids/3"
+                      },
+                      "page": {
+                        "literal": null
                       },
                       "scope": {
                         "literal": "abstract"
