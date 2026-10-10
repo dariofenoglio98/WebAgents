@@ -406,6 +406,18 @@
     },
     "papers_found": {
       "$ref": "papers-found.schema.json"
+    },
+    "selection_slots": {
+      "$ref": "slots.schema.json"
+    },
+    "handle_slots": {
+      "$ref": "handle-slots.schema.json"
+    },
+    "handle_job_batches": {
+      "$ref": "handle-job-batches.schema.json"
+    },
+    "handle_jobs": {
+      "$ref": "handle-jobs.schema.json"
     }
   },
   "required": [

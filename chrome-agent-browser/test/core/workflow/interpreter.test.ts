@@ -59,7 +59,9 @@ describe("the same interpreter runs both reference packages from their sources",
         expect((output.bibliography as JsonValue[]).length).toBe(2);
         expect((output.evidence_table as JsonValue[]).length).toBe(7);
         expect(new Set((result.state.citation_records as JsonObject[]).map((record) => record.status))).toEqual(new Set(["resolved", "ambiguous"]));
-        expect((output.unresolved as JsonObject[]).map((item) => item.status)).toEqual(["ambiguous", "screening_maybe"]);
+        // 0.2.7: the unresolved list is the graph's own; a paper screened "maybe" is in papers_found.
+        expect((output.unresolved as JsonObject[]).map((item) => item.status)).toEqual(["ambiguous"]);
+        expect((output.papers_found as JsonObject[]).some((paper) => paper.screening_status === "maybe")).toBe(true);
         expect(String(output.related_work)).toContain("SYNTHETIC DEMONSTRATION");
       } else {
         const output = result.output as JsonObject;

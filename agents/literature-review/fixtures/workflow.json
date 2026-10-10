@@ -791,6 +791,12 @@
       {
         "input": {
           "document": null,
+          "evidence_ids": [
+            "P2:e1",
+            "P2:e2",
+            "P2:e3",
+            "P2:e4"
+          ],
           "paper": {
             "abstract": "Adaptive communication topology changes message edges between language-model agents during a task. The synthetic method uses intermediate agreement signals to choose a communication graph. Its abstract does not report evaluation sample sizes.",
             "arxiv_id": null,
@@ -800,19 +806,7 @@
               }
             ],
             "doi": "10.0000/synthetic-topology",
-            "full_text_available": false,
-            "paper_id": "10.0000/synthetic-topology",
-            "provenance": [
-              {
-                "locator": "fixture:topology",
-                "query": null,
-                "source": "synthetic-fixture",
-                "synthetic": true
-              }
-            ],
-            "screening_rationale": "Extractive baseline: available source text overlaps question terms (agent, topology); lexical heuristic, not semantic relevance or a probability.",
-            "screening_status": "include",
-            "source": "synthetic-fixture",
+            "paper_id": "P2",
             "title": "SYNTHETIC: Adaptive Communication Topology for Agent Teams",
             "url": null,
             "venue": "Synthetic Fixture Proceedings",
@@ -837,7 +831,7 @@
               "venue": "Synthetic Fixture Proceedings",
               "year": 2026
             },
-            "paper_id": "10.0000/synthetic-topology",
+            "paper_id": "P2",
             "query": "10.0000/synthetic-topology",
             "sources": [
               {
@@ -857,13 +851,13 @@
         "output": [
           {
             "category": "method",
-            "evidence_id": "10.0000/synthetic-topology:e1",
+            "evidence_id": "P2:e1",
             "extraction_worker": "fixture-replay",
             "location": {
               "page": null,
               "section": "abstract"
             },
-            "paper_id": "10.0000/synthetic-topology",
+            "paper_id": "P2",
             "provenance": {
               "locator": "10.0000/synthetic-topology",
               "source": "crossref",
@@ -877,13 +871,13 @@
           },
           {
             "category": "method",
-            "evidence_id": "10.0000/synthetic-topology:e2",
+            "evidence_id": "P2:e2",
             "extraction_worker": "fixture-replay",
             "location": {
               "page": null,
               "section": "abstract"
             },
-            "paper_id": "10.0000/synthetic-topology",
+            "paper_id": "P2",
             "provenance": {
               "locator": "10.0000/synthetic-topology",
               "source": "crossref",
@@ -897,13 +891,13 @@
           },
           {
             "category": "limitation",
-            "evidence_id": "10.0000/synthetic-topology:e3",
+            "evidence_id": "P2:e3",
             "extraction_worker": "fixture-replay",
             "location": {
               "page": null,
               "section": "abstract"
             },
-            "paper_id": "10.0000/synthetic-topology",
+            "paper_id": "P2",
             "provenance": {
               "locator": "10.0000/synthetic-topology",
               "source": "crossref",
@@ -933,6 +927,12 @@
             "sha256": "c73e4318700c670ca1858c7d603902bfd0c5287a9b25a7325cc4627758abe0a9",
             "source": "user_pdf"
           },
+          "evidence_ids": [
+            "P1:e1",
+            "P1:e2",
+            "P1:e3",
+            "P1:e4"
+          ],
           "paper": {
             "abstract": "Dynamic agent selection routes each task to a subset of language-model agents using task features. The synthetic evaluation compares routed teams with a fixed all-agent baseline. Reported findings concern the simulated workload only.",
             "arxiv_id": null,
@@ -942,19 +942,7 @@
               }
             ],
             "doi": "10.0000/synthetic-router",
-            "full_text_available": true,
-            "paper_id": "10.0000/synthetic-router",
-            "provenance": [
-              {
-                "locator": "fixture:router",
-                "query": null,
-                "source": "synthetic-fixture",
-                "synthetic": true
-              }
-            ],
-            "screening_rationale": "Extractive baseline: available source text overlaps question terms (agent, dynamic, selection); lexical heuristic, not semantic relevance or a probability.",
-            "screening_status": "include",
-            "source": "synthetic-fixture",
+            "paper_id": "P1",
             "title": "SYNTHETIC: Dynamic Agent Selection with Task Routing",
             "url": null,
             "venue": "Synthetic Fixture Proceedings",
@@ -979,7 +967,7 @@
               "venue": "Synthetic Fixture Proceedings",
               "year": 2026
             },
-            "paper_id": "10.0000/synthetic-router",
+            "paper_id": "P1",
             "query": "10.0000/synthetic-router",
             "sources": [
               {
@@ -999,13 +987,13 @@
         "output": [
           {
             "category": "method",
-            "evidence_id": "10.0000/synthetic-router:e1",
+            "evidence_id": "P1:e1",
             "extraction_worker": "fixture-replay",
             "location": {
               "page": 1,
               "section": "supplied PDF"
             },
-            "paper_id": "10.0000/synthetic-router",
+            "paper_id": "P1",
             "provenance": {
               "locator": "synthetic-router-pdf",
               "source": "user_pdf",
@@ -1019,13 +1007,13 @@
           },
           {
             "category": "setup",
-            "evidence_id": "10.0000/synthetic-router:e2",
+            "evidence_id": "P1:e2",
             "extraction_worker": "fixture-replay",
             "location": {
               "page": 1,
               "section": "supplied PDF"
             },
-            "paper_id": "10.0000/synthetic-router",
+            "paper_id": "P1",
             "provenance": {
               "locator": "synthetic-router-pdf",
               "source": "user_pdf",
@@ -1039,13 +1027,13 @@
           },
           {
             "category": "setup",
-            "evidence_id": "10.0000/synthetic-router:e3",
+            "evidence_id": "P1:e3",
             "extraction_worker": "fixture-replay",
             "location": {
               "page": 2,
               "section": "supplied PDF"
             },
-            "paper_id": "10.0000/synthetic-router",
+            "paper_id": "P1",
             "provenance": {
               "locator": "synthetic-router-pdf",
               "source": "user_pdf",
@@ -1059,13 +1047,13 @@
           },
           {
             "category": "limitation",
-            "evidence_id": "10.0000/synthetic-router:e4",
+            "evidence_id": "P1:e4",
             "extraction_worker": "fixture-replay",
             "location": {
               "page": 2,
               "section": "supplied PDF"
             },
-            "paper_id": "10.0000/synthetic-router",
+            "paper_id": "P1",
             "provenance": {
               "locator": "synthetic-router-pdf",
               "source": "user_pdf",
@@ -1103,7 +1091,7 @@
                 "venue": "Synthetic Fixture Proceedings",
                 "year": 2026
               },
-              "paper_id": "10.0000/synthetic-router",
+              "paper_id": "P1",
               "query": "10.0000/synthetic-router",
               "sources": [
                 {
@@ -1137,7 +1125,7 @@
                 "venue": "Synthetic Fixture Proceedings",
                 "year": 2026
               },
-              "paper_id": "10.0000/synthetic-topology",
+              "paper_id": "P2",
               "query": "10.0000/synthetic-topology",
               "sources": [
                 {
@@ -1176,7 +1164,7 @@
               ],
               "message": "Synthetic scenario ambiguous",
               "metadata": null,
-              "paper_id": "10.0000/synthetic-ambiguous",
+              "paper_id": "P3",
               "query": "10.0000/synthetic-ambiguous",
               "sources": [
                 {
@@ -1195,13 +1183,13 @@
           "evidence_items": [
             {
               "category": "method",
-              "evidence_id": "10.0000/synthetic-router:e1",
+              "evidence_id": "P1:e1",
               "extraction_worker": "fixture-replay",
               "location": {
                 "page": 1,
                 "section": "supplied PDF"
               },
-              "paper_id": "10.0000/synthetic-router",
+              "paper_id": "P1",
               "provenance": {
                 "locator": "synthetic-router-pdf",
                 "source": "user_pdf",
@@ -1215,13 +1203,13 @@
             },
             {
               "category": "setup",
-              "evidence_id": "10.0000/synthetic-router:e2",
+              "evidence_id": "P1:e2",
               "extraction_worker": "fixture-replay",
               "location": {
                 "page": 1,
                 "section": "supplied PDF"
               },
-              "paper_id": "10.0000/synthetic-router",
+              "paper_id": "P1",
               "provenance": {
                 "locator": "synthetic-router-pdf",
                 "source": "user_pdf",
@@ -1235,13 +1223,13 @@
             },
             {
               "category": "setup",
-              "evidence_id": "10.0000/synthetic-router:e3",
+              "evidence_id": "P1:e3",
               "extraction_worker": "fixture-replay",
               "location": {
                 "page": 2,
                 "section": "supplied PDF"
               },
-              "paper_id": "10.0000/synthetic-router",
+              "paper_id": "P1",
               "provenance": {
                 "locator": "synthetic-router-pdf",
                 "source": "user_pdf",
@@ -1255,13 +1243,13 @@
             },
             {
               "category": "limitation",
-              "evidence_id": "10.0000/synthetic-router:e4",
+              "evidence_id": "P1:e4",
               "extraction_worker": "fixture-replay",
               "location": {
                 "page": 2,
                 "section": "supplied PDF"
               },
-              "paper_id": "10.0000/synthetic-router",
+              "paper_id": "P1",
               "provenance": {
                 "locator": "synthetic-router-pdf",
                 "source": "user_pdf",
@@ -1275,13 +1263,13 @@
             },
             {
               "category": "method",
-              "evidence_id": "10.0000/synthetic-topology:e1",
+              "evidence_id": "P2:e1",
               "extraction_worker": "fixture-replay",
               "location": {
                 "page": null,
                 "section": "abstract"
               },
-              "paper_id": "10.0000/synthetic-topology",
+              "paper_id": "P2",
               "provenance": {
                 "locator": "10.0000/synthetic-topology",
                 "source": "crossref",
@@ -1295,13 +1283,13 @@
             },
             {
               "category": "method",
-              "evidence_id": "10.0000/synthetic-topology:e2",
+              "evidence_id": "P2:e2",
               "extraction_worker": "fixture-replay",
               "location": {
                 "page": null,
                 "section": "abstract"
               },
-              "paper_id": "10.0000/synthetic-topology",
+              "paper_id": "P2",
               "provenance": {
                 "locator": "10.0000/synthetic-topology",
                 "source": "crossref",
@@ -1315,13 +1303,13 @@
             },
             {
               "category": "limitation",
-              "evidence_id": "10.0000/synthetic-topology:e3",
+              "evidence_id": "P2:e3",
               "extraction_worker": "fixture-replay",
               "location": {
                 "page": null,
                 "section": "abstract"
               },
-              "paper_id": "10.0000/synthetic-topology",
+              "paper_id": "P2",
               "provenance": {
                 "locator": "10.0000/synthetic-topology",
                 "source": "crossref",
@@ -1341,10 +1329,10 @@
             {
               "claim_id": "claim-dda25595ed556a1b",
               "evidence_ids": [
-                "10.0000/synthetic-topology:e1"
+                "P2:e1"
               ],
               "paper_ids": [
-                "10.0000/synthetic-topology"
+                "P2"
               ],
               "strength": "descriptive",
               "support_type": "direct_quote",
@@ -1355,10 +1343,10 @@
             {
               "claim_id": "claim-5f8d524faf326048",
               "evidence_ids": [
-                "10.0000/synthetic-topology:e2"
+                "P2:e2"
               ],
               "paper_ids": [
-                "10.0000/synthetic-topology"
+                "P2"
               ],
               "strength": "descriptive",
               "support_type": "direct_quote",
@@ -1369,10 +1357,10 @@
             {
               "claim_id": "claim-a459a7d4e643f836",
               "evidence_ids": [
-                "10.0000/synthetic-router:e4"
+                "P1:e4"
               ],
               "paper_ids": [
-                "10.0000/synthetic-router"
+                "P1"
               ],
               "strength": "descriptive",
               "support_type": "direct_quote",
@@ -1383,10 +1371,10 @@
             {
               "claim_id": "claim-41964da1527455b0",
               "evidence_ids": [
-                "10.0000/synthetic-topology:e3"
+                "P2:e3"
               ],
               "paper_ids": [
-                "10.0000/synthetic-topology"
+                "P2"
               ],
               "strength": "descriptive",
               "support_type": "direct_quote",
@@ -1397,10 +1385,10 @@
             {
               "claim_id": "claim-f8ff11d1a8bef6f5",
               "evidence_ids": [
-                "10.0000/synthetic-router:e1"
+                "P1:e1"
               ],
               "paper_ids": [
-                "10.0000/synthetic-router"
+                "P1"
               ],
               "strength": "descriptive",
               "support_type": "direct_quote",
@@ -1411,10 +1399,10 @@
             {
               "claim_id": "claim-434ab9e14a2bfb3a",
               "evidence_ids": [
-                "10.0000/synthetic-router:e2"
+                "P1:e2"
               ],
               "paper_ids": [
-                "10.0000/synthetic-router"
+                "P1"
               ],
               "strength": "descriptive",
               "support_type": "direct_quote",
@@ -1425,10 +1413,10 @@
             {
               "claim_id": "claim-566647fe74e87f66",
               "evidence_ids": [
-                "10.0000/synthetic-router:e3"
+                "P1:e3"
               ],
               "paper_ids": [
-                "10.0000/synthetic-router"
+                "P1"
               ],
               "strength": "descriptive",
               "support_type": "direct_quote",
@@ -1440,8 +1428,8 @@
           "themes": [
             {
               "evidence_ids": [
-                "10.0000/synthetic-topology:e1",
-                "10.0000/synthetic-topology:e2"
+                "P2:e1",
+                "P2:e2"
               ],
               "inference_level": "extractive_grouping",
               "label": "Communication structure",
@@ -1453,8 +1441,8 @@
             },
             {
               "evidence_ids": [
-                "10.0000/synthetic-router:e4",
-                "10.0000/synthetic-topology:e3"
+                "P1:e4",
+                "P2:e3"
               ],
               "inference_level": "extractive_grouping",
               "label": "Reported limitations",
@@ -1466,9 +1454,9 @@
             },
             {
               "evidence_ids": [
-                "10.0000/synthetic-router:e1",
-                "10.0000/synthetic-router:e2",
-                "10.0000/synthetic-router:e3"
+                "P1:e1",
+                "P1:e2",
+                "P1:e3"
               ],
               "inference_level": "extractive_grouping",
               "label": "Selection and evaluation",
@@ -1489,10 +1477,10 @@
             {
               "claim_id": "claim-dda25595ed556a1b",
               "evidence_ids": [
-                "10.0000/synthetic-topology:e1"
+                "P2:e1"
               ],
               "paper_ids": [
-                "10.0000/synthetic-topology"
+                "P2"
               ],
               "strength": "descriptive",
               "support_type": "direct_quote",
@@ -1503,10 +1491,10 @@
             {
               "claim_id": "claim-5f8d524faf326048",
               "evidence_ids": [
-                "10.0000/synthetic-topology:e2"
+                "P2:e2"
               ],
               "paper_ids": [
-                "10.0000/synthetic-topology"
+                "P2"
               ],
               "strength": "descriptive",
               "support_type": "direct_quote",
@@ -1517,10 +1505,10 @@
             {
               "claim_id": "claim-a459a7d4e643f836",
               "evidence_ids": [
-                "10.0000/synthetic-router:e4"
+                "P1:e4"
               ],
               "paper_ids": [
-                "10.0000/synthetic-router"
+                "P1"
               ],
               "strength": "descriptive",
               "support_type": "direct_quote",
@@ -1531,10 +1519,10 @@
             {
               "claim_id": "claim-41964da1527455b0",
               "evidence_ids": [
-                "10.0000/synthetic-topology:e3"
+                "P2:e3"
               ],
               "paper_ids": [
-                "10.0000/synthetic-topology"
+                "P2"
               ],
               "strength": "descriptive",
               "support_type": "direct_quote",
@@ -1545,10 +1533,10 @@
             {
               "claim_id": "claim-f8ff11d1a8bef6f5",
               "evidence_ids": [
-                "10.0000/synthetic-router:e1"
+                "P1:e1"
               ],
               "paper_ids": [
-                "10.0000/synthetic-router"
+                "P1"
               ],
               "strength": "descriptive",
               "support_type": "direct_quote",
@@ -1559,10 +1547,10 @@
             {
               "claim_id": "claim-434ab9e14a2bfb3a",
               "evidence_ids": [
-                "10.0000/synthetic-router:e2"
+                "P1:e2"
               ],
               "paper_ids": [
-                "10.0000/synthetic-router"
+                "P1"
               ],
               "strength": "descriptive",
               "support_type": "direct_quote",
@@ -1573,10 +1561,10 @@
             {
               "claim_id": "claim-566647fe74e87f66",
               "evidence_ids": [
-                "10.0000/synthetic-router:e3"
+                "P1:e3"
               ],
               "paper_ids": [
-                "10.0000/synthetic-router"
+                "P1"
               ],
               "strength": "descriptive",
               "support_type": "direct_quote",
@@ -1589,8 +1577,8 @@
           "themes": [
             {
               "evidence_ids": [
-                "10.0000/synthetic-topology:e1",
-                "10.0000/synthetic-topology:e2"
+                "P2:e1",
+                "P2:e2"
               ],
               "inference_level": "extractive_grouping",
               "label": "Communication structure",
@@ -1602,8 +1590,8 @@
             },
             {
               "evidence_ids": [
-                "10.0000/synthetic-router:e4",
-                "10.0000/synthetic-topology:e3"
+                "P1:e4",
+                "P2:e3"
               ],
               "inference_level": "extractive_grouping",
               "label": "Reported limitations",
@@ -1615,9 +1603,9 @@
             },
             {
               "evidence_ids": [
-                "10.0000/synthetic-router:e1",
-                "10.0000/synthetic-router:e2",
-                "10.0000/synthetic-router:e3"
+                "P1:e1",
+                "P1:e2",
+                "P1:e3"
               ],
               "inference_level": "extractive_grouping",
               "label": "Selection and evaluation",
@@ -1634,10 +1622,10 @@
             {
               "claim_id": "claim-dda25595ed556a1b",
               "evidence_ids": [
-                "10.0000/synthetic-topology:e1"
+                "P2:e1"
               ],
               "paper_ids": [
-                "10.0000/synthetic-topology"
+                "P2"
               ],
               "strength": "descriptive",
               "support_type": "direct_quote",
@@ -1648,10 +1636,10 @@
             {
               "claim_id": "claim-5f8d524faf326048",
               "evidence_ids": [
-                "10.0000/synthetic-topology:e2"
+                "P2:e2"
               ],
               "paper_ids": [
-                "10.0000/synthetic-topology"
+                "P2"
               ],
               "strength": "descriptive",
               "support_type": "direct_quote",
@@ -1662,10 +1650,10 @@
             {
               "claim_id": "claim-a459a7d4e643f836",
               "evidence_ids": [
-                "10.0000/synthetic-router:e4"
+                "P1:e4"
               ],
               "paper_ids": [
-                "10.0000/synthetic-router"
+                "P1"
               ],
               "strength": "descriptive",
               "support_type": "direct_quote",
@@ -1676,10 +1664,10 @@
             {
               "claim_id": "claim-41964da1527455b0",
               "evidence_ids": [
-                "10.0000/synthetic-topology:e3"
+                "P2:e3"
               ],
               "paper_ids": [
-                "10.0000/synthetic-topology"
+                "P2"
               ],
               "strength": "descriptive",
               "support_type": "direct_quote",
@@ -1690,10 +1678,10 @@
             {
               "claim_id": "claim-f8ff11d1a8bef6f5",
               "evidence_ids": [
-                "10.0000/synthetic-router:e1"
+                "P1:e1"
               ],
               "paper_ids": [
-                "10.0000/synthetic-router"
+                "P1"
               ],
               "strength": "descriptive",
               "support_type": "direct_quote",
@@ -1704,10 +1692,10 @@
             {
               "claim_id": "claim-434ab9e14a2bfb3a",
               "evidence_ids": [
-                "10.0000/synthetic-router:e2"
+                "P1:e2"
               ],
               "paper_ids": [
-                "10.0000/synthetic-router"
+                "P1"
               ],
               "strength": "descriptive",
               "support_type": "direct_quote",
@@ -1718,10 +1706,10 @@
             {
               "claim_id": "claim-566647fe74e87f66",
               "evidence_ids": [
-                "10.0000/synthetic-router:e3"
+                "P1:e3"
               ],
               "paper_ids": [
-                "10.0000/synthetic-router"
+                "P1"
               ],
               "strength": "descriptive",
               "support_type": "direct_quote",
@@ -1768,7 +1756,7 @@
                 "venue": "Synthetic Fixture Proceedings",
                 "year": 2026
               },
-              "paper_id": "10.0000/synthetic-router",
+              "paper_id": "P1",
               "query": "10.0000/synthetic-router",
               "sources": [
                 {
@@ -1802,7 +1790,7 @@
                 "venue": "Synthetic Fixture Proceedings",
                 "year": 2026
               },
-              "paper_id": "10.0000/synthetic-topology",
+              "paper_id": "P2",
               "query": "10.0000/synthetic-topology",
               "sources": [
                 {
@@ -1841,7 +1829,7 @@
               ],
               "message": "Synthetic scenario ambiguous",
               "metadata": null,
-              "paper_id": "10.0000/synthetic-ambiguous",
+              "paper_id": "P3",
               "query": "10.0000/synthetic-ambiguous",
               "sources": [
                 {
@@ -1861,10 +1849,10 @@
             {
               "claim_id": "claim-dda25595ed556a1b",
               "evidence_ids": [
-                "10.0000/synthetic-topology:e1"
+                "P2:e1"
               ],
               "paper_ids": [
-                "10.0000/synthetic-topology"
+                "P2"
               ],
               "strength": "descriptive",
               "support_type": "direct_quote",
@@ -1875,10 +1863,10 @@
             {
               "claim_id": "claim-5f8d524faf326048",
               "evidence_ids": [
-                "10.0000/synthetic-topology:e2"
+                "P2:e2"
               ],
               "paper_ids": [
-                "10.0000/synthetic-topology"
+                "P2"
               ],
               "strength": "descriptive",
               "support_type": "direct_quote",
@@ -1889,10 +1877,10 @@
             {
               "claim_id": "claim-a459a7d4e643f836",
               "evidence_ids": [
-                "10.0000/synthetic-router:e4"
+                "P1:e4"
               ],
               "paper_ids": [
-                "10.0000/synthetic-router"
+                "P1"
               ],
               "strength": "descriptive",
               "support_type": "direct_quote",
@@ -1903,10 +1891,10 @@
             {
               "claim_id": "claim-41964da1527455b0",
               "evidence_ids": [
-                "10.0000/synthetic-topology:e3"
+                "P2:e3"
               ],
               "paper_ids": [
-                "10.0000/synthetic-topology"
+                "P2"
               ],
               "strength": "descriptive",
               "support_type": "direct_quote",
@@ -1917,10 +1905,10 @@
             {
               "claim_id": "claim-f8ff11d1a8bef6f5",
               "evidence_ids": [
-                "10.0000/synthetic-router:e1"
+                "P1:e1"
               ],
               "paper_ids": [
-                "10.0000/synthetic-router"
+                "P1"
               ],
               "strength": "descriptive",
               "support_type": "direct_quote",
@@ -1931,10 +1919,10 @@
             {
               "claim_id": "claim-434ab9e14a2bfb3a",
               "evidence_ids": [
-                "10.0000/synthetic-router:e2"
+                "P1:e2"
               ],
               "paper_ids": [
-                "10.0000/synthetic-router"
+                "P1"
               ],
               "strength": "descriptive",
               "support_type": "direct_quote",
@@ -1945,10 +1933,10 @@
             {
               "claim_id": "claim-566647fe74e87f66",
               "evidence_ids": [
-                "10.0000/synthetic-router:e3"
+                "P1:e3"
               ],
               "paper_ids": [
-                "10.0000/synthetic-router"
+                "P1"
               ],
               "strength": "descriptive",
               "support_type": "direct_quote",
@@ -1972,13 +1960,13 @@
           "evidence_items": [
             {
               "category": "method",
-              "evidence_id": "10.0000/synthetic-router:e1",
+              "evidence_id": "P1:e1",
               "extraction_worker": "fixture-replay",
               "location": {
                 "page": 1,
                 "section": "supplied PDF"
               },
-              "paper_id": "10.0000/synthetic-router",
+              "paper_id": "P1",
               "provenance": {
                 "locator": "synthetic-router-pdf",
                 "source": "user_pdf",
@@ -1992,13 +1980,13 @@
             },
             {
               "category": "setup",
-              "evidence_id": "10.0000/synthetic-router:e2",
+              "evidence_id": "P1:e2",
               "extraction_worker": "fixture-replay",
               "location": {
                 "page": 1,
                 "section": "supplied PDF"
               },
-              "paper_id": "10.0000/synthetic-router",
+              "paper_id": "P1",
               "provenance": {
                 "locator": "synthetic-router-pdf",
                 "source": "user_pdf",
@@ -2012,13 +2000,13 @@
             },
             {
               "category": "setup",
-              "evidence_id": "10.0000/synthetic-router:e3",
+              "evidence_id": "P1:e3",
               "extraction_worker": "fixture-replay",
               "location": {
                 "page": 2,
                 "section": "supplied PDF"
               },
-              "paper_id": "10.0000/synthetic-router",
+              "paper_id": "P1",
               "provenance": {
                 "locator": "synthetic-router-pdf",
                 "source": "user_pdf",
@@ -2032,13 +2020,13 @@
             },
             {
               "category": "limitation",
-              "evidence_id": "10.0000/synthetic-router:e4",
+              "evidence_id": "P1:e4",
               "extraction_worker": "fixture-replay",
               "location": {
                 "page": 2,
                 "section": "supplied PDF"
               },
-              "paper_id": "10.0000/synthetic-router",
+              "paper_id": "P1",
               "provenance": {
                 "locator": "synthetic-router-pdf",
                 "source": "user_pdf",
@@ -2052,13 +2040,13 @@
             },
             {
               "category": "method",
-              "evidence_id": "10.0000/synthetic-topology:e1",
+              "evidence_id": "P2:e1",
               "extraction_worker": "fixture-replay",
               "location": {
                 "page": null,
                 "section": "abstract"
               },
-              "paper_id": "10.0000/synthetic-topology",
+              "paper_id": "P2",
               "provenance": {
                 "locator": "10.0000/synthetic-topology",
                 "source": "crossref",
@@ -2072,13 +2060,13 @@
             },
             {
               "category": "method",
-              "evidence_id": "10.0000/synthetic-topology:e2",
+              "evidence_id": "P2:e2",
               "extraction_worker": "fixture-replay",
               "location": {
                 "page": null,
                 "section": "abstract"
               },
-              "paper_id": "10.0000/synthetic-topology",
+              "paper_id": "P2",
               "provenance": {
                 "locator": "10.0000/synthetic-topology",
                 "source": "crossref",
@@ -2092,13 +2080,13 @@
             },
             {
               "category": "limitation",
-              "evidence_id": "10.0000/synthetic-topology:e3",
+              "evidence_id": "P2:e3",
               "extraction_worker": "fixture-replay",
               "location": {
                 "page": null,
                 "section": "abstract"
               },
-              "paper_id": "10.0000/synthetic-topology",
+              "paper_id": "P2",
               "provenance": {
                 "locator": "10.0000/synthetic-topology",
                 "source": "crossref",
@@ -2116,8 +2104,8 @@
           "themes": [
             {
               "evidence_ids": [
-                "10.0000/synthetic-topology:e1",
-                "10.0000/synthetic-topology:e2"
+                "P2:e1",
+                "P2:e2"
               ],
               "inference_level": "extractive_grouping",
               "label": "Communication structure",
@@ -2129,8 +2117,8 @@
             },
             {
               "evidence_ids": [
-                "10.0000/synthetic-router:e4",
-                "10.0000/synthetic-topology:e3"
+                "P1:e4",
+                "P2:e3"
               ],
               "inference_level": "extractive_grouping",
               "label": "Reported limitations",
@@ -2142,9 +2130,9 @@
             },
             {
               "evidence_ids": [
-                "10.0000/synthetic-router:e1",
-                "10.0000/synthetic-router:e2",
-                "10.0000/synthetic-router:e3"
+                "P1:e1",
+                "P1:e2",
+                "P1:e3"
               ],
               "inference_level": "extractive_grouping",
               "label": "Selection and evaluation",
@@ -2187,11 +2175,11 @@
         "output": {
           "bibliography": [
             {
-              "paper_id": "10.0000/synthetic-topology",
+              "paper_id": "P2",
               "reference": 1
             },
             {
-              "paper_id": "10.0000/synthetic-router",
+              "paper_id": "P1",
               "reference": 3
             }
           ],
@@ -2199,10 +2187,10 @@
             {
               "claim_id": "claim-dda25595ed556a1b",
               "evidence_ids": [
-                "10.0000/synthetic-topology:e1"
+                "P2:e1"
               ],
               "paper_ids": [
-                "10.0000/synthetic-topology"
+                "P2"
               ],
               "strength": "descriptive",
               "support_type": "direct_quote",
@@ -2213,10 +2201,10 @@
             {
               "claim_id": "claim-5f8d524faf326048",
               "evidence_ids": [
-                "10.0000/synthetic-topology:e2"
+                "P2:e2"
               ],
               "paper_ids": [
-                "10.0000/synthetic-topology"
+                "P2"
               ],
               "strength": "descriptive",
               "support_type": "direct_quote",
@@ -2227,10 +2215,10 @@
             {
               "claim_id": "claim-a459a7d4e643f836",
               "evidence_ids": [
-                "10.0000/synthetic-router:e4"
+                "P1:e4"
               ],
               "paper_ids": [
-                "10.0000/synthetic-router"
+                "P1"
               ],
               "strength": "descriptive",
               "support_type": "direct_quote",
@@ -2241,10 +2229,10 @@
             {
               "claim_id": "claim-41964da1527455b0",
               "evidence_ids": [
-                "10.0000/synthetic-topology:e3"
+                "P2:e3"
               ],
               "paper_ids": [
-                "10.0000/synthetic-topology"
+                "P2"
               ],
               "strength": "descriptive",
               "support_type": "direct_quote",
@@ -2255,10 +2243,10 @@
             {
               "claim_id": "claim-f8ff11d1a8bef6f5",
               "evidence_ids": [
-                "10.0000/synthetic-router:e1"
+                "P1:e1"
               ],
               "paper_ids": [
-                "10.0000/synthetic-router"
+                "P1"
               ],
               "strength": "descriptive",
               "support_type": "direct_quote",
@@ -2269,10 +2257,10 @@
             {
               "claim_id": "claim-434ab9e14a2bfb3a",
               "evidence_ids": [
-                "10.0000/synthetic-router:e2"
+                "P1:e2"
               ],
               "paper_ids": [
-                "10.0000/synthetic-router"
+                "P1"
               ],
               "strength": "descriptive",
               "support_type": "direct_quote",
@@ -2283,10 +2271,10 @@
             {
               "claim_id": "claim-566647fe74e87f66",
               "evidence_ids": [
-                "10.0000/synthetic-router:e3"
+                "P1:e3"
               ],
               "paper_ids": [
-                "10.0000/synthetic-router"
+                "P1"
               ],
               "strength": "descriptive",
               "support_type": "direct_quote",
@@ -2298,13 +2286,13 @@
           "evidence_table": [
             {
               "category": "method",
-              "evidence_id": "10.0000/synthetic-router:e1",
+              "evidence_id": "P1:e1",
               "extraction_worker": "fixture-replay",
               "location": {
                 "page": 1,
                 "section": "supplied PDF"
               },
-              "paper_id": "10.0000/synthetic-router",
+              "paper_id": "P1",
               "provenance": {
                 "locator": "synthetic-router-pdf",
                 "source": "user_pdf",
@@ -2319,13 +2307,13 @@
             },
             {
               "category": "setup",
-              "evidence_id": "10.0000/synthetic-router:e2",
+              "evidence_id": "P1:e2",
               "extraction_worker": "fixture-replay",
               "location": {
                 "page": 1,
                 "section": "supplied PDF"
               },
-              "paper_id": "10.0000/synthetic-router",
+              "paper_id": "P1",
               "provenance": {
                 "locator": "synthetic-router-pdf",
                 "source": "user_pdf",
@@ -2340,13 +2328,13 @@
             },
             {
               "category": "setup",
-              "evidence_id": "10.0000/synthetic-router:e3",
+              "evidence_id": "P1:e3",
               "extraction_worker": "fixture-replay",
               "location": {
                 "page": 2,
                 "section": "supplied PDF"
               },
-              "paper_id": "10.0000/synthetic-router",
+              "paper_id": "P1",
               "provenance": {
                 "locator": "synthetic-router-pdf",
                 "source": "user_pdf",
@@ -2361,13 +2349,13 @@
             },
             {
               "category": "limitation",
-              "evidence_id": "10.0000/synthetic-router:e4",
+              "evidence_id": "P1:e4",
               "extraction_worker": "fixture-replay",
               "location": {
                 "page": 2,
                 "section": "supplied PDF"
               },
-              "paper_id": "10.0000/synthetic-router",
+              "paper_id": "P1",
               "provenance": {
                 "locator": "synthetic-router-pdf",
                 "source": "user_pdf",
@@ -2382,13 +2370,13 @@
             },
             {
               "category": "method",
-              "evidence_id": "10.0000/synthetic-topology:e1",
+              "evidence_id": "P2:e1",
               "extraction_worker": "fixture-replay",
               "location": {
                 "page": null,
                 "section": "abstract"
               },
-              "paper_id": "10.0000/synthetic-topology",
+              "paper_id": "P2",
               "provenance": {
                 "locator": "10.0000/synthetic-topology",
                 "source": "crossref",
@@ -2403,13 +2391,13 @@
             },
             {
               "category": "method",
-              "evidence_id": "10.0000/synthetic-topology:e2",
+              "evidence_id": "P2:e2",
               "extraction_worker": "fixture-replay",
               "location": {
                 "page": null,
                 "section": "abstract"
               },
-              "paper_id": "10.0000/synthetic-topology",
+              "paper_id": "P2",
               "provenance": {
                 "locator": "10.0000/synthetic-topology",
                 "source": "crossref",
@@ -2424,13 +2412,13 @@
             },
             {
               "category": "limitation",
-              "evidence_id": "10.0000/synthetic-topology:e3",
+              "evidence_id": "P2:e3",
               "extraction_worker": "fixture-replay",
               "location": {
                 "page": null,
                 "section": "abstract"
               },
-              "paper_id": "10.0000/synthetic-topology",
+              "paper_id": "P2",
               "provenance": {
                 "locator": "10.0000/synthetic-topology",
                 "source": "crossref",
@@ -2469,13 +2457,13 @@
                 }
               ],
               "message": "Synthetic scenario ambiguous",
-              "paper_id": "10.0000/synthetic-ambiguous",
+              "paper_id": "P3",
               "status": "ambiguous"
             },
             {
               "alternatives": [],
               "message": "Only title/metadata available; relevance cannot be established.",
-              "paper_id": "10.0000/synthetic-title-only",
+              "paper_id": "paper-466bc780ad415433",
               "status": "screening_maybe"
             }
           ],

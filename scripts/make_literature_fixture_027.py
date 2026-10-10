@@ -10,7 +10,8 @@ recorded tool answers, and writes every request it was asked, with its answer, a
 - screen: 0.2.6's verdict and rationale for the paper with the same DOI;
 - select: 0.2.6's chosen papers, by their new ids;
 - extract, synthesize, write, verify: 0.2.6's answers with every 0.2.6 paper id replaced by the
-  paper's new id (its DOI), so evidence ids read ``<DOI>:e<n>``.
+  handle 0.2.7 gives the chosen paper (P1, P2, P3 in selection order), so evidence ids read
+  ``P1:e1`` and so on.
 
 Nothing here is live inference: every judgement is 0.2.6's synthetic one. The tools are 0.2.6's
 recorded fixture tools (same inputs, same outputs). Run from the repository root:
@@ -64,8 +65,13 @@ class Recorder:
     def __init__(self, previous: dict):
         self.previous = previous["models"]
         normalized = self.previous["normalize"][0]["output"]["candidate_papers"]
-        # 0.2.6 named papers by an opaque hash; 0.2.7 names them by DOI.
+        # 0.2.6 named papers by an opaque hash; 0.2.7 names them by DOI until selection, and
+        # the chosen ones by their handle (P1, P2, P3, in the order select chose them) after it.
         self.ids = {paper["paper_id"]: paper["doi"] for paper in normalized}
+        (chosen,) = self.previous["select"]
+        self.handles = {
+            paper["paper_id"]: f"P{n}" for n, paper in enumerate(chosen["output"], start=1)
+        }
         self.recorded: dict[str, list] = {}
 
     async def count_tokens(self, request):
@@ -104,9 +110,9 @@ class Recorder:
             assert set(chosen) <= included, (chosen, included)
             return {"paper_ids": chosen}
         if task == "extract":
-            return _replace_ids(self._by_doi("extract", data["paper"]["doi"]), self.ids)
+            return _replace_ids(self._by_doi("extract", data["paper"]["doi"]), self.handles)
         (entry,) = self.previous[task]
-        return _replace_ids(copy.deepcopy(entry["output"]), self.ids)
+        return _replace_ids(copy.deepcopy(entry["output"]), self.handles)
 
     async def complete(self, request, *, max_output_tokens):
         task, data = request["task"], copy.deepcopy(request["data"])

@@ -87,11 +87,12 @@ into the wheel.
 The current package is `literature-review-0.2.7.agent.pkg` (above; digest `8c461a56…8875`, archive
 `5c910316…beda`, 222,213 bytes), built and signed with the same generic commands (`agentpkg build
 agents/literature-review -o …`, then `agentpkg sign` with the Literature Review key); rebuilding and
-re-signing reproduces its bytes. 0.2.7 differs from 0.2.6 in the graph (33 nodes: `join-batches`,
-`identify`, `join-found`, `join-found-refs`, `normalize-gate`, `join-included`, `papers-found` and
-`join-selection` added; `check-screening-refs` and `screening-jobs` removed; answer checks on
+re-signing reproduces its bytes. 0.2.7 differs from 0.2.6 in the graph (37 nodes: `join-batches`,
+`identify`, `join-found`, `join-found-refs`, `normalize-gate`, `join-included`, `papers-found`,
+`join-selection`, `selection-slots`, `assign-handles`, `citation-jobs` and `join-citation-jobs` added;
+after selection the chosen papers are named P1–P3; `check-screening-refs` and `screening-jobs` removed; answer checks on
 normalize, screen, select, extract, synthesize, write and verify; worker budgets and four timeouts),
-thirteen new schemas and five removed, four skills, the policy's and the resolver tool's
+nineteen new schemas and five removed, four skills, the policy's and the resolver tool's
 `api.crossref.org`, the runtime minimum (0.3.0), the replay fixture (re-recorded by
 `scripts/make_literature_fixture_027.py`) and the package README. The demo index 1.2.0 names it;
 0.2.6, which index 1.1.0 named, stays served and pinned.

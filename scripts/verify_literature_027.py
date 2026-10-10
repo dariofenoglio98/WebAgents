@@ -89,6 +89,9 @@ def verify(archive: Path = ARCHIVE, key: Path = KEY, chrome_cli: Path | None = N
         for batch in state["screening_batches"]
     }
     included = {paper["paper_id"] for paper in state["included_papers"]}
+    handle_doi = {
+        job["handle"]: job["paper"]["paper_id"] for job in state["handle_jobs"]
+    }
     evidence = {e["evidence_id"]: e for e in state["evidence_items"]}
     abstract = [e for e in evidence.values() if e["scope"] == "abstract"]
     full_text = [e for e in evidence.values() if e["scope"] == "full_text"]
@@ -122,7 +125,16 @@ def verify(archive: Path = ARCHIVE, key: Path = KEY, chrome_cli: Path | None = N
         ),
         "included_means_include": included
         == {pid for pid, row in listed.items() if row["screening_status"] == "include"},
-        "cited_papers_were_included": {r["paper_id"] for r in output["bibliography"]}
+        # After selection the review names papers by handle (P1-P3); the handle jobs map them back.
+        "chosen_papers_named_p1_to_p3_in_order": [
+            j["handle"] for j in state["handle_jobs"]
+        ]
+        == [f"P{n}" for n in range(1, len(state["handle_jobs"]) + 1)]
+        and [j["paper"]["paper_id"] for j in state["handle_jobs"]]
+        == [pid for pid in state["selection_slots"] if pid],
+        "cited_papers_were_included": {
+            handle_doi[r["paper_id"]] for r in output["bibliography"]
+        }
         <= included,
         "abstract_evidence_states_no_hash": bool(abstract)
         and all(e["provenance"]["source_sha256"] == "" for e in abstract),

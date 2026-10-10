@@ -62,11 +62,15 @@ def contains(text, quote) -> bool:
 
 
 def grounding(output: dict, state: dict, documents: dict[str, list[str]]) -> dict:
+    # After selection the review names a paper by its handle (P1-P3); its job holds the paper.
     jobs = {
-        (j.get("paper") or {}).get("paper_id"): j
+        j.get("handle") or (j.get("paper") or {}).get("paper_id"): j
         for j in state.get("resolved_jobs") or []
     }
     found = {p["paper_id"]: p for p in state.get("found_papers") or []}
+
+    def doi_of(handle):
+        return ((jobs.get(handle) or {}).get("paper") or {}).get("paper_id")
 
     def sources(paper_id):
         texts = []
@@ -75,7 +79,7 @@ def grounding(output: dict, state: dict, documents: dict[str, list[str]]) -> dic
         ) or {}
         if best.get("abstract"):
             texts.append(best["abstract"])
-        paper = found.get(paper_id) or {}
+        paper = found.get(doi_of(paper_id)) or {}
         if paper.get("abstract"):
             texts.append(paper["abstract"])
         doi = (paper.get("doi") or "").lower()
@@ -115,7 +119,7 @@ def grounding(output: dict, state: dict, documents: dict[str, list[str]]) -> dic
             for claim in claims
         ),
         "no_invented_paper": all(
-            entry.get("paper_id") in found for entry in bibliography
+            doi_of(entry.get("paper_id")) in found for entry in bibliography
         )
         and all(pid in found for pid in state.get("citation_jobs") or []),
         "papers_found_lists_every_found_paper_once": sorted(

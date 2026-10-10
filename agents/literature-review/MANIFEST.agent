@@ -300,6 +300,30 @@
     {
       "id": "screening-batches",
       "path": "schemas/screening-batches.schema.json"
+    },
+    {
+      "id": "handle-job",
+      "path": "schemas/handle-job.schema.json"
+    },
+    {
+      "id": "handle-job-batches",
+      "path": "schemas/handle-job-batches.schema.json"
+    },
+    {
+      "id": "handle-jobs",
+      "path": "schemas/handle-jobs.schema.json"
+    },
+    {
+      "id": "handle-slot",
+      "path": "schemas/handle-slot.schema.json"
+    },
+    {
+      "id": "handle-slots",
+      "path": "schemas/handle-slots.schema.json"
+    },
+    {
+      "id": "slots",
+      "path": "schemas/slots.schema.json"
     }
   ],
   "model_requirements": {

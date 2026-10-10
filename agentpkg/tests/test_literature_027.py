@@ -88,6 +88,40 @@ def test_every_found_paper_is_screened_and_listed_with_its_verdict(review):
         }
 
 
+def test_after_selection_the_chosen_papers_are_named_p1_p2_p3(review):
+    """No model copies a DOI after selection: live, Luna garbled a digit-heavy DOI id in 6 of 8
+    synthesis answers and in 0 of 12 once the ids were short (T15, D-170)."""
+    router = ScriptedReview(Scenario(papers=3))
+    result = run_scenario(review, router.scenario, router=router)
+    state, output = result["state"], result["output"]
+    chosen = [f"10.5555/scripted.{n}" for n in (1, 2, 3)]
+    assert state["selection_slots"] == chosen
+    assert [job["handle"] for job in state["handle_jobs"]] == ["P1", "P2", "P3"]
+    assert [job["paper"]["paper_id"] for job in state["handle_jobs"]] == chosen
+    assert [r["paper_id"] for r in state["citation_records"]] == ["P1", "P2", "P3"]
+    assert {e["evidence_id"].split(":")[0] for e in state["evidence_items"]} == {"P1", "P2", "P3"}
+    # The reader still sees each paper's DOI, in the resolver's record the bibliography carries.
+    assert {(row["paper_id"], row["metadata"]["doi"]) for row in output["bibliography"]} == {
+        ("P1", chosen[0]),
+        ("P2", chosen[1]),
+        ("P3", chosen[2]),
+    }
+    # Fewer chosen papers leave the other positions empty: no job, no call.
+    one = Answers(
+        Scenario(papers=3), "select", lambda answer: {"paper_ids": answer["paper_ids"][:1]}
+    )
+    result = run_scenario(review, one.scenario, router=one)
+    assert result["state"]["selection_slots"] == [chosen[0], "", ""]
+    assert [job["handle"] for job in result["state"]["handle_jobs"]] == ["P1"]
+    # An evidence id outside the handle's own four is refused by name.
+    stray = Answers(
+        Scenario(papers=3), "extract", lambda items: [{**items[0], "evidence_id": "P9:e1"}]
+    )
+    with pytest.raises(WorkflowError) as caught:
+        run_scenario(review, stray.scenario, router=stray)
+    assert _failed(caught.value, "evidence")["failed_check"]["index"] == 2
+
+
 def test_nothing_included_still_lists_the_papers_and_asks_no_one_to_choose(review):
     router = ScriptedReview(Scenario(papers=3, include=False))
     result = run_scenario(review, router.scenario, router=router)
@@ -165,7 +199,7 @@ class Answers(ScriptedReview):
             "extract",
             lambda items: [{**items[0], "quote": "A paraphrase of the abstract."}],
             "evidence",
-            2,
+            3,
         ),
         # Evidence attributed to another paper.
         ("extract", lambda items: [{**items[0], "paper_id": "10.5555/x"}], "evidence", 0),
@@ -259,7 +293,10 @@ def test_normalize_is_asked_with_documents_and_must_name_every_paper_once(review
     }
     assert [[p["page"] for p in d["pages"]] for d in documents_seen["screen"]] == [[1, 2]]
     assert [[p["page"] for p in d["pages"]] for d in documents_seen["extract"]] == [[1, 2, 3]]
-    truncated = [e for e in result["audit"] if e["action"] == "node.truncated"]
+    # (selection-slots also truncates: it pads the chosen ids to three positions.)
+    truncated = [
+        e for e in result["audit"] if e["action"] == "node.truncated" and "pages" in e["node_id"]
+    ]
     assert sorted(e["node_id"] for e in truncated) == [
         "evidence/first-pages",
         "screening/first-pages",
@@ -320,6 +357,10 @@ def test_what_changed_from_0_2_6(review, previous):
         "join-included",
         "papers-found",
         "join-selection",
+        "selection-slots",
+        "assign-handles",
+        "citation-jobs",
+        "join-citation-jobs",
     }
 
     # Every model role stays, with the same tasks.

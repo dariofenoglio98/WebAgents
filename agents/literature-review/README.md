@@ -11,6 +11,7 @@ The user's runs of 2026-10-09 stopped or emptied 0.2.6 in steps where a model di
 - **Ids from identifiers, before any model.** `join-search` removes exact duplicates by DOI, then arXiv id. `identify` names every paper by its DOI, else its arXiv id, else its URL, else its title, and `join-found` keeps the first paper per id. A resolved seed becomes a search-shaped record (`seed-discovery`) and is screened like any search result. At most 20 papers continue; a cut is audited (`node.truncated`).
 - **normalize is asked only when it has something to judge.** With no selected document there is nothing to match, so every found paper goes to screening with `file_id: null`. With documents, `normalize` returns `{candidates: [{paper_id, file_id}]}`. Two answer checks require every candidate to be a found paper and every found paper to appear exactly once, so a duplicate or a missing paper is refused on the answer.
 - **The model judges, the graph keeps the record.** Screening answers `{paper_id, screening_status, screening_rationale}` (`schemas/screen-verdict.schema.json`), and a check ties the answer's `paper_id` to the job's. The screened record is the found record with that verdict attached. The included papers are collected by verdict. `select-included` runs only when one is included and answers `{paper_ids}` (one to three), checked against the included list. The graph copies the chosen records.
+- **After selection, papers are named P1, P2, P3.** `selection-slots` pads the chosen ids to three positions and `assign-handles` names them in order. `citation-jobs` copies each chosen paper's record under its handle. From then on the citation records, evidence (`P1:e1` … `P1:e4`, listed for the extraction model and checked), claims and bibliography rows name the handle, while the bibliography entry carries the resolver's record with the DOI. In a live run Luna garbled a digit-heavy DOI id in 6 of 8 synthesis answers, and in 0 of 12 with handles. The output's `unresolved` list is the graph's own (citations that did not resolve), not the verifier's copy.
 - **Answer checks** (workflow.v0 `checks`; the package now requires agentpkg 0.3.0):
   - on `extract-one`: every item names the job's paper, ids are unique, and every quote is verbatim in the abstract (the resolver's, else the search's) or in a supplied page. The 0.2.6 `check-abstract` and `check-document` relations became these checks.
   - on `synthesis`, `writing` and `verification`: every cited evidence item exists, every cited paper is resolved, and a direct quote's paper is its evidence's paper.
@@ -31,7 +32,7 @@ The user's runs of 2026-10-09 stopped or emptied 0.2.6 in steps where a model di
 - **Skills:**
   - literature-search 0.1.3: keep the supplied ids.
   - paper-screening 0.1.2: a verdict, ids for selection, the first two pages.
-  - evidence-extraction 0.1.4: the first three pages.
+  - evidence-extraction 0.1.4: the paper's handle and its evidence ids, the first three pages.
   - claim-and-citation-verification 0.1.4: "SYNTHETIC DEMONSTRATION" only when `mode` is fixture. Every live 0.2.6 review on Luna carried that label.
 
 The signed 0.2.6 and 0.2.5 archives are preserved separately.

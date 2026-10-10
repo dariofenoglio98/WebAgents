@@ -100,10 +100,10 @@ def test_same_interpreter_from_built_artifacts(name, tmp_path):
             "resolved",
             "ambiguous",
         }
-        assert [u["status"] for u in result["output"]["unresolved"]] == [
-            "ambiguous",
-            "screening_maybe",
-        ]
+        # 0.2.7: the unresolved list is the graph's own (citations that did not resolve); a paper
+        # screened "maybe" is listed in papers_found with that verdict instead.
+        assert [u["status"] for u in result["output"]["unresolved"]] == ["ambiguous"]
+        assert "maybe" in {p["screening_status"] for p in result["output"]["papers_found"]}
         assert "SYNTHETIC DEMONSTRATION" in result["output"]["related_work"]
     else:
         assert sum(item["minutes"] for item in result["output"]["agenda"]) == 45

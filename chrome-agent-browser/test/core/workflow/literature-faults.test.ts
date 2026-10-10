@@ -209,7 +209,12 @@ describe("the clean review (T15)", () => {
     const outcome = await review(await v027());
     expect(outcome.error).toBeNull();
     expect(papersFound(outcome)).toEqual(ALL_FOUND);
-    expect((output(outcome).bibliography as JsonObject[]).map((row) => row.paper_id)).toEqual(ALL_FOUND.slice(0, 3));
+    // After selection the chosen papers are P1-P3 (D-170); each bibliography row carries its DOI.
+    expect((output(outcome).bibliography as JsonObject[]).map((row) => [row.paper_id, (row.metadata as JsonObject).doi])).toEqual([
+      ["P1", ALL_FOUND[0]],
+      ["P2", ALL_FOUND[1]],
+      ["P3", ALL_FOUND[2]],
+    ]);
     // No documents were selected: normalize is not asked (D-170), and nobody re-asks anything.
     expect(outcome.reviewer.calls.map((call) => call.task)).not.toContain("normalize");
     expect(outcome.reviewer.calls.every((call) => call.attempt === 1)).toBe(true);
@@ -301,7 +306,7 @@ describe("model slips that stopped or emptied 0.2.6 (B-151)", () => {
     const before = await review(await v026(), { fault: paraphrase });
     expect([before.error?.code, before.error?.node_id]).toEqual(["schema_validation", "evidence"]);
     const after = await review(await v027(), { fault: paraphrase });
-    recoveredByReask(after, "extract", /answer check 2 \(relation\) failed: fields_do_not_match/u);
+    recoveredByReask(after, "extract", /answer check 3 \(relation\) failed: fields_do_not_match/u);
     expect(actions(after, "model.called").filter((event) => event.attempt === 2)).toHaveLength(3);
   }, 30_000);
 

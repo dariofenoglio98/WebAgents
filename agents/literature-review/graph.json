@@ -89,6 +89,10 @@
         "papers-found": "List papers found",
         "select-included": "Select papers",
         "join-selection": "Collect selected papers",
+        "selection-slots": "Number the selected papers",
+        "assign-handles": "Name the selected papers",
+        "citation-jobs": "Prepare citation jobs",
+        "join-citation-jobs": "Collect citation jobs",
         "citations": "Citations",
         "prepare-evidence": "Prepare evidence",
         "join-citation-records": "Collect citation records",
@@ -168,6 +172,10 @@
         {
           "label": "Citations",
           "nodes": [
+            "selection-slots",
+            "assign-handles",
+            "citation-jobs",
+            "join-citation-jobs",
             "citations",
             "prepare-evidence",
             "join-citation-records",
@@ -1361,39 +1369,226 @@
       }
     },
     {
+      "id": "selection-slots",
+      "type": "join",
+      "worker": "LiteratureReviewCoordinator",
       "depends_on": [
         "join-selection"
+      ],
+      "input": {
+        "array": [
+          {
+            "from": "state",
+            "path": "/citation_jobs"
+          },
+          {
+            "literal": [
+              "",
+              "",
+              ""
+            ]
+          }
+        ]
+      },
+      "limit": 3,
+      "output_schema": "schemas/slots.schema.json",
+      "timeout_seconds": 10,
+      "writes": {
+        "/selection_slots": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "id": "assign-handles",
+      "type": "validate",
+      "worker": "LiteratureReviewCoordinator",
+      "depends_on": [
+        "selection-slots"
+      ],
+      "input": {
+        "array": [
+          {
+            "object": {
+              "handle": {
+                "literal": "P1"
+              },
+              "paper_id": {
+                "from": "state",
+                "path": "/selection_slots/0"
+              },
+              "evidence_ids": {
+                "literal": [
+                  "P1:e1",
+                  "P1:e2",
+                  "P1:e3",
+                  "P1:e4"
+                ]
+              }
+            }
+          },
+          {
+            "object": {
+              "handle": {
+                "literal": "P2"
+              },
+              "paper_id": {
+                "from": "state",
+                "path": "/selection_slots/1"
+              },
+              "evidence_ids": {
+                "literal": [
+                  "P2:e1",
+                  "P2:e2",
+                  "P2:e3",
+                  "P2:e4"
+                ]
+              }
+            }
+          },
+          {
+            "object": {
+              "handle": {
+                "literal": "P3"
+              },
+              "paper_id": {
+                "from": "state",
+                "path": "/selection_slots/2"
+              },
+              "evidence_ids": {
+                "literal": [
+                  "P3:e1",
+                  "P3:e2",
+                  "P3:e3",
+                  "P3:e4"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "output_schema": "schemas/handle-slots.schema.json",
+      "timeout_seconds": 10,
+      "writes": {
+        "/handle_slots": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "id": "citation-jobs",
+      "type": "map",
+      "worker": "CitationWorker",
+      "depends_on": [
+        "assign-handles"
+      ],
+      "input": {
+        "from": "state",
+        "path": "/handle_slots"
+      },
+      "output_schema": "schemas/handle-job-batches.schema.json",
+      "timeout_seconds": 60,
+      "writes": {
+        "/handle_job_batches": {
+          "from": "result",
+          "path": ""
+        }
+      },
+      "item_schema": "schemas/handle-slot.schema.json",
+      "max_items": 3,
+      "max_parallel": 3,
+      "steps": [
+        {
+          "id": "job",
+          "type": "validate",
+          "input": {
+            "literal": []
+          },
+          "output_schema": "schemas/handle-jobs.schema.json",
+          "timeout_seconds": 10,
+          "when": {
+            "left": {
+              "from": "item",
+              "path": "/paper_id"
+            },
+            "op": "eq",
+            "right": {
+              "literal": ""
+            }
+          },
+          "otherwise": {
+            "array": [
+              {
+                "object": {
+                  "handle": {
+                    "from": "item",
+                    "path": "/handle"
+                  },
+                  "evidence_ids": {
+                    "from": "item",
+                    "path": "/evidence_ids"
+                  },
+                  "paper": {
+                    "lookup": {
+                      "in": {
+                        "from": "state",
+                        "path": "/included_papers"
+                      },
+                      "key": "/paper_id",
+                      "equals": {
+                        "from": "item",
+                        "path": "/paper_id"
+                      },
+                      "path": ""
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "yield": {
+        "from": "steps",
+        "path": "/job"
+      }
+    },
+    {
+      "id": "join-citation-jobs",
+      "type": "join",
+      "worker": "LiteratureReviewCoordinator",
+      "depends_on": [
+        "citation-jobs"
+      ],
+      "input": {
+        "from": "state",
+        "path": "/handle_job_batches"
+      },
+      "output_schema": "schemas/handle-jobs.schema.json",
+      "timeout_seconds": 10,
+      "writes": {
+        "/handle_jobs": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "depends_on": [
+        "join-citation-jobs"
       ],
       "id": "citations",
       "input": {
         "from": "state",
-        "path": "/citation_jobs"
+        "path": "/handle_jobs"
       },
-      "item_schema": "schemas/paper-id.schema.json",
+      "item_schema": "schemas/handle-job.schema.json",
       "max_items": 20,
       "max_parallel": 3,
       "output_schema": "schemas/resolved-jobs.schema.json",
       "steps": [
-        {
-          "id": "paper",
-          "type": "validate",
-          "input": {
-            "lookup": {
-              "in": {
-                "from": "state",
-                "path": "/included_papers"
-              },
-              "key": "/paper_id",
-              "equals": {
-                "from": "item",
-                "path": ""
-              },
-              "path": ""
-            }
-          },
-          "output_schema": "schemas/paper.schema.json",
-          "timeout_seconds": 10
-        },
         {
           "id": "resolve-one",
           "input": {
@@ -1404,15 +1599,15 @@
               "query": {
                 "coalesce": [
                   {
-                    "from": "steps",
+                    "from": "item",
                     "path": "/paper/doi"
                   },
                   {
-                    "from": "steps",
+                    "from": "item",
                     "path": "/paper/arxiv_id"
                   },
                   {
-                    "from": "steps",
+                    "from": "item",
                     "path": "/paper/title"
                   }
                 ]
@@ -1444,7 +1639,7 @@
               "targets": {
                 "array": [
                   {
-                    "from": "steps",
+                    "from": "item",
                     "path": "/paper"
                   }
                 ]
@@ -1469,7 +1664,7 @@
           "type": "validate",
           "when": {
             "left": {
-              "from": "steps",
+              "from": "item",
               "path": "/paper/doi"
             },
             "op": "ne",
@@ -1490,8 +1685,16 @@
       },
       "yield": {
         "object": {
+          "handle": {
+            "from": "item",
+            "path": "/handle"
+          },
+          "evidence_ids": {
+            "from": "item",
+            "path": "/evidence_ids"
+          },
           "paper": {
-            "from": "steps",
+            "from": "item",
             "path": "/paper"
           },
           "response": {
@@ -1554,7 +1757,7 @@
               },
               "paper_id": {
                 "from": "item",
-                "path": "/paper/paper_id"
+                "path": "/handle"
               },
               "query": {
                 "from": "item",
@@ -1594,7 +1797,7 @@
               },
               "paper_id": {
                 "from": "item",
-                "path": "/paper/paper_id"
+                "path": "/handle"
               },
               "query": {
                 "from": "item",
@@ -1662,6 +1865,14 @@
                   "record": {
                     "from": "steps",
                     "path": "/record"
+                  },
+                  "handle": {
+                    "from": "item",
+                    "path": "/handle"
+                  },
+                  "evidence_ids": {
+                    "from": "item",
+                    "path": "/evidence_ids"
                   }
                 }
               }
@@ -1699,8 +1910,8 @@
                     "path": "/record/message"
                   },
                   "paper_id": {
-                    "from": "steps",
-                    "path": "/record/paper_id"
+                    "from": "item",
+                    "path": "/paper/paper_id"
                   },
                   "status": {
                     "from": "steps",
@@ -1834,7 +2045,7 @@
             "from": "state",
             "path": "/citation_records"
           },
-          "target_key": "/paper/paper_id",
+          "target_key": "/handle",
           "targets": {
             "from": "state",
             "path": "/resolved_jobs"
@@ -1854,7 +2065,7 @@
             "from": "state",
             "path": "/citation_records"
           },
-          "target_key": "/paper/paper_id",
+          "target_key": "/handle",
           "targets": {
             "from": "state",
             "path": "/resolved_jobs"
@@ -1866,7 +2077,7 @@
         },
         {
           "kind": "relation",
-          "row_key": "/paper/paper_id",
+          "row_key": "/handle",
           "rows": {
             "from": "state",
             "path": "/resolved_jobs"
@@ -2100,8 +2311,44 @@
                 "path": "/document"
               },
               "paper": {
-                "from": "item",
-                "path": "/paper"
+                "object": {
+                  "paper_id": {
+                    "from": "item",
+                    "path": "/handle"
+                  },
+                  "title": {
+                    "from": "item",
+                    "path": "/paper/title"
+                  },
+                  "doi": {
+                    "from": "item",
+                    "path": "/paper/doi"
+                  },
+                  "arxiv_id": {
+                    "from": "item",
+                    "path": "/paper/arxiv_id"
+                  },
+                  "authors": {
+                    "from": "item",
+                    "path": "/paper/authors"
+                  },
+                  "year": {
+                    "from": "item",
+                    "path": "/paper/year"
+                  },
+                  "venue": {
+                    "from": "item",
+                    "path": "/paper/venue"
+                  },
+                  "abstract": {
+                    "from": "item",
+                    "path": "/paper/abstract"
+                  },
+                  "url": {
+                    "from": "item",
+                    "path": "/paper/url"
+                  }
+                }
               },
               "record": {
                 "from": "item",
@@ -2110,6 +2357,10 @@
               "research_question": {
                 "from": "state",
                 "path": "/research_question"
+              },
+              "evidence_ids": {
+                "from": "item",
+                "path": "/evidence_ids"
               }
             }
           },
@@ -2121,20 +2372,24 @@
           "checks": [
             {
               "kind": "relation",
-              "row_key": "/paper_id",
               "rows": {
                 "from": "result",
                 "path": ""
               },
-              "target_key": "/paper_id",
               "targets": {
                 "array": [
                   {
-                    "from": "item",
-                    "path": "/paper"
+                    "object": {
+                      "paper_id": {
+                        "from": "item",
+                        "path": "/handle"
+                      }
+                    }
                   }
                 ]
-              }
+              },
+              "row_key": "/paper_id",
+              "target_key": "/paper_id"
             },
             {
               "kind": "relation",
@@ -2148,6 +2403,19 @@
               },
               "row_key": "/evidence_id",
               "target_key": "/evidence_id"
+            },
+            {
+              "kind": "relation",
+              "rows": {
+                "from": "result",
+                "path": ""
+              },
+              "targets": {
+                "from": "item",
+                "path": "/evidence_ids"
+              },
+              "row_key": "/evidence_id",
+              "target_key": ""
             },
             {
               "compare": [
@@ -2183,7 +2451,7 @@
                       },
                       "paper_id": {
                         "from": "item",
-                        "path": "/paper/paper_id"
+                        "path": "/handle"
                       },
                       "scope": {
                         "literal": "abstract"
@@ -2934,7 +3202,7 @@
                     "from": "state",
                     "path": "/resolved_jobs"
                   },
-                  "key": "/paper/paper_id",
+                  "key": "/handle",
                   "path": "/response/best_match"
                 }
               },
@@ -2995,7 +3263,7 @@
           },
           "unresolved": {
             "from": "state",
-            "path": "/review/unresolved"
+            "path": "/unresolved"
           },
           "verification_results": {
             "from": "state",
@@ -3034,7 +3302,7 @@
             "from": "state",
             "path": "/final/bibliography"
           },
-          "target_key": "/paper/paper_id",
+          "target_key": "/handle",
           "target_values": {
             "/response/status": "resolved"
           },
@@ -3229,6 +3497,7 @@
       "state_read": [
         "all_batches",
         "bibliography",
+        "citation_jobs",
         "citation_records",
         "document_refs",
         "evidence_batches",
@@ -3238,6 +3507,7 @@
         "final",
         "found_papers",
         "found_refs",
+        "handle_job_batches",
         "identified",
         "materialized_claims",
         "papers_found",
@@ -3246,7 +3516,9 @@
         "screening_batches",
         "search_batches",
         "seed_batches",
-        "selection"
+        "selection",
+        "selection_slots",
+        "unresolved"
       ],
       "state_write": [
         "all_batches",
@@ -3255,10 +3527,13 @@
         "final",
         "found_papers",
         "found_refs",
+        "handle_jobs",
+        "handle_slots",
         "included_papers",
         "normalize_documents",
         "papers_found",
-        "raw_candidates"
+        "raw_candidates",
+        "selection_slots"
       ],
       "tools": []
     },
@@ -3348,7 +3623,8 @@
       ],
       "state_read": [
         "candidate_refs",
-        "citation_jobs",
+        "handle_jobs",
+        "handle_slots",
         "included_papers",
         "mode",
         "preparation_batches",
@@ -3360,6 +3636,7 @@
         "bibliography",
         "citation_records",
         "evidence_jobs",
+        "handle_job_batches",
         "preparation_batches",
         "resolved_jobs",
         "seed_batches",

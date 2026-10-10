@@ -115,7 +115,10 @@ def grounding(output: dict, state: dict, documents: dict[str, list[str]]) -> dic
         for batch in (state.get("search_batches") or [])
         for paper in (batch.get("papers") or [])
     ]
-    by_paper = {(job.get("paper") or {}).get("paper_id"): job for job in resolved_jobs}
+    # Since 0.2.7 the review names a chosen paper by its handle (P1-P3), which its job carries.
+    by_paper = {
+        job.get("handle") or (job.get("paper") or {}).get("paper_id"): job for job in resolved_jobs
+    }
 
     def genuine_texts(paper_id):
         job = by_paper.get(paper_id) or {}
