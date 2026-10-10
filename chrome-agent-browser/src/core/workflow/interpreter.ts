@@ -27,7 +27,14 @@ export const PROFILE = "workflow.v0";
 /** `provenance.interpreter`: which interpreter ran (the reference says `agentpkg.workflow.Workflow`). */
 export const INTERPRETER = "chrome-agent-browser.workflow.Workflow";
 
-export type WorkflowOptions = RuntimeOptions;
+export interface WorkflowOptions extends RuntimeOptions {
+  /**
+   * The host's own deadline for the whole run, as a `Date.now()` instant, when it is earlier than the
+   * graph's (the runner's watchdog, `effectiveDeadlineSeconds`). Nothing fires from it here; it lets
+   * a re-ask or a retry tell that the run would end before it could (D-151, D-152).
+   */
+  deadlineAt?: number;
+}
 
 export interface ExecutionReport {
   status: "completed" | "failed" | "cancelled";
@@ -54,7 +61,7 @@ export class Workflow {
   private readonly schemas: PackageSchemas;
   private used = false;
   private cancelRequested = false;
-  private readonly root = new CancelToken();
+  private readonly root: CancelToken;
   private output: JsonValue = null;
   /** Bundled model schemas by path: the package is immutable for the run, so one bundle per schema (review 1, nit 13). */
   private readonly modelSchemas = new Map<string, JsonValue>();
@@ -63,7 +70,9 @@ export class Workflow {
     this.package = pkg;
     this.graph = pkg.graph;
     this.schemas = schemas;
-    this.runtime = new Runtime(pkg, schemas, options);
+    const { deadlineAt, ...runtimeOptions } = options;
+    this.root = new CancelToken(null, deadlineAt ?? Number.POSITIVE_INFINITY);
+    this.runtime = new Runtime(pkg, schemas, runtimeOptions);
   }
 
   /**

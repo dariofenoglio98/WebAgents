@@ -326,6 +326,8 @@ export class ExecutionSession {
     let workflow: Workflow;
     try {
       workflow = await Workflow.create(this.package, {
+        // The watchdog's deadline, so a re-ask or a retry the run would not outlive is not sent.
+        deadlineAt: Date.now() + effectiveDeadlineSeconds(this.package, this.limits) * 1000,
         grants: this.grants,
         handlers: this.handlers,
         router: this.router,

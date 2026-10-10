@@ -55,14 +55,14 @@ class ReplayProvider implements ProviderAdapter {
   }
 }
 
-async function run(pkg: Package, script: Script, options: { contextWindow?: number; delayMs?: number } = {}) {
+async function run(pkg: Package, script: Script, options: { contextWindow?: number; delayMs?: number; deadlineAt?: number } = {}) {
   const { handlers, input } = fixtureAdapters(pkg);
   const fixture = pkg.files.get("fixtures/workflow.json")!;
   const cases = (JSON.parse(new TextDecoder().decode(fixture)) as JsonObject).models as Record<string, Array<{ input: JsonValue; output: JsonValue }>>;
   const provider = new ReplayProvider(cases, script, options.contextWindow ?? 1_000_000, options.delayMs ?? 0);
   const router = new BoundModelRouter(provider);
   try {
-    const result = await runWorkflow(pkg, input, { router, handlers, grants: sessionGrants(pkg), approvedTools: [] });
+    const result = await runWorkflow(pkg, input, { router, handlers, grants: sessionGrants(pkg), approvedTools: [], ...(options.deadlineAt !== undefined ? { deadlineAt: options.deadlineAt } : {}) });
     return { provider, result, error: null, audit: result.audit as unknown as Array<Record<string, unknown>> };
   } catch (error) {
     return { provider, result: null, error: error as WorkflowError, audit: (error as WorkflowError).execution_report!.audit as Array<Record<string, unknown>> };
@@ -165,6 +165,13 @@ describe("re-asks with a named check (D-151)", () => {
     const skipped = events(audit, "write").find((event) => event.action === "model.retry_skipped")!;
     expect(skipped).toMatchObject({ attempt: 2, reason: "deadline" });
     expect(skipped.remaining_ms as number).toBeLessThan(skipped.last_attempt_ms as number);
+  });
+
+  it("the host's own run deadline counts too: a re-ask the run would not outlive is not sent, whatever the node allows", async () => {
+    const pkg = await loadSource(agendaFiles());
+    const { error, audit } = await run(pkg, (task, _attempt, answer) => (task === "plan" ? JSON.stringify({ focus: ["a", "a"] }) : JSON.stringify(answer)), { delayMs: 300, deadlineAt: Date.now() + 450 });
+    expect([error!.code, error!.node_id]).toEqual(["model_error", "plan"]);
+    expect(events(audit, "plan").find((event) => event.action === "model.retry_skipped")).toMatchObject({ attempt: 2, reason: "deadline" });
   });
 
   it("re-asks a schema miss, naming the keyword, where in the answer, and the missing property", async () => {
