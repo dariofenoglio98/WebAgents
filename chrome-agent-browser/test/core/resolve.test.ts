@@ -16,7 +16,7 @@ import { addressKind, readQuery, type ResolveQuery } from "../../src/core/resolv
 import { ROOT, SHIPPED } from "../helpers/paths.js";
 
 const CONTENT = JSON.parse(readFileSync(resolve(ROOT, "examples/agent-index.content.json"), "utf8")) as JsonObject;
-const NOW = new Date("2026-10-09T12:00:00Z");
+const NOW = new Date("2026-10-10T12:00:00Z");
 
 function held(content: JsonObject = CONTENT): VerifiedIndex {
   return { index: readAgentIndex(content), signer_fingerprint: `sha256:${"a".repeat(64)}`, content_sha256: "b".repeat(64), document_sha256: "c".repeat(64) };
@@ -54,7 +54,7 @@ describe("what the address bar searches", () => {
 describe("the agent index (spec §4)", () => {
   it("reads the demo index in its own order", () => {
     const index = readAgentIndex(CONTENT);
-    expect(index.entries.map((entry) => entry.package_id)).toEqual([SHIPPED.literatureReview026.packageId, SHIPPED.webair050.packageId]);
+    expect(index.entries.map((entry) => entry.package_id)).toEqual([SHIPPED.literatureReview027.packageId, SHIPPED.webair050.packageId]);
     expect(index.notes).toEqual([]);
   });
 
@@ -68,8 +68,8 @@ describe("the agent index (spec §4)", () => {
       }
     };
     expect(code(variant((c) => (c.expires_at = c.issued_at)))).toMatch(/document_content_invalid: .*expires_at/u);
-    expect(code(variant((c) => c.entries.push({ ...c.entries[0]!, package_url: "https://other.example/x.agent.pkg" })))).toMatch(/lists org\.webagents\.literature-review@0\.2\.6 twice/u);
-    expect(code(variant((c) => c.entries.push({ ...c.entries[0]!, version: "0.2.7" })))).toMatch(/package URL .* twice/u);
+    expect(code(variant((c) => c.entries.push({ ...c.entries[0]!, package_url: "https://other.example/x.agent.pkg" })))).toMatch(/lists org\.webagents\.literature-review@0\.2\.7 twice/u);
+    expect(code(variant((c) => c.entries.push({ ...c.entries[0]!, version: "0.2.8" })))).toMatch(/package URL .* twice/u);
   });
 
   it.each([
@@ -101,8 +101,8 @@ describe("StaticIndexResolver", () => {
     expect(result.notes).toEqual([]);
     expect(result.candidates).toHaveLength(1);
     const candidate = result.candidates[0]!;
-    expect(candidate).toMatchObject({ package_id: SHIPPED.literatureReview026.packageId, version: "0.2.6", digest: SHIPPED.literatureReview026.digest, signer_fingerprint: SHIPPED.literatureReview026.fingerprint });
-    expect(candidate.source).toEqual({ resolver: "static-index", resolver_id: "org.webagents.demo-index", label: "WebAgents demo index", version: "1.1.0", verified_by: `sha256:${"a".repeat(64)}`, content_sha256: "b".repeat(64), position: 0 });
+    expect(candidate).toMatchObject({ package_id: SHIPPED.literatureReview027.packageId, version: "0.2.7", digest: SHIPPED.literatureReview027.digest, signer_fingerprint: SHIPPED.literatureReview027.fingerprint });
+    expect(candidate.source).toEqual({ resolver: "static-index", resolver_id: "org.webagents.demo-index", label: "WebAgents demo index", version: "1.2.0", verified_by: `sha256:${"a".repeat(64)}`, content_sha256: "b".repeat(64), position: 0 });
   });
 
   it("matches every word anywhere, a locator exactly, and keeps the index's order", async () => {

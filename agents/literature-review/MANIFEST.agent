@@ -2,7 +2,7 @@
   "spec_version": "0.1",
   "package_id": "org.webagents.literature-review",
   "name": "Literature Review Agent",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "description": "A constrained coordinator-worker review with structured evidence and verified citations. Bundled demo data are synthetic.",
   "publisher": {
     "id": "webagents-research",
@@ -11,7 +11,7 @@
   "created_at": "2026-10-01T00:00:00Z",
   "runtime": {
     "api": "agentpkg-runtime-v0",
-    "minimum_version": "0.2.1"
+    "minimum_version": "0.3.0"
   },
   "capabilities": [
     "literature-review",
@@ -24,12 +24,12 @@
   "skills": [
     {
       "id": "literature-search",
-      "version": "0.1.2",
+      "version": "0.1.3",
       "path": "skills/literature-search/SKILL.md"
     },
     {
       "id": "paper-screening",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "path": "skills/paper-screening/SKILL.md"
     },
     {
@@ -39,7 +39,7 @@
     },
     {
       "id": "evidence-extraction",
-      "version": "0.1.3",
+      "version": "0.1.4",
       "path": "skills/evidence-extraction/SKILL.md"
     },
     {
@@ -54,7 +54,7 @@
     },
     {
       "id": "claim-and-citation-verification",
-      "version": "0.1.3",
+      "version": "0.1.4",
       "path": "skills/claim-and-citation-verification/SKILL.md"
     }
   ],
@@ -162,16 +162,8 @@
       "path": "schemas/resolver-output.schema.json"
     },
     {
-      "id": "responses",
-      "path": "schemas/responses.schema.json"
-    },
-    {
       "id": "review-output",
       "path": "schemas/review-output.schema.json"
-    },
-    {
-      "id": "screen-job",
-      "path": "schemas/screen-job.schema.json"
     },
     {
       "id": "search-batches",
@@ -258,16 +250,80 @@
       "path": "schemas/evidence-ref.schema.json"
     },
     {
-      "id": "screen-ref",
-      "path": "schemas/screen-ref.schema.json"
+      "id": "candidate-ref",
+      "path": "schemas/candidate-ref.schema.json"
     },
     {
-      "id": "screen-refs",
-      "path": "schemas/screen-refs.schema.json"
+      "id": "candidate-refs",
+      "path": "schemas/candidate-refs.schema.json"
     },
     {
-      "id": "screening-jobs",
-      "path": "schemas/screening-jobs.schema.json"
+      "id": "documents",
+      "path": "schemas/documents.schema.json"
+    },
+    {
+      "id": "full-text-flag",
+      "path": "schemas/full-text-flag.schema.json"
+    },
+    {
+      "id": "identified",
+      "path": "schemas/identified.schema.json"
+    },
+    {
+      "id": "pages",
+      "path": "schemas/pages.schema.json"
+    },
+    {
+      "id": "paper-found",
+      "path": "schemas/paper-found.schema.json"
+    },
+    {
+      "id": "paper-id",
+      "path": "schemas/paper-id.schema.json"
+    },
+    {
+      "id": "paper-ids",
+      "path": "schemas/paper-ids.schema.json"
+    },
+    {
+      "id": "papers-found",
+      "path": "schemas/papers-found.schema.json"
+    },
+    {
+      "id": "raw-paper",
+      "path": "schemas/raw-paper.schema.json"
+    },
+    {
+      "id": "screen-verdict",
+      "path": "schemas/screen-verdict.schema.json"
+    },
+    {
+      "id": "screening-batches",
+      "path": "schemas/screening-batches.schema.json"
+    },
+    {
+      "id": "handle-job",
+      "path": "schemas/handle-job.schema.json"
+    },
+    {
+      "id": "handle-job-batches",
+      "path": "schemas/handle-job-batches.schema.json"
+    },
+    {
+      "id": "handle-jobs",
+      "path": "schemas/handle-jobs.schema.json"
+    },
+    {
+      "id": "handle-slot",
+      "path": "schemas/handle-slot.schema.json"
+    },
+    {
+      "id": "handle-slots",
+      "path": "schemas/handle-slots.schema.json"
+    },
+    {
+      "id": "slots",
+      "path": "schemas/slots.schema.json"
     }
   ],
   "model_requirements": {

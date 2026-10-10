@@ -1,0 +1,7 @@
+{
+  "type": "array",
+  "items": {
+    "$ref": "handle-jobs.schema.json"
+  },
+  "maxItems": 3
+}

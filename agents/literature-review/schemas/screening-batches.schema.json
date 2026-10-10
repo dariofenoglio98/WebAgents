@@ -1,0 +1,28 @@
+{
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "included": {
+        "type": "array",
+        "items": {
+          "$ref": "paper.schema.json"
+        },
+        "maxItems": 1
+      },
+      "found": {
+        "type": "array",
+        "items": {
+          "$ref": "paper-found.schema.json"
+        },
+        "minItems": 1,
+        "maxItems": 1
+      }
+    },
+    "required": [
+      "included",
+      "found"
+    ],
+    "additionalProperties": false
+  }
+}

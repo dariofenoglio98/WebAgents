@@ -1,0 +1,1238 @@
+{
+  "profile": "chrome-literature-review-live-v0",
+  "recordedAt": "2026-10-10T14:40:30.019Z",
+  "model": "ollama/qwen3:30b",
+  "think": true,
+  "contextTokens": null,
+  "reasoningEffort": null,
+  "package": {
+    "path": "dist/literature-review-0.2.7.agent.pkg",
+    "archiveSha256": "8951a14bb1f42bca1590bc7d0c9cc00cccba75b36f1488969b6b3ff47063fe61",
+    "servedAs": "https://research.example/literature-review.agent.pkg"
+  },
+  "input": "examples/my-t15/q-pi.json",
+  "documents": [],
+  "crossrefContact": null,
+  "extension": "chrome-agent-browser/dist/extension",
+  "chrome": "Chrome/154.0.8037.99",
+  "outputDirectory": "examples/my-t15/harness-qwen-final",
+  "steps": {
+    "setup": {
+      "probe": {
+        "ok": true,
+        "models": 4,
+        "error": null
+      },
+      "testMode": true,
+      "keyFromEnvironment": null,
+      "limits": {
+        "total_tokens": 180000,
+        "max_remote_calls": 45,
+        "max_parallel_workers": 3,
+        "max_output_tokens_per_call": 16000,
+        "run_timeout_seconds": 4500,
+        "max_calls_per_tool": 32,
+        "model_call_timeout_seconds": 1200
+      },
+      "the ollama connection answers": "ok",
+      "the model is offered": "ok",
+      "execution is enabled under the long-run limits": "ok"
+    },
+    "files": [],
+    "inspect": {
+      "sessionId": "1b59f8e58bee49fe8a1d593f",
+      "name": "Literature Review Agent",
+      "version": "0.2.7",
+      "digest": "9274a5ce46275e6817ae2706791c19a8066e523776cb9eb348a76b83396a99cb",
+      "signature": "valid",
+      "Literature Review 0.2.7, signed": "ok"
+    },
+    "authorization": {
+      "decisions": {
+        "files.pdfs": "session",
+        "memory.session": "session",
+        "model.reasoning": "session",
+        "network.citations": "session",
+        "network.scholarly": "session"
+      },
+      "ready": true,
+      "runPlanId": "rp_fbacde5cce174b8b999992473ff0471a",
+      "bindings": [
+        {
+          "tool": "citation-resolver",
+          "implementation": "chrome.tool.json_http",
+          "binding_id": "chrome:json_http:citation-resolver:1",
+          "usable": true,
+          "contact": false
+        },
+        {
+          "tool": "paper-reader",
+          "implementation": "chrome.tool.selected_pdf_text",
+          "binding_id": "chrome:selected_pdf_text:paper-reader:1",
+          "usable": true,
+          "contact": false
+        },
+        {
+          "tool": "scholarly-search",
+          "implementation": "chrome.tool.crossref_works_search",
+          "binding_id": "chrome:crossref_works_search:scholarly-search:1",
+          "usable": true,
+          "contact": false
+        }
+      ],
+      "the plan is ready": "ok",
+      "the three tools bind to the host's Crossref search, the declared resolver and the PDF reader": "ok"
+    },
+    "reconnect": {
+      "shown": "run_09326d6411954c30999854706a29c196",
+      "state": "running",
+      "the reloaded page shows the run in flight": "ok"
+    },
+    "run": {
+      "settled as completed (the honest-empty outcome is a completed run)": "ok",
+      "the audit chain is valid": "ok"
+    }
+  },
+  "run": {
+    "runId": "run_09326d6411954c30999854706a29c196",
+    "status": "completed",
+    "errorCode": null,
+    "pageState": "completed",
+    "durationMs": 754276,
+    "selectedModel": "ollama/qwen3:30b",
+    "model": {
+      "planned": "ollama/qwen3:30b",
+      "invoked": [
+        "ollama/qwen3:30b"
+      ],
+      "calls": 11,
+      "allCallsUsedPlannedModel": true,
+      "providers": [
+        "ollama"
+      ],
+      "responseModels": [
+        "qwen3:30b"
+      ]
+    },
+    "usage": {
+      "tokens": 56011,
+      "remoteCalls": 6,
+      "toolCalls": 6,
+      "peakParallelWorkers": 3
+    },
+    "cost": {
+      "status": "unknown",
+      "totalUsd": null,
+      "calls": 11,
+      "callsWithReportedCost": 0
+    },
+    "audit": {
+      "events": 607,
+      "chainValid": true
+    },
+    "attachments": [],
+    "failure": null,
+    "files": [
+      {
+        "name": "run.json",
+        "bytes": 23569,
+        "sha256": "7bfb365eb4fdb1f7dc98ad7cabb9b1f8e391f4b9c384c0b04f1e2675ae1ddee3"
+      },
+      {
+        "name": "run-plan.json",
+        "bytes": 18399,
+        "sha256": "64ad07abe667125d6127f21d93f86edb485a747d2f9b2d2f9a6c8f9f4e2d6c0c"
+      },
+      {
+        "name": "input.json",
+        "bytes": 148,
+        "sha256": "d43dc008bf86850b29d7922132819bd21ae6fe42441819f456ea85e29d426a69"
+      },
+      {
+        "name": "audit.json",
+        "bytes": 389561,
+        "sha256": "7bdfc3388ab769b22bfdc76cf95965a319f45d8ed408b8efac151a0566ab7787"
+      },
+      {
+        "name": "bibliography.json",
+        "bytes": 6188,
+        "sha256": "4460813b1e4fc9127637bf6e2850521541dcf91fa852b6e391898550496ee774"
+      },
+      {
+        "name": "evidence-table.json",
+        "bytes": 1492,
+        "sha256": "bc9189b7af89763f49db4be8b51fb179b75bbc2fdc6d86ddd132ea57065f671b"
+      },
+      {
+        "name": "papers-found.json",
+        "bytes": 1503,
+        "sha256": "ea4d86c5de9e0891accebf0d671bd5ed4e9dd890928a8bc155f78d46f163f0ed"
+      },
+      {
+        "name": "provenance.json",
+        "bytes": 251,
+        "sha256": "a052d0f6c5b51a3a12bdbdc66653e3487283cfccf981db47a6eb9e32104b9a0b"
+      },
+      {
+        "name": "related-work.md",
+        "bytes": 294,
+        "sha256": "870c8e72b7dbd561aaae02ade1d4c628090db146e8ef450b64ad7e2603d4f8fa"
+      },
+      {
+        "name": "result.json",
+        "bytes": 678168,
+        "sha256": "2fc77c5b5dd2a87ff7fba7e4bc463df83ec0cc1d40e3f9b2c6eb56d8179eb07a"
+      },
+      {
+        "name": "unresolved.json",
+        "bytes": 3,
+        "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      },
+      {
+        "name": "usage.json",
+        "bytes": 4512,
+        "sha256": "1c12f5659860c600e849155b1ea075e2d6977e44e7c0c009757c30c915c0bb4a"
+      },
+      {
+        "name": "verification.json",
+        "bytes": 620,
+        "sha256": "f6bd14e8912412849d409b3e10d9455db5c67945b9b348e789e445b0ca1eef68"
+      }
+    ],
+    "observations": 17
+  },
+  "failures": [],
+  "passed": true,
+  "modelRequests": {
+    "requests": 11,
+    "reasoning_effort": {
+      "none": 11
+    },
+    "text_format": {
+      "ollama_format": 11
+    }
+  },
+  "checks": [
+    {
+      "id": "package_verifies_with_the_publisher_key",
+      "passed": true,
+      "detail": {
+        "digest": "9274a5ce46275e6817ae2706791c19a8066e523776cb9eb348a76b83396a99cb"
+      }
+    },
+    {
+      "id": "run_bound_to_the_shipped_archive",
+      "passed": true,
+      "detail": {
+        "record": "8951a14bb1f42bca1590bc7d0c9cc00cccba75b36f1488969b6b3ff47063fe61",
+        "dist": "8951a14bb1f42bca1590bc7d0c9cc00cccba75b36f1488969b6b3ff47063fe61"
+      }
+    },
+    {
+      "id": "plan_names_the_package",
+      "passed": true
+    },
+    {
+      "id": "audit_chain_valid",
+      "passed": true,
+      "detail": {
+        "events": 607,
+        "valid": true,
+        "broken": [],
+        "final_hash": "f907ef1c0cb6b9d4ebae68ddaf4aecf9763500fee2f5ca4ca86c038fd6bf359d",
+        "note": "A local hash chain. It binds these events to each other; it is not an external tamper-proof audit service."
+      }
+    },
+    {
+      "id": "record_matches_audit",
+      "passed": true,
+      "detail": {
+        "events": 607,
+        "chainValid": true,
+        "finalHash": "f907ef1c0cb6b9d4ebae68ddaf4aecf9763500fee2f5ca4ca86c038fd6bf359d",
+        "actions": [
+          {
+            "action": "budget.updated",
+            "count": 34
+          },
+          {
+            "action": "delegation.checked",
+            "count": 36
+          },
+          {
+            "action": "memory.cleared",
+            "count": 1
+          },
+          {
+            "action": "model.called",
+            "count": 11
+          },
+          {
+            "action": "model.completed",
+            "count": 11
+          },
+          {
+            "action": "model.count.called",
+            "count": 11
+          },
+          {
+            "action": "node.completed",
+            "count": 120
+          },
+          {
+            "action": "node.deduplicated",
+            "count": 1
+          },
+          {
+            "action": "node.skipped",
+            "count": 24
+          },
+          {
+            "action": "node.started",
+            "count": 120
+          },
+          {
+            "action": "node.truncated",
+            "count": 1
+          },
+          {
+            "action": "permission.checked",
+            "count": 71
+          },
+          {
+            "action": "runtime.started",
+            "count": 1
+          },
+          {
+            "action": "state.committed",
+            "count": 31
+          },
+          {
+            "action": "tool.called",
+            "count": 6
+          },
+          {
+            "action": "tool.completed",
+            "count": 6
+          },
+          {
+            "action": "tool.dispatched",
+            "count": 6
+          },
+          {
+            "action": "tool.settled",
+            "count": 6
+          },
+          {
+            "action": "worker.completed",
+            "count": 36
+          },
+          {
+            "action": "worker.spawned",
+            "count": 36
+          },
+          {
+            "action": "worker.started",
+            "count": 36
+          },
+          {
+            "action": "workflow.completed",
+            "count": 1
+          },
+          {
+            "action": "workflow.started",
+            "count": 1
+          }
+        ],
+        "workers": [
+          "CitationWorker:13",
+          "CitationWorker:14",
+          "CitationWorker:15",
+          "CitationWorker:16",
+          "CitationWorker:17",
+          "CitationWorker:18",
+          "CitationWorker:19",
+          "CitationWorker:20",
+          "CitationWorker:21",
+          "CitationWorker:22",
+          "CitationWorker:23",
+          "CitationWorker:24",
+          "CitationWorker:32",
+          "CitationWorker:33",
+          "EvidenceWorker:25",
+          "EvidenceWorker:26",
+          "EvidenceWorker:27",
+          "PlanningWorker:1",
+          "PlanningWorker:8",
+          "ScreeningWorker:10",
+          "ScreeningWorker:11",
+          "ScreeningWorker:12",
+          "ScreeningWorker:9",
+          "SearchWorker:2",
+          "SearchWorker:3",
+          "SearchWorker:4",
+          "SearchWorker:5",
+          "SearchWorker:6",
+          "SearchWorker:7",
+          "SynthesisWorker:28",
+          "VerificationWorker:30",
+          "VerificationWorker:31",
+          "VerificationWorker:34",
+          "VerificationWorker:35",
+          "VerificationWorker:36",
+          "WritingWorker:29",
+          "coordinator"
+        ],
+        "workersSpawned": 36,
+        "nodesCompleted": 120,
+        "modelCalls": 11,
+        "toolCalls": 6,
+        "tasksCalled": [
+          {
+            "task": "extract",
+            "count": 3
+          },
+          {
+            "task": "plan",
+            "count": 1
+          },
+          {
+            "task": "screen",
+            "count": 3
+          },
+          {
+            "task": "select",
+            "count": 1
+          },
+          {
+            "task": "synthesize",
+            "count": 1
+          },
+          {
+            "task": "verify",
+            "count": 1
+          },
+          {
+            "task": "write",
+            "count": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "every_artifact_matches_the_record",
+      "passed": true
+    },
+    {
+      "id": "input_is_the_harness_input",
+      "passed": true
+    },
+    {
+      "id": "run_completed",
+      "passed": true,
+      "detail": {
+        "status": "completed",
+        "errorCode": null,
+        "failure": null
+      }
+    },
+    {
+      "id": "used_the_selected_model_only",
+      "passed": true,
+      "detail": {
+        "planned": "ollama/qwen3:30b",
+        "invoked": [
+          "ollama/qwen3:30b"
+        ],
+        "calls": 11,
+        "allCallsUsedPlannedModel": true,
+        "providers": [
+          "ollama"
+        ],
+        "responseModels": [
+          "qwen3:30b"
+        ]
+      }
+    },
+    {
+      "id": "every_model_call_observed",
+      "passed": true,
+      "detail": {
+        "observed": 11,
+        "recorded": 11,
+        "called": 11
+      }
+    },
+    {
+      "id": "every_tool_call_went_to_the_planned_binding",
+      "passed": true
+    },
+    {
+      "id": "the_plan_binds_the_host_implementations",
+      "passed": true,
+      "detail": {
+        "citation-resolver": "chrome:json_http:citation-resolver:1",
+        "paper-reader": "chrome:selected_pdf_text:paper-reader:1",
+        "scholarly-search": "chrome:crossref_works_search:scholarly-search:1"
+      }
+    },
+    {
+      "id": "every_remote_tool_call_observed",
+      "passed": true,
+      "detail": {
+        "observed": 6,
+        "answered": 6,
+        "dispatched": 6
+      }
+    },
+    {
+      "id": "crossref_requests_have_the_reference_shape",
+      "passed": true,
+      "detail": {
+        "requests": 3,
+        "ok": 3
+      }
+    },
+    {
+      "id": "one_crossref_request_per_search_call_and_retry",
+      "passed": true,
+      "detail": {
+        "requests": 3,
+        "answered": 3,
+        "calls": 3,
+        "retries": 0
+      }
+    },
+    {
+      "id": "crossref_paced_one_per_second",
+      "passed": true,
+      "detail": {
+        "gaps_s": [
+          1.639,
+          1.298
+        ]
+      }
+    },
+    {
+      "id": "crossref_answered_every_search",
+      "passed": true,
+      "detail": {
+        "statuses": [
+          200,
+          200,
+          200
+        ],
+        "failures": []
+      }
+    },
+    {
+      "id": "resolver_calls_went_to_the_declared_origin",
+      "passed": true,
+      "detail": {
+        "resolver": 3,
+        "crossref_search": 3,
+        "crossref_doi_lookup": 0,
+        "tools": 6
+      }
+    },
+    {
+      "id": "a_doi_lookup_only_as_the_declared_fallback",
+      "passed": true,
+      "detail": {
+        "lookups": 0,
+        "fallbacks": 0
+      }
+    },
+    {
+      "id": "attachments_are_the_picked_documents",
+      "passed": true,
+      "detail": {
+        "attachments": [],
+        "picked": []
+      }
+    },
+    {
+      "id": "the_parser_text_describes_the_picked_bytes",
+      "passed": true
+    },
+    {
+      "id": "documents_read_by_opaque_id_and_hash_only",
+      "passed": true,
+      "detail": []
+    },
+    {
+      "id": "no_document_name_in_any_run_file",
+      "passed": true
+    },
+    {
+      "id": "held_to_the_long_run_limits",
+      "passed": true,
+      "detail": {
+        "totalTokens": 180000,
+        "maxRemoteCalls": 45,
+        "maxParallelWorkers": 3,
+        "maxOutputTokensPerCall": 16000,
+        "runTimeoutSeconds": 4500,
+        "modelCallTimeoutSeconds": 1200
+      }
+    },
+    {
+      "id": "usage_within_the_limits",
+      "passed": true,
+      "detail": {
+        "tokens": 56011,
+        "remoteCalls": 6,
+        "peakParallelWorkers": 3,
+        "toolCalls": 6,
+        "limits": {
+          "hardTokens": 180000,
+          "maxRemoteCalls": 45,
+          "maxParallelWorkers": 3
+        },
+        "workers": [
+          {
+            "worker": "coordinator",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "PlanningWorker:1",
+            "tokens": 2435,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "SearchWorker:2",
+            "tokens": 0,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "SearchWorker:3",
+            "tokens": 0,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "SearchWorker:4",
+            "tokens": 0,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "SearchWorker:5",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "SearchWorker:6",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "SearchWorker:7",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "PlanningWorker:8",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "ScreeningWorker:9",
+            "tokens": 1501,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "ScreeningWorker:10",
+            "tokens": 1514,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "ScreeningWorker:11",
+            "tokens": 1647,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "ScreeningWorker:12",
+            "tokens": 3621,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "CitationWorker:13",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "CitationWorker:14",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "CitationWorker:15",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "CitationWorker:16",
+            "tokens": 0,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "CitationWorker:17",
+            "tokens": 0,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "CitationWorker:18",
+            "tokens": 0,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "CitationWorker:19",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "CitationWorker:20",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "CitationWorker:21",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "CitationWorker:22",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "CitationWorker:23",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "CitationWorker:24",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "EvidenceWorker:25",
+            "tokens": 8024,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "EvidenceWorker:26",
+            "tokens": 7026,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "EvidenceWorker:27",
+            "tokens": 7814,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "SynthesisWorker:28",
+            "tokens": 9286,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "WritingWorker:29",
+            "tokens": 2621,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:30",
+            "tokens": 10522,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:31",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "CitationWorker:32",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "CitationWorker:33",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:34",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:35",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:36",
+            "tokens": 0,
+            "remoteCalls": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "evidence_quotes_occur_in_genuine_sources",
+      "passed": true,
+      "detail": {
+        "items": 12,
+        "in_sources": 12
+      }
+    },
+    {
+      "id": "evidence_table_rows_match_items",
+      "passed": true
+    },
+    {
+      "id": "bibliography_all_resolved_and_exact",
+      "passed": true
+    },
+    {
+      "id": "claims_reference_existing_evidence",
+      "passed": true
+    },
+    {
+      "id": "claims_cite_evidence_and_papers",
+      "passed": true
+    },
+    {
+      "id": "claims_reference_resolved_papers",
+      "passed": true
+    },
+    {
+      "id": "verification_results_match_claims",
+      "passed": true
+    },
+    {
+      "id": "related_work_mentions_only_bibliography",
+      "passed": true
+    },
+    {
+      "id": "papers_found_lists_every_found_paper_once",
+      "passed": true,
+      "detail": {
+        "found": 3,
+        "listed": 3
+      }
+    },
+    {
+      "id": "every_listed_paper_has_a_verdict",
+      "passed": true
+    },
+    {
+      "id": "normalize_asked_only_with_documents",
+      "passed": true,
+      "detail": {
+        "normalize_calls": 0,
+        "documents": 0
+      }
+    },
+    {
+      "id": "grounded_review_or_honest_empty",
+      "passed": true,
+      "detail": {
+        "claims": 2,
+        "honest_empty": false
+      }
+    }
+  ],
+  "grounding": {
+    "evidence_items": 12,
+    "evidence_quotes_in_genuine_sources": 12,
+    "evidence_quote_results": [
+      {
+        "evidence_id": "P1:e1",
+        "paper_id": "P1",
+        "scope": "abstract",
+        "quote_in_genuine_source": true,
+        "synthetic": false
+      },
+      {
+        "evidence_id": "P1:e2",
+        "paper_id": "P1",
+        "scope": "abstract",
+        "quote_in_genuine_source": true,
+        "synthetic": false
+      },
+      {
+        "evidence_id": "P1:e3",
+        "paper_id": "P1",
+        "scope": "abstract",
+        "quote_in_genuine_source": true,
+        "synthetic": false
+      },
+      {
+        "evidence_id": "P1:e4",
+        "paper_id": "P1",
+        "scope": "abstract",
+        "quote_in_genuine_source": true,
+        "synthetic": false
+      },
+      {
+        "evidence_id": "P2:e1",
+        "paper_id": "P2",
+        "scope": "abstract",
+        "quote_in_genuine_source": true,
+        "synthetic": false
+      },
+      {
+        "evidence_id": "P2:e2",
+        "paper_id": "P2",
+        "scope": "abstract",
+        "quote_in_genuine_source": true,
+        "synthetic": false
+      },
+      {
+        "evidence_id": "P2:e3",
+        "paper_id": "P2",
+        "scope": "abstract",
+        "quote_in_genuine_source": true,
+        "synthetic": false
+      },
+      {
+        "evidence_id": "P2:e4",
+        "paper_id": "P2",
+        "scope": "abstract",
+        "quote_in_genuine_source": true,
+        "synthetic": false
+      },
+      {
+        "evidence_id": "P3:e1",
+        "paper_id": "P3",
+        "scope": "abstract",
+        "quote_in_genuine_source": true,
+        "synthetic": false
+      },
+      {
+        "evidence_id": "P3:e2",
+        "paper_id": "P3",
+        "scope": "abstract",
+        "quote_in_genuine_source": true,
+        "synthetic": false
+      },
+      {
+        "evidence_id": "P3:e3",
+        "paper_id": "P3",
+        "scope": "abstract",
+        "quote_in_genuine_source": true,
+        "synthetic": false
+      },
+      {
+        "evidence_id": "P3:e4",
+        "paper_id": "P3",
+        "scope": "abstract",
+        "quote_in_genuine_source": true,
+        "synthetic": false
+      }
+    ],
+    "evidence_table_rows": 2,
+    "evidence_table_rows_match_items": true,
+    "bibliography": [
+      {
+        "paper_id": "P1",
+        "resolved": true,
+        "metadata_equals_resolver_record": true,
+        "title": "Evaluating Indirect Prompt Injection Defenses in Tool-Using LLM Agents: Security, Utility, and Replication",
+        "doi": "10.3390/computers15090570"
+      },
+      {
+        "paper_id": "P2",
+        "resolved": true,
+        "metadata_equals_resolver_record": true,
+        "title": "Defenses against LLM prompt injections in academic peer review",
+        "doi": "10.31234/osf.io/zxuwf_v2"
+      }
+    ],
+    "bibliography_all_resolved_and_exact": true,
+    "claims": 2,
+    "claims_reference_existing_evidence": true,
+    "claims_cite_evidence_and_papers": true,
+    "claims_reference_resolved_papers": true,
+    "verification_results": 2,
+    "verification_results_match_claims": true,
+    "unsupported_or_overstated": 0,
+    "related_work_chars": 294,
+    "related_work_paper_ids_mentioned": [],
+    "related_work_mentions_only_bibliography": true,
+    "unresolved": 0,
+    "honest_empty": false
+  },
+  "search": {
+    "queries": [
+      "prompt-injection defenses LLM recent",
+      "prompt-injection defenses countermeasures LLM machine learning",
+      "prompt-injection defenses evaluation metrics LLM"
+    ],
+    "batches": [
+      {
+        "query": "prompt-injection defenses LLM recent",
+        "source": "crossref",
+        "papers": 3,
+        "with_abstract": 3
+      },
+      {
+        "query": "prompt-injection defenses countermeasures LLM machine learning",
+        "source": "crossref",
+        "papers": 3,
+        "with_abstract": 3
+      },
+      {
+        "query": "prompt-injection defenses evaluation metrics LLM",
+        "source": "crossref",
+        "papers": 3,
+        "with_abstract": 3
+      }
+    ],
+    "candidate_papers": 0,
+    "found_papers": 3,
+    "screened_or_listed": 3,
+    "screened": [],
+    "resolver_statuses": [
+      {
+        "paper_id": "10.3390/computers15090570",
+        "status": "resolved"
+      },
+      {
+        "paper_id": "10.31234/osf.io/zxuwf_v2",
+        "status": "resolved"
+      },
+      {
+        "paper_id": "10.31234/osf.io/zxuwf_v1",
+        "status": "resolved"
+      }
+    ]
+  },
+  "verification": {
+    "script": "scripts/verify_chrome_literature_live.py",
+    "checks": 37,
+    "failed": [],
+    "run": {
+      "durationMs": 754276,
+      "usage": {
+        "tokens": 56011,
+        "remoteCalls": 6,
+        "peakParallelWorkers": 3,
+        "toolCalls": 6,
+        "limits": {
+          "hardTokens": 180000,
+          "maxRemoteCalls": 45,
+          "maxParallelWorkers": 3
+        },
+        "workers": [
+          {
+            "worker": "coordinator",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "PlanningWorker:1",
+            "tokens": 2435,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "SearchWorker:2",
+            "tokens": 0,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "SearchWorker:3",
+            "tokens": 0,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "SearchWorker:4",
+            "tokens": 0,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "SearchWorker:5",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "SearchWorker:6",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "SearchWorker:7",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "PlanningWorker:8",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "ScreeningWorker:9",
+            "tokens": 1501,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "ScreeningWorker:10",
+            "tokens": 1514,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "ScreeningWorker:11",
+            "tokens": 1647,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "ScreeningWorker:12",
+            "tokens": 3621,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "CitationWorker:13",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "CitationWorker:14",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "CitationWorker:15",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "CitationWorker:16",
+            "tokens": 0,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "CitationWorker:17",
+            "tokens": 0,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "CitationWorker:18",
+            "tokens": 0,
+            "remoteCalls": 1
+          },
+          {
+            "worker": "CitationWorker:19",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "CitationWorker:20",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "CitationWorker:21",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "CitationWorker:22",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "CitationWorker:23",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "CitationWorker:24",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "EvidenceWorker:25",
+            "tokens": 8024,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "EvidenceWorker:26",
+            "tokens": 7026,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "EvidenceWorker:27",
+            "tokens": 7814,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "SynthesisWorker:28",
+            "tokens": 9286,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "WritingWorker:29",
+            "tokens": 2621,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:30",
+            "tokens": 10522,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:31",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "CitationWorker:32",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "CitationWorker:33",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:34",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:35",
+            "tokens": 0,
+            "remoteCalls": 0
+          },
+          {
+            "worker": "VerificationWorker:36",
+            "tokens": 0,
+            "remoteCalls": 0
+          }
+        ]
+      },
+      "cost": {
+        "status": "unknown",
+        "totalUsd": null,
+        "calls": 11,
+        "callsWithReportedCost": 0
+      },
+      "model": {
+        "planned": "ollama/qwen3:30b",
+        "invoked": [
+          "ollama/qwen3:30b"
+        ],
+        "calls": 11,
+        "allCallsUsedPlannedModel": true,
+        "providers": [
+          "ollama"
+        ],
+        "responseModels": [
+          "qwen3:30b"
+        ]
+      }
+    }
+  }
+}

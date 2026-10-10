@@ -13,10 +13,11 @@
     {
       "id": "network.citations",
       "kind": "network",
-      "description": "Verify references through the existing Citation Resolver service.",
+      "description": "Verify references through the existing Citation Resolver service; when it is unavailable, the browser may look a DOI up at Crossref instead.",
       "required": true,
       "resources": [
-        "webagents-citation-resolver-production.up.railway.app"
+        "webagents-citation-resolver-production.up.railway.app",
+        "api.crossref.org"
       ]
     },
     {

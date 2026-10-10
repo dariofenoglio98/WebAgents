@@ -87,8 +87,12 @@ def test_same_interpreter_from_built_artifacts(name, tmp_path):
         assert result["usage"]["tool_calls"]["scholarly-search"] == 3
         assert result["usage"]["tool_calls"]["citation-resolver"] == 3
         assert result["usage"]["tool_calls"]["paper-reader"] == 2
-        assert len(result["state"]["raw_candidates"]) == 9
-        assert len(result["state"]["candidate_papers"]) == 8
+        # 0.2.7 (D-170): the search's duplicate DOI is removed by join-search's exact
+        # deduplication, before any model sees the records; every found paper is screened.
+        assert sum(len(b["papers"]) for b in result["state"]["search_batches"]) == 9
+        assert len(result["state"]["raw_candidates"]) == 8
+        assert len(result["state"]["found_papers"]) == 8
+        assert len(result["output"]["papers_found"]) == 8
         assert len(result["state"]["citation_jobs"]) == 3
         assert len(result["output"]["bibliography"]) == 2
         assert len(result["output"]["evidence_table"]) == 7
@@ -96,10 +100,10 @@ def test_same_interpreter_from_built_artifacts(name, tmp_path):
             "resolved",
             "ambiguous",
         }
-        assert [u["status"] for u in result["output"]["unresolved"]] == [
-            "ambiguous",
-            "screening_maybe",
-        ]
+        # 0.2.7: the unresolved list is the graph's own (citations that did not resolve); a paper
+        # screened "maybe" is listed in papers_found with that verdict instead.
+        assert [u["status"] for u in result["output"]["unresolved"]] == ["ambiguous"]
+        assert "maybe" in {p["screening_status"] for p in result["output"]["papers_found"]}
         assert "SYNTHETIC DEMONSTRATION" in result["output"]["related_work"]
     else:
         assert sum(item["minutes"] for item in result["output"]["agenda"]) == 45
@@ -433,16 +437,18 @@ def test_source_quote_constraint_rejects_fabrication(tmp_path):
     with pytest.raises(WorkflowError) as caught:
         execute(load_package(path))
     assert caught.value.node_id == "evidence"
-    assert caught.value.code == "schema_validation"
+    # Since 0.2.7 (D-171) the quote relation is an answer check on extract-one: a fabricated
+    # quote is a non-conforming answer (a host may ask again), which replay refuses at once.
+    assert caught.value.code == "model_error"
     # The audit names the declared check that refused it, and never the data.
     audit = caught.value.execution_report["audit"]
     (failed,) = [
         e
         for e in audit
-        if e["action"] == "node.failed" and e.get("node_id") == "evidence/check-document"
-    ] or [e for e in audit if e["action"] == "node.failed" and "failed_check" in e]
+        if e["action"] == "node.failed" and e.get("node_id") == "evidence/extract-one"
+    ]
     check = failed["failed_check"]
-    assert check["check"] == "assertion" and check["kind"] == "relation"
+    assert check["check"] == "answer_check" and check["kind"] == "relation"
     assert check["failure"] == "fields_do_not_match"
     assert check["compare"]["op"] == "contained_in" and check["compare"]["left"] == "/quote"
     assert "fabricated" not in json.dumps(audit)

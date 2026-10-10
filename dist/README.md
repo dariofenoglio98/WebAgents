@@ -13,6 +13,7 @@ against the exact bytes it describes.
 |---|---|---|---|
 | `agentpkg-0.3.0-py3-none-any.whl` | agentpkg 0.3.0, the development line's runtime (D-019): 0.2.2 plus answer checks on model answers (`checks` on `llm` nodes and map `llm` steps, workflow.v0), an optional `feedback` line in the model-request contract, and the profile-scoped approvals of the control plane (T7, D-090), which the 0.2.2 wheel below predates. It runs every package in this directory | Python ≥ 3.11 | SHA-256 below |
 | `agentpkg-0.2.2-py3-none-any.whl` | agentpkg 0.2.2, the v0.2.0 release's wheel (the paper line, `paper-cic2026`): the CLI, the browser control plane and the workflow.v0 runtime. It cannot load a package that uses answer checks (they declare runtime minimum 0.3.0) | Python ≥ 3.11 | SHA-256 below |
+| `literature-review-0.2.7.agent.pkg` | Literature Review 0.2.7: the same workflow, with the bookkeeping in the graph (T15). Every found paper is named by its DOI (else arXiv id, URL, title) and de-duplicated before a model sees it. `normalize` is asked only when documents were selected, and must name every found paper once. Screening answers a verdict and select answers ids, while the graph keeps the records. Answer checks sit on every judgement step and a host may re-ask on them. `papers-found.json` lists every found paper with its verdict. A selected document is read as its first pages. The citation resolver may fall back to Crossref's DOI lookup. Budgets fit two re-asks | agentpkg ≥ 0.3.0 (answer checks) | [`examples/keys/literature-review-publisher.pub.pem`](../examples/keys/literature-review-publisher.pub.pem) (`sha256:c5ca9763…5232`) |
 | `literature-review-0.2.6.agent.pkg` | Literature Review 0.2.6: 0.2.5 with screening jobs built by the graph from the candidates (the model writes one `{paper_id, file_id}` reference per candidate, checked both ways) and an explicit empty source hash for abstract evidence, asserted by `check-abstract` (T10: on hosted models 0.2.5 silently thinned or emptied the review) | agentpkg ≥ 0.2.1 | [`examples/keys/literature-review-publisher.pub.pem`](../examples/keys/literature-review-publisher.pub.pem) (`sha256:c5ca9763…5232`) |
 | `literature-review.agent.pkg` | Literature Review 0.2.5, identical to `literature-review-0.2.5.agent.pkg` | agentpkg ≥ 0.2.1 | [`examples/keys/literature-review-publisher.pub.pem`](../examples/keys/literature-review-publisher.pub.pem) (`sha256:c5ca9763…5232`) |
 | `meeting-agenda.agent.pkg` | Meeting Agenda 0.2.2, identical to `meeting-agenda-0.2.2.agent.pkg` | agentpkg ≥ 0.2.2 | [`examples/keys/meeting-agenda-publisher.pub.pem`](../examples/keys/meeting-agenda-publisher.pub.pem) (`sha256:2bcc374a…c5c4`) |
@@ -23,6 +24,8 @@ From the repository root:
 ```sh
 python3 -m venv .venv && .venv/bin/python -m pip install dist/agentpkg-0.3.0-py3-none-any.whl
 # fingerprints in the table above, and in each command's own output
+.venv/bin/agentpkg verify dist/literature-review-0.2.7.agent.pkg \
+  --trust-key examples/keys/literature-review-publisher.pub.pem
 .venv/bin/agentpkg verify dist/literature-review-0.2.6.agent.pkg \
   --trust-key examples/keys/literature-review-publisher.pub.pem
 .venv/bin/agentpkg verify dist/literature-review.agent.pkg \
@@ -81,9 +84,20 @@ into the wheel.
 
 ## Literature Review
 
-The current package is `literature-review-0.2.6.agent.pkg` (above), built and signed with the same
-generic commands (`agentpkg build agents/literature-review -o …`, then `agentpkg sign` with the
-Literature Review key); rebuilding and re-signing reproduces its bytes. 0.2.6 differs from 0.2.5 in
+The current package is `literature-review-0.2.7.agent.pkg` (above; digest `9274a5ce…99cb`, archive
+`8951a14b…fe61`, 226,726 bytes), built and signed with the same generic commands (`agentpkg build
+agents/literature-review -o …`, then `agentpkg sign` with the Literature Review key); rebuilding and
+re-signing reproduces its bytes. 0.2.7 differs from 0.2.6 in the graph (37 nodes: `join-batches`,
+`identify`, `join-found`, `join-found-refs`, `normalize-gate`, `join-included`, `papers-found`,
+`join-selection`, `selection-slots`, `assign-handles`, `citation-jobs` and `join-citation-jobs` added;
+after selection the chosen papers are named P1–P3; `check-screening-refs` and `screening-jobs` removed; answer checks on
+normalize, screen, select, extract, synthesize, write and verify; worker budgets and four timeouts),
+nineteen new schemas and five removed, four skills, the policy's and the resolver tool's
+`api.crossref.org`, the runtime minimum (0.3.0), the replay fixture (re-recorded by
+`scripts/make_literature_fixture_027.py`) and the package README. The demo index 1.2.0 names it;
+0.2.6, which index 1.1.0 named, stays served and pinned.
+
+0.2.6 (`literature-review-0.2.6.agent.pkg`, T10) differs from 0.2.5 in
 the graph (`normalize` writes `screening_refs`; new `check-screening-refs` and `screening-jobs` nodes;
 one more `check-abstract` comparison), three new schemas, `normalize.schema.json`,
 `research-state.schema.json`, the literature-search (0.1.2) and evidence-extraction (0.1.3) skills,
@@ -145,6 +159,7 @@ c1b1c4b260dbca874dc9e343397e6fad1311f498c3a6df27c1a1deeeb0b18f71  agentpkg-0.1.0
 f513e68ea23e045ed3665d8d71e46531147f017f0da80f999fb343afc3e1fe24  literature-review-0.2.4.agent.pkg
 1669f83fafac3434748fc19d38a8d3d2c3352da83cf1cbb84796ce313bd4f571  literature-review-0.2.5.agent.pkg
 685dcc97232d278eb2a5b777dcbc621573de5c48818a95d522e647c9267ee8f1  literature-review-0.2.6.agent.pkg
+8951a14bb1f42bca1590bc7d0c9cc00cccba75b36f1488969b6b3ff47063fe61  literature-review-0.2.7.agent.pkg
 fb7357ebdf2e8415a32033971ba448dd21a9b20eb35a32a6ec71e1a5240cc03b  literature-review-legacy.agent.pkg
 1669f83fafac3434748fc19d38a8d3d2c3352da83cf1cbb84796ce313bd4f571  literature-review.agent.pkg
 664b39b12ed26ee2b7524cc5b0afb8a91ebc64b76948696e65f34cbd768c32cb  meeting-agenda-0.2.0.agent.pkg

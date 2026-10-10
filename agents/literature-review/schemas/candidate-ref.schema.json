@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "description": "A screening reference as normalize writes it: which candidate to screen, and the opaque selected-file ID for it or null. The workflow builds the screening job from the candidate's own record, never from a model's copy of it.",
+  "description": "A paper to screen, by the paper_id the workflow gave it, with the opaque selected-file ID of its document or null. The workflow builds the screening job from the paper's own record, never from a model's copy of it.",
   "type": "object",
   "properties": {
     "paper_id": {
