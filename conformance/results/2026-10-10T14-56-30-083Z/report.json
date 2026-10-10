@@ -1,0 +1,3283 @@
+{
+  "schema": "webagents-conformance-report-v0",
+  "generated_at": "2026-10-10T14:56:30.083Z",
+  "environment": {
+    "commit": "eca283a521ed94e6de92c7054ea6dec863e51ce4",
+    "dirty": false,
+    "agentpkg": "agentpkg 0.3.0 (agent.pkg 0.1, workflow.v0)",
+    "python": "Python 3.13.5",
+    "chrome_core": "chrome-agent-browser 0.1.0",
+    "node": "v26.9.0",
+    "platform": "darwin-arm64",
+    "packages": {
+      "webair-0.4.0.agent.pkg": "c12f9db3bd7b3b4b6721c67e1d0b8143ebd94381df0e5e57c196357b7ca77f63",
+      "webair-0.5.0.agent.pkg": "4b087557cbd2b0ff186391dfd00f9068739f9a727ab2fd916a6512da1fde101b",
+      "literature-review.agent.pkg": "1669f83fafac3434748fc19d38a8d3d2c3352da83cf1cbb84796ce313bd4f571",
+      "literature-review-0.2.6.agent.pkg": "685dcc97232d278eb2a5b777dcbc621573de5c48818a95d522e647c9267ee8f1",
+      "literature-review-0.2.7.agent.pkg": "8951a14bb1f42bca1590bc7d0c9cc00cccba75b36f1488969b6b3ff47063fe61",
+      "meeting-agenda.agent.pkg": "7b148e845c0f9e38d752a51a8d0b60a314842a3de3a2723b3bdf1a0c041921e1"
+    }
+  },
+  "summary": {
+    "cases": 33,
+    "passed": 33,
+    "failed": [],
+    "checks": 384,
+    "checks_passed": 384,
+    "filtered": null
+  },
+  "cases": [
+    {
+      "id": "webair-0.4.0/fixture",
+      "title": "WebAir 0.4.0, its fixture input, every tool approved",
+      "kind": "fixture parity",
+      "passed": true,
+      "seconds": 1.28,
+      "checks": [
+        {
+          "name": "exit status 0 in both",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "success report (minus output directory and usage)",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "file set",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "interpreter names its runtime",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "usage.json equals its own result section",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "provenance.json equals its own result section",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "usage (workers folded by role)",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "result.json without the audit",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export answer.md",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export booking.json",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export fare-rules.json",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export search.json",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "audit.json equals the result's audit",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "audit length",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "audit backbone and per-wave multisets",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "each audit chain is linked",
+          "passed": true,
+          "detail": []
+        }
+      ],
+      "notes": [],
+      "observed": {
+        "python": {
+          "status": 0,
+          "message": null,
+          "files": 8
+        },
+        "node": {
+          "status": 0,
+          "message": null,
+          "files": 8
+        }
+      }
+    },
+    {
+      "id": "webair-0.5.0/fixture",
+      "title": "WebAir 0.5.0, its fixture input, every tool approved",
+      "kind": "fixture parity",
+      "passed": true,
+      "seconds": 1.199,
+      "checks": [
+        {
+          "name": "exit status 0 in both",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "success report (minus output directory and usage)",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "file set",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "interpreter names its runtime",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "usage.json equals its own result section",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "provenance.json equals its own result section",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "usage (workers folded by role)",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "result.json without the audit",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export answer.md",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export booking.json",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export fare-rules.json",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export search.json",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "audit.json equals the result's audit",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "audit length",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "audit backbone and per-wave multisets",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "each audit chain is linked",
+          "passed": true,
+          "detail": []
+        }
+      ],
+      "notes": [],
+      "observed": {
+        "python": {
+          "status": 0,
+          "message": null,
+          "files": 8
+        },
+        "node": {
+          "status": 0,
+          "message": null,
+          "files": 8
+        }
+      }
+    },
+    {
+      "id": "webair-0.5.0/scenario-hero",
+      "title": "WebAir 0.5.0, scenario hero",
+      "kind": "fixture parity",
+      "passed": true,
+      "seconds": 1.289,
+      "checks": [
+        {
+          "name": "exit status 0 in both",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "success report (minus output directory and usage)",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "file set",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "interpreter names its runtime",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "usage.json equals its own result section",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "provenance.json equals its own result section",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "usage (workers folded by role)",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "result.json without the audit",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export answer.md",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export booking.json",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export fare-rules.json",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export search.json",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "audit.json equals the result's audit",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "audit length",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "audit backbone and per-wave multisets",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "each audit chain is linked",
+          "passed": true,
+          "detail": []
+        }
+      ],
+      "notes": [],
+      "observed": {
+        "python": {
+          "status": 0,
+          "message": null,
+          "files": 8
+        },
+        "node": {
+          "status": 0,
+          "message": null,
+          "files": 8
+        }
+      }
+    },
+    {
+      "id": "webair-0.5.0/scenario-checked-bag",
+      "title": "WebAir 0.5.0, scenario checked-bag",
+      "kind": "fixture parity",
+      "passed": true,
+      "seconds": 1.212,
+      "checks": [
+        {
+          "name": "exit status 0 in both",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "success report (minus output directory and usage)",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "file set",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "interpreter names its runtime",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "usage.json equals its own result section",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "provenance.json equals its own result section",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "usage (workers folded by role)",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "result.json without the audit",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export answer.md",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export booking.json",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export fare-rules.json",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export search.json",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "audit.json equals the result's audit",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "audit length",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "audit backbone and per-wave multisets",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "each audit chain is linked",
+          "passed": true,
+          "detail": []
+        }
+      ],
+      "notes": [],
+      "observed": {
+        "python": {
+          "status": 0,
+          "message": null,
+          "files": 8
+        },
+        "node": {
+          "status": 0,
+          "message": null,
+          "files": 8
+        }
+      }
+    },
+    {
+      "id": "webair-0.5.0/scenario-fare-rules",
+      "title": "WebAir 0.5.0, scenario fare-rules",
+      "kind": "fixture parity",
+      "passed": true,
+      "seconds": 1.213,
+      "checks": [
+        {
+          "name": "exit status 0 in both",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "success report (minus output directory and usage)",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "file set",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "interpreter names its runtime",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "usage.json equals its own result section",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "provenance.json equals its own result section",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "usage (workers folded by role)",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "result.json without the audit",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export answer.md",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export booking.json",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export fare-rules.json",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export search.json",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "audit.json equals the result's audit",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "audit length",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "audit backbone and per-wave multisets",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "each audit chain is linked",
+          "passed": true,
+          "detail": []
+        }
+      ],
+      "notes": [],
+      "observed": {
+        "python": {
+          "status": 0,
+          "message": null,
+          "files": 8
+        },
+        "node": {
+          "status": 0,
+          "message": null,
+          "files": 8
+        }
+      }
+    },
+    {
+      "id": "webair-0.5.0/scenario-other-route",
+      "title": "WebAir 0.5.0, scenario other-route",
+      "kind": "fixture parity",
+      "passed": true,
+      "seconds": 1.113,
+      "checks": [
+        {
+          "name": "exit status 0 in both",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "success report (minus output directory and usage)",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "file set",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "interpreter names its runtime",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "usage.json equals its own result section",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "provenance.json equals its own result section",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "usage (workers folded by role)",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "result.json without the audit",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export answer.md",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export booking.json",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export fare-rules.json",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export search.json",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "audit.json equals the result's audit",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "audit length",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "audit backbone and per-wave multisets",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "each audit chain is linked",
+          "passed": true,
+          "detail": []
+        }
+      ],
+      "notes": [],
+      "observed": {
+        "python": {
+          "status": 0,
+          "message": null,
+          "files": 8
+        },
+        "node": {
+          "status": 0,
+          "message": null,
+          "files": 8
+        }
+      }
+    },
+    {
+      "id": "webair-0.5.0/scenario-no-results",
+      "title": "WebAir 0.5.0, scenario no-results",
+      "kind": "fixture parity",
+      "passed": true,
+      "seconds": 1.092,
+      "checks": [
+        {
+          "name": "exit status 0 in both",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "success report (minus output directory and usage)",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "file set",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "interpreter names its runtime",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "usage.json equals its own result section",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "provenance.json equals its own result section",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "usage (workers folded by role)",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "result.json without the audit",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export answer.md",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export booking.json",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export fare-rules.json",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export search.json",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "audit.json equals the result's audit",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "audit length",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "audit backbone and per-wave multisets",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "each audit chain is linked",
+          "passed": true,
+          "detail": []
+        }
+      ],
+      "notes": [],
+      "observed": {
+        "python": {
+          "status": 0,
+          "message": null,
+          "files": 8
+        },
+        "node": {
+          "status": 0,
+          "message": null,
+          "files": 8
+        }
+      }
+    },
+    {
+      "id": "webair-0.5.0/scenario-refused",
+      "title": "WebAir 0.5.0, scenario refused",
+      "kind": "fixture parity",
+      "passed": true,
+      "seconds": 1.079,
+      "checks": [
+        {
+          "name": "exit status 0 in both",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "success report (minus output directory and usage)",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "file set",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "interpreter names its runtime",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "usage.json equals its own result section",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "provenance.json equals its own result section",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "usage (workers folded by role)",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "result.json without the audit",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export answer.md",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export booking.json",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export fare-rules.json",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export search.json",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "audit.json equals the result's audit",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "audit length",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "audit backbone and per-wave multisets",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "each audit chain is linked",
+          "passed": true,
+          "detail": []
+        }
+      ],
+      "notes": [],
+      "observed": {
+        "python": {
+          "status": 0,
+          "message": null,
+          "files": 8
+        },
+        "node": {
+          "status": 0,
+          "message": null,
+          "files": 8
+        }
+      }
+    },
+    {
+      "id": "webair-0.5.0/scenario-unsupported",
+      "title": "WebAir 0.5.0, scenario unsupported",
+      "kind": "fixture parity",
+      "passed": true,
+      "seconds": 1.072,
+      "checks": [
+        {
+          "name": "exit status 0 in both",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "success report (minus output directory and usage)",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "file set",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "interpreter names its runtime",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "usage.json equals its own result section",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "provenance.json equals its own result section",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "usage (workers folded by role)",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "result.json without the audit",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export answer.md",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export booking.json",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export fare-rules.json",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export search.json",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "audit.json equals the result's audit",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "audit length",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "audit backbone and per-wave multisets",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "each audit chain is linked",
+          "passed": true,
+          "detail": []
+        }
+      ],
+      "notes": [],
+      "observed": {
+        "python": {
+          "status": 0,
+          "message": null,
+          "files": 8
+        },
+        "node": {
+          "status": 0,
+          "message": null,
+          "files": 8
+        }
+      }
+    },
+    {
+      "id": "webair-0.5.0/scenario-no-departure",
+      "title": "WebAir 0.5.0, scenario no-departure",
+      "kind": "fixture parity",
+      "passed": true,
+      "seconds": 1.059,
+      "checks": [
+        {
+          "name": "exit status 0 in both",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "success report (minus output directory and usage)",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "file set",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "interpreter names its runtime",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "usage.json equals its own result section",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "provenance.json equals its own result section",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "usage (workers folded by role)",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "result.json without the audit",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export answer.md",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export booking.json",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export fare-rules.json",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export search.json",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "audit.json equals the result's audit",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "audit length",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "audit backbone and per-wave multisets",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "each audit chain is linked",
+          "passed": true,
+          "detail": []
+        }
+      ],
+      "notes": [],
+      "observed": {
+        "python": {
+          "status": 0,
+          "message": null,
+          "files": 8
+        },
+        "node": {
+          "status": 0,
+          "message": null,
+          "files": 8
+        }
+      }
+    },
+    {
+      "id": "webair-0.4.0/search-tools-only",
+      "title": "WebAir 0.4.0, only the two search tools approved (the 'search' profile's tools)",
+      "kind": "fixture parity",
+      "passed": true,
+      "seconds": 1.194,
+      "checks": [
+        {
+          "name": "exit status 0 in both",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "success report (minus output directory and usage)",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "file set",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "interpreter names its runtime",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "usage.json equals its own result section",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "provenance.json equals its own result section",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "usage (workers folded by role)",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "result.json without the audit",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export answer.md",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export booking.json",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export fare-rules.json",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export search.json",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "audit.json equals the result's audit",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "audit length",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "audit backbone and per-wave multisets",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "each audit chain is linked",
+          "passed": true,
+          "detail": []
+        }
+      ],
+      "notes": [],
+      "observed": {
+        "python": {
+          "status": 0,
+          "message": null,
+          "files": 8
+        },
+        "node": {
+          "status": 0,
+          "message": null,
+          "files": 8
+        }
+      }
+    },
+    {
+      "id": "literature-review-0.2.5/fixture",
+      "title": "Literature Review 0.2.5, its fixture input",
+      "kind": "fixture parity",
+      "passed": true,
+      "seconds": 1.624,
+      "checks": [
+        {
+          "name": "exit status 0 in both",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "success report (minus output directory and usage)",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "file set",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "interpreter names its runtime",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "usage.json equals its own result section",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "provenance.json equals its own result section",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "usage (workers folded by role)",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "result.json without the audit",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export bibliography.json",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export evidence-table.json",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export related-work.md",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export unresolved.json",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export verification.json",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "audit.json equals the result's audit",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "audit length",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "audit backbone and per-wave multisets",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "each audit chain is linked",
+          "passed": true,
+          "detail": []
+        }
+      ],
+      "notes": [
+        "Allowlisted (D-063), printed: synthetic tokens python=35732 node=35732."
+      ],
+      "observed": {
+        "python": {
+          "status": 0,
+          "message": null,
+          "files": 9
+        },
+        "node": {
+          "status": 0,
+          "message": null,
+          "files": 9
+        }
+      }
+    },
+    {
+      "id": "literature-review-0.2.7/fixture",
+      "title": "Literature Review 0.2.7 (ids before any model, verdict-only screening, answer checks, papers-found; T15), its fixture input",
+      "kind": "fixture parity",
+      "passed": true,
+      "seconds": 2.203,
+      "checks": [
+        {
+          "name": "exit status 0 in both",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "success report (minus output directory and usage)",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "file set",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "interpreter names its runtime",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "usage.json equals its own result section",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "provenance.json equals its own result section",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "usage (workers folded by role)",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "result.json without the audit",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export bibliography.json",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export evidence-table.json",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export papers-found.json",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export related-work.md",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export unresolved.json",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export verification.json",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "audit.json equals the result's audit",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "audit length",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "audit backbone and per-wave multisets",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "each audit chain is linked",
+          "passed": true,
+          "detail": []
+        }
+      ],
+      "notes": [
+        "Allowlisted (D-063), printed: synthetic tokens python=26410 node=26410."
+      ],
+      "observed": {
+        "python": {
+          "status": 0,
+          "message": null,
+          "files": 10
+        },
+        "node": {
+          "status": 0,
+          "message": null,
+          "files": 10
+        }
+      }
+    },
+    {
+      "id": "literature-review-0.2.6/fixture",
+      "title": "Literature Review 0.2.6 (screening jobs built from the candidates, T10), its fixture input",
+      "kind": "fixture parity",
+      "passed": true,
+      "seconds": 1.723,
+      "checks": [
+        {
+          "name": "exit status 0 in both",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "success report (minus output directory and usage)",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "file set",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "interpreter names its runtime",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "usage.json equals its own result section",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "provenance.json equals its own result section",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "usage (workers folded by role)",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "result.json without the audit",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export bibliography.json",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export evidence-table.json",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export related-work.md",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export unresolved.json",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export verification.json",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "audit.json equals the result's audit",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "audit length",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "audit backbone and per-wave multisets",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "each audit chain is linked",
+          "passed": true,
+          "detail": []
+        }
+      ],
+      "notes": [
+        "Allowlisted (D-063), printed: synthetic tokens python=34116 node=34116."
+      ],
+      "observed": {
+        "python": {
+          "status": 0,
+          "message": null,
+          "files": 9
+        },
+        "node": {
+          "status": 0,
+          "message": null,
+          "files": 9
+        }
+      }
+    },
+    {
+      "id": "meeting-agenda-0.2.2/fixture",
+      "title": "Meeting Agenda 0.2.2, its fixture input",
+      "kind": "fixture parity",
+      "passed": true,
+      "seconds": 0.401,
+      "checks": [
+        {
+          "name": "exit status 0 in both",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "success report (minus output directory and usage)",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "file set",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "interpreter names its runtime",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "usage.json equals its own result section",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "provenance.json equals its own result section",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "usage (workers folded by role)",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "result.json without the audit",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export agenda.json",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "audit.json equals the result's audit",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "audit length",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "audit backbone and per-wave multisets",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "each audit chain is linked",
+          "passed": true,
+          "detail": []
+        }
+      ],
+      "notes": [],
+      "observed": {
+        "python": {
+          "status": 0,
+          "message": null,
+          "files": 5
+        },
+        "node": {
+          "status": 0,
+          "message": null,
+          "files": 5
+        }
+      }
+    },
+    {
+      "id": "answer-checks/fixture",
+      "title": "Answer checks that hold (D-150): Meeting Agenda rebuilt with a relation, a sum and an equality on its model answers, runtime minimum 0.3.0 (throwaway key)",
+      "kind": "fixture parity",
+      "passed": true,
+      "seconds": 0.428,
+      "checks": [
+        {
+          "name": "exit status 0 in both",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "success report (minus output directory and usage)",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "file set",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "interpreter names its runtime",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "usage.json equals its own result section",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "provenance.json equals its own result section",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "usage (workers folded by role)",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "result.json without the audit",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "export agenda.json",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "audit.json equals the result's audit",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "audit length",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "audit backbone and per-wave multisets",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "each audit chain is linked",
+          "passed": true,
+          "detail": []
+        }
+      ],
+      "notes": [],
+      "observed": {
+        "python": {
+          "status": 0,
+          "message": null,
+          "files": 5
+        },
+        "node": {
+          "status": 0,
+          "message": null,
+          "files": 5
+        }
+      }
+    },
+    {
+      "id": "tampered-bytes/crc",
+      "title": "One byte of graph.json changed in transit; the archive's CRC no longer matches",
+      "kind": "refusal",
+      "passed": true,
+      "seconds": 0.517,
+      "checks": [
+        {
+          "name": "verify: refused with status 2 in both",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "verify: refusal code archive_crc_mismatch",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "verify: identical message",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "verify: nothing written",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: refused with status 2 in both",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: refusal code archive_crc_mismatch",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: identical message",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: nothing written",
+          "passed": true,
+          "detail": []
+        }
+      ],
+      "notes": [],
+      "observed": [
+        {
+          "command": "verify",
+          "python": {
+            "status": 2,
+            "message": "invalid ZIP artifact: Bad CRC-32 for file 'graph.json'",
+            "files": 0,
+            "code": "archive_crc_mismatch",
+            "node": null
+          },
+          "node": {
+            "status": 2,
+            "message": "invalid ZIP artifact: Bad CRC-32 for file 'graph.json'",
+            "files": 0,
+            "code": "archive_crc_mismatch",
+            "node": null
+          }
+        },
+        {
+          "command": "run",
+          "python": {
+            "status": 2,
+            "message": "invalid ZIP artifact: Bad CRC-32 for file 'graph.json'",
+            "files": 0,
+            "code": "archive_crc_mismatch",
+            "node": null
+          },
+          "node": {
+            "status": 2,
+            "message": "invalid ZIP artifact: Bad CRC-32 for file 'graph.json'",
+            "files": 0,
+            "code": "archive_crc_mismatch",
+            "node": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "tampered-bytes/content",
+      "title": "The same change with a recomputed CRC: the integrity statement no longer matches",
+      "kind": "refusal",
+      "passed": true,
+      "seconds": 0.621,
+      "checks": [
+        {
+          "name": "verify: refused with status 2 in both",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "verify: refusal code integrity_mismatch",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "verify: identical message",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "verify: nothing written",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: refused with status 2 in both",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: refusal code integrity_mismatch",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: identical message",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: nothing written",
+          "passed": true,
+          "detail": []
+        }
+      ],
+      "notes": [],
+      "observed": [
+        {
+          "command": "verify",
+          "python": {
+            "status": 2,
+            "message": "content integrity mismatch: missing=[], extra=[], changed=['graph.json']",
+            "files": 0,
+            "code": "integrity_mismatch",
+            "node": null
+          },
+          "node": {
+            "status": 2,
+            "message": "content integrity mismatch: missing=[], extra=[], changed=['graph.json']",
+            "files": 0,
+            "code": "integrity_mismatch",
+            "node": null
+          }
+        },
+        {
+          "command": "run",
+          "python": {
+            "status": 2,
+            "message": "content integrity mismatch: missing=[], extra=[], changed=['graph.json']",
+            "files": 0,
+            "code": "integrity_mismatch",
+            "node": null
+          },
+          "node": {
+            "status": 2,
+            "message": "content integrity mismatch: missing=[], extra=[], changed=['graph.json']",
+            "files": 0,
+            "code": "integrity_mismatch",
+            "node": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "unpinned-key",
+      "title": "A valid signature by a key the host did not pin (Literature Review checked against the Meeting Agenda key)",
+      "kind": "refusal",
+      "passed": true,
+      "seconds": 1.125,
+      "checks": [
+        {
+          "name": "verify: refused with status 2 in both",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "verify: refusal code publisher_key_not_pinned",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "verify: identical message",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "verify: nothing written",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: refused with status 2 in both",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: refusal code publisher_key_not_pinned",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: identical message",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: nothing written",
+          "passed": true,
+          "detail": []
+        }
+      ],
+      "notes": [],
+      "observed": [
+        {
+          "command": "verify",
+          "python": {
+            "status": 2,
+            "message": "publisher key is not the host-pinned trusted key",
+            "files": 0,
+            "code": "publisher_key_not_pinned",
+            "node": null
+          },
+          "node": {
+            "status": 2,
+            "message": "publisher key is not the host-pinned trusted key",
+            "files": 0,
+            "code": "publisher_key_not_pinned",
+            "node": null
+          }
+        },
+        {
+          "command": "run",
+          "python": {
+            "status": 2,
+            "message": "publisher key is not the host-pinned trusted key",
+            "files": 0,
+            "code": "publisher_key_not_pinned",
+            "node": null
+          },
+          "node": {
+            "status": 2,
+            "message": "publisher key is not the host-pinned trusted key",
+            "files": 0,
+            "code": "publisher_key_not_pinned",
+            "node": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "wrong-key",
+      "title": "A signature that claims the pinned Meeting Agenda key, which never made it",
+      "kind": "refusal",
+      "passed": true,
+      "seconds": 1.116,
+      "checks": [
+        {
+          "name": "verify: refused with status 2 in both",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "verify: refusal code signature_invalid",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "verify: identical message",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "verify: nothing written",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: refused with status 2 in both",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: refusal code signature_invalid",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: identical message",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: nothing written",
+          "passed": true,
+          "detail": []
+        }
+      ],
+      "notes": [],
+      "observed": [
+        {
+          "command": "verify",
+          "python": {
+            "status": 2,
+            "message": "invalid Ed25519 publisher signature",
+            "files": 0,
+            "code": "signature_invalid",
+            "node": null
+          },
+          "node": {
+            "status": 2,
+            "message": "invalid Ed25519 publisher signature",
+            "files": 0,
+            "code": "signature_invalid",
+            "node": null
+          }
+        },
+        {
+          "command": "run",
+          "python": {
+            "status": 2,
+            "message": "invalid Ed25519 publisher signature",
+            "files": 0,
+            "code": "signature_invalid",
+            "node": null
+          },
+          "node": {
+            "status": 2,
+            "message": "invalid Ed25519 publisher signature",
+            "files": 0,
+            "code": "signature_invalid",
+            "node": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "missing-approval",
+      "title": "Literature Review with every permission granted and no tool approved",
+      "kind": "refusal",
+      "passed": true,
+      "seconds": 0.767,
+      "checks": [
+        {
+          "name": "run: refused with status 2 in both",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: refusal code permission_denied",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: at node search",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: identical message",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: file set",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: interpreter names its runtime",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: usage.json equals its own result section",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: provenance.json equals its own result section",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: usage (workers folded by role)",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: result.json without the audit",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: audit.json equals the result's audit",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: audit length",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: audit backbone and per-wave multisets",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: each audit chain is linked",
+          "passed": true,
+          "detail": []
+        }
+      ],
+      "notes": [],
+      "observed": [
+        {
+          "command": "run",
+          "python": {
+            "status": 2,
+            "message": "workflow.v0 permission_denied at node search",
+            "files": 4,
+            "code": "permission_denied",
+            "node": "search"
+          },
+          "node": {
+            "status": 2,
+            "message": "workflow.v0 permission_denied at node search",
+            "files": 4,
+            "code": "permission_denied",
+            "node": "search"
+          }
+        }
+      ]
+    },
+    {
+      "id": "denied-permission/optional",
+      "title": "WebAir 0.4.0 asked to quote, its personal tools approved and the optional passenger-identity permission denied",
+      "kind": "refusal",
+      "passed": true,
+      "seconds": 0.949,
+      "checks": [
+        {
+          "name": "run: refused with status 2 in both",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: refusal code permission_denied",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: at node passenger",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: identical message",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: file set",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: interpreter names its runtime",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: usage.json equals its own result section",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: provenance.json equals its own result section",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: usage (workers folded by role)",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: result.json without the audit",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: audit.json equals the result's audit",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: audit length",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: audit backbone and per-wave multisets",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: each audit chain is linked",
+          "passed": true,
+          "detail": []
+        }
+      ],
+      "notes": [],
+      "observed": [
+        {
+          "command": "run",
+          "python": {
+            "status": 2,
+            "message": "workflow.v0 permission_denied at node passenger",
+            "files": 4,
+            "code": "permission_denied",
+            "node": "passenger"
+          },
+          "node": {
+            "status": 2,
+            "message": "workflow.v0 permission_denied at node passenger",
+            "files": 4,
+            "code": "permission_denied",
+            "node": "passenger"
+          }
+        }
+      ]
+    },
+    {
+      "id": "denied-permission/optional-in-a-map",
+      "title": "Literature Review with its optional files.pdfs permission denied and the paper reader approved: the refusal happens inside a concurrent map",
+      "kind": "documented difference",
+      "passed": true,
+      "seconds": 0.861,
+      "checks": [
+        {
+          "name": "run: refused with status 2 in both",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: refusal code permission_denied",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: at node screening",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: identical message",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: file set",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: outcome (status, error_code)",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: provenance",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: audit backbone (runtime and workflow events, commits)",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: each audit chain is linked",
+          "passed": true,
+          "detail": []
+        }
+      ],
+      "notes": [
+        "A failure inside a concurrent wave (D-092): siblings' partial progress is the scheduler's, so their events and reserved tokens are not compared; tokens python=32175 node=6350."
+      ],
+      "observed": [
+        {
+          "command": "run",
+          "python": {
+            "status": 2,
+            "message": "workflow.v0 permission_denied at node screening",
+            "files": 4,
+            "code": "permission_denied",
+            "node": "screening"
+          },
+          "node": {
+            "status": 2,
+            "message": "workflow.v0 permission_denied at node screening",
+            "files": 4,
+            "code": "permission_denied",
+            "node": "screening"
+          }
+        }
+      ]
+    },
+    {
+      "id": "denied-permission/required",
+      "title": "WebAir 0.4.0 with its search tools approved and the required network permission they travel under denied",
+      "kind": "documented difference",
+      "passed": true,
+      "seconds": 1.248,
+      "checks": [
+        {
+          "name": "agentpkg run: refused at the first use",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "chrome CLI: refused before the run, nothing written",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "execution layers: both refuse execution_permission_denied",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "execution layers: identical message",
+          "passed": true,
+          "detail": []
+        }
+      ],
+      "notes": [
+        "A recorded difference of the CLIs (D-091), not of the runtimes: agentpkg run says \"workflow.v0 permission_denied at node search\"; the Chrome CLI and both execution layers say \"Required permission 'network.webair' is denied, so this package cannot run.\"."
+      ],
+      "observed": {
+        "python": {
+          "status": 2,
+          "message": "workflow.v0 permission_denied at node search",
+          "files": 4
+        },
+        "node": {
+          "status": 2,
+          "message": "Required permission 'network.webair' is denied, so this package cannot run.",
+          "files": 0
+        },
+        "execution_layers": [
+          {
+            "outcome": "refused",
+            "code": "execution_permission_denied",
+            "message": "Required permission 'network.webair' is denied, so this package cannot run."
+          },
+          {
+            "outcome": "refused",
+            "code": "execution_permission_denied",
+            "message": "Required permission 'network.webair' is denied, so this package cannot run."
+          }
+        ]
+      }
+    },
+    {
+      "id": "schema-invalid-output",
+      "title": "A recorded model answer that its node's output schema refuses (rebuilt Meeting Agenda, throwaway key)",
+      "kind": "refusal",
+      "passed": true,
+      "seconds": 0.399,
+      "checks": [
+        {
+          "name": "run: refused with status 2 in both",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: refusal code schema_validation",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: at node plan",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: identical message",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: file set",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: interpreter names its runtime",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: usage.json equals its own result section",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: provenance.json equals its own result section",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: usage (workers folded by role)",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: result.json without the audit",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: audit.json equals the result's audit",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: audit length",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: audit backbone and per-wave multisets",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: each audit chain is linked",
+          "passed": true,
+          "detail": []
+        }
+      ],
+      "notes": [],
+      "observed": [
+        {
+          "command": "run",
+          "python": {
+            "status": 2,
+            "message": "workflow.v0 schema_validation at node plan",
+            "files": 4,
+            "code": "schema_validation",
+            "node": "plan"
+          },
+          "node": {
+            "status": 2,
+            "message": "workflow.v0 schema_validation at node plan",
+            "files": 4,
+            "code": "schema_validation",
+            "node": "plan"
+          }
+        }
+      ]
+    },
+    {
+      "id": "budget-overrun",
+      "title": "A package token budget below what its own fixture run needs (rebuilt Meeting Agenda, throwaway key)",
+      "kind": "refusal",
+      "passed": true,
+      "seconds": 0.402,
+      "checks": [
+        {
+          "name": "run: refused with status 2 in both",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: refusal code budget_exhausted",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: at node plan",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: identical message",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: file set",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: interpreter names its runtime",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: usage.json equals its own result section",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: provenance.json equals its own result section",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: usage (workers folded by role)",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: result.json without the audit",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: audit.json equals the result's audit",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: audit length",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: audit backbone and per-wave multisets",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: each audit chain is linked",
+          "passed": true,
+          "detail": []
+        }
+      ],
+      "notes": [],
+      "observed": [
+        {
+          "command": "run",
+          "python": {
+            "status": 2,
+            "message": "workflow.v0 budget_exhausted at node plan",
+            "files": 4,
+            "code": "budget_exhausted",
+            "node": "plan"
+          },
+          "node": {
+            "status": 2,
+            "message": "workflow.v0 budget_exhausted at node plan",
+            "files": 4,
+            "code": "budget_exhausted",
+            "node": "plan"
+          }
+        }
+      ]
+    },
+    {
+      "id": "answer-check-refused",
+      "title": "A recorded model answer that its node's answer check refuses (D-150): a non-conforming answer, never re-asked by a replay router (rebuilt Meeting Agenda, throwaway key)",
+      "kind": "refusal",
+      "passed": true,
+      "seconds": 0.46,
+      "checks": [
+        {
+          "name": "run: refused with status 2 in both",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: refusal code model_error",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: at node write",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: identical message",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: file set",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: interpreter names its runtime",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: usage.json equals its own result section",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: provenance.json equals its own result section",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: usage (workers folded by role)",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: result.json without the audit",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: audit.json equals the result's audit",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: audit length",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: audit backbone and per-wave multisets",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "run: each audit chain is linked",
+          "passed": true,
+          "detail": []
+        }
+      ],
+      "notes": [],
+      "observed": [
+        {
+          "command": "run",
+          "python": {
+            "status": 2,
+            "message": "workflow.v0 model_error at node write",
+            "files": 4,
+            "code": "model_error",
+            "node": "write"
+          },
+          "node": {
+            "status": 2,
+            "message": "workflow.v0 model_error at node write",
+            "files": 4,
+            "code": "model_error",
+            "node": "write"
+          }
+        }
+      ]
+    },
+    {
+      "id": "once-overused",
+      "title": "The model permission granted once, to a graph that calls the model more than once",
+      "kind": "documented difference",
+      "passed": true,
+      "seconds": 0.691,
+      "checks": [
+        {
+          "name": "agentpkg run: refused at the first use",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "chrome CLI: refused before the run, nothing written",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "execution layers: both refuse execution_grant_unsupported",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "execution layers: identical message",
+          "passed": true,
+          "detail": []
+        }
+      ],
+      "notes": [
+        "A recorded difference of the CLIs (D-091), not of the runtimes: agentpkg run says \"workflow.v0 permission_denied at node perspectives\"; the Chrome CLI and both execution layers say \"Permission 'model.reasoning' was granted 'once', but this workflow would use it up to 14 times. The run is refused rather than silently widening the decision to a whole session.\"."
+      ],
+      "observed": {
+        "python": {
+          "status": 2,
+          "message": "workflow.v0 permission_denied at node perspectives",
+          "files": 4
+        },
+        "node": {
+          "status": 2,
+          "message": "Permission 'model.reasoning' was granted 'once', but this workflow would use it up to 14 times. The run is refused rather than silently widening the decision to a whole session.",
+          "files": 0
+        },
+        "execution_layers": [
+          {
+            "outcome": "refused",
+            "code": "execution_grant_unsupported",
+            "message": "Permission 'model.reasoning' was granted 'once', but this workflow would use it up to 14 times. The run is refused rather than silently widening the decision to a whole session."
+          },
+          {
+            "outcome": "refused",
+            "code": "execution_grant_unsupported",
+            "message": "Permission 'model.reasoning' was granted 'once', but this workflow would use it up to 14 times. The run is refused rather than silently widening the decision to a whole session."
+          }
+        ]
+      }
+    },
+    {
+      "id": "control-plane/stale_trust_revoked",
+      "title": "Stale plan: the publisher's key is unpinned after the plan was prepared",
+      "kind": "refusal",
+      "passed": true,
+      "seconds": 0.747,
+      "checks": [
+        {
+          "name": "both drivers completed",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "every step agrees (lease refusals by reason)",
+          "passed": true,
+          "detail": []
+        }
+      ],
+      "notes": [
+        "Raw lease refusal codes: lease 4: python run_plan_stale, node run_plan_stale."
+      ],
+      "observed": {
+        "python": [
+          {
+            "step": "authorize",
+            "runnable": true,
+            "blocking_reasons": [],
+            "granted_permission_ids": [
+              "booking.simulate_purchase",
+              "identity.passenger",
+              "memory.session",
+              "model.reasoning",
+              "network.webair",
+              "profile.travel",
+              "wallet.payment"
+            ]
+          },
+          {
+            "step": "prepare",
+            "outcome": "ready",
+            "required_tool_ids": [
+              "get-fare-rules",
+              "personal.passenger_identity",
+              "personal.travel_profile",
+              "prepare-booking",
+              "search-flights",
+              "simulate-purchase",
+              "wallet.payment_method"
+            ],
+            "denied_tool_ids": [],
+            "bound_tool_ids": [
+              "get-fare-rules",
+              "personal.passenger_identity",
+              "personal.travel_profile",
+              "prepare-booking",
+              "search-flights",
+              "simulate-purchase",
+              "wallet.payment_method"
+            ]
+          },
+          {
+            "step": "lease",
+            "preflight_ready": true,
+            "stale_reasons": [],
+            "outcome": "issued"
+          },
+          {
+            "step": "revoke_trust"
+          },
+          {
+            "step": "lease",
+            "preflight_ready": false,
+            "stale_reasons": [
+              "publisher_trust_changed",
+              "publisher_not_trusted"
+            ],
+            "outcome": "refused",
+            "code": "run_plan_stale"
+          }
+        ],
+        "node": [
+          {
+            "step": "authorize",
+            "runnable": true,
+            "blocking_reasons": [],
+            "granted_permission_ids": [
+              "booking.simulate_purchase",
+              "identity.passenger",
+              "memory.session",
+              "model.reasoning",
+              "network.webair",
+              "profile.travel",
+              "wallet.payment"
+            ]
+          },
+          {
+            "step": "prepare",
+            "outcome": "ready",
+            "required_tool_ids": [
+              "get-fare-rules",
+              "personal.passenger_identity",
+              "personal.travel_profile",
+              "prepare-booking",
+              "search-flights",
+              "simulate-purchase",
+              "wallet.payment_method"
+            ],
+            "denied_tool_ids": [],
+            "bound_tool_ids": [
+              "get-fare-rules",
+              "personal.passenger_identity",
+              "personal.travel_profile",
+              "prepare-booking",
+              "search-flights",
+              "simulate-purchase",
+              "wallet.payment_method"
+            ]
+          },
+          {
+            "step": "lease",
+            "preflight_ready": true,
+            "stale_reasons": [],
+            "outcome": "issued"
+          },
+          {
+            "step": "revoke_trust"
+          },
+          {
+            "step": "lease",
+            "preflight_ready": false,
+            "stale_reasons": [
+              "publisher_trust_changed",
+              "publisher_not_trusted"
+            ],
+            "outcome": "refused",
+            "code": "run_plan_stale"
+          }
+        ]
+      }
+    },
+    {
+      "id": "control-plane/stale_tool_changed",
+      "title": "Stale plan: the host's implementation of a bound tool changed after the plan was prepared",
+      "kind": "refusal",
+      "passed": true,
+      "seconds": 0.548,
+      "checks": [
+        {
+          "name": "both drivers completed",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "every step agrees (lease refusals by reason)",
+          "passed": true,
+          "detail": []
+        }
+      ],
+      "notes": [
+        "Raw lease refusal codes: lease 4: python run_plan_stale, node run_plan_stale."
+      ],
+      "observed": {
+        "python": [
+          {
+            "step": "authorize",
+            "runnable": true,
+            "blocking_reasons": [],
+            "granted_permission_ids": [
+              "booking.simulate_purchase",
+              "identity.passenger",
+              "memory.session",
+              "model.reasoning",
+              "network.webair",
+              "profile.travel",
+              "wallet.payment"
+            ]
+          },
+          {
+            "step": "prepare",
+            "outcome": "ready",
+            "required_tool_ids": [
+              "get-fare-rules",
+              "personal.passenger_identity",
+              "personal.travel_profile",
+              "prepare-booking",
+              "search-flights",
+              "simulate-purchase",
+              "wallet.payment_method"
+            ],
+            "denied_tool_ids": [],
+            "bound_tool_ids": [
+              "get-fare-rules",
+              "personal.passenger_identity",
+              "personal.travel_profile",
+              "prepare-booking",
+              "search-flights",
+              "simulate-purchase",
+              "wallet.payment_method"
+            ]
+          },
+          {
+            "step": "lease",
+            "preflight_ready": true,
+            "stale_reasons": [],
+            "outcome": "issued"
+          },
+          {
+            "step": "change_tool:search-flights"
+          },
+          {
+            "step": "lease",
+            "preflight_ready": false,
+            "stale_reasons": [
+              "tool_binding_changed"
+            ],
+            "outcome": "refused",
+            "code": "run_plan_stale"
+          }
+        ],
+        "node": [
+          {
+            "step": "authorize",
+            "runnable": true,
+            "blocking_reasons": [],
+            "granted_permission_ids": [
+              "booking.simulate_purchase",
+              "identity.passenger",
+              "memory.session",
+              "model.reasoning",
+              "network.webair",
+              "profile.travel",
+              "wallet.payment"
+            ]
+          },
+          {
+            "step": "prepare",
+            "outcome": "ready",
+            "required_tool_ids": [
+              "get-fare-rules",
+              "personal.passenger_identity",
+              "personal.travel_profile",
+              "prepare-booking",
+              "search-flights",
+              "simulate-purchase",
+              "wallet.payment_method"
+            ],
+            "denied_tool_ids": [],
+            "bound_tool_ids": [
+              "get-fare-rules",
+              "personal.passenger_identity",
+              "personal.travel_profile",
+              "prepare-booking",
+              "search-flights",
+              "simulate-purchase",
+              "wallet.payment_method"
+            ]
+          },
+          {
+            "step": "lease",
+            "preflight_ready": true,
+            "stale_reasons": [],
+            "outcome": "issued"
+          },
+          {
+            "step": "change_tool:search-flights"
+          },
+          {
+            "step": "lease",
+            "preflight_ready": false,
+            "stale_reasons": [
+              "tool_binding_changed"
+            ],
+            "outcome": "refused",
+            "code": "run_plan_stale"
+          }
+        ]
+      }
+    },
+    {
+      "id": "control-plane/once_replayed",
+      "title": "Replayed once: a receipt that grants the purchase once is used for a second lease",
+      "kind": "refusal",
+      "passed": true,
+      "seconds": 0.556,
+      "checks": [
+        {
+          "name": "both drivers completed",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "every step agrees (lease refusals by reason)",
+          "passed": true,
+          "detail": []
+        }
+      ],
+      "notes": [
+        "Raw lease refusal codes: lease 3: python run_plan_stale, node authorization_once_spent."
+      ],
+      "observed": {
+        "python": [
+          {
+            "step": "authorize",
+            "runnable": true,
+            "blocking_reasons": [],
+            "granted_permission_ids": [
+              "booking.simulate_purchase",
+              "identity.passenger",
+              "memory.session",
+              "model.reasoning",
+              "network.webair",
+              "profile.travel",
+              "wallet.payment"
+            ]
+          },
+          {
+            "step": "prepare",
+            "outcome": "ready",
+            "required_tool_ids": [
+              "get-fare-rules",
+              "personal.passenger_identity",
+              "personal.travel_profile",
+              "prepare-booking",
+              "search-flights",
+              "simulate-purchase",
+              "wallet.payment_method"
+            ],
+            "denied_tool_ids": [],
+            "bound_tool_ids": [
+              "get-fare-rules",
+              "personal.passenger_identity",
+              "personal.travel_profile",
+              "prepare-booking",
+              "search-flights",
+              "simulate-purchase",
+              "wallet.payment_method"
+            ]
+          },
+          {
+            "step": "lease",
+            "preflight_ready": true,
+            "stale_reasons": [],
+            "outcome": "issued"
+          },
+          {
+            "step": "lease",
+            "preflight_ready": false,
+            "stale_reasons": [
+              "authorization_once_spent"
+            ],
+            "outcome": "refused",
+            "code": "run_plan_stale"
+          }
+        ],
+        "node": [
+          {
+            "step": "authorize",
+            "runnable": true,
+            "blocking_reasons": [],
+            "granted_permission_ids": [
+              "booking.simulate_purchase",
+              "identity.passenger",
+              "memory.session",
+              "model.reasoning",
+              "network.webair",
+              "profile.travel",
+              "wallet.payment"
+            ]
+          },
+          {
+            "step": "prepare",
+            "outcome": "ready",
+            "required_tool_ids": [
+              "get-fare-rules",
+              "personal.passenger_identity",
+              "personal.travel_profile",
+              "prepare-booking",
+              "search-flights",
+              "simulate-purchase",
+              "wallet.payment_method"
+            ],
+            "denied_tool_ids": [],
+            "bound_tool_ids": [
+              "get-fare-rules",
+              "personal.passenger_identity",
+              "personal.travel_profile",
+              "prepare-booking",
+              "search-flights",
+              "simulate-purchase",
+              "wallet.payment_method"
+            ]
+          },
+          {
+            "step": "lease",
+            "preflight_ready": true,
+            "stale_reasons": [],
+            "outcome": "issued"
+          },
+          {
+            "step": "lease",
+            "preflight_ready": false,
+            "stale_reasons": [
+              "authorization_once_spent"
+            ],
+            "outcome": "refused",
+            "code": "authorization_once_spent"
+          }
+        ]
+      }
+    },
+    {
+      "id": "control-plane/profile_search",
+      "title": "Profile-scoped approvals: the 'search' profile, its two tools approved, the other five left unapproved and unimplemented",
+      "kind": "control-plane parity",
+      "passed": true,
+      "seconds": 0.549,
+      "checks": [
+        {
+          "name": "both drivers completed",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "every step agrees (lease refusals by reason)",
+          "passed": true,
+          "detail": []
+        }
+      ],
+      "notes": [],
+      "observed": {
+        "python": [
+          {
+            "step": "authorize",
+            "runnable": true,
+            "blocking_reasons": [],
+            "granted_permission_ids": [
+              "memory.session",
+              "model.reasoning",
+              "network.webair"
+            ]
+          },
+          {
+            "step": "prepare",
+            "outcome": "ready",
+            "required_tool_ids": [
+              "get-fare-rules",
+              "search-flights"
+            ],
+            "denied_tool_ids": [
+              "personal.passenger_identity",
+              "personal.travel_profile",
+              "prepare-booking",
+              "simulate-purchase",
+              "wallet.payment_method"
+            ],
+            "bound_tool_ids": [
+              "get-fare-rules",
+              "search-flights"
+            ]
+          },
+          {
+            "step": "lease",
+            "preflight_ready": true,
+            "stale_reasons": [],
+            "outcome": "issued"
+          }
+        ],
+        "node": [
+          {
+            "step": "authorize",
+            "runnable": true,
+            "blocking_reasons": [],
+            "granted_permission_ids": [
+              "memory.session",
+              "model.reasoning",
+              "network.webair"
+            ]
+          },
+          {
+            "step": "prepare",
+            "outcome": "ready",
+            "required_tool_ids": [
+              "get-fare-rules",
+              "search-flights"
+            ],
+            "denied_tool_ids": [
+              "personal.passenger_identity",
+              "personal.travel_profile",
+              "prepare-booking",
+              "simulate-purchase",
+              "wallet.payment_method"
+            ],
+            "bound_tool_ids": [
+              "get-fare-rules",
+              "search-flights"
+            ]
+          },
+          {
+            "step": "lease",
+            "preflight_ready": true,
+            "stale_reasons": [],
+            "outcome": "issued"
+          }
+        ]
+      }
+    },
+    {
+      "id": "control-plane/partial_approvals_without_profile",
+      "title": "The same decisions without a profile, every tool implemented: Python requires every declared tool approved, Chrome denies the unapproved ones (D-090)",
+      "kind": "documented difference",
+      "passed": true,
+      "seconds": 0.546,
+      "checks": [
+        {
+          "name": "both drivers completed",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "agentpkg behaves as D-090 records",
+          "passed": true,
+          "detail": []
+        },
+        {
+          "name": "chrome-agent-browser behaves as D-090 records",
+          "passed": true,
+          "detail": []
+        }
+      ],
+      "notes": [
+        "A recorded difference (D-090), not a failure: each runtime is checked against its own documented behaviour."
+      ],
+      "observed": {
+        "python": [
+          {
+            "step": "authorize",
+            "runnable": true,
+            "blocking_reasons": [],
+            "granted_permission_ids": [
+              "memory.session",
+              "model.reasoning",
+              "network.webair"
+            ]
+          },
+          {
+            "step": "prepare",
+            "outcome": "refused",
+            "code": "run_plan_refused",
+            "reasons": [
+              "tool_not_approved",
+              "tool_not_approved",
+              "tool_not_approved",
+              "tool_not_approved",
+              "tool_not_approved"
+            ]
+          }
+        ],
+        "node": [
+          {
+            "step": "authorize",
+            "runnable": true,
+            "blocking_reasons": [],
+            "granted_permission_ids": [
+              "memory.session",
+              "model.reasoning",
+              "network.webair"
+            ]
+          },
+          {
+            "step": "prepare",
+            "outcome": "ready",
+            "required_tool_ids": [
+              "get-fare-rules",
+              "search-flights"
+            ],
+            "denied_tool_ids": [
+              "personal.passenger_identity",
+              "personal.travel_profile",
+              "prepare-booking",
+              "simulate-purchase",
+              "wallet.payment_method"
+            ],
+            "bound_tool_ids": [
+              "get-fare-rules",
+              "search-flights"
+            ]
+          },
+          {
+            "step": "lease",
+            "preflight_ready": true,
+            "stale_reasons": [],
+            "outcome": "issued"
+          }
+        ]
+      }
+    }
+  ],
+  "passed": true
+}
