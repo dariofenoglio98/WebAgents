@@ -195,3 +195,27 @@ describe("T8 review carry-overs in the views (T9, B-136)", () => {
     expect(root.querySelector(".ab-index-unverified")?.textContent).toBe("The copy held here does not verify: the document's signature does not verify");
   });
 });
+
+describe("an error that sends the page to another address shows there (T14 review 1, finding 1)", () => {
+  it("a Library entry that cannot be opened lands on the Open page with its error", async () => {
+    // The pinned agent's sessions closed, and its origin gone: "Open and verify" has to download again and fails.
+    const opened = (await h.controller.handle({ type: "sessions.list" }, PAGE_IN_TAB)) as { sessions: Array<{ session_id: string }> };
+    for (const session of opened.sessions) await h.controller.handle({ type: "package.close", sessionId: session.session_id }, PAGE_IN_TAB);
+    const packageUrl = `${ORIGIN}/packages/literature-review-0.2.6.agent.pkg`;
+    const saved = routes[packageUrl]!;
+    delete routes[packageUrl];
+    try {
+      await go("#library", () => buttonNamed("Open and verify", app().querySelector(`.ab-library-row[data-package-url="${packageUrl}"]`) ?? app()));
+      buttonNamed("Open and verify", app().querySelector(`.ab-library-row[data-package-url="${packageUrl}"]`)!)!.click();
+      // The failed open moves to #open; the route there must not wipe the error that sent it.
+      await until(() => location.hash === "#open" && app().querySelector(".ab-open"), "the Open page after the failed open");
+      const error = await element(".ab-open--compact .ab-error");
+      expect(error.textContent?.length).toBeGreaterThan(0);
+      // It stays once the route's own reads have answered.
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      expect(app().querySelector(".ab-open--compact .ab-error")?.textContent).toBe(error.textContent);
+    } finally {
+      routes[packageUrl] = saved;
+    }
+  });
+});

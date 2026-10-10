@@ -14,7 +14,8 @@
  * Each shot records the geometry that happy-dom cannot (the wordmark, the box, the results, the
  * page's horizontal overflow, the narrow nav) and the wordmark's computed colours. T14 adds: 640 px
  * is not narrow (B-150 item 2); the compact column holds with a wider font (Verdana, item 1); one
- * focus ring when tabbing to "Open" (item 7); the compact wordmark is the home link (D-162). A
+ * focus ring when tabbing to "Open" (item 7); the compact wordmark is the home link (D-162), and a real click on
+ * it at 1280 px leaves the box focused after the page settles (review 1, finding 2). A
  * missing element fails only the checks that need it (item 9). Writes six PNGs and a JSON with
  * "passed" under `examples/verification/chrome-open-page/` (or `--out <directory>`).
  *
@@ -221,6 +222,15 @@ async function main() {
             const w = wide.boxes;
             return w.wordmark.width > measured.boxes.wordmark.width && w.wordmark.left + w.wordmark.width <= w.form.left && Math.abs(w.results.left - w.form.left) <= 1 && Math.abs(w.results.width - w.form.width) <= 1;
           }, wide.boxes);
+
+          // A real click on the home link (D-162): the start page, and the box keeps the focus after
+          // the re-render that follows when the sessions answer (T14 review 1, finding 2).
+          const link = await cdp.evaluate(page, `(() => { const r = document.querySelector("a.ab-wordmark-home")?.getBoundingClientRect(); return r ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null; })()`);
+          if (link) for (const type of ["mousePressed", "mouseReleased"]) await cdp.send("Input.dispatchMouseEvent", { type, x: link.x, y: link.y, button: "left", clickCount: 1 }, page);
+          await sleep(600);
+          const home = await cdp.evaluate(page, `(() => ({ hash: location.hash, layout: document.querySelector(".ab-open")?.className ?? null, rows: document.querySelectorAll(".ab-open--start .ab-session-row").length, focused: document.activeElement?.getAttribute("name") ?? document.activeElement?.tagName ?? null, value: document.querySelector('input[name="package-url"]')?.value ?? null }))()`);
+          report.homeClick = home;
+          check("compact at 1280px: a click on the home link leads to the start page with an empty, focused box", () => link !== null && home.hash === "#open" && home.layout.includes("ab-open--start") && home.rows === 1 && home.focused === "package-url" && home.value === "", { link, home });
         }
         await close();
 

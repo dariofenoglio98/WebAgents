@@ -192,8 +192,12 @@ describe("the way back to the start page and the box's text (T14, D-162, B-150 i
     const before = ((await h.controller.handle({ type: "sessions.list" }, PAGE_IN_TAB)) as { sessions: Array<{ session_id: string }> }).sessions;
     expect(app().querySelector("article.ab-agent")).not.toBeNull();
     home()!.click();
-    await until(() => app().querySelector(".ab-open--start .ab-session-row"), "the start page with its session row");
+    // The click renders the start page at once; `load()` renders it again when the sessions answer.
+    const first = box();
+    await until(() => box() !== first && app().querySelector(".ab-open--start .ab-session-row"), "the start page re-rendered with its session row");
     expectAddressBar("start");
+    // The box has the focus after that second render too (review 1, finding 2).
+    expect(document.activeElement).toBe(box());
     expect(home()).toBeNull();
     expect(location.hash).toBe("#open");
     expect(app().querySelector("article.ab-agent")).toBeNull();
@@ -212,12 +216,28 @@ describe("the way back to the start page and the box's text (T14, D-162, B-150 i
     expect(box().value).toBe("");
   });
 
-  it("text typed in the box survives a re-render caused by an event", async () => {
+  it("text typed in the box survives a re-render caused by an event, with the focus and the caret", async () => {
+    box().focus();
     box().value = "half-typed que";
     box().dispatchEvent(new Event("input", { bubbles: true }));
+    box().setSelectionRange(4, 4);
     const typed = box();
     for (const listener of listeners) listener({ type: "event.sessions" });
     await until(() => box() !== typed, "a re-render of the page");
     expect(box().value).toBe("half-typed que");
+    expect(document.activeElement).toBe(box());
+    expect([box().selectionStart, box().selectionEnd]).toEqual([4, 4]);
+  });
+
+  it("a click with a modifier on the home link is left to the browser (review 1, nit 7)", async () => {
+    box().value = "flights@webair.example";
+    app().querySelector("form.ab-address")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+    await until(() => app().querySelector(".ab-open--compact .ab-result"), "the results");
+    const click = new MouseEvent("click", { bubbles: true, cancelable: true, metaKey: true });
+    home()!.dispatchEvent(click);
+    expect(click.defaultPrevented).toBe(false);
+    expect(app().querySelector(".ab-open--compact .ab-result")).not.toBeNull();
+    home()!.click();
+    await until(() => app().querySelector(".ab-open--start"), "the start page");
   });
 });

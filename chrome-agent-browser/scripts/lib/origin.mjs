@@ -28,10 +28,11 @@ export function serveFiles(tls, files, answer = null) {
     hits.push(`${request.method} ${request.url}`);
     const file = files[request.url];
     if (!file && answer) {
-      let body = "";
-      request.on("data", (chunk) => (body += chunk));
+      // Chunks joined as bytes first: a UTF-8 sequence split across two chunks stays whole (T14 review 1, nit 8).
+      const chunks = [];
+      request.on("data", (chunk) => chunks.push(chunk));
       request.on("end", () => {
-        const answered = answer(request.method, request.url, body);
+        const answered = answer(request.method, request.url, Buffer.concat(chunks).toString("utf8"));
         const text = answered ? JSON.stringify(answered.value) : "not found";
         response.writeHead(answered ? answered.status : 404, { "content-type": answered ? "application/json" : "text/plain", "content-length": String(Buffer.byteLength(text)), "cache-control": "no-cache", "x-content-type-options": "nosniff" });
         response.end(text);

@@ -42,7 +42,17 @@ export function append(parent: HTMLElement, children: Child[]): void {
 }
 
 type Mark = { tag: string; signature: string; index: number };
-type Place = { focused: Mark | null; open: Mark[] };
+type Place = { focused: Mark | null; caret: [number, number] | null; open: Mark[] };
+
+/** Where the caret is in a text field, or null (a checkbox, a button, a field with no selection). */
+function caretOf(node: Element): [number, number] | null {
+  if (!(node instanceof HTMLInputElement || node instanceof HTMLTextAreaElement)) return null;
+  try {
+    return node.selectionStart === null || node.selectionEnd === null ? null : [node.selectionStart, node.selectionEnd];
+  } catch {
+    return null;
+  }
+}
 
 function signature(node: Element): string {
   const label =
@@ -85,8 +95,9 @@ function leave(region: HTMLElement): Place | null {
   const active = document.activeElement;
   const focused =
     active instanceof HTMLElement && active !== region && region.contains(active) ? mark(region, active) : null;
+  const caret = focused ? caretOf(active as HTMLElement) : null;
   if (focused) (active as HTMLElement).blur();
-  return focused || open.length > 0 ? { focused, open } : null;
+  return focused || open.length > 0 ? { focused, caret, open } : null;
 }
 
 function restore(region: HTMLElement, place: Place): void {
@@ -99,7 +110,10 @@ function restore(region: HTMLElement, place: Place): void {
   const active = document.activeElement;
   if (active && active !== document.body && active !== document.documentElement) return;
   const node = find(region, place.focused);
-  if (node && !(node as HTMLButtonElement).disabled) node.focus({ preventScroll: true });
+  if (!node || (node as HTMLButtonElement).disabled) return;
+  node.focus({ preventScroll: true });
+  // The caret stays where it was in a field being typed into (T14 review 1, finding 2).
+  if (place.caret && caretOf(node)) (node as HTMLInputElement | HTMLTextAreaElement).setSelectionRange(...place.caret);
 }
 
 /** Empty a region that is about to be rebuilt, keeping the person's place. */

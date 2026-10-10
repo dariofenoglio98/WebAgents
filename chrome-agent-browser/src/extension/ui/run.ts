@@ -473,6 +473,8 @@ export class RunPanel {
     // its earlier runs nor its readiness (T5 review 2, nit 5).
     if (record.sessionId !== this.sessionId) this.resetSession(null);
     this.named = options.named !== false;
+    // The run is shown: an earlier open that failed no longer speaks for the panel (T14 review 1, nit 3).
+    this.startError = null;
     this.show(record);
     return null;
   }

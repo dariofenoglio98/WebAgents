@@ -134,10 +134,28 @@ const RUN_VIEW_ID = `run:${crypto.randomUUID()}`;
 /** True until the page's first route: only a page that just opened adopts a run in flight. */
 let firstRoute = true;
 
+/** An error raised as the page leaves for another address, which that address shows (D-161; review 1, finding 1). */
+let errorForNextRoute: PageState["error"] = null;
+
+/**
+ * Go to `hash` and show `error` there. Setting the error before the address would lose it: the
+ * `hashchange` that follows runs `route()`, which starts the new address without an error.
+ */
+function navigateWithError(hash: string, error: NonNullable<PageState["error"]>): void {
+  if (location.hash === `#${hash}`) {
+    state.error = error;
+    return;
+  }
+  errorForNextRoute = error;
+  location.hash = hash;
+}
+
 function route(): void {
   const hash = location.hash.replace(/^#/u, "");
-  // An error belongs to the view it happened on: a new address starts without one (D-161).
-  state.error = null;
+  // An error belongs to the view it happened on: a new address starts without one, unless the
+  // page navigated here because of it (D-161).
+  state.error = errorForNextRoute;
+  errorForNextRoute = null;
   const [view, query] = hash.split("?");
   const params = new URLSearchParams(query ?? "");
   const wasOnModels = state.view === "settings" && state.settingsPage.section === "models";
@@ -274,10 +292,13 @@ async function reattachRuns(): Promise<void> {
  * that cannot be shown says why on the Runs page, and the list stays (D-161).
  */
 async function openStoredRun(runId: string): Promise<void> {
+  // Both entries (the address, and Open on the run already in it) start without the last error.
+  state.error = null;
   await load();
   const failed = await runs.openRun(runId);
   if (state.view !== "runs" || state.runsShowing !== runId) return;
-  state.error = failed ? { ...failed, details: {} } : null;
+  // A run shown keeps an error `load()` met reading the list; a run not shown says why (review 1, nit 4).
+  if (failed) state.error = { ...failed, details: {} };
   render();
   if (!failed) revealRun();
 }
@@ -401,8 +422,7 @@ async function openLibraryEntry(entry: LibraryItemView): Promise<void> {
     state.error = null;
     location.hash = `session=${encodeURIComponent(state.open.session.id)}`;
   } catch (error) {
-    state.error = describeError(error);
-    location.hash = "open";
+    navigateWithError("open", describeError(error));
   } finally {
     state.busy = null;
     render();
@@ -480,6 +500,8 @@ function wordmark(): HTMLElement {
 function homeLink(): HTMLElement {
   const link = el("a", { className: "ab-wordmark-home", attrs: { href: "#open", title: "Back to the start page" } }, wordmark());
   link.addEventListener("click", (event) => {
+    // A middle click or a click with a modifier opens the start page elsewhere, as links do (review 1, nit 7).
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     event.preventDefault();
     goHome();
   });
@@ -491,6 +513,8 @@ function homeLink(): HTMLElement {
  * An open agent is set aside, not closed: its session stays listed under "Open now".
  */
 function goHome(): void {
+  // An open or a search in flight would land on the start page afterwards: let it finish (review 1, nit 6).
+  if (state.busy) return;
   state.search = null;
   state.website = null;
   state.error = null;
