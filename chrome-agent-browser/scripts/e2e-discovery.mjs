@@ -27,12 +27,14 @@
  *
  *   node scripts/e2e-discovery.mjs [--chrome <path>] [--keep] [--out <report.json>]
  */
-import { execFileSync, spawn } from "node:child_process";
+import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:https";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { certificate } from "./lib/origin.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PROJECT = resolve(here, "..");
@@ -70,20 +72,6 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
 
 // -- the mock WebAir origin ----------------------------------------------------------------
-function certificate(directory) {
-  const key = join(directory, "key.pem");
-  const cert = join(directory, "cert.pem");
-  execFileSync(
-    "openssl",
-    ["req", "-x509", "-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:P-256", "-nodes", "-keyout", key, "-out", cert, "-days", "2", "-subj", `/CN=${SITE_HOST}`, "-addext", `subjectAltName=DNS:${SITE_HOST}`],
-    { stdio: ["ignore", "ignore", "ignore"] },
-  );
-  const spki = execFileSync("openssl", ["pkey", "-pubin", "-outform", "der"], {
-    input: execFileSync("openssl", ["x509", "-in", cert, "-pubkey", "-noout"]),
-  });
-  return { key: readFileSync(key), cert: readFileSync(cert), spkiHash: createHash("sha256").update(spki).digest("base64") };
-}
-
 function mockOrigin(tls) {
   const site = JSON.parse(readFileSync(join(ROOT, "examples", "webair-site.json"), "utf8"));
   const webair = readFileSync(WEBAIR);
@@ -270,7 +258,7 @@ async function main() {
     if (!condition) report.failures.push(`${step}: ${name}${detail === undefined ? "" : ` (${JSON.stringify(detail)})`}`);
   };
 
-  const tls = certificate(run);
+  const tls = certificate(run, SITE_HOST);
   const origin = await mockOrigin(tls);
   report.package.archive_sha256 = origin.archiveSha256;
   const expectedFingerprint = `sha256:${createHash("sha256")

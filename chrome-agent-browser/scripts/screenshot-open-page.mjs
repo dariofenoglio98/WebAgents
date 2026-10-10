@@ -7,11 +7,15 @@
  * A local HTTPS origin answers for the WebAir deployment's hostname with the signed demo index and
  * the packages it names, byte for byte from the repository (as `e2e-search-policy.mjs` does), so the
  * search is the real one. Before the shots: the demo index is added with its pinned key, and WebAir
- * is opened once so the start page has an "Open now" row. For each width, a fresh tab:
+ * is opened once so the start page has an "Open now" row. For each width (1280, 640, 480), a fresh tab:
  *   start   `#open`, nothing shown;
- *   compact "literature review" in the box, Enter → the Literature Review card.
+ *   compact "literature review" typed into the box and a real Enter pressed (CDP key events) → the
+ *           Literature Review card.
  * Each shot records the geometry that happy-dom cannot (the wordmark, the box, the results, the
- * page's horizontal overflow, the narrow nav) and the wordmark's computed colours. Writes four PNGs and a JSON with
+ * page's horizontal overflow, the narrow nav) and the wordmark's computed colours. T14 adds: 640 px
+ * is not narrow (B-150 item 2); the compact column holds with a wider font (Verdana, item 1); one
+ * focus ring when tabbing to "Open" (item 7); the compact wordmark is the home link (D-162). A
+ * missing element fails only the checks that need it (item 9). Writes six PNGs and a JSON with
  * "passed" under `examples/verification/chrome-open-page/` (or `--out <directory>`).
  *
  *   npm run build && node scripts/screenshot-open-page.mjs [--chrome <path>] [--out <directory>]
@@ -40,6 +44,7 @@ const FILES = {
 };
 const WIDTHS = [
   { width: 1280, height: 860 },
+  { width: 640, height: 900 },
   { width: 480, height: 1000 },
 ];
 /** D-141: the wordmark's tokens and the contrast each must reach on `--ab-bg` (large text). */
@@ -88,7 +93,16 @@ const report = {
   failures: [],
   passed: false,
 };
+/** `condition` may be a function: an element it needs and does not find fails this check only (B-150 item 9). */
 const check = (name, condition, detail) => {
+  if (typeof condition === "function") {
+    try {
+      condition = condition();
+    } catch (error) {
+      condition = false;
+      detail = { missing: error instanceof Error ? error.message : String(error), detail: detail ?? null };
+    }
+  }
   report.checks[name] = condition ? "ok" : { failed: detail ?? null };
   if (!condition) report.failures.push(`${name}${detail === undefined ? "" : ` (${JSON.stringify(detail).slice(0, 400)})`}`);
 };
@@ -116,6 +130,7 @@ const MEASURE = String.raw`(() => {
   return {
     layout: view ? [...view.classList].find((name) => name.startsWith("ab-open--")) ?? null : null,
     viewport: { width: innerWidth, scrollWidth: document.documentElement.scrollWidth },
+    home: (() => { const link = document.querySelector("a.ab-wordmark-home"); return link ? { href: link.getAttribute("href"), holdsWordmark: link.querySelector("h1.ab-wordmark") !== null } : null; })(),
     counts: { wordmark: document.querySelectorAll("h1.ab-wordmark").length, form: document.querySelectorAll("form.ab-address").length, input: document.querySelectorAll('input[name="package-url"]').length, openButtons: form ? [...form.querySelectorAll("button")].filter((b) => b.textContent.trim() === "Open").length : 0 },
     wordmark: mark ? { name: mark.getAttribute("aria-label"), text: mark.textContent, fontSize: style.fontSize, fontWeight: style.fontWeight, fontFamily: style.fontFamily, colors: [...mark.children].map((span) => getComputedStyle(span).color) } : null,
     background: getComputedStyle(document.body).backgroundColor,
@@ -169,43 +184,74 @@ async function main() {
         const { page, close } = await tab("#open", size);
         await cdp.waitFor(page, `document.querySelector(".ab-open--start .ab-session-row") !== null`, "the start page with its session row");
         if (layout === "compact") {
-          await cdp.evaluate(page, `(() => { const input = document.querySelector('input[name="package-url"]'); input.value = "literature review"; input.dispatchEvent(new Event("input", { bubbles: true })); document.querySelector("form.ab-address").requestSubmit(); return true; })()`);
+          // Typed and submitted as a person does: text into the focused box, then a real Enter (B-150 item 3).
+          await cdp.evaluate(page, `(() => { document.querySelector('input[name="package-url"]').focus(); return true; })()`);
+          await cdp.send("Input.insertText", { text: "literature review" }, page);
+          for (const type of ["keyDown", "keyUp"]) await cdp.send("Input.dispatchKeyEvent", { type, key: "Enter", code: "Enter", windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13, ...(type === "keyDown" ? { text: "\r" } : {}) }, page);
           await cdp.waitFor(page, `document.querySelector('.ab-open--compact .ab-result[data-package-id="org.webagents.literature-review"]') !== null`, "the compact page with the Literature Review card");
         }
         await sleep(300);
+        if (layout === "start" && size.width === 1280) {
+          // One focus ring when tabbing to "Open" (B-150 item 7): the box's ring goes, the button's shows.
+          await cdp.evaluate(page, `(() => { document.querySelector('input[name="package-url"]').focus(); return true; })()`);
+          const ring = () => cdp.evaluate(page, `(() => { const form = document.querySelector("form.ab-address"); const button = form && form.querySelector("button"); return form && button ? { form: getComputedStyle(form).outlineStyle, button: getComputedStyle(button).outlineStyle, focused: document.activeElement === button ? "button" : document.activeElement?.tagName ?? null } : null; })()`);
+          const inBox = await ring();
+          for (const type of ["keyDown", "keyUp"]) await cdp.send("Input.dispatchKeyEvent", { type, key: "Tab", code: "Tab", windowsVirtualKeyCode: 9, nativeVirtualKeyCode: 9 }, page);
+          await sleep(150);
+          const onButton = await ring();
+          report.focusRings = { inBox, onButton };
+          check("1280px: the box has its ring while typing", () => inBox.form === "solid" && inBox.button === "none", inBox);
+          check("1280px: tabbing to Open shows one ring, the button's", () => onButton.focused === "button" && onButton.form === "none" && onButton.button === "solid", onButton);
+          await cdp.evaluate(page, `(() => { document.activeElement?.blur(); return true; })()`);
+          await sleep(150);
+        }
         const measured = await cdp.evaluate(page, MEASURE);
         const file = `open-${layout}-${size.width}.png`;
         const { data } = await cdp.send("Page.captureScreenshot", { format: "png" }, page);
         mkdirSync(args.out, { recursive: true });
         writeFileSync(join(args.out, file), Buffer.from(data, "base64"));
         report.shots[`${layout}-${size.width}`] = { file, ...measured };
+        if (layout === "compact" && size.width === 1280) {
+          // A wider font than macOS's (B-150 item 1): the wordmark's column grows and the results follow the box.
+          await cdp.evaluate(page, `(() => { document.querySelector("h1.ab-wordmark").style.fontFamily = "Verdana, sans-serif"; return true; })()`);
+          await sleep(150);
+          const wide = await cdp.evaluate(page, MEASURE);
+          report.shots["compact-1280-verdana"] = { fontFamily: wide.wordmark?.fontFamily ?? null, boxes: wide.boxes };
+          check("compact at 1280px in Verdana: the wordmark still beside the box, the results still in the box's column", () => {
+            const w = wide.boxes;
+            return w.wordmark.width > measured.boxes.wordmark.width && w.wordmark.left + w.wordmark.width <= w.form.left && Math.abs(w.results.left - w.form.left) <= 1 && Math.abs(w.results.width - w.form.width) <= 1;
+          }, wide.boxes);
+        }
         await close();
 
         const name = `${layout} at ${size.width}px`;
         const b = measured.boxes;
         check(`${name}: the ${layout} layout`, measured.layout === `ab-open--${layout}`, measured.layout);
         check(`${name}: one wordmark, one form, one input, one Open button`, Object.values(measured.counts).every((count) => count === 1), measured.counts);
-        check(`${name}: the wordmark's accessible name is WebAgents, nine letters in four colours`, measured.wordmark?.name === "WebAgents" && measured.wordmark.text === "WebAgents" && new Set(measured.wordmark.colors).size === 4, measured.wordmark);
+        check(`${name}: the wordmark's accessible name is WebAgents, nine letters in four colours`, () => measured.wordmark.name === "WebAgents" && measured.wordmark.text === "WebAgents" && new Set(measured.wordmark.colors).size === 4, measured.wordmark);
         check(`${name}: no horizontal scroll`, measured.viewport.scrollWidth <= measured.viewport.width, measured.viewport);
-        check(`${name}: the box is a pill at least 44px high, inside the viewport`, parseFloat(measured.radius) >= 24 && b.form.height >= 44 && b.form.left >= 0 && b.form.left + b.form.width <= size.width, { radius: measured.radius, form: b.form });
-        check(`${name}: the Open button sits inside the box`, b.button.left >= b.form.left && b.button.left + b.button.width <= b.form.left + b.form.width && b.button.top >= b.form.top && b.button.top + b.button.height <= b.form.top + b.form.height, { form: b.form, button: b.button });
-        if (size.width <= 700) check(`${name}: the narrow nav is one short band above the page, its links not stretched`, b.nav.height <= 120 && b.navOpen.height <= 48, { nav: b.nav, navOpen: b.navOpen });
-        const fontSize = parseFloat(measured.wordmark.fontSize);
+        check(`${name}: the box is a pill at least 44px high, inside the viewport`, () => parseFloat(measured.radius) >= 24 && b.form.height >= 44 && b.form.left >= 0 && b.form.left + b.form.width <= size.width, { radius: measured.radius, form: b.form });
+        check(`${name}: the Open button sits inside the box`, () => b.button.left >= b.form.left && b.button.left + b.button.width <= b.form.left + b.form.width && b.button.top >= b.form.top && b.button.top + b.button.height <= b.form.top + b.form.height, { form: b.form, button: b.button });
+        if (size.width <= 700) check(`${name}: the narrow nav is one short band above the page, its links not stretched`, () => b.nav.height <= 120 && b.navOpen.height <= 48, { nav: b.nav, navOpen: b.navOpen });
+        const fontSize = parseFloat(measured.wordmark?.fontSize);
         if (layout === "start") {
-          check(`${name}: a large wordmark centred above the box`, fontSize >= (size.width < 640 ? 48 : 64) && fontSize <= 72 && b.wordmark.top + b.wordmark.height <= b.form.top && Math.abs(b.wordmark.left + b.wordmark.width / 2 - (b.form.left + b.form.width / 2)) <= 2, { fontSize, wordmark: b.wordmark, form: b.form });
-          check(`${name}: the box is at most about 640px wide and in the upper half`, b.form.width <= 642 && b.form.top < size.height / 2, b.form);
-          check(`${name}: the open session is listed below the box`, b.sessions !== null && b.sessions.top > b.form.top + b.form.height, b.sessions);
+          check(`${name}: a large wordmark centred above the box`, () => fontSize >= (size.width < 640 ? 48 : 64) && fontSize <= 72 && b.wordmark.top + b.wordmark.height <= b.form.top && Math.abs(b.wordmark.left + b.wordmark.width / 2 - (b.form.left + b.form.width / 2)) <= 2, { fontSize, wordmark: b.wordmark, form: b.form });
+          check(`${name}: the box is at most about 640px wide and in the upper half`, () => b.form.width <= 642 && b.form.top < size.height / 2, b.form);
+          check(`${name}: the open session is listed below the box`, () => b.sessions.top > b.form.top + b.form.height, b.sessions);
+          check(`${name}: the wordmark is not a link on the start page`, measured.home === null, measured.home);
         } else {
           check(`${name}: a small wordmark`, fontSize >= 24 && fontSize <= 28, fontSize);
-          if (size.width >= 640) check(`${name}: the wordmark beside the box, in one row`, b.wordmark.left + b.wordmark.width <= b.form.left && b.wordmark.top < b.form.top + b.form.height && b.wordmark.top + b.wordmark.height > b.form.top, { wordmark: b.wordmark, form: b.form });
-          else check(`${name}: the wordmark above the box`, b.wordmark.top + b.wordmark.height <= b.form.top, { wordmark: b.wordmark, form: b.form });
-          check(`${name}: the results in the box's column, below it`, b.results !== null && Math.abs(b.results.left - b.form.left) <= 1 && Math.abs(b.results.width - b.form.width) <= 1 && b.results.top >= b.form.top + b.form.height, { form: b.form, results: b.results });
+          // 640 px is wide (B-150 item 2): the narrow layout is below 640 px only.
+          if (size.width >= 640) check(`${name}: the wordmark beside the box, in one row`, () => b.wordmark.left + b.wordmark.width <= b.form.left && b.wordmark.top < b.form.top + b.form.height && b.wordmark.top + b.wordmark.height > b.form.top, { wordmark: b.wordmark, form: b.form });
+          else check(`${name}: the wordmark above the box`, () => b.wordmark.top + b.wordmark.height <= b.form.top, { wordmark: b.wordmark, form: b.form });
+          check(`${name}: the results in the box's column, below it`, () => Math.abs(b.results.left - b.form.left) <= 1 && Math.abs(b.results.width - b.form.width) <= 1 && b.results.top >= b.form.top + b.form.height, { form: b.form, results: b.results });
+          check(`${name}: the wordmark is the link back to the start page (D-162)`, () => measured.home.href === "#open" && measured.home.holdsWordmark, measured.home);
         }
       }
     }
-    const background = report.shots["start-1280"].background;
-    report.palette.contrast = Object.fromEntries(report.shots["start-1280"].wordmark.colors.slice(0, 4).map((color, index) => [MARK_TOKENS[index], contrast(color, background)]));
-    check(`each wordmark colour has at least ${MIN_CONTRAST}:1 contrast on the page background (large text)`, Object.values(report.palette.contrast).every((ratio) => ratio >= MIN_CONTRAST), report.palette.contrast);
+    const start1280 = report.shots["start-1280"];
+    report.palette.contrast = start1280?.wordmark ? Object.fromEntries(start1280.wordmark.colors.slice(0, 4).map((color, index) => [MARK_TOKENS[index], contrast(color, start1280.background)])) : null;
+    check(`each wordmark colour has at least ${MIN_CONTRAST}:1 contrast on the page background (large text)`, () => Object.values(report.palette.contrast).every((ratio) => ratio >= MIN_CONTRAST), report.palette.contrast);
     report.origin = { requests: served.hits };
   } catch (error) {
     report.failures.push(`harness: ${error instanceof Error ? error.message : String(error)}`);
@@ -215,7 +261,7 @@ async function main() {
     await sleep(200);
     rmSync(scratch, { recursive: true, force: true });
   }
-  report.passed = report.failures.length === 0 && Object.keys(report.shots).length === 4;
+  report.passed = report.failures.length === 0 && WIDTHS.every((size) => ["start", "compact"].every((layout) => report.shots[`${layout}-${size.width}`]));
   mkdirSync(args.out, { recursive: true });
   const text = `${JSON.stringify(report, null, 2)}\n`;
   writeFileSync(join(args.out, "chrome-open-page.json"), text);

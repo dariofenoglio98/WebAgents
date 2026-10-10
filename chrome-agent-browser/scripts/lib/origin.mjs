@@ -18,8 +18,9 @@ export function certificate(directory, host) {
 }
 
 /**
- * Serve `files` (`{ "/path": { path, type } }`) on 127.0.0.1; every other path is a 404, unless
- * `answer(method, path, body)` returns `{ status, value }` for it (a JSON answer, T14).
+ * Serve `files` (`{ "/path": { path, type } }`, or `{ bytes, type }` for bytes held in memory) on
+ * 127.0.0.1; every other path is a 404, unless `answer(method, path, body)` returns
+ * `{ status, value }` for it (a JSON answer, T14).
  */
 export function serveFiles(tls, files, answer = null) {
   const hits = [];
@@ -41,7 +42,7 @@ export function serveFiles(tls, files, answer = null) {
       response.writeHead(404, { "content-type": "text/plain" });
       return response.end("not found");
     }
-    const bytes = readFileSync(file.path);
+    const bytes = file.bytes ?? readFileSync(file.path);
     response.writeHead(200, { "content-type": file.type, "content-length": String(bytes.length), "cache-control": "no-cache", "x-content-type-options": "nosniff" });
     return response.end(bytes);
   });
