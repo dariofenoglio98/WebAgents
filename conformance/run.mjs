@@ -153,6 +153,15 @@ function buildInputs() {
     for (const worker of graph.workers) worker.budget.tokens = Math.min(worker.budget.tokens, 600);
     writeJson(join(source, "graph.json"), graph);
   });
+  // 6–7. Answer checks (D-150, agentpkg 0.3.0): all three kinds on a node and on a map step; in the
+  //      second, the recorded `write` answer names an owner who is not a participant.
+  inputs.answerChecks = variant("answer-checks", withAnswerChecks);
+  inputs.answerCheckRefused = variant("answer-check-refused", (source) => {
+    withAnswerChecks(source);
+    const fixture = readJson(join(source, "fixtures/workflow.json"));
+    fixture.models.write[0].output.agenda[1].owner = "Dana";
+    writeJson(join(source, "fixtures/workflow.json"), fixture);
+  });
   // Grants files for the permission cases.
   const webairGrants = readJson(EXAMPLES("webair-0.2.0-grants.json"));
   inputs.webairNetworkDenied = writeInput("webair-network-denied.json", JSON.stringify({ ...webairGrants, "network.webair": "deny" }));
@@ -161,6 +170,22 @@ function buildInputs() {
   const reviewGrants = readJson(EXAMPLES("literature-review-grants.json"));
   inputs.webairQuote = writeInput("webair-quote.json", JSON.stringify({ ...readJson(EXAMPLES("webair-scenarios.json")).scenarios[0].input, booking: true }));
   inputs.reviewFilesDenied = writeInput("review-files-denied.json", JSON.stringify({ ...reviewGrants, "files.pdfs": "deny" }));
+}
+
+/** Meeting Agenda with answer checks (D-150): a relation, a sum and an equality, on llm nodes and a map llm step. */
+function withAnswerChecks(source) {
+  const manifest = readJson(join(source, "MANIFEST.agent"));
+  manifest.runtime.minimum_version = "0.3.0";
+  writeJson(join(source, "MANIFEST.agent"), manifest);
+  const graph = readJson(join(source, "graph.json"));
+  const nodes = Object.fromEntries(graph.nodes.map((node) => [node.id, node]));
+  nodes.plan.checks = [{ kind: "relation", rows: { from: "result", path: "/focus" }, targets: { from: "result", path: "/focus" }, row_key: "", target_key: "" }];
+  nodes.perspectives.steps[0].checks = [{ kind: "equal", left: { from: "result", path: "/0/role" }, right: { from: "item", path: "/role" } }];
+  nodes.write.checks = [
+    { kind: "relation", rows: { from: "result", path: "/agenda" }, targets: { from: "state", path: "/request/participants" }, row_key: "/owner", target_key: "/name" },
+    { kind: "sum", rows: { from: "result", path: "/agenda" }, path: "/minutes", equals: { from: "state", path: "/request/duration" } },
+  ];
+  writeJson(join(source, "graph.json"), graph);
 }
 
 function variant(name, change) {
@@ -211,6 +236,7 @@ function positiveCases() {
     { id: "literature-review-0.2.5/fixture", title: "Literature Review 0.2.5, its fixture input", argv: fixtureRun(DIST("literature-review.agent.pkg"), EXAMPLES("literature-review-grants.json"), ["scholarly-search", "paper-reader", "citation-resolver"]), allowTokens: true },
     { id: "literature-review-0.2.6/fixture", title: "Literature Review 0.2.6 (screening jobs built from the candidates, T10), its fixture input", argv: fixtureRun(DIST("literature-review-0.2.6.agent.pkg"), EXAMPLES("literature-review-grants.json"), ["scholarly-search", "paper-reader", "citation-resolver"]), allowTokens: true },
     { id: "meeting-agenda-0.2.2/fixture", title: "Meeting Agenda 0.2.2, its fixture input", argv: fixtureRun(DIST("meeting-agenda.agent.pkg"), EXAMPLES("meeting-agenda-grants.json"), []) },
+    { id: "answer-checks/fixture", title: "Answer checks that hold (D-150): Meeting Agenda rebuilt with a relation, a sum and an equality on its model answers, runtime minimum 0.3.0 (throwaway key)", argv: fixtureRun(inputs.answerChecks, EXAMPLES("meeting-agenda-grants.json"), [], ["--trust-key", inputs.throwawayKey]) },
   ];
   return cases.map((testCase) => ({ ...testCase, kind: "fixture parity", run: () => runPositive(testCase) }));
 }
@@ -264,6 +290,7 @@ function negativeCases() {
     ),
     cli("schema-invalid-output", "A recorded model answer that its node's output schema refuses (rebuilt Meeting Agenda, throwaway key)", [run(inputs.schemaInvalid, EXAMPLES("meeting-agenda-grants.json"), ["--trust-key", inputs.throwawayKey])], { code: "schema_validation", node: "plan", artifacts: true }),
     cli("budget-overrun", "A package token budget below what its own fixture run needs (rebuilt Meeting Agenda, throwaway key)", [run(inputs.budget, EXAMPLES("meeting-agenda-grants.json"), ["--trust-key", inputs.throwawayKey])], { code: "budget_exhausted", node: "plan", artifacts: true }),
+    cli("answer-check-refused", "A recorded model answer that its node's answer check refuses (D-150): a non-conforming answer, never re-asked by a replay router (rebuilt Meeting Agenda, throwaway key)", [run(inputs.answerCheckRefused, EXAMPLES("meeting-agenda-grants.json"), ["--trust-key", inputs.throwawayKey])], { code: "model_error", node: "write", artifacts: true }),
     documented(
       "once-overused",
       "The model permission granted once, to a graph that calls the model more than once",
