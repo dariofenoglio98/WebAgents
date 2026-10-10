@@ -30,7 +30,10 @@ from agentpkg.signing import verify_package
 
 ROOT = Path(__file__).resolve().parents[1]
 DIST = ROOT / "dist"
-WHEEL = DIST / "agentpkg-0.2.2-py3-none-any.whl"
+# The current wheel, which CI rebuilds from agentpkg/ and compares file by file. The 0.2.2 wheel of
+# the v0.2.0 release stays in dist/ for the paper line and is checked by the SHA-256 list only.
+WHEEL = DIST / "agentpkg-0.3.0-py3-none-any.whl"
+WHEEL_DIST_INFO = "agentpkg-0.3.0.dist-info"
 # SHA-256 of https://www.apache.org/licenses/LICENSE-2.0.txt
 APACHE_2_0_SHA256 = "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
 
@@ -260,10 +263,10 @@ def check_license() -> dict:
     plugin = json.loads((ROOT / "openclaw-agent-browser/package.json").read_text())
     with zipfile.ZipFile(WHEEL) as wheel:
         names = wheel.namelist()
-        metadata = wheel.read("agentpkg-0.2.2.dist-info/METADATA").decode()
+        metadata = wheel.read(f"{WHEEL_DIST_INFO}/METADATA").decode()
         wheel_license = (
-            wheel.read("agentpkg-0.2.2.dist-info/licenses/LICENSE")
-            if ("agentpkg-0.2.2.dist-info/licenses/LICENSE" in names)
+            wheel.read(f"{WHEEL_DIST_INFO}/licenses/LICENSE")
+            if (f"{WHEEL_DIST_INFO}/licenses/LICENSE" in names)
             else b""
         )
     report = {

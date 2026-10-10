@@ -13,6 +13,7 @@ import { isJsonObject, parseJson, type JsonObject, type JsonValue } from "./json
 import { references, schemaReference, select, tokens, unique } from "./references.js";
 import { pyRepr } from "./repr.js";
 import { PackageSchemas, validateDocument } from "./schema.js";
+import { compareRelease } from "./version.js";
 
 type Documents = Map<string, JsonValue>;
 type Schema = [schema: JsonValue, path: string];
@@ -20,6 +21,15 @@ type Schema = [schema: JsonValue, path: string];
 type Env = Record<string, Schema | Record<string, Schema>>;
 
 const RESERVED_EXPORTS = new Set(["result.json", "audit.json", "usage.json", "provenance.json"]);
+/** The first runtime that evaluates answer checks (`checks` on an llm node or map llm step; D-150). */
+export const CHECKS_MINIMUM_VERSION = "0.3.0";
+
+function declaresChecks(graph: JsonObject): boolean {
+  return (graph.nodes as JsonValue[]).some((raw) => {
+    const node = raw as JsonObject;
+    return "checks" in node || ((node.steps as JsonValue[] | undefined) ?? []).some((step) => "checks" in (step as JsonObject));
+  });
+}
 
 /** `workflow_validation.py::_at_schema`: reject statically impossible pointers. */
 function atSchema(
@@ -81,6 +91,11 @@ export async function validateWorkflow(
   files: ReadonlyMap<string, Uint8Array>,
 ): Promise<void> {
   if (manifest.entrypoint !== "workflow.v0") throw new ValidationError("workflow.v0 graph requires entrypoint workflow.v0");
+  if (declaresChecks(graph) && compareRelease(String((manifest.runtime as JsonObject).minimum_version), CHECKS_MINIMUM_VERSION) < 0) {
+    // An older runtime would refuse the unknown field anyway; declaring the minimum makes it refuse
+    // the package by its version, with the reason a person can act on.
+    throw new ValidationError("answer checks require runtime.minimum_version 0.3.0 or later");
+  }
   const schemaPaths = new Set((manifest.schemas as JsonValue[]).map((entry) => String((entry as JsonObject).path)));
   const documents: Documents = new Map();
   for (const path of schemaPaths) documents.set(path, parseJson(files.get(path)!, path));
@@ -186,6 +201,14 @@ export async function validateWorkflow(
       const record = assertion as JsonObject;
       for (const key of ["left", "right", "rows", "targets", "equals"] as const) {
         if (key in record) expression(record[key]!, env, `${label}/assertions/${key}`, role, nodeId);
+      }
+    }
+    // Answer checks see the operation's own sources and the answer itself as `result`.
+    const answerEnv: Env = { ...env, result: schema(node.output_schema, label) };
+    for (const check of (node.checks as JsonValue[] | undefined) ?? []) {
+      const record = check as JsonObject;
+      for (const key of ["left", "right", "rows", "targets", "equals"] as const) {
+        if (key in record) expression(record[key]!, answerEnv, `${label}/checks/${key}`, role, nodeId);
       }
     }
     const kind = node.type;

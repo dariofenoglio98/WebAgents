@@ -20,10 +20,12 @@ venv paths. A run takes about 25 seconds.
 
 ## What is compared
 
-**Fixture parity** (13 cases): WebAir 0.4.0 on its fixture input and with only its two search
+**Fixture parity** (15 cases): WebAir 0.4.0 on its fixture input and with only its two search
 tools approved; WebAir 0.5.0 on its fixture input and on the eight inputs of
 [`examples/webair-scenarios.json`](../examples/webair-scenarios.json) (0.5.0 added `no-departure`,
-which 0.4.0's fixture cannot replay); Literature Review 0.2.5; Meeting Agenda 0.2.2. `agentpkg run --mode fixture` and
+which 0.4.0's fixture cannot replay); Literature Review 0.2.5 and 0.2.6; Meeting Agenda 0.2.2; and
+Meeting Agenda rebuilt with answer checks that hold (a relation, a sum and an equality on its model
+answers, one of them in a map step; runtime minimum 0.3.0, D-150). `agentpkg run --mode fixture` and
 `node chrome-agent-browser/dist/cli.js run --mode fixture`, compared under the rules of D-063:
 
 | Compared exactly | Normalized first |
@@ -48,7 +50,7 @@ JavaScript cannot tell from `1`; the runtimes agree today (35,732 each), and the
 so that the day a request carries one the report says so instead of failing on a unit that is not a
 bill (D-063).
 
-**Refusals** (12 cases), each with an expected refusal in both runtimes:
+**Refusals** (13 cases), each with an expected refusal in both runtimes:
 
 | Case | Expected in both |
 |---|---|
@@ -60,13 +62,14 @@ bill (D-063).
 | denied optional permission | `permission_denied at node passenger`; artifacts compared |
 | schema-invalid model output (via the fixture) | `schema_validation at node plan`; artifacts compared |
 | budget overrun | `budget_exhausted at node plan`; artifacts compared |
+| an answer check refuses a recorded model answer (D-150) | `model_error at node write` (`model.failed` reason `model_output_not_conforming`); a replay router never re-asks; artifacts compared |
 | stale plan: publisher key unpinned after preparation | lease refused, stale reasons `publisher_trust_changed`, `publisher_not_trusted` |
 | stale plan: a bound tool's implementation changed | lease refused, stale reason `tool_binding_changed` |
 | replayed `once` | second lease refused, reason `authorization_once_spent` |
 | profile-scoped approvals (`search`) | plan ready, two tools bound, five denied, lease issued |
 
-The two schema and budget cases run Meeting Agenda rebuilt with one change each and signed with a
-key generated for that run; the tampered and wrong-key archives are the shipped bytes with one
+The schema, budget and answer-check cases run Meeting Agenda rebuilt with one change each and signed
+with a key generated for that run; the tampered and wrong-key archives are the shipped bytes with one
 member changed ([`lib/zip.mjs`](lib/zip.mjs) rewrites them exactly as `agentpkg` writes archives).
 Messages are compared byte for byte after the CLI prefix (`agentpkg:` / `agent-browser:`).
 

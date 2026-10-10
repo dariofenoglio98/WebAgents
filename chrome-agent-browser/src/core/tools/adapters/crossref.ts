@@ -15,8 +15,9 @@
  *
  * Crossref's public pool states `x-concurrency-limit: 1` and one request per second; the binding
  * that names this adapter (`hosttools.ts`) carries `max_concurrent 1` and `min_interval_ms 1000`,
- * and the broker's pacer makes calls beyond them wait their turn inside their deadline. Nothing
- * here retries: a request that was sent and failed stays failed.
+ * and the broker's pacer makes calls beyond them wait their turn inside their deadline. The adapter
+ * sends one request; the broker may send a read again after a transient failure (D-152), and that
+ * request waits for its own turn like any other.
  */
 import { pythonHtmlText } from "../../html-text.js";
 import type { JsonObject, JsonValue } from "../../json.js";

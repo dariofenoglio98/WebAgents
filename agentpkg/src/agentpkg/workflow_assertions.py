@@ -1,8 +1,8 @@
-"""Three bounded data invariants for validate nodes; no scripts or callbacks."""
+"""Three bounded data invariants for validate nodes and answer checks; no scripts or callbacks."""
 
 from __future__ import annotations
 
-from .errors import ValidationError
+from .errors import AgentPkgError, ValidationError
 from .runtime import digest
 from .workflow_values import evaluate, select
 
@@ -24,6 +24,48 @@ class AssertionFailure(ValidationError):
             "failure": failure,
             **declared,
         }
+
+
+class AnswerCheckFailure(AgentPkgError):
+    """A model answer that a declared answer check refused: a non-conforming answer.
+
+    Not a `ValidationError`: the answer, not the package, is at fault, so the node fails as
+    `model_error` and the audit says `model_output_not_conforming`, as for an answer that breaks
+    its schema. `failed_check` names the check by the package's own index, kind and pointers.
+    """
+
+    code = "model_output_not_conforming"
+
+    def __init__(self, index, rule, failure, **declared):
+        super().__init__(f"answer check {index} ({rule['kind']}): {failure}")
+        self.failed_check = {
+            "check": "answer_check",
+            "index": index,
+            "kind": rule["kind"],
+            "failure": failure,
+            **declared,
+        }
+        self.audit_facts = {"output_failure": "check"}
+
+
+def check_answer(checks, env, answer):
+    """Evaluate an llm node's `checks` on its schema-valid answer, in order.
+
+    The answer is the `result` source; every other source is the operation's own. A check that
+    cannot be evaluated on this answer (a selector finds no data, a lookup finds no member) fails
+    as `not_evaluable`: the answer did not provide what its check needs.
+    """
+    scope = env | {"result": answer}
+    for index, rule in enumerate(checks):
+        try:
+            check_assertions([rule], scope)
+        except AssertionFailure as exc:
+            facts = exc.failed_check
+            declared = {k: v for k, v in facts.items() if k not in ("check", "index", "kind")}
+            failure = declared.pop("failure")
+            raise AnswerCheckFailure(index, rule, failure, **declared) from exc
+        except ValidationError as exc:
+            raise AnswerCheckFailure(index, rule, "not_evaluable") from exc
 
 
 def check_assertions(assertions, env):

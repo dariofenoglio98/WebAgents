@@ -38,6 +38,18 @@ export interface CredentialSource {
   name: string;
 }
 
+/**
+ * A second implementation that may answer for a binding when its own service is unavailable
+ * (D-153): today only the built-in Crossref DOI lookup behind a `citation.resolve` binding whose
+ * package tool declares `api.crossref.org`. It is part of what the binding would do, so it is in
+ * the descriptor and the digest: the plan freezes it and the approval covers it.
+ */
+export interface BindingFallback {
+  implementation_id: string;
+  implementation_version: string;
+  endpoint: { origin: string; path: string; method: "GET" };
+}
+
 export interface ToolImplementationDefinition {
   id: string;
   toolId: string;
@@ -72,6 +84,8 @@ export interface ToolImplementationDefinition {
   enabled?: boolean;
   /** Required for `host_resource`: the resource type this binding returns. */
   resourceType?: string;
+  /** The implementation that answers when this one's service is unavailable (D-153). */
+  fallback?: BindingFallback;
 }
 
 /** The descriptor the control plane evaluates (`agentpkg-host-tool-registry-v0` binding entry). */
@@ -93,6 +107,7 @@ export interface ToolBindingDescriptor {
   limits: { timeout_seconds: number; max_request_bytes: number; max_response_bytes: number; max_concurrent: number; min_interval_ms: number | null };
   credentials: { required: boolean; configured: boolean; source: string | null };
   resource_type?: string;
+  fallback?: BindingFallback;
 }
 
 function refuse(detail: string): AdapterError {
@@ -271,6 +286,7 @@ export function describeDefinition(definition: ToolImplementationDefinition, opt
       ? { required, configured, source: definition.credential ? `${definition.credential.kind}:${definition.credential.name}` : null }
       : { required: false, configured: options.credentialConfigured?.(definition.optionalCredential) ?? false, source: `${definition.optionalCredential.kind}:${definition.optionalCredential.name}` },
     ...(definition.kind === "host_resource" && definition.resourceType ? { resource_type: definition.resourceType } : {}),
+    ...(definition.fallback ? { fallback: { ...definition.fallback, endpoint: { ...definition.fallback.endpoint } } } : {}),
   };
 }
 
@@ -291,6 +307,8 @@ export function bindingDigest(descriptor: ToolBindingDescriptor): string {
     credentials: { required: descriptor.credentials.required, configured: descriptor.credentials.configured, source: descriptor.credentials.source },
   };
   if (descriptor.resource_type !== undefined && descriptor.resource_type !== null) subject.resource_type = descriptor.resource_type;
+  // Present only when the binding has one, so every other binding keeps the reference's digest.
+  if (descriptor.fallback !== undefined) subject.fallback = descriptor.fallback as unknown as JsonValue;
   return sha256HexSync(canonicalJson(subject));
 }
 
@@ -316,6 +334,7 @@ export interface RegistryBindingLike {
   limits: { timeout_seconds: number | null; max_request_bytes: number | null; max_response_bytes: number | null; max_concurrent: number | null; min_interval_ms: number | null };
   credentials: { required: boolean; configured: boolean; source: string | null };
   resource_type?: string;
+  fallback?: BindingFallback;
   binding_sha256: string;
 }
 
@@ -358,6 +377,7 @@ export function definitionsFromRegistry(registry: { bindings: readonly RegistryB
       definition.method = binding.endpoint.method;
     }
     if (binding.resource_type !== undefined) definition.resourceType = binding.resource_type;
+    if (binding.fallback !== undefined) definition.fallback = { ...binding.fallback, endpoint: { ...binding.fallback.endpoint } };
     if (binding.credentials.source !== null) {
       const [sourceKind, ...rest] = binding.credentials.source.split(":");
       if ((sourceKind !== "env" && sourceKind !== "settings") || rest.length === 0) continue;

@@ -19,8 +19,19 @@ export class CancelToken {
   private readonly controller = new AbortController();
   private readonly children = new Set<CancelToken>();
   private reasonValue: Error | null = null;
+  /**
+   * The earliest deadline this token is under, as a `Date.now()` instant (`Infinity` when none):
+   * its own and every ancestor's. Nothing fires from it; `withDeadline`'s timer does. It lets a
+   * re-ask or a retry tell, before it is sent, whether the deadline would likely cut it
+   * (D-151, D-152).
+   */
+  readonly deadline: number;
 
-  constructor(private readonly parent: CancelToken | null = null) {
+  constructor(
+    private readonly parent: CancelToken | null = null,
+    deadline = Number.POSITIVE_INFINITY,
+  ) {
+    this.deadline = Math.min(deadline, parent?.deadline ?? Number.POSITIVE_INFINITY);
     if (parent !== null) {
       parent.children.add(this);
       if (parent.reasonValue !== null) this.cancel(parent.reasonValue);
@@ -51,8 +62,9 @@ export class CancelToken {
     if (this.reasonValue !== null) throw this.reasonValue;
   }
 
-  child(): CancelToken {
-    return new CancelToken(this);
+  /** A child token; `deadline` (a `Date.now()` instant) can only make the inherited one earlier. */
+  child(deadline = Number.POSITIVE_INFINITY): CancelToken {
+    return new CancelToken(this, deadline);
   }
 
   /** Detach from the parent once the work it bounded is over, so the tree does not grow. */
@@ -63,7 +75,7 @@ export class CancelToken {
 
 /** `asyncio.timeout(seconds)` around `fn`, which receives the bounded child token. */
 export async function withDeadline<T>(seconds: number, parent: CancelToken, fn: (token: CancelToken) => Promise<T>): Promise<T> {
-  const child = parent.child();
+  const child = parent.child(Date.now() + Math.max(0, seconds * 1000));
   let timedOut = false;
   const timer = setTimeout(() => {
     timedOut = true;

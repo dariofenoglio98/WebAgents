@@ -67,11 +67,44 @@ export const HTTP_ADAPTERS: ReadonlyMap<string, HttpAdapter> = new Map([
   [CROSSREF_WORKS_ADAPTER.id, CROSSREF_WORKS_ADAPTER],
 ]);
 
-export function toolError(code: string, detail: string, facts: ToolFailureFacts = {}): AdapterError {
+/**
+ * A tool failure with its stable code and closed audit facts. `extra` is host-side detail that is
+ * never audited: a server's `Retry-After` (D-152) and whether a deadline fired while the call
+ * waited for its pacing turn.
+ */
+export function toolError(code: string, detail: string, facts: ToolFailureFacts = {}, extra: { retry_after_ms?: number; pacer_wait?: boolean } = {}): AdapterError {
   const stage = code === "tool_timeout" ? "timeout" : code === "tool_cancelled" ? "cancelled" : code === "tool_request_invalid" ? "input_schema" : code === "tool_transport_error" ? "transport" : "binding";
   return new AdapterError(code, detail, {
     audit_facts: { stage, ...(code === "tool_timeout" ? { timeout: true } : {}), ...(code === "tool_cancelled" ? { cancelled: true } : {}), ...facts },
+    detail: extra,
   });
+}
+
+/**
+ * A server's `Retry-After` (RFC 9110 §10.2.3: delay-seconds or an HTTP-date) in milliseconds from
+ * `now`, or undefined when absent or unreadable. A date in the past is 0.
+ */
+export function retryAfterMs(value: string | undefined, now: number): number | undefined {
+  if (value === undefined) return undefined;
+  const text = value.trim();
+  if (/^[0-9]{1,9}$/u.test(text)) return Number(text) * 1000;
+  if (!/^[A-Za-z]{3}, [0-9]{2} [A-Za-z]{3} [0-9]{4} [0-9]{2}:[0-9]{2}:[0-9]{2} GMT$/u.test(text)) return undefined;
+  const at = Date.parse(text);
+  return Number.isNaN(at) ? undefined : Math.max(0, at - now);
+}
+
+/** What one request's transport failure is for a tool call: its stage kept, a body overflow a response failure (D-067). */
+export function transportFailure(error: unknown, signal: AbortSignal): Error {
+  if (signal.aborted) return cancellationOf(signal);
+  if (error instanceof AdapterError || error instanceof CancelledError) return error;
+  if (error instanceof TransportError) {
+    const { stage, http_status, response_bytes } = error.facts;
+    if (stage === "body_size") {
+      return toolError("tool_response_invalid", "the tool response is too large", { stage, body_exceeded: true, ...(http_status !== undefined ? { http_status } : {}), ...(response_bytes !== undefined ? { response_bytes } : {}) });
+    }
+    return toolError("tool_transport_error", error.message, { stage });
+  }
+  return toolError("tool_transport_error", "the tool request failed");
 }
 
 /**
@@ -153,32 +186,26 @@ export async function jsonHttpCall(options: JsonHttpCallOptions): Promise<{ outp
   try {
     answer = await options.transport({ url: destination, method, headers, body, signal, maxResponseBytes: maxResponse });
   } catch (error) {
-    if (signal.aborted) throw cancellationOf(signal);
-    if (error instanceof AdapterError || error instanceof CancelledError) throw error;
-    if (error instanceof TransportError) {
-      const { stage, http_status, response_bytes } = error.facts;
-      if (stage === "body_size") {
-        throw toolError("tool_response_invalid", "the tool response is too large", { stage, body_exceeded: true, ...(http_status !== undefined ? { http_status } : {}), ...(response_bytes !== undefined ? { response_bytes } : {}) });
-      }
-      throw toolError("tool_transport_error", error.message, { stage });
-    }
-    throw toolError("tool_transport_error", "the tool request failed");
+    throw transportFailure(error, signal);
   }
   if (answer.status >= 300 && answer.status < 400) {
     throw toolError("tool_transport_error", "the tool host returned a redirect; each hop would need the whole destination policy re-applied, so redirects are refused", { stage: "status", http_status: answer.status });
   }
+  // A server that says when to come back is heard by a retry (D-152); the value is never audited.
+  const retryAfter = answer.status >= 400 ? retryAfterMs(answer.headers["retry-after"], (options.now ?? Date.now)()) : undefined;
+  const fail = (code: string, message: string, failure: ToolFailureFacts) => toolError(code, message, failure, retryAfter !== undefined ? { retry_after_ms: retryAfter } : {});
   const responseBytes = encoder.encode(answer.body).length;
   const facts: ToolFailureFacts = { http_status: answer.status, content_type: contentTypeCategory(answer.headers["content-type"] ?? null), response_bytes: responseBytes, body_exceeded: false };
-  if (responseBytes > maxResponse) throw toolError("tool_response_invalid", "the tool response is too large", { ...facts, stage: "body_size", body_exceeded: true });
+  if (responseBytes > maxResponse) throw fail("tool_response_invalid", "the tool response is too large", { ...facts, stage: "body_size", body_exceeded: true });
   const contentType = (answer.headers["content-type"] ?? "").split(";")[0]!.trim().toLowerCase();
   if (contentType !== "application/json") {
-    throw toolError("tool_response_invalid", "the tool host did not answer with the required JSON content type", { ...facts, stage: "content_type" });
+    throw fail("tool_response_invalid", "the tool host did not answer with the required JSON content type", { ...facts, stage: "content_type" });
   }
   let json: JsonValue;
   try {
     json = JSON.parse(answer.body) as JsonValue;
   } catch {
-    throw toolError("tool_response_invalid", "the tool host answered with invalid JSON", { ...facts, stage: "json_parse", json_parsed: false });
+    throw fail("tool_response_invalid", "the tool host answered with invalid JSON", { ...facts, stage: "json_parse", json_parsed: false });
   }
   facts.json_parsed = true;
   const status = answer.status;
@@ -190,8 +217,8 @@ export async function jsonHttpCall(options: JsonHttpCallOptions): Promise<{ outp
       // A status the adapter will not take as data is a status failure; anything else is the
       // adapter refusing the answer's shape.
       const stage = error.code === "tool_response_invalid" ? "adapter_response" : "status";
-      throw toolError(error.code, error.message, { ...facts, stage });
+      throw fail(error.code, error.message, { ...facts, stage });
     }
-    throw toolError("tool_response_invalid", "the tool answer could not be read", { ...facts, stage: "adapter_response" });
+    throw fail("tool_response_invalid", "the tool answer could not be read", { ...facts, stage: "adapter_response" });
   }
 }

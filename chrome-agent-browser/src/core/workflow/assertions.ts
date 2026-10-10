@@ -1,9 +1,9 @@
 /**
- * Three bounded data invariants for validate nodes (`agentpkg/workflow_assertions.py`); no
- * scripts or callbacks. `failed_check` names only what the package declared: the assertion's
- * index and kind, the failure, and the pointers it compared.
+ * Three bounded data invariants for validate nodes and answer checks
+ * (`agentpkg/workflow_assertions.py`); no scripts or callbacks. `failed_check` names only what the
+ * package declared: the assertion's index and kind, the failure, and the pointers it compared.
  */
-import { ValidationError } from "../errors.js";
+import { AgentPkgError, ValidationError } from "../errors.js";
 import type { JsonObject, JsonValue } from "../json.js";
 import { select } from "../references.js";
 import { pyStrip } from "../trust.js";
@@ -17,6 +17,116 @@ export class AssertionFailure extends ValidationError {
     super(`assertion ${index} (${rule.kind}): ${message}`);
     this.failed_check = { check: "assertion", index, kind: rule.kind, failure, ...declared };
   }
+}
+
+/** At most this many offending key values are collected for a re-ask's feedback line (D-151). */
+export const MAX_OFFENDING_VALUES = 64;
+
+/**
+ * A model answer that a declared answer check refused: a non-conforming answer
+ * (`workflow_assertions.py::AnswerCheckFailure`, D-150). Not a `ValidationError`: the answer, not
+ * the package, is at fault, so the node fails `model_error` and the audit says
+ * `model_output_not_conforming`. `failed_check` names the check by the package's own index, kind
+ * and pointers. `offending` holds the key values the failure is about, for the feedback line of a
+ * re-ask only (D-151); it is never recorded anywhere.
+ */
+export class AnswerCheckFailure extends AgentPkgError {
+  override readonly name: string = "AnswerCheckFailure";
+  readonly code = "model_output_not_conforming";
+  readonly failed_check: JsonObject;
+  readonly audit_facts: Record<string, unknown> = { output_failure: "check" };
+  readonly offending: JsonValue[];
+
+  constructor(index: number, rule: JsonObject, failure: string, declared: JsonObject = {}, offending: JsonValue[] = [], options: { cause?: unknown } = {}) {
+    super(`answer check ${index} (${String(rule.kind)}): ${failure}`, options);
+    this.failed_check = { check: "answer_check", index, kind: rule.kind!, failure, ...declared };
+    this.offending = offending;
+  }
+}
+
+/**
+ * Evaluate an llm node's `checks` on its schema-valid answer, in order
+ * (`workflow_assertions.py::check_answer`). The answer is the `result` source; every other source
+ * is the operation's own. A check that cannot be evaluated on this answer (a selector finds no
+ * data, a lookup no member) fails as `not_evaluable`.
+ */
+export function checkAnswer(checks: readonly JsonValue[], env: Environment, answer: JsonValue): void {
+  const scope: Environment = { ...env, result: answer };
+  checks.forEach((raw, index) => {
+    const rule = raw as JsonObject;
+    try {
+      checkAssertions([rule], scope);
+    } catch (error) {
+      if (error instanceof AssertionFailure) {
+        const { check: _check, index: _index, kind: _kind, failure, ...declared } = error.failed_check as JsonObject;
+        throw new AnswerCheckFailure(index, rule, String(failure), declared, offendingValues(rule, scope, String(failure)), { cause: error });
+      }
+      if (error instanceof ValidationError) throw new AnswerCheckFailure(index, rule, "not_evaluable", {}, [], { cause: error });
+      throw error;
+    }
+  });
+}
+
+/**
+ * The key values a failed `relation` is about, in data order and without repeats, for a re-ask's
+ * feedback line (D-151): the repeated target keys of `duplicate_target_key`, and the row keys of
+ * the rows that failed `missing_target_key`, `target_value_mismatch` or `fields_do_not_match`.
+ * Other failures name no value. Bounded; nothing here is ever audited. Which of these values a
+ * feedback line may repeat is decided where the line is built (`feedback.ts`).
+ */
+function offendingValues(rule: JsonObject, env: Environment, failure: string): JsonValue[] {
+  if (rule.kind !== "relation") return [];
+  const found = new Map<string, JsonValue>();
+  const add = (value: JsonValue): boolean => {
+    if (!found.has(identity(value))) found.set(identity(value), value);
+    return found.size < MAX_OFFENDING_VALUES;
+  };
+  try {
+    const rows = evaluate(rule.rows!, env);
+    const targets = evaluate(rule.targets!, env);
+    if (!Array.isArray(rows) || !Array.isArray(targets)) return [];
+    const targetKey = String(rule.target_key);
+    if (failure === "duplicate_target_key") {
+      const seen = new Set<string>();
+      for (const target of targets) {
+        const key = select(target, targetKey);
+        if (seen.has(identity(key)) && !add(key)) break;
+        seen.add(identity(key));
+      }
+      return [...found.values()];
+    }
+    const index = new Map<string, JsonValue>();
+    for (const target of targets) {
+      const key = identity(select(target, targetKey));
+      if (!index.has(key)) index.set(key, target);
+    }
+    const where = rule.where as JsonObject | undefined;
+    for (const row of rows) {
+      if (where && !pyEqual(select(row, String(where.path)), where.equals!)) continue;
+      const selected = select(row, String(rule.row_key));
+      const keys = rule.many === true ? selected : [selected];
+      if (!Array.isArray(keys)) continue;
+      for (const key of keys) {
+        const target = index.get(identity(key));
+        let offends = false;
+        if (failure === "missing_target_key") offends = target === undefined;
+        else if (target !== undefined && failure === "target_value_mismatch") {
+          offends = Object.entries((rule.target_values as JsonObject | undefined) ?? {}).some(([path, value]) => !pyEqual(select(target, path), value));
+        } else if (target !== undefined && failure === "fields_do_not_match") {
+          offends = ((rule.compare as JsonValue[] | undefined) ?? []).some((raw) => {
+            const pair = raw as JsonObject;
+            const left = select(row, String(pair.left));
+            const right = select(target, String(pair.right));
+            return pair.op === "eq" ? !pyEqual(left, right) : !(typeof left === "string" && typeof right === "string" && pyStrip(left).length > 0 && right.includes(left));
+          });
+        }
+        if (offends && !add(key)) return [...found.values()];
+      }
+    }
+  } catch {
+    // A selector that finds no data ends the collection; what was found so far stands.
+  }
+  return [...found.values()];
 }
 
 /** JavaScript's safe-integer range: within it a JSON integral number is read as a Python int. */

@@ -588,7 +588,7 @@ function servicesView(view: SettingsView, actions: SettingsPageActions): HTMLEle
   return [
     card(
       "Crossref (scholarly search)",
-      el("p", { className: "ab-hint", text: "Crossref asks clients to name a contact address to use its \u201cpolite pool\u201d. Leave this empty to send none. When set, the address is sent to Crossref, as mailto, with each search an agent makes through this browser, and nowhere else. Searches stay at one at a time, one per second, either way. Whether an address is sent is part of what you approve: changing it makes prepared run plans stale." }),
+      el("p", { className: "ab-hint", text: "Crossref asks clients to name a contact address to use its \u201cpolite pool\u201d. Leave this empty to send none. When set, the address is sent to Crossref, as mailto, with each search an agent makes through this browser and with each DOI this browser looks up at Crossref when a citation service is unavailable, and nowhere else. Requests to Crossref stay at one at a time, one per second, either way. Whether an address is sent is part of what you approve: changing it makes prepared run plans stale." }),
       el("label", { className: "ab-field" }, el("span", { text: "Contact e-mail (optional)" }), contact),
       el(
         "div",

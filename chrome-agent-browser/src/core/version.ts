@@ -6,7 +6,7 @@
  * `test/core/version.test.ts` asserts it equals `agentpkg/src/agentpkg/__init__.py`'s value,
  * so the two runtimes accept the same packages (D-031).
  */
-export const SUPPORTED_RUNTIME_VERSION = "0.2.2";
+export const SUPPORTED_RUNTIME_VERSION = "0.3.0";
 export const RUNTIME_API = "agentpkg-runtime-v0";
 export const SUPPORTED_EXECUTION_PROFILES: readonly string[] = Object.freeze(["workflow.v0"]);
 export const CORE_VERSION = "0.1.0";

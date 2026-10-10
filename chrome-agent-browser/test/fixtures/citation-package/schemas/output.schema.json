@@ -1,0 +1,16 @@
+{
+  "type": "object",
+  "properties": {
+    "found": {
+      "$ref": "search-output.schema.json"
+    },
+    "resolved": {
+      "$ref": "responses.schema.json"
+    }
+  },
+  "required": [
+    "found",
+    "resolved"
+  ],
+  "additionalProperties": false
+}

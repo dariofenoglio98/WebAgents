@@ -22,7 +22,8 @@
  * **Usage is actual and complete** or the call fails (`usage.ts`); cost is only ever computed
  * from catalog prices the binding carries, never estimated.
  */
-import type { JsonValue } from "../json.js";
+import { isJsonObject, type JsonObject, type JsonValue } from "../json.js";
+import { select } from "../references.js";
 import { failuresForSchema } from "../schema.js";
 import { AdapterError, CancelledError } from "../workflow/errors.js";
 import type { ModelRequest, ModelResult, ModelRouter } from "./contract.js";
@@ -120,8 +121,8 @@ export class BoundModelRouter implements ModelRouter {
   readonly router_id = ROUTER_ID;
   readonly model_id: string;
   readonly provider_id: string;
-  /** A non-conforming answer is asked for once more (D-115). */
-  readonly nonconformingRetries = 1;
+  /** A non-conforming answer is asked for again, up to twice, naming what was wrong (D-151; once under D-115). */
+  readonly nonconformingRetries = 2;
   /** `countTokens` is a local UTF-8 bound: it sends nothing, so it is not a remote call (D-115). */
   readonly remoteCount = false;
   readonly remote: boolean;
@@ -204,7 +205,7 @@ export class BoundModelRouter implements ModelRouter {
     const termination = classifyTermination(answer.stop_reason);
     if (termination !== null) throw new AdapterError(termination[0], termination[1], { audit_facts: facts });
     if (typeof answer.text !== "string") {
-      throw new AdapterError("model_output_not_conforming", "The host returned no text", { audit_facts: { ...facts, output_failure: "no_text" } });
+      throw new AdapterError("model_output_not_conforming", "The host returned no text", { audit_facts: { ...facts, output_failure: "no_text" }, detail: { refusal: { kind: "no_text" } } });
     }
     const usage = projectUsage(answer.usage);
     let output: JsonValue;
@@ -212,7 +213,11 @@ export class BoundModelRouter implements ModelRouter {
     try {
       [output, parseMode] = parseStructured(answer.text);
     } catch (error) {
-      if (error instanceof AdapterError) error.audit_facts = { ...facts, output_failure: "not_json" };
+      if (error instanceof AdapterError) {
+        error.audit_facts = { ...facts, output_failure: "not_json" };
+        // What a re-ask's feedback line says about it (D-151); `detail` is never audited.
+        if (error.code === "model_output_not_conforming") error.detail.refusal = { kind: "not_json" };
+      }
       throw error;
     }
     let decoded: Record<string, JsonValue> | null = null;
@@ -232,6 +237,8 @@ export class BoundModelRouter implements ModelRouter {
           schema_location: schemaLocation(first.keywordLocation),
           schema_violations: failures.length,
         },
+        // Where in the answer, for a re-ask's feedback line only (D-151): the audit keeps the schema side.
+        detail: { refusal: { kind: "schema", keyword: first.keyword, instance_path: [...first.instancePath], missing: first.keyword === "required" ? missingNames(rendered.output_schema, first.keywordLocation, first.instancePath, output) : [] } },
       });
     }
     const cost = usage.cost_usd ?? priceUsage(usage, this.adapter.pricing);
@@ -285,6 +292,24 @@ export class BoundModelRouter implements ModelRouter {
       clearTimeout(timer);
       signal.removeEventListener("abort", onAbort);
     }
+  }
+}
+
+/**
+ * The property names a failed `required` keyword lists that the answer's object lacks: names the
+ * schema declares, for a re-ask's feedback line (D-151). Empty when they cannot be read.
+ */
+function missingNames(schema: JsonValue, keywordLocation: string, instancePath: readonly string[], output: JsonValue): string[] {
+  const hash = keywordLocation.indexOf("#");
+  if (hash < 0) return [];
+  try {
+    const required = select(schema, decodeURIComponent(keywordLocation.slice(hash + 1)));
+    let at: JsonValue | undefined = output;
+    for (const token of instancePath) at = Array.isArray(at) ? at[Number(token)] : isJsonObject(at ?? null) ? (at as JsonObject)[token] : undefined;
+    if (!Array.isArray(required) || at === undefined || !isJsonObject(at)) return [];
+    return required.filter((name): name is string => typeof name === "string" && !Object.hasOwn(at as JsonObject, name));
+  } catch {
+    return [];
   }
 }
 

@@ -38,6 +38,7 @@ import { pyRepr } from "./repr.js";
 import { DENY, type Decision } from "./types.js";
 import { urlsplit } from "./urls.js";
 import { CROSSREF_IMPLEMENTATION } from "./tools/adapters/crossref.js";
+import { CROSSREF_DOI_IMPLEMENTATION, CROSSREF_DOI_PATH, CROSSREF_ORIGIN } from "./tools/adapters/crossref-doi.js";
 import { SELECTED_PDF_IMPLEMENTATION } from "./tools/adapters/selected-file.js";
 
 export const REGISTRY_SCHEMA = "agentpkg-host-tool-registry-v0";
@@ -103,6 +104,8 @@ export interface ToolBindingDescriptor {
   limits: { timeout_seconds: number | null; max_request_bytes: number | null; max_response_bytes: number | null; max_concurrent: number | null; min_interval_ms: number | null };
   credentials: { required: boolean; configured: boolean; source: string | null };
   resource_type?: string;
+  /** The implementation that answers when this binding's service is unavailable (D-153). */
+  fallback?: { implementation_id: string; implementation_version: string; endpoint: { origin: string; path: string; method: "GET" } };
   binding_sha256: string;
 }
 
@@ -345,6 +348,8 @@ export async function bindingDigest(binding: Omit<ToolBindingDescriptor, "bindin
     credentials: { required: binding.credentials.required, configured: binding.credentials.configured, source: binding.credentials.source },
   };
   if (binding.resource_type !== undefined && binding.resource_type !== null) subject.resource_type = binding.resource_type;
+  // Present only when the binding has one (D-153), so every other binding keeps the reference's digest.
+  if (binding.fallback !== undefined) subject.fallback = binding.fallback;
   return sha256Hex(canonicalJson(subject));
 }
 
@@ -354,7 +359,7 @@ export async function normalizeBinding(raw: unknown, index: number): Promise<Too
   const record = closedRecord(
     raw,
     field,
-    ["id", "tool_id", "binding", "implementation_kind", "implementation_id", "implementation_version", "display_name", "description", "remote", "available", "availability_reason", "enabled", "endpoint", "contract", "limits", "credentials", "resource_type"],
+    ["id", "tool_id", "binding", "implementation_kind", "implementation_id", "implementation_version", "display_name", "description", "remote", "available", "availability_reason", "enabled", "endpoint", "contract", "limits", "credentials", "resource_type", "fallback"],
     ["id", "tool_id", "binding", "implementation_kind", "implementation_id", "implementation_version", "display_name", "remote", "available", "contract"],
   );
   const kindText = requiredText(record.implementation_kind, `${field}.implementation_kind`, { limit: 64 });
@@ -422,6 +427,16 @@ export async function normalizeBinding(raw: unknown, index: number): Promise<Too
     credentials,
   };
   if (resourceType !== null) binding.resource_type = resourceType;
+  if (record.fallback !== undefined && record.fallback !== null) {
+    // Only the host's own Crossref DOI lookup, behind a remote citation.resolve binding (D-153).
+    if (kind !== KIND_JSON_HTTP || binding.binding !== CITATION_RESOLVE) throw invalid(`${field}.fallback belongs to a ${KIND_JSON_HTTP} ${CITATION_RESOLVE} binding only`);
+    const fallback = closedRecord(record.fallback, `${field}.fallback`, ["implementation_id", "implementation_version", "endpoint"], ["implementation_id", "implementation_version", "endpoint"]);
+    const target = closedRecord(fallback.endpoint, `${field}.fallback.endpoint`, ["origin", "path", "method"], ["origin", "path", "method"]);
+    if (fallback.implementation_id !== CROSSREF_DOI_IMPLEMENTATION.id || fallback.implementation_version !== CROSSREF_DOI_IMPLEMENTATION.version || target.origin !== CROSSREF_ORIGIN || target.path !== CROSSREF_DOI_PATH || target.method !== "GET") {
+      throw invalid(`${field}.fallback must be this host's ${CROSSREF_DOI_IMPLEMENTATION.id} ${CROSSREF_DOI_IMPLEMENTATION.version} at ${CROSSREF_ORIGIN}${CROSSREF_DOI_PATH}`);
+    }
+    binding.fallback = { implementation_id: CROSSREF_DOI_IMPLEMENTATION.id, implementation_version: CROSSREF_DOI_IMPLEMENTATION.version, endpoint: { origin: CROSSREF_ORIGIN, path: CROSSREF_DOI_PATH, method: "GET" } };
+  }
   return { ...binding, binding_sha256: await bindingDigest(binding) };
 }
 
@@ -805,6 +820,10 @@ export interface HostToolRegistryOptions {
 export const CHROME_TOOL_REGISTRY_SOURCE =
   "chrome-agent-browser host tool registry (D-054, D-081, D-082): one generic HTTPS JSON binding per declared remote POST tool, derived from the signed declaration after the URL gate; the host's Crossref search for scholarly.search at Crossref's works endpoint; the selected-PDF reader for paper.read; one host-resource binding per vault type; other tools unbound";
 
+/** The abstract capability the citation fallback serves (D-153), and the domain its package tool must declare. */
+export const CITATION_RESOLVE = "citation.resolve";
+export const CROSSREF_HOST = "api.crossref.org";
+
 /** Where the Crossref adapter's optional contact address comes from (Settings → Services, D-081). */
 export const CROSSREF_CONTACT_SOURCE = "settings:crossref.contact";
 
@@ -927,6 +946,10 @@ export async function buildHostToolRegistry(pkg: Package, options: HostToolRegis
         notes.push({ code: "tool_method_unsupported", detail: `${toolId}: the generic HTTPS JSON adapter sends one POST body, and this browser has no service adapter for a ${contract.method} to ${contract.endpoint_origin}${contract.endpoint_path}, so the tool stays unbound.` });
         continue;
       }
+      // The citation fallback (D-153): only for the abstract citation.resolve capability, and only
+      // when the signed declaration lists Crossref's domain, so the person's grant of the tool's
+      // network permission covers the lookup.
+      const fallback = contract.binding === CITATION_RESOLVE && contract.domains.includes(CROSSREF_HOST) ? { implementation_id: CROSSREF_DOI_IMPLEMENTATION.id, implementation_version: CROSSREF_DOI_IMPLEMENTATION.version, endpoint: { origin: CROSSREF_ORIGIN, path: CROSSREF_DOI_PATH, method: "GET" } } : null;
       bindings.push({
         id: `chrome:json_http:${toolId}:1`,
         tool_id: toolId,
@@ -936,7 +959,7 @@ export async function buildHostToolRegistry(pkg: Package, options: HostToolRegis
         implementation_version: CHROME_JSON_HTTP_IMPLEMENTATION.version,
         display_name: `${toolId}: one HTTPS ${contract.method} to ${contract.endpoint_origin}${contract.endpoint_path}`,
         description:
-          "This browser's generic JSON-over-HTTPS adapter, bound to exactly the origin, path, method and schemas the package declares for this tool. No other request shape, path or destination is reachable through it; no credential is attached.",
+          `This browser's generic JSON-over-HTTPS adapter, bound to exactly the origin, path, method and schemas the package declares for this tool. No other request shape, path or destination is reachable through it; no credential is attached.${fallback ? ` When the service is unavailable for a DOI, this browser looks that DOI up at ${CROSSREF_ORIGIN}/works/ instead (its built-in Crossref lookup, at the same pace as Crossref search) and says so in the answer.` : ""}`,
         remote: true,
         available: true,
         enabled: true,
@@ -948,7 +971,10 @@ export async function buildHostToolRegistry(pkg: Package, options: HostToolRegis
           side_effects: contract.side_effects,
         },
         limits: { timeout_seconds: Math.min(Math.max(contract.timeout_seconds, 1), 120), max_request_bytes: 64 * 1024, max_response_bytes: 4 * 1024 * 1024, max_concurrent: 4 },
-        credentials: { required: false, configured: false },
+        // The fallback's Crossref lookup sends the person's contact address when one is set, as the
+        // search binding does, so whether one is set is part of this binding's digest too (D-081, D-153).
+        credentials: fallback ? { required: false, configured: options.contactConfigured === true, source: CROSSREF_CONTACT_SOURCE } : { required: false, configured: false },
+        ...(fallback ? { fallback } : {}),
       });
       continue;
     }

@@ -15,6 +15,7 @@
  * stored record again (`run.list`'s `active`, `run.get`), since the run lives on the host (D-070).
  */
 import { decisiveCallFailure } from "../../core/execution/report.js";
+import { checkLocation } from "../../core/workflow/feedback.js";
 import type { JsonObject } from "../../core/json.js";
 import type { PresentationHints } from "../../core/presentation.js";
 import type { ArtifactChunk, ArtifactContent, AuthorizationView, InputValidationView, Request, RunListView, RunReadiness, RunSummary, RunView, SessionView } from "../messages.js";
@@ -137,6 +138,11 @@ export function modelFailureFigures(audit: unknown): string | null {
     where = `It broke the schema's “${String(facts.schema_keyword ?? "?")}” rule${field ? ` at ${field}` : ""}${count !== null && count > 1 ? ` (${count} violations in all)` : ""}.`;
   } else if (facts.output_failure === "not_json") where = "It was not a single JSON document.";
   else if (facts.output_failure === "no_text") where = "It contained no text.";
+  else if (facts.output_failure === "check" && event.failed_check && typeof event.failed_check === "object") {
+    // A refused answer check (D-150), by the package's own index, kind, failure and pointer.
+    const check = event.failed_check as JsonObject;
+    where = `It failed the package's answer check ${String(check.index)} (${String(check.kind)}: ${String(check.failure)}${checkLocation(check)}).`;
+  }
   return [ended, where, attemptsOf(audit, event)].filter(Boolean).join(" ") || null;
 }
 
@@ -152,17 +158,25 @@ export const RETRY_BOUND_WORDS: Record<string, string> = {
   worker_remote_calls: "the step's limit on remote model calls",
 };
 
-/** How many times the failed call was asked (D-115), or why it was not asked again (D-124), from the audit. */
+/** How many times the failed call was asked again (D-115, D-151), and why it was not asked once more (D-124), from the audit. */
 function attemptsOf(audit: unknown, failed: Record<string, unknown>): string | null {
   const events = auditEvents(audit);
   const same = (event: JsonObject) => event.worker === failed.worker && event.node_id === failed.node_id;
-  if (events.some((event) => same(event) && event.action === "model.called" && event.attempt === 2)) return "The runtime asked once more with the same request, and the second answer did not match either.";
+  const reasks = events.filter((event) => same(event) && event.action === "model.called" && typeof event.attempt === "number" && event.attempt > 1).length;
+  const parts: string[] = [];
+  if (reasks === 1) parts.push("The runtime asked once more, naming what was wrong, and that answer was not accepted either.");
+  else if (reasks > 1) parts.push("The runtime asked twice more, each time naming what was wrong, and no answer was accepted.");
   const skipped = events.find((event) => same(event) && event.action === "model.retry_skipped");
   if (skipped) {
-    const limit = typeof skipped.bound === "string" && Object.hasOwn(RETRY_BOUND_WORDS, skipped.bound) ? RETRY_BOUND_WORDS[skipped.bound] : "one of the run's limits";
-    return `It was not asked again: a second request would have passed ${limit}.`;
+    const which = skipped.attempt === 3 ? "a third request" : "a second request";
+    if (skipped.reason === "context_window") parts.push(`It was not asked again: ${which}, with its correction, would not have fit the model's context.`);
+    else if (skipped.reason === "deadline") parts.push(`It was not asked again: less time was left before the step's deadline than the last answer took.`);
+    else {
+      const limit = typeof skipped.bound === "string" && Object.hasOwn(RETRY_BOUND_WORDS, skipped.bound) ? RETRY_BOUND_WORDS[skipped.bound] : "one of the run's limits";
+      parts.push(`It was not asked again: ${which} would have passed ${limit}.`);
+    }
   }
-  return null;
+  return parts.length > 0 ? parts.join(" ") : null;
 }
 
 /** The refused call's numbers, from the run's audit: what was reserved against which bound. */
@@ -1392,7 +1406,7 @@ export class RunPanel {
       ["Run invocation", el("code", { text: record.runInvocationSha256 ? `sha256:${record.runInvocationSha256}` : "—" })],
       ["Task input", el("code", { text: record.inputSha256 ? `sha256:${record.inputSha256}` : "—" })],
       ["Model", record.selectedModel ? `${record.selectedModel.hostModelId} (${record.selectedModel.providerId})${record.model ? ` · ${record.model.calls} calls · ${record.model.allCallsUsedPlannedModel ? "every call used the planned model" : `invoked: ${record.model.invoked.join(", ") || "none"}`}` : ""}` : "—"],
-      ["Tools", record.tools.length > 0 ? record.tools.map((tool) => `${tool.toolId} → ${tool.displayName ?? tool.bindingId} (${tool.remote ? "remote" : "local"}, ${tool.calls} calls, binding sha256:${shortHash(tool.bindingSha256)})`).join(" · ") : "none"],
+      ["Tools", record.tools.length > 0 ? record.tools.map((tool) => `${tool.toolId} → ${tool.displayName ?? tool.bindingId} (${tool.remote ? "remote" : "local"}, ${tool.calls} calls${tool.retries > 0 ? `, ${tool.retries} retried after a transient failure` : ""}${tool.fallbackAnswers > 0 ? `, ${tool.fallbackAnswers} answered by the built-in Crossref DOI lookup` : ""}, binding sha256:${shortHash(tool.bindingSha256)})`).join(" · ") : "none"],
       ["Permissions", record.grants.decisions.map((item) => `${item.permissionId}=${item.decision}`).join(" · ") || "—"],
       ["Decided by", decidedBy],
       ["Your data", record.resources.length > 0 ? record.resources.map((grant) => `${grant.permissionId} → ${grant.resourceId} (${shortHash(grant.resourceDigest)})`).join(" · ") : "none"],

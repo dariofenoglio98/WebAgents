@@ -127,9 +127,21 @@ class Workflow:
             # The router receives a bundled, offline schema. The host is authoritative.
             validator = schema_validator(self.package.files, node["output_schema"])
             schema = self._model_schema(node["output_schema"])
+            check = None
+            if node.get("checks"):
+                from .workflow_assertions import check_answer
+
+                def check(answer):
+                    # Evaluated by the runtime on the schema-valid answer, before it is accepted.
+                    check_answer(node["checks"], env, answer)
+
             try:
                 result = await ctx.model(
-                    node["task"], value, schema, max_output_tokens=node["max_output_tokens"]
+                    node["task"],
+                    value,
+                    schema,
+                    max_output_tokens=node["max_output_tokens"],
+                    check=check,
                 )
             except (PolicyError, TimeoutError, asyncio.CancelledError):
                 raise
@@ -141,7 +153,11 @@ class Workflow:
                     if isinstance(exc, (SchemaFailure, ValidationError))
                     else "model_error"
                 )
-                raise WorkflowError(code, node["id"]) from exc
+                error = WorkflowError(code, node["id"])
+                if isinstance(getattr(exc, "failed_check", None), dict):
+                    # A refused answer check names itself on node.failed too.
+                    error.failed_check = exc.failed_check
+                raise error from exc
             # Also use the closed package validator, including formats and local refs.
             if not validator.is_valid(result):
                 raise WorkflowError("schema_validation", node["id"])
