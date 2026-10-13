@@ -57,6 +57,9 @@ interface CoreSubtleCrypto {
     signature: ArrayBuffer | ArrayBufferView,
     data: ArrayBuffer | ArrayBufferView,
   ): Promise<boolean>;
+  /** AES-256-GCM for the secret store (T16, D-191): a fresh IV per message, the entry name as additional data. */
+  encrypt(algorithm: { name: "AES-GCM"; iv: ArrayBufferView; additionalData?: ArrayBufferView; tagLength?: number }, key: CoreCryptoKey, data: ArrayBuffer | ArrayBufferView): Promise<ArrayBuffer>;
+  decrypt(algorithm: { name: "AES-GCM"; iv: ArrayBufferView; additionalData?: ArrayBufferView; tagLength?: number }, key: CoreCryptoKey, data: ArrayBuffer | ArrayBufferView): Promise<ArrayBuffer>;
 }
 
 declare const crypto: {

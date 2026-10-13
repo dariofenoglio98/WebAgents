@@ -158,11 +158,12 @@ describe("the portable core has no Chrome, DOM, Node or shell dependency", () =>
     expect(config.include).toEqual(["src/core/**/*.ts"]);
   });
 
-  it("the core imports only its three runtime dependencies", () => {
+  it("the core imports only its four runtime dependencies", () => {
     const external = new Set<string>();
     for (const file of files) {
       for (const match of code(readFileSync(file, "utf8"), "keep").matchAll(/from\s+["']([^."'][^"']*)["']/gu)) external.add(match[1]!);
     }
-    expect([...external].sort()).toEqual(["@hyperjump/browser", "@hyperjump/json-schema/draft-2020-12", "@noble/ed25519"]);
+    // scrypt for the secret store (T16, D-191): the fourth, as decided.
+    expect([...external].sort()).toEqual(["@hyperjump/browser", "@hyperjump/json-schema/draft-2020-12", "@noble/ed25519", "@noble/hashes/scrypt.js"]);
   });
 });
