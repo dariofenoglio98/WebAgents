@@ -11,10 +11,11 @@ the agent tool schemas (M-48), the proposal checks in order with their codes (M-
 scan of step 7 included, proposal by proposal), the custom-type rules (M-19), the schema patches
 (applied in memory to copies of the agentpkg schemas, idempotently), the folder rules (M-55, M-58),
 the import of an export with sealed values omitted (M-56, M-59, M-60), an export-then-import round
-trip over every link form, the stem rules and the mirror with a dangling target and the hub after
-"Forget everything" (M-55, M-57, M-59, M-60), the record view's rendering of links the run was not
-granted and its reversal at acceptance (M-15, M-42), the YAML subset's reader and writer (M-7),
-and the negative cases of §10 that need no runtime. It is also the reference reader and writer of
+trip over every link form, the stem rules (collisions after suffixing, the byte bound), the mirror
+block with text typed after it, a dangling target and the hub after "Forget everything" (M-55,
+M-57, M-59, M-60), the record view's rendering of links the run was not granted and its positional
+reversal at acceptance (M-15, M-42), the YAML subset's reader and writer (M-7), and the negative
+cases of §10 that need no runtime. It is also the reference reader and writer of
 the record format: the worked examples were written with `record_to_document`.
 
 Prints a JSON report and exits 1 if any check fails. No network, no execution, no package built.
@@ -75,6 +76,10 @@ SOURCE_KEYS = {
 USAGE_USES = ("read", "proposed", "accepted", "agent_read", "agent_write")
 SEALED_PLACEHOLDER = "sealed:omitted"
 MIRROR_MARK = "<!-- memory.v0 links -->"
+# The marker is reserved as a whole line (M-3): the string inside a sentence is ordinary text.
+MARKER_LINE_RE = re.compile(r"(^|\n)<!-- memory\.v0 links -->(\n|$)")
+MAX_STEM_CHARS = 100
+MAX_STEM_BYTES = 200  # M-55: stem, suffix and `.md` fit a 255-byte file name
 MIN_SEALED_LENGTH = 6
 MAX_BODY_CHARS = 16384
 MAX_AGENT_BODY_CHARS = 32768
@@ -317,19 +322,6 @@ def pointer_get(value, pointer: str, default=None):
     return current
 
 
-def sealed_value_at(fields, pointer: str):
-    """The value a sealed pointer names (M-4, M-24): the pointer walks object members only, so a
-    path that crosses an array is `sealed_field_invalid`; an absent member resolves to nothing."""
-    current = fields
-    for part in pointer_parts(pointer):
-        if isinstance(current, list):
-            raise ValueError(f"sealed pointer {pointer} crosses an array (sealed_field_invalid)")
-        if not isinstance(current, dict) or part not in current:
-            return None
-        current = current[part]
-    return current
-
-
 def pointer_set(value: dict, pointer: str, new) -> None:
     parts = pointer_parts(pointer)
     current = value
@@ -353,6 +345,18 @@ def schema_at(schema: dict, pointer: str) -> dict | None:
             return None
         current = props[part]
     return current if isinstance(current, dict) else None
+
+
+def sealed_pointer_schema(schema: dict, pointer: str) -> dict | None:
+    """M-24: a sealed pointer is valid when the type schema declares an object member
+    (`properties`) at every step of its path and the member it names is typed `string`; decided
+    from the path against the schema, never from the values a record holds today, so a pointer
+    through an array or into an undeclared member is `sealed_field_invalid` even while the field
+    is absent. Returns the member's schema, or None."""
+    target = schema_at(schema, pointer)
+    if not target or target.get("type") != "string":
+        return None
+    return target
 
 
 def order_fields(fields: dict, schema: dict) -> dict:
@@ -389,17 +393,39 @@ def order_source(source: dict) -> dict:
 
 def stem_of(title: str) -> str:
     """M-55: the file stem of a title: NFC, the unsafe characters replaced, whitespace runs
-    collapsed, cut to 100 code points and **then** trimmed of dots and spaces (so a cut never
-    leaves a trailing space); an empty result is `untitled`."""
+    collapsed, cut to 100 code points and to 200 bytes of UTF-8 (whole characters removed from
+    the end, so a stem of CJK characters fits a 255-byte file name with its suffix and `.md`),
+    and **then** trimmed of dots and spaces (so a cut never leaves a trailing space); an empty
+    result is `untitled`."""
     text = unicodedata.normalize("NFC", title)
     text = re.sub(r'[\\/:*?"<>|\[\]#^\x00-\x1f\x7f]', "-", text)
-    text = re.sub(r"\s+", " ", text)[:100].strip(" .")
-    return text or "untitled"
+    text = re.sub(r"\s+", " ", text)[:MAX_STEM_CHARS]
+    while len(text.encode()) > MAX_STEM_BYTES:
+        text = text[:-1]
+    return text.strip(" .") or "untitled"
 
 
-def stem_suffix(record_id: str) -> str:
-    """M-55: the first 8 characters of the id after its prefix (`self` for the hub)."""
-    return record_id.split("_", 1)[1][:8] if "_" in record_id else record_id
+def stem_suffix(record_id: str, *, full: bool = False) -> str:
+    """M-55: the first 8 characters of the id after its prefix, or the whole id after the prefix
+    (`self` for the hub, either way)."""
+    rest = record_id.split("_", 1)[1] if "_" in record_id else record_id
+    return rest if full else rest[:8]
+
+
+def stem_names(record_id: str, stem: str):
+    """M-55: the names a record may take, in order: the bare stem (never when it is a well-formed
+    record id, which an import would read as a link by id, M-59), the stem with the first 8
+    characters of the id after its prefix, the stem with the whole id after the prefix, and then
+    that with a counter from 2, so that the walk of `stems_for` always finds a free name."""
+    if not RECORD_ID_RE.match(stem):
+        yield stem
+    yield f"{stem} ({stem_suffix(record_id)})"
+    full = f"{stem} ({stem_suffix(record_id, full=True)})"
+    yield full
+    counter = 2
+    while True:
+        yield f"{full} ({counter})"
+        counter += 1
 
 
 def stem_key(stem: str) -> str:
@@ -417,24 +443,21 @@ def superseded_ids(records: list[dict]) -> set[str]:
 
 
 def stems_for(records: list[dict]) -> dict[str, str]:
-    """Record id -> file stem (M-55): equal stems (case-insensitively) are ordered heads first,
-    then by id; the first keeps the bare stem, the others get the id suffix. A stem that is a
-    well-formed record id (`self`, `mem_…`, `agent_…`) always gets the suffix, even alone, so
-    that no link by stem is ever read as a link by id (M-59)."""
+    """Record id -> file name without `.md` (M-55): the records are walked heads first (a
+    superseded record after every head), then by id ascending, and each takes the first name of
+    `stem_names` that no earlier record took (compared case-insensitively, as the file systems
+    the folder lands on do). The bare stem therefore names the current record of a title, never
+    an obsolete one; a stem that is a well-formed record id is never bare; and a suffixed name
+    that equals another record's title (`Trip (bbbbbbbb)`) is taken once only."""
     superseded = superseded_ids(records)
-    by_stem: dict[str, list[tuple[int, str, str]]] = {}
-    for record in records:
-        stem = stem_of(record["title"])
-        by_stem.setdefault(stem_key(stem), []).append(
-            (1 if record["id"] in superseded else 0, record["id"], stem)
-        )
+    taken: set[str] = set()
     result: dict[str, str] = {}
-    for group in by_stem.values():
-        for position, (_, record_id, stem) in enumerate(sorted(group)):
-            if position == 0 and not RECORD_ID_RE.match(stem):
-                result[record_id] = stem
-            else:
-                result[record_id] = f"{stem} ({stem_suffix(record_id)})"
+    for record in sorted(records, key=lambda r: (r["id"] in superseded, r["id"])):
+        for name in stem_names(record["id"], stem_of(record["title"])):
+            if stem_key(name) not in taken:
+                taken.add(stem_key(name))
+                result[record["id"]] = name
+                break
     return result
 
 
@@ -496,47 +519,66 @@ def body_link_ids(body: str) -> list[str]:
 MISSING_RECORD_TEXT = "[[missing record]]"
 
 
-def view_body(body: str, granted) -> tuple[str, list[tuple[str, str, str]]]:
-    """M-15: the body a `memory.read` tool hands the run. Every unescaped id wikilink whose target
-    is not a record granted to this run (`granted`: the plan's memory grants by id; `self` only
-    when granted) is rendered without its id: `[[<id>|<alias>]]` as `[[<alias>]]`, the text as the
-    person sees it, and a bare dangling `[[<id>]]` as `[[missing record]]`. Every other link and
-    every plain or escaped wikilink is as stored. Returns the rendered body and the hidden links as
-    (rendered text, stored text, target id), the map M-42 reverses for an `update`."""
-    hidden: list[tuple[str, str, str]] = []
+Occurrence = tuple[str, str, str | None]  # (view text, stored text, hidden target or None)
+
+
+def view_body(body: str, granted) -> tuple[str, list[Occurrence]]:
+    """M-15: the body a `memory.read` tool hands the run, and its **link occurrences**: every
+    wikilink of the view body in order, as (view text, stored text, hidden target or None).
+    An unescaped id wikilink whose target is not a record granted to this run (`granted`: the
+    plan's memory grants by id, legacy grants included; `self` only when granted) is **hidden**,
+    rendered without its id: `[[<id>|<alias>]]` as `[[<alias>]]`, the text as the person sees it,
+    or escaped (`\\[[<alias>]]`) when the alias is itself a well-formed record id, so that the
+    view never reads as a link by id; a bare dangling `[[<id>]]` as `[[missing record]]`. Every
+    other wikilink (a link to a granted record, plain text, an escaped link) is as stored."""
+    occurrences: list[Occurrence] = []
 
     def rewrite(match: re.Match) -> str:
         escapes, target, alias = match.group(1), match.group(2), match.group(3)
+        stored = match.group(0)
         if escapes or not RECORD_ID_RE.match(target) or target in granted:
-            return match.group(0)
-        rendered = f"[[{alias}]]" if alias is not None else MISSING_RECORD_TEXT
-        hidden.append((rendered, match.group(0), target))
+            occurrences.append((stored, stored, None))
+            return stored
+        if alias is None:
+            rendered = MISSING_RECORD_TEXT
+        elif RECORD_ID_RE.match(alias):
+            rendered = f"\\[[{alias}]]"
+        else:
+            rendered = f"[[{alias}]]"
+        occurrences.append((rendered, stored, target))
         return rendered
 
-    return BODY_LINK_RE.sub(rewrite, body), hidden
+    return BODY_LINK_RE.sub(rewrite, body), occurrences
 
 
-def restore_view_links(body: str, hidden: list[tuple[str, str, str]]) -> tuple[str, list[str]]:
-    """M-42 (`update`): the inverse of M-15 over the target's hidden links, applied before any
-    other resolution of the proposal's body: a rendered text found as an unescaped wikilink is
-    replaced by the link it rendered; a text that two hidden links rendered with different targets
-    stays text. Returns the body and the targets of the hidden edges the body no longer carries,
-    which acceptance keeps as `related` links."""
-    by_text: dict[str, dict[str, str]] = {}
-    for rendered, stored, target in hidden:
-        by_text.setdefault(rendered, {})[target] = stored
-    restored: set[str] = set()
+def restore_view_links(body: str, occurrences: list[Occurrence]) -> tuple[str, list[str]]:
+    """M-42 (`update`): the inverse of M-15, **by position**: the n-th wikilink of the proposal's
+    body with a given text (its backslashes included) is the n-th link occurrence of the view
+    body with that text and becomes what that occurrence was in the stored body (the hidden link
+    it rendered, or itself); a wikilink beyond the view's occurrences of its text is left as it
+    is. An exact echo of the view therefore gives back the stored body. Returns the body and the
+    targets of the hidden links the reversal placed nowhere (a target restored anywhere in the
+    body is not among them), which acceptance keeps as `related` links."""
+    positions: dict[str, list[int]] = {}
+    for position, (rendered, _, _) in enumerate(occurrences):
+        positions.setdefault(rendered, []).append(position)
+    seen: dict[str, int] = {}
+    restored: set[int] = set()
 
     def rewrite(match: re.Match) -> str:
-        candidates = by_text.get(match.group(0)) if not match.group(1) else None
-        if not candidates or len(candidates) != 1:
-            return match.group(0)
-        (target, stored), *_ = candidates.items()
-        restored.add(target)
-        return stored
+        text = match.group(0)
+        count = seen.get(text, 0)
+        seen[text] = count + 1
+        candidates = positions.get(text, [])
+        if count >= len(candidates):
+            return text
+        restored.add(candidates[count])
+        return occurrences[candidates[count]][1]
 
     body = BODY_LINK_RE.sub(rewrite, body)
-    return body, sorted({target for _, _, target in hidden} - restored)
+    placed = {occurrences[position][2] for position in restored}
+    carried = {target for _, _, target in occurrences if target is not None} - placed
+    return body, sorted(carried)
 
 
 def record_to_document(
@@ -679,22 +721,30 @@ MIRROR_LINE_RE = re.compile(r"^- (" + "|".join(RELATIONS) + r"): \[\[[^\n]+\]\]$
 
 
 def strip_mirror(body: str) -> str:
-    """M-59: the mirror is the body's **last** marker line when every line after it is the heading
-    `## Links` and then one `- <rel>: [[…]]` line per edge (the shape M-57 generates); it is
-    stripped unread. A marker that does not start such a section is body text, which M-24 then
-    refuses (`body_reserved_marker`, M-3), so an import never cuts a body silently."""
-    marker = body.rfind(MIRROR_MARK)
-    if marker < 0 or (marker > 0 and body[marker - 1] != "\n"):
+    """M-59: the mirror **block** starts at the body's last marker line (a stored body never
+    holds one, M-3, so a marker line in a file is the export's or an editor's) and holds the
+    heading `## Links` when it directly follows and then every directly following `- <rel>:
+    [[…]]` line, the shape M-57 generates; the block is removed unread, and the text before and
+    after it stays, joined by one empty line (empty lines next to the join dropped), so that a
+    paragraph typed after the mirror in an editor is imported. A second marker line is body text,
+    which M-24 then refuses (`body_reserved_marker`): an import never cuts a body silently."""
+    lines = body.split("\n")
+    marker = max((i for i, line in enumerate(lines) if line == MIRROR_MARK), default=-1)
+    if marker < 0:
         return body
-    tail = body[marker:].split("\n")
-    if (
-        tail[0] != MIRROR_MARK
-        or len(tail) < 3
-        or tail[1] != "## Links"
-        or not all(MIRROR_LINE_RE.match(line) for line in tail[2:])
-    ):
-        return body
-    return body[:marker].rstrip()
+    end = marker + 1
+    if end < len(lines) and lines[end] == "## Links":
+        end += 1
+    while end < len(lines) and MIRROR_LINE_RE.match(lines[end]):
+        end += 1
+    before, after = lines[:marker], lines[end:]
+    while before and not before[-1].strip():
+        before.pop()
+    while after and not after[0].strip():
+        after.pop(0)
+    if before and after:
+        return "\n".join([*before, "", *after])
+    return "\n".join(before or after)
 
 
 def _import_wikilink(match: re.Match, resolve: dict[str, str], titles: dict[str, str]) -> str:
@@ -1000,7 +1050,12 @@ def check_record(contracts: Contracts, record: dict, label: str) -> dict:
         raise ValueError(f"{label}: `sealed` must list every sealed pointer of the type {missing}")
     values: list[str] = []
     for pointer in sealed:
-        value = sealed_value_at(record["fields"], pointer)  # object members only (M-4)
+        if sealed_pointer_schema(type_def["schema"], pointer) is None:  # by the path (M-24)
+            raise ValueError(
+                f"{label}: sealed pointer {pointer} is not a string member the type declares "
+                "at every step (sealed_field_invalid)"
+            )
+        value = pointer_get(record["fields"], pointer)
         if value is None:
             continue  # an optional sealed field that is absent (M-4)
         if value == SEALED_PLACEHOLDER:
@@ -1017,8 +1072,8 @@ def check_record(contracts: Contracts, record: dict, label: str) -> dict:
     cap = MAX_AGENT_BODY_CHARS if record["scope"] == "agent" else MAX_BODY_CHARS  # M-3
     if len(record.get("body", "")) > cap:
         raise ValueError(f"{label}: body over {cap} characters (memory_record_too_large)")
-    if record["scope"] != "agent" and MIRROR_MARK in record.get("body", ""):  # M-3
-        raise ValueError(f"{label}: the body holds the mirror marker (body_reserved_marker)")
+    if record["scope"] != "agent" and MARKER_LINE_RE.search(record.get("body", "")):  # M-3
+        raise ValueError(f"{label}: the body holds the mirror marker line (body_reserved_marker)")
     if len(canonical_json(record["fields"]).decode("utf-8")) > MAX_FIELDS_CHARS:
         raise ValueError(f"{label}: fields over {MAX_FIELDS_CHARS} characters (M-24)")
     for link in record.get("links", []):
@@ -1052,9 +1107,8 @@ def check_taxonomy(contracts: Contracts) -> dict:
         Draft202012Validator.check_schema(entry["schema"])
         if schema_mentions(entry["schema"]):
             raise ValueError(f"{label}: schema uses $ref/$id")
-        for pointer in entry["sealed_fields"]:
-            target = schema_at(entry["schema"], pointer)
-            if not target or target.get("type") != "string":
+        for pointer in entry["sealed_fields"]:  # the rule of M-24 holds for the type's own
+            if sealed_pointer_schema(entry["schema"], pointer) is None:
                 raise ValueError(f"{label}: sealed {pointer} is not a string field of the schema")
         for pointer in (
             entry["identity"]
@@ -1604,21 +1658,29 @@ def _check_fixtures(
 
 
 def _check_accepted_updates(
-    proposals: dict, by_id: dict, granted: set[str], titles: dict[str, str], label: str
+    proposals: dict,
+    by_id: dict,
+    granted: set[str],
+    titles: dict[str, str],
+    run_id: str,
+    label: str,
 ) -> dict:
     """M-42 for every accepted `update` of the example: the head's body is the proposal's body
-    with M-15's rendering of the target's hidden links reversed (`restore_view_links`), then the
-    plain wikilinks resolved against `self`, the granted records and the accepted siblings only;
-    a hidden edge the body dropped is kept as a `related` link."""
+    with M-15's rendering of the target's link occurrences reversed by position
+    (`restore_view_links`), then the plain wikilinks resolved against `self`, the granted
+    records and the accepted siblings only; a hidden edge the body no longer carries is kept as
+    a `related` link. The accepted records are the run's own (`source.run_id`), so a folder
+    holding another run's acceptances checks the right head."""
     accepted = {
         record["source"]["proposal"]: record
         for record in by_id.values()
-        if record["source"].get("kind") == "package" and "proposal" in record["source"]
+        if record["source"].get("kind") == "package" and record["source"].get("run_id") == run_id
     }
+    accepted_ids = {record["id"] for record in accepted.values()}
     allowed = {
         record_id: title
         for record_id, title in titles.items()
-        if record_id == "self" or record_id in granted or by_id[record_id] in accepted.values()
+        if record_id == "self" or record_id in granted or record_id in accepted_ids
     }
     checked, hidden_total = [], 0
     for index, proposal in enumerate(proposals["proposals"]):
@@ -1627,15 +1689,15 @@ def _check_accepted_updates(
         head, target = accepted.get(index), by_id[proposal["target"]]
         if head is None or {"to": target["id"], "rel": "supersedes"} not in head.get("links", []):
             raise ValueError(f"{label}: no accepted head for update proposal {index}")
-        _, hidden = view_body(target["body"], granted)
-        body, carried = restore_view_links(normalize_body(proposal.get("body", "")), hidden)
+        _, occurrences = view_body(target["body"], granted)
+        body, carried = restore_view_links(normalize_body(proposal.get("body", "")), occurrences)
         body = normalize_body_links(body, allowed)
         if head["body"] != body:
             raise ValueError(f"{label}: the head of update {index} is not the body M-42 gives")
         for to in carried:
             if {"to": to, "rel": "related"} not in head.get("links", []):
                 raise ValueError(f"{label}: update {index} lost the hidden edge to {to} (M-42)")
-        hidden_total += len(hidden)
+        hidden_total += sum(1 for _, _, hidden in occurrences if hidden is not None)
         checked.append(index)
     return {"updates": checked, "hidden_links": hidden_total}
 
@@ -1721,7 +1783,10 @@ def check_example_package(contracts: Contracts, folder: Path, *, package_name: s
         targets=by_id,
     )
     titles = {record["id"]: record["title"] for record in records}
-    updates = _check_accepted_updates(proposals, by_id, set(grants), titles, package_name)
+    runs = folder_report["proposed_runs"]  # the usage log's `proposed` entries name the run
+    if len(runs) != 1:
+        raise ValueError(f"{package_name}: the example should hold one run's proposals, has {runs}")
+    updates = _check_accepted_updates(proposals, by_id, set(grants), titles, runs[0], package_name)
     report = {
         "memory_read_types": tools_report["memory_read_types"],
         "legacy_types": tools_report["legacy_types"],
@@ -1851,6 +1916,7 @@ def check_memory_folder(contracts: Contracts, folder: Path, *, label: str) -> tu
         "records": len(records),
         "superseded": sorted(superseded_by),
         "usage_entries": len(usage),
+        "proposed_runs": sorted({e["run_id"] for e in usage if e["use"] == "proposed"}),
         "sealed_records": sorted(r["id"] for r in records if sealed_values_of([r])),
     }
     return report, records
@@ -2253,13 +2319,43 @@ def check_negative_cases(contracts: Contracts) -> dict:
         "agent body with the mirror marker",
     )
     cases["agent body with the mirror marker"] = "accepted"
-    # M-4, M-24: a sealed pointer names object members only; one through an array index is
-    # `sealed_field_invalid`, never silently unsealed.
+    # The marker is reserved as a whole line (M-3): the string inside a sentence is text, in a
+    # record and in a proposal (the schema's pattern is anchored to a line).
+    check_record(
+        contracts,
+        note("Mention", f"The marker {MIRROR_MARK} inside a sentence is ordinary text."),
+        "marker inside a sentence",
+    )
+    check_proposals(
+        contracts,
+        with_proposal(body=f"The marker {MIRROR_MARK} inside a sentence."),
+        declared=("travel.preference", "travel.profile"),
+        granted=granted,
+        sealed_values=scan_set,
+        label="marker inside a sentence (proposal)",
+    )
+    cases["marker inside a sentence"] = "accepted (record and proposal)"
+    # M-4, M-24: a sealed pointer names string members the type schema declares at every step,
+    # decided from the path: one through an array index, one into an undeclared member and one
+    # through an array the record does not hold yet are all `sealed_field_invalid`, never
+    # silently unsealed.
     profile = next(r for r in spec_records()[1] if r["type"] == "research.profile")
     expect_record(
         "sealed pointer through an array",
         "sealed_field_invalid",
         {**copy.deepcopy(profile), "sealed": ["/seed_papers/0/doi"]},
+    )
+    without_papers = copy.deepcopy(profile)
+    without_papers["fields"].pop("seed_papers", None)
+    expect_record(
+        "sealed pointer through an absent array",
+        "sealed_field_invalid",
+        {**without_papers, "sealed": ["/seed_papers/0/doi"]},
+    )
+    expect_record(
+        "sealed pointer into an undeclared member",
+        "sealed_field_invalid",
+        {**copy.deepcopy(profile), "sealed": ["/nickname"]},
     )
     # The positive document passes with the same inputs, so the refusals above are the changes'.
     check_proposals(
@@ -2309,19 +2405,41 @@ def check_round_trip(contracts: Contracts) -> dict:
     dots = extra(6, "...")
     cut = extra(7, "A" * 99 + " " + "B" * 10)
     id_titled = extra(8, coffee)
-    store = [*store, *twins, bracket, named_self, dots, cut, id_titled]
+    # Names that collide only after suffixing (review 5): a title equal to the second twin's
+    # suffixed name takes its full id; one equal to that, and one equal to the full-id name,
+    # push a later record to the counter; a title of 100 CJK characters is 300 bytes and is cut
+    # to 200. No two names may coincide, and every file name fits 255 bytes.
+    collider = extra(0x20, "Trip ideas (00000000)")
+    blockers = [
+        extra(0x10, "Trip ideas (00000000) (00000000)"),
+        extra(0x11, "Trip ideas (00000000) (00000000000000000000000000000020)"),
+    ]
+    wide = extra(0x30, "\u5b57" * 100)
+    store = [*store, *twins, bracket, named_self, dots, cut, id_titled, collider, *blockers, wide]
     later = extra(4, "Shopping list")
     titles = {record["id"]: record["title"] for record in store}
     stems_now = stems_for(store)
     expected_stems = {
+        twins[0]["id"]: "Trip ideas",
+        twins[1]["id"]: "Trip ideas (00000000)",
         named_self["id"]: "self (00000000)",
         dots["id"]: "untitled",
         cut["id"]: "A" * 99,
         id_titled["id"]: f"{coffee} (00000000)",
+        blockers[0]["id"]: "Trip ideas (00000000) (00000000)",
+        blockers[1]["id"]: "Trip ideas (00000000) (00000000000000000000000000000020)",
+        collider["id"]: "Trip ideas (00000000) (00000000000000000000000000000020) (2)",
+        wide["id"]: "\u5b57" * 66,
     }
     for record_id, expected in expected_stems.items():
         if stems_now[record_id] != expected:
             raise ValueError(f"stem {stems_now[record_id]!r}, expected {expected!r} (M-55)")
+    keys = [stem_key(name) for name in stems_now.values()]
+    if len(set(keys)) != len(keys):
+        raise ValueError("two records share a file name (M-55)")
+    longest = max(len(f"{name}.md".encode()) for name in stems_now.values())
+    if longest > 255 or len(stems_now[wide["id"]].encode()) > MAX_STEM_BYTES:
+        raise ValueError(f"a file name of {longest} bytes does not fit (M-55)")
     profile = next(r["id"] for r in store if r["type"] == "research.profile")
     gone = "mem_ffffffffffffffffffffffffffffffff"  # a deleted record (M-25, M-27)
     note = {
@@ -2455,6 +2573,20 @@ def check_round_trip(contracts: Contracts) -> dict:
             raise
     else:
         raise ValueError("a body holding the marker was accepted (M-3)")
+    # Text typed after the mirror in an editor is imported (review 5): the block is removed and
+    # the paragraph stays; a mirror reduced to its heading, or to the marker alone, is removed.
+    typed_after = exported.rstrip("\n") + "\n\nA paragraph typed at the end\n"
+    from_after = document_to_record(typed_after, export=True, resolve=resolve, titles=all_titles)
+    if from_after["body"] != stored["body"] + "\n\nA paragraph typed at the end" or (
+        from_after["links"] != stored["links"]
+    ):
+        raise ValueError("text typed after the mirror was not imported (M-59, M-60)")
+    mirror_start = exported.rfind(MIRROR_MARK)
+    for name, tail in (("heading only", "\n## Links\n"), ("marker only", "\n")):
+        trimmed = exported[:mirror_start] + MIRROR_MARK + tail
+        from_trimmed = document_to_record(trimmed, export=True, resolve=resolve, titles=all_titles)
+        if from_trimmed["body"] != stored["body"] or from_trimmed["links"] != stored["links"]:
+            raise ValueError(f"a mirror reduced to the {name} was not stripped (M-59)")
     # An empty body with links exports as the mirror alone and imports as an empty body.
     bare = {**extra(9, "Bare"), "links": [{"to": "self", "rel": "about"}]}
     exported_bare = record_to_document(bare, type_def, export=True, stems=stems, titles=all_titles)
@@ -2497,8 +2629,123 @@ def check_round_trip(contracts: Contracts) -> dict:
         "dangling": 1,
         "body_link_forms": 13,
         "stems": sorted(expected_stems.values()),
-        "mirror_cases": 3,
+        "longest_file_name_bytes": longest,
+        "mirror_cases": 6,
         "hub_restored": True,
+    }
+
+
+def check_view_reversal(contracts: Contracts) -> dict:
+    """M-15 and M-42 over the forms review 5 found: the view hides a link by position, not by
+    text, so that an exact echo gives back the stored body; two hidden links with one text; two
+    bare dangling ids; a hidden link beside plain text of the same words; a hidden link whose
+    alias is id-shaped (escaped in the view, never a link by id); a granted link and an escaped
+    link as stored; a dropped hidden link kept as `related`; an occurrence beyond the view's
+    left as text; and the echo passing M-40's step 6 where the stored body fails it."""
+    _, store = spec_records()
+    hub_title = next(r["title"] for r in store if r["id"] == "self")
+    a, b = "mem_" + "a" * 32, "mem_" + "b" * 32  # not granted
+    x, g = "mem_" + "c" * 32, "mem_" + "d" * 32  # x not granted, g granted
+    gone1, gone2 = "mem_" + "e" * 32, "mem_" + "f" * 32  # dangling
+    granted = {g}
+    stored = (
+        f"Twins: [[{a}|Trip ideas]] and [[{b}|Trip ideas]].\n"
+        f"Dangling: [[{gone1}]] [[{gone2}]].\n"
+        f"Beside text: [[{x}|Packing list]] and plain [[Packing list]].\n"
+        f"Id-shaped aliases: [[{a}|self]] [[{b}|{x}]].\n"
+        f"As stored: [[{g}|Granted]] \\[[{hub_title}]] [[Shopping list]].\n"
+        f"Missing twice: [[{gone1}]] [[{a}|missing record]]."
+    )
+    view, occurrences = view_body(stored, granted)
+    expected_view = (
+        "Twins: [[Trip ideas]] and [[Trip ideas]].\n"
+        "Dangling: [[missing record]] [[missing record]].\n"
+        "Beside text: [[Packing list]] and plain [[Packing list]].\n"
+        f"Id-shaped aliases: \\[[self]] \\[[{x}]].\n"
+        f"As stored: [[{g}|Granted]] \\[[{hub_title}]] [[Shopping list]].\n"
+        "Missing twice: [[missing record]] [[missing record]]."
+    )
+    if view != expected_view:
+        raise ValueError(f"the view body is not M-15's: {view!r}")
+    hidden = [target for _, _, target in occurrences if target is not None]
+    if hidden != [a, b, gone1, gone2, x, a, b, gone1, a] or len(occurrences) != 13:
+        raise ValueError(f"link occurrences: {occurrences}")
+    if body_link_ids(view) != [g]:  # what M-40's step 6 sees: the granted id only
+        raise ValueError("the view carries an id the run was not granted")
+    # The exact echo gives back the stored body and carries nothing over as `related`.
+    body, carried = restore_view_links(view, occurrences)
+    if body != stored or carried:
+        raise ValueError(f"an exact echo changed the body: {body!r} {carried}")
+    allowed = {"self": hub_title, g: "Granted"}  # self, the grants, accepted siblings (M-42)
+    if normalize_body_links(body, allowed) != stored:
+        raise ValueError("the resolution after the reversal changed the body")
+    # The echo passes step 6, the stored body does not (M-15, M-40).
+    document = {
+        "schema": "memory.v0 proposals",
+        "proposals": [
+            {
+                "action": "create",
+                "type": "document.note",
+                "title": "Echo",
+                "fields": {},
+                "body": view,
+                "rationale": "echo",
+            }
+        ],
+    }
+    check_proposals(
+        contracts,
+        document,
+        declared=("document.note",),
+        granted={g: "document.note"},
+        sealed_values=[],
+        label="view reversal: echo",
+    )
+    try:
+        check_proposals(
+            contracts,
+            {**document, "proposals": [{**document["proposals"][0], "body": stored}]},
+            declared=("document.note",),
+            granted={g: "document.note"},
+            sealed_values=[],
+            label="view reversal: stored body",
+        )
+    except Refusal as refusal:
+        if refusal.reason != "memory_proposal_link_not_granted":
+            raise
+    else:
+        raise ValueError("the stored body passed step 6")
+    # A `create` that copies the escaped id-shaped alias links nothing: the hub is not an edge.
+    if body_link_ids(normalize_body_links(view, allowed)) != [g]:
+        raise ValueError("a copied view body linked a record through an id-shaped alias")
+    # One twin dropped: the first occurrence is restored, the second kept as `related`; the
+    # dropped dangling ids and hidden links are carried too, but not `a`, restored once.
+    body, carried = restore_view_links("Twins: [[Trip ideas]].", occurrences)
+    if body != f"Twins: [[{a}|Trip ideas]]." or carried != sorted({b, gone1, gone2, x}):
+        raise ValueError(f"one twin dropped: {body!r} {carried}")
+    # Plain text of the same words, alone: by position it is the hidden link, so the edge
+    # survives and no plain text becomes a new edge.
+    body, carried = restore_view_links("plain [[Packing list]] only", occurrences)
+    if body != f"plain [[{x}|Packing list]] only" or x in carried:
+        raise ValueError(f"beside text: {body!r} {carried}")
+    body, _ = restore_view_links("[[Packing list]] [[Packing list]] [[Packing list]]", occurrences)
+    if body != f"[[{x}|Packing list]] [[Packing list]] [[Packing list]]":
+        raise ValueError(f"an occurrence beyond the view's was not left as text: {body!r}")
+    if normalize_body_links(body, allowed) != body:
+        raise ValueError("plain text resolved into a record the run was not granted")
+    # Nothing echoed: every hidden link is carried as `related`, once each.
+    body, carried = restore_view_links("Rewritten.", occurrences)
+    if body != "Rewritten." or carried != sorted({a, b, x, gone1, gone2}):
+        raise ValueError(f"nothing echoed: {carried}")
+    # With `self` granted, a link to the hub is as stored.
+    view_self, _ = view_body(f"[[self|{hub_title}]]", {"self"})
+    if view_self != f"[[self|{hub_title}]]":
+        raise ValueError("a granted hub link was hidden")
+    return {
+        "occurrences": len(occurrences),
+        "hidden": len(hidden),
+        "exact_echo": "stored body",
+        "cases": 9,
     }
 
 
@@ -2595,6 +2842,7 @@ def main(argv=None) -> int:
         ),
     )
     report.run("negative_cases", lambda: check_negative_cases(contracts))
+    report.run("view_reversal", lambda: check_view_reversal(contracts))
     report.run("round_trip", lambda: check_round_trip(contracts))
     report.run("rule_numbers", check_rule_numbers)
     output = {"passed": report.passed, "spec": str(SPEC.relative_to(ROOT)), "checks": report.checks}

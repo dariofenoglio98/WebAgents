@@ -19,9 +19,10 @@ implements against and what `scripts/check_memory_spec.py` validates:
 The check script also demonstrates the negative cases N1, N2, N8, N9, N13–N17 and N19–N22 of §10
 over these examples (`negative_cases` in its report), that a record view renders the links the run
 was not granted without their ids and that an `update` echoing it passes (M-15, M-42, the WebAir
-example's `accepted_updates`), an export-then-import round trip over every link form, the stem
-rules, the mirror, a dangling target and the hub after "Forget everything" (`round_trip`, M-55,
-M-57, M-59, M-60), and the YAML subset's reader and writer (`yaml_subset`, M-7).
+example's `accepted_updates`), every form of that rendering and its positional reversal
+(`view_reversal`), an export-then-import round trip over every link form, the stem rules, the
+mirror block, a dangling target and the hub after "Forget everything" (`round_trip`, M-55, M-57,
+M-59, M-60), and the YAML subset's reader and writer (`yaml_subset`, M-7).
 
 Run the check from the repository root:
 
