@@ -371,7 +371,7 @@ function recallCard(request: ResourceRequest, view: AuthorizationView, state: Au
     const chosen = recall.candidates.find((candidate) => candidate.id === picked)!;
     return el(
       "div",
-      { className: "ab-resource-choice ab-recall ab-recall-propose", attrs: { "data-permission": id } },
+      { className: "ab-resource-choice ab-recall ab-recall-propose", attrs: { "data-permission": id, "data-record": chosen.id } },
       el("div", { className: "ab-recall-head" }, el("strong", { text: fill("memory.recall.use", { title: chosen.title }) }), chip(recall.display_name ?? kind), chosen.signals.about_self ? chip("about you") : null, decision === "once" ? chip("one run") : null),
       el("p", { className: "ab-hint", text: candidateLine(chosen) }),
       sealedLine,
@@ -395,7 +395,7 @@ function recallCard(request: ResourceRequest, view: AuthorizationView, state: Au
       delete state.autoPicked[id];
       actions.rerender();
     });
-    return el("label", { className: "ab-recall-option" }, input, el("span", {}, el("strong", { text: candidate.title }), ...signalChips(candidate), el("span", { className: "ab-hint", text: ` ${candidateLine(candidate)}` })));
+    return el("label", { className: "ab-recall-option", attrs: { "data-record": candidate.id } }, input, el("span", {}, el("strong", { text: candidate.title }), ...signalChips(candidate), el("span", { className: "ab-hint", text: ` ${candidateLine(candidate)}` })));
   });
   const none = el("input", { attrs: { type: "radio", name: `resource-${id}`, value: "" } });
   none.checked = declined;

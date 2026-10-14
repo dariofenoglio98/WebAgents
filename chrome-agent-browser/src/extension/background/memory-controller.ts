@@ -469,6 +469,13 @@ export class MemoryController {
     });
   }
 
+  /** Settings → Memory → Open: the package's own notes, read-only, with their provenance (design §6). Readable while locked (no sealed field). */
+  async agentNote(packageId: string): Promise<{ title: string; body: string; updated: string; provenance: string } | null> {
+    const { store } = await this.opened();
+    const record = store.agentDocument(packageId);
+    return record ? { title: record.title, body: record.body, updated: record.updated, provenance: provenanceWords(record.source) } : null;
+  }
+
   clearAgent(packageId: string): Promise<{ deleted: boolean }> {
     return this.write(async ({ store }) => ({ deleted: store.delete(agentDocumentId(packageId)) }));
   }
@@ -496,7 +503,8 @@ export class MemoryController {
 
   // -- export and import (§8, D-215) --------------------------------------------------------------
   async export(input: ExportRequest): Promise<{ files: ExportFile[]; sealed_included: boolean }> {
-    const opened = input.includeSealed ? await this.unlocked() : await this.opened();
+    // Sealed values travel in clear only from an unlocked store; locked, the export omits them and says so.
+    const opened = input.includeSealed && (await this.deps.secretsState()) === "unlocked" ? await this.unlocked() : await this.opened();
     const only = input.recordIds ? new Set(input.recordIds) : undefined;
     const files = opened.store.export({ runtimeLabel: `chrome-agent-browser core ${CORE_VERSION}`, now: this.deps.clock(), includeSealed: input.includeSealed && !opened.locked, includeAgents: input.includeAgents, ...(only ? { only } : {}) });
     return { files, sealed_included: input.includeSealed && !opened.locked };

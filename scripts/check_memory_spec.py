@@ -77,7 +77,7 @@ USAGE_USES = ("read", "proposed", "accepted", "agent_read", "agent_write")
 SEALED_PLACEHOLDER = "sealed:omitted"
 MIRROR_MARK = "<!-- memory.v0 links -->"
 # The marker is reserved as a whole line (M-3): the string inside a sentence is ordinary text.
-MARKER_LINE_RE = re.compile(r"(^|\n)<!-- memory\.v0 links -->(\n|$)")
+MARKER_LINE_RE = re.compile(r"(^|\n)<!-- memory\.v0 links -->[ \t]*(\r?\n|$)")
 MAX_STEM_CHARS = 100
 MAX_STEM_BYTES = 200  # M-55: stem, suffix and `.md` fit a 255-byte file name
 MIN_SEALED_LENGTH = 6
@@ -541,7 +541,8 @@ def view_body(body: str, granted) -> tuple[str, list[Occurrence]]:
             return stored
         if alias is None:
             rendered = MISSING_RECORD_TEXT
-        elif RECORD_ID_RE.match(alias):
+        elif RECORD_ID_RE.match(alias) or RECORD_ID_RE.match(alias.split("|", 1)[0]):
+            # Id-shaped, or id-shaped before its first `|` (`[[A|B|x]]` would read as a link to B).
             rendered = f"\\[[{alias}]]"
         else:
             rendered = f"[[{alias}]]"
@@ -729,7 +730,9 @@ def strip_mirror(body: str) -> str:
     paragraph typed after the mirror in an editor is imported. A second marker line is body text,
     which M-24 then refuses (`body_reserved_marker`): an import never cuts a body silently."""
     lines = body.split("\n")
-    marker = max((i for i, line in enumerate(lines) if line == MIRROR_MARK), default=-1)
+    marker = max(
+        (i for i, line in enumerate(lines) if line.rstrip(" \t") == MIRROR_MARK), default=-1
+    )
     if marker < 0:
         return body
     end = marker + 1
@@ -1784,9 +1787,14 @@ def check_example_package(contracts: Contracts, folder: Path, *, package_name: s
     )
     titles = {record["id"]: record["title"] for record in records}
     runs = folder_report["proposed_runs"]  # the usage log's `proposed` entries name the run
-    if len(runs) != 1:
+    has_update = any(p.get("action") == "update" for p in proposals["proposals"])
+    if has_update and len(runs) != 1:
         raise ValueError(f"{package_name}: the example should hold one run's proposals, has {runs}")
-    updates = _check_accepted_updates(proposals, by_id, set(grants), titles, runs[0], package_name)
+    updates = (
+        _check_accepted_updates(proposals, by_id, set(grants), titles, runs[0], package_name)
+        if has_update
+        else []
+    )
     report = {
         "memory_read_types": tools_report["memory_read_types"],
         "legacy_types": tools_report["legacy_types"],
@@ -2069,7 +2077,9 @@ def check_negative_cases(contracts: Contracts) -> dict:
     # echoes the view, as the example's update does, passes.
     target = by_id[base["proposals"][1]["target"]]
     rendered, hidden = view_body(target["body"], set(granted))
-    if not hidden or any(target_id in rendered for _, _, target_id in hidden):
+    if not hidden or any(
+        target_id in rendered for _, _, target_id in hidden if target_id is not None
+    ):
         raise ValueError("the granted profile should link to a record the run was not granted")
     expect(
         "view hides ungranted links",
@@ -2652,7 +2662,7 @@ def check_view_reversal(contracts: Contracts) -> dict:
         f"Twins: [[{a}|Trip ideas]] and [[{b}|Trip ideas]].\n"
         f"Dangling: [[{gone1}]] [[{gone2}]].\n"
         f"Beside text: [[{x}|Packing list]] and plain [[Packing list]].\n"
-        f"Id-shaped aliases: [[{a}|self]] [[{b}|{x}]].\n"
+        f"Id-shaped aliases: [[{a}|self]] [[{b}|{x}]] [[{a}|{b}|x]].\n"
         f"As stored: [[{g}|Granted]] \\[[{hub_title}]] [[Shopping list]].\n"
         f"Missing twice: [[{gone1}]] [[{a}|missing record]]."
     )
@@ -2661,14 +2671,14 @@ def check_view_reversal(contracts: Contracts) -> dict:
         "Twins: [[Trip ideas]] and [[Trip ideas]].\n"
         "Dangling: [[missing record]] [[missing record]].\n"
         "Beside text: [[Packing list]] and plain [[Packing list]].\n"
-        f"Id-shaped aliases: \\[[self]] \\[[{x}]].\n"
+        f"Id-shaped aliases: \\[[self]] \\[[{x}]] \\[[{b}|x]].\n"
         f"As stored: [[{g}|Granted]] \\[[{hub_title}]] [[Shopping list]].\n"
         "Missing twice: [[missing record]] [[missing record]]."
     )
     if view != expected_view:
         raise ValueError(f"the view body is not M-15's: {view!r}")
     hidden = [target for _, _, target in occurrences if target is not None]
-    if hidden != [a, b, gone1, gone2, x, a, b, gone1, a] or len(occurrences) != 13:
+    if hidden != [a, b, gone1, gone2, x, a, b, a, gone1, a] or len(occurrences) != 14:
         raise ValueError(f"link occurrences: {occurrences}")
     if body_link_ids(view) != [g]:  # what M-40's step 6 sees: the granted id only
         raise ValueError("the view carries an id the run was not granted")
@@ -2741,11 +2751,23 @@ def check_view_reversal(contracts: Contracts) -> dict:
     view_self, _ = view_body(f"[[self|{hub_title}]]", {"self"})
     if view_self != f"[[self|{hub_title}]]":
         raise ValueError("a granted hub link was hidden")
+    cases = [
+        "exact echo",
+        "two hidden links with one text",
+        "two bare dangling ids",
+        "hidden link beside plain text",
+        "id-shaped alias",
+        "id-shaped alias before the first bar",
+        "granted and escaped links as stored",
+        "dropped hidden link kept as related",
+        "occurrence beyond the view left as text",
+        "echo passes step 6 where the stored body fails",
+    ]
     return {
         "occurrences": len(occurrences),
         "hidden": len(hidden),
         "exact_echo": "stored body",
-        "cases": 9,
+        "cases": len(cases),
     }
 
 

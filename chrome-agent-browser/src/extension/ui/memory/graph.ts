@@ -88,20 +88,16 @@ function radiusFor(kind: GraphNode["kind"], degree: number, recentDays: number |
 /** The local subgraph: the ids within `depth` of `root` over the record edges, both directions. */
 export function localIds(edges: ReadonlyArray<{ from: string; to: string }>, root: string, depth: number): Set<string> {
   const seen = new Set([root]);
-  let frontier = [root];
-  for (let step = 0; step < depth; step += 1) {
-    const next: string[] = [];
+  let frontier = new Set([root]);
+  for (let step = 0; step < depth && frontier.size > 0; step += 1) {
+    // Breadth first: one ring per step, from the ring found in the previous step only.
+    const next = new Set<string>();
     for (const edge of edges) {
-      if (seen.has(edge.from) && !seen.has(edge.to)) {
-        seen.add(edge.to);
-        next.push(edge.to);
-      } else if (seen.has(edge.to) && !seen.has(edge.from)) {
-        seen.add(edge.from);
-        next.push(edge.from);
-      }
+      if (frontier.has(edge.from) && !seen.has(edge.to)) next.add(edge.to);
+      else if (frontier.has(edge.to) && !seen.has(edge.from)) next.add(edge.from);
     }
+    for (const id of next) seen.add(id);
     frontier = next;
-    if (frontier.length === 0) break;
   }
   return seen;
 }
@@ -772,7 +768,9 @@ function draw(inst: GraphInstance): void {
     }
   }
   // Nodes.
-  const showLabels = inst.ui.zoom > 0.6;
+  // Labels above zoom 0.6 (design §3.2), culled on a crowded canvas: with more than 200 drawn
+  // nodes only the selected, hovered, focused and matching ones are labelled until the person zooms in.
+  const showLabels = inst.ui.zoom > 0.6 && (model.nodes.length <= 200 || inst.ui.zoom > 1.8);
   for (const node of model.nodes) {
     const colour = node.typeId ? (model.colours.get(node.typeId) ?? "#5b6470") : "#5b6470";
     context.globalAlpha = node.superseded ? 0.4 : node.dimmed ? 0.3 : 1;

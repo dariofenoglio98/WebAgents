@@ -109,6 +109,7 @@ export type Request =
   | { type: "memory.installDemo" }
   | { type: "memory.removeDemo" }
   | { type: "memory.clearAgent"; packageId: string }
+  | { type: "memory.agentNote"; packageId: string }
   | { type: "memory.forget"; confirmation: string }
   | { type: "memory.migrationDone" }
   | { type: "memory.export"; includeSealed: boolean; includeAgents: boolean; recordIds: string[] | null }
@@ -911,6 +912,7 @@ export function parseRequest(value: unknown): Request {
       only(fields, ["type", "from", "to", "rel"]);
       return { type, from: text(fields.from, "from", MAX_ID), to: text(fields.to, "to", MAX_ID), rel: text(fields.rel, "rel", 32) };
     case "memory.clearAgent":
+    case "memory.agentNote":
       only(fields, ["type", "packageId"]);
       return { type, packageId: text(fields.packageId, "packageId", 256) };
     case "memory.forget":

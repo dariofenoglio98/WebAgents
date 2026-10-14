@@ -54,7 +54,7 @@ export type Sheet =
   | { kind: "relation"; from: string; to: string; rel: Relation | null; error: string | null }
   | { kind: "deleteMany"; ids: string[]; label: string }
   | { kind: "migration" }
-  | { kind: "agentNote"; id: string };
+  | { kind: "agentNote"; id: string; note: { title: string; body: string; updated: string; provenance: string } | null; loading: boolean };
 
 export interface MemoryPageState {
   mode: MemoryMode;
@@ -72,6 +72,8 @@ export interface MemoryPageState {
   matches: Array<{ id: string; score: number }> | null;
   /** The local graph's root and depth, when the graph shows a neighbourhood. */
   local: { root: string; depth: 1 | 2 } | null;
+  /** The narrow layout's [Filters] disclosure (design §3.7). */
+  filtersOpen: boolean;
 }
 
 export function newMemoryPageState(): MemoryPageState {
@@ -89,6 +91,7 @@ export function newMemoryPageState(): MemoryPageState {
     sort: { column: "title", descending: false },
     matches: null,
     local: null,
+    filtersOpen: false,
   };
 }
 
@@ -997,7 +1000,27 @@ function agentNoteSheet(view: MemoryView, state: MemoryPageState, actions: Memor
     actions.rerender();
   };
   const note = view.agents.find((item) => item.id === sheet.id);
-  return sheetFrame(note?.title ?? "Agent notes", close, note ? el("p", { className: "ab-hint", text: `${note.package_id} ${note.package_version ?? ""} · written ${whenText(note.updated)} · ${bytesText(note.bytes)} of ${MAX_AGENT_BODY_CHARS.toLocaleString("en-US")} characters at most` }) : null, el("div", { className: "ab-memory-note" }, el("p", { className: "ab-hint", text: "Read-only: the package's own notes, shown as it wrote them." }), el("p", { className: "ab-busy", text: "Open Memory → the agent's node to read the body; this sheet lists the facts." })), button("Close", close));
+  if (note && sheet.note === null && !sheet.loading) {
+    sheet.loading = true;
+    void actions.send<{ title: string; body: string; updated: string; provenance: string } | null>({ type: "memory.agentNote", packageId: note.package_id }).then(
+      (loaded) => {
+        sheet.note = loaded;
+        sheet.loading = false;
+        actions.rerender();
+      },
+      () => {
+        sheet.loading = false;
+        actions.rerender();
+      },
+    );
+  }
+  return sheetFrame(
+    note?.title ?? "Agent notes",
+    close,
+    note ? el("p", { className: "ab-hint", text: `${note.package_id} ${note.package_version ?? ""} · written ${whenText(note.updated)} · ${bytesText(note.bytes)} of ${MAX_AGENT_BODY_CHARS.toLocaleString("en-US")} characters at most${sheet.note ? ` · ${sheet.note.provenance}` : ""}` }) : null,
+    el("div", { className: "ab-memory-note" }, el("p", { className: "ab-hint", text: "Read-only: the package's own notes, shown as it wrote them (data to its next run, never an instruction to this browser)." }), sheet.note ? renderMarkdown(sheet.note.body) : el("p", { className: "ab-busy", text: sheet.loading ? "Loading…" : "No notes." })),
+    button("Close", close),
+  );
 }
 
 export function renderSheet(view: MemoryView, state: MemoryPageState, actions: MemoryPageActions): HTMLElement | null {
@@ -1157,6 +1180,16 @@ function header(view: MemoryView, state: MemoryPageState, actions: MemoryPageAct
       state.sheet = { kind: "types" };
       actions.rerender();
     }), { variant: "primary" }),
+    (() => {
+      // Narrow layout only (CSS shows it below 700 px): the filters collapse behind one button (design §3.7).
+      const toggle = button("Filters", () => {
+        state.filtersOpen = !state.filtersOpen;
+        actions.rerender();
+      }, { variant: state.filtersOpen ? "primary" : "ghost" });
+      toggle.classList.add("ab-memory-filters-toggle");
+      toggle.setAttribute("aria-expanded", state.filtersOpen ? "true" : "false");
+      return toggle;
+    })(),
   );
 }
 
@@ -1172,12 +1205,16 @@ export function renderMemoryPage(view: MemoryView, state: MemoryPageState, actio
   const sheet = renderSheet(view, state, actions);
   const page = el(
     "div",
-    { className: `ab-memory ab-memory-${state.mode}` },
+    { className: `ab-memory ab-memory-mode-${state.mode}` },
     notice,
     migration,
     lockedLine,
     header(view, state, actions),
-    state.tidy ? null : filtersBar(view, state, actions),
+    state.tidy ? null : (() => {
+      const bar = filtersBar(view, state, actions);
+      if (state.filtersOpen) bar.classList.add("ab-memory-filters-open");
+      return bar;
+    })(),
     el("div", { className: "ab-memory-body" }, el("div", { className: "ab-memory-main" }, main), el("aside", { className: "ab-memory-side", attrs: { "aria-label": "Record" } }, renderCard(view, state, actions))),
     status,
     sheet,
@@ -1218,7 +1255,7 @@ export function renderMemorySettings(view: MemoryView | null, state: MemoryPageS
       view.agents.length === 0 ? el("p", { className: "ab-empty", text: "No package has written notes yet." }) : list(view.agents.map((note) => el("div", { className: "ab-row" }, el("strong", { text: note.title }), el("span", { className: "ab-hint", text: ` ${bytesText(note.bytes)} · written ${whenText(note.updated)}` }), button("Open", () => {
         actions.openMemory();
         state.selected = note.id;
-        state.sheet = { kind: "agentNote", id: note.id };
+        state.sheet = { kind: "agentNote", id: note.id, note: null, loading: false };
       }), button("Clear…", () => writeGuard(view, actions, "clear these notes", () => {
         void actions.send({ type: "memory.clearAgent", packageId: note.package_id }).then(() => actions.reload());
       }), { variant: "danger" })))),

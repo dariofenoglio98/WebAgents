@@ -411,7 +411,7 @@ export class MemoryStore implements ResourceResolver {
     const now = stamp(this.clock());
     const id = draft.id ?? this.newId();
     if (this.records.has(id)) throw memoryError("memory_record_exists", `A record ${id} already exists`);
-    const record: MemoryRecord = { id, type: type.id, title: draft.title.trim(), scope: "user", created: now, updated: now, source: { kind: "person" }, fields: JSON.parse(JSON.stringify(draft.fields)) as JsonObject, body: draft.body ?? "" };
+    const record: MemoryRecord = { id, type: type.id, title: String(draft.title ?? "").trim(), scope: "user", created: now, updated: now, source: { kind: "person" }, fields: JSON.parse(JSON.stringify(draft.fields ?? {})) as JsonObject, body: draft.body ?? "" };
     const links = [...type.default_links, ...(draft.links ?? [])].filter((link) => link.to !== id);
     let replaced: string | null = null;
     if (draft.identity !== "keep_both") {

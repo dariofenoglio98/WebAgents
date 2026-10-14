@@ -74,7 +74,8 @@ M-3. The **body** is UTF-8 Markdown, NFC-normalized, LF line endings, no trailin
 end (the writer adds one final newline), at most 16,384 characters for a `scope: user` record and
 32,768 for an agent document (`scope: agent`, M-51; the record schema caps each scope, so a body the
 agent write tool accepts is always committable). A `scope: user` body never holds a line that is
-exactly `<!-- memory.v0 links -->`, the marker of an export's generated mirror (M-57): a write that
+`<!-- memory.v0 links -->` (trailing spaces or tabs on the line ignored, both when a write is
+refused and when an import strips, M-59), the marker of an export's generated mirror (M-57): a write that
 would store one is refused `body_reserved_marker` (M-24) and the proposals schema refuses it in a
 proposal (N22; the string inside a longer line is ordinary text in both), so that an import can
 never cut a body at a marker a person or a package put there (M-59); an agent document's body may
@@ -83,7 +84,8 @@ hold it, because it is never mirrored or stripped. A
 `scope: user` record, with a well-formed record id as its target, is an edge of relation `related`
 (§5.1); the alias is a cached title, never authoritative. A wikilink immediately preceded by a
 backslash (`\[[…]]`) is **escaped**: it is text, never resolved and never an edge. **Wikilinks are
-resolved when a body is written from an edit or an accepted proposal** (M-24, M-42): every unescaped
+resolved when a body is written from an edit or an accepted proposal** (M-24, M-42; for an accepted
+proposal, only against the set M-42 names: `self`, the granted records and the accepted siblings): every unescaped
 `[[<text>]]` or `[[<text>|<alias>]]` whose target is not an id and equals the title of exactly one
 record of the store (NFC, case-insensitive) is rewritten to `[[<id>|<text>]]` (the alias kept when
 given), and every bare `[[<id>]]` whose record exists is rewritten to `[[<id>|<alias of its
@@ -276,12 +278,14 @@ not a record granted to this run (by the plan's grants of records, a legacy `per
 included, since it grants a record by id as well, M-17; `self` only when a `person.self` record is
 granted) is **hidden**, rendered without its id: `[[<id>|<alias>]]` becomes `[[<alias>]]`, the
 text of the body as the person sees it, or the escaped `\[[<alias>]]` when the alias is itself a
-well-formed record id (the cached title of a record titled `self` or like an id, M-55), so that the
-view never reads as a link by id; a bare dangling `[[<id>]]` becomes `[[missing record]]`; a link
+well-formed record id, or begins with one followed by `|` (the cached title of a record titled
+`self` or like an id, M-55; `[[<id A>|<id B>|x]]` would otherwise read as a link to B), so that the
+view never reads as a link by id; a bare dangling `[[<id>]]` becomes `[[missing record]]` (a link
+stored without a title: dangling when written); a link
 to a granted record, a plain-text link and an escaped link are as stored. The **link occurrences**
 of a view are its wikilinks in order, escaped ones included, each with the stored text it stands
 for (the hidden link, or itself); M-42 reverses the rendering over them by position. The view
-therefore carries a record id only for a record the run was granted, and what it withholds is the
+therefore carries a record id as a link only for a record the run was granted, and what it withholds is the
 store's resolution (which id a text names, and which record), not text the person wrote into the
 granted record; the one thing a rendering says beyond the text is that a `[[missing record]]`
 stood for a link to nothing (a bare id is stored only when dangling, M-3), a fact about the
@@ -683,7 +687,9 @@ and for an update is pre-filled from the target), or **reject**. Acceptance writ
   the occurrence was a hidden link or plain text; a wikilink beyond the view's occurrences of its
   text is left as it is, for the resolution above. So an `update` that echoes the view exactly
   stores the body as it was, two hidden links with one text (`[[Trip ideas]]` twice) both return,
-  and plain text beside a hidden link of the same words never becomes an edge. Every hidden link
+  and plain text beside a hidden link of the same words never becomes a new edge (when a proposal
+  drops a hidden occurrence, the positional map may restore that edge at a later occurrence of the
+  same text, never an edge the stored body did not have). Every hidden link
   the reversal placed nowhere (its target restored at no position) is kept as a frontmatter link
   `{to: <its target>, rel: "related"}`, so that an update never drops an edge the run could not
   see; the review sheet lists both under "Kept from the record it replaces". The target is kept
@@ -857,8 +863,11 @@ and the bare `<stem>` is never free when it is a well-formed record id (`self`, 
 `agent_` + 16 hex, §2.1), because an import reads a well-formed id as a link by id (M-59). So the
 bare stem names the current record of a title, never an obsolete one (a link typed by title in an
 editor reaches it); a note titled `self` is `self (<8 hex>).md`, never `self.md`, and a link to it
-can never point at the hub; a record whose suffixed name is another record's title (`Trip`, `Trip`
-and `Trip (bbbbbbbb)`) takes its full id, and a title crafted to equal that takes the counter, so
+can never point at the hub; when a suffixed name equals another record's title, the record the
+walk reaches first takes it and the later one moves on (`Trip`, `Trip` and `Trip (bbbbbbbb)`, the
+second `Trip` having the id `bbbbbbbb…`: the first `Trip` takes `Trip`, the second `Trip (bbbbbbbb)`,
+and the third record, whose bare stem is now taken, `Trip (bbbbbbbb) (<its 8>)`; a bare stem is a
+title's head only when the walk reached that head before any suffixed name equal to it), so
 no two files share a name; and every name fits a file name with `.md` (200 + 38 bytes + a counter
 < 255). Type folders use the type id verbatim (`:` in a custom id becomes
 `-`). Only `<root>/index.md` is the index: a record titled "index" lives in its type folder and is a
@@ -963,13 +972,16 @@ when present) and produces a **report** before writing anything, which the perso
 - a file with no frontmatter, or none of `id`/`type`, becomes a `document.note` with the stem as its
   title and the whole file as its body;
 - an unknown `type` becomes `document.note` with the original type id added as the tag
-  `type/<original id>`; the fields stay as fields only if the note schema allows them (it does not:
+  `type/<original id>` folded to the tag alphabet (lower-cased, every character outside
+  `[a-z0-9_/-]` replaced by `-`, cut to the tag's length; `org.example:Thing` → `type/org-example-thing`); the fields stay as fields only if the note schema allows them (it does not:
   they are rendered into the body as a `## Fields` table, so nothing is lost);
 - an `id` is kept when well-formed and either absent from the store or of the same type; otherwise a
   fresh id is assigned and the report says so;
 - the mirror (M-57) is stripped unread as a **block**: from the body's last marker line
-  `<!-- memory.v0 links -->`, the heading `## Links` when it directly follows, and then every
-  directly following line `- <rel>: [[…]]`; the text before and after the block stays as body
+  `<!-- memory.v0 links -->` (trailing whitespace on the line ignored, M-3), the heading `## Links`
+  when it directly follows, and then every directly following line `- <rel>: [[…]]`; a mirror line
+  whose edge is not among the per-relation properties is listed in the report as "not imported:
+  edit the property instead", so an edit typed into the mirror is never silently lost; the text before and after the block stays as body
   text, joined by one empty line (empty lines next to the join dropped), so that a paragraph typed
   after the mirror in an editor (the most common edit) is imported, and a mirror reduced to its
   heading or to the marker alone is removed as well; the per-relation properties are the edges, so
@@ -1103,7 +1115,7 @@ catalog v2's memory family starts here):
 | N19 two refusable proposals: index 0 links to a record id the run was not granted, index 1 is of an undeclared type | run fails `permission_denied` (`memory_proposal_link_not_granted`): M-40 runs steps 2 to 6 proposal by proposal, so index 0's step 6 is reported, not index 1's step 2 |
 | N20 an agent write whose body holds `[[<title of a record>]]` and `[[<id of a record>]]` | committed byte for byte; the next agent read returns exactly what was written (no id, no title resolved, M-3, M-49) |
 | N21 a custom type whose schema is not closed (an open nested object, `anyOf`, `patternProperties`, an untyped property, an array without `items`, a `const` or `enum` holding an object) | refused at validation (`custom_type_schema_open`) |
-| N22 a proposal whose body holds the mirror marker `<!-- memory.v0 links -->` as a whole line | run fails `schema_validation` (M-40 step 1; the marker line is reserved, M-3; the string inside a longer line is text) |
+| N22 a proposal whose body holds the mirror marker `<!-- memory.v0 links -->` as a whole line | run fails `schema_validation` (M-40 step 1; the marker line is reserved, M-3, under LF and CRLF alike: the schema's pattern is anchored on either line ending; the string inside a longer line is text) |
 
 `check_memory_spec.py` demonstrates N1, N2, N8, N9, N13–N17 and N19–N22 over the worked examples with
 the check functions the spec names, so that the two runtimes' tests can cite the same inputs; it

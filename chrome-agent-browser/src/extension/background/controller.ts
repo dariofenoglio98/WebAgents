@@ -452,6 +452,8 @@ export class Controller {
         return this.memory.removeDemo();
       case "memory.clearAgent":
         return this.memory.clearAgent(request.packageId);
+      case "memory.agentNote":
+        return this.memory.agentNote(request.packageId);
       case "memory.forget":
         if (request.confirmation !== "forget") throw reject("confirmation_required", "Type forget to delete every record, note and position.", 400);
         return this.memory.forget();
@@ -1592,7 +1594,7 @@ export class Controller {
     const requests = (live.pkg.policy.permissions as JsonObject[])
       .filter((permission) => RESOURCE_PERMISSION_KINDS.includes(String(permission.kind)) && (permission.resources as JsonValue[]).length === 1)
       .map((permission) => ({ permission_id: String(permission.id), resource_type: String((permission.resources as JsonValue[])[0]) }));
-    if (requests.length === 0) return [];
+    if (requests.length === 0 || (await this.secretsState()) !== "unlocked") return []; // locked: the picker says unlock, no card (M-34)
     const facts = await this.memory.recall({ requested: requests.map((request) => request.resource_type), packageId: String(live.pkg.manifest.package_id), selected: (live.receipt?.resource_grants ?? []).map((grant) => grant.resource_id) });
     const order = ["ask", "propose", "auto"] as const;
     const ceiling = ((policy?.bundle as { memory?: { recall?: unknown } } | undefined)?.memory?.recall ?? "auto") as (typeof order)[number];
