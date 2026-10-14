@@ -1,6 +1,6 @@
 # Memory index
 
-Exported 2026-10-14T11:06:00Z by chrome-agent-browser core 0.2.0 · 6 records · memory.v0
+Exported 2026-10-14T11:06:00Z by chrome-agent-browser core 0.2.0 · 7 records · memory.v0
 
 ## Me (person.self)
 
@@ -32,6 +32,12 @@ Exported 2026-10-14T11:06:00Z by chrome-agent-browser core 0.2.0 · 6 records ·
 | Title | Id | Updated | Tags |
 |---|---|---|---|
 | [[Aisle seat]] | `mem_5f60718293a4b5c6d7e8f90a1b2c3d4e` | 2026-10-14T11:03:00Z | seat |
+
+## Note (document.note)
+
+| Title | Id | Updated | Tags |
+|---|---|---|---|
+| [[Packing list]] | `mem_8d7e6f5a4b3c2d1e0f9a8b7c6d5e4f3a` | 2026-10-14T09:14:00Z | travel |
 
 ## Missing
 

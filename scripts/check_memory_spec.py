@@ -11,9 +11,11 @@ the agent tool schemas (M-48), the proposal checks in order with their codes (M-
 scan of step 7 included, proposal by proposal), the custom-type rules (M-19), the schema patches
 (applied in memory to copies of the agentpkg schemas, idempotently), the folder rules (M-55, M-58),
 the import of an export with sealed values omitted (M-56, M-59, M-60), an export-then-import round
-trip over every link form with a dangling target and the hub after "Forget everything" (M-57, M-59,
-M-60), and the negative cases of §10 that need no runtime. It is also the reference reader and
-writer of the record format: the worked examples were written with `record_to_document`.
+trip over every link form, the stem rules and the mirror with a dangling target and the hub after
+"Forget everything" (M-55, M-57, M-59, M-60), the record view's rendering of links the run was not
+granted and its reversal at acceptance (M-15, M-42), the YAML subset's reader and writer (M-7),
+and the negative cases of §10 that need no runtime. It is also the reference reader and writer of
+the record format: the worked examples were written with `record_to_document`.
 
 Prints a JSON report and exits 1 if any check fails. No network, no execution, no package built.
 """
@@ -124,6 +126,8 @@ def _scalar(text: str, line: int):
         if not isinstance(value, str):
             raise FrontmatterError(f"line {line}: a quoted scalar must be a string")
         return value
+    if text == "{}":  # the one flow mapping of the subset: an empty mapping (M-7)
+        return {}
     if text.startswith("[") and text.endswith("]"):
         inner = text[1:-1].strip()
         if not inner:
@@ -137,8 +141,16 @@ def _scalar(text: str, line: int):
 
 
 def _split_flow(inner: str, line: int) -> list[str]:
-    items, current, quoted = [], [], False
-    for char in inner:
+    """Split a flow sequence on the commas outside double-quoted strings; a JSON escape inside a
+    string (`\\"` among them) is kept with the character it escapes."""
+    items, current, quoted, index = [], [], False, 0
+    while index < len(inner):
+        char = inner[index]
+        if quoted and char == "\\" and index + 1 < len(inner):
+            current.append(char)
+            current.append(inner[index + 1])
+            index += 2
+            continue
         if char == '"':
             quoted = not quoted
         if char == "," and not quoted:
@@ -146,6 +158,7 @@ def _split_flow(inner: str, line: int) -> list[str]:
             current = []
         else:
             current.append(char)
+        index += 1
     if quoted:
         raise FrontmatterError(f"line {line}: unterminated string in a flow sequence")
     items.append("".join(current))
@@ -233,9 +246,10 @@ def _write_mapping(mapping: dict, indent: int) -> list[str]:
     for key, value in mapping.items():
         if isinstance(value, dict):
             if not value:
-                raise FrontmatterError(f"{key}: an empty mapping is outside the subset")
-            lines.append(f"{pad}{key}:")
-            lines.extend(_write_mapping(value, indent + 2))
+                lines.append(f"{pad}{key}: {{}}")  # the empty mapping (M-7)
+            else:
+                lines.append(f"{pad}{key}:")
+                lines.extend(_write_mapping(value, indent + 2))
         elif isinstance(value, list):
             if not value:
                 lines.append(f"{pad}{key}: []")
@@ -252,6 +266,9 @@ def _write_sequence(items: list, indent: int) -> list[str]:
     pad = " " * indent
     for item in items:
         if isinstance(item, dict):
+            if not item:
+                lines.append(f"{pad}- {{}}")  # the empty mapping as an item (M-7)
+                continue
             nested = _write_mapping(item, indent + 2)
             lines.append(f"{pad}- {nested[0].lstrip(' ')}")
             lines.extend(nested[1:])
@@ -296,6 +313,19 @@ def pointer_get(value, pointer: str, default=None):
     for part in pointer_parts(pointer):
         if not isinstance(current, dict) or part not in current:
             return default
+        current = current[part]
+    return current
+
+
+def sealed_value_at(fields, pointer: str):
+    """The value a sealed pointer names (M-4, M-24): the pointer walks object members only, so a
+    path that crosses an array is `sealed_field_invalid`; an absent member resolves to nothing."""
+    current = fields
+    for part in pointer_parts(pointer):
+        if isinstance(current, list):
+            raise ValueError(f"sealed pointer {pointer} crosses an array (sealed_field_invalid)")
+        if not isinstance(current, dict) or part not in current:
+            return None
         current = current[part]
     return current
 
@@ -358,11 +388,18 @@ def order_source(source: dict) -> dict:
 
 
 def stem_of(title: str) -> str:
-    """M-55: the file stem of a title."""
+    """M-55: the file stem of a title: NFC, the unsafe characters replaced, whitespace runs
+    collapsed, cut to 100 code points and **then** trimmed of dots and spaces (so a cut never
+    leaves a trailing space); an empty result is `untitled`."""
     text = unicodedata.normalize("NFC", title)
     text = re.sub(r'[\\/:*?"<>|\[\]#^\x00-\x1f\x7f]', "-", text)
-    text = re.sub(r"\s+", " ", text).strip(" .")
-    return text[:100]
+    text = re.sub(r"\s+", " ", text)[:100].strip(" .")
+    return text or "untitled"
+
+
+def stem_suffix(record_id: str) -> str:
+    """M-55: the first 8 characters of the id after its prefix (`self` for the hub)."""
+    return record_id.split("_", 1)[1][:8] if "_" in record_id else record_id
 
 
 def stem_key(stem: str) -> str:
@@ -381,7 +418,9 @@ def superseded_ids(records: list[dict]) -> set[str]:
 
 def stems_for(records: list[dict]) -> dict[str, str]:
     """Record id -> file stem (M-55): equal stems (case-insensitively) are ordered heads first,
-    then by id; the first keeps the bare stem, the others get the id suffix."""
+    then by id; the first keeps the bare stem, the others get the id suffix. A stem that is a
+    well-formed record id (`self`, `mem_…`, `agent_…`) always gets the suffix, even alone, so
+    that no link by stem is ever read as a link by id (M-59)."""
     superseded = superseded_ids(records)
     by_stem: dict[str, list[tuple[int, str, str]]] = {}
     for record in records:
@@ -392,11 +431,10 @@ def stems_for(records: list[dict]) -> dict[str, str]:
     result: dict[str, str] = {}
     for group in by_stem.values():
         for position, (_, record_id, stem) in enumerate(sorted(group)):
-            if position == 0:
+            if position == 0 and not RECORD_ID_RE.match(stem):
                 result[record_id] = stem
             else:
-                prefix = record_id.split("_", 1)[1][:8] if "_" in record_id else record_id[:8]
-                result[record_id] = f"{stem} ({prefix})"
+                result[record_id] = f"{stem} ({stem_suffix(record_id)})"
     return result
 
 
@@ -453,6 +491,52 @@ def body_link_ids(body: str) -> list[str]:
         for match in BODY_LINK_RE.finditer(body)
         if not match.group(1) and RECORD_ID_RE.match(match.group(2))
     ]
+
+
+MISSING_RECORD_TEXT = "[[missing record]]"
+
+
+def view_body(body: str, granted) -> tuple[str, list[tuple[str, str, str]]]:
+    """M-15: the body a `memory.read` tool hands the run. Every unescaped id wikilink whose target
+    is not a record granted to this run (`granted`: the plan's memory grants by id; `self` only
+    when granted) is rendered without its id: `[[<id>|<alias>]]` as `[[<alias>]]`, the text as the
+    person sees it, and a bare dangling `[[<id>]]` as `[[missing record]]`. Every other link and
+    every plain or escaped wikilink is as stored. Returns the rendered body and the hidden links as
+    (rendered text, stored text, target id), the map M-42 reverses for an `update`."""
+    hidden: list[tuple[str, str, str]] = []
+
+    def rewrite(match: re.Match) -> str:
+        escapes, target, alias = match.group(1), match.group(2), match.group(3)
+        if escapes or not RECORD_ID_RE.match(target) or target in granted:
+            return match.group(0)
+        rendered = f"[[{alias}]]" if alias is not None else MISSING_RECORD_TEXT
+        hidden.append((rendered, match.group(0), target))
+        return rendered
+
+    return BODY_LINK_RE.sub(rewrite, body), hidden
+
+
+def restore_view_links(body: str, hidden: list[tuple[str, str, str]]) -> tuple[str, list[str]]:
+    """M-42 (`update`): the inverse of M-15 over the target's hidden links, applied before any
+    other resolution of the proposal's body: a rendered text found as an unescaped wikilink is
+    replaced by the link it rendered; a text that two hidden links rendered with different targets
+    stays text. Returns the body and the targets of the hidden edges the body no longer carries,
+    which acceptance keeps as `related` links."""
+    by_text: dict[str, dict[str, str]] = {}
+    for rendered, stored, target in hidden:
+        by_text.setdefault(rendered, {})[target] = stored
+    restored: set[str] = set()
+
+    def rewrite(match: re.Match) -> str:
+        candidates = by_text.get(match.group(0)) if not match.group(1) else None
+        if not candidates or len(candidates) != 1:
+            return match.group(0)
+        (target, stored), *_ = candidates.items()
+        restored.add(target)
+        return stored
+
+    body = BODY_LINK_RE.sub(rewrite, body)
+    return body, sorted({target for _, _, target in hidden} - restored)
 
 
 def record_to_document(
@@ -579,9 +663,7 @@ def document_to_record(
             fields[key] = value
     body = normalize_body(body)
     if export and record.get("scope") != "agent":  # an agent body is imported as written (M-59)
-        marker = body.find(MIRROR_MARK)
-        if marker >= 0:  # generated on export, stripped on import, never read (M-57, M-59)
-            body = body[:marker].rstrip()
+        body = strip_mirror(body)  # generated on export, stripped on import, never read
         body = BODY_LINK_RE.sub(lambda match: _import_wikilink(match, resolve, titles), body)
         if unresolved:
             kept = "\n".join(f"[[{text}]]" for text in unresolved)
@@ -591,6 +673,28 @@ def document_to_record(
     record["fields"] = fields
     record["body"] = body
     return record
+
+
+MIRROR_LINE_RE = re.compile(r"^- (" + "|".join(RELATIONS) + r"): \[\[[^\n]+\]\]$")
+
+
+def strip_mirror(body: str) -> str:
+    """M-59: the mirror is the body's **last** marker line when every line after it is the heading
+    `## Links` and then one `- <rel>: [[…]]` line per edge (the shape M-57 generates); it is
+    stripped unread. A marker that does not start such a section is body text, which M-24 then
+    refuses (`body_reserved_marker`, M-3), so an import never cuts a body silently."""
+    marker = body.rfind(MIRROR_MARK)
+    if marker < 0 or (marker > 0 and body[marker - 1] != "\n"):
+        return body
+    tail = body[marker:].split("\n")
+    if (
+        tail[0] != MIRROR_MARK
+        or len(tail) < 3
+        or tail[1] != "## Links"
+        or not all(MIRROR_LINE_RE.match(line) for line in tail[2:])
+    ):
+        return body
+    return body[:marker].rstrip()
 
 
 def _import_wikilink(match: re.Match, resolve: dict[str, str], titles: dict[str, str]) -> str:
@@ -689,14 +793,15 @@ def record_view_schema(type_def: dict) -> dict:
     return template
 
 
-def record_view(record: dict) -> dict:
-    """M-15: what a `memory.read` tool returns for a granted record."""
+def record_view(record: dict, granted) -> dict:
+    """M-15: what a `memory.read` tool returns for a granted record; `granted` is the set of
+    record ids the plan grants this run, which decides what the body's links show."""
     return {
         "id": record["id"],
         "type": record["type"],
         "title": record["title"],
         "fields": copy.deepcopy(record.get("fields", {})),
-        "body": record.get("body", ""),
+        "body": view_body(record.get("body", ""), granted)[0],
         "tags": list(record.get("tags", [])),
         "sealed": list(record.get("sealed", [])),
     }
@@ -895,7 +1000,7 @@ def check_record(contracts: Contracts, record: dict, label: str) -> dict:
         raise ValueError(f"{label}: `sealed` must list every sealed pointer of the type {missing}")
     values: list[str] = []
     for pointer in sealed:
-        value = pointer_get(record["fields"], pointer)
+        value = sealed_value_at(record["fields"], pointer)  # object members only (M-4)
         if value is None:
             continue  # an optional sealed field that is absent (M-4)
         if value == SEALED_PLACEHOLDER:
@@ -912,6 +1017,8 @@ def check_record(contracts: Contracts, record: dict, label: str) -> dict:
     cap = MAX_AGENT_BODY_CHARS if record["scope"] == "agent" else MAX_BODY_CHARS  # M-3
     if len(record.get("body", "")) > cap:
         raise ValueError(f"{label}: body over {cap} characters (memory_record_too_large)")
+    if record["scope"] != "agent" and MIRROR_MARK in record.get("body", ""):  # M-3
+        raise ValueError(f"{label}: the body holds the mirror marker (body_reserved_marker)")
     if len(canonical_json(record["fields"]).decode("utf-8")) > MAX_FIELDS_CHARS:
         raise ValueError(f"{label}: fields over {MAX_FIELDS_CHARS} characters (M-24)")
     for link in record.get("links", []):
@@ -1036,6 +1143,11 @@ def open_schema_reason(schema, path: str = "") -> str | None:
     hidden = [keyword for keyword in HIDING_KEYWORDS if keyword in schema]
     if hidden:
         return f"{where}: uses {hidden[0]}"
+    for keyword in ("const", "enum"):  # a const or enum holds scalars only (M-19)
+        if keyword in schema:
+            values = schema[keyword] if keyword == "enum" else [schema[keyword]]
+            if not isinstance(values, list) or any(isinstance(v, (dict, list)) for v in values):
+                return f"{where}: a {keyword} holding an object or an array"
     declared = schema.get("type")
     if declared is None:
         return None if "const" in schema or "enum" in schema else f"{where}: no type"
@@ -1283,8 +1395,13 @@ def check_proposals(
                 f"{where}: a reserved type cannot be proposed",
             )
         type_def = contracts.type_of(proposal["type"])
-        target_record = (targets or {}).get(proposal.get("target", ""))
-        extra = tuple(target_record.get("sealed", [])) if target_record else ()
+        # M-40 step 3: the target's own `sealed` additions count only when step 5 would pass (a
+        # granted record of the proposal's type), so that no code before step 5 says anything
+        # about a record the run was not granted.
+        target_id = proposal.get("target", "")
+        target_record = (targets or {}).get(target_id)
+        target_granted = granted.get(target_id) == proposal["type"]
+        extra = tuple(target_record.get("sealed", [])) if target_record and target_granted else ()
         for pointer in (*type_def["sealed_fields"], *extra):  # the target's additions too (M-40.3)
             if pointer_get(proposal["fields"], pointer) is not None:
                 raise Refusal(
@@ -1468,7 +1585,7 @@ def _check_fixtures(
                 validate(
                     record_view_schema(contracts.type_of(resource_type)), answer["output"], where
                 )
-                if answer["output"] != record_view(record):
+                if answer["output"] != record_view(record, set(grants)):
                     raise ValueError(f"{where}: the answer is not the granted record's view (M-15)")
             else:
                 type_def, legacy = contracts.legacy[resource_type]
@@ -1484,6 +1601,43 @@ def _check_fixtures(
                     )
         answered.append(answer["tool"])
     return {"fixtures": answered, "agent_write_body": agent_write_body}
+
+
+def _check_accepted_updates(
+    proposals: dict, by_id: dict, granted: set[str], titles: dict[str, str], label: str
+) -> dict:
+    """M-42 for every accepted `update` of the example: the head's body is the proposal's body
+    with M-15's rendering of the target's hidden links reversed (`restore_view_links`), then the
+    plain wikilinks resolved against `self`, the granted records and the accepted siblings only;
+    a hidden edge the body dropped is kept as a `related` link."""
+    accepted = {
+        record["source"]["proposal"]: record
+        for record in by_id.values()
+        if record["source"].get("kind") == "package" and "proposal" in record["source"]
+    }
+    allowed = {
+        record_id: title
+        for record_id, title in titles.items()
+        if record_id == "self" or record_id in granted or by_id[record_id] in accepted.values()
+    }
+    checked, hidden_total = [], 0
+    for index, proposal in enumerate(proposals["proposals"]):
+        if proposal["action"] != "update":
+            continue
+        head, target = accepted.get(index), by_id[proposal["target"]]
+        if head is None or {"to": target["id"], "rel": "supersedes"} not in head.get("links", []):
+            raise ValueError(f"{label}: no accepted head for update proposal {index}")
+        _, hidden = view_body(target["body"], granted)
+        body, carried = restore_view_links(normalize_body(proposal.get("body", "")), hidden)
+        body = normalize_body_links(body, allowed)
+        if head["body"] != body:
+            raise ValueError(f"{label}: the head of update {index} is not the body M-42 gives")
+        for to in carried:
+            if {"to": to, "rel": "related"} not in head.get("links", []):
+                raise ValueError(f"{label}: update {index} lost the hidden edge to {to} (M-42)")
+        hidden_total += len(hidden)
+        checked.append(index)
+    return {"updates": checked, "hidden_links": hidden_total}
 
 
 def _check_grants(contracts: Contracts, folder: Path, policy: dict, by_id: dict, label: str):
@@ -1566,6 +1720,8 @@ def check_example_package(contracts: Contracts, folder: Path, *, package_name: s
         label=f"{package_name} proposals.json",
         targets=by_id,
     )
+    titles = {record["id"]: record["title"] for record in records}
+    updates = _check_accepted_updates(proposals, by_id, set(grants), titles, package_name)
     report = {
         "memory_read_types": tools_report["memory_read_types"],
         "legacy_types": tools_report["legacy_types"],
@@ -1574,6 +1730,7 @@ def check_example_package(contracts: Contracts, folder: Path, *, package_name: s
         "granted": sorted(grants),
         "fixtures": fixtures["fixtures"],
         "proposals": len(proposals["proposals"]),
+        "accepted_updates": updates,
         "scan_set": len(sealed_values_of(records)),
         **folder_report,
     }
@@ -1644,10 +1801,13 @@ def check_memory_folder(contracts: Contracts, folder: Path, *, label: str) -> tu
                     raise ValueError(f"{label}: {link['to']} superseded twice")
                 superseded_by[link["to"]] = record["id"]
         # M-3: a stored id link to an existing record carries an alias (a bare `[[<id>]]` only
-        # for a dangling id), and an agent body links nowhere (M-49).
+        # for a dangling id). An agent document has no links and its body contributes no edge
+        # (M-49): whatever id-shaped text it holds is text (N20), so it is not checked.
         body = record.get("body", "")
-        if record["scope"] == "agent" and body_link_ids(body):
-            raise ValueError(f"{label}: the agent document {record['id']} holds a link")
+        if record["scope"] == "agent":
+            if record.get("links"):
+                raise ValueError(f"{label}: the agent document {record['id']} holds links (M-49)")
+            continue
         for match in BODY_LINK_RE.finditer(body):
             if not match.group(1) and match.group(2) in by_id and match.group(3) is None:
                 raise ValueError(f"{label}: {record['id']} holds a bare id link (M-3)")
@@ -1675,9 +1835,11 @@ def check_memory_folder(contracts: Contracts, folder: Path, *, label: str) -> tu
             raise ValueError(f"{label}: usage {entry['use']} on a {record['scope']} record")
     # M-29, M-61: `proposed` is dated at the run's `memory.proposed` event, which follows every
     # tool call of the run; `accepted` follows `proposed`.
-    by_run: dict[str, dict[str, list[str]]] = {}
-    for entry in usage:
-        by_run.setdefault(entry["run_id"], {}).setdefault(entry["use"], []).append(entry["at"])
+    by_run: dict[str, dict[str, list[datetime]]] = {}
+    for entry in usage:  # compared as instants (M-29), never as text
+        by_run.setdefault(entry["run_id"], {}).setdefault(entry["use"], []).append(
+            instant(entry["at"])
+        )
     for run_id, uses in by_run.items():
         calls = [at for use in ("read", "agent_read", "agent_write") for at in uses.get(use, [])]
         proposed, accepted = uses.get("proposed", []), uses.get("accepted", [])
@@ -1830,6 +1992,34 @@ def check_negative_cases(contracts: Contracts) -> dict:
         None,
         with_proposal(links=[{"to": next(iter(granted)), "rel": "supersedes"}]),
     )
+    expect(  # N22: the reserved mirror marker in a proposal's body fails the schema (step 1)
+        "N22",
+        "schema_validation",
+        None,
+        with_proposal(body=f"Seat notes.\n{MIRROR_MARK}\n## Links\n- about: [[Dario]]"),
+    )
+    # M-15: the view renders a link to a record the run was not granted without its id. A
+    # proposal that echoes the *stored* body (which no run ever sees) fails step 6; the one that
+    # echoes the view, as the example's update does, passes.
+    target = by_id[base["proposals"][1]["target"]]
+    rendered, hidden = view_body(target["body"], set(granted))
+    if not hidden or any(target_id in rendered for _, _, target_id in hidden):
+        raise ValueError("the granted profile should link to a record the run was not granted")
+    expect(
+        "view hides ungranted links",
+        "permission_denied",
+        "memory_proposal_link_not_granted",
+        with_proposals({}, {"body": target["body"]}),
+    )
+    check_proposals(
+        contracts,
+        with_proposals({}, {"body": rendered}),
+        declared=("travel.preference", "travel.profile"),
+        granted=granted,
+        sealed_values=scan_set,
+        label="view body echoed",
+    )
+    cases["view body echoed"] = f"accepted ({len(hidden)} hidden link rendered as its alias)"
     # N19: steps 2-6 run proposal by proposal, so proposal 0's link (step 6) is reported before
     # proposal 1's undeclared type (step 2).
     expect(
@@ -1941,6 +2131,8 @@ def check_negative_cases(contracts: Contracts) -> dict:
         ),
         ("N21 untyped", {}),
         ("N21 array without items", {"type": "array"}),
+        ("N21 const object", {"const": {"email": "x@y.z"}}),
+        ("N21 enum object", {"enum": ["gold", {"email": "x@y.z"}]}),
     ):
         expect_type(
             case,
@@ -2016,26 +2208,59 @@ def check_negative_cases(contracts: Contracts) -> dict:
     if stored["body"] != probe or imported["body"] != probe:
         raise ValueError("N20: an agent body was rewritten against the store")
     cases["N20"] = "agent body kept as written"
-    try:
-        check_record(
-            contracts,
-            {
-                "id": "mem_00000000000000000000000000000001",
-                "type": "document.note",
-                "title": "Long",
-                "scope": "user",
-                "created": stamp,
-                "updated": stamp,
-                "source": {"kind": "person"},
-                "fields": {},
-                "body": "x" * 20000,
-            },
-            "note of 20,000 characters",
-        )
-    except ValueError:
-        cases["user body 20,000"] = "memory_record_too_large"
-    else:
-        raise ValueError("a user record of 20,000 characters was accepted")
+
+    def note(title: str, body: str, **more) -> dict:
+        return {
+            "id": "mem_00000000000000000000000000000001",
+            "type": "document.note",
+            "title": title,
+            "scope": "user",
+            "created": stamp,
+            "updated": stamp,
+            "source": {"kind": "person"},
+            "fields": {},
+            "body": body,
+            **more,
+        }
+
+    def expect_record(case: str, code: str, record: dict, *, accept: tuple = ()) -> None:
+        try:
+            check_record(contracts, record, case)
+        except ValueError as error:
+            if not any(text in str(error) for text in (code, *accept)):
+                raise ValueError(f"{case}: got {error}, expected {code}") from None
+            cases[case] = code
+            return
+        raise ValueError(f"{case}: accepted, expected {code}")
+
+    # The record schema's cap refuses first (M-3); the host's own check carries the code (M-24).
+    expect_record(
+        "user body 20,000",
+        "memory_record_too_large",
+        note("Long", "x" * 20000),
+        accept=("is too long",),
+    )
+    # M-3: a user body never holds the mirror marker, so an import can never cut a body at a
+    # marker the person or a package put there; an agent body may (it is never mirrored).
+    expect_record(
+        "body with the mirror marker",
+        "body_reserved_marker",
+        note("Marked", f"Keep this.\n{MIRROR_MARK}\nand this."),
+    )
+    check_record(
+        contracts,
+        {**agent_record, "body": f"Notes.\n{MIRROR_MARK}\nstill notes."},
+        "agent body with the mirror marker",
+    )
+    cases["agent body with the mirror marker"] = "accepted"
+    # M-4, M-24: a sealed pointer names object members only; one through an array index is
+    # `sealed_field_invalid`, never silently unsealed.
+    profile = next(r for r in spec_records()[1] if r["type"] == "research.profile")
+    expect_record(
+        "sealed pointer through an array",
+        "sealed_field_invalid",
+        {**copy.deepcopy(profile), "sealed": ["/seed_papers/0/doi"]},
+    )
     # The positive document passes with the same inputs, so the refusals above are the changes'.
     check_proposals(
         contracts,
@@ -2075,12 +2300,28 @@ def check_round_trip(contracts: Contracts) -> dict:
 
     # Two records share a title, so a plain `[[Trip ideas]]` names none of them (M-3); a title
     # holds the characters a wikilink cannot carry; "Shopping list" is created after the note.
+    coffee = next(r["id"] for r in store if r["title"] == "Coffee: no sugar")  # stem differs
     twins = [extra(1, "Trip ideas"), extra(2, "Trip ideas")]
     bracket = extra(3, "Seat [aisle] | window")
-    store = [*store, *twins, bracket]
+    # M-55: a title that is id-shaped, one that is empty once cleaned, one cut at a space, and
+    # one that is another record's id: none may export as a link by id or as an empty stem.
+    named_self = extra(5, "self")
+    dots = extra(6, "...")
+    cut = extra(7, "A" * 99 + " " + "B" * 10)
+    id_titled = extra(8, coffee)
+    store = [*store, *twins, bracket, named_self, dots, cut, id_titled]
     later = extra(4, "Shopping list")
     titles = {record["id"]: record["title"] for record in store}
-    coffee = next(r["id"] for r in store if r["title"] == "Coffee: no sugar")  # stem differs
+    stems_now = stems_for(store)
+    expected_stems = {
+        named_self["id"]: "self (00000000)",
+        dots["id"]: "untitled",
+        cut["id"]: "A" * 99,
+        id_titled["id"]: f"{coffee} (00000000)",
+    }
+    for record_id, expected in expected_stems.items():
+        if stems_now[record_id] != expected:
+            raise ValueError(f"stem {stems_now[record_id]!r}, expected {expected!r} (M-55)")
     profile = next(r["id"] for r in store if r["type"] == "research.profile")
     gone = "mem_ffffffffffffffffffffffffffffffff"  # a deleted record (M-25, M-27)
     note = {
@@ -2099,6 +2340,7 @@ def check_round_trip(contracts: Contracts) -> dict:
             {"to": gone, "rel": "derived_from"},
             {"to": coffee, "rel": "related"},
             {"to": "self", "rel": "related"},
+            {"to": named_self["id"], "rel": "belongs_to"},
         ],
         "body": (
             f"Alias equal to the title: [[{coffee}|Coffee: no sugar]].\n"
@@ -2109,7 +2351,10 @@ def check_round_trip(contracts: Contracts) -> dict:
             "A title two records carry: [[Trip ideas]].\n"
             "A stem typed as text: [[Coffee- no sugar]].\n"
             "Escaped: \\[[Dario]].\n"
-            f"Brackets in the title: [[{bracket['id']}]]."
+            f"Brackets in the title: [[{bracket['id']}]].\n"
+            f"Titled self: [[{named_self['id']}]].\n"
+            f"Titled like an id: [[{id_titled['id']}]].\n"
+            f"Titled with dots: [[{dots['id']}]]."
         ),
     }
     type_def = contracts.type_of("document.note")
@@ -2118,6 +2363,7 @@ def check_round_trip(contracts: Contracts) -> dict:
     check_record(contracts, stored, "round trip: stored note")
     expected_links = [
         {"to": profile, "rel": "about"},
+        {"to": named_self["id"], "rel": "belongs_to"},
         {"to": gone, "rel": "derived_from"},
         {"to": coffee, "rel": "related"},
         {"to": "self", "rel": "related"},
@@ -2132,6 +2378,9 @@ def check_round_trip(contracts: Contracts) -> dict:
         "[[Coffee- no sugar]]",
         "\\[[Dario]]",
         f"[[{bracket['id']}|Seat -aisle- - window]]",
+        f"[[{named_self['id']}|self]]",
+        f"[[{id_titled['id']}|{coffee}]]",
+        f"[[{dots['id']}|...]]",
     ):
         if expected not in stored["body"]:
             raise ValueError(f"the write did not give {expected!r} as M-3 says")
@@ -2144,6 +2393,7 @@ def check_round_trip(contracts: Contracts) -> dict:
     properties = parse_frontmatter(head)
     if (
         properties.get("about") != ["[[Research profile]]"]
+        or properties.get("belongs_to") != ["[[self (00000000)]]"]
         or properties.get("derived_from") != [f"[[{gone}]]"]
         or properties.get("related") != ["[[Coffee- no sugar]]", "[[Dario]]"]
     ):
@@ -2158,10 +2408,15 @@ def check_round_trip(contracts: Contracts) -> dict:
         "\\[[Coffee- no sugar]]",
         "\\\\[[Dario]]",
         "[[Seat -aisle- - window]]",
+        "Titled self: [[self (00000000)]]",
+        f"Titled like an id: [[{coffee} (00000000)]]",
+        "Titled with dots: [[untitled]]",
         f"- derived_from: [[{gone}]]",
     ):
         if expected not in body:
             raise ValueError(f"export body lacks {expected!r}")
+    if "[[self]]" in body or f"[[{coffee}]]" in body or "[[]]" in body:
+        raise ValueError("a stem exported as a link by id or as an empty link (M-55)")
     # The import (M-59): the same record, byte for byte and in its digest input (M-60).
     resolve = resolver_for(stems, all_titles)
     imported = document_to_record(exported, export=True, resolve=resolve, titles=all_titles)
@@ -2180,6 +2435,34 @@ def check_round_trip(contracts: Contracts) -> dict:
         "[[Nobody]]"
     ):
         raise ValueError("an unresolved property item was not kept as body text")
+    # The mirror (M-57, M-59): a stale mirror left by an editor that changed a property is
+    # stripped by its shape, the properties are the edges and the body is unchanged.
+    stale = exported.replace('about:\n  - "[[Research profile]]"', 'about:\n  - "[[Dario]]"')
+    from_stale = document_to_record(stale, export=True, resolve=resolve, titles=all_titles)
+    if {"to": "self", "rel": "about"} not in from_stale["links"] or (
+        from_stale["body"] != stored["body"]
+    ):
+        raise ValueError("a stale mirror was not stripped by its shape (M-59)")
+    # A marker that does not start a mirror is body text; the record is refused, never cut.
+    typed = exported.replace("Escaped:", f"{MIRROR_MARK}\nnot a mirror\nEscaped:")
+    from_typed = document_to_record(typed, export=True, resolve=resolve, titles=all_titles)
+    if "not a mirror" not in from_typed["body"] or MIRROR_MARK not in from_typed["body"]:
+        raise ValueError("an import cut the body at a marker that is not a mirror (M-59)")
+    try:
+        check_record(contracts, from_typed, "round trip: typed marker")
+    except ValueError as error:
+        if "body_reserved_marker" not in str(error):
+            raise
+    else:
+        raise ValueError("a body holding the marker was accepted (M-3)")
+    # An empty body with links exports as the mirror alone and imports as an empty body.
+    bare = {**extra(9, "Bare"), "links": [{"to": "self", "rel": "about"}]}
+    exported_bare = record_to_document(bare, type_def, export=True, stems=stems, titles=all_titles)
+    if not exported_bare.endswith(f"---\n\n{MIRROR_MARK}\n## Links\n- about: [[Dario]]\n"):
+        raise ValueError(f"export of an empty body with links: {exported_bare!r}")
+    from_bare = document_to_record(exported_bare, export=True, resolve=resolve, titles=all_titles)
+    if from_bare["body"] != "" or from_bare["links"] != [{"to": "self", "rel": "about"}]:
+        raise ValueError("the mirror alone did not import as an empty body with its edge")
     # The hub after "Forget everything" (M-22) then an import of the old export (M-59, M-60).
     hub = next(r for r in store if r["id"] == "self")
     fresh = {
@@ -2212,9 +2495,46 @@ def check_round_trip(contracts: Contracts) -> dict:
     return {
         "links": len(expected_links),
         "dangling": 1,
-        "body_link_forms": 10,
+        "body_link_forms": 13,
+        "stems": sorted(expected_stems.values()),
+        "mirror_cases": 3,
         "hub_restored": True,
     }
+
+
+def check_yaml_subset() -> dict:
+    """M-7: the reader and the writer agree over every form of the subset, the two that review 4
+    found missing included: the empty mapping `{}` (as a value and as a sequence item) and a JSON
+    escape of a quote inside a flow sequence; and the reader refuses what is outside the subset."""
+    value = {
+        "s": 'say "hi", twice',
+        "n": 1.5,
+        "i": -3,
+        "t": True,
+        "f": False,
+        "z": None,
+        "empty_map": {},
+        "empty_seq": [],
+        "items": [{}, {"k": "v", "m": {}}, "x"],
+        "nested": {"deep": {"x": "y", "e": {}}},
+    }
+    text = write_frontmatter(value)
+    if parse_frontmatter(text) != value:
+        raise ValueError("the writer's output does not read back as the same value")
+    if write_frontmatter(parse_frontmatter(text)) != text:
+        raise ValueError("the reader and the writer do not agree byte for byte")
+    flow = 'tags: ["a\\", b", "c"]\nnums: [1, 2.5, true, null, "x"]\no: {}'
+    expected = {"tags": ['a", b', "c"], "nums": [1, 2.5, True, None, "x"], "o": {}}
+    if parse_frontmatter(flow) != expected:
+        raise ValueError(f"flow forms: {parse_frontmatter(flow)}")
+    outside = ("o: {a: 1}", "s: 'x'", "k:\tv", 'x: ["a]', "a: 1\na: 2", "k: >\n  x", "- a")
+    for bad in outside:
+        try:
+            parse_frontmatter(bad)
+        except FrontmatterError:
+            continue
+        raise ValueError(f"accepted outside the subset: {bad!r}")
+    return {"forms": sorted(value), "flow_forms": sorted(expected), "refused": len(outside)}
 
 
 def check_rule_numbers() -> dict:
@@ -2256,6 +2576,7 @@ def main(argv=None) -> int:
         print(json.dumps({"passed": False, "checks": report.checks}, indent=2))
         return 1
     report.check("contracts_load", True, {"types": len(contracts.types)})
+    report.run("yaml_subset", check_yaml_subset)
     report.run("taxonomy", lambda: check_taxonomy(contracts))
     report.run("legacy_schemas_match_webair", lambda: check_legacy_against_webair(contracts))
     report.run("patches_apply_and_keep_old_policies_valid", lambda: check_patches(contracts))

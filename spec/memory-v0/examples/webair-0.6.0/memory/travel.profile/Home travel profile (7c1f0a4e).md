@@ -21,7 +21,7 @@ source:
   migrated: "2026-10-14T09:12:00Z"
 ---
 
-Used for most trips. Business only when someone else pays.
+Used for most trips. Business only when someone else pays. Pack as in [[Packing list]].
 
 <!-- memory.v0 links -->
 ## Links

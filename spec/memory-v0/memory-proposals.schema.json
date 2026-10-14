@@ -50,7 +50,11 @@
         },
         "body": {
           "type": "string",
-          "maxLength": 16384
+          "maxLength": 16384,
+          "not": {
+            "pattern": "<!-- memory\\.v0 links -->"
+          },
+          "$comment": "the mirror marker of an export is reserved: a body holding it fails M-40 step 1 (memory-v0.md M-3, N22)"
         },
         "tags": {
           "type": "array",
