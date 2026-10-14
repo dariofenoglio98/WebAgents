@@ -21,7 +21,7 @@ each claim). Reports are historical: a later report or the current artifacts in
 |---|---|
 | [getting-started.md](getting-started.md) | Installation, OpenClaw plugin setup, model configuration (Ollama, hosted OpenAI), and the Chrome Agent Browser (level 4) |
 | [architecture.md](architecture.md) | Architecture and concrete design decisions |
-| [threat-model.md](threat-model.md) | Assets, trust boundaries and what the prototype does and does not defend; the Chrome Agent Browser's network, storage, permission and review boundaries ([§ Chrome](threat-model.md#chrome-agent-browser-t7)) |
+| [threat-model.md](threat-model.md) | Assets, trust boundaries and what the prototype does and does not defend; the Chrome Agent Browser's network, storage, permission and review boundaries ([§ Chrome](threat-model.md#chrome-agent-browser-t7)); the optional macOS helper and installer ([§ helper](threat-model.md#native-helper-and-macos-installer-t17)) |
 | [browser-control-plane.md](browser-control-plane.md) | `agentpkg browser-serve`: opening, snapshots, validation, trust, authorization, and experimental website discovery (`rel="agent-package"`, §3a) |
 | [model-selection-and-run-plan.md](model-selection-and-run-plan.md) | Model compatibility semantics and the run-plan schema |
 | [model-availability.md](model-availability.md) | Which host view means "this model can be used" |
@@ -30,7 +30,7 @@ each claim). Reports are historical: a later report or the current artifacts in
 | [package-execution.md](package-execution.md) | Executing a signed package: lease, re-verification, runner, run record |
 | [tool-broker.md](tool-broker.md) | Host tool bindings, approvals and the built-in tool implementations |
 | [openclaw-agent-browser.md](openclaw-agent-browser.md) | The OpenClaw Agent Browser plugin: architecture, trust semantics, website discovery in the page (§5b), limitations |
-| [chrome-agent-browser.md](chrome-agent-browser.md) | The Chrome Agent Browser, the second runtime: architecture, the extension and the Node CLI, the core boundary, storage, permissions, limits, packaging; its user guide is [../chrome-agent-browser/README.md](../chrome-agent-browser/README.md) |
+| [chrome-agent-browser.md](chrome-agent-browser.md) | The Chrome Agent Browser, the second runtime: architecture, the extension and the Node CLI, the core boundary, storage, permissions, limits, packaging, the optional installer and helper (§12; [../installer/README.md](../installer/README.md)); its user guide is [../chrome-agent-browser/README.md](../chrome-agent-browser/README.md) |
 | [../conformance/README.md](../conformance/README.md) | The cross-runtime conformance suite: what it compares between `agentpkg` and the Chrome core, the normalization, the recorded differences, and what it does not show |
 | [openclaw-integration.md](openclaw-integration.md) | The older verified-workspace staging adapter (`install-openclaw`) |
 | [workflow-migration.md](workflow-migration.md) | Migration from the legacy Literature Review runner to generic execution |

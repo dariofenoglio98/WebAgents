@@ -158,6 +158,11 @@ What it shows today, on the WebAir demo site:
    (Literature Review on Ollama) runs while it is locked; one that needs a hosted key or one of
    your records asks you to unlock before it prepares or runs, never during a run. **Forget
    everything** deletes the store when a passphrase is lost: agents, runs, trust and settings stay.
+14. **Unlock with the macOS keychain** (T17, optional). With the helper from the macOS installer
+   ([`installer/README.md`](../installer/README.md)), Settings → Security → **Turn on** keeps the
+   store's key wrapped by your login keychain, and the Unlock sheet then unlocks with one click.
+   The passphrase keeps working; without the helper nothing changes. Every unpacked build has the
+   id `kjegegjdnpdcjhgamhjdphgemegefapb` (the manifest's `key`, D-200), the one the helper answers.
 
 Verification is the same as the Python reference runtime's (`agentpkg`): the core reports the
 same digest, archive SHA-256, signer fingerprint and validity, and the browser summary equals

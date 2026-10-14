@@ -55,6 +55,12 @@ when you open a package, use an agent, choose a site to detect agents on, or add
 document; Settings → Permissions lists every grant with its reason and lets you revoke it.
 "Detect agents on every site" is off unless you turn it on.
 
+On macOS, an optional helper installed separately can unlock your encrypted keys and records from
+your login keychain. The extension talks to it only after you turn this on in Settings → Security
+(Chrome asks for the permission then); it sends the helper the key that opens your encrypted store
+to be wrapped or unwrapped, and asks whether Ollama is running. Nothing else, and nothing that
+leaves your computer.
+
 ## Changes and contact
 
 This policy describes the extension's behaviour as its source code implements it; the code is

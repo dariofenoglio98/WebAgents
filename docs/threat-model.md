@@ -380,3 +380,57 @@ version) or unsubscribes, or until it expires.
 **The NANDA resolver is a stub.** It defines how AgentAddr and AgentFacts map to a package
 candidate and returns nothing in this build. Certification and evaluation fields from AgentFacts
 would be shown as the registry's claims, never as trust.
+
+## Native helper and macOS installer (T17)
+
+The helper is optional (D-181): the extension is complete without it, and every path below falls
+back to the passphrase. It is a Swift binary (`native-helper/`) that Chrome starts through native
+messaging for one request and one reply, registered by the macOS installer for the extension's
+own id only (`allowed_origins`, D-200, D-203).
+
+**What it may do (D-204, a closed list).** Three operations, each with a closed set of fields;
+anything else is refused with a code before anything is done: `keychain.wrap` seals the store's
+32-byte master key with AES-256-GCM under a 256-bit key-encryption key that the helper creates and
+keeps in a login-keychain item it owns (service `org.webagents.helper`), and returns the blob;
+`keychain.unwrap` returns the master key from such a blob; `ollama.status` reports whether Ollama
+is installed and running and whether its `OLLAMA_ORIGINS` admits the extension. Requests above
+16 KiB are refused unread. The helper never receives a provider key, a record, an entry, the
+passphrase or a package, and it holds no network boundary (B-191 stays in the extension).
+
+**What it sees.** The master key, while wrapping and unwrapping it: keychain unlock cannot work
+otherwise. What the extension stores beside the envelope (`secretKeychain` in
+`chrome.storage.local`) is the blob and a check box sealed under the master key for this envelope
+(its `created_at` in the associated data): neither opens anything alone, and a key the helper
+returns is accepted only if it opens the check, so a stale blob, another envelope's blob or a
+helper gone wrong leaves the store locked (`keychain_mismatch`) instead of installing a wrong key.
+
+**Who may ask it.** Chrome passes the caller's origin as the first argument; the helper refuses
+(`caller_refused`) unless it is an id in the installed `extension-ids.json` **and** its parent
+process is code-signed by Google (team `EQHXZ8M8AV`, a Google Chrome bundle identifier). A script
+that runs the binary directly gets nothing (`native-helper/scripts/smoke.mjs`). This raises the
+bar; it is not a boundary against a process running as the user, which can start Chrome with an
+unpacked copy carrying the same public `key` (the key is public by design) and ask for an unwrap.
+That attacker is already outside D-181's claim: it can read Chrome's memory while the store is
+unlocked.
+
+**What keychain unlock changes at rest.** With it off, the envelope opens with the passphrase
+only. With it on, the envelope also opens with the keychain item, which macOS protects with the
+login password: the profile directory and a backup of it remain useless without the passphrase or
+the login keychain, but someone holding the disk (or a backup that includes the keychain) **and**
+the login password can now open the store. A person who wants the passphrase to be the only key
+leaves keychain unlock off; turning it off deletes the blob, and the uninstaller deletes the item.
+The keychain item's default access list trusts the binary that created it (ad-hoc signed until
+U8): another program reading it gets the keychain's own prompt, and so does a rebuilt helper.
+Touch ID or a user-presence check on every unwrap needs the data-protection keychain and a signed
+binary (U8; B-194). Unlocking stays a click: nothing unlocks the store without the person asking,
+and the idle lock applies as before.
+
+**The installer.** An unsigned, un-notarized `.pkg` until U8 (Gatekeeper warns; the README says
+how to open it). Its scripts run as root and do only what `installer/macos/dry-run.sh` lists. When
+Ollama is missing it is obtained through Homebrew (run as the person, never as root) or from the
+pinned GitHub release, whose SHA-256 and signing team are checked before the app is moved into
+`/Applications`; a mismatch installs nothing. `OLLAMA_ORIGINS` gets the extension's own
+`chrome-extension://<id>` entries, so other extensions do not gain access to the local models; a
+wildcard the person had set is kept as found. The login LaunchAgent runs one script as the person
+that sets the variable and restarts Ollama only when Ollama rejects the extension's origin. The
+uninstaller removes all of it and never Ollama or its models.
