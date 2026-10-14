@@ -73,17 +73,26 @@ in exactly this form; the host's secret store additionally encrypts sealed value
 M-3. The **body** is UTF-8 Markdown, NFC-normalized, LF line endings, no trailing whitespace at its
 end (the writer adds one final newline), at most 16,384 characters for a `scope: user` record and
 32,768 for an agent document (`scope: agent`, M-51; the record schema caps each scope, so a body the
-agent write tool accepts is always committable). A `[[<id>|<alias>]]` wikilink in the body, with a
-well-formed record id as its target, is an edge of relation `related` (§5.1); the alias is a cached
-title, never authoritative. **Wikilinks are resolved at write time:** when a body is written (M-24)
-every `[[<text>]]` or `[[<text>|<alias>]]` whose target is not an id and equals the title of exactly
-one record of the store (NFC, case-insensitive) is rewritten to `[[<id>|<text>]]` (the alias kept
-when given), and every bare `[[<id>]]` whose record exists is rewritten to `[[<id>|<title>]]`, so
-that a stored id link always carries an alias and the stored form of a body is unique (a bare
-`[[<id>]]` survives only for a dangling id, which has no title to cache); a wikilink that matches no
-record, or more than one, is kept as written, is **not** an edge, and is reported as dangling text
-(M-27). An export reverses the rewrite exactly (M-57) and an import applies it again (M-59), so an
-export then import of the same store changes no body.
+agent write tool accepts is always committable). A `[[<id>|<alias>]]` wikilink in the body of a
+`scope: user` record, with a well-formed record id as its target, is an edge of relation `related`
+(§5.1); the alias is a cached title, never authoritative. A wikilink immediately preceded by a
+backslash (`\[[…]]`) is **escaped**: it is text, never resolved and never an edge. **Wikilinks are
+resolved when a body is written from an edit or an accepted proposal** (M-24, M-42): every unescaped
+`[[<text>]]` or `[[<text>|<alias>]]` whose target is not an id and equals the title of exactly one
+record of the store (NFC, case-insensitive) is rewritten to `[[<id>|<text>]]` (the alias kept when
+given), and every bare `[[<id>]]` whose record exists is rewritten to `[[<id>|<alias of its
+title>]]`, so that a stored id link always carries an alias (a bare `[[<id>]]` survives only for a
+dangling id, which has no title to cache). The **alias of a title** is the title with `[`, `]` and
+`|` replaced by `-`, so that the link stays one wikilink whatever the title holds. A wikilink that
+matches no record, or more than one, is kept as written, is **not** an edge, and is reported as
+dangling text (M-27). Creating, renaming or deleting a record never rewrites another record's body:
+a plain link that a later record would match stays text until the person edits that body. An
+export marks every plain-text link as escaped and reverses the rewrite of the edges (M-57); an
+import removes that mark and resolves only what the export wrote from an edge (M-59), so an export
+then import of the same store changes no body and creates no edge. **An agent document's body
+(`scope: agent`, §7.4) is never rewritten**: it is stored, exported and imported exactly as the
+package wrote it, its wikilinks are text and never edges (M-49), so that a package can never learn
+through its own notes which titles or ids the store holds.
 
 M-4. **Sealed values live only in fields.** A title, a tag or a body that contains a sealed value of
 the same record (case-insensitive, anywhere) is refused `sealed_value_in_text`. A sealed value is a
@@ -319,7 +328,15 @@ the list is computed from the taxonomy, never written into a runtime) is refused
 `custom_type_shadows_sealed_type`, whatever its other properties, so that leaving one field out or
 nesting it cannot evade the check; a package that needs such a value reads `person.identity`,
 `contact` or `payment.card` by grant. The check is by property name over the schema as declared,
-before any approval. A custom local id equal to any well-known id
+before any approval, and is complete only over a **closed** schema, which a custom type's must be:
+every subschema declares `type` (or is a `const` or `enum`), every object lists its `properties`
+with `additionalProperties: false`, every array has an `items` schema, and none of `allOf`, `anyOf`,
+`oneOf`, `not`, `if`, `then`, `else`, `patternProperties`, `propertyNames`, `dependentSchemas`,
+`unevaluatedProperties`, `unevaluatedItems`, `prefixItems` or `contains` appears; otherwise the type
+is refused `custom_type_schema_open` (checked after the name rule), so that no property name an
+instance can hold escapes the rule. The rule is a guard against a careless schema, not a hostile
+one: a field renamed (`e_mail`) passes it, and the review of proposals (M-42) is the control for what
+such a field holds. A custom local id equal to any well-known id
 (`contact`, `travel.profile`, …) or in a reserved family (`person.`, `payment.`, `agent.`,
 `memory.`) is refused `custom_type_reserved`, so that `memory.write resources: ["contact"]` can never
 be ambiguous.
@@ -370,7 +387,8 @@ M-24. On every write (create, edit, accept, import, migrate) the host, with the 
 (M-10), checks: the frontmatter against `memory-record.schema.json`; the fields against the type
 schema; `sealed` a superset of the type's sealed pointers, every listed pointer resolving to a string
 of at least 6 characters or to nothing (M-4); the title, tags and body free of the record's sealed
-values (M-4); the body's wikilinks resolved as M-3 says; the caps of §2 and D-212 (the body at most
+values (M-4); the body's wikilinks resolved as M-3 says when the write is an edit or an
+acceptance (an import resolves by M-59 instead; an agent body is never resolved); the caps of §2 and D-212 (the body at most
 16,384 characters, or 32,768 for an agent document, M-3; the canonical JSON of `fields` at most
 16,384 characters; `memory_record_too_large`); `supersedes` acyclic over the whole store
 (`supersedes_cycle`) and at most one superseder per record (`superseded_twice`); link targets
@@ -406,8 +424,10 @@ that use does not move a digest): `{record_id, use, package_id, package_version,
 `use` one of `read` (a run read the record), `proposed` (a run proposed it; the record is the one
 created at acceptance, and `at` is the instant of the run's `memory.proposed` audit event, so the
 entry is written at acceptance but dated at the proposal), `accepted` (`at` = the acceptance),
-`agent_read`, `agent_write` (`at` = the tool call). At most 65,536 entries; the oldest are dropped
-first. It feeds recall ranking, "where used" on the record card and the package layer; it
+`agent_read`, `agent_write` (`at` = the tool call). The log's **canonical order**, in the host and
+in `memory-usage.json`, is by `at` as an instant (never as text), then `record_id` by code point,
+then `use` in the order of the list above, so both runtimes write the same bytes. At most 65,536
+entries; the oldest are dropped first. It feeds recall ranking, "where used" on the record card and the package layer; it
 is exported as `memory-usage.json` (§8.1) and imported when present.
 
 ## 6. Retrieval
@@ -582,6 +602,8 @@ record and the audit carry):
 6. every link's `to` is `self`, an id this run was granted, or `#<n>` naming an existing **other**
    proposal: a `#<n>` that does not is `schema_validation`; a record id the run was not granted,
    learned in an earlier run or guessed, is `permission_denied` (`memory_proposal_link_not_granted`);
+   the same holds for every unescaped id wikilink in the proposal's `body` (an edge, M-3), checked
+   after the `links` array in document order;
 7. **no sealed value anywhere in the document:** every string of the canonical document (titles,
    fields at any depth, bodies, tags, rationales, keys) is scanned with M-36's scanner for the run's
    scan set, else `permission_denied` (`sealed_value_in_proposal`, naming the proposal index, the
@@ -609,10 +631,13 @@ and for an update is pre-filled from the target), or **reject**. Acceptance writ
 - for `create`: one record `{id: fresh, type, title, scope: "user", created: now, updated: now,
   source: {kind: "package", package_id, package_version, run_id, proposal: n, accepted: now},
   fields, sealed: the type's sealed pointers, links: the type's `default_links` and the proposal's
-  links, resolved (`self` as is; a granted id as is; `#m` → the id of sibling m, which must already
-  be accepted in this review, else the link is listed as "to a proposal you rejected" and left out
-  with that note), **sorted into canonical order** (M-9, duplicate `{to, rel}` pairs dropped), tags,
-  demo: false, valid_until: the proposal's when given}`;
+  links, resolved (`self` as is; a granted id as is; `#m` → the id of sibling m when m is accepted in
+  the same review, else the link is listed as "to a proposal you rejected" and left out with that
+  note), **sorted into canonical order** (M-9, duplicate `{to, rel}` pairs dropped), tags, demo:
+  false, valid_until: the proposal's when given}`; the body's plain wikilinks are resolved by M-3
+  **only against `self`, the run's granted records and the siblings accepted in the same review**
+  (package-authored text never links into a record the run was not granted, step 6), anything else
+  staying text;
 - for `update`: the same record, **carrying over from the target what the run never saw and could
   not send**: the target's value at every sealed pointer the proposal left out (the type's and the
   person's additions; the person may retype one in the edit form), the target's `sealed` pointers,
@@ -625,8 +650,11 @@ and for an update is pre-filled from the target), or **reject**. Acceptance writ
   second superseder is never written (`superseded_twice` cannot occur through a review);
 - the usage log entries `proposed` and `accepted` for the new record (`at` as M-29 says);
 - the review's outcome in the Run Record (`memory.proposals.accepted`, `rejected`, by index).
-Rejection writes nothing. A proposal is reviewed once: a closed review cannot be reopened for the same
-run (the file stays inspectable).
+Rejection writes nothing. The decisions of one review **take effect together** when the last
+proposal is decided (or on "Accept all" / "Reject all"): every accepted proposal receives its id
+first, then links are resolved, so a link to a sibling of higher index (`#1` from proposal 0) is kept
+whenever that sibling is accepted, whatever the order of the clicks. A proposal is reviewed once: a
+closed review cannot be reopened for the same run (the file stays inspectable).
 
 ### 7.3 Hygiene: replacement, expiry, Tidy up, caps (D-219)
 
@@ -680,7 +708,8 @@ validation). `publisher-scoped`, `user-global` and `enterprise-governed` stay re
 M-49. **One document per package.** The host keeps at most one record of type `agent.memory`,
 `scope: "agent"`, per `package_id`, with the id `agent_` + the first 16 hex characters of
 SHA-256(package id), the title = the package's `name` at the last write, `fields: {package_id}`,
-`source {kind: "agent", …}` of the last writing run, no links, no tags. It is never a recall
+`source {kind: "agent", …}` of the last writing run, no links, no tags, and a body that is never
+rewritten (M-3: its wikilinks are text, never resolved against the store, never edges). It is never a recall
 candidate, never proposable, never in the text index, and counts against the record cap. Its body is
 the package's own Markdown; the host shows it in Settings → Memory → Agent notes and on the graph
 under its package node, and the person can read, export and clear it.
@@ -745,7 +774,7 @@ policy's provenance like any other (D-102) and a policy can never grant: it only
 |---|---|---|
 | validation | `memory_proposal_undeclared` | `memory.write` without the export, or the export without the permission |
 | validation | `agent_memory_write_cap`, `agent_memory_scope` | the write tool's cap is not 1; a reserved agent binding outside `agent-scoped`, or `agent-scoped` without the permission |
-| validation | `custom_type_shadows_sealed_type`, `custom_type_reserved`, `reserved_field_name` | §4.4 and M-8 (a custom type that declares `sealed_fields` fails the policy schema, `schema_validation`) |
+| validation | `custom_type_shadows_sealed_type`, `custom_type_schema_open`, `custom_type_reserved`, `reserved_field_name` | §4.4 and M-8 (a custom type that declares `sealed_fields` fails the policy schema, `schema_validation`) |
 | validation | `memory_type_reserved` | a `memory.write` naming `person.self` or `agent.memory`, or a `memory.read` naming `agent.memory` (M-38) |
 | binding | `binding_schema_mismatch` | a `memory.read` tool's output schema is not the type's view |
 | plan | `resource_selection_required`, `resource_changed`, `resource_removed`, `memory_type_unknown` | as for host resources; a type the host does not hold |
@@ -799,9 +828,13 @@ M-57. A record file is the canonical document (M-9) with these differences for a
   items in the stored (canonical) order, each a whole-value wikilink `"[[<stem of the target>]]"`; a
   dangling target (no record with that id in the export) is written **in id form**, `"[[<id>]]"`, so
   that the edge survives an import (M-27, M-59);
-- body wikilinks `[[<id>|<alias>]]` are rewritten to `[[<stem>]]` when the alias equals the target's
-  title and `[[<stem>|<alias>]]` otherwise; a body link to a dangling target is left unchanged, alias
-  included; a plain-text wikilink (not an edge, M-3) is left unchanged;
+- body wikilinks `[[<id>|<alias>]]` are rewritten to `[[<stem>]]` when the alias equals the alias of
+  the target's title (M-3) and `[[<stem>|<alias>]]` otherwise; a body link to a dangling target is
+  left unchanged, alias included; every **plain-text or escaped** wikilink (not an edge, M-3) gains
+  one backslash in front (`[[Shopping list]]` → `\[[Shopping list]]`, `\[[X]]` → `\\[[X]]`), so
+  that the import can never turn text into an edge, even when a stem or a later record matches it;
+  an editor shows it as literal text, which is what it is; an agent document's body is written as
+  stored (M-3);
 - the body ends with a **generated mirror** of the frontmatter edges when the record has any (a
   dangling target appears there in id form too); the mirror is generated on export and stripped on
   import, never read (M-59):
@@ -879,11 +912,17 @@ when present) and produces a **report** before writing anything, which the perso
 - a per-relation property item or body wikilink whose target is a **well-formed record id** is kept
   as that id, alias included; when no record of the import or the store has the id, it is a dangling
   edge of that relation (M-27), kept and reported;
+- a body wikilink preceded by a backslash is text: one backslash is removed and nothing is resolved
+  (M-57's mark reversed; a link the person escaped in an editor arrives as plain text, which is
+  what an escape means);
 - any other per-relation property item or body wikilink is resolved by stem to the imported set
-  first, then by title to the store (M-3's rule: exactly one record); a resolved body wikilink
-  `[[<stem>]]` is rewritten to `[[<id>|<title of the target>]]` and `[[<stem>|<alias>]]` to
-  `[[<id>|<alias>]]` (the write-time form of M-3, so that a round trip is exact even when the stem
-  differs from the title); a body wikilink that resolves to nothing, or to more than one record,
+  first, then by title to the store as it will be after the import (the store and the imported
+  set; M-3's rule: exactly one record); a resolved body wikilink `[[<stem>]]` is rewritten to
+  `[[<id>|<alias of the target's title>]]` and `[[<stem>|<alias>]]` to `[[<id>|<alias>]]` (the
+  write-time form of M-3, so that a round trip is exact even when the stem differs from the
+  title); the import applies no other resolution (M-3's write-time rule does not run again over an
+  imported body); an agent document's body is imported as written; a body wikilink that resolves
+  to nothing, or to more than one record,
   stays as written and is not an edge; a property item that resolves to nothing cannot be an edge
   and is appended to the body as a plain `[[<text>]]` on its own line, so the text is kept and shown
   as dangling text; the report counts the links that resolved, the dangling edges and the links kept
@@ -895,9 +934,10 @@ when present) and produces a **report** before writing anything, which the perso
   **incomplete**: listed for completion and not written until the person types the value; when none
   exists and the field is optional, it is imported without it;
 - the hub is **merged, never duplicated**: an imported file with `id: self` replaces the store's
-  hub's title, fields, body and `updated`, unites its links with the store's (when the union adds a
+  hub's title, fields, body, `tags`, `demo`, `valid_until` and `updated` (each as the file has it,
+  absent included), unites its links with the store's (when the union adds a
   link the file did not carry, `updated` becomes the import instant), takes the **earlier** of the
-  two `created` values, keeps `source {kind: "person"}` (the hub's only provenance, M-22), and is
+  two `created` values (compared as instants), keeps `source {kind: "person"}` (the hub's only provenance, M-22), and is
   never superseded or re-identified (the report says "your *Me* record will be updated from the
   import"); after "Forget everything" the fresh hub is therefore replaced byte for byte by the
   imported one (M-60); an export without a hub leaves the store's as it is; a file of type
@@ -917,8 +957,9 @@ was and every record with a required sealed field as incomplete, completed by th
 example ships both forms of the same memory (§12) and the check script imports the omitted one
 against the other; its `round_trip` check exports and imports a note that holds every link form
 (canonical order, an alias equal to the title, another alias, no alias, a target whose stem differs
-from its title, a dangling target in the frontmatter and in the body, plain text) and merges the hub
-after "Forget everything". A record edited in Obsidian round-trips as its edit when the edit stays
+from its title, a dangling target in the frontmatter and in the body, plain text, a title two records
+carry, a stem typed as text, a record created after the body was written, an escaped link, a title
+holding `[`, `]` and `|`) and merges the hub after "Forget everything". A record edited in Obsidian round-trips as its edit when the edit stays
 in the subset (M-7); properties Obsidian adds (`aliases`, `cssclasses`) are reserved and dropped with a note.
 T19 tests the first and the conformance suite compares the export bytes of both runtimes.
 
@@ -983,14 +1024,16 @@ catalog v2's memory family starts here):
 | N11 a graph that routes a sealed field into a model step | the model call is refused `permission_denied` (`sealed_value_in_model_request`) and the node fails |
 | N12 `memory.write` declared without the `proposals.json` export | refused at validation (`memory_proposal_undeclared`) |
 | N13 a proposal whose unsealed field, body or title holds a sealed value of a record the run holds (the granted identity's e-mail as a `travel.preference` value) | run fails `permission_denied` (`sealed_value_in_proposal`); no `proposals.json` is written |
-| N14 a proposal link to a record id the run was not granted | run fails `permission_denied` (`memory_proposal_link_not_granted`) |
+| N14 a proposal link to a record id the run was not granted, in `links` or as an id wikilink in the body | run fails `permission_denied` (`memory_proposal_link_not_granted`) |
 | N15 a proposal link with `rel: "supersedes"` | run fails `schema_validation` (M-40 step 1) |
 | N16 a custom type with a property named `email` (or any sealed starter field name) | refused at validation (`custom_type_shadows_sealed_type`) |
 | N17 a custom type whose local id is a well-known id (`contact`) | refused at validation (`custom_type_reserved`) |
 | N18 an edit, acceptance or import while the store is locked | refused `store_locked`; nothing changes (Chrome only: the Python directory is never locked) |
 | N19 two refusable proposals: index 0 links to a record id the run was not granted, index 1 is of an undeclared type | run fails `permission_denied` (`memory_proposal_link_not_granted`): M-40 runs steps 2 to 6 proposal by proposal, so index 0's step 6 is reported, not index 1's step 2 |
+| N20 an agent write whose body holds `[[<title of a record>]]` and `[[<id of a record>]]` | committed byte for byte; the next agent read returns exactly what was written (no id, no title resolved, M-3, M-49) |
+| N21 a custom type whose schema is not closed (an open nested object, `anyOf`, `patternProperties`, an untyped property, an array without `items`) | refused at validation (`custom_type_schema_open`) |
 
-`check_memory_spec.py` demonstrates N1, N2, N8, N9, N13–N17 and N19 over the worked examples with
+`check_memory_spec.py` demonstrates N1, N2, N8, N9, N13–N17 and N19–N21 over the worked examples with
 the check functions the spec names, so that the two runtimes' tests can cite the same inputs.
 
 ## 11. The starter taxonomy (D-217)

@@ -27,6 +27,7 @@ import json
 import re
 import sys
 import unicodedata
+from datetime import datetime
 from pathlib import Path
 
 from agentpkg.package import canonical_json
@@ -87,6 +88,10 @@ KEY_RE = re.compile(r"^([a-z][a-z0-9_]{0,63}):(?: (.*))?$")
 PLAIN_RE = re.compile(r"^[^\"'\[\]{}#&*!|>%@,\s][^#]*$")
 NUMBER_RE = re.compile(r"^-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?$")
 WIKILINK_RE = re.compile(r"\[\[([^\[\]|]+)(?:\|([^\[\]]+))?\]\]")
+# A body wikilink with the backslashes right before it: a link preceded by one is escaped text,
+# never resolved and never an edge (M-3); an export adds one to every plain-text link, an import
+# removes one (M-57, M-59).
+BODY_LINK_RE = re.compile(r"(\\*)\[\[([^\[\]|]+)(?:\|([^\[\]]+))?\]\]")
 RECORD_ID_RE = re.compile(r"^(self|mem_[0-9a-f]{32}|agent_[0-9a-f]{16})$")
 WELL_KNOWN_ID_RE = re.compile(r"^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*$")
 FENCE_RE = re.compile(r"^```([^\n]*)\n(.*?)^```\s*$", re.MULTILINE | re.DOTALL)
@@ -412,24 +417,42 @@ def title_index(titles: dict[str, str]) -> dict[str, str]:
     return {key: ids[0] for key, ids in groups.items() if len(ids) == 1}
 
 
+def alias_of(title: str) -> str:
+    """M-3: a title cached as a wikilink alias, with `[`, `]` and `|` replaced by `-`, so that the
+    link stays one wikilink whatever the title holds."""
+    return re.sub(r"[\[\]|]", "-", title)
+
+
 def normalize_body_links(body: str, titles: dict[str, str]) -> str:
-    """M-3 at write time: a bare `[[<id>]]` whose record exists gains the title as its alias; a
-    plain link whose text is the title of exactly one record becomes `[[<id>|<text>]]` (the alias
-    kept when given); anything else (a dangling id, text that names no record) is left as it is."""
+    """M-3 when a body is written from an edit or an accepted proposal: a bare `[[<id>]]` whose
+    record exists gains the title as its alias; a plain link whose text is the title of exactly
+    one record of `titles` becomes `[[<id>|<text>]]` (the alias kept when given); anything else
+    (an escaped link, a dangling id, text that names no record or several) is left as it is."""
     by_title = title_index(titles)
 
     def rewrite(match: re.Match) -> str:
-        target, alias = match.group(1), match.group(2)
+        escapes, target, alias = match.group(1), match.group(2), match.group(3)
+        if escapes:
+            return match.group(0)
         if RECORD_ID_RE.match(target):
             if alias is None and target in titles:
-                return f"[[{target}|{titles[target]}]]"
+                return f"[[{target}|{alias_of(titles[target])}]]"
             return match.group(0)
         record_id = by_title.get(stem_key(target))
         if record_id is None:
             return match.group(0)
         return f"[[{record_id}|{alias or target}]]"
 
-    return WIKILINK_RE.sub(rewrite, body)
+    return BODY_LINK_RE.sub(rewrite, body)
+
+
+def body_link_ids(body: str) -> list[str]:
+    """The record ids a body links to (M-3): its unescaped wikilinks in id form."""
+    return [
+        match.group(2)
+        for match in BODY_LINK_RE.finditer(body)
+        if not match.group(1) and RECORD_ID_RE.match(match.group(2))
+    ]
 
 
 def record_to_document(
@@ -476,9 +499,12 @@ def record_to_document(
         else:
             head["links"] = links
     head["source"] = order_source(record["source"])
-    body = normalize_body_links(normalize_body(record.get("body", "")), titles)  # M-3, M-24
-    if export:
-        body = WIKILINK_RE.sub(lambda match: _export_wikilink(match, stems, titles), body)
+    body = normalize_body(record.get("body", ""))
+    agent = record["scope"] == "agent"  # an agent body is never rewritten (M-3, M-49)
+    if not export and not agent:
+        body = normalize_body_links(body, titles)  # M-3, M-24: the write of an edited body
+    if export and not agent:
+        body = BODY_LINK_RE.sub(lambda match: _export_wikilink(match, stems, titles), body)
         if links:
             mirror = [MIRROR_MARK, "## Links"]
             for link in links:
@@ -496,11 +522,15 @@ def _link_target(to: str, stems: dict[str, str]) -> str:
 
 
 def _export_wikilink(match: re.Match, stems: dict[str, str], titles: dict[str, str]) -> str:
-    target, alias = match.group(1), match.group(2)
+    """M-57: an edge by stem; a dangling id unchanged; plain or escaped text gains one backslash,
+    so that the import never turns text into an edge (M-59)."""
+    escapes, target, alias = match.group(1), match.group(2), match.group(3)
+    if escapes or not RECORD_ID_RE.match(target):
+        return "\\" + match.group(0)
     stem = stems.get(target)
-    if stem is None:  # a dangling id (kept in id form, M-57) or plain text (M-3): unchanged
+    if stem is None:  # a dangling id: kept in id form (M-27, M-57)
         return match.group(0)
-    if alias is None or alias == titles.get(target):
+    if alias is None or alias == alias_of(titles.get(target, "")):
         return f"[[{stem}]]"
     return f"[[{stem}|{alias}]]"
 
@@ -548,11 +578,11 @@ def document_to_record(
         else:
             fields[key] = value
     body = normalize_body(body)
-    if export:
+    if export and record.get("scope") != "agent":  # an agent body is imported as written (M-59)
         marker = body.find(MIRROR_MARK)
         if marker >= 0:  # generated on export, stripped on import, never read (M-57, M-59)
             body = body[:marker].rstrip()
-        body = WIKILINK_RE.sub(lambda match: _import_wikilink(match, resolve, titles), body)
+        body = BODY_LINK_RE.sub(lambda match: _import_wikilink(match, resolve, titles), body)
         if unresolved:
             kept = "\n".join(f"[[{text}]]" for text in unresolved)
             body = (body + "\n\n" if body else "") + kept
@@ -564,27 +594,37 @@ def document_to_record(
 
 
 def _import_wikilink(match: re.Match, resolve: dict[str, str], titles: dict[str, str]) -> str:
-    """M-59: `[[<stem>]]` -> `[[<id>|<title>]]`, `[[<stem>|<alias>]]` -> `[[<id>|<alias>]]`; an
-    id-form link (dangling or not) and text that names no record are left as written."""
-    target, alias = match.group(1), match.group(2)
+    """M-59: an escaped link loses one backslash and stays text; `[[<stem>]]` ->
+    `[[<id>|<alias of the title>]]`, `[[<stem>|<alias>]]` -> `[[<id>|<alias>]]`; an id-form link
+    (dangling or not) and text that names no record are left as written."""
+    escapes, target, alias = match.group(1), match.group(2), match.group(3)
+    if escapes:
+        return match.group(0)[1:]
     if RECORD_ID_RE.match(target):
         return match.group(0)
     record_id = resolve.get(stem_key(target))
     if record_id is None:
         return match.group(0)
-    return f"[[{record_id}|{alias or titles.get(record_id) or target}]]"
+    return f"[[{record_id}|{alias or alias_of(titles.get(record_id) or target)}]]"
+
+
+def instant(timestamp: str) -> datetime:
+    """A frontmatter timestamp as an instant: compared as time, never as text (`.` sorts before
+    `Z`, so `12:00:00.500Z` is not earlier than `12:00:00Z`)."""
+    return datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
 
 
 def merge_hub(store_hub: dict, imported: dict, now: str) -> dict:
-    """M-59: the imported hub's title, fields, body and `updated` replace the store's; links are
-    united (`updated` becomes `now` when the union adds a link the file did not carry); `created`
-    is the earlier of the two; `source` stays `person`; the id stays `self`."""
+    """M-59: the imported hub's title, fields, body, tags, `demo`, `valid_until` and `updated`
+    replace the store's (absent included); links are united (`updated` becomes `now` when the
+    union adds a link the file did not carry); `created` is the earlier instant of the two;
+    `source` stays `person`; the id stays `self`."""
     imported_links = canonical_links(imported.get("links", []))
     links = canonical_links([*imported_links, *store_hub.get("links", [])])
     merged = {
         **copy.deepcopy(imported),
         "id": "self",
-        "created": min(store_hub["created"], imported["created"]),
+        "created": min(store_hub["created"], imported["created"], key=instant),
         "source": {"kind": "person"},
     }
     if links != imported_links:
@@ -965,6 +1005,59 @@ def property_names(schema, found: set[str] | None = None) -> set[str]:
     return found
 
 
+# Keywords under which a property name can hide from M-19's name rule, refused in a custom
+# type's field schema (`custom_type_schema_open`).
+HIDING_KEYWORDS = (
+    "allOf",
+    "anyOf",
+    "oneOf",
+    "not",
+    "if",
+    "then",
+    "else",
+    "patternProperties",
+    "propertyNames",
+    "dependentSchemas",
+    "unevaluatedProperties",
+    "unevaluatedItems",
+    "prefixItems",
+    "contains",
+)
+
+
+def open_schema_reason(schema, path: str = "") -> str | None:
+    """M-19: a custom fields schema is **closed** when every subschema declares `type` (or a
+    `const`/`enum`), every object lists its `properties` with `additionalProperties: false`,
+    every array has an `items` schema, and no keyword of HIDING_KEYWORDS appears; then every
+    property name an instance can hold is one the name rule saw. Returns why it is not."""
+    where = path or "/"
+    if not isinstance(schema, dict):
+        return f"{where}: a boolean schema"
+    hidden = [keyword for keyword in HIDING_KEYWORDS if keyword in schema]
+    if hidden:
+        return f"{where}: uses {hidden[0]}"
+    declared = schema.get("type")
+    if declared is None:
+        return None if "const" in schema or "enum" in schema else f"{where}: no type"
+    types = declared if isinstance(declared, list) else [declared]
+    if "object" in types:
+        if schema.get("additionalProperties") is not False or not isinstance(
+            schema.get("properties"), dict
+        ):
+            return f"{where}: an object without properties and additionalProperties false"
+        for name, value in schema["properties"].items():
+            reason = open_schema_reason(value, f"{path}/{name}")
+            if reason:
+                return reason
+    elif "additionalProperties" in schema or "properties" in schema:
+        return f"{where}: properties on a non-object"
+    if "array" in types:
+        if not isinstance(schema.get("items"), dict):
+            return f"{where}: an array without an items schema"
+        return open_schema_reason(schema["items"], f"{path}/items")
+    return None
+
+
 def check_custom_type(contracts: Contracts, declaration: dict, schema: dict) -> dict:
     """M-18, M-19: a package's custom type declaration, with its schema loaded. Raises Refusal.
 
@@ -997,6 +1090,9 @@ def check_custom_type(contracts: Contracts, declaration: dict, schema: dict) -> 
             None,
             f"{type_id} has unsealed properties named like sealed fields {clash}",
         )
+    reason = open_schema_reason(schema)
+    if reason:
+        raise Refusal("custom_type_schema_open", None, f"{type_id} schema: {reason}")
     return {"id": type_id, "schema_sha256": sha256_canonical(schema)}
 
 
@@ -1093,7 +1189,9 @@ def spec_records() -> tuple[list[tuple[str, str]], list[dict]]:
 
 
 def resolver_for(stems: dict[str, str], titles: dict[str, str]) -> dict[str, str]:
-    """M-59: a stem of the set first, then a title exactly one record carries."""
+    """M-59: a stem of the imported set first, then a title exactly one record of `titles`
+    carries; `titles` is the store as it will be after the import (the store and the imported
+    set)."""
     resolve = {stem_key(stem): record_id for record_id, stem in stems.items()}
     for key, record_id in title_index(titles).items():
         resolve.setdefault(key, record_id)
@@ -1206,7 +1304,10 @@ def check_proposals(
                     "memory_proposal_target_not_granted",
                     f"{where}: target {target} is not a granted record of type {proposal['type']}",
                 )
-        for link in proposal.get("links", []):
+        body_links = [
+            {"to": to, "rel": "related"} for to in body_link_ids(proposal.get("body", ""))
+        ]
+        for link in [*proposal.get("links", []), *body_links]:  # body id links are edges (M-3)
             to = link["to"]
             if to.startswith("#"):
                 sibling = int(to[1:])
@@ -1542,10 +1643,14 @@ def check_memory_folder(contracts: Contracts, folder: Path, *, label: str) -> tu
                 if link["to"] in superseded_by:
                     raise ValueError(f"{label}: {link['to']} superseded twice")
                 superseded_by[link["to"]] = record["id"]
-        # M-3: a stored body is in its write-time form (id links with an alias; no plain link
-        # that names exactly one record).
-        if normalize_body_links(record.get("body", ""), titles) != record.get("body", ""):
-            raise ValueError(f"{label}: {record['id']} holds a body link not resolved as M-3 says")
+        # M-3: a stored id link to an existing record carries an alias (a bare `[[<id>]]` only
+        # for a dangling id), and an agent body links nowhere (M-49).
+        body = record.get("body", "")
+        if record["scope"] == "agent" and body_link_ids(body):
+            raise ValueError(f"{label}: the agent document {record['id']} holds a link")
+        for match in BODY_LINK_RE.finditer(body):
+            if not match.group(1) and match.group(2) in by_id and match.group(3) is None:
+                raise ValueError(f"{label}: {record['id']} holds a bare id link (M-3)")
     for start in superseded_by:
         seen, current = set(), start
         while current in superseded_by:
@@ -1559,6 +1664,9 @@ def check_memory_folder(contracts: Contracts, folder: Path, *, label: str) -> tu
             raise ValueError(f"{label}: index.md does not list {record['id']}")
     usage_path = folder / "memory-usage.json"
     usage = load_json(usage_path) if usage_path.exists() else []
+    order = [(instant(e["at"]), e["record_id"], USAGE_USES.index(e["use"])) for e in usage]
+    if order != sorted(order):  # M-29: the canonical order of the log
+        raise ValueError(f"{label}: memory-usage.json is not in canonical order (M-29)")
     for entry in usage:
         record = by_id.get(entry["record_id"])
         if record is None or entry["use"] not in USAGE_USES:
@@ -1710,6 +1818,12 @@ def check_negative_cases(contracts: Contracts) -> dict:
         "memory_proposal_link_not_granted",
         with_proposal(links=[{"to": "mem_ffffffffffffffffffffffffffffffff", "rel": "related"}]),
     )
+    expect(  # a body id link is an edge too (M-3), so step 6 covers it
+        "N14 body",
+        "permission_denied",
+        "memory_proposal_link_not_granted",
+        with_proposal(body="See [[mem_ffffffffffffffffffffffffffffffff|my passport]]."),
+    )
     expect(
         "N15",
         "schema_validation",
@@ -1809,6 +1923,31 @@ def check_negative_cases(contracts: Contracts) -> dict:
             "additionalProperties": False,
         },
     )
+    # N21: a schema under which a name can hide from the name rule is refused (M-19).
+    for case, member in (
+        ("N21 open object", {"type": "object"}),
+        (
+            "N21 anyOf",
+            {"anyOf": [{"type": "object", "properties": {"mail": {"type": "string"}}}]},
+        ),
+        (
+            "N21 patternProperties",
+            {
+                "type": "object",
+                "properties": {},
+                "patternProperties": {"^e": {"type": "string"}},
+                "additionalProperties": False,
+            },
+        ),
+        ("N21 untyped", {}),
+        ("N21 array without items", {"type": "array"}),
+    ):
+        expect_type(
+            case,
+            "custom_type_schema_open",
+            loyalty,
+            {"type": "object", "properties": {"member": member}, "additionalProperties": False},
+        )
     accepted = check_custom_type(
         contracts,
         loyalty,
@@ -1844,6 +1983,39 @@ def check_negative_cases(contracts: Contracts) -> dict:
         "agent document of 20,000 characters",
     )
     cases["agent body 20,000"] = "accepted"
+    # N20: an agent body is stored, exported and imported exactly as written; its wikilinks are
+    # text and never resolved against the store (M-3, M-49), so the next run learns nothing.
+    probe = (
+        "[[Alex Traveler]] [[Home travel profile]] "
+        f"[[{identity['id']}]] [[{identity['id']}|x]] [[self]]"
+    )
+    agent_record = {
+        "id": agent_document_id(package_id),
+        "type": "agent.memory",
+        "title": "Notes",
+        "scope": "agent",
+        "created": stamp,
+        "updated": stamp,
+        "source": {
+            "kind": "agent",
+            "package_id": package_id,
+            "package_version": "1.0.0",
+            "run_id": "run-1",
+        },
+        "fields": {"package_id": package_id},
+        "body": probe,
+    }
+    agent_type = contracts.type_of("agent.memory")
+    titles = {record["id"]: record["title"] for record in records}
+    stored = document_to_record(record_to_document(agent_record, agent_type, titles=titles))
+    stems = stems_for([*records, stored])
+    exported = record_to_document(stored, agent_type, export=True, stems=stems, titles=titles)
+    imported = document_to_record(
+        exported, export=True, resolve=resolver_for(stems, titles), titles=titles
+    )
+    if stored["body"] != probe or imported["body"] != probe:
+        raise ValueError("N20: an agent body was rewritten against the store")
+    cases["N20"] = "agent body kept as written"
     try:
         check_record(
             contracts,
@@ -1880,14 +2052,37 @@ def check_round_trip(contracts: Contracts) -> dict:
     """Export then import gives back the same record (M-60) for every link form: links stored
     in canonical order (M-9), a body alias equal to the title, another alias, no alias, a target
     whose stem differs from its title, a dangling target in the frontmatter and in the body, a
-    plain-text link that names no record (M-3, M-57, M-59); a property item that names no record
-    is kept as body text; and the hub after "Forget everything" is restored byte for byte."""
+    plain-text link that names no record (M-3, M-57, M-59); text the export must not turn into
+    an edge: a title two records carry, a target's stem typed as text, a record created after the
+    body was written, an escaped link; a title holding `[`, `]` and `|` as an alias; a property
+    item that names no record is kept as body text; and the hub after "Forget everything" is
+    restored byte for byte, its `created` compared as instants."""
     _, store = spec_records()
+    stamp = "2026-10-14T14:00:00Z"
+
+    def extra(number: int, title: str) -> dict:
+        return {
+            "id": f"mem_{number:032x}",
+            "type": "document.note",
+            "title": title,
+            "scope": "user",
+            "created": stamp,
+            "updated": stamp,
+            "source": {"kind": "person"},
+            "fields": {},
+            "body": "",
+        }
+
+    # Two records share a title, so a plain `[[Trip ideas]]` names none of them (M-3); a title
+    # holds the characters a wikilink cannot carry; "Shopping list" is created after the note.
+    twins = [extra(1, "Trip ideas"), extra(2, "Trip ideas")]
+    bracket = extra(3, "Seat [aisle] | window")
+    store = [*store, *twins, bracket]
+    later = extra(4, "Shopping list")
     titles = {record["id"]: record["title"] for record in store}
     coffee = next(r["id"] for r in store if r["title"] == "Coffee: no sugar")  # stem differs
     profile = next(r["id"] for r in store if r["type"] == "research.profile")
     gone = "mem_ffffffffffffffffffffffffffffffff"  # a deleted record (M-25, M-27)
-    stamp = "2026-10-14T14:00:00Z"
     note = {
         "id": "mem_0123456789abcdef0123456789abcdef",
         "type": "document.note",
@@ -1910,7 +2105,11 @@ def check_round_trip(contracts: Contracts) -> dict:
             f"Another alias: [[{profile}|my profile]].\n"
             "No alias: [[self]].\n"
             f"Deleted: [[{gone}|Gone]].\n"
-            "Plain text that names no record: [[Shopping list]]."
+            "Plain text that names no record: [[Shopping list]].\n"
+            "A title two records carry: [[Trip ideas]].\n"
+            "A stem typed as text: [[Coffee- no sugar]].\n"
+            "Escaped: \\[[Dario]].\n"
+            f"Brackets in the title: [[{bracket['id']}]]."
         ),
     }
     type_def = contracts.type_of("document.note")
@@ -1925,10 +2124,19 @@ def check_round_trip(contracts: Contracts) -> dict:
     ]
     if stored["links"] != expected_links:
         raise ValueError(f"stored links are not canonical: {stored['links']}")
-    if "[[self|Dario]]" not in stored["body"] or f"[[{gone}|Gone]]" not in stored["body"]:
-        raise ValueError("the write did not normalize the body links as M-3 says")
+    for expected in (
+        "[[self|Dario]]",
+        f"[[{gone}|Gone]]",
+        "[[Shopping list]]",
+        "[[Trip ideas]]",
+        "[[Coffee- no sugar]]",
+        "\\[[Dario]]",
+        f"[[{bracket['id']}|Seat -aisle- - window]]",
+    ):
+        if expected not in stored["body"]:
+            raise ValueError(f"the write did not give {expected!r} as M-3 says")
     # The export (M-57).
-    records = [*store, stored]
+    records = [*store, later, stored]
     stems = stems_for(records)
     all_titles = {record["id"]: record["title"] for record in records}
     exported = record_to_document(stored, type_def, export=True, stems=stems, titles=all_titles)
@@ -1945,7 +2153,11 @@ def check_round_trip(contracts: Contracts) -> dict:
         "[[Research profile|my profile]]",
         "No alias: [[Dario]]",
         f"[[{gone}|Gone]]",
-        "[[Shopping list]]",
+        "\\[[Shopping list]]",
+        "\\[[Trip ideas]]",
+        "\\[[Coffee- no sugar]]",
+        "\\\\[[Dario]]",
+        "[[Seat -aisle- - window]]",
         f"- derived_from: [[{gone}]]",
     ):
         if expected not in body:
@@ -1957,9 +2169,9 @@ def check_round_trip(contracts: Contracts) -> dict:
     digest_sha = sha256_canonical(type_def["schema"])
     if record_digest_input(imported, digest_sha) != record_digest_input(stored, digest_sha):
         raise ValueError("the import does not reproduce the digest input")
-    if record_to_document(imported, type_def, titles=all_titles) != record_to_document(
-        stored, type_def, titles=all_titles
-    ):
+    if imported["body"] != stored["body"] or record_to_document(
+        imported, type_def
+    ) != record_to_document(stored, type_def):
         raise ValueError("the import does not reproduce the stored document")
     # A property item that names no record is kept as body text, not an edge (M-59).
     edited = exported.replace('about:\n  - "[[Research profile]]"', 'about:\n  - "[[Nobody]]"')
@@ -1985,6 +2197,10 @@ def check_round_trip(contracts: Contracts) -> dict:
     merged = merge_hub(fresh, hub, "2026-10-14T15:01:00Z")
     if record_to_document(merged, self_type) != record_to_document(hub, self_type):
         raise ValueError("the hub is not restored byte for byte after Forget everything")
+    # `created` is compared as an instant: a fraction is not earlier than the whole second.
+    fraction = {**copy.deepcopy(hub), "created": "2026-10-14T09:00:00.500Z"}
+    if merge_hub(fraction, hub, "2026-10-14T15:01:00Z")["created"] != hub["created"]:
+        raise ValueError("hub merge compared `created` as text")
     # The ordinary case: the store's hub is older and holds a link the file does not.
     older = {**copy.deepcopy(hub), "created": "2026-10-01T09:00:00Z"}
     older["links"] = [{"to": profile, "rel": "about"}]
@@ -1996,7 +2212,7 @@ def check_round_trip(contracts: Contracts) -> dict:
     return {
         "links": len(expected_links),
         "dangling": 1,
-        "body_link_forms": 5,
+        "body_link_forms": 10,
         "hub_restored": True,
     }
 
