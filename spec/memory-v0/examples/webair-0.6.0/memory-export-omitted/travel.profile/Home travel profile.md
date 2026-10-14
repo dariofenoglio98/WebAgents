@@ -15,8 +15,10 @@ about:
   - "[[Dario]]"
 prefers:
   - "[[Aisle seat]]"
+pays_with:
+  - "[[Demo Visa •••• 4242]]"
 supersedes:
-  - "[[Home travel profile]]"
+  - "[[Home travel profile (7c1f0a4e)]]"
 source:
   kind: "package"
   package_id: "org.webagents.webair"
@@ -32,4 +34,5 @@ Used for most trips. Business only when someone else pays.
 ## Links
 - about: [[Dario]]
 - prefers: [[Aisle seat]]
-- supersedes: [[Home travel profile]]
+- pays_with: [[Demo Visa •••• 4242]]
+- supersedes: [[Home travel profile (7c1f0a4e)]]

@@ -5,11 +5,16 @@ D-188, D-210…D-219). The enclosing agent.pkg format stays 0.1 and `workflow.v0
 profile: this document adds a host-owned store, three permission uses and one export format. Machine
 contracts live beside it in [`spec/memory-v0/`](memory-v0/): `memory-record.schema.json`,
 `memory-type.schema.json`, `memory-proposals.schema.json`, `memory-record-view.template.json`, the
-starter taxonomy `taxonomy.json`, and RFC 6902 patches for `policy.schema.json`,
-`workflow.schema.json` and the policy-bundle schema. `scripts/check_memory_spec.py` validates every
-example in this document and the two worked examples under `memory-v0/examples/` against those
-contracts. Rules are numbered **M-n** so that a test can cite one; the table in §13 maps every rule
-of D-184 to its number.
+four schemas of the agent-document tools (`memory-empty-input.schema.json`,
+`memory-agent-read.output.schema.json`, `memory-agent-write.input.schema.json`,
+`memory-agent-write.output.schema.json`), the starter taxonomy `taxonomy.json`, and RFC 6902 patches
+for `policy.schema.json`, `workflow.schema.json` and the policy-bundle schema.
+`scripts/check_memory_spec.py` validates every example in this document and the two worked examples
+under `memory-v0/examples/` against those contracts, and refuses the negative cases of §10 with the
+codes given there. Rules are numbered **M-n** so that a test can cite one; the table in §13 maps
+every rule of D-184 to its number. **Every size limit in this document counts Unicode code points**,
+as JSON Schema's `maxLength` does, so the schema is the check; byte counts appear only in audit
+fields, where they are informational.
 
 Vocabulary, kept apart as everywhere in this project: a **record** is what the person's memory holds;
 a **type** is its schema with its sealed fields; a **recall** is the host offering records of a
@@ -60,19 +65,28 @@ in exactly this form; the host's secret store additionally encrypts sealed value
 | `valid_until` | no | `YYYY-MM-DD` | After this date the record is **expired**: still held, demoted in recall, listed in Tidy up (D-219). |
 | `source` | yes | §2.2 | Provenance: who wrote the record and from which run. |
 | the type's fields | per type | top-level keys (Q8) | Every key that is not reserved (§2.4) is a field, validated by the type's schema. |
-| `sealed` | no | JSON Pointers into the fields | The fields whose values are sealed for this record. Must include every sealed field of the type; the person may add pointers, never remove the type's (M-24). Omitted when empty. |
+| `sealed` | no | JSON Pointers into the fields | The fields whose values are sealed for this record. **Always lists every sealed pointer of the type**, whether or not the field holds a value, plus the pointers the person added; the person may add pointers, never remove the type's (M-24). Omitted only for a type with no sealed fields and no additions. |
 | `links` | no | `[{to: <id>, rel: <relation>}]`, ≤ 64 | Typed edges to other records (§5). In an export they are written per relation (§8.2). Omitted when empty. |
 | `tags` | no | `^[a-z0-9][a-z0-9_/-]{0,47}$`, ≤ 32, unique | Free classification, lowercased on write. Omitted when empty. |
 | `demo` | no | boolean | Part of the labelled fictional demo set (D-051). Omitted when false. |
 
 M-3. The **body** is UTF-8 Markdown, NFC-normalized, LF line endings, no trailing whitespace at its
-end (the writer adds one final newline), at most 16,384 bytes. A `[[<id>|<title>]]` wikilink in the
-body is an edge of relation `related` (§5.1); the alias is a cached title, never authoritative.
+end (the writer adds one final newline), at most 16,384 characters. A `[[<id>|<title>]]` wikilink in
+the body, with a well-formed record id as its target, is an edge of relation `related` (§5.1); the
+alias is a cached title, never authoritative. **Wikilinks are resolved at write time:** when a body
+is written (M-24) every `[[<text>]]` or `[[<text>|<alias>]]` whose target is not an id and equals the
+title of exactly one record of the store (NFC, case-insensitive) is rewritten to `[[<id>|<text>]]`
+(the alias kept when given), so that a stored body holds its edges in id form; a wikilink that
+matches no record, or more than one, is kept as written, is **not** an edge, and is reported as
+dangling text (M-27). An export reverses the rewrite exactly (M-57) and an import applies it again
+(M-59), so an export then import of the same store changes no body.
 
 M-4. **Sealed values live only in fields.** A title, a tag or a body that contains a sealed value of
 the same record (case-insensitive, anywhere) is refused `sealed_value_in_text`. A sealed value is a
-string of at least 6 characters (D-051); a sealed pointer that resolves to anything else is refused
-`sealed_field_invalid`.
+string of at least 6 characters (D-051); a sealed pointer that resolves to a value of any other kind
+is refused `sealed_field_invalid`. A sealed pointer may resolve to nothing: the field is optional in
+the type and absent from the record (a contact without a phone), and the pointer is still listed in
+`sealed`.
 
 An example, as stored (fields flat, links in the stored form):
 
@@ -161,10 +175,16 @@ line, the body, one final newline.
 
 M-10. The host stores every record with its sealed field values **replaced** by ciphertext under
 the store's master key (D-191: AES-256-GCM, a fresh IV, AAD `memory|<record id>|<pointer>`), and
-everything else in clear in the memory store. A locked store therefore shows titles, fields and bodies
-and masks sealed values; unlocking is needed to reveal, edit, grant or export a sealed value. A record
-whose sealed field cannot be decrypted (a changed key, a tampered entry) is shown with that field as
-**unreadable**, is never granted, and is listed in Tidy up.
+everything else in clear in the memory store. **A locked store is read-only:** it shows titles,
+unsealed fields, bodies, tags, links and the graph, masks every sealed value, and refuses every write
+(`store_locked`): an edit, a new record, a deletion, the acceptance of a proposal, an import, the
+migration and the commit of an agent document all need the unlocked store, because the digest (M-11)
+and the sealed-value checks of M-24 need the values and the memory key in clear. A proposal review
+that arrives while the store is locked waits ("Unlock to review"); the proposals file stays in the
+Run Record meanwhile. Reveal, grant and the export of a sealed value need the unlocked store as well.
+A record whose sealed field cannot be decrypted (a changed key, a tampered entry) is shown with that
+field as **unreadable**, is never granted, and is listed in Tidy up. The Python reference's memory
+directory holds its key file beside the records (M-63) and is never locked.
 
 ## 3. Canonical form and digest
 
@@ -221,12 +241,15 @@ M-15. A `memory.read` tool returns the **record view** of the granted record:
 
 ```json
 {"id": "<record id>", "type": "<type id>", "title": "<title>", "fields": {…},
- "body": "<body>", "tags": ["…"]}
+ "body": "<body>", "tags": ["…"], "sealed": ["/email", …]}
 ```
 
 with the sealed values present in `fields` (the run was granted the record; where the values may go
-from there is §7.1's egress rule), `body` as stored and `tags` as stored. Timestamps, provenance and
-links are not handed to a run: a package learns what the person chose, not how they organise it.
+from there is §7.1's egress rule), `body` as stored, `tags` as stored, and `sealed` the record's
+sealed pointers as stored (the type's and the person's additions), so that a package knows which
+values it may send only to the tools linking the grant and must leave out of a proposal (M-40).
+Timestamps, provenance and links are not handed to a run: a package learns what the person chose,
+not how they organise it.
 
 M-16. The **record view schema** of a type is built from the type by this construction, and nothing
 else; both runtimes and `check_memory_spec.py` produce the same bytes:
@@ -240,9 +263,10 @@ else; both runtimes and `check_memory_spec.py` produce the same bytes:
    "title": {"type": "string", "minLength": 1, "maxLength": 200},
    "fields": <the type's schema, verbatim, with any top-level "$schema" removed>,
    "body": {"type": "string", "maxLength": 16384},
-   "tags": {"type": "array", "items": {"type": "string", "pattern": "^[a-z0-9][a-z0-9_/-]{0,47}$"}, "maxItems": 32, "uniqueItems": true}
+   "tags": {"type": "array", "items": {"type": "string", "pattern": "^[a-z0-9][a-z0-9_/-]{0,47}$"}, "maxItems": 32, "uniqueItems": true},
+   "sealed": {"type": "array", "items": {"type": "string", "minLength": 2, "maxLength": 256, "pattern": "^(/[^/]+)+$"}, "maxItems": 16, "uniqueItems": true}
  },
- "required": ["id", "type", "title", "fields", "body", "tags"],
+ "required": ["id", "type", "title", "fields", "body", "tags", "sealed"],
  "additionalProperties": false}
 ```
 
@@ -279,12 +303,16 @@ new approval. Custom types are `declared_by: {kind: "package", package_id}`.
 
 M-19. **Sealed fields come from the well-known list or from the person, never from a package.** A
 custom type whose definition lists sealed fields is refused (`custom_type_sealed`); the person may seal
-fields of their own records of that type (M-24). A custom type may not be a well-known sealed type
-under another name: if the set of its top-level property names is a superset of the top-level property
-names of any starter type that has sealed fields (`person.identity`, `contact`, `payment.card`), the
-declaration is refused `custom_type_shadows_sealed_type`; the check is by property name over the
-schemas as declared, before any approval. A custom id in a reserved family (`person.`, `payment.`,
-`agent.`, `memory.`) is refused `custom_type_reserved`.
+fields of their own records of that type (M-24). A custom type may not hold, unsealed, what a starter
+type seals: a custom type with a top-level property whose name is a sealed field name of any starter
+type (today `email`, `phone`, `date_of_birth`, `payment_method_id`; the list is computed from the
+taxonomy, never written into a runtime) is refused `custom_type_shadows_sealed_type`, whatever its
+other properties, so that leaving one field out cannot evade the check; a package that needs such a
+value reads `person.identity`, `contact` or `payment.card` by grant. The check is by property name
+over the schema as declared, before any approval. A custom local id equal to any well-known id
+(`contact`, `travel.profile`, …) or in a reserved family (`person.`, `payment.`, `agent.`,
+`memory.`) is refused `custom_type_reserved`, so that `memory.write resources: ["contact"]` can never
+be ambiguous.
 
 ## 5. The graph
 
@@ -328,12 +356,14 @@ M-23. Two layers the Memory page may draw and never stores:
 
 ### 5.4 Integrity
 
-M-24. On every write (create, edit, accept, import, migrate) the host checks: the frontmatter
-against `memory-record.schema.json`; the fields against the type schema; every sealed pointer of the
-type present in `sealed` and resolving to a string of at least 6 characters; the title, tags and body
-free of the record's sealed values (M-4); the caps of §2 and §12; `supersedes` acyclic over the whole
-store (`supersedes_cycle`) and at most one superseder per record (`superseded_twice`); link targets
-well-formed ids. A write that fails any check changes nothing.
+M-24. On every write (create, edit, accept, import, migrate) the host, with the store unlocked
+(M-10), checks: the frontmatter against `memory-record.schema.json`; the fields against the type
+schema; `sealed` a superset of the type's sealed pointers, every listed pointer resolving to a string
+of at least 6 characters or to nothing (M-4); the title, tags and body free of the record's sealed
+values (M-4); the body's wikilinks resolved as M-3 says; the caps of §2 and D-212 (the canonical JSON
+of `fields` at most 16,384 characters, `memory_record_too_large`); `supersedes` acyclic over the
+whole store (`supersedes_cycle`) and at most one superseder per record (`superseded_twice`); link
+targets well-formed ids. A write that fails any check changes nothing.
 
 M-25. **Deletion.** Deleting a record removes it and its sealed values. Links to it in other records
 stay as they are and are reported dangling (M-27); a record it superseded becomes a head again. `self`
@@ -359,8 +389,10 @@ may cache it but must not export it or trust a cache that predates a write.
 M-29. The **usage log** is a bounded list the host keeps beside the records (never inside one, so
 that use does not move a digest): `{record_id, use, package_id, package_version, run_id, at}` with
 `use` one of `read` (a run read the record), `proposed` (a run proposed it; the record is the one
-created at acceptance), `accepted`, `agent_read`, `agent_write`. At most 65,536 entries; the oldest
-are dropped first. It feeds recall ranking, "where used" on the record card and the package layer; it
+created at acceptance, and `at` is the instant of the run's `memory.proposed` audit event, so the
+entry is written at acceptance but dated at the proposal), `accepted` (`at` = the acceptance),
+`agent_read`, `agent_write` (`at` = the tool call). At most 65,536 entries; the oldest are dropped
+first. It feeds recall ranking, "where used" on the record card and the package layer; it
 is exported as `memory-usage.json` (§8.1) and imported when present.
 
 ## 6. Retrieval
@@ -384,8 +416,9 @@ derived state (M-28 applies) and is never exported. Embeddings are B-184.
 ### 6.3 Recall ranking
 
 M-32. For a `memory.read` (or `personal.read`) request of type T, the host computes the candidate
-list as a **pure function** of the store, the usage log and the plan under preparation, so that both
-runtimes and a test agree on the order:
+list as a **pure function** of the store, the usage log, the plan under preparation and one instant,
+**the receipt's `created_at`** (the plan under preparation inherits it; "today" below is that
+instant's UTC date), so that both runtimes and a test agree on the order:
 
 1. Candidates: records of type T (or of the type whose `legacy` names T), `scope: user`, not
    superseded (M-26), with every sealed field readable (M-10).
@@ -444,21 +477,34 @@ threat model, § User memory), and the same framing applies to the agent documen
 
 M-36. **Egress: tools** (carried over from `personal.read`, D-011). Before every tool call except a
 memory read, the arguments are scanned (case-insensitive, anywhere, keys included, no depth cut-off)
-for the sealed values of **every** record the host holds: a sealed value of a record this run was not
-granted may go nowhere (`permission_denied`, `sealed_value_not_granted`); a granted one may go only to
-a tool whose permissions include the permission it was granted under (`permission_denied`,
-`sealed_value_egress`). A scan that cannot finish refuses. The signed package therefore states where
-each sealed value may go: a tool that sends a record to a service links the record's permission.
+for the run's **scan set**: a sealed value of a record this run was not granted may go nowhere
+(`permission_denied`, `sealed_value_not_granted`); a granted one may go only to a tool whose
+permissions include the permission it was granted under (`permission_denied`, `sealed_value_egress`).
+A scan that cannot finish (more strings than the scanner's ceiling) refuses. The signed package
+therefore states where each sealed value may go: a tool that sends a record to a service links the
+record's permission.
+
+**The scan set** of a run is fixed when the run starts and is the same for M-36, M-37 and M-40: the
+sealed values, by record id and pointer, of **every record of the store** when the run is **opened
+with the store**, and **empty** otherwise. A run is opened with the store exactly when its plan
+grants a memory record (a `memory.read` or alias grant) or binds a memory tool (`host.memory.*`,
+`host.resource.*`), which under D-195 needs the store unlocked before the run starts; any other run
+(Literature Review on Ollama with no memory permission) is opened without it, holds no sealed value,
+and runs while the store is locked. That is sufficient because a sealed value can enter such a run
+only from outside the store (the task input, a tool's answer), which the guard does not police: it
+is an exact-value check over values the host holds, not data-loss prevention. The locked-store case
+never refuses a model call: a run that needs the store does not start while it is locked, and a run
+that does not need it has an empty scan set.
 
 M-37. **Egress: models** (new, Q2). Before every model request, including the token count that
 precedes it, the complete request as it will be sent (task, instructions, data, schema, feedback)
-is scanned the same way for the sealed values of every record the host holds; a hit refuses the
-call before anything leaves (`permission_denied`, `sealed_value_in_model_request`, naming the record
-id and the pointer, never the value), and the node fails `permission_denied`. This holds in every
-mode, fixture included: a package's graph that routes a sealed value into a model step is refused
-mechanically in both runtimes, where today it is refused by the package's own read sets and a test-time
-observer. Unsealed fields (a home airport, a cabin) are ordinary data and may reach a model when the
-graph routes them there.
+is scanned the same way for the scan set; a hit refuses the call before anything leaves
+(`permission_denied`, `sealed_value_in_model_request`, naming the record id and the pointer, never
+the value), and the node fails `permission_denied`. This holds in every mode, fixture included
+(M-62 says what the scan set is in fixture mode): a package's graph that routes a sealed value into
+a model step is refused mechanically in both runtimes, where today it is refused by the package's
+own read sets and a test-time observer. Unsealed fields (a home airport, a cabin) are ordinary data
+and may reach a model when the graph routes them there.
 
 ### 7.2 `memory.write`: proposals only
 
@@ -490,24 +536,38 @@ export and must match `memory-proposals.schema.json`:
 
 At most 8 proposals; `title` as M-2; `fields`, `body` and `tags` as a record's; `links` ≤ 64 with
 `to` one of `self`, a record id this run was granted, or `#<n>` naming another proposal of the same
-document by index; `rationale` 1–500 characters, shown to the person as the package's words;
-`target` required for `update` and forbidden for `create`.
+document by index, and `rel` any relation **except `supersedes`** (the schema refuses it: only an
+`update` supersedes, through its `target`, and only at acceptance, M-42); `rationale` 1–500
+characters, shown to the person as the package's words; `target` required for `update` and forbidden
+for `create`.
 
 M-40. **Host checks on completion.** After the export is constructed and before the run is reported
-complete, both runtimes check, in this order, and fail the run on the first hit:
-1. the document against the schema (`schema_validation`);
+complete, both runtimes check the document in memory, in this order, and fail the run on the first
+hit; **the file is written only when every check passes**, so that a refused document, which may
+hold a sealed value, never reaches the Run Record (the failure's code and the proposal index are what
+the record and the audit carry):
+1. the document against the schema (`schema_validation`; a `supersedes` link fails here);
 2. every `type` is one of the permission's `resources` (a custom local id resolved as §4.4), else
    `permission_denied` (`memory_proposal_type_undeclared`);
-3. no proposal's `fields` contains a pointer the type seals, else `schema_validation`
-   (`memory_proposal_sealed_field`): a proposal never carries a sealed value;
-4. every proposal's `fields` validates against the type's schema **with the sealed pointers removed
-   from `required`** (a required sealed field is what the person types at acceptance), else
-   `schema_validation`;
-5. every `update` names a `target` among the ids this run was granted (M-12) of the same type, else
-   `permission_denied` (`memory_proposal_target_not_granted`);
-6. every link `#<n>` names an existing other proposal, else `schema_validation`.
-A run whose `memory.write` permission was denied still produces and checks the file (a package bug
-is a package bug) and the audit records `memory.proposed` with `offered: 0` and `reason:
+3. no proposal's `fields` contains a pointer the type seals, nor, for an `update`, a pointer the
+   target record seals (the person's additions, M-24; the view told the package which, M-15), else
+   `schema_validation` (`memory_proposal_sealed_field`): a proposal never carries a sealed field;
+4. every proposal's `fields` validates against the type's schema **with those sealed pointers
+   removed from `required`** (a required sealed field is what the person types at acceptance, or
+   what an update carries over, M-42), else `schema_validation`;
+5. every `update` names a `target` among the ids this run was granted (M-12) and the target's type
+   equals the proposal's `type`, else `permission_denied` (`memory_proposal_target_not_granted`);
+6. every link's `to` is `self`, an id this run was granted, or `#<n>` naming an existing **other**
+   proposal: a `#<n>` that does not is `schema_validation`; a record id the run was not granted,
+   learned in an earlier run or guessed, is `permission_denied` (`memory_proposal_link_not_granted`);
+7. **no sealed value anywhere in the document:** every string of the canonical document (titles,
+   fields at any depth, bodies, tags, rationales, keys) is scanned with M-36's scanner for the run's
+   scan set, else `permission_denied` (`sealed_value_in_proposal`, naming the proposal index, the
+   record id and the pointer, never the value). Step 3 catches a sealed *field*; this step catches a
+   sealed *value* copied into an unsealed place (an e-mail as a `travel.preference` value, a card
+   token in a body), which M-1 refuses.
+A run whose `memory.write` permission was denied still produces and checks the document (a package
+bug is a package bug) and the audit records `memory.proposed` with `offered: 0` and `reason:
 "permission_denied"`; nothing is reviewed. A signed policy with `memory.proposals: "refuse"` has
 the same effect (`reason: "policy"`).
 
@@ -517,20 +577,31 @@ and the types). The host offers the review after the run ends (or at a consent s
 `conversation.v0` exists, D-186). Until the person acts, no record exists, no link exists, and the
 usage log holds no `proposed` entry.
 
-M-42. **Acceptance (D-213).** The review shows each proposal with the package's rationale, the type
-(with "new type" and its description when the type was approved at first use), the fields, the body,
-the links as edges to existing titles, and the record it would replace (M-44). Per proposal the
-person may **accept**, **edit then accept** (title, unsealed fields, body, tags, links; a required
-sealed field is typed here and only here), or **reject**. Acceptance writes:
+M-42. **Acceptance (D-213).** The review (in an unlocked store, M-10) shows each proposal with the
+package's rationale, the type (with "new type" and its description when the type was approved at
+first use), the fields, the body, the links as edges to existing titles, the record it would replace
+(M-44), and, for an `update`, **what is kept from the record it replaces** (its sealed values by
+field name, its links the proposal did not carry). Per proposal the person may **accept**, **edit
+then accept** (title, unsealed fields, body, tags, links; a sealed field is typed here and only here,
+and for an update is pre-filled from the target), or **reject**. Acceptance writes:
 - for `create`: one record `{id: fresh, type, title, scope: "user", created: now, updated: now,
   source: {kind: "package", package_id, package_version, run_id, proposal: n, accepted: now},
-  fields, sealed: the type's sealed pointers, links: the type's `default_links` ∪ the proposal's
-  links resolved (`self` as is; a granted id as is; `#m` → the id of sibling m, which must already be
-  accepted in this review, else the link is listed as "to a proposal you rejected" and left out with
-  that note), tags, demo: false}`;
-- for `update`: the same record plus the link `{to: target, rel: "supersedes"}`; the target is kept
-  and becomes superseded (M-26); its other links are not copied;
-- the usage log entries `proposed` and `accepted` for the new record;
+  fields, sealed: the type's sealed pointers, links: the type's `default_links`, then the proposal's
+  links in order, resolved (`self` as is; a granted id as is; `#m` → the id of sibling m, which must
+  already be accepted in this review, else the link is listed as "to a proposal you rejected" and
+  left out with that note), tags, demo: false, valid_until: the proposal's when given}`, duplicate
+  `{to, rel}` pairs dropped;
+- for `update`: the same record, **carrying over from the target what the run never saw and could
+  not send**: the target's value at every sealed pointer the proposal left out (the type's and the
+  person's additions; the person may retype one in the edit form), the target's `sealed` pointers,
+  the target's out-links except its own `supersedes` link (appended after the proposal's links, in the
+  target's order, duplicates dropped), `demo`, and `valid_until` unless the proposal sets one; then
+  the link `{to: target, rel: "supersedes"}` last. The target is kept and becomes superseded (M-26).
+  When the target is no longer a head at review time (another record superseded it since the plan
+  was made), the sheet says so and offers to replace the chain's **head** instead (the link then
+  targets the head) or to keep the new record without replacing anything (no `supersedes` link); a
+  second superseder is never written (`superseded_twice` cannot occur through a review);
+- the usage log entries `proposed` and `accepted` for the new record (`at` as M-29 says);
 - the review's outcome in the Run Record (`memory.proposals.accepted`, `rejected`, by index).
 Rejection writes nothing. A proposal is reviewed once: a closed review cannot be reopened for the same
 run (the file stays inspectable).
@@ -569,12 +640,19 @@ M-48. **Declaration.** A package whose policy says `memory.scope: "agent-scoped"
 "user-managed"`, `raw_documents: false`, `sharing: "explicit_views"`; the run's state semantics are
 unchanged) declares one permission of kind `memory` whose `resources` is `["agent"]` and up to two
 `local` tools: `host.memory.agent.read` (input the empty object; output `{"body": string ≤ 32,768
-bytes, "updated": timestamp or null}`) and `host.memory.agent.write` (input `{"body": string ≤ 32,768
-bytes}`; output `{"staged": true, "bytes": integer}`), both linking that permission, `approval_required:
-true`, and the write with `max_calls_per_tool` exactly 1 (`agent_memory_write_cap` otherwise). The
-bindings are refused in a package whose scope is not `agent-scoped`, and `agent-scoped` is refused
-without the `memory`/`agent` permission (both at validation). `publisher-scoped`, `user-global` and
-`enterprise-governed` stay refused as today (PolicyError before the run).
+characters, "updated": timestamp or null}`) and `host.memory.agent.write` (input `{"body": string ≤
+32,768 characters}`; output `{"staged": true, "bytes": integer}`, `bytes` the UTF-8 size of the
+staged body), both linking that permission, `side_effects` `read` and `write`, `approval_required:
+true`, `domains: []`, and the write with `max_calls_per_tool` exactly 1 (`agent_memory_write_cap`
+otherwise). **The four schemas are exactly the files** `memory-empty-input.schema.json`,
+`memory-agent-read.output.schema.json`, `memory-agent-write.input.schema.json` and
+`memory-agent-write.output.schema.json` in `memory-v0/`: a package ships copies, and the host binds a
+reserved agent tool only when the canonical JSON of the package's input and output schemas equals
+them (`binding_schema_mismatch` otherwise, as for a `memory.read` tool, M-16), so that the registry
+hashes the same bytes in both runtimes. The bindings are refused in a package whose scope is not
+`agent-scoped`, and `agent-scoped` is refused without the `memory`/`agent` permission (both at
+validation). `publisher-scoped`, `user-global` and `enterprise-governed` stay refused as today
+(PolicyError before the run). The Literature Review example (§12) ships the pair.
 
 M-49. **One document per package.** The host keeps at most one record of type `agent.memory`,
 `scope: "agent"`, per `package_id`, with the id `agent_` + the first 16 hex characters of
@@ -594,8 +672,8 @@ Under the privacy-first preset, or a policy with `memory.agent: "refuse"`, the r
 document and the write is staged and discarded at the end with that reason: the package runs; nothing
 persists; the agent page says so.
 
-M-51. **Bounds (D-214).** The body is at most 32,768 bytes (the tool's input schema), one write per
-run, no links, no fields beyond `package_id`, no sealed field, no recall, no sharing: a package reads
+M-51. **Bounds (D-214).** The body is at most 32,768 characters (the tool's input schema, so an
+oversize write fails `schema_validation` at the tool), one write per run, no links, no fields beyond `package_id`, no sealed field, no recall, no sharing: a package reads
 only its own document (the package id is the run's, never an argument). A document's content is data
 to the next run's model, framed as the package's own stored notes (M-35, the threat model § User
 memory), never an instruction to the runtime.
@@ -608,8 +686,8 @@ anything:
 | Preset | `memory.read` | `memory.write` | agent document |
 |---|---|---|---|
 | privacy-first | `once`; the recall card pre-selects nothing: the person picks or denies | `once`; every proposal reviewed | not persisted (M-50, reason `preset`) |
-| balanced (default) | `session`; the top candidate pre-selected, one click confirms; a sealed type (payment, identity, contact) still needs the click | `session`; every proposal reviewed | persisted |
-| convenience | `session`; the top candidate of an **unsealed** type auto-selected and shown in the summary ("Using *Home travel profile* · change"); a sealed type needs the click | `session`; every proposal reviewed | persisted |
+| balanced (default) | `session`; the top candidate pre-selected, one click confirms; a sealed type (payment, identity, contact) gets the privacy-first card: nothing pre-selected, the person picks | `session`; every proposal reviewed | persisted |
+| convenience | `session`; the top candidate of an **unsealed** type auto-selected and shown in the summary ("Using *Home travel profile* · change"); a sealed type gets the privacy-first card, as under every preset | `session`; every proposal reviewed | persisted |
 
 Without a profile, `memory.read` is treated like `personal.read` in D-050's optional-permission rule
 (balanced grants it only with the person's choice; convenience grants it) and `memory.write` like a
@@ -644,10 +722,10 @@ policy's provenance like any other (D-102) and a policy can never grant: it only
 | validation | `custom_type_sealed`, `custom_type_shadows_sealed_type`, `custom_type_reserved`, `reserved_field_name` | §4.4 and M-8 |
 | binding | `binding_schema_mismatch` | a `memory.read` tool's output schema is not the type's view |
 | plan | `resource_selection_required`, `resource_changed`, `resource_removed`, `memory_type_unknown` | as for host resources; a type the host does not hold |
-| run | `permission_denied` with `sealed_value_not_granted`, `sealed_value_egress`, `sealed_value_in_model_request`, `memory_proposal_type_undeclared`, `memory_proposal_target_not_granted` | M-36, M-37, M-40 |
-| run | `schema_validation` with `memory_proposal_sealed_field` and the schema failures of M-40 | M-40 |
+| run | `permission_denied` with `sealed_value_not_granted`, `sealed_value_egress`, `sealed_value_in_model_request`, `sealed_value_in_proposal`, `memory_proposal_type_undeclared`, `memory_proposal_target_not_granted`, `memory_proposal_link_not_granted` | M-36, M-37, M-40 |
+| run | `schema_validation` with `memory_proposal_sealed_field` and the schema failures of M-40 (a `supersedes` link, a bad `#n`) | M-40 |
 | run | `tool_request_invalid`, `tool_unavailable` | M-35 |
-| store | `sealed_value_in_text`, `sealed_field_invalid`, `supersedes_cycle`, `superseded_twice`, `type_in_use`, `memory_full`, `frontmatter_invalid` | §2, §5, §7.3 |
+| store | `store_locked`, `sealed_value_in_text`, `sealed_field_invalid`, `memory_record_too_large`, `supersedes_cycle`, `superseded_twice`, `type_in_use`, `memory_full`, `frontmatter_invalid` | §2, §5, §7.3 |
 
 ## 8. Export and import (D-215)
 
@@ -662,18 +740,26 @@ M-55. An export is a folder (or a STORED zip of it, as run exports are, D-073):
 <root>/agent.memory/<stem>.md         agent documents, when the person includes them
 ```
 
-The **stem** is the title after NFC normalization with `/ \ : * ? " < > |`, control characters replaced by
-`-`, runs of whitespace collapsed to one space, leading and trailing dots and spaces removed, cut to
-100 characters; when two records of the export share a stem, every one after the first (by `id`
-ascending) gets ` (<the first 8 hex characters of its id after the prefix>)` appended. Type folders use the type id verbatim (`:` in a
-custom id becomes `-`). The same memory exports to the same bytes (M-9), so an export is comparable.
+The **stem** is the title after NFC normalization with `/ \ : * ? " < > | [ ] # ^` and control
+characters replaced by `-` (the first seven break file names, the last four break a wikilink or
+Obsidian's reading of one), runs of whitespace collapsed to one space, leading and trailing dots and
+spaces removed, cut to 100 characters. Stems are compared **case-insensitively** (Unicode case
+folding), because the file systems the folder lands on are: when two records of the export share a
+stem, the records are ordered **heads first** (a superseded record after every head), then by `id`
+ascending; the first keeps the bare stem and every other gets ` (<the first 8 hex characters of its
+id after the prefix>)` appended, so that a link typed by title in an editor reaches the current
+record, never an obsolete one. Type folders use the type id verbatim (`:` in a custom id becomes
+`-`). The same memory exports to the same bytes (M-9), so an export is comparable.
 
-M-56. **Sealed values are omitted by default.** Every sealed field is written as the string
-`"sealed:omitted"` and the `sealed` list stays, so the file says what is missing. "Include sealed
-values" is offered only in an unlocked store, after a confirmation that names the count of sealed
-values and their types, and the export then holds them in clear: the person owns the file. There is
-no encrypted export format (Q5): an encrypted folder is not readable by an editor, which is the point
-of the format; disk encryption and the person's care are the controls, and the threat model says so.
+M-56. **Sealed values are omitted by default.** Every sealed field that holds a value is written as
+the string `"sealed:omitted"` (the **placeholder**) and the `sealed` list stays, so the file says what
+is missing; an absent optional sealed field stays absent. The placeholder is not a value: a reader
+removes it before validating the fields against the type schema (it matches no e-mail or token
+pattern), and an import treats the field as *missing* (M-59). "Include sealed values" is offered only
+in an unlocked store, after a confirmation that names the count of sealed values and their types, and
+the export then holds them in clear: the person owns the file. There is no encrypted export format
+(Q5): an encrypted folder is not readable by an editor, which is the point of the format; disk
+encryption and the person's care are the controls, and the threat model says so.
 
 ### 8.2 The file
 
@@ -733,11 +819,14 @@ Used for most trips. Business only when someone else pays.
 - about: [[Dario]]
 - prefers: [[Aisle seat]]
 ```
-M-58. **`index.md`** lists every exported record by type: a heading per type (`## <display name>
-(<type id>)`) and a table `| Title | Id | Updated | Tags |` with the title as a wikilink to the
-file, ordered by title then id; a first line names the exporting runtime and version, the export
-time and the record count; a last section `## Missing` lists dangling link targets (id and last
-known title). The index is for people and for import; it is not authoritative over the files.
+M-58. **`index.md`** lists every exported record by type, agent documents included when exported: a
+heading per type (`## <display name> (<type id>)`) and a table `| Title | Id | Updated | Tags |` with
+the title as a wikilink to the file, ordered by title then id; the first line after the heading
+names the exporting runtime by its **memory implementation's version** (`agentpkg <version>` for the
+Python reference, `chrome-agent-browser core <CORE_VERSION>` for the extension, whose own version
+D-197 keeps apart), the export time and the record count; a last section `## Missing` lists dangling
+link targets (id and last known title). The index is for people and for import; it is not
+authoritative over the files.
 
 ### 8.3 Import
 
@@ -752,24 +841,36 @@ when present) and produces a **report** before writing anything, which the perso
 - an `id` is kept when well-formed and either absent from the store or of the same type; otherwise a
   fresh id is assigned and the report says so;
 - per-relation properties and body wikilinks are resolved by stem to the imported set first, then to
-  the store by title; an unresolved link stays in the body as `[[<text>]]` (a frontmatter link that
-  cannot be resolved is written into the body's mirror section, which is otherwise stripped), so it is
-  kept and reported;
-- a sealed field holding `"sealed:omitted"` keeps the store's value when a record with the same id
-  exists; a new record with such a field that its type requires is **incomplete**: listed for
-  completion and not written until the person types the value;
-- an imported record equal to a stored one (same id, same digest input) is a no-op; one that differs
-  is written as the **newer** by `updated`, and the older copy is kept under a fresh id with the newer
-  linking `supersedes` to it (M-44's rule for identity matches applies to new ids too);
+  the store by title (M-3's rule: exactly one record), and a resolved body wikilink is rewritten to
+  `[[<id>|<text>]]`; an unresolved or ambiguous link stays in the body as `[[<text>]]` (a frontmatter
+  link that cannot be resolved is written into the body's mirror section, which is otherwise
+  stripped), so it is kept and reported; the report counts the links that resolved;
+- a sealed field holding the placeholder `"sealed:omitted"` (M-56) is **removed before the fields
+  are validated** and then: when a record with the same id exists in the store, the store's value at
+  that pointer is restored, so the imported record is complete and its digest input is the stored
+  one when nothing else changed; when none exists and the type requires the field, the record is
+  **incomplete**: listed for completion and not written until the person types the value; when none
+  exists and the field is optional, it is imported without it;
+- the hub is **merged, never duplicated**: an imported file with `id: self` replaces the store's
+  hub's title, fields and body, unites its links with the store's, keeps the store's `source` and
+  `created`, and is never superseded or re-identified (the report says "your *Me* record will be
+  updated from the import"); an export without a hub leaves the store's as it is; a file of type
+  `person.self` under any other id is refused by the record schema and listed;
+- any other imported record equal to a stored one (same id, same digest input) is a no-op; one that
+  differs is written as the **newer** by `updated`, and the older copy is kept under a fresh id with
+  the newer linking `supersedes` to it (M-44's rule for identity matches applies to new ids too);
 - `source` is kept when present and well-formed, else `{kind: "import", from, imported}`;
 - caps and M-24 apply to each record; a record that fails is listed, not written.
 
 M-60. **Round trip.** On the same host, export with sealed values included → clear the memory →
 import reproduces every record byte for byte and every digest (the key did not change); with sealed
-values omitted, every unsealed record round-trips and every sealed one is imported incomplete and
-completed by the person. A record edited in Obsidian round-trips as its edit when the edit stays in
-the subset (M-7); properties Obsidian adds (`aliases`, `cssclasses`) are reserved and dropped with a
-note. T19 tests the first and the conformance suite compares the export bytes of both runtimes.
+values omitted, an import **into the same store** restores every sealed value by id (M-59) and
+reproduces every digest, while an import into an **empty** store imports every unsealed record as it
+was and every record with a required sealed field as incomplete, completed by the person. The WebAir
+example ships both forms of the same memory (§12) and the check script imports the omitted one
+against the other. A record edited in Obsidian round-trips as its edit when the edit stays in the
+subset (M-7); properties Obsidian adds (`aliases`, `cssclasses`) are reserved and dropped with a note.
+T19 tests the first and the conformance suite compares the export bytes of both runtimes.
 
 ## 9. Audit
 
@@ -797,9 +898,12 @@ not in the run's audit (the run is over); it is in the usage log and the Run Rec
 M-62. In fixture mode (D-063) a memory read, an agent read and an agent write are **tools like any
 other**: the package's fixture document holds their answers for the exact input (the empty object,
 or the written body), the runtime replays them, no store is touched, and the egress scans of M-36 and
-M-37 still run over the replayed values. The proposals export is produced from the fixture result and
-checked exactly as live (M-40), so a fixture run writes `proposals.json`; nothing is reviewed or
-written to a store. Both CLIs therefore produce the same `proposals.json` for the same package and
+M-37 still run. **The scan set in fixture mode** is the store's when the runtime has one (the Chrome
+host, or the Python CLI given `--memory-dir`), and otherwise the values at the `sealed` pointers of
+every replayed memory-read answer (the view carries them, M-15) and at the legacy type's sealed
+pointers of every replayed host-resource answer, so that N11 is testable with no store at all. The
+proposals export is produced from the fixture result and checked exactly as live (M-40), so a fixture
+run writes `proposals.json`; nothing is reviewed or written to a store. Both CLIs therefore produce the same `proposals.json` for the same package and
 input, and the conformance suite compares it as an export.
 
 M-63. The Python reference's CLI takes its memory from an **export folder** (§8) given as
@@ -817,7 +921,7 @@ catalog v2's memory family starts here):
 | N1 a proposal of a type outside `memory.write`'s resources | run fails `permission_denied` (`memory_proposal_type_undeclared`) |
 | N2 a proposal carrying a sealed field | run fails `schema_validation` (`memory_proposal_sealed_field`) |
 | N3 a `memory.read` tool called under a denied permission | `permission_denied` at the mediator, before the tool |
-| N4 an agent write over 32,768 bytes | the tool call fails `schema_validation` (input schema) |
+| N4 an agent write over 32,768 characters | the tool call fails `schema_validation` (input schema) |
 | N5 a package with `runtime.minimum_version` 0.4.0 on a 0.3.x runtime | refused by version before anything runs |
 | N6 a `memory.read` tool whose output schema is not the type's view | not bound (`binding_schema_mismatch`); the plan is not ready |
 | N7 two agent writes in one run | the second is `budget_exhausted` (`max_calls_per_tool` 1) |
@@ -826,6 +930,15 @@ catalog v2's memory family starts here):
 | N10 `memory.scope: "publisher-scoped"` | refused before the run (PolicyError), as today |
 | N11 a graph that routes a sealed field into a model step | the model call is refused `permission_denied` (`sealed_value_in_model_request`) and the node fails |
 | N12 `memory.write` declared without the `proposals.json` export | refused at validation (`memory_proposal_undeclared`) |
+| N13 a proposal whose unsealed field, body or title holds a sealed value of a record the run holds (the granted identity's e-mail as a `travel.preference` value) | run fails `permission_denied` (`sealed_value_in_proposal`); no `proposals.json` is written |
+| N14 a proposal link to a record id the run was not granted | run fails `permission_denied` (`memory_proposal_link_not_granted`) |
+| N15 a proposal link with `rel: "supersedes"` | run fails `schema_validation` (M-40 step 1) |
+| N16 a custom type with a property named `email` (or any sealed starter field name) | refused at validation (`custom_type_shadows_sealed_type`) |
+| N17 a custom type whose local id is a well-known id (`contact`) | refused at validation (`custom_type_reserved`) |
+| N18 an edit, acceptance or import while the store is locked | refused `store_locked`; nothing changes (Chrome only: the Python directory is never locked) |
+
+`check_memory_spec.py` demonstrates N1, N2, N8, N9 and N13–N17 over the worked examples with the
+check functions the spec names, so that the two runtimes' tests can cite the same inputs.
 
 ## 11. The starter taxonomy (D-217)
 
@@ -886,6 +999,8 @@ family_name: "Traveler"
 email: "alex.traveler@example.com"
 sealed:
   - "/email"
+  - "/phone"
+  - "/date_of_birth"
 links:
   - to: "self"
     rel: "about"
@@ -1118,8 +1233,8 @@ and keeps the vault document until the person confirms the report (T19's D-221).
 | Vault type (legacy id) | Memory type | Fields | Also |
 |---|---|---|---|
 | `personal.travel_profile` | `travel.profile` | identical | title = the vault label |
-| `personal.passenger_identity` | `person.identity` | `given_name`, `family_name`, `contact_email` → `email` | sealed `/email`, as before |
-| `wallet.payment_method` | `payment.card` | `payment_method_id`, `display` | sealed `/payment_method_id`; `network`, `last4`, `expires` left empty |
+| `personal.passenger_identity` | `person.identity` | `given_name`, `family_name`, `contact_email` → `email` | `sealed`: the type's three pointers (`/email` holds the value, as before; `/phone` and `/date_of_birth` are listed and empty) |
+| `wallet.payment_method` | `payment.card` | `payment_method_id`, `display` | `sealed`: `/payment_method_id`; `network`, `last4`, `expires` left empty |
 
 Every migrated record gets `source {kind: "migration", from_type}`, `demo` as in the vault, the
 type's `default_links` (`about → self`), and `created`/`updated` from the vault record. A vault type
@@ -1135,13 +1250,21 @@ against until then; `check_memory_spec.py` validates each file:
 - **`webair-0.6.0/`**: the policy excerpt (`memory.read` for `travel.profile` with the alias kept
   for `person.identity` and `payment.card` under their legacy ids until 0.7.0 moves them; `memory.write`
   for `travel.preference` and `travel.profile`), the three host tools, the record view schema the
-  package ships for `travel.profile`, the graph's `proposals.json` export, a fixture answer for the
-  profile read, a `proposals.json` as a completed booking emits it, and the memory folder after
-  acceptance (`Home travel profile`, `Aisle seat`, `Me`, `index.md`).
+  package ships for `travel.profile`, the graph's `proposals.json` export, fixture answers for the
+  three reads, a `proposals.json` as a completed booking emits it, and the memory folder after
+  acceptance (`memory/`: `Me`, the demo identity and card with their sealed values in clear, as a
+  `--memory-dir` holds them, `Aisle seat`, and the `Home travel profile` chain: the accepted update
+  is the head and carries the old record's `pays_with` link, which the run never saw; `index.md`;
+  the usage log). **`memory-export-omitted/`** is the same memory exported with sealed values
+  omitted (M-56): the check script imports it against `memory/` and shows every digest input restored
+  (M-59, M-60). The run's scan set is the two sealed values, so N13 is demonstrated against this
+  folder.
 - **`literature-review-0.2.8/`**: `memory.read` for `research.profile`, `memory.write` for
-  `research.review`, the view schema, a profile record, a `proposals.json` with one review whose
-  `papers` are the run's `papers-found.json` entries, and the folder after acceptance with the review
-  `derived_from` the profile.
+  `research.review`, `memory.scope: "agent-scoped"` with the two reserved agent tools and their
+  schemas (M-48), the view schema, a profile record, fixture answers for the profile read and the
+  agent read, a `proposals.json` with one review whose `papers` are the run's `papers-found.json`
+  entries, and the folder after acceptance with the review `derived_from` the profile and the
+  package's agent document under `agent.memory/` as the Python CLI commits it (M-63).
 
 Neither example changes a signed package: WebAir 0.6.0 and Literature Review 0.2.8 are T20's.
 
@@ -1162,7 +1285,7 @@ Neither example changes a signed package: WebAir 0.6.0 and Literature Review 0.2
 | `publisher` and `user_global` scopes stay refused | M-1, M-48 |
 | presets: privacy-first asks for every read and proposal and persists no agent memory; balanced proposes the last-used record and asks for proposals; convenience auto-selects the last-used record of an unsealed type and asks for anything sealed and every write | M-52, M-53 |
 | recall ranks with the graph: linked to `person.self`, read or proposed by the same package before, linked to a record already selected | M-32 |
-| a proposal may carry links (to `self`, to the record it refines, `supersedes` for an update), shown as edges the person accepts with the record | M-39, M-42 |
+| a proposal may carry links (to `self`, to the record it refines, `supersedes` for an update), shown as edges the person accepts with the record | M-39, M-40, M-42 (the `supersedes` edge of an update comes from its `target`, never from a link) |
 
 ### 13.2 Versions
 

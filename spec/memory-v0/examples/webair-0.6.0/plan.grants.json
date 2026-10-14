@@ -1,0 +1,17 @@
+[
+  {
+    "permission_id": "memory.travel_profile",
+    "resource_type": "travel.profile",
+    "resource_id": "mem_7c1f0a4e9b2d4c5e8f6a1b2c3d4e5f60"
+  },
+  {
+    "permission_id": "identity.passenger",
+    "resource_type": "personal.passenger_identity",
+    "resource_id": "mem_0a1b2c3d4e5f60718293a4b5c6d7e8f9"
+  },
+  {
+    "permission_id": "wallet.payment",
+    "resource_type": "wallet.payment_method",
+    "resource_id": "mem_4e5f60718293a4b5c6d7e8f90a1b2c3d"
+  }
+]

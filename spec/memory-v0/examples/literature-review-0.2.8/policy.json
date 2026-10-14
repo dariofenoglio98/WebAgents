@@ -64,6 +64,15 @@
       "resources": [
         "research.review"
       ]
+    },
+    {
+      "id": "memory.agent",
+      "kind": "memory",
+      "description": "Keep its own notes between runs (at most 32 KB): what it searched and kept last time. Read at the start of a run, written once at the end; you can read and clear them in Settings \u2192 Memory.",
+      "required": false,
+      "resources": [
+        "agent"
+      ]
     }
   ],
   "network": {
@@ -75,8 +84,8 @@
     "allow_redirects": false
   },
   "memory": {
-    "scope": "session",
-    "retention": "session",
+    "scope": "agent-scoped",
+    "retention": "user-managed",
     "raw_documents": false,
     "state_schema": "schemas/research-state.schema.json",
     "sharing": "explicit_views"
@@ -89,7 +98,9 @@
       "scholarly-search": 3,
       "citation-resolver": 20,
       "paper-reader": 10,
-      "research.profile": 1
+      "research.profile": 1,
+      "agent-notes.read": 1,
+      "agent-notes.write": 1
     },
     "max_parallel_workers": 3,
     "estimated_cost_usd": null,

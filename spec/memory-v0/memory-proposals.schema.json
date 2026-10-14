@@ -76,10 +76,10 @@
                   "prefers",
                   "pays_with",
                   "belongs_to",
-                  "supersedes",
                   "derived_from",
                   "related"
-                ]
+                ],
+                "$comment": "never `supersedes`: only an `update` supersedes, through its `target`, at acceptance (memory-v0.md M-39)"
               }
             },
             "required": [

@@ -14,6 +14,7 @@
     "body": "Used for most trips. Business only when someone else pays.",
     "tags": [
       "home"
-    ]
+    ],
+    "sealed": []
   }
 }

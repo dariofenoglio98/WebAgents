@@ -1,6 +1,6 @@
 # Memory index
 
-Exported 2026-10-14T12:45:00Z by chrome-agent-browser 0.3.0 · 3 records · memory.v0
+Exported 2026-10-14T12:45:00Z by chrome-agent-browser core 0.2.0 · 4 records · memory.v0
 
 ## Me (person.self)
 
@@ -19,6 +19,12 @@ Exported 2026-10-14T12:45:00Z by chrome-agent-browser 0.3.0 · 3 records · memo
 | Title | Id | Updated | Tags |
 |---|---|---|---|
 | [[Prompt-injection defenses, 14 October 2026]] | `mem_718293a4b5c6d7e8f90a1b2c3d4e5f60` | 2026-10-14T12:40:00Z | review |
+
+## Agent notes (agent.memory)
+
+| Title | Id | Updated | Tags |
+|---|---|---|---|
+| [[Literature Review Agent]] | `agent_174749d5c5b954b6` | 2026-10-14T12:39:55Z |  |
 
 ## Missing
 

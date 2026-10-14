@@ -1,0 +1,8 @@
+{
+  "tool": "wallet.payment_method",
+  "input": {},
+  "output": {
+    "payment_method_id": "demo-visa-4242",
+    "display": "Demo Visa \u2022\u2022\u2022\u2022 4242"
+  }
+}

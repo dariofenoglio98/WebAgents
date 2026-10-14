@@ -4,12 +4,15 @@
 
 Reads `spec/memory-v0.md`, the contracts under `spec/memory-v0/` and the two worked examples under
 `spec/memory-v0/examples/`, and checks that every example record, export file, proposals document,
-policy, tool, export declaration and fixture answer is what the text says it is: the frontmatter
-subset (M-7), the canonical order (M-9, M-57), the record schema, the type schemas of the starter
-taxonomy, the sealed-value rules (M-4, M-24), the record view construction (M-16), the proposal
-checks (M-40), the schema patches (applied in memory to copies of the agentpkg schemas) and the
-folder rules (M-55, M-58). It is also the reference reader and writer of the record format: the
-worked examples were written with `record_to_document`.
+policy, tool, export declaration, plan grant and fixture answer is what the text says it is: the
+frontmatter subset (M-7), the canonical order (M-9, M-57), the record schema, the type schemas of
+the starter taxonomy, the sealed-value rules (M-4, M-24), the record view construction (M-16),
+the agent tool schemas (M-48), the proposal checks in order with their codes (M-40, the sealed-value
+scan of step 7 included), the custom-type rules (M-19), the schema patches (applied in memory to
+copies of the agentpkg schemas, idempotently), the folder rules (M-55, M-58), the import of an
+export with sealed values omitted (M-56, M-59, M-60), and the negative cases of §10 that need no
+runtime. It is also the reference reader and writer of the record format: the worked examples were
+written with `record_to_document`.
 
 Prints a JSON report and exits 1 if any check fails. No network, no execution, no package built.
 """
@@ -57,6 +60,7 @@ RESERVED = frozenset(
         *RELATIONS,
     ]
 )
+RESERVED_FAMILIES = ("person.", "payment.", "agent.", "memory.")
 SOURCE_KEYS = {
     "person": [],
     "package": ["package_id", "package_version", "run_id", "proposal", "accepted"],
@@ -64,21 +68,41 @@ SOURCE_KEYS = {
     "import": ["from", "imported"],
     "migration": ["from_type", "migrated"],
 }
+USAGE_USES = ("read", "proposed", "accepted", "agent_read", "agent_write")
 SEALED_PLACEHOLDER = "sealed:omitted"
 MIRROR_MARK = "<!-- memory.v0 links -->"
 MIN_SEALED_LENGTH = 6
-MAX_BODY_BYTES = 16384
+MAX_BODY_CHARS = 16384
+MAX_FIELDS_CHARS = 16384
+MAX_SCANNED_STRINGS = 1 << 20
+AGENT_READ, AGENT_WRITE = "host.memory.agent.read", "host.memory.agent.write"
+AGENT_TOOL_SCHEMAS = {
+    AGENT_READ: ("memory-empty-input.schema.json", "memory-agent-read.output.schema.json"),
+    AGENT_WRITE: ("memory-agent-write.input.schema.json", "memory-agent-write.output.schema.json"),
+}
 KEY_RE = re.compile(r"^([a-z][a-z0-9_]{0,63}):(?: (.*))?$")
 PLAIN_RE = re.compile(r"^[^\"'\[\]{}#&*!|>%@,\s][^#]*$")
 NUMBER_RE = re.compile(r"^-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?$")
 WIKILINK_RE = re.compile(r"\[\[([^\[\]|]+)(?:\|([^\[\]]+))?\]\]")
+RECORD_ID_RE = re.compile(r"^(self|mem_[0-9a-f]{32}|agent_[0-9a-f]{16})$")
+WELL_KNOWN_ID_RE = re.compile(r"^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*$")
 FENCE_RE = re.compile(r"^```([^\n]*)\n(.*?)^```\s*$", re.MULTILINE | re.DOTALL)
 RULE_RE = re.compile(r"\bM-(\d+)\b")
 RULE_DEF_RE = re.compile(r"^M-(\d+)\. ", re.MULTILINE)
+CASE_RE = re.compile(r"^\| N(\d+) ", re.MULTILINE)
 
 
 class FrontmatterError(ValueError):
     pass
+
+
+class Refusal(ValueError):
+    """A refusal with the code (and reason) the specification names, so a test can assert it."""
+
+    def __init__(self, code: str, reason: str | None, message: str):
+        self.code, self.reason = code, reason
+        label = f"{code} ({reason})" if reason else code
+        super().__init__(f"{label}: {message}")
 
 
 # -- the YAML subset (M-7) -----------------------------------------------------------------------
@@ -255,19 +279,37 @@ def normalize_body(body: str) -> str:
     return body.rstrip()
 
 
+def pointer_parts(pointer: str) -> list[str]:
+    return [part.replace("~1", "/").replace("~0", "~") for part in pointer.split("/")[1:]]
+
+
 def pointer_get(value, pointer: str, default=None):
     current = value
-    for part in pointer.split("/")[1:]:
-        part = part.replace("~1", "/").replace("~0", "~")
+    for part in pointer_parts(pointer):
         if not isinstance(current, dict) or part not in current:
             return default
         current = current[part]
     return current
 
 
+def pointer_set(value: dict, pointer: str, new) -> None:
+    parts = pointer_parts(pointer)
+    current = value
+    for part in parts[:-1]:
+        current = current.setdefault(part, {})
+    current[parts[-1]] = new
+
+
+def pointer_delete(value: dict, pointer: str) -> None:
+    parts = pointer_parts(pointer)
+    parent = pointer_get(value, "/" + "/".join(parts[:-1])) if len(parts) > 1 else value
+    if isinstance(parent, dict):
+        parent.pop(parts[-1], None)
+
+
 def schema_at(schema: dict, pointer: str) -> dict | None:
     current = schema
-    for part in pointer.split("/")[1:]:
+    for part in pointer_parts(pointer):
         props = current.get("properties") if isinstance(current, dict) else None
         if not isinstance(props, dict) or part not in props:
             return None
@@ -308,20 +350,40 @@ def order_source(source: dict) -> dict:
 
 
 def stem_of(title: str) -> str:
+    """M-55: the file stem of a title."""
     text = unicodedata.normalize("NFC", title)
-    text = re.sub(r'[\\/:*?"<>|\x00-\x1f\x7f]', "-", text)
+    text = re.sub(r'[\\/:*?"<>|\[\]#^\x00-\x1f\x7f]', "-", text)
     text = re.sub(r"\s+", " ", text).strip(" .")
     return text[:100]
 
 
+def stem_key(stem: str) -> str:
+    """Stems are compared case-insensitively (M-55), as the file systems they land on do."""
+    return unicodedata.normalize("NFC", stem).casefold()
+
+
+def superseded_ids(records: list[dict]) -> set[str]:
+    return {
+        link["to"]
+        for record in records
+        for link in record.get("links", [])
+        if link["rel"] == "supersedes"
+    }
+
+
 def stems_for(records: list[dict]) -> dict[str, str]:
-    """Record id -> file stem (M-55); a shared stem gets the id suffix after the first record."""
-    by_stem: dict[str, list[str]] = {}
+    """Record id -> file stem (M-55): equal stems (case-insensitively) are ordered heads first,
+    then by id; the first keeps the bare stem, the others get the id suffix."""
+    superseded = superseded_ids(records)
+    by_stem: dict[str, list[tuple[int, str, str]]] = {}
     for record in records:
-        by_stem.setdefault(stem_of(record["title"]), []).append(record["id"])
+        stem = stem_of(record["title"])
+        by_stem.setdefault(stem_key(stem), []).append(
+            (1 if record["id"] in superseded else 0, record["id"], stem)
+        )
     result: dict[str, str] = {}
-    for stem, ids in by_stem.items():
-        for position, record_id in enumerate(sorted(ids)):
+    for group in by_stem.values():
+        for position, (_, record_id, stem) in enumerate(sorted(group)):
             if position == 0:
                 result[record_id] = stem
             else:
@@ -345,11 +407,8 @@ def record_to_document(
     fields = order_fields(copy.deepcopy(record.get("fields", {})), type_def["schema"])
     if export and omit_sealed:
         for pointer in record.get("sealed", []):
-            parent = (
-                pointer_get(fields, pointer.rsplit("/", 1)[0]) if "/" in pointer[1:] else fields
-            )
-            if isinstance(parent, dict):
-                parent[pointer.rsplit("/", 1)[1]] = SEALED_PLACEHOLDER
+            if pointer_get(fields, pointer) is not None:  # M-56: only a field that holds a value
+                pointer_set(fields, pointer, SEALED_PLACEHOLDER)
     head: dict = {
         "id": record["id"],
         "type": record["type"],
@@ -398,8 +457,10 @@ def _link_target(to: str, stems: dict[str, str], titles: dict[str, str]) -> str:
 def _export_wikilink(match: re.Match, stems: dict[str, str], titles: dict[str, str]) -> str:
     target, alias = match.group(1), match.group(2)
     stem = stems.get(target)
-    if stem is None:
-        return f"[[{alias or titles.get(target) or target}]]"
+    if stem is None:  # a dangling id, or plain text that matched no record (M-3): unchanged
+        if RECORD_ID_RE.match(target):
+            return f"[[{alias or titles.get(target) or target}]]"
+        return match.group(0)
     if alias is None or alias == titles.get(target):
         return f"[[{stem}]]"
     return f"[[{stem}|{alias}]]"
@@ -410,11 +471,18 @@ def document_to_record(
     *,
     export: bool = False,
     resolve: dict[str, str] | None = None,
+    stems: dict[str, str] | None = None,
     titles: dict[str, str] | None = None,
 ) -> dict:
-    """Parse a stored document, or an export file (relations as properties, wikilinks by stem)."""
+    """Parse a stored document, or an export file (relations as properties, wikilinks by stem).
+
+    `resolve` maps a stem key (M-55, case-folded) to a record id, `stems` a record id to its exact
+    stem and `titles` a record id to its title."""
     head_text, body = split_document(text)
     head = parse_frontmatter(head_text)
+    resolve = resolve or {}
+    stems = stems or {}
+    titles = titles or {}
     record: dict = {}
     fields: dict = {}
     links: list[dict] = []
@@ -426,7 +494,7 @@ def document_to_record(
                 match = WIKILINK_RE.fullmatch(item) if isinstance(item, str) else None
                 if not match:
                     raise FrontmatterError(f"{key}: {item!r} is not a whole-value wikilink")
-                target = (resolve or {}).get(match.group(1))
+                target = resolve.get(stem_key(match.group(1)))
                 if target is None:
                     raise FrontmatterError(f"{key}: unresolved link [[{match.group(1)}]]")
                 links.append({"to": target, "rel": key})
@@ -440,15 +508,12 @@ def document_to_record(
         if marker >= 0:
             mirror = body[marker:].rstrip()
             body = body[:marker].rstrip()
-            inverse = resolve_inverse(resolve)
             expected = [MIRROR_MARK, "## Links"] + [
-                f"- {link['rel']}: [[{inverse.get(link['to'], link['to'])}]]" for link in links
+                f"- {link['rel']}: [[{stems.get(link['to'], link['to'])}]]" for link in links
             ]
             if mirror != "\n".join(expected):
                 raise FrontmatterError("the links mirror does not match the frontmatter links")
-        body = WIKILINK_RE.sub(
-            lambda match: _import_wikilink(match, resolve or {}, titles or {}), body
-        )
+        body = WIKILINK_RE.sub(lambda match: _import_wikilink(match, resolve, titles), body)
         if links:
             record["links"] = links
     record["fields"] = fields
@@ -456,16 +521,31 @@ def document_to_record(
     return record
 
 
-def resolve_inverse(resolve: dict[str, str] | None) -> dict[str, str]:
-    return {record_id: stem for stem, record_id in (resolve or {}).items()}
-
-
 def _import_wikilink(match: re.Match, resolve: dict[str, str], titles: dict[str, str]) -> str:
     target, alias = match.group(1), match.group(2)
-    record_id = resolve.get(target)
+    record_id = resolve.get(stem_key(target))
     if record_id is None:
         return match.group(0)
     return f"[[{record_id}|{alias or titles.get(record_id) or target}]]"
+
+
+def restore_placeholders(record: dict, stored: dict | None) -> dict:
+    """M-59: a placeholder is removed before validation and restored from the store by id.
+
+    Returns `{restored: [pointers], missing: [pointers]}`; a missing required pointer makes the
+    record incomplete (the caller decides)."""
+    restored, missing = [], []
+    for pointer in record.get("sealed", []):
+        if pointer_get(record["fields"], pointer) != SEALED_PLACEHOLDER:
+            continue
+        value = pointer_get(stored["fields"], pointer) if stored else None
+        if value is None:
+            pointer_delete(record["fields"], pointer)
+            missing.append(pointer)
+        else:
+            pointer_set(record["fields"], pointer, value)
+            restored.append(pointer)
+    return {"restored": restored, "missing": missing}
 
 
 def record_digest_input(record: dict, type_schema_sha256: str) -> dict:
@@ -487,6 +567,11 @@ def sha256_canonical(value) -> str:
     return hashlib.sha256(canonical_json(value)).hexdigest()
 
 
+def agent_document_id(package_id: str) -> str:
+    """M-49: `agent_` + the first 16 hex characters of SHA-256(package id)."""
+    return "agent_" + hashlib.sha256(package_id.encode("utf-8")).hexdigest()[:16]
+
+
 def record_view_schema(type_def: dict) -> dict:
     """M-16: the record view schema of a type, built from the template."""
     template = json.loads((CONTRACTS / "memory-record-view.template.json").read_text())
@@ -497,11 +582,26 @@ def record_view_schema(type_def: dict) -> dict:
     return template
 
 
-def sealed_free_schema(type_def: dict) -> dict:
+def record_view(record: dict) -> dict:
+    """M-15: what a `memory.read` tool returns for a granted record."""
+    return {
+        "id": record["id"],
+        "type": record["type"],
+        "title": record["title"],
+        "fields": copy.deepcopy(record.get("fields", {})),
+        "body": record.get("body", ""),
+        "tags": list(record.get("tags", [])),
+        "sealed": list(record.get("sealed", [])),
+    }
+
+
+def sealed_free_schema(type_def: dict, extra: tuple[str, ...] = ()) -> dict:
     """M-40 step 4: the type schema with the sealed pointers removed from `required`."""
     schema = copy.deepcopy(type_def["schema"])
     top_sealed = {
-        pointer.split("/")[1] for pointer in type_def["sealed_fields"] if pointer.count("/") == 1
+        pointer.split("/")[1]
+        for pointer in (*type_def["sealed_fields"], *extra)
+        if pointer.count("/") == 1
     }
     if "required" in schema:
         schema["required"] = [name for name in schema["required"] if name not in top_sealed]
@@ -519,34 +619,79 @@ def schema_mentions(schema, keywords=("$ref", "$id", "$dynamicRef", "$anchor")) 
 
 
 def apply_patch(document, patch: list[dict]):
-    """RFC 6902 `add` and `replace` over JSON Pointers, which is all the patches use."""
+    """RFC 6902 `add` and `replace` over JSON Pointers, which is all the patches use.
+
+    Idempotent: an `add` whose value is already there (a list member, or an equal key) is skipped,
+    so the check keeps passing once T19 and T20 have applied the patches to the live schemas."""
     result = copy.deepcopy(document)
     for operation in patch:
-        parts = [
-            part.replace("~1", "/").replace("~0", "~") for part in operation["path"].split("/")[1:]
-        ]
+        parts = pointer_parts(operation["path"])
         parent = result
         for part in parts[:-1]:
             parent = parent[int(part)] if isinstance(parent, list) else parent[part]
         last = parts[-1]
+        value = operation["value"]
         if operation["op"] == "add":
             if isinstance(parent, list):
+                if value in parent:
+                    continue
                 if last == "-":
-                    parent.append(operation["value"])
+                    parent.append(value)
                 else:
-                    parent.insert(int(last), operation["value"])
+                    parent.insert(int(last), value)
             else:
-                parent[last] = operation["value"]
+                if last in parent and parent[last] != value:
+                    raise ValueError(f"{operation['path']} exists with a different value")
+                parent[last] = value
         elif operation["op"] == "replace":
             if isinstance(parent, list):
-                parent[int(last)] = operation["value"]
+                parent[int(last)] = value
             else:
                 if last not in parent:
                     raise KeyError(operation["path"])
-                parent[last] = operation["value"]
+                parent[last] = value
         else:
             raise ValueError(f"unsupported op {operation['op']}")
     return result
+
+
+# -- sealed values (M-36's scanner) -------------------------------------------------------------
+def scan_strings(value, limit: int = MAX_SCANNED_STRINGS) -> list[str]:
+    """Every string of a JSON value, keys included, lower-cased; iterative, no depth cut-off."""
+    found: list[str] = []
+    stack = [value]
+    while stack:
+        current = stack.pop()
+        if isinstance(current, str):
+            if len(found) >= limit:
+                raise Refusal("permission_denied", "scan_incomplete", "too many strings to scan")
+            found.append(current.lower())
+        elif isinstance(current, dict):
+            stack.extend(current.keys())
+            stack.extend(current.values())
+        elif isinstance(current, list):
+            stack.extend(current)
+    return found
+
+
+def sealed_values_of(records: list[dict]) -> list[tuple[str, str, str]]:
+    """The scan set of a run opened with these records (M-36): (record id, pointer, value)."""
+    found = []
+    for record in records:
+        for pointer in record.get("sealed", []):
+            value = pointer_get(record["fields"], pointer)
+            if isinstance(value, str) and value != SEALED_PLACEHOLDER:
+                found.append((record["id"], pointer, value))
+    return found
+
+
+def find_sealed(value, sealed_values) -> tuple[str, str] | None:
+    strings = scan_strings(value)
+    for record_id, pointer, sealed in sealed_values:
+        needle = sealed.lower()
+        if any(needle in text for text in strings):
+            return record_id, pointer
+    return None
 
 
 # -- the report ----------------------------------------------------------------------------------
@@ -590,6 +735,23 @@ class Contracts:
         self.proposals = load_json(CONTRACTS / "memory-proposals.schema.json")
         self.taxonomy = load_json(CONTRACTS / "taxonomy.json")
         self.types = {entry["id"]: entry for entry in self.taxonomy["types"]}
+        self.legacy = {
+            legacy["id"]: (entry, legacy)
+            for entry in self.taxonomy["types"]
+            for legacy in entry.get("legacy", [])
+        }
+        self.sealed_names = sorted(
+            {
+                pointer.split("/")[1]
+                for entry in self.taxonomy["types"]
+                for pointer in entry["sealed_fields"]
+                if pointer.count("/") == 1
+            }
+        )
+        self.agent_tools = {
+            binding: (load_json(CONTRACTS / inp), load_json(CONTRACTS / out))
+            for binding, (inp, out) in AGENT_TOOL_SCHEMAS.items()
+        }
         self.policy = apply_patch(
             load_json(AGENTPKG_SCHEMAS / "policy.schema.json"),
             load_json(CONTRACTS / "policy.schema.patch.json"),
@@ -608,25 +770,29 @@ class Contracts:
             return self.types[type_id]
         raise ValueError(f"unknown type {type_id}")
 
+    def resolve_resource_type(self, resource_type: str) -> dict:
+        """A memory type id, or a legacy id answered by the type whose `legacy` names it (M-17)."""
+        if resource_type in self.legacy:
+            return self.legacy[resource_type][0]
+        return self.type_of(resource_type)
+
 
 def check_record(contracts: Contracts, record: dict, label: str) -> dict:
-    """M-24 over a parsed record: schemas, sealed rules, link shape. Returns the type."""
+    """M-24 over a parsed record: schemas, sealed rules, caps, link shape. Returns the type."""
     validate(contracts.record, record, f"{label}: record schema")
     type_def = contracts.type_of(record["type"])
     validate(type_def["schema"], record["fields"], f"{label}: {type_def['display_name']} fields")
     sealed = record.get("sealed", [])
-    missing = [
-        pointer
-        for pointer in type_def["sealed_fields"]
-        if pointer not in sealed and pointer_get(record["fields"], pointer) is not None
-    ]
+    missing = [pointer for pointer in type_def["sealed_fields"] if pointer not in sealed]
     if missing:
-        raise ValueError(f"{label}: sealed must include the type's sealed fields {missing}")
+        raise ValueError(f"{label}: `sealed` must list every sealed pointer of the type {missing}")
     values: list[str] = []
     for pointer in sealed:
         value = pointer_get(record["fields"], pointer)
         if value is None:
-            continue
+            continue  # an optional sealed field that is absent (M-4)
+        if value == SEALED_PLACEHOLDER:
+            raise ValueError(f"{label}: sealed field {pointer} holds the export placeholder")
         if not isinstance(value, str) or len(value) < MIN_SEALED_LENGTH:
             raise ValueError(
                 f"{label}: sealed field {pointer} is not a string of {MIN_SEALED_LENGTH}+ chars"
@@ -634,16 +800,22 @@ def check_record(contracts: Contracts, record: dict, label: str) -> dict:
         values.append(value.lower())
     haystack = " ".join([record["title"], *record.get("tags", []), record.get("body", "")]).lower()
     for value in values:
-        if value != SEALED_PLACEHOLDER and value in haystack:
+        if value in haystack:
             raise ValueError(f"{label}: a sealed value appears in the title, tags or body (M-4)")
-    if len(record.get("body", "").encode("utf-8")) > MAX_BODY_BYTES:
-        raise ValueError(f"{label}: body over {MAX_BODY_BYTES} bytes")
+    if len(record.get("body", "")) > MAX_BODY_CHARS:
+        raise ValueError(f"{label}: body over {MAX_BODY_CHARS} characters")
+    if len(canonical_json(record["fields"]).decode("utf-8")) > MAX_FIELDS_CHARS:
+        raise ValueError(f"{label}: fields over {MAX_FIELDS_CHARS} characters (M-24)")
     for link in record.get("links", []):
         if link["to"] == record["id"]:
             raise ValueError(f"{label}: a record cannot link to itself")
     for field in record["fields"]:
         if field in RESERVED:
             raise ValueError(f"{label}: reserved field name {field}")
+    if record["type"] == "agent.memory":
+        expected = agent_document_id(record["fields"]["package_id"])
+        if record["id"] != expected:
+            raise ValueError(f"{label}: an agent document's id must be {expected} (M-49)")
     return type_def
 
 
@@ -658,7 +830,7 @@ def check_taxonomy(contracts: Contracts) -> dict:
     for entry in taxonomy["types"]:
         label = f"type {entry['id']}"
         validate(contracts.type, entry, label)
-        if not re.fullmatch(r"[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*", entry["id"]):
+        if not WELL_KNOWN_ID_RE.fullmatch(entry["id"]):
             raise ValueError(f"{label}: not a well-known id")
         Draft202012Validator.check_schema(entry["schema"])
         if schema_mentions(entry["schema"]):
@@ -685,18 +857,13 @@ def check_taxonomy(contracts: Contracts) -> dict:
                     raise ValueError(f"{label}: projection {old} -> {new} does not resolve")
         if entry["declared_by"] != {"kind": "spec"}:
             raise ValueError(f"{label}: starter types are declared by the spec")
+        # M-19's name rule holds inside the taxonomy too: a sealed name is sealed wherever it is.
+        if not entry["sealed_fields"]:
+            clash = sorted(set(entry["schema"]["properties"]) & set(contracts.sealed_names))
+            if clash:
+                raise ValueError(f"{label}: unsealed property named like a sealed field {clash}")
     if len(set(legacy_ids)) != len(legacy_ids):
         raise ValueError("a legacy id is claimed twice")
-    sealed_types = [entry for entry in taxonomy["types"] if entry["sealed_fields"]]
-    for entry in taxonomy["types"]:
-        if entry["sealed_fields"]:
-            continue
-        names = set(entry["schema"]["properties"])
-        for sealed in sealed_types:
-            if names and names >= set(sealed["schema"]["properties"]):
-                raise ValueError(
-                    f"{entry['id']} shadows the sealed type {sealed['id']} (M-19 would refuse it)"
-                )
     self_type = contracts.types["person.self"]
     if self_type["sealed_fields"] or self_type["identity"]:
         raise ValueError("person.self has sealed or identity fields")
@@ -706,8 +873,37 @@ def check_taxonomy(contracts: Contracts) -> dict:
     return {
         "types": len(ids),
         "legacy_ids": legacy_ids,
-        "sealed_types": [entry["id"] for entry in sealed_types],
+        "sealed_types": [entry["id"] for entry in taxonomy["types"] if entry["sealed_fields"]],
+        "sealed_names": contracts.sealed_names,
     }
+
+
+def check_custom_type(contracts: Contracts, declaration: dict, schema: dict) -> dict:
+    """M-18, M-19: a package's custom type declaration, with its schema loaded. Raises Refusal."""
+    type_id = declaration["id"]
+    if declaration.get("sealed_fields"):
+        raise Refusal("custom_type_sealed", None, f"{type_id} declares sealed fields")
+    if not WELL_KNOWN_ID_RE.fullmatch(type_id):
+        raise Refusal("schema_validation", None, f"{type_id} is not in the well-known form")
+    if type_id in contracts.types or type_id in contracts.legacy:
+        raise Refusal("custom_type_reserved", None, f"{type_id} is a well-known id")
+    if type_id.startswith(RESERVED_FAMILIES):
+        raise Refusal("custom_type_reserved", None, f"{type_id} is in a reserved family")
+    try:
+        validate(contracts.type["$defs"]["fields_schema"], schema, f"{type_id} schema")
+        Draft202012Validator.check_schema(schema)
+    except ValueError as error:
+        raise Refusal("schema_validation", None, str(error)) from None
+    if schema_mentions(schema):
+        raise Refusal("schema_validation", None, f"{type_id} schema uses $ref/$id")
+    clash = sorted(set(schema["properties"]) & set(contracts.sealed_names))
+    if clash:
+        raise Refusal(
+            "custom_type_shadows_sealed_type",
+            None,
+            f"{type_id} has unsealed properties named like sealed fields {clash}",
+        )
+    return {"id": type_id, "schema_sha256": sha256_canonical(schema)}
 
 
 def check_legacy_against_webair(contracts: Contracts) -> dict:
@@ -739,17 +935,30 @@ def check_patches(contracts: Contracts) -> dict:
         ("record", contracts.record),
         ("type", contracts.type),
         ("proposals", contracts.proposals),
+        *((f"agent tool {b} input", s[0]) for b, s in contracts.agent_tools.items()),
+        *((f"agent tool {b} output", s[1]) for b, s in contracts.agent_tools.items()),
     ):
         Draft202012Validator.check_schema(schema)
     kinds = contracts.policy["properties"]["permissions"]["items"]["properties"]["kind"]["enum"]
     if "memory.read" not in kinds or "memory.write" not in kinds or "personal.read" not in kinds:
         raise ValueError("policy kinds")
     formats = contracts.workflow["properties"]["exports"]["items"]["properties"]["format"]["enum"]
-    if formats != ["json", "text", "memory.proposal"]:
+    if set(formats) != {"json", "text", "memory.proposal"} or len(formats) != 3:
         raise ValueError(f"export formats {formats}")
     decisions = contracts.bundle["properties"]["decisions"]["properties"]
     if "memory.read" not in decisions or "memory.write" not in decisions:
         raise ValueError("bundle decisions")
+    # Applying a patch twice changes nothing (the live schemas will carry it after T19 and T20).
+    for name, patched, patch in (
+        ("policy", contracts.policy, "policy.schema.patch.json"),
+        ("workflow", contracts.workflow, "workflow.schema.patch.json"),
+        ("bundle", contracts.bundle, "policy-bundle-v0.schema.patch.json"),
+    ):
+        if apply_patch(patched, load_json(CONTRACTS / patch)) != patched:
+            raise ValueError(f"the {name} patch is not idempotent")
+    links = contracts.proposals["$defs"]["proposal"]["properties"]["links"]["items"]
+    if "supersedes" in links["properties"]["rel"]["enum"]:
+        raise ValueError("a proposal link may not carry supersedes (M-39)")
     # Backward compatibility: the shipped policies still validate under the patched schema.
     for package in ("webair", "literature-review", "meeting-agenda"):
         manifest = load_json(ROOT / "agents" / package / "MANIFEST.agent")
@@ -758,7 +967,7 @@ def check_patches(contracts: Contracts) -> dict:
             load_json(ROOT / "agents" / package / manifest["policy"]),
             f"{package} policy under the patched schema",
         )
-    return {"formats": formats, "policy_kinds": kinds}
+    return {"formats": formats, "policy_kinds": kinds, "idempotent": True}
 
 
 def fenced_blocks(text: str) -> list[tuple[str, str]]:
@@ -781,10 +990,13 @@ def check_spec_examples(contracts: Contracts) -> dict:
             counts["memory.record"] += 1
     titles = {record["id"]: record["title"] for record in records}
     stems = stems_for(records)
-    resolve = {stem: record_id for record_id, stem in stems.items()}
+    resolve = {stem_key(stem): record_id for record_id, stem in stems.items()}
+    profile = "mem_7c1f0a4e9b2d4c5e8f6a1b2c3d4e5f60"
     for info, content in blocks:
         if info == "md memory.export":
-            record = document_to_record(content, export=True, resolve=resolve, titles=titles)
+            record = document_to_record(
+                content, export=True, resolve=resolve, stems=stems, titles=titles
+            )
             type_def = check_record(contracts, record, f"spec export {record.get('id')}")
             # The export example is the §2.1 record plus a link to the §7.2 proposal's record.
             again = record_to_document(record, type_def, export=True, stems=stems, titles=titles)
@@ -799,7 +1011,8 @@ def check_spec_examples(contracts: Contracts) -> dict:
                 contracts,
                 document,
                 declared=("travel.preference", "travel.profile"),
-                granted=("mem_7c1f0a4e9b2d4c5e8f6a1b2c3d4e5f60",),
+                granted={profile: "travel.profile"},
+                sealed_values=sealed_values_of(records),  # the spec's records are the store
                 label="spec proposals",
             )
             counts["memory.proposals"] += 1
@@ -819,34 +1032,82 @@ def check_spec_examples(contracts: Contracts) -> dict:
     return counts
 
 
-def check_proposals(contracts: Contracts, document: dict, *, declared, granted, label: str) -> dict:
-    """M-40 in order: schema, declared type, no sealed field, sealed-free schema, target, links."""
-    validate(contracts.proposals, document, f"{label}: proposals schema")
+def check_proposals(
+    contracts: Contracts,
+    document: dict,
+    *,
+    declared,
+    granted: dict[str, str],
+    sealed_values,
+    label: str,
+    targets: dict[str, dict] | None = None,
+) -> dict:
+    """M-40 in order: schema, declared type, no sealed field, sealed-free schema, target, links,
+    no sealed value anywhere. `granted` maps the ids this run was granted to their type (M-12);
+    `sealed_values` is the run's scan set (M-36); `targets` holds the store's records by id, so
+    that an update is checked against its target's own `sealed` list (step 3). Raises `Refusal`
+    with the code the spec names."""
+    try:
+        validate(contracts.proposals, document, f"{label}: proposals schema")
+    except ValueError as error:
+        raise Refusal("schema_validation", None, str(error)) from None
     for index, proposal in enumerate(document["proposals"]):
         where = f"{label}: proposal {index}"
         if proposal["type"] not in declared:
-            raise ValueError(
-                f"{where}: type {proposal['type']} not declared (memory_proposal_type_undeclared)"
+            raise Refusal(
+                "permission_denied",
+                "memory_proposal_type_undeclared",
+                f"{where}: type {proposal['type']} not declared",
+            )
+        if proposal["type"] in ("agent.memory", "person.self"):
+            raise Refusal(
+                "permission_denied",
+                "memory_proposal_type_undeclared",
+                f"{where}: a reserved type cannot be proposed",
             )
         type_def = contracts.type_of(proposal["type"])
-        for pointer in type_def["sealed_fields"]:
+        target_record = (targets or {}).get(proposal.get("target", ""))
+        extra = tuple(target_record.get("sealed", [])) if target_record else ()
+        for pointer in (*type_def["sealed_fields"], *extra):  # the target's additions too (M-40.3)
             if pointer_get(proposal["fields"], pointer) is not None:
-                raise ValueError(
-                    f"{where}: carries sealed field {pointer} (memory_proposal_sealed_field)"
+                raise Refusal(
+                    "schema_validation",
+                    "memory_proposal_sealed_field",
+                    f"{where}: carries sealed field {pointer}",
                 )
-        validate(sealed_free_schema(type_def), proposal["fields"], f"{where}: fields")
-        if proposal["action"] == "update" and proposal["target"] not in granted:
-            raise ValueError(f"{where}: target not granted (memory_proposal_target_not_granted)")
+        try:
+            validate(sealed_free_schema(type_def, extra), proposal["fields"], f"{where}: fields")
+        except ValueError as error:
+            raise Refusal("schema_validation", None, str(error)) from None
+        if proposal["action"] == "update":
+            target = proposal["target"]
+            if granted.get(target) != proposal["type"]:
+                raise Refusal(
+                    "permission_denied",
+                    "memory_proposal_target_not_granted",
+                    f"{where}: target {target} is not a granted record of type {proposal['type']}",
+                )
         for link in proposal.get("links", []):
             to = link["to"]
             if to.startswith("#"):
                 sibling = int(to[1:])
                 if sibling == index or sibling >= len(document["proposals"]):
-                    raise ValueError(f"{where}: link {to} names no other proposal")
+                    raise Refusal(
+                        "schema_validation", None, f"{where}: link {to} names no other proposal"
+                    )
             elif to != "self" and to not in granted:
-                raise ValueError(f"{where}: link to {to}, which this run was not granted")
-        if proposal["type"] == "agent.memory" or proposal["type"] == "person.self":
-            raise ValueError(f"{where}: a reserved type cannot be proposed")
+                raise Refusal(
+                    "permission_denied",
+                    "memory_proposal_link_not_granted",
+                    f"{where}: link to {to}, which this run was not granted",
+                )
+    hit = find_sealed(document, sealed_values)
+    if hit is not None:
+        raise Refusal(
+            "permission_denied",
+            "sealed_value_in_proposal",
+            f"{label}: a sealed value of {hit[0]} at {hit[1]} appears in the document",
+        )
     return {"proposals": len(document["proposals"])}
 
 
@@ -858,64 +1119,185 @@ def check_views(contracts: Contracts) -> dict:
         if (
             view["properties"]["type"] != {"const": type_id}
             or "$schema" in view["properties"]["fields"]
+            or "sealed" not in view["required"]
         ):
             raise ValueError(f"view of {type_id}")
         hashes[type_id] = sha256_canonical(view)
     return {"view_sha256": hashes}
 
 
+def _check_tools(contracts: Contracts, folder: Path, policy: dict, label: str) -> dict:
+    """M-33 and M-48 over a package's tool files; returns tool id -> definition."""
+    permissions = {entry["id"]: entry for entry in policy["permissions"]}
+    agent_permissions = [
+        entry
+        for entry in policy["permissions"]
+        if entry["kind"] == "memory"
+        if entry["resources"] == ["agent"]
+    ]
+    tools: dict[str, dict] = {}
+    views_checked, agent_bindings, legacy_checked = [], [], []
+    for path in sorted((folder / "tools").glob("*.tool.json")):
+        tool = load_json(path)
+        validate(contracts.tool, tool, f"{label} tool {path.name}")
+        tools[tool["id"]] = tool
+        binding = tool["binding"]
+        if not binding.startswith(("host.memory.", "host.resource.")):
+            continue
+        if tool["execution"] != "local" or tool["domains"] or tool["approval_required"] is not True:
+            raise ValueError(f"{path.name}: a memory tool is local, approved, with no domains")
+        linked = [permissions[pid] for pid in tool["permissions"]]
+        if len(linked) != 1:
+            raise ValueError(f"{path.name}: must link exactly one permission")
+        shipped_in = load_json(folder / tool["input_schema"])
+        shipped_out = load_json(folder / tool["output_schema"])
+        if binding in AGENT_TOOL_SCHEMAS:
+            expected_in, expected_out = contracts.agent_tools[binding]
+            if canonical_json(shipped_in) != canonical_json(expected_in) or canonical_json(
+                shipped_out
+            ) != canonical_json(expected_out):
+                raise ValueError(
+                    f"{path.name}: agent tool schemas differ (binding_schema_mismatch)"
+                )
+            if linked[0]["kind"] != "memory" or linked[0]["resources"] != ["agent"]:
+                raise ValueError(f"{path.name}: must link the memory/agent permission (M-48)")
+            if policy["memory"]["scope"] != "agent-scoped":
+                raise ValueError(f"{path.name}: reserved agent binding outside agent-scoped")
+            expected_effect = "read" if binding == AGENT_READ else "write"
+            if tool["side_effects"] != expected_effect:
+                raise ValueError(f"{path.name}: side_effects must be {expected_effect}")
+            if (
+                binding == AGENT_WRITE
+                and policy["budget"]["max_calls_per_tool"].get(tool["id"]) != 1
+            ):
+                raise ValueError(
+                    f"{path.name}: max_calls_per_tool must be 1 (agent_memory_write_cap)"
+                )
+            agent_bindings.append(binding)
+            continue
+        if canonical_json(shipped_in) != canonical_json(contracts.agent_tools[AGENT_READ][0]):
+            raise ValueError(f"{path.name}: input schema is not the empty object")
+        if tool["side_effects"] != "read":
+            raise ValueError(f"{path.name}: a memory read has side_effects read")
+        if binding.startswith("host.memory."):
+            type_id = binding[len("host.memory.") :]
+            type_def = contracts.type_of(type_id)
+            if linked[0]["kind"] != "memory.read" or linked[0]["resources"] != [type_id]:
+                raise ValueError(f"{path.name}: must link the memory.read permission of {type_id}")
+            if canonical_json(shipped_out) != canonical_json(record_view_schema(type_def)):
+                raise ValueError(
+                    f"{path.name}: output schema is not the view of {type_id} "
+                    "(binding_schema_mismatch)"
+                )
+            views_checked.append(type_id)
+        else:
+            legacy_id = binding[len("host.resource.") :]
+            if legacy_id not in contracts.legacy:
+                raise ValueError(f"{path.name}: {legacy_id} is not a legacy id of the taxonomy")
+            if linked[0]["kind"] != "personal.read" or linked[0]["resources"] != [legacy_id]:
+                raise ValueError(f"{path.name}: must link the personal.read permission")
+            if canonical_json(shipped_out) != canonical_json(
+                contracts.legacy[legacy_id][1]["schema"]
+            ):
+                raise ValueError(f"{path.name}: output schema is not the legacy schema (M-17)")
+            legacy_checked.append(legacy_id)
+    if policy["memory"]["scope"] == "agent-scoped" and not agent_permissions:
+        raise ValueError(f"{label}: agent-scoped without the memory/agent permission (M-48)")
+    if agent_permissions and policy["memory"]["scope"] != "agent-scoped":
+        raise ValueError(f"{label}: a memory/agent permission outside agent-scoped")
+    return {
+        "tools": tools,
+        "memory_read_types": views_checked,
+        "legacy_types": legacy_checked,
+        "agent_bindings": sorted(agent_bindings),
+    }
+
+
+def _check_fixtures(
+    contracts: Contracts, folder: Path, tools: dict, grants: dict, by_id: dict, label: str
+) -> dict:
+    """Fixture answers are what the granted records give (M-62): the view, the legacy projection,
+    the agent document's body."""
+    answered, agent_write_body = [], None
+    for path in sorted((folder / "fixture").glob("*.json")):
+        answer = load_json(path)
+        tool = tools.get(answer["tool"])
+        if tool is None:
+            raise ValueError(f"{path.name}: unknown tool {answer['tool']}")
+        binding = tool["binding"]
+        where = f"{label} fixture {path.name}"
+        if binding == AGENT_READ:
+            validate(contracts.agent_tools[binding][1], answer["output"], where)
+            if answer["input"] != {}:
+                raise ValueError(f"{where}: an agent read takes no arguments")
+        elif binding == AGENT_WRITE:
+            validate(contracts.agent_tools[binding][0], answer["input"], where)
+            validate(contracts.agent_tools[binding][1], answer["output"], where)
+            if answer["output"]["bytes"] != len(answer["input"]["body"].encode("utf-8")):
+                raise ValueError(f"{where}: bytes is the UTF-8 size of the staged body")
+            agent_write_body = answer["input"]["body"]
+        else:
+            if answer["input"] != {}:
+                raise ValueError(f"{where}: a memory read takes no arguments")
+            resource_type = binding.split(".", 2)[2]
+            grant = next((g for g in grants.values() if g["resource_type"] == resource_type), None)
+            if grant is None:
+                raise ValueError(f"{where}: no plan grant for {resource_type}")
+            record = by_id[grant["resource_id"]]
+            if binding.startswith("host.memory."):
+                validate(
+                    record_view_schema(contracts.type_of(resource_type)), answer["output"], where
+                )
+                if answer["output"] != record_view(record):
+                    raise ValueError(f"{where}: the answer is not the granted record's view (M-15)")
+            else:
+                type_def, legacy = contracts.legacy[resource_type]
+                validate(legacy["schema"], answer["output"], where)
+                projected = {}
+                for old, new in legacy["projection"].items():
+                    value = pointer_get(record["fields"], new)
+                    if value is not None:
+                        pointer_set(projected, old, value)
+                if answer["output"] != projected:
+                    raise ValueError(
+                        f"{where}: the answer is not the projection of the record (M-17)"
+                    )
+        answered.append(answer["tool"])
+    return {"fixtures": answered, "agent_write_body": agent_write_body}
+
+
+def _check_grants(contracts: Contracts, folder: Path, policy: dict, by_id: dict, label: str):
+    """`plan.grants.json`: the plan's resource grants (M-12), one per read permission."""
+    permissions = {entry["id"]: entry for entry in policy["permissions"]}
+    grants = {}
+    for grant in load_json(folder / "plan.grants.json"):
+        permission = permissions[grant["permission_id"]]
+        if permission["kind"] not in ("memory.read", "personal.read"):
+            raise ValueError(f"{label}: grant {grant['permission_id']} is not a read permission")
+        if permission["resources"] != [grant["resource_type"]]:
+            raise ValueError(f"{label}: grant {grant['permission_id']} names another type")
+        type_def = contracts.resolve_resource_type(grant["resource_type"])
+        record = by_id.get(grant["resource_id"])
+        if record is None or record["type"] != type_def["id"]:
+            raise ValueError(
+                f"{label}: grant {grant['resource_id']} is not a stored record of the type"
+            )
+        grants[grant["resource_id"]] = {**grant, "type": type_def["id"]}
+    return grants
+
+
 def check_example_package(contracts: Contracts, folder: Path, *, package_name: str) -> dict:
     policy = load_json(folder / "policy.json")
     validate(contracts.policy, policy, f"{package_name} policy")
-    permissions = {entry["id"]: entry for entry in policy["permissions"]}
-    reads = [entry for entry in policy["permissions"] if entry["kind"] == "memory.read"]
+    reads = [e for e in policy["permissions"] if e["kind"] in ("memory.read", "personal.read")]
     writes = [entry for entry in policy["permissions"] if entry["kind"] == "memory.write"]
     for entry in reads + writes:
         for type_id in entry["resources"]:
-            contracts.type_of(type_id)
+            contracts.resolve_resource_type(type_id)
     if len(writes) > 1:
         raise ValueError("more than one memory.write permission")
     declared = tuple(writes[0]["resources"]) if writes else ()
-    # Tools: a memory.read tool is local, takes the empty object, ships the type's view (M-33).
-    tools = sorted((folder / "tools").glob("*.tool.json"))
-    views_checked = []
-    for path in tools:
-        tool = load_json(path)
-        validate(contracts.tool, tool, f"{package_name} tool {path.name}")
-        if not tool["binding"].startswith("host.memory."):
-            continue
-        type_id = tool["binding"][len("host.memory.") :]
-        type_def = contracts.type_of(type_id)
-        if (
-            tool["execution"] != "local"
-            or tool["domains"]
-            or tool["side_effects"] != "read"
-            or tool["approval_required"] is not True
-        ):
-            raise ValueError(
-                f"{path.name}: a memory read tool is local, read-only, approved, with no domains"
-            )
-        linked = [permissions[pid] for pid in tool["permissions"]]
-        if (
-            len(linked) != 1
-            or linked[0]["kind"] != "memory.read"
-            or linked[0]["resources"] != [type_id]
-        ):
-            raise ValueError(
-                f"{path.name}: must link exactly the memory.read permission of {type_id}"
-            )
-        empty = load_json(folder / tool["input_schema"])
-        if (
-            empty != {"type": "object", "properties": {}, "additionalProperties": False}
-            and empty.get("properties") != {}
-        ):
-            raise ValueError(f"{path.name}: input schema is not the empty object")
-        shipped = load_json(folder / tool["output_schema"])
-        if canonical_json(shipped) != canonical_json(record_view_schema(type_def)):
-            raise ValueError(
-                f"{path.name}: output schema is not the view of {type_id} (binding_schema_mismatch)"
-            )
-        views_checked.append(type_id)
+    tools_report = _check_tools(contracts, folder, policy, package_name)
     # Exports: one memory.proposal export at proposals.json iff memory.write is declared (M-38).
     exports_document = load_json(folder / "graph.exports.json")
     exports_schema = {
@@ -935,52 +1317,79 @@ def check_example_package(contracts: Contracts, folder: Path, *, package_name: s
         raise ValueError(
             "memory.write and the proposals.json export come together (memory_proposal_undeclared)"
         )
-    # Fixture answers validate against the view; their ids are what the run was granted.
-    granted = []
-    for path in sorted((folder / "fixture").glob("*.read.json")):
-        answer = load_json(path)
-        type_def = contracts.type_of(answer["output"]["type"])
-        validate(
-            record_view_schema(type_def), answer["output"], f"{package_name} fixture {path.name}"
-        )
-        if answer["input"] != {}:
-            raise ValueError(f"{path.name}: a memory read takes no arguments")
-        granted.append(answer["output"]["id"])
+    # The memory folder is the store the run was opened with (M-36): its sealed values are the
+    # scan set.
+    folder_report, records = check_memory_folder(
+        contracts, folder / "memory", label=f"{package_name} memory folder"
+    )
+    by_id = {record["id"]: record for record in records}
+    grants = _check_grants(contracts, folder, policy, by_id, package_name)
+    fixtures = _check_fixtures(
+        contracts, folder, tools_report["tools"], grants, by_id, package_name
+    )
+    if fixtures["agent_write_body"] is not None:
+        agent_id = agent_document_id(policy_package_id(folder))
+        committed = by_id.get(agent_id)
+        if committed is None or committed["body"] != normalize_body(fixtures["agent_write_body"]):
+            raise ValueError(f"{package_name}: the committed agent document is not the staged body")
     proposals = load_json(folder / "proposals.json")
     check_proposals(
         contracts,
         proposals,
         declared=declared,
-        granted=tuple(granted),
+        granted={record_id: grant["type"] for record_id, grant in grants.items()},
+        sealed_values=sealed_values_of(records),
         label=f"{package_name} proposals.json",
+        targets=by_id,
     )
-    folder_report = check_memory_folder(
-        contracts, folder / "memory", label=f"{package_name} memory folder"
-    )
-    return {
-        "memory_read_types": views_checked,
+    report = {
+        "memory_read_types": tools_report["memory_read_types"],
+        "legacy_types": tools_report["legacy_types"],
+        "agent_bindings": tools_report["agent_bindings"],
         "memory_write_types": list(declared),
-        "granted": granted,
+        "granted": sorted(grants),
+        "fixtures": fixtures["fixtures"],
         "proposals": len(proposals["proposals"]),
+        "scan_set": len(sealed_values_of(records)),
         **folder_report,
     }
+    omitted = folder / "memory-export-omitted"
+    if omitted.exists():
+        report["export_omitted"] = check_export_omitted(
+            contracts, omitted, records, label=f"{package_name} omitted export"
+        )
+    return report
 
 
-def check_memory_folder(contracts: Contracts, folder: Path, *, label: str) -> dict:
+def policy_package_id(folder: Path) -> str:
+    return load_json(folder / "package.json")["package_id"]
+
+
+def _folder_files(folder: Path) -> tuple[list[Path], dict, dict, dict]:
     files = sorted(path for path in folder.rglob("*.md") if path.name != "index.md")
     heads = {}
     for path in files:
         head_text, _ = split_document(path.read_text())
-        head = parse_frontmatter(head_text)
-        heads[path] = head
-    resolve = {path.stem: head["id"] for path, head in heads.items()}
-    if len(resolve) != len(files):
-        raise ValueError(f"{label}: two files share a stem")
+        heads[path] = parse_frontmatter(head_text)
+    resolve: dict[str, str] = {}
+    for path, head in heads.items():
+        key = stem_key(path.stem)
+        if key in resolve:
+            raise ValueError(f"{folder.name}: two files share the stem {path.stem!r} (M-55)")
+        resolve[key] = head["id"]
+    stems = {head["id"]: path.stem for path, head in heads.items()}
     titles = {head["id"]: head["title"] for head in heads.values()}
+    return files, resolve, stems, titles
+
+
+def check_memory_folder(contracts: Contracts, folder: Path, *, label: str) -> tuple[dict, list]:
+    files, resolve, file_stems, titles = _folder_files(folder)
     records: list[dict] = []
     for path in files:
-        record = document_to_record(path.read_text(), export=True, resolve=resolve, titles=titles)
-        type_def = check_record(contracts, record, f"{label} {path.name}")
+        record = document_to_record(
+            path.read_text(), export=True, resolve=resolve, stems=file_stems, titles=titles
+        )
+        check_record(contracts, record, f"{label} {path.name}")
         if path.parent.name != record["type"].replace(":", "-"):
             raise ValueError(f"{label}: {path.name} is not in its type folder")
         records.append(record)
@@ -991,13 +1400,7 @@ def check_memory_folder(contracts: Contracts, folder: Path, *, label: str) -> di
                 f"{label}: {path.name} should be named {stems[record['id']]}.md (M-55)"
             )
         type_def = contracts.type_of(record["type"])
-        omitted = any(
-            pointer_get(record["fields"], pointer) == SEALED_PLACEHOLDER
-            for pointer in record.get("sealed", [])
-        )
-        again = record_to_document(
-            record, type_def, export=True, stems=stems, titles=titles, omit_sealed=omitted
-        )
+        again = record_to_document(record, type_def, export=True, stems=stems, titles=titles)
         if again != path.read_text():
             raise ValueError(f"{label}: {path.name} is not in canonical export form (M-57)")
     ids = [record["id"] for record in records]
@@ -1005,8 +1408,11 @@ def check_memory_folder(contracts: Contracts, folder: Path, *, label: str) -> di
         raise ValueError(f"{label}: duplicate ids")
     if ids.count("self") != 1:
         raise ValueError(f"{label}: exactly one self record expected (M-22)")
-    # Links: targets exist (no dangling links in the examples), supersedes acyclic, one superseder.
     by_id = {record["id"]: record for record in records}
+    title_keys: dict[str, list[str]] = {}
+    for record in records:
+        title_keys.setdefault(stem_key(record["title"]), []).append(record["id"])
+    # Links: targets exist (no dangling links in the examples), supersedes acyclic, one superseder.
     superseded_by: dict[str, str] = {}
     for record in records:
         for link in record.get("links", []):
@@ -1016,6 +1422,15 @@ def check_memory_folder(contracts: Contracts, folder: Path, *, label: str) -> di
                 if link["to"] in superseded_by:
                     raise ValueError(f"{label}: {link['to']} superseded twice")
                 superseded_by[link["to"]] = record["id"]
+        # M-3: a stored body holds its edges in id form; plain text matches no record's title.
+        for match in WIKILINK_RE.finditer(record.get("body", "")):
+            target = match.group(1)
+            if RECORD_ID_RE.match(target):
+                continue
+            if len(title_keys.get(stem_key(target), [])) == 1:
+                raise ValueError(
+                    f"{label}: {record['id']} holds an unresolved wikilink to {target}"
+                )
     for start in superseded_by:
         seen, current = set(), start
         while current in superseded_by:
@@ -1030,19 +1445,236 @@ def check_memory_folder(contracts: Contracts, folder: Path, *, label: str) -> di
     usage_path = folder / "memory-usage.json"
     usage = load_json(usage_path) if usage_path.exists() else []
     for entry in usage:
-        if entry["record_id"] not in by_id or entry["use"] not in (
-            "read",
-            "proposed",
-            "accepted",
-            "agent_read",
-            "agent_write",
-        ):
+        record = by_id.get(entry["record_id"])
+        if record is None or entry["use"] not in USAGE_USES:
             raise ValueError(f"{label}: usage entry {entry}")
-    return {
+        if entry["use"].startswith("agent_") != (record["scope"] == "agent"):
+            raise ValueError(f"{label}: usage {entry['use']} on a {record['scope']} record")
+    report = {
         "records": len(records),
         "superseded": sorted(superseded_by),
         "usage_entries": len(usage),
+        "sealed_records": sorted(r["id"] for r in records if sealed_values_of([r])),
     }
+    return report, records
+
+
+def check_export_omitted(contracts: Contracts, folder: Path, store: list[dict], *, label: str):
+    """An export with sealed values omitted (M-56), imported into the store it came from (M-59):
+    every placeholder is restored by id and every digest input is the stored one (M-60)."""
+    by_id = {record["id"]: record for record in store}
+    files, resolve, file_stems, titles = _folder_files(folder)
+    restored, placeholders = 0, 0
+    for path in files:
+        record = document_to_record(
+            path.read_text(), export=True, resolve=resolve, stems=file_stems, titles=titles
+        )
+        stored = by_id.get(record["id"])
+        if stored is None:
+            raise ValueError(f"{label}: {path.name} is not in the store")
+        had = sum(
+            pointer_get(record["fields"], p) == SEALED_PLACEHOLDER for p in record.get("sealed", [])
+        )
+        outcome = restore_placeholders(record, stored)
+        if outcome["missing"]:
+            raise ValueError(f"{label}: {path.name} could not be completed from the store")
+        type_def = check_record(contracts, record, f"{label} {path.name}")
+        digest_sha = sha256_canonical(type_def["schema"])
+        if record_digest_input(record, digest_sha) != record_digest_input(stored, digest_sha):
+            raise ValueError(f"{label}: {path.name} does not reproduce the stored digest input")
+        # The file itself is the omitted form of the stored record (M-56), byte for byte.
+        again = record_to_document(
+            stored, type_def, export=True, stems=file_stems, titles=titles, omit_sealed=True
+        )
+        if again != path.read_text():
+            raise ValueError(f"{label}: {path.name} is not the omitted export of the store (M-56)")
+        placeholders += had
+        restored += len(outcome["restored"])
+    if len(files) != len(store):
+        raise ValueError(f"{label}: {len(files)} files for {len(store)} stored records")
+    if placeholders == 0:
+        raise ValueError(f"{label}: no placeholder found; the example exercises nothing")
+    return {"files": len(files), "placeholders": placeholders, "restored": restored}
+
+
+def check_negative_cases(contracts: Contracts) -> dict:
+    """The negative cases of §10 that need no runtime, over the WebAir example (M-64)."""
+    folder = EXAMPLES / "webair-0.6.0"
+    _, records = check_memory_folder(contracts, folder / "memory", label="negative cases")
+    by_id = {record["id"]: record for record in records}
+    policy = load_json(folder / "policy.json")
+    grants = _check_grants(contracts, folder, policy, by_id, "negative cases")
+    granted = {record_id: grant["type"] for record_id, grant in grants.items()}
+    scan_set = sealed_values_of(records)
+    base = load_json(folder / "proposals.json")
+    identity = next(r for r in records if r["type"] == "person.identity")
+    email = pointer_get(identity["fields"], "/email")
+    cases = {}
+
+    def expect(case: str, code: str, reason: str | None, document, **overrides):
+        try:
+            check_proposals(
+                contracts,
+                document,
+                declared=overrides.get("declared", ("travel.preference", "travel.profile")),
+                granted=overrides.get("granted", granted),
+                sealed_values=scan_set,
+                label=case,
+            )
+        except Refusal as refusal:
+            if refusal.code != code or refusal.reason != reason:
+                raise ValueError(f"{case}: got {refusal}, expected {code} ({reason})") from None
+            cases[case] = f"{code} ({reason})" if reason else code
+            return
+        raise ValueError(f"{case}: accepted, expected {code}")
+
+    def with_proposal(**changes):
+        document = copy.deepcopy(base)
+        document["proposals"][0].update(changes)
+        return document
+
+    expect(
+        "N1",
+        "permission_denied",
+        "memory_proposal_type_undeclared",
+        with_proposal(type="person.preference", fields={"domain": "x", "key": "y", "value": "z"}),
+    )
+    expect(
+        "N2",
+        "schema_validation",
+        "memory_proposal_sealed_field",
+        with_proposal(
+            type="contact",
+            fields={"given_name": "Sam", "family_name": "T", "email": "sam@example.com"},
+        ),
+        declared=("contact",),
+    )
+    expect(
+        "N8",
+        "permission_denied",
+        "memory_proposal_target_not_granted",
+        with_proposal(
+            action="update",
+            type="travel.profile",
+            target="mem_ffffffffffffffffffffffffffffffff",
+            fields=base["proposals"][1]["fields"],
+        ),
+    )
+    expect("N9", "schema_validation", None, with_proposal(links=[{"to": "#9", "rel": "related"}]))
+    expect(
+        "N13",
+        "permission_denied",
+        "sealed_value_in_proposal",
+        with_proposal(fields={"kind": "other", "value": email}),
+    )
+    expect(
+        "N13 body",
+        "permission_denied",
+        "sealed_value_in_proposal",
+        with_proposal(body=f"Contact: {email.upper()}"),
+    )
+    expect(
+        "N14",
+        "permission_denied",
+        "memory_proposal_link_not_granted",
+        with_proposal(links=[{"to": "mem_ffffffffffffffffffffffffffffffff", "rel": "related"}]),
+    )
+    expect(
+        "N15",
+        "schema_validation",
+        None,
+        with_proposal(links=[{"to": next(iter(granted)), "rel": "supersedes"}]),
+    )
+    # Update target of another type than the proposal (M-40 step 5).
+    card = next(r["id"] for r in records if r["type"] == "payment.card")
+    expect(
+        "update of another type",
+        "permission_denied",
+        "memory_proposal_target_not_granted",
+        with_proposal(
+            action="update",
+            type="travel.profile",
+            target=card,
+            fields=base["proposals"][1]["fields"],
+        ),
+    )
+
+    def expect_type(case: str, code: str, declaration: dict, schema: dict):
+        try:
+            check_custom_type(contracts, declaration, schema)
+        except Refusal as refusal:
+            if refusal.code != code:
+                raise ValueError(f"{case}: got {refusal}, expected {code}") from None
+            cases[case] = code
+            return
+        raise ValueError(f"{case}: accepted, expected {code}")
+
+    loyalty = {
+        "id": "loyalty.member",
+        "display_name": "Loyalty member",
+        "description": "x",
+        "schema": "schemas/loyalty.schema.json",
+    }
+    expect_type(
+        "N16",
+        "custom_type_shadows_sealed_type",
+        loyalty,
+        {
+            "type": "object",
+            "properties": {"given_name": {"type": "string"}, "email": {"type": "string"}},
+            "additionalProperties": False,
+        },
+    )
+    expect_type(
+        "N17",
+        "custom_type_reserved",
+        {**loyalty, "id": "contact"},
+        {
+            "type": "object",
+            "properties": {"given_name": {"type": "string"}},
+            "additionalProperties": False,
+        },
+    )
+    expect_type(
+        "N17 family",
+        "custom_type_reserved",
+        {**loyalty, "id": "person.loyalty"},
+        {
+            "type": "object",
+            "properties": {"tier": {"type": "string"}},
+            "additionalProperties": False,
+        },
+    )
+    expect_type(
+        "custom sealed",
+        "custom_type_sealed",
+        {**loyalty, "sealed_fields": ["/tier"]},
+        {
+            "type": "object",
+            "properties": {"tier": {"type": "string"}},
+            "additionalProperties": False,
+        },
+    )
+    accepted = check_custom_type(
+        contracts,
+        loyalty,
+        {
+            "type": "object",
+            "properties": {"tier": {"type": "string"}, "number": {"type": "string"}},
+            "additionalProperties": False,
+        },
+    )
+    cases["custom accepted"] = accepted["id"]
+    # The positive document passes with the same inputs, so the refusals above are the changes'.
+    check_proposals(
+        contracts,
+        base,
+        declared=("travel.preference", "travel.profile"),
+        granted=granted,
+        sealed_values=scan_set,
+        label="positive",
+    )
+    return cases
 
 
 def check_rule_numbers() -> dict:
@@ -1066,7 +1698,10 @@ def check_rule_numbers() -> dict:
     ]
     if len(rows) < 12:
         raise ValueError(f"the D-184 table has {len(rows)} rows")
-    return {"rules": definitions[-1], "d184_rows": len(rows)}
+    cases = [int(number) for number in CASE_RE.findall(text)]
+    if cases != list(range(1, len(cases) + 1)):
+        raise ValueError(f"negative cases out of order: {cases}")
+    return {"rules": definitions[-1], "d184_rows": len(rows), "negative_cases": len(cases)}
 
 
 def main(argv=None) -> int:
@@ -1098,6 +1733,7 @@ def main(argv=None) -> int:
             contracts, EXAMPLES / "literature-review-0.2.8", package_name="Literature Review 0.2.8"
         ),
     )
+    report.run("negative_cases", lambda: check_negative_cases(contracts))
     report.run("rule_numbers", check_rule_numbers)
     output = {"passed": report.passed, "spec": str(SPEC.relative_to(ROOT)), "checks": report.checks}
     print(json.dumps(output, indent=2))

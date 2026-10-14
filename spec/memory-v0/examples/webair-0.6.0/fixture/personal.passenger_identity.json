@@ -1,0 +1,9 @@
+{
+  "tool": "personal.passenger_identity",
+  "input": {},
+  "output": {
+    "given_name": "Alex",
+    "family_name": "Traveler",
+    "contact_email": "alex.traveler@example.com"
+  }
+}

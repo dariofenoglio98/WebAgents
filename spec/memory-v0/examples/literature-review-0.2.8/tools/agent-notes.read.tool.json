@@ -1,0 +1,21 @@
+{
+  "spec_version": "0.1",
+  "version": "0.1.0",
+  "execution": "local",
+  "endpoint": null,
+  "method": null,
+  "permissions": [
+    "memory.agent"
+  ],
+  "domains": [],
+  "timeout_seconds": 10,
+  "retries": 0,
+  "approval_required": true,
+  "extensions": {},
+  "id": "agent-notes.read",
+  "description": "Agent notes: read this package's own private document from the person's memory at the start of the run (empty on the first run). It takes no arguments; the host answers only with this package's document.",
+  "binding": "host.memory.agent.read",
+  "input_schema": "schemas/host/empty-input.schema.json",
+  "output_schema": "schemas/host/agent-notes.read.output.schema.json",
+  "side_effects": "read"
+}
