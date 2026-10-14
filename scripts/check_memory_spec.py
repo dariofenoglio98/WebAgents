@@ -8,11 +8,12 @@ policy, tool, export declaration, plan grant and fixture answer is what the text
 frontmatter subset (M-7), the canonical order (M-9, M-57), the record schema, the type schemas of
 the starter taxonomy, the sealed-value rules (M-4, M-24), the record view construction (M-16),
 the agent tool schemas (M-48), the proposal checks in order with their codes (M-40, the sealed-value
-scan of step 7 included), the custom-type rules (M-19), the schema patches (applied in memory to
-copies of the agentpkg schemas, idempotently), the folder rules (M-55, M-58), the import of an
-export with sealed values omitted (M-56, M-59, M-60), and the negative cases of §10 that need no
-runtime. It is also the reference reader and writer of the record format: the worked examples were
-written with `record_to_document`.
+scan of step 7 included, proposal by proposal), the custom-type rules (M-19), the schema patches
+(applied in memory to copies of the agentpkg schemas, idempotently), the folder rules (M-55, M-58),
+the import of an export with sealed values omitted (M-56, M-59, M-60), an export-then-import round
+trip over every link form with a dangling target and the hub after "Forget everything" (M-57, M-59,
+M-60), and the negative cases of §10 that need no runtime. It is also the reference reader and
+writer of the record format: the worked examples were written with `record_to_document`.
 
 Prints a JSON report and exits 1 if any check fails. No network, no execution, no package built.
 """
@@ -73,6 +74,8 @@ SEALED_PLACEHOLDER = "sealed:omitted"
 MIRROR_MARK = "<!-- memory.v0 links -->"
 MIN_SEALED_LENGTH = 6
 MAX_BODY_CHARS = 16384
+MAX_AGENT_BODY_CHARS = 32768
+RESERVED_TYPES = frozenset(["person.self", "agent.memory"])
 MAX_FIELDS_CHARS = 16384
 MAX_SCANNED_STRINGS = 1 << 20
 AGENT_READ, AGENT_WRITE = "host.memory.agent.read", "host.memory.agent.write"
@@ -392,6 +395,43 @@ def stems_for(records: list[dict]) -> dict[str, str]:
     return result
 
 
+def canonical_links(links: list[dict]) -> list[dict]:
+    """M-9: links sorted by relation in vocabulary order, then by target; duplicates dropped."""
+    unique = {(link["rel"], link["to"]) for link in links}
+    return [
+        {"to": to, "rel": rel}
+        for rel, to in sorted(unique, key=lambda pair: (RELATIONS.index(pair[0]), pair[1]))
+    ]
+
+
+def title_index(titles: dict[str, str]) -> dict[str, str]:
+    """Title key (NFC, case-folded) -> record id, for the titles exactly one record carries."""
+    groups: dict[str, list[str]] = {}
+    for record_id, title in titles.items():
+        groups.setdefault(stem_key(title), []).append(record_id)
+    return {key: ids[0] for key, ids in groups.items() if len(ids) == 1}
+
+
+def normalize_body_links(body: str, titles: dict[str, str]) -> str:
+    """M-3 at write time: a bare `[[<id>]]` whose record exists gains the title as its alias; a
+    plain link whose text is the title of exactly one record becomes `[[<id>|<text>]]` (the alias
+    kept when given); anything else (a dangling id, text that names no record) is left as it is."""
+    by_title = title_index(titles)
+
+    def rewrite(match: re.Match) -> str:
+        target, alias = match.group(1), match.group(2)
+        if RECORD_ID_RE.match(target):
+            if alias is None and target in titles:
+                return f"[[{target}|{titles[target]}]]"
+            return match.group(0)
+        record_id = by_title.get(stem_key(target))
+        if record_id is None:
+            return match.group(0)
+        return f"[[{record_id}|{alias or target}]]"
+
+    return WIKILINK_RE.sub(rewrite, body)
+
+
 def record_to_document(
     record: dict,
     type_def: dict,
@@ -426,23 +466,23 @@ def record_to_document(
     head.update(fields)
     if record.get("sealed"):
         head["sealed"] = list(record["sealed"])
-    links = record.get("links", [])
+    links = canonical_links(record.get("links", []))  # M-9: the stored order is canonical
     if links:
         if export:
             for relation in RELATIONS:
                 targets = [link["to"] for link in links if link["rel"] == relation]
                 if targets:
-                    head[relation] = [f"[[{_link_target(to, stems, titles)}]]" for to in targets]
+                    head[relation] = [f"[[{_link_target(to, stems)}]]" for to in targets]
         else:
-            head["links"] = [{"to": link["to"], "rel": link["rel"]} for link in links]
+            head["links"] = links
     head["source"] = order_source(record["source"])
-    body = normalize_body(record.get("body", ""))
+    body = normalize_body_links(normalize_body(record.get("body", "")), titles)  # M-3, M-24
     if export:
         body = WIKILINK_RE.sub(lambda match: _export_wikilink(match, stems, titles), body)
         if links:
             mirror = [MIRROR_MARK, "## Links"]
             for link in links:
-                mirror.append(f"- {link['rel']}: [[{_link_target(link['to'], stems, titles)}]]")
+                mirror.append(f"- {link['rel']}: [[{_link_target(link['to'], stems)}]]")
             body = (body + "\n\n" if body else "") + "\n".join(mirror)
     text = "---\n" + write_frontmatter(head) + "\n---\n"
     if body:
@@ -450,16 +490,15 @@ def record_to_document(
     return text
 
 
-def _link_target(to: str, stems: dict[str, str], titles: dict[str, str]) -> str:
-    return stems.get(to) or titles.get(to) or to
+def _link_target(to: str, stems: dict[str, str]) -> str:
+    """M-57: the target's stem, or the id itself for a dangling target (id form)."""
+    return stems.get(to, to)
 
 
 def _export_wikilink(match: re.Match, stems: dict[str, str], titles: dict[str, str]) -> str:
     target, alias = match.group(1), match.group(2)
     stem = stems.get(target)
-    if stem is None:  # a dangling id, or plain text that matched no record (M-3): unchanged
-        if RECORD_ID_RE.match(target):
-            return f"[[{alias or titles.get(target) or target}]]"
+    if stem is None:  # a dangling id (kept in id form, M-57) or plain text (M-3): unchanged
         return match.group(0)
     if alias is None or alias == titles.get(target):
         return f"[[{stem}]]"
@@ -471,21 +510,22 @@ def document_to_record(
     *,
     export: bool = False,
     resolve: dict[str, str] | None = None,
-    stems: dict[str, str] | None = None,
     titles: dict[str, str] | None = None,
 ) -> dict:
     """Parse a stored document, or an export file (relations as properties, wikilinks by stem).
 
-    `resolve` maps a stem key (M-55, case-folded) to a record id, `stems` a record id to its exact
-    stem and `titles` a record id to its title."""
+    `resolve` maps a stem key or a title key (M-55, case-folded; the imported set's stems first,
+    then the store's unambiguous titles, M-59) to a record id, and `titles` a record id to its
+    title. A link in id form is kept as that id, dangling or not (M-27, M-59); the mirror is
+    stripped unread (M-57); a property item that names no record is kept in the body as text."""
     head_text, body = split_document(text)
     head = parse_frontmatter(head_text)
     resolve = resolve or {}
-    stems = stems or {}
     titles = titles or {}
     record: dict = {}
     fields: dict = {}
     links: list[dict] = []
+    unresolved: list[str] = []
     for key, value in head.items():
         if key in RELATIONS and export:
             if not isinstance(value, list):
@@ -494,10 +534,15 @@ def document_to_record(
                 match = WIKILINK_RE.fullmatch(item) if isinstance(item, str) else None
                 if not match:
                     raise FrontmatterError(f"{key}: {item!r} is not a whole-value wikilink")
-                target = resolve.get(stem_key(match.group(1)))
-                if target is None:
-                    raise FrontmatterError(f"{key}: unresolved link [[{match.group(1)}]]")
-                links.append({"to": target, "rel": key})
+                target = match.group(1)
+                if RECORD_ID_RE.match(target):  # id form: an edge, dangling or not
+                    links.append({"to": target, "rel": key})
+                    continue
+                record_id = resolve.get(stem_key(target))
+                if record_id is None:  # no record: not an edge; kept as body text, reported
+                    unresolved.append(target)
+                    continue
+                links.append({"to": record_id, "rel": key})
         elif key in RESERVED:
             record[key] = value
         else:
@@ -505,28 +550,50 @@ def document_to_record(
     body = normalize_body(body)
     if export:
         marker = body.find(MIRROR_MARK)
-        if marker >= 0:
-            mirror = body[marker:].rstrip()
+        if marker >= 0:  # generated on export, stripped on import, never read (M-57, M-59)
             body = body[:marker].rstrip()
-            expected = [MIRROR_MARK, "## Links"] + [
-                f"- {link['rel']}: [[{stems.get(link['to'], link['to'])}]]" for link in links
-            ]
-            if mirror != "\n".join(expected):
-                raise FrontmatterError("the links mirror does not match the frontmatter links")
         body = WIKILINK_RE.sub(lambda match: _import_wikilink(match, resolve, titles), body)
+        if unresolved:
+            kept = "\n".join(f"[[{text}]]" for text in unresolved)
+            body = (body + "\n\n" if body else "") + kept
         if links:
-            record["links"] = links
+            record["links"] = canonical_links(links)
     record["fields"] = fields
     record["body"] = body
     return record
 
 
 def _import_wikilink(match: re.Match, resolve: dict[str, str], titles: dict[str, str]) -> str:
+    """M-59: `[[<stem>]]` -> `[[<id>|<title>]]`, `[[<stem>|<alias>]]` -> `[[<id>|<alias>]]`; an
+    id-form link (dangling or not) and text that names no record are left as written."""
     target, alias = match.group(1), match.group(2)
+    if RECORD_ID_RE.match(target):
+        return match.group(0)
     record_id = resolve.get(stem_key(target))
     if record_id is None:
         return match.group(0)
     return f"[[{record_id}|{alias or titles.get(record_id) or target}]]"
+
+
+def merge_hub(store_hub: dict, imported: dict, now: str) -> dict:
+    """M-59: the imported hub's title, fields, body and `updated` replace the store's; links are
+    united (`updated` becomes `now` when the union adds a link the file did not carry); `created`
+    is the earlier of the two; `source` stays `person`; the id stays `self`."""
+    imported_links = canonical_links(imported.get("links", []))
+    links = canonical_links([*imported_links, *store_hub.get("links", [])])
+    merged = {
+        **copy.deepcopy(imported),
+        "id": "self",
+        "created": min(store_hub["created"], imported["created"]),
+        "source": {"kind": "person"},
+    }
+    if links != imported_links:
+        merged["updated"] = now
+    if links:
+        merged["links"] = links
+    else:
+        merged.pop("links", None)
+    return merged
 
 
 def restore_placeholders(record: dict, stored: dict | None) -> dict:
@@ -802,13 +869,16 @@ def check_record(contracts: Contracts, record: dict, label: str) -> dict:
     for value in values:
         if value in haystack:
             raise ValueError(f"{label}: a sealed value appears in the title, tags or body (M-4)")
-    if len(record.get("body", "")) > MAX_BODY_CHARS:
-        raise ValueError(f"{label}: body over {MAX_BODY_CHARS} characters")
+    cap = MAX_AGENT_BODY_CHARS if record["scope"] == "agent" else MAX_BODY_CHARS  # M-3
+    if len(record.get("body", "")) > cap:
+        raise ValueError(f"{label}: body over {cap} characters (memory_record_too_large)")
     if len(canonical_json(record["fields"]).decode("utf-8")) > MAX_FIELDS_CHARS:
         raise ValueError(f"{label}: fields over {MAX_FIELDS_CHARS} characters (M-24)")
     for link in record.get("links", []):
         if link["to"] == record["id"]:
             raise ValueError(f"{label}: a record cannot link to itself")
+    if record.get("links") and record["links"] != canonical_links(record["links"]):
+        raise ValueError(f"{label}: links are not in canonical order (M-9)")
     for field in record["fields"]:
         if field in RESERVED:
             raise ValueError(f"{label}: reserved field name {field}")
@@ -859,7 +929,7 @@ def check_taxonomy(contracts: Contracts) -> dict:
             raise ValueError(f"{label}: starter types are declared by the spec")
         # M-19's name rule holds inside the taxonomy too: a sealed name is sealed wherever it is.
         if not entry["sealed_fields"]:
-            clash = sorted(set(entry["schema"]["properties"]) & set(contracts.sealed_names))
+            clash = sorted(property_names(entry["schema"]) & set(contracts.sealed_names))
             if clash:
                 raise ValueError(f"{label}: unsealed property named like a sealed field {clash}")
     if len(set(legacy_ids)) != len(legacy_ids):
@@ -878,13 +948,37 @@ def check_taxonomy(contracts: Contracts) -> dict:
     }
 
 
+def property_names(schema, found: set[str] | None = None) -> set[str]:
+    """Every property name at any depth of a fields schema (M-19): the object's `properties`,
+    nested objects and array items; no `$ref` exists in these schemas (M-13)."""
+    found = set() if found is None else found
+    if isinstance(schema, dict):
+        props = schema.get("properties")
+        if isinstance(props, dict):
+            found.update(props)
+            for value in props.values():
+                property_names(value, found)
+        property_names(schema.get("items"), found)
+    elif isinstance(schema, list):
+        for item in schema:
+            property_names(item, found)
+    return found
+
+
 def check_custom_type(contracts: Contracts, declaration: dict, schema: dict) -> dict:
-    """M-18, M-19: a package's custom type declaration, with its schema loaded. Raises Refusal."""
-    type_id = declaration["id"]
-    if declaration.get("sealed_fields"):
-        raise Refusal("custom_type_sealed", None, f"{type_id} declares sealed fields")
-    if not WELL_KNOWN_ID_RE.fullmatch(type_id):
-        raise Refusal("schema_validation", None, f"{type_id} is not in the well-known form")
+    """M-18, M-19: a package's custom type declaration, with its schema loaded. Raises Refusal.
+
+    The policy schema comes first: a declaration that lists `sealed_fields` (or anything else
+    `memory_types` does not admit) is `schema_validation` at validation, before any rule here."""
+    type_id = str(declaration.get("id", "?"))
+    try:
+        validate(
+            contracts.policy["properties"]["memory_types"]["items"],
+            declaration,
+            f"{type_id} declaration",
+        )
+    except ValueError as error:
+        raise Refusal("schema_validation", None, str(error)) from None
     if type_id in contracts.types or type_id in contracts.legacy:
         raise Refusal("custom_type_reserved", None, f"{type_id} is a well-known id")
     if type_id.startswith(RESERVED_FAMILIES):
@@ -896,7 +990,7 @@ def check_custom_type(contracts: Contracts, declaration: dict, schema: dict) -> 
         raise Refusal("schema_validation", None, str(error)) from None
     if schema_mentions(schema):
         raise Refusal("schema_validation", None, f"{type_id} schema uses $ref/$id")
-    clash = sorted(set(schema["properties"]) & set(contracts.sealed_names))
+    clash = sorted(property_names(schema) & set(contracts.sealed_names))
     if clash:
         raise Refusal(
             "custom_type_shadows_sealed_type",
@@ -959,6 +1053,19 @@ def check_patches(contracts: Contracts) -> dict:
     links = contracts.proposals["$defs"]["proposal"]["properties"]["links"]["items"]
     if "supersedes" in links["properties"]["rel"]["enum"]:
         raise ValueError("a proposal link may not carry supersedes (M-39)")
+    # The body caps agree (M-3, M-51): what the agent write tool accepts is always committable.
+    write_cap = contracts.agent_tools[AGENT_WRITE][0]["properties"]["body"]["maxLength"]
+    scopes = contracts.record["allOf"][0]
+    if (
+        write_cap != MAX_AGENT_BODY_CHARS
+        or contracts.record["properties"]["body"]["maxLength"] != MAX_AGENT_BODY_CHARS
+        or scopes["then"]["properties"]["body"]["maxLength"] != MAX_AGENT_BODY_CHARS
+        or scopes["else"]["properties"]["body"]["maxLength"] != MAX_BODY_CHARS
+    ):
+        raise ValueError("the agent write cap and the record body caps disagree (M-3, M-51)")
+    declaration = contracts.policy["properties"]["memory_types"]["items"]
+    if "sealed_fields" in declaration["properties"] or declaration["additionalProperties"]:
+        raise ValueError("a custom type declaration admits sealed_fields (M-19)")
     # Backward compatibility: the shipped policies still validate under the patched schema.
     for package in ("webair", "literature-review", "meeting-agenda"):
         manifest = load_json(ROOT / "agents" / package / "MANIFEST.agent")
@@ -967,36 +1074,47 @@ def check_patches(contracts: Contracts) -> dict:
             load_json(ROOT / "agents" / package / manifest["policy"]),
             f"{package} policy under the patched schema",
         )
-    return {"formats": formats, "policy_kinds": kinds, "idempotent": True}
+    return {
+        "formats": formats,
+        "policy_kinds": kinds,
+        "idempotent": True,
+        "body_caps": {"user": MAX_BODY_CHARS, "agent": MAX_AGENT_BODY_CHARS},
+    }
 
 
 def fenced_blocks(text: str) -> list[tuple[str, str]]:
     return [(match.group(1).strip(), match.group(2)) for match in FENCE_RE.finditer(text)]
 
 
-def check_spec_examples(contracts: Contracts) -> dict:
-    text = SPEC.read_text()
-    blocks = fenced_blocks(text)
-    records: list[dict] = []
-    counts = {"memory.record": 0, "memory.export": 0, "memory.proposals": 0}
-    for info, content in blocks:
-        if info == "md memory.record":
-            record = document_to_record(content)
-            type_def = check_record(contracts, record, f"spec record {record.get('id')}")
-            canonical = record_to_document(record, type_def)
-            if canonical != content:
-                raise ValueError(f"spec record {record['id']} is not in canonical form (M-9)")
-            records.append(record)
-            counts["memory.record"] += 1
-    titles = {record["id"]: record["title"] for record in records}
-    stems = stems_for(records)
+def spec_records() -> tuple[list[tuple[str, str]], list[dict]]:
+    """The fenced blocks of the spec and its `md memory.record` examples, parsed (the store)."""
+    blocks = fenced_blocks(SPEC.read_text())
+    return blocks, [document_to_record(c) for info, c in blocks if info == "md memory.record"]
+
+
+def resolver_for(stems: dict[str, str], titles: dict[str, str]) -> dict[str, str]:
+    """M-59: a stem of the set first, then a title exactly one record carries."""
     resolve = {stem_key(stem): record_id for record_id, stem in stems.items()}
+    for key, record_id in title_index(titles).items():
+        resolve.setdefault(key, record_id)
+    return resolve
+
+
+def check_spec_examples(contracts: Contracts) -> dict:
+    blocks, records = spec_records()
+    counts = {"memory.record": len(records), "memory.export": 0, "memory.proposals": 0}
+    titles = {record["id"]: record["title"] for record in records}
+    record_blocks = [content for info, content in blocks if info == "md memory.record"]
+    for record, block in zip(records, record_blocks, strict=True):
+        type_def = check_record(contracts, record, f"spec record {record.get('id')}")
+        if record_to_document(record, type_def, titles=titles) != block:
+            raise ValueError(f"spec record {record['id']} is not in canonical form (M-9)")
+    stems = stems_for(records)
+    resolve = resolver_for(stems, titles)
     profile = "mem_7c1f0a4e9b2d4c5e8f6a1b2c3d4e5f60"
     for info, content in blocks:
         if info == "md memory.export":
-            record = document_to_record(
-                content, export=True, resolve=resolve, stems=stems, titles=titles
-            )
+            record = document_to_record(content, export=True, resolve=resolve, titles=titles)
             type_def = check_record(contracts, record, f"spec export {record.get('id')}")
             # The export example is the §2.1 record plus a link to the §7.2 proposal's record.
             again = record_to_document(record, type_def, export=True, stems=stems, titles=titles)
@@ -1043,10 +1161,11 @@ def check_proposals(
     targets: dict[str, dict] | None = None,
 ) -> dict:
     """M-40 in order: schema, declared type, no sealed field, sealed-free schema, target, links,
-    no sealed value anywhere. `granted` maps the ids this run was granted to their type (M-12);
-    `sealed_values` is the run's scan set (M-36); `targets` holds the store's records by id, so
-    that an update is checked against its target's own `sealed` list (step 3). Raises `Refusal`
-    with the code the spec names."""
+    no sealed value anywhere. Steps 1 and 7 run once over the document; steps 2 to 6 run proposal
+    by proposal in index order (N19). `granted` maps the ids this run was granted to their type
+    (M-12); `sealed_values` is the run's scan set (M-36); `targets` holds the store's records by
+    id, so that an update is checked against its target's own `sealed` list (step 3). Raises
+    `Refusal` with the code the spec names."""
     try:
         validate(contracts.proposals, document, f"{label}: proposals schema")
     except ValueError as error:
@@ -1059,7 +1178,7 @@ def check_proposals(
                 "memory_proposal_type_undeclared",
                 f"{where}: type {proposal['type']} not declared",
             )
-        if proposal["type"] in ("agent.memory", "person.self"):
+        if proposal["type"] in RESERVED_TYPES:  # never proposable (M-22, M-49), M-40 step 2
             raise Refusal(
                 "permission_denied",
                 "memory_proposal_type_undeclared",
@@ -1297,6 +1416,10 @@ def check_example_package(contracts: Contracts, folder: Path, *, package_name: s
     if len(writes) > 1:
         raise ValueError("more than one memory.write permission")
     declared = tuple(writes[0]["resources"]) if writes else ()
+    if set(declared) & RESERVED_TYPES or any(
+        "agent.memory" in entry["resources"] for entry in reads
+    ):
+        raise ValueError("a memory permission names a reserved type (memory_type_reserved, M-38)")
     tools_report = _check_tools(contracts, folder, policy, package_name)
     # Exports: one memory.proposal export at proposals.json iff memory.write is declared (M-38).
     exports_document = load_json(folder / "graph.exports.json")
@@ -1311,7 +1434,7 @@ def check_example_package(contracts: Contracts, folder: Path, *, package_name: s
     proposal_exports = [
         entry for entry in exports_document["exports"] if entry["format"] == "memory.proposal"
     ]
-    if bool(writes) != (len(proposal_exports) == 1) or (
+    if len(proposal_exports) != (1 if writes else 0) or (
         proposal_exports and proposal_exports[0]["path"] != "proposals.json"
     ):
         raise ValueError(
@@ -1366,29 +1489,29 @@ def policy_package_id(folder: Path) -> str:
 
 
 def _folder_files(folder: Path) -> tuple[list[Path], dict, dict, dict]:
-    files = sorted(path for path in folder.rglob("*.md") if path.name != "index.md")
+    """The record files of a folder (only `<root>/index.md` is the index, M-55), the resolver
+    (stems first, then unambiguous titles, M-59), the stems and the titles by id."""
+    files = sorted(path for path in folder.rglob("*.md") if path != folder / "index.md")
     heads = {}
     for path in files:
         head_text, _ = split_document(path.read_text())
         heads[path] = parse_frontmatter(head_text)
-    resolve: dict[str, str] = {}
-    for path, head in heads.items():
+    seen: set[str] = set()
+    for path in heads:
         key = stem_key(path.stem)
-        if key in resolve:
+        if key in seen:
             raise ValueError(f"{folder.name}: two files share the stem {path.stem!r} (M-55)")
-        resolve[key] = head["id"]
+        seen.add(key)
     stems = {head["id"]: path.stem for path, head in heads.items()}
     titles = {head["id"]: head["title"] for head in heads.values()}
-    return files, resolve, stems, titles
+    return files, resolver_for(stems, titles), stems, titles
 
 
 def check_memory_folder(contracts: Contracts, folder: Path, *, label: str) -> tuple[dict, list]:
     files, resolve, file_stems, titles = _folder_files(folder)
     records: list[dict] = []
     for path in files:
-        record = document_to_record(
-            path.read_text(), export=True, resolve=resolve, stems=file_stems, titles=titles
-        )
+        record = document_to_record(path.read_text(), export=True, resolve=resolve, titles=titles)
         check_record(contracts, record, f"{label} {path.name}")
         if path.parent.name != record["type"].replace(":", "-"):
             raise ValueError(f"{label}: {path.name} is not in its type folder")
@@ -1409,9 +1532,6 @@ def check_memory_folder(contracts: Contracts, folder: Path, *, label: str) -> tu
     if ids.count("self") != 1:
         raise ValueError(f"{label}: exactly one self record expected (M-22)")
     by_id = {record["id"]: record for record in records}
-    title_keys: dict[str, list[str]] = {}
-    for record in records:
-        title_keys.setdefault(stem_key(record["title"]), []).append(record["id"])
     # Links: targets exist (no dangling links in the examples), supersedes acyclic, one superseder.
     superseded_by: dict[str, str] = {}
     for record in records:
@@ -1422,15 +1542,10 @@ def check_memory_folder(contracts: Contracts, folder: Path, *, label: str) -> tu
                 if link["to"] in superseded_by:
                     raise ValueError(f"{label}: {link['to']} superseded twice")
                 superseded_by[link["to"]] = record["id"]
-        # M-3: a stored body holds its edges in id form; plain text matches no record's title.
-        for match in WIKILINK_RE.finditer(record.get("body", "")):
-            target = match.group(1)
-            if RECORD_ID_RE.match(target):
-                continue
-            if len(title_keys.get(stem_key(target), [])) == 1:
-                raise ValueError(
-                    f"{label}: {record['id']} holds an unresolved wikilink to {target}"
-                )
+        # M-3: a stored body is in its write-time form (id links with an alias; no plain link
+        # that names exactly one record).
+        if normalize_body_links(record.get("body", ""), titles) != record.get("body", ""):
+            raise ValueError(f"{label}: {record['id']} holds a body link not resolved as M-3 says")
     for start in superseded_by:
         seen, current = set(), start
         while current in superseded_by:
@@ -1450,6 +1565,18 @@ def check_memory_folder(contracts: Contracts, folder: Path, *, label: str) -> tu
             raise ValueError(f"{label}: usage entry {entry}")
         if entry["use"].startswith("agent_") != (record["scope"] == "agent"):
             raise ValueError(f"{label}: usage {entry['use']} on a {record['scope']} record")
+    # M-29, M-61: `proposed` is dated at the run's `memory.proposed` event, which follows every
+    # tool call of the run; `accepted` follows `proposed`.
+    by_run: dict[str, dict[str, list[str]]] = {}
+    for entry in usage:
+        by_run.setdefault(entry["run_id"], {}).setdefault(entry["use"], []).append(entry["at"])
+    for run_id, uses in by_run.items():
+        calls = [at for use in ("read", "agent_read", "agent_write") for at in uses.get(use, [])]
+        proposed, accepted = uses.get("proposed", []), uses.get("accepted", [])
+        if calls and proposed and max(calls) > min(proposed):
+            raise ValueError(f"{label}: run {run_id} has a tool call dated after `proposed`")
+        if proposed and accepted and max(proposed) > min(accepted):
+            raise ValueError(f"{label}: run {run_id} has `proposed` dated after `accepted`")
     report = {
         "records": len(records),
         "superseded": sorted(superseded_by),
@@ -1466,9 +1593,7 @@ def check_export_omitted(contracts: Contracts, folder: Path, store: list[dict], 
     files, resolve, file_stems, titles = _folder_files(folder)
     restored, placeholders = 0, 0
     for path in files:
-        record = document_to_record(
-            path.read_text(), export=True, resolve=resolve, stems=file_stems, titles=titles
-        )
+        record = document_to_record(path.read_text(), export=True, resolve=resolve, titles=titles)
         stored = by_id.get(record["id"])
         if stored is None:
             raise ValueError(f"{label}: {path.name} is not in the store")
@@ -1533,6 +1658,12 @@ def check_negative_cases(contracts: Contracts) -> dict:
         document["proposals"][0].update(changes)
         return document
 
+    def with_proposals(*changes: dict):
+        document = copy.deepcopy(base)
+        for proposal, change in zip(document["proposals"], changes, strict=True):
+            proposal.update(change)
+        return document
+
     expect(
         "N1",
         "permission_denied",
@@ -1584,6 +1715,17 @@ def check_negative_cases(contracts: Contracts) -> dict:
         "schema_validation",
         None,
         with_proposal(links=[{"to": next(iter(granted)), "rel": "supersedes"}]),
+    )
+    # N19: steps 2-6 run proposal by proposal, so proposal 0's link (step 6) is reported before
+    # proposal 1's undeclared type (step 2).
+    expect(
+        "N19",
+        "permission_denied",
+        "memory_proposal_link_not_granted",
+        with_proposals(
+            {"links": [{"to": "mem_ffffffffffffffffffffffffffffffff", "rel": "related"}]},
+            {"type": "person.preference", "fields": {"domain": "x", "key": "y", "value": "z"}},
+        ),
     )
     # Update target of another type than the proposal (M-40 step 5).
     card = next(r["id"] for r in records if r["type"] == "payment.card")
@@ -1645,13 +1787,25 @@ def check_negative_cases(contracts: Contracts) -> dict:
             "additionalProperties": False,
         },
     )
-    expect_type(
+    expect_type(  # the policy schema admits no `sealed_fields`: refused before M-19 runs
         "custom sealed",
-        "custom_type_sealed",
+        "schema_validation",
         {**loyalty, "sealed_fields": ["/tier"]},
         {
             "type": "object",
             "properties": {"tier": {"type": "string"}},
+            "additionalProperties": False,
+        },
+    )
+    expect_type(  # the name rule holds at any depth (M-19)
+        "N16 nested",
+        "custom_type_shadows_sealed_type",
+        loyalty,
+        {
+            "type": "object",
+            "properties": {
+                "member": {"type": "object", "properties": {"email": {"type": "string"}}}
+            },
             "additionalProperties": False,
         },
     )
@@ -1665,6 +1819,51 @@ def check_negative_cases(contracts: Contracts) -> dict:
         },
     )
     cases["custom accepted"] = accepted["id"]
+    # The body cap is per scope (M-3): an agent document of 20,000 characters is a valid record
+    # (what the write tool staged is committable, M-51); a user record of that size is not.
+    stamp = "2026-10-14T12:00:00Z"
+    package_id = "org.example.notes"
+    check_record(
+        contracts,
+        {
+            "id": agent_document_id(package_id),
+            "type": "agent.memory",
+            "title": "Notes",
+            "scope": "agent",
+            "created": stamp,
+            "updated": stamp,
+            "source": {
+                "kind": "agent",
+                "package_id": package_id,
+                "package_version": "1.0.0",
+                "run_id": "run-1",
+            },
+            "fields": {"package_id": package_id},
+            "body": "x" * 20000,
+        },
+        "agent document of 20,000 characters",
+    )
+    cases["agent body 20,000"] = "accepted"
+    try:
+        check_record(
+            contracts,
+            {
+                "id": "mem_00000000000000000000000000000001",
+                "type": "document.note",
+                "title": "Long",
+                "scope": "user",
+                "created": stamp,
+                "updated": stamp,
+                "source": {"kind": "person"},
+                "fields": {},
+                "body": "x" * 20000,
+            },
+            "note of 20,000 characters",
+        )
+    except ValueError:
+        cases["user body 20,000"] = "memory_record_too_large"
+    else:
+        raise ValueError("a user record of 20,000 characters was accepted")
     # The positive document passes with the same inputs, so the refusals above are the changes'.
     check_proposals(
         contracts,
@@ -1675,6 +1874,131 @@ def check_negative_cases(contracts: Contracts) -> dict:
         label="positive",
     )
     return cases
+
+
+def check_round_trip(contracts: Contracts) -> dict:
+    """Export then import gives back the same record (M-60) for every link form: links stored
+    in canonical order (M-9), a body alias equal to the title, another alias, no alias, a target
+    whose stem differs from its title, a dangling target in the frontmatter and in the body, a
+    plain-text link that names no record (M-3, M-57, M-59); a property item that names no record
+    is kept as body text; and the hub after "Forget everything" is restored byte for byte."""
+    _, store = spec_records()
+    titles = {record["id"]: record["title"] for record in store}
+    coffee = next(r["id"] for r in store if r["title"] == "Coffee: no sugar")  # stem differs
+    profile = next(r["id"] for r in store if r["type"] == "research.profile")
+    gone = "mem_ffffffffffffffffffffffffffffffff"  # a deleted record (M-25, M-27)
+    stamp = "2026-10-14T14:00:00Z"
+    note = {
+        "id": "mem_0123456789abcdef0123456789abcdef",
+        "type": "document.note",
+        "title": "Round trip",
+        "scope": "user",
+        "created": stamp,
+        "updated": stamp,
+        "source": {"kind": "person"},
+        "fields": {},
+        "tags": ["check"],
+        "links": [  # deliberately not in canonical order, with a duplicate and a dangling target
+            {"to": "self", "rel": "related"},
+            {"to": profile, "rel": "about"},
+            {"to": gone, "rel": "derived_from"},
+            {"to": coffee, "rel": "related"},
+            {"to": "self", "rel": "related"},
+        ],
+        "body": (
+            f"Alias equal to the title: [[{coffee}|Coffee: no sugar]].\n"
+            f"Another alias: [[{profile}|my profile]].\n"
+            "No alias: [[self]].\n"
+            f"Deleted: [[{gone}|Gone]].\n"
+            "Plain text that names no record: [[Shopping list]]."
+        ),
+    }
+    type_def = contracts.type_of("document.note")
+    # The write (M-24): the stored document, re-read; the body and the links are normalized.
+    stored = document_to_record(record_to_document(note, type_def, titles=titles))
+    check_record(contracts, stored, "round trip: stored note")
+    expected_links = [
+        {"to": profile, "rel": "about"},
+        {"to": gone, "rel": "derived_from"},
+        {"to": coffee, "rel": "related"},
+        {"to": "self", "rel": "related"},
+    ]
+    if stored["links"] != expected_links:
+        raise ValueError(f"stored links are not canonical: {stored['links']}")
+    if "[[self|Dario]]" not in stored["body"] or f"[[{gone}|Gone]]" not in stored["body"]:
+        raise ValueError("the write did not normalize the body links as M-3 says")
+    # The export (M-57).
+    records = [*store, stored]
+    stems = stems_for(records)
+    all_titles = {record["id"]: record["title"] for record in records}
+    exported = record_to_document(stored, type_def, export=True, stems=stems, titles=all_titles)
+    head, body = split_document(exported)
+    properties = parse_frontmatter(head)
+    if (
+        properties.get("about") != ["[[Research profile]]"]
+        or properties.get("derived_from") != [f"[[{gone}]]"]
+        or properties.get("related") != ["[[Coffee- no sugar]]", "[[Dario]]"]
+    ):
+        raise ValueError(f"export properties: {properties}")
+    for expected in (
+        "[[Coffee- no sugar]]",
+        "[[Research profile|my profile]]",
+        "No alias: [[Dario]]",
+        f"[[{gone}|Gone]]",
+        "[[Shopping list]]",
+        f"- derived_from: [[{gone}]]",
+    ):
+        if expected not in body:
+            raise ValueError(f"export body lacks {expected!r}")
+    # The import (M-59): the same record, byte for byte and in its digest input (M-60).
+    resolve = resolver_for(stems, all_titles)
+    imported = document_to_record(exported, export=True, resolve=resolve, titles=all_titles)
+    check_record(contracts, imported, "round trip: imported note")
+    digest_sha = sha256_canonical(type_def["schema"])
+    if record_digest_input(imported, digest_sha) != record_digest_input(stored, digest_sha):
+        raise ValueError("the import does not reproduce the digest input")
+    if record_to_document(imported, type_def, titles=all_titles) != record_to_document(
+        stored, type_def, titles=all_titles
+    ):
+        raise ValueError("the import does not reproduce the stored document")
+    # A property item that names no record is kept as body text, not an edge (M-59).
+    edited = exported.replace('about:\n  - "[[Research profile]]"', 'about:\n  - "[[Nobody]]"')
+    from_edit = document_to_record(edited, export=True, resolve=resolve, titles=all_titles)
+    if any(link["rel"] == "about" for link in from_edit["links"]) or not from_edit["body"].endswith(
+        "[[Nobody]]"
+    ):
+        raise ValueError("an unresolved property item was not kept as body text")
+    # The hub after "Forget everything" (M-22) then an import of the old export (M-59, M-60).
+    hub = next(r for r in store if r["id"] == "self")
+    fresh = {
+        "id": "self",
+        "type": "person.self",
+        "title": "Me",
+        "scope": "user",
+        "created": "2026-10-14T15:00:00Z",
+        "updated": "2026-10-14T15:00:00Z",
+        "source": {"kind": "person"},
+        "fields": {"display_name": "Me"},
+        "body": "",
+    }
+    self_type = contracts.type_of("person.self")
+    merged = merge_hub(fresh, hub, "2026-10-14T15:01:00Z")
+    if record_to_document(merged, self_type) != record_to_document(hub, self_type):
+        raise ValueError("the hub is not restored byte for byte after Forget everything")
+    # The ordinary case: the store's hub is older and holds a link the file does not.
+    older = {**copy.deepcopy(hub), "created": "2026-10-01T09:00:00Z"}
+    older["links"] = [{"to": profile, "rel": "about"}]
+    merged = merge_hub(older, hub, "2026-10-14T15:01:00Z")
+    if merged["created"] != "2026-10-01T09:00:00Z" or merged["updated"] != "2026-10-14T15:01:00Z":
+        raise ValueError(f"hub merge: {merged['created']} {merged['updated']}")
+    if merged["links"] != [{"to": profile, "rel": "about"}]:
+        raise ValueError("hub merge lost the store's link")
+    return {
+        "links": len(expected_links),
+        "dangling": 1,
+        "body_link_forms": 5,
+        "hub_restored": True,
+    }
 
 
 def check_rule_numbers() -> dict:
@@ -1734,6 +2058,7 @@ def main(argv=None) -> int:
         ),
     )
     report.run("negative_cases", lambda: check_negative_cases(contracts))
+    report.run("round_trip", lambda: check_round_trip(contracts))
     report.run("rule_numbers", check_rule_numbers)
     output = {"passed": report.passed, "spec": str(SPEC.relative_to(ROOT)), "checks": report.checks}
     print(json.dumps(output, indent=2))

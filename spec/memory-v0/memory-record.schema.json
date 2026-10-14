@@ -67,7 +67,7 @@
     },
     "body": {
       "type": "string",
-      "maxLength": 16384
+      "maxLength": 32768
     }
   },
   "required": [
@@ -105,6 +105,9 @@
                 "const": "agent"
               }
             }
+          },
+          "body": {
+            "maxLength": 32768
           }
         },
         "not": {
@@ -141,6 +144,9 @@
           },
           "id": {
             "pattern": "^(self|mem_[0-9a-f]{32})$"
+          },
+          "body": {
+            "maxLength": 16384
           }
         }
       }

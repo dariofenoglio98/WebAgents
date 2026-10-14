@@ -68,7 +68,7 @@
     {
       "id": "memory.agent",
       "kind": "memory",
-      "description": "Keep its own notes between runs (at most 32 KB): what it searched and kept last time. Read at the start of a run, written once at the end; you can read and clear them in Settings \u2192 Memory.",
+      "description": "Keep its own notes between runs (at most 32,768 characters): what it searched and kept last time. Read at the start of a run, written once at the end; you can read and clear them in Settings \u2192 Memory.",
       "required": false,
       "resources": [
         "agent"
