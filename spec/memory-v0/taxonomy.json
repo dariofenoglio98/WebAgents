@@ -1,0 +1,770 @@
+{
+  "schema": "memory.v0 taxonomy",
+  "types": [
+    {
+      "id": "person.self",
+      "display_name": "Me",
+      "description": "The hub of the memory: the person the records are about. Exactly one, created at first use, never deleted.",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "title": "Me",
+        "type": "object",
+        "properties": {
+          "display_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          }
+        },
+        "required": [
+          "display_name"
+        ],
+        "additionalProperties": false
+      },
+      "sealed_fields": [],
+      "identity": [],
+      "default_links": [],
+      "display": {
+        "title_from": "/display_name",
+        "summary": [
+          "/display_name"
+        ]
+      },
+      "declared_by": {
+        "kind": "spec"
+      }
+    },
+    {
+      "id": "person.identity",
+      "display_name": "Identity",
+      "description": "A name and the contact details that identify the person: an e-mail, a phone number, a date of birth. The contact details are sealed.",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "title": "Identity",
+        "type": "object",
+        "properties": {
+          "given_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "family_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "email": {
+            "type": "string",
+            "minLength": 6,
+            "maxLength": 254,
+            "pattern": "^[^\\s@]+@[^\\s@]+$"
+          },
+          "phone": {
+            "type": "string",
+            "minLength": 6,
+            "maxLength": 32
+          },
+          "date_of_birth": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+          }
+        },
+        "required": [
+          "given_name",
+          "family_name",
+          "email"
+        ],
+        "additionalProperties": false
+      },
+      "sealed_fields": [
+        "/email",
+        "/phone",
+        "/date_of_birth"
+      ],
+      "identity": [
+        "/email"
+      ],
+      "default_links": [
+        {
+          "to": "self",
+          "rel": "about"
+        }
+      ],
+      "display": {
+        "title_from": null,
+        "summary": [
+          "/given_name",
+          "/family_name"
+        ]
+      },
+      "declared_by": {
+        "kind": "spec"
+      },
+      "legacy": [
+        {
+          "id": "personal.passenger_identity",
+          "schema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "title": "Passenger identity",
+            "type": "object",
+            "properties": {
+              "given_name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 40
+              },
+              "family_name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 40
+              },
+              "contact_email": {
+                "type": "string",
+                "minLength": 6,
+                "maxLength": 254
+              }
+            },
+            "required": [
+              "given_name",
+              "family_name",
+              "contact_email"
+            ],
+            "additionalProperties": false
+          },
+          "projection": {
+            "/given_name": "/given_name",
+            "/family_name": "/family_name",
+            "/contact_email": "/email"
+          }
+        }
+      ]
+    },
+    {
+      "id": "person.personality",
+      "display_name": "About me",
+      "description": "How the person likes things done, in their own words. The body carries the prose; the summary is one line.",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "title": "About me",
+        "type": "object",
+        "properties": {
+          "summary": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "sealed_fields": [],
+      "identity": [],
+      "default_links": [
+        {
+          "to": "self",
+          "rel": "about"
+        }
+      ],
+      "display": {
+        "title_from": null,
+        "summary": [
+          "/summary"
+        ]
+      },
+      "declared_by": {
+        "kind": "spec"
+      }
+    },
+    {
+      "id": "person.preference",
+      "display_name": "Preference",
+      "description": "One standing preference: a domain, a key and a value, with an optional strength.",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "title": "Preference",
+        "type": "object",
+        "properties": {
+          "domain": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          },
+          "key": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 60
+          },
+          "value": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "strength": {
+            "enum": [
+              "weak",
+              "normal",
+              "strong"
+            ]
+          }
+        },
+        "required": [
+          "domain",
+          "key",
+          "value"
+        ],
+        "additionalProperties": false
+      },
+      "sealed_fields": [],
+      "identity": [
+        "/domain",
+        "/key"
+      ],
+      "default_links": [
+        {
+          "to": "self",
+          "rel": "about"
+        }
+      ],
+      "display": {
+        "title_from": null,
+        "summary": [
+          "/domain",
+          "/key",
+          "/value"
+        ]
+      },
+      "declared_by": {
+        "kind": "spec"
+      }
+    },
+    {
+      "id": "contact",
+      "display_name": "Contact",
+      "description": "Another person the person deals with: a name, the relation, and sealed contact details.",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "title": "Contact",
+        "type": "object",
+        "properties": {
+          "given_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "family_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "relation": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          },
+          "email": {
+            "type": "string",
+            "minLength": 6,
+            "maxLength": 254,
+            "pattern": "^[^\\s@]+@[^\\s@]+$"
+          },
+          "phone": {
+            "type": "string",
+            "minLength": 6,
+            "maxLength": 32
+          }
+        },
+        "required": [
+          "given_name",
+          "family_name"
+        ],
+        "additionalProperties": false
+      },
+      "sealed_fields": [
+        "/email",
+        "/phone"
+      ],
+      "identity": [
+        "/given_name",
+        "/family_name"
+      ],
+      "default_links": [],
+      "display": {
+        "title_from": null,
+        "summary": [
+          "/given_name",
+          "/family_name",
+          "/relation"
+        ]
+      },
+      "declared_by": {
+        "kind": "spec"
+      }
+    },
+    {
+      "id": "payment.card",
+      "display_name": "Payment card",
+      "description": "Which payment instrument to use: the opaque identifier a merchant accepts (sealed) and a display-safe label. Never a card number or a security code.",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "title": "Payment card",
+        "type": "object",
+        "properties": {
+          "payment_method_id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]{5,63}$"
+          },
+          "display": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "network": {
+            "enum": [
+              "visa",
+              "mastercard",
+              "amex",
+              "discover",
+              "other"
+            ]
+          },
+          "last4": {
+            "type": "string",
+            "pattern": "^[0-9]{4}$"
+          },
+          "expires": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])$"
+          }
+        },
+        "required": [
+          "payment_method_id",
+          "display"
+        ],
+        "additionalProperties": false
+      },
+      "sealed_fields": [
+        "/payment_method_id"
+      ],
+      "identity": [
+        "/payment_method_id"
+      ],
+      "default_links": [
+        {
+          "to": "self",
+          "rel": "about"
+        }
+      ],
+      "display": {
+        "title_from": "/display",
+        "summary": [
+          "/display",
+          "/network",
+          "/expires"
+        ]
+      },
+      "declared_by": {
+        "kind": "spec"
+      },
+      "legacy": [
+        {
+          "id": "wallet.payment_method",
+          "schema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "title": "Payment method",
+            "type": "object",
+            "properties": {
+              "payment_method_id": {
+                "type": "string",
+                "pattern": "^[a-z0-9][a-z0-9-]{5,63}$"
+              },
+              "display": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              }
+            },
+            "required": [
+              "payment_method_id",
+              "display"
+            ],
+            "additionalProperties": false
+          },
+          "projection": {
+            "/payment_method_id": "/payment_method_id",
+            "/display": "/display"
+          }
+        }
+      ]
+    },
+    {
+      "id": "travel.profile",
+      "display_name": "Travel profile",
+      "description": "Travel preferences: home airport, preferred cabin, whether to prefer nonstop flights, and currency. Preferences, not identity or payment data.",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "title": "Travel profile",
+        "type": "object",
+        "properties": {
+          "home_airport": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$"
+          },
+          "preferred_cabin": {
+            "enum": [
+              "economy",
+              "business"
+            ]
+          },
+          "prefer_nonstop": {
+            "type": "boolean"
+          },
+          "preferred_currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$"
+          }
+        },
+        "required": [
+          "home_airport",
+          "preferred_cabin",
+          "prefer_nonstop",
+          "preferred_currency"
+        ],
+        "additionalProperties": false
+      },
+      "sealed_fields": [],
+      "identity": [],
+      "default_links": [
+        {
+          "to": "self",
+          "rel": "about"
+        }
+      ],
+      "display": {
+        "title_from": null,
+        "summary": [
+          "/home_airport",
+          "/preferred_cabin",
+          "/prefer_nonstop",
+          "/preferred_currency"
+        ]
+      },
+      "declared_by": {
+        "kind": "spec"
+      },
+      "legacy": [
+        {
+          "id": "personal.travel_profile",
+          "schema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "title": "Travel profile",
+            "type": "object",
+            "properties": {
+              "home_airport": {
+                "type": "string",
+                "pattern": "^[A-Z]{3}$"
+              },
+              "preferred_cabin": {
+                "enum": [
+                  "economy",
+                  "business"
+                ]
+              },
+              "prefer_nonstop": {
+                "type": "boolean"
+              },
+              "preferred_currency": {
+                "type": "string",
+                "pattern": "^[A-Z]{3}$"
+              }
+            },
+            "required": [
+              "home_airport",
+              "preferred_cabin",
+              "prefer_nonstop",
+              "preferred_currency"
+            ],
+            "additionalProperties": false
+          },
+          "projection": {
+            "/home_airport": "/home_airport",
+            "/preferred_cabin": "/preferred_cabin",
+            "/prefer_nonstop": "/prefer_nonstop",
+            "/preferred_currency": "/preferred_currency"
+          }
+        }
+      ]
+    },
+    {
+      "id": "travel.preference",
+      "display_name": "Travel preference",
+      "description": "One travel preference: a kind (seat, meal, airline, cabin, airport, hotel, other), a value, and optionally what it applies to.",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "title": "Travel preference",
+        "type": "object",
+        "properties": {
+          "kind": {
+            "enum": [
+              "seat",
+              "meal",
+              "airline",
+              "cabin",
+              "airport",
+              "hotel",
+              "other"
+            ]
+          },
+          "value": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "applies_to": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          }
+        },
+        "required": [
+          "kind",
+          "value"
+        ],
+        "additionalProperties": false
+      },
+      "sealed_fields": [],
+      "identity": [
+        "/kind",
+        "/applies_to"
+      ],
+      "default_links": [
+        {
+          "to": "self",
+          "rel": "about"
+        }
+      ],
+      "display": {
+        "title_from": null,
+        "summary": [
+          "/kind",
+          "/value",
+          "/applies_to"
+        ]
+      },
+      "declared_by": {
+        "kind": "spec"
+      }
+    },
+    {
+      "id": "research.profile",
+      "display_name": "Research profile",
+      "description": "What the person researches: interests, affiliations, seed papers, topics to avoid. The body says it in prose.",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "title": "Research profile",
+        "type": "object",
+        "properties": {
+          "interests": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "minItems": 1,
+            "maxItems": 16
+          },
+          "affiliations": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "maxItems": 8
+          },
+          "seed_papers": {
+            "type": "array",
+            "maxItems": 32,
+            "items": {
+              "type": "object",
+              "properties": {
+                "title": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 500
+                },
+                "doi": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "avoid": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "maxItems": 16
+          }
+        },
+        "required": [
+          "interests"
+        ],
+        "additionalProperties": false
+      },
+      "sealed_fields": [],
+      "identity": [],
+      "default_links": [
+        {
+          "to": "self",
+          "rel": "about"
+        }
+      ],
+      "display": {
+        "title_from": null,
+        "summary": [
+          "/interests",
+          "/affiliations"
+        ]
+      },
+      "declared_by": {
+        "kind": "spec"
+      }
+    },
+    {
+      "id": "research.review",
+      "display_name": "Literature review",
+      "description": "One review a run produced: the question, the date, the papers found, and in the body the summary.",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "title": "Literature review",
+        "type": "object",
+        "properties": {
+          "question": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "reviewed_on": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+          },
+          "papers": {
+            "type": "array",
+            "maxItems": 64,
+            "items": {
+              "type": "object",
+              "properties": {
+                "title": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 500
+                },
+                "doi": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                "year": {
+                  "type": "integer",
+                  "minimum": 1900,
+                  "maximum": 2100
+                }
+              },
+              "required": [
+                "title"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "claims": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000
+          }
+        },
+        "required": [
+          "question",
+          "reviewed_on",
+          "papers"
+        ],
+        "additionalProperties": false
+      },
+      "sealed_fields": [],
+      "identity": [
+        "/question"
+      ],
+      "default_links": [],
+      "display": {
+        "title_from": "/question",
+        "summary": [
+          "/reviewed_on",
+          "/claims"
+        ]
+      },
+      "declared_by": {
+        "kind": "spec"
+      }
+    },
+    {
+      "id": "document.note",
+      "display_name": "Note",
+      "description": "A note in the person's words, with no fields: the body is the note. Imported files of no known type become notes.",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "title": "Note",
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "sealed_fields": [],
+      "identity": [],
+      "default_links": [],
+      "display": {
+        "title_from": null,
+        "summary": []
+      },
+      "declared_by": {
+        "kind": "spec"
+      }
+    },
+    {
+      "id": "agent.memory",
+      "display_name": "Agent notes",
+      "description": "One package's private notes between runs (scope agent). Reserved: created by runs only, never recalled, never proposed; read and clear it in Settings.",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "title": "Agent notes",
+        "type": "object",
+        "properties": {
+          "package_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+          }
+        },
+        "required": [
+          "package_id"
+        ],
+        "additionalProperties": false
+      },
+      "sealed_fields": [],
+      "identity": [],
+      "default_links": [],
+      "display": {
+        "title_from": null,
+        "summary": [
+          "/package_id"
+        ]
+      },
+      "declared_by": {
+        "kind": "spec"
+      }
+    }
+  ]
+}

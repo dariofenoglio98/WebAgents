@@ -1,0 +1,52 @@
+{
+  "exports": [
+    {
+      "path": "answer.md",
+      "format": "text",
+      "value": {
+        "from": "result",
+        "path": "/answer"
+      }
+    },
+    {
+      "path": "search.json",
+      "format": "json",
+      "value": {
+        "from": "result",
+        "path": "/evidence/search"
+      }
+    },
+    {
+      "path": "fare-rules.json",
+      "format": "json",
+      "value": {
+        "from": "result",
+        "path": "/evidence/fare_rules"
+      }
+    },
+    {
+      "path": "booking.json",
+      "format": "json",
+      "value": {
+        "object": {
+          "booking": {
+            "from": "result",
+            "path": "/booking"
+          },
+          "purchase": {
+            "from": "result",
+            "path": "/purchase"
+          }
+        }
+      }
+    },
+    {
+      "path": "proposals.json",
+      "format": "memory.proposal",
+      "value": {
+        "from": "result",
+        "path": "/memory_proposals"
+      }
+    }
+  ]
+}

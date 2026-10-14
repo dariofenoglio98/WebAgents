@@ -1,0 +1,38 @@
+{
+  "schema": "memory.v0 proposals",
+  "proposals": [
+    {
+      "action": "create",
+      "type": "research.review",
+      "title": "Prompt-injection defenses, 14 October 2026",
+      "fields": {
+        "question": "What defenses have been proposed against prompt injection attacks on LLM-integrated applications?",
+        "reviewed_on": "2026-10-14",
+        "papers": [
+          {
+            "title": "Defending against indirect prompt injection",
+            "doi": "10.1234/example.2025.1",
+            "year": 2025
+          },
+          {
+            "title": "Capability confinement for tool-using agents",
+            "doi": "10.1234/example.2026.7",
+            "year": 2026
+          }
+        ],
+        "claims": 4
+      },
+      "body": "Two families: input filtering (weak against adaptive attacks) and capability confinement\n(strong, costs expressiveness). Four grounded claims; see the run's `review.md`.",
+      "tags": [
+        "review"
+      ],
+      "links": [
+        {
+          "to": "mem_60718293a4b5c6d7e8f90a1b2c3d4e5f",
+          "rel": "derived_from"
+        }
+      ],
+      "rationale": "Keeps this review beside your profile so the next one can start from it."
+    }
+  ]
+}

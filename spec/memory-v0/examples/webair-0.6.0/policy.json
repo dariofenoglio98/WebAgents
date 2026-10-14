@@ -1,0 +1,122 @@
+{
+  "spec_version": "0.1",
+  "permissions": [
+    {
+      "id": "network.webair",
+      "kind": "network",
+      "description": "Call WebAir's semantic API (a fictional demo airline): search flights, read fare rules, request a booking quote and, only with the separate purchase permission, simulate a purchase.",
+      "required": true,
+      "resources": [
+        "webagents-webair-production.up.railway.app"
+      ]
+    },
+    {
+      "id": "memory.travel_profile",
+      "kind": "memory.read",
+      "description": "Read the travel profile you choose from your memory (home airport, preferred cabin, nonstop preference) when a request leaves those unstated. The profile becomes search criteria sent to WebAir; it is never shown to a model as a profile.",
+      "required": false,
+      "resources": [
+        "travel.profile"
+      ]
+    },
+    {
+      "id": "identity.passenger",
+      "kind": "personal.read",
+      "description": "Read the passenger identity you choose (name and contact email) and send it to WebAir for a booking quote or a simulated purchase, and nowhere else. No model sees it.",
+      "required": false,
+      "resources": [
+        "personal.passenger_identity"
+      ]
+    },
+    {
+      "id": "wallet.payment",
+      "kind": "personal.read",
+      "description": "Read which payment method you choose (an opaque demo identifier and a display label, never a card number) and send the identifier to WebAir with a simulated purchase, and nowhere else. No model sees it.",
+      "required": false,
+      "resources": [
+        "wallet.payment_method"
+      ]
+    },
+    {
+      "id": "booking.simulate_purchase",
+      "kind": "payment",
+      "description": "Simulate purchasing the one exact quote a task names, with the payment method you choose. Fictional: WebAir performs no real transaction and charges nothing. Consequential by design: grant it once, for one run.",
+      "required": false,
+      "resources": [
+        "webagents-webair-production.up.railway.app"
+      ]
+    },
+    {
+      "id": "model.reasoning",
+      "kind": "model",
+      "description": "Use the host-selected model router to interpret the request, choose fares and write the answer.",
+      "required": true,
+      "resources": [
+        "host-router"
+      ]
+    },
+    {
+      "id": "memory.session",
+      "kind": "memory",
+      "description": "Read and write explicit worker state views for this run only.",
+      "required": true,
+      "resources": [
+        "session"
+      ]
+    },
+    {
+      "id": "memory.remember",
+      "kind": "memory.write",
+      "description": "After a booking, propose things to remember: the seat you chose, a changed home profile. Nothing is written until you accept each proposal after the run.",
+      "required": false,
+      "resources": [
+        "travel.preference",
+        "travel.profile"
+      ]
+    }
+  ],
+  "network": {
+    "allowed_domains": [
+      "webagents-webair-production.up.railway.app"
+    ],
+    "https_only": true,
+    "allow_redirects": false
+  },
+  "memory": {
+    "scope": "session",
+    "retention": "session",
+    "raw_documents": false,
+    "state_schema": "schemas/state.schema.json",
+    "sharing": "explicit_views"
+  },
+  "budget": {
+    "estimated_tokens": 24000,
+    "hard_tokens": 120000,
+    "max_remote_calls": 20,
+    "max_calls_per_tool": {
+      "search-flights": 1,
+      "get-fare-rules": 6,
+      "prepare-booking": 1,
+      "simulate-purchase": 1,
+      "travel.profile": 1,
+      "personal.passenger_identity": 1,
+      "wallet.payment_method": 1
+    },
+    "max_parallel_workers": 3,
+    "estimated_cost_usd": null,
+    "approval_threshold_tokens": null
+  },
+  "delegation": {
+    "max_depth": 1,
+    "approved_roles": [
+      "Interpreter",
+      "Personal",
+      "Searcher",
+      "Selector",
+      "Booker",
+      "Writer"
+    ],
+    "allow_remote": false
+  },
+  "extensions": {}
+}

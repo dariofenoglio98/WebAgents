@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+    },
+    "type": {
+      "const": "<type id>"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "fields": {
+      "$comment": "the type's fields schema, verbatim, with any top-level $schema removed (memory-v0.md M-16)"
+    },
+    "body": {
+      "type": "string",
+      "maxLength": 16384
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9][a-z0-9_/-]{0,47}$"
+      },
+      "maxItems": 32,
+      "uniqueItems": true
+    },
+    "sealed": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 2,
+        "maxLength": 256,
+        "pattern": "^(/[^/]+)+$"
+      },
+      "maxItems": 16,
+      "uniqueItems": true
+    }
+  },
+  "required": [
+    "id",
+    "type",
+    "title",
+    "fields",
+    "body",
+    "tags",
+    "sealed"
+  ],
+  "additionalProperties": false
+}

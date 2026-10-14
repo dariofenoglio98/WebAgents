@@ -1,0 +1,6 @@
+{
+  "package_id": "org.webagents.literature-review",
+  "name": "Literature Review Agent",
+  "version": "0.2.8",
+  "runtime_minimum_version": "0.4.0"
+}

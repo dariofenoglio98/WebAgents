@@ -1,0 +1,60 @@
+{
+  "exports": [
+    {
+      "format": "text",
+      "path": "related-work.md",
+      "value": {
+        "from": "result",
+        "path": "/related_work"
+      }
+    },
+    {
+      "path": "papers-found.json",
+      "format": "json",
+      "value": {
+        "from": "result",
+        "path": "/papers_found"
+      }
+    },
+    {
+      "format": "json",
+      "path": "bibliography.json",
+      "value": {
+        "from": "result",
+        "path": "/bibliography"
+      }
+    },
+    {
+      "format": "json",
+      "path": "evidence-table.json",
+      "value": {
+        "from": "result",
+        "path": "/evidence_table"
+      }
+    },
+    {
+      "format": "json",
+      "path": "unresolved.json",
+      "value": {
+        "from": "result",
+        "path": "/unresolved"
+      }
+    },
+    {
+      "format": "json",
+      "path": "verification.json",
+      "value": {
+        "from": "result",
+        "path": "/verification_results"
+      }
+    },
+    {
+      "path": "proposals.json",
+      "format": "memory.proposal",
+      "value": {
+        "from": "result",
+        "path": "/memory_proposals"
+      }
+    }
+  ]
+}

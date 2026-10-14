@@ -1,0 +1,10 @@
+{
+  "tool": "agent-notes.write",
+  "input": {
+    "body": "# Notes\n- Last question: prompt-injection defenses (14 October 2026); 2 papers kept, 4 claims grounded.\n- Crossref answered within the budget; the Citation Resolver was reachable.\n- Next time: start from the kept DOIs before searching again."
+  },
+  "output": {
+    "staged": true,
+    "bytes": 241
+  }
+}
