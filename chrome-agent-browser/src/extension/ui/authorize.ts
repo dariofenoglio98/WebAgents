@@ -15,7 +15,9 @@ import type { ModelCompatibility } from "../../core/compatibility.js";
 import type { Profile } from "../../core/profiles.js";
 import { PROVENANCE_SCHEMA, type DecidedBy, type Decision, type Provenance, type Reason } from "../../core/types.js";
 import type { ResourceRequest } from "../../core/hostresources.js";
-import type { AuthorizationView, ModelsView, SessionView } from "../messages.js";
+import type { AuthorizationView, ModelsView, RecallView, SessionView } from "../messages.js";
+import { lastUseWords } from "../../core/memory/words.js";
+import { fill, STRINGS } from "./memory/strings.js";
 import { estimateLine, pinControls } from "./agent-page.js";
 import { button, card, chip, definition, details, el, list, row, shortHash, whenText, type Child } from "./dom.js";
 
@@ -26,8 +28,14 @@ export interface AuthorizeState {
   customize: boolean;
   /** The customize view's working copy, or null until it is opened. */
   draft: { decisions: Record<string, Decision>; approvals: Record<string, boolean>; decidedBy: Record<string, DecidedBy>; approvedBy: Record<string, DecidedBy>; base: { profile_id: string | null; profile_title: string | null } } | null;
-  /** The person's picks per resource-bearing permission (never pre-filled). */
+  /** The person's picks per resource-bearing permission; a recall card may pre-select one (memory.v0 M-52), recorded as `preset` when the convenience preset chose it. */
   picks: Record<string, string>;
+  /** Recall cards opened on "Change…" (the full candidate list), by permission id. */
+  recallOpen: Record<string, boolean>;
+  /** "Don't share one" per permission: the permission is denied when the agent is used. */
+  declined: Record<string, boolean>;
+  /** Picks the convenience preset made (`preset` in the provenance, M-53), by permission id. */
+  autoPicked: Record<string, boolean>;
   selectedModel: string | null;
   /** Local notice after an action. */
   notice: { text: string; tone: "good" | "warn" | "bad" } | null;
@@ -36,17 +44,17 @@ export interface AuthorizeState {
 }
 
 export function newAuthorizeState(): AuthorizeState {
-  return { selectedProfile: null, customize: false, draft: null, picks: {}, selectedModel: null, notice: null, allowOrigins: null };
+  return { selectedProfile: null, customize: false, draft: null, picks: {}, recallOpen: {}, declined: {}, autoPicked: {}, selectedModel: null, notice: null, allowOrigins: null };
 }
 
 export interface AuthorizeActions {
-  onUseProfile: (profileId: string, picks: Record<string, string>) => void;
+  onUseProfile: (profileId: string, picks: Record<string, string>, presetSelections?: string[]) => void;
   /** `modelId` is the model picked in the customize view; null prepares the plan on the default model. */
-  onAuthorize: (decisions: Record<string, Decision>, approvals: Record<string, boolean>, picks: Record<string, string>, provenance: Provenance, modelId: string | null) => void;
+  onAuthorize: (decisions: Record<string, Decision>, approvals: Record<string, boolean>, picks: Record<string, string>, provenance: Provenance, modelId: string | null, presetSelections?: string[]) => void;
   onPrepare: (modelId: string) => void;
   onRefreshModels: () => void;
   onClearPlan: () => void;
-  onOpenSettings: (section: "models" | "policies" | "data" | "security") => void;
+  onOpenSettings: (section: "models" | "policies" | "data" | "memory" | "security") => void;
   onTrust?: (scope: "package" | "publisher") => void;
   /**
    * Ask Chrome for these origins before the decisions are sent (T16, D-193): called inside the
@@ -81,7 +89,7 @@ function decidedByTone(by: DecidedBy | undefined): "good" | "neutral" {
 const PRESET_TITLES: Record<string, string> = { "privacy-first": "Privacy first", balanced: "Balanced", convenience: "Convenience" };
 
 /** What a granted permission lets the agent do, in a person's words (D-052). */
-function authorityWords(view: AuthorizationView, permission: AuthorizationView["request"]["permissions"][number], decision: Decision): string {
+function authorityWords(view: AuthorizationView, permission: AuthorizationView["request"]["permissions"][number], decision: Decision, picks: Record<string, string> | null = null, autoPicked: Record<string, boolean> | null = null): string {
   const once = decision === "once" ? ", once" : "";
   switch (permission.kind) {
     case "network":
@@ -89,10 +97,21 @@ function authorityWords(view: AuthorizationView, permission: AuthorizationView["
     case "model":
       return `use your model${once}`;
     case "memory":
+      if (permission.resources.length === 1 && permission.resources[0] === "agent") return view.preset === "privacy-first" ? STRINGS["agent.words.no_notes"] : STRINGS["agent.words.notes"];
       return "keep working notes for this run only";
-    case "personal.read": {
+    case "personal.read":
+    case "memory.read": {
       const request = view.resources.requests.find((item) => item.permission_id === permission.id);
-      return `read your ${request?.type_display_name?.toLowerCase() ?? permission.resources.join(", ")} (you choose which)${once}`;
+      const recall = view.recall.find((item) => item.permission_id === permission.id);
+      const type = (recall?.display_name ?? request?.type_display_name ?? permission.resources.join(", ")).toLowerCase();
+      const chosen = picks?.[permission.id];
+      const title = chosen ? recall?.candidates.find((candidate) => candidate.id === chosen)?.title ?? request?.options.find((option) => option.resource_id === chosen)?.label ?? null : null;
+      if (title) return `${fill("agent.words.use", { title })}${autoPicked?.[permission.id] ? ` (${STRINGS["memory.recall.auto"]})` : ""}${once}`;
+      return `${fill("agent.words.read", { type })}${once}`;
+    }
+    case "memory.write": {
+      const names = permission.resources.map((type) => view.recall.find((item) => item.resource_type === type)?.display_name?.toLowerCase() ?? type.replace(/^[a-z]+\./u, "").replace(/_/gu, " ")).map((name) => `${name}s`);
+      return `${fill("agent.words.propose", { types: names.join(", ") })}${once}`;
     }
     case "payment": {
       // Generic on purpose: this host cannot know whether a package's payment is real, so it
@@ -169,7 +188,8 @@ function summaryCard(input: AuthorizeInput, state: AuthorizeState, actions: Auth
   const deniedTools = view.request.tool_approvals.filter((tool) => !decided.tool_approvals[tool.tool_id]).map((tool) => tool.tool_id);
   const personal = view.resources.requests.filter((request) => decided.decisions[request.permission_id] !== "deny");
   const model = input.models?.evaluation.models.find((item) => item.model_id === view.default_model) ?? null;
-  const pickers = personal.map((request) => resourcePicker(request, state, actions, decided.decisions[request.permission_id]!, view.secrets !== "unlocked"));
+  for (const request of personal) preselect(view, state, request.permission_id);
+  const pickers = personal.map((request) => recallCard(request, view, state, actions, decided.decisions[request.permission_id]!, view.secrets !== "unlocked"));
   const trust = input.session.page.trust;
   const canUse = trust.trust_status === "trusted";
   return card(
@@ -178,7 +198,7 @@ function summaryCard(input: AuthorizeInput, state: AuthorizeState, actions: Auth
       "div",
       { className: "ab-summary" },
       el("h4", { text: "This agent will be able to" }),
-      list(granted.map((permission) => authorityWords(view, permission, decided.decisions[permission.id]!))),
+      list(granted.map((permission) => authorityWordsNode(view, permission, decided.decisions[permission.id]!, state, actions))),
       ...granted
         .filter((permission) => permission.kind === "payment")
         .map((permission) => el("p", { className: "ab-hint ab-payment-claim", text: `About this payment, in the publisher's words: “${permission.description}”` })),
@@ -207,9 +227,20 @@ function summaryCard(input: AuthorizeInput, state: AuthorizeState, actions: Auth
           "Use this agent",
           () => {
             const picks = pickState(state, personal);
+            const auto = Object.keys(picks).filter((id) => state.autoPicked[id]);
+            const declined = personal.filter((request) => state.declined[request.permission_id]).map((request) => request.permission_id);
             withOrigins(actions, originsFor(view, decided.tool_approvals, null), () => {
-              if (profile) actions.onUseProfile(profile.id, picks);
-              else actions.onAuthorize(decided.decisions, decided.tool_approvals, picks, decided.provenance, null);
+              if (profile && declined.length === 0) actions.onUseProfile(profile.id, picks, auto);
+              else {
+                // "Don't share one": the permission is denied, as the person's own decision (M-34).
+                const decisions = { ...decided.decisions };
+                const provenance = { ...decided.provenance, decisions: { ...decided.provenance.decisions } };
+                for (const id of declined) {
+                  decisions[id] = "deny";
+                  provenance.decisions[id] = "user";
+                }
+                actions.onAuthorize(decisions, decided.tool_approvals, picks, provenance, null, auto);
+              }
             });
           },
           { variant: "primary", disabled: input.busy !== null || !canUse, title: canUse ? "Record these decisions and prepare a run plan" : "Trust the publisher first" },
@@ -275,6 +306,115 @@ function pickState(state: AuthorizeState, requests: readonly ResourceRequest[]):
   return picks;
 }
 
+/** M-52: a propose or auto card pre-selects the top candidate once; the person's own pick or "Don't share one" is never overridden. */
+function preselect(view: AuthorizationView, state: AuthorizeState, permissionId: string): void {
+  const recall = view.recall.find((item) => item.permission_id === permissionId);
+  if (!recall || recall.mode === "ask" || state.picks[permissionId] || state.declined[permissionId] || state.recallOpen[permissionId]) return;
+  const top = recall.candidates.find((candidate) => !candidate.signals.expired) ?? recall.candidates[0];
+  if (!top) return;
+  state.picks[permissionId] = top.id;
+  if (recall.mode === "auto") state.autoPicked[permissionId] = true;
+}
+
+/** A granted permission's line; a convenience auto-selection carries its "change" link (M-52). */
+function authorityWordsNode(view: AuthorizationView, permission: AuthorizationView["request"]["permissions"][number], decision: Decision, state: AuthorizeState, actions: AuthorizeActions): Child {
+  const text = authorityWords(view, permission, decision, state.picks, state.autoPicked);
+  if (!state.autoPicked[permission.id] || state.recallOpen[permission.id]) return text;
+  return el("span", {}, el("span", { text: `${text} · ` }), linkButton("change", () => {
+    state.recallOpen[permission.id] = true;
+    actions.rerender();
+  }));
+}
+
+function signalChips(candidate: RecallView["candidates"][number]): HTMLElement[] {
+  const chips: HTMLElement[] = [];
+  if (candidate.signals.about_self) chips.push(chip("about you"));
+  if (candidate.signals.same_package) chips.push(chip(`used by this package`));
+  if (candidate.signals.linked_to.length > 0) chips.push(chip(`linked to a selected record`));
+  if (candidate.signals.recently_read) chips.push(chip("read recently"));
+  if (candidate.signals.expired) chips.push(chip("expired", "warn"));
+  if (candidate.demo) chips.push(chip("demo", "warn"));
+  return chips;
+}
+
+/**
+ * The recall card per `memory.read` (or alias) request (design §4, M-34, M-52): under balanced the
+ * top candidate pre-selected and one click confirms; under privacy first (and for every sealed
+ * type) a choice with nothing pre-selected; under convenience an unsealed type is chosen and the
+ * summary line says so. The full list shows each candidate's signals, so the ranking is legible.
+ */
+function recallCard(request: ResourceRequest, view: AuthorizationView, state: AuthorizeState, actions: AuthorizeActions, decision: Decision, locked: boolean): HTMLElement | null {
+  const recall = view.recall.find((item) => item.permission_id === request.permission_id);
+  if (!recall) return resourcePicker(request, state, actions, decision, locked);
+  const kind = (recall.display_name ?? request.type_display_name ?? "record").toLowerCase();
+  if (locked) return resourcePicker(request, state, actions, decision, locked);
+  const id = request.permission_id;
+  if (request.status !== "offered" || recall.candidates.length === 0) {
+    return el(
+      "div",
+      { className: "ab-resource-choice ab-recall ab-recall-empty", attrs: { "data-permission": id } },
+      el("p", { className: "ab-hint", text: fill("memory.recall.empty", { type: kind }) }),
+      el("div", { className: "ab-inline" }, linkButton("Create one", () => actions.onOpenSettings("memory")), el("span", { className: "ab-muted", text: " · " }), linkButton("Continue without", () => {
+        state.declined[id] = true;
+        delete state.picks[id];
+        actions.rerender();
+      })),
+    );
+  }
+  const sealedLine = recall.sealed ? el("p", { className: "ab-hint", text: fill("memory.recall.sealed", { fields: recall.sealed_fields.map((pointer) => pointer.slice(1).replace(/_/gu, " ")).join(", "), tools: request.linked_tools.join(", ") || "the tools that link this permission" }) }) : null;
+  const picked = state.picks[id] ?? null;
+  const declined = state.declined[id] === true;
+  const open = recall.mode === "ask" || state.recallOpen[id] === true || declined;
+  const candidateLine = (candidate: RecallView["candidates"][number]): string => `${lastUseWords(candidate.last_use === null ? null : { package_id: candidate.last_use.package_id, at: candidate.last_use.at })} · ${candidate.provenance}`;
+  if (recall.mode === "auto" && !open) return null; // the summary line carries it (M-52)
+  if (!open && picked) {
+    const chosen = recall.candidates.find((candidate) => candidate.id === picked)!;
+    return el(
+      "div",
+      { className: "ab-resource-choice ab-recall ab-recall-propose", attrs: { "data-permission": id } },
+      el("div", { className: "ab-recall-head" }, el("strong", { text: fill("memory.recall.use", { title: chosen.title }) }), chip(recall.display_name ?? kind), chosen.signals.about_self ? chip("about you") : null, decision === "once" ? chip("one run") : null),
+      el("p", { className: "ab-hint", text: candidateLine(chosen) }),
+      sealedLine,
+      el("div", { className: "ab-inline" }, linkButton(STRINGS["memory.recall.change"], () => {
+        state.recallOpen[id] = true;
+        actions.rerender();
+      }), el("span", { className: "ab-muted", text: " · " }), linkButton(STRINGS["memory.recall.none"], () => {
+        state.declined[id] = true;
+        delete state.picks[id];
+        delete state.autoPicked[id];
+        actions.rerender();
+      })),
+    );
+  }
+  const radios = recall.candidates.map((candidate) => {
+    const input = el("input", { attrs: { type: "radio", name: `resource-${id}`, value: candidate.id } });
+    input.checked = picked === candidate.id && !declined;
+    input.addEventListener("change", () => {
+      state.picks[id] = candidate.id;
+      delete state.declined[id];
+      delete state.autoPicked[id];
+      actions.rerender();
+    });
+    return el("label", { className: "ab-recall-option" }, input, el("span", {}, el("strong", { text: candidate.title }), ...signalChips(candidate), el("span", { className: "ab-hint", text: ` ${candidateLine(candidate)}` })));
+  });
+  const none = el("input", { attrs: { type: "radio", name: `resource-${id}`, value: "" } });
+  none.checked = declined;
+  none.addEventListener("change", () => {
+    state.declined[id] = true;
+    delete state.picks[id];
+    delete state.autoPicked[id];
+    actions.rerender();
+  });
+  return el(
+    "div",
+    { className: "ab-resource-choice ab-recall ab-recall-ask", attrs: { "data-permission": id, role: "group", "aria-label": fill("memory.recall.ask", { type: kind }) } },
+    el("p", {}, el("strong", { text: fill("memory.recall.ask", { type: kind }) }), recall.sealed ? chip("🔒", "neutral") : null),
+    ...radios,
+    el("label", { className: "ab-recall-option" }, none, el("span", { text: "None" })),
+    sealedLine,
+  );
+}
+
 /** The host resource a permission would share, chosen by the person; the value itself never reaches the page. */
 function resourcePicker(request: ResourceRequest, state: AuthorizeState, actions: AuthorizeActions, decision: Decision, locked = false): HTMLElement {
   const kind = request.type_display_name ?? "record";
@@ -284,11 +424,11 @@ function resourcePicker(request: ResourceRequest, state: AuthorizeState, actions
   if (request.status !== "offered") {
     const why =
       request.status === "empty"
-        ? `You have no ${kind.toLowerCase()} in Your data yet; add one, or this permission stays unusable.`
+        ? `You have no ${kind.toLowerCase()} in your memory yet; add one, or this permission stays unusable.`
         : request.status === "kind_mismatch"
           ? `The package requests a ${kind.toLowerCase()} under a different permission kind than this browser reads it with, so it cannot be granted.`
           : "The package's request names more than one kind of record, so it cannot be granted.";
-    return el("div", { className: "ab-resource-choice" }, el("p", { className: "ab-hint", text: why }), request.status === "empty" ? linkButton("Open Your data", () => actions.onOpenSettings("data")) : null);
+    return el("div", { className: "ab-resource-choice" }, el("p", { className: "ab-hint", text: why }), request.status === "empty" ? linkButton("Open Memory", () => actions.onOpenSettings("memory")) : null);
   }
   const select = el("select", { className: "ab-select", attrs: { name: `resource-${request.permission_id}`, "aria-label": `${kind} for ${request.permission_id}` } });
   const placeholder = el("option", { text: `Choose a ${kind.toLowerCase()}…`, attrs: { value: "" } });
@@ -328,7 +468,7 @@ function permissionRow(view: AuthorizationView, draft: NonNullable<AuthorizeStat
       { className: "ab-permission-body" },
       el("div", { className: "ab-access-head" }, el("code", { className: "ab-id", text: permission.id }), chip(permission.kind), chip(permission.required ? "Required" : "Optional", permission.required ? "warn" : "neutral"), chip(decidedByText(draft.decidedBy[permission.id], view), decidedByTone(draft.decidedBy[permission.id]))),
       el("p", { className: "ab-access-text", text: permission.description }),
-      request && draft.decisions[permission.id] !== "deny" ? resourcePicker(request, state, actions, draft.decisions[permission.id]!, view.secrets !== "unlocked") : null,
+      request && draft.decisions[permission.id] !== "deny" ? (view.recall.some((item) => item.permission_id === permission.id) ? recallCard(request, view, { ...state, recallOpen: { ...state.recallOpen, [permission.id]: true } }, actions, draft.decisions[permission.id]!, view.secrets !== "unlocked") : resourcePicker(request, state, actions, draft.decisions[permission.id]!, view.secrets !== "unlocked")) : null,
       permission.linked_domains.length > 0 ? el("p", { className: "ab-hint", text: `Network: ${permission.linked_domains.join(", ")}` }) : null,
       permission.linked_tools.length > 0 ? el("p", { className: "ab-hint", text: `Used by: ${permission.linked_tools.join(", ")}` }) : null,
     ),
@@ -443,7 +583,7 @@ function customizeView(input: AuthorizeInput, state: AuthorizeState, actions: Au
       { className: "ab-summary-actions" },
       button(
         "Authorize with these settings",
-        () => withOrigins(actions, originsFor(view, draft.approvals, state.selectedModel), () => actions.onAuthorize(draft.decisions, draft.approvals, pickState(state, personal), provenanceFrom(draft, view.preset, pickState(state, personal)), state.selectedModel)),
+        () => withOrigins(actions, originsFor(view, draft.approvals, state.selectedModel), () => actions.onAuthorize(draft.decisions, draft.approvals, pickState(state, personal), provenanceFrom(draft, view.preset, pickState(state, personal)), state.selectedModel, Object.keys(pickState(state, personal)).filter((id) => state.autoPicked[id]))),
         { variant: "primary", disabled: input.busy !== null || !trusted, title: trusted ? "Record these decisions and prepare a run plan with the selected model" : "Trust the publisher first" },
       ),
       state.selectedModel && view.receipt
@@ -482,7 +622,7 @@ function planCard(input: AuthorizeInput, actions: AuthorizeActions): HTMLElement
           ["Model", plan.run_plan.model_binding ? `${plan.run_plan.model_binding.display_name} (${plan.run_plan.model_binding.host_model_id})` : "none"],
           ["Tools it may call", plan.run_plan.execution.required_tool_ids.join(", ") || "none"],
           ["Tools it may not call", plan.run_plan.execution.denied_tool_ids.join(", ") || "none"],
-          ["Your data", plan.run_plan.resource_grants.map((grant) => grant.permission_id).join(", ") || "none"],
+          ["Memory", plan.run_plan.resource_grants.map((grant) => grant.permission_id).join(", ") || "none"],
           ["Decided by", receipt.provenance ? `${receipt.provenance.profile_title ? `profile “${receipt.provenance.profile_title}”` : "your own settings"}, ${PRESET_TITLES[receipt.provenance.preset] ?? receipt.provenance.preset} preset${receipt.provenance.policy ? `, policy ${receipt.provenance.policy.policy_id}@${receipt.provenance.policy.version}` : ""}${receipt.provenance.decisions && Object.values(receipt.provenance.decisions).includes("user") ? "; some items by you" : ""}` : "the receipt states no provenance"],
         ])
       : null,

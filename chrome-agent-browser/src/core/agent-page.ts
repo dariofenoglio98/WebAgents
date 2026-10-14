@@ -112,6 +112,8 @@ export interface AgentPageModel {
 const KIND_TITLES: Record<string, [title: string, explanation: string]> = {
   network: ["Websites it can contact", "Only these exact hosts, over HTTPS, through tools the package declares."],
   "personal.read": ["Your personal data it can ask for", "Requested by type. You choose whether to share one of yours, and which, when you run it."],
+  "memory.read": ["Your memory it can read", "Requested by type. You choose which one record it reads, when you run it; a sealed value goes only to the tools that link the permission."],
+  "memory.write": ["What it may propose to remember", "Proposals only: nothing is written until you accept, edit or reject each one after the run."],
   "files.read": ["Files it can read", "Only files you select for a run."],
   "files.write": ["Files it can write", "Writes happen only where you allow them."],
   model: ["Your AI model", "Runs on the model you choose and pay for; the package names no provider."],
@@ -119,7 +121,7 @@ const KIND_TITLES: Record<string, [title: string, explanation: string]> = {
   payment: ["Payments (simulated here)", "This browser has no payment infrastructure; the permission only decides whether those tools may be called."],
   shell: ["Shell access", "Not available in this browser. The package cannot run commands here."],
 };
-const KIND_ORDER = ["personal.read", "payment", "network", "files.write", "files.read", "model", "memory", "shell"];
+const KIND_ORDER = ["personal.read", "memory.read", "memory.write", "payment", "network", "files.write", "files.read", "model", "memory", "shell"];
 
 /** Signature and trust, in words a person can act on. Never recomputed; only phrased. */
 export function trustWords(publisher: PublisherReport): TrustWords {

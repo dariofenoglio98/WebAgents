@@ -19,7 +19,7 @@ export interface AuthorizationHost {
   setModels: (models: ModelsView | null) => void;
   setBusy: (text: string | null) => void;
   setError: (error: { code: string; message: string } | null) => void;
-  openSettings: (section: "models" | "policies" | "data" | "security") => void;
+  openSettings: (section: "models" | "policies" | "data" | "memory" | "security") => void;
   rerender: () => void;
   compact?: boolean;
   /** Open the Unlock sheet (T16); `retry` runs after a successful unlock. Absent: the notice names the lock. */
@@ -133,12 +133,12 @@ export function bindAuthorization(host: AuthorizationHost): AuthorizationControl
         { session: open, view, models: host.models(), busy, compact: host.compact },
         state,
         {
-          onUseProfile: (profileId, picks) =>
-            void act("Recording your decisions…", () => send<AuthorizeResult>({ type: "authorization.useProfile", sessionId: open.session.id, packageDigest: view.package_digest, profileId, resourceSelections: picks, prepare: true }), afterAuthorize),
-          onAuthorize: (decisions: Record<string, Decision>, approvals, picks, provenance: Provenance, modelId) =>
+          onUseProfile: (profileId, picks, presetSelections) =>
+            void act("Recording your decisions…", () => send<AuthorizeResult>({ type: "authorization.useProfile", sessionId: open.session.id, packageDigest: view.package_digest, profileId, resourceSelections: picks, prepare: true, ...(presetSelections && presetSelections.length > 0 ? { presetSelections } : {}) }), afterAuthorize),
+          onAuthorize: (decisions: Record<string, Decision>, approvals, picks, provenance: Provenance, modelId, presetSelections) =>
             void act(
               "Recording your decisions…",
-              () => send<AuthorizeResult>({ type: "authorization.authorize", sessionId: open.session.id, packageDigest: view.package_digest, decisions, toolApprovals: approvals, resourceSelections: picks, provenance, prepare: true, modelId }),
+              () => send<AuthorizeResult>({ type: "authorization.authorize", sessionId: open.session.id, packageDigest: view.package_digest, decisions, toolApprovals: approvals, resourceSelections: picks, provenance, prepare: true, modelId, ...(presetSelections && presetSelections.length > 0 ? { presetSelections } : {}) }),
               afterAuthorize,
             ),
           onPrepare: (modelId) =>

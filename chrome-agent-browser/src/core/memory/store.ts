@@ -336,9 +336,12 @@ export class MemoryStore implements ResourceResolver {
   }
 
   // -- the resolver a run reads through (M-35, M-36) -----------------------------------------------
-  describe(resourceId: string): HostResourceView | undefined {
+  describe(resourceId: string, resourceType?: string): HostResourceView | undefined {
     const record = this.records.get(resourceId);
-    return record ? { id: record.id, type: record.type, label: record.title, digest: this.digests.get(record.id) ?? "" } : undefined;
+    if (!record) return undefined;
+    // A legacy grant (M-17) names the alias; the record is held under the type it maps to.
+    const asked = resourceType !== undefined && resourceType !== record.type && this.types.legacyOf(resourceType)?.type.id === record.type ? resourceType : record.type;
+    return { id: record.id, type: asked, label: record.title, digest: this.digests.get(record.id) ?? "" };
   }
 
   /** The record view (M-15) for a memory grant, or the legacy projection (M-17) for a `personal.read` grant. */

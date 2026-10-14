@@ -46,8 +46,12 @@ export interface ResourceResolver {
   resolve(grant: ResourceGrant): JsonObject;
   /** The sealed strings of every resource the host holds, by resource id, for the egress guard (the `Vault` shape). */
   sealedValues(): SealedValues;
-  /** The resource's view without its value, or undefined. */
-  describe(resourceId: string): HostResourceView | undefined;
+  /**
+   * The resource's view without its value, or undefined. With `resourceType`, a store that holds
+   * the record under a type the grant names through a legacy alias (memory.v0 M-17) answers with
+   * the grant's type, so a legacy grant compares equal to what it was issued for.
+   */
+  describe(resourceId: string, resourceType?: string): HostResourceView | undefined;
 }
 
 export interface HostResourceTypeView {

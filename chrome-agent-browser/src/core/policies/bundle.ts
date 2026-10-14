@@ -21,7 +21,7 @@ import type { Decision, PolicyReference } from "../types.js";
 export type { PolicyReference };
 
 /** The permission kinds of `policy.schema.json`, the keys a bundle's `decisions` may use. */
-export const PERMISSION_KINDS: readonly string[] = Object.freeze(["network", "files.read", "files.write", "model", "memory", "shell", "payment", "personal.read"]);
+export const PERMISSION_KINDS: readonly string[] = Object.freeze(["network", "files.read", "files.write", "model", "memory", "shell", "payment", "personal.read", "memory.read", "memory.write"]);
 export const CAP_FIELDS: ReadonlyArray<keyof HostExecutionLimits> = Object.freeze([
   "total_tokens",
   "max_remote_calls",
@@ -79,6 +79,8 @@ export interface PolicyBundle {
   models: { local_only: boolean; max_cost_usd_per_run: number | null };
   /** Which host implementations a tool may be bound to by default; null: no restriction. */
   bindings: { allow: AllowedBinding[] } | null;
+  /** memory.v0 M-54: what a policy may restrict about memory; null when the bundle says nothing. A policy only lowers. */
+  memory: { types_allowed: string[] | null; proposals: "ask" | "refuse"; agent: "allow" | "refuse"; recall: "ask" | "propose" | "auto" } | null;
 }
 
 /** A subscribed bundle as this browser holds it. */
@@ -130,6 +132,13 @@ export async function readPolicyBundle(content: JsonObject): Promise<PolicyBundl
   for (const field of CAP_FIELDS) if (typeof rawCaps[field] === "number") caps[field] = rawCaps[field] as number;
   const models = (content.models ?? {}) as JsonObject;
   const bindings = content.bindings === undefined ? null : (content.bindings as JsonObject);
+  const memoryRaw = content.memory === undefined || content.memory === null ? null : (content.memory as JsonObject);
+  const memory: PolicyBundle["memory"] = memoryRaw === null ? null : {
+    types_allowed: Array.isArray(memoryRaw.types_allowed) ? memoryRaw.types_allowed.map(str) : null,
+    proposals: memoryRaw.proposals === "refuse" ? "refuse" : "ask",
+    agent: memoryRaw.agent === "refuse" ? "refuse" : "allow",
+    recall: memoryRaw.recall === "ask" || memoryRaw.recall === "propose" ? memoryRaw.recall : "auto",
+  };
   const issuer = content.issuer as JsonObject;
   return {
     policy_id: str(content.policy_id),
@@ -144,6 +153,7 @@ export async function readPolicyBundle(content: JsonObject): Promise<PolicyBundl
     budget_caps: caps,
     models: { local_only: models.local_only === true, max_cost_usd_per_run: typeof models.max_cost_usd_per_run === "number" ? models.max_cost_usd_per_run : null },
     bindings: bindings === null ? null : { allow: (bindings.allow as JsonObject[]).map((item) => ({ kind: str(item.kind) as ImplementationKind, origins: Array.isArray(item.origins) ? item.origins.map(str) : null })) },
+    memory,
   };
 }
 

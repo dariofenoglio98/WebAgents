@@ -82,3 +82,51 @@ export function writeZip(entries: ReadonlyArray<{ name: string; bytes: Uint8Arra
   }
   return out;
 }
+
+/**
+ * A ZIP reader for the memory import (memory.v0 §8): STORED and DEFLATE members (the latter
+ * through `DecompressionStream("deflate-raw")`), names as UTF-8, directories skipped. Anything
+ * malformed is refused by name rather than guessed at.
+ */
+export async function readZip(bytes: Uint8Array): Promise<Array<{ name: string; bytes: Uint8Array }>> {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  let end = -1;
+  for (let at = bytes.length - 22; at >= 0 && at >= bytes.length - 22 - 65_535; at -= 1) {
+    if (view.getUint32(at, true) === 0x06054b50) {
+      end = at;
+      break;
+    }
+  }
+  if (end < 0) throw new Error("not a zip file (no end of central directory)");
+  const count = view.getUint16(end + 10, true);
+  const centralOffset = view.getUint32(end + 16, true);
+  const decoder = new TextDecoder();
+  const out: Array<{ name: string; bytes: Uint8Array }> = [];
+  let at = centralOffset;
+  for (let index = 0; index < count; index += 1) {
+    if (at + 46 > bytes.length || view.getUint32(at, true) !== 0x02014b50) throw new Error("zip central directory is damaged");
+    const method = view.getUint16(at + 10, true);
+    const compressed = view.getUint32(at + 20, true);
+    const size = view.getUint32(at + 24, true);
+    const nameLength = view.getUint16(at + 28, true);
+    const extraLength = view.getUint16(at + 30, true);
+    const commentLength = view.getUint16(at + 32, true);
+    const localOffset = view.getUint32(at + 42, true);
+    const name = decoder.decode(bytes.subarray(at + 46, at + 46 + nameLength));
+    at += 46 + nameLength + extraLength + commentLength;
+    if (name.endsWith("/")) continue;
+    if (localOffset + 30 > bytes.length || view.getUint32(localOffset, true) !== 0x04034b50) throw new Error(`zip member ${name} is damaged`);
+    const localName = view.getUint16(localOffset + 26, true);
+    const localExtra = view.getUint16(localOffset + 28, true);
+    const start = localOffset + 30 + localName + localExtra;
+    const data = bytes.subarray(start, start + compressed);
+    if (method === 0) out.push({ name, bytes: data });
+    else if (method === 8) {
+      const stream = new Blob([data as BlobPart]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+      const inflated = new Uint8Array(await new Response(stream).arrayBuffer());
+      if (inflated.length !== size) throw new Error(`zip member ${name} did not inflate to its declared size`);
+      out.push({ name, bytes: inflated });
+    } else throw new Error(`zip member ${name} uses an unsupported compression method`);
+  }
+  return out;
+}

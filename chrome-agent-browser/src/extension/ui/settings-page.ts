@@ -19,9 +19,9 @@ import type { Settings, StoredConnection } from "../storage/settings.js";
 import { downloadBuiltinModel, languageModelApi } from "../execution/builtin-port.js";
 import { button, bytes, card, chip, definition, details, el, list, row } from "./dom.js";
 
-export type SettingsSection = "models" | "policies" | "security" | "permissions" | "search" | "files" | "services" | "about";
-export const SETTINGS_SECTIONS: readonly SettingsSection[] = ["models", "policies", "security", "permissions", "search", "files", "services", "about"];
-const SECTION_TITLES: Record<SettingsSection, string> = { models: "Models", policies: "Policies", security: "Security", permissions: "Permissions", search: "Search", files: "Files", services: "Services", about: "About" };
+export type SettingsSection = "models" | "policies" | "security" | "memory" | "permissions" | "search" | "files" | "services" | "about";
+export const SETTINGS_SECTIONS: readonly SettingsSection[] = ["models", "policies", "security", "memory", "permissions", "search", "files", "services", "about"];
+const SECTION_TITLES: Record<SettingsSection, string> = { models: "Models", policies: "Policies", security: "Security", memory: "Memory", permissions: "Permissions", search: "Search", files: "Files", services: "Services", about: "About" };
 
 /**
  * The limits the reference host was configured with for Literature Review (STATE.md §4: 180,000
@@ -62,6 +62,8 @@ export interface SettingsPageState {
   forms: { indexUrl: string; indexPem: string; policyUrl: string; policyPem: string };
   /** Settings → Security (T16): the typed confirmation of "Forget everything", kept across re-renders; passphrases are never kept. */
   forgetConfirmation: string;
+  /** Settings → Memory (T19): the typed confirmation of "Forget memory". */
+  forgetMemory?: string;
 }
 
 export function newSettingsPageState(section: SettingsSection = "models"): SettingsPageState {
@@ -138,6 +140,8 @@ export interface SettingsExtras {
   /** Settings → Security's keychain card (T17); null until the helper was asked. */
   keychain?: KeychainView | null;
   permissions?: PermissionsView | null;
+  /** Settings → Memory (T19, design §6), rendered by the page that holds the memory view. */
+  memory?: HTMLElement[] | null;
 }
 
 /** The one-time Ollama setup (B-117): the commands a person copies, per way of running Ollama. */
@@ -877,6 +881,8 @@ export function renderSettingsPage(view: SettingsView, status: StatusInfo | null
         ? policiesView(view, actions, state, extras)
         : state.section === "security"
           ? securityView(view, actions, state, extras.secrets ?? null, extras.keychain ?? null)
+          : state.section === "memory"
+            ? (extras.memory ?? [el("p", { className: "ab-busy", text: "Loading…" })])
           : state.section === "permissions"
             ? permissionsView(extras.permissions ?? null, actions)
             : state.section === "search"

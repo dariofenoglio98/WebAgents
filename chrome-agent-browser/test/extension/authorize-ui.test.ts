@@ -8,13 +8,14 @@
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { failure, parseRequest, success, type AuthorizationView, type AuthorizeResult, type ModelsView, type RunPlanState, type SessionView, type SettingsView, type VaultView } from "../../src/extension/messages.js";
+import { failure, parseRequest, success, type AuthorizationView, type AuthorizeResult, type ModelsView, type RunPlanState, type SessionView, type SettingsView, type MemoryView } from "../../src/extension/messages.js";
 import { bindAuthorization } from "../../src/extension/ui/authorization-flow.js";
 import { newAuthorizeState, renderAuthorizeView, type AuthorizeActions, type AuthorizeState } from "../../src/extension/ui/authorize.js";
 import { newSettingsPageState, renderSettingsPage } from "../../src/extension/ui/settings-page.js";
-import { newVaultPageState, renderVaultPage } from "../../src/extension/ui/vault-page.js";
+import { newMemoryPageState, openCard, renderMemoryPage, type MemoryPageActions } from "../../src/extension/ui/memory/page.js";
+import { MASK } from "../../src/extension/ui/memory/strings.js";
 import { SHIPPED } from "../helpers/paths.js";
-import { makeHarness, OLLAMA_ANSWERS, PAGE, SITE_ORIGIN, WEBAIR_040_URL, type Harness } from "../helpers/shell.js";
+import { DEMO, makeHarness, OLLAMA_ANSWERS, PAGE, SITE_ORIGIN, WEBAIR_040_URL, type Harness } from "../helpers/shell.js";
 
 const QWEN = "ollama/qwen3:30b";
 
@@ -233,8 +234,8 @@ describe("Customize your settings", () => {
     select.value = "session";
     select.dispatchEvent(new Event("change"));
     expect(root.querySelector<HTMLElement>('.ab-permission[data-permission="profile.travel"]')!.textContent).toContain("decided by user");
-    // With the permission granted, the chooser appears, and the vault holds no travel profile yet.
-    expect(root.querySelector<HTMLElement>('.ab-permission[data-permission="profile.travel"] .ab-resource-choice')!.textContent).toContain("You have no travel profile in Your data yet");
+    // With the permission granted, the recall card appears, and the memory holds no travel profile yet (M-34: Create one · Continue without).
+    expect(root.querySelector<HTMLElement>('.ab-permission[data-permission="profile.travel"] .ab-resource-choice')!.textContent).toContain("You have no travel profile yet");
     // Models are listed once read; the first compatible one can be picked.
     ui.button("Read it now").click();
     await ui.settle();
@@ -418,88 +419,64 @@ describe("Settings and Your data", () => {
     expect((saved.at(-1) as SettingsView["settings"]).preset).toBe("privacy-first");
   });
 
-  it("an optional boolean a record never had stays absent on edit; a touched one is saved either way (T3 review 2, nit 22)", () => {
-    const type = {
-      id: "personal.newsletter_choice",
-      display_name: "Newsletter choice",
-      description: null,
-      permission_kind: "personal.read",
-      schema: { type: "object", additionalProperties: false, required: ["name"], properties: { name: { type: "string" }, weekly: { type: "boolean" }, confirmed: { type: "boolean" } } },
-      sealed_fields: [],
-      schema_sha256: "0".repeat(64),
-    };
-    const record = { id: "rec_newsletter", type: type.id, label: "Mine", value: { name: "Sam", confirmed: true }, demo: false, created_at: "2026-10-07T00:00:00Z", updated_at: "2026-10-07T00:00:00Z", digest: "1".repeat(64) };
-    const view = { types: [type], records: [record], demo_available: false } as unknown as VaultView;
-    const state = newVaultPageState();
-    const puts: Array<{ value: Record<string, unknown> }> = [];
-    const render = () => renderVaultPage(view, state, { onPut: (put) => puts.push(put as { value: Record<string, unknown> }), onDelete: () => undefined, onInstallDemo: () => undefined, rerender: () => undefined });
-    let root = render();
-    [...root.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent === "Edit")!.click();
-    root = render();
-    // Editing another field only: `weekly` was never set and is not saved as false.
-    root.querySelector<HTMLInputElement>('input[name="field-name"]')!.value = "Samira";
-    root.querySelector<HTMLInputElement>('input[name="field-name"]')!.dispatchEvent(new Event("input"));
-    [...root.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent === "Save")!.click();
-    expect(puts[0]!.value).toEqual({ name: "Samira", confirmed: true });
-    // Unticking a boolean the record had saves false; ticking the absent one saves true.
-    [...root.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent === "Edit")!.click();
-    root = render();
-    const confirmed = root.querySelector<HTMLInputElement>('input[name="field-confirmed"]')!;
-    confirmed.checked = false;
-    confirmed.dispatchEvent(new Event("change"));
-    const weekly = root.querySelector<HTMLInputElement>('input[name="field-weekly"]')!;
-    weekly.checked = true;
-    weekly.dispatchEvent(new Event("change"));
-    [...root.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent === "Save")!.click();
-    expect(puts[1]!.value).toEqual({ name: "Sam", confirmed: false, weekly: true });
-  });
-
-  it("Your data starts empty with the demo types, adds the fictional set only on the button, and builds a form from the type's schema", async () => {
+  it("the record card saves an optional boolean only when the person set it, and a required one as false when left off (review 1, finding 6; T3 review 2, nit 22)", async () => {
     const h = makeHarness();
-    const view = (await h.controller.handle({ type: "vault.get" }, PAGE)) as VaultView;
-    const state = newVaultPageState();
-    const puts: unknown[] = [];
-    let installs = 0;
-    const render = (current: VaultView) => renderVaultPage(current, state, { onPut: (record) => puts.push(record), onDelete: () => undefined, onInstallDemo: () => (installs += 1), rerender: () => undefined });
-    let root = render(view);
-    expect(root.textContent).toContain("No record yet");
-    expect([...root.querySelectorAll(".ab-card-title")].map((node) => node.textContent)).toEqual(["Your data", "Travel profile", "Passenger identity", "Payment method"]);
-    [...root.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent === "Add fictional demo data")!.click();
-    expect(installs).toBe(1);
-    const demo = (await h.controller.handle({ type: "vault.installDemo", records: true }, PAGE)) as VaultView;
-    root = render(demo);
-    expect(root.querySelectorAll(".ab-vault-record")).toHaveLength(6);
-    expect([...root.querySelectorAll(".ab-vault-record")].every((node) => node.textContent?.includes("fictional demo data"))).toBe(true);
-    expect(root.querySelector('.ab-vault-record[data-record="passenger_demo_alex"]')?.textContent).toContain("alex.traveler@example.com (sealed)"); // the person's own page shows their own data
-    [...root.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent === "Add a travel profile")!.click();
-    root = render(demo);
-    const fields = [...root.querySelectorAll<HTMLElement>(".ab-vault-field")];
-    // The vault stores schemas canonically (sorted keys), so the form lists properties alphabetically.
-    expect(fields.map((node) => node.querySelector(".ab-row-label span")?.textContent)).toEqual(["home_airport", "prefer_nonstop", "preferred_cabin", "preferred_currency"]);
-    expect(root.querySelector<HTMLSelectElement>('select[name="field-preferred_cabin"]')).not.toBeNull();
-    root.querySelector<HTMLInputElement>('input[name="record-label"]')!.value = "Me";
-    root.querySelector<HTMLInputElement>('input[name="record-label"]')!.dispatchEvent(new Event("input"));
-    root.querySelector<HTMLInputElement>('input[name="field-home_airport"]')!.value = "ZRH";
-    root.querySelector<HTMLInputElement>('input[name="field-home_airport"]')!.dispatchEvent(new Event("input"));
-    root.querySelector<HTMLInputElement>('input[name="field-preferred_currency"]')!.value = "CHF";
-    root.querySelector<HTMLInputElement>('input[name="field-preferred_currency"]')!.dispatchEvent(new Event("input"));
-    root.querySelector<HTMLSelectElement>('select[name="field-preferred_cabin"]')!.value = "economy";
-    root.querySelector<HTMLSelectElement>('select[name="field-preferred_cabin"]')!.dispatchEvent(new Event("change"));
-    // "prefer_nonstop" is required and left unchecked: it is saved as false (review 1, finding 6).
-    [...root.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent === "Save")!.click();
-    expect(puts[0]).toMatchObject({ type: "personal.travel_profile", label: "Me", value: { home_airport: "ZRH", preferred_cabin: "economy", prefer_nonstop: false, preferred_currency: "CHF" }, demo: false });
-    // The worker accepts exactly what the form sends.
-    const saved = (await h.controller.handle({ type: "vault.putRecord", record: puts[0] }, PAGE)) as VaultView;
-    expect(saved.records.find((record) => record.label === "Me")?.value).toEqual({ home_airport: "ZRH", preferred_cabin: "economy", prefer_nonstop: false, preferred_currency: "CHF" });
-    // Editing a fictional demo record keeps its label (review 1, nit 15).
-    root = render(saved);
-    [...root.querySelector<HTMLElement>('.ab-vault-record[data-record="profile_demo_traveler"]')!.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent === "Edit")!.click();
-    root = render(saved);
+    await h.controller.handle({ type: "memory.installDemo" }, PAGE);
+    const view = (await h.controller.handle({ type: "memory.get" }, PAGE)) as MemoryView;
+    const state = newMemoryPageState();
+    const sent: unknown[] = [];
+    const actions: MemoryPageActions = { send: async (request) => { sent.push(request); return { id: DEMO.traveler } as never; }, rerender: () => undefined, reload: () => undefined, unlock: () => undefined, openRun: () => undefined, saveBlob: async () => null };
+    openCard(view, state, DEMO.traveler);
+    let root = renderMemoryPage(view, state, actions);
+    // The form lists the summary fields first, then the schema's order; the demo record's values are the person's own.
+    expect([...root.querySelectorAll<HTMLElement>(".ab-memory-field .ab-row-label span:first-child")].map((node) => node.textContent)).toEqual(["home airport", "preferred cabin", "prefer nonstop", "preferred currency"]);
+    expect(root.querySelector<HTMLInputElement>('input[name="field-home_airport"]')!.value).toBe("BOS");
     root.querySelector<HTMLInputElement>('input[name="field-home_airport"]')!.value = "GVA";
     root.querySelector<HTMLInputElement>('input[name="field-home_airport"]')!.dispatchEvent(new Event("input"));
     [...root.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent === "Save")!.click();
-    expect(puts[1]).toMatchObject({ id: "profile_demo_traveler", demo: true, value: { home_airport: "GVA" } });
-    const edited = (await h.controller.handle({ type: "vault.putRecord", record: puts[1] }, PAGE)) as VaultView;
-    expect(edited.records.find((record) => record.id === "profile_demo_traveler")).toMatchObject({ demo: true, value: { home_airport: "GVA" } });
+    expect(sent[0]).toMatchObject({ type: "memory.edit", recordId: DEMO.traveler, changes: { fields: { home_airport: "GVA", preferred_cabin: "economy", prefer_nonstop: true, preferred_currency: "USD" } } });
+    // A sealed field is masked until Reveal, and Reveal asks the worker for that one value.
+    openCard(view, state, DEMO.alex);
+    root = renderMemoryPage(view, state, actions);
+    const sealed = root.querySelector<HTMLElement>(".ab-sealed-value")!;
+    expect(sealed.textContent).toContain(MASK);
+    expect(root.textContent).not.toContain("alex.traveler@example.com");
+    [...sealed.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent === "Reveal")!.click();
+    expect(sent[1]).toEqual({ type: "memory.reveal", recordId: DEMO.alex, pointer: "/email" });
   });
+
+  it("the Memory page lists the Me record and the demo set with their flags, opens a card from a row, and the list is the graph's accessible equivalent", async () => {
+    const h = makeHarness();
+    const empty = (await h.controller.handle({ type: "memory.get" }, PAGE)) as MemoryView;
+    const state = newMemoryPageState();
+    state.mode = "list";
+    const sent: unknown[] = [];
+    const actions: MemoryPageActions = { send: async (request) => { sent.push(request); return {} as never; }, rerender: () => undefined, reload: () => undefined, unlock: () => undefined, openRun: () => undefined, saveBlob: async () => null };
+    let root = renderMemoryPage(empty, state, actions);
+    expect(root.querySelectorAll(".ab-memory-row")).toHaveLength(1); // Me
+    expect(root.querySelector(".ab-memory-status")?.textContent).toContain("1 records · ");
+    await h.controller.handle({ type: "memory.installDemo" }, PAGE);
+    const demo = (await h.controller.handle({ type: "memory.get" }, PAGE)) as MemoryView;
+    root = renderMemoryPage(demo, state, actions);
+    const rows = [...root.querySelectorAll<HTMLElement>(".ab-memory-row")];
+    expect(rows).toHaveLength(7);
+    expect(rows.filter((row) => row.textContent?.includes("(demo)"))).toHaveLength(6);
+    expect(rows.find((row) => row.dataset.record === DEMO.alex)?.textContent).toContain("🔒");
+    expect(root.textContent).not.toContain("alex.traveler@example.com");
+    // Sortable headers carry aria-sort; a row opens the card on Enter.
+    expect(root.querySelector('th[aria-sort="ascending"]')?.textContent).toContain("Title");
+    rows.find((row) => row.dataset.record === DEMO.traveler)!.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+    expect(state.card?.id).toBe(DEMO.traveler);
+    root = renderMemoryPage(demo, state, actions);
+    expect(root.querySelector<HTMLElement>(".ab-memory-card")?.dataset.record).toBe(DEMO.traveler);
+    expect(root.querySelector(".ab-memory-provenance")?.textContent).toContain("Migrated from Your data");
+    // New record opens the type chooser; a type opens the card in create mode with its default links.
+    [...root.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent === "+ New record")!.click();
+    expect(state.sheet).toEqual({ kind: "types" });
+    root = renderMemoryPage(demo, state, actions);
+    [...root.querySelectorAll<HTMLButtonElement>(".ab-memory-type-group button")].find((button) => button.textContent?.startsWith("Travel preference"))!.click();
+    expect(state.card).toMatchObject({ mode: "create", type: "travel.preference" });
+    expect(state.card?.draft.links).toEqual([{ to: "self", rel: "about" }]);
+  });
+
 });

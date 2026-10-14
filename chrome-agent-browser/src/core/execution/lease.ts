@@ -264,7 +264,7 @@ export class LeaseRegistry {
     if (plan.resource_grants.length > 0 && input.resolver !== undefined && input.resolver !== null) {
       const resolver = input.resolver;
       for (const grant of plan.resource_grants) {
-        const view = resolver.describe(grant.resource_id);
+        const view = resolver.describe(grant.resource_id, grant.resource_type);
         if (view === undefined) throw stale([{ code: "resource_removed", message: `The host resource granted under ${grant.permission_id} no longer exists.`, subject: grant.permission_id }], "resources", { permission_id: grant.permission_id });
         if (view.type !== grant.resource_type || view.digest !== grant.resource_digest) {
           throw stale([{ code: "resource_changed", message: `The host resource granted under ${grant.permission_id} changed after this plan was prepared.`, subject: grant.permission_id }], "resources", { permission_id: grant.permission_id });

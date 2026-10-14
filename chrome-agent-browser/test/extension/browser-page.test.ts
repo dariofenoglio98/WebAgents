@@ -280,18 +280,21 @@ describe("Settings → Files: the file-input fallback (T6 review, nit 9)", () =>
   });
 });
 
-describe("Your data while the store is locked (T16, the user's walk-through)", () => {
-  it("shows store_locked with Unlock, and the error goes once the store is unlocked, without leaving the page", async () => {
-    await h.controller.handle({ type: "vault.installDemo", records: true }, PAGE_IN_TAB);
+describe("Memory while the store is locked (T16, the user's walk-through; memory.v0 M-10)", () => {
+  it("is read-only with an Unlock button, and the lock line goes once the store is unlocked, without leaving the page", async () => {
+    await h.controller.handle({ type: "memory.installDemo" }, PAGE_IN_TAB);
     await h.controller.handle({ type: "secrets.lock" }, PAGE_IN_TAB);
-    await go("#data");
-    expect(app().querySelector(".ab-error strong")?.textContent).toBe("store_locked");
+    await go("#memory");
+    expect(app().querySelector(".ab-memory-status")?.textContent).toContain("store locked · unlock to edit");
     expect([...app().querySelectorAll("button")].some((node) => node.textContent === "Unlock")).toBe(true);
-    // Unlocked from anywhere (the sheet, the nav chip, another view): the worker broadcasts event.secrets.
+    [...app().querySelectorAll<HTMLButtonElement>(".ab-memory-toggle button")].find((node) => node.textContent === "List")!.click();
+    expect(app().textContent).toContain("Demo Traveler"); // everything unsealed stays readable
+    expect(app().textContent).not.toContain("alex.traveler@example.com");
+    // Unlocked from anywhere (the sheet, the nav chip, another view): the worker broadcasts event.secrets and event.memory.
     await h.controller.handle({ type: "secrets.unlock", passphrase: SEED_PASSPHRASE }, PAGE_IN_TAB);
     await settle();
     await settle();
-    expect(app().querySelector(".ab-error")).toBeNull();
+    expect(app().querySelector(".ab-memory-status")?.textContent).not.toContain("store locked");
     expect(app().textContent).toContain("Demo");
   });
 });

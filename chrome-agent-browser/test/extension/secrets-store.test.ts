@@ -9,13 +9,13 @@ import { describe, expect, it } from "vitest";
 
 import { CoreError } from "../../src/core/errors.js";
 import type { SecretEnvelope } from "../../src/core/secrets.js";
-import type { AuthorizationView, AuthorizeResult, RunReadiness, RunView, SecretsView, SessionView, SettingsView, StatusInfo, VaultView } from "../../src/extension/messages.js";
+import type { AuthorizationView, AuthorizeResult, RunReadiness, RunView, SecretsView, SessionView, SettingsView, StatusInfo, MemoryView } from "../../src/extension/messages.js";
 import { SHIPPED } from "../helpers/paths.js";
-import { makeHarness, PAGE, SEED_PASSPHRASE, SITE_ORIGIN, WEBAIR_040_URL, type Harness } from "../helpers/shell.js";
+import { DEMO, makeHarness, PAGE, SEED_PASSPHRASE, SITE_ORIGIN, WEBAIR_040_URL, type Harness } from "../helpers/shell.js";
 import { scriptedOllama, scriptedOrigin, webairModelAnswers } from "../helpers/host.js";
 
 const QWEN = "ollama/qwen3:30b";
-const PICKS = { "profile.travel": "profile_demo_traveler", "identity.passenger": "passenger_demo_alex" };
+const PICKS = { "profile.travel": DEMO.traveler, "identity.passenger": DEMO.alex };
 
 async function refused(promise: Promise<unknown>): Promise<CoreError> {
   try {
@@ -44,7 +44,8 @@ describe("no passphrase yet (strict, the T16 gate)", () => {
     const status = (await h.controller.handle({ type: "secrets.status" }, PAGE)) as SecretsView;
     expect(status).toMatchObject({ state: "no_passphrase", migration_pending: true, legacy: { providers: ["openai"], records: 0 }, entries: [] });
     expect((await refused(h.controller.handle({ type: "settings.setKey", provider: "openai", key: "sk-new" }, PAGE))).code).toBe("store_no_passphrase");
-    expect((await refused(h.controller.handle({ type: "vault.get" }, PAGE))).code).toBe("store_no_passphrase");
+    expect(((await h.controller.handle({ type: "memory.get" }, PAGE)) as MemoryView)).toMatchObject({ state: "no_passphrase", locked: true, records: [expect.objectContaining({ id: "self" })] });
+    expect((await refused(h.controller.handle({ type: "memory.installDemo" }, PAGE))).code).toBe("store_no_passphrase");
     expect(((await h.controller.handle({ type: "settings.get" }, PAGE)) as SettingsView).keys).toEqual({});
     expect(((await h.controller.handle({ type: "status.get" }, PAGE)) as StatusInfo).secrets).toBe("no_passphrase");
     expect((await refused(h.controller.handle({ type: "secrets.setup", passphrase: "short" }, PAGE))).code).toBe("passphrase_weak");
@@ -66,9 +67,10 @@ describe("no passphrase yet (strict, the T16 gate)", () => {
     const status = (await h.controller.handle({ type: "secrets.status" }, PAGE)) as SecretsView;
     expect(status).toMatchObject({ state: "no_passphrase", migration_pending: false, legacy: null });
     await h.controller.handle({ type: "secrets.setup", passphrase: "a passphrase of my own" }, PAGE);
-    const vault = (await h.controller.handle({ type: "vault.get" }, PAGE)) as VaultView;
-    expect(vault.types.length).toBeGreaterThan(0);
-    expect(vault.records).toEqual([]);
+    const memory = (await h.controller.handle({ type: "memory.get" }, PAGE)) as MemoryView;
+    expect(memory.types.length).toBeGreaterThan(0);
+    expect(memory.records.map((record) => record.id)).toEqual(["self"]);
+    expect(memory.migration).toBeNull();
   });
 });
 
@@ -76,12 +78,17 @@ describe("locked", () => {
   it("records cannot be chosen or read, a hosted key cannot be used, and the authorization view says so without failing", async () => {
     const h = makeHarness();
     await h.controller.handle({ type: "settings.setKey", provider: "openai", key: "sk-test-not-a-real-key" }, PAGE);
-    await h.controller.handle({ type: "vault.installDemo", records: true }, PAGE);
+    await h.controller.handle({ type: "memory.installDemo" }, PAGE);
     const session = await trustedSession(h);
     await h.controller.handle({ type: "secrets.lock" }, PAGE);
     expect(((await h.controller.handle({ type: "status.get" }, PAGE)) as StatusInfo).secrets).toBe("locked");
     expect(((await h.controller.handle({ type: "settings.get" }, PAGE)) as SettingsView).keys).toEqual({ openai: true }); // presence is readable
-    expect((await refused(h.controller.handle({ type: "vault.get" }, PAGE))).code).toBe("store_locked");
+    // M-10: a locked memory is readable (titles, unsealed fields), never writable; a sealed value is never readable.
+    const lockedView = (await h.controller.handle({ type: "memory.get" }, PAGE)) as MemoryView;
+    expect(lockedView.locked).toBe(true);
+    expect(lockedView.records.filter((record) => record.demo)).toHaveLength(6);
+    expect((await refused(h.controller.handle({ type: "memory.reveal", recordId: DEMO.alex, pointer: "/email" }, PAGE))).code).toBe("store_locked");
+    expect((await refused(h.controller.handle({ type: "memory.delete", recordIds: [DEMO.alex] }, PAGE))).code).toBe("store_locked");
     expect((await refused(h.controller.handle({ type: "settings.setKey", provider: "anthropic", key: "sk-ant" }, PAGE))).code).toBe("store_locked");
     const view = (await h.controller.handle({ type: "authorization.get", sessionId: session.session.id }, PAGE)) as AuthorizationView;
     expect(view.secrets).toBe("locked");
@@ -97,14 +104,14 @@ describe("locked", () => {
     expect((await refused(h.controller.handle({ type: "secrets.unlock", passphrase: "not it" }, PAGE))).code).toBe("passphrase_wrong");
     const unlocked = (await h.controller.handle({ type: "secrets.unlock", passphrase: SEED_PASSPHRASE }, PAGE)) as SecretsView;
     expect(unlocked.state).toBe("unlocked");
-    expect(((await h.controller.handle({ type: "vault.get" }, PAGE)) as VaultView).records).toHaveLength(6);
+    expect(((await h.controller.handle({ type: "memory.get" }, PAGE)) as MemoryView).records.filter((record) => record.demo)).toHaveLength(6);
   });
 
   it("a plan that needs nothing from the store runs while locked; one that needs a record is blocked at Run by name (D-195)", async () => {
     const model = scriptedOllama(webairModelAnswers());
     const tool = scriptedOrigin();
     const h = makeHarness({ transports: { model: model.transport, tool: tool.transport } });
-    await h.controller.handle({ type: "vault.installDemo", records: true }, PAGE);
+    await h.controller.handle({ type: "memory.installDemo" }, PAGE);
     const session = await trustedSession(h);
     const search = (await h.controller.handle({ type: "authorization.useProfile", sessionId: session.session.id, packageDigest: SHIPPED.webair040.digest, profileId: "search", resourceSelections: {}, prepare: true }, PAGE)) as AuthorizeResult;
     expect(search.run_plan?.preflight.ready).toBe(true);
@@ -114,7 +121,7 @@ describe("locked", () => {
     const plan = search.run_plan!.run_plan;
     await h.controller.handle({ type: "run.start", sessionId: session.session.id, runPlanId: plan.run_plan_id, runPlanSha256: plan.run_plan_sha256, input: { request: "Find me a nonstop flight from Boston to Zurich on 9 October under $900.", booking: false, purchase: { quote_id: "", fare_id: "" } } }, PAGE);
     await h.h_drain();
-    expect(h.host.started[0]?.vault).toBeNull();
+    expect(h.host.started[0]?.memory?.snapshot ?? null).toBeNull();
     expect(h.host.started[0]?.credentials).toEqual({ openai: null, anthropic: null });
     expect(model.seen.length).toBeGreaterThan(0);
     // Now a plan with records, prepared unlocked, then locked: the plan is not stale, Run is blocked by name.
@@ -138,14 +145,14 @@ describe("locked", () => {
     expect(again.ready).toBe(true);
   });
 
-  it("a plan that binds a host-resource tool without granting a record runs with the vault's types alone, and needs the store unlocked (review 1, finding 1)", async () => {
+  it("a plan that binds a memory tool without granting a record is opened with the store (memory.v0 M-36), and needs the store unlocked (review 1, finding 1)", async () => {
     // The reviewer's reproduction: the resource tool approved, its permission denied, so no record is granted.
     // The plan binds `host-resource:personal.travel_profile`; the run's registry must hold that binding or
     // `begin` fails `tool_not_bound` before any model call. The types travel without the records.
     const model = scriptedOllama(webairModelAnswers());
     const tool = scriptedOrigin();
     const h = makeHarness({ transports: { model: model.transport, tool: tool.transport } });
-    await h.controller.handle({ type: "vault.installDemo", records: true }, PAGE);
+    await h.controller.handle({ type: "memory.installDemo" }, PAGE);
     const session = await trustedSession(h);
     const decisions = { "network.webair": "session", "model.reasoning": "session", "memory.session": "session", "profile.travel": "deny", "identity.passenger": "deny", "wallet.payment": "deny", "booking.simulate_purchase": "deny" };
     const toolApprovals = { "search-flights": true, "get-fare-rules": true, "personal.travel_profile": true };
@@ -161,9 +168,10 @@ describe("locked", () => {
     const started = (await h.controller.handle({ type: "run.start", sessionId: session.session.id, runPlanId: plan.run_plan_id, runPlanSha256: plan.run_plan_sha256, input }, PAGE)) as RunView;
     await h.h_drain();
     const message = h.host.started[0]!;
-    expect(message.vault).not.toBeNull();
-    expect(message.vault!.document.records).toEqual([]); // the types alone: no record was granted
-    expect(message.vault!.document.types.map((type) => type.id)).toContain("personal.travel_profile");
+    expect(message.memory?.snapshot).not.toBeNull();
+    // M-36: the scan set is every sealed value of the store, so the whole snapshot travels; the resolver answers only the plan's grants (none here).
+    expect(message.memory!.snapshot!.records.filter((record) => record.demo)).toHaveLength(6);
+    expect(message.memory!.snapshot!.types.map((type) => type.id)).not.toContain("personal.travel_profile"); // the starter types are the host's, not the snapshot's
     expect(message.credentials).toEqual({ openai: null, anthropic: null });
     const run = (await h.controller.handle({ type: "run.get", runId: started.runId }, PAGE)) as RunView;
     expect(run.status, `${run.errorCode}: ${run.errorDetail}`).toBe("completed");
@@ -187,7 +195,8 @@ describe("locked", () => {
     expect(status).toMatchObject({ state: "invalid", entries: [], migration_pending: false, legacy: null });
     expect(status.problem).toContain("v2");
     expect(((await h.controller.handle({ type: "status.get" }, PAGE)) as StatusInfo).secrets).toBe("invalid");
-    expect((await refused(h.controller.handle({ type: "vault.get" }, PAGE))).code).toBe("store_invalid");
+    expect(((await h.controller.handle({ type: "memory.get" }, PAGE)) as MemoryView).state).toBe("invalid");
+    expect((await refused(h.controller.handle({ type: "memory.installDemo" }, PAGE))).code).toBe("store_invalid");
     expect((await refused(h.controller.handle({ type: "secrets.unlock", passphrase: SEED_PASSPHRASE }, PAGE))).code).toBe("store_invalid");
     expect((await refused(h.controller.handle({ type: "settings.setKey", provider: "openai", key: "sk-other" }, PAGE))).code).toBe("store_invalid");
     expect(((await h.controller.handle({ type: "settings.get" }, PAGE)) as SettingsView).keys).toEqual({});
@@ -198,9 +207,9 @@ describe("locked", () => {
 
   it("the idle lock applies to the controller's reads, and the setting takes one of the offered values only", async () => {
     const h = makeHarness();
-    await h.controller.handle({ type: "vault.installDemo", records: true }, PAGE);
+    await h.controller.handle({ type: "memory.installDemo" }, PAGE);
     h.clock.now = new Date(h.clock.now.getTime() + 16 * 60_000);
-    expect((await refused(h.controller.handle({ type: "vault.get" }, PAGE))).code).toBe("store_locked");
+    expect((await refused(h.controller.handle({ type: "memory.reveal", recordId: DEMO.alex, pointer: "/email" }, PAGE))).code).toBe("store_locked");
     expect(h.unlocked.value).toBeUndefined();
     await h.controller.handle({ type: "secrets.unlock", passphrase: SEED_PASSPHRASE }, PAGE);
     const current = (await h.controller.handle({ type: "settings.get" }, PAGE)) as SettingsView;
@@ -210,7 +219,7 @@ describe("locked", () => {
     const never = (await h.controller.handle({ type: "settings.set", settings: { ...current.settings, security: { idle_lock_minutes: null } } }, PAGE)) as SettingsView;
     expect(never.settings.security.idle_lock_minutes).toBeNull();
     h.clock.now = new Date(h.clock.now.getTime() + 24 * 3_600_000);
-    expect(((await h.controller.handle({ type: "vault.get" }, PAGE)) as VaultView).records).toHaveLength(6);
+    expect(((await h.controller.handle({ type: "memory.get" }, PAGE)) as MemoryView).records.filter((record) => record.demo)).toHaveLength(6);
   });
 
   it("changing the passphrase keeps every entry; forgetting needs the typed word and wipes the envelope", async () => {

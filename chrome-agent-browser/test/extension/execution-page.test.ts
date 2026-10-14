@@ -68,7 +68,7 @@ const START: HostStartMessage = {
   type: "host.start",
   runId: "run_1",
   credentials: { openai: "sk-test", anthropic: null },
-  vault: { key: "AAAA", document: { schema: "x", records: [] } as unknown as NonNullable<HostStartMessage["vault"]>["document"] },
+  memory: null,
   allowedOrigins: [],
   settings: { ollamaBaseUrl: null, think: false, recordRequests: false, runtimeVersion: "0.1.0", verifiedVersion: "0.1.0", crossrefContact: null },
 };

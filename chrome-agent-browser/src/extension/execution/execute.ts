@@ -22,7 +22,7 @@ import { completeRunRecord, failRunRecord, HOST_RUNTIME, initialRunRecord, isTer
 import { ExecutionSession, type BeginReport, type ExecutionOutcome, type SessionDeps } from "../../core/execution/runner.js";
 import { sha256HexSync } from "../../core/hash.js";
 import { buildHostToolRegistry } from "../../core/hosttools.js";
-import type { JsonObject } from "../../core/json.js";
+import type { JsonObject, JsonValue } from "../../core/json.js";
 import type { BuiltinModelPort } from "../../core/models/adapters/chrome-builtin.js";
 import { adapterFor } from "../../core/models/providers.js";
 import { BoundModelRouter } from "../../core/models/router.js";
@@ -33,7 +33,11 @@ import { CROSSREF_CONTACT_SOURCE } from "../../core/hosttools.js";
 import { definitionsFromRegistry, type CredentialSource } from "../../core/tools/definitions.js";
 import { Pacer } from "../../core/tools/pacer.js";
 import type { AuditEvent } from "../../core/types.js";
-import { emptyVaultDocument, generateVaultKey, Vault } from "../../core/vault.js";
+import { generateVaultKey } from "../../core/vault.js";
+import { emptyMemorySnapshot, MemoryStore } from "../../core/memory/store.js";
+import { MemoryRun } from "../../core/memory/run.js";
+import { agentToolSchemas } from "../../core/memory/declarations.js";
+import type { MemoryRecord } from "../../core/memory/model.js";
 import { AdapterError, CancelledError } from "../../core/workflow/errors.js";
 import { isLoopbackBase } from "../../core/models/catalog.js";
 import { httpsOrigin } from "../../core/origins.js";
@@ -237,18 +241,25 @@ export function executeRun(deps: ExecuteDeps): ExecutionHandle {
       const archive = snapshot.bytes;
       // The package, for the host tool registry (the same derivation the plan was frozen from, D-054).
       const pkg = await loadPackageBytes(archive);
-      // The vault as the plan needs it (D-195): the records it grants, or its types alone when the
-      // plan binds a host-resource tool without granting a record (review 1, finding 1: the registry
-      // the plan was frozen from lists one binding per type, and `begin` re-verifies them); none at
-      // all otherwise, when an empty one under a throwaway key stands in.
-      const vault = message.vault === null ? await Vault.open(generateVaultKey(), emptyVaultDocument()) : await Vault.open(decodeBase64(message.vault.key), message.vault.document);
+      // The memory as the plan needs it (D-195, memory.v0 M-36): the whole store under its digest key
+      // when the plan grants a record or binds a memory tool (the scan set is every sealed value; the
+      // resolver answers only the plan's grants); an empty one under a throwaway key otherwise.
+      const memoryMessage = message.memory ?? null;
+      const withStore = memoryMessage !== null && memoryMessage.snapshot !== null && memoryMessage.key !== null;
+      const memoryStore = withStore ? await MemoryStore.open({ key: decodeBase64(memoryMessage.key!), snapshot: memoryMessage.snapshot!, now }) : await MemoryStore.open({ key: generateVaultKey(), snapshot: emptyMemorySnapshot(), now });
+      const grantedIds = new Set(run.invocation.plan.resource_grants.map((grant) => grant.resource_id));
+      memoryStore.grantedIds = grantedIds;
       const transports = {
         model: originGuard(deps.transports.model, message.allowedOrigins ?? [], { allowLoopback: true }),
         tool: originGuard(deps.transports.tool, message.allowedOrigins ?? [], { allowLoopback: false }),
       };
       const contact = message.settings.crossrefContact ?? null;
+      const requestedTypes = [...new Set((pkg.policy.permissions as JsonObject[]).filter((permission) => permission.kind === "personal.read" || permission.kind === "memory.read").flatMap((permission) => (permission.resources as JsonValue[]).map(String)))];
+      const agentSchemas = agentToolSchemas();
+      const digestOf = (text: string) => sha256HexSync(new TextEncoder().encode(text));
       const registry = await buildHostToolRegistry(pkg, {
-        resourceTypes: vault.typeViews().map((type) => ({ id: type.id, display_name: type.display_name, permission_kind: type.permission_kind, schema_sha256: type.schema_sha256 })),
+        resourceTypes: withStore ? memoryStore.resourceTypeFacts(requestedTypes) : [],
+        agentTools: withStore ? { read_output_sha256: digestOf(agentSchemas["host.memory.agent.read"]!.output), write_input_sha256: digestOf(agentSchemas["host.memory.agent.write"]!.input), write_output_sha256: digestOf(agentSchemas["host.memory.agent.write"]!.output) } : null,
         runtimeVersion: message.settings.runtimeVersion,
         now: now(),
         contactConfigured: contact !== null,
@@ -289,6 +300,21 @@ export function executeRun(deps: ExecuteDeps): ExecutionHandle {
       };
       // The one optional setting a binding may send: the person's Crossref contact (D-081).
       const optional = (credential: CredentialSource): string | null => (`${credential.kind}:${credential.name}` === CROSSREF_CONTACT_SOURCE ? contact : null);
+      // The run's memory context (memory.v0 §7): the scan set, the granted targets, the agent document.
+      const targets = new Map<string, Pick<MemoryRecord, "sealed" | "type">>();
+      for (const id of grantedIds) {
+        const record = memoryStore.get(id);
+        if (record) targets.set(id, { sealed: record.sealed, type: record.type });
+      }
+      const agentDocument = withStore ? memoryStore.agentDocument(String(pkg.manifest.package_id)) : undefined;
+      const memoryRun = new MemoryRun(pkg, plan.resource_grants, Object.fromEntries(Object.entries(run.invocation.authorization.decisions)) as Record<string, string>, {
+        scan: withStore ? memoryStore.scanSet() : [],
+        targets,
+        agentDocument: agentDocument ? { body: agentDocument.body, updated: agentDocument.updated } : null,
+        agentDiscard: memoryMessage?.agent_discard ?? null,
+        policyRefusesProposals: memoryMessage?.policy_refuses_proposals ?? false,
+        memoryFull: memoryMessage?.memory_full ?? false,
+      });
       const sessionDeps: SessionDeps = {
         archive,
         router,
@@ -301,7 +327,8 @@ export function executeRun(deps: ExecuteDeps): ExecutionHandle {
           pacer: new Pacer(),
           observe: (request) => record("tool", request.tool_id, request.url, request.body),
         },
-        resolver: vault,
+        resolver: memoryStore,
+        memory: memoryRun,
         onProgress: () => void checkpoint(),
         // D-071: a checkpoint after every wave, the moment its patches are committed.
         onAudit: (event) => {
@@ -330,6 +357,24 @@ export function executeRun(deps: ExecuteDeps): ExecutionHandle {
       const ended = now();
       return await settle((current) => {
         current.record = completeRunRecord(current.record, outcome.result, ended);
+        // memory.v0: what the service worker applies to the memory after the run (M-29, M-50): the
+        // usage entries from the audit, the staged agent body a completed run commits, the instant
+        // of `memory.proposed`. Never a value of a record.
+        const audit = (outcome.report.audit ?? []) as unknown as JsonObject[];
+        const packageVersion = String(pkg.manifest.version);
+        const packageId = String(pkg.manifest.package_id);
+        const usage: NonNullable<StoredRun["memory_usage"]> = [];
+        for (const event of audit) {
+          const at = String(event.timestamp ?? ended.toISOString());
+          if (event.action === "memory.read" && typeof event.record_id === "string") usage.push({ record_id: event.record_id, use: "read", package_id: packageId, package_version: packageVersion, run_id: runId, at });
+          if (event.action === "memory.agent.read" && event.present === true) usage.push({ record_id: agentDocument?.id ?? "", use: "agent_read", package_id: packageId, package_version: packageVersion, run_id: runId, at });
+        }
+        current.memory_usage = usage.filter((entry) => entry.record_id !== "");
+        const committed = outcome.report.memory?.agent?.committed ?? null;
+        const body = memoryRun.stagedBody();
+        current.memory_commit = committed !== null && body !== null ? { package_id: committed.package_id, package_version: packageVersion, name: String(pkg.manifest.name ?? packageId), body, bytes: committed.bytes, body_sha256: committed.body_sha256, at: ended.toISOString() } : null;
+        const proposed = audit.find((event) => event.action === "memory.proposed");
+        current.memory_proposed_at = proposed ? String(proposed.timestamp) : null;
       }, outcome);
     } catch (error) {
       const ended = now();

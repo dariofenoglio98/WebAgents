@@ -12,6 +12,8 @@ import { MemoryTrustStorage, TrustStore } from "../../src/core/trust.js";
 import { Controller, type ControllerDeps, type Fetch, type Limits, type Sender } from "../../src/extension/background/controller.js";
 import type { Event } from "../../src/extension/messages.js";
 import { MemoryEnvelopeStorage, MemoryUnlockedStateStorage, SecretStore } from "../../src/core/secrets.js";
+import { demoRecordId } from "../../src/extension/background/memory-controller.js";
+import { MemoryMemoryStorage } from "../../src/extension/storage/memory.js";
 import { EVERY_SITE_PATTERN, MemoryPermissions, PermissionStorage } from "../../src/extension/storage/permissions.js";
 import { MemoryStorageArea, SettingsStorage } from "../../src/extension/storage/settings.js";
 import { MemorySnapshotStore } from "../../src/extension/storage/snapshots.js";
@@ -147,6 +149,16 @@ export const OLLAMA_ANSWERS: Record<string, unknown> = {
 /** The committed empty envelope (test scrypt parameters) and its master key: every harness starts with a passphrase set, unlocked (T16). */
 const SEED = JSON.parse(readFileSync(join(PROJECT, "test", "fixtures", "secret-store-vectors.json"), "utf8")) as { passphrase: string; empty: { master_key: string; envelope: unknown } };
 export const SEED_PASSPHRASE: string = SEED.passphrase;
+
+/** The demo set's stable record ids (T19): the six fictional WebAir records by their 0.1.0 resource ids. */
+export const DEMO = {
+  traveler: demoRecordId("profile_demo_traveler"),
+  explorer: demoRecordId("profile_demo_explorer"),
+  alex: demoRecordId("passenger_demo_alex"),
+  sam: demoRecordId("passenger_demo_sam"),
+  visa: demoRecordId("payment_demo_visa"),
+  travel: demoRecordId("payment_demo_travel"),
+} as const;
 /** The scrypt parameters the harness's store uses for new envelopes (a few milliseconds, not half a second). */
 export const TEST_KDF = { n: 2 ** 14, r: 8, p: 1 };
 
@@ -179,6 +191,8 @@ export interface Harness {
   /** Keychain unlock's record (T17), in the settings area as in Chrome; and the `nativeMessaging` grant. */
   keychain: KeychainStorage;
   native: { permission: boolean };
+  /** The memory's rows (T19), shared across "restarts" like the other stores. */
+  memoryStorage: MemoryMemoryStorage;
   /** Wait for every run the host started to finish and report. */
   h_drain: () => Promise<void>;
 }
@@ -215,6 +229,8 @@ export function makeHarness(
     native?: NativePort;
     /** Whether `nativeMessaging` is granted (T17); false by default. */
     nativePermission?: boolean;
+    /** The memory's rows (T19), shared across "restarts". */
+    memoryStorage?: MemoryMemoryStorage;
   } = {},
 ): Harness {
   const routes = options.routes ?? webairRoutes();
@@ -246,6 +262,7 @@ export function makeHarness(
   const trust = new TrustStore(trustStorage, () => clock.now.toISOString());
   const runs = options.runs ?? new MemoryRunStore();
   const files = options.files ?? new MemoryFileStore();
+  const memoryStorage = options.memoryStorage ?? new MemoryMemoryStorage();
   const host = new InProcessHost({ runs, snapshots, files, model: options.transports?.model ?? refusingTransport(), tool: options.transports?.tool ?? refusingTransport(), builtin: options.builtinPort ?? null, now: () => clock.now, ...(options.hostOptions ?? {}) });
   const deps: ControllerDeps = {
     runs,
@@ -259,6 +276,7 @@ export function makeHarness(
     holders,
     liveDocuments: options.liveDocuments ? async (ids) => new Set(ids.filter((id) => options.liveDocuments!.has(id))) : undefined,
     settings,
+    memoryStorage,
     permissions,
     permissionStorage: new PermissionStorage(settingsArea),
     ...(options.native ? { native: options.native } : {}),
@@ -285,7 +303,7 @@ export function makeHarness(
   };
   const controller = new Controller(deps);
   host.report = (type, runId) => controller.handle({ type, runId }, OFFSCREEN);
-  return { controller, snapshots, trustStorage, trust, tabs, holders, settingsArea, settings, httpLog, builtin, badges, events, fetchLog, routes, clock, runs, host, files, secrets, envelope, unlocked, permissions, keychain, native, h_drain: () => host.drain() };
+  return { controller, snapshots, trustStorage, trust, tabs, holders, settingsArea, settings, httpLog, builtin, badges, events, fetchLog, routes, clock, runs, host, files, secrets, envelope, unlocked, permissions, keychain, native, memoryStorage, h_drain: () => host.drain() };
 }
 
 const EXTENSION_ORIGIN = "chrome-extension://abcdefghijklmnopabcdefghijklmnop";

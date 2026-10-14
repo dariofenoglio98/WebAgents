@@ -34,7 +34,7 @@ export interface MigrationReport {
 const DEMO_PREFIX = /^demo_/u;
 
 /** M-66: migrate every vault record once; returns the report. The store is written in place (the caller persists it). */
-export async function migrateVault(store: MemoryStore, vault: VaultDocument, options: { now: Date; newId?: () => string }): Promise<MigrationReport> {
+export async function migrateVault(store: MemoryStore, vault: VaultDocument, options: { now: Date; newId?: () => string; idFor?: (vaultId: string) => string }): Promise<MigrationReport> {
   const migrated = stamp(options.now);
   const mappings: MigrationReport["mappings"] = [];
   const items: MigrationItem[] = [];
@@ -81,7 +81,7 @@ export async function migrateVault(store: MemoryStore, vault: VaultDocument, opt
         }
       } else fields = JSON.parse(JSON.stringify(record.value)) as JsonObject;
       const draft: MemoryRecord = {
-        id: (options.newId ?? newRecordId)(),
+        id: options.idFor ? options.idFor(record.id) : (options.newId ?? newRecordId)(),
         type: type.id,
         title: record.label,
         scope: "user",

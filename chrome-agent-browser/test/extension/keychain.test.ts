@@ -29,7 +29,7 @@ async function enabled(): Promise<{ h: Harness; helper: FakeHelper }> {
   const helper = new FakeHelper();
   const h = makeHarness({ native: helper, nativePermission: true });
   await ask(h, { type: "settings.setKey", provider: "openai", key: "sk-test-key-kept" });
-  await ask(h, { type: "vault.installDemo", records: true });
+  await ask(h, { type: "memory.installDemo" });
   const view = await ask<KeychainView>(h, { type: "keychain.enable" });
   expect(view).toMatchObject({ permission: true, enabled: true, helper: "available", helper_version: "0.1.0" });
   return { h, helper };
@@ -171,15 +171,15 @@ describe("unlock with the keychain", () => {
   });
 });
 
-describe("T16 review 2, nit 3: a vault opened before a store change is never saved after it", () => {
+describe("T16 review 2, nit 3: a memory opened before a store change is never saved after it", () => {
   it("refuses store_changed and writes nothing", async () => {
     const h = makeHarness();
-    await ask(h, { type: "vault.installDemo", records: true });
-    const controller = h.controller as unknown as { vault(): Promise<unknown>; saveVault(vault: unknown): Promise<void> };
-    const vault = await controller.vault();
+    await ask(h, { type: "memory.installDemo" });
+    const memory = h.controller.memory as unknown as { unlocked(): Promise<unknown>; persist(opened: unknown): Promise<void> };
+    const opened = await memory.unlocked();
     await ask(h, { type: "secrets.forget", confirmation: "forget" });
     await ask(h, { type: "secrets.setup", passphrase: "a passphrase of mine" });
-    expect((await refused(controller.saveVault(vault))).code).toBe("store_changed");
-    expect((await h.secrets.names()).includes("vault")).toBe(false);
+    expect((await refused(memory.persist(opened))).code).toBe("store_changed");
+    expect((await h.secrets.names()).includes("memory_key")).toBe(false);
   });
 });

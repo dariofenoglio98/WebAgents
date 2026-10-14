@@ -47,6 +47,14 @@ export interface StoredRun {
   usage: JsonObject | null;
   /** `result.json`, once the run settled; its files are in the artifact store. */
   result: JsonObject | null;
+  /** memory.v0 (T19): the agent body a completed run staged, until the service worker commits it (M-50); null once committed or when none. */
+  memory_commit?: { package_id: string; package_version: string; name: string; body: string; bytes: number; body_sha256: string; at: string } | null;
+  /** The usage entries the run's audit yields (M-29), until the service worker applied them to the memory. */
+  memory_usage?: Array<{ record_id: string; use: "read" | "agent_read" | "agent_write"; package_id: string; package_version: string; run_id: string; at: string }> | null;
+  /** The instant of the run's `memory.proposed` event (M-29). */
+  memory_proposed_at?: string | null;
+  /** The review's outcome, once the person decided (M-42); the sheet does not reopen. */
+  memory_review?: { at: string; accepted: number; rejected: number } | null;
 }
 
 export interface StoredArtifact {
