@@ -4,7 +4,8 @@
  * card with one passphrase field, opened when a request fails `store_locked` and closed by a
  * successful unlock, which then retries what the person was doing. Before any passphrase exists
  * the sheet explains and links to Settings → Security instead. The passphrase leaves this page
- * once, to the service worker, and is never kept.
+ * once, to the service worker, and is never kept. With keychain unlock on (T17, D-204) the sheet
+ * offers "Unlock with the macOS keychain" first; any failure leaves the passphrase form in place.
  */
 import type { SecretStoreState } from "../../core/secrets.js";
 import type { SecretsView } from "../messages.js";
@@ -67,6 +68,24 @@ export function renderUnlockSheet(state: UnlockState, secrets: SecretsView | nul
   const sheet = el("div", { className: "ab-sheet", attrs: { role: "dialog", "aria-modal": "true", "aria-label": "Unlock your keys and records" } });
   const backdrop = el("div", { className: "ab-sheet-backdrop" });
   backdrop.addEventListener("click", close);
+  if (secrets?.state === "invalid") {
+    // An envelope this build cannot read (T16 review 2, nit 5): a passphrase cannot help; Settings says why.
+    sheet.append(
+      backdrop,
+      el(
+        "div",
+        { className: "ab-sheet-card" },
+        el("h3", { text: "Your keys and records cannot be read" }),
+        el("p", { className: "ab-hint", text: secrets.problem ?? "The protected store is not one this version reads." }),
+        el("p", { className: "ab-hint", text: "No passphrase opens it. Settings → Security explains what happened and how to start again." }),
+        el("div", { className: "ab-actions" }, button("Open Settings → Security", () => {
+          close();
+          actions.openSettings();
+        }, { variant: "primary" }), button("Not now", close, { variant: "ghost" })),
+      ),
+    );
+    return sheet;
+  }
   if (secrets?.state === "no_passphrase") {
     sheet.append(
       backdrop,
@@ -107,6 +126,25 @@ export function renderUnlockSheet(state: UnlockState, secrets: SecretsView | nul
       actions.rerender();
     }
   };
+  const viaKeychain = async () => {
+    if (state.busy) return;
+    state.busy = true;
+    state.error = null;
+    actions.rerender();
+    try {
+      await send<SecretsView>({ type: "secrets.unlockKeychain" });
+      const retry = state.open?.retry ?? null;
+      state.open = null;
+      state.busy = false;
+      actions.onUnlocked();
+      actions.rerender();
+      retry?.();
+    } catch (error) {
+      state.error = `${keychainFailureWords(describeError(error))} Use your passphrase instead.`;
+      state.busy = false;
+      actions.rerender();
+    }
+  };
   const form = el("form", { className: "ab-sheet-form" }, field);
   form.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -119,11 +157,36 @@ export function renderUnlockSheet(state: UnlockState, secrets: SecretsView | nul
       { className: "ab-sheet-card" },
       el("h3", { text: "Unlock your keys and records" }),
       el("p", { className: "ab-hint", text: state.open.reason ?? "Your provider keys and your records are encrypted at rest. Enter your passphrase to use them in this browser session; they lock again after the idle time you chose." }),
+      secrets?.keychain_enabled ? el("div", { className: "ab-actions ab-keychain-unlock" }, button(state.busy ? "Unlocking…" : "Unlock with the macOS keychain", () => void viaKeychain(), { variant: "primary", disabled: state.busy })) : null,
+      secrets?.keychain_enabled ? el("p", { className: "ab-hint", text: "Or enter your passphrase:" }) : null,
       form,
       state.error ? el("p", { className: "ab-banner ab-banner-bad", attrs: { role: "alert" }, text: state.error }) : null,
-      el("div", { className: "ab-actions" }, button(state.busy ? "Unlocking…" : "Unlock", () => void submit(), { variant: "primary", disabled: state.busy }), button("Cancel", close, { variant: "ghost", disabled: state.busy })),
+      el("div", { className: "ab-actions" }, button(state.busy ? "Unlocking…" : "Unlock", () => void submit(), { variant: secrets?.keychain_enabled ? "ghost" : "primary", disabled: state.busy }), button("Cancel", close, { variant: "ghost", disabled: state.busy })),
     ),
   );
-  queueMicrotask(() => field.focus());
+  if (!secrets?.keychain_enabled) queueMicrotask(() => field.focus());
   return sheet;
+}
+
+/** A failed keychain unlock in words (T17): what happened, never a dead end. */
+export function keychainFailureWords(error: { code: string; message: string; details?: Record<string, unknown> }): string {
+  switch (error.code) {
+    case "helper_not_installed":
+      return "The WebAgents helper is not installed on this Mac.";
+    case "native_permission_missing":
+      return "Chrome no longer lets this extension talk to the WebAgents helper (Settings → Security turns it on again).";
+    case "helper_timeout":
+      return "The WebAgents helper did not answer in time.";
+    case "keychain_mismatch":
+    case "keychain_not_enabled":
+      return "The keychain does not hold the key for this store any more; keychain unlock was turned off.";
+    case "helper_refused": {
+      const code = typeof error.details?.helper_code === "string" ? error.details.helper_code : "";
+      if (code === "keychain_item_missing" || code === "unwrap_failed") return "The keychain does not hold the key for this store any more; keychain unlock was turned off.";
+      if (code === "keychain_unavailable") return "The keychain refused (was its prompt denied?).";
+      return `The WebAgents helper refused: ${error.message}`;
+    }
+    default:
+      return `${error.code}: ${error.message}`;
+  }
 }

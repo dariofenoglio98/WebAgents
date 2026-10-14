@@ -1,0 +1,11 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><style>body{font:13px -apple-system,sans-serif;line-height:1.5}code{font-size:12px}</style></head>
+<body>
+<h3>WebAgents for macOS</h3>
+<p>This installs two optional parts of the WebAgents Agent Browser. The Chrome extension works without them.</p>
+<ul>
+<li><b>Native helper</b>: lets the extension unlock your keys and records from your login keychain, and report Ollama's state. It does three things only and never receives a provider key, a record or a package.</li>
+<li><b>Ollama for local models</b> (you can untick it on the next screen): uses Ollama if it is already installed; otherwise installs it with Homebrew, or downloads the pinned release and checks its SHA-256 and its signature. Then it allows the extension to call Ollama, now and at every login.</li>
+</ul>
+<p>Everything goes into <code>/Library/Application Support/WebAgents</code>, Chrome's native-messaging folder and one LaunchAgent. To remove it: <code>sudo "/Library/Application Support/WebAgents/uninstall.sh"</code> (Ollama and your models stay).</p>
+</body></html>

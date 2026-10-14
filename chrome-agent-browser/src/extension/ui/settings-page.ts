@@ -10,7 +10,7 @@ import { PRESETS } from "../../core/authorization.js";
 import { DEFAULT_BASE_URLS, type ProbeResult, type ProviderId } from "../../core/models/catalog.js";
 import { DEFAULT_OPENAI_REASONING_EFFORT, OPENAI_REASONING_EFFORTS } from "../../core/models/adapters/openai.js";
 import { DEFAULT_HOST_LIMITS, type HostExecutionLimits } from "../../core/execution/limits.js";
-import type { FilesView, IndexesView, IndexView, PermissionsView, PolicyView, ProbeView, Request, SecretsView, SettingsView, StatusInfo } from "../messages.js";
+import type { FilesView, IndexesView, IndexView, KeychainView, PermissionsView, PolicyView, ProbeView, Request, SecretsView, SettingsView, StatusInfo } from "../messages.js";
 import { IDLE_LOCK_MINUTES, MIN_PASSPHRASE_LENGTH } from "../../core/secrets.js";
 import type { GrantPurpose } from "../storage/permissions.js";
 import { idleWords } from "./unlock.js";
@@ -123,6 +123,8 @@ export interface SettingsPageActions {
   onPolicy?: (request: Extract<Request, { type: "policy.subscribe" | "policy.refresh" | "policy.unsubscribe" }>) => void;
   /** Settings → Security (T16): the secret store's requests; the passphrase travels once, to the worker. */
   onSecrets?: (request: Extract<Request, { type: "secrets.setup" | "secrets.unlock" | "secrets.lock" | "secrets.changePassphrase" | "secrets.forget" }>) => void;
+  /** Settings → Security (T17): turn keychain unlock on (the page asks Chrome for `nativeMessaging` in the click) or off; ask the helper again. */
+  onKeychain?: (action: "enable" | "disable" | "refresh") => void;
   /** Settings → Permissions (T16): ask Chrome for every site (the click is the gesture) and tell the worker; revoke origins. */
   onDetectEverywhere?: (enabled: boolean) => void;
   onRevoke?: (origins: string[]) => void;
@@ -133,6 +135,8 @@ export interface SettingsExtras {
   indexes: IndexesView | null;
   policy: PolicyView | null;
   secrets?: SecretsView | null;
+  /** Settings → Security's keychain card (T17); null until the helper was asked. */
+  keychain?: KeychainView | null;
   permissions?: PermissionsView | null;
 }
 
@@ -645,7 +649,7 @@ function aboutView(view: SettingsView, status: StatusInfo | null, actions: Setti
 }
 
 /** Settings → Security (T16, D-191, D-192): the passphrase, the idle lock, Lock now, Forget everything. */
-function securityView(view: SettingsView, actions: SettingsPageActions, state: SettingsPageState, secrets: SecretsView | null): HTMLElement[] {
+function securityView(view: SettingsView, actions: SettingsPageActions, state: SettingsPageState, secrets: SecretsView | null, keychain: KeychainView | null): HTMLElement[] {
   if (secrets === null) return [el("p", { className: "ab-busy", text: "Loading…" })];
   const cards: HTMLElement[] = [];
   const passphraseField = (name: string, label: string, autocomplete: string) => el("input", { className: "ab-input", attrs: { type: "password", name, autocomplete, "aria-label": label, placeholder: label } });
@@ -703,6 +707,7 @@ function securityView(view: SettingsView, actions: SettingsPageActions, state: S
       el("div", { className: "ab-actions" }, unlocked ? button("Lock now", () => actions.onSecrets?.({ type: "secrets.lock" }), { variant: "ghost" }) : null),
     ),
   );
+  cards.push(keychainCard(keychain, unlocked, actions));
   const current = passphraseField("passphrase-current", "Current passphrase", "current-password");
   const next = passphraseField("passphrase-next", "New passphrase", "new-password");
   const nextAgain = passphraseField("passphrase-next-again", "Repeat the new passphrase", "new-password");
@@ -728,6 +733,54 @@ function securityView(view: SettingsView, actions: SettingsPageActions, state: S
   );
   cards.push(forgetCard(actions, state));
   return cards;
+}
+
+/** What the helper says about Ollama, in one line (T17): installed, running, and whether it admits this extension. */
+export function ollamaWords(ollama: NonNullable<KeychainView["ollama"]>): { text: string; tone: "good" | "warn" | "bad" } {
+  if (!ollama.installed && !ollama.running) return { text: "Ollama is not installed (the macOS installer can add it).", tone: "warn" };
+  const version = ollama.server_version ?? ollama.version;
+  const name = version ? `Ollama ${version}` : "Ollama";
+  if (!ollama.running) return { text: `${name} is installed but not running.`, tone: "warn" };
+  // The server's own answer (T17 review 1, nit 6): the login value may be right while Ollama still runs with an older one.
+  if (!ollama.extension_allowed) return { text: `${name} is running but does not admit this extension (OLLAMA_ORIGINS at login: ${ollama.origins ?? "not set"}); restart Ollama after the installer sets it, or see Settings → Models.`, tone: "bad" };
+  return { text: `${name} is running and admits this extension.`, tone: "good" };
+}
+
+/**
+ * Settings → Security's keychain card (T17, D-181, D-204): optional; the passphrase stays the
+ * way in. The card names what the helper said just now, never more than that.
+ */
+function keychainCard(keychain: KeychainView | null, unlocked: boolean, actions: SettingsPageActions): HTMLElement {
+  const intro = el("p", { className: "ab-hint", text: "With the WebAgents helper (installed by the macOS installer), the key that opens your store can also be kept in your login keychain, so unlocking is one click. The helper sees that key only while wrapping or unwrapping it, never a provider key, a record or a package. Your passphrase keeps working, and removing the helper loses nothing." });
+  if (keychain === null) return card("Unlock with the macOS keychain", intro, el("p", { className: "ab-busy", text: "Asking the helper…" }));
+  const refresh = button("Check again", () => actions.onKeychain?.("refresh"), { variant: "ghost" });
+  const status: HTMLElement[] = [];
+  if (!keychain.permission) {
+    status.push(el("div", { className: "ab-row" }, chip(keychain.enabled ? "Permission removed" : "Off", keychain.enabled ? "warn" : "neutral")));
+    status.push(el("p", { className: "ab-hint", text: "Turning it on asks Chrome for permission to talk to a native application (the helper), then asks the helper to keep the key." }));
+  } else if (keychain.helper === "available") {
+    status.push(el("div", { className: "ab-row" }, chip("keychain available", "good"), el("span", { className: "ab-hint", text: ` · helper ${keychain.helper_version ?? "unknown version"}${keychain.enabled ? ` · on since ${keychain.enabled_at ? new Date(keychain.enabled_at).toLocaleDateString() : "unknown"}` : " · off"}` })));
+  } else if (keychain.helper === "not_installed") {
+    status.push(el("div", { className: "ab-row" }, chip("Helper not installed", "warn")));
+    status.push(el("p", { className: "ab-hint", text: "The macOS installer (installer/README.md) adds the helper and can set up Ollama. Until then, unlock with your passphrase; nothing is lost." }));
+  } else {
+    status.push(el("div", { className: "ab-row" }, chip(keychain.helper === "refused" ? "Helper refused" : "Helper failed", "bad")));
+  }
+  if (keychain.problem && keychain.helper !== "not_installed") status.push(el("p", { className: "ab-banner ab-banner-warn", attrs: { role: "status" }, text: `${keychain.problem.code}: ${keychain.problem.message}` }));
+  if (keychain.ollama) {
+    const words = ollamaWords(keychain.ollama);
+    status.push(el("div", { className: "ab-row ab-ollama-status" }, chip("Ollama", words.tone), el("span", { className: "ab-hint", text: ` ${words.text}` })));
+  }
+  const toggle = keychain.enabled
+    ? button("Turn off", () => actions.onKeychain?.("disable"), { variant: "ghost" })
+    : button("Turn on", () => actions.onKeychain?.("enable"), { variant: "primary", disabled: !unlocked || (keychain.permission && keychain.helper !== "available") });
+  return card(
+    "Unlock with the macOS keychain",
+    intro,
+    ...status,
+    !keychain.enabled && !unlocked ? el("p", { className: "ab-hint", text: "Unlock with your passphrase first: the key is handed to the helper only while the store is open." }) : null,
+    el("div", { className: "ab-actions" }, toggle, refresh),
+  );
 }
 
 /** "Forget everything", with its typed confirmation: the way out of a lost passphrase and of an unreadable store. */
@@ -823,7 +876,7 @@ export function renderSettingsPage(view: SettingsView, status: StatusInfo | null
       : state.section === "policies"
         ? policiesView(view, actions, state, extras)
         : state.section === "security"
-          ? securityView(view, actions, state, extras.secrets ?? null)
+          ? securityView(view, actions, state, extras.secrets ?? null, extras.keychain ?? null)
           : state.section === "permissions"
             ? permissionsView(extras.permissions ?? null, actions)
             : state.section === "search"

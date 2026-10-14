@@ -12,9 +12,10 @@ zip whose permissions differ from this list.
 | `offscreen` | Runs execute in an offscreen document's Worker so that closing the panel or the page does not stop a run (reason `WORKERS`). |
 | `activeTab` | When the person clicks the extension's button (or its context-menu item or shortcut) on a page, the extension reads that page's `<link rel="agent-package">` head links, once, and nothing else. This is how agents are found without any host permission. |
 | `scripting` | To inject the one discovery script into the clicked tab under `activeTab`, and to register it for the sites the person chose to detect agents on. The script reads the head's agent-package links and reports them; it reads, changes and sends nothing else. |
-| `alarms` | One alarm per minute, while the secret store is unlocked, wipes the session key after the idle time the person set. |
+| `alarms` | One alarm, firing once a minute, wipes the session key once it has been idle longer than the time the person set. |
 | `contextMenus` | One page context-menu item, "Look for agents on this page", an alternative to the button click that also grants `activeTab`. |
 | Host `http://127.0.0.1/*`, `http://localhost/*` | Ollama on this machine, the local model route; a remote Ollama endpoint is refused by the extension. |
+| Optional `nativeMessaging` | Requested only when the person turns on "Unlock with the macOS keychain" in Settings → Security. It lets the extension ask the optional WebAgents helper (installed separately on macOS) to wrap and unwrap the key of the extension's encrypted store with the login keychain, and to report whether Ollama is running. No provider key, record or browsing data is sent to it. |
 | Optional host `https://*/*` | Never requested as a whole unless the person turns on "Detect agents on every site". Otherwise single origins are requested, with the person's click as the gesture: the origin of a package they open, the services that package declares and the model provider they chose (listed under the plan's Technical details), a site they chose to detect agents on, a signed index or policy they add. Settings → Permissions lists every grant with its reason and revokes it. |
 
 Not requested: `tabs` (the extension never reads browsing history; a tab's URL is known to it only

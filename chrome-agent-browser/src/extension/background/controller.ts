@@ -46,6 +46,8 @@ import { httpsOrigin, originPattern, planOrigins, patternOrigin, toolBindingsFor
 import { SerialQueue } from "../../core/serial.js";
 import { planNeedsVault } from "./runs.js";
 import { unavailableStoreError, type SecretStoreState } from "../../core/secrets.js";
+import { HelperClient, KEYCHAIN_RECORD_SCHEMA, NativePortError, PERMANENT_HELPER_CODES, type KeychainRecord, type NativePort, type OllamaReport } from "../../core/keychain.js";
+import { KeychainStorage } from "../storage/keychain-storage.js";
 import type { Package } from "../../core/package.js";
 import { documentUrl, origin, originText, sameOrigin, validatePackageUrl } from "../../core/policy.js";
 import { readProfiles, type Profile } from "../../core/profiles.js";
@@ -83,6 +85,7 @@ import {
   type RunPlanState,
   type RunView,
   type SecretsView,
+  type KeychainView,
   type SessionDescriptor,
   type SessionSource,
   type SessionView,
@@ -168,6 +171,12 @@ export interface ControllerDeps {
   permissions?: PermissionsPort;
   /** Why each origin was granted (`chrome.storage.local`, T16); memory when absent (tests). */
   permissionStorage?: PermissionStorage;
+  /** The optional native helper (T17, D-204): Chrome's native port; absent means not installed. */
+  native?: NativePort;
+  /** Whether `nativeMessaging` is granted; false when absent. */
+  nativePermission?: () => Promise<boolean>;
+  /** Keychain unlock's record beside the envelope (`chrome.storage.local`, T17); memory when absent (tests). */
+  keychain?: KeychainStorage;
 }
 
 interface LiveSession {
@@ -292,6 +301,18 @@ export class Controller {
   private readonly grants: PermissionStorage;
   /** An empty resource registry: what authorization sees while the store is locked (no record can be chosen). */
   private emptyRegistry: Promise<ResourceRegistry> | null = null;
+  /** The native helper's client and keychain unlock's record (T17). */
+  private readonly helper: HelperClient;
+  private readonly keychain: KeychainStorage;
+  private readonly nativePermission: () => Promise<boolean>;
+  /** Enable, disable and unlock with the keychain, one at a time. */
+  private readonly keychainWork = new SerialQueue();
+  /**
+   * What the helper last answered to `ollama.status`, in this worker's memory: Turn on and Turn off
+   * show it instead of starting the helper once more in the same click (T17 review 1, nit 7).
+   * Forgotten whenever the helper fails; Check again always asks.
+   */
+  private helperSeen: { helper_version: string | null; ollama: OllamaReport } | null = null;
 
   /** Runs from the browser (T5): decides whether a run starts; the host executes. */
   readonly runs: RunManager;
@@ -306,6 +327,13 @@ export class Controller {
     this.trust = new PolicyTrust(deps.trust, () => this.activePolicy());
     this.permissions = deps.permissions ?? new MemoryPermissions([EVERY_SITE_PATTERN]);
     this.grants = deps.permissionStorage ?? new PermissionStorage(new MemoryStorageArea());
+    this.helper = new HelperClient(
+      deps.native ?? {
+        send: () => Promise.reject(new NativePortError("not_installed", "no native port")),
+      },
+    );
+    this.keychain = deps.keychain ?? new KeychainStorage(new MemoryStorageArea());
+    this.nativePermission = deps.nativePermission ?? (() => Promise.resolve(false));
     const hooks: RunHooks = {
       session: async (sessionId) => {
         const live = await this.session(sessionId);
@@ -476,6 +504,14 @@ export class Controller {
         return this.changePassphrase(request.current, request.next);
       case "secrets.forget":
         return this.forgetSecrets(request.confirmation);
+      case "secrets.unlockKeychain":
+        return this.unlockWithKeychain();
+      case "keychain.status":
+        return this.keychainView();
+      case "keychain.enable":
+        return this.enableKeychain();
+      case "keychain.disable":
+        return this.disableKeychain();
       case "permissions.get":
         return this.permissionsView();
       case "permissions.granted":
@@ -539,13 +575,16 @@ export class Controller {
   }
 
   /** Note why a plan's origins are granted: for this package, and for its provider. */
-  private async recordPlanOrigins(live: LiveSession, plan: RunPlan, origins: readonly PlanOrigin[]): Promise<void> {
-    const now = this.clock();
-    for (const item of origins) {
-      if (item.roles.includes("package") || item.roles.includes("tool")) await this.grants.record(item.origin, { kind: "package", subject: plan.package.package_id, label: plan.package.name }, now);
-      if (item.roles.includes("provider") && plan.model_binding) await this.grants.record(item.origin, { kind: "provider", subject: plan.model_binding.provider_id }, now);
-    }
-    void live;
+  private recordPlanOrigins(live: LiveSession, plan: RunPlan, origins: readonly PlanOrigin[]): Promise<void> {
+    // In the permission queue with the other writers (T16 review 2, nit 1).
+    return this.permissionWork.run(async () => {
+      const now = this.clock();
+      for (const item of origins) {
+        if (item.roles.includes("package") || item.roles.includes("tool")) await this.grants.record(item.origin, { kind: "package", subject: plan.package.package_id, label: plan.package.name }, now);
+        if (item.roles.includes("provider") && plan.model_binding) await this.grants.record(item.origin, { kind: "provider", subject: plan.model_binding.provider_id }, now);
+      }
+      void live;
+    });
   }
 
   async permissionsView(): Promise<PermissionsView> {
@@ -666,10 +705,14 @@ export class Controller {
       ...status,
       migration_pending: legacy !== null && (Object.keys(legacy.provider_keys).length > 0 || legacy.vault !== null),
       legacy: legacy === null ? null : { providers: Object.keys(legacy.provider_keys).sort(), records: legacy.vault?.records.length ?? 0 },
+      keychain_enabled: keychainFor(await this.keychain.load(), status.created_at) !== null,
     };
   }
 
   private secretsChanged(): void {
+    // A vault opened before this change is never saved after it (T16 review 2, nit 3): `saveVault`
+    // compares the generation it was opened in.
+    this.secretsGeneration += 1;
     this.vaultCache = null;
     this.invalidateCatalog();
     this.deps.broadcast({ type: "event.secrets" });
@@ -679,6 +722,7 @@ export class Controller {
 
   async setupPassphrase(passphrase: string): Promise<SecretsView> {
     await this.deps.settings.setPassphrase(passphrase);
+    await this.keychain.clear(); // a record left from a forgotten store belongs to no envelope
     this.secretsChanged();
     return this.secretsView();
   }
@@ -705,9 +749,105 @@ export class Controller {
   async forgetSecrets(confirmation: string): Promise<SecretsView> {
     if (confirmation.trim().toLowerCase() !== "forget") throw reject("confirmation_mismatch", "Type forget to delete every key and record.", 400);
     await this.deps.settings.store.forget();
+    await this.keychainWork.run(() => this.keychain.clear());
     this.secretsChanged();
     this.deps.broadcast({ type: "event.sessions" });
     return this.secretsView();
+  }
+
+  // -- keychain unlock through the native helper (T17, D-204) -------------------------------------
+  /**
+   * Settings → Security's keychain card: the permission, the record, and what the helper says now
+   * (or, with `reuse`, what it said last in this worker, when it said anything).
+   */
+  async keychainView(reuse = false): Promise<KeychainView> {
+    const permission = await this.nativePermission();
+    const record = keychainFor(await this.keychain.load(), (await this.deps.settings.store.status()).created_at);
+    const base: KeychainView = { permission, enabled: record !== null, enabled_at: record?.enabled_at ?? null, helper: "not_checked", helper_version: null, problem: null, ollama: null };
+    if (!permission) return base;
+    if (reuse && this.helperSeen !== null) return { ...base, helper: "available", ...this.helperSeen };
+    try {
+      const status = await this.helper.status();
+      this.helperSeen = { helper_version: status.helper, ollama: status.ollama };
+      return { ...base, helper: "available", helper_version: status.helper, ollama: status.ollama };
+    } catch (error) {
+      this.helperSeen = null;
+      const described = helperProblem(error);
+      return { ...base, helper: described.state, problem: { code: described.code, message: described.message } };
+    }
+  }
+
+  /**
+   * Turn keychain unlock on: the store must be unlocked; the helper wraps the master key, and the
+   * blob is unwrapped once at once, so "on" means the round trip works on this Mac.
+   */
+  enableKeychain(): Promise<KeychainView> {
+    return this.keychainWork.run(async () => {
+      if (!(await this.nativePermission())) throw reject("native_permission_missing", "Chrome has not granted the permission to talk to the WebAgents helper.", 403);
+      const material = await this.deps.settings.store.keychainMaterial();
+      try {
+        const blob = await this.helper.wrap(material.key);
+        const back = await this.helper.unwrap(blob);
+        const same = back.length === material.key.length && back.every((byte, index) => byte === material.key[index]);
+        back.fill(0);
+        if (!same) throw reject("helper_failed", "The WebAgents helper did not return the key it wrapped; keychain unlock stays off.", 502);
+        await this.keychain.save({ schema: KEYCHAIN_RECORD_SCHEMA, enabled_at: this.clock().toISOString(), envelope_created_at: material.envelope_created_at, blob, check: material.check });
+      } catch (error) {
+        this.helperSeen = null;
+        throw error;
+      } finally {
+        material.key.fill(0);
+      }
+      this.deps.broadcast({ type: "event.secrets" });
+      return this.keychainView(true);
+    });
+  }
+
+  disableKeychain(): Promise<KeychainView> {
+    return this.keychainWork.run(async () => {
+      await this.keychain.clear();
+      this.deps.broadcast({ type: "event.secrets" });
+      return this.keychainView(true);
+    });
+  }
+
+  /**
+   * Unlock with the keychain: the helper unwraps the stored blob and the store accepts the key only
+   * if it opens the check sealed for this envelope. Every failure leaves the store locked and the
+   * passphrase the way in; a record that can never work again (the item is gone or replaced, the
+   * key does not fit) is dropped, nothing else is.
+   */
+  unlockWithKeychain(): Promise<SecretsView> {
+    return this.keychainWork.run(async () => {
+      const status = await this.deps.settings.store.status();
+      if (status.state === "unlocked") return this.secretsView();
+      if (status.state !== "locked") throw unavailableStoreError(status.state);
+      const record = keychainFor(await this.keychain.load(), status.created_at);
+      if (record === null) throw reject("keychain_not_enabled", "Keychain unlock is off for this store; use your passphrase.", 409);
+      let key: Uint8Array;
+      try {
+        key = await this.helper.unwrap(record.blob);
+      } catch (error) {
+        this.helperSeen = null;
+        if (error instanceof CoreError && error.code === "helper_refused" && PERMANENT_HELPER_CODES.includes(String(error.details.helper_code))) await this.dropKeychain();
+        throw error;
+      }
+      try {
+        await this.deps.settings.store.unlockWithKey(key, record.check);
+      } catch (error) {
+        if (error instanceof CoreError && error.code === "keychain_mismatch") await this.dropKeychain();
+        throw error;
+      } finally {
+        key.fill(0);
+      }
+      this.secretsChanged();
+      return this.secretsView();
+    });
+  }
+
+  private async dropKeychain(): Promise<void> {
+    await this.keychain.clear();
+    this.deps.broadcast({ type: "event.secrets" });
   }
 
   /** The store's state now (the idle lock applied). */
@@ -1369,6 +1509,9 @@ export class Controller {
   // -- settings, keys and the vault (D-050, D-051, D-055) ------------------------------------
   /** The opening, not only the opened vault, so concurrent first calls share one key and one document (review 1, nit 12). */
   private vaultCache: Promise<Vault> | null = null;
+  /** Bumped by every store change (lock, unlock, setup, forget, passphrase change); a vault remembers the one it was opened in. */
+  private secretsGeneration = 0;
+  private readonly vaultGenerations = new WeakMap<Vault, number>();
   /** The permission bookkeeping, one operation at a time (review 1, finding 5): a grant the page reports and Chrome's `onAdded` reconcile never interleave their read-modify-writes. */
   private readonly permissionWork = new SerialQueue();
 
@@ -1416,10 +1559,17 @@ export class Controller {
       throw unavailableStoreError(state);
     }
     if (!this.vaultCache) {
-      this.vaultCache = this.openVault().catch((error: unknown) => {
-        this.vaultCache = null; // a failed opening is retried by the next call
-        throw error;
-      });
+      const generation = this.secretsGeneration;
+      this.vaultCache = this.openVault().then(
+        (vault) => {
+          this.vaultGenerations.set(vault, generation);
+          return vault;
+        },
+        (error: unknown) => {
+          this.vaultCache = null; // a failed opening is retried by the next call
+          throw error;
+        },
+      );
     }
     return this.vaultCache;
   }
@@ -1451,6 +1601,7 @@ export class Controller {
   }
 
   private async saveVault(vault: Vault): Promise<void> {
+    if (this.vaultGenerations.get(vault) !== this.secretsGeneration) throw reject("store_changed", "Your keys and records were locked, forgotten or set up again while this change was being made; nothing was saved. Try again.", 409);
     await this.deps.settings.saveVaultDocument(vault.toDocument());
     this.vaultCache = Promise.resolve(vault);
     this.deps.broadcast({ type: "event.vault" });
@@ -2435,4 +2586,19 @@ export class Controller {
       secrets: await this.secretsState(),
     };
   }
+}
+
+/** The stored keychain record when it belongs to the envelope created at `createdAt` (T17). */
+function keychainFor(record: KeychainRecord | null, createdAt: string | null): KeychainRecord | null {
+  return record !== null && createdAt !== null && record.envelope_created_at === createdAt ? record : null;
+}
+
+/** What a failed helper call means for Settings → Security's keychain card. */
+function helperProblem(error: unknown): { state: KeychainView["helper"]; code: string; message: string } {
+  if (error instanceof CoreError) {
+    if (error.code === "helper_not_installed") return { state: "not_installed", code: error.code, message: error.message };
+    if (error.code === "helper_refused") return { state: "refused", code: String(error.details.helper_code ?? "unknown"), message: error.message };
+    return { state: "failed", code: error.code, message: error.message };
+  }
+  return { state: "failed", code: "helper_failed", message: error instanceof Error ? error.message : "unknown error" };
 }

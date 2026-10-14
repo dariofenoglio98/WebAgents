@@ -11,6 +11,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { inflateRawSync } from "node:zlib";
+import { extensionIdFromKey } from "./lib/extension-id.mjs";
 
 const project = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const version = JSON.parse(readFileSync(join(project, "package.json"), "utf8")).version;
@@ -79,6 +80,14 @@ if (JSON.stringify(manifest.optional_host_permissions ?? []) !== JSON.stringify(
 if (manifest.content_scripts !== undefined) problems.push("a static content script is declared (D-194: the discovery script is injected or registered on grant)");
 if (JSON.stringify([...(manifest.permissions ?? [])].sort()) !== JSON.stringify(PERMISSIONS)) problems.push(`permissions must be exactly ${PERMISSIONS.join(", ")}, found ${(manifest.permissions ?? []).join(", ")}`);
 if (manifest.permissions?.includes("tabs") || manifest.permissions?.includes("declarativeContent")) problems.push("tabs and declarativeContent are not requested (D-190)");
+// The native helper is optional (D-181, D-204): its permission is requested from Settings only.
+if (JSON.stringify(manifest.optional_permissions ?? []) !== JSON.stringify(["nativeMessaging"])) problems.push("optional_permissions must be exactly nativeMessaging");
+// D-200: the store zip carries no `key`; the unpacked build's key gives an id the helper's installer lists.
+if (manifest.key !== undefined) problems.push("the zip's manifest carries a key (the Web Store assigns the id)");
+const unpacked = JSON.parse(readFileSync(join(project, "dist", "extension", "manifest.json"), "utf8"));
+const allowedIds = JSON.parse(readFileSync(join(project, "..", "installer", "macos", "extension-ids.json"), "utf8")).extension_ids ?? [];
+if (typeof unpacked.key !== "string") problems.push("the unpacked build's manifest has no key (D-200)");
+else if (!allowedIds.includes(extensionIdFromKey(unpacked.key))) problems.push(`the unpacked build's id ${extensionIdFromKey(unpacked.key)} is not in installer/macos/extension-ids.json`);
 
 // The Web Store's remote-code rule: every script is in the zip; nothing is loaded from the network or evaluated from text.
 for (const name of names.filter((member) => member.endsWith(".js") || member.endsWith(".html"))) {

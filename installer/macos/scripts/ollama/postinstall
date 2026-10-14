@@ -1,0 +1,73 @@
+#!/bin/bash
+# The Ollama component (T17, D-202, D-203): find Ollama or obtain it (Homebrew cask as the person,
+# else the pinned, checksummed, signature-checked release), then allow the extension's origin in
+# OLLAMA_ORIGINS now and at every login, and start or restart Ollama. A failure here never fails the
+# helper: it is logged and the person can set Ollama up by hand (Settings → Models).
+set -u
+here="$(cd "$(dirname "$0")" && pwd)"
+. "$here/paths.sh"
+. "$here/ollama-pin.env"
+user="$(wa_console_user)"
+if [ -z "$user" ]; then
+  wa_log "ollama: no one is logged in at the console; Ollama is configured at the next login by the LaunchAgent"
+  exit 0
+fi
+uid="$(/usr/bin/id -u "$user")"
+as_user() { /bin/launchctl asuser "$uid" /usr/bin/sudo -u "$user" -H "$@"; }
+
+plan="$(wa_ollama_plan "$user")"
+case "$plan" in
+  present*)
+    version=""
+    [ -d "${plan#present }/Contents" ] && version="$(/usr/bin/defaults read "${plan#present }/Contents/Info.plist" CFBundleShortVersionString 2>/dev/null || true)"
+    wa_log "ollama: found ${plan#present }${version:+ ($version)}; configuring only"
+    ;;
+  brew*)
+    brew="${plan#brew }"
+    wa_log "ollama: not found; installing the Homebrew cask ollama-app as $user with $brew"
+    if as_user "$brew" install --cask ollama-app >>"$WA_LOG" 2>&1; then
+      wa_log "ollama: Homebrew installed ollama-app"
+    else
+      wa_log "ollama: Homebrew failed (see above); set Ollama up by hand"
+      exit 0
+    fi
+    ;;
+  download)
+    wa_log "ollama: not found and no Homebrew; downloading Ollama $OLLAMA_PIN_VERSION from $OLLAMA_PIN_URL"
+    work="$(/usr/bin/mktemp -d)"
+    trap '/bin/rm -rf "$work"' EXIT
+    if ! /usr/bin/curl -fsSL --proto '=https' --tlsv1.2 -o "$work/Ollama-darwin.zip" "$OLLAMA_PIN_URL"; then
+      wa_log "ollama: the download failed; set Ollama up by hand"
+      exit 0
+    fi
+    sum="$(/usr/bin/shasum -a 256 "$work/Ollama-darwin.zip" | /usr/bin/awk '{print $1}')"
+    if [ "$sum" != "$OLLAMA_PIN_SHA256" ]; then
+      wa_log "ollama: SHA-256 $sum is not the pinned $OLLAMA_PIN_SHA256; not installed"
+      exit 0
+    fi
+    /usr/bin/ditto -x -k "$work/Ollama-darwin.zip" "$work/unpacked"
+    if ! /usr/bin/codesign --verify --deep --strict "$work/unpacked/Ollama.app" 2>>"$WA_LOG"; then
+      wa_log "ollama: the app's signature does not verify; not installed"
+      exit 0
+    fi
+    team="$(/usr/bin/codesign -dv "$work/unpacked/Ollama.app" 2>&1 | /usr/bin/sed -n 's/^TeamIdentifier=//p')"
+    if [ "$team" != "$OLLAMA_TEAM_ID" ]; then
+      wa_log "ollama: signed by team $team, not $OLLAMA_TEAM_ID; not installed"
+      exit 0
+    fi
+    /bin/mv "$work/unpacked/Ollama.app" "$OLLAMA_APP"
+    # Owned by the person, as a drag-and-drop install is, so Ollama's own updater can replace it.
+    /usr/sbin/chown -R "$user:admin" "$OLLAMA_APP"
+    wa_log "ollama: installed $OLLAMA_APP ($OLLAMA_PIN_VERSION, sha256 $sum, team $team)"
+    ;;
+esac
+
+# Allow the extension now, and at every login.
+as_user /bin/bash "$WA_ORIGINS_SCRIPT" --start >>"$WA_LOG" 2>&1 || wa_log "ollama: the origins script failed"
+/bin/launchctl bootout "gui/$uid/$WA_AGENT_LABEL" >/dev/null 2>&1 || true
+if /bin/launchctl bootstrap "gui/$uid" "$WA_AGENT_PLIST" 2>>"$WA_LOG"; then
+  wa_log "ollama: LaunchAgent $WA_AGENT_LABEL loaded for $user (runs at each login)"
+else
+  wa_log "ollama: the LaunchAgent will load at the next login"
+fi
+exit 0

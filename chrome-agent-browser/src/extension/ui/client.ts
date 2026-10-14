@@ -42,6 +42,19 @@ export async function requestOrigins(origins: readonly string[]): Promise<boolea
   }
 }
 
+/**
+ * Ask Chrome for `nativeMessaging` (T17, D-204), from the click that turns keychain unlock on;
+ * resolves with what Chrome decided.
+ */
+export async function requestNativeMessaging(): Promise<boolean> {
+  try {
+    if (await chrome.permissions.contains({ permissions: ["nativeMessaging"] })) return true;
+    return await chrome.permissions.request({ permissions: ["nativeMessaging"] });
+  } catch {
+    return false;
+  }
+}
+
 /** The `https://host` origin of a URL, for `requestOrigins`; null for anything that is not an HTTPS URL. */
 export function originOfUrl(url: string): string | null {
   try {

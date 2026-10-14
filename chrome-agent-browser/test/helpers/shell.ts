@@ -26,6 +26,8 @@ import { generateKeyPair, signedArchive } from "./keys.js";
 import { PROJECT, readBytes, ROOT, SHIPPED } from "./paths.js";
 import { makeSource, writeText } from "./source.js";
 import { listMembers, writeZip, type Entry } from "./zip.js";
+import type { NativePort } from "../../src/core/keychain.js";
+import { KeychainStorage } from "../../src/extension/storage/keychain-storage.js";
 
 export const SITE_ORIGIN = "https://webair.example";
 export const PACKAGE_URL = `${SITE_ORIGIN}/agent.pkg`;
@@ -174,6 +176,9 @@ export interface Harness {
   unlocked: MemoryUnlockedStateStorage;
   /** Chrome's host permissions, as the test grants them (every HTTPS origin unless `permissions` says otherwise). */
   permissions: MemoryPermissions;
+  /** Keychain unlock's record (T17), in the settings area as in Chrome; and the `nativeMessaging` grant. */
+  keychain: KeychainStorage;
+  native: { permission: boolean };
   /** Wait for every run the host started to finish and report. */
   h_drain: () => Promise<void>;
 }
@@ -206,6 +211,10 @@ export function makeHarness(
     secrets?: "unlocked" | "locked" | "none";
     /** The origin match patterns Chrome grants; every HTTPS origin by default. */
     permissions?: readonly string[];
+    /** The native helper behind the native port (T17); absent: not installed. */
+    native?: NativePort;
+    /** Whether `nativeMessaging` is granted (T17); false by default. */
+    nativePermission?: boolean;
   } = {},
 ): Harness {
   const routes = options.routes ?? webairRoutes();
@@ -227,6 +236,8 @@ export function makeHarness(
   const secrets: SecretStore = new SecretStore({ envelope, unlocked, idleMinutes: async (): Promise<number | null> => (await settings.settings()).security.idle_lock_minutes, clock: () => clock.now, kdf: TEST_KDF });
   const settings: SettingsStorage = new SettingsStorage(settingsArea, secrets);
   const permissions = new MemoryPermissions(options.permissions ?? [EVERY_SITE_PATTERN]);
+  const keychain = new KeychainStorage(settingsArea);
+  const native = { permission: options.nativePermission ?? false };
   const builtin = { availability: null as BuiltinAvailability | null };
   const badges: Array<[number, number]> = [];
   const events: Event[] = [];
@@ -250,6 +261,9 @@ export function makeHarness(
     settings,
     permissions,
     permissionStorage: new PermissionStorage(settingsArea),
+    ...(options.native ? { native: options.native } : {}),
+    nativePermission: async () => native.permission,
+    keychain,
     http: options.catalogHttp
       ? async (request) => {
           httpLog.push(request);
@@ -271,7 +285,7 @@ export function makeHarness(
   };
   const controller = new Controller(deps);
   host.report = (type, runId) => controller.handle({ type, runId }, OFFSCREEN);
-  return { controller, snapshots, trustStorage, trust, tabs, holders, settingsArea, settings, httpLog, builtin, badges, events, fetchLog, routes, clock, runs, host, files, secrets, envelope, unlocked, permissions, h_drain: () => host.drain() };
+  return { controller, snapshots, trustStorage, trust, tabs, holders, settingsArea, settings, httpLog, builtin, badges, events, fetchLog, routes, clock, runs, host, files, secrets, envelope, unlocked, permissions, keychain, native, h_drain: () => host.drain() };
 }
 
 const EXTENSION_ORIGIN = "chrome-extension://abcdefghijklmnopabcdefghijklmnop";

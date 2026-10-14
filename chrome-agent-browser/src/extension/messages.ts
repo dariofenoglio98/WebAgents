@@ -30,6 +30,7 @@ import type { VaultRecordView, VaultTypeView } from "../core/vault.js";
 import type { PolicyBundle } from "../core/policies/bundle.js";
 import type { AgentCandidate, ResolveQuery } from "../core/resolve/types.js";
 import type { PlanOrigin } from "../core/origins.js";
+import type { OllamaReport } from "../core/keychain.js";
 import { MAX_PASSPHRASE_LENGTH, type SecretStoreState, type SecretStoreStatus } from "../core/secrets.js";
 import type { LibraryEntry } from "./storage/subscriptions.js";
 import type { FileView } from "./storage/files.js";
@@ -141,6 +142,12 @@ export type Request =
   | { type: "secrets.lock" }
   | { type: "secrets.changePassphrase"; current: string; next: string }
   | { type: "secrets.forget"; confirmation: string }
+  // Keychain unlock through the optional native helper (T17, D-204): the page asks Chrome for
+  // `nativeMessaging` in the toggle's click; the worker talks to the helper.
+  | { type: "secrets.unlockKeychain" }
+  | { type: "keychain.status" }
+  | { type: "keychain.enable" }
+  | { type: "keychain.disable" }
   // Host permissions (T16, D-193): the page asks Chrome (the click is the gesture) and tells the worker what it obtained.
   | { type: "permissions.get" }
   | { type: "permissions.granted"; origins: string[]; purpose: GrantPurpose }
@@ -469,6 +476,23 @@ export interface SecretsView extends SecretStoreStatus {
   migration_pending: boolean;
   /** What waits: which providers have a clear key, and how many records the clear vault holds. */
   legacy: { providers: string[]; records: number } | null;
+  /** Keychain unlock is on (T17): a record from the helper is stored for this envelope. Read without asking the helper. */
+  keychain_enabled: boolean;
+}
+
+/**
+ * Settings → Security's keychain card (T17, D-204). `helper` is what asking the helper just now
+ * found: `available` (it answered), `not_installed`, `refused` (it answered with a refusal, the
+ * code in `problem`), `failed`, or `not_checked` while `nativeMessaging` is not granted.
+ */
+export interface KeychainView {
+  permission: boolean;
+  enabled: boolean;
+  enabled_at: string | null;
+  helper: "available" | "not_installed" | "refused" | "failed" | "not_checked";
+  helper_version: string | null;
+  problem: { code: string; message: string } | null;
+  ollama: OllamaReport | null;
 }
 
 export interface PermissionOriginView {
@@ -882,6 +906,10 @@ export function parseRequest(value: unknown): Request {
       return { type, packageUrl: text(fields.packageUrl, "packageUrl", MAX_URL) };
     case "secrets.status":
     case "secrets.lock":
+    case "secrets.unlockKeychain":
+    case "keychain.status":
+    case "keychain.enable":
+    case "keychain.disable":
     case "permissions.get":
       only(fields, ["type"]);
       return { type };

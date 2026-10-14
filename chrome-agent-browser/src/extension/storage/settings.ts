@@ -305,7 +305,8 @@ export class SettingsStorage {
   /** Which hosted providers have a key; the key values never leave this class except to `key()`. Readable while locked. */
   async keyPresence(): Promise<Record<string, boolean>> {
     const presence: Record<string, boolean> = {};
-    for (const provider of PROVIDER_IDS) if (provider !== "ollama" && provider !== "chrome-builtin" && (await this.secrets.has(PROVIDER_KEY_ENTRY(provider)))) presence[provider] = true;
+    const names = new Set(await this.secrets.names()); // one envelope read for every provider (B-192)
+    for (const provider of PROVIDER_IDS) if (provider !== "ollama" && provider !== "chrome-builtin" && names.has(PROVIDER_KEY_ENTRY(provider))) presence[provider] = true;
     return presence;
   }
 
@@ -344,12 +345,8 @@ export class SettingsStorage {
   }
 
   /** The HMAC key, generated on first use and kept for the life of the store (D-051). */
-  async vaultKey(): Promise<Uint8Array> {
-    const stored = await this.secrets.get(VAULT_KEY_ENTRY);
-    if (stored !== null && stored.length === KEY_BYTES) return stored;
-    const fresh = generateVaultKey();
-    await this.secrets.put(VAULT_KEY_ENTRY, fresh);
-    return fresh;
+  vaultKey(): Promise<Uint8Array> {
+    return this.secrets.ensure(VAULT_KEY_ENTRY, (stored) => stored.length === KEY_BYTES, generateVaultKey);
   }
 
   // -- the migration from 0.1.0's clear storage (T16) ----------------------------------------

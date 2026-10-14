@@ -439,6 +439,33 @@ jobs:
             chrome-agent-browser/dist/chrome-agent-browser-*.contents.txt
           retention-days: 14
 
+  native-helper:
+    # The optional macOS helper and installer (T17, D-201…D-204): the helper's swift-testing suite,
+    # its universal build and smoke test, and the installer built and checked without installing.
+    name: Native helper and macOS installer
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+      - name: Helper tests (swift-testing)
+        working-directory: native-helper
+        run: swift test
+      - name: Universal build and smoke test
+        working-directory: native-helper
+        run: |
+          scripts/build.sh
+          node scripts/smoke.mjs dist/webagents-helper
+      - name: Installer dry run, build and checks
+        run: |
+          installer/macos/dry-run.sh
+          pkg=$(installer/macos/build-pkg.sh --helper native-helper/dist/webagents-helper | tail -n 1)
+          installer/macos/test-installer.sh "$pkg"
+
   conformance:
     name: cross-runtime conformance suite (${{ matrix.os }})
     runs-on: ${{ matrix.os }}

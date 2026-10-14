@@ -108,9 +108,12 @@ types alone (no record) when the plan binds a host-resource tool without grantin
 agent that needs nothing from the store (Literature Review on Ollama) runs while it is locked;
 one that needs a key, a record or a record type asks to unlock before Prepare and before Run,
 never during. A stored envelope this build cannot read is reported as *invalid* (the Security page
-says why and offers Forget everything); the store runs one operation at a time, so a read that
-began before Lock now, Forget everything or a passphrase change cannot write the old state back. The
-`src/core/secrets.ts` module has no Chrome dependency; its test vectors are committed.
+says why and offers Forget everything; a storage read that fails is an error, not *invalid*). Each
+store operation runs alone, so one that began before Lock now, Forget everything or a passphrase
+change cannot write the old state back; a vault opened before such a change is never saved after
+it (`store_changed`), and the records' digest key is read or created in one operation. The
+`src/core/secrets.ts` module has no Chrome dependency; its test vectors are committed. With the
+optional macOS helper, the store can also be unlocked from the login keychain (§12).
 
 What is never stored in a record, plan, receipt, checkpoint or artifact: a provider key, a vault
 value, a prompt sent to a model outside test mode. A plan binds a vault record by opaque id and an
@@ -130,9 +133,10 @@ From [`manifest.json`](../chrome-agent-browser/src/extension/manifest.json) (D-1
 | `offscreen` | the execution host (reason `WORKERS`) |
 | `activeTab` | the action click, the context-menu item "Look for agents on this page" and the `Ctrl/⌘+Shift+Y` shortcut (which opens the panel exactly as a click does; Chrome dispatches no `commands.onCommand` for `_execute_action`) grant that tab for the one read of its agent-package links |
 | `scripting` | inject the discovery script into the clicked tab, and register it for the sites the person chose |
-| `alarms` | the idle lock's sweep, once a minute while the store is unlocked |
+| `alarms` | the idle lock's sweep: one alarm, created once, fires every minute whatever the state and wipes an idle session key |
 | `contextMenus` | the one page context-menu item |
 | host `http://127.0.0.1/*`, `http://localhost/*` | Ollama on this machine only; a remote Ollama endpoint is refused (D-055) |
+| optional `nativeMessaging` | requested only when the person turns on "Unlock with the macOS keychain" in Settings → Security (T17): talk to the WebAgents helper the macOS installer registers (§12) |
 | optional host `https://*/*` | granted one origin at a time, with the person's click: a package's origin, its declared tool services and the model provider when a plan is prepared (listed under the plan's Technical details), a site to detect agents on ("Always detect agents on this site"), a signed index or policy; or as a whole under Settings → Permissions → "Detect agents on every site", off by default |
 
 Three tiers of discovery (D-190): by default a page is read only when the person clicks the
@@ -182,6 +186,11 @@ has no `innerHTML`.
   in; `e2e-discovery.mjs` first loads the unmodified build to assert the manifest and the
   `origin_not_granted` refusal, and records the site grant with the worker as the website card's
   button does. The real prompts are walked through by hand.
+- **The native helper** (T17): `swift test` in `native-helper/` (framing, the closed list, the
+  wrap, the caller check), `native-helper/scripts/smoke.mjs` against the built binary,
+  `installer/macos/test-installer.sh` against the built `.pkg`, and `scripts/e2e-native-helper.mjs`,
+  where headless Chrome starts the real helper for the extension's worker
+  ([`examples/verification/chrome-native-helper-e2e-t17.json`](../examples/verification/chrome-native-helper-e2e-t17.json)).
 - **CI** runs the tests on Ubuntu and macOS with Node 24 and 26, builds and packs the extension,
   checks the zip's structure and that a second build packs to the same bytes, and runs the
   conformance suite ([`.github/workflows/ci.yml`](../.github/workflows/ci.yml)).
@@ -320,3 +329,32 @@ than Crossref stay unbound, pacing is per run rather than per browser, the exten
 classify the addresses DNS names resolve to, NANDA resolution is a stub, a policy's issuer anchors
 are not applied and one policy is followed at a time, and per-origin permissions, Firefox and the
 Meeting Agenda path are later work.
+
+## 12. Installer and helper (T17)
+
+Optional, macOS only, and never needed (D-181): the extension is complete on its own. One
+installer, [`installer/macos/`](../installer/README.md), adds two things:
+
+- **The native helper** (`native-helper/`, Swift, one universal binary). Chrome starts it for one
+  request and one reply; it does three things only (D-204): wrap the store's master key under a
+  key it keeps in the login keychain, unwrap it, and report Ollama's state. In Settings → Security,
+  **Unlock with the macOS keychain** → **Turn on** asks Chrome for `nativeMessaging` (the click is
+  the gesture), has the helper wrap the master key, unwraps it once to prove the round trip, and
+  stores the blob and a check box beside the envelope (`secretKeychain`). The card then says
+  *keychain available*, the helper's version and Ollama's state, as the running server answers
+  the extension's origin ("running and admits this extension", "installed but not running",
+  "running but does not admit this extension").
+  The Unlock sheet offers **Unlock with the macOS keychain** first; if the helper is missing,
+  refuses, times out or returns a key that does not open this store's check, the sheet says so and
+  the passphrase form unlocks as before. A record that can never work again (the keychain item is
+  gone or replaced, the key does not fit) is dropped; nothing else is, so removing the helper loses
+  nothing. Turn off and Forget everything delete the record.
+- **Ollama, configured** (an optional choice, on by default): an Ollama already installed is only
+  configured; otherwise Homebrew's `ollama-app` cask, or the pinned release checked by SHA-256 and
+  signing team (D-202). The extension's own `chrome-extension://<id>` is added to `OLLAMA_ORIGINS`
+  now and at every login by a LaunchAgent, which restarts Ollama only when it rejects the origin.
+
+The helper answers one extension id: the one the manifest's `key` gives every unpacked build
+(D-200; the Web Store's id joins it at U7). `npm run pack` removes `key` from the store zip.
+The boundary is in the [threat model](threat-model.md#native-helper-and-macos-installer-t17).
+

@@ -22,6 +22,8 @@ import { ChromeTrustStorage } from "../storage/trust-storage.js";
 import { ChromeViewHolderStore } from "../storage/view-holders.js";
 import { Controller, type Sender } from "./controller.js";
 import { OffscreenHostBridge } from "./offscreen-host.js";
+import { chromeNativePort, nativePermissionGranted } from "./native-port.js";
+import { KeychainStorage } from "../storage/keychain-storage.js";
 
 const extensionOrigin = `chrome-extension://${chrome.runtime.id}`;
 /**
@@ -167,6 +169,10 @@ const controller = new Controller({
   badge,
   broadcast,
   version: chrome.runtime.getManifest().version,
+  // The optional native helper (T17, D-181, D-204): keychain unlock and Ollama's state.
+  native: chromeNativePort,
+  nativePermission: nativePermissionGranted,
+  keychain: new KeychainStorage(chrome.storage.local),
 });
 
 /**

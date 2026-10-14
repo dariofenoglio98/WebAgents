@@ -90,6 +90,10 @@ describe("the committed vectors", () => {
     const other = await createEnvelope(vectors.passphrase, { vault: utf8.encode("{}") }, { kdf: TEST_KDF });
     await expectCode(readEntry({ ...envelope, entries: { vault: other.envelope.entries.vault! } }, masterKey, "vault"), "store_invalid");
     expect(() => validateEnvelope({ ...envelope, schema: "chrome-agent-browser-secret-store-v2" })).toThrow(/v1 envelopes only/u);
+    // No schema at all is a shape problem, named as such (T17 review 1, nit 8).
+    const { schema: _schema, ...unnamed } = envelope;
+    expect(() => validateEnvelope(unnamed)).toThrow(/Missing fields in secret_store: \['schema'\]/u);
+    expect(() => validateEnvelope(unnamed)).not.toThrow(/undefined/u);
     expect(() => validateEnvelope({ ...envelope, cipher: "AES-128-GCM" })).toThrow(/cipher/u);
     expect(() => validateEnvelope({ ...envelope, kdf: { ...envelope.kdf, n: 2 ** 21 } })).toThrow(/kdf\.n/u);
     expect(() => validateEnvelope({ ...envelope, kdf: { ...envelope.kdf, n: 3 * 2 ** 14 } })).toThrow(/power of two/u);

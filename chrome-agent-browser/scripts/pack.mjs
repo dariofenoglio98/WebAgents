@@ -11,6 +11,9 @@
  * Beside the zip it writes `chrome-agent-browser-<version>.contents.txt`, the reproducible
  * content listing (T7): one `sha256  bytes  path` line per member, then the zip's own SHA-256.
  * `npm run check-pack` verifies the zip against it and against the expected file set.
+ *
+ * The zip's manifest has no `key` (D-200): the unpacked build keeps the development key for a
+ * stable id, and the Web Store assigns its own.
  */
 import { createHash } from "node:crypto";
 import { crc32, deflateRawSync } from "node:zlib";
@@ -51,8 +54,13 @@ const VERSION_NEEDED = 20;
 const VERSION_MADE_BY = 20 | (3 << 8); // Unix
 const EXTERNAL_ATTRIBUTES = (0o100644 << 16) >>> 0;
 
+const storeManifest = (data) => {
+  const { key: _key, ...rest } = JSON.parse(data.toString("utf8"));
+  return Buffer.from(`${JSON.stringify(rest, null, 2)}\n`, "utf8");
+};
 const members = [...walk(extension)]
   .map((path) => ({ name: relative(extension, path).split(sep).join("/"), data: readFileSync(path) }))
+  .map((member) => (member.name === "manifest.json" ? { ...member, data: storeManifest(member.data) } : member))
   .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
 
 const locals = [];
