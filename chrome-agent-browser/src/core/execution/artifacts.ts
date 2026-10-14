@@ -6,6 +6,7 @@
  * static validator, and an export's value, a data constructor over the final result.
  */
 import { ValidationError } from "../errors.js";
+import { PROPOSALS_EXPORT_FORMAT } from "../memory/proposals.js";
 import type { JsonObject, JsonValue } from "../json.js";
 import type { Package } from "../package.js";
 import { pyJsonDumps } from "../pyjson.js";
@@ -40,7 +41,7 @@ export function artifactRecords(result: JsonObject, pkg: Package | null = null):
       const record = entry as JsonObject;
       const value = evaluate(record.value!, { result: result.output ?? null });
       let data: Uint8Array;
-      if (record.format === "json") data = encodeJson(value);
+      if (record.format === "json" || record.format === PROPOSALS_EXPORT_FORMAT) data = encodeJson(value);
       else {
         if (typeof value !== "string") throw new ValidationError("Text exports must select strings");
         data = new TextEncoder().encode(value);

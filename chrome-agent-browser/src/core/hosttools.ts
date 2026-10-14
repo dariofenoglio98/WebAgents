@@ -56,8 +56,10 @@ export const KIND_JSON_HTTP = "json_http";
 export const KIND_LOCAL_BUILTIN = "local_builtin";
 export const KIND_SELECTED_FILE = "selected_file";
 export const KIND_HOST_RESOURCE = "host_resource";
-export type ImplementationKind = typeof KIND_JSON_HTTP | typeof KIND_LOCAL_BUILTIN | typeof KIND_SELECTED_FILE | typeof KIND_HOST_RESOURCE;
-export const IMPLEMENTATION_KINDS: readonly ImplementationKind[] = Object.freeze([KIND_JSON_HTTP, KIND_LOCAL_BUILTIN, KIND_SELECTED_FILE, KIND_HOST_RESOURCE]);
+/** The agent document's two reserved tools (memory.v0 M-48): the run's own package's notes, never another's. */
+export const KIND_MEMORY_AGENT = "memory_agent";
+export type ImplementationKind = typeof KIND_JSON_HTTP | typeof KIND_LOCAL_BUILTIN | typeof KIND_SELECTED_FILE | typeof KIND_HOST_RESOURCE | typeof KIND_MEMORY_AGENT;
+export const IMPLEMENTATION_KINDS: readonly ImplementationKind[] = Object.freeze([KIND_JSON_HTTP, KIND_LOCAL_BUILTIN, KIND_SELECTED_FILE, KIND_HOST_RESOURCE, KIND_MEMORY_AGENT]);
 const REMOTE_KINDS: readonly string[] = Object.freeze([KIND_JSON_HTTP]);
 
 export const BOUND = "bound";
@@ -76,7 +78,12 @@ const UNKNOWN = "unknown";
 /** This host's implementation identities (D-054). */
 export const CHROME_JSON_HTTP_IMPLEMENTATION = Object.freeze({ id: "chrome.tool.json_http", version: "0.1.0" });
 export const CHROME_HOST_RESOURCE_IMPLEMENTATION = Object.freeze({ id: "chrome.tool.host_resource", version: "0.1.0" });
+export const CHROME_MEMORY_AGENT_IMPLEMENTATION = Object.freeze({ id: "chrome.tool.memory_agent", version: "0.1.0" });
+/** The legacy binding prefix of the `personal.read` alias (memory.v0 M-17); `host.memory.` is the memory.v0 one. */
 export const HOST_RESOURCE_BINDING_PREFIX = "host.resource.";
+export const MEMORY_BINDING_PREFIX = "host.memory.";
+export const MEMORY_AGENT_READ_BINDING = "host.memory.agent.read";
+export const MEMORY_AGENT_WRITE_BINDING = "host.memory.agent.write";
 /** The one input schema every host-resource tool declares: an empty object. */
 export const HOST_RESOURCE_INPUT_SCHEMA: JsonObject = Object.freeze({
   $schema: "https://json-schema.org/draft/2020-12/schema",
@@ -367,7 +374,7 @@ export async function normalizeBinding(raw: unknown, index: number): Promise<Too
   const kind = kindText as ImplementationKind;
   const remote = flag(record.remote, `${field}.remote`);
   if (REMOTE_KINDS.includes(kind) !== remote) {
-    throw invalid(`${field}: ${KIND_JSON_HTTP} bindings are remote and ${KIND_LOCAL_BUILTIN} / ${KIND_SELECTED_FILE} / ${KIND_HOST_RESOURCE} bindings are local; the two must agree`);
+    throw invalid(`${field}: ${KIND_JSON_HTTP} bindings are remote and ${KIND_LOCAL_BUILTIN} / ${KIND_SELECTED_FILE} / ${KIND_HOST_RESOURCE} / ${KIND_MEMORY_AGENT} bindings are local; the two must agree`);
   }
   let resourceType: string | null = null;
   if (kind === KIND_HOST_RESOURCE) resourceType = requiredText(record.resource_type, `${field}.resource_type`, { limit: 128 });
@@ -797,15 +804,16 @@ export function planToolBindings(evaluation: RegistryEvaluation): PlanToolBindin
 }
 
 /**
- * Whether a plan binds an approved host-resource tool (T16 review 1, finding 1). Such a binding
- * exists only in a registry built from the vault's types, so a run under the plan needs those
- * types even when it grants no record: without them the host's registry lacks the binding and
- * the run fails `tool_not_bound` before any model call.
+ * Whether a plan binds an approved memory tool (T16 review 1, finding 1; memory.v0 M-36): a
+ * memory read (`host.memory.<type>`, the `host.resource.<legacy id>` alias) or one of the agent
+ * document's tools. Such a binding exists only in a registry built from the memory's types, so a
+ * run under the plan is opened with the store even when it grants no record: without it the
+ * host's registry lacks the binding and the run fails `tool_not_bound` before any model call.
  */
 export function bindsHostResource(bindings: readonly object[]): boolean {
   return bindings.some((binding) => {
     const fields = binding as { implementation_kind?: unknown; approved?: unknown };
-    return fields.implementation_kind === KIND_HOST_RESOURCE && fields.approved === true;
+    return (fields.implementation_kind === KIND_HOST_RESOURCE || fields.implementation_kind === KIND_MEMORY_AGENT) && fields.approved === true;
   });
 }
 
@@ -814,16 +822,28 @@ export function findBinding(registry: ToolRegistry, bindingId: string): ToolBind
 }
 
 // -- the Chrome host's own registry (D-054) ----------------------------------------
-/** A vault type as the registry builder needs it: id, permission kind and value-schema digest. */
+/**
+ * A memory type as the registry builder needs it: the resource id a plan grants it under, its
+ * permission kind, the digest of the view (or legacy value) schema a tool must declare as its
+ * output, and the binding name it answers to (`host.memory.<type id>`; `host.resource.<legacy
+ * id>` for a legacy alias; by default `host.resource.<id>`, the vault's shape).
+ */
 export interface HostResourceTypeFacts {
   id: string;
   display_name: string;
   permission_kind: string;
   schema_sha256: string;
+  binding?: string;
 }
 
 export interface HostToolRegistryOptions {
   resourceTypes: readonly HostResourceTypeFacts[];
+  /**
+   * The agent document's tools (memory.v0 M-48): offered when the host holds a memory store. The
+   * four schema digests are the contract files'; a package whose copies differ is `incompatible`
+   * (`binding_schema_mismatch`), so both runtimes hash the same bytes.
+   */
+  agentTools?: { read_output_sha256: string; write_input_sha256: string; write_output_sha256: string } | null;
   runtimeVersion: string | null;
   now?: Date;
   /** Whether the person entered a Crossref contact address in Settings → Services (D-081). */
@@ -928,7 +948,7 @@ export async function buildHostToolRegistry(pkg: Package, options: HostToolRegis
   const bindings: unknown[] = [];
   const notes: Array<{ code: string; detail: string | null }> = [];
   const emptyInputSha256 = await sha256Hex(canonicalJson(HOST_RESOURCE_INPUT_SCHEMA));
-  const types = new Map(options.resourceTypes.map((type) => [type.id, type]));
+  const byBinding = new Map(options.resourceTypes.map((type) => [type.binding ?? `${HOST_RESOURCE_BINDING_PREFIX}${type.id}`, type]));
   for (const toolId of Object.keys(pkg.tools).sort()) {
     const tool = pkg.tools[toolId]!;
     const contract = await toolContract(pkg, toolId);
@@ -991,26 +1011,60 @@ export async function buildHostToolRegistry(pkg: Package, options: HostToolRegis
       });
       continue;
     }
-    if (contract.binding.startsWith(HOST_RESOURCE_BINDING_PREFIX)) {
-      const type = types.get(toolId);
-      if (!type || contract.binding !== `${HOST_RESOURCE_BINDING_PREFIX}${type.id}`) {
-        notes.push({ code: "resource_type_unknown", detail: `${toolId}: this browser's vault holds no resource type of that name, so the tool stays unbound.` });
+    if (contract.binding === MEMORY_AGENT_READ_BINDING || contract.binding === MEMORY_AGENT_WRITE_BINDING) {
+      const agent = options.agentTools ?? null;
+      if (agent === null) {
+        notes.push({ code: "memory_store_unavailable", detail: `${toolId}: this browser holds no memory store for an agent document, so the tool stays unbound.` });
+        continue;
+      }
+      const write = contract.binding === MEMORY_AGENT_WRITE_BINDING;
+      bindings.push({
+        id: `chrome:memory-agent:${write ? "write" : "read"}:1`,
+        tool_id: toolId,
+        binding: contract.binding,
+        implementation_kind: KIND_MEMORY_AGENT,
+        implementation_id: CHROME_MEMORY_AGENT_IMPLEMENTATION.id,
+        implementation_version: CHROME_MEMORY_AGENT_IMPLEMENTATION.version,
+        display_name: write ? "Agent notes: write (this package's own document)" : "Agent notes: read (this package's own document)",
+        description: write
+          ? "Stages this package's own notes (at most 32,768 characters) for this browser to keep when the run completes; a failed or cancelled run keeps nothing. The package id is the run's, never an argument; no other package's notes are reachable; it reaches no network."
+          : "Returns this package's own notes from the last completed run, or the empty document. It takes no arguments, so nothing a package sends can name another document; it reaches no network and writes nothing.",
+        remote: false,
+        available: true,
+        enabled: true,
+        contract: {
+          input_schema_sha256: write ? agent.write_input_sha256 : emptyInputSha256,
+          output_schema_sha256: write ? agent.write_output_sha256 : agent.read_output_sha256,
+          permission_kinds: ["memory"],
+          side_effects: write ? "write" : "read",
+        },
+        limits: { timeout_seconds: 5, max_request_bytes: 160 * 1024, max_response_bytes: 160 * 1024, max_concurrent: 1 },
+        credentials: { required: false, configured: false },
+      });
+      continue;
+    }
+    if (contract.binding.startsWith(HOST_RESOURCE_BINDING_PREFIX) || contract.binding.startsWith(MEMORY_BINDING_PREFIX)) {
+      const type = byBinding.get(contract.binding);
+      if (!type) {
+        notes.push({ code: "resource_type_unknown", detail: `${toolId}: this browser's memory holds no type of that name, so the tool stays unbound.` });
         continue;
       }
       bindings.push({
         id: `chrome:host-resource:${type.id}:1`,
-        tool_id: type.id,
-        binding: `${HOST_RESOURCE_BINDING_PREFIX}${type.id}`,
+        tool_id: toolId,
+        binding: contract.binding,
         implementation_kind: KIND_HOST_RESOURCE,
         implementation_id: CHROME_HOST_RESOURCE_IMPLEMENTATION.id,
         implementation_version: CHROME_HOST_RESOURCE_IMPLEMENTATION.version,
-        display_name: `${type.display_name} (held in this browser's vault)`,
+        // The legacy wording and limits are kept for `host.resource.` bindings: the registry hash and the binding digests of every frozen Run Plan depend on them.
+        display_name: `${type.display_name} (held in this browser's ${contract.binding.startsWith(MEMORY_BINDING_PREFIX) ? "memory" : "vault"})`,
         description: `Returns the one ${type.display_name.toLowerCase()} the person granted for this run. It takes no arguments, so nothing a package sends can name another; it reaches no network and writes nothing.`,
         remote: false,
         available: true,
         enabled: true,
         contract: { input_schema_sha256: emptyInputSha256, output_schema_sha256: type.schema_sha256, permission_kinds: [type.permission_kind], side_effects: "read" },
-        limits: { timeout_seconds: 5, max_request_bytes: 64, max_response_bytes: 32 * 1024, max_concurrent: 4 },
+        // A legacy binding keeps the vault's limits, so every Run Plan that froze one stays valid; a view may be larger (M-3's caps).
+        limits: { timeout_seconds: 5, max_request_bytes: 64, max_response_bytes: contract.binding.startsWith(MEMORY_BINDING_PREFIX) ? 160 * 1024 : 32 * 1024, max_concurrent: 4 },
         credentials: { required: false, configured: false },
         resource_type: type.id,
       });

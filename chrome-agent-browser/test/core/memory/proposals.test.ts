@@ -41,7 +41,7 @@ async function refusal(promise: Promise<unknown>): Promise<ProposalRefusal> {
   throw new Error("expected a refusal");
 }
 
-function withProposal(document: ProposalsDocument, index: number, changes: Partial<ProposalsDocument["proposals"][number]>): JsonObject {
+function withProposal(document: ProposalsDocument | JsonObject, index: number, changes: Partial<ProposalsDocument["proposals"][number]>): JsonObject {
   const copy = JSON.parse(JSON.stringify(document)) as ProposalsDocument;
   copy.proposals[index] = { ...copy.proposals[index]!, ...changes } as ProposalsDocument["proposals"][number];
   return copy as unknown as JsonObject;

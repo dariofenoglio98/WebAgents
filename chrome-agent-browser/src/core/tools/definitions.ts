@@ -31,7 +31,7 @@ export const DEFAULT_MAX_REQUEST_BYTES = 16 * 1024;
 export const DEFAULT_MAX_RESPONSE_BYTES = 512 * 1024;
 export const DEFAULT_MAX_CONCURRENT = 4;
 
-export type ToolImplementationKind = "json_http" | "local_builtin" | "selected_file" | "host_resource";
+export type ToolImplementationKind = "json_http" | "local_builtin" | "selected_file" | "host_resource" | "memory_agent";
 
 export interface CredentialSource {
   kind: "env" | "settings";
@@ -350,7 +350,7 @@ export function definitionsFromRegistry(registry: { bindings: readonly RegistryB
   const definitions: ToolImplementationDefinition[] = [];
   for (const binding of registry.bindings) {
     const kind = binding.implementation_kind as ToolImplementationKind;
-    if (!["json_http", "local_builtin", "selected_file", "host_resource"].includes(kind)) continue;
+    if (!["json_http", "local_builtin", "selected_file", "host_resource", "memory_agent"].includes(kind)) continue;
     const definition: ToolImplementationDefinition = {
       id: binding.id,
       toolId: binding.tool_id,

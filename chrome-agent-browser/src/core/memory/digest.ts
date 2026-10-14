@@ -25,14 +25,17 @@ export function digestInput(record: MemoryRecord, typeSchemaSha256: string): Jso
   };
 }
 
+/** The imported HMAC key, typed from the subtle API so the module compiles under both tsconfigs. */
+type HmacKey = Awaited<ReturnType<typeof crypto.subtle.importKey>>;
+
 export class MemoryDigester {
-  private imported: Promise<CoreCryptoKey> | null = null;
+  private imported: Promise<HmacKey> | null = null;
 
   constructor(private readonly key: Uint8Array) {
     if (key.length !== KEY_BYTES) throw new TypeError(`the memory key must be ${KEY_BYTES} bytes`);
   }
 
-  private hmacKey(): Promise<CoreCryptoKey> {
+  private hmacKey(): Promise<HmacKey> {
     this.imported ??= crypto.subtle.importKey("raw", bufferSource(this.key), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
     return this.imported;
   }

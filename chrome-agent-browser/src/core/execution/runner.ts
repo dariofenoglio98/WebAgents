@@ -15,6 +15,7 @@
 import { AgentPkgError } from "../errors.js";
 import { sha256HexSync } from "../hash.js";
 import type { JsonObject, JsonValue } from "../json.js";
+import { fixtureMemoryScan, MemoryRun } from "../memory/run.js";
 import type { ModelRouter } from "../models/contract.js";
 import { packageJson, type Package } from "../package.js";
 import { declaredSchemaPaths } from "../presentation.js";
@@ -77,6 +78,12 @@ export interface SessionDeps {
   tools?: BrokerDeps | null;
   /** The store that resolves the plan's resource grants. */
   resolver?: ResourceResolver | null;
+  /**
+   * What the run holds about memory (memory.v0 §7): the host builds it from its store when the
+   * run is opened with the store. Absent: a context with an empty scan set, or in fixture mode
+   * the fixture's own sealed values (M-62).
+   */
+  memory?: MemoryRun | null;
   /** The package fixture, for a fixture plan. */
   fixture?: FixtureSource | null;
   onProgress?: ProgressListener | null;
@@ -164,6 +171,7 @@ export class ExecutionSession {
   private approvedTools: string[] = [];
   private tools: JsonObject = {};
   private deps: SessionDeps | null = null;
+  private memory: MemoryRun | null = null;
   private workflow: Workflow | null = null;
   private started = false;
   private finished = false;
@@ -213,6 +221,13 @@ export class ExecutionSession {
       : checkTools(pkg, plan.tool_bindings, grants, authorization.tool_approvals);
     // 3c. The host resources the person picked, by reference only.
     const resources = checkResourceGrants(pkg, plan.resource_grants, grants);
+    // 3d. Memory (memory.v0 §7): the scan set, the grants, the agent document.
+    let memory = deps.memory ?? null;
+    if (memory === null) {
+      const fixturePath = pkg.graph.fixture;
+      const fixtureDocument = fixture && typeof fixturePath === "string" ? (packageJson(pkg, fixturePath) as JsonObject) : null;
+      memory = new MemoryRun(pkg, plan.resource_grants, grants, fixtureDocument !== null ? { scan: fixtureMemoryScan(pkg, fixtureDocument) } : {});
+    }
     let handlers: Record<string, ToolHandler>;
     let bound: BoundToolHandler[] = [];
     if (fixture) {
@@ -224,6 +239,7 @@ export class ExecutionSession {
         if (!deps.resolver) throw new ExecutionError(PLAN_INVALID, "This plan grants host resources and the host supplied no store to resolve them");
         brokerDeps.resources = { grants: plan.resource_grants, resolver: deps.resolver };
       } else if (deps.resolver) brokerDeps.resources = { grants: [], resolver: deps.resolver };
+      brokerDeps.memory = { agent: memory.agent };
       ({ handlers, bound } = toolHandlers(plan.tool_bindings, brokerDeps));
     }
 
@@ -264,6 +280,7 @@ export class ExecutionSession {
     this.evidence = evidence;
     this.handlers = handlers;
     this.boundTools = bound;
+    this.memory = memory;
     // Approval travels with the plan: every bound tool is an approved tool (checked above); in
     // fixture mode the approvals are the operator's list, as `agentpkg run` requires.
     this.approvedTools = fixture
@@ -329,6 +346,7 @@ export class ExecutionSession {
         // The watchdog's deadline, so a re-ask or a retry the run would not outlive is not sent.
         deadlineAt: Date.now() + effectiveDeadlineSeconds(this.package, this.limits) * 1000,
         grants: this.grants,
+        memory: this.memory,
         handlers: this.handlers,
         router: this.router,
         limits: runtimeLimits(this.limits),
@@ -410,6 +428,8 @@ export class ExecutionSession {
       tools: { ...this.tools },
       progress: (this.tracker?.snapshot() as unknown as JsonObject | undefined) ?? null,
       failure: status !== "completed" ? failureSummary(audit) : null,
+      // memory.v0 §9: the proposals offered (count, types, hash; never a value) and the agent document's fate.
+      memory: (outcome.memory ?? null) as unknown as JsonValue,
       package_execution: {
         workflow_instantiated: true,
         interpreter: INTERPRETER,
