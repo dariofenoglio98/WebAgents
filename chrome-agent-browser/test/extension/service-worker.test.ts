@@ -36,19 +36,26 @@ const calls = {
   titles: [] as Array<{ tabId: number; title: string }>,
   broadcasts: [] as unknown[],
   panelBehavior: [] as unknown[],
+  accessLevels: [] as unknown[],
+  alarms: [] as unknown[],
+  menus: [] as unknown[],
+  injected: [] as number[],
 };
 const listeners: { onMessage: Listener | null; onRemoved: ((tabId: number) => void) | null; onUpdated: ((tabId: number, change: { status?: string; url?: string }) => void) | null } = {
   onMessage: null,
   onRemoved: null,
   onUpdated: null,
 };
-const session = storageArea();
+const session = Object.assign(storageArea(), { setAccessLevel: async (level: unknown) => void calls.accessLevels.push(level) });
 const local = storageArea();
+const grantedOrigins = new Set<string>(["https://*/*"]);
+const registeredScripts: unknown[] = [];
 
 const fakeChrome = {
   runtime: {
     id: EXTENSION_ID,
-    getManifest: () => ({ version: "0.1.0" }),
+    getManifest: () => ({ version: "0.2.0" }),
+    onStartup: { addListener: () => undefined },
     onMessage: {
       addListener: (listener: Listener) => {
         listeners.onMessage = listener;
@@ -87,6 +94,36 @@ const fakeChrome = {
       calls.panelBehavior.push(behavior);
     },
   },
+  // T16: host permissions, the discovery script, the idle-lock alarm, the context menu and the shortcut.
+  permissions: {
+    contains: async ({ origins }: { origins: string[] }) => origins.every((origin) => grantedOrigins.has(origin) || (grantedOrigins.has("https://*/*") && origin.startsWith("https://"))),
+    getAll: async () => ({ origins: [...grantedOrigins], permissions: [] }),
+    remove: async ({ origins }: { origins: string[] }) => {
+      for (const origin of origins) grantedOrigins.delete(origin);
+      return true;
+    },
+    onRemoved: { addListener: () => undefined },
+    onAdded: { addListener: () => undefined },
+  },
+  scripting: {
+    getRegisteredContentScripts: async () => registeredScripts,
+    unregisterContentScripts: async () => registeredScripts.splice(0),
+    registerContentScripts: async (scripts: unknown[]) => void registeredScripts.push(...scripts),
+    executeScript: async ({ target }: { target: { tabId: number } }) => void calls.injected.push(target.tabId),
+  },
+  alarms: {
+    onAlarm: { addListener: () => undefined },
+    get: async () => undefined,
+    create: async (name: string, info: unknown) => void calls.alarms.push({ name, info }),
+  },
+  contextMenus: {
+    create: (properties: unknown, done?: () => void) => {
+      calls.menus.push(properties);
+      done?.();
+    },
+    onClicked: { addListener: () => undefined },
+  },
+  commands: { onCommand: { addListener: () => undefined } },
 };
 
 const contentScript = { id: EXTENSION_ID, url: `${SITE_ORIGIN}/`, frameId: 0, tab: { id: 7, url: `${SITE_ORIGIN}/` } } as unknown as chrome.runtime.MessageSender;

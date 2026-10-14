@@ -83,7 +83,7 @@ describe("readiness (the reference plugin's execution.readiness)", () => {
     expect(before).toMatchObject({ ready: false, blocker: { code: "run_plan_absent" }, checks: ["execution_host_available"] });
     const result = await authorize(w, "search");
     const ready = (await w.h.controller.handle({ type: "run.readiness", sessionId: w.session.session.id }, PAGE)) as RunReadiness;
-    expect(ready).toMatchObject({ ready: true, blocker: null, run_plan_id: result.run_plan!.run_plan.run_plan_id, checks: ["execution_host_available", "plan_mode_model", "preflight_ready", "receipt_outlasts_run_deadline", "no_active_run"] });
+    expect(ready).toMatchObject({ ready: true, blocker: null, run_plan_id: result.run_plan!.run_plan.run_plan_id, checks: ["execution_host_available", "plan_mode_model", "secrets_available", "preflight_ready", "origins_granted", "receipt_outlasts_run_deadline", "no_active_run"] });
     expect(ready.receipt).toMatchObject({ required_seconds: 660 });
     expect(ready.receipt!.remaining_seconds).toBeGreaterThan(660);
     // Without an execution host the browser says so first.

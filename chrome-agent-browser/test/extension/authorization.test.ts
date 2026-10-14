@@ -439,7 +439,10 @@ describe("models, settings and the vault", () => {
     expect((await refused(h.controller.handle({ type: "settings.setKey", provider: "openai", key: "two\nlines" }, PAGE))).code).toBe("invalid_request");
     await h.controller.handle({ type: "settings.setKey", provider: "anthropic", key: null }, PAGE);
     expect(((await h.controller.handle({ type: "settings.get" }, PAGE)) as SettingsView).keys).toEqual({});
-    expect([...h.settingsArea.data.keys()].sort()).toEqual(["providerKeys", "settings"]);
+    // T16: the key never lands in storage.local in clear; the envelope holds it (or nothing, once removed) and 0.1.0's `providerKeys` is never written again.
+    expect([...h.settingsArea.data.keys()].sort()).toEqual(["settings"]);
+    expect(JSON.stringify(h.envelope.value)).not.toContain("sk-ant-test");
+    expect(await h.secrets.has("provider_key:anthropic")).toBe(false);
     expect(h.events).toContainEqual({ type: "event.settings" });
   });
 
@@ -470,13 +473,17 @@ describe("models, settings and the vault", () => {
     expect(own.records.find((record) => record.id === "my_profile")).toMatchObject({ demo: false, digest: expect.stringMatching(/^[0-9a-f]{64}$/u) });
     expect((await refused(h.controller.handle({ type: "vault.putRecord", record: { id: "bad", type: "personal.travel_profile", label: "Bad", value: { home_airport: "zurich" } } }, PAGE))).code).toBe("vault_invalid");
     expect((await refused(h.controller.handle({ type: "vault.deleteRecord", recordId: "ghost" }, PAGE))).code).toBe("vault_record_unknown");
-    const stored = h.settingsArea.data.get("vault") as { records: Array<Record<string, unknown>> };
+    // T16: the document and its HMAC key live in the secret store's envelope, never in clear (D-191).
+    expect(h.settingsArea.data.has("vault")).toBe(false);
+    expect(h.settingsArea.data.has("vaultKey")).toBe(false);
+    const stored = JSON.parse((await h.secrets.getText("vault"))!) as { records: Array<Record<string, unknown>> };
     expect(stored.records).toHaveLength(7);
     expect(stored.records.every((record) => !("digest" in record))).toBe(true);
-    expect(typeof h.settingsArea.data.get("vaultKey")).toBe("string");
+    expect((await h.secrets.get("vault_key"))!.length).toBe(32);
+    expect(JSON.stringify(h.envelope.value)).not.toContain("ZRH");
     expect(h.events).toContainEqual({ type: "event.vault" });
     // Another worker over the same storage sees the same digests (same key).
-    const second = makeHarness({ stores: { snapshots: new MemorySnapshotStore(), trustStorage: new MemoryTrustStorage(), tabs: new MemoryTabStateStore(), settingsArea: h.settingsArea } });
+    const second = makeHarness({ stores: { snapshots: new MemorySnapshotStore(), trustStorage: new MemoryTrustStorage(), tabs: new MemoryTabStateStore(), settingsArea: h.settingsArea, secrets: { envelope: h.envelope, unlocked: h.unlocked } } });
     const again = (await second.controller.handle({ type: "vault.get" }, PAGE)) as VaultView;
     expect(again.records.map((record) => record.digest).sort()).toEqual(own.records.map((record) => record.digest).sort());
   });

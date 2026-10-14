@@ -12,7 +12,7 @@ import { failure, success } from "../../src/extension/messages.js";
 import { probeSummary } from "../../src/extension/ui/settings-page.js";
 import { scriptedOllama, scriptedOrigin, webairModelAnswers } from "../helpers/host.js";
 import { SHIPPED } from "../helpers/paths.js";
-import { makeHarness, PAGE_IN_TAB, SITE_ORIGIN, WEBAIR_040_URL } from "../helpers/shell.js";
+import { makeHarness, PAGE_IN_TAB, SEED_PASSPHRASE, SITE_ORIGIN, WEBAIR_040_URL } from "../helpers/shell.js";
 
 const SEARCH_TEXT = "Find me a nonstop flight from Boston to Zurich on 9 October under $900.";
 type Listener = (message: unknown) => void;
@@ -277,5 +277,21 @@ describe("Settings → Files: the file-input fallback (T6 review, nit 9)", () =>
     expect(send.mock.calls.filter(([message]) => (message as { type: string }).type === "files.add")).toHaveLength(0);
     pick().click();
     expect(inputs.filter((node) => node.type === "file")).toHaveLength(2);
+  });
+});
+
+describe("Your data while the store is locked (T16, the user's walk-through)", () => {
+  it("shows store_locked with Unlock, and the error goes once the store is unlocked, without leaving the page", async () => {
+    await h.controller.handle({ type: "vault.installDemo", records: true }, PAGE_IN_TAB);
+    await h.controller.handle({ type: "secrets.lock" }, PAGE_IN_TAB);
+    await go("#data");
+    expect(app().querySelector(".ab-error strong")?.textContent).toBe("store_locked");
+    expect([...app().querySelectorAll("button")].some((node) => node.textContent === "Unlock")).toBe(true);
+    // Unlocked from anywhere (the sheet, the nav chip, another view): the worker broadcasts event.secrets.
+    await h.controller.handle({ type: "secrets.unlock", passphrase: SEED_PASSPHRASE }, PAGE_IN_TAB);
+    await settle();
+    await settle();
+    expect(app().querySelector(".ab-error")).toBeNull();
+    expect(app().textContent).toContain("Demo");
   });
 });

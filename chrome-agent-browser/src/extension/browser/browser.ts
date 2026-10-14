@@ -8,12 +8,13 @@ import type { Candidate } from "../../core/discovery.js";
 import type { JsonObject } from "../../core/json.js";
 import { looksLikePackageUrl } from "../../core/policy.js";
 import type { TrustEntry, TrustState } from "../../core/trust.js";
-import type { AuthorizationView, ExportBundle, FilesView, IndexesView, LibraryItemView, LibraryView, ModelsView, PolicyView, RunListView, RunSummary, RunView, SearchResultView, SearchView, SessionDescriptor, SessionView, SettingsView, StatusInfo, VaultView, WebsiteResult } from "../messages.js";
+import type { AuthorizationView, ExportBundle, FilesView, IndexesView, LibraryItemView, LibraryView, ModelsView, PermissionsView, PolicyView, RunListView, RunSummary, RunView, SearchResultView, SearchView, SecretsView, SessionDescriptor, SessionView, SettingsView, StatusInfo, VaultView, WebsiteResult } from "../messages.js";
 import { addressKind } from "../../core/resolve/types.js";
 import { renderFoundVia, renderLibrary, renderSearchResults } from "../ui/search.js";
 import { renderAgentPage } from "../ui/agent-page.js";
 import { bindAuthorization, type AuthorizationController } from "../ui/authorization-flow.js";
-import { describeError, send, subscribe } from "../ui/client.js";
+import { describeError, originOfUrl, refusedOrigins, requestOrigins, send, subscribe } from "../ui/client.js";
+import { needsUnlock, newUnlockState, renderLockChip, renderUnlockSheet, type UnlockState } from "../ui/unlock.js";
 import { button, card, chip, el, list, replace, row, whenText } from "../ui/dom.js";
 import { newSettingsPageState, refreshProbes, renderSettingsPage, SETTINGS_SECTIONS, type SettingsPageState, type SettingsSection } from "../ui/settings-page.js";
 import type { ProviderId } from "../../core/models/catalog.js";
@@ -53,6 +54,13 @@ interface PageState {
   /** Settings → Search and the policy subscription (T8). */
   indexes: IndexesView | null;
   policy: PolicyView | null;
+  /** The secret store (T16): the chip in the nav and the Unlock sheet. */
+  secrets: SecretsView | null;
+  unlock: UnlockState;
+  /** Settings → Permissions (T16). */
+  permissions: PermissionsView | null;
+  /** What to run again after Allow on an `origin_not_granted` error (T16). */
+  retry: (() => void) | null;
 }
 
 const app = document.getElementById("app") as HTMLElement;
@@ -82,6 +90,10 @@ const state: PageState = {
   library: null,
   indexes: null,
   policy: null,
+  secrets: null,
+  unlock: newUnlockState(),
+  permissions: null,
+  retry: null,
 };
 
 /** The authorization flow for the open session (T3). */
@@ -105,6 +117,8 @@ const flow: AuthorizationController = bindAuthorization({
     location.hash = section === "data" ? "data" : `settings?section=${section}`;
   },
   rerender: () => render(),
+  unlock: (retry) => openUnlock(null, retry),
+  requestOrigins,
 });
 
 /** The run surface (T5) for the open session; on the Runs page it shows one past run read-only. */
@@ -118,6 +132,8 @@ const runs = new RunPanel({
   openFiles: () => {
     location.hash = "settings?section=files";
   },
+  unlock: (retry) => openUnlock(null, retry),
+  requestOrigins,
   changed: () => void load(),
   runChanged: (runId) => {
     // The panel moved to another run on its own (a click in "Earlier runs", an active run
@@ -133,6 +149,53 @@ const RUN_VIEW_ID = `run:${crypto.randomUUID()}`;
 
 /** True until the page's first route: only a page that just opened adopts a run in flight. */
 let firstRoute = true;
+
+/** Open the Unlock sheet (T16); `retry` runs after a successful unlock. */
+function openUnlock(reason: string | null, retry: (() => void) | null): void {
+  state.unlock.open = { reason, retry };
+  state.unlock.error = null;
+  render();
+}
+
+async function loadSecrets(): Promise<void> {
+  try {
+    state.secrets = await send<SecretsView>({ type: "secrets.status" });
+  } catch {
+    state.secrets = null;
+  }
+}
+
+/**
+ * The store was unlocked, locked or set up: a `store_locked` error shown before it no longer
+ * applies once unlocked, and the view re-reads what it shows (the user's walk-through, T16: the
+ * banner stayed on Your data after Unlock until the page changed).
+ */
+async function secretsChanged(): Promise<void> {
+  await loadSecrets();
+  if (state.secrets?.state === "unlocked" && state.error && needsUnlock(state.error)) state.error = null;
+  await load();
+}
+
+/**
+ * Run an action that may be refused for a missing origin or a locked store (T16): the origins
+ * were asked for in the click already (a refusal is Chrome's), so a refusal here offers Allow
+ * beside the error and runs the action again; a locked store opens the Unlock sheet and retries.
+ */
+async function guarded(action: () => Promise<void>): Promise<void> {
+  state.retry = null;
+  try {
+    await action();
+  } catch (error) {
+    const described = describeError(error);
+    if (needsUnlock(described)) {
+      openUnlock(null, () => void guarded(action));
+      return;
+    }
+    state.error = described;
+    if (refusedOrigins(described).length > 0) state.retry = () => void guarded(action);
+    throw error;
+  }
+}
 
 /** An error raised as the page leaves for another address, which that address shows (D-161; review 1, finding 1). */
 let errorForNextRoute: PageState["error"] = null;
@@ -235,6 +298,8 @@ async function load(): Promise<void> {
       if (state.settingsPage.section === "files") state.files = await send<FilesView>({ type: "files.list" });
       if (state.settingsPage.section === "search") state.indexes = await send<IndexesView>({ type: "indexes.list" });
       if (state.settingsPage.section === "policies") state.policy = await send<PolicyView>({ type: "policy.get" });
+      if (state.settingsPage.section === "security") await loadSecrets();
+      if (state.settingsPage.section === "permissions") state.permissions = await send<PermissionsView>({ type: "permissions.get" });
     }
     if (state.view === "data") state.vault = await send({ type: "vault.get" });
     if (state.view === "runs") state.runs = await send({ type: "run.list", sessionId: null });
@@ -355,17 +420,22 @@ async function openAddress(address: string): Promise<void> {
   state.search = null;
   state.busy = looksLikePackageUrl(address) ? "Downloading and verifying the package…" : "Reading the website…";
   render();
+  // The origin is asked for in the Open click (the gesture); Chrome's answer decides, the worker refuses by name (D-193).
+  const origin = originOfUrl(address);
+  if (origin) await requestOrigins([origin]);
   try {
-    if (looksLikePackageUrl(address)) {
-      state.open = await send<SessionView>({ type: "package.open", url: address, advertisedOn: null, viewId: VIEW_ID });
-      state.website = null;
-      location.hash = `session=${encodeURIComponent(state.open.session.id)}`;
-    } else {
-      state.website = await send<WebsiteResult>({ type: "website.discover", url: address });
-      state.open = null;
-    }
-  } catch (error) {
-    state.error = describeError(error);
+    await guarded(async () => {
+      if (looksLikePackageUrl(address)) {
+        state.open = await send<SessionView>({ type: "package.open", url: address, advertisedOn: null, viewId: VIEW_ID });
+        state.website = null;
+        location.hash = `session=${encodeURIComponent(state.open.session.id)}`;
+      } else {
+        state.website = await send<WebsiteResult>({ type: "website.discover", url: address });
+        state.open = null;
+      }
+    });
+  } catch {
+    // shown by `guarded`
   } finally {
     state.busy = null;
     render();
@@ -399,13 +469,17 @@ async function runSearch(text: string): Promise<void> {
 async function openResult(result: SearchResultView): Promise<void> {
   state.busy = "Downloading and verifying the package…";
   render();
+  const origin = originOfUrl(result.candidate.package_url);
+  if (origin) await requestOrigins([origin]);
   try {
-    const foundVia = result.candidate.source.resolver === "static-index" ? { indexId: result.candidate.source.resolver_id } : null;
-    state.open = await send<SessionView>({ type: "package.open", url: result.candidate.package_url, advertisedOn: null, viewId: VIEW_ID, foundVia });
-    state.error = null;
-    location.hash = `session=${encodeURIComponent(state.open.session.id)}`;
-  } catch (error) {
-    state.error = describeError(error);
+    await guarded(async () => {
+      const foundVia = result.candidate.source.resolver === "static-index" ? { indexId: result.candidate.source.resolver_id } : null;
+      state.open = await send<SessionView>({ type: "package.open", url: result.candidate.package_url, advertisedOn: null, viewId: VIEW_ID, foundVia });
+      state.error = null;
+      location.hash = `session=${encodeURIComponent(state.open.session.id)}`;
+    });
+  } catch {
+    // shown by `guarded`
   } finally {
     state.busy = null;
     render();
@@ -417,12 +491,16 @@ async function openLibraryEntry(entry: LibraryItemView): Promise<void> {
   state.view = "open";
   state.busy = "Downloading and verifying the package…";
   render();
+  const origin = originOfUrl(entry.package_url);
+  if (origin) await requestOrigins([origin]);
   try {
     state.open = await send<SessionView>({ type: "package.open", url: entry.package_url, advertisedOn: entry.advertised_on, viewId: VIEW_ID });
     state.error = null;
     location.hash = `session=${encodeURIComponent(state.open.session.id)}`;
   } catch (error) {
-    navigateWithError("open", describeError(error));
+    const described = describeError(error);
+    if (refusedOrigins(described).length > 0) state.retry = () => void openLibraryEntry(entry);
+    navigateWithError("open", described);
   } finally {
     state.busy = null;
     render();
@@ -454,12 +532,17 @@ async function inspect(candidate: Candidate): Promise<void> {
   if (!candidate.resolved_url || !state.website) return;
   state.busy = "Downloading and verifying the package…";
   render();
+  const origin = originOfUrl(candidate.resolved_url);
+  if (origin) await requestOrigins([origin]);
+  const website = state.website;
   try {
-    state.open = await send<SessionView>({ type: "package.open", url: candidate.resolved_url, advertisedOn: state.website.final_url, viewId: VIEW_ID });
-    state.error = null;
-    location.hash = `session=${encodeURIComponent(state.open.session.id)}`;
-  } catch (error) {
-    state.error = describeError(error);
+    await guarded(async () => {
+      state.open = await send<SessionView>({ type: "package.open", url: candidate.resolved_url!, advertisedOn: website.final_url, viewId: VIEW_ID });
+      state.error = null;
+      location.hash = `session=${encodeURIComponent(state.open.session.id)}`;
+    });
+  } catch {
+    // shown by `guarded`
   } finally {
     state.busy = null;
     render();
@@ -549,6 +632,8 @@ function addressBar(): HTMLElement {
 function errorBox(): HTMLElement | null {
   if (!state.error) return null;
   const validation = state.error.details.validation as { errors?: Array<{ layer: string; message: string }> } | undefined;
+  const origins = refusedOrigins(state.error);
+  const retry = state.retry;
   return el(
     "div",
     { className: "ab-error", attrs: { role: "alert" } },
@@ -556,6 +641,15 @@ function errorBox(): HTMLElement | null {
     " ",
     el("span", { text: state.error.message }),
     validation?.errors ? list(validation.errors.map((item) => `${item.layer}: ${item.message}`)) : null,
+    // T16, D-193: the origin Chrome does not grant, asked for in this click, then the same action again.
+    origins.length > 0 && retry
+      ? button(`Allow ${origins.join(", ")}`, () => {
+          void requestOrigins(origins).then(() => {
+            state.error = null;
+            retry();
+          });
+        }, { variant: "primary" })
+      : null,
   );
 }
 
@@ -592,6 +686,7 @@ function openView(): HTMLElement[] {
       renderWebsiteCard(
         { pageUrl: state.website.final_url, pageOrigin: state.website.page_origin, status: state.website.discovery_status, candidates: state.website.candidates, linksNotListed: state.website.links_not_listed },
         (candidate) => void inspect(candidate),
+        { onDetectSite: (origin) => void detectSite(origin), siteDetected: siteDetected(state.website.page_origin) },
       ),
     );
   } else if (state.search) {
@@ -749,7 +844,68 @@ function settingsView(): HTMLElement[] {
       rerender: () => {
         if (state.settingsPage.section === "files" && state.files === null) void load();
         if ((state.settingsPage.section === "search" && state.indexes === null) || (state.settingsPage.section === "policies" && state.policy === null)) void load();
+        if ((state.settingsPage.section === "security" && state.secrets === null) || (state.settingsPage.section === "permissions" && state.permissions === null)) void load();
         render();
+      },
+      onSecrets: (request) => {
+        send<SecretsView>(request).then(
+          (secrets) => {
+            state.secrets = secrets;
+            state.error = null;
+            state.settingsPage.notice =
+              request.type === "secrets.setup"
+                ? "Passphrase set. Your keys and records are encrypted at rest and unlocked for this session."
+                : request.type === "secrets.unlock"
+                  ? "Unlocked."
+                  : request.type === "secrets.lock"
+                    ? "Locked."
+                    : request.type === "secrets.changePassphrase"
+                      ? "Passphrase changed."
+                      : "Every key and record is gone.";
+            render();
+          },
+          (error: unknown) => {
+            const described = describeError(error);
+            state.settingsPage.notice = described.code === "passphrase_wrong" ? "That passphrase does not open the store." : `${described.code}: ${described.message}`;
+            render();
+          },
+        );
+      },
+      onDetectEverywhere: (enabled) => {
+        // The checkbox click is the gesture Chrome needs; what Chrome decides is then told to the worker.
+        void (async () => {
+          try {
+            if (enabled) {
+              const granted = await requestOrigins(["*"]);
+              if (!granted) {
+                state.settingsPage.notice = "Chrome did not grant access to every site.";
+                render();
+                return;
+              }
+              state.permissions = await send<PermissionsView>({ type: "permissions.granted", origins: ["*"], purpose: { kind: "everywhere", subject: "everywhere" } });
+              state.settingsPage.notice = "Agents are detected on every HTTPS page from now on.";
+            } else {
+              state.permissions = await send<PermissionsView>({ type: "permissions.revoke", origins: ["*"] });
+              state.settingsPage.notice = "Access to every site revoked.";
+            }
+          } catch (error) {
+            state.error = describeError(error);
+          }
+          render();
+        })();
+      },
+      onRevoke: (origins) => {
+        send<PermissionsView>({ type: "permissions.revoke", origins }).then(
+          (permissions) => {
+            state.permissions = permissions;
+            state.settingsPage.notice = `Revoked ${origins.join(", ")}. A prepared plan that needs it names it before Run.`;
+            render();
+          },
+          (error: unknown) => {
+            state.error = describeError(error);
+            render();
+          },
+        );
       },
       onIndex: (request) => {
         state.settingsPage.notice = request.type === "indexes.add" ? "Fetching and verifying the index…" : null;
@@ -787,7 +943,7 @@ function settingsView(): HTMLElement[] {
           },
         );
       },
-    }, state.files, { indexes: state.indexes, policy: state.policy }),
+    }, state.files, { indexes: state.indexes, policy: state.policy, secrets: state.secrets, permissions: state.permissions }),
   ].filter((node): node is HTMLElement => node !== null);
 }
 
@@ -841,7 +997,15 @@ async function pickFiles(): Promise<void> {
 }
 
 function dataView(): HTMLElement[] {
-  if (!state.vault) return [errorBox(), el("p", { className: "ab-busy", text: "Loading…" })].filter((node): node is HTMLElement => node !== null);
+  if (!state.vault) {
+    // T16: Your data lives in the secret store; a locked store shows the lock, not a spinner.
+    const locked = state.error && needsUnlock(state.error);
+    return [
+      errorBox(),
+      locked ? el("div", { className: "ab-actions" }, button(state.secrets?.state === "no_passphrase" ? "Set a passphrase" : "Unlock", () => (state.secrets?.state === "no_passphrase" ? (location.hash = "settings?section=security") : openUnlock(null, () => void load())), { variant: "primary" })) : null,
+      locked ? null : el("p", { className: "ab-busy", text: "Loading…" }),
+    ].filter((node): node is HTMLElement => node !== null);
+  }
   const apply = (request: Parameters<typeof send>[0], notice: string) => {
     send<VaultView>(request).then(
       (vault) => {
@@ -869,16 +1033,42 @@ function dataView(): HTMLElement[] {
   ].filter((node): node is HTMLElement => node !== null);
 }
 
+/** "Always detect agents on this site" (T16, D-190): Chrome is asked in the click; the worker records the grant and registers the script. */
+async function detectSite(origin: string): Promise<void> {
+  try {
+    if (!(await requestOrigins([origin]))) return;
+    state.permissions = await send<PermissionsView>({ type: "permissions.granted", origins: [origin], purpose: { kind: "site", subject: origin } });
+    state.error = null;
+  } catch (error) {
+    state.error = describeError(error);
+  }
+  render();
+}
+
+function siteDetected(origin: string): boolean {
+  return state.permissions?.origins.some((item) => item.origin === origin && item.granted && item.purposes.some((purpose) => purpose.kind === "site")) === true || state.permissions?.detect_everywhere === true;
+}
+
 function render(): void {
   for (const link of document.querySelectorAll<HTMLAnchorElement>(".ab-nav a")) {
     link.classList.toggle("ab-nav-active", link.dataset.view === state.view);
   }
+  const chipHost = document.getElementById("lock");
+  if (chipHost) replace(chipHost, [renderLockChip(state.secrets, { onLock: () => void send<SecretsView>({ type: "secrets.lock" }).then(() => loadSecrets().then(render)), onOpen: () => openUnlock(null, null), openSettings: () => (location.hash = "settings?section=security") })]);
   const children =
     state.view === "open" ? openView() : state.view === "library" ? libraryView() : state.view === "runs" ? runsView() : state.view === "trust" ? trustView() : state.view === "data" ? dataView() : settingsView();
-  replace(app, children);
+  const sheet = renderUnlockSheet(state.unlock, state.secrets, { rerender: render, openSettings: () => (location.hash = "settings?section=security"), onUnlocked: () => void secretsChanged() });
+  replace(app, sheet ? [...children, sheet] : children);
 }
 
 subscribe((event) => {
+  if (event.type === "event.secrets") void secretsChanged();
+  if (event.type === "event.permissions") {
+    void send<PermissionsView>({ type: "permissions.get" }).then((permissions) => {
+      state.permissions = permissions;
+      render();
+    }, () => undefined);
+  }
   if (event.type === "event.sessions" || event.type === "event.trust" || event.type === "event.settings" || event.type === "event.vault") void load();
   if ((event.type === "event.library" && state.view === "library") || ((event.type === "event.indexes" || event.type === "event.policy") && state.view === "settings")) void load();
   if (event.type === "event.sessions" && state.open) void showSession(state.open.session.id);
@@ -905,4 +1095,8 @@ subscribe((event) => {
 });
 void RUN_VIEW_ID;
 window.addEventListener("hashchange", route);
+void loadSecrets().then(render);
+void send<PermissionsView>({ type: "permissions.get" }).then((permissions) => {
+  state.permissions = permissions;
+}, () => undefined);
 route();

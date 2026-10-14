@@ -33,6 +33,7 @@ import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { Cdp, sleep } from "./lib/cdp.mjs";
+import { grantedBuild } from "./lib/granted-build.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PROJECT = resolve(here, "..");
@@ -157,7 +158,10 @@ async function main() {
   const cdp = new Cdp(chrome);
   try {
     report.chrome = (await cdp.send("Browser.getVersion")).product;
-    const { id: extensionId } = await cdp.send("Extensions.loadUnpacked", { path: EXTENSION });
+    // A pre-granted copy of the build (D-196): the origins this harness drives, as the person would have allowed them.
+    const granted = grantedBuild(EXTENSION, profile, [new URL(DEFAULT_SITE).origin, "https://api.openai.com", "https://api.anthropic.com"]);
+    report.granted_origins = granted.granted;
+    const { id: extensionId } = await cdp.send("Extensions.loadUnpacked", { path: granted.path });
     report.extensionId = extensionId;
     const base = `chrome-extension://${extensionId}`;
     await cdp.waitForTarget((target) => target.type === "service_worker" && target.url === `${base}/service-worker.js`, "the service worker");

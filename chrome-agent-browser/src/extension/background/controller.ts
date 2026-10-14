@@ -31,7 +31,7 @@ import { evaluateSnapshot, evaluationLayers, publisherReport, structurallyValid,
 import { isRecord } from "../../core/fields.js";
 import { sha256Hex } from "../../core/hash.js";
 import { evaluateResources, normalizeResourceSelections, RESOURCE_PERMISSION_KINDS, type ResourceRegistry } from "../../core/hostresources.js";
-import { buildHostToolRegistry, evaluateRegistry, type RegistryEvaluation, type ToolRegistry } from "../../core/hosttools.js";
+import { buildHostToolRegistry, evaluateRegistry, planToolBindings, type RegistryEvaluation, type ToolRegistry } from "../../core/hosttools.js";
 import type { JsonObject, JsonValue } from "../../core/json.js";
 import { publicKeyFromPem, publicKeyFromRawBase64, rawBase64, fingerprint as keyFingerprint } from "../../core/keys.js";
 import { applyPolicy, cappedLimits, modelPolicyReasons, PolicyTrust, type ActivePolicy, type ToolBindingFacts } from "../../core/policies/apply.js";
@@ -42,6 +42,10 @@ import { readQuery, type AgentCandidate, type ResolveNote } from "../../core/res
 import { AGENT_INDEX_TYPE, MAX_DOCUMENT_BYTES, POLICY_BUNDLE_TYPE, verifySignedDocument, type DocumentContentType, type VerifiedDocument } from "../../core/signed-document.js";
 import { compareRelease } from "../../core/version.js";
 import { buildHostCatalog, DEFAULT_BASE_URLS, probeProvider, PROVIDER_IDS, type BuiltinAvailability, type Http, type ProbeResult, type ProviderId } from "../../core/models/catalog.js";
+import { httpsOrigin, originPattern, planOrigins, patternOrigin, toolBindingsForOrigins, type OriginString, type PlanOrigin } from "../../core/origins.js";
+import { SerialQueue } from "../../core/serial.js";
+import { planNeedsVault } from "./runs.js";
+import { unavailableStoreError, type SecretStoreState } from "../../core/secrets.js";
 import type { Package } from "../../core/package.js";
 import { documentUrl, origin, originText, sameOrigin, validatePackageUrl } from "../../core/policy.js";
 import { readProfiles, type Profile } from "../../core/profiles.js";
@@ -50,10 +54,11 @@ import { buildSummary, type BrowserSummary } from "../../core/summary.js";
 import { pyRepr } from "../../core/repr.js";
 import { pinPackagePublisher, type TrustStore } from "../../core/trust.js";
 import { DEFAULT_BROWSER_POLICY, DENY, type AuthorizationReceipt, type Decision, type PresetId, type Provenance, type Reason, type RunPlan, type SourceRef } from "../../core/types.js";
-import { Vault, type VaultDocument } from "../../core/vault.js";
+import { emptyVaultDocument, generateVaultKey, Vault, type VaultDocument } from "../../core/vault.js";
 import { CORE_VERSION, SUPPORTED_RUNTIME_VERSION } from "../../core/version.js";
 import demoHostResources from "../data/demo-host-resources.json" with { type: "json" };
 import {
+  type AuthorizationOrigins,
   type AuthorizationPolicyView,
   type AuthorizationView,
   type AuthorizeResult,
@@ -71,11 +76,13 @@ import {
   type Event,
   type FilesView,
   type ModelsView,
+  type PermissionsView,
   type PinResult,
   type ProbeView,
   type Request,
   type RunPlanState,
   type RunView,
+  type SecretsView,
   type SessionDescriptor,
   type SessionSource,
   type SessionView,
@@ -87,6 +94,7 @@ import {
   type WebsiteResult,
 } from "../messages.js";
 import { FileRefusal, MemoryFileStore, MAX_FILE_BYTES, MAX_FILES, MAX_TOTAL_FILE_BYTES, newFile, viewOf, type FileStore } from "../storage/files.js";
+import { EVERY_SITE_PATTERN, MemoryPermissions, PermissionStorage, type GrantPurpose, type PermissionsPort } from "../storage/permissions.js";
 import { connectionsFor, endpointProblem, MemoryStorageArea, normalizeSettings, settingsProblem, type Settings, type SettingsStorage } from "../storage/settings.js";
 import type { SnapshotStore, StoredSession } from "../storage/snapshots.js";
 import { MAX_INDEXES, MAX_PINNED, SubscriptionStorage, type LibraryEntry, type StoredIndex, type StoredPolicy } from "../storage/subscriptions.js";
@@ -156,6 +164,10 @@ export interface ControllerDeps {
    * Absent: the diagnosis is `unknown`.
    */
   reachable?: (url: string) => Promise<boolean>;
+  /** Chrome's host permissions and the discovery script (T16, D-190, D-193); in tests a port over sets, granting every HTTPS origin unless told otherwise. */
+  permissions?: PermissionsPort;
+  /** Why each origin was granted (`chrome.storage.local`, T16); memory when absent (tests). */
+  permissionStorage?: PermissionStorage;
 }
 
 interface LiveSession {
@@ -276,6 +288,10 @@ export class Controller {
   private readonly verifiedDocuments = new Map<string, VerifiedDocument>();
   /** The last subscribed policy read (`heldPolicyOf`), by its stored text and pinned key. */
   private heldPolicyCache: { text: string; key: string; held: HeldPolicy } | null = null;
+  private readonly permissions: PermissionsPort;
+  private readonly grants: PermissionStorage;
+  /** An empty resource registry: what authorization sees while the store is locked (no record can be chosen). */
+  private emptyRegistry: Promise<ResourceRegistry> | null = null;
 
   /** Runs from the browser (T5): decides whether a run starts; the host executes. */
   readonly runs: RunManager;
@@ -288,6 +304,8 @@ export class Controller {
     this.files = deps.files ?? new MemoryFileStore();
     this.subscriptions = deps.subscriptions ?? new SubscriptionStorage(new MemoryStorageArea());
     this.trust = new PolicyTrust(deps.trust, () => this.activePolicy());
+    this.permissions = deps.permissions ?? new MemoryPermissions([EVERY_SITE_PATTERN]);
+    this.grants = deps.permissionStorage ?? new PermissionStorage(new MemoryStorageArea());
     const hooks: RunHooks = {
       session: async (sessionId) => {
         const live = await this.session(sessionId);
@@ -308,6 +326,12 @@ export class Controller {
       runSettled: (archiveSha256) => this.dropUnreferencedSnapshot(archiveSha256),
       // The subscribed policy's budget caps lower the person's run limits (T8, D-102).
       limitCaps: async () => (await this.activePolicy())?.bundle.budget_caps ?? null,
+      planOrigins: async (sessionId) => {
+        const live = await this.session(sessionId);
+        return live.plan === null ? [] : this.originsOfPlan(live, live.plan);
+      },
+      missingOrigins: (origins) => this.missingOrigins(origins),
+      secretsState: async () => (await this.deps.settings.store.status()).state,
     };
     this.runs = new RunManager({ runs: deps.runs, host: deps.host, settings: deps.settings, hooks, broadcast: deps.broadcast, clock: this.clock, randomId: deps.runId, runtimeVersion: this.version });
   }
@@ -440,7 +464,255 @@ export class Controller {
         return this.unpinFromLibrary(request.packageUrl);
       case "library.forget":
         return this.forgetRecent(request.packageUrl);
+      case "secrets.status":
+        return this.secretsView();
+      case "secrets.setup":
+        return this.setupPassphrase(request.passphrase);
+      case "secrets.unlock":
+        return this.unlockSecrets(request.passphrase);
+      case "secrets.lock":
+        return this.lockSecrets();
+      case "secrets.changePassphrase":
+        return this.changePassphrase(request.current, request.next);
+      case "secrets.forget":
+        return this.forgetSecrets(request.confirmation);
+      case "permissions.get":
+        return this.permissionsView();
+      case "permissions.granted":
+        return this.recordGrant(request.origins, request.purpose);
+      case "permissions.revoke":
+        return this.revokeOrigins(request.origins);
+      case "discovery.readTab":
+        return this.readTab(request.tabId);
     }
+  }
+
+  // -- host permissions (T16, D-190, D-193) ---------------------------------------------------
+  /**
+   * Refuse, by name, a fetch to an origin Chrome does not grant (D-193): the page asked Chrome
+   * before sending (the click was the gesture) and offers Allow on this code. Chrome would refuse
+   * the request anyway; this says why, before any byte moves.
+   */
+  private async requireOrigin(url: string): Promise<void> {
+    const origin = httpsOrigin(url);
+    if (origin === null) return; // the URL gate says what is wrong with it
+    if (await this.permissions.contains([originPattern(origin)])) return;
+    throw reject("origin_not_granted", `This browser is not allowed to reach ${origin}. Allow it to continue.`, 403, { origins: [origin] });
+  }
+
+  /** Which of these origins Chrome does not grant now. */
+  private async missingOrigins(origins: readonly string[]): Promise<string[]> {
+    const missing: string[] = [];
+    for (const origin of origins) if (!(await this.permissions.contains([originPattern(origin)]))) missing.push(origin);
+    return missing;
+  }
+
+  /** The host's endpoint for a provider: the connection's base URL, else the provider's default; null when it has none. */
+  private providerOrigin(settings: Settings, providerId: string): string | null {
+    if (providerId === "chrome-builtin" || !(PROVIDER_IDS as readonly string[]).includes(providerId)) return null;
+    const connection = settings.models.connections.find((item) => item.provider === providerId);
+    return connection?.base_url ?? DEFAULT_BASE_URLS[providerId as Exclude<ProviderId, "chrome-builtin">];
+  }
+
+  /** The origins a prepared plan needs (D-193): a pure function of the plan, the registry's fallbacks and the provider settings. */
+  private async originsOfPlan(live: LiveSession, plan: RunPlan): Promise<PlanOrigin[]> {
+    const settings = await this.deps.settings.settings();
+    const registry = await this.toolRegistry(live);
+    const bindings = toolBindingsForOrigins(plan.tool_bindings as unknown as Parameters<typeof toolBindingsForOrigins>[0], registry);
+    const model = plan.model_binding === null ? null : { provider_id: plan.model_binding.provider_id, base_url: this.providerOrigin(settings, plan.model_binding.provider_id) };
+    return planOrigins({ packageUrl: live.stored.source.display, toolBindings: bindings, model });
+  }
+
+  /** The origins an authorization could need, per part, for the page's request before it sends (D-193). */
+  private async authorizationOrigins(live: LiveSession, evaluation: RegistryEvaluation): Promise<AuthorizationOrigins> {
+    const settings = await this.deps.settings.settings();
+    const registry = await this.toolRegistry(live);
+    const tools: Record<string, string[]> = {};
+    for (const binding of planToolBindings(evaluation)) {
+      const [entry] = toolBindingsForOrigins([binding], registry);
+      const origins = planOrigins({ packageUrl: null, toolBindings: [{ ...entry!, approved: true }], model: null }).map((item) => item.origin);
+      if (origins.length > 0) tools[binding.tool_id] = origins;
+    }
+    const providers: Record<string, string | null> = {};
+    for (const provider of PROVIDER_IDS) providers[provider] = planOrigins({ packageUrl: null, toolBindings: [], model: { provider_id: provider, base_url: this.providerOrigin(settings, provider) } })[0]?.origin ?? null;
+    return { package: httpsOrigin(live.stored.source.display), tools, providers };
+  }
+
+  /** Note why a plan's origins are granted: for this package, and for its provider. */
+  private async recordPlanOrigins(live: LiveSession, plan: RunPlan, origins: readonly PlanOrigin[]): Promise<void> {
+    const now = this.clock();
+    for (const item of origins) {
+      if (item.roles.includes("package") || item.roles.includes("tool")) await this.grants.record(item.origin, { kind: "package", subject: plan.package.package_id, label: plan.package.name }, now);
+      if (item.roles.includes("provider") && plan.model_binding) await this.grants.record(item.origin, { kind: "provider", subject: plan.model_binding.provider_id }, now);
+    }
+    void live;
+  }
+
+  async permissionsView(): Promise<PermissionsView> {
+    const granted = await this.permissions.granted();
+    const records = await this.grants.all();
+    const everywhere = granted.includes(EVERY_SITE_PATTERN);
+    const origins: PermissionsView["origins"] = [];
+    const seen = new Set<string>();
+    for (const record of records) {
+      const pattern = record.origin === "*" ? EVERY_SITE_PATTERN : originPattern(record.origin);
+      seen.add(pattern);
+      origins.push({ origin: record.origin, pattern, purposes: record.purposes, recorded_at: record.recorded_at, granted: record.origin === "*" ? everywhere : granted.includes(pattern) || everywhere });
+    }
+    // Grants Chrome holds that this extension never recorded (an older build, chrome://extensions): listed, so they can be revoked.
+    for (const pattern of granted) {
+      if (seen.has(pattern)) continue;
+      const origin = pattern === EVERY_SITE_PATTERN ? "*" : patternOrigin(pattern);
+      if (origin === null) continue;
+      origins.push({ origin, pattern, purposes: [], recorded_at: null, granted: true });
+    }
+    origins.sort((a, b) => (a.origin === "*" ? -1 : b.origin === "*" ? 1 : a.origin < b.origin ? -1 : a.origin > b.origin ? 1 : 0));
+    return { origins, detect_everywhere: everywhere, manifest_hosts: ["http://127.0.0.1", "http://localhost"] };
+  }
+
+  /** The page obtained a grant from Chrome: verify it, record why, and give granted sites the discovery script. */
+  recordGrant(origins: readonly string[], purpose: GrantPurpose): Promise<PermissionsView> {
+    return this.permissionWork.run(() => this.recordGrantNow(origins, purpose));
+  }
+
+  private async recordGrantNow(origins: readonly string[], purpose: GrantPurpose): Promise<PermissionsView> {
+    const now = this.clock();
+    for (const raw of origins) {
+      if (purpose.kind === "everywhere" || raw === "*") {
+        if (!(await this.permissions.contains([EVERY_SITE_PATTERN]))) throw reject("origin_not_granted", "Chrome did not grant access to every site.", 403, { origins: [EVERY_SITE_PATTERN] });
+        await this.grants.record("*", { kind: "everywhere", subject: "everywhere" }, now);
+        continue;
+      }
+      const origin = httpsOrigin(raw);
+      if (origin === null) throw reject("invalid_request", `${raw} is not an HTTPS origin`);
+      if (!(await this.permissions.contains([originPattern(origin)]))) throw reject("origin_not_granted", `Chrome did not grant access to ${origin}.`, 403, { origins: [origin] });
+      await this.grants.record(origin, purpose, now);
+    }
+    await this.syncDiscovery();
+    this.deps.broadcast({ type: "event.permissions" });
+    return this.permissionsView();
+  }
+
+  /**
+   * Revoke origins (`*` for every site): Chrome forgets them, the records go, prepared plans that
+   * need them block Run by name. While "Detect agents on every site" is on, revoking one origin
+   * would change nothing Chrome does (review 1, finding 5): refused by name, and the record stays,
+   * so the page never reports a revocation that did not happen.
+   */
+  revokeOrigins(origins: readonly string[]): Promise<PermissionsView> {
+    return this.permissionWork.run(() => this.revokeOriginsNow(origins));
+  }
+
+  private async revokeOriginsNow(origins: readonly string[]): Promise<PermissionsView> {
+    const patterns: string[] = [];
+    const named: Array<OriginString | "*"> = [];
+    for (const raw of origins) {
+      if (raw === "*") {
+        patterns.push(EVERY_SITE_PATTERN);
+        named.push("*");
+        continue;
+      }
+      const origin = httpsOrigin(raw);
+      if (origin === null) throw reject("invalid_request", `${raw} is not an HTTPS origin`);
+      patterns.push(originPattern(origin));
+      named.push(origin);
+    }
+    if (!named.includes("*") && (await this.permissions.contains([EVERY_SITE_PATTERN]))) {
+      throw reject("origin_covered_everywhere", `Every site is granted, so revoking ${named.join(", ")} would change nothing: turn off "Detect agents on every site" first.`, 409, { origins: named });
+    }
+    if (!(await this.permissions.remove(patterns))) throw reject("revoke_failed", `Chrome did not remove ${named.join(", ")}.`, 500, { origins: named });
+    for (const origin of named) await this.grants.forget(origin);
+    await this.syncDiscovery();
+    this.deps.broadcast({ type: "event.permissions" });
+    this.deps.broadcast({ type: "event.sessions" });
+    return this.permissionsView();
+  }
+
+  /** Chrome removed grants (chrome://extensions, `permissions.onRemoved`), or the worker started: the records and the discovery script follow Chrome. */
+  reconcilePermissions(): Promise<void> {
+    return this.permissionWork.run(async () => {
+      await this.grants.reconcile(await this.permissions.granted());
+      await this.syncDiscovery();
+      this.deps.broadcast({ type: "event.permissions" });
+    });
+  }
+
+  /** The discovery content script runs exactly where the person asked for detection (D-190): the sites they chose, or everywhere. */
+  private async syncDiscovery(): Promise<void> {
+    const granted = new Set(await this.permissions.granted());
+    const matches = new Set<string>();
+    for (const record of await this.grants.all()) {
+      if (record.origin === "*" && granted.has(EVERY_SITE_PATTERN)) matches.add(EVERY_SITE_PATTERN);
+      else if (record.origin !== "*" && record.purposes.some((purpose) => purpose.kind === "site") && granted.has(originPattern(record.origin))) matches.add(originPattern(record.origin));
+    }
+    await this.permissions.registerDiscovery([...matches].sort());
+  }
+
+  /** Read the clicked tab's advertised links now (D-190): the content script is injected under `activeTab` or a granted origin, and reports as usual. */
+  async readTab(tabId: number): Promise<{ injected: true }> {
+    try {
+      await this.permissions.inject(tabId);
+    } catch (error) {
+      throw reject("tab_not_readable", `This browser may not read this page: ${thrownName(error) === "Error" ? "click the WebAgents button on it, or allow the site under Settings → Permissions" : thrownName(error)}.`, 403);
+    }
+    return { injected: true };
+  }
+
+  // -- the secret store (T16, D-191, D-192) -------------------------------------------------------
+  async secretsView(): Promise<SecretsView> {
+    const status = await this.deps.settings.store.status();
+    const legacy = status.state === "no_passphrase" ? await this.deps.settings.legacySecrets() : null;
+    return {
+      ...status,
+      migration_pending: legacy !== null && (Object.keys(legacy.provider_keys).length > 0 || legacy.vault !== null),
+      legacy: legacy === null ? null : { providers: Object.keys(legacy.provider_keys).sort(), records: legacy.vault?.records.length ?? 0 },
+    };
+  }
+
+  private secretsChanged(): void {
+    this.vaultCache = null;
+    this.invalidateCatalog();
+    this.deps.broadcast({ type: "event.secrets" });
+    this.deps.broadcast({ type: "event.settings" });
+    this.deps.broadcast({ type: "event.vault" });
+  }
+
+  async setupPassphrase(passphrase: string): Promise<SecretsView> {
+    await this.deps.settings.setPassphrase(passphrase);
+    this.secretsChanged();
+    return this.secretsView();
+  }
+
+  async unlockSecrets(passphrase: string): Promise<SecretsView> {
+    await this.deps.settings.store.unlock(passphrase);
+    this.secretsChanged();
+    return this.secretsView();
+  }
+
+  async lockSecrets(): Promise<SecretsView> {
+    await this.deps.settings.store.lock();
+    this.secretsChanged();
+    return this.secretsView();
+  }
+
+  async changePassphrase(current: string, next: string): Promise<SecretsView> {
+    await this.deps.settings.store.changePassphrase(current, next);
+    this.secretsChanged();
+    return this.secretsView();
+  }
+
+  /** Delete the envelope: every key and record is gone. The person types `forget` to confirm. */
+  async forgetSecrets(confirmation: string): Promise<SecretsView> {
+    if (confirmation.trim().toLowerCase() !== "forget") throw reject("confirmation_mismatch", "Type forget to delete every key and record.", 400);
+    await this.deps.settings.store.forget();
+    this.secretsChanged();
+    this.deps.broadcast({ type: "event.sessions" });
+    return this.secretsView();
+  }
+
+  /** The store's state now (the idle lock applied). */
+  private async secretsState(): Promise<SecretStoreState> {
+    return (await this.deps.settings.store.status()).state;
   }
 
   // -- content scripts --------------------------------------------------------------
@@ -488,6 +760,7 @@ export class Controller {
   async discoverWebsite(url: string): Promise<WebsiteResult> {
     const requested = documentUrl(url);
     const requestedOrigin = origin(requested)!;
+    await this.requireOrigin(requested);
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.limits.discoveryTimeoutMs);
     let response: globalThis.Response;
@@ -598,6 +871,7 @@ export class Controller {
     const subject = options.subject ?? "Package";
     const cap = options.cap ?? this.limits.maxPackageBytes;
     if (subject !== "Package") validatePackageUrl(url, subject);
+    await this.requireOrigin(url);
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? this.limits.downloadTimeoutMs);
     let response: globalThis.Response;
@@ -1095,6 +1369,8 @@ export class Controller {
   // -- settings, keys and the vault (D-050, D-051, D-055) ------------------------------------
   /** The opening, not only the opened vault, so concurrent first calls share one key and one document (review 1, nit 12). */
   private vaultCache: Promise<Vault> | null = null;
+  /** The permission bookkeeping, one operation at a time (review 1, finding 5): a grant the page reports and Chrome's `onAdded` reconcile never interleave their read-modify-writes. */
+  private readonly permissionWork = new SerialQueue();
 
   async settingsView(): Promise<SettingsView> {
     return { settings: await this.deps.settings.settings(), keys: await this.deps.settings.keyPresence() };
@@ -1124,6 +1400,7 @@ export class Controller {
     try {
       await this.deps.settings.setKey(provider, key);
     } catch (error) {
+      if (error instanceof CoreError) throw error; // store_locked, store_no_passphrase
       throw reject("invalid_request", error instanceof Error ? error.message : "invalid key");
     }
     this.invalidateCatalog();
@@ -1131,7 +1408,13 @@ export class Controller {
     return this.settingsView();
   }
 
-  private vault(): Promise<Vault> {
+  private async vault(): Promise<Vault> {
+    // The vault lives in the secret store (T16): a cached copy is served only while the store is unlocked.
+    const state = await this.secretsState();
+    if (state !== "unlocked") {
+      this.vaultCache = null;
+      throw unavailableStoreError(state);
+    }
     if (!this.vaultCache) {
       this.vaultCache = this.openVault().catch((error: unknown) => {
         this.vaultCache = null; // a failed opening is retried by the next call
@@ -1139,6 +1422,12 @@ export class Controller {
       });
     }
     return this.vaultCache;
+  }
+
+  /** The vault's types for the tool registry, or none while the store is locked (D-195: a plan without records needs none). */
+  private async vaultTypesOrNone(): Promise<Array<{ id: string; display_name: string; permission_kind: string; schema_sha256: string }>> {
+    if ((await this.secretsState()) !== "unlocked") return [];
+    return (await this.vault()).typeViews().map((type) => ({ id: type.id, display_name: type.display_name, permission_kind: type.permission_kind, schema_sha256: type.schema_sha256 }));
   }
 
   private async openVault(): Promise<Vault> {
@@ -1244,8 +1533,20 @@ export class Controller {
     return (await this.vault()).registry({ runtimeVersion: this.version, now: this.clock() });
   }
 
+  /** The registry for a preflight: null while the store is locked, so a grant is "not evaluated" rather than stale (T16). */
+  private async resourceRegistryOrNull(): Promise<ResourceRegistry | null> {
+    return (await this.secretsState()) === "unlocked" ? this.resourceRegistry() : null;
+  }
+
+  /** The registry for authorization: empty while the store is locked (no record can be chosen until it is unlocked). */
+  private async resourceRegistryOrEmpty(): Promise<ResourceRegistry> {
+    if ((await this.secretsState()) === "unlocked") return this.resourceRegistry();
+    this.emptyRegistry ??= Vault.open(generateVaultKey(), emptyVaultDocument()).then((vault) => vault.registry({ runtimeVersion: this.version, now: this.clock() }));
+    return this.emptyRegistry;
+  }
+
   private async toolRegistry(live: LiveSession): Promise<ToolRegistry> {
-    const types = (await this.vault()).typeViews().map((type) => ({ id: type.id, display_name: type.display_name, permission_kind: type.permission_kind, schema_sha256: type.schema_sha256 }));
+    const types = await this.vaultTypesOrNone();
     const contactConfigured = (await this.deps.settings.settings()).services.crossref_contact !== null;
     return buildHostToolRegistry(live.pkg, { resourceTypes: types, runtimeVersion: this.version, now: this.clock(), contactConfigured });
   }
@@ -1400,13 +1701,13 @@ export class Controller {
     const settings = await this.deps.settings.settings();
     const request = buildRequest(live.pkg, { sessionId: live.stored.session_id, decisions: live.receipt?.decisions ?? {}, toolApprovals: live.receipt?.tool_approvals ?? {} });
     const policy = DEFAULT_BROWSER_POLICY;
-    const vault = await this.vault();
-    const registry = await this.resourceRegistry();
+    const secrets = await this.secretsState();
+    const registry = await this.resourceRegistryOrNull();
     const profiles = readProfiles(live.pkg);
     const requestedTypes = (live.pkg.policy.permissions as JsonObject[])
       .filter((permission) => RESOURCE_PERMISSION_KINDS.includes(String(permission.kind)))
       .flatMap((permission) => (permission.resources as JsonValue[]).map(String));
-    const known = new Set(vault.typeViews().map((type) => type.id));
+    const known = new Set(registry === null ? requestedTypes : registry.types.map((type) => type.id));
     const { evaluation } = await this.toolEvaluation(live);
     // The subscribed policy pre-decides inside each profile and on the preset's defaults (T8, D-102).
     const subscription = await this.activePolicy();
@@ -1444,6 +1745,8 @@ export class Controller {
       run_plan: live.plan ? await this.runPlanState(live) : null,
       default_model: settings.models.default_model,
       policy: subscription ? this.policyForAuthorization(subscription, settings) : null,
+      secrets,
+      origins: await this.authorizationOrigins(live, evaluation),
     };
   }
 
@@ -1490,7 +1793,8 @@ export class Controller {
     this.requireDigest(live, input.packageDigest);
     const decisions = normalizeDecisions(live.pkg, input.decisions);
     const approvals = normalizeToolApprovals(live.pkg, input.toolApprovals);
-    const registry = await this.resourceRegistry();
+    if (Object.keys(input.resourceSelections).length > 0) await this.vault(); // a pick needs the store unlocked (store_locked otherwise)
+    const registry = await this.resourceRegistryOrEmpty();
     const grants = normalizeResourceSelections(live.pkg, registry, decisions, input.resourceSelections);
     // A `policy` claim is checked against the policy in force now (D-102); with one in force the receipt names it.
     const policy = await this.activePolicy();
@@ -1509,7 +1813,8 @@ export class Controller {
     const settings = await this.deps.settings.settings();
     const policy = await this.activePolicy();
     const decided: Decided = this.decider(live.pkg, policy, bindingFacts((await this.toolEvaluation(live)).evaluation))(profile, settings.preset);
-    const registry = await this.resourceRegistry();
+    if (Object.keys(input.resourceSelections).length > 0) await this.vault();
+    const registry = await this.resourceRegistryOrEmpty();
     const grants = normalizeResourceSelections(live.pkg, registry, decided.decisions, input.resourceSelections);
     const provenance: Provenance = { ...decided.provenance, resource_selections: Object.fromEntries(grants.map((grant) => [grant.permission_id, "user" as const])) };
     return this.issue(live, decided.decisions, decided.tool_approvals, grants, registry, provenance, input.prepare);
@@ -1586,6 +1891,13 @@ export class Controller {
       throw reject("receipt_mismatch", "receipt_id does not match this session's current authorization receipt", 409, { session_receipt_id: live.receipt.receipt_id });
     }
     const settings = await this.deps.settings.settings();
+    // A hosted provider's key lives in the secret store (T16, D-195): the person unlocks before
+    // Prepare, so the probe below is made with the key and the plan is refused by name otherwise.
+    const providerId = input.modelId.split("/")[0] ?? "";
+    if ((providerId === "openai" || providerId === "anthropic") && (await this.deps.settings.keyPresence())[providerId] === true) {
+      const state = await this.secretsState();
+      if (state !== "unlocked") throw unavailableStoreError(state);
+    }
     // A plan is frozen against what the providers answer now, not against a catalog read up to a
     // minute ago: a provider that stopped answering must refuse the plan by name (D-077).
     const read = await this.catalog(0);
@@ -1606,7 +1918,21 @@ export class Controller {
     // The subscribed policy's model constraints (T8, D-102): local only, or a cost this browser can bound.
     blockers.push(...modelPolicyReasons(await this.activePolicy(), { id: input.modelId, properties: descriptor.properties as { local?: unknown; cost_class?: unknown } }));
     const { registry: toolRegistry, evaluation: toolEvaluation } = await this.toolEvaluation(live, live.receipt.decisions, live.receipt.tool_approvals);
-    const resourceRegistry = await this.resourceRegistry();
+    // A receipt that grants a record needs the vault to prepare (the grant is checked against it); none needs nothing (D-195).
+    const resourceRegistry = live.receipt.resource_grants.length > 0 ? await this.resourceRegistry() : await this.resourceRegistryOrEmpty();
+    // The origins this plan would reach must be granted before it is frozen (D-193): the page asked
+    // Chrome with the click as the gesture; what it did not obtain is refused here by name.
+    const approvals = live.receipt.tool_approvals;
+    const prospective = planToolBindings(toolEvaluation).filter((item) => approvals[item.tool_id] === true);
+    const origins = planOrigins({
+      packageUrl: live.stored.source.display,
+      toolBindings: toolBindingsForOrigins(prospective, toolRegistry),
+      model: { provider_id: descriptor.provider_id, base_url: this.providerOrigin(settings, descriptor.provider_id) },
+    });
+    const missing = await this.missingOrigins(origins.map((item) => item.origin));
+    if (missing.length > 0) {
+      blockers.push({ code: "origins_not_granted", message: `This browser is not allowed to reach ${missing.join(", ")}. Allow ${missing.length === 1 ? "it" : "them"} and prepare the plan again.`, subject: missing.join(", ") });
+    }
     blockers.push(
       ...preparationBlockers(live.pkg, {
         mode: MODE_MODEL,
@@ -1622,7 +1948,7 @@ export class Controller {
     if (blockers.length > 0) {
       // A run plan exists only when it is ready (runplan.py): every reason is returned so a UI can
       // send the person to the exact control that fixes it.
-      throw reject("run_plan_refused", blockers[0]!.message, 409, { blocking_reasons: blockers });
+      throw reject("run_plan_refused", blockers[0]!.message, 409, { blocking_reasons: blockers, missing_origins: missing });
     }
     const plan = await buildRunPlan(live.pkg, {
       sessionId: live.stored.session_id,
@@ -1649,15 +1975,22 @@ export class Controller {
     });
     live.plan = plan;
     await this.persist(live);
+    await this.recordPlanOrigins(live, plan, origins);
     this.deps.broadcast({ type: "event.authorization", sessionId: live.stored.session_id });
     this.deps.broadcast({ type: "event.sessions" });
+    this.deps.broadcast({ type: "event.permissions" });
     return this.runPlanState(live);
   }
 
   /** The plan plus a preflight recomputed against the vault, the host registry and the last catalog. */
   async runPlanState(live: LiveSession): Promise<RunPlanState> {
     if (live.plan === null) throw reject("run_plan_absent", "This session has no run plan", 404);
-    const { evaluation: toolEvaluation } = await this.toolEvaluation(live, live.receipt?.decisions, live.receipt?.tool_approvals);
+    // A plan that grants a record, or binds a host-resource tool, needs the vault's types, which a
+    // locked store cannot give (T16, review 1 finding 1): the bindings and the grants are then "not
+    // evaluated", never stale; Run says `store_locked` by name (D-195) and the plan is checked
+    // again once unlocked.
+    const lockedNeedingVault = planNeedsVault(live.plan) && (await this.secretsState()) !== "unlocked";
+    const toolEvaluation = lockedNeedingVault ? null : (await this.toolEvaluation(live, live.receipt?.decisions, live.receipt?.tool_approvals)).evaluation;
     const settings = await this.deps.settings.settings();
     const read = await this.currentCatalog();
     const checked = preflight(live.plan, {
@@ -1667,14 +2000,16 @@ export class Controller {
       trustState: await this.deps.trust.state(),
       policy: DEFAULT_BROWSER_POLICY,
       toolEvaluation,
-      resourceRegistry: await this.resourceRegistry(),
+      resourceRegistry: await this.resourceRegistryOrNull(),
       catalog: read.catalog,
       onceSpent: live.onceSpent && live.receipt !== null && grantsOnce(live.receipt),
       localModelsOnly: PRESETS[settings.preset].local_models_only,
       subscription: await this.activePolicy(),
       now: this.clock(),
     });
-    return { run_plan: live.plan, preflight: { ...checked, stale_reasons: this.explainModelReasons(checked.stale_reasons, read) } };
+    const origins = await this.originsOfPlan(live, live.plan);
+    const missing = new Set(await this.missingOrigins(origins.map((item) => item.origin)));
+    return { run_plan: live.plan, preflight: { ...checked, stale_reasons: this.explainModelReasons(checked.stale_reasons, read) }, origins: origins.map((item) => ({ ...item, granted: !missing.has(item.origin) })) };
   }
 
   async clearRunPlan(sessionId: string): Promise<{ cleared: boolean; session_id: string }> {
@@ -2097,6 +2432,7 @@ export class Controller {
       execution: available ? "enabled" : "disabled",
       execution_limits: available ? await this.runs.hostLimits() : null,
       runs: { active: await this.runs.activeCount(), stored: await this.runs.storedCount() },
+      secrets: await this.secretsState(),
     };
   }
 }

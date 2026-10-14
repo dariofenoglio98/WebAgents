@@ -29,8 +29,11 @@ import type { AuthorizationReceipt, BrowserPolicy, PolicyReference, PresetId, Re
 import type { VaultRecordView, VaultTypeView } from "../core/vault.js";
 import type { PolicyBundle } from "../core/policies/bundle.js";
 import type { AgentCandidate, ResolveQuery } from "../core/resolve/types.js";
+import type { PlanOrigin } from "../core/origins.js";
+import { MAX_PASSPHRASE_LENGTH, type SecretStoreState, type SecretStoreStatus } from "../core/secrets.js";
 import type { LibraryEntry } from "./storage/subscriptions.js";
 import type { FileView } from "./storage/files.js";
+import type { GrantPurpose, GrantPurposeKind } from "./storage/permissions.js";
 import type { Settings } from "./storage/settings.js";
 import type { StoredObservation } from "./storage/runs.js";
 
@@ -130,7 +133,20 @@ export type Request =
   | { type: "library.get" }
   | { type: "library.pin"; sessionId: string }
   | { type: "library.unpin"; packageUrl: string }
-  | { type: "library.forget"; packageUrl: string };
+  | { type: "library.forget"; packageUrl: string }
+  // The secret store (T16, D-191): the passphrase travels once, page → worker, and is never stored.
+  | { type: "secrets.status" }
+  | { type: "secrets.setup"; passphrase: string }
+  | { type: "secrets.unlock"; passphrase: string }
+  | { type: "secrets.lock" }
+  | { type: "secrets.changePassphrase"; current: string; next: string }
+  | { type: "secrets.forget"; confirmation: string }
+  // Host permissions (T16, D-193): the page asks Chrome (the click is the gesture) and tells the worker what it obtained.
+  | { type: "permissions.get" }
+  | { type: "permissions.granted"; origins: string[]; purpose: GrantPurpose }
+  | { type: "permissions.revoke"; origins: string[] }
+  // Discovery on the clicked tab (D-190): inject the content script under activeTab or a granted origin.
+  | { type: "discovery.readTab"; tabId: number };
 
 /** The task input a view may submit: bounded as the reference host bounds it. */
 export const MAX_INPUT_BYTES = 256 * 1024;
@@ -162,7 +178,11 @@ export type Event =
   | { type: "event.run"; runId: string; sessionId: string; status: string }
   | { type: "event.indexes" }
   | { type: "event.policy" }
-  | { type: "event.library" };
+  | { type: "event.library" }
+  /** The secret store locked, unlocked, was set up or forgotten (T16). */
+  | { type: "event.secrets" }
+  /** An origin was granted or revoked (T16). */
+  | { type: "event.permissions" };
 
 export type Response<T = unknown> =
   | { ok: true; result: T }
@@ -309,9 +329,28 @@ export interface LibraryView {
 }
 
 // -- authorization results (T3) --------------------------------------------------------
+/** One origin a plan needs, and whether Chrome grants it now (T16, D-193). */
+export interface PlanOriginView extends PlanOrigin {
+  granted: boolean;
+}
+
 export interface RunPlanState {
   run_plan: RunPlan;
   preflight: RunPlanPreflight;
+  /** The origins this plan may reach, each with whether it is granted now; shown under Technical details. */
+  origins: PlanOriginView[];
+}
+
+/**
+ * The origins an authorization would need, per part, so a page can ask Chrome for exactly the set
+ * its decisions imply before it sends them (the click is the gesture; D-193): the package's own
+ * origin, each remote tool's origins (its endpoint and its declared fallback) by tool id, and
+ * each hosted provider's endpoint by provider id (null for a provider with no origin).
+ */
+export interface AuthorizationOrigins {
+  package: string | null;
+  tools: Record<string, string[]>;
+  providers: Record<string, string | null>;
 }
 
 export interface ToolOffer {
@@ -349,6 +388,9 @@ export interface AuthorizationView {
   default_model: string | null;
   /** The subscribed policy in force (T8), applied to `profiles[].decided` and `defaults`; null when none. */
   policy: AuthorizationPolicyView | null;
+  /** The secret store's state (T16): while not unlocked, `resources` is evaluated against no registry and records cannot be chosen. */
+  secrets: SecretStoreState;
+  origins: AuthorizationOrigins;
 }
 
 export interface AuthorizeResult {
@@ -417,6 +459,34 @@ export interface StatusInfo {
   execution: "enabled" | "disabled";
   execution_limits: { total_tokens: number; max_remote_calls: number; max_parallel_workers: number; max_output_tokens_per_call: number; run_timeout_seconds: number; max_calls_per_tool: number; model_call_timeout_seconds: number } | null;
   runs: { active: number; stored: number };
+  /** The secret store's state (T16), for the lock chip. */
+  secrets: SecretStoreState;
+}
+
+// -- the secret store and host permissions (T16) ------------------------------------------------
+export interface SecretsView extends SecretStoreStatus {
+  /** 0.1.0 left clear keys or records that wait for the first passphrase to be migrated. */
+  migration_pending: boolean;
+  /** What waits: which providers have a clear key, and how many records the clear vault holds. */
+  legacy: { providers: string[]; records: number } | null;
+}
+
+export interface PermissionOriginView {
+  /** `https://host`, or `*` for the every-site grant. */
+  origin: string;
+  pattern: string;
+  purposes: GrantPurpose[];
+  recorded_at: string | null;
+  /** Granted by Chrome now; a record Chrome no longer grants is listed as not granted until reconciled. */
+  granted: boolean;
+}
+
+export interface PermissionsView {
+  origins: PermissionOriginView[];
+  /** "Detect agents on every site" (D-182): whether the every-site pattern is granted. */
+  detect_everywhere: boolean;
+  /** The origins the manifest holds without asking (Ollama on this machine). */
+  manifest_hosts: string[];
 }
 
 // -- run results (T5) ------------------------------------------------------------------
@@ -464,6 +534,8 @@ export interface RunReadiness {
   active_run_id: string | null;
   /** The preflight the readiness was computed from, when a plan exists. */
   preflight: RunPlanPreflight | null;
+  /** The plan's origins Chrome does not grant now (blocker `origins_not_granted`), for the Allow button. */
+  missing_origins: string[];
 }
 
 export type InputValidationView = TaskValidation;
@@ -587,6 +659,12 @@ function boundedInput(value: unknown): unknown {
 function artifactName(value: unknown): string {
   if (typeof value !== "string" || !ARTIFACT_NAME.test(value) || value.includes("..")) throw invalid("name must be an artifact name");
   return value;
+}
+
+/** A bounded list of origins (`https://host`, or `*` for every site). */
+function originList(value: unknown): string[] {
+  if (!Array.isArray(value) || value.length === 0 || value.length > 64) throw invalid("origins must be a list of 1 to 64 origins");
+  return value.map((item, index) => text(item, `origins[${index}]`, MAX_URL));
 }
 
 function provider(value: unknown): ProviderId {
@@ -802,6 +880,38 @@ export function parseRequest(value: unknown): Request {
     case "library.forget":
       only(fields, ["type", "packageUrl"]);
       return { type, packageUrl: text(fields.packageUrl, "packageUrl", MAX_URL) };
+    case "secrets.status":
+    case "secrets.lock":
+    case "permissions.get":
+      only(fields, ["type"]);
+      return { type };
+    case "secrets.setup":
+    case "secrets.unlock":
+      only(fields, ["type", "passphrase"]);
+      return { type, passphrase: text(fields.passphrase, "passphrase", MAX_PASSPHRASE_LENGTH) };
+    case "secrets.changePassphrase":
+      only(fields, ["type", "current", "next"]);
+      return { type, current: text(fields.current, "current", MAX_PASSPHRASE_LENGTH), next: text(fields.next, "next", MAX_PASSPHRASE_LENGTH) };
+    case "secrets.forget":
+      only(fields, ["type", "confirmation"]);
+      return { type, confirmation: text(fields.confirmation, "confirmation", 64) };
+    case "permissions.granted": {
+      only(fields, ["type", "origins", "purpose"]);
+      const purpose = record(fields.purpose);
+      only(purpose, ["kind", "subject", "label"]);
+      const kinds: readonly GrantPurposeKind[] = ["package", "provider", "site", "document", "everywhere"];
+      if (!kinds.includes(purpose.kind as GrantPurposeKind)) throw invalid(`purpose.kind must be one of ${kinds.join(", ")}`);
+      const label = optionalText(purpose.label, "purpose.label", 200);
+      return { type, origins: originList(fields.origins), purpose: { kind: purpose.kind as GrantPurposeKind, subject: text(purpose.subject, "purpose.subject", MAX_URL), ...(label === null ? {} : { label }) } };
+    }
+    case "permissions.revoke":
+      only(fields, ["type", "origins"]);
+      return { type, origins: originList(fields.origins) };
+    case "discovery.readTab": {
+      only(fields, ["type", "tabId"]);
+      if (typeof fields.tabId !== "number" || !Number.isInteger(fields.tabId) || fields.tabId < 0) throw invalid("tabId must be a tab id");
+      return { type, tabId: fields.tabId };
+    }
     default:
       throw invalid(`unknown request type ${JSON.stringify(String(type).slice(0, 40))}`);
   }

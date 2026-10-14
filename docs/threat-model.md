@@ -274,27 +274,63 @@ request can carry (only a package-declared HTTPS endpoint, with the package's ow
 arguments, no cookie or credential of the person's browsing, `credentials: "omit"`) and by what it
 can reach (the person's own network). TLS and certificate checks are Chrome's.
 
-**Storage at rest.** `chrome.storage.local` and IndexedDB live in the Chrome profile directory,
-protected by the operating-system account and by whatever disk encryption the machine uses, not by
-the extension. Provider API keys, the personal vault's values and the HMAC key that digests them
-are stored there unencrypted; anyone who can read the profile can read them, and so can any code
-running with this extension's authority. The vault's keyed digests keep values out of receipts,
-plans, audits and exports; they are not at-rest encryption. Package snapshots, run records,
-artifacts and picked PDFs are kept until the person removes them (Runs → clear, Settings → Files)
-or uninstalls the extension. Test mode records outbound request bodies (prompts included) in
+**Storage at rest (T16, D-181, D-191).** `chrome.storage.local` and IndexedDB live in the Chrome
+profile directory, protected by the operating-system account and by whatever disk encryption the
+machine uses. Since 0.2.0 the two things that must not be readable there are not: provider API
+keys and the personal vault (every record, every type, and the HMAC key that digests them) are
+kept only inside one encrypted envelope (`secretStore`): AES-256-GCM per entry under a random
+master key, that master key wrapped under a key derived from the person's passphrase with scrypt
+(N = 2^17, r = 8, p = 1, a random 16-byte salt). A wrong passphrase fails the wrap's
+authentication and no entry is read; a tampered entry, IV or name fails its own. What this
+defends: the profile directory read by another account, a backup, a synced or stolen disk, and
+any extension or process that reads files but not Chrome's memory. What it does not defend, and
+the design does not claim to: a process running as the user while the store is unlocked, which
+can read Chrome's memory (the master key sits in `chrome.storage.session`, in the browser
+process, for the extension's trusted contexts only; the execution host holds a run's key and
+records for the run's duration); a keylogger at the passphrase; a compromised extension build.
+The exposure is bounded in time by the idle lock (default 15 minutes, a sweep every minute, lock
+on browser close, Lock now) and in scope by what a run is handed: the bound provider's key only,
+and the vault only when the plan grants a record, or its types alone, without any record, when
+the plan binds a host-resource tool it grants no record for (D-195). A passphrase has no recovery: a
+forgotten one means forgetting the keys and records. Package snapshots, run records, artifacts,
+picked PDFs, settings, trust pins and the permission records stay in clear, as before, until the
+person removes them. Test mode records outbound request bodies (prompts included) in
 `observations` for the privacy checks; it is off by default. Nothing is written to `storage.sync`,
 and nothing is sent anywhere at install or start.
 
-**Host permissions.** The extension holds `https://*/*` and the two loopback names (D-026): it can
-read any HTTPS response it requests, and its content script runs on every HTTPS page. The content
-script reads only `link[rel="agent-package"]` elements and sends at most sixteen bounded link
-records; pages cannot message the extension, and every message is validated structurally by its
-receiver (D-033). The authority is broad because packages may declare tool endpoints on any HTTPS
-origin; a compromised extension build would hold all of it. Per-origin optional permissions,
-granted when a person authorizes a package's declared domains, are later hardening (B-96). The
-offscreen execution host obeys only the extension's own service worker (D-070); the run messages
-that carry keys travel over `chrome.runtime.sendMessage`, which every extension context receives,
-all of which already hold the same storage authority (a point-to-point port is B-122).
+**Host permissions (T16, D-182, D-190, D-193).** The extension's manifest holds the two loopback
+names (Ollama on this machine) and nothing else; every HTTPS origin is optional. Chrome grants an
+origin only when the person allows it, with their click as the gesture: the origin of a package
+they open, the services that package declares and the model provider they chose (computed per
+plan, listed under the plan's Technical details, verified again before Prepare and before Run), a
+site they chose to detect agents on, a signed index or policy they add. The worker checks every
+grant before any fetch and refuses `origin_not_granted` by name; the execution host's transports
+refuse any destination outside the plan's origins (`origin_not_in_plan`); the core URL gate runs
+beneath both, unchanged (D-010). What Chrome's grant adds must be stated precisely (review 1 of
+T16): a host permission lets the extension read the response of *any* request to that origin and
+read its pages; without one, a `fetch` from an extension page is still *sent*, as an ordinary
+cross-origin request under the extension's CSP (`connect-src https:`, which no static policy can
+narrow to origins chosen at run time), and its response is readable whenever the server answers
+with permissive CORS headers, as the OpenAI and Anthropic APIs do. So for **egress** the
+per-package boundary is the extension's own three checks, and Chrome's grant is a fourth check
+only for origins that do not opt into cross-origin reads; for **page access** (the discovery
+script, `activeTab`) Chrome's grant is the boundary. A grant is still what the person sees and
+revokes, and the extension never fetches an origin it was not granted. Revoking a grant
+(Settings → Permissions, or chrome://extensions) makes a plan that needs it block Run by name;
+while "Detect agents on every site" is on, single origins cannot be revoked, since Chrome would
+still grant them (the page says so).
+Discovery reads a page only when the person asks: the action click, the context-menu item or the
+keyboard shortcut grant `activeTab` for that tab, and the discovery script is injected there once;
+"Always detect agents on this site" registers it for that site; "Detect agents on every site"
+(off by default) registers it for `https://*/*`. The script still reads only
+`link[rel="agent-package"]` elements and sends at most sixteen bounded link records; pages cannot
+message the extension, and every message is validated structurally by its receiver (D-033). The
+`tabs` permission is never requested: a tab's URL is known to the extension only through
+`activeTab` or a granted origin. What remains broad is what the person made broad: the every-site
+opt-in gives the discovery script every HTTPS page, as 0.1.0 had by default. The offscreen
+execution host obeys only the extension's own service worker (D-070); the run messages that carry
+a key travel over `chrome.runtime.sendMessage`, which every extension context receives, all of
+which already hold the same storage authority (a point-to-point port is B-122).
 
 **Extension review.** The extension is unminified, built reproducibly (the same sources and Node
 release give the same zip bytes, and a content listing identifies a build across Node releases,

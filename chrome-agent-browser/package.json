@@ -1,6 +1,6 @@
 {
   "name": "chrome-agent-browser",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Chrome Agent Browser: a portable TypeScript core that opens, verifies, authorizes and executes signed agent.pkg packages (workflow.v0), a Node CLI with agentpkg's shape, and a Manifest V3 extension that discovers packages on websites, authorizes them and runs them with the person's own models.",
   "license": "Apache-2.0",
   "type": "module",
@@ -21,6 +21,7 @@
     "@hyperjump/browser": "^1.5.1",
     "@hyperjump/json-schema": "^1.18.0",
     "@noble/ed25519": "^3.2.0",
+    "@noble/hashes": "2.4.0",
     "pdfjs-dist": "6.3.289"
   },
   "devDependencies": {

@@ -11,6 +11,8 @@ import type { BuiltinModelPort } from "../../src/core/models/adapters/chrome-bui
 import { MemoryTrustStorage, TrustStore } from "../../src/core/trust.js";
 import { Controller, type ControllerDeps, type Fetch, type Limits, type Sender } from "../../src/extension/background/controller.js";
 import type { Event } from "../../src/extension/messages.js";
+import { MemoryEnvelopeStorage, MemoryUnlockedStateStorage, SecretStore } from "../../src/core/secrets.js";
+import { EVERY_SITE_PATTERN, MemoryPermissions, PermissionStorage } from "../../src/extension/storage/permissions.js";
 import { MemoryStorageArea, SettingsStorage } from "../../src/extension/storage/settings.js";
 import { MemorySnapshotStore } from "../../src/extension/storage/snapshots.js";
 import { MemoryTabStateStore } from "../../src/extension/storage/tab-state.js";
@@ -21,7 +23,7 @@ import type { ExecutionHostBridge } from "../../src/extension/background/runs.js
 import { InProcessHost, refusingTransport } from "./host.js";
 import type { HttpTransport } from "../../src/core/models/transport.js";
 import { generateKeyPair, signedArchive } from "./keys.js";
-import { readBytes, ROOT, SHIPPED } from "./paths.js";
+import { PROJECT, readBytes, ROOT, SHIPPED } from "./paths.js";
 import { makeSource, writeText } from "./source.js";
 import { listMembers, writeZip, type Entry } from "./zip.js";
 
@@ -140,6 +142,12 @@ export const OLLAMA_ANSWERS: Record<string, unknown> = {
   "SHOW qwen3:30b": { capabilities: ["completion", "tools", "thinking"], model_info: { "qwen3moe.context_length": 262144 } },
 };
 
+/** The committed empty envelope (test scrypt parameters) and its master key: every harness starts with a passphrase set, unlocked (T16). */
+const SEED = JSON.parse(readFileSync(join(PROJECT, "test", "fixtures", "secret-store-vectors.json"), "utf8")) as { passphrase: string; empty: { master_key: string; envelope: unknown } };
+export const SEED_PASSPHRASE: string = SEED.passphrase;
+/** The scrypt parameters the harness's store uses for new envelopes (a few milliseconds, not half a second). */
+export const TEST_KDF = { n: 2 ** 14, r: 8, p: 1 };
+
 export interface Harness {
   controller: Controller;
   snapshots: MemorySnapshotStore;
@@ -160,6 +168,12 @@ export interface Harness {
   host: InProcessHost;
   /** The picked PDFs (Settings → Files, T6). */
   files: MemoryFileStore;
+  /** The secret store (T16) and its two storages, for locking and inspecting what is on disk. */
+  secrets: SecretStore;
+  envelope: MemoryEnvelopeStorage;
+  unlocked: MemoryUnlockedStateStorage;
+  /** Chrome's host permissions, as the test grants them (every HTTPS origin unless `permissions` says otherwise). */
+  permissions: MemoryPermissions;
   /** Wait for every run the host started to finish and report. */
   h_drain: () => Promise<void>;
 }
@@ -168,7 +182,7 @@ export function makeHarness(
   options: {
     routes?: Record<string, Route>;
     limits?: Partial<Limits>;
-    stores?: Pick<Harness, "snapshots" | "trustStorage" | "tabs"> & Partial<Pick<Harness, "settingsArea" | "holders">>;
+    stores?: Pick<Harness, "snapshots" | "trustStorage" | "tabs"> & Partial<Pick<Harness, "settingsArea" | "holders">> & { secrets?: Pick<Harness, "envelope" | "unlocked"> };
     /** The documents `chrome.runtime.getContexts` would still report open; absent: every holder counts. */
     liveDocuments?: Set<string>;
     /** Model-catalog answers; the Ollama qwen3:30b answers by default. */
@@ -188,6 +202,10 @@ export function makeHarness(
     files?: MemoryFileStore;
     /** The execution host's built-in model port (the Prompt API, D-072); absent: the host has none. */
     builtinPort?: BuiltinModelPort;
+    /** The secret store's starting state (T16): `unlocked` (a passphrase set, the seed envelope, unlocked), `locked`, or `none` (no passphrase yet). */
+    secrets?: "unlocked" | "locked" | "none";
+    /** The origin match patterns Chrome grants; every HTTPS origin by default. */
+    permissions?: readonly string[];
   } = {},
 ): Harness {
   const routes = options.routes ?? webairRoutes();
@@ -198,11 +216,20 @@ export function makeHarness(
   const tabs = options.stores?.tabs ?? new MemoryTabStateStore();
   const holders = options.stores?.holders ?? new MemoryViewHolderStore();
   const settingsArea = options.stores?.settingsArea ?? new MemoryStorageArea();
-  const settings = new SettingsStorage(settingsArea);
+  const clock = { now: new Date("2026-10-06T12:00:00Z") };
+  const envelope = options.stores?.secrets?.envelope ?? new MemoryEnvelopeStorage();
+  const unlocked = options.stores?.secrets?.unlocked ?? new MemoryUnlockedStateStorage();
+  const secretsState = options.secrets ?? "unlocked";
+  if (!options.stores?.secrets) {
+    if (secretsState !== "none") envelope.value = SEED.empty.envelope;
+    if (secretsState === "unlocked") unlocked.value = { key: SEED.empty.master_key, unlocked_at: clock.now.toISOString(), last_used_at: clock.now.toISOString() };
+  }
+  const secrets: SecretStore = new SecretStore({ envelope, unlocked, idleMinutes: async (): Promise<number | null> => (await settings.settings()).security.idle_lock_minutes, clock: () => clock.now, kdf: TEST_KDF });
+  const settings: SettingsStorage = new SettingsStorage(settingsArea, secrets);
+  const permissions = new MemoryPermissions(options.permissions ?? [EVERY_SITE_PATTERN]);
   const builtin = { availability: null as BuiltinAvailability | null };
   const badges: Array<[number, number]> = [];
   const events: Event[] = [];
-  const clock = { now: new Date("2026-10-06T12:00:00Z") };
   let counter = 0;
   let runCounter = 0;
   const trust = new TrustStore(trustStorage, () => clock.now.toISOString());
@@ -221,6 +248,8 @@ export function makeHarness(
     holders,
     liveDocuments: options.liveDocuments ? async (ids) => new Set(ids.filter((id) => options.liveDocuments!.has(id))) : undefined,
     settings,
+    permissions,
+    permissionStorage: new PermissionStorage(settingsArea),
     http: options.catalogHttp
       ? async (request) => {
           httpLog.push(request);
@@ -242,7 +271,7 @@ export function makeHarness(
   };
   const controller = new Controller(deps);
   host.report = (type, runId) => controller.handle({ type, runId }, OFFSCREEN);
-  return { controller, snapshots, trustStorage, trust, tabs, holders, settingsArea, settings, httpLog, builtin, badges, events, fetchLog, routes, clock, runs, host, files, h_drain: () => host.drain() };
+  return { controller, snapshots, trustStorage, trust, tabs, holders, settingsArea, settings, httpLog, builtin, badges, events, fetchLog, routes, clock, runs, host, files, secrets, envelope, unlocked, permissions, h_drain: () => host.drain() };
 }
 
 const EXTENSION_ORIGIN = "chrome-extension://abcdefghijklmnopabcdefghijklmnop";

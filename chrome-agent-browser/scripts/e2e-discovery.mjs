@@ -11,6 +11,13 @@
  * test. Only that certificate's key is trusted (`--ignore-certificate-errors-spki-list`).
  *
  * It then drives, and asserts:
+ *   0. the unmodified build (T16, D-196): the manifest holds no host permission beyond the
+ *      loopback names and no static content script; opening the WebAir package from the full
+ *      page is refused `origin_not_granted` before any byte moves. Headless Chrome cannot
+ *      grant an origin, so the walk below runs on a copy of the build whose manifest holds
+ *      `https://webair.example/*`, the state a person's Allow leaves the extension in; the
+ *      harness then records the site grant with the worker (`permissions.granted`, kind
+ *      `site`), which registers the discovery script there, as the website card's button does.
  *   1. the WebAir page: the content script reports, the badge says 1, the service worker holds
  *      the candidate; a navigation to a page without the link clears both;
  *   2. the full page: website discovery → Inspect → the agent page (name, "Signed, publisher
@@ -34,6 +41,7 @@ import { createServer } from "node:https";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { grantedBuild } from "./lib/granted-build.mjs";
 import { certificate } from "./lib/origin.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -284,11 +292,50 @@ async function main() {
   const cdp = new Cdp(chrome);
   try {
     report.chrome = (await cdp.send("Browser.getVersion")).product;
-    const { id: extensionId } = await cdp.send("Extensions.loadUnpacked", { path: EXTENSION });
+
+    // 0. the unmodified build: least privilege, and the refusal by name (T16)
+    {
+      const { id: bareId } = await cdp.send("Extensions.loadUnpacked", { path: EXTENSION });
+      const bareBase = `chrome-extension://${bareId}`;
+      await cdp.waitForTarget((target) => target.type === "service_worker" && target.url === `${bareBase}/service-worker.js`, "the bare service worker");
+      const manifest = JSON.parse(readFileSync(join(EXTENSION, "manifest.json"), "utf8"));
+      report.steps.least_privilege = { host_permissions: manifest.host_permissions, optional_host_permissions: manifest.optional_host_permissions, content_scripts: manifest.content_scripts ?? null, permissions: manifest.permissions };
+      check("least_privilege", "the manifest holds the loopback names only", JSON.stringify([...manifest.host_permissions].sort()) === JSON.stringify(["http://127.0.0.1/*", "http://localhost/*"]), manifest.host_permissions);
+      check("least_privilege", "every HTTPS origin is optional", JSON.stringify(manifest.optional_host_permissions) === JSON.stringify(["https://*/*"]), manifest.optional_host_permissions);
+      check("least_privilege", "no static content script", manifest.content_scripts === undefined);
+      check("least_privilege", "neither tabs nor declarativeContent is requested", !manifest.permissions.includes("tabs") && !manifest.permissions.includes("declarativeContent"), manifest.permissions);
+      const { targetId: bareTargetId } = await cdp.send("Target.createTarget", { url: `${bareBase}/browser.html` });
+      const barePage = await cdp.attach(bareTargetId);
+      await cdp.waitFor(barePage, `typeof chrome !== "undefined" && !!chrome.runtime`, "the bare full page");
+      const granted = await cdp.evaluate(barePage, `chrome.permissions.getAll().then((all) => all.origins)`);
+      const refusal = await cdp.evaluate(barePage, `chrome.runtime.sendMessage({ type: "package.open", url: ${JSON.stringify(`${SITE}/agent.pkg`)}, advertisedOn: null }).then((reply) => reply.ok ? { ok: true } : reply.error)`);
+      report.steps.least_privilege.granted_origins = granted;
+      report.steps.least_privilege.refusal = refusal;
+      check("least_privilege", "at install Chrome grants the loopback names and nothing else", JSON.stringify([...(granted ?? [])].sort()) === JSON.stringify(["http://127.0.0.1/*", "http://localhost/*"]), granted);
+      check("least_privilege", "opening a package from an ungranted origin is refused origin_not_granted, naming it", refusal?.code === "origin_not_granted" && JSON.stringify(refusal?.details?.origins) === JSON.stringify([SITE]), refusal);
+      check("least_privilege", "nothing was fetched from the origin before the refusal", origin.hits.length === 0, origin.hits);
+      await cdp.send("Target.closeTarget", { targetId: bareTargetId });
+      await cdp.send("Extensions.uninstall", { id: bareId });
+    }
+
+    // The walk: a copy of the build with the site granted (D-196), the site recorded as one to detect agents on.
+    const granted = grantedBuild(EXTENSION, run, [SITE]);
+    report.granted_origins = granted.granted;
+    const { id: extensionId } = await cdp.send("Extensions.loadUnpacked", { path: granted.path });
     report.extensionId = extensionId;
     const base = `chrome-extension://${extensionId}`;
     const workerTarget = await cdp.waitForTarget((target) => target.type === "service_worker" && target.url === `${base}/service-worker.js`, "the service worker");
     const worker = await cdp.attach(workerTarget.targetId);
+    {
+      const { targetId: setupTargetId } = await cdp.send("Target.createTarget", { url: `${base}/browser.html` });
+      const setupPage = await cdp.attach(setupTargetId);
+      await cdp.waitFor(setupPage, `typeof chrome !== "undefined" && !!chrome.runtime`, "the setup page");
+      const permissions = await cdp.evaluate(setupPage, `chrome.runtime.sendMessage({ type: "permissions.granted", origins: [${JSON.stringify(SITE)}], purpose: { kind: "site", subject: ${JSON.stringify(SITE)} } }).then((reply) => reply.ok ? reply.result : reply.error)`);
+      const registered = await cdp.evaluate(worker, `chrome.scripting.getRegisteredContentScripts().then((scripts) => scripts.map((script) => ({ id: script.id, matches: script.matches, js: script.js })))`);
+      report.steps.site_grant = { permissions: permissions?.origins ?? permissions, registered };
+      check("site_grant", "the worker records the site and registers the discovery script for it alone", registered?.length === 1 && JSON.stringify(registered[0].matches) === JSON.stringify([`${SITE}/*`]) && JSON.stringify(registered[0].js) === JSON.stringify(["content-script.js"]), registered);
+      await cdp.send("Target.closeTarget", { targetId: setupTargetId });
+    }
 
     // 1. the WebAir page: content script, badge, candidate state
     const { targetId: siteTargetId } = await cdp.send("Target.createTarget", { url: `${SITE}/` });

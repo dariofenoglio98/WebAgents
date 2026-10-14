@@ -10,9 +10,12 @@ model, your permissions and your records, and the run survives the side panel be
 
 What it shows today, on the WebAir demo site:
 
-1. You visit a website. Its page carries `<link rel="agent-package" …>`. The content script
-   reports that one link element and nothing else; the badge shows how many packages the page
-   advertises.
+1. You visit a website. Its page carries `<link rel="agent-package" …>`. Click the WebAgents
+   button (or use the page's context-menu item, or `Ctrl/⌘+Shift+Y`): the side panel opens and the
+   extension reads that page's link elements, once, and nothing else (T16: it holds no website
+   access until you grant some). **Always detect agents on this site** on the website card lets it
+   read that site's pages from then on and show the badge there; Settings → Permissions → **Detect
+   agents on every site** restores the passive badge everywhere, off by default.
 2. The side panel lists them as *locations*: nobody has verified anything yet. **Inspect**
    downloads the package once, hashes it, stores the bytes, and evaluates it layer by layer
    (container, integrity, schema, runtime), then the signature, then publisher trust.
@@ -66,8 +69,9 @@ What it shows today, on the WebAir demo site:
    unloaded (the browser restarted) is marked interrupted and never resumed (D-071).
 8. **Settings → Models** connects the routes (D-023): Ollama on this machine (with the one-time
    `OLLAMA_ORIGINS` commands to copy, and a diagnosis that tells "not running" apart from
-   "rejecting this extension's origin"), OpenAI and Anthropic with your own keys (typed into
-   `chrome.storage.local`, never shown again, never sent anywhere but the provider), and Chrome's
+   "rejecting this extension's origin"), OpenAI and Anthropic with your own keys (typed once,
+   encrypted at rest under your passphrase, never shown again, never sent anywhere but the
+   provider), and Chrome's
    built-in model with its download state and, once Chrome reports it available, a model row
    with **Make default** (its context is the measured session quota; every row can state whether
    the model reasons, which a package requiring reasoning needs for the built-in model, D-113; the
@@ -136,6 +140,24 @@ What it shows today, on the WebAir demo site:
    trust and makes plans made under it stale. Formats: `spec/extensions/agent-index-v0.md`,
    `policy-bundle-v0.md`, `signed-document-v0.md`; publisher tool: `node dist/cli.js document
    sign|verify`.
+12. **Least privilege** (T16, D-182, D-190, D-193). The manifest holds no website access: Chrome
+   grants an origin only when you allow it, with your click as the gesture. Opening a package asks
+   for its origin; **Use this agent**, **Authorize** and **Prepare run plan** ask for exactly the
+   origins the plan needs (the package's own, the services its approved tools declare, the model
+   provider you chose) and the plan lists them under Technical details with whether each is
+   granted; a refusal names the origin and offers **Allow**. A run can reach only the origins its
+   plan recorded, Chrome enforcing beneath the extension's own checks. Settings → Permissions lists
+   every grant with its reason and **Revoke**s it; a plan that needs a revoked origin blocks Run by
+   name until you allow it again.
+13. **Your keys and records, encrypted** (T16, D-191, D-192). Settings → Security sets a
+   passphrase; from then on your provider keys and your records are kept only in an encrypted
+   store (scrypt, AES-256-GCM), unlocked for the browser session and locked again after the idle
+   time you choose (5, 15 or 60 minutes, or until the browser closes), with **Lock now** in the
+   nav. Nothing secret is saved until a passphrase exists; what the previous version kept in clear
+   is moved into the store the moment you set one. An agent that needs nothing from the store
+   (Literature Review on Ollama) runs while it is locked; one that needs a hosted key or one of
+   your records asks you to unlock before it prepares or runs, never during a run. **Forget
+   everything** deletes the store when a passphrase is lost: agents, runs, trust and settings stay.
 
 Verification is the same as the Python reference runtime's (`agentpkg`): the core reports the
 same digest, archive SHA-256, signer fingerprint and validity, and the browser summary equals

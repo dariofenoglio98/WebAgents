@@ -26,15 +26,18 @@ import type { JsonObject } from "../../core/json.js";
 import type { BuiltinModelPort } from "../../core/models/adapters/chrome-builtin.js";
 import { adapterFor } from "../../core/models/providers.js";
 import { BoundModelRouter } from "../../core/models/router.js";
-import type { HttpTransport, ModelRequestObserver } from "../../core/models/transport.js";
+import type { ModelRequestObserver } from "../../core/models/transport.js";
 import { loadPackageBytes } from "../../core/package.js";
 import type { PdfTextReader, SelectedFileAttachment, SelectedFiles } from "../../core/tools/adapters/selected-file.js";
 import { CROSSREF_CONTACT_SOURCE } from "../../core/hosttools.js";
 import { definitionsFromRegistry, type CredentialSource } from "../../core/tools/definitions.js";
 import { Pacer } from "../../core/tools/pacer.js";
 import type { AuditEvent } from "../../core/types.js";
-import { Vault } from "../../core/vault.js";
+import { emptyVaultDocument, generateVaultKey, Vault } from "../../core/vault.js";
 import { AdapterError, CancelledError } from "../../core/workflow/errors.js";
+import { OLLAMA_LOOPBACK_HOSTS } from "../../core/models/catalog.js";
+import { httpsOrigin } from "../../core/origins.js";
+import { TransportError, type HttpTransport } from "../../core/models/transport.js";
 import type { FileStore } from "../storage/files.js";
 import type { SnapshotStore } from "../storage/snapshots.js";
 import { artifactKey, type RunStore, type StoredRun } from "../storage/runs.js";
@@ -72,6 +75,32 @@ function decodeBase64(text: string): Uint8Array {
   const out = new Uint8Array(binary.length);
   for (let index = 0; index < binary.length; index += 1) out[index] = binary.charCodeAt(index);
   return out;
+}
+
+/**
+ * The plan's origin allowlist on a transport (T16, D-193): a destination outside the origins the
+ * plan recorded is refused before any connection, whatever the package or a binding names. The
+ * model transport may also reach Ollama on this machine, over plain HTTP or HTTPS on a loopback
+ * name (D-055; `settings.ts::isLoopbackBase` admits both, review 1 finding 3): loopback is never
+ * in a plan's origin set. The core URL gate still runs inside the adapters. Chrome's grant is not
+ * an egress check for an origin that answers with permissive CORS headers (threat model § Chrome).
+ */
+export function originGuard(transport: HttpTransport, allowedOrigins: readonly string[], options: { allowLoopback: boolean }): HttpTransport {
+  const allowed = new Set(allowedOrigins);
+  return async (request) => {
+    let url: URL;
+    try {
+      url = new URL(request.url);
+    } catch {
+      throw new TransportError("the destination is not a URL", { stage: "address_policy" });
+    }
+    const loopback = options.allowLoopback && (url.protocol === "http:" || url.protocol === "https:") && OLLAMA_LOOPBACK_HOSTS.includes(url.hostname);
+    const origin = httpsOrigin(request.url);
+    if (!loopback && (origin === null || !allowed.has(origin))) {
+      throw new TransportError(`the destination ${url.origin} is outside the origins this run's plan recorded`, { stage: "address_policy", reason: "origin_not_in_plan" });
+    }
+    return transport(request);
+  };
 }
 
 /** One writer at a time per run: checkpoints and the final record never interleave on the store. */
@@ -207,7 +236,15 @@ export function executeRun(deps: ExecuteDeps): ExecutionHandle {
       const archive = snapshot.bytes;
       // The package, for the host tool registry (the same derivation the plan was frozen from, D-054).
       const pkg = await loadPackageBytes(archive);
-      const vault = await Vault.open(decodeBase64(message.vault.key), message.vault.document);
+      // The vault as the plan needs it (D-195): the records it grants, or its types alone when the
+      // plan binds a host-resource tool without granting a record (review 1, finding 1: the registry
+      // the plan was frozen from lists one binding per type, and `begin` re-verifies them); none at
+      // all otherwise, when an empty one under a throwaway key stands in.
+      const vault = message.vault === null ? await Vault.open(generateVaultKey(), emptyVaultDocument()) : await Vault.open(decodeBase64(message.vault.key), message.vault.document);
+      const transports = {
+        model: originGuard(deps.transports.model, message.allowedOrigins ?? [], { allowLoopback: true }),
+        tool: originGuard(deps.transports.tool, message.allowedOrigins ?? [], { allowLoopback: false }),
+      };
       const contact = message.settings.crossrefContact ?? null;
       const registry = await buildHostToolRegistry(pkg, {
         resourceTypes: vault.typeViews().map((type) => ({ id: type.id, display_name: type.display_name, permission_kind: type.permission_kind, schema_sha256: type.schema_sha256 })),
@@ -227,11 +264,12 @@ export function executeRun(deps: ExecuteDeps): ExecutionHandle {
       };
       const observer: ModelRequestObserver = (request) => record("model", request.provider_id, request.url, request.body);
       const adapter = adapterFor(plan.model_binding, {
-        transport: deps.transports.model,
+        transport: transports.model,
         observer,
         ollama: { baseUrl: message.settings.ollamaBaseUrl ?? undefined, think: message.settings.think },
-        openai: { apiKey: message.credentials.openai, ...(message.settings.openaiReasoningEffort !== undefined ? { reasoningEffort: message.settings.openaiReasoningEffort } : {}) },
-        anthropic: { apiKey: message.credentials.anthropic },
+        // The endpoint the plan's origin set was computed from (review 1, finding 3): the connection's base URL, when the person set one.
+        openai: { apiKey: message.credentials.openai, ...(message.settings.openaiBaseUrl ? { baseUrl: message.settings.openaiBaseUrl } : {}), ...(message.settings.openaiReasoningEffort !== undefined ? { reasoningEffort: message.settings.openaiReasoningEffort } : {}) },
+        anthropic: { apiKey: message.credentials.anthropic, ...(message.settings.anthropicBaseUrl ? { baseUrl: message.settings.anthropicBaseUrl } : {}) },
         ...(deps.builtin ? { builtin: deps.builtin } : {}),
       });
       const router = new BoundModelRouter(adapter, { requestTimeoutSeconds: run.invocation.limits.model_call_timeout_seconds });
@@ -255,7 +293,7 @@ export function executeRun(deps: ExecuteDeps): ExecutionHandle {
         router,
         tools: {
           definitions,
-          transport: deps.transports.tool,
+          transport: transports.tool,
           credentials: optional,
           describe: { credentialConfigured: (credential) => optional(credential) !== null },
           files,

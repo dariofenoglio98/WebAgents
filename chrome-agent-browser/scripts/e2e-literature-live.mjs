@@ -43,6 +43,7 @@ import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { Cdp, sleep } from "./lib/cdp.mjs";
+import { grantedBuild } from "./lib/granted-build.mjs";
 import { certificate, serveFiles } from "./lib/origin.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -221,7 +222,10 @@ async function main() {
     chrome = spawn(args.chrome, [...(args.manual ? [] : ["--headless=new"]), "--remote-debugging-pipe", "--enable-unsafe-extension-debugging", `--user-data-dir=${profile}`, "--no-first-run", "--no-default-browser-check", `--host-resolver-rules=MAP ${SITE_HOST} 127.0.0.1:${served.port}`, `--ignore-certificate-errors-spki-list=${tls.spkiHash}`, args.manual ? "--window-size=1400,1000" : "--window-size=1280,2200", "about:blank"], { stdio: ["ignore", "ignore", "ignore", "pipe", "pipe"] });
     const cdp = new Cdp(chrome);
     report.chrome = (await cdp.send("Browser.getVersion")).product;
-    const { id: extensionId } = await cdp.send("Extensions.loadUnpacked", { path: EXTENSION });
+    // A pre-granted copy of the build (D-196): the origins this harness drives, as the person would have allowed them.
+    const granted = grantedBuild(EXTENSION, scratch, [`https://${SITE_HOST}`, "https://api.crossref.org", "https://webagents-citation-resolver-production.up.railway.app", "https://api.openai.com", "https://api.anthropic.com"]);
+    report.granted_origins = granted.granted;
+    const { id: extensionId } = await cdp.send("Extensions.loadUnpacked", { path: granted.path });
     const base = `chrome-extension://${extensionId}`;
     await cdp.waitForTarget((target) => target.type === "service_worker" && target.url === `${base}/service-worker.js`, "the service worker");
     const { targetId } = await cdp.send("Target.createTarget", { url: `${base}/browser.html` });

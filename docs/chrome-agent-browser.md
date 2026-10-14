@@ -87,32 +87,68 @@ runtimes accept the same packages and gate on the same minimum version.
 
 | Where | What | Notes |
 |---|---|---|
-| `chrome.storage.local` | `trustStore` (the `agentpkg-trust-store-v0` format), `settings` (presets, model connections and limits, run limits, services), `providerKeys`, `vault` and `vaultKey`, `instanceId`, `spentReceipts` (receipts whose `once` a run used), `indexes` (agent indexes with their pinned keys and the signed text last fetched), `policySubscription` (the one followed policy, its pinned key and signed text), `library` (pinned and recently opened agents) | never `storage.sync`; keys are typed once and never shown again; signed documents are re-verified when read |
-| `chrome.storage.session` | per-tab candidates, which views hold which session | cleared when the browser closes |
+| `chrome.storage.local` | `trustStore` (the `agentpkg-trust-store-v0` format), `settings` (presets, model connections and limits, run limits, services, the idle lock), `secretStore` (the encrypted envelope, T16: `provider_key:<provider>`, `vault`, `vault_key`), `originGrants` (why each origin was granted), `instanceId`, `spentReceipts` (receipts whose `once` a run used), `indexes` (agent indexes with their pinned keys and the signed text last fetched), `policySubscription` (the one followed policy, its pinned key and signed text), `library` (pinned and recently opened agents) | never `storage.sync`; keys are typed once and never shown again; signed documents are re-verified when read; 0.1.0's clear `providerKeys`, `vault` and `vaultKey` are read once by the migration that runs when the first passphrase is set, and removed then |
+| `chrome.storage.session` | per-tab candidates, which views hold which session, `secretKey` (the unlocked store's master key with the times it was unlocked and last used) | in memory, cleared when the browser closes; access level trusted contexts |
 | IndexedDB `agent-browser` | `snapshots` (package bytes, by archive SHA-256), `sessions` (with their receipt and Run Plan), `runs` (Run Record, progress, audit, usage, checkpoints), `artifacts` (bytes and SHA-256), `files` (picked PDFs, copied), `observations` (outbound request bodies, test mode only) | `unlimitedStorage`; caps refuse, never evict silently |
+
+**The secret store (T16, D-191, D-192).** Provider keys and the vault (records, types and the HMAC
+key) live in one envelope, `chrome-agent-browser-secret-store-v1`: each entry AES-256-GCM under a
+random 32-byte master key with a fresh IV and the entry's name as additional data; the master key
+wrapped under a key scrypt derives from the person's passphrase (N = 2^17, r = 8, p = 1, 16-byte
+salt; about half a second). A wrong passphrase fails the unwrap and reads nothing; a passphrase
+change re-wraps the master key under a new salt and touches no entry; "Forget everything" deletes
+the envelope after a typed confirmation. Unlocking puts the master key alone into
+`chrome.storage.session`; it is wiped after the idle time chosen under Settings → Security (5, 15
+(default) or 60 minutes, or until the browser closes), by a sweep every minute and by every access
+that finds it idle, on Lock now, and when the browser closes. Nothing secret is saved before a
+passphrase exists (the strict path): Settings → Models and Your data say so until one is set, and
+the clear values 0.1.0 left are migrated the moment it is. A run is handed only what its plan
+needs (D-195): the bound provider's key, the vault when the plan grants a record, and the vault's
+types alone (no record) when the plan binds a host-resource tool without granting one, so an
+agent that needs nothing from the store (Literature Review on Ollama) runs while it is locked;
+one that needs a key, a record or a record type asks to unlock before Prepare and before Run,
+never during. A stored envelope this build cannot read is reported as *invalid* (the Security page
+says why and offers Forget everything); the store runs one operation at a time, so a read that
+began before Lock now, Forget everything or a passphrase change cannot write the old state back. The
+`src/core/secrets.ts` module has no Chrome dependency; its test vectors are committed.
 
 What is never stored in a record, plan, receipt, checkpoint or artifact: a provider key, a vault
 value, a prompt sent to a model outside test mode. A plan binds a vault record by opaque id and an
 HMAC digest under the per-profile `vaultKey` (D-051), so the plan changes when the record does and
-carries no value. Provider keys and the vault travel to the execution host in the `host.start`
-message, in memory, for one run. §7 of the [threat model](threat-model.md#chrome-agent-browser-t7)
+carries no value. The provider key and, when a record is granted, the vault travel to the execution
+host in the `host.start` message, in memory, for one run. §7 of the [threat model](threat-model.md#chrome-agent-browser-t7)
 says what this does and does not protect at rest.
 
 ## 5. Permissions it asks Chrome for
 
-From [`manifest.json`](../chrome-agent-browser/src/extension/manifest.json) (D-026):
+From [`manifest.json`](../chrome-agent-browser/src/extension/manifest.json) (D-182, D-190, D-194; `npm run check-pack` refuses a zip whose list differs):
 
 | Permission | Why |
 |---|---|
 | `storage`, `unlimitedStorage` | the stores above; package snapshots and artifacts can exceed the default quota |
 | `sidePanel` | the side panel the action opens |
 | `offscreen` | the execution host (reason `WORKERS`) |
-| host `https://*/*` | download packages and website pages, call tool endpoints and hosted model APIs, and run the content script on HTTPS pages |
+| `activeTab` | the action click, the context-menu item "Look for agents on this page" and the `Ctrl/⌘+Shift+Y` shortcut (which opens the panel exactly as a click does; Chrome dispatches no `commands.onCommand` for `_execute_action`) grant that tab for the one read of its agent-package links |
+| `scripting` | inject the discovery script into the clicked tab, and register it for the sites the person chose |
+| `alarms` | the idle lock's sweep, once a minute while the store is unlocked |
+| `contextMenus` | the one page context-menu item |
 | host `http://127.0.0.1/*`, `http://localhost/*` | Ollama on this machine only; a remote Ollama endpoint is refused (D-055) |
+| optional host `https://*/*` | granted one origin at a time, with the person's click: a package's origin, its declared tool services and the model provider when a plan is prepared (listed under the plan's Technical details), a site to detect agents on ("Always detect agents on this site"), a signed index or policy; or as a whole under Settings → Permissions → "Detect agents on every site", off by default |
+
+Three tiers of discovery (D-190): by default a page is read only when the person clicks the
+button on it; a site they allowed gets the badge from then on; the every-site opt-in restores
+0.1.0's passive badge everywhere. A `declarativeContent` rule cannot match a `<link>` in `<head>`
+(Blink reports watched selectors only for elements whose style is resolved), which is why there is
+no permissionless badge; the experiment is recorded in
+[`examples/verification/chrome-declarative-content-experiment.json`](../examples/verification/chrome-declarative-content-experiment.json).
+`tabs` is never requested. Settings → Permissions lists every granted origin with its reason and
+revokes it; a plan that needs a revoked origin blocks Run by name until it is allowed again. Three
+checks apply to every request a run makes: the plan's origin allowlist in the execution host
+(`origin_not_in_plan`), the core URL gate (D-026) and Chrome's own grant.
 
 The content security policy allows scripts from the extension only and connections to HTTPS and
 the two loopback names. Every package string reaches the page through `textContent`; the shell
-has no `innerHTML`. Per-origin optional permissions are later hardening (BACKLOG B-96).
+has no `innerHTML`.
 
 ## 6. Limits
 
@@ -139,7 +175,13 @@ has no `innerHTML`. Per-origin optional permissions are later hardening (BACKLOG
 - **Headless Chrome harnesses** (`scripts/e2e-*.mjs`): discovery and inspection against a local
   HTTPS origin, the paper reader, and live runs of WebAir and Literature Review whose exported run
   directories are recomputed by `scripts/verify_chrome_*_live.py`. The recorded evidence is under
-  [`examples/verification/`](../examples/verification/) (`chrome-*.json`).
+  [`examples/verification/`](../examples/verification/) (`chrome-*.json`). Headless Chrome cannot
+  grant an optional origin (the prompt waits for nobody) nor `activeTab` (no click reaches an
+  extension over CDP), so each harness loads a copy of the build whose manifest holds the origins it
+  drives (`scripts/lib/granted-build.mjs`, D-196), the state a person's Allow leaves the extension
+  in; `e2e-discovery.mjs` first loads the unmodified build to assert the manifest and the
+  `origin_not_granted` refusal, and records the site grant with the worker as the website card's
+  button does. The real prompts are walked through by hand.
 - **CI** runs the tests on Ubuntu and macOS with Node 24 and 26, builds and packs the extension,
   checks the zip's structure and that a second build packs to the same bytes, and runs the
   conformance suite ([`.github/workflows/ci.yml`](../.github/workflows/ci.yml)).
@@ -151,7 +193,11 @@ manifest at the root, ready to load unpacked or to upload to the Chrome Web Stor
 `dist/chrome-agent-browser-<version>.contents.txt`, one `sha256 bytes path` line per member and
 the zip's own hash. The build writes `LICENSE.txt` and `THIRD_PARTY_NOTICES.txt` into the
 extension from the license files of exactly the packages esbuild bundled. `npm run check-pack`
-verifies the file set, the manifest version, the listing and the notices. The bundles are not
+verifies the file set, the manifest version, the listing, the notices, the least-privilege manifest
+(the loopback names as the only host permissions, every HTTPS origin optional, no static content
+script, the permission list exactly as decided) and the Web Store's remote-code rule (no script
+loaded from the network, nothing evaluated from text, `script-src 'self'`). The submission kit for
+the Web Store is [`chrome-agent-browser/store/`](../chrome-agent-browser/store/README.md). The bundles are not
 minified, so the shipped code stays reviewable. The same sources and Node release give the same
 zip bytes; across Node releases the members are identical but the deflate stream can differ
 (each Node ships its own zlib), so the content listing, not the zip hash, identifies a build

@@ -13,7 +13,14 @@ export interface WebsiteCardInput {
   linksNotListed: number;
 }
 
-export function renderWebsiteCard(input: WebsiteCardInput, onInspect: (candidate: Candidate) => void): HTMLElement {
+export interface WebsiteCardActions {
+  /** "Always detect agents on this site" (T16, D-190): ask Chrome for the site's origin in the click, then tell the worker. */
+  onDetectSite?: (origin: string) => void;
+  /** Whether the site's origin is already granted (the button then says so). */
+  siteDetected?: boolean;
+}
+
+export function renderWebsiteCard(input: WebsiteCardInput, onInspect: (candidate: Candidate) => void, actions: WebsiteCardActions = {}): HTMLElement {
   const accepted = input.candidates.filter((candidate) => candidate.accepted);
   const rejected = input.candidates.filter((candidate) => !candidate.accepted);
   const intro =
@@ -52,6 +59,16 @@ export function renderWebsiteCard(input: WebsiteCardInput, onInspect: (candidate
         )
       : null,
     input.linksNotListed > 0 ? el("p", { className: "ab-hint", text: `${input.linksNotListed} more advertised link${input.linksNotListed === 1 ? " was" : "s were"} not listed.` }) : null,
+    actions.onDetectSite
+      ? el(
+          "div",
+          { className: "ab-actions ab-detect-site" },
+          actions.siteDetected
+            ? chip("Agents detected on this site", "good")
+            : button("Always detect agents on this site", () => actions.onDetectSite?.(input.pageOrigin), { variant: "ghost", title: `Let this browser read ${input.pageOrigin} pages for agent links and show the badge there` }),
+          el("p", { className: "ab-hint", text: actions.siteDetected ? "This browser reads this site's pages for agent links and shows the badge. Revoke it under Settings → Permissions." : "By default this browser reads a page only when you click its button. Allowing this site shows the badge on its pages from now on." }),
+        )
+      : null,
     el("p", { className: "ab-hint", text: "rel=\"agent-package\" is an experimental WebAgents convention, not a web standard. Only packages served by the page's own origin are accepted." }),
   );
 }

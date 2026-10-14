@@ -1,0 +1,24 @@
+{
+  "profile": "chrome-agent-browser-declarative-content-experiment-v0",
+  "recordedAt": "2026-10-13T23:28:33.985Z",
+  "chrome": "Chrome/155.0.8059.40",
+  "observable": "chrome.action.isEnabled(tabId), read 2.5 s after each navigation; Chromium answers GetIsVisibleIgnoringDeclarative, so a declarative show never reads true here",
+  "cases": {
+    "global_disabled": true,
+    "control_pageurl_rule": false,
+    "control_css_h1": false,
+    "head_link": false,
+    "head_link_present_in_dom": 1,
+    "no_link": false,
+    "body_link": false,
+    "descendant_selector": "refused: Invalid CSS selector: head link[rel=\"agent-package\"] TypeError: Invalid invocation: Invalid CSS selector: head link[rel=\"agent-package\"]"
+  },
+  "grants": {
+    "executeScript_without_grant": "refused: Cannot access contents of url \"https://webair",
+    "events_after_cdp_key_command": [],
+    "executeScript_after_cdp_key_command": "refused: Cannot access contents of url \"https://webair",
+    "permissions_request_under_cdp_gesture": "no answer within 10 s: the prompt waits for nobody",
+    "granted_origins_after": []
+  },
+  "conclusion": "Outcome B (D-190): the API cannot observe a declarative show (the controls read false too), and the Blink sources settle that a <link> in <head> never matches a watched selector; headless Chrome grants nothing (D-196): the prompt never resolves, no activeTab gesture can be sent, and executeScript without a grant is refused."
+}
