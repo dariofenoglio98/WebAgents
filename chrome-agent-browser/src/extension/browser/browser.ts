@@ -166,6 +166,17 @@ async function loadSecrets(): Promise<void> {
 }
 
 /**
+ * The store was unlocked, locked or set up: a `store_locked` error shown before it no longer
+ * applies once unlocked, and the view re-reads what it shows (the user's walk-through, T16: the
+ * banner stayed on Your data after Unlock until the page changed).
+ */
+async function secretsChanged(): Promise<void> {
+  await loadSecrets();
+  if (state.secrets?.state === "unlocked" && state.error && needsUnlock(state.error)) state.error = null;
+  await load();
+}
+
+/**
  * Run an action that may be refused for a missing origin or a locked store (T16): the origins
  * were asked for in the click already (a refusal is Chrome's), so a refusal here offers Allow
  * beside the error and runs the action again; a locked store opens the Unlock sheet and retries.
@@ -1046,12 +1057,12 @@ function render(): void {
   if (chipHost) replace(chipHost, [renderLockChip(state.secrets, { onLock: () => void send<SecretsView>({ type: "secrets.lock" }).then(() => loadSecrets().then(render)), onOpen: () => openUnlock(null, null), openSettings: () => (location.hash = "settings?section=security") })]);
   const children =
     state.view === "open" ? openView() : state.view === "library" ? libraryView() : state.view === "runs" ? runsView() : state.view === "trust" ? trustView() : state.view === "data" ? dataView() : settingsView();
-  const sheet = renderUnlockSheet(state.unlock, state.secrets, { rerender: render, openSettings: () => (location.hash = "settings?section=security"), onUnlocked: () => void loadSecrets().then(render) });
+  const sheet = renderUnlockSheet(state.unlock, state.secrets, { rerender: render, openSettings: () => (location.hash = "settings?section=security"), onUnlocked: () => void secretsChanged() });
   replace(app, sheet ? [...children, sheet] : children);
 }
 
 subscribe((event) => {
-  if (event.type === "event.secrets") void loadSecrets().then(render);
+  if (event.type === "event.secrets") void secretsChanged();
   if (event.type === "event.permissions") {
     void send<PermissionsView>({ type: "permissions.get" }).then((permissions) => {
       state.permissions = permissions;

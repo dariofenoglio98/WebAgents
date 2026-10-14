@@ -68,6 +68,13 @@ async function loadSecrets(): Promise<void> {
   }
 }
 
+/** The store changed: once unlocked, a `store_locked` error shown before no longer applies. */
+async function secretsChanged(): Promise<void> {
+  await loadSecrets();
+  if (state.secrets?.state === "unlocked" && state.error && needsUnlock(state.error)) state.error = null;
+  render();
+}
+
 /**
  * Read the current tab's advertised links (T16, D-190): the content script is injected under the
  * `activeTab` the action click granted (or a granted origin) and reports as usual; the worker then
@@ -249,7 +256,7 @@ function render(): void {
   } else {
     children.push(emptyState());
   }
-  const sheet = renderUnlockSheet(state.unlock, state.secrets, { rerender: render, openSettings: () => openFullPage(undefined, "settings?section=security"), onUnlocked: () => void loadSecrets().then(render) });
+  const sheet = renderUnlockSheet(state.unlock, state.secrets, { rerender: render, openSettings: () => openFullPage(undefined, "settings?section=security"), onUnlocked: () => void secretsChanged() });
   replace(app, sheet ? [...children, sheet] : children);
 }
 
@@ -296,7 +303,7 @@ async function refresh(): Promise<void> {
 }
 
 subscribe((event) => {
-  if (event.type === "event.secrets") void loadSecrets().then(render);
+  if (event.type === "event.secrets") void secretsChanged();
   if (event.type === "event.permissions") {
     void send<PermissionsView>({ type: "permissions.get" }).then((permissions) => {
       state.permissions = permissions;
