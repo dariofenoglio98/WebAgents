@@ -10,15 +10,18 @@ import { PRESETS } from "../../core/authorization.js";
 import { DEFAULT_BASE_URLS, type ProbeResult, type ProviderId } from "../../core/models/catalog.js";
 import { DEFAULT_OPENAI_REASONING_EFFORT, OPENAI_REASONING_EFFORTS } from "../../core/models/adapters/openai.js";
 import { DEFAULT_HOST_LIMITS, type HostExecutionLimits } from "../../core/execution/limits.js";
-import type { FilesView, IndexesView, IndexView, PolicyView, ProbeView, Request, SettingsView, StatusInfo } from "../messages.js";
+import type { FilesView, IndexesView, IndexView, PermissionsView, PolicyView, ProbeView, Request, SecretsView, SettingsView, StatusInfo } from "../messages.js";
+import { IDLE_LOCK_MINUTES, MIN_PASSPHRASE_LENGTH } from "../../core/secrets.js";
+import type { GrantPurpose } from "../storage/permissions.js";
+import { idleWords } from "./unlock.js";
 import demoDocuments from "../data/demo-documents.json" with { type: "json" };
 import type { Settings, StoredConnection } from "../storage/settings.js";
 import { downloadBuiltinModel, languageModelApi } from "../execution/builtin-port.js";
 import { button, bytes, card, chip, definition, details, el, list, row } from "./dom.js";
 
-export type SettingsSection = "models" | "policies" | "search" | "files" | "services" | "about";
-export const SETTINGS_SECTIONS: readonly SettingsSection[] = ["models", "policies", "search", "files", "services", "about"];
-const SECTION_TITLES: Record<SettingsSection, string> = { models: "Models", policies: "Policies", search: "Search", files: "Files", services: "Services", about: "About" };
+export type SettingsSection = "models" | "policies" | "security" | "permissions" | "search" | "files" | "services" | "about";
+export const SETTINGS_SECTIONS: readonly SettingsSection[] = ["models", "policies", "security", "permissions", "search", "files", "services", "about"];
+const SECTION_TITLES: Record<SettingsSection, string> = { models: "Models", policies: "Policies", security: "Security", permissions: "Permissions", search: "Search", files: "Files", services: "Services", about: "About" };
 
 /**
  * The limits the reference host was configured with for Literature Review (STATE.md §4: 180,000
@@ -57,10 +60,12 @@ export interface SettingsPageState {
   copied: string | null;
   /** What the person typed into the add-an-index and subscribe forms (T8), kept across re-renders. */
   forms: { indexUrl: string; indexPem: string; policyUrl: string; policyPem: string };
+  /** Settings → Security (T16): the typed confirmation of "Forget everything", kept across re-renders; passphrases are never kept. */
+  forgetConfirmation: string;
 }
 
 export function newSettingsPageState(section: SettingsSection = "models"): SettingsPageState {
-  return { section, probes: {}, checkedAt: {}, notice: null, builtinDownload: null, copied: null, forms: { indexUrl: "", indexPem: "", policyUrl: "", policyPem: "" } };
+  return { section, probes: {}, checkedAt: {}, notice: null, builtinDownload: null, copied: null, forms: { indexUrl: "", indexPem: "", policyUrl: "", policyPem: "" }, forgetConfirmation: "" };
 }
 
 /** `14:02:31` in the person's locale, 24-hour: when a connection was last tested. */
@@ -116,12 +121,19 @@ export interface SettingsPageActions {
   onIndex?: (request: Extract<Request, { type: "indexes.add" | "indexes.refresh" | "indexes.remove" | "indexes.enable" }>) => void;
   /** Settings → Policies (T8): subscribe, refresh or unsubscribe. */
   onPolicy?: (request: Extract<Request, { type: "policy.subscribe" | "policy.refresh" | "policy.unsubscribe" }>) => void;
+  /** Settings → Security (T16): the secret store's requests; the passphrase travels once, to the worker. */
+  onSecrets?: (request: Extract<Request, { type: "secrets.setup" | "secrets.unlock" | "secrets.lock" | "secrets.changePassphrase" | "secrets.forget" }>) => void;
+  /** Settings → Permissions (T16): ask Chrome for every site (the click is the gesture) and tell the worker; revoke origins. */
+  onDetectEverywhere?: (enabled: boolean) => void;
+  onRevoke?: (origins: string[]) => void;
 }
 
-/** What Settings → Search and → Policies show besides the settings (T8). */
+/** What Settings → Search, → Policies, → Security and → Permissions show besides the settings (T8, T16). */
 export interface SettingsExtras {
   indexes: IndexesView | null;
   policy: PolicyView | null;
+  secrets?: SecretsView | null;
+  permissions?: PermissionsView | null;
 }
 
 /** The one-time Ollama setup (B-117): the commands a person copies, per way of running Ollama. */
@@ -227,7 +239,7 @@ function connectionCard(view: SettingsView, connection: StoredConnection, state:
         }),
         view.keys[provider] ? button("Remove key", () => actions.onSetKey(provider, null), { variant: "danger" }) : null,
       ),
-      el("p", { className: "ab-hint", text: "Keys live in chrome.storage.local, never in sync storage, and leave this browser only as the provider's own header. This page shows whether a key is stored, never the key." }),
+      el("p", { className: "ab-hint", text: "Keys are encrypted at rest under your passphrase (Settings → Security), never in sync storage, and leave this browser only as the provider's own header, to the provider's origin you allowed. This page shows whether a key is stored, never the key." }),
     );
   }
   const diagnosis = probe && probe !== "running" && "diagnosis" in probe ? probe.diagnosis : null;
@@ -632,6 +644,146 @@ function aboutView(view: SettingsView, status: StatusInfo | null, actions: Setti
   ];
 }
 
+/** Settings → Security (T16, D-191, D-192): the passphrase, the idle lock, Lock now, Forget everything. */
+function securityView(view: SettingsView, actions: SettingsPageActions, state: SettingsPageState, secrets: SecretsView | null): HTMLElement[] {
+  if (secrets === null) return [el("p", { className: "ab-busy", text: "Loading…" })];
+  const cards: HTMLElement[] = [];
+  const passphraseField = (name: string, label: string, autocomplete: string) => el("input", { className: "ab-input", attrs: { type: "password", name, autocomplete, "aria-label": label, placeholder: label } });
+  if (secrets.state === "no_passphrase") {
+    const first = passphraseField("passphrase-new", "New passphrase", "new-password");
+    const again = passphraseField("passphrase-again", "Repeat the passphrase", "new-password");
+    const setup = () => {
+      if (first.value !== again.value) {
+        state.notice = "The two passphrases differ.";
+        actions.rerender();
+        return;
+      }
+      const passphrase = first.value;
+      first.value = again.value = "";
+      actions.onSecrets?.({ type: "secrets.setup", passphrase });
+    };
+    cards.push(
+      card(
+        "Set a passphrase",
+        el("p", { className: "ab-hint", text: `Your provider keys and your records are kept encrypted (AES-256-GCM) under a key derived from this passphrase (scrypt, about half a second). Nothing secret is saved until one exists. At least ${MIN_PASSPHRASE_LENGTH} characters; there is no recovery: a forgotten passphrase means forgetting the keys and records, not the agents, runs or settings.` }),
+        secrets.migration_pending
+          ? el("div", { className: "ab-banner ab-banner-warn ab-legacy", attrs: { role: "status" } }, el("strong", { text: "Waiting to be protected: " }), el("span", { text: `${secrets.legacy?.providers.length ? `${secrets.legacy.providers.join(", ")} key${secrets.legacy.providers.length === 1 ? "" : "s"}` : "no key"} and ${secrets.legacy?.records ?? 0} record${secrets.legacy?.records === 1 ? "" : "s"} from the previous version. They are moved into the encrypted store the moment you set a passphrase, and cannot be used before.` }))
+          : null,
+        el("label", { className: "ab-field" }, el("span", { text: "Passphrase" }), first),
+        el("label", { className: "ab-field" }, el("span", { text: "Repeat it" }), again),
+        el("div", { className: "ab-actions" }, button("Set passphrase", setup, { variant: "primary" })),
+      ),
+    );
+    return cards;
+  }
+  const unlocked = secrets.state === "unlocked";
+  const idle = el("select", { className: "ab-select", attrs: { name: "idle-lock-minutes", "aria-label": "Lock after" } });
+  for (const minutes of IDLE_LOCK_MINUTES) idle.append(el("option", { text: minutes === null ? "Until the browser closes" : `${minutes} minutes idle`, attrs: { value: minutes === null ? "never" : String(minutes) } }));
+  idle.value = view.settings.security.idle_lock_minutes === null ? "never" : String(view.settings.security.idle_lock_minutes);
+  idle.addEventListener("change", () => actions.onSave({ ...view.settings, security: { idle_lock_minutes: idle.value === "never" ? null : Number(idle.value) } }));
+  cards.push(
+    card(
+      "Your keys and records",
+      el("div", { className: "ab-row" }, chip(unlocked ? "Unlocked" : "Locked", unlocked ? "good" : "neutral"), el("span", { className: "ab-hint", text: unlocked ? ` · ${idleWords(secrets.idle_minutes)}${secrets.last_used_at ? ` · last used ${clockTime(secrets.last_used_at)}` : ""}` : " · enter your passphrase where it is asked for, or here" })),
+      el("p", { className: "ab-hint", text: `Encrypted at rest since ${secrets.created_at ? new Date(secrets.created_at).toLocaleDateString() : "unknown"}: ${secrets.entries.length === 0 ? "nothing stored yet" : secrets.entries.map((name) => (name.startsWith("provider_key:") ? `${name.slice("provider_key:".length)} key` : name === "vault" ? "your records" : name === "vault_key" ? "the records' digest key" : name)).join(", ")}. While unlocked, the key that opens them is held in this browser session's memory only; it is wiped after the idle time, when you press Lock now, and when the browser closes. A run in progress keeps what it was given until it ends.` }),
+      el("label", { className: "ab-field" }, el("span", { text: "Lock after" }), idle),
+      el("div", { className: "ab-actions" }, unlocked ? button("Lock now", () => actions.onSecrets?.({ type: "secrets.lock" }), { variant: "ghost" }) : null),
+    ),
+  );
+  const current = passphraseField("passphrase-current", "Current passphrase", "current-password");
+  const next = passphraseField("passphrase-next", "New passphrase", "new-password");
+  const nextAgain = passphraseField("passphrase-next-again", "Repeat the new passphrase", "new-password");
+  const change = () => {
+    if (next.value !== nextAgain.value) {
+      state.notice = "The two new passphrases differ.";
+      actions.rerender();
+      return;
+    }
+    const request = { type: "secrets.changePassphrase" as const, current: current.value, next: next.value };
+    current.value = next.value = nextAgain.value = "";
+    actions.onSecrets?.(request);
+  };
+  cards.push(
+    card(
+      "Change the passphrase",
+      el("p", { className: "ab-hint", text: "The new passphrase wraps the same store key under a fresh salt; nothing stored is re-encrypted and nothing is lost. It works whether the store is locked or not." }),
+      el("label", { className: "ab-field" }, el("span", { text: "Current passphrase" }), current),
+      el("label", { className: "ab-field" }, el("span", { text: "New passphrase" }), next),
+      el("label", { className: "ab-field" }, el("span", { text: "Repeat it" }), nextAgain),
+      el("div", { className: "ab-actions" }, button("Change passphrase", change, { variant: "primary" })),
+    ),
+  );
+  const confirmation = el("input", { className: "ab-input", attrs: { type: "text", name: "forget-confirmation", autocomplete: "off", placeholder: "type forget", "aria-label": "Type forget to confirm" } });
+  confirmation.value = state.forgetConfirmation;
+  confirmation.addEventListener("input", () => {
+    state.forgetConfirmation = confirmation.value;
+  });
+  cards.push(
+    card(
+      "Forget everything",
+      el("p", { className: "ab-hint", text: "Deletes the encrypted store: every provider key and every record, for good. Agents, runs, trust pins and settings stay. Use it when a passphrase is lost. Type forget to confirm." }),
+      el("div", { className: "ab-actions" }, confirmation, button("Forget everything", () => {
+        const typed = state.forgetConfirmation;
+        state.forgetConfirmation = "";
+        actions.onSecrets?.({ type: "secrets.forget", confirmation: typed });
+      }, { variant: "danger" })),
+    ),
+  );
+  return cards;
+}
+
+function purposeWords(purpose: GrantPurpose): string {
+  switch (purpose.kind) {
+    case "package":
+      return `for the agent ${purpose.label ?? purpose.subject}`;
+    case "provider":
+      return `for your ${purpose.subject} models`;
+    case "site":
+      return "to detect agents on this site";
+    case "document":
+      return `for the signed document at ${purpose.subject}`;
+    default:
+      return "to detect agents on every site";
+  }
+}
+
+/** Settings → Permissions (T16, D-190, D-193): every origin Chrome grants this extension, why, and Revoke; the every-site opt-in. */
+function permissionsView(permissions: PermissionsView | null, actions: SettingsPageActions): HTMLElement[] {
+  if (permissions === null) return [el("p", { className: "ab-busy", text: "Loading…" })];
+  const everywhere = el("input", { attrs: { type: "checkbox", name: "detect-everywhere", "aria-label": "Detect agents on every site" } });
+  everywhere.checked = permissions.detect_everywhere;
+  everywhere.addEventListener("change", () => actions.onDetectEverywhere?.(everywhere.checked));
+  const sites = permissions.origins.filter((item) => item.origin !== "*");
+  return [
+    card(
+      "What this browser may reach",
+      el("p", { className: "ab-hint", text: "By default this extension holds no access to any website. Chrome grants an origin only when you allow it: a package's origin, its tools' services and your model provider when you use an agent (listed under the plan's Technical details), a site you chose to detect agents on, a signed index or policy you added. Each grant is Chrome's, enforced by Chrome beneath this browser's own checks; revoking one here makes Chrome forget it, and a prepared plan that needs it then names it before Run." }),
+      el("p", { className: "ab-hint", text: `Always held, from the manifest: ${permissions.manifest_hosts.join(" and ")} (Ollama on this machine).` }),
+      sites.length === 0
+        ? el("p", { className: "ab-empty", text: "No website origin is granted yet." })
+        : el(
+            "div",
+            { className: "ab-permission-list" },
+            ...sites.map((item) =>
+              el(
+                "div",
+                { className: "ab-permission-row", attrs: { "data-origin": item.origin } },
+                el("code", { text: item.origin }),
+                chip(item.granted ? "granted" : "not granted by Chrome", item.granted ? "good" : "warn"),
+                el("p", { className: "ab-hint ab-permission-why", text: item.purposes.length === 0 ? "granted outside this extension (an earlier version, or chrome://extensions)" : item.purposes.map(purposeWords).join("; ") }),
+                button("Revoke", () => actions.onRevoke?.([item.origin]), { variant: "danger", disabled: !actions.onRevoke }),
+              ),
+            ),
+          ),
+    ),
+    card(
+      "Detect agents on every site",
+      el("label", { className: "ab-field ab-inline" }, everywhere, " ", el("span", { text: "Read every HTTPS page for agent links and show the badge" })),
+      el("p", { className: "ab-hint", text: "Off by default. On, Chrome asks you once to allow every website, and this extension's discovery script then runs on every HTTPS page: it reads only the page head's agent-package links and reports them to the badge; it reads, changes and sends nothing else. Off, the badge appears only on sites you allowed one by one, and any page can still be read with one click on the WebAgents button." }),
+    ),
+  ];
+}
+
 export function renderSettingsPage(view: SettingsView, status: StatusInfo | null, state: SettingsPageState, actions: SettingsPageActions, files: FilesView | null = null, extras: SettingsExtras = { indexes: null, policy: null }): HTMLElement {
   const tabs = el(
     "div",
@@ -654,13 +806,17 @@ export function renderSettingsPage(view: SettingsView, status: StatusInfo | null
       ? view.settings.models.connections.map((connection) => connectionCard(view, connection, state, actions))
       : state.section === "policies"
         ? policiesView(view, actions, state, extras)
-        : state.section === "search"
-          ? searchView(extras.indexes, state, actions)
-          : state.section === "files"
-          ? filesView(files, actions)
-          : state.section === "services"
-            ? servicesView(view, actions)
-            : aboutView(view, status, actions);
+        : state.section === "security"
+          ? securityView(view, actions, state, extras.secrets ?? null)
+          : state.section === "permissions"
+            ? permissionsView(extras.permissions ?? null, actions)
+            : state.section === "search"
+              ? searchView(extras.indexes, state, actions)
+              : state.section === "files"
+                ? filesView(files, actions)
+                : state.section === "services"
+                  ? servicesView(view, actions)
+                  : aboutView(view, status, actions);
   return el(
     "div",
     { className: "ab-settings" },

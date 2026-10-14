@@ -1,0 +1,39 @@
+{
+  "profile": "chrome-store-screenshots-v0",
+  "recordedAt": "2026-10-14T00:07:49.465Z",
+  "commit": "a07947c049a9c020aa953a785ec6f4d3d76528d1",
+  "chrome": "Chrome/155.0.8059.40",
+  "size": {
+    "width": 1280,
+    "height": 800
+  },
+  "shots": {
+    "1-start-page": {
+      "file": "1-start-page.png",
+      "bytes": 72283,
+      "sha256": "78cc505d55f8dd2ed9f09fb711467e25e00472b88662de77dcc0803ac3a2aa5f",
+      "title": "WebAgents Agent Browser"
+    },
+    "2-agent-page": {
+      "file": "2-agent-page.png",
+      "bytes": 133736,
+      "sha256": "be9c6f6390e13ad64c9d09853493c80b739fd3f08c59443e4907df57cc4ca9ff",
+      "title": "WebAgents Agent Browser"
+    },
+    "3-settings-permissions": {
+      "file": "3-settings-permissions.png",
+      "bytes": 104985,
+      "sha256": "c2467b7c4c1467f6a7786b146703916eae62228cb8f6bc3442858306a75c5402",
+      "title": "WebAgents Agent Browser"
+    },
+    "4-settings-security": {
+      "file": "4-settings-security.png",
+      "bytes": 102824,
+      "sha256": "8baadd70be613a21a0cbd79846ddaa7047aa862a847a9fa3a7091b111ac4bcc2",
+      "title": "WebAgents Agent Browser"
+    }
+  },
+  "failures": [],
+  "passed": true,
+  "out": "chrome-agent-browser/store/screenshots"
+}

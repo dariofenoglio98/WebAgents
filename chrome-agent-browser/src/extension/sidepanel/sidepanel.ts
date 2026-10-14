@@ -3,10 +3,11 @@
  * compact form (D-035). A thin view over the service worker.
  */
 import type { Candidate } from "../../core/discovery.js";
-import type { AuthorizationView, CandidateState, ModelsView, RunView, SessionView } from "../messages.js";
+import type { AuthorizationView, CandidateState, ModelsView, PermissionsView, RunView, SecretsView, SessionView } from "../messages.js";
 import { renderAgentPage } from "../ui/agent-page.js";
 import { bindAuthorization, type AuthorizationController } from "../ui/authorization-flow.js";
-import { describeError, send, subscribe } from "../ui/client.js";
+import { describeError, originOfUrl, refusedOrigins, requestOrigins, send, subscribe } from "../ui/client.js";
+import { needsUnlock, newUnlockState, renderLockChip, renderUnlockSheet, type UnlockState } from "../ui/unlock.js";
 import { button, card, el, replace } from "../ui/dom.js";
 import { RunPanel } from "../ui/run.js";
 import { renderWebsiteCard } from "../ui/website.js";
@@ -20,10 +21,18 @@ interface PanelState {
   authorization: AuthorizationView | null;
   models: ModelsView | null;
   busy: string | null;
-  error: { code: string; message: string } | null;
+  error: { code: string; message: string; details?: Record<string, unknown> } | null;
+  /** The secret store (T16): the chip and the Unlock sheet. */
+  secrets: SecretsView | null;
+  unlock: UnlockState;
+  permissions: PermissionsView | null;
+  /** The tab whose page could not be read (no activeTab, no granted origin), so the panel says how to allow it. */
+  unreadable: { tabId: number; message: string } | null;
+  /** The last tab the discovery script was injected into by this panel, so a refresh does not inject twice. */
+  readTab: number | null;
 }
 
-const state: PanelState = { tabId: null, candidates: null, open: null, authorization: null, models: null, busy: null, error: null };
+const state: PanelState = { tabId: null, candidates: null, open: null, authorization: null, models: null, busy: null, error: null, secrets: null, unlock: newUnlockState(), permissions: null, unreadable: null, readTab: null };
 /** This view's identity toward the service worker (D-035): a session ends when no view holds it. */
 const VIEW_ID = `sidepanel:${crypto.randomUUID()}`;
 
@@ -33,12 +42,55 @@ async function currentTab(): Promise<chrome.tabs.Tab | null> {
 }
 
 function emptyState(): HTMLElement {
+  const unreadable = state.unreadable !== null && state.unreadable.tabId === state.tabId;
   return card(
-    "No agent package on this page",
+    unreadable ? "This page was not read" : "No agent package on this page",
     el("p", { className: "ab-hint", text: "This extension looks for <link rel=\"agent-package\"> in a page's head: a website saying it publishes a signed agent that your browser can inspect and, later, run with your own models and permissions." }),
-    el("p", { className: "ab-hint", text: "Try the WebAir demo: https://webagents-webair-production.up.railway.app/" }),
-    button("Open the agent browser", () => openFullPage()),
+    unreadable
+      ? el("p", { className: "ab-banner ab-banner-warn", attrs: { role: "status" }, text: "This browser reads a page only when you ask: click the WebAgents button on the page (or use its context-menu item), or allow the site for good under Settings → Permissions." })
+      : el("p", { className: "ab-hint", text: "By default this browser reads a page only when you click its button; nothing else is read. Try the WebAir demo: https://webagents-webair-production.up.railway.app/" }),
+    el("div", { className: "ab-actions" }, button("Look again", () => void readCurrentTab(true), { variant: "ghost" }), button("Open the agent browser", () => openFullPage())),
   );
+}
+
+/** Open the Unlock sheet (T16); `retry` runs after a successful unlock. */
+function openUnlock(reason: string | null, retry: (() => void) | null): void {
+  state.unlock.open = { reason, retry };
+  state.unlock.error = null;
+  render();
+}
+
+async function loadSecrets(): Promise<void> {
+  try {
+    state.secrets = await send<SecretsView>({ type: "secrets.status" });
+  } catch {
+    state.secrets = null;
+  }
+}
+
+/**
+ * Read the current tab's advertised links (T16, D-190): the content script is injected under the
+ * `activeTab` the action click granted (or a granted origin) and reports as usual; the worker then
+ * broadcasts the candidates. A tab Chrome refuses is remembered, so the panel says how to allow it.
+ */
+async function readCurrentTab(force = false): Promise<void> {
+  if (state.tabId === null) return;
+  if (!force && state.readTab === state.tabId) return;
+  state.readTab = state.tabId;
+  // A URL Chrome shows this panel without a grant is the extension's own or a browser page: nothing to read there.
+  const tab = await currentTab();
+  if (tab?.id === state.tabId && typeof tab.url === "string" && !tab.url.startsWith("https://")) {
+    state.unreadable = null;
+    render();
+    return;
+  }
+  try {
+    await send({ type: "discovery.readTab", tabId: state.tabId });
+    state.unreadable = null;
+  } catch (error) {
+    state.unreadable = { tabId: state.tabId, message: describeError(error).message };
+  }
+  render();
 }
 
 function openFullPage(sessionId?: string, hash?: string): void {
@@ -66,6 +118,8 @@ const flow: AuthorizationController = bindAuthorization({
   openSettings: (section) => openFullPage(undefined, section === "data" ? "data" : `settings?section=${section}`),
   rerender: () => render(),
   compact: true,
+  unlock: (retry) => openUnlock(null, retry),
+  requestOrigins,
 });
 
 /** The run surface (T5): compact in the panel; the full page has the Runs history. */
@@ -78,6 +132,8 @@ const runs = new RunPanel({
     else openFullPage(undefined, "settings?section=models");
   },
   openFiles: () => openFullPage(undefined, "settings?section=files"),
+  unlock: (retry) => openUnlock(null, retry),
+  requestOrigins,
   changed: () => render(),
 });
 
@@ -96,6 +152,9 @@ async function inspect(candidate: Candidate): Promise<void> {
   state.busy = "Downloading and verifying the package…";
   state.error = null;
   render();
+  // The package's origin is asked for in the Inspect click (the gesture, D-193); the worker refuses by name otherwise.
+  const origin = originOfUrl(candidate.resolved_url);
+  if (origin) await requestOrigins([origin]);
   try {
     // A panel still finding its run finishes first, so the hold this Inspect takes is the last one (D-076).
     await reattaching;
@@ -108,6 +167,22 @@ async function inspect(candidate: Candidate): Promise<void> {
     state.busy = null;
     render();
   }
+}
+
+/** "Always detect agents on this site" (T16, D-190). */
+async function detectSite(origin: string): Promise<void> {
+  try {
+    if (!(await requestOrigins([origin]))) return;
+    state.permissions = await send<PermissionsView>({ type: "permissions.granted", origins: [origin], purpose: { kind: "site", subject: origin } });
+    state.error = null;
+  } catch (error) {
+    state.error = describeError(error);
+  }
+  render();
+}
+
+function siteDetected(origin: string): boolean {
+  return state.permissions?.origins.some((item) => item.origin === origin && item.granted && item.purposes.some((purpose) => purpose.kind === "site")) === true || state.permissions?.detect_everywhere === true;
 }
 
 async function trust(scope: "package" | "publisher"): Promise<void> {
@@ -127,7 +202,22 @@ async function trust(scope: "package" | "publisher"): Promise<void> {
 
 function render(): void {
   const children: Array<HTMLElement | null> = [];
-  if (state.error) children.push(el("div", { className: "ab-error", attrs: { role: "alert" } }, el("strong", { text: state.error.code }), " ", el("span", { text: state.error.message })));
+  children.push(renderLockChip(state.secrets, { onLock: () => void send<SecretsView>({ type: "secrets.lock" }).then(() => loadSecrets().then(render)), onOpen: () => openUnlock(null, null), openSettings: () => openFullPage(undefined, "settings?section=security") }));
+  if (state.error) {
+    const error = state.error;
+    const origins = refusedOrigins({ code: error.code, details: error.details ?? {} });
+    children.push(
+      el(
+        "div",
+        { className: "ab-error", attrs: { role: "alert" } },
+        el("strong", { text: error.code }),
+        " ",
+        el("span", { text: error.message }),
+        origins.length > 0 ? button(`Allow ${origins.join(", ")}`, () => void requestOrigins(origins).then(() => render()), { variant: "primary" }) : null,
+        needsUnlock(error) ? button("Unlock", () => openUnlock(null, null), { variant: "primary" }) : null,
+      ),
+    );
+  }
   if (state.busy) children.push(el("p", { className: "ab-busy", text: state.busy }));
   if (state.open) {
     const open = state.open;
@@ -155,11 +245,12 @@ function render(): void {
       flow.render((scope) => void trust(scope)),
     );
   } else if (state.candidates && state.candidates.candidates.length > 0) {
-    children.push(renderWebsiteCard(state.candidates, (candidate) => void inspect(candidate)));
+    children.push(renderWebsiteCard(state.candidates, (candidate) => void inspect(candidate), { onDetectSite: (origin) => void detectSite(origin), siteDetected: siteDetected(state.candidates.pageOrigin) }));
   } else {
     children.push(emptyState());
   }
-  replace(app, children);
+  const sheet = renderUnlockSheet(state.unlock, state.secrets, { rerender: render, openSettings: () => openFullPage(undefined, "settings?section=security"), onUnlocked: () => void loadSecrets().then(render) });
+  replace(app, sheet ? [...children, sheet] : children);
 }
 
 /**
@@ -200,9 +291,18 @@ async function refresh(): Promise<void> {
   state.tabId = tab?.id ?? null;
   state.candidates = state.tabId === null ? null : await send<CandidateState | null>({ type: "candidates.get", tabId: state.tabId });
   render();
+  // Nothing known about this tab yet: read it now, under the activeTab the click granted (D-190).
+  if (state.candidates === null) await readCurrentTab();
 }
 
 subscribe((event) => {
+  if (event.type === "event.secrets") void loadSecrets().then(render);
+  if (event.type === "event.permissions") {
+    void send<PermissionsView>({ type: "permissions.get" }).then((permissions) => {
+      state.permissions = permissions;
+      render();
+    }, () => undefined);
+  }
   if (event.type === "event.candidates" && event.tabId === state.tabId) void refresh();
   if (event.type === "event.sessions" && state.open) {
     const id = state.open.session.id;
@@ -229,8 +329,16 @@ subscribe((event) => {
 });
 chrome.tabs.onActivated.addListener(() => void refresh());
 chrome.tabs.onUpdated.addListener((tabId, change) => {
-  if (tabId === state.tabId && change.status === "complete") void refresh();
+  if (tabId === state.tabId && change.status === "complete") {
+    // A new page in the same tab: its links are read again when Chrome lets this panel (a granted site), else the empty state says how.
+    state.readTab = null;
+    void refresh();
+  }
 });
+void loadSecrets().then(render);
+void send<PermissionsView>({ type: "permissions.get" }).then((permissions) => {
+  state.permissions = permissions;
+}, () => undefined);
 
 const reattaching: Promise<void> = refresh()
   .catch(() => undefined)

@@ -284,3 +284,19 @@ a { color: var(--ab-accent); }
   .ab-open--compact .ab-wordmark-home, .ab-open--compact .ab-address, .ab-open--compact > .ab-open-results, .ab-open--compact > .ab-open-start { grid-column: 1; }
   .ab-open--compact .ab-wordmark-home { justify-self: start; }
 }
+/* T16: the lock chip, the Unlock sheet, the permissions list */
+.ab-lock { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.ab-lock .ab-lock-idle { margin: 0; }
+.ab-nav .ab-lock { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--ab-border); }
+.ab-panel .ab-lock { margin: 0 0 8px; }
+.ab-sheet { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; }
+.ab-sheet-backdrop { position: absolute; inset: 0; background: rgba(15, 23, 42, 0.45); }
+.ab-sheet-card { position: relative; background: var(--ab-surface); color: var(--ab-text); border-radius: 12px; padding: 20px; width: min(420px, calc(100vw - 32px)); box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3); display: flex; flex-direction: column; gap: 10px; }
+.ab-sheet-card h3 { margin: 0; }
+.ab-sheet-form { display: flex; }
+.ab-sheet-form .ab-input { flex: 1; }
+.ab-permission-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--ab-border); }
+.ab-permission-row:last-child { border-bottom: 0; }
+.ab-permission-row code { word-break: break-all; }
+.ab-permission-why { flex: 1 1 240px; margin: 0; }
+.ab-legacy { margin: 8px 0; }

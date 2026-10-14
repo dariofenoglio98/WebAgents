@@ -5,12 +5,15 @@
  */
 import type { Http } from "../../core/models/catalog.js";
 import { builtinReader } from "../execution/builtin-port.js";
+import { SecretStore } from "../../core/secrets.js";
 import { TrustStore } from "../../core/trust.js";
 import { failure, isEvent, parseContentMessage, parseRequest, success, type Event } from "../messages.js";
 import { isHostCommand } from "../execution/protocol.js";
 import { Database } from "../storage/database.js";
 import { IndexedDbFileStore } from "../storage/files.js";
+import { PermissionStorage, type PermissionsPort } from "../storage/permissions.js";
 import { IndexedDbRunStore } from "../storage/runs.js";
+import { AreaEnvelopeStorage, AreaUnlockedStateStorage } from "../storage/secrets-storage.js";
 import { SettingsStorage } from "../storage/settings.js";
 import { SubscriptionStorage } from "../storage/subscriptions.js";
 import { IndexedDbSnapshotStore } from "../storage/snapshots.js";
@@ -21,7 +24,37 @@ import { Controller, type Sender } from "./controller.js";
 import { OffscreenHostBridge } from "./offscreen-host.js";
 
 const extensionOrigin = `chrome-extension://${chrome.runtime.id}`;
-const settings = new SettingsStorage(chrome.storage.local);
+/**
+ * The secret store (T16, D-191): the envelope in `storage.local`, the unlocked master key in
+ * `storage.session` (trusted contexts only, set below), the idle time from Settings → Security.
+ */
+const secrets: SecretStore = new SecretStore({
+  envelope: new AreaEnvelopeStorage(chrome.storage.local),
+  unlocked: new AreaUnlockedStateStorage(chrome.storage.session),
+  idleMinutes: async (): Promise<number | null> => (await settings.settings()).security.idle_lock_minutes,
+});
+const settings: SettingsStorage = new SettingsStorage(chrome.storage.local, secrets);
+/** The alarm that wipes an idle session key (D-192); Chrome's shortest period. */
+const LOCK_ALARM = "secret-store-idle-lock";
+const CONTEXT_MENU_ID = "webagents-discover";
+/** The built content script, injected under `activeTab` and registered for granted sites (D-190, D-194). */
+const DISCOVERY_SCRIPT = "content-script.js";
+const DISCOVERY_SCRIPT_ID = "webagents-discovery";
+
+/** Chrome's host permissions and the discovery script, as the controller needs them (T16). */
+const permissions: PermissionsPort = {
+  contains: (origins) => chrome.permissions.contains({ origins: [...origins] }),
+  granted: async () => (await chrome.permissions.getAll()).origins ?? [],
+  remove: (origins) => chrome.permissions.remove({ origins: [...origins] }),
+  async registerDiscovery(matches) {
+    const registered = await chrome.scripting.getRegisteredContentScripts({ ids: [DISCOVERY_SCRIPT_ID] });
+    if (registered.length > 0) await chrome.scripting.unregisterContentScripts({ ids: [DISCOVERY_SCRIPT_ID] });
+    if (matches.length > 0) await chrome.scripting.registerContentScripts([{ id: DISCOVERY_SCRIPT_ID, matches: [...matches], js: [DISCOVERY_SCRIPT], runAt: "document_idle", persistAcrossSessions: true }]);
+  },
+  async inject(tabId) {
+    await chrome.scripting.executeScript({ target: { tabId }, files: [DISCOVERY_SCRIPT] });
+  },
+};
 /** A model-catalog probe never waits longer than this. */
 const PROBE_TIMEOUT_MS = 10_000;
 const MAX_PROBE_BYTES = 2 * 1024 * 1024;
@@ -120,6 +153,8 @@ const controller = new Controller({
   runs: new IndexedDbRunStore(database),
   files: new IndexedDbFileStore(database),
   subscriptions: new SubscriptionStorage(chrome.storage.local),
+  permissions,
+  permissionStorage: new PermissionStorage(chrome.storage.local),
   host: new OffscreenHostBridge(),
   trust: new TrustStore(new ChromeTrustStorage()),
   tabs: new ChromeTabStateStore(),
@@ -183,6 +218,36 @@ chrome.tabs.onUpdated.addListener((tabId, change) => {
   if (change.status === "loading" && change.url) void controller.clearTab(tabId);
 });
 
+/** The session key is for the extension's own contexts only (D-181): never a content script's. */
+void chrome.storage.session.setAccessLevel({ accessLevel: "TRUSTED_CONTEXTS" });
+
+/** Discovery on the clicked tab (D-190): the action click opens the panel and grants `activeTab`; the panel asks for the read. */
 chrome.runtime.onInstalled.addListener(() => {
   void chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
+  chrome.contextMenus.create({ id: CONTEXT_MENU_ID, title: "Look for agents on this page", contexts: ["page"], documentUrlPatterns: ["https://*/*"] }, () => void chrome.runtime.lastError);
+  void controller.reconcilePermissions();
+});
+chrome.runtime.onStartup.addListener(() => {
+  void controller.reconcilePermissions();
+});
+// The context-menu item and the keyboard shortcut grant `activeTab` too, so the read works when the panel is already open after a navigation.
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+  if (info.menuItemId === CONTEXT_MENU_ID && tab?.id !== undefined) void controller.readTab(tab.id).catch(() => undefined);
+});
+chrome.commands.onCommand.addListener((command, tab) => {
+  if (command === "_execute_action" && tab?.id !== undefined) void controller.readTab(tab.id).catch(() => undefined);
+});
+// Grants removed outside this extension (chrome://extensions): the records and the discovery script follow Chrome.
+chrome.permissions.onRemoved.addListener(() => void controller.reconcilePermissions());
+chrome.permissions.onAdded.addListener(() => void controller.reconcilePermissions());
+
+// The idle lock's sweep (D-192): while a key is held, every minute; the lazy check in the store covers the rest.
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name !== LOCK_ALARM) return;
+  void secrets.lockIfIdle().then((locked: boolean) => {
+    if (locked) broadcast({ type: "event.secrets" });
+  });
+});
+void chrome.alarms.get(LOCK_ALARM).then((alarm) => {
+  if (!alarm) void chrome.alarms.create(LOCK_ALARM, { periodInMinutes: 1 });
 });

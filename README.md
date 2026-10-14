@@ -168,11 +168,14 @@ In Chrome, open `chrome://extensions`, enable **Developer mode**, **Load unpacke
 
 1. **Connect a model.** Settings → Models: Ollama on this machine (start it with
    `OLLAMA_ORIGINS="chrome-extension://*"`; the page gives the commands), or your own OpenAI or
-   Anthropic key, typed into the extension and kept in this browser profile.
+   Anthropic key, typed into the extension and kept encrypted in this browser profile under a
+   passphrase you set in Settings → Security.
 2. **Visit a site that publishes an agent**, for example the fictional
-   <https://webagents-webair-production.up.railway.app/>. The badge counts the packages the page
-   advertises; the side panel lists them; **Inspect** verifies one and shows who signed it and what
-   it asks for.
+   <https://webagents-webair-production.up.railway.app/>, and click the WebAgents button: the
+   extension reads that page's advertised packages (it holds no website access until you grant
+   some); the side panel lists them; **Inspect** verifies one and shows who signed it and what
+   it asks for. Chrome asks you to allow each origin an agent needs, and Settings → Permissions
+   lists and revokes every grant.
 3. **Trust the publisher key**, choose a profile such as *Search flights* and press **Use this
    agent**, or open **Customize your settings** to decide permission by permission.
 4. **Run.** The run happens in the extension's own background host with the model, permissions

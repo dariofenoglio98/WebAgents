@@ -281,12 +281,16 @@ Settings → Models.
   shows the exact commands and tells *not running* apart from *rejecting this extension*. Only
   `127.0.0.1` and `localhost` are accepted. The context note of §3 applies: Settings → Models lets
   you state a larger context for a model whose window Ollama reports.
-- *OpenAI or Anthropic.* Type your own API key. It is stored in this Chrome profile
-  (`chrome.storage.local`), never shown again, never synced, and sent only to that provider.
+- *OpenAI or Anthropic.* Set a passphrase first (Settings → Security), then type your own API
+  key. It is stored in this Chrome profile encrypted under that passphrase, never shown again,
+  never synced, and sent only to that provider, whose origin Chrome asks you to allow once.
 
-**Use it.** Visit `https://webagents-webair-production.up.railway.app/`: the badge shows the number
-of advertised packages; the side panel lists them; **Inspect** verifies one; **Trust this publisher
-key**; choose *Search flights* and **Use this agent**; type a request and **Run**. The extension
+**Use it.** Visit `https://webagents-webair-production.up.railway.app/` and click the WebAgents
+button: the side panel reads that page's advertised packages and lists them (the extension holds
+no website access until you grant some; "Always detect agents on this site" gives it the badge
+there); **Inspect** verifies one (Chrome asks you to allow the site's origin); **Trust this
+publisher key**; choose *Search flights* and **Use this agent** (Chrome asks for the origins the
+plan needs); type a request and **Run**. The extension
 opens packages only over HTTPS, so Literature Review needs an origin that serves it, such as
 [`package-origin/`](../package-origin/) behind TLS (§5); type its package URL into the full page's
 address bar. (The Chrome harness `scripts/e2e-literature-live.mjs` serves it from a local HTTPS

@@ -27,7 +27,9 @@ import { validateTaskInput } from "../../core/presentation.js";
 import { FILE_ID_PATTERN, type SelectedFileAttachment } from "../../core/tools/adapters/selected-file.js";
 import { definitionsFromRegistry } from "../../core/tools/definitions.js";
 import type { Reason, RunPlan, RunPlanPreflight } from "../../core/types.js";
-import type { Vault } from "../../core/vault.js";
+import { emptyVaultDocument, generateVaultKey, Vault } from "../../core/vault.js";
+import type { PlanOrigin } from "../../core/origins.js";
+import type { SecretStoreState } from "../../core/secrets.js";
 import { HOST_UNLOADED } from "../execution/execute.js";
 import type { HostStartMessage, HostStatusReply } from "../execution/protocol.js";
 import type { ArtifactChunk, ArtifactContent, Event, ExportBundle, ObservationsView, RunListView, RunReadiness, RunSummary, RunView } from "../messages.js";
@@ -88,6 +90,12 @@ export interface RunHooks {
   file?(fileId: string): Promise<FileView | null>;
   /** The subscribed policy's budget caps (T8, D-102), which lower the person's run limits; null when none. */
   limitCaps?(): Promise<Partial<HostExecutionLimits> | null>;
+  /** The origins this session's plan needs (T16, D-193), from the plan, the registry and the provider settings. */
+  planOrigins(sessionId: string): Promise<PlanOrigin[]>;
+  /** Which of these origins Chrome does not grant now (empty when all are granted). */
+  missingOrigins(origins: readonly string[]): Promise<string[]>;
+  /** The secret store's state (T16): a plan that needs a key or a record cannot run while it is locked (D-195). */
+  secretsState(): Promise<SecretStoreState>;
 }
 
 /** The execution host as the worker sees it: an offscreen document in the extension, an in-process host in tests. */
@@ -323,7 +331,7 @@ export class RunManager {
     const limits = await this.hostLimits();
     const required = this.requiredSeconds(limits);
     const checks: string[] = [];
-    const base: RunReadiness = { session_id: sessionId, checked_at: now.toISOString(), ready: false, run_plan_id: null, run_plan_sha256: null, blocker: null, checks, receipt: null, active_run_id: null, preflight: null };
+    const base: RunReadiness = { session_id: sessionId, checked_at: now.toISOString(), ready: false, run_plan_id: null, run_plan_sha256: null, blocker: null, checks, receipt: null, active_run_id: null, preflight: null, missing_origins: [] };
     const blocked = (code: string, message: string, subject: string | null = null): RunReadiness => ({ ...base, blocker: { code, message, subject } });
     if (!this.deps.host.available()) return blocked("execution_unavailable", "This browser cannot run packages: the extension has no execution host (chrome.offscreen is unavailable).");
     checks.push("execution_host_available");
@@ -336,6 +344,16 @@ export class RunManager {
     base.receipt = { expires_at: plan.authorization.expires_at, remaining_seconds: Math.max(0, remaining), required_seconds: required };
     if (plan.execution.mode !== "model") return blocked("run_plan_mode", "This plan is authority for one tool probe, not for running the package.");
     checks.push("plan_mode_model");
+    // What the run would be handed (D-195): the bound provider's key, the granted records. A locked
+    // store cannot hand them over, and the person unlocks before Run, never during (D-192); checked
+    // before the preflight, which cannot evaluate a plan's resource bindings while the store is locked.
+    if (plan.model_binding !== null && this.needsSecrets(plan)) {
+      const state = await this.deps.hooks.secretsState();
+      if (state !== "unlocked") {
+        return blocked(state === "no_passphrase" ? "store_no_passphrase" : "store_locked", state === "no_passphrase" ? "Set a passphrase first (Settings → Security): this run needs your provider key or your records, which are kept only in the protected store." : "Unlock your keys and records to run: this run needs your provider key or a record you granted.");
+      }
+    }
+    checks.push("secrets_available");
     const preflight = await this.deps.hooks.preflight(sessionId);
     base.preflight = preflight;
     if (!preflight.ready || preflight.stale) {
@@ -343,6 +361,13 @@ export class RunManager {
       return blocked(preflight.stale ? "run_plan_stale" : "run_plan_blocked", reason?.message ?? (preflight.stale ? "The run plan is stale; prepare a new one." : "The run plan is not ready."), reason?.subject ?? null);
     }
     checks.push("preflight_ready");
+    // Every origin the plan recorded must be granted now (D-193): a grant revoked after the plan blocks Run by name.
+    const missing = await this.deps.hooks.missingOrigins((await this.deps.hooks.planOrigins(sessionId)).map((item) => item.origin));
+    if (missing.length > 0) {
+      base.missing_origins = missing;
+      return blocked("origins_not_granted", `This browser is not allowed to reach ${missing.join(", ")}. Allow ${missing.length === 1 ? "it" : "them"} to run.`);
+    }
+    checks.push("origins_granted");
     if (remaining < required) {
       return blocked("authorization_expiring", `A run may take up to ${required}s and this authorization has ${Math.max(0, remaining)}s left. Authorize again and prepare a new run plan before starting, so consent does not lapse in the middle of a run.`);
     }
@@ -389,7 +414,8 @@ export class RunManager {
       const archive = await this.deps.hooks.snapshotBytes(facts.stored.archive_sha256);
       if (archive === null) throw reject("execution_artifact_mismatch", "The session snapshot is no longer stored", 500);
       const registry = await this.deps.hooks.toolRegistry(sessionId);
-      const vault = await this.deps.hooks.vault();
+      // The vault is opened only for a plan that grants a record (D-195): a locked store never blocks a run that needs nothing from it.
+      const vault = plan.resource_grants.length > 0 ? await this.deps.hooks.vault() : await Vault.open(generateVaultKey(), emptyVaultDocument());
       const catalog = await this.deps.hooks.catalog();
       const leases = await this.leaseRegistry();
       let lease: ExecutionLease;
@@ -437,7 +463,7 @@ export class RunManager {
       this.leases.set(runId, lease);
       this.deps.broadcast({ type: "event.run", runId, sessionId, status: "preparing" });
       try {
-        await this.deps.host.start(await this.startMessage(runId));
+        await this.deps.host.start(await this.startMessage(runId, sessionId, plan));
       } catch (error) {
         const now = this.clock();
         const detail = `The execution host could not be started: ${error instanceof Error ? error.message : "error"}`;
@@ -490,18 +516,29 @@ export class RunManager {
     return attachments;
   }
 
-  /** What the host needs and nothing it does not: the keys and the vault for this run, in memory. */
-  private async startMessage(runId: string): Promise<HostStartMessage> {
+  /** Whether a run under this plan is handed anything from the secret store: a hosted provider's key, or a granted record. */
+  private needsSecrets(plan: RunPlan): boolean {
+    const provider = plan.model_binding?.provider_id ?? null;
+    return plan.resource_grants.length > 0 || provider === "openai" || provider === "anthropic";
+  }
+
+  /**
+   * What the host needs and nothing it does not (D-195): the key of the bound provider only, the
+   * vault only when the plan grants a record, and the origins the plan recorded (D-193), in memory.
+   */
+  private async startMessage(runId: string, sessionId: string, plan: RunPlan): Promise<HostStartMessage> {
     const settings = await this.deps.settings.settings();
     const connections = connectionsFor(settings, await this.deps.settings.keyPresence());
     const ollama = connections.find((connection) => connection.provider === "ollama");
-    const key = await this.deps.settings.vaultKey();
+    const provider = plan.model_binding?.provider_id ?? null;
+    const vault = plan.resource_grants.length > 0 ? { key: encodeBase64(await this.deps.settings.vaultKey()), document: await this.deps.settings.vaultDocument() } : null;
     return {
       type: "host.start",
       runId,
-      credentials: { openai: await this.deps.settings.key("openai"), anthropic: await this.deps.settings.key("anthropic") },
-      vault: { key: encodeBase64(key), document: await this.deps.settings.vaultDocument() },
+      credentials: { openai: provider === "openai" ? await this.deps.settings.key("openai") : null, anthropic: provider === "anthropic" ? await this.deps.settings.key("anthropic") : null },
+      vault,
       settings: { ollamaBaseUrl: ollama?.base_url ?? null, think: settings.models.connections.find((connection) => connection.provider === "ollama")?.think === true, ...openaiEffortOf(settings), recordRequests: settings.developer.record_requests, runtimeVersion: this.deps.runtimeVersion, verifiedVersion: this.deps.runtimeVersion, crossrefContact: settings.services.crossref_contact },
+      allowedOrigins: (await this.deps.hooks.planOrigins(sessionId)).map((item) => item.origin),
     };
   }
 

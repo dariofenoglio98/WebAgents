@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "WebAgents Agent Browser",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Discover, verify, authorize and run signed agent.pkg packages that websites advertise, with your own models, permissions and data.",
   "minimum_chrome_version": "137",
   "icons": {
@@ -10,8 +10,9 @@
     "48": "icons/icon-48.png",
     "128": "icons/icon-128.png"
   },
-  "permissions": ["storage", "sidePanel", "unlimitedStorage", "offscreen"],
-  "host_permissions": ["https://*/*", "http://127.0.0.1/*", "http://localhost/*"],
+  "permissions": ["storage", "sidePanel", "unlimitedStorage", "offscreen", "activeTab", "scripting", "alarms", "contextMenus"],
+  "host_permissions": ["http://127.0.0.1/*", "http://localhost/*"],
+  "optional_host_permissions": ["https://*/*"],
   "background": {
     "service_worker": "service-worker.js",
     "type": "module"
@@ -26,13 +27,12 @@
   "side_panel": {
     "default_path": "sidepanel.html"
   },
-  "content_scripts": [
-    {
-      "matches": ["https://*/*"],
-      "js": ["content-script.js"],
-      "run_at": "document_idle"
+  "commands": {
+    "_execute_action": {
+      "suggested_key": { "default": "Ctrl+Shift+Y", "mac": "Command+Shift+Y" },
+      "description": "Open the WebAgents side panel and look for agents on this page"
     }
-  ],
+  },
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'; connect-src https: http://127.0.0.1:* http://localhost:*"
   }

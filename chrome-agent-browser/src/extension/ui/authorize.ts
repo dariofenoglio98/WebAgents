@@ -31,10 +31,12 @@ export interface AuthorizeState {
   selectedModel: string | null;
   /** Local notice after an action. */
   notice: { text: string; tone: "good" | "warn" | "bad" } | null;
+  /** Origins a refusal named (T16, D-193): the notice offers Allow for them. */
+  allowOrigins: string[] | null;
 }
 
 export function newAuthorizeState(): AuthorizeState {
-  return { selectedProfile: null, customize: false, draft: null, picks: {}, selectedModel: null, notice: null };
+  return { selectedProfile: null, customize: false, draft: null, picks: {}, selectedModel: null, notice: null, allowOrigins: null };
 }
 
 export interface AuthorizeActions {
@@ -44,8 +46,15 @@ export interface AuthorizeActions {
   onPrepare: (modelId: string) => void;
   onRefreshModels: () => void;
   onClearPlan: () => void;
-  onOpenSettings: (section: "models" | "policies" | "data") => void;
+  onOpenSettings: (section: "models" | "policies" | "data" | "security") => void;
   onTrust?: (scope: "package" | "publisher") => void;
+  /**
+   * Ask Chrome for these origins before the decisions are sent (T16, D-193): called inside the
+   * click, where the gesture Chrome requires is in force. Absent in tests without a `chrome`.
+   */
+  requestOrigins?: (origins: string[]) => Promise<boolean>;
+  /** Open the Unlock sheet (T16): the store is locked and a record must be chosen. */
+  onUnlock?: () => void;
   /** Re-render after a local state change. */
   rerender: () => void;
 }
@@ -160,7 +169,7 @@ function summaryCard(input: AuthorizeInput, state: AuthorizeState, actions: Auth
   const deniedTools = view.request.tool_approvals.filter((tool) => !decided.tool_approvals[tool.tool_id]).map((tool) => tool.tool_id);
   const personal = view.resources.requests.filter((request) => decided.decisions[request.permission_id] !== "deny");
   const model = input.models?.evaluation.models.find((item) => item.model_id === view.default_model) ?? null;
-  const pickers = personal.map((request) => resourcePicker(request, state, actions, decided.decisions[request.permission_id]!));
+  const pickers = personal.map((request) => resourcePicker(request, state, actions, decided.decisions[request.permission_id]!, view.secrets !== "unlocked"));
   const trust = input.session.page.trust;
   const canUse = trust.trust_status === "trusted";
   return card(
@@ -198,8 +207,10 @@ function summaryCard(input: AuthorizeInput, state: AuthorizeState, actions: Auth
           "Use this agent",
           () => {
             const picks = pickState(state, personal);
-            if (profile) actions.onUseProfile(profile.id, picks);
-            else actions.onAuthorize(decided.decisions, decided.tool_approvals, picks, decided.provenance, null);
+            withOrigins(actions, originsFor(view, decided.tool_approvals, null), () => {
+              if (profile) actions.onUseProfile(profile.id, picks);
+              else actions.onAuthorize(decided.decisions, decided.tool_approvals, picks, decided.provenance, null);
+            });
           },
           { variant: "primary", disabled: input.busy !== null || !canUse, title: canUse ? "Record these decisions and prepare a run plan" : "Trust the publisher first" },
         ),
@@ -230,6 +241,31 @@ function linkButton(text: string, onClick: () => void): HTMLButtonElement {
   return node;
 }
 
+/**
+ * The origins these decisions would need (D-193): the package's own, every approved remote tool's,
+ * and the model's provider (the chosen one, else the default). Computed from the worker's
+ * per-part answer so the page asks Chrome for exactly this set, in the click.
+ */
+export function originsFor(view: AuthorizationView, approvals: Record<string, boolean>, modelId: string | null): string[] {
+  const origins = new Set<string>();
+  if (view.origins.package) origins.add(view.origins.package);
+  for (const [toolId, toolOrigins] of Object.entries(view.origins.tools)) if (approvals[toolId] === true) for (const origin of toolOrigins) origins.add(origin);
+  const model = modelId ?? view.default_model;
+  const provider = model?.split("/")[0] ?? null;
+  const providerOrigin = provider === null ? null : (view.origins.providers[provider] ?? null);
+  if (providerOrigin) origins.add(providerOrigin);
+  return [...origins].sort();
+}
+
+/** Run `send` after Chrome was asked for the origins (a refusal is not an error: the worker refuses by name and the notice offers Allow). */
+function withOrigins(actions: AuthorizeActions, origins: string[], send: () => void): void {
+  if (!actions.requestOrigins || origins.length === 0) {
+    send();
+    return;
+  }
+  void actions.requestOrigins(origins).then(send, send);
+}
+
 function pickState(state: AuthorizeState, requests: readonly ResourceRequest[]): Record<string, string> {
   const picks: Record<string, string> = {};
   for (const request of requests) {
@@ -240,8 +276,11 @@ function pickState(state: AuthorizeState, requests: readonly ResourceRequest[]):
 }
 
 /** The host resource a permission would share, chosen by the person; the value itself never reaches the page. */
-function resourcePicker(request: ResourceRequest, state: AuthorizeState, actions: AuthorizeActions, decision: Decision): HTMLElement {
+function resourcePicker(request: ResourceRequest, state: AuthorizeState, actions: AuthorizeActions, decision: Decision, locked = false): HTMLElement {
   const kind = request.type_display_name ?? "record";
+  if (locked) {
+    return el("div", { className: "ab-resource-choice ab-resource-locked" }, el("p", { className: "ab-hint", text: `Unlock your keys and records to choose which ${kind.toLowerCase()} to share.` }), actions.onUnlock ? linkButton("Unlock", actions.onUnlock) : null);
+  }
   if (request.status !== "offered") {
     const why =
       request.status === "empty"
@@ -289,7 +328,7 @@ function permissionRow(view: AuthorizationView, draft: NonNullable<AuthorizeStat
       { className: "ab-permission-body" },
       el("div", { className: "ab-access-head" }, el("code", { className: "ab-id", text: permission.id }), chip(permission.kind), chip(permission.required ? "Required" : "Optional", permission.required ? "warn" : "neutral"), chip(decidedByText(draft.decidedBy[permission.id], view), decidedByTone(draft.decidedBy[permission.id]))),
       el("p", { className: "ab-access-text", text: permission.description }),
-      request && draft.decisions[permission.id] !== "deny" ? resourcePicker(request, state, actions, draft.decisions[permission.id]!) : null,
+      request && draft.decisions[permission.id] !== "deny" ? resourcePicker(request, state, actions, draft.decisions[permission.id]!, view.secrets !== "unlocked") : null,
       permission.linked_domains.length > 0 ? el("p", { className: "ab-hint", text: `Network: ${permission.linked_domains.join(", ")}` }) : null,
       permission.linked_tools.length > 0 ? el("p", { className: "ab-hint", text: `Used by: ${permission.linked_tools.join(", ")}` }) : null,
     ),
@@ -404,11 +443,11 @@ function customizeView(input: AuthorizeInput, state: AuthorizeState, actions: Au
       { className: "ab-summary-actions" },
       button(
         "Authorize with these settings",
-        () => actions.onAuthorize(draft.decisions, draft.approvals, pickState(state, personal), provenanceFrom(draft, view.preset, pickState(state, personal)), state.selectedModel),
+        () => withOrigins(actions, originsFor(view, draft.approvals, state.selectedModel), () => actions.onAuthorize(draft.decisions, draft.approvals, pickState(state, personal), provenanceFrom(draft, view.preset, pickState(state, personal)), state.selectedModel)),
         { variant: "primary", disabled: input.busy !== null || !trusted, title: trusted ? "Record these decisions and prepare a run plan with the selected model" : "Trust the publisher first" },
       ),
       state.selectedModel && view.receipt
-        ? button("Prepare run plan with the selected model", () => actions.onPrepare(state.selectedModel!), { disabled: input.busy !== null })
+        ? button("Prepare run plan with the selected model", () => withOrigins(actions, originsFor(view, view.receipt!.tool_approvals, state.selectedModel), () => actions.onPrepare(state.selectedModel!)), { disabled: input.busy !== null })
         : null,
     ),
     el("p", { className: "ab-hint", text: "Authorizing runs nothing. Changed decisions are recorded as your own." }),
@@ -422,12 +461,15 @@ function planCard(input: AuthorizeInput, actions: AuthorizeActions): HTMLElement
   const receipt = view.receipt;
   const plan = view.run_plan;
   const ready = plan?.preflight.ready === true;
-  const headline = plan ? (ready ? "Ready to run" : plan.preflight.stale ? "The run plan is stale" : "The run plan is not ready") : receipt.runnable ? "Authorized, no run plan yet" : "Cannot run with these decisions";
-  const tone = ready ? "good" : plan || !receipt.runnable ? "warn" : "neutral";
-  const problems = plan ? [...plan.preflight.stale_reasons, ...plan.preflight.blocking_reasons] : receipt.blocking_reasons;
+  // T16: a plan that grants a record cannot be checked while the store is locked (its registries are in the vault); say so, not "stale".
+  const lockedPlan = plan !== null && view.secrets !== "unlocked" && plan.run_plan.resource_grants.length > 0;
+  const headline = plan ? (lockedPlan ? "Unlock to check this run plan" : ready ? "Ready to run" : plan.preflight.stale ? "The run plan is stale" : "The run plan is not ready") : receipt.runnable ? "Authorized, no run plan yet" : "Cannot run with these decisions";
+  const tone = ready ? "good" : lockedPlan ? "neutral" : plan || !receipt.runnable ? "warn" : "neutral";
+  const problems = lockedPlan ? [] : plan ? [...plan.preflight.stale_reasons, ...plan.preflight.blocking_reasons] : receipt.blocking_reasons;
   return card(
     "Run plan",
-    el("div", { className: `ab-banner ab-banner-${tone}`, attrs: { role: "status" } }, el("strong", { text: headline }), el("p", { text: ready ? "Everything this run needs is bound and current. Running arrives with the execution host (T5); nothing has run." : plan ? "This plan cannot be used as it stands; the reasons are below." : receipt.runnable ? "Choose a model under Customize your settings, or a default model in Settings → Models, to prepare a run plan." : "Adjust the decisions, or resolve the reasons below, then authorize again." })),
+    el("div", { className: `ab-banner ab-banner-${tone}`, attrs: { role: "status" } }, el("strong", { text: headline }), el("p", { text: lockedPlan ? "This plan grants one of your records. Its bindings are checked against your records, which are locked; unlock to check it and run." : ready ? "Everything this run needs is bound and current. Running arrives with the execution host (T5); nothing has run." : plan ? "This plan cannot be used as it stands; the reasons are below." : receipt.runnable ? "Choose a model under Customize your settings, or a default model in Settings → Models, to prepare a run plan." : "Adjust the decisions, or resolve the reasons below, then authorize again." })),
+    lockedPlan && actions.onUnlock ? el("div", { className: "ab-actions" }, button("Unlock", actions.onUnlock, { variant: "primary" })) : null,
     reasons(problems, "Why not"),
     // A plan keeps the model it was prepared with (D-113): a later change of the default is said, not applied.
     plan?.run_plan.model_binding && view.default_model && plan.run_plan.model_binding.host_model_id !== view.default_model
@@ -465,6 +507,8 @@ function planCard(input: AuthorizeInput, actions: AuthorizeActions): HTMLElement
               ["Model still offered", plan.preflight.model_still_available === null ? "unknown" : plan.preflight.model_still_available ? "yes" : "no"],
               ["Tool bindings", `${plan.preflight.tool_bindings.bound} bound · ${plan.preflight.tool_bindings.current ? "current" : "changed"}`],
               ["Trust store changed since", plan.preflight.trust_store_changed ? "yes" : "no"],
+              // The origins this plan may reach (T16, D-193): Chrome's grants, listed with what needs each.
+              ["Origins it may reach", plan.origins.length === 0 ? "none beyond this machine" : list(plan.origins.map((item) => el("span", { attrs: { "data-origin": item.origin } }, el("code", { text: item.origin }), ` (${item.subjects.join(", ")}) `, chip(item.granted ? "granted" : "not granted", item.granted ? "good" : "bad"))))],
             ] as Array<[string, Child]>)
           : []),
       ]),
@@ -493,7 +537,28 @@ export function renderAuthorizeView(input: AuthorizeInput, state: AuthorizeState
   const selected = profiles?.find((entry) => entry.profile.id === state.selectedProfile) ?? null;
   const decided: Decided = selected ? selected.decided : view.defaults;
   const children: Child[] = [];
-  if (state.notice) children.push(el("div", { className: `ab-banner ab-banner-${state.notice.tone}`, attrs: { role: "status" } }, el("span", { text: state.notice.text })));
+  if (state.notice) {
+    const allow = state.allowOrigins;
+    children.push(
+      el(
+        "div",
+        { className: `ab-banner ab-banner-${state.notice.tone}`, attrs: { role: "status" } },
+        el("span", { text: state.notice.text }),
+        allow && allow.length > 0 && actions.requestOrigins
+          ? button(`Allow ${allow.join(", ")}`, () => {
+              // The click is the gesture: ask Chrome, then prepare the plan again (or authorize again) with the receipt's decisions.
+              void actions.requestOrigins!(allow).then(() => {
+                state.allowOrigins = null;
+                const receipt = input.view.receipt;
+                const model = state.selectedModel ?? input.view.default_model;
+                if (receipt && model) actions.onPrepare(model);
+                else actions.rerender();
+              });
+            }, { variant: "primary" })
+          : null,
+      ),
+    );
+  }
   children.push(trustPrompt(input, actions));
   if (profiles && profiles.length > 0) {
     children.push(

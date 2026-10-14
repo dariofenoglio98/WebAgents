@@ -69,6 +69,32 @@ const manifest = JSON.parse(members.get("manifest.json")?.toString("utf8") ?? "{
 if (manifest.version !== version) problems.push(`manifest version ${manifest.version} != package version ${version}`);
 if (manifest.manifest_version !== 3) problems.push("not a Manifest V3 extension");
 
+// Least privilege (T16, D-182, D-190, D-194): the loopback names are the only host permissions,
+// every HTTPS origin is optional, no static content script, the permission list exactly as decided.
+const LOOPBACK_HOSTS = ["http://127.0.0.1/*", "http://localhost/*"];
+const PERMISSIONS = ["activeTab", "alarms", "contextMenus", "offscreen", "scripting", "sidePanel", "storage", "unlimitedStorage"];
+const hosts = [...(manifest.host_permissions ?? [])].sort();
+if (JSON.stringify(hosts) !== JSON.stringify(LOOPBACK_HOSTS)) problems.push(`host_permissions must be exactly the loopback names, found ${JSON.stringify(hosts)}`);
+if (JSON.stringify(manifest.optional_host_permissions ?? []) !== JSON.stringify(["https://*/*"])) problems.push("optional_host_permissions must be exactly https://*/*");
+if (manifest.content_scripts !== undefined) problems.push("a static content script is declared (D-194: the discovery script is injected or registered on grant)");
+if (JSON.stringify([...(manifest.permissions ?? [])].sort()) !== JSON.stringify(PERMISSIONS)) problems.push(`permissions must be exactly ${PERMISSIONS.join(", ")}, found ${(manifest.permissions ?? []).join(", ")}`);
+if (manifest.permissions?.includes("tabs") || manifest.permissions?.includes("declarativeContent")) problems.push("tabs and declarativeContent are not requested (D-190)");
+
+// The Web Store's remote-code rule: every script is in the zip; nothing is loaded from the network or evaluated from text.
+for (const name of names.filter((member) => member.endsWith(".js") || member.endsWith(".html"))) {
+  const text = members.get(name).toString("utf8");
+  const remote = /(?:<script[^>]+src\s*=\s*["']|importScripts\s*\(\s*["']|import\s*\(\s*["']|from\s+["'])https?:\/\//iu.exec(text);
+  if (remote) problems.push(`${name} references a remote script: ${remote[0].slice(0, 60)}`);
+  // pdf.js's bundled global-object shim ends in `Function("return this")()`, reached only where
+  // neither globalThis nor self exists (never in Chrome) and refused by the CSP anyway; nothing
+  // else may evaluate text as code.
+  const scanned = text.replace(/\bnew Function[A-Za-z]/gu, "").replace(/Function\("return this"\)\(\)/gu, "");
+  const evaluated = /(?:^|[^\w$.])(?:eval|Function)\s*\(/u.exec(scanned);
+  if (evaluated) problems.push(`${name} evaluates code from text: ${evaluated[0].trim()}`);
+}
+const csp = String(manifest.content_security_policy?.extension_pages ?? "");
+if (!/script-src 'self'/u.test(csp) || /unsafe-eval|unsafe-inline/u.test(csp)) problems.push(`the extension pages' CSP must allow the extension's own scripts only, found ${JSON.stringify(csp)}`);
+
 const sha256 = (data) => createHash("sha256").update(data).digest("hex");
 const listing = readFileSync(zipPath.replace(/\.zip$/u, ".contents.txt"), "utf8").trim().split("\n").map((line) => line.split(/\s+/u));
 const archiveLine = listing.pop();

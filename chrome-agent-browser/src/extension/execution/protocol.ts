@@ -5,10 +5,13 @@
  * The host never decides anything about authority: it re-verifies the bytes against the plan
  * (`ExecutionSession.begin`) and executes.
  *
- * What travels in `host.start` and nowhere else: the provider keys the run needs and the vault
- * (the person's records, which the broker resolves for `host_resource` bindings and whose sealed
- * values the egress guard refuses anywhere else). They live in `chrome.storage.local` and in the
- * host's memory for the run; no record, checkpoint or artifact carries them.
+ * What travels in `host.start` and nowhere else: the key of the provider the plan bound (and no
+ * other, D-195), the vault when the plan grants records (the person's records, which the broker
+ * resolves for `host_resource` bindings and whose sealed values the egress guard refuses anywhere
+ * else; null otherwise), and the origins the plan allows the run to reach (D-193), which the
+ * host's transports enforce beneath the core URL gate. The secrets live encrypted in
+ * `chrome.storage.local` (D-191) and in the host's memory for the run; no record, checkpoint or
+ * artifact carries them.
  */
 import type { OpenAIReasoningEffort } from "../../core/models/adapters/openai.js";
 import type { VaultDocument } from "../../core/vault.js";
@@ -40,8 +43,14 @@ export interface HostStartMessage {
   type: "host.start";
   runId: string;
   credentials: HostCredentials;
-  vault: { key: string; document: VaultDocument };
+  /** The vault, when the plan grants a record; null when it grants none (the host then holds an empty vault, D-195). */
+  vault: { key: string; document: VaultDocument } | null;
   settings: HostRunSettings;
+  /**
+   * The origins (`https://host`) this run may reach: the plan's package, tool and provider origins
+   * (D-193). The model transport may also reach Ollama on the loopback names; nothing else.
+   */
+  allowedOrigins: string[];
 }
 
 export interface HostCancelMessage {

@@ -42,6 +42,10 @@ export interface RunPanelHost {
   runChanged?: (runId: string | null) => void;
   /** Open Settings → Files, where the PDFs a task may name are picked (T6). */
   openFiles?: () => void;
+  /** Open the Unlock sheet (T16); `retry` runs after a successful unlock. */
+  unlock?: (retry: () => void) => void;
+  /** Ask Chrome for origins in a click (T16, D-193). */
+  requestOrigins?: (origins: string[]) => Promise<boolean>;
 }
 
 export const HOST_ARTIFACTS = new Set(["result.json", "audit.json", "usage.json", "provenance.json", "run.json"]);
@@ -580,7 +584,7 @@ export class RunPanel {
       readiness = await this.host.send<RunReadiness>({ type: "run.readiness", sessionId });
     } catch (error) {
       const described = describe(error);
-      readiness = { session_id: sessionId, checked_at: new Date().toISOString(), ready: false, run_plan_id: null, run_plan_sha256: null, blocker: { code: described.code, message: described.message, subject: null }, checks: [], receipt: null, active_run_id: null, preflight: null };
+      readiness = { session_id: sessionId, checked_at: new Date().toISOString(), ready: false, run_plan_id: null, run_plan_sha256: null, blocker: { code: described.code, message: described.message, subject: null }, checks: [], receipt: null, active_run_id: null, preflight: null, missing_origins: [] };
     }
     if (this.disposed || sessionId !== this.sessionId) return;
     this.readinessFor = key;
@@ -885,7 +889,7 @@ export class RunPanel {
     const plan = planState?.run_plan ?? null;
     const preflight = planState?.preflight ?? null;
     const validation = page.technical.validation;
-    const items: Array<{ id: string; label: string; ok: boolean; reason: string | null; section?: "trust" | "authorization" | "model" | "plan" }> = [
+    const items: Array<{ id: string; label: string; ok: boolean; reason: string | null; section?: "trust" | "authorization" | "model" | "plan"; action?: "unlock" | "allow" | "security" }> = [
       {
         id: "verified",
         label: "Package verified",
@@ -944,6 +948,9 @@ export class RunPanel {
       const ok = readiness.receipt.remaining_seconds >= readiness.receipt.required_seconds;
       items.push({ id: "receipt", label: `Authorization valid for ${Math.floor(readiness.receipt.remaining_seconds / 60)} more min (a run may take up to ${Math.ceil(readiness.receipt.required_seconds / 60)} min)`, ok, reason: "Authorize again and prepare a new run plan, so consent does not lapse in the middle of a run.", section: "authorization" });
     }
+    // T16: what the run would be handed, and where it may go (D-193, D-195).
+    if (readiness?.blocker?.code === "store_locked" || readiness?.blocker?.code === "store_no_passphrase") items.push({ id: "secrets", label: "Keys and records unlocked", ok: false, reason: readiness.blocker.message, action: readiness.blocker.code === "store_locked" ? "unlock" : "security" });
+    if (readiness?.blocker?.code === "origins_not_granted") items.push({ id: "origins", label: "Origins allowed in Chrome", ok: false, reason: readiness.blocker.message, action: "allow" });
     if (readiness?.blocker?.code === "execution_active") items.push({ id: "active", label: "No other run in progress", ok: false, reason: readiness.blocker.message });
     if (readiness?.blocker?.code === "execution_unavailable") items.push({ id: "host", label: "Execution host available", ok: false, reason: readiness.blocker.message });
     const key = JSON.stringify(this.taskValue ?? null);
@@ -1034,6 +1041,17 @@ export class RunPanel {
         const go = button("Go", () => this.host.reveal?.(section));
         go.classList.add("ab-button-small");
         line.append(go);
+      }
+      if (!item.ok && item.action === "unlock" && this.host.unlock) {
+        const unlock = button("Unlock", () => this.host.unlock?.(() => void this.refreshReadiness()));
+        unlock.classList.add("ab-button-small");
+        line.append(unlock);
+      }
+      if (!item.ok && item.action === "allow" && this.host.requestOrigins) {
+        const missing = this.readiness?.missing_origins ?? [];
+        const allow = button("Allow", () => void this.host.requestOrigins?.(missing).then(() => this.refreshReadiness()));
+        allow.classList.add("ab-button-small");
+        line.append(allow);
       }
       listNode.append(line);
     }

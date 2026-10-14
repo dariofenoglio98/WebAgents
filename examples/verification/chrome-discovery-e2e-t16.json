@@ -1,0 +1,216 @@
+{
+  "profile": "chrome-agent-browser-e2e-discovery-v0",
+  "recordedAt": "2026-10-13T23:58:26.595Z",
+  "extension": "/Users/dariofenoglio/Desktop/WebAgents/chrome-agent-browser/dist/extension",
+  "package": {
+    "path": "/Users/dariofenoglio/Desktop/WebAgents/dist/webair-0.3.0.agent.pkg",
+    "archive_sha256": "b537cf5cba06bce8137533eb75b491486f57caf3098af30f657343b741492887"
+  },
+  "chrome": "Chrome/155.0.8059.40",
+  "steps": {
+    "least_privilege": {
+      "host_permissions": [
+        "http://127.0.0.1/*",
+        "http://localhost/*"
+      ],
+      "optional_host_permissions": [
+        "https://*/*"
+      ],
+      "content_scripts": null,
+      "permissions": [
+        "storage",
+        "sidePanel",
+        "unlimitedStorage",
+        "offscreen",
+        "activeTab",
+        "scripting",
+        "alarms",
+        "contextMenus"
+      ],
+      "the manifest holds the loopback names only": "ok",
+      "every HTTPS origin is optional": "ok",
+      "no static content script": "ok",
+      "neither tabs nor declarativeContent is requested": "ok",
+      "granted_origins": [
+        "http://127.0.0.1/*",
+        "http://localhost/*"
+      ],
+      "refusal": {
+        "code": "origin_not_granted",
+        "message": "This browser is not allowed to reach https://webair.example. Allow it to continue.",
+        "details": {
+          "origins": [
+            "https://webair.example"
+          ]
+        }
+      },
+      "at install Chrome grants the loopback names and nothing else": "ok",
+      "opening a package from an ungranted origin is refused origin_not_granted, naming it": "ok",
+      "nothing was fetched from the origin before the refusal": "ok"
+    },
+    "site_grant": {
+      "permissions": [
+        {
+          "origin": "https://webair.example",
+          "pattern": "https://webair.example/*",
+          "purposes": [
+            {
+              "kind": "site",
+              "subject": "https://webair.example"
+            }
+          ],
+          "recorded_at": "2026-10-13T23:58:28.223Z",
+          "granted": true
+        }
+      ],
+      "registered": [
+        {
+          "id": "webagents-discovery",
+          "matches": [
+            "https://webair.example/*"
+          ],
+          "js": [
+            "content-script.js"
+          ]
+        }
+      ],
+      "the worker records the site and registers the discovery script for it alone": "ok"
+    },
+    "page": {
+      "title": "Fly WebAir · WebAir (demo)",
+      "tabId": 130662502,
+      "badge": "1",
+      "candidates": [
+        {
+          "accepted": true,
+          "resolved_url": "https://webair.example/agent.pkg"
+        }
+      ],
+      "badge shows one package": "ok",
+      "the worker holds the candidate": "ok",
+      "the candidate state names the page": "ok",
+      "a page without the link clears the badge": "ok"
+    },
+    "discovery": {
+      "candidate": "https://webair.example/agent.pkg",
+      "intro": "This website says an agent package is available at the address below. That is only a location: who published it, whether it is intact and signed, and what it would be allowed to do are unknown until you inspect it.",
+      "the website card lists the package as a location": "ok",
+      "the candidate is marked unverified": "ok"
+    },
+    "inspect": {
+      "session": "ce2e7a464b8941409b058275",
+      "trust": "unknown",
+      "name": "WebAir Travel Agent",
+      "publisher": "by WebAir (fictional demo airline)",
+      "headline": "Signed, publisher unknown",
+      "pinOffered": true,
+      "source": "Where it came fromhttps://webair.example/agent.pkgAdvertised onhttps://webair.example/Created10/2/2026, 8:00:00 PMCostCost not stated by the publisher. It depends on the model you choose; a local model costs nothing to run.",
+      "technical": "11886 characters",
+      "kinds": [
+        "personal.read",
+        "payment",
+        "network",
+        "model",
+        "memory"
+      ],
+      "cardTitles": [
+        "Publisher",
+        "What it does",
+        "Access",
+        "Origin and cost"
+      ],
+      "name and publisher": "ok",
+      "signed, publisher unknown": "ok",
+      "the person-first cards in order": "ok",
+      "personal data comes first among the access groups": "ok",
+      "technical details carry the digest": "ok",
+      "technical details carry the archive SHA-256": "ok",
+      "technical details carry the signer fingerprint": "ok",
+      "the source names the website": "ok"
+    },
+    "trust": {
+      "headline": "Signed by a publisher you trust",
+      "pinOffered": false,
+      "signed by a publisher you trust": "ok",
+      "the trust store lives in storage.local in the agentpkg format": "ok",
+      "the pin is scoped to this package id": "ok",
+      "the Trust page lists the key": "ok",
+      "removal needs two presses and empties the list": "ok",
+      "the session is unknown again after removal": "ok"
+    },
+    "direct": {
+      "session": "cb75cd718df34372ae1e0590",
+      "source": "Where it came fromhttps://webair.example/agent.pkgCreated10/2/2026, 8:00:00 PMCostCost not stated by the publisher. It depends on the model you choose; a local model costs nothing to run.",
+      "the package URL opens the same package": "ok",
+      "the source is the URL, with no advertising page": "ok"
+    },
+    "refusals": {
+      "tampered": {
+        "code": "package_rejected",
+        "text": "package_rejected The package failed structural validation and was not openedcontainer: invalid ZIP artifact: Bad CRC-32 for file 'graph.json'"
+      },
+      "redirect": {
+        "code": "download_redirect_denied",
+        "text": "download_redirect_denied Package host returned a redirect; redirects are disabled because each hop would need the full destination policy re-applied"
+      },
+      "http": {
+        "code": "url_rejected",
+        "text": "url_rejected Only https:// package URLs are accepted; refused scheme 'http'"
+      },
+      "tampered bytes: package_rejected": "ok",
+      "tampered bytes: the layered report is shown": "ok",
+      "a redirect: download_redirect_denied": "ok",
+      "http: url_rejected": "ok",
+      "sessions": [
+        "ce2e7a464b8941409b058275",
+        "cb75cd718df34372ae1e0590"
+      ],
+      "refused packages created no session": "ok"
+    },
+    "panel": {
+      "manual": "the side panel could not be driven headlessly; see the manual checklist in the T1 spec",
+      "reason": "page error: Uncaught (in promise) Error: `sidePanel.open()` may only be called in response to a user gesture. Error: `sidePanel.open()` may only be called in response to a user gesture.",
+      "loadsAsPage": "No agent package on this page",
+      "the panel bundle loads and renders its empty state": "ok"
+    },
+    "origin": {
+      "requests": [
+        "GET /",
+        "GET /static/webair.css",
+        "GET /favicon.ico",
+        "GET /",
+        "GET /agent.pkg",
+        "GET /agent.pkg",
+        "GET /tampered.pkg",
+        "GET /moved.pkg",
+        "GET /no-agent",
+        "GET /static/webair.css"
+      ],
+      "the package was fetched from the mock origin only": "ok"
+    },
+    "holders": {
+      "stored": [
+        {
+          "document_id": "0512F306A27E2E084F6C1EC1D120214B",
+          "view_id": "browser:8faa5f59-2f0a-4a61-8ce1-71ecb3f4a7a3"
+        }
+      ],
+      "the full page's hold is stored with the document Chrome reported": "ok",
+      "getContexts reports that document as the open full page": "ok",
+      "Chrome stopped the service worker": "ok",
+      "a new worker answered": "ok",
+      "release": {
+        "closed": false,
+        "session_id": "cb75cd718df34372ae1e0590",
+        "holders": 1
+      },
+      "another view's release leaves the full page's session open": "ok"
+    }
+  },
+  "failures": [],
+  "passed": true,
+  "granted_origins": [
+    "https://webair.example/*"
+  ],
+  "extensionId": "kffhhlcfllmpdajmollicjimiapclcfp"
+}

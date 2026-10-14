@@ -20,6 +20,7 @@ import { scryptAsync } from "@noble/hashes/scrypt.js";
 
 import { CoreError } from "./errors.js";
 import { closedRecord, isRecord, requiredText } from "./fields.js";
+import { bufferSource } from "./hash.js";
 import { base64Decode, base64Encode } from "./keys.js";
 
 export const SECRET_STORE_SCHEMA = "chrome-agent-browser-secret-store-v1";
@@ -195,20 +196,22 @@ async function deriveKey(passphrase: string, kdf: SecretEnvelope["kdf"]): Promis
   return scryptAsync(new TextEncoder().encode(normalized), base64Decode(kdf.salt), { N: kdf.n, r: kdf.r, p: kdf.p, dkLen: kdf.length, maxmem: 2 ** 31 });
 }
 
-async function aesKey(bytes: Uint8Array): Promise<CoreCryptoKey> {
+type AesKey = Awaited<ReturnType<typeof crypto.subtle.importKey>>;
+
+async function aesKey(bytes: Uint8Array): Promise<AesKey> {
   if (bytes.length !== MASTER_KEY_BYTES) throw refuse("store_invalid", "a key must be 32 bytes");
-  return crypto.subtle.importKey("raw", bytes, { name: "AES-GCM" }, false, ["encrypt", "decrypt"]);
+  return crypto.subtle.importKey("raw", bufferSource(bytes), { name: "AES-GCM" }, false, ["encrypt", "decrypt"]);
 }
 
 async function seal(key: Uint8Array, aad: string, plaintext: Uint8Array, random: (length: number) => Uint8Array): Promise<SealedBox> {
   const iv = random(IV_BYTES);
-  const ciphertext = await crypto.subtle.encrypt({ name: "AES-GCM", iv, additionalData: new TextEncoder().encode(aad) }, await aesKey(key), plaintext);
+  const ciphertext = await crypto.subtle.encrypt({ name: "AES-GCM", iv: bufferSource(iv), additionalData: bufferSource(new TextEncoder().encode(aad)) }, await aesKey(key), bufferSource(plaintext));
   return { iv: base64Encode(iv), ciphertext: base64Encode(new Uint8Array(ciphertext)) };
 }
 
 async function open(key: Uint8Array, aad: string, box: SealedBox): Promise<Uint8Array | null> {
   try {
-    const plaintext = await crypto.subtle.decrypt({ name: "AES-GCM", iv: base64Decode(box.iv), additionalData: new TextEncoder().encode(aad) }, await aesKey(key), base64Decode(box.ciphertext));
+    const plaintext = await crypto.subtle.decrypt({ name: "AES-GCM", iv: bufferSource(base64Decode(box.iv)), additionalData: bufferSource(new TextEncoder().encode(aad)) }, await aesKey(key), bufferSource(base64Decode(box.ciphertext)));
     return new Uint8Array(plaintext);
   } catch {
     return null; // an authentication failure: the key, the IV, the data or the name is not the one it was sealed with

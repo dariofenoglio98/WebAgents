@@ -7,8 +7,9 @@
 import type { Decision, Provenance } from "../../core/types.js";
 import type { AuthorizationView, AuthorizeResult, ModelsView, RunPlanState, SessionView } from "../messages.js";
 import { newAuthorizeState, renderAuthorizeView, type AuthorizeState } from "./authorize.js";
-import { describeError, send } from "./client.js";
+import { describeError, refusedOrigins, requestOrigins, send } from "./client.js";
 import { el } from "./dom.js";
+import { needsUnlock } from "./unlock.js";
 
 export interface AuthorizationHost {
   session: () => SessionView | null;
@@ -18,9 +19,13 @@ export interface AuthorizationHost {
   setModels: (models: ModelsView | null) => void;
   setBusy: (text: string | null) => void;
   setError: (error: { code: string; message: string } | null) => void;
-  openSettings: (section: "models" | "policies" | "data") => void;
+  openSettings: (section: "models" | "policies" | "data" | "security") => void;
   rerender: () => void;
   compact?: boolean;
+  /** Open the Unlock sheet (T16); `retry` runs after a successful unlock. Absent: the notice names the lock. */
+  unlock?: (retry: () => void) => void;
+  /** Ask Chrome for origins in a click (T16, D-193); `requestOrigins` from `client.ts` in the shells, absent in tests. */
+  requestOrigins?: (origins: string[]) => Promise<boolean>;
 }
 
 export interface AuthorizationController {
@@ -67,6 +72,7 @@ export function bindAuthorization(host: AuthorizationHost): AuthorizationControl
   async function act<T>(label: string, operation: () => Promise<T>, done: (result: T) => void): Promise<void> {
     busy = label;
     host.setBusy(label);
+    state.allowOrigins = null;
     host.rerender();
     try {
       done(await operation());
@@ -74,6 +80,10 @@ export function bindAuthorization(host: AuthorizationHost): AuthorizationControl
     } catch (error) {
       const described = describeError(error);
       state.notice = { text: `${described.code}: ${described.message}`, tone: "bad" };
+      // A locked store (T16): the Unlock sheet, then the same action again. A missing origin: Allow beside the notice.
+      if (needsUnlock(described) && host.unlock) host.unlock(() => void act(label, operation, done));
+      const origins = refusedOrigins(described);
+      if (origins.length > 0) state.allowOrigins = origins;
       host.setError(null);
     } finally {
       busy = null;
@@ -85,8 +95,20 @@ export function bindAuthorization(host: AuthorizationHost): AuthorizationControl
 
   function afterAuthorize(result: AuthorizeResult): void {
     if (result.run_plan?.preflight.ready) state.notice = { text: "Authorized and ready to run. Nothing has run.", tone: "good" };
-    else if (result.plan_refused) state.notice = { text: `Authorized. No run plan yet: ${result.plan_refused.map((reason) => reason.message).join(" ")}`, tone: "warn" };
-    else state.notice = { text: result.receipt.runnable ? "Authorized for this session. Nothing has run." : "Recorded. The agent is not runnable with these decisions.", tone: result.receipt.runnable ? "good" : "warn" };
+    else if (result.plan_refused) {
+      state.notice = { text: `Authorized. No run plan yet: ${result.plan_refused.map((reason) => reason.message).join(" ")}`, tone: "warn" };
+      const origins = result.plan_refused.filter((reason) => reason.code === "origins_not_granted").flatMap((reason) => (reason.subject ?? "").split(",").map((item) => item.trim()).filter(Boolean));
+      if (origins.length > 0) state.allowOrigins = origins;
+      const locked = result.plan_refused.find((reason) => reason.code === "store_locked" || reason.code === "store_no_passphrase");
+      if (locked && host.unlock) {
+        const session = host.session();
+        const digest = host.get()?.package_digest ?? null;
+        const model = result.model_id;
+        host.unlock(() => {
+          if (session && model && digest) void act("Preparing the run plan…", () => send<RunPlanState>({ type: "runplan.prepare", sessionId: session.session.id, packageDigest: digest, receiptId: result.receipt.receipt_id, modelId: model }), () => undefined);
+        });
+      }
+    } else state.notice = { text: result.receipt.runnable ? "Authorized for this session. Nothing has run." : "Recorded. The agent is not runnable with these decisions.", tone: result.receipt.runnable ? "good" : "warn" };
     state.customize = false;
     state.draft = null;
   }
@@ -138,6 +160,8 @@ export function bindAuthorization(host: AuthorizationHost): AuthorizationControl
             }),
           onOpenSettings: host.openSettings,
           onTrust,
+          requestOrigins: host.requestOrigins ?? (typeof chrome !== "undefined" && chrome.permissions ? requestOrigins : undefined),
+          onUnlock: host.unlock ? () => host.unlock?.(() => void load().then(host.rerender)) : undefined,
           rerender: host.rerender,
         },
       );
