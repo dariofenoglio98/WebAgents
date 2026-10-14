@@ -1,0 +1,126 @@
+{
+  "started_at": "2026-10-14T04:10:21.724Z",
+  "chrome": "Chrome/155.0.8059.40",
+  "helper": "webagents-helper 0.1.0",
+  "extension_id": "kjegegjdnpdcjhgamhjdphgemegefapb",
+  "system_manifest": false,
+  "steps": {
+    "status": {
+      "ok": true,
+      "result": {
+        "permission": true,
+        "enabled": false,
+        "enabled_at": null,
+        "helper": "available",
+        "helper_version": "0.1.0",
+        "problem": null,
+        "ollama": {
+          "installed": true,
+          "version": "0.34.0",
+          "running": true,
+          "server_version": "0.34.0",
+          "origins": "chrome-extension://*",
+          "extension_allowed": true
+        }
+      }
+    },
+    "unknown_operation": {
+      "reply": {
+        "error": {
+          "code": "unknown_operation",
+          "message": "The helper does three things only: keychain.unwrap, keychain.wrap, ollama.status."
+        },
+        "helper": "0.1.0",
+        "ok": false
+      }
+    },
+    "forbidden": {
+      "chrome_says": {
+        "error": "Access to the specified native messaging host is forbidden."
+      },
+      "view": {
+        "permission": true,
+        "enabled": false,
+        "enabled_at": null,
+        "helper": "not_installed",
+        "helper_version": null,
+        "problem": {
+          "code": "helper_not_installed",
+          "message": "The installed WebAgents helper does not list this extension; reinstall it with the current installer."
+        },
+        "ollama": null
+      }
+    },
+    "not_installed": {
+      "chrome_says": {
+        "error": "Specified native messaging host not found."
+      },
+      "view": {
+        "permission": true,
+        "enabled": false,
+        "enabled_at": null,
+        "helper": "not_installed",
+        "helper_version": null,
+        "problem": {
+          "code": "helper_not_installed",
+          "message": "The WebAgents helper is not installed on this Mac (or not for this extension). Use your passphrase; the macOS installer adds the helper."
+        },
+        "ollama": null
+      }
+    }
+  },
+  "checks": [
+    {
+      "step": "id",
+      "name": "the unpacked build's id is the one the installer lists (D-200)",
+      "ok": true
+    },
+    {
+      "step": "status",
+      "name": "keychain.status answers",
+      "ok": true
+    },
+    {
+      "step": "status",
+      "name": "the helper is available (Chrome started it; its parent check accepted Chrome)",
+      "ok": true
+    },
+    {
+      "step": "status",
+      "name": "the helper reports Ollama",
+      "ok": true
+    },
+    {
+      "step": "closed list",
+      "name": "an operation outside the three is refused",
+      "ok": true
+    },
+    {
+      "step": "closed list",
+      "name": "an extra field is refused",
+      "ok": true
+    },
+    {
+      "step": "refusals",
+      "name": "a manifest that does not list the extension: Chrome says forbidden",
+      "ok": true
+    },
+    {
+      "step": "refusals",
+      "name": "…and the card says not installed",
+      "ok": true
+    },
+    {
+      "step": "refusals",
+      "name": "a host name with no manifest anywhere: Chrome says not found",
+      "ok": true
+    },
+    {
+      "step": "refusals",
+      "name": "no host manifest: the card says not installed",
+      "ok": true
+    }
+  ],
+  "keychain": false,
+  "passed": true
+}

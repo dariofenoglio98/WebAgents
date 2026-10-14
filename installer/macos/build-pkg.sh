@@ -45,7 +45,7 @@ root="$work/root-helper"
   printf ']\n}\n'
 } >"$root$WA_HOST_MANIFEST"
 /bin/chmod 644 "$root$WA_HOST_MANIFEST"
-/usr/bin/plutil -convert xml1 -o /dev/null "$root$WA_HOST_MANIFEST" 
+/usr/bin/plutil -convert xml1 -o /dev/null "$root$WA_HOST_MANIFEST" # well-formed JSON
 /bin/mkdir -p "$work/scripts-helper"
 /usr/bin/install -m 755 "$here/scripts/helper/postinstall" "$work/scripts-helper/postinstall"
 /usr/bin/install -m 644 "$here/paths.sh" "$work/scripts-helper/paths.sh"

@@ -393,7 +393,7 @@ anything else is refused with a code before anything is done: `keychain.wrap` se
 32-byte master key with AES-256-GCM under a 256-bit key-encryption key that the helper creates and
 keeps in a login-keychain item it owns (service `org.webagents.helper`), and returns the blob;
 `keychain.unwrap` returns the master key from such a blob; `ollama.status` reports whether Ollama
-is installed and running and whether its `OLLAMA_ORIGINS` admits the extension. Requests above
+is installed and running and whether the running server admits the extension's origin. Requests above
 16 KiB are refused unread. The helper never receives a provider key, a record, an entry, the
 passphrase or a package, and it holds no network boundary (B-191 stays in the extension).
 
@@ -408,10 +408,16 @@ helper gone wrong leaves the store locked (`keychain_mismatch`) instead of insta
 (`caller_refused`) unless it is an id in the installed `extension-ids.json` **and** its parent
 process is code-signed by Google (team `EQHXZ8M8AV`, a Google Chrome bundle identifier). A script
 that runs the binary directly gets nothing (`native-helper/scripts/smoke.mjs`). This raises the
-bar; it is not a boundary against a process running as the user, which can start Chrome with an
-unpacked copy carrying the same public `key` (the key is public by design) and ask for an unwrap.
-That attacker is already outside D-181's claim: it can read Chrome's memory while the store is
-unlocked.
+bar; it is not a boundary against a process running as the user. The cheapest path needs no
+Chrome copy at all: Chrome reads the per-user host manifest
+(`~/Library/Application Support/Google/Chrome/NativeMessagingHosts/org.webagents.helper.json`)
+before the system-wide one the installer writes, so such a process can point the name at its own
+binary, which then receives the master key at the next **Turn on** (and, on an unlock, can return
+a wrong key, which the check box refuses and which drops the record). **Turn on** is the moment
+the key crosses the native port; only the passphrase-only setting (keychain unlock off) avoids it.
+A second path is to start Chrome with an unpacked copy carrying the same public `key` (the key is
+public by design) and ask for an unwrap. That attacker is already outside D-181's claim (D-204):
+it can read Chrome's memory while the store is unlocked.
 
 **What keychain unlock changes at rest.** With it off, the envelope opens with the passphrase
 only. With it on, the envelope also opens with the keychain item, which macOS protects with the
