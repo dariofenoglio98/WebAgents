@@ -19,6 +19,12 @@
    single purpose, a privacy policy URL that resolves.
 7. **After approval.** Record the listing URL and the reviewed build's zip hash in STATE.md §10;
    loading unpacked from a checkout keeps working for development.
+8. **One id everywhere (T17, D-200).** The zip carries no `key`, so the store assigns its own id.
+   Copy the item's public key (developer dashboard → Package → *View public key*, the base64
+   between the PEM lines) into `src/extension/manifest.json` as `key`, add the store id to
+   `installer/macos/extension-ids.json` (`npm run check-pack` checks that the unpacked id is
+   listed), set `WA_STORE_URL` in `installer/macos/paths.sh`, and rebuild the installer: unpacked
+   builds, the store install and the helper then agree on one id.
 
 What cannot be done here: the account, the fee, the hosting of the privacy policy and the review
 wait are the user's (U7).
