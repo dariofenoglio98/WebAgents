@@ -24,7 +24,7 @@ import type { SealedValues } from "./egress.js";
 export const HOST_RESOURCES_SCHEMA = "openclaw-host-resources-v0";
 export const RESOURCE_REGISTRY_SCHEMA = "agentpkg-host-resource-registry-v0";
 const DIGEST_SCHEMA = "openclaw-host-resource-digest-v0";
-export const RESOURCE_PERMISSION_KINDS = ["personal.read"] as const;
+export const RESOURCE_PERMISSION_KINDS = ["personal.read", "memory.read"] as const;
 export const HOST_RESOURCE_IMPLEMENTATION = "chrome.tool.host_resource";
 export const HOST_RESOURCE_IMPLEMENTATION_VERSION = "0.1.0";
 /** The one input schema every host-resource tool declares: an empty object. */

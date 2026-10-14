@@ -1,0 +1,137 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentpkg.local/spec/memory-v0/memory-proposals.schema.json",
+  "title": "memory.v0 proposals document (the `memory.proposal` export)",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "const": "memory.v0 proposals"
+    },
+    "proposals": {
+      "type": "array",
+      "maxItems": 8,
+      "items": {
+        "$ref": "#/$defs/proposal"
+      }
+    }
+  },
+  "required": [
+    "schema",
+    "proposals"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "proposal": {
+      "type": "object",
+      "properties": {
+        "action": {
+          "enum": [
+            "create",
+            "update"
+          ]
+        },
+        "type": {
+          "type": "string",
+          "maxLength": 200,
+          "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$"
+        },
+        "target": {
+          "type": "string",
+          "pattern": "^mem_[0-9a-f]{32}$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "pattern": "^[^\\u0000-\\u001f\\u007f]+$"
+        },
+        "fields": {
+          "type": "object"
+        },
+        "body": {
+          "type": "string",
+          "maxLength": 16384,
+          "not": {
+            "pattern": "(^|[\\r\\n])<!-- memory\\.v0 links -->[ \\t]*([\\r\\n]|$)"
+          },
+          "$comment": "the mirror marker line of an export is reserved: a body holding it as a whole line (CRLF or LF, trailing whitespace ignored) fails M-40 step 1 (memory-v0.md M-3, N22); the string inside a line is text"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9_/-]{0,47}$"
+          },
+          "maxItems": 32,
+          "uniqueItems": true
+        },
+        "links": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "to": {
+                "type": "string",
+                "pattern": "^(self|mem_[0-9a-f]{32}|#[0-7])$"
+              },
+              "rel": {
+                "enum": [
+                  "about",
+                  "prefers",
+                  "pays_with",
+                  "belongs_to",
+                  "derived_from",
+                  "related"
+                ],
+                "$comment": "never `supersedes`: only an `update` supersedes, through its `target`, at acceptance (memory-v0.md M-39)"
+              }
+            },
+            "required": [
+              "to",
+              "rel"
+            ],
+            "additionalProperties": false
+          },
+          "maxItems": 64,
+          "uniqueItems": true
+        },
+        "valid_until": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        }
+      },
+      "required": [
+        "action",
+        "type",
+        "title",
+        "fields",
+        "rationale"
+      ],
+      "additionalProperties": false,
+      "if": {
+        "properties": {
+          "action": {
+            "const": "update"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "target"
+        ]
+      },
+      "else": {
+        "not": {
+          "required": [
+            "target"
+          ]
+        }
+      }
+    }
+  }
+}

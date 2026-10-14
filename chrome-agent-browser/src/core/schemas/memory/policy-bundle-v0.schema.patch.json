@@ -1,0 +1,63 @@
+[
+  {
+    "op": "add",
+    "path": "/properties/decisions/properties/memory.read",
+    "value": {
+      "enum": [
+        "deny",
+        "once",
+        "session"
+      ]
+    }
+  },
+  {
+    "op": "add",
+    "path": "/properties/decisions/properties/memory.write",
+    "value": {
+      "enum": [
+        "deny",
+        "once",
+        "session"
+      ]
+    }
+  },
+  {
+    "op": "add",
+    "path": "/properties/memory",
+    "value": {
+      "type": "object",
+      "properties": {
+        "types_allowed": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 200,
+            "pattern": "^([a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*|[A-Za-z][A-Za-z0-9_.:-]{0,127}:[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*)$"
+          },
+          "maxItems": 128,
+          "uniqueItems": true
+        },
+        "proposals": {
+          "enum": [
+            "ask",
+            "refuse"
+          ]
+        },
+        "agent": {
+          "enum": [
+            "allow",
+            "refuse"
+          ]
+        },
+        "recall": {
+          "enum": [
+            "ask",
+            "propose",
+            "auto"
+          ]
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+]

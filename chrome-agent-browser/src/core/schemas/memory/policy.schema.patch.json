@@ -1,0 +1,63 @@
+[
+  {
+    "op": "add",
+    "path": "/properties/permissions/items/properties/kind/enum/-",
+    "value": "memory.read"
+  },
+  {
+    "op": "add",
+    "path": "/properties/permissions/items/properties/kind/enum/-",
+    "value": "memory.write"
+  },
+  {
+    "op": "add",
+    "path": "/properties/memory_types",
+    "value": {
+      "type": "array",
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 128,
+            "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$"
+          },
+          "display_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          },
+          "schema": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-][A-Za-z0-9_.-]*(?:/[A-Za-z0-9_-][A-Za-z0-9_.-]*)*$",
+            "maxLength": 240
+          },
+          "identity": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 256,
+              "pattern": "^(/[^/]+)+$"
+            },
+            "maxItems": 8,
+            "uniqueItems": true
+          }
+        },
+        "required": [
+          "id",
+          "display_name",
+          "description",
+          "schema"
+        ],
+        "additionalProperties": false
+      }
+    }
+  }
+]

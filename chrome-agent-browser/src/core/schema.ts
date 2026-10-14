@@ -45,6 +45,7 @@ import { ValidationError } from "./errors.js";
 import { parseJson } from "./json.js";
 import { EXTENSION_SCHEMAS } from "./schemas/extensions/index.js";
 import { SCHEMAS } from "./schemas/index.js";
+import { MEMORY_CONTRACTS } from "./schemas/memory/index.js";
 import { urlsplit } from "./urls.js";
 
 // `@hyperjump/browser` retrieves a reference its registry does not hold over the network
@@ -58,6 +59,60 @@ export const DIALECT = "https://json-schema.org/draft/2020-12/schema";
 const AGENTPKG_BASE = "https://agentpkg.local/spec/0.1/";
 const EXTENSION_BASE = "https://webagents.invalid/extensions/";
 const PACKAGE_BASE = "https://package.invalid/";
+const MEMORY_BASE = "https://agentpkg.local/spec/memory-v0/";
+/** The memory.v0 contracts that are JSON Schemas (the taxonomy, the view template and the patches are not). */
+const MEMORY_SCHEMA_NAMES: readonly string[] = Object.freeze(["memory-record.schema", "memory-type.schema", "memory-proposals.schema", "memory-empty-input.schema", "memory-agent-read.output.schema", "memory-agent-write.input.schema", "memory-agent-write.output.schema"]);
+
+/**
+ * RFC 6902 `add` and `replace` over JSON Pointers, which is all the memory.v0 patches use,
+ * applied idempotently (an `add` whose value is already there is skipped), so the patched copy
+ * is the same whether or not agentpkg's synced schema already carries the patch (T19, M-67).
+ */
+export function applyPatch(document: unknown, patch: ReadonlyArray<{ op: string; path: string; value: unknown }>): unknown {
+  const result = JSON.parse(JSON.stringify(document)) as unknown;
+  for (const operation of patch) {
+    const parts = operation.path
+      .split("/")
+      .slice(1)
+      .map((part) => part.replace(/~1/gu, "/").replace(/~0/gu, "~"));
+    let parent: unknown = result;
+    for (const part of parts.slice(0, -1)) parent = Array.isArray(parent) ? parent[Number(part)] : (parent as Record<string, unknown>)[part];
+    const last = parts[parts.length - 1]!;
+    const value = JSON.parse(JSON.stringify(operation.value)) as unknown;
+    if (operation.op === "add") {
+      if (Array.isArray(parent)) {
+        if (parent.some((item) => JSON.stringify(item) === JSON.stringify(value))) continue;
+        if (last === "-") parent.push(value);
+        else parent.splice(Number(last), 0, value);
+      } else {
+        const record = parent as Record<string, unknown>;
+        if (Object.hasOwn(record, last) && JSON.stringify(record[last]) !== JSON.stringify(value)) throw new Error(`${operation.path} exists with a different value`);
+        record[last] = value;
+      }
+    } else if (operation.op === "replace") {
+      if (Array.isArray(parent)) parent[Number(last)] = value;
+      else {
+        const record = parent as Record<string, unknown>;
+        if (!Object.hasOwn(record, last)) throw new Error(operation.path);
+        record[last] = value;
+      }
+    } else throw new Error(`unsupported op ${operation.op}`);
+  }
+  return result;
+}
+
+type Patch = ReadonlyArray<{ op: string; path: string; value: unknown }>;
+/** agentpkg's schemas with the memory.v0 patches applied (policy kinds and `memory_types`; the `memory.proposal` export format). */
+export const PATCHED_SCHEMAS: Readonly<Record<string, unknown>> = Object.freeze({
+  ...SCHEMAS,
+  policy: applyPatch(SCHEMAS.policy, MEMORY_CONTRACTS["policy.schema.patch"] as Patch),
+  workflow: applyPatch(SCHEMAS.workflow, MEMORY_CONTRACTS["workflow.schema.patch"] as Patch),
+});
+/** The policy bundle schema with the memory decisions and the `memory` ceilings (M-54). */
+export const PATCHED_EXTENSION_SCHEMAS: Readonly<Record<string, unknown>> = Object.freeze({
+  ...EXTENSION_SCHEMAS,
+  "policy-bundle-v0": applyPatch(EXTENSION_SCHEMAS["policy-bundle-v0"], MEMORY_CONTRACTS["policy-bundle-v0.schema.patch"] as Patch),
+});
 
 export interface SchemaFailure {
   /** JSON pointer tokens of the failing instance location. */
@@ -72,11 +127,14 @@ let agentpkgRegistered = false;
 
 function ensureAgentpkgSchemas(): void {
   if (agentpkgRegistered) return;
-  for (const [name, schema] of Object.entries(SCHEMAS)) {
+  for (const [name, schema] of Object.entries(PATCHED_SCHEMAS)) {
     registerSchema(schema as never, `${AGENTPKG_BASE}${name}.schema.json`, DIALECT);
   }
-  for (const [name, schema] of Object.entries(EXTENSION_SCHEMAS)) {
+  for (const [name, schema] of Object.entries(PATCHED_EXTENSION_SCHEMAS)) {
     registerSchema(schema as never, `${EXTENSION_BASE}${name}.schema.json`, DIALECT);
+  }
+  for (const name of MEMORY_SCHEMA_NAMES) {
+    registerSchema(MEMORY_CONTRACTS[name] as never, `${MEMORY_BASE}${name}.json`, DIALECT);
   }
   agentpkgRegistered = true;
 }
@@ -92,7 +150,23 @@ export async function extensionSchemaFailure(value: unknown, schemaName: string)
   if (list.length === 0) return null;
   const first = list[0]!;
   const path = first.instancePath.join("/") || "<root>";
-  return `${path}: ${describeFailure(first, value, (uri) => (uri.startsWith(EXTENSION_BASE) ? EXTENSION_SCHEMAS[uri.slice(EXTENSION_BASE.length).replace(/\.schema\.json$/u, "")] : agentpkgDocument(uri)))}`;
+  return `${path}: ${describeFailure(first, value, (uri) => (uri.startsWith(EXTENSION_BASE) ? PATCHED_EXTENSION_SCHEMAS[uri.slice(EXTENSION_BASE.length).replace(/\.schema\.json$/u, "")] : agentpkgDocument(uri)))}`;
+}
+
+/** The failures of `value` against one memory.v0 contract (`memory-record.schema`, `memory-proposals.schema`, ...), in instance-path order. */
+export async function memoryFailures(value: unknown, schemaName: string): Promise<SchemaFailure[]> {
+  ensureAgentpkgSchemas();
+  if (!MEMORY_SCHEMA_NAMES.includes(schemaName)) throw new Error(`unknown memory.v0 schema ${schemaName}`);
+  return failures(`${MEMORY_BASE}${schemaName}.json`, value);
+}
+
+/** One memory.v0 contract, the first failure described in the reference's phrasing, or null when valid. */
+export async function memorySchemaFailure(value: unknown, schemaName: string): Promise<string | null> {
+  const list = await memoryFailures(value, schemaName);
+  if (list.length === 0) return null;
+  const first = list[0]!;
+  const path = first.instancePath.join("/") || "<root>";
+  return `${path}: ${describeFailure(first, value, (uri) => (uri.startsWith(MEMORY_BASE) ? MEMORY_CONTRACTS[uri.slice(MEMORY_BASE.length).replace(/\.json$/u, "")] : agentpkgDocument(uri)))}`;
 }
 
 function pointerTokens(pointer: string): string[] {
@@ -200,7 +274,7 @@ export function describeFailure(
 function agentpkgDocument(uri: string): unknown {
   if (!uri.startsWith(AGENTPKG_BASE)) return undefined;
   const name = uri.slice(AGENTPKG_BASE.length).replace(/\.schema\.json$/u, "");
-  return SCHEMAS[name];
+  return PATCHED_SCHEMAS[name];
 }
 
 /** `validation.py::validate_document`: one of agentpkg's own schemas, first error reported. */
