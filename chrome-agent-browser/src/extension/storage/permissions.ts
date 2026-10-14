@@ -136,9 +136,16 @@ export class PermissionStorage {
     await this.save((await this.all()).filter((record) => record.origin !== origin));
   }
 
-  /** Drop every record whose origin Chrome no longer grants (`permissions.onRemoved`, chrome://extensions). */
+  /**
+   * Drop every record whose origin Chrome no longer grants (`permissions.onRemoved`,
+   * chrome://extensions). An origin the every-site grant covers is granted, whether or not its
+   * own pattern is in Chrome's list (review 1, finding 5): `permissions.request` is never sent
+   * for an origin `contains` already answers for, so under the every-site grant the per-package
+   * and provider records have no pattern of their own.
+   */
   async reconcile(grantedPatterns: readonly string[]): Promise<void> {
     const granted = new Set(grantedPatterns);
-    await this.save((await this.all()).filter((record) => (record.origin === "*" ? granted.has(EVERY_SITE_PATTERN) : granted.has(originPattern(record.origin)))));
+    const everywhere = granted.has(EVERY_SITE_PATTERN);
+    await this.save((await this.all()).filter((record) => (record.origin === "*" ? everywhere : everywhere || granted.has(originPattern(record.origin)))));
   }
 }

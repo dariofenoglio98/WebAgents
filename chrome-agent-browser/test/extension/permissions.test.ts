@@ -13,7 +13,7 @@ import { EVERY_SITE_PATTERN } from "../../src/extension/storage/permissions.js";
 import { originGuard } from "../../src/extension/execution/execute.js";
 import { TransportError, type HttpTransport } from "../../src/core/models/transport.js";
 import { SHIPPED } from "../helpers/paths.js";
-import { makeHarness, PACKAGE_URL, PAGE, SITE_ORIGIN, TAB, WEBAIR_040_URL, type Harness } from "../helpers/shell.js";
+import { makeHarness, OLLAMA_ANSWERS, PACKAGE_URL, PAGE, SITE_ORIGIN, TAB, WEBAIR_040_URL, type Harness } from "../helpers/shell.js";
 import { scriptedOllama, scriptedOrigin, webairModelAnswers } from "../helpers/host.js";
 
 const QWEN = "ollama/qwen3:30b";
@@ -144,6 +144,103 @@ describe("a plan's origins", () => {
     expect(started.credentials).toEqual({ openai: null, anthropic: null });
     expect(started.vault).toBeNull();
   });
+
+  it("a hosted provider at a custom base URL: the plan records that origin, the run calls it, and the guard admits it (review 1, finding 3)", async () => {
+    const PROXY = "https://proxy.example";
+    const seen: string[] = [];
+    const model: HttpTransport = async (request) => {
+      seen.push(request.url);
+      return { status: 503, headers: {}, body: "{}" }; // the call is what is checked, not the answer
+    };
+    const h = makeHarness({ permissions: [WEBAIR_PATTERN, TOOLS_PATTERN, `${PROXY}/*`], http: { ...OLLAMA_ANSWERS, [`GET ${PROXY}/v1/models`]: { data: [{ id: "gpt-5.6-luna" }] } }, transports: { model, tool: scriptedOrigin().transport } });
+    await h.controller.handle({ type: "settings.setKey", provider: "openai", key: "sk-test-not-a-real-key" }, PAGE);
+    const session = await trustedSession(h);
+    const current = (await h.controller.handle({ type: "settings.get" }, PAGE)) as SettingsView;
+    current.settings.models.connections = current.settings.models.connections.map((connection) => (connection.provider === "openai" ? { ...connection, enabled: true, base_url: `${PROXY}/v1` } : connection));
+    current.settings.models.default_model = "openai/gpt-5.6-luna";
+    await h.controller.handle({ type: "settings.set", settings: current.settings }, PAGE);
+    const result = (await h.controller.handle({ type: "authorization.useProfile", sessionId: session.session.id, packageDigest: SHIPPED.webair040.digest, profileId: "search", resourceSelections: {}, prepare: true }, PAGE)) as AuthorizeResult;
+    expect(result.model_id).toBe("openai/gpt-5.6-luna");
+    expect(result.plan_refused).toBeNull();
+    expect(result.run_plan!.origins.map((item) => [item.origin, item.roles])).toContainEqual([PROXY, ["provider"]]);
+    const plan = result.run_plan!.run_plan;
+    await h.controller.handle({ type: "run.start", sessionId: session.session.id, runPlanId: plan.run_plan_id, runPlanSha256: plan.run_plan_sha256, input: { request: "Find me a nonstop flight from Boston to Zurich on 9 October under $900.", booking: false, purchase: { quote_id: "", fare_id: "" } } }, PAGE);
+    await h.h_drain();
+    const started = h.host.started[0]!;
+    expect(started.allowedOrigins).toEqual([PROXY, TOOLS_ORIGIN, SITE_ORIGIN]);
+    expect(started.settings.openaiBaseUrl).toBe(PROXY);
+    expect(started.credentials.openai).toBe("sk-test-not-a-real-key");
+    // The adapter called the configured endpoint, through the guard, not the default one.
+    expect(seen.length).toBeGreaterThan(0);
+    expect(seen.every((url) => url.startsWith(`${PROXY}/v1/`))).toBe(true);
+  });
+});
+
+describe("the bookkeeping under the every-site grant (review 1, finding 5)", () => {
+  it("records the every-site grant covers survive a reconcile, and a single origin cannot be revoked while it is on", async () => {
+    const h = makeHarness({ permissions: [EVERY_SITE_PATTERN] });
+    await h.controller.handle({ type: "permissions.granted", origins: ["*"], purpose: { kind: "everywhere", subject: "everywhere" } }, PAGE);
+    const session = await trustedSession(h);
+    await h.controller.handle({ type: "authorization.useProfile", sessionId: session.session.id, packageDigest: SHIPPED.webair040.digest, profileId: "search", resourceSelections: {}, prepare: true }, PAGE);
+    const before = (await h.controller.handle({ type: "permissions.get" }, PAGE)) as PermissionsView;
+    expect(before.origins.map((item) => item.origin)).toEqual(["*", TOOLS_ORIGIN, SITE_ORIGIN]);
+    // Chrome's list holds the every-site pattern alone: `permissions.request` was never sent for the plan's origins.
+    expect([...h.permissions.grantedPatterns]).toEqual([EVERY_SITE_PATTERN]);
+    await h.controller.reconcilePermissions(); // startup, onAdded, onRemoved
+    const after = (await h.controller.handle({ type: "permissions.get" }, PAGE)) as PermissionsView;
+    expect(after.origins.map((item) => [item.origin, item.granted])).toEqual([["*", true], [TOOLS_ORIGIN, true], [SITE_ORIGIN, true]]);
+    // Revoking one origin would change nothing Chrome does: refused by name, the record kept.
+    const covered = await refused(h.controller.handle({ type: "permissions.revoke", origins: [TOOLS_ORIGIN] }, PAGE));
+    expect(covered).toMatchObject({ code: "origin_covered_everywhere", status: 409, details: { origins: [TOOLS_ORIGIN] } });
+    expect(((await h.controller.handle({ type: "permissions.get" }, PAGE)) as PermissionsView).origins.map((item) => item.origin)).toEqual(["*", TOOLS_ORIGIN, SITE_ORIGIN]);
+    expect(((await h.controller.handle({ type: "run.readiness", sessionId: session.session.id }, PAGE)) as RunReadiness).ready).toBe(true);
+    // Every site off: the per-package records go too, since Chrome grants none of them now.
+    const off = (await h.controller.handle({ type: "permissions.revoke", origins: ["*"] }, PAGE)) as PermissionsView;
+    expect(off.detect_everywhere).toBe(false);
+    expect(off.origins.map((item) => [item.origin, item.granted])).toEqual([[TOOLS_ORIGIN, false], [SITE_ORIGIN, false]]);
+    await h.controller.reconcilePermissions();
+    expect(((await h.controller.handle({ type: "permissions.get" }, PAGE)) as PermissionsView).origins).toEqual([]);
+  });
+
+  it("a removal Chrome refuses is reported, not recorded as done", async () => {
+    const h = makeHarness({ permissions: [WEBAIR_PATTERN] });
+    await h.controller.handle({ type: "permissions.granted", origins: [SITE_ORIGIN], purpose: { kind: "site", subject: SITE_ORIGIN } }, PAGE);
+    h.permissions.remove = async () => false;
+    const failed = await refused(h.controller.handle({ type: "permissions.revoke", origins: [SITE_ORIGIN] }, PAGE));
+    expect(failed).toMatchObject({ code: "revoke_failed", status: 500 });
+    expect(((await h.controller.handle({ type: "permissions.get" }, PAGE)) as PermissionsView).origins.map((item) => item.origin)).toEqual([SITE_ORIGIN]);
+    expect(h.permissions.registered).toEqual([WEBAIR_PATTERN]);
+  });
+
+  it("a site grant the page reports and the onAdded reconcile that fires at the same moment never lose the record or the script", async () => {
+    const h = makeHarness({ permissions: [] });
+    // Storage reads at once and answers late, so the two operations' read-modify-writes of `originGrants`
+    // both read the old list and the later write drops the earlier one, unless they are serialized.
+    const get = h.settingsArea.get.bind(h.settingsArea);
+    h.settingsArea.get = async (keys) => {
+      const value = await get(keys);
+      await new Promise((resolve) => setTimeout(resolve, 3));
+      return value;
+    };
+    const granted = h.permissions.granted.bind(h.permissions);
+    h.permissions.granted = async () => {
+      await new Promise((resolve) => setTimeout(resolve, 1));
+      return granted();
+    };
+    h.permissions.grantedPatterns.add(WEBAIR_PATTERN);
+    const reconcile = h.controller.reconcilePermissions();
+    const report = h.controller.handle({ type: "permissions.granted", origins: [SITE_ORIGIN], purpose: { kind: "site", subject: SITE_ORIGIN } }, PAGE);
+    await Promise.all([reconcile, report]);
+    const view = (await h.controller.handle({ type: "permissions.get" }, PAGE)) as PermissionsView;
+    expect(view.origins.map((item) => [item.origin, item.purposes[0]?.kind])).toEqual([[SITE_ORIGIN, "site"]]);
+    expect(h.permissions.registered).toEqual([WEBAIR_PATTERN]);
+    // And the other order.
+    const reportFirst = h.controller.handle({ type: "permissions.granted", origins: [SITE_ORIGIN], purpose: { kind: "site", subject: SITE_ORIGIN } }, PAGE);
+    const reconcileSecond = h.controller.reconcilePermissions();
+    await Promise.all([reportFirst, reconcileSecond]);
+    expect(((await h.controller.handle({ type: "permissions.get" }, PAGE)) as PermissionsView).origins).toHaveLength(1);
+    expect(h.permissions.registered).toEqual([WEBAIR_PATTERN]);
+  });
 });
 
 describe("the execution host's origin guard (D-193)", () => {
@@ -153,26 +250,29 @@ describe("the execution host's origin guard (D-193)", () => {
     return { status: 200, headers: {}, body: "" };
   };
   const request = (url: string) => ({ url, method: "GET" as const, headers: {}, body: null, signal: new AbortController().signal, maxResponseBytes: 1024 });
-  it("lets a plan origin through, Ollama on this machine for the model transport only, and refuses everything else before connecting", async () => {
-    const tool = originGuard(inner, ["https://webair.example"], { allowLoopbackHttp: false });
-    const model = originGuard(inner, ["https://api.openai.com"], { allowLoopbackHttp: true });
+  it("lets a plan origin through, Ollama on this machine (over either scheme) for the model transport only, and refuses everything else before connecting", async () => {
+    const tool = originGuard(inner, ["https://webair.example"], { allowLoopback: false });
+    const model = originGuard(inner, ["https://api.openai.com"], { allowLoopback: true });
     await tool(request("https://webair.example/api/v1/search_flights"));
     await model(request("https://api.openai.com/v1/responses"));
     await model(request("http://127.0.0.1:11434/api/chat"));
     await model(request("http://localhost:11434/api/chat"));
-    expect(record).toHaveLength(4);
+    await model(request("https://localhost:11434/api/chat")); // what isLoopbackBase admits (review 1, finding 3)
+    await model(request("https://127.0.0.1/api"));
+    expect(record).toHaveLength(6);
     for (const [transport, url] of [
       [tool, "https://webair.example.evil/api"],
       [tool, "https://api.openai.com/v1/responses"],
       [tool, "http://127.0.0.1:11434/api/chat"],
+      [tool, "https://localhost:11434/api/chat"],
       [model, "https://webair.example/api"],
       [model, "http://10.0.0.1:11434/api/chat"],
-      [model, "https://127.0.0.1/api"],
+      [model, "ws://localhost:11434/api"],
     ] as const) {
       await expect(transport(request(url))).rejects.toMatchObject({ facts: { stage: "address_policy", reason: "origin_not_in_plan" } });
     }
     await expect(tool(request("not a url"))).rejects.toBeInstanceOf(TransportError);
-    expect(record).toHaveLength(4);
+    expect(record).toHaveLength(6);
   });
 });
 

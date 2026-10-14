@@ -103,9 +103,13 @@ the envelope after a typed confirmation. Unlocking puts the master key alone int
 that finds it idle, on Lock now, and when the browser closes. Nothing secret is saved before a
 passphrase exists (the strict path): Settings → Models and Your data say so until one is set, and
 the clear values 0.1.0 left are migrated the moment it is. A run is handed only what its plan
-needs (D-195): the bound provider's key, and the vault only when the plan grants a record, so an
+needs (D-195): the bound provider's key, the vault when the plan grants a record, and the vault's
+types alone (no record) when the plan binds a host-resource tool without granting one, so an
 agent that needs nothing from the store (Literature Review on Ollama) runs while it is locked;
-one that needs a key or a record asks to unlock before Prepare and before Run, never during. The
+one that needs a key, a record or a record type asks to unlock before Prepare and before Run,
+never during. A stored envelope this build cannot read is reported as *invalid* (the Security page
+says why and offers Forget everything); the store runs one operation at a time, so a read that
+began before Lock now, Forget everything or a passphrase change cannot write the old state back. The
 `src/core/secrets.ts` module has no Chrome dependency; its test vectors are committed.
 
 What is never stored in a record, plan, receipt, checkpoint or artifact: a provider key, a vault
@@ -124,7 +128,7 @@ From [`manifest.json`](../chrome-agent-browser/src/extension/manifest.json) (D-1
 | `storage`, `unlimitedStorage` | the stores above; package snapshots and artifacts can exceed the default quota |
 | `sidePanel` | the side panel the action opens |
 | `offscreen` | the execution host (reason `WORKERS`) |
-| `activeTab` | the action click, the context-menu item "Look for agents on this page" and the `Ctrl/⌘+Shift+Y` shortcut grant that tab for the one read of its agent-package links |
+| `activeTab` | the action click, the context-menu item "Look for agents on this page" and the `Ctrl/⌘+Shift+Y` shortcut (which opens the panel exactly as a click does; Chrome dispatches no `commands.onCommand` for `_execute_action`) grant that tab for the one read of its agent-package links |
 | `scripting` | inject the discovery script into the clicked tab, and register it for the sites the person chose |
 | `alarms` | the idle lock's sweep, once a minute while the store is unlocked |
 | `contextMenus` | the one page context-menu item |

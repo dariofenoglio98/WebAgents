@@ -22,6 +22,7 @@ import { CoreError } from "./errors.js";
 import { closedRecord, isRecord, requiredText } from "./fields.js";
 import { bufferSource } from "./hash.js";
 import { base64Decode, base64Encode } from "./keys.js";
+import { SerialQueue } from "./serial.js";
 
 export const SECRET_STORE_SCHEMA = "chrome-agent-browser-secret-store-v1";
 export const SECRET_CIPHER = "AES-256-GCM";
@@ -78,7 +79,12 @@ export interface UnlockedStateStorage {
   clear(): Promise<void>;
 }
 
-export type SecretStoreState = "no_passphrase" | "locked" | "unlocked";
+/**
+ * `invalid` (T16 review 1, finding 6): an envelope is stored but this build cannot read it
+ * (truncated, altered, or written by a newer schema after a downgrade). Every value is
+ * unreachable; the entry names are unknown; the one way out is "Forget everything".
+ */
+export type SecretStoreState = "no_passphrase" | "locked" | "unlocked" | "invalid";
 
 export interface SecretStoreStatus {
   state: SecretStoreState;
@@ -89,6 +95,8 @@ export interface SecretStoreStatus {
   /** The names of the entries the envelope holds; readable while locked (never their values). */
   entries: string[];
   created_at: string | null;
+  /** Why the envelope cannot be read, in the `invalid` state; null otherwise. */
+  problem: string | null;
 }
 
 export class MemoryEnvelopeStorage implements EnvelopeStorage {
@@ -126,6 +134,16 @@ export function lockedError(): CoreError {
   return refuse("store_locked", "Your keys and records are locked. Unlock them with your passphrase to continue.", 409);
 }
 
+/** The store cannot be read by this build (finding 6): every value is out of reach until it is forgotten. */
+export function invalidStoreError(problem: string | null = null): CoreError {
+  return new CoreError("store_invalid", `The protected store cannot be read by this build${problem ? ` (${problem})` : ""}. Settings → Security offers to forget it; nothing else can open it.`, { status: 409, details: { problem } });
+}
+
+/** The error for a state in which values cannot be read: `locked`, `no_passphrase` or `invalid`. */
+export function unavailableStoreError(state: Exclude<SecretStoreState, "unlocked">, problem: string | null = null): CoreError {
+  return state === "locked" ? lockedError() : state === "no_passphrase" ? noPassphraseError() : invalidStoreError(problem);
+}
+
 export function noPassphraseError(): CoreError {
   return refuse("store_no_passphrase", "Set a passphrase first (Settings → Security): it protects your keys and records at rest.", 409);
 }
@@ -161,6 +179,8 @@ function sealedBox(raw: unknown, field: string): SealedBox {
 
 /** Read a stored envelope strictly: the schema, the cipher, bounded scrypt parameters, well-formed boxes. */
 export function validateEnvelope(raw: unknown): SecretEnvelope {
+  // The schema first: an envelope a newer build wrote is named as such, not as a shape problem (finding 6).
+  if (isRecord(raw) && typeof raw.schema === "string" && raw.schema !== SECRET_STORE_SCHEMA) throw refuse("store_invalid", `This build reads ${SECRET_STORE_SCHEMA} envelopes only; the stored one says ${JSON.stringify(raw.schema.slice(0, 64))}.`);
   const record = closedRecord(raw, "secret_store", ["schema", "created_at", "kdf", "cipher", "wrapped_key", "entries"], ["schema", "created_at", "kdf", "cipher", "wrapped_key", "entries"]);
   if (record.schema !== SECRET_STORE_SCHEMA) throw refuse("store_invalid", `This build reads ${SECRET_STORE_SCHEMA} envelopes only; the stored one says ${JSON.stringify(String(record.schema).slice(0, 64))}.`);
   if (record.cipher !== SECRET_CIPHER) throw refuse("store_invalid", `The stored envelope names cipher ${JSON.stringify(String(record.cipher).slice(0, 32))}; this build uses ${SECRET_CIPHER}.`);
@@ -316,17 +336,33 @@ export interface SecretStoreDeps {
 export class SecretStore {
   private readonly clock: () => Date;
   private readonly options: EnvelopeOptions;
+  /** Every operation runs alone (review 1, finding 2): no read of the envelope or the session state outlives a lock, a wipe or a re-key. */
+  private readonly queue = new SerialQueue();
 
   constructor(private readonly deps: SecretStoreDeps) {
     this.clock = deps.clock ?? (() => new Date());
     this.options = { now: this.clock, ...(deps.random ? { random: deps.random } : {}), ...(deps.kdf ? { kdf: deps.kdf } : {}) };
   }
 
-  /** The stored envelope, validated, or null when no passphrase was ever set. */
+  /** The stored envelope, validated, or null when no passphrase was ever set; `store_invalid` (with the problem in its details) when one is stored that this build cannot read. */
   async envelope(): Promise<SecretEnvelope | null> {
     const raw = await this.deps.envelope.load();
     if (raw === undefined || raw === null) return null;
-    return validateEnvelope(raw);
+    try {
+      return validateEnvelope(raw);
+    } catch (error) {
+      throw invalidStoreError(error instanceof Error ? error.message : "the stored envelope is not one this build reads");
+    }
+  }
+
+  /** The envelope, or the problem with it: `status()` reports an unreadable envelope rather than failing (finding 6). */
+  private async envelopeOrProblem(): Promise<{ envelope: SecretEnvelope | null; problem: string | null }> {
+    try {
+      return { envelope: await this.envelope(), problem: null };
+    } catch (error) {
+      const problem = error instanceof CoreError && typeof error.details.problem === "string" ? error.details.problem : error instanceof Error ? error.message : "the stored envelope cannot be read";
+      return { envelope: null, problem };
+    }
   }
 
   private async unlockedState(): Promise<UnlockedState | null> {
@@ -346,8 +382,7 @@ export class SecretStore {
     return this.clock().getTime() - last > idleMinutes * 60_000;
   }
 
-  /** Wipe the session key when the idle time has passed (the alarm's work); true when it locked now. */
-  async lockIfIdle(): Promise<boolean> {
+  private async wipeIfIdle(): Promise<boolean> {
     const state = await this.unlockedState();
     if (state === null) return false;
     if (!this.idleExceeded(state, await this.deps.idleMinutes())) return false;
@@ -355,24 +390,31 @@ export class SecretStore {
     return true;
   }
 
-  async status(): Promise<SecretStoreStatus> {
-    const envelope = await this.envelope();
-    const idle = await this.deps.idleMinutes();
-    const entries = envelope ? Object.keys(envelope.entries).sort() : [];
-    if (envelope === null) {
-      await this.deps.unlocked.clear();
-      return { state: "no_passphrase", unlocked_at: null, last_used_at: null, idle_minutes: idle, entries, created_at: null };
-    }
-    await this.lockIfIdle();
-    const state = await this.unlockedState();
-    return { state: state ? "unlocked" : "locked", unlocked_at: state?.unlocked_at ?? null, last_used_at: state?.last_used_at ?? null, idle_minutes: idle, entries, created_at: envelope.created_at };
+  /** Wipe the session key when the idle time has passed (the alarm's work); true when it locked now. */
+  lockIfIdle(): Promise<boolean> {
+    return this.queue.run(() => this.wipeIfIdle());
   }
 
-  /** The master key for one access: refuses when no passphrase exists or the store is locked; marks the use. */
+  status(): Promise<SecretStoreStatus> {
+    return this.queue.run(async () => {
+      const { envelope, problem } = await this.envelopeOrProblem();
+      const idle = await this.deps.idleMinutes();
+      const entries = envelope ? Object.keys(envelope.entries).sort() : [];
+      if (envelope === null) {
+        await this.deps.unlocked.clear();
+        return { state: problem === null ? "no_passphrase" : "invalid", unlocked_at: null, last_used_at: null, idle_minutes: idle, entries, created_at: null, problem };
+      }
+      await this.wipeIfIdle();
+      const state = await this.unlockedState();
+      return { state: state ? "unlocked" : "locked", unlocked_at: state?.unlocked_at ?? null, last_used_at: state?.last_used_at ?? null, idle_minutes: idle, entries, created_at: envelope.created_at, problem: null };
+    });
+  }
+
+  /** The master key for one access: refuses when no passphrase exists or the store is locked; marks the use. Runs inside the queue. */
   private async masterKey(): Promise<{ envelope: SecretEnvelope; key: Uint8Array }> {
     const envelope = await this.envelope();
     if (envelope === null) throw noPassphraseError();
-    if (await this.lockIfIdle()) throw lockedError();
+    if (await this.wipeIfIdle()) throw lockedError();
     const state = await this.unlockedState();
     if (state === null) throw lockedError();
     let key: Uint8Array;
@@ -391,18 +433,22 @@ export class SecretStore {
   }
 
   /** Create the envelope under a first passphrase, holding `entries` (the migration's clear values), and unlock. */
-  async setup(passphrase: string, entries: Record<string, Uint8Array> = {}): Promise<void> {
-    if ((await this.envelope()) !== null) throw refuse("store_exists", "A passphrase is already set. Change it, or forget everything first.", 409);
-    const { envelope, masterKey } = await createEnvelope(passphrase, entries, this.options);
-    await this.deps.envelope.save(envelope);
-    await this.remember(masterKey);
+  setup(passphrase: string, entries: Record<string, Uint8Array> = {}): Promise<void> {
+    return this.queue.run(async () => {
+      if ((await this.deps.envelope.load()) != null) throw refuse("store_exists", "A passphrase is already set. Change it, or forget everything first.", 409);
+      const { envelope, masterKey } = await createEnvelope(passphrase, entries, this.options);
+      await this.deps.envelope.save(envelope);
+      await this.remember(masterKey);
+    });
   }
 
-  async unlock(passphrase: string): Promise<void> {
-    const envelope = await this.envelope();
-    if (envelope === null) throw noPassphraseError();
-    const masterKey = await unlockEnvelope(envelope, passphrase);
-    await this.remember(masterKey);
+  unlock(passphrase: string): Promise<void> {
+    return this.queue.run(async () => {
+      const envelope = await this.envelope();
+      if (envelope === null) throw noPassphraseError();
+      const masterKey = await unlockEnvelope(envelope, passphrase);
+      await this.remember(masterKey);
+    });
   }
 
   private async remember(masterKey: Uint8Array): Promise<void> {
@@ -410,34 +456,42 @@ export class SecretStore {
     await this.deps.unlocked.save({ key: base64Encode(masterKey), unlocked_at: now, last_used_at: now });
   }
 
-  async lock(): Promise<void> {
-    await this.deps.unlocked.clear();
+  lock(): Promise<void> {
+    return this.queue.run(() => this.deps.unlocked.clear());
   }
 
   /** Re-wrap under a new passphrase; the current one must open the store (whether or not it is unlocked now). */
-  async changePassphrase(current: string, next: string): Promise<void> {
-    const envelope = await this.envelope();
-    if (envelope === null) throw noPassphraseError();
-    const masterKey = await unlockEnvelope(envelope, current);
-    await this.deps.envelope.save(await rewrapEnvelope(envelope, masterKey, next, this.options));
-    await this.remember(masterKey);
+  changePassphrase(current: string, next: string): Promise<void> {
+    return this.queue.run(async () => {
+      const envelope = await this.envelope();
+      if (envelope === null) throw noPassphraseError();
+      const masterKey = await unlockEnvelope(envelope, current);
+      await this.deps.envelope.save(await rewrapEnvelope(envelope, masterKey, next, this.options));
+      await this.remember(masterKey);
+    });
   }
 
-  /** Delete the envelope and the session key: every entry is gone for good. */
-  async forget(): Promise<void> {
-    await this.deps.unlocked.clear();
-    await this.deps.envelope.clear();
+  /** Delete the envelope and the session key: every entry is gone for good. Works on an unreadable envelope too (finding 6). */
+  forget(): Promise<void> {
+    return this.queue.run(async () => {
+      await this.deps.unlocked.clear();
+      await this.deps.envelope.clear();
+    });
   }
 
-  /** Whether an entry exists; readable while locked. */
-  async has(name: string): Promise<boolean> {
-    const envelope = await this.envelope();
-    return envelope !== null && checkEntryName(name) in envelope.entries;
+  /** Whether an entry exists; readable while locked. Under an envelope this build cannot read, nothing is known to exist (finding 6). */
+  has(name: string): Promise<boolean> {
+    return this.queue.run(async () => {
+      const { envelope } = await this.envelopeOrProblem();
+      return envelope !== null && checkEntryName(name) in envelope.entries;
+    });
   }
 
-  async get(name: string): Promise<Uint8Array | null> {
-    const { envelope, key } = await this.masterKey();
-    return readEntry(envelope, key, name);
+  get(name: string): Promise<Uint8Array | null> {
+    return this.queue.run(async () => {
+      const { envelope, key } = await this.masterKey();
+      return readEntry(envelope, key, name);
+    });
   }
 
   async getText(name: string): Promise<string | null> {
@@ -445,17 +499,21 @@ export class SecretStore {
     return bytes === null ? null : utf8.decode(bytes);
   }
 
-  async put(name: string, bytes: Uint8Array): Promise<void> {
-    const { envelope, key } = await this.masterKey();
-    await this.deps.envelope.save(await writeEntry(envelope, key, name, bytes, this.options));
+  put(name: string, bytes: Uint8Array): Promise<void> {
+    return this.queue.run(async () => {
+      const { envelope, key } = await this.masterKey();
+      await this.deps.envelope.save(await writeEntry(envelope, key, name, bytes, this.options));
+    });
   }
 
   async putText(name: string, text: string): Promise<void> {
     await this.put(name, utf8.encode(text));
   }
 
-  async delete(name: string): Promise<void> {
-    const { envelope } = await this.masterKey();
-    await this.deps.envelope.save(removeEntry(envelope, name));
+  delete(name: string): Promise<void> {
+    return this.queue.run(async () => {
+      const { envelope } = await this.masterKey();
+      await this.deps.envelope.save(removeEntry(envelope, name));
+    });
   }
 }

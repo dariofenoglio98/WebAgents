@@ -42,8 +42,10 @@ import { readQuery, type AgentCandidate, type ResolveNote } from "../../core/res
 import { AGENT_INDEX_TYPE, MAX_DOCUMENT_BYTES, POLICY_BUNDLE_TYPE, verifySignedDocument, type DocumentContentType, type VerifiedDocument } from "../../core/signed-document.js";
 import { compareRelease } from "../../core/version.js";
 import { buildHostCatalog, DEFAULT_BASE_URLS, probeProvider, PROVIDER_IDS, type BuiltinAvailability, type Http, type ProbeResult, type ProviderId } from "../../core/models/catalog.js";
-import { httpsOrigin, originPattern, planOrigins, patternOrigin, toolBindingsForOrigins, type PlanOrigin } from "../../core/origins.js";
-import { lockedError, noPassphraseError, type SecretStoreState } from "../../core/secrets.js";
+import { httpsOrigin, originPattern, planOrigins, patternOrigin, toolBindingsForOrigins, type OriginString, type PlanOrigin } from "../../core/origins.js";
+import { SerialQueue } from "../../core/serial.js";
+import { planNeedsVault } from "./runs.js";
+import { unavailableStoreError, type SecretStoreState } from "../../core/secrets.js";
 import type { Package } from "../../core/package.js";
 import { documentUrl, origin, originText, sameOrigin, validatePackageUrl } from "../../core/policy.js";
 import { readProfiles, type Profile } from "../../core/profiles.js";
@@ -569,7 +571,11 @@ export class Controller {
   }
 
   /** The page obtained a grant from Chrome: verify it, record why, and give granted sites the discovery script. */
-  async recordGrant(origins: readonly string[], purpose: GrantPurpose): Promise<PermissionsView> {
+  recordGrant(origins: readonly string[], purpose: GrantPurpose): Promise<PermissionsView> {
+    return this.permissionWork.run(() => this.recordGrantNow(origins, purpose));
+  }
+
+  private async recordGrantNow(origins: readonly string[], purpose: GrantPurpose): Promise<PermissionsView> {
     const now = this.clock();
     for (const raw of origins) {
       if (purpose.kind === "everywhere" || raw === "*") {
@@ -587,21 +593,35 @@ export class Controller {
     return this.permissionsView();
   }
 
-  /** Revoke origins (`*` for every site): Chrome forgets them, the records go, prepared plans that need them block Run by name. */
-  async revokeOrigins(origins: readonly string[]): Promise<PermissionsView> {
+  /**
+   * Revoke origins (`*` for every site): Chrome forgets them, the records go, prepared plans that
+   * need them block Run by name. While "Detect agents on every site" is on, revoking one origin
+   * would change nothing Chrome does (review 1, finding 5): refused by name, and the record stays,
+   * so the page never reports a revocation that did not happen.
+   */
+  revokeOrigins(origins: readonly string[]): Promise<PermissionsView> {
+    return this.permissionWork.run(() => this.revokeOriginsNow(origins));
+  }
+
+  private async revokeOriginsNow(origins: readonly string[]): Promise<PermissionsView> {
     const patterns: string[] = [];
+    const named: Array<OriginString | "*"> = [];
     for (const raw of origins) {
       if (raw === "*") {
         patterns.push(EVERY_SITE_PATTERN);
-        await this.grants.forget("*");
+        named.push("*");
         continue;
       }
       const origin = httpsOrigin(raw);
       if (origin === null) throw reject("invalid_request", `${raw} is not an HTTPS origin`);
       patterns.push(originPattern(origin));
-      await this.grants.forget(origin);
+      named.push(origin);
     }
-    await this.permissions.remove(patterns);
+    if (!named.includes("*") && (await this.permissions.contains([EVERY_SITE_PATTERN]))) {
+      throw reject("origin_covered_everywhere", `Every site is granted, so revoking ${named.join(", ")} would change nothing: turn off "Detect agents on every site" first.`, 409, { origins: named });
+    }
+    if (!(await this.permissions.remove(patterns))) throw reject("revoke_failed", `Chrome did not remove ${named.join(", ")}.`, 500, { origins: named });
+    for (const origin of named) await this.grants.forget(origin);
     await this.syncDiscovery();
     this.deps.broadcast({ type: "event.permissions" });
     this.deps.broadcast({ type: "event.sessions" });
@@ -609,10 +629,12 @@ export class Controller {
   }
 
   /** Chrome removed grants (chrome://extensions, `permissions.onRemoved`), or the worker started: the records and the discovery script follow Chrome. */
-  async reconcilePermissions(): Promise<void> {
-    await this.grants.reconcile(await this.permissions.granted());
-    await this.syncDiscovery();
-    this.deps.broadcast({ type: "event.permissions" });
+  reconcilePermissions(): Promise<void> {
+    return this.permissionWork.run(async () => {
+      await this.grants.reconcile(await this.permissions.granted());
+      await this.syncDiscovery();
+      this.deps.broadcast({ type: "event.permissions" });
+    });
   }
 
   /** The discovery content script runs exactly where the person asked for detection (D-190): the sites they chose, or everywhere. */
@@ -1347,6 +1369,8 @@ export class Controller {
   // -- settings, keys and the vault (D-050, D-051, D-055) ------------------------------------
   /** The opening, not only the opened vault, so concurrent first calls share one key and one document (review 1, nit 12). */
   private vaultCache: Promise<Vault> | null = null;
+  /** The permission bookkeeping, one operation at a time (review 1, finding 5): a grant the page reports and Chrome's `onAdded` reconcile never interleave their read-modify-writes. */
+  private readonly permissionWork = new SerialQueue();
 
   async settingsView(): Promise<SettingsView> {
     return { settings: await this.deps.settings.settings(), keys: await this.deps.settings.keyPresence() };
@@ -1389,7 +1413,7 @@ export class Controller {
     const state = await this.secretsState();
     if (state !== "unlocked") {
       this.vaultCache = null;
-      throw state === "no_passphrase" ? noPassphraseError() : lockedError();
+      throw unavailableStoreError(state);
     }
     if (!this.vaultCache) {
       this.vaultCache = this.openVault().catch((error: unknown) => {
@@ -1872,7 +1896,7 @@ export class Controller {
     const providerId = input.modelId.split("/")[0] ?? "";
     if ((providerId === "openai" || providerId === "anthropic") && (await this.deps.settings.keyPresence())[providerId] === true) {
       const state = await this.secretsState();
-      if (state !== "unlocked") throw state === "no_passphrase" ? noPassphraseError() : lockedError();
+      if (state !== "unlocked") throw unavailableStoreError(state);
     }
     // A plan is frozen against what the providers answer now, not against a catalog read up to a
     // minute ago: a provider that stopped answering must refuse the plan by name (D-077).
@@ -1961,11 +1985,12 @@ export class Controller {
   /** The plan plus a preflight recomputed against the vault, the host registry and the last catalog. */
   async runPlanState(live: LiveSession): Promise<RunPlanState> {
     if (live.plan === null) throw reject("run_plan_absent", "This session has no run plan", 404);
-    // A plan that grants a record binds the vault's resource tools, which a locked store cannot
-    // rebuild (T16): the bindings and the grants are then "not evaluated", never stale; Run says
-    // `store_locked` by name (D-195) and the plan is checked again once unlocked.
-    const lockedWithGrants = live.plan.resource_grants.length > 0 && (await this.secretsState()) !== "unlocked";
-    const toolEvaluation = lockedWithGrants ? null : (await this.toolEvaluation(live, live.receipt?.decisions, live.receipt?.tool_approvals)).evaluation;
+    // A plan that grants a record, or binds a host-resource tool, needs the vault's types, which a
+    // locked store cannot give (T16, review 1 finding 1): the bindings and the grants are then "not
+    // evaluated", never stale; Run says `store_locked` by name (D-195) and the plan is checked
+    // again once unlocked.
+    const lockedNeedingVault = planNeedsVault(live.plan) && (await this.secretsState()) !== "unlocked";
+    const toolEvaluation = lockedNeedingVault ? null : (await this.toolEvaluation(live, live.receipt?.decisions, live.receipt?.tool_approvals)).evaluation;
     const settings = await this.deps.settings.settings();
     const read = await this.currentCatalog();
     const checked = preflight(live.plan, {

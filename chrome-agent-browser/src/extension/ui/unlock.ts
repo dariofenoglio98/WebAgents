@@ -41,6 +41,11 @@ export function renderLockChip(secrets: SecretsView | null, actions: { onLock: (
     node.title = "Set a passphrase to protect your keys and records at rest (Settings → Security).";
     return node;
   }
+  if (state === "invalid") {
+    node.append(chip("Store unreadable", "bad"), button("See why", actions.openSettings, { variant: "ghost" }));
+    node.title = "The protected store cannot be read by this build (Settings → Security says why and offers to forget it).";
+    return node;
+  }
   if (state === "locked") {
     node.append(chip("Locked", "neutral"), button("Unlock", actions.onOpen, { variant: "ghost" }));
     node.title = "Your keys and records are locked. Unlock them to run agents that need them.";

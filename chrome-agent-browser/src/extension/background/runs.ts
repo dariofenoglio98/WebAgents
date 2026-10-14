@@ -20,7 +20,7 @@ import { cappedLimits } from "../../core/policies/apply.js";
 import { authorizationFromRunPlan, executionPlanFromRunPlan, type ExecutionPlan } from "../../core/execution/plan.js";
 import { failRunRecord, HOST_RUNTIME, isTerminalStatus, RUN_RECORD_SCHEMA, type RunRecord } from "../../core/execution/record.js";
 import { sha256HexSync } from "../../core/hash.js";
-import type { ToolRegistry } from "../../core/hosttools.js";
+import { bindsHostResource, type ToolRegistry } from "../../core/hosttools.js";
 import type { JsonValue } from "../../core/json.js";
 import type { Package } from "../../core/package.js";
 import { validateTaskInput } from "../../core/presentation.js";
@@ -59,6 +59,15 @@ export const HOST_FAILED = "host_failed";
 export const HOST_UNREACHABLE = "host_unreachable";
 /** Artifacts the host writes beside the package's exports, as the reference plugin names them. */
 export const HOST_ARTIFACTS = new Set(["result.json", "audit.json", "usage.json", "provenance.json", "run.json"]);
+
+/**
+ * Whether a run under this plan needs the vault (D-195, amended by review 1 finding 1): it grants
+ * a record, or it binds an approved host-resource tool, whose binding exists only in a registry
+ * built from the vault's types. Both live in the secret store, so both need an unlock before Run.
+ */
+export function planNeedsVault(plan: Pick<RunPlan, "resource_grants" | "tool_bindings">): boolean {
+  return plan.resource_grants.length > 0 || bindsHostResource(plan.tool_bindings);
+}
 
 export function isTerminal(status: RunRecord["status"]): boolean {
   return isTerminalStatus(status);
@@ -344,13 +353,15 @@ export class RunManager {
     base.receipt = { expires_at: plan.authorization.expires_at, remaining_seconds: Math.max(0, remaining), required_seconds: required };
     if (plan.execution.mode !== "model") return blocked("run_plan_mode", "This plan is authority for one tool probe, not for running the package.");
     checks.push("plan_mode_model");
-    // What the run would be handed (D-195): the bound provider's key, the granted records. A locked
-    // store cannot hand them over, and the person unlocks before Run, never during (D-192); checked
-    // before the preflight, which cannot evaluate a plan's resource bindings while the store is locked.
+    // What the run would be handed (D-195): the bound provider's key, the granted records, or the
+    // vault's types for a bound host-resource tool (review 1, finding 1). A locked store cannot hand
+    // them over, and the person unlocks before Run, never during (D-192); checked before the
+    // preflight, which cannot evaluate a plan's resource bindings while the store is locked.
     if (plan.model_binding !== null && this.needsSecrets(plan)) {
       const state = await this.deps.hooks.secretsState();
       if (state !== "unlocked") {
-        return blocked(state === "no_passphrase" ? "store_no_passphrase" : "store_locked", state === "no_passphrase" ? "Set a passphrase first (Settings → Security): this run needs your provider key or your records, which are kept only in the protected store." : "Unlock your keys and records to run: this run needs your provider key or a record you granted.");
+        if (state === "invalid") return blocked("store_invalid", "The protected store cannot be read by this build (Settings → Security says why). This run needs your provider key, your records or your record types from it.");
+        return blocked(state === "no_passphrase" ? "store_no_passphrase" : "store_locked", state === "no_passphrase" ? "Set a passphrase first (Settings → Security): this run needs your provider key or your records, which are kept only in the protected store." : "Unlock your keys and records to run: this run needs your provider key, a record you granted, or your record types for a tool it binds.");
       }
     }
     checks.push("secrets_available");
@@ -414,8 +425,8 @@ export class RunManager {
       const archive = await this.deps.hooks.snapshotBytes(facts.stored.archive_sha256);
       if (archive === null) throw reject("execution_artifact_mismatch", "The session snapshot is no longer stored", 500);
       const registry = await this.deps.hooks.toolRegistry(sessionId);
-      // The vault is opened only for a plan that grants a record (D-195): a locked store never blocks a run that needs nothing from it.
-      const vault = plan.resource_grants.length > 0 ? await this.deps.hooks.vault() : await Vault.open(generateVaultKey(), emptyVaultDocument());
+      // The vault is opened only for a plan that needs it (D-195): a locked store never blocks a run that needs nothing from it.
+      const vault = planNeedsVault(plan) ? await this.deps.hooks.vault() : await Vault.open(generateVaultKey(), emptyVaultDocument());
       const catalog = await this.deps.hooks.catalog();
       const leases = await this.leaseRegistry();
       let lease: ExecutionLease;
@@ -516,28 +527,43 @@ export class RunManager {
     return attachments;
   }
 
-  /** Whether a run under this plan is handed anything from the secret store: a hosted provider's key, or a granted record. */
+  /** Whether a run under this plan is handed anything from the secret store: a hosted provider's key, a granted record, or the vault's types for a bound host-resource tool. */
   private needsSecrets(plan: RunPlan): boolean {
     const provider = plan.model_binding?.provider_id ?? null;
-    return plan.resource_grants.length > 0 || provider === "openai" || provider === "anthropic";
+    return planNeedsVault(plan) || provider === "openai" || provider === "anthropic";
   }
 
   /**
    * What the host needs and nothing it does not (D-195): the key of the bound provider only, the
-   * vault only when the plan grants a record, and the origins the plan recorded (D-193), in memory.
+   * vault only when the plan needs it (its records when the plan grants one; its types alone,
+   * under a throwaway key, when the plan binds a host-resource tool without a grant, review 1
+   * finding 1), the providers' endpoints the plan's origins were computed from, and the origins
+   * the plan recorded (D-193), in memory.
    */
   private async startMessage(runId: string, sessionId: string, plan: RunPlan): Promise<HostStartMessage> {
     const settings = await this.deps.settings.settings();
     const connections = connectionsFor(settings, await this.deps.settings.keyPresence());
-    const ollama = connections.find((connection) => connection.provider === "ollama");
+    const connection = (provider: string) => connections.find((item) => item.provider === provider);
     const provider = plan.model_binding?.provider_id ?? null;
-    const vault = plan.resource_grants.length > 0 ? { key: encodeBase64(await this.deps.settings.vaultKey()), document: await this.deps.settings.vaultDocument() } : null;
+    let vault: HostStartMessage["vault"] = null;
+    if (plan.resource_grants.length > 0) vault = { key: encodeBase64(await this.deps.settings.vaultKey()), document: await this.deps.settings.vaultDocument() };
+    else if (bindsHostResource(plan.tool_bindings)) vault = { key: encodeBase64(generateVaultKey()), document: { ...(await this.deps.settings.vaultDocument()), records: [] } };
     return {
       type: "host.start",
       runId,
       credentials: { openai: provider === "openai" ? await this.deps.settings.key("openai") : null, anthropic: provider === "anthropic" ? await this.deps.settings.key("anthropic") : null },
       vault,
-      settings: { ollamaBaseUrl: ollama?.base_url ?? null, think: settings.models.connections.find((connection) => connection.provider === "ollama")?.think === true, ...openaiEffortOf(settings), recordRequests: settings.developer.record_requests, runtimeVersion: this.deps.runtimeVersion, verifiedVersion: this.deps.runtimeVersion, crossrefContact: settings.services.crossref_contact },
+      settings: {
+        ollamaBaseUrl: connection("ollama")?.base_url ?? null,
+        openaiBaseUrl: connection("openai")?.base_url ?? null,
+        anthropicBaseUrl: connection("anthropic")?.base_url ?? null,
+        think: settings.models.connections.find((item) => item.provider === "ollama")?.think === true,
+        ...openaiEffortOf(settings),
+        recordRequests: settings.developer.record_requests,
+        runtimeVersion: this.deps.runtimeVersion,
+        verifiedVersion: this.deps.runtimeVersion,
+        crossrefContact: settings.services.crossref_contact,
+      },
       allowedOrigins: (await this.deps.hooks.planOrigins(sessionId)).map((item) => item.origin),
     };
   }

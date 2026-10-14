@@ -9,7 +9,7 @@ import { describe, expect, it } from "vitest";
 
 import { CoreError } from "../../src/core/errors.js";
 import type { SecretEnvelope } from "../../src/core/secrets.js";
-import type { AuthorizationView, AuthorizeResult, RunReadiness, SecretsView, SessionView, SettingsView, StatusInfo, VaultView } from "../../src/extension/messages.js";
+import type { AuthorizationView, AuthorizeResult, RunReadiness, RunView, SecretsView, SessionView, SettingsView, StatusInfo, VaultView } from "../../src/extension/messages.js";
 import { SHIPPED } from "../helpers/paths.js";
 import { makeHarness, PAGE, SEED_PASSPHRASE, SITE_ORIGIN, WEBAIR_040_URL, type Harness } from "../helpers/shell.js";
 import { scriptedOllama, scriptedOrigin, webairModelAnswers } from "../helpers/host.js";
@@ -136,6 +136,64 @@ describe("locked", () => {
     await h.controller.handle({ type: "secrets.unlock", passphrase: SEED_PASSPHRASE }, PAGE);
     const again = (await h.controller.handle({ type: "run.readiness", sessionId: session.session.id }, PAGE)) as RunReadiness;
     expect(again.ready).toBe(true);
+  });
+
+  it("a plan that binds a host-resource tool without granting a record runs with the vault's types alone, and needs the store unlocked (review 1, finding 1)", async () => {
+    // The reviewer's reproduction: the resource tool approved, its permission denied, so no record is granted.
+    // The plan binds `host-resource:personal.travel_profile`; the run's registry must hold that binding or
+    // `begin` fails `tool_not_bound` before any model call. The types travel without the records.
+    const model = scriptedOllama(webairModelAnswers());
+    const tool = scriptedOrigin();
+    const h = makeHarness({ transports: { model: model.transport, tool: tool.transport } });
+    await h.controller.handle({ type: "vault.installDemo", records: true }, PAGE);
+    const session = await trustedSession(h);
+    const decisions = { "network.webair": "session", "model.reasoning": "session", "memory.session": "session", "profile.travel": "deny", "identity.passenger": "deny", "wallet.payment": "deny", "booking.simulate_purchase": "deny" };
+    const toolApprovals = { "search-flights": true, "get-fare-rules": true, "personal.travel_profile": true };
+    const result = (await h.controller.handle({ type: "authorization.authorize", sessionId: session.session.id, packageDigest: SHIPPED.webair040.digest, decisions, toolApprovals, resourceSelections: {}, provenance: null, prepare: true }, PAGE)) as AuthorizeResult;
+    expect(result.plan_refused).toBeNull();
+    const plan = result.run_plan!.run_plan;
+    expect(plan.resource_grants).toEqual([]);
+    expect(plan.tool_bindings.map((binding) => binding.tool_id).sort()).toEqual(["get-fare-rules", "personal.travel_profile", "search-flights"]);
+    expect(result.run_plan!.preflight.ready).toBe(true);
+    const ready = (await h.controller.handle({ type: "run.readiness", sessionId: session.session.id }, PAGE)) as RunReadiness;
+    expect(ready).toMatchObject({ ready: true, checks: expect.arrayContaining(["secrets_available", "preflight_ready"]) });
+    const input = { request: "Find me a nonstop flight from Boston to Zurich on 9 October under $900.", booking: false, purchase: { quote_id: "", fare_id: "" } };
+    const started = (await h.controller.handle({ type: "run.start", sessionId: session.session.id, runPlanId: plan.run_plan_id, runPlanSha256: plan.run_plan_sha256, input }, PAGE)) as RunView;
+    await h.h_drain();
+    const message = h.host.started[0]!;
+    expect(message.vault).not.toBeNull();
+    expect(message.vault!.document.records).toEqual([]); // the types alone: no record was granted
+    expect(message.vault!.document.types.map((type) => type.id)).toContain("personal.travel_profile");
+    expect(message.credentials).toEqual({ openai: null, anthropic: null });
+    const run = (await h.controller.handle({ type: "run.get", runId: started.runId }, PAGE)) as RunView;
+    expect(run.status, `${run.errorCode}: ${run.errorDetail}`).toBe("completed");
+    expect(model.seen.length).toBeGreaterThan(0);
+    // Locked: the same plan is "unlock to check", not stale, and Run names the lock.
+    await h.controller.handle({ type: "secrets.lock" }, PAGE);
+    const blocked = (await h.controller.handle({ type: "run.readiness", sessionId: session.session.id }, PAGE)) as RunReadiness;
+    expect(blocked).toMatchObject({ ready: false, blocker: { code: "store_locked" } });
+    const state = (await h.controller.handle({ type: "runplan.get", sessionId: session.session.id }, PAGE)) as { preflight: { stale_reasons: Array<{ code: string }>; resource_grants: { evaluated: boolean }; tool_bindings: { evaluated: boolean } } };
+    expect(state.preflight.stale_reasons.map((reason) => reason.code)).toEqual(["tool_registry_unknown"]); // no grant, so no resource registry to miss
+    expect(state.preflight.tool_bindings.evaluated).toBe(false);
+    await h.controller.handle({ type: "secrets.unlock", passphrase: SEED_PASSPHRASE }, PAGE);
+    expect(((await h.controller.handle({ type: "run.readiness", sessionId: session.session.id }, PAGE)) as RunReadiness).ready).toBe(true);
+  });
+
+  it("an envelope this build cannot read is reported as `invalid`, refuses what needs it by name, and can be forgotten (review 1, finding 6)", async () => {
+    const h = makeHarness();
+    await h.controller.handle({ type: "settings.setKey", provider: "openai", key: "sk-test-not-a-real-key" }, PAGE);
+    h.envelope.value = { schema: "chrome-agent-browser-secret-store-v2", cipher: "AES-256-GCM", entries: {} };
+    const status = (await h.controller.handle({ type: "secrets.status" }, PAGE)) as SecretsView;
+    expect(status).toMatchObject({ state: "invalid", entries: [], migration_pending: false, legacy: null });
+    expect(status.problem).toContain("v2");
+    expect(((await h.controller.handle({ type: "status.get" }, PAGE)) as StatusInfo).secrets).toBe("invalid");
+    expect((await refused(h.controller.handle({ type: "vault.get" }, PAGE))).code).toBe("store_invalid");
+    expect((await refused(h.controller.handle({ type: "secrets.unlock", passphrase: SEED_PASSPHRASE }, PAGE))).code).toBe("store_invalid");
+    expect((await refused(h.controller.handle({ type: "settings.setKey", provider: "openai", key: "sk-other" }, PAGE))).code).toBe("store_invalid");
+    expect(((await h.controller.handle({ type: "settings.get" }, PAGE)) as SettingsView).keys).toEqual({});
+    const gone = (await h.controller.handle({ type: "secrets.forget", confirmation: "forget" }, PAGE)) as SecretsView;
+    expect(gone.state).toBe("no_passphrase");
+    expect(h.envelope.value).toBeUndefined();
   });
 
   it("the idle lock applies to the controller's reads, and the setting takes one of the offered values only", async () => {

@@ -230,18 +230,18 @@ chrome.runtime.onInstalled.addListener(() => {
 chrome.runtime.onStartup.addListener(() => {
   void controller.reconcilePermissions();
 });
-// The context-menu item and the keyboard shortcut grant `activeTab` too, so the read works when the panel is already open after a navigation.
+// The context-menu item grants `activeTab` too, so the read works when the panel is already open
+// after a navigation. The keyboard shortcut is the reserved `_execute_action`: Chrome opens the
+// panel for it as for a click and never dispatches `commands.onCommand` for it (review 1, nit 7),
+// so the panel's own read on opening is the shortcut's path.
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId === CONTEXT_MENU_ID && tab?.id !== undefined) void controller.readTab(tab.id).catch(() => undefined);
-});
-chrome.commands.onCommand.addListener((command, tab) => {
-  if (command === "_execute_action" && tab?.id !== undefined) void controller.readTab(tab.id).catch(() => undefined);
 });
 // Grants removed outside this extension (chrome://extensions): the records and the discovery script follow Chrome.
 chrome.permissions.onRemoved.addListener(() => void controller.reconcilePermissions());
 chrome.permissions.onAdded.addListener(() => void controller.reconcilePermissions());
 
-// The idle lock's sweep (D-192): while a key is held, every minute; the lazy check in the store covers the rest.
+// The idle lock's sweep (D-192): every minute, locking when a key is held past the idle time; the lazy check in the store covers the rest.
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name !== LOCK_ALARM) return;
   void secrets.lockIfIdle().then((locked: boolean) => {

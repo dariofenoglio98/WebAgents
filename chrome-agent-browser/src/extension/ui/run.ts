@@ -949,7 +949,7 @@ export class RunPanel {
       items.push({ id: "receipt", label: `Authorization valid for ${Math.floor(readiness.receipt.remaining_seconds / 60)} more min (a run may take up to ${Math.ceil(readiness.receipt.required_seconds / 60)} min)`, ok, reason: "Authorize again and prepare a new run plan, so consent does not lapse in the middle of a run.", section: "authorization" });
     }
     // T16: what the run would be handed, and where it may go (D-193, D-195).
-    if (readiness?.blocker?.code === "store_locked" || readiness?.blocker?.code === "store_no_passphrase") items.push({ id: "secrets", label: "Keys and records unlocked", ok: false, reason: readiness.blocker.message, action: readiness.blocker.code === "store_locked" ? "unlock" : "security" });
+    if (readiness?.blocker?.code === "store_locked" || readiness?.blocker?.code === "store_no_passphrase" || readiness?.blocker?.code === "store_invalid") items.push({ id: "secrets", label: "Keys and records unlocked", ok: false, reason: readiness.blocker.message, action: readiness.blocker.code === "store_locked" ? "unlock" : "security" });
     if (readiness?.blocker?.code === "origins_not_granted") items.push({ id: "origins", label: "Origins allowed in Chrome", ok: false, reason: readiness.blocker.message, action: "allow" });
     if (readiness?.blocker?.code === "execution_active") items.push({ id: "active", label: "No other run in progress", ok: false, reason: readiness.blocker.message });
     if (readiness?.blocker?.code === "execution_unavailable") items.push({ id: "host", label: "Execution host available", ok: false, reason: readiness.blocker.message });

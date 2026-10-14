@@ -676,6 +676,19 @@ function securityView(view: SettingsView, actions: SettingsPageActions, state: S
     );
     return cards;
   }
+  if (secrets.state === "invalid") {
+    // An envelope this build cannot read (review 1, finding 6): say why, and offer the one way out.
+    cards.push(
+      card(
+        "Your keys and records",
+        el("div", { className: "ab-row" }, chip("Unreadable", "bad")),
+        el("div", { className: "ab-banner ab-banner-warn", attrs: { role: "alert" } }, el("strong", { text: "The protected store cannot be read by this build. " }), el("span", { text: secrets.problem ?? "The stored envelope is not one this version reads." })),
+        el("p", { className: "ab-hint", text: "This happens when the stored data was truncated or altered, or was written by a newer version of this extension. No key or record can be used until the store is forgotten; the agents, runs, trust pins and settings are not affected. If a newer version wrote it, updating the extension reads it again." }),
+      ),
+      forgetCard(actions, state),
+    );
+    return cards;
+  }
   const unlocked = secrets.state === "unlocked";
   const idle = el("select", { className: "ab-select", attrs: { name: "idle-lock-minutes", "aria-label": "Lock after" } });
   for (const minutes of IDLE_LOCK_MINUTES) idle.append(el("option", { text: minutes === null ? "Until the browser closes" : `${minutes} minutes idle`, attrs: { value: minutes === null ? "never" : String(minutes) } }));
@@ -713,23 +726,26 @@ function securityView(view: SettingsView, actions: SettingsPageActions, state: S
       el("div", { className: "ab-actions" }, button("Change passphrase", change, { variant: "primary" })),
     ),
   );
+  cards.push(forgetCard(actions, state));
+  return cards;
+}
+
+/** "Forget everything", with its typed confirmation: the way out of a lost passphrase and of an unreadable store. */
+function forgetCard(actions: SettingsPageActions, state: SettingsPageState): HTMLElement {
   const confirmation = el("input", { className: "ab-input", attrs: { type: "text", name: "forget-confirmation", autocomplete: "off", placeholder: "type forget", "aria-label": "Type forget to confirm" } });
   confirmation.value = state.forgetConfirmation;
   confirmation.addEventListener("input", () => {
     state.forgetConfirmation = confirmation.value;
   });
-  cards.push(
-    card(
-      "Forget everything",
-      el("p", { className: "ab-hint", text: "Deletes the encrypted store: every provider key and every record, for good. Agents, runs, trust pins and settings stay. Use it when a passphrase is lost. Type forget to confirm." }),
-      el("div", { className: "ab-actions" }, confirmation, button("Forget everything", () => {
-        const typed = state.forgetConfirmation;
-        state.forgetConfirmation = "";
-        actions.onSecrets?.({ type: "secrets.forget", confirmation: typed });
-      }, { variant: "danger" })),
-    ),
+  return card(
+    "Forget everything",
+    el("p", { className: "ab-hint", text: "Deletes the encrypted store: every provider key and every record, for good. Agents, runs, trust pins and settings stay. Use it when a passphrase is lost or the store cannot be read. Type forget to confirm." }),
+    el("div", { className: "ab-actions" }, confirmation, button("Forget everything", () => {
+      const typed = state.forgetConfirmation;
+      state.forgetConfirmation = "";
+      actions.onSecrets?.({ type: "secrets.forget", confirmation: typed });
+    }, { variant: "danger" })),
   );
-  return cards;
 }
 
 function purposeWords(purpose: GrantPurpose): string {
@@ -757,7 +773,7 @@ function permissionsView(permissions: PermissionsView | null, actions: SettingsP
   return [
     card(
       "What this browser may reach",
-      el("p", { className: "ab-hint", text: "By default this extension holds no access to any website. Chrome grants an origin only when you allow it: a package's origin, its tools' services and your model provider when you use an agent (listed under the plan's Technical details), a site you chose to detect agents on, a signed index or policy you added. Each grant is Chrome's, enforced by Chrome beneath this browser's own checks; revoking one here makes Chrome forget it, and a prepared plan that needs it then names it before Run." }),
+      el("p", { className: "ab-hint", text: "By default this extension holds no access to any website. Chrome grants an origin only when you allow it: a package's origin, its tools' services and your model provider when you use an agent (listed under the plan's Technical details), a site you chose to detect agents on, a signed index or policy you added. This browser checks every grant before it fetches and a run may reach only the origins its plan recorded; Chrome keeps the grants and decides which pages this extension may read. Revoking one here makes Chrome forget it, and a prepared plan that needs it then names it before Run. While every site is granted, single origins cannot be revoked: turn that off first." }),
       el("p", { className: "ab-hint", text: `Always held, from the manifest: ${permissions.manifest_hosts.join(" and ")} (Ollama on this machine).` }),
       sites.length === 0
         ? el("p", { className: "ab-empty", text: "No website origin is granted yet." })

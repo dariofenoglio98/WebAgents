@@ -143,7 +143,7 @@ function store(options: { idle?: number | null; clock?: { now: Date } } = {}) {
 describe("SecretStore", () => {
   it("has no passphrase at first, refuses values, sets up with the migrated entries, and reports its status", async () => {
     const s = store();
-    expect(await s.secrets.status()).toEqual({ state: "no_passphrase", unlocked_at: null, last_used_at: null, idle_minutes: 15, entries: [], created_at: null });
+    expect(await s.secrets.status()).toEqual({ state: "no_passphrase", unlocked_at: null, last_used_at: null, idle_minutes: 15, entries: [], created_at: null, problem: null });
     await expectCode(s.secrets.get("vault"), "store_no_passphrase");
     await expectCode(s.secrets.unlock("whatever passphrase"), "store_no_passphrase");
     expect(await s.secrets.has("vault")).toBe(false);
@@ -220,7 +220,68 @@ describe("SecretStore", () => {
     expect(await s.secrets.status()).toMatchObject({ state: "no_passphrase", entries: [] });
     expect(s.envelope.value).toBeUndefined();
     expect(s.unlocked.value).toBeUndefined();
+    // An envelope this build cannot read (review 1, finding 6): the status says `invalid` and why, instead of
+    // failing; every value is refused `store_invalid`; the entry names are unknown; forgetting works and clears it.
     s.envelope.value = { schema: SECRET_STORE_SCHEMA };
-    await expectCode(s.secrets.status(), "invalid_request");
+    const invalid = await s.secrets.status();
+    expect(invalid).toMatchObject({ state: "invalid", entries: [], created_at: null });
+    expect(invalid.problem).toContain("secret_store");
+    await expectCode(s.secrets.get("vault"), "store_invalid");
+    expect(await s.secrets.has("vault")).toBe(false); // nothing is known to exist
+    await expectCode(s.secrets.unlock("my second passphrase"), "store_invalid");
+    await expectCode(s.secrets.setup("a third passphrase", {}), "store_exists");
+    await s.secrets.forget();
+    expect(s.envelope.value).toBeUndefined();
+    expect((await s.secrets.status()).state).toBe("no_passphrase");
+    s.envelope.value = { schema: "chrome-agent-browser-secret-store-v2", cipher: "AES-256-GCM" };
+    expect((await s.secrets.status()).problem).toContain("v2");
+  });
+
+  it("runs one operation at a time: a read in flight cannot undo a lock, a write cannot bring back a forgotten store or revert a re-key (review 1, finding 2)", async () => {
+    // Storage whose every step yields, so operations started together interleave their steps unless serialized.
+    class SlowEnvelope extends MemoryEnvelopeStorage {
+      override async load(): Promise<unknown> {
+        await new Promise((resolve) => setTimeout(resolve, 2));
+        return super.load();
+      }
+    }
+    class SlowUnlocked extends MemoryUnlockedStateStorage {
+      override async load(): Promise<unknown> {
+        await new Promise((resolve) => setTimeout(resolve, 2));
+        return super.load();
+      }
+    }
+    const envelope = new SlowEnvelope();
+    const unlocked = new SlowUnlocked();
+    const clock = { now: new Date(NOW) };
+    const secrets = new SecretStore({ envelope, unlocked, idleMinutes: async () => 15, clock: () => clock.now, kdf: TEST_KDF });
+    await secrets.setup("my first passphrase", { vault: utf8.encode("{}"), "provider_key:openai": utf8.encode("sk-one") });
+    // 1. A get that began before Lock now: the lock wins; the store stays locked afterwards.
+    const read = secrets.get("vault");
+    const lock = secrets.lock();
+    expect(utf8.decode((await read)!)).toBe("{}");
+    await lock;
+    expect((await secrets.status()).state).toBe("locked");
+    expect(unlocked.value).toBeUndefined();
+    await expectCode(secrets.get("vault"), "store_locked");
+    // 2. A put that began before Forget everything: nothing of the store comes back.
+    await secrets.unlock("my first passphrase");
+    const write = secrets.put("provider_key:anthropic", utf8.encode("sk-two"));
+    const forget = secrets.forget();
+    await write;
+    await forget;
+    expect(envelope.value).toBeUndefined();
+    expect((await secrets.status()).state).toBe("no_passphrase");
+    // 3. A put racing a passphrase change: the new passphrase stands and the entry is kept.
+    await secrets.setup("my first passphrase", { vault: utf8.encode("{}") });
+    const another = secrets.put("provider_key:openai", utf8.encode("sk-three"));
+    const change = secrets.changePassphrase("my first passphrase", "my second passphrase");
+    await another;
+    await change;
+    await secrets.lock();
+    await expectCode(secrets.unlock("my first passphrase"), "passphrase_wrong");
+    await secrets.unlock("my second passphrase");
+    expect(await secrets.getText("provider_key:openai")).toBe("sk-three");
+    expect(await secrets.getText("vault")).toBe("{}");
   });
 });

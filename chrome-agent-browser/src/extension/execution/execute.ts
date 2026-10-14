@@ -80,10 +80,12 @@ function decodeBase64(text: string): Uint8Array {
 /**
  * The plan's origin allowlist on a transport (T16, D-193): a destination outside the origins the
  * plan recorded is refused before any connection, whatever the package or a binding names. The
- * model transport may also reach Ollama on this machine over plain HTTP (D-055). The core URL
- * gate still runs inside the adapters; Chrome enforces its host permissions third.
+ * model transport may also reach Ollama on this machine, over plain HTTP or HTTPS on a loopback
+ * name (D-055; `settings.ts::isLoopbackBase` admits both, review 1 finding 3): loopback is never
+ * in a plan's origin set. The core URL gate still runs inside the adapters. Chrome's grant is not
+ * an egress check for an origin that answers with permissive CORS headers (threat model § Chrome).
  */
-export function originGuard(transport: HttpTransport, allowedOrigins: readonly string[], options: { allowLoopbackHttp: boolean }): HttpTransport {
+export function originGuard(transport: HttpTransport, allowedOrigins: readonly string[], options: { allowLoopback: boolean }): HttpTransport {
   const allowed = new Set(allowedOrigins);
   return async (request) => {
     let url: URL;
@@ -92,7 +94,7 @@ export function originGuard(transport: HttpTransport, allowedOrigins: readonly s
     } catch {
       throw new TransportError("the destination is not a URL", { stage: "address_policy" });
     }
-    const loopback = options.allowLoopbackHttp && url.protocol === "http:" && OLLAMA_LOOPBACK_HOSTS.includes(url.hostname);
+    const loopback = options.allowLoopback && (url.protocol === "http:" || url.protocol === "https:") && OLLAMA_LOOPBACK_HOSTS.includes(url.hostname);
     const origin = httpsOrigin(request.url);
     if (!loopback && (origin === null || !allowed.has(origin))) {
       throw new TransportError(`the destination ${url.origin} is outside the origins this run's plan recorded`, { stage: "address_policy", reason: "origin_not_in_plan" });
@@ -234,12 +236,14 @@ export function executeRun(deps: ExecuteDeps): ExecutionHandle {
       const archive = snapshot.bytes;
       // The package, for the host tool registry (the same derivation the plan was frozen from, D-054).
       const pkg = await loadPackageBytes(archive);
-      // No grant, no vault (D-195): an empty one under a throwaway key stands in, so a package's
-      // resource bindings, if any, resolve nothing and the egress guard has nothing to seal.
+      // The vault as the plan needs it (D-195): the records it grants, or its types alone when the
+      // plan binds a host-resource tool without granting a record (review 1, finding 1: the registry
+      // the plan was frozen from lists one binding per type, and `begin` re-verifies them); none at
+      // all otherwise, when an empty one under a throwaway key stands in.
       const vault = message.vault === null ? await Vault.open(generateVaultKey(), emptyVaultDocument()) : await Vault.open(decodeBase64(message.vault.key), message.vault.document);
       const transports = {
-        model: originGuard(deps.transports.model, message.allowedOrigins ?? [], { allowLoopbackHttp: true }),
-        tool: originGuard(deps.transports.tool, message.allowedOrigins ?? [], { allowLoopbackHttp: false }),
+        model: originGuard(deps.transports.model, message.allowedOrigins ?? [], { allowLoopback: true }),
+        tool: originGuard(deps.transports.tool, message.allowedOrigins ?? [], { allowLoopback: false }),
       };
       const contact = message.settings.crossrefContact ?? null;
       const registry = await buildHostToolRegistry(pkg, {
@@ -263,8 +267,9 @@ export function executeRun(deps: ExecuteDeps): ExecutionHandle {
         transport: transports.model,
         observer,
         ollama: { baseUrl: message.settings.ollamaBaseUrl ?? undefined, think: message.settings.think },
-        openai: { apiKey: message.credentials.openai, ...(message.settings.openaiReasoningEffort !== undefined ? { reasoningEffort: message.settings.openaiReasoningEffort } : {}) },
-        anthropic: { apiKey: message.credentials.anthropic },
+        // The endpoint the plan's origin set was computed from (review 1, finding 3): the connection's base URL, when the person set one.
+        openai: { apiKey: message.credentials.openai, ...(message.settings.openaiBaseUrl ? { baseUrl: message.settings.openaiBaseUrl } : {}), ...(message.settings.openaiReasoningEffort !== undefined ? { reasoningEffort: message.settings.openaiReasoningEffort } : {}) },
+        anthropic: { apiKey: message.credentials.anthropic, ...(message.settings.anthropicBaseUrl ? { baseUrl: message.settings.anthropicBaseUrl } : {}) },
         ...(deps.builtin ? { builtin: deps.builtin } : {}),
       });
       const router = new BoundModelRouter(adapter, { requestTimeoutSeconds: run.invocation.limits.model_call_timeout_seconds });

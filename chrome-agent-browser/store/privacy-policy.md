@@ -24,7 +24,8 @@ to Chrome's sync storage, so nothing travels to your Google account.
 ## What leaves your computer, and to whom
 
 The extension sends nothing at install, at start, or on its own. Requests leave only when you act,
-and only to origins you allowed Chrome to let it reach:
+and only to origins you allowed (the extension checks every request against your grants and a run
+against the origins its plan recorded; Chrome holds the grants):
 
 - **The website that publishes an agent:** to download the package you open and, if you allowed
   the site, to read its pages' agent-package links.

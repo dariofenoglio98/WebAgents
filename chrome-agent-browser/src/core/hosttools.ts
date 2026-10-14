@@ -796,6 +796,19 @@ export function planToolBindings(evaluation: RegistryEvaluation): PlanToolBindin
   return records;
 }
 
+/**
+ * Whether a plan binds an approved host-resource tool (T16 review 1, finding 1). Such a binding
+ * exists only in a registry built from the vault's types, so a run under the plan needs those
+ * types even when it grants no record: without them the host's registry lacks the binding and
+ * the run fails `tool_not_bound` before any model call.
+ */
+export function bindsHostResource(bindings: readonly object[]): boolean {
+  return bindings.some((binding) => {
+    const fields = binding as { implementation_kind?: unknown; approved?: unknown };
+    return fields.implementation_kind === KIND_HOST_RESOURCE && fields.approved === true;
+  });
+}
+
 export function findBinding(registry: ToolRegistry, bindingId: string): ToolBindingDescriptor | null {
   return registry.bindings.find((binding) => binding.id === bindingId) ?? null;
 }

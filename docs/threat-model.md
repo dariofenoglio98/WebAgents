@@ -290,7 +290,8 @@ process, for the extension's trusted contexts only; the execution host holds a r
 records for the run's duration); a keylogger at the passphrase; a compromised extension build.
 The exposure is bounded in time by the idle lock (default 15 minutes, a sweep every minute, lock
 on browser close, Lock now) and in scope by what a run is handed: the bound provider's key only,
-and the vault only when the plan grants a record (D-195). A passphrase has no recovery: a
+and the vault only when the plan grants a record, or its types alone, without any record, when
+the plan binds a host-resource tool it grants no record for (D-195). A passphrase has no recovery: a
 forgotten one means forgetting the keys and records. Package snapshots, run records, artifacts,
 picked PDFs, settings, trust pins and the permission records stay in clear, as before, until the
 person removes them. Test mode records outbound request bodies (prompts included) in
@@ -305,8 +306,19 @@ plan, listed under the plan's Technical details, verified again before Prepare a
 site they chose to detect agents on, a signed index or policy they add. The worker checks every
 grant before any fetch and refuses `origin_not_granted` by name; the execution host's transports
 refuse any destination outside the plan's origins (`origin_not_in_plan`); the core URL gate runs
-beneath both, unchanged (D-010); Chrome enforces its grants beneath all three. Revoking a grant
-(Settings → Permissions, or chrome://extensions) makes a plan that needs it block Run by name.
+beneath both, unchanged (D-010). What Chrome's grant adds must be stated precisely (review 1 of
+T16): a host permission lets the extension read the response of *any* request to that origin and
+read its pages; without one, a `fetch` from an extension page is still *sent*, as an ordinary
+cross-origin request under the extension's CSP (`connect-src https:`, which no static policy can
+narrow to origins chosen at run time), and its response is readable whenever the server answers
+with permissive CORS headers, as the OpenAI and Anthropic APIs do. So for **egress** the
+per-package boundary is the extension's own three checks, and Chrome's grant is a fourth check
+only for origins that do not opt into cross-origin reads; for **page access** (the discovery
+script, `activeTab`) Chrome's grant is the boundary. A grant is still what the person sees and
+revokes, and the extension never fetches an origin it was not granted. Revoking a grant
+(Settings → Permissions, or chrome://extensions) makes a plan that needs it block Run by name;
+while "Detect agents on every site" is on, single origins cannot be revoked, since Chrome would
+still grant them (the page says so).
 Discovery reads a page only when the person asks: the action click, the context-menu item or the
 keyboard shortcut grant `activeTab` for that tab, and the discovery script is injected there once;
 "Always detect agents on this site" registers it for that site; "Detect agents on every site"
