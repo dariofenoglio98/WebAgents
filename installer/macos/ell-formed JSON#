@@ -1,0 +1,1 @@
+/usr/bin/plutil -convert xml1 -o /dev/null "$root$WA_HOST_MANIFEST" 

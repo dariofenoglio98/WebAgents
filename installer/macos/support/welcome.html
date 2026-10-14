@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WebAgents installed</title>
+<style>
+  :root { color-scheme: light dark; --fg: #1d1d1f; --bg: #ffffff; --muted: #5f6368; --line: #d9d9de; --code: #f3f3f6; }
+  @media (prefers-color-scheme: dark) { :root { --fg: #ececf1; --bg: #16161a; --muted: #a0a0ab; --line: #34343c; --code: #23232a; } }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif; }
+  main { max-width: 44rem; margin: 0 auto; padding: 2.5rem 1rem 4rem; }
+  h1 { font-size: 1.6rem; margin: 0 0 .25rem; }
+  h2 { font-size: 1.1rem; margin: 2rem 0 .5rem; }
+  p, li { color: var(--fg); }
+  .muted { color: var(--muted); }
+  code { background: var(--code); padding: .1rem .35rem; border-radius: 4px; font-size: .92em; word-break: break-all; }
+  ol { padding-left: 1.3rem; }
+  li { margin: .35rem 0; }
+  section { border-top: 1px solid var(--line); }
+</style>
+</head>
+<body>
+<main>
+  <h1>WebAgents is set up on this Mac</h1>
+  <p class="muted">The native helper is installed. If you kept the Ollama option, Ollama runs in the background and allows the extension. The installer log is <code>/Library/Logs/WebAgents/installer.log</code>.</p>
+
+  <section>
+    <h2>1. Add the extension to Chrome</h2>
+    <p>The Chrome Web Store listing is not public yet. Until it is, load the extension from a checkout of the repository:</p>
+    <ol>
+      <li>Build it: <code>cd chrome-agent-browser &amp;&amp; npm ci &amp;&amp; npm run build</code></li>
+      <li>Open <code>chrome://extensions</code>, turn on <strong>Developer mode</strong>, press <strong>Load unpacked</strong> and choose <code>chrome-agent-browser/dist/extension</code>.</li>
+      <li>Check that the extension's ID reads <code>@EXTENSION_ID@</code>: the helper answers that ID only.</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>2. Unlock with the macOS keychain (optional)</h2>
+    <ol>
+      <li>In the extension, open <strong>Settings → Security</strong> and set a passphrase (or unlock with yours).</li>
+      <li>Under <strong>Unlock with the macOS keychain</strong>, press <strong>Turn on</strong> and allow Chrome to talk to the helper. The card then says <em>keychain available</em>.</li>
+      <li>From now on, the Unlock sheet offers <strong>Unlock with the macOS keychain</strong>. Your passphrase keeps working, and removing the helper loses nothing.</li>
+    </ol>
+    <p class="muted">The helper does three things only: it wraps and unwraps the key that opens your store, using an item in your login keychain, and it reports Ollama's state. It never receives a provider key, a record or a package.</p>
+  </section>
+
+  <section>
+    <h2>3. Local models with Ollama</h2>
+    <p>In <strong>Settings → Models</strong>, press <strong>Test connection</strong> on Ollama, then pull a model if you have none, for example <code>ollama pull qwen3:30b</code>.</p>
+  </section>
+
+  <section>
+    <h2>Uninstall</h2>
+    <p><code>sudo "/Library/Application Support/WebAgents/uninstall.sh"</code> removes the helper, its Chrome registration, the login item, the extension's entries in <code>OLLAMA_ORIGINS</code> and the helper's keychain item. Ollama and your models stay.</p>
+  </section>
+</main>
+</body>
+</html>

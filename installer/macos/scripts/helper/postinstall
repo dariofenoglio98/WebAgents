@@ -1,0 +1,18 @@
+#!/bin/bash
+# The helper component (T17, D-203, D-204): the binary, its id list and the host manifest are in
+# the payload; this records what was installed and opens the extension's page for the person.
+set -u
+here="$(cd "$(dirname "$0")" && pwd)"
+. "$here/paths.sh"
+wa_log "helper $WA_VERSION: $("$WA_HELPER" --version 2>&1) at $WA_HELPER"
+wa_log "native-messaging host $WA_HOST_NAME registered for Chrome: $WA_HOST_MANIFEST"
+for id in $(wa_extension_ids "$WA_IDS"); do wa_log "  allowed extension: chrome-extension://$id/"; done
+user="$(wa_console_user)"
+if [ -n "$user" ]; then
+  uid="$(/usr/bin/id -u "$user")"
+  if [ -n "$WA_STORE_URL" ]; then page="$WA_STORE_URL"; else page="file://$(echo "$WA_WELCOME" | /usr/bin/sed 's/ /%20/g')"; fi
+  wa_log "opening $page for $user"
+  /bin/launchctl asuser "$uid" /usr/bin/sudo -u "$user" /usr/bin/open "$page" || wa_log "could not open the page"
+fi
+wa_log "done; uninstall with: sudo \"$WA_UNINSTALL\""
+exit 0
