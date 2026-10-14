@@ -114,6 +114,12 @@ func reader(_ data: Data, chunk: Int = 3) -> (Int) -> Data {
         #expect(unwrapped["key"] as? String == masterKey.base64EncodedString())
     }
 
+    /// The vector the extension's fake helper also asserts (`test/helpers/fake-helper.ts`): one blob format on both sides.
+    @Test func wrapVector() throws {
+        let blob = try KeyWrap.wrap(masterKey, kek: Data(repeating: 7, count: 32), nonce: Data(repeating: 1, count: 12))
+        #expect(blob.base64EncodedString() == "AQEBAQEBAQEBAQEBAXbgi7SUuuoJ2d3WKnw6fj646gbnDIItBEAoWXl6qSiklWFlojL26FOkM5pYSQAR6A==")
+    }
+
     @Test func unwrapWithoutTheItemIsNamed() throws {
         let helper = Helper(keys: FakeKeys(), ollama: FakeOllama(), random: counter())
         let blob = try KeyWrap.wrap(masterKey, kek: Data(repeating: 7, count: 32), nonce: Data(repeating: 1, count: 12))
