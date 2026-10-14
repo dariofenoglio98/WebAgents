@@ -80,7 +80,7 @@ enum ParentCheck {
 
 /// Ollama as this Mac has it: the app or the CLI, the local server, the launchd variable.
 struct LocalOllama: OllamaInspector {
-    func status() -> OllamaStatus {
+    func status(origin: String) -> OllamaStatus {
         let files = FileManager.default
         let home = files.homeDirectoryForCurrentUser.path
         let apps = ["/Applications/Ollama.app", "\(home)/Applications/Ollama.app"]
@@ -91,24 +91,37 @@ struct LocalOllama: OllamaInspector {
         if let app, let info = NSDictionary(contentsOfFile: "\(app)/Contents/Info.plist") {
             version = info["CFBundleShortVersionString"] as? String
         }
-        let server = serverVersion()
-        return OllamaStatus(installed: installed, version: version, running: server != nil, serverVersion: server, origins: launchdOrigins())
+        let server = get(origin: nil)
+        // The same probe as the installer's ollama-origins.sh: 200 admits the extension, 403 does not.
+        var admits: Bool?
+        if server.status == 200 {
+            switch get(origin: origin).status {
+            case 200: admits = true
+            case 403: admits = false
+            default: admits = nil
+            }
+        }
+        return OllamaStatus(installed: installed, version: version, running: server.status == 200, serverVersion: server.version, origins: launchdOrigins(), serverAdmits: admits)
     }
 
-    private func serverVersion() -> String? {
-        guard let url = URL(string: "http://127.0.0.1:11434/api/version") else { return nil }
+    /// `GET /api/version` on the local server, with `Origin` when given: the status and the version.
+    private func get(origin: String?) -> (status: Int?, version: String?) {
+        guard let url = URL(string: "http://127.0.0.1:11434/api/version") else { return (nil, nil) }
         var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 2)
         request.httpMethod = "GET"
+        if let origin { request.setValue(origin, forHTTPHeaderField: "Origin") }
         let done = DispatchSemaphore(value: 0)
+        var status: Int?
         var version: String?
         URLSession(configuration: .ephemeral).dataTask(with: request) { data, response, _ in
             defer { done.signal() }
-            guard (response as? HTTPURLResponse)?.statusCode == 200, let data, data.count < 4096,
+            status = (response as? HTTPURLResponse)?.statusCode
+            guard status == 200, let data, data.count < 4096,
                   let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
             version = (object["version"] as? String).map { String($0.prefix(64)) } ?? "unknown"
         }.resume()
         _ = done.wait(timeout: .now() + 3)
-        return version
+        return (status, version)
     }
 
     private func launchdOrigins() -> String? {

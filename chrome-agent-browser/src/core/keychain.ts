@@ -47,7 +47,9 @@ export interface OllamaReport {
   version: string | null;
   running: boolean;
   server_version: string | null;
+  /** The launchd `OLLAMA_ORIGINS`. */
   origins: string | null;
+  /** What the running server answered to the extension's `Origin`; the launchd value when it is not running. */
   extension_allowed: boolean;
 }
 

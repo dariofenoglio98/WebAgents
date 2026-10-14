@@ -46,7 +46,7 @@ import { httpsOrigin, originPattern, planOrigins, patternOrigin, toolBindingsFor
 import { SerialQueue } from "../../core/serial.js";
 import { planNeedsVault } from "./runs.js";
 import { unavailableStoreError, type SecretStoreState } from "../../core/secrets.js";
-import { HelperClient, KEYCHAIN_RECORD_SCHEMA, NativePortError, PERMANENT_HELPER_CODES, type KeychainRecord, type NativePort } from "../../core/keychain.js";
+import { HelperClient, KEYCHAIN_RECORD_SCHEMA, NativePortError, PERMANENT_HELPER_CODES, type KeychainRecord, type NativePort, type OllamaReport } from "../../core/keychain.js";
 import { KeychainStorage } from "../storage/keychain-storage.js";
 import type { Package } from "../../core/package.js";
 import { documentUrl, origin, originText, sameOrigin, validatePackageUrl } from "../../core/policy.js";
@@ -307,6 +307,12 @@ export class Controller {
   private readonly nativePermission: () => Promise<boolean>;
   /** Enable, disable and unlock with the keychain, one at a time. */
   private readonly keychainWork = new SerialQueue();
+  /**
+   * What the helper last answered to `ollama.status`, in this worker's memory: Turn on and Turn off
+   * show it instead of starting the helper once more in the same click (T17 review 1, nit 7).
+   * Forgotten whenever the helper fails; Check again always asks.
+   */
+  private helperSeen: { helper_version: string | null; ollama: OllamaReport } | null = null;
 
   /** Runs from the browser (T5): decides whether a run starts; the host executes. */
   readonly runs: RunManager;
@@ -750,16 +756,22 @@ export class Controller {
   }
 
   // -- keychain unlock through the native helper (T17, D-204) -------------------------------------
-  /** Settings → Security's keychain card: the permission, the record, and what the helper says now. */
-  async keychainView(): Promise<KeychainView> {
+  /**
+   * Settings → Security's keychain card: the permission, the record, and what the helper says now
+   * (or, with `reuse`, what it said last in this worker, when it said anything).
+   */
+  async keychainView(reuse = false): Promise<KeychainView> {
     const permission = await this.nativePermission();
     const record = keychainFor(await this.keychain.load(), (await this.deps.settings.store.status()).created_at);
     const base: KeychainView = { permission, enabled: record !== null, enabled_at: record?.enabled_at ?? null, helper: "not_checked", helper_version: null, problem: null, ollama: null };
     if (!permission) return base;
+    if (reuse && this.helperSeen !== null) return { ...base, helper: "available", ...this.helperSeen };
     try {
       const status = await this.helper.status();
+      this.helperSeen = { helper_version: status.helper, ollama: status.ollama };
       return { ...base, helper: "available", helper_version: status.helper, ollama: status.ollama };
     } catch (error) {
+      this.helperSeen = null;
       const described = helperProblem(error);
       return { ...base, helper: described.state, problem: { code: described.code, message: described.message } };
     }
@@ -780,11 +792,14 @@ export class Controller {
         back.fill(0);
         if (!same) throw reject("helper_failed", "The WebAgents helper did not return the key it wrapped; keychain unlock stays off.", 502);
         await this.keychain.save({ schema: KEYCHAIN_RECORD_SCHEMA, enabled_at: this.clock().toISOString(), envelope_created_at: material.envelope_created_at, blob, check: material.check });
+      } catch (error) {
+        this.helperSeen = null;
+        throw error;
       } finally {
         material.key.fill(0);
       }
       this.deps.broadcast({ type: "event.secrets" });
-      return this.keychainView();
+      return this.keychainView(true);
     });
   }
 
@@ -792,7 +807,7 @@ export class Controller {
     return this.keychainWork.run(async () => {
       await this.keychain.clear();
       this.deps.broadcast({ type: "event.secrets" });
-      return this.keychainView();
+      return this.keychainView(true);
     });
   }
 
@@ -813,6 +828,7 @@ export class Controller {
       try {
         key = await this.helper.unwrap(record.blob);
       } catch (error) {
+        this.helperSeen = null;
         if (error instanceof CoreError && error.code === "helper_refused" && PERMANENT_HELPER_CODES.includes(String(error.details.helper_code))) await this.dropKeychain();
         throw error;
       }

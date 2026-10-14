@@ -63,12 +63,22 @@ wa_log() {
   echo "$(/bin/date -u +%Y-%m-%dT%H:%M:%SZ) $*" | /usr/bin/tee -a "$WA_LOG" 2>/dev/null || echo "$*"
 }
 
+# The person's home directory as Directory Services records it (not always /Users/<name>).
+wa_user_home() {
+  local home
+  home="$(/usr/bin/dscl . -read "/Users/$1" NFSHomeDirectory 2>/dev/null | /usr/bin/awk '{print $2}')"
+  echo "${home:-/Users/$1}"
+}
+
 # How the Ollama choice would obtain Ollama on this Mac (D-202): `present <where>`, `brew <brew>`
 # or `download`. Shared by the postinstall script and the dry-run.
 wa_ollama_plan() {
-  local user="$1" candidate
+  local user="$1" home candidate
   if [ -d "$OLLAMA_APP" ]; then echo "present $OLLAMA_APP"; return; fi
-  if [ -n "$user" ] && [ -d "/Users/$user/Applications/Ollama.app" ]; then echo "present /Users/$user/Applications/Ollama.app"; return; fi
+  if [ -n "$user" ]; then
+    home="$(wa_user_home "$user")"
+    if [ -d "$home/Applications/Ollama.app" ]; then echo "present $home/Applications/Ollama.app"; return; fi
+  fi
   for candidate in $OLLAMA_CLIS; do
     if [ -x "$candidate" ]; then echo "present $candidate"; return; fi
   done

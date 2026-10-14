@@ -13,7 +13,6 @@ if [ -z "$user" ]; then
   exit 0
 fi
 uid="$(/usr/bin/id -u "$user")"
-home="$(/usr/bin/dscl . -read "/Users/$user" NFSHomeDirectory 2>/dev/null | /usr/bin/awk '{print $2}')"
 as_user() { /bin/launchctl asuser "$uid" /usr/bin/sudo -u "$user" -H "$@"; }
 
 plan="$(wa_ollama_plan "$user")"

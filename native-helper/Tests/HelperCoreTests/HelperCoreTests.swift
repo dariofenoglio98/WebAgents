@@ -20,7 +20,7 @@ final class FakeKeys: WrappingKeyStore {
 
 struct FakeOllama: OllamaInspector {
     var value = OllamaStatus(installed: true, version: "0.40.3", running: true, serverVersion: "0.40.3", origins: "chrome-extension://abcdefghijklmnopabcdefghijklmnop")
-    func status() -> OllamaStatus { value }
+    func status(origin: String) -> OllamaStatus { value }
 }
 
 let origin = "chrome-extension://abcdefghijklmnopabcdefghijklmnop"
@@ -164,6 +164,31 @@ func reader(_ data: Data, chunk: Int = 3) -> (Int) -> Data {
         #expect(offStatus?["extension_allowed"] as? Bool == false)
         #expect(offStatus?["running"] as? Bool == false)
         #expect(offStatus?["origins"] is NSNull)
+    }
+
+    /// The running server's answer wins over the launchd variable (T17 review 1, nit 6).
+    @Test func theRunningServerDecidesWhetherTheCallerIsAdmitted() {
+        var ollama = FakeOllama()
+        ollama.value.serverAdmits = false // the variable admits us, the server (not restarted) does not
+        let refused = Helper(keys: FakeKeys(), ollama: ollama, random: counter()).handle(json(["op": "ollama.status"]), callerOrigin: origin + "/")
+        #expect((refused["ollama"] as? [String: Any])?["extension_allowed"] as? Bool == false)
+        ollama.value.origins = nil
+        ollama.value.serverAdmits = true // `ollama serve` with its own environment
+        let admitted = Helper(keys: FakeKeys(), ollama: ollama, random: counter()).handle(json(["op": "ollama.status"]), callerOrigin: origin + "/")
+        #expect((admitted["ollama"] as? [String: Any])?["extension_allowed"] as? Bool == true)
+    }
+
+    @Test func theInspectorGetsTheOriginAsChromeSendsIt() {
+        final class Recording: OllamaInspector {
+            var asked: [String] = []
+            func status(origin: String) -> OllamaStatus {
+                asked.append(origin)
+                return FakeOllama().value
+            }
+        }
+        let recording = Recording()
+        _ = Helper(keys: FakeKeys(), ollama: recording, random: counter()).handle(json(["op": "ollama.status"]), callerOrigin: origin + "/")
+        #expect(recording.asked == [origin])
     }
 
     @Test func originMatching() {

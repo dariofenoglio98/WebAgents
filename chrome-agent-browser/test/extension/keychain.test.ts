@@ -50,6 +50,23 @@ describe("Settings → Security's keychain card", () => {
     expect(await ask<KeychainView>(present, { type: "keychain.status" })).toMatchObject({ helper: "refused", problem: { code: "caller_refused" } });
   });
 
+  it("Turn on and Turn off reuse what the helper said last instead of starting it again (T17 review 1, nit 7)", async () => {
+    const helper = new FakeHelper();
+    const h = makeHarness({ native: helper, nativePermission: true });
+    await ask(h, { type: "keychain.status" });
+    expect(helper.sent.map((message) => message.op)).toEqual(["ollama.status"]);
+    const on = await ask<KeychainView>(h, { type: "keychain.enable" });
+    expect(on).toMatchObject({ enabled: true, helper: "available", helper_version: "0.1.0", ollama: helper.ollama });
+    const off = await ask<KeychainView>(h, { type: "keychain.disable" });
+    expect(off).toMatchObject({ enabled: false, helper: "available", helper_version: "0.1.0", ollama: helper.ollama });
+    expect(helper.sent.map((message) => message.op)).toEqual(["ollama.status", "keychain.wrap", "keychain.unwrap"]);
+    // Check again always asks; a failed helper is forgotten, so the next Turn off asks too.
+    helper.portFailure = "not_installed";
+    expect((await ask<KeychainView>(h, { type: "keychain.status" })).helper).toBe("not_installed");
+    expect((await ask<KeychainView>(h, { type: "keychain.disable" })).helper).toBe("not_installed");
+    expect(helper.sent.map((message) => message.op).slice(3)).toEqual(["ollama.status", "ollama.status"]);
+  });
+
   it("turning it on needs the permission and an unlocked store", async () => {
     const helper = new FakeHelper();
     const h = makeHarness({ native: helper });

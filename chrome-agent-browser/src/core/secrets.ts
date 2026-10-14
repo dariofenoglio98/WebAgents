@@ -180,7 +180,8 @@ function sealedBox(raw: unknown, field: string): SealedBox {
 /** Read a stored envelope strictly: the schema, the cipher, bounded scrypt parameters, well-formed boxes. */
 export function validateEnvelope(raw: unknown): SecretEnvelope {
   // The schema first: an envelope a newer build wrote is named as such, not as a shape problem (finding 6).
-  if (isRecord(raw) && raw.schema !== SECRET_STORE_SCHEMA) throw refuse("store_invalid", `This build reads ${SECRET_STORE_SCHEMA} envelopes only; the stored one says ${JSON.stringify(String(raw.schema).slice(0, 64))}.`);
+  // A record with no `schema` at all is left to the shape check below, which names the missing field (T17 review 1, nit 8).
+  if (isRecord(raw) && Object.hasOwn(raw, "schema") && raw.schema !== SECRET_STORE_SCHEMA) throw refuse("store_invalid", `This build reads ${SECRET_STORE_SCHEMA} envelopes only; the stored one says ${JSON.stringify(String(raw.schema).slice(0, 64))}.`);
   const record = closedRecord(raw, "secret_store", ["schema", "created_at", "kdf", "cipher", "wrapped_key", "entries"], ["schema", "created_at", "kdf", "cipher", "wrapped_key", "entries"]);
   if (record.cipher !== SECRET_CIPHER) throw refuse("store_invalid", `The stored envelope names cipher ${JSON.stringify(String(record.cipher).slice(0, 32))}; this build uses ${SECRET_CIPHER}.`);
   const createdAt = requiredText(record.created_at, "secret_store.created_at", { limit: 64 });

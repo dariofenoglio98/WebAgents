@@ -160,12 +160,22 @@ function openUnlock(reason: string | null, retry: (() => void) | null): void {
   render();
 }
 
+/**
+ * The card for a status request the worker itself rejected: "Helper failed" with the problem and
+ * Check again, never "Asking the helper…" with no way on (T17 review 1, nit 5).
+ */
+function failedKeychain(error: unknown, previous: KeychainView | null = state.keychain): KeychainView {
+  const { code, message } = describeError(error);
+  const known = previous ?? { permission: true, enabled: false, enabled_at: null, ollama: null };
+  return { permission: known.permission, enabled: known.enabled, enabled_at: known.enabled_at, ollama: known.ollama, helper: "failed", helper_version: null, problem: { code, message } };
+}
+
 /** Ask the helper through the worker (T17); the card shows "Asking the helper…" meanwhile. */
-async function loadKeychain(): Promise<void> {
+async function loadKeychain(previous: KeychainView | null = state.keychain): Promise<void> {
   try {
     state.keychain = await send<KeychainView>({ type: "keychain.status" });
   } catch (error) {
-    state.settingsPage.notice = `${describeError(error).code}: ${describeError(error).message}`;
+    state.keychain = failedKeychain(error, previous);
   }
   render();
 }
@@ -903,15 +913,16 @@ function settingsView(): HTMLElement[] {
               state.keychain = await send<KeychainView>({ type: "keychain.disable" });
               state.settingsPage.notice = "Keychain unlock is off; your passphrase unlocks as before.";
             } else {
+              const previous = state.keychain;
               state.keychain = null;
               render();
-              state.keychain = await send<KeychainView>({ type: "keychain.status" });
+              await loadKeychain(previous);
             }
             await loadSecrets();
           } catch (error) {
             const described = describeError(error);
             state.settingsPage.notice = `${described.code}: ${described.message}`;
-            state.keychain = await send<KeychainView>({ type: "keychain.status" }).catch(() => state.keychain);
+            state.keychain = await send<KeychainView>({ type: "keychain.status" }).catch((again: unknown) => failedKeychain(again));
           }
           render();
         })();

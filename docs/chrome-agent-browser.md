@@ -341,8 +341,9 @@ installer, [`installer/macos/`](../installer/README.md), adds two things:
   **Unlock with the macOS keychain** → **Turn on** asks Chrome for `nativeMessaging` (the click is
   the gesture), has the helper wrap the master key, unwraps it once to prove the round trip, and
   stores the blob and a check box beside the envelope (`secretKeychain`). The card then says
-  *keychain available*, the helper's version and Ollama's state ("running and admits this
-  extension", "installed but not running", "OLLAMA_ORIGINS … does not admit this extension").
+  *keychain available*, the helper's version and Ollama's state, as the running server answers
+  the extension's origin ("running and admits this extension", "installed but not running",
+  "running but does not admit this extension").
   The Unlock sheet offers **Unlock with the macOS keychain** first; if the helper is missing,
   refuses, times out or returns a key that does not open this store's check, the sheet says so and
   the passphrase form unlocks as before. A record that can never work again (the keychain item is

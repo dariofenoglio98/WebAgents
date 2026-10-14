@@ -7,7 +7,7 @@ through native messaging for one request and one reply; it does three things onl
 |---|---|---|
 | `keychain.wrap` | `{"op", "key"}`: the store's 32-byte master key, base64 | `{"blob"}`: AES-256-GCM under a key-encryption key kept in the login keychain (service `org.webagents.helper`, account `store-wrapping-key`) |
 | `keychain.unwrap` | `{"op", "blob"}` | `{"key"}` |
-| `ollama.status` | `{"op"}` | `{"ollama": {installed, version, running, server_version, origins, extension_allowed}}` |
+| `ollama.status` | `{"op"}` | `{"ollama": {installed, version, running, server_version, origins, extension_allowed}}`: `origins` is the launchd `OLLAMA_ORIGINS`; `extension_allowed` is what the running server answers to `GET /api/version` with the caller's `Origin` (200 or 403), and the launchd value only when the server is not running |
 
 Every reply carries `ok` and `helper` (the version); a refusal is `{"ok": false, "error": {code,
 message}}`. Anything else is refused: another operation (`unknown_operation`), an extra field or

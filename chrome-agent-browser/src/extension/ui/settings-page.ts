@@ -741,7 +741,8 @@ export function ollamaWords(ollama: NonNullable<KeychainView["ollama"]>): { text
   const version = ollama.server_version ?? ollama.version;
   const name = version ? `Ollama ${version}` : "Ollama";
   if (!ollama.running) return { text: `${name} is installed but not running.`, tone: "warn" };
-  if (!ollama.extension_allowed) return { text: `${name} is running but OLLAMA_ORIGINS (${ollama.origins ?? "not set"}) does not admit this extension; the installer sets it, or see Settings → Models.`, tone: "bad" };
+  // The server's own answer (T17 review 1, nit 6): the login value may be right while Ollama still runs with an older one.
+  if (!ollama.extension_allowed) return { text: `${name} is running but does not admit this extension (OLLAMA_ORIGINS at login: ${ollama.origins ?? "not set"}); restart Ollama after the installer sets it, or see Settings → Models.`, tone: "bad" };
   return { text: `${name} is running and admits this extension.`, tone: "good" };
 }
 

@@ -17,18 +17,23 @@ public struct OllamaStatus: Equatable {
     public var running: Bool
     public var serverVersion: String?
     public var origins: String?
+    /// What the running server answered to a request carrying the caller's `Origin`: true for 200,
+    /// false for 403, nil when it was not asked or said neither (T17 review 1, nit 6).
+    public var serverAdmits: Bool?
 
-    public init(installed: Bool, version: String?, running: Bool, serverVersion: String?, origins: String?) {
+    public init(installed: Bool, version: String?, running: Bool, serverVersion: String?, origins: String?, serverAdmits: Bool? = nil) {
         self.installed = installed
         self.version = version
         self.running = running
         self.serverVersion = serverVersion
         self.origins = origins
+        self.serverAdmits = serverAdmits
     }
 }
 
 public protocol OllamaInspector {
-    func status() -> OllamaStatus
+    /// `origin` is the caller's origin without the trailing slash, as Chrome sends it in `Origin`.
+    func status(origin: String) -> OllamaStatus
 }
 
 /// The three operations, and nothing else (D-204). Every request is validated against a closed
@@ -69,11 +74,14 @@ public struct Helper {
                 let key = try KeyWrap.unwrap(blob, kek: kek)
                 return Helper.ok(op, ["key": key.base64EncodedString()])
             default: // "ollama.status"
-                let status = ollama.status()
+                let status = ollama.status(origin: Helper.normalizeOrigin(callerOrigin))
+                // The running server is the authority (an app not yet restarted, `ollama serve` in a
+                // terminal or `brew services` may not see the launchd variable); the variable decides
+                // only when the server was not asked.
                 var ollama: [String: Any] = [
                     "installed": status.installed,
                     "running": status.running,
-                    "extension_allowed": Helper.originsAdmit(status.origins, callerOrigin),
+                    "extension_allowed": status.serverAdmits ?? Helper.originsAdmit(status.origins, callerOrigin),
                 ]
                 ollama["version"] = status.version ?? NSNull()
                 ollama["server_version"] = status.serverVersion ?? NSNull()

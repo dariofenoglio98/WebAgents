@@ -10,6 +10,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { Event, SecretsView } from "../../src/extension/messages.js";
 import { failure, success } from "../../src/extension/messages.js";
+import { ollamaWords } from "../../src/extension/ui/settings-page.js";
 import { newUnlockState, renderUnlockSheet } from "../../src/extension/ui/unlock.js";
 import { FakeHelper } from "../helpers/fake-helper.js";
 import { makeHarness, PAGE_IN_TAB, SEED_PASSPHRASE } from "../helpers/shell.js";
@@ -116,6 +117,31 @@ describe("Settings → Security and the Unlock sheet with the helper (T17)", () 
     buttonNamed("Check again")!.click();
     await settle();
     expect(app().textContent).toContain("Helper not installed");
+  });
+
+  it("a status request the worker rejects leaves a failed card with Check again, not \"Asking the helper…\" (T17 review 1, nit 5)", async () => {
+    helper.portFailure = null;
+    const spy = vi.spyOn(h.controller, "keychainView").mockRejectedValueOnce(new Error("the worker went away"));
+    buttonNamed("Check again")!.click();
+    await settle();
+    await settle();
+    expect(app().textContent).not.toContain("Asking the helper…");
+    expect(app().textContent).toContain("Helper failed");
+    expect(app().textContent).toContain("internal_error: The operation failed");
+    expect(buttonNamed("Turn off")).toBeDefined(); // what was known before stays: keychain unlock is on
+    spy.mockRestore();
+    buttonNamed("Check again")!.click();
+    await settle();
+    await settle();
+    expect(app().textContent).toContain("keychain available");
+  });
+
+  it("the Ollama line follows the server's answer, not the login value (T17 review 1, nit 6)", () => {
+    const admitted = { ...helper.ollama, origins: "chrome-extension://abcdefghijklmnopabcdefghijklmnop" };
+    expect(ollamaWords(admitted)).toEqual({ text: "Ollama 0.40.3 is running and admits this extension.", tone: "good" });
+    const stale = ollamaWords({ ...admitted, extension_allowed: false });
+    expect(stale.tone).toBe("bad");
+    expect(stale.text).toContain("is running but does not admit this extension (OLLAMA_ORIGINS at login: chrome-extension://abcdefghijklmnopabcdefghijklmnop); restart Ollama");
   });
 
   it("the sheet for an unreadable store explains instead of asking for a passphrase (T16 review 2, nit 5)", () => {
