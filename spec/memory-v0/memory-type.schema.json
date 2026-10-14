@@ -1,0 +1,221 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentpkg.local/spec/memory-v0/memory-type.schema.json",
+  "title": "memory.v0 type definition",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "maxLength": 200,
+      "pattern": "^([a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*|[A-Za-z][A-Za-z0-9_.:-]{0,127}:[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*)$"
+    },
+    "display_name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "description": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "schema": {
+      "$ref": "#/$defs/fields_schema"
+    },
+    "sealed_fields": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/pointer"
+      },
+      "maxItems": 16,
+      "uniqueItems": true
+    },
+    "identity": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/pointer"
+      },
+      "maxItems": 8,
+      "uniqueItems": true
+    },
+    "default_links": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "to": {
+            "type": "string",
+            "pattern": "^(self|mem_[0-9a-f]{32})$"
+          },
+          "rel": {
+            "enum": [
+              "about",
+              "prefers",
+              "pays_with",
+              "belongs_to",
+              "supersedes",
+              "derived_from",
+              "related"
+            ]
+          }
+        },
+        "required": [
+          "to",
+          "rel"
+        ],
+        "additionalProperties": false
+      },
+      "maxItems": 8,
+      "uniqueItems": true
+    },
+    "display": {
+      "type": "object",
+      "properties": {
+        "title_from": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/pointer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "summary": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/pointer"
+          },
+          "maxItems": 4,
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "title_from",
+        "summary"
+      ],
+      "additionalProperties": false
+    },
+    "declared_by": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "enum": [
+            "spec",
+            "person",
+            "package"
+          ]
+        },
+        "package_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "additionalProperties": false,
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "package"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "package_id"
+        ]
+      },
+      "else": {
+        "not": {
+          "required": [
+            "package_id"
+          ]
+        }
+      }
+    },
+    "legacy": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+          },
+          "schema": {
+            "$ref": "#/$defs/fields_schema"
+          },
+          "projection": {
+            "type": "object",
+            "propertyNames": {
+              "pattern": "^(/[^/]+)+$"
+            },
+            "additionalProperties": {
+              "$ref": "#/$defs/pointer"
+            },
+            "minProperties": 1
+          }
+        },
+        "required": [
+          "id",
+          "schema",
+          "projection"
+        ],
+        "additionalProperties": false
+      },
+      "maxItems": 4
+    }
+  },
+  "required": [
+    "id",
+    "display_name",
+    "description",
+    "schema",
+    "sealed_fields",
+    "identity",
+    "default_links",
+    "display",
+    "declared_by"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "pointer": {
+      "type": "string",
+      "minLength": 2,
+      "maxLength": 256,
+      "pattern": "^(/[^/]+)+$"
+    },
+    "fields_schema": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "object"
+        },
+        "properties": {
+          "type": "object",
+          "propertyNames": {
+            "pattern": "^(?!(id|type|title|scope|created|updated|valid_until|source|sealed|links|tags|demo|body|memory|about|prefers|pays_with|belongs_to|supersedes|derived_from|related|aliases|cssclasses)$)[a-z][a-z0-9_]{0,63}$"
+          },
+          "maxProperties": 64
+        },
+        "additionalProperties": {
+          "const": false
+        }
+      },
+      "required": [
+        "type",
+        "properties",
+        "additionalProperties"
+      ]
+    }
+  }
+}

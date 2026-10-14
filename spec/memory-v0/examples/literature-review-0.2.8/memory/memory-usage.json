@@ -1,0 +1,26 @@
+[
+  {
+    "record_id": "mem_60718293a4b5c6d7e8f90a1b2c3d4e5f",
+    "use": "read",
+    "package_id": "org.webagents.literature-review",
+    "package_version": "0.2.8",
+    "run_id": "9c0b7a6d-3e2f-4a1b-8c9d-0e1f2a3b4c5d",
+    "at": "2026-10-14T12:20:05Z"
+  },
+  {
+    "record_id": "mem_718293a4b5c6d7e8f90a1b2c3d4e5f60",
+    "use": "proposed",
+    "package_id": "org.webagents.literature-review",
+    "package_version": "0.2.8",
+    "run_id": "9c0b7a6d-3e2f-4a1b-8c9d-0e1f2a3b4c5d",
+    "at": "2026-10-14T12:38:40Z"
+  },
+  {
+    "record_id": "mem_718293a4b5c6d7e8f90a1b2c3d4e5f60",
+    "use": "accepted",
+    "package_id": "org.webagents.literature-review",
+    "package_version": "0.2.8",
+    "run_id": "9c0b7a6d-3e2f-4a1b-8c9d-0e1f2a3b4c5d",
+    "at": "2026-10-14T12:40:00Z"
+  }
+]

@@ -1,0 +1,48 @@
+{
+  "schema": "memory.v0 proposals",
+  "proposals": [
+    {
+      "action": "create",
+      "type": "travel.preference",
+      "title": "Aisle seat",
+      "fields": {
+        "kind": "seat",
+        "value": "aisle"
+      },
+      "body": "Chosen on the Boston booking of 14 October.",
+      "tags": [
+        "seat"
+      ],
+      "links": [
+        {
+          "to": "self",
+          "rel": "about"
+        }
+      ],
+      "rationale": "You chose an aisle seat when booking WA101."
+    },
+    {
+      "action": "update",
+      "type": "travel.profile",
+      "target": "mem_7c1f0a4e9b2d4c5e8f6a1b2c3d4e5f60",
+      "title": "Home travel profile",
+      "fields": {
+        "home_airport": "BOS",
+        "preferred_cabin": "economy",
+        "prefer_nonstop": true,
+        "preferred_currency": "USD"
+      },
+      "body": "Used for most trips. Business only when someone else pays.",
+      "tags": [
+        "home"
+      ],
+      "links": [
+        {
+          "to": "#0",
+          "rel": "prefers"
+        }
+      ],
+      "rationale": "Links your home profile to the seat preference."
+    }
+  ]
+}

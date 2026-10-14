@@ -45,7 +45,7 @@ The package digest identifies the canonical integrity statement; the archive SHA
 
 ## File and memory handling
 
-The package can describe memory scopes from ephemeral to enterprise, but the reference workflow uses session-scoped state. It does not silently establish a cross-session personal memory store. An explicitly requested output directory can contain research state, evidence excerpts, and audit artifacts; this is a durable export and must not be described as automatic ephemeral deletion. Raw private PDF text should not be included in generic traces, error strings, package artifacts, or attestations.
+The package can describe memory scopes from ephemeral to enterprise, but the reference workflow uses session-scoped state. It does not silently establish a cross-session personal memory store; the user-owned memory of `memory.v0` (§ User memory) is written only through proposals the person accepts. An explicitly requested output directory can contain research state, evidence excerpts, and audit artifacts; this is a durable export and must not be described as automatic ephemeral deletion. Raw private PDF text should not be included in generic traces, error strings, package artifacts, or attestations.
 
 User-selected PDF paths authorize reading only those files through the host reader. A path found inside a paper is data, not a new file grant. Outputs must be new and have no symlink ancestors. The PDF reader enforces byte/page/text limits and runs parsing in a killable child with CPU/time limits; address-space limits are attempted but may be unavailable on macOS. These controls do not constitute an OS security sandbox. Package JSON-schema validation is in-process and is not CPU-isolated against expensive regular expressions or combinatorial schemas.
 
@@ -440,3 +440,32 @@ pinned GitHub release, whose SHA-256 and signing team are checked before the app
 wildcard the person had set is kept as found. The login LaunchAgent runs one script as the person
 that sets the variable and restarts Ollama only when Ollama rejects the extension's origin. The
 uninstaller removes all of it and never Ollama or its models.
+
+## User memory (T18, `memory.v0`)
+
+[`spec/memory-v0.md`](../spec/memory-v0.md) replaces the personal vault with a user-owned graph of
+Markdown records that packages may read by type, propose additions to, and keep private notes in.
+The assets are the records themselves (a person's identities, instruments, profiles and
+preferences, in a form a model can read), the sealed values among them, and the person's trust that
+nothing is remembered or recalled without them knowing. The adversaries are the ones above with two
+new reaches: a package whose run wants data to *leave* through memory, and one whose run wants an
+instruction to *stay* in memory for the next run. The table states each threat, the control, and the
+limit the design accepts; the spec's rule numbers (M-n) are the normative text.
+
+| Threat | Control and remaining limit |
+|---|---|
+| Memory as an exfiltration channel: a run proposes a record whose fields or body encode data the person did not mean to keep, or a package declares a type whose schema invites a secret ("backup code", "card number") | A run writes nothing: proposals are reviewed one by one with the package's own rationale, the fields and the body in full, and provenance (package, version, run) on every accepted record (M-41, M-42). A proposal may name only the types the package declared, can carry no sealed value, and is bounded (8 per run, 16 KiB each; M-39, M-40). A custom type cannot declare sealed fields, cannot shadow a sealed well-known type under another name, and is shown and approved at first use (M-18, M-19). Limit: a person who accepts an opaque proposal has accepted it; review is the control, not inspection of meaning. |
+| Poisoning: a proposal or an agent document plants an instruction that the next run's model reads as if it came from the person; a record the person imported from elsewhere does the same | Recalled bodies, agent documents and proposals are **data** in the model request (`data`, never `instructions`), framed by the host as untrusted content the person stored, and nothing in a record can name a tool, a permission or a destination (workflow.v0 §7, §8). The agent document is one package's own and reaches only that package (M-49, M-51); the person sees and clears it. Recall needs a declared type: no package reads a note it did not ask for by type (M-33, M-35). Limit: semantic compliance is the model's; a model that follows text inside a record can still misuse the authority the run already has, exactly as with a poisoned document today. |
+| Cross-package leakage: one package reads what another proposed or wrote | Recall is per type, and only the person moves a record from "proposed by A" to "granted to B": a grant is one record, by id and digest, chosen at authorization (M-12, M-34). Custom types are qualified by the declaring package id, so no package can read another's custom records by naming the local id (M-18). Agent documents are never recall candidates (M-49). The package layer of the graph shows the person which packages touched which records (M-23, M-29). Limit: a well-known type is shared by design; a travel profile granted to two airlines is known to both. |
+| A sealed value reaches a model or a service that was not granted it | Two egress scans in both runtimes: every tool call's arguments and every model request body are searched for the sealed values of every record the host holds; a value not granted to the run may go nowhere, a granted one only to a tool linking its permission, and never into a model request (M-36, M-37). Limit: exact-value matching over host-held values, not data-loss prevention; a paraphrase or a derived value is not caught; unsealed fields are ordinary data. |
+| The export file: a folder in clear on disk, synced or shared | Sealed values are omitted by default and written as `sealed:omitted`; including them needs the unlocked store and a confirmation that names what will be in clear (M-56). The folder carries ids, provenance and links, so a leaked export says what the person kept and from which runs. There is no encrypted export: the format's purpose is to be read by an editor. Limit: once exported in clear, the file is the person's to protect. |
+| The unlocked store: a process running as the user while the memory is unlocked | As for the secret store (§ Chrome, storage at rest): sealed values are ciphertext at rest under the master key (M-10); everything else (titles, unsealed fields, bodies, links) is in clear in the profile directory, by design, so that a locked store still shows the graph. The idle lock bounds the time the master key is resident; a run holds only the records it was granted (D-195). Limit: a compromised account reads Chrome's memory; the design defends data at rest. |
+| Silent accumulation: a memory that grows until it is a liability | Caps refuse new records and never evict (M-47); superseded, expired, unused and dangling records are listed for the person to delete (M-46); replacement by identity is offered, never applied (M-44). Limit: the person must act; the host proposes tidying and does not tidy. |
+| An old package meets a migrated host | The vault's three types stay answerable under their legacy ids through `personal.read`, with the same output contract and the same sealed fields (M-17); a package signed before memory.v0 runs with the grants it had. Limit: a legacy id is a projection; a field the new type added is not visible to the old package. |
+
+What the memory does not claim: provenance is local (a record says which run proposed it; nothing
+attests the run to a third party); acceptance is consent to keep, not verification of truth; the
+text index and the graph index are derived and may lag a write until rebuilt; and none of this
+prevents a person from typing a secret into a note, which the host will then hold in clear like any
+body. The memory family of the enforcement catalog v2 (D-189) starts from the negative cases of the
+spec's §10.

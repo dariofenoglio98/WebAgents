@@ -13,6 +13,7 @@ each claim). Reports are historical: a later report or the current artifacts in
 |---|---|
 | [spec/agent-pkg-v0.md](../spec/agent-pkg-v0.md) | The `agent.pkg` container: manifest, integrity statement, signature, parsing limits |
 | [spec/workflow-v0.md](../spec/workflow-v0.md) | The `workflow.v0` execution profile: node types, state, waves, validation |
+| [spec/memory-v0.md](../spec/memory-v0.md) | `memory.v0`: the user-owned memory of Markdown records (the record document, the graph, recall, proposals, the agent document, export and import); machine contracts and worked examples in [spec/memory-v0/](../spec/memory-v0/); normative for agentpkg 0.4.0 and Chrome core 0.2.0 |
 | [spec/extensions/profiles-v0.md](../spec/extensions/profiles-v0.md) | Publisher-declared profiles (`org.webagents:profiles-v0`), a noncritical manifest extension that groups declared authority and grants none |
 
 ## Guides
@@ -21,7 +22,7 @@ each claim). Reports are historical: a later report or the current artifacts in
 |---|---|
 | [getting-started.md](getting-started.md) | Installation, OpenClaw plugin setup, model configuration (Ollama, hosted OpenAI), and the Chrome Agent Browser (level 4) |
 | [architecture.md](architecture.md) | Architecture and concrete design decisions |
-| [threat-model.md](threat-model.md) | Assets, trust boundaries and what the prototype does and does not defend; the Chrome Agent Browser's network, storage, permission and review boundaries ([§ Chrome](threat-model.md#chrome-agent-browser-t7)); the optional macOS helper and installer ([§ helper](threat-model.md#native-helper-and-macos-installer-t17)) |
+| [threat-model.md](threat-model.md) | Assets, trust boundaries and what the prototype does and does not defend; the Chrome Agent Browser's network, storage, permission and review boundaries ([§ Chrome](threat-model.md#chrome-agent-browser-t7)); the optional macOS helper and installer ([§ helper](threat-model.md#native-helper-and-macos-installer-t17)); the user-owned memory ([§ memory](threat-model.md#user-memory-t18-memoryv0)) |
 | [browser-control-plane.md](browser-control-plane.md) | `agentpkg browser-serve`: opening, snapshots, validation, trust, authorization, and experimental website discovery (`rel="agent-package"`, §3a) |
 | [model-selection-and-run-plan.md](model-selection-and-run-plan.md) | Model compatibility semantics and the run-plan schema |
 | [model-availability.md](model-availability.md) | Which host view means "this model can be used" |

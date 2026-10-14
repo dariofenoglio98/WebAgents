@@ -466,7 +466,7 @@ boundary; data-flow policies; persistent ("always") authorization; federated sch
 | `conformance/` | the cross-runtime conformance suite and its kept reports ([README](conformance/README.md)) |
 | `agents/` | package sources: `meeting-agenda`, `literature-review`, `webair`, `literature-review-legacy` |
 | `dist/` | signed packages and wheels, current and historical, with SHA-256 ([dist/README.md](dist/README.md)) |
-| `spec/` | the `agent.pkg` and `workflow.v0` specifications; `spec/extensions/` for noncritical manifest extensions (publisher-declared profiles) |
+| `spec/` | the `agent.pkg`, `workflow.v0` and `memory.v0` specifications (`spec/memory-v0/` holds the memory contracts and worked examples); `spec/extensions/` for noncritical manifest extensions (publisher-declared profiles) |
 | `docs/` | guides and dated milestone reports ([index](docs/README.md)) |
 | `examples/` | grants, inputs, public development keys, recorded runs, verification evidence ([examples/README.md](examples/README.md)) |
 | `scripts/` | offline acceptance and verification scripts |
