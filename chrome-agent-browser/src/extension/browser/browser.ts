@@ -8,12 +8,12 @@ import type { Candidate } from "../../core/discovery.js";
 import type { JsonObject } from "../../core/json.js";
 import { looksLikePackageUrl } from "../../core/policy.js";
 import type { TrustEntry, TrustState } from "../../core/trust.js";
-import type { AuthorizationView, ExportBundle, FilesView, IndexesView, LibraryItemView, LibraryView, ModelsView, PermissionsView, PolicyView, RunListView, RunSummary, RunView, SearchResultView, SearchView, SecretsView, SessionDescriptor, SessionView, SettingsView, StatusInfo, VaultView, WebsiteResult } from "../messages.js";
+import type { AuthorizationView, ExportBundle, FilesView, IndexesView, LibraryItemView, LibraryView, ModelsView, PermissionsView, PolicyView, RunListView, RunSummary, RunView, SearchResultView, SearchView, SecretsView, KeychainView, SessionDescriptor, SessionView, SettingsView, StatusInfo, VaultView, WebsiteResult } from "../messages.js";
 import { addressKind } from "../../core/resolve/types.js";
 import { renderFoundVia, renderLibrary, renderSearchResults } from "../ui/search.js";
 import { renderAgentPage } from "../ui/agent-page.js";
 import { bindAuthorization, type AuthorizationController } from "../ui/authorization-flow.js";
-import { describeError, originOfUrl, refusedOrigins, requestOrigins, send, subscribe } from "../ui/client.js";
+import { describeError, originOfUrl, refusedOrigins, requestNativeMessaging, requestOrigins, send, subscribe } from "../ui/client.js";
 import { needsUnlock, newUnlockState, renderLockChip, renderUnlockSheet, type UnlockState } from "../ui/unlock.js";
 import { button, card, chip, el, list, replace, row, whenText } from "../ui/dom.js";
 import { newSettingsPageState, refreshProbes, renderSettingsPage, SETTINGS_SECTIONS, type SettingsPageState, type SettingsSection } from "../ui/settings-page.js";
@@ -57,6 +57,8 @@ interface PageState {
   /** The secret store (T16): the chip in the nav and the Unlock sheet. */
   secrets: SecretsView | null;
   unlock: UnlockState;
+  /** Settings → Security's keychain card (T17): what the helper said when last asked. */
+  keychain: KeychainView | null;
   /** Settings → Permissions (T16). */
   permissions: PermissionsView | null;
   /** What to run again after Allow on an `origin_not_granted` error (T16). */
@@ -92,6 +94,7 @@ const state: PageState = {
   policy: null,
   secrets: null,
   unlock: newUnlockState(),
+  keychain: null,
   permissions: null,
   retry: null,
 };
@@ -154,6 +157,16 @@ let firstRoute = true;
 function openUnlock(reason: string | null, retry: (() => void) | null): void {
   state.unlock.open = { reason, retry };
   state.unlock.error = null;
+  render();
+}
+
+/** Ask the helper through the worker (T17); the card shows "Asking the helper…" meanwhile. */
+async function loadKeychain(): Promise<void> {
+  try {
+    state.keychain = await send<KeychainView>({ type: "keychain.status" });
+  } catch (error) {
+    state.settingsPage.notice = `${describeError(error).code}: ${describeError(error).message}`;
+  }
   render();
 }
 
@@ -298,7 +311,10 @@ async function load(): Promise<void> {
       if (state.settingsPage.section === "files") state.files = await send<FilesView>({ type: "files.list" });
       if (state.settingsPage.section === "search") state.indexes = await send<IndexesView>({ type: "indexes.list" });
       if (state.settingsPage.section === "policies") state.policy = await send<PolicyView>({ type: "policy.get" });
-      if (state.settingsPage.section === "security") await loadSecrets();
+      if (state.settingsPage.section === "security") {
+        await loadSecrets();
+        if (state.keychain === null) void loadKeychain();
+      }
       if (state.settingsPage.section === "permissions") state.permissions = await send<PermissionsView>({ type: "permissions.get" });
     }
     if (state.view === "data") state.vault = await send({ type: "vault.get" });
@@ -871,6 +887,35 @@ function settingsView(): HTMLElement[] {
           },
         );
       },
+      onKeychain: (action) => {
+        void (async () => {
+          try {
+            if (action === "enable") {
+              // The click is the gesture Chrome needs for the optional permission (D-204).
+              if (!(await requestNativeMessaging())) {
+                state.settingsPage.notice = "Chrome did not grant the permission; keychain unlock stays off.";
+                render();
+                return;
+              }
+              state.keychain = await send<KeychainView>({ type: "keychain.enable" });
+              state.settingsPage.notice = "Keychain unlock is on: Unlock now offers the macOS keychain.";
+            } else if (action === "disable") {
+              state.keychain = await send<KeychainView>({ type: "keychain.disable" });
+              state.settingsPage.notice = "Keychain unlock is off; your passphrase unlocks as before.";
+            } else {
+              state.keychain = null;
+              render();
+              state.keychain = await send<KeychainView>({ type: "keychain.status" });
+            }
+            await loadSecrets();
+          } catch (error) {
+            const described = describeError(error);
+            state.settingsPage.notice = `${described.code}: ${described.message}`;
+            state.keychain = await send<KeychainView>({ type: "keychain.status" }).catch(() => state.keychain);
+          }
+          render();
+        })();
+      },
       onDetectEverywhere: (enabled) => {
         // The checkbox click is the gesture Chrome needs; what Chrome decides is then told to the worker.
         void (async () => {
@@ -943,7 +988,7 @@ function settingsView(): HTMLElement[] {
           },
         );
       },
-    }, state.files, { indexes: state.indexes, policy: state.policy, secrets: state.secrets, permissions: state.permissions }),
+    }, state.files, { indexes: state.indexes, policy: state.policy, secrets: state.secrets, keychain: state.keychain, permissions: state.permissions }),
   ].filter((node): node is HTMLElement => node !== null);
 }
 

@@ -180,9 +180,8 @@ function sealedBox(raw: unknown, field: string): SealedBox {
 /** Read a stored envelope strictly: the schema, the cipher, bounded scrypt parameters, well-formed boxes. */
 export function validateEnvelope(raw: unknown): SecretEnvelope {
   // The schema first: an envelope a newer build wrote is named as such, not as a shape problem (finding 6).
-  if (isRecord(raw) && typeof raw.schema === "string" && raw.schema !== SECRET_STORE_SCHEMA) throw refuse("store_invalid", `This build reads ${SECRET_STORE_SCHEMA} envelopes only; the stored one says ${JSON.stringify(raw.schema.slice(0, 64))}.`);
+  if (isRecord(raw) && raw.schema !== SECRET_STORE_SCHEMA) throw refuse("store_invalid", `This build reads ${SECRET_STORE_SCHEMA} envelopes only; the stored one says ${JSON.stringify(String(raw.schema).slice(0, 64))}.`);
   const record = closedRecord(raw, "secret_store", ["schema", "created_at", "kdf", "cipher", "wrapped_key", "entries"], ["schema", "created_at", "kdf", "cipher", "wrapped_key", "entries"]);
-  if (record.schema !== SECRET_STORE_SCHEMA) throw refuse("store_invalid", `This build reads ${SECRET_STORE_SCHEMA} envelopes only; the stored one says ${JSON.stringify(String(record.schema).slice(0, 64))}.`);
   if (record.cipher !== SECRET_CIPHER) throw refuse("store_invalid", `The stored envelope names cipher ${JSON.stringify(String(record.cipher).slice(0, 32))}; this build uses ${SECRET_CIPHER}.`);
   const createdAt = requiredText(record.created_at, "secret_store.created_at", { limit: 64 });
   const kdf = closedRecord(record.kdf, "secret_store.kdf", ["name", "n", "r", "p", "salt", "length"], ["name", "n", "r", "p", "salt", "length"]);
@@ -239,6 +238,8 @@ async function open(key: Uint8Array, aad: string, box: SealedBox): Promise<Uint8
 }
 
 const entryAad = (name: string): string => `${SECRET_STORE_SCHEMA}|${name}`;
+/** The keychain check's associated data (T17): the purpose and the envelope it belongs to. */
+const keychainAad = (createdAt: string): string => `${SECRET_STORE_SCHEMA}|keychain|${createdAt}`;
 
 export interface EnvelopeOptions {
   now?: () => Date;
@@ -355,13 +356,17 @@ export class SecretStore {
     }
   }
 
-  /** The envelope, or the problem with it: `status()` reports an unreadable envelope rather than failing (finding 6). */
+  /**
+   * The envelope, or the problem with it: `status()` reports an unreadable envelope rather than
+   * failing (finding 6). Only an envelope that fails validation is `invalid`; a storage read that
+   * fails propagates, so a transient failure never offers "Forget everything" (T16 review 2, nit 2).
+   */
   private async envelopeOrProblem(): Promise<{ envelope: SecretEnvelope | null; problem: string | null }> {
     try {
       return { envelope: await this.envelope(), problem: null };
     } catch (error) {
-      const problem = error instanceof CoreError && typeof error.details.problem === "string" ? error.details.problem : error instanceof Error ? error.message : "the stored envelope cannot be read";
-      return { envelope: null, problem };
+      if (!(error instanceof CoreError) || error.code !== "store_invalid") throw error;
+      return { envelope: null, problem: typeof error.details.problem === "string" ? error.details.problem : error.message };
     }
   }
 
@@ -471,6 +476,33 @@ export class SecretStore {
     });
   }
 
+  /**
+   * What keychain unlock stores beside the envelope (T17, D-204): the master key to hand to the
+   * helper, and a check box sealed under it for this envelope (`created_at` in the associated
+   * data). Needs the store unlocked.
+   */
+  keychainMaterial(): Promise<{ key: Uint8Array; check: SealedBox; envelope_created_at: string }> {
+    return this.queue.run(async () => {
+      const { envelope, key } = await this.masterKey();
+      const check = await seal(key, keychainAad(envelope.created_at), new Uint8Array(0), this.options.random ?? randomBytes);
+      return { key, check, envelope_created_at: envelope.created_at };
+    });
+  }
+
+  /**
+   * Unlock with a master key the helper returned (T17): accepted only when it opens the check
+   * sealed for this envelope; anything else is `keychain_mismatch` and the store stays as it was.
+   */
+  unlockWithKey(key: Uint8Array, check: SealedBox): Promise<void> {
+    return this.queue.run(async () => {
+      const envelope = await this.envelope();
+      if (envelope === null) throw noPassphraseError();
+      const opened = key.length === MASTER_KEY_BYTES ? await open(key, keychainAad(envelope.created_at), check) : null;
+      if (opened === null || opened.length !== 0) throw refuse("keychain_mismatch", "The key the keychain returned does not open this store; use your passphrase, then turn keychain unlock on again.", 409);
+      await this.remember(key);
+    });
+  }
+
   /** Delete the envelope and the session key: every entry is gone for good. Works on an unreadable envelope too (finding 6). */
   forget(): Promise<void> {
     return this.queue.run(async () => {
@@ -484,6 +516,26 @@ export class SecretStore {
     return this.queue.run(async () => {
       const { envelope } = await this.envelopeOrProblem();
       return envelope !== null && checkEntryName(name) in envelope.entries;
+    });
+  }
+
+  /** The entry names, in one read; readable while locked, empty under an unreadable envelope (T16 review 2, nit 8). */
+  names(): Promise<string[]> {
+    return this.queue.run(async () => Object.keys((await this.envelopeOrProblem()).envelope?.entries ?? {}).sort());
+  }
+
+  /**
+   * The entry's value, or `create()`'s, stored first, when there is none or `valid` refuses it:
+   * one queued operation, so two first uses never store two values (T16 review 2, nit 3).
+   */
+  ensure(name: string, valid: (bytes: Uint8Array) => boolean, create: () => Uint8Array): Promise<Uint8Array> {
+    return this.queue.run(async () => {
+      const { envelope, key } = await this.masterKey();
+      const stored = await readEntry(envelope, key, name);
+      if (stored !== null && valid(stored)) return stored;
+      const fresh = create();
+      await this.deps.envelope.save(await writeEntry(envelope, key, name, fresh, this.options));
+      return fresh;
     });
   }
 

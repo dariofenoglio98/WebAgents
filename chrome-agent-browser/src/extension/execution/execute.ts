@@ -35,7 +35,7 @@ import { Pacer } from "../../core/tools/pacer.js";
 import type { AuditEvent } from "../../core/types.js";
 import { emptyVaultDocument, generateVaultKey, Vault } from "../../core/vault.js";
 import { AdapterError, CancelledError } from "../../core/workflow/errors.js";
-import { OLLAMA_LOOPBACK_HOSTS } from "../../core/models/catalog.js";
+import { isLoopbackBase } from "../../core/models/catalog.js";
 import { httpsOrigin } from "../../core/origins.js";
 import { TransportError, type HttpTransport } from "../../core/models/transport.js";
 import type { FileStore } from "../storage/files.js";
@@ -94,7 +94,8 @@ export function originGuard(transport: HttpTransport, allowedOrigins: readonly s
     } catch {
       throw new TransportError("the destination is not a URL", { stage: "address_policy" });
     }
-    const loopback = options.allowLoopback && (url.protocol === "http:" || url.protocol === "https:") && OLLAMA_LOOPBACK_HOSTS.includes(url.hostname);
+    // One test for "loopback" with Settings' validation (T16 review 2, nit 7).
+    const loopback = options.allowLoopback && isLoopbackBase(url.href);
     const origin = httpsOrigin(request.url);
     if (!loopback && (origin === null || !allowed.has(origin))) {
       throw new TransportError(`the destination ${url.origin} is outside the origins this run's plan recorded`, { stage: "address_policy", reason: "origin_not_in_plan" });
