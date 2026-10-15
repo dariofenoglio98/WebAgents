@@ -114,17 +114,18 @@ the record it read (`memory-probe/custom-type-read`).
 
 The audit backbone gains `memory.proposed`, `memory.agent.committed` and `memory.agent.discarded`
 with their facts (M-61), and a wave's multiset carries the `reason`, record id and pointer of a
-refused `permission.checked` or `model.refused` (never a value). **Pending:** while the built Chrome
-core still accepts packages only up to runtime 0.3.x (`SUPPORTED_RUNTIME_VERSION` in
-`chrome-agent-browser/src/core/version.ts`), a memory case that does not pass is reported
-`pending`, with that reason, and does not fail the suite, **only** when the Chrome CLI refused it by
-version and the Python half passed on its own (a positive case: exit 0 with a report; a refusal: the
-expected code); any other failure fails the suite, and a pending case still prints its failed checks
-(D-234). Once the core accepts 0.4.0 the cases count like any other. `CONFORMANCE_CHROME=<path to a built chrome-agent-browser>` compares another
-core, for example a task branch's worktree before it is merged; the run against T19's core at
-`c6edfd4` is kept in
+refused `permission.checked` or `model.refused` (never a value). Both CLIs derive a fixture run's
+memory the same way (D-230: grants from the replayed views, a replayed legacy answer held as
+`fixture:<binding>`), refuse N6 before the run, and check every sealed value in a tool's arguments
+(D-234). **Pending** applies only to a core that accepts packages up to runtime 0.3.x (an older
+`CONFORMANCE_CHROME`): a memory case it refuses by version, whose Python half passed on its own, is
+reported `pending` and printed with its failed checks; any other failure fails the suite. The
+Chrome core on `main` accepts 0.4.0 since T19, so every case counts. `CONFORMANCE_CHROME=<path to a
+built chrome-agent-browser>` compares another core, for example a task branch's worktree before it
+is merged; the run against T19's core at `c6edfd4`, before the two were merged, is kept in
 [`examples/verification/conformance-t20-against-t19-core/`](../examples/verification/conformance-t20-against-t19-core/report.md)
-(63 of 68; the five differences are D-230's fixture grants and N6's timing).
+(63 of 68; the five differences were D-230's fixture grants and N6's timing, now fixed in the
+Chrome core).
 
 ## Recorded differences
 

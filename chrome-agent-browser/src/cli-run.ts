@@ -31,6 +31,7 @@ import { ExecutionSession, type BeginReport, type ExecutionOutcome, type Session
 import { normalizeHostLimits, PERMISSIVE_HOST_LIMITS } from "./core/execution/limits.js";
 import { localExecutionPlan, type ExecutionPlan } from "./core/execution/plan.js";
 import { fixtureAdapters } from "./core/fixtures.js";
+import { checkMemoryBindings } from "./core/memory/run.js";
 import { sha256Hex } from "./core/hash.js";
 import { buildHostToolRegistry, evaluateRegistry, normalizeRegistry, planToolBindings, REGISTRY_SCHEMA } from "./core/hosttools.js";
 import type { JsonObject, JsonValue } from "./core/json.js";
@@ -250,6 +251,9 @@ export async function runCommand(args: string[]): Promise<number> {
   const limits = normalizeHostLimits(limitsRaw);
   const inputPath = parsed.value("--input");
   const archiveSha256 = await sha256Hex(bytes);
+  // memory.v0 M-16, M-64 N6: a memory read whose output is not the type's view is not bound, so
+  // the run is refused before it starts, in both modes, as `agentpkg run` refuses it (D-230).
+  checkMemoryBindings(pkg);
 
   let plan: ExecutionPlan;
   let authorization;

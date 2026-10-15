@@ -9,7 +9,7 @@ import { describe, expect, it } from "vitest";
 import { canonicalJson } from "../../../src/core/canonical.js";
 import { sha256HexSync } from "../../../src/core/hash.js";
 import type { JsonObject, JsonValue } from "../../../src/core/json.js";
-import { customTypeAliases, fixtureMemoryScan, MemoryRun } from "../../../src/core/memory/run.js";
+import { checkMemoryBindings, customTypeAliases, fixtureMemory, fixtureMemoryScan, MemoryRun } from "../../../src/core/memory/run.js";
 import { buildHostToolRegistry } from "../../../src/core/hosttools.js";
 import { editJson } from "../../helpers/memory-package.js";
 import type { MemoryStore } from "../../../src/core/memory/store.js";
@@ -430,5 +430,72 @@ describe("review 1 (2026-10-14), finding 3: a custom type named by its local id 
     await expect(memory.checkProposals({ ...(document as JsonObject), proposals: [{ ...((document as JsonObject).proposals as JsonObject[])[0]!, type: "org.example.memory:loyalty.card" }] })).rejects.toThrow(/schema_validation|does not match/u);
     const { pkg: other } = await memoryPackage();
     await expect(new MemoryRun(other, [], sessionGrants(other)).checkProposals(document)).rejects.toThrow(/not one the package may propose/u);
+  });
+});
+
+describe("T20 review 1 (D-234, D-230): every sealed value, the fixture's grants, the binding check before a run", () => {
+  it("M-36 checks every sealed value the arguments carry: a granted value at a tool linking it never lets an ungranted one through", async () => {
+    const { store, identity, card, cardNumberish, email } = await webairStore();
+    const { pkg } = await memoryPackage({ echoLinks: [WALLET_PERMISSION] });
+    // The identity, granted under the permission the echo links, is the first hit in scan-set order.
+    const memory = new MemoryRun(pkg, [grantFor(store, WALLET_PERMISSION, "personal.passenger_identity", identity)], sessionGrants(pkg), { scan: store.scanSet() });
+    const order = memory.scan.map((entry) => entry.record_id);
+    expect(order.indexOf(identity)).toBeLessThan(order.indexOf(card));
+    let reached = 0;
+    const handlers = {
+      [ECHO_BINDING]: async (_ctx: unknown, payload: JsonValue) => {
+        reached += 1;
+        return payload;
+      },
+    };
+    const { runtime: rt, close } = await openRuntime(pkg, { grants: sessionGrants(pkg), approvedTools: Object.keys(pkg.tools).sort(), handlers, memory });
+    try {
+      const token = new CancelToken(null, Date.now() + 10_000);
+      await rt.runWorker("Worker", {}, async (worker) => {
+        expect(await rt.callTool(worker, ECHO_TOOL, { value: email }, token)).toEqual({ value: email });
+        await expect(rt.callTool(worker, ECHO_TOOL, { value: `${email} ${cardNumberish}` }, token)).rejects.toThrow(/sealed value of a record this run was not granted/u);
+        expect(reached).toBe(1);
+        const refused = rt.audit.filter((event) => event.action === "permission.checked" && event.allowed === false);
+        expect(refused).toEqual([expect.objectContaining({ reason: "sealed_value_not_granted", record_id: card, pointer: "/payment_method_id" })]);
+        return {};
+      });
+    } finally {
+      close();
+    }
+  });
+
+  it("D-230: a fixture run without a store grants each replayed view's id and each replayed legacy answer as fixture:<binding>, unless its permission is denied", async () => {
+    const { pkg } = await memoryPackage();
+    const fixture = packageJson(pkg, "fixtures/fixture.json") as JsonObject;
+    const profileId = String(((fixture.tools as JsonObject)[PROFILE_TOOL] as JsonObject[])[0]!.output && (((fixture.tools as JsonObject)[PROFILE_TOOL] as JsonObject[])[0]!.output as JsonObject).id);
+    const derived = fixtureMemory(pkg, fixture, sessionGrants(pkg));
+    expect(derived.grants.map((grant) => [grant.permission_id, grant.resource_id])).toEqual(
+      expect.arrayContaining([
+        [READ_PERMISSION, profileId],
+        [WALLET_PERMISSION, "fixture:host.resource.wallet.payment_method"],
+      ]),
+    );
+    expect(derived.targets.has(profileId)).toBe(true);
+    expect(derived.scan).toEqual(fixtureMemoryScan(pkg, fixture));
+    const denied = fixtureMemory(pkg, fixture, { ...sessionGrants(pkg), [READ_PERMISSION]: "deny", [WALLET_PERMISSION]: "deny" });
+    expect(denied.grants).toEqual([]);
+    expect(denied.targets.size).toBe(0);
+  });
+
+  it("N6: a memory read whose output schema is not the type's view is refused before a run, as agentpkg run refuses it", async () => {
+    const { pkg } = await memoryPackage();
+    expect(() => checkMemoryBindings(pkg)).not.toThrow();
+    const { pkg: altered } = await memoryPackage({}, (files) => editJson(files, "schemas/host/travel.profile.view.schema.json", (schema) => ((schema.properties as JsonObject).body as JsonObject).maxLength = 99));
+    expect(() => checkMemoryBindings(altered)).toThrow(`binding_schema_mismatch: tool ${PROFILE_TOOL}: the output schema is not the record view of travel.profile`);
+  });
+
+  it("a grant naming the package's own custom type by its local id is held under the qualified type, so an update of that record passes M-40", async () => {
+    const LOYALTY = { id: "loyalty.card", display_name: "Loyalty card", description: "A frequent-flyer programme card", schema: { type: "object", additionalProperties: false, required: ["number"], properties: { number: { type: "string", minLength: 4 } } } as JsonObject };
+    const { pkg } = await memoryPackage({ customTypes: [LOYALTY], writeTypes: ["loyalty.card"] });
+    const id = `mem_${"5".repeat(32)}`;
+    const memory = new MemoryRun(pkg, [{ permission_id: READ_PERMISSION, resource_type: "loyalty.card", resource_id: id, resource_digest: "" }], sessionGrants(pkg), { targets: new Map([[id, { sealed: [], type: "org.example.memory:loyalty.card" }]]) });
+    expect(memory.granted.get(id)).toBe("org.example.memory:loyalty.card");
+    const document: JsonValue = { schema: "memory.v0 proposals", proposals: [{ action: "update", type: "loyalty.card", target: id, title: "Star miles", fields: { number: "SM-654321" }, body: "", tags: [], links: [], rationale: "Your number changed." }] };
+    expect((await memory.checkProposals(document)).facts).toMatchObject({ count: 1, types: ["loyalty.card"] });
   });
 });
