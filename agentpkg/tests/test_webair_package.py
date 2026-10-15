@@ -510,6 +510,9 @@ def test_no_generic_code_knows_webair_or_its_demo_resources():
         for path in base.rglob("*")
         if path.is_file()
         and path.suffix in {".py", ".json", ".ts", ".js", ".css"}
+        # The memory.v0 contracts are the specification's data, copied byte for byte (its
+        # starter taxonomy names "airline" as a kind of travel preference); no code reads it.
+        and "schemas/memory/" not in path.as_posix()
         and re.search(words, path.read_text(errors="replace"), re.IGNORECASE)
     ]
     assert offenders == []

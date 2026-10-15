@@ -60,6 +60,7 @@ class Workflow:
         limits=None,
         approved_tools=None,
         observer=None,
+        memory=None,
     ):
         # Recheck the exact payload, not mutable manifest/graph aliases supplied by callers.
         from .package import integrity_statement
@@ -73,6 +74,13 @@ class Workflow:
         if manifest["entrypoint"] != "workflow.v0":
             raise ValidationError("Generic execution requires entrypoint workflow.v0")
         self.graph = graph
+        if memory is None:
+            # memory.v0 M-40 holds in every mode: a host that supplies no memory context still
+            # gets the proposals check, over an empty scan set and no grant.
+            from .memory.run import MemoryRun
+
+            memory = MemoryRun(self.package, [], dict(grants or {}))
+        self._memory_report = None
         self.runtime = Runtime(
             self.package,
             grants=grants,
@@ -81,6 +89,7 @@ class Workflow:
             limits=limits,
             approved_tools=approved_tools,
             observer=observer,
+            memory=memory,
         )
         self._used = False
         self._task = None
@@ -418,7 +427,7 @@ class Workflow:
                 "initial state",
             )
             # State access, including coordinator-only graphs, requires host authority.
-            mem = rt._permission_kind("memory")
+            mem = rt.state_permissions()
             if not mem:
                 raise PolicyError("Workflow state requires memory permission")
             rt._authorize(mem, context=rt.coordinator_context())
@@ -457,11 +466,24 @@ class Workflow:
             validate_instance(
                 self.package.files, self.graph["output_schema"], self._output, "workflow output"
             )
+            from .memory.proposals import PROPOSALS_EXPORT_FORMAT, ProposalRefusal
+
             for export in self.graph.get("exports", []):
                 value = evaluate(export["value"], {"result": self._output})
                 if export["format"] == "text" and not isinstance(value, str):
                     raise ValidationError("Text exports must select strings")
+                # memory.v0 M-40: the proposals document is checked here, after the output and
+                # before `workflow.completed`; a refusal fails the run with the check's code, and
+                # nothing is ever written to a memory by the run itself (M-41).
+                if export["format"] == PROPOSALS_EXPORT_FORMAT and rt.memory is not None:
+                    try:
+                        facts = rt.memory.check_proposals(value)
+                    except ProposalRefusal as refusal:
+                        raise WorkflowError(refusal.code) from refusal
+                    rt.record("memory.proposed", context=rt.coordinator_context(), **facts)
+                    self._memory_report = {"proposals": facts, "refused": None, "agent": None}
             rt.record("workflow.completed", profile="workflow.v0", output_hash=digest(self._output))
+            self._record_agent_outcome("completed")
             result = self._report("completed") | {
                 "output": copy.deepcopy(self._output),
                 "state": copy.deepcopy(state),
@@ -469,13 +491,32 @@ class Workflow:
             rt.clear()
             return result
         except BaseException as exc:
+            from .memory.proposals import ProposalRefusal
+
             code = failure_code(exc)
+            refusal = exc.__cause__ if isinstance(exc.__cause__, ProposalRefusal) else None
+            refused = {}
+            if refusal is not None:
+                self._memory_report = {
+                    "proposals": None,
+                    "refused": {
+                        "code": refusal.code,
+                        "reason": refusal.reason,
+                        "index": refusal.index,
+                    },
+                    "agent": None,
+                }
+                refused = {"reason": refusal.reason}
+                if refusal.index is not None:
+                    refused["proposal_index"] = refusal.index
             rt.record(
                 "workflow.cancelled" if code == "cancelled" else "workflow.failed",
                 profile="workflow.v0",
                 error_code=code,
                 node_id=getattr(exc, "node_id", None),
+                **refused,
             )
+            self._record_agent_outcome("cancelled" if code == "cancelled" else "failed")
             rt.clear()
             report = self._report("cancelled" if code == "cancelled" else "failed")
             report["error_code"] = code
@@ -489,9 +530,36 @@ class Workflow:
             self._task = None
             rt.coordinator_context().closed = True
 
+    def _record_agent_outcome(self, status):
+        """memory.v0 M-50: a staged agent body is committed only after `workflow.completed`,
+        else discarded with its reason; recorded before `memory.cleared`."""
+        memory = self.runtime.memory
+        if memory is None:
+            return
+        agent = memory.agent_outcome(status)
+        if agent is None:
+            return
+        context = self.runtime.coordinator_context()
+        if agent["committed"] is not None:
+            self.runtime.record("memory.agent.committed", context=context, **agent["committed"])
+        elif agent["discarded"] is not None:
+            self.runtime.record(
+                "memory.agent.discarded",
+                context=context,
+                package_id=memory.agent["package_id"],
+                reason=agent["discarded"],
+            )
+        previous = self._memory_report or {}
+        self._memory_report = {
+            "proposals": previous.get("proposals"),
+            "refused": previous.get("refused"),
+            "agent": agent,
+        }
+
     def _report(self, status):
         return {
             "status": status,
+            **({"memory": self._memory_report} if self._memory_report is not None else {}),
             "audit": self.runtime.audit,
             "usage": self.runtime.usage,
             "provenance": {

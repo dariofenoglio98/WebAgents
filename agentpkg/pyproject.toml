@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agentpkg"
-version = "0.3.0"
+version = "0.4.0"
 description = "Agent Package v0: portable declarative packages and a policy-enforcing reference runtime"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
@@ -22,7 +22,7 @@ agentpkg-legacy = "agentpkg.dev.legacy_cli:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-agentpkg = ["schemas/*.json"]
+agentpkg = ["schemas/*.json", "schemas/memory/*.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -43,7 +43,7 @@ REQUESTS_SCHEMA = "agentpkg-host-resource-requests-v0"
 # scope string means "a host resource of this type" only under one of these
 # kinds and only when the host offers that type; anywhere else it is the
 # ordinary symbolic scope it always was.
-RESOURCE_PERMISSION_KINDS = ("personal.read",)
+RESOURCE_PERMISSION_KINDS = ("personal.read", "memory.read")
 
 MAX_TYPES = 32
 MAX_RESOURCES = 256

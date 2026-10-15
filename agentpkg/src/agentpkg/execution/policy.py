@@ -587,7 +587,7 @@ def normalize_grants(package, submitted) -> dict:
 # Permission kinds whose scope names a type of host-owned resource. Mirrors
 # `agentpkg.browser.hostresources.RESOURCE_PERMISSION_KINDS`; the runner does
 # not import the control plane.
-RESOURCE_PERMISSION_KINDS = ("personal.read",)
+RESOURCE_PERMISSION_KINDS = ("personal.read", "memory.read")
 MAX_RESOURCE_GRANTS = 32
 _GRANT_FIELDS = ("permission_id", "resource_type", "resource_id", "resource_digest")
 

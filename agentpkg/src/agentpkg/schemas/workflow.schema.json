@@ -187,7 +187,8 @@
           "format": {
             "enum": [
               "json",
-              "text"
+              "text",
+              "memory.proposal"
             ]
           }
         },

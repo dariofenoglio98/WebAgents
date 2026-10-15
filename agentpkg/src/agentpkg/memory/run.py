@@ -1,0 +1,158 @@
+"""What one run holds about memory (§7, §9, §10): the scan set (M-36, M-37, M-62), the grants and
+the types the proposals check needs (M-40), the agent document (M-50), and the facts the audit
+and the run report carry (M-61).
+
+Built by the host before the run: the CLI from a memory folder (`--memory-dir`, M-63) or from the
+package's fixture (M-62). The Chrome core's `MemoryRun` (`src/core/memory/run.ts`) is the same
+object; both write the same `memory` section into the run report (D-231).
+"""
+
+from __future__ import annotations
+
+import hashlib
+
+from .declarations import AGENT_SCOPE, memory_declarations
+from .proposals import check_proposals, proposed_facts
+from .registry import TypeRegistry, starter_types
+from .scan import fixture_scan_set
+
+
+class MemoryRun:
+    def __init__(
+        self,
+        package,
+        grants: list[dict],
+        decisions: dict,
+        *,
+        scan: list[dict] | None = None,
+        targets: dict | None = None,
+        agent_document: dict | None = None,
+        agent_discard: str | None = None,
+        policy_refuses_proposals: bool = False,
+    ):
+        self.package = package
+        self.declarations = memory_declarations(
+            package.manifest, package.policy, package.tools, package.files
+        )
+        self.types = TypeRegistry([*starter_types(), *self.declarations["custom_types"]])
+        self.scan = list(scan or [])
+        self.grants = [dict(grant) for grant in grants]
+        self.granted = {}
+        for grant in self.grants:
+            type_def = self.types.resolve(grant["resource_type"])
+            self.granted[grant["resource_id"]] = (
+                type_def["id"] if type_def else grant["resource_type"]
+            )
+        self.targets = dict(targets or {})
+        self.agent_discard = agent_discard
+        self.policy_refuses_proposals = policy_refuses_proposals
+        write = self.declarations["write"]
+        self.write_denied = write is not None and decisions.get(write["permission_id"], "deny") == (
+            "deny"
+        )
+        agent = self.declarations["agent"]
+        granted_agent = (
+            agent is not None
+            and decisions.get(agent["permission_id"], "deny") != "deny"
+            and package.policy["memory"]["scope"] == AGENT_SCOPE
+        )
+        self.agent = (
+            {
+                "package_id": package.manifest["package_id"],
+                "stored": None if agent_discard else agent_document,
+                "staged": None,
+            }
+            if granted_agent
+            else None
+        )
+
+    @property
+    def proposes(self) -> bool:
+        return self.declarations["write"] is not None
+
+    def check_proposals(self, value) -> dict:
+        """M-40 over the export's value; raises `ProposalRefusal`; returns the `memory.proposed`
+        facts."""
+        write = self.declarations["write"]
+        document = check_proposals(
+            value,
+            declared=set(write["types"] if write else []),
+            granted=self.granted,
+            targets=self.targets,
+            types=self.types,
+            scan=self.scan,
+        )
+        return proposed_facts(
+            document,
+            write_denied=self.write_denied,
+            policy_refuses=self.policy_refuses_proposals,
+        )
+
+    def agent_outcome(self, status: str) -> dict | None:
+        """M-50: what happens to a staged body at the terminal event."""
+        if self.agent is None:
+            return None
+        staged = self.agent["staged"]
+        if staged is None:
+            return {"committed": None, "discarded": None}
+        if status != "completed":
+            return {
+                "committed": None,
+                "discarded": "cancelled" if status == "cancelled" else "run_failed",
+            }
+        if self.agent_discard:
+            return {"committed": None, "discarded": self.agent_discard}
+        return {
+            "committed": {
+                "package_id": self.agent["package_id"],
+                "bytes": staged["bytes"],
+                "body_sha256": hashlib.sha256(staged["body"].encode("utf-8")).hexdigest(),
+            },
+            "discarded": None,
+        }
+
+    def staged_body(self) -> str | None:
+        staged = (self.agent or {}).get("staged")
+        return staged["body"] if staged else None
+
+
+def fixture_memory(package, fixture: dict, grants: dict, *, types: TypeRegistry | None = None):
+    """M-62 for a fixture run without a store: the scan set from the replayed answers, and the
+    run's memory grants from the replayed `memory.read` views (D-230): a view's `id` is the
+    record the package was granted, under the one permission its tool links, unless denied."""
+    types = types or TypeRegistry()
+    answers = []
+    memory_grants = []
+    for tool_id, cases in (fixture.get("tools") or {}).items():
+        tool = package.tools.get(tool_id)
+        if tool is None or not isinstance(cases, list):
+            continue
+        binding = tool["binding"] or ""
+        legacy_sealed: list[str] = []
+        if binding.startswith("host.resource."):
+            legacy_sealed = types.legacy_sealed(binding[len("host.resource.") :])
+        for case in cases:
+            output = case.get("output")
+            answers.append((binding, output, legacy_sealed))
+            if (
+                binding.startswith("host.memory.")
+                and not binding.startswith("host.memory.agent.")
+                and isinstance(output, dict)
+                and isinstance(output.get("id"), str)
+                and len(tool["permissions"]) == 1
+                and grants.get(tool["permissions"][0], "deny") != "deny"
+            ):
+                grant = {
+                    "permission_id": tool["permissions"][0],
+                    "resource_type": binding[len("host.memory.") :],
+                    "resource_id": output["id"],
+                }
+                if grant not in memory_grants:
+                    memory_grants.append(grant)
+    return fixture_scan_set(answers), memory_grants
+
+
+def report_section(proposals=None, refused=None, agent=None) -> dict:
+    """The run report's `memory` section (D-231): the proposals offered, a refusal of M-40, and
+    the agent document's fate."""
+    return {"proposals": proposals, "refused": refused, "agent": agent}
