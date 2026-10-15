@@ -44,7 +44,10 @@ import { compareRelease } from "../../core/version.js";
 import { buildHostCatalog, DEFAULT_BASE_URLS, probeProvider, PROVIDER_IDS, type BuiltinAvailability, type Http, type ProbeResult, type ProviderId } from "../../core/models/catalog.js";
 import { httpsOrigin, originPattern, planOrigins, patternOrigin, toolBindingsForOrigins, type OriginString, type PlanOrigin } from "../../core/origins.js";
 import { SerialQueue } from "../../core/serial.js";
-import { planNeedsVault } from "./runs.js";
+import { agentToolDigests, requestedResourceTypes } from "../../core/memory/declarations.js";
+import { planNeedsMemory } from "./runs.js";
+import { MemoryController, type MemoryView } from "./memory-controller.js";
+import { MemoryMemoryStorage, type MemoryStorage } from "../storage/memory.js";
 import { unavailableStoreError, type SecretStoreState } from "../../core/secrets.js";
 import { HelperClient, KEYCHAIN_RECORD_SCHEMA, NativePortError, PERMANENT_HELPER_CODES, type KeychainRecord, type NativePort, type OllamaReport } from "../../core/keychain.js";
 import { KeychainStorage } from "../storage/keychain-storage.js";
@@ -56,9 +59,7 @@ import { buildSummary, type BrowserSummary } from "../../core/summary.js";
 import { pyRepr } from "../../core/repr.js";
 import { pinPackagePublisher, type TrustStore } from "../../core/trust.js";
 import { DEFAULT_BROWSER_POLICY, DENY, type AuthorizationReceipt, type Decision, type PresetId, type Provenance, type Reason, type RunPlan, type SourceRef } from "../../core/types.js";
-import { emptyVaultDocument, generateVaultKey, Vault, type VaultDocument } from "../../core/vault.js";
 import { CORE_VERSION, SUPPORTED_RUNTIME_VERSION } from "../../core/version.js";
-import demoHostResources from "../data/demo-host-resources.json" with { type: "json" };
 import {
   type AuthorizationOrigins,
   type AuthorizationPolicyView,
@@ -93,7 +94,8 @@ import {
   type StatusInfo,
   type ToolOffer,
   type TrustList,
-  type VaultView,
+  type RecallView,
+  type RunReviewView,
   type WebsiteResult,
 } from "../messages.js";
 import { FileRefusal, MemoryFileStore, MAX_FILE_BYTES, MAX_FILES, MAX_TOTAL_FILE_BYTES, newFile, viewOf, type FileStore } from "../storage/files.js";
@@ -135,6 +137,8 @@ export interface ControllerDeps {
   tabs: TabStateStore;
   /** Settings, keys, the vault and the install id (`chrome.storage.local`, D-032/D-051). */
   settings: SettingsStorage;
+  /** The memory's rows (IndexedDB in the extension, memory in tests; T19). */
+  memoryStorage?: MemoryStorage;
   /** The model-catalog transport: the shell adds credential headers and performs the request (D-055). */
   http: Http;
   /** Chrome's built-in model availability, read by the shell (`LanguageModel.availability()`); null when unknown. */
@@ -254,16 +258,9 @@ function sourceRef(source: SessionSource): SourceRef {
   return { kind: source.kind, display: source.display, advertised_on: source.advertised_on, opened_at: source.opened_at };
 }
 
-/** The demo host's resource types (schemas and sealed fields only; no record). */
-function demoTypes(): Array<Omit<VaultDocument["types"][number], never>> {
-  return demoHostResources.types.map((type) => ({
-    id: type.id,
-    display_name: type.display_name,
-    description: type.description ?? null,
-    permission_kind: type.permission_kind,
-    schema: type.schema as unknown as JsonObject,
-    sealed_fields: type.sealed_fields ?? [],
-  }));
+/** The memory types a package requests (memory.v0 M-33 and the `personal.read` alias): the resources of its `memory.read` and `personal.read` permissions. */
+function requestedTypesOf(pkg: Package): string[] {
+  return requestedResourceTypes(pkg.policy);
 }
 
 /** The host implementation each declared tool would be bound to, as a policy's binding allowlist judges it (T8). */
@@ -300,13 +297,14 @@ export class Controller {
   private readonly permissions: PermissionsPort;
   private readonly grants: PermissionStorage;
   /** An empty resource registry: what authorization sees while the store is locked (no record can be chosen). */
-  private emptyRegistry: Promise<ResourceRegistry> | null = null;
   /** The native helper's client and keychain unlock's record (T17). */
   private readonly helper: HelperClient;
   private readonly keychain: KeychainStorage;
   private readonly nativePermission: () => Promise<boolean>;
   /** Enable, disable and unlock with the keychain, one at a time. */
   private readonly keychainWork = new SerialQueue();
+  /** One review decided at a time (finding 2): the check of `memory_review` and the acceptance never interleave. */
+  private readonly reviewWork = new SerialQueue();
   /**
    * What the helper last answered to `ollama.status`, in this worker's memory: Turn on and Turn off
    * show it instead of starting the helper once more in the same click (T17 review 1, nit 7).
@@ -334,6 +332,14 @@ export class Controller {
     );
     this.keychain = deps.keychain ?? new KeychainStorage(new MemoryStorageArea());
     this.nativePermission = deps.nativePermission ?? (() => Promise.resolve(false));
+    this.memory = new MemoryController({
+      settings: deps.settings,
+      storage: deps.memoryStorage ?? new MemoryMemoryStorage(),
+      secretsState: () => this.secretsState(),
+      broadcast: () => deps.broadcast({ type: "event.memory" }),
+      clock: this.clock,
+      version: this.version,
+    });
     const hooks: RunHooks = {
       session: async (sessionId) => {
         const live = await this.session(sessionId);
@@ -342,7 +348,7 @@ export class Controller {
       isSessionOpen: (sessionId) => this.sessions.has(sessionId),
       preflight: async (sessionId) => (await this.runPlanState(await this.session(sessionId))).preflight,
       toolRegistry: async (sessionId) => this.toolRegistry(await this.session(sessionId)),
-      vault: () => this.vault(),
+      memory: () => this.memory,
       catalog: async () => (await this.currentCatalog()).catalog,
       snapshotBytes: async (archiveSha256) => (await this.deps.snapshots.getSnapshot(archiveSha256))?.bytes ?? null,
       markOnceSpent: (sessionId) => this.markOnceSpent(sessionId),
@@ -354,6 +360,12 @@ export class Controller {
       runSettled: (archiveSha256) => this.dropUnreferencedSnapshot(archiveSha256),
       // The subscribed policy's budget caps lower the person's run limits (T8, D-102).
       limitCaps: async () => (await this.activePolicy())?.bundle.budget_caps ?? null,
+      // memory.v0 M-50, M-54: what the preset and the policy decide for the agent document and the proposals.
+      memoryRules: async () => {
+        const policy = await this.activePolicy();
+        const preset = (await this.deps.settings.settings()).preset;
+        return { preset, agent: policy?.bundle.memory?.agent ?? "allow", proposals: policy?.bundle.memory?.proposals ?? "ask" };
+      },
       planOrigins: async (sessionId) => {
         const live = await this.session(sessionId);
         return live.plan === null ? [] : this.originsOfPlan(live, live.plan);
@@ -421,14 +433,45 @@ export class Controller {
         return this.setSettings(request.settings);
       case "settings.setKey":
         return this.setKey(request.provider, request.key);
-      case "vault.get":
-        return this.vaultView();
-      case "vault.putRecord":
-        return this.putVaultRecord(request.record);
-      case "vault.deleteRecord":
-        return this.deleteVaultRecord(request.recordId);
-      case "vault.installDemo":
-        return this.installDemo(request.records);
+      case "memory.get":
+        return this.memory.view();
+      case "memory.reveal":
+        return this.memory.reveal(request.recordId, request.pointer);
+      case "memory.search":
+        return this.memory.search(request.query);
+      case "memory.create":
+        return this.memory.create(request.draft as never);
+      case "memory.edit":
+        return this.memory.edit(request.recordId, request.changes as never);
+      case "memory.delete":
+        return this.memory.delete(request.recordIds);
+      case "memory.link":
+        return this.memory.link(request.from, request.to, request.rel);
+      case "memory.unlink":
+        return this.memory.unlink(request.from, request.to, request.rel);
+      case "memory.installDemo":
+        return this.memory.installDemo();
+      case "memory.removeDemo":
+        return this.memory.removeDemo();
+      case "memory.clearAgent":
+        return this.memory.clearAgent(request.packageId);
+      case "memory.agentNote":
+        return this.memory.agentNote(request.packageId);
+      case "memory.forget":
+        if (request.confirmation !== "forget") throw reject("confirmation_required", "Type forget to delete every record, note and position.", 400);
+        return this.memory.forget();
+      case "memory.migrationDone":
+        return this.memory.migrationDone();
+      case "memory.export":
+        return this.memory.export({ includeSealed: request.includeSealed, includeAgents: request.includeAgents, recordIds: request.recordIds });
+      case "memory.importPlan":
+        return this.memory.importPlan(request.files);
+      case "memory.importApply":
+        return this.memory.importApply(request.files, request.completions);
+      case "memory.review":
+        return this.runReview(request.runId);
+      case "memory.decide":
+        return this.runDecide(request.runId, request.decisions);
       case "files.list":
         return this.filesView();
       case "files.add":
@@ -710,19 +753,20 @@ export class Controller {
   }
 
   private secretsChanged(): void {
-    // A vault opened before this change is never saved after it (T16 review 2, nit 3): `saveVault`
-    // compares the generation it was opened in.
-    this.secretsGeneration += 1;
-    this.vaultCache = null;
+    // A memory opened before this change is never saved after it (T16 review 2, nit 3): the memory
+    // controller compares the generation it was opened in.
+    this.memory.invalidate();
     this.invalidateCatalog();
     this.deps.broadcast({ type: "event.secrets" });
     this.deps.broadcast({ type: "event.settings" });
-    this.deps.broadcast({ type: "event.vault" });
+    this.deps.broadcast({ type: "event.memory" });
+    // Commits a locked store kept waiting (an agent document, usage entries) are applied now that it may be unlocked.
+    void this.runs.applyPendingMemory().catch(() => undefined);
   }
 
   async setupPassphrase(passphrase: string): Promise<SecretsView> {
     await this.deps.settings.setPassphrase(passphrase);
-    await this.keychain.clear(); // a record left from a forgotten store belongs to no envelope
+    await this.keychainWork.run(() => this.keychain.clear()); // a record left from a forgotten store belongs to no envelope; queued like every other record writer (T17 review 2, nit 8)
     this.secretsChanged();
     return this.secretsView();
   }
@@ -737,6 +781,18 @@ export class Controller {
     await this.deps.settings.store.lock();
     this.secretsChanged();
     return this.secretsView();
+  }
+
+  /**
+   * The minute alarm's sweep (D-192): the idle lock applied by the secret store and, when it
+   * locked now, every cache dropped and every page told, exactly as for Lock now (T17 review 2,
+   * nit 2; T19 review 1, finding 1). The memory controller also reads the state on every open,
+   * so the store's own lazy lock (a status read past the idle time) is covered without an event.
+   */
+  async lockIfIdle(): Promise<boolean> {
+    const locked = await this.deps.settings.store.lockIfIdle();
+    if (locked) this.secretsChanged();
+    return locked;
   }
 
   async changePassphrase(current: string, next: string): Promise<SecretsView> {
@@ -1506,12 +1562,9 @@ export class Controller {
     return this.trustList();
   }
 
-  // -- settings, keys and the vault (D-050, D-051, D-055) ------------------------------------
-  /** The opening, not only the opened vault, so concurrent first calls share one key and one document (review 1, nit 12). */
-  private vaultCache: Promise<Vault> | null = null;
-  /** Bumped by every store change (lock, unlock, setup, forget, passphrase change); a vault remembers the one it was opened in. */
-  private secretsGeneration = 0;
-  private readonly vaultGenerations = new WeakMap<Vault, number>();
+  // -- settings, keys and the memory (D-050, D-051, D-055; T19) -------------------------------
+  /** The memory (T19, memory.v0): opened over the secret store's keys; every write behind the unlocked store. */
+  readonly memory: MemoryController;
   /** The permission bookkeeping, one operation at a time (review 1, finding 5): a grant the page reports and Chrome's `onAdded` reconcile never interleave their read-modify-writes. */
   private readonly permissionWork = new SerialQueue();
 
@@ -1551,97 +1604,62 @@ export class Controller {
     return this.settingsView();
   }
 
-  private async vault(): Promise<Vault> {
-    // The vault lives in the secret store (T16): a cached copy is served only while the store is unlocked.
-    const state = await this.secretsState();
-    if (state !== "unlocked") {
-      this.vaultCache = null;
-      throw unavailableStoreError(state);
-    }
-    if (!this.vaultCache) {
-      const generation = this.secretsGeneration;
-      this.vaultCache = this.openVault().then(
-        (vault) => {
-          this.vaultGenerations.set(vault, generation);
-          return vault;
-        },
-        (error: unknown) => {
-          this.vaultCache = null; // a failed opening is retried by the next call
-          throw error;
-        },
-      );
-    }
-    return this.vaultCache;
+  /** The recall card per `memory.read` (or alias) request (M-34, M-52): the preset's mode, clamped by the subscribed policy's ceiling (M-54). */
+  private async recallViews(live: LiveSession, preset: PresetId, policy: ActivePolicy | null): Promise<RecallView[]> {
+    const requests = (live.pkg.policy.permissions as JsonObject[])
+      .filter((permission) => RESOURCE_PERMISSION_KINDS.includes(String(permission.kind)) && (permission.resources as JsonValue[]).length === 1)
+      .map((permission) => ({ permission_id: String(permission.id), resource_type: String((permission.resources as JsonValue[])[0]) }));
+    if (requests.length === 0 || (await this.secretsState()) !== "unlocked") return []; // locked: the picker says unlock, no card (M-34)
+    const facts = await this.memory.recall({ requested: requests.map((request) => request.resource_type), packageId: String(live.pkg.manifest.package_id), selected: (live.receipt?.resource_grants ?? []).map((grant) => grant.resource_id) });
+    const order = ["ask", "propose", "auto"] as const;
+    const ceiling = ((policy?.bundle as { memory?: { recall?: unknown } } | undefined)?.memory?.recall ?? "auto") as (typeof order)[number];
+    const presetMode: (typeof order)[number] = preset === "privacy-first" ? "ask" : preset === "balanced" ? "propose" : "auto";
+    return requests.map((request) => {
+      const found = facts[request.resource_type];
+      const wanted = found?.sealed ? "ask" : presetMode;
+      const mode = order[Math.min(order.indexOf(wanted), order.indexOf(order.includes(ceiling) ? ceiling : "auto"))]!;
+      return { permission_id: request.permission_id, resource_type: request.resource_type, display_name: found?.display_name ?? null, sealed: found?.sealed ?? false, mode, candidates: found?.candidates ?? [], sealed_fields: found?.sealed_fields ?? [] };
+    });
   }
 
-  /** The vault's types for the tool registry, or none while the store is locked (D-195: a plan without records needs none). */
-  private async vaultTypesOrNone(): Promise<Array<{ id: string; display_name: string; permission_kind: string; schema_sha256: string }>> {
-    if ((await this.secretsState()) !== "unlocked") return [];
-    return (await this.vault()).typeViews().map((type) => ({ id: type.id, display_name: type.display_name, permission_kind: type.permission_kind, schema_sha256: type.schema_sha256 }));
+  /** The proposal review sheet of a run (M-41): its `proposals.json` and the facts acceptance would use; null `review` when nothing was offered. */
+  async runReview(runId: string): Promise<RunReviewView> {
+    const run = await this.deps.runs.getRun(runId);
+    if (run === null) throw reject("run_unknown", "This browser holds no run with that id.", 404);
+    const memory = (run.record.memory ?? null) as { proposals?: { count: number; offered: number; reason: string | null } | null } | null;
+    const facts = memory?.proposals ?? null;
+    const plan = run.invocation.plan;
+    const pkg = { package_id: plan.package.package_id, package_version: plan.package.version, name: plan.package.name ?? null };
+    const base: RunReviewView = { run_id: runId, package: pkg, proposed_at: run.memory_proposed_at ?? null, offered: facts?.offered ?? 0, count: facts?.count ?? 0, reason: facts?.reason ?? null, review: null, decided: run.memory_review ?? null };
+    if (!proposalsOffered(run) || base.decided !== null) return base;
+    const artifact = await this.deps.runs.getArtifact(runId, "proposals.json");
+    if (artifact === null) return base;
+    const document = JSON.parse(new TextDecoder().decode(artifact.bytes)) as JsonValue;
+    return { ...base, review: await this.memory.review(document, { granted: plan.resource_grants, packageId: plan.package.package_id, declared: run.memory_types ?? [] }) };
   }
 
-  private async openVault(): Promise<Vault> {
-    const key = await this.deps.settings.vaultKey();
-    let document = await this.deps.settings.vaultDocument();
-    let vault: Vault;
-    try {
-      vault = await Vault.open(key, document);
-    } catch (error) {
-      // A document this build cannot read is left in place and reported, never silently replaced.
-      throw reject("vault_unreadable", `The stored vault could not be opened: ${error instanceof Error ? error.message : "invalid"}`, 500);
-    }
-    // A fresh profile starts with the demo host's resource *types* (schemas, no personal data), so
-    // a package's requests can be explained and records can be created; records are never pre-filled.
-    if (vault.typeViews().length === 0 && document.records.length === 0) {
-      for (const type of demoTypes()) await vault.putType(type);
-      document = vault.toDocument();
-      await this.deps.settings.saveVaultDocument(document);
-    }
-    return vault;
-  }
-
-  private async saveVault(vault: Vault): Promise<void> {
-    if (this.vaultGenerations.get(vault) !== this.secretsGeneration) throw reject("store_changed", "Your keys and records were locked, forgotten or set up again while this change was being made; nothing was saved. Try again.", 409);
-    await this.deps.settings.saveVaultDocument(vault.toDocument());
-    this.vaultCache = Promise.resolve(vault);
-    this.deps.broadcast({ type: "event.vault" });
-  }
-
-  async vaultView(): Promise<VaultView> {
-    const vault = await this.vault();
-    return { types: vault.typeViews(), records: vault.recordViews(), demo_available: true };
-  }
-
-  async putVaultRecord(raw: unknown): Promise<VaultView> {
-    const vault = await this.vault();
-    try {
-      await vault.putRecord(raw, { allowReplace: true, now: this.clock() });
-    } catch (error) {
-      if (error instanceof CoreError) throw error;
-      throw reject("vault_invalid", error instanceof Error ? error.message : "invalid record");
-    }
-    await this.saveVault(vault);
-    return this.vaultView();
-  }
-
-  async deleteVaultRecord(recordId: string): Promise<VaultView> {
-    const vault = await this.vault();
-    if (!vault.deleteRecord(recordId)) throw reject("vault_record_unknown", `No vault record ${pyRepr(recordId)}`, 404);
-    await this.saveVault(vault);
-    return this.vaultView();
-  }
-
-  /** Add the clearly labelled fictional demo set: its types always, its records only when asked. */
-  async installDemo(records: boolean): Promise<VaultView> {
-    const vault = await this.vault();
-    for (const type of demoTypes()) if (!vault.typeViews().some((existing) => existing.id === type.id)) await vault.putType(type);
-    if (records) {
-      for (const resource of demoHostResources.resources) {
-        await vault.putRecord({ id: resource.id, type: resource.type, label: resource.label, value: resource.value as unknown as JsonObject, demo: true }, { allowReplace: true, now: this.clock() });
-      }
-    }
-    await this.saveVault(vault);
-    return this.vaultView();
+  /**
+   * M-42: the decisions of one review, applied together once; the run keeps the outcome and the
+   * sheet never reopens. Only a run that completed with its proposals **offered** (the permission
+   * granted, no refusing policy, room in the memory; D-223) takes decisions, and the decisions of
+   * one run are taken one at a time, so a second Decide, however quick, finds the first recorded
+   * (review 1, finding 2).
+   */
+  runDecide(runId: string, decisions: readonly import("../../core/memory/proposals.js").ReviewDecision[]): Promise<import("./memory-controller.js").ReviewOutcome> {
+    return this.reviewWork.run(async () => {
+      const run = await this.deps.runs.getRun(runId);
+      if (run === null) throw reject("run_unknown", "This browser holds no run with that id.", 404);
+      if (run.memory_review) throw reject("review_decided", "The proposals of this run were already decided.", 409);
+      if (!proposalsOffered(run)) throw reject("review_not_offered", "This run offered no proposals to review: it did not complete, or its proposals were not offered (the permission denied, a policy, a full memory).", 409);
+      const artifact = await this.deps.runs.getArtifact(runId, "proposals.json");
+      if (artifact === null) throw reject("review_absent", "This run offered no proposals.", 404);
+      const plan = run.invocation.plan;
+      const document = JSON.parse(new TextDecoder().decode(artifact.bytes)) as JsonValue;
+      const outcome = await this.memory.decide(document, { decisions, granted: plan.resource_grants, package: { package_id: plan.package.package_id, package_version: plan.package.version, run_id: runId }, proposedAt: run.memory_proposed_at ?? run.record.endedAt ?? this.clock().toISOString(), declared: run.memory_types ?? [] });
+      await this.deps.runs.updateRun(runId, (current) => ({ ...current, memory_review: { at: this.clock().toISOString(), accepted: outcome.accepted.length, rejected: outcome.rejected.length } }));
+      this.deps.broadcast({ type: "event.run", runId, sessionId: run.session_id, status: run.record.status });
+      return outcome;
+    });
   }
 
   // -- Settings → Files: the person's picked PDFs (T6, D-083) ---------------------------------
@@ -1680,26 +1698,21 @@ export class Controller {
   }
 
   // -- the host registries for one session ---------------------------------------------------
-  private async resourceRegistry(): Promise<ResourceRegistry> {
-    return (await this.vault()).registry({ runtimeVersion: this.version, now: this.clock() });
+  /** The memory's registry for this package's requests (memory.v0 M-16, M-17): the candidates in recall order; empty while the store is locked. */
+  private resourceRegistry(live: LiveSession): Promise<ResourceRegistry> {
+    return this.memory.registry({ requested: requestedTypesOf(live.pkg), packageId: String(live.pkg.manifest.package_id), selected: (live.receipt?.resource_grants ?? []).map((grant) => grant.resource_id) });
   }
 
   /** The registry for a preflight: null while the store is locked, so a grant is "not evaluated" rather than stale (T16). */
-  private async resourceRegistryOrNull(): Promise<ResourceRegistry | null> {
-    return (await this.secretsState()) === "unlocked" ? this.resourceRegistry() : null;
-  }
-
-  /** The registry for authorization: empty while the store is locked (no record can be chosen until it is unlocked). */
-  private async resourceRegistryOrEmpty(): Promise<ResourceRegistry> {
-    if ((await this.secretsState()) === "unlocked") return this.resourceRegistry();
-    this.emptyRegistry ??= Vault.open(generateVaultKey(), emptyVaultDocument()).then((vault) => vault.registry({ runtimeVersion: this.version, now: this.clock() }));
-    return this.emptyRegistry;
+  private async resourceRegistryOrNull(live: LiveSession): Promise<ResourceRegistry | null> {
+    return (await this.secretsState()) === "unlocked" ? this.resourceRegistry(live) : null;
   }
 
   private async toolRegistry(live: LiveSession): Promise<ToolRegistry> {
-    const types = await this.vaultTypesOrNone();
+    const unlocked = (await this.secretsState()) === "unlocked";
+    const types = await this.memory.resourceTypeFacts(requestedTypesOf(live.pkg));
     const contactConfigured = (await this.deps.settings.settings()).services.crossref_contact !== null;
-    return buildHostToolRegistry(live.pkg, { resourceTypes: types, runtimeVersion: this.version, now: this.clock(), contactConfigured });
+    return buildHostToolRegistry(live.pkg, { resourceTypes: types, agentTools: unlocked ? agentToolDigests() : null, runtimeVersion: this.version, now: this.clock(), contactConfigured });
   }
 
   private async toolEvaluation(live: LiveSession, decisions?: Record<string, Decision>, approvals?: Record<string, boolean>): Promise<{ registry: ToolRegistry; evaluation: RegistryEvaluation }> {
@@ -1853,11 +1866,9 @@ export class Controller {
     const request = buildRequest(live.pkg, { sessionId: live.stored.session_id, decisions: live.receipt?.decisions ?? {}, toolApprovals: live.receipt?.tool_approvals ?? {} });
     const policy = DEFAULT_BROWSER_POLICY;
     const secrets = await this.secretsState();
-    const registry = await this.resourceRegistryOrNull();
+    const registry = await this.resourceRegistryOrNull(live);
     const profiles = readProfiles(live.pkg);
-    const requestedTypes = (live.pkg.policy.permissions as JsonObject[])
-      .filter((permission) => RESOURCE_PERMISSION_KINDS.includes(String(permission.kind)))
-      .flatMap((permission) => (permission.resources as JsonValue[]).map(String));
+    const requestedTypes = requestedTypesOf(live.pkg);
     const known = new Set(registry === null ? requestedTypes : registry.types.map((type) => type.id));
     const { evaluation } = await this.toolEvaluation(live);
     // The subscribed policy pre-decides inside each profile and on the preset's defaults (T8, D-102).
@@ -1878,6 +1889,7 @@ export class Controller {
       defaults: decide(null, settings.preset),
       resources: evaluateResources(live.pkg, registry, { decisions: live.receipt?.decisions ?? {}, grants: live.receipt?.resource_grants ?? [] }),
       missing_resource_types: [...new Set(requestedTypes.filter((type) => !known.has(type)))].sort(),
+      recall: await this.recallViews(live, settings.preset, subscription),
       tools: evaluation.tools.map(
         (tool): ToolOffer => ({
           tool_id: tool.tool_id,
@@ -1938,24 +1950,27 @@ export class Controller {
   /** `control.py::authorize`: record explicit decisions and issue a digest-bound receipt; a new receipt discards the plan. */
   async authorize(
     sessionId: string,
-    input: { packageDigest: string; decisions: Record<string, string>; toolApprovals: Record<string, boolean>; resourceSelections: Record<string, string>; provenance: unknown | null; prepare: boolean; modelId?: string | null },
+    input: { packageDigest: string; decisions: Record<string, string>; toolApprovals: Record<string, boolean>; resourceSelections: Record<string, string>; provenance: unknown | null; prepare: boolean; modelId?: string | null; presetSelections?: string[] },
   ): Promise<AuthorizeResult> {
     const live = await this.session(sessionId);
     this.requireDigest(live, input.packageDigest);
     const decisions = normalizeDecisions(live.pkg, input.decisions);
     const approvals = normalizeToolApprovals(live.pkg, input.toolApprovals);
-    if (Object.keys(input.resourceSelections).length > 0) await this.vault(); // a pick needs the store unlocked (store_locked otherwise)
-    const registry = await this.resourceRegistryOrEmpty();
+    if (Object.keys(input.resourceSelections).length > 0) await this.memory.unlocked(); // a pick needs the store unlocked (store_locked otherwise)
+    const registry = await this.resourceRegistry(live);
     const grants = normalizeResourceSelections(live.pkg, registry, decisions, input.resourceSelections);
     // A `policy` claim is checked against the policy in force now (D-102); with one in force the receipt names it.
     const policy = await this.activePolicy();
     const expand = policy ? this.decider(live.pkg, policy, bindingFacts((await this.toolEvaluation(live)).evaluation)) : null;
     const provenance = normalizeProvenance(live.pkg, input.provenance, decisions, approvals, grants, { policy: policy && expand ? { reference: policy.reference, expand } : null });
-    return this.issue(live, decisions, approvals, grants, registry, provenance, input.prepare, input.modelId ?? null);
+    // M-53: a pick the convenience preset made is recorded as `preset`; the claim stands only for a grant that exists.
+    const auto = new Set(input.presetSelections ?? []);
+    const finalProvenance: Provenance | null = provenance === null ? null : { ...provenance, resource_selections: Object.fromEntries(grants.map((grant) => [grant.permission_id, auto.has(grant.permission_id) ? ("preset" as const) : (provenance.resource_selections[grant.permission_id] ?? ("user" as const))])) };
+    return this.issue(live, decisions, approvals, grants, registry, finalProvenance, input.prepare, input.modelId ?? null);
   }
 
   /** The two-click path (D-022): a selected profile becomes decisions under the current preset, with the person's picks. */
-  async useProfile(sessionId: string, input: { packageDigest: string; profileId: string; resourceSelections: Record<string, string>; prepare: boolean }): Promise<AuthorizeResult> {
+  async useProfile(sessionId: string, input: { packageDigest: string; profileId: string; resourceSelections: Record<string, string>; prepare: boolean; presetSelections?: string[] }): Promise<AuthorizeResult> {
     const live = await this.session(sessionId);
     this.requireDigest(live, input.packageDigest);
     const profiles = readProfiles(live.pkg);
@@ -1964,10 +1979,12 @@ export class Controller {
     const settings = await this.deps.settings.settings();
     const policy = await this.activePolicy();
     const decided: Decided = this.decider(live.pkg, policy, bindingFacts((await this.toolEvaluation(live)).evaluation))(profile, settings.preset);
-    if (Object.keys(input.resourceSelections).length > 0) await this.vault();
-    const registry = await this.resourceRegistryOrEmpty();
+    if (Object.keys(input.resourceSelections).length > 0) await this.memory.unlocked();
+    const registry = await this.resourceRegistry(live);
     const grants = normalizeResourceSelections(live.pkg, registry, decided.decisions, input.resourceSelections);
-    const provenance: Provenance = { ...decided.provenance, resource_selections: Object.fromEntries(grants.map((grant) => [grant.permission_id, "user" as const])) };
+    // M-53: a pick the convenience preset made is recorded as `preset`, the person's as `user`.
+    const auto = new Set(input.presetSelections ?? []);
+    const provenance: Provenance = { ...decided.provenance, resource_selections: Object.fromEntries(grants.map((grant) => [grant.permission_id, auto.has(grant.permission_id) ? ("preset" as const) : ("user" as const)])) };
     return this.issue(live, decided.decisions, decided.tool_approvals, grants, registry, provenance, input.prepare);
   }
 
@@ -2069,8 +2086,9 @@ export class Controller {
     // The subscribed policy's model constraints (T8, D-102): local only, or a cost this browser can bound.
     blockers.push(...modelPolicyReasons(await this.activePolicy(), { id: input.modelId, properties: descriptor.properties as { local?: unknown; cost_class?: unknown } }));
     const { registry: toolRegistry, evaluation: toolEvaluation } = await this.toolEvaluation(live, live.receipt.decisions, live.receipt.tool_approvals);
-    // A receipt that grants a record needs the vault to prepare (the grant is checked against it); none needs nothing (D-195).
-    const resourceRegistry = live.receipt.resource_grants.length > 0 ? await this.resourceRegistry() : await this.resourceRegistryOrEmpty();
+    // A receipt that grants a record needs the memory to prepare (the grant is checked against it); none needs nothing (D-195).
+    if (live.receipt.resource_grants.length > 0) await this.memory.unlocked();
+    const resourceRegistry = await this.resourceRegistry(live);
     // The origins this plan would reach must be granted before it is frozen (D-193): the page asked
     // Chrome with the click as the gesture; what it did not obtain is refused here by name.
     const approvals = live.receipt.tool_approvals;
@@ -2140,8 +2158,8 @@ export class Controller {
     // locked store cannot give (T16, review 1 finding 1): the bindings and the grants are then "not
     // evaluated", never stale; Run says `store_locked` by name (D-195) and the plan is checked
     // again once unlocked.
-    const lockedNeedingVault = planNeedsVault(live.plan) && (await this.secretsState()) !== "unlocked";
-    const toolEvaluation = lockedNeedingVault ? null : (await this.toolEvaluation(live, live.receipt?.decisions, live.receipt?.tool_approvals)).evaluation;
+    const lockedNeedingMemory = planNeedsMemory(live.plan) && (await this.secretsState()) !== "unlocked";
+    const toolEvaluation = lockedNeedingMemory ? null : (await this.toolEvaluation(live, live.receipt?.decisions, live.receipt?.tool_approvals)).evaluation;
     const settings = await this.deps.settings.settings();
     const read = await this.currentCatalog();
     const checked = preflight(live.plan, {
@@ -2151,7 +2169,7 @@ export class Controller {
       trustState: await this.deps.trust.state(),
       policy: DEFAULT_BROWSER_POLICY,
       toolEvaluation,
-      resourceRegistry: await this.resourceRegistryOrNull(),
+      resourceRegistry: await this.resourceRegistryOrNull(live),
       catalog: read.catalog,
       onceSpent: live.onceSpent && live.receipt !== null && grantsOnce(live.receipt),
       localModelsOnly: PRESETS[settings.preset].local_models_only,
@@ -2597,8 +2615,16 @@ function keychainFor(record: KeychainRecord | null, createdAt: string | null): K
 function helperProblem(error: unknown): { state: KeychainView["helper"]; code: string; message: string } {
   if (error instanceof CoreError) {
     if (error.code === "helper_not_installed") return { state: "not_installed", code: error.code, message: error.message };
+    if (error.code === "helper_forbidden") return { state: "forbidden", code: error.code, message: error.message };
     if (error.code === "helper_refused") return { state: "refused", code: String(error.details.helper_code ?? "unknown"), message: error.message };
     return { state: "failed", code: error.code, message: error.message };
   }
   return { state: "failed", code: "helper_failed", message: error instanceof Error ? error.message : "unknown error" };
+}
+
+/** Whether a stored run's proposals were offered to the person (memory.v0 M-41, D-223): it completed, and the record says `offered > 0` with no reason. */
+function proposalsOffered(run: { record: { status: string; memory?: unknown } }): boolean {
+  const memory = (run.record.memory ?? null) as { proposals?: { offered?: number; reason?: string | null } | null } | null;
+  const facts = memory?.proposals ?? null;
+  return run.record.status === "completed" && facts !== null && (facts.offered ?? 0) > 0 && (facts.reason ?? null) === null;
 }

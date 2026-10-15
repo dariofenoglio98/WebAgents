@@ -96,7 +96,8 @@
     }
   ],
   "resource_permission_kinds": [
-    "personal.read"
+    "personal.read",
+    "memory.read"
   ],
   "note": "A package can request a type of host resource; it can never name one. The host lists what it holds, and the person picks one when granting the permission. The values never leave the host: this evaluation carries ids, labels and digests."
 }

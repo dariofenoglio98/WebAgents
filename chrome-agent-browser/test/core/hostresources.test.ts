@@ -171,6 +171,6 @@ describe("staleness and readiness", () => {
 
   it("the evaluation note and kinds match the reference", async () => {
     const evaluation = fixture("resource_evaluation");
-    expect(without(evaluation, ["requests"])).toMatchObject({ schema: "agentpkg-host-resource-requests-v0", resource_permission_kinds: ["personal.read"] });
+    expect(without(evaluation, ["requests"])).toMatchObject({ schema: "agentpkg-host-resource-requests-v0", resource_permission_kinds: ["personal.read", "memory.read"] });
   });
 });

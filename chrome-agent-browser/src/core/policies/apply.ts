@@ -127,6 +127,13 @@ export function applyPolicy(
     const id = String(permission.id);
     const kind = String(permission.kind);
     if (input.profile && !input.profile.permissions.includes(id)) continue; // the profile keeps it denied
+    // memory.v0 M-54: a type outside the policy's allowlist cannot be granted for reading or proposing.
+    const allowed = bundle.memory?.types_allowed ?? null;
+    if (allowed !== null && (kind === "memory.read" || kind === "memory.write" || kind === "personal.read") && (permission.resources as JsonValue[]).map(String).some((type) => !allowed.includes(type))) {
+      decisions[id] = DENY;
+      decidedBy[id] = "policy";
+      continue;
+    }
     const rule = Object.hasOwn(bundle.decisions, kind) ? bundle.decisions[kind] : undefined;
     if (rule === undefined) continue;
     decisions[id] = minDecision(rule, presetDuration(input.preset, kind));

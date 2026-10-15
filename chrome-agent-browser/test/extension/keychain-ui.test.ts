@@ -90,6 +90,7 @@ describe("Settings → Security and the Unlock sheet with the helper (T17)", () 
     buttonNamed("Unlock")!.click();
     await settle();
     expect(document.querySelector(".ab-sheet")).not.toBeNull();
+    expect(document.activeElement?.textContent).toBe("Unlock with the macOS keychain"); // the sheet takes the focus (T17 review 2, nit 3)
     buttonNamed("Unlock with the macOS keychain")!.click();
     await settle();
     await settle();
@@ -106,6 +107,7 @@ describe("Settings → Security and the Unlock sheet with the helper (T17)", () 
     await settle();
     expect(document.querySelector(".ab-sheet [role=alert]")?.textContent).toBe("The WebAgents helper is not installed on this Mac. Use your passphrase instead.");
     const field = document.querySelector<HTMLInputElement>(".ab-sheet input[type=password]")!;
+    expect(document.activeElement).toBe(field); // after a keychain failure the focus is on the passphrase the words point to (T19 review 2, nit 4)
     field.value = SEED_PASSPHRASE;
     field.form!.dispatchEvent(new Event("submit", { cancelable: true }));
     await settle();
@@ -117,6 +119,15 @@ describe("Settings → Security and the Unlock sheet with the helper (T17)", () 
     buttonNamed("Check again")!.click();
     await settle();
     expect(app().textContent).toContain("Helper not installed");
+
+    // A helper installed for another extension id: its own words, with what to do (T17 review 2, nit 1).
+    helper.portFailure = "forbidden";
+    buttonNamed("Check again")!.click();
+    await settle();
+    expect(app().textContent).toContain("Helper not for this extension");
+    expect(app().textContent).toContain("reinstall it with the current installer");
+    expect(app().textContent).not.toContain("Helper not installed");
+    helper.portFailure = "not_installed";
   });
 
   it("a status request the worker rejects leaves a failed card with Check again, not \"Asking the helper…\" (T17 review 1, nit 5)", async () => {

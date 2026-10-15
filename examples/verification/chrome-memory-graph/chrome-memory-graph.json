@@ -1,0 +1,345 @@
+{
+  "profile": "chrome-memory-graph-v0",
+  "recordedAt": "2026-10-15T03:41:33.807Z",
+  "build": {
+    "commit": "2ab27f6af758bcb9a80c4231b85a61484b5f9971",
+    "tree_clean": true,
+    "extension": {
+      "manifest.json": "410911ff4a4cdc24ad95e4f4b1f6ec901ecfdd238dde49924d6c241474524c7b",
+      "browser.html": "a0cddbeaa51f56322cf9271c2d25c208b90e35b31c78ceafd5e12f17d911cc61",
+      "browser.js": "677558f1ced27437aec9cee40811d727bf34edf1e20394107081345e52f682ee",
+      "styles.css": "57ae82c9f70a6e4fb90b834ff61abd3662e8927383c323d90f974daf103cf85c"
+    }
+  },
+  "chrome": "Chrome/155.0.8059.41",
+  "widths": [
+    1280,
+    480
+  ],
+  "synthetic": {
+    "nodes": 1000,
+    "links": 3000
+  },
+  "shots": {
+    "graph-demo-1280": {
+      "file": "graph-demo-1280.png",
+      "viewport": {
+        "width": 1280,
+        "scrollWidth": 1280
+      },
+      "mode": "ab-memory ab-memory-mode-graph",
+      "status": "7 records · 12 types · 0 replaced · store unlocked (locks in 15 min)",
+      "legend": [
+        "Me",
+        "Travel profile",
+        "Identity",
+        "Payment card"
+      ],
+      "canvas": {
+        "left": 217,
+        "top": 168,
+        "width": 676,
+        "height": 630
+      },
+      "graph": {
+        "left": 216,
+        "top": 167,
+        "width": 676,
+        "height": 630
+      },
+      "legendBox": {
+        "left": 229,
+        "top": 688,
+        "width": 115,
+        "height": 96
+      },
+      "controls": {
+        "left": 706,
+        "top": 748,
+        "width": 173,
+        "height": 36
+      },
+      "body": {
+        "left": 216,
+        "top": 167,
+        "width": 1048,
+        "height": 633
+      },
+      "card": {
+        "left": 904,
+        "top": 167,
+        "width": 360,
+        "height": 55
+      },
+      "cardRecord": null,
+      "cardTitle": null,
+      "masked": [],
+      "rows": 0,
+      "nav": {
+        "left": 0,
+        "top": 0,
+        "width": 200,
+        "height": 860
+      }
+    },
+    "card-demo-1280": {
+      "file": "card-demo-1280.png",
+      "viewport": {
+        "width": 1280,
+        "scrollWidth": 1280
+      },
+      "mode": "ab-memory ab-memory-mode-graph",
+      "status": "7 records · 12 types · 0 replaced · store unlocked (locks in 15 min)",
+      "legend": [
+        "Me",
+        "Travel profile",
+        "Identity",
+        "Payment card"
+      ],
+      "canvas": {
+        "left": 217,
+        "top": 168,
+        "width": 676,
+        "height": 630
+      },
+      "graph": {
+        "left": 216,
+        "top": 167,
+        "width": 676,
+        "height": 630
+      },
+      "legendBox": {
+        "left": 229,
+        "top": 688,
+        "width": 115,
+        "height": 96
+      },
+      "controls": {
+        "left": 706,
+        "top": 748,
+        "width": 173,
+        "height": 36
+      },
+      "body": {
+        "left": 216,
+        "top": 167,
+        "width": 1048,
+        "height": 836
+      },
+      "card": {
+        "left": 904,
+        "top": 167,
+        "width": 360,
+        "height": 1103
+      },
+      "cardRecord": "mem_94154f557d93e16ca23dac4a6e7f2428",
+      "cardTitle": "Demo Travel Card •••• 1234",
+      "masked": [
+        "••••••"
+      ],
+      "rows": 0,
+      "nav": {
+        "left": 0,
+        "top": 0,
+        "width": 200,
+        "height": 1047
+      }
+    },
+    "list-demo-1280": {
+      "file": "list-demo-1280.png",
+      "rows": 7,
+      "status": "7 records · 12 types · 0 replaced · store unlocked (locks in 15 min)"
+    },
+    "graph-demo-480": {
+      "file": "graph-demo-480.png",
+      "viewport": {
+        "width": 480,
+        "scrollWidth": 480
+      },
+      "mode": "ab-memory ab-memory-mode-graph",
+      "status": "7 records · 12 types · 0 replaced · store unlocked (locks in 15 min)",
+      "legend": [
+        "Me",
+        "Travel profile",
+        "Identity",
+        "Payment card"
+      ],
+      "canvas": {
+        "left": 17,
+        "top": 285,
+        "width": 448,
+        "height": 600
+      },
+      "graph": {
+        "left": 16,
+        "top": 284,
+        "width": 448,
+        "height": 600
+      },
+      "legendBox": {
+        "left": 29,
+        "top": 775,
+        "width": 115,
+        "height": 96
+      },
+      "controls": {
+        "left": 278,
+        "top": 834,
+        "width": 173,
+        "height": 36
+      },
+      "body": {
+        "left": 16,
+        "top": 284,
+        "width": 448,
+        "height": 829
+      },
+      "card": {
+        "left": 0,
+        "top": 0,
+        "width": 0,
+        "height": 0
+      },
+      "cardRecord": null,
+      "cardTitle": null,
+      "masked": [],
+      "rows": 0,
+      "nav": {
+        "left": 0,
+        "top": 0,
+        "width": 480,
+        "height": 173
+      }
+    },
+    "card-demo-480": {
+      "file": "card-demo-480.png",
+      "viewport": {
+        "width": 480,
+        "scrollWidth": 480
+      },
+      "mode": "ab-memory ab-memory-mode-graph",
+      "status": "7 records · 12 types · 0 replaced · store unlocked (locks in 15 min)",
+      "legend": [
+        "Me",
+        "Travel profile",
+        "Identity",
+        "Payment card"
+      ],
+      "canvas": {
+        "left": 17,
+        "top": 285,
+        "width": 448,
+        "height": 600
+      },
+      "graph": {
+        "left": 16,
+        "top": 284,
+        "width": 448,
+        "height": 600
+      },
+      "legendBox": {
+        "left": 29,
+        "top": 775,
+        "width": 115,
+        "height": 96
+      },
+      "controls": {
+        "left": 278,
+        "top": 834,
+        "width": 173,
+        "height": 36
+      },
+      "body": {
+        "left": 16,
+        "top": 284,
+        "width": 448,
+        "height": 829
+      },
+      "card": {
+        "left": 0,
+        "top": 300,
+        "width": 480,
+        "height": 1004
+      },
+      "cardRecord": "mem_94154f557d93e16ca23dac4a6e7f2428",
+      "cardTitle": "Demo Travel Card •••• 1234",
+      "masked": [
+        "••••••"
+      ],
+      "rows": 0,
+      "nav": {
+        "left": 0,
+        "top": 0,
+        "width": 480,
+        "height": 173
+      }
+    },
+    "list-demo-480": {
+      "file": "list-demo-480.png",
+      "rows": 7,
+      "status": "7 records · 12 types · 0 replaced · store unlocked (locks in 15 min)"
+    },
+    "graph-synthetic-1280": {
+      "file": "graph-synthetic-1280.png",
+      "status": "1007 records · 12 types · 0 replaced · store unlocked (locks in 15 min)",
+      "canvas": {
+        "left": 217,
+        "top": 168,
+        "width": 676,
+        "height": 630
+      },
+      "legend": [
+        "Me",
+        "Travel profile",
+        "Identity",
+        "Payment card",
+        "Note"
+      ]
+    }
+  },
+  "timings": {
+    "demo-1280": {
+      "first_paint_ms": 160,
+      "page_ms_at_paint": 159
+    },
+    "demo-480": {
+      "first_paint_ms": 159,
+      "page_ms_at_paint": 157
+    },
+    "import": {
+      "plan_ms": 1619,
+      "added": 1000,
+      "written": 1000,
+      "links_resolved": 2996
+    },
+    "synthetic": {
+      "first_paint_ms": 162,
+      "pan": {
+        "frames": 60,
+        "elapsed_ms": 995,
+        "fps": 60,
+        "worst_gap_ms": 18
+      },
+      "nodes": 1000
+    }
+  },
+  "checks": {
+    "the demo set is installed": "ok",
+    "the memory view masks every sealed value": "ok",
+    "1280px: the graph is drawn with a legend and no horizontal scroll": "ok",
+    "1280px: the legend and the zoom controls sit inside the graph box": "ok",
+    "1280px: the graph box fits the viewport": "ok",
+    "1280px: the keyboard opens a record card beside the graph, sealed values masked": "ok",
+    "1280px: the list shows every record (Me and the six demo records)": "ok",
+    "480px: the graph is drawn with a legend and no horizontal scroll": "ok",
+    "480px: the legend and the zoom controls sit inside the graph box": "ok",
+    "480px: the graph box starts inside the first screen": "ok",
+    "480px: the keyboard opens a record card beside the graph, sealed values masked": "ok",
+    "480px: the list shows every record (Me and the six demo records)": "ok",
+    "the synthetic memory imports completely": "ok",
+    "the synthetic graph is drawn": "ok",
+    "panning the synthetic graph stays above 30 fps on this machine (the 60 fps target is a measurement)": "ok"
+  },
+  "failures": [],
+  "passed": true
+}

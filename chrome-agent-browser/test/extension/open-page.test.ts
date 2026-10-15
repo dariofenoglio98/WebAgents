@@ -20,7 +20,7 @@ import { makeHarness, PAGE_IN_TAB, type Route } from "../helpers/shell.js";
 const ORIGIN = "https://webagents-webair-production.up.railway.app";
 const routes: Record<string, Route> = {
   [`${ORIGIN}/agent-index.json`]: { body: readBytes(resolve(ROOT, "examples/agent-index.json")) },
-  [`${ORIGIN}/agent.pkg`]: { body: readBytes(SHIPPED.webair050.archive) },
+  [`${ORIGIN}/agent.pkg`]: { body: readBytes(SHIPPED.webair060.archive) },
 };
 
 type Listener = (message: unknown) => void;
@@ -31,7 +31,7 @@ const h = makeHarness({
     for (const listener of listeners) listener(event);
   },
 });
-h.clock.now = new Date("2026-10-10T12:00:00Z");
+h.clock.now = new Date("2026-10-15T12:00:00Z");
 
 document.body.innerHTML = `<nav class="ab-nav"><a href="#open" data-view="open">Open</a><a href="#settings" data-view="settings">Settings</a></nav><main id="app"></main>`;
 vi.stubGlobal("chrome", {
@@ -148,9 +148,9 @@ describe("the Open view as a start page (T12, D-140, D-141)", () => {
     const results = app().querySelectorAll<HTMLElement>(".ab-result");
     expect(results).toHaveLength(1);
     expect(results[0]!.closest(".ab-open-results")).not.toBeNull();
-    expect(results[0]!.dataset.packageId).toBe(SHIPPED.webair050.packageId);
+    expect(results[0]!.dataset.packageId).toBe(SHIPPED.webair060.packageId);
     expect(results[0]!.dataset.packageUrl).toBe(`${ORIGIN}/agent.pkg`);
-    expect(results[0]!.textContent).toContain("Found in WebAgents demo index 1.2.0");
+    expect(results[0]!.textContent).toContain("Found in WebAgents demo index 1.3.0");
     expect([...results[0]!.querySelectorAll("button")].map((node) => node.textContent)).toEqual(["Open and verify"]);
     // The start block is not shown beside results.
     expect(app().querySelector(".ab-open-start")).toBeNull();

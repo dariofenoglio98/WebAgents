@@ -140,9 +140,9 @@ describe("a plan's origins", () => {
     expect(started.allowedOrigins).toEqual([TOOLS_ORIGIN, SITE_ORIGIN]);
     expect(tool.seen.every((request) => request.url.startsWith(`${TOOLS_ORIGIN}/`))).toBe(true);
     expect(tool.seen.length).toBeGreaterThan(0);
-    // D-195: no hosted key for an Ollama plan, no vault for a plan without a record.
+    // D-195: no hosted key for an Ollama plan, no memory for a plan without a record or a memory tool.
     expect(started.credentials).toEqual({ openai: null, anthropic: null });
-    expect(started.vault).toBeNull();
+    expect(started.memory?.snapshot ?? null).toBeNull();
   });
 
   it("a hosted provider at a custom base URL: the plan records that origin, the run calls it, and the guard admits it (review 1, finding 3)", async () => {

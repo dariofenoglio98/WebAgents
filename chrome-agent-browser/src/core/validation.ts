@@ -10,6 +10,7 @@
  */
 import { ValidationError } from "./errors.js";
 import { isJsonObject, parseJson, type JsonObject, type JsonValue } from "./json.js";
+import { checkMemoryGraph, memoryDeclarations } from "./memory/declarations.js";
 import { schemaReference, unique } from "./references.js";
 import { pyRepr } from "./repr.js";
 import { checkSchema, validateDocument } from "./schema.js";
@@ -222,6 +223,9 @@ export async function validatePayload(files: ReadonlyMap<string, Uint8Array>): P
       }
     }
   }
+  // The memory declarations (memory.v0 §7, M-33, M-38, M-48, M-18, M-67): checked here so that
+  // both runtimes refuse the same packages before any host binds anything.
+  const memoryDeclared = memoryDeclarations(manifest, policy, tools, files);
   const budget = policy.budget as JsonObject;
   if ((budget.estimated_tokens as number) > (budget.hard_tokens as number)) {
     throw new ValidationError("estimated_tokens cannot exceed hard_tokens");
@@ -269,6 +273,7 @@ export async function validatePayload(files: ReadonlyMap<string, Uint8Array>): P
       throw new ValidationError(`worker ${role}: state view refers to keys absent from state schema`);
     }
   }
+  checkMemoryGraph(manifest, graph, memoryDeclared);
   if (workflow) {
     await validateWorkflow(manifest, graph, policy, tools, files);
   } else {

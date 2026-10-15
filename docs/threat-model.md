@@ -274,13 +274,18 @@ request can carry (only a package-declared HTTPS endpoint, with the package's ow
 arguments, no cookie or credential of the person's browsing, `credentials: "omit"`) and by what it
 can reach (the person's own network). TLS and certificate checks are Chrome's.
 
-**Storage at rest (T16, D-181, D-191).** `chrome.storage.local` and IndexedDB live in the Chrome
+**Storage at rest (T16, D-181, D-191; T19, D-221).** `chrome.storage.local` and IndexedDB live in the Chrome
 profile directory, protected by the operating-system account and by whatever disk encryption the
-machine uses. Since 0.2.0 the two things that must not be readable there are not: provider API
-keys and the personal vault (every record, every type, and the HMAC key that digests them) are
-kept only inside one encrypted envelope (`secretStore`): AES-256-GCM per entry under a random
-master key, that master key wrapped under a key derived from the person's passphrase with scrypt
-(N = 2^17, r = 8, p = 1, a random 16-byte salt). A wrong passphrase fails the wrap's
+machine uses. Since 0.2.0 the things that must not be readable there are not: provider API keys
+and the memory's two keys (the HMAC key that digests records and the data key that seals their
+sealed values) are kept only inside one encrypted envelope (`secretStore`): AES-256-GCM per entry
+under a random master key, that master key wrapped under a key derived from the person's
+passphrase with scrypt (N = 2^17, r = 8, p = 1, a random 16-byte salt). Since memory.v0 (T19) the
+records themselves are IndexedDB rows (`memory_records`): every sealed value is replaced by
+`sealed:omitted` in the row and sealed beside it under the data key, with the record id and the
+pointer as associated data, so a box opens only for its record and field; titles, unsealed
+fields, bodies and links are in clear in the profile directory by design (M-10: a locked store
+still shows the graph, read-only). A wrong passphrase fails the wrap's
 authentication and no entry is read; a tampered entry, IV or name fails its own. What this
 defends: the profile directory read by another account, a backup, a synced or stolen disk, and
 any extension or process that reads files but not Chrome's memory. What it does not defend, and
@@ -290,8 +295,7 @@ process, for the extension's trusted contexts only; the execution host holds a r
 records for the run's duration); a keylogger at the passphrase; a compromised extension build.
 The exposure is bounded in time by the idle lock (default 15 minutes, a sweep every minute, lock
 on browser close, Lock now) and in scope by what a run is handed: the bound provider's key only,
-and the vault only when the plan grants a record, or its types alone, without any record, when
-the plan binds a host-resource tool it grants no record for (D-195). A passphrase has no recovery: a
+and the memory snapshot only when the plan grants a record or binds a memory tool (D-195, D-226). A passphrase has no recovery: a
 forgotten one means forgetting the keys and records. Package snapshots, run records, artifacts,
 picked PDFs, settings, trust pins and the permission records stay in clear, as before, until the
 person removes them. Test mode records outbound request bodies (prompts included) in

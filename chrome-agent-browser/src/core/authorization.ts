@@ -304,14 +304,14 @@ export const PRESETS: Readonly<Record<PresetId, PresetDefinition>> = Object.free
     title: "Privacy first",
     summary: "Local models only. Personal data and payments are granted for one run at a time, and nothing optional is granted unless you choose it.",
     local_models_only: true,
-    durations: { payment: "once", "personal.read": "once", default: "session" },
+    durations: { payment: "once", "personal.read": "once", "memory.read": "once", "memory.write": "once", default: "session" },
     grant_optional: "none",
     approve_tools: "granted_only",
   },
   balanced: {
     id: "balanced",
     title: "Balanced",
-    summary: "Local or hosted models. Optional network, model and memory permissions are granted for the session; personal data and payments still need your explicit choice.",
+    summary: "Local or hosted models. Optional network, model and memory permissions are granted for the session; your records (a memory read) and payments still need your explicit choice.",
     local_models_only: false,
     durations: { payment: "once", default: "session" },
     grant_optional: "non_personal",
@@ -395,7 +395,7 @@ export function defaultDecisions(pkg: Package, preset: PresetId): Decided {
     const grant =
       permission.required === true ||
       definition.grant_optional === "all" ||
-      (definition.grant_optional === "non_personal" && kind !== "personal.read" && kind !== "payment");
+      (definition.grant_optional === "non_personal" && kind !== "personal.read" && kind !== "memory.read" && kind !== "payment");
     if (grant) decisions[id] = presetDuration(preset, kind);
   }
   const approvals = initialToolApprovals(pkg);

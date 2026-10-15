@@ -8,7 +8,7 @@ import type { Candidate } from "../../core/discovery.js";
 import type { JsonObject } from "../../core/json.js";
 import { looksLikePackageUrl } from "../../core/policy.js";
 import type { TrustEntry, TrustState } from "../../core/trust.js";
-import type { AuthorizationView, ExportBundle, FilesView, IndexesView, LibraryItemView, LibraryView, ModelsView, PermissionsView, PolicyView, RunListView, RunSummary, RunView, SearchResultView, SearchView, SecretsView, KeychainView, SessionDescriptor, SessionView, SettingsView, StatusInfo, VaultView, WebsiteResult } from "../messages.js";
+import type { AuthorizationView, ExportBundle, FilesView, IndexesView, LibraryItemView, LibraryView, ModelsView, PermissionsView, PolicyView, RunListView, RunSummary, RunView, SearchResultView, SearchView, SecretsView, KeychainView, SessionDescriptor, SessionView, SettingsView, StatusInfo, MemoryView, WebsiteResult } from "../messages.js";
 import { addressKind } from "../../core/resolve/types.js";
 import { renderFoundVia, renderLibrary, renderSearchResults } from "../ui/search.js";
 import { renderAgentPage } from "../ui/agent-page.js";
@@ -19,12 +19,13 @@ import { button, card, chip, el, list, replace, row, whenText } from "../ui/dom.
 import { newSettingsPageState, refreshProbes, renderSettingsPage, SETTINGS_SECTIONS, type SettingsPageState, type SettingsSection } from "../ui/settings-page.js";
 import type { ProviderId } from "../../core/models/catalog.js";
 import { renderTrustPage } from "../ui/trust-page.js";
-import { newVaultPageState, renderVaultPage, type VaultPageState } from "../ui/vault-page.js";
+import { newMemoryPageState, renderMemoryPage, renderMemorySettings, type MemoryPageState } from "../ui/memory/page.js";
+import { renderMemoryGraph } from "../ui/memory/graph.js";
 import { renderWebsiteCard } from "../ui/website.js";
 import { mimeFor, renderRunList, RunPanel, saveBlob } from "../ui/run.js";
 import { writeZip } from "../ui/zip.js";
 
-type View = "open" | "library" | "runs" | "trust" | "settings" | "data";
+type View = "open" | "library" | "runs" | "trust" | "settings" | "memory";
 
 interface PageState {
   view: View;
@@ -40,8 +41,9 @@ interface PageState {
   settingsPage: SettingsPageState;
   /** Settings → Files (T6): the PDFs runs may read. */
   files: FilesView | null;
-  vault: VaultView | null;
-  vaultPage: VaultPageState;
+  /** The Memory page (T19): the worker's view and the page's own UI state. */
+  memory: MemoryView | null;
+  memoryPage: MemoryPageState;
   busy: string | null;
   error: { code: string; message: string; details: Record<string, unknown> } | null;
   runs: RunListView | null;
@@ -81,8 +83,8 @@ const state: PageState = {
   settings: null,
   settingsPage: newSettingsPageState(),
   files: null,
-  vault: null,
-  vaultPage: newVaultPageState(),
+  memory: null,
+  memoryPage: newMemoryPageState(),
   busy: null,
   error: null,
   runs: null,
@@ -117,7 +119,7 @@ const flow: AuthorizationController = bindAuthorization({
     state.error = error ? { ...error, details: {} } : null;
   },
   openSettings: (section) => {
-    location.hash = section === "data" ? "data" : `settings?section=${section}`;
+    location.hash = section === "data" || section === "memory" ? "memory" : `settings?section=${section}`;
   },
   rerender: () => render(),
   unlock: (retry) => openUnlock(null, retry),
@@ -166,7 +168,8 @@ function openUnlock(reason: string | null, retry: (() => void) | null): void {
  */
 function failedKeychain(error: unknown, previous: KeychainView | null = state.keychain): KeychainView {
   const { code, message } = describeError(error);
-  const known = previous ?? { permission: true, enabled: false, enabled_at: null, ollama: null };
+  // Nothing known yet: the not-checked shape, never a granted permission (T17 review 2, nit 5).
+  const known = previous ?? { permission: false, enabled: false, enabled_at: null, ollama: null };
   return { permission: known.permission, enabled: known.enabled, enabled_at: known.enabled_at, ollama: known.ollama, helper: "failed", helper_version: null, problem: { code, message } };
 }
 
@@ -196,7 +199,8 @@ async function loadSecrets(): Promise<void> {
 async function secretsChanged(): Promise<void> {
   await loadSecrets();
   if (state.secrets?.state === "unlocked" && state.error && needsUnlock(state.error)) state.error = null;
-  await load();
+  // The worker broadcasts `event.settings` and `event.memory` with every store change, and those reload the view; no third load here (T16 review 2, nit 6).
+  render();
 }
 
 /**
@@ -259,7 +263,7 @@ function route(): void {
     void openStoredRun(state.runsShowing);
     return;
   }
-  state.view = (["open", "library", "runs", "trust", "settings", "data"] as View[]).includes(view as View) ? (view as View) : "open";
+  state.view = view === "data" ? "memory" : (["open", "library", "runs", "trust", "settings", "memory"] as View[]).includes(view as View) ? (view as View) : "open";
   state.runsShowing = null;
   if (state.view === "open") void reattachRuns();
   if (opening && state.view === "open" && !params.get("url")) void adoptRunInFlight();
@@ -327,7 +331,7 @@ async function load(): Promise<void> {
       }
       if (state.settingsPage.section === "permissions") state.permissions = await send<PermissionsView>({ type: "permissions.get" });
     }
-    if (state.view === "data") state.vault = await send({ type: "vault.get" });
+    if (state.view === "memory" || (state.view === "settings" && state.settingsPage.section === "memory")) state.memory = await send({ type: "memory.get" });
     if (state.view === "runs") state.runs = await send({ type: "run.list", sessionId: null });
   } catch (error) {
     state.error = describeError(error);
@@ -871,6 +875,7 @@ function settingsView(): HTMLElement[] {
         if (state.settingsPage.section === "files" && state.files === null) void load();
         if ((state.settingsPage.section === "search" && state.indexes === null) || (state.settingsPage.section === "policies" && state.policy === null)) void load();
         if ((state.settingsPage.section === "security" && state.secrets === null) || (state.settingsPage.section === "permissions" && state.permissions === null)) void load();
+        if (state.settingsPage.section === "memory" && state.memory === null) void loadMemory();
         render();
       },
       onSecrets: (request) => {
@@ -999,7 +1004,7 @@ function settingsView(): HTMLElement[] {
           },
         );
       },
-    }, state.files, { indexes: state.indexes, policy: state.policy, secrets: state.secrets, keychain: state.keychain, permissions: state.permissions }),
+    }, state.files, { indexes: state.indexes, policy: state.policy, secrets: state.secrets, keychain: state.keychain, memory: state.settingsPage.section === "memory" ? renderMemorySettings(state.memory, state.memoryPage, { ...memoryActions(), openMemory: () => (location.hash = "memory"), preset: state.settings?.settings.preset ?? "balanced", forgetTyped: state.settingsPage.forgetMemory ?? "", setForgetTyped: (value) => { state.settingsPage.forgetMemory = value; render(); } }) : null, permissions: state.permissions }),
   ].filter((node): node is HTMLElement => node !== null);
 }
 
@@ -1052,41 +1057,40 @@ async function pickFiles(): Promise<void> {
   render();
 }
 
-function dataView(): HTMLElement[] {
-  if (!state.vault) {
-    // T16: Your data lives in the secret store; a locked store shows the lock, not a spinner.
+/** The actions the Memory page and Settings → Memory share (T19): the worker's messages, a reload, the Unlock sheet for a write on a locked store. */
+function memoryActions() {
+  return {
+    send: <T,>(request: Parameters<typeof send>[0]) => send<T>(request),
+    rerender: () => render(),
+    reload: () => void loadMemory(),
+    unlock: (action: string, then: () => void) => openUnlock(`Your memory is locked. Unlock to ${action}.`, then),
+    openRun: (runId: string) => (location.hash = `run=${encodeURIComponent(runId)}`),
+    saveBlob,
+    graph: renderMemoryGraph,
+    openSettingsMemory: () => (location.hash = "settings?section=memory"),
+  };
+}
+
+async function loadMemory(): Promise<void> {
+  try {
+    state.memory = await send<MemoryView>({ type: "memory.get" });
+    state.error = null;
+  } catch (error) {
+    state.error = describeError(error);
+  }
+  render();
+}
+
+function memoryView(): HTMLElement[] {
+  if (!state.memory) {
     const locked = state.error && needsUnlock(state.error);
     return [
       errorBox(),
-      locked ? el("div", { className: "ab-actions" }, button(state.secrets?.state === "no_passphrase" ? "Set a passphrase" : "Unlock", () => (state.secrets?.state === "no_passphrase" ? (location.hash = "settings?section=security") : openUnlock(null, () => void load())), { variant: "primary" })) : null,
+      locked ? el("div", { className: "ab-actions" }, button(state.secrets?.state === "no_passphrase" ? "Set a passphrase" : "Unlock", () => (state.secrets?.state === "no_passphrase" ? (location.hash = "settings?section=security") : openUnlock(null, () => void loadMemory())), { variant: "primary" })) : null,
       locked ? null : el("p", { className: "ab-busy", text: "Loading…" }),
     ].filter((node): node is HTMLElement => node !== null);
   }
-  const apply = (request: Parameters<typeof send>[0], notice: string) => {
-    send<VaultView>(request).then(
-      (vault) => {
-        state.vault = vault;
-        state.vaultPage.editing = null;
-        state.vaultPage.notice = { text: notice, tone: "good" };
-        state.error = null;
-        render();
-      },
-      (error: unknown) => {
-        const described = describeError(error);
-        state.vaultPage.notice = { text: `${described.code}: ${described.message}`, tone: "bad" };
-        render();
-      },
-    );
-  };
-  return [
-    errorBox(),
-    renderVaultPage(state.vault, state.vaultPage, {
-      onPut: (record) => apply({ type: "vault.putRecord", record: record as unknown as JsonObject }, "Saved. A prepared run plan that named this record is now stale."),
-      onDelete: (recordId) => apply({ type: "vault.deleteRecord", recordId }, "Deleted."),
-      onInstallDemo: () => apply({ type: "vault.installDemo", records: true }, "Fictional demo data added. Every record is marked as such."),
-      rerender: () => render(),
-    }),
-  ].filter((node): node is HTMLElement => node !== null);
+  return [errorBox(), renderMemoryPage(state.memory, state.memoryPage, memoryActions())].filter((node): node is HTMLElement => node !== null);
 }
 
 /** "Always detect agents on this site" (T16, D-190): Chrome is asked in the click; the worker records the grant and registers the script. */
@@ -1109,10 +1113,12 @@ function render(): void {
   for (const link of document.querySelectorAll<HTMLAnchorElement>(".ab-nav a")) {
     link.classList.toggle("ab-nav-active", link.dataset.view === state.view);
   }
+  // The Memory view uses the page's full width (a graph and a card); the other views keep their reading width.
+  app.classList.toggle("ab-app-wide", state.view === "memory");
   const chipHost = document.getElementById("lock");
   if (chipHost) replace(chipHost, [renderLockChip(state.secrets, { onLock: () => void send<SecretsView>({ type: "secrets.lock" }).then(() => loadSecrets().then(render)), onOpen: () => openUnlock(null, null), openSettings: () => (location.hash = "settings?section=security") })]);
   const children =
-    state.view === "open" ? openView() : state.view === "library" ? libraryView() : state.view === "runs" ? runsView() : state.view === "trust" ? trustView() : state.view === "data" ? dataView() : settingsView();
+    state.view === "open" ? openView() : state.view === "library" ? libraryView() : state.view === "runs" ? runsView() : state.view === "trust" ? trustView() : state.view === "memory" ? memoryView() : settingsView();
   const sheet = renderUnlockSheet(state.unlock, state.secrets, { rerender: render, openSettings: () => (location.hash = "settings?section=security"), onUnlocked: () => void secretsChanged() });
   replace(app, sheet ? [...children, sheet] : children);
 }
@@ -1125,7 +1131,8 @@ subscribe((event) => {
       render();
     }, () => undefined);
   }
-  if (event.type === "event.sessions" || event.type === "event.trust" || event.type === "event.settings" || event.type === "event.vault") void load();
+  if (event.type === "event.sessions" || event.type === "event.trust" || event.type === "event.settings") void load();
+  if (event.type === "event.memory" && (state.view === "memory" || (state.view === "settings" && state.settingsPage.section === "memory"))) void loadMemory();
   if ((event.type === "event.library" && state.view === "library") || ((event.type === "event.indexes" || event.type === "event.policy") && state.view === "settings")) void load();
   if (event.type === "event.sessions" && state.open) void showSession(state.open.session.id);
   if (event.type === "event.authorization" && state.open && event.sessionId === state.open.session.id) {
@@ -1134,7 +1141,7 @@ subscribe((event) => {
       runs.sync();
     });
   }
-  if ((event.type === "event.vault" || event.type === "event.settings") && state.open) {
+  if ((event.type === "event.memory" || event.type === "event.settings") && state.open) {
     void flow.load().then(() => {
       render();
       runs.sync();

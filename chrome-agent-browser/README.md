@@ -94,8 +94,11 @@ What it shows today, on the WebAir demo site:
    including `chrome-extension://*`; a remote Ollama endpoint is refused, since its models would
    not be local). Keys are typed once, stored in `chrome.storage.local`, never shown
    again and never synced. **Settings → Policies** selects the host preset (privacy first,
-   balanced, convenience). **Your data** holds your records per type, with a one-click fictional
-   demo set that is clearly labelled and never pre-filled.
+   balanced, convenience). **Memory** (T19) holds your records as a graph and a list: each record
+   has a type, fields, a Markdown body, links and provenance; sealed values stay masked until you
+   reveal one; the page exports and imports a folder of Markdown files (Obsidian opens it), and a
+   one-click fictional demo set is clearly labelled and never pre-filled. After a run that proposed
+   records, the run page asks you to accept, edit or reject each proposal.
    "Stop Ollama" in a walk-through means quitting the Ollama menu-bar app (or `pkill -x Ollama`):
    on macOS the app runs its own `ollama serve` and keeps answering on 11434 whatever a terminal
    does, so a chip that still says reachable after `ollama serve` was stopped in a terminal is

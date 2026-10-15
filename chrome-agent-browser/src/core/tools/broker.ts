@@ -28,11 +28,13 @@
  * `tool_timeout`, `tool_cancelled`, `tool_transport_error`, ...).
  */
 import { canonicalString } from "../canonical.js";
+import { sha256HexSync } from "../hash.js";
 import type { JsonObject, JsonValue } from "../json.js";
 import type { HttpTransport } from "../models/transport.js";
 import type { ResourceGrant } from "../types.js";
 import { AdapterError } from "../workflow/errors.js";
 import { hostResourceCall } from "./adapters/host-resource.js";
+import { memoryAgentCall, type AgentMemoryContext } from "./adapters/memory-agent.js";
 import { CROSSREF_IMPLEMENTATION } from "./adapters/crossref.js";
 import { CROSSREF_DOI_IMPLEMENTATION, CROSSREF_DOI_LIMITS, CROSSREF_ORIGIN, crossrefDoiLookup, doiQuery } from "./adapters/crossref-doi.js";
 import { cancellationOf, jsonHttpCall, toolError } from "./adapters/json-http.js";
@@ -76,6 +78,8 @@ export interface BrokerDeps {
   credentials?: (credential: CredentialSource) => string | null;
   /** The host resources this run was granted and the store that holds them. Present whenever the host holds any resource. */
   resources?: { grants: readonly ResourceGrant[]; resolver: ResourceResolver } | null;
+  /** The run's agent document (memory.v0 M-48…M-51), for the two reserved `memory_agent` tools; null when the run holds none. */
+  memory?: { agent: AgentMemoryContext | null } | null;
   /**
    * The selected files this run was given, by opaque id, and the host code that reads them
    * (T6, D-082). A `selected_file` binding can read exactly these; nothing else.
@@ -177,7 +181,7 @@ interface Lane {
   timeoutSeconds: number;
 }
 
-type Answer = { output: JsonValue; status: number | null; resource?: ResourceGrant; file?: { file_id: string; sha256: string } };
+type Answer = { output: JsonValue; status: number | null; resource?: ResourceGrant; file?: { file_id: string; sha256: string }; memory?: { action: string; facts: Record<string, JsonValue> } };
 
 /** Which requests one call made, and which implementation answered it. */
 interface Trail {
@@ -300,6 +304,11 @@ export class BoundToolHandler {
         // Which of the person's selected files was read, by opaque id and hash: never a name or a path.
         ...(answer.file ? { file_id: answer.file.file_id, file_sha256: answer.file.sha256 } : {}),
       });
+      // The memory actions of memory.v0 §9 (M-61): identifiers, counts and hashes, never a value.
+      if (resource && (this.binding.binding_name.startsWith("host.memory.") || this.binding.binding_name.startsWith("host.resource."))) {
+        context.event("memory.read", { permission_id: resource.permission_id, resource_type: resource.resource_type, record_id: resource.resource_id, record_digest: resource.resource_digest, bytes: new TextEncoder().encode(canonicalString(output)).length });
+      }
+      if (answer.memory) context.event(answer.memory.action, answer.memory.facts);
       return output;
     } finally {
       if (this.calls.length < 512) {
@@ -330,6 +339,14 @@ export class BoundToolHandler {
     if (definition.kind === "host_resource") {
       const resolved = hostResourceCall(definition, this.binding, payload, this.deps.resources ?? null);
       return { output: resolved.output, status: null, resource: resolved.resource };
+    }
+    if (definition.kind === "memory_agent") {
+      const agent = this.deps.memory?.agent ?? null;
+      const resolved = memoryAgentCall(definition, this.binding, payload, agent);
+      const write = this.binding.binding_name === "host.memory.agent.write";
+      const body = write ? (payload as { body: string }).body : ((resolved.output as { body: string }).body ?? "");
+      const facts: Record<string, JsonValue> = { ...resolved.facts, body_sha256: sha256HexSync(new TextEncoder().encode(body)) };
+      return { output: resolved.output, status: null, memory: { action: write ? "memory.agent.write" : "memory.agent.read", facts } };
     }
     if (definition.kind === "selected_file") {
       const output = await selectedFileCall(definition, this.binding, payload, this.deps.files ?? null, bounded, this.limits.max_request_bytes);

@@ -54,7 +54,7 @@ describe("HelperClient reads every reply strictly", () => {
   it("maps Chrome's failures and the helper's refusals to codes a view explains", async () => {
     const cases: Array<[NativePortError, string]> = [
       [new NativePortError("not_installed", "Specified native messaging host not found."), "helper_not_installed"],
-      [new NativePortError("forbidden", "Access to the specified native messaging host is forbidden."), "helper_not_installed"],
+      [new NativePortError("forbidden", "Access to the specified native messaging host is forbidden."), "helper_forbidden"],
       [new NativePortError("no_permission", "x"), "native_permission_missing"],
       [new NativePortError("timeout", "x"), "helper_timeout"],
       [new NativePortError("exited", "Native host has exited."), "helper_failed"],

@@ -187,7 +187,7 @@ async function review(pkg: Package, options: { fault?: Fault; network?: { search
 }
 
 const v026 = () => loadPackageBytes(new Uint8Array(readFileSync(SHIPPED.literatureReview026.archive)));
-const v027 = () => loadSource(sourceTree("literature-review"));
+const v027 = () => loadPackageBytes(new Uint8Array(readFileSync(SHIPPED.literatureReview027.archive)));
 const actions = (outcome: Outcome, action: string) => outcome.audit.filter((event) => event.action === action);
 const output = (outcome: Outcome) => outcome.result!.output as JsonObject;
 const papersFound = (outcome: Outcome) => (output(outcome).papers_found as JsonObject[]).map((paper) => paper.paper_id);

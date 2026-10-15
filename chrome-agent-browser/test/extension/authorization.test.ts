@@ -12,13 +12,13 @@ import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
 import { CoreError } from "../../src/core/errors.js";
-import { parseRequest, type AuthorizationView, type AuthorizeResult, type ModelsView, type RunPlanState, type SessionView, type SettingsView, type VaultView } from "../../src/extension/messages.js";
+import { parseRequest, type AuthorizationView, type AuthorizeResult, type ModelsView, type RunPlanState, type SessionView, type SettingsView, type MemoryView } from "../../src/extension/messages.js";
 import { MemoryTrustStorage } from "../../src/core/trust.js";
 import { MemoryStorageArea, normalizeSettings, normalizeBaseUrl } from "../../src/extension/storage/settings.js";
 import { MemorySnapshotStore } from "../../src/extension/storage/snapshots.js";
 import { MemoryTabStateStore } from "../../src/extension/storage/tab-state.js";
 import { ROOT, SHIPPED } from "../helpers/paths.js";
-import { LITERATURE_URL, makeHarness, OLLAMA_ANSWERS, PAGE, SITE_ORIGIN, WEBAIR_040_URL, type Harness } from "../helpers/shell.js";
+import { DEMO, LITERATURE_URL, makeHarness, OLLAMA_ANSWERS, PAGE, SITE_ORIGIN, WEBAIR_040_URL, type Harness } from "../helpers/shell.js";
 
 async function refused(promise: Promise<unknown>): Promise<CoreError> {
   try {
@@ -47,7 +47,7 @@ async function openWebair(h: Harness, options: { trust?: boolean; defaultModel?:
   return (await h.controller.handle({ type: "package.get", sessionId: view.session.id }, PAGE)) as SessionView;
 }
 
-const demoPicks = { "profile.travel": "profile_demo_traveler", "identity.passenger": "passenger_demo_alex", "wallet.payment": "payment_demo_visa" };
+const demoPicks = { "profile.travel": DEMO.traveler, "identity.passenger": DEMO.alex, "wallet.payment": DEMO.visa };
 
 describe("the authorization view", () => {
   it("offers WebAir 0.4.0's three profiles with the decisions each yields, the preset's defaults, the vault's resources and this host's tools", async () => {
@@ -156,14 +156,14 @@ describe("two clicks: a profile becomes a ready plan (D-022)", () => {
       ["resource_not_selected", "personal.passenger_identity"],
       ["resource_not_selected", "personal.travel_profile"],
     ]);
-    await h.controller.handle({ type: "vault.installDemo", records: true }, PAGE);
+    await h.controller.handle({ type: "memory.installDemo" }, PAGE);
     const stillMissing = await refused(h.controller.handle({ type: "authorization.useProfile", sessionId: session.session.id, packageDigest: SHIPPED.webair040.digest, profileId: "quote", resourceSelections: {}, prepare: true }, PAGE));
     expect(stillMissing.code).toBe("resource_selection_required");
     const result = (await h.controller.handle(
-      { type: "authorization.useProfile", sessionId: session.session.id, packageDigest: SHIPPED.webair040.digest, profileId: "quote", resourceSelections: { "profile.travel": "profile_demo_traveler", "identity.passenger": "passenger_demo_alex" }, prepare: true },
+      { type: "authorization.useProfile", sessionId: session.session.id, packageDigest: SHIPPED.webair040.digest, profileId: "quote", resourceSelections: { "profile.travel": DEMO.traveler, "identity.passenger": DEMO.alex }, prepare: true },
       PAGE,
     )) as AuthorizeResult;
-    expect(result.receipt.resource_grants.map((grant) => grant.resource_id)).toEqual(["passenger_demo_alex", "profile_demo_traveler"]);
+    expect(result.receipt.resource_grants.map((grant) => grant.resource_id)).toEqual([DEMO.alex, DEMO.traveler]);
     expect(result.receipt.provenance?.resource_selections).toEqual({ "identity.passenger": "user", "profile.travel": "user" });
     expect(result.run_plan?.preflight.ready).toBe(true);
     expect(result.run_plan?.run_plan.tool_bindings.map((binding) => binding.tool_id)).toEqual(["get-fare-rules", "personal.passenger_identity", "personal.travel_profile", "prepare-booking", "search-flights"]);
@@ -318,9 +318,9 @@ describe("the customize path: Literature Review 0.2.5 with today's OpenClaw deci
 describe("staleness through the worker", () => {
   async function readyQuote(h: Harness): Promise<{ session: SessionView; result: AuthorizeResult }> {
     const session = await openWebair(h);
-    await h.controller.handle({ type: "vault.installDemo", records: true }, PAGE);
+    await h.controller.handle({ type: "memory.installDemo" }, PAGE);
     const result = (await h.controller.handle(
-      { type: "authorization.useProfile", sessionId: session.session.id, packageDigest: SHIPPED.webair040.digest, profileId: "quote", resourceSelections: { "profile.travel": "profile_demo_traveler", "identity.passenger": "passenger_demo_alex" }, prepare: true },
+      { type: "authorization.useProfile", sessionId: session.session.id, packageDigest: SHIPPED.webair040.digest, profileId: "quote", resourceSelections: { "profile.travel": DEMO.traveler, "identity.passenger": DEMO.alex }, prepare: true },
       PAGE,
     )) as AuthorizeResult;
     expect(result.run_plan?.preflight.ready).toBe(true);
@@ -330,11 +330,11 @@ describe("staleness through the worker", () => {
   it("a changed vault record makes the plan stale (resource_changed), a deleted one resource_removed", async () => {
     const h = makeHarness();
     const { session } = await readyQuote(h);
-    await h.controller.handle({ type: "vault.putRecord", record: { id: "profile_demo_traveler", type: "personal.travel_profile", label: "Demo Traveler — JFK", value: { home_airport: "JFK", preferred_cabin: "economy", prefer_nonstop: true, preferred_currency: "USD" }, demo: true } }, PAGE);
+    await h.controller.handle({ type: "memory.edit", recordId: DEMO.traveler, changes: { fields: { home_airport: "JFK", preferred_cabin: "economy", prefer_nonstop: true, preferred_currency: "USD" } } }, PAGE);
     let state = (await h.controller.handle({ type: "runplan.get", sessionId: session.session.id }, PAGE)) as RunPlanState;
     expect(state.preflight.stale_reasons.map((reason) => [reason.code, reason.subject])).toEqual([["resource_changed", "profile.travel"]]);
     expect(state.preflight.state).toBe("stale");
-    await h.controller.handle({ type: "vault.deleteRecord", recordId: "passenger_demo_alex" }, PAGE);
+    await h.controller.handle({ type: "memory.delete", recordIds: [DEMO.alex] }, PAGE);
     state = (await h.controller.handle({ type: "runplan.get", sessionId: session.session.id }, PAGE)) as RunPlanState;
     expect(state.preflight.stale_reasons.map((reason) => reason.code)).toEqual(["resource_removed", "resource_changed"]);
     // The plan itself did not move.
@@ -446,45 +446,59 @@ describe("models, settings and the vault", () => {
     expect(h.events).toContainEqual({ type: "event.settings" });
   });
 
-  it("concurrent first reads of a fresh vault open it once, under one HMAC key (review 1, nit 12)", async () => {
+  it("concurrent first reads of a fresh memory open it once, under one pair of keys (review 1, nit 12)", async () => {
     const h = makeHarness();
-    const opened = vi.spyOn(h.settings, "vaultKey");
-    const [first, second] = (await Promise.all([h.controller.handle({ type: "vault.get" }, PAGE), h.controller.handle({ type: "vault.get" }, PAGE)])) as VaultView[];
+    const opened = vi.spyOn(h.settings, "memoryKeys");
+    const [first, second] = (await Promise.all([h.controller.handle({ type: "memory.get" }, PAGE), h.controller.handle({ type: "memory.get" }, PAGE)])) as MemoryView[];
     expect(opened).toHaveBeenCalledTimes(1);
-    expect(first).toEqual(second);
-    const stored = h.settingsArea.data.get("vaultKey");
-    await h.controller.handle({ type: "vault.get" }, PAGE);
-    expect(h.settingsArea.data.get("vaultKey")).toBe(stored);
+    expect(first.records.map((record) => record.digest)).toEqual(second.records.map((record) => record.digest));
+    const stored = await h.secrets.get("memory_key");
+    await h.controller.handle({ type: "memory.get" }, PAGE);
+    expect(await h.secrets.get("memory_key")).toEqual(stored);
     expect(opened).toHaveBeenCalledTimes(1);
   });
 
-  it("the vault starts with the demo types and no record, adds the fictional set only on request, validates records and persists without digests", async () => {
+  it("the memory starts with the starter types and the Me record, adds the fictional set only on request, validates records and keeps sealed values sealed at rest", async () => {
     const h = makeHarness();
-    const empty = (await h.controller.handle({ type: "vault.get" }, PAGE)) as VaultView;
-    expect(empty.types.map((type) => type.id)).toEqual(["personal.travel_profile", "personal.passenger_identity", "wallet.payment_method"]);
-    expect(empty.records).toEqual([]);
+    const empty = (await h.controller.handle({ type: "memory.get" }, PAGE)) as MemoryView;
+    expect(empty.types.map((type) => type.id)).toEqual(expect.arrayContaining(["person.self", "travel.profile", "person.identity", "payment.card", "document.note"]));
+    expect(empty.records.map((record) => record.id)).toEqual(["self"]);
     expect(empty.demo_available).toBe(true);
-    const withTypes = (await h.controller.handle({ type: "vault.installDemo", records: false }, PAGE)) as VaultView;
-    expect(withTypes.records).toEqual([]);
-    const demo = (await h.controller.handle({ type: "vault.installDemo", records: true }, PAGE)) as VaultView;
-    expect(demo.records).toHaveLength(6);
-    expect(demo.records.every((record) => record.demo)).toBe(true);
-    const own = (await h.controller.handle({ type: "vault.putRecord", record: { id: "my_profile", type: "personal.travel_profile", label: "Me — ZRH", value: { home_airport: "ZRH", preferred_cabin: "economy", prefer_nonstop: false, preferred_currency: "CHF" } } }, PAGE)) as VaultView;
-    expect(own.records.find((record) => record.id === "my_profile")).toMatchObject({ demo: false, digest: expect.stringMatching(/^[0-9a-f]{64}$/u) });
-    expect((await refused(h.controller.handle({ type: "vault.putRecord", record: { id: "bad", type: "personal.travel_profile", label: "Bad", value: { home_airport: "zurich" } } }, PAGE))).code).toBe("vault_invalid");
-    expect((await refused(h.controller.handle({ type: "vault.deleteRecord", recordId: "ghost" }, PAGE))).code).toBe("vault_record_unknown");
-    // T16: the document and its HMAC key live in the secret store's envelope, never in clear (D-191).
+    expect(empty.locked).toBe(false);
+    const demo = (await h.controller.handle({ type: "memory.installDemo" }, PAGE)) as { added: number };
+    expect(demo.added).toBe(6);
+    const withDemo = (await h.controller.handle({ type: "memory.get" }, PAGE)) as MemoryView;
+    expect(withDemo.records.filter((record) => record.demo)).toHaveLength(6);
+    expect(withDemo.records.find((record) => record.id === DEMO.alex)).toMatchObject({ type: "person.identity", title: "Alex Traveler — a***@example.com", demo: true, sealed_pointers: expect.arrayContaining(["/email"]) });
+    // The page's view masks every sealed value; the digest is a reference, never the value.
+    expect(JSON.stringify(withDemo)).not.toContain("alex.traveler@example.com");
+    // Adding the set again adds nothing twice.
+    expect(((await h.controller.handle({ type: "memory.installDemo" }, PAGE)) as { added: number }).added).toBe(0);
+    const own = (await h.controller.handle({ type: "memory.create", draft: { type: "travel.profile", title: "Me — ZRH", fields: { home_airport: "ZRH", preferred_cabin: "economy", prefer_nonstop: false, preferred_currency: "CHF" } } }, PAGE)) as { id: string; replaced: string | null };
+    expect(own.id).toMatch(/^mem_[0-9a-f]{32}$/u);
+    const after = (await h.controller.handle({ type: "memory.get" }, PAGE)) as MemoryView;
+    expect(after.records.find((record) => record.id === own.id)).toMatchObject({ digest: expect.stringMatching(/^[0-9a-f]{64}$/u), source: { kind: "person" } });
+    expect(after.records.find((record) => record.id === own.id)?.demo).toBeUndefined();
+    const bad = await refused(h.controller.handle({ type: "memory.create", draft: { type: "travel.profile", title: "Bad", fields: { home_airport: "zurich" } } }, PAGE));
+    expect(bad.code).toBe("schema_validation");
+    expect((await refused(h.controller.handle({ type: "memory.reveal", recordId: "ghost", pointer: "/email" }, PAGE))).code).toBe("memory_record_unknown");
+    // At rest: rows in the memory store with the sealed values sealed, never in clear; the keys in the secret store's envelope (D-191, D-221).
     expect(h.settingsArea.data.has("vault")).toBe(false);
     expect(h.settingsArea.data.has("vaultKey")).toBe(false);
-    const stored = JSON.parse((await h.secrets.getText("vault"))!) as { records: Array<Record<string, unknown>> };
-    expect(stored.records).toHaveLength(7);
-    expect(stored.records.every((record) => !("digest" in record))).toBe(true);
-    expect((await h.secrets.get("vault_key"))!.length).toBe(32);
+    const rows = await h.memoryStorage.loadRecords();
+    expect(rows).toHaveLength(8);
+    const alexRow = rows.find((row) => row.id === DEMO.alex)!;
+    expect(alexRow.record.fields.email).toBe("sealed:omitted");
+    expect(Object.keys(alexRow.sealed_values)).toEqual(["/email"]);
+    expect(JSON.stringify(rows)).not.toContain("alex.traveler@example.com");
+    expect((await h.secrets.get("memory_key"))!.length).toBe(32);
+    expect((await h.secrets.get("memory_data_key"))!.length).toBe(32);
     expect(JSON.stringify(h.envelope.value)).not.toContain("ZRH");
-    expect(h.events).toContainEqual({ type: "event.vault" });
-    // Another worker over the same storage sees the same digests (same key).
-    const second = makeHarness({ stores: { snapshots: new MemorySnapshotStore(), trustStorage: new MemoryTrustStorage(), tabs: new MemoryTabStateStore(), settingsArea: h.settingsArea, secrets: { envelope: h.envelope, unlocked: h.unlocked } } });
-    const again = (await second.controller.handle({ type: "vault.get" }, PAGE)) as VaultView;
-    expect(again.records.map((record) => record.digest).sort()).toEqual(own.records.map((record) => record.digest).sort());
+    expect(h.events).toContainEqual({ type: "event.memory" });
+    // Reveal gives the person their own value; another worker over the same storage sees the same digests (same keys).
+    expect(((await h.controller.handle({ type: "memory.reveal", recordId: DEMO.alex, pointer: "/email" }, PAGE)) as { value: string }).value).toBe("alex.traveler@example.com");
+    const second = makeHarness({ stores: { snapshots: new MemorySnapshotStore(), trustStorage: new MemoryTrustStorage(), tabs: new MemoryTabStateStore(), settingsArea: h.settingsArea, secrets: { envelope: h.envelope, unlocked: h.unlocked } }, memoryStorage: h.memoryStorage });
+    const again = (await second.controller.handle({ type: "memory.get" }, PAGE)) as MemoryView;
+    expect(again.records.map((record) => record.digest).sort()).toEqual(after.records.map((record) => record.digest).sort());
   });
 });

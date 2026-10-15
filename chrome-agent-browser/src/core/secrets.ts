@@ -239,6 +239,20 @@ async function open(key: Uint8Array, aad: string, box: SealedBox): Promise<Uint8
 }
 
 const entryAad = (name: string): string => `${SECRET_STORE_SCHEMA}|${name}`;
+
+/**
+ * Seal one value under a 32-byte key with its associated data (memory.v0 T19: a record's sealed
+ * values at rest in IndexedDB, under a data key the secret store holds). The same AES-256-GCM
+ * the envelope's entries use; `openBox` returns null for anything not sealed under this key and
+ * this associated data.
+ */
+export function sealBox(key: Uint8Array, aad: string, plaintext: Uint8Array, random: (length: number) => Uint8Array = randomBytes): Promise<SealedBox> {
+  return seal(key, aad, plaintext, random);
+}
+
+export function openBox(key: Uint8Array, aad: string, box: SealedBox): Promise<Uint8Array | null> {
+  return open(key, aad, box);
+}
 /** The keychain check's associated data (T17): the purpose and the envelope it belongs to. */
 const keychainAad = (createdAt: string): string => `${SECRET_STORE_SCHEMA}|keychain|${createdAt}`;
 
