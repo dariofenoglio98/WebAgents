@@ -873,6 +873,7 @@ function settingsView(): HTMLElement[] {
         if (state.settingsPage.section === "files" && state.files === null) void load();
         if ((state.settingsPage.section === "search" && state.indexes === null) || (state.settingsPage.section === "policies" && state.policy === null)) void load();
         if ((state.settingsPage.section === "security" && state.secrets === null) || (state.settingsPage.section === "permissions" && state.permissions === null)) void load();
+        if (state.settingsPage.section === "memory" && state.memory === null) void loadMemory();
         render();
       },
       onSecrets: (request) => {

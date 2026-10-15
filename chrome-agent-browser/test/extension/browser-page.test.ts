@@ -280,6 +280,25 @@ describe("Settings → Files: the file-input fallback (T6 review, nit 9)", () =>
   });
 });
 
+describe("Settings → Memory (T19, the user's walk-through)", () => {
+  it("the Memory tab clicked inside Settings loads the section, and Add demo set adds the six records", async () => {
+    await go("#settings?section=models");
+    [...app().querySelectorAll<HTMLButtonElement>('[role="tab"]')].find((tab) => tab.textContent === "Memory")!.click();
+    await settle();
+    await settle();
+    const add = [...app().querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent === "Add demo set");
+    expect(add, "the Memory section rendered after a tab click, not Loading…").toBeDefined();
+    add!.click();
+    await settle();
+    await settle();
+    await settle();
+    expect(app().textContent).toContain("6 fictional records labelled demo");
+    expect(app().textContent).toContain("Remove demo set…");
+    await h.controller.handle({ type: "memory.removeDemo" }, PAGE_IN_TAB);
+    await settle();
+  });
+});
+
 describe("Memory while the store is locked (T16, the user's walk-through; memory.v0 M-10)", () => {
   it("is read-only with an Unlock button, and the lock line goes once the store is unlocked, without leaving the page", async () => {
     await h.controller.handle({ type: "memory.installDemo" }, PAGE_IN_TAB);
