@@ -468,6 +468,54 @@ describe("review 1 (2026-10-14): the idle lock, the review's guards, custom type
     expect((await refused(h.controller.handle({ type: "memory.review", runId: "run_custom_unknown" }, PAGE))).code).toBe("memory_proposals_invalid");
   });
 
+  it("review 2, finding 1: a newer package version that changed its custom type's schema is reviewed against that schema, shown as a new type again, and approved only by an accept", async () => {
+    const h = makeHarness();
+    await h.controller.handle({ type: "memory.installDemo" }, PAGE);
+    const declaration = { id: "loyalty.card", display_name: "Loyalty card", description: "A frequent-flyer programme card", schema: "schemas/types/loyalty.card.schema.json", identity: ["/number"] };
+    const v1 = customType("org.example.memory", declaration, { $schema: "https://json-schema.org/draft/2020-12/schema", type: "object", additionalProperties: false, required: ["number"], properties: { number: { type: "string", minLength: 4 } } });
+    const v2 = customType("org.example.memory", declaration, { $schema: "https://json-schema.org/draft/2020-12/schema", type: "object", additionalProperties: false, required: ["number", "tier"], properties: { number: { type: "string", minLength: 4 }, tier: { type: "string" } } });
+    const proposal = (title: string, fields: JsonObject): JsonObject => ({ schema: "memory.v0 proposals", proposals: [{ action: "create", type: "loyalty.card", title, fields, body: "", tags: [], links: [], rationale: "You gave your loyalty number." }] });
+    await storedProposalRun(h, "run_v1", proposal("Star miles", { number: "SM-123456" }), { memory_types: [v1] });
+    await h.controller.handle({ type: "memory.decide", runId: "run_v1", decisions: [{ index: 0, decision: "accept" }] }, PAGE);
+    const schemaOf = async () => (await view(h)).types.find((type) => type.id === v1.id)?.schema as JsonObject | undefined;
+    expect((await schemaOf())?.required).toEqual(["number"]);
+    // v2's proposal fits v2 only: the sheet checks it against v2 (the run did) and says "new type".
+    await storedProposalRun(h, "run_v2_rejected", proposal("Gold miles", { number: "GM-123456", tier: "gold" }), { memory_types: [v2] });
+    const review = (await h.controller.handle({ type: "memory.review", runId: "run_v2_rejected" }, PAGE)) as RunReviewView;
+    expect(review.review?.facts[0]).toMatchObject({ type_display_name: "Loyalty card", new_type: true });
+    await h.controller.handle({ type: "memory.decide", runId: "run_v2_rejected", decisions: [{ index: 0, decision: "reject" }] }, PAGE);
+    expect((await schemaOf())?.required).toEqual(["number"]); // a reject approves nothing: v1 stays
+    await storedProposalRun(h, "run_v2", proposal("Gold miles", { number: "GM-123456", tier: "gold" }), { memory_types: [v2] });
+    expect(((await h.controller.handle({ type: "memory.review", runId: "run_v2" }, PAGE)) as RunReviewView).review?.facts[0]?.new_type).toBe(true);
+    await h.controller.handle({ type: "memory.decide", runId: "run_v2", decisions: [{ index: 0, decision: "accept" }] }, PAGE);
+    expect((await schemaOf())?.required).toEqual(["number", "tier"]);
+    expect((await view(h)).records.filter((record) => record.type === v1.id).map((record) => record.title).sort()).toEqual(["Gold miles", "Star miles"]);
+    // Approved for v2 now: the next v2 run is no longer new, and a v1 run is new again.
+    await storedProposalRun(h, "run_v2_again", proposal("Silver miles", { number: "SV-123456", tier: "silver" }), { memory_types: [v2] });
+    expect(((await h.controller.handle({ type: "memory.review", runId: "run_v2_again" }, PAGE)) as RunReviewView).review?.facts[0]?.new_type).toBe(false);
+    // Another package's declaration never replaces this package's type in the review.
+    const v3 = customType("org.example.memory", declaration, { $schema: "https://json-schema.org/draft/2020-12/schema", type: "object", additionalProperties: false, required: ["number", "level"], properties: { number: { type: "string", minLength: 4 }, level: { type: "string" } } });
+    const foreign = { ...v3, declared_by: { kind: "package" as const, package_id: "org.example.other" } };
+    await storedProposalRun(h, "run_foreign", proposal("Bronze miles", { number: "BR-123456", level: "bronze" }), { memory_types: [foreign] });
+    expect((await refused(h.controller.handle({ type: "memory.review", runId: "run_foreign" }, PAGE))).code).toBe("memory_proposals_invalid");
+  });
+
+  it("review 2, nit 2: a decision list that names a proposal twice, or one the document does not have, is refused and writes nothing", async () => {
+    const h = makeHarness();
+    await h.controller.handle({ type: "memory.installDemo" }, PAGE);
+    const loyalty = customType("org.example.memory", { id: "loyalty.card", display_name: "Loyalty card", description: "A frequent-flyer programme card", schema: "schemas/types/loyalty.card.schema.json" }, { $schema: "https://json-schema.org/draft/2020-12/schema", type: "object", additionalProperties: false, required: ["number"], properties: { number: { type: "string" } } });
+    const proposals: JsonObject = { schema: "memory.v0 proposals", proposals: [{ action: "create", type: "loyalty.card", title: "Star miles", fields: { number: "SM-1" }, body: "", tags: [], links: [], rationale: "r" }] };
+    await storedProposalRun(h, "run_twice", proposals, { memory_types: [loyalty] });
+    const before = (await view(h)).counts.records;
+    for (const decisions of [[{ index: 0, decision: "accept" }, { index: 0, decision: "reject" }], [{ index: 1, decision: "accept" }]]) {
+      expect((await refused(h.controller.handle({ type: "memory.decide", runId: "run_twice", decisions } as never, PAGE))).code).toBe("review_decisions_invalid");
+    }
+    const after = await view(h);
+    expect(after.counts.records).toBe(before);
+    expect(after.types.some((type) => type.id === loyalty.id)).toBe(false); // no type approved for a proposal that was not accepted
+    expect((await h.runs.getRun("run_twice"))?.memory_review ?? null).toBeNull(); // the review is still open
+  });
+
   it("finding 4: a write that fails in the middle leaves nothing behind: the record it deleted first is still there, in the view and on disk, after later writes", async () => {
     const h = makeHarness();
     await h.controller.handle({ type: "memory.installDemo" }, PAGE);

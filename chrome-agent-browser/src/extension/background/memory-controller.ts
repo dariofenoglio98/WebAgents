@@ -20,7 +20,7 @@ import { checkProposals, identityMatch, resolveProposalType, type Acceptance, ty
 import { customTypeAliases } from "../../core/memory/run.js";
 import type { RecallCandidate } from "../../core/memory/recall.js";
 import { agentDocumentId, emptyMemorySnapshot, MemoryStore, type MemoryRecordView, type MemorySnapshot, type RecordDraft, type TidyGroups } from "../../core/memory/store.js";
-import { TypeRegistry, type MemoryType, type MemoryTypeView } from "../../core/memory/types.js";
+import { schemaSha256, TypeRegistry, type MemoryType, type MemoryTypeView } from "../../core/memory/types.js";
 import { MemoryError, sealedValuesOf } from "../../core/memory/validate.js";
 import { provenanceWords } from "../../core/memory/words.js";
 import { sha256HexSync } from "../../core/hash.js";
@@ -644,12 +644,16 @@ export class MemoryController {
    * The review sheet's facts for a run's proposals document (M-41, M-42, M-44; D-223). The types
    * are the store's plus the ones the package declared itself (M-18, `declared`: the run kept
    * them), so a proposal of a custom type is reviewable before its first approval; the sheet
-   * marks it "new type" until the person accepts one (review 1, finding 3).
+   * marks it "new type" until the person accepts one (review 1, finding 3). The package's own
+   * declared types take precedence over the store's copies of them, as in the run's M-40 check: a
+   * newer version that changed a type's schema is checked against the schema it declares, and the
+   * sheet marks it "new type" again until accepted (M-18: a changed schema is a new approval;
+   * review 2, finding 1).
    */
   async review(document: JsonValue, input: { granted: readonly ResourceGrant[]; packageId: string; declared?: readonly MemoryType[] }): Promise<ReviewView> {
     const opened = await this.opened();
     const store = opened.store;
-    const types = reviewTypes(store, input.declared ?? []);
+    const types = reviewTypes(store, input.packageId, input.declared ?? []);
     const aliases = customTypeAliases(input.packageId, input.declared ?? []);
     const grantedIds = new Map(input.granted.map((grant) => [grant.resource_id, types.resolve(grant.resource_type)?.id ?? grant.resource_type] as const));
     const targets = new Map<string, Pick<MemoryRecord, "sealed" | "type">>();
@@ -679,7 +683,7 @@ export class MemoryController {
         index,
         type_display_name: type.display_name,
         type_description: type.description,
-        new_type: type.declared_by.kind === "package" && !store.customTypeApproved(input.packageId, type.id, sha256HexSync(new TextEncoder().encode(canonicalString(type.schema)))),
+        new_type: type.declared_by.kind === "package" && !store.customTypeApproved(input.packageId, type.id, schemaSha256(type.schema)),
         sealed_required: sealedRequired,
         target_title: target?.title ?? null,
         target_replaced_since: head && headRecord ? { head_id: head, head_title: headRecord.title } : null,
@@ -695,17 +699,22 @@ export class MemoryController {
    * M-42: the decisions of one review applied together; what was written, by index. A custom type
    * the package declared (M-18) that an accepted proposal uses is approved for `(package, type,
    * schema)` and stored with the record, in the same write; a rejected proposal approves nothing.
+   * Each proposal takes one decision: a list naming an index twice, or one the document does not
+   * have, is refused before anything is written (review 2, nit 2).
    */
   decide(document: JsonValue, input: { decisions: readonly ReviewDecision[]; granted: readonly ResourceGrant[]; package: { package_id: string; package_version: string; run_id: string }; proposedAt: string; declared?: readonly MemoryType[] }): Promise<ReviewOutcome> {
     return this.write(async ({ store }) => {
       const grantedIds = new Set(input.granted.map((grant) => grant.resource_id));
       const proposals = (document as unknown as ProposalsDocument).proposals ?? [];
+      const indexes = input.decisions.map((decision) => decision.index);
+      if (new Set(indexes).size !== indexes.length || indexes.some((index) => !Number.isInteger(index) || index < 0 || index >= proposals.length)) {
+        throw reject("review_decisions_invalid", "Each proposal of the review takes exactly one decision, by its index in the document.", 422);
+      }
       const aliases = customTypeAliases(input.package.package_id, input.declared ?? []);
       const acceptedTypes = new Set(input.decisions.filter((decision) => decision.decision === "accept").map((decision) => resolveProposalType(String(proposals[decision.index]?.type), aliases)));
       for (const type of input.declared ?? []) {
         if (!acceptedTypes.has(type.id) || type.declared_by.kind !== "package" || type.declared_by.package_id !== input.package.package_id) continue;
-        const digest = sha256HexSync(new TextEncoder().encode(canonicalString(type.schema)));
-        if (store.customTypeApproved(input.package.package_id, type.id, digest) && store.types.has(type.id)) continue;
+        if (store.customTypeApproved(input.package.package_id, type.id, schemaSha256(type.schema)) && store.types.has(type.id)) continue;
         await store.putType(type);
         store.approveCustomType(input.package.package_id, type);
       }
@@ -720,11 +729,17 @@ export class MemoryController {
   }
 }
 
-/** The store's types with a package's own declared custom types beside them (M-18): the registry a review reads; the store's own is untouched until an acceptance. */
-function reviewTypes(store: MemoryStore, declared: readonly MemoryType[]): TypeRegistry {
-  if (declared.length === 0) return store.types;
+/**
+ * The store's types with the package's own declared custom types over them (M-18): the registry a
+ * review reads. A declared type replaces the store's copy of the same id, so the review checks the
+ * schema the run checked (review 2, finding 1); only the package's own ids, never another's. The
+ * store's registry is untouched until an acceptance.
+ */
+function reviewTypes(store: MemoryStore, packageId: string, declared: readonly MemoryType[]): TypeRegistry {
+  const own = declared.filter((type) => type.declared_by.kind === "package" && type.declared_by.package_id === packageId);
+  if (own.length === 0) return store.types;
   const registry = new TypeRegistry(store.types.toJSON());
-  for (const type of declared) if (type.declared_by.kind === "package" && !registry.has(type.id)) registry.put(type);
+  for (const type of own) registry.put(type);
   return registry;
 }
 

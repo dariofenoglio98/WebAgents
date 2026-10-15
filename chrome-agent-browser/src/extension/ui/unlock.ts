@@ -165,8 +165,9 @@ export function renderUnlockSheet(state: UnlockState, secrets: SecretsView | nul
       el("div", { className: "ab-actions" }, button(state.busy ? "Unlocking…" : "Unlock", () => void submit(), { variant: secrets?.keychain_enabled ? "ghost" : "primary", disabled: state.busy }), button("Cancel", close, { variant: "ghost", disabled: state.busy })),
     ),
   );
-  // The sheet always takes the focus (T17 review 2, nit 3): the keychain button when that unlock is on, else the passphrase field.
-  queueMicrotask(() => (secrets?.keychain_enabled ? keychainButton : field).focus());
+  // The sheet always takes the focus (T17 review 2, nit 3): the keychain button when that unlock is on, else the passphrase field;
+  // after a failure the field, since the words say to use the passphrase (T19 review 2, nit 4).
+  queueMicrotask(() => (secrets?.keychain_enabled && !state.error ? keychainButton : field).focus());
   return sheet;
 }
 

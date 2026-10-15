@@ -24,7 +24,6 @@ export const AGENT_WRITE_BINDING = "host.memory.agent.write";
 export const AGENT_SCOPE = "agent-scoped";
 export const AGENT_RESOURCE = "agent";
 
-/** The exact schemas of the two reserved agent tools (M-48), as canonical JSON. */
 /**
  * The memory types a package requests (M-33 and the `personal.read` alias): the resources of its
  * `memory.read` and `personal.read` permissions, in declaration order, each once. One derivation
@@ -43,6 +42,7 @@ export function agentToolDigests(): { read_output_sha256: string; write_input_sh
   return { read_output_sha256: digest(schemas[AGENT_READ_BINDING]!.output), write_input_sha256: digest(schemas[AGENT_WRITE_BINDING]!.input), write_output_sha256: digest(schemas[AGENT_WRITE_BINDING]!.output) };
 }
 
+/** The exact schemas of the two reserved agent tools (M-48), as canonical JSON. */
 export function agentToolSchemas(): Record<string, { input: string; output: string }> {
   const canonical = (name: string) => canonicalString(MEMORY_CONTRACTS[name]);
   return {

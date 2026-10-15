@@ -107,6 +107,7 @@ describe("Settings → Security and the Unlock sheet with the helper (T17)", () 
     await settle();
     expect(document.querySelector(".ab-sheet [role=alert]")?.textContent).toBe("The WebAgents helper is not installed on this Mac. Use your passphrase instead.");
     const field = document.querySelector<HTMLInputElement>(".ab-sheet input[type=password]")!;
+    expect(document.activeElement).toBe(field); // after a keychain failure the focus is on the passphrase the words point to (T19 review 2, nit 4)
     field.value = SEED_PASSPHRASE;
     field.form!.dispatchEvent(new Event("submit", { cancelable: true }));
     await settle();
