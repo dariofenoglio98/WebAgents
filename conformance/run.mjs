@@ -219,6 +219,9 @@ const MEMORY_VARIANTS = [
   "n22-marker-line",
   "m36-sealed-value-to-a-tool",
   "m36-granted-sealed-value",
+  "m36-two-sealed-values",
+  "custom-type-proposal",
+  "custom-type-read",
 ];
 
 /**
@@ -306,6 +309,8 @@ function positiveCases() {
     { id: "literature-review-0.2.8/fixture", title: "Literature Review 0.2.8, its fixture input (memory off): 0.2.7's review and an empty proposals document", argv: fixtureRun(DIST("literature-review-0.2.8.agent.pkg"), EXAMPLES("literature-review-0.2.8-grants.json"), reviewMemoryTools), allowTokens: true, memory: true },
     { id: "literature-review-0.2.8/memory", title: "Literature Review 0.2.8 with its memory switches on: the replayed research profile shapes the plan, the notes are read and staged, one research.review is proposed derived from the profile (grants from the fixture's views, D-230)", argv: fixtureRun(DIST("literature-review-0.2.8.agent.pkg"), EXAMPLES("literature-review-0.2.8-grants.json"), reviewMemoryTools, ["--input", EXAMPLES("literature-review-0.2.8-memory-input.json")]), allowTokens: true, memory: true },
     { id: "memory-probe/granted-sealed-value", title: "M-36 and D-230: the probe's replayed legacy identity e-mail sent to a tool that links the permission it was granted under (in fixture mode the replayed answer is held as granted under its tool's permission)", argv: fixtureRun(inputs.memory["m36-granted-sealed-value"].archive, inputs.memory["m36-granted-sealed-value"].grants, inputs.memory["m36-granted-sealed-value"].tools, ["--trust-key", inputs.throwawayKey]), memory: true },
+    { id: "memory-probe/custom-type-proposal", title: "M-18 and D-228: the probe proposes its own custom type by its local id (the only form the proposals schema admits); the host resolves it through the package's aliases", argv: fixtureRun(inputs.memory["custom-type-proposal"].archive, inputs.memory["custom-type-proposal"].grants, inputs.memory["custom-type-proposal"].tools, ["--trust-key", inputs.throwawayKey]), memory: true },
+    { id: "memory-probe/custom-type-read", title: "M-12, M-18 and D-228: a memory.read of the probe's own custom type by its local id, granted from the replayed view, and an update of the record it read", argv: fixtureRun(inputs.memory["custom-type-read"].archive, inputs.memory["custom-type-read"].grants, inputs.memory["custom-type-read"].tools, ["--trust-key", inputs.throwawayKey]), memory: true },
     { id: "memory-probe/fixture", title: "The memory probe (every memory.v0 permission: a record view, a legacy identity, the agent document, a create and an update proposal, a sealed value sent where its grant goes; throwaway key)", argv: fixtureRun(inputs.memory.fixture.archive, inputs.memory.fixture.grants, inputs.memory.fixture.tools, ["--trust-key", inputs.throwawayKey]), memory: true },
     { id: "answer-checks/fixture", title: "Answer checks that hold (D-150): Meeting Agenda rebuilt with a relation, a sum and an equality on its model answers, runtime minimum 0.3.0 (throwaway key)", argv: fixtureRun(inputs.answerChecks, EXAMPLES("meeting-agenda-grants.json"), [], ["--trust-key", inputs.throwawayKey]) },
   ];
@@ -325,9 +330,14 @@ function runPositive(testCase) {
   const compared = compareArtifacts(python.files, node.files, { allowTokens: Boolean(testCase.allowTokens) });
   checks.push(...compared.checks);
   const notes = [];
-  if (testCase.allowTokens) notes.push(`Allowlisted (D-063), printed: synthetic tokens python=${compared.tokens.python} node=${compared.tokens.node}.`);
-  return { checks, notes, observed: { python: summary(python), node: summary(node) } };
+  if (testCase.allowTokens) notes.push(`Allowlisted (D-063), printed: synthetic tokens python=${compared.tokens?.python ?? null} node=${compared.tokens?.node ?? null}.`);
+  // For the pending rule (D-234): the Python half on its own, and whether Chrome refused by version.
+  const halves = { python: python.status === 0 && python.report !== null && "result.json" in python.files, chromeVersionRefused: versionRefused(node) };
+  return { checks, notes, halves, observed: { python: summary(python), node: summary(node) } };
 }
+
+/** The Chrome CLI's refusal of a package whose runtime minimum it does not reach. */
+const versionRefused = (observation) => observation.status === 2 && /^manifest runtime\.minimum_version exceeds reference runtime /u.test(observation.message ?? "");
 
 const summary = (observation) => ({ status: observation.status, message: observation.message, files: Object.keys(observation.files).length });
 
@@ -407,6 +417,7 @@ function memoryNegativeCases(cli, run) {
     ["n21-custom-type-open", "N21: a custom type whose schema is not closed", refused("custom_type_schema_open")],
     ["n22-marker-line", "N22: a proposal body holding the mirror marker as a whole line fails the proposals schema", workflow("schema_validation")],
     ["m36-sealed-value-to-a-tool", "M-36: a granted sealed value sent to a tool that does not link its permission", workflow("permission_denied", "echo")],
+    ["m36-two-sealed-values", "M-36: the echo carries the e-mail granted under the permission it links (the first hit) and a card token granted under another: every value is checked, so the card refuses it", workflow("permission_denied", "echo")],
   ];
   return [
     ...cases.map(([name, title, expectation]) => ({ ...cli(`memory/${name}`, title, [runProbe(name)], expectation), memory: true })),
@@ -419,11 +430,14 @@ function runNegative(commands, expectation, options) {
   const check = (name, differences) => checks.push({ name, passed: differences.length === 0, detail: differences });
   const observed = [];
   const notes = [...(options.notes ?? [])];
+  const halves = { python: true, chromeVersionRefused: true };
   for (const [index, argv] of commands.entries()) {
     const label = `${argv[0]}-${index}`;
     const python = invoke("python", argv, label);
     const node = invoke("node", argv, label);
     const refusals = { python: refusalOf(python, expectation), node: refusalOf(node, expectation) };
+    halves.python &&= python.status === 2 && python.report === null && refusals.python.code === expectation.code && (!expectation.node || refusals.python.node === expectation.node);
+    halves.chromeVersionRefused &&= versionRefused(node);
     observed.push({ command: argv[0], python: { ...summary(python), ...refusals.python }, node: { ...summary(node), ...refusals.node } });
     check(`${argv[0]}: refused with status 2 in both`, [python, node].every((o) => o.status === 2 && o.report === null) ? [] : [`python ${python.status}`, `node ${node.status}`]);
     check(`${argv[0]}: refusal code ${expectation.code}`, ["python", "node"].filter((r) => refusals[r].code !== expectation.code).map((r) => `${r}: ${refusals[r].code} (${r === "python" ? python.message : node.message})`));
@@ -432,14 +446,14 @@ function runNegative(commands, expectation, options) {
     if (expectation.artifacts === "race") {
       const compared = compareFailureRace(python.files, node.files);
       checks.push(...compared.checks.map((item) => ({ ...item, name: `${argv[0]}: ${item.name}` })));
-      notes.push(`A failure inside a concurrent wave (D-092): siblings' partial progress is the scheduler's, so their events and reserved tokens are not compared; tokens python=${compared.tokens.python} node=${compared.tokens.node}.`);
+      notes.push(`A failure inside a concurrent wave (D-092): siblings' partial progress is the scheduler's, so their events and reserved tokens are not compared; tokens python=${compared.tokens?.python ?? null} node=${compared.tokens?.node ?? null}.`);
     } else if (expectation.artifacts) {
       checks.push(...compareArtifacts(python.files, node.files).checks.map((item) => ({ ...item, name: `${argv[0]}: ${item.name}` })));
     } else {
       check(`${argv[0]}: nothing written`, Object.keys(python.files).length + Object.keys(node.files).length === 0 ? [] : ["files written"]);
     }
   }
-  return { checks, notes, observed };
+  return { checks, notes, halves, observed };
 }
 
 /**
@@ -598,11 +612,12 @@ async function main() {
     }
     const passed = outcome.checks.length > 0 && outcome.checks.every((check) => check.passed);
     // A memory.v0 case is pending, not failed, while the Chrome CLI refuses 0.4.0 packages by
-    // version (T20, D-233): its core has no memory.v0 yet. Once it accepts them, the case counts.
-    const pending = !passed && Boolean(testCase.memory) && chromeLacksMemory();
+    // version (T20, D-233), and only when that refusal is what failed it and the Python half
+    // passed on its own (D-234): a Python regression, or a Chrome failure of any other kind,
+    // fails the suite. Once Chrome accepts 0.4.0 packages, the case counts.
+    const pending = !passed && Boolean(testCase.memory) && chromeLacksMemory() && outcome.halves?.python === true && outcome.halves?.chromeVersionRefused === true;
     results.push({ id: testCase.id, title: testCase.title, kind: testCase.kind, passed, pending, seconds: (Date.now() - started) / 1000, ...outcome });
-    process.stdout.write(`${passed ? "pass" : pending ? "PEND" : "FAIL"}  ${testCase.id}\n`);
-    if (pending) continue;
+    process.stdout.write(`${passed ? "pass" : pending ? "PEND" : "FAIL"}  ${testCase.id}${pending ? " (Python half passed; Chrome refused by version)" : ""}\n`);
     for (const check of outcome.checks.filter((item) => !item.passed)) process.stdout.write(`      ✗ ${check.name}: ${check.detail.join("; ")}\n`);
     for (const note of outcome.notes) process.stdout.write(`      note: ${note}\n`);
   }

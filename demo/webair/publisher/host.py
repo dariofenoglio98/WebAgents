@@ -76,7 +76,15 @@ def host_schema_files(definitions: dict | None = None, policy: dict | None = Non
     definitions = host_definitions() if definitions is None else definitions
     policy = source_policy() if policy is None else policy
     registry = TypeRegistry()
-    memory_types = [registry.get(type_id) for type_id in _memory_reads(policy)]
+    memory_types = []
+    for type_id in _memory_reads(policy):
+        type_def = registry.get(type_id)
+        if type_def is None:
+            raise ValueError(
+                f"memory.read names {type_id}, which is not a starter type: the publisher "
+                "copies the record view of starter types only"
+            )
+        memory_types.append(type_def)
     replaced = {alias["id"] for type_def in memory_types for alias in type_def.get("legacy", [])}
     files = {f"{HOST_SCHEMA_DIR}/empty-input.schema.json": copy.deepcopy(EMPTY_INPUT_SCHEMA)}
     for resource_type in definitions["types"]:

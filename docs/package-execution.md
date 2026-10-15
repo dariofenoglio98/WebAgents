@@ -597,7 +597,9 @@ report has no `memory` section). What a run holds about memory is one object bui
   Nothing a run proposes is ever written to the memory by the run: the person reviews it afterwards.
 - **The agent document is committed only on completion (M-50).** A staged body is committed after
   `workflow.completed` (`memory.agent.committed`, its size and hash) and discarded otherwise
-  (`memory.agent.discarded`, with the reason), always before `memory.cleared`. The agent
+  (`memory.agent.discarded`, with the reason), always before `memory.cleared`. The host writes the
+  document before it records the commit; a write its store refuses is a discard with reason
+  `store_failed`, and the run stays completed (D-234). The agent
   permission authorizes the two agent tools and nothing else, so denying it never stops the run's
   state access.
 - **The report** (`result.json`) gains `memory: {proposals, refused, agent}` (D-231): the facts of

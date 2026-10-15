@@ -121,7 +121,7 @@ export function compareArtifacts(python, node, { allowTokens = false } = {}) {
   check("file set", diff(Object.keys(python).sort(), Object.keys(node).sort()));
   if (!python["result.json"] || !node["result.json"]) {
     check("result.json written", [`python ${Boolean(python["result.json"])}, node ${Boolean(node["result.json"])}`]);
-    return { checks };
+    return { checks, tokens: { python: null, node: null } };
   }
   const pyResult = decode(python["result.json"]);
   const nodeResult = decode(node["result.json"]);

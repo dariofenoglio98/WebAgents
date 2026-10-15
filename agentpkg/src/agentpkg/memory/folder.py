@@ -20,8 +20,6 @@ import stat
 from datetime import UTC, datetime
 from pathlib import Path
 
-from jsonschema import Draft202012Validator
-
 from ..errors import ValidationError
 from ..package import canonical_json
 from .model import (
@@ -52,7 +50,7 @@ from .model import (
     stems_for,
 )
 from .proposals import sealed_free_schema
-from .registry import TypeRegistry, contract, schema_sha256
+from .registry import TypeRegistry, first_failure, schema_sha256
 
 KEY_FILE = "memory.key"
 KEY_SCHEMA = "memory.v0 key"
@@ -94,21 +92,18 @@ def read_or_create_key(root: Path) -> bytes:
     return key
 
 
-def _first_error(schema: dict, instance) -> str | None:
-    errors = sorted(
-        Draft202012Validator(schema).iter_errors(instance),
-        key=lambda error: tuple(str(part) for part in error.absolute_path),
-    )
-    if not errors:
+def _first_error(schema, instance) -> str | None:
+    error = first_failure(schema, instance)
+    if error is None:
         return None
-    where = "/".join(str(part) for part in errors[0].absolute_path) or "<root>"
-    return f"{where}: {errors[0].message}"
+    where = "/".join(str(part) for part in error.absolute_path) or "<root>"
+    return f"{where}: {error.message}"
 
 
 def check_record(record: dict, type_def: dict | None) -> None:
     """M-24 over a parsed record (the checks a read needs; a CLI folder is never written by a
     package): schemas, sealed rules, caps, links. Raises `MemoryError_`."""
-    problem = _first_error(contract("memory-record.schema.json"), record)
+    problem = _first_error("memory-record.schema.json", record)
     if problem is not None:
         raise MemoryError_("frontmatter_invalid", f"record {record.get('id')}: {problem}")
     if type_def is None:

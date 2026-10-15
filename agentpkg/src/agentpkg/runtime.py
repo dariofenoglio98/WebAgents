@@ -488,7 +488,7 @@ class Runtime:
         a granted one goes only to a tool that links the permission it was granted under. The
         refusal is a denied permission check naming the record and the pointer, never the value.
         """
-        from .memory.scan import INCOMPLETE, find_sealed
+        from .memory.scan import INCOMPLETE, find_all_sealed
 
         memory = self.memory
         if memory is None or not memory.scan:
@@ -498,11 +498,9 @@ class Runtime:
             binding.startswith("host.memory.") and not binding.startswith("host.memory.agent.")
         ) or binding.startswith("host.resource."):
             return
-        hit = find_sealed(payload, memory.scan)
-        if hit is None:
-            return
+        hits = find_all_sealed(payload, memory.scan)
         denied = dict(context=ctx, allowed=False, tool=tool_id)
-        if hit == INCOMPLETE:
+        if hits == INCOMPLETE:
             self.record(
                 "permission.checked",
                 permission=None,
@@ -515,35 +513,41 @@ class Runtime:
                 f"Tool {tool_id}: the arguments hold more strings than the sealed-value scan "
                 "reads, so they are refused unread"
             )
-        grant = next((g for g in memory.grants if g["resource_id"] == hit["record_id"]), None)
-        if grant is None:
-            self.record(
-                "permission.checked",
-                permission=None,
-                grant="deny",
-                reason="sealed_value_not_granted",
-                record_id=hit["record_id"],
-                pointer=hit["pointer"],
-                **denied,
-            )
-            raise PolicyError(
-                f"Tool {tool_id}: the arguments carry a sealed value of a record this run was "
-                f"not granted ({hit['record_id']} {hit['pointer']})"
-            )
-        if grant["permission_id"] not in tool["permissions"]:
-            self.record(
-                "permission.checked",
-                permission=grant["permission_id"],
-                grant=self.grants.get(grant["permission_id"], "deny"),
-                reason="sealed_value_egress",
-                record_id=hit["record_id"],
-                pointer=hit["pointer"],
-                **denied,
-            )
-            raise PolicyError(
-                f"Tool {tool_id}: the arguments carry a sealed value of {hit['record_id']} "
-                f"({hit['pointer']}) to a tool that does not link {grant['permission_id']}"
-            )
+        # Every hit, in scan-set order: a value granted to this tool never lets another through.
+        for hit in hits:
+            # A record may be granted under more than one permission (two reads of one type): the
+            # value may go to any tool that links one of them.
+            grants = [g for g in memory.grants if g["resource_id"] == hit["record_id"]]
+            if not grants:
+                self.record(
+                    "permission.checked",
+                    permission=None,
+                    grant="deny",
+                    reason="sealed_value_not_granted",
+                    record_id=hit["record_id"],
+                    pointer=hit["pointer"],
+                    **denied,
+                )
+                raise PolicyError(
+                    f"Tool {tool_id}: the arguments carry a sealed value of a record this run "
+                    f"was not granted ({hit['record_id']} {hit['pointer']})"
+                )
+            if not any(grant["permission_id"] in tool["permissions"] for grant in grants):
+                permission_id = grants[0]["permission_id"]
+                self.record(
+                    "permission.checked",
+                    permission=permission_id,
+                    grant=self.grants.get(permission_id, "deny"),
+                    reason="sealed_value_egress",
+                    record_id=hit["record_id"],
+                    pointer=hit["pointer"],
+                    **denied,
+                )
+                linked = " or ".join(grant["permission_id"] for grant in grants)
+                raise PolicyError(
+                    f"Tool {tool_id}: the arguments carry a sealed value of {hit['record_id']} "
+                    f"({hit['pointer']}) to a tool that does not link {linked}"
+                )
 
     def _scan_model_request(self, ctx, task, request):
         """memory.v0 M-37: before every model request, the token count included, the complete

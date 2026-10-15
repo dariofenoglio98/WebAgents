@@ -10,8 +10,10 @@ from __future__ import annotations
 
 import copy
 import json
-from functools import cache
+from functools import cache, lru_cache
 from pathlib import Path
+
+from jsonschema import Draft202012Validator
 
 from .model import (
     POINTER_RE,
@@ -55,6 +57,22 @@ def _contract_text(name: str) -> str:
 def contract(name: str):
     """One memory.v0 contract (`memory-record.schema.json`, `taxonomy.json`, ...), a fresh copy."""
     return json.loads(_contract_text(name))
+
+
+@lru_cache(maxsize=256)
+def _validator(schema_text: str) -> Draft202012Validator:
+    return Draft202012Validator(json.loads(schema_text))
+
+
+def first_failure(schema, instance):
+    """The first validation error by instance path, or None. `schema` is a contract's name
+    (`memory-record.schema.json`) or a schema; each is compiled once (M-24, M-40)."""
+    text = _contract_text(schema) if isinstance(schema, str) else json.dumps(schema, sort_keys=True)
+    errors = sorted(
+        _validator(text).iter_errors(instance),
+        key=lambda error: tuple(str(part) for part in error.absolute_path),
+    )
+    return errors[0] if errors else None
 
 
 def starter_types() -> list[dict]:
@@ -236,11 +254,23 @@ def custom_types_of(package_id: str, policy: dict, files: dict, well_known=None)
     return out
 
 
-class TypeRegistry:
-    """The types a host holds: the starter taxonomy plus a package's custom types (M-65)."""
+def custom_type_aliases(package_id: str, custom) -> dict[str, str]:
+    """A package's custom types by their local id (§4.4, M-18): the id its permissions, bindings
+    and `proposals.json` name them by, mapped to the qualified `<package_id>:<local id>`."""
+    prefix = f"{package_id}:"
+    return {t["id"][len(prefix) :]: t["id"] for t in custom if t["id"].startswith(prefix)}
 
-    def __init__(self, types=None):
+
+class TypeRegistry:
+    """The types a host holds: the starter taxonomy plus a package's custom types (M-65).
+
+    `aliases` are the running package's own custom types by local id (`custom_type_aliases`):
+    `resolve` answers them, and nothing else, so another package's local id resolves to nothing.
+    """
+
+    def __init__(self, types=None, aliases=None):
         self.types = {t["id"]: t for t in (types if types is not None else starter_types())}
+        self.aliases = dict(aliases or {})
         self.legacy = {
             alias["id"]: (type_def, alias)
             for type_def in self.types.values()
@@ -251,10 +281,11 @@ class TypeRegistry:
         return self.types.get(type_id)
 
     def resolve(self, resource_type: str) -> dict | None:
-        """A memory type id, or a legacy id answered by the type whose `legacy` names it."""
+        """A memory type id, a legacy id answered by the type whose `legacy` names it, or the
+        package's own custom local id answered by its qualified type."""
         if resource_type in self.legacy:
             return self.legacy[resource_type][0]
-        return self.types.get(resource_type)
+        return self.types.get(self.aliases.get(resource_type, resource_type))
 
     def legacy_of(self, legacy_id: str):
         return self.legacy.get(legacy_id)

@@ -530,3 +530,179 @@ def grants(**overrides) -> dict:
 
 
 TOOLS = ["profile", "identity", "notes-read", "notes-write", "echo"]
+
+
+# -- variants shared by the tests and the conformance driver (T20 review 1) ----------------------
+CARD_ID = "mem_5b6c7d8e9fa0b1c2d3e4f5a6b7c8d9e0"
+CARD_TOKEN = "demo-visa-4242"
+LOYALTY_SCHEMA = {
+    "type": "object",
+    "properties": {"programme": {"type": "string"}, "member": {"type": "string"}},
+    "required": ["programme"],
+    "additionalProperties": False,
+}
+
+
+def add_state_key(files, key: str) -> None:
+    """A new state key the Reader writes and the Coordinator reads."""
+    graph = files["graph.json"]
+    graph["initial_state"]["object"][key] = {"literal": None}
+    workers = {worker["id"]: worker for worker in graph["workers"]}
+    workers["Coordinator"]["state_read"].append(key)
+    workers["Reader"]["state_write"].append(key)
+    files["schemas/state.schema.json"]["properties"][key] = {}
+
+
+def add_read_tool(files, tool_id, binding, permission, schema_id, schema, output) -> None:
+    """A read tool, its node (writing `/<tool_id>`, before `assemble`) and its replayed answer."""
+    files["MANIFEST.agent"]["tools"].append({"id": tool_id, "path": f"tools/{tool_id}.tool.json"})
+    files["MANIFEST.agent"]["schemas"].append(
+        {"id": schema_id, "path": f"schemas/{schema_id}.schema.json"}
+    )
+    files[f"schemas/{schema_id}.schema.json"] = schema
+    files[f"tools/{tool_id}.tool.json"] = tool(
+        tool_id, binding, "empty-input", schema_id, [permission]
+    )
+    files["policy/policy.json"]["budget"]["max_calls_per_tool"][tool_id] = 1
+    add_state_key(files, tool_id)
+    graph = files["graph.json"]
+    workers = {worker["id"]: worker for worker in graph["workers"]}
+    workers["Reader"]["tools"].append(tool_id)
+    nodes = graph["nodes"]
+    nodes.insert(
+        3,
+        node(
+            tool_id,
+            "tool",
+            "Reader",
+            tool=tool_id,
+            input={"literal": {}},
+            output_schema=f"schemas/{schema_id}.schema.json",
+            writes={f"/{tool_id}": {"from": "result", "path": ""}},
+        ),
+    )
+    next(n for n in nodes if n["id"] == "assemble")["depends_on"].append(tool_id)
+    files["fixtures/workflow.json"]["tools"][tool_id] = [{"input": {}, "output": output}]
+
+
+def permission(pid, kind, resources) -> dict:
+    return {
+        "id": pid,
+        "kind": kind,
+        "description": f"Probe permission {pid}.",
+        "required": False,
+        "resources": resources,
+    }
+
+
+def with_custom_type(files, local="loyalty.card") -> None:
+    """The package declares the custom type `local` and may propose it by its local id."""
+    files["policy/policy.json"]["memory_types"] = [
+        {
+            "id": local,
+            "display_name": "Loyalty card",
+            "description": "A loyalty programme membership.",
+            "schema": "schemas/loyalty.schema.json",
+        }
+    ]
+    files["MANIFEST.agent"]["schemas"].append(
+        {"id": "loyalty", "path": "schemas/loyalty.schema.json"}
+    )
+    files["schemas/loyalty.schema.json"] = copy.deepcopy(LOYALTY_SCHEMA)
+    files["policy/policy.json"]["permissions"][4]["resources"].append(local)
+
+
+def loyalty_proposal(**changes) -> dict:
+    return {
+        "action": "create",
+        "type": "loyalty.card",
+        "title": "Sky club",
+        "fields": {"programme": "Sky", "member": "A1"},
+        "rationale": "You joined the Sky club.",
+        **changes,
+    }
+
+
+def custom_type_proposal(files) -> None:
+    """A create of the package's own custom type, named by its local id (M-18, D-228), beside
+    the probe's create; nothing in it needs a grant, so both runtimes check only the type."""
+    with_custom_type(files)
+    fixture_answer = files["fixtures/workflow.json"]["models"]["remember"][0]["output"]
+    fixture_answer["proposals"] = [proposals()[0], loyalty_proposal()]
+
+
+def custom_type_read(files) -> None:
+    """A `memory.read` of the package's own custom type by its local id, and an update of the
+    record it read (M-12, M-18, D-228)."""
+    from agentpkg.memory.registry import custom_type, record_view_schema
+
+    with_custom_type(files)
+    package_id = files["MANIFEST.agent"]["package_id"]
+    declaration = files["policy/policy.json"]["memory_types"][0]
+    type_def = custom_type(package_id, declaration, LOYALTY_SCHEMA)
+    files["policy/policy.json"]["permissions"].append(
+        permission("memory.card", "memory.read", ["loyalty.card"])
+    )
+    view = {
+        "id": CARD_ID,
+        "type": type_def["id"],
+        "title": "Sky club",
+        "fields": {"programme": "Sky", "member": "A1"},
+        "body": "",
+        "tags": [],
+        "sealed": [],
+    }
+    add_read_tool(
+        files,
+        "card",
+        "host.memory.loyalty.card",
+        "memory.card",
+        "loyalty.view",
+        record_view_schema(type_def),
+        view,
+    )
+    fixture_answer = files["fixtures/workflow.json"]["models"]["remember"][0]["output"]
+    fixture_answer["proposals"] = [
+        loyalty_proposal(
+            action="update",
+            target=CARD_ID,
+            fields={"programme": "Sky", "member": "A2"},
+            rationale="Your member number changed.",
+        ),
+    ]
+
+
+def two_sealed_values(files) -> None:
+    """The echo, which links `identity.read`, receives the granted identity e-mail and the card
+    token granted under another permission (M-36: every value is checked, not the first)."""
+    wallet_schema = json.loads(
+        (EXAMPLE / "schemas" / "host" / "wallet.payment_method.schema.json").read_text()
+    )
+    files["policy/policy.json"]["permissions"].append(
+        permission("card.read", "personal.read", ["wallet.payment_method"])
+    )
+    add_read_tool(
+        files,
+        "wallet",
+        "host.resource.wallet.payment_method",
+        "card.read",
+        "wallet",
+        wallet_schema,
+        {"payment_method_id": CARD_TOKEN, "display": "Demo Visa 4242"},
+    )
+    files["schemas/echo.input.schema.json"]["properties"]["note"] = {"type": "string"}
+    reader = next(w for w in files["graph.json"]["workers"] if w["id"] == "Reader")
+    reader["state_read"].append("wallet")
+    echo = next(n for n in files["graph.json"]["nodes"] if n["id"] == "echo")
+    echo["input"] = {
+        "object": {
+            "to": state("/identity/contact_email"),
+            "note": state("/wallet/payment_method_id"),
+        }
+    }
+    # After the agent write, so that the echo is refused alone in its wave and both runtimes'
+    # audits compare event for event.
+    echo["depends_on"].extend(["wallet", "notes-write"])
+    files["fixtures/workflow.json"]["tools"]["echo"].append(
+        {"input": {"to": EMAIL, "note": CARD_TOKEN}, "output": {"ok": True}}
+    )

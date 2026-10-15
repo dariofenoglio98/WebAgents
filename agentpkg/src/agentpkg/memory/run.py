@@ -13,7 +13,7 @@ import hashlib
 
 from .declarations import AGENT_SCOPE, memory_declarations
 from .proposals import check_proposals, proposed_facts
-from .registry import TypeRegistry, starter_types
+from .registry import TypeRegistry, custom_type_aliases, starter_types
 from .scan import fixture_scan_set
 
 
@@ -29,12 +29,14 @@ class MemoryRun:
         agent_document: dict | None = None,
         agent_discard: str | None = None,
         policy_refuses_proposals: bool = False,
+        declarations: dict | None = None,
+        commit_agent=None,
     ):
         self.package = package
-        self.declarations = memory_declarations(
+        self.declarations = declarations or memory_declarations(
             package.manifest, package.policy, package.tools, package.files
         )
-        self.types = TypeRegistry([*starter_types(), *self.declarations["custom_types"]])
+        self.types = memory_types(package, self.declarations)
         self.scan = list(scan or [])
         self.grants = [dict(grant) for grant in grants]
         self.granted = {}
@@ -45,6 +47,11 @@ class MemoryRun:
             )
         self.targets = dict(targets or {})
         self.agent_discard = agent_discard
+        # The host's write of the agent document (`commit_agent(body, run_id)`), called at the
+        # terminal event before `memory.agent.committed` is recorded (M-50); a host that keeps no
+        # store leaves it None. `commit_error` is why a write failed.
+        self.commit_agent = commit_agent
+        self.commit_error: str | None = None
         self.policy_refuses_proposals = policy_refuses_proposals
         write = self.declarations["write"]
         self.write_denied = write is not None and decisions.get(write["permission_id"], "deny") == (
@@ -81,6 +88,7 @@ class MemoryRun:
             targets=self.targets,
             types=self.types,
             scan=self.scan,
+            aliases=self.types.aliases,
         )
         return proposed_facts(
             document,
@@ -88,8 +96,10 @@ class MemoryRun:
             policy_refuses=self.policy_refuses_proposals,
         )
 
-    def agent_outcome(self, status: str) -> dict | None:
-        """M-50: what happens to a staged body at the terminal event."""
+    def agent_outcome(self, status: str, run_id: str | None = None) -> dict | None:
+        """M-50: what happens to a staged body at the terminal event. A completed run's body is
+        written by the host's `commit_agent` first, so the Run Record never claims a commit that
+        did not happen: a failed write is a discard, reason `store_failed` (D-234)."""
         if self.agent is None:
             return None
         staged = self.agent["staged"]
@@ -102,6 +112,12 @@ class MemoryRun:
             }
         if self.agent_discard:
             return {"committed": None, "discarded": self.agent_discard}
+        if self.commit_agent is not None:
+            try:
+                self.commit_agent(staged["body"], run_id)
+            except Exception as error:  # the host's write: a folder, a file system
+                self.commit_error = f"{type(error).__name__}: {error}"
+                return {"committed": None, "discarded": "store_failed"}
         return {
             "committed": {
                 "package_id": self.agent["package_id"],
@@ -114,6 +130,16 @@ class MemoryRun:
     def staged_body(self) -> str | None:
         staged = (self.agent or {}).get("staged")
         return staged["body"] if staged else None
+
+
+def memory_types(package, declarations: dict) -> TypeRegistry:
+    """The types a run of `package` sees: the starter taxonomy, its custom types, and their
+    local ids as aliases (D-228)."""
+    custom = declarations["custom_types"]
+    return TypeRegistry(
+        [*starter_types(), *custom],
+        aliases=custom_type_aliases(package.manifest["package_id"], custom),
+    )
 
 
 def fixture_memory(package, fixture: dict, grants: dict, *, types: TypeRegistry | None = None):

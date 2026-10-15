@@ -16,9 +16,12 @@ Markdown records that packages touch only through three permission uses.
 - **Validation** of what a package may declare about memory (M-18, M-19, M-33, M-38, M-48, M-67),
   each refusal starting with the spec's code; packages that use memory.v0 declare runtime minimum
   0.4.0, and 0.3.x runtimes refuse them by that minimum.
-- **Runtime:** the sealed-value scans of tool arguments (M-36) and of every model request (M-37); the
+- **Runtime:** the sealed-value scans of tool arguments (M-36: every sealed value the arguments carry,
+  each to a tool that links one of its record's grants) and of every model request (M-37); the
   proposals check on completion (M-40) with `memory.proposed`, and `proposals.json` written only
-  when it passes; the agent document committed only after `workflow.completed`; the report's
+  when it passes; a package's own custom type named by its local id in proposals and grants (D-228);
+  the agent document committed only after `workflow.completed`, written before the commit is
+  recorded (a refused write is a discard, `store_failed`, D-234); the report's
   `memory` section (D-231). A package that uses none of it runs and reports exactly as before.
 - **`agentpkg run --memory-dir DIR --memory-grant PERMISSION=RECORD`** (D-230): a memory folder (an
   export folder with its `memory.key`) as the store, a record per permission; fixture mode derives

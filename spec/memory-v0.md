@@ -764,6 +764,9 @@ records `memory.agent.write` with its size and hash, and the document is **commi
 workflow completes** (`workflow.completed`, after exports and M-40), recorded as
 `memory.agent.committed` before `memory.cleared`; a failed, cancelled or interrupted run discards
 the staged body (`memory.agent.discarded`, reason `run_failed` | `cancelled` | `preset` | `policy`).
+The host writes the document **before** it records `memory.agent.committed`; a write the store
+refuses (a full disk, a read-only folder) is recorded as `memory.agent.discarded` with reason
+`store_failed`, and the run stays completed: a Run Record never claims a commit that did not happen.
 Under the privacy-first preset, or a policy with `memory.agent: "refuse"`, the read returns the empty
 document and the write is staged and discarded at the end with that reason: the package runs; nothing
 persists; the agent page says so.
@@ -1047,7 +1050,7 @@ a value, title or body:
 | `memory.agent.read` | the read tool answered | `package_id`, `bytes`, `body_sha256`, `present` (boolean) |
 | `memory.agent.write` | the write tool staged a body | `package_id`, `bytes`, `body_sha256` |
 | `memory.agent.committed` | after the terminal `workflow.completed`, before `memory.cleared` | `package_id`, `bytes`, `body_sha256` |
-| `memory.agent.discarded` | after any terminal workflow event when a body was staged and not committed | `package_id`, `reason` (`run_failed`, `cancelled`, `preset`, `policy`) |
+| `memory.agent.discarded` | after any terminal workflow event when a body was staged and not committed | `package_id`, `reason` (`run_failed`, `cancelled`, `preset`, `policy`, `store_failed`) |
 
 The refusals of §7 are the existing `permission.checked` (decision `deny` with the reason code),
 `node.failed` and `tool.failed` events with their codes. The conformance backbone (D-091) gains

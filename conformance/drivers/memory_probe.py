@@ -189,6 +189,17 @@ VARIANTS = {
     ),
     "m36-sealed-value-to-a-tool": m36_egress,
     "m36-granted-sealed-value": probe.send_email,
+    # T20 review 1: every sealed value in a tool's arguments is checked, not the first (M-36); a
+    # package's own custom type proposed and read by its local id (M-18, D-228).
+    "m36-two-sealed-values": probe.two_sealed_values,
+    "custom-type-proposal": probe.custom_type_proposal,
+    "custom-type-read": probe.custom_type_read,
+}
+# Permissions a variant adds, granted for the session like the probe's own.
+EXTRA_GRANTS = {
+    "m36-sealed-value-to-a-tool": {"probe.send": "session"},
+    "m36-two-sealed-values": {"card.read": "session"},
+    "custom-type-read": {"memory.card": "session"},
 }
 
 
@@ -252,9 +263,10 @@ def main(argv: list[str]) -> int:
 
     probe.write_probe(out, apply)
     grants = Path(f"{out}.grants.json")
-    extra = {"probe.send": "session"} if name == "m36-sealed-value-to-a-tool" else {}
-    grants.write_text(json.dumps(probe.grants(**extra)))
-    print(json.dumps({"source": str(out), "grants": str(grants), "tools": probe.TOOLS}))
+    grants.write_text(json.dumps(probe.grants(**EXTRA_GRANTS.get(name, {}))))
+    manifest = json.loads((out / "MANIFEST.agent").read_text())
+    tools = [entry["id"] for entry in manifest["tools"]]
+    print(json.dumps({"source": str(out), "grants": str(grants), "tools": tools}))
     return 0
 
 

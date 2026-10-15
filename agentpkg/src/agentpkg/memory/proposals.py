@@ -11,11 +11,9 @@ from __future__ import annotations
 
 import copy
 
-from jsonschema import Draft202012Validator
-
 from ..package import canonical_json
 from .model import RESERVED_TYPES, SELF_ID, body_link_ids, pointer_get
-from .registry import contract
+from .registry import first_failure
 from .scan import INCOMPLETE, find_sealed
 
 PROPOSALS_SCHEMA = "memory.v0 proposals"
@@ -46,23 +44,20 @@ def sealed_free_schema(type_def: dict, extra=()) -> dict:
     return schema
 
 
-def _first_failure(schema: dict, instance):
-    errors = sorted(
-        Draft202012Validator(schema).iter_errors(instance),
-        key=lambda error: tuple(str(part) for part in error.absolute_path),
-    )
-    return errors[0] if errors else None
-
-
-def check_proposals(document, *, declared, granted: dict, targets: dict, types, scan) -> dict:
+def check_proposals(
+    document, *, declared, granted: dict, targets: dict, types, scan, aliases=None
+) -> dict:
     """M-40 in order; raises `ProposalRefusal` on the first hit; returns the document.
 
-    `declared`: the `memory.write` permission's resources resolved to type ids; `granted`: record
-    id -> type id of every record this run was granted (M-12); `targets`: the granted records by
-    id (`{sealed, type}`), for an update's own `sealed` additions (step 3); `types`: a
-    `TypeRegistry`; `scan`: the run's scan set (M-36).
+    `declared`: the `memory.write` permission's resources resolved to type ids (custom ids
+    qualified); `granted`: record id -> type id of every record this run was granted (M-12);
+    `targets`: the granted records by id (`{sealed, type}`), for an update's own `sealed`
+    additions (step 3); `types`: a `TypeRegistry`; `scan`: the run's scan set (M-36); `aliases`:
+    the package's custom types by local id, the only form the proposals schema admits for them
+    (M-18: the host resolves it; D-228).
     """
-    failure = _first_failure(contract("memory-proposals.schema.json"), document)
+    aliases = aliases or {}
+    failure = first_failure("memory-proposals.schema.json", document)
     if failure is not None:
         where = "/".join(str(part) for part in failure.absolute_path) or "<root>"
         raise ProposalRefusal(
@@ -74,14 +69,15 @@ def check_proposals(document, *, declared, granted: dict, targets: dict, types, 
     proposals = document["proposals"]
     for index, proposal in enumerate(proposals):
         where = f"proposal {index}"
-        if proposal["type"] not in declared or proposal["type"] in RESERVED_TYPES:
+        type_id = aliases.get(proposal["type"], proposal["type"])
+        if type_id not in declared or type_id in RESERVED_TYPES:
             raise ProposalRefusal(
                 "permission_denied",
                 "memory_proposal_type_undeclared",
                 f"{where}: type {proposal['type']} is not one the package may propose",
                 index,
             )
-        type_def = types.get(proposal["type"])
+        type_def = types.get(type_id)
         if type_def is None:
             raise ProposalRefusal(
                 "permission_denied",
@@ -91,7 +87,7 @@ def check_proposals(document, *, declared, granted: dict, targets: dict, types, 
             )
         target_id = proposal.get("target", "")
         target = targets.get(target_id)
-        target_granted = granted.get(target_id) == proposal["type"]
+        target_granted = granted.get(target_id) == type_id
         extra = tuple(target.get("sealed") or []) if target is not None and target_granted else ()
         for pointer in (*type_def["sealed_fields"], *extra):
             if pointer_get(proposal["fields"], pointer) is not None:
@@ -101,7 +97,7 @@ def check_proposals(document, *, declared, granted: dict, targets: dict, types, 
                     f"{where}: carries the sealed field {pointer}",
                     index,
                 )
-        failure = _first_failure(sealed_free_schema(type_def, extra), proposal["fields"])
+        failure = first_failure(sealed_free_schema(type_def, extra), proposal["fields"])
         if failure is not None:
             at = "/".join(str(part) for part in failure.absolute_path) or "<root>"
             raise ProposalRefusal(
@@ -111,7 +107,7 @@ def check_proposals(document, *, declared, granted: dict, targets: dict, types, 
                 f"(rule: {failure.validator})",
                 index,
             )
-        if proposal["action"] == "update" and granted.get(proposal["target"]) != proposal["type"]:
+        if proposal["action"] == "update" and granted.get(proposal["target"]) != type_id:
             raise ProposalRefusal(
                 "permission_denied",
                 "memory_proposal_target_not_granted",

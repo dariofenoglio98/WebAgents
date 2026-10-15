@@ -106,14 +106,21 @@ refusal when they load it). Expected in both:
 | N10, N12, N16, N17, N21 | refused at validation with the spec's code (`agent_memory_scope`, `memory_proposal_undeclared`, `custom_type_shadows_sealed_type`, `custom_type_reserved`, `custom_type_schema_open`) |
 | N11 | `permission_denied at node remember`, compared as a failure inside a concurrent wave (D-092) |
 | M-36 | a granted sealed value sent to a tool that does not link its permission: `permission_denied at node echo` |
+| M-36, every value | the echo carries a value granted under the permission it links and one granted under another: `permission_denied at node echo` (every value is checked, not the first; D-234) |
+
+Two positive probe variants use a package's own custom type by its local id (D-228, D-234): a
+proposal of it (`memory-probe/custom-type-proposal`), and a `memory.read` of it with an update of
+the record it read (`memory-probe/custom-type-read`).
 
 The audit backbone gains `memory.proposed`, `memory.agent.committed` and `memory.agent.discarded`
 with their facts (M-61), and a wave's multiset carries the `reason`, record id and pointer of a
 refused `permission.checked` or `model.refused` (never a value). **Pending:** while the built Chrome
 core still accepts packages only up to runtime 0.3.x (`SUPPORTED_RUNTIME_VERSION` in
-`chrome-agent-browser/src/core/version.ts`), every memory case that does not pass is reported
-`pending`, with that reason, and does not fail the suite; once the core accepts 0.4.0 the cases
-count like any other. `CONFORMANCE_CHROME=<path to a built chrome-agent-browser>` compares another
+`chrome-agent-browser/src/core/version.ts`), a memory case that does not pass is reported
+`pending`, with that reason, and does not fail the suite, **only** when the Chrome CLI refused it by
+version and the Python half passed on its own (a positive case: exit 0 with a report; a refusal: the
+expected code); any other failure fails the suite, and a pending case still prints its failed checks
+(D-234). Once the core accepts 0.4.0 the cases count like any other. `CONFORMANCE_CHROME=<path to a built chrome-agent-browser>` compares another
 core, for example a task branch's worktree before it is merged; the run against T19's core at
 `c6edfd4` is kept in
 [`examples/verification/conformance-t20-against-t19-core/`](../examples/verification/conformance-t20-against-t19-core/report.md)

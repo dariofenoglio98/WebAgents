@@ -437,7 +437,7 @@ def _dispatch(args):
         # the package's own replayed answers (M-62, M-63, D-230).
         from .memory.host import cli_memory
 
-        memory_run, memory_folder, memory_handlers = cli_memory(
+        memory_run, _folder, memory_handlers = cli_memory(
             package,
             mode=mode,
             decisions=grants,
@@ -475,11 +475,11 @@ def _dispatch(args):
             raise
         if args.out:
             _write_result(args.out, result, package)
-        committed = (result.get("memory") or {}).get("agent") or {}
-        if mode == "live" and memory_folder is not None and committed.get("committed"):
-            # M-50, M-63: the staged agent document is committed only after the run completed.
-            memory_folder.commit_agent_document(
-                package, result["audit"][0]["run_id"], memory_run.staged_body()
+        if memory_run.commit_error:
+            # M-50: the folder refused the agent document; the Run Record says `store_failed`.
+            print(
+                f"agentpkg: the agent document was not committed: {memory_run.commit_error}",
+                file=sys.stderr,
             )
         return {
             "status": result["status"],

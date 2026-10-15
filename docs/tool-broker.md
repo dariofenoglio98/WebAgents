@@ -319,7 +319,9 @@ the refusal as a denied `permission.checked` with `reason` (`sealed_value_not_gr
 **In the Python reference** the memory is a folder: `agentpkg run --memory-dir DIR` reads an export
 folder (sealed values in clear, `DIR/memory.key`) and `--memory-grant PERMISSION=RECORD` picks a
 record, as a person would at authorization; a live run answers the tools from the folder and
-commits the agent document into `DIR/agent.memory/` only when the run completes (D-230). In fixture
+commits the agent document into `DIR/agent.memory/` only when the run completes, writing the file
+before the audit records the commit; a write the folder refuses is recorded as a discard with reason
+`store_failed` (D-230, D-234). In fixture
 mode every memory tool is replayed from the package's fixture and no store is touched (M-62). The
 OpenClaw plugin is frozen (D-029) and binds no `host.memory.*` tool: it runs every package up to
 WebAir 0.5.0 and Literature Review 0.2.7; WebAir 0.6.0 and Literature Review 0.2.8 run in the

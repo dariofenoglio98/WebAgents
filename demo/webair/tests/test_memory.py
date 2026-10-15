@@ -180,3 +180,13 @@ def test_the_profile_is_read_from_a_memory_folder(package, origin_app, tmp_path)
         "mem_0a1b2c3d4e5f60718293a4b5c6d7e8f9",
         "mem_4e5f60718293a4b5c6d7e8f90a1b2c3d",
     }
+
+
+def test_the_publisher_names_a_memory_read_type_it_cannot_copy():
+    from publisher.host import host_schema_files, source_policy
+
+    policy = source_policy()
+    reads = [p for p in policy["permissions"] if p["kind"] == "memory.read"]
+    reads[0]["resources"] = ["loyalty.card"]
+    with pytest.raises(ValueError, match="memory.read names loyalty.card"):
+        host_schema_files(policy=policy)

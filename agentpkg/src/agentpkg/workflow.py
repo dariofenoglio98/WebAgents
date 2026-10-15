@@ -536,7 +536,7 @@ class Workflow:
         memory = self.runtime.memory
         if memory is None:
             return
-        agent = memory.agent_outcome(status)
+        agent = memory.agent_outcome(status, self.runtime.run_id)
         if agent is None:
             return
         context = self.runtime.coordinator_context()

@@ -47,19 +47,29 @@ def scan_set_of(records) -> list[dict]:
     return sorted(out, key=lambda entry: (entry["record_id"], entry["pointer"]))
 
 
-def find_sealed(value, scan: list[dict]):
-    """The first scan-set entry found anywhere in `value` as `{record_id, pointer}`, None, or
-    `INCOMPLETE` when the document holds more strings than the scanner reads."""
+def find_all_sealed(value, scan: list[dict]):
+    """Every scan-set entry found anywhere in `value`, in scan-set order, as `{record_id,
+    pointer}`; `INCOMPLETE` when the document holds more strings than the scanner reads. The tool
+    scan needs them all: one granted value must not hide another (M-36)."""
     if not scan:
-        return None
+        return []
     strings = scan_strings(value)
     if strings is None:
         return INCOMPLETE
-    for entry in scan:
-        needle = entry["value"].lower()
-        if any(needle in text for text in strings):
-            return {"record_id": entry["record_id"], "pointer": entry["pointer"]}
-    return None
+    return [
+        {"record_id": entry["record_id"], "pointer": entry["pointer"]}
+        for entry in scan
+        if any(entry["value"].lower() in text for text in strings)
+    ]
+
+
+def find_sealed(value, scan: list[dict]):
+    """The first scan-set entry found anywhere in `value` as `{record_id, pointer}`, None, or
+    `INCOMPLETE`: enough for a scan that refuses on any hit (M-37, M-40 step 7)."""
+    hits = find_all_sealed(value, scan)
+    if hits == INCOMPLETE:
+        return INCOMPLETE
+    return hits[0] if hits else None
 
 
 def fixture_scan_set(answers) -> list[dict]:

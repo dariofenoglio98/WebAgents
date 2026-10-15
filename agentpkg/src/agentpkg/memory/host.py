@@ -45,8 +45,7 @@ def check_memory_bindings(package, types) -> None:
         ):
             continue
         type_id = binding[len(MEMORY_READ_BINDING_PREFIX) :]
-        package_id = package.manifest["package_id"]
-        type_def = types.get(type_id) or types.get(f"{package_id}:{type_id}")
+        type_def = types.get(types.aliases.get(type_id, type_id))
         if type_def is None:
             raise ValidationError(
                 f"memory_type_unknown: tool {tool_id} reads {type_id}, which this host does not "
@@ -185,12 +184,15 @@ def cli_memory(package, *, mode: str, decisions: dict, memory_dir=None, memory_g
     store; live mode answers from the folder and commits the agent document on completion.
     Returns `(memory_run, folder, handlers)`; `handlers` is empty in fixture mode.
     """
+    from .declarations import memory_declarations
     from .folder import MemoryFolder
-    from .run import MemoryRun, fixture_memory
+    from .run import MemoryRun, fixture_memory, memory_types
     from .scan import scan_set_of
 
-    probe = MemoryRun(package, [], decisions)
-    types = probe.types
+    declarations = memory_declarations(
+        package.manifest, package.policy, package.tools, package.files
+    )
+    types = memory_types(package, declarations)
     check_memory_bindings(package, types)
     folder = MemoryFolder(memory_dir, types=types) if memory_dir else None
     grants = parse_memory_grants(package, folder, list(memory_grants))
@@ -218,6 +220,13 @@ def cli_memory(package, *, mode: str, decisions: dict, memory_dir=None, memory_g
                         "sealed": list(output.get("sealed") or []),
                         "type": output.get("type"),
                     }
+    commit = None
+    if folder is not None and mode == "live":
+
+        def commit(body: str, run_id: str) -> None:
+            # M-50, M-63: written before `memory.agent.committed` is recorded.
+            folder.commit_agent_document(package, run_id, body)
+
     memory_run = MemoryRun(
         package,
         grants,
@@ -225,6 +234,8 @@ def cli_memory(package, *, mode: str, decisions: dict, memory_dir=None, memory_g
         scan=scan,
         targets=targets,
         agent_document=agent_document,
+        declarations=declarations,
+        commit_agent=commit,
     )
     handlers = memory_handlers(package, folder, memory_run) if folder and mode == "live" else {}
     return memory_run, folder, handlers

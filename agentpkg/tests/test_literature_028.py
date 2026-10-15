@@ -237,7 +237,6 @@ def test_a_live_run_over_a_memory_folder_reads_the_profile_and_commits_the_notes
     assert committed and result["memory"]["agent"]["committed"]["bytes"] == len(
         RememberingReview.notes.encode()
     )
-    folder.commit_agent_document(package, result["audit"][0]["run_id"], memory.staged_body())
     again = cli_memory(package, mode="live", decisions=grants, memory_dir=memory_dir)[1]
     # N20: the notes come back exactly as written; no title or id in them was resolved.
     assert again.agent_document(package.manifest["package_id"])["body"] == RememberingReview.notes

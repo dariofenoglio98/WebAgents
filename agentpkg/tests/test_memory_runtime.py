@@ -27,7 +27,7 @@ def build(tmp_path, change=None, name="probe"):
     return probe.write_probe(tmp_path / name, change)
 
 
-def run_cli(tmp_path, source, *, grants=None, extra=(), name="out"):
+def run_cli(tmp_path, source, *, grants=None, extra=(), name="out", tools=probe.TOOLS):
     grants_path = tmp_path / f"{name}-grants.json"
     grants_path.write_text(json.dumps(grants or probe.grants()))
     out = tmp_path / name
@@ -38,7 +38,7 @@ def run_cli(tmp_path, source, *, grants=None, extra=(), name="out"):
         "fixture",
         "--grants",
         str(grants_path),
-        *[arg for tool in probe.TOOLS for arg in ("--approve-tool", tool)],
+        *[arg for tool in tools for arg in ("--approve-tool", tool)],
         *extra,
         "--out",
         str(out),
@@ -355,6 +355,180 @@ def test_m36_the_tool_scan_is_the_store_s_when_a_folder_is_given(tmp_path, capsy
     assert checked[0]["pointer"] == "/payment_method_id"
 
 
+def test_m36_every_sealed_value_is_checked_not_only_the_first(tmp_path, capsys):
+    # The echo links identity.read and receives the identity's e-mail (granted under it, the first
+    # hit in scan-set order) and the card token (granted under card.read): refused for the card.
+    status, _, result = run_cli(
+        tmp_path,
+        build(tmp_path, probe.two_sealed_values),
+        grants=probe.grants(**{"card.read": "session"}),
+        tools=[*probe.TOOLS, "wallet"],
+    )
+    err = capsys.readouterr().err
+    assert status == 2 and "permission_denied at node echo" in err
+    checked = [e for e in actions(result, "permission.checked") if e.get("reason")]
+    assert [(e["reason"], e["permission"], e["record_id"], e["pointer"]) for e in checked] == [
+        (
+            "sealed_value_egress",
+            "card.read",
+            "fixture:host.resource.wallet.payment_method",
+            "/payment_method_id",
+        )
+    ]
+    assert not [e for e in actions(result, "tool.called") if e["tool"] == "echo"]
+
+
+def test_m36_a_granted_value_does_not_hide_an_ungranted_one_from_the_store(tmp_path, capsys):
+    memory = tmp_path / "memory"
+    shutil.copytree(EXAMPLE_MEMORY, memory)
+
+    def change(files):
+        # The granted e-mail (the lowest record id) and the card token, never granted.
+        files["schemas/echo.input.schema.json"]["properties"]["note"] = {"type": "string"}
+        value = {"to": probe.EMAIL, "note": probe.CARD_TOKEN}
+        files["graph.json"]["nodes"][5]["input"] = {"literal": value}
+        files["fixtures/workflow.json"]["tools"]["echo"][0]["input"] = value
+
+    status, _, result = run_cli(
+        tmp_path,
+        build(tmp_path, change),
+        extra=(
+            "--memory-dir",
+            str(memory),
+            "--memory-grant",
+            f"memory.profile={probe.PROFILE_ID}",
+            "--memory-grant",
+            f"identity.read={probe.IDENTITY_ID}",
+        ),
+    )
+    capsys.readouterr()
+    assert status == 2
+    checked = [e for e in actions(result, "permission.checked") if e.get("reason")]
+    assert [(e["reason"], e["record_id"], e["pointer"]) for e in checked] == [
+        ("sealed_value_not_granted", "mem_4e5f60718293a4b5c6d7e8f90a1b2c3d", "/payment_method_id")
+    ]
+    assert not [e for e in actions(result, "tool.called") if e["tool"] == "echo"]
+
+
+def test_m36_a_record_granted_under_two_permissions_goes_where_either_is_linked(tmp_path, capsys):
+    memory = tmp_path / "memory"
+    shutil.copytree(EXAMPLE_MEMORY, memory)
+
+    def change(files):
+        files["policy/policy.json"]["permissions"].append(
+            probe.permission("identity.again", "personal.read", ["personal.passenger_identity"])
+        )
+        files["tools/echo.tool.json"]["permissions"] = ["identity.again"]
+        probe.send_email(files)
+
+    status, _, result = run_cli(
+        tmp_path,
+        build(tmp_path, change),
+        grants=probe.grants(**{"identity.again": "session"}),
+        extra=(
+            "--memory-dir",
+            str(memory),
+            "--memory-grant",
+            f"memory.profile={probe.PROFILE_ID}",
+            "--memory-grant",
+            f"identity.read={probe.IDENTITY_ID}",
+            "--memory-grant",
+            f"identity.again={probe.IDENTITY_ID}",
+        ),
+    )
+    capsys.readouterr()
+    assert status == 0
+    assert not [e for e in actions(result, "permission.checked") if e.get("reason")]
+    assert [e for e in actions(result, "tool.called") if e["tool"] == "echo"]
+
+
+# -- custom types by their local id (M-18, D-228) ------------------------------------------------
+def test_a_custom_type_is_proposed_by_its_local_id(tmp_path, capsys):
+    status, out, result = run_cli(tmp_path, build(tmp_path, probe.custom_type_proposal))
+    capsys.readouterr()
+    assert status == 0
+    document = json.loads((out / "proposals.json").read_text())
+    assert [p["type"] for p in document["proposals"]][-1] == "loyalty.card"
+    (proposed,) = actions(result, "memory.proposed")
+    assert proposed["count"] == 2 and proposed["types"] == ["loyalty.card", "travel.preference"]
+
+
+def test_another_package_s_local_id_resolves_to_nothing(tmp_path, capsys):
+    def change(files):
+        probe.custom_type_proposal(files)
+        # The type is declared, but by another package: the local id is this package's only.
+        files["policy/policy.json"]["memory_types"][0]["id"] = "other.card"
+        files["policy/policy.json"]["permissions"][4]["resources"][-1] = "other.card"
+
+    status, _, result = run_cli(tmp_path, build(tmp_path, change))
+    capsys.readouterr()
+    assert status == 2
+    assert result["memory"]["refused"] == {
+        "code": "permission_denied",
+        "reason": "memory_proposal_type_undeclared",
+        "index": 1,
+    }
+
+
+def test_a_custom_type_read_by_its_local_id_is_granted_and_updatable_in_a_fixture(tmp_path, capsys):
+    status, out, result = run_cli(
+        tmp_path,
+        build(tmp_path, probe.custom_type_read),
+        grants=probe.grants(**{"memory.card": "session"}),
+        tools=[*probe.TOOLS, "card"],
+    )
+    capsys.readouterr()
+    assert status == 0, result and result.get("memory")
+    (update,) = json.loads((out / "proposals.json").read_text())["proposals"]
+    assert (update["action"], update["type"], update["target"]) == (
+        "update",
+        "loyalty.card",
+        probe.CARD_ID,
+    )
+
+
+def test_a_custom_type_record_is_granted_from_the_folder_by_its_local_id(tmp_path):
+    from agentpkg.memory.model import record_to_document
+
+    memory = tmp_path / "memory"
+    shutil.copytree(EXAMPLE_MEMORY, memory)
+    source = build(tmp_path, probe.custom_type_read)
+    package = load_package(source)
+    memory_run, _, _ = cli_memory(package, mode="fixture", decisions=probe.grants())
+    type_def = memory_run.types.resolve("loyalty.card")
+    assert type_def["id"] == "org.example.memory-probe:loyalty.card"
+    record = {
+        "id": probe.CARD_ID,
+        "type": type_def["id"],
+        "title": "Sky club",
+        "scope": "user",
+        "created": "2026-10-14T00:00:00Z",
+        "updated": "2026-10-14T00:00:00Z",
+        "fields": {"programme": "Sky", "member": "A1"},
+        "source": {"kind": "person"},
+        "body": "",
+    }
+    text = record_to_document(record, type_def, export=True, stems={}, titles={})
+    (memory / "Sky club.md").write_text(text, encoding="utf-8")
+    package, memory_run, _, result = _live(
+        tmp_path,
+        source,
+        memory,
+        [
+            f"memory.profile={probe.PROFILE_ID}",
+            f"identity.read={probe.IDENTITY_ID}",
+            f"memory.card={probe.CARD_ID}",
+        ],
+        decisions=probe.grants(**{"memory.card": "session"}),
+        tools=[*probe.TOOLS, "card"],
+    )
+    assert memory_run.granted[probe.CARD_ID] == type_def["id"]
+    assert result["status"] == "completed"
+    assert ("memory.card", probe.CARD_ID) in [
+        (e["permission_id"], e["record_id"]) for e in actions(result, "memory.read")
+    ]
+
+
 # -- N3, N4, N7: the mediator and the agent tools ------------------------------------------------
 def test_n3_a_memory_read_under_a_denied_permission_stops_at_the_mediator(tmp_path, capsys):
     status, out, result = run_cli(
@@ -591,7 +765,7 @@ def test_a_custom_type_declaring_sealed_fields_fails_the_policy_schema(tmp_path)
 
 
 # -- the memory folder in a live run: reads, the agent document (N20) ----------------------------
-def _live(tmp_path, source, memory, grants_flags, *, decisions=None):
+def _live(tmp_path, source, memory, grants_flags, *, decisions=None, tools=probe.TOOLS):
     """A live-mode run over a memory folder with the fixture's models and non-memory tools,
     the way `agentpkg run --mode live` builds it (`cli_memory`)."""
     package = load_package(source)
@@ -608,7 +782,7 @@ def _live(tmp_path, source, memory, grants_flags, *, decisions=None):
             grants=decisions,
             handlers=fixture_handlers,
             router=router,
-            approved_tools=probe.TOOLS,
+            approved_tools=tools,
             memory=memory_run,
         )
     )
@@ -627,18 +801,16 @@ def test_live_reads_answer_the_grant_from_the_folder_and_commit_the_agent_docume
     )
     assert result["status"] == "completed"
     reads = actions(result, "memory.read")
-    assert [(e["permission_id"], e["record_id"]) for e in reads] == sorted(
-        [("memory.profile", probe.PROFILE_ID), ("identity.read", probe.IDENTITY_ID)]
-    ) or sorted((e["permission_id"], e["record_id"]) for e in reads) == sorted(
+    assert sorted((e["permission_id"], e["record_id"]) for e in reads) == sorted(
         [("memory.profile", probe.PROFILE_ID), ("identity.read", probe.IDENTITY_ID)]
     )
     assert all(len(e["record_digest"]) == 64 for e in reads)
+    # M-50: the document is in the folder before the audit says it was committed.
     committed = actions(result, "memory.agent.committed")
     assert committed and committed[0]["bytes"] == len(probe.NOTES.encode())
-    path = folder.commit_agent_document(
-        package, result["audit"][0]["run_id"], memory_run.staged_body()
-    )
-    assert path.parent.name == "agent.memory"
+    path = folder.paths[agent_document_id("org.example.memory-probe")]
+    assert path.parent.name == "agent.memory" and path.is_file()
+    assert memory_run.commit_error is None
     # N20: the next read returns exactly what was written; no title or id was resolved.
     again = cli_memory(
         package, mode="live", decisions=probe.grants(), memory_dir=memory, memory_grants=[]
@@ -646,6 +818,28 @@ def test_live_reads_answer_the_grant_from_the_folder_and_commit_the_agent_docume
     document = again.agent_document("org.example.memory-probe")
     assert document["body"] == probe.NOTES
     assert agent_document_id("org.example.memory-probe") in again.records
+
+
+def test_live_a_failed_agent_commit_is_recorded_as_a_discard(tmp_path):
+    memory = tmp_path / "memory"
+    shutil.copytree(EXAMPLE_MEMORY, memory)
+    (memory / "agent.memory").write_text("a file where the folder should be\n")
+    _, memory_run, _, result = _live(
+        tmp_path,
+        build(tmp_path),
+        memory,
+        [f"memory.profile={probe.PROFILE_ID}", f"identity.read={probe.IDENTITY_ID}"],
+    )
+    # M-50: the Run Record never claims a commit the folder refused (D-234).
+    assert result["status"] == "completed"
+    assert not actions(result, "memory.agent.committed")
+    (discarded,) = actions(result, "memory.agent.discarded")
+    assert discarded["reason"] == "store_failed"
+    assert result["memory"]["agent"] == {"committed": None, "discarded": "store_failed"}
+    assert memory_run.commit_error.startswith("FileExistsError")
+    order = [e["action"] for e in result["audit"]]
+    assert order.index("workflow.completed") < order.index("memory.agent.discarded")
+    assert order.index("memory.agent.discarded") < order.index("memory.cleared")
 
 
 def test_live_a_changed_record_is_not_answered(tmp_path):
