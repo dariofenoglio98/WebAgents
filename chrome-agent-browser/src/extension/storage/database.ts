@@ -10,13 +10,16 @@
  *   observations  outbound request bodies recorded in test mode, auto-keyed (version 3, D-028)
  *   files         the PDFs the person picked in Settings → Files: the copied bytes, their hash
  *                 and size, keyed by opaque file id (version 4, T6, D-083)
+ *   memory_records one memory.v0 record per row, keyed by record id, its sealed values sealed
+ *                 under the memory data key the secret store holds (version 5, T19, D-221)
+ *   memory_meta   the memory's types, usage log and approvals as one document (version 5)
  */
 
 export const DATABASE = "agent-browser";
-/** Version 2 added the `sizes` store; version 3 the run, artifact and observation stores; version 4 the `files` store. */
-export const VERSION = 4;
+/** Version 2 added the `sizes` store; version 3 the run, artifact and observation stores; version 4 the `files` store; version 5 the memory stores (T19). */
+export const VERSION = 5;
 
-export type StoreName = "snapshots" | "sessions" | "sizes" | "runs" | "artifacts" | "observations" | "files";
+export type StoreName = "snapshots" | "sessions" | "sizes" | "runs" | "artifacts" | "observations" | "files" | "memory_records" | "memory_meta";
 
 export function request<T>(value: IDBRequest<T>): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -65,6 +68,9 @@ function upgrade(opening: IDBOpenDBRequest, event: IDBVersionChangeEvent): void 
     observations.createIndex("run_id", "run_id", { unique: false });
   }
   if (!db.objectStoreNames.contains("files")) db.createObjectStore("files", { keyPath: "file_id" });
+  // Version 5 (T19, memory.v0): one row per record, sealed values sealed at rest; the meta document.
+  if (!db.objectStoreNames.contains("memory_records")) db.createObjectStore("memory_records", { keyPath: "id" });
+  if (!db.objectStoreNames.contains("memory_meta")) db.createObjectStore("memory_meta", { keyPath: "key" });
 }
 
 /** A lazily opened connection; a failed open is retried on the next call, never cached. */

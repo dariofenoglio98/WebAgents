@@ -92,7 +92,7 @@ describe("Settings → Files, Services and Run limits", () => {
     let picks = 0;
     const root = renderSettingsPage(view, null, state, { onSave: () => undefined, onSetKey: () => undefined, onProbe: () => undefined, rerender: () => undefined, onPickFiles: () => (picks += 1), onRemoveFile: (id) => removed.push(id) }, files);
     document.body.append(root);
-    expect([...root.querySelectorAll('[role="tab"]')].map((tab) => tab.textContent)).toEqual(["Models", "Policies", "Security", "Permissions", "Search", "Files", "Services", "About"]);
+    expect([...root.querySelectorAll('[role="tab"]')].map((tab) => tab.textContent)).toEqual(["Models", "Policies", "Security", "Memory", "Permissions", "Search", "Files", "Services", "About"]);
     const rowNode = root.querySelector<HTMLElement>(`[data-file-id="${files.files[0]!.file_id}"]`)!;
     expect(rowNode.textContent).toContain("probe.pdf");
     expect(rowNode.textContent).toContain(`sha256:${files.files[0]!.sha256.slice(0, 12)}`);

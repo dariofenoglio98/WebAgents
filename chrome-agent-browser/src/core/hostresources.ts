@@ -28,7 +28,8 @@ import { DENY, type Decision, type Reason, type RegistryRef, type ResourceGrant 
 export const REGISTRY_SCHEMA = "agentpkg-host-resource-registry-v0";
 export const REQUESTS_SCHEMA = "agentpkg-host-resource-requests-v0";
 /** Permission kinds whose `resources` scope may name a host resource type. */
-export const RESOURCE_PERMISSION_KINDS: readonly string[] = Object.freeze(["personal.read"]);
+/** `personal.read` as before, and `memory.read` since memory.v0 (M-16). */
+export const RESOURCE_PERMISSION_KINDS: readonly string[] = Object.freeze(["personal.read", "memory.read"]);
 
 export const MAX_TYPES = 32;
 export const MAX_RESOURCES = 256;

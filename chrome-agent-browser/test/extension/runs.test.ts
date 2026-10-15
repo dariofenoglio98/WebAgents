@@ -16,10 +16,10 @@ import type { ArtifactChunk, ArtifactContent, AuthorizeResult, ExportBundle, Obs
 import { MemoryRunStore, type StoredRun } from "../../src/extension/storage/runs.js";
 import { originAnswers, scriptedOllama, scriptedOrigin, webairModelAnswers, type SeenRequest } from "../helpers/host.js";
 import { SHIPPED } from "../helpers/paths.js";
-import { makeHarness, OFFSCREEN, PAGE, SITE_ORIGIN, WEBAIR_040_URL, type Harness } from "../helpers/shell.js";
+import { DEMO, makeHarness, OFFSCREEN, PAGE, SITE_ORIGIN, WEBAIR_040_URL, type Harness } from "../helpers/shell.js";
 
 const QWEN = "ollama/qwen3:30b";
-const PICKS = { "profile.travel": "profile_demo_traveler", "identity.passenger": "passenger_demo_alex", "wallet.payment": "payment_demo_visa" };
+const PICKS = { "profile.travel": DEMO.traveler, "identity.passenger": DEMO.alex, "wallet.payment": DEMO.visa };
 const SEARCH = { request: "Find me a nonstop flight from Boston to Zurich on 9 October under $900.", booking: false, purchase: { quote_id: "", fare_id: "" } };
 const BOOKING = { request: "Prepare WA101 Standard for 9 October for me.", booking: true, purchase: { quote_id: "", fare_id: "" } };
 /** The sealed and personal values of the demo set (D-051): what no model request may carry. */
@@ -53,7 +53,7 @@ async function world(options: { runs?: MemoryRunStore; hostOptions?: { available
   const settings = current.settings;
   settings.models.default_model = QWEN;
   await h.controller.handle({ type: "settings.set", settings }, PAGE);
-  if (options.demo ?? true) await h.controller.handle({ type: "vault.installDemo", records: true }, PAGE);
+  if (options.demo ?? true) await h.controller.handle({ type: "memory.installDemo" }, PAGE);
   const session = (await h.controller.handle({ type: "package.get", sessionId: view.session.id }, PAGE)) as SessionView;
   return { h, session, modelSeen: model.seen, toolSeen: tool.seen };
 }
@@ -178,7 +178,7 @@ describe("quote, purchase under once, replay refused, denial (the live demo's ph
     const quoteAuth = await authorize(w, "quote", { "profile.travel": PICKS["profile.travel"], "identity.passenger": PICKS["identity.passenger"] });
     const booking = await finished(w, (await startRun(w, quoteAuth, BOOKING)).runId);
     expect(booking.status).toBe("completed");
-    expect(booking.resources.map((grant) => grant.resourceId).sort()).toEqual(["passenger_demo_alex", "profile_demo_traveler"]);
+    expect(booking.resources.map((grant) => grant.resourceId).sort()).toEqual([DEMO.alex, DEMO.traveler].sort());
     const quote = (await w.h.controller.handle({ type: "run.artifact", runId: booking.runId, name: "booking.json" }, PAGE)) as ArtifactContent;
     const quoteId = (quote.json as { booking?: { quote_id?: string } }).booking!.quote_id!;
     expect(quoteId).toBe(originAnswers().prepare_booking.output.quote_id);

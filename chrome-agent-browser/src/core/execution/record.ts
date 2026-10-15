@@ -51,6 +51,8 @@ export interface RunRecord {
   tools: Array<{ toolId: string; bindingId: string; bindingSha256: string; remote: boolean; calls: number; displayName: string | null; retries: number; fallbackAnswers: number }>;
   failure: { nodeId: string | null; stepId: string | null; errorCode: string | null; failedCheck: JsonValue | null; call: { kind: string; action: string; tool: string | null; task: string | null; reason: string | null } | null } | null;
   origin: "live" | "fixture";
+  /** memory.v0 §9 (T19): the proposals the run offered (counts and a hash, never a value) and the agent document's fate; null for a run without memory. */
+  memory?: { proposals: { count: number; types: string[]; proposals_sha256: string; offered: number; reason: string | null } | null; refused: { code: string; reason: string | null; index: number | null } | null; agent: { committed: { package_id: string; bytes: number; body_sha256: string } | null; discarded: string | null } | null } | null;
 }
 
 const rec = (value: unknown): JsonObject => (typeof value === "object" && value !== null && !Array.isArray(value) ? (value as JsonObject) : {});
@@ -233,6 +235,22 @@ export function completeRunRecord(record: RunRecord, result: ExecutionResult, en
     }),
     progress: (result.progress as unknown as ProgressSnapshot | null) ?? null,
     failure: status === "completed" ? null : projectFailure(result.failure),
+    memory: projectMemory(result.memory),
+  };
+}
+
+/** The Run Record's memory section from the runner's result (`MemoryRunReport`): identifiers, counts and hashes only. */
+function projectMemory(value: unknown): NonNullable<RunRecord["memory"]> | null {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return null;
+  const section = value as JsonObject;
+  const proposals = rec(section.proposals);
+  const refused = rec(section.refused);
+  const agent = rec(section.agent);
+  const committed = rec(agent.committed);
+  return {
+    proposals: section.proposals ? { count: int(proposals.count), types: strings(proposals.types, 8), proposals_sha256: str(proposals.proposals_sha256), offered: int(proposals.offered), reason: typeof proposals.reason === "string" ? proposals.reason : null } : null,
+    refused: section.refused ? { code: str(refused.code), reason: typeof refused.reason === "string" ? refused.reason : null, index: typeof refused.index === "number" ? refused.index : null } : null,
+    agent: section.agent ? { committed: agent.committed ? { package_id: str(committed.package_id), bytes: int(committed.bytes), body_sha256: str(committed.body_sha256) } : null, discarded: typeof agent.discarded === "string" ? agent.discarded : null } : null,
   };
 }
 

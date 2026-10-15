@@ -285,11 +285,21 @@ export function warnings(pkg: Package, evaluation: EvaluationLayers, publisher: 
       warn(`requests_${permission.kind}_permission`, "critical", `The package requests a ${permission.kind} permission, which this host does not implement.`);
     }
     if (permission.kind === "personal.read") {
+      // Word for word the reference's (`summary.py`): the parity fixtures compare the text.
       warn(
         "requests_personal_data",
         "warning",
         `The package requests host-owned personal data (${permission.id}: ${resources.join(", ") || "unspecified"}). You choose whether to grant it and which of your resources is shared.`,
       );
+    }
+    if (permission.kind === "memory.read") {
+      warn("requests_memory_read", "warning", `The package requests a record from your memory (${permission.id}: ${resources.join(", ") || "unspecified"}). You choose whether to grant it and which one record is shared.`);
+    }
+    if (permission.kind === "memory.write") {
+      warn("requests_memory_write", "info", `The package may propose things to remember (${permission.id}: ${resources.join(", ") || "unspecified"}). Nothing is written until you accept each proposal after the run.`);
+    }
+    if (permission.kind === "memory" && resources.length === 1 && resources[0] === "agent") {
+      warn("requests_agent_notes", "info", `The package keeps its own notes between runs (${permission.id}, at most 32,768 characters), which you can read and clear in Settings → Memory.`);
     }
   }
   const remote = toolList.filter((tool) => tool.execution === "remote");

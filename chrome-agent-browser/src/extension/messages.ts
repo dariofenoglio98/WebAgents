@@ -26,7 +26,14 @@ import type { BrowserSummary } from "../core/summary.js";
 import type { PinScope, TrustEntry, TrustState } from "../core/trust.js";
 import type { JsonValue } from "../core/json.js";
 import type { AuthorizationReceipt, BrowserPolicy, PolicyReference, PresetId, Reason, RunPlan, RunPlanPreflight } from "../core/types.js";
-import type { VaultRecordView, VaultTypeView } from "../core/vault.js";
+import type { AgentNoteView, ExportRequest, ImportPlanView, MemoryView, ReviewOutcome, ReviewView } from "./background/memory-controller.js";
+import type { ImportFile } from "../core/memory/export.js";
+import type { ReviewDecision } from "../core/memory/proposals.js";
+import type { RecallCandidate } from "../core/memory/recall.js";
+import type { MemoryRecord, UsageEntry } from "../core/memory/model.js";
+import type { RecordDraft } from "../core/memory/store.js";
+import type { ExportFile } from "../core/memory/export.js";
+import type { MigrationReport } from "../core/memory/migration.js";
 import type { PolicyBundle } from "../core/policies/bundle.js";
 import type { AgentCandidate, ResolveQuery } from "../core/resolve/types.js";
 import type { PlanOrigin } from "../core/origins.js";
@@ -78,8 +85,10 @@ export type Request =
       prepare: boolean;
       /** The model the person picked under "Customize your settings"; null or absent means the default model. */
       modelId?: string | null;
+      /** The permissions whose record the convenience preset chose (memory.v0 M-53): recorded as `preset` in the provenance. */
+      presetSelections?: string[];
     }
-  | { type: "authorization.useProfile"; sessionId: string; packageDigest: string; profileId: string; resourceSelections: Record<string, string>; prepare: boolean }
+  | { type: "authorization.useProfile"; sessionId: string; packageDigest: string; profileId: string; resourceSelections: Record<string, string>; prepare: boolean; presetSelections?: string[] }
   | { type: "models.evaluate"; sessionId: string; refresh: boolean }
   | { type: "models.probe"; provider: ProviderId }
   | { type: "runplan.prepare"; sessionId: string; packageDigest: string; receiptId: string; modelId: string }
@@ -88,10 +97,27 @@ export type Request =
   | { type: "settings.get" }
   | { type: "settings.set"; settings: unknown }
   | { type: "settings.setKey"; provider: ProviderId; key: string | null }
-  | { type: "vault.get" }
-  | { type: "vault.putRecord"; record: unknown }
-  | { type: "vault.deleteRecord"; recordId: string }
-  | { type: "vault.installDemo"; records: boolean }
+  /** The Memory page and Settings → Memory (T19, memory.v0). Every write needs the unlocked store. */
+  | { type: "memory.get" }
+  | { type: "memory.reveal"; recordId: string; pointer: string }
+  | { type: "memory.search"; query: string }
+  | { type: "memory.create"; draft: unknown }
+  | { type: "memory.edit"; recordId: string; changes: unknown }
+  | { type: "memory.delete"; recordIds: string[] }
+  | { type: "memory.link"; from: string; to: string; rel: string }
+  | { type: "memory.unlink"; from: string; to: string; rel: string }
+  | { type: "memory.installDemo" }
+  | { type: "memory.removeDemo" }
+  | { type: "memory.clearAgent"; packageId: string }
+  | { type: "memory.agentNote"; packageId: string }
+  | { type: "memory.forget"; confirmation: string }
+  | { type: "memory.migrationDone" }
+  | { type: "memory.export"; includeSealed: boolean; includeAgents: boolean; recordIds: string[] | null }
+  | { type: "memory.importPlan"; files: ImportFile[] }
+  | { type: "memory.importApply"; files: ImportFile[]; completions: Record<string, Record<string, string>> }
+  /** The proposal review after a run (M-41, M-42): the sheet's facts, then the decisions together. */
+  | { type: "memory.review"; runId: string }
+  | { type: "memory.decide"; runId: string; decisions: ReviewDecision[] }
   // Settings → Files (T6, D-083): the person's picked PDFs; the bytes travel once, as base64.
   | { type: "files.list" }
   | { type: "files.add"; name: string; base64: string }
@@ -179,7 +205,8 @@ export type Event =
   | { type: "event.trust" }
   | { type: "event.authorization"; sessionId: string }
   | { type: "event.settings" }
-  | { type: "event.vault" }
+  /** The memory changed: a record written or deleted, a review applied, the store locked or unlocked (T19). */
+  | { type: "event.memory" }
   | { type: "event.files" }
   /** A run's record changed (started, progressed, settled, cleared); views re-read `run.get`. */
   | { type: "event.run"; runId: string; sessionId: string; status: string }
@@ -387,8 +414,10 @@ export interface AuthorizationView {
   defaults: Decided;
   /** Which permissions request a host resource the vault offers, with the labels to choose from. */
   resources: ResourceEvaluation;
-  /** Resource types the package requests that the vault holds no type for. */
+  /** Resource types the package requests that the memory holds no type for. */
   missing_resource_types: string[];
+  /** The recall card per `memory.read` (or alias) request (M-34, M-52): the candidates with their signals and the preset's mode. Empty while locked. */
+  recall: RecallView[];
   tools: ToolOffer[];
   receipt: AuthorizationReceipt | null;
   run_plan: RunPlanState | null;
@@ -434,12 +463,33 @@ export interface FilesView {
   max_total_bytes: number;
 }
 
-export interface VaultView {
-  types: VaultTypeView[];
-  records: VaultRecordView[];
-  /** Whether the fictional demo set could be added (its types are known to this build). */
-  demo_available: boolean;
+/** The review sheet's view for one run: null `review` when the run offered nothing (M-41). */
+export interface RunReviewView {
+  run_id: string;
+  package: { package_id: string; package_version: string; name: string | null };
+  proposed_at: string | null;
+  offered: number;
+  count: number;
+  reason: string | null;
+  review: ReviewView | null;
+  /** The decisions already applied for this run, when they were (the sheet does not reopen). */
+  decided: { at: string; accepted: number; rejected: number } | null;
 }
+
+/** The recall card's facts per `memory.read` request (M-34), beside the registry's options. */
+export interface RecallView {
+  permission_id: string;
+  resource_type: string;
+  display_name: string | null;
+  sealed: boolean;
+  /** `ask`: nothing pre-selected; `propose`: the top candidate pre-selected, one click confirms; `auto`: auto-selected and shown in the summary (M-52). */
+  mode: "ask" | "propose" | "auto";
+  /** The type's sealed fields (for "Sealed details (e-mail) go only to …"). */
+  sealed_fields: string[];
+  candidates: Array<RecallCandidate & { last_use: { package_id: string; at: string; runs: number } | null; provenance: string }>;
+}
+
+export type { MemoryView, AgentNoteView, ExportRequest, ImportPlanView, ReviewOutcome, ReviewView, ReviewDecision, ImportFile, ExportFile, MemoryRecord, UsageEntry, RecordDraft, MigrationReport, RecallCandidate };
 
 export interface TrustList {
   entries: TrustEntry[];
@@ -489,7 +539,7 @@ export interface KeychainView {
   permission: boolean;
   enabled: boolean;
   enabled_at: string | null;
-  helper: "available" | "not_installed" | "refused" | "failed" | "not_checked";
+  helper: "available" | "not_installed" | "forbidden" | "refused" | "failed" | "not_checked";
   helper_version: string | null;
   problem: { code: string; message: string } | null;
   ollama: OllamaReport | null;
@@ -615,6 +665,34 @@ function invalid(message: string): CoreError {
 function record(value: unknown): Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) throw invalid("message must be an object");
   return value as Record<string, unknown>;
+}
+
+/** A list of at most 8,192 ids. */
+function stringList(value: unknown, field: string): string[] {
+  if (!Array.isArray(value) || value.length > 8192) throw invalid(`${field} must be a list of at most 8192 ids`);
+  return value.map((item, index) => text(item, `${field}[${index}]`, MAX_ID));
+}
+
+/** An import's files (memory.v0 §8): at most 8,192 paths of 512 bytes, texts of 1 MiB each. */
+function importFiles(value: unknown): ImportFile[] {
+  if (!Array.isArray(value) || value.length > 8192) throw invalid("files must be a list of at most 8192 files");
+  return value.map((item, index) => {
+    const fields = record(item);
+    return { path: text(fields.path, `files[${index}].path`, 512), text: text(fields.text, `files[${index}].text`, 1024 * 1024) };
+  });
+}
+
+/** Typed sealed values for an import's incomplete items: path → pointer → value. */
+function completions(value: unknown): Record<string, Record<string, string>> {
+  if (value === undefined || value === null) return {};
+  const fields = record(value);
+  const out: Record<string, Record<string, string>> = {};
+  for (const [path, typed] of Object.entries(fields)) {
+    const inner = record(typed);
+    out[path] = {};
+    for (const [pointer, item] of Object.entries(inner)) out[path][pointer] = text(item, `completions[${path}][${pointer}]`, 4096);
+  }
+  return out;
 }
 
 function text(value: unknown, field: string, max: number): string {
@@ -768,7 +846,7 @@ export function parseRequest(value: unknown): Request {
       only(fields, ["type", "sessionId"]);
       return { type, sessionId: text(fields.sessionId, "sessionId", MAX_ID) };
     case "authorization.authorize":
-      only(fields, ["type", "sessionId", "packageDigest", "decisions", "toolApprovals", "resourceSelections", "provenance", "prepare", "modelId"]);
+      only(fields, ["type", "sessionId", "packageDigest", "decisions", "toolApprovals", "resourceSelections", "provenance", "prepare", "modelId", "presetSelections"]);
       return {
         type,
         sessionId: text(fields.sessionId, "sessionId", MAX_ID),
@@ -779,9 +857,10 @@ export function parseRequest(value: unknown): Request {
         provenance: bounded(fields.provenance, "provenance"),
         prepare: fields.prepare === true,
         modelId: optionalText(fields.modelId, "modelId", 300),
+        ...(fields.presetSelections !== undefined ? { presetSelections: stringList(fields.presetSelections, "presetSelections") } : {}),
       };
     case "authorization.useProfile":
-      only(fields, ["type", "sessionId", "packageDigest", "profileId", "resourceSelections", "prepare"]);
+      only(fields, ["type", "sessionId", "packageDigest", "profileId", "resourceSelections", "prepare", "presetSelections"]);
       return {
         type,
         sessionId: text(fields.sessionId, "sessionId", MAX_ID),
@@ -789,6 +868,7 @@ export function parseRequest(value: unknown): Request {
         profileId: text(fields.profileId, "profileId", MAX_ID),
         resourceSelections: stringMap(fields.resourceSelections, "resourceSelections"),
         prepare: fields.prepare === true,
+        ...(fields.presetSelections !== undefined ? { presetSelections: stringList(fields.presetSelections, "presetSelections") } : {}),
       };
     case "models.evaluate":
       only(fields, ["type", "sessionId", "refresh"]);
@@ -806,24 +886,59 @@ export function parseRequest(value: unknown): Request {
         modelId: text(fields.modelId, "modelId", 300),
       };
     case "settings.get":
-    case "vault.get":
+    case "memory.get":
+    case "memory.installDemo":
+    case "memory.removeDemo":
+    case "memory.migrationDone":
       only(fields, ["type"]);
       return { type };
+    case "memory.reveal":
+      only(fields, ["type", "recordId", "pointer"]);
+      return { type, recordId: text(fields.recordId, "recordId", MAX_ID), pointer: text(fields.pointer, "pointer", 256) };
+    case "memory.search":
+      only(fields, ["type", "query"]);
+      return { type, query: text(fields.query, "query", 512) };
+    case "memory.create":
+      only(fields, ["type", "draft"]);
+      return { type, draft: bounded(fields.draft, "draft") };
+    case "memory.edit":
+      only(fields, ["type", "recordId", "changes"]);
+      return { type, recordId: text(fields.recordId, "recordId", MAX_ID), changes: bounded(fields.changes, "changes") };
+    case "memory.delete":
+      only(fields, ["type", "recordIds"]);
+      return { type, recordIds: stringList(fields.recordIds, "recordIds") };
+    case "memory.link":
+    case "memory.unlink":
+      only(fields, ["type", "from", "to", "rel"]);
+      return { type, from: text(fields.from, "from", MAX_ID), to: text(fields.to, "to", MAX_ID), rel: text(fields.rel, "rel", 32) };
+    case "memory.clearAgent":
+    case "memory.agentNote":
+      only(fields, ["type", "packageId"]);
+      return { type, packageId: text(fields.packageId, "packageId", 256) };
+    case "memory.forget":
+      only(fields, ["type", "confirmation"]);
+      return { type, confirmation: text(fields.confirmation, "confirmation", 64) };
+    case "memory.export":
+      only(fields, ["type", "includeSealed", "includeAgents", "recordIds"]);
+      return { type, includeSealed: fields.includeSealed === true, includeAgents: fields.includeAgents === true, recordIds: fields.recordIds === null || fields.recordIds === undefined ? null : stringList(fields.recordIds, "recordIds") };
+    case "memory.importPlan":
+      only(fields, ["type", "files"]);
+      return { type, files: importFiles(fields.files) };
+    case "memory.importApply":
+      only(fields, ["type", "files", "completions"]);
+      return { type, files: importFiles(fields.files), completions: completions(fields.completions) };
+    case "memory.review":
+      only(fields, ["type", "runId"]);
+      return { type, runId: text(fields.runId, "runId", MAX_ID) };
+    case "memory.decide":
+      only(fields, ["type", "runId", "decisions"]);
+      return { type, runId: text(fields.runId, "runId", MAX_ID), decisions: bounded(fields.decisions, "decisions") as unknown as ReviewDecision[] };
     case "settings.set":
       only(fields, ["type", "settings"]);
       return { type, settings: bounded(fields.settings, "settings") };
     case "settings.setKey":
       only(fields, ["type", "provider", "key"]);
       return { type, provider: provider(fields.provider), key: fields.key === null || fields.key === undefined ? null : text(fields.key, "key", 512) };
-    case "vault.putRecord":
-      only(fields, ["type", "record"]);
-      return { type, record: bounded(fields.record, "record") };
-    case "vault.deleteRecord":
-      only(fields, ["type", "recordId"]);
-      return { type, recordId: text(fields.recordId, "recordId", MAX_ID) };
-    case "vault.installDemo":
-      only(fields, ["type", "records"]);
-      return { type, records: fields.records === true };
     case "files.list":
       only(fields, ["type"]);
       return { type };

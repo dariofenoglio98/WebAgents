@@ -122,7 +122,7 @@ const flow: AuthorizationController = bindAuthorization({
   setError: (error) => {
     state.error = error;
   },
-  openSettings: (section) => openFullPage(undefined, section === "data" ? "data" : `settings?section=${section}`),
+  openSettings: (section) => openFullPage(undefined, section === "data" || section === "memory" ? "memory" : `settings?section=${section}`),
   rerender: () => render(),
   compact: true,
   unlock: (retry) => openUnlock(null, retry),
@@ -325,7 +325,7 @@ subscribe((event) => {
       },
     );
   }
-  if ((event.type === "event.authorization" && state.open && event.sessionId === state.open.session.id) || event.type === "event.vault" || event.type === "event.settings") {
+  if ((event.type === "event.authorization" && state.open && event.sessionId === state.open.session.id) || event.type === "event.memory" || event.type === "event.settings") {
     void flow.load().then(() => {
       render();
       runs.sync();

@@ -36,6 +36,11 @@ export const VAULT_HMAC_KEY = "vaultKey";
 export const PROVIDER_KEY_ENTRY = (provider: ProviderId): string => `provider_key:${provider}`;
 export const VAULT_ENTRY = "vault";
 export const VAULT_KEY_ENTRY = "vault_key";
+/** The memory's two keys in the secret store (T19, D-221): the HMAC digest key and the AES data key for sealed values at rest. */
+export const MEMORY_KEY_ENTRY = "memory_key";
+export const MEMORY_DATA_KEY_ENTRY = "memory_data_key";
+/** The vault migration's report (memory.v0 M-66), kept in `chrome.storage.local` until the person presses Done. */
+export const MEMORY_MIGRATION_KEY = "memoryMigration";
 export const INSTANCE_ID_KEY = "instanceId";
 /** Receipt ids whose `once` grants a run already used (D-065): the lease registry's persisted half. */
 export const SPENT_RECEIPTS_KEY = "spentReceipts";
@@ -347,6 +352,40 @@ export class SettingsStorage {
   /** The HMAC key, generated on first use and kept for the life of the store (D-051). */
   vaultKey(): Promise<Uint8Array> {
     return this.secrets.ensure(VAULT_KEY_ENTRY, (stored) => stored.length === KEY_BYTES, generateVaultKey);
+  }
+
+  // -- the memory (T19, memory.v0) ---------------------------------------------------------------
+  /** The memory's digest key and data key, generated on first use and kept for the life of the store. Needs the store unlocked. */
+  async memoryKeys(): Promise<{ key: Uint8Array; dataKey: Uint8Array }> {
+    const key = await this.secrets.ensure(MEMORY_KEY_ENTRY, (stored) => stored.length === KEY_BYTES, generateVaultKey);
+    const dataKey = await this.secrets.ensure(MEMORY_DATA_KEY_ENTRY, (stored) => stored.length === KEY_BYTES, generateVaultKey);
+    return { key, dataKey };
+  }
+
+  /** The vault document still held in the store (before the migration's Done), or null. Needs the store unlocked; `hasVault` tells while locked. */
+  async vaultDocumentIfAny(): Promise<VaultDocument | null> {
+    if (!(await this.secrets.has(VAULT_ENTRY))) return null;
+    return this.vaultDocument();
+  }
+
+  hasVault(): Promise<boolean> {
+    return this.secrets.has(VAULT_ENTRY);
+  }
+
+  /** The migration's Done: the vault document and its digest key leave the store for good (M-66). */
+  async removeVault(): Promise<void> {
+    if (await this.secrets.has(VAULT_ENTRY)) await this.secrets.delete(VAULT_ENTRY);
+    if (await this.secrets.has(VAULT_KEY_ENTRY)) await this.secrets.delete(VAULT_KEY_ENTRY);
+  }
+
+  async migrationReport(): Promise<unknown | null> {
+    const stored = (await this.area.get(MEMORY_MIGRATION_KEY))[MEMORY_MIGRATION_KEY];
+    return stored === undefined ? null : stored;
+  }
+
+  async saveMigrationReport(report: unknown | null): Promise<void> {
+    if (report === null) await this.area.remove(MEMORY_MIGRATION_KEY);
+    else await this.area.set({ [MEMORY_MIGRATION_KEY]: report });
   }
 
   // -- the migration from 0.1.0's clear storage (T16) ----------------------------------------

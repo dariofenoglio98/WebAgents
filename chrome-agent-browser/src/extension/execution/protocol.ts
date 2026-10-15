@@ -6,15 +6,15 @@
  * (`ExecutionSession.begin`) and executes.
  *
  * What travels in `host.start` and nowhere else: the key of the provider the plan bound (and no
- * other, D-195), the vault when the plan grants records (the person's records, which the broker
- * resolves for `host_resource` bindings and whose sealed values the egress guard refuses anywhere
- * else; null otherwise), and the origins the plan allows the run to reach (D-193), which the
+ * other, D-195), the memory when the plan grants a record or binds a memory tool (the person's
+ * records, which the broker resolves for `host_resource` bindings and whose sealed values the
+ * egress guards refuse anywhere else; null otherwise), and the origins the plan allows the run to reach (D-193), which the
  * host's transports enforce beneath the core URL gate. The secrets live encrypted in
  * `chrome.storage.local` (D-191) and in the host's memory for the run; no record, checkpoint or
  * artifact carries them.
  */
 import type { OpenAIReasoningEffort } from "../../core/models/adapters/openai.js";
-import type { VaultDocument } from "../../core/vault.js";
+import type { MemorySnapshot } from "../../core/memory/store.js";
 
 export interface HostCredentials {
   openai: string | null;
@@ -47,12 +47,13 @@ export interface HostStartMessage {
   runId: string;
   credentials: HostCredentials;
   /**
-   * The vault, when the plan grants a record; its types alone (no record, a throwaway key) when
-   * the plan binds a host-resource tool without granting one, so the registry the plan was frozen
-   * from can be rebuilt (review 1, finding 1); null when the plan needs neither (the host then
-   * holds an empty vault, D-195).
+   * The memory (T19, memory.v0 M-36): the whole store under its digest key when the plan grants a
+   * record or binds a memory tool (the scan set is every sealed value; the resolver answers only
+   * the plan's grants), and `snapshot: null` otherwise (the host then holds an empty store under a
+   * throwaway key, D-195). Beside it, what the preset and the subscribed policy decide for the
+   * agent document (M-50) and the proposals (M-54), and whether the memory is full (M-47).
    */
-  vault: { key: string; document: VaultDocument } | null;
+  memory: { key: string | null; snapshot: MemorySnapshot | null; agent_discard: "preset" | "policy" | null; policy_refuses_proposals: boolean; memory_full: boolean } | null;
   settings: HostRunSettings;
   /**
    * The origins (`https://host`) this run may reach: the plan's package, tool and provider origins

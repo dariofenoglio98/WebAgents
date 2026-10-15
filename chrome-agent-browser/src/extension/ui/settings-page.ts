@@ -19,9 +19,9 @@ import type { Settings, StoredConnection } from "../storage/settings.js";
 import { downloadBuiltinModel, languageModelApi } from "../execution/builtin-port.js";
 import { button, bytes, card, chip, definition, details, el, list, row } from "./dom.js";
 
-export type SettingsSection = "models" | "policies" | "security" | "permissions" | "search" | "files" | "services" | "about";
-export const SETTINGS_SECTIONS: readonly SettingsSection[] = ["models", "policies", "security", "permissions", "search", "files", "services", "about"];
-const SECTION_TITLES: Record<SettingsSection, string> = { models: "Models", policies: "Policies", security: "Security", permissions: "Permissions", search: "Search", files: "Files", services: "Services", about: "About" };
+export type SettingsSection = "models" | "policies" | "security" | "memory" | "permissions" | "search" | "files" | "services" | "about";
+export const SETTINGS_SECTIONS: readonly SettingsSection[] = ["models", "policies", "security", "memory", "permissions", "search", "files", "services", "about"];
+const SECTION_TITLES: Record<SettingsSection, string> = { models: "Models", policies: "Policies", security: "Security", memory: "Memory", permissions: "Permissions", search: "Search", files: "Files", services: "Services", about: "About" };
 
 /**
  * The limits the reference host was configured with for Literature Review (STATE.md §4: 180,000
@@ -62,6 +62,8 @@ export interface SettingsPageState {
   forms: { indexUrl: string; indexPem: string; policyUrl: string; policyPem: string };
   /** Settings → Security (T16): the typed confirmation of "Forget everything", kept across re-renders; passphrases are never kept. */
   forgetConfirmation: string;
+  /** Settings → Memory (T19): the typed confirmation of "Forget memory". */
+  forgetMemory?: string;
 }
 
 export function newSettingsPageState(section: SettingsSection = "models"): SettingsPageState {
@@ -138,6 +140,8 @@ export interface SettingsExtras {
   /** Settings → Security's keychain card (T17); null until the helper was asked. */
   keychain?: KeychainView | null;
   permissions?: PermissionsView | null;
+  /** Settings → Memory (T19, design §6), rendered by the page that holds the memory view. */
+  memory?: HTMLElement[] | null;
 }
 
 /** The one-time Ollama setup (B-117): the commands a person copies, per way of running Ollama. */
@@ -763,10 +767,14 @@ function keychainCard(keychain: KeychainView | null, unlocked: boolean, actions:
   } else if (keychain.helper === "not_installed") {
     status.push(el("div", { className: "ab-row" }, chip("Helper not installed", "warn")));
     status.push(el("p", { className: "ab-hint", text: "The macOS installer (installer/README.md) adds the helper and can set up Ollama. Until then, unlock with your passphrase; nothing is lost." }));
+  } else if (keychain.helper === "forbidden") {
+    // A helper installed for another extension id (T17 review 2, nit 1): the words say what to do, not "not installed".
+    status.push(el("div", { className: "ab-row" }, chip("Helper not for this extension", "warn")));
+    status.push(el("p", { className: "ab-hint", text: "The installed helper does not list this extension: reinstall it with the current installer. Until then, unlock with your passphrase; nothing is lost." }));
   } else {
     status.push(el("div", { className: "ab-row" }, chip(keychain.helper === "refused" ? "Helper refused" : "Helper failed", "bad")));
   }
-  if (keychain.problem && keychain.helper !== "not_installed") status.push(el("p", { className: "ab-banner ab-banner-warn", attrs: { role: "status" }, text: `${keychain.problem.code}: ${keychain.problem.message}` }));
+  if (keychain.problem && keychain.helper !== "not_installed" && keychain.helper !== "forbidden") status.push(el("p", { className: "ab-banner ab-banner-warn", attrs: { role: "status" }, text: `${keychain.problem.code}: ${keychain.problem.message}` }));
   if (keychain.ollama) {
     const words = ollamaWords(keychain.ollama);
     status.push(el("div", { className: "ab-row ab-ollama-status" }, chip("Ollama", words.tone), el("span", { className: "ab-hint", text: ` ${words.text}` })));
@@ -840,7 +848,8 @@ function permissionsView(permissions: PermissionsView | null, actions: SettingsP
                 el("code", { text: item.origin }),
                 chip(item.granted ? "granted" : "not granted by Chrome", item.granted ? "good" : "warn"),
                 el("p", { className: "ab-hint ab-permission-why", text: item.purposes.length === 0 ? "granted outside this extension (an earlier version, or chrome://extensions)" : item.purposes.map(purposeWords).join("; ") }),
-                button("Revoke", () => actions.onRevoke?.([item.origin]), { variant: "danger", disabled: !actions.onRevoke }),
+                // Under every-site, a single Revoke can only end in the 409 banner: disabled, and the hint above says why (T16 review 2, nit 4).
+                button("Revoke", () => actions.onRevoke?.([item.origin]), { variant: "danger", disabled: !actions.onRevoke || permissions.detect_everywhere }),
               ),
             ),
           ),
@@ -877,6 +886,8 @@ export function renderSettingsPage(view: SettingsView, status: StatusInfo | null
         ? policiesView(view, actions, state, extras)
         : state.section === "security"
           ? securityView(view, actions, state, extras.secrets ?? null, extras.keychain ?? null)
+          : state.section === "memory"
+            ? (extras.memory ?? [el("p", { className: "ab-busy", text: "Loading…" })])
           : state.section === "permissions"
             ? permissionsView(extras.permissions ?? null, actions)
             : state.section === "search"

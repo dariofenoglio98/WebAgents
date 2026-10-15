@@ -27,7 +27,13 @@ import { validateTaskInput } from "../../core/presentation.js";
 import { FILE_ID_PATTERN, type SelectedFileAttachment } from "../../core/tools/adapters/selected-file.js";
 import { definitionsFromRegistry } from "../../core/tools/definitions.js";
 import type { Reason, RunPlan, RunPlanPreflight } from "../../core/types.js";
-import { emptyVaultDocument, generateVaultKey, Vault } from "../../core/vault.js";
+import { emptyMemorySnapshot, MemoryStore } from "../../core/memory/store.js";
+import { generateVaultKey } from "../../core/vault.js";
+import { SerialQueue } from "../../core/serial.js";
+import { memoryDeclarations } from "../../core/memory/declarations.js";
+import type { MemoryType } from "../../core/memory/types.js";
+import type { MemoryController } from "./memory-controller.js";
+import type { PresetId } from "../../core/types.js";
 import type { PlanOrigin } from "../../core/origins.js";
 import type { SecretStoreState } from "../../core/secrets.js";
 import { HOST_UNLOADED } from "../execution/execute.js";
@@ -65,7 +71,7 @@ export const HOST_ARTIFACTS = new Set(["result.json", "audit.json", "usage.json"
  * a record, or it binds an approved host-resource tool, whose binding exists only in a registry
  * built from the vault's types. Both live in the secret store, so both need an unlock before Run.
  */
-export function planNeedsVault(plan: Pick<RunPlan, "resource_grants" | "tool_bindings">): boolean {
+export function planNeedsMemory(plan: Pick<RunPlan, "resource_grants" | "tool_bindings">): boolean {
   return plan.resource_grants.length > 0 || bindsHostResource(plan.tool_bindings);
 }
 
@@ -87,7 +93,10 @@ export interface RunHooks {
   isSessionOpen(sessionId: string): boolean;
   preflight(sessionId: string): Promise<RunPlanPreflight>;
   toolRegistry(sessionId: string): Promise<ToolRegistry>;
-  vault(): Promise<Vault>;
+  /** The memory (T19, memory.v0): the store a run is opened with, the commit of an agent document, the usage log. */
+  memory(): MemoryController;
+  /** The subscribed policy's memory rules (M-54) and the preset: what the run does with proposals and the agent document (M-50, M-52). */
+  memoryRules?(): Promise<{ preset: PresetId; agent: "allow" | "refuse"; proposals: "ask" | "refuse" }>;
   /** The catalog readiness was checked against; a missing one is read again, never taken as "unknown" (D-077). */
   catalog(): Promise<HostCatalog>;
   snapshotBytes(archiveSha256: string): Promise<Uint8Array | null>;
@@ -231,6 +240,8 @@ export class RunManager {
   private registry: LeaseRegistry | null = null;
   /** Leases consumed for runs in flight, released when the host reports the run settled. */
   private readonly leases = new Map<string, ExecutionLease>();
+  /** The run-memory applications, one at a time: a `host.finished` and the unlock sweep never apply the same run twice (review 1, finding 5). */
+  private readonly memoryWork = new SerialQueue();
   private restored: Promise<void> | null = null;
   /** Sessions whose start is in progress: a second press while the lease is being issued is refused. */
   private readonly starting = new Set<string>();
@@ -425,8 +436,8 @@ export class RunManager {
       const archive = await this.deps.hooks.snapshotBytes(facts.stored.archive_sha256);
       if (archive === null) throw reject("execution_artifact_mismatch", "The session snapshot is no longer stored", 500);
       const registry = await this.deps.hooks.toolRegistry(sessionId);
-      // The vault is opened only for a plan that needs it (D-195): a locked store never blocks a run that needs nothing from it.
-      const vault = planNeedsVault(plan) ? await this.deps.hooks.vault() : await Vault.open(generateVaultKey(), emptyVaultDocument());
+      // The memory is opened only for a plan that needs it (D-195): a locked store never blocks a run that needs nothing from it.
+      const resolver = planNeedsMemory(plan) ? (await this.deps.hooks.memory().unlocked()).store : await MemoryStore.open({ key: generateVaultKey(), snapshot: emptyMemorySnapshot(), now: this.clock });
       const catalog = await this.deps.hooks.catalog();
       const leases = await this.leaseRegistry();
       let lease: ExecutionLease;
@@ -436,7 +447,7 @@ export class RunManager {
           preflight: readiness.preflight,
           archive,
           definitions: definitionsFromRegistry(registry),
-          resolver: vault,
+          resolver,
           modelAvailable: (hostModelId) => stillAvailable(catalog, hostModelId),
           minimumReceiptRemainingSeconds: this.requiredSeconds(limits),
           sessionExpiresAt: facts.stored.expires_at,
@@ -467,6 +478,7 @@ export class RunManager {
         audit: [],
         usage: null,
         result: null,
+        memory_types: declaredCustomTypes(facts.pkg),
       };
       if (inputBytes <= MAX_ECHOED_INPUT_BYTES) stored.record.task = { ...stored.record.task, input: input.input as JsonValue } as RunRecord["task"] & { input: JsonValue };
       await this.deps.runs.putRun(stored);
@@ -527,10 +539,10 @@ export class RunManager {
     return attachments;
   }
 
-  /** Whether a run under this plan is handed anything from the secret store: a hosted provider's key, a granted record, or the vault's types for a bound host-resource tool. */
+  /** Whether a run under this plan is handed anything from the secret store: a hosted provider's key, a granted record, or the memory for a bound memory tool. */
   private needsSecrets(plan: RunPlan): boolean {
     const provider = plan.model_binding?.provider_id ?? null;
-    return planNeedsVault(plan) || provider === "openai" || provider === "anthropic";
+    return planNeedsMemory(plan) || provider === "openai" || provider === "anthropic";
   }
 
   /**
@@ -545,14 +557,29 @@ export class RunManager {
     const connections = connectionsFor(settings, await this.deps.settings.keyPresence());
     const connection = (provider: string) => connections.find((item) => item.provider === provider);
     const provider = plan.model_binding?.provider_id ?? null;
-    let vault: HostStartMessage["vault"] = null;
-    if (plan.resource_grants.length > 0) vault = { key: encodeBase64(await this.deps.settings.vaultKey()), document: await this.deps.settings.vaultDocument() };
-    else if (bindsHostResource(plan.tool_bindings)) vault = { key: encodeBase64(generateVaultKey()), document: { ...(await this.deps.settings.vaultDocument()), records: [] } };
+    // memory.v0 M-36: a run that grants a record or binds a memory tool is opened with the whole
+    // store (its scan set is every sealed value; the resolver answers only the plan's grants).
+    let memory: HostStartMessage["memory"] = null;
+    if (planNeedsMemory(plan)) {
+      const rules = (await this.deps.hooks.memoryRules?.()) ?? { preset: settings.preset, agent: "allow" as const, proposals: "ask" as const };
+      const { key, snapshot } = await this.deps.hooks.memory().runSnapshot();
+      memory = {
+        key: encodeBase64(key),
+        snapshot,
+        agent_discard: rules.preset === "privacy-first" ? "preset" : rules.agent === "refuse" ? "policy" : null,
+        policy_refuses_proposals: rules.proposals === "refuse",
+        memory_full: await this.deps.hooks.memory().full(),
+      };
+    } else {
+      // A run without memory still carries the rules: its proposals (if any) are checked over an empty scan set and offered by the same rules.
+      const rules = (await this.deps.hooks.memoryRules?.()) ?? { preset: settings.preset, agent: "allow" as const, proposals: "ask" as const };
+      memory = { key: null, snapshot: null, agent_discard: rules.preset === "privacy-first" ? "preset" : rules.agent === "refuse" ? "policy" : null, policy_refuses_proposals: rules.proposals === "refuse", memory_full: false };
+    }
     return {
       type: "host.start",
       runId,
       credentials: { openai: provider === "openai" ? await this.deps.settings.key("openai") : null, anthropic: provider === "anthropic" ? await this.deps.settings.key("anthropic") : null },
-      vault,
+      memory,
       settings: {
         ollamaBaseUrl: connection("ollama")?.base_url ?? null,
         openaiBaseUrl: connection("openai")?.base_url ?? null,
@@ -601,7 +628,51 @@ export class RunManager {
     }
     this.deps.broadcast({ type: "event.run", runId, sessionId: run.session_id, status: run.record.status });
     await this.deps.hooks.runSettled?.(run.invocation.archive_sha256);
+    // memory.v0 M-29, M-50: the run's usage entries and its staged agent document reach the memory
+    // now, or wait for the next unlock when the store locked meanwhile; never a run failure.
+    await this.applyRunMemory(runId).catch(() => undefined);
     return { received: true };
+  }
+
+  /**
+   * What a settled run left for the memory (its usage entries, its agent commit), applied
+   * **once**: the facts are re-read inside one queue shared with the unlock sweep, written to the
+   * memory in a single write, and cleared from the run only after that write (review 1, finding
+   * 5). A locked store, or a store that refuses the commit (`memory_full`), keeps them on the run
+   * for a later pass; nothing is applied twice, and nothing partly.
+   */
+  private applyRunMemory(runId: string): Promise<boolean> {
+    return this.memoryWork.run(async () => {
+      const run = await this.deps.runs.getRun(runId);
+      if (run === null) return false;
+      const usage = run.memory_usage ?? [];
+      const commit = run.memory_commit ?? null;
+      if (usage.length === 0 && commit === null) return false;
+      if ((await this.deps.hooks.secretsState()) !== "unlocked") return false;
+      await this.deps.hooks.memory().applyRun({ usage, commit: commit === null ? null : { package_id: commit.package_id, package_version: commit.package_version, run_id: run.run_id, name: commit.name, body: commit.body, at: commit.at } });
+      await this.deps.runs.updateRun(run.run_id, (current) => ({ ...current, memory_usage: null, memory_commit: null }));
+      return true;
+    });
+  }
+
+  /**
+   * After an unlock: every settled run whose memory facts are still waiting is applied (M-50: a
+   * commit is never lost to a lock). Each run on its own: one the store refuses stays pending
+   * without blocking the others (finding 5).
+   */
+  async applyPendingMemory(): Promise<number> {
+    if ((await this.deps.hooks.secretsState()) !== "unlocked") return 0;
+    let applied = 0;
+    for (const run of await this.deps.runs.listRuns()) {
+      if (!isTerminalStatus(run.record.status)) continue;
+      if ((run.memory_usage ?? []).length === 0 && !run.memory_commit) continue;
+      try {
+        if (await this.applyRunMemory(run.run_id)) applied += 1;
+      } catch {
+        // Kept on the run (a full memory, a store that changed under the write); the next pass tries again.
+      }
+    }
+    return applied;
   }
 
   // -- reads -----------------------------------------------------------------------------------
@@ -771,4 +842,14 @@ export class RunManager {
 function openaiEffortOf(settings: Settings): { openaiReasoningEffort?: OpenAIReasoningEffort } {
   const effort = settings.models.connections.find((connection) => connection.provider === "openai")?.reasoning_effort;
   return effort !== undefined ? { openaiReasoningEffort: effort } : {};
+}
+
+/** The custom types a package declares (memory.v0 M-18), kept with its run so a proposal of such a type can be reviewed once the snapshot is gone; null when it declares none. */
+function declaredCustomTypes(pkg: Package): MemoryType[] | null {
+  try {
+    const custom = memoryDeclarations(pkg.manifest, pkg.policy, pkg.tools, pkg.files).custom_types;
+    return custom.length === 0 ? null : custom;
+  } catch {
+    return null; // refused at validation already; a run of such a package never starts
+  }
 }

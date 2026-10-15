@@ -27,6 +27,7 @@
  *   into the extension's storage for this throwaway profile and never written anywhere by this script.
  */
 import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve } from "node:path";
@@ -44,6 +45,8 @@ const DEFAULT_SITE = "https://webagents-webair-production.up.railway.app/";
 const RUN_TIMEOUT_MS = 20 * 60 * 1000;
 
 const args = { chrome: process.env.CHROME_PATH || DEFAULT_CHROME, site: DEFAULT_SITE, model: null, version: "0.5.0", out: null, outDir: null, keep: false, phases: ["search", "cancel", "quote", "purchase", "denial"] };
+/** The memory phase (T19, Demo 6) needs WebAir 0.6.0 (memory.v0): it is on by default from that version. */
+const memoryCapable = (version) => Number(version.split(".")[1] ?? "0") >= 6;
 for (let index = 2; index < process.argv.length; index += 1) {
   const argument = process.argv[index];
   if (argument === "--chrome") args.chrome = process.argv[(index += 1)];
@@ -53,7 +56,7 @@ for (let index = 2; index < process.argv.length; index += 1) {
   else if (argument === "--out") args.out = resolve(process.argv[(index += 1)]);
   else if (argument === "--out-dir") args.outDir = resolve(process.argv[(index += 1)]);
   else if (argument === "--keep") args.keep = true;
-  else if (argument === "--phases") args.phases = process.argv[(index += 1)] === "all" ? args.phases : process.argv[index].split(",");
+  else if (argument === "--phases") args.phases = process.argv[(index += 1)] === "all" ? [...args.phases, "memory"] : process.argv[index].split(",");
   else {
     console.error(`unknown argument ${argument}`);
     process.exit(2);
@@ -61,6 +64,7 @@ for (let index = 2; index < process.argv.length; index += 1) {
 }
 // Each version's evidence has its own report; the committed 0.4.0 one is never overwritten by a 0.5.0 run.
 if (args.out === null) args.out = join(ROOT, "examples", "verification", `chrome-webair-${args.version.replaceAll(".", "")}-live.json`);
+if (memoryCapable(args.version) && !args.phases.includes("memory") && process.argv.every((argument) => argument !== "--phases")) args.phases.push("memory");
 if (!args.model || !args.model.includes("/")) {
   console.error("--model provider/model is required (ollama/qwen3:30b, openai/<id>, anthropic/<id>)");
   process.exit(2);
@@ -86,7 +90,9 @@ mkdirSync(outDir, { recursive: true });
 
 const SEARCH_REQUEST = "Find me a nonstop flight from Boston to Zurich on 9 October under $900.";
 const BOOKING_REQUEST = "Search nonstop flights from Boston to Zurich on 9 October and prepare a booking quote for the WA101 Economy Standard fare for me.";
-const PICKS = { "profile.travel": "profile_demo_traveler", "identity.passenger": "passenger_demo_alex", "wallet.payment": "payment_demo_visa" };
+/** The demo set's stable memory ids (T19, `demoRecordId`): `mem_` + the first 32 hex characters of SHA-256("demo:<0.1.0 resource id>"). */
+const demoRecordId = (resourceId) => `mem_${createHash("sha256").update(`demo:${resourceId}`).digest("hex").slice(0, 32)}`;
+const PICKS = { "profile.travel": demoRecordId("profile_demo_traveler"), "memory.travel_profile": demoRecordId("profile_demo_traveler"), "identity.passenger": demoRecordId("passenger_demo_alex"), "wallet.payment": demoRecordId("payment_demo_visa") };
 
 /** Page-side helpers for the extension's pages: controls by label, the native value setter, run state. */
 const HELPERS = String.raw`
@@ -125,6 +131,18 @@ window.__ab = {
   session() { return document.querySelector("article.ab-agent")?.dataset.session ?? null; },
   trust() { return document.querySelector("article.ab-agent")?.dataset.trust ?? null; },
   planBanner() { const n = document.querySelector(".ab-authorize .ab-banner strong"); return n ? n.textContent : null; },
+  /** T19: pick a memory record on its recall card (a radio, the pre-selected card, or the legacy select). */
+  pick(permission, recordId) {
+    const radio = document.querySelector('input[name="resource-' + permission + '"][value="' + recordId + '"]');
+    if (radio) { radio.click(); return "radio"; }
+    const card = document.querySelector('.ab-recall-propose[data-permission="' + permission + '"]');
+    if (card && card.dataset.record === recordId) return "preselected";
+    if (card) { const change = [...card.querySelectorAll("button")].find((b) => b.textContent.trim() === "Change…"); if (change) { change.click(); return "opened"; } }
+    const select = document.querySelector('select[name="resource-' + permission + '"]');
+    if (select && [...select.options].some((o) => o.value === recordId)) { select.value = recordId; select.dispatchEvent(new Event("change", { bubbles: true })); return "select"; }
+    return null;
+  },
+  review() { const sheet = document.querySelector(".ab-review"); return sheet ? { title: sheet.querySelector("h3")?.textContent ?? null, cards: sheet.querySelectorAll(".ab-review-card").length, done: sheet.classList.contains("ab-review-done") } : null; },
   async send(request) { const reply = await chrome.runtime.sendMessage(request); return reply; },
 };
 true;
@@ -201,7 +219,7 @@ async function main() {
     report.steps.setup = { probe: { ok: probe.ok, models: probe.models.length, error: probe.error, diagnosis: probe.diagnosis ?? null }, testMode: true, keyFromEnvironment: keyEnv };
     check("setup", `the ${provider} connection answers`, probe.ok === true, probe.error);
     check("setup", "the model is offered", probe.models.some((model) => model.id === args.model), probe.models.map((model) => model.id));
-    await send({ type: "vault.installDemo", records: true });
+    await send({ type: "memory.installDemo" });
     const status = await send({ type: "status.get" });
     check("setup", "execution is enabled", status.execution === "enabled", status.execution);
     report.steps.setup.executionLimits = status.execution_limits;
@@ -230,8 +248,15 @@ async function main() {
       await cdp.evaluate(page, `document.querySelector('button[data-profile="${profileId}"]').click(); true`);
       await sleep(200);
       for (const [permission, resourceId] of Object.entries(picks)) {
-        const ok = await cdp.evaluate(page, `__ab.setSelect('select[name="resource-${permission}"]', ${JSON.stringify(resourceId)})`);
-        if (!ok) throw new Error(`no picker for ${permission}`);
+        // The recall card (T19, M-52): a radio under privacy first or for a sealed type, the pre-selected card under balanced, the legacy select otherwise.
+        let how = await cdp.evaluate(page, `__ab.pick(${JSON.stringify(permission)}, ${JSON.stringify(resourceId)})`);
+        if (how === "opened") {
+          await sleep(150);
+          how = await cdp.evaluate(page, `__ab.pick(${JSON.stringify(permission)}, ${JSON.stringify(resourceId)})`);
+        }
+        if (how === null) throw new Error(`no picker for ${permission}`);
+        report.steps.picks ??= {};
+        report.steps.picks[`${profileId}:${permission}`] = how;
       }
       const previous = (await send({ type: "authorization.get", sessionId })).receipt?.receipt_id ?? null;
       await cdp.evaluate(page, `__ab.click("Use this agent")`);
@@ -391,6 +416,53 @@ async function main() {
       check("replay", "the page disables Run because the once grant is spent", button.disabled === true && reasonMentionsOnce, button);
       check("replay", "the worker refuses the start as a stale plan (once spent)", typeof refusal === "string" && /run_plan_stale/u.test(refusal) && /once/iu.test(refusal), refusal);
       check("replay", "no new run was created", after?.runId === purchase.record.runId, after?.runId);
+    }
+
+    // 7. Memory (T19, Demo 6; WebAir 0.6.0): a booking proposes things to remember; the person accepts them;
+    //    the memory folder is exported; a second authorization recalls the accepted record.
+    if (args.phases.includes("memory")) {
+      const bookPicks = Object.fromEntries(Object.entries(PICKS).filter(([permission]) => permission !== "profile.travel"));
+      const auth = await authorize("book", bookPicks);
+      report.steps.memoryAuthorization = auth;
+      check("memory", "the book plan is ready with the recalled profile", auth.ready === true && auth.grants.includes(PICKS["memory.travel_profile"]), auth);
+      const memoryTask = { request: BOOKING_REQUEST, booking: true, purchase: { quote_id: "", fare_id: "" } };
+      const run = await runTask("memory", memoryTask);
+      check("memory", "completed", run.record.status === "completed", run.record);
+      const record = await send({ type: "run.get", runId: run.record.runId });
+      report.steps.memoryRun = { runId: run.record.runId, memory: record.memory ?? null };
+      check("memory", "the run proposed something to remember (memory.proposed)", (record.memory?.proposals?.offered ?? 0) > 0, record.memory);
+      const sheet = await cdp.waitFor(page, `__ab.review()`, "the review sheet", 30_000);
+      check("memory", "the review sheet lists every offered proposal", sheet.cards === (record.memory?.proposals?.offered ?? -1), sheet);
+      await shot("6-review");
+      await cdp.evaluate(page, `__ab.click("Accept all", document.querySelector(".ab-review"))`);
+      await sleep(200);
+      await cdp.evaluate(page, `__ab.click("Save decisions", document.querySelector(".ab-review"))`);
+      const done = await cdp.waitFor(page, `(() => { const r = __ab.review(); return r && r.done ? r : null; })()`, "the decisions applied", 30_000);
+      report.steps.memoryReview = { done, review: await send({ type: "memory.review", runId: run.record.runId }) };
+      check("memory", "the decisions were applied once and the sheet collapsed", done.done === true && report.steps.memoryReview.review.decided !== null, report.steps.memoryReview);
+      const memoryView = await send({ type: "memory.get" });
+      const accepted = memoryView.records.filter((item) => item.source?.kind === "package" && item.source.run_id === run.record.runId);
+      report.steps.memoryRecords = accepted.map((item) => ({ id: item.id, type: item.type, title: item.title, links: item.links ?? [] }));
+      check("memory", "the accepted records carry the run's provenance", accepted.length === report.steps.memoryReview.review.decided.accepted, report.steps.memoryRecords);
+      // The export: the memory folder as a zip beside the run directories (sealed values omitted).
+      const exported = await send({ type: "memory.export", includeSealed: false, includeAgents: true, recordIds: null });
+      const folder = join(outDir, "memory-export");
+      mkdirSync(folder, { recursive: true });
+      for (const file of exported.files) {
+        mkdirSync(join(folder, dirname(file.path)), { recursive: true });
+        writeFileSync(join(folder, file.path), file.text);
+      }
+      report.steps.memoryExport = { directory: relative(ROOT, folder), files: exported.files.length, sealedIncluded: exported.sealed_included };
+      check("memory", "the export omits sealed values", exported.sealed_included === false && exported.files.some((file) => file.path === "index.md"), report.steps.memoryExport);
+      await newRun();
+      // A second authorization: the accepted record is a recall candidate for the same package.
+      await cdp.evaluate(page, `document.querySelector('button[data-profile="book"]').click(); true`);
+      await sleep(300);
+      const recall = (await send({ type: "authorization.get", sessionId })).recall;
+      report.steps.memoryRecall = recall.map((card) => ({ permission_id: card.permission_id, mode: card.mode, candidates: card.candidates.map((candidate) => ({ id: candidate.id, title: candidate.title, signals: candidate.signals })) }));
+      const recalled = recall.some((card) => card.candidates.some((candidate) => accepted.some((item) => item.id === candidate.id)));
+      check("memory", "the accepted record is recalled for the next run", recalled, report.steps.memoryRecall);
+      await shot("7-recalled");
     }
 
     // 6. Denial: the quote profile cannot purchase.

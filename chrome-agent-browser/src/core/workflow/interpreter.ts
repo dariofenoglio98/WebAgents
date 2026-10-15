@@ -12,6 +12,8 @@ import { integrityStatement } from "../archive.js";
 import { canonicalString } from "../canonical.js";
 import { ValidationError } from "../errors.js";
 import { isJsonObject, parseJson, type JsonObject, type JsonValue } from "../json.js";
+import { PROPOSALS_EXPORT_FORMAT, ProposalRefusal } from "../memory/proposals.js";
+import { MemoryRun, type MemoryRunReport } from "../memory/run.js";
 import type { Package } from "../package.js";
 import { deepCopy, schemaReference, select, tokens } from "../references.js";
 import { PackageSchemas } from "../schema.js";
@@ -44,6 +46,8 @@ export interface ExecutionReport {
   error_code?: string;
   output?: JsonValue;
   state?: JsonObject;
+  /** What the run did with memory (memory.v0 §7, §9): the proposals it offers and the agent document's fate. */
+  memory?: MemoryRunReport | null;
 }
 
 export interface WorkflowResult extends ExecutionReport {
@@ -58,6 +62,7 @@ export class Workflow {
   readonly package: Package;
   readonly graph: JsonObject;
   readonly runtime: Runtime;
+  private memoryReport: MemoryRunReport | null = null;
   private readonly schemas: PackageSchemas;
   private used = false;
   private cancelRequested = false;
@@ -91,7 +96,10 @@ export class Workflow {
     const paths = (verified.manifest.schemas as JsonObject[]).map((entry) => String(entry.path));
     const schemas = await PackageSchemas.open(verified.files, paths);
     try {
-      return new Workflow(verified, schemas, options);
+      // memory.v0 M-40 holds in every mode: a host that supplies no memory context still gets the
+      // proposals check, over an empty scan set and no grant.
+      const memory = options.memory === undefined ? new MemoryRun(verified, [], options.grants ?? {}, {}) : options.memory;
+      return new Workflow(verified, schemas, { ...options, memory });
     } catch (error) {
       schemas.close();
       throw error;
@@ -435,18 +443,38 @@ export class Workflow {
         const record = entry as JsonObject;
         const value = evaluate(record.value!, { result: this.output });
         if (record.format === "text" && typeof value !== "string") throw new ValidationError("Text exports must select strings");
+        // memory.v0 M-40: the proposals document is checked here, after the output, before
+        // `workflow.completed`; a refusal fails the run with the check's code, and nothing is
+        // written to the store by the run itself, ever (M-38).
+        if (record.format === PROPOSALS_EXPORT_FORMAT && rt.memory !== null) {
+          let checked;
+          try {
+            checked = await rt.memory.checkProposals(value);
+          } catch (error) {
+            if (!(error instanceof ProposalRefusal)) throw error;
+            throw new WorkflowError(error.code, null, { cause: error });
+          }
+          rt.record("memory.proposed", { context: rt.coordinatorContext(), ...checked.facts });
+          this.memoryReport = { proposals: checked.facts, refused: null, agent: null };
+        }
       }
       rt.record("workflow.completed", { profile: PROFILE, output_hash: digest(this.output) });
+      this.recordAgentOutcome("completed");
       const result: WorkflowResult = { ...this.report("completed"), status: "completed", output: deepCopy(this.output), state: deepCopy(state) };
       rt.clear();
       return result;
     } catch (error) {
       const code = failureCode(error);
+      const cause = (error as { cause?: unknown }).cause;
+      const refusal = error instanceof ProposalRefusal ? error : cause instanceof ProposalRefusal ? cause : null;
+      if (refusal !== null) this.memoryReport = { proposals: null, refused: { code: refusal.code, reason: refusal.reason, index: refusal.index }, agent: null };
       rt.record(code === "cancelled" ? "workflow.cancelled" : "workflow.failed", {
         profile: PROFILE,
         error_code: code,
         node_id: (error as { node_id?: string | null } | null)?.node_id ?? null,
+        ...(refusal !== null ? { reason: refusal.reason, ...(refusal.index !== null ? { proposal_index: refusal.index } : {}) } : {}),
       });
+      this.recordAgentOutcome(code === "cancelled" ? "cancelled" : "failed");
       rt.clear();
       const report: ExecutionReport = { ...this.report(code === "cancelled" ? "cancelled" : "failed"), error_code: code };
       if (error instanceof CancelledError) {
@@ -462,9 +490,22 @@ export class Workflow {
     }
   }
 
+  /** memory.v0 M-50: the staged agent body is committed only after `workflow.completed`, else discarded with its reason. */
+  private recordAgentOutcome(status: ExecutionReport["status"]): void {
+    const memory = this.runtime.memory;
+    if (memory === null) return;
+    const agent = memory.agentOutcome(status);
+    if (agent === null) return;
+    const context = this.runtime.coordinatorContext();
+    if (agent.committed !== null) this.runtime.record("memory.agent.committed", { context, ...agent.committed });
+    else if (agent.discarded !== null) this.runtime.record("memory.agent.discarded", { context, package_id: memory.agent!.package_id, reason: agent.discarded });
+    this.memoryReport = { proposals: this.memoryReport?.proposals ?? null, refused: this.memoryReport?.refused ?? null, agent };
+  }
+
   private report(status: ExecutionReport["status"]): ExecutionReport {
     return {
       status,
+      ...(this.memoryReport !== null ? { memory: this.memoryReport } : {}),
       audit: this.runtime.audit,
       usage: this.runtime.usage,
       provenance: {

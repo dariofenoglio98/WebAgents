@@ -19,6 +19,8 @@ import { decodeUtf8, isJsonObject, type JsonObject, type JsonValue } from "../js
 import type { ModelRequest, ModelRouter } from "../models/contract.js";
 import type { Package } from "../package.js";
 import { pyIsoTimestamp } from "../pyjson.js";
+import { findSealed } from "../memory/scan.js";
+import type { MemoryRun } from "../memory/run.js";
 import { deepCopy } from "../references.js";
 import { pyRepr } from "../repr.js";
 import { failuresForSchema, validateDocument, type PackageSchemas } from "../schema.js";
@@ -58,6 +60,12 @@ export interface ModelCallOptions {
 
 export interface RuntimeOptions {
   grants?: Grants | null;
+  /**
+   * What the run holds about memory (memory.v0 §7): the scan set for the egress guards M-36 and
+   * M-37, the grants, the proposals check and the agent document. Null: no memory at all, an
+   * empty scan set, nothing refused on that account.
+   */
+  memory?: MemoryRun | null;
   handlers?: Record<string, ToolHandler> | null;
   router?: ModelRouter | null;
   limits?: HostLimits | null;
@@ -173,6 +181,7 @@ export class Runtime {
   readonly run_id: string;
   state: JsonObject = {};
   readonly audit: AuditEvent[] = [];
+  readonly memory: MemoryRun | null;
   private readonly observer: Observer | null;
   private readonly schemas: PackageSchemas;
   private readonly usageByWorker = new Map<string, WorkerUsage>();
@@ -192,6 +201,7 @@ export class Runtime {
     this.package = pkg;
     this.schemas = schemas;
     this.observer = options.observer ?? null;
+    this.memory = options.memory ?? null;
     this.policy = deepCopy(pkg.policy);
     this.roles = {};
     for (const worker of pkg.graph.workers as JsonObject[]) this.roles[String(worker.id)] = worker;
@@ -230,9 +240,12 @@ export class Runtime {
     }
     if ((this.budget.max_parallel_workers as number) < 1) throw new PolicyError("At least one worker slot is required");
     const memory = this.policy.memory as JsonObject;
-    if (memory.scope !== "session" && memory.scope !== "ephemeral") {
-      throw new PolicyError("This runtime only implements session/ephemeral memory");
+    // `agent-scoped` (memory.v0 M-48) keeps the run's state semantics of `session`; the package's
+    // own document is a pair of tools, never state. The other scopes stay refused (M-1).
+    if (memory.scope !== "session" && memory.scope !== "ephemeral" && memory.scope !== "agent-scoped") {
+      throw new PolicyError("This runtime only implements session/ephemeral/agent-scoped memory");
     }
+    if (memory.scope === "agent-scoped" && memory.retention !== "user-managed") throw new PolicyError("agent-scoped memory requires user-managed retention");
     if (memory.raw_documents || memory.sharing !== "explicit_views") {
       throw new PolicyError("Raw document retention/shared mutable state is unsupported");
     }
@@ -323,9 +336,21 @@ export class Runtime {
       .map(([pid]) => pid);
   }
 
+  /**
+   * The `memory` permissions that cover the run's own state: every one except the agent
+   * document's (`resources: ["agent"]`, memory.v0 M-48), which authorizes the two agent tools and
+   * nothing else, so denying it never stops the workflow's state access.
+   */
+  statePermissions(): string[] {
+    return this.permissionKind("memory").filter((pid) => {
+      const resources = (this.permissions[pid]!.resources as JsonValue[]).map(String);
+      return !(resources.length === 1 && resources[0] === "agent");
+    });
+  }
+
   /** `_authorize(mem)` for the workflow's own state access, as `Workflow.run` performs it. */
   authorizeMemory(): void {
-    const memory = this.permissionKind("memory");
+    const memory = this.statePermissions();
     if (memory.length === 0) throw new PolicyError("Workflow state requires memory permission");
     this.authorize(memory, { context: this.root });
   }
@@ -348,7 +373,7 @@ export class Runtime {
       if (!isJsonObject(inputs) || Object.keys(inputs).some((key) => !stateRead.includes(key))) {
         throw new PolicyError(`Worker ${role} input exceeds declared state_read fields`);
       }
-      const memory = this.permissionKind("memory");
+      const memory = this.statePermissions();
       if (memory.length === 0) throw new PolicyError("Worker state access requires a memory permission");
       this.authorize(memory, { consume: true, context: parent });
     } catch (error) {
@@ -523,6 +548,7 @@ export class Runtime {
         throw error;
       }
       this.authorize(permissionIds, { context: ctx });
+      this.scanToolArguments(ctx, toolId, String(tool.binding), permissionIds, payload);
       const caps = this.budget.max_calls_per_tool as JsonObject;
       const cap = Object.hasOwn(caps, toolId) ? (caps[toolId] as number) : 0;
       if ((this.global.tool_calls[toolId] ?? 0) >= cap) throw new BudgetError(`Call budget exhausted for tool ${toolId}`);
@@ -563,6 +589,51 @@ export class Runtime {
     }
   }
 
+  /**
+   * memory.v0 M-36: before every tool call except a memory read, the arguments are scanned for
+   * the run's scan set. A sealed value of a record this run was not granted goes nowhere; a
+   * granted one goes only to a tool that links the permission it was granted under. The refusal
+   * is recorded as a denied permission check naming the record and the pointer, never the value.
+   */
+  private scanToolArguments(ctx: Context, toolId: string, binding: string, permissionIds: readonly string[], payload: JsonValue): void {
+    const memory = this.memory;
+    if (memory === null || memory.scan.length === 0) return;
+    if ((binding.startsWith("host.memory.") && !binding.startsWith("host.memory.agent.")) || binding.startsWith("host.resource.")) return;
+    const hit = findSealed(payload, memory.scan);
+    if (hit === null) return;
+    if (hit === "incomplete") {
+      this.record("permission.checked", { context: ctx, permission: null, grant: "deny", allowed: false, reason: "sealed_value_not_granted", tool: toolId, incomplete: true });
+      throw new PolicyError(`Tool ${toolId}: the arguments hold more strings than the sealed-value scan reads, so they are refused unread`);
+    }
+    // A record may be granted under more than one permission (two tools, two reads of one type): the
+    // value may go to any tool that links one of them (review 1, nit 9).
+    const grants = memory.grants.filter((item) => item.resource_id === hit.record_id);
+    if (grants.length === 0) {
+      this.record("permission.checked", { context: ctx, permission: null, grant: "deny", allowed: false, reason: "sealed_value_not_granted", tool: toolId, record_id: hit.record_id, pointer: hit.pointer });
+      throw new PolicyError(`Tool ${toolId}: the arguments carry a sealed value of a record this run was not granted (${hit.record_id} ${hit.pointer})`);
+    }
+    if (!grants.some((grant) => permissionIds.includes(grant.permission_id))) {
+      const grant = grants[0]!;
+      this.record("permission.checked", { context: ctx, permission: grant.permission_id, grant: this.grants[grant.permission_id] ?? "deny", allowed: false, reason: "sealed_value_egress", tool: toolId, record_id: hit.record_id, pointer: hit.pointer });
+      throw new PolicyError(`Tool ${toolId}: the arguments carry a sealed value of ${hit.record_id} (${hit.pointer}) to a tool that does not link ${grants.map((item) => item.permission_id).join(" or ")}`);
+    }
+  }
+
+  /**
+   * memory.v0 M-37: before every model request, the token count included, the complete request as
+   * it will be sent is scanned for the scan set; a hit refuses the call before anything leaves,
+   * naming the record id and the pointer, never the value. Fixture mode included (M-62).
+   */
+  private scanModelRequest(ctx: Context, task: string, request: JsonValue, attempt: number): void {
+    const memory = this.memory;
+    if (memory === null || memory.scan.length === 0) return;
+    const hit = findSealed(request, memory.scan);
+    if (hit === null) return;
+    const facts: Record<string, JsonValue> = hit === "incomplete" ? { incomplete: true } : { record_id: hit.record_id, pointer: hit.pointer };
+    this.record("model.refused", { context: ctx, task, reason: "sealed_value_in_model_request", ...facts, ...(attempt > 1 ? { attempt } : {}) });
+    throw new PolicyError(hit === "incomplete" ? "The model request holds more strings than the sealed-value scan reads, so it is refused unread" : `The model request carries a sealed value of ${hit.record_id} (${hit.pointer}), which may not reach a model`);
+  }
+
   async callModel(ctx: Context, task: string, payload: JsonValue, outputSchema: JsonValue, maxOutputTokens: number, token: CancelToken, options: ModelCallOptions = {}): Promise<JsonValue> {
     this.checkContext(ctx);
     const router = this.router;
@@ -595,6 +666,7 @@ export class Runtime {
       audit_context: { worker: ctx.worker_id, node_id: ctx.operation_id ?? ctx.node_id ?? null },
     };
     await validateDocument(request, "model-request", "model request");
+    this.scanModelRequest(ctx, task, request as unknown as JsonValue, 1);
     const permissions = this.permissionKind("model");
     if (permissions.length === 0) throw new PolicyError("Model use requires an explicit model permission");
     this.authorize(permissions, { context: ctx });
@@ -767,6 +839,7 @@ export class Runtime {
         if (!(attempt <= retries && notAccepted && !token.signal.aborted && this.halted === null)) throw error;
         const elapsed = Date.now() - started;
         const next: ModelRequest = { ...request, feedback: feedbackLine(refusalOf(error), disclosedScalars(request.data, refusedAnswer)) };
+        this.scanModelRequest(ctx, task, next as unknown as JsonValue, attempt + 1);
         // A router whose count reaches the network pays for it as a remote call (D-115, D-125).
         if (router.remote && router.remoteCount !== false) {
           const remote = this.remoteBound(ctx);

@@ -22,6 +22,7 @@ import type { ArtifactChunk, ArtifactContent, AuthorizationView, InputValidation
 import { button, bytes, chip, clear, definition, el, shortHash, whenText } from "./dom.js";
 import { buildFormModel, hintsFrom, humanize, TaskForm, type FormFile } from "./form.js";
 import { renderMarkdown } from "./markdown.js";
+import { loadReview, newReviewState, renderReview, type ReviewState } from "./memory/review.js";
 import { writeZip } from "./zip.js";
 
 export interface RunPanelLoaded {
@@ -42,6 +43,8 @@ export interface RunPanelHost {
   runChanged?: (runId: string | null) => void;
   /** Open Settings → Files, where the PDFs a task may name are picked (T6). */
   openFiles?: () => void;
+  /** Open the Memory page (T19): after a review, or for Tidy up when the memory is full. */
+  openMemory?: () => void;
   /** Open the Unlock sheet (T16); `retry` runs after a successful unlock. */
   unlock?: (retry: () => void) => void;
   /** Ask Chrome for origins in a click (T16, D-193). */
@@ -390,6 +393,8 @@ export class RunPanel {
   private refusal: { runId: string; figures: string | null } | null = null;
   /** Whether Inspect has opened the per-file list (closed by default, F-13). */
   private inspecting = false;
+  /** The proposal review of the run shown (memory.v0 M-41), loaded once per completed run. */
+  private review: ReviewState | null = null;
   private downloadNote: string | null = null;
   private pollTimer: ReturnType<typeof setTimeout> | null = null;
   private tickTimer: ReturnType<typeof setInterval> | null = null;
@@ -1283,6 +1288,8 @@ export class RunPanel {
     }
     const summary = this.renderResultSummary(record);
     if (summary) node.append(summary);
+    const review = this.renderReview(record);
+    if (review) node.append(review);
     if (!primary && record.status === "completed") {
       const first = this.exportNames(record).find((name) => name.endsWith(".json"));
       const content = first ? this.artifacts.get(first) : undefined;
@@ -1294,6 +1301,27 @@ export class RunPanel {
     node.append(this.renderArtifacts(record));
     node.append(this.renderTechnical(record));
     return node;
+  }
+
+  /** The review sheet above the artifacts for a completed run that offered proposals (design §5). */
+  private renderReview(record: RunView): HTMLElement | null {
+    if (record.status !== "completed" || !record.memory?.proposals) return null;
+    if (this.review === null || this.review.runId !== record.runId) {
+      this.review = newReviewState(record.runId);
+      void loadReview(this.review, this.reviewActions());
+    }
+    return renderReview(this.review, this.reviewActions());
+  }
+
+  private reviewActions() {
+    const loaded = this.host.loaded();
+    return {
+      send: <T,>(request: Request) => this.host.send<T>(request),
+      rerender: () => this.renderRun(),
+      openMemory: () => this.host.openMemory?.(),
+      unlock: this.host.unlock,
+      locked: loaded?.authorization?.secrets !== undefined && loaded.authorization.secrets !== "unlocked",
+    };
   }
 
   private exportNames(record: RunView): string[] {
@@ -1431,7 +1459,9 @@ export class RunPanel {
       ["Tools", record.tools.length > 0 ? record.tools.map((tool) => `${tool.toolId} → ${tool.displayName ?? tool.bindingId} (${tool.remote ? "remote" : "local"}, ${tool.calls} calls${tool.retries > 0 ? `, ${tool.retries} retried after a transient failure` : ""}${tool.fallbackAnswers > 0 ? `, ${tool.fallbackAnswers} answered by the built-in Crossref DOI lookup` : ""}, binding sha256:${shortHash(tool.bindingSha256)})`).join(" · ") : "none"],
       ["Permissions", record.grants.decisions.map((item) => `${item.permissionId}=${item.decision}`).join(" · ") || "—"],
       ["Decided by", decidedBy],
-      ["Your data", record.resources.length > 0 ? record.resources.map((grant) => `${grant.permissionId} → ${grant.resourceId} (${shortHash(grant.resourceDigest)})`).join(" · ") : "none"],
+      ["Memory", record.resources.length > 0 ? record.resources.map((grant) => `${grant.permissionId} → ${grant.resourceId} (${shortHash(grant.resourceDigest)})`).join(" · ") : "none"],
+      ["Proposals", record.memory?.proposals ? `${record.memory.proposals.count} proposed (${record.memory.proposals.types.join(", ") || "none"}) · ${record.memory.proposals.offered} offered${record.memory.proposals.reason ? ` · ${record.memory.proposals.count - record.memory.proposals.offered} not offered (${record.memory.proposals.reason})` : ""} · sha256:${shortHash(record.memory.proposals.proposals_sha256)}` : record.memory?.refused ? `refused: ${record.memory.refused.reason ?? record.memory.refused.code}` : "none"],
+      ["Agent notes", record.memory?.agent ? (record.memory.agent.committed ? `committed ${record.memory.agent.committed.bytes} bytes (sha256:${shortHash(record.memory.agent.committed.body_sha256)})` : record.memory.agent.discarded ? `discarded (${record.memory.agent.discarded})` : "nothing written") : "none"],
       ["Usage", record.usage ? `${record.usage.tokens.toLocaleString()} tokens of ${record.usage.limits.hardTokens.toLocaleString()} · ${record.usage.remoteCalls} remote calls · ${record.usage.toolCalls} tool calls · peak ${record.usage.peakParallelWorkers} workers` : "—"],
       ["Cost", record.cost ? (record.cost.totalUsd === null ? `not reported (${record.cost.status})` : `$${record.cost.totalUsd} (${record.cost.status}; ${record.cost.callsWithReportedCost} of ${record.cost.calls} calls reported a cost)`) : "—"],
       ["Audit", record.audit ? `${record.audit.events} events · chain ${record.audit.chainValid ? "valid" : "INVALID"} · final sha256:${shortHash(record.audit.finalHash ?? "")}` : "—"],
