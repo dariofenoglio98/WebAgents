@@ -672,7 +672,10 @@ interface GraphInstance {
   reducedMotion: boolean;
   width: number;
   height: number;
+  ratio: number;
   loaded: boolean;
+  /** Fit the view once the first layout of a fresh model settles (positions move during the ticks). */
+  pendingFit: boolean;
 }
 
 let instance: GraphInstance | null = null;
@@ -720,8 +723,9 @@ function draw(inst: GraphInstance): void {
   const model = inst.model;
   const context = inst.canvas.getContext("2d");
   if (!model || !context) return;
-  const { width, height } = inst;
-  context.setTransform(1, 0, 0, 1, 0, 0);
+  const { width, height, ratio } = inst;
+  // Draw in CSS pixels on a bitmap `ratio` times larger (crisp on a 2× display), clearing the whole bitmap.
+  context.setTransform(ratio, 0, 0, ratio, 0, 0);
   context.clearRect(0, 0, width, height);
   context.translate(width / 2 + inst.ui.pan.x, height / 2 + inst.ui.pan.y);
   context.scale(inst.ui.zoom, inst.ui.zoom);
@@ -819,7 +823,15 @@ function loop(inst: GraphInstance): void {
     if (inst.simulation && inst.simulation.step()) {
       draw(inst);
       inst.frame = requestAnimationFrame(step);
-    } else draw(inst);
+    } else {
+      if (inst.pendingFit) {
+        inst.pendingFit = false;
+        fitView(inst);
+        if (inst.model) for (const node of inst.model.nodes) inst.ui.positions[node.id] = { x: node.x, y: node.y };
+        saveUiState(inst.ui);
+      }
+      draw(inst);
+    }
   };
   inst.frame = requestAnimationFrame(step);
 }
@@ -839,7 +851,7 @@ function fitView(inst: GraphInstance): void {
   }
   const spanX = Math.max(maxX - minX, 1);
   const spanY = Math.max(maxY - minY, 1);
-  inst.ui.zoom = Math.min(2, Math.max(0.2, Math.min((inst.width - 80) / spanX, (inst.height - 80) / spanY)));
+  inst.ui.zoom = Math.min(1.6, Math.max(0.2, Math.min((inst.width - 120) / spanX, (inst.height - 120) / spanY)));
   inst.ui.pan = { x: (-(minX + maxX) / 2) * inst.ui.zoom, y: (-(minY + maxY) / 2) * inst.ui.zoom };
 }
 
@@ -858,7 +870,7 @@ function ensureInstance(): GraphInstance {
   if (instance) return instance;
   const canvas = el("canvas", { className: "ab-memory-canvas", attrs: { role: "application", "aria-label": "Memory graph", tabindex: "0", "aria-describedby": "ab-memory-graph-help" } });
   const live = el("div", { className: "ab-visually-hidden", attrs: { "aria-live": "polite" } });
-  instance = { canvas, live, ui: emptyUiState(), model: null, simulation: null, interaction: null, frame: null, fingerprint: "", view: null, state: null, actions: null, reducedMotion: typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches, width: 800, height: 520, loaded: false };
+  instance = { canvas, live, ui: emptyUiState(), model: null, simulation: null, interaction: null, frame: null, fingerprint: "", view: null, state: null, actions: null, reducedMotion: typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches, width: 800, height: 520, ratio: 1, loaded: false, pendingFit: false };
   const inst = instance;
   canvas.addEventListener("pointerdown", (event) => {
     canvas.focus();
@@ -964,24 +976,24 @@ export function renderMemoryGraph(view: MemoryView, state: MemoryPageState, acti
     inst.interaction = new GraphInteraction(() => inst.model!, hostFor(inst));
     inst.interaction.localDepth = state.local?.depth ?? null;
     inst.interaction.focused = state.selected && inst.model.byId.has(state.selected) ? state.selected : null;
-    const remembered = Object.keys(inst.ui.positions).length > 0;
+    const remembered = inst.model.nodes.some((node) => node.id !== SELF_ID && inst.ui.positions[node.id] !== undefined);
     inst.simulation.restart(remembered && hadPositions ? 60 : MAX_TICKS);
     if (inst.reducedMotion) inst.simulation.settle();
-    if (!remembered && !hadPositions) fitView(inst);
-    for (const node of inst.model.nodes) inst.ui.positions[node.id] = { x: node.x, y: node.y };
+    // A fresh layout (nothing remembered) is fitted once it settles; remembered positions keep their view.
+    inst.pendingFit = !remembered;
+    if (inst.pendingFit) fitView(inst);
   }
   const wrap = el("div", { className: "ab-memory-graph" });
   const size = () => {
     const rect = wrap.getBoundingClientRect();
     inst.width = Math.max(320, Math.floor(rect.width) || 800);
     inst.height = Math.max(320, Math.floor(rect.height) || 520);
-    const ratio = typeof devicePixelRatio === "number" ? devicePixelRatio : 1;
-    inst.canvas.width = inst.width * ratio;
-    inst.canvas.height = inst.height * ratio;
+    const ratio = typeof devicePixelRatio === "number" && devicePixelRatio > 0 ? devicePixelRatio : 1;
+    inst.ratio = ratio;
+    inst.canvas.width = Math.round(inst.width * ratio);
+    inst.canvas.height = Math.round(inst.height * ratio);
     inst.canvas.style.width = `${inst.width}px`;
     inst.canvas.style.height = `${inst.height}px`;
-    const context = inst.canvas.getContext("2d");
-    context?.setTransform(ratio, 0, 0, ratio, 0, 0);
   };
   queueMicrotask(() => {
     size();
@@ -996,7 +1008,9 @@ export function renderMemoryGraph(view: MemoryView, state: MemoryPageState, acti
     button("⌖ fit", () => hostFor(inst).fit(), { title: "Fit (0)" }),
     button("⟲", () => {
       inst.ui.positions = {};
+      inst.ui.pan = { x: 0, y: 0 };
       inst.fingerprint = "";
+      inst.model = null;
       saveUiState(inst.ui);
       actions.rerender();
     }, { title: "Re-run the layout" }),

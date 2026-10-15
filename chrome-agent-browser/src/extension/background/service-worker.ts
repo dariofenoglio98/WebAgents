@@ -11,6 +11,7 @@ import { failure, isEvent, parseContentMessage, parseRequest, success, type Even
 import { isHostCommand } from "../execution/protocol.js";
 import { Database } from "../storage/database.js";
 import { IndexedDbFileStore } from "../storage/files.js";
+import { IndexedDbMemoryStorage } from "../storage/memory.js";
 import { PermissionStorage, type PermissionsPort } from "../storage/permissions.js";
 import { IndexedDbRunStore } from "../storage/runs.js";
 import { AreaEnvelopeStorage, AreaUnlockedStateStorage } from "../storage/secrets-storage.js";
@@ -154,6 +155,7 @@ const controller = new Controller({
   snapshots: new IndexedDbSnapshotStore(database),
   runs: new IndexedDbRunStore(database),
   files: new IndexedDbFileStore(database),
+  memoryStorage: new IndexedDbMemoryStorage(database),
   subscriptions: new SubscriptionStorage(chrome.storage.local),
   permissions,
   permissionStorage: new PermissionStorage(chrome.storage.local),

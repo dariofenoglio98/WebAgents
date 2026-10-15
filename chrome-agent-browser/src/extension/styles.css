@@ -163,7 +163,9 @@ a { color: var(--ab-accent); }
 .ab-memory-main { min-width: 0; min-height: 480px; }
 .ab-memory-side { min-width: 0; position: sticky; top: 8px; max-height: calc(100vh - 24px); overflow: auto; }
 .ab-memory-status { color: var(--ab-muted); font-size: 0.9rem; margin: 0; }
-.ab-memory-graph { position: relative; width: 100%; height: calc(100vh - 260px); min-height: 420px; background: var(--ab-surface); border: 1px solid var(--ab-border); border-radius: var(--ab-radius); overflow: hidden; }
+.ab-memory-graph { position: relative; width: 100%; height: min(calc(100vh - 260px), 760px); min-height: 420px; background: var(--ab-surface); border: 1px solid var(--ab-border); border-radius: var(--ab-radius); overflow: hidden; }
+.ab-memory-card-body { display: flex; flex-direction: column; gap: 4px; }
+.ab-memory-card-body .ab-row { justify-content: space-between; }
 .ab-memory-canvas { display: block; width: 100%; height: 100%; touch-action: none; outline: none; }
 .ab-memory-canvas:focus-visible { box-shadow: inset 0 0 0 2px var(--ab-accent); }
 .ab-memory-legend { position: absolute; left: 12px; bottom: 12px; display: flex; flex-direction: column; gap: 3px; padding: 8px 10px; background: rgba(255, 255, 255, 0.92); border: 1px solid var(--ab-border); border-radius: 8px; font-size: 0.85rem; max-height: 40%; overflow: auto; }

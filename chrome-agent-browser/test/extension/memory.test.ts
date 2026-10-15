@@ -367,3 +367,12 @@ describe("the recall card's modes (M-52) and the presets", () => {
     expect((await readPolicyBundle(content)).memory).toBeNull();
   });
 });
+
+describe("the shell's wiring (found in the user's walk-through, 2026-10-14)", () => {
+  it("the service worker stores the memory in IndexedDB, never in the in-memory store meant for tests", () => {
+    const source = readFileSync(resolve(ROOT, "chrome-agent-browser/src/extension/background/service-worker.ts"), "utf8");
+    expect(source).toContain("new IndexedDbMemoryStorage(database)");
+    expect(source).toMatch(/memoryStorage: new IndexedDbMemoryStorage\(database\)/u);
+    expect(source).not.toContain("MemoryMemoryStorage");
+  });
+});

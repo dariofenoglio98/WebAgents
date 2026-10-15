@@ -501,7 +501,7 @@ export function renderCard(view: MemoryView, state: MemoryPageState, actions: Me
   });
   const bodySection = el(
     "div",
-    { className: "ab-memory-body" },
+    { className: "ab-memory-card-body" },
     el("div", { className: "ab-row" }, el("h4", { text: "Body" }), button(card.preview ? "Edit" : "Preview", () => {
       card.preview = !card.preview;
       actions.rerender();
