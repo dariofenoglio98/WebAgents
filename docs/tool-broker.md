@@ -290,6 +290,41 @@ check over values this host holds, not a general data-loss filter: unsealed
 fields (preferences) are ordinary data, and a value nobody marked sealed is not
 policed.
 
+### 3e. Memory reads and the agent document (memory.v0, agentpkg 0.4.0)
+
+[memory.v0](../spec/memory-v0.md) generalizes host-owned resources into the person's memory: a
+graph of Markdown records the person owns, typed by a starter taxonomy. A package touches it only
+through three permission uses, each a local, argument-free tool the host binds by name:
+
+| Permission | Tool binding | The tool returns | Spec |
+|---|---|---|---|
+| `memory.read` of one type (`personal.read` stays its alias for the three legacy ids) | `host.memory.<type id>` (`host.resource.<legacy id>` under the alias) | the **record view** of the one record the person chose: `{id, type, title, fields, body, tags, sealed}`; the body renders links to records the run was not granted without their ids | M-15, M-16, M-33…M-35 |
+| `memory.write` of up to eight types | none: the run exports `proposals.json` (`format: "memory.proposal"`) | — | M-38…M-42 |
+| `memory` with `resources: ["agent"]` under `memory.scope: "agent-scoped"` | `host.memory.agent.read`, `host.memory.agent.write` (`max_calls_per_tool` exactly 1) | the package's own notes (`{body, updated}`); the write stages a body (`{staged, bytes}`) | M-48…M-51 |
+
+The host binds a `memory.read` tool only when the canonical JSON of its output schema equals the
+view it builds from its own type (`binding_schema_mismatch` otherwise, before the run), and an
+agent tool only when its four schemas are exactly the files in `spec/memory-v0/`. As for host
+resources, the plan freezes `{permission, type, record id, digest}` (the digest an HMAC under the
+host's memory key); a record that changed since the pick is `tool_unavailable`.
+
+**Sealed values (M-36).** The run's *scan set* is fixed at its start: every sealed value of the
+store when the run is opened with it (it grants a memory record or binds a memory tool), else
+none. Every tool call except a memory read is checked against it before dispatch, exactly as
+host-resource values are above: a value of a record this run was not granted goes nowhere; a
+granted one goes only to a tool that links the permission it was granted under. agentpkg records
+the refusal as a denied `permission.checked` with `reason` (`sealed_value_not_granted` or
+`sealed_value_egress`), the tool, the record id and the pointer, never the value.
+
+**In the Python reference** the memory is a folder: `agentpkg run --memory-dir DIR` reads an export
+folder (sealed values in clear, `DIR/memory.key`) and `--memory-grant PERMISSION=RECORD` picks a
+record, as a person would at authorization; a live run answers the tools from the folder and
+commits the agent document into `DIR/agent.memory/` only when the run completes (D-230). In fixture
+mode every memory tool is replayed from the package's fixture and no store is touched (M-62). The
+OpenClaw plugin is frozen (D-029) and binds no `host.memory.*` tool: it runs every package up to
+WebAir 0.5.0 and Literature Review 0.2.7; WebAir 0.6.0 and Literature Review 0.2.8 run in the
+Chrome Agent Browser and through `agentpkg run`.
+
 ### 3d. Operator entries of the JSON adapter
 
 A service whose API is exactly "one JSON body POSTed to one path, answers and
