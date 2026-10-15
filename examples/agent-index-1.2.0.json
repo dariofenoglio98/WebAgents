@@ -1,0 +1,69 @@
+{
+  "format": "org.webagents:signed-document-v0",
+  "content_type": "org.webagents:agent-index-v0",
+  "content": {
+    "index_id": "org.webagents.demo-index",
+    "version": "1.2.0",
+    "title": "WebAgents demo index",
+    "description": "The agents of the WebAgents research prototype: a literature-review agent and a fictional airline's agent. Signed with a development key, for demonstrations only; every entry is metadata, and each package is verified when you open it.",
+    "publisher": {
+      "name": "WebAgents research prototype (development key)"
+    },
+    "issued_at": "2026-10-10T00:00:00Z",
+    "expires_at": "2027-12-31T23:59:59Z",
+    "entries": [
+      {
+        "package_id": "org.webagents.literature-review",
+        "name": "Literature Review Agent",
+        "version": "0.2.7",
+        "description": "A constrained coordinator-worker literature review: searches Crossref, screens and reads candidate papers (and PDFs you pick), resolves citations and writes a related-work draft with verified quotes, and lists every paper it found with its screening verdict.",
+        "publisher": {
+          "id": "webagents-research",
+          "name": "WebAgents Research Prototype"
+        },
+        "package_url": "https://webagents-webair-production.up.railway.app/packages/literature-review-0.2.7.agent.pkg",
+        "digest": "9274a5ce46275e6817ae2706791c19a8066e523776cb9eb348a76b83396a99cb",
+        "archive_sha256": "8951a14bb1f42bca1590bc7d0c9cc00cccba75b36f1488969b6b3ff47063fe61",
+        "signer_fingerprint": "sha256:c5ca9763f9fc71253298ca381ec14c4d7432009c74dacc69df6344b71de05232",
+        "locators": [
+          "literature-review@webagents.example"
+        ],
+        "tags": [
+          "research",
+          "literature",
+          "papers",
+          "citations"
+        ]
+      },
+      {
+        "package_id": "org.webagents.webair",
+        "name": "WebAir Travel Agent",
+        "version": "0.5.0",
+        "description": "Search WebAir flights, explain fare rules, prepare a booking quote and simulate a purchase through WebAir's own semantic API. WebAir is a fictional demo airline: nothing is ever booked or charged.",
+        "publisher": {
+          "id": "webair-demo",
+          "name": "WebAir (fictional demo airline)"
+        },
+        "package_url": "https://webagents-webair-production.up.railway.app/agent.pkg",
+        "digest": "6192614e86ae4b18ba135f17120d4f616feac082c4ab09283221da7194c0bb48",
+        "archive_sha256": "4b087557cbd2b0ff186391dfd00f9068739f9a727ab2fd916a6512da1fde101b",
+        "signer_fingerprint": "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b",
+        "locators": [
+          "flights@webair.example"
+        ],
+        "tags": [
+          "travel",
+          "flights",
+          "booking",
+          "demo"
+        ],
+        "homepage": "https://webagents-webair-production.up.railway.app/"
+      }
+    ]
+  },
+  "signature": {
+    "algorithm": "ed25519",
+    "key_fingerprint": "sha256:e0e7022b5836da157d7d55a9d7b00cb58e236d5270ab103162e63706b49f5103",
+    "value": "kJFYKbPxRTxfKqu7PoWjUHINSvtt3aH4aw/YX522kYiBiG81zKBAsAuIkx3nRX/sBM6pUR0pyFeRv8+Nl7jtDg=="
+  }
+}
