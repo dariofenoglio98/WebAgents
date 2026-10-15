@@ -52,9 +52,9 @@
           "type": "string",
           "maxLength": 16384,
           "not": {
-            "pattern": "(^|\\n)<!-- memory\\.v0 links -->(\\n|$)"
+            "pattern": "(^|[\\r\\n])<!-- memory\\.v0 links -->[ \\t]*([\\r\\n]|$)"
           },
-          "$comment": "the mirror marker line of an export is reserved: a body holding it as a whole line fails M-40 step 1 (memory-v0.md M-3, N22); the string inside a line is text"
+          "$comment": "the mirror marker line of an export is reserved: a body holding it as a whole line (CRLF or LF, trailing whitespace ignored) fails M-40 step 1 (memory-v0.md M-3, N22); the string inside a line is text"
         },
         "tags": {
           "type": "array",
