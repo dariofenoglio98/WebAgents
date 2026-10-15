@@ -38,3 +38,14 @@ export function lastUseWords(lastUse: { package_id: string; at: string } | null,
 export function relationWords(rel: Relation): { forward: string; inverse: string } {
   return RELATION_WORDS[rel];
 }
+
+/** What each relation means, in one line (spec §5.1), for the relation chooser. */
+export const RELATION_MEANING: Readonly<Record<Relation, string>> = Object.freeze({
+  about: "the source describes its target (a preference or a profile about you, or about another record)",
+  prefers: "the target is a standing preference of the source (a profile prefers a seat choice)",
+  pays_with: "the target is the payment card the source uses",
+  belongs_to: "the source is part of its target (a note belongs to a trip or a profile)",
+  supersedes: "the source replaces the target, which becomes an old version (hidden from recall)",
+  derived_from: "the source was computed from the target (a review from a profile)",
+  related: "an untyped connection, the same as a [[wikilink]] in the body",
+});

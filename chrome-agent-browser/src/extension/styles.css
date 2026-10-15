@@ -197,7 +197,8 @@ a { color: var(--ab-accent); }
 .ab-memory-sheet { width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow: auto; }
 .ab-memory-type-group { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .ab-memory-type-group h4 { width: 100%; margin: 6px 0 2px; }
-.ab-memory-relation { display: flex; gap: 6px; align-items: baseline; }
+.ab-memory-relation { display: flex; gap: 8px; align-items: flex-start; padding: 4px 0; }
+.ab-memory-relation > span { display: flex; flex-direction: column; }
 .ab-memory-migration { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .ab-memory-note { padding: 8px 10px; background: var(--ab-neutral-bg); border-radius: 8px; }
 .ab-recall { display: flex; flex-direction: column; gap: 4px; }

@@ -8,7 +8,7 @@
  */
 import type { JsonObject, JsonValue } from "../../../core/json.js";
 import { MAX_AGENT_BODY_CHARS, RELATIONS, SEALED_PLACEHOLDER, SELF_ID, type Relation } from "../../../core/memory/model.js";
-import { dayWords, provenanceWords, relationWords } from "../../../core/memory/words.js";
+import { dayWords, provenanceWords, RELATION_MEANING, relationWords } from "../../../core/memory/words.js";
 import type { ExportFile, ImportFile, ImportPlanView, MemoryView, MigrationReport, RecordDraft, Request } from "../../messages.js";
 import type { MemoryRecordListing } from "../../background/memory-controller.js";
 import type { MemoryTypeView } from "../../../core/memory/types.js";
@@ -475,6 +475,8 @@ export function renderCard(view: MemoryView, state: MemoryPageState, actions: Me
     actions.rerender();
   })));
   const provenance = record ? el("p", { className: "ab-hint ab-memory-provenance", text: `${provenanceWords(record.source)}${record.usage.length > 0 ? ` · last used ${whenText(record.usage[0]!.last)}` : ""}` }) : null;
+  // What this type is for (the taxonomy's description), so the form's fields read in context.
+  const about = type.description ? el("p", { className: "ab-hint ab-memory-type-about", text: type.description }) : null;
   // Save enables on the first change without a re-render (a re-render would replace the input being typed in).
   const save = button("Save", () => saveCard(view, state, card, actions), { variant: "primary", disabled: card.mode === "view" && !card.dirty });
   const markDirty = () => {
@@ -554,7 +556,7 @@ export function renderCard(view: MemoryView, state: MemoryPageState, actions: Me
     remove,
     exportThis,
   );
-  return el("div", { className: "ab-memory-card", attrs: { "data-record": card.id ?? "new" } }, head, ...flags, provenance, el("label", { className: "ab-field" }, el("span", { className: "ab-row-label", text: "Title" }), title), ...fields, bodySection, cardLinks(view, state, card, actions), whereUsed, cardTags(card, actions), identityBar, identityChoice, footer);
+  return el("div", { className: "ab-memory-card", attrs: { "data-record": card.id ?? "new" } }, head, ...flags, provenance, about, el("label", { className: "ab-field" }, el("span", { className: "ab-row-label", text: "Title" }), title), ...fields, bodySection, cardLinks(view, state, card, actions), whereUsed, cardTags(card, actions), identityBar, identityChoice, footer);
 }
 
 // -- the list ---------------------------------------------------------------------------------------
@@ -912,7 +914,7 @@ export function relationSheet(view: MemoryView, state: MemoryPageState, actions:
       actions.rerender();
     });
     const words = relationWords(rel);
-    return el("label", { className: "ab-inline ab-memory-relation" }, input, el("span", { text: words.forward }), el("span", { className: "ab-muted", text: ` (${to?.title ?? ""} ${words.inverse} ${from?.title ?? ""})` }));
+    return el("label", { className: "ab-memory-relation" }, input, el("span", {}, el("strong", { text: words.forward }), el("span", { className: "ab-muted", text: ` · ${to?.title ?? ""} ${words.inverse} ${from?.title ?? ""}` }), el("span", { className: "ab-hint", text: RELATION_MEANING[rel] })));
   });
   const link = () => {
     if (sheet.rel === null) return;
