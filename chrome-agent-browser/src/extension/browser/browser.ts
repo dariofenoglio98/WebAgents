@@ -1065,6 +1065,7 @@ function memoryActions() {
     openRun: (runId: string) => (location.hash = `run=${encodeURIComponent(runId)}`),
     saveBlob,
     graph: renderMemoryGraph,
+    openSettingsMemory: () => (location.hash = "settings?section=memory"),
   };
 }
 

@@ -106,6 +106,8 @@ export interface MemoryPageActions {
   saveBlob(name: string, blob: Blob): Promise<string | null>;
   /** The graph canvas for the main column, when the page is in graph mode (`ui/memory/graph.ts`). */
   graph?: (view: MemoryView, state: MemoryPageState, actions: MemoryPageActions) => HTMLElement;
+  /** Open Settings → Memory (the demo set, agent notes, Forget memory). */
+  openSettingsMemory?: () => void;
 }
 
 // -- helpers -----------------------------------------------------------------------------------
@@ -1200,6 +1202,8 @@ export function renderMemoryPage(view: MemoryView, state: MemoryPageState, actio
     actions.rerender();
   })) : null;
   const lockedLine = view.locked ? el("div", { className: "ab-banner ab-banner-warn", attrs: { role: "status" } }, el("span", { text: `${STRINGS["memory.status.locked"]}. ${STRINGS["memory.locked"]}` }), button("Unlock", () => actions.unlock("edit", () => actions.reload()), { variant: "primary" })) : null;
+  // An empty memory (the Me record alone): say where the demo set is, so the first visit is not a blank graph.
+  const emptyLine = view.records.length <= 1 && !state.tidy ? el("div", { className: "ab-banner ab-banner-neutral", attrs: { role: "status" } }, el("span", { text: "Only you so far. Add a record with + New record, or add the fictional demo set under Settings → Memory." }), actions.openSettingsMemory ? button("Settings → Memory", actions.openSettingsMemory) : null) : null;
   const main = state.tidy ? renderTidy(view, state, actions) : state.mode === "graph" && actions.graph ? actions.graph(view, state, actions) : renderList(view, state, actions);
   const status = el("p", { className: "ab-memory-status", attrs: { role: "status" }, text: statusWords(view) });
   const sheet = renderSheet(view, state, actions);
@@ -1209,6 +1213,7 @@ export function renderMemoryPage(view: MemoryView, state: MemoryPageState, actio
     notice,
     migration,
     lockedLine,
+    emptyLine,
     header(view, state, actions),
     state.tidy ? null : (() => {
       const bar = filtersBar(view, state, actions);
