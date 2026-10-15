@@ -1,14 +1,14 @@
 {
   "profile": "chrome-memory-graph-v0",
-  "recordedAt": "2026-10-15T01:52:13.196Z",
+  "recordedAt": "2026-10-15T03:41:33.807Z",
   "build": {
-    "commit": "693356c49d4d232af49b6f91d9430c7f57f9f493",
+    "commit": "2ab27f6af758bcb9a80c4231b85a61484b5f9971",
     "tree_clean": true,
     "extension": {
       "manifest.json": "410911ff4a4cdc24ad95e4f4b1f6ec901ecfdd238dde49924d6c241474524c7b",
       "browser.html": "a0cddbeaa51f56322cf9271c2d25c208b90e35b31c78ceafd5e12f17d911cc61",
-      "browser.js": "5579c8a21916613d5f8edf453d519dc2db91f76e30d231452635fb9cba54c31d",
-      "styles.css": "822844ee6aad1c255e6cc7324b3c4fa63fee03c54da70f1e5709a868e57fa368"
+      "browser.js": "677558f1ced27437aec9cee40811d727bf34edf1e20394107081345e52f682ee",
+      "styles.css": "57ae82c9f70a6e4fb90b834ff61abd3662e8927383c323d90f974daf103cf85c"
     }
   },
   "chrome": "Chrome/155.0.8059.41",
@@ -36,37 +36,37 @@
         "Payment card"
       ],
       "canvas": {
-        "left": 307,
+        "left": 217,
         "top": 168,
-        "width": 496,
-        "height": 600
+        "width": 676,
+        "height": 630
       },
       "graph": {
-        "left": 306,
+        "left": 216,
         "top": 167,
-        "width": 496,
-        "height": 600
+        "width": 676,
+        "height": 630
       },
       "legendBox": {
-        "left": 319,
-        "top": 658,
+        "left": 229,
+        "top": 688,
         "width": 115,
         "height": 96
       },
       "controls": {
-        "left": 616,
-        "top": 718,
+        "left": 706,
+        "top": 748,
         "width": 173,
         "height": 36
       },
       "body": {
-        "left": 306,
+        "left": 216,
         "top": 167,
-        "width": 868,
+        "width": 1048,
         "height": 633
       },
       "card": {
-        "left": 814,
+        "left": 904,
         "top": 167,
         "width": 360,
         "height": 55
@@ -97,40 +97,40 @@
         "Payment card"
       ],
       "canvas": {
-        "left": 307,
+        "left": 217,
         "top": 168,
-        "width": 496,
-        "height": 600
+        "width": 676,
+        "height": 630
       },
       "graph": {
-        "left": 306,
+        "left": 216,
         "top": 167,
-        "width": 496,
-        "height": 600
+        "width": 676,
+        "height": 630
       },
       "legendBox": {
-        "left": 319,
-        "top": 658,
+        "left": 229,
+        "top": 688,
         "width": 115,
         "height": 96
       },
       "controls": {
-        "left": 616,
-        "top": 718,
+        "left": 706,
+        "top": 748,
         "width": 173,
         "height": 36
       },
       "body": {
-        "left": 306,
+        "left": 216,
         "top": 167,
-        "width": 868,
+        "width": 1048,
         "height": 836
       },
       "card": {
-        "left": 814,
+        "left": 904,
         "top": 167,
         "width": 360,
-        "height": 1068
+        "height": 1103
       },
       "cardRecord": "mem_94154f557d93e16ca23dac4a6e7f2428",
       "cardTitle": "Demo Travel Card •••• 1234",
@@ -259,7 +259,7 @@
         "left": 0,
         "top": 300,
         "width": 480,
-        "height": 947
+        "height": 1004
       },
       "cardRecord": "mem_94154f557d93e16ca23dac4a6e7f2428",
       "cardTitle": "Demo Travel Card •••• 1234",
@@ -283,10 +283,10 @@
       "file": "graph-synthetic-1280.png",
       "status": "1007 records · 12 types · 0 replaced · store unlocked (locks in 15 min)",
       "canvas": {
-        "left": 307,
+        "left": 217,
         "top": 168,
-        "width": 496,
-        "height": 600
+        "width": 676,
+        "height": 630
       },
       "legend": [
         "Me",
@@ -303,21 +303,21 @@
       "page_ms_at_paint": 159
     },
     "demo-480": {
-      "first_paint_ms": 160,
-      "page_ms_at_paint": 158
+      "first_paint_ms": 159,
+      "page_ms_at_paint": 157
     },
     "import": {
-      "plan_ms": 1661,
+      "plan_ms": 1619,
       "added": 1000,
       "written": 1000,
       "links_resolved": 2996
     },
     "synthetic": {
-      "first_paint_ms": 164,
+      "first_paint_ms": 162,
       "pan": {
         "frames": 60,
-        "elapsed_ms": 990,
-        "fps": 61,
+        "elapsed_ms": 995,
+        "fps": 60,
         "worst_gap_ms": 18
       },
       "nodes": 1000
