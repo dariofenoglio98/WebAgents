@@ -1268,11 +1268,17 @@ def check_legacy_against_webair(contracts: Contracts) -> dict:
         for entry in load_json(ROOT / "demo" / "webair" / "host-resources.json")["types"]
     }
     compared = []
+    # WebAir 0.6.0 (T20) reads the travel profile from memory, so its source no longer ships the
+    # legacy `personal.travel_profile` schema; the signed 0.5.0 is the last WebAir that declared
+    # all three legacy ids, and a legacy schema the source lacks is compared against it.
+    from agentpkg.package import load_package
+
+    signed = load_package(ROOT / "dist" / "webair-0.5.0.agent.pkg").files
     for entry in contracts.taxonomy["types"]:
         for legacy in entry.get("legacy", []):
-            shipped = load_json(
-                ROOT / "agents" / "webair" / "schemas" / "host" / f"{legacy['id']}.schema.json"
-            )
+            relative = f"schemas/host/{legacy['id']}.schema.json"
+            source = ROOT / "agents" / "webair" / relative
+            shipped = load_json(source) if source.exists() else json.loads(signed[relative])
             if canonical_json(shipped) != canonical_json(legacy["schema"]) or canonical_json(
                 host[legacy["id"]]
             ) != canonical_json(legacy["schema"]):

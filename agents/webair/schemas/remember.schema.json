@@ -8,74 +8,69 @@
       "type": "array",
       "maxItems": 1,
       "items": {
-        "$ref": "#/$defs/preference"
+        "type": "object",
+        "properties": {
+          "action": {
+            "const": "create"
+          },
+          "type": {
+            "const": "travel.preference"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "pattern": "^[^\\r\\n]+$"
+          },
+          "fields": {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "enum": [
+                  "cabin",
+                  "airline",
+                  "airport",
+                  "seat",
+                  "meal",
+                  "other"
+                ]
+              },
+              "value": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
+              },
+              "applies_to": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 80
+              }
+            },
+            "required": [
+              "kind",
+              "value"
+            ],
+            "additionalProperties": false
+          },
+          "rationale": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          }
+        },
+        "required": [
+          "action",
+          "type",
+          "title",
+          "fields",
+          "rationale"
+        ],
+        "additionalProperties": false
       }
     }
   },
   "required": [
     "proposals"
   ],
-  "additionalProperties": false,
-  "$defs": {
-    "preference": {
-      "type": "object",
-      "properties": {
-        "action": {
-          "const": "create"
-        },
-        "type": {
-          "const": "travel.preference"
-        },
-        "title": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 80,
-          "pattern": "^[^\\r\\n]+$"
-        },
-        "fields": {
-          "type": "object",
-          "properties": {
-            "kind": {
-              "enum": [
-                "cabin",
-                "airline",
-                "airport",
-                "seat",
-                "meal",
-                "other"
-              ]
-            },
-            "value": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 120
-            },
-            "applies_to": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 80
-            }
-          },
-          "required": [
-            "kind",
-            "value"
-          ],
-          "additionalProperties": false
-        },
-        "rationale": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 300
-        }
-      },
-      "required": [
-        "action",
-        "type",
-        "title",
-        "fields",
-        "rationale"
-      ],
-      "additionalProperties": false
-    }
-  }
+  "additionalProperties": false
 }
