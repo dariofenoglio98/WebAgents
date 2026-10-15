@@ -40,13 +40,41 @@
       "title": "Mode",
       "description": "live for real research; fixture marks the result as a synthetic demonstration.",
       "default": "live"
+    },
+    "use_profile": {
+      "type": "boolean",
+      "title": "Use my research profile",
+      "description": "Read the research profile you choose from your memory (interests, topics to avoid) to shape the search.",
+      "default": false
+    },
+    "keep_notes": {
+      "type": "boolean",
+      "title": "Keep agent notes",
+      "description": "Let this agent read its own short notes from earlier runs and keep new ones, which you can read and clear in Settings.",
+      "default": false
+    },
+    "reviewed_on": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+      "title": "Review date",
+      "description": "Today's date (YYYY-MM-DD). Given, the run proposes to remember this review; you accept, edit or reject it after the run.",
+      "default": null,
+      "examples": [
+        "2026-10-14"
+      ]
     }
   },
   "required": [
     "question",
     "seeds",
     "documents",
-    "mode"
+    "mode",
+    "use_profile",
+    "keep_notes",
+    "reviewed_on"
   ],
   "additionalProperties": false
 }

@@ -37,6 +37,9 @@
     },
     "papers_found": {
       "$ref": "papers-found.schema.json"
+    },
+    "memory_proposals": {
+      "$ref": "review-proposals.schema.json"
     }
   },
   "required": [
@@ -46,7 +49,8 @@
     "unresolved",
     "verification_results",
     "claims",
-    "papers_found"
+    "papers_found",
+    "memory_proposals"
   ],
   "additionalProperties": false
 }

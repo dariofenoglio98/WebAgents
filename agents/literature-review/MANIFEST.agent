@@ -2,21 +2,22 @@
   "spec_version": "0.1",
   "package_id": "org.webagents.literature-review",
   "name": "Literature Review Agent",
-  "version": "0.2.7",
-  "description": "A constrained coordinator-worker review with structured evidence and verified citations. Bundled demo data are synthetic.",
+  "version": "0.2.8",
+  "description": "A constrained coordinator-worker review with structured evidence and verified citations; with the person's leave it reads their research profile, keeps its own notes and proposes to remember the review. Bundled demo data are synthetic.",
   "publisher": {
     "id": "webagents-research",
     "name": "WebAgents Research Prototype"
   },
-  "created_at": "2026-10-01T00:00:00Z",
+  "created_at": "2026-10-14T00:00:00Z",
   "runtime": {
     "api": "agentpkg-runtime-v0",
-    "minimum_version": "0.3.0"
+    "minimum_version": "0.4.0"
   },
   "capabilities": [
     "literature-review",
     "evidence-extraction",
-    "citation-verification"
+    "citation-verification",
+    "research-memory"
   ],
   "entrypoint": "workflow.v0",
   "graph": "graph.json",
@@ -24,7 +25,7 @@
   "skills": [
     {
       "id": "literature-search",
-      "version": "0.1.3",
+      "version": "0.1.4",
       "path": "skills/literature-search/SKILL.md"
     },
     {
@@ -56,6 +57,11 @@
       "id": "claim-and-citation-verification",
       "version": "0.1.4",
       "path": "skills/claim-and-citation-verification/SKILL.md"
+    },
+    {
+      "id": "review-memory",
+      "version": "0.1.0",
+      "path": "skills/review-memory/SKILL.md"
     }
   ],
   "tools": [
@@ -70,6 +76,18 @@
     {
       "id": "paper-reader",
       "path": "tools/paper-reader.tool.json"
+    },
+    {
+      "id": "research.profile",
+      "path": "tools/research.profile.tool.json"
+    },
+    {
+      "id": "agent-notes.read",
+      "path": "tools/agent-notes.read.tool.json"
+    },
+    {
+      "id": "agent-notes.write",
+      "path": "tools/agent-notes.write.tool.json"
     }
   ],
   "schemas": [
@@ -324,6 +342,58 @@
     {
       "id": "slots",
       "path": "schemas/slots.schema.json"
+    },
+    {
+      "id": "host.empty-input",
+      "path": "schemas/host/empty-input.schema.json"
+    },
+    {
+      "id": "host.research.profile.view",
+      "path": "schemas/host/research.profile.view.schema.json"
+    },
+    {
+      "id": "host.agent-notes.read.output",
+      "path": "schemas/host/agent-notes.read.output.schema.json"
+    },
+    {
+      "id": "host.agent-notes.write.input",
+      "path": "schemas/host/agent-notes.write.input.schema.json"
+    },
+    {
+      "id": "host.agent-notes.write.output",
+      "path": "schemas/host/agent-notes.write.output.schema.json"
+    },
+    {
+      "id": "profile-read",
+      "path": "schemas/profile-read.schema.json"
+    },
+    {
+      "id": "notes-written",
+      "path": "schemas/notes-written.schema.json"
+    },
+    {
+      "id": "flag",
+      "path": "schemas/flag.schema.json"
+    },
+    {
+      "id": "review-paper",
+      "path": "schemas/review-paper.schema.json"
+    },
+    {
+      "id": "review-papers",
+      "path": "schemas/review-papers.schema.json"
+    },
+    {
+      "id": "review-links",
+      "path": "schemas/review-links.schema.json"
+    },
+    {
+      "id": "remember",
+      "path": "schemas/remember.schema.json"
+    },
+    {
+      "id": "review-proposals",
+      "path": "schemas/review-proposals.schema.json"
     }
   ],
   "model_requirements": {
@@ -393,6 +463,15 @@
       },
       {
         "id": "select",
+        "capabilities": [
+          "structured_output",
+          "reasoning"
+        ],
+        "context_window": 16000,
+        "preferred_tier": "reasoning"
+      },
+      {
+        "id": "remember",
         "capabilities": [
           "structured_output",
           "reasoning"

@@ -6,14 +6,55 @@
     },
     "mode": "fixture",
     "question": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
-    "seeds": []
+    "seeds": [],
+    "use_profile": false,
+    "keep_notes": false,
+    "reviewed_on": null
   },
   "models": {
     "plan": [
       {
         "input": {
           "research_question": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
-          "seed_references": []
+          "seed_references": [],
+          "research_profile": null,
+          "profile_note": "",
+          "agent_notes": ""
+        },
+        "output": {
+          "queries": [
+            "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
+            "Dynamic agent selection and topology adaptation in multi-agent LLM systems agent routing",
+            "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology"
+          ],
+          "rationale": "Deterministic query facets; no model-generated search strategy.",
+          "seed_queries": []
+        }
+      },
+      {
+        "input": {
+          "research_question": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
+          "seed_references": [],
+          "research_profile": {
+            "interests": [
+              "prompt injection defenses",
+              "capability-based security for agents"
+            ],
+            "affiliations": [
+              "USI"
+            ],
+            "seed_papers": [
+              {
+                "title": "Defending against indirect prompt injection",
+                "doi": "10.1234/example.2025.1"
+              }
+            ],
+            "avoid": [
+              "benchmarks without code"
+            ]
+          },
+          "profile_note": "Looking for mechanisms, not surveys. Recent (2024+) first.",
+          "agent_notes": ""
         },
         "output": {
           "queries": [
@@ -2562,6 +2603,32 @@
           ]
         }
       }
+    ],
+    "remember": [
+      {
+        "input": {
+          "research_question": "Dynamic agent selection and topology adaptation in multi-agent LLM systems",
+          "related_work": "# Related Work\n\nExecuted by workflow.v0 with deterministic fixture replay; no model inference.\n\n**SYNTHETIC DEMONSTRATION — all bundled papers, identifiers, and findings are invented test data. Do not cite this as research.**\n\nThis extractive baseline groups source quotations; it does not perform semantic method comparison or establish research gaps.\n\n## Communication structure\n\nAn abstract states: “Adaptive communication topology changes message edges between language-model agents during a task.” [1] An abstract states: “The synthetic method uses intermediate agreement signals to choose a communication graph.” [1]\n\n## Reported limitations\n\nThe supplied full text states: “A limitation is that the simulated workload does not establish performance on real tasks.” [2] An abstract states: “Its abstract does not report evaluation sample sizes.” [1]\n\n## Selection and evaluation\n\nThe supplied full text states: “Dynamic agent selection routes each task to a subset of language-model agents using task features.” [2] The supplied full text states: “The simulated experimental setup uses ten invented task families.” [2] The supplied full text states: “The synthetic evaluation compares routed teams with a fixed all-agent baseline.” [2]\n\nEvidence coverage: 3 abstract-derived items and 4 supplied full-text items. Search coverage is bounded; this is not a systematic or exhaustive review.\n\n2 records require follow-up; ambiguous citations are excluded from the prose.\n",
+          "papers": [
+            {
+              "title": "SYNTHETIC: Adaptive Communication Topology for Agent Teams"
+            },
+            {
+              "title": "SYNTHETIC: Dynamic Agent Selection with Task Routing"
+            }
+          ],
+          "agent_notes": "",
+          "reviewed_on": "2026-10-14"
+        },
+        "output": {
+          "notes": "# Notes\n- Last question: dynamic agent selection in multi-agent LLM systems (14 October 2026).\n- Next time: start from the papers this review cites before searching again.",
+          "review": {
+            "title": "Dynamic agent selection, 14 October 2026",
+            "body": "A synthetic fixture review: the cited router papers describe selecting agents per task and adapting the topology between rounds. Every claim is grounded in the fixture's documents.",
+            "rationale": "Keeps this review beside your research profile so the next one can start from it."
+          }
+        }
+      }
     ]
   },
   "tools": {
@@ -2973,6 +3040,57 @@
           ],
           "query": "Dynamic agent selection and topology adaptation in multi-agent LLM systems communication topology",
           "source": "synthetic-fixture"
+        }
+      }
+    ],
+    "research.profile": [
+      {
+        "input": {},
+        "output": {
+          "id": "mem_60718293a4b5c6d7e8f90a1b2c3d4e5f",
+          "type": "research.profile",
+          "title": "Research profile",
+          "fields": {
+            "interests": [
+              "prompt injection defenses",
+              "capability-based security for agents"
+            ],
+            "affiliations": [
+              "USI"
+            ],
+            "seed_papers": [
+              {
+                "title": "Defending against indirect prompt injection",
+                "doi": "10.1234/example.2025.1"
+              }
+            ],
+            "avoid": [
+              "benchmarks without code"
+            ]
+          },
+          "body": "Looking for mechanisms, not surveys. Recent (2024+) first.",
+          "tags": [],
+          "sealed": []
+        }
+      }
+    ],
+    "agent-notes.read": [
+      {
+        "input": {},
+        "output": {
+          "body": "",
+          "updated": null
+        }
+      }
+    ],
+    "agent-notes.write": [
+      {
+        "input": {
+          "body": "# Notes\n- Last question: dynamic agent selection in multi-agent LLM systems (14 October 2026).\n- Next time: start from the papers this review cites before searching again."
+        },
+        "output": {
+          "staged": true,
+          "bytes": 171
         }
       }
     ]

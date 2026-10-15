@@ -418,6 +418,65 @@
     },
     "handle_jobs": {
       "$ref": "handle-jobs.schema.json"
+    },
+    "use_profile": {
+      "type": "boolean"
+    },
+    "keep_notes": {
+      "type": "boolean"
+    },
+    "reviewed_on": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "research_profile": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "host/research.profile.view.schema.json#/properties/fields"
+        }
+      ]
+    },
+    "research_profile_note": {
+      "type": "string"
+    },
+    "research_profile_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "agent_notes": {
+      "type": "string"
+    },
+    "notes_written": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "notes-written.schema.json"
+        }
+      ]
+    },
+    "remember": {
+      "$ref": "remember.schema.json"
+    },
+    "remember_gate": {
+      "type": "boolean"
+    },
+    "review_papers": {
+      "$ref": "review-papers.schema.json"
+    },
+    "review_links": {
+      "$ref": "review-links.schema.json"
+    },
+    "memory_proposals": {
+      "$ref": "review-proposals.schema.json"
     }
   },
   "required": [
@@ -432,7 +491,20 @@
     "claims",
     "draft",
     "verification_results",
-    "unresolved"
+    "unresolved",
+    "use_profile",
+    "keep_notes",
+    "reviewed_on",
+    "research_profile",
+    "research_profile_note",
+    "research_profile_id",
+    "agent_notes",
+    "notes_written",
+    "remember",
+    "remember_gate",
+    "review_papers",
+    "review_links",
+    "memory_proposals"
   ],
   "additionalProperties": false
 }

@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Review proposals",
+  "description": "The memory.v0 proposals document this run offers: nothing, or one research.review the person reviews after the run.",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "const": "memory.v0 proposals"
+    },
+    "proposals": {
+      "type": "array",
+      "maxItems": 1,
+      "items": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "const": "create"
+          },
+          "type": {
+            "const": "research.review"
+          },
+          "title": {
+            "type": "string"
+          },
+          "fields": {
+            "type": "object",
+            "properties": {
+              "question": {
+                "type": "string"
+              },
+              "reviewed_on": {
+                "type": "string"
+              },
+              "papers": {
+                "$ref": "review-papers.schema.json"
+              }
+            },
+            "required": [
+              "question",
+              "reviewed_on",
+              "papers"
+            ],
+            "additionalProperties": false
+          },
+          "body": {
+            "type": "string"
+          },
+          "tags": {
+            "const": [
+              "review"
+            ]
+          },
+          "links": {
+            "$ref": "review-links.schema.json"
+          },
+          "rationale": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "action",
+          "type",
+          "title",
+          "fields",
+          "body",
+          "tags",
+          "links",
+          "rationale"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "schema",
+    "proposals"
+  ],
+  "additionalProperties": false
+}
