@@ -36,7 +36,7 @@ import type { AuditEvent } from "../../core/types.js";
 import { generateVaultKey } from "../../core/vault.js";
 import { emptyMemorySnapshot, MemoryStore } from "../../core/memory/store.js";
 import { MemoryRun } from "../../core/memory/run.js";
-import { agentToolSchemas } from "../../core/memory/declarations.js";
+import { agentToolDigests, requestedResourceTypes } from "../../core/memory/declarations.js";
 import type { MemoryRecord } from "../../core/memory/model.js";
 import { AdapterError, CancelledError } from "../../core/workflow/errors.js";
 import { isLoopbackBase } from "../../core/models/catalog.js";
@@ -254,12 +254,11 @@ export function executeRun(deps: ExecuteDeps): ExecutionHandle {
         tool: originGuard(deps.transports.tool, message.allowedOrigins ?? [], { allowLoopback: false }),
       };
       const contact = message.settings.crossrefContact ?? null;
-      const requestedTypes = [...new Set((pkg.policy.permissions as JsonObject[]).filter((permission) => permission.kind === "personal.read" || permission.kind === "memory.read").flatMap((permission) => (permission.resources as JsonValue[]).map(String)))];
-      const agentSchemas = agentToolSchemas();
-      const digestOf = (text: string) => sha256HexSync(new TextEncoder().encode(text));
+      // The same derivations the plan was frozen from (review 1, nit 10): one helper for both registries.
+      const requestedTypes = requestedResourceTypes(pkg.policy);
       const registry = await buildHostToolRegistry(pkg, {
         resourceTypes: withStore ? memoryStore.resourceTypeFacts(requestedTypes) : [],
-        agentTools: withStore ? { read_output_sha256: digestOf(agentSchemas["host.memory.agent.read"]!.output), write_input_sha256: digestOf(agentSchemas["host.memory.agent.write"]!.input), write_output_sha256: digestOf(agentSchemas["host.memory.agent.write"]!.output) } : null,
+        agentTools: withStore ? agentToolDigests() : null,
         runtimeVersion: message.settings.runtimeVersion,
         now: now(),
         contactConfigured: contact !== null,

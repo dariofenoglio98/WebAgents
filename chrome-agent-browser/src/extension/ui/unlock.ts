@@ -145,6 +145,7 @@ export function renderUnlockSheet(state: UnlockState, secrets: SecretsView | nul
       actions.rerender();
     }
   };
+  const keychainButton = button(state.busy ? "Unlocking…" : "Unlock with the macOS keychain", () => void viaKeychain(), { variant: "primary", disabled: state.busy });
   const form = el("form", { className: "ab-sheet-form" }, field);
   form.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -157,14 +158,15 @@ export function renderUnlockSheet(state: UnlockState, secrets: SecretsView | nul
       { className: "ab-sheet-card" },
       el("h3", { text: "Unlock your keys and records" }),
       el("p", { className: "ab-hint", text: state.open.reason ?? "Your provider keys and your records are encrypted at rest. Enter your passphrase to use them in this browser session; they lock again after the idle time you chose." }),
-      secrets?.keychain_enabled ? el("div", { className: "ab-actions ab-keychain-unlock" }, button(state.busy ? "Unlocking…" : "Unlock with the macOS keychain", () => void viaKeychain(), { variant: "primary", disabled: state.busy })) : null,
+      secrets?.keychain_enabled ? el("div", { className: "ab-actions ab-keychain-unlock" }, keychainButton) : null,
       secrets?.keychain_enabled ? el("p", { className: "ab-hint", text: "Or enter your passphrase:" }) : null,
       form,
       state.error ? el("p", { className: "ab-banner ab-banner-bad", attrs: { role: "alert" }, text: state.error }) : null,
       el("div", { className: "ab-actions" }, button(state.busy ? "Unlocking…" : "Unlock", () => void submit(), { variant: secrets?.keychain_enabled ? "ghost" : "primary", disabled: state.busy }), button("Cancel", close, { variant: "ghost", disabled: state.busy })),
     ),
   );
-  if (!secrets?.keychain_enabled) queueMicrotask(() => field.focus());
+  // The sheet always takes the focus (T17 review 2, nit 3): the keychain button when that unlock is on, else the passphrase field.
+  queueMicrotask(() => (secrets?.keychain_enabled ? keychainButton : field).focus());
   return sheet;
 }
 
@@ -173,6 +175,8 @@ export function keychainFailureWords(error: { code: string; message: string; det
   switch (error.code) {
     case "helper_not_installed":
       return "The WebAgents helper is not installed on this Mac.";
+    case "helper_forbidden":
+      return "The installed WebAgents helper does not list this extension; reinstall it with the current installer.";
     case "native_permission_missing":
       return "Chrome no longer lets this extension talk to the WebAgents helper (Settings → Security turns it on again).";
     case "helper_timeout":

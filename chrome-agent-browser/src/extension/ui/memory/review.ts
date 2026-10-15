@@ -149,7 +149,7 @@ export function renderReview(state: ReviewState, actions: ReviewActions): HTMLEl
     const facts = review.facts[index]!;
     const decision = state.decisions[index];
     const edit = ensureEdit(state, index, proposal);
-    const links = [...(proposal.links ?? [])].map((link) => `${relationWords(link.rel as never).forward} → ${link.to.startsWith("#") ? `proposal ${Number(link.to.slice(1)) + 1}` : link.to === "self" ? "Dario" : (facts.link_titles[link.to] ?? link.to)}`);
+    const links = [...(proposal.links ?? [])].map((link) => `${relationWords(link.rel as never).forward} → ${link.to.startsWith("#") ? `proposal ${Number(link.to.slice(1)) + 1}` : (facts.link_titles[link.to] ?? (link.to === "self" ? "Me" : link.to))}`);
     const rejectedLinks = (proposal.links ?? []).filter((link) => link.to.startsWith("#") && state.decisions[Number(link.to.slice(1))] === "reject");
     const kept: string[] = [...facts.kept.sealed.map((field) => `${field} ${MASK}`), ...facts.kept.links.map((link) => `${relationWords(link.rel).forward} → ${link.title}`), ...facts.kept.related.map((title) => `in text: ${title}`)];
     const sealedInputs = facts.sealed_required.map((field) => {

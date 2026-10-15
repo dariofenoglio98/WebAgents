@@ -13,6 +13,8 @@ import { compareRelease } from "../version.js";
 import { AGENT_TYPE, MAX_PROPOSALS, RESERVED_TYPES, SELF_TYPE, WELL_KNOWN_TYPE_ID } from "./model.js";
 import { PROPOSALS_EXPORT_FORMAT, PROPOSALS_PATH } from "./proposals.js";
 import { customTypesOf, MemoryTypeError, starterTypes } from "./types.js";
+import { sha256HexSync } from "../hash.js";
+import { RESOURCE_PERMISSION_KINDS } from "../tools/resources.js";
 
 export const MEMORY_MINIMUM_VERSION = "0.4.0";
 export const MEMORY_READ_BINDING_PREFIX = "host.memory.";
@@ -23,6 +25,24 @@ export const AGENT_SCOPE = "agent-scoped";
 export const AGENT_RESOURCE = "agent";
 
 /** The exact schemas of the two reserved agent tools (M-48), as canonical JSON. */
+/**
+ * The memory types a package requests (M-33 and the `personal.read` alias): the resources of its
+ * `memory.read` and `personal.read` permissions, in declaration order, each once. One derivation
+ * for the plan-time registry (the service worker) and the run-time one (the execution host), so
+ * both hash the same facts (review 1, nit 10).
+ */
+export function requestedResourceTypes(policy: JsonObject): string[] {
+  const kinds: readonly string[] = RESOURCE_PERMISSION_KINDS;
+  return [...new Set((policy.permissions as JsonObject[]).filter((permission) => kinds.includes(String(permission.kind))).flatMap((permission) => (permission.resources as JsonValue[]).map(String)))];
+}
+
+/** The agent tools' schema digests (M-48): the contract files', the same bytes in both runtimes and at plan and run time. */
+export function agentToolDigests(): { read_output_sha256: string; write_input_sha256: string; write_output_sha256: string } {
+  const schemas = agentToolSchemas();
+  const digest = (text: string) => sha256HexSync(new TextEncoder().encode(text));
+  return { read_output_sha256: digest(schemas[AGENT_READ_BINDING]!.output), write_input_sha256: digest(schemas[AGENT_WRITE_BINDING]!.input), write_output_sha256: digest(schemas[AGENT_WRITE_BINDING]!.output) };
+}
+
 export function agentToolSchemas(): Record<string, { input: string; output: string }> {
   const canonical = (name: string) => canonicalString(MEMORY_CONTRACTS[name]);
   return {

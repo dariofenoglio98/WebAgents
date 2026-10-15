@@ -339,7 +339,7 @@ function sealedField(name: string, pointer: string, view: MemoryView, state: Mem
 function cardLinks(view: MemoryView, state: MemoryPageState, card: CardState, actions: MemoryPageActions): HTMLElement {
   const rows = card.draft.links.map((link) => {
     const target = recordOf(view, link.to);
-    const title = link.to === SELF_ID ? "Dario" : (target?.title ?? "missing record");
+    const title = target?.title ?? (link.to === SELF_ID ? "Me" : "missing record"); // the Me record's own title, never a fixed name (review 1, finding 6)
     const open = target ? button(title, () => {
       openCard(view, state, target.id);
       actions.rerender();
@@ -452,10 +452,11 @@ export function renderCard(view: MemoryView, state: MemoryPageState, actions: Me
   const type = typeOf(view, card.type);
   if (!type) return el("div", { className: "ab-memory-card" }, el("p", { className: "ab-hint", text: `Unknown type ${card.type}` }));
   const record = recordOf(view, card.id);
+  // The title on its own line, the chips wrapping under it: no four-line title beside three tall chips at 1280 px (review 1, nit 12).
   const head = el(
     "div",
     { className: "ab-memory-card-head" },
-    el("div", { className: "ab-row" }, el("strong", { text: card.mode === "create" ? `New ${type.display_name.toLowerCase()}` : record?.title ?? "" }), chip(type.display_name), record?.demo ? chip("demo", "warn") : null, type.sealed_fields.length > 0 ? chip("🔒 sealed fields", "neutral") : null),
+    el("div", { className: "ab-memory-card-title" }, el("strong", { text: card.mode === "create" ? `New ${type.display_name.toLowerCase()}` : record?.title ?? "" }), el("div", { className: "ab-row ab-memory-card-chips" }, chip(type.display_name), record?.demo ? chip("demo", "warn") : null, type.sealed_fields.length > 0 ? chip("🔒 sealed fields", "neutral") : null)),
     button("×", () => {
       state.card = null;
       actions.rerender();

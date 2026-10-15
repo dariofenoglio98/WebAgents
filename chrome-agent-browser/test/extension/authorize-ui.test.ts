@@ -377,6 +377,19 @@ describe("the shared flow module over the message contract", () => {
   });
 });
 
+describe("Settings → Permissions (T16 review 2, nit 4)", () => {
+  it("a single origin's Revoke is disabled while every site is granted, since it could only end in the 409 banner", async () => {
+    const h = makeHarness();
+    const settings = (await h.controller.handle({ type: "settings.get" }, PAGE)) as SettingsView;
+    const state = newSettingsPageState("permissions");
+    const origins = [{ origin: "https://a.example", granted: true, purposes: [{ kind: "site" as const, subject: "https://a.example", label: null }] }];
+    const render = (everywhere: boolean) => renderSettingsPage(settings, null, state, { onSave: () => undefined, onSetKey: () => undefined, onProbe: () => undefined, onRevoke: () => undefined, rerender: () => undefined }, null, { indexes: null, policy: null, permissions: { origins, detect_everywhere: everywhere, manifest_hosts: ["http://localhost:11434/*"] } as never });
+    const revoke = (root: HTMLElement) => [...root.querySelectorAll<HTMLButtonElement>("button")].find((node) => node.textContent === "Revoke")!;
+    expect(revoke(render(false)).disabled).toBe(false);
+    expect(revoke(render(true)).disabled).toBe(true);
+  });
+});
+
 describe("Settings and Your data", () => {
   it("Settings → Models shows key presence only, tests a connection, and makes a probed model the default; Policies selects the preset", async () => {
     const h = makeHarness();

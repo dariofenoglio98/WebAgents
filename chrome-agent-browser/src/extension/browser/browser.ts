@@ -168,7 +168,8 @@ function openUnlock(reason: string | null, retry: (() => void) | null): void {
  */
 function failedKeychain(error: unknown, previous: KeychainView | null = state.keychain): KeychainView {
   const { code, message } = describeError(error);
-  const known = previous ?? { permission: true, enabled: false, enabled_at: null, ollama: null };
+  // Nothing known yet: the not-checked shape, never a granted permission (T17 review 2, nit 5).
+  const known = previous ?? { permission: false, enabled: false, enabled_at: null, ollama: null };
   return { permission: known.permission, enabled: known.enabled, enabled_at: known.enabled_at, ollama: known.ollama, helper: "failed", helper_version: null, problem: { code, message } };
 }
 
@@ -198,7 +199,8 @@ async function loadSecrets(): Promise<void> {
 async function secretsChanged(): Promise<void> {
   await loadSecrets();
   if (state.secrets?.state === "unlocked" && state.error && needsUnlock(state.error)) state.error = null;
-  await load();
+  // The worker broadcasts `event.settings` and `event.memory` with every store change, and those reload the view; no third load here (T16 review 2, nit 6).
+  render();
 }
 
 /**

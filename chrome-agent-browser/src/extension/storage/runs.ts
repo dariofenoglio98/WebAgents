@@ -7,6 +7,7 @@
  * is identifiers, hashes, counts and codes (`record.ts`); the artifacts are the run's own files.
  */
 import type { ExecutionAuthorization, ExecutionPlan } from "../../core/execution/plan.js";
+import type { MemoryType } from "../../core/memory/types.js";
 import type { ProgressSnapshot } from "../../core/execution/progress.js";
 import type { RunRecord } from "../../core/execution/record.js";
 import type { HostExecutionLimits } from "../../core/execution/limits.js";
@@ -55,6 +56,8 @@ export interface StoredRun {
   memory_proposed_at?: string | null;
   /** The review's outcome, once the person decided (M-42); the sheet does not reopen. */
   memory_review?: { at: string; accepted: number; rejected: number } | null;
+  /** The custom types the package declared (M-18), kept with the run so its proposals of such a type can be reviewed and approved after the snapshot is gone. */
+  memory_types?: MemoryType[] | null;
 }
 
 export interface StoredArtifact {

@@ -249,12 +249,11 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
 chrome.permissions.onRemoved.addListener(() => void controller.reconcilePermissions());
 chrome.permissions.onAdded.addListener(() => void controller.reconcilePermissions());
 
-// The idle lock's sweep (D-192): every minute, locking when a key is held past the idle time; the lazy check in the store covers the rest.
+// The idle lock's sweep (D-192): every minute, locking when a key is held past the idle time, through
+// the controller so that its caches follow the lock (T17 review 2, nit 2); the lazy check in the store covers the rest.
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name !== LOCK_ALARM) return;
-  void secrets.lockIfIdle().then((locked: boolean) => {
-    if (locked) broadcast({ type: "event.secrets" });
-  });
+  void controller.lockIfIdle().catch(() => undefined);
 });
 void chrome.alarms.get(LOCK_ALARM).then((alarm) => {
   if (!alarm) void chrome.alarms.create(LOCK_ALARM, { periodInMinutes: 1 });

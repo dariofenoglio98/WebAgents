@@ -12,15 +12,15 @@
 import { canonicalString } from "../../core/canonical.js";
 import { CoreError } from "../../core/errors.js";
 import type { JsonObject, JsonValue } from "../../core/json.js";
-import { agentToolSchemas } from "../../core/memory/declarations.js";
 import type { ExportFile, ImportFile, ImportReport } from "../../core/memory/export.js";
 import type { DerivedNode, GraphEdge } from "../../core/memory/graph.js";
 import { migrateVault, type MigrationReport } from "../../core/memory/migration.js";
 import { AGENT_TYPE, MAX_RECORDS, MAX_TYPES, type MemoryLink, type MemoryRecord, type Relation, type UsageEntry, isRelation, pointerGet, pointerSet, RELATION_WORDS, SEALED_PLACEHOLDER, SELF_ID, SELF_TYPE } from "../../core/memory/model.js";
-import { checkProposals, identityMatch, type Acceptance, type ProposalsDocument, type ReviewDecision, ProposalRefusal } from "../../core/memory/proposals.js";
+import { checkProposals, identityMatch, resolveProposalType, type Acceptance, type ProposalsDocument, type ReviewDecision, ProposalRefusal } from "../../core/memory/proposals.js";
+import { customTypeAliases } from "../../core/memory/run.js";
 import type { RecallCandidate } from "../../core/memory/recall.js";
 import { agentDocumentId, emptyMemorySnapshot, MemoryStore, type MemoryRecordView, type MemorySnapshot, type RecordDraft, type TidyGroups } from "../../core/memory/store.js";
-import type { MemoryType, MemoryTypeView } from "../../core/memory/types.js";
+import { TypeRegistry, type MemoryType, type MemoryTypeView } from "../../core/memory/types.js";
 import { MemoryError, sealedValuesOf } from "../../core/memory/validate.js";
 import { provenanceWords } from "../../core/memory/words.js";
 import { sha256HexSync } from "../../core/hash.js";
@@ -204,16 +204,27 @@ export class MemoryController {
     return next;
   }
 
-  /** The opened store, locked or unlocked; a failed opening is retried by the next call. */
-  opened(): Promise<Opened> {
-    if (this.cache === null) {
-      const generation = this.generation;
-      this.cache = this.open(generation).catch((error: unknown) => {
-        if (this.generation === generation) this.cache = null;
-        throw error;
-      });
+  /**
+   * The opened store, locked or unlocked, as the secret store stands **now**: the state is read
+   * on every call (the read applies the idle lock, D-192), and a cached store opened in the other
+   * state is dropped and opened again. So an idle lock that reached the secret store without an
+   * event (the alarm's sweep, the store's own lazy check) never leaves an unlocked memory behind
+   * (review 1, finding 1; T17 review 2, nit 2). A failed opening is retried by the next call.
+   */
+  async opened(): Promise<Opened> {
+    const locked = (await this.deps.secretsState()) !== "unlocked";
+    if (this.cache !== null) {
+      const current = await this.cache.catch(() => null);
+      if (current !== null && current.locked === locked) return current;
+      this.invalidate();
     }
-    return this.cache;
+    const generation = this.generation;
+    const opening = this.open(generation, locked).catch((error: unknown) => {
+      if (this.generation === generation) this.cache = null;
+      throw error;
+    });
+    this.cache = opening;
+    return opening;
   }
 
   /** The unlocked store, or the store's own refusal (`store_locked`, `store_no_passphrase`, `store_invalid`). */
@@ -224,17 +235,11 @@ export class MemoryController {
       throw unavailableStoreError(state);
     }
     const opened = await this.opened();
-    if (opened.locked) {
-      // Opened while locked, unlocked since (the event raced the open): open again with the keys.
-      this.invalidate();
-      return this.opened();
-    }
+    if (opened.locked) throw unavailableStoreError("locked"); // locked between the two reads
     return opened;
   }
 
-  private async open(generation: number): Promise<Opened> {
-    const state = await this.deps.secretsState();
-    const locked = state !== "unlocked";
+  private async open(generation: number, locked: boolean): Promise<Opened> {
     let key: Uint8Array;
     let dataKey: Uint8Array | null = null;
     if (locked) key = generateVaultKey();
@@ -282,6 +287,7 @@ export class MemoryController {
     if (opened.locked || opened.dataKey === null) throw unavailableStoreError("locked");
     const snapshot = opened.store.snapshot();
     const changed: StoredMemoryRecord[] = [];
+    const identities = new Map<string, string>();
     const seen = new Set<string>();
     for (const record of snapshot.records) {
       const row = await sealRecord(record, opened.dataKey);
@@ -290,29 +296,42 @@ export class MemoryController {
       seen.add(record.id);
       if (opened.baseline.get(record.id) !== identity) {
         changed.push(row);
-        opened.baseline.set(record.id, identity);
+        identities.set(record.id, identity);
       }
     }
     const removed = [...opened.baseline.keys()].filter((id) => !seen.has(id));
-    for (const id of removed) opened.baseline.delete(id);
     const meta = metaOf(snapshot);
     const metaText = canonicalString(meta);
+    // The rows first, the baseline once they are on disk (review 1, finding 4): a write IndexedDB
+    // refused is retried by the next persist instead of being skipped as already written.
     if (changed.length > 0) await this.deps.storage.putRecords(changed);
     if (removed.length > 0) await this.deps.storage.deleteRecords(removed);
+    for (const [id, identity] of identities) opened.baseline.set(id, identity);
+    for (const id of removed) opened.baseline.delete(id);
     if (metaText !== opened.meta) {
       await this.deps.storage.saveMeta(meta);
       opened.meta = metaText;
     }
   }
 
-  /** One queued write: open unlocked, mutate, persist, broadcast. */
+  /**
+   * One queued write: open unlocked, mutate, persist, broadcast. A write that fails anywhere
+   * (a refusal in the middle of its mutation, a row IndexedDB would not take) drops the opened
+   * store, so its partial change is never shown and never carried into the next write: the next
+   * call reopens from the rows as they were last written (review 1, finding 4).
+   */
   private write<T>(work: (opened: Opened) => Promise<T>): Promise<T> {
     return this.run(async () => {
       const opened = await this.unlocked();
-      const result = await work(opened);
-      await this.persist(opened);
-      this.deps.broadcast();
-      return result;
+      try {
+        const result = await work(opened);
+        await this.persist(opened);
+        this.deps.broadcast();
+        return result;
+      } catch (error) {
+        this.invalidate();
+        throw error;
+      }
     });
   }
 
@@ -349,7 +368,9 @@ export class MemoryController {
       .map((record) => ({ id: record.id, package_id: String(record.fields.package_id ?? ""), title: record.title, bytes: new TextEncoder().encode(record.body).length, updated: record.updated, run_id: record.source.kind === "agent" ? record.source.run_id : null, package_version: record.source.kind === "agent" ? record.source.package_version : null }));
     const tidy = store.tidy();
     const status = await this.deps.settings.store.status();
-    const bytes = new TextEncoder().encode(canonicalString(store.snapshot())).length;
+    // The size the status line shows, counted over the records with their sealed values masked: the count never serializes a value in clear (review 1, nit 10).
+    const snapshot = store.snapshot();
+    const bytes = new TextEncoder().encode(canonicalString({ ...snapshot, records: snapshot.records.map((record) => maskRecord(record)) })).length;
     return {
       state,
       locked: opened.locked,
@@ -484,11 +505,16 @@ export class MemoryController {
   forget(): Promise<{ forgotten: true }> {
     return this.run(async () => {
       const opened = await this.unlocked();
-      await opened.store.forget();
-      await this.deps.storage.clear();
-      opened.baseline.clear();
-      opened.meta = "";
-      await this.persist(opened);
+      try {
+        await opened.store.forget();
+        await this.deps.storage.clear();
+        opened.baseline.clear();
+        opened.meta = "";
+        await this.persist(opened);
+      } catch (error) {
+        this.invalidate();
+        throw error;
+      }
       this.deps.broadcast();
       return { forgotten: true as const };
     });
@@ -503,11 +529,15 @@ export class MemoryController {
 
   // -- export and import (§8, D-215) --------------------------------------------------------------
   async export(input: ExportRequest): Promise<{ files: ExportFile[]; sealed_included: boolean }> {
-    // Sealed values travel in clear only from an unlocked store; locked, the export omits them and says so.
-    const opened = input.includeSealed && (await this.deps.secretsState()) === "unlocked" ? await this.unlocked() : await this.opened();
+    // Sealed values travel in clear only from a store that is unlocked at this very call: the
+    // state read here decides, and the store it opens must agree (finding 1: a cached unlocked
+    // store after an idle lock exported them in clear). Locked, the export omits them and says so.
+    const unlockedNow = input.includeSealed && (await this.deps.secretsState()) === "unlocked";
+    const opened = await this.opened();
+    const includeSealed = unlockedNow && !opened.locked;
     const only = input.recordIds ? new Set(input.recordIds) : undefined;
-    const files = opened.store.export({ runtimeLabel: `chrome-agent-browser core ${CORE_VERSION}`, now: this.deps.clock(), includeSealed: input.includeSealed && !opened.locked, includeAgents: input.includeAgents, ...(only ? { only } : {}) });
-    return { files, sealed_included: input.includeSealed && !opened.locked };
+    const files = opened.store.export({ runtimeLabel: `chrome-agent-browser core ${CORE_VERSION}`, now: this.deps.clock(), includeSealed, includeAgents: input.includeAgents, ...(only ? { only } : {}) });
+    return { files, sealed_included: includeSealed };
   }
 
   /** The counts and the sheet's list of §3.8, with sealed values never listed (M-59). */
@@ -580,13 +610,6 @@ export class MemoryController {
     return (await this.unlocked()).store.resourceTypeFacts(requested);
   }
 
-  /** The agent tools' schema digests (M-48): the contract files', the same bytes in both runtimes. */
-  agentToolDigests(): { read_output_sha256: string; write_input_sha256: string; write_output_sha256: string } {
-    const schemas = agentToolSchemas();
-    const digest = (text: string) => sha256HexSync(new TextEncoder().encode(text));
-    return { read_output_sha256: digest(schemas["host.memory.agent.read"]!.output), write_input_sha256: digest(schemas["host.memory.agent.write"]!.input), write_output_sha256: digest(schemas["host.memory.agent.write"]!.output) };
-  }
-
   // -- the run side (§7, §9) -------------------------------------------------------------------------
   /** The snapshot a run opened with the store is handed (M-36): every record with its sealed values, under the digest key. Needs the unlocked store. */
   async runSnapshot(): Promise<{ key: Uint8Array; snapshot: MemorySnapshot }> {
@@ -600,24 +623,35 @@ export class MemoryController {
     return (await this.opened()).store.size >= MAX_RECORDS;
   }
 
-  /** The usage entries of a finished run (M-29): memory reads, agent reads and writes, from its audit. Never fails a run; a locked store keeps the entries for the next unlock. */
-  addUsage(entries: readonly UsageEntry[]): Promise<void> {
-    if (entries.length === 0) return Promise.resolve();
+  /**
+   * What a settled run left for the memory, in **one** write (M-29, M-50): its usage entries
+   * (memory reads, agent reads and writes, from its audit) and the staged agent body it committed.
+   * One write means one persist: a commit the store refuses (`memory_full`) leaves the usage
+   * unwritten too, so the run's facts are applied once or not at all, never partly and never twice
+   * (review 1, finding 5). A locked store refuses, and the run keeps its facts for the next unlock.
+   */
+  applyRun(input: { usage: readonly UsageEntry[]; commit: { package_id: string; package_version: string; run_id: string; name: string; body: string; at: string } | null }): Promise<{ committed: string | null }> {
+    if (input.usage.length === 0 && input.commit === null) return Promise.resolve({ committed: null });
     return this.write(async ({ store }) => {
-      store.addUsage(entries.filter((entry) => store.has(entry.record_id)));
+      let committed: string | null = null;
+      if (input.commit !== null) committed = (await store.commitAgent(input.commit)).id;
+      store.addUsage(input.usage.filter((entry) => store.has(entry.record_id)));
+      return { committed };
     });
   }
 
-  /** M-50: the staged agent body a completed run left, committed under the package's id. */
-  commitAgent(input: { package_id: string; package_version: string; run_id: string; name: string; body: string; at: string }): Promise<{ id: string }> {
-    return this.write(async ({ store }) => ({ id: (await store.commitAgent(input)).id }));
-  }
-
-  /** The review sheet's facts for a run's proposals document (M-41, M-42, M-44; D-223). */
-  async review(document: JsonValue, input: { granted: readonly ResourceGrant[]; packageId: string }): Promise<ReviewView> {
+  /**
+   * The review sheet's facts for a run's proposals document (M-41, M-42, M-44; D-223). The types
+   * are the store's plus the ones the package declared itself (M-18, `declared`: the run kept
+   * them), so a proposal of a custom type is reviewable before its first approval; the sheet
+   * marks it "new type" until the person accepts one (review 1, finding 3).
+   */
+  async review(document: JsonValue, input: { granted: readonly ResourceGrant[]; packageId: string; declared?: readonly MemoryType[] }): Promise<ReviewView> {
     const opened = await this.opened();
     const store = opened.store;
-    const grantedIds = new Map(input.granted.map((grant) => [grant.resource_id, store.types.resolve(grant.resource_type)?.id ?? grant.resource_type] as const));
+    const types = reviewTypes(store, input.declared ?? []);
+    const aliases = customTypeAliases(input.packageId, input.declared ?? []);
+    const grantedIds = new Map(input.granted.map((grant) => [grant.resource_id, types.resolve(grant.resource_type)?.id ?? grant.resource_type] as const));
     const targets = new Map<string, Pick<MemoryRecord, "sealed" | "type">>();
     for (const id of grantedIds.keys()) {
       const record = store.get(id);
@@ -625,14 +659,14 @@ export class MemoryController {
     }
     let parsed: ProposalsDocument;
     try {
-      parsed = await checkProposals(document, { declared: new Set([...grantedIds.values(), ...(Array.isArray((document as JsonObject | null)?.proposals) ? ((document as JsonObject).proposals as JsonObject[]).map((item) => String(item.type)) : [])]), granted: grantedIds, targets, types: store.types, scan: [] });
+      parsed = await checkProposals(document, { declared: new Set([...grantedIds.values(), ...(Array.isArray((document as JsonObject | null)?.proposals) ? ((document as JsonObject).proposals as JsonObject[]).map((item) => resolveProposalType(String(item.type), aliases)) : [])]), granted: grantedIds, targets, types, scan: [], aliases });
     } catch (error) {
       if (error instanceof ProposalRefusal) throw reject("memory_proposals_invalid", error.message, 422, { reason: error.reason, index: error.index });
       throw error;
     }
     const titles = store.titles();
     const facts: ReviewView["facts"] = parsed.proposals.map((proposal, index) => {
-      const type = store.types.get(proposal.type)!;
+      const type = types.get(resolveProposalType(proposal.type, aliases))!;
       const target = proposal.action === "update" && proposal.target ? store.get(proposal.target) : undefined;
       const head = target ? store.graph.supersededBy.get(target.id) ?? null : null;
       const headRecord = head ? store.get(head) : undefined;
@@ -657,11 +691,25 @@ export class MemoryController {
     return { document: parsed, facts, memory_full: store.size >= MAX_RECORDS, records: store.size, cap: MAX_RECORDS };
   }
 
-  /** M-42: the decisions of one review applied together; what was written, by index. */
-  decide(document: JsonValue, input: { decisions: readonly ReviewDecision[]; granted: readonly ResourceGrant[]; package: { package_id: string; package_version: string; run_id: string }; proposedAt: string }): Promise<ReviewOutcome> {
+  /**
+   * M-42: the decisions of one review applied together; what was written, by index. A custom type
+   * the package declared (M-18) that an accepted proposal uses is approved for `(package, type,
+   * schema)` and stored with the record, in the same write; a rejected proposal approves nothing.
+   */
+  decide(document: JsonValue, input: { decisions: readonly ReviewDecision[]; granted: readonly ResourceGrant[]; package: { package_id: string; package_version: string; run_id: string }; proposedAt: string; declared?: readonly MemoryType[] }): Promise<ReviewOutcome> {
     return this.write(async ({ store }) => {
       const grantedIds = new Set(input.granted.map((grant) => grant.resource_id));
-      const outcome: Acceptance = await store.accept({ proposals: document as unknown as ProposalsDocument, decisions: input.decisions, package: input.package, granted: grantedIds, proposedAt: input.proposedAt });
+      const proposals = (document as unknown as ProposalsDocument).proposals ?? [];
+      const aliases = customTypeAliases(input.package.package_id, input.declared ?? []);
+      const acceptedTypes = new Set(input.decisions.filter((decision) => decision.decision === "accept").map((decision) => resolveProposalType(String(proposals[decision.index]?.type), aliases)));
+      for (const type of input.declared ?? []) {
+        if (!acceptedTypes.has(type.id) || type.declared_by.kind !== "package" || type.declared_by.package_id !== input.package.package_id) continue;
+        const digest = sha256HexSync(new TextEncoder().encode(canonicalString(type.schema)));
+        if (store.customTypeApproved(input.package.package_id, type.id, digest) && store.types.has(type.id)) continue;
+        await store.putType(type);
+        store.approveCustomType(input.package.package_id, type);
+      }
+      const outcome: Acceptance = await store.accept({ proposals: document as unknown as ProposalsDocument, decisions: input.decisions, package: input.package, granted: grantedIds, proposedAt: input.proposedAt, aliases });
       return { accepted: outcome.accepted.map((item) => ({ index: item.index, id: item.record.id, title: item.record.title, supersedes: item.supersedes, dropped_links: item.dropped_links })), rejected: outcome.rejected };
     });
   }
@@ -670,6 +718,14 @@ export class MemoryController {
   static relationWords(): Record<Relation, { forward: string; inverse: string }> {
     return clone(RELATION_WORDS) as Record<Relation, { forward: string; inverse: string }>;
   }
+}
+
+/** The store's types with a package's own declared custom types beside them (M-18): the registry a review reads; the store's own is untouched until an acceptance. */
+function reviewTypes(store: MemoryStore, declared: readonly MemoryType[]): TypeRegistry {
+  if (declared.length === 0) return store.types;
+  const registry = new TypeRegistry(store.types.toJSON());
+  for (const type of declared) if (type.declared_by.kind === "package" && !registry.has(type.id)) registry.put(type);
+  return registry;
 }
 
 function identityMatchOf(store: MemoryStore, fields: JsonObject, type: MemoryTypeView): MemoryRecord | null {

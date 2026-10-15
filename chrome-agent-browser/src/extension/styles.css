@@ -185,6 +185,9 @@ a { color: var(--ab-accent); }
 .ab-memory-card { background: var(--ab-surface); border: 1px solid var(--ab-border); border-radius: var(--ab-radius); padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
 .ab-memory-card-empty { color: var(--ab-muted); }
 .ab-memory-card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+.ab-memory-card-title { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.ab-memory-card-title strong { overflow-wrap: anywhere; }
+.ab-memory-card-chips { flex-wrap: wrap; }
 .ab-memory-provenance { margin: 0; }
 .ab-memory-field .ab-row-label { display: inline-flex; gap: 6px; align-items: center; }
 .ab-sealed-value { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }

@@ -50,6 +50,10 @@ export interface MemoryPackageOptions {
   walletAnswer?: JsonObject;
   proposalsInput?: JsonValue;
   notesInput?: string;
+  /** Extra permissions the free-text echo tool links (a tool that may carry a granted value out). */
+  echoLinks?: string[];
+  /** Custom types the policy declares under `memory_types` (M-18), each with its closed schema written as a package file. */
+  customTypes?: Array<{ id: string; display_name: string; description: string | null; schema: JsonObject; identity?: string[] }>;
 }
 
 const EMPTY_INPUT = MEMORY_CONTRACTS["memory-empty-input.schema"] as JsonObject;
@@ -104,6 +108,8 @@ export function memorySource(options: MemoryPackageOptions = {}): Map<string, Ui
     { id: WALLET_PERMISSION, kind: "personal.read", description: "Read the payment method you choose.", required: false, resources: ["wallet.payment_method"] },
   ];
   if (write) permissions.push({ id: WRITE_PERMISSION, kind: "memory.write", description: "Propose things to remember.", required: false, resources: options.writeTypes ?? ["travel.preference", "travel.profile"] });
+  const customTypes = options.customTypes ?? [];
+  for (const custom of customTypes) put(`schemas/types/${custom.id}.schema.json`, custom.schema);
   if ((agent && !options.agentWithoutPermission) || (options.agentToolsWithoutScope && !options.agentWithoutPermission)) permissions.push({ id: AGENT_PERMISSION, kind: "memory", description: "Keep its own notes between runs.", required: false, resources: ["agent"] });
   const tool = (id: string, binding: string, input: string, output: string, linked: string[], sideEffects: "read" | "write" = "read"): JsonObject => ({
     spec_version: "0.1",
@@ -127,7 +133,7 @@ export function memorySource(options: MemoryPackageOptions = {}): Map<string, Ui
   const tools: Array<[string, JsonObject]> = [
     [PROFILE_TOOL, tool(PROFILE_TOOL, `host.memory.${readType}`, "schemas/host/empty-input.schema.json", "schemas/host/travel.profile.view.schema.json", [READ_PERMISSION])],
     [WALLET_TOOL, tool(WALLET_TOOL, "host.resource.wallet.payment_method", "schemas/host/empty-input.schema.json", "schemas/host/wallet.payment_method.schema.json", [WALLET_PERMISSION])],
-    [ECHO_TOOL, { ...tool(ECHO_TOOL, ECHO_BINDING, "schemas/echo.schema.json", "schemas/echo.schema.json", ["files.echo"]), approval_required: false }],
+    [ECHO_TOOL, { ...tool(ECHO_TOOL, ECHO_BINDING, "schemas/echo.schema.json", "schemas/echo.schema.json", ["files.echo", ...(options.echoLinks ?? [])]), approval_required: false }],
   ];
   if (agent || options.agentToolsWithoutScope) {
     const linked = options.agentWithoutPermission ? ["memory.session"] : [AGENT_PERMISSION];
@@ -148,6 +154,7 @@ export function memorySource(options: MemoryPackageOptions = {}): Map<string, Ui
     budget: { estimated_tokens: 10, hard_tokens: 1000, max_remote_calls: 4, max_calls_per_tool: caps, max_parallel_workers: 2, estimated_cost_usd: null, approval_threshold_tokens: null },
     delegation: { max_depth: 1, approved_roles: ["Worker"], allow_remote: false },
     extensions: {},
+    ...(customTypes.length > 0 ? { memory_types: customTypes.map((custom) => ({ id: custom.id, display_name: custom.display_name, description: custom.description, schema: `schemas/types/${custom.id}.schema.json`, ...(custom.identity ? { identity: custom.identity } : {}) })) } : {}),
   });
   const toolIds = tools.map(([id]) => id);
   const nodes: JsonObject[] = [

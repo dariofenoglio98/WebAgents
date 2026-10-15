@@ -29,6 +29,9 @@ import { definitionsFromRegistry } from "../../core/tools/definitions.js";
 import type { Reason, RunPlan, RunPlanPreflight } from "../../core/types.js";
 import { emptyMemorySnapshot, MemoryStore } from "../../core/memory/store.js";
 import { generateVaultKey } from "../../core/vault.js";
+import { SerialQueue } from "../../core/serial.js";
+import { memoryDeclarations } from "../../core/memory/declarations.js";
+import type { MemoryType } from "../../core/memory/types.js";
 import type { MemoryController } from "./memory-controller.js";
 import type { PresetId } from "../../core/types.js";
 import type { PlanOrigin } from "../../core/origins.js";
@@ -237,6 +240,8 @@ export class RunManager {
   private registry: LeaseRegistry | null = null;
   /** Leases consumed for runs in flight, released when the host reports the run settled. */
   private readonly leases = new Map<string, ExecutionLease>();
+  /** The run-memory applications, one at a time: a `host.finished` and the unlock sweep never apply the same run twice (review 1, finding 5). */
+  private readonly memoryWork = new SerialQueue();
   private restored: Promise<void> | null = null;
   /** Sessions whose start is in progress: a second press while the lease is being issued is refused. */
   private readonly starting = new Set<string>();
@@ -473,6 +478,7 @@ export class RunManager {
         audit: [],
         usage: null,
         result: null,
+        memory_types: declaredCustomTypes(facts.pkg),
       };
       if (inputBytes <= MAX_ECHOED_INPUT_BYTES) stored.record.task = { ...stored.record.task, input: input.input as JsonValue } as RunRecord["task"] & { input: JsonValue };
       await this.deps.runs.putRun(stored);
@@ -624,31 +630,47 @@ export class RunManager {
     await this.deps.hooks.runSettled?.(run.invocation.archive_sha256);
     // memory.v0 M-29, M-50: the run's usage entries and its staged agent document reach the memory
     // now, or wait for the next unlock when the store locked meanwhile; never a run failure.
-    await this.applyRunMemory(run).catch(() => undefined);
+    await this.applyRunMemory(runId).catch(() => undefined);
     return { received: true };
   }
 
-  /** What a settled run left for the memory (its usage entries, its agent commit), applied once; a locked store keeps them on the run. */
-  private async applyRunMemory(run: StoredRun): Promise<void> {
-    const memory = this.deps.hooks.memory();
-    const usage = run.memory_usage ?? [];
-    const commit = run.memory_commit ?? null;
-    if (usage.length === 0 && commit === null) return;
-    if ((await this.deps.hooks.secretsState()) !== "unlocked") return;
-    if (usage.length > 0) await memory.addUsage(usage);
-    if (commit !== null) await memory.commitAgent({ package_id: commit.package_id, package_version: commit.package_version, run_id: run.run_id, name: commit.name, body: commit.body, at: commit.at });
-    await this.deps.runs.updateRun(run.run_id, (current) => ({ ...current, memory_usage: null, memory_commit: null }));
+  /**
+   * What a settled run left for the memory (its usage entries, its agent commit), applied
+   * **once**: the facts are re-read inside one queue shared with the unlock sweep, written to the
+   * memory in a single write, and cleared from the run only after that write (review 1, finding
+   * 5). A locked store, or a store that refuses the commit (`memory_full`), keeps them on the run
+   * for a later pass; nothing is applied twice, and nothing partly.
+   */
+  private applyRunMemory(runId: string): Promise<boolean> {
+    return this.memoryWork.run(async () => {
+      const run = await this.deps.runs.getRun(runId);
+      if (run === null) return false;
+      const usage = run.memory_usage ?? [];
+      const commit = run.memory_commit ?? null;
+      if (usage.length === 0 && commit === null) return false;
+      if ((await this.deps.hooks.secretsState()) !== "unlocked") return false;
+      await this.deps.hooks.memory().applyRun({ usage, commit: commit === null ? null : { package_id: commit.package_id, package_version: commit.package_version, run_id: run.run_id, name: commit.name, body: commit.body, at: commit.at } });
+      await this.deps.runs.updateRun(run.run_id, (current) => ({ ...current, memory_usage: null, memory_commit: null }));
+      return true;
+    });
   }
 
-  /** After an unlock: every settled run whose memory facts are still waiting is applied (M-50: a commit is never lost to a lock). */
+  /**
+   * After an unlock: every settled run whose memory facts are still waiting is applied (M-50: a
+   * commit is never lost to a lock). Each run on its own: one the store refuses stays pending
+   * without blocking the others (finding 5).
+   */
   async applyPendingMemory(): Promise<number> {
     if ((await this.deps.hooks.secretsState()) !== "unlocked") return 0;
     let applied = 0;
     for (const run of await this.deps.runs.listRuns()) {
       if (!isTerminalStatus(run.record.status)) continue;
       if ((run.memory_usage ?? []).length === 0 && !run.memory_commit) continue;
-      await this.applyRunMemory(run);
-      applied += 1;
+      try {
+        if (await this.applyRunMemory(run.run_id)) applied += 1;
+      } catch {
+        // Kept on the run (a full memory, a store that changed under the write); the next pass tries again.
+      }
     }
     return applied;
   }
@@ -820,4 +842,14 @@ export class RunManager {
 function openaiEffortOf(settings: Settings): { openaiReasoningEffort?: OpenAIReasoningEffort } {
   const effort = settings.models.connections.find((connection) => connection.provider === "openai")?.reasoning_effort;
   return effort !== undefined ? { openaiReasoningEffort: effort } : {};
+}
+
+/** The custom types a package declares (memory.v0 M-18), kept with its run so a proposal of such a type can be reviewed once the snapshot is gone; null when it declares none. */
+function declaredCustomTypes(pkg: Package): MemoryType[] | null {
+  try {
+    const custom = memoryDeclarations(pkg.manifest, pkg.policy, pkg.tools, pkg.files).custom_types;
+    return custom.length === 0 ? null : custom;
+  } catch {
+    return null; // refused at validation already; a run of such a package never starts
+  }
 }

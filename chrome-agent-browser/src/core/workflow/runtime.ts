@@ -605,14 +605,17 @@ export class Runtime {
       this.record("permission.checked", { context: ctx, permission: null, grant: "deny", allowed: false, reason: "sealed_value_not_granted", tool: toolId, incomplete: true });
       throw new PolicyError(`Tool ${toolId}: the arguments hold more strings than the sealed-value scan reads, so they are refused unread`);
     }
-    const grant = memory.grants.find((item) => item.resource_id === hit.record_id);
-    if (grant === undefined) {
+    // A record may be granted under more than one permission (two tools, two reads of one type): the
+    // value may go to any tool that links one of them (review 1, nit 9).
+    const grants = memory.grants.filter((item) => item.resource_id === hit.record_id);
+    if (grants.length === 0) {
       this.record("permission.checked", { context: ctx, permission: null, grant: "deny", allowed: false, reason: "sealed_value_not_granted", tool: toolId, record_id: hit.record_id, pointer: hit.pointer });
       throw new PolicyError(`Tool ${toolId}: the arguments carry a sealed value of a record this run was not granted (${hit.record_id} ${hit.pointer})`);
     }
-    if (!permissionIds.includes(grant.permission_id)) {
+    if (!grants.some((grant) => permissionIds.includes(grant.permission_id))) {
+      const grant = grants[0]!;
       this.record("permission.checked", { context: ctx, permission: grant.permission_id, grant: this.grants[grant.permission_id] ?? "deny", allowed: false, reason: "sealed_value_egress", tool: toolId, record_id: hit.record_id, pointer: hit.pointer });
-      throw new PolicyError(`Tool ${toolId}: the arguments carry a sealed value of ${hit.record_id} (${hit.pointer}) to a tool that does not link ${grant.permission_id}`);
+      throw new PolicyError(`Tool ${toolId}: the arguments carry a sealed value of ${hit.record_id} (${hit.pointer}) to a tool that does not link ${grants.map((item) => item.permission_id).join(" or ")}`);
     }
   }
 

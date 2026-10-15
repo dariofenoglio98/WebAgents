@@ -44,6 +44,7 @@ import { compareRelease } from "../../core/version.js";
 import { buildHostCatalog, DEFAULT_BASE_URLS, probeProvider, PROVIDER_IDS, type BuiltinAvailability, type Http, type ProbeResult, type ProviderId } from "../../core/models/catalog.js";
 import { httpsOrigin, originPattern, planOrigins, patternOrigin, toolBindingsForOrigins, type OriginString, type PlanOrigin } from "../../core/origins.js";
 import { SerialQueue } from "../../core/serial.js";
+import { agentToolDigests, requestedResourceTypes } from "../../core/memory/declarations.js";
 import { planNeedsMemory } from "./runs.js";
 import { MemoryController, type MemoryView } from "./memory-controller.js";
 import { MemoryMemoryStorage, type MemoryStorage } from "../storage/memory.js";
@@ -259,7 +260,7 @@ function sourceRef(source: SessionSource): SourceRef {
 
 /** The memory types a package requests (memory.v0 M-33 and the `personal.read` alias): the resources of its `memory.read` and `personal.read` permissions. */
 function requestedTypesOf(pkg: Package): string[] {
-  return [...new Set((pkg.policy.permissions as JsonObject[]).filter((permission) => RESOURCE_PERMISSION_KINDS.includes(String(permission.kind))).flatMap((permission) => (permission.resources as JsonValue[]).map(String)))];
+  return requestedResourceTypes(pkg.policy);
 }
 
 /** The host implementation each declared tool would be bound to, as a policy's binding allowlist judges it (T8). */
@@ -302,6 +303,8 @@ export class Controller {
   private readonly nativePermission: () => Promise<boolean>;
   /** Enable, disable and unlock with the keychain, one at a time. */
   private readonly keychainWork = new SerialQueue();
+  /** One review decided at a time (finding 2): the check of `memory_review` and the acceptance never interleave. */
+  private readonly reviewWork = new SerialQueue();
   /**
    * What the helper last answered to `ollama.status`, in this worker's memory: Turn on and Turn off
    * show it instead of starting the helper once more in the same click (T17 review 1, nit 7).
@@ -763,7 +766,7 @@ export class Controller {
 
   async setupPassphrase(passphrase: string): Promise<SecretsView> {
     await this.deps.settings.setPassphrase(passphrase);
-    await this.keychain.clear(); // a record left from a forgotten store belongs to no envelope
+    await this.keychainWork.run(() => this.keychain.clear()); // a record left from a forgotten store belongs to no envelope; queued like every other record writer (T17 review 2, nit 8)
     this.secretsChanged();
     return this.secretsView();
   }
@@ -778,6 +781,18 @@ export class Controller {
     await this.deps.settings.store.lock();
     this.secretsChanged();
     return this.secretsView();
+  }
+
+  /**
+   * The minute alarm's sweep (D-192): the idle lock applied by the secret store and, when it
+   * locked now, every cache dropped and every page told, exactly as for Lock now (T17 review 2,
+   * nit 2; T19 review 1, finding 1). The memory controller also reads the state on every open,
+   * so the store's own lazy lock (a status read past the idle time) is covered without an event.
+   */
+  async lockIfIdle(): Promise<boolean> {
+    const locked = await this.deps.settings.store.lockIfIdle();
+    if (locked) this.secretsChanged();
+    return locked;
   }
 
   async changePassphrase(current: string, next: string): Promise<SecretsView> {
@@ -1616,26 +1631,35 @@ export class Controller {
     const plan = run.invocation.plan;
     const pkg = { package_id: plan.package.package_id, package_version: plan.package.version, name: plan.package.name ?? null };
     const base: RunReviewView = { run_id: runId, package: pkg, proposed_at: run.memory_proposed_at ?? null, offered: facts?.offered ?? 0, count: facts?.count ?? 0, reason: facts?.reason ?? null, review: null, decided: run.memory_review ?? null };
-    if (run.record.status !== "completed" || facts === null || facts.offered === 0 || base.decided !== null) return base;
+    if (!proposalsOffered(run) || base.decided !== null) return base;
     const artifact = await this.deps.runs.getArtifact(runId, "proposals.json");
     if (artifact === null) return base;
     const document = JSON.parse(new TextDecoder().decode(artifact.bytes)) as JsonValue;
-    return { ...base, review: await this.memory.review(document, { granted: plan.resource_grants, packageId: plan.package.package_id }) };
+    return { ...base, review: await this.memory.review(document, { granted: plan.resource_grants, packageId: plan.package.package_id, declared: run.memory_types ?? [] }) };
   }
 
-  /** M-42: the decisions of one review, applied together once; the run keeps the outcome and the sheet never reopens. */
-  async runDecide(runId: string, decisions: readonly import("../../core/memory/proposals.js").ReviewDecision[]): Promise<import("./memory-controller.js").ReviewOutcome> {
-    const run = await this.deps.runs.getRun(runId);
-    if (run === null) throw reject("run_unknown", "This browser holds no run with that id.", 404);
-    if (run.memory_review) throw reject("review_decided", "The proposals of this run were already decided.", 409);
-    const artifact = await this.deps.runs.getArtifact(runId, "proposals.json");
-    if (artifact === null) throw reject("review_absent", "This run offered no proposals.", 404);
-    const plan = run.invocation.plan;
-    const document = JSON.parse(new TextDecoder().decode(artifact.bytes)) as JsonValue;
-    const outcome = await this.memory.decide(document, { decisions, granted: plan.resource_grants, package: { package_id: plan.package.package_id, package_version: plan.package.version, run_id: runId }, proposedAt: run.memory_proposed_at ?? run.record.endedAt ?? this.clock().toISOString() });
-    await this.deps.runs.updateRun(runId, (current) => ({ ...current, memory_review: { at: this.clock().toISOString(), accepted: outcome.accepted.length, rejected: outcome.rejected.length } }));
-    this.deps.broadcast({ type: "event.run", runId, sessionId: run.session_id, status: run.record.status });
-    return outcome;
+  /**
+   * M-42: the decisions of one review, applied together once; the run keeps the outcome and the
+   * sheet never reopens. Only a run that completed with its proposals **offered** (the permission
+   * granted, no refusing policy, room in the memory; D-223) takes decisions, and the decisions of
+   * one run are taken one at a time, so a second Decide, however quick, finds the first recorded
+   * (review 1, finding 2).
+   */
+  runDecide(runId: string, decisions: readonly import("../../core/memory/proposals.js").ReviewDecision[]): Promise<import("./memory-controller.js").ReviewOutcome> {
+    return this.reviewWork.run(async () => {
+      const run = await this.deps.runs.getRun(runId);
+      if (run === null) throw reject("run_unknown", "This browser holds no run with that id.", 404);
+      if (run.memory_review) throw reject("review_decided", "The proposals of this run were already decided.", 409);
+      if (!proposalsOffered(run)) throw reject("review_not_offered", "This run offered no proposals to review: it did not complete, or its proposals were not offered (the permission denied, a policy, a full memory).", 409);
+      const artifact = await this.deps.runs.getArtifact(runId, "proposals.json");
+      if (artifact === null) throw reject("review_absent", "This run offered no proposals.", 404);
+      const plan = run.invocation.plan;
+      const document = JSON.parse(new TextDecoder().decode(artifact.bytes)) as JsonValue;
+      const outcome = await this.memory.decide(document, { decisions, granted: plan.resource_grants, package: { package_id: plan.package.package_id, package_version: plan.package.version, run_id: runId }, proposedAt: run.memory_proposed_at ?? run.record.endedAt ?? this.clock().toISOString(), declared: run.memory_types ?? [] });
+      await this.deps.runs.updateRun(runId, (current) => ({ ...current, memory_review: { at: this.clock().toISOString(), accepted: outcome.accepted.length, rejected: outcome.rejected.length } }));
+      this.deps.broadcast({ type: "event.run", runId, sessionId: run.session_id, status: run.record.status });
+      return outcome;
+    });
   }
 
   // -- Settings → Files: the person's picked PDFs (T6, D-083) ---------------------------------
@@ -1688,7 +1712,7 @@ export class Controller {
     const unlocked = (await this.secretsState()) === "unlocked";
     const types = await this.memory.resourceTypeFacts(requestedTypesOf(live.pkg));
     const contactConfigured = (await this.deps.settings.settings()).services.crossref_contact !== null;
-    return buildHostToolRegistry(live.pkg, { resourceTypes: types, agentTools: unlocked ? this.memory.agentToolDigests() : null, runtimeVersion: this.version, now: this.clock(), contactConfigured });
+    return buildHostToolRegistry(live.pkg, { resourceTypes: types, agentTools: unlocked ? agentToolDigests() : null, runtimeVersion: this.version, now: this.clock(), contactConfigured });
   }
 
   private async toolEvaluation(live: LiveSession, decisions?: Record<string, Decision>, approvals?: Record<string, boolean>): Promise<{ registry: ToolRegistry; evaluation: RegistryEvaluation }> {
@@ -2591,8 +2615,16 @@ function keychainFor(record: KeychainRecord | null, createdAt: string | null): K
 function helperProblem(error: unknown): { state: KeychainView["helper"]; code: string; message: string } {
   if (error instanceof CoreError) {
     if (error.code === "helper_not_installed") return { state: "not_installed", code: error.code, message: error.message };
+    if (error.code === "helper_forbidden") return { state: "forbidden", code: error.code, message: error.message };
     if (error.code === "helper_refused") return { state: "refused", code: String(error.details.helper_code ?? "unknown"), message: error.message };
     return { state: "failed", code: error.code, message: error.message };
   }
   return { state: "failed", code: "helper_failed", message: error instanceof Error ? error.message : "unknown error" };
+}
+
+/** Whether a stored run's proposals were offered to the person (memory.v0 M-41, D-223): it completed, and the record says `offered > 0` with no reason. */
+function proposalsOffered(run: { record: { status: string; memory?: unknown } }): boolean {
+  const memory = (run.record.memory ?? null) as { proposals?: { offered?: number; reason?: string | null } | null } | null;
+  const facts = memory?.proposals ?? null;
+  return run.record.status === "completed" && facts !== null && (facts.offered ?? 0) > 0 && (facts.reason ?? null) === null;
 }

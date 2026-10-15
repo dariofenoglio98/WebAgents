@@ -539,7 +539,7 @@ export interface KeychainView {
   permission: boolean;
   enabled: boolean;
   enabled_at: string | null;
-  helper: "available" | "not_installed" | "refused" | "failed" | "not_checked";
+  helper: "available" | "not_installed" | "forbidden" | "refused" | "failed" | "not_checked";
   helper_version: string | null;
   problem: { code: string; message: string } | null;
   ollama: OllamaReport | null;

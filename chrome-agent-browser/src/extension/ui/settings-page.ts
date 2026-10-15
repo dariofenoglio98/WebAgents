@@ -767,10 +767,14 @@ function keychainCard(keychain: KeychainView | null, unlocked: boolean, actions:
   } else if (keychain.helper === "not_installed") {
     status.push(el("div", { className: "ab-row" }, chip("Helper not installed", "warn")));
     status.push(el("p", { className: "ab-hint", text: "The macOS installer (installer/README.md) adds the helper and can set up Ollama. Until then, unlock with your passphrase; nothing is lost." }));
+  } else if (keychain.helper === "forbidden") {
+    // A helper installed for another extension id (T17 review 2, nit 1): the words say what to do, not "not installed".
+    status.push(el("div", { className: "ab-row" }, chip("Helper not for this extension", "warn")));
+    status.push(el("p", { className: "ab-hint", text: "The installed helper does not list this extension: reinstall it with the current installer. Until then, unlock with your passphrase; nothing is lost." }));
   } else {
     status.push(el("div", { className: "ab-row" }, chip(keychain.helper === "refused" ? "Helper refused" : "Helper failed", "bad")));
   }
-  if (keychain.problem && keychain.helper !== "not_installed") status.push(el("p", { className: "ab-banner ab-banner-warn", attrs: { role: "status" }, text: `${keychain.problem.code}: ${keychain.problem.message}` }));
+  if (keychain.problem && keychain.helper !== "not_installed" && keychain.helper !== "forbidden") status.push(el("p", { className: "ab-banner ab-banner-warn", attrs: { role: "status" }, text: `${keychain.problem.code}: ${keychain.problem.message}` }));
   if (keychain.ollama) {
     const words = ollamaWords(keychain.ollama);
     status.push(el("div", { className: "ab-row ab-ollama-status" }, chip("Ollama", words.tone), el("span", { className: "ab-hint", text: ` ${words.text}` })));
@@ -844,7 +848,8 @@ function permissionsView(permissions: PermissionsView | null, actions: SettingsP
                 el("code", { text: item.origin }),
                 chip(item.granted ? "granted" : "not granted by Chrome", item.granted ? "good" : "warn"),
                 el("p", { className: "ab-hint ab-permission-why", text: item.purposes.length === 0 ? "granted outside this extension (an earlier version, or chrome://extensions)" : item.purposes.map(purposeWords).join("; ") }),
-                button("Revoke", () => actions.onRevoke?.([item.origin]), { variant: "danger", disabled: !actions.onRevoke }),
+                // Under every-site, a single Revoke can only end in the 409 banner: disabled, and the hint above says why (T16 review 2, nit 4).
+                button("Revoke", () => actions.onRevoke?.([item.origin]), { variant: "danger", disabled: !actions.onRevoke || permissions.detect_everywhere }),
               ),
             ),
           ),

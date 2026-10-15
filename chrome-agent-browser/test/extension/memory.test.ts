@@ -16,6 +16,9 @@ import { readPolicyBundle } from "../../src/core/policies/bundle.js";
 import type { AuthorizationView, MemoryView, RunReviewView, SessionView } from "../../src/extension/messages.js";
 import { openRecord, sealRecord } from "../../src/extension/storage/memory.js";
 import type { StoredRun } from "../../src/extension/storage/runs.js";
+import { customType, type MemoryType } from "../../src/core/memory/types.js";
+import { MAX_AGENT_BODY_CHARS } from "../../src/core/memory/model.js";
+import { vi } from "vitest";
 import { memoryPackage, VALID_PROPOSALS } from "../helpers/memory-package.js";
 import { SHIPPED } from "../helpers/paths.js";
 import { DEMO, makeHarness, OFFSCREEN, PAGE, SEED_PASSPHRASE, SITE_ORIGIN, WEBAIR_040_URL, type Harness } from "../helpers/shell.js";
@@ -179,7 +182,7 @@ describe("the page's writes", () => {
 });
 
 /** A completed run of the memory test package as the run store holds it, with its proposals artifact. */
-async function storedProposalRun(h: Harness, runId: string, proposals: JsonObject = VALID_PROPOSALS, options: { grants?: Array<{ permission_id: string; resource_type: string; resource_id: string; resource_digest: string }>; status?: "completed" | "failed"; offered?: number; reason?: string | null } = {}): Promise<void> {
+async function storedProposalRun(h: Harness, runId: string, proposals: JsonObject = VALID_PROPOSALS, options: { grants?: Array<{ permission_id: string; resource_type: string; resource_id: string; resource_digest: string }>; status?: "completed" | "failed"; offered?: number; reason?: string | null; memory_types?: MemoryType[] } = {}): Promise<void> {
   const { pkg } = await memoryPackage();
   const count = (proposals.proposals as unknown[]).length;
   const run = {
@@ -194,6 +197,7 @@ async function storedProposalRun(h: Harness, runId: string, proposals: JsonObjec
     usage: null,
     result: null,
     memory_proposed_at: "2026-10-14T11:02:00Z",
+    memory_types: options.memory_types ?? null,
     record: {
       status: options.status ?? "completed",
       runId,
@@ -374,5 +378,166 @@ describe("the shell's wiring (found in the user's walk-through, 2026-10-14)", ()
     expect(source).toContain("new IndexedDbMemoryStorage(database)");
     expect(source).toMatch(/memoryStorage: new IndexedDbMemoryStorage\(database\)/u);
     expect(source).not.toContain("MemoryMemoryStorage");
+  });
+});
+
+describe("review 1 (2026-10-14): the idle lock, the review's guards, custom types, failed writes, the run's facts applied once", () => {
+  const SIX_HOURS = 6 * 60 * 60 * 1000;
+  const exported = async (h: Harness) => (await h.controller.handle({ type: "memory.export", includeSealed: true, includeAgents: false, recordIds: null }, PAGE)) as { files: Array<{ path: string; text: string }>; sealed_included: boolean };
+
+  it("finding 1: an idle lock the store applies lazily, or the alarm's sweep applies, locks the memory too: no sealed value leaves in an export, and the view says locked", async () => {
+    const h = makeHarness();
+    await h.controller.handle({ type: "memory.installDemo" }, PAGE);
+    expect((await view(h)).locked).toBe(false); // the opened store is cached unlocked
+    // The lazy path: the idle time passes with no alarm; the next status read wipes the session key.
+    h.clock.now = new Date(h.clock.now.getTime() + SIX_HOURS);
+    expect((await h.secrets.status()).state).toBe("locked");
+    const lazy = await exported(h);
+    expect(lazy.sealed_included).toBe(false);
+    expect(JSON.stringify(lazy.files)).not.toContain("alex.traveler@example.com");
+    expect((await view(h)).locked).toBe(true);
+    expect((await refused(h.controller.handle({ type: "memory.reveal", recordId: DEMO.alex, pointer: "/email" }, PAGE))).code).toBe("store_locked");
+    // The alarm path: unlocked and cached again, then the minute sweep locks through the controller.
+    await h.controller.handle({ type: "secrets.unlock", passphrase: SEED_PASSPHRASE }, PAGE);
+    expect((await view(h)).locked).toBe(false);
+    expect((await exported(h)).sealed_included).toBe(true);
+    h.clock.now = new Date(h.clock.now.getTime() + SIX_HOURS);
+    h.events.length = 0;
+    expect(await h.controller.lockIfIdle()).toBe(true);
+    expect(h.events).toContainEqual({ type: "event.secrets" });
+    expect(h.events).toContainEqual({ type: "event.memory" });
+    const swept = await exported(h);
+    expect(swept.sealed_included).toBe(false);
+    expect(JSON.stringify(swept.files)).not.toContain("alex.traveler@example.com");
+    expect((await view(h)).locked).toBe(true);
+    expect(await h.controller.lockIfIdle()).toBe(false); // already locked: nothing to sweep
+  });
+
+  it("finding 2: decisions are refused for a run whose proposals were not offered or that did not complete, and a second Decide racing the first finds it recorded", async () => {
+    const h = makeHarness();
+    await h.controller.handle({ type: "memory.installDemo" }, PAGE);
+    const count = async () => (await view(h)).counts.records;
+    const before = await count();
+    await storedProposalRun(h, "run_denied", VALID_PROPOSALS, { offered: 0, reason: "permission_denied" });
+    expect((await refused(h.controller.handle({ type: "memory.decide", runId: "run_denied", decisions: [{ index: 0, decision: "accept" }] }, PAGE))).code).toBe("review_not_offered");
+    await storedProposalRun(h, "run_policy", VALID_PROPOSALS, { offered: 0, reason: "policy" });
+    expect((await refused(h.controller.handle({ type: "memory.decide", runId: "run_policy", decisions: [{ index: 0, decision: "accept" }] }, PAGE))).code).toBe("review_not_offered");
+    await storedProposalRun(h, "run_failed", VALID_PROPOSALS, { status: "failed" });
+    expect((await refused(h.controller.handle({ type: "memory.decide", runId: "run_failed", decisions: [{ index: 0, decision: "accept" }] }, PAGE))).code).toBe("review_not_offered");
+    expect(await count()).toBe(before);
+    await storedProposalRun(h, "run_twice");
+    const decide = () => h.controller.handle({ type: "memory.decide", runId: "run_twice", decisions: [{ index: 0, decision: "accept" }] }, PAGE);
+    const outcomes = await Promise.allSettled([decide(), decide()]);
+    expect(outcomes.map((outcome) => outcome.status).sort()).toEqual(["fulfilled", "rejected"]);
+    const rejected = outcomes.find((outcome) => outcome.status === "rejected") as PromiseRejectedResult;
+    expect((rejected.reason as CoreError).code).toBe("review_decided");
+    expect(await count()).toBe(before + 1);
+    expect((await h.runs.getRun("run_twice"))?.memory_review).toMatchObject({ accepted: 1, rejected: 0 });
+  });
+
+  it("finding 3: a proposal of a type the package declared itself (M-18) is reviewed as a new type, and accepting it approves and stores the type with the record", async () => {
+    const h = makeHarness();
+    await h.controller.handle({ type: "memory.installDemo" }, PAGE);
+    const loyalty = customType("org.example.memory", { id: "loyalty.card", display_name: "Loyalty card", description: "A frequent-flyer programme card", schema: "schemas/types/loyalty.card.schema.json", identity: ["/number"] }, { $schema: "https://json-schema.org/draft/2020-12/schema", type: "object", additionalProperties: false, required: ["number"], properties: { number: { type: "string", minLength: 4 }, airline: { type: "string" } } });
+    expect(loyalty.id).toBe("org.example.memory:loyalty.card");
+    const proposals: JsonObject = {
+      schema: "memory.v0 proposals",
+      proposals: [{ action: "create", type: "loyalty.card", title: "Star miles", fields: { number: "SM-123456", airline: "WebAir" }, body: "Earned on the Boston booking.", tags: ["loyalty"], links: [{ to: "self", rel: "about" }], rationale: "You gave your loyalty number." }],
+    };
+    await storedProposalRun(h, "run_custom", proposals, { memory_types: [loyalty] });
+    const review = (await h.controller.handle({ type: "memory.review", runId: "run_custom" }, PAGE)) as RunReviewView;
+    expect(review.review?.facts[0]).toMatchObject({ type_display_name: "Loyalty card", type_description: "A frequent-flyer programme card", new_type: true, link_titles: { self: "Me" } });
+    expect((await view(h)).types.some((type) => type.id === loyalty.id)).toBe(false); // nothing stored before the decision
+    const outcome = (await h.controller.handle({ type: "memory.decide", runId: "run_custom", decisions: [{ index: 0, decision: "accept" }] }, PAGE)) as { accepted: Array<{ id: string }> };
+    const after = await view(h);
+    expect(after.records.find((record) => record.id === outcome.accepted[0]!.id)).toMatchObject({ type: loyalty.id, title: "Star miles", fields: { number: "SM-123456" } });
+    expect(after.types.find((type) => type.id === loyalty.id)).toMatchObject({ declared_by: { kind: "package", package_id: "org.example.memory" }, sealed_fields: [] });
+    // Stored with the rows: another worker over the same storage reads the type and the record.
+    const again = makeHarness({ stores: { snapshots: h.snapshots, trustStorage: h.trustStorage, tabs: h.tabs, settingsArea: h.settingsArea, secrets: { envelope: h.envelope, unlocked: h.unlocked } }, memoryStorage: h.memoryStorage });
+    expect((await view(again)).types.some((type) => type.id === loyalty.id)).toBe(true);
+    // Approved for (package, type, schema): the next run's proposal of the type is no longer "new".
+    await storedProposalRun(h, "run_custom_2", proposals, { memory_types: [loyalty] });
+    expect(((await h.controller.handle({ type: "memory.review", runId: "run_custom_2" }, PAGE)) as RunReviewView).review?.facts[0]?.new_type).toBe(false);
+    // A rejected proposal approves nothing: a fresh memory, the same run, reject.
+    const fresh = makeHarness();
+    await storedProposalRun(fresh, "run_custom_rejected", proposals, { memory_types: [loyalty] });
+    await fresh.controller.handle({ type: "memory.decide", runId: "run_custom_rejected", decisions: [{ index: 0, decision: "reject" }] }, PAGE);
+    expect((await view(fresh)).types.some((type) => type.id === loyalty.id)).toBe(false);
+    // Without the run's declared types, the review refuses the unknown type by name instead of throwing.
+    await storedProposalRun(h, "run_custom_unknown", proposals);
+    expect((await refused(h.controller.handle({ type: "memory.review", runId: "run_custom_unknown" }, PAGE))).code).toBe("memory_proposals_invalid");
+  });
+
+  it("finding 4: a write that fails in the middle leaves nothing behind: the record it deleted first is still there, in the view and on disk, after later writes", async () => {
+    const h = makeHarness();
+    await h.controller.handle({ type: "memory.installDemo" }, PAGE);
+    const before = (await view(h)).counts.records;
+    expect((await refused(h.controller.handle({ type: "memory.delete", recordIds: [DEMO.explorer, "self"] }, PAGE))).code).toBe("memory_self_undeletable");
+    expect((await view(h)).records.some((record) => record.id === DEMO.explorer)).toBe(true);
+    expect((await view(h)).counts.records).toBe(before);
+    await h.controller.handle({ type: "memory.create", draft: { type: "document.note", title: "After the refusal", body: "still here" } }, PAGE);
+    expect((await h.memoryStorage.loadRecords()).some((row) => row.id === DEMO.explorer)).toBe(true);
+    const again = makeHarness({ stores: { snapshots: h.snapshots, trustStorage: h.trustStorage, tabs: h.tabs, settingsArea: h.settingsArea, secrets: { envelope: h.envelope, unlocked: h.unlocked } }, memoryStorage: h.memoryStorage });
+    expect((await view(again)).records.some((record) => record.id === DEMO.explorer)).toBe(true);
+    expect((await view(again)).counts.records).toBe(before + 1);
+  });
+
+  it("finding 5: a run's usage and agent commit are applied in one write, once; a commit the store refuses keeps both on the run without blocking the next run's", async () => {
+    const h = makeHarness();
+    await h.controller.handle({ type: "memory.installDemo" }, PAGE);
+    const stored = (runId: string, body: string): StoredRun =>
+      ({
+        run_id: runId,
+        session_id: "session-x",
+        created_at: "2026-10-14T11:00:00Z",
+        updated_at: "2026-10-14T11:02:00Z",
+        task_text: null,
+        checkpoints: 1,
+        progress: null,
+        audit: [],
+        usage: null,
+        result: null,
+        memory_commit: { package_id: "org.example.memory", package_version: "0.1.0", name: "Memory test package", body, bytes: body.length, body_sha256: "0".repeat(64), at: "2026-10-14T11:02:00Z" },
+        memory_usage: [{ record_id: DEMO.traveler, use: "read", package_id: "org.example.memory", package_version: "0.1.0", run_id: runId, at: "2026-10-14T11:01:00Z" }],
+        record: { status: "completed", runId, sessionId: "session-x", package: { packageId: "org.example.memory", name: "Memory test package", version: "0.1.0", digest: "0".repeat(64), archiveSha256: "0".repeat(64), executionProfile: "workflow.v0" }, artifacts: [], resources: [] },
+        invocation: { run_id: runId, archive_sha256: "0".repeat(64), plan: { session_id: "session-x", package: { package_id: "org.example.memory", version: "0.1.0", name: "Memory test package" }, resource_grants: [], tool_bindings: [], model_binding: null } },
+      }) as unknown as StoredRun;
+    // Two runs settle while locked: one with a body the store refuses (over the agent cap), one sound.
+    await h.controller.handle({ type: "secrets.lock" }, PAGE);
+    await h.runs.putRun(stored("run_too_long", "x".repeat(MAX_AGENT_BODY_CHARS + 1)));
+    await h.runs.putRun(stored("run_sound", "# Notes\n- booked BOS"));
+    await h.controller.handle({ type: "host.finished", runId: "run_too_long" }, OFFSCREEN);
+    await h.controller.handle({ type: "host.finished", runId: "run_sound" }, OFFSCREEN);
+    expect(await h.controller.runs.applyPendingMemory()).toBe(0); // locked: nothing applied, nothing lost
+    await h.controller.handle({ type: "secrets.unlock", passphrase: SEED_PASSPHRASE }, PAGE);
+    await h.controller.runs.applyPendingMemory(); // the unlock's own sweep runs in the same queue; waiting on a second one waits on it
+    const tooLong = await h.runs.getRun("run_too_long");
+    expect(tooLong?.memory_commit).not.toBeNull();
+    expect(tooLong?.memory_usage).toHaveLength(1); // the usage was not written without its commit, and not written twice later
+    expect((await h.runs.getRun("run_sound"))?.memory_commit).toBeNull();
+    const after = await view(h);
+    expect(after.agents.map((agent) => agent.run_id)).toEqual(["run_sound"]);
+    expect(after.records.find((record) => record.id === DEMO.traveler)?.usage).toEqual([{ package_id: "org.example.memory", runs: 1, last: "2026-10-14T11:01:00Z", uses: { read: 1 } }]);
+    // Another pass retries the refused run and fails it again, quietly, and nothing is applied twice.
+    expect(await h.controller.runs.applyPendingMemory()).toBe(0);
+    expect((await view(h)).records.find((record) => record.id === DEMO.traveler)?.usage?.[0]?.uses).toEqual({ read: 1 });
+    // host.finished and the unlock sweep at once: one application.
+    const applied = vi.spyOn(h.controller.memory, "applyRun");
+    await h.runs.putRun(stored("run_race", "# Notes\n- race"));
+    await Promise.all([h.controller.handle({ type: "host.finished", runId: "run_race" }, OFFSCREEN), h.controller.runs.applyPendingMemory(), h.controller.runs.applyPendingMemory()]);
+    expect(applied.mock.calls.filter(([input]) => input.commit?.run_id === "run_race")).toHaveLength(1);
+    expect((await h.runs.getRun("run_race"))?.memory_commit).toBeNull();
+    expect((await view(h)).records.find((record) => record.id === DEMO.traveler)?.usage?.[0]?.runs).toBe(2);
+    applied.mockRestore();
+  });
+
+  it("finding 6: a link to the Me record is shown under the Me record's own title, never a fixed name", async () => {
+    const h = makeHarness();
+    await h.controller.handle({ type: "memory.installDemo" }, PAGE);
+    await h.controller.handle({ type: "memory.edit", recordId: "self", changes: { title: "A. Person" } }, PAGE);
+    await storedProposalRun(h, "run_self");
+    const review = (await h.controller.handle({ type: "memory.review", runId: "run_self" }, PAGE)) as RunReviewView;
+    expect(review.review?.facts[0]?.link_titles).toEqual({ self: "A. Person" });
+    expect(JSON.stringify(review)).not.toContain("Dario");
   });
 });

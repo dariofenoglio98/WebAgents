@@ -58,6 +58,13 @@ export interface ProposalCheckInput {
   targets: ReadonlyMap<string, Pick<MemoryRecord, "sealed" | "type">>;
   types: TypeRegistry;
   scan: ScanSet;
+  /** Custom local id → qualified id (§4.4, M-18): a package names its own custom type by its local id in `proposals.json` (the schema admits no other form); the host resolves it. */
+  aliases?: ReadonlyMap<string, string>;
+}
+
+/** A proposal's `type` as the host knows it: a well-known id as written, a custom local id through the package's aliases. */
+export function resolveProposalType(type: string, aliases: ReadonlyMap<string, string> | undefined): string {
+  return aliases?.get(type) ?? type;
 }
 
 /** M-40 step 4: the type schema with the sealed pointers removed from `required`. */
@@ -75,14 +82,15 @@ export async function checkProposals(document: JsonValue, input: ProposalCheckIn
   const parsed = document as unknown as ProposalsDocument;
   for (const [index, proposal] of parsed.proposals.entries()) {
     const where = `proposal ${index}`;
-    if (!input.declared.has(proposal.type) || RESERVED_TYPES.has(proposal.type)) {
+    const typeId = resolveProposalType(proposal.type, input.aliases);
+    if (!input.declared.has(typeId) || RESERVED_TYPES.has(typeId)) {
       throw new ProposalRefusal("permission_denied", "memory_proposal_type_undeclared", `${where}: type ${proposal.type} is not one the package may propose`, index);
     }
-    const type = input.types.get(proposal.type);
+    const type = input.types.get(typeId);
     if (type === undefined) throw new ProposalRefusal("permission_denied", "memory_proposal_type_undeclared", `${where}: type ${proposal.type} is unknown to this host`, index);
     const targetId = proposal.target ?? "";
     const target = input.targets.get(targetId);
-    const targetGranted = input.granted.get(targetId) === proposal.type;
+    const targetGranted = input.granted.get(targetId) === typeId;
     const extra = target !== undefined && targetGranted ? [...(target.sealed ?? [])] : [];
     for (const pointer of [...type.sealed_fields, ...extra]) {
       if (pointerGet(proposal.fields, pointer) !== undefined) throw new ProposalRefusal("schema_validation", "memory_proposal_sealed_field", `${where}: carries the sealed field ${pointer}`, index);
@@ -92,7 +100,7 @@ export async function checkProposals(document: JsonValue, input: ProposalCheckIn
       const first = failures[0]!;
       throw new ProposalRefusal("schema_validation", null, `${where}: the fields do not match the ${type.display_name} schema at ${first.instancePath.join("/") || "<root>"} (rule: ${first.keyword})`, index);
     }
-    if (proposal.action === "update" && input.granted.get(proposal.target!) !== proposal.type) {
+    if (proposal.action === "update" && input.granted.get(proposal.target!) !== typeId) {
       throw new ProposalRefusal("permission_denied", "memory_proposal_target_not_granted", `${where}: target ${proposal.target} is not a granted record of type ${proposal.type}`, index);
     }
     const bodyLinks = bodyLinkIds(proposal.body ?? "").map((to) => ({ to, rel: "related" as const }));
@@ -142,6 +150,8 @@ export interface AcceptanceContext {
   now: Date;
   /** The instant of the run's `memory.proposed` event (M-29). */
   proposedAt: string;
+  /** Custom local id → qualified id, as at the check (§4.4). */
+  aliases?: ReadonlyMap<string, string>;
 }
 
 export interface AcceptedRecord {
@@ -191,7 +201,7 @@ export function acceptance(context: AcceptanceContext): Acceptance {
   for (const index of acceptedIndexes) {
     const proposal = context.proposals.proposals[index]!;
     const decision = decisions.get(index)!;
-    const type = context.types.get(proposal.type)!;
+    const type = context.types.get(resolveProposalType(proposal.type, context.aliases))!;
     const edits = decision.edits ?? {};
     const id = ids.get(index)!;
     const title = edits.title ?? proposal.title;

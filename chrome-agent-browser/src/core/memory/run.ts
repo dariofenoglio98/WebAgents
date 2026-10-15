@@ -97,7 +97,7 @@ export class MemoryRun {
 
   /** M-40 over the export's value; throws `ProposalRefusal`. Returns the facts of `memory.proposed`. */
   async checkProposals(value: JsonValue): Promise<{ document: ProposalsDocument; facts: ProposedFacts }> {
-    const input: ProposalCheckInput = { declared: new Set(this.declarations.write?.types ?? []), granted: this.granted, targets: this.targets, types: this.types, scan: this.scan };
+    const input: ProposalCheckInput = { declared: new Set(this.declarations.write?.types ?? []), granted: this.granted, targets: this.targets, types: this.types, scan: this.scan, aliases: customTypeAliases(String(this.pkg.manifest.package_id), this.declarations.custom_types) };
     const parsed = await checkProposals(value, input);
     const count = parsed.proposals.length;
     const types = [...new Set(parsed.proposals.map((proposal) => proposal.type))].sort();
@@ -143,3 +143,9 @@ export function fixtureMemoryScan(pkg: Package, fixture: JsonObject, types: Type
 }
 
 export { AGENT_RESOURCE, ProposalRefusal };
+
+/** The package's custom types by their local id (§4.4): what `proposals.json` names them by. */
+export function customTypeAliases(packageId: string, custom: readonly { id: string }[]): Map<string, string> {
+  const prefix = `${packageId}:`;
+  return new Map(custom.filter((type) => type.id.startsWith(prefix)).map((type) => [type.id.slice(prefix.length), type.id] as const));
+}

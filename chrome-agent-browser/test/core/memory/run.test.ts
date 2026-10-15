@@ -9,7 +9,9 @@ import { describe, expect, it } from "vitest";
 import { canonicalJson } from "../../../src/core/canonical.js";
 import { sha256HexSync } from "../../../src/core/hash.js";
 import type { JsonObject, JsonValue } from "../../../src/core/json.js";
-import { fixtureMemoryScan, MemoryRun } from "../../../src/core/memory/run.js";
+import { customTypeAliases, fixtureMemoryScan, MemoryRun } from "../../../src/core/memory/run.js";
+import { buildHostToolRegistry } from "../../../src/core/hosttools.js";
+import { editJson } from "../../helpers/memory-package.js";
 import type { MemoryStore } from "../../../src/core/memory/store.js";
 import { packageJson } from "../../../src/core/package.js";
 import { localExecutionPlan } from "../../../src/core/execution/plan.js";
@@ -339,5 +341,94 @@ describe("the agent document (M-48…M-51, M-61) through the broker and the sess
     expect(actions.indexOf("memory.agent.discarded")).toBeLessThan(actions.indexOf("memory.cleared"));
     expect(audit.find((event) => event.action === "memory.agent.discarded")).toMatchObject({ package_id: "org.example.memory", reason: "run_failed" });
     expect(failure!.execution_report!.memory).toMatchObject({ refused: { reason: "memory_proposal_type_undeclared" }, agent: { committed: null, discarded: "run_failed" } });
+  });
+});
+
+describe("review 1 (2026-10-14), nit 9: two tools on one memory type, and a record granted under two permissions", () => {
+  const SECOND_TOOL = "travel.profile.again";
+  const SECOND_PERMISSION = "memory.travel_profile_again";
+  /** The memory package with a second tool bound to `host.memory.travel.profile` through its own `memory.read`, a shape validation admits. */
+  const twoTools = (options: Parameters<typeof memoryPackage>[0] = {}) =>
+    memoryPackage(options, (files) => {
+      const first = JSON.parse(new TextDecoder().decode(files.get(`tools/${PROFILE_TOOL}.tool.json`)!)) as JsonObject;
+      files.set(`tools/${SECOND_TOOL}.tool.json`, new TextEncoder().encode(JSON.stringify({ ...first, id: SECOND_TOOL, permissions: [SECOND_PERMISSION] })));
+      editJson(files, "policy/policy.json", (policy) => {
+        (policy.permissions as JsonObject[]).push({ id: SECOND_PERMISSION, kind: "memory.read", description: "Read the travel profile again.", required: false, resources: ["travel.profile"] });
+        ((policy.budget as JsonObject).max_calls_per_tool as JsonObject)[SECOND_TOOL] = 1;
+      });
+      editJson(files, "MANIFEST.agent", (manifest) => {
+        (manifest.tools as JsonObject[]).push({ id: SECOND_TOOL, path: `tools/${SECOND_TOOL}.tool.json` });
+      });
+      editJson(files, "graph.json", (graph) => {
+        const worker = (graph.workers as JsonObject[]).find((item) => item.id === "Worker")!;
+        (worker.tools as string[]).push(SECOND_TOOL);
+      });
+    });
+
+  it("the host registry gives each tool its own binding id (:1, :2) and builds", async () => {
+    const { pkg } = await twoTools();
+    const { store } = await webairStore();
+    const registry = await buildHostToolRegistry(pkg, { resourceTypes: store.resourceTypeFacts(["travel.profile", "wallet.payment_method"]), agentTools: null, runtimeVersion: "0.4.0", now: new Date("2026-10-14T12:00:00Z") });
+    const profileBindings = registry.bindings.filter((binding) => binding.binding === "host.memory.travel.profile").map((binding) => [binding.tool_id, binding.id]);
+    expect(profileBindings).toEqual([[PROFILE_TOOL, "chrome:host-resource:travel.profile:1"], [SECOND_TOOL, "chrome:host-resource:travel.profile:2"]]);
+    expect(registry.bindings.find((binding) => binding.tool_id === WALLET_TOOL)?.id).toBe("chrome:host-resource:wallet.payment_method:1"); // a single tool keeps :1
+    expect(registry.registry_sha256).toMatch(/^[0-9a-f]{64}$/u); // built means normalized: no "duplicate binding id"
+  });
+
+  it("M-36 admits a granted value at a tool linking any of the permissions the record was granted under, not only the first", async () => {
+    const { store, card, cardNumberish } = await webairStore();
+    const { pkg } = await memoryPackage({ echoLinks: [WALLET_PERMISSION] });
+    // The card granted twice: first under a permission the echo tool does not link, then under one it links.
+    const grants: ResourceGrant[] = [grantFor(store, READ_PERMISSION, "wallet.payment_method", card), grantFor(store, WALLET_PERMISSION, "wallet.payment_method", card)];
+    const memory = new MemoryRun(pkg, grants, sessionGrants(pkg), { scan: store.scanSet() });
+    let reached = 0;
+    const handlers = {
+      [ECHO_BINDING]: async (_ctx: unknown, payload: JsonValue) => {
+        reached += 1;
+        return payload;
+      },
+    };
+    const { runtime: rt, close } = await openRuntime(pkg, { grants: sessionGrants(pkg), approvedTools: Object.keys(pkg.tools).sort(), handlers, memory });
+    try {
+      const token = new CancelToken(null, Date.now() + 10_000);
+      await rt.runWorker("Worker", {}, async (worker) => {
+        expect(await rt.callTool(worker, ECHO_TOOL, { value: cardNumberish }, token)).toEqual({ value: cardNumberish });
+        expect(reached).toBe(1);
+        return {};
+      });
+      // Neither permission linked: refused, naming both.
+      const { pkg: plain } = await memoryPackage();
+      const strict = new MemoryRun(plain, grants, sessionGrants(plain), { scan: store.scanSet() });
+      const second = await openRuntime(plain, { grants: sessionGrants(plain), approvedTools: Object.keys(plain.tools).sort(), handlers, memory: strict });
+      try {
+        await second.runtime.runWorker("Worker", {}, async (w2) => {
+          await expect(second.runtime.callTool(w2, ECHO_TOOL, { value: cardNumberish }, token)).rejects.toThrow(new RegExp(`does not link ${READ_PERMISSION} or ${WALLET_PERMISSION}`, "u"));
+          return {};
+        });
+      } finally {
+        second.close();
+      }
+    } finally {
+      close();
+    }
+  });
+});
+
+describe("review 1 (2026-10-14), finding 3: a custom type named by its local id in proposals.json (§4.4, M-18)", () => {
+  const LOYALTY = { id: "loyalty.card", display_name: "Loyalty card", description: "A frequent-flyer programme card", schema: { $schema: "https://json-schema.org/draft/2020-12/schema", type: "object", additionalProperties: false, required: ["number"], properties: { number: { type: "string", minLength: 4 }, airline: { type: "string" } } } as JsonObject, identity: ["/number"] };
+
+  it("the declaration qualifies the id, memory.write resolves the local id, and M-40 accepts a proposal that names the local id", async () => {
+    const { pkg } = await memoryPackage({ customTypes: [LOYALTY], writeTypes: ["loyalty.card", "travel.preference"] });
+    const memory = new MemoryRun(pkg, [], sessionGrants(pkg));
+    expect(memory.declarations.custom_types.map((type) => type.id)).toEqual(["org.example.memory:loyalty.card"]);
+    expect(memory.declarations.write?.types).toEqual(["org.example.memory:loyalty.card", "travel.preference"]);
+    expect([...customTypeAliases("org.example.memory", memory.declarations.custom_types)]).toEqual([["loyalty.card", "org.example.memory:loyalty.card"]]);
+    const document: JsonValue = { schema: "memory.v0 proposals", proposals: [{ action: "create", type: "loyalty.card", title: "Star miles", fields: { number: "SM-123456", airline: "WebAir" }, body: "", tags: [], links: [], rationale: "You gave your loyalty number." }] };
+    const checked = await memory.checkProposals(document);
+    expect(checked.facts).toMatchObject({ count: 1, offered: 1, types: ["loyalty.card"], reason: null });
+    // The qualified form is not what the schema admits, and another package's local id is not this package's.
+    await expect(memory.checkProposals({ ...(document as JsonObject), proposals: [{ ...((document as JsonObject).proposals as JsonObject[])[0]!, type: "org.example.memory:loyalty.card" }] })).rejects.toThrow(/schema_validation|does not match/u);
+    const { pkg: other } = await memoryPackage();
+    await expect(new MemoryRun(other, [], sessionGrants(other)).checkProposals(document)).rejects.toThrow(/not one the package may propose/u);
   });
 });

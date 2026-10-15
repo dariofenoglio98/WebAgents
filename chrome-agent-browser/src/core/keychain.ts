@@ -66,12 +66,13 @@ function helperError(code: string, message: string, details: Record<string, unkn
   return new CoreError(code, message, { status: 503, details });
 }
 
-const BASE64 = /^[A-Za-z0-9+/]*={0,2}$/u;
-
+/** The byte length of a base64 text, or null when it is not base64: `keys.ts`'s one decoder decides (T17 review 2, nit 7). */
 function base64Length(text: string): number | null {
-  if (text.length % 4 !== 0 || !BASE64.test(text)) return null;
-  const padding = text.endsWith("==") ? 2 : text.endsWith("=") ? 1 : 0;
-  return (text.length / 4) * 3 - padding;
+  try {
+    return base64Decode(text).length;
+  } catch {
+    return null;
+  }
 }
 
 function text(value: unknown, limit: number): string | null {
@@ -87,7 +88,7 @@ function portError(error: unknown): CoreError {
       case "not_installed":
         return helperError("helper_not_installed", "The WebAgents helper is not installed on this Mac (or not for this extension). Use your passphrase; the macOS installer adds the helper.");
       case "forbidden":
-        return helperError("helper_not_installed", "The installed WebAgents helper does not list this extension; reinstall it with the current installer.");
+        return helperError("helper_forbidden", "The installed WebAgents helper does not list this extension; reinstall it with the current installer. Until then, use your passphrase.");
       case "timeout":
         return helperError("helper_timeout", "The WebAgents helper did not answer in time. Use your passphrase.");
       default:

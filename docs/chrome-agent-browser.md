@@ -22,7 +22,7 @@ same packages and reports where they agree and where they differ.
                                                                              (the only state owner:
  side panel ─┐                                                                sessions, trust store,
  full page  ─┼── typed messages (messages.ts) ───────────────────────────────▶ receipts, Run Plans,
- settings   ─┘◀── event.* broadcasts ─────────────────────────────────────────  settings, vault, runs)
+ settings   ─┘◀── event.* broadcasts ─────────────────────────────────────────  settings, memory, runs)
                                                                                     │ host.start
                                                                                     ▼
                                                      offscreen document (execution.html, one)
@@ -36,7 +36,8 @@ same packages and reports where they agree and where they differ.
 - **The core** (`src/core/`) is everything that decides: the strict ZIP reader, canonical JSON,
   SHA-256 and Ed25519, schema and semantic validation over `agentpkg`'s own JSON Schemas, publisher
   trust, discovery, profiles, authorization receipts, host tool and resource registries, model
-  compatibility, Run Plans and their preflight, the personal vault, the `workflow.v0` interpreter,
+  compatibility, Run Plans and their preflight, the memory (`memory.v0`: records, types, graph,
+  recall, proposals, the export folder), the `workflow.v0` interpreter,
   the model router and provider adapters, the tool broker and its adapters, and the execution
   layer (lease, runner, Run Record). It has no Chrome, DOM or Node dependency (§3).
 - **The service worker** owns all state and makes every decision a view asks for. Views (the side
@@ -58,7 +59,7 @@ same packages and reports where they agree and where they differ.
 |---|---|---|
 | For | people: discover, inspect, authorize, run, review runs | operators and tests: the same core from a terminal |
 | Entry points | service worker, content script, side panel, full page, offscreen document, run Worker, PDF Worker | `verify`, `inspect`, `evaluate`, `run`, `pdf-text`, `document sign\|verify` |
-| Authorization | profiles, presets, the per-item view, the vault, the model catalog, receipts and Run Plans | the grants file is the receipt, each `--approve-tool` one approval, every other tool denied (D-064) |
+| Authorization | profiles, presets, the per-item view, the recall card over the memory, the model catalog, receipts and Run Plans | the grants file is the receipt, each `--approve-tool` one approval, every other tool denied (D-064) |
 | Network | Chrome's `fetch`, after the core's URL gate (D-026, D-039) | `src/cli-net.ts`: resolves, classifies every address as the Python runtime does, pins the connection (D-067) |
 | Output | IndexedDB records, the run surface, a zip export per run (D-073) | `agentpkg run`'s file set and report; refusals as one stderr line with status 2 (D-038) |
 
@@ -87,12 +88,12 @@ runtimes accept the same packages and gate on the same minimum version.
 
 | Where | What | Notes |
 |---|---|---|
-| `chrome.storage.local` | `trustStore` (the `agentpkg-trust-store-v0` format), `settings` (presets, model connections and limits, run limits, services, the idle lock), `secretStore` (the encrypted envelope, T16: `provider_key:<provider>`, `vault`, `vault_key`), `originGrants` (why each origin was granted), `instanceId`, `spentReceipts` (receipts whose `once` a run used), `indexes` (agent indexes with their pinned keys and the signed text last fetched), `policySubscription` (the one followed policy, its pinned key and signed text), `library` (pinned and recently opened agents) | never `storage.sync`; keys are typed once and never shown again; signed documents are re-verified when read; 0.1.0's clear `providerKeys`, `vault` and `vaultKey` are read once by the migration that runs when the first passphrase is set, and removed then |
+| `chrome.storage.local` | `trustStore` (the `agentpkg-trust-store-v0` format), `settings` (presets, model connections and limits, run limits, services, the idle lock), `secretStore` (the encrypted envelope, T16: `provider_key:<provider>`; T19: `memory_key`, the HMAC digest key, and `memory_data_key`, the key the sealed values are sealed under; `vault` and `vault_key` only until the migration report is dismissed), `memoryMigration` (the vault migration report until Done, D-221), `memoryUiState` (the graph's node positions and the chosen view, UI state only), `originGrants` (why each origin was granted), `instanceId`, `spentReceipts` (receipts whose `once` a run used), `indexes` (agent indexes with their pinned keys and the signed text last fetched), `policySubscription` (the one followed policy, its pinned key and signed text), `library` (pinned and recently opened agents) | never `storage.sync`; keys are typed once and never shown again; signed documents are re-verified when read; 0.1.0's clear `providerKeys`, `vault` and `vaultKey` are read once by the migration that runs when the first passphrase is set, and removed then |
 | `chrome.storage.session` | per-tab candidates, which views hold which session, `secretKey` (the unlocked store's master key with the times it was unlocked and last used) | in memory, cleared when the browser closes; access level trusted contexts |
-| IndexedDB `agent-browser` | `snapshots` (package bytes, by archive SHA-256), `sessions` (with their receipt and Run Plan), `runs` (Run Record, progress, audit, usage, checkpoints), `artifacts` (bytes and SHA-256), `files` (picked PDFs, copied), `observations` (outbound request bodies, test mode only) | `unlimitedStorage`; caps refuse, never evict silently |
+| IndexedDB `agent-browser` | `snapshots` (package bytes, by archive SHA-256), `sessions` (with their receipt and Run Plan), `runs` (Run Record, progress, audit, usage, checkpoints, and what a settled run left for the memory: its usage entries and staged agent document until applied, its proposals review outcome, the custom types its package declared), `artifacts` (bytes and SHA-256; `proposals.json` among them), `files` (picked PDFs, copied), `observations` (outbound request bodies, test mode only); **since schema version 5 (T19, D-221)** `memory_records` (one row per `memory.v0` record with every sealed value replaced by `sealed:omitted` and sealed beside it under the memory data key, associated data `chrome-agent-browser-memory-row-v0|<record id>|<pointer>`) and `memory_meta` (the types, the usage log, the custom-type approvals) | `unlimitedStorage`; caps refuse, never evict silently; with the store locked the Memory page still reads every title, field and body (M-10), and no sealed value is readable |
 
-**The secret store (T16, D-191, D-192).** Provider keys and the vault (records, types and the HMAC
-key) live in one envelope, `chrome-agent-browser-secret-store-v1`: each entry AES-256-GCM under a
+**The secret store (T16, D-191, D-192; T19, D-221).** Provider keys and the memory's two keys (the
+HMAC digest key and the data key the sealed values are sealed under) live in one envelope, `chrome-agent-browser-secret-store-v1`: each entry AES-256-GCM under a
 random 32-byte master key with a fresh IV and the entry's name as additional data; the master key
 wrapped under a key scrypt derives from the person's passphrase (N = 2^17, r = 8, p = 1, 16-byte
 salt; about half a second). A wrong passphrase fails the unwrap and reads nothing; a passphrase
@@ -101,26 +102,42 @@ the envelope after a typed confirmation. Unlocking puts the master key alone int
 `chrome.storage.session`; it is wiped after the idle time chosen under Settings → Security (5, 15
 (default) or 60 minutes, or until the browser closes), by a sweep every minute and by every access
 that finds it idle, on Lock now, and when the browser closes. Nothing secret is saved before a
-passphrase exists (the strict path): Settings → Models and Your data say so until one is set, and
+passphrase exists (the strict path): Settings → Models and Memory say so until one is set, and
 the clear values 0.1.0 left are migrated the moment it is. A run is handed only what its plan
-needs (D-195): the bound provider's key, the vault when the plan grants a record, and the vault's
-types alone (no record) when the plan binds a host-resource tool without granting one, so an
-agent that needs nothing from the store (Literature Review on Ollama) runs while it is locked;
-one that needs a key, a record or a record type asks to unlock before Prepare and before Run,
-never during. A stored envelope this build cannot read is reported as *invalid* (the Security page
+needs (D-195, D-226): the bound provider's key, and the whole memory snapshot under its digest key
+when the plan grants a record or binds a memory tool (the sealed-value scan set is every sealed
+value of the store, M-36; the resolver answers only the plan's grants), so an agent that needs
+nothing from the memory (Literature Review on Ollama) runs while it is locked; one that needs a
+key or a record asks to unlock before Prepare and before Run, never during. A stored envelope this build cannot read is reported as *invalid* (the Security page
 says why and offers Forget everything; a storage read that fails is an error, not *invalid*). Each
 store operation runs alone, so one that began before Lock now, Forget everything or a passphrase
-change cannot write the old state back; a vault opened before such a change is never saved after
-it (`store_changed`), and the records' digest key is read or created in one operation. The
+change cannot write the old state back; a memory opened before such a change is never saved after
+it (`store_changed`); the memory controller reads the store's state on every open, so an idle lock
+the sweep or a lazy check applied without an event drops the opened memory too, and an export never
+carries a sealed value in clear from a store that is locked at the call (T19 review 1). The
 `src/core/secrets.ts` module has no Chrome dependency; its test vectors are committed. With the
 optional macOS helper, the store can also be unlocked from the login keychain (§12).
 
-What is never stored in a record, plan, receipt, checkpoint or artifact: a provider key, a vault
-value, a prompt sent to a model outside test mode. A plan binds a vault record by opaque id and an
-HMAC digest under the per-profile `vaultKey` (D-051), so the plan changes when the record does and
-carries no value. The provider key and, when a record is granted, the vault travel to the execution
-host in the `host.start` message, in memory, for one run. §7 of the [threat model](threat-model.md#chrome-agent-browser-t7)
-says what this does and does not protect at rest.
+What is never stored in a record, plan, receipt, checkpoint or artifact: a provider key, a sealed
+value, a prompt sent to a model outside test mode. A plan binds a memory record by opaque id and an
+HMAC digest under the memory key (D-051, D-221), so the plan changes when the record does and
+carries no value. The provider key and, when the plan needs the memory, the snapshot travel to the
+execution host in the `host.start` message, in memory, for one run; the host never writes the
+memory: a completed run's usage entries and its staged agent document come back through the stored
+run and are applied by the service worker, in one write, once (D-226). §7 of the
+[threat model](threat-model.md#chrome-agent-browser-t7) says what this does and does not protect at rest.
+
+**The Memory page (T19, memory.v0).** Replaces "Your data": **Graph | List** over the person's
+records, with the record card (form, Markdown body, provenance, links, where used; sealed values
+masked, Reveal per field from the unlocked store), New, Delete, Tidy up, Export (a zip of the
+Markdown folder, sealed values omitted unless asked while unlocked) and Import (the report of §3.8
+of the design before anything is written), the one-time vault migration report until Done, and the
+clearly labelled demo set. Settings → Memory lists the packages' own notes (agent documents) with
+Open and Clear, and Forget memory. After a run that proposed records, the run page shows the review
+sheet: accept, edit or reject per proposal, decided together once; a proposal of a type the package
+declared itself is shown as a new type and approved for that package and schema when accepted
+(M-18). The recall card at authorization offers the best candidate per requested type with the
+signals that ranked it (D-220, D-229).
 
 ## 5. Permissions it asks Chrome for
 
@@ -357,4 +374,3 @@ installer, [`installer/macos/`](../installer/README.md), adds two things:
 The helper answers one extension id: the one the manifest's `key` gives every unpacked build
 (D-200; the Web Store's id joins it at U7). `npm run pack` removes `key` from the store zip.
 The boundary is in the [threat model](threat-model.md#native-helper-and-macos-installer-t17).
-

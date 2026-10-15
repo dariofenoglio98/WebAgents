@@ -949,6 +949,8 @@ export async function buildHostToolRegistry(pkg: Package, options: HostToolRegis
   const notes: Array<{ code: string; detail: string | null }> = [];
   const emptyInputSha256 = await sha256Hex(canonicalJson(HOST_RESOURCE_INPUT_SCHEMA));
   const byBinding = new Map(options.resourceTypes.map((type) => [type.binding ?? `${HOST_RESOURCE_BINDING_PREFIX}${type.id}`, type]));
+  // Two tools on one memory binding (each linking its own permission, which validation admits) get distinct ids: the n-th tool bound to a type is `:n` (review 1, nit 9); a single one keeps `:1`, so every frozen plan's binding ids stand.
+  const boundPerType = new Map<string, number>();
   for (const toolId of Object.keys(pkg.tools).sort()) {
     const tool = pkg.tools[toolId]!;
     const contract = await toolContract(pkg, toolId);
@@ -1049,8 +1051,10 @@ export async function buildHostToolRegistry(pkg: Package, options: HostToolRegis
         notes.push({ code: "resource_type_unknown", detail: `${toolId}: this browser's memory holds no type of that name, so the tool stays unbound.` });
         continue;
       }
+      const nth = (boundPerType.get(type.id) ?? 0) + 1;
+      boundPerType.set(type.id, nth);
       bindings.push({
-        id: `chrome:host-resource:${type.id}:1`,
+        id: `chrome:host-resource:${type.id}:${nth}`,
         tool_id: toolId,
         binding: contract.binding,
         implementation_kind: KIND_HOST_RESOURCE,
