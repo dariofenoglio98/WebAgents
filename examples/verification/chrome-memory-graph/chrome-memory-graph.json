@@ -1,14 +1,14 @@
 {
   "profile": "chrome-memory-graph-v0",
-  "recordedAt": "2026-10-14T23:42:38.334Z",
+  "recordedAt": "2026-10-15T01:52:13.196Z",
   "build": {
-    "commit": "5eb7b80336c9fd0e3ede30adc0a49e5cf05449d5",
-    "tree_clean": false,
+    "commit": "693356c49d4d232af49b6f91d9430c7f57f9f493",
+    "tree_clean": true,
     "extension": {
       "manifest.json": "410911ff4a4cdc24ad95e4f4b1f6ec901ecfdd238dde49924d6c241474524c7b",
       "browser.html": "a0cddbeaa51f56322cf9271c2d25c208b90e35b31c78ceafd5e12f17d911cc61",
-      "browser.js": "e26d2e0b0e76b906903fd3ae0e179c08ccac29dc81f7ad19a323f12de9d97081",
-      "styles.css": "e8aeed110a3707fe69d3a1f6e248691b381cb93c8108bc56cd4a52b573cc1d7c"
+      "browser.js": "5579c8a21916613d5f8edf453d519dc2db91f76e30d231452635fb9cba54c31d",
+      "styles.css": "822844ee6aad1c255e6cc7324b3c4fa63fee03c54da70f1e5709a868e57fa368"
     }
   },
   "chrome": "Chrome/155.0.8059.41",
@@ -130,7 +130,7 @@
         "left": 814,
         "top": 167,
         "width": 360,
-        "height": 1361
+        "height": 1068
       },
       "cardRecord": "mem_94154f557d93e16ca23dac4a6e7f2428",
       "cardTitle": "Demo Travel Card •••• 1234",
@@ -259,7 +259,7 @@
         "left": 0,
         "top": 300,
         "width": 480,
-        "height": 1240
+        "height": 947
       },
       "cardRecord": "mem_94154f557d93e16ca23dac4a6e7f2428",
       "cardTitle": "Demo Travel Card •••• 1234",
@@ -299,26 +299,26 @@
   },
   "timings": {
     "demo-1280": {
-      "first_paint_ms": 179,
-      "page_ms_at_paint": 177
+      "first_paint_ms": 160,
+      "page_ms_at_paint": 159
     },
     "demo-480": {
-      "first_paint_ms": 162,
-      "page_ms_at_paint": 160
+      "first_paint_ms": 160,
+      "page_ms_at_paint": 158
     },
     "import": {
-      "plan_ms": 1609,
+      "plan_ms": 1661,
       "added": 1000,
       "written": 1000,
       "links_resolved": 2996
     },
     "synthetic": {
-      "first_paint_ms": 166,
+      "first_paint_ms": 164,
       "pan": {
         "frames": 60,
-        "elapsed_ms": 994,
-        "fps": 60,
-        "worst_gap_ms": 19
+        "elapsed_ms": 990,
+        "fps": 61,
+        "worst_gap_ms": 18
       },
       "nodes": 1000
     }
