@@ -1111,6 +1111,8 @@ function render(): void {
   for (const link of document.querySelectorAll<HTMLAnchorElement>(".ab-nav a")) {
     link.classList.toggle("ab-nav-active", link.dataset.view === state.view);
   }
+  // The Memory view uses the page's full width (a graph and a card); the other views keep their reading width.
+  app.classList.toggle("ab-app-wide", state.view === "memory");
   const chipHost = document.getElementById("lock");
   if (chipHost) replace(chipHost, [renderLockChip(state.secrets, { onLock: () => void send<SecretsView>({ type: "secrets.lock" }).then(() => loadSecrets().then(render)), onOpen: () => openUnlock(null, null), openSettings: () => (location.hash = "settings?section=security") })]);
   const children =

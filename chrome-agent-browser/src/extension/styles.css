@@ -39,6 +39,8 @@ a { color: var(--ab-accent); }
 .ab-nav a:hover { background: var(--ab-neutral-bg); }
 .ab-nav a.ab-nav-active { background: var(--ab-accent); color: var(--ab-accent-text); }
 .ab-app { padding: 16px; max-width: 900px; width: 100%; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+/* The Memory view (T19) uses the width it has: a graph and a record card gain from it, where prose would not. */
+.ab-app.ab-app-wide { max-width: 1800px; }
 .ab-panel .ab-app { padding: 12px; max-width: none; }
 
 .ab-card { background: var(--ab-surface); border: 1px solid var(--ab-border); border-radius: var(--ab-radius); padding: 14px 16px; }
@@ -159,11 +161,11 @@ a { color: var(--ab-accent); }
 .ab-memory-header .ab-input { width: auto; }
 .ab-memory-filters-spacer { flex: 1 1 auto; }
 .ab-memory-filters-toggle { display: none; }
-.ab-memory-body { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 12px; align-items: start; flex: 1 1 auto; min-height: 480px; }
+.ab-memory-body { display: grid; grid-template-columns: minmax(0, 1fr) clamp(360px, 32%, 520px); gap: 12px; align-items: start; flex: 1 1 auto; min-height: 480px; }
 .ab-memory-main { min-width: 0; min-height: 480px; }
 .ab-memory-side { min-width: 0; position: sticky; top: 8px; max-height: calc(100vh - 24px); overflow: auto; }
 .ab-memory-status { color: var(--ab-muted); font-size: 0.9rem; margin: 0; }
-.ab-memory-graph { position: relative; width: 100%; height: min(calc(100vh - 260px), 760px); min-height: 420px; background: var(--ab-surface); border: 1px solid var(--ab-border); border-radius: var(--ab-radius); overflow: hidden; }
+.ab-memory-graph { position: relative; width: 100%; height: min(calc(100vh - 230px), 900px); min-height: 420px; background: var(--ab-surface); border: 1px solid var(--ab-border); border-radius: var(--ab-radius); overflow: hidden; }
 .ab-memory-card-body { display: flex; flex-direction: column; gap: 4px; }
 .ab-memory-card-body .ab-row { justify-content: space-between; }
 .ab-memory-canvas { display: block; width: 100%; height: 100%; touch-action: none; outline: none; }
