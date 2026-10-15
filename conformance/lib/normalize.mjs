@@ -12,6 +12,9 @@
 
 export const HOST_FILES = ["result.json", "audit.json", "usage.json", "provenance.json"];
 const BACKBONE = /^(?:runtime|workflow)\./u;
+// memory.v0 (M-61): the conformance backbone gains these, with their facts.
+const MEMORY_BACKBONE = new Set(["memory.proposed", "memory.agent.committed", "memory.agent.discarded"]);
+const MEMORY_FACTS = ["count", "types", "proposals_sha256", "offered", "reason", "package_id", "bytes", "body_sha256"];
 
 /** `Role:7` -> `Role:*`. */
 const instance = (worker) => (typeof worker === "string" ? worker.replace(/:\d+$/u, ":*") : worker);
@@ -41,16 +44,23 @@ export function normalizeAudit(audit, allowTokens = false) {
   };
   for (const event of audit) {
     const action = String(event.action);
-    if (BACKBONE.test(action) || action === "state.committed" || action === "memory.cleared") {
+    if (BACKBONE.test(action) || action === "state.committed" || action === "memory.cleared" || MEMORY_BACKBONE.has(action)) {
       flush();
       const entry = { action, node_id: event.node_id ?? null };
       if (action === "state.committed") entry.nodes = [...(event.nodes ?? [])].sort();
       if (typeof event.error_code === "string") entry.error_code = event.error_code;
+      // memory.v0 (M-61): what a run proposed and what became of the agent document, never a value.
+      for (const key of MEMORY_FACTS) if (MEMORY_BACKBONE.has(action) && key in event) entry[key] = event[key];
+      if (action === "workflow.failed") for (const key of ["reason", "proposal_index"]) if (key in event) entry[key] = event[key];
       view.push(entry);
       continue;
     }
     const facts = [action, event.node_id ?? null, event.role ?? null, event.task ?? event.tool ?? event.permission ?? null];
     if (action === "permission.checked") facts.push(event.allowed ?? null, event.grant ?? null);
+    // A refusal's reason and the record and pointer it names (M-36, M-37), never a value.
+    if (action === "permission.checked" || action === "model.refused" || action === "memory.read") {
+      for (const key of ["reason", "record_id", "pointer", "permission_id"]) if (key in event) facts.push(`${key}=${event[key]}`);
+    }
     if (action === "model.completed" && !allowTokens) facts.push(event.tokens ?? null);
     wave.push(JSON.stringify(facts));
   }

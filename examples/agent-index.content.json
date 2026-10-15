@@ -42,8 +42,8 @@
         "name": "WebAir (fictional demo airline)"
       },
       "package_url": "https://webagents-webair-production.up.railway.app/agent.pkg",
-      "digest": "c802359c84ce68a44bae1006544fa81f4a33ee540743a9f5df25689c6f2b6f94",
-      "archive_sha256": "8633faec76c4cf4c55118ea87e2b1795272ba0b64e0dd23031c1ffc2202d6fb5",
+      "digest": "e1ef5ad07f5be9148d5d7b5d6f6e88e3ba9cfdb291d8d2ba2fb9bc0f06d6022f",
+      "archive_sha256": "3055dd93a9f4e5f81f3ccddac77ccc9ce2c10b1e10dec35d9864fddf6fb58862",
       "signer_fingerprint": "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b",
       "locators": [
         "flights@webair.example"

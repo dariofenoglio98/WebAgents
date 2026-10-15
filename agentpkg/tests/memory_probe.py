@@ -325,7 +325,9 @@ def graph() -> dict:
                 "tool",
                 "Reader",
                 tool="echo",
-                input={"object": {"to": state("/identity/contact_email")}},
+                # The given name, which the legacy type does not seal: the egress cases send the
+                # e-mail instead (`send_email`).
+                input={"object": {"to": state("/identity/given_name")}},
                 output_schema="schemas/any.schema.json",
                 depends_on=["identity"],
                 writes={"/echoed": {"from": "result", "path": ""}},
@@ -392,7 +394,10 @@ def fixture() -> dict:
                     "output": {"staged": True, "bytes": len(notes.encode("utf-8"))},
                 }
             ],
-            "echo": [{"input": {"to": EMAIL}, "output": {"ok": True}}],
+            "echo": [
+                {"input": {"to": "Alex"}, "output": {"ok": True}},
+                {"input": {"to": EMAIL}, "output": {"ok": True}},
+            ],
         },
     }
 
@@ -504,6 +509,11 @@ def write_probe(root: Path, change=None) -> Path:
         else:
             _json(path, value)
     return root
+
+
+def send_email(files) -> None:
+    """The echo sends the identity's sealed e-mail (M-36's cases)."""
+    files["graph.json"]["nodes"][5]["input"] = {"object": {"to": state("/identity/contact_email")}}
 
 
 def grants(**overrides) -> dict:

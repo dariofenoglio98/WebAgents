@@ -305,6 +305,7 @@ def test_m36_a_granted_sealed_value_goes_only_to_a_tool_that_links_its_permissio
             }
         )
         files["tools/echo.tool.json"]["permissions"] = ["probe.send"]
+        probe.send_email(files)
 
     status, out, result = run_cli(
         tmp_path, build(tmp_path, change), grants=probe.grants(**{"probe.send": "session"})
@@ -316,6 +317,13 @@ def test_m36_a_granted_sealed_value_goes_only_to_a_tool_that_links_its_permissio
     assert checked[0]["reason"] == "sealed_value_egress"
     assert checked[0]["permission"] == "identity.read"
     assert not [e for e in actions(result, "tool.called") if e["tool"] == "echo"]
+
+
+def test_m36_a_granted_sealed_value_reaches_the_tool_that_links_its_permission(tmp_path, capsys):
+    status, _, result = run_cli(tmp_path, build(tmp_path, probe.send_email))
+    capsys.readouterr()
+    assert status == 0
+    assert not [e for e in actions(result, "permission.checked") if e.get("reason")]
 
 
 def test_m36_the_tool_scan_is_the_store_s_when_a_folder_is_given(tmp_path, capsys):

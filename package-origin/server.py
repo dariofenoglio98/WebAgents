@@ -38,7 +38,7 @@ INDEXED_PACKAGES = {
 DOCUMENTS = {
     "/agent-index.json": (
         Path(__file__).parent / "documents" / "agent-index.json",
-        "d4d18880523143dfebe441c8b8ad69ff9cb077dfb99ee2e24eb3c415382e2122",
+        "d84b45a559235dc408662f2032065b9750faa9344616abf3a94ffe32e0446d14",
     ),
     "/policies/webagents-research.json": (
         Path(__file__).parent / "documents" / "policies" / "webagents-research.json",

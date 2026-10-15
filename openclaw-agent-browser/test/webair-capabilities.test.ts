@@ -715,7 +715,9 @@ describe.runIf(runs)("host-owned capabilities, with the signed WebAir package", 
 /** A signed variant of the WebAir source with one graph edit, pinned under its own key. */
 async function variant(name: string, edit: (graph: any) => void): Promise<string> {
   const source = join(stateDir, `src-${name}`);
-  await cp(PACKAGE_SOURCE, source, { recursive: true });
+  // The signed 0.4.0's own payload: the source moved on to WebAir 0.6.0, a memory.v0 package
+  // this frozen plugin does not serve (D-029).
+  await run(AGENTPKG_BIN, ["unpack", WEBAIR, "-o", source]);
   const graphPath = join(source, "graph.json");
   const graph = JSON.parse(await readFile(graphPath, "utf8"));
   edit(graph);

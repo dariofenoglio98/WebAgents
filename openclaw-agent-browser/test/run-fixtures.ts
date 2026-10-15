@@ -3,9 +3,13 @@
  *
  * The page renders a form from a package's own input schema and labels its
  * progress from the package's own presentation hints, so these fixtures read
- * both straight from `agents/literature-review` and `agents/meeting-agenda`
- * rather than restating them — a test cannot pass against a shape the
- * package does not actually ship.
+ * both straight from Literature Review 0.2.7's source and `agents/meeting-agenda`
+ * rather than restating them — a test cannot pass against a shape the package
+ * does not actually ship. Literature Review's source moved to 0.2.8, a memory.v0
+ * package this frozen plugin does not serve (D-029), so 0.2.7's three files are
+ * kept under `test/fixtures/literature-review-0.2.7/` in their authored key order
+ * (the signed archive holds them canonicalized); `fixtures.test.ts`-style drift is
+ * caught by checking them against the signed 0.2.7 archive.
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -23,6 +27,40 @@ type Json = Record<string, unknown>;
 
 function readJson(...parts: string[]): Json {
   return JSON.parse(readFileSync(join(REPO_ROOT, ...parts), "utf8")) as Json;
+}
+
+const LITERATURE_027 = join(REPO_ROOT, "openclaw-agent-browser", "test", "fixtures", "literature-review-0.2.7");
+const LITERATURE_ARCHIVE = join(REPO_ROOT, "dist", "literature-review-0.2.7.agent.pkg");
+
+/** One member of a signed `.agent.pkg` (always ZIP_STORED), read from its local headers. */
+export function archiveJson(archive: string, member: string): Json {
+  const data = readFileSync(archive);
+  let at = 0;
+  while (at + 30 <= data.length && data.readUInt32LE(at) === 0x04034b50) {
+    const size = data.readUInt32LE(at + 18);
+    const nameLength = data.readUInt16LE(at + 26);
+    const extraLength = data.readUInt16LE(at + 28);
+    const name = data.subarray(at + 30, at + 30 + nameLength).toString("utf8");
+    const start = at + 30 + nameLength + extraLength;
+    if (name === member) return JSON.parse(data.subarray(start, start + size).toString("utf8")) as Json;
+    at = start + size;
+  }
+  throw new Error(`${member} is not in ${archive}`);
+}
+
+/** A Literature Review 0.2.7 source file, checked against the signed archive's canonical copy. */
+function literature027(member: string): Json {
+  const authored = JSON.parse(readFileSync(join(LITERATURE_027, member), "utf8")) as Json;
+  const canonical = (value: unknown): string =>
+    Array.isArray(value)
+      ? `[${value.map(canonical).join(",")}]`
+      : value !== null && typeof value === "object"
+        ? `{${Object.keys(value as object).sort().map((key) => `${JSON.stringify(key)}:${canonical((value as Json)[key])}`).join(",")}}`
+        : JSON.stringify(value);
+  if (canonical(authored) !== canonical(archiveJson(LITERATURE_ARCHIVE, member))) {
+    throw new Error(`test fixture ${member} differs from the signed Literature Review 0.2.7`);
+  }
+  return authored;
 }
 
 function workflowNodes(graph: Json): PackageViewType["workflow"]["nodes"] {
@@ -47,9 +85,9 @@ function workflowNodes(graph: Json): PackageViewType["workflow"]["nodes"] {
 
 /** The Literature Review 0.2.2 package view, as the page receives it. */
 export function literatureView(overrides: Partial<PackageViewType> = {}): PackageViewType {
-  const graph = readJson("agents", "literature-review", "graph.json");
-  const manifest = readJson("agents", "literature-review", "MANIFEST.agent");
-  const schema = readJson("agents", "literature-review", "schemas", "workflow-input.schema.json");
+  const graph = literature027("graph.json");
+  const manifest = literature027("MANIFEST.agent");
+  const schema = literature027("schemas/workflow-input.schema.json");
   const base = packageView();
   const presentation = projectPresentation(
     (graph.extensions as Json)["agentpkg:presentation"],
@@ -336,7 +374,7 @@ export function screeningProgress(): NonNullable<RunRecordViewType["progress"]> 
 }
 
 export const NO_RESULT_TEXT = (() => {
-  const graph = readJson("agents", "literature-review", "graph.json");
+  const graph = literature027("graph.json");
   const verification = (graph.nodes as Json[]).find((node) => node.id === "verification")!;
   return ((((verification.otherwise as Json).object as Json).related_work as Json).literal as string);
 })();

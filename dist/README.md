@@ -131,7 +131,7 @@ Chrome conformance reports, the signed demo agent index and the search harness d
 ## WebAir
 
 The demo origin in [`demo/webair/`](../demo/webair/README.md) and its packages are new in v0.2.0.
-The current package is `webair-0.6.0.agent.pkg` (above; digest `c802359c…6f94`, archive `8633faec…6fb5`);
+The current package is `webair-0.6.0.agent.pkg` (above; digest `e1ef5ad0…022f`, archive `3055dd93…8862`);
 the earlier versions stay for the milestone evidence that describes them.
 
 | Artifact | What it is | Requires | Verify with |
@@ -196,6 +196,6 @@ e4c499f034b110ef2eca5aeecc87bc9336f6626e55b217d0fb087392ff120e35  meeting-agenda
 b537cf5cba06bce8137533eb75b491486f57caf3098af30f657343b741492887  webair-0.3.0.agent.pkg
 c12f9db3bd7b3b4b6721c67e1d0b8143ebd94381df0e5e57c196357b7ca77f63  webair-0.4.0.agent.pkg
 4b087557cbd2b0ff186391dfd00f9068739f9a727ab2fd916a6512da1fde101b  webair-0.5.0.agent.pkg
-8633faec76c4cf4c55118ea87e2b1795272ba0b64e0dd23031c1ffc2202d6fb5  webair-0.6.0.agent.pkg
+3055dd93a9f4e5f81f3ccddac77ccc9ce2c10b1e10dec35d9864fddf6fb58862  webair-0.6.0.agent.pkg
 73872c3177a9ec281a8875ae154023a72ff10f9fe96c5a82ed1639a34ecb470c  webair.agent.pkg
 ```
