@@ -11,12 +11,12 @@
       ]
     },
     {
-      "id": "profile.travel",
-      "kind": "personal.read",
-      "description": "Read the travel profile you choose (home airport, preferred cabin, nonstop preference) when a request leaves those unstated. The profile becomes search criteria sent to WebAir; it is never shown to a model as a profile.",
+      "id": "memory.travel_profile",
+      "kind": "memory.read",
+      "description": "Read the travel profile you choose from your memory (home airport, preferred cabin, nonstop preference) when a request leaves those unstated. The profile becomes search criteria sent to WebAir; it is never shown to a model as a profile.",
       "required": false,
       "resources": [
-        "personal.travel_profile"
+        "travel.profile"
       ]
     },
     {
@@ -63,6 +63,15 @@
       "resources": [
         "session"
       ]
+    },
+    {
+      "id": "memory.remember",
+      "kind": "memory.write",
+      "description": "After a booking quote or a simulated purchase, propose one travel preference to remember (a cabin, an airline, an airport). Nothing is written until you accept it after the run.",
+      "required": false,
+      "resources": [
+        "travel.preference"
+      ]
     }
   ],
   "network": {
@@ -80,15 +89,15 @@
     "sharing": "explicit_views"
   },
   "budget": {
-    "estimated_tokens": 24000,
+    "estimated_tokens": 26000,
     "hard_tokens": 120000,
-    "max_remote_calls": 20,
+    "max_remote_calls": 22,
     "max_calls_per_tool": {
       "search-flights": 1,
       "get-fare-rules": 6,
       "prepare-booking": 1,
       "simulate-purchase": 1,
-      "personal.travel_profile": 1,
+      "travel.profile": 1,
       "personal.passenger_identity": 1,
       "wallet.payment_method": 1
     },
@@ -104,7 +113,8 @@
       "Searcher",
       "Selector",
       "Booker",
-      "Writer"
+      "Writer",
+      "Rememberer"
     ],
     "allow_remote": false
   },

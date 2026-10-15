@@ -24,7 +24,8 @@ from agentpkg.errors import AgentPkgError
 from origin.app import create_app
 
 from .binding import json_http_handlers
-from .fixture import ScriptedRouter, package_from_files, run_package, source_files
+from .contract import REPO_ROOT
+from .fixture import ScriptedRouter, package_from_files, run_package
 from .host import HOST_RESOURCES, host_resource_handlers
 from .scenarios import Scenario, capability_scenarios
 
@@ -85,8 +86,22 @@ def reference_run(package, scenario: Scenario, app) -> dict:
     }
 
 
+# The host-owned capability scenarios are the OpenClaw Agent Browser's acceptance, which stays
+# on the packages it can serve (D-029: the plugin is frozen and binds no `host.memory.*` tool).
+# Since WebAir 0.6.0 reads its travel profile from memory, the document is generated from the
+# signed 0.5.0 archive, whose permission ids, tools and graph the plugin's suite expects (D-233).
+CAPABILITY_ARCHIVE = REPO_ROOT / "dist" / "webair-0.5.0.agent.pkg"
+
+
+def archive_files(path=CAPABILITY_ARCHIVE) -> dict[str, bytes]:
+    """The payload of a signed archive, as `agentpkg build` read it from the source."""
+    from agentpkg.package import load_package
+
+    return dict(load_package(path).files)
+
+
 def capability_document(files: dict[str, bytes] | None = None) -> dict:
-    files = source_files() if files is None else files
+    files = archive_files() if files is None else files
     package = package_from_files(files)
     app = create_app()
     runs = []

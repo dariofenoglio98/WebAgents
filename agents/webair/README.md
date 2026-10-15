@@ -1,25 +1,27 @@
 # WebAir Travel Agent — workflow.v0
 
-`org.webagents.webair` 0.5.0, published by the fictional WebAir demo airline
+`org.webagents.webair` 0.6.0, published by the fictional WebAir demo airline
 (`demo/webair/`), whose public demo origin is <https://webagents-webair-production.up.railway.app/>.
 WebAir serves the same business logic two ways: HTML pages and forms for people, and this
 signed package for an agent-native host. **The package never touches WebAir's HTML.** It
 declares WebAir's semantic operations as tools and carries the domain knowledge and
 orchestration to use them. Nothing is ever booked or charged: WebAir is not an airline.
 
-0.5.0 is 0.4.0 with two changes. A request that says nowhere where the trip starts, run
-without a travel profile that supplies a home airport, is now **answered** ("say where you
-depart from") instead of failing the package's own search-request check: a new `search-origin`
-node resolves the departure airport first, and the search runs only when there is one. And the
-task's request field carries one short description and the example *"Find me a flight from
-Boston to Zurich on 9 October under $900"*. Tools, permissions, budgets, policy and profiles
-are unchanged. (0.4.0 was 0.3.0 with [profiles](#profiles); 0.3.0 was 0.2.0 for the live
-deployment: it names the public host instead of 0.2.0's reserved, never-resolving placeholder.)
+0.6.0 is 0.5.0 with the person's memory ([memory.v0](../../spec/memory-v0.md)). The travel
+profile is read from the person's memory (`memory.read` of the type `travel.profile`, as a
+record view) instead of a host resource, and after a booking quote or a simulated purchase a
+new `remember` model step may **propose** one travel preference to remember (`memory.write`).
+Nothing is written by the run: the person reviews each proposal afterwards and accepts, edits
+or rejects it. It needs a runtime that implements memory.v0 (agentpkg 0.4.0, the Chrome Agent
+Browser's core 0.2.0). (0.5.0 answered a request that names no departure airport instead of
+failing; 0.4.0 was 0.3.0 with [profiles](#profiles); 0.3.0 was 0.2.0 for the live deployment:
+it names the public host instead of 0.2.0's reserved, never-resolving placeholder.)
 
 **WebAir publishes the behavior. The person's runtime supplies the authority.** This version
-asks the person's host for three personal resources it does not own — a travel profile, a
-passenger identity and a payment method — and for a separate authority to simulate a
-purchase. The package holds none of these: no name, email or payment record is in its bytes.
+asks the person's host for three personal records it does not own — a travel profile from the
+person's memory, a passenger identity and a payment method — for a separate authority to
+simulate a purchase, and for leave to propose one thing to remember. The package holds none of
+these: no name, email or payment record is in its bytes.
 
 ## What it does
 
@@ -37,17 +39,18 @@ booking:  passenger identity (host) ─► prepare_booking ─► check ─► q
 purchase: payment method (host) ─► passenger identity (host) ─► prepare_booking (re-quote)
           ─► check it is the authorized quote ─► simulate_purchase ─► check ─► summary
 answer (model: summaries only) ─► assemble + validate ─► clear personal state ─► output
+after a quote: remember (model: request and quote summary only) ─► proposals.json
 ```
 
-35 nodes, all canonical workflow.v0 operators: 3 `llm`, 6 `tool` (the three host resources,
+36 nodes, all canonical workflow.v0 operators: 4 `llm`, 6 `tool` (the three personal reads,
 search, quote, purchase), 1 `map` (fare rules: a `tool` step and a `validate` step per fare),
 2 `join`, 22 `validate`, 1 `output`.
 
-## Host-owned resources: requested, never owned
+## Personal records: requested, never owned
 
 | Tool | Binding | Permission (kind) | What the package receives |
 |---|---|---|---|
-| `personal.travel_profile` | `host.resource.personal.travel_profile` | `profile.travel` (`personal.read`, optional) | home airport, preferred cabin, nonstop preference, currency |
+| `travel.profile` | `host.memory.travel.profile` | `memory.travel_profile` (`memory.read`, optional) | the record view of one travel profile: title, home airport, preferred cabin, nonstop preference, currency (only these fields are used) |
 | `personal.passenger_identity` | `host.resource.personal.passenger_identity` | `identity.passenger` (`personal.read`, optional) | given name, family name, contact email |
 | `wallet.payment_method` | `host.resource.wallet.payment_method` | `wallet.payment` (`personal.read`, optional) | an opaque demo identifier WebAir accepts, and a display label |
 
@@ -55,8 +58,12 @@ Each permission's scope names a host resource **type**; the host lists the resou
 type it holds, and the person picks one when granting. The tools take **no arguments**: the
 package cannot name, guess or enumerate a resource. The host returns exactly the one the
 person granted, frozen into the authorization receipt and run plan by opaque id and digest,
-or refuses. The tool schemas in `schemas/host/` are copies of the host's own resource type
-schemas (generated from `demo/webair/host-resources.json`), which a host binding pins.
+or refuses. The travel profile is a memory record (memory.v0 §7.1): the host recalls the
+person's travel profiles, proposes the one used last, and the person confirms or picks another.
+`schemas/host/travel.profile.view.schema.json` is the type's record view (memory.v0 M-16),
+which a host binds only when it equals the view of its own type; the identity and payment
+schemas are copies of the host's own resource type schemas (generated from
+`demo/webair/host-resources.json`), which a host binding pins.
 
 ## Tools of WebAir's own API
 
@@ -90,6 +97,11 @@ in `schemas/api/` are generated from WebAir's published API contract.
 - `answer`: the same plus fare rules and **redacted summaries** of a quote and a purchase:
   quote and confirmation ids, fare, price, passenger count, `real_transaction: false`,
   `amount_charged_usd: 0`. Never a name, an email, a payment identifier or its label.
+- `remember` (only after a quote or a purchase): the request, the interpretation and the quote
+  summary. It returns at most one travel preference (a kind, a value, a title and a one-line
+  rationale) or nothing. The runtime checks the proposal before the run completes (its type is
+  one the package declared, its fields match the type, no sealed value anywhere in it) and
+  writes it to `proposals.json`; the person decides after the run.
 
 These are read sets in the graph, checked statically by the interpreter, not instructions: the
 host-resource tools run in a `Personal` role with no model, and the state keys they write are
@@ -111,15 +123,15 @@ resource or a request built from one, so the final state a host writes to disk k
 
 ## Requirements
 
-Model tasks `interpret`, `select`, `answer`: structured output and reasoning, a 16,000-token
-context window, host routing, no fallback. The package names no provider, model or
+Model tasks `interpret`, `select`, `answer`, `remember`: structured output and reasoning, a
+16,000-token context window, host routing, no fallback. The package names no provider, model or
 credential. Required permissions: `network.webair`, `model.reasoning`, `memory.session`;
-optional: `profile.travel`, `identity.passenger`, `wallet.payment`, `booking.simulate_purchase`.
-Budgets: 120,000 tokens, 20 remote calls, at most 1 search, 6 fare-rule reads, 1 quote, 1
-purchase and 1 read of each host resource per run, 3 parallel workers. It declares
-`personal.read`, a permission kind agentpkg accepts since the WebAgents v0.2.0 release, whose
-runtime reports 0.2.2, the package's minimum; the v0.1.0 release's wheel carries the same
-version number and rejects the package.
+optional: `memory.travel_profile`, `identity.passenger`, `wallet.payment`,
+`booking.simulate_purchase`, `memory.remember` (`memory.write` of `travel.preference`).
+Budgets: 120,000 tokens, 22 remote calls, at most 1 search, 6 fare-rule reads, 1 quote, 1
+purchase and 1 read of each personal record per run, 3 parallel workers. It declares
+`memory.read` and `memory.write` (memory.v0), so its minimum runtime is 0.4.0; earlier
+runtimes refuse it by version before anything runs.
 
 ## Profiles
 
@@ -130,24 +142,28 @@ three profiles, each containing the previous one:
 | Profile | Permissions | Tools | Host resources |
 |---|---|---|---|
 | `search` "Search flights" | `network.webair`, `model.reasoning`, `memory.session` | `search-flights`, `get-fare-rules` | none |
-| `quote` "Search and quote" | adds `profile.travel`, `identity.passenger` | adds `prepare-booking`, `personal.travel_profile`, `personal.passenger_identity` | travel profile, passenger identity |
+| `quote` "Search and quote" | adds `memory.travel_profile`, `identity.passenger`, `memory.remember` | adds `prepare-booking`, `travel.profile`, `personal.passenger_identity` | passenger identity (the travel profile is recalled from memory) |
 | `book` "Book (simulated)" | adds `wallet.payment`, `booking.simulate_purchase` | adds `simulate-purchase`, `wallet.payment_method` | adds the payment method |
 
 A profile presents authority; it grants nothing. Choosing one gives the host the decisions a
 person could make item by item: the profile's permissions and tools are granted and approved
 under the host's own rules, the person picks one resource of each listed type, and everything
-else is denied. "Search flights" reads nothing personal, so its requests must say where the
+else is denied; the travel profile, a memory record, is recalled from the person's memory
+rather than listed as a host resource. "Search flights" reads nothing personal, so its requests must say where the
 trip starts; one that does not is answered with that request, and searches nothing. (The graph
 cannot see the person's grants: if the interpreting model asks for the travel profile under
 "Search flights", the runtime refuses that call and the run stops as `permission_denied`.) Each profile's estimate (model calls, tool calls, tokens) comes from the
-publisher's recorded runs of this graph and is information, not a limit: the budgets above are
+publisher's recorded runs of the 0.5.0 graph, plus the one model call 0.6.0 adds after a booking,
+and is information, not a limit: the budgets above are
 the limits. A host that does not implement profiles ignores them, as agentpkg 0.2.2 does.
 
 ## Fixture
 
 `fixtures/workflow.json` replays eight search scenarios (the default input is the hero
-request). They involve no host resource, so the signed fixture holds no personal data. Its
+request). They involve no personal record and no booking, so the signed fixture holds no
+personal data and its `proposals.json` is the empty document. Its
 model outputs are scripted; its tool answers were recorded from WebAir's own API by
 `demo/webair/publisher` (`python -m publisher sync`). The host-capability scenarios — profile,
 quote, denied and simulated purchase — run on the Agent Browser host with the demo host's
-resources; see [demo/webair/README.md](../../demo/webair/README.md).
+resources (on the OpenClaw host with the signed 0.5.0, which reads no memory); see
+[demo/webair/README.md](../../demo/webair/README.md).

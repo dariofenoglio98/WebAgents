@@ -3,7 +3,7 @@
   "description": "The travel profile the person granted, or all-null preferences when the request did not need one.",
   "anyOf": [
     {
-      "$ref": "host/personal.travel_profile.schema.json"
+      "$ref": "host/travel.profile.view.schema.json#/properties/fields"
     },
     {
       "type": "object",

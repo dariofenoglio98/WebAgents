@@ -530,3 +530,25 @@ def capability_scenarios() -> list[Scenario]:
 
 def capability_scenario(scenario_id: str) -> Scenario:
     return next(s for s in capability_scenarios() if s.id == scenario_id)
+
+
+# WebAir 0.6.0 (memory.v0, T20) reads the travel profile through `memory.read` under the
+# permission `memory.travel_profile` and may propose one travel preference after a booking
+# (`memory.remember`, the model task `remember`). The capability scenarios above keep 0.5.0's
+# permission ids because their document is the OpenClaw host's acceptance on the signed 0.5.0
+# archive (D-233); `source_scenario` is the same scenario for the 0.6.0 source.
+SOURCE_RENAMES = {"profile.travel": "memory.travel_profile"}
+NOTHING_TO_REMEMBER = {"proposals": []}
+
+
+def source_scenario(scenario: Scenario, remember: list[dict] | None = None) -> Scenario:
+    """`scenario` with 0.6.0's permission ids, `memory.remember` granted for the session, and
+    the `remember` step's scripted answers (nothing to remember unless given)."""
+    from dataclasses import replace
+
+    decisions = {SOURCE_RENAMES.get(k, k): v for k, v in scenario.decisions.items()}
+    if decisions:
+        decisions["memory.remember"] = "session"
+    selections = {SOURCE_RENAMES.get(k, k): v for k, v in scenario.selections.items()}
+    models = {**scenario.models, "remember": remember or [NOTHING_TO_REMEMBER]}
+    return replace(scenario, decisions=decisions, selections=selections, models=models)

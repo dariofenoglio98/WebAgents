@@ -45,7 +45,7 @@ def example_files(current: dict[str, bytes]) -> dict[Path, dict]:
         EXAMPLES / "webair-input.json": scenario("hero").input,
         EXAMPLES / "webair-booking-input.json": capability_scenario("booking").input,
         EXAMPLES / "webair-purchase-input.json": capability_scenario("purchase-visa").input,
-        EXAMPLES / "webair-capability-scenarios.json": capability_document(current),
+        EXAMPLES / "webair-capability-scenarios.json": capability_document(),
         EXAMPLES / "webair-scenarios.json": {
             "profile": "webair-demo-scenarios-v0",
             "package_id": "org.webagents.webair",

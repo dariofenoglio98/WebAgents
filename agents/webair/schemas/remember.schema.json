@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Things to remember",
+  "description": "At most one travel preference the person may want remembered after a booking. A proposal, never a record: the person accepts, edits or rejects it after the run.",
+  "type": "object",
+  "properties": {
+    "proposals": {
+      "type": "array",
+      "maxItems": 1,
+      "items": {
+        "$ref": "#/$defs/preference"
+      }
+    }
+  },
+  "required": [
+    "proposals"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "preference": {
+      "type": "object",
+      "properties": {
+        "action": {
+          "const": "create"
+        },
+        "type": {
+          "const": "travel.preference"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "pattern": "^[^\\r\\n]+$"
+        },
+        "fields": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "enum": [
+                "cabin",
+                "airline",
+                "airport",
+                "seat",
+                "meal",
+                "other"
+              ]
+            },
+            "value": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "applies_to": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            }
+          },
+          "required": [
+            "kind",
+            "value"
+          ],
+          "additionalProperties": false
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300
+        }
+      },
+      "required": [
+        "action",
+        "type",
+        "title",
+        "fields",
+        "rationale"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

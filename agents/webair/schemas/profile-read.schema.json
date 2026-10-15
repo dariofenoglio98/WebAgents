@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Travel profile read",
+  "description": "The memory record view of the travel profile the person chose, or all-null preferences when the request did not need one. Only its fields are kept.",
+  "anyOf": [
+    {
+      "$ref": "host/travel.profile.view.schema.json"
+    },
+    {
+      "type": "object",
+      "properties": {
+        "fields": {
+          "$ref": "travel-preferences.schema.json"
+        }
+      },
+      "required": [
+        "fields"
+      ],
+      "additionalProperties": false
+    }
+  ]
+}
