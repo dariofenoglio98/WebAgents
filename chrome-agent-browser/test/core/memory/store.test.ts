@@ -202,7 +202,7 @@ describe("export and import (M-55…M-60)", () => {
     expect(identityFile.text).toContain('email: "sealed:omitted"');
     expect(identityFile.text).not.toContain("alex.traveler@example.com");
     const plan = store.planImport(omitted);
-    expect(plan.counts).toMatchObject({ same: before.records.length - 1, hub: 1, sealed_restored: 2 });
+    expect(plan.counts).toMatchObject({ same: before.records.length, hub: 0, sealed_restored: 2 });
     // Into an empty store the identity is incomplete (e-mail required) and the card is not (its sealed field is required too).
     const empty = await emptyStore();
     const emptyPlan = empty.planImport(omitted);

@@ -1,10 +1,12 @@
 /**
  * The export folder (§8, M-55…M-60): `index.md`, `memory-usage.json` and one file per record
- * grouped by type; and the import of such a folder: a report before anything is written, then
+ * grouped by type; and the import { canonicalString } from "../canonical.js";
+import of such a folder: a report before anything is written, then
  * the plan the store applies. The reader and writer are `document.ts`; this module owns the
  * folder: the stems, the index, the resolver (stems first, then the store's unambiguous titles),
  * the placeholders, the hub merge and the conflict rules.
  */
+import { canonicalString } from "../canonical.js";
 import type { JsonObject } from "../json.js";
 import { documentToRecord, type ImportResolution, type ParsedDocument, recordToDocument, sourceOf } from "./document.js";
 import { FrontmatterError } from "./yaml.js";
@@ -297,8 +299,15 @@ export function planImport(files: readonly ImportFile[], context: ImportContext)
     const missingRequired = missing.filter((pointer) => pointer.split("/").length === 2 && required.has(pointer.split("/")[1]!));
     if (record.id === SELF_ID) {
       const hub = context.records.get(SELF_ID);
-      item.outcome = { kind: "hub", record: hub ? mergeHub(hub, record, now) : record };
-      counts.hub += 1;
+      const merged = hub ? mergeHub(hub, record, now) : record;
+      // A hub that merges into exactly what the store holds is "already here", not a write (the user's walk-through: an export imported back offered to import one record).
+      if (hub && canonicalString(merged) === canonicalString(hub)) {
+        item.outcome = { kind: "same", record: hub };
+        counts.same += 1;
+      } else {
+        item.outcome = { kind: "hub", record: merged };
+        counts.hub += 1;
+      }
     } else if (missingRequired.length > 0) {
       item.outcome = { kind: "incomplete", record, missing: missingRequired };
       counts.incomplete += 1;

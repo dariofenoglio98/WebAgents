@@ -30,7 +30,7 @@ export const STRINGS = {
   "memory.locked.write": "Your memory is locked. Unlock to {action}.",
   "memory.import.self": 'Your "Me" record will be updated from the import (title, fields, body; links combined)',
   "memory.import.restored": "{n} sealed values are restored from your memory ({types})",
-  "memory.import.resolved": "{n} link now resolves",
+  "memory.import.resolved": "{n} link{s} now resolve{s2}",
   "memory.review.kept": "Kept from the record it replaces: {items}",
   "memory.review.replaced_since": "replaced since by {title}",
   "memory.review.replace_head": "Replace {title} instead",

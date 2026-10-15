@@ -159,18 +159,18 @@ describe("the page's writes", () => {
     expect(JSON.stringify(full.files)).toContain("alex.traveler@example.com");
     await h.controller.handle({ type: "memory.forget", confirmation: "forget" }, PAGE);
     const plan = (await h.controller.handle({ type: "memory.importPlan", files: full.files }, PAGE)) as { counts: { added: number; hub: number; refused: number; incomplete: number } };
-    expect(plan.counts).toMatchObject({ added: 7, hub: 1, refused: 0, incomplete: 0 });
+    // The harness clock is frozen, so the fresh Me after Forget equals the exported one: "already here", not a hub merge.
+    expect(plan.counts).toMatchObject({ added: 7, hub: 0, same: 1, refused: 0, incomplete: 0 });
     const applied = (await h.controller.handle({ type: "memory.importApply", files: full.files, completions: {} }, PAGE)) as { written: number; skipped: string[] };
-    expect(applied.written).toBe(8);
+    expect(applied.written).toBe(7);
     const after = await view(h);
     const digests = (records: MemoryView["records"]) => Object.fromEntries(records.map((record) => [record.id, record.digest]));
     expect(digests(after.records)).toEqual(digests(before.records));
     expect(after.records.find((record) => record.title === "Packing list")?.source).toEqual({ kind: "person" }); // an import keeps the record's own provenance (M-59)
     expect(after.edges.filter((edge) => edge.source === "body")).toHaveLength(before.edges.filter((edge) => edge.source === "body").length);
     // Importing the sealed-omitted export over the same memory restores the sealed values by id (M-59) and changes nothing.
-    const again = (await h.controller.handle({ type: "memory.importPlan", files: omitted.files }, PAGE)) as { counts: { same: number; sealed_restored: number; incomplete: number } };
-    expect(again.counts.incomplete).toBe(0);
-    expect(again.counts.same + 1).toBeGreaterThanOrEqual(7);
+    const again = (await h.controller.handle({ type: "memory.importPlan", files: omitted.files }, PAGE)) as { counts: { same: number; hub: number; added: number; updated: number; sealed_restored: number; incomplete: number } };
+    expect(again.counts).toMatchObject({ incomplete: 0, added: 0, updated: 0, hub: 0, same: 8 }); // the Me record included: an identical merge is "already here", nothing to import
     // Locked: export without sealed values still works; with them it is refused.
     await h.controller.handle({ type: "secrets.lock" }, PAGE);
     expect(((await h.controller.handle({ type: "memory.export", includeSealed: true, includeAgents: false, recordIds: null }, PAGE)) as { sealed_included: boolean }).sealed_included).toBe(false);
