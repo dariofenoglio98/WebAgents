@@ -6,20 +6,20 @@ packages: they verify with the standard tooling, run through the unchanged CLI a
 interpreter with the package's own fixture, ask for nothing they do not declare, and no
 generic code knows they exist.
 
-0.5.0 is the current package: 0.4.0 (0.3.0, the live demo's package, plus publisher-declared
-profiles in the noncritical manifest extension `org.webagents:profiles-v0`, which agentpkg
-ignores) with a request that names no departure airport answered instead of failing its own
-check (a `search-origin` node), and a shorter request description. Like 0.2.0 to 0.4.0 it asks
-the person's host for a travel profile, a passenger identity and a payment method it does not
-own (`personal.read` permissions with argument-free host-resource tools) and for a separate,
-`once`-grantable purchase authority. These tests also pin what that
+0.6.0 is the current package: 0.5.0 with the person's memory (memory.v0, T20): the travel profile
+is read through `memory.read` as a record view, and after a quote a `remember` step may propose
+one travel preference (`memory.write`), checked by the runtime and never written by the run.
+0.5.0 (0.4.0 with a request that names no departure airport answered; 0.4.0 being 0.3.0, the
+live demo's package, plus publisher-declared profiles) asked the person's host for a travel
+profile, a passenger identity and a payment method it does not own (`personal.read` with
+argument-free host-resource tools); 0.6.0 keeps the identity and the payment method so, and
+the separate, `once`-grantable purchase authority. These tests also pin what that
 means for the signed bytes: no name, email, host resource id or label is in them. That the
 host resolves, binds and withholds those resources correctly is tested on the host side
 (`openclaw-agent-browser/test/webair-capabilities.test.ts`); that the tool contracts equal
 WebAir's published API is tested on the origin side (`demo/webair/tests/`).
 
-0.1.0, 0.2.0, 0.3.0 and 0.4.0 stay here unchanged and verifiable: earlier evidence describes those
-exact bytes.
+0.1.0 to 0.5.0 stay here unchanged and verifiable: earlier evidence describes those exact bytes.
 """
 
 from __future__ import annotations
@@ -42,24 +42,28 @@ from agentpkg.workflow import run_workflow
 
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "agents/webair"
-ARCHIVE = ROOT / "dist/webair-0.5.0.agent.pkg"
+ARCHIVE = ROOT / "dist/webair-0.6.0.agent.pkg"
+ARCHIVE_050 = ROOT / "dist/webair-0.5.0.agent.pkg"
 ARCHIVE_040 = ROOT / "dist/webair-0.4.0.agent.pkg"
 ARCHIVE_030 = ROOT / "dist/webair-0.3.0.agent.pkg"
 ARCHIVE_020 = ROOT / "dist/webair-0.2.0.agent.pkg"
 ARCHIVE_010 = ROOT / "dist/webair-0.1.0.agent.pkg"
 ALIAS = ROOT / "dist/webair.agent.pkg"
 KEY = ROOT / "examples/keys/webair-publisher.pub.pem"
-GRANTS = ROOT / "examples/webair-0.2.0-grants.json"
+GRANTS = ROOT / "examples/webair-0.6.0-grants.json"
+GRANTS_020 = ROOT / "examples/webair-0.2.0-grants.json"
 HOST_RESOURCES = json.loads((ROOT / "demo/webair/host-resources.json").read_text())
 SCENARIOS = json.loads((ROOT / "examples/webair-scenarios.json").read_text())["scenarios"]
 
 PACKAGE_ID = "org.webagents.webair"
-VERSION = "0.5.0"
-DIGEST = "6192614e86ae4b18ba135f17120d4f616feac082c4ab09283221da7194c0bb48"
-ARCHIVE_SHA256 = "4b087557cbd2b0ff186391dfd00f9068739f9a727ab2fd916a6512da1fde101b"
+VERSION = "0.6.0"
+DIGEST = "c802359c84ce68a44bae1006544fa81f4a33ee540743a9f5df25689c6f2b6f94"
+ARCHIVE_SHA256 = "8633faec76c4cf4c55118ea87e2b1795272ba0b64e0dd23031c1ffc2202d6fb5"
+DIGEST_050 = "6192614e86ae4b18ba135f17120d4f616feac082c4ab09283221da7194c0bb48"
+ARCHIVE_SHA256_050 = "4b087557cbd2b0ff186391dfd00f9068739f9a727ab2fd916a6512da1fde101b"
 DIGEST_040 = "0e8317f11e8813e7d5b4b3f352f20148d114329dca3db8c725c5b0558af24fbb"
 ARCHIVE_SHA256_040 = "c12f9db3bd7b3b4b6721c67e1d0b8143ebd94381df0e5e57c196357b7ca77f63"
-# WebAir's public demo deployment: the one host 0.3.0 to 0.5.0 declare for its API.
+# WebAir's public demo deployment: the one host 0.3.0 to 0.6.0 declare for its API.
 PUBLIC_HOST = "webagents-webair-production.up.railway.app"
 PROFILES = "org.webagents:profiles-v0"
 DIGEST_030 = "ffe8f5b344f97c631498bb6da3e17217ae7e5730721935b0e66c5d595b335e94"
@@ -76,10 +80,12 @@ OPERATIONS = {
     "simulate-purchase": "simulate_purchase",
 }
 HOST_TOOLS = {
-    "personal.travel_profile": "profile.travel",
+    "travel.profile": "memory.travel_profile",
     "personal.passenger_identity": "identity.passenger",
     "wallet.payment_method": "wallet.payment",
 }
+# Since 0.6.0 the travel profile is a memory record (memory.read of travel.profile).
+MEMORY_TOOLS = {"travel.profile"}
 
 
 @pytest.fixture(scope="module")
@@ -150,9 +156,50 @@ def test_0_4_0_is_unchanged_and_still_verifies():
     assert verify_package(ARCHIVE_040, KEY)["key_fingerprint"] == FINGERPRINT
 
 
-def test_0_5_0_changes_what_0_4_0_did_only_without_a_departure_airport(package):
+def test_0_5_0_is_unchanged_and_still_verifies():
+    earlier = load_package(ARCHIVE_050)
+    assert earlier.manifest["version"] == "0.5.0"
+    assert earlier.digest == DIGEST_050
+    assert sha256(ARCHIVE_050.read_bytes()) == ARCHIVE_SHA256_050
+    assert verify_package(ARCHIVE_050, KEY)["key_fingerprint"] == FINGERPRINT
+
+
+def test_0_6_0_changes_the_travel_profile_read_and_adds_the_remember_step(package):
+    """0.6.0 reads the travel profile from memory and proposes one preference after a quote;
+    WebAir's own tools, the identity and payment reads and the fixture's searches stay."""
+    earlier = load_package(ARCHIVE_050)
+    changed = sorted(
+        name
+        for name in set(earlier.files) | set(package.files)
+        if earlier.files.get(name) != package.files.get(name)
+    )
+    assert changed == [
+        "MANIFEST.agent",
+        "README.md",
+        "graph.json",
+        "policy/policy.json",
+        "schemas/host/personal.travel_profile.schema.json",
+        "schemas/host/travel.profile.view.schema.json",
+        "schemas/profile-read.schema.json",
+        "schemas/remember.schema.json",
+        "schemas/result.schema.json",
+        "schemas/state.schema.json",
+        "schemas/travel-preferences.schema.json",
+        "skills/remembering/SKILL.md",
+        "tools/host-travel-profile.tool.json",
+        "tools/memory-travel-profile.tool.json",
+    ]
+    assert earlier.files["fixtures/workflow.json"] == package.files["fixtures/workflow.json"]
+    assert {k: v for k, v in package.tools.items() if k not in MEMORY_TOOLS} == {
+        k: v for k, v in earlier.tools.items() if k != "personal.travel_profile"
+    }
+    assert package.manifest["runtime"]["minimum_version"] == "0.4.0"
+
+
+def test_0_5_0_changes_what_0_4_0_did_only_without_a_departure_airport():
     """0.5.0 adds the departure-airport node and its schema, a shorter request description, a
     fixture scenario and the answer rule for it; tools, permissions, budgets and profiles stay."""
+    package = load_package(ARCHIVE_050)
     earlier = load_package(ARCHIVE_040)
     changed = sorted(
         name
@@ -198,11 +245,13 @@ def test_0_4_0_differs_from_0_3_0_only_by_its_profiles():
     assert now == then
 
 
-def test_agentpkg_runs_0_4_0_and_0_5_0_exactly_as_0_3_0_on_a_stated_origin(package):
-    """agentpkg ignores the profiles, and a request that states its origin is untouched by
-    0.5.0's departure-airport node: the same task, grants and fixture give the same result."""
+def test_agentpkg_runs_0_4_0_to_0_6_0_exactly_as_0_3_0_on_a_stated_origin(package):
+    """agentpkg ignores the profiles, a request that states its origin is untouched by 0.5.0's
+    departure-airport node, and a search proposes nothing in 0.6.0: the same task and fixture give
+    the same result, 0.6.0's adding only its empty proposals document."""
     results = []
-    for archive in (load_package(ARCHIVE_030), load_package(ARCHIVE_040), package):
+    archives = (load_package(ARCHIVE_030), load_package(ARCHIVE_040), load_package(ARCHIVE_050))
+    for archive, grants in (*((a, GRANTS_020) for a in archives), (package, GRANTS)):
         router, handlers, _ = fixture_adapters(archive)
         result = asyncio.run(
             run_workflow(
@@ -210,13 +259,17 @@ def test_agentpkg_runs_0_4_0_and_0_5_0_exactly_as_0_3_0_on_a_stated_origin(packa
                 SCENARIOS[0]["input"],
                 router=router,
                 handlers=handlers,
-                grants=json.loads(GRANTS.read_text()),
+                grants=json.loads(grants.read_text()),
                 approved_tools=["get-fare-rules", "search-flights"],
             )
         )
-        results.append((result["status"], result["output"], result["usage"]["tool_calls"]))
+        output = dict(result["output"])
+        proposals = output.pop("memory_proposals", None)
+        results.append((result["status"], output, result["usage"]["tool_calls"], proposals))
     assert results[0] == results[1] == results[2]
-    assert results[2][0] == "completed"
+    assert results[3][:3] == results[2][:3]
+    assert results[3][3] == {"schema": "memory.v0 proposals", "proposals": []}
+    assert results[3][0] == "completed"
 
 
 def test_0_3_0_differs_from_0_2_0_only_for_the_live_host():
@@ -290,7 +343,17 @@ def test_archive_holds_only_declared_data_and_no_personal_data(package):
 def test_host_resource_schemas_are_exactly_the_hosts(package):
     for resource_type in HOST_RESOURCES["types"]:
         path = f"schemas/host/{resource_type['id']}.schema.json"
+        if resource_type["id"] == "personal.travel_profile":
+            # 0.6.0 reads the travel profile from memory: it ships the type's record view.
+            assert path not in package.files
+            continue
         assert canonical_json(package.json(path)) == canonical_json(resource_type["schema"])
+    from agentpkg.memory.registry import TypeRegistry, record_view_schema
+
+    view = package.json("schemas/host/travel.profile.view.schema.json")
+    assert canonical_json(view) == canonical_json(
+        record_view_schema(TypeRegistry().get("travel.profile"))
+    )
 
 
 # --- what the package asks for --------------------------------------------------------------
@@ -308,13 +371,15 @@ def test_tools_are_webair_operations_and_host_resource_requests(package):
         assert tool["input_schema"] == f"schemas/api/{operation}.input.schema.json"
     for tool_id, permission in HOST_TOOLS.items():
         tool = package.tools[tool_id]
-        assert tool["binding"] == f"host.resource.{tool_id}"
+        prefix = "host.memory" if tool_id in MEMORY_TOOLS else "host.resource"
+        assert tool["binding"] == f"{prefix}.{tool_id}"
         assert tool["execution"] == "local" and tool["endpoint"] is None and tool["domains"] == []
         assert tool["permissions"] == [permission]
         assert tool["input_schema"] == "schemas/host/empty-input.schema.json"
         assert package.json(tool["input_schema"])["additionalProperties"] is False
         assert package.json(tool["input_schema"])["properties"] == {}
-        assert tool["output_schema"] == f"schemas/host/{tool_id}.schema.json"
+        suffix = "view.schema.json" if tool_id in MEMORY_TOOLS else "schema.json"
+        assert tool["output_schema"] == f"schemas/host/{tool_id}.{suffix}"
         assert tool["side_effects"] == "read" and tool["approval_required"] is True
     # Who may carry what: the identity to the two booking calls, the payment method to the
     # purchase only, and neither to search or fare rules.
@@ -339,6 +404,8 @@ def test_permissions_request_resources_and_a_separate_purchase_authority(package
         "network",
         "model",
         "memory",
+        "memory.read",
+        "memory.write",
         "personal.read",
         "payment",
     }
@@ -348,6 +415,9 @@ def test_permissions_request_resources_and_a_separate_purchase_authority(package
         assert permissions[permission]["kind"] in RESOURCE_PERMISSION_KINDS
         assert permissions[permission]["required"] is False
         assert permissions[permission]["resources"] == [tool_id]
+    remember = permissions["memory.remember"]
+    assert (remember["kind"], remember["required"]) == ("memory.write", False)
+    assert remember["resources"] == ["travel.preference"]
     purchase = permissions["booking.simulate_purchase"]
     assert (purchase["kind"], purchase["required"]) == ("payment", False)
     # The only payment-kind permission, consumed by one call: `once` is honourable.
@@ -359,7 +429,12 @@ def test_permissions_request_resources_and_a_separate_purchase_authority(package
     }
     requirements = package.manifest["model_requirements"]
     assert requirements["routing"] == "host" and requirements["fallback_policy"] == "deny"
-    assert {task["id"] for task in requirements["tasks"]} == {"interpret", "select", "answer"}
+    assert {task["id"] for task in requirements["tasks"]} == {
+        "interpret",
+        "select",
+        "answer",
+        "remember",
+    }
     declared = json.dumps(package.manifest)
     for vendor in ("openai", "ollama", "anthropic", "gpt-", "qwen", "api_key"):
         assert vendor not in declared.lower()
@@ -370,7 +445,7 @@ def test_no_model_role_can_read_a_host_resource(package):
     sensitive |= {"quote", "confirmation", "purchase_result"}
     roles = {worker["id"]: worker for worker in package.graph["workers"]}
     model_roles = {node["worker"] for node in package.graph["nodes"] if node["type"] == "llm"}
-    assert model_roles == {"Interpreter", "Selector", "Writer"}
+    assert model_roles == {"Interpreter", "Selector", "Writer", "Rememberer"}
     for role in model_roles:
         assert not sensitive & set(roles[role]["state_read"]), role
     assert roles["Personal"]["tools"] == sorted(HOST_TOOLS, key=list(HOST_TOOLS).index)
@@ -498,7 +573,7 @@ def test_workflow_uses_only_canonical_operators(package):
         s["type"] for n in nodes for s in n.get("steps", [])
     }
     assert types <= {"llm", "tool", "map", "join", "validate", "output"}
-    assert len(nodes) == 35  # 0.5.0 adds search-origin
+    assert len(nodes) == 36  # 0.5.0 adds search-origin, 0.6.0 remember
 
 
 def test_no_generic_code_knows_webair_or_its_demo_resources():

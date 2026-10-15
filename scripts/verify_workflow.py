@@ -24,7 +24,7 @@ SHIPPED_SIGNER_KEY = {
     "literature-review": ROOT / "examples/keys/literature-review-publisher.pub.pem",
     "meeting-agenda": ROOT / "examples/keys/meeting-agenda-publisher.pub.pem",
 }
-SHIPPED_ARTIFACT = {"literature-review": "literature-review-0.2.7.agent.pkg"}
+SHIPPED_ARTIFACT = {"literature-review": "literature-review-0.2.8.agent.pkg"}
 
 
 async def execute(package):

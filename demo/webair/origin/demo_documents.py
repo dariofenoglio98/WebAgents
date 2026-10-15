@@ -4,13 +4,14 @@ The WebAgents Chrome browser searches a signed agent index and lets a person sub
 signed policy. Neither belongs to the fictional airline; they are served from this origin only
 because it is the demo deployment that exists (a new hosting project is not available on the
 free plan). The origin publishes them the way it publishes its own package: the operator names a
-directory at startup, exactly five files are read from it once, there, and each is served at
+directory at startup, exactly six files are read from it once, there, and each is served at
 one fixed path. A request can never name, widen or swap a file, and nothing else in that
-directory becomes reachable. Without a directory the five paths answer 404.
+directory becomes reachable. Without a directory the six paths answer 404.
 
     /agent-index.json                              the signed WebAgents demo index
     /policies/webagents-research.json              the signed example research policy
-    /packages/literature-review-0.2.7.agent.pkg    the signed package the index lists (1.2.0, T15)
+    /packages/literature-review-0.2.8.agent.pkg    the signed package the index lists (1.3.0, T20)
+    /packages/literature-review-0.2.7.agent.pkg    the one index 1.2.0 listed (T15), kept like 0.2.6
     /packages/literature-review-0.2.6.agent.pkg    the one index 1.1.0 listed (T11), kept like 0.2.5
     /packages/literature-review-0.2.5.agent.pkg    the one index 1.0.0 listed, kept so its URL and
                                                    the Library pins made from it still resolve
@@ -38,6 +39,11 @@ DOCUMENTS: dict[str, tuple[str, str, int]] = {
         "policies/webagents-research.json",
         "application/json",
         1024 * 1024,
+    ),
+    "/packages/literature-review-0.2.8.agent.pkg": (
+        "packages/literature-review-0.2.8.agent.pkg",
+        MEDIA_TYPE,
+        16 * 1024 * 1024,
     ),
     "/packages/literature-review-0.2.7.agent.pkg": (
         "packages/literature-review-0.2.7.agent.pkg",
