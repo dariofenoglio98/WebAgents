@@ -129,8 +129,22 @@ def fixture_memory(package, fixture: dict, grants: dict, *, types: TypeRegistry 
             continue
         binding = tool["binding"] or ""
         legacy_sealed: list[str] = []
+        allowed = (
+            len(tool["permissions"]) == 1 and grants.get(tool["permissions"][0], "deny") != "deny"
+        )
         if binding.startswith("host.resource."):
-            legacy_sealed = types.legacy_sealed(binding[len("host.resource.") :])
+            legacy_id = binding[len("host.resource.") :]
+            legacy_sealed = types.legacy_sealed(legacy_id)
+            # A replayed legacy answer carries no record id: the run holds it as the record
+            # `fixture:<binding>`, granted under the tool's permission (D-230), so that its
+            # sealed values may go where that permission is linked and nowhere else (M-36).
+            grant = {
+                "permission_id": tool["permissions"][0] if tool["permissions"] else "",
+                "resource_type": legacy_id,
+                "resource_id": f"fixture:{binding}",
+            }
+            if allowed and cases and grant not in memory_grants:
+                memory_grants.append(grant)
         for case in cases:
             output = case.get("output")
             answers.append((binding, output, legacy_sealed))
@@ -139,8 +153,7 @@ def fixture_memory(package, fixture: dict, grants: dict, *, types: TypeRegistry 
                 and not binding.startswith("host.memory.agent.")
                 and isinstance(output, dict)
                 and isinstance(output.get("id"), str)
-                and len(tool["permissions"]) == 1
-                and grants.get(tool["permissions"][0], "deny") != "deny"
+                and allowed
             ):
                 grant = {
                     "permission_id": tool["permissions"][0],
