@@ -20,7 +20,7 @@ from publisher.contract import REPO_ROOT
 from publisher.fixture import package_from_files, source_files
 
 EXTENSION = "org.webagents:profiles-v0"
-PERSONAL = {"profile.travel", "identity.passenger", "wallet.payment"}
+PERSONAL = {"memory.travel_profile", "identity.passenger", "wallet.payment"}
 VERIFICATION = REPO_ROOT / "examples" / "verification"
 
 
@@ -83,7 +83,9 @@ def test_search_reads_nothing_personal_and_changes_nothing(package):
 
 def test_quote_adds_profile_and_identity_but_no_payment(package):
     quote = by_id(package.manifest)["quote"]
-    assert PERSONAL & set(quote["permissions"]) == {"profile.travel", "identity.passenger"}
+    assert PERSONAL & set(quote["permissions"]) == {"memory.travel_profile", "identity.passenger"}
+    # 0.6.0: a quote may propose one travel preference to remember (memory.write).
+    assert "memory.remember" in quote["permissions"]
     assert "booking.simulate_purchase" not in quote["permissions"]
     assert "simulate-purchase" not in quote["tools"]
     assert "wallet.payment_method" not in quote["tools"]
@@ -143,8 +145,8 @@ BROKEN = {
         "resource 'wallet.payment_method' has no member permission requesting it",
     ),
     "permission without its resource": (
-        lambda p, _: p["quote"]["resources"].remove("personal.travel_profile"),
-        "resource 'personal.travel_profile' is requested by a member permission",
+        lambda p, _: p["quote"]["resources"].remove("personal.passenger_identity"),
+        "resource 'personal.passenger_identity' is requested by a member permission",
     ),
     "most authority first": (
         lambda _, ordered: ordered.reverse(),
@@ -281,10 +283,13 @@ def test_estimates_are_the_largest_recorded_run_each_profile_serves(package):
         "quote": (runs["search"] + runs["quote"], "tool_calls"),
         "book": (runs["search"] + runs["quote"] + runs["purchase"], "tool_calls"),
     }
+    # 0.6.0 adds one model call after a booking (`remember`); no live run of it is recorded yet.
+    remember = {"search": 0, "quote": 1, "book": 1}
     for profile_id, profile in by_id(package.manifest).items():
         records, tool_field = served[profile_id]
         estimate = profile["estimate"]
-        assert estimate["model_calls"] == max(r["model_calls"] for r in records), profile_id
+        expected_calls = max(r["model_calls"] for r in records) + remember[profile_id]
+        assert estimate["model_calls"] == expected_calls, profile_id
         assert estimate["tool_calls"] == max(r[tool_field] for r in records), profile_id
         tokens = max(r["tokens"] for r in records)
         assert tokens <= estimate["tokens"] < tokens + 1000, profile_id

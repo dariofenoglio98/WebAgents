@@ -55,7 +55,9 @@ def artifact_records(result: dict, package=None) -> list[tuple[str, bytes]]:
     if package is not None and result.get("status") == "completed":
         for export in package.graph.get("exports", []):
             value = evaluate(export["value"], {"result": result["output"]})
-            if export["format"] == "json":
+            # A `memory.proposal` export (memory.v0 M-38) is JSON; the interpreter checked it
+            # (M-40) before the run completed, so a refused document never reaches this writer.
+            if export["format"] in ("json", "memory.proposal"):
                 data = _encode_json(value)
             else:
                 if not isinstance(value, str):

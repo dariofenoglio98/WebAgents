@@ -580,7 +580,8 @@ and may reach a model when the graph routes them there.
 M-38. **Declaration.** A permission of kind `memory.write` names in `resources` the type ids (≤ 8)
 the package may propose, never `person.self` or `agent.memory` (neither can be proposed, M-22, M-49:
 a policy naming one is refused at validation, `memory_type_reserved`, as is a `memory.read` naming
-`agent.memory`); a package declaring it also declares **exactly one** export `{path:
+`agent.memory` or any type of the `agent.` family, whose read binding would fall among the reserved
+agent tools' `host.memory.agent.` names, D-235); a package declaring it also declares **exactly one** export `{path:
 "proposals.json", format: "memory.proposal", value: …}` in its graph, and a graph declaring that
 export's format belongs to a package declaring `memory.write` (`memory_proposal_undeclared` at
 validation otherwise). Any package that declares `memory.write`, `memory.read` with a non-legacy type,
@@ -631,8 +632,9 @@ record and the audit carry):
    ungranted target contributes nothing to this step or to step 4 (the type's seals alone apply),
    so that no code before step 5 says whether such a record exists or what it seals;
 4. every proposal's `fields` validates against the type's schema **with those sealed pointers
-   removed from `required`** (a required sealed field is what the person types at acceptance, or
-   what an update carries over, M-42), else `schema_validation`;
+   removed from `required`** at their own depth (a nested pointer is followed through `properties`,
+   an array index through `items`, D-235; a required sealed field is what the person types at
+   acceptance, or what an update carries over, M-42), else `schema_validation`;
 5. every `update` names a `target` among the ids this run was granted (M-12) and the target's type
    equals the proposal's `type`, else `permission_denied` (`memory_proposal_target_not_granted`);
 6. every link's `to` is `self`, an id this run was granted, or `#<n>` naming an existing **other**
@@ -770,6 +772,9 @@ records `memory.agent.write` with its size and hash, and the document is **commi
 workflow completes** (`workflow.completed`, after exports and M-40), recorded as
 `memory.agent.committed` before `memory.cleared`; a failed, cancelled or interrupted run discards
 the staged body (`memory.agent.discarded`, reason `run_failed` | `cancelled` | `preset` | `policy`).
+The host writes the document **before** it records `memory.agent.committed`; a write the store
+refuses (a full disk, a read-only folder) is recorded as `memory.agent.discarded` with reason
+`store_failed`, and the run stays completed: a Run Record never claims a commit that did not happen.
 Under the privacy-first preset, or a policy with `memory.agent: "refuse"`, the read returns the empty
 document and the write is staged and discarded at the end with that reason: the package runs; nothing
 persists; the agent page says so.
@@ -825,7 +830,7 @@ policy's provenance like any other (D-102) and a policy can never grant: it only
 | validation | `memory_proposal_undeclared` | `memory.write` without the export, or the export without the permission |
 | validation | `agent_memory_write_cap`, `agent_memory_scope` | the write tool's cap is not 1; a reserved agent binding outside `agent-scoped`, or `agent-scoped` without the permission |
 | validation | `custom_type_shadows_sealed_type`, `custom_type_schema_open`, `custom_type_reserved`, `reserved_field_name` | §4.4 and M-8 (a custom type that declares `sealed_fields` fails the policy schema, `schema_validation`) |
-| validation | `memory_type_reserved` | a `memory.write` naming `person.self` or `agent.memory`, or a `memory.read` naming `agent.memory` (M-38) |
+| validation | `memory_type_reserved` | a `memory.write` naming `person.self` or `agent.memory`, or a `memory.read` naming `agent.memory` or another `agent.` type (M-38) |
 | binding | `binding_schema_mismatch` | a `memory.read` tool's output schema is not the type's view |
 | plan | `resource_selection_required`, `resource_changed`, `resource_removed`, `memory_type_unknown` | as for host resources; a type the host does not hold |
 | run | `permission_denied` with `sealed_value_not_granted`, `sealed_value_egress`, `sealed_value_in_model_request`, `sealed_value_in_proposal`, `memory_proposal_type_undeclared`, `memory_proposal_target_not_granted`, `memory_proposal_link_not_granted` | M-36, M-37, M-40 |
@@ -1059,7 +1064,7 @@ a value, title or body:
 | `memory.agent.read` | the read tool answered | `package_id`, `bytes`, `body_sha256`, `present` (boolean) |
 | `memory.agent.write` | the write tool staged a body | `package_id`, `bytes`, `body_sha256` |
 | `memory.agent.committed` | after the terminal `workflow.completed`, before `memory.cleared` | `package_id`, `bytes`, `body_sha256` |
-| `memory.agent.discarded` | after any terminal workflow event when a body was staged and not committed | `package_id`, `reason` (`run_failed`, `cancelled`, `preset`, `policy`) |
+| `memory.agent.discarded` | after any terminal workflow event when a body was staged and not committed | `package_id`, `reason` (`run_failed`, `cancelled`, `preset`, `policy`, `store_failed`) |
 
 The refusals of §7 are the existing `permission.checked` (decision `deny` with the reason code),
 `node.failed` and `tool.failed` events with their codes. The conformance backbone (D-091) gains

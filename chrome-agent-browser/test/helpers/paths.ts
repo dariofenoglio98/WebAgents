@@ -47,6 +47,17 @@ export const SHIPPED = {
     archiveSha256: "4b087557cbd2b0ff186391dfd00f9068739f9a727ab2fd916a6512da1fde101b",
     fingerprint: "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b",
   },
+  /** T20: the current WebAir (memory.v0, runtime minimum 0.4.0), which the demo index 1.3.0 names. */
+  webair060: {
+    archive: resolve(ROOT, "dist/webair-0.6.0.agent.pkg"),
+    key: resolve(ROOT, "examples/keys/webair-publisher.pub.pem"),
+    packageId: "org.webagents.webair",
+    version: "0.6.0",
+    publisherId: "webair-demo",
+    digest: "e1ef5ad07f5be9148d5d7b5d6f6e88e3ba9cfdb291d8d2ba2fb9bc0f06d6022f",
+    archiveSha256: "3055dd93a9f4e5f81f3ccddac77ccc9ce2c10b1e10dec35d9864fddf6fb58862",
+    fingerprint: "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b",
+  },
   literatureReview: {
     archive: resolve(ROOT, "dist/literature-review-0.2.5.agent.pkg"),
     key: resolve(ROOT, "examples/keys/literature-review-publisher.pub.pem"),
@@ -77,6 +88,17 @@ export const SHIPPED = {
     publisherId: "webagents-research",
     digest: "9274a5ce46275e6817ae2706791c19a8066e523776cb9eb348a76b83396a99cb",
     archiveSha256: "8951a14bb1f42bca1590bc7d0c9cc00cccba75b36f1488969b6b3ff47063fe61",
+    fingerprint: "sha256:c5ca9763f9fc71253298ca381ec14c4d7432009c74dacc69df6344b71de05232",
+  },
+  /** T20: the current Literature Review (memory.v0, runtime minimum 0.4.0), which the demo index 1.3.0 names. */
+  literatureReview028: {
+    archive: resolve(ROOT, "dist/literature-review-0.2.8.agent.pkg"),
+    key: resolve(ROOT, "examples/keys/literature-review-publisher.pub.pem"),
+    packageId: "org.webagents.literature-review",
+    version: "0.2.8",
+    publisherId: "webagents-research",
+    digest: "fb107c188d6995c5308e06b6ade751604455245c2413fce7a39c92841d4652b6",
+    archiveSha256: "0d03d1c8b366aabd6343b15958185c10cdab6639828f9c73bafbb26538db8330",
     fingerprint: "sha256:c5ca9763f9fc71253298ca381ec14c4d7432009c74dacc69df6344b71de05232",
   },
   meetingAgenda: {

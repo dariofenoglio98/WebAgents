@@ -513,8 +513,17 @@ def scripted_handlers(scenario: Scenario) -> dict:
     return {"scholarly.search": search, "citation.resolve": resolve, "paper.read": read}
 
 
-def scenario_input(scenario: Scenario) -> dict:
-    return {"question": scenario.question, "seeds": [], "documents": {}, "mode": "live"}
+# 0.2.8 (memory.v0, T20) adds three switches, all off by default: the run reads no profile,
+# keeps no notes and proposes nothing, and is otherwise 0.2.7's.
+MEMORY_OFF = {"use_profile": False, "keep_notes": False, "reviewed_on": None}
+
+
+def scenario_input(scenario: Scenario, package=None) -> dict:
+    value = {"question": scenario.question, "seeds": [], "documents": {}, "mode": "live"}
+    if package is not None:
+        properties = package.json(package.graph["input_schema"]).get("properties", {})
+        value.update({key: off for key, off in MEMORY_OFF.items() if key in properties})
+    return value
 
 
 def grants_for(package) -> dict:
@@ -536,7 +545,7 @@ def run_scenario(package, scenario: Scenario, router: ScriptedReview | None = No
     return asyncio.run(
         run_workflow(
             package,
-            scenario_input(scenario),
+            scenario_input(scenario, package),
             router=router,
             handlers=scripted_handlers(scenario),
             grants=grants_for(package),

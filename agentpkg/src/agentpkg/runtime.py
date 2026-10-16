@@ -128,8 +128,13 @@ class Runtime:
         limits=None,
         approved_tools=None,
         observer=None,
+        memory=None,
     ):
         self.package = package
+        # What the run holds about memory (memory.v0 §7): the scan set of the egress guards
+        # (M-36, M-37), the grants, the proposals check and the agent document. None: no memory
+        # at all, an empty scan set, nothing refused on that account.
+        self.memory = memory
         # A host may watch the audit as it is written, to report progress. The
         # observer receives a copy of each event after it is chained, cannot
         # change it, and cannot fail the run: its errors are discarded.
@@ -174,8 +179,12 @@ class Runtime:
         if self.budget["max_parallel_workers"] < 1:
             raise PolicyError("At least one worker slot is required")
         memory = self.policy["memory"]
-        if memory["scope"] not in {"session", "ephemeral"}:
-            raise PolicyError("This runtime only implements session/ephemeral memory")
+        # `agent-scoped` (memory.v0 M-48) keeps the run's state semantics of `session`; the
+        # package's own document is a pair of tools, never state. The other scopes stay refused.
+        if memory["scope"] not in {"session", "ephemeral", "agent-scoped"}:
+            raise PolicyError("This runtime only implements session/ephemeral/agent-scoped memory")
+        if memory["scope"] == "agent-scoped" and memory["retention"] != "user-managed":
+            raise PolicyError("agent-scoped memory requires user-managed retention")
         if memory["raw_documents"] or memory["sharing"] != "explicit_views":
             raise PolicyError("Raw document retention/shared mutable state is unsupported")
         if self.policy["delegation"]["allow_remote"]:
@@ -267,6 +276,16 @@ class Runtime:
     def _permission_kind(self, kind):
         return [pid for pid, p in self.permissions.items() if p["kind"] == kind]
 
+    def state_permissions(self):
+        """The `memory` permissions that cover the run's own state: every one except the agent
+        document's (`resources: ["agent"]`, memory.v0 M-48), which authorizes the two agent tools
+        and nothing else, so denying it never stops the workflow's state access."""
+        return [
+            pid
+            for pid in self._permission_kind("memory")
+            if self.permissions[pid]["resources"] != ["agent"]
+        ]
+
     async def run_worker(
         self, role, inputs, operation, parent=None, depth=1, *, return_value=False, node_id=None
     ):
@@ -293,7 +312,7 @@ class Runtime:
             )
             if not isinstance(inputs, dict) or set(inputs) - set(self.roles[role]["state_read"]):
                 raise PolicyError(f"Worker {role} input exceeds declared state_read fields")
-            mem = self._permission_kind("memory")
+            mem = self.state_permissions()
             if not mem:
                 raise PolicyError("Worker state access requires a memory permission")
             async with self._lock:
@@ -409,6 +428,7 @@ class Runtime:
                 raise
             async with self._lock:
                 self._authorize(tool["permissions"], context=ctx)
+                self._scan_tool_arguments(ctx, tool_id, tool, payload)
                 cap = self.budget["max_calls_per_tool"].get(tool_id, 0)
                 if self._global.tool_calls[tool_id] >= cap:
                     raise BudgetError(f"Call budget exhausted for tool {tool_id}")
@@ -462,6 +482,106 @@ class Runtime:
             )
             raise
 
+    def _scan_tool_arguments(self, ctx, tool_id, tool, payload):
+        """memory.v0 M-36: before every tool call except a memory read, the arguments are scanned
+        for the run's scan set. A sealed value of a record this run was not granted goes nowhere;
+        a granted one goes only to a tool that links the permission it was granted under. The
+        refusal is a denied permission check naming the record and the pointer, never the value.
+        """
+        from .memory.model import LEGACY_READ_BINDING_PREFIX, is_record_read_binding
+        from .memory.scan import INCOMPLETE, find_all_sealed
+
+        memory = self.memory
+        if memory is None or not memory.scan:
+            return
+        binding = tool["binding"] or ""
+        if is_record_read_binding(binding) or binding.startswith(LEGACY_READ_BINDING_PREFIX):
+            return
+        hits = find_all_sealed(payload, memory.scan)
+        denied = dict(context=ctx, allowed=False, tool=tool_id)
+        if hits == INCOMPLETE:
+            self.record(
+                "permission.checked",
+                permission=None,
+                grant="deny",
+                reason="sealed_value_not_granted",
+                incomplete=True,
+                **denied,
+            )
+            raise PolicyError(
+                f"Tool {tool_id}: the arguments hold more strings than the sealed-value scan "
+                "reads, so they are refused unread"
+            )
+        # Every hit, in scan-set order: a value granted to this tool never lets another through.
+        for hit in hits:
+            # A record may be granted under more than one permission (two reads of one type): the
+            # value may go to any tool that links one of them.
+            grants = [g for g in memory.grants if g["resource_id"] == hit["record_id"]]
+            if not grants:
+                self.record(
+                    "permission.checked",
+                    permission=None,
+                    grant="deny",
+                    reason="sealed_value_not_granted",
+                    record_id=hit["record_id"],
+                    pointer=hit["pointer"],
+                    **denied,
+                )
+                raise PolicyError(
+                    f"Tool {tool_id}: the arguments carry a sealed value of a record this run "
+                    f"was not granted ({hit['record_id']} {hit['pointer']})"
+                )
+            if not any(grant["permission_id"] in tool["permissions"] for grant in grants):
+                permission_id = grants[0]["permission_id"]
+                self.record(
+                    "permission.checked",
+                    permission=permission_id,
+                    grant=self.grants.get(permission_id, "deny"),
+                    reason="sealed_value_egress",
+                    record_id=hit["record_id"],
+                    pointer=hit["pointer"],
+                    **denied,
+                )
+                linked = " or ".join(grant["permission_id"] for grant in grants)
+                raise PolicyError(
+                    f"Tool {tool_id}: the arguments carry a sealed value of {hit['record_id']} "
+                    f"({hit['pointer']}) to a tool that does not link {linked}"
+                )
+
+    def _scan_model_request(self, ctx, task, request):
+        """memory.v0 M-37: before every model request, the token count included, the complete
+        request as it will be sent is scanned for the scan set; a hit refuses the call before
+        anything leaves, naming the record id and the pointer, never the value. Every mode."""
+        from .memory.scan import INCOMPLETE, find_sealed
+
+        memory = self.memory
+        if memory is None or not memory.scan:
+            return
+        hit = find_sealed(request, memory.scan)
+        if hit is None:
+            return
+        facts = (
+            {"incomplete": True}
+            if hit == INCOMPLETE
+            else {"record_id": hit["record_id"], "pointer": hit["pointer"]}
+        )
+        self.record(
+            "model.refused",
+            context=ctx,
+            task=task,
+            reason="sealed_value_in_model_request",
+            **facts,
+        )
+        if hit == INCOMPLETE:
+            raise PolicyError(
+                "The model request holds more strings than the sealed-value scan reads, so it "
+                "is refused unread"
+            )
+        raise PolicyError(
+            f"The model request carries a sealed value of {hit['record_id']} ({hit['pointer']}), "
+            "which may not reach a model"
+        )
+
     async def call_model(self, ctx, task, payload, output_schema, *, max_output_tokens, check=None):
         """One model call: authorize, count, reserve, complete, account, validate.
 
@@ -514,6 +634,7 @@ class Runtime:
             },
         }
         validate_document(request, "model-request", "model request")
+        self._scan_model_request(ctx, task, request)
         permissions = self._permission_kind("model")
         if not permissions:
             raise PolicyError("Model use requires an explicit model permission")

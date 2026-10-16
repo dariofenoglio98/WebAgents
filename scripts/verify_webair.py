@@ -2,7 +2,7 @@
 
     agentpkg/.venv/bin/python scripts/verify_webair.py [--report PATH]
 
-Verifies the signed 0.5.0 artifact against WebAir's pinned publisher key, checks that the
+Verifies the signed 0.6.0 artifact against WebAir's pinned publisher key, checks that the
 source tree rebuilds to the same payload and that the signed bytes carry no personal data,
 then runs every search scenario in `examples/webair-scenarios.json` through
 `agentpkg.workflow` with agentpkg's own fixture adapters (exact-input replay of the package's
@@ -12,12 +12,14 @@ fixture's tool answers are WebAir's real answers is established separately by
 `demo/webair/tests/test_package_contract.py`; the host-owned capability scenarios run on the
 Agent Browser host (`scripts/verify_webair_capabilities.py`).
 
-0.1.0, 0.2.0, 0.3.0 and 0.4.0 are checked to be unchanged: earlier evidence describes those exact
-bytes, and the unversioned `dist/webair.agent.pkg` stays 0.1.0, which the v0.1.0 release's
-runtime can read (0.2.0 and later declare the `personal.read` permission kind). The permission
-ids, and so the grants file, are the same for 0.2.0 to 0.5.0. 0.4.0 adds only
+0.1.0 to 0.5.0 are checked to be unchanged: earlier evidence describes those exact bytes, and
+the unversioned `dist/webair.agent.pkg` stays 0.1.0, which the v0.1.0 release's runtime can read
+(0.2.0 and later declare the `personal.read` permission kind). The permission ids, and so the
+grants file `webair-0.2.0-grants.json`, are the same for 0.2.0 to 0.5.0. 0.4.0 adds only
 publisher-declared profiles (`org.webagents:profiles-v0`), which agentpkg ignores; 0.5.0 answers
-a request that names no departure airport instead of failing (T9).
+a request that names no departure airport instead of failing (T9); 0.6.0 reads the travel profile
+from the person's memory and may propose one preference after a quote (memory.v0, T20), so its
+grants file is `webair-0.6.0-grants.json`.
 
 Prints a JSON report; `passed` is false if any check fails.
 """
@@ -39,7 +41,9 @@ from agentpkg.signing import verify_package
 from agentpkg.workflow import run_workflow
 
 ROOT = Path(__file__).resolve().parents[1]
-ARCHIVE = ROOT / "dist/webair-0.5.0.agent.pkg"
+ARCHIVE = ROOT / "dist/webair-0.6.0.agent.pkg"
+ARCHIVE_050 = ROOT / "dist/webair-0.5.0.agent.pkg"
+ARCHIVE_050_SHA256 = "4b087557cbd2b0ff186391dfd00f9068739f9a727ab2fd916a6512da1fde101b"
 ARCHIVE_040 = ROOT / "dist/webair-0.4.0.agent.pkg"
 ARCHIVE_040_SHA256 = "c12f9db3bd7b3b4b6721c67e1d0b8143ebd94381df0e5e57c196357b7ca77f63"
 ARCHIVE_030 = ROOT / "dist/webair-0.3.0.agent.pkg"
@@ -52,7 +56,7 @@ ALIAS = ROOT / "dist/webair.agent.pkg"
 SOURCE = ROOT / "agents/webair"
 KEY = ROOT / "examples/keys/webair-publisher.pub.pem"
 SCENARIOS = ROOT / "examples/webair-scenarios.json"
-GRANTS = ROOT / "examples/webair-0.2.0-grants.json"
+GRANTS = ROOT / "examples/webair-0.6.0-grants.json"
 HOST_RESOURCES = ROOT / "demo/webair/host-resources.json"
 CANONICAL_NODE_TYPES = {"llm", "tool", "map", "join", "validate", "output"}
 # Generic code that must not know WebAir exists: the runtime, the browser control plane,
@@ -69,6 +73,10 @@ def genericity_scan() -> dict:
             if not path.is_file() or path.suffix not in GENERIC_SUFFIXES:
                 continue
             scanned += 1
+            if "schemas/memory/" in path.as_posix():
+                # The memory.v0 contracts are the specification's data, copied byte for byte
+                # (its taxonomy names "airline" as a kind of travel preference).
+                continue
             text = path.read_text(errors="replace")
             if re.search(
                 r"webair|airline|passenger_demo|payment_demo|profile_demo",
@@ -217,6 +225,8 @@ def verify() -> dict:
         and verify_package(ARCHIVE_030, KEY)["valid"] is True,
         "release_0_4_0_unchanged": sha256(ARCHIVE_040.read_bytes()) == ARCHIVE_040_SHA256
         and verify_package(ARCHIVE_040, KEY)["valid"] is True,
+        "release_0_5_0_unchanged": sha256(ARCHIVE_050.read_bytes()) == ARCHIVE_050_SHA256
+        and verify_package(ARCHIVE_050, KEY)["valid"] is True,
         "alias_is_newest_release_runtime_compatible": ALIAS.read_bytes()
         == ARCHIVE_010.read_bytes(),
         "source_rebuilds_to_signed_payload": rebuild_matches(package),

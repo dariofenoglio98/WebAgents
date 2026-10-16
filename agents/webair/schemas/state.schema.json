@@ -125,6 +125,9 @@
           "$ref": "result.schema.json"
         }
       ]
+    },
+    "remember": {
+      "$ref": "remember.schema.json"
     }
   },
   "required": [
@@ -154,7 +157,8 @@
     "known_fares",
     "status",
     "answer",
-    "result"
+    "result",
+    "remember"
   ],
   "additionalProperties": false
 }

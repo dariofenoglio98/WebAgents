@@ -39,6 +39,7 @@ describe("memory.v0 declarations at validation", () => {
     expect(await refusal({ writeTypes: ["agent.memory"] })).toMatch(/^memory_type_reserved/u);
     expect(await refusal({ writeTypes: ["a.b", "a.c", "a.d", "a.e", "a.f", "a.g", "a.h", "a.i", "a.j"] })).toMatch(/^memory_type_reserved/u);
     expect(await refusal({ readType: "agent.memory" })).toMatch(/^memory_type_reserved/u);
+    expect(await refusal({ readType: "agent.notes" })).toMatch(/^memory_type_reserved: memory\.read permission \S+ names the reserved type agent\.notes/u);
     // Two types in one memory.read: ambiguous, as for personal.read.
     expect(await refusal({}, (files) => editJson(files, "policy/policy.json", (policy) => { ((policy.permissions as JsonObject[]).find((p) => p.id === READ_PERMISSION)!.resources as string[]).push("travel.preference"); }))).toMatch(/^ambiguous/u);
   });

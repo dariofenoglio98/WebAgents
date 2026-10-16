@@ -70,8 +70,22 @@ export function resolveProposalType(type: string, aliases: ReadonlyMap<string, s
 /** M-40 step 4: the type schema with the sealed pointers removed from `required`. */
 export function sealedFreeSchema(type: Pick<MemoryTypeView, "schema" | "sealed_fields">, extra: readonly string[] = []): JsonObject {
   const schema = JSON.parse(JSON.stringify(type.schema)) as JsonObject;
-  const top = new Set([...type.sealed_fields, ...extra].filter((pointer) => pointer.split("/").length === 2).map((pointer) => pointer.split("/")[1]!));
-  if (Array.isArray(schema.required)) schema.required = schema.required.filter((name) => !top.has(String(name)));
+  // At any depth: a nested pointer (a person's addition, M-24) is followed through `properties`, an array index through `items`.
+  for (const pointer of [...type.sealed_fields, ...extra]) {
+    const tokens = pointer.split("/").slice(1).map((token) => token.replace(/~1/gu, "/").replace(/~0/gu, "~"));
+    let node: JsonValue | undefined = schema;
+    for (const token of tokens.slice(0, -1)) {
+      if (typeof node !== "object" || node === null || Array.isArray(node)) break;
+      const properties: JsonValue | undefined = node.properties;
+      let child: JsonValue | undefined = typeof properties === "object" && properties !== null && !Array.isArray(properties) ? properties[token] : undefined;
+      if (child === undefined && /^\d+$/u.test(token)) child = node.items;
+      node = child;
+    }
+    const last = tokens[tokens.length - 1];
+    if (last !== undefined && typeof node === "object" && node !== null && !Array.isArray(node) && Array.isArray(node.required)) {
+      node.required = node.required.filter((name) => name !== last);
+    }
+  }
   return schema;
 }
 

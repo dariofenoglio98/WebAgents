@@ -127,14 +127,14 @@ jobs:
       - name: Install the shipped wheel in a fresh environment
         run: |
           python -m venv "$RUNNER_TEMP/wheel-env"
-          "$RUNNER_TEMP/wheel-env/bin/python" -m pip install dist/agentpkg-0.3.0-py3-none-any.whl
+          "$RUNNER_TEMP/wheel-env/bin/python" -m pip install dist/agentpkg-0.4.0-py3-none-any.whl
           cd "$RUNNER_TEMP"
           wheel-env/bin/agentpkg --version
           wheel-env/bin/python -c 'import agentpkg; assert "site-packages" in agentpkg.__file__, agentpkg.__file__'
       - name: Release-tree checks (package identities, dist/ SHA-256 list, licenses, wheel = source)
         run: |
           "$RUNNER_TEMP/wheel-env/bin/python" scripts/check_release.py \
-            --built-wheel "$RUNNER_TEMP/agentpkg-dist/agentpkg-0.3.0-py3-none-any.whl"
+            --built-wheel "$RUNNER_TEMP/agentpkg-dist/agentpkg-0.4.0-py3-none-any.whl"
       - name: Verify the signed packages with the installed wheel
         run: |
           agentpkg="$RUNNER_TEMP/wheel-env/bin/agentpkg"
@@ -146,6 +146,8 @@ jobs:
             --trust-key examples/keys/literature-review-publisher.pub.pem > "$RUNNER_TEMP/verify-review-026.json"
           "$agentpkg" verify dist/literature-review-0.2.7.agent.pkg \
             --trust-key examples/keys/literature-review-publisher.pub.pem > "$RUNNER_TEMP/verify-review-027.json"
+          "$agentpkg" verify dist/literature-review-0.2.8.agent.pkg \
+            --trust-key examples/keys/literature-review-publisher.pub.pem > "$RUNNER_TEMP/verify-review-028.json"
           "$agentpkg" verify dist/webair.agent.pkg \
             --trust-key examples/keys/webair-publisher.pub.pem > "$RUNNER_TEMP/verify-webair.json"
           "$agentpkg" verify dist/webair-0.3.0.agent.pkg \
@@ -154,6 +156,8 @@ jobs:
             --trust-key examples/keys/webair-publisher.pub.pem > "$RUNNER_TEMP/verify-webair-040.json"
           "$agentpkg" verify dist/webair-0.5.0.agent.pkg \
             --trust-key examples/keys/webair-publisher.pub.pem > "$RUNNER_TEMP/verify-webair-050.json"
+          "$agentpkg" verify dist/webair-0.6.0.agent.pkg \
+            --trust-key examples/keys/webair-publisher.pub.pem > "$RUNNER_TEMP/verify-webair-060.json"
           python - "$RUNNER_TEMP" <<'PY'
           import json, sys
           from pathlib import Path
@@ -166,6 +170,8 @@ jobs:
                   "sha256:c5ca9763f9fc71253298ca381ec14c4d7432009c74dacc69df6344b71de05232"),
               "verify-review-027.json": ("org.webagents.literature-review", "0.2.7",
                   "sha256:c5ca9763f9fc71253298ca381ec14c4d7432009c74dacc69df6344b71de05232"),
+              "verify-review-028.json": ("org.webagents.literature-review", "0.2.8",
+                  "sha256:c5ca9763f9fc71253298ca381ec14c4d7432009c74dacc69df6344b71de05232"),
               "verify-webair.json": ("org.webagents.webair", "0.1.0",
                   "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b"),
               "verify-webair-030.json": ("org.webagents.webair", "0.3.0",
@@ -173,6 +179,8 @@ jobs:
               "verify-webair-040.json": ("org.webagents.webair", "0.4.0",
                   "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b"),
               "verify-webair-050.json": ("org.webagents.webair", "0.5.0",
+                  "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b"),
+              "verify-webair-060.json": ("org.webagents.webair", "0.6.0",
                   "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b"),
           }
           for name, (package_id, version, fingerprint) in expected.items():
@@ -207,6 +215,14 @@ jobs:
             --grants examples/literature-review-grants.json \
             --approve-tool scholarly-search --approve-tool citation-resolver --approve-tool paper-reader \
             --out "$RUNNER_TEMP/my-review-027" > "$RUNNER_TEMP/run-review-027.json"
+          # Literature Review 0.2.8 uses memory.v0 (runtime minimum 0.4.0): its memory-on fixture
+          # input reads the replayed research profile and proposes one review (proposals.json).
+          "$agentpkg" run dist/literature-review-0.2.8.agent.pkg --mode fixture \
+            --grants examples/literature-review-0.2.8-grants.json \
+            --input examples/literature-review-0.2.8-memory-input.json \
+            --approve-tool scholarly-search --approve-tool citation-resolver --approve-tool paper-reader \
+            --approve-tool research.profile --approve-tool agent-notes.read --approve-tool agent-notes.write \
+            --out "$RUNNER_TEMP/my-review-028" > "$RUNNER_TEMP/run-review-028.json"
           "$agentpkg" run dist/webair.agent.pkg --mode fixture \
             --grants examples/webair-grants.json \
             --approve-tool search-flights --approve-tool get-fare-rules \
@@ -226,6 +242,11 @@ jobs:
             --grants examples/webair-0.2.0-grants.json \
             --approve-tool search-flights --approve-tool get-fare-rules \
             --out "$RUNNER_TEMP/my-webair-050" > "$RUNNER_TEMP/run-webair-050.json"
+          # WebAir 0.6.0 reads the travel profile from memory (memory.v0); a search proposes nothing.
+          "$agentpkg" run dist/webair-0.6.0.agent.pkg --mode fixture \
+            --grants examples/webair-0.6.0-grants.json \
+            --approve-tool search-flights --approve-tool get-fare-rules \
+            --out "$RUNNER_TEMP/my-webair-060" > "$RUNNER_TEMP/run-webair-060.json"
           python - "$RUNNER_TEMP" <<'PY'
           import json, sys
           from pathlib import Path
@@ -238,10 +259,15 @@ jobs:
                              "unresolved.json", "verification.json"],
               "review-027": ["related-work.md", "papers-found.json", "bibliography.json",
                              "evidence-table.json", "unresolved.json", "verification.json"],
+              "review-028": ["related-work.md", "papers-found.json", "bibliography.json",
+                             "evidence-table.json", "unresolved.json", "verification.json",
+                             "proposals.json"],
               "webair": ["answer.md", "search.json", "fare-rules.json", "booking.json"],
               "webair-030": ["answer.md", "search.json", "fare-rules.json", "booking.json"],
               "webair-040": ["answer.md", "search.json", "fare-rules.json", "booking.json"],
               "webair-050": ["answer.md", "search.json", "fare-rules.json", "booking.json"],
+              "webair-060": ["answer.md", "search.json", "fare-rules.json", "booking.json",
+                             "proposals.json"],
           }
           for name, declared in exports.items():
               report = json.loads((temp / f"run-{name}.json").read_text())

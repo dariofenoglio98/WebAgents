@@ -31,7 +31,10 @@ const ONLY = option("--only");
 const WRITE = !args.includes("--no-write");
 const PYTHON_CLI = process.env.AGENTPKG_CLI ?? join(ROOT, "agentpkg/.venv/bin/agentpkg");
 const PYTHON = process.env.AGENTPKG_PYTHON ?? join(ROOT, "agentpkg/.venv/bin/python");
-const NODE_CLI = join(ROOT, "chrome-agent-browser/dist/cli.js");
+// CONFORMANCE_CHROME names another built chrome-agent-browser checkout to compare against (for
+// example a task branch's worktree before it is merged); its CLI and its runtime version are used.
+const CHROME_ROOT = process.env.CONFORMANCE_CHROME ?? join(ROOT, "chrome-agent-browser");
+const NODE_CLI = join(CHROME_ROOT, "dist/cli.js");
 const DIST = (name) => join(ROOT, "dist", name);
 const EXAMPLES = (name) => join(ROOT, "examples", name);
 const KEYS = {
@@ -162,6 +165,10 @@ function buildInputs() {
     fixture.models.write[0].output.agenda[1].owner = "Dana";
     writeJson(join(source, "fixtures/workflow.json"), fixture);
   });
+  // memory.v0 (T20, M-64): the probe package and one variant per negative case, written by the
+  // Python driver from agentpkg's own test package and signed with the throwaway key.
+  inputs.memory = {};
+  for (const name of MEMORY_VARIANTS) inputs.memory[name] = memoryVariant(name);
   // Grants files for the permission cases.
   const webairGrants = readJson(EXAMPLES("webair-0.2.0-grants.json"));
   inputs.webairNetworkDenied = writeInput("webair-network-denied.json", JSON.stringify({ ...webairGrants, "network.webair": "deny" }));
@@ -186,6 +193,60 @@ function withAnswerChecks(source) {
     { kind: "sum", rows: { from: "result", path: "/agenda" }, path: "/minutes", equals: { from: "state", path: "/request/duration" } },
   ];
   writeJson(join(source, "graph.json"), graph);
+}
+
+const MEMORY_VARIANTS = [
+  "fixture",
+  "n1-type-undeclared",
+  "n2-sealed-field",
+  "n4-agent-write-over-cap",
+  "n5-newer-runtime",
+  "n6-view-mismatch",
+  "n7-two-agent-writes",
+  "n8-update-not-granted",
+  "n9-link-to-no-proposal",
+  "n10-publisher-scoped",
+  "n11-sealed-value-to-a-model",
+  "n12-write-without-export",
+  "n13-sealed-value-in-a-proposal",
+  "n14-link-not-granted",
+  "n14-body-link-not-granted",
+  "n15-supersedes-link",
+  "n16-custom-type-shadows-sealed",
+  "n17-custom-type-reserved",
+  "n19-lower-index-first",
+  "n21-custom-type-open",
+  "n22-marker-line",
+  "m36-sealed-value-to-a-tool",
+  "m36-granted-sealed-value",
+  "m36-two-sealed-values",
+  "custom-type-proposal",
+  "custom-type-read",
+  "agent-family-read",
+];
+
+/**
+ * One memory probe variant: its source written by `drivers/memory_probe.py`, built and signed with
+ * the throwaway key when it builds (a variant the builder refuses is run from its source, so that
+ * both CLIs meet the same validation refusal).
+ */
+function memoryVariant(name) {
+  const source = join(SCRATCH, "memory", name);
+  const written = spawn(PYTHON, [join(ROOT, "conformance/drivers/memory_probe.py"), source, name]);
+  if (written.status !== 0) throw new Error(`memory probe ${name}: ${written.stderr}`);
+  const { grants, tools } = JSON.parse(written.stdout);
+  const built = join(SCRATCH, "memory", `${name}.unsigned.agent.pkg`);
+  const signed = join(SCRATCH, "memory", `${name}.agent.pkg`);
+  const build = spawn(PYTHON_CLI, ["build", source, "-o", built]);
+  if (build.status === 0) {
+    agentpkg(["sign", built, "--private-key", join(SCRATCH, "keys", "throwaway.pem"), "-o", signed]);
+    return { archive: signed, source, grants, tools };
+  }
+  // A variant agentpkg refuses to build (a validation case): the same bytes, signed by the driver
+  // without validating, so that both CLIs meet the refusal when they load the archive.
+  const forged = spawn(PYTHON, [join(ROOT, "conformance/drivers/memory_probe.py"), "--signed-archive", source, signed, join(SCRATCH, "keys", "throwaway.pem")]);
+  if (forged.status !== 0) throw new Error(`memory probe ${name}: ${forged.stderr}`);
+  return { archive: signed, source, grants, tools, refusedAtBuild: build.stderr.trim() };
 }
 
 function variant(name, change) {
@@ -218,6 +279,7 @@ function canonical(value) {
 
 // -- the cases -------------------------------------------------------------------------------
 const webairTools = ["search-flights", "get-fare-rules", "prepare-booking", "simulate-purchase", "personal.travel_profile", "personal.passenger_identity", "wallet.payment_method"];
+const reviewMemoryTools = ["scholarly-search", "paper-reader", "citation-resolver", "research.profile", "agent-notes.read", "agent-notes.write"];
 const approve = (tools) => tools.flatMap((tool) => ["--approve-tool", tool]);
 const scenarios = readJson(EXAMPLES("webair-scenarios.json")).scenarios;
 
@@ -237,6 +299,20 @@ function positiveCases() {
     { id: "literature-review-0.2.7/fixture", title: "Literature Review 0.2.7 (ids before any model, verdict-only screening, answer checks, papers-found; T15), its fixture input", argv: fixtureRun(DIST("literature-review-0.2.7.agent.pkg"), EXAMPLES("literature-review-grants.json"), ["scholarly-search", "paper-reader", "citation-resolver"]), allowTokens: true },
     { id: "literature-review-0.2.6/fixture", title: "Literature Review 0.2.6 (screening jobs built from the candidates, T10), its fixture input", argv: fixtureRun(DIST("literature-review-0.2.6.agent.pkg"), EXAMPLES("literature-review-grants.json"), ["scholarly-search", "paper-reader", "citation-resolver"]), allowTokens: true },
     { id: "meeting-agenda-0.2.2/fixture", title: "Meeting Agenda 0.2.2, its fixture input", argv: fixtureRun(DIST("meeting-agenda.agent.pkg"), EXAMPLES("meeting-agenda-grants.json"), []) },
+    // memory.v0 (T20): the two packages that use it, and the probe that uses every permission.
+    { id: "webair-0.6.0/fixture", title: "WebAir 0.6.0 (the travel profile from memory, a remember step after a quote; T20), its fixture input, the search tools approved: the empty proposals document", argv: fixtureRun(DIST("webair-0.6.0.agent.pkg"), EXAMPLES("webair-0.6.0-grants.json"), ["search-flights", "get-fare-rules"]), memory: true },
+    ...scenarios.map((scenario) => ({
+      id: `webair-0.6.0/scenario-${scenario.id}`,
+      title: `WebAir 0.6.0, scenario ${scenario.id}`,
+      argv: fixtureRun(DIST("webair-0.6.0.agent.pkg"), EXAMPLES("webair-0.6.0-grants.json"), ["search-flights", "get-fare-rules"], ["--input", writeInput(`scenario-060-${scenario.id}.json`, JSON.stringify(scenario.input))]),
+      memory: true,
+    })),
+    { id: "literature-review-0.2.8/fixture", title: "Literature Review 0.2.8, its fixture input (memory off): 0.2.7's review and an empty proposals document", argv: fixtureRun(DIST("literature-review-0.2.8.agent.pkg"), EXAMPLES("literature-review-0.2.8-grants.json"), reviewMemoryTools), allowTokens: true, memory: true },
+    { id: "literature-review-0.2.8/memory", title: "Literature Review 0.2.8 with its memory switches on: the replayed research profile shapes the plan, the notes are read and staged, one research.review is proposed derived from the profile (grants from the fixture's views, D-230)", argv: fixtureRun(DIST("literature-review-0.2.8.agent.pkg"), EXAMPLES("literature-review-0.2.8-grants.json"), reviewMemoryTools, ["--input", EXAMPLES("literature-review-0.2.8-memory-input.json")]), allowTokens: true, memory: true },
+    { id: "memory-probe/granted-sealed-value", title: "M-36 and D-230: the probe's replayed legacy identity e-mail sent to a tool that links the permission it was granted under (in fixture mode the replayed answer is held as granted under its tool's permission)", argv: fixtureRun(inputs.memory["m36-granted-sealed-value"].archive, inputs.memory["m36-granted-sealed-value"].grants, inputs.memory["m36-granted-sealed-value"].tools, ["--trust-key", inputs.throwawayKey]), memory: true },
+    { id: "memory-probe/custom-type-proposal", title: "M-18 and D-228: the probe proposes its own custom type by its local id (the only form the proposals schema admits); the host resolves it through the package's aliases", argv: fixtureRun(inputs.memory["custom-type-proposal"].archive, inputs.memory["custom-type-proposal"].grants, inputs.memory["custom-type-proposal"].tools, ["--trust-key", inputs.throwawayKey]), memory: true },
+    { id: "memory-probe/custom-type-read", title: "M-12, M-18 and D-228: a memory.read of the probe's own custom type by its local id, granted from the replayed view, and an update of the record it read", argv: fixtureRun(inputs.memory["custom-type-read"].archive, inputs.memory["custom-type-read"].grants, inputs.memory["custom-type-read"].tools, ["--trust-key", inputs.throwawayKey]), memory: true },
+    { id: "memory-probe/fixture", title: "The memory probe (every memory.v0 permission: a record view, a legacy identity, the agent document, a create and an update proposal, a sealed value sent where its grant goes; throwaway key)", argv: fixtureRun(inputs.memory.fixture.archive, inputs.memory.fixture.grants, inputs.memory.fixture.tools, ["--trust-key", inputs.throwawayKey]), memory: true },
     { id: "answer-checks/fixture", title: "Answer checks that hold (D-150): Meeting Agenda rebuilt with a relation, a sum and an equality on its model answers, runtime minimum 0.3.0 (throwaway key)", argv: fixtureRun(inputs.answerChecks, EXAMPLES("meeting-agenda-grants.json"), [], ["--trust-key", inputs.throwawayKey]) },
   ];
   return cases.map((testCase) => ({ ...testCase, kind: "fixture parity", run: () => runPositive(testCase) }));
@@ -255,9 +331,14 @@ function runPositive(testCase) {
   const compared = compareArtifacts(python.files, node.files, { allowTokens: Boolean(testCase.allowTokens) });
   checks.push(...compared.checks);
   const notes = [];
-  if (testCase.allowTokens) notes.push(`Allowlisted (D-063), printed: synthetic tokens python=${compared.tokens.python} node=${compared.tokens.node}.`);
-  return { checks, notes, observed: { python: summary(python), node: summary(node) } };
+  if (testCase.allowTokens) notes.push(`Allowlisted (D-063), printed: synthetic tokens python=${compared.tokens?.python ?? null} node=${compared.tokens?.node ?? null}.`);
+  // For the pending rule (D-234): the Python half on its own, and whether Chrome refused by version.
+  const halves = { python: python.status === 0 && python.report !== null && "result.json" in python.files, chromeVersionRefused: versionRefused(node) };
+  return { checks, notes, halves, observed: { python: summary(python), node: summary(node) } };
 }
+
+/** The Chrome CLI's refusal of a package whose runtime minimum it does not reach. */
+const versionRefused = (observation) => observation.status === 2 && /^manifest runtime\.minimum_version exceeds reference runtime /u.test(observation.message ?? "");
 
 const summary = (observation) => ({ status: observation.status, message: observation.message, files: Object.keys(observation.files).length });
 
@@ -292,6 +373,7 @@ function negativeCases() {
     cli("schema-invalid-output", "A recorded model answer that its node's output schema refuses (rebuilt Meeting Agenda, throwaway key)", [run(inputs.schemaInvalid, EXAMPLES("meeting-agenda-grants.json"), ["--trust-key", inputs.throwawayKey])], { code: "schema_validation", node: "plan", artifacts: true }),
     cli("budget-overrun", "A package token budget below what its own fixture run needs (rebuilt Meeting Agenda, throwaway key)", [run(inputs.budget, EXAMPLES("meeting-agenda-grants.json"), ["--trust-key", inputs.throwawayKey])], { code: "budget_exhausted", node: "plan", artifacts: true }),
     cli("answer-check-refused", "A recorded model answer that its node's answer check refuses (D-150): a non-conforming answer, never re-asked by a replay router (rebuilt Meeting Agenda, throwaway key)", [run(inputs.answerCheckRefused, EXAMPLES("meeting-agenda-grants.json"), ["--trust-key", inputs.throwawayKey])], { code: "model_error", node: "write", artifacts: true }),
+    ...memoryNegativeCases(cli, run),
     documented(
       "once-overused",
       "The model permission granted once, to a graph that calls the model more than once",
@@ -302,16 +384,62 @@ function negativeCases() {
   ];
 }
 
+/** The negative cases of spec/memory-v0.md §10 (M-64) both runtimes must refuse identically. */
+function memoryNegativeCases(cli, run) {
+  const probe = (name) => inputs.memory[name];
+  const runProbe = (name, extra = []) => {
+    const item = probe(name);
+    return run(item.archive ?? item.source, item.grants, [...approve(item.tools), "--trust-key", inputs.throwawayKey, ...extra]);
+  };
+  const workflow = (code, node = null) => ({ code, ...(node ? { node } : {}), artifacts: true });
+  const refused = (code) => ({ code, message: new RegExp(`^${code}: `, "u") });
+  const deniedProfile = writeInput("memory-profile-denied.json", JSON.stringify({ ...readJson(probe("fixture").grants), "memory.profile": "deny" }));
+  const cases = [
+    ["n1-type-undeclared", "N1: a proposal of a type outside memory.write's resources", workflow("permission_denied")],
+    ["n2-sealed-field", "N2: a proposal carrying a sealed field", workflow("schema_validation")],
+    ["n4-agent-write-over-cap", "N4: an agent write over 32,768 characters fails the tool's input schema", workflow("schema_validation", "notes-write")],
+    ["n5-newer-runtime", "N5: a package whose runtime minimum is newer than the runtime is refused by version before anything runs", { code: "runtime_too_old", message: /^manifest runtime\.minimum_version exceeds reference runtime 0\.4\.0$/u }],
+    ["n6-view-mismatch", "N6: a memory.read tool whose output schema is not the type's record view is not bound", refused("binding_schema_mismatch")],
+    ["n7-two-agent-writes", "N7: a second agent write in one run is over its max_calls_per_tool of 1", workflow("budget_exhausted", "notes-write-again")],
+    ["n8-update-not-granted", "N8: an update whose target the run was not granted", workflow("permission_denied")],
+    ["n9-link-to-no-proposal", "N9: a link #9 in a document of two proposals", workflow("schema_validation")],
+    ["n10-publisher-scoped", "N10: memory.scope publisher-scoped stays refused", refused("agent_memory_scope")],
+    // The refused model step runs in a wave beside the probe's echo: how far the sibling got is the
+    // scheduler's (D-092), so the artifacts are compared as a failure inside a concurrent wave.
+    ["n11-sealed-value-to-a-model", "N11: a graph that routes a sealed value into a model step: the model call is refused before anything leaves", { code: "permission_denied", node: "remember", artifacts: "race" }],
+    ["n12-write-without-export", "N12: memory.write declared without the proposals.json export", refused("memory_proposal_undeclared")],
+    ["n13-sealed-value-in-a-proposal", "N13: a proposal whose unsealed field holds a sealed value the run holds; no proposals.json is written", workflow("permission_denied")],
+    ["n14-link-not-granted", "N14: a proposal link to a record id the run was not granted", workflow("permission_denied")],
+    ["n14-body-link-not-granted", "N14 (body): the same as an id wikilink in the proposal's body", workflow("permission_denied")],
+    ["n15-supersedes-link", "N15: a proposal link with rel supersedes fails the proposals schema", workflow("schema_validation")],
+    ["n16-custom-type-shadows-sealed", "N16: a custom type with a nested property named like a sealed starter field", refused("custom_type_shadows_sealed_type")],
+    ["n17-custom-type-reserved", "N17: a custom type whose local id is a well-known id", refused("custom_type_reserved")],
+    ["agent-family-read", "M-38: a memory.read naming a type of the agent. family (its binding would be a reserved agent tool's name)", refused("memory_type_reserved")],
+    ["n19-lower-index-first", "N19: two refusable proposals, index 0's link before index 1's type: proposal by proposal", workflow("permission_denied")],
+    ["n21-custom-type-open", "N21: a custom type whose schema is not closed", refused("custom_type_schema_open")],
+    ["n22-marker-line", "N22: a proposal body holding the mirror marker as a whole line fails the proposals schema", workflow("schema_validation")],
+    ["m36-sealed-value-to-a-tool", "M-36: a granted sealed value sent to a tool that does not link its permission", workflow("permission_denied", "echo")],
+    ["m36-two-sealed-values", "M-36: the echo carries the e-mail granted under the permission it links (the first hit) and a card token granted under another: every value is checked, so the card refuses it", workflow("permission_denied", "echo")],
+  ];
+  return [
+    ...cases.map(([name, title, expectation]) => ({ ...cli(`memory/${name}`, title, [runProbe(name)], expectation), memory: true })),
+    { ...cli("memory/n3-read-denied", "N3: a memory.read tool called under a denied permission stops at the mediator, before the tool", [run(probe("fixture").archive, deniedProfile, [...approve(probe("fixture").tools), "--trust-key", inputs.throwawayKey])], workflow("permission_denied", "profile")), memory: true },
+  ];
+}
+
 function runNegative(commands, expectation, options) {
   const checks = [];
   const check = (name, differences) => checks.push({ name, passed: differences.length === 0, detail: differences });
   const observed = [];
   const notes = [...(options.notes ?? [])];
+  const halves = { python: true, chromeVersionRefused: true };
   for (const [index, argv] of commands.entries()) {
     const label = `${argv[0]}-${index}`;
     const python = invoke("python", argv, label);
     const node = invoke("node", argv, label);
     const refusals = { python: refusalOf(python, expectation), node: refusalOf(node, expectation) };
+    halves.python &&= python.status === 2 && python.report === null && refusals.python.code === expectation.code && (!expectation.node || refusals.python.node === expectation.node);
+    halves.chromeVersionRefused &&= versionRefused(node);
     observed.push({ command: argv[0], python: { ...summary(python), ...refusals.python }, node: { ...summary(node), ...refusals.node } });
     check(`${argv[0]}: refused with status 2 in both`, [python, node].every((o) => o.status === 2 && o.report === null) ? [] : [`python ${python.status}`, `node ${node.status}`]);
     check(`${argv[0]}: refusal code ${expectation.code}`, ["python", "node"].filter((r) => refusals[r].code !== expectation.code).map((r) => `${r}: ${refusals[r].code} (${r === "python" ? python.message : node.message})`));
@@ -320,14 +448,14 @@ function runNegative(commands, expectation, options) {
     if (expectation.artifacts === "race") {
       const compared = compareFailureRace(python.files, node.files);
       checks.push(...compared.checks.map((item) => ({ ...item, name: `${argv[0]}: ${item.name}` })));
-      notes.push(`A failure inside a concurrent wave (D-092): siblings' partial progress is the scheduler's, so their events and reserved tokens are not compared; tokens python=${compared.tokens.python} node=${compared.tokens.node}.`);
+      notes.push(`A failure inside a concurrent wave (D-092): siblings' partial progress is the scheduler's, so their events and reserved tokens are not compared; tokens python=${compared.tokens?.python ?? null} node=${compared.tokens?.node ?? null}.`);
     } else if (expectation.artifacts) {
       checks.push(...compareArtifacts(python.files, node.files).checks.map((item) => ({ ...item, name: `${argv[0]}: ${item.name}` })));
     } else {
       check(`${argv[0]}: nothing written`, Object.keys(python.files).length + Object.keys(node.files).length === 0 ? [] : ["files written"]);
     }
   }
-  return { checks, notes, observed };
+  return { checks, notes, halves, observed };
 }
 
 /**
@@ -411,6 +539,22 @@ function runControl(name, documented) {
   return { checks, notes: raw.length ? [`Raw lease refusal codes: ${raw.join("; ")}.`] : [], observed: { python: py, node: nd } };
 }
 
+// -- memory.v0 and the Chrome core's version -------------------------------------------------
+/** The runtime version the built Chrome core accepts packages up to (`SUPPORTED_RUNTIME_VERSION`). */
+let chromeVersion;
+function chromeRuntimeVersion() {
+  if (chromeVersion === undefined) {
+    const source = readFileSync(join(CHROME_ROOT, "src/core/version.ts"), "utf8");
+    chromeVersion = /SUPPORTED_RUNTIME_VERSION = "([^"]+)"/u.exec(source)?.[1] ?? "unknown";
+  }
+  return chromeVersion;
+}
+const release = (version) => version.split("-")[0].split(".").map(Number);
+function chromeLacksMemory() {
+  const [major, minor] = release(chromeRuntimeVersion());
+  return major === 0 && minor < 4;
+}
+
 // -- the report ------------------------------------------------------------------------------
 function git(argv) {
   const result = spawnSync("git", argv, { cwd: ROOT, encoding: "utf8" });
@@ -424,10 +568,10 @@ function environment() {
     dirty: Boolean(git(["status", "--porcelain", "--untracked-files=no"])),
     agentpkg: spawn(PYTHON_CLI, ["--version"]).stdout.trim(),
     python: spawn(PYTHON, ["--version"]).stdout.trim(),
-    chrome_core: `chrome-agent-browser ${readJson(join(ROOT, "chrome-agent-browser/package.json")).version}`,
+    chrome_core: `chrome-agent-browser ${readJson(join(CHROME_ROOT, "package.json")).version} (runtime ${chromeRuntimeVersion()})${process.env.CONFORMANCE_CHROME ? ` from ${CHROME_ROOT}` : ""}`,
     node: process.version,
     platform: `${process.platform}-${process.arch}`,
-    packages: Object.fromEntries(["webair-0.4.0.agent.pkg", "webair-0.5.0.agent.pkg", "literature-review.agent.pkg", "literature-review-0.2.6.agent.pkg", "literature-review-0.2.7.agent.pkg", "meeting-agenda.agent.pkg"].map((name) => [name, sha(DIST(name))])),
+    packages: Object.fromEntries(["webair-0.4.0.agent.pkg", "webair-0.5.0.agent.pkg", "webair-0.6.0.agent.pkg", "literature-review.agent.pkg", "literature-review-0.2.6.agent.pkg", "literature-review-0.2.7.agent.pkg", "literature-review-0.2.8.agent.pkg", "meeting-agenda.agent.pkg"].map((name) => [name, sha(DIST(name))])),
   };
 }
 
@@ -438,11 +582,11 @@ function markdown(report) {
     `Generated ${report.generated_at} at commit \`${report.environment.commit}\`${report.environment.dirty ? " (working tree had uncommitted changes)" : ""}.`,
     `${report.environment.agentpkg}; ${report.environment.python}; ${report.environment.chrome_core}; Node ${report.environment.node}; ${report.environment.platform}.`,
     "",
-    `**${report.summary.passed} of ${report.summary.cases} cases passed** (${report.summary.checks_passed} of ${report.summary.checks} checks).`,
+    `**${report.summary.passed} of ${report.summary.cases} cases passed** (${report.summary.checks_passed} of ${report.summary.checks} checks)${report.summary.pending.length ? `; ${report.summary.pending.length} pending: ${report.summary.pending_reason}` : ""}.`,
     "",
     "| Case | Kind | Result | Checks |",
     "|---|---|---|---|",
-    ...report.cases.map((c) => `| \`${c.id}\` | ${c.kind} | ${c.passed ? "pass" : "**FAIL**"} | ${c.checks.filter((k) => k.passed).length}/${c.checks.length} |`),
+    ...report.cases.map((c) => `| \`${c.id}\` | ${c.kind} | ${c.passed ? "pass" : c.pending ? "pending" : "**FAIL**"} | ${c.checks.filter((k) => k.passed).length}/${c.checks.length} |`),
     "",
   ];
   for (const c of report.cases) {
@@ -469,19 +613,25 @@ async function main() {
       outcome = { checks: [{ name: "case ran", passed: false, detail: [String(error?.stack ?? error)] }], notes: [], observed: null };
     }
     const passed = outcome.checks.length > 0 && outcome.checks.every((check) => check.passed);
-    results.push({ id: testCase.id, title: testCase.title, kind: testCase.kind, passed, seconds: (Date.now() - started) / 1000, ...outcome });
-    process.stdout.write(`${passed ? "pass" : "FAIL"}  ${testCase.id}\n`);
+    // A memory.v0 case is pending, not failed, while the Chrome CLI refuses 0.4.0 packages by
+    // version (T20, D-233), and only when that refusal is what failed it and the Python half
+    // passed on its own (D-234): a Python regression, or a Chrome failure of any other kind,
+    // fails the suite. Once Chrome accepts 0.4.0 packages, the case counts.
+    const pending = !passed && Boolean(testCase.memory) && chromeLacksMemory() && outcome.halves?.python === true && outcome.halves?.chromeVersionRefused === true;
+    results.push({ id: testCase.id, title: testCase.title, kind: testCase.kind, passed, pending, seconds: (Date.now() - started) / 1000, ...outcome });
+    process.stdout.write(`${passed ? "pass" : pending ? "PEND" : "FAIL"}  ${testCase.id}${pending ? " (Python half passed; Chrome refused by version)" : ""}\n`);
     for (const check of outcome.checks.filter((item) => !item.passed)) process.stdout.write(`      ✗ ${check.name}: ${check.detail.join("; ")}\n`);
     for (const note of outcome.notes) process.stdout.write(`      note: ${note}\n`);
   }
-  const allChecks = results.flatMap((r) => r.checks);
+  const counted = results.filter((r) => !r.pending);
+  const allChecks = counted.flatMap((r) => r.checks);
   const report = {
     schema: "webagents-conformance-report-v0",
     generated_at: new Date().toISOString(),
     environment: environment(),
-    summary: { cases: results.length, passed: results.filter((r) => r.passed).length, failed: results.filter((r) => !r.passed).map((r) => r.id), checks: allChecks.length, checks_passed: allChecks.filter((c) => c.passed).length, filtered: ONLY },
+    summary: { cases: results.length, passed: results.filter((r) => r.passed).length, failed: counted.filter((r) => !r.passed).map((r) => r.id), pending: results.filter((r) => r.pending).map((r) => r.id), pending_reason: results.some((r) => r.pending) ? `the Chrome core CLI refuses memory.v0 packages by version (${chromeRuntimeVersion()} < 0.4.0)` : null, checks: allChecks.length, checks_passed: allChecks.filter((c) => c.passed).length, filtered: ONLY },
     cases: results,
-    passed: results.length > 0 && results.every((r) => r.passed),
+    passed: counted.length > 0 && counted.every((r) => r.passed),
   };
   if (WRITE) {
     const out = option("--out") ?? join(ROOT, "conformance/results", report.generated_at.replace(/[:.]/gu, "-"));
@@ -490,7 +640,7 @@ async function main() {
     writeFileSync(join(out, "report.md"), markdown(report));
     process.stdout.write(`report: ${relative(process.cwd(), out) || out}\n`);
   }
-  process.stdout.write(`${report.summary.passed}/${report.summary.cases} cases passed\n`);
+  process.stdout.write(`${report.summary.passed}/${report.summary.cases} cases passed${report.summary.pending.length ? `, ${report.summary.pending.length} pending (${report.summary.pending_reason})` : ""}\n`);
   rmSync(SCRATCH, { recursive: true, force: true });
   process.exit(report.passed ? 0 : 1);
 }

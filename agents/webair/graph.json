@@ -40,7 +40,8 @@
         "known_fares",
         "status",
         "answer",
-        "result"
+        "result",
+        "remember"
       ],
       "state_write": [
         "search_origin",
@@ -91,7 +92,7 @@
       "kind": "packaged",
       "skills": [],
       "tools": [
-        "personal.travel_profile",
+        "travel.profile",
         "personal.passenger_identity",
         "wallet.payment_method"
       ],
@@ -204,6 +205,28 @@
       "state_write": [
         "answer"
       ]
+    },
+    {
+      "id": "Rememberer",
+      "kind": "packaged",
+      "skills": [
+        "webair-domain",
+        "remembering"
+      ],
+      "tools": [],
+      "max_instances": 1,
+      "budget": {
+        "tokens": 20000,
+        "remote_calls": 2
+      },
+      "state_read": [
+        "request",
+        "plan",
+        "booking_summary"
+      ],
+      "state_write": [
+        "remember"
+      ]
     }
   ],
   "input_schema": "schemas/input.schema.json",
@@ -291,6 +314,11 @@
       },
       "result": {
         "literal": null
+      },
+      "remember": {
+        "literal": {
+          "proposals": []
+        }
       }
     }
   },
@@ -341,7 +369,7 @@
       "id": "profile",
       "type": "tool",
       "worker": "Personal",
-      "tool": "personal.travel_profile",
+      "tool": "travel.profile",
       "input": {
         "literal": {}
       },
@@ -357,13 +385,15 @@
       },
       "otherwise": {
         "literal": {
-          "home_airport": null,
-          "preferred_cabin": null,
-          "prefer_nonstop": null,
-          "preferred_currency": null
+          "fields": {
+            "home_airport": null,
+            "preferred_cabin": null,
+            "prefer_nonstop": null,
+            "preferred_currency": null
+          }
         }
       },
-      "output_schema": "schemas/travel-preferences.schema.json",
+      "output_schema": "schemas/profile-read.schema.json",
       "timeout_seconds": 30,
       "depends_on": [
         "interpret"
@@ -371,7 +401,7 @@
       "writes": {
         "/profile": {
           "from": "result",
-          "path": ""
+          "path": "/fields"
         }
       }
     },
@@ -1901,6 +1931,56 @@
       }
     },
     {
+      "id": "remember",
+      "type": "llm",
+      "worker": "Rememberer",
+      "task": "remember",
+      "input": {
+        "object": {
+          "request": {
+            "from": "state",
+            "path": "/request/request"
+          },
+          "interpreted_request": {
+            "from": "state",
+            "path": "/plan"
+          },
+          "booking_quote": {
+            "from": "state",
+            "path": "/booking_summary"
+          }
+        }
+      },
+      "when": {
+        "left": {
+          "from": "state",
+          "path": "/booking_summary"
+        },
+        "op": "ne",
+        "right": {
+          "literal": null
+        }
+      },
+      "otherwise": {
+        "literal": {
+          "proposals": []
+        }
+      },
+      "output_schema": "schemas/remember.schema.json",
+      "max_output_tokens": 4000,
+      "timeout_seconds": 300,
+      "depends_on": [
+        "booking-summary",
+        "answer"
+      ],
+      "writes": {
+        "/remember": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
       "id": "assemble",
       "type": "validate",
       "worker": "Coordinator",
@@ -1952,6 +2032,17 @@
           },
           "notice": {
             "literal": "Fictional WebAir demo: no real booking, payment or ticket."
+          },
+          "memory_proposals": {
+            "object": {
+              "schema": {
+                "literal": "memory.v0 proposals"
+              },
+              "proposals": {
+                "from": "state",
+                "path": "/remember/proposals"
+              }
+            }
           }
         }
       },
@@ -1976,7 +2067,8 @@
         "answer",
         "status",
         "known-fares",
-        "purchase-result"
+        "purchase-result",
+        "remember"
       ],
       "writes": {
         "/result": {
@@ -2092,6 +2184,14 @@
             "path": "/purchase"
           }
         }
+      }
+    },
+    {
+      "path": "proposals.json",
+      "format": "memory.proposal",
+      "value": {
+        "from": "result",
+        "path": "/memory_proposals"
       }
     }
   ],

@@ -861,15 +861,21 @@ def record_view(record: dict, granted) -> dict:
 
 
 def sealed_free_schema(type_def: dict, extra: tuple[str, ...] = ()) -> dict:
-    """M-40 step 4: the type schema with the sealed pointers removed from `required`."""
+    """M-40 step 4: the type schema with the sealed pointers removed from `required` at their own
+    depth (through `properties`, an array index through `items`; D-235)."""
     schema = copy.deepcopy(type_def["schema"])
-    top_sealed = {
-        pointer.split("/")[1]
-        for pointer in (*type_def["sealed_fields"], *extra)
-        if pointer.count("/") == 1
-    }
-    if "required" in schema:
-        schema["required"] = [name for name in schema["required"] if name not in top_sealed]
+    for pointer in (*type_def["sealed_fields"], *extra):
+        tokens = [t.replace("~1", "/").replace("~0", "~") for t in pointer.split("/")[1:]]
+        node = schema
+        for token in tokens[:-1]:
+            if not isinstance(node, dict):
+                break
+            child = (node.get("properties") or {}).get(token)
+            if child is None and token.isdigit():
+                child = node.get("items")
+            node = child
+        if tokens and isinstance(node, dict) and isinstance(node.get("required"), list):
+            node["required"] = [name for name in node["required"] if name != tokens[-1]]
     return schema
 
 
@@ -1271,11 +1277,17 @@ def check_legacy_against_webair(contracts: Contracts) -> dict:
         for entry in load_json(ROOT / "demo" / "webair" / "host-resources.json")["types"]
     }
     compared = []
+    # WebAir 0.6.0 (T20) reads the travel profile from memory, so its source no longer ships the
+    # legacy `personal.travel_profile` schema; the signed 0.5.0 is the last WebAir that declared
+    # all three legacy ids, and a legacy schema the source lacks is compared against it.
+    from agentpkg.package import load_package
+
+    signed = load_package(ROOT / "dist" / "webair-0.5.0.agent.pkg").files
     for entry in contracts.taxonomy["types"]:
         for legacy in entry.get("legacy", []):
-            shipped = load_json(
-                ROOT / "agents" / "webair" / "schemas" / "host" / f"{legacy['id']}.schema.json"
-            )
+            relative = f"schemas/host/{legacy['id']}.schema.json"
+            source = ROOT / "agents" / "webair" / relative
+            shipped = load_json(source) if source.exists() else json.loads(signed[relative])
             if canonical_json(shipped) != canonical_json(legacy["schema"]) or canonical_json(
                 host[legacy["id"]]
             ) != canonical_json(legacy["schema"]):
@@ -1737,7 +1749,7 @@ def check_example_package(contracts: Contracts, folder: Path, *, package_name: s
         raise ValueError("more than one memory.write permission")
     declared = tuple(writes[0]["resources"]) if writes else ()
     if set(declared) & RESERVED_TYPES or any(
-        "agent.memory" in entry["resources"] for entry in reads
+        type_id.startswith("agent.") for entry in reads for type_id in entry["resources"]
     ):
         raise ValueError("a memory permission names a reserved type (memory_type_reserved, M-38)")
     tools_report = _check_tools(contracts, folder, policy, package_name)

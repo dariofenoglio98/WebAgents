@@ -296,6 +296,11 @@ def validate_payload(files: dict[str, bytes]):
                     raise ValidationError(
                         f"network permission {permission['id']}: domain absent from allowlist"
                     )
+    # The memory declarations (memory.v0 §7: M-18, M-19, M-33, M-38, M-48, M-67), checked here so
+    # that both runtimes refuse the same packages before any host binds anything.
+    from .memory.declarations import check_memory_graph, memory_declarations
+
+    memory_declared = memory_declarations(manifest, policy, tools, files)
     budget = policy["budget"]
     if budget["estimated_tokens"] > budget["hard_tokens"]:
         raise ValidationError("estimated_tokens cannot exceed hard_tokens")
@@ -332,6 +337,7 @@ def validate_payload(files: dict[str, bytes]):
             raise ValidationError(
                 f"worker {role}: state view refers to keys absent from state schema"
             )
+    check_memory_graph(manifest, graph, memory_declared)
     if workflow:
         from .workflow_validation import validate_workflow
 

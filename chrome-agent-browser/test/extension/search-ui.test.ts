@@ -24,8 +24,8 @@ const ORIGIN = "https://webagents-webair-production.up.railway.app";
 const routes: Record<string, Route> = {
   [`${ORIGIN}/agent-index.json`]: { body: readBytes(resolve(ROOT, "examples/agent-index.json")) },
   [`${ORIGIN}/policies/webagents-research.json`]: { body: readBytes(resolve(ROOT, "examples/policies/webagents-research.json")) },
-  [`${ORIGIN}/packages/literature-review-0.2.7.agent.pkg`]: { body: readBytes(SHIPPED.literatureReview027.archive) },
-  [`${ORIGIN}/agent.pkg`]: { body: readBytes(SHIPPED.webair050.archive) },
+  [`${ORIGIN}/packages/literature-review-0.2.8.agent.pkg`]: { body: readBytes(SHIPPED.literatureReview028.archive) },
+  [`${ORIGIN}/agent.pkg`]: { body: readBytes(SHIPPED.webair060.archive) },
 };
 
 type Listener = (message: unknown) => void;
@@ -36,7 +36,7 @@ const h = makeHarness({
     for (const listener of listeners) listener(event);
   },
 });
-h.clock.now = new Date("2026-10-10T12:00:00Z");
+h.clock.now = new Date("2026-10-15T12:00:00Z");
 
 document.body.innerHTML = `<nav class="ab-nav"><a href="#open" data-view="open">Open</a><a href="#library" data-view="library">Library</a><a href="#settings" data-view="settings">Settings</a></nav><main id="app"></main>`;
 vi.stubGlobal("chrome", {
@@ -116,7 +116,7 @@ describe("search, Library and policy on the full page (T8)", () => {
     expect(app().querySelector<HTMLInputElement>("input[name=indexUrl]")!.value).toBe(demoDocuments.index.url);
     await press("Add and verify", () => app().querySelector(".ab-index-row"));
     const indexRow = await element(".ab-index-row");
-    expect(indexRow.textContent).toContain("WebAgents demo index 1.2.0");
+    expect(indexRow.textContent).toContain("WebAgents demo index 1.3.0");
     expect(indexRow.textContent).toContain("verified, current");
 
     // The address bar searches words.
@@ -126,8 +126,8 @@ describe("search, Library and policy on the full page (T8)", () => {
     await press("Open", () => app().querySelector(".ab-result"), () => app().querySelector("form.ab-address"));
     const results = app().querySelectorAll<HTMLElement>(".ab-result");
     expect(results).toHaveLength(1);
-    expect(results[0]!.dataset.packageId).toBe(SHIPPED.literatureReview027.packageId);
-    expect(results[0]!.textContent).toContain("Found in WebAgents demo index 1.2.0");
+    expect(results[0]!.dataset.packageId).toBe(SHIPPED.literatureReview028.packageId);
+    expect(results[0]!.textContent).toContain("Found in WebAgents demo index 1.3.0");
     // The chip judges the signer the index claims (T8 review 1, finding 2).
     expect(results[0]!.textContent).toContain("claims a key you have not trusted");
 
@@ -144,7 +144,7 @@ describe("search, Library and policy on the full page (T8)", () => {
     await press("Pin to Library", () => buttonNamed("Pin to Library") === null);
     await go("#library", () => app().querySelector(".ab-library-row") && app().textContent?.includes("Recently opened"));
     const pinned = app().querySelector<HTMLElement>(".ab-library-row")!;
-    expect(pinned.dataset.packageUrl).toBe(`${ORIGIN}/packages/literature-review-0.2.7.agent.pkg`);
+    expect(pinned.dataset.packageUrl).toBe(`${ORIGIN}/packages/literature-review-0.2.8.agent.pkg`);
     expect(app().textContent).toContain("Recently opened");
 
     // Settings → Policies: subscribe to the example research policy.
@@ -201,7 +201,7 @@ describe("an error that sends the page to another address shows there (T14 revie
     // The pinned agent's sessions closed, and its origin gone: "Open and verify" has to download again and fails.
     const opened = (await h.controller.handle({ type: "sessions.list" }, PAGE_IN_TAB)) as { sessions: Array<{ session_id: string }> };
     for (const session of opened.sessions) await h.controller.handle({ type: "package.close", sessionId: session.session_id }, PAGE_IN_TAB);
-    const packageUrl = `${ORIGIN}/packages/literature-review-0.2.7.agent.pkg`;
+    const packageUrl = `${ORIGIN}/packages/literature-review-0.2.8.agent.pkg`;
     const saved = routes[packageUrl]!;
     delete routes[packageUrl];
     try {

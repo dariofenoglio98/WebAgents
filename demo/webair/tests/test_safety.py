@@ -135,12 +135,13 @@ def test_the_origin_serves_exactly_its_routes(client):
         | {("/static/webair.css", "GET"), ("/health", "GET")}
         | {("/agent.pkg", "GET"), ("/agent.pkg", "HEAD")}
         # T8: the WebAgents demo documents, fixed paths read from one configured directory
-        # (T11: Literature Review 0.2.6 beside 0.2.5; T15: 0.2.7 beside both).
+        # (T11: Literature Review 0.2.6 beside 0.2.5; T15: 0.2.7 beside both; T20: 0.2.8).
         | {
             (path, method)
             for path in (
                 "/agent-index.json",
                 "/policies/webagents-research.json",
+                "/packages/literature-review-0.2.8.agent.pkg",
                 "/packages/literature-review-0.2.7.agent.pkg",
                 "/packages/literature-review-0.2.6.agent.pkg",
                 "/packages/literature-review-0.2.5.agent.pkg",

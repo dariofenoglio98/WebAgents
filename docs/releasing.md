@@ -71,6 +71,28 @@ cc28762bc58e8897b3615d43559b13021a8237e03096d6cb62c46e4732b6ce59  agentpkg-0.2.2
 1669f83fafac3434748fc19d38a8d3d2c3352da83cf1cbb84796ce313bd4f571  literature-review-0.2.5.agent.pkg
 ```
 
+## The development line's versions
+
+`main` is the development line (D-019); the v0.2.0 release stays on `paper-cic2026`. Each format
+change opens a runtime version, and a package that uses it declares that version as its minimum, so
+an older runtime refuses it by version before anything runs (D-188, D-210). The current versions on
+`main`; identities and hashes are in [dist/README.md](../dist/README.md):
+
+| Component | Version | Since | What it brought |
+|---|---|---|---|
+| agentpkg (Python reference) | 0.4.0, `dist/agentpkg-0.4.0-py3-none-any.whl` | T20 | memory.v0 ([`spec/memory-v0.md`](../spec/memory-v0.md)) |
+| agentpkg | 0.3.0, `dist/agentpkg-0.3.0-py3-none-any.whl` | T13 | answer checks, the `feedback` request line |
+| Chrome core (`SUPPORTED_RUNTIME_VERSION`) | 0.4.0 with core 0.2.0 once T19 lands; 0.3.0 before | T19 | memory.v0 in the Chrome Agent Browser |
+| WebAir | 0.6.0, `dist/webair-0.6.0.agent.pkg` (runtime minimum 0.4.0) | T20 | the travel profile from memory, one preference proposed after a booking |
+| Literature Review | 0.2.8, `dist/literature-review-0.2.8.agent.pkg` (runtime minimum 0.4.0) | T20 | the research profile, the agent's notes and a review proposal, all opt-in |
+| Meeting Agenda | 0.2.2, `dist/meeting-agenda.agent.pkg` | v0.2.0 | — |
+| Demo agent index | 1.3.0, `examples/agent-index.json` (1.2.0 kept as `agent-index-1.2.0.json`) | T20 | names WebAir 0.6.0 and Literature Review 0.2.8 |
+| OpenClaw plugin | 0.1.0, frozen (D-029) | v0.2.0 | runs packages up to WebAir 0.5.0 and Literature Review 0.2.7 |
+
+A changed package is a new version, a new signature and a new row in `dist/README.md`; an unchanged
+package is never re-signed. A version signed but never pushed, deployed or used may be replaced by
+the user's decision (T15's 0.2.7, T20's 0.6.0); once it has left the machine it is fixed.
+
 ## Building and checking the artifacts
 
 From a clean checkout of the release commit. Stale `agentpkg/build/` or

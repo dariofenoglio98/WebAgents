@@ -1,8 +1,18 @@
 # Literature Review Agent — workflow.v0
 
-Version 0.2.7 is a data-only package executed by the same generic interpreter as Meeting Agenda. `MANIFEST.agent` selects `workflow.v0`; **graph.json is the only authoritative execution graph**. The seven skills describe domain behavior; schemas and declared validation assertions enforce the structured contracts.
+Version 0.2.8 is a data-only package executed by the same generic interpreter as Meeting Agenda. `MANIFEST.agent` selects `workflow.v0`; **graph.json is the only authoritative execution graph**. The eight skills describe domain behavior; schemas and declared validation assertions enforce the structured contracts.
 
 The graph performs planning, seed resolution, parallel search, join/normalization/deduplication, parallel screening, citation resolution, evidence preparation and parallel extraction, synthesis, writing, verification and declared exports. Citation Resolver remains a remote tool consumed through its existing contract. Conditional selected-PDF reads remain worker-local. Exact quote/page checks, record links and resolver metadata checks use generic validation nodes.
+
+## 0.2.8: the person's memory, with three switches that are off by default
+
+0.2.8 is 0.2.7 with the person's memory ([memory.v0](../../spec/memory-v0.md)); it needs a runtime that implements it (agentpkg 0.4.0, the Chrome Agent Browser's core 0.2.0). The task gains three fields, all off by default; off, the run is 0.2.7's and proposes nothing:
+
+- **Use my research profile** (`use_profile`): the planning step also receives the fields and note of the research profile the person chooses from their memory (`memory.read` of `research.profile`, optional permission `memory.research_profile`; a record view, never the store). Its interests and topics to avoid shape the queries; its seed papers are hints.
+- **Keep agent notes** (`keep_notes`): the agent reads its own notes from earlier runs before planning and writes new ones at the end (`memory` with scope `agent-scoped`, permission `memory.agent`, the reserved tools `agent-notes.read` and `agent-notes.write`). The host commits the notes only when the run completes; the person reads and clears them in Settings.
+- **Review date** (`reviewed_on`, YYYY-MM-DD, the person's): the run proposes to remember the review as one `research.review` (`memory.write`, permission `memory.remember`): the question and the date from the task, the titles of the cited papers from the bibliography, and a title, a short body and a rationale from a new `remember` step; linked `derived_from` the research profile when one was read. It is written to `proposals.json`; nothing is remembered until the person accepts it after the run.
+
+The graph cannot see the person's grants, so each read happens only when its switch is on: a switch turned on with its permission denied stops the run (`permission_denied`). The new `remember` model step (`RememberWorker`, skill `review-memory` 0.1.0, 24,000 tokens) runs only when notes are kept or a review date is given; with two re-asks its worst case still fits the unchanged run total (180,000 tokens, 45 remote calls, 4,500 s). The planning skill (literature-search 0.1.4) says how to use the profile and the notes. Tools, budgets and every check of 0.2.7 are unchanged.
 
 ## 0.2.7: the models judge, the graph keeps the records, and every run lists the papers found
 
@@ -115,19 +125,20 @@ No assertion was removed or loosened: exact quote containment, record links, res
 
 ## Replay fixture
 
-`fixtures/workflow.json` owns the exact-input model/tool replay scenario; in 0.2.2 its evidence ids follow the `<paper_id>:e<n>` contract, and in 0.2.3 its verifier bibliography rows carry no metadata. It is synthetic: three searches of three results each (nine records, eight found papers after exact deduplication by DOI), one selected document, so `normalize` is asked, eight screening decisions and eight `papers-found` entries, three selected papers, three citation resolutions (two resolved, one ambiguous), two bibliography entries and seven evidence items, four of them from a selected PDF. Replay does not infer answers to new questions or establish model quality. The original fixture dataset and application schemas remain available; old specialized eval definitions are historical data and are not claimed as the new generic eval harness.
+`fixtures/workflow.json` owns the exact-input model/tool replay scenarios: the default input (memory off) and, since 0.2.8, `examples/literature-review-0.2.8-memory-input.json` (profile, notes and a review date on: the fixture holds the spec's synthetic research profile, empty earlier notes and the `remember` answer, so `proposals.json` holds one review); in 0.2.2 its evidence ids follow the `<paper_id>:e<n>` contract, and in 0.2.3 its verifier bibliography rows carry no metadata. It is synthetic: three searches of three results each (nine records, eight found papers after exact deduplication by DOI), one selected document, so `normalize` is asked, eight screening decisions and eight `papers-found` entries, three selected papers, three citation resolutions (two resolved, one ambiguous), two bibliography entries and seven evidence items, four of them from a selected PDF. Replay does not infer answers to new questions or establish model quality. The original fixture dataset and application schemas remain available; old specialized eval definitions are historical data and are not claimed as the new generic eval harness.
 
 ```sh
 # Run from repository root, with a new output directory.
-agentpkg/.venv/bin/agentpkg run dist/literature-review-0.2.7.agent.pkg \
-  --mode fixture --input examples/literature-review-input.json \
-  --grants examples/literature-review-grants.json \
+agentpkg/.venv/bin/agentpkg run dist/literature-review-0.2.8.agent.pkg \
+  --mode fixture --input examples/literature-review-0.2.8-memory-input.json \
+  --grants examples/literature-review-0.2.8-grants.json \
   --approve-tool scholarly-search --approve-tool citation-resolver --approve-tool paper-reader \
+  --approve-tool research.profile --approve-tool agent-notes.read --approve-tool agent-notes.write \
   --out examples/my-workflow-review
 ```
 
-`result.json`, `audit.json`, `usage.json` and `provenance.json` identify `agentpkg.workflow.Workflow`. Graph-declared exports include Related Work Markdown, the papers found, bibliography, evidence table, unresolved records and verification results.
+`result.json`, `audit.json`, `usage.json` and `provenance.json` identify `agentpkg.workflow.Workflow`. Graph-declared exports include Related Work Markdown, the papers found, bibliography, evidence table, unresolved records, verification results and, since 0.2.8, `proposals.json` (the memory proposals, checked by the runtime before the run completes).
 
-The package retains session memory, depth-one local workers, three concurrent workers, 180,000 synthetic/model token units, 45 remote dispatches and the existing per-tool limits. Actual authority comes from host grants and explicit tool approvals. Fixtures use the same enforcement path and consume declared remote dispatch capacity despite making no network requests.
+The package's run state is session state as before (0.2.8's `agent-scoped` scope adds only the agent's notes); it keeps depth-one local workers, three concurrent workers, 180,000 synthetic/model token units, 45 remote dispatches and the existing per-tool limits. Actual authority comes from host grants and explicit tool approvals. Fixtures use the same enforcement path and consume declared remote dispatch capacity despite making no network requests.
 
 The earlier extractive/real-provider runner is separately preserved with `agents/literature-review-legacy`, `dist/literature-review-legacy.agent.pkg`, and `agentpkg.dev`. It is not used by this graph. See [migration details](../../docs/workflow-migration.md) and the [execution specification](../../spec/workflow-v0.md).

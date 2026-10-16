@@ -573,6 +573,48 @@ and `total_usd` is `null` when nothing was reported.
 Which model answered is recorded per call by the router adapter, so the record
 can state `allCallsUsedPlannedModel` from evidence rather than assert it once.
 
+## 14a. Memory: proposals, the agent document and the egress scans (memory.v0)
+
+agentpkg 0.4.0 implements [memory.v0](../spec/memory-v0.md) in the same interpreter; nothing about
+it is package-specific (D-009) and a package that uses none of it runs exactly as before (its
+report has no `memory` section). What a run holds about memory is one object built before the run
+(`agentpkg.memory.run.MemoryRun`): the scan set, the grants, the types and the agent document.
+
+- **Model requests are scanned (M-37).** Before every model request, the token count included, the
+  complete request as it will be sent is searched for the run's scan set; a hit records
+  `model.refused` with `reason: "sealed_value_in_model_request"`, the record id and the pointer,
+  and the node fails `permission_denied` before anything leaves. In fixture mode the scan set is
+  the sealed values of the replayed memory reads (M-62), so a graph that routes a sealed value into
+  a model step is refused there too (N11).
+- **Proposals are checked before the run completes (M-40).** The `memory.proposal` export is
+  constructed from the final output and checked in order: the proposals schema; for each proposal,
+  in index order, a declared and proposable type, no sealed field, the type's schema, an `update`
+  only of a record this run was granted, and links only to `self`, a granted record or another
+  proposal; then no sealed value anywhere in the document. The first refusal fails the run with its
+  code (`permission_denied` or `schema_validation`) and `workflow.failed` names the reason and the
+  proposal index; the document is written to `proposals.json` only when every check passed, and
+  `memory.proposed {count, types, proposals_sha256, offered, reason}` precedes `workflow.completed`.
+  Nothing a run proposes is ever written to the memory by the run: the person reviews it afterwards.
+- **The agent document is committed only on completion (M-50).** A staged body is committed after
+  `workflow.completed` (`memory.agent.committed`, its size and hash) and discarded otherwise
+  (`memory.agent.discarded`, with the reason), always before `memory.cleared`. The host writes the
+  document before it records the commit; a write its store refuses is a discard with reason
+  `store_failed`, and the run stays completed (D-234). The outcome is recorded once per run, even
+  when something fails after it was recorded. The agent
+  permission authorizes the two agent tools and nothing else, so denying it never stops the run's
+  state access.
+- **The report** (`result.json`) gains `memory: {proposals, refused, agent}` (D-231): the facts of
+  `memory.proposed`, an M-40 refusal, and the agent document's fate. The Chrome core writes the
+  same section.
+
+Validation refuses, before anything runs, what a package may not declare about memory (M-18, M-19,
+M-33, M-38, M-48, M-67): a `memory.read` naming more than one type, `memory.write` without the
+`proposals.json` export (or the export without the permission), a reserved type (a `memory.read`
+of any `agent.` type among them, D-235), an agent tool
+outside `agent-scoped` or with other schemas, a custom type that shadows a sealed starter field or
+whose schema is not closed, and any of it under a runtime minimum below 0.4.0. Each refusal's text
+starts with the specification's code.
+
 ## 15. Why Meeting Agenda was the first package
 
 It declares `tools: []`. When this runner was written it had no generic

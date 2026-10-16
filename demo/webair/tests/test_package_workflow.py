@@ -39,6 +39,7 @@ from publisher.scenarios import (
     demo_booking,
     scenario,
     scenarios,
+    source_scenario,
 )
 
 CANONICAL_NODE_TYPES = {"llm", "tool", "map", "join", "validate", "output"}
@@ -75,8 +76,9 @@ def failure(package, origin_app, input_value, **options):
 
 
 def capability(package, origin_app, case_id, *, grants=None, selections=None, **options):
-    """A host-capability scenario: its grants and picks, the demo host's resources."""
-    case = capability_scenario(case_id)
+    """A host-capability scenario: its grants and picks, the demo host's resources, with the
+    0.6.0 source's permission ids and the `remember` step scripted (`source_scenario`)."""
+    case = source_scenario(capability_scenario(case_id), options.pop("remember", None))
     picked = case.selections if selections is None else selections
     handlers = {
         **json_http_handlers(package, origin_app, record=options.pop("record", None)),
@@ -248,7 +250,7 @@ def test_profile_fills_only_what_the_request_left_open(package, origin_app):
 def test_explicit_search_never_reads_the_profile(package, origin_app):
     report = capability(package, origin_app, "explicit-search-profile-denied")
     assert report["output"]["status"] == "options_found"
-    assert "personal.travel_profile" not in tools_called(report)
+    assert "travel.profile" not in tools_called(report)
 
 
 def test_booking_quote_is_webairs_quote_for_the_granted_passenger(package, origin_app):
@@ -269,7 +271,7 @@ def test_booking_quote_is_webairs_quote_for_the_granted_passenger(package, origi
     ]
     assert "simulate-purchase" not in tools_called(report)
     for model in events(report, "model.called"):
-        assert model["task"] in {"interpret", "select", "answer"}
+        assert model["task"] in {"interpret", "select", "answer", "remember"}
     text = str(result)
     assert ALEX["given_name"] not in text and ALEX["contact_email"] not in text
 
@@ -291,7 +293,7 @@ def test_simulated_purchase_is_only_ever_simulated(package, origin_app):
     assert [c["tool"] for c in calls if VISA["payment_method_id"] in str(c["input"])] == [
         "simulate-purchase"
     ]
-    assert [e["task"] for e in events(report, "model.called")] == ["answer"]
+    assert sorted(e["task"] for e in events(report, "model.called")) == ["answer", "remember"]
     assert VISA["payment_method_id"] not in str(result)
 
 
@@ -325,7 +327,12 @@ def test_search_runs_with_every_personal_permission_denied(package, origin_app):
     grants = {
         **all_grants(package),
         **dict.fromkeys(
-            ["profile.travel", "identity.passenger", "wallet.payment", "booking.simulate_purchase"],
+            [
+                "memory.travel_profile",
+                "identity.passenger",
+                "wallet.payment",
+                "booking.simulate_purchase",
+            ],
             "deny",
         ),
     }
@@ -335,13 +342,19 @@ def test_search_runs_with_every_personal_permission_denied(package, origin_app):
 
 
 def test_a_profile_request_needs_the_profile_permission(package, origin_app):
-    grants = {**capability_scenario("profile-search").decisions, "profile.travel": "deny"}
+    grants = {
+        **source_scenario(capability_scenario("profile-search")).decisions,
+        "memory.travel_profile": "deny",
+    }
     error = capability_failure(package, origin_app, "profile-search", grants=grants)
     assert error.code == "permission_denied" and error.node_id == "profile"
 
 
 def test_booking_needs_the_identity_permission(package, origin_app):
-    grants = {**capability_scenario("booking").decisions, "identity.passenger": "deny"}
+    grants = {
+        **source_scenario(capability_scenario("booking")).decisions,
+        "identity.passenger": "deny",
+    }
     error = capability_failure(package, origin_app, "booking", grants=grants)
     assert error.code == "permission_denied" and error.node_id == "passenger"
 
@@ -361,7 +374,10 @@ def test_purchase_needs_the_payment_method_before_any_identity_is_read(package, 
 
 
 def test_quote_authority_is_not_purchase_authority(package, origin_app):
-    grants = {**capability_scenario("purchase-visa").decisions, "booking.simulate_purchase": "deny"}
+    grants = {
+        **source_scenario(capability_scenario("purchase-visa")).decisions,
+        "booking.simulate_purchase": "deny",
+    }
     calls = []
     error = capability_failure(package, origin_app, "purchase-visa", grants=grants, record=calls)
     assert error.code == "permission_denied" and error.node_id == "purchase"
@@ -424,11 +440,11 @@ def test_tool_roles_are_least_privilege(package):
     assert roles["Searcher"]["tools"] == ["search-flights", "get-fare-rules"]
     assert roles["Booker"]["tools"] == ["prepare-booking", "simulate-purchase"]
     assert roles["Personal"]["tools"] == [
-        "personal.travel_profile",
+        "travel.profile",
         "personal.passenger_identity",
         "wallet.payment_method",
     ]
-    for model_role in ("Interpreter", "Selector", "Writer"):
+    for model_role in ("Interpreter", "Selector", "Writer", "Rememberer"):
         assert roles[model_role]["tools"] == []
         assert not {"profile", "passenger", "payment", "booking_request", "purchase_request"} & set(
             roles[model_role]["state_read"]

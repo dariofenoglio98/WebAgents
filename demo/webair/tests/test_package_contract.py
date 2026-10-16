@@ -42,7 +42,10 @@ TOOL_IDS = {
     "prepare-booking",
     "simulate-purchase",
 }
-HOST_TOOL_IDS = {"personal.travel_profile", "personal.passenger_identity", "wallet.payment_method"}
+# The host-owned reads: the passenger identity and payment method by their host resource types
+# (personal.read), and since 0.6.0 the travel profile from the person's memory (memory.read).
+HOST_TOOL_IDS = {"travel.profile", "personal.passenger_identity", "wallet.payment_method"}
+MEMORY_TOOL_IDS = {"travel.profile"}
 
 
 @pytest.fixture(scope="module")
@@ -76,8 +79,10 @@ def test_the_package_declares_the_four_semantic_operations_and_three_host_resour
     assert {package.tools[tool_id]["binding"] for tool_id in TOOL_IDS} == {
         f"webair.{operation}" for operation in PACKAGE_TOOLS
     }
-    for tool_id in HOST_TOOL_IDS:
+    for tool_id in HOST_TOOL_IDS - MEMORY_TOOL_IDS:
         assert package.tools[tool_id]["binding"] == f"host.resource.{tool_id}"
+    for tool_id in MEMORY_TOOL_IDS:
+        assert package.tools[tool_id]["binding"] == f"host.memory.{tool_id}"
 
 
 def test_every_webair_tool_names_one_published_operation(package, published):
@@ -237,7 +242,8 @@ def test_host_resource_schemas_are_the_demo_hosts_own(package):
     for tool_id in HOST_TOOL_IDS:
         tool = package.tools[tool_id]
         assert tool["input_schema"] == "schemas/host/empty-input.schema.json"
-        assert tool["output_schema"] == f"schemas/host/{tool_id}.schema.json"
+        suffix = "view.schema.json" if tool_id in MEMORY_TOOL_IDS else "schema.json"
+        assert tool["output_schema"] == f"schemas/host/{tool_id}.{suffix}"
 
 
 def test_the_demo_hosts_bindings_are_generated_from_the_published_contract():

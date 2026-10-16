@@ -15,7 +15,7 @@
 import { AgentPkgError } from "../errors.js";
 import { sha256HexSync } from "../hash.js";
 import type { JsonObject, JsonValue } from "../json.js";
-import { fixtureMemoryScan, MemoryRun } from "../memory/run.js";
+import { fixtureMemory, MemoryRun } from "../memory/run.js";
 import type { ModelRouter } from "../models/contract.js";
 import { packageJson, type Package } from "../package.js";
 import { declaredSchemaPaths } from "../presentation.js";
@@ -226,7 +226,13 @@ export class ExecutionSession {
     if (memory === null) {
       const fixturePath = pkg.graph.fixture;
       const fixtureDocument = fixture && typeof fixturePath === "string" ? (packageJson(pkg, fixturePath) as JsonObject) : null;
-      memory = new MemoryRun(pkg, plan.resource_grants, grants, fixtureDocument !== null ? { scan: fixtureMemoryScan(pkg, fixtureDocument) } : {});
+      if (fixtureDocument !== null) {
+        // D-230: without a store, the fixture's replayed answers give the scan set, the grants
+        // (unless the plan names its own) and the update targets, as `agentpkg run` derives them.
+        const derived = fixtureMemory(pkg, fixtureDocument, grants);
+        const memoryGrants = plan.resource_grants.length > 0 ? plan.resource_grants : derived.grants;
+        memory = new MemoryRun(pkg, memoryGrants, grants, { scan: derived.scan, targets: derived.targets });
+      } else memory = new MemoryRun(pkg, plan.resource_grants, grants, {});
     }
     let handlers: Record<string, ToolHandler>;
     let bound: BoundToolHandler[] = [];

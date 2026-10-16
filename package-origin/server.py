@@ -16,7 +16,8 @@ LATEST_PATH = "/literature-review.agent.pkg"
 INDEXED_PATH = "/packages/literature-review-0.2.5.agent.pkg"
 
 # The packages a demo index names at the WebAir deployment's paths, pinned by SHA-256: Literature
-# Review 0.2.6, which index 1.1.0 named (T11, D-131), and 0.2.7, which index 1.2.0 names (T15, D-174).
+# Review 0.2.6, which index 1.1.0 named (T11, D-131), 0.2.7, which index 1.2.0 named (T15, D-174),
+# and 0.2.8, which index 1.3.0 names (T20, D-232).
 INDEXED_PACKAGES = {
     "/packages/literature-review-0.2.6.agent.pkg": (
         Path(__file__).parent / "packages" / "literature-review-0.2.6.agent.pkg",
@@ -26,6 +27,10 @@ INDEXED_PACKAGES = {
         Path(__file__).parent / "packages" / "literature-review-0.2.7.agent.pkg",
         "8951a14bb1f42bca1590bc7d0c9cc00cccba75b36f1488969b6b3ff47063fe61",
     ),
+    "/packages/literature-review-0.2.8.agent.pkg": (
+        Path(__file__).parent / "packages" / "literature-review-0.2.8.agent.pkg",
+        "0d03d1c8b366aabd6343b15958185c10cdab6639828f9c73bafbb26538db8330",
+    ),
 }
 
 # The signed WebAgents demo documents (T8): fixed paths, pinned bytes, read once at startup.
@@ -33,7 +38,7 @@ INDEXED_PACKAGES = {
 DOCUMENTS = {
     "/agent-index.json": (
         Path(__file__).parent / "documents" / "agent-index.json",
-        "caf08869f8628307e06979354a6863346e9918131c2b12059827998d6d04e74b",
+        "d84b45a559235dc408662f2032065b9750faa9344616abf3a94ffe32e0446d14",
     ),
     "/policies/webagents-research.json": (
         Path(__file__).parent / "documents" / "policies" / "webagents-research.json",

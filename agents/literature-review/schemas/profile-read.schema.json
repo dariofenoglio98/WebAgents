@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Research profile read",
+  "description": "The memory record view of the research profile the person chose, or nothing when the run does not use one.",
+  "anyOf": [
+    {
+      "$ref": "host/research.profile.view.schema.json"
+    },
+    {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "null"
+        },
+        "fields": {
+          "type": "null"
+        },
+        "body": {
+          "const": ""
+        }
+      },
+      "required": [
+        "id",
+        "fields",
+        "body"
+      ],
+      "additionalProperties": false
+    }
+  ]
+}

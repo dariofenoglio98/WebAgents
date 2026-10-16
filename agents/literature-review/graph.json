@@ -49,6 +49,14 @@
         "from": "result",
         "path": "/verification_results"
       }
+    },
+    {
+      "path": "proposals.json",
+      "format": "memory.proposal",
+      "value": {
+        "from": "result",
+        "path": "/memory_proposals"
+      }
     }
   ],
   "extensions": {
@@ -303,13 +311,252 @@
       },
       "verification_results": {
         "literal": []
+      },
+      "use_profile": {
+        "from": "input",
+        "path": "/use_profile"
+      },
+      "keep_notes": {
+        "from": "input",
+        "path": "/keep_notes"
+      },
+      "reviewed_on": {
+        "from": "input",
+        "path": "/reviewed_on"
+      },
+      "research_profile": {
+        "literal": null
+      },
+      "research_profile_note": {
+        "literal": ""
+      },
+      "research_profile_id": {
+        "literal": null
+      },
+      "agent_notes": {
+        "literal": ""
+      },
+      "notes_written": {
+        "literal": null
+      },
+      "remember": {
+        "literal": {
+          "notes": "",
+          "review": {
+            "title": "(not written)",
+            "body": "(not written)",
+            "rationale": "(not written)"
+          }
+        }
+      },
+      "remember_gate": {
+        "literal": false
+      },
+      "review_papers": {
+        "literal": []
+      },
+      "review_links": {
+        "literal": []
+      },
+      "memory_proposals": {
+        "literal": {
+          "schema": "memory.v0 proposals",
+          "proposals": []
+        }
       }
     }
   },
   "input_schema": "schemas/workflow-input.schema.json",
   "nodes": [
     {
+      "id": "profile",
+      "type": "tool",
+      "worker": "MemoryWorker",
+      "tool": "research.profile",
+      "input": {
+        "literal": {}
+      },
+      "when": {
+        "left": {
+          "from": "state",
+          "path": "/use_profile"
+        },
+        "op": "eq",
+        "right": {
+          "literal": true
+        }
+      },
+      "otherwise": {
+        "literal": {
+          "id": null,
+          "fields": null,
+          "body": ""
+        }
+      },
+      "output_schema": "schemas/profile-read.schema.json",
+      "timeout_seconds": 30,
       "depends_on": [],
+      "writes": {
+        "/research_profile": {
+          "from": "result",
+          "path": "/fields"
+        },
+        "/research_profile_note": {
+          "from": "result",
+          "path": "/body"
+        },
+        "/research_profile_id": {
+          "from": "result",
+          "path": "/id"
+        }
+      }
+    },
+    {
+      "id": "notes-read",
+      "type": "tool",
+      "worker": "MemoryWorker",
+      "tool": "agent-notes.read",
+      "input": {
+        "literal": {}
+      },
+      "when": {
+        "left": {
+          "from": "state",
+          "path": "/keep_notes"
+        },
+        "op": "eq",
+        "right": {
+          "literal": true
+        }
+      },
+      "otherwise": {
+        "literal": {
+          "body": "",
+          "updated": null
+        }
+      },
+      "output_schema": "schemas/host/agent-notes.read.output.schema.json",
+      "timeout_seconds": 30,
+      "depends_on": [],
+      "writes": {
+        "/agent_notes": {
+          "from": "result",
+          "path": "/body"
+        }
+      }
+    },
+    {
+      "id": "gate-review",
+      "type": "validate",
+      "worker": "LiteratureReviewCoordinator",
+      "input": {
+        "literal": true
+      },
+      "when": {
+        "left": {
+          "from": "state",
+          "path": "/reviewed_on"
+        },
+        "op": "ne",
+        "right": {
+          "literal": null
+        }
+      },
+      "otherwise": {
+        "literal": false
+      },
+      "output_schema": "schemas/flag.schema.json",
+      "timeout_seconds": 10,
+      "depends_on": [],
+      "writes": {
+        "/remember_gate": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "id": "gate-notes",
+      "type": "validate",
+      "worker": "LiteratureReviewCoordinator",
+      "input": {
+        "literal": true
+      },
+      "when": {
+        "left": {
+          "from": "state",
+          "path": "/keep_notes"
+        },
+        "op": "eq",
+        "right": {
+          "literal": true
+        }
+      },
+      "otherwise": {
+        "from": "state",
+        "path": "/remember_gate"
+      },
+      "output_schema": "schemas/flag.schema.json",
+      "timeout_seconds": 10,
+      "depends_on": [
+        "gate-review"
+      ],
+      "writes": {
+        "/remember_gate": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "id": "review-links",
+      "type": "validate",
+      "worker": "LiteratureReviewCoordinator",
+      "input": {
+        "array": [
+          {
+            "object": {
+              "to": {
+                "from": "state",
+                "path": "/research_profile_id"
+              },
+              "rel": {
+                "literal": "derived_from"
+              }
+            }
+          }
+        ]
+      },
+      "when": {
+        "left": {
+          "from": "state",
+          "path": "/research_profile_id"
+        },
+        "op": "ne",
+        "right": {
+          "literal": null
+        }
+      },
+      "otherwise": {
+        "literal": []
+      },
+      "output_schema": "schemas/review-links.schema.json",
+      "timeout_seconds": 10,
+      "depends_on": [
+        "profile"
+      ],
+      "writes": {
+        "/review_links": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "depends_on": [
+        "profile",
+        "notes-read"
+      ],
       "id": "planning",
       "input": {
         "object": {
@@ -320,6 +567,18 @@
           "seed_references": {
             "from": "state",
             "path": "/seed_references"
+          },
+          "research_profile": {
+            "from": "state",
+            "path": "/research_profile"
+          },
+          "profile_note": {
+            "from": "state",
+            "path": "/research_profile_note"
+          },
+          "agent_notes": {
+            "from": "state",
+            "path": "/agent_notes"
           }
         }
       },
@@ -3323,11 +3582,254 @@
       }
     },
     {
+      "id": "review-papers",
+      "type": "map",
+      "worker": "CitationWorker",
+      "input": {
+        "from": "state",
+        "path": "/bibliography"
+      },
+      "item_schema": "schemas/bibliography-entry.schema.json",
+      "max_items": 20,
+      "max_parallel": 3,
+      "output_schema": "schemas/review-papers.schema.json",
+      "steps": [
+        {
+          "id": "title",
+          "type": "validate",
+          "input": {
+            "object": {
+              "title": {
+                "from": "item",
+                "path": "/metadata/title"
+              }
+            }
+          },
+          "output_schema": "schemas/review-paper.schema.json",
+          "timeout_seconds": 10
+        }
+      ],
+      "timeout_seconds": 60,
+      "depends_on": [
+        "bibliography"
+      ],
+      "writes": {
+        "/review_papers": {
+          "from": "result",
+          "path": ""
+        }
+      },
+      "yield": {
+        "from": "steps",
+        "path": "/title"
+      }
+    },
+    {
+      "id": "remember",
+      "type": "llm",
+      "worker": "RememberWorker",
+      "task": "remember",
+      "input": {
+        "object": {
+          "research_question": {
+            "from": "state",
+            "path": "/research_question"
+          },
+          "related_work": {
+            "from": "state",
+            "path": "/review/related_work"
+          },
+          "papers": {
+            "from": "state",
+            "path": "/review_papers"
+          },
+          "agent_notes": {
+            "from": "state",
+            "path": "/agent_notes"
+          },
+          "reviewed_on": {
+            "from": "state",
+            "path": "/reviewed_on"
+          }
+        }
+      },
+      "when": {
+        "left": {
+          "from": "state",
+          "path": "/remember_gate"
+        },
+        "op": "eq",
+        "right": {
+          "literal": true
+        }
+      },
+      "otherwise": {
+        "literal": {
+          "notes": "",
+          "review": {
+            "title": "(not written)",
+            "body": "(not written)",
+            "rationale": "(not written)"
+          }
+        }
+      },
+      "output_schema": "schemas/remember.schema.json",
+      "max_output_tokens": 4000,
+      "timeout_seconds": 360,
+      "depends_on": [
+        "verification",
+        "review-papers",
+        "gate-notes",
+        "notes-read"
+      ],
+      "writes": {
+        "/remember": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "id": "notes-write",
+      "type": "tool",
+      "worker": "MemoryWorker",
+      "tool": "agent-notes.write",
+      "input": {
+        "object": {
+          "body": {
+            "from": "state",
+            "path": "/remember/notes"
+          }
+        }
+      },
+      "when": {
+        "left": {
+          "from": "state",
+          "path": "/keep_notes"
+        },
+        "op": "eq",
+        "right": {
+          "literal": true
+        }
+      },
+      "otherwise": {
+        "literal": {
+          "staged": false,
+          "bytes": 0
+        }
+      },
+      "output_schema": "schemas/notes-written.schema.json",
+      "timeout_seconds": 30,
+      "depends_on": [
+        "remember"
+      ],
+      "writes": {
+        "/notes_written": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "id": "review-proposal",
+      "type": "validate",
+      "worker": "LiteratureReviewCoordinator",
+      "input": {
+        "object": {
+          "schema": {
+            "literal": "memory.v0 proposals"
+          },
+          "proposals": {
+            "array": [
+              {
+                "object": {
+                  "action": {
+                    "literal": "create"
+                  },
+                  "type": {
+                    "literal": "research.review"
+                  },
+                  "title": {
+                    "from": "state",
+                    "path": "/remember/review/title"
+                  },
+                  "fields": {
+                    "object": {
+                      "question": {
+                        "from": "state",
+                        "path": "/research_question"
+                      },
+                      "reviewed_on": {
+                        "from": "state",
+                        "path": "/reviewed_on"
+                      },
+                      "papers": {
+                        "from": "state",
+                        "path": "/review_papers"
+                      }
+                    }
+                  },
+                  "body": {
+                    "from": "state",
+                    "path": "/remember/review/body"
+                  },
+                  "tags": {
+                    "literal": [
+                      "review"
+                    ]
+                  },
+                  "links": {
+                    "from": "state",
+                    "path": "/review_links"
+                  },
+                  "rationale": {
+                    "from": "state",
+                    "path": "/remember/review/rationale"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "when": {
+        "left": {
+          "from": "state",
+          "path": "/reviewed_on"
+        },
+        "op": "ne",
+        "right": {
+          "literal": null
+        }
+      },
+      "otherwise": {
+        "literal": {
+          "schema": "memory.v0 proposals",
+          "proposals": []
+        }
+      },
+      "output_schema": "schemas/review-proposals.schema.json",
+      "timeout_seconds": 10,
+      "depends_on": [
+        "remember",
+        "review-links",
+        "review-papers"
+      ],
+      "writes": {
+        "/memory_proposals": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
       "depends_on": [
         "bibliography",
         "materialize-claims",
         "materialize-evidence",
-        "papers-found"
+        "papers-found",
+        "review-proposal",
+        "notes-write"
       ],
       "id": "assemble-output",
       "input": {
@@ -3359,6 +3861,10 @@
           "papers_found": {
             "from": "state",
             "path": "/papers_found"
+          },
+          "memory_proposals": {
+            "from": "state",
+            "path": "/memory_proposals"
           }
         }
       },
@@ -3605,7 +4111,18 @@
         "seed_batches",
         "selection",
         "selection_slots",
-        "unresolved"
+        "unresolved",
+        "use_profile",
+        "keep_notes",
+        "reviewed_on",
+        "research_profile_id",
+        "remember",
+        "remember_gate",
+        "review_papers",
+        "review_links",
+        "memory_proposals",
+        "notes_written",
+        "research_question"
       ],
       "state_write": [
         "all_batches",
@@ -3620,7 +4137,10 @@
         "normalize_documents",
         "papers_found",
         "raw_candidates",
-        "selection_slots"
+        "selection_slots",
+        "remember_gate",
+        "review_links",
+        "memory_proposals"
       ],
       "tools": []
     },
@@ -3640,7 +4160,10 @@
         "found_refs",
         "normalize_documents",
         "research_question",
-        "seed_references"
+        "seed_references",
+        "research_profile",
+        "research_profile_note",
+        "agent_notes"
       ],
       "state_write": [
         "candidate_refs",
@@ -3717,7 +4240,8 @@
         "preparation_batches",
         "resolved_jobs",
         "review",
-        "search_plan"
+        "search_plan",
+        "bibliography"
       ],
       "state_write": [
         "bibliography",
@@ -3727,7 +4251,8 @@
         "preparation_batches",
         "resolved_jobs",
         "seed_batches",
-        "unresolved"
+        "unresolved",
+        "review_papers"
       ],
       "tools": [
         "citation-resolver"
@@ -3831,6 +4356,57 @@
         "verification_results"
       ],
       "tools": []
+    },
+    {
+      "id": "MemoryWorker",
+      "kind": "packaged",
+      "skills": [],
+      "tools": [
+        "research.profile",
+        "agent-notes.read",
+        "agent-notes.write"
+      ],
+      "max_instances": 1,
+      "budget": {
+        "tokens": 0,
+        "remote_calls": 0
+      },
+      "state_read": [
+        "use_profile",
+        "keep_notes",
+        "remember"
+      ],
+      "state_write": [
+        "research_profile",
+        "research_profile_note",
+        "research_profile_id",
+        "agent_notes",
+        "notes_written"
+      ]
+    },
+    {
+      "id": "RememberWorker",
+      "kind": "packaged",
+      "skills": [
+        "review-memory"
+      ],
+      "tools": [],
+      "max_instances": 1,
+      "budget": {
+        "tokens": 24000,
+        "remote_calls": 15
+      },
+      "state_read": [
+        "research_question",
+        "review",
+        "review_papers",
+        "agent_notes",
+        "reviewed_on",
+        "remember_gate"
+      ],
+      "state_write": [
+        "remember"
+      ]
     }
   ]
 }

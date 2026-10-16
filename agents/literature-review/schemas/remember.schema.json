@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "What to remember",
+  "description": "The agent's own notes for its next run, and the words of the review proposal the person reviews after the run. When the step does not run, the workflow uses empty notes and a review marked \"(not written)\", which nothing reads.",
+  "type": "object",
+  "properties": {
+    "notes": {
+      "type": "string",
+      "maxLength": 4000
+    },
+    "review": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "pattern": "^[^\\r\\n]+$"
+        },
+        "body": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1500
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300
+        }
+      },
+      "required": [
+        "title",
+        "body",
+        "rationale"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "notes",
+    "review"
+  ],
+  "additionalProperties": false
+}

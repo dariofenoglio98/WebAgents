@@ -203,6 +203,21 @@ def parser():
     run.add_argument(
         "--limits", help="Optional host JSON limits, which can only lower package budgets"
     )
+    run.add_argument(
+        "--memory-dir",
+        help=(
+            "A memory.v0 folder (an export folder with sealed values in clear and its memory.key, "
+            "generated when absent): the store the run's memory tools read and the egress scans "
+            "check; live runs commit the package's agent document into it on completion"
+        ),
+    )
+    run.add_argument(
+        "--memory-grant",
+        action="append",
+        default=[],
+        metavar="PERMISSION=RECORD",
+        help="Grant one record of --memory-dir to a memory.read (or personal.read) permission",
+    )
     run.add_argument("--out", required=True, help="New private output directory")
     evaluate = commands.add_parser(
         "eval", help="Run the supported host evaluation harness with explicit synthetic fixtures"
@@ -418,7 +433,26 @@ def _dispatch(args):
             raise AgentPkgError(
                 f"--approve-tool names tools this package does not declare: {unknown}"
             )
-        options = dict(grants=grants, handlers=handlers, router=router, approved_tools=approved)
+        # memory.v0 (agentpkg 0.4.0): the run's memory from --memory-dir, or in fixture mode from
+        # the package's own replayed answers (M-62, M-63, D-230).
+        from .memory.host import cli_memory
+
+        memory_run, _folder, memory_handlers = cli_memory(
+            package,
+            mode=mode,
+            decisions=grants,
+            memory_dir=getattr(args, "memory_dir", None),
+            memory_grants=getattr(args, "memory_grant", None) or (),
+        )
+        if mode == "live":
+            handlers = {**handlers, **memory_handlers}
+        options = dict(
+            grants=grants,
+            handlers=handlers,
+            router=router,
+            approved_tools=approved,
+            memory=memory_run,
+        )
         if command == "run" and args.limits:
             options["limits"] = _json_file(args.limits)
         if args.out:
@@ -441,6 +475,12 @@ def _dispatch(args):
             raise
         if args.out:
             _write_result(args.out, result, package)
+        if memory_run.commit_error:
+            # M-50: the folder refused the agent document; the Run Record says `store_failed`.
+            print(
+                f"agentpkg: the agent document was not committed: {memory_run.commit_error}",
+                file=sys.stderr,
+            )
         return {
             "status": result["status"],
             "profile": "workflow.v0",

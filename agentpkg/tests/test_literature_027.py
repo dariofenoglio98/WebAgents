@@ -36,22 +36,23 @@ from literature_scenarios import (
 from shipped_keys import LITERATURE_FINGERPRINT, LITERATURE_KEY
 
 from agentpkg.fixtures import fixture_adapters
-from agentpkg.package import build_package, load_package
+from agentpkg.package import load_package
 from agentpkg.signing import verify_package
 from agentpkg.workflow import WorkflowError, run_workflow
 
 ROOT = Path(__file__).resolve().parents[2]
-SOURCE = ROOT / "agents/literature-review"
 ARCHIVE = ROOT / "dist/literature-review-0.2.7.agent.pkg"
+ARCHIVE_SHA256 = "8951a14bb1f42bca1590bc7d0c9cc00cccba75b36f1488969b6b3ff47063fe61"
 PREVIOUS = ROOT / "dist/literature-review-0.2.6.agent.pkg"
 PREVIOUS_SHA256 = "685dcc97232d278eb2a5b777dcbc621573de5c48818a95d522e647c9267ee8f1"
 NO_GROUNDED = "## No sufficiently grounded literature found"
 
 
 @pytest.fixture(scope="module")
-def review(tmp_path_factory):
-    # The source tree, built as published (test_signed_artifact_matches_source ties the two).
-    return load_package(build_package(SOURCE, tmp_path_factory.mktemp("lr") / "review.agent.pkg"))
+def review():
+    # The signed 0.2.7 bytes. The source moved on to 0.2.8 (T20, memory.v0), whose own tests
+    # are test_literature_028.py; these keep describing what 0.2.7 is.
+    return load_package(ARCHIVE)
 
 
 @pytest.fixture(scope="module")
@@ -399,7 +400,7 @@ def test_what_changed_from_0_2_6(review, previous):
     assert {s["id"]: s["timeout_seconds"] for s in evidence["steps"]}["extract-one"] == 1200
 
 
-def test_signed_artifact_matches_source_and_replays(review):
+def test_signed_artifact_verifies_and_replays(review):
     checked = verify_package(ARCHIVE, LITERATURE_KEY)
     assert checked["valid"] and checked["key_fingerprint"] == LITERATURE_FINGERPRINT
     assert checked["version"] == "0.2.7"
@@ -422,6 +423,10 @@ def test_signed_artifact_matches_source_and_replays(review):
     assert "" in by_scope and len(by_scope) == 2  # abstract "" and the selected document's hash
     fixture = json.loads(published.files["fixtures/workflow.json"])
     assert fixture["models"]["normalize"][0]["output"].keys() == {"candidates"}
+
+
+def test_the_0_2_7_archive_is_preserved_byte_for_byte():
+    assert hashlib.sha256(ARCHIVE.read_bytes()).hexdigest() == ARCHIVE_SHA256
 
 
 def test_the_0_2_6_archive_is_preserved_byte_for_byte():

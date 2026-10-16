@@ -18,6 +18,7 @@ from pathlib import Path
 from urllib.parse import urlencode, urlsplit
 
 from .hostfiles.pdf import PdfLimits, PdfRefused, extract_text
+from .memory.model import is_memory_binding
 from .netaddr import public_address_reason
 from .runtime import PolicyError
 
@@ -228,6 +229,9 @@ def create_handlers(
         "paper.read": ("local", None, "files.read"),
     }
     for binding, tool in by_binding.items():
+        if is_memory_binding(binding):
+            # memory.v0: the memory host answers these (`memory.host.memory_handlers`, M-63).
+            continue
         if binding not in expected:
             raise PolicyError(f"Unsupported host tool binding: {binding}")
         execution, method, required_kind = expected[binding]

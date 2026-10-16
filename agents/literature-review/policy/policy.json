@@ -30,6 +30,15 @@
       ]
     },
     {
+      "id": "memory.research_profile",
+      "kind": "memory.read",
+      "description": "Read the research profile you choose from your memory (interests, affiliations, seed papers, topics to avoid) to focus the search and the screening. The profile is shown to the model as the person's own words.",
+      "required": false,
+      "resources": [
+        "research.profile"
+      ]
+    },
+    {
       "id": "model.reasoning",
       "kind": "model",
       "description": "Use the host-selected reasoning router within the token cap.",
@@ -46,6 +55,24 @@
       "resources": [
         "session"
       ]
+    },
+    {
+      "id": "memory.remember",
+      "kind": "memory.write",
+      "description": "After a review, propose to remember it: the question, the date, the papers found and the summary. Nothing is written until you accept the proposal after the run.",
+      "required": false,
+      "resources": [
+        "research.review"
+      ]
+    },
+    {
+      "id": "memory.agent",
+      "kind": "memory",
+      "description": "Keep its own notes between runs (at most 32,768 characters): what it searched and kept last time. Read at the start of a run, written once at the end; you can read and clear them in Settings → Memory.",
+      "required": false,
+      "resources": [
+        "agent"
+      ]
     }
   ],
   "network": {
@@ -57,8 +84,8 @@
     "allow_redirects": false
   },
   "memory": {
-    "scope": "session",
-    "retention": "session",
+    "scope": "agent-scoped",
+    "retention": "user-managed",
     "raw_documents": false,
     "state_schema": "schemas/research-state.schema.json",
     "sharing": "explicit_views"
@@ -70,7 +97,10 @@
     "max_calls_per_tool": {
       "scholarly-search": 3,
       "citation-resolver": 20,
-      "paper-reader": 10
+      "paper-reader": 10,
+      "research.profile": 1,
+      "agent-notes.read": 1,
+      "agent-notes.write": 1
     },
     "max_parallel_workers": 3,
     "estimated_cost_usd": null,
@@ -86,7 +116,9 @@
       "EvidenceWorker",
       "SynthesisWorker",
       "WritingWorker",
-      "VerificationWorker"
+      "VerificationWorker",
+      "MemoryWorker",
+      "RememberWorker"
     ],
     "allow_remote": false
   },

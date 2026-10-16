@@ -48,6 +48,23 @@
     },
     "notice": {
       "const": "Fictional WebAir demo: no real booking, payment or ticket."
+    },
+    "memory_proposals": {
+      "type": "object",
+      "description": "The memory.v0 proposals document this run offers; the person reviews it after the run.",
+      "properties": {
+        "schema": {
+          "const": "memory.v0 proposals"
+        },
+        "proposals": {
+          "$ref": "remember.schema.json#/properties/proposals"
+        }
+      },
+      "required": [
+        "schema",
+        "proposals"
+      ],
+      "additionalProperties": false
     }
   },
   "required": [
@@ -60,7 +77,8 @@
     "booking",
     "purchase",
     "evidence",
-    "notice"
+    "notice",
+    "memory_proposals"
   ],
   "additionalProperties": false
 }

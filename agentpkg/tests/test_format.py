@@ -513,6 +513,12 @@ def test_memory_scope_is_representable_but_execution_fails_closed(source, scope)
     value = json.loads(path.read_text())
     value["memory"]["scope"] = scope
     path.write_text(json.dumps(value))
+    if scope == "agent-scoped":
+        # memory.v0 M-48 (agentpkg 0.4.0): agent-scoped is executable, with the agent document's
+        # permission; without it the package is refused at validation, before any runtime.
+        with pytest.raises(ValidationError, match="^agent_memory_scope: "):
+            load_package(source)
+        return
     package = load_package(source)
     if scope in {"ephemeral", "session"}:
         Runtime(package)

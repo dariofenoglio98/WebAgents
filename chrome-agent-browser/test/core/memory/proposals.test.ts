@@ -93,6 +93,25 @@ describe("the checks of M-40 over the worked examples", () => {
     expect(inline.proposals.length).toBe(2);
     expect(sealedFreeSchema(input.types.get("person.identity")!).required).toEqual(["given_name", "family_name"]);
   });
+
+  it("a nested sealed pointer leaves `required` at its own depth (M-40 step 4, D-235)", () => {
+    const type = {
+      schema: {
+        type: "object",
+        properties: {
+          card: { type: "object", properties: { holder: { type: "string" }, "a/b": { type: "string" } }, required: ["holder", "a/b"] },
+          items: { type: "array", items: { type: "object", properties: { code: { type: "string" } }, required: ["code"] } },
+        },
+        required: ["card"],
+      },
+      sealed_fields: ["/card/a~1b"],
+    } as unknown as Parameters<typeof sealedFreeSchema>[0];
+    const schema = sealedFreeSchema(type, ["/items/0/code"]) as any;
+    expect(schema.required).toEqual(["card"]);
+    expect(schema.properties.card.required).toEqual(["holder"]);
+    expect(schema.properties.items.items.required).toEqual([]);
+    expect((type.schema as any).properties.card.required).toEqual(["holder", "a/b"]);
+  });
 });
 
 describe("acceptance (M-42, M-44)", () => {

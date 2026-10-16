@@ -82,7 +82,7 @@ describe("signed documents", () => {
     const index = readAgentIndex(verified.content);
     expect(index.notes).toEqual([]);
     const byId = Object.fromEntries(index.entries.map((entry) => [entry.package_id, entry]));
-    for (const shipped of [SHIPPED.literatureReview027, SHIPPED.webair050]) {
+    for (const shipped of [SHIPPED.literatureReview028, SHIPPED.webair060]) {
       const entry = byId[shipped.packageId]!;
       expect(entry.version).toBe(shipped.version);
       expect(entry.digest).toBe(shipped.digest);
@@ -116,6 +116,18 @@ describe("signed documents", () => {
     expect(index.version).toBe("1.1.0");
     expect(index.entries.map((entry) => [entry.package_id, entry.version, entry.digest])).toEqual([
       [SHIPPED.literatureReview026.packageId, SHIPPED.literatureReview026.version, SHIPPED.literatureReview026.digest],
+      [SHIPPED.webair050.packageId, SHIPPED.webair050.version, SHIPPED.webair050.digest],
+    ]);
+  });
+
+  it("the demo index 1.2.0 is kept byte for byte (D-232), and still names 0.2.7 and 0.5.0 (T15, D-174)", async () => {
+    const key = publicKeyFromPem(readFileSync(resolve(ROOT, "examples/keys/webagents-index.pub.pem"), "utf8"));
+    const bytes = new Uint8Array(readFileSync(resolve(ROOT, "examples/agent-index-1.2.0.json")));
+    expect(createHash("sha256").update(bytes).digest("hex")).toBe("caf08869f8628307e06979354a6863346e9918131c2b12059827998d6d04e74b");
+    const index = readAgentIndex((await verifySignedDocument(bytes, AGENT_INDEX_TYPE, [key])).content);
+    expect(index.version).toBe("1.2.0");
+    expect(index.entries.map((entry) => [entry.package_id, entry.version, entry.digest])).toEqual([
+      [SHIPPED.literatureReview027.packageId, SHIPPED.literatureReview027.version, SHIPPED.literatureReview027.digest],
       [SHIPPED.webair050.packageId, SHIPPED.webair050.version, SHIPPED.webair050.digest],
     ]);
   });

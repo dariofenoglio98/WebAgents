@@ -82,6 +82,51 @@ Every step must agree. One normalization: a lease refusal is compared by its **r
 lease names a spent `once` `authorization_once_spent`; the Python control plane refuses with
 `run_plan_stale` carrying that same stale reason. The report prints both raw codes.
 
+**memory.v0** (35 cases, T20, [`spec/memory-v0.md`](../spec/memory-v0.md) §10): WebAir 0.6.0 on
+its fixture input and the eight search scenarios (each proposes nothing); Literature Review 0.2.8
+with its memory switches off and on
+([`examples/literature-review-0.2.8-memory-input.json`](../examples/literature-review-0.2.8-memory-input.json):
+the replayed research profile shapes the plan and one review is proposed, derived from it); and the
+**memory probe**, agentpkg's own test package
+([`agentpkg/tests/memory_probe.py`](../agentpkg/tests/memory_probe.py)), which uses every memory.v0
+permission and is written with one change per negative case by
+[`drivers/memory_probe.py`](drivers/memory_probe.py) and signed with the run's throwaway key (a variant
+`agentpkg build` refuses is signed by the driver without validating, so that both CLIs meet the
+refusal when they load it). Expected in both:
+
+| Case | Expected |
+|---|---|
+| N1, N8, N13, N14 (links and body links), N19 | the run fails `permission_denied` at the proposals check, with the M-40 reason and proposal index in `result.json`'s `memory.refused`; no `proposals.json` |
+| N2, N9, N15, N22 | the run fails `schema_validation` at the proposals check |
+| N3 | `permission_denied at node profile`: the denied `memory.read` stops at the mediator |
+| N4 | `schema_validation at node notes-write`: the agent write is over its 32,768 characters |
+| N5 | `manifest runtime.minimum_version exceeds reference runtime 0.4.0` |
+| N6 | `binding_schema_mismatch: …`, before the run, nothing written |
+| N7 | `budget_exhausted at node notes-write-again` |
+| N10, N12, N16, N17, N21 | refused at validation with the spec's code (`agent_memory_scope`, `memory_proposal_undeclared`, `custom_type_shadows_sealed_type`, `custom_type_reserved`, `custom_type_schema_open`) |
+| N11 | `permission_denied at node remember`, compared as a failure inside a concurrent wave (D-092) |
+| M-36 | a granted sealed value sent to a tool that does not link its permission: `permission_denied at node echo` |
+| M-36, every value | the echo carries a value granted under the permission it links and one granted under another: `permission_denied at node echo` (every value is checked, not the first; D-234) |
+
+Two positive probe variants use a package's own custom type by its local id (D-228, D-234): a
+proposal of it (`memory-probe/custom-type-proposal`), and a `memory.read` of it with an update of
+the record it read (`memory-probe/custom-type-read`).
+
+The audit backbone gains `memory.proposed`, `memory.agent.committed` and `memory.agent.discarded`
+with their facts (M-61), and a wave's multiset carries the `reason`, record id and pointer of a
+refused `permission.checked` or `model.refused` (never a value). Both CLIs derive a fixture run's
+memory the same way (D-230: grants from the replayed views, a replayed legacy answer held as
+`fixture:<binding>`), refuse N6 before the run, and check every sealed value in a tool's arguments
+(D-234). **Pending** applies only to a core that accepts packages up to runtime 0.3.x (an older
+`CONFORMANCE_CHROME`): a memory case it refuses by version, whose Python half passed on its own, is
+reported `pending` and printed with its failed checks; any other failure fails the suite. The
+Chrome core on `main` accepts 0.4.0 since T19, so every case counts. `CONFORMANCE_CHROME=<path to a
+built chrome-agent-browser>` compares another core, for example a task branch's worktree before it
+is merged; the run against T19's core at `c6edfd4`, before the two were merged, is kept in
+[`examples/verification/conformance-t20-against-t19-core/`](../examples/verification/conformance-t20-against-t19-core/report.md)
+(63 of 68; the five differences were D-230's fixture grants and N6's timing, now fixed in the
+Chrome core).
+
 ## Recorded differences
 
 Each is checked against what its decision says each runtime does, so the case fails if either

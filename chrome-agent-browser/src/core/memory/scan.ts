@@ -41,14 +41,25 @@ export interface ScanHit {
  * which a caller refuses unread.
  */
 export function findSealed(value: JsonValue, scan: ScanSet): ScanHit | null | "incomplete" {
-  if (scan.length === 0) return null;
+  const hits = findAllSealed(value, scan);
+  if (hits === "incomplete") return "incomplete";
+  return hits[0] ?? null;
+}
+
+/**
+ * Every sealed value found anywhere in `value`, in scan-set order; `incomplete` as `findSealed`.
+ * The tool scan needs them all: a value granted to the tool must not hide another (M-36, D-234).
+ */
+export function findAllSealed(value: JsonValue, scan: ScanSet): ScanHit[] | "incomplete" {
+  if (scan.length === 0) return [];
   const strings = scanStrings(value, MAX_SCANNED_STRINGS);
   if (strings === null) return "incomplete";
+  const hits: ScanHit[] = [];
   for (const entry of scan) {
     const needle = entry.value.toLowerCase();
-    if (strings.some((text) => text.includes(needle))) return { record_id: entry.record_id, pointer: entry.pointer };
+    if (strings.some((text) => text.includes(needle))) hits.push({ record_id: entry.record_id, pointer: entry.pointer });
   }
-  return null;
+  return hits;
 }
 
 /**

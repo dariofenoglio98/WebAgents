@@ -4,17 +4,18 @@
  * and the Run Record carry (M-61). Built by the host before the run (the execution host from the
  * store, the CLI from a memory folder or the fixture) and handed to the runner as `SessionDeps.memory`.
  */
-import { canonicalJson } from "../canonical.js";
+import { canonicalJson, canonicalString } from "../canonical.js";
+import { ValidationError } from "../errors.js";
 import { sha256HexSync } from "../hash.js";
 import type { JsonObject, JsonValue } from "../json.js";
-import type { Package } from "../package.js";
+import { type Package, packageJson } from "../package.js";
 import type { AgentMemoryContext } from "../tools/adapters/memory-agent.js";
 import type { ResourceGrant } from "../types.js";
 import { AGENT_RESOURCE, AGENT_SCOPE, memoryDeclarations, type MemoryDeclarations } from "./declarations.js";
 import type { MemoryRecord } from "./model.js";
 import { checkProposals, type ProposalCheckInput, ProposalRefusal, type ProposalsDocument } from "./proposals.js";
 import { fixtureScanSet, type ScanSet } from "./scan.js";
-import { TypeRegistry } from "./types.js";
+import { recordViewSchema, TypeRegistry } from "./types.js";
 
 /** `memory.proposed` (M-61) and the Run Record's `memory.proposals` summary. */
 export interface ProposedFacts {
@@ -75,9 +76,12 @@ export class MemoryRun {
     this.types = options.types ?? new TypeRegistry([...new TypeRegistry().toJSON(), ...this.declarations.custom_types]);
     this.scan = options.scan ?? [];
     this.options = options;
+    // A grant names a custom type by its local id (the permission's resource): resolved through
+    // the package's own aliases, as M-40 resolves a proposal's type (D-228, D-234).
+    const aliases = customTypeAliases(String(pkg.manifest.package_id), this.declarations.custom_types);
     const granted = new Map<string, string>();
     for (const grant of grants) {
-      const type = this.types.resolve(grant.resource_type);
+      const type = this.types.resolve(aliases.get(grant.resource_type) ?? grant.resource_type);
       granted.set(grant.resource_id, type?.id ?? grant.resource_type);
     }
     this.granted = granted;
@@ -140,6 +144,78 @@ export function fixtureMemoryScan(pkg: Package, fixture: JsonObject, types: Type
     for (const item of cases as JsonObject[]) answers.push({ binding, output: item.output ?? null, legacySealed });
   }
   return fixtureScanSet(answers);
+}
+
+/**
+ * D-230: what a fixture run without a store holds, as `agentpkg run` derives it: the scan set
+ * (M-62), the grants and the targets. Each replayed `host.memory.<type>` view grants its `id`
+ * under its tool's one permission, and each replayed `host.resource.<legacy id>` answer grants the
+ * pseudo-record `fixture:<binding>` under its tool's permission, unless that permission is denied,
+ * so that a package's own fixture can propose an update of, or link to, the record it read, and a
+ * legacy value may go where its permission is linked (M-36). A pseudo-record has no digest.
+ */
+export function fixtureMemory(
+  pkg: Package,
+  fixture: JsonObject,
+  decisions: Readonly<Record<string, string>>,
+  types: TypeRegistry = new TypeRegistry(),
+): { scan: ScanSet; grants: ResourceGrant[]; targets: Map<string, Pick<MemoryRecord, "sealed" | "type">> } {
+  const grants: ResourceGrant[] = [];
+  const add = (grant: ResourceGrant) => {
+    if (!grants.some((item) => item.permission_id === grant.permission_id && item.resource_type === grant.resource_type && item.resource_id === grant.resource_id)) grants.push(grant);
+  };
+  for (const [toolId, cases] of Object.entries((fixture.tools as JsonObject | undefined) ?? {})) {
+    const tool = pkg.tools[toolId];
+    if (!tool || !Array.isArray(cases)) continue;
+    const binding = String(tool.binding ?? "");
+    const permissions = (tool.permissions as string[] | undefined) ?? [];
+    const allowed = permissions.length === 1 && (decisions[permissions[0]!] ?? "deny") !== "deny";
+    if (!allowed) continue;
+    if (binding.startsWith("host.resource.")) {
+      if (cases.length > 0) add({ permission_id: permissions[0]!, resource_type: binding.slice("host.resource.".length), resource_id: `fixture:${binding}`, resource_digest: "" });
+    } else if (binding.startsWith("host.memory.") && !binding.startsWith("host.memory.agent.")) {
+      for (const item of cases as JsonObject[]) {
+        const output = item.output;
+        if (typeof output === "object" && output !== null && !Array.isArray(output) && typeof output.id === "string") {
+          add({ permission_id: permissions[0]!, resource_type: binding.slice("host.memory.".length), resource_id: output.id, resource_digest: "" });
+        }
+      }
+    }
+  }
+  const targets = new Map<string, Pick<MemoryRecord, "sealed" | "type">>();
+  for (const cases of Object.values((fixture.tools as JsonObject | undefined) ?? {})) {
+    for (const item of Array.isArray(cases) ? (cases as JsonObject[]) : []) {
+      const output = item.output;
+      if (typeof output !== "object" || output === null || Array.isArray(output) || typeof output.id !== "string") continue;
+      if (grants.some((grant) => grant.resource_id === output.id)) {
+        targets.set(output.id, { sealed: Array.isArray(output.sealed) ? (output.sealed as string[]) : [], type: output.type as string });
+      }
+    }
+  }
+  return { scan: fixtureMemoryScan(pkg, fixture, types), grants, targets };
+}
+
+/**
+ * M-16, as `agentpkg run` checks it before a run (`check_memory_bindings`, M-64 N6): a
+ * `host.memory.<type>` tool is bound only when its output schema canonicalizes to the view the
+ * host builds from its own type (`binding_schema_mismatch`); a type the host does not hold is
+ * `memory_type_unknown`. A custom type is named by its local id.
+ */
+export function checkMemoryBindings(pkg: Package, types?: TypeRegistry): void {
+  const declarations = memoryDeclarations(pkg.manifest, pkg.policy, pkg.tools, pkg.files);
+  const registry = types ?? new TypeRegistry([...new TypeRegistry().toJSON(), ...declarations.custom_types]);
+  const aliases = customTypeAliases(String(pkg.manifest.package_id), declarations.custom_types);
+  for (const [toolId, tool] of Object.entries(pkg.tools)) {
+    const binding = String(tool.binding ?? "");
+    if (!binding.startsWith("host.memory.") || binding.startsWith("host.memory.agent.")) continue;
+    const typeId = binding.slice("host.memory.".length);
+    const type = registry.get(aliases.get(typeId) ?? typeId);
+    if (type === undefined) throw new ValidationError(`memory_type_unknown: tool ${toolId} reads ${typeId}, which this host does not hold`);
+    const output = packageJson(pkg, String(tool.output_schema));
+    if (canonicalString(output) !== canonicalString(recordViewSchema(type))) {
+      throw new ValidationError(`binding_schema_mismatch: tool ${toolId}: the output schema is not the record view of ${typeId}`);
+    }
+  }
 }
 
 export { AGENT_RESOURCE, ProposalRefusal };

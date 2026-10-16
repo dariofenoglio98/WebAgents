@@ -3,27 +3,27 @@
   "content_type": "org.webagents:agent-index-v0",
   "content": {
     "index_id": "org.webagents.demo-index",
-    "version": "1.2.0",
+    "version": "1.3.0",
     "title": "WebAgents demo index",
     "description": "The agents of the WebAgents research prototype: a literature-review agent and a fictional airline's agent. Signed with a development key, for demonstrations only; every entry is metadata, and each package is verified when you open it.",
     "publisher": {
       "name": "WebAgents research prototype (development key)"
     },
-    "issued_at": "2026-10-10T00:00:00Z",
+    "issued_at": "2026-10-14T00:00:00Z",
     "expires_at": "2027-12-31T23:59:59Z",
     "entries": [
       {
         "package_id": "org.webagents.literature-review",
         "name": "Literature Review Agent",
-        "version": "0.2.7",
-        "description": "A constrained coordinator-worker literature review: searches Crossref, screens and reads candidate papers (and PDFs you pick), resolves citations and writes a related-work draft with verified quotes, and lists every paper it found with its screening verdict.",
+        "version": "0.2.8",
+        "description": "A constrained coordinator-worker literature review: searches Crossref, screens and reads candidate papers (and PDFs you pick), resolves citations and writes a related-work draft with verified quotes, and lists every paper it found with its screening verdict. With your leave it reads your research profile, keeps its own notes and proposes to remember the review.",
         "publisher": {
           "id": "webagents-research",
           "name": "WebAgents Research Prototype"
         },
-        "package_url": "https://webagents-webair-production.up.railway.app/packages/literature-review-0.2.7.agent.pkg",
-        "digest": "9274a5ce46275e6817ae2706791c19a8066e523776cb9eb348a76b83396a99cb",
-        "archive_sha256": "8951a14bb1f42bca1590bc7d0c9cc00cccba75b36f1488969b6b3ff47063fe61",
+        "package_url": "https://webagents-webair-production.up.railway.app/packages/literature-review-0.2.8.agent.pkg",
+        "digest": "fb107c188d6995c5308e06b6ade751604455245c2413fce7a39c92841d4652b6",
+        "archive_sha256": "0d03d1c8b366aabd6343b15958185c10cdab6639828f9c73bafbb26538db8330",
         "signer_fingerprint": "sha256:c5ca9763f9fc71253298ca381ec14c4d7432009c74dacc69df6344b71de05232",
         "locators": [
           "literature-review@webagents.example"
@@ -38,15 +38,15 @@
       {
         "package_id": "org.webagents.webair",
         "name": "WebAir Travel Agent",
-        "version": "0.5.0",
-        "description": "Search WebAir flights, explain fare rules, prepare a booking quote and simulate a purchase through WebAir's own semantic API. WebAir is a fictional demo airline: nothing is ever booked or charged.",
+        "version": "0.6.0",
+        "description": "Search WebAir flights, explain fare rules, prepare a booking quote and simulate a purchase through WebAir's own semantic API, using the travel profile you choose from your memory; after a booking it may propose one travel preference to remember. WebAir is a fictional demo airline: nothing is ever booked or charged.",
         "publisher": {
           "id": "webair-demo",
           "name": "WebAir (fictional demo airline)"
         },
         "package_url": "https://webagents-webair-production.up.railway.app/agent.pkg",
-        "digest": "6192614e86ae4b18ba135f17120d4f616feac082c4ab09283221da7194c0bb48",
-        "archive_sha256": "4b087557cbd2b0ff186391dfd00f9068739f9a727ab2fd916a6512da1fde101b",
+        "digest": "e1ef5ad07f5be9148d5d7b5d6f6e88e3ba9cfdb291d8d2ba2fb9bc0f06d6022f",
+        "archive_sha256": "3055dd93a9f4e5f81f3ccddac77ccc9ce2c10b1e10dec35d9864fddf6fb58862",
         "signer_fingerprint": "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b",
         "locators": [
           "flights@webair.example"
@@ -64,6 +64,6 @@
   "signature": {
     "algorithm": "ed25519",
     "key_fingerprint": "sha256:e0e7022b5836da157d7d55a9d7b00cb58e236d5270ab103162e63706b49f5103",
-    "value": "kJFYKbPxRTxfKqu7PoWjUHINSvtt3aH4aw/YX522kYiBiG81zKBAsAuIkx3nRX/sBM6pUR0pyFeRv8+Nl7jtDg=="
+    "value": "fseOBWtTk0ULt20n23FuHeDX7eTS5Iw2oxgFCSafXQ0BKZ258AK6LLitKbYJerntVvxXKpjjjQ77oKAF83mUCw=="
   }
 }
