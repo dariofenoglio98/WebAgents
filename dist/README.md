@@ -45,7 +45,7 @@ python3 -m venv .venv && .venv/bin/python -m pip install dist/agentpkg-0.4.0-py3
 The keys are development keys: they establish which key signed an artifact, not an independent
 certification of its publisher.
 
-**The 0.4.0 wheel** (SHA-256 `32b41ef1…a7f0`, T20) was built from a clean export of `agentpkg/`
+**The 0.4.0 wheel** (SHA-256 `9559e4f3…037c`, T20) was built from a clean export of `agentpkg/`
 at the commit that added it with the command below (setuptools 84.0.0, `SOURCE_DATE_EPOCH=1790965957`); two
 such builds produced identical bytes, and CI rebuilds it from source and checks that every file matches. It
 carries the memory.v0 contracts under `agentpkg/schemas/memory/`. The version moved to 0.4.0 because packages
@@ -175,7 +175,7 @@ c1b1c4b260dbca874dc9e343397e6fad1311f498c3a6df27c1a1deeeb0b18f71  agentpkg-0.1.0
 5859ca592d7ced2261e07bd3451ba2a67fcca926627534faf092a93dcfd70adb  agentpkg-0.2.0-py3-none-any.whl
 371fb1eb8c70abc3511a09e7208742ab313bc47dfda6999675ce716d14731cd1  agentpkg-0.2.2-py3-none-any.whl
 096897b02d3e4bc212395eb35bf6522c67fedb5f80309e9e42744cbe777d31df  agentpkg-0.3.0-py3-none-any.whl
-32b41ef1b8b1d00fd4912b9551bd56db84ecf9fd9bdd04b0f426b8a75214a7f0  agentpkg-0.4.0-py3-none-any.whl
+9559e4f319a7cb48fa1729b07ec1dbb81ffdc3953d680dff61f1cc078552037c  agentpkg-0.4.0-py3-none-any.whl
 5fdde862352598fc68e4fe5a2f5c2dee19bf952112446b3fc13bc77763533b0b  literature-review-0.2.0.agent.pkg
 0fb8b65bbff4578d4815ee70b29a0cb789b2cc95ce181d011d467b4be22c8e42  literature-review-0.2.1.agent.pkg
 4804ea8f4c2ad40439641f8348c2d65b798f4d52802f6ad751b71114e4f27c04  literature-review-0.2.2.agent.pkg
