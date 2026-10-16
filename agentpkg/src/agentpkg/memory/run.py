@@ -12,6 +12,7 @@ from __future__ import annotations
 import hashlib
 
 from .declarations import AGENT_SCOPE, memory_declarations
+from .model import is_record_read_binding
 from .proposals import check_proposals, proposed_facts
 from .registry import TypeRegistry, custom_type_aliases, starter_types
 from .scan import fixture_scan_set
@@ -175,8 +176,7 @@ def fixture_memory(package, fixture: dict, grants: dict, *, types: TypeRegistry 
             output = case.get("output")
             answers.append((binding, output, legacy_sealed))
             if (
-                binding.startswith("host.memory.")
-                and not binding.startswith("host.memory.agent.")
+                is_record_read_binding(binding)
                 and isinstance(output, dict)
                 and isinstance(output.get("id"), str)
                 and allowed

@@ -19,6 +19,8 @@ from .declarations import (
     AGENT_WRITE_BINDING,
     LEGACY_READ_BINDING_PREFIX,
     MEMORY_READ_BINDING_PREFIX,
+    is_agent_binding,
+    is_memory_binding,
 )
 from .model import MAX_AGENT_BODY_CHARS
 from .registry import record_view_schema
@@ -39,10 +41,7 @@ def check_memory_bindings(package, types) -> None:
     hold is `memory_type_unknown`. The agent tools' schemas are checked at validation (M-48)."""
     for tool_id, tool in package.tools.items():
         binding = tool["binding"] or ""
-        if not binding.startswith(MEMORY_READ_BINDING_PREFIX) or binding in (
-            AGENT_READ_BINDING,
-            AGENT_WRITE_BINDING,
-        ):
+        if not binding.startswith(MEMORY_READ_BINDING_PREFIX) or is_agent_binding(binding):
             continue
         type_id = binding[len(MEMORY_READ_BINDING_PREFIX) :]
         type_def = types.get(types.aliases.get(type_id, type_id))
@@ -63,11 +62,18 @@ def memory_handlers(package, folder, memory_run) -> dict:
     """Handlers by binding for every memory tool the package declares, over `folder`."""
     grants = {grant["permission_id"]: grant for grant in memory_run.grants}
     granted_ids = set(memory_run.granted)
+    resource_permissions = {
+        p["id"]
+        for p in package.policy["permissions"]
+        if p["kind"] in ("memory.read", "personal.read")
+    }
     handlers = {}
 
     def read_handler(tool):
         legacy = tool["binding"].startswith(LEGACY_READ_BINDING_PREFIX)
-        permission_id = tool["permissions"][0]
+        # Declarations give a `host.memory.<type>` read exactly one permission; a legacy
+        # `host.resource.` tool is answered under the first resource permission it links, if any.
+        permission_id = next((p for p in tool["permissions"] if p in resource_permissions), None)
 
         async def handle(ctx, payload):
             if payload != {}:
@@ -194,11 +200,39 @@ def cli_memory(package, *, mode: str, decisions: dict, memory_dir=None, memory_g
     )
     types = memory_types(package, declarations)
     check_memory_bindings(package, types)
+    if mode == "live" and not memory_dir:
+        bound = sorted(t["id"] for t in package.tools.values() if is_memory_binding(t["binding"]))
+        if bound:
+            # A live run answers its memory tools from a folder and commits the agent document
+            # there; without one, a Run Record could claim a commit nothing kept (D-235).
+            raise ValidationError(
+                f"this package declares memory tools {bound}: a live run needs --memory-dir "
+                "(an empty folder starts a new memory)"
+            )
     folder = MemoryFolder(memory_dir, types=types) if memory_dir else None
     grants = parse_memory_grants(package, folder, list(memory_grants))
     scan: list[dict] = []
     targets: dict = {}
     agent_document = None
+    fixture = (
+        package.json(package.graph["fixture"])
+        if mode == "fixture" and package.graph.get("fixture")
+        else None
+    )
+    if folder is not None and fixture is not None:
+        # D-230: with --memory-dir the grants are the flags, never the fixture's. A record the
+        # fixture replays under a permission no flag grants would refuse the package's own
+        # proposals, so the operator is told which flag is missing (D-235).
+        _, derived = fixture_memory(package, fixture, decisions, types=types)
+        missing = sorted(
+            {g["permission_id"] for g in derived} - {g["permission_id"] for g in grants}
+        )
+        if missing:
+            raise ValidationError(
+                f"--memory-dir in fixture mode: the fixture replays a record under {missing}, "
+                "which no --memory-grant grants; with --memory-dir the grants are the flags "
+                "(one PERMISSION=RECORD each)"
+            )
     if folder is not None:
         scan = scan_set_of(folder.scan_records())
         for grant in grants:
@@ -206,8 +240,7 @@ def cli_memory(package, *, mode: str, decisions: dict, memory_dir=None, memory_g
             targets[record["id"]] = {"sealed": record.get("sealed", []), "type": record["type"]}
         if mode == "live":
             agent_document = folder.agent_document(package.manifest["package_id"])
-    elif mode == "fixture" and package.graph.get("fixture"):
-        fixture = package.json(package.graph["fixture"])
+    elif fixture is not None:
         scan, derived = fixture_memory(package, fixture, decisions, types=types)
         grants = grants or derived
         for case_list in (fixture.get("tools") or {}).values():

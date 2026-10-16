@@ -222,6 +222,7 @@ const MEMORY_VARIANTS = [
   "m36-two-sealed-values",
   "custom-type-proposal",
   "custom-type-read",
+  "agent-family-read",
 ];
 
 /**
@@ -413,6 +414,7 @@ function memoryNegativeCases(cli, run) {
     ["n15-supersedes-link", "N15: a proposal link with rel supersedes fails the proposals schema", workflow("schema_validation")],
     ["n16-custom-type-shadows-sealed", "N16: a custom type with a nested property named like a sealed starter field", refused("custom_type_shadows_sealed_type")],
     ["n17-custom-type-reserved", "N17: a custom type whose local id is a well-known id", refused("custom_type_reserved")],
+    ["agent-family-read", "M-38: a memory.read naming a type of the agent. family (its binding would be a reserved agent tool's name)", refused("memory_type_reserved")],
     ["n19-lower-index-first", "N19: two refusable proposals, index 0's link before index 1's type: proposal by proposal", workflow("permission_denied")],
     ["n21-custom-type-open", "N21: a custom type whose schema is not closed", refused("custom_type_schema_open")],
     ["n22-marker-line", "N22: a proposal body holding the mirror marker as a whole line fails the proposals schema", workflow("schema_validation")],

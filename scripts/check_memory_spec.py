@@ -861,15 +861,21 @@ def record_view(record: dict, granted) -> dict:
 
 
 def sealed_free_schema(type_def: dict, extra: tuple[str, ...] = ()) -> dict:
-    """M-40 step 4: the type schema with the sealed pointers removed from `required`."""
+    """M-40 step 4: the type schema with the sealed pointers removed from `required` at their own
+    depth (through `properties`, an array index through `items`; D-235)."""
     schema = copy.deepcopy(type_def["schema"])
-    top_sealed = {
-        pointer.split("/")[1]
-        for pointer in (*type_def["sealed_fields"], *extra)
-        if pointer.count("/") == 1
-    }
-    if "required" in schema:
-        schema["required"] = [name for name in schema["required"] if name not in top_sealed]
+    for pointer in (*type_def["sealed_fields"], *extra):
+        tokens = [t.replace("~1", "/").replace("~0", "~") for t in pointer.split("/")[1:]]
+        node = schema
+        for token in tokens[:-1]:
+            if not isinstance(node, dict):
+                break
+            child = (node.get("properties") or {}).get(token)
+            if child is None and token.isdigit():
+                child = node.get("items")
+            node = child
+        if tokens and isinstance(node, dict) and isinstance(node.get("required"), list):
+            node["required"] = [name for name in node["required"] if name != tokens[-1]]
     return schema
 
 
@@ -1743,7 +1749,7 @@ def check_example_package(contracts: Contracts, folder: Path, *, package_name: s
         raise ValueError("more than one memory.write permission")
     declared = tuple(writes[0]["resources"]) if writes else ()
     if set(declared) & RESERVED_TYPES or any(
-        "agent.memory" in entry["resources"] for entry in reads
+        type_id.startswith("agent.") for entry in reads for type_id in entry["resources"]
     ):
         raise ValueError("a memory permission names a reserved type (memory_type_reserved, M-38)")
     tools_report = _check_tools(contracts, folder, policy, package_name)

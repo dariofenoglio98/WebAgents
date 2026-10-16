@@ -21,6 +21,8 @@ export const MEMORY_READ_BINDING_PREFIX = "host.memory.";
 export const LEGACY_READ_BINDING_PREFIX = "host.resource.";
 export const AGENT_READ_BINDING = "host.memory.agent.read";
 export const AGENT_WRITE_BINDING = "host.memory.agent.write";
+/** The agent document's type family: a `memory.read` in it is refused, so every `host.memory.agent.` binding is one of the two reserved tools. */
+const AGENT_TYPE_FAMILY = "agent.";
 export const AGENT_SCOPE = "agent-scoped";
 export const AGENT_RESOURCE = "agent";
 
@@ -99,7 +101,8 @@ export function memoryDeclarations(manifest: JsonObject, policy: JsonObject, too
       usesMemory = true;
       if (resources.length !== 1) throw refuse("ambiguous", `memory.read permission ${id} must name exactly one type in resources`);
       const resource = resources[0]!;
-      if (resource === AGENT_TYPE || resource === SELF_TYPE) throw refuse("memory_type_reserved", `memory.read permission ${id} names the reserved type ${resource}`);
+      // The `agent.` family is the agent document's: its read binding would be `host.memory.agent.<…>`, the reserved tools' names (D-235).
+      if (resource === AGENT_TYPE || resource === SELF_TYPE || resource.startsWith(AGENT_TYPE_FAMILY)) throw refuse("memory_type_reserved", `memory.read permission ${id} names the reserved type ${resource}`);
       if (resolveType(resource) === null && !legacyIds.has(resource)) {
         // A type this host does not know: refused later at binding (`memory_type_unknown`), not at validation; the form must be well-known.
         if (!WELL_KNOWN_TYPE_ID.test(resource)) throw refuse("memory_type_unknown", `memory.read permission ${id} names ${resource}, which is not a type id`);

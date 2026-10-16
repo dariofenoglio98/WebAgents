@@ -580,7 +580,8 @@ and may reach a model when the graph routes them there.
 M-38. **Declaration.** A permission of kind `memory.write` names in `resources` the type ids (≤ 8)
 the package may propose, never `person.self` or `agent.memory` (neither can be proposed, M-22, M-49:
 a policy naming one is refused at validation, `memory_type_reserved`, as is a `memory.read` naming
-`agent.memory`); a package declaring it also declares **exactly one** export `{path:
+`agent.memory` or any type of the `agent.` family, whose read binding would fall among the reserved
+agent tools' `host.memory.agent.` names, D-235); a package declaring it also declares **exactly one** export `{path:
 "proposals.json", format: "memory.proposal", value: …}` in its graph, and a graph declaring that
 export's format belongs to a package declaring `memory.write` (`memory_proposal_undeclared` at
 validation otherwise). Any package that declares `memory.write`, `memory.read` with a non-legacy type,
@@ -631,8 +632,9 @@ record and the audit carry):
    ungranted target contributes nothing to this step or to step 4 (the type's seals alone apply),
    so that no code before step 5 says whether such a record exists or what it seals;
 4. every proposal's `fields` validates against the type's schema **with those sealed pointers
-   removed from `required`** (a required sealed field is what the person types at acceptance, or
-   what an update carries over, M-42), else `schema_validation`;
+   removed from `required`** at their own depth (a nested pointer is followed through `properties`,
+   an array index through `items`, D-235; a required sealed field is what the person types at
+   acceptance, or what an update carries over, M-42), else `schema_validation`;
 5. every `update` names a `target` among the ids this run was granted (M-12) and the target's type
    equals the proposal's `type`, else `permission_denied` (`memory_proposal_target_not_granted`);
 6. every link's `to` is `self`, an id this run was granted, or `#<n>` naming an existing **other**
@@ -828,7 +830,7 @@ policy's provenance like any other (D-102) and a policy can never grant: it only
 | validation | `memory_proposal_undeclared` | `memory.write` without the export, or the export without the permission |
 | validation | `agent_memory_write_cap`, `agent_memory_scope` | the write tool's cap is not 1; a reserved agent binding outside `agent-scoped`, or `agent-scoped` without the permission |
 | validation | `custom_type_shadows_sealed_type`, `custom_type_schema_open`, `custom_type_reserved`, `reserved_field_name` | §4.4 and M-8 (a custom type that declares `sealed_fields` fails the policy schema, `schema_validation`) |
-| validation | `memory_type_reserved` | a `memory.write` naming `person.self` or `agent.memory`, or a `memory.read` naming `agent.memory` (M-38) |
+| validation | `memory_type_reserved` | a `memory.write` naming `person.self` or `agent.memory`, or a `memory.read` naming `agent.memory` or another `agent.` type (M-38) |
 | binding | `binding_schema_mismatch` | a `memory.read` tool's output schema is not the type's view |
 | plan | `resource_selection_required`, `resource_changed`, `resource_removed`, `memory_type_unknown` | as for host resources; a type the host does not hold |
 | run | `permission_denied` with `sealed_value_not_granted`, `sealed_value_egress`, `sealed_value_in_model_request`, `sealed_value_in_proposal`, `memory_proposal_type_undeclared`, `memory_proposal_target_not_granted`, `memory_proposal_link_not_granted` | M-36, M-37, M-40 |

@@ -10,7 +10,13 @@ document holding more strings than the scanner reads is refused unread.
 
 from __future__ import annotations
 
-from .model import SEALED_PLACEHOLDER, pointer_get, sealed_values_of
+from .model import (
+    LEGACY_READ_BINDING_PREFIX,
+    SEALED_PLACEHOLDER,
+    is_record_read_binding,
+    pointer_get,
+    sealed_values_of,
+)
 
 MAX_SCANNED_STRINGS = 1 << 20
 INCOMPLETE = "incomplete"
@@ -56,11 +62,12 @@ def find_all_sealed(value, scan: list[dict]):
     strings = scan_strings(value)
     if strings is None:
         return INCOMPLETE
-    return [
-        {"record_id": entry["record_id"], "pointer": entry["pointer"]}
-        for entry in scan
-        if any(entry["value"].lower() in text for text in strings)
-    ]
+    hits = []
+    for entry in scan:
+        needle = entry["value"].lower()
+        if any(needle in text for text in strings):
+            hits.append({"record_id": entry["record_id"], "pointer": entry["pointer"]})
+    return hits
 
 
 def find_sealed(value, scan: list[dict]):
@@ -80,14 +87,14 @@ def fixture_scan_set(answers) -> list[dict]:
     for binding, output, legacy_sealed in answers:
         if not isinstance(output, dict):
             continue
-        if binding.startswith("host.memory.") and not binding.startswith("host.memory.agent."):
+        if is_record_read_binding(binding):
             sealed = [item for item in output.get("sealed") or [] if isinstance(item, str)]
             record_id = output["id"] if isinstance(output.get("id"), str) else "fixture"
             for pointer in sealed:
                 value = pointer_get(output.get("fields"), pointer)
                 if isinstance(value, str) and value != SEALED_PLACEHOLDER:
                     out.append({"record_id": record_id, "pointer": pointer, "value": value})
-        elif binding.startswith("host.resource."):
+        elif binding.startswith(LEGACY_READ_BINDING_PREFIX):
             for pointer in legacy_sealed:
                 value = pointer_get(output, pointer)
                 if isinstance(value, str):

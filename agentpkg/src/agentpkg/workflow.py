@@ -81,6 +81,7 @@ class Workflow:
 
             memory = MemoryRun(self.package, [], dict(grants or {}))
         self._memory_report = None
+        self._agent_outcome_recorded = False
         self.runtime = Runtime(
             self.package,
             grants=grants,
@@ -534,8 +535,11 @@ class Workflow:
         """memory.v0 M-50: a staged agent body is committed only after `workflow.completed`,
         else discarded with its reason; recorded before `memory.cleared`."""
         memory = self.runtime.memory
-        if memory is None:
+        if memory is None or self._agent_outcome_recorded:
+            # Once per run: an exception after the completed path recorded its outcome (in
+            # `_report` or `clear`) must not record a second, contradictory one.
             return
+        self._agent_outcome_recorded = True
         agent = memory.agent_outcome(status, self.runtime.run_id)
         if agent is None:
             return

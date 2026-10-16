@@ -887,11 +887,116 @@ def test_memory_grant_refusals(tmp_path):
     with pytest.raises(ValidationError, match="--memory-grant requires --memory-dir"):
         cli_memory(
             package,
-            mode="live",
+            mode="fixture",
             decisions=probe.grants(),
             memory_dir=None,
             memory_grants=[f"memory.profile={probe.PROFILE_ID}"],
         )
+
+
+# -- `agentpkg run --mode live --memory-dir`, as documented (T20 review 2, D-235) ----------------
+def without_echo(files) -> None:
+    """The probe with memory tools only: `create_handlers` binds no `host.probe.*` tool."""
+    files["MANIFEST.agent"]["tools"] = [
+        t for t in files["MANIFEST.agent"]["tools"] if t["id"] != "echo"
+    ]
+    del files["tools/echo.tool.json"]
+    del files["policy/policy.json"]["budget"]["max_calls_per_tool"]["echo"]
+    graph = files["graph.json"]
+    graph["nodes"] = [n for n in graph["nodes"] if n["id"] != "echo"]
+    next(n for n in graph["nodes"] if n["id"] == "assemble")["depends_on"] = ["notes-write"]
+    reader = next(w for w in graph["workers"] if w["id"] == "Reader")
+    reader["tools"].remove("echo")
+    del files["fixtures/workflow.json"]["tools"]["echo"]
+
+
+def test_the_live_cli_answers_memory_tools_from_the_folder(tmp_path, monkeypatch, capsys):
+    from agentpkg.models import HTTPRouter
+    from agentpkg.package import build_package
+    from agentpkg.signing import keygen, sign_package
+
+    memory = tmp_path / "memory"
+    shutil.copytree(EXAMPLE_MEMORY, memory)
+    source = build(tmp_path, without_echo)
+    artifact = tmp_path / "probe.agent.pkg"
+    build_package(source, artifact)
+    private, public = tmp_path / "private.pem", tmp_path / "public.pem"
+    keygen(private, public)
+    sign_package(artifact, private)
+    # The model is the only stub: the recorded answer, behind the router the CLI builds.
+    router = fixture_adapters(load_package(artifact))[0]
+    monkeypatch.setattr(HTTPRouter, "from_config", classmethod(lambda cls, path: router))
+    (tmp_path / "input.json").write_text(json.dumps(probe.REQUEST))
+    (tmp_path / "grants.json").write_text(json.dumps(probe.grants()))
+    (tmp_path / "router.json").write_text("{}")
+    out = tmp_path / "out"
+    argv = [
+        "run",
+        str(artifact),
+        "--mode",
+        "live",
+        "--trust-key",
+        str(public),
+        "--grants",
+        str(tmp_path / "grants.json"),
+        "--router-config",
+        str(tmp_path / "router.json"),
+        "--input",
+        str(tmp_path / "input.json"),
+        *[
+            a
+            for t in ("profile", "identity", "notes-read", "notes-write")
+            for a in ("--approve-tool", t)
+        ],
+        "--memory-dir",
+        str(memory),
+        "--memory-grant",
+        f"memory.profile={probe.PROFILE_ID}",
+        "--memory-grant",
+        f"identity.read={probe.IDENTITY_ID}",
+        "--out",
+        str(out),
+    ]
+    assert main(argv) == 0, capsys.readouterr().err
+    assert json.loads(capsys.readouterr().out)["fixture_replay"] is False
+    result = json.loads((out / "result.json").read_text())
+    assert result["status"] == "completed"
+    reads = sorted((e["permission_id"], e["record_id"]) for e in actions(result, "memory.read"))
+    assert reads == sorted(
+        [("memory.profile", probe.PROFILE_ID), ("identity.read", probe.IDENTITY_ID)]
+    )
+    assert actions(result, "memory.agent.committed")
+    assert (out / "proposals.json").is_file()
+    document = (memory / "agent.memory").glob("*.md")
+    assert [probe.NOTES in path.read_text() for path in document] == [True]
+
+
+def test_a_live_run_of_a_memory_package_needs_a_memory_dir(tmp_path):
+    package = load_package(build(tmp_path))
+    with pytest.raises(ValidationError, match="a live run needs --memory-dir"):
+        cli_memory(package, mode="live", decisions=probe.grants(), memory_dir=None)
+
+
+def test_create_handlers_leaves_memory_bindings_to_the_memory_host():
+    from agentpkg.tools import create_handlers
+
+    package = load_package(probe.ROOT / "dist" / "literature-review-0.2.8.agent.pkg")
+    assert any(t["binding"].startswith("host.memory.") for t in package.tools.values())
+    handlers = create_handlers(package)
+    assert not [b for b in handlers if b.startswith("host.memory.")]
+
+
+def test_fixture_mode_with_a_memory_dir_names_the_grant_it_lacks(tmp_path, capsys):
+    memory = tmp_path / "memory"
+    shutil.copytree(EXAMPLE_MEMORY, memory)
+    status, _, result = run_cli(
+        tmp_path,
+        build(tmp_path),
+        extra=("--memory-dir", str(memory), "--memory-grant", f"memory.profile={probe.PROFILE_ID}"),
+    )
+    err = capsys.readouterr().err
+    assert status == 2 and result is None
+    assert "fixture replays a record under ['identity.read']" in err
 
 
 def test_the_privacy_preset_discards_the_agent_document(tmp_path):
@@ -907,3 +1012,96 @@ def test_the_privacy_preset_discards_the_agent_document(tmp_path):
 
 def test_fixture_router_is_unchanged_by_memory():
     assert FixtureRouter.synthetic is True
+
+
+def test_the_agent_outcome_is_recorded_once(tmp_path, monkeypatch):
+    from agentpkg.workflow import Workflow
+
+    memory = tmp_path / "memory"
+    shutil.copytree(EXAMPLE_MEMORY, memory)
+    original = Workflow._report
+
+    def report(self, status):
+        if status == "completed":
+            raise RuntimeError("after the outcome")
+        return original(self, status)
+
+    monkeypatch.setattr(Workflow, "_report", report)
+    with pytest.raises(Exception) as caught:
+        _live(
+            tmp_path,
+            build(tmp_path),
+            memory,
+            [f"memory.profile={probe.PROFILE_ID}", f"identity.read={probe.IDENTITY_ID}"],
+        )
+    audit = caught.value.execution_report["audit"]
+    outcomes = [
+        e["action"]
+        for e in audit
+        if e["action"].startswith("memory.agent.")
+        and (e["action"] in ("memory.agent.committed", "memory.agent.discarded"))
+    ]
+    assert outcomes == ["memory.agent.committed"]
+    assert caught.value.execution_report["memory"]["agent"]["committed"] is not None
+
+
+def test_a_memory_read_of_the_agent_family_is_refused_at_validation(tmp_path):
+    def change(files):
+        files["policy/policy.json"]["permissions"].append(
+            probe.permission("notes.typed", "memory.read", ["agent.notes"])
+        )
+
+    _invalid(
+        tmp_path,
+        change,
+        "^memory_type_reserved: memory.read permission notes.typed names the reserved type "
+        "agent.notes",
+    )
+
+
+def test_a_nested_sealed_pointer_leaves_required_at_its_own_depth():
+    from agentpkg.memory.proposals import sealed_free_schema
+
+    type_def = {
+        "schema": {
+            "type": "object",
+            "properties": {
+                "card": {
+                    "type": "object",
+                    "properties": {"holder": {"type": "string"}, "a/b": {"type": "string"}},
+                    "required": ["holder", "a/b"],
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {"code": {"type": "string"}},
+                        "required": ["code"],
+                    },
+                },
+            },
+            "required": ["card"],
+        },
+        "sealed_fields": ["/card/a~1b"],
+    }
+    schema = sealed_free_schema(type_def, ["/items/0/code"])
+    assert schema["required"] == ["card"]
+    assert schema["properties"]["card"]["required"] == ["holder"]
+    assert schema["properties"]["items"]["items"]["required"] == []
+    assert type_def["schema"]["properties"]["card"]["required"] == ["holder", "a/b"]
+
+
+def test_a_host_session_refuses_a_memory_read_grant(tmp_path):
+    from agentpkg.execution.errors import ExecutionError
+    from agentpkg.execution.policy import check_resource_grants
+
+    package = load_package(build(tmp_path))
+    grant = {
+        "permission_id": "memory.profile",
+        "resource_type": "travel.profile",
+        "resource_id": probe.PROFILE_ID,
+        "resource_digest": "0" * 64,
+    }
+    with pytest.raises(ExecutionError) as caught:
+        check_resource_grants(package, [grant], probe.grants())
+    assert caught.value.code == "execution_runtime_refused"

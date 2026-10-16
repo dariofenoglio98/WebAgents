@@ -32,15 +32,22 @@ class ProposalRefusal(Exception):
 
 
 def sealed_free_schema(type_def: dict, extra=()) -> dict:
-    """M-40 step 4: the type schema with the sealed pointers removed from `required`."""
+    """M-40 step 4: the type schema with the sealed pointers removed from `required`, at any
+    depth: a nested pointer (a person's addition, M-24) is followed through `properties`, and an
+    array index through `items`, to the object schema whose `required` names its last token."""
     schema = copy.deepcopy(type_def["schema"])
-    top = {
-        pointer.split("/")[1]
-        for pointer in (*type_def["sealed_fields"], *extra)
-        if len(pointer.split("/")) == 2
-    }
-    if isinstance(schema.get("required"), list):
-        schema["required"] = [name for name in schema["required"] if name not in top]
+    for pointer in (*type_def["sealed_fields"], *extra):
+        tokens = [t.replace("~1", "/").replace("~0", "~") for t in pointer.split("/")[1:]]
+        node = schema
+        for token in tokens[:-1]:
+            if not isinstance(node, dict):
+                break
+            child = (node.get("properties") or {}).get(token)
+            if child is None and token.isdigit():
+                child = node.get("items")
+            node = child
+        if tokens and isinstance(node, dict) and isinstance(node.get("required"), list):
+            node["required"] = [name for name in node["required"] if name != tokens[-1]]
     return schema
 
 

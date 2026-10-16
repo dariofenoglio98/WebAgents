@@ -599,7 +599,8 @@ report has no `memory` section). What a run holds about memory is one object bui
   `workflow.completed` (`memory.agent.committed`, its size and hash) and discarded otherwise
   (`memory.agent.discarded`, with the reason), always before `memory.cleared`. The host writes the
   document before it records the commit; a write its store refuses is a discard with reason
-  `store_failed`, and the run stays completed (D-234). The agent
+  `store_failed`, and the run stays completed (D-234). The outcome is recorded once per run, even
+  when something fails after it was recorded. The agent
   permission authorizes the two agent tools and nothing else, so denying it never stops the run's
   state access.
 - **The report** (`result.json`) gains `memory: {proposals, refused, agent}` (D-231): the facts of
@@ -608,7 +609,8 @@ report has no `memory` section). What a run holds about memory is one object bui
 
 Validation refuses, before anything runs, what a package may not declare about memory (M-18, M-19,
 M-33, M-38, M-48, M-67): a `memory.read` naming more than one type, `memory.write` without the
-`proposals.json` export (or the export without the permission), a reserved type, an agent tool
+`proposals.json` export (or the export without the permission), a reserved type (a `memory.read`
+of any `agent.` type among them, D-235), an agent tool
 outside `agent-scoped` or with other schemas, a custom type that shadows a sealed starter field or
 whose schema is not closed, and any of it under a runtime minimum below 0.4.0. Each refusal's text
 starts with the specification's code.

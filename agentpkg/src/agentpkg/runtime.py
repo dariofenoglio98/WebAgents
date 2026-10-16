@@ -488,15 +488,14 @@ class Runtime:
         a granted one goes only to a tool that links the permission it was granted under. The
         refusal is a denied permission check naming the record and the pointer, never the value.
         """
+        from .memory.model import LEGACY_READ_BINDING_PREFIX, is_record_read_binding
         from .memory.scan import INCOMPLETE, find_all_sealed
 
         memory = self.memory
         if memory is None or not memory.scan:
             return
         binding = tool["binding"] or ""
-        if (
-            binding.startswith("host.memory.") and not binding.startswith("host.memory.agent.")
-        ) or binding.startswith("host.resource."):
+        if is_record_read_binding(binding) or binding.startswith(LEGACY_READ_BINDING_PREFIX):
             return
         hits = find_all_sealed(payload, memory.scan)
         denied = dict(context=ctx, allowed=False, tool=tool_id)

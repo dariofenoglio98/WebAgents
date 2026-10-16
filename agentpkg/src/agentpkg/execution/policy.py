@@ -641,6 +641,16 @@ def check_resource_grants(package, resource_grants: list[dict], grants: dict) ->
                 "declare for that resource type",
                 permission=grant["permission_id"],
             )
+        if permission["kind"] == "memory.read":
+            # memory.v0 (agentpkg 0.4.0): this session builds no memory for its run, so a
+            # `memory.read` grant would reach no handler and no scan set. Refused, not dropped:
+            # memory packages run in the Chrome Agent Browser or `agentpkg run --memory-dir`.
+            raise ExecutionError(
+                "execution_runtime_refused",
+                f"The run plan grants a memory record under {grant['permission_id']!r}; this "
+                "host session does not run memory.v0 reads.",
+                detail={"permission": grant["permission_id"]},
+            )
         if grants.get(grant["permission_id"], DENY) == DENY:
             raise ExecutionError(
                 PERMISSION_DENIED,

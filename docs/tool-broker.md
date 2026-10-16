@@ -321,8 +321,12 @@ folder (sealed values in clear, `DIR/memory.key`) and `--memory-grant PERMISSION
 record, as a person would at authorization; a live run answers the tools from the folder and
 commits the agent document into `DIR/agent.memory/` only when the run completes, writing the file
 before the audit records the commit; a write the folder refuses is recorded as a discard with reason
-`store_failed` (D-230, D-234). In fixture
-mode every memory tool is replayed from the package's fixture and no store is touched (M-62). The
+`store_failed` (D-230, D-234). A live run of a package that declares memory tools needs
+`--memory-dir` (an empty folder starts a new memory), and the generic network and file bindings
+leave every `host.memory.*` and `host.resource.*` tool to the folder's handlers (D-235). In fixture
+mode every memory tool is replayed from the package's fixture and no store is touched (M-62); with
+`--memory-dir` the grants are the flags only, and a record the fixture replays under a permission no
+`--memory-grant` names is refused before the run, naming the permission. The
 OpenClaw plugin is frozen (D-029) and binds no `host.memory.*` tool: it runs every package up to
 WebAir 0.5.0 and Literature Review 0.2.7; WebAir 0.6.0 and Literature Review 0.2.8 run in the
 Chrome Agent Browser and through `agentpkg run`.

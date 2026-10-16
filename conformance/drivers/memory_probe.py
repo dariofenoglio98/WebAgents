@@ -194,6 +194,11 @@ VARIANTS = {
     "m36-two-sealed-values": probe.two_sealed_values,
     "custom-type-proposal": probe.custom_type_proposal,
     "custom-type-read": probe.custom_type_read,
+    # T20 review 2: a memory.read of an `agent.` type, whose binding would be a reserved agent
+    # tool's name, is refused at validation (M-38, D-235).
+    "agent-family-read": lambda files: files["policy/policy.json"]["permissions"].append(
+        probe.permission("notes.typed", "memory.read", ["agent.notes"])
+    ),
 }
 # Permissions a variant adds, granted for the session like the probe's own.
 EXTRA_GRANTS = {

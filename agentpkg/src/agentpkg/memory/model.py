@@ -54,6 +54,29 @@ SELF_TYPE = "person.self"
 AGENT_TYPE = "agent.memory"
 NOTE_TYPE = "document.note"
 RESERVED_TYPES = frozenset([SELF_TYPE, AGENT_TYPE])
+# The binding names a host answers from memory (§7.1, §7.4). Validation lets only the two
+# reserved agent tools into `host.memory.agent.` (a `memory.read` of an `agent.` type is refused,
+# D-235), so every scan point tells a record read from an agent tool by this prefix.
+MEMORY_READ_BINDING_PREFIX = "host.memory."
+LEGACY_READ_BINDING_PREFIX = "host.resource."
+AGENT_BINDING_PREFIX = "host.memory.agent."
+AGENT_TYPE_FAMILY = "agent."
+
+
+def is_memory_binding(binding: str | None) -> bool:
+    """A binding the memory host answers: a record read, a legacy read, or an agent tool."""
+    return (binding or "").startswith((MEMORY_READ_BINDING_PREFIX, LEGACY_READ_BINDING_PREFIX))
+
+
+def is_agent_binding(binding: str | None) -> bool:
+    return (binding or "").startswith(AGENT_BINDING_PREFIX)
+
+
+def is_record_read_binding(binding: str | None) -> bool:
+    """`host.memory.<type>`: a read answered with a record view (M-15)."""
+    return (binding or "").startswith(MEMORY_READ_BINDING_PREFIX) and not is_agent_binding(binding)
+
+
 SEALED_PLACEHOLDER = "sealed:omitted"
 MIRROR_MARK = "<!-- memory.v0 links -->"
 MIN_SEALED_LENGTH = 6

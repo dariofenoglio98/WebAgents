@@ -25,7 +25,11 @@ Markdown records that packages touch only through three permission uses.
   `memory` section (D-231). A package that uses none of it runs and reports exactly as before.
 - **`agentpkg run --memory-dir DIR --memory-grant PERMISSION=RECORD`** (D-230): a memory folder (an
   export folder with its `memory.key`) as the store, a record per permission; fixture mode derives
-  the grants and the scan set from the replayed answers (M-62).
+  the grants and the scan set from the replayed answers (M-62). A live run answers the memory tools
+  from the folder and needs `--memory-dir` when the package declares any; with `--memory-dir`,
+  fixture mode names a replayed record's permission that no `--memory-grant` grants (D-235).
+- A loopback execution session refuses a plan that grants a `memory.read` record (it builds no memory
+  for its run); the frozen OpenClaw plugin produces none (D-235).
 - `agentpkg.memory`: the record format (the YAML subset, the canonical document, the HMAC digest,
   views and links), the starter taxonomy and custom types, and the folder reader, held to the
   specification's contracts and reference script by tests.

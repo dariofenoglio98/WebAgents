@@ -10,13 +10,24 @@ from __future__ import annotations
 
 from ..errors import ValidationError
 from ..package import canonical_json
-from .model import AGENT_TYPE, MAX_PROPOSALS, RESERVED_TYPES, SELF_TYPE, WELL_KNOWN_TYPE_ID
+from .model import (
+    AGENT_BINDING_PREFIX,
+    AGENT_TYPE,
+    AGENT_TYPE_FAMILY,
+    LEGACY_READ_BINDING_PREFIX,
+    MAX_PROPOSALS,
+    MEMORY_READ_BINDING_PREFIX,
+    RESERVED_TYPES,
+    SELF_TYPE,
+    WELL_KNOWN_TYPE_ID,
+    is_agent_binding,
+    is_memory_binding,
+    is_record_read_binding,
+)
 from .proposals import PROPOSALS_EXPORT_FORMAT, PROPOSALS_PATH
 from .registry import MemoryTypeError, contract, custom_types_of, starter_types
 
 MEMORY_MINIMUM_VERSION = "0.4.0"
-MEMORY_READ_BINDING_PREFIX = "host.memory."
-LEGACY_READ_BINDING_PREFIX = "host.resource."
 AGENT_READ_BINDING = "host.memory.agent.read"
 AGENT_WRITE_BINDING = "host.memory.agent.write"
 AGENT_SCOPE = "agent-scoped"
@@ -85,7 +96,9 @@ def memory_declarations(manifest: dict, policy: dict, tools: dict, files: dict) 
                     f"memory.read permission {pid} must name exactly one type in resources",
                 )
             resource = resources[0]
-            if resource in (AGENT_TYPE, SELF_TYPE):
+            if resource in (AGENT_TYPE, SELF_TYPE) or resource.startswith(AGENT_TYPE_FAMILY):
+                # The `agent.` family is the agent document's: its read binding would be
+                # `host.memory.agent.<…>`, the reserved tools' names (D-235).
                 raise _refuse(
                     "memory_type_reserved",
                     f"memory.read permission {pid} names the reserved type {resource}",
@@ -301,13 +314,8 @@ def check_memory_graph(manifest: dict, graph: dict, declarations: dict) -> None:
         )
 
 
-def is_memory_binding(binding: str) -> bool:
-    return binding.startswith(MEMORY_READ_BINDING_PREFIX) or binding.startswith(
-        LEGACY_READ_BINDING_PREFIX
-    )
-
-
 __all__ = [
+    "AGENT_BINDING_PREFIX",
     "AGENT_READ_BINDING",
     "AGENT_RESOURCE",
     "AGENT_SCOPE",
@@ -318,6 +326,8 @@ __all__ = [
     "agent_tool_schemas",
     "check_memory_graph",
     "is_agent_permission",
+    "is_agent_binding",
     "is_memory_binding",
+    "is_record_read_binding",
     "memory_declarations",
 ]
