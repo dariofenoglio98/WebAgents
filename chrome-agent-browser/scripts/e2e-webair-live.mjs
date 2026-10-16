@@ -90,9 +90,15 @@ mkdirSync(outDir, { recursive: true });
 
 const SEARCH_REQUEST = "Find me a nonstop flight from Boston to Zurich on 9 October under $900.";
 const BOOKING_REQUEST = "Search nonstop flights from Boston to Zurich on 9 October and prepare a booking quote for the WA101 Economy Standard fare for me.";
+/** The memory phase asks for something the demo profile (BOS, economy, nonstop) lacks, so the package has a preference to propose (B-216). */
+const MEMORY_REQUEST = "Book me a business class flight from Boston to Zurich on 9 October. I always fly business on this route; prepare a booking quote for the WA101 business fare.";
+const PASSPHRASE = "a throwaway passphrase for the live harness";
 /** The demo set's stable memory ids (T19, `demoRecordId`): `mem_` + the first 32 hex characters of SHA-256("demo:<0.1.0 resource id>"). */
 const demoRecordId = (resourceId) => `mem_${createHash("sha256").update(`demo:${resourceId}`).digest("hex").slice(0, 32)}`;
-const PICKS = { "profile.travel": demoRecordId("profile_demo_traveler"), "memory.travel_profile": demoRecordId("profile_demo_traveler"), "identity.passenger": demoRecordId("passenger_demo_alex"), "wallet.payment": demoRecordId("payment_demo_visa") };
+/** WebAir 0.6.0 reads the travel profile through `memory.travel_profile` (memory.read); 0.5.0 through the legacy `profile.travel` (B-217). */
+const PROFILE_PERMISSION = memoryCapable(args.version) ? "memory.travel_profile" : "profile.travel";
+const PROFILE_ID = demoRecordId("profile_demo_traveler");
+const PICKS = { [PROFILE_PERMISSION]: PROFILE_ID, "identity.passenger": demoRecordId("passenger_demo_alex"), "wallet.payment": demoRecordId("payment_demo_visa") };
 
 /** Page-side helpers for the extension's pages: controls by label, the native value setter, run state. */
 const HELPERS = String.raw`
@@ -214,6 +220,8 @@ async function main() {
     settings.models.default_model = args.model;
     settings.models.connections = settings.models.connections.map((connection) => (connection.provider === provider ? { ...connection, enabled: true } : connection));
     await send({ type: "settings.set", settings });
+    // The secret store needs a passphrase before a key or the memory is accepted (T16/T19, B-217): a throwaway one for this profile.
+    await send({ type: "secrets.setup", passphrase: PASSPHRASE });
     if (keyEnv) await send({ type: "settings.setKey", provider, key: process.env[keyEnv] });
     const probe = await send({ type: "models.probe", provider });
     report.steps.setup = { probe: { ok: probe.ok, models: probe.models.length, error: probe.error, diagnosis: probe.diagnosis ?? null }, testMode: true, keyFromEnvironment: keyEnv };
@@ -376,7 +384,7 @@ async function main() {
     // 4. Search and quote: the passenger identity reaches WebAir only in prepare_booking.
     let quoteId = null;
     if (args.phases.includes("quote")) {
-      const auth = await authorize("quote", { "profile.travel": PICKS["profile.travel"], "identity.passenger": PICKS["identity.passenger"] });
+      const auth = await authorize("quote", { [PROFILE_PERMISSION]: PICKS[PROFILE_PERMISSION], "identity.passenger": PICKS["identity.passenger"] });
       report.steps.quoteAuthorization = auth;
       check("quote", "the quote plan is ready with two records", auth.ready === true && auth.grants.length === 2, auth);
       const quote = await runTask("quote", { request: BOOKING_REQUEST, booking: true, purchase: { quote_id: "", fare_id: "" } });
@@ -421,11 +429,11 @@ async function main() {
     // 7. Memory (T19, Demo 6; WebAir 0.6.0): a booking proposes things to remember; the person accepts them;
     //    the memory folder is exported; a second authorization recalls the accepted record.
     if (args.phases.includes("memory")) {
-      const bookPicks = Object.fromEntries(Object.entries(PICKS).filter(([permission]) => permission !== "profile.travel"));
+      const bookPicks = Object.fromEntries(Object.entries(PICKS).filter(([permission]) => permission !== PROFILE_PERMISSION));
       const auth = await authorize("book", bookPicks);
       report.steps.memoryAuthorization = auth;
-      check("memory", "the book plan is ready with the recalled profile", auth.ready === true && auth.grants.includes(PICKS["memory.travel_profile"]), auth);
-      const memoryTask = { request: BOOKING_REQUEST, booking: true, purchase: { quote_id: "", fare_id: "" } };
+      check("memory", "the book plan is ready with the recalled profile", auth.ready === true && auth.grants.includes(PROFILE_ID), auth);
+      const memoryTask = { request: MEMORY_REQUEST, booking: true, purchase: { quote_id: "", fare_id: "" } };
       const run = await runTask("memory", memoryTask);
       check("memory", "completed", run.record.status === "completed", run.record);
       const record = await send({ type: "run.get", runId: run.record.runId });
@@ -467,7 +475,7 @@ async function main() {
 
     // 6. Denial: the quote profile cannot purchase.
     if (args.phases.includes("denial") && quoteId) {
-      const auth = await authorize("quote", { "profile.travel": PICKS["profile.travel"], "identity.passenger": PICKS["identity.passenger"] });
+      const auth = await authorize("quote", { [PROFILE_PERMISSION]: PICKS[PROFILE_PERMISSION], "identity.passenger": PICKS["identity.passenger"] });
       check("denial", "the quote plan is ready again", auth.ready === true, auth.banner);
       const denial = await runTask("denial", { request: `Simulate purchase of quote ${quoteId}.`, booking: false, purchase: { quote_id: quoteId, fare_id: report.steps.quote.fareId } });
       check("denial", "failed with permission_denied", denial.record.status === "failed" && denial.record.errorCode === "permission_denied", denial.record);
