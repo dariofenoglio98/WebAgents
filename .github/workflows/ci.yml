@@ -57,7 +57,7 @@ jobs:
       - name: Install agentpkg as the README describes
         run: |
           python -m venv agentpkg/.venv
-          agentpkg/.venv/bin/python -m pip install -e './agentpkg[dev]'
+          agentpkg/.venv/bin/python -m pip install -e './agentpkg[dev,compute]'
           agentpkg/.venv/bin/agentpkg --version
       - name: Install the Citation Resolver environment (the package/resolver schema contract test uses it)
         run: |
@@ -90,7 +90,8 @@ jobs:
           for script in verify_workflow verify_browser verify_literature_022 \
                         verify_literature_023 verify_literature_024 verify_literature_025 \
                         verify_literature_026 verify_literature_027 \
-                        verify_webair verify_webair_discovery check_memory_spec; do
+                        verify_webair verify_webair_discovery check_memory_spec \
+                        verify_compute; do
             report="$RUNNER_TEMP/$script.json"
             agentpkg/.venv/bin/python "scripts/$script.py" > "$report"
             # The scripts report failures in their JSON, not in their exit status.
@@ -127,14 +128,14 @@ jobs:
       - name: Install the shipped wheel in a fresh environment
         run: |
           python -m venv "$RUNNER_TEMP/wheel-env"
-          "$RUNNER_TEMP/wheel-env/bin/python" -m pip install dist/agentpkg-0.4.0-py3-none-any.whl
+          "$RUNNER_TEMP/wheel-env/bin/python" -m pip install dist/agentpkg-0.5.0-py3-none-any.whl
           cd "$RUNNER_TEMP"
           wheel-env/bin/agentpkg --version
           wheel-env/bin/python -c 'import agentpkg; assert "site-packages" in agentpkg.__file__, agentpkg.__file__'
       - name: Release-tree checks (package identities, dist/ SHA-256 list, licenses, wheel = source)
         run: |
           "$RUNNER_TEMP/wheel-env/bin/python" scripts/check_release.py \
-            --built-wheel "$RUNNER_TEMP/agentpkg-dist/agentpkg-0.4.0-py3-none-any.whl"
+            --built-wheel "$RUNNER_TEMP/agentpkg-dist/agentpkg-0.5.0-py3-none-any.whl"
       - name: Verify the signed packages with the installed wheel
         run: |
           agentpkg="$RUNNER_TEMP/wheel-env/bin/agentpkg"
@@ -356,7 +357,7 @@ jobs:
         working-directory: .
         run: |
           python -m venv agentpkg/.venv
-          agentpkg/.venv/bin/python -m pip install -e ./agentpkg
+          agentpkg/.venv/bin/python -m pip install -e './agentpkg[compute]'
           test -x agentpkg/.venv/bin/agentpkg
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
@@ -421,7 +422,7 @@ jobs:
         working-directory: .
         run: |
           python -m venv agentpkg/.venv
-          agentpkg/.venv/bin/python -m pip install -e ./agentpkg
+          agentpkg/.venv/bin/python -m pip install -e './agentpkg[compute]'
           test -x agentpkg/.venv/bin/agentpkg
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
@@ -515,7 +516,7 @@ jobs:
       - name: Install agentpkg and build the Chrome core
         run: |
           python -m venv agentpkg/.venv
-          agentpkg/.venv/bin/python -m pip install -e ./agentpkg
+          agentpkg/.venv/bin/python -m pip install -e './agentpkg[compute]'
           (cd chrome-agent-browser && npm ci && npm run build)
       - name: Run both runtimes on the shipped packages and the negative suite
         # Fixture mode and control-plane scenarios only: no model, network or credential.
@@ -581,7 +582,7 @@ jobs:
       - name: Install agentpkg and build the plugin
         run: |
           python -m venv agentpkg/.venv
-          agentpkg/.venv/bin/python -m pip install -e './agentpkg[dev]'
+          agentpkg/.venv/bin/python -m pip install -e './agentpkg[dev,compute]'
           (cd openclaw-agent-browser && npm ci && npm run build)
       - name: Tests (no test may be skipped)
         # One pytest process per experiment: each puts its own directory first on

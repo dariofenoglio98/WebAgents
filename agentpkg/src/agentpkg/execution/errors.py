@@ -45,6 +45,10 @@ MODEL_INCOMPATIBLE = "execution_model_incompatible"
 TOOLS_NOT_SUPPORTED = "tools_not_supported"
 OUTPUT_CAP_TOO_LARGE = "execution_output_cap_too_large"
 EXPORT_PATH_RESERVED = "execution_export_path_reserved"
+# compute.v0: this host has no WebAssembly engine, or a module's declared memory maximum is
+# above the host's ceiling (refused, never lowered, like an output cap).
+COMPUTE_NOT_SUPPORTED = "compute_not_supported"
+COMPUTE_LIMIT_EXCEEDED = "execution_compute_limit_exceeded"
 
 # Tool authority. Shared verbatim with `agentpkg.toolbridge`, so the word the
 # runner uses when it refuses to ask is the word the host uses when it refuses
@@ -75,6 +79,8 @@ __all__ = [
     "ARTIFACTS_FAILED",
     "ARTIFACT_INVALID",
     "ARTIFACT_MISMATCH",
+    "COMPUTE_LIMIT_EXCEEDED",
+    "COMPUTE_NOT_SUPPORTED",
     "EXPORT_PATH_RESERVED",
     "GRANT_UNSUPPORTED",
     "INPUT_INVALID",

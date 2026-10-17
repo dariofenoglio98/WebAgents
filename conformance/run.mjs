@@ -398,7 +398,7 @@ function memoryNegativeCases(cli, run) {
     ["n1-type-undeclared", "N1: a proposal of a type outside memory.write's resources", workflow("permission_denied")],
     ["n2-sealed-field", "N2: a proposal carrying a sealed field", workflow("schema_validation")],
     ["n4-agent-write-over-cap", "N4: an agent write over 32,768 characters fails the tool's input schema", workflow("schema_validation", "notes-write")],
-    ["n5-newer-runtime", "N5: a package whose runtime minimum is newer than the runtime is refused by version before anything runs", { code: "runtime_too_old", message: /^manifest runtime\.minimum_version exceeds reference runtime 0\.4\.0$/u }],
+    ["n5-newer-runtime", "N5: a package whose runtime minimum is newer than the runtime is refused by version before anything runs", { code: "runtime_too_old", message: /^manifest runtime\.minimum_version exceeds reference runtime \d+\.\d+\.\d+$/u, ownVersion: true }],
     ["n6-view-mismatch", "N6: a memory.read tool whose output schema is not the type's record view is not bound", refused("binding_schema_mismatch")],
     ["n7-two-agent-writes", "N7: a second agent write in one run is over its max_calls_per_tool of 1", workflow("budget_exhausted", "notes-write-again")],
     ["n8-update-not-granted", "N8: an update whose target the run was not granted", workflow("permission_denied")],
@@ -444,7 +444,15 @@ function runNegative(commands, expectation, options) {
     check(`${argv[0]}: refused with status 2 in both`, [python, node].every((o) => o.status === 2 && o.report === null) ? [] : [`python ${python.status}`, `node ${node.status}`]);
     check(`${argv[0]}: refusal code ${expectation.code}`, ["python", "node"].filter((r) => refusals[r].code !== expectation.code).map((r) => `${r}: ${refusals[r].code} (${r === "python" ? python.message : node.message})`));
     if (expectation.node) check(`${argv[0]}: at node ${expectation.node}`, ["python", "node"].filter((r) => refusals[r].node !== expectation.node).map((r) => `${r}: ${refusals[r].node}`));
-    check(`${argv[0]}: identical message`, python.message === node.message ? [] : [`python: ${python.message}`, `node: ${node.message}`]);
+    if (expectation.ownVersion) {
+      // A refusal that names the runtime's own version: identical up to that version, and each
+      // runtime names its own (they differ between a reference bump and its Chrome port).
+      const own = { python: agentpkgVersion(), node: chromeRuntimeVersion() };
+      check(`${argv[0]}: each runtime names its own version`, ["python", "node"].filter((r) => !(r === "python" ? python : node).message?.endsWith(` ${own[r]}`)).map((r) => `${r}: ${(r === "python" ? python : node).message} (own version ${own[r]})`));
+      check(`${argv[0]}: identical message up to the version`, python.message?.replace(own.python, "<v>") === node.message?.replace(own.node, "<v>") ? [] : [`python: ${python.message}`, `node: ${node.message}`]);
+    } else {
+      check(`${argv[0]}: identical message`, python.message === node.message ? [] : [`python: ${python.message}`, `node: ${node.message}`]);
+    }
     if (expectation.artifacts === "race") {
       const compared = compareFailureRace(python.files, node.files);
       checks.push(...compared.checks.map((item) => ({ ...item, name: `${argv[0]}: ${item.name}` })));
@@ -550,10 +558,21 @@ function chromeRuntimeVersion() {
   return chromeVersion;
 }
 const release = (version) => version.split("-")[0].split(".").map(Number);
-function chromeLacksMemory() {
-  const [major, minor] = release(chromeRuntimeVersion());
-  return major === 0 && minor < 4;
+let pythonVersion;
+function agentpkgVersion() {
+  if (pythonVersion === undefined) {
+    const source = readFileSync(join(ROOT, "agentpkg/src/agentpkg/__init__.py"), "utf8");
+    pythonVersion = /__version__\s*=\s*"([^"]+)"/u.exec(source)?.[1] ?? "unknown";
+  }
+  return pythonVersion;
 }
+const olderThan = (version, than) => {
+  const [a, b, c] = release(version);
+  const [x, y, z] = release(than);
+  return a !== x ? a < x : b !== y ? b < y : c < z;
+};
+/** The Chrome core refuses packages that need a newer reference than its gate (`requires`). */
+const chromeLacks = (requires) => olderThan(chromeRuntimeVersion(), requires);
 
 // -- the report ------------------------------------------------------------------------------
 function git(argv) {
@@ -617,8 +636,13 @@ async function main() {
     // version (T20, D-233), and only when that refusal is what failed it and the Python half
     // passed on its own (D-234): a Python regression, or a Chrome failure of any other kind,
     // fails the suite. Once Chrome accepts 0.4.0 packages, the case counts.
-    const pending = !passed && Boolean(testCase.memory) && chromeLacksMemory() && outcome.halves?.python === true && outcome.halves?.chromeVersionRefused === true;
-    results.push({ id: testCase.id, title: testCase.title, kind: testCase.kind, passed, pending, seconds: (Date.now() - started) / 1000, ...outcome });
+    // A case whose package needs a reference version the Chrome core's gate does not reach yet
+    // (memory.v0 needs 0.4.0, compute.v0 0.5.0) is pending, not failed, and only when that
+    // refusal is what failed it and the Python half passed on its own (D-234): a Python
+    // regression, or a Chrome failure of any other kind, fails the suite.
+    const requires = testCase.requires ?? (testCase.memory ? "0.4.0" : null);
+    const pending = !passed && requires !== null && chromeLacks(requires) && outcome.halves?.python === true && outcome.halves?.chromeVersionRefused === true;
+    results.push({ id: testCase.id, title: testCase.title, kind: testCase.kind, passed, pending, ...(requires ? { requires } : {}), seconds: (Date.now() - started) / 1000, ...outcome });
     process.stdout.write(`${passed ? "pass" : pending ? "PEND" : "FAIL"}  ${testCase.id}${pending ? " (Python half passed; Chrome refused by version)" : ""}\n`);
     for (const check of outcome.checks.filter((item) => !item.passed)) process.stdout.write(`      ✗ ${check.name}: ${check.detail.join("; ")}\n`);
     for (const note of outcome.notes) process.stdout.write(`      note: ${note}\n`);
@@ -629,7 +653,7 @@ async function main() {
     schema: "webagents-conformance-report-v0",
     generated_at: new Date().toISOString(),
     environment: environment(),
-    summary: { cases: results.length, passed: results.filter((r) => r.passed).length, failed: counted.filter((r) => !r.passed).map((r) => r.id), pending: results.filter((r) => r.pending).map((r) => r.id), pending_reason: results.some((r) => r.pending) ? `the Chrome core CLI refuses memory.v0 packages by version (${chromeRuntimeVersion()} < 0.4.0)` : null, checks: allChecks.length, checks_passed: allChecks.filter((c) => c.passed).length, filtered: ONLY },
+    summary: { cases: results.length, passed: results.filter((r) => r.passed).length, failed: counted.filter((r) => !r.passed).map((r) => r.id), pending: results.filter((r) => r.pending).map((r) => r.id), pending_reason: results.some((r) => r.pending) ? `the Chrome core CLI (runtime ${chromeRuntimeVersion()}) refuses by version the packages that need a newer reference (${[...new Set(results.filter((r) => r.pending).map((r) => r.requires ?? (r.memory ? "0.4.0" : "?")))].sort().join(", ")})` : null, checks: allChecks.length, checks_passed: allChecks.filter((c) => c.passed).length, filtered: ONLY },
     cases: results,
     passed: counted.length > 0 && counted.every((r) => r.passed),
   };

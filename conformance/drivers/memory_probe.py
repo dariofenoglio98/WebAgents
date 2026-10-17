@@ -125,7 +125,7 @@ VARIANTS = {
     "n2-sealed-field": n2_sealed_field,
     "n4-agent-write-over-cap": n4_over_cap,
     "n5-newer-runtime": lambda files: files["MANIFEST.agent"]["runtime"].update(
-        minimum_version="0.5.0"
+        minimum_version="9.9.9"
     ),
     "n6-view-mismatch": lambda files: files["schemas/travel.profile.view.schema.json"][
         "properties"

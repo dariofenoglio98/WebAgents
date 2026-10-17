@@ -199,6 +199,34 @@
         ],
         "additionalProperties": false
       }
+    },
+    "modules": {
+      "type": "array",
+      "maxItems": 16,
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+          },
+          "path": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-][A-Za-z0-9_.-]*(?:/[A-Za-z0-9_-][A-Za-z0-9_.-]*)*\\.wasm$",
+            "maxLength": 240
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        },
+        "required": [
+          "id",
+          "path",
+          "sha256"
+        ],
+        "additionalProperties": false
+      }
     }
   },
   "required": [
@@ -409,7 +437,8 @@
             "map",
             "join",
             "validate",
-            "output"
+            "output",
+            "compute"
           ]
         },
         "input": {
@@ -546,6 +575,41 @@
           "items": {
             "$ref": "#/$defs/assertion"
           }
+        },
+        "module": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+        },
+        "function": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,63}$"
+        },
+        "input_schema": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-][A-Za-z0-9_.-]*(?:/[A-Za-z0-9_-][A-Za-z0-9_.-]*)*$",
+          "maxLength": 240
+        },
+        "limits": {
+          "type": "object",
+          "properties": {
+            "memory_pages": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65536
+            },
+            "wall_seconds": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 300
+            },
+            "fuel": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000000000000
+            }
+          },
+          "minProperties": 1,
+          "additionalProperties": false
         }
       },
       "required": [
@@ -990,6 +1054,114 @@
               }
             }
           }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "compute"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "module",
+              "function",
+              "input_schema"
+            ],
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "task"
+                  ]
+                },
+                {
+                  "required": [
+                    "max_output_tokens"
+                  ]
+                },
+                {
+                  "required": [
+                    "tool"
+                  ]
+                },
+                {
+                  "required": [
+                    "item_schema"
+                  ]
+                },
+                {
+                  "required": [
+                    "max_items"
+                  ]
+                },
+                {
+                  "required": [
+                    "max_parallel"
+                  ]
+                },
+                {
+                  "required": [
+                    "steps"
+                  ]
+                },
+                {
+                  "required": [
+                    "yield"
+                  ]
+                },
+                {
+                  "required": [
+                    "select"
+                  ]
+                },
+                {
+                  "required": [
+                    "unique_by"
+                  ]
+                },
+                {
+                  "required": [
+                    "limit"
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "anyOf": [
+              {
+                "required": [
+                  "module"
+                ]
+              },
+              {
+                "required": [
+                  "function"
+                ]
+              },
+              {
+                "required": [
+                  "input_schema"
+                ]
+              },
+              {
+                "required": [
+                  "limits"
+                ]
+              }
+            ]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "const": "compute"
+              }
+            }
+          }
         }
       ]
     },
@@ -1005,7 +1177,8 @@
             "llm",
             "tool",
             "join",
-            "validate"
+            "validate",
+            "compute"
           ]
         },
         "input": {
@@ -1118,6 +1291,41 @@
           "items": {
             "$ref": "#/$defs/assertion"
           }
+        },
+        "module": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+        },
+        "function": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,63}$"
+        },
+        "input_schema": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-][A-Za-z0-9_.-]*(?:/[A-Za-z0-9_-][A-Za-z0-9_.-]*)*$",
+          "maxLength": 240
+        },
+        "limits": {
+          "type": "object",
+          "properties": {
+            "memory_pages": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65536
+            },
+            "wall_seconds": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 300
+            },
+            "fuel": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000000000000
+            }
+          },
+          "minProperties": 1,
+          "additionalProperties": false
         }
       },
       "required": [
@@ -1556,6 +1764,114 @@
             "properties": {
               "type": {
                 "const": "llm"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "compute"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "module",
+              "function",
+              "input_schema"
+            ],
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "task"
+                  ]
+                },
+                {
+                  "required": [
+                    "max_output_tokens"
+                  ]
+                },
+                {
+                  "required": [
+                    "tool"
+                  ]
+                },
+                {
+                  "required": [
+                    "item_schema"
+                  ]
+                },
+                {
+                  "required": [
+                    "max_items"
+                  ]
+                },
+                {
+                  "required": [
+                    "max_parallel"
+                  ]
+                },
+                {
+                  "required": [
+                    "steps"
+                  ]
+                },
+                {
+                  "required": [
+                    "yield"
+                  ]
+                },
+                {
+                  "required": [
+                    "select"
+                  ]
+                },
+                {
+                  "required": [
+                    "unique_by"
+                  ]
+                },
+                {
+                  "required": [
+                    "limit"
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "anyOf": [
+              {
+                "required": [
+                  "module"
+                ]
+              },
+              {
+                "required": [
+                  "function"
+                ]
+              },
+              {
+                "required": [
+                  "input_schema"
+                ]
+              },
+              {
+                "required": [
+                  "limits"
+                ]
+              }
+            ]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "const": "compute"
               }
             }
           }

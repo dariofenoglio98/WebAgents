@@ -1,0 +1,7 @@
+[
+  {
+    "op": "add",
+    "path": "/properties/permissions/items/properties/kind/enum/-",
+    "value": "compute"
+  }
+]

@@ -24,6 +24,11 @@ INTEGRITY_PATH = "integrity.json"
 SIGNATURE_PATH = "signatures/publisher.json"
 ENVELOPE = {INTEGRITY_PATH, SIGNATURE_PATH}
 ALLOWED_SUFFIXES = {".json", ".md", ".txt", ".bib", ".csv"}
+# compute.v0 (agentpkg 0.5.0): the one binary member class, a WebAssembly core module. It is
+# admitted by its header, bounded, and must be declared in the graph with its SHA-256; the
+# graph's reader then decides whether it is a tier-1 module (`agentpkg.compute`).
+BINARY_SUFFIXES = {".wasm"}
+WASM_HEADER = b"\x00asm\x01\x00\x00\x00"
 PORTABLE_PATH = re.compile(r"^[A-Za-z0-9_-][A-Za-z0-9_.-]*(?:/[A-Za-z0-9_-][A-Za-z0-9_.-]*)*$")
 WINDOWS_RESERVED = {
     "CON",
@@ -55,7 +60,10 @@ def _safe_name(name: str):
             raise ValidationError(f"nonportable reserved path component: {part!r}")
         if part.lower() in {"node_modules", "venv", "__pycache__", "id_rsa", "id_ed25519"}:
             raise ValidationError(f"forbidden package directory/file: {part!r}")
-    if name != "MANIFEST.agent" and PurePosixPath(name).suffix.lower() not in ALLOWED_SUFFIXES:
+    if (
+        name != "MANIFEST.agent"
+        and PurePosixPath(name).suffix.lower() not in ALLOWED_SUFFIXES | BINARY_SUFFIXES
+    ):
         raise ValidationError(
             f"{name}: only declared UTF-8 data formats allowed, never executable payloads"
         )
@@ -90,12 +98,26 @@ def _check_payload(files, *, envelope=False):
         total += len(data)
         if total > MAX_TOTAL_BYTES:
             raise ValidationError(f"package exceeds {MAX_TOTAL_BYTES} byte expanded limit")
-        try:
-            content = data.decode("utf-8")
-        except UnicodeDecodeError as exc:
-            raise ValidationError(f"{name}: payload must be UTF-8 text") from exc
-        if "\x00" in content:
-            raise ValidationError(f"{name}: NUL bytes are not allowed")
+        if PurePosixPath(name).suffix.lower() in BINARY_SUFFIXES:
+            from .compute.module import MAX_MODULE_BYTES
+
+            if len(data) > MAX_MODULE_BYTES:
+                raise ValidationError(
+                    f"{name}: a WebAssembly module is at most {MAX_MODULE_BYTES} bytes"
+                )
+            if not data.startswith(WASM_HEADER):
+                raise ValidationError(
+                    f"{name}: not a WebAssembly core module (magic number and version 1)"
+                )
+            # The credential scan below reads the bytes as text; a module is never decoded.
+            content = data.decode("latin-1")
+        else:
+            try:
+                content = data.decode("utf-8")
+            except UnicodeDecodeError as exc:
+                raise ValidationError(f"{name}: payload must be UTF-8 text") from exc
+            if "\x00" in content:
+                raise ValidationError(f"{name}: NUL bytes are not allowed")
         if re.search(
             r"-----BEGIN (?:[A-Z ]+ )?PRIVATE KEY-----|\b(?:sk-proj-|sk-ant-)[A-Za-z0-9_-]{12,}",
             content,
@@ -456,7 +478,17 @@ def inspect_package(package: Package) -> dict:
         "nodes" if "nodes" in package.graph else "stages": package.graph.get(
             "nodes", package.graph.get("stages", [])
         ),
+        **_module_listing(package),
     }
+
+
+def _module_listing(package: Package) -> dict:
+    """compute.v0: the modules a graph declares, with their hashes, where it declares any."""
+    if not package.graph.get("modules"):
+        return {}
+    from .compute.declarations import module_records
+
+    return {"modules": module_records(package)}
 
 
 def unpack_package(path: str | Path, destination: str | Path) -> Path:

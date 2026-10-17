@@ -402,6 +402,11 @@ Design rationale: [docs/architecture.md](docs/architecture.md). Threat model:
   NANDA resolution is a stub with the mapping defined.
 
 **Experimental** (works on the development host, but limited or lightly exercised):
+- **Code in packages** ([`spec/compute-v0.md`](spec/compute-v0.md), agentpkg 0.5.0): a package may ship
+  WebAssembly core modules that import nothing and run them from `compute` nodes under memory, time
+  and fuel bounds, the person's `compute` grant and the audit; the Python reference runs them with
+  `wasmtime` (`pip install -e './agentpkg[compute]'`), the Chrome core follows in T22; two example
+  modules (AssemblyScript, Rust) and the enforcement cases are under [`examples/compute/`](examples/compute/).
 
 - The plugin depends on OpenClaw's experimental plugin and Control UI APIs. It has been run live
   only on macOS, with one OpenClaw release. On Linux, CI builds, validates and packs it and runs its
@@ -468,7 +473,7 @@ boundary; data-flow policies; persistent ("always") authorization; federated sch
 | `conformance/` | the cross-runtime conformance suite and its kept reports ([README](conformance/README.md)) |
 | `agents/` | package sources: `meeting-agenda`, `literature-review`, `webair`, `literature-review-legacy` |
 | `dist/` | signed packages and wheels, current and historical, with SHA-256 ([dist/README.md](dist/README.md)) |
-| `spec/` | the `agent.pkg`, `workflow.v0` and `memory.v0` specifications (`spec/memory-v0/` holds the memory contracts and worked examples); `spec/extensions/` for noncritical manifest extensions (publisher-declared profiles) |
+| `spec/` | the `agent.pkg`, `workflow.v0`, `memory.v0` and `compute.v0` specifications (`spec/memory-v0/` and `spec/compute-v0/` hold their machine contracts); `spec/extensions/` for noncritical manifest extensions (publisher-declared profiles) |
 | `docs/` | guides and dated milestone reports ([index](docs/README.md)) |
 | `examples/` | grants, inputs, public development keys, recorded runs, verification evidence ([examples/README.md](examples/README.md)) |
 | `scripts/` | offline acceptance and verification scripts |

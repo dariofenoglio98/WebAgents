@@ -474,3 +474,41 @@ text index and the graph index are derived and may lag a write until rebuilt; an
 prevents a person from typing a secret into a note, which the host will then hold in clear like any
 body. The memory family of the enforcement catalog v2 (D-189) starts from the negative cases of the
 spec's §10.
+
+## Code in packages (T21, `compute.v0`)
+
+[`spec/compute-v0.md`](../spec/compute-v0.md) lets a package ship WebAssembly core modules and run
+them from `compute` nodes. Until now no package code ran anywhere (the paper's claim: a
+capability-mediated runtime, not a code sandbox, because there was nothing to sandbox). With
+modules there is, and the boundary is stated here as it is: what a module can and cannot do, what
+bounds it, and what is trusted.
+
+**What the boundary is.** A tier-1 module **imports nothing**: its import section must be empty
+(C-14), so the module has no instruction that reaches outside its own linear memory. It has no
+clock, no entropy, no file, no network, no host function, no knowledge of the host, the run or the
+mode. The host gives it one byte string (the node's constructed input, after the node's own
+`input_schema`) and reads one back (one JSON text, before the node's `output_schema`); nothing
+else crosses (C-26). Every module is named in the graph by its SHA-256, which the integrity
+statement and the signature cover, so the bytes that run are the bytes the publisher signed and
+the person can see the hash before granting. Every call is bounded in memory (the module's own
+declared maximum, which must fit the host's ceiling or the run is refused), wall time and, on the
+reference, instructions, and is recorded in the audit with the bytes in and out. The person grants
+code as a permission of kind `compute`, shown in words with the module hashes, and a policy may
+deny the kind. Validation also decodes every function body and admits only a deterministic
+instruction set, so a module that passes it computes the same thing on every conforming engine.
+
+| Threat | Control and remaining limit |
+|---|---|
+| Code as an exfiltration or ingress channel: a module reads the person's data or reaches a network | No imports means no channel: the module's world is its memory and the input bytes (C-14, C-26). The data it sees is what the graph constructs for it under the role's `state_read`, which the memory.v0 scans do not cover: a sealed value routed into a compute node's input by the graph reaches the module, exactly as it would reach a `validate` node, and leaves only through the node's result into state. Limit: a module can transform data it was given into a form a later tool call carries out; the egress scans of memory.v0 still apply to that tool call (M-36), and the exact-value scan does not see an encoded value (as stated there). |
+| Denial of service: a module that never returns, allocates without end, or recurses forever | Fuel and an epoch deadline in the reference, a Worker deadline in Chrome (C-30…C-33); memory bounded by the module's own declared maximum under the host's ceiling (C-31); a stack overflow is a trap. The call is abandoned at the bound; the node fails `compute_error`; the run reports it. Limit: wall time is a property of the machine; the same module may pass on one machine and reach the bound on another (fuel is the same everywhere, but only the reference meters it). |
+| A hostile module that exploits the engine | The engine is **trusted**, like the JSON parser and the schema validator: this profile bounds what a module can do through the format (no imports, one memory with a maximum, the instruction gate) and the engine's own limits, not through an OS sandbox. A bug in wasmtime or V8 is a bug in the host. Limit: a person who grants code trusts the engine; the threat model says so rather than claiming a sandbox the format does not provide. The feature gate also keeps the engine's surface small: proposals with their own histories of engine bugs (threads, SIMD, GC, exceptions) are refused before compilation. |
+| Nondeterminism as a covert signal or a correctness hazard: a module whose output differs between engines or runs | The instruction gate admits only deterministic instructions (C-18); each call is a fresh instance (C-20); the input is canonical JSON (C-21). Two sources remain the publisher's (C-47): NaN bit patterns (the reference canonicalizes them) and behaviour after a refused `memory.grow`. The conformance suite compares both runtimes' outputs byte for byte. Limit: a module that depends on either is caught by the comparison, not by validation. |
+| Substitution: a different module than the one reviewed | The graph names the hash; the member is in the integrity statement; the signature covers both (C-12). A changed byte is `content integrity mismatch`; a changed declaration is `module_hash_mismatch`; an undeclared member is `module_undeclared`. Limit: review is of the bytes the person cannot read; what they can read is the publisher, the hash and the agent page's words. |
+| A module that writes text to look like data or an instruction | A module's output is data to the next node, never an instruction the runtime obeys, like a model answer (workflow.v0 §7); a malformed output fails the node and nothing the module wrote is ever recorded (C-43). Limit: the same as for a model answer that a later model reads. |
+
+What the compute boundary does not claim: it is not an OS sandbox; it does not meter CPU in
+Chrome (wall time only); it does not bound the total compute of a run (each call is bounded, and
+the graph bounds the number of calls); it does not make a module's logic correct. The compute
+family of the enforcement catalog v2 (D-189) starts from the negative cases of the spec's §10,
+listed in `examples/compute/cases/cases.json`.
+

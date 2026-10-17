@@ -343,6 +343,15 @@ def validate_payload(files: dict[str, bytes]):
 
         validate_workflow(manifest, graph, policy, tools, files)
     else:
+        from .compute.declarations import module_members
+
+        # compute.v0 belongs to workflow.v0: an archival graph carries no module.
+        members = module_members(files)
+        if members:
+            raise ValidationError(
+                f"module_undeclared: member {members[0]!r} is a WebAssembly module and this "
+                "execution profile runs none"
+            )
         stages = _unique(graph["stages"], "stages")
         for stage in stages.values():
             if stage["worker"] not in workers:

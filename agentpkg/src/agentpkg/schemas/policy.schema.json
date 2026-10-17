@@ -26,7 +26,8 @@
               "payment",
               "personal.read",
               "memory.read",
-              "memory.write"
+              "memory.write",
+              "compute"
             ]
           },
           "description": {

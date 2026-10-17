@@ -1,0 +1,19 @@
+{
+  "targets": {
+    "release": {
+      "outFile": "dist/fares.wasm",
+      "textFile": "dist/fares.wat",
+      "optimizeLevel": 3,
+      "shrinkLevel": 1,
+      "noAssert": true
+    }
+  },
+  "options": {
+    "runtime": "stub",
+    "use": ["abort="],
+    "initialMemory": 1,
+    "maximumMemory": 64,
+    "zeroFilledMemory": true,
+    "exportStart": false
+  }
+}

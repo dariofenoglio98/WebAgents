@@ -1,0 +1,378 @@
+[
+  {
+    "op": "add",
+    "path": "/properties/modules",
+    "value": {
+      "type": "array",
+      "maxItems": 16,
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+          },
+          "path": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-][A-Za-z0-9_.-]*(?:/[A-Za-z0-9_-][A-Za-z0-9_.-]*)*\\.wasm$",
+            "maxLength": 240
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        },
+        "required": [
+          "id",
+          "path",
+          "sha256"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "op": "add",
+    "path": "/$defs/node/properties/type/enum/-",
+    "value": "compute"
+  },
+  {
+    "op": "add",
+    "path": "/$defs/node/properties/module",
+    "value": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+    }
+  },
+  {
+    "op": "add",
+    "path": "/$defs/node/properties/function",
+    "value": {
+      "type": "string",
+      "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,63}$"
+    }
+  },
+  {
+    "op": "add",
+    "path": "/$defs/node/properties/input_schema",
+    "value": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-][A-Za-z0-9_.-]*(?:/[A-Za-z0-9_-][A-Za-z0-9_.-]*)*$",
+      "maxLength": 240
+    }
+  },
+  {
+    "op": "add",
+    "path": "/$defs/node/properties/limits",
+    "value": {
+      "type": "object",
+      "properties": {
+        "memory_pages": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65536
+        },
+        "wall_seconds": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 300
+        },
+        "fuel": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000000000000
+        }
+      },
+      "minProperties": 1,
+      "additionalProperties": false
+    }
+  },
+  {
+    "op": "add",
+    "path": "/$defs/node/allOf/-",
+    "value": {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "compute"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "module",
+          "function",
+          "input_schema"
+        ],
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "task"
+              ]
+            },
+            {
+              "required": [
+                "max_output_tokens"
+              ]
+            },
+            {
+              "required": [
+                "tool"
+              ]
+            },
+            {
+              "required": [
+                "item_schema"
+              ]
+            },
+            {
+              "required": [
+                "max_items"
+              ]
+            },
+            {
+              "required": [
+                "max_parallel"
+              ]
+            },
+            {
+              "required": [
+                "steps"
+              ]
+            },
+            {
+              "required": [
+                "yield"
+              ]
+            },
+            {
+              "required": [
+                "select"
+              ]
+            },
+            {
+              "required": [
+                "unique_by"
+              ]
+            },
+            {
+              "required": [
+                "limit"
+              ]
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "op": "add",
+    "path": "/$defs/node/allOf/-",
+    "value": {
+      "if": {
+        "anyOf": [
+          {
+            "required": [
+              "module"
+            ]
+          },
+          {
+            "required": [
+              "function"
+            ]
+          },
+          {
+            "required": [
+              "input_schema"
+            ]
+          },
+          {
+            "required": [
+              "limits"
+            ]
+          }
+        ]
+      },
+      "then": {
+        "properties": {
+          "type": {
+            "const": "compute"
+          }
+        }
+      }
+    }
+  },
+  {
+    "op": "add",
+    "path": "/$defs/step/properties/type/enum/-",
+    "value": "compute"
+  },
+  {
+    "op": "add",
+    "path": "/$defs/step/properties/module",
+    "value": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+    }
+  },
+  {
+    "op": "add",
+    "path": "/$defs/step/properties/function",
+    "value": {
+      "type": "string",
+      "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,63}$"
+    }
+  },
+  {
+    "op": "add",
+    "path": "/$defs/step/properties/input_schema",
+    "value": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-][A-Za-z0-9_.-]*(?:/[A-Za-z0-9_-][A-Za-z0-9_.-]*)*$",
+      "maxLength": 240
+    }
+  },
+  {
+    "op": "add",
+    "path": "/$defs/step/properties/limits",
+    "value": {
+      "type": "object",
+      "properties": {
+        "memory_pages": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65536
+        },
+        "wall_seconds": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 300
+        },
+        "fuel": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000000000000
+        }
+      },
+      "minProperties": 1,
+      "additionalProperties": false
+    }
+  },
+  {
+    "op": "add",
+    "path": "/$defs/step/allOf/-",
+    "value": {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "compute"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "module",
+          "function",
+          "input_schema"
+        ],
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "task"
+              ]
+            },
+            {
+              "required": [
+                "max_output_tokens"
+              ]
+            },
+            {
+              "required": [
+                "tool"
+              ]
+            },
+            {
+              "required": [
+                "item_schema"
+              ]
+            },
+            {
+              "required": [
+                "max_items"
+              ]
+            },
+            {
+              "required": [
+                "max_parallel"
+              ]
+            },
+            {
+              "required": [
+                "steps"
+              ]
+            },
+            {
+              "required": [
+                "yield"
+              ]
+            },
+            {
+              "required": [
+                "select"
+              ]
+            },
+            {
+              "required": [
+                "unique_by"
+              ]
+            },
+            {
+              "required": [
+                "limit"
+              ]
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "op": "add",
+    "path": "/$defs/step/allOf/-",
+    "value": {
+      "if": {
+        "anyOf": [
+          {
+            "required": [
+              "module"
+            ]
+          },
+          {
+            "required": [
+              "function"
+            ]
+          },
+          {
+            "required": [
+              "input_schema"
+            ]
+          },
+          {
+            "required": [
+              "limits"
+            ]
+          }
+        ]
+      },
+      "then": {
+        "properties": {
+          "type": {
+            "const": "compute"
+          }
+        }
+      }
+    }
+  }
+]
