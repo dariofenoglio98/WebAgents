@@ -11,7 +11,7 @@ in `dist/`; the packages that use modules for real are T22's (Literature Review 
 | [`fares-as/`](fares-as/) | **AssemblyScript 0.28.20**: fare totals in integer cents, with a strict JSON reader and writer of the module's own. `npm ci && npm run build` writes `dist/fares.wasm` (and `dist/fares.wat`, the same module as text, for reading). |
 | [`bookkeeping-rs/`](bookkeeping-rs/) | **Rust** (`wasm32-unknown-unknown`, `serde_json`): `assign_ids` (handles `P1…` and exact deduplication by normalized DOI, arXiv id, URL or title) and `match_quotes` (whitespace-normalized exact quote search). `./build.sh` writes `dist/bookkeeping.wasm`. |
 | [`cases/`](cases/) | `build_cases.py` emits the modules of the enforcement cases from the binary format directly (no toolchain); `cases.json` lists every case with its stage and code; `modules/*.wasm` are the committed bytes. |
-| `compute-test/`, `compute-test.agent.pkg` | The test package `org.webagents.compute-test` (model-free: compute nodes over both example modules, in one wave and in a map step), signed with the development key `examples/keys/compute-test-publisher.pub.pem`. |
+| `compute-test/`, `compute-test.agent.pkg` | The test package `org.webagents.compute-test` 0.1.0 (model-free: compute nodes over both example modules, in one wave and in a map step), signed 2026-10-17 with the development key `examples/keys/compute-test-publisher.pub.pem` (`sha256:ee5e23fd…f0a9`): package digest `3d174d573a8f7d36be2e4700e5319de280788bec101613816a301e6b2387decd`, archive SHA-256 `8bbbd42a9c50c27b339e00653990449781fac5d58694216c890585561a800ff4`, 134,982 bytes. |
 
 ## The committed binaries
 

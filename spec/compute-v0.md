@@ -335,8 +335,9 @@ C-51. The conformance suite (T22) runs the test package `org.webagents.compute-t
 (`examples/compute/compute-test.agent.pkg`, model-free: two compute nodes in one wave and a
 compute map step over the example modules) and the cases of §10 on both CLIs, comparing outputs,
 exports and audits under D-063 with the exceptions of C-46. Until the Chrome core reaches 0.5.0,
-such cases are *pending* when the Chrome CLI refuses the package by version and the Python half
-passed on its own (D-234 generalized: the runner's `requires`).
+such cases are *pending* when the Chrome CLI refuses the package as too old (by version, or at the
+member rule of C-11, which an older runtime reaches first, C-10) and the Python half passed on its
+own (D-234 generalized: the runner's `requires`).
 
 C-52. **Without an engine** (the `wasmtime` extra not installed), the reference validates and
 inspects a package with modules and refuses to run it before it starts

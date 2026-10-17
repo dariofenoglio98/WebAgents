@@ -314,6 +314,9 @@ function positiveCases() {
     { id: "memory-probe/custom-type-read", title: "M-12, M-18 and D-228: a memory.read of the probe's own custom type by its local id, granted from the replayed view, and an update of the record it read", argv: fixtureRun(inputs.memory["custom-type-read"].archive, inputs.memory["custom-type-read"].grants, inputs.memory["custom-type-read"].tools, ["--trust-key", inputs.throwawayKey]), memory: true },
     { id: "memory-probe/fixture", title: "The memory probe (every memory.v0 permission: a record view, a legacy identity, the agent document, a create and an update proposal, a sealed value sent where its grant goes; throwaway key)", argv: fixtureRun(inputs.memory.fixture.archive, inputs.memory.fixture.grants, inputs.memory.fixture.tools, ["--trust-key", inputs.throwawayKey]), memory: true },
     { id: "answer-checks/fixture", title: "Answer checks that hold (D-150): Meeting Agenda rebuilt with a relation, a sum and an equality on its model answers, runtime minimum 0.3.0 (throwaway key)", argv: fixtureRun(inputs.answerChecks, EXAMPLES("meeting-agenda-grants.json"), [], ["--trust-key", inputs.throwawayKey]) },
+    // compute.v0 (T21): the model-free test package over the two example modules; pending while the
+    // Chrome core's gate is below 0.5.0 (T22 ports compute.v0 and adds the negative cases, B-225).
+    { id: "compute-test/fixture", title: "Compute Test 0.1.0 (compute.v0, T21): fare totals (AssemblyScript) and bookkeeping (Rust) modules in one wave and in a map step, the modules run for real in fixture mode", argv: fixtureRun(EXAMPLES("compute/compute-test.agent.pkg"), EXAMPLES("compute/compute-test-grants.json"), []), requires: "0.5.0" },
   ];
   return cases.map((testCase) => ({ ...testCase, kind: "fixture parity", run: () => runPositive(testCase) }));
 }
@@ -337,8 +340,12 @@ function runPositive(testCase) {
   return { checks, notes, halves, observed: { python: summary(python), node: summary(node) } };
 }
 
-/** The Chrome CLI's refusal of a package whose runtime minimum it does not reach. */
-const versionRefused = (observation) => observation.status === 2 && /^manifest runtime\.minimum_version exceeds reference runtime /u.test(observation.message ?? "");
+/**
+ * The Chrome CLI's refusal of a package it is too old for: by version, or, for a package that ships
+ * a WebAssembly module, at the container's member rule, which an older runtime reaches before the
+ * version check (compute.v0 C-10 states this limit; the pending rule treats both as "too old").
+ */
+const versionRefused = (observation) => observation.status === 2 && (/^manifest runtime\.minimum_version exceeds reference runtime /u.test(observation.message ?? "") || /: only declared UTF-8 data formats allowed, never executable payloads$/u.test(observation.message ?? ""));
 
 const summary = (observation) => ({ status: observation.status, message: observation.message, files: Object.keys(observation.files).length });
 
