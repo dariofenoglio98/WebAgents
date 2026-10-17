@@ -12,6 +12,7 @@
  * tool dependencies and a resource resolver; the session hands back the result record and the
  * artifacts as named bytes. The host writes them.
  */
+import type { ComputeEngine } from "../compute/engine.js";
 import { AgentPkgError } from "../errors.js";
 import { sha256HexSync } from "../hash.js";
 import type { JsonObject, JsonValue } from "../json.js";
@@ -86,6 +87,8 @@ export interface SessionDeps {
   memory?: MemoryRun | null;
   /** The package fixture, for a fixture plan. */
   fixture?: FixtureSource | null;
+  /** compute.v0: the host's WebAssembly engine (one nested Worker per call, D-251); null refuses a package with compute nodes before it starts. */
+  compute?: ComputeEngine | null;
   onProgress?: ProgressListener | null;
   progressIntervalSeconds?: number;
   /**
@@ -204,7 +207,7 @@ export class ExecutionSession {
     if (!fixture && deps.fixture) throw new ExecutionError(PLAN_INVALID, "A model-backed plan runs no fixture");
     const capabilities =
       plan.execution.mode === MODE_MODEL
-        ? checkCapabilities(pkg, limits, { toolBindings: plan.tool_bindings, deniedTools: plan.execution.denied_tool_ids, fixture })
+        ? checkCapabilities(pkg, limits, { toolBindings: plan.tool_bindings, deniedTools: plan.execution.denied_tool_ids, fixture, computeAvailable: (deps.compute ?? null) !== null })
         : { tools_declared: Object.keys(pkg.tools).length, tool_bindings: plan.tool_bindings.length, mode: "tool_probe", note: "A tool probe binds one declared tool. Whether this host could run the whole package is a different question, and a model-backed plan asks it." };
 
     // 3. The person's decisions, unchanged or refused.
@@ -358,6 +361,7 @@ export class ExecutionSession {
         limits: runtimeLimits(this.limits),
         approvedTools: this.approvedTools,
         observer,
+        compute: this.deps.compute ?? null,
       });
     } catch (error) {
       tracker.close();

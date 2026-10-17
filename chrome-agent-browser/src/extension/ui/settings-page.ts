@@ -36,6 +36,9 @@ export const LONG_RUN_LIMITS: Readonly<HostExecutionLimits> = Object.freeze({
   run_timeout_seconds: 4_500,
   max_calls_per_tool: 32,
   model_call_timeout_seconds: 1_200,
+  compute_memory_pages: DEFAULT_HOST_LIMITS.compute_memory_pages,
+  compute_wall_seconds: DEFAULT_HOST_LIMITS.compute_wall_seconds,
+  compute_fuel: DEFAULT_HOST_LIMITS.compute_fuel,
 });
 
 const LIMIT_FIELDS: ReadonlyArray<{ key: keyof HostExecutionLimits; label: string; unit: string }> = [
@@ -46,6 +49,10 @@ const LIMIT_FIELDS: ReadonlyArray<{ key: keyof HostExecutionLimits; label: strin
   { key: "run_timeout_seconds", label: "Time per run", unit: "seconds" },
   { key: "max_calls_per_tool", label: "Calls per tool", unit: "calls" },
   { key: "model_call_timeout_seconds", label: "Time per model call", unit: "seconds" },
+  // compute.v0 (C-35, D-250): the bounds of one WebAssembly call. Fuel is not metered in Chrome, so
+  // it has no field: the time per call is the CPU bound here, and the figure stays at its default.
+  { key: "compute_memory_pages", label: "Memory per compute call", unit: "64 KiB pages" },
+  { key: "compute_wall_seconds", label: "Time per compute call", unit: "seconds" },
 ];
 
 export interface SettingsPageState {
@@ -557,7 +564,7 @@ function limitsCard(view: SettingsView, actions: SettingsPageActions): HTMLEleme
   const isDefault = LIMIT_FIELDS.every((field) => current[field.key] === DEFAULT_HOST_LIMITS[field.key]);
   return card(
     "Run limits",
-    el("p", { className: "ab-hint", text: `Every run in this browser is bounded by these limits; a package's own budget and deadline apply beneath them, so raising a limit never gives a package more than it declares. The defaults are the reference host's (${DEFAULT_HOST_LIMITS.run_timeout_seconds} s per run, ${DEFAULT_HOST_LIMITS.total_tokens.toLocaleString()} tokens, ${DEFAULT_HOST_LIMITS.max_remote_calls} remote calls). A long research run on a local model needs more: the long-run limits are what the reference host was configured with for Literature Review. An authorization must outlast the time per run by a minute.` }),
+    el("p", { className: "ab-hint", text: `Every run in this browser is bounded by these limits; a package's own budget and deadline apply beneath them, so raising a limit never gives a package more than it declares. The defaults are the reference host's (${DEFAULT_HOST_LIMITS.run_timeout_seconds} s per run, ${DEFAULT_HOST_LIMITS.total_tokens.toLocaleString()} tokens, ${DEFAULT_HOST_LIMITS.max_remote_calls} remote calls). A long research run on a local model needs more: the long-run limits are what the reference host was configured with for Literature Review. An authorization must outlast the time per run by a minute. A package's WebAssembly modules (code that can only compute) run one call at a time under the memory and time per compute call; a module that declares more memory than the bound is refused before the run, never squeezed, and the time bound is enforced by stopping the call (this browser meters no fuel).` }),
     isDefault ? chip("defaults", "neutral") : chip("changed", "warn"),
     el("div", { className: "ab-limits" }, ...fields),
     el(

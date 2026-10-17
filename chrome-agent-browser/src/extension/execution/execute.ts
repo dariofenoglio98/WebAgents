@@ -16,6 +16,7 @@
  * flag when it starts and merges it on every write, so a Cancel accepted while the run was
  * still preparing, when no Worker existed to receive `host.cancel`, still ends the run.
  */
+import type { ComputeEngine } from "../../core/compute/engine.js";
 import { ExecutionError } from "../../core/execution/errors.js";
 import type { ProgressSnapshot } from "../../core/execution/progress.js";
 import { completeRunRecord, failRunRecord, HOST_RUNTIME, initialRunRecord, isTerminalStatus, type RunRecord } from "../../core/execution/record.js";
@@ -62,6 +63,8 @@ export interface ExecuteDeps {
   files?: Pick<FileStore, "get"> | null;
   /** The PDF parser: a killable Worker per read in the extension, in-process in tests (D-082). */
   pdfReader?: PdfTextReader | null;
+  /** compute.v0: the engine over nested Workers (D-251); absent, a package with compute nodes is refused before it starts. */
+  compute?: ComputeEngine | null;
   now?: () => Date;
   /** Called after every checkpoint or record change was written, so the host can notify the worker. */
   onCheckpoint?: ((runId: string, status: RunRecord["status"]) => void) | null;
@@ -328,6 +331,7 @@ export function executeRun(deps: ExecuteDeps): ExecutionHandle {
         },
         resolver: memoryStore,
         memory: memoryRun,
+        compute: deps.compute ?? null,
         onProgress: () => void checkpoint(),
         // D-071: a checkpoint after every wave, the moment its patches are committed.
         onAudit: (event) => {

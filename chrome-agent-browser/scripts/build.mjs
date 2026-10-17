@@ -83,19 +83,20 @@ await extensionBuild({ ...common, entryPoints: [join(source, "execution", "execu
 await extensionBuild({ ...common, entryPoints: [join(source, "execution", "execution-worker.ts")], outfile: join(out, "execution-worker.js") });
 // The paper reader's parser (T6, D-082): pdf.js in its own short-lived Worker per document.
 await extensionBuild({ ...common, entryPoints: [join(source, "execution", "pdf-worker.ts")], outfile: join(out, "pdf-worker.js") });
+// The compute call's Worker (T22, D-251): one per call, terminated on answer, deadline and cancel.
+await extensionBuild({ ...common, entryPoints: [join(source, "execution", "compute-worker.ts")], outfile: join(out, "compute-worker.js") });
+const nodeBuild = { ...common, plugins: [], metafile: false, platform: "node", target: ["node24"] };
 await build({
-  ...common,
-  plugins: [],
-  metafile: false,
-  platform: "node",
-  target: ["node24"],
+  ...nodeBuild,
   entryPoints: [join(project, "src", "cli.ts")],
   outfile: join(project, "dist", "cli.js"), // the source hashbang is hoisted to line 1
 });
+// The CLI's compute Worker, beside the CLI bundle (`cli-compute.ts` resolves it relative to itself).
+await build({ ...nodeBuild, entryPoints: [join(project, "src", "compute-worker-node.ts")], outfile: join(project, "dist", "compute-worker.js") });
 
 // The extension bundles must be free of Node built-ins: a `node:` specifier that survived
 // bundling would fail at load time in Chrome, long after `npm run build` reported success.
-for (const name of ["service-worker.js", "content-script.js", "sidepanel.js", "browser.js", "execution-page.js", "execution-worker.js", "pdf-worker.js"]) {
+for (const name of ["service-worker.js", "content-script.js", "sidepanel.js", "browser.js", "execution-page.js", "execution-worker.js", "pdf-worker.js", "compute-worker.js"]) {
   const text = readFileSync(join(out, name), "utf8");
   const hit = /(?:from\s*|import\s*\(\s*|require\s*\(\s*)["']node:[^"']*["']/u.exec(text);
   if (hit) throw new Error(`${name} still references a Node built-in: ${hit[0]}`);

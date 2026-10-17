@@ -7,6 +7,7 @@
  * and consistent. Nothing here executes anything (D-007).
  */
 import { safeName } from "./archive.js";
+import { checkComputeDeclarations } from "./compute/declarations.js";
 import { canonicalString } from "./canonical.js";
 import { ValidationError } from "./errors.js";
 import { isJsonObject, parseJson, type JsonObject, type JsonValue } from "./json.js";
@@ -96,6 +97,9 @@ export async function validateWorkflow(
     // the package by its version, with the reason a person can act on.
     throw new ValidationError("answer checks require runtime.minimum_version 0.3.0 or later");
   }
+  // compute.v0 (agentpkg 0.5.0, Chrome core 0.3.0): the modules, the members, the nodes' functions
+  // and the permission agree before anything else is checked; a graph without any of it passes.
+  checkComputeDeclarations(manifest, graph, policy, files);
   const schemaPaths = new Set((manifest.schemas as JsonValue[]).map((entry) => String((entry as JsonObject).path)));
   const documents: Documents = new Map();
   for (const path of schemaPaths) documents.set(path, parseJson(files.get(path)!, path));
@@ -212,6 +216,11 @@ export async function validateWorkflow(
       }
     }
     const kind = node.type;
+    if (kind === "compute") {
+      // The constructed input is checked against the module's own input contract before the
+      // call, as a tool's is; both schemas are declared package schemas.
+      schema(node.input_schema, `${label}/input_schema`);
+    }
     if (kind === "llm" && !tasks.has(String(node.task))) {
       throw new ValidationError(`${label}: undeclared model task ${pyRepr(node.task)}`);
     }

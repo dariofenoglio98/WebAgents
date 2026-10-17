@@ -89,3 +89,24 @@ declare class AbortSignal {
   /** A signal that aborts when any of `signals` does, with that signal's reason (Chrome 116+, Node 20.3+). */
   static any(signals: AbortSignal[]): AbortSignal;
 }
+
+// WebAssembly (T22, compute.v0): the engine every host has. The core compiles a module (the
+// preflight of D-245) and the pure call body instantiates one; where it runs is the host's
+// Worker. Only what the body touches is declared.
+declare namespace WebAssembly {
+  class Module {
+    constructor(bytes: ArrayBuffer | ArrayBufferView);
+  }
+  class Instance {
+    constructor(module: Module, importObject?: Record<string, Record<string, unknown>>);
+    readonly exports: Record<string, unknown>;
+  }
+  class Memory {
+    readonly buffer: ArrayBuffer;
+  }
+  class CompileError extends Error {}
+  class LinkError extends Error {}
+  class RuntimeError extends Error {}
+  function compile(bytes: ArrayBuffer | ArrayBufferView): Promise<Module>;
+  function validate(bytes: ArrayBuffer | ArrayBufferView): boolean;
+}

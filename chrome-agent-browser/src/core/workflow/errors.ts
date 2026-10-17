@@ -8,6 +8,7 @@
  * for `asyncio.CancelledError` and the built-in `TimeoutError`; nothing here is thrown by the
  * platform.
  */
+import { ComputeError } from "../compute/errors.js";
 import { AgentPkgError, ValidationError } from "../errors.js";
 import type { JsonObject } from "../json.js";
 import type { AuditErrorCode } from "../types.js";
@@ -81,13 +82,21 @@ export function failureCode(error: unknown): FailureCode {
   if (error instanceof BudgetError) return "budget_exhausted";
   if (error instanceof ValidationError) return "schema_validation";
   if (error instanceof PolicyError) return "permission_denied";
+  if (error instanceof ComputeError) return "compute_error";
   return "worker_error";
 }
 
-/** `workflow.py::_failed_check`: which declared check failed, when a validation says so; never data. */
-export function failedCheck(error: unknown): { failed_check?: JsonObject } {
+/**
+ * `workflow.py::_failed_check`: which declared check failed, when a validation says so, and how a
+ * compute call ended (compute.v0: the reason and the trap, by the specification's words); never data.
+ */
+export function failedCheck(error: unknown): { failed_check?: JsonObject; compute?: JsonObject } {
+  const details: { failed_check?: JsonObject; compute?: JsonObject } = {};
   const facts = (error as { failed_check?: unknown } | null)?.failed_check;
-  return facts !== null && typeof facts === "object" && !Array.isArray(facts) ? { failed_check: facts as JsonObject } : {};
+  if (facts !== null && typeof facts === "object" && !Array.isArray(facts)) details.failed_check = facts as JsonObject;
+  const compute = (error as { compute?: unknown } | null)?.compute;
+  if (compute !== null && typeof compute === "object" && !Array.isArray(compute)) details.compute = compute as JsonObject;
+  return details;
 }
 
 /** `type(exc).__name__`. */

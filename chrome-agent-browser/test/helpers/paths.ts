@@ -113,6 +113,17 @@ export const SHIPPED = {
 } as const;
 
 /** The original development key; signs nothing current (tests/shipped_keys.py). */
+/** T21's compute-test 0.1.0 (compute.v0, runtime minimum 0.5.0): the model-free package over the two example modules, signed with a development key (`examples/compute/README.md`). */
+export const COMPUTE_TEST = {
+  archive: resolve(ROOT, "examples/compute/compute-test.agent.pkg"),
+  key: resolve(ROOT, "examples/keys/compute-test-publisher.pub.pem"),
+  grants: resolve(ROOT, "examples/compute/compute-test-grants.json"),
+  packageId: "org.webagents.compute-test",
+  version: "0.1.0",
+  digest: "3d174d573a8f7d36be2e4700e5319de280788bec101613816a301e6b2387decd",
+  archiveSha256: "8bbbd42a9c50c27b339e00653990449781fac5d58694216c890585561a800ff4",
+};
+
 export const ORIGINAL_KEY = resolve(ROOT, "examples/keys/workflow-publisher.pub.pem");
 export const ORIGINAL_FINGERPRINT = "sha256:c7549e614dac7070e6b5b5355e7c2407e1185f831d7fff15670981229dd85a70";
 

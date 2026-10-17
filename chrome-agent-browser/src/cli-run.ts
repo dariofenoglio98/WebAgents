@@ -23,6 +23,7 @@ import { existsSync, lstatSync, mkdirSync, readFileSync, statSync, writeFileSync
 import { dirname, join, resolve } from "node:path";
 
 import { ArgumentError, parseArguments, type ArgumentSpec } from "./cli-arguments.js";
+import { nodeComputeEngine } from "./cli-compute.js";
 import { catalogHttp, nodeTransport } from "./cli-net.js";
 import { AgentPkgError, ValidationError } from "./core/errors.js";
 import { evaluateCatalog, type ModelDescriptor } from "./core/compatibility.js";
@@ -227,6 +228,7 @@ async function bindLive(pkg: Package, parsed: ReturnType<typeof parseArguments>,
     router,
     tools: { definitions, transport: nodeTransport({ allowLoopbackHttp: false }), credentials, pacer: new Pacer(), observe },
     resolver: store,
+    compute: nodeComputeEngine(),
   };
   return { binding, definitions, toolBindings, resourceGrants, store, deps };
 }
@@ -268,7 +270,8 @@ export async function runCommand(args: string[]): Promise<number> {
     const fixture = fixtureAdapters(pkg);
     input = inputPath ? jsonFile(inputPath, "any") : fixture.input;
     ({ plan, authorization } = localExecutionPlan({ pkg, archiveSha256, signerFingerprint: signer, decisions: grants, approvedTools: approved, fixture: true }));
-    deps = { archive: bytes, fixture: { router: fixture.router, handlers: fixture.handlers } };
+    // compute.v0 (C-50): a module runs for real in fixture mode, in a Worker per call (D-251).
+    deps = { archive: bytes, fixture: { router: fixture.router, handlers: fixture.handlers }, compute: nodeComputeEngine() };
   } else {
     if (!inputPath) throw new AgentPkgError("Live workflow execution requires --input and --model provider/model");
     input = jsonFile(inputPath, "any");

@@ -24,6 +24,7 @@ const EXPECTED = [
   "THIRD_PARTY_NOTICES.txt",
   "browser.html",
   "browser.js",
+  "compute-worker.js",
   "content-script.js",
   "execution-page.js",
   "execution-worker.js",

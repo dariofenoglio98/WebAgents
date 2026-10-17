@@ -21,7 +21,7 @@ import type { Decision, PolicyReference } from "../types.js";
 export type { PolicyReference };
 
 /** The permission kinds of `policy.schema.json`, the keys a bundle's `decisions` may use. */
-export const PERMISSION_KINDS: readonly string[] = Object.freeze(["network", "files.read", "files.write", "model", "memory", "shell", "payment", "personal.read", "memory.read", "memory.write"]);
+export const PERMISSION_KINDS: readonly string[] = Object.freeze(["network", "files.read", "files.write", "model", "memory", "shell", "payment", "personal.read", "memory.read", "memory.write", "compute"]);
 export const CAP_FIELDS: ReadonlyArray<keyof HostExecutionLimits> = Object.freeze([
   "total_tokens",
   "max_remote_calls",

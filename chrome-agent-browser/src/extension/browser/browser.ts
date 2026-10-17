@@ -19,7 +19,7 @@ import { button, card, chip, el, list, replace, row, whenText } from "../ui/dom.
 import { newSettingsPageState, refreshProbes, renderSettingsPage, SETTINGS_SECTIONS, type SettingsPageState, type SettingsSection } from "../ui/settings-page.js";
 import type { ProviderId } from "../../core/models/catalog.js";
 import { renderTrustPage } from "../ui/trust-page.js";
-import { newMemoryPageState, renderMemoryPage, renderMemorySettings, type MemoryPageState } from "../ui/memory/page.js";
+import { newMemoryPageState, openCard, renderMemoryPage, renderMemorySettings, type MemoryPageState } from "../ui/memory/page.js";
 import { renderMemoryGraph } from "../ui/memory/graph.js";
 import { renderWebsiteCard } from "../ui/website.js";
 import { mimeFor, renderRunList, RunPanel, saveBlob } from "../ui/run.js";
@@ -136,6 +136,10 @@ const runs = new RunPanel({
   },
   openFiles: () => {
     location.hash = "settings?section=files";
+  },
+  // B-215: the run page's "Open in Memory" lands on the record just accepted when one is known.
+  openMemory: (recordId) => {
+    location.hash = recordId ? `memory?record=${encodeURIComponent(recordId)}` : "memory";
   },
   unlock: (retry) => openUnlock(null, retry),
   requestOrigins,
@@ -270,10 +274,16 @@ function route(): void {
   if (params.get("url")) state.address = params.get("url")!;
   const section = params.get("section");
   if (state.view === "settings" && (SETTINGS_SECTIONS as readonly string[]).includes(section ?? "")) state.settingsPage.section = section as SettingsSection;
+  // `#memory?record=<id>` (B-215): the Memory page opened on one record's card, from a run's review sheet.
+  const record = state.view === "memory" ? params.get("record") : null;
   void load().then(() => {
     // Settings → Models opened: test the enabled connections now, rather than show an old answer.
     // A route that stays on it (the same address again) leaves the results as they are (review 1, nit 6).
     if (state.view === "settings" && state.settingsPage.section === "models" && !wasOnModels) openModels();
+    if (record && state.view === "memory" && state.memory) {
+      openCard(state.memory, state.memoryPage, record);
+      render();
+    }
   });
 }
 

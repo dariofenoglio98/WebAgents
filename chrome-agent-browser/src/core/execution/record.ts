@@ -33,7 +33,7 @@ export interface RunRecord {
   grants: { decisions: Array<{ permissionId: string; decision: string }>; grantedPermissionIds: string[] };
   resources: Array<{ permissionId: string; resourceType: string; resourceId: string; resourceDigest: string }>;
   limits: { host: { totalTokens: number; maxRemoteCalls: number; maxParallelWorkers: number; maxOutputTokensPerCall: number; runTimeoutSeconds: number; modelCallTimeoutSeconds: number }; effectiveDeadlineSeconds: number | null };
-  usage: { tokens: number; remoteCalls: number; peakParallelWorkers: number; toolCalls: number; limits: { hardTokens: number; maxRemoteCalls: number; maxParallelWorkers: number }; workers: Array<{ worker: string; tokens: number; remoteCalls: number }> } | null;
+  usage: { tokens: number; remoteCalls: number; peakParallelWorkers: number; toolCalls: number; computeCalls?: number; limits: { hardTokens: number; maxRemoteCalls: number; maxParallelWorkers: number }; workers: Array<{ worker: string; tokens: number; remoteCalls: number }> } | null;
   cost: { status: string; totalUsd: number | null; calls: number; callsWithReportedCost: number } | null;
   audit: { events: number; chainValid: boolean; finalHash: string | null; actions: Array<{ action: string; count: number }>; workers: string[]; workersSpawned: number; nodesCompleted: number; modelCalls: number; toolCalls: number; tasksCalled: Array<{ task: string; count: number }> } | null;
   outputSha256: string | null;
@@ -196,6 +196,8 @@ export function completeRunRecord(record: RunRecord, result: ExecutionResult, en
             remoteCalls: int(usage.remote_calls),
             peakParallelWorkers: int(usage.peak_parallel_workers),
             toolCalls: Object.values(toolCalls).reduce<number>((total, count) => total + int(count), 0),
+            // compute.v0: present exactly when the graph declares modules.
+            ...(typeof usage.compute_calls === "number" ? { computeCalls: int(usage.compute_calls) } : {}),
             limits: { hardTokens: int(rec(usage.limits).hard_tokens), maxRemoteCalls: int(rec(usage.limits).max_remote_calls), maxParallelWorkers: int(rec(usage.limits).max_parallel_workers) },
             workers: Object.entries(rec(usage.workers))
               .slice(0, 64)

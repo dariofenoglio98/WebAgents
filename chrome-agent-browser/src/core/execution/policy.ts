@@ -6,6 +6,9 @@
  * special-cased, and a test asserts that.
  */
 import { canonicalJson } from "../canonical.js";
+import { computeOperations, moduleFacts } from "../compute/declarations.js";
+import { limitsJson, loweredBy } from "../compute/limits.js";
+import { moduleFactsJson } from "../compute/module.js";
 import { sha256HexSync } from "../hash.js";
 import type { JsonObject, JsonValue } from "../json.js";
 import { packageJson, type Package } from "../package.js";
@@ -16,6 +19,8 @@ import { DENY, SUPPORTED_DECISIONS, type ResourceGrant } from "../types.js";
 import type { GrantDecision, Grants } from "../workflow/runtime.js";
 import { HOST_RESULT_NAMES, RUN_RECORD_NAME } from "./artifacts.js";
 import {
+  COMPUTE_LIMIT_EXCEEDED,
+  COMPUTE_NOT_SUPPORTED,
   EXPORT_PATH_RESERVED,
   ExecutionError,
   GRANT_UNSUPPORTED,
@@ -30,7 +35,7 @@ import {
   TOOL_PERMISSION_DENIED,
   TOOLS_NOT_SUPPORTED,
 } from "./errors.js";
-import type { HostExecutionLimits } from "./limits.js";
+import { computeLimitsOf, type HostExecutionLimits } from "./limits.js";
 
 const ONCE = "once";
 const ALWAYS = "always";
@@ -64,6 +69,8 @@ export interface CapabilityOptions {
   deniedTools?: readonly string[];
   /** The package's own fixture supplies every declared tool (fixture mode). */
   fixture?: boolean;
+  /** compute.v0: whether this host has an engine for the package's modules (`compute_not_supported` otherwise). */
+  computeAvailable?: boolean;
 }
 
 /**
@@ -115,6 +122,7 @@ export function checkCapabilities(pkg: Package, limits: HostExecutionLimits, opt
       throw new ExecutionError(EXPORT_PATH_RESERVED, `Export '${entry.path}' collides with a file this execution host writes`, { detail: { reserved: sorted(reserved) } });
     }
   }
+  const compute = checkCompute(pkg, limits, options.computeAvailable === true);
   return {
     tools_declared: declaredTools.length,
     tool_nodes: toolNodes.length,
@@ -123,6 +131,41 @@ export function checkCapabilities(pkg: Package, limits: HostExecutionLimits, opt
     llm_operations: caps,
     max_requested_output_tokens: caps.reduce((max, cap) => Math.max(max, cap.max_output_tokens as number), 0),
     host_max_output_tokens_per_call: limits.max_output_tokens_per_call,
+    ...(compute !== null ? { compute } : {}),
+  };
+}
+
+/**
+ * compute.v0 (`execution/policy.py::check_compute`): before the run, every module's declared memory
+ * maximum fits under the host's page bound as the node lowers it, and the host has an engine at
+ * all. A package without compute nodes returns null and its run record is unchanged.
+ */
+export function checkCompute(pkg: Package, limits: HostExecutionLimits, available: boolean): JsonObject | null {
+  const operations = computeOperations(pkg.graph);
+  if (operations.length === 0) return null;
+  const modules = ((pkg.graph.modules as JsonObject[] | undefined) ?? []).map((module) => String(module.id));
+  if (!available) {
+    throw new ExecutionError(COMPUTE_NOT_SUPPORTED, "This package runs WebAssembly modules and this host has no engine for them. This is a limit of the host, not of the package format.", { detail: { modules: modules.slice(0, 32) } });
+  }
+  const facts = moduleFacts(pkg);
+  const host = computeLimitsOf(limits);
+  const checked: JsonObject[] = [];
+  for (const [name, operation] of operations) {
+    const effective = loweredBy(host, operation.limits);
+    const maximum = facts[String(operation.module)]!.memory_max_pages;
+    if (maximum > effective.memory_pages) {
+      throw new ExecutionError(
+        COMPUTE_LIMIT_EXCEEDED,
+        `Node ${name} runs module '${operation.module}', whose declared memory maximum of ${maximum} pages is above this host's ceiling of ${effective.memory_pages}. The host refuses rather than lowering a module's declared bound.`,
+        { detail: { node: name, module: String(operation.module), memory_pages: maximum } },
+      );
+    }
+    checked.push({ node: name, module: String(operation.module), ...limitsJson(effective) });
+  }
+  return {
+    modules: ((pkg.graph.modules as JsonObject[] | undefined) ?? []).map((module) => ({ id: module.id!, ...moduleFactsJson(facts[String(module.id)]!) })),
+    operations: checked,
+    host: limitsJson(host),
   };
 }
 
@@ -255,12 +298,15 @@ export function consumptionCounts(pkg: Package): Record<string, number> {
   for (const node of graph.nodes as JsonObject[]) {
     if (node.type === "llm") counts.model! += 1;
     if (node.type === "tool") toolUse(String(node.tool), 1);
+    // compute.v0: every call consumes the compute permission, as a tool call does.
+    if (node.type === "compute") counts.compute = (counts.compute ?? 0) + 1;
     if (node.type === "map") {
       const children = Math.max(1, node.max_items as number);
       counts.memory! += children;
       for (const step of node.steps as JsonObject[]) {
         if (step.type === "llm") counts.model! += children;
         if (step.type === "tool") toolUse(String(step.tool), children);
+        if (step.type === "compute") counts.compute = (counts.compute ?? 0) + children;
       }
     } else if (node.worker !== coordinator) counts.memory! += 1;
   }

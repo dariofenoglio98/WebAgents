@@ -20,6 +20,7 @@ import { canonicalJson, canonicalString } from "./canonical.js";
 import { crc32 } from "./crc32.js";
 import { IntegrityError, ValidationError } from "./errors.js";
 import { bytesEqual, sha256Hex } from "./hash.js";
+import { hasWasmHeader, MAX_MODULE_BYTES } from "./compute/module.js";
 import { decodeUtf8, isJsonObject, parseJson, type JsonObject } from "./json.js";
 import { pyBytesRepr, pyRepr } from "./repr.js";
 import { validateDocument } from "./schema.js";
@@ -33,6 +34,12 @@ export const INTEGRITY_PATH = "integrity.json";
 export const SIGNATURE_PATH = "signatures/publisher.json";
 export const ENVELOPE: ReadonlySet<string> = new Set([INTEGRITY_PATH, SIGNATURE_PATH]);
 export const ALLOWED_SUFFIXES: ReadonlySet<string> = new Set([".json", ".md", ".txt", ".bib", ".csv"]);
+/**
+ * compute.v0 (C-11): the one binary member class, a WebAssembly core module. It is admitted by its
+ * header, bounded, and must be declared in the graph with its SHA-256; the graph's reader then
+ * decides whether it is a tier-1 module (`compute/`).
+ */
+export const BINARY_SUFFIXES: ReadonlySet<string> = new Set([".wasm"]);
 export const PORTABLE_PATH = /^[A-Za-z0-9_-][A-Za-z0-9_.-]*(?:\/[A-Za-z0-9_-][A-Za-z0-9_.-]*)*$/u;
 
 const WINDOWS_RESERVED: ReadonlySet<string> = new Set([
@@ -90,7 +97,7 @@ export function safeName(name: string): void {
       throw new ValidationError(`forbidden package directory/file: ${pyRepr(part)}`);
     }
   }
-  if (name !== "MANIFEST.agent" && !ALLOWED_SUFFIXES.has(suffix(name))) {
+  if (name !== "MANIFEST.agent" && !ALLOWED_SUFFIXES.has(suffix(name)) && !BINARY_SUFFIXES.has(suffix(name))) {
     throw new ValidationError(`${name}: only declared UTF-8 data formats allowed, never executable payloads`);
   }
   if (CREDENTIAL_PATH.test(name)) {
@@ -136,8 +143,16 @@ export async function checkPayload(files: ReadonlyMap<string, Uint8Array>, optio
     }
     total += data.length;
     if (total > MAX_TOTAL_BYTES) throw new ValidationError(`package exceeds ${MAX_TOTAL_BYTES} byte expanded limit`);
-    const content = decodeUtf8(data, name);
-    if (content.includes("\u0000")) throw new ValidationError(`${name}: NUL bytes are not allowed`);
+    let content: string;
+    if (BINARY_SUFFIXES.has(suffix(name))) {
+      if (data.length > MAX_MODULE_BYTES) throw new ValidationError(`${name}: a WebAssembly module is at most ${MAX_MODULE_BYTES} bytes`);
+      if (!hasWasmHeader(data)) throw new ValidationError(`${name}: not a WebAssembly core module (magic number and version 1)`);
+      // The credential scan below reads the bytes as text (Latin-1, as the reference does); a module is never decoded.
+      content = Array.from(data, (byte) => String.fromCharCode(byte)).join("");
+    } else {
+      content = decodeUtf8(data, name);
+      if (content.includes("\u0000")) throw new ValidationError(`${name}: NUL bytes are not allowed`);
+    }
     if (CREDENTIAL_CONTENT.test(content)) {
       throw new ValidationError(`${name}: apparent private key or API credential in payload`);
     }

@@ -13,9 +13,14 @@
  * validation is asynchronous (hyperjump) and is awaited where Python validates in place.
  */
 import { canonicalJson } from "../canonical.js";
+import { computeOperations, moduleFacts } from "../compute/declarations.js";
+import { EngineUnavailable, ENGINE_UNAVAILABLE, type ComputeEngine, type ComputeOutcome } from "../compute/engine.js";
+import { ComputeError } from "../compute/errors.js";
+import { HOST_KEYS as COMPUTE_HOST_KEYS, hostComputeLimits, limitsJson, loweredBy, type ComputeLimits } from "../compute/limits.js";
+import { ModuleError, type ModuleFacts } from "../compute/module.js";
 import { AgentPkgError, ValidationError } from "../errors.js";
 import { sha256HexSync } from "../hash.js";
-import { decodeUtf8, isJsonObject, type JsonObject, type JsonValue } from "../json.js";
+import { decodeUtf8, isJsonObject, parseJson, type JsonObject, type JsonValue } from "../json.js";
 import type { ModelRequest, ModelRouter } from "../models/contract.js";
 import type { Package } from "../package.js";
 import { pyIsoTimestamp } from "../pyjson.js";
@@ -42,6 +47,62 @@ export interface HostLimits {
   max_remote_calls?: number;
   max_parallel_workers?: number;
   max_calls_per_tool?: number;
+  /** compute.v0 (C-36): the host's ceilings for one compute call; a node may only lower them. */
+  compute_memory_pages?: number;
+  compute_wall_seconds?: number;
+  compute_fuel?: number;
+}
+
+/**
+ * Seconds a compute call's engine deadline trails its node's `timeout_seconds` (C-32), so the
+ * node's own timeout, not the engine's deadline, is what ends a node that runs too long.
+ */
+export const TIMEOUT_GRACE = 1;
+
+/** One declared module as the preflight prepared it: compiled by the engine, its facts decoded. */
+export interface PreparedModule {
+  path: string;
+  sha256: string;
+  facts: ModuleFacts;
+}
+
+function refusal(code: string, message: string): PolicyError {
+  return Object.assign(new PolicyError(`${code}: ${message}`), { code });
+}
+
+/**
+ * compute.v0 preflight (`runtime.py::_prepare_compute`): the engine is present, every module's
+ * declared memory maximum fits under the host's bound as its nodes lower it (`compute_limit_exceeded`:
+ * refused, never lowered), and every module compiles. Before anything runs, so that a run never spends
+ * a model call and then meets a module it cannot run. Asynchronous because compiling is; `Workflow.create`
+ * awaits it before the runtime exists, which is where the reference's constructor does the same work.
+ * Returns null for a package without compute operations.
+ */
+export async function prepareCompute(pkg: Package, engine: ComputeEngine | null, limits: ComputeLimits): Promise<Map<string, PreparedModule> | null> {
+  const operations = computeOperations(pkg.graph);
+  if (operations.length === 0) return null;
+  if (engine === null) throw refusal(ENGINE_UNAVAILABLE, new EngineUnavailable("this host has no WebAssembly engine; install agentpkg[compute]").message);
+  const facts = moduleFacts(pkg);
+  const modules = new Map<string, PreparedModule>();
+  for (const module of (pkg.graph.modules as JsonObject[] | undefined) ?? []) {
+    modules.set(String(module.id), { path: String(module.path), sha256: String(module.sha256), facts: facts[String(module.id)]! });
+  }
+  for (const [name, operation] of operations) {
+    const effective = loweredBy(limits, operation.limits);
+    const maximum = facts[String(operation.module)]!.memory_max_pages;
+    if (maximum > effective.memory_pages) {
+      throw refusal("compute_limit_exceeded", `node ${name} runs module ${pyRepr(String(operation.module))}, whose declared memory maximum of ${maximum} pages is above this host's ceiling of ${effective.memory_pages}`);
+    }
+  }
+  for (const [moduleId, module] of modules) {
+    try {
+      await engine.compile(module.sha256, pkg.files.get(module.path)!);
+    } catch (error) {
+      if (error instanceof ModuleError) throw refusal(error.code, `module ${pyRepr(moduleId)}: ${error.message}`);
+      throw error;
+    }
+  }
+  return modules;
 }
 
 export type Observer = (event: AuditEvent) => void;
@@ -71,6 +132,10 @@ export interface RuntimeOptions {
   limits?: HostLimits | null;
   approvedTools?: readonly string[] | null;
   observer?: Observer | null;
+  /** compute.v0: the host's engine; null when the host has none (a package with compute nodes is then refused before it starts). */
+  compute?: ComputeEngine | null;
+  /** The modules `prepareCompute` compiled for this package; `Workflow.create` supplies them. */
+  computePrepared?: Map<string, PreparedModule> | null;
 }
 
 const REASON = /^[a-z][a-z0-9_]{0,63}$/u;
@@ -113,6 +178,8 @@ class WorkerUsage {
   reserved_tokens = 0;
   remote_calls = 0;
   tool_calls: Record<string, number> = {};
+  /** compute.v0: counted for the run only (`usage.compute_calls`), never per worker. */
+  compute_calls = 0;
 }
 
 /** An unforgeable-by-package capability given only to trusted host handlers. */
@@ -140,6 +207,11 @@ export class Context implements ToolContext {
 
   model(task: string, payload: JsonValue, outputSchema: JsonValue, maxOutputTokens: number, token: CancelToken, options: ModelCallOptions = {}): Promise<JsonValue> {
     return this.runtime.callModel(this, task, payload, outputSchema, maxOutputTokens, token, options);
+  }
+
+  /** compute.v0: one call of a module's function on the constructed input (C-20…C-26). */
+  compute(operation: JsonObject, payload: JsonValue, token: CancelToken): Promise<JsonValue> {
+    return this.runtime.callCompute(this, operation, payload, token);
   }
 
   event(action: string, metadata: Record<string, JsonValue | undefined> = {}): void {
@@ -196,6 +268,10 @@ export class Runtime {
   private readonly onceUsed = new Set<string>();
   private halted: string | null = null;
   private readonly root: Context;
+  /** compute.v0: the host's engine and the modules the preflight prepared (empty for a package without compute nodes). */
+  readonly compute: ComputeEngine | null;
+  readonly computeLimits: ComputeLimits;
+  private readonly modules: Map<string, PreparedModule>;
 
   constructor(pkg: Package, schemas: PackageSchemas, options: RuntimeOptions = {}) {
     this.package = pkg;
@@ -224,7 +300,14 @@ export class Runtime {
       throw new PolicyError("Grant must be once, session, always, or deny");
     }
     this.budget = deepCopy(this.policy.budget as JsonObject);
+    // compute.v0: the host's ceilings for one compute call; a node may only lower them.
+    try {
+      this.computeLimits = hostComputeLimits(Object.fromEntries(Object.entries(options.limits ?? {}).filter(([key]) => COMPUTE_HOST_KEYS.includes(key))));
+    } catch (error) {
+      throw new PolicyError((error as Error).message);
+    }
     for (const [key, value] of Object.entries(options.limits ?? {})) {
+      if (COMPUTE_HOST_KEYS.includes(key)) continue;
       if (!LIMIT_KEYS.has(key)) throw new PolicyError(`Unsupported host limit: ${key}`);
       if (typeof value !== "number" || !Number.isInteger(value) || value < 0) {
         throw new PolicyError(`Host limit ${key} must be a nonnegative integer`);
@@ -255,6 +338,15 @@ export class Runtime {
     }
     const dependencies = pkg.manifest.dependencies;
     if (Array.isArray(dependencies) && dependencies.length > 0) throw new PolicyError("Dependency execution/loading is not implemented");
+    // compute.v0 preflight: `prepareCompute` ran before this constructor (it compiles, which is
+    // asynchronous); a package with compute nodes and nothing prepared is refused here as the
+    // reference refuses it in its constructor, before `runtime.started`.
+    this.compute = options.compute ?? null;
+    this.modules = options.computePrepared ?? new Map();
+    if (this.modules.size === 0 && computeOperations(pkg.graph).length > 0) {
+      if (this.compute === null) throw refusal(ENGINE_UNAVAILABLE, "this host has no WebAssembly engine; install agentpkg[compute]");
+      throw new PolicyError("compute modules were not prepared before the runtime was constructed");
+    }
     this.run_id = crypto.randomUUID();
     this.parallel = new Semaphore(this.budget.max_parallel_workers as number);
     for (const [role, worker] of Object.entries(this.roles)) this.roleSlots[role] = new Semaphore(worker.max_instances as number);
@@ -318,11 +410,12 @@ export class Runtime {
     }
   }
 
-  private authorize(permissionIds: readonly string[], options: { consume?: boolean; context?: Context | null } = {}): void {
+  private authorize(permissionIds: readonly string[], options: { consume?: boolean; context?: Context | null; nodeId?: string | null } = {}): void {
     for (const pid of permissionIds) {
       const grant: GrantDecision = this.grants[pid] ?? "deny";
       const spent = grant === "once" && this.onceUsed.has(pid);
-      this.record("permission.checked", { context: options.context ?? null, permission: pid, grant, allowed: grant !== "deny" && !spent });
+      // C-44: a compute call names the operation it serves, which the coordinator's shared context cannot.
+      this.record("permission.checked", { context: options.context ?? null, ...(options.nodeId !== undefined ? { node_id: options.nodeId } : {}), permission: pid, grant, allowed: grant !== "deny" && !spent });
       if (grant === "deny" || spent) throw new PolicyError(`Permission denied or consumed: ${pid}`);
     }
     if (options.consume) {
@@ -587,6 +680,83 @@ export class Runtime {
       this.record("tool.failed", { context: ctx, tool: toolId, error: errorName(error), status: "error", ...failureReason(error) });
       throw error;
     }
+  }
+
+  /**
+   * One compute call (compute.v0 §4, `runtime.py::call_compute`): authorize the permission, check
+   * the input against the node's `input_schema`, hand the canonical JSON bytes to the engine under
+   * the effective limits, read back one strict JSON text, check it against `output_schema`. Three
+   * audit events; nothing a module wrote is ever recorded.
+   */
+  async callCompute(ctx: Context, operation: JsonObject, payload: JsonValue, token: CancelToken): Promise<JsonValue> {
+    this.checkContext(ctx);
+    const moduleId = String(operation.module);
+    const fn = String(operation.function);
+    // The operation names itself (C-44): a worker's context carries its node (or map step), while
+    // the coordinator's one context is shared by every coordinator node of a wave.
+    const nodeId = ctx.operation_id ?? ctx.node_id ?? String(operation.id);
+    const identity: Record<string, JsonValue> = { node_id: nodeId, module: moduleId, function: fn };
+    let outcome: ComputeOutcome | null = null;
+    try {
+      const module = this.modules.get(moduleId);
+      if (this.compute === null || module === undefined || !module.facts.functions.includes(fn)) {
+        throw new PolicyError(`Undeclared compute module or function: ${moduleId}.${fn}`);
+      }
+      identity.module_sha256 = module.sha256;
+      const permissions = this.permissionKind("compute");
+      if (permissions.length !== 1 || !((this.permissions[permissions[0]!]!.resources as JsonValue[]).map(String).includes(moduleId))) {
+        throw new PolicyError("Compute use requires the compute permission naming the module");
+      }
+      try {
+        await this.schemas.validateInstance(String(operation.input_schema), payload, "compute input");
+      } catch (error) {
+        if (error instanceof ValidationError) attach(error, "compute_input_invalid", schemaFacts(error, "input_schema"));
+        throw error;
+      }
+      const data = canonicalJson(payload);
+      const limits = loweredBy(this.computeLimits, operation.limits);
+      this.authorize(permissions, { context: ctx, nodeId });
+      this.authorize(permissions, { consume: true, context: ctx, nodeId });
+      this.global.compute_calls += 1;
+      this.record("compute.called", { context: ctx, ...identity, input_hash: digest(payload), input_bytes: data.length, limits: limitsJson(limits), permissions });
+      // The node's own timeout ends the node first (`timeout`); the engine's deadline follows it
+      // shortly, so the abandoned call does not run on to the wall bound (C-32). The audit keeps
+      // the effective limits of C-34. A cancel ends the call at once through the token.
+      const deadline = Math.min(limits.wall_seconds, (operation.timeout_seconds as number) + TIMEOUT_GRACE);
+      outcome = await this.compute.call(module.sha256, fn, data, { ...limits, wall_seconds: deadline }, token.signal);
+      if (outcome.reason !== null) throw new ComputeError(outcome.reason, { trapCode: outcome.trap_code, detail: outcome.detail });
+      let result: JsonValue;
+      try {
+        result = parseJson(outcome.output!, "compute output");
+      } catch (error) {
+        if (error instanceof ValidationError) throw new ComputeError("output_not_json", {});
+        throw error;
+      }
+      try {
+        await this.schemas.validateInstance(String(operation.output_schema), result, "compute output");
+      } catch (error) {
+        if (error instanceof ValidationError) attach(error, "compute_output_invalid", schemaFacts(error, "output_schema"));
+        throw error;
+      }
+      this.record("compute.completed", { context: ctx, ...identity, output_hash: digest(result), output_bytes: outcome.output!.length, memory_pages: outcome.memory_pages, engine: this.engineFacts(outcome), status: "ok" });
+      return result;
+    } catch (error) {
+      // A module's own failure is named by the specification's words (reason, trap code, detail);
+      // any other failure by its adapter code, as a tool's is.
+      const facts: Record<string, JsonValue> = error instanceof ComputeError ? error.facts() : failureReason(error);
+      if (outcome !== null) {
+        facts.memory_pages = outcome.memory_pages;
+        facts.engine = this.engineFacts(outcome);
+        facts.output_bytes = outcome.output !== null ? outcome.output.length : 0;
+      }
+      this.record("compute.failed", { context: ctx, ...identity, error: errorName(error), status: "error", ...facts });
+      throw error;
+    }
+  }
+
+  /** Which engine ran the call and what it measured; the figures are the engine's own (C-45: dropped when two runtimes' audits are compared). */
+  private engineFacts(outcome: ComputeOutcome): JsonObject {
+    return { id: this.compute!.id, elapsed_ms: outcome.elapsed_ms, fuel_consumed: outcome.fuel_consumed };
   }
 
   /**
@@ -875,6 +1045,8 @@ export class Runtime {
       reserved_tokens: this.global.reserved_tokens,
       remote_calls: this.global.remote_calls,
       tool_calls: { ...this.global.tool_calls },
+      // compute.v0: present exactly when the graph declares modules, so every earlier package's usage is unchanged.
+      ...(this.modules.size > 0 ? { compute_calls: this.global.compute_calls } : {}),
       peak_parallel_workers: this.peak,
       workers,
       limits: deepCopy(this.budget),

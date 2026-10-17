@@ -193,6 +193,24 @@ export function renderAgentPage(view: SessionView, actions: AgentPageActions = {
       row("Execution profile", model.identity.execution_profile),
       row("Payload", `${model.technical.payload.file_count} files, ${bytes(model.technical.payload.total_bytes)}`),
       row("Extensions", model.technical.extension_keys.join(", ") || "none"),
+      ...(model.technical.modules.length > 0
+        ? [
+            // compute.v0 (C-9): the hashes a person can compare against the signed graph.
+            el("h4", { text: "Code it runs (WebAssembly modules)" }),
+            list(
+              model.technical.modules.map((module) =>
+                el(
+                  "div",
+                  { className: "ab-module", attrs: { "data-module": module.id } },
+                  el("strong", { text: module.id }),
+                  el("span", { text: ` · ${module.path} · ${bytes(module.size)} · calls ${module.functions.join(", ")} · memory ${module.memory_min_pages}–${module.memory_max_pages} pages · no imports` }),
+                  el("br"),
+                  el("code", { text: module.sha256 }),
+                ),
+              ),
+            ),
+          ]
+        : []),
       el("h4", { text: "Tools" }),
       list(
         [...model.tools.remote, ...model.tools.local].map((tool) =>
