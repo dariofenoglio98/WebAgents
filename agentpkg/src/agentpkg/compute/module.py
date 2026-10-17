@@ -160,10 +160,14 @@ class _Reader:
     def remaining(self) -> int:
         return self.end - self.pos
 
-    def byte(self) -> int:
+    def peek(self) -> int:
+        """The next byte, not consumed; every read of the bytes is bounded by `end`."""
         if self.pos >= self.end:
             raise _malformed("unexpected end of module")
-        value = self.data[self.pos]
+        return self.data[self.pos]
+
+    def byte(self) -> int:
+        value = self.peek()
         self.pos += 1
         return value
 
@@ -257,9 +261,7 @@ class _Reader:
         raise _malformed(f"{where}: unknown limits flag 0x{flag:02x}")
 
     def block_type(self, types: int) -> None:
-        first = self.data[self.pos] if self.pos < self.end else None
-        if first is None:
-            raise _malformed("unexpected end of module")
+        first = self.peek()
         if first < 0x80:
             self.pos += 1
             if first == 0x40 or first in _VALUE_TYPES or first in _REF_TYPES:
@@ -464,7 +466,7 @@ def read_module(data: bytes) -> ModuleInfo:
         elif section_id == 4:
             for index in range(section.u32()):
                 where = f"table {index}"
-                if section.data[section.pos] == 0x40:
+                if section.peek() == 0x40:
                     raise _feature("function-references", where)
                 section.ref_type(where)
                 section.limits(where)

@@ -170,3 +170,42 @@ def test_the_example_modules_pass_the_reader():
         facts = check_module(path.read_bytes(), functions=functions[path.stem])
         assert facts.memory_max_pages >= 1, path
         assert facts.functions == functions[path.stem]
+
+
+def test_a_truncated_table_section_is_malformed_not_a_crash():
+    """The reader's every look at a byte is bounded: a table entry cut before its first byte."""
+    for data in (b"\x00asm\x01\x00\x00\x00\x04\x01\x01", b"\x00asm\x01\x00\x00\x00\x04\x00"):
+        with pytest.raises(ModuleError) as caught:
+            read_module(data)
+        assert caught.value.code == "module_malformed"
+
+
+def _read_or_refuse(data: bytes) -> None:
+    try:
+        check_module(data, functions=("run",))
+    except ModuleError:
+        pass
+
+
+def test_damaged_modules_are_read_or_refused_never_crash():
+    """Any byte string either reads or is refused with a code: every prefix and many one-byte
+    changes of the case modules, and a fixed sample of both over the toolchain-built modules."""
+    import random
+
+    for stem in sorted(CASE_LIST["modules"]):
+        data = case_module(stem)
+        for cut in range(len(data)):
+            _read_or_refuse(data[:cut])
+        for at in range(8, len(data)):
+            for value in (0x00, 0x01, 0x40, 0x7F, 0x80, 0xFF, data[at] ^ 0x01):
+                _read_or_refuse(data[:at] + bytes([value]) + data[at + 1 :])
+    rng = random.Random(21)
+    for path, samples in (
+        (CASES.parent / "fares-as" / "dist" / "fares.wasm", 300),
+        (CASES.parent / "bookkeeping-rs" / "dist" / "bookkeeping.wasm", 40),
+    ):
+        data = path.read_bytes()
+        for _ in range(samples):
+            _read_or_refuse(data[: rng.randrange(len(data))])
+            at = rng.randrange(8, len(data))
+            _read_or_refuse(data[:at] + bytes([rng.randrange(256)]) + data[at + 1 :])
