@@ -530,9 +530,18 @@ async function main() {
       await cdp.evaluate(page, `document.querySelector('button[data-profile="book"]').click(); true`);
       await sleep(300);
       const recall = (await send({ type: "authorization.get", sessionId })).recall;
-      report.steps.memoryRecall = recall.map((card) => ({ permission_id: card.permission_id, mode: card.mode, candidates: card.candidates.map((candidate) => ({ id: candidate.id, title: candidate.title, signals: candidate.signals })) }));
-      const recalled = recall.some((card) => card.candidates.some((candidate) => accepted.some((item) => item.id === candidate.id)));
-      check("memory", "the accepted record is recalled for the next run", recalled, report.steps.memoryRecall);
+      report.steps.memoryRecall = recall.map((card) => ({ permission_id: card.permission_id, resource_type: card.resource_type, mode: card.mode, candidates: card.candidates.map((candidate) => ({ id: candidate.id, title: candidate.title, signals: candidate.signals })) }));
+      // A recall card offers records of the type its `memory.read` requests, so an accepted record can be
+      // recalled only when the package reads its type (B-222). WebAir 0.6.0 and 0.7.0 propose
+      // `travel.preference` and read only `travel.profile` (B-221): the check is skipped with a note.
+      const readTypes = new Set(recall.map((card) => card.resource_type));
+      const readable = accepted.filter((item) => readTypes.has(item.type));
+      if (readable.length === 0) {
+        report.steps.memory["the accepted record is recalled for the next run"] = { skipped: `the package reads ${[...readTypes].sort().join(", ") || "no memory type"}; the accepted records are ${[...new Set(accepted.map((item) => item.type))].sort().join(", ") || "none"} (B-221)` };
+      } else {
+        const recalled = recall.some((card) => card.candidates.some((candidate) => readable.some((item) => item.id === candidate.id)));
+        check("memory", "the accepted record is recalled for the next run", recalled, report.steps.memoryRecall);
+      }
       await shot("7-recalled");
     }
 

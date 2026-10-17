@@ -234,7 +234,7 @@ async function main() {
       const audit = JSON.parse(exported["audit.json"] ?? "[]");
       const events = Array.isArray(audit) ? audit : (audit.events ?? []);
       const compute = events.filter((event) => String(event.action).startsWith("compute."));
-      report.runs[name] = { runId: started.runId, status: record.status, errorCode: record.errorCode, settledMs, chainValid: record.audit?.chainValid ?? null, compute: compute.map((event) => ({ action: event.action, node_id: event.node_id, module: event.module, function: event.function, reason: event.reason ?? null, engine: event.engine ?? null, memory_pages: event.memory_pages ?? null })), modelRequests: observations.observations.filter((item) => item.kind === "model").length, warnings: view.summary.warnings.map((warning) => warning.code) };
+      report.runs[name] = { runId: started.runId, status: record.status, errorCode: record.errorCode, settledMs, chainValid: record.audit?.chainValid ?? null, compute: compute.map((event) => ({ action: event.action, node_id: event.node_id, module: event.module, function: event.function, reason: event.reason ?? null, engine: event.engine ?? null, memory_pages: event.memory_pages ?? null })), modelRequests: observations.observations.filter((item) => item.kind === "model").length, requests: { recording: observations.recording, count: observations.observations.length }, warnings: view.summary.warnings.map((warning) => warning.code) };
       return { record, exported, events, compute, view };
     };
 
@@ -248,6 +248,9 @@ async function main() {
     check("Chrome's output equals the Python reference's", JSON.stringify(result.output) === JSON.stringify(reference.output) && result.output !== undefined, { chrome: result.output ?? null });
     check("usage counts the calls", result.usage?.compute_calls === 5, result.usage);
     check("no model request was made", report.runs["compute-test"].modelRequests === 0, report.runs["compute-test"].modelRequests);
+    // The privacy observer (D-028) records every model and tool request of a run in test mode. A module
+    // imports nothing, so it has no path to the network; the observer confirms the run made no request.
+    check("the privacy observer, recording, saw no request of any kind", report.runs["compute-test"].requests.recording === true && report.runs["compute-test"].requests.count === 0, report.runs["compute-test"].requests);
     check("the audit chain is valid", ok.record.audit?.chainValid === true, ok.record.audit);
     check("the agent page states the code that can only compute", report.runs["compute-test"].warnings.includes("runs_code_that_can_only_compute") && ok.view.page.technical.modules.length === 2, report.runs["compute-test"].warnings);
 

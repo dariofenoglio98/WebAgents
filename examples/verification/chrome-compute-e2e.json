@@ -1,28 +1,28 @@
 {
   "profile": "chrome-compute-e2e-v0",
-  "recordedAt": "2026-10-17T22:33:51.471Z",
+  "recordedAt": "2026-10-17T23:31:33.524Z",
   "chrome": "Chrome/155.0.8059.82",
   "model": "ollama/qwen3.8:27b",
-  "outputDirectory": "examples/my-chrome-compute-2026-10-17T22-33-51-471Z",
+  "outputDirectory": "examples/my-chrome-compute-2026-10-17T23-31-33-524Z",
   "csp": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'; connect-src https: http://127.0.0.1:* http://localhost:*",
   "packages": {
     "computeTest": {
       "digest": "2c2e8accb2ec58441335eb6ad82f2371f16bc7595411cfe5e8f6f07568045106",
-      "archiveSha256": "364e5a565b21da6a337c5b15a17f35e19892a5c5235a4399d3c7ab8f6d37f72b",
+      "archiveSha256": "d865a6a7c57ee7afa6c2bf05fddbe27393696a832343d254b81ae2171e628f8a",
       "bytes": 135153,
-      "signer": "sha256:02c11ef831e0c11bd6a87e7a74e7acb9678dbd5b288561a31b86f5600228ed91"
+      "signer": "sha256:c38b279dc0e1cb128a4ed89809132452224452757c39233d787750b7231b97d1"
     },
     "runaway": {
       "digest": "09f1debd911e9431fc45e0ff09ca6a85bcd157b543e4a22b6f0111f1f2a5659c",
-      "archiveSha256": "a55e61cedf87fdb32c0687c071e82b47ead351f67884cc6aab9438777315d547",
+      "archiveSha256": "6b159ae3e67ed1f3c22ec86b65ac5cff0db067f9f70895c25d0a5ba35c092107",
       "bytes": 6792,
-      "signer": "sha256:f1bda0a85338bc4d3b9bbe71e7ea756afab0d4bd58142a74e3b4659c1120b03c"
+      "signer": "sha256:aed66e372483c04387eee710be35e11e9fd8192cad430fdb4a1022d61fc69b82"
     },
     "long": {
       "digest": "81c8810425770ce7a77e02cddb15288de67ca97e79144a38c7db5fb2c71647c2",
-      "archiveSha256": "b4b91bfc4d6a72a7275b8f0a44190819b5a6629c4d6f919bebb93c25294ac2d2",
+      "archiveSha256": "f6701a5485ca404c094da25c6f5bf50f1fdb5cba33590ed646e021b16394370d",
       "bytes": 6737,
-      "signer": "sha256:1612451751e01f386d2b3e142d270742fd5f1f62127d9094faaf5cc6f36993c0"
+      "signer": "sha256:756833b019cb230c06fe424a3c1931bc7681772deec32dbb4e8542c0e15b7570"
     }
   },
   "computeWorker": {
@@ -32,10 +32,10 @@
   },
   "runs": {
     "compute-test": {
-      "runId": "run_c7184eb50d8a476aa5cdb0364712837b",
+      "runId": "run_6df093403eac41739236db84c1bb8f59",
       "status": "completed",
       "errorCode": null,
-      "settledMs": 506,
+      "settledMs": 253,
       "chainValid": true,
       "compute": [
         {
@@ -150,6 +150,10 @@
         }
       ],
       "modelRequests": 0,
+      "requests": {
+        "recording": true,
+        "count": 0
+      },
       "warnings": [
         "publisher_unknown",
         "runs_code_that_can_only_compute",
@@ -158,10 +162,10 @@
       ]
     },
     "runaway": {
-      "runId": "run_11c490d8a51049de85c2ffc2cbe90550",
+      "runId": "run_4ad22b3c96344cbf90599968cc2295cc",
       "status": "failed",
       "errorCode": "compute_error",
-      "settledMs": 758,
+      "settledMs": 760,
       "chainValid": true,
       "compute": [
         {
@@ -188,6 +192,10 @@
         }
       ],
       "modelRequests": 0,
+      "requests": {
+        "recording": true,
+        "count": 0
+      },
       "warnings": [
         "publisher_unknown",
         "runs_code_that_can_only_compute",
@@ -196,10 +204,10 @@
       ]
     },
     "cancelled": {
-      "runId": "run_27637edfd08e43c3b1c8dd018869fc8f",
+      "runId": "run_65dc7d4bee2c4ea9b63b8f0476c4ed52",
       "status": "cancelled",
       "errorCode": "cancelled",
-      "settledMs": 1264,
+      "settledMs": 1013,
       "chainValid": true,
       "compute": [
         {
@@ -222,6 +230,10 @@
         }
       ],
       "modelRequests": 0,
+      "requests": {
+        "recording": true,
+        "count": 0
+      },
       "warnings": [
         "publisher_mismatch",
         "runs_code_that_can_only_compute",
@@ -230,10 +242,10 @@
       ]
     },
     "compute-test-again": {
-      "runId": "run_d3492fdae46c4902894ea06a993649a3",
+      "runId": "run_9eeb5694d8f147f28ddd86cac31453ff",
       "status": "completed",
       "errorCode": null,
-      "settledMs": 515,
+      "settledMs": 253,
       "chainValid": true,
       "compute": [
         {
@@ -284,19 +296,6 @@
           "reason": null,
           "engine": null,
           "memory_pages": null
-        },
-        {
-          "action": "compute.completed",
-          "node_id": "quotes",
-          "module": "bookkeeping",
-          "function": "match_quotes",
-          "reason": null,
-          "engine": {
-            "id": "chrome/155.0.0.0",
-            "elapsed_ms": 1,
-            "fuel_consumed": null
-          },
-          "memory_pages": 18
         },
         {
           "action": "compute.completed",
@@ -322,6 +321,19 @@
         },
         {
           "action": "compute.completed",
+          "node_id": "quotes",
+          "module": "bookkeeping",
+          "function": "match_quotes",
+          "reason": null,
+          "engine": {
+            "id": "chrome/155.0.0.0",
+            "elapsed_ms": 0,
+            "fuel_consumed": null
+          },
+          "memory_pages": 18
+        },
+        {
+          "action": "compute.completed",
           "node_id": "groups/total",
           "module": "fares",
           "function": "run",
@@ -341,13 +353,17 @@
           "reason": null,
           "engine": {
             "id": "chrome/155.0.0.0",
-            "elapsed_ms": 1,
+            "elapsed_ms": 0,
             "fuel_consumed": null
           },
           "memory_pages": 1
         }
       ],
       "modelRequests": 0,
+      "requests": {
+        "recording": true,
+        "count": 0
+      },
       "warnings": [
         "runs_code_that_can_only_compute",
         "no_evals_declared",
@@ -364,6 +380,7 @@
     "Chrome's output equals the Python reference's": "ok",
     "usage counts the calls": "ok",
     "no model request was made": "ok",
+    "the privacy observer, recording, saw no request of any kind": "ok",
     "the audit chain is valid": "ok",
     "the agent page states the code that can only compute": "ok",
     "the runaway call ends compute_error / deadline, recorded by the run Worker": "ok",
