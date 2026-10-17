@@ -7,6 +7,7 @@ import json
 import time
 
 import pytest
+from compute_probe import REQUEST, case_module, compute_node, grants, write_probe
 
 from agentpkg.cli import main
 from agentpkg.compute import engine as compute_engine
@@ -29,7 +30,6 @@ from agentpkg.fixtures import fixture_adapters
 from agentpkg.package import build_package, load_package, unpack_package
 from agentpkg.runtime import PolicyError, Runtime, digest
 from agentpkg.workflow import Workflow, WorkflowError, run_workflow
-from compute_probe import REQUEST, case_module, compute_node, grants, write_probe
 
 
 def run(package, *, limits=None, decisions=None, approved=()):
@@ -405,3 +405,27 @@ def test_the_execution_host_carries_the_compute_bounds(tmp_path):
         "compute.modules": "once",
         "memory.session": "session",
     }
+
+
+def test_the_control_plane_says_what_code_runs_and_the_record_counts_the_calls(tmp_path):
+    from agentpkg.browser.summary import warnings
+    from agentpkg.execution.report import audit_summary
+
+    package = load_package(write_probe(tmp_path / "probe"))
+    publisher = {"signature_status": "absent", "trust_status": "unknown"}
+    evaluation = {"runtime_status": "compatible"}
+    found = {w["code"]: w for w in warnings(package, evaluation, publisher)}
+    note = found["runs_code_that_can_only_compute"]
+    assert note["severity"] == "info"
+    assert "runs code that can only compute (compute.modules)" in note["message"]
+    assert package.graph["modules"][0]["sha256"][:16] in note["message"]
+    assert "no imports" in note["message"]
+    result = run(package)
+    assert audit_summary(result["audit"])["compute_calls"] == 1
+    from pathlib import Path
+
+    agenda = load_package(Path(__file__).resolve().parents[2] / "agents" / "meeting-agenda")
+    assert "runs_code_that_can_only_compute" not in {
+        w["code"] for w in warnings(agenda, evaluation, publisher)
+    }
+    assert "compute_calls" not in audit_summary(run(agenda)["audit"])

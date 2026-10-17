@@ -71,6 +71,8 @@ def audit_summary(audit: list) -> dict:
         "model_calls": actions.get("model.completed", 0),
         "model_count_calls": actions.get("model.count.called", 0),
         "tool_calls": actions.get("tool.called", 0),
+        # compute.v0: present exactly when a module was called, so earlier records are unchanged.
+        **({"compute_calls": actions["compute.called"]} if actions.get("compute.called") else {}),
         "models_used": dict(sorted(models.items())[:MAX_MODELS]),
         "tasks_called": dict(sorted(tasks.items())[:MAX_ACTION_KINDS]),
         "state_commits": actions.get("state.committed", 0),

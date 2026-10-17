@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 import pytest
+from compute_probe import CASES, MODULES, builder, case_module
 
 from agentpkg.compute.module import (
     ALLOWED_FEATURES,
@@ -14,7 +15,6 @@ from agentpkg.compute.module import (
     check_module,
     read_module,
 )
-from compute_probe import CASES, MODULES, builder, case_module
 
 CASE_LIST = json.loads((CASES / "cases.json").read_text())
 VALIDATION_BY_MODULE = {

@@ -8,6 +8,7 @@ import json
 import zipfile
 
 import pytest
+from compute_probe import CASES, builder, case_module, compute_node, grants, write_probe
 
 from agentpkg.compute import engine as compute_engine
 from agentpkg.compute.engine import EngineUnavailable
@@ -16,7 +17,6 @@ from agentpkg.fixtures import fixture_adapters
 from agentpkg.package import build_package, load_package
 from agentpkg.runtime import PolicyError
 from agentpkg.workflow import WorkflowError, run_workflow
-from compute_probe import CASES, builder, case_module, compute_node, grants, write_probe
 
 CASE_LIST = json.loads((CASES / "cases.json").read_text())
 
