@@ -8,13 +8,15 @@ import hashlib
 import json
 import re
 from collections import Counter
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
 from jsonschema import Draft202012Validator
 
+from .compute.limits import HOST_KEYS as COMPUTE_HOST_KEYS
+from .compute.limits import host_limits as compute_host_limits
 from .errors import AgentPkgError, ValidationError
 from .toolbridge.facts import schema_facts
 from .validation import validate_document, validate_instance
@@ -29,6 +31,9 @@ class BudgetError(PolicyError):
 
 
 _REASON = re.compile(r"[a-z][a-z0-9_]{0,63}")
+#: Seconds a compute call's engine deadline trails its node's `timeout_seconds`, so the node's
+#: own timeout, not the engine's deadline, is what ends a node that runs too long.
+TIMEOUT_GRACE = 1
 # A fact value is a count, a flag, or a structural token such as a stop reason,
 # a JSON Schema keyword or a schema location. No spaces and no quotes, so prose
 # — a provider message, a model answer, a document excerpt — cannot pass.
@@ -86,6 +91,8 @@ class WorkerUsage:
     reserved_tokens: int = 0
     remote_calls: int = 0
     tool_calls: Counter = field(default_factory=Counter)
+    # compute.v0: counted for the run only (`usage.compute_calls`), never per worker.
+    compute_calls: int = 0
 
 
 class Context:
@@ -106,6 +113,9 @@ class Context:
         return await self._runtime.call_model(
             self, task, payload, output_schema, max_output_tokens=max_output_tokens, check=check
         )
+
+    async def compute(self, operation, payload):
+        return await self._runtime.call_compute(self, operation, payload)
 
     def event(self, action, **metadata):
         self._runtime._check_context(self)
@@ -158,7 +168,16 @@ class Runtime:
         if any(v not in {"once", "session", "always", "deny"} for v in self.grants.values()):
             raise PolicyError("Grant must be once, session, always, or deny")
         self.budget = copy.deepcopy(self.policy["budget"])
+        # compute.v0: the host's ceilings for one compute call; a node may only lower them.
+        try:
+            self.compute_limits = compute_host_limits(
+                {k: v for k, v in (limits or {}).items() if k in COMPUTE_HOST_KEYS}
+            )
+        except ValueError as exc:
+            raise PolicyError(str(exc)) from exc
         for key, value in (limits or {}).items():
+            if key in COMPUTE_HOST_KEYS:
+                continue
             if key not in {
                 "hard_tokens",
                 "max_remote_calls",
@@ -193,6 +212,9 @@ class Runtime:
             raise PolicyError("Only declared packaged worker roles can execute")
         if package.manifest.get("dependencies"):
             raise PolicyError("Dependency execution/loading is not implemented")
+        self.compute = None
+        self._modules = {}
+        self._prepare_compute()
         self.run_id = str(uuid4())
         self.state = {}
         self.audit = []
@@ -218,6 +240,51 @@ class Runtime:
             grant_scopes=self.grants,
             note="always grants apply only to this Runtime; no persistent grant store",
         )
+
+    def _prepare_compute(self):
+        """compute.v0 preflight: the engine is present, every module compiles, and every
+        module's declared memory maximum fits under the host's bound as its nodes lower it
+        (`compute_limit_exceeded`: refused, never lowered). Before anything runs, so that a run
+        never spends a model call and then meets a module it cannot run."""
+        from .compute.declarations import compute_operations, module_facts
+
+        operations = compute_operations(self.package.graph)
+        if not operations:
+            return
+        from .compute.engine import EngineUnavailable, default_engine
+        from .compute.module import ModuleError
+
+        try:
+            self.compute = default_engine()
+        except EngineUnavailable as exc:
+            error = PolicyError(f"{exc.code}: {exc}")
+            error.code = exc.code
+            raise error from exc
+        facts = module_facts(self.package)
+        for module in self.package.graph.get("modules", []):
+            self._modules[module["id"]] = {
+                "path": module["path"],
+                "sha256": module["sha256"],
+                "facts": facts[module["id"]],
+            }
+        for name, operation in operations:
+            effective = self.compute_limits.lowered_by(operation.get("limits"))
+            maximum = facts[operation["module"]].memory_max_pages
+            if maximum > effective.memory_pages:
+                error = PolicyError(
+                    f"compute_limit_exceeded: node {name} runs module {operation['module']!r}, "
+                    f"whose declared memory maximum of {maximum} pages is above this host's "
+                    f"ceiling of {effective.memory_pages}"
+                )
+                error.code = "compute_limit_exceeded"
+                raise error
+        for module_id, module in self._modules.items():
+            try:
+                self.compute.compile(module["sha256"], self.package.files[module["path"]])
+            except ModuleError as exc:
+                error = PolicyError(f"{exc.code}: module {module_id!r}: {exc}")
+                error.code = exc.code
+                raise error from exc
 
     def _context(self, role, worker_id, depth, parent):
         ctx = Context(self, role, worker_id, depth, parent)
@@ -258,7 +325,8 @@ class Runtime:
             except Exception:  # noqa: BLE001 - observation must never affect a run
                 pass
 
-    def _authorize(self, permission_ids, *, consume=False, context=None):
+    def _authorize(self, permission_ids, *, consume=False, context=None, node_id=None):
+        named = {} if node_id is None else {"node_id": node_id}
         for pid in permission_ids:
             grant = self.grants.get(pid, "deny")
             self.record(
@@ -267,6 +335,7 @@ class Runtime:
                 permission=pid,
                 grant=grant,
                 allowed=grant != "deny" and not (grant == "once" and pid in self._once_used),
+                **named,
             )
             if grant == "deny" or (grant == "once" and pid in self._once_used):
                 raise PolicyError(f"Permission denied or consumed: {pid}")
@@ -481,6 +550,117 @@ class Runtime:
                 **failure_reason(exc),
             )
             raise
+
+    async def call_compute(self, ctx, operation, payload):
+        """One compute call (compute.v0 §4): authorize the permission, check the input against
+        the node's `input_schema`, hand the canonical JSON bytes to the engine under the
+        effective limits, read back one strict JSON text, check it against `output_schema`.
+        Three audit events; nothing a module wrote is ever recorded."""
+        from .compute.errors import ComputeError
+        from .package import canonical_json
+        from .validation import parse_json
+
+        self._check_context(ctx)
+        module_id, function = operation["module"], operation["function"]
+        # The operation names itself (C-44): a worker's context carries its node (or map step),
+        # while the coordinator's one context is shared by every coordinator node of a wave.
+        node_id = getattr(ctx, "operation_id", getattr(ctx, "node_id", None)) or operation["id"]
+        identity = dict(node_id=node_id, module=module_id, function=function)
+        outcome = None
+        try:
+            module = self._modules.get(module_id)
+            if self.compute is None or module is None or function not in module["facts"].functions:
+                raise PolicyError(f"Undeclared compute module or function: {module_id}.{function}")
+            identity["module_sha256"] = module["sha256"]
+            permissions = self._permission_kind("compute")
+            if (
+                len(permissions) != 1
+                or module_id not in self.permissions[permissions[0]]["resources"]
+            ):
+                raise PolicyError("Compute use requires the compute permission naming the module")
+            try:
+                validate_instance(
+                    self.package.files, operation["input_schema"], payload, "compute input"
+                )
+            except ValidationError as exc:
+                exc.code = "compute_input_invalid"
+                exc.audit_facts = schema_facts(exc, "input_schema")
+                raise
+            data = canonical_json(payload)
+            limits = self.compute_limits.lowered_by(operation.get("limits"))
+            async with self._lock:
+                self._authorize(permissions, context=ctx, node_id=node_id)
+                self._authorize(permissions, consume=True, context=ctx, node_id=node_id)
+                self._global.compute_calls += 1
+            self.record(
+                "compute.called",
+                context=ctx,
+                **identity,
+                input_hash=digest(payload),
+                input_bytes=len(data),
+                limits=limits.as_json(),
+                permissions=permissions,
+            )
+            # The node's own timeout ends the node first (`timeout`); the engine's deadline
+            # follows it shortly, so the abandoned call does not run on to the wall bound
+            # (B-224). The audit keeps the effective limits of C-34.
+            deadline = min(limits.wall_seconds, operation["timeout_seconds"] + TIMEOUT_GRACE)
+            outcome = await self.compute.call(
+                module["sha256"], function, data, replace(limits, wall_seconds=deadline)
+            )
+            if not outcome.ok:
+                raise ComputeError(
+                    outcome.reason, trap_code=outcome.trap_code, detail=outcome.detail
+                )
+            try:
+                result = parse_json(outcome.output, "compute output")
+            except ValidationError as exc:
+                raise ComputeError("output_not_json") from exc
+            try:
+                validate_instance(
+                    self.package.files, operation["output_schema"], result, "compute output"
+                )
+            except ValidationError as exc:
+                exc.code = "compute_output_invalid"
+                exc.audit_facts = schema_facts(exc, "output_schema")
+                raise
+            self.record(
+                "compute.completed",
+                context=ctx,
+                **identity,
+                output_hash=digest(result),
+                output_bytes=len(outcome.output),
+                memory_pages=outcome.memory_pages,
+                engine=self._engine_facts(outcome),
+                status="ok",
+            )
+            return result
+        except BaseException as exc:
+            # A module's own failure is named by the specification's words (reason, trap
+            # code, detail); any other failure by its adapter code, as a tool's is.
+            facts = exc.facts() if isinstance(exc, ComputeError) else failure_reason(exc)
+            if outcome is not None:
+                facts["memory_pages"] = outcome.memory_pages
+                facts["engine"] = self._engine_facts(outcome)
+                facts["output_bytes"] = len(outcome.output) if outcome.output is not None else 0
+            self.record(
+                "compute.failed",
+                context=ctx,
+                **identity,
+                error=type(exc).__name__,
+                status="error",
+                **facts,
+            )
+            raise
+
+    def _engine_facts(self, outcome) -> dict:
+        """Which engine ran the call and what it measured; the figures are the engine's own
+        (compute.v0 C-44: dropped when two runtimes' audits are compared)."""
+        return {
+            "id": self.compute.id,
+            "elapsed_ms": outcome.elapsed_ms,
+            "fuel_consumed": outcome.fuel_consumed,
+        }
 
     def _scan_tool_arguments(self, ctx, tool_id, tool, payload):
         """memory.v0 M-36: before every tool call except a memory read, the arguments are scanned
@@ -804,6 +984,9 @@ class Runtime:
             "reserved_tokens": self._global.reserved_tokens,
             "remote_calls": self._global.remote_calls,
             "tool_calls": dict(self._global.tool_calls),
+            # compute.v0: present exactly when the graph declares modules, so every earlier
+            # package's usage is unchanged.
+            **({"compute_calls": self._global.compute_calls} if self._modules else {}),
             "peak_parallel_workers": self._peak,
             "workers": {
                 w: {

@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "totals": {
+      "$ref": "fare-output.schema.json"
+    },
+    "ids": {
+      "$ref": "assign-output.schema.json"
+    },
+    "quotes": {
+      "$ref": "match-output.schema.json"
+    },
+    "group_totals": {
+      "$ref": "fare-outputs.schema.json"
+    }
+  },
+  "required": [
+    "totals",
+    "ids",
+    "quotes",
+    "group_totals"
+  ],
+  "additionalProperties": false
+}

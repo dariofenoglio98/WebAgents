@@ -19,8 +19,19 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from ..artifacts import HOST_RESULT_NAMES, RUN_RECORD_NAME
+from ..compute.limits import (
+    DEFAULT_FUEL,
+    DEFAULT_MEMORY_PAGES,
+    DEFAULT_WALL_SECONDS,
+    MAX_FUEL,
+    MAX_MEMORY_PAGES,
+    MAX_WALL_SECONDS,
+    ComputeLimits,
+)
 from ..package import canonical_json, sha256
 from .errors import (
+    COMPUTE_LIMIT_EXCEEDED,
+    COMPUTE_NOT_SUPPORTED,
     EXPORT_PATH_RESERVED,
     GRANT_UNSUPPORTED,
     MODEL_INCOMPATIBLE,
@@ -86,6 +97,11 @@ class HostExecutionLimits:
     run_timeout_seconds: int = DEFAULT_RUN_TIMEOUT_SECONDS
     max_calls_per_tool: int = DEFAULT_MAX_CALLS_PER_TOOL
     model_call_timeout_seconds: int = DEFAULT_MODEL_CALL_TIMEOUT_SECONDS
+    # compute.v0: the bounds of one compute call. A node may only lower them; a module whose
+    # declared memory maximum is above the page bound is refused before the run.
+    compute_memory_pages: int = DEFAULT_MEMORY_PAGES
+    compute_wall_seconds: int = DEFAULT_WALL_SECONDS
+    compute_fuel: int = DEFAULT_FUEL
 
     @classmethod
     def normalize(cls, raw) -> HostExecutionLimits:
@@ -101,6 +117,9 @@ class HostExecutionLimits:
             "run_timeout_seconds",
             "max_calls_per_tool",
             "model_call_timeout_seconds",
+            "compute_memory_pages",
+            "compute_wall_seconds",
+            "compute_fuel",
         }
         unknown = sorted(set(raw) - allowed)
         if unknown:
@@ -148,16 +167,40 @@ class HostExecutionLimits:
                 default=DEFAULT_MODEL_CALL_TIMEOUT_SECONDS,
                 maximum=MAX_MODEL_CALL_TIMEOUT_SECONDS,
             ),
+            compute_memory_pages=_bounded(
+                raw.get("compute_memory_pages"),
+                "compute_memory_pages",
+                default=DEFAULT_MEMORY_PAGES,
+                maximum=MAX_MEMORY_PAGES,
+            ),
+            compute_wall_seconds=_bounded(
+                raw.get("compute_wall_seconds"),
+                "compute_wall_seconds",
+                default=DEFAULT_WALL_SECONDS,
+                maximum=MAX_WALL_SECONDS,
+            ),
+            compute_fuel=_bounded(
+                raw.get("compute_fuel"), "compute_fuel", default=DEFAULT_FUEL, maximum=MAX_FUEL
+            ),
         )
 
     def runtime_limits(self) -> dict:
-        """Exactly the keys `Runtime` accepts; it applies min() to each one."""
+        """Exactly the keys `Runtime` accepts; it applies min() to each budget, and holds the
+        compute bounds as this host's ceilings."""
         return {
             "hard_tokens": self.total_tokens,
             "max_remote_calls": self.max_remote_calls,
             "max_parallel_workers": self.max_parallel_workers,
             "max_calls_per_tool": self.max_calls_per_tool,
+            "compute_memory_pages": self.compute_memory_pages,
+            "compute_wall_seconds": self.compute_wall_seconds,
+            "compute_fuel": self.compute_fuel,
         }
+
+    def compute_limits(self) -> ComputeLimits:
+        return ComputeLimits(
+            self.compute_memory_pages, self.compute_wall_seconds, self.compute_fuel
+        )
 
     def as_json(self) -> dict:
         return {
@@ -168,6 +211,9 @@ class HostExecutionLimits:
             "run_timeout_seconds": self.run_timeout_seconds,
             "max_calls_per_tool": self.max_calls_per_tool,
             "model_call_timeout_seconds": self.model_call_timeout_seconds,
+            "compute_memory_pages": self.compute_memory_pages,
+            "compute_wall_seconds": self.compute_wall_seconds,
+            "compute_fuel": self.compute_fuel,
         }
 
 
@@ -175,7 +221,10 @@ def effective_budget(package, limits: HostExecutionLimits) -> dict:
     """What the package declared, what the host allowed, and the min of both."""
     declared = package.policy["budget"]
     host = limits.runtime_limits()
-    scalar = [key for key in host if key != "max_calls_per_tool"]
+    # The compute bounds are the host's ceilings (compute.v0), not a min() against a package
+    # budget: a package declares no compute budget, and a module's own maximum is checked
+    # against them in `check_compute`.
+    scalar = [key for key in host if key != "max_calls_per_tool" and not key.startswith("compute_")]
     return {
         "declared": {
             "hard_tokens": declared["hard_tokens"],
@@ -294,6 +343,7 @@ def check_capabilities(
                 f"Export {export['path']!r} collides with a file this execution host writes",
                 detail={"reserved": sorted(reserved)},
             )
+    compute = check_compute(package, limits)
     return {
         "tools_declared": len(declared_tools),
         "tool_nodes": len(tool_nodes),
@@ -302,6 +352,50 @@ def check_capabilities(
         "llm_operations": caps,
         "max_requested_output_tokens": max((c["max_output_tokens"] for c in caps), default=0),
         "host_max_output_tokens_per_call": limits.max_output_tokens_per_call,
+        **({"compute": compute} if compute else {}),
+    }
+
+
+def check_compute(package, limits: HostExecutionLimits) -> dict | None:
+    """compute.v0: before the run, every module's declared memory maximum fits under the host's
+    page bound as the node lowers it, and the host has an engine at all. A package without
+    compute nodes returns None and its run record is unchanged."""
+    from ..compute.declarations import compute_operations, module_facts
+    from ..compute.engine import available
+
+    operations = compute_operations(package.graph)
+    if not operations:
+        return None
+    if not available():
+        raise ExecutionError(
+            COMPUTE_NOT_SUPPORTED,
+            "This package runs WebAssembly modules and this host has no engine for them "
+            "(install agentpkg[compute]). This is a limit of the host, not of the package format.",
+            detail={"modules": [m["id"] for m in package.graph.get("modules", [])][:32]},
+        )
+    facts = module_facts(package)
+    host = limits.compute_limits()
+    checked = []
+    for name, operation in operations:
+        effective = host.lowered_by(operation.get("limits"))
+        maximum = facts[operation["module"]].memory_max_pages
+        if maximum > effective.memory_pages:
+            raise ExecutionError(
+                COMPUTE_LIMIT_EXCEEDED,
+                f"Node {name} runs module {operation['module']!r}, whose declared memory "
+                f"maximum of {maximum} pages is above this host's ceiling of "
+                f"{effective.memory_pages}. The host refuses rather than lowering a module's "
+                "declared bound.",
+                detail={"node": name, "module": operation["module"], "memory_pages": maximum},
+            )
+        checked.append({"node": name, "module": operation["module"], **effective.as_json()})
+    return {
+        "modules": [
+            {"id": module["id"], **facts[module["id"]].as_json()}
+            for module in package.graph.get("modules", [])
+        ],
+        "operations": checked,
+        "host": host.as_json(),
     }
 
 
@@ -511,6 +605,9 @@ def _consumption_counts(package) -> dict[str, int]:
             counts["model"] += 1
         if node["type"] == "tool":
             tool_use(node["tool"], 1)
+        if node["type"] == "compute":
+            # compute.v0: every call consumes the compute permission, as a tool call does.
+            counts["compute"] = counts.get("compute", 0) + 1
         if node["type"] == "map":
             # A map instantiates one worker per item; an empty input spawns
             # none, so its own minimum is one for counting purposes.
@@ -521,6 +618,8 @@ def _consumption_counts(package) -> dict[str, int]:
                     counts["model"] += children
                 if step["type"] == "tool":
                     tool_use(step["tool"], children)
+                if step["type"] == "compute":
+                    counts["compute"] = counts.get("compute", 0) + children
         elif node["worker"] != coordinator:
             counts["memory"] += 1
     return counts
@@ -695,6 +794,7 @@ __all__ = [
     "SUPPORTED_DECISIONS",
     "HostExecutionLimits",
     "check_capabilities",
+    "check_compute",
     "check_resource_grants",
     "check_model",
     "check_tools",

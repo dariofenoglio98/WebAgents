@@ -1,0 +1,391 @@
+{
+  "schema": "webagents-compute-cases-v0",
+  "family": "compute",
+  "title": "compute.v0 enforcement cases: what both runtimes must refuse, and where",
+  "generator": "build_cases.py",
+  "stages": {
+    "container": "refused while the archive or source tree is read, before validation (the message matches `message`)",
+    "validation": "refused when the package is validated; the message starts with `<code>: `",
+    "preflight": "refused when the run is prepared, before any node runs (the host's bounds and engine)",
+    "run": "the node fails with `code`; the audit's `compute.failed` names `reason` (and `trap_code`, `detail`)"
+  },
+  "modules": {
+    "echo": "f0b0622ff08ca8a19cf47314561e842583290e42b174d3c62ce80202e06d13a7",
+    "loop-forever": "5f3a2463c219223a1ffd68de9c9b9b45e702f709b07e411ec3ea47b47e84a297",
+    "grow-until-refused": "2360f258c31f53eb2966bba73d55011fabb031216c0e137fcdcfc631f98ebbcb",
+    "trap-unreachable": "59b520a06090cd7c2d7b99214fcbee99ed848b1dc7e70e5e6e70e718ab5a7fb7",
+    "stack-overflow": "0469e1235a96a929d9854fb6eb4093dc41956672cdaf8d76f1c44035d3d5bae7",
+    "bad-json-output": "0e4cbae56459631fd2aa2b9c697ddb9948c19d51d6c6c7221443751a9dbda123",
+    "bad-utf8-output": "e711d630bf7f1bb3764fadb099ea29cccc4321093141a2e8508221388e20c99c",
+    "schema-miss-output": "3c0329518e8fa3962529467d06136f9effd8e60a222992d98fc661f77359f08f",
+    "zero-length-output": "7470e07956fa935c7ecb5c028ae315c702e302c0662d004af3b6683ffe62965d",
+    "out-of-range-output": "c1229f96f087ed56070d96a5538700a0c0d36861ec1e6dccf64028d510871d25",
+    "alloc-returns-zero": "8102b2de67fa0e93554bf8f7dacbaa311a38e1c4aefc756a3b6cb418c6ef4c33",
+    "alloc-out-of-range": "32c3e8519f0f87f35fe1d88b55db05331164bad7001b8f5dabd844404525a57c",
+    "memory-over-host-cap": "35fd30fc11d89d6f8bd3d82f46105bc0a105d9ea0ce683807bc29069ad082981",
+    "with-import": "eeb02f6d25efd5ca241b54568ba98550754879195d909f4a6c618e5e5096307b",
+    "no-memory-maximum": "fea3f54d8cb884aae19866080b5b4164436089acc799d1fdad20bc2ba01e0dae",
+    "two-memories": "a0eafd35fd79ce8599589362addd72aaf2a1313311468822463936607916ae56",
+    "memory-not-exported": "f96201874d5b86ea0d6e284a270a32e727bec40d7eb538af9ebebd90e43e0d62",
+    "missing-alloc": "66388d1330e77d1a0d8f605858a0f8aae8bbb757b9ab70e853fe0279ae77d205",
+    "bad-run-signature": "9b6196f1506d0dd1a4d59d55b5a3f4a37076eae52a5249f36bdcdf10818864a1",
+    "shared-memory": "8ede6bfb141f3908f1b4a4d93c4e6f6e1c14e85274f047c69e3a52e45270e0c3",
+    "simd-opcode": "55ff70cda85838b301151b68af69340f231fbf8d7f044448ba5684494c318ade",
+    "tail-call": "e3db56cf4893f71e22a77c3c65d93da5481e2f60a08933f787b0f536788185cd",
+    "threads-opcode": "ad3f235447a3f665149b021850494d3866c7547658bc2224ab984e51eddcbc4a",
+    "with-start": "0ab346f18d866ef6d93226e89f903357e589d63fd7e80b983ddce83f9373f33c"
+  },
+  "cases": [
+    {
+      "id": "module-import",
+      "title": "A module with an import section (env.abort): tier-1 modules import nothing",
+      "module": "with-import",
+      "stage": "validation",
+      "code": "module_import"
+    },
+    {
+      "id": "module-no-memory-maximum",
+      "title": "A memory without a declared maximum: the maximum is the module's memory bound",
+      "module": "no-memory-maximum",
+      "stage": "validation",
+      "code": "module_memory_undeclared_maximum"
+    },
+    {
+      "id": "module-two-memories",
+      "title": "Two memories: exactly one is required",
+      "module": "two-memories",
+      "stage": "validation",
+      "code": "module_memory_count"
+    },
+    {
+      "id": "module-memory-not-exported",
+      "title": "The memory is not exported as `memory`",
+      "module": "memory-not-exported",
+      "stage": "validation",
+      "code": "module_export_missing"
+    },
+    {
+      "id": "module-missing-alloc",
+      "title": "No `alloc` export",
+      "module": "missing-alloc",
+      "stage": "validation",
+      "code": "module_export_missing"
+    },
+    {
+      "id": "module-bad-run-signature",
+      "title": "`run` with the signature (i32) -> (i32)",
+      "module": "bad-run-signature",
+      "stage": "validation",
+      "code": "module_export_signature"
+    },
+    {
+      "id": "module-shared-memory",
+      "title": "A shared memory (threads)",
+      "module": "shared-memory",
+      "stage": "validation",
+      "code": "module_feature_refused",
+      "feature": "threads"
+    },
+    {
+      "id": "module-simd",
+      "title": "A v128.const in a function body (SIMD)",
+      "module": "simd-opcode",
+      "stage": "validation",
+      "code": "module_feature_refused",
+      "feature": "simd"
+    },
+    {
+      "id": "module-tail-call",
+      "title": "A return_call in a function body (tail calls)",
+      "module": "tail-call",
+      "stage": "validation",
+      "code": "module_feature_refused",
+      "feature": "tail-call"
+    },
+    {
+      "id": "module-threads",
+      "title": "An atomic.fence in a function body (threads)",
+      "module": "threads-opcode",
+      "stage": "validation",
+      "code": "module_feature_refused",
+      "feature": "threads"
+    },
+    {
+      "id": "module-hash-mismatch",
+      "title": "The graph declares a SHA-256 that is not the member's",
+      "module": "echo",
+      "stage": "validation",
+      "code": "module_hash_mismatch",
+      "variant": "hash-mismatch"
+    },
+    {
+      "id": "module-undeclared-member",
+      "title": "A .wasm member the graph does not declare",
+      "module": "echo",
+      "stage": "validation",
+      "code": "module_undeclared",
+      "variant": "undeclared-member"
+    },
+    {
+      "id": "module-unknown-in-node",
+      "title": "A node naming a module the graph does not declare",
+      "module": "echo",
+      "stage": "validation",
+      "code": "module_unknown",
+      "variant": "unknown-module"
+    },
+    {
+      "id": "module-unused",
+      "title": "A declared module no node runs",
+      "module": "echo",
+      "stage": "validation",
+      "code": "module_unused",
+      "variant": "unused-module"
+    },
+    {
+      "id": "permission-missing",
+      "title": "Compute nodes without a permission of kind compute",
+      "module": "echo",
+      "stage": "validation",
+      "code": "compute_permission_missing",
+      "variant": "no-permission"
+    },
+    {
+      "id": "permission-resources",
+      "title": "A compute permission that does not name exactly the declared modules",
+      "module": "echo",
+      "stage": "validation",
+      "code": "compute_permission_resources",
+      "variant": "wrong-resources"
+    },
+    {
+      "id": "minimum-version",
+      "title": "Compute nodes under runtime.minimum_version 0.4.0",
+      "module": "echo",
+      "stage": "validation",
+      "code": "compute_minimum_version",
+      "variant": "minimum-0.4.0"
+    },
+    {
+      "id": "limits-below-module",
+      "title": "A node's limits.memory_pages below the module's declared maximum",
+      "module": "grow-until-refused",
+      "stage": "validation",
+      "code": "compute_limits_below_module",
+      "node_limits": {
+        "memory_pages": 32
+      }
+    },
+    {
+      "id": "module-too-large",
+      "title": "A module over 4 MiB (built on demand, never committed)",
+      "module": null,
+      "stage": "container",
+      "code": "module_too_large",
+      "generator": "oversized",
+      "message": "a WebAssembly module is at most 4194304 bytes"
+    },
+    {
+      "id": "module-bad-magic",
+      "title": "A .wasm member that is not a WebAssembly core module",
+      "module": null,
+      "stage": "container",
+      "code": "module_malformed",
+      "generator": "not-wasm",
+      "message": "not a WebAssembly core module"
+    },
+    {
+      "id": "tampered-archive",
+      "title": "A module's bytes changed inside the signed archive: the integrity statement refuses it",
+      "module": "echo",
+      "stage": "container",
+      "code": "integrity_mismatch",
+      "variant": "tamper-archive",
+      "message": "content integrity mismatch"
+    },
+    {
+      "id": "memory-over-host-cap",
+      "title": "A module whose declared maximum (2,048 pages) is above the host's ceiling (1,024): refused, never lowered",
+      "module": "memory-over-host-cap",
+      "stage": "preflight",
+      "code": "compute_limit_exceeded"
+    },
+    {
+      "id": "engine-unavailable",
+      "title": "A host without an engine refuses the run before it starts",
+      "module": "echo",
+      "stage": "preflight",
+      "code": "compute_engine_unavailable",
+      "variant": "no-engine"
+    },
+    {
+      "id": "permission-denied",
+      "title": "The compute permission denied: the call stops at the mediator, before the engine",
+      "module": "echo",
+      "stage": "run",
+      "code": "permission_denied",
+      "grants": {
+        "compute.modules": "deny"
+      }
+    },
+    {
+      "id": "fuel-exhausted",
+      "title": "A module that never returns, under a fuel bound (metering engines; others reach the deadline)",
+      "module": "loop-forever",
+      "stage": "run",
+      "code": "compute_error",
+      "reason": "fuel_exhausted",
+      "node_limits": {
+        "fuel": 1000000
+      },
+      "non_metering_reason": "deadline"
+    },
+    {
+      "id": "deadline",
+      "title": "A module that never returns, under a wall bound of half a second",
+      "module": "loop-forever",
+      "stage": "run",
+      "code": "compute_error",
+      "reason": "deadline",
+      "node_limits": {
+        "wall_seconds": 0.5,
+        "fuel": 1000000000000
+      }
+    },
+    {
+      "id": "trap-unreachable",
+      "title": "A module that traps on unreachable",
+      "module": "trap-unreachable",
+      "stage": "run",
+      "code": "compute_error",
+      "reason": "trap",
+      "trap_code": "unreachable"
+    },
+    {
+      "id": "stack-overflow",
+      "title": "Unbounded recursion",
+      "module": "stack-overflow",
+      "stage": "run",
+      "code": "compute_error",
+      "reason": "trap",
+      "trap_code": "stack_overflow"
+    },
+    {
+      "id": "memory-growth-refused",
+      "title": "A module that grows memory until the engine refuses (its declared maximum of 64 pages), then traps",
+      "module": "grow-until-refused",
+      "stage": "run",
+      "code": "compute_error",
+      "reason": "trap",
+      "trap_code": "unreachable",
+      "memory_pages": 64
+    },
+    {
+      "id": "output-not-json",
+      "title": "Output that is not one JSON text",
+      "module": "bad-json-output",
+      "stage": "run",
+      "code": "compute_error",
+      "reason": "output_not_json"
+    },
+    {
+      "id": "output-not-utf8",
+      "title": "Output that is not UTF-8",
+      "module": "bad-utf8-output",
+      "stage": "run",
+      "code": "compute_error",
+      "reason": "output_not_json"
+    },
+    {
+      "id": "output-zero-length",
+      "title": "An output length of zero",
+      "module": "zero-length-output",
+      "stage": "run",
+      "code": "compute_error",
+      "reason": "abi_violation",
+      "detail": "output_range"
+    },
+    {
+      "id": "output-out-of-range",
+      "title": "An output range outside the memory",
+      "module": "out-of-range-output",
+      "stage": "run",
+      "code": "compute_error",
+      "reason": "abi_violation",
+      "detail": "output_range"
+    },
+    {
+      "id": "alloc-returns-zero",
+      "title": "alloc answering the null pointer",
+      "module": "alloc-returns-zero",
+      "stage": "run",
+      "code": "compute_error",
+      "reason": "abi_violation",
+      "detail": "alloc"
+    },
+    {
+      "id": "alloc-out-of-range",
+      "title": "alloc answering a pointer outside the memory",
+      "module": "alloc-out-of-range",
+      "stage": "run",
+      "code": "compute_error",
+      "reason": "abi_violation",
+      "detail": "alloc"
+    },
+    {
+      "id": "output-schema-miss",
+      "title": "Output outside the node's output_schema",
+      "module": "schema-miss-output",
+      "stage": "run",
+      "code": "schema_validation",
+      "reason": "compute_output_invalid",
+      "output_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "id": "input-schema-miss",
+      "title": "A constructed input outside the node's input_schema: refused before the call",
+      "module": "echo",
+      "stage": "run",
+      "code": "schema_validation",
+      "reason": "compute_input_invalid",
+      "input_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "c": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "c"
+        ]
+      }
+    },
+    {
+      "id": "echo",
+      "title": "Control: the smallest conforming module answers its input",
+      "module": "echo",
+      "stage": "run",
+      "code": "completed"
+    },
+    {
+      "id": "with-start",
+      "title": "Control: a start function is allowed and runs inside the call",
+      "module": "with-start",
+      "stage": "run",
+      "code": "completed"
+    }
+  ]
+}

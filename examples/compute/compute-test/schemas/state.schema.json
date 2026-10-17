@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "request": {
+      "$ref": "input.schema.json"
+    },
+    "totals": {
+      "anyOf": [
+        {
+          "$ref": "fare-output.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "ids": {
+      "anyOf": [
+        {
+          "$ref": "assign-output.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "quotes": {
+      "anyOf": [
+        {
+          "$ref": "match-output.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "group_totals": {
+      "anyOf": [
+        {
+          "$ref": "fare-outputs.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "checked": {
+      "anyOf": [
+        {
+          "$ref": "check.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "request",
+    "totals",
+    "ids",
+    "quotes",
+    "group_totals",
+    "checked"
+  ],
+  "additionalProperties": false
+}

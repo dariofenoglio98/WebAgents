@@ -533,6 +533,13 @@ class ExecutionSession:
         # Live progress, read from the audit as it is written. Observation
         # only: the run neither waits for nor depends on the parent's answer.
         tracker = ProgressTracker(self._peer)
+        if self.package.graph.get("modules"):
+            # compute.v0: compiling takes time in proportion to a module's size; done off the
+            # loop, so the session keeps answering meanwhile, and the runtime's preflight below
+            # finds the modules compiled.
+            from ..compute.engine import precompile
+
+            await asyncio.to_thread(precompile, self.package)
         try:
             workflow = Workflow(
                 self.package,

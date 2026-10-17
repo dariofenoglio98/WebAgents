@@ -270,6 +270,9 @@ ones, and `Runtime` applies `min()` to each, so a host limit can only ever lower
 | `execution.modelCallTimeoutSeconds` | 300 | how long one model completion may take, queueing at the model server included |
 | `execution.maxOutputTokensPerCall` | 16,000 | an **upper bound**, checked before the run |
 | `execution.requireVerifiedHostRuntime` | `true` | refuse an unverified OpenClaw release |
+| `compute_memory_pages` (compute.v0, agentpkg 0.5.0) | 1,024 (64 MiB) | the page bound of one compute call; a module whose declared maximum is above it is **refused** before the run (`execution_compute_limit_exceeded`), never lowered |
+| `compute_wall_seconds` | 10 | the wall bound of one compute call (an epoch deadline) |
+| `compute_fuel` | 5 × 10¹⁰ | the instruction bound of one compute call on an engine that meters (wasmtime); a node's `limits` may only lower any of the three |
 
 `maxOutputTokensPerCall` is different in kind from the others, which is why it is
 not passed to `Runtime`. A node's `max_output_tokens` comes from the graph and
@@ -614,6 +617,48 @@ of any `agent.` type among them, D-235), an agent tool
 outside `agent-scoped` or with other schemas, a custom type that shadows a sealed starter field or
 whose schema is not closed, and any of it under a runtime minimum below 0.4.0. Each refusal's text
 starts with the specification's code.
+
+## 14b. Compute: modules, calls and their bounds (compute.v0)
+
+agentpkg 0.5.0 implements [compute.v0](../spec/compute-v0.md) in the same interpreter: a package
+may ship WebAssembly core modules and run them from `compute` nodes. Nothing about it is
+package-specific (D-009): the runtime knows a module by its id and hash, a node by its module,
+function and schemas, and a call by its bytes in and out.
+
+- **Validation refuses before anything runs** what a package may not declare (C-2…C-19): a
+  `.wasm` member the graph does not declare, a hash that is not the member's, a module no node
+  runs, a module with an import, more than one memory or none with a declared maximum, a missing
+  or wrongly typed export, a proposal outside the admitted instruction set (decoded body by body),
+  a node's limits below the module's maximum, a graph without the one `compute` permission naming
+  its modules, and any of it under a runtime minimum below 0.5.0. Each refusal's text starts with
+  the specification's code.
+- **The preflight refuses before the run** what this host cannot run: no engine
+  (`compute_not_supported`; the `wasmtime` extra is not installed), or a module whose declared
+  memory maximum is above the host's page bound as the node lowers it
+  (`execution_compute_limit_exceeded`). `check_capabilities` records the modules, the operations
+  and the effective bounds under `capabilities.compute`; the reference's `Runtime` makes the same
+  checks at construction (`compute_engine_unavailable`, `compute_limit_exceeded`), so `agentpkg
+  run` and the execution runner agree.
+- **A call** (C-20…C-29): the permission is authorized and consumed (`permission.checked`); the
+  constructed input is checked against the node's `input_schema`; a fresh instance of the module
+  is given the input as canonical JSON through `alloc`; the function's i64 names the output; the
+  output is read once, parsed as strict JSON and checked against `output_schema`; the node's
+  `writes` carry the value into state. The call runs on a worker thread under its effective
+  limits; the wave's other nodes proceed meanwhile.
+- **Failures** (C-40…C-43): the module's own end (a trap, exhausted fuel, a passed deadline, an
+  ABI violation, output that is not one JSON text) is `compute_error` with `reason` and, for a
+  trap, `trap_code`; a schema miss is `schema_validation` with the adapter code
+  (`compute_input_invalid`, `compute_output_invalid`); a denied permission `permission_denied`
+  before the engine; a failure of the engine itself, which is the host's and not the module's,
+  `worker_error` with the reason `engine_error`. Nothing the module wrote, and nothing the engine
+  said, is ever in the audit: only the specification's words.
+- **The audit** (C-44…C-46): `compute.called` (module, hash, function, input hash and bytes, the
+  effective limits, the permission), `compute.completed` (output hash and bytes, memory pages,
+  `engine: {id, elapsed_ms, fuel_consumed}`) or `compute.failed` (the reason and its facts), each
+  naming the node or map step that made the call, on the coordinator as on a worker. The run's
+  `usage` carries `compute_calls` exactly when the graph declares modules.
+- **Fixture mode runs modules for real** (C-50): the fixture document has no compute key; the
+  same bytes give the same output in every mode and on every conforming engine (C-47).
 
 ## 15. Why Meeting Agenda was the first package
 

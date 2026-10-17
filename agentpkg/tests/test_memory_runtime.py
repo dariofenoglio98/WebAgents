@@ -606,9 +606,9 @@ def _invalid(tmp_path, change, match):
 
 def test_n5_a_newer_minimum_runtime_is_refused_by_version(tmp_path):
     def change(files):
-        files["MANIFEST.agent"]["runtime"]["minimum_version"] = "0.5.0"
+        files["MANIFEST.agent"]["runtime"]["minimum_version"] = "9.9.9"
 
-    _invalid(tmp_path, change, "minimum_version exceeds reference runtime 0.4.0")
+    _invalid(tmp_path, change, "minimum_version exceeds reference runtime 0.5.0")
 
 
 def test_m67_memory_declarations_need_runtime_0_4_0(tmp_path):

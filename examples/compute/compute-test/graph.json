@@ -1,0 +1,318 @@
+{
+  "spec_version": "0.1",
+  "profile": "workflow.v0",
+  "coordinator": "Coordinator",
+  "workers": [
+    {
+      "id": "Coordinator",
+      "kind": "packaged",
+      "skills": [],
+      "tools": [],
+      "max_instances": 1,
+      "budget": {
+        "tokens": 1000,
+        "remote_calls": 0
+      },
+      "state_read": [
+        "request",
+        "totals",
+        "ids",
+        "quotes",
+        "group_totals",
+        "checked"
+      ],
+      "state_write": [
+        "totals",
+        "ids",
+        "quotes",
+        "group_totals",
+        "checked"
+      ]
+    },
+    {
+      "id": "Worker",
+      "kind": "packaged",
+      "skills": [],
+      "tools": [],
+      "max_instances": 2,
+      "budget": {
+        "tokens": 1000,
+        "remote_calls": 0
+      },
+      "state_read": [
+        "request",
+        "totals",
+        "ids",
+        "quotes",
+        "group_totals",
+        "checked"
+      ],
+      "state_write": [
+        "totals",
+        "ids",
+        "quotes",
+        "group_totals",
+        "checked"
+      ]
+    }
+  ],
+  "input_schema": "schemas/input.schema.json",
+  "output_schema": "schemas/output.schema.json",
+  "initial_state": {
+    "object": {
+      "request": {
+        "from": "input",
+        "path": ""
+      },
+      "totals": {
+        "literal": null
+      },
+      "ids": {
+        "literal": null
+      },
+      "quotes": {
+        "literal": null
+      },
+      "group_totals": {
+        "literal": null
+      },
+      "checked": {
+        "literal": null
+      }
+    }
+  },
+  "deadline_seconds": 120,
+  "modules": [
+    {
+      "id": "bookkeeping",
+      "path": "modules/bookkeeping.wasm",
+      "sha256": "5b9db688c2cf9c60c818ac7eaf748d98ee60b8ecc564d76c37199da68e13735e"
+    },
+    {
+      "id": "fares",
+      "path": "modules/fares.wasm",
+      "sha256": "ef7e813b9ac330575c89c75d96aa63bfe25d77da8d3a699cf4718879a8f123c0"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "totals",
+      "type": "compute",
+      "worker": "Worker",
+      "depends_on": [],
+      "module": "fares",
+      "function": "run",
+      "input": {
+        "from": "state",
+        "path": "/request/fare"
+      },
+      "input_schema": "schemas/fare-input.schema.json",
+      "output_schema": "schemas/fare-output.schema.json",
+      "timeout_seconds": 30,
+      "writes": {
+        "/totals": {
+          "from": "result",
+          "path": ""
+        }
+      },
+      "limits": {
+        "wall_seconds": 5
+      }
+    },
+    {
+      "id": "ids",
+      "type": "compute",
+      "worker": "Worker",
+      "depends_on": [],
+      "module": "bookkeeping",
+      "function": "assign_ids",
+      "input": {
+        "object": {
+          "records": {
+            "from": "state",
+            "path": "/request/records"
+          }
+        }
+      },
+      "input_schema": "schemas/assign-input.schema.json",
+      "output_schema": "schemas/assign-output.schema.json",
+      "timeout_seconds": 30,
+      "writes": {
+        "/ids": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "id": "quotes",
+      "type": "compute",
+      "worker": "Coordinator",
+      "depends_on": [],
+      "module": "bookkeeping",
+      "function": "match_quotes",
+      "input": {
+        "object": {
+          "quotes": {
+            "from": "state",
+            "path": "/request/quotes"
+          },
+          "sources": {
+            "from": "state",
+            "path": "/request/sources"
+          }
+        }
+      },
+      "input_schema": "schemas/match-input.schema.json",
+      "output_schema": "schemas/match-output.schema.json",
+      "timeout_seconds": 30,
+      "writes": {
+        "/quotes": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "id": "groups",
+      "type": "map",
+      "worker": "Worker",
+      "depends_on": [],
+      "input": {
+        "from": "state",
+        "path": "/request/groups"
+      },
+      "item_schema": "schemas/fare-input.schema.json",
+      "max_items": 8,
+      "max_parallel": 2,
+      "steps": [
+        {
+          "id": "total",
+          "type": "compute",
+          "module": "fares",
+          "function": "run",
+          "input": {
+            "from": "item",
+            "path": ""
+          },
+          "input_schema": "schemas/fare-input.schema.json",
+          "output_schema": "schemas/fare-output.schema.json",
+          "timeout_seconds": 30
+        }
+      ],
+      "yield": {
+        "from": "steps",
+        "path": "/total"
+      },
+      "output_schema": "schemas/fare-outputs.schema.json",
+      "timeout_seconds": 60,
+      "writes": {
+        "/group_totals": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "id": "check",
+      "type": "validate",
+      "worker": "Coordinator",
+      "depends_on": [
+        "totals",
+        "groups"
+      ],
+      "input": {
+        "object": {
+          "currency": {
+            "from": "state",
+            "path": "/totals/currency"
+          },
+          "group_total_cents": {
+            "from": "state",
+            "path": "/request/expected_group_total_cents"
+          }
+        }
+      },
+      "assertions": [
+        {
+          "kind": "equal",
+          "left": {
+            "from": "state",
+            "path": "/totals/currency"
+          },
+          "right": {
+            "from": "state",
+            "path": "/request/fare/currency"
+          }
+        },
+        {
+          "kind": "sum",
+          "rows": {
+            "from": "state",
+            "path": "/group_totals"
+          },
+          "path": "/total_cents",
+          "equals": {
+            "from": "state",
+            "path": "/request/expected_group_total_cents"
+          }
+        }
+      ],
+      "output_schema": "schemas/check.schema.json",
+      "timeout_seconds": 10,
+      "writes": {
+        "/checked": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "id": "output",
+      "type": "output",
+      "worker": "Coordinator",
+      "depends_on": [
+        "totals",
+        "ids",
+        "quotes",
+        "groups",
+        "check"
+      ],
+      "input": {
+        "object": {
+          "totals": {
+            "from": "state",
+            "path": "/totals"
+          },
+          "ids": {
+            "from": "state",
+            "path": "/ids"
+          },
+          "quotes": {
+            "from": "state",
+            "path": "/quotes"
+          },
+          "group_totals": {
+            "from": "state",
+            "path": "/group_totals"
+          }
+        }
+      },
+      "output_schema": "schemas/output.schema.json",
+      "timeout_seconds": 10,
+      "writes": {}
+    }
+  ],
+  "fixture": "fixtures/workflow.json",
+  "exports": [
+    {
+      "path": "totals.json",
+      "format": "json",
+      "value": {
+        "from": "result",
+        "path": "/totals"
+      }
+    }
+  ],
+  "extensions": {}
+}

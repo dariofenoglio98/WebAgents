@@ -3,7 +3,14 @@
 from __future__ import annotations
 
 from .errors import ValidationError
-from .validation import _schema_reference, _unique, parse_json, validate_document, validate_instance
+from .validation import (
+    _schema_reference,
+    _unique,
+    parse_json,
+    release,
+    validate_document,
+    validate_instance,
+)
 from .workflow_values import references, tokens
 
 
@@ -66,11 +73,16 @@ def _declares_checks(graph):
 def validate_workflow(manifest, graph, policy, tools, files):
     if manifest["entrypoint"] != "workflow.v0":
         raise ValidationError("workflow.v0 graph requires entrypoint workflow.v0")
-    minimum = tuple(int(x) for x in manifest["runtime"]["minimum_version"].split("-")[0].split("."))
+    minimum = release(manifest["runtime"]["minimum_version"])
     if _declares_checks(graph) and minimum < CHECKS_MINIMUM_VERSION:
         # An older runtime would refuse the unknown field anyway; declaring the minimum makes it
         # refuse the package by its version, with the reason a person can act on.
         raise ValidationError("answer checks require runtime.minimum_version 0.3.0 or later")
+    from .compute.declarations import check_compute_declarations
+
+    # compute.v0 (agentpkg 0.5.0): the modules, the members, the nodes' functions and the
+    # permission agree before anything else is checked; a graph without any of it passes.
+    check_compute_declarations(manifest, graph, policy, files)
     schema_paths = {s["path"] for s in manifest["schemas"]}
     documents = {p: parse_json(files[p], p) for p in schema_paths}
     workers = {r["id"]: r for r in graph["workers"]}
@@ -167,6 +179,10 @@ def validate_workflow(manifest, graph, policy, tools, files):
         kind = node["type"]
         if kind == "llm" and node["task"] not in tasks:
             raise ValidationError(f"{label}: undeclared model task {node['task']!r}")
+        if kind == "compute":
+            # The constructed input is checked against the module's own input contract before
+            # the call, as a tool's is; both schemas are declared package schemas.
+            schema(node["input_schema"], label + "/input_schema")
         if kind == "tool":
             if node["tool"] not in tools:
                 raise ValidationError(f"{label}: unknown tool {node['tool']!r}")

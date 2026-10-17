@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import copy
 
+from .compute.errors import ComputeError
 from .errors import AgentPkgError, ValidationError
 from .runtime import BudgetError, PolicyError, Runtime, digest
 from .validation import schema_validator, validate_instance, validate_payload
@@ -33,13 +34,22 @@ def failure_code(exc):
         return "schema_validation"
     if isinstance(exc, PolicyError):
         return "permission_denied"
+    if isinstance(exc, ComputeError):
+        return "compute_error"
     return "worker_error"
 
 
 def _failed_check(exc):
-    """Which declared check failed, when a validation says so; never data."""
+    """Which declared check failed, when a validation says so, and how a compute call ended
+    (compute.v0: the reason and the trap, by the specification's words); never data."""
+    details = {}
     facts = getattr(exc, "failed_check", None)
-    return {"failed_check": facts} if isinstance(facts, dict) else {}
+    if isinstance(facts, dict):
+        details["failed_check"] = facts
+    compute = getattr(exc, "compute", None)
+    if isinstance(compute, dict):
+        details["compute"] = compute
+    return details
 
 
 class Workflow:
@@ -183,6 +193,23 @@ class Workflow:
                 raise WorkflowError("tool_error", node["id"]) from exc
             except Exception as exc:
                 raise WorkflowError("tool_error", node["id"]) from exc
+        elif kind == "compute":
+            # compute.v0: a pure function of the constructed input, run by the host's engine
+            # under the effective limits; its own failures are `compute_error`, an input or
+            # output outside the node's schemas `schema_validation`, as for a tool. A failure
+            # of the engine itself is the host's, not the module's: `worker_error` (C-40).
+            try:
+                result = await ctx.compute(node, value)
+            except (BudgetError, ValidationError, TimeoutError, asyncio.CancelledError):
+                raise
+            except PolicyError:
+                raise
+            except ComputeError as exc:
+                error = WorkflowError("compute_error", node["id"])
+                error.compute = exc.facts()
+                raise error from exc
+            except Exception as exc:
+                raise WorkflowError("worker_error", node["id"]) from exc
         elif kind == "join":
             if not isinstance(value, list):
                 raise ValidationError(f"node {node['id']}: join input must be an array")
@@ -369,6 +396,9 @@ class Workflow:
                 if node["type"] == "map":
                     result = await self._map(node, view)
                 elif role == self.graph["coordinator"]:
+                    # One context serves every coordinator node, and nodes of a wave run
+                    # concurrently: nothing node-specific is stored on it (a compute call names
+                    # its node from the operation itself).
                     result = await self._operation(
                         node, {"state": view}, self.runtime.coordinator_context()
                     )

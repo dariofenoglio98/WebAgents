@@ -19,6 +19,11 @@ SCHEMAS = Path(__file__).parent / "schemas"
 FORMAT_CHECKER = FormatChecker()
 
 
+def release(version: str) -> tuple[int, ...]:
+    """A version's release numbers (`0.5.0-dev` → `(0, 5, 0)`), for comparing minimum versions."""
+    return tuple(int(x) for x in version.split("-")[0].split("."))
+
+
 def parse_json(data: bytes, name: str):
     def pairs(items):
         result = {}
@@ -183,9 +188,6 @@ def validate_payload(files: dict[str, bytes]):
     manifest = document("MANIFEST.agent", "manifest")
     from . import __version__
 
-    def release(version):
-        return tuple(int(x) for x in version.split("-")[0].split("."))
-
     if release(manifest["runtime"]["minimum_version"]) > release(__version__):
         raise ValidationError(
             f"manifest runtime.minimum_version exceeds reference runtime {__version__}"
@@ -343,6 +345,15 @@ def validate_payload(files: dict[str, bytes]):
 
         validate_workflow(manifest, graph, policy, tools, files)
     else:
+        from .compute.declarations import module_members
+
+        # compute.v0 belongs to workflow.v0: an archival graph carries no module.
+        members = module_members(files)
+        if members:
+            raise ValidationError(
+                f"module_undeclared: member {members[0]!r} is a WebAssembly module and this "
+                "execution profile runs none"
+            )
         stages = _unique(graph["stages"], "stages")
         for stage in stages.values():
             if stage["worker"] not in workers:

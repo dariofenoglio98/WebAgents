@@ -1,0 +1,84 @@
+{
+  "spec_version": "0.1",
+  "package_id": "org.webagents.compute-test",
+  "name": "Compute Test",
+  "version": "0.1.0",
+  "description": "A model-free test package for compute.v0: fare totals (AssemblyScript) and bookkeeping (Rust) as WebAssembly modules, run in one wave and in a map step. Fictional data; used by the test suites and the conformance suite, never shipped.",
+  "publisher": {
+    "id": "webagents-research",
+    "name": "WebAgents Research Prototype"
+  },
+  "created_at": "2026-10-16T00:00:00Z",
+  "runtime": {
+    "api": "agentpkg-runtime-v0",
+    "minimum_version": "0.5.0"
+  },
+  "capabilities": [
+    "compute-test"
+  ],
+  "entrypoint": "workflow.v0",
+  "graph": "graph.json",
+  "policy": "policy/policy.json",
+  "skills": [],
+  "tools": [],
+  "schemas": [
+    {
+      "id": "input",
+      "path": "schemas/input.schema.json"
+    },
+    {
+      "id": "state",
+      "path": "schemas/state.schema.json"
+    },
+    {
+      "id": "fare-input",
+      "path": "schemas/fare-input.schema.json"
+    },
+    {
+      "id": "fare-output",
+      "path": "schemas/fare-output.schema.json"
+    },
+    {
+      "id": "fare-outputs",
+      "path": "schemas/fare-outputs.schema.json"
+    },
+    {
+      "id": "assign-input",
+      "path": "schemas/assign-input.schema.json"
+    },
+    {
+      "id": "assign-output",
+      "path": "schemas/assign-output.schema.json"
+    },
+    {
+      "id": "match-input",
+      "path": "schemas/match-input.schema.json"
+    },
+    {
+      "id": "match-output",
+      "path": "schemas/match-output.schema.json"
+    },
+    {
+      "id": "output",
+      "path": "schemas/output.schema.json"
+    },
+    {
+      "id": "check",
+      "path": "schemas/check.schema.json"
+    }
+  ],
+  "model_requirements": {
+    "tasks": [],
+    "routing": "host",
+    "fallback_policy": "deny",
+    "extensions": {}
+  },
+  "evals": [],
+  "attestations": [],
+  "dependencies": [],
+  "update": {
+    "channel": "local",
+    "locator": null
+  },
+  "extensions": {}
+}

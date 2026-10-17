@@ -32,6 +32,9 @@ TOOLBRIDGE = SRC / "agentpkg/toolbridge"
 # What the execution namespace composes, and is therefore allowed to import.
 ALLOWED = {
     "artifacts",
+    # compute.v0: the limits of one compute call and the preflight of the modules a graph
+    # declares (no engine is imported at module level; `check_compute` asks whether one exists).
+    "compute",
     "errors",
     "hostbridge",
     "interfaces",

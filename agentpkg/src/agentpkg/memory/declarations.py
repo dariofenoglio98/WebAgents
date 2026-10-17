@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from ..errors import ValidationError
 from ..package import canonical_json
+from ..validation import release
 from .model import (
     AGENT_BINDING_PREFIX,
     AGENT_TYPE,
@@ -53,10 +54,6 @@ def agent_tool_schemas() -> dict:
 
 def _refuse(code: str, message: str) -> ValidationError:
     return ValidationError(f"{code}: {message}")
-
-
-def _release(version: str) -> tuple[int, ...]:
-    return tuple(int(x) for x in version.split("-")[0].split("."))
 
 
 def is_agent_permission(permission: dict) -> bool:
@@ -306,7 +303,7 @@ def check_memory_graph(manifest: dict, graph: dict, declarations: dict) -> None:
             )
     uses = declarations["uses_memory_v0"] or bool(proposal_exports)
     minimum = manifest["runtime"]["minimum_version"]
-    if uses and _release(minimum) < _release(MEMORY_MINIMUM_VERSION):
+    if uses and release(minimum) < release(MEMORY_MINIMUM_VERSION):
         raise _refuse(
             "memory_minimum_version",
             f"memory.v0 declarations require runtime.minimum_version {MEMORY_MINIMUM_VERSION} "

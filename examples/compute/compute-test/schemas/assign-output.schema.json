@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "records": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^P[1-9][0-9]{0,3}$"
+          },
+          "key": {
+            "type": "string",
+            "pattern": "^(doi|arxiv|url|title):.+$",
+            "maxLength": 2100
+          },
+          "doi": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "arxiv": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "url": {
+            "type": "string",
+            "maxLength": 2048
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "id",
+          "key"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "duplicates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^P[1-9][0-9]{0,3}$"
+          },
+          "key": {
+            "type": "string",
+            "pattern": "^(doi|arxiv|url|title):.+$",
+            "maxLength": 2100
+          },
+          "record": {
+            "type": "object",
+            "properties": {
+              "doi": {
+                "type": "string",
+                "maxLength": 200
+              },
+              "arxiv": {
+                "type": "string",
+                "maxLength": 100
+              },
+              "url": {
+                "type": "string",
+                "maxLength": 2048
+              },
+              "title": {
+                "type": "string",
+                "maxLength": 500
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "id",
+          "key",
+          "record"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "records",
+    "duplicates"
+  ],
+  "additionalProperties": false
+}

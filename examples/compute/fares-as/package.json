@@ -1,0 +1,14 @@
+{
+  "name": "webagents-compute-example-fares",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A compute.v0 example module in AssemblyScript: fare totals in integer cents, JSON in and JSON out, no imports.",
+  "license": "Apache-2.0",
+  "scripts": {
+    "build": "asc assembly/index.ts --config asconfig.json --target release",
+    "check": "node check.mjs"
+  },
+  "devDependencies": {
+    "assemblyscript": "0.28.20"
+  }
+}

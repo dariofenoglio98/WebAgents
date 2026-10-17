@@ -1,6 +1,6 @@
 # workflow.v0 execution profile
 
-Status: experimental, normative for agentpkg 0.3.0 (0.2.1 adds `lookup`; 0.2.2 adds `allocate`, §4; 0.3.0 adds answer checks, §5, and the model request's `feedback` line, §7; older graphs retain their semantics). The enclosing **agent.pkg format remains 0.1**, including its archive, integrity statement and Ed25519 signature transcript. This document adds execution semantics; it does not redefine the container. Machine contracts are `agentpkg/schemas/workflow.schema.json`, `workflow-fixture.schema.json`, `audit-event.schema.json`, `model-request.schema.json`, and `model-result.schema.json`. Examples are `agents/literature-review` and `agents/meeting-agenda`.
+Status: experimental, normative for agentpkg 0.5.0 (0.2.1 adds `lookup`; 0.2.2 adds `allocate`, §4; 0.3.0 adds answer checks, §5, and the model request's `feedback` line, §7; 0.4.0 adds the memory permission uses of [memory.v0](memory-v0.md); 0.5.0 adds the `compute` node of [compute.v0](compute-v0.md), §3; older graphs retain their semantics). The enclosing **agent.pkg format remains 0.1**, including its archive, integrity statement and Ed25519 signature transcript. This document adds execution semantics; it does not redefine the container. Machine contracts are `agentpkg/schemas/workflow.schema.json`, `workflow-fixture.schema.json`, `audit-event.schema.json`, `model-request.schema.json`, and `model-result.schema.json`. Examples are `agents/literature-review` and `agents/meeting-agenda`.
 
 ## 1. Authority and canonical representation
 
@@ -39,11 +39,12 @@ Dependencies are explicit. The document array determines stable ordering within 
 | `map` | `input` must be an array. Validate all items with `item_schema`, enforce `max_items`, instantiate a worker per item with at most `max_parallel` concurrent consumers, execute `steps` sequentially, evaluate `yield`, and return an array in input order. |
 | `join` | `input` must be an array whose members are arrays, or select arrays from its members using optional JSON Pointer `select`. Concatenate in order. Optional `unique_by` and `limit` apply after concatenation. |
 | `validate` | Evaluate `input`, enforce its `output_schema` and optional bounded `assertions`, then return that same value. |
+| `compute` (agentpkg 0.5.0) | Run one exported function of a WebAssembly module the graph declares on `input`, after `input_schema`, under the host's and the node's `limits`; the module imports nothing and the call runs for real in every mode. The whole contract is [compute.v0](compute-v0.md). |
 | `output` | Project and schema-validate the final workflow result. Must not write state. |
 
-`map.steps` are 1–128 `llm`, `tool`, `join`, or `validate` operations, all executing inside the same item worker. Each step requires its own ID, input, output schema and timeout. Steps have neither role declarations nor state writes. `yield` constructs the item result from that worker's view/item/step results. The map node's output schema validates the complete ordered collection. An empty map produces `[]` and spawns no workers.
+`map.steps` are 1–128 `llm`, `tool`, `compute`, `join`, or `validate` operations, all executing inside the same item worker. Each step requires its own ID, input, output schema and timeout. Steps have neither role declarations nor state writes. `yield` constructs the item result from that worker's view/item/step results. The map node's output schema validates the complete ordered collection. An empty map produces `[]` and spawns no workers.
 
-Only non-coordinator roles may execute `llm`, `tool`, or `map` nodes. The coordinator can execute structural nodes. A non-coordinator structural node also runs through worker authorization and accounting.
+Only non-coordinator roles may execute `llm`, `tool`, or `map` nodes. The coordinator can execute structural nodes, `compute` among them (it carries no authority of its own; the `compute` permission is checked at every call). A non-coordinator structural node also runs through worker authorization and accounting.
 
 `join.unique_by` is an ordered list of field pointers. For each record, the first non-null/nonempty-string field is its identity, namespaced by its pointer. If none is usable (or the list is empty), identity is the hash of the complete JSON value. The first record wins. This is exact data deduplication, not fuzzy matching or domain normalization. A missing pointer is an error. `limit` keeps an explicit prefix and emits `node.truncated` when it removes records. Authors must choose a sound identity policy; the runtime does not infer one.
 
@@ -171,6 +172,7 @@ The profile declares no automatic retries, repairs, exception-swallowing branche
 | `timeout` | Workflow, node, step or mediated tool deadline elapsed. |
 | `budget_exhausted` | A hard limit prevented dispatch/reservation. |
 | `permission_denied` | Host permission, role, privacy, capability or other authority policy denied use. |
+| `compute_error` | A compute module's own failure: a trap, exhausted fuel, a passed deadline, an ABI violation, output that is not one JSON text ([compute.v0](compute-v0.md) §6). |
 | `worker_error` | Other unexpected worker/interpreter error. |
 | `cancelled` | Host cancellation; remains `asyncio.CancelledError` in Python. |
 
@@ -184,7 +186,7 @@ These are cooperative deadlines for trusted in-process adapters. They are not an
 
 Events conform to `audit-event.schema.json`: `schema_version: "audit.v0"`, UUID `run_id`, increasing `sequence`, UTC `timestamp`, `action`, nullable worker/role/parent/node IDs, `depth`, `previous_hash`, and `event_hash`. Node/workflow events include `profile: "workflow.v0"`. Flat metadata fields are extensible; runtime payloads are finite JSON. The previous-hash chain binds every event in sequence; it is not an external tamper-proof log.
 
-Stable actions are `runtime.started`, `workflow.started/completed/failed/cancelled`, `node.started/completed/failed/skipped/truncated`, `worker.spawned/started/completed/failed/denied`, `tool.called/completed/failed`, `model.count.called/failed`, `model.called/completed/failed`, `permission.checked`, `budget.updated`, `delegation.checked`, `state.committed`, and `memory.cleared`. Provider adapters may add namespaced operational actions such as `network.requested` or `file.read`.
+Stable actions are `runtime.started`, `workflow.started/completed/failed/cancelled`, `node.started/completed/failed/skipped/truncated`, `worker.spawned/started/completed/failed/denied`, `tool.called/completed/failed`, `model.count.called/failed`, `model.called/completed/failed`, `compute.called/completed/failed` (compute.v0 §7), `permission.checked`, `budget.updated`, `delegation.checked`, `state.committed`, and `memory.cleared`. Provider adapters may add namespaced operational actions such as `network.requested` or `file.read`.
 
 Metadata identifies package/digest at startup, node type and qualified identity, worker ancestry, tool binding/domains/permission IDs, model/router/task, reservations and charges, state key names, input/output hashes, truncation counts and stable error codes. A failed model or tool call may also carry `failure_facts`: structural facts its adapter certified about how the call failed — for a model call the host's stop reason, the usage the host reported, and which JSON Schema keyword failed at which schema location. Each value is a count, a flag or a spaceless token of at most 200 characters, and at most twelve are kept, so they describe a failure without carrying anything the model, a provider or a document wrote; they explain a charge but never settle one (§7). Worker spawn identifies its map parent; step model/tool events identify the qualified step. `node.completed` means the node result/patch validated; `state.committed` marks the wave's atomic commit. The terminal workflow event precedes `memory.cleared`.
 
@@ -198,4 +200,4 @@ Container build/inspect/permissions/validate/unpack/sign/verify and existing Ope
 
 ## 12. Deliberate limits
 
-No loops, recursion, nested delegation, package-declared retries, streaming, checkpoint/resume, dynamic graphs, registry/discovery, browser UI, remote agents, model-provider integration, or persistent memory. Model-generated scientific or business judgments still require quality evaluation; structural checks and deterministic replay are not scientific validation. These limits keep the first portable execution contract small enough to inspect, test and implement in another host.
+No loops, recursion, nested delegation, package-declared retries, streaming, checkpoint/resume, dynamic graphs, registry/discovery, browser UI, remote agents, model-provider integration, or persistent memory (memory.v0 adds a host-owned one; compute.v0 adds modules that import nothing, and nothing else). Model-generated scientific or business judgments still require quality evaluation; structural checks and deterministic replay are not scientific validation. These limits keep the first portable execution contract small enough to inspect, test and implement in another host.

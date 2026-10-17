@@ -1,0 +1,13 @@
+[
+  {
+    "op": "add",
+    "path": "/properties/decisions/properties/compute",
+    "value": {
+      "enum": [
+        "deny",
+        "once",
+        "session"
+      ]
+    }
+  }
+]

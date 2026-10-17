@@ -77,7 +77,8 @@
         "permission_denied",
         "model_error",
         "tool_error",
-        "worker_error"
+        "worker_error",
+        "compute_error"
       ]
     }
   },

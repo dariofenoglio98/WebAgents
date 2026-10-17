@@ -80,9 +80,10 @@ an older runtime refuses it by version before anything runs (D-188, D-210). The 
 
 | Component | Version | Since | What it brought |
 |---|---|---|---|
-| agentpkg (Python reference) | 0.4.0, `dist/agentpkg-0.4.0-py3-none-any.whl` | T20 | memory.v0 ([`spec/memory-v0.md`](../spec/memory-v0.md)) |
+| agentpkg (Python reference) | 0.5.0, `dist/agentpkg-0.5.0-py3-none-any.whl` | T21 | compute.v0 ([`spec/compute-v0.md`](../spec/compute-v0.md)): WebAssembly modules as `compute` nodes, the `compute` permission kind, binary `.wasm` members; the `wasmtime` extra (`agentpkg[compute]`) runs them |
+| agentpkg | 0.4.0, `dist/agentpkg-0.4.0-py3-none-any.whl` | T20 | memory.v0 ([`spec/memory-v0.md`](../spec/memory-v0.md)) |
 | agentpkg | 0.3.0, `dist/agentpkg-0.3.0-py3-none-any.whl` | T13 | answer checks, the `feedback` request line |
-| Chrome core (`SUPPORTED_RUNTIME_VERSION`) | 0.4.0 with core 0.2.0 once T19 lands; 0.3.0 before | T19 | memory.v0 in the Chrome Agent Browser |
+| Chrome core (`SUPPORTED_RUNTIME_VERSION`) | 0.4.0 with core 0.2.0 (T19); 0.5.0 with core 0.3.0 once T22 lands | T19 | memory.v0 in the Chrome Agent Browser; compute.v0 follows in T22 |
 | WebAir | 0.6.0, `dist/webair-0.6.0.agent.pkg` (runtime minimum 0.4.0) | T20 | the travel profile from memory, one preference proposed after a booking |
 | Literature Review | 0.2.8, `dist/literature-review-0.2.8.agent.pkg` (runtime minimum 0.4.0) | T20 | the research profile, the agent's notes and a review proposal, all opt-in |
 | Meeting Agenda | 0.2.2, `dist/meeting-agenda.agent.pkg` | v0.2.0 | — |

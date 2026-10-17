@@ -1,0 +1,4 @@
+{
+  "memory.session": "session",
+  "compute.modules": "session"
+}

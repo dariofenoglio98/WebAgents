@@ -99,7 +99,19 @@ def _node_facts(node: dict) -> dict:
         "writes": sorted(node.get("writes", {})),
         "conditional": "when" in node,
     }
-    for optional in ("task", "tool", "max_output_tokens", "max_items", "max_parallel", "limit"):
+    for optional in (
+        "task",
+        "tool",
+        "max_output_tokens",
+        "max_items",
+        "max_parallel",
+        "limit",
+        # compute.v0: which module and function a node runs, and what it lowers.
+        "module",
+        "function",
+        "input_schema",
+        "limits",
+    ):
         if optional in node:
             facts[optional] = node[optional]
     if node["type"] == "map":
@@ -108,7 +120,7 @@ def _node_facts(node: dict) -> dict:
             {
                 "id": step["id"],
                 "type": step["type"],
-                **{k: step[k] for k in ("task", "tool") if k in step},
+                **{k: step[k] for k in ("task", "tool", "module", "function") if k in step},
             }
             for step in node["steps"]
         ]
@@ -311,6 +323,21 @@ def warnings(package: Package, evaluation: dict, publisher: dict) -> list:
                 f"The package requests host-owned personal data ({permission['id']}: "
                 f"{', '.join(permission['resources']) or 'unspecified'}). You choose whether "
                 "to grant it and which of your resources is shared.",
+            )
+        if permission["kind"] == "compute":
+            # compute.v0 (C-9): the words the agent page uses, with the hashes a person can
+            # compare against the graph; the modules import nothing, so the sentence is exact.
+            modules = {m["id"]: m["sha256"] for m in package.graph.get("modules", [])}
+            named = ", ".join(
+                f"{module_id} ({modules.get(module_id, 'undeclared')[:16]}…)"
+                for module_id in permission["resources"]
+            )
+            warn(
+                "runs_code_that_can_only_compute",
+                "info",
+                f"The package runs code that can only compute ({permission['id']}): WebAssembly "
+                f"module(s) {named or 'none'}, with no imports, run under this host's memory, "
+                "time and fuel bounds on the data the graph gives them.",
             )
     remote = [tool for tool in package.tools.values() if tool["execution"] == "remote"]
     if remote:
