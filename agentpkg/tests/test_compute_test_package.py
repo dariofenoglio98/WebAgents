@@ -183,3 +183,55 @@ def test_the_wave_on_the_coordinator_computes_the_same_values(tmp_path):
         ("quotes", "coordinator", "bookkeeping", "match_quotes"),
         ("totals", "coordinator", "fares", "run"),
     ]
+
+
+def test_the_execution_host_runs_the_package_and_compiles_off_its_loop(tmp_path, monkeypatch):
+    """Through the execution session a live run uses: the five calls, and each module compiled
+    first on a worker thread, so the session's loop keeps answering while it compiles."""
+    import threading
+
+    from execution_fakes import Harness, authorization, plan_for
+
+    from agentpkg.compute.engine import default_engine
+    from agentpkg.package import sha256
+    from agentpkg.signing import embedded_public_key, fingerprint
+
+    engine = default_engine()
+    original = engine.compile
+    compiled = []
+
+    def watched(digest, data):
+        compiled.append((digest, threading.current_thread() is threading.main_thread()))
+        return original(digest, data)
+
+    monkeypatch.setattr(engine, "compile", watched)
+    package = load_package(ARCHIVE)
+    plan = plan_for(
+        package,
+        archive_sha256=sha256(ARCHIVE.read_bytes()),
+        signer_fingerprint=fingerprint(embedded_public_key(package.signature)),
+        execution={"required_permission_ids": ["compute.modules", "memory.session"]},
+    )
+
+    async def scenario():
+        async with Harness(tmp_path, archive=ARCHIVE) as harness:
+            await harness.call(
+                "execution.begin",
+                {
+                    "run_id": "run-0001",
+                    "run_plan": plan,
+                    "authorization": authorization(json.loads(GRANTS.read_text())),
+                    "limits": {"total_tokens": 1000, "max_output_tokens_per_call": 100},
+                    "input": package.json(package.graph["fixture"])["input"],
+                    "host": {"runtime": "openclaw", "runtime_version": "2026.9.5"},
+                },
+            )
+            return await harness.call("execution.run", {}, timeout=60)
+
+    result = asyncio.run(scenario())
+    assert result["status"] == "completed" and result["error_code"] is None
+    assert result["audit"]["compute_calls"] == 5 and result["audit"]["chain"]["valid"] is True
+    first = {}
+    for digest, on_main in compiled:
+        first.setdefault(digest, on_main)
+    assert first == {module["sha256"]: False for module in package.graph["modules"]}

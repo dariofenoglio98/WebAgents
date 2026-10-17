@@ -8,6 +8,7 @@ import time
 
 import pytest
 from compute_probe import REQUEST, case_module, compute_node, grants, write_probe
+from compute_probe import builder as compute_probe_builder
 
 from agentpkg.cli import main
 from agentpkg.compute import engine as compute_engine
@@ -464,3 +465,113 @@ def test_the_control_plane_says_what_code_runs_and_the_record_counts_the_calls(t
         w["code"] for w in warnings(agenda, evaluation, publisher)
     }
     assert "compute_calls" not in audit_summary(run(agenda)["audit"])
+
+
+def test_an_instantiation_the_engine_refuses_is_recorded_by_its_reason_alone(tmp_path, monkeypatch):
+    """C-41: the reason, never the engine's own words (another engine could not repeat them)."""
+    import wasmtime
+
+    words = "engine words that differ between engines"
+
+    def refuse(*args, **kwargs):
+        raise wasmtime.WasmtimeError(words)
+
+    monkeypatch.setattr(wasmtime, "Instance", refuse)
+    package = load_package(write_probe(tmp_path / "probe"))
+    with pytest.raises(WorkflowError) as caught:
+        run(package)
+    assert caught.value.code == "compute_error" and caught.value.node_id == "compute"
+    report = caught.value.execution_report
+    (failed,) = events(report, "compute.failed")
+    assert failed["reason"] == "instantiation_failed" and "detail" not in failed
+    assert failed["engine"]["id"].startswith("wasmtime-py/")
+    (node,) = [e for e in events(report, "node.failed") if e["node_id"] == "compute"]
+    assert node["compute"] == {"reason": "instantiation_failed"}
+    assert words not in json.dumps(report)
+
+
+def test_an_alloc_pointer_at_or_above_2_gib_is_a_valid_pointer(tmp_path):
+    """The ABI's pointers are unsigned: with more than 32,768 pages, `alloc` may answer an
+    address whose i32 is negative."""
+    b = compute_probe_builder()
+    data = b.module(
+        types=b.ABI_TYPES,
+        exports=b.ABI_EXPORTS,
+        funcs=[(0, [], b.i32_const(-(2**31))), (1, [], b.ECHO)],
+        memories=((32769, 32769),),
+    )
+    package = load_package(write_probe(tmp_path / "probe", modules={"echo": data}))
+    result = run(package, limits={"compute_memory_pages": 32769})
+    assert result["status"] == "completed" and result["output"] == REQUEST
+    (completed,) = events(result, "compute.completed")
+    assert completed["memory_pages"] == 32769
+
+
+def test_an_engine_fault_is_the_hosts_worker_error_not_the_modules(tmp_path, monkeypatch):
+    """C-40: a failure inside the engine that is not the module's own ends the node with
+    `worker_error`; the audit names `engine_error` and nothing the engine said."""
+    engine = compute_engine.default_engine()
+
+    def broken(*args):
+        raise RuntimeError("an engine failure with words in it")
+
+    monkeypatch.setattr(engine, "_call", broken)
+    package = load_package(write_probe(tmp_path / "probe"))
+    with pytest.raises(WorkflowError) as caught:
+        run(package)
+    assert caught.value.code == "worker_error" and caught.value.node_id == "compute"
+    report = caught.value.execution_report
+    (failed,) = events(report, "compute.failed")
+    assert failed["reason"] == "engine_error" and failed["error"] == "EngineFault"
+    (node,) = [e for e in events(report, "node.failed") if e["node_id"] == "compute"]
+    assert node["error_code"] == "worker_error" and "compute" not in node
+    assert "words in it" not in json.dumps(report)
+
+
+def test_the_node_timeout_also_ends_the_engine_call(tmp_path, monkeypatch):
+    """A node's `timeout_seconds` ends the node with `timeout`; the engine's deadline follows
+    within a second, rather than running the abandoned call on to the wall bound (B-224)."""
+    engine = compute_engine.default_engine()
+    original = engine._call
+    ended = []
+
+    def timed(*args):
+        try:
+            return original(*args)
+        finally:
+            ended.append(time.monotonic())
+
+    monkeypatch.setattr(engine, "_call", timed)
+    node = compute_node()
+    node["timeout_seconds"] = 1
+    package = load_package(
+        write_probe(tmp_path / "probe", modules={"echo": case_module("loop-forever")}, nodes=[node])
+    )
+    started = time.monotonic()
+    with pytest.raises(WorkflowError) as caught:
+        run(package)
+    assert caught.value.code == "timeout"
+    (called,) = events(caught.value.execution_report, "compute.called")
+    assert called["limits"]["wall_seconds"] == DEFAULT_WALL_SECONDS
+    while not ended and time.monotonic() - started < 8:
+        time.sleep(0.05)
+    assert ended and ended[0] - started < 4  # the wall bound alone: about 10 s
+
+
+def test_a_module_is_decoded_once_per_process(tmp_path, monkeypatch):
+    from agentpkg.compute import declarations
+
+    decoded = []
+    original = declarations.check_module
+
+    def counting(data, *, functions):
+        decoded.append(functions)
+        return original(data, functions=functions)
+
+    monkeypatch.setattr(declarations, "check_module", counting)
+    monkeypatch.setattr(declarations, "_FACTS", {})
+    package = load_package(write_probe(tmp_path / "probe"))
+    run(package)
+    check_capabilities(package, HostExecutionLimits())
+    declarations.module_records(package)
+    assert decoded == [["run"]]

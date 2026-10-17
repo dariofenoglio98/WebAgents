@@ -342,10 +342,11 @@ function runPositive(testCase) {
 
 /**
  * The Chrome CLI's refusal of a package it is too old for: by version, or, for a package that ships
- * a WebAssembly module, at the container's member rule, which an older runtime reaches before the
- * version check (compute.v0 C-10 states this limit; the pending rule treats both as "too old").
+ * a WebAssembly module, at the container's member rule for that `.wasm` member, which an older
+ * runtime reaches before the version check (compute.v0 C-10 states this limit; the pending rule
+ * treats both as "too old"). The member rule refusing any other file is a failure, not "too old".
  */
-const versionRefused = (observation) => observation.status === 2 && (/^manifest runtime\.minimum_version exceeds reference runtime /u.test(observation.message ?? "") || /: only declared UTF-8 data formats allowed, never executable payloads$/u.test(observation.message ?? ""));
+const versionRefused = (observation) => observation.status === 2 && (/^manifest runtime\.minimum_version exceeds reference runtime /u.test(observation.message ?? "") || /^[^:]+\.wasm: only declared UTF-8 data formats allowed, never executable payloads$/u.test(observation.message ?? ""));
 
 const summary = (observation) => ({ status: observation.status, message: observation.message, files: Object.keys(observation.files).length });
 

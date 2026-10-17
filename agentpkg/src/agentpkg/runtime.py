@@ -8,7 +8,7 @@ import hashlib
 import json
 import re
 from collections import Counter
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
@@ -31,6 +31,9 @@ class BudgetError(PolicyError):
 
 
 _REASON = re.compile(r"[a-z][a-z0-9_]{0,63}")
+#: Seconds a compute call's engine deadline trails its node's `timeout_seconds`, so the node's
+#: own timeout, not the engine's deadline, is what ends a node that runs too long.
+TIMEOUT_GRACE = 1
 # A fact value is a count, a flag, or a structural token such as a stop reason,
 # a JSON Schema keyword or a schema location. No spaces and no quotes, so prose
 # — a provider message, a model answer, a document excerpt — cannot pass.
@@ -88,6 +91,7 @@ class WorkerUsage:
     reserved_tokens: int = 0
     remote_calls: int = 0
     tool_calls: Counter = field(default_factory=Counter)
+    # compute.v0: counted for the run only (`usage.compute_calls`), never per worker.
     compute_calls: int = 0
 
 
@@ -588,7 +592,6 @@ class Runtime:
                 self._authorize(permissions, context=ctx, node_id=node_id)
                 self._authorize(permissions, consume=True, context=ctx, node_id=node_id)
                 self._global.compute_calls += 1
-                self._usage[ctx.worker_id].compute_calls += 1
             self.record(
                 "compute.called",
                 context=ctx,
@@ -598,7 +601,13 @@ class Runtime:
                 limits=limits.as_json(),
                 permissions=permissions,
             )
-            outcome = await self.compute.call(module["sha256"], function, data, limits)
+            # The node's own timeout ends the node first (`timeout`); the engine's deadline
+            # follows it shortly, so the abandoned call does not run on to the wall bound
+            # (B-224). The audit keeps the effective limits of C-34.
+            deadline = min(limits.wall_seconds, operation["timeout_seconds"] + TIMEOUT_GRACE)
+            outcome = await self.compute.call(
+                module["sha256"], function, data, replace(limits, wall_seconds=deadline)
+            )
             if not outcome.ok:
                 raise ComputeError(
                     outcome.reason, trap_code=outcome.trap_code, detail=outcome.detail

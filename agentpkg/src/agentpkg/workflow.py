@@ -196,7 +196,8 @@ class Workflow:
         elif kind == "compute":
             # compute.v0: a pure function of the constructed input, run by the host's engine
             # under the effective limits; its own failures are `compute_error`, an input or
-            # output outside the node's schemas `schema_validation`, as for a tool.
+            # output outside the node's schemas `schema_validation`, as for a tool. A failure
+            # of the engine itself is the host's, not the module's: `worker_error` (C-40).
             try:
                 result = await ctx.compute(node, value)
             except (BudgetError, ValidationError, TimeoutError, asyncio.CancelledError):
@@ -207,6 +208,8 @@ class Workflow:
                 error = WorkflowError("compute_error", node["id"])
                 error.compute = exc.facts()
                 raise error from exc
+            except Exception as exc:
+                raise WorkflowError("worker_error", node["id"]) from exc
         elif kind == "join":
             if not isinstance(value, list):
                 raise ValidationError(f"node {node['id']}: join input must be an array")

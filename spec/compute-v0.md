@@ -182,8 +182,10 @@ called), and serialized as **RFC 8785 canonical JSON** (JCS) in UTF-8: both runt
 same bytes for the same value, so a module sees identical input everywhere.
 
 C-22. **`alloc`.** The host calls `alloc(len)` with the input's byte length (never zero: a JSON
-value is at least one byte). The module returns a nonzero pointer `p` with `p + len` inside its
-memory, which the host then fills with the input. Any other answer is an `abi_violation` (detail
+value is at least one byte). The module returns a nonzero pointer `p`, its i32 read as unsigned
+32 bits (an engine that hands an i32 back signed reads it modulo 2³²: with more than 32,768 pages,
+an address at or above 2 GiB is valid), with `p + len` inside its memory, which the host then
+fills with the input. Any other answer is an `abi_violation` (detail
 `alloc`). `alloc` may grow the memory within its declared maximum and the call's page bound.
 
 C-23. **The function.** The host calls `<function>(p, len)`. The result `r` is one i64 read as
@@ -235,6 +237,10 @@ the module decides what to do (the example modules abort).
 C-32. **Wall time.** When the bound passes, the engine interrupts the call (`deadline`): the
 reference by an epoch deadline advanced every 10 ms, Chrome by terminating the Worker. The node's
 own `timeout_seconds` and the workflow deadline still apply around the call and give `timeout`.
+An engine may stop a call whose node has timed out sooner than the wall bound, and the reference
+does: its engine deadline is the smaller of the wall bound and the node's `timeout_seconds` plus
+one second, so the node's timeout, not the engine, is what ends such a node, and the abandoned call
+does not run on to the wall bound. `compute.called` still records the effective limits of C-34.
 
 C-33. **Fuel.** On the reference, the store is given the fuel bound and the call ends
 `fuel_exhausted` when it is spent; `compute.completed` and `compute.failed` carry what was
@@ -270,12 +276,15 @@ C-40. A compute operation fails with one of workflow.v0's codes, or the one this
 | `permission_denied` | The `compute` permission denied or spent, a module or function the graph does not declare. |
 | `timeout` | The node's or the workflow's deadline around the call. |
 | `cancelled` | The run cancelled during the call. |
+| `worker_error` | The host's engine failed during the call for a reason that is not the module's (an engine error that is not a trap, a module the host had not prepared): the host's fault, so not `compute_error`, which says the module failed and is compared across runtimes. |
 
 C-41. **Reasons.** `compute.failed` names why, with one of: `trap`, `fuel_exhausted`, `deadline`,
 `abi_violation`, `instantiation_failed`, `output_not_json`, `compute_input_invalid`,
-`compute_output_invalid`; `abi_violation` adds `detail` (`alloc`, `result`, `output_range`,
-`output_too_large`). `node.failed` and `workflow.failed` for a `compute_error` carry
-`compute: {reason, trap_code?, detail?}`.
+`compute_output_invalid`, and `engine_error` for the host's own failure (`worker_error`);
+`abi_violation` adds `detail` (`alloc`, `result`, `output_range`, `output_too_large`), and no other
+reason carries any text: an engine's own message (why it refused an instantiation, what failed
+inside it) differs between engines and versions and is never recorded. `node.failed` and
+`workflow.failed` for a `compute_error` carry `compute: {reason, trap_code?, detail?}`.
 
 C-42. **Traps.** A `trap` carries `trap_code` from this vocabulary, each engine mapping its own
 names onto it: `unreachable`, `memory_out_of_bounds`, `stack_overflow`,

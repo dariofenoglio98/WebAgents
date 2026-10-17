@@ -649,11 +649,14 @@ function and schemas, and a call by its bytes in and out.
   ABI violation, output that is not one JSON text) is `compute_error` with `reason` and, for a
   trap, `trap_code`; a schema miss is `schema_validation` with the adapter code
   (`compute_input_invalid`, `compute_output_invalid`); a denied permission `permission_denied`
-  before the engine. Nothing the module wrote is ever in a message or the audit.
+  before the engine; a failure of the engine itself, which is the host's and not the module's,
+  `worker_error` with the reason `engine_error`. Nothing the module wrote, and nothing the engine
+  said, is ever in the audit: only the specification's words.
 - **The audit** (C-44…C-46): `compute.called` (module, hash, function, input hash and bytes, the
   effective limits, the permission), `compute.completed` (output hash and bytes, memory pages,
-  `engine: {id, elapsed_ms, fuel_consumed}`) or `compute.failed` (the reason and its facts). The
-  run's `usage` carries `compute_calls` exactly when the graph declares modules.
+  `engine: {id, elapsed_ms, fuel_consumed}`) or `compute.failed` (the reason and its facts), each
+  naming the node or map step that made the call, on the coordinator as on a worker. The run's
+  `usage` carries `compute_calls` exactly when the graph declares modules.
 - **Fixture mode runs modules for real** (C-50): the fixture document has no compute key; the
   same bytes give the same output in every mode and on every conforming engine (C-47).
 

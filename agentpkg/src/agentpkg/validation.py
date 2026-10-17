@@ -19,6 +19,11 @@ SCHEMAS = Path(__file__).parent / "schemas"
 FORMAT_CHECKER = FormatChecker()
 
 
+def release(version: str) -> tuple[int, ...]:
+    """A version's release numbers (`0.5.0-dev` → `(0, 5, 0)`), for comparing minimum versions."""
+    return tuple(int(x) for x in version.split("-")[0].split("."))
+
+
 def parse_json(data: bytes, name: str):
     def pairs(items):
         result = {}
@@ -182,9 +187,6 @@ def validate_payload(files: dict[str, bytes]):
 
     manifest = document("MANIFEST.agent", "manifest")
     from . import __version__
-
-    def release(version):
-        return tuple(int(x) for x in version.split("-")[0].split("."))
 
     if release(manifest["runtime"]["minimum_version"]) > release(__version__):
         raise ValidationError(

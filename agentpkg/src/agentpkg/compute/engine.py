@@ -9,7 +9,9 @@ NaNs, so what this engine computes is what the specification promises.
 
 The engine never raises for a module's own failure: a trap, exhausted fuel, a passed deadline or
 an ABI violation come back as a `ComputeOutcome` with a reason, and the runtime records it. It
-raises only when the host is at fault (no engine installed, a module that does not compile).
+raises only when the host is at fault: no engine installed, a module that does not compile, or
+anything else that goes wrong inside the engine during a call (`EngineFault`, C-40's
+`worker_error`). An outcome carries only the specification's words, never the engine's own text.
 """
 
 from __future__ import annotations
@@ -26,6 +28,7 @@ from .module import ModuleError
 #: How often the epoch advances while a call runs; a deadline is counted in these ticks.
 TICK_SECONDS = 0.01
 ENGINE_UNAVAILABLE = "compute_engine_unavailable"
+ENGINE_ERROR = "engine_error"
 #: The failure reasons a call can end with, shared by both runtimes (C-41).
 REASONS = (
     "trap",
@@ -54,6 +57,13 @@ class EngineUnavailable(RuntimeError):
     """This host has no WebAssembly engine: `pip install 'agentpkg[compute]'`."""
 
     code = ENGINE_UNAVAILABLE
+
+
+class EngineFault(RuntimeError):
+    """The engine failed during a call for a reason that is not the module's (C-40): the host's
+    fault, recorded as `engine_error`, never as the module's `compute_error`."""
+
+    code = ENGINE_ERROR
 
 
 @dataclass(frozen=True)
@@ -199,7 +209,10 @@ class WasmtimeEngine:
 
     async def call(self, sha256: str, function: str, data: bytes, limits: ComputeLimits):
         """Run one call on a worker thread, so a wave's other nodes proceed meanwhile."""
-        return await asyncio.to_thread(self._call, sha256, function, data, limits)
+        try:
+            return await asyncio.to_thread(self._call, sha256, function, data, limits)
+        except Exception as exc:
+            raise EngineFault("the engine failed during the call") from exc
 
     def _call(self, sha256: str, function: str, data: bytes, limits: ComputeLimits):
         wasmtime = self._wasmtime
@@ -243,13 +256,19 @@ class WasmtimeEngine:
                 run = exports[function]
             except wasmtime.Trap as trap:
                 return outcome(**_classify(wasmtime, trap))
-            except wasmtime.WasmtimeError as exc:
-                first = str(exc).splitlines()[0] if str(exc) else "instantiation failed"
-                return outcome(reason="instantiation_failed", detail=first)
+            except wasmtime.WasmtimeError:
+                # The engine's own words differ between engines and versions: C-41 records the
+                # reason alone.
+                return outcome(reason="instantiation_failed")
             try:
                 pointer = alloc(store, len(data))
+                if not isinstance(pointer, int):
+                    return outcome(reason="abi_violation", detail="alloc")
+                # An i32 comes back signed; the ABI's pointers are unsigned (a memory above
+                # 32,768 pages has valid addresses at and above 2 GiB).
+                pointer &= 0xFFFFFFFF
                 size = memory.data_len(store)
-                if not isinstance(pointer, int) or pointer <= 0 or pointer + len(data) > size:
+                if pointer == 0 or pointer + len(data) > size:
                     return outcome(reason="abi_violation", detail="alloc")
                 memory.write(store, data, pointer)
                 raw = run(store, pointer, len(data))
@@ -292,14 +311,33 @@ def default_engine() -> WasmtimeEngine:
         return _default
 
 
+def precompile(package) -> None:
+    """Compile a package's declared modules into the process's engine ahead of its run, so that a
+    host serving other requests can do it off its event loop (compiling takes time in proportion
+    to a module's size). The runtime's preflight then finds them compiled; whatever fails here
+    is left for that preflight to refuse with its code."""
+    modules = package.graph.get("modules", [])
+    if not modules or not available():
+        return
+    engine = default_engine()
+    for module in modules:
+        try:
+            engine.compile(module["sha256"], package.files[module["path"]])
+        except ModuleError:
+            continue
+
+
 __all__ = [
+    "ENGINE_ERROR",
     "ENGINE_UNAVAILABLE",
     "REASONS",
     "TICK_SECONDS",
     "TRAP_CODES",
     "ComputeOutcome",
+    "EngineFault",
     "EngineUnavailable",
     "WasmtimeEngine",
     "available",
     "default_engine",
+    "precompile",
 ]

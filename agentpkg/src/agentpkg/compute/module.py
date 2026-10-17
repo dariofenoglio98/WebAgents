@@ -1,8 +1,9 @@
 """Reading a WebAssembly core module without running it (compute.v0 §3, C-10…C-19).
 
 Two things are decided here, and both runtimes decide them from the same bytes with no engine:
-the **structural requirements** of a tier-1 module (no imports, no start function, one memory with
-a declared maximum, the ABI exports with their exact signatures) and the **feature gate** (every
+the **structural requirements** of a tier-1 module (no imports, one memory with a declared
+maximum, the ABI exports with their exact signatures; a start function is allowed, C-17) and the
+**feature gate** (every
 function body and constant expression is decoded, and only the deterministic instruction set the
 specification lists is admitted). An engine validates types and control flow when it compiles the
 module; this reader does not repeat that work, and it never executes anything.

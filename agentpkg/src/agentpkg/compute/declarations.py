@@ -10,20 +10,33 @@ from __future__ import annotations
 import hashlib
 
 from ..errors import ValidationError
+from ..validation import release
 from .module import MAX_MODULE_BYTES, ModuleError, ModuleFacts, check_module
 
 COMPUTE_MINIMUM_VERSION = "0.5.0"
 MAX_MODULES = 16
 MODULE_SUFFIX = ".wasm"
 PERMISSION_KIND = "compute"
+#: Decoded modules by SHA-256 and the functions asked for: validation, the runtime's preflight,
+#: the execution host and `inspect` each need the facts, and decoding is the same work each time.
+_FACTS: dict[tuple[str, tuple[str, ...]], ModuleFacts] = {}
+_FACTS_KEPT = 64
 
 
 def _refuse(code: str, message: str) -> ValidationError:
     return ValidationError(f"{code}: {message}")
 
 
-def _release(version: str) -> tuple[int, ...]:
-    return tuple(int(x) for x in version.split("-")[0].split("."))
+def checked_module(data: bytes, functions) -> ModuleFacts:
+    """`check_module`, decoding each module once per process; a refusal is never kept."""
+    key = (hashlib.sha256(data).hexdigest(), tuple(functions))
+    facts = _FACTS.get(key)
+    if facts is None:
+        facts = check_module(data, functions=functions)
+        if len(_FACTS) >= _FACTS_KEPT:
+            _FACTS.pop(next(iter(_FACTS)), None)
+        _FACTS[key] = facts
+    return facts
 
 
 def module_members(files) -> list[str]:
@@ -51,7 +64,7 @@ def check_compute_declarations(manifest, graph, policy, files) -> dict[str, Modu
     permissions = [p for p in policy["permissions"] if p["kind"] == PERMISSION_KIND]
     if not modules and not operations and not members and not permissions:
         return {}
-    if _release(manifest["runtime"]["minimum_version"]) < _release(COMPUTE_MINIMUM_VERSION):
+    if release(manifest["runtime"]["minimum_version"]) < release(COMPUTE_MINIMUM_VERSION):
         raise _refuse(
             "compute_minimum_version",
             f"compute nodes require runtime.minimum_version {COMPUTE_MINIMUM_VERSION} or later",
@@ -105,7 +118,7 @@ def check_compute_declarations(manifest, graph, policy, files) -> dict[str, Modu
     facts: dict[str, ModuleFacts] = {}
     for module_id, module in declared.items():
         try:
-            facts[module_id] = check_module(files[module["path"]], functions=functions[module_id])
+            facts[module_id] = checked_module(files[module["path"]], functions[module_id])
         except ModuleError as exc:
             raise _refuse(exc.code, f"module {module_id!r}: {str(exc).split(': ', 1)[1]}") from exc
     for name, operation in operations:
@@ -149,7 +162,7 @@ def module_facts(package) -> dict[str, ModuleFacts]:
         if operation["function"] not in names:
             names.append(operation["function"])
     return {
-        module["id"]: check_module(package.files[module["path"]], functions=functions[module["id"]])
+        module["id"]: checked_module(package.files[module["path"]], functions[module["id"]])
         for module in package.graph.get("modules", [])
     }
 
@@ -169,6 +182,7 @@ __all__ = [
     "MODULE_SUFFIX",
     "PERMISSION_KIND",
     "check_compute_declarations",
+    "checked_module",
     "compute_operations",
     "module_facts",
     "module_members",
