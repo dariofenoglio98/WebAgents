@@ -321,7 +321,8 @@ class Runtime:
             except Exception:  # noqa: BLE001 - observation must never affect a run
                 pass
 
-    def _authorize(self, permission_ids, *, consume=False, context=None):
+    def _authorize(self, permission_ids, *, consume=False, context=None, node_id=None):
+        named = {} if node_id is None else {"node_id": node_id}
         for pid in permission_ids:
             grant = self.grants.get(pid, "deny")
             self.record(
@@ -330,6 +331,7 @@ class Runtime:
                 permission=pid,
                 grant=grant,
                 allowed=grant != "deny" and not (grant == "once" and pid in self._once_used),
+                **named,
             )
             if grant == "deny" or (grant == "once" and pid in self._once_used):
                 raise PolicyError(f"Permission denied or consumed: {pid}")
@@ -556,7 +558,10 @@ class Runtime:
 
         self._check_context(ctx)
         module_id, function = operation["module"], operation["function"]
-        identity = dict(module=module_id, function=function)
+        # The operation names itself (C-44): a worker's context carries its node (or map step),
+        # while the coordinator's one context is shared by every coordinator node of a wave.
+        node_id = getattr(ctx, "operation_id", getattr(ctx, "node_id", None)) or operation["id"]
+        identity = dict(node_id=node_id, module=module_id, function=function)
         outcome = None
         try:
             module = self._modules.get(module_id)
@@ -580,8 +585,8 @@ class Runtime:
             data = canonical_json(payload)
             limits = self.compute_limits.lowered_by(operation.get("limits"))
             async with self._lock:
-                self._authorize(permissions, context=ctx)
-                self._authorize(permissions, consume=True, context=ctx)
+                self._authorize(permissions, context=ctx, node_id=node_id)
+                self._authorize(permissions, consume=True, context=ctx, node_id=node_id)
                 self._global.compute_calls += 1
                 self._usage[ctx.worker_id].compute_calls += 1
             self.record(

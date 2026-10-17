@@ -168,6 +168,41 @@ def test_two_compute_nodes_share_a_wave_and_a_compute_step_runs_per_item(tmp_pat
     assert len(step_events) == 3 and all(e["worker"].startswith("Worker:") for e in step_events)
 
 
+def test_coordinator_compute_nodes_of_one_wave_each_name_their_own_node(tmp_path):
+    """The coordinator's one context is shared by its nodes, which a wave runs concurrently: each
+    compute call, and the permission checks before it, names its own node (C-7, C-44)."""
+    keys = ("request", "result", "b", "c")
+    nodes = [
+        compute_node("a"),
+        compute_node("b", writes={"/b": {"from": "result", "path": ""}}),
+        compute_node("c", writes={"/c": {"from": "result", "path": ""}}),
+    ]
+    package = load_package(write_probe(tmp_path / "probe", nodes=nodes, state_keys=keys))
+    result = run(package)
+    assert result["status"] == "completed"
+    assert result["state"]["result"] == result["state"]["b"] == result["state"]["c"] == REQUEST
+    commits = [e["nodes"] for e in result["audit"] if e["action"] == "state.committed"]
+    assert commits[0] == ["a", "b", "c"]
+    for action in ("compute.called", "compute.completed"):
+        assert sorted(e["node_id"] for e in events(result, action)) == ["a", "b", "c"]
+        assert all(e["worker"] == "coordinator" for e in events(result, action))
+    checks = [
+        e["node_id"]
+        for e in events(result, "permission.checked")
+        if e["permission"] == "compute.modules"
+    ]
+    assert sorted(checks) == ["a", "a", "b", "b", "c", "c"]
+    # Every event of a node lies between its own start and its completion.
+    started = {e["node_id"]: e["sequence"] for e in events(result, "node.started")}
+    completed = {e["node_id"]: e["sequence"] for e in events(result, "node.completed")}
+    for event in result["audit"]:
+        if event["action"].startswith("compute.") or event["action"] == "permission.checked":
+            if event.get("permission", "compute.modules") != "compute.modules":
+                continue
+            node = event["node_id"]
+            assert started[node] < event["sequence"] < completed[node]
+
+
 def test_a_node_lowers_the_limits_and_never_raises_them(tmp_path):
     node = compute_node(limits={"memory_pages": 4096, "wall_seconds": 2, "fuel": 1000})
     package = load_package(write_probe(tmp_path / "probe", nodes=[node]))

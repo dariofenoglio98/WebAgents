@@ -291,7 +291,11 @@ by writing text has written nothing anyone reads.
 C-44. `compute.called` precedes every call that reached the engine: `module`, `module_sha256`,
 `function`, `input_hash` (the digest of the constructed value), `input_bytes`, `limits` (the
 effective three, C-34), `permissions`. The permission check that authorized it precedes it
-(`permission.checked`), as for a tool.
+(`permission.checked`), as for a tool. Every event of a call, its permission checks included,
+carries the `node_id` of the operation it serves: the node's id, or `<map>/<step>` for a map step,
+on the coordinator as on a worker. The coordinator's one context serves every coordinator node, and
+a wave runs them concurrently, so an implementation takes the identity from the operation, never
+from state stored on that shared context.
 
 C-45. `compute.completed`: the identity, `output_hash` (the digest of the parsed value),
 `output_bytes`, `memory_pages` (the memory's size after the call), `engine: {id, elapsed_ms,

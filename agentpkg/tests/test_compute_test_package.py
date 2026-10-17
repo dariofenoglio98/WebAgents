@@ -2,13 +2,17 @@
 against its development key, is its committed source with the committed example modules, and runs
 in fixture mode to the values the two modules compute; the same run twice gives the same bytes."""
 
+import asyncio
 import hashlib
 import json
+import shutil
 from pathlib import Path
 
 from agentpkg.cli import main
+from agentpkg.fixtures import fixture_adapters
 from agentpkg.package import build_package, load_package
 from agentpkg.signing import verify_package
+from agentpkg.workflow import run_workflow
 
 ROOT = Path(__file__).resolve().parents[2]
 COMPUTE = ROOT / "examples" / "compute"
@@ -137,3 +141,45 @@ def test_the_package_runs_in_fixture_mode_to_the_values_the_modules_compute(tmp_
         if e["action"] == "compute.completed"
     )
     assert fuel(out) == fuel(out2)
+
+
+def test_the_wave_on_the_coordinator_computes_the_same_values(tmp_path):
+    """C-7: compute nodes run on any role. With `totals` and `ids` moved onto the coordinator, wave
+    0 holds three coordinator compute nodes and a map; the values are the signed package's, and
+    every compute event names the node that made the call."""
+    source = tmp_path / "compute-test"
+    shutil.copytree(SOURCE, source)
+    graph = json.loads((source / "graph.json").read_text())
+    for node in graph["nodes"]:
+        if node["id"] in ("totals", "ids"):
+            node["worker"] = graph["coordinator"]
+    (source / "graph.json").write_text(json.dumps(graph, indent=2))
+
+    def execute(package):
+        router, handlers, value = fixture_adapters(package)
+        return asyncio.run(
+            run_workflow(
+                package,
+                value,
+                router=router,
+                handlers=handlers,
+                grants=json.loads(GRANTS.read_text()),
+                approved_tools=[],
+            )
+        )
+
+    moved = execute(load_package(source))
+    assert moved["status"] == "completed"
+    assert moved["output"] == execute(load_package(ARCHIVE))["output"]
+    calls = sorted(
+        (e["node_id"], e["worker"].split(":")[0], e["module"], e["function"])
+        for e in moved["audit"]
+        if e["action"] == "compute.completed"
+    )
+    assert calls == [
+        ("groups/total", "Worker", "fares", "run"),
+        ("groups/total", "Worker", "fares", "run"),
+        ("ids", "coordinator", "bookkeeping", "assign_ids"),
+        ("quotes", "coordinator", "bookkeeping", "match_quotes"),
+        ("totals", "coordinator", "fares", "run"),
+    ]

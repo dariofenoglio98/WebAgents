@@ -393,14 +393,12 @@ class Workflow:
                 if node["type"] == "map":
                     result = await self._map(node, view)
                 elif role == self.graph["coordinator"]:
-                    # A coordinator operation that reaches the mediator (a compute node) names
-                    # its node in the events, as a worker's does.
-                    ctx = self.runtime.coordinator_context()
-                    ctx.node_id = node["id"]
-                    try:
-                        result = await self._operation(node, {"state": view}, ctx)
-                    finally:
-                        del ctx.node_id
+                    # One context serves every coordinator node, and nodes of a wave run
+                    # concurrently: nothing node-specific is stored on it (a compute call names
+                    # its node from the operation itself).
+                    result = await self._operation(
+                        node, {"state": view}, self.runtime.coordinator_context()
+                    )
                 else:
 
                     async def work(ctx, data):
