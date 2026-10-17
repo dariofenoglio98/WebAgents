@@ -163,7 +163,10 @@ def test_memory64_and_multi_memory_are_refused_by_name():
 
 def test_the_example_modules_pass_the_reader():
     """Every module under examples/compute built by a real toolchain is a tier-1 module."""
+    functions = {"fares": ("run",), "bookkeeping": ("assign_ids", "match_quotes")}
     built = sorted(Path(CASES.parent).glob("*/dist/*.wasm"))
+    assert {path.stem for path in built} == set(functions)
     for path in built:
-        facts = check_module(path.read_bytes(), functions=("run",))
+        facts = check_module(path.read_bytes(), functions=functions[path.stem])
         assert facts.memory_max_pages >= 1, path
+        assert facts.functions == functions[path.stem]
