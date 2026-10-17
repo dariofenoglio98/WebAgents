@@ -418,42 +418,6 @@
     {
       "id": "unique-candidates",
       "path": "schemas/unique-candidates.schema.json"
-    },
-    {
-      "id": "quote-row",
-      "path": "schemas/quote-row.schema.json"
-    },
-    {
-      "id": "quote-part",
-      "path": "schemas/quote-part.schema.json"
-    },
-    {
-      "id": "quote-parts",
-      "path": "schemas/quote-parts.schema.json"
-    },
-    {
-      "id": "quote-rows",
-      "path": "schemas/quote-rows.schema.json"
-    },
-    {
-      "id": "source-row",
-      "path": "schemas/source-row.schema.json"
-    },
-    {
-      "id": "source-rows",
-      "path": "schemas/source-rows.schema.json"
-    },
-    {
-      "id": "abstract-quote",
-      "path": "schemas/abstract-quote.schema.json"
-    },
-    {
-      "id": "match-input",
-      "path": "schemas/match-input.schema.json"
-    },
-    {
-      "id": "quote-check",
-      "path": "schemas/quote-check.schema.json"
     }
   ],
   "model_requirements": {

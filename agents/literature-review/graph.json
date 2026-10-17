@@ -3040,249 +3040,8 @@
       "writes": {}
     },
     {
-      "id": "quote-parts",
-      "type": "map",
-      "worker": "VerificationWorker",
       "depends_on": [
-        "join-evidence"
-      ],
-      "input": {
-        "from": "state",
-        "path": "/evidence_items"
-      },
-      "item_schema": "schemas/evidence.schema.json",
-      "max_items": 64,
-      "max_parallel": 1,
-      "steps": [
-        {
-          "id": "abstract-quote",
-          "type": "validate",
-          "input": {
-            "from": "item",
-            "path": "/quote"
-          },
-          "when": {
-            "left": {
-              "from": "item",
-              "path": "/scope"
-            },
-            "op": "eq",
-            "right": {
-              "literal": "abstract"
-            }
-          },
-          "otherwise": {
-            "literal": ""
-          },
-          "output_schema": "schemas/abstract-quote.schema.json",
-          "timeout_seconds": 10
-        },
-        {
-          "id": "row",
-          "type": "validate",
-          "input": {
-            "array": [
-              {
-                "object": {
-                  "id": {
-                    "from": "item",
-                    "path": "/evidence_id"
-                  },
-                  "text": {
-                    "from": "steps",
-                    "path": "/abstract-quote"
-                  }
-                }
-              }
-            ]
-          },
-          "when": {
-            "left": {
-              "from": "steps",
-              "path": "/abstract-quote"
-            },
-            "op": "ne",
-            "right": {
-              "literal": ""
-            }
-          },
-          "otherwise": {
-            "literal": []
-          },
-          "output_schema": "schemas/quote-part.schema.json",
-          "timeout_seconds": 10
-        }
-      ],
-      "yield": {
-        "from": "steps",
-        "path": "/row"
-      },
-      "output_schema": "schemas/quote-parts.schema.json",
-      "timeout_seconds": 60,
-      "writes": {
-        "/quote_parts": {
-          "from": "result",
-          "path": ""
-        }
-      }
-    },
-    {
-      "id": "join-quotes",
-      "type": "join",
-      "worker": "LiteratureReviewCoordinator",
-      "depends_on": [
-        "quote-parts"
-      ],
-      "input": {
-        "from": "state",
-        "path": "/quote_parts"
-      },
-      "output_schema": "schemas/quote-rows.schema.json",
-      "timeout_seconds": 10,
-      "writes": {
-        "/quote_rows": {
-          "from": "result",
-          "path": ""
-        }
-      }
-    },
-    {
-      "id": "source-rows",
-      "type": "map",
-      "worker": "EvidenceWorker",
-      "depends_on": [
-        "join-evidence"
-      ],
-      "input": {
-        "from": "state",
-        "path": "/evidence_jobs"
-      },
-      "item_schema": "schemas/evidence-job.schema.json",
-      "max_items": 20,
-      "max_parallel": 3,
-      "steps": [
-        {
-          "id": "source",
-          "type": "validate",
-          "input": {
-            "object": {
-              "id": {
-                "from": "item",
-                "path": "/handle"
-              },
-              "text": {
-                "coalesce": [
-                  {
-                    "from": "item",
-                    "path": "/record/metadata/abstract"
-                  },
-                  {
-                    "from": "item",
-                    "path": "/paper/abstract"
-                  },
-                  {
-                    "literal": ""
-                  }
-                ]
-              }
-            }
-          },
-          "output_schema": "schemas/source-row.schema.json",
-          "timeout_seconds": 10
-        }
-      ],
-      "yield": {
-        "from": "steps",
-        "path": "/source"
-      },
-      "output_schema": "schemas/source-rows.schema.json",
-      "timeout_seconds": 60,
-      "writes": {
-        "/source_rows": {
-          "from": "result",
-          "path": ""
-        }
-      }
-    },
-    {
-      "id": "match-quotes",
-      "type": "compute",
-      "worker": "LiteratureReviewCoordinator",
-      "depends_on": [
-        "join-quotes",
-        "source-rows"
-      ],
-      "module": "bookkeeping",
-      "function": "match_quotes",
-      "input": {
-        "object": {
-          "quotes": {
-            "from": "state",
-            "path": "/quote_rows"
-          },
-          "sources": {
-            "from": "state",
-            "path": "/source_rows"
-          }
-        }
-      },
-      "input_schema": "schemas/match-input.schema.json",
-      "output_schema": "schemas/quote-check.schema.json",
-      "timeout_seconds": 30,
-      "when": {
-        "left": {
-          "from": "state",
-          "path": "/quote_rows"
-        },
-        "op": "ne",
-        "right": {
-          "literal": []
-        }
-      },
-      "otherwise": {
-        "literal": {
-          "matches": [],
-          "unmatched": []
-        }
-      },
-      "writes": {
-        "/quote_check": {
-          "from": "result",
-          "path": ""
-        }
-      }
-    },
-    {
-      "id": "check-quotes",
-      "type": "validate",
-      "worker": "LiteratureReviewCoordinator",
-      "depends_on": [
-        "match-quotes"
-      ],
-      "input": {
-        "from": "state",
-        "path": "/quote_check"
-      },
-      "assertions": [
-        {
-          "kind": "equal",
-          "left": {
-            "from": "state",
-            "path": "/quote_check/unmatched"
-          },
-          "right": {
-            "literal": []
-          }
-        }
-      ],
-      "output_schema": "schemas/quote-check.schema.json",
-      "timeout_seconds": 10,
-      "writes": {}
-    },
-    {
-      "depends_on": [
-        "check-evidence",
-        "check-quotes"
+        "check-evidence"
       ],
       "id": "synthesis",
       "input": {
@@ -4483,11 +4242,7 @@
         "memory_proposals",
         "notes_written",
         "research_question",
-        "identity_rows",
-        "quote_parts",
-        "quote_rows",
-        "source_rows",
-        "quote_check"
+        "identity_rows"
       ],
       "state_write": [
         "all_batches",
@@ -4506,9 +4261,7 @@
         "remember_gate",
         "review_links",
         "memory_proposals",
-        "unique_candidates",
-        "quote_rows",
-        "quote_check"
+        "unique_candidates"
       ],
       "tools": []
     },
@@ -4644,8 +4397,7 @@
         "research_question"
       ],
       "state_write": [
-        "evidence_batches",
-        "source_rows"
+        "evidence_batches"
       ],
       "tools": [
         "paper-reader"
@@ -4724,8 +4476,7 @@
         "evidence_table",
         "materialized_claims",
         "review",
-        "verification_results",
-        "quote_parts"
+        "verification_results"
       ],
       "tools": []
     },

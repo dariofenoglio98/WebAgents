@@ -15,6 +15,13 @@ from agentpkg.validation import SCHEMAS
 ROOT = Path(__file__).resolve().parents[2]
 
 
+# The source's own grants: Literature Review 0.2.9 adds the required compute permission (T22).
+GRANTS = {
+    "literature-review": "literature-review-0.2.9-grants.json",
+    "meeting-agenda": "meeting-agenda-grants.json",
+}
+
+
 @pytest.mark.parametrize("name", ["literature-review", "meeting-agenda"])
 def test_cli_build_sign_verify_run_unpack_stage(name, tmp_path, capsys):
     source = ROOT / "agents" / name
@@ -40,7 +47,7 @@ def test_cli_build_sign_verify_run_unpack_stage(name, tmp_path, capsys):
                 "run",
                 str(first),
                 "--grants",
-                str(ROOT / "examples" / f"{name}-grants.json"),
+                str(ROOT / "examples" / GRANTS[name]),
                 "--mode",
                 "fixture",
                 "--trust-key",

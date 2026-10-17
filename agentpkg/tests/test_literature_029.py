@@ -1,9 +1,10 @@
 """Literature Review 0.2.9: 0.2.8 with its bookkeeping as a WebAssembly module (compute.v0, T22).
 
 The candidate deduplication moved from `join-search`'s exact `unique_by` into the bookkeeping
-module's `assign_ids` (normalized DOI, arXiv id, URL or title), and the abstract quotes of the
-evidence table are searched again by its `match_quotes`. No model call changed: the fixture's
-answers, the exports and the tokens are 0.2.8's. The module runs for real in every mode.
+module's `assign_ids` (normalized DOI, arXiv id, URL or title). No model call changed: the
+fixture's answers, the exports and the tokens are 0.2.8's. The module runs for real in every mode.
+(An abstract-quote re-check with the module's `match_quotes` was built and dropped before signing:
+the extraction step's answer checks already require each quote verbatim, D-252.)
 """
 
 from __future__ import annotations
@@ -35,15 +36,7 @@ PREVIOUS = ROOT / "dist/literature-review-0.2.8.agent.pkg"
 MEMORY_INPUT = ROOT / "examples/literature-review-0.2.8-memory-input.json"
 BOOKKEEPING = ROOT / "examples/compute/bookkeeping-rs/dist/bookkeeping.wasm"
 BOOKKEEPING_SHA256 = "5b9db688c2cf9c60c818ac7eaf748d98ee60b8ecc564d76c37199da68e13735e"
-NEW_NODES = {
-    "identity-rows",
-    "dedup-candidates",
-    "quote-parts",
-    "join-quotes",
-    "source-rows",
-    "match-quotes",
-    "check-quotes",
-}
+NEW_NODES = {"identity-rows", "dedup-candidates"}
 
 
 @pytest.fixture(scope="module")
@@ -67,7 +60,7 @@ def test_what_changed_from_0_2_8(review, previous):
         {"id": "bookkeeping", "path": "modules/bookkeeping.wasm", "sha256": BOOKKEEPING_SHA256}
     ]
     (record,) = module_records(review)
-    assert record["functions"] == ["assign_ids", "match_quotes"]
+    assert record["functions"] == ["assign_ids"]
     added = [p for p in review.policy["permissions"] if p not in previous.policy["permissions"]]
     assert [(p["id"], p["kind"], p["required"], p["resources"]) for p in added] == [
         ("compute.bookkeeping", "compute", True, ["bookkeeping"])
@@ -84,19 +77,11 @@ def test_what_changed_from_0_2_8(review, previous):
     assert review.tools == previous.tools
     assert review.policy["budget"] == previous.policy["budget"]
 
-    def models(package):
-        return {
-            n["id"]: {k: v for k, v in n.items() if k != "depends_on"}
-            for n in package.graph["nodes"]
-            if n["type"] == "llm"
-        }
-
-    assert models(review) == models(previous)
-    # Synthesis waits for the quote check as well; nothing else about a model step moved.
-    assert nodes["synthesis"]["depends_on"] == [*before["synthesis"]["depends_on"], "check-quotes"]
+    assert {n["id"]: n for n in review.graph["nodes"] if n["type"] == "llm"} == {
+        n["id"]: n for n in previous.graph["nodes"] if n["type"] == "llm"
+    }
     assert [n["id"] for n in review.graph["nodes"] if n["type"] == "compute"] == [
-        "dedup-candidates",
-        "match-quotes",
+        "dedup-candidates"
     ]
 
 
@@ -118,18 +103,17 @@ def _fixture_run(package, input_value=None):
 
 
 @pytest.mark.parametrize("memory_on", [False, True], ids=["memory-off", "memory-on"])
-def test_the_fixture_gives_0_2_8s_review_with_two_module_calls(review, previous, memory_on):
+def test_the_fixture_gives_0_2_8s_review_with_one_module_call(review, previous, memory_on):
     value = json.loads(MEMORY_INPUT.read_text()) if memory_on else None
     now, then = _fixture_run(review, value), _fixture_run(previous, value)
     assert now["status"] == then["status"] == "completed"
     assert now["output"] == then["output"]
     assert now["usage"]["tokens"] == then["usage"]["tokens"]
     assert now["usage"]["remote_calls"] == then["usage"]["remote_calls"]
-    assert now["usage"]["compute_calls"] == 2 and "compute_calls" not in then["usage"]
+    assert now["usage"]["compute_calls"] == 1 and "compute_calls" not in then["usage"]
     completed = [e for e in now["audit"] if e["action"] == "compute.completed"]
     assert [(e["node_id"], e["function"], e["module_sha256"]) for e in completed] == [
-        ("dedup-candidates", "assign_ids", BOOKKEEPING_SHA256),
-        ("match-quotes", "match_quotes", BOOKKEEPING_SHA256),
+        ("dedup-candidates", "assign_ids", BOOKKEEPING_SHA256)
     ]
     assert not [e for e in now["audit"] if e["action"] == "compute.failed"]
     # 0.2.8 deduplicated in the join; 0.2.9 in the module, which drops the same record.
@@ -137,7 +121,6 @@ def test_the_fixture_gives_0_2_8s_review_with_two_module_calls(review, previous,
         "join-search"
     ]
     assert not [e for e in now["audit"] if e["action"] == "node.deduplicated"]
-    assert now["state"]["quote_check"]["unmatched"] == []
     # 0.2.8's join kept 8 of the 9 searched records; 0.2.9 keeps all 9 and the module drops one.
     assert len(now["state"]["raw_candidates"]) == len(then["state"]["raw_candidates"]) + 1
     assert len(now["state"]["unique_candidates"]) == len(then["state"]["raw_candidates"])
@@ -183,13 +166,3 @@ def test_a_doi_spelled_two_ways_is_one_paper_now(review, previous):
     assert {p["doi"] for p in now["output"]["papers_found"]} == {
         f"10.5555/scripted.{index}" for index in (1, 2, 3)
     }
-
-
-def test_no_abstract_quote_means_no_quote_call(review):
-    """Nothing included, so no evidence: `match-quotes` is skipped; only the deduplication runs."""
-    scenario = Scenario(papers=3, include=False)
-    result = _run(review, scenario, scripted_handlers(scenario))
-    assert result["status"] == "completed"
-    skipped = [e["node_id"] for e in result["audit"] if e["action"] == "node.skipped"]
-    assert "match-quotes" in skipped
-    assert result["usage"]["compute_calls"] == 1
