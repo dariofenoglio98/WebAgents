@@ -11,7 +11,8 @@ against the exact bytes it describes.
 
 | Artifact | What it is | Requires | Verify with |
 |---|---|---|---|
-| `agentpkg-0.4.0-py3-none-any.whl` | agentpkg 0.4.0, the development line's runtime (D-019, D-210): 0.3.0 plus memory.v0 ([`spec/memory-v0.md`](../spec/memory-v0.md), T20): the `memory.read` and `memory.write` permission kinds, `agent-scoped` memory with the two reserved agent-document tools, the `memory.proposal` export checked before a run completes (M-40), the sealed-value scans of tool arguments and model requests (M-36, M-37), and `agentpkg run --memory-dir` / `--memory-grant` over a memory folder. It runs every package in this directory | Python ≥ 3.11 | SHA-256 below |
+| `agentpkg-0.5.0-py3-none-any.whl` | agentpkg 0.5.0, the development line's runtime (D-019, D-240): 0.4.0 plus compute.v0 ([`spec/compute-v0.md`](../spec/compute-v0.md), T21): WebAssembly core modules as `compute` nodes and map steps (a module imports nothing; JSON in, JSON out; a fresh instance per call under memory, wall-time and fuel bounds), binary `.wasm` members declared in the graph with their SHA-256, the `compute` permission kind, the node code `compute_error` and the audit events `compute.called/completed/failed`, `inspect` listing a package's modules. Running a module needs the `wasmtime` extra (`pip install 'agentpkg[compute]'`); without it such a package validates and is refused before it runs. It runs every package in this directory | Python ≥ 3.11 (+ `wasmtime` for compute packages) | SHA-256 below |
+| `agentpkg-0.4.0-py3-none-any.whl` | agentpkg 0.4.0, the development line's runtime before compute.v0 (D-019, D-210): 0.3.0 plus memory.v0 ([`spec/memory-v0.md`](../spec/memory-v0.md), T20): the `memory.read` and `memory.write` permission kinds, `agent-scoped` memory with the two reserved agent-document tools, the `memory.proposal` export checked before a run completes (M-40), the sealed-value scans of tool arguments and model requests (M-36, M-37), and `agentpkg run --memory-dir` / `--memory-grant` over a memory folder. It runs every package in this directory | Python ≥ 3.11 | SHA-256 below |
 | `agentpkg-0.3.0-py3-none-any.whl` | agentpkg 0.3.0, the development line's runtime before memory.v0 (D-019): 0.2.2 plus answer checks on model answers (`checks` on `llm` nodes and map `llm` steps, workflow.v0), an optional `feedback` line in the model-request contract, and the profile-scoped approvals of the control plane (T7, D-090), which the 0.2.2 wheel below predates. It runs every package here except the two that declare runtime minimum 0.4.0 (WebAir 0.6.0, Literature Review 0.2.8) | Python ≥ 3.11 | SHA-256 below |
 | `agentpkg-0.2.2-py3-none-any.whl` | agentpkg 0.2.2, the v0.2.0 release's wheel (the paper line, `paper-cic2026`): the CLI, the browser control plane and the workflow.v0 runtime. It cannot load a package that uses answer checks (they declare runtime minimum 0.3.0) | Python ≥ 3.11 | SHA-256 below |
 | `literature-review-0.2.8.agent.pkg` | Literature Review 0.2.8: 0.2.7 with the person's memory (memory.v0, T20, D-233). Three task switches, off by default: `use_profile` reads the research profile the person chooses into planning (`memory.read`), `keep_notes` reads and keeps the agent's own notes (`agent-scoped`, two reserved tools), and `reviewed_on`, the person's date, makes the run propose one `research.review` (`memory.write`) derived from the profile, written to `proposals.json`. Off, it runs as 0.2.7 and proposes nothing | agentpkg ≥ 0.4.0 (memory.v0) | [`examples/keys/literature-review-publisher.pub.pem`](../examples/keys/literature-review-publisher.pub.pem) (`sha256:c5ca9763…5232`) |
@@ -24,7 +25,7 @@ against the exact bytes it describes.
 From the repository root:
 
 ```sh
-python3 -m venv .venv && .venv/bin/python -m pip install dist/agentpkg-0.4.0-py3-none-any.whl
+python3 -m venv .venv && .venv/bin/python -m pip install dist/agentpkg-0.5.0-py3-none-any.whl
 # fingerprints in the table above, and in each command's own output
 .venv/bin/agentpkg verify dist/literature-review-0.2.8.agent.pkg \
   --trust-key examples/keys/literature-review-publisher.pub.pem
@@ -44,6 +45,14 @@ python3 -m venv .venv && .venv/bin/python -m pip install dist/agentpkg-0.4.0-py3
 
 The keys are development keys: they establish which key signed an artifact, not an independent
 certification of its publisher.
+
+**The 0.5.0 wheel** (SHA-256 `4752e9d2…c82b`, T21) was built from a clean export of `agentpkg/` at the commit
+that added compute.v0 (`ab3f9b9`) with the command below (setuptools 84.0.0, `SOURCE_DATE_EPOCH=1790965957`);
+two such builds produced identical bytes, and CI rebuilds it from source and checks that every file matches.
+It carries `agentpkg/compute/` (the module reader, the wasmtime engine, the limits) and the patched schemas.
+The version moved to 0.5.0 because packages that run modules must be refused by an older runtime by their
+declared minimum (D-240, C-10); the `wasmtime` dependency is an extra, so the wheel's requirements are
+unchanged for packages without modules.
 
 **The 0.4.0 wheel** (SHA-256 `9559e4f3…037c`, T20) was built from a clean export of `agentpkg/`
 at the commit that added it with the command below (setuptools 84.0.0, `SOURCE_DATE_EPOCH=1790965957`); two
@@ -176,6 +185,7 @@ c1b1c4b260dbca874dc9e343397e6fad1311f498c3a6df27c1a1deeeb0b18f71  agentpkg-0.1.0
 371fb1eb8c70abc3511a09e7208742ab313bc47dfda6999675ce716d14731cd1  agentpkg-0.2.2-py3-none-any.whl
 096897b02d3e4bc212395eb35bf6522c67fedb5f80309e9e42744cbe777d31df  agentpkg-0.3.0-py3-none-any.whl
 9559e4f319a7cb48fa1729b07ec1dbb81ffdc3953d680dff61f1cc078552037c  agentpkg-0.4.0-py3-none-any.whl
+4752e9d2243d1ecfba6bd5980de5725f640bd6a88065807bf4c0c19c76cdc82b  agentpkg-0.5.0-py3-none-any.whl
 5fdde862352598fc68e4fe5a2f5c2dee19bf952112446b3fc13bc77763533b0b  literature-review-0.2.0.agent.pkg
 0fb8b65bbff4578d4815ee70b29a0cb789b2cc95ce181d011d467b4be22c8e42  literature-review-0.2.1.agent.pkg
 4804ea8f4c2ad40439641f8348c2d65b798f4d52802f6ad751b71114e4f27c04  literature-review-0.2.2.agent.pkg

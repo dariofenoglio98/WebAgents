@@ -31,9 +31,10 @@ from agentpkg.signing import verify_package
 ROOT = Path(__file__).resolve().parents[1]
 DIST = ROOT / "dist"
 # The current wheel, which CI rebuilds from agentpkg/ and compares file by file. The 0.2.2 wheel of
-# the v0.2.0 release stays in dist/ for the paper line and is checked by the SHA-256 list only.
-WHEEL = DIST / "agentpkg-0.4.0-py3-none-any.whl"
-WHEEL_DIST_INFO = "agentpkg-0.4.0.dist-info"
+# the v0.2.0 release stays in dist/ for the paper line, and the 0.3.0 and 0.4.0 wheels for their
+# lines; those are checked by the SHA-256 list only.
+WHEEL = DIST / "agentpkg-0.5.0-py3-none-any.whl"
+WHEEL_DIST_INFO = "agentpkg-0.5.0.dist-info"
 # SHA-256 of https://www.apache.org/licenses/LICENSE-2.0.txt
 APACHE_2_0_SHA256 = "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
 
