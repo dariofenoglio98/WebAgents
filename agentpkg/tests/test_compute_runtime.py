@@ -575,3 +575,144 @@ def test_a_module_is_decoded_once_per_process(tmp_path, monkeypatch):
     check_capabilities(package, HostExecutionLimits())
     declarations.module_records(package)
     assert decoded == [["run"]]
+
+
+# -- T21 review 2 (fixed in T22) ------------------------------------------------------------------
+def test_a_module_the_engine_refuses_is_compiled_once(monkeypatch):
+    """The second `compile` of a refused module raises the kept refusal without compiling again
+    (before, `precompile` swallowed the error and the preflight compiled it a second time)."""
+    import wasmtime
+
+    engine = compute_engine.WasmtimeEngine()
+    constructed = []
+    real = wasmtime.Module
+
+    def refusing(engine_, data):
+        constructed.append(len(data))
+        raise wasmtime.WasmtimeError("refused for the test")
+
+    monkeypatch.setattr(wasmtime, "Module", refusing)
+    try:
+        data = case_module("echo")
+        for _ in range(2):
+            with pytest.raises(ValueError, match="^module_invalid: ") as caught:
+                engine.compile("a" * 64, data)
+        assert caught.value.code == "module_invalid"
+        assert constructed == [len(data)]  # once
+        monkeypatch.setattr(wasmtime, "Module", real)
+        # Another module is unaffected by the kept refusal.
+        engine.compile("b" * 64, data)
+    finally:
+        engine.close()
+
+
+def test_compiling_one_module_does_not_block_another_calls_lookup(monkeypatch):
+    """`compile` holds the engine lock only to look up and to insert, never while compiling, so a
+    slow compile on one thread does not stall a lookup of an already compiled module."""
+    import threading
+
+    import wasmtime
+
+    engine = compute_engine.WasmtimeEngine()
+    try:
+        data = case_module("echo")
+        engine.compile("cached" + "0" * 58, data)
+        real = wasmtime.Module
+        started = threading.Event()
+
+        def slow(engine_, bytes_):
+            started.set()
+            time.sleep(0.6)
+            return real(engine_, bytes_)
+
+        monkeypatch.setattr(wasmtime, "Module", slow)
+        worker = threading.Thread(
+            target=engine.compile, args=("slow" + "0" * 60, case_module("with-start"))
+        )
+        worker.start()
+        assert started.wait(2)
+        begun = time.monotonic()
+        engine.compile("cached" + "0" * 58, data)  # a lookup, under the lock
+        assert time.monotonic() - begun < 0.3
+        worker.join(5)
+        assert "slow" + "0" * 60 in engine._modules
+    finally:
+        engine.close()
+
+
+def test_one_helper_names_the_operation_an_event_belongs_to():
+    """compute.v0 C-44: the three places that named an event's node use one rule."""
+    from types import SimpleNamespace
+
+    from agentpkg.runtime import operation_node_id
+
+    worker = SimpleNamespace(node_id="search")
+    assert operation_node_id(worker) == "search"
+    assert operation_node_id(worker, {"id": "step"}) == "search"
+    worker.operation_id = "search/step"
+    assert operation_node_id(worker) == "search/step"
+    coordinator = SimpleNamespace(node_id=None)
+    assert operation_node_id(coordinator) is None
+    assert operation_node_id(coordinator, {"id": "quotes"}) == "quotes"
+    assert operation_node_id(None) is None
+
+
+def test_a_request_cancelled_during_the_compile_leaves_no_run_reported(tmp_path, monkeypatch):
+    """The precompile awaits inside the session's guarded region: a run request the parent cancels
+    while the modules compile ends the session, and `execution.cancel` says so (`running: false`)
+    instead of reporting a run that is not there."""
+    import contextlib
+
+    from execution_fakes import Harness, authorization, plan_for
+
+    from agentpkg.package import sha256
+    from agentpkg.signing import embedded_public_key, fingerprint, keygen, sign_package
+
+    source = write_probe(tmp_path / "probe")
+    artifact = build_package(source, tmp_path / "probe.agent.pkg")
+    private, public = tmp_path / "k.private.pem", tmp_path / "k.pub.pem"
+    keygen(private, public)
+    sign_package(artifact, private)
+    package = load_package(artifact)
+    plan = plan_for(
+        package,
+        archive_sha256=sha256(artifact.read_bytes()),
+        signer_fingerprint=fingerprint(embedded_public_key(package.signature)),
+        execution={"required_permission_ids": ["memory.session", "compute.modules"]},
+    )
+    compiling = []
+
+    def slow_precompile(package_):
+        compiling.append(time.monotonic())
+        time.sleep(1.5)
+
+    monkeypatch.setattr(compute_engine, "precompile", slow_precompile)
+
+    async def main():
+        async with Harness(tmp_path, archive=artifact) as harness:
+            await harness.call(
+                "execution.begin",
+                {
+                    "run_id": "run-0001",
+                    "run_plan": plan,
+                    "authorization": authorization(
+                        {"memory.session": "session", "compute.modules": "session"}
+                    ),
+                    "limits": {},
+                    "input": REQUEST,
+                    "host": {"runtime": "openclaw", "runtime_version": "2026.9.5"},
+                },
+            )
+            running = asyncio.create_task(harness.call("execution.run", {}, timeout=30))
+            while not compiling and not running.done():
+                await asyncio.sleep(0.02)
+            running.cancel()
+            with contextlib.suppress(asyncio.CancelledError, Exception):
+                await running
+            await asyncio.sleep(0.1)
+            return await harness.call("execution.cancel", {})
+
+    stop = asyncio.run(main())
+    assert compiling, "the compile was reached"
+    assert stop["cancel_requested"] is True
+    assert stop["running"] is False

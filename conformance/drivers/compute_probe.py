@@ -31,7 +31,8 @@ def _memory_driver():
     import importlib.util
 
     spec = importlib.util.spec_from_file_location(
-        "conformance_memory_probe_driver", Path(__file__).resolve().parent / "memory_probe.py"
+        "conformance_memory_probe_driver",
+        Path(__file__).resolve().parent / "memory_probe.py",
     )
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -64,7 +65,9 @@ def write_case(out: Path, case: dict) -> None:
     variant = case.get("variant")
     modules = {"echo": data}
     if variant == "hash-mismatch":
-        options["declared"] = [{"id": "echo", "path": "modules/echo.wasm", "sha256": "0" * 64}]
+        options["declared"] = [
+            {"id": "echo", "path": "modules/echo.wasm", "sha256": "0" * 64}
+        ]
     elif variant == "undeclared-member":
         options["extra_files"] = {"modules/other.wasm": probe.case_module("echo")}
     elif variant == "unknown-module":
@@ -95,7 +98,11 @@ def main(argv: list[str]) -> int:
     case = next(c for c in CASES if c["id"] == case_id)
     write_case(out, case)
     grants = Path(f"{out}.grants.json")
-    decisions = {"memory.session": "session", "compute.modules": "session", **case.get("grants", {})}
+    decisions = {
+        "memory.session": "session",
+        "compute.modules": "session",
+        **case.get("grants", {}),
+    }
     if case.get("variant") == "no-permission":
         decisions.pop("compute.modules")
     grants.write_text(json.dumps(decisions))

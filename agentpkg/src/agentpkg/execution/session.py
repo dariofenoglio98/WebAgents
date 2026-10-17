@@ -533,55 +533,61 @@ class ExecutionSession:
         # Live progress, read from the audit as it is written. Observation
         # only: the run neither waits for nor depends on the parent's answer.
         tracker = ProgressTracker(self._peer)
-        if self.package.graph.get("modules"):
-            # compute.v0: compiling takes time in proportion to a module's size; done off the
-            # loop, so the session keeps answering meanwhile, and the runtime's preflight below
-            # finds the modules compiled.
-            from ..compute.engine import precompile
+        # Everything from here to the run's end is one guarded region: whatever stops it (a
+        # refusal, a cancelled request during the compile, the run itself ending), the session
+        # is `_finished`, so `execution.cancel` never reports a run that is not there (T21
+        # review 2).
+        try:
+            if self.package.graph.get("modules"):
+                # compute.v0: compiling takes time in proportion to a module's size; done off
+                # the loop, so the session keeps answering meanwhile, and the runtime's
+                # preflight below finds the modules compiled.
+                from ..compute.engine import precompile
 
-            await asyncio.to_thread(precompile, self.package)
-        try:
-            workflow = Workflow(
-                self.package,
-                grants=self._grants,
-                # Exactly the bindings this plan froze, keyed by the abstract
-                # capability name the package asked for. A package that
-                # declared a tool with no approved binding was already refused
-                # in `execution.begin`; `Runtime` refuses it again at dispatch.
-                handlers=self._handlers,
-                router=self.router,
-                limits=self._limits.runtime_limits(),
-                approved_tools=self._approved_tools,
-                observer=tracker.observe,
-            )
-        except AgentPkgError as exc:
-            raise ExecutionError(
-                "execution_runtime_refused", f"The runtime refused this package: {exc}"
-            ) from exc
-        self._workflow = workflow
-        if self._cancel_requested:
-            # A cancellation that arrived between `begin` and `run` is honoured
-            # rather than merely recorded: the workflow is stopped before its
-            # first node, and the run reports `cancelled` with an audit.
-            workflow.cancel()
-        deadline = effective_deadline_seconds(self.package, self._limits)
-        watchdog = asyncio.create_task(self._watchdog(deadline, workflow))
-        task = asyncio.create_task(self._execute(workflow))
-        try:
-            await task
-        except asyncio.CancelledError:
-            if not (self._cancel_requested or self._timed_out):
-                # The parent cancelled this request itself: stop the workflow,
-                # drain it, and let the peer answer `cancelled`.
-                task.cancel()
-                with contextlib.suppress(BaseException):
-                    await task
-                raise
+                await asyncio.to_thread(precompile, self.package)
+            try:
+                workflow = Workflow(
+                    self.package,
+                    grants=self._grants,
+                    # Exactly the bindings this plan froze, keyed by the abstract
+                    # capability name the package asked for. A package that
+                    # declared a tool with no approved binding was already refused
+                    # in `execution.begin`; `Runtime` refuses it again at dispatch.
+                    handlers=self._handlers,
+                    router=self.router,
+                    limits=self._limits.runtime_limits(),
+                    approved_tools=self._approved_tools,
+                    observer=tracker.observe,
+                )
+            except AgentPkgError as exc:
+                raise ExecutionError(
+                    "execution_runtime_refused", f"The runtime refused this package: {exc}"
+                ) from exc
+            self._workflow = workflow
+            if self._cancel_requested:
+                # A cancellation that arrived between `begin` and `run` is honoured
+                # rather than merely recorded: the workflow is stopped before its
+                # first node, and the run reports `cancelled` with an audit.
+                workflow.cancel()
+            deadline = effective_deadline_seconds(self.package, self._limits)
+            watchdog = asyncio.create_task(self._watchdog(deadline, workflow))
+            task = asyncio.create_task(self._execute(workflow))
+            try:
+                await task
+            except asyncio.CancelledError:
+                if not (self._cancel_requested or self._timed_out):
+                    # The parent cancelled this request itself: stop the workflow,
+                    # drain it, and let the peer answer `cancelled`.
+                    task.cancel()
+                    with contextlib.suppress(BaseException):
+                        await task
+                    raise
+            finally:
+                watchdog.cancel()
+                with contextlib.suppress(asyncio.CancelledError, Exception):
+                    await watchdog
+                await tracker.close()
         finally:
-            watchdog.cancel()
-            with contextlib.suppress(asyncio.CancelledError, Exception):
-                await watchdog
-            await tracker.close()
             self._finished = True
         return self._finish(started, datetime.now(UTC), tracker)
 
