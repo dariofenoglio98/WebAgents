@@ -836,14 +836,10 @@
           "from": "result",
           "path": ""
         }
-      },
-      "unique_by": [
-        "/doi",
-        "/arxiv_id"
-      ]
+      }
     },
     {
-      "id": "identify",
+      "id": "identity-rows",
       "type": "map",
       "worker": "SearchWorker",
       "depends_on": [
@@ -853,6 +849,129 @@
         "from": "state",
         "path": "/raw_candidates"
       },
+      "item_schema": "schemas/raw-paper.schema.json",
+      "max_items": 32,
+      "max_parallel": 3,
+      "steps": [
+        {
+          "id": "row",
+          "type": "validate",
+          "input": {
+            "object": {
+              "doi": {
+                "coalesce": [
+                  {
+                    "from": "item",
+                    "path": "/doi"
+                  },
+                  {
+                    "literal": ""
+                  }
+                ]
+              },
+              "arxiv": {
+                "coalesce": [
+                  {
+                    "from": "item",
+                    "path": "/arxiv_id"
+                  },
+                  {
+                    "literal": ""
+                  }
+                ]
+              },
+              "url": {
+                "coalesce": [
+                  {
+                    "from": "item",
+                    "path": "/url"
+                  },
+                  {
+                    "literal": ""
+                  }
+                ]
+              },
+              "title": {
+                "from": "item",
+                "path": "/title"
+              },
+              "paper": {
+                "from": "item",
+                "path": ""
+              }
+            }
+          },
+          "output_schema": "schemas/identity-row.schema.json",
+          "timeout_seconds": 10
+        }
+      ],
+      "yield": {
+        "from": "steps",
+        "path": "/row"
+      },
+      "output_schema": "schemas/identity-rows.schema.json",
+      "timeout_seconds": 60,
+      "writes": {
+        "/identity_rows": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "id": "dedup-candidates",
+      "type": "compute",
+      "worker": "LiteratureReviewCoordinator",
+      "depends_on": [
+        "identity-rows"
+      ],
+      "module": "bookkeeping",
+      "function": "assign_ids",
+      "input": {
+        "object": {
+          "records": {
+            "from": "state",
+            "path": "/identity_rows"
+          }
+        }
+      },
+      "input_schema": "schemas/dedup-input.schema.json",
+      "output_schema": "schemas/dedup-output.schema.json",
+      "timeout_seconds": 30,
+      "when": {
+        "left": {
+          "from": "state",
+          "path": "/identity_rows"
+        },
+        "op": "ne",
+        "right": {
+          "literal": []
+        }
+      },
+      "otherwise": {
+        "literal": {
+          "records": [],
+          "duplicates": []
+        }
+      },
+      "writes": {
+        "/unique_candidates": {
+          "from": "result",
+          "path": "/records"
+        }
+      }
+    },
+    {
+      "id": "identify",
+      "type": "map",
+      "worker": "SearchWorker",
+      "depends_on": [
+        "dedup-candidates"
+      ],
+      "input": {
+        "from": "state",
+        "path": "/unique_candidates"
+      },
       "output_schema": "schemas/identified.schema.json",
       "timeout_seconds": 60,
       "writes": {
@@ -861,7 +980,7 @@
           "path": ""
         }
       },
-      "item_schema": "schemas/raw-paper.schema.json",
+      "item_schema": "schemas/unique-candidate.schema.json",
       "max_items": 32,
       "max_parallel": 3,
       "steps": [
@@ -874,61 +993,61 @@
                 "coalesce": [
                   {
                     "from": "item",
-                    "path": "/doi"
+                    "path": "/paper/doi"
                   },
                   {
                     "from": "item",
-                    "path": "/arxiv_id"
+                    "path": "/paper/arxiv_id"
                   },
                   {
                     "from": "item",
-                    "path": "/url"
+                    "path": "/paper/url"
                   },
                   {
                     "from": "item",
-                    "path": "/title"
+                    "path": "/paper/title"
                   }
                 ]
               },
               "title": {
                 "from": "item",
-                "path": "/title"
+                "path": "/paper/title"
               },
               "doi": {
                 "from": "item",
-                "path": "/doi"
+                "path": "/paper/doi"
               },
               "arxiv_id": {
                 "from": "item",
-                "path": "/arxiv_id"
+                "path": "/paper/arxiv_id"
               },
               "authors": {
                 "from": "item",
-                "path": "/authors"
+                "path": "/paper/authors"
               },
               "year": {
                 "from": "item",
-                "path": "/year"
+                "path": "/paper/year"
               },
               "venue": {
                 "from": "item",
-                "path": "/venue"
+                "path": "/paper/venue"
               },
               "abstract": {
                 "from": "item",
-                "path": "/abstract"
+                "path": "/paper/abstract"
               },
               "url": {
                 "from": "item",
-                "path": "/url"
+                "path": "/paper/url"
               },
               "source": {
                 "from": "item",
-                "path": "/source"
+                "path": "/paper/source"
               },
               "provenance": {
                 "from": "item",
-                "path": "/provenance"
+                "path": "/paper/provenance"
               },
               "full_text_available": {
                 "literal": false
@@ -985,9 +1104,6 @@
         "path": "/identified"
       },
       "select": "/paper",
-      "unique_by": [
-        "/paper_id"
-      ],
       "limit": 20,
       "output_schema": "schemas/papers.schema.json",
       "timeout_seconds": 10,
@@ -996,7 +1112,10 @@
           "from": "result",
           "path": ""
         }
-      }
+      },
+      "unique_by": [
+        "/paper_id"
+      ]
     },
     {
       "id": "join-found-refs",
@@ -1010,9 +1129,6 @@
         "path": "/identified"
       },
       "select": "/ref",
-      "unique_by": [
-        "/paper_id"
-      ],
       "limit": 20,
       "output_schema": "schemas/candidate-refs.schema.json",
       "timeout_seconds": 10,
@@ -1021,7 +1137,10 @@
           "from": "result",
           "path": ""
         }
-      }
+      },
+      "unique_by": [
+        "/paper_id"
+      ]
     },
     {
       "id": "normalize-gate",
@@ -2921,8 +3040,249 @@
       "writes": {}
     },
     {
+      "id": "quote-parts",
+      "type": "map",
+      "worker": "VerificationWorker",
       "depends_on": [
-        "check-evidence"
+        "join-evidence"
+      ],
+      "input": {
+        "from": "state",
+        "path": "/evidence_items"
+      },
+      "item_schema": "schemas/evidence.schema.json",
+      "max_items": 64,
+      "max_parallel": 1,
+      "steps": [
+        {
+          "id": "abstract-quote",
+          "type": "validate",
+          "input": {
+            "from": "item",
+            "path": "/quote"
+          },
+          "when": {
+            "left": {
+              "from": "item",
+              "path": "/scope"
+            },
+            "op": "eq",
+            "right": {
+              "literal": "abstract"
+            }
+          },
+          "otherwise": {
+            "literal": ""
+          },
+          "output_schema": "schemas/abstract-quote.schema.json",
+          "timeout_seconds": 10
+        },
+        {
+          "id": "row",
+          "type": "validate",
+          "input": {
+            "array": [
+              {
+                "object": {
+                  "id": {
+                    "from": "item",
+                    "path": "/evidence_id"
+                  },
+                  "text": {
+                    "from": "steps",
+                    "path": "/abstract-quote"
+                  }
+                }
+              }
+            ]
+          },
+          "when": {
+            "left": {
+              "from": "steps",
+              "path": "/abstract-quote"
+            },
+            "op": "ne",
+            "right": {
+              "literal": ""
+            }
+          },
+          "otherwise": {
+            "literal": []
+          },
+          "output_schema": "schemas/quote-part.schema.json",
+          "timeout_seconds": 10
+        }
+      ],
+      "yield": {
+        "from": "steps",
+        "path": "/row"
+      },
+      "output_schema": "schemas/quote-parts.schema.json",
+      "timeout_seconds": 60,
+      "writes": {
+        "/quote_parts": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "id": "join-quotes",
+      "type": "join",
+      "worker": "LiteratureReviewCoordinator",
+      "depends_on": [
+        "quote-parts"
+      ],
+      "input": {
+        "from": "state",
+        "path": "/quote_parts"
+      },
+      "output_schema": "schemas/quote-rows.schema.json",
+      "timeout_seconds": 10,
+      "writes": {
+        "/quote_rows": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "id": "source-rows",
+      "type": "map",
+      "worker": "EvidenceWorker",
+      "depends_on": [
+        "join-evidence"
+      ],
+      "input": {
+        "from": "state",
+        "path": "/evidence_jobs"
+      },
+      "item_schema": "schemas/evidence-job.schema.json",
+      "max_items": 20,
+      "max_parallel": 3,
+      "steps": [
+        {
+          "id": "source",
+          "type": "validate",
+          "input": {
+            "object": {
+              "id": {
+                "from": "item",
+                "path": "/handle"
+              },
+              "text": {
+                "coalesce": [
+                  {
+                    "from": "item",
+                    "path": "/record/metadata/abstract"
+                  },
+                  {
+                    "from": "item",
+                    "path": "/paper/abstract"
+                  },
+                  {
+                    "literal": ""
+                  }
+                ]
+              }
+            }
+          },
+          "output_schema": "schemas/source-row.schema.json",
+          "timeout_seconds": 10
+        }
+      ],
+      "yield": {
+        "from": "steps",
+        "path": "/source"
+      },
+      "output_schema": "schemas/source-rows.schema.json",
+      "timeout_seconds": 60,
+      "writes": {
+        "/source_rows": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "id": "match-quotes",
+      "type": "compute",
+      "worker": "LiteratureReviewCoordinator",
+      "depends_on": [
+        "join-quotes",
+        "source-rows"
+      ],
+      "module": "bookkeeping",
+      "function": "match_quotes",
+      "input": {
+        "object": {
+          "quotes": {
+            "from": "state",
+            "path": "/quote_rows"
+          },
+          "sources": {
+            "from": "state",
+            "path": "/source_rows"
+          }
+        }
+      },
+      "input_schema": "schemas/match-input.schema.json",
+      "output_schema": "schemas/quote-check.schema.json",
+      "timeout_seconds": 30,
+      "when": {
+        "left": {
+          "from": "state",
+          "path": "/quote_rows"
+        },
+        "op": "ne",
+        "right": {
+          "literal": []
+        }
+      },
+      "otherwise": {
+        "literal": {
+          "matches": [],
+          "unmatched": []
+        }
+      },
+      "writes": {
+        "/quote_check": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "id": "check-quotes",
+      "type": "validate",
+      "worker": "LiteratureReviewCoordinator",
+      "depends_on": [
+        "match-quotes"
+      ],
+      "input": {
+        "from": "state",
+        "path": "/quote_check"
+      },
+      "assertions": [
+        {
+          "kind": "equal",
+          "left": {
+            "from": "state",
+            "path": "/quote_check/unmatched"
+          },
+          "right": {
+            "literal": []
+          }
+        }
+      ],
+      "output_schema": "schemas/quote-check.schema.json",
+      "timeout_seconds": 10,
+      "writes": {}
+    },
+    {
+      "depends_on": [
+        "check-evidence",
+        "check-quotes"
       ],
       "id": "synthesis",
       "input": {
@@ -4122,7 +4482,12 @@
         "review_links",
         "memory_proposals",
         "notes_written",
-        "research_question"
+        "research_question",
+        "identity_rows",
+        "quote_parts",
+        "quote_rows",
+        "source_rows",
+        "quote_check"
       ],
       "state_write": [
         "all_batches",
@@ -4140,7 +4505,10 @@
         "selection_slots",
         "remember_gate",
         "review_links",
-        "memory_proposals"
+        "memory_proposals",
+        "unique_candidates",
+        "quote_rows",
+        "quote_check"
       ],
       "tools": []
     },
@@ -4185,11 +4553,13 @@
       ],
       "state_read": [
         "raw_candidates",
-        "search_queries"
+        "search_queries",
+        "unique_candidates"
       ],
       "state_write": [
         "identified",
-        "search_batches"
+        "search_batches",
+        "identity_rows"
       ],
       "tools": [
         "scholarly-search"
@@ -4274,7 +4644,8 @@
         "research_question"
       ],
       "state_write": [
-        "evidence_batches"
+        "evidence_batches",
+        "source_rows"
       ],
       "tools": [
         "paper-reader"
@@ -4353,7 +4724,8 @@
         "evidence_table",
         "materialized_claims",
         "review",
-        "verification_results"
+        "verification_results",
+        "quote_parts"
       ],
       "tools": []
     },
@@ -4407,6 +4779,13 @@
       "state_write": [
         "remember"
       ]
+    }
+  ],
+  "modules": [
+    {
+      "id": "bookkeeping",
+      "path": "modules/bookkeeping.wasm",
+      "sha256": "5b9db688c2cf9c60c818ac7eaf748d98ee60b8ecc564d76c37199da68e13735e"
     }
   ]
 }

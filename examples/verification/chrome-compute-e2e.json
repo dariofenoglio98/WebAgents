@@ -1,0 +1,376 @@
+{
+  "profile": "chrome-compute-e2e-v0",
+  "recordedAt": "2026-10-17T22:33:51.471Z",
+  "chrome": "Chrome/155.0.8059.82",
+  "model": "ollama/qwen3.8:27b",
+  "outputDirectory": "examples/my-chrome-compute-2026-10-17T22-33-51-471Z",
+  "csp": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'; connect-src https: http://127.0.0.1:* http://localhost:*",
+  "packages": {
+    "computeTest": {
+      "digest": "2c2e8accb2ec58441335eb6ad82f2371f16bc7595411cfe5e8f6f07568045106",
+      "archiveSha256": "364e5a565b21da6a337c5b15a17f35e19892a5c5235a4399d3c7ab8f6d37f72b",
+      "bytes": 135153,
+      "signer": "sha256:02c11ef831e0c11bd6a87e7a74e7acb9678dbd5b288561a31b86f5600228ed91"
+    },
+    "runaway": {
+      "digest": "09f1debd911e9431fc45e0ff09ca6a85bcd157b543e4a22b6f0111f1f2a5659c",
+      "archiveSha256": "a55e61cedf87fdb32c0687c071e82b47ead351f67884cc6aab9438777315d547",
+      "bytes": 6792,
+      "signer": "sha256:f1bda0a85338bc4d3b9bbe71e7ea756afab0d4bd58142a74e3b4659c1120b03c"
+    },
+    "long": {
+      "digest": "81c8810425770ce7a77e02cddb15288de67ca97e79144a38c7db5fb2c71647c2",
+      "archiveSha256": "b4b91bfc4d6a72a7275b8f0a44190819b5a6629c4d6f919bebb93c25294ac2d2",
+      "bytes": 6737,
+      "signer": "sha256:1612451751e01f386d2b3e142d270742fd5f1f62127d9094faaf5cc6f36993c0"
+    }
+  },
+  "computeWorker": {
+    "ok": true,
+    "output": "{\"currency\":\"USD\",\"lines\":[{\"label\":\"WA101 Economy Standard\",\"amount_cents\":42900,\"quantity\":2,\"total_cents\":85800}],\"subtotal_cents\":85800,\"tax_cents\":7293,\"total_cents\":93093}",
+    "memory_pages": 1
+  },
+  "runs": {
+    "compute-test": {
+      "runId": "run_c7184eb50d8a476aa5cdb0364712837b",
+      "status": "completed",
+      "errorCode": null,
+      "settledMs": 506,
+      "chainValid": true,
+      "compute": [
+        {
+          "action": "compute.called",
+          "node_id": "ids",
+          "module": "bookkeeping",
+          "function": "assign_ids",
+          "reason": null,
+          "engine": null,
+          "memory_pages": null
+        },
+        {
+          "action": "compute.called",
+          "node_id": "totals",
+          "module": "fares",
+          "function": "run",
+          "reason": null,
+          "engine": null,
+          "memory_pages": null
+        },
+        {
+          "action": "compute.called",
+          "node_id": "quotes",
+          "module": "bookkeeping",
+          "function": "match_quotes",
+          "reason": null,
+          "engine": null,
+          "memory_pages": null
+        },
+        {
+          "action": "compute.completed",
+          "node_id": "totals",
+          "module": "fares",
+          "function": "run",
+          "reason": null,
+          "engine": {
+            "id": "chrome/155.0.0.0",
+            "elapsed_ms": 0,
+            "fuel_consumed": null
+          },
+          "memory_pages": 1
+        },
+        {
+          "action": "compute.called",
+          "node_id": "groups/total",
+          "module": "fares",
+          "function": "run",
+          "reason": null,
+          "engine": null,
+          "memory_pages": null
+        },
+        {
+          "action": "compute.completed",
+          "node_id": "ids",
+          "module": "bookkeeping",
+          "function": "assign_ids",
+          "reason": null,
+          "engine": {
+            "id": "chrome/155.0.0.0",
+            "elapsed_ms": 2,
+            "fuel_consumed": null
+          },
+          "memory_pages": 18
+        },
+        {
+          "action": "compute.called",
+          "node_id": "groups/total",
+          "module": "fares",
+          "function": "run",
+          "reason": null,
+          "engine": null,
+          "memory_pages": null
+        },
+        {
+          "action": "compute.completed",
+          "node_id": "quotes",
+          "module": "bookkeeping",
+          "function": "match_quotes",
+          "reason": null,
+          "engine": {
+            "id": "chrome/155.0.0.0",
+            "elapsed_ms": 0,
+            "fuel_consumed": null
+          },
+          "memory_pages": 18
+        },
+        {
+          "action": "compute.completed",
+          "node_id": "groups/total",
+          "module": "fares",
+          "function": "run",
+          "reason": null,
+          "engine": {
+            "id": "chrome/155.0.0.0",
+            "elapsed_ms": 0,
+            "fuel_consumed": null
+          },
+          "memory_pages": 1
+        },
+        {
+          "action": "compute.completed",
+          "node_id": "groups/total",
+          "module": "fares",
+          "function": "run",
+          "reason": null,
+          "engine": {
+            "id": "chrome/155.0.0.0",
+            "elapsed_ms": 0,
+            "fuel_consumed": null
+          },
+          "memory_pages": 1
+        }
+      ],
+      "modelRequests": 0,
+      "warnings": [
+        "publisher_unknown",
+        "runs_code_that_can_only_compute",
+        "no_evals_declared",
+        "no_attestations_declared"
+      ]
+    },
+    "runaway": {
+      "runId": "run_11c490d8a51049de85c2ffc2cbe90550",
+      "status": "failed",
+      "errorCode": "compute_error",
+      "settledMs": 758,
+      "chainValid": true,
+      "compute": [
+        {
+          "action": "compute.called",
+          "node_id": "compute",
+          "module": "echo",
+          "function": "run",
+          "reason": null,
+          "engine": null,
+          "memory_pages": null
+        },
+        {
+          "action": "compute.failed",
+          "node_id": "compute",
+          "module": "echo",
+          "function": "run",
+          "reason": "deadline",
+          "engine": {
+            "id": "chrome/155.0.0.0",
+            "elapsed_ms": 505,
+            "fuel_consumed": null
+          },
+          "memory_pages": null
+        }
+      ],
+      "modelRequests": 0,
+      "warnings": [
+        "publisher_unknown",
+        "runs_code_that_can_only_compute",
+        "no_evals_declared",
+        "no_attestations_declared"
+      ]
+    },
+    "cancelled": {
+      "runId": "run_27637edfd08e43c3b1c8dd018869fc8f",
+      "status": "cancelled",
+      "errorCode": "cancelled",
+      "settledMs": 1264,
+      "chainValid": true,
+      "compute": [
+        {
+          "action": "compute.called",
+          "node_id": "compute",
+          "module": "echo",
+          "function": "run",
+          "reason": null,
+          "engine": null,
+          "memory_pages": null
+        },
+        {
+          "action": "compute.failed",
+          "node_id": "compute",
+          "module": "echo",
+          "function": "run",
+          "reason": null,
+          "engine": null,
+          "memory_pages": null
+        }
+      ],
+      "modelRequests": 0,
+      "warnings": [
+        "publisher_mismatch",
+        "runs_code_that_can_only_compute",
+        "no_evals_declared",
+        "no_attestations_declared"
+      ]
+    },
+    "compute-test-again": {
+      "runId": "run_d3492fdae46c4902894ea06a993649a3",
+      "status": "completed",
+      "errorCode": null,
+      "settledMs": 515,
+      "chainValid": true,
+      "compute": [
+        {
+          "action": "compute.called",
+          "node_id": "ids",
+          "module": "bookkeeping",
+          "function": "assign_ids",
+          "reason": null,
+          "engine": null,
+          "memory_pages": null
+        },
+        {
+          "action": "compute.called",
+          "node_id": "totals",
+          "module": "fares",
+          "function": "run",
+          "reason": null,
+          "engine": null,
+          "memory_pages": null
+        },
+        {
+          "action": "compute.called",
+          "node_id": "quotes",
+          "module": "bookkeeping",
+          "function": "match_quotes",
+          "reason": null,
+          "engine": null,
+          "memory_pages": null
+        },
+        {
+          "action": "compute.completed",
+          "node_id": "totals",
+          "module": "fares",
+          "function": "run",
+          "reason": null,
+          "engine": {
+            "id": "chrome/155.0.0.0",
+            "elapsed_ms": 0,
+            "fuel_consumed": null
+          },
+          "memory_pages": 1
+        },
+        {
+          "action": "compute.called",
+          "node_id": "groups/total",
+          "module": "fares",
+          "function": "run",
+          "reason": null,
+          "engine": null,
+          "memory_pages": null
+        },
+        {
+          "action": "compute.completed",
+          "node_id": "quotes",
+          "module": "bookkeeping",
+          "function": "match_quotes",
+          "reason": null,
+          "engine": {
+            "id": "chrome/155.0.0.0",
+            "elapsed_ms": 1,
+            "fuel_consumed": null
+          },
+          "memory_pages": 18
+        },
+        {
+          "action": "compute.completed",
+          "node_id": "ids",
+          "module": "bookkeeping",
+          "function": "assign_ids",
+          "reason": null,
+          "engine": {
+            "id": "chrome/155.0.0.0",
+            "elapsed_ms": 2,
+            "fuel_consumed": null
+          },
+          "memory_pages": 18
+        },
+        {
+          "action": "compute.called",
+          "node_id": "groups/total",
+          "module": "fares",
+          "function": "run",
+          "reason": null,
+          "engine": null,
+          "memory_pages": null
+        },
+        {
+          "action": "compute.completed",
+          "node_id": "groups/total",
+          "module": "fares",
+          "function": "run",
+          "reason": null,
+          "engine": {
+            "id": "chrome/155.0.0.0",
+            "elapsed_ms": 0,
+            "fuel_consumed": null
+          },
+          "memory_pages": 1
+        },
+        {
+          "action": "compute.completed",
+          "node_id": "groups/total",
+          "module": "fares",
+          "function": "run",
+          "reason": null,
+          "engine": {
+            "id": "chrome/155.0.0.0",
+            "elapsed_ms": 1,
+            "fuel_consumed": null
+          },
+          "memory_pages": 1
+        }
+      ],
+      "modelRequests": 0,
+      "warnings": [
+        "runs_code_that_can_only_compute",
+        "no_evals_declared",
+        "no_attestations_declared"
+      ]
+    }
+  },
+  "checks": {
+    "Ollama answers and offers a model the plan can bind (never called)": "ok",
+    "a module compiles under the extension's CSP and a compute Worker runs it": "ok",
+    "compute-test completes in Chrome": "ok",
+    "five calls, each completed by Chrome's engine in a nested Worker": "ok",
+    "the calls name their nodes: two workers, the coordinator and the map step": "ok",
+    "Chrome's output equals the Python reference's": "ok",
+    "usage counts the calls": "ok",
+    "no model request was made": "ok",
+    "the audit chain is valid": "ok",
+    "the agent page states the code that can only compute": "ok",
+    "the runaway call ends compute_error / deadline, recorded by the run Worker": "ok",
+    "the deadline fired near its 0.5 s bound, not at the run's timeout": "ok",
+    "a cancel stops the running call at once": "ok",
+    "a later run completes: no Worker was left behind": "ok"
+  },
+  "failures": [],
+  "passed": true
+}

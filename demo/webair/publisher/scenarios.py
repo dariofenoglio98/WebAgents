@@ -542,13 +542,16 @@ NOTHING_TO_REMEMBER = {"proposals": []}
 
 
 def source_scenario(scenario: Scenario, remember: list[dict] | None = None) -> Scenario:
-    """`scenario` with 0.6.0's permission ids, `memory.remember` granted for the session, and
-    the `remember` step's scripted answers (nothing to remember unless given)."""
+    """`scenario` with the source's permission ids (0.6.0's memory, 0.7.0's compute),
+    `memory.remember` and `compute.fares` granted for the session, and the `remember` step's
+    scripted answers (nothing to remember unless given)."""
     from dataclasses import replace
 
     decisions = {SOURCE_RENAMES.get(k, k): v for k, v in scenario.decisions.items()}
     if decisions:
         decisions["memory.remember"] = "session"
+        # 0.7.0 (T22): the fare-totals module's permission is required; every run uses it.
+        decisions["compute.fares"] = "session"
     selections = {SOURCE_RENAMES.get(k, k): v for k, v in scenario.selections.items()}
     models = {**scenario.models, "remember": remember or [NOTHING_TO_REMEMBER]}
     return replace(scenario, decisions=decisions, selections=selections, models=models)

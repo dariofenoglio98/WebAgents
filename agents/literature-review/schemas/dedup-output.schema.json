@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "records": {
+      "type": "array",
+      "maxItems": 512,
+      "items": {
+        "$ref": "unique-candidate.schema.json"
+      }
+    },
+    "duplicates": {
+      "type": "array",
+      "maxItems": 512,
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^P[1-9][0-9]{0,3}$"
+          },
+          "key": {
+            "type": "string",
+            "pattern": "^(doi|arxiv|url|title):.+$",
+            "maxLength": 2100
+          },
+          "record": {
+            "$ref": "identity-row.schema.json"
+          }
+        },
+        "required": [
+          "id",
+          "key",
+          "record"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "records",
+    "duplicates"
+  ],
+  "additionalProperties": false
+}

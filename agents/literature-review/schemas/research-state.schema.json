@@ -477,6 +477,24 @@
     },
     "memory_proposals": {
       "$ref": "review-proposals.schema.json"
+    },
+    "identity_rows": {
+      "$ref": "identity-rows.schema.json"
+    },
+    "unique_candidates": {
+      "$ref": "unique-candidates.schema.json"
+    },
+    "quote_parts": {
+      "$ref": "quote-parts.schema.json"
+    },
+    "quote_rows": {
+      "$ref": "quote-rows.schema.json"
+    },
+    "source_rows": {
+      "$ref": "source-rows.schema.json"
+    },
+    "quote_check": {
+      "$ref": "quote-check.schema.json"
     }
   },
   "required": [

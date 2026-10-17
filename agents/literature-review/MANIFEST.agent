@@ -2,16 +2,16 @@
   "spec_version": "0.1",
   "package_id": "org.webagents.literature-review",
   "name": "Literature Review Agent",
-  "version": "0.2.8",
-  "description": "A constrained coordinator-worker review with structured evidence and verified citations; with the person's leave it reads their research profile, keeps its own notes and proposes to remember the review. Bundled demo data are synthetic.",
+  "version": "0.2.9",
+  "description": "A constrained coordinator-worker review with structured evidence and verified citations; with the person's leave it reads their research profile, keeps its own notes and proposes to remember the review; its candidate deduplication runs as a WebAssembly module that can only compute. Bundled demo data are synthetic.",
   "publisher": {
     "id": "webagents-research",
     "name": "WebAgents Research Prototype"
   },
-  "created_at": "2026-10-14T00:00:00Z",
+  "created_at": "2026-10-17T00:00:00Z",
   "runtime": {
     "api": "agentpkg-runtime-v0",
-    "minimum_version": "0.4.0"
+    "minimum_version": "0.5.0"
   },
   "capabilities": [
     "literature-review",
@@ -394,6 +394,66 @@
     {
       "id": "review-proposals",
       "path": "schemas/review-proposals.schema.json"
+    },
+    {
+      "id": "identity-row",
+      "path": "schemas/identity-row.schema.json"
+    },
+    {
+      "id": "identity-rows",
+      "path": "schemas/identity-rows.schema.json"
+    },
+    {
+      "id": "dedup-input",
+      "path": "schemas/dedup-input.schema.json"
+    },
+    {
+      "id": "dedup-output",
+      "path": "schemas/dedup-output.schema.json"
+    },
+    {
+      "id": "unique-candidate",
+      "path": "schemas/unique-candidate.schema.json"
+    },
+    {
+      "id": "unique-candidates",
+      "path": "schemas/unique-candidates.schema.json"
+    },
+    {
+      "id": "quote-row",
+      "path": "schemas/quote-row.schema.json"
+    },
+    {
+      "id": "quote-part",
+      "path": "schemas/quote-part.schema.json"
+    },
+    {
+      "id": "quote-parts",
+      "path": "schemas/quote-parts.schema.json"
+    },
+    {
+      "id": "quote-rows",
+      "path": "schemas/quote-rows.schema.json"
+    },
+    {
+      "id": "source-row",
+      "path": "schemas/source-row.schema.json"
+    },
+    {
+      "id": "source-rows",
+      "path": "schemas/source-rows.schema.json"
+    },
+    {
+      "id": "abstract-quote",
+      "path": "schemas/abstract-quote.schema.json"
+    },
+    {
+      "id": "match-input",
+      "path": "schemas/match-input.schema.json"
+    },
+    {
+      "id": "quote-check",
+      "path": "schemas/quote-check.schema.json"
     }
   ],
   "model_requirements": {

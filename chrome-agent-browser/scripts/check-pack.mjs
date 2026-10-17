@@ -103,7 +103,10 @@ for (const name of names.filter((member) => member.endsWith(".js") || member.end
   if (evaluated) problems.push(`${name} evaluates code from text: ${evaluated[0].trim()}`);
 }
 const csp = String(manifest.content_security_policy?.extension_pages ?? "");
-if (!/script-src 'self'/u.test(csp) || /unsafe-eval|unsafe-inline/u.test(csp)) problems.push(`the extension pages' CSP must allow the extension's own scripts only, found ${JSON.stringify(csp)}`);
+// compute.v0 (T22, D-253): `'wasm-unsafe-eval'` lets a run compile a package's WebAssembly modules
+// and nothing else (it never permits `eval` or `new Function`); every other form of evaluation stays refused.
+const scriptSrc = /script-src ([^;]*)/u.exec(csp)?.[1].trim().split(/\s+/u) ?? [];
+if (scriptSrc[0] !== "'self'" || scriptSrc.some((token) => !["'self'", "'wasm-unsafe-eval'"].includes(token)) || /(?<!wasm-)unsafe-eval|unsafe-inline/u.test(csp)) problems.push(`the extension pages' CSP must allow the extension's own scripts and WebAssembly compilation only, found ${JSON.stringify(csp)}`);
 
 const sha256 = (data) => createHash("sha256").update(data).digest("hex");
 const listing = readFileSync(zipPath.replace(/\.zip$/u, ".contents.txt"), "utf8").trim().split("\n").map((line) => line.split(/\s+/u));

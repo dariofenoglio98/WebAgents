@@ -111,3 +111,12 @@ a module's bound. During the run, every call is `compute.called` and `compute.co
 out; in fixture mode the module runs for real. The enforcement cases both runtimes must refuse
 identically are listed in [`examples/compute/cases/cases.json`](../examples/compute/cases/cases.json)
 and demonstrated by `scripts/verify_compute.py`.
+
+**In Chrome** (the Agent Browser's core 0.3.0, T22) a module runs in V8, one fresh Worker per call.
+V8 meters no instructions, so the call's wall bound is its CPU bound: a module that would exhaust
+its fuel under the reference reaches its deadline in Chrome instead (`compute_error`, reason
+`deadline`), and `engine.fuel_consumed` is null. Design a module so its honest work finishes far
+inside the wall bound on a slow machine. A browser run is always model-backed, so a package that
+runs only modules still declares a model permission (optional, and never used) for Chrome to
+prepare a run plan. Shipped examples: Literature Review 0.2.9 (deduplication and a quote check,
+Rust) and WebAir 0.7.0 (fare totals, AssemblyScript).

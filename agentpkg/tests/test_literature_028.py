@@ -5,6 +5,9 @@ person chose (`memory.read` of `research.profile`) into the planning step; `keep
 agent's own notes before planning and stages new ones at the end (`memory` with scope
 `agent-scoped`); `reviewed_on`, the person's date, makes the run propose one `research.review`
 (`memory.write`) derived from the profile. Off, the run is 0.2.7's and proposes nothing.
+
+Since T22 the source tree is 0.2.9, which keeps this memory behaviour unchanged: the tests that
+build from `SOURCE` check it on 0.2.9, the others on the signed 0.2.8 artifact.
 """
 
 from __future__ import annotations
@@ -21,11 +24,12 @@ from agentpkg.cli import main
 from agentpkg.fixtures import fixture_adapters
 from agentpkg.memory.host import cli_memory
 from agentpkg.memory.model import agent_document_id
-from agentpkg.package import build_package, load_package
+from agentpkg.package import load_package
 from agentpkg.workflow import WorkflowError, run_workflow
 
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "agents/literature-review"
+ARCHIVE = ROOT / "dist/literature-review-0.2.8.agent.pkg"
 PREVIOUS = ROOT / "dist/literature-review-0.2.7.agent.pkg"
 MEMORY_INPUT = ROOT / "examples/literature-review-0.2.8-memory-input.json"
 EXAMPLE_MEMORY = ROOT / "spec/memory-v0/examples/literature-review-0.2.8/memory"
@@ -45,8 +49,9 @@ NEW_NODES = {
 
 
 @pytest.fixture(scope="module")
-def review(tmp_path_factory):
-    return load_package(build_package(SOURCE, tmp_path_factory.mktemp("lr") / "review.agent.pkg"))
+def review():
+    # The source is 0.2.9 since T22 (compute.v0); 0.2.8 is its signed artifact.
+    return load_package(ARCHIVE)
 
 
 @pytest.fixture(scope="module")

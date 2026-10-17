@@ -75,7 +75,14 @@ def test_each_profile_contains_the_previous_one(package):
 def test_search_reads_nothing_personal_and_changes_nothing(package):
     search = by_id(package.manifest)["search"]
     kinds = {p["id"]: p["kind"] for p in package.policy["permissions"]}
-    assert {kinds[pid] for pid in search["permissions"]} == {"network", "model", "memory"}
+    # 0.7.0: the fare-totals module's permission is required, so every profile carries it; a module
+    # imports nothing, so it reads nothing personal and changes nothing.
+    assert {kinds[pid] for pid in search["permissions"]} == {
+        "network",
+        "model",
+        "memory",
+        "compute",
+    }
     assert search["resources"] == []
     assert {package.tools[tid]["side_effects"] for tid in search["tools"]} == {"read"}
     assert not {package.tools[tid]["execution"] for tid in search["tools"]} - {"remote"}

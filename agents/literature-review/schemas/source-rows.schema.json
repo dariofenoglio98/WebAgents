@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "array",
+  "maxItems": 20,
+  "items": {
+    "$ref": "source-row.schema.json"
+  }
+}

@@ -1,7 +1,7 @@
 # compute.v0: WebAssembly modules as pure functions inside workflow.v0
 
 Status: experimental, normative for agentpkg **0.5.0** and the Chrome core **0.3.0** (D-185,
-D-240…D-244; the Chrome port is T22). The enclosing agent.pkg format stays 0.1 with one amendment
+D-240…D-244; the Chrome port is T22, D-250…D-253). The enclosing agent.pkg format stays 0.1 with one amendment
 (§3.1: a binary member class for modules), and `workflow.v0` stays the execution profile: this
 document adds one node type, one permission kind, one failure code and three audit events. Machine
 contracts live beside it in [`spec/compute-v0/`](compute-v0/): RFC 6902 patches for
@@ -237,8 +237,9 @@ the module decides what to do (the example modules abort).
 C-32. **Wall time.** When the bound passes, the engine interrupts the call (`deadline`): the
 reference by an epoch deadline advanced every 10 ms, Chrome by terminating the Worker. The node's
 own `timeout_seconds` and the workflow deadline still apply around the call and give `timeout`.
-An engine may stop a call whose node has timed out sooner than the wall bound, and the reference
-does: its engine deadline is the smaller of the wall bound and the node's `timeout_seconds` plus
+An engine may stop a call whose node has timed out sooner than the wall bound; Chrome does at
+once (the call's Worker is terminated when the node's deadline or a cancel reaches it, D-251), and
+the reference does: its engine deadline is the smaller of the wall bound and the node's `timeout_seconds` plus
 one second, so the node's timeout, not the engine, is what ends such a node, and the abandoned call
 does not run on to the wall bound. `compute.called` still records the effective limits of C-34.
 
@@ -314,12 +315,16 @@ fuel_consumed}` and `status: "ok"`. `engine.id` names the engine and its version
 C-46. `compute.failed`: the identity, `error` (the exception's name), `status: "error"`, the
 reason of C-41 with its facts, and, when the engine ran, `memory_pages`, `output_bytes` and
 `engine`. A failure before the engine (the permission, the input schema) carries the reason and
-nothing of the engine.
+nothing of the engine. A call stopped from outside (`deadline`, and `fuel_exhausted` on a metering
+engine) reports the memory size its engine could still read: none in Chrome, whose stopped Worker
+is gone (`memory_pages: null`, D-250).
 
 The run's `usage` gains `compute_calls` exactly when the graph declares modules, so every earlier
 package's usage is unchanged. When two runtimes' audits are compared (the conformance suite, D-063),
 `engine` and `limits.fuel` are dropped and `memory_pages` is compared: it is a property of the
-module's growth, which the format makes deterministic.
+module's growth, which the format makes deterministic; after `fuel_exhausted` or `deadline` it is
+the engine's and is not compared, and the two reasons compare as one (a bound was reached), since
+which one a runaway module meets depends on whether the engine meters fuel (D-244, D-250).
 
 ## 8. Determinism
 
@@ -418,7 +423,8 @@ directly, and the test suite regenerates them and asserts the committed bytes.
 
 **Versions.** agentpkg 0.5.0 implements this document; packages that use it declare
 `runtime.minimum_version: "0.5.0"`. The Chrome core implements it at 0.3.0 (T22), its
-`SUPPORTED_RUNTIME_VERSION` moving to 0.5.0. The agent.pkg format stays 0.1 with the amendment of
+`SUPPORTED_RUNTIME_VERSION` 0.5.0: a nested Worker per call, the wall bound as the CPU bound, the
+extension's CSP admitting WebAssembly compilation only (D-250, D-251, D-253). The agent.pkg format stays 0.1 with the amendment of
 §3.1. The 0.2.2 wheel of the paper line (`paper-cic2026`) is untouched.
 
 **Deliberate limits of v0.** No imports (tier 2, B-185: capability imports shown and approved like
