@@ -127,7 +127,7 @@ is merged; the run against T19's core at `c6edfd4`, before the two were merged, 
 (63 of 68; the five differences were D-230's fixture grants and N6's timing, now fixed in the
 Chrome core).
 
-**compute.v0** (41 cases, T22, [`spec/compute-v0.md`](../spec/compute-v0.md) §10, C-51): the test
+**compute.v0** (41 cases, T22; and 11 fixture-parity cases of the packages that ship modules: WebAir 0.7.0 on its fixture input and the eight search scenarios, Literature Review 0.2.9 with memory off and on; [`spec/compute-v0.md`](../spec/compute-v0.md) §10, C-51): the test
 package `org.webagents.compute-test` 0.1.0 (two example modules in one wave and in a map step, the
 modules run for real in fixture mode on both engines), the two control cases of the enforcement list
 (`echo`, `with-start`) and every negative case of

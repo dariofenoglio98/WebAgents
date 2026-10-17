@@ -1,6 +1,6 @@
 """Assemble the public WebAir origin's deployment bundle: an allowlist, never a directory.
 
-    python3 demo/webair/deploy/bundle.py --package dist/webair-0.6.0.agent.pkg --out <new dir>
+    python3 demo/webair/deploy/bundle.py --package dist/webair-0.7.0.agent.pkg --out <new dir>
 
 The bundle holds exactly what the public origin runs:
 
@@ -13,9 +13,9 @@ The bundle holds exactly what the public origin runs:
     demo/agent-index.json                  the WebAgents demo documents served beside the
     demo/policies/webagents-research.json  airline (T8, `origin/demo_documents.py`): the signed
     demo/packages/literature-review-…      index, the signed example policy, and the signed
-                                           Literature Review packages (0.2.8, which the index
-                                           lists, and 0.2.7, 0.2.6 and 0.2.5, which indexes
-                                           1.2.0, 1.1.0 and 1.0.0 listed), verbatim
+                                           Literature Review packages (0.2.9, which the index
+                                           lists, and 0.2.8, 0.2.7, 0.2.6 and 0.2.5, which
+                                           indexes 1.3.0 to 1.0.0 listed), verbatim
     BUNDLE.json                            what is in it: every file's size and SHA-256
 
 Nothing else from the repository goes in. In particular the demo host's own configuration
@@ -49,6 +49,9 @@ DEMO_DOCUMENTS = {
     / "examples"
     / "policies"
     / "webagents-research.json",
+    "demo/packages/literature-review-0.2.9.agent.pkg": REPO
+    / "dist"
+    / "literature-review-0.2.9.agent.pkg",
     "demo/packages/literature-review-0.2.8.agent.pkg": REPO
     / "dist"
     / "literature-review-0.2.8.agent.pkg",

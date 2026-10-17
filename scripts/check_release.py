@@ -57,7 +57,27 @@ CURRENT_PACKAGES = {
         "fingerprint": "sha256:c5ca9763f9fc71253298ca381ec14c4d7432009c74dacc69df6344b71de05232",
         "tools": ["citation-resolver", "paper-reader", "scholarly-search"],
     },
-    # T20: the current Literature Review, 0.2.8 (memory.v0, runtime minimum 0.4.0); 0.2.7, which
+    # T22: the current Literature Review, 0.2.9 (compute.v0, runtime minimum 0.5.0: its candidate
+    # deduplication in the bookkeeping module); 0.2.8, which demo index 1.3.0 named, stays pinned.
+    "literature-review-0.2.9": {
+        "stem": "literature-review",
+        "alias": False,
+        "package_id": "org.webagents.literature-review",
+        "version": "0.2.9",
+        "digest": "87732ea9b587df4ffe84c779f3b553d25a95f64911b374134d30e293c573cdfc",
+        "archive_sha256": "00f33aea8504669080031b22c4a2903fb01812ba9f93f6deaf68fcde13891f3f",
+        "key": "examples/keys/literature-review-publisher.pub.pem",
+        "fingerprint": "sha256:c5ca9763f9fc71253298ca381ec14c4d7432009c74dacc69df6344b71de05232",
+        "tools": [
+            "agent-notes.read",
+            "agent-notes.write",
+            "citation-resolver",
+            "paper-reader",
+            "research.profile",
+            "scholarly-search",
+        ],
+    },
+    # T20: Literature Review 0.2.8 (memory.v0, runtime minimum 0.4.0); 0.2.7, which
     # demo index 1.2.0 named, stays pinned below.
     "literature-review-0.2.8": {
         "stem": "literature-review",
@@ -104,12 +124,33 @@ CURRENT_PACKAGES = {
     },
     # The fictional WebAir origin's packages (demo/webair), new in v0.2.0. The current one has no
     # unversioned alias: `webair.agent.pkg` stays 0.1.0, which the recorded evidence pins.
-    # 0.6.0 is the current one (0.5.0 with the person's memory, T20); 0.5.0 (0.4.0 plus the
+    # 0.7.0 is the current one (0.6.0 with its fare totals verified by the fares module, T22).
+    # 0.6.0 (0.5.0 with the person's memory, T20), which the public origin serves until 0.7.0 is
+    # deployed, stays pinned; 0.5.0 (0.4.0 plus the
     # departure-airport answer, T9), which the public deployment serves until 0.6.0 is deployed,
     # stays pinned. 0.4.0, which the
     # Chrome live acceptance, the conformance reports and the demo index describe, and 0.3.0,
     # which the recorded live and Table I evidence and the contract overhead benchmark
     # describe, stay pinned.
+    "webair-0.7.0": {
+        "stem": "webair",
+        "alias": False,
+        "package_id": "org.webagents.webair",
+        "version": "0.7.0",
+        "digest": "abab1e37fcf85b04d51b65ce60febc7fd823af77b56ec6d0634ed7287355409b",
+        "archive_sha256": "c0265a283d0b2edd5c919e1bb7cb3a95e6ccfc449d76590d62b1a47ff3fbd808",
+        "key": "examples/keys/webair-publisher.pub.pem",
+        "fingerprint": "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b",
+        "tools": [
+            "get-fare-rules",
+            "personal.passenger_identity",
+            "prepare-booking",
+            "search-flights",
+            "simulate-purchase",
+            "travel.profile",
+            "wallet.payment_method",
+        ],
+    },
     "webair-0.6.0": {
         "stem": "webair",
         "alias": False,
@@ -242,11 +283,16 @@ def check_packages() -> dict:
     report["package_origin_copy_identical"] = (
         origin.read_bytes() == (DIST / "literature-review.agent.pkg").read_bytes()
     )
-    # T20 (D-232): the package the demo index 1.3.0 names, served at its indexed path too; 0.2.7
-    # (index 1.2.0, T15, D-174) and 0.2.6 (index 1.1.0, T11, D-131) stay served.
-    current = ROOT / "package-origin/packages/literature-review-0.2.8.agent.pkg"
+    # T22: the package the demo index 1.4.0 names, served at its indexed path too; 0.2.8 (index
+    # 1.3.0, T20, D-232), 0.2.7 (index 1.2.0, T15, D-174) and 0.2.6 (index 1.1.0, T11, D-131) stay
+    # served.
+    current = ROOT / "package-origin/packages/literature-review-0.2.9.agent.pkg"
     report["package_origin_current_copy_identical"] = (
-        current.read_bytes() == (DIST / "literature-review-0.2.8.agent.pkg").read_bytes()
+        current.read_bytes() == (DIST / "literature-review-0.2.9.agent.pkg").read_bytes()
+    )
+    previous_028 = ROOT / "package-origin/packages/literature-review-0.2.8.agent.pkg"
+    report["package_origin_0_2_8_copy_identical"] = (
+        previous_028.read_bytes() == (DIST / "literature-review-0.2.8.agent.pkg").read_bytes()
     )
     previous_027 = ROOT / "package-origin/packages/literature-review-0.2.7.agent.pkg"
     report["package_origin_0_2_7_copy_identical"] = (

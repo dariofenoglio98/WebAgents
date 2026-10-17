@@ -107,7 +107,7 @@ it):
 ```sh
 python3 -m venv demo/webair/.venv
 demo/webair/.venv/bin/python -m pip install -r demo/webair/requirements-dev.txt
-cd demo/webair && .venv/bin/python -m origin --agent-package ../../dist/webair-0.6.0.agent.pkg
+cd demo/webair && .venv/bin/python -m origin --agent-package ../../dist/webair-0.7.0.agent.pkg
 ```
 
 Then open **<http://127.0.0.1:8040/>**; the signed package is at
@@ -151,14 +151,15 @@ The origin writes nothing to disk and keeps nothing in memory between requests.
 
 | | |
 |---|---|
-| Package | `org.webagents.webair` **0.6.0**, "WebAir Travel Agent" |
+| Package | `org.webagents.webair` **0.7.0**, "WebAir Travel Agent" |
 | Publisher | `webair-demo`, "WebAir (fictional demo airline)": a dedicated demo key, `sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b` ([public key](../../examples/keys/webair-publisher.pub.pem)) |
-| Artifact | `dist/webair-0.6.0.agent.pkg`, 182,761 bytes, archive SHA-256 `3055dd93a9f4e5f81f3ccddac77ccc9ce2c10b1e10dec35d9864fddf6fb58862` |
-| Package digest | `e1ef5ad07f5be9148d5d7b5d6f6e88e3ba9cfdb291d8d2ba2fb9bc0f06d6022f` |
-| Execution profile | `workflow.v0`, minimum runtime **0.4.0** (it declares `memory.read` and `memory.write`, memory.v0); 36 nodes, canonical operators only |
-| What changed from 0.5.0 | the travel profile is read from the person's memory (`memory.read` of `travel.profile`, permission `memory.travel_profile`, tool `travel.profile`, the record view), and after a quote or a purchase a `remember` model step (after `answer`) may propose one `travel.preference` (`memory.write`, permission `memory.remember`), written to `proposals.json` and reviewed by the person after the run; the profiles `quote` and `book` gain `memory.remember`; the fixture is unchanged (searches only, so its `proposals.json` is the empty document); the publisher's capability document stays on the signed 0.5.0, which the OpenClaw host runs (D-233) |
+| Artifact | `dist/webair-0.7.0.agent.pkg`, 199,210 bytes, archive SHA-256 `c0265a283d0b2edd5c919e1bb7cb3a95e6ccfc449d76590d62b1a47ff3fbd808` |
+| Package digest | `abab1e37fcf85b04d51b65ce60febc7fd823af77b56ec6d0634ed7287355409b` |
+| Execution profile | `workflow.v0`, minimum runtime **0.5.0** (it ships a WebAssembly module, compute.v0, and declares `memory.read` and `memory.write`, memory.v0); 38 nodes, canonical operators only |
+| What changed from 0.6.0 | WebAir's fare totals are checked on the person's device by the fares module (`modules/fares.wasm`, AssemblyScript, SHA-256 `ef7e813b…23c0`; permission `compute.fares`, in every profile): a `total` compute step in the fare-rules map and `quote-total-input`, `quote-total` before `check-quote` recompute price × passengers, and the checks refuse a total WebAir misstates (`tests/test_package_workflow.py`); the `remember` step has 10,000 output tokens, 600 s and a 40,000-token budget (B-220). Nothing a model sees changed; the fixture is 0.6.0's (T22, D-252) |
+| What 0.6.0 changed from 0.5.0 | the travel profile is read from the person's memory (`memory.read` of `travel.profile`, permission `memory.travel_profile`, tool `travel.profile`, the record view), and after a quote or a purchase a `remember` model step (after `answer`) may propose one `travel.preference` (`memory.write`, permission `memory.remember`), written to `proposals.json` and reviewed by the person after the run; the profiles `quote` and `book` gain `memory.remember`; the fixture is unchanged (searches only, so its `proposals.json` is the empty document); the publisher's capability document stays on the signed 0.5.0, which the OpenClaw host runs (D-233) |
 | What 0.5.0 changed from 0.4.0 | a request that names no departure airport, with no travel profile that supplies one, is answered ("say where you depart from") instead of failing the package's own search-request check: the `search-origin` node resolves the airport first and the search runs only when there is one (B-124); the request field's description is one sentence and its example *"Find me a flight from Boston to Zurich on 9 October under $900"* (F-11); the answer-writing skill (0.3.0), one fixture scenario (`no-departure`), the manifest and the package README. Tools, permissions, budgets, policy and profiles are unchanged (`agentpkg/tests/test_webair_package.py`). Under "Search flights" a model that asks for the travel profile still stops the run as `permission_denied`: the graph cannot see the person's grants |
-| Earlier | `dist/webair-0.5.0.agent.pkg` (the public origin's package since 2026-10-09 until 0.6.0 is deployed), archive `4b087557…101b`, digest `6192614e…bb48`; `dist/webair-0.4.0.agent.pkg` (0.3.0 plus the profiles; the public origin's package from 2026-10-06 to 2026-10-09), archive `c12f9db3…7f63`, digest `0e8317f1…4fbb`; `dist/webair-0.3.0.agent.pkg` (the live demo's version, the first to declare the public host), archive `b537cf5c…2887`, digest `ffe8f5b3…5e94`; `dist/webair-0.2.0.agent.pkg` (declares the reserved `webair.example`), archive `3f135be8…a616`, digest `74f05a8d…b9e1`; `dist/webair-0.1.0.agent.pkg` (= `dist/webair.agent.pkg`, which stays 0.1.0 because the recorded evidence pins it), archive `73872c31…470c`, digest `3b7c61a7…2fb6`; all unchanged |
+| Earlier | `dist/webair-0.6.0.agent.pkg` (the public origin's package since 2026-10-16, until 0.7.0 is deployed), archive `3055dd93…8862`, digest `e1ef5ad0…022f`; `dist/webair-0.5.0.agent.pkg` (the public origin's package from 2026-10-09 to 2026-10-16), archive `4b087557…101b`, digest `6192614e…bb48`; `dist/webair-0.4.0.agent.pkg` (0.3.0 plus the profiles; the public origin's package from 2026-10-06 to 2026-10-09), archive `c12f9db3…7f63`, digest `0e8317f1…4fbb`; `dist/webair-0.3.0.agent.pkg` (the live demo's version, the first to declare the public host), archive `b537cf5c…2887`, digest `ffe8f5b3…5e94`; `dist/webair-0.2.0.agent.pkg` (declares the reserved `webair.example`), archive `3f135be8…a616`, digest `74f05a8d…b9e1`; `dist/webair-0.1.0.agent.pkg` (= `dist/webair.agent.pkg`, which stays 0.1.0 because the recorded evidence pins it), archive `73872c31…470c`, digest `3b7c61a7…2fb6`; all unchanged |
 
 ### The task
 
@@ -265,17 +266,18 @@ The built package contains no Python and never imports this directory.
 # refresh the generated files after an origin or host-resource change (then review the diff)
 (cd demo/webair && .venv/bin/python -m publisher sync)
 
-agentpkg/.venv/bin/agentpkg build agents/webair -o /tmp/webair-0.6.0.unsigned.agent.pkg
-agentpkg/.venv/bin/agentpkg sign /tmp/webair-0.6.0.unsigned.agent.pkg \
-  --private-key ~/.config/agentpkg/keys/webagents-webair.private.pem -o dist/webair-0.6.0.agent.pkg
-agentpkg/.venv/bin/agentpkg verify dist/webair-0.6.0.agent.pkg \
+agentpkg/.venv/bin/agentpkg build agents/webair -o /tmp/webair-0.7.0.unsigned.agent.pkg
+agentpkg/.venv/bin/agentpkg sign /tmp/webair-0.7.0.unsigned.agent.pkg \
+  --private-key ~/.config/agentpkg/keys/webagents-webair.private.pem -o dist/webair-0.7.0.agent.pkg
+agentpkg/.venv/bin/agentpkg verify dist/webair-0.7.0.agent.pkg \
   --trust-key examples/keys/webair-publisher.pub.pem
 
 # fixture run of the hero request: generic CLI, interpreter, model router and tool handlers,
-# with every personal permission denied (a search needs none). 0.6.0 renames the travel profile's
-# permission to memory.travel_profile and adds memory.remember, so it has its own grants file.
-agentpkg/.venv/bin/agentpkg run dist/webair-0.6.0.agent.pkg --mode fixture \
-  --grants examples/webair-0.6.0-grants.json \
+# with every personal permission denied (a search needs none). 0.6.0 renamed the travel profile's
+# permission to memory.travel_profile and added memory.remember; 0.7.0 adds the required
+# compute.fares, so it has its own grants file. Running the module needs agentpkg[compute].
+agentpkg/.venv/bin/agentpkg run dist/webair-0.7.0.agent.pkg --mode fixture \
+  --grants examples/webair-0.7.0-grants.json \
   --approve-tool search-flights --approve-tool get-fare-rules \
   --out examples/my-webair
 
@@ -392,9 +394,9 @@ can name a path. There is no static directory mount and no directory listing, an
 invalid configured file stops the origin from starting. Without a configured package,
 `/agent.pkg` answers `404` with `{"error": {"code": "agent_package_unavailable", …}}`.
 
-Started with `--agent-package ../../dist/webair-0.6.0.agent.pkg` — as the public deployment's
+Started with `--agent-package ../../dist/webair-0.7.0.agent.pkg` — as the next deployment's
 bundle is — the link resolves to the exact signed bytes: `X-Agent-Package-SHA256` and the ETag carry
-`3055dd93a9f4e5f81f3ccddac77ccc9ce2c10b1e10dec35d9864fddf6fb58862`, and `agentpkg verify` on the
+`c0265a283d0b2edd5c919e1bb7cb3a95e6ccfc449d76590d62b1a47ff3fbd808`, and `agentpkg verify` on the
 downloaded file succeeds against WebAir's pinned key
 ([`tests/test_package_serving.py`](tests/test_package_serving.py) checks every signed version; the
 public origin's bytes, headers and signature are in
@@ -539,7 +541,7 @@ offline acceptance against 0.4.0, which the script now checks, is
 |---|---|
 | Public URL | <https://webagents-webair-production.up.railway.app/> (DNS → Railway's edge, public addresses; TLS on 443) |
 | Platform | Railway, service `webagents-webair`, builder Railpack, Python 3.13 |
-| What runs | `python -m origin --host 0.0.0.0 --agent-package agent.pkg --demo-documents demo` — this origin, publishing `dist/webair-0.5.0.agent.pkg` (since 2026-10-09; 0.4.0 from 2026-10-06, 0.3.0 before; 0.6.0 from the next deploy) and, since T8, the WebAgents demo documents beside it (below) |
+| What runs | `python -m origin --host 0.0.0.0 --agent-package agent.pkg --demo-documents demo` — this origin, publishing `dist/webair-0.6.0.agent.pkg` (since 2026-10-16; 0.5.0 from 2026-10-09, 0.4.0 from 2026-10-06, 0.3.0 before; 0.7.0 from the next deploy) and, since T8, the WebAgents demo documents beside it (below) |
 | Health check | `GET /health` (states only that this is the fictional demo, the published package's SHA-256 and the demo documents' SHA-256s) |
 | Environment | `PORT` (the platform's port; the service sets `8080`). No secret, database, external API or persistence |
 | Configuration | [`deploy/railway.toml`](deploy/railway.toml) (start, health check, restart policy), [`deploy/railpack.json`](deploy/railpack.json) (the start command again: Railpack plans the image before `railway.toml` applies), [`deploy/.python-version`](deploy/.python-version) |
@@ -555,29 +557,29 @@ email or label from `host-resources.json` appears, and is reproducible byte for 
 
 ```sh
 # from the repository root, with the Railway CLI signed in (railway login)
-python3 demo/webair/deploy/bundle.py --package dist/webair-0.6.0.agent.pkg \
-  --expect-sha256 3055dd93a9f4e5f81f3ccddac77ccc9ce2c10b1e10dec35d9864fddf6fb58862 \
+python3 demo/webair/deploy/bundle.py --package dist/webair-0.7.0.agent.pkg \
+  --expect-sha256 c0265a283d0b2edd5c919e1bb7cb3a95e6ccfc449d76590d62b1a47ff3fbd808 \
   --out /tmp/webair-bundle
 railway up /tmp/webair-bundle --path-as-root --service webagents-webair --environment production
 
 # then: the page, the health check, and the exact bytes
 curl -sS https://webagents-webair-production.up.railway.app/health
 curl -sS https://webagents-webair-production.up.railway.app/agent.pkg -o /tmp/public.agent.pkg
-cmp /tmp/public.agent.pkg dist/webair-0.6.0.agent.pkg && \
+cmp /tmp/public.agent.pkg dist/webair-0.7.0.agent.pkg && \
   agentpkg/.venv/bin/agentpkg verify /tmp/public.agent.pkg --trust-key examples/keys/webair-publisher.pub.pem
 ```
 
 **WebAgents demo documents (T8).** The Chrome Agent Browser's search and policy subscription need
 a public home for the signed demo index, the signed example research policy and the Literature
 Review package the index lists. They do not belong to the airline; they are served here because this
-is the demo deployment that exists. `origin/demo_documents.py` reads exactly six files from the
+is the demo deployment that exists. `origin/demo_documents.py` reads exactly seven files from the
 directory named by `--demo-documents` (`$WEBAIR_DEMO_DOCUMENTS`) once at startup and serves each at
 one fixed path: `/agent-index.json`, `/policies/webagents-research.json`,
-`/packages/literature-review-0.2.8.agent.pkg` (the package index 1.3.0 lists, T20), and 0.2.7, 0.2.6
-and 0.2.5 at their paths (the ones indexes 1.2.0, 1.1.0 and 1.0.0 listed, kept so their URLs still
-resolve). The bundle carries them under `demo/`, byte for byte from `examples/` and `dist/`; without
-the option the paths answer 404. Index 1.3.0 names WebAir 0.6.0, so it is deployed in the same bundle
-as `dist/webair-0.6.0.agent.pkg`. After a redeploy:
+`/packages/literature-review-0.2.9.agent.pkg` (the package index 1.4.0 lists, T22), and 0.2.8, 0.2.7,
+0.2.6 and 0.2.5 at their paths (the ones indexes 1.3.0, 1.2.0, 1.1.0 and 1.0.0 listed, kept so their URLs
+still resolve). The bundle carries them under `demo/`, byte for byte from `examples/` and `dist/`; without
+the option the paths answer 404. Index 1.4.0 names WebAir 0.7.0, so it is deployed in the same bundle
+as `dist/webair-0.7.0.agent.pkg`. After a redeploy:
 
 ```sh
 for doc in agent-index.json policies/webagents-research.json; do

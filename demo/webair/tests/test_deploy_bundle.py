@@ -18,11 +18,12 @@ import pytest
 from publisher.contract import REPO_ROOT
 
 DEPLOY = Path(__file__).resolve().parents[1] / "deploy"
-ARTIFACT = REPO_ROOT / "dist" / "webair-0.6.0.agent.pkg"
+ARTIFACT = REPO_ROOT / "dist" / "webair-0.7.0.agent.pkg"
 START = "python -m origin --host 0.0.0.0 --agent-package agent.pkg --demo-documents demo"
 DEMO_DOCUMENTS = {
     "demo/agent-index.json",
     "demo/policies/webagents-research.json",
+    "demo/packages/literature-review-0.2.9.agent.pkg",
     "demo/packages/literature-review-0.2.8.agent.pkg",
     "demo/packages/literature-review-0.2.7.agent.pkg",
     "demo/packages/literature-review-0.2.6.agent.pkg",
@@ -69,9 +70,9 @@ def test_the_bundle_publishes_the_signed_artifact_byte_for_byte(bundler, tmp_pat
     data = ARTIFACT.read_bytes()
     assert (tmp_path / "bundle" / "agent.pkg").read_bytes() == data
     assert manifest["agent_package"] == {
-        "source": "webair-0.6.0.agent.pkg",
+        "source": "webair-0.7.0.agent.pkg",
         "package_id": "org.webagents.webair",
-        "version": "0.6.0",
+        "version": "0.7.0",
         "bytes": len(data),
         "sha256": hashlib.sha256(data).hexdigest(),
     }
@@ -131,6 +132,9 @@ def test_the_bundle_carries_the_signed_demo_documents_and_the_bundled_origin_ser
         / "examples"
         / "policies"
         / "webagents-research.json",
+        "demo/packages/literature-review-0.2.9.agent.pkg": REPO_ROOT
+        / "dist"
+        / "literature-review-0.2.9.agent.pkg",
         "demo/packages/literature-review-0.2.8.agent.pkg": REPO_ROOT
         / "dist"
         / "literature-review-0.2.8.agent.pkg",

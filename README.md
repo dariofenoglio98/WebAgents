@@ -397,16 +397,21 @@ Design rationale: [docs/architecture.md](docs/architecture.md). Threat model:
   [`chrome-search-policy-e2e-index-110.json`](examples/verification/chrome-search-policy-e2e-index-110.json);
   over demo index 1.2.0, which lists Literature Review 0.2.7:
   [`chrome-search-policy-e2e-index-120.json`](examples/verification/chrome-search-policy-e2e-index-120.json);
-  demo index 1.3.0 lists Literature Review 0.2.8 and WebAir 0.6.0, the first packages that use the
-  person's memory, [`spec/memory-v0.md`](spec/memory-v0.md)).
+  demo index 1.3.0 listed Literature Review 0.2.8 and WebAir 0.6.0, the first packages that use the
+  person's memory, [`spec/memory-v0.md`](spec/memory-v0.md); demo index 1.4.0 lists Literature Review
+  0.2.9 and WebAir 0.7.0, the first that ship WebAssembly modules, [`spec/compute-v0.md`](spec/compute-v0.md)).
   NANDA resolution is a stub with the mapping defined.
 
 **Experimental** (works on the development host, but limited or lightly exercised):
 - **Code in packages** ([`spec/compute-v0.md`](spec/compute-v0.md), agentpkg 0.5.0): a package may ship
   WebAssembly core modules that import nothing and run them from `compute` nodes under memory, time
   and fuel bounds, the person's `compute` grant and the audit; the Python reference runs them with
-  `wasmtime` (`pip install -e './agentpkg[compute]'`), the Chrome core follows in T22; two example
-  modules (AssemblyScript, Rust) and the enforcement cases are under [`examples/compute/`](examples/compute/).
+  `wasmtime` (`pip install -e './agentpkg[compute]'`), the Chrome Agent Browser (core 0.3.0) in V8, one
+  nested Worker per call with the wall bound as its CPU bound
+  ([`chrome-compute-e2e.json`](examples/verification/chrome-compute-e2e.json)); two example modules
+  (AssemblyScript, Rust) and the enforcement cases are under [`examples/compute/`](examples/compute/);
+  Literature Review 0.2.9 and WebAir 0.7.0 ship them. Both runtimes agree on the 41 compute
+  conformance cases.
 
 - The plugin depends on OpenClaw's experimental plugin and Control UI APIs. It has been run live
   only on macOS, with one OpenClaw release. On Linux, CI builds, validates and packs it and runs its

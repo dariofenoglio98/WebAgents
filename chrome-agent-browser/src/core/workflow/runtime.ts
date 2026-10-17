@@ -81,7 +81,7 @@ function refusal(code: string, message: string): PolicyError {
 export async function prepareCompute(pkg: Package, engine: ComputeEngine | null, limits: ComputeLimits): Promise<Map<string, PreparedModule> | null> {
   const operations = computeOperations(pkg.graph);
   if (operations.length === 0) return null;
-  if (engine === null) throw refusal(ENGINE_UNAVAILABLE, new EngineUnavailable("this host has no WebAssembly engine; install agentpkg[compute]").message);
+  if (engine === null) throw refusal(ENGINE_UNAVAILABLE, new EngineUnavailable("this host has no WebAssembly engine for the package's modules").message);
   const facts = moduleFacts(pkg);
   const modules = new Map<string, PreparedModule>();
   for (const module of (pkg.graph.modules as JsonObject[] | undefined) ?? []) {
@@ -344,7 +344,7 @@ export class Runtime {
     this.compute = options.compute ?? null;
     this.modules = options.computePrepared ?? new Map();
     if (this.modules.size === 0 && computeOperations(pkg.graph).length > 0) {
-      if (this.compute === null) throw refusal(ENGINE_UNAVAILABLE, "this host has no WebAssembly engine; install agentpkg[compute]");
+      if (this.compute === null) throw refusal(ENGINE_UNAVAILABLE, "this host has no WebAssembly engine for the package's modules");
       throw new PolicyError("compute modules were not prepared before the runtime was constructed");
     }
     this.run_id = crypto.randomUUID();

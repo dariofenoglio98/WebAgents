@@ -25,6 +25,7 @@ WebAir's published API is tested on the origin side (`demo/webair/tests/`).
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import re
 import zipfile
@@ -42,7 +43,8 @@ from agentpkg.workflow import run_workflow
 
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "agents/webair"
-ARCHIVE = ROOT / "dist/webair-0.6.0.agent.pkg"
+ARCHIVE = ROOT / "dist/webair-0.7.0.agent.pkg"
+ARCHIVE_060 = ROOT / "dist/webair-0.6.0.agent.pkg"
 ARCHIVE_050 = ROOT / "dist/webair-0.5.0.agent.pkg"
 ARCHIVE_040 = ROOT / "dist/webair-0.4.0.agent.pkg"
 ARCHIVE_030 = ROOT / "dist/webair-0.3.0.agent.pkg"
@@ -50,15 +52,17 @@ ARCHIVE_020 = ROOT / "dist/webair-0.2.0.agent.pkg"
 ARCHIVE_010 = ROOT / "dist/webair-0.1.0.agent.pkg"
 ALIAS = ROOT / "dist/webair.agent.pkg"
 KEY = ROOT / "examples/keys/webair-publisher.pub.pem"
-GRANTS = ROOT / "examples/webair-0.6.0-grants.json"
+GRANTS = ROOT / "examples/webair-0.7.0-grants.json"
 GRANTS_020 = ROOT / "examples/webair-0.2.0-grants.json"
 HOST_RESOURCES = json.loads((ROOT / "demo/webair/host-resources.json").read_text())
 SCENARIOS = json.loads((ROOT / "examples/webair-scenarios.json").read_text())["scenarios"]
 
 PACKAGE_ID = "org.webagents.webair"
-VERSION = "0.6.0"
-DIGEST = "e1ef5ad07f5be9148d5d7b5d6f6e88e3ba9cfdb291d8d2ba2fb9bc0f06d6022f"
-ARCHIVE_SHA256 = "3055dd93a9f4e5f81f3ccddac77ccc9ce2c10b1e10dec35d9864fddf6fb58862"
+VERSION = "0.7.0"
+DIGEST = "abab1e37fcf85b04d51b65ce60febc7fd823af77b56ec6d0634ed7287355409b"
+ARCHIVE_SHA256 = "c0265a283d0b2edd5c919e1bb7cb3a95e6ccfc449d76590d62b1a47ff3fbd808"
+DIGEST_060 = "e1ef5ad07f5be9148d5d7b5d6f6e88e3ba9cfdb291d8d2ba2fb9bc0f06d6022f"
+ARCHIVE_SHA256_060 = "3055dd93a9f4e5f81f3ccddac77ccc9ce2c10b1e10dec35d9864fddf6fb58862"
 DIGEST_050 = "6192614e86ae4b18ba135f17120d4f616feac082c4ab09283221da7194c0bb48"
 ARCHIVE_SHA256_050 = "4b087557cbd2b0ff186391dfd00f9068739f9a727ab2fd916a6512da1fde101b"
 DIGEST_040 = "0e8317f11e8813e7d5b4b3f352f20148d114329dca3db8c725c5b0558af24fbb"
@@ -164,9 +168,70 @@ def test_0_5_0_is_unchanged_and_still_verifies():
     assert verify_package(ARCHIVE_050, KEY)["key_fingerprint"] == FINGERPRINT
 
 
-def test_0_6_0_changes_the_travel_profile_read_and_adds_the_remember_step(package):
+def test_0_7_0_verifies_webairs_totals_with_a_module(package):
+    """0.7.0 recomputes every fare total and the quote's total in the fares module (compute.v0,
+    T22) and gives the remember step room for a thinking model (B-220); nothing a model sees, no
+    tool and no fixture changed."""
+    earlier = load_package(ARCHIVE_060)
+    changed = sorted(
+        name
+        for name in set(earlier.files) | set(package.files)
+        if earlier.files.get(name) != package.files.get(name)
+    )
+    assert changed == [
+        "MANIFEST.agent",
+        "README.md",
+        "graph.json",
+        "modules/fares.wasm",
+        "policy/policy.json",
+        "schemas/fare-total-input.schema.json",
+        "schemas/fare-total.schema.json",
+        "schemas/quote-total-input.schema.json",
+        "schemas/quote-total.schema.json",
+        "schemas/state.schema.json",
+    ]
+    assert earlier.files["fixtures/workflow.json"] == package.files["fixtures/workflow.json"]
+    assert package.tools == earlier.tools
+    assert package.manifest["runtime"]["minimum_version"] == "0.5.0"
+    fares = package.files["modules/fares.wasm"]
+    assert fares == (ROOT / "examples/compute/fares-as/dist/fares.wasm").read_bytes()
+    assert package.graph["modules"] == [
+        {"id": "fares", "path": "modules/fares.wasm", "sha256": hashlib.sha256(fares).hexdigest()}
+    ]
+    added = [p for p in package.policy["permissions"] if p not in earlier.policy["permissions"]]
+    assert [(p["id"], p["kind"], p["required"], p["resources"]) for p in added] == [
+        ("compute.fares", "compute", True, ["fares"])
+    ]
+    for profile in package.manifest["extensions"][PROFILES]["profiles"]:
+        assert "compute.fares" in profile["permissions"]
+    # Nothing a model reads changed: every model node is 0.6.0's but the remember step's bounds.
+    models = {n["id"]: n for n in package.graph["nodes"] if n["type"] == "llm"}
+    before = {n["id"]: n for n in earlier.graph["nodes"] if n["type"] == "llm"}
+    bounds = ("max_output_tokens", "timeout_seconds")
+    assert {k: v for k, v in models["remember"].items() if k not in bounds} == {
+        k: v for k, v in before["remember"].items() if k not in bounds
+    }
+    assert (models["remember"]["max_output_tokens"], models["remember"]["timeout_seconds"]) == (
+        10000,
+        600,
+    )
+    assert {k: v for k, v in models.items() if k != "remember"} == {
+        k: v for k, v in before.items() if k != "remember"
+    }
+    computed = [n["id"] for n in package.graph["nodes"] if n["type"] == "compute"]
+    steps = [
+        f"{n['id']}/{s['id']}"
+        for n in package.graph["nodes"]
+        for s in n.get("steps", [])
+        if s["type"] == "compute"
+    ]
+    assert (computed, steps) == (["quote-total"], ["fare-rules/total"])
+
+
+def test_0_6_0_changes_the_travel_profile_read_and_adds_the_remember_step():
     """0.6.0 reads the travel profile from memory and proposes one preference after a quote;
     WebAir's own tools, the identity and payment reads and the fixture's searches stay."""
+    package = load_package(ARCHIVE_060)
     earlier = load_package(ARCHIVE_050)
     changed = sorted(
         name
@@ -317,13 +382,19 @@ def test_archive_holds_only_declared_data_and_no_personal_data(package):
     with zipfile.ZipFile(ARCHIVE) as archive:
         names = archive.namelist()
     assert set(names) == set(package.files) | {"integrity.json", "signatures/publisher.json"}
+    # Data, and since 0.7.0 one WebAssembly module the graph declares by hash (compute.v0).
+    declared = {module["path"] for module in package.graph["modules"]}
     assert all(
-        name == "MANIFEST.agent" or Path(name).suffix in {".json", ".md"} for name in package.files
+        name == "MANIFEST.agent" or Path(name).suffix in {".json", ".md"} or name in declared
+        for name in package.files
     )
-    text = "\n".join(data.decode() for data in package.files.values())
+    assert declared == {"modules/fares.wasm"}
+    text = "\n".join(data.decode() for name, data in package.files.items() if name not in declared)
     assert "PRIVATE KEY" not in text
     assert not re.search(r"\b(?:sk-|ghp_|xox[bp]-)[A-Za-z0-9_-]{8,}", text)
-    assert not re.search(r"\b\d{13,19}\b", text), "a card-number-like digit run"
+    # 2^53 - 1, the fare-total schemas' integer bound (0.7.0), is the one long digit run allowed.
+    digits = text.replace("9007199254740991", "")
+    assert not re.search(r"\b\d{13,19}\b", digits), "a card-number-like digit run"
     assert "••••" not in text
     # No email address at all: the passenger's comes from the host, at run time.
     assert re.findall(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+", text) == []
@@ -336,6 +407,8 @@ def test_archive_holds_only_declared_data_and_no_personal_data(package):
                 assert value not in text, (resource["id"], field)
     # WebAir's API contract names the demo payment methods it accepts; nothing else does.
     for name, data in package.files.items():
+        if name in declared:
+            continue
         if "demo-visa-4242" in data.decode() or "demo-travel-1234" in data.decode():
             assert name.startswith("schemas/api/"), name
 
@@ -408,8 +481,9 @@ def test_permissions_request_resources_and_a_separate_purchase_authority(package
         "memory.write",
         "personal.read",
         "payment",
+        "compute",
     }
-    for required in ("network.webair", "model.reasoning", "memory.session"):
+    for required in ("network.webair", "model.reasoning", "memory.session", "compute.fares"):
         assert permissions[required]["required"] is True
     for tool_id, permission in HOST_TOOLS.items():
         assert permissions[permission]["kind"] in RESOURCE_PERMISSION_KINDS
@@ -572,8 +646,8 @@ def test_workflow_uses_only_canonical_operators(package):
     types = {node["type"] for node in nodes} | {
         s["type"] for n in nodes for s in n.get("steps", [])
     }
-    assert types <= {"llm", "tool", "map", "join", "validate", "output"}
-    assert len(nodes) == 36  # 0.5.0 adds search-origin, 0.6.0 remember
+    assert types <= {"llm", "tool", "map", "join", "validate", "output", "compute"}
+    assert len(nodes) == 38  # 0.5.0 adds search-origin, 0.6.0 remember, 0.7.0 the quote total
 
 
 def test_no_generic_code_knows_webair_or_its_demo_resources():

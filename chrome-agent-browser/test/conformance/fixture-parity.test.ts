@@ -51,6 +51,8 @@ const CASES: Case[] = [
   // compute.v0 (T22, C-51): the modules run for real in fixture mode on both engines; `engine`
   // and `limits.fuel` are the engines' own and are dropped before the comparison (C-46).
   { name: "compute-test-0.1.0 fixture input", archive: COMPUTE_TEST.archive, grants: COMPUTE_TEST.grants, tools: [], input: null, tokensAllowlisted: false },
+  // WebAir 0.7.0 (T22): the fares module recomputes every selected fare's total in the fare-rules map.
+  { name: "webair-0.7.0 fixture input", archive: SHIPPED.webair070.archive, grants: join(ROOT, "examples", "webair-0.7.0-grants.json"), tools: ["search-flights", "get-fare-rules"], input: null, tokensAllowlisted: false },
 ];
 
 let cli: BuiltCli;
