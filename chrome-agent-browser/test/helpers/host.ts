@@ -20,6 +20,7 @@ import type { HostStartMessage, HostStatusReply } from "../../src/extension/exec
 import type { RunStore } from "../../src/extension/storage/runs.js";
 import type { SnapshotStore } from "../../src/extension/storage/snapshots.js";
 import { PROJECT } from "./paths.js";
+import type { ComputeEngine } from "../../src/core/compute/engine.js";
 
 export interface OriginAnswers {
   search: { input: Record<string, unknown>; output: Record<string, unknown> };
@@ -162,6 +163,8 @@ export interface InProcessHostOptions {
   files?: FileStore | null;
   /** The PDF parser; in-process pdf.js by default. */
   pdfReader?: PdfTextReader | null;
+  /** compute.v0: the engine a run's compute calls use (the extension's nested Workers); absent, a package with modules is refused before it starts. */
+  compute?: ComputeEngine | null;
 }
 
 /** `executeRun` in this process: the offscreen document and its Worker, without Chrome. */
@@ -194,6 +197,7 @@ export class InProcessHost implements ExecutionHostBridge {
       files: this.options.files ?? null,
       pdfReader: this.options.pdfReader === undefined ? (data, signal) => extractPdfText(data, undefined, signal) : this.options.pdfReader,
       now: this.options.now,
+      compute: this.options.compute ?? null,
       onCheckpoint: (runId) => {
         if (this.options.workerDies && !died) {
           // The offscreen page's `worker.onerror`: the run is forgotten and reported finished, its record left as it is.

@@ -80,6 +80,8 @@ export interface ProbeOptions {
   stateKeys?: string[];
   extraFiles?: Record<string, Uint8Array>;
   fixtureInput?: JsonValue;
+  /** Declare an optional model permission the graph never uses, so a browser run plan can bind a model (B-228), as `scripts/e2e-compute.mjs` does. */
+  modelPermission?: boolean;
 }
 
 /** The probe's payload files (`compute_probe.py::write_probe`). */
@@ -120,6 +122,9 @@ export function probeSource(options: ProbeOptions = {}): Map<string, Uint8Array>
   const permissions: JsonObject[] = [{ id: "memory.session", kind: "memory", description: "Use isolated session state", required: true, resources: ["session"] }];
   if (options.permission !== false) {
     permissions.push({ id: "compute.modules", kind: "compute", description: "Run the package's WebAssembly modules, which can only compute.", required: true, resources: options.permissionResources ?? Object.keys(modules).sort() });
+  }
+  if (options.modelPermission) {
+    permissions.push({ id: "model.unused", kind: "model", description: "Not used by this graph; declared so a browser run plan can bind a model.", required: false, resources: ["host-router"] });
   }
   write("policy/policy.json", {
     spec_version: "0.1",
