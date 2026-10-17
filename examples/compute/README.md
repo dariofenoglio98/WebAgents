@@ -22,7 +22,7 @@ reference's module reader, and the hashes below are the ones the graphs declare.
 | Module | SHA-256 | Size | Built with |
 |---|---|---|---|
 | `fares-as/dist/fares.wasm` | `ef7e813b9ac330575c89c75d96aa63bfe25d77da8d3a699cf4718879a8f123c0` | 8,303 bytes | AssemblyScript 0.28.20 (`asconfig.json`, target `release`), Node 26.9.0, 2026-10-16; two builds identical |
-| `bookkeeping-rs/dist/bookkeeping.wasm` | *(built when rustup is installed; recorded by the build)* | | |
+| `bookkeeping-rs/dist/bookkeeping.wasm` | `5b9db688c2cf9c60c818ac7eaf748d98ee60b8ecc564d76c37199da68e13735e` | 106,940 bytes | rustc 1.99.1 (58cf8f9c3 2026-10-13), `wasm32-unknown-unknown`, `Cargo.lock` as committed, `./build.sh` (release profile of `Cargo.toml`, paths remapped), 2026-10-16; two builds identical |
 
 ## Running one
 

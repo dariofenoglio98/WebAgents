@@ -1,0 +1,53 @@
+{
+  "spec_version": "0.1",
+  "permissions": [
+    {
+      "id": "memory.session",
+      "kind": "memory",
+      "description": "Use isolated session state",
+      "required": true,
+      "resources": [
+        "session"
+      ]
+    },
+    {
+      "id": "compute.modules",
+      "kind": "compute",
+      "description": "Run the package's two WebAssembly modules (fare totals, bookkeeping), which can only compute over the data the graph gives them.",
+      "required": true,
+      "resources": [
+        "bookkeeping",
+        "fares"
+      ]
+    }
+  ],
+  "network": {
+    "allowed_domains": [],
+    "https_only": true,
+    "allow_redirects": false
+  },
+  "memory": {
+    "scope": "session",
+    "retention": "session",
+    "raw_documents": false,
+    "state_schema": "schemas/state.schema.json",
+    "sharing": "explicit_views"
+  },
+  "budget": {
+    "estimated_tokens": 0,
+    "hard_tokens": 1000,
+    "max_remote_calls": 0,
+    "max_calls_per_tool": {},
+    "max_parallel_workers": 2,
+    "estimated_cost_usd": null,
+    "approval_threshold_tokens": null
+  },
+  "delegation": {
+    "max_depth": 1,
+    "approved_roles": [
+      "Worker"
+    ],
+    "allow_remote": false
+  },
+  "extensions": {}
+}

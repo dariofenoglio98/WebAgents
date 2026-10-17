@@ -11,7 +11,9 @@
 # the rustc that built the committed binary and its SHA-256.
 set -eu
 cd "$(dirname "$0")"
-export RUSTFLAGS="--remap-path-prefix=$PWD=/src --remap-path-prefix=$HOME/.cargo=/cargo"
+# compute.v0 C-15: the memory must declare a maximum (the linker sets none by default); 256 pages
+# (16 MiB) is ample for the bookkeeping of a review and is what the host checks its ceiling against.
+export RUSTFLAGS="--remap-path-prefix=$PWD=/src --remap-path-prefix=$HOME/.cargo=/cargo -C link-arg=--max-memory=16777216"
 export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$PWD/target}"
 cargo build --release --target wasm32-unknown-unknown --locked --quiet
 mkdir -p dist

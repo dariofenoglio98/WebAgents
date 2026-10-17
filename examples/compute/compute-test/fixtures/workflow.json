@@ -1,0 +1,95 @@
+{
+  "profile": "workflow.fixture.v0",
+  "input": {
+    "fare": {
+      "currency": "USD",
+      "tax_rate_bps": 850,
+      "items": [
+        {
+          "label": "WA101 Economy Standard",
+          "amount_cents": 42900,
+          "quantity": 2
+        },
+        {
+          "label": "Seat 12A",
+          "amount_cents": 1500,
+          "quantity": 1
+        }
+      ]
+    },
+    "groups": [
+      {
+        "currency": "USD",
+        "tax_rate_bps": 0,
+        "items": [
+          {
+            "label": "Checked bag",
+            "amount_cents": 3500,
+            "quantity": 1
+          }
+        ]
+      },
+      {
+        "currency": "USD",
+        "tax_rate_bps": 1000,
+        "items": [
+          {
+            "label": "Meal",
+            "amount_cents": 1200,
+            "quantity": 2
+          }
+        ]
+      }
+    ],
+    "expected_group_total_cents": 6140,
+    "records": [
+      {
+        "doi": "10.1234/ABC.1",
+        "title": "A study"
+      },
+      {
+        "doi": "https://doi.org/10.1234/abc.1",
+        "title": "A study (again)"
+      },
+      {
+        "arxiv": "2401.00001v2",
+        "title": "B preprint"
+      },
+      {
+        "arxiv": "arXiv:2401.00001",
+        "title": "B preprint, first version"
+      },
+      {
+        "title": "  Plain   Title "
+      },
+      {
+        "title": "plain title"
+      },
+      {
+        "url": "https://example.org/paper/"
+      }
+    ],
+    "quotes": [
+      {
+        "id": "q1",
+        "text": "the  quick brown"
+      },
+      {
+        "id": "q2",
+        "text": "absent words"
+      }
+    ],
+    "sources": [
+      {
+        "id": "P1",
+        "text": "Once the quick\nbrown fox."
+      },
+      {
+        "id": "P2",
+        "text": "nothing here"
+      }
+    ]
+  },
+  "models": {},
+  "tools": {}
+}
