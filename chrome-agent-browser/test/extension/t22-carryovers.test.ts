@@ -8,7 +8,8 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { ReviewOutcome, RunReviewView } from "../../src/extension/messages.js";
-import { isStringList, jsonExample, parseStringList } from "../../src/extension/ui/memory/page.js";
+import type { JsonValue } from "../../src/core/json.js";
+import { fieldControl, isStringList, jsonExample, parseStringList } from "../../src/extension/ui/memory/page.js";
 import { newReviewState, renderReview, type ReviewActions } from "../../src/extension/ui/memory/review.js";
 
 const PACKAGE = { package_id: "org.example", version: "1.0.0", name: "Example" } as unknown as RunReviewView["package"];
@@ -47,6 +48,39 @@ describe("list fields on the Memory page (B-218)", () => {
     // One line with commas is split; several lines keep a comma inside an item.
     expect(parseStringList("Smith, J.\nDoe, A.")).toEqual(["Smith, J.", "Doe, A."]);
     expect(parseStringList("   ")).toEqual([]);
+    // A field that opened with stored items is one item per line: a comma inside an item stays.
+    expect(parseStringList("Università della Svizzera italiana, Lugano", false)).toEqual(["Università della Svizzera italiana, Lugano"]);
+    expect(parseStringList("agents\nmemory", false)).toEqual(["agents", "memory"]);
+  });
+
+  it("never splits a stored item that holds a comma when the person edits the field (T22 review 1, finding 3)", () => {
+    const schema = { type: "array", items: { type: "string" } };
+    const type = (area: HTMLTextAreaElement, text: string) => {
+      area.value = text;
+      area.dispatchEvent(new Event("input"));
+    };
+    // Editing a record: the stored list is prefilled one per line, and touching it keeps the item whole.
+    const stored: JsonValue = ["Università della Svizzera italiana, Lugano"];
+    const draft: Record<string, JsonValue> = { affiliations: [...stored] };
+    let changes = 0;
+    const area = fieldControl("affiliations", schema, draft, () => (changes += 1), stored) as HTMLTextAreaElement;
+    expect(area.value).toBe("Università della Svizzera italiana, Lugano");
+    expect(area.getAttribute("placeholder")).toBe("one per line");
+    type(area, "Università della Svizzera italiana, Lugano ");
+    expect(draft.affiliations).toEqual(["Università della Svizzera italiana, Lugano"]);
+    type(area, "Università della Svizzera italiana, Lugano\nMIT Media Lab");
+    expect(draft.affiliations).toEqual(["Università della Svizzera italiana, Lugano", "MIT Media Lab"]);
+    expect(changes).toBe(2);
+    // A field that opened empty (a new record, or a record without the field) also takes commas.
+    const fresh: Record<string, JsonValue> = {};
+    const empty = fieldControl("interests", schema, fresh, () => undefined) as HTMLTextAreaElement;
+    expect(empty.getAttribute("placeholder")).toBe("one per line, or separated by commas");
+    type(empty, "agents, memory");
+    expect(fresh.interests).toEqual(["agents", "memory"]);
+    type(empty, "");
+    expect("interests" in fresh).toBe(false);
+    const none = fieldControl("interests", schema, {}, () => undefined, []) as HTMLTextAreaElement;
+    expect(none.getAttribute("placeholder")).toBe("one per line, or separated by commas");
   });
 
   it("names the JSON shape a structured field expects", () => {

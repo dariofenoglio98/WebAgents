@@ -139,10 +139,15 @@ export function isStringList(schema: PropertySchema): boolean {
   return types.includes("array") && itemTypes.length > 0 && itemTypes.every((type) => type === "string");
 }
 
-/** What a person typed into a list field, as the list: lines, or comma-separated items on one line; blanks dropped. */
-export function parseStringList(text: string): string[] {
+/**
+ * What a person typed into a list field, as the list: one item per line, and a single line also
+ * split on commas when `commas` allows it; blanks dropped. A field that opened with the record's
+ * stored items passes `commas: false`: a stored item may hold a comma ("Università della Svizzera
+ * italiana, Lugano"), and touching the field must not split it (T22 review 1).
+ */
+export function parseStringList(text: string, commas = true): string[] {
   const lines = text.split(/\r?\n/u).map((line) => line.trim()).filter((line) => line.length > 0);
-  const items = lines.length === 1 ? lines[0]!.split(",").map((item) => item.trim()) : lines;
+  const items = commas && lines.length === 1 ? lines[0]!.split(",").map((item) => item.trim()) : lines;
   return items.filter((item) => item.length > 0);
 }
 
@@ -258,7 +263,8 @@ function writeGuard(view: MemoryView, actions: MemoryPageActions, action: string
   else work();
 }
 
-function fieldControl(name: string, schema: PropertySchema, draft: Record<string, JsonValue>, onChange: () => void): HTMLElement {
+/** One field's control; `stored` is the record's value of the field when the card opened (none for a new record). */
+export function fieldControl(name: string, schema: PropertySchema, draft: Record<string, JsonValue>, onChange: () => void, stored?: JsonValue): HTMLElement {
   const current = draft[name];
   const types = Array.isArray(schema.type) ? schema.type : schema.type ? [schema.type] : [];
   if (Array.isArray(schema.enum)) {
@@ -294,10 +300,13 @@ function fieldControl(name: string, schema: PropertySchema, draft: Record<string
   }
   if (isStringList(schema)) {
     // B-218: what the person writes is converted; the brackets and quotes are the page's business.
-    const area = el("textarea", { className: "ab-textarea", attrs: { name: `field-${name}`, rows: "3", placeholder: "one per line, or separated by commas", "aria-description": `${name}: a list of short texts, one per line or separated by commas` } });
+    // A field that opened with stored items is one item per line, so an item with a comma stays one.
+    const commas = !(Array.isArray(stored) && stored.length > 0);
+    const hint = commas ? "one per line, or separated by commas" : "one per line";
+    const area = el("textarea", { className: "ab-textarea", attrs: { name: `field-${name}`, rows: "3", placeholder: hint, "aria-description": `${name}: a list of short texts, ${hint}` } });
     area.value = Array.isArray(current) ? current.map(String).join("\n") : "";
     area.addEventListener("input", () => {
-      const items = parseStringList(area.value);
+      const items = parseStringList(area.value, commas);
       if (items.length === 0) delete draft[name];
       else draft[name] = items;
       onChange();
@@ -534,7 +543,7 @@ export function renderCard(view: MemoryView, state: MemoryPageState, actions: Me
   const fields = properties(type).map(([name, schema, required]) => {
     const pointer = `/${name}`;
     const sealed = type.sealed_fields.includes(pointer);
-    const control = sealed ? sealedField(name, pointer, view, state, card, actions) : fieldControl(name, schema, card.draft.fields, markDirty);
+    const control = sealed ? sealedField(name, pointer, view, state, card, actions) : fieldControl(name, schema, card.draft.fields, markDirty, record?.fields[name]);
     return el("label", { className: "ab-field ab-memory-field" }, el("span", { className: "ab-row-label" }, el("span", { text: name.replace(/_/gu, " ") }), required ? chip("required") : null, sealed ? chip("sealed", "warn") : null), control, schema.description ? el("span", { className: "ab-hint", text: schema.description }) : null);
   });
   const body = el("textarea", { className: "ab-textarea", attrs: { name: "record-body", rows: "6", maxlength: "16384", placeholder: "Markdown; [[Title]] links to another record" } });
