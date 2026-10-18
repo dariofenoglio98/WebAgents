@@ -534,9 +534,10 @@ async function main() {
       // A recall card offers records of the type its `memory.read` requests, so an accepted record can be
       // recalled only when the package reads its type (B-222). WebAir 0.6.0 and 0.7.0 propose
       // `travel.preference` and read only `travel.profile` (B-221): the check is skipped with a note.
+      // Nothing accepted is no reason to skip: the check fails, as `verify_chrome_memory_live.py` has it.
       const readTypes = new Set(recall.map((card) => card.resource_type));
       const readable = accepted.filter((item) => readTypes.has(item.type));
-      if (readable.length === 0) {
+      if (readable.length === 0 && accepted.length > 0) {
         report.steps.memory["the accepted record is recalled for the next run"] = { skipped: `the package reads ${[...readTypes].sort().join(", ") || "no memory type"}; the accepted records are ${[...new Set(accepted.map((item) => item.type))].sort().join(", ") || "none"} (B-221)` };
       } else {
         const recalled = recall.some((card) => card.candidates.some((candidate) => readable.some((item) => item.id === candidate.id)));

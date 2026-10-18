@@ -97,10 +97,13 @@ def genericity_scan() -> dict:
 
 def personal_data_scan(package) -> dict:
     """Which of the demo host's personal values, if any, the signed bytes contain."""
-    # A WebAssembly module (0.7.0) is bytes, not text: the graph declares it by hash, and it is
-    # scanned as the container's credential scan reads it, not here.
+    # A WebAssembly module (0.7.0) is bytes, not text: read as Latin-1, as the container's
+    # credential scan reads it, so a value compiled into its data segments is found too.
     modules = {module["path"] for module in package.graph.get("modules", [])}
-    text = "\n".join(data.decode() for name, data in package.files.items() if name not in modules)
+    text = "\n".join(
+        data.decode("latin-1" if name in modules else "utf-8")
+        for name, data in package.files.items()
+    )
     definitions = json.loads(HOST_RESOURCES.read_text())
     values = []
     for resource in definitions["resources"]:

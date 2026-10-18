@@ -118,5 +118,5 @@ its fuel under the reference reaches its deadline in Chrome instead (`compute_er
 `deadline`), and `engine.fuel_consumed` is null. Design a module so its honest work finishes far
 inside the wall bound on a slow machine. A browser run is always model-backed, so a package that
 runs only modules still declares a model permission (optional, and never used) for Chrome to
-prepare a run plan. Shipped examples: Literature Review 0.2.9 (deduplication and a quote check,
+prepare a run plan. Shipped examples: Literature Review 0.2.9 (deduplication,
 Rust) and WebAir 0.7.0 (fare totals, AssemblyScript).

@@ -78,6 +78,15 @@ function refusal(code: string, message: string): PolicyError {
  * awaits it before the runtime exists, which is where the reference's constructor does the same work.
  * Returns null for a package without compute operations.
  */
+/** The host's ceilings for one compute call, from the host limits; a value out of range is a policy refusal. */
+export function computeHostLimits(limits: HostLimits | null | undefined): ComputeLimits {
+  try {
+    return hostComputeLimits(Object.fromEntries(Object.entries(limits ?? {}).filter(([key]) => COMPUTE_HOST_KEYS.includes(key))));
+  } catch (error) {
+    throw new PolicyError((error as Error).message);
+  }
+}
+
 export async function prepareCompute(pkg: Package, engine: ComputeEngine | null, limits: ComputeLimits): Promise<Map<string, PreparedModule> | null> {
   const operations = computeOperations(pkg.graph);
   if (operations.length === 0) return null;
@@ -136,6 +145,8 @@ export interface RuntimeOptions {
   compute?: ComputeEngine | null;
   /** The modules `prepareCompute` compiled for this package; `Workflow.create` supplies them. */
   computePrepared?: Map<string, PreparedModule> | null;
+  /** The host's compute ceilings `Workflow.create` already read from `limits` (else read here). */
+  computeLimits?: ComputeLimits | null;
 }
 
 const REASON = /^[a-z][a-z0-9_]{0,63}$/u;
@@ -301,11 +312,7 @@ export class Runtime {
     }
     this.budget = deepCopy(this.policy.budget as JsonObject);
     // compute.v0: the host's ceilings for one compute call; a node may only lower them.
-    try {
-      this.computeLimits = hostComputeLimits(Object.fromEntries(Object.entries(options.limits ?? {}).filter(([key]) => COMPUTE_HOST_KEYS.includes(key))));
-    } catch (error) {
-      throw new PolicyError((error as Error).message);
-    }
+    this.computeLimits = options.computeLimits ?? computeHostLimits(options.limits);
     for (const [key, value] of Object.entries(options.limits ?? {})) {
       if (COMPUTE_HOST_KEYS.includes(key)) continue;
       if (!LIMIT_KEYS.has(key)) throw new PolicyError(`Unsupported host limit: ${key}`);

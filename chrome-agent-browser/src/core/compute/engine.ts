@@ -17,7 +17,8 @@
  * answering, a module not compiled before the call) and when the run is cancelled (the signal's
  * reason, a `CancelledError`). Where the Worker comes from is the host's: `spawn()` is
  * `new Worker("compute-worker.js", {type: "module"})` in the extension and a `worker_threads`
- * adapter in the CLI; the host also names the engine (`chrome/155.0.8059.41`, `node/v26.9.0`).
+ * adapter in the CLI; the host also names the engine (`chrome/155.0.0.0`, the major version
+ * user-agent reduction leaves, B-229; `node/v26.9.0`).
  */
 import type { ComputeLimits } from "./limits.js";
 import { ModuleError } from "./module.js";

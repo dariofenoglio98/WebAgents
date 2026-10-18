@@ -54,6 +54,13 @@ const FORBIDDEN_COMPONENTS: ReadonlySet<string> = new Set(["node_modules", "venv
 const CREDENTIAL_PATH = /(?:^|[/_.-])(?:private[-_]?key|secrets?|credentials)(?:[/_.-]|$)/iu;
 const CREDENTIAL_CONTENT = /-----BEGIN (?:[A-Z ]+ )?PRIVATE KEY-----|\b(?:sk-proj-|sk-ant-)[A-Za-z0-9_-]{12,}/u;
 
+/** Bytes as Latin-1 text, one code unit per byte, built in chunks (a module is up to 4 MiB). */
+function latin1(data: Uint8Array): string {
+  const parts: string[] = [];
+  for (let at = 0; at < data.length; at += 0x8000) parts.push(String.fromCharCode.apply(null, data.subarray(at, at + 0x8000) as unknown as number[]));
+  return parts.join("");
+}
+
 const LOCAL_HEADER = 0x04034b50;
 const CENTRAL_HEADER = 0x02014b50;
 const END_OF_CENTRAL_DIRECTORY = 0x06054b50;
@@ -148,7 +155,7 @@ export async function checkPayload(files: ReadonlyMap<string, Uint8Array>, optio
       if (data.length > MAX_MODULE_BYTES) throw new ValidationError(`${name}: a WebAssembly module is at most ${MAX_MODULE_BYTES} bytes`);
       if (!hasWasmHeader(data)) throw new ValidationError(`${name}: not a WebAssembly core module (magic number and version 1)`);
       // The credential scan below reads the bytes as text (Latin-1, as the reference does); a module is never decoded.
-      content = Array.from(data, (byte) => String.fromCharCode(byte)).join("");
+      content = latin1(data);
     } else {
       content = decodeUtf8(data, name);
       if (content.includes("\u0000")) throw new ValidationError(`${name}: NUL bytes are not allowed`);

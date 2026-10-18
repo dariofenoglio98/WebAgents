@@ -304,11 +304,11 @@ export function warnings(pkg: Package, evaluation: EvaluationLayers, publisher: 
     }
     if (permission.kind === "compute") {
       // compute.v0 (C-9): the words the agent page uses, with the hashes a person can compare
-      // against the graph; the modules import nothing, so the sentence is exact. Word for word the
-      // reference's (`summary.py`).
+      // against the graph; the modules import nothing, so the sentence is exact. The reference's
+      // words (`summary.py`) less fuel, which this host does not meter (D-250).
       const hashes = new Map(((pkg.graph.modules as JsonObject[] | undefined) ?? []).map((module) => [String(module.id), String(module.sha256)]));
       const named = resources.map((moduleId) => `${moduleId} (${(hashes.get(moduleId) ?? "undeclared").slice(0, 16)}…)`).join(", ");
-      warn("runs_code_that_can_only_compute", "info", `The package runs code that can only compute (${permission.id}): WebAssembly module(s) ${named || "none"}, with no imports, run under this host's memory, time and fuel bounds on the data the graph gives them.`);
+      warn("runs_code_that_can_only_compute", "info", `The package runs code that can only compute (${permission.id}): WebAssembly module(s) ${named || "none"}, with no imports, run under this host's memory and time bounds on the data the graph gives them.`);
     }
   }
   const remote = toolList.filter((tool) => tool.execution === "remote");

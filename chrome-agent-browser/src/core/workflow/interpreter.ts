@@ -11,7 +11,6 @@
 import { integrityStatement } from "../archive.js";
 import { canonicalString } from "../canonical.js";
 import { ComputeError } from "../compute/errors.js";
-import { HOST_KEYS as COMPUTE_HOST_KEYS, hostComputeLimits } from "../compute/limits.js";
 import { ValidationError } from "../errors.js";
 import { isJsonObject, parseJson, type JsonObject, type JsonValue } from "../json.js";
 import { PROPOSALS_EXPORT_FORMAT, ProposalRefusal } from "../memory/proposals.js";
@@ -24,7 +23,7 @@ import { validatePayload } from "../validation.js";
 import { checkAnswer, checkAssertions } from "./assertions.js";
 import { CancelToken, withDeadline, yieldPoint } from "./cancel.js";
 import { BudgetError, CancelledError, failedCheck, failureCode, PolicyError, TimeoutError, WorkflowError } from "./errors.js";
-import { Context, digest, prepareCompute, Runtime, type RuntimeOptions } from "./runtime.js";
+import { computeHostLimits, Context, digest, prepareCompute, Runtime, type RuntimeOptions } from "./runtime.js";
 import { evaluate, pyEqual, type Environment } from "./values.js";
 
 export const PROFILE = "workflow.v0";
@@ -103,14 +102,9 @@ export class Workflow {
       const memory = options.memory === undefined ? new MemoryRun(verified, [], options.grants ?? {}, {}) : options.memory;
       // compute.v0 preflight (D-245): the engine, the memory ceilings and the compiled modules,
       // before the runtime exists and before `runtime.started`, as the reference's constructor does.
-      let computeLimits;
-      try {
-        computeLimits = hostComputeLimits(Object.fromEntries(Object.entries(options.limits ?? {}).filter(([key]) => COMPUTE_HOST_KEYS.includes(key))));
-      } catch (error) {
-        throw new PolicyError((error as Error).message);
-      }
+      const computeLimits = computeHostLimits(options.limits);
       const computePrepared = await prepareCompute(verified, options.compute ?? null, computeLimits);
-      return new Workflow(verified, schemas, { ...options, memory, computePrepared });
+      return new Workflow(verified, schemas, { ...options, memory, computePrepared, computeLimits });
     } catch (error) {
       schemas.close();
       throw error;
