@@ -52,10 +52,11 @@ python3 -m venv .venv && .venv/bin/python -m pip install dist/agentpkg-0.5.0-py3
 The keys are development keys: they establish which key signed an artifact, not an independent
 certification of its publisher.
 
-**The 0.5.0 wheel** (SHA-256 `60d7cb1a…6947`, T22) was built from a clean export of `agentpkg/` at `8615205`
-(the last change to the runtime: T21's second review's nits, fixed in T22; T21 built `0da3ac97…28d5` from `e67ffeb`)
+**The 0.5.0 wheel** (SHA-256 `c5d4496f…9ecb`, T22) was built from a clean export of `agentpkg/` at `d0b53a0`
+(the last change to the runtime: T22's first review, a preflight refusal that names its code once; before it,
+T22 built `60d7cb1a…6947` from `8615205`, T21's second review's nits, and T21 built `0da3ac97…28d5` from `e67ffeb`)
 with the command below (setuptools 84.0.0, `SOURCE_DATE_EPOCH=1790965957`);
-two such builds produced identical bytes, and CI rebuilds it from source and checks that every file matches.
+three such builds produced identical bytes, and CI rebuilds it from source and checks that every file matches.
 It carries `agentpkg/compute/` (the module reader, the wasmtime engine, the limits) and the patched schemas.
 The version moved to 0.5.0 because packages that run modules must be refused by an older runtime by their
 declared minimum (D-240, C-10); the `wasmtime` dependency is an extra, so the wheel's requirements are
@@ -206,7 +207,7 @@ c1b1c4b260dbca874dc9e343397e6fad1311f498c3a6df27c1a1deeeb0b18f71  agentpkg-0.1.0
 371fb1eb8c70abc3511a09e7208742ab313bc47dfda6999675ce716d14731cd1  agentpkg-0.2.2-py3-none-any.whl
 096897b02d3e4bc212395eb35bf6522c67fedb5f80309e9e42744cbe777d31df  agentpkg-0.3.0-py3-none-any.whl
 9559e4f319a7cb48fa1729b07ec1dbb81ffdc3953d680dff61f1cc078552037c  agentpkg-0.4.0-py3-none-any.whl
-60d7cb1ada326cda8c0a7509349e1e46318c9140315f89e15ac787de33c06947  agentpkg-0.5.0-py3-none-any.whl
+c5d4496f867c725a6fb7c4a1793999dab1edfb55ce8490718df4baa5ac009ecb  agentpkg-0.5.0-py3-none-any.whl
 5fdde862352598fc68e4fe5a2f5c2dee19bf952112446b3fc13bc77763533b0b  literature-review-0.2.0.agent.pkg
 0fb8b65bbff4578d4815ee70b29a0cb789b2cc95ce181d011d467b4be22c8e42  literature-review-0.2.1.agent.pkg
 4804ea8f4c2ad40439641f8348c2d65b798f4d52802f6ad751b71114e4f27c04  literature-review-0.2.2.agent.pkg
