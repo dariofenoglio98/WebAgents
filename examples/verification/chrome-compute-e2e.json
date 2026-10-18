@@ -1,28 +1,28 @@
 {
   "profile": "chrome-compute-e2e-v0",
-  "recordedAt": "2026-10-17T23:31:33.524Z",
+  "recordedAt": "2026-10-18T02:29:31.900Z",
   "chrome": "Chrome/155.0.8059.82",
   "model": "ollama/qwen3.8:27b",
-  "outputDirectory": "examples/my-chrome-compute-2026-10-17T23-31-33-524Z",
+  "outputDirectory": "examples/my-chrome-compute-2026-10-18T02-29-31-900Z",
   "csp": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'; connect-src https: http://127.0.0.1:* http://localhost:*",
   "packages": {
     "computeTest": {
       "digest": "2c2e8accb2ec58441335eb6ad82f2371f16bc7595411cfe5e8f6f07568045106",
-      "archiveSha256": "d865a6a7c57ee7afa6c2bf05fddbe27393696a832343d254b81ae2171e628f8a",
+      "archiveSha256": "f9081eb7c273d4c8b3231b3c1f8f5960eca770ef5227e88bdf35de50c94ea0ac",
       "bytes": 135153,
-      "signer": "sha256:c38b279dc0e1cb128a4ed89809132452224452757c39233d787750b7231b97d1"
+      "signer": "sha256:51554cf4f043f07cd11a5c9c6497ff18c15d31b88b9eb1e323829351fe58da17"
     },
     "runaway": {
       "digest": "09f1debd911e9431fc45e0ff09ca6a85bcd157b543e4a22b6f0111f1f2a5659c",
-      "archiveSha256": "6b159ae3e67ed1f3c22ec86b65ac5cff0db067f9f70895c25d0a5ba35c092107",
+      "archiveSha256": "a7c30ff2d6d801a842473bca628dc804c61e84bc206bb66f7a265dd609fffab2",
       "bytes": 6792,
-      "signer": "sha256:aed66e372483c04387eee710be35e11e9fd8192cad430fdb4a1022d61fc69b82"
+      "signer": "sha256:4da080625e9b5ff59f92e03e72dd441eaa615b4aa8bcab3b9c244d78f2c23a49"
     },
     "long": {
       "digest": "81c8810425770ce7a77e02cddb15288de67ca97e79144a38c7db5fb2c71647c2",
-      "archiveSha256": "f6701a5485ca404c094da25c6f5bf50f1fdb5cba33590ed646e021b16394370d",
+      "archiveSha256": "c6343ca9679153475100ebe13a8dc20afda1bca21251b0d765d585bade322c85",
       "bytes": 6737,
-      "signer": "sha256:756833b019cb230c06fe424a3c1931bc7681772deec32dbb4e8542c0e15b7570"
+      "signer": "sha256:891b000418c7af3ba885956717c910651e2dd63694af05c71e0caec539323171"
     }
   },
   "computeWorker": {
@@ -32,10 +32,10 @@
   },
   "runs": {
     "compute-test": {
-      "runId": "run_6df093403eac41739236db84c1bb8f59",
+      "runId": "run_b45ec1ae385e4d5a974c1d0b1d3a6317",
       "status": "completed",
       "errorCode": null,
-      "settledMs": 253,
+      "settledMs": 506,
       "chainValid": true,
       "compute": [
         {
@@ -89,6 +89,19 @@
         },
         {
           "action": "compute.completed",
+          "node_id": "quotes",
+          "module": "bookkeeping",
+          "function": "match_quotes",
+          "reason": null,
+          "engine": {
+            "id": "chrome/155.0.0.0",
+            "elapsed_ms": 1,
+            "fuel_consumed": null
+          },
+          "memory_pages": 18
+        },
+        {
+          "action": "compute.completed",
           "node_id": "ids",
           "module": "bookkeeping",
           "function": "assign_ids",
@@ -108,19 +121,6 @@
           "reason": null,
           "engine": null,
           "memory_pages": null
-        },
-        {
-          "action": "compute.completed",
-          "node_id": "quotes",
-          "module": "bookkeeping",
-          "function": "match_quotes",
-          "reason": null,
-          "engine": {
-            "id": "chrome/155.0.0.0",
-            "elapsed_ms": 0,
-            "fuel_consumed": null
-          },
-          "memory_pages": 18
         },
         {
           "action": "compute.completed",
@@ -162,10 +162,10 @@
       ]
     },
     "runaway": {
-      "runId": "run_4ad22b3c96344cbf90599968cc2295cc",
+      "runId": "run_7a8fe3810ac3499dba13b0250d944234",
       "status": "failed",
       "errorCode": "compute_error",
-      "settledMs": 760,
+      "settledMs": 758,
       "chainValid": true,
       "compute": [
         {
@@ -204,10 +204,10 @@
       ]
     },
     "cancelled": {
-      "runId": "run_65dc7d4bee2c4ea9b63b8f0476c4ed52",
+      "runId": "run_fb341b0c3a1849ba8687344fb20573eb",
       "status": "cancelled",
       "errorCode": "cancelled",
-      "settledMs": 1013,
+      "settledMs": 1263,
       "chainValid": true,
       "compute": [
         {
@@ -242,10 +242,10 @@
       ]
     },
     "compute-test-again": {
-      "runId": "run_9eeb5694d8f147f28ddd86cac31453ff",
+      "runId": "run_38fdf1ab364f4a47983e8ec918d7aeb5",
       "status": "completed",
       "errorCode": null,
-      "settledMs": 253,
+      "settledMs": 506,
       "chainValid": true,
       "compute": [
         {
@@ -327,7 +327,7 @@
           "reason": null,
           "engine": {
             "id": "chrome/155.0.0.0",
-            "elapsed_ms": 0,
+            "elapsed_ms": 1,
             "fuel_consumed": null
           },
           "memory_pages": 18
