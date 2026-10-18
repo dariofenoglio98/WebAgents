@@ -291,6 +291,9 @@ C-42. **Traps.** A `trap` carries `trap_code` from this vocabulary, each engine 
 names onto it: `unreachable`, `memory_out_of_bounds`, `stack_overflow`,
 `integer_division_by_zero`, `integer_overflow`, `bad_conversion_to_integer`,
 `indirect_call_to_null`, `bad_signature`, `table_out_of_bounds`, `null_reference`, `other`.
+An engine that reports a `call_indirect` through a null table slot and one whose type differs from
+the slot's function as one failure reports `bad_signature` for both: V8 does (its one message is
+"function signature mismatch"), wasmtime tells them apart (D-254).
 
 C-43. **What a message carries.** Codes, reasons, the module id and hash, the function, byte
 counts, the figures of §5. Never the module's output bytes, never the input: a module that fails
@@ -324,7 +327,9 @@ package's usage is unchanged. When two runtimes' audits are compared (the confor
 `engine` and `limits.fuel` are dropped and `memory_pages` is compared: it is a property of the
 module's growth, which the format makes deterministic; after `fuel_exhausted` or `deadline` it is
 the engine's and is not compared, and the two reasons compare as one (a bound was reached), since
-which one a runaway module meets depends on whether the engine meters fuel (D-244, D-250).
+which one a runaway module meets depends on whether the engine meters fuel (D-244, D-250). The trap
+codes `indirect_call_to_null` and `bad_signature` also compare as one (an indirect call failed),
+since an engine may not tell them apart (C-42, D-254).
 
 ## 8. Determinism
 
@@ -398,6 +403,7 @@ read; `validation`: refused when the package is validated, the message starting 
 | N-24 | `output-zero-length`, `output-out-of-range`, `alloc-returns-zero`, `alloc-out-of-range` | run | `compute_error` (`abi_violation`) |
 | N-25 | `output-schema-miss` | run | `schema_validation` (`compute_output_invalid`) |
 | N-26 | `input-schema-miss` | run | `schema_validation` (`compute_input_invalid`), nothing called |
+| N-27 | `indirect-call-null`, `indirect-call-bad-signature` | run | `compute_error` (`trap`: `indirect_call_to_null`, `bad_signature`; `bad_signature` for both on an engine that does not tell them apart, C-42) |
 
 The controls `echo` and `with-start` complete. The reference asserts every row
 (`agentpkg/tests/test_compute_cases.py`); the catalog v2's compute family starts from this table

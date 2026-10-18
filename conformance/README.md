@@ -144,14 +144,16 @@ without validating). Expected in both:
 | N-15, N-16 | refused by the container: the member rule's message (`a WebAssembly module is at most 4194304 bytes`, `not a WebAssembly core module`) and `content integrity mismatch: … changed=['modules/echo.wasm']` |
 | N-17 | a recorded difference of the CLIs (D-091): `agentpkg run` refuses in the runtime's preflight (`compute_limit_exceeded: …`), the Chrome CLI in its execution layer; both execution layers refuse `execution_compute_limit_exceeded` with an identical message |
 | N-19 | a recorded difference of the CLIs (D-091), as `denied-permission/required`: `permission_denied at node compute` against the execution layers' `execution_permission_denied` |
-| N-20…N-26 | the run fails with the node's code at `compute`; `compute.failed` names the reason, the trap and the detail |
+| N-20…N-27 | the run fails with the node's code at `compute`; `compute.failed` names the reason, the trap and the detail |
 
 A wave's multiset carries a compute event's module, hash, function, bytes in and out, memory
 pages, effective page and time bounds, reason, trap code and detail (C-46); `engine` and
-`limits.fuel` are the engines' own and are dropped. Two engine differences D-244 states are folded
-by the normalizer: a runaway module is `fuel_exhausted` under wasmtime's fuel and `deadline` under
-V8's wall bound (both compare as `bound_reached`), and after either the memory size is the engine's
-(a terminated Worker reports none, D-250). Every compute case carries `requires: 0.5.0`, so against
+`limits.fuel` are the engines' own and are dropped. Three engine differences are folded by the
+normalizer: a runaway module is `fuel_exhausted` under wasmtime's fuel and `deadline` under V8's
+wall bound (both compare as `bound_reached`, D-244); after either the memory size is the engine's
+(a terminated Worker reports none, D-250); and V8 reports a `call_indirect` through a null slot as a
+signature mismatch, so the trap codes `indirect_call_to_null` and `bad_signature` compare as
+`indirect_call_failed` (C-42, D-254). Every compute case carries `requires: 0.5.0`, so against
 an older `CONFORMANCE_CHROME` core it is pending rather than failed.
 
 ## Recorded differences

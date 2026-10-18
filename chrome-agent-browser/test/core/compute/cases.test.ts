@@ -1,8 +1,10 @@
 /**
  * compute.v0 enforcement cases (`examples/compute/cases/cases.json`, spec §10): every case ends at
  * the stage with the code the list expects, on this runtime, as `test_compute_cases.py` asserts it
- * on the reference. The one engine difference the list states: a metering engine reports
- * `fuel_exhausted` where this one reports `deadline` (`non_metering_reason`).
+ * on the reference. The two engine differences the list states: a metering engine reports
+ * `fuel_exhausted` where this one reports `deadline` (`non_metering_reason`), and an engine that
+ * does not tell a null table slot from a wrong type, as V8 does not, reports `bad_signature` for
+ * both (`non_distinguishing_trap_code`, D-254).
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -137,7 +139,7 @@ describe.each(LIST.cases.map((c) => [c.id, c] as const))("%s", (_id, testCase) =
     expect(failed, "compute.failed recorded").toBeDefined();
     const reason = testCase.non_metering_reason ?? testCase.reason;
     expect(failed.reason).toBe(reason);
-    if (testCase.trap_code) expect(failed.trap_code).toBe(testCase.trap_code);
+    if (testCase.trap_code) expect(failed.trap_code).toBe(testCase.non_distinguishing_trap_code ?? testCase.trap_code);
     if (testCase.detail) expect(failed.detail).toBe(testCase.detail);
     if (testCase.memory_pages !== undefined) expect(failed.memory_pages).toBe(testCase.memory_pages);
     if (testCase.code === "compute_error") {

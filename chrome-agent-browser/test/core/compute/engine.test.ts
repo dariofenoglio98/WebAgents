@@ -38,6 +38,9 @@ describe("the call body", () => {
     await expectFailure("trap-unreachable", "trap", { trap_code: "unreachable" });
     await expectFailure("stack-overflow", "trap", { trap_code: "stack_overflow" });
     await expectFailure("grow-until-refused", "trap", { trap_code: "unreachable", memory_pages: 64 });
+    // The reference tells these two apart (`indirect_call_to_null`, `bad_signature`); V8 does not.
+    await expectFailure("indirect-call-null", "trap", { trap_code: "bad_signature" });
+    await expectFailure("indirect-call-bad-signature", "trap", { trap_code: "bad_signature" });
     await expectFailure("alloc-returns-zero", "abi_violation", { detail: "alloc" });
     await expectFailure("alloc-out-of-range", "abi_violation", { detail: "alloc" });
     await expectFailure("zero-length-output", "abi_violation", { detail: "output_range" });
@@ -58,8 +61,10 @@ describe("the call body", () => {
     expect(trap("divide by zero")).toEqual({ reason: "trap", trap_code: "integer_division_by_zero" });
     expect(trap("divide result unrepresentable")).toEqual({ reason: "trap", trap_code: "integer_overflow" });
     expect(trap("float unrepresentable in integer range")).toEqual({ reason: "trap", trap_code: "bad_conversion_to_integer" });
-    expect(trap("null function or function signature mismatch")).toEqual({ reason: "trap", trap_code: "indirect_call_to_null" });
+    // V8 does not tell a null slot from a wrong type (D-254): its one message is `bad_signature`.
+    expect(trap("null function or function signature mismatch")).toEqual({ reason: "trap", trap_code: "bad_signature" });
     expect(trap("function signature mismatch")).toEqual({ reason: "trap", trap_code: "bad_signature" });
+    expect(trap("null function")).toEqual({ reason: "trap", trap_code: "indirect_call_to_null" });
     expect(trap("table index is out of bounds")).toEqual({ reason: "trap", trap_code: "table_out_of_bounds" });
     expect(trap("dereferencing a null pointer")).toEqual({ reason: "trap", trap_code: "null_reference" });
     expect(trap("something new")).toEqual({ reason: "trap", trap_code: "other" });

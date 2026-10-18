@@ -18,13 +18,16 @@ const MEMORY_FACTS = ["count", "types", "proposals_sha256", "offered", "reason",
 // compute.v0 (C-46): a call's events compare everything the format determines (the module, the
 // function, the bytes in and out, the memory's size after the call, the effective page and time
 // bounds, the failure's reason, trap and detail) and nothing the engine decides: `engine` and
-// `limits.fuel` are dropped. Two engine differences D-244 documents are folded: a runaway module is
-// `fuel_exhausted` on a metering engine and `deadline` on one that only has a wall bound, and a
+// `limits.fuel` are dropped. Three engine differences are folded: a runaway module is
+// `fuel_exhausted` on a metering engine and `deadline` on one that only has a wall bound (D-244); a
 // call that was stopped from outside reports the memory size the engine could still read, which
-// a terminated Worker cannot (T22, D-250), so after either reason `memory_pages` is the engine's.
+// a terminated Worker cannot (T22, D-250), so after either reason `memory_pages` is the engine's;
+// and V8 reports a `call_indirect` through a null slot as a signature mismatch, so
+// `indirect_call_to_null` and `bad_signature` compare as one (`indirect_call_failed`, D-254).
 const COMPUTE_EVENTS = new Set(["compute.called", "compute.completed", "compute.failed"]);
-const COMPUTE_FACTS = ["module", "module_sha256", "function", "input_bytes", "output_bytes", "trap_code", "detail", "error"];
+const COMPUTE_FACTS = ["module", "module_sha256", "function", "input_bytes", "output_bytes", "detail", "error"];
 const BOUND_REASONS = new Set(["fuel_exhausted", "deadline"]);
+const INDIRECT_CALL_TRAPS = new Set(["indirect_call_to_null", "bad_signature"]);
 
 /** `Role:7` -> `Role:*`. */
 const instance = (worker) => (typeof worker === "string" ? worker.replace(/:\d+$/u, ":*") : worker);
@@ -74,6 +77,7 @@ export function normalizeAudit(audit, allowTokens = false) {
     if (action === "model.completed" && !allowTokens) facts.push(event.tokens ?? null);
     if (COMPUTE_EVENTS.has(action)) {
       for (const key of COMPUTE_FACTS) if (key in event) facts.push(`${key}=${event[key]}`);
+      if ("trap_code" in event) facts.push(`trap_code=${INDIRECT_CALL_TRAPS.has(event.trap_code) ? "indirect_call_failed" : event.trap_code}`);
       const bound = BOUND_REASONS.has(event.reason);
       if ("reason" in event) facts.push(`reason=${bound ? "bound_reached" : event.reason}`);
       if ("memory_pages" in event && !bound) facts.push(`memory_pages=${event.memory_pages}`);

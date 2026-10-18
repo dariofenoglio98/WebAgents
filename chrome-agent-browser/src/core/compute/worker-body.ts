@@ -27,6 +27,9 @@ export type CallAnswer =
  * V8's trap messages onto C-42's vocabulary. A stack overflow is a `RangeError`, not a
  * `WebAssembly.RuntimeError`, in V8; everything else the engine raises for a module's own fault is
  * a `RuntimeError` whose message names the trap. The message is read here and never recorded.
+ * V8 names a `call_indirect` through a null slot and one with the wrong type alike ("function
+ * signature mismatch"; older versions "null function or function signature mismatch"), so both
+ * are `bad_signature` here, and the comparison of two runtimes treats them as one (C-42, D-254).
  */
 export function classifyTrap(error: unknown): { reason: "trap"; trap_code: string } | null {
   const message = error instanceof Error ? error.message : "";
@@ -45,10 +48,10 @@ export function classifyTrap(error: unknown): { reason: "trap"; trap_code: strin
             ? "integer_overflow"
             : text.includes("float unrepresentable") || text.includes("unrepresentable in integer")
               ? "bad_conversion_to_integer"
-              : text.includes("null function")
-                ? "indirect_call_to_null"
-                : text.includes("signature mismatch")
-                  ? "bad_signature"
+              : text.includes("signature mismatch")
+                ? "bad_signature"
+                : text.includes("null function")
+                  ? "indirect_call_to_null"
                   : text.includes("table") && text.includes("out of bounds")
                     ? "table_out_of_bounds"
                     : text.includes("element segment")

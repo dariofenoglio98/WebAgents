@@ -26,7 +26,7 @@ export function caseModule(stem: string): Uint8Array {
 
 export interface CaseList {
   modules: Record<string, string>;
-  cases: Array<{ id: string; title: string; module: string | null; stage: string; code: string; reason?: string; trap_code?: string; detail?: string; feature?: string; variant?: string; generator?: string; message?: string; node_limits?: JsonObject; grants?: Record<string, string>; input_schema?: JsonObject; output_schema?: JsonObject; non_metering_reason?: string; memory_pages?: number }>;
+  cases: Array<{ id: string; title: string; module: string | null; stage: string; code: string; reason?: string; trap_code?: string; detail?: string; feature?: string; variant?: string; generator?: string; message?: string; node_limits?: JsonObject; grants?: Record<string, string>; input_schema?: JsonObject; output_schema?: JsonObject; non_metering_reason?: string; non_distinguishing_trap_code?: string; memory_pages?: number }>;
 }
 
 export function caseList(): CaseList {

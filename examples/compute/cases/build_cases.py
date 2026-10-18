@@ -20,7 +20,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 MODULES = HERE / "modules"
 
-I32, I64 = 0x7F, 0x7E
+I32, I64, FUNCREF = 0x7F, 0x7E, 0x70
 FUNC, MEMORY = 0x00, 0x02
 
 
@@ -98,11 +98,15 @@ def module(
     memory_flags=None,
     imports=(),
     start=None,
+    tables=(),
+    elements=(),
     data=(),
     custom=(),
 ) -> bytes:
     """Assemble one module. `funcs` are (type index, locals, code) in index order after the
-    imports; `exports` are (name, kind, index); `data` are (offset, bytes) active segments."""
+    imports; `exports` are (name, kind, index); `tables` are (minimum, maximum) funcref tables;
+    `elements` are (offset, function indices) active segments of table 0; `data` are (offset,
+    bytes) active segments."""
     out = bytearray(b"\x00asm\x01\x00\x00\x00")
     out += section(1, vec([functype(p, r) for p, r in types]))
     if imports:
@@ -111,6 +115,8 @@ def module(
             vec([name(m) + name(n) + bytes([FUNC]) + u32(t) for m, n, t in imports]),
         )
     out += section(3, vec([u32(t) for t, _, _ in funcs]))
+    if tables:
+        out += section(4, vec([bytes([FUNCREF]) + limits(lo, hi) for lo, hi in tables]))
     if memories:
         out += section(
             5,
@@ -124,6 +130,16 @@ def module(
     out += section(7, vec([name(n) + bytes([k]) + u32(i) for n, k, i in exports]))
     if start is not None:
         out += section(8, u32(start))
+    if elements:
+        out += section(
+            9,
+            vec(
+                [
+                    b"\x00" + i32_const(offset) + b"\x0b" + vec([u32(f) for f in indices])
+                    for offset, indices in elements
+                ]
+            ),
+        )
     out += section(10, vec([body(locals_, code) for _, locals_, code in funcs]))
     if data:
         out += section(
@@ -174,6 +190,24 @@ GROW_UNTIL_REFUSED = (
 SCHEMA_MISS, SCHEMA_MISS_DATA = with_output(json.dumps({"total": "x"}).encode())
 BAD_JSON, BAD_JSON_DATA = with_output(b"{")
 BAD_UTF8, BAD_UTF8_DATA = with_output(b'"\xff"')
+#: A two-slot table: slot 0 holds a `() -> (i32)` function (type 2), slot 1 is null.
+CONST_T = ([], [I32])
+TABLE_OPTIONS = {
+    "types": ABI_TYPES + [CONST_T],
+    "exports": ABI_EXPORTS,
+    "tables": ((2, 2),),
+    "elements": [(0, [2])],
+}
+
+
+def call_indirect(type_index: int) -> bytes:
+    return b"\x11" + u32(type_index) + b"\x00"
+
+
+#: `call_indirect` through the null slot 1, with the slot's expected type.
+CALL_NULL_SLOT = i32_const(1) + call_indirect(2) + b"\x1a" + i64_const(0)
+#: `call_indirect` through slot 0 with the type `(i32) -> (i32)`: the function there takes nothing.
+CALL_WRONG_TYPE = i32_const(5) + i32_const(0) + call_indirect(0) + b"\x1a" + i64_const(0)
 
 
 def cases() -> dict[str, bytes]:
@@ -191,6 +225,14 @@ def cases() -> dict[str, bytes]:
         "grow-until-refused": run(GROW_UNTIL_REFUSED, memories=((1, 64),)),
         "trap-unreachable": run(b"\x00"),
         "stack-overflow": run(b"\x20\x00\x20\x01\x10\x01"),
+        "indirect-call-null": module(
+            funcs=[(0, [], ALLOC_AT_1024), (1, [], CALL_NULL_SLOT), (2, [], i32_const(7))],
+            **TABLE_OPTIONS,
+        ),
+        "indirect-call-bad-signature": module(
+            funcs=[(0, [], ALLOC_AT_1024), (1, [], CALL_WRONG_TYPE), (2, [], i32_const(7))],
+            **TABLE_OPTIONS,
+        ),
         "bad-json-output": run(BAD_JSON, data=BAD_JSON_DATA),
         "bad-utf8-output": run(BAD_UTF8, data=BAD_UTF8_DATA),
         "schema-miss-output": run(SCHEMA_MISS, data=SCHEMA_MISS_DATA),
