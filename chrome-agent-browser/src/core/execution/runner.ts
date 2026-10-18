@@ -349,43 +349,48 @@ export class ExecutionSession {
         // A checkpoint listener that fails never steers the run.
       }
     };
-    let workflow: Workflow;
+    // Everything from here to the run's end is one guarded region: whatever stops it (a refusal,
+    // the compute preflight among them, or the run itself ending), the session is `finished`, so
+    // `cancel()` never reports a run that is not there (as `session.py` does since T21 review 2).
     try {
-      workflow = await Workflow.create(this.package, {
-        // The watchdog's deadline, so a re-ask or a retry the run would not outlive is not sent.
-        deadlineAt: Date.now() + effectiveDeadlineSeconds(this.package, this.limits) * 1000,
-        grants: this.grants,
-        memory: this.memory,
-        handlers: this.handlers,
-        router: this.router,
-        limits: runtimeLimits(this.limits),
-        approvedTools: this.approvedTools,
-        observer,
-        compute: this.deps.compute ?? null,
-      });
-    } catch (error) {
-      tracker.close();
-      if (!(error instanceof AgentPkgError)) throw error;
-      throw new ExecutionError(RUNTIME_REFUSED, `The runtime refused this package: ${error.message}`);
-    }
-    this.workflow = workflow;
-    // A cancellation that arrived between `begin` and `run` is honoured, not merely recorded.
-    if (this.cancelRequested) workflow.cancel();
-    const deadline = effectiveDeadlineSeconds(this.package, this.limits);
-    const watchdog = setTimeout(() => {
-      this.timedOut = true;
-      workflow.cancel();
-    }, deadline * 1000);
-    try {
-      this.outcome = await workflow.run(this.input);
-    } catch (error) {
-      const report = (error as { execution_report?: ExecutionReport }).execution_report;
-      if (report !== undefined) this.outcome = report;
-      else if (error instanceof CancelledError) {
-        this.outcome = { status: "cancelled", error_code: "cancelled", audit: [...workflow.runtime.audit], usage: workflow.runtime.usage, provenance: this.provenance() };
-      } else throw error;
+      let workflow: Workflow;
+      try {
+        workflow = await Workflow.create(this.package, {
+          // The watchdog's deadline, so a re-ask or a retry the run would not outlive is not sent.
+          deadlineAt: Date.now() + effectiveDeadlineSeconds(this.package, this.limits) * 1000,
+          grants: this.grants,
+          memory: this.memory,
+          handlers: this.handlers,
+          router: this.router,
+          limits: runtimeLimits(this.limits),
+          approvedTools: this.approvedTools,
+          observer,
+          compute: this.deps.compute ?? null,
+        });
+      } catch (error) {
+        if (!(error instanceof AgentPkgError)) throw error;
+        throw new ExecutionError(RUNTIME_REFUSED, `The runtime refused this package: ${error.message}`);
+      }
+      this.workflow = workflow;
+      // A cancellation that arrived between `begin` and `run` is honoured, not merely recorded.
+      if (this.cancelRequested) workflow.cancel();
+      const deadline = effectiveDeadlineSeconds(this.package, this.limits);
+      const watchdog = setTimeout(() => {
+        this.timedOut = true;
+        workflow.cancel();
+      }, deadline * 1000);
+      try {
+        this.outcome = await workflow.run(this.input);
+      } catch (error) {
+        const report = (error as { execution_report?: ExecutionReport }).execution_report;
+        if (report !== undefined) this.outcome = report;
+        else if (error instanceof CancelledError) {
+          this.outcome = { status: "cancelled", error_code: "cancelled", audit: [...workflow.runtime.audit], usage: workflow.runtime.usage, provenance: this.provenance() };
+        } else throw error;
+      } finally {
+        clearTimeout(watchdog);
+      }
     } finally {
-      clearTimeout(watchdog);
       tracker.close();
       this.finished = true;
     }

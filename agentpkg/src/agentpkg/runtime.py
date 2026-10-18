@@ -290,7 +290,7 @@ class Runtime:
             try:
                 self.compute.compile(module["sha256"], self.package.files[module["path"]])
             except ModuleError as exc:
-                error = PolicyError(f"{exc.code}: module {module_id!r}: {exc}")
+                error = PolicyError(f"{exc.code}: module {module_id!r}: {exc.reason}")
                 error.code = exc.code
                 raise error from exc
 

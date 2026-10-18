@@ -283,6 +283,28 @@ def test_the_engine_is_required_at_construction_and_by_the_execution_host(tmp_pa
     assert refused.value.code == COMPUTE_NOT_SUPPORTED
 
 
+def test_a_module_the_engine_refuses_at_the_preflight_names_its_code_once(tmp_path, monkeypatch):
+    """T22 review 1, nit 6: the refusal is `<code>: module '<id>': <reason>`, not the module
+    error's own prefixed message after a second copy of the code (the Chrome core's words)."""
+    from agentpkg.compute.module import ModuleError
+
+    package = load_package(write_probe(tmp_path / "probe"))
+    engine = compute_engine.WasmtimeEngine()
+
+    def refusing(sha256, data):
+        raise ModuleError("module_invalid", "the engine refused the module")
+
+    monkeypatch.setattr(engine, "compile", refusing)
+    monkeypatch.setattr(compute_engine, "default_engine", lambda: engine)
+    try:
+        with pytest.raises(PolicyError) as caught:
+            Runtime(package, grants=grants(package))
+    finally:
+        engine.close()
+    assert caught.value.code == "module_invalid"
+    assert str(caught.value) == "module_invalid: module 'echo': the engine refused the module"
+
+
 def test_a_skipped_compute_node_runs_nothing(tmp_path):
     node = compute_node(
         when={

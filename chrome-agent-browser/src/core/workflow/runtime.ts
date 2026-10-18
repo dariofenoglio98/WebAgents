@@ -98,7 +98,7 @@ export async function prepareCompute(pkg: Package, engine: ComputeEngine | null,
     try {
       await engine.compile(module.sha256, pkg.files.get(module.path)!);
     } catch (error) {
-      if (error instanceof ModuleError) throw refusal(error.code, `module ${pyRepr(moduleId)}: ${error.message}`);
+      if (error instanceof ModuleError) throw refusal(error.code, `module ${pyRepr(moduleId)}: ${error.reason}`);
       throw error;
     }
   }
