@@ -11,11 +11,8 @@ describe("the two runtimes accept the same packages (D-031)", () => {
     const init = readFileSync(join(ROOT, "agentpkg", "src", "agentpkg", "__init__.py"), "utf8");
     const match = /__version__\s*=\s*"([^"]+)"/u.exec(init);
     expect(match, "agentpkg/__init__.py must declare __version__").not.toBeNull();
-    // T21 lands agentpkg 0.5.0 (compute.v0) before T22 ports it: until T22 moves this core's gate to
-    // 0.5.0, agentpkg says 0.5.0 and this core 0.4.0; any other pair fails. (T19/T20 had the same
-    // arrangement for 0.3.0/0.4.0, memory.v0.)
-    const expected = match![1] === "0.5.0" ? "0.4.0" : match![1];
-    expect(SUPPORTED_RUNTIME_VERSION).toBe(expected);
+    // T22 moved this core's gate to 0.5.0 (compute.v0, D-240): the two runtimes accept the same packages again.
+    expect(SUPPORTED_RUNTIME_VERSION).toBe(match![1]);
     expect(RUNTIME_API).toBe("agentpkg-runtime-v0");
   });
 

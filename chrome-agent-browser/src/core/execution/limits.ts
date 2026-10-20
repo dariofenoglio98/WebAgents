@@ -4,6 +4,7 @@
  * upper bound on a single call's output cap, which is a refusal rather than a silent reduction.
  * Nothing here knows what a package is for.
  */
+import { DEFAULT_FUEL, DEFAULT_MEMORY_PAGES, DEFAULT_WALL_SECONDS, MAX_FUEL, MAX_MEMORY_PAGES, MAX_WALL_SECONDS, type ComputeLimits } from "../compute/limits.js";
 import type { JsonObject } from "../json.js";
 import type { Package } from "../package.js";
 import type { HostLimits } from "../workflow/runtime.js";
@@ -34,6 +35,14 @@ export interface HostExecutionLimits {
   run_timeout_seconds: number;
   max_calls_per_tool: number;
   model_call_timeout_seconds: number;
+  /**
+   * compute.v0 (C-36): the bounds of one compute call. A node may only lower them; a module whose
+   * declared memory maximum is above the page bound is refused before the run. Fuel is recorded,
+   * never enforced, on this runtime (D-250).
+   */
+  compute_memory_pages: number;
+  compute_wall_seconds: number;
+  compute_fuel: number;
 }
 
 export const DEFAULT_HOST_LIMITS: Readonly<HostExecutionLimits> = Object.freeze({
@@ -44,12 +53,17 @@ export const DEFAULT_HOST_LIMITS: Readonly<HostExecutionLimits> = Object.freeze(
   run_timeout_seconds: DEFAULT_RUN_TIMEOUT_SECONDS,
   max_calls_per_tool: DEFAULT_MAX_CALLS_PER_TOOL,
   model_call_timeout_seconds: DEFAULT_MODEL_CALL_TIMEOUT_SECONDS,
+  compute_memory_pages: DEFAULT_MEMORY_PAGES,
+  compute_wall_seconds: DEFAULT_WALL_SECONDS,
+  compute_fuel: DEFAULT_FUEL,
 });
 
 /**
  * Limits that lower nothing: every ceiling at its supported maximum, so `min()` with the
  * package's declarations yields the declarations. What `agentpkg run` applies when the operator
- * passes no `--limits`; the model-call timeout keeps its default, since a package declares none.
+ * passes no `--limits`; the model-call timeout keeps its default, since a package declares none,
+ * and so do the compute bounds: they are ceilings that refuse, not budgets a package declares,
+ * and `agentpkg run` without `--limits` applies the same defaults (C-35).
  */
 export const PERMISSIVE_HOST_LIMITS: Readonly<HostExecutionLimits> = Object.freeze({
   total_tokens: MAX_TOTAL_TOKENS,
@@ -59,6 +73,9 @@ export const PERMISSIVE_HOST_LIMITS: Readonly<HostExecutionLimits> = Object.free
   run_timeout_seconds: MAX_RUN_TIMEOUT_SECONDS,
   max_calls_per_tool: MAX_CALLS_PER_TOOL,
   model_call_timeout_seconds: DEFAULT_MODEL_CALL_TIMEOUT_SECONDS,
+  compute_memory_pages: DEFAULT_MEMORY_PAGES,
+  compute_wall_seconds: DEFAULT_WALL_SECONDS,
+  compute_fuel: DEFAULT_FUEL,
 });
 
 const MAXIMA: Record<keyof HostExecutionLimits, number> = {
@@ -69,6 +86,9 @@ const MAXIMA: Record<keyof HostExecutionLimits, number> = {
   run_timeout_seconds: MAX_RUN_TIMEOUT_SECONDS,
   max_calls_per_tool: MAX_CALLS_PER_TOOL,
   model_call_timeout_seconds: MAX_MODEL_CALL_TIMEOUT_SECONDS,
+  compute_memory_pages: MAX_MEMORY_PAGES,
+  compute_wall_seconds: MAX_WALL_SECONDS,
+  compute_fuel: MAX_FUEL,
 };
 
 function bounded(value: unknown, field: keyof HostExecutionLimits): number {
@@ -89,17 +109,29 @@ export function normalizeHostLimits(raw: unknown): HostExecutionLimits {
   return limits;
 }
 
-/** Exactly the keys the runtime accepts; it applies min() to each one. */
+/** Exactly the keys the runtime accepts; it applies min() to each budget, and holds the compute bounds as this host's ceilings. */
 export function runtimeLimits(limits: HostExecutionLimits): HostLimits {
   return {
     hard_tokens: limits.total_tokens,
     max_remote_calls: limits.max_remote_calls,
     max_parallel_workers: limits.max_parallel_workers,
     max_calls_per_tool: limits.max_calls_per_tool,
+    compute_memory_pages: limits.compute_memory_pages,
+    compute_wall_seconds: limits.compute_wall_seconds,
+    compute_fuel: limits.compute_fuel,
   };
 }
 
-/** What the package declared, what the host allowed, and the min of both. */
+/** compute.v0: the host's three ceilings as the runtime and the preflight take them. */
+export function computeLimitsOf(limits: HostExecutionLimits): ComputeLimits {
+  return { memory_pages: limits.compute_memory_pages, wall_seconds: limits.compute_wall_seconds, fuel: limits.compute_fuel };
+}
+
+/**
+ * What the package declared, what the host allowed, and the min of both. The compute bounds are
+ * the host's ceilings (compute.v0), not a min() against a package budget: a package declares no
+ * compute budget, and a module's own maximum is checked against them in `checkCompute`.
+ */
 export function effectiveBudget(pkg: Package, limits: HostExecutionLimits): JsonObject {
   const declared = pkg.policy.budget as JsonObject;
   const host = runtimeLimits(limits) as Record<string, number>;

@@ -44,7 +44,8 @@ export interface RunPanelHost {
   /** Open Settings → Files, where the PDFs a task may name are picked (T6). */
   openFiles?: () => void;
   /** Open the Memory page (T19): after a review, or for Tidy up when the memory is full. */
-  openMemory?: () => void;
+  /** Open the Memory page, on the record just accepted when one is named (B-215). */
+  openMemory?: (recordId: string | null) => void;
   /** Open the Unlock sheet (T16); `retry` runs after a successful unlock. */
   unlock?: (retry: () => void) => void;
   /** Ask Chrome for origins in a click (T16, D-193). */
@@ -68,6 +69,7 @@ export const RUN_ERRORS: Record<string, { title: string; detail: string }> = {
   permission_denied: { title: "A permission was denied during the run", detail: "The package asked for something this authorization does not allow, and was refused." },
   budget_exhausted: { title: "A budget limit was reached", detail: "A token, call or tool limit stopped the run before it could continue." },
   worker_error: { title: "A worker failed unexpectedly", detail: "The interpreter reported a worker error." },
+  compute_error: { title: "A module the package runs failed", detail: "One of the package's WebAssembly modules stopped inside its call: it trapped, reached its time or memory bound, or answered outside the calling convention. The audit names the reason; nothing the module wrote was recorded." },
   cancelled: { title: "Run cancelled", detail: "The run was stopped on request." },
   host_unloaded: { title: "The execution host was unloaded during the run", detail: "Run state is checkpointed but never resumed: an interrupted run ends rather than continuing." },
   execution_unavailable: { title: "The run could not be started", detail: "The execution host was not available." },
@@ -251,7 +253,7 @@ export function stagesFor(nodes: GraphNode[], presentation: PresentationHints | 
   const labels = presentation?.nodes ?? {};
   const stages: Stage[] = [];
   for (const node of nodes) {
-    const effectful = node.type === "llm" || node.type === "tool" || node.type === "map";
+    const effectful = node.type === "llm" || node.type === "tool" || node.type === "map" || node.type === "compute";
     if (effectful || stages.length === 0) stages.push({ label: labels[node.id] ?? humanize(node.id), nodes: [node.id] });
     else stages[stages.length - 1]!.nodes.push(node.id);
   }
@@ -1238,10 +1240,13 @@ export class RunPanel {
     const modelCalls = progress ? progress.model_calls_completed : (record.audit?.modelCalls ?? 0);
     const toolCalls = progress ? progress.tool_calls_started : (usage?.toolCalls ?? 0);
     const tokens = usage?.tokens ?? progress?.tokens ?? 0;
+    // compute.v0: shown exactly when the package declares modules (the usage carries the count then).
+    const computeCalls = usage?.computeCalls ?? null;
     return definition([
       ["Model", model ? `${model.displayName || model.hostModelId}${localText ? ` · ${localText}` : ""} · ${model.hostModelId}` : "—"],
       ["Model calls", String(modelCalls)],
       ["Tool calls", String(toolCalls)],
+      ...(computeCalls !== null ? [["Compute calls", String(computeCalls)] as [string, string]] : []),
       ["Remote calls", String(usage?.remoteCalls ?? progress?.remote_calls ?? 0)],
       ["Tokens", tokens.toLocaleString()],
       ["Workers", progress ? `${progress.workers_active} active · ${progress.workers_spawned} spawned · peak ${progress.peak_parallel_workers}` : "—"],
@@ -1318,7 +1323,7 @@ export class RunPanel {
     return {
       send: <T,>(request: Request) => this.host.send<T>(request),
       rerender: () => this.renderRun(),
-      openMemory: () => this.host.openMemory?.(),
+      openMemory: (recordId: string | null) => this.host.openMemory?.(recordId),
       unlock: this.host.unlock,
       locked: loaded?.authorization?.secrets !== undefined && loaded.authorization.secrets !== "unlocked",
     };

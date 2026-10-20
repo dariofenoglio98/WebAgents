@@ -39,7 +39,8 @@ describe("host execution limits", () => {
     expect(limits.total_tokens).toBe(120_000);
     expect(limits.model_call_timeout_seconds).toBe(300);
     const lowered = normalizeHostLimits({ max_parallel_workers: 1, total_tokens: 5000 });
-    expect(runtimeLimits(lowered)).toEqual({ hard_tokens: 5000, max_remote_calls: 32, max_parallel_workers: 1, max_calls_per_tool: 32 });
+    // compute.v0 (C-36): the three compute ceilings travel with the runtime limits, at their defaults here.
+    expect(runtimeLimits(lowered)).toEqual({ hard_tokens: 5000, max_remote_calls: 32, max_parallel_workers: 1, max_calls_per_tool: 32, compute_memory_pages: 1024, compute_wall_seconds: 10, compute_fuel: 50_000_000_000 });
     const budget = effectiveBudget(pkg, lowered);
     const declared = pkg.policy.budget as JsonObject;
     expect((budget.effective as JsonObject).hard_tokens).toBe(Math.min(5000, declared.hard_tokens as number));

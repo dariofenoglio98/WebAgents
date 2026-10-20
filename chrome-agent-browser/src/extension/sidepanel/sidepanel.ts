@@ -139,6 +139,8 @@ const runs = new RunPanel({
     else openFullPage(undefined, "settings?section=models");
   },
   openFiles: () => openFullPage(undefined, "settings?section=files"),
+  // B-215: the side panel has no Memory page of its own; the full page opens on the record.
+  openMemory: (recordId) => openFullPage(undefined, recordId ? `memory?record=${encodeURIComponent(recordId)}` : "memory"),
   unlock: (retry) => openUnlock(null, retry),
   requestOrigins,
   changed: () => render(),

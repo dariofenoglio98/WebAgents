@@ -83,11 +83,11 @@ an older runtime refuses it by version before anything runs (D-188, D-210). The 
 | agentpkg (Python reference) | 0.5.0, `dist/agentpkg-0.5.0-py3-none-any.whl` | T21 | compute.v0 ([`spec/compute-v0.md`](../spec/compute-v0.md)): WebAssembly modules as `compute` nodes, the `compute` permission kind, binary `.wasm` members; the `wasmtime` extra (`agentpkg[compute]`) runs them |
 | agentpkg | 0.4.0, `dist/agentpkg-0.4.0-py3-none-any.whl` | T20 | memory.v0 ([`spec/memory-v0.md`](../spec/memory-v0.md)) |
 | agentpkg | 0.3.0, `dist/agentpkg-0.3.0-py3-none-any.whl` | T13 | answer checks, the `feedback` request line |
-| Chrome core (`SUPPORTED_RUNTIME_VERSION`) | 0.4.0 with core 0.2.0 (T19); 0.5.0 with core 0.3.0 once T22 lands | T19 | memory.v0 in the Chrome Agent Browser; compute.v0 follows in T22 |
-| WebAir | 0.6.0, `dist/webair-0.6.0.agent.pkg` (runtime minimum 0.4.0) | T20 | the travel profile from memory, one preference proposed after a booking |
-| Literature Review | 0.2.8, `dist/literature-review-0.2.8.agent.pkg` (runtime minimum 0.4.0) | T20 | the research profile, the agent's notes and a review proposal, all opt-in |
+| Chrome core (`SUPPORTED_RUNTIME_VERSION`) | 0.5.0 with core and extension 0.3.0 | T22 | compute.v0 in the Chrome Agent Browser: a nested Worker per call, the wall bound as the CPU bound, the CSP admitting WebAssembly compilation (D-250, D-251, D-253); memory.v0 since 0.4.0 / core 0.2.0 (T19) |
+| WebAir | 0.7.0, `dist/webair-0.7.0.agent.pkg` (runtime minimum 0.5.0) | T22 | WebAir's fare and quote totals verified by the fares module; a larger `remember` step (B-220); 0.6.0 (T20) brought the travel profile from memory |
+| Literature Review | 0.2.9, `dist/literature-review-0.2.9.agent.pkg` (runtime minimum 0.5.0) | T22 | candidate deduplication in the bookkeeping module; 0.2.8 (T20) brought the research profile, the agent's notes and a review proposal |
 | Meeting Agenda | 0.2.2, `dist/meeting-agenda.agent.pkg` | v0.2.0 | — |
-| Demo agent index | 1.3.0, `examples/agent-index.json` (1.2.0 kept as `agent-index-1.2.0.json`) | T20 | names WebAir 0.6.0 and Literature Review 0.2.8 |
+| Demo agent index | 1.4.0, `examples/agent-index.json` (1.3.0 kept as `agent-index-1.3.0.json`) | T22 | names WebAir 0.7.0 and Literature Review 0.2.9 |
 | OpenClaw plugin | 0.1.0, frozen (D-029) | v0.2.0 | runs packages up to WebAir 0.5.0 and Literature Review 0.2.7 |
 
 A changed package is a new version, a new signature and a new row in `dist/README.md`; an unchanged

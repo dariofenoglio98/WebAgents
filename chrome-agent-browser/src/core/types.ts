@@ -307,6 +307,7 @@ export type AuditErrorCode =
   | "permission_denied"
   | "model_error"
   | "tool_error"
+  | "compute_error"
   | "worker_error";
 
 /** `schemas/audit-event.schema.json`: one event in the hash-linked chain. */

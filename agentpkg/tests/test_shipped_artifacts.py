@@ -466,7 +466,7 @@ REVIEW = ROOT / "dist/literature-review-0.2.1.agent.pkg"
 REVIEW_ARCHIVE_SHA256 = "0fb8b65bbff4578d4815ee70b29a0cb789b2cc95ce181d011d467b4be22c8e42"
 REVIEW_DIGEST = "2199abb5868bcedd5c73e7a664f38d35aaaa047c2dcfdb07d91f3977bde41700"
 REVIEW_SOURCE = ROOT / "agents/literature-review"
-CURRENT_REVIEW_028 = ROOT / "dist/literature-review-0.2.8.agent.pkg"
+CURRENT_REVIEW_029 = ROOT / "dist/literature-review-0.2.9.agent.pkg"
 REVIEW_PREVIOUS = ROOT / "dist/literature-review-0.2.0.agent.pkg"
 REVIEW_PREVIOUS_DIGEST = "b7bd37ca730ec5a156156207dc04fa5a7563e34a4373a298daa143dd9945b3eb"
 
@@ -1035,9 +1035,9 @@ def test_the_shipped_review_artifact_is_0_2_3(current_review):
 
 
 def test_the_shipped_review_artifact_matches_its_source_tree(tmp_path):
-    # The source is 0.2.8 (T20); the unversioned alias stays 0.2.5 (dist/README.md).
+    # The source is 0.2.9 (T22); the unversioned alias stays 0.2.5 (dist/README.md).
     rebuilt = load_package(build_package(REVIEW_SOURCE, tmp_path / "rebuilt.agent.pkg"))
-    assert rebuilt.digest == load_package(CURRENT_REVIEW_028).digest
+    assert rebuilt.digest == load_package(CURRENT_REVIEW_029).digest
 
 
 def test_0_2_3_is_signed_by_the_same_literature_review_key(current_review):
@@ -1237,7 +1237,7 @@ def test_presentation_metadata_is_noncritical(tmp_path):
     graph = json.loads((source / "graph.json").read_text())
     graph["extensions"] = {}
     (source / "graph.json").write_text(json.dumps(graph))
-    plain, dressed = replay(load_package(source)), replay(load_package(CURRENT_REVIEW_028))
+    plain, dressed = replay(load_package(source)), replay(load_package(CURRENT_REVIEW_029))
     assert plain["output"] == dressed["output"]
     assert plain["usage"]["tool_calls"] == dressed["usage"]["tool_calls"]
     assert [event["action"] for event in plain["audit"]] == [

@@ -73,6 +73,15 @@
       "resources": [
         "agent"
       ]
+    },
+    {
+      "id": "compute.bookkeeping",
+      "kind": "compute",
+      "description": "Run the package's bookkeeping module (WebAssembly, no imports): exact deduplication of the found papers by normalized DOI, arXiv id, URL or title. It can only compute over the records the graph gives it.",
+      "required": true,
+      "resources": [
+        "bookkeeping"
+      ]
     }
   ],
   "network": {

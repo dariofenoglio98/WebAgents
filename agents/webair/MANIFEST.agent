@@ -2,16 +2,16 @@
   "spec_version": "0.1",
   "package_id": "org.webagents.webair",
   "name": "WebAir Travel Agent",
-  "version": "0.6.0",
-  "description": "Search WebAir flights, explain fare rules, prepare a booking quote and simulate a purchase through WebAir's own semantic API, using a travel profile from the person's memory, a passenger identity and a payment method that the person's host owns and grants per run, and after a booking propose one travel preference for the person to remember. WebAir publishes the behavior; the person's runtime supplies the authority. WebAir is a fictional demo airline: nothing is ever booked or charged.",
+  "version": "0.7.0",
+  "description": "Search WebAir flights, explain fare rules, prepare a booking quote and simulate a purchase through WebAir's own semantic API, using a travel profile from the person's memory, a passenger identity and a payment method that the person's host owns and grants per run, and after a booking propose one travel preference for the person to remember. The person's runtime checks WebAir's fare totals with a WebAssembly module that can only compute. WebAir publishes the behavior; the person's runtime supplies the authority. WebAir is a fictional demo airline: nothing is ever booked or charged.",
   "publisher": {
     "id": "webair-demo",
     "name": "WebAir (fictional demo airline)"
   },
-  "created_at": "2026-10-14T00:00:00Z",
+  "created_at": "2026-10-17T00:00:00Z",
   "runtime": {
     "api": "agentpkg-runtime-v0",
-    "minimum_version": "0.4.0"
+    "minimum_version": "0.5.0"
   },
   "capabilities": [
     "flight-search",
@@ -263,6 +263,22 @@
     {
       "id": "remember",
       "path": "schemas/remember.schema.json"
+    },
+    {
+      "id": "fare-total-input",
+      "path": "schemas/fare-total-input.schema.json"
+    },
+    {
+      "id": "fare-total",
+      "path": "schemas/fare-total.schema.json"
+    },
+    {
+      "id": "quote-total",
+      "path": "schemas/quote-total.schema.json"
+    },
+    {
+      "id": "quote-total-input",
+      "path": "schemas/quote-total-input.schema.json"
     }
   ],
   "model_requirements": {
@@ -334,7 +350,8 @@
           "permissions": [
             "network.webair",
             "model.reasoning",
-            "memory.session"
+            "memory.session",
+            "compute.fares"
           ],
           "tools": [
             "search-flights",
@@ -358,7 +375,8 @@
             "identity.passenger",
             "memory.remember",
             "model.reasoning",
-            "memory.session"
+            "memory.session",
+            "compute.fares"
           ],
           "tools": [
             "search-flights",
@@ -389,7 +407,8 @@
             "booking.simulate_purchase",
             "memory.remember",
             "model.reasoning",
-            "memory.session"
+            "memory.session",
+            "compute.fares"
           ],
           "tools": [
             "search-flights",

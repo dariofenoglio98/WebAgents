@@ -15,6 +15,8 @@
     "grow-until-refused": "2360f258c31f53eb2966bba73d55011fabb031216c0e137fcdcfc631f98ebbcb",
     "trap-unreachable": "59b520a06090cd7c2d7b99214fcbee99ed848b1dc7e70e5e6e70e718ab5a7fb7",
     "stack-overflow": "0469e1235a96a929d9854fb6eb4093dc41956672cdaf8d76f1c44035d3d5bae7",
+    "indirect-call-null": "541b140d3b64fa26d4334c6f81fc011f60f1961916ac8094d1e194b49165bae8",
+    "indirect-call-bad-signature": "3ac30ddae99e9f05f11d8160a14762faf98e7eb5993550d194f9401a76d7cb6a",
     "bad-json-output": "0e4cbae56459631fd2aa2b9c697ddb9948c19d51d6c6c7221443751a9dbda123",
     "bad-utf8-output": "e711d630bf7f1bb3764fadb099ea29cccc4321093141a2e8508221388e20c99c",
     "schema-miss-output": "3c0329518e8fa3962529467d06136f9effd8e60a222992d98fc661f77359f08f",
@@ -269,6 +271,25 @@
       "code": "compute_error",
       "reason": "trap",
       "trap_code": "stack_overflow"
+    },
+    {
+      "id": "indirect-call-null",
+      "title": "call_indirect through a null table slot (an engine that cannot tell it from a signature mismatch, as Node 26.9's V8 cannot, reports `bad_signature`)",
+      "module": "indirect-call-null",
+      "stage": "run",
+      "code": "compute_error",
+      "reason": "trap",
+      "trap_code": "indirect_call_to_null",
+      "non_distinguishing_trap_code": "bad_signature"
+    },
+    {
+      "id": "indirect-call-bad-signature",
+      "title": "call_indirect with a type the function in the slot does not have",
+      "module": "indirect-call-bad-signature",
+      "stage": "run",
+      "code": "compute_error",
+      "reason": "trap",
+      "trap_code": "bad_signature"
     },
     {
       "id": "memory-growth-refused",

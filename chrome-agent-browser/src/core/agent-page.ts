@@ -10,6 +10,7 @@
  * signature or trust: both come from the publisher report.
  */
 import type { PublisherReport } from "./evaluation.js";
+import { moduleRecords } from "./compute/declarations.js";
 import { isJsonObject, type JsonObject, type JsonValue } from "./json.js";
 import { packageJson, type Package } from "./package.js";
 import { readProfiles, type Profile } from "./profiles.js";
@@ -106,7 +107,19 @@ export interface AgentPageModel {
     warnings: Warning[];
     manifest: JsonObject;
     payload: BrowserSummary["payload"];
+    /** compute.v0 (C-9): every module the graph declares, with the hash a person can compare against it. */
+    modules: ModuleRow[];
   };
+}
+
+export interface ModuleRow {
+  id: string;
+  path: string;
+  sha256: string;
+  size: number;
+  functions: string[];
+  memory_min_pages: number;
+  memory_max_pages: number;
 }
 
 const KIND_TITLES: Record<string, [title: string, explanation: string]> = {
@@ -118,10 +131,11 @@ const KIND_TITLES: Record<string, [title: string, explanation: string]> = {
   "files.write": ["Files it can write", "Writes happen only where you allow them."],
   model: ["Your AI model", "Runs on the model you choose and pay for; the package names no provider."],
   memory: ["Memory", "What it keeps while it runs. Nothing persists after the run."],
+  compute: ["Code it runs on your device", "WebAssembly modules the package ships. They import nothing, so they can only compute over the data the graph gives them, under this browser's memory and time bounds; their hashes are in the signed graph and under Technical details."],
   payment: ["Payments (simulated here)", "This browser has no payment infrastructure; the permission only decides whether those tools may be called."],
   shell: ["Shell access", "Not available in this browser. The package cannot run commands here."],
 };
-const KIND_ORDER = ["personal.read", "memory.read", "memory.write", "payment", "network", "files.write", "files.read", "model", "memory", "shell"];
+const KIND_ORDER = ["personal.read", "memory.read", "memory.write", "payment", "network", "files.write", "files.read", "model", "compute", "memory", "shell"];
 
 /** Signature and trust, in words a person can act on. Never recomputed; only phrased. */
 export function trustWords(publisher: PublisherReport): TrustWords {
@@ -294,6 +308,7 @@ export function agentPageModel(
       warnings: summary.warnings,
       manifest,
       payload: summary.payload,
+      modules: moduleRecords(pkg).map((record) => ({ id: String(record.id), path: String(record.path), sha256: String(record.sha256), size: Number(record.size), functions: (record.functions as JsonValue[]).map(String), memory_min_pages: Number(record.memory_min_pages), memory_max_pages: Number(record.memory_max_pages) })),
     },
   };
 }

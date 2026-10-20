@@ -128,6 +128,12 @@
     },
     "remember": {
       "$ref": "remember.schema.json"
+    },
+    "quote_total": {
+      "$ref": "quote-total.schema.json"
+    },
+    "quote_total_input": {
+      "$ref": "quote-total-input.schema.json"
     }
   },
   "required": [
@@ -158,7 +164,9 @@
     "status",
     "answer",
     "result",
-    "remember"
+    "remember",
+    "quote_total",
+    "quote_total_input"
   ],
   "additionalProperties": false
 }

@@ -57,6 +57,14 @@ def _safe_facts(facts) -> dict:
     return safe
 
 
+def operation_node_id(context, operation=None):
+    """The node an event belongs to (compute.v0 C-44): the context's current operation (a map
+    step, set for the step's duration), else its node, else the operation's own id on the
+    coordinator, whose one context is shared by every coordinator node of a wave."""
+    node_id = getattr(context, "operation_id", getattr(context, "node_id", None))
+    return node_id or (operation["id"] if operation is not None else None)
+
+
 def failure_reason(exc) -> dict:
     """A failed call's stable code, when the failing adapter gave one.
 
@@ -282,7 +290,7 @@ class Runtime:
             try:
                 self.compute.compile(module["sha256"], self.package.files[module["path"]])
             except ModuleError as exc:
-                error = PolicyError(f"{exc.code}: module {module_id!r}: {exc}")
+                error = PolicyError(f"{exc.code}: module {module_id!r}: {exc.reason}")
                 error.code = exc.code
                 raise error from exc
 
@@ -313,7 +321,7 @@ class Runtime:
             "role": context.role if context else None,
             "parent": context.parent if context else None,
             "depth": context.depth if context else 0,
-            "node_id": getattr(context, "operation_id", getattr(context, "node_id", None)),
+            "node_id": operation_node_id(context),
             "previous_hash": self.audit[-1]["event_hash"] if self.audit else None,
             **metadata,
         }
@@ -564,7 +572,7 @@ class Runtime:
         module_id, function = operation["module"], operation["function"]
         # The operation names itself (C-44): a worker's context carries its node (or map step),
         # while the coordinator's one context is shared by every coordinator node of a wave.
-        node_id = getattr(ctx, "operation_id", getattr(ctx, "node_id", None)) or operation["id"]
+        node_id = operation_node_id(ctx, operation)
         identity = dict(node_id=node_id, module=module_id, function=function)
         outcome = None
         try:
@@ -810,7 +818,7 @@ class Runtime:
             "budget_context": {"max_output_tokens": max_output_tokens},
             "audit_context": {
                 "worker": ctx.worker_id,
-                "node_id": getattr(ctx, "operation_id", getattr(ctx, "node_id", None)),
+                "node_id": operation_node_id(ctx),
             },
         }
         validate_document(request, "model-request", "model request")

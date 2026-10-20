@@ -34,7 +34,8 @@ export function newReviewState(runId: string): ReviewState {
 export interface ReviewActions {
   send<T>(request: Request): Promise<T>;
   rerender(): void;
-  openMemory(): void;
+  /** Open the Memory page, on the record just accepted when one is known (B-215). */
+  openMemory(recordId: string | null): void;
   /** The store is locked and a decision needs it: open the Unlock sheet, then run `then`. */
   unlock?: (then: () => void) => void;
   locked: boolean;
@@ -137,7 +138,7 @@ export function renderReview(state: ReviewState, actions: ReviewActions): HTMLEl
     return el(
       "section",
       { className: "ab-review ab-review-done" },
-      el("div", { className: "ab-banner ab-banner-good" }, el("strong", { text: fill("memory.review.done", { n: view.decided.accepted }) }), el("span", { text: view.decided.rejected > 0 ? ` · ${view.decided.rejected} rejected` : "" }), el("span", { text: " · " }), button("Open in Memory", actions.openMemory)),
+      el("div", { className: "ab-banner ab-banner-good" }, el("strong", { text: fill("memory.review.done", { n: view.decided.accepted }) }), el("span", { text: view.decided.rejected > 0 ? ` · ${view.decided.rejected} rejected` : "" }), el("span", { text: " · " }), button("Open in Memory", () => actions.openMemory(state.outcome?.accepted[0]?.id ?? null))),
     );
   }
   if (view.review === null) {
@@ -232,7 +233,7 @@ export function renderReview(state: ReviewState, actions: ReviewActions): HTMLEl
         "div",
         { className: "ab-inline" },
         review.memory_full
-          ? el("span", {}, el("span", { text: `${STRINGS["memory.full"].replace("{cap}", String(review.cap))} · ` }), button("Tidy up", actions.openMemory))
+          ? el("span", {}, el("span", { text: `${STRINGS["memory.full"].replace("{cap}", String(review.cap))} · ` }), button("Tidy up", () => actions.openMemory(null)))
           : button("Accept", () => {
               state.decisions[index] = "accept";
               actions.rerender();

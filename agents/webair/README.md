@@ -1,13 +1,30 @@
 # WebAir Travel Agent — workflow.v0
 
-`org.webagents.webair` 0.6.0, published by the fictional WebAir demo airline
+`org.webagents.webair` 0.7.0, published by the fictional WebAir demo airline
 (`demo/webair/`), whose public demo origin is <https://webagents-webair-production.up.railway.app/>.
 WebAir serves the same business logic two ways: HTML pages and forms for people, and this
 signed package for an agent-native host. **The package never touches WebAir's HTML.** It
 declares WebAir's semantic operations as tools and carries the domain knowledge and
 orchestration to use them. Nothing is ever booked or charged: WebAir is not an airline.
 
-0.6.0 is 0.5.0 with the person's memory ([memory.v0](../../spec/memory-v0.md)). The travel
+0.7.0 is 0.6.0 with its fare totals checked by code that can only compute
+([compute.v0](../../spec/compute-v0.md)). WebAir states a total for every fare whose rules it
+returns and for every quote (the per-passenger price times the party size). The package ships a
+WebAssembly module, `modules/fares.wasm` (AssemblyScript, `examples/compute/fares-as/`, SHA-256
+`ef7e813b9ac330575c89c75d96aa63bfe25d77da8d3a699cf4718879a8f123c0`, declared in the graph and
+covered by the signature), that recomputes each total on the person's device, and the graph's
+checks refuse any WebAir total that differs: a step in the fare-rules map (`total`) and two nodes
+after the quote (`quote-total-input`, `quote-total`). The module imports nothing, so it can only
+compute over the prices the graph gives it; it runs under the host's memory and time bounds, in
+every mode. One required permission authorizes it (`compute.fares`, kind `compute`, in every
+profile); the agent page says "runs code that can only compute" and shows the hash. WebAir's
+prices are whole dollars, so the module's integer amounts are dollars here. 0.7.0 also gives the
+`remember` step room for a model that thinks before it answers (10,000 output tokens instead of
+4,000, 600 s, a 40,000-token budget): on a local thinking model 0.6.0's step could be cut off and
+fail a run that had already made the quote. It needs a runtime that implements compute.v0
+(agentpkg 0.5.0, the Chrome Agent Browser's core 0.3.0). Nothing a model sees changed.
+
+0.6.0 was 0.5.0 with the person's memory ([memory.v0](../../spec/memory-v0.md)). The travel
 profile is read from the person's memory (`memory.read` of the type `travel.profile`, as a
 record view) instead of a host resource, and after a booking quote or a simulated purchase a
 new `remember` model step may **propose** one travel preference to remember (`memory.write`).
@@ -34,17 +51,19 @@ or, in a separate run, a simulated purchase of one exact quote an earlier run re
 interpret (model: the request only)
   └─► travel profile (host, only when the request leaves the origin unstated)
         └─► departure airport (the request's, else the profile's; none: nothing is searched)
-              └─► fill unstated criteria ─► search_flights ─► select (model) ─► checks ─► get_fare_rules × ≤6
-booking:  passenger identity (host) ─► prepare_booking ─► check ─► quote summary (no identity)
+              └─► fill unstated criteria ─► search_flights ─► select (model) ─► checks
+                    ─► get_fare_rules × ≤6, each total recomputed by the module and checked
+booking:  passenger identity (host) ─► prepare_booking ─► total recomputed by the module
+          ─► check ─► quote summary (no identity)
 purchase: payment method (host) ─► passenger identity (host) ─► prepare_booking (re-quote)
           ─► check it is the authorized quote ─► simulate_purchase ─► check ─► summary
 answer (model: summaries only) ─► assemble + validate ─► clear personal state ─► output
 after a quote: remember (model: request and quote summary only) ─► proposals.json
 ```
 
-36 nodes, all canonical workflow.v0 operators: 4 `llm`, 6 `tool` (the three personal reads,
-search, quote, purchase), 1 `map` (fare rules: a `tool` step and a `validate` step per fare),
-2 `join`, 22 `validate`, 1 `output`.
+38 nodes, all canonical workflow.v0 operators: 4 `llm`, 6 `tool` (the three personal reads,
+search, quote, purchase), 1 `compute` (the quote's total), 1 `map` (fare rules: a `tool`, a
+`compute` and a `validate` step per fare), 2 `join`, 23 `validate`, 1 `output`.
 
 ## Personal records: requested, never owned
 
@@ -112,7 +131,7 @@ resource or a request built from one, so the final state a host writes to disk k
 
 - **Quote**: `booking: true`. The fare is the checked selection; the passenger is the granted
   identity, one traveler. The quote is checked against the search (fare, price, party size) and
-  against the request that was sent.
+  against the request that was sent, and its total against the module's recomputation.
 - **Simulated purchase**: a separate run whose task names `purchase.quote_id` and
   `purchase.fare_id` from a quote. It reads the payment method first (so a purchase without one
   stops before any identity is read), then the identity, and asks WebAir to quote that fare for
@@ -125,13 +144,14 @@ resource or a request built from one, so the final state a host writes to disk k
 
 Model tasks `interpret`, `select`, `answer`, `remember`: structured output and reasoning, a
 16,000-token context window, host routing, no fallback. The package names no provider, model or
-credential. Required permissions: `network.webair`, `model.reasoning`, `memory.session`;
-optional: `memory.travel_profile`, `identity.passenger`, `wallet.payment`,
+credential. Required permissions: `network.webair`, `model.reasoning`, `memory.session`,
+`compute.fares` (`compute`, the fare-totals module); optional: `memory.travel_profile`, `identity.passenger`, `wallet.payment`,
 `booking.simulate_purchase`, `memory.remember` (`memory.write` of `travel.preference`).
 Budgets: 120,000 tokens, 22 remote calls, at most 1 search, 6 fare-rule reads, 1 quote, 1
-purchase and 1 read of each personal record per run, 3 parallel workers. It declares
-`memory.read` and `memory.write` (memory.v0), so its minimum runtime is 0.4.0; earlier
-runtimes refuse it by version before anything runs.
+purchase and 1 read of each personal record per run, 3 parallel workers. It ships a
+WebAssembly module (compute.v0) and declares `memory.read` and `memory.write` (memory.v0), so its
+minimum runtime is 0.5.0; agentpkg 0.4.0 and earlier, and the Chrome core before 0.3.0, refuse it
+before anything runs (at the archive's `.wasm` member, which they read before the version).
 
 ## Profiles
 
@@ -141,7 +161,7 @@ three profiles, each containing the previous one:
 
 | Profile | Permissions | Tools | Host resources |
 |---|---|---|---|
-| `search` "Search flights" | `network.webair`, `model.reasoning`, `memory.session` | `search-flights`, `get-fare-rules` | none |
+| `search` "Search flights" | `network.webair`, `model.reasoning`, `memory.session`, `compute.fares` | `search-flights`, `get-fare-rules` | none |
 | `quote` "Search and quote" | adds `memory.travel_profile`, `identity.passenger`, `memory.remember` | adds `prepare-booking`, `travel.profile`, `personal.passenger_identity` | passenger identity (the travel profile is recalled from memory) |
 | `book` "Book (simulated)" | adds `wallet.payment`, `booking.simulate_purchase` | adds `simulate-purchase`, `wallet.payment_method` | adds the payment method |
 
@@ -153,7 +173,8 @@ rather than listed as a host resource. "Search flights" reads nothing personal, 
 trip starts; one that does not is answered with that request, and searches nothing. (The graph
 cannot see the person's grants: if the interpreting model asks for the travel profile under
 "Search flights", the runtime refuses that call and the run stops as `permission_denied`.) Each profile's estimate (model calls, tool calls, tokens) comes from the
-publisher's recorded runs of the 0.5.0 graph, plus the one model call 0.6.0 adds after a booking,
+publisher's recorded runs of the 0.5.0 graph, plus the one model call 0.6.0 adds after a booking
+(0.7.0's module calls are not counted: they reach no model and no network),
 and is information, not a limit: the budgets above are
 the limits. A host that does not implement profiles ignores them, as agentpkg 0.2.2 does.
 

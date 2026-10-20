@@ -54,7 +54,7 @@ const registeredScripts: unknown[] = [];
 const fakeChrome = {
   runtime: {
     id: EXTENSION_ID,
-    getManifest: () => ({ version: "0.2.0" }),
+    getManifest: () => ({ version: "0.3.0" }),
     onStartup: { addListener: () => undefined },
     onMessage: {
       addListener: (listener: Listener) => {

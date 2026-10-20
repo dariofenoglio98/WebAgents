@@ -73,6 +73,8 @@ class ModuleError(ValueError):
 
     def __init__(self, code: str, message: str):
         self.code = code
+        #: The message without its `<code>: ` prefix, for callers that re-prefix it.
+        self.reason = message
         super().__init__(f"{code}: {message}")
 
 

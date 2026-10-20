@@ -167,8 +167,9 @@ revokes it; a plan that needs a revoked origin blocks Run by name until it is al
 checks apply to every request a run makes: the plan's origin allowlist in the execution host
 (`origin_not_in_plan`), the core URL gate (D-026) and Chrome's own grant.
 
-The content security policy allows scripts from the extension only and connections to HTTPS and
-the two loopback names. Every package string reaches the page through `textContent`; the shell
+The content security policy allows scripts from the extension only, WebAssembly compilation
+(`'wasm-unsafe-eval'`, for a package's compute modules; it never permits `eval` or `new Function`,
+D-253) and connections to HTTPS and the two loopback names. Every package string reaches the page through `textContent`; the shell
 has no `innerHTML`.
 
 ## 6. Limits
@@ -184,6 +185,7 @@ has no `innerHTML`.
 | Tool calls | one request at a time, no redirect, bounded request and response bytes, the binding's own pacing. A read-only remote call that fails transiently (429, 500, 503, 504, a 502 that is not data, a connection failure, the binding's timeout) is sent again up to twice, after 1 s and 3 s or the server's `Retry-After` up to 10 s, each retry a remote call within the run's budgets; a tool with side effects is never sent twice. A `citation.resolve` call for a DOI whose resolver stays unavailable is answered by the built-in Crossref lookup when the package declares `api.crossref.org` (Literature Review 0.2.7 does). Only fast failures are recovered: a generic JSON binding's per-request deadline is the package's tool timeout, so a service that hangs for that whole time (45 s for Literature Review's resolver) leaves no time for a retry or the lookup, and the call fails as `tool_timeout` | D-054, D-066, D-081, D-152, D-153 |
 | Selected PDFs | the reference parser's limits (size, pages, text per page, text in all) | D-082 |
 | One active run | per session and per plan; a receipt must outlast the run deadline by 60 s | D-071 |
+| Compute calls (compute.v0, T22) | each call in its own nested Worker, terminated when it answers, at its wall bound (`min(wall_seconds, timeout_seconds + 1)`, the CPU bound: Chrome meters no fuel) and on cancel; memory bounded by the module's declared maximum, refused before the run when that is above the host's page bound; the memory and time per compute call in Settings → Policies → Run limits | D-250, D-251, `src/core/compute/engine.ts` |
 
 ## 7. How it is verified
 
@@ -194,7 +196,10 @@ has no `innerHTML`.
   shipped packages in fixture mode and on a negative suite, and both control planes on stale-plan,
   replayed-`once` and profile scenarios; reports under `conformance/results/`.
 - **Headless Chrome harnesses** (`scripts/e2e-*.mjs`): discovery and inspection against a local
-  HTTPS origin, the paper reader, and live runs of WebAir and Literature Review whose exported run
+  HTTPS origin, the paper reader, compute modules (`e2e-compute.mjs`: compute-test through the
+  offscreen run Worker and its nested compute Workers, a runaway module stopped at its deadline, a
+  cancel, the two indirect-call traps with the reference's codes;
+  [`chrome-compute-e2e.json`](../examples/verification/chrome-compute-e2e.json)), and live runs of WebAir and Literature Review whose exported run
   directories are recomputed by `scripts/verify_chrome_*_live.py`. The recorded evidence is under
   [`examples/verification/`](../examples/verification/) (`chrome-*.json`). Headless Chrome cannot
   grant an optional origin (the prompt waits for nobody) nor `activeTab` (no click reaches an

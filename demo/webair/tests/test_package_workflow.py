@@ -42,7 +42,8 @@ from publisher.scenarios import (
     source_scenario,
 )
 
-CANONICAL_NODE_TYPES = {"llm", "tool", "map", "join", "validate", "output"}
+# workflow.v0 and compute.v0 (0.7.0, T22): the node types the generic runtime implements.
+CANONICAL_NODE_TYPES = {"llm", "tool", "map", "join", "validate", "output", "compute"}
 HERO = {"request": HERO_REQUEST, "booking": False, "purchase": dict(NO_PURCHASE)}
 ALEX = resource_value("passenger_demo_alex")
 VISA = resource_value("payment_demo_visa")
@@ -592,6 +593,68 @@ def test_a_miscounted_party_cannot_be_quoted(package, origin_app):
     assert error.code == "schema_validation" and error.node_id == "check-quote-offer"
 
 
+# --- fare totals, recomputed by a module (0.7.0, compute.v0) ------------------------------
+
+
+def misstating(package, origin_app, binding, change):
+    """The origin's handlers, with one binding's answer changed by `change` after WebAir answers."""
+    handlers = json_http_handlers(package, origin_app)
+    honest = handlers[binding]
+
+    async def tampered(context, payload):
+        answer = await honest(context, payload)
+        change(answer)
+        return answer
+
+    return {**handlers, binding: tampered}
+
+
+def booking_with(package, origin_app, handlers):
+    case = source_scenario(capability_scenario("booking"))
+    return run(
+        package,
+        origin_app,
+        case.input,
+        router=ScriptedRouter(case.models),
+        handlers={**handlers, **host_resource_handlers(package, case.selections)},
+        grants=case.decisions,
+    )
+
+
+def test_the_module_recomputes_every_total_webair_states(package, origin_app):
+    report = capability(package, origin_app, "booking")
+    completed = events(report, "compute.completed")
+    by_node = {}
+    for event in completed:
+        by_node.setdefault(event["node_id"], []).append(event)
+    selected = report["output"]["evidence"]["fare_rules"]
+    assert len(by_node["fare-rules/total"]) == len(selected)
+    assert len(by_node["quote-total"]) == 1
+    assert {e["module"] for e in completed} == {"fares"}
+    assert {e["function"] for e in completed} == {"run"}
+    assert report["usage"]["compute_calls"] == len(completed)
+    assert report["state"]["quote_total"]["total_cents"] == report["output"]["booking"]["total_usd"]
+
+
+def test_a_quote_whose_total_webair_misstates_is_refused(package, origin_app):
+    def inflate(answer):
+        answer["total_usd"] += 1
+
+    handlers = misstating(package, origin_app, "webair.prepare_booking", inflate)
+    with pytest.raises(WorkflowError) as caught:
+        booking_with(package, origin_app, handlers)
+    assert (caught.value.code, caught.value.node_id) == ("schema_validation", "check-quote")
+
+
+def test_fare_rules_whose_total_webair_misstates_are_refused(package, origin_app):
+    def inflate(answer):
+        answer["total_usd"] += 100
+
+    handlers = misstating(package, origin_app, "webair.get_fare_rules", inflate)
+    error = failure(package, origin_app, HERO, handlers=handlers)
+    assert (error.code, error.node_id) == ("schema_validation", "fare-rules")
+
+
 # --- tool failures ------------------------------------------------------------------------
 
 
@@ -645,3 +708,8 @@ def test_the_run_uses_only_the_generic_runtime(package, origin_app):
     assert {e["model"] for e in report["audit"] if e["action"] == "model.called"} == {
         FixtureRouter.model_id
     }
+    # The fare-totals module checked every selected fare's total, inside the fare-rules map (0.7.0).
+    totals = [e for e in report["audit"] if e["action"] == "compute.completed"]
+    assert totals and {e["node_id"] for e in totals} == {"fare-rules/total"}
+    assert {e["module"] for e in totals} == {"fares"}
+    assert report["usage"]["compute_calls"] == len(totals)

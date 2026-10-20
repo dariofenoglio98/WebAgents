@@ -23,7 +23,7 @@ import { newSigner, signedBytes, type TestSigner } from "../helpers/signing.js";
 const ORIGIN = "https://webagents-webair-production.up.railway.app";
 const INDEX_URL = `${ORIGIN}/agent-index.json`;
 const POLICY_URL = `${ORIGIN}/policies/webagents-research.json`;
-const LITERATURE_URL = `${ORIGIN}/packages/literature-review-0.2.8.agent.pkg`;
+const LITERATURE_URL = `${ORIGIN}/packages/literature-review-0.2.9.agent.pkg`;
 const WEBAIR_URL = `${ORIGIN}/agent.pkg`;
 const INDEX_PEM = readFileSync(resolve(ROOT, "examples/keys/webagents-index.pub.pem"), "utf8");
 const POLICY_PEM = readFileSync(resolve(ROOT, "examples/keys/webagents-policy.pub.pem"), "utf8");
@@ -31,7 +31,7 @@ const INDEX_CONTENT = JSON.parse(readFileSync(resolve(ROOT, "examples/agent-inde
 const POLICY_CONTENT = JSON.parse(readFileSync(resolve(ROOT, "examples/policies/webagents-research.content.json"), "utf8")) as JsonObject;
 const QWEN = "ollama/qwen3:30b";
 /** Inside both documents' validity windows. */
-const AFTER_ISSUE = new Date("2026-10-15T12:00:00Z");
+const AFTER_ISSUE = new Date("2026-10-18T12:00:00Z");
 
 /** The demo origin as the WebAir deployment serves it beside the airline (D-105): index, policy, both packages. */
 function demoRoutes(): Record<string, Route> {
@@ -39,8 +39,8 @@ function demoRoutes(): Record<string, Route> {
   return {
     [INDEX_URL]: { headers: { "content-type": "application/json" }, body: file("examples/agent-index.json") },
     [POLICY_URL]: { headers: { "content-type": "application/json" }, body: file("examples/policies/webagents-research.json") },
-    [LITERATURE_URL]: { body: readBytes(SHIPPED.literatureReview028.archive) },
-    [WEBAIR_URL]: { body: readBytes(SHIPPED.webair060.archive) },
+    [LITERATURE_URL]: { body: readBytes(SHIPPED.literatureReview029.archive) },
+    [WEBAIR_URL]: { body: readBytes(SHIPPED.webair070.archive) },
   };
 }
 
@@ -75,35 +75,35 @@ describe("the agent index (deliverables 1–3)", () => {
     const h = harness();
     expect((await send<SearchView>(h, { type: "search.query", text: "literature review" })).enabled_indexes).toBe(0);
     const added = await send<IndexesView>(h, { type: "indexes.add", url: INDEX_URL, publicKeyPem: INDEX_PEM });
-    expect(added.indexes[0]).toMatchObject({ url: INDEX_URL, enabled: true, state: "current", signer_fingerprint: "sha256:e0e7022b5836da157d7d55a9d7b00cb58e236d5270ab103162e63706b49f5103", index: { index_id: "org.webagents.demo-index", version: "1.3.0", entries: 2 } });
+    expect(added.indexes[0]).toMatchObject({ url: INDEX_URL, enabled: true, state: "current", signer_fingerprint: "sha256:e0e7022b5836da157d7d55a9d7b00cb58e236d5270ab103162e63706b49f5103", index: { index_id: "org.webagents.demo-index", version: "1.4.0", entries: 2 } });
     const search = await send<SearchView>(h, { type: "search.query", text: "literature review" });
-    expect(search.searched).toEqual([{ index_id: "org.webagents.demo-index", label: "WebAgents demo index", version: "1.3.0" }]);
+    expect(search.searched).toEqual([{ index_id: "org.webagents.demo-index", label: "WebAgents demo index", version: "1.4.0" }]);
     expect(search.results).toHaveLength(1);
     const result = search.results[0]!;
-    expect(result.candidate).toMatchObject({ package_id: SHIPPED.literatureReview028.packageId, package_url: LITERATURE_URL, source: { resolver: "static-index", label: "WebAgents demo index", verified_by: "sha256:e0e7022b5836da157d7d55a9d7b00cb58e236d5270ab103162e63706b49f5103" } });
+    expect(result.candidate).toMatchObject({ package_id: SHIPPED.literatureReview029.packageId, package_url: LITERATURE_URL, source: { resolver: "static-index", label: "WebAgents demo index", verified_by: "sha256:e0e7022b5836da157d7d55a9d7b00cb58e236d5270ab103162e63706b49f5103" } });
     expect(result.trust).toEqual({ status: "unknown", reason: "signer_key_not_pinned" });
     // Opening the card is the ordinary open-and-verify, plus a comparison with what the index said.
     const opened = await send<SessionView>(h, { type: "package.open", url: result.candidate.package_url, advertisedOn: null, viewId: "test", foundVia: { indexId: result.candidate.source.resolver_id } });
     expect(opened.summary.validation).toMatchObject({ container_status: "valid", integrity_status: "valid", schema_status: "valid" });
-    expect(opened.page.trust).toMatchObject({ signature_status: "valid", signer_fingerprint: SHIPPED.literatureReview028.fingerprint, trust_status: "unknown" });
-    expect(opened.snapshot.archive_sha256).toBe(SHIPPED.literatureReview028.archiveSha256);
-    expect(opened.found_via).toEqual({ index_id: "org.webagents.demo-index", label: "WebAgents demo index", version: "1.3.0", position: 0, claims: { package_id: "matches", version: "matches", digest: "matches", archive_sha256: "matches", signer_fingerprint: "matches" } });
+    expect(opened.page.trust).toMatchObject({ signature_status: "valid", signer_fingerprint: SHIPPED.literatureReview029.fingerprint, trust_status: "unknown" });
+    expect(opened.snapshot.archive_sha256).toBe(SHIPPED.literatureReview029.archiveSha256);
+    expect(opened.found_via).toEqual({ index_id: "org.webagents.demo-index", label: "WebAgents demo index", version: "1.4.0", position: 0, claims: { package_id: "matches", version: "matches", digest: "matches", archive_sha256: "matches", signer_fingerprint: "matches" } });
   });
 
   it("matches a locator, ranks by trust status then index order, and asks the NANDA stub only for a locator", async () => {
     const h = harness();
     await send(h, { type: "indexes.add", url: INDEX_URL, publicKeyPem: INDEX_PEM });
     const locator = await send<SearchView>(h, { type: "search.query", text: "flights@webair.example" });
-    expect(locator.results.map((item) => item.candidate.package_id)).toEqual([SHIPPED.webair060.packageId]);
+    expect(locator.results.map((item) => item.candidate.package_id)).toEqual([SHIPPED.webair070.packageId]);
     expect(locator.notes.map((note) => note.code)).toEqual(["nanda_not_configured"]);
     expect((await send<SearchView>(h, { type: "search.query", text: "agent" })).notes).toEqual([]);
-    expect((await send<SearchView>(h, { type: "search.query", text: "agent" })).results.map((item) => item.candidate.package_id)).toEqual([SHIPPED.literatureReview028.packageId, SHIPPED.webair060.packageId]);
+    expect((await send<SearchView>(h, { type: "search.query", text: "agent" })).results.map((item) => item.candidate.package_id)).toEqual([SHIPPED.literatureReview029.packageId, SHIPPED.webair070.packageId]);
     // Trust the airline's key: it now ranks first, ahead of the index's own order.
     await h.trust.add(Buffer.from((POLICY_CONTENT.trust_anchors as JsonObject[])[0]!.public_key as string, "base64"), { displayName: "WebAir", publisherId: "webair-demo" });
     const ranked = await send<SearchView>(h, { type: "search.query", text: "agent" });
     expect(ranked.results.map((item) => [item.candidate.package_id, item.trust.status])).toEqual([
-      [SHIPPED.webair060.packageId, "trusted"],
-      [SHIPPED.literatureReview028.packageId, "unknown"],
+      [SHIPPED.webair070.packageId, "trusted"],
+      [SHIPPED.literatureReview029.packageId, "unknown"],
     ]);
   });
 
@@ -275,17 +275,17 @@ describe("the Library (deliverable 3)", () => {
     const session = await send<SessionView>(h, { type: "package.open", url: LITERATURE_URL, viewId: "test" });
     expect(session.pinned).toBe(false);
     let library = await send<LibraryView>(h, { type: "library.get" });
-    expect(library.recent.map((entry) => [entry.package_id, entry.package_url, entry.trust_status, entry.open_session_id])).toEqual([[SHIPPED.literatureReview028.packageId, LITERATURE_URL, "unknown", session.session.id]]);
+    expect(library.recent.map((entry) => [entry.package_id, entry.package_url, entry.trust_status, entry.open_session_id])).toEqual([[SHIPPED.literatureReview029.packageId, LITERATURE_URL, "unknown", session.session.id]]);
     expect(library.pinned).toEqual([]);
     library = await send<LibraryView>(h, { type: "library.pin", sessionId: session.session.id });
-    expect(library.pinned.map((entry) => entry.package_id)).toEqual([SHIPPED.literatureReview028.packageId]);
+    expect(library.pinned.map((entry) => entry.package_id)).toEqual([SHIPPED.literatureReview029.packageId]);
     expect((await send<SessionView>(h, { type: "package.get", sessionId: session.session.id })).pinned).toBe(true);
     await send(h, { type: "package.open", url: WEBAIR_URL, viewId: "test" });
-    expect((await send<LibraryView>(h, { type: "library.get" })).recent.map((entry) => entry.package_id)).toEqual([SHIPPED.webair060.packageId, SHIPPED.literatureReview028.packageId]);
+    expect((await send<LibraryView>(h, { type: "library.get" })).recent.map((entry) => entry.package_id)).toEqual([SHIPPED.webair070.packageId, SHIPPED.literatureReview029.packageId]);
     await send(h, { type: "policy.subscribe", url: POLICY_URL, publicKeyPem: POLICY_PEM, replace: false });
     expect((await send<LibraryView>(h, { type: "library.get" })).pinned[0]).toMatchObject({ trust_status: "trusted", trust_reason: "policy_anchor" });
     expect((await send<LibraryView>(h, { type: "library.unpin", packageUrl: LITERATURE_URL })).pinned).toEqual([]);
-    expect((await send<LibraryView>(h, { type: "library.forget", packageUrl: WEBAIR_URL })).recent.map((entry) => entry.package_id)).toEqual([SHIPPED.literatureReview028.packageId]);
+    expect((await send<LibraryView>(h, { type: "library.forget", packageUrl: WEBAIR_URL })).recent.map((entry) => entry.package_id)).toEqual([SHIPPED.literatureReview029.packageId]);
   });
 });
 

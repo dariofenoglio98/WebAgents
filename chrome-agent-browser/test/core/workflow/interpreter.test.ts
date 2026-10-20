@@ -48,10 +48,13 @@ describe("the same interpreter runs both reference packages from their sources",
       expect(new Set(topDone)).toEqual(new Set((pkg.graph.nodes as JsonObject[]).map((node) => node.id)));
       if (name === "literature-review") {
         expect(result.usage.tool_calls).toEqual({ "scholarly-search": 3, "citation-resolver": 3, "paper-reader": 2 });
-        // 0.2.7 (D-170): join-search removes the search's duplicate DOI before any model sees it,
-        // and every found paper is screened and listed.
+        // 0.2.7 (D-170): the search's duplicate DOI is removed before any model sees it, and every
+        // found paper is screened and listed; since 0.2.9 (T22, D-252) the bookkeeping module
+        // removes it (normalized identity) after join-search keeps all nine.
         expect((result.state.search_batches as JsonObject[]).reduce((sum, batch) => sum + (batch.papers as JsonValue[]).length, 0)).toBe(9);
-        expect((result.state.raw_candidates as JsonValue[]).length).toBe(8);
+        expect((result.state.raw_candidates as JsonValue[]).length).toBe(9);
+        expect((result.state.unique_candidates as JsonValue[]).length).toBe(8);
+        expect(result.usage.compute_calls).toBe(1);
         expect((result.state.found_papers as JsonValue[]).length).toBe(8);
         expect(((result.output as JsonObject).papers_found as JsonValue[]).length).toBe(8);
         expect((result.state.citation_jobs as JsonValue[]).length).toBe(3);

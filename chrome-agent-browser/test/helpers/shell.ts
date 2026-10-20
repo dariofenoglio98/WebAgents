@@ -30,6 +30,7 @@ import { makeSource, writeText } from "./source.js";
 import { listMembers, writeZip, type Entry } from "./zip.js";
 import type { NativePort } from "../../src/core/keychain.js";
 import { KeychainStorage } from "../../src/extension/storage/keychain-storage.js";
+import type { ComputeEngine } from "../../src/core/compute/engine.js";
 
 export const SITE_ORIGIN = "https://webair.example";
 export const PACKAGE_URL = `${SITE_ORIGIN}/agent.pkg`;
@@ -213,7 +214,7 @@ export function makeHarness(
     /** The execution host's transports: a scripted model and a scripted origin; without them every run fails at its first call. */
     transports?: { model: HttpTransport; tool: HttpTransport };
     /** A host that refuses to start (no offscreen document) or reports no execution capability. */
-    hostOptions?: { available?: boolean; failStart?: boolean; workerDies?: boolean; statusFailures?: number; cancelUnreachable?: boolean };
+    hostOptions?: { available?: boolean; failStart?: boolean; workerDies?: boolean; statusFailures?: number; cancelUnreachable?: boolean; compute?: ComputeEngine | null };
     runIds?: () => string;
     /** Also deliver every broadcast here (a page's `subscribe`, in the browser-page tests). */
     onEvent?: (event: Event) => void;

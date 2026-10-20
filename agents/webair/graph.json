@@ -41,7 +41,9 @@
         "status",
         "answer",
         "result",
-        "remember"
+        "remember",
+        "quote_total",
+        "quote_total_input"
       ],
       "state_write": [
         "search_origin",
@@ -64,7 +66,9 @@
         "passenger",
         "payment",
         "quote",
-        "confirmation"
+        "confirmation",
+        "quote_total",
+        "quote_total_input"
       ]
     },
     {
@@ -216,7 +220,7 @@
       "tools": [],
       "max_instances": 1,
       "budget": {
-        "tokens": 20000,
+        "tokens": 40000,
         "remote_calls": 2
       },
       "state_read": [
@@ -319,6 +323,12 @@
         "literal": {
           "proposals": []
         }
+      },
+      "quote_total": {
+        "literal": null
+      },
+      "quote_total_input": {
+        "literal": null
       }
     }
   },
@@ -895,6 +905,46 @@
           "timeout_seconds": 30
         },
         {
+          "id": "total",
+          "type": "compute",
+          "module": "fares",
+          "function": "run",
+          "input": {
+            "object": {
+              "currency": {
+                "from": "steps",
+                "path": "/rules/currency"
+              },
+              "tax_rate_bps": {
+                "literal": 0
+              },
+              "items": {
+                "array": [
+                  {
+                    "object": {
+                      "label": {
+                        "from": "steps",
+                        "path": "/rules/fare_id"
+                      },
+                      "amount_cents": {
+                        "from": "steps",
+                        "path": "/rules/price_per_passenger_usd"
+                      },
+                      "quantity": {
+                        "from": "steps",
+                        "path": "/rules/passengers"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "input_schema": "schemas/fare-total-input.schema.json",
+          "output_schema": "schemas/fare-total.schema.json",
+          "timeout_seconds": 30
+        },
+        {
           "id": "check",
           "type": "validate",
           "input": {
@@ -943,6 +993,17 @@
                   },
                   "path": "/price_usd"
                 }
+              }
+            },
+            {
+              "kind": "equal",
+              "left": {
+                "from": "steps",
+                "path": "/total/total_cents"
+              },
+              "right": {
+                "from": "steps",
+                "path": "/rules/total_usd"
               }
             }
           ],
@@ -1191,6 +1252,102 @@
       }
     },
     {
+      "id": "quote-total-input",
+      "type": "validate",
+      "worker": "Coordinator",
+      "depends_on": [
+        "prepare"
+      ],
+      "input": {
+        "literal": null
+      },
+      "when": {
+        "left": {
+          "from": "state",
+          "path": "/quote"
+        },
+        "op": "eq",
+        "right": {
+          "literal": null
+        }
+      },
+      "otherwise": {
+        "object": {
+          "currency": {
+            "from": "state",
+            "path": "/quote/currency"
+          },
+          "tax_rate_bps": {
+            "literal": 0
+          },
+          "items": {
+            "array": [
+              {
+                "object": {
+                  "label": {
+                    "from": "state",
+                    "path": "/quote/fare/fare_id"
+                  },
+                  "amount_cents": {
+                    "from": "state",
+                    "path": "/quote/fare/price_per_passenger_usd"
+                  },
+                  "quantity": {
+                    "from": "state",
+                    "path": "/quote/fare/passengers"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "output_schema": "schemas/quote-total-input.schema.json",
+      "timeout_seconds": 10,
+      "writes": {
+        "/quote_total_input": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "id": "quote-total",
+      "type": "compute",
+      "worker": "Coordinator",
+      "depends_on": [
+        "quote-total-input"
+      ],
+      "module": "fares",
+      "function": "run",
+      "input": {
+        "from": "state",
+        "path": "/quote_total_input"
+      },
+      "input_schema": "schemas/fare-total-input.schema.json",
+      "output_schema": "schemas/quote-total.schema.json",
+      "timeout_seconds": 30,
+      "when": {
+        "left": {
+          "from": "state",
+          "path": "/quote_total_input"
+        },
+        "op": "ne",
+        "right": {
+          "literal": null
+        }
+      },
+      "otherwise": {
+        "literal": null
+      },
+      "writes": {
+        "/quote_total": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
       "id": "check-quote",
       "type": "validate",
       "worker": "Coordinator",
@@ -1244,12 +1401,34 @@
             "from": "state",
             "path": "/booking_request/contact_email"
           }
+        },
+        {
+          "kind": "equal",
+          "left": {
+            "from": "state",
+            "path": "/quote_total/total_cents"
+          },
+          "right": {
+            "from": "state",
+            "path": "/quote/total_usd"
+          }
+        },
+        {
+          "kind": "equal",
+          "left": {
+            "from": "state",
+            "path": "/quote_total/total_cents"
+          },
+          "right": {
+            "from": "state",
+            "path": "/quote/fare/total_usd"
+          }
         }
       ],
       "output_schema": "schemas/booking-quote.schema.json",
       "timeout_seconds": 10,
       "depends_on": [
-        "prepare"
+        "quote-total"
       ],
       "writes": {}
     },
@@ -1967,8 +2146,8 @@
         }
       },
       "output_schema": "schemas/remember.schema.json",
-      "max_output_tokens": 4000,
-      "timeout_seconds": 300,
+      "max_output_tokens": 10000,
+      "timeout_seconds": 600,
       "depends_on": [
         "booking-summary",
         "answer"
@@ -2336,5 +2515,12 @@
         ]
       }
     }
-  }
+  },
+  "modules": [
+    {
+      "id": "fares",
+      "path": "modules/fares.wasm",
+      "sha256": "ef7e813b9ac330575c89c75d96aa63bfe25d77da8d3a699cf4718879a8f123c0"
+    }
+  ]
 }

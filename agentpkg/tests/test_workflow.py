@@ -87,10 +87,13 @@ def test_same_interpreter_from_built_artifacts(name, tmp_path):
         assert result["usage"]["tool_calls"]["scholarly-search"] == 3
         assert result["usage"]["tool_calls"]["citation-resolver"] == 3
         assert result["usage"]["tool_calls"]["paper-reader"] == 2
-        # 0.2.7 (D-170): the search's duplicate DOI is removed by join-search's exact
-        # deduplication, before any model sees the records; every found paper is screened.
+        # 0.2.7 (D-170): the search's duplicate DOI is removed before any model sees the
+        # records; every found paper is screened. Since 0.2.9 (T22, D-252) the bookkeeping
+        # module removes it (normalized identity) instead of join-search's exact `unique_by`.
         assert sum(len(b["papers"]) for b in result["state"]["search_batches"]) == 9
-        assert len(result["state"]["raw_candidates"]) == 8
+        assert len(result["state"]["raw_candidates"]) == 9
+        assert len(result["state"]["unique_candidates"]) == 8
+        assert result["usage"]["compute_calls"] == 1
         assert len(result["state"]["found_papers"]) == 8
         assert len(result["output"]["papers_found"]) == 8
         assert len(result["state"]["citation_jobs"]) == 3

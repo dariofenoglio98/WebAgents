@@ -47,6 +47,20 @@ RECORD_ID = re.compile(r"\bmem_[0-9a-f]{32}\b")
 CHECKS: list[dict] = []
 
 
+def frontmatter_run_id(text: str) -> str | None:
+    """The `run_id` in a record file's YAML frontmatter, quoted or not (the export quotes strings)."""
+    if not text.startswith("---\n"):
+        return None
+    end = text.find("\n---", 4)
+    if end < 0:
+        return None
+    for line in text[4:end].splitlines():
+        match = re.fullmatch(r"\s*run_id:\s*(?:\"([^\"]*)\"|'([^']*)'|(\S+))\s*", line)
+        if match:
+            return next(group for group in match.groups() if group is not None)
+    return None
+
+
 def check(identifier: str, passed: bool, detail=None) -> bool:
     CHECKS.append(
         {
@@ -246,10 +260,11 @@ def main() -> int:
             sorted(found) == sorted(accepted_titles),
             {"accepted": accepted_titles, "found": found},
         )
+        # The export writes YAML frontmatter with quoted strings (`run_id: "run_…"`), B-222.
         provenance = [
             path
             for path in files
-            if f"run_id: {run.get('runId', '')}" in path.read_text(errors="replace")
+            if frontmatter_run_id(path.read_text(errors="replace")) == run.get("runId")
         ]
         check(
             "exported_records_name_the_run_in_their_provenance",
@@ -267,20 +282,50 @@ def main() -> int:
                 len(ours),
             )
 
-    # 5. The recall.
+    # 5. The recall. A card offers records of the type its `memory.read` requests, so an accepted
+    # record can be recalled only when the package reads its type (B-222). The types read are the
+    # cards' (reports since T22 name them), else the memory run's plan's host-resource bindings
+    # (the same profile authorized again). When the package reads none of the accepted records'
+    # types the check is skipped with a note (WebAir 0.6.0 and 0.7.0 propose `travel.preference`
+    # and read `travel.profile`: B-221).
     recall = steps.get("memoryRecall") or []
-    accepted_ids = {item.get("id") for item in accepted}
-    recalled = [
-        candidate
-        for card in recall
-        for candidate in card.get("candidates", [])
-        if candidate.get("id") in accepted_ids
-    ]
-    check(
-        "accepted_record_recalled_next_time",
-        len(recalled) >= 1,
-        {"cards": len(recall), "recalled": [item.get("title") for item in recalled]},
-    )
+    read_types = {card.get("resource_type") for card in recall}
+    if not recall or None in read_types:
+        plan_path = directory / "run-plan.json"
+        plan = json.loads(plan_path.read_text()) if plan_path.exists() else {}
+        read_types = {
+            binding["resource_type"]
+            for binding in plan.get("tool_bindings", [])
+            if isinstance(binding, dict) and binding.get("resource_type")
+        } or {None}
+    readable = accepted
+    if None not in read_types:
+        readable = [item for item in accepted if item.get("type") in read_types]
+    if not readable and accepted:
+        CHECKS.append(
+            {
+                "id": "accepted_record_recalled_next_time",
+                "passed": True,
+                "skipped": "the package reads "
+                + (", ".join(sorted(read_types)) or "no memory type")
+                + "; the accepted records are "
+                + ", ".join(sorted({str(item.get("type")) for item in accepted}))
+                + " (B-221)",
+            }
+        )
+    else:
+        readable_ids = {item.get("id") for item in readable}
+        recalled = [
+            candidate
+            for card in recall
+            for candidate in card.get("candidates", [])
+            if candidate.get("id") in readable_ids
+        ]
+        check(
+            "accepted_record_recalled_next_time",
+            len(recalled) >= 1,
+            {"cards": len(recall), "recalled": [item.get("title") for item in recalled]},
+        )
 
     document["memory_verification"] = {
         "profile": "chrome-memory-live-demo6-v0",

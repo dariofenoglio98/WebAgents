@@ -72,6 +72,15 @@
       "resources": [
         "travel.preference"
       ]
+    },
+    {
+      "id": "compute.fares",
+      "kind": "compute",
+      "description": "Run WebAir's fare-totals module (WebAssembly, no imports) to recompute each fare's total from its per-passenger price, so the totals WebAir states are checked on your device. It can only compute over the prices the graph gives it.",
+      "required": true,
+      "resources": [
+        "fares"
+      ]
     }
   ],
   "network": {

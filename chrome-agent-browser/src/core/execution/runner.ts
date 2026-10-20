@@ -12,6 +12,7 @@
  * tool dependencies and a resource resolver; the session hands back the result record and the
  * artifacts as named bytes. The host writes them.
  */
+import type { ComputeEngine } from "../compute/engine.js";
 import { AgentPkgError } from "../errors.js";
 import { sha256HexSync } from "../hash.js";
 import type { JsonObject, JsonValue } from "../json.js";
@@ -86,6 +87,8 @@ export interface SessionDeps {
   memory?: MemoryRun | null;
   /** The package fixture, for a fixture plan. */
   fixture?: FixtureSource | null;
+  /** compute.v0: the host's WebAssembly engine (one nested Worker per call, D-251); null refuses a package with compute nodes before it starts. */
+  compute?: ComputeEngine | null;
   onProgress?: ProgressListener | null;
   progressIntervalSeconds?: number;
   /**
@@ -204,7 +207,7 @@ export class ExecutionSession {
     if (!fixture && deps.fixture) throw new ExecutionError(PLAN_INVALID, "A model-backed plan runs no fixture");
     const capabilities =
       plan.execution.mode === MODE_MODEL
-        ? checkCapabilities(pkg, limits, { toolBindings: plan.tool_bindings, deniedTools: plan.execution.denied_tool_ids, fixture })
+        ? checkCapabilities(pkg, limits, { toolBindings: plan.tool_bindings, deniedTools: plan.execution.denied_tool_ids, fixture, computeAvailable: (deps.compute ?? null) !== null })
         : { tools_declared: Object.keys(pkg.tools).length, tool_bindings: plan.tool_bindings.length, mode: "tool_probe", note: "A tool probe binds one declared tool. Whether this host could run the whole package is a different question, and a model-backed plan asks it." };
 
     // 3. The person's decisions, unchanged or refused.
@@ -346,42 +349,48 @@ export class ExecutionSession {
         // A checkpoint listener that fails never steers the run.
       }
     };
-    let workflow: Workflow;
+    // Everything from here to the run's end is one guarded region: whatever stops it (a refusal,
+    // the compute preflight among them, or the run itself ending), the session is `finished`, so
+    // `cancel()` never reports a run that is not there (as `session.py` does since T21 review 2).
     try {
-      workflow = await Workflow.create(this.package, {
-        // The watchdog's deadline, so a re-ask or a retry the run would not outlive is not sent.
-        deadlineAt: Date.now() + effectiveDeadlineSeconds(this.package, this.limits) * 1000,
-        grants: this.grants,
-        memory: this.memory,
-        handlers: this.handlers,
-        router: this.router,
-        limits: runtimeLimits(this.limits),
-        approvedTools: this.approvedTools,
-        observer,
-      });
-    } catch (error) {
-      tracker.close();
-      if (!(error instanceof AgentPkgError)) throw error;
-      throw new ExecutionError(RUNTIME_REFUSED, `The runtime refused this package: ${error.message}`);
-    }
-    this.workflow = workflow;
-    // A cancellation that arrived between `begin` and `run` is honoured, not merely recorded.
-    if (this.cancelRequested) workflow.cancel();
-    const deadline = effectiveDeadlineSeconds(this.package, this.limits);
-    const watchdog = setTimeout(() => {
-      this.timedOut = true;
-      workflow.cancel();
-    }, deadline * 1000);
-    try {
-      this.outcome = await workflow.run(this.input);
-    } catch (error) {
-      const report = (error as { execution_report?: ExecutionReport }).execution_report;
-      if (report !== undefined) this.outcome = report;
-      else if (error instanceof CancelledError) {
-        this.outcome = { status: "cancelled", error_code: "cancelled", audit: [...workflow.runtime.audit], usage: workflow.runtime.usage, provenance: this.provenance() };
-      } else throw error;
+      let workflow: Workflow;
+      try {
+        workflow = await Workflow.create(this.package, {
+          // The watchdog's deadline, so a re-ask or a retry the run would not outlive is not sent.
+          deadlineAt: Date.now() + effectiveDeadlineSeconds(this.package, this.limits) * 1000,
+          grants: this.grants,
+          memory: this.memory,
+          handlers: this.handlers,
+          router: this.router,
+          limits: runtimeLimits(this.limits),
+          approvedTools: this.approvedTools,
+          observer,
+          compute: this.deps.compute ?? null,
+        });
+      } catch (error) {
+        if (!(error instanceof AgentPkgError)) throw error;
+        throw new ExecutionError(RUNTIME_REFUSED, `The runtime refused this package: ${error.message}`);
+      }
+      this.workflow = workflow;
+      // A cancellation that arrived between `begin` and `run` is honoured, not merely recorded.
+      if (this.cancelRequested) workflow.cancel();
+      const deadline = effectiveDeadlineSeconds(this.package, this.limits);
+      const watchdog = setTimeout(() => {
+        this.timedOut = true;
+        workflow.cancel();
+      }, deadline * 1000);
+      try {
+        this.outcome = await workflow.run(this.input);
+      } catch (error) {
+        const report = (error as { execution_report?: ExecutionReport }).execution_report;
+        if (report !== undefined) this.outcome = report;
+        else if (error instanceof CancelledError) {
+          this.outcome = { status: "cancelled", error_code: "cancelled", audit: [...workflow.runtime.audit], usage: workflow.runtime.usage, provenance: this.provenance() };
+        } else throw error;
+      } finally {
+        clearTimeout(watchdog);
+      }
     } finally {
-      clearTimeout(watchdog);
       tracker.close();
       this.finished = true;
     }

@@ -121,14 +121,15 @@ function nodeFacts(node: JsonObject): JsonObject {
     writes: Object.keys(isJsonObject(node.writes) ? node.writes : {}).sort(),
     conditional: "when" in node,
   };
-  for (const optional of ["task", "tool", "max_output_tokens", "max_items", "max_parallel", "limit"]) {
+  // compute.v0: which module and function a node runs, and what it lowers.
+  for (const optional of ["task", "tool", "max_output_tokens", "max_items", "max_parallel", "limit", "module", "function", "input_schema", "limits"]) {
     if (optional in node) facts[optional] = node[optional]!;
   }
   if (node.type === "map") {
     facts.item_schema = node.item_schema!;
     facts.steps = (node.steps as JsonObject[]).map((step) => {
       const entry: JsonObject = { id: step.id!, type: step.type! };
-      for (const key of ["task", "tool"]) if (key in step) entry[key] = step[key]!;
+      for (const key of ["task", "tool", "module", "function"]) if (key in step) entry[key] = step[key]!;
       return entry;
     });
     facts.step_count = (node.steps as JsonValue[]).length;
@@ -300,6 +301,14 @@ export function warnings(pkg: Package, evaluation: EvaluationLayers, publisher: 
     }
     if (permission.kind === "memory" && resources.length === 1 && resources[0] === "agent") {
       warn("requests_agent_notes", "info", `The package keeps its own notes between runs (${permission.id}, at most 32,768 characters), which you can read and clear in Settings → Memory.`);
+    }
+    if (permission.kind === "compute") {
+      // compute.v0 (C-9): the words the agent page uses, with the hashes a person can compare
+      // against the graph; the modules import nothing, so the sentence is exact. The reference's
+      // words (`summary.py`) less fuel, which this host does not meter (D-250).
+      const hashes = new Map(((pkg.graph.modules as JsonObject[] | undefined) ?? []).map((module) => [String(module.id), String(module.sha256)]));
+      const named = resources.map((moduleId) => `${moduleId} (${(hashes.get(moduleId) ?? "undeclared").slice(0, 16)}…)`).join(", ");
+      warn("runs_code_that_can_only_compute", "info", `The package runs code that can only compute (${permission.id}): WebAssembly module(s) ${named || "none"}, with no imports, run under this host's memory and time bounds on the data the graph gives them.`);
     }
   }
   const remote = toolList.filter((tool) => tool.execution === "remote");

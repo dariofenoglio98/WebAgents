@@ -14,6 +14,7 @@ import { CancelledError } from "../../src/core/workflow/errors.js";
 import { runWorkflow, Workflow, type WorkflowOptions, type WorkflowResult } from "../../src/core/workflow/interpreter.js";
 import { Runtime, type RuntimeOptions } from "../../src/core/workflow/runtime.js";
 import { sleep } from "../../src/core/workflow/cancel.js";
+import { inProcessComputeEngine } from "./compute.js";
 
 export function sessionGrants(pkg: Package): Record<string, "session"> {
   return Object.fromEntries((pkg.policy.permissions as JsonObject[]).map((permission) => [String(permission.id), "session" as const]));
@@ -28,6 +29,8 @@ export function execute(pkg: Package, options: WorkflowOptions = {}): Promise<Wo
     // Fixture replay exercises the same enforcement path as a live run, so every declared
     // tool needs its approval here too.
     approvedTools: Object.keys(pkg.tools).sort(),
+    // compute.v0 (T22): a package's modules run in this process unless a test passes its own engine.
+    compute: inProcessComputeEngine(),
     ...options,
   });
 }
@@ -44,7 +47,7 @@ export async function executeFailing(pkg: Package, options: WorkflowOptions = {}
 /** A `Workflow` instance for tests that need `cancel()`. */
 export function createWorkflow(pkg: Package, options: WorkflowOptions = {}): Promise<Workflow> {
   const { router, handlers } = fixtureAdapters(pkg);
-  return Workflow.create(pkg, { router, handlers, grants: sessionGrants(pkg), approvedTools: Object.keys(pkg.tools).sort(), ...options });
+  return Workflow.create(pkg, { router, handlers, grants: sessionGrants(pkg), approvedTools: Object.keys(pkg.tools).sort(), compute: inProcessComputeEngine(), ...options });
 }
 
 /** A `Runtime` over a package's declared schemas; `close()` releases them. */

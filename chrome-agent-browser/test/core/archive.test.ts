@@ -139,6 +139,15 @@ describe("payload rules (package.py::_check_payload)", () => {
     await expect(checkPayload(new Map([...base, ["notes.txt", text("token sk-ant-abcdefghijklmnop")]]))).rejects.toThrow(/credential/u);
   });
 
+  it("scans a module's bytes as Latin-1 text, across the reader's chunks (T22 review 1, nit 7)", async () => {
+    const header = [0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00];
+    const module = (filler: number, tail: Uint8Array) => new Uint8Array([...header, ...new Uint8Array(filler).fill(0xe9), ...tail]);
+    // The credential starts a few bytes before the 32 KiB chunk boundary and ends after it.
+    const secret = text("sk-ant-abcdefghijklmnop");
+    await expect(checkPayload(new Map([...base, ["modules/m.wasm", module(0x8000 - header.length - 5, secret)]]))).rejects.toThrow(/credential/u);
+    await expect(checkPayload(new Map([...base, ["modules/m.wasm", module(0x8000, new Uint8Array([0xff, 0x80, 0x00]))]]))).resolves.toBeUndefined();
+  });
+
   it("refuses JSON members with duplicate keys or NaN (test_duplicate_json_keys_and_nan_rejected)", async () => {
     await expect(checkPayload(new Map([...base, ["extra.json", text('{"a":1,"a":2}')]]))).rejects.toThrow(/duplicate JSON key/u);
     await expect(checkPayload(new Map([...base, ["extra.json", text('{"a":NaN}')]]))).rejects.toThrow(/strict UTF-8 JSON/u);

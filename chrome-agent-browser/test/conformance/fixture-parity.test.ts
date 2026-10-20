@@ -23,7 +23,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { JsonObject, JsonValue } from "../../src/core/json.js";
 import { BuiltCli } from "../helpers/cli.js";
-import { ROOT, SHIPPED } from "../helpers/paths.js";
+import { COMPUTE_TEST, ROOT, SHIPPED } from "../helpers/paths.js";
 
 const PYTHON_CLI = process.env.AGENTPKG_CLI ?? join(ROOT, "agentpkg", ".venv", "bin", "agentpkg");
 
@@ -48,6 +48,11 @@ const CASES: Case[] = [
   { name: "literature-review-0.2.6 fixture input", archive: SHIPPED.literatureReview026.archive, grants: join(ROOT, "examples", "literature-review-grants.json"), tools: ["scholarly-search", "paper-reader", "citation-resolver"], input: null, tokensAllowlisted: true },
   { name: "literature-review-0.2.7 fixture input", archive: SHIPPED.literatureReview027.archive, grants: join(ROOT, "examples", "literature-review-grants.json"), tools: ["scholarly-search", "paper-reader", "citation-resolver"], input: null, tokensAllowlisted: true },
   { name: "meeting-agenda-0.2.2 fixture input", archive: SHIPPED.meetingAgenda.archive, grants: join(ROOT, "examples", "meeting-agenda-grants.json"), tools: [], input: null, tokensAllowlisted: false },
+  // compute.v0 (T22, C-51): the modules run for real in fixture mode on both engines; `engine`
+  // and `limits.fuel` are the engines' own and are dropped before the comparison (C-46).
+  { name: "compute-test-0.1.0 fixture input", archive: COMPUTE_TEST.archive, grants: COMPUTE_TEST.grants, tools: [], input: null, tokensAllowlisted: false },
+  // WebAir 0.7.0 (T22): the fares module recomputes every selected fare's total in the fare-rules map.
+  { name: "webair-0.7.0 fixture input", archive: SHIPPED.webair070.archive, grants: join(ROOT, "examples", "webair-0.7.0-grants.json"), tools: ["search-flights", "get-fare-rules"], input: null, tokensAllowlisted: false },
 ];
 
 let cli: BuiltCli;

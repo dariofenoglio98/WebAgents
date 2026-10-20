@@ -9,7 +9,10 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import type { ComputeEngine } from "../../../src/core/compute/engine.js";
+import { ModuleError } from "../../../src/core/compute/module.js";
 import { fixtureAdapters } from "../../../src/core/fixtures.js";
+import { sha256HexSync } from "../../../src/core/hash.js";
 import type { ExecutionError } from "../../../src/core/execution/errors.js";
 import { localExecutionPlan, type ExecutionAuthorization, type ExecutionPlan } from "../../../src/core/execution/plan.js";
 import { completeRunRecord, failRunRecord, initialRunRecord } from "../../../src/core/execution/record.js";
@@ -21,6 +24,7 @@ import type { ModelRequest, ModelResult, ModelRouter } from "../../../src/core/m
 import { ECHO_IMPLEMENTATION } from "../../../src/core/tools/broker.js";
 import { Pacer } from "../../../src/core/tools/pacer.js";
 import { MemoryResourceStore } from "../../../src/core/tools/resources.js";
+import { probeGrants, probePackage } from "../../helpers/compute-package.js";
 import { definitionFor, ECHO_INPUT, ECHO_TOOL, echoPackage, planBindingFor } from "../../helpers/echo-package.js";
 import { inputs, webair040 } from "../../helpers/fixtures.js";
 import { readBytes, ROOT, SHIPPED } from "../../helpers/paths.js";
@@ -179,6 +183,32 @@ describe("refusals before an instruction is rendered", () => {
     const other = localExecutionPlan({ pkg: echo.pkg, archiveSha256: echo.archiveSha256, signerFingerprint: echo.key.fingerprint, decisions, approvedTools: [ECHO_TOOL], fixture: false, modelBinding: { ...TEST_BINDING, host_model_id: "other/model" }, toolBindings: [planBindingFor(echo.pkg, definition)] });
     expect(plan.model_binding?.host_model_id).toBe("test/model");
     expect((await refusal(wrong.begin({ run_id: "r", run_plan: other.plan, authorization: other.authorization, input: ECHO_INPUT }, { archive: echo.bytes, router: new TestRouter(), tools: { definitions: [definition], builtins: {} } }))).code).toBe("selected_model_unavailable");
+  });
+
+  it("a package the runtime refuses at the compute preflight leaves nothing running (T22 review 1)", async () => {
+    // The engine refuses the module when the run prepares it (what V8 does with bytes the reader
+    // accepted): `Workflow.create` throws after `run()` has started, so the session must be
+    // finished, as `session.py` is, or `cancel()` keeps reporting a run that does not exist.
+    const { pkg, bytes, key } = await probePackage();
+    const refusing: ComputeEngine = {
+      id: "test/refusing",
+      metersFuel: false,
+      compile: async () => {
+        throw new ModuleError("module_invalid", "the engine refused the module");
+      },
+      call: async () => {
+        throw new Error("no call expected");
+      },
+    };
+    const { plan, authorization } = localExecutionPlan({ pkg, archiveSha256: sha256HexSync(bytes), signerFingerprint: key.fingerprint, decisions: probeGrants(pkg), approvedTools: [], fixture: true });
+    const fixture = fixtureAdapters(pkg);
+    const session = new ExecutionSession();
+    await session.begin({ run_id: "r", run_plan: plan, authorization, input: fixture.input }, { archive: bytes, fixture: { router: fixture.router, handlers: fixture.handlers }, compute: refusing });
+    const error = await refusal(session.run());
+    expect(error.code).toBe("execution_runtime_refused");
+    // One code, once (review 1, nit 6): the module error's own text, not its prefixed message.
+    expect(error.message).toBe("The runtime refused this package: module_invalid: module 'echo': the engine refused the module");
+    expect(session.cancel()).toEqual({ cancel_requested: true, running: false });
   });
 
   it("a declared tool with no binding and no denial is a host limit; a denied tool blocks nothing and is refused at dispatch", async () => {

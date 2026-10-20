@@ -23,10 +23,17 @@
  *        [--version 0.5.0]   (the WebAir version the origin must serve; the default report is
  *                             examples/verification/chrome-webair-<050>-live.json, T9)
  *        [--out-dir examples/my-chrome-live-<ts>] [--chrome path] [--keep] [--phases all|search,cancel,quote,purchase,denial]
+ *        [--local-origin]    (T22: before a version is deployed, run this repository's WebAir origin on
+ *                             127.0.0.1 over TLS, publishing dist/webair-<version>.agent.pkg, and map the
+ *                             public hostname to it: a throwaway certificate whose key alone Chrome trusts,
+ *                             as the search harness does. WebAir's API calls reach the same local origin, so
+ *                             only the model is outside; the report is chrome-webair-<v>-local-live.json)
  *   A hosted model needs OPENAI_API_KEY or ANTHROPIC_API_KEY in the environment; the key is typed
  *   into the extension's storage for this throwaway profile and never written anywhere by this script.
  */
 import { spawn } from "node:child_process";
+import { request as httpsRequest } from "node:https";
+import { createServer as createNetServer } from "node:net";
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -35,6 +42,7 @@ import { fileURLToPath } from "node:url";
 
 import { Cdp, sleep } from "./lib/cdp.mjs";
 import { grantedBuild } from "./lib/granted-build.mjs";
+import { certificate } from "./lib/origin.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PROJECT = resolve(here, "..");
@@ -44,7 +52,7 @@ const DEFAULT_CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Ch
 const DEFAULT_SITE = "https://webagents-webair-production.up.railway.app/";
 const RUN_TIMEOUT_MS = 20 * 60 * 1000;
 
-const args = { chrome: process.env.CHROME_PATH || DEFAULT_CHROME, site: DEFAULT_SITE, model: null, version: "0.5.0", out: null, outDir: null, keep: false, phases: ["search", "cancel", "quote", "purchase", "denial"] };
+const args = { chrome: process.env.CHROME_PATH || DEFAULT_CHROME, site: DEFAULT_SITE, model: null, version: "0.5.0", out: null, outDir: null, keep: false, localOrigin: false, phases: ["search", "cancel", "quote", "purchase", "denial"] };
 /** The memory phase (T19, Demo 6) needs WebAir 0.6.0 (memory.v0): it is on by default from that version. */
 const memoryCapable = (version) => Number(version.split(".")[1] ?? "0") >= 6;
 for (let index = 2; index < process.argv.length; index += 1) {
@@ -56,6 +64,7 @@ for (let index = 2; index < process.argv.length; index += 1) {
   else if (argument === "--out") args.out = resolve(process.argv[(index += 1)]);
   else if (argument === "--out-dir") args.outDir = resolve(process.argv[(index += 1)]);
   else if (argument === "--keep") args.keep = true;
+  else if (argument === "--local-origin") args.localOrigin = true;
   else if (argument === "--phases") args.phases = process.argv[(index += 1)] === "all" ? [...args.phases, "memory"] : process.argv[index].split(",");
   else {
     console.error(`unknown argument ${argument}`);
@@ -63,7 +72,7 @@ for (let index = 2; index < process.argv.length; index += 1) {
   }
 }
 // Each version's evidence has its own report; the committed 0.4.0 one is never overwritten by a 0.5.0 run.
-if (args.out === null) args.out = join(ROOT, "examples", "verification", `chrome-webair-${args.version.replaceAll(".", "")}-live.json`);
+if (args.out === null) args.out = join(ROOT, "examples", "verification", `chrome-webair-${args.version.replaceAll(".", "")}${args.localOrigin ? "-local" : ""}-live.json`);
 if (memoryCapable(args.version) && !args.phases.includes("memory") && process.argv.every((argument) => argument !== "--phases")) args.phases.push("memory");
 if (!args.model || !args.model.includes("/")) {
   console.error("--model provider/model is required (ollama/qwen3:30b, openai/<id>, anthropic/<id>)");
@@ -176,9 +185,63 @@ const check = (step, name, condition, detail) => {
 };
 const log = (text) => process.stderr.write(`[${Math.round((Date.now() - startedAt.getTime()) / 1000)}s] ${text}\n`);
 
+/** A free TCP port on 127.0.0.1 for the local origin. */
+function freePort() {
+  return new Promise((resolvePort, reject) => {
+    const server = createNetServer();
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      const { port } = server.address();
+      server.close(() => resolvePort(port));
+    });
+  });
+}
+
+/**
+ * This repository's WebAir origin on 127.0.0.1 over TLS (`--local-origin`), publishing the signed
+ * `dist/webair-<version>.agent.pkg`: started through uvicorn with the throwaway certificate, from the
+ * origin's own `create_app`; its `/health` is waited for before Chrome starts.
+ */
+async function startLocalOrigin(directory) {
+  const host = new URL(args.site).hostname;
+  const tls = certificate(directory, host);
+  const port = await freePort();
+  const pkg = join(ROOT, "dist", `webair-${args.version}.agent.pkg`);
+  if (!existsSync(pkg)) throw new Error(`${relative(ROOT, pkg)} is missing`);
+  const script = "import sys, uvicorn\nfrom origin.app import create_app\nuvicorn.run(create_app(sys.argv[1], None), host='127.0.0.1', port=int(sys.argv[2]), ssl_keyfile=sys.argv[3], ssl_certfile=sys.argv[4], log_level='warning', server_header=False)";
+  const child = spawn(join(ROOT, "demo", "webair", ".venv", "bin", "python"), ["-c", script, pkg, String(port), join(directory, "key.pem"), join(directory, "cert.pem")], { cwd: join(ROOT, "demo", "webair"), stdio: ["ignore", "ignore", "pipe"] });
+  let stderr = "";
+  child.stderr.on("data", (chunk) => (stderr += chunk.toString("utf8")));
+  const health = () =>
+    new Promise((resolveHealth) => {
+      const request = httpsRequest({ host: "127.0.0.1", port, path: "/health", servername: host, rejectUnauthorized: false, timeout: 2000 }, (response) => {
+        let body = "";
+        response.on("data", (chunk) => (body += chunk));
+        response.on("end", () => resolveHealth(response.statusCode === 200 ? JSON.parse(body) : null));
+      });
+      request.on("error", () => resolveHealth(null));
+      request.on("timeout", () => request.destroy());
+      request.end();
+    });
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    if (child.exitCode !== null) throw new Error(`the local origin exited: ${stderr.trim().split("\n").pop()}`);
+    const answer = await health();
+    if (answer) return { child, host, port, spkiHash: tls.spkiHash, health: answer, package: relative(ROOT, pkg) };
+    await sleep(200);
+  }
+  child.kill();
+  throw new Error("the local origin did not answer /health");
+}
+
 async function main() {
   const profile = mkdtempSync(join(tmpdir(), "chrome-agent-browser-live-"));
-  const chrome = spawn(args.chrome, ["--headless=new", "--remote-debugging-pipe", "--enable-unsafe-extension-debugging", `--user-data-dir=${profile}`, "--no-first-run", "--no-default-browser-check", "--window-size=1280,2200", "about:blank"], { stdio: ["ignore", "ignore", "ignore", "pipe", "pipe"] });
+  const origin = args.localOrigin ? await startLocalOrigin(mkdtempSync(join(tmpdir(), "chrome-agent-browser-origin-"))) : null;
+  if (origin) {
+    report.localOrigin = { package: origin.package, health: origin.health, note: "this repository's origin on 127.0.0.1 over TLS, the public hostname mapped to it (--local-origin)" };
+    log(`local origin on 127.0.0.1:${origin.port} publishing ${origin.package} (${origin.health.agent_package_sha256 ?? "?"})`);
+  }
+  const mapping = origin ? [`--host-resolver-rules=MAP ${origin.host} 127.0.0.1:${origin.port}`, `--ignore-certificate-errors-spki-list=${origin.spkiHash}`] : [];
+  const chrome = spawn(args.chrome, ["--headless=new", "--remote-debugging-pipe", "--enable-unsafe-extension-debugging", `--user-data-dir=${profile}`, "--no-first-run", "--no-default-browser-check", "--window-size=1280,2200", ...mapping, "about:blank"], { stdio: ["ignore", "ignore", "ignore", "pipe", "pipe"] });
   const cdp = new Cdp(chrome);
   try {
     report.chrome = (await cdp.send("Browser.getVersion")).product;
@@ -467,9 +530,27 @@ async function main() {
       await cdp.evaluate(page, `document.querySelector('button[data-profile="book"]').click(); true`);
       await sleep(300);
       const recall = (await send({ type: "authorization.get", sessionId })).recall;
-      report.steps.memoryRecall = recall.map((card) => ({ permission_id: card.permission_id, mode: card.mode, candidates: card.candidates.map((candidate) => ({ id: candidate.id, title: candidate.title, signals: candidate.signals })) }));
-      const recalled = recall.some((card) => card.candidates.some((candidate) => accepted.some((item) => item.id === candidate.id)));
-      check("memory", "the accepted record is recalled for the next run", recalled, report.steps.memoryRecall);
+      report.steps.memoryRecall = recall.map((card) => ({ permission_id: card.permission_id, resource_type: card.resource_type, mode: card.mode, candidates: card.candidates.map((candidate) => ({ id: candidate.id, title: candidate.title, signals: candidate.signals })) }));
+      // A recall card offers records of the type its `memory.read` requests, so an accepted record can be
+      // recalled only when the package reads its type (B-222). WebAir 0.6.0 and 0.7.0 propose
+      // `travel.preference` and read only `travel.profile` (B-221): the check is skipped with a note.
+      // The types read are the cards'; with no card, or a card that names none, they are the memory
+      // run's plan's host-resource bindings, and with none of those every accepted record counts.
+      // Nothing accepted is no reason to skip: the check fails. All as `verify_chrome_memory_live.py`.
+      let readTypes = new Set(recall.map((card) => card.resource_type ?? null));
+      if (recall.length === 0 || readTypes.has(null)) {
+        const planPath = join(ROOT, run.directory, "run-plan.json");
+        const plan = existsSync(planPath) ? JSON.parse(readFileSync(planPath, "utf8")) : {};
+        const bound = (plan.tool_bindings ?? []).filter((binding) => binding && typeof binding === "object" && binding.resource_type).map((binding) => binding.resource_type);
+        readTypes = new Set(bound.length > 0 ? bound : [null]);
+      }
+      const readable = readTypes.has(null) ? accepted : accepted.filter((item) => readTypes.has(item.type));
+      if (readable.length === 0 && accepted.length > 0) {
+        report.steps.memory["the accepted record is recalled for the next run"] = { skipped: `the package reads ${[...readTypes].sort().join(", ") || "no memory type"}; the accepted records are ${[...new Set(accepted.map((item) => item.type))].sort().join(", ") || "none"} (B-221)` };
+      } else {
+        const recalled = recall.some((card) => card.candidates.some((candidate) => readable.some((item) => item.id === candidate.id)));
+        check("memory", "the accepted record is recalled for the next run", recalled, report.steps.memoryRecall);
+      }
       await shot("7-recalled");
     }
 
@@ -487,6 +568,7 @@ async function main() {
     const exited = chrome.exitCode !== null || chrome.signalCode !== null ? Promise.resolve() : new Promise((resolveExit) => chrome.once("exit", resolveExit));
     chrome.kill();
     await Promise.race([exited, sleep(10_000)]);
+    origin?.child.kill();
     if (!args.keep) rmSync(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
   }
   report.passed = report.failures.length === 0;

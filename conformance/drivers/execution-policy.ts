@@ -6,7 +6,8 @@
 import { readFileSync } from "node:fs";
 
 import { ExecutionError } from "../../chrome-agent-browser/src/core/execution/errors.js";
-import { normalizeGrants } from "../../chrome-agent-browser/src/core/execution/policy.js";
+import { normalizeHostLimits } from "../../chrome-agent-browser/src/core/execution/limits.js";
+import { checkCompute, normalizeGrants } from "../../chrome-agent-browser/src/core/execution/policy.js";
 import { loadPackageBytes } from "../../chrome-agent-browser/src/core/package.js";
 
 async function main(): Promise<void> {
@@ -14,7 +15,10 @@ async function main(): Promise<void> {
   const grants = JSON.parse(readFileSync(process.argv[3]!, "utf8"));
   let outcome: Record<string, unknown>;
   try {
-    outcome = { outcome: "accepted", grants: normalizeGrants(pkg, grants) };
+    const accepted = normalizeGrants(pkg, grants);
+    // compute.v0 (T22): the layer's compute preflight under the default host ceilings, as the Python driver asks it.
+    const compute = checkCompute(pkg, normalizeHostLimits(null), true);
+    outcome = { outcome: "accepted", grants: accepted, ...(compute !== null ? { compute } : {}) };
   } catch (error) {
     if (!(error instanceof ExecutionError)) throw error;
     outcome = { outcome: "refused", code: error.code, message: error.message };

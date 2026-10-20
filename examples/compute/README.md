@@ -3,8 +3,9 @@
 What a package needs to run code under [compute.v0](../../spec/compute-v0.md): two example modules
 built from committed sources by real toolchains, the hand-assembled modules of the enforcement
 cases, and the test package the conformance suite runs on both runtimes. Nothing here is shipped
-in `dist/`; the packages that use modules for real are T22's (Literature Review 0.2.9, WebAir
-0.7.0).
+in `dist/`; the packages that use modules for real are T22's: Literature Review 0.2.9 runs the
+bookkeeping module's `assign_ids` to deduplicate its candidates, and WebAir 0.7.0 runs the fares
+module to verify the totals WebAir states (`dist/README.md`, D-252).
 
 | Path | What it is |
 |---|---|

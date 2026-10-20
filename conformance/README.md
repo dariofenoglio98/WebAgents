@@ -127,6 +127,36 @@ is merged; the run against T19's core at `c6edfd4`, before the two were merged, 
 (63 of 68; the five differences were D-230's fixture grants and N6's timing, now fixed in the
 Chrome core).
 
+**compute.v0** (41 cases, T22; and 11 fixture-parity cases of the packages that ship modules: WebAir 0.7.0 on its fixture input and the eight search scenarios, Literature Review 0.2.9 with memory off and on; [`spec/compute-v0.md`](../spec/compute-v0.md) §10, C-51): the test
+package `org.webagents.compute-test` 0.1.0 (two example modules in one wave and in a map step, the
+modules run for real in fixture mode on both engines), the two control cases of the enforcement list
+(`echo`, `with-start`) and every negative case of
+[`examples/compute/cases/cases.json`](../examples/compute/cases/cases.json) but `engine-unavailable`
+(both CLIs have an engine here; each unit suite covers it). Each case is agentpkg's own test package
+([`agentpkg/tests/compute_probe.py`](../agentpkg/tests/compute_probe.py)) with one change, written
+by [`drivers/compute_probe.py`](drivers/compute_probe.py) exactly as `test_compute_cases.py` builds
+it, and signed with the run's throwaway key (a case `agentpkg build` refuses is signed by the driver
+without validating). Expected in both:
+
+| Case | Expected |
+|---|---|
+| N-1…N-14 (the module's structure and gate, the graph's declarations, the permission, the version, a node's limits) | refused at validation with the spec's code, identical message |
+| N-15, N-16 | refused by the container: the member rule's message (`a WebAssembly module is at most 4194304 bytes`, `not a WebAssembly core module`) and `content integrity mismatch: … changed=['modules/echo.wasm']` |
+| N-17 | a recorded difference of the CLIs (D-091): `agentpkg run` refuses in the runtime's preflight (`compute_limit_exceeded: …`), the Chrome CLI in its execution layer; both execution layers refuse `execution_compute_limit_exceeded` with an identical message |
+| N-19 | a recorded difference of the CLIs (D-091), as `denied-permission/required`: `permission_denied at node compute` against the execution layers' `execution_permission_denied` |
+| N-20…N-27 | the run fails with the node's code at `compute`; `compute.failed` names the reason, the trap and the detail |
+
+A wave's multiset carries a compute event's module, hash, function, bytes in and out, memory
+pages, effective page and time bounds, reason, trap code and detail (C-46); `engine` and
+`limits.fuel` are the engines' own and are dropped. Three engine differences are folded by the
+normalizer: a runaway module is `fuel_exhausted` under wasmtime's fuel and `deadline` under V8's
+wall bound (both compare as `bound_reached`, D-244); after either the memory size is the engine's
+(a terminated Worker reports none, D-250); and the V8 in Node 26.9, which runs the Chrome core here,
+reports a `call_indirect` through a null slot as a signature mismatch (Chrome 155's V8 does not), so
+the trap codes `indirect_call_to_null` and `bad_signature` compare as `indirect_call_failed` (C-42,
+D-254). Every compute case carries `requires: 0.5.0`, so against an older `CONFORMANCE_CHROME`
+core it is pending rather than failed.
+
 ## Recorded differences
 
 Each is checked against what its decision says each runtime does, so the case fails if either

@@ -35,6 +35,9 @@ export const TOOL_PERMISSION_DENIED = "tool_permission_denied";
 export const TOOL_CONTRACT_MISMATCH = "tool_contract_mismatch";
 export const TOOL_BINDING_STALE = "tool_binding_stale";
 export const TOOL_BINDING_AMBIGUOUS = "tool_binding_ambiguous";
+/** compute.v0 (C-31, C-52): a module's declared memory maximum above this host's ceiling; a host without an engine. */
+export const COMPUTE_LIMIT_EXCEEDED = "execution_compute_limit_exceeded";
+export const COMPUTE_NOT_SUPPORTED = "compute_not_supported";
 // Lifecycle
 export const NOT_BOUND = "execution_not_bound";
 export const ALREADY_STARTED = "execution_already_started";

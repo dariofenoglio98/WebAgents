@@ -27,17 +27,10 @@ export class BuiltCli {
   static async build(): Promise<BuiltCli> {
     const directory = mkdtempSync(join(tmpdir(), "agent-browser-cli-"));
     const path = join(directory, "cli.mjs");
-    await build({
-      bundle: true,
-      minify: false,
-      sourcemap: false,
-      logLevel: "silent",
-      platform: "node",
-      target: ["node24"],
-      format: "esm",
-      entryPoints: [join(PROJECT, "src", "cli.ts")],
-      outfile: path,
-    });
+    const options = { bundle: true, minify: false, sourcemap: false, logLevel: "silent" as const, platform: "node" as const, target: ["node24"], format: "esm" as const };
+    await build({ ...options, entryPoints: [join(PROJECT, "src", "cli.ts")], outfile: path });
+    // The CLI's compute Worker (compute.v0, D-251), beside the bundle as `npm run build` places it.
+    await build({ ...options, entryPoints: [join(PROJECT, "src", "compute-worker-node.ts")], outfile: join(directory, "compute-worker.js") });
     return new BuiltCli(directory, path);
   }
 

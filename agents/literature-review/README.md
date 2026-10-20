@@ -1,8 +1,16 @@
 # Literature Review Agent — workflow.v0
 
-Version 0.2.8 is a data-only package executed by the same generic interpreter as Meeting Agenda. `MANIFEST.agent` selects `workflow.v0`; **graph.json is the only authoritative execution graph**. The eight skills describe domain behavior; schemas and declared validation assertions enforce the structured contracts.
+Version 0.2.9 is a data-only package executed by the same generic interpreter as Meeting Agenda. `MANIFEST.agent` selects `workflow.v0`; **graph.json is the only authoritative execution graph**. The eight skills describe domain behavior; schemas and declared validation assertions enforce the structured contracts.
 
 The graph performs planning, seed resolution, parallel search, join/normalization/deduplication, parallel screening, citation resolution, evidence preparation and parallel extraction, synthesis, writing, verification and declared exports. Citation Resolver remains a remote tool consumed through its existing contract. Conditional selected-PDF reads remain worker-local. Exact quote/page checks, record links and resolver metadata checks use generic validation nodes.
+
+## 0.2.9: bookkeeping as code that can only compute
+
+0.2.9 is 0.2.8 with its candidate deduplication moved into a WebAssembly module ([compute.v0](../../spec/compute-v0.md)); it needs a runtime that implements it (agentpkg 0.5.0, the Chrome Agent Browser's core 0.3.0). The module is `modules/bookkeeping.wasm` (Rust, `examples/compute/bookkeeping-rs/`, SHA-256 `5b9db688c2cf9c60c818ac7eaf748d98ee60b8ecc564d76c37199da68e13735e`, declared in the graph and covered by the signature). It imports nothing, so it can only compute over the records the graph gives it; it runs under the host's memory and time bounds, for real in every mode, fixture mode included. One required permission authorizes it (`compute.bookkeeping`, kind `compute`); the agent page says "runs code that can only compute" and shows the hash.
+
+- **Deduplication by normalized identity** (`identity-rows`, then `dedup-candidates`, function `assign_ids`). 0.2.8 removed exact duplicates in `join-search` by DOI, then arXiv id. The module keys every found record by its DOI (lower-cased, a `https://doi.org/` or `doi:` prefix removed), else its arXiv id (a version suffix removed), else its URL (lower-cased, a trailing `/` removed), else its title (case-folded, whitespace collapsed), and keeps the first record per key. So `10.1234/ABC` and `https://doi.org/10.1234/abc` are one paper now, where 0.2.8 screened them as two. The records it drops are in its output, whose hash the audit's `compute.completed` carries; `join-search` no longer records `node.deduplicated`. `identify` reads the module's records; `join-found` and `join-found-refs` keep their paper-id guard. The module also exports `match_quotes`, which this graph does not call (an export a graph does not name is never called, C-16).
+
+No model call changed: the fixture's replayed answers, the exports and the token count are 0.2.8's. The model task list, the tools, the budgets (180,000 tokens, 45 remote calls, 4,500 s) and the memory switches are unchanged.
 
 ## 0.2.8: the person's memory, with three switches that are off by default
 

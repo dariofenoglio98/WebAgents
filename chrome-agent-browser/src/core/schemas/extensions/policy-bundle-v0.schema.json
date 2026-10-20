@@ -112,6 +112,13 @@
             "once",
             "session"
           ]
+        },
+        "compute": {
+          "enum": [
+            "deny",
+            "once",
+            "session"
+          ]
         }
       },
       "additionalProperties": false

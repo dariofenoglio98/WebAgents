@@ -299,6 +299,22 @@ describe("Settings → Memory (T19, the user's walk-through)", () => {
   });
 });
 
+describe("the Memory page opened on one record (B-215)", () => {
+  it("#memory?record=<id> opens that record's card, as the run page's Open in Memory does after an accepted proposal", async () => {
+    await h.controller.handle({ type: "memory.installDemo" }, PAGE_IN_TAB);
+    const memory = (await h.controller.handle({ type: "memory.get" }, PAGE_IN_TAB)) as { records: Array<{ id: string; title: string }> };
+    const record = memory.records.find((item) => item.title.includes("Demo Explorer"))!;
+    await go(`#memory?record=${encodeURIComponent(record.id)}`);
+    expect(app().querySelector(".ab-memory-card")?.textContent).toContain("Demo Explorer");
+    expect(app().querySelector(`.ab-memory-row-selected[data-record="${record.id}"]`) ?? app().querySelector(".ab-memory-card")).not.toBeNull();
+    // Without a record the page opens as before (the page keeps the card it had, as it always did).
+    await go("#memory");
+    expect(app().querySelector(".ab-memory")).not.toBeNull();
+    await h.controller.handle({ type: "memory.removeDemo" }, PAGE_IN_TAB);
+    await settle();
+  });
+});
+
 describe("Memory while the store is locked (T16, the user's walk-through; memory.v0 M-10)", () => {
   it("is read-only with an Unlock button, and the lock line goes once the store is unlocked, without leaving the page", async () => {
     await h.controller.handle({ type: "memory.installDemo" }, PAGE_IN_TAB);

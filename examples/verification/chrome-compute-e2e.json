@@ -1,0 +1,531 @@
+{
+  "profile": "chrome-compute-e2e-v0",
+  "recordedAt": "2026-10-20T02:14:46.424Z",
+  "chrome": "Chrome/155.0.8059.85",
+  "v8": "15.5.35.25",
+  "model": "ollama/qwen3.8:27b",
+  "outputDirectory": "examples/my-chrome-compute-2026-10-20T02-14-46-424Z",
+  "csp": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'; connect-src https: http://127.0.0.1:* http://localhost:*",
+  "packages": {
+    "computeTest": {
+      "digest": "2c2e8accb2ec58441335eb6ad82f2371f16bc7595411cfe5e8f6f07568045106",
+      "archiveSha256": "0294133104c671fa7acfd50aca6ea0a0b5409c0a311068f44115b1d7c93ac522",
+      "bytes": 135153,
+      "signer": "sha256:266b7e641a7664054fea4d6eba789a0faa9e25e3ff1a863048a985ec20c1b675"
+    },
+    "runaway": {
+      "digest": "09f1debd911e9431fc45e0ff09ca6a85bcd157b543e4a22b6f0111f1f2a5659c",
+      "archiveSha256": "53353090c9e3f032885167b3d39646db8c58a12307b9670ba420768a28dc89c9",
+      "bytes": 6792,
+      "signer": "sha256:9adca4dd46f924eea5ba900ca4f41937de29e6d5a3628d01594dd736bd94c7f6"
+    },
+    "long": {
+      "digest": "81c8810425770ce7a77e02cddb15288de67ca97e79144a38c7db5fb2c71647c2",
+      "archiveSha256": "2dd3c977fd8d3af76a9f302c57d5b7657ec79cbc1dada16c8a297a52c9897427",
+      "bytes": 6737,
+      "signer": "sha256:a919f5544712185f5dbf775510802795dd31754d4bb0bdb25366357655827e20"
+    },
+    "indirect-call-null": {
+      "digest": "32b8a456e328fb64f2c18110a44b8f1fd5ca0cad9b2a721dd31781aa11d6341c",
+      "archiveSha256": "891d208f37568f05762a2da167b72bb881ef348bea802d3a4136dac2fc637519",
+      "bytes": 6778,
+      "signer": "sha256:65974b3372f9e2dcc0e3982585c645958fe399707728524f9cad51856c8b23e2"
+    },
+    "indirect-call-bad-signature": {
+      "digest": "6228f1e5e8a1548e864c5fbfb0e93effce2683bf7ac153bbaa495ad97569a8c2",
+      "archiveSha256": "dc4915213989c7ec875f40c1bc21e3f2819f0ad54e887905ebc3f0deba43e386",
+      "bytes": 6789,
+      "signer": "sha256:d5a22bdd086b22bfaa190bfa51bf5928e1fdd4977618f9936ba0577bd7a30cf4"
+    }
+  },
+  "computeWorker": {
+    "ok": true,
+    "output": "{\"currency\":\"USD\",\"lines\":[{\"label\":\"WA101 Economy Standard\",\"amount_cents\":42900,\"quantity\":2,\"total_cents\":85800}],\"subtotal_cents\":85800,\"tax_cents\":7293,\"total_cents\":93093}",
+    "memory_pages": 1
+  },
+  "trapWords": {
+    "indirect-call-null": {
+      "name": "RuntimeError",
+      "message": "null function"
+    },
+    "indirect-call-bad-signature": {
+      "name": "RuntimeError",
+      "message": "function signature mismatch"
+    }
+  },
+  "runs": {
+    "compute-test": {
+      "runId": "run_f528154cc2504144af272b34c07782a9",
+      "status": "completed",
+      "errorCode": null,
+      "settledMs": 511,
+      "chainValid": true,
+      "compute": [
+        {
+          "action": "compute.called",
+          "node_id": "ids",
+          "module": "bookkeeping",
+          "function": "assign_ids",
+          "reason": null,
+          "trap_code": null,
+          "engine": null,
+          "memory_pages": null
+        },
+        {
+          "action": "compute.called",
+          "node_id": "totals",
+          "module": "fares",
+          "function": "run",
+          "reason": null,
+          "trap_code": null,
+          "engine": null,
+          "memory_pages": null
+        },
+        {
+          "action": "compute.called",
+          "node_id": "quotes",
+          "module": "bookkeeping",
+          "function": "match_quotes",
+          "reason": null,
+          "trap_code": null,
+          "engine": null,
+          "memory_pages": null
+        },
+        {
+          "action": "compute.completed",
+          "node_id": "totals",
+          "module": "fares",
+          "function": "run",
+          "reason": null,
+          "trap_code": null,
+          "engine": {
+            "id": "chrome/155.0.0.0",
+            "elapsed_ms": 0,
+            "fuel_consumed": null
+          },
+          "memory_pages": 1
+        },
+        {
+          "action": "compute.called",
+          "node_id": "groups/total",
+          "module": "fares",
+          "function": "run",
+          "reason": null,
+          "trap_code": null,
+          "engine": null,
+          "memory_pages": null
+        },
+        {
+          "action": "compute.completed",
+          "node_id": "quotes",
+          "module": "bookkeeping",
+          "function": "match_quotes",
+          "reason": null,
+          "trap_code": null,
+          "engine": {
+            "id": "chrome/155.0.0.0",
+            "elapsed_ms": 1,
+            "fuel_consumed": null
+          },
+          "memory_pages": 18
+        },
+        {
+          "action": "compute.completed",
+          "node_id": "ids",
+          "module": "bookkeeping",
+          "function": "assign_ids",
+          "reason": null,
+          "trap_code": null,
+          "engine": {
+            "id": "chrome/155.0.0.0",
+            "elapsed_ms": 2,
+            "fuel_consumed": null
+          },
+          "memory_pages": 18
+        },
+        {
+          "action": "compute.called",
+          "node_id": "groups/total",
+          "module": "fares",
+          "function": "run",
+          "reason": null,
+          "trap_code": null,
+          "engine": null,
+          "memory_pages": null
+        },
+        {
+          "action": "compute.completed",
+          "node_id": "groups/total",
+          "module": "fares",
+          "function": "run",
+          "reason": null,
+          "trap_code": null,
+          "engine": {
+            "id": "chrome/155.0.0.0",
+            "elapsed_ms": 0,
+            "fuel_consumed": null
+          },
+          "memory_pages": 1
+        },
+        {
+          "action": "compute.completed",
+          "node_id": "groups/total",
+          "module": "fares",
+          "function": "run",
+          "reason": null,
+          "trap_code": null,
+          "engine": {
+            "id": "chrome/155.0.0.0",
+            "elapsed_ms": 0,
+            "fuel_consumed": null
+          },
+          "memory_pages": 1
+        }
+      ],
+      "modelRequests": 0,
+      "requests": {
+        "recording": true,
+        "count": 0
+      },
+      "warnings": [
+        "publisher_unknown",
+        "runs_code_that_can_only_compute",
+        "no_evals_declared",
+        "no_attestations_declared"
+      ]
+    },
+    "runaway": {
+      "runId": "run_a15869625fe1459f8e6c31a305e154be",
+      "status": "failed",
+      "errorCode": "compute_error",
+      "settledMs": 759,
+      "chainValid": true,
+      "compute": [
+        {
+          "action": "compute.called",
+          "node_id": "compute",
+          "module": "echo",
+          "function": "run",
+          "reason": null,
+          "trap_code": null,
+          "engine": null,
+          "memory_pages": null
+        },
+        {
+          "action": "compute.failed",
+          "node_id": "compute",
+          "module": "echo",
+          "function": "run",
+          "reason": "deadline",
+          "trap_code": null,
+          "engine": {
+            "id": "chrome/155.0.0.0",
+            "elapsed_ms": 503,
+            "fuel_consumed": null
+          },
+          "memory_pages": null
+        }
+      ],
+      "modelRequests": 0,
+      "requests": {
+        "recording": true,
+        "count": 0
+      },
+      "warnings": [
+        "publisher_unknown",
+        "runs_code_that_can_only_compute",
+        "no_evals_declared",
+        "no_attestations_declared"
+      ]
+    },
+    "cancelled": {
+      "runId": "run_7b8ca2d8f1e24692a193a79d8e1d0f6c",
+      "status": "cancelled",
+      "errorCode": "cancelled",
+      "settledMs": 1264,
+      "chainValid": true,
+      "compute": [
+        {
+          "action": "compute.called",
+          "node_id": "compute",
+          "module": "echo",
+          "function": "run",
+          "reason": null,
+          "trap_code": null,
+          "engine": null,
+          "memory_pages": null
+        },
+        {
+          "action": "compute.failed",
+          "node_id": "compute",
+          "module": "echo",
+          "function": "run",
+          "reason": null,
+          "trap_code": null,
+          "engine": null,
+          "memory_pages": null
+        }
+      ],
+      "modelRequests": 0,
+      "requests": {
+        "recording": true,
+        "count": 0
+      },
+      "warnings": [
+        "publisher_mismatch",
+        "runs_code_that_can_only_compute",
+        "no_evals_declared",
+        "no_attestations_declared"
+      ]
+    },
+    "indirect-call-null": {
+      "runId": "run_d63775f8ad4b427bb813968088362917",
+      "status": "failed",
+      "errorCode": "compute_error",
+      "settledMs": 252,
+      "chainValid": true,
+      "compute": [
+        {
+          "action": "compute.called",
+          "node_id": "compute",
+          "module": "echo",
+          "function": "run",
+          "reason": null,
+          "trap_code": null,
+          "engine": null,
+          "memory_pages": null
+        },
+        {
+          "action": "compute.failed",
+          "node_id": "compute",
+          "module": "echo",
+          "function": "run",
+          "reason": "trap",
+          "trap_code": "indirect_call_to_null",
+          "engine": {
+            "id": "chrome/155.0.0.0",
+            "elapsed_ms": 0,
+            "fuel_consumed": null
+          },
+          "memory_pages": 1
+        }
+      ],
+      "modelRequests": 0,
+      "requests": {
+        "recording": true,
+        "count": 0
+      },
+      "warnings": [
+        "publisher_mismatch",
+        "runs_code_that_can_only_compute",
+        "no_evals_declared",
+        "no_attestations_declared"
+      ]
+    },
+    "indirect-call-bad-signature": {
+      "runId": "run_82a6ac8d72f742c7b30b126c43d4f979",
+      "status": "failed",
+      "errorCode": "compute_error",
+      "settledMs": 253,
+      "chainValid": true,
+      "compute": [
+        {
+          "action": "compute.called",
+          "node_id": "compute",
+          "module": "echo",
+          "function": "run",
+          "reason": null,
+          "trap_code": null,
+          "engine": null,
+          "memory_pages": null
+        },
+        {
+          "action": "compute.failed",
+          "node_id": "compute",
+          "module": "echo",
+          "function": "run",
+          "reason": "trap",
+          "trap_code": "bad_signature",
+          "engine": {
+            "id": "chrome/155.0.0.0",
+            "elapsed_ms": 0,
+            "fuel_consumed": null
+          },
+          "memory_pages": 1
+        }
+      ],
+      "modelRequests": 0,
+      "requests": {
+        "recording": true,
+        "count": 0
+      },
+      "warnings": [
+        "publisher_mismatch",
+        "runs_code_that_can_only_compute",
+        "no_evals_declared",
+        "no_attestations_declared"
+      ]
+    },
+    "compute-test-again": {
+      "runId": "run_e28b5381f4f746cdae2e29e09184102c",
+      "status": "completed",
+      "errorCode": null,
+      "settledMs": 507,
+      "chainValid": true,
+      "compute": [
+        {
+          "action": "compute.called",
+          "node_id": "ids",
+          "module": "bookkeeping",
+          "function": "assign_ids",
+          "reason": null,
+          "trap_code": null,
+          "engine": null,
+          "memory_pages": null
+        },
+        {
+          "action": "compute.called",
+          "node_id": "totals",
+          "module": "fares",
+          "function": "run",
+          "reason": null,
+          "trap_code": null,
+          "engine": null,
+          "memory_pages": null
+        },
+        {
+          "action": "compute.called",
+          "node_id": "quotes",
+          "module": "bookkeeping",
+          "function": "match_quotes",
+          "reason": null,
+          "trap_code": null,
+          "engine": null,
+          "memory_pages": null
+        },
+        {
+          "action": "compute.completed",
+          "node_id": "totals",
+          "module": "fares",
+          "function": "run",
+          "reason": null,
+          "trap_code": null,
+          "engine": {
+            "id": "chrome/155.0.0.0",
+            "elapsed_ms": 0,
+            "fuel_consumed": null
+          },
+          "memory_pages": 1
+        },
+        {
+          "action": "compute.called",
+          "node_id": "groups/total",
+          "module": "fares",
+          "function": "run",
+          "reason": null,
+          "trap_code": null,
+          "engine": null,
+          "memory_pages": null
+        },
+        {
+          "action": "compute.completed",
+          "node_id": "ids",
+          "module": "bookkeeping",
+          "function": "assign_ids",
+          "reason": null,
+          "trap_code": null,
+          "engine": {
+            "id": "chrome/155.0.0.0",
+            "elapsed_ms": 2,
+            "fuel_consumed": null
+          },
+          "memory_pages": 18
+        },
+        {
+          "action": "compute.called",
+          "node_id": "groups/total",
+          "module": "fares",
+          "function": "run",
+          "reason": null,
+          "trap_code": null,
+          "engine": null,
+          "memory_pages": null
+        },
+        {
+          "action": "compute.completed",
+          "node_id": "quotes",
+          "module": "bookkeeping",
+          "function": "match_quotes",
+          "reason": null,
+          "trap_code": null,
+          "engine": {
+            "id": "chrome/155.0.0.0",
+            "elapsed_ms": 0,
+            "fuel_consumed": null
+          },
+          "memory_pages": 18
+        },
+        {
+          "action": "compute.completed",
+          "node_id": "groups/total",
+          "module": "fares",
+          "function": "run",
+          "reason": null,
+          "trap_code": null,
+          "engine": {
+            "id": "chrome/155.0.0.0",
+            "elapsed_ms": 0,
+            "fuel_consumed": null
+          },
+          "memory_pages": 1
+        },
+        {
+          "action": "compute.completed",
+          "node_id": "groups/total",
+          "module": "fares",
+          "function": "run",
+          "reason": null,
+          "trap_code": null,
+          "engine": {
+            "id": "chrome/155.0.0.0",
+            "elapsed_ms": 0,
+            "fuel_consumed": null
+          },
+          "memory_pages": 1
+        }
+      ],
+      "modelRequests": 0,
+      "requests": {
+        "recording": true,
+        "count": 0
+      },
+      "warnings": [
+        "runs_code_that_can_only_compute",
+        "no_evals_declared",
+        "no_attestations_declared"
+      ]
+    }
+  },
+  "checks": {
+    "Ollama answers and offers a model the plan can bind (never called)": "ok",
+    "a module compiles under the extension's CSP and a compute Worker runs it": "ok",
+    "in a dedicated Worker, Chrome's V8 traps on the two indirect calls with two different messages": "ok",
+    "compute-test completes in Chrome": "ok",
+    "five calls, each completed by Chrome's engine in a nested Worker": "ok",
+    "the calls name their nodes: two workers, the coordinator and the map step": "ok",
+    "Chrome's output equals the Python reference's": "ok",
+    "usage counts the calls": "ok",
+    "no model request was made": "ok",
+    "the privacy observer, recording, saw no request of any kind": "ok",
+    "the audit chain is valid": "ok",
+    "the agent page states the code that can only compute": "ok",
+    "the runaway call ends compute_error / deadline, recorded by the run Worker": "ok",
+    "the deadline fired near its 0.5 s bound, not at the run's timeout": "ok",
+    "a cancel stops the running call at once": "ok",
+    "indirect-call-null: the run fails compute_error / trap / indirect_call_to_null, the reference's code": "ok",
+    "indirect-call-bad-signature: the run fails compute_error / trap / bad_signature, the reference's code": "ok",
+    "a later run completes: no Worker was left behind": "ok"
+  },
+  "failures": [],
+  "passed": true
+}

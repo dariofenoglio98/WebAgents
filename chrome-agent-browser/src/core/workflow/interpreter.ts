@@ -10,6 +10,7 @@
  */
 import { integrityStatement } from "../archive.js";
 import { canonicalString } from "../canonical.js";
+import { ComputeError } from "../compute/errors.js";
 import { ValidationError } from "../errors.js";
 import { isJsonObject, parseJson, type JsonObject, type JsonValue } from "../json.js";
 import { PROPOSALS_EXPORT_FORMAT, ProposalRefusal } from "../memory/proposals.js";
@@ -22,7 +23,7 @@ import { validatePayload } from "../validation.js";
 import { checkAnswer, checkAssertions } from "./assertions.js";
 import { CancelToken, withDeadline, yieldPoint } from "./cancel.js";
 import { BudgetError, CancelledError, failedCheck, failureCode, PolicyError, TimeoutError, WorkflowError } from "./errors.js";
-import { Context, digest, Runtime, type RuntimeOptions } from "./runtime.js";
+import { computeHostLimits, Context, digest, prepareCompute, Runtime, type RuntimeOptions } from "./runtime.js";
 import { evaluate, pyEqual, type Environment } from "./values.js";
 
 export const PROFILE = "workflow.v0";
@@ -99,7 +100,11 @@ export class Workflow {
       // memory.v0 M-40 holds in every mode: a host that supplies no memory context still gets the
       // proposals check, over an empty scan set and no grant.
       const memory = options.memory === undefined ? new MemoryRun(verified, [], options.grants ?? {}, {}) : options.memory;
-      return new Workflow(verified, schemas, { ...options, memory });
+      // compute.v0 preflight (D-245): the engine, the memory ceilings and the compiled modules,
+      // before the runtime exists and before `runtime.started`, as the reference's constructor does.
+      const computeLimits = computeHostLimits(options.limits);
+      const computePrepared = await prepareCompute(verified, options.compute ?? null, computeLimits);
+      return new Workflow(verified, schemas, { ...options, memory, computePrepared, computeLimits });
     } catch (error) {
       schemas.close();
       throw error;
@@ -165,6 +170,18 @@ export class Workflow {
         // Provider adapters may subclass PolicyError; transport failures stay distinct.
         if (error instanceof PolicyError && Object.getPrototypeOf(error) === PolicyError.prototype) throw error;
         throw new WorkflowError("tool_error", String(node.id), { cause: error });
+      }
+    } else if (kind === "compute") {
+      // compute.v0: a pure function of the constructed input, run by the host's engine under the
+      // effective limits; its own failures are `compute_error`, an input or output outside the
+      // node's schemas `schema_validation`, as for a tool. A failure of the engine itself is the
+      // host's, not the module's: `worker_error` (C-40).
+      try {
+        result = await ctx.compute(node, value, token);
+      } catch (error) {
+        if (error instanceof BudgetError || error instanceof ValidationError || error instanceof TimeoutError || error instanceof CancelledError || error instanceof PolicyError) throw error;
+        if (error instanceof ComputeError) throw Object.assign(new WorkflowError("compute_error", String(node.id), { cause: error }), { compute: error.facts() });
+        throw new WorkflowError("worker_error", String(node.id), { cause: error });
       }
     } else if (kind === "join") {
       if (!Array.isArray(value)) throw new ValidationError(`node ${node.id}: join input must be an array`);

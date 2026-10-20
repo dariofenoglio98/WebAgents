@@ -171,6 +171,9 @@ class WasmtimeEngine:
         config.wasm_component_model = False
         self._engine = wasmtime.Engine(config)
         self._modules: dict[str, object] = {}
+        # A module the engine refused, by SHA-256: the refusal is kept so that a second attempt
+        # (the preflight after `precompile`) raises it at once instead of compiling again.
+        self._refused: dict[str, ModuleError] = {}
         self._lock = threading.Lock()
         self._ticker = _Ticker(self._engine)
         # Interpreter teardown finalizes module globals in no particular order; closing the
@@ -183,6 +186,7 @@ class WasmtimeEngine:
     def close(self) -> None:
         with self._lock:
             modules, self._modules = self._modules, {}
+            self._refused = {}
         for module in modules.values():
             try:
                 module.close()
@@ -194,18 +198,30 @@ class WasmtimeEngine:
             pass
 
     def compile(self, sha256: str, data: bytes) -> None:
-        """Compile once per module; a module the engine refuses is `module_invalid`."""
+        """Compile once per module; a module the engine refuses is `module_invalid`, and the
+        refusal is kept so the module is never compiled twice. Compiling happens **outside** the
+        lock (it takes time in proportion to the module's size, and one module's compile must not
+        block another call's lookup); the result is inserted under it, and a compile that lost a
+        race to a concurrent one of the same bytes is dropped."""
         with self._lock:
             if sha256 in self._modules:
                 return
-            try:
-                module = self._wasmtime.Module(self._engine, data)
-            except self._wasmtime.WasmtimeError as exc:
-                first = str(exc).splitlines()[0] if str(exc) else "invalid module"
-                raise ModuleError(
-                    "module_invalid", f"the engine refused the module: {first}"
-                ) from exc
-            self._modules[sha256] = module
+            refused = self._refused.get(sha256)
+        if refused is not None:
+            raise refused
+        try:
+            module = self._wasmtime.Module(self._engine, data)
+        except self._wasmtime.WasmtimeError as exc:
+            first = str(exc).splitlines()[0] if str(exc) else "invalid module"
+            error = ModuleError("module_invalid", f"the engine refused the module: {first}")
+            with self._lock:
+                self._refused[sha256] = error
+            raise error from exc
+        with self._lock:
+            if sha256 in self._modules:
+                module.close()
+            else:
+                self._modules[sha256] = module
 
     async def call(self, sha256: str, function: str, data: bytes, limits: ComputeLimits):
         """Run one call on a worker thread, so a wave's other nodes proceed meanwhile."""

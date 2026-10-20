@@ -169,6 +169,17 @@ function buildInputs() {
   // Python driver from agentpkg's own test package and signed with the throwaway key.
   inputs.memory = {};
   for (const name of MEMORY_VARIANTS) inputs.memory[name] = memoryVariant(name);
+  // compute.v0 (T22, C-51, B-225): one probe per enforcement case of examples/compute/cases/cases.json,
+  // written by the Python driver from agentpkg's own test package and signed with the throwaway key.
+  // `engine-unavailable` has no CLI form (both CLIs have an engine here); each unit suite covers it.
+  inputs.compute = {};
+  for (const testCase of COMPUTE_CASES) if (testCase.id !== "engine-unavailable") inputs.compute[testCase.id] = computeCase(testCase);
+  // N-16: the echo probe with one byte of its module changed and the CRC recomputed, so only the
+  // integrity statement can catch it (C-12).
+  inputs.compute["tampered-archive"].archive = writeInput(
+    "compute-tampered.agent.pkg",
+    rebuild(new Uint8Array(readFileSync(inputs.compute.echo.archive)), (members) => members.map((m) => (m.name === "modules/echo.wasm" ? { ...m, data: flip(m.data) } : m))),
+  );
   // Grants files for the permission cases.
   const webairGrants = readJson(EXAMPLES("webair-0.2.0-grants.json"));
   inputs.webairNetworkDenied = writeInput("webair-network-denied.json", JSON.stringify({ ...webairGrants, "network.webair": "deny" }));
@@ -249,6 +260,34 @@ function memoryVariant(name) {
   return { archive: signed, source, grants, tools, refusedAtBuild: build.stderr.trim() };
 }
 
+const COMPUTE_CASES = JSON.parse(spawn(PYTHON, [join(ROOT, "conformance/drivers/compute_probe.py"), "--cases"]).stdout);
+
+/**
+ * One compute probe case: its source written by `drivers/compute_probe.py`, built and signed with
+ * the throwaway key when it builds (a case agentpkg refuses to build, a container or validation
+ * case, is signed by the driver without validating, so that both CLIs meet the same refusal when
+ * they load the archive).
+ */
+function computeCase(testCase) {
+  const name = testCase.id;
+  const source = join(SCRATCH, "compute", name);
+  const written = spawn(PYTHON, [join(ROOT, "conformance/drivers/compute_probe.py"), source, name]);
+  if (written.status !== 0) throw new Error(`compute probe ${name}: ${written.stderr}`);
+  const { grants } = JSON.parse(written.stdout);
+  const built = join(SCRATCH, "compute", `${name}.unsigned.agent.pkg`);
+  const signed = join(SCRATCH, "compute", `${name}.agent.pkg`);
+  const build = spawn(PYTHON_CLI, ["build", source, "-o", built]);
+  if (build.status === 0) {
+    agentpkg(["sign", built, "--private-key", join(SCRATCH, "keys", "throwaway.pem"), "-o", signed]);
+    return { archive: signed, source, grants, case: testCase };
+  }
+  const forged = spawn(PYTHON, [join(ROOT, "conformance/drivers/compute_probe.py"), "--signed-archive", source, signed, join(SCRATCH, "keys", "throwaway.pem")]);
+  if (forged.status !== 0) throw new Error(`compute probe ${name}: ${forged.stderr}`);
+  return { archive: signed, source, grants, case: testCase, refusedAtBuild: build.stderr.trim() };
+}
+
+const escapeRegExp = (text) => text.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+
 function variant(name, change) {
   const source = join(SCRATCH, "variants", name);
   cpSync(join(ROOT, "agents/meeting-agenda"), source, { recursive: true, filter: (path) => !path.endsWith(".DS_Store") });
@@ -309,14 +348,28 @@ function positiveCases() {
     })),
     { id: "literature-review-0.2.8/fixture", title: "Literature Review 0.2.8, its fixture input (memory off): 0.2.7's review and an empty proposals document", argv: fixtureRun(DIST("literature-review-0.2.8.agent.pkg"), EXAMPLES("literature-review-0.2.8-grants.json"), reviewMemoryTools), allowTokens: true, memory: true },
     { id: "literature-review-0.2.8/memory", title: "Literature Review 0.2.8 with its memory switches on: the replayed research profile shapes the plan, the notes are read and staged, one research.review is proposed derived from the profile (grants from the fixture's views, D-230)", argv: fixtureRun(DIST("literature-review-0.2.8.agent.pkg"), EXAMPLES("literature-review-0.2.8-grants.json"), reviewMemoryTools, ["--input", EXAMPLES("literature-review-0.2.8-memory-input.json")]), allowTokens: true, memory: true },
+    // compute.v0 in shipped packages (T22): WebAir 0.7.0 recomputes every fare total WebAir states in
+    // its fares module; Literature Review 0.2.9 deduplicates its candidates in its bookkeeping module.
+    { id: "webair-0.7.0/fixture", title: "WebAir 0.7.0 (fare totals verified by the fares module, T22), its fixture input, the search tools approved", argv: fixtureRun(DIST("webair-0.7.0.agent.pkg"), EXAMPLES("webair-0.7.0-grants.json"), ["search-flights", "get-fare-rules"]), requires: "0.5.0" },
+    ...scenarios.map((scenario) => ({
+      id: `webair-0.7.0/scenario-${scenario.id}`,
+      title: `WebAir 0.7.0, scenario ${scenario.id}`,
+      argv: fixtureRun(DIST("webair-0.7.0.agent.pkg"), EXAMPLES("webair-0.7.0-grants.json"), ["search-flights", "get-fare-rules"], ["--input", writeInput(`scenario-070-${scenario.id}.json`, JSON.stringify(scenario.input))]),
+      requires: "0.5.0",
+    })),
+    { id: "literature-review-0.2.9/fixture", title: "Literature Review 0.2.9 (deduplication in the bookkeeping module, T22), its fixture input (memory off)", argv: fixtureRun(DIST("literature-review-0.2.9.agent.pkg"), EXAMPLES("literature-review-0.2.9-grants.json"), reviewMemoryTools), allowTokens: true, requires: "0.5.0" },
+    { id: "literature-review-0.2.9/memory", title: "Literature Review 0.2.9 with its memory switches on (0.2.8's memory behaviour, the module's deduplication)", argv: fixtureRun(DIST("literature-review-0.2.9.agent.pkg"), EXAMPLES("literature-review-0.2.9-grants.json"), reviewMemoryTools, ["--input", EXAMPLES("literature-review-0.2.8-memory-input.json")]), allowTokens: true, requires: "0.5.0" },
     { id: "memory-probe/granted-sealed-value", title: "M-36 and D-230: the probe's replayed legacy identity e-mail sent to a tool that links the permission it was granted under (in fixture mode the replayed answer is held as granted under its tool's permission)", argv: fixtureRun(inputs.memory["m36-granted-sealed-value"].archive, inputs.memory["m36-granted-sealed-value"].grants, inputs.memory["m36-granted-sealed-value"].tools, ["--trust-key", inputs.throwawayKey]), memory: true },
     { id: "memory-probe/custom-type-proposal", title: "M-18 and D-228: the probe proposes its own custom type by its local id (the only form the proposals schema admits); the host resolves it through the package's aliases", argv: fixtureRun(inputs.memory["custom-type-proposal"].archive, inputs.memory["custom-type-proposal"].grants, inputs.memory["custom-type-proposal"].tools, ["--trust-key", inputs.throwawayKey]), memory: true },
     { id: "memory-probe/custom-type-read", title: "M-12, M-18 and D-228: a memory.read of the probe's own custom type by its local id, granted from the replayed view, and an update of the record it read", argv: fixtureRun(inputs.memory["custom-type-read"].archive, inputs.memory["custom-type-read"].grants, inputs.memory["custom-type-read"].tools, ["--trust-key", inputs.throwawayKey]), memory: true },
     { id: "memory-probe/fixture", title: "The memory probe (every memory.v0 permission: a record view, a legacy identity, the agent document, a create and an update proposal, a sealed value sent where its grant goes; throwaway key)", argv: fixtureRun(inputs.memory.fixture.archive, inputs.memory.fixture.grants, inputs.memory.fixture.tools, ["--trust-key", inputs.throwawayKey]), memory: true },
     { id: "answer-checks/fixture", title: "Answer checks that hold (D-150): Meeting Agenda rebuilt with a relation, a sum and an equality on its model answers, runtime minimum 0.3.0 (throwaway key)", argv: fixtureRun(inputs.answerChecks, EXAMPLES("meeting-agenda-grants.json"), [], ["--trust-key", inputs.throwawayKey]) },
-    // compute.v0 (T21): the model-free test package over the two example modules; pending while the
-    // Chrome core's gate is below 0.5.0 (T22 ports compute.v0 and adds the negative cases, B-225).
+    // compute.v0 (T21, T22; C-51): the model-free test package over the two example modules, and the
+    // two control cases of the enforcement list. `requires` keeps the pending rule for a Chrome core
+    // whose gate is below 0.5.0 (an older checkout under CONFORMANCE_CHROME).
     { id: "compute-test/fixture", title: "Compute Test 0.1.0 (compute.v0, T21): fare totals (AssemblyScript) and bookkeeping (Rust) modules in one wave and in a map step, the modules run for real in fixture mode", argv: fixtureRun(EXAMPLES("compute/compute-test.agent.pkg"), EXAMPLES("compute/compute-test-grants.json"), []), requires: "0.5.0" },
+    { id: "compute/echo", title: "Control: the smallest conforming module answers its input (throwaway key)", argv: fixtureRun(inputs.compute.echo.archive, inputs.compute.echo.grants, [], ["--trust-key", inputs.throwawayKey]), requires: "0.5.0" },
+    { id: "compute/with-start", title: "Control: a start function is allowed and runs inside the call (C-17; throwaway key)", argv: fixtureRun(inputs.compute["with-start"].archive, inputs.compute["with-start"].grants, [], ["--trust-key", inputs.throwawayKey]), requires: "0.5.0" },
   ];
   return cases.map((testCase) => ({ ...testCase, kind: "fixture parity", run: () => runPositive(testCase) }));
 }
@@ -382,6 +435,7 @@ function negativeCases() {
     cli("budget-overrun", "A package token budget below what its own fixture run needs (rebuilt Meeting Agenda, throwaway key)", [run(inputs.budget, EXAMPLES("meeting-agenda-grants.json"), ["--trust-key", inputs.throwawayKey])], { code: "budget_exhausted", node: "plan", artifacts: true }),
     cli("answer-check-refused", "A recorded model answer that its node's answer check refuses (D-150): a non-conforming answer, never re-asked by a replay router (rebuilt Meeting Agenda, throwaway key)", [run(inputs.answerCheckRefused, EXAMPLES("meeting-agenda-grants.json"), ["--trust-key", inputs.throwawayKey])], { code: "model_error", node: "write", artifacts: true }),
     ...memoryNegativeCases(cli, run),
+    ...computeNegativeCases(cli, run, documented),
     documented(
       "once-overused",
       "The model permission granted once, to a graph that calls the model more than once",
@@ -435,6 +489,50 @@ function memoryNegativeCases(cli, run) {
   ];
 }
 
+/**
+ * The negative cases of spec/compute-v0.md §10 (C-51, B-225) both runtimes must refuse identically:
+ * container and validation refusals by their message, a preflight refusal by each CLI's own stage
+ * (D-091: `agentpkg run` refuses in the runtime's preflight, the Chrome CLI in its execution layer,
+ * and the two execution layers are compared directly), run failures by the node's code and the
+ * audit's `compute.failed` facts (C-46; the normalizer folds the two engine differences D-244 states).
+ */
+function computeNegativeCases(cli, run, documented) {
+  const probe = (name) => inputs.compute[name];
+  const runProbe = (name) => run(probe(name).archive, probe(name).grants, ["--trust-key", inputs.throwawayKey]);
+  const cases = [];
+  for (const testCase of COMPUTE_CASES) {
+    const name = testCase.id;
+    if (name === "engine-unavailable" || testCase.code === "completed") continue;
+    const title = `${testCase.title} (compute.v0 §10, ${testCase.stage})`;
+    if (testCase.stage === "container") {
+      const message = name === "tampered-archive" ? /^content integrity mismatch: missing=\[\], extra=\[\], changed=\['modules\/echo\.wasm'\]$/u : new RegExp(escapeRegExp(testCase.message), "u");
+      cases.push({ ...cli(`compute/${name}`, title, [runProbe(name)], { code: testCase.code, message }), requires: "0.5.0" });
+    } else if (testCase.stage === "validation") {
+      cases.push({ ...cli(`compute/${name}`, title, [runProbe(name)], { code: testCase.code, message: new RegExp(`^${testCase.code}: `, "u") }), requires: "0.5.0" });
+    } else if (testCase.stage === "preflight") {
+      cases.push({
+        ...documented(
+          `compute/${name}`,
+          title,
+          runProbe(name),
+          { python: { message: new RegExp(`^${testCase.code}: `, "u") }, node: { message: /^Node compute runs module 'echo', whose declared memory maximum of 2048 pages is above this host's ceiling of 1024\./u } },
+          { archive: probe(name).archive, grants: probe(name).grants, code: "execution_compute_limit_exceeded" },
+        ),
+        requires: "0.5.0",
+      });
+    } else if (name === "permission-denied") {
+      // The compute permission denied: `agentpkg run` stops at the mediator, the Chrome CLI's execution layer before the run (as denied-permission/required).
+      cases.push({
+        ...documented(`compute/${name}`, title, runProbe(name), { python: { code: "permission_denied", node: "compute" }, node: { message: /^Required permission 'compute\.modules' is denied, so this package cannot run\.$/u } }, { archive: probe(name).archive, grants: probe(name).grants, code: "execution_permission_denied" }),
+        requires: "0.5.0",
+      });
+    } else {
+      cases.push({ ...cli(`compute/${name}`, title, [runProbe(name)], { code: testCase.code, node: "compute", artifacts: true }), requires: "0.5.0" });
+    }
+  }
+  return cases;
+}
+
 function runNegative(commands, expectation, options) {
   const checks = [];
   const check = (name, differences) => checks.push({ name, passed: differences.length === 0, detail: differences });
@@ -486,7 +584,12 @@ function runDocumented(argv, expected, layer) {
   const python = invoke("python", argv, "documented");
   const node = invoke("node", argv, "documented");
   const pyRefusal = refusalOf(python, { code: null });
-  check("agentpkg run: refused at the first use", python.status === 2 && pyRefusal.code === expected.python.code && pyRefusal.node === expected.python.node && "result.json" in python.files ? [] : [`${python.status}: ${python.message}`]);
+  if (expected.python.message) {
+    // A refusal before the run in the runtime's own preflight (compute.v0 C-31): nothing written.
+    check("agentpkg run: refused before the run, nothing written", python.status === 2 && expected.python.message.test(python.message ?? "") && Object.keys(python.files).length === 0 ? [] : [`${python.status}: ${python.message}`]);
+  } else {
+    check("agentpkg run: refused at the first use", python.status === 2 && pyRefusal.code === expected.python.code && pyRefusal.node === expected.python.node && "result.json" in python.files ? [] : [`${python.status}: ${python.message}`]);
+  }
   check("chrome CLI: refused before the run, nothing written", node.status === 2 && expected.node.message.test(node.message ?? "") && Object.keys(node.files).length === 0 ? [] : [`${node.status}: ${node.message}`]);
   const pyLayer = spawn(PYTHON, [join(ROOT, "conformance/drivers/execution_policy.py"), layer.archive, layer.grants]);
   const nodeLayer = spawn(process.execPath, [join(SCRATCH, "drivers", "execution-policy.js"), layer.archive, layer.grants]);

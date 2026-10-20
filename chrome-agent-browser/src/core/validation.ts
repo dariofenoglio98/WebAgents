@@ -8,6 +8,7 @@
  * static checks in `workflow-static.ts`. Messages follow the reference's wording so the two
  * runtimes refuse the same packages for the same stated reasons.
  */
+import { moduleMembers } from "./compute/declarations.js";
 import { ValidationError } from "./errors.js";
 import { isJsonObject, parseJson, type JsonObject, type JsonValue } from "./json.js";
 import { checkMemoryGraph, memoryDeclarations } from "./memory/declarations.js";
@@ -277,6 +278,9 @@ export async function validatePayload(files: ReadonlyMap<string, Uint8Array>): P
   if (workflow) {
     await validateWorkflow(manifest, graph, policy, tools, files);
   } else {
+    // compute.v0 belongs to workflow.v0: an archival graph carries no module.
+    const members = moduleMembers(files);
+    if (members.length > 0) throw new ValidationError(`module_undeclared: member ${pyRepr(members[0]!)} is a WebAssembly module and this execution profile runs none`);
     const stages = unique(graph.stages as JsonValue[], "stages");
     for (const stage of stages.values()) {
       if (!workers.has(String(stage.worker))) throw new ValidationError(`stage ${stage.id}: unknown worker`);
