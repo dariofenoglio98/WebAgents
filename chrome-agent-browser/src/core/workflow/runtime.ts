@@ -70,14 +70,6 @@ function refusal(code: string, message: string): PolicyError {
   return Object.assign(new PolicyError(`${code}: ${message}`), { code });
 }
 
-/**
- * compute.v0 preflight (`runtime.py::_prepare_compute`): the engine is present, every module's
- * declared memory maximum fits under the host's bound as its nodes lower it (`compute_limit_exceeded`:
- * refused, never lowered), and every module compiles. Before anything runs, so that a run never spends
- * a model call and then meets a module it cannot run. Asynchronous because compiling is; `Workflow.create`
- * awaits it before the runtime exists, which is where the reference's constructor does the same work.
- * Returns null for a package without compute operations.
- */
 /** The host's ceilings for one compute call, from the host limits; a value out of range is a policy refusal. */
 export function computeHostLimits(limits: HostLimits | null | undefined): ComputeLimits {
   try {
@@ -87,6 +79,14 @@ export function computeHostLimits(limits: HostLimits | null | undefined): Comput
   }
 }
 
+/**
+ * compute.v0 preflight (`runtime.py::_prepare_compute`): the engine is present, every module's
+ * declared memory maximum fits under the host's bound as its nodes lower it (`compute_limit_exceeded`:
+ * refused, never lowered), and every module compiles. Before anything runs, so that a run never spends
+ * a model call and then meets a module it cannot run. Asynchronous because compiling is; `Workflow.create`
+ * awaits it before the runtime exists, which is where the reference's constructor does the same work.
+ * Returns null for a package without compute operations.
+ */
 export async function prepareCompute(pkg: Package, engine: ComputeEngine | null, limits: ComputeLimits): Promise<Map<string, PreparedModule> | null> {
   const operations = computeOperations(pkg.graph);
   if (operations.length === 0) return null;

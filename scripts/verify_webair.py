@@ -97,13 +97,18 @@ def genericity_scan() -> dict:
 
 def personal_data_scan(package) -> dict:
     """Which of the demo host's personal values, if any, the signed bytes contain."""
-    # A WebAssembly module (0.7.0) is bytes, not text: read as Latin-1, as the container's
-    # credential scan reads it, so a value compiled into its data segments is found too.
+    # A WebAssembly module (0.7.0) is bytes, not text: each value is looked for there as the
+    # UTF-8 and the UTF-16LE bytes a compiler stores (AssemblyScript, which builds `fares`, keeps
+    # its strings as UTF-16LE), so a value compiled into a data segment is found too. The e-mail
+    # and card patterns read the text members only: in code, `@` is the byte 0x40 (the empty
+    # block type) and digits are any bytes.
     modules = {module["path"] for module in package.graph.get("modules", [])}
     text = "\n".join(
-        data.decode("latin-1" if name in modules else "utf-8")
+        data.decode("utf-8")
         for name, data in package.files.items()
+        if name not in modules
     )
+    code = [data for name, data in package.files.items() if name in modules]
     definitions = json.loads(HOST_RESOURCES.read_text())
     values = []
     for resource in definitions["resources"]:
@@ -113,10 +118,22 @@ def personal_data_scan(package) -> dict:
             for field, value in resource["value"].items()
             if field in {"given_name", "family_name", "contact_email", "display"}
         ]
-    found = sorted({value for value in values if value in text})
+    found = sorted(
+        {
+            value
+            for value in values
+            if value in text
+            or any(
+                value.encode(encoding) in data
+                for data in code
+                for encoding in ("utf-8", "utf-16-le")
+            )
+        }
+    )
     emails = sorted(set(re.findall(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+", text)))
     return {
         "host_values_checked": len(values),
+        "modules_scanned": len(code),
         "host_values_found": found,
         "email_addresses_found": emails,
         # 2^53 - 1, the fare-total schemas' integer bound, is not a card number.

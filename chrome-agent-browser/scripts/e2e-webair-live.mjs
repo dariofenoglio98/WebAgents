@@ -534,9 +534,17 @@ async function main() {
       // A recall card offers records of the type its `memory.read` requests, so an accepted record can be
       // recalled only when the package reads its type (B-222). WebAir 0.6.0 and 0.7.0 propose
       // `travel.preference` and read only `travel.profile` (B-221): the check is skipped with a note.
-      // Nothing accepted is no reason to skip: the check fails, as `verify_chrome_memory_live.py` has it.
-      const readTypes = new Set(recall.map((card) => card.resource_type));
-      const readable = accepted.filter((item) => readTypes.has(item.type));
+      // The types read are the cards'; with no card, or a card that names none, they are the memory
+      // run's plan's host-resource bindings, and with none of those every accepted record counts.
+      // Nothing accepted is no reason to skip: the check fails. All as `verify_chrome_memory_live.py`.
+      let readTypes = new Set(recall.map((card) => card.resource_type ?? null));
+      if (recall.length === 0 || readTypes.has(null)) {
+        const planPath = join(ROOT, run.directory, "run-plan.json");
+        const plan = existsSync(planPath) ? JSON.parse(readFileSync(planPath, "utf8")) : {};
+        const bound = (plan.tool_bindings ?? []).filter((binding) => binding && typeof binding === "object" && binding.resource_type).map((binding) => binding.resource_type);
+        readTypes = new Set(bound.length > 0 ? bound : [null]);
+      }
+      const readable = readTypes.has(null) ? accepted : accepted.filter((item) => readTypes.has(item.type));
       if (readable.length === 0 && accepted.length > 0) {
         report.steps.memory["the accepted record is recalled for the next run"] = { skipped: `the package reads ${[...readTypes].sort().join(", ") || "no memory type"}; the accepted records are ${[...new Set(accepted.map((item) => item.type))].sort().join(", ") || "none"} (B-221)` };
       } else {
