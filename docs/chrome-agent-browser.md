@@ -198,7 +198,8 @@ has no `innerHTML`.
 - **Headless Chrome harnesses** (`scripts/e2e-*.mjs`): discovery and inspection against a local
   HTTPS origin, the paper reader, compute modules (`e2e-compute.mjs`: compute-test through the
   offscreen run Worker and its nested compute Workers, a runaway module stopped at its deadline, a
-  cancel; [`chrome-compute-e2e.json`](../examples/verification/chrome-compute-e2e.json)), and live runs of WebAir and Literature Review whose exported run
+  cancel, the two indirect-call traps with the reference's codes;
+  [`chrome-compute-e2e.json`](../examples/verification/chrome-compute-e2e.json)), and live runs of WebAir and Literature Review whose exported run
   directories are recomputed by `scripts/verify_chrome_*_live.py`. The recorded evidence is under
   [`examples/verification/`](../examples/verification/) (`chrome-*.json`). Headless Chrome cannot
   grant an optional origin (the prompt waits for nobody) nor `activeTab` (no click reaches an

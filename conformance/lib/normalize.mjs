@@ -22,8 +22,9 @@ const MEMORY_FACTS = ["count", "types", "proposals_sha256", "offered", "reason",
 // `fuel_exhausted` on a metering engine and `deadline` on one that only has a wall bound (D-244); a
 // call that was stopped from outside reports the memory size the engine could still read, which
 // a terminated Worker cannot (T22, D-250), so after either reason `memory_pages` is the engine's;
-// and V8 reports a `call_indirect` through a null slot as a signature mismatch, so
-// `indirect_call_to_null` and `bad_signature` compare as one (`indirect_call_failed`, D-254).
+// and the V8 in Node 26.9, under which the Chrome core runs here, reports a `call_indirect` through
+// a null slot as a signature mismatch (Chrome 155's does not), so `indirect_call_to_null` and
+// `bad_signature` compare as one (`indirect_call_failed`, D-254).
 const COMPUTE_EVENTS = new Set(["compute.called", "compute.completed", "compute.failed"]);
 const COMPUTE_FACTS = ["module", "module_sha256", "function", "input_bytes", "output_bytes", "detail", "error"];
 const BOUND_REASONS = new Set(["fuel_exhausted", "deadline"]);

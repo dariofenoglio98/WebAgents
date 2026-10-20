@@ -274,7 +274,7 @@
     },
     {
       "id": "indirect-call-null",
-      "title": "call_indirect through a null table slot (V8 names it a signature mismatch: an engine that cannot tell the two apart reports `bad_signature`)",
+      "title": "call_indirect through a null table slot (an engine that cannot tell it from a signature mismatch, as Node 26.9's V8 cannot, reports `bad_signature`)",
       "module": "indirect-call-null",
       "stage": "run",
       "code": "compute_error",
