@@ -128,16 +128,21 @@ schema admits no `consent` type). It writes its decision into state like any nod
 `permissions` and `text` on every other type (the workflow schema's conditionals). A graph that
 declares no conversation may hold no consent step (`consent_outside_conversation`).
 
-V-9. **The gate.** The union of every consent step's `permissions` is the graph's set of gated
-permissions. A tool that links a gated permission is dispatched in a turn only after a consent
-step naming every such permission completed **accepted in that same turn**. Statically, a tool
-node that links a gated permission (or the map node holding such a step) must transitively
-depend on a consent step that names it (`consent_missing_before_tool`), so that the race cannot
-be written; at run time the mediator checks the turn's decisions before the call and refuses with
+V-9. **The gate, per permission.** The union of every consent step's `permissions` is the
+graph's set of gated permissions. A tool that links gated permissions is dispatched in a turn
+only when, **for each gated permission it links**, a consent step naming that permission
+completed **accepted in that same turn**; two permissions may be decided by two steps, or by one
+step that names both. Statically, for each gated permission a tool node links, the node (or the
+map node holding such a step) must transitively depend on a consent step that names that
+permission (`consent_missing_before_tool`), so that the race cannot be written; at run time the
+mediator checks the turn's decisions, permission by permission, before the call and refuses with
 a denied permission check naming the reason: `consent_required` (no step decided it in this turn,
-or the step was not asked) or `consent_denied` (the person said no); the node fails
-`permission_denied` (N-30, N-31). A graph should not reach the tool after a denial: the decision
-is in state, and `when` on the tool takes the other path (the controls of §10).
+or the step was not asked) or `consent_denied` (the person said no, or the step resolved denied);
+the node fails `permission_denied` (N-30, N-31, N-43). A graph should not reach the tool after a
+denial: the decision is in state, and `when` on the tool takes the other path (the controls of
+§10). A publisher who wants one card for a combined action (place and charge) names every
+permission of that action on one step; two steps each deciding one permission are two cards, and
+the tool that links both runs only once both were accepted (N-42).
 
 V-19. **Consequential tools are gated.** Every tool with `side_effects: "write"` must link at
 least one gated permission (`consent_required_for_write`), except the host's own memory bindings
@@ -191,6 +196,14 @@ transcript is exhausted). `conversation.ended` names the reason; turns the trans
 after the end are counted, never run (`turns_not_run`). A failed turn never ends a conversation by
 itself.
 
+V-30. **The conversation's status.** A conversation's record (the reference's report and the
+`passed` of `agentpkg converse`) is `completed` when at least one turn completed and no turn
+failed or was cancelled, whatever ended it: an end at `max_turns` or at the budget, a further
+turn refused there included, is the conversation's own bound at work, not a failure, and
+`ended.reason` says which. It is `failed` when a turn failed or was cancelled (the conversation
+may have gone on after it, V-25: the record still says that a turn did not complete), or when
+no turn ran at all.
+
 ## 4. Consent
 
 ### 4.1 The decision
@@ -198,17 +211,23 @@ itself.
 The result of a consent step is `{"accepted": true | false}` and nothing else: a choice between
 options is the reply's job; a consent says yes or no to one bounded action. The host records who
 decided: `person` (the chat surface), `transcript` (a replayed decision), `plan` (the step was
-not asked, V-12), `host` (a host that cannot ask a person), `preset` or `policy` (a decision a
+not asked: the plan denies, or has consumed, a permission it names, V-12), `host` (a host that
+cannot ask a person), `preset` or `policy` (a decision a
 preset or a signed policy pre-took; T24's D-271 says which steps may be pre-decided, and never
 one of kind `payment` or `personal.read`).
 
 V-12. **A step never widens the plan, and the absence of a yes is a no.** If the plan denies any
 permission the step names, the step is not asked: it resolves `{"accepted": false}` with
-provenance `plan` and `consent.decided` carries `reason: permission_denied`; a decision
-`accepted` for such a step, from any host, is refused `consent_not_authorized`, and a transcript
-that carries one is refused before the conversation starts (V-15, N-23). A host that cannot ask
-the person answers `denied` with provenance `host` and `reason: no_decision_available`, never
-`accepted` (N-32: the reference's transcript host, for a step the transcript does not decide).
+provenance `plan` and `consent.decided` carries `reason: permission_denied`. The same holds when
+a permission the step names is a `once` grant that an earlier turn of the conversation spent
+(V-13): the step is not asked and resolves denied by the plan with `reason:
+permission_consumed`, so a card never asks for an action the plan could no longer allow, and the
+person's record never shows a yes for one (N-34). Such a step is never put to a host, so no host
+answer can accept it; a transcript that carries an `accepted` for a step whose permission the
+plan denies is refused before the conversation starts (`consent_not_authorized`, V-15, N-23),
+and one for a step the turn does not ask is listed as unused. A host that cannot ask the person
+answers `denied` with provenance `host` and `reason: no_decision_available`, never `accepted`
+(N-32: the reference's transcript host, for a step the transcript does not decide).
 A host answer outside the decision contract (`{accepted: boolean, decided_by, reason?}`) is the
 host's failure: the step fails `worker_error` (N-38).
 
@@ -253,7 +272,8 @@ beside the turn's keys; each is `min` with the package's. The effective limits a
 
 V-13. **`once` is one use per conversation.** A `once` grant is spent by its first use in the
 conversation; the next turn starts with it spent (`runtime.started` lists `spent_permissions`),
-and a use in a later turn is refused as a consumed permission (N-34). The host's rule that `once`
+a consent step naming it is not asked in a later turn (V-12, N-34), and a tool call that reaches
+it anyway is refused as a consumed permission (N-41). The host's rule that `once`
 is refused when the turn graph itself would consume it more than once is unchanged, per turn
 (`execution_grant_unsupported`). The control plane's "a receipt that grants anything `once` is
 spent at its first execution lease" applies to the conversation, not to each turn (T24).
@@ -326,7 +346,7 @@ such cases are pending by the runner's `requires` rule.
 | validation | `consent_outside_conversation`, `conversation_source_scope`, `conversation_minimum_version`, `conversation_state_schema_undeclared`, `conversation_state_schema_open`, `conversation_state_key_undeclared`, `conversation_initial_literal`, `conversation_initial_invalid`, `conversation_budget_below_turn`, `conversation_tool_unknown`, `consent_role`, `consent_permission_unknown`, `consent_permission_kind`, `consent_decision_schema`, `consent_otherwise_accepts`, `consent_missing_before_tool`, `consent_required_for_write`, `conversation_fixture_missing`, `conversation_fixture_invalid`, `conversation_fixture_requires_graph_fixture`, `conversation_fixture_turns`, `conversation_fixture_message`, `consent_step_unknown`, `conversation_fixture_input` |
 | before the conversation | `conversation_profile_required`, `conversation_message_invalid`, `consent_step_unknown`, `consent_not_authorized`; one-shot paths: `conversation_profile`, `conversation_not_supported`, `conversation_turn_required`, `conversation_turn_unexpected` |
 | a turn refused | `turn.refused` with `conversation_turn_limit` or `conversation_budget_exhausted` (the transcript entry's `error_code` is `budget_exhausted`) |
-| inside a turn | workflow.v0's codes; the gate's `permission_denied` with `consent_required` or `consent_denied`; `consent_not_authorized` (`permission_denied`); the step's `schema_validation` (the text), `timeout`, `cancelled`, `worker_error` (`consent_decision_invalid`) |
+| inside a turn | workflow.v0's codes; the gate's `permission_denied` with `consent_required` or `consent_denied`; a step the plan decided: `consent.decided` with `reason: permission_denied` or `permission_consumed`; the step's `schema_validation` (the text), `timeout`, `cancelled`, `worker_error` (`consent_decision_invalid`) |
 
 ## 10. Negative cases
 
@@ -372,13 +392,16 @@ turn fails with the code, or the control completes).
 | N-31 | `tool-after-skipped-consent` | run | `permission_denied` (`consent_required`) |
 | N-32 | `consent-undecided` | run | completed: denied by the `host`, the tool never runs |
 | N-33 | `state-outside-schema` | run | `schema_validation`; nothing persisted |
-| N-34 | `once-across-turns` | run | `permission_denied` in the second turn |
+| N-34 | `once-across-turns` | run | completed: `once` spent in turn 1, turn 2's step not asked (`plan`, `permission_consumed`), the tool never runs again |
 | N-35 | `tool-cap-across-turns` | run | `budget_exhausted` in the second turn |
 | N-36 | `consent-text-not-string` | run | `schema_validation` at the step |
 | N-37 | `consent-timeout` | run | `timeout` |
 | N-38 | `consent-host-invalid` | run | `worker_error` (`consent_decision_invalid`) |
 | N-39 | `two-turns-one-consent`, `consent-denied-path` | run | controls: completed, ended by the package |
 | N-40 | (test: a changed or cut chain) | record | `verify_audit_chain` invalid |
+| N-41 | `once-spent-tool-reached` | run | `permission_denied` in the second turn: the step not asked, the tool reached anyway and refused as consumed |
+| N-42 | `two-steps-two-permissions` | run | control: a tool linking two gated permissions, each accepted on its own step, runs once |
+| N-43 | `two-steps-one-accepted` | run | `permission_denied` (`consent_denied`): one of the two permissions undecided |
 
 The reference asserts every row (`agentpkg/tests/test_conversation_cases.py`,
 `test_conversation_runtime.py`); the catalog v2's consent family starts from this table (D-189).

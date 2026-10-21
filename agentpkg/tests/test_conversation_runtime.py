@@ -140,6 +140,39 @@ def test_the_end_reasons(tmp_path):
     beyond = _run(package, transcript("hello", "hello", "hello", "hello", "hello"))
     assert [t["status"] for t in beyond["transcript"]["turns"]][-1] == "refused"
     assert beyond["ended"]["reason"] == "max_turns" and beyond["ended"]["turns_not_run"] == 1
+    # V-30: a conversation ended at its bound completed; a refused turn is not a failure.
+    assert cap["status"] == "completed" and beyond["status"] == "completed"
+    nothing = _run(package, transcript("hello"), limits={"conversation_max_turns": 0})
+    assert [t["status"] for t in nothing["transcript"]["turns"]] == ["refused"]
+    assert nothing["status"] == "failed" and nothing["ended"]["reason"] == "max_turns"
+
+
+def test_host_inputs_are_checked_before_the_chain_starts(tmp_path):
+    """A grant value, an approval or a limit key the mediator would refuse is refused by the
+    conversation before `conversation.started`, so a host creates nothing for it."""
+    package = _probe(tmp_path)
+    router, handlers, _ = fixture_adapters(package)
+
+    def build(**options):
+        options = {
+            "grants": grants(),
+            "approved_tools": ["place"],
+            "adapters": lambda turn: {"router": router, "handlers": handlers},
+            **options,
+        }
+        return Conversation(package, **options)
+
+    for bad, expected in (
+        ({"grants": grants(**{"orders.place": "forever"})}, "Grant must be"),
+        ({"grants": {**grants(), "orders.other": "session"}}, "undeclared permission"),
+        ({"approved_tools": ["place", "nope"]}, "does not declare"),
+        ({"limits": {"conversation_max_turn": 1}}, "Unsupported host limit"),
+        ({"limits": {"hard_tokens": -1}}, "nonnegative"),
+        ({"limits": {"conversation_total_tokens": "many"}}, "nonnegative"),
+    ):
+        with pytest.raises(PolicyError, match=expected):
+            build(**bad)
+    assert build().chain.events == []
 
 
 def test_host_limits_only_lower_the_conversation_budget(tmp_path):
@@ -168,10 +201,23 @@ def test_once_is_spent_once_per_conversation_and_the_plan_is_never_widened(tmp_p
         transcript(("order A", {"confirm": True}), ("order B", {"confirm": True})),
         decisions=grants(**{"orders.place": "once"}),
     )
-    assert [t["status"] for t in result["transcript"]["turns"]] == ["completed", "failed"]
+    # V-13 with V-12: the second turn starts with the grant spent, so its consent step is not
+    # put to the person (the plan's denial, `permission_consumed`), the transcript's yes for it
+    # stays unused, the graph takes its no-order path and the turn completes.
+    assert [t["status"] for t in result["transcript"]["turns"]] == ["completed", "completed"]
+    assert result["status"] == "completed"
     assert result["transcript"]["spent_permissions"] == ["orders.place"]
     started = [e for e in result["audit"] if e["action"] == "runtime.started"]
     assert started[1]["spent_permissions"] == ["orders.place"]
+    decided = [e for e in result["audit"] if e["action"] == "consent.decided"]
+    assert [(e["turn"], e["accepted"], e["decided_by"], e["reason"]) for e in decided] == [
+        (1, True, "transcript", None),
+        (2, False, "plan", "permission_consumed"),
+    ]
+    second = result["transcript"]["turns"][1]
+    assert second["unused_consents"] == ["confirm"] and second["reply"]["order"] is None
+    assert len([e for e in result["audit"] if e["action"] == "tool.called"]) == 1
+    assert len(result["state"]["orders"]) == 1
     # A denied permission: the step is not asked, the decision is the plan's, the tool never runs.
     denied = _run(
         package,
@@ -209,6 +255,32 @@ def test_a_denied_step_is_never_asked_and_a_host_answer_is_checked(tmp_path):
     assert decision == {"accepted": False} and asked == []
     decided = next(e for e in runtime.audit if e["action"] == "consent.decided")
     assert decided["decided_by"] == "plan" and decided["reason"] == "permission_denied"
+    # A `once` grant an earlier turn spent (V-13): not asked either, `permission_consumed`.
+    spent = TurnContext(
+        conversation_id,
+        2,
+        {"history": [], "orders": []},
+        AuditChain(conversation_id),
+        Eager(),
+        spent={"orders.place"},
+    )
+    runtime = Runtime(package, grants=grants(**{"orders.place": "once"}), turn=spent)
+    decision = asyncio.run(
+        runtime.call_consent(runtime.coordinator_context(), node, {"show": "A"}, "Order?")
+    )
+    assert decision == {"accepted": False} and asked == []
+    decided = next(e for e in runtime.audit if e["action"] == "consent.decided")
+    assert decided["decided_by"] == "plan" and decided["reason"] == "permission_consumed"
+    # Unspent, the same step is put to the host.
+    runtime = Runtime(
+        package,
+        grants=grants(**{"orders.place": "once"}),
+        turn=TurnContext(
+            conversation_id, 2, {"history": [], "orders": []}, AuditChain(conversation_id), Eager()
+        ),
+    )
+    asyncio.run(runtime.call_consent(runtime.coordinator_context(), node, {"show": "A"}, "Order?"))
+    assert asked == ["confirm"]
     assert check_decision({"accepted": True, "decided_by": "person"}) == {
         "accepted": True,
         "decided_by": "person",
@@ -342,6 +414,39 @@ def test_the_cli_converse_writes_the_conversation_and_every_turn(tmp_path, capsy
     )
     assert status == 2 and "consent_step_unknown" in capsys.readouterr().err
     assert not (tmp_path / "out2").exists()
+    # A grant value the mediator refuses: refused before --out exists, so a retry can reuse it.
+    bad_grants = tmp_path / "bad-grants.json"
+    bad_grants.write_text(json.dumps(grants(**{"orders.place": "forever"})))
+    status = main(
+        [
+            "converse",
+            str(source),
+            "--grants",
+            str(bad_grants),
+            "--out",
+            str(tmp_path / "out2"),
+        ]
+    )
+    assert status == 2 and "Grant must be" in capsys.readouterr().err
+    assert not (tmp_path / "out2").exists()
+    # A conversation ended at its bound passes (V-30): five messages against max_turns 4.
+    long = tmp_path / "long.json"
+    long.write_text(json.dumps(transcript(*(["hello"] * 5))))
+    status = main(
+        [
+            "converse",
+            str(source),
+            "--grants",
+            str(grants_file),
+            "--transcript",
+            str(long),
+            "--out",
+            str(tmp_path / "out-long"),
+        ]
+    )
+    report = json.loads(capsys.readouterr().out)
+    assert status == 0 and report["passed"] is True and report["ended"]["reason"] == "max_turns"
+    assert [t["status"] for t in report["turns"]] == ["completed"] * 4 + ["refused"]
     # `run` and `eval` send a conversational package to `converse`.
     assert (
         main(["run", str(source), "--grants", str(grants_file), "--out", str(tmp_path / "out3")])
@@ -378,3 +483,39 @@ def test_the_input_transcript_reader_refuses_an_output_transcript(tmp_path):
     good.write_text(json.dumps(transcript("hello", end=True)))
     assert read_input_transcript(good)["end"] is True
     assert message("x") == {"text": "x"}
+
+
+def test_the_cli_converse_reports_a_refused_agent_document_per_turn(tmp_path, capsys, monkeypatch):
+    """M-50 per turn: when a turn's folder refuses the agent document (`store_failed` in the
+    turn's Run Record), `converse` says so on stderr for that turn, as `run` does for a run."""
+    from agentpkg.memory import host as memory_host
+
+    real = memory_host.cli_memory
+
+    def refusing(package, **options):
+        memory_run, folder, handlers = real(package, **options)
+        memory_run.commit_error = "FileExistsError: a file where the folder should be"
+        return memory_run, folder, handlers
+
+    monkeypatch.setattr(memory_host, "cli_memory", refusing)
+    source = write_probe(tmp_path / "probe")
+    grants_file = tmp_path / "grants.json"
+    grants_file.write_text(json.dumps(grants()))
+    status = main(
+        [
+            "converse",
+            str(source),
+            "--mode",
+            "fixture",
+            "--grants",
+            str(grants_file),
+            "--approve-tool",
+            "place",
+            "--out",
+            str(tmp_path / "out"),
+        ]
+    )
+    captured = capsys.readouterr()
+    assert status == 0 and json.loads(captured.out)["passed"] is True
+    assert "turn 1: the agent document was not committed: FileExistsError" in captured.err
+    assert "turn 2: the agent document was not committed: FileExistsError" in captured.err

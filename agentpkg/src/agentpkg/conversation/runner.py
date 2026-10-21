@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from ..runtime import PolicyError, digest
+from ..runtime import PolicyError, check_approved_tools, check_grants, check_host_limits, digest
 from ..workflow import Workflow, failure_code
 from ..workflow_values import evaluate
 from .chain import AuditChain
@@ -121,7 +121,13 @@ class Conversation:
         self.grants = dict(grants)
         self.approved_tools = list(approved_tools)
         self.adapters = adapters
+        # The host's inputs are checked here, as `Runtime` checks them for a run, so that a
+        # grant value or a limit key the mediator would refuse is refused before the chain
+        # starts and before a host creates anything for the conversation.
+        check_grants({p["id"] for p in package.policy["permissions"]}, self.grants)
+        check_approved_tools(package.tools, self.approved_tools)
         host, turn_limits = split_limits(limits)
+        check_host_limits(turn_limits)
         self.limits = effective_limits(package, host)
         self.turn_limits = turn_limits
         self.consent = consent or (lambda turn, decisions: TranscriptConsent(decisions))
@@ -166,9 +172,6 @@ class Conversation:
                 }
                 break
             status = await self._turn(index, turn_in)
-            if self.ended is not None:
-                self.ended["turns_not_run"] = len(turns) - index
-                break
             if status == "completed" and conversation.get("end") is not None:
                 when = conversation["end"]["when"]
                 env = {"result": self.turns[-1]["reply"], "state": self.state}
@@ -371,9 +374,13 @@ class Conversation:
         }
 
     def _report(self) -> dict:
-        completed = all(t["status"] == "completed" for t in self.turns) and bool(self.turns)
+        # V-30: the conversation completed when at least one turn completed and no turn failed
+        # or was cancelled; a turn refused at the conversation's bound is the bound at work, not
+        # a failure, and the end reason says so.
+        ran = [t for t in self.turns if t["status"] != "refused"]
+        failed = any(t["status"] in ("failed", "cancelled") for t in self.turns)
         return {
-            "status": "completed" if completed else "failed",
+            "status": "completed" if ran and not failed else "failed",
             "profile": PROFILE,
             "transcript": self.transcript(),
             "state": copy.deepcopy(self.state),

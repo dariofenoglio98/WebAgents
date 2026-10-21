@@ -607,8 +607,10 @@ def _converse(args, package):
             resolver_base_url=args.resolver_base_url,
         )
 
+    memory_runs = {}
+
     def adapters(turn):
-        # A fresh memory run per turn over the same folder (M-50 per turn, V-13).
+        # A fresh memory run per turn over the same folder (M-50 per turn, V-26).
         memory_run, _folder, memory_handlers = cli_memory(
             package,
             mode=mode,
@@ -616,6 +618,7 @@ def _converse(args, package):
             memory_dir=args.memory_dir,
             memory_grants=args.memory_grant or (),
         )
+        memory_runs[turn] = memory_run
         return {
             "router": router,
             "handlers": {**handlers, **memory_handlers} if mode == "live" else handlers,
@@ -625,12 +628,22 @@ def _converse(args, package):
     out = Path(args.out)
     if out.exists() or out.is_symlink() or not out.parent.is_dir():
         raise ValidationError("--out must name a new directory under an existing parent")
-    create_directory(out)
 
     def on_turn(index, report, status):
         records = artifact_records(report, package if status == "completed" else None)
         write_artifacts(out / f"turn-{index:03d}", records)
+        memory_run = memory_runs.get(index)
+        if memory_run is not None and memory_run.commit_error:
+            # M-50 per turn: the folder refused the agent document; the turn's Run Record says
+            # `store_failed`, as `run` reports it for a run.
+            print(
+                f"agentpkg: turn {index}: the agent document was not committed: "
+                f"{memory_run.commit_error}",
+                file=sys.stderr,
+            )
 
+    # The conversation checks the grants, the approvals and the limits before anything is
+    # written, so a refused host input leaves no half-made --out behind.
     conversation = Conversation(
         package,
         grants=grants,
@@ -639,6 +652,7 @@ def _converse(args, package):
         limits=_json_file(args.limits) if args.limits else None,
         on_turn=on_turn,
     )
+    create_directory(out)
     result = asyncio.run(conversation.run(transcript))
     for name, value in (
         ("transcript.json", result["transcript"]),

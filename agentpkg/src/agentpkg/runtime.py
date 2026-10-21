@@ -134,6 +134,49 @@ class Context:
         self._runtime.record(action, context=self, **metadata)
 
 
+#: The host's per-run limit keys beside compute.v0's (`COMPUTE_HOST_KEYS`).
+HOST_LIMIT_KEYS = frozenset(
+    {"hard_tokens", "max_remote_calls", "max_parallel_workers", "max_calls_per_tool"}
+)
+
+
+def check_approved_tools(declared_tools, approved_tools) -> None:
+    """An approval for something the signed package never declared is a host mistake, not a
+    broader permission: it is refused rather than ignored, so a stale approval cannot quietly
+    follow a package that dropped the tool."""
+    if set(approved_tools) - set(declared_tools):
+        raise PolicyError("Tool approval refers to a tool this package does not declare")
+
+
+def check_grants(permissions, grants) -> None:
+    """The plan's grants against the package's permissions: an undeclared id or a value outside
+    the four scopes is the host's mistake, refused before anything runs (a conversation checks
+    them before its chain starts, conversation.v0)."""
+    if set(grants) - set(permissions):
+        raise PolicyError("Grant refers to an undeclared permission")
+    if any(v not in {"once", "session", "always", "deny"} for v in grants.values()):
+        raise PolicyError("Grant must be once, session, always, or deny")
+
+
+def check_host_limits(limits):
+    """The host's `--limits` by key and value: compute.v0's keys as its ceilings (returned), the
+    run's own keys as nonnegative integers; anything else is `Unsupported host limit`."""
+    try:
+        compute_limits = compute_host_limits(
+            {k: v for k, v in (limits or {}).items() if k in COMPUTE_HOST_KEYS}
+        )
+    except ValueError as exc:
+        raise PolicyError(str(exc)) from exc
+    for key, value in (limits or {}).items():
+        if key in COMPUTE_HOST_KEYS:
+            continue
+        if key not in HOST_LIMIT_KEYS:
+            raise PolicyError(f"Unsupported host limit: {key}")
+        if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+            raise PolicyError(f"Host limit {key} must be a nonnegative integer")
+    return compute_limits
+
+
 class Runtime:
     """Capability mediator for trusted workflow code interpreting an untrusted graph.
 
@@ -173,37 +216,15 @@ class Runtime:
         self.handlers = dict(handlers or {})
         self.router = router
         self.approved_tools = set(approved_tools or [])
-        if self.approved_tools - set(package.tools):
-            # An approval for something the signed package never declared is a
-            # host mistake, not a broader permission: it is refused rather than
-            # ignored, so a stale approval cannot quietly follow a package that
-            # dropped the tool.
-            raise PolicyError("Tool approval refers to a tool this package does not declare")
+        check_approved_tools(package.tools, self.approved_tools)
         self.permissions = {p["id"]: p for p in self.policy["permissions"]}
-        if set(self.grants) - set(self.permissions):
-            raise PolicyError("Grant refers to an undeclared permission")
-        if any(v not in {"once", "session", "always", "deny"} for v in self.grants.values()):
-            raise PolicyError("Grant must be once, session, always, or deny")
+        check_grants(self.permissions, self.grants)
         self.budget = copy.deepcopy(self.policy["budget"])
         # compute.v0: the host's ceilings for one compute call; a node may only lower them.
-        try:
-            self.compute_limits = compute_host_limits(
-                {k: v for k, v in (limits or {}).items() if k in COMPUTE_HOST_KEYS}
-            )
-        except ValueError as exc:
-            raise PolicyError(str(exc)) from exc
+        self.compute_limits = check_host_limits(limits)
         for key, value in (limits or {}).items():
             if key in COMPUTE_HOST_KEYS:
                 continue
-            if key not in {
-                "hard_tokens",
-                "max_remote_calls",
-                "max_parallel_workers",
-                "max_calls_per_tool",
-            }:
-                raise PolicyError(f"Unsupported host limit: {key}")
-            if isinstance(value, bool) or not isinstance(value, int) or value < 0:
-                raise PolicyError(f"Host limit {key} must be a nonnegative integer")
             if key == "max_calls_per_tool":
                 # One host ceiling applied to every declared tool. Like every
                 # other host limit it can only lower a package's own cap.
@@ -706,10 +727,11 @@ class Runtime:
             raise
 
     def _check_consent(self, ctx, tool_id, permission_ids):
-        """conversation.v0 V-9: a tool that links a permission a consent step decides runs only
-        after that step was accepted in this turn. Refused as a denied permission check naming
-        the reason: `consent_required` (no step decided it yet, or the step was not asked) or
-        `consent_denied` (the person said no)."""
+        """conversation.v0 V-9, per permission: for each gated permission the tool links, a
+        consent step naming that permission must have completed accepted in this turn (two
+        permissions may be decided by two steps, or by one step naming both). Refused as a
+        denied permission check naming the reason: `consent_required` (no step decided it yet,
+        or the step was not asked) or `consent_denied` (the person said no)."""
         for permission_id in permission_ids:
             steps = self._gated.get(permission_id)
             if not steps or self._consents.get(permission_id) is True:
@@ -734,8 +756,10 @@ class Runtime:
         """One consent step (conversation.v0 §3): show the facts and the sentence, wait for the
         decision within the node's timeout, record it with its provenance, and remember it for
         the tools this turn calls. The step consumes no grant; a tool call does. A step whose
-        permission the plan denies is never asked: it resolves denied with provenance `plan`
-        (V-12). The audit carries hashes; the transcript carries the text and the facts."""
+        permission the plan denies, or whose `once` grant an earlier turn of this conversation
+        spent, is never asked: it resolves denied with provenance `plan` (V-12, V-13), so no
+        card asks for what the tool call would be refused anyway. The audit carries hashes; the
+        transcript carries the text and the facts."""
         from .conversation.declarations import MAX_TEXT_CHARS
         from .conversation.host import ConsentRequest, check_decision
 
@@ -764,9 +788,16 @@ class Runtime:
         )
         started = time.monotonic()
         denied = [p for p in permissions if self.grants.get(p, "deny") == "deny"]
+        consumed = [p for p in permissions if self.grants.get(p) == "once" and p in self._once_used]
         try:
             if denied:
                 decision = {"accepted": False, "decided_by": "plan", "reason": "permission_denied"}
+            elif consumed:
+                decision = {
+                    "accepted": False,
+                    "decided_by": "plan",
+                    "reason": "permission_consumed",
+                }
             else:
                 request = ConsentRequest(
                     conversation_id=self.turn.conversation_id,
@@ -778,11 +809,6 @@ class Runtime:
                     timeout_seconds=node["timeout_seconds"],
                 )
                 decision = check_decision(await self.turn.consent.decide(request))
-            if decision["accepted"] and denied:
-                raise PolicyError(
-                    f"consent_not_authorized: step {step} was accepted for {denied}, which the "
-                    "plan denies; a consent step never widens the plan"
-                )
         except BaseException as exc:
             self.record(
                 "consent.failed",

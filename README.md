@@ -418,7 +418,7 @@ Design rationale: [docs/architecture.md](docs/architecture.md). Threat model:
   budgets, and `consent` steps that pause a turn before a consequential action for the person's
   yes or no, with a `once` grant spent once per conversation and one audit chain across turns. The
   Python reference runs conversations from a transcript (`agentpkg converse`); the test package
-  and the 40 enforcement cases are under [`examples/conversation/`](examples/conversation/). The
+  and the 43 enforcement cases are under [`examples/conversation/`](examples/conversation/). The
   chat surface in the Chrome Agent Browser and a conversational WebAir are the next task (T24).
 
 - The plugin depends on OpenClaw's experimental plugin and Control UI APIs. It has been run live

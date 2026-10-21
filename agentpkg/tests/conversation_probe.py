@@ -743,6 +743,37 @@ def _tool_cap_one(m):
     m["graph.json"]["conversation"]["budget"]["max_calls_per_tool"] = {"place": 1}
 
 
+def _two_steps(m):
+    """The tool links two gated permissions, each decided by its own step (V-9 is per
+    permission): `confirm` decides `orders.place`, `confirm2` decides `orders.charge`, and the
+    tool runs only in a turn in which both were accepted."""
+    m["policy/policy.json"]["permissions"].append(
+        {
+            "id": "orders.charge",
+            "kind": "payment",
+            "description": "Charge the order (simulated).",
+            "required": False,
+            "resources": ["desk"],
+        }
+    )
+    m["tools/place.tool.json"]["permissions"].append("orders.charge")
+    second = copy.deepcopy(node(m, "confirm"))
+    second["id"] = "confirm2"
+    second["permissions"] = ["orders.charge"]
+    second["text"] = {"literal": "Charge the order?"}
+    second["writes"] = {"/decision2": {"from": "result", "path": ""}}
+    nodes = m["graph.json"]["nodes"]
+    nodes.insert(nodes.index(node(m, "place")), second)
+    node(m, "place")["depends_on"] = ["confirm", "confirm2"]
+    coordinator = next(w for w in m["graph.json"]["workers"] if w["id"] == "Coordinator")
+    coordinator["state_read"].append("decision2")
+    coordinator["state_write"].append("decision2")
+    m["graph.json"]["initial_state"]["object"]["decision2"] = {"literal": None}
+    turn_state = m["schemas/state.schema.json"]
+    turn_state["properties"]["decision2"] = copy.deepcopy(turn_state["properties"]["decision"])
+    turn_state["required"].append("decision2")
+
+
 VARIANTS = {
     "consent-outside-conversation": _consent_outside,
     "conversation-source-outside": _source_outside,
@@ -770,5 +801,6 @@ VARIANTS = {
     "tool-after-skipped-consent": _tool_after_skipped_consent,
     "state-outside-schema": _state_outside_schema,
     "tool-cap-one": _tool_cap_one,
+    "two-steps": _two_steps,
     "plain": _plain,
 }

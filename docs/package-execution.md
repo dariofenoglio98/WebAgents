@@ -677,13 +677,18 @@ a schema, a consent step from its node, a gated permission from the steps that n
 - **A consent step waits for the person** (V-18, V-29). `consent.requested` carries the hashes of
   the text and the facts; the host answers within the node's timeout; `consent.decided` records
   the answer and who gave it (`person`, `transcript`, `plan`, `host`, `preset`, `policy`). A step
-  whose permission the plan denies is never asked: the decision is the plan's (V-12). The text and
-  the facts are in the transcript, never in the chain.
-- **The gate** (V-9). Before a tool call the mediator checks the turn's decisions for every gated
-  permission the tool links; a missing or negative one is a denied permission check with
-  `consent_required` or `consent_denied`, and the node fails `permission_denied`. Validation
-  already refused a tool that does not depend on its consent step, and a write tool that no step
-  gates.
+  whose permission the plan denies, or whose `once` grant an earlier turn spent, is never asked:
+  the decision is the plan's (V-12, V-13). The text and the facts are in the transcript, never in
+  the chain.
+- **The gate** (V-9, per permission). Before a tool call the mediator checks the turn's decisions
+  for each gated permission the tool links; a missing or negative one is a denied permission
+  check with `consent_required` or `consent_denied`, and the node fails `permission_denied`.
+  Validation already refused a tool that does not depend on its consent step, and a write tool
+  that no step gates.
+- **The conversation's status** (V-30). `completed` when at least one turn completed and none
+  failed or was cancelled, an end at the conversation's bound included (a refused turn beyond
+  `max_turns` or the budget is the bound at work, `ended.reason` names it); `failed` otherwise.
+  `agentpkg converse` exits 0 on a completed conversation and 1 on a failed one.
 - **Budgets** (V-10, V-11, V-13). The turn's budgets are the package's, as for a run; the
   conversation's `max_turns`, tokens, remote calls and per-tool caps are reserved whole before
   each turn (`turn.refused` otherwise); a `once` grant is spent once per conversation, and the

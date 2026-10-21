@@ -155,6 +155,15 @@ def test_enforcement_case(case, tmp_path, capsys):
         decided = [e for e in result["audit"] if e["action"] == "consent.decided"]
         assert decided and decided[0]["decided_by"] == expect["decided_by"]
         assert decided[0]["reason"] == expect.get("reason")
+    if "decided" in expect:
+        # Every decision of the conversation, in order, as the chain and the transcript hold it.
+        keys = ("step", "accepted", "decided_by", "reason")
+        decided = [e for e in result["audit"] if e["action"] == "consent.decided"]
+        assert [{k: e[k] for k in keys} for e in decided] == expect["decided"]
+        taken = [d for turn in record["turns"] for d in turn["decisions"]]
+        assert [{k: d[k] for k in keys} for d in taken] == expect["decided"]
+    for turn_number, unused in expect.get("unused_consents", {}).items():
+        assert record["turns"][int(turn_number) - 1]["unused_consents"] == unused
     if "history_after" in expect:
         assert result["state"]["history"] == expect["history_after"]
     if "orders_after" in expect:
