@@ -12,9 +12,10 @@ person talks to WebAir in turns: a search, a refinement ("only nonstop, and the 
 a question about the fares found, a quote of one of them, "buy it", goodbye. Each turn runs the
 same signed graph; what outlives a turn is declared (`schemas/conversation-state.schema.json`):
 the history (messages, intents, outcomes, the searches sent and the answers), the fares the
-person may name, the open quote and the confirmation as summaries, and whether the travel
-profile was read. Never a name, an e-mail or a payment identifier: every personal value is
-cleared before a turn ends, as before. The one consequential action, the simulated purchase, is
+person may name, the open quote and the confirmation as the summaries the models see, and
+whether the travel profile was read. Never a name, an e-mail, a payment identifier or the
+payment method's label: every personal value is cleared before a turn ends, as before, and the
+label stays in the reply's `purchase` only. The one consequential action, the simulated purchase, is
 behind a **consent step** (`confirm-purchase`): in the turn that buys, after WebAir has quoted
 the fare again for the granted passenger, the person's runtime shows a card with the quote's
 facts (quote id, flight, fare, route, date, total, the passenger's name, the payment method's
@@ -80,7 +81,7 @@ history), 31 `validate`, 1 `output`.
 
 | Declared | Value |
 |---|---|
-| persistent state | `history` (≤ 8 turns), `known_fares`, `quote_ref` (the open quote's summary), `confirmation_ref`, `profile_used` |
+| persistent state | `history` (≤ 8 turns), `known_fares`, `quote_ref` (the open quote's summary), `confirmation_ref` (the purchase summary, without the payment label), `profile_used` |
 | budget | `max_turns` 8, `hard_tokens` 240,000, `max_remote_calls` 60, at most 1 `simulate-purchase` per conversation (per turn: 120,000 tokens, 22 remote calls) |
 | end | when the reply's `intent` is `done` |
 | consent step | `confirm-purchase`, on the coordinator, decides `booking.simulate_purchase`; `simulate-purchase` is the only tool that links it and runs only after the step was accepted in the same turn |

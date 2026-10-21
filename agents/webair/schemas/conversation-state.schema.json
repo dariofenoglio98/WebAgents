@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "What WebAir's agent keeps between turns",
-  "description": "The persistent state of the conversation (conversation.v0 V-3): the history, the fares the person may name, the open quote and the confirmation as summaries (ids, totals and labels; no name, e-mail or payment identifier: every personal value is cleared before the turn ends), and whether the travel profile was read.",
+  "description": "The persistent state of the conversation (conversation.v0 V-3): the history, the fares the person may name, the open quote and the confirmation as the summaries the models see (ids, totals, fare names; no name, e-mail, payment identifier or payment label: every personal value is cleared before the turn ends), and whether the travel profile was read.",
   "type": "object",
   "properties": {
     "history": {
@@ -14,7 +14,7 @@
       "$ref": "booking-summary.schema.json"
     },
     "confirmation_ref": {
-      "$ref": "purchase-result.schema.json"
+      "$ref": "purchase-summary.schema.json"
     },
     "profile_used": {
       "$ref": "profile-used.schema.json"

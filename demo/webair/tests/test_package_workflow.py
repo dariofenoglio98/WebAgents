@@ -487,7 +487,14 @@ def test_simulated_purchase_is_only_ever_simulated(package, origin_app):
     sealed = (ALEX["contact_email"], VISA["payment_method_id"])
     for text in (json.dumps(output), json.dumps(result["state"]), json.dumps(result["transcript"])):
         assert not any(value in text for value in sealed)
-    assert result["state"]["confirmation_ref"] == simulated
+    # The confirmation outlives the turn as the summary the models see: the same ids and totals,
+    # the flight, and never the card's label (found by the live verifier in the 27b rehearsal).
+    kept = result["state"]["confirmation_ref"]
+    for key in ("confirmation_id", "quote_id", "fare_id", "total_usd", "amount_charged_usd"):
+        assert kept[key] == simulated[key], key
+    assert kept["status"] == "simulated" and kept["flight"]["flight_id"] == "WA101-20261009"
+    assert "payment_display" not in json.dumps(result["state"])
+    assert VISA["display"] not in json.dumps(result["state"])
     # Goodbye ends the conversation; the once grant was spent by the purchase.
     assert goodbye["output"]["status"] == "done"
     assert result["ended"]["reason"] == "package"

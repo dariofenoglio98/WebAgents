@@ -15,7 +15,7 @@
       "$ref": "booking-summary.schema.json"
     },
     "confirmation_ref": {
-      "$ref": "purchase-result.schema.json"
+      "$ref": "purchase-summary.schema.json"
     },
     "profile_used": {
       "$ref": "profile-used.schema.json"

@@ -2355,16 +2355,16 @@
       "type": "validate",
       "worker": "Coordinator",
       "depends_on": [
-        "purchase-result"
+        "purchase-summary"
       ],
       "input": {
         "from": "state",
-        "path": "/purchase_result"
+        "path": "/purchase_summary"
       },
       "when": {
         "left": {
           "from": "state",
-          "path": "/purchase_result"
+          "path": "/purchase_summary"
         },
         "op": "ne",
         "right": {
@@ -2375,7 +2375,7 @@
         "from": "state",
         "path": "/confirmation_ref"
       },
-      "output_schema": "schemas/purchase-result.schema.json",
+      "output_schema": "schemas/purchase-summary.schema.json",
       "timeout_seconds": 10,
       "writes": {
         "/confirmation_ref": {

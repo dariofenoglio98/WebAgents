@@ -784,62 +784,10 @@ def test_a_transcript_cannot_widen_the_plan(tmp_path, capsys):
     assert not (tmp_path / "refused").exists()
 
 
-def test_a_quote_without_host_resources_stops_before_any_is_read(tmp_path, capsys):
-    """The generic CLI holds no host resources: a quote stops at the first one it needs, and
-    the purchase that follows has no open quote.
-
-    The identity is denied, so the quote turn stops at its read before WebAir is asked for a
-    quote; "buy it" then fails its own check (no open quote) before any personal read; goodbye
-    still completes. A failed turn never ends the conversation (V-25).
-    """
-    book = json.loads((ROOT / "examples/webair-0.8.0-book-transcript.json").read_text())
-    transcript = tmp_path / "transcript.json"
-    transcript.write_text(
-        json.dumps(
-            {
-                "schema": "conversation.transcript.v0",
-                "turns": [{"message": turn["message"]} for turn in book["turns"]],
-            }
-        )
-    )
-    approvals = [arg for tool in [*OPERATIONS, *HOST_TOOLS] for arg in ("--approve-tool", tool)]
-    code = main(
-        [
-            "converse",
-            str(ARCHIVE),
-            "--mode",
-            "fixture",
-            "--grants",
-            str(GRANTS),
-            "--transcript",
-            str(transcript),
-            *approvals,
-            "--out",
-            str(tmp_path / "refused"),
-        ]
-    )
-    report = json.loads(capsys.readouterr().out)
-    # A conversation with a failed turn is `failed` (V-30); converse exits 1 for it, as eval does.
-    assert code == 1 and report["status"] == "failed" and report["passed"] is False
-    assert [t["status"] for t in report["turns"]] == ["failed", "failed", "completed"]
-    quote = json.loads((tmp_path / "refused/turn-001/result.json").read_text())
-    assert (quote["status"], quote["error_code"]) == ("failed", "permission_denied")
-    audit = quote["audit"]
-    called = [e["tool"] for e in audit if e["action"] == "tool.called"]
-    assert called[0] == "search-flights" and set(called) == {"search-flights", "get-fare-rules"}
-    stopped = [e for e in audit if e["action"] == "tool.failed"]
-    assert [(e["node_id"], e["tool"]) for e in stopped] == [
-        ("passenger", "personal.passenger_identity")
-    ]
-    purchase = json.loads((tmp_path / "refused/turn-002/result.json").read_text())
-    assert (purchase["status"], purchase["error_code"]) == ("failed", "schema_validation")
-    assert [e["node_id"] for e in purchase["audit"] if e["action"] == "node.failed"] == [
-        "check-open-quote"
-    ]
-    assert [e for e in purchase["audit"] if e["action"] == "tool.called"] == []
-    conversation = json.loads((tmp_path / "refused/transcript.json").read_text())
-    assert conversation["ended"]["reason"] == "package"
-    assert all(t["decisions"] == [] for t in conversation["turns"])
+# A quote or a purchase cannot be replayed in fixture mode: the signed fixture holds no personal
+# data, so no quote turn's model case exists (D-274). That a quote stops at the identity read
+# without the grant, and a purchase without an open quote before any personal read, is tested
+# against the origin in `demo/webair/tests/test_package_workflow.py`.
 
 
 def test_workflow_uses_only_canonical_operators(package):
