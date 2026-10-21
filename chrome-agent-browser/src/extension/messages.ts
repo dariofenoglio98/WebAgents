@@ -12,6 +12,7 @@ import type { AgentPageModel } from "../core/agent-page.js";
 import type { AuthorizationRequest, Decided } from "../core/authorization.js";
 import type { TranscriptTurn } from "../core/conversation/runner.js";
 import type { ConsentStepPlan } from "../core/types.js";
+import type { InputGatedRead } from "../core/inputs.js";
 import type { ConsentPending } from "./storage/runs.js";
 import type { RunRecord } from "../core/execution/record.js";
 import type { CatalogEvaluation } from "../core/compatibility.js";
@@ -438,6 +439,8 @@ export interface AuthorizationView {
   missing_resource_types: string[];
   /** The recall card per `memory.read` (or alias) request (M-34, M-52): the candidates with their signals and the preset's mode. Empty while locked. */
   recall: RecallView[];
+  /** D-273 (B-219): the input switches that need a host read, so the run form can grant the read in place. */
+  input_gated_reads: InputGatedRead[];
   tools: ToolOffer[];
   receipt: AuthorizationReceipt | null;
   run_plan: RunPlanState | null;

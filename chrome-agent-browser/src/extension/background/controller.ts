@@ -108,6 +108,7 @@ import type { ViewHolder, ViewHolderStore } from "../storage/view-holders.js";
 import type { RunStore } from "../storage/runs.js";
 import { MemoryConversationStore, type ConversationStore } from "../storage/conversations.js";
 import { ConversationManager } from "./conversations.js";
+import { inputGatedReads } from "../../core/inputs.js";
 import { isTerminal, RunManager, type ExecutionHostBridge, type RunHooks } from "./runs.js";
 
 export interface Limits {
@@ -1932,6 +1933,7 @@ export class Controller {
       resources: evaluateResources(live.pkg, registry, { decisions: live.receipt?.decisions ?? {}, grants: live.receipt?.resource_grants ?? [] }),
       missing_resource_types: [...new Set(requestedTypes.filter((type) => !known.has(type)))].sort(),
       recall: await this.recallViews(live, settings.preset, subscription),
+      input_gated_reads: inputGatedReads(live.pkg),
       tools: evaluation.tools.map(
         (tool): ToolOffer => ({
           tool_id: tool.tool_id,

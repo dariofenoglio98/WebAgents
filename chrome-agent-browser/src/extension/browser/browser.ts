@@ -8,10 +8,11 @@ import type { Candidate } from "../../core/discovery.js";
 import type { JsonObject } from "../../core/json.js";
 import { looksLikePackageUrl } from "../../core/policy.js";
 import type { TrustEntry, TrustState } from "../../core/trust.js";
-import type { AuthorizationView, ExportBundle, FilesView, IndexesView, LibraryItemView, LibraryView, ModelsView, PermissionsView, PolicyView, RunListView, RunSummary, RunView, SearchResultView, SearchView, SecretsView, KeychainView, SessionDescriptor, SessionView, SettingsView, StatusInfo, MemoryView, WebsiteResult } from "../messages.js";
+import type { AuthorizationView, ConversationExportBundle, ConversationListView, ExportBundle, FilesView, IndexesView, KeychainView, LibraryItemView, LibraryView, MemoryView, ModelsView, PermissionsView, PolicyView, RunListView, RunSummary, RunView, SearchResultView, SearchView, SecretsView, SessionDescriptor, SessionView, SettingsView, StatusInfo, WebsiteResult } from "../messages.js";
 import { addressKind } from "../../core/resolve/types.js";
 import { renderFoundVia, renderLibrary, renderSearchResults } from "../ui/search.js";
 import { renderAgentPage } from "../ui/agent-page.js";
+import { ConversationPanel, renderConversationList } from "../ui/conversation.js";
 import { bindAuthorization, type AuthorizationController } from "../ui/authorization-flow.js";
 import { describeError, originOfUrl, refusedOrigins, requestNativeMessaging, requestOrigins, send, subscribe } from "../ui/client.js";
 import { needsUnlock, newUnlockState, renderLockChip, renderUnlockSheet, type UnlockState } from "../ui/unlock.js";
@@ -47,7 +48,11 @@ interface PageState {
   busy: string | null;
   error: { code: string; message: string; details: Record<string, unknown> } | null;
   runs: RunListView | null;
+  /** The conversations (T24) the Runs page lists above the runs. */
+  conversations: ConversationListView | null;
   runsNotice: string | null;
+  /** The conversation chosen on the Runs page (`#conversation=…`), shown above the lists; null for the lists alone. */
+  conversationShowing: string | null;
   /** The run chosen on the Runs page (`#run=…`), shown above the list (D-160); null for the list alone. */
   runsShowing: string | null;
   /** The last search's results (T8): shown on the Open page until an agent or a website is opened. */
@@ -88,7 +93,9 @@ const state: PageState = {
   busy: null,
   error: null,
   runs: null,
+  conversations: null,
   runsNotice: null,
+  conversationShowing: null,
   runsShowing: null,
   search: null,
   library: null,
@@ -155,6 +162,37 @@ const runs = new RunPanel({
   },
 });
 const RUN_VIEW_ID = `run:${crypto.randomUUID()}`;
+
+/** The chat surface (T24, D-270) for a conversational package: the same mounts as the run surface. */
+const chat = new ConversationPanel({
+  send,
+  loaded: () => (state.open ? { session: state.open, authorization: state.authorization } : null),
+  reveal: (section) => {
+    if (section === "model") location.hash = "settings?section=models";
+    else document.querySelector(".ab-authorize")?.scrollIntoView({ block: "start" });
+  },
+  openFiles: () => {
+    location.hash = "settings?section=files";
+  },
+  openRun: (runId) => {
+    location.hash = `run=${encodeURIComponent(runId)}`;
+  },
+  unlock: (retry) => openUnlock(null, retry),
+  requestOrigins,
+  changed: () => void load(),
+  conversationChanged: (conversationId) => {
+    if (state.view !== "runs" || conversationId === null || conversationId === state.conversationShowing) return;
+    state.conversationShowing = conversationId;
+    history.replaceState(null, "", `#conversation=${encodeURIComponent(conversationId)}`);
+    render();
+  },
+});
+
+/** Whether the open session's package is a conversation (conversation.v0): the chat surface replaces the run form. */
+function conversational(session: SessionView | null): boolean {
+  const conversation = (session?.summary.workflow as { conversation?: unknown } | undefined)?.conversation;
+  return conversation !== undefined && conversation !== null;
+}
 
 /** True until the page's first route: only a page that just opened adopts a run in flight. */
 let firstRoute = true;
@@ -264,11 +302,21 @@ function route(): void {
     // A past run, read-only, with or without its session.
     state.view = "runs";
     state.runsShowing = decodeURIComponent(view.slice("run=".length));
+    state.conversationShowing = null;
     void openStoredRun(state.runsShowing);
+    return;
+  }
+  if (view?.startsWith("conversation=")) {
+    // A conversation, with or without its session (T24).
+    state.view = "runs";
+    state.runsShowing = null;
+    state.conversationShowing = decodeURIComponent(view.slice("conversation=".length));
+    void openStoredConversation(state.conversationShowing);
     return;
   }
   state.view = view === "data" ? "memory" : (["open", "library", "runs", "trust", "settings", "memory"] as View[]).includes(view as View) ? (view as View) : "open";
   state.runsShowing = null;
+  state.conversationShowing = null;
   if (state.view === "open") void reattachRuns();
   if (opening && state.view === "open" && !params.get("url")) void adoptRunInFlight();
   if (params.get("url")) state.address = params.get("url")!;
@@ -342,7 +390,10 @@ async function load(): Promise<void> {
       if (state.settingsPage.section === "permissions") state.permissions = await send<PermissionsView>({ type: "permissions.get" });
     }
     if (state.view === "memory" || (state.view === "settings" && state.settingsPage.section === "memory")) state.memory = await send({ type: "memory.get" });
-    if (state.view === "runs") state.runs = await send({ type: "run.list", sessionId: null });
+    if (state.view === "runs") {
+      state.runs = await send({ type: "run.list", sessionId: null });
+      state.conversations = await send({ type: "conversation.list", sessionId: null });
+    }
   } catch (error) {
     state.error = describeError(error);
   }
@@ -356,12 +407,20 @@ async function showSession(sessionId: string): Promise<void> {
     if (state.authorization?.session_id !== sessionId) flow.reset();
     await flow.load();
     render();
-    await runs.attachSession(sessionId);
-    runs.sync();
+    if (conversational(state.open)) {
+      runs.detach();
+      await chat.attachSession(sessionId);
+      chat.sync();
+    } else {
+      chat.detach();
+      await runs.attachSession(sessionId);
+      runs.sync();
+    }
   } catch (error) {
     state.open = null;
     flow.reset();
     runs.detach();
+    chat.detach();
     state.error = describeError(error);
   }
   render();
@@ -386,10 +445,56 @@ async function adoptRunInFlight(): Promise<void> {
 
 /** The Runs page showed another run on the shared panel: back on the open package, attach its session again (review 1, finding 5). */
 async function reattachRuns(): Promise<void> {
-  if (!state.open || runs.hasSession()) return;
-  await runs.attachSession(state.open.session.id);
-  runs.sync();
+  if (!state.open) return;
+  if (conversational(state.open)) {
+    if (chat.hasSession()) return;
+    await chat.attachSession(state.open.session.id);
+    chat.sync();
+  } else {
+    if (runs.hasSession()) return;
+    await runs.attachSession(state.open.session.id);
+    runs.sync();
+  }
   render();
+}
+
+/** Show one stored conversation on the Runs page (T24), above the lists, as `openStoredRun` shows a run. */
+async function openStoredConversation(conversationId: string): Promise<void> {
+  state.error = null;
+  await load();
+  const failed = await chat.openConversation(conversationId);
+  if (state.view !== "runs" || state.conversationShowing !== conversationId) return;
+  if (failed) state.error = { ...failed, details: {} };
+  render();
+}
+
+async function exportConversation(conversationId: string): Promise<void> {
+  state.runsNotice = `Exporting conversation ${conversationId}…`;
+  render();
+  try {
+    const bundle = await send<ConversationExportBundle>({ type: "conversation.export", conversationId });
+    const decode = (text: string) => Uint8Array.from(atob(text), (character) => character.charCodeAt(0));
+    const zip = writeZip(bundle.entries.map((entry) => ({ name: entry.name, bytes: decode(entry.base64) })));
+    const name = `conversation_${conversationId.replace(/-/gu, "")}.zip`;
+    const hash = await saveBlob(name, new Blob([zip as BlobPart], { type: mimeFor(name) }));
+    state.runsNotice = `Saved ${name} (${bundle.entries.length} files${hash ? `, zip sha256:${hash.slice(0, 16)}…` : ""}).`;
+  } catch (error) {
+    const described = describeError(error);
+    state.runsNotice = `Export failed: ${described.code}: ${described.message}`;
+  }
+  render();
+}
+
+async function clearConversation(conversationId: string): Promise<void> {
+  try {
+    await send({ type: "conversation.clear", conversationId });
+    state.runsNotice = `Cleared conversation ${conversationId}.`;
+    if (chat.current()?.conversationId === conversationId) chat.detach();
+  } catch (error) {
+    const described = describeError(error);
+    state.runsNotice = `${described.code}: ${described.message}`;
+  }
+  await load();
 }
 
 /**
@@ -706,7 +811,7 @@ function openView(): HTMLElement[] {
     const open = state.open;
     const showRun = state.authorization !== null && state.authorization.receipt !== null;
     nodes.push(
-      showRun ? runs.root : null,
+      showRun ? (conversational(open) ? chat.root : runs.root) : null,
       sessionExtras(open),
       renderAgentPage(open, {
         onTrust: (scope) => void trustSession(scope),
@@ -793,16 +898,35 @@ function runsView(): HTMLElement[] {
     } else location.hash = hash;
   };
   const shown = current && state.runsShowing === current.runId ? current : null;
+  const conversationShown = chat.current() && state.conversationShowing === chat.current()!.conversationId ? chat.current() : null;
+  const openConversation = (conversationId: string) => {
+    const hash = `#conversation=${encodeURIComponent(conversationId)}`;
+    if (location.hash === hash) {
+      state.conversationShowing = conversationId;
+      void openStoredConversation(conversationId);
+    } else location.hash = hash;
+  };
+  // A turn of a conversation is listed under its conversation (T24, D-270), not among the runs.
+  const standalone = list ? list.runs.filter((run) => !run.conversation) : [];
+  const conversations = state.conversations?.conversations ?? [];
   return [
     errorBox(),
     // The chosen run first, whether or not a package is open in this tab (D-160; review 1, finding 5).
-    shown ? el("p", { className: "ab-runs-back" }, el("a", { text: "← All runs", attrs: { href: "#runs" } })) : null,
+    shown || conversationShown ? el("p", { className: "ab-runs-back" }, el("a", { text: "← All runs", attrs: { href: "#runs" } })) : null,
     shown ? runs.root : null,
+    conversationShown ? chat.root : null,
+    conversations.length > 0 || state.conversations === null
+      ? card(
+          "Conversations",
+          el("p", { className: "ab-hint", text: "Every conversation this browser had (conversation.v0), newest first; each turn's run is inside it. Open one to read the transcript; Export writes the conversation directory as a zip (the transcript, the state, one audit chain, and each turn's files); Clear removes an ended conversation and its turns." }),
+          !state.conversations ? el("p", { className: "ab-busy", text: "Loading…" }) : conversations.length === 0 ? el("p", { className: "ab-empty", text: "No conversation yet." }) : renderConversationList(conversations, { open: openConversation, export: (conversationId) => void exportConversation(conversationId), clear: (conversationId) => void clearConversation(conversationId) }),
+        )
+      : null,
     card(
       "Runs",
       el("p", { className: "ab-hint", text: "Every run this browser made, newest first, from its own records (IndexedDB). Open one to read its result, artifacts and audit; Export writes the run directory as a zip (run.json, run-plan.json, input.json and every artifact); Clear removes a finished run." }),
       state.runsNotice ? el("div", { className: "ab-banner ab-banner-neutral", attrs: { role: "status" } }, el("span", { text: state.runsNotice })) : null,
-      !list ? el("p", { className: "ab-busy", text: "Loading…" }) : list.runs.length === 0 ? el("p", { className: "ab-empty", text: "No run yet. Authorize an agent and press Run." }) : renderRunList(list.runs, { open, export: (runId) => void exportRun(runId), clear: (runId) => void clearRun(runId) }),
+      !list ? el("p", { className: "ab-busy", text: "Loading…" }) : standalone.length === 0 ? el("p", { className: "ab-empty", text: "No run yet. Authorize an agent and press Run." }) : renderRunList(standalone, { open, export: (runId) => void exportRun(runId), clear: (runId) => void clearRun(runId) }),
     ),
   ].filter((node): node is HTMLElement => node !== null);
 }
@@ -1149,20 +1273,28 @@ subscribe((event) => {
     void flow.load().then(() => {
       render();
       runs.sync();
+      chat.sync();
     });
   }
   if ((event.type === "event.memory" || event.type === "event.settings") && state.open) {
     void flow.load().then(() => {
       render();
       runs.sync();
+      chat.sync();
     });
   }
   if (event.type === "event.run") {
     runs.onRunEvent(event);
+    chat.onRunEvent(event);
+    if (state.view === "runs") void load();
+  }
+  if (event.type === "event.conversation") {
+    chat.onConversationEvent(event);
     if (state.view === "runs") void load();
   }
   if (event.type === "event.files") {
     runs.onFilesEvent();
+    chat.onFilesEvent();
     if (state.view === "settings" && state.settingsPage.section === "files") void load();
   }
 });
