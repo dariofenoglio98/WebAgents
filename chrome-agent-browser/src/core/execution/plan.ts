@@ -13,8 +13,9 @@ import type { JsonObject, JsonValue } from "../json.js";
 import { normalizeModelBinding, type ModelBindingDescriptor } from "../models/binding.js";
 import type { Package } from "../package.js";
 import { pyIsoTimestamp } from "../pyjson.js";
+import { conversationPlan } from "../runplan.js";
 import { normalizeToolBindings, type ToolBindingRecord } from "../tools/bindings.js";
-import { MODE_MODEL, MODE_TOOL_PROBE, type ExecutionMode, type ModelBinding, type ResourceGrant, type RunPlan } from "../types.js";
+import { MODE_MODEL, MODE_TOOL_PROBE, type ConversationPlan, type ExecutionMode, type ModelBinding, type ResourceGrant, type RunPlan } from "../types.js";
 import { ExecutionError, invalid, TOOL_NOT_BOUND } from "./errors.js";
 import { normalizeResourceGrants } from "./policy.js";
 
@@ -37,6 +38,8 @@ export interface ExecutionPlan {
     fixture: boolean;
     /** Chrome addition (D-022): declared tools the receipt did not approve; the runtime refuses calls to them. */
     denied_tool_ids: string[];
+    /** conversation.v0 (D-270): the conversation's budget, persistent keys and consent steps with their pre-decisions; null for a one-shot package. */
+    conversation: ConversationPlan | null;
   };
   model_binding: ModelBindingDescriptor | null;
   tool_bindings: ToolBindingRecord[];
@@ -80,7 +83,7 @@ export function normalizeExecutionPlan(raw: unknown): ExecutionPlan {
   const record = fields(raw, "run_plan", ["run_plan_id", "run_plan_sha256", "session_id", "package", "publisher", "execution", "model_binding", "tool_bindings", "resource_grants"], ["run_plan_id", "run_plan_sha256", "package", "publisher", "execution"]);
   const pkg = fields(record.package, "run_plan.package", ["package_id", "name", "version", "digest", "archive_sha256", "execution_profile"], ["package_id", "version", "digest", "archive_sha256"]);
   const publisher = fields(record.publisher, "run_plan.publisher", ["signer_fingerprint", "signature_status", "trust_status"], ["signer_fingerprint"]);
-  const execution = fields(record.execution, "run_plan.execution", ["mode", "profile", "required_permission_ids", "required_tool_ids", "probe_tool_id", "tool_binding_count", "fixture", "denied_tool_ids"], ["mode"]);
+  const execution = fields(record.execution, "run_plan.execution", ["mode", "profile", "required_permission_ids", "required_tool_ids", "probe_tool_id", "tool_binding_count", "fixture", "denied_tool_ids", "conversation"], ["mode"]);
   const mode = execution.mode;
   if (mode !== MODE_MODEL && mode !== MODE_TOOL_PROBE) throw invalid("A run plan must be model-backed or a tool probe");
   const fixture = execution.fixture === true;
@@ -123,10 +126,51 @@ export function normalizeExecutionPlan(raw: unknown): ExecutionPlan {
       required_tool_ids: requiredTools,
       fixture,
       denied_tool_ids: [...new Set(idList(execution.denied_tool_ids, "run_plan.execution.denied_tool_ids"))].sort(),
+      conversation: normalizeConversationPlan(execution.conversation),
     },
     model_binding: mode === MODE_MODEL && !fixture ? normalizeModelBinding(record.model_binding) : null,
     tool_bindings: bindings,
     resource_grants: normalizeResourceGrants(record.resource_grants),
+  };
+}
+
+/** conversation.v0 (D-270): the plan's conversation section, every field bounded; null when the package is one-shot. */
+export function normalizeConversationPlan(raw: unknown): ConversationPlan | null {
+  if (raw === undefined || raw === null) return null;
+  const record = fields(raw, "run_plan.execution.conversation", ["max_turns", "hard_tokens", "max_remote_calls", "max_calls_per_tool", "persistent_keys", "consent_steps", "gated_permissions"], ["max_turns", "hard_tokens", "max_remote_calls", "persistent_keys", "consent_steps", "gated_permissions"]);
+  const count = (value: unknown, field: string): number => {
+    if (typeof value !== "number" || !Number.isInteger(value) || value < 0) throw invalid(`${field} must be a nonnegative integer`);
+    return value;
+  };
+  const caps: Record<string, number> = {};
+  const rawCaps = (record.max_calls_per_tool ?? {}) as Record<string, unknown>;
+  if (typeof rawCaps !== "object" || rawCaps === null || Array.isArray(rawCaps) || Object.keys(rawCaps).length > MAX_PLAN_IDS) throw invalid("run_plan.execution.conversation.max_calls_per_tool must be a bounded object");
+  for (const key of Object.keys(rawCaps).sort()) caps[text(key, "conversation.max_calls_per_tool key", { limit: 200 })!] = count(rawCaps[key], `conversation.max_calls_per_tool[${key}]`);
+  const steps = record.consent_steps;
+  if (!Array.isArray(steps) || steps.length > MAX_PLAN_IDS) throw invalid("run_plan.execution.conversation.consent_steps must be a bounded list");
+  const consentSteps = steps.map((item, index) => {
+    const step = fields(item, `conversation.consent_steps[${index}]`, ["id", "permissions", "kinds", "pre_decided"], ["id", "permissions", "kinds", "pre_decided"]);
+    const preDecided = step.pre_decided;
+    let decided: ConversationPlan["consent_steps"][number]["pre_decided"] = null;
+    if (preDecided !== null) {
+      const decision = fields(preDecided, `conversation.consent_steps[${index}].pre_decided`, ["accepted", "decided_by", "reason"], ["accepted", "decided_by"]);
+      if (typeof decision.accepted !== "boolean" || (decision.decided_by !== "preset" && decision.decided_by !== "policy")) throw invalid(`conversation.consent_steps[${index}].pre_decided must name a boolean and preset or policy`);
+      decided = { accepted: decision.accepted, decided_by: decision.decided_by, reason: text(decision.reason, "pre_decided.reason", { limit: 64, allowNull: true }) };
+    }
+    return { id: text(step.id, "consent_steps[].id", { limit: 200 })!, permissions: idList(step.permissions, "consent_steps[].permissions"), kinds: idList(step.kinds, "consent_steps[].kinds"), pre_decided: decided };
+  });
+  const gatedRaw = record.gated_permissions as Record<string, unknown>;
+  if (typeof gatedRaw !== "object" || gatedRaw === null || Array.isArray(gatedRaw) || Object.keys(gatedRaw).length > MAX_PLAN_IDS) throw invalid("run_plan.execution.conversation.gated_permissions must be a bounded object");
+  const gated: Record<string, string[]> = {};
+  for (const key of Object.keys(gatedRaw).sort()) gated[text(key, "gated_permissions key", { limit: 200 })!] = idList(gatedRaw[key], `gated_permissions[${key}]`);
+  return {
+    max_turns: count(record.max_turns, "conversation.max_turns"),
+    hard_tokens: count(record.hard_tokens, "conversation.hard_tokens"),
+    max_remote_calls: count(record.max_remote_calls, "conversation.max_remote_calls"),
+    max_calls_per_tool: caps,
+    persistent_keys: idList(record.persistent_keys, "conversation.persistent_keys"),
+    consent_steps: consentSteps,
+    gated_permissions: gated,
   };
 }
 
@@ -206,6 +250,7 @@ export function executionPlanFromRunPlan(plan: RunPlan): ExecutionPlan {
       probe_tool_id: plan.execution.probe_tool_id,
       tool_binding_count: plan.execution.tool_binding_count,
       denied_tool_ids: denied,
+      conversation: (plan.execution as { conversation?: ConversationPlan | null }).conversation ?? null,
     },
     model_binding: plan.model_binding === null ? null : modelBindingFromPlan(plan.model_binding),
     tool_bindings: plan.tool_bindings,
@@ -295,6 +340,8 @@ export function localExecutionPlan(input: LocalPlanInputs): { plan: ExecutionPla
       tool_binding_count: bindings.length,
       fixture: input.fixture,
       denied_tool_ids: declared.filter((toolId) => !approved.includes(toolId)),
+      // The operator's grants are the whole conversation's; no preset or policy pre-decides a step here.
+      conversation: conversationPlan(pkg, "balanced", null),
     },
     model_binding: input.fixture ? null : (input.modelBinding ?? null),
     tool_bindings: bindings,

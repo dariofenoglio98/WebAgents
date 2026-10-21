@@ -45,8 +45,10 @@ import { httpsOrigin } from "../../core/origins.js";
 import { TransportError, type HttpTransport } from "../../core/models/transport.js";
 import type { FileStore } from "../storage/files.js";
 import type { SnapshotStore } from "../storage/snapshots.js";
-import { artifactKey, type RunStore, type StoredRun } from "../storage/runs.js";
+import { artifactKey, type ConsentAnswer, type RunStore, type StoredRun } from "../storage/runs.js";
 import type { HostStartMessage } from "./protocol.js";
+import { NO_DECISION, type ConsentHost, type ConsentRequest } from "../../core/conversation/host.js";
+import { pyIsoTimestamp } from "../../core/pyjson.js";
 
 export const HOST_UNLOADED = "host_unloaded";
 /** The host was asked to run a record that is not a freshly leased one (T5 review 1, finding 3). */
@@ -75,7 +77,12 @@ export interface ExecutionHandle {
   /** Settles with the final status once the record and the artifacts are written; never rejects. */
   readonly done: Promise<RunRecord["status"]>;
   cancel(): void;
+  /** conversation.v0 (D-270): the person's answer to the card the turn waits on (`host.decide`). */
+  decide(step: string, accepted: boolean): void;
 }
+
+/** How often the consent host re-reads the stored run while it waits for an answer (D-270). */
+export const CONSENT_POLL_MS = 1000;
 
 function decodeBase64(text: string): Uint8Array {
   const binary = atob(text);
@@ -146,6 +153,13 @@ export function executeRun(deps: ExecuteDeps): ExecutionHandle {
     cancelRequested = true;
     session.cancel();
   };
+  /** conversation.v0: the answers `host.decide` delivered, by step, for the card that waits on them. */
+  const delivered = new Map<string, boolean>();
+  const waiting = new Map<string, (accepted: boolean) => void>();
+  const decide = (step: string, accepted: boolean): void => {
+    delivered.set(step, accepted);
+    waiting.get(step)?.(accepted);
+  };
 
   /**
    * Write `run` unless the stored record is already settled. Returns true when written; false
@@ -165,6 +179,9 @@ export function executeRun(deps: ExecuteDeps): ExecutionHandle {
       applied = true;
       flagged = current.record.cancelRequested;
       if (flagged && !run.record.cancelRequested) run.record = { ...run.record, cancelRequested: true };
+      // conversation.v0 (D-270): the person's answers are the service worker's writes, merged the
+      // same way, so a host checkpoint never drops an answer the record already carries.
+      if (current.consent_decisions) run.consent_decisions = { ...(current.consent_decisions ?? {}), ...(run.consent_decisions ?? {}) };
       return run;
     });
     if (flagged && !cancelRequested) requestCancel();
@@ -189,6 +206,62 @@ export function executeRun(deps: ExecuteDeps): ExecutionHandle {
       run.updated_at = now().toISOString();
       if (await write(run)) notify(run.record.status);
     });
+
+  /**
+   * conversation.v0 (D-270): the consent host over the stored run. A card is written into the
+   * record and the service worker told (the chat surface shows it, also after the panel was
+   * closed); the answer arrives as `host.decide` or, should that message be lost, is read from
+   * the record every second (the service worker writes it there first); the node's timeout ends
+   * the wait through the signal (V-29). A pre-decided step never reaches this host: the session
+   * answers it from the plan.
+   */
+  const consentHost: ConsentHost = {
+    used: new Set<string>(),
+    decide: (request: ConsentRequest, signal: AbortSignal): Promise<unknown> =>
+      new Promise((resolve, reject) => {
+        let timer: ReturnType<typeof setInterval> | null = null;
+        const finish = (answer: { accepted: boolean; decided_by: "person" | "host"; reason: string | null }) => {
+          if (timer !== null) clearInterval(timer);
+          waiting.delete(request.step);
+          signal.removeEventListener("abort", onAbort);
+          void checkpoint((run) => {
+            run.consent_pending = null;
+          }).finally(() => resolve(answer));
+        };
+        const onAbort = () => {
+          if (timer !== null) clearInterval(timer);
+          waiting.delete(request.step);
+          void checkpoint((run) => {
+            run.consent_pending = null;
+          }).finally(() => reject(signal.reason));
+        };
+        if (signal.aborted) {
+          onAbort();
+          return;
+        }
+        signal.addEventListener("abort", onAbort, { once: true });
+        if (delivered.has(request.step)) {
+          finish({ accepted: delivered.get(request.step)!, decided_by: "person", reason: null });
+          return;
+        }
+        waiting.set(request.step, (accepted) => finish({ accepted, decided_by: "person", reason: null }));
+        const pending = { step: request.step, permissions: [...request.permissions], text: request.text, facts: request.facts, timeout_seconds: request.timeout_seconds, requested_at: pyIsoTimestamp(now()) };
+        void checkpoint((run) => {
+          run.consent_pending = pending;
+        });
+        timer = setInterval(() => {
+          void deps.runs.getRun(runId).then((current) => {
+            if (current === null) {
+              // The record is gone: the service worker cleared the run; nobody can answer.
+              finish({ accepted: false, decided_by: "host", reason: NO_DECISION });
+              return;
+            }
+            const answer: ConsentAnswer | undefined = current.consent_decisions?.[request.step];
+            if (answer !== undefined && waiting.has(request.step)) finish({ accepted: answer.accepted, decided_by: "person", reason: null });
+          });
+        }, CONSENT_POLL_MS);
+      }),
+  };
 
   const settle = async (final: (run: StoredRun) => void, outcome: ExecutionOutcome | null): Promise<RunRecord["status"]> => {
     await queue.run(async () => {
@@ -319,6 +392,7 @@ export function executeRun(deps: ExecuteDeps): ExecutionHandle {
       });
       const sessionDeps: SessionDeps = {
         archive,
+        consent: run.invocation.turn ? consentHost : null,
         router,
         tools: {
           definitions,
@@ -340,7 +414,7 @@ export function executeRun(deps: ExecuteDeps): ExecutionHandle {
         now,
       };
       const begin: BeginReport = await session.begin(
-        { run_id: runId, run_plan: plan, authorization: run.invocation.authorization, input: run.invocation.input, attachments, limits: run.invocation.limits, host: { runtime: HOST_RUNTIME, runtime_version: message.settings.runtimeVersion, verified_version: message.settings.verifiedVersion } },
+        { run_id: runId, run_plan: plan, authorization: run.invocation.authorization, input: run.invocation.input, attachments, limits: run.invocation.limits, host: { runtime: HOST_RUNTIME, runtime_version: message.settings.runtimeVersion, verified_version: message.settings.verifiedVersion }, turn: run.invocation.turn ?? null },
         sessionDeps,
       );
       const started = now();
@@ -353,6 +427,7 @@ export function executeRun(deps: ExecuteDeps): ExecutionHandle {
           host: { runtimeVersion: message.settings.runtimeVersion, verifiedVersion: message.settings.verifiedVersion },
           revalidated: current.record.revalidated,
           origin: "live",
+          conversation: run.invocation.turn ? { conversationId: run.invocation.turn.conversation_id, turn: run.invocation.turn.turn } : null,
         });
       });
       if (cancelRequested) session.cancel();
@@ -378,6 +453,11 @@ export function executeRun(deps: ExecuteDeps): ExecutionHandle {
         current.memory_commit = committed !== null && body !== null ? { package_id: committed.package_id, package_version: packageVersion, name: String(pkg.manifest.name ?? packageId), body, bytes: committed.bytes, body_sha256: committed.body_sha256, at: ended.toISOString() } : null;
         const proposed = audit.find((event) => event.action === "memory.proposed");
         current.memory_proposed_at = proposed ? String(proposed.timestamp) : null;
+        // conversation.v0 (D-270): what the conversation charges from this turn, read once by the service worker.
+        if (run.invocation.turn) {
+          current.turn_outcome = { spent_permissions: outcome.spentPermissions, conversation_state: outcome.report.conversation_state ?? null, consents: outcome.report.consents ?? [], output: outcome.report.output ?? null };
+          current.consent_pending = null;
+        }
       }, outcome);
     } catch (error) {
       const ended = now();
@@ -398,5 +478,6 @@ export function executeRun(deps: ExecuteDeps): ExecutionHandle {
     runId,
     done,
     cancel: requestCancel,
+    decide,
   };
 }

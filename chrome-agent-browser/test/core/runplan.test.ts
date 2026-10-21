@@ -31,7 +31,8 @@ import { fixture, inputs, webair040, without } from "../helpers/fixtures.js";
 import { NOW, world, type World } from "../helpers/world.js";
 
 /** Fields the Chrome plan adds or names differently (D-053), or that carry a timestamp the reference formats differently. */
-const CHROME_ONLY = ["control_plane.service", "authorization.provenance", "authorization.receipt_sha256", "authorization.issued_at", "execution.denied_tool_ids", "execution.note", "run_plan_sha256", "created_at", "model_binding.selected_at", "model_requirements"];
+// `execution.conversation` is conversation.v0's section (D-270); the reference plan has none (D-264).
+const CHROME_ONLY = ["control_plane.service", "authorization.provenance", "authorization.receipt_sha256", "authorization.issued_at", "execution.denied_tool_ids", "execution.note", "execution.conversation", "run_plan_sha256", "created_at", "model_binding.selected_at", "model_requirements"];
 
 describe("the plan", () => {
   it("equals the reference's for the same inputs, except the documented Chrome fields, and hashes as the reference hashes", async () => {

@@ -2,6 +2,7 @@
 // Do not edit: run `npm run sync-schemas` after a change to a conversation.v0 contract.
 
 import consentDecisionSchemaJson from "./consent-decision.schema.json" with { type: "json" };
+import policyBundleV0SchemaPatchJson from "./policy-bundle-v0.schema.patch.json" with { type: "json" };
 import transcriptInputSchemaJson from "./transcript-input.schema.json" with { type: "json" };
 import transcriptSchemaJson from "./transcript.schema.json" with { type: "json" };
 import workflowSchemaPatchJson from "./workflow.schema.patch.json" with { type: "json" };
@@ -9,6 +10,7 @@ import workflowSchemaPatchJson from "./workflow.schema.patch.json" with { type: 
 /** Every conversation.v0 contract, by its file stem (`consent-decision.schema`, `transcript.schema`, ...). */
 export const CONVERSATION_CONTRACTS: Readonly<Record<string, unknown>> = Object.freeze({
   "consent-decision.schema": consentDecisionSchemaJson,
+  "policy-bundle-v0.schema.patch": policyBundleV0SchemaPatchJson,
   "transcript-input.schema": transcriptInputSchemaJson,
   "transcript.schema": transcriptSchemaJson,
   "workflow.schema.patch": workflowSchemaPatchJson,
@@ -17,6 +19,7 @@ export const CONVERSATION_CONTRACTS: Readonly<Record<string, unknown>> = Object.
 /** The conversation.v0 contract file names in sorted order, for the equality test. */
 export const CONVERSATION_CONTRACT_FILES: readonly string[] = Object.freeze([
   "consent-decision.schema.json",
+  "policy-bundle-v0.schema.patch.json",
   "transcript-input.schema.json",
   "transcript.schema.json",
   "workflow.schema.patch.json",

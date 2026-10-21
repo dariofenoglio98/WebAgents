@@ -72,6 +72,8 @@ export interface CapabilityOptions {
   fixture?: boolean;
   /** compute.v0: whether this host has an engine for the package's modules (`compute_not_supported` otherwise). */
   computeAvailable?: boolean;
+  /** conversation.v0: the session runs one turn of a conversation, with the persisted state, a consent host and the chain (V-28 does not apply). */
+  turn?: boolean;
 }
 
 /**
@@ -81,7 +83,7 @@ export interface CapabilityOptions {
  */
 export function checkCapabilities(pkg: Package, limits: HostExecutionLimits, options: CapabilityOptions = {}): JsonObject {
   const graph = pkg.graph;
-  if (graph.conversation !== undefined && graph.conversation !== null) {
+  if (graph.conversation !== undefined && graph.conversation !== null && options.turn !== true) {
     // conversation.v0 (V-28): a turn needs the persisted state, a consent host and the chain of the
     // turns before it; this one-shot session runs one invocation and holds none of them.
     throw new ExecutionError(

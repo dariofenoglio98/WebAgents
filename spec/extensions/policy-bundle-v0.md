@@ -33,6 +33,7 @@ only a subscription the person made, verified against a key the person pinned, a
 | `budget_caps` | object, optional | Ceilings on the host run limits: `total_tokens`, `max_remote_calls`, `max_parallel_workers`, `max_output_tokens_per_call`, `run_timeout_seconds`, `max_calls_per_tool`, `model_call_timeout_seconds`. |
 | `models` | object, optional | `local_only` (boolean) and `max_cost_usd_per_run` (number or null). |
 | `bindings` | object, optional | `allow`: the host implementations tools may be approved for by default, as `{kind, origins?}` with `kind` one of `json_http`, `local_builtin`, `selected_file`, `host_resource` and, for `json_http`, the HTTPS origins it may reach. Absent: no restriction. |
+| `consent` | object, optional | conversation.v0 (T24, D-271): `pre_decide` (`allow` or `never`: whether a preset may answer a consent step for the person) and `forbid_kinds` (permission kinds whose consent steps are never asked and resolve denied with provenance `policy`). A policy only lowers; a `payment` or `personal.read` step is never pre-decided by anyone. The patch [`spec/conversation-v0/policy-bundle-v0.schema.patch.json`](../conversation-v0/policy-bundle-v0.schema.patch.json) adds it to the schema. |
 
 A `publisher_key` anchor is `{kind, public_key (raw base64), fingerprint, display_name,
 publisher_id, package_id_prefix}`: both scopes are required. An `issuer` anchor is `{kind,
@@ -100,6 +101,16 @@ never raises a limit). `local_only` refuses a plan on a model not reported as lo
 the host catalog that means free (local) models only (`model_cost_unbounded`): an unknown price is
 not zero. Caps and model constraints apply as long as the subscription does; v0 has no per-agent
 override for them.
+
+### 5.5a Consent steps (conversation.v0)
+A conversational package pauses before a consequential action for the person's yes or no
+([`spec/conversation-v0.md`](../conversation-v0.md) §4). The host's preset may answer some of those
+steps for the person (D-271: `convenience` pre-accepts a step whose permissions are all of kinds
+other than `payment` and `personal.read`; the other presets ask every step). A policy's `consent`
+section lowers that: `pre_decide: never` makes every step ask whatever the preset, and a step naming
+a permission of a kind in `forbid_kinds` is never asked and resolves denied with provenance `policy`
+(the gate then refuses the tool). The Run Plan records each step's pre-decision, so a transcript
+shows who decided (`preset`, `policy`, or the person).
 
 ### 5.6 Revoking
 Unsubscribing withdraws the policy's trust anchors and its decisions at once. A run plan prepared

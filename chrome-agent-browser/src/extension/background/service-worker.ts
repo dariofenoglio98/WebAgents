@@ -14,6 +14,7 @@ import { IndexedDbFileStore } from "../storage/files.js";
 import { IndexedDbMemoryStorage } from "../storage/memory.js";
 import { PermissionStorage, type PermissionsPort } from "../storage/permissions.js";
 import { IndexedDbRunStore } from "../storage/runs.js";
+import { IndexedDbConversationStore } from "../storage/conversations.js";
 import { AreaEnvelopeStorage, AreaUnlockedStateStorage } from "../storage/secrets-storage.js";
 import { SettingsStorage } from "../storage/settings.js";
 import { SubscriptionStorage } from "../storage/subscriptions.js";
@@ -154,6 +155,7 @@ const controller = new Controller({
   fetch: (url, init) => fetch(url, init),
   snapshots: new IndexedDbSnapshotStore(database),
   runs: new IndexedDbRunStore(database),
+  conversations: new IndexedDbConversationStore(database),
   files: new IndexedDbFileStore(database),
   memoryStorage: new IndexedDbMemoryStorage(database),
   subscriptions: new SubscriptionStorage(chrome.storage.local),

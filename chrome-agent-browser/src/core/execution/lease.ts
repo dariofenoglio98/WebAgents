@@ -63,6 +63,12 @@ export interface LeaseInputs {
   /** The run's effective deadline: the receipt must outlast it (the reference plugin's rule). */
   minimumReceiptRemainingSeconds?: number | null;
   sessionExpiresAt?: string | null;
+  /**
+   * conversation.v0 (V-13, D-270): the receipt's `once` grants were spent by the first turn of the
+   * conversation this lease is for, so its later turns lease under the spent receipt; the `once`
+   * accounting inside the conversation is the runtime's (`spent_permissions`).
+   */
+  spentByConversation?: boolean;
   now?: Date;
 }
 
@@ -181,22 +187,27 @@ export class LeaseRegistry {
       throw new ExecutionError("run_plan_mismatch", "The preflight does not describe this run plan", { detail: { preflight_run_plan_id: preflight.run_plan_id } });
     }
     const revalidated: string[] = [];
+    const spentByConversation = input.spentByConversation === true;
     if (!preflight.ready || preflight.stale) {
-      const reasons = preflight.stale_reasons.length > 0 ? preflight.stale_reasons : preflight.blocking_reasons;
+      const reasons = (preflight.stale_reasons.length > 0 ? preflight.stale_reasons : preflight.blocking_reasons).filter((reason) => !(spentByConversation && reason.code === "authorization_once_spent"));
+      if (reasons.length === 0) {
+        // The only reason was the receipt this conversation spent itself: the lease goes on.
+      } else {
       if (reasons.some((reason) => reason.code === "authorization_once_spent")) {
         throw new ExecutionError(AUTHORIZATION_ONCE_SPENT, "This authorization granted something once, and a run has already used it. Authorize again to run again.", { detail: { receipt_id: plan.authorization.receipt_id } });
       }
       throw stale(reasons, "This run plan is not ready", { preflight: preflight as unknown as JsonObject });
+      }
     }
     revalidated.push("preflight_ready");
-    if (this.onceSpent(plan)) {
+    if (this.onceSpent(plan) && !spentByConversation) {
       // The caller's preflight should have said so; the registry is the authority either way.
       throw new ExecutionError(AUTHORIZATION_ONCE_SPENT, "This authorization granted something once, and a run has already used it. Authorize again to run again.", { detail: { receipt_id: plan.authorization.receipt_id } });
     }
     if (once && [...this.issuing.values()].includes(plan.authorization.receipt_id)) {
       throw new ExecutionError(AUTHORIZATION_ONCE_SPENT, "This authorization granted something once, and a lease for it is already being issued.", { detail: { receipt_id: plan.authorization.receipt_id } });
     }
-    revalidated.push("once_not_spent");
+    revalidated.push(spentByConversation ? "once_spent_by_this_conversation" : "once_not_spent");
     const receiptExpiry = Date.parse(plan.authorization.expires_at);
     const remaining = Number.isFinite(receiptExpiry) ? (receiptExpiry - now.getTime()) / 1000 : null;
     if (remaining !== null && remaining <= 0) throw stale([{ code: "authorization_expired", message: "The authorization receipt has expired.", subject: null }], "expired", {});

@@ -48,6 +48,12 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
       sendResponse({ ok: true, result: { cancelled: active.has(message.runId) } });
       return false;
     }
+    case "host.decide": {
+      // conversation.v0: the person's answer to the card; the Worker also reads it from the record.
+      active.get(message.runId)?.worker.postMessage({ kind: "decide", step: message.step, accepted: message.accepted });
+      sendResponse({ ok: true, result: { delivered: active.has(message.runId) } });
+      return false;
+    }
     case "host.start": {
       if (active.has(message.runId)) {
         sendResponse({ ok: false, error: { code: "execution_active", message: "This run is already executing" } });

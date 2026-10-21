@@ -21,14 +21,17 @@ import type { ModelRouter } from "../models/contract.js";
 import { packageJson, type Package } from "../package.js";
 import { declaredSchemaPaths } from "../presentation.js";
 import { pyIsoTimestamp } from "../pyjson.js";
+import { deepCopy } from "../references.js";
 import { PackageSchemas } from "../schema.js";
 import { toolHandlers, type BoundToolHandler, type BrokerDeps } from "../tools/broker.js";
 import type { ToolHandler } from "../tools/handler.js";
 import type { ResourceResolver } from "../tools/resources.js";
 import { MODE_MODEL } from "../types.js";
+import { AuditChain, type ChainTail } from "../conversation/chain.js";
+import type { ConsentDecision, ConsentHost, ConsentRequest } from "../conversation/host.js";
 import { CancelledError } from "../workflow/errors.js";
 import { INTERPRETER, PROFILE, Workflow, type ExecutionReport } from "../workflow/interpreter.js";
-import { digest, type Grants } from "../workflow/runtime.js";
+import { digest, type Grants, type TurnContext } from "../workflow/runtime.js";
 import type { AuditEvent } from "../types.js";
 import type { ArtifactEvidence } from "./artifact.js";
 import { artifactRecords, type ArtifactRecord } from "./artifacts.js";
@@ -53,6 +56,22 @@ export interface HostFacts {
   verified_version?: string | null;
 }
 
+/**
+ * conversation.v0 (D-270): what one turn of a conversation starts from, handed in by the host that
+ * holds the conversation between turns: the persisted state, where the chain stood, the `once`
+ * grants earlier turns spent, the per-tool calls the conversation has left, and the consent steps a
+ * preset or a policy decided before the conversation (D-271). Serializable: it travels to a Worker.
+ */
+export interface TurnStart {
+  conversation_id: string;
+  turn: number;
+  state: JsonObject;
+  chain_tail: ChainTail;
+  spent_permissions: string[];
+  tool_caps: Record<string, number>;
+  pre_decided: Record<string, { accepted: boolean; decided_by: "preset" | "policy"; reason: string | null }>;
+}
+
 export interface BeginRequest {
   run_id: string;
   /** An `ExecutionPlan`, or the raw facts `normalizeExecutionPlan` accepts. */
@@ -62,6 +81,8 @@ export interface BeginRequest {
   input: JsonValue;
   attachments?: unknown;
   host?: HostFacts | null;
+  /** conversation.v0: the turn this run is; absent for a one-shot run (a conversational package is then refused, V-28). */
+  turn?: TurnStart | null;
 }
 
 /** The package's own fixture (`fixtureAdapters`), when the plan says so. */
@@ -89,6 +110,8 @@ export interface SessionDeps {
   fixture?: FixtureSource | null;
   /** compute.v0: the host's WebAssembly engine (one nested Worker per call, D-251); null refuses a package with compute nodes before it starts. */
   compute?: ComputeEngine | null;
+  /** conversation.v0: the host that asks the person a consent step (the chat surface); required for a turn, unused otherwise. */
+  consent?: ConsentHost | null;
   onProgress?: ProgressListener | null;
   progressIntervalSeconds?: number;
   /**
@@ -132,6 +155,8 @@ export interface ExecutionOutcome {
   files: ArtifactRecord[];
   /** The report the interpreter produced (completed result or classified failure), for the host's record. */
   report: ExecutionReport;
+  /** conversation.v0 (V-13): the `once` grants spent so far in the conversation, this turn's included; empty for a one-shot run. */
+  spentPermissions: string[];
 }
 
 function isPlan(value: unknown): value is ExecutionPlan {
@@ -182,6 +207,8 @@ export class ExecutionSession {
   private timedOut = false;
   private outcome: ExecutionReport | null = null;
   private tracker: ProgressTracker | null = null;
+  /** conversation.v0: the turn this session runs, or null. */
+  private turnStart: TurnStart | null = null;
 
   // -- bind --------------------------------------------------------------------------------
   async begin(request: BeginRequest, deps: SessionDeps): Promise<BeginReport> {
@@ -205,9 +232,14 @@ export class ExecutionSession {
     const fixture = plan.execution.fixture;
     if (fixture && !deps.fixture) throw new ExecutionError(PLAN_INVALID, "A fixture plan needs the package's fixture adapters");
     if (!fixture && deps.fixture) throw new ExecutionError(PLAN_INVALID, "A model-backed plan runs no fixture");
+    const turn = request.turn ?? null;
+    const conversational = pkg.graph.conversation !== undefined && pkg.graph.conversation !== null;
+    if (turn !== null && !conversational) throw new ExecutionError(PLAN_INVALID, "A turn was given for a package that declares no conversation");
+    if (turn !== null && !deps.consent) throw new ExecutionError(PLAN_INVALID, "A turn needs the host's consent host");
+    if (turn !== null && (plan.execution.conversation ?? null) === null) throw new ExecutionError(PLAN_INVALID, "A turn needs a plan that records the conversation");
     const capabilities =
       plan.execution.mode === MODE_MODEL
-        ? checkCapabilities(pkg, limits, { toolBindings: plan.tool_bindings, deniedTools: plan.execution.denied_tool_ids, fixture, computeAvailable: (deps.compute ?? null) !== null })
+        ? checkCapabilities(pkg, limits, { toolBindings: plan.tool_bindings, deniedTools: plan.execution.denied_tool_ids, fixture, computeAvailable: (deps.compute ?? null) !== null, turn: turn !== null })
         : { tools_declared: Object.keys(pkg.tools).length, tool_bindings: plan.tool_bindings.length, mode: "tool_probe", note: "A tool probe binds one declared tool. Whether this host could run the whole package is a different question, and a model-backed plan asks it." };
 
     // 3. The person's decisions, unchanged or refused.
@@ -290,6 +322,7 @@ export class ExecutionSession {
     this.handlers = handlers;
     this.boundTools = bound;
     this.memory = memory;
+    this.turnStart = turn;
     // Approval travels with the plan: every bound tool is an approved tool (checked above); in
     // fixture mode the approvals are the operator's list, as `agentpkg run` requires.
     this.approvedTools = fixture
@@ -366,6 +399,7 @@ export class ExecutionSession {
           approvedTools: this.approvedTools,
           observer,
           compute: this.deps.compute ?? null,
+          turn: this.turnContext(now),
         });
       } catch (error) {
         if (!(error instanceof AgentPkgError)) throw error;
@@ -397,9 +431,33 @@ export class ExecutionSession {
     return this.finish(started, now());
   }
 
+  /**
+   * conversation.v0 (D-270): the turn's context for the interpreter, from what the host handed in:
+   * the chain continued from its tail, the consent host wrapped so that a step the plan pre-decided
+   * (D-271) is answered without the person, and everything else put to the host.
+   */
+  private turnContext(now: () => Date): TurnContext | null {
+    const start = this.turnStart;
+    if (start === null) return null;
+    const chain = new AuditChain(start.conversation_id, { tail: start.chain_tail, now });
+    chain.turn = start.turn;
+    const host = this.deps!.consent!;
+    const preDecided = start.pre_decided;
+    const consent: ConsentHost = {
+      used: host.used,
+      decide: async (request: ConsentRequest, signal: AbortSignal): Promise<unknown> => {
+        const decided = Object.hasOwn(preDecided, request.step) ? preDecided[request.step]! : null;
+        if (decided !== null) return { accepted: decided.accepted, decided_by: decided.decided_by, reason: decided.reason } satisfies ConsentDecision;
+        return host.decide(request, signal);
+      },
+    };
+    return { conversation_id: start.conversation_id, turn: start.turn, state: deepCopyState(start.state), chain, consent, spent: new Set(start.spent_permissions), tool_caps: { ...start.tool_caps } };
+  }
+
   private provenance(): ExecutionReport["provenance"] {
     const pkg = this.package!;
-    return { profile: PROFILE, interpreter: INTERPRETER, package_id: String(pkg.manifest.package_id), package_digest: pkg.digest, synthetic: this.router?.synthetic === true };
+    const start = this.turnStart;
+    return { profile: PROFILE, interpreter: INTERPRETER, package_id: String(pkg.manifest.package_id), package_digest: pkg.digest, synthetic: this.router?.synthetic === true, ...(start !== null ? { conversation: { conversation_id: start.conversation_id, turn: start.turn } } : {}) };
   }
 
   private finish(started: Date, ended: Date): ExecutionOutcome {
@@ -445,6 +503,8 @@ export class ExecutionSession {
       failure: status !== "completed" ? failureSummary(audit) : null,
       // memory.v0 §9: the proposals offered (count, types, hash; never a value) and the agent document's fate.
       memory: (outcome.memory ?? null) as unknown as JsonValue,
+      // conversation.v0: which turn of which conversation this run was; null for a one-shot run.
+      conversation: this.turnStart !== null ? { conversation_id: this.turnStart.conversation_id, turn: this.turnStart.turn } : null,
       package_execution: {
         workflow_instantiated: true,
         interpreter: INTERPRETER,
@@ -454,7 +514,7 @@ export class ExecutionSession {
       },
       tool_dispatches: this.boundTools.flatMap((handler) => handler.calls).slice(0, 512) as unknown as JsonValue,
     };
-    return { result, files, report: outcome };
+    return { result, files, report: outcome, spentPermissions: this.workflow === null ? [...(this.turnStart?.spent_permissions ?? [])].sort() : [...this.workflow.runtime.spentPermissions].sort() };
   }
 
   private writeArtifacts(outcome: ExecutionReport): ArtifactRecord[] {
@@ -501,3 +561,5 @@ export class ExecutionSession {
     return packageJson(this.package, path);
   }
 }
+
+const deepCopyState = (state: JsonObject): JsonObject => deepCopy(state);

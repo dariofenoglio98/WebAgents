@@ -26,7 +26,7 @@ describe("the conversation.v0 contracts", () => {
   it("are the spec's files, byte for byte, and nothing is missing", () => {
     const names = readdirSync(CONTRACTS).filter((name) => name.endsWith(".json")).sort();
     expect([...CONVERSATION_CONTRACT_FILES]).toEqual(names);
-    expect(names).toEqual(["consent-decision.schema.json", "transcript-input.schema.json", "transcript.schema.json", "workflow.schema.patch.json"]);
+    expect(names).toEqual(["consent-decision.schema.json", "policy-bundle-v0.schema.patch.json", "transcript-input.schema.json", "transcript.schema.json", "workflow.schema.patch.json"]);
     for (const name of names) expect(JSON.stringify(CONVERSATION_CONTRACTS[name.replace(/\.json$/u, "")]), name).toBe(JSON.stringify(JSON.parse(readFileSync(join(CONTRACTS, name), "utf8"))));
   });
 });

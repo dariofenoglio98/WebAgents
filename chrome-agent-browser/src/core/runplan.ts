@@ -14,7 +14,10 @@
  * `denied_tool_ids` the rest; the preflight also reports `model_still_available` against a
  * current catalog, with the stale code `model_no_longer_available` the reference plugin uses.
  */
+import { DEFAULT_PRESET } from "./authorization.js";
 import { canonicalJson } from "./canonical.js";
+import { conversationRecords } from "./conversation/declarations.js";
+import { consentPlan, type ConsentPolicy } from "./policies/consent.js";
 import { CoreError } from "./errors.js";
 import type { EvaluationLayers, PublisherReport } from "./evaluation.js";
 import { sha256Hex } from "./hash.js";
@@ -47,7 +50,9 @@ import {
   RUN_PLAN_VERSION,
   type AuthorizationReceipt,
   type BrowserPolicy,
+  type ConversationPlan,
   type ExecutionMode,
+  type PresetId,
   type Provenance,
   type Reason,
   type RunPlan,
@@ -232,6 +237,9 @@ export interface RunPlanInputs {
   toolRegistry?: ToolRegistry | null;
   probeToolId?: string | null;
   resourceRegistry?: ResourceRegistry | null;
+  /** conversation.v0 (D-271): the subscribed policy's consent section, when one is in force, and the preset in force (the receipt's provenance names it when a preset decided; the host's setting otherwise). */
+  consentPolicy?: ConsentPolicy | null;
+  consentPreset?: PresetId | null;
   now?: Date;
   runPlanId?: string;
 }
@@ -303,6 +311,7 @@ export async function buildRunPlan(pkg: Package, input: RunPlanInputs): Promise<
         "A run plan is a preflight artifact. This control plane never executes a package; a later runner must re-verify the digest, archive hash, signature, trust, receipt, model availability and every tool binding digest before dispatching anything." +
         (probe !== null ? " This plan is authority for ONE mediated call to one declared tool. It binds no model and is not authority to run this package's graph." : "") +
         " Declared tools the authorization did not approve are listed in denied_tool_ids; the runtime refuses any call to them (D-022).",
+      conversation: conversationPlan(pkg, input.consentPreset ?? input.receipt.provenance?.preset ?? DEFAULT_PRESET, input.consentPolicy ?? null),
     },
     tool_bindings: bindings as unknown as RunPlan["tool_bindings"],
     tool_registry: input.toolRegistry ? toolRegistryReference(input.toolRegistry) : null,
@@ -493,4 +502,19 @@ export function preflight(plan: RunPlan, input: PreflightInputs): RunPlanPreflig
 /** Whether a receipt grants anything `once`; the first run under it spends it (control.py). */
 export function grantsOnce(receipt: Pick<AuthorizationReceipt, "decisions">): boolean {
   return Object.values(receipt.decisions).includes("once");
+}
+
+/** conversation.v0 (D-270): what the plan records about a conversational package, with D-271's pre-decisions; null for a one-shot package. */
+export function conversationPlan(pkg: Package, preset: PresetId, policy: ConsentPolicy | null): ConversationPlan | null {
+  const records = conversationRecords(pkg);
+  if (records === null) return null;
+  return {
+    max_turns: records.budget.max_turns,
+    hard_tokens: records.budget.hard_tokens,
+    max_remote_calls: records.budget.max_remote_calls,
+    max_calls_per_tool: { ...records.budget.max_calls_per_tool },
+    persistent_keys: [...records.persistent_keys],
+    consent_steps: consentPlan(pkg, preset, policy),
+    gated_permissions: Object.fromEntries(Object.entries(records.gated_permissions).map(([permission, steps]) => [permission, [...steps]])),
+  };
 }

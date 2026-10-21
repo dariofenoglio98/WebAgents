@@ -226,6 +226,15 @@ export class InProcessHost implements ExecutionHostBridge {
     return handle ? "taken" : "not_held";
   }
 
+  /** conversation.v0: the person's answer to a card, as `host.decide` reaches the Worker; `decideLost` keeps it from the Worker so the poll of the record must find it. */
+  decideLost = false;
+  async decide(runId: string, step: string, accepted: boolean): Promise<boolean> {
+    const handle = this.handles.get(runId);
+    if (!handle || this.decideLost) return false;
+    handle.decide(step, accepted);
+    return true;
+  }
+
   async status(): Promise<HostStatusReply | null> {
     this.statusCalls += 1;
     if ((this.options.statusFailures ?? 0) >= this.statusCalls) throw new Error("the execution host did not answer");

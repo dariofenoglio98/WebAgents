@@ -81,6 +81,8 @@ export interface PolicyBundle {
   bindings: { allow: AllowedBinding[] } | null;
   /** memory.v0 M-54: what a policy may restrict about memory; null when the bundle says nothing. A policy only lowers. */
   memory: { types_allowed: string[] | null; proposals: "ask" | "refuse"; agent: "allow" | "refuse"; recall: "ask" | "propose" | "auto" } | null;
+  /** conversation.v0 (D-271): whether a preset may pre-decide consent steps, and the kinds whose steps are never asked; null when the bundle says nothing. */
+  consent: { pre_decide: "allow" | "never"; forbid_kinds: string[] } | null;
 }
 
 /** A subscribed bundle as this browser holds it. */
@@ -139,6 +141,8 @@ export async function readPolicyBundle(content: JsonObject): Promise<PolicyBundl
     agent: memoryRaw.agent === "refuse" ? "refuse" : "allow",
     recall: memoryRaw.recall === "ask" || memoryRaw.recall === "propose" ? memoryRaw.recall : "auto",
   };
+  const consentRaw = content.consent === undefined || content.consent === null ? null : (content.consent as JsonObject);
+  const consent: PolicyBundle["consent"] = consentRaw === null ? null : { pre_decide: consentRaw.pre_decide === "never" ? "never" : "allow", forbid_kinds: Array.isArray(consentRaw.forbid_kinds) ? consentRaw.forbid_kinds.map(str) : [] };
   const issuer = content.issuer as JsonObject;
   return {
     policy_id: str(content.policy_id),
@@ -154,6 +158,7 @@ export async function readPolicyBundle(content: JsonObject): Promise<PolicyBundl
     models: { local_only: models.local_only === true, max_cost_usd_per_run: typeof models.max_cost_usd_per_run === "number" ? models.max_cost_usd_per_run : null },
     bindings: bindings === null ? null : { allow: (bindings.allow as JsonObject[]).map((item) => ({ kind: str(item.kind) as ImplementationKind, origins: Array.isArray(item.origins) ? item.origins.map(str) : null })) },
     memory,
+    consent,
   };
 }
 

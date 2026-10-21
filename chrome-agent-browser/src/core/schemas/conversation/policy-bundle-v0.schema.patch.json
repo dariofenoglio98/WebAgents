@@ -1,0 +1,24 @@
+[
+  {
+    "op": "add",
+    "path": "/properties/consent",
+    "value": {
+      "type": "object",
+      "description": "conversation.v0 (D-271): what a policy says about consent steps. `pre_decide: never` makes every step ask the person whatever the preset; `forbid_kinds` lists permission kinds whose consent steps are never asked and resolve denied with provenance `policy`. A policy only lowers.",
+      "properties": {
+        "pre_decide": {
+          "enum": ["allow", "never"]
+        },
+        "forbid_kinds": {
+          "type": "array",
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": {
+            "enum": ["network", "files.read", "files.write", "shell", "payment", "personal.read", "memory.read", "memory.write", "compute"]
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+]

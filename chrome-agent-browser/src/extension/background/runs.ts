@@ -38,6 +38,7 @@ import type { PlanOrigin } from "../../core/origins.js";
 import type { SecretStoreState } from "../../core/secrets.js";
 import { HOST_UNLOADED } from "../execution/execute.js";
 import type { HostStartMessage, HostStatusReply } from "../execution/protocol.js";
+import type { TurnStart } from "../../core/execution/runner.js";
 import type { ArtifactChunk, ArtifactContent, Event, ExportBundle, ObservationsView, RunListView, RunReadiness, RunSummary, RunView } from "../messages.js";
 import { connectionsFor, type Settings, type SettingsStorage } from "../storage/settings.js";
 import type { StoredSession } from "../storage/snapshots.js";
@@ -91,7 +92,8 @@ export interface RunSessionFacts {
 export interface RunHooks {
   session(sessionId: string): Promise<RunSessionFacts>;
   isSessionOpen(sessionId: string): boolean;
-  preflight(sessionId: string): Promise<RunPlanPreflight>;
+  /** `options.ignoreOnceSpent`: a conversation's later turn, under the receipt its first turn spent (V-13, D-270). */
+  preflight(sessionId: string, options?: { ignoreOnceSpent?: boolean }): Promise<RunPlanPreflight>;
   toolRegistry(sessionId: string): Promise<ToolRegistry>;
   /** The memory (T19, memory.v0): the store a run is opened with, the commit of an agent document, the usage log. */
   memory(): MemoryController;
@@ -130,6 +132,8 @@ export interface ExecutionHostBridge {
   cancel(runId: string): Promise<HostCancelAnswer>;
   /** The runs the host is executing right now, or null when there is no host at all. */
   status(): Promise<HostStatusReply | null>;
+  /** conversation.v0 (D-270): the person's answer to the card a turn waits on; false when no Worker holds the run. */
+  decide(runId: string, step: string, accepted: boolean): Promise<boolean>;
 }
 
 export type HostCancelAnswer = "taken" | "not_held" | "no_host";
@@ -188,7 +192,7 @@ function encodeBase64(bytes: Uint8Array): string {
 }
 
 /** The record of a run that was leased but has not begun: identifiers and the plan's facts, nothing counted yet. */
-export function preparingRunRecord(input: { runId: string; sessionId: string; plan: ExecutionPlan; runPlan: RunPlan; createdAt: Date; limits: HostExecutionLimits; revalidated: string[]; inputBytes: number; runtimeVersion: string; attachments?: SelectedFileAttachment[] }): RunRecord {
+export function preparingRunRecord(input: { runId: string; sessionId: string; plan: ExecutionPlan; runPlan: RunPlan; createdAt: Date; limits: HostExecutionLimits; revalidated: string[]; inputBytes: number; runtimeVersion: string; attachments?: SelectedFileAttachment[]; conversation?: { conversationId: string; turn: number } | null }): RunRecord {
   const { plan, runPlan } = input;
   return {
     schema: RUN_RECORD_SCHEMA,
@@ -229,10 +233,13 @@ export function preparingRunRecord(input: { runId: string; sessionId: string; pl
     tools: plan.tool_bindings.map((binding) => ({ toolId: binding.tool_id, bindingId: binding.binding_id, bindingSha256: binding.binding_sha256, remote: binding.remote, calls: 0, displayName: binding.display_name, retries: 0, fallbackAnswers: 0 })),
     failure: null,
     origin: "live",
+    ...(input.conversation ? { conversation: input.conversation } : {}),
   };
 }
 
 export class RunManager {
+  /** conversation.v0 (D-270): told when a turn's run settled (completed, failed, cancelled, interrupted), by the conversation manager. */
+  onTurnSettled: ((run: StoredRun) => Promise<void>) | null = null;
   private readonly clock: () => Date;
   private readonly randomId: () => string;
   /** Limits fixed by the embedder (tests); otherwise each run reads Settings → Run limits. */
@@ -331,6 +338,7 @@ export class RunManager {
     if (updated === null || updated.record.status !== "interrupted") return false;
     this.deps.broadcast({ type: "event.run", runId: run.run_id, sessionId: run.session_id, status: "interrupted" });
     await this.deps.hooks.runSettled?.(run.invocation.archive_sha256);
+    if (updated.invocation.turn) await this.onTurnSettled?.(updated).catch(() => undefined);
     return true;
   }
 
@@ -344,7 +352,7 @@ export class RunManager {
     return limits.run_timeout_seconds + RECEIPT_MARGIN_SECONDS;
   }
 
-  async readiness(sessionId: string): Promise<RunReadiness> {
+  async readiness(sessionId: string, options: { ignoreOnceSpent?: boolean } = {}): Promise<RunReadiness> {
     await this.restore();
     const facts = await this.deps.hooks.session(sessionId);
     const now = this.clock();
@@ -376,7 +384,7 @@ export class RunManager {
       }
     }
     checks.push("secrets_available");
-    const preflight = await this.deps.hooks.preflight(sessionId);
+    const preflight = await this.deps.hooks.preflight(sessionId, { ignoreOnceSpent: options.ignoreOnceSpent === true });
     base.preflight = preflight;
     if (!preflight.ready || preflight.stale) {
       const reason: Reason | undefined = (preflight.stale ? preflight.stale_reasons : preflight.blocking_reasons)[0];
@@ -417,16 +425,46 @@ export class RunManager {
     if (plan.run_plan_id !== input.runPlanId || plan.run_plan_sha256 !== input.runPlanSha256) {
       throw reject("run_plan_mismatch", "The run plan on screen is not this session's current plan; reload the view.", 409, { run_plan_id: plan.run_plan_id });
     }
+    // conversation.v0 (V-28): a conversational package runs turn by turn under a conversation, never as one task.
+    if ((plan.execution.conversation ?? null) !== null) throw reject("conversation_profile", "This package is a conversation: start one and send it a message, rather than running it as a task.", 409);
     const validation = await validateTaskInput(facts.pkg, input.input);
     if (!validation.valid) {
       const detail = validation.errors.slice(0, 4).map((error) => `${error.pointer || "(task)"} ${error.message}`).join("; ");
       throw reject("input_invalid", `The task does not match this package's input: ${detail}`, 422, { errors: validation.errors });
     }
-    const readiness = await this.readiness(sessionId);
+    return this.launch(sessionId, facts, plan, input.input, { turn: null, spentByConversation: false });
+  }
+
+  /**
+   * conversation.v0 (D-270): one turn of a conversation as a run, with the turn's context handed to
+   * the host; the conversation manager validated the message and reserved the turn (V-10). A
+   * receipt the conversation's first turn spent still leases its later turns (V-13).
+   */
+  async startTurn(sessionId: string, input: { plan: RunPlan; message: JsonValue; turn: TurnStart; spentByConversation: boolean }): Promise<RunView> {
+    await this.restore();
+    const facts = await this.deps.hooks.session(sessionId);
+    if (facts.plan === null || facts.plan.run_plan_id !== input.plan.run_plan_id || facts.plan.run_plan_sha256 !== input.plan.run_plan_sha256) {
+      throw reject("run_plan_mismatch", "The conversation's plan is no longer this session's current plan.", 409);
+    }
+    return this.launch(sessionId, facts, input.plan, input.message, { turn: input.turn, spentByConversation: input.spentByConversation });
+  }
+
+  /** The plan and the receipt as the execution host sees them, for the conversation's record. */
+  executionPlanOf(plan: RunPlan): ExecutionPlan {
+    return executionPlanFromRunPlan(plan);
+  }
+
+  authorizationOf(plan: RunPlan): ReturnType<typeof authorizationFromRunPlan> {
+    return authorizationFromRunPlan(plan);
+  }
+
+  private async launch(sessionId: string, facts: RunSessionFacts, plan: RunPlan, inputValue: unknown, options: { turn: TurnStart | null; spentByConversation: boolean }): Promise<RunView> {
+    const readiness = await this.readiness(sessionId, { ignoreOnceSpent: options.spentByConversation });
     if (!readiness.ready || readiness.preflight === null) {
       const blocker = readiness.blocker!;
       throw reject(blocker.code, blocker.message, 409, { readiness: readiness as unknown as Record<string, unknown> });
     }
+    const input = { input: inputValue };
     // The picked files the task names are the files this run is given, and nothing else (T6, D-083).
     const attachments = await this.attachmentsFor(input.input, plan);
     if (this.starting.has(sessionId)) throw reject("execution_active", "A run is already being started for this package.", 409);
@@ -451,6 +489,7 @@ export class RunManager {
           modelAvailable: (hostModelId) => stillAvailable(catalog, hostModelId),
           minimumReceiptRemainingSeconds: this.requiredSeconds(limits),
           sessionExpiresAt: facts.stored.expires_at,
+          spentByConversation: options.spentByConversation,
           now: this.clock(),
         });
       } catch (error) {
@@ -459,7 +498,7 @@ export class RunManager {
       }
       // Handing the bytes to a runner starts a run, and a run is what a one-time grant was for.
       await this.deps.settings.saveSpentReceipts(leases.spentReceipts());
-      await this.deps.hooks.markOnceSpent(sessionId);
+      if (!options.spentByConversation) await this.deps.hooks.markOnceSpent(sessionId);
       const runId = this.randomId();
       const created = this.clock();
       const executionPlan = executionPlanFromRunPlan(plan);
@@ -470,8 +509,8 @@ export class RunManager {
         session_id: sessionId,
         created_at: created.toISOString(),
         updated_at: created.toISOString(),
-        record: preparingRunRecord({ runId, sessionId, plan: executionPlan, runPlan: plan, createdAt: created, limits, revalidated: [...lease.revalidated], inputBytes, runtimeVersion: this.deps.runtimeVersion, attachments }),
-        invocation: { plan: executionPlan, authorization, run_plan: plan, input: input.input as JsonValue, attachments, limits, archive_sha256: lease.archive_sha256, profile_id: plan.authorization.provenance?.profile_id ?? null },
+        record: preparingRunRecord({ runId, sessionId, plan: executionPlan, runPlan: plan, createdAt: created, limits, revalidated: [...lease.revalidated], inputBytes, runtimeVersion: this.deps.runtimeVersion, attachments, conversation: options.turn ? { conversationId: options.turn.conversation_id, turn: options.turn.turn } : null }),
+        invocation: { plan: executionPlan, authorization, run_plan: plan, input: input.input as JsonValue, attachments, limits, archive_sha256: lease.archive_sha256, profile_id: plan.authorization.provenance?.profile_id ?? null, turn: options.turn },
         task_text: taskText(input.input),
         checkpoints: 0,
         progress: null,
@@ -486,7 +525,7 @@ export class RunManager {
       this.leases.set(runId, lease);
       this.deps.broadcast({ type: "event.run", runId, sessionId, status: "preparing" });
       try {
-        await this.deps.host.start(await this.startMessage(runId, sessionId, plan));
+        await this.deps.host.start({ ...(await this.startMessage(runId, sessionId, plan)), turn: options.turn });
       } catch (error) {
         const now = this.clock();
         const detail = `The execution host could not be started: ${error instanceof Error ? error.message : "error"}`;
@@ -496,6 +535,7 @@ export class RunManager {
         this.leases.delete(runId);
         this.deps.broadcast({ type: "event.run", runId, sessionId, status: failed?.record.status ?? "failed" });
         await this.deps.hooks.runSettled?.(stored.invocation.archive_sha256);
+        if (failed) await this.onTurnSettled?.(failed).catch(() => undefined);
         throw reject("execution_unavailable", detail, 503);
       }
       return this.view(stored);
@@ -631,6 +671,8 @@ export class RunManager {
     // memory.v0 M-29, M-50: the run's usage entries and its staged agent document reach the memory
     // now, or wait for the next unlock when the store locked meanwhile; never a run failure.
     await this.applyRunMemory(runId).catch(() => undefined);
+    // conversation.v0 (D-270): a turn's run settled; the conversation charges it.
+    if (run.invocation.turn) await this.onTurnSettled?.(run).catch(() => undefined);
     return { received: true };
   }
 
@@ -677,7 +719,7 @@ export class RunManager {
 
   // -- reads -----------------------------------------------------------------------------------
   private view(run: StoredRun): RunView {
-    return { ...run.record, taskText: run.task_text, sessionOpen: this.deps.hooks.isSessionOpen(run.session_id), profileId: run.invocation.profile_id };
+    return { ...run.record, taskText: run.task_text, sessionOpen: this.deps.hooks.isSessionOpen(run.session_id), profileId: run.invocation.profile_id, consentPending: run.consent_pending ?? null };
   }
 
   private summary(run: StoredRun): RunSummary {
@@ -694,6 +736,7 @@ export class RunManager {
       cancelRequested: run.record.cancelRequested,
       errorCode: run.record.errorCode,
       taskText: run.task_text,
+      conversation: run.record.conversation ?? null,
     };
   }
 

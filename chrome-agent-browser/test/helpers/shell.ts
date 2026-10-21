@@ -19,6 +19,7 @@ import { MemoryStorageArea, SettingsStorage } from "../../src/extension/storage/
 import { MemorySnapshotStore } from "../../src/extension/storage/snapshots.js";
 import { MemoryTabStateStore } from "../../src/extension/storage/tab-state.js";
 import { MemoryViewHolderStore } from "../../src/extension/storage/view-holders.js";
+import { MemoryConversationStore } from "../../src/extension/storage/conversations.js";
 import { MemoryRunStore } from "../../src/extension/storage/runs.js";
 import { MemoryFileStore } from "../../src/extension/storage/files.js";
 import type { ExecutionHostBridge } from "../../src/extension/background/runs.js";
@@ -180,6 +181,8 @@ export interface Harness {
   routes: Record<string, Route>;
   clock: { now: Date };
   runs: MemoryRunStore;
+  /** The conversations (T24), shared across "restarts" like the runs. */
+  conversations: MemoryConversationStore;
   host: InProcessHost;
   /** The picked PDFs (Settings → Files, T6). */
   files: MemoryFileStore;
@@ -211,6 +214,8 @@ export function makeHarness(
     catalogHttp?: Http;
     /** The run store (shared across "restarts"). */
     runs?: MemoryRunStore;
+    /** The conversation store (T24), shared across "restarts". */
+    conversations?: MemoryConversationStore;
     /** The execution host's transports: a scripted model and a scripted origin; without them every run fails at its first call. */
     transports?: { model: HttpTransport; tool: HttpTransport };
     /** A host that refuses to start (no offscreen document) or reports no execution capability. */
@@ -262,11 +267,13 @@ export function makeHarness(
   let runCounter = 0;
   const trust = new TrustStore(trustStorage, () => clock.now.toISOString());
   const runs = options.runs ?? new MemoryRunStore();
+  const conversations = options.conversations ?? new MemoryConversationStore();
   const files = options.files ?? new MemoryFileStore();
   const memoryStorage = options.memoryStorage ?? new MemoryMemoryStorage();
   const host = new InProcessHost({ runs, snapshots, files, model: options.transports?.model ?? refusingTransport(), tool: options.transports?.tool ?? refusingTransport(), builtin: options.builtinPort ?? null, now: () => clock.now, ...(options.hostOptions ?? {}) });
   const deps: ControllerDeps = {
     runs,
+    conversations,
     files,
     host: host as ExecutionHostBridge,
     runId: options.runIds ?? (() => `run_${String((runCounter += 1)).padStart(32, "0")}`),
@@ -304,7 +311,7 @@ export function makeHarness(
   };
   const controller = new Controller(deps);
   host.report = (type, runId) => controller.handle({ type, runId }, OFFSCREEN);
-  return { controller, snapshots, trustStorage, trust, tabs, holders, settingsArea, settings, httpLog, builtin, badges, events, fetchLog, routes, clock, runs, host, files, secrets, envelope, unlocked, permissions, keychain, native, memoryStorage, h_drain: () => host.drain() };
+  return { controller, snapshots, trustStorage, trust, tabs, holders, settingsArea, settings, httpLog, builtin, badges, events, fetchLog, routes, clock, runs, conversations, host, files, secrets, envelope, unlocked, permissions, keychain, native, memoryStorage, h_drain: () => host.drain() };
 }
 
 const EXTENSION_ORIGIN = "chrome-extension://abcdefghijklmnopabcdefghijklmnop";
