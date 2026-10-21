@@ -250,6 +250,9 @@ async function main() {
   const mapping = origin ? [`--host-resolver-rules=MAP ${origin.host} 127.0.0.1:${origin.port}`, `--ignore-certificate-errors-spki-list=${origin.spkiHash}`] : [];
   const chrome = spawn(args.chrome, ["--headless=new", "--remote-debugging-pipe", "--enable-unsafe-extension-debugging", `--user-data-dir=${profile}`, "--no-first-run", "--no-default-browser-check", "--window-size=1280,2200", ...mapping, "about:blank"], { stdio: ["ignore", "ignore", "ignore", "pipe", "pipe"] });
   const cdp = new Cdp(chrome);
+  /** The conversation a chat phase is on, and its export, reachable from the abort path below. */
+  let current = null;
+  let exportCurrent = async () => undefined;
   try {
     report.chrome = (await cdp.send("Browser.getVersion")).product;
     // A pre-granted copy of the build (D-196): the origins this harness drives, as the person would have allowed them.
@@ -477,9 +480,8 @@ async function main() {
       return { directory: relative(ROOT, directory), files: bundle.entries.map((entry) => ({ name: entry.name, bytes: entry.bytes, sha256: entry.sha256 })), conversation: { conversationId, status: view.status, ended: view.ended, outcome: view.outcome, spent: view.spent, state: view.state, limits: view.limits }, turns };
     };
     if (chat) report.conversations = {};
-    /** The conversation a phase is on, exported in `finally` below when the phase aborts (its files are the diagnosis). */
-    let current = null;
-    const exportCurrent = async () => {
+    // A phase that aborts leaves its conversation exported (its files are the diagnosis).
+    exportCurrent = async () => {
       if (!chat || !current || report.conversations[current.phase]) return;
       try {
         report.conversations[current.phase] = await exportConversation(current.phase, current.conversationId);
