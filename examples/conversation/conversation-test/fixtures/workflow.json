@@ -1,0 +1,64 @@
+{
+  "profile": "workflow.fixture.v0",
+  "input": {
+    "text": "Two tickets for Friday's show, please."
+  },
+  "models": {
+    "interpret": [
+      {
+        "input": {
+          "text": "Two tickets for Friday's show, please.",
+          "history": [],
+          "orders": []
+        },
+        "output": {
+          "intent": "order",
+          "show": "Friday's show",
+          "quantity": 2,
+          "reply": "Place an order for two tickets to Friday's show?"
+        }
+      },
+      {
+        "input": {
+          "text": "That's all, thanks.",
+          "history": [
+            {
+              "text": "Two tickets for Friday's show, please.",
+              "intent": "order"
+            }
+          ],
+          "orders": [
+            {
+              "order_id": "TD-0001",
+              "show": "Friday's show",
+              "quantity": 2,
+              "total_usd": 90
+            }
+          ]
+        },
+        "output": {
+          "intent": "done",
+          "show": null,
+          "quantity": null,
+          "reply": "You are all set: two tickets to Friday's show, order TD-0001. Goodbye!"
+        }
+      }
+    ]
+  },
+  "tools": {
+    "place-order": [
+      {
+        "input": {
+          "show": "Friday's show",
+          "quantity": 2
+        },
+        "output": {
+          "order_id": "TD-0001",
+          "show": "Friday's show",
+          "quantity": 2,
+          "total_usd": 90
+        }
+      }
+    ]
+  }
+}

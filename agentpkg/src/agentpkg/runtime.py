@@ -7,6 +7,7 @@ import copy
 import hashlib
 import json
 import re
+import time
 from collections import Counter
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
@@ -125,6 +126,9 @@ class Context:
     async def compute(self, operation, payload):
         return await self._runtime.call_compute(self, operation, payload)
 
+    async def consent(self, node, facts, text):
+        return await self._runtime.call_consent(self, node, facts, text)
+
     def event(self, action, **metadata):
         self._runtime._check_context(self)
         self._runtime.record(action, context=self, **metadata)
@@ -147,12 +151,17 @@ class Runtime:
         approved_tools=None,
         observer=None,
         memory=None,
+        turn=None,
     ):
         self.package = package
         # What the run holds about memory (memory.v0 §7): the scan set of the egress guards
         # (M-36, M-37), the grants, the proposals check and the agent document. None: no memory
         # at all, an empty scan set, nothing refused on that account.
         self.memory = memory
+        # conversation.v0 (§4): the turn this run is, when it is one: the conversation's audit
+        # chain to continue, the `once` grants earlier turns spent, the consent host, and the
+        # per-tool calls the conversation has left. None: an ordinary run.
+        self.turn = turn
         # A host may watch the audit as it is written, to report progress. The
         # observer receives a copy of each event after it is chained, cannot
         # change it, and cannot fail the run: its errors are discarded.
@@ -236,7 +245,27 @@ class Runtime:
         self._role_slots = {r: asyncio.Semaphore(v["max_instances"]) for r, v in self.roles.items()}
         self._active = 0
         self._peak = 0
-        self._once_used = set()
+        # A `once` grant is spent by its first use in the conversation (V-13): a later turn
+        # starts with what the earlier ones consumed.
+        self._once_used = set(turn.spent) if turn is not None else set()
+        # The gate (V-9): a tool linking a permission a consent step decides is dispatched only
+        # after that step was accepted in this turn; `_consents` holds this turn's decisions.
+        self._gated = {}
+        self._consents = {}
+        self.consent_decisions = []
+        if package.graph.get("conversation") is not None:
+            from .conversation.declarations import gated_permissions
+
+            self._gated = gated_permissions(package.graph)
+        if turn is not None:
+            for tool_id, remaining in (turn.tool_caps or {}).items():
+                if tool_id in self.budget["max_calls_per_tool"]:
+                    self.budget["max_calls_per_tool"][tool_id] = min(
+                        self.budget["max_calls_per_tool"][tool_id], remaining
+                    )
+        self._chain = turn.chain if turn is not None else None
+        if self._chain is not None:
+            self._sequence = self._chain.sequence
         self._halted = None
         self._root = self._context(self.coordinator, "coordinator", 0, None)
         self.record(
@@ -247,6 +276,7 @@ class Runtime:
             package_digest=package.digest,
             grant_scopes=self.grants,
             note="always grants apply only to this Runtime; no persistent grant store",
+            **({"spent_permissions": sorted(self._once_used)} if turn is not None else {}),
         )
 
     def _prepare_compute(self):
@@ -310,7 +340,17 @@ class Runtime:
             raise PolicyError("Unknown or expired execution context")
 
     def record(self, action, *, context=None, **metadata):
-        self._sequence += 1
+        chain = self._chain
+        if chain is not None:
+            # A turn continues its conversation's chain: the sequence and the previous hash are
+            # the chain's, and every event names the conversation and the turn (V-17).
+            self._sequence = chain.sequence + 1
+            previous = self.audit[-1]["event_hash"] if self.audit else chain.previous_hash
+            fields = chain.fields()
+        else:
+            self._sequence += 1
+            previous = self.audit[-1]["event_hash"] if self.audit else None
+            fields = {}
         event = {
             "schema_version": "audit.v0",
             "run_id": self.run_id,
@@ -322,11 +362,14 @@ class Runtime:
             "parent": context.parent if context else None,
             "depth": context.depth if context else 0,
             "node_id": operation_node_id(context),
-            "previous_hash": self.audit[-1]["event_hash"] if self.audit else None,
+            "previous_hash": previous,
+            **fields,
             **metadata,
         }
         event["event_hash"] = digest(event)
         self.audit.append(event)
+        if chain is not None:
+            chain.advance(event)
         if self._observer is not None:
             try:
                 self._observer(copy.deepcopy(event))
@@ -505,6 +548,7 @@ class Runtime:
                 raise
             async with self._lock:
                 self._authorize(tool["permissions"], context=ctx)
+                self._check_consent(ctx, tool_id, tool["permissions"])
                 self._scan_tool_arguments(ctx, tool_id, tool, payload)
                 cap = self.budget["max_calls_per_tool"].get(tool_id, 0)
                 if self._global.tool_calls[tool_id] >= cap:
@@ -660,6 +704,127 @@ class Runtime:
                 **facts,
             )
             raise
+
+    def _check_consent(self, ctx, tool_id, permission_ids):
+        """conversation.v0 V-9: a tool that links a permission a consent step decides runs only
+        after that step was accepted in this turn. Refused as a denied permission check naming
+        the reason: `consent_required` (no step decided it yet, or the step was not asked) or
+        `consent_denied` (the person said no)."""
+        for permission_id in permission_ids:
+            steps = self._gated.get(permission_id)
+            if not steps or self._consents.get(permission_id) is True:
+                continue
+            reason = "consent_denied" if permission_id in self._consents else "consent_required"
+            self.record(
+                "permission.checked",
+                context=ctx,
+                permission=permission_id,
+                grant=self.grants.get(permission_id, "deny"),
+                allowed=False,
+                reason=reason,
+                tool=tool_id,
+                consent_steps=list(steps),
+            )
+            raise PolicyError(
+                f"Tool {tool_id}: permission {permission_id} needs consent step(s) {steps} "
+                f"accepted in this turn ({reason})"
+            )
+
+    async def call_consent(self, ctx, node, facts, text):
+        """One consent step (conversation.v0 §3): show the facts and the sentence, wait for the
+        decision within the node's timeout, record it with its provenance, and remember it for
+        the tools this turn calls. The step consumes no grant; a tool call does. A step whose
+        permission the plan denies is never asked: it resolves denied with provenance `plan`
+        (V-12). The audit carries hashes; the transcript carries the text and the facts."""
+        from .conversation.declarations import MAX_TEXT_CHARS
+        from .conversation.host import ConsentRequest, check_decision
+
+        self._check_context(ctx)
+        step = node["id"]
+        permissions = list(node["permissions"])
+        if self.turn is None:
+            raise PolicyError(
+                f"consent_outside_conversation: step {step} needs a conversation turn to ask in"
+            )
+        if not isinstance(text, str) or not text.strip() or len(text) > MAX_TEXT_CHARS:
+            raise ValidationError(
+                f"consent step {step}: the text shown must be a non-empty string of at most "
+                f"{MAX_TEXT_CHARS} characters"
+            )
+        digest(facts)  # finite JSON only
+        self.record(
+            "consent.requested",
+            context=ctx,
+            node_id=step,
+            step=step,
+            permissions=permissions,
+            text_sha256=hashlib.sha256(text.encode("utf-8")).hexdigest(),
+            facts_hash=digest(facts),
+            timeout_seconds=node["timeout_seconds"],
+        )
+        started = time.monotonic()
+        denied = [p for p in permissions if self.grants.get(p, "deny") == "deny"]
+        try:
+            if denied:
+                decision = {"accepted": False, "decided_by": "plan", "reason": "permission_denied"}
+            else:
+                request = ConsentRequest(
+                    conversation_id=self.turn.conversation_id,
+                    turn=self.turn.turn,
+                    step=step,
+                    permissions=tuple(permissions),
+                    text=text,
+                    facts=copy.deepcopy(facts),
+                    timeout_seconds=node["timeout_seconds"],
+                )
+                decision = check_decision(await self.turn.consent.decide(request))
+            if decision["accepted"] and denied:
+                raise PolicyError(
+                    f"consent_not_authorized: step {step} was accepted for {denied}, which the "
+                    "plan denies; a consent step never widens the plan"
+                )
+        except BaseException as exc:
+            self.record(
+                "consent.failed",
+                context=ctx,
+                node_id=step,
+                step=step,
+                error=type(exc).__name__,
+                **failure_reason(exc),
+            )
+            raise
+        decided_at = datetime.now(UTC).isoformat()
+        for permission_id in permissions:
+            self._consents[permission_id] = decision["accepted"]
+        self.record(
+            "consent.decided",
+            context=ctx,
+            node_id=step,
+            step=step,
+            permissions=permissions,
+            accepted=decision["accepted"],
+            decided_by=decision["decided_by"],
+            reason=decision["reason"],
+            elapsed_ms=int((time.monotonic() - started) * 1000),
+        )
+        self.consent_decisions.append(
+            {
+                "step": step,
+                "permissions": permissions,
+                "accepted": decision["accepted"],
+                "decided_by": decision["decided_by"],
+                "reason": decision["reason"],
+                "decided_at": decided_at,
+                "text": text,
+                "facts": copy.deepcopy(facts),
+            }
+        )
+        return {"accepted": decision["accepted"]}
+
+    @property
+    def spent_permissions(self) -> set:
+        """The `once` grants this run consumed (earlier turns' included), for the next turn."""
+        return set(self._once_used)
 
     def _engine_facts(self, outcome) -> dict:
         """Which engine ran the call and what it measured; the figures are the engine's own

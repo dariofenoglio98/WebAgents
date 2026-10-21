@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "show": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "quantity": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 10
+    }
+  },
+  "required": [
+    "show",
+    "quantity"
+  ],
+  "additionalProperties": false
+}

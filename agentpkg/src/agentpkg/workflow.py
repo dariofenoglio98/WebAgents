@@ -71,6 +71,7 @@ class Workflow:
         approved_tools=None,
         observer=None,
         memory=None,
+        turn=None,
     ):
         # Recheck the exact payload, not mutable manifest/graph aliases supplied by callers.
         from .package import integrity_statement
@@ -92,6 +93,18 @@ class Workflow:
             memory = MemoryRun(self.package, [], dict(grants or {}))
         self._memory_report = None
         self._agent_outcome_recorded = False
+        # conversation.v0 (§4): a conversational graph runs turn by turn, each turn given its
+        # conversation's context; a plain run of it has no persisted state to start from.
+        self.turn = turn
+        conversation = graph.get("conversation")
+        if conversation is not None and turn is None:
+            raise PolicyError(
+                "conversation_turn_required: this package declares a conversation and runs turn "
+                "by turn (agentpkg converse)"
+            )
+        if conversation is None and turn is not None:
+            raise PolicyError("conversation_turn_unexpected: this package declares no conversation")
+        self._persisted = None
         self.runtime = Runtime(
             self.package,
             grants=grants,
@@ -101,6 +114,7 @@ class Workflow:
             approved_tools=approved_tools,
             observer=observer,
             memory=memory,
+            turn=turn,
         )
         self._used = False
         self._task = None
@@ -209,6 +223,19 @@ class Workflow:
                 error.compute = exc.facts()
                 raise error from exc
             except Exception as exc:
+                raise WorkflowError("worker_error", node["id"]) from exc
+        elif kind == "consent":
+            # conversation.v0: the person's decision on one bounded action, asked by the host
+            # within the node's timeout; its answer is the step's result. A host that answers
+            # outside the contract is the host's failure (`worker_error`), never the person's.
+            from .conversation.errors import ConsentError
+
+            text = evaluate(node["text"], env)
+            try:
+                result = await ctx.consent(node, value, text)
+            except (PolicyError, ValidationError, TimeoutError, asyncio.CancelledError):
+                raise
+            except ConsentError as exc:
                 raise WorkflowError("worker_error", node["id"]) from exc
         elif kind == "join":
             if not isinstance(value, list):
@@ -450,7 +477,11 @@ class Workflow:
             validate_instance(
                 self.package.files, self.graph["input_schema"], input_value, "workflow input"
             )
-            state = evaluate(self.graph["initial_state"], {"input": input_value})
+            env = {"input": input_value}
+            if self.turn is not None:
+                # The turn starts from the persisted state (conversation.v0 V-4).
+                env["conversation"] = copy.deepcopy(self.turn.state)
+            state = evaluate(self.graph["initial_state"], env)
             validate_instance(
                 self.package.files,
                 self.package.policy["memory"]["state_schema"],
@@ -497,6 +528,19 @@ class Workflow:
             validate_instance(
                 self.package.files, self.graph["output_schema"], self._output, "workflow output"
             )
+            if self.turn is not None:
+                # What outlives the turn (V-5): the persistent keys of the final state, checked
+                # against the conversation's state schema before the turn may complete.
+                conversation = self.graph["conversation"]
+                keys = self.package.json(conversation["state_schema"]).get("properties", {})
+                persisted = {key: copy.deepcopy(state[key]) for key in keys if key in state}
+                validate_instance(
+                    self.package.files,
+                    conversation["state_schema"],
+                    persisted,
+                    "conversation state",
+                )
+                self._persisted = persisted
             from .memory.proposals import PROPOSALS_EXPORT_FORMAT, ProposalRefusal
 
             for export in self.graph.get("exports", []):
@@ -518,6 +562,11 @@ class Workflow:
             result = self._report("completed") | {
                 "output": copy.deepcopy(self._output),
                 "state": copy.deepcopy(state),
+                **(
+                    {"conversation_state": copy.deepcopy(self._persisted)}
+                    if self.turn is not None
+                    else {}
+                ),
             }
             rt.clear()
             return result
@@ -591,9 +640,11 @@ class Workflow:
         }
 
     def _report(self, status):
+        turn = self.turn
         return {
             "status": status,
             **({"memory": self._memory_report} if self._memory_report is not None else {}),
+            **({"consents": copy.deepcopy(self.runtime.consent_decisions)} if turn else {}),
             "audit": self.runtime.audit,
             "usage": self.runtime.usage,
             "provenance": {
@@ -602,6 +653,11 @@ class Workflow:
                 "package_id": self.package.manifest["package_id"],
                 "package_digest": self.package.digest,
                 "synthetic": bool(getattr(self.runtime.router, "synthetic", False)),
+                **(
+                    {"conversation": {"conversation_id": turn.conversation_id, "turn": turn.turn}}
+                    if turn is not None
+                    else {}
+                ),
             },
         }
 

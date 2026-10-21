@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "conversation.v0 transcript (input form)",
+  "description": "What a host replays into a conversation: the messages in order and, per turn, the decisions for the consent steps the turn may reach. The package's conversation fixture is this document.",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "const": "conversation.transcript.v0"
+    },
+    "turns": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 256,
+      "items": {
+        "type": "object",
+        "properties": {
+          "message": {},
+          "consents": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string",
+              "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+            },
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "maxProperties": 64
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "end": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "schema",
+    "turns"
+  ],
+  "additionalProperties": false
+}

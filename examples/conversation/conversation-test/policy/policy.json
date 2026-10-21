@@ -1,0 +1,64 @@
+{
+  "spec_version": "0.1",
+  "permissions": [
+    {
+      "id": "model.reasoning",
+      "kind": "model",
+      "description": "Interpret each message with the model you choose.",
+      "required": true,
+      "resources": [
+        "host-router"
+      ]
+    },
+    {
+      "id": "memory.session",
+      "kind": "memory",
+      "description": "Use isolated session state for each turn.",
+      "required": true,
+      "resources": [
+        "session"
+      ]
+    },
+    {
+      "id": "orders.place",
+      "kind": "payment",
+      "description": "Place a ticket order at the fictional desk (a simulated purchase; nothing is charged). Asked again before every order.",
+      "required": false,
+      "resources": [
+        "ticket-desk"
+      ]
+    }
+  ],
+  "network": {
+    "allowed_domains": [],
+    "https_only": true,
+    "allow_redirects": false
+  },
+  "memory": {
+    "scope": "session",
+    "retention": "session",
+    "raw_documents": false,
+    "state_schema": "schemas/state.schema.json",
+    "sharing": "explicit_views"
+  },
+  "budget": {
+    "estimated_tokens": 600,
+    "hard_tokens": 6000,
+    "max_remote_calls": 0,
+    "max_calls_per_tool": {
+      "place-order": 1
+    },
+    "max_parallel_workers": 2,
+    "estimated_cost_usd": null,
+    "approval_threshold_tokens": null
+  },
+  "delegation": {
+    "max_depth": 1,
+    "approved_roles": [
+      "Clerk",
+      "Desk"
+    ],
+    "allow_remote": false
+  },
+  "extensions": {}
+}

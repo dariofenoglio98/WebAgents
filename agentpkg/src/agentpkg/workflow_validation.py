@@ -79,6 +79,10 @@ def validate_workflow(manifest, graph, policy, tools, files):
         # refuse the package by its version, with the reason a person can act on.
         raise ValidationError("answer checks require runtime.minimum_version 0.3.0 or later")
     from .compute.declarations import check_compute_declarations
+    from .conversation.declarations import (
+        check_conversation_declarations,
+        conversation_initial_env,
+    )
 
     # compute.v0 (agentpkg 0.5.0): the modules, the members, the nodes' functions and the
     # permission agree before anything else is checked; a graph without any of it passes.
@@ -155,8 +159,13 @@ def validate_workflow(manifest, graph, policy, tools, files):
                 root, path = env[source]
             _at_schema(root, parts, path, documents, label)
 
+    # conversation.v0 (agentpkg 0.6.0): a conversational graph's initial state also reads the
+    # persisted state, typed by the conversation's state schema; nowhere else (V-4).
     expression(
-        graph["initial_state"], {"input": schema(graph["input_schema"], "input")}, "initial_state"
+        graph["initial_state"],
+        {"input": schema(graph["input_schema"], "input")}
+        | conversation_initial_env(graph, documents, schema_paths),
+        "initial_state",
     )
 
     def operation(node, role, env, label, nid):
@@ -179,6 +188,9 @@ def validate_workflow(manifest, graph, policy, tools, files):
         kind = node["type"]
         if kind == "llm" and node["task"] not in tasks:
             raise ValidationError(f"{label}: undeclared model task {node['task']!r}")
+        if kind == "consent":
+            # The sentence shown is constructed like the input, under the same scope rules.
+            expression(node["text"], env, label + "/text", role, nid)
         if kind == "compute":
             # The constructed input is checked against the module's own input contract before
             # the call, as a tool's is; both schemas are declared package schemas.
@@ -293,3 +305,18 @@ def validate_workflow(manifest, graph, policy, tools, files):
                         case[field],
                         f"fixture tool {tid} {field}",
                     )
+    # conversation.v0: the conversation object, the consent steps, the gate before every tool
+    # that links a consented permission, and the fixture transcript; a graph without a
+    # conversation passes (and may hold no consent step).
+    check_conversation_declarations(
+        manifest,
+        graph,
+        policy,
+        tools,
+        files,
+        documents=documents,
+        schema=schema,
+        expression=expression,
+        ancestors=ancestors,
+        nodes=nodes,
+    )

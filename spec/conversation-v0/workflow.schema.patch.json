@@ -1,0 +1,247 @@
+[
+  {
+    "op": "add",
+    "path": "/properties/conversation",
+    "value": {
+      "type": "object",
+      "properties": {
+        "state_schema": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-][A-Za-z0-9_.-]*(?:/[A-Za-z0-9_-][A-Za-z0-9_.-]*)*$",
+          "maxLength": 240
+        },
+        "initial": {
+          "$ref": "#/$defs/value"
+        },
+        "budget": {
+          "type": "object",
+          "properties": {
+            "max_turns": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 256
+            },
+            "hard_tokens": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            },
+            "max_remote_calls": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 2147483647
+            },
+            "max_calls_per_tool": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string",
+                "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+              },
+              "additionalProperties": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 2147483647
+              },
+              "maxProperties": 512
+            }
+          },
+          "required": [
+            "max_turns",
+            "hard_tokens",
+            "max_remote_calls"
+          ],
+          "additionalProperties": false
+        },
+        "end": {
+          "type": "object",
+          "properties": {
+            "when": {
+              "$ref": "#/$defs/condition"
+            }
+          },
+          "required": [
+            "when"
+          ],
+          "additionalProperties": false
+        },
+        "fixture": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-][A-Za-z0-9_.-]*(?:/[A-Za-z0-9_-][A-Za-z0-9_.-]*)*$",
+          "maxLength": 240
+        }
+      },
+      "required": [
+        "state_schema",
+        "initial",
+        "budget"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "op": "add",
+    "path": "/$defs/value/oneOf/1/properties/from/enum/-",
+    "value": "conversation"
+  },
+  {
+    "op": "add",
+    "path": "/$defs/node/properties/type/enum/-",
+    "value": "consent"
+  },
+  {
+    "op": "add",
+    "path": "/$defs/node/properties/permissions",
+    "value": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+      }
+    }
+  },
+  {
+    "op": "add",
+    "path": "/$defs/node/properties/text",
+    "value": {
+      "$ref": "#/$defs/value"
+    }
+  },
+  {
+    "op": "add",
+    "path": "/$defs/node/allOf/-",
+    "value": {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "consent"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "permissions",
+          "text"
+        ],
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "task"
+              ]
+            },
+            {
+              "required": [
+                "max_output_tokens"
+              ]
+            },
+            {
+              "required": [
+                "tool"
+              ]
+            },
+            {
+              "required": [
+                "item_schema"
+              ]
+            },
+            {
+              "required": [
+                "max_items"
+              ]
+            },
+            {
+              "required": [
+                "max_parallel"
+              ]
+            },
+            {
+              "required": [
+                "steps"
+              ]
+            },
+            {
+              "required": [
+                "yield"
+              ]
+            },
+            {
+              "required": [
+                "select"
+              ]
+            },
+            {
+              "required": [
+                "unique_by"
+              ]
+            },
+            {
+              "required": [
+                "limit"
+              ]
+            },
+            {
+              "required": [
+                "assertions"
+              ]
+            },
+            {
+              "required": [
+                "checks"
+              ]
+            },
+            {
+              "required": [
+                "module"
+              ]
+            },
+            {
+              "required": [
+                "function"
+              ]
+            },
+            {
+              "required": [
+                "input_schema"
+              ]
+            },
+            {
+              "required": [
+                "limits"
+              ]
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "op": "add",
+    "path": "/$defs/node/allOf/-",
+    "value": {
+      "if": {
+        "anyOf": [
+          {
+            "required": [
+              "permissions"
+            ]
+          },
+          {
+            "required": [
+              "text"
+            ]
+          }
+        ]
+      },
+      "then": {
+        "properties": {
+          "type": {
+            "const": "consent"
+          }
+        }
+      }
+    }
+  }
+]

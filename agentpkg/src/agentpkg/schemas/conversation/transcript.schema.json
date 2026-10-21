@@ -1,0 +1,333 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "conversation.v0 transcript (output form)",
+  "description": "What a conversation leaves behind: every turn with its message, the consent decisions as they were taken and by whom, the reply, the usage; then the persisted state, the budget and how the conversation ended. The audit chain beside it is the proof; the transcript is the person's record.",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "const": "conversation.transcript.v0"
+    },
+    "conversation_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "package": {
+      "type": "object",
+      "properties": {
+        "package_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+        },
+        "version": {
+          "type": "string"
+        },
+        "digest": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      },
+      "required": [
+        "package_id",
+        "version",
+        "digest"
+      ],
+      "additionalProperties": false
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "turns": {
+      "type": "array",
+      "maxItems": 256,
+      "items": {
+        "type": "object",
+        "properties": {
+          "turn": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 256
+          },
+          "run_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "enum": [
+              "completed",
+              "failed",
+              "cancelled",
+              "refused"
+            ]
+          },
+          "error_code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "refusal": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[a-z][a-z0-9_]{0,63}$"
+          },
+          "message": {},
+          "consents": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string",
+              "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+            },
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "maxProperties": 64
+          },
+          "decisions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "step": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+                },
+                "permissions": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+                  },
+                  "minItems": 1,
+                  "maxItems": 8
+                },
+                "accepted": {
+                  "type": "boolean"
+                },
+                "decided_by": {
+                  "enum": [
+                    "person",
+                    "transcript",
+                    "plan",
+                    "host",
+                    "preset",
+                    "policy"
+                  ]
+                },
+                "reason": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "pattern": "^[a-z][a-z0-9_]{0,63}$"
+                },
+                "decided_at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "text": {
+                  "type": "string",
+                  "maxLength": 2000
+                },
+                "facts": {}
+              },
+              "required": [
+                "step",
+                "permissions",
+                "accepted",
+                "decided_by",
+                "reason",
+                "decided_at",
+                "text",
+                "facts"
+              ],
+              "additionalProperties": false
+            },
+            "maxItems": 64
+          },
+          "unused_consents": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+            },
+            "maxItems": 64
+          },
+          "reply": {},
+          "usage": {
+            "type": "object",
+            "properties": {
+              "tokens": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "remote_calls": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "tool_calls": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            },
+            "required": [
+              "tokens",
+              "remote_calls",
+              "tool_calls"
+            ],
+            "additionalProperties": false
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "ended_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "turn",
+          "status",
+          "message",
+          "consents",
+          "decisions",
+          "unused_consents",
+          "reply",
+          "error_code",
+          "refusal",
+          "usage",
+          "started_at",
+          "ended_at"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "state": {},
+    "budget": {
+      "type": "object",
+      "properties": {
+        "limits": {
+          "type": "object",
+          "properties": {
+            "max_turns": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "hard_tokens": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "max_remote_calls": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "max_calls_per_tool": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          },
+          "required": [
+            "max_turns",
+            "hard_tokens",
+            "max_remote_calls",
+            "max_calls_per_tool"
+          ],
+          "additionalProperties": false
+        },
+        "spent": {
+          "type": "object",
+          "properties": {
+            "turns": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "tokens": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "remote_calls": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "tool_calls": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          },
+          "required": [
+            "turns",
+            "tokens",
+            "remote_calls",
+            "tool_calls"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "limits",
+        "spent"
+      ],
+      "additionalProperties": false
+    },
+    "spent_permissions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+      }
+    },
+    "ended": {
+      "type": "object",
+      "properties": {
+        "reason": {
+          "enum": [
+            "person",
+            "package",
+            "max_turns",
+            "budget",
+            "host"
+          ]
+        },
+        "at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "turns_not_run": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 256
+        }
+      },
+      "required": [
+        "reason",
+        "at",
+        "turns_not_run"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "schema",
+    "conversation_id",
+    "package",
+    "started_at",
+    "turns",
+    "state",
+    "budget",
+    "spent_permissions",
+    "ended"
+  ],
+  "additionalProperties": false
+}

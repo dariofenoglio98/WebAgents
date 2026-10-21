@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "The clerk's reading of a message",
+  "type": "object",
+  "properties": {
+    "intent": {
+      "enum": [
+        "order",
+        "chat",
+        "done"
+      ]
+    },
+    "show": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 200
+    },
+    "quantity": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 1,
+      "maximum": 10
+    },
+    "reply": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000
+    }
+  },
+  "required": [
+    "intent",
+    "show",
+    "quantity",
+    "reply"
+  ],
+  "additionalProperties": false
+}

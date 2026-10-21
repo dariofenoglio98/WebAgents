@@ -219,6 +219,55 @@ def parser():
         help="Grant one record of --memory-dir to a memory.read (or personal.read) permission",
     )
     run.add_argument("--out", required=True, help="New private output directory")
+    converse = commands.add_parser(
+        "converse",
+        help=(
+            "Run a conversation.v0 package turn by turn: a transcript of messages and consent "
+            "decisions in, a transcript, the persisted state and one audit chain out"
+        ),
+    )
+    converse.add_argument("package")
+    converse.add_argument(
+        "--transcript",
+        help=(
+            "The input transcript (conversation.transcript.v0: messages in order, per turn the "
+            "decisions of the consent steps it may reach); in fixture mode the package's own "
+            "conversation fixture is replayed when this is absent"
+        ),
+    )
+    converse.add_argument("--mode", choices=["fixture", "live"], default="fixture")
+    converse.add_argument(
+        "--grants",
+        required=True,
+        help=(
+            "Host JSON map of permission IDs to once/session/always/deny; a `once` grant is "
+            "spent by its first use in the conversation"
+        ),
+    )
+    converse.add_argument("--router-config", help="Host router configuration (live mode)")
+    converse.add_argument("--trust-key", help="Required for live mode; verifies the publisher")
+    converse.add_argument(
+        "--approve-tool", action="append", default=[], metavar="TOOL_ID", help="As for run"
+    )
+    converse.add_argument("--selected-files", help="As for run")
+    converse.add_argument("--resolver-base-url", help="As for run")
+    converse.add_argument(
+        "--limits",
+        help=(
+            "Optional host JSON limits: the turn's (as for run) and the conversation's "
+            "conversation_max_turns, conversation_total_tokens, conversation_max_remote_calls; "
+            "each can only lower the package's"
+        ),
+    )
+    converse.add_argument("--memory-dir", help="As for run; the same folder serves every turn")
+    converse.add_argument(
+        "--memory-grant",
+        action="append",
+        default=[],
+        metavar="PERMISSION=RECORD",
+        help="As for run",
+    )
+    converse.add_argument("--out", required=True, help="New private output directory")
     evaluate = commands.add_parser(
         "eval", help="Run the supported host evaluation harness with explicit synthetic fixtures"
     )
@@ -383,6 +432,8 @@ def _dispatch(args):
         return inspect_package(package)
     if command == "permissions":
         return permissions_summary(package)
+    if command == "converse":
+        return _converse(args, package)
     if command in ("run", "eval"):
         from .fixtures import fixture_adapters
         from .workflow import run_workflow
@@ -391,6 +442,12 @@ def _dispatch(args):
             raise AgentPkgError(
                 "Generic execution requires workflow.v0; use agentpkg-legacy "
                 "for the archived development profile"
+            )
+        if package.graph.get("conversation") is not None:
+            # conversation.v0: a turn starts from a persisted state a single run does not have.
+            raise AgentPkgError(
+                "conversation_profile: this package declares a conversation and runs turn by "
+                "turn; use agentpkg converse"
             )
         mode = args.mode if command == "run" else "fixture"
         if mode == "live" and not args.trust_key:
@@ -493,6 +550,123 @@ def _dispatch(args):
     raise AgentPkgError(f"Unsupported command: {command}")
 
 
+def _converse(args, package):
+    """`agentpkg converse`: one conversation of a conversation.v0 package from a transcript.
+
+    The host here is the operator: the grants are the plan's decisions for the whole conversation,
+    the transcript's consent decisions stand for the person's, and each turn's adapters are the
+    ones `run` would build (fixture replay, or the live router and handlers over the same memory
+    folder). Every turn's artifacts go to `turn-NNN/` under `--out` as the turn ends; the
+    conversation's transcript, state, one audit chain, usage and provenance are written last.
+    """
+    from .artifacts import artifact_records, write_artifacts
+    from .conversation import Conversation
+    from .conversation.transcript import check_transcript, read_input_transcript
+    from .fixtures import fixture_adapters
+    from .memory.host import cli_memory
+    from .package import create_directory
+
+    if package.graph.get("conversation") is None:
+        raise AgentPkgError(
+            "conversation_profile_required: this package declares no conversation; use agentpkg run"
+        )
+    mode = args.mode
+    if mode == "live" and not args.trust_key:
+        raise AgentPkgError("Live run requires a signed artifact and --trust-key PUBLIC_KEY")
+    if args.trust_key:
+        verified = verify_package(args.package, trusted_key=args.trust_key)
+        if verified["digest"] != package.digest:
+            raise AgentPkgError("Package changed between loading and signature verification")
+    if args.transcript:
+        transcript = read_input_transcript(args.transcript)
+    elif mode == "fixture" and package.graph["conversation"].get("fixture"):
+        transcript = package.json(package.graph["conversation"]["fixture"])
+    else:
+        raise AgentPkgError(
+            "A conversation needs --transcript (in fixture mode the package's conversation "
+            "fixture serves when it declares one)"
+        )
+    grants = _json_file(args.grants)
+    approved = sorted(set(args.approve_tool or ()))
+    unknown = sorted(set(approved) - set(package.tools))
+    if unknown:
+        raise AgentPkgError(f"--approve-tool names tools this package does not declare: {unknown}")
+    check_transcript(transcript, package, grants)
+    if mode == "fixture":
+        router, handlers, _ = fixture_adapters(package)
+    else:
+        from .models import HTTPRouter
+        from .tools import create_handlers
+
+        if not args.router_config:
+            raise AgentPkgError("Live conversation requires --router-config")
+        router = HTTPRouter.from_config(args.router_config)
+        handlers = create_handlers(
+            package,
+            selected_files=(_json_file(args.selected_files) if args.selected_files else None),
+            resolver_base_url=args.resolver_base_url,
+        )
+
+    def adapters(turn):
+        # A fresh memory run per turn over the same folder (M-50 per turn, V-13).
+        memory_run, _folder, memory_handlers = cli_memory(
+            package,
+            mode=mode,
+            decisions=grants,
+            memory_dir=args.memory_dir,
+            memory_grants=args.memory_grant or (),
+        )
+        return {
+            "router": router,
+            "handlers": {**handlers, **memory_handlers} if mode == "live" else handlers,
+            "memory": memory_run,
+        }
+
+    out = Path(args.out)
+    if out.exists() or out.is_symlink() or not out.parent.is_dir():
+        raise ValidationError("--out must name a new directory under an existing parent")
+    create_directory(out)
+
+    def on_turn(index, report, status):
+        records = artifact_records(report, package if status == "completed" else None)
+        write_artifacts(out / f"turn-{index:03d}", records)
+
+    conversation = Conversation(
+        package,
+        grants=grants,
+        approved_tools=approved,
+        adapters=adapters,
+        limits=_json_file(args.limits) if args.limits else None,
+        on_turn=on_turn,
+    )
+    result = asyncio.run(conversation.run(transcript))
+    for name, value in (
+        ("transcript.json", result["transcript"]),
+        ("state.json", result["state"]),
+        ("audit.json", result["audit"]),
+        ("usage.json", result["usage"]),
+        ("provenance.json", result["provenance"]),
+    ):
+        data = (json.dumps(value, ensure_ascii=False, indent=2, allow_nan=False) + "\n").encode()
+        write_new(out / name, data, mode=0o600)
+    return {
+        "status": result["status"],
+        "profile": "conversation.v0",
+        "conversation_id": result["provenance"]["conversation_id"],
+        "output_directory": args.out,
+        "turns": [
+            {"turn": t["turn"], "status": t["status"]} for t in result["transcript"]["turns"]
+        ],
+        "ended": result["ended"],
+        "usage": {
+            key: result["usage"][key] for key in ("turns", "tokens", "remote_calls", "tool_calls")
+        },
+        "approved_tools": approved,
+        "fixture_replay": mode == "fixture",
+        "passed": result["status"] == "completed",
+    }
+
+
 def main(argv=None):
     args = parser().parse_args(argv)
     try:
@@ -500,7 +674,7 @@ def main(argv=None):
         if isinstance(result, _Exit):
             return int(result)
         _print(result)
-        if args.command == "eval" and result.get("passed") is False:
+        if args.command in ("eval", "converse") and result.get("passed") is False:
             return 1
         return 0
     except (AgentPkgError, OSError, ValueError) as exc:

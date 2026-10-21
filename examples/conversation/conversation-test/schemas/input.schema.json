@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "A message to the ticket desk",
+  "type": "object",
+  "properties": {
+    "text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000,
+      "description": "What you want to tell the desk."
+    }
+  },
+  "required": [
+    "text"
+  ],
+  "additionalProperties": false
+}

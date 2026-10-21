@@ -32,6 +32,7 @@ from ..package import canonical_json, sha256
 from .errors import (
     COMPUTE_LIMIT_EXCEEDED,
     COMPUTE_NOT_SUPPORTED,
+    CONVERSATION_NOT_SUPPORTED,
     EXPORT_PATH_RESERVED,
     GRANT_UNSUPPORTED,
     MODEL_INCOMPATIBLE,
@@ -282,6 +283,18 @@ def check_capabilities(
     declared and must not also be bound.
     """
     graph = package.graph
+    if graph.get("conversation") is not None:
+        # conversation.v0: a turn needs the persisted state, a consent host and the chain of the
+        # turns before it; this host runs one invocation and holds none of them.
+        raise ExecutionError(
+            CONVERSATION_NOT_SUPPORTED,
+            "This package is a conversation (conversation.v0) and this execution host runs a "
+            "package once per invocation, with no consent host and no state between turns. "
+            "This is a limit of the host, not of the package format.",
+            detail={
+                "consent_steps": [n["id"] for n in graph["nodes"] if n["type"] == "consent"][:32]
+            },
+        )
     declared_tools = [tool["id"] for tool in package.manifest["tools"]]
     tool_nodes = [name for name, op in _operations(graph) if op["type"] == "tool"]
     implemented = {binding["tool_id"] for binding in tool_bindings}

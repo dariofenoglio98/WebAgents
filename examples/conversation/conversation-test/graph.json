@@ -1,0 +1,407 @@
+{
+  "spec_version": "0.1",
+  "profile": "workflow.v0",
+  "coordinator": "Coordinator",
+  "workers": [
+    {
+      "id": "Coordinator",
+      "kind": "packaged",
+      "skills": [],
+      "tools": [],
+      "max_instances": 1,
+      "budget": {
+        "tokens": 0,
+        "remote_calls": 0
+      },
+      "state_read": [
+        "request",
+        "history",
+        "orders",
+        "interpretation",
+        "decision",
+        "order",
+        "reply"
+      ],
+      "state_write": [
+        "decision",
+        "orders",
+        "history",
+        "reply"
+      ]
+    },
+    {
+      "id": "Clerk",
+      "kind": "packaged",
+      "skills": [
+        "desk"
+      ],
+      "tools": [],
+      "max_instances": 1,
+      "budget": {
+        "tokens": 6000,
+        "remote_calls": 0
+      },
+      "state_read": [
+        "request",
+        "history",
+        "orders"
+      ],
+      "state_write": [
+        "interpretation"
+      ]
+    },
+    {
+      "id": "Desk",
+      "kind": "packaged",
+      "skills": [],
+      "tools": [
+        "place-order"
+      ],
+      "max_instances": 1,
+      "budget": {
+        "tokens": 0,
+        "remote_calls": 0
+      },
+      "state_read": [
+        "interpretation",
+        "decision"
+      ],
+      "state_write": [
+        "order"
+      ]
+    }
+  ],
+  "input_schema": "schemas/input.schema.json",
+  "output_schema": "schemas/output.schema.json",
+  "initial_state": {
+    "object": {
+      "request": {
+        "from": "input",
+        "path": ""
+      },
+      "history": {
+        "from": "conversation",
+        "path": "/history"
+      },
+      "orders": {
+        "from": "conversation",
+        "path": "/orders"
+      },
+      "interpretation": {
+        "literal": null
+      },
+      "decision": {
+        "literal": null
+      },
+      "order": {
+        "literal": null
+      },
+      "reply": {
+        "literal": null
+      }
+    }
+  },
+  "deadline_seconds": 120,
+  "conversation": {
+    "state_schema": "schemas/conversation-state.schema.json",
+    "initial": {
+      "literal": {
+        "history": [],
+        "orders": []
+      }
+    },
+    "budget": {
+      "max_turns": 4,
+      "hard_tokens": 20000,
+      "max_remote_calls": 0,
+      "max_calls_per_tool": {
+        "place-order": 1
+      }
+    },
+    "end": {
+      "when": {
+        "left": {
+          "from": "result",
+          "path": "/intent"
+        },
+        "op": "eq",
+        "right": {
+          "literal": "done"
+        }
+      }
+    },
+    "fixture": "fixtures/transcript.json"
+  },
+  "fixture": "fixtures/workflow.json",
+  "exports": [
+    {
+      "path": "reply.json",
+      "format": "json",
+      "value": {
+        "from": "result",
+        "path": ""
+      }
+    }
+  ],
+  "nodes": [
+    {
+      "id": "interpret",
+      "type": "llm",
+      "worker": "Clerk",
+      "depends_on": [],
+      "task": "interpret",
+      "max_output_tokens": 400,
+      "input": {
+        "object": {
+          "text": {
+            "from": "state",
+            "path": "/request/text"
+          },
+          "history": {
+            "from": "state",
+            "path": "/history"
+          },
+          "orders": {
+            "from": "state",
+            "path": "/orders"
+          }
+        }
+      },
+      "output_schema": "schemas/interpretation.schema.json",
+      "timeout_seconds": 60,
+      "writes": {
+        "/interpretation": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "id": "confirm-order",
+      "type": "consent",
+      "worker": "Coordinator",
+      "depends_on": [
+        "interpret"
+      ],
+      "when": {
+        "left": {
+          "from": "state",
+          "path": "/interpretation/intent"
+        },
+        "op": "eq",
+        "right": {
+          "literal": "order"
+        }
+      },
+      "otherwise": {
+        "literal": {
+          "accepted": false
+        }
+      },
+      "permissions": [
+        "orders.place"
+      ],
+      "text": {
+        "from": "state",
+        "path": "/interpretation/reply"
+      },
+      "input": {
+        "object": {
+          "show": {
+            "from": "state",
+            "path": "/interpretation/show"
+          },
+          "quantity": {
+            "from": "state",
+            "path": "/interpretation/quantity"
+          }
+        }
+      },
+      "output_schema": "schemas/consent-decision.schema.json",
+      "timeout_seconds": 60,
+      "writes": {
+        "/decision": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "id": "place-order",
+      "type": "tool",
+      "worker": "Desk",
+      "depends_on": [
+        "confirm-order"
+      ],
+      "tool": "place-order",
+      "when": {
+        "left": {
+          "from": "state",
+          "path": "/decision/accepted"
+        },
+        "op": "eq",
+        "right": {
+          "literal": true
+        }
+      },
+      "otherwise": {
+        "literal": null
+      },
+      "input": {
+        "object": {
+          "show": {
+            "from": "state",
+            "path": "/interpretation/show"
+          },
+          "quantity": {
+            "from": "state",
+            "path": "/interpretation/quantity"
+          }
+        }
+      },
+      "output_schema": "schemas/order-result.schema.json",
+      "timeout_seconds": 20,
+      "writes": {
+        "/order": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "id": "orders",
+      "type": "join",
+      "worker": "Coordinator",
+      "depends_on": [
+        "place-order"
+      ],
+      "when": {
+        "left": {
+          "from": "state",
+          "path": "/order"
+        },
+        "op": "ne",
+        "right": {
+          "literal": null
+        }
+      },
+      "otherwise": {
+        "from": "state",
+        "path": "/orders"
+      },
+      "input": {
+        "array": [
+          {
+            "from": "state",
+            "path": "/orders"
+          },
+          {
+            "array": [
+              {
+                "from": "state",
+                "path": "/order"
+              }
+            ]
+          }
+        ]
+      },
+      "output_schema": "schemas/orders.schema.json",
+      "timeout_seconds": 10,
+      "writes": {
+        "/orders": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "id": "history",
+      "type": "join",
+      "worker": "Coordinator",
+      "depends_on": [
+        "interpret"
+      ],
+      "input": {
+        "array": [
+          {
+            "from": "state",
+            "path": "/history"
+          },
+          {
+            "array": [
+              {
+                "object": {
+                  "text": {
+                    "from": "state",
+                    "path": "/request/text"
+                  },
+                  "intent": {
+                    "from": "state",
+                    "path": "/interpretation/intent"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "output_schema": "schemas/history.schema.json",
+      "timeout_seconds": 10,
+      "writes": {
+        "/history": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "id": "assemble",
+      "type": "validate",
+      "worker": "Coordinator",
+      "depends_on": [
+        "orders",
+        "history"
+      ],
+      "input": {
+        "object": {
+          "reply": {
+            "from": "state",
+            "path": "/interpretation/reply"
+          },
+          "intent": {
+            "from": "state",
+            "path": "/interpretation/intent"
+          },
+          "order": {
+            "from": "state",
+            "path": "/order"
+          }
+        }
+      },
+      "output_schema": "schemas/reply.schema.json",
+      "timeout_seconds": 10,
+      "writes": {
+        "/reply": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "id": "output",
+      "type": "output",
+      "worker": "Coordinator",
+      "depends_on": [
+        "assemble"
+      ],
+      "input": {
+        "from": "state",
+        "path": "/reply"
+      },
+      "output_schema": "schemas/output.schema.json",
+      "timeout_seconds": 10,
+      "writes": {}
+    }
+  ],
+  "extensions": {}
+}

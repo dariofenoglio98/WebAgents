@@ -1,0 +1,108 @@
+{
+  "spec_version": "0.1",
+  "package_id": "org.webagents.conversation-test",
+  "name": "Ticket Desk",
+  "version": "0.1.0",
+  "description": "A test package for conversation.v0: a fictional ticket desk you talk to across turns. It remembers the conversation's history and the orders placed, asks for your consent before placing an order (a write tool behind a consent step), and ends when you say you are done. Fictional data; used by the test suites and the conformance suite, never shipped.",
+  "publisher": {
+    "id": "webagents-research",
+    "name": "WebAgents Research Prototype"
+  },
+  "created_at": "2026-10-21T00:00:00Z",
+  "runtime": {
+    "api": "agentpkg-runtime-v0",
+    "minimum_version": "0.6.0"
+  },
+  "capabilities": [
+    "conversation-test"
+  ],
+  "entrypoint": "workflow.v0",
+  "graph": "graph.json",
+  "policy": "policy/policy.json",
+  "skills": [
+    {
+      "id": "desk",
+      "version": "0.1.0",
+      "path": "skills/desk/SKILL.md"
+    }
+  ],
+  "tools": [
+    {
+      "id": "place-order",
+      "path": "tools/place-order.tool.json"
+    }
+  ],
+  "schemas": [
+    {
+      "id": "input",
+      "path": "schemas/input.schema.json"
+    },
+    {
+      "id": "state",
+      "path": "schemas/state.schema.json"
+    },
+    {
+      "id": "conversation-state",
+      "path": "schemas/conversation-state.schema.json"
+    },
+    {
+      "id": "interpretation",
+      "path": "schemas/interpretation.schema.json"
+    },
+    {
+      "id": "consent-decision",
+      "path": "schemas/consent-decision.schema.json"
+    },
+    {
+      "id": "order-input",
+      "path": "schemas/order-input.schema.json"
+    },
+    {
+      "id": "order",
+      "path": "schemas/order.schema.json"
+    },
+    {
+      "id": "order-result",
+      "path": "schemas/order-result.schema.json"
+    },
+    {
+      "id": "history",
+      "path": "schemas/history.schema.json"
+    },
+    {
+      "id": "orders",
+      "path": "schemas/orders.schema.json"
+    },
+    {
+      "id": "reply",
+      "path": "schemas/reply.schema.json"
+    },
+    {
+      "id": "output",
+      "path": "schemas/output.schema.json"
+    }
+  ],
+  "model_requirements": {
+    "tasks": [
+      {
+        "id": "interpret",
+        "capabilities": [
+          "structured_output"
+        ],
+        "context_window": 8000,
+        "preferred_tier": "reasoning"
+      }
+    ],
+    "routing": "host",
+    "fallback_policy": "deny",
+    "extensions": {}
+  },
+  "evals": [],
+  "attestations": [],
+  "dependencies": [],
+  "update": {
+    "channel": "local",
+    "locator": null
+  },
+  "extensions": {}
+}

@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "text": {
+        "type": "string",
+        "maxLength": 1000
+      },
+      "intent": {
+        "enum": [
+          "order",
+          "chat",
+          "done"
+        ]
+      }
+    },
+    "required": [
+      "text",
+      "intent"
+    ],
+    "additionalProperties": false
+  },
+  "maxItems": 256
+}
