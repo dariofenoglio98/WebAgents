@@ -106,12 +106,18 @@ def main() -> int:
     )
     archive = EXAMPLES / "conversation-test.agent.pkg"
     if archive.exists():
-        built = load_package(archive)
+        from agentpkg.package import build_package
+
+        # The builder canonicalizes JSON, so the source's digest is compared through a rebuild.
+        with tempfile.TemporaryDirectory() as scratch:
+            target = Path(scratch).resolve() / "rebuilt.agent.pkg"  # no symlinked /var
+            rebuilt = load_package(build_package(source, target))
+        signed = load_package(archive)
         _check(
             report,
             "conversation-test archive is its source",
-            built.digest == package.digest,
-            built.digest,
+            rebuilt.digest == signed.digest and signed.signature is not None,
+            signed.digest,
         )
     grants = load_json(EXAMPLES / "conversation-test-grants.json")
     router, handlers, _ = fixture_adapters(package)
