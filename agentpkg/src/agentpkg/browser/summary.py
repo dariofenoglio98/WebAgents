@@ -111,6 +111,8 @@ def _node_facts(node: dict) -> dict:
         "function",
         "input_schema",
         "limits",
+        # conversation.v0: the permissions a consent step decides.
+        "permissions",
     ):
         if optional in node:
             facts[optional] = node[optional]
@@ -182,10 +184,19 @@ def _workflow(package: Package) -> dict:
             for export in graph.get("exports", [])
         ],
         "fixture_declared": "fixture" in graph,
+        # conversation.v0 (V-20): the turns, the persistent keys, the consent steps and the
+        # permissions they decide, for the agent page; None for a one-shot package.
+        "conversation": _conversation(package),
         # The task a person fills in, and the package's cosmetic hints for it.
         "input": input_form(package),
         "presentation": presentation_hints(package)[0],
     }
+
+
+def _conversation(package: Package) -> dict | None:
+    from ..conversation.declarations import conversation_records
+
+    return conversation_records(package)
 
 
 def _evals(package: Package) -> list:
@@ -339,6 +350,23 @@ def warnings(package: Package, evaluation: dict, publisher: dict) -> list:
                 f"module(s) {named or 'none'}, with no imports, run under this host's memory, "
                 "time and fuel bounds on the data the graph gives them.",
             )
+    conversation = _conversation(package)
+    if conversation is not None:
+        # conversation.v0 (V-20): what a person agrees to when they start a conversation, in
+        # words: how many turns at most, what is kept between turns, and which steps will ask.
+        steps = ", ".join(
+            f"{step['id']} (before {', '.join(step['permissions'])})"
+            for step in conversation["consent_steps"]
+        )
+        warn(
+            "conversational_package",
+            "info",
+            f"The package is a conversation of at most {conversation['budget']['max_turns']} "
+            f"turns, within {conversation['budget']['hard_tokens']} tokens and "
+            f"{conversation['budget']['max_remote_calls']} remote calls in all; it keeps "
+            f"{', '.join(conversation['persistent_keys']) or 'nothing'} between turns, and asks "
+            f"you before: {steps or 'nothing'}.",
+        )
     remote = [tool for tool in package.tools.values() if tool["execution"] == "remote"]
     if remote:
         domains = sorted({domain for tool in remote for domain in tool["domains"]})

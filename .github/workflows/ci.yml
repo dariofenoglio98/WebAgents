@@ -91,7 +91,7 @@ jobs:
                         verify_literature_023 verify_literature_024 verify_literature_025 \
                         verify_literature_026 verify_literature_027 \
                         verify_webair verify_webair_discovery check_memory_spec \
-                        verify_compute; do
+                        verify_compute verify_conversation; do
             report="$RUNNER_TEMP/$script.json"
             agentpkg/.venv/bin/python "scripts/$script.py" > "$report"
             # The scripts report failures in their JSON, not in their exit status.
@@ -129,14 +129,15 @@ jobs:
         run: |
           python -m venv "$RUNNER_TEMP/wheel-env"
           # `[compute]`: WebAir 0.7.0 and Literature Review 0.2.9 run WebAssembly modules (T22).
-          "$RUNNER_TEMP/wheel-env/bin/python" -m pip install 'dist/agentpkg-0.5.0-py3-none-any.whl[compute]'
+          # 0.6.0 (T23) adds conversation.v0; the wheel still runs every shipped package.
+          "$RUNNER_TEMP/wheel-env/bin/python" -m pip install 'dist/agentpkg-0.6.0-py3-none-any.whl[compute]'
           cd "$RUNNER_TEMP"
           wheel-env/bin/agentpkg --version
           wheel-env/bin/python -c 'import agentpkg; assert "site-packages" in agentpkg.__file__, agentpkg.__file__'
       - name: Release-tree checks (package identities, dist/ SHA-256 list, licenses, wheel = source)
         run: |
           "$RUNNER_TEMP/wheel-env/bin/python" scripts/check_release.py \
-            --built-wheel "$RUNNER_TEMP/agentpkg-dist/agentpkg-0.5.0-py3-none-any.whl"
+            --built-wheel "$RUNNER_TEMP/agentpkg-dist/agentpkg-0.6.0-py3-none-any.whl"
       - name: Verify the signed packages with the installed wheel
         run: |
           agentpkg="$RUNNER_TEMP/wheel-env/bin/agentpkg"

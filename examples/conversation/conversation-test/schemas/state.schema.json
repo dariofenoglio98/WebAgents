@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "request": {
+      "$ref": "input.schema.json"
+    },
+    "history": {
+      "$ref": "history.schema.json"
+    },
+    "orders": {
+      "$ref": "orders.schema.json"
+    },
+    "interpretation": {
+      "anyOf": [
+        {
+          "$ref": "interpretation.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "decision": {
+      "anyOf": [
+        {
+          "$ref": "consent-decision.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "order": {
+      "$ref": "order-result.schema.json"
+    },
+    "reply": {
+      "anyOf": [
+        {
+          "$ref": "reply.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "request",
+    "history",
+    "orders",
+    "interpretation",
+    "decision",
+    "order",
+    "reply"
+  ],
+  "additionalProperties": false
+}

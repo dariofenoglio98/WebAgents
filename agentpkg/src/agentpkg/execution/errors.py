@@ -49,6 +49,9 @@ EXPORT_PATH_RESERVED = "execution_export_path_reserved"
 # above the host's ceiling (refused, never lowered, like an output cap).
 COMPUTE_NOT_SUPPORTED = "compute_not_supported"
 COMPUTE_LIMIT_EXCEEDED = "execution_compute_limit_exceeded"
+# conversation.v0: this one-shot execution host runs a package once per invocation; a
+# conversation runs turn by turn from a persisted state with a consent host, which it has not.
+CONVERSATION_NOT_SUPPORTED = "conversation_not_supported"
 
 # Tool authority. Shared verbatim with `agentpkg.toolbridge`, so the word the
 # runner uses when it refuses to ask is the word the host uses when it refuses
@@ -81,6 +84,7 @@ __all__ = [
     "ARTIFACT_MISMATCH",
     "COMPUTE_LIMIT_EXCEEDED",
     "COMPUTE_NOT_SUPPORTED",
+    "CONVERSATION_NOT_SUPPORTED",
     "EXPORT_PATH_RESERVED",
     "GRANT_UNSUPPORTED",
     "INPUT_INVALID",

@@ -513,3 +513,41 @@ the graph bounds the number of calls); it does not make a module's logic correct
 family of the enforcement catalog v2 (D-189) starts from the negative cases of the spec's §10,
 listed in `examples/compute/cases/cases.json`.
 
+## Conversations and consent (T23, `conversation.v0`)
+
+[`spec/conversation-v0.md`](../spec/conversation-v0.md) lets a package declare a conversation
+over its graph: a persistent state, one turn per message under one Run Plan, and consent steps
+that pause a turn before a consequential action. Until now the authorization boundary was the
+plan, decided once before a run; a conversation keeps that boundary and adds a second, narrower
+one at run time, the consent step, which can only confirm an action under authority the plan
+already holds. This section states what each boundary gives and what it does not.
+
+**What the consent boundary is.** A consent step names the permissions it decides; a tool that
+links one of them is dispatched in a turn only after a step naming it was accepted in that turn,
+checked statically (the tool depends on the step) and at run time (the mediator reads the turn's
+decisions before the call, V-9). Every tool with write side effects must be behind such a step
+(V-19), so a conversational package cannot place an order, send a message or spend without the
+person's yes on the facts of that action, at that moment. The decision is the host's record of the
+person's answer with its provenance; a model answer can be the sentence shown, never the decision.
+A step whose permission the plan denies, or whose `once` grant the conversation already spent, is
+not asked, and a transcript's yes for a denied one is refused (V-12), so the step can narrow what
+the plan granted and never widen it. The gate is per permission: a tool that links two gated
+permissions needs a yes for each, on one card or on two (V-9). A consent decision lives
+for its turn (V-24): the next turn asks again.
+
+| Threat | Control and remaining limit |
+|---|---|
+| A consequential action without the person: a tool with side effects called from a turn the person did not confirm | The gate (V-9) and the write rule (V-19): the call is refused `permission_denied` with `consent_required` or `consent_denied` before it is dispatched; validation refuses a graph in which the tool does not depend on its step, or a write tool no step gates (N-16, N-17, N-30, N-31). Limit: what counts as consequential is the tool's own `side_effects` declaration and the publisher's choice to gate a read; a read tool with consequences the publisher did not gate asks nothing. |
+| Consent as a widening: a step, a transcript or a host that turns a denied permission into a yes | A denied permission, or a `once` grant an earlier turn spent, is never asked: the step resolves denied by the plan (V-12, V-13, N-34), and a transcript's yes for a denied one is `consent_not_authorized` before the conversation starts (N-23); the step consumes no grant and the tool call still meets the plan's grant (`once`, `session`, `deny`). Limit: the plan's own decisions are the person's, taken at authorization; a person who grants `session` has granted every turn of every conversation under that receipt, and the card confirms an action, not the grant. |
+| A decision that was never taken: a host that cannot ask, a wait that expires, a page that reloads | The absence of a yes is a no: a host without a person answers `denied` (`no_decision_available`), a wait ends `timeout` and the turn fails, and nothing is persisted from a failed turn (V-5, V-12, V-29). Limit: v0 does not suspend a turn across a host restart; a reload during a card is a failed turn the person repeats. |
+| A model that talks the person into a yes: the sentence shown is the model's | The facts shown are the graph's constructed input, not the model's prose, and the chat surface shows both (T24); the permissions the step decides are the package's signed declaration, named on the card. Limit: persuasion through the sentence is the same limit as any model text a person reads; the control is that the action is bounded (one tool, one permission, these facts) and audited, not that the sentence is true. |
+| A tampered record: a transcript that claims a consent the chain does not hold, or a chain cut around a step | The transcript is the person's record; the chain is the proof: `consent.requested` and `consent.decided` are hash-linked events, a turn's events link to the turn before it, and `verify_audit_chain` reads the whole conversation (V-17, N-40). A transcript's decisions are checked against the package and the plan before the conversation starts (V-15). Limit: the chain is local, as every audit here; it binds the events to each other, not to a third party. |
+| Budget creep across turns: a conversation that spends what no single run could | The whole turn is reserved against the conversation's budget before any node runs (V-10): `max_turns` is required, tokens and remote calls are capped over the conversation, a per-tool cap bounds consequential tools over it (one order per conversation), and `once` is spent once per conversation (V-13). Limit: the per-turn bounds are the package's as before; a host lowers both levels and raises neither. |
+| State as a channel: a turn that writes into the persistent state what the schema does not allow, or reads what an earlier turn never wrote | The persistent state is a closed schema the publisher declares, enforced at the end of every turn (V-3, V-5; N-33), and the only source of a turn beside the message; a failed turn persists nothing. Limit: the persistent state is the package's own data between its own turns; the sealed-value scans of memory.v0 apply to what leaves a turn toward a tool or a model, not to the state itself. |
+
+What the consent boundary does not claim: it does not make the person's choice informed beyond
+the facts the graph shows; it does not replace the plan (a denied plan permission stays denied);
+it does not protect a person from a package whose every action is read-only and whose harm is in
+what it says; and it is not a durable grant store (`always` stays refused, B-61; a decision lives
+for its turn). The consent family of the enforcement catalog v2 (D-189) starts from the negative
+cases of the spec's §10, listed in `examples/conversation/cases/cases.json`.

@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "conversation.v0 consent decision",
+  "description": "The result of a consent step: whether the person accepted the action the step names. Nothing else: a consent says yes or no to one bounded action.",
+  "type": "object",
+  "properties": {
+    "accepted": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "accepted"
+  ],
+  "additionalProperties": false
+}

@@ -120,7 +120,7 @@ def check_compute_declarations(manifest, graph, policy, files) -> dict[str, Modu
         try:
             facts[module_id] = checked_module(files[module["path"]], functions[module_id])
         except ModuleError as exc:
-            raise _refuse(exc.code, f"module {module_id!r}: {str(exc).split(': ', 1)[1]}") from exc
+            raise _refuse(exc.code, f"module {module_id!r}: {exc.reason}") from exc
     for name, operation in operations:
         limits = operation.get("limits") or {}
         maximum = facts[operation["module"]].memory_max_pages

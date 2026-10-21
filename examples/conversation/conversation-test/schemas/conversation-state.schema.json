@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "What the desk keeps between turns",
+  "type": "object",
+  "properties": {
+    "history": {
+      "$ref": "history.schema.json"
+    },
+    "orders": {
+      "$ref": "orders.schema.json"
+    }
+  },
+  "required": [
+    "history",
+    "orders"
+  ],
+  "additionalProperties": false
+}

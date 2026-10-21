@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "order_id": {
+      "type": "string",
+      "pattern": "^TD-[0-9]{4}$"
+    },
+    "show": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "quantity": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 10
+    },
+    "total_usd": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 10000
+    }
+  },
+  "required": [
+    "order_id",
+    "show",
+    "quantity",
+    "total_usd"
+  ],
+  "additionalProperties": false
+}

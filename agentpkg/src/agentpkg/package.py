@@ -479,7 +479,17 @@ def inspect_package(package: Package) -> dict:
             "nodes", package.graph.get("stages", [])
         ),
         **_module_listing(package),
+        **_conversation_listing(package),
     }
+
+
+def _conversation_listing(package: Package) -> dict:
+    """conversation.v0: the turns, the persistent keys and the consent steps, where declared."""
+    if package.graph.get("conversation") is None:
+        return {}
+    from .conversation.declarations import conversation_records
+
+    return {"conversation": conversation_records(package)}
 
 
 def _module_listing(package: Package) -> dict:

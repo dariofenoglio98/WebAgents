@@ -387,9 +387,11 @@ Under `workflow.v0` a person does not converse with a package. The model is:
 For Literature Review the `question` field *is* the research prompt; `seeds`
 and selected `documents` are optional. A follow-up question is a **new** Run
 Invocation against the same (or a new) run plan — not a turn in a
-conversation. Conversational or long-lived agents need a different execution
-profile (`conversation.v0` or similar), which this milestone deliberately does
-not add.
+conversation. Conversational agents are a different thing, and since agentpkg
+0.6.0 a package may declare one: [conversation.v0](../spec/conversation-v0.md)
+runs the same graph once per message over a declared persistent state, with
+consent steps before consequential actions (§14c); this one-shot execution
+host does not run them (`conversation_not_supported`).
 
 Three backend additions make that model renderable by the run surface (3C)
 without adding anything package-specific:
@@ -659,6 +661,49 @@ function and schemas, and a call by its bytes in and out.
   `usage` carries `compute_calls` exactly when the graph declares modules.
 - **Fixture mode runs modules for real** (C-50): the fixture document has no compute key; the
   same bytes give the same output in every mode and on every conforming engine (C-47).
+
+## 14c. Conversations: turns, the persisted state and consent (conversation.v0)
+
+agentpkg 0.6.0 implements [conversation.v0](../spec/conversation-v0.md) in the same interpreter:
+a package may declare a `conversation` over its workflow.v0 graph, which then runs once per
+message. Nothing about it is package-specific (D-009): the runtime knows the persistent keys from
+a schema, a consent step from its node, a gated permission from the steps that name it.
+
+- **A turn is a run** (V-4, V-5). `initial_state` is evaluated over the message and the persisted
+  state (the `conversation` source); the graph runs under the plan's grants with every bound of a
+  run; when it completes, the persistent keys of its final state are validated against the
+  conversation's state schema and become the next persisted state. A failed turn persists
+  nothing and the conversation stays open.
+- **A consent step waits for the person** (V-18, V-29). `consent.requested` carries the hashes of
+  the text and the facts; the host answers within the node's timeout; `consent.decided` records
+  the answer and who gave it (`person`, `transcript`, `plan`, `host`, `preset`, `policy`). A step
+  whose permission the plan denies, or whose `once` grant an earlier turn spent, is never asked:
+  the decision is the plan's (V-12, V-13). The text and the facts are in the transcript, never in
+  the chain.
+- **The gate** (V-9, per permission). Before a tool call the mediator checks the turn's decisions
+  for each gated permission the tool links; a missing or negative one is a denied permission
+  check with `consent_required` or `consent_denied`, and the node fails `permission_denied`.
+  Validation already refused a tool that does not depend on its consent step, and a write tool
+  that no step gates.
+- **The conversation's status** (V-30). `completed` when at least one turn completed and none
+  failed or was cancelled, an end at the conversation's bound included (a refused turn beyond
+  `max_turns` or the budget is the bound at work, `ended.reason` names it); `failed` otherwise.
+  `agentpkg converse` exits 0 on a completed conversation and 1 on a failed one.
+- **Budgets** (V-10, V-11, V-13). The turn's budgets are the package's, as for a run; the
+  conversation's `max_turns`, tokens, remote calls and per-tool caps are reserved whole before
+  each turn (`turn.refused` otherwise); a `once` grant is spent once per conversation, and the
+  next turn starts with it spent.
+- **One chain** (V-17). Each turn's `Runtime` continues the conversation's audit chain:
+  `sequence` counts on, the first event of a turn links to the hash before it, every event names
+  `conversation_id` and `turn`, and `verify_audit_chain` reads the whole conversation as one
+  record. `agentpkg converse` writes the chain as `audit.json` beside `transcript.json`,
+  `state.json`, `usage.json` and `provenance.json`, and each turn's artifacts under `turn-NNN/`.
+- **Memory per turn** (V-26). Each turn holds its own memory run over the same folder and grants;
+  proposals are checked and written per turn, the agent document read and committed per turn.
+- **This host refuses conversations** (V-28): `check_capabilities` answers
+  `conversation_not_supported` before anything runs, because one invocation holds no persisted
+  state, no consent host and no chain of earlier turns; the plugin is frozen (D-029). The Chrome
+  Agent Browser ports the runner and adds the chat surface in T24.
 
 ## 15. Why Meeting Agenda was the first package
 

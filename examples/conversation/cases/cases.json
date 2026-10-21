@@ -1,0 +1,701 @@
+{
+  "schema": "webagents-conversation-cases-v0",
+  "family": "conversation",
+  "title": "conversation.v0 enforcement cases: what both runtimes must refuse, and where",
+  "probe": "agentpkg/tests/conversation_probe.py",
+  "stages": {
+    "validation": "refused when the package is validated; the message starts with `<code>: `",
+    "start": "refused before the conversation starts: the transcript against the package and the plan's grants (`check_transcript`), or the one-shot `run` path",
+    "host": "refused by the one-shot execution host's capability check, before anything runs",
+    "turn": "the turn is refused before any node runs: `turn.refused` names `reason`, the transcript entry is `refused`",
+    "run": "the turn fails with `code` (the node named in `expect.node`), or completes as the control says"
+  },
+  "cases": [
+    {
+      "id": "consent-outside-conversation",
+      "title": "A consent step in a graph that declares no conversation",
+      "stage": "validation",
+      "code": "consent_outside_conversation",
+      "variant": "consent-outside-conversation"
+    },
+    {
+      "id": "conversation-source-outside",
+      "title": "An initial_state that reads the conversation state in a graph with no conversation",
+      "stage": "validation",
+      "code": "conversation_source_scope",
+      "variant": "conversation-source-outside"
+    },
+    {
+      "id": "minimum-version",
+      "title": "A conversation under runtime.minimum_version 0.5.0",
+      "stage": "validation",
+      "code": "conversation_minimum_version",
+      "variant": "minimum-version"
+    },
+    {
+      "id": "state-schema-undeclared",
+      "title": "conversation.state_schema names no declared schema",
+      "stage": "validation",
+      "code": "conversation_state_schema_undeclared",
+      "variant": "state-schema-undeclared"
+    },
+    {
+      "id": "state-schema-open",
+      "title": "A persistent state schema that admits undeclared properties",
+      "stage": "validation",
+      "code": "conversation_state_schema_open",
+      "variant": "state-schema-open"
+    },
+    {
+      "id": "state-key-undeclared",
+      "title": "A persistent key the turn's state schema does not declare",
+      "stage": "validation",
+      "code": "conversation_state_key_undeclared",
+      "variant": "state-key-undeclared"
+    },
+    {
+      "id": "initial-not-literal",
+      "title": "conversation.initial that is not a literal",
+      "stage": "validation",
+      "code": "conversation_initial_literal",
+      "variant": "initial-not-literal"
+    },
+    {
+      "id": "initial-invalid",
+      "title": "conversation.initial outside the persistent state schema",
+      "stage": "validation",
+      "code": "conversation_initial_invalid",
+      "variant": "initial-invalid"
+    },
+    {
+      "id": "budget-below-turn",
+      "title": "A conversation budget that cannot admit one turn",
+      "stage": "validation",
+      "code": "conversation_budget_below_turn",
+      "variant": "budget-below-turn"
+    },
+    {
+      "id": "tool-cap-unknown",
+      "title": "A per-conversation tool cap naming an undeclared tool",
+      "stage": "validation",
+      "code": "conversation_tool_unknown",
+      "variant": "tool-cap-unknown"
+    },
+    {
+      "id": "consent-on-worker",
+      "title": "A consent step on a worker role",
+      "stage": "validation",
+      "code": "consent_role",
+      "variant": "consent-on-worker"
+    },
+    {
+      "id": "consent-permission-unknown",
+      "title": "A consent step deciding an undeclared permission",
+      "stage": "validation",
+      "code": "consent_permission_unknown",
+      "variant": "consent-permission-unknown"
+    },
+    {
+      "id": "consent-permission-kind",
+      "title": "A consent step deciding the model permission",
+      "stage": "validation",
+      "code": "consent_permission_kind",
+      "variant": "consent-permission-kind"
+    },
+    {
+      "id": "consent-decision-schema",
+      "title": "A consent step whose output schema is not the decision contract",
+      "stage": "validation",
+      "code": "consent_decision_schema",
+      "variant": "consent-decision-schema"
+    },
+    {
+      "id": "consent-otherwise-accepts",
+      "title": "A conditional consent step whose otherwise accepts",
+      "stage": "validation",
+      "code": "consent_otherwise_accepts",
+      "variant": "consent-otherwise-accepts"
+    },
+    {
+      "id": "tool-before-consent",
+      "title": "A tool linking a consented permission that does not depend on the consent step",
+      "stage": "validation",
+      "code": "consent_missing_before_tool",
+      "variant": "tool-before-consent"
+    },
+    {
+      "id": "write-tool-ungated",
+      "title": "A write tool linking no permission a consent step decides",
+      "stage": "validation",
+      "code": "consent_required_for_write",
+      "variant": "write-tool-ungated"
+    },
+    {
+      "id": "fixture-step-unknown",
+      "title": "A fixture transcript deciding a consent step the graph does not declare",
+      "stage": "validation",
+      "code": "consent_step_unknown",
+      "variant": "fixture-step-unknown"
+    },
+    {
+      "id": "fixture-too-many-turns",
+      "title": "A fixture transcript with more turns than max_turns",
+      "stage": "validation",
+      "code": "conversation_fixture_turns",
+      "variant": "fixture-too-many-turns"
+    },
+    {
+      "id": "fixture-message-invalid",
+      "title": "A fixture transcript message outside the input schema",
+      "stage": "validation",
+      "code": "conversation_fixture_message",
+      "variant": "fixture-message-invalid"
+    },
+    {
+      "id": "fixture-input-mismatch",
+      "title": "A graph fixture whose input is not the transcript's first message",
+      "stage": "validation",
+      "code": "conversation_fixture_input",
+      "variant": "fixture-input-mismatch"
+    },
+    {
+      "id": "transcript-step-unknown",
+      "title": "A transcript deciding a step the package has no consent step for",
+      "stage": "start",
+      "code": "consent_step_unknown",
+      "transcript": [
+        [
+          "order A",
+          {
+            "other": true
+          }
+        ]
+      ]
+    },
+    {
+      "id": "transcript-accepts-denied",
+      "title": "A tampered transcript: accepted for a step whose permission the plan denies",
+      "stage": "start",
+      "code": "consent_not_authorized",
+      "grants": {
+        "orders.place": "deny"
+      },
+      "transcript": [
+        [
+          "order A",
+          {
+            "confirm": true
+          }
+        ]
+      ]
+    },
+    {
+      "id": "transcript-message-invalid",
+      "title": "A transcript message outside the input schema",
+      "stage": "start",
+      "code": "conversation_message_invalid",
+      "transcript_raw": {
+        "schema": "conversation.transcript.v0",
+        "turns": [
+          {
+            "message": {
+              "text": ""
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "run-refused",
+      "title": "agentpkg run of a conversational package",
+      "stage": "start",
+      "code": "conversation_profile",
+      "path": "run"
+    },
+    {
+      "id": "host-refused",
+      "title": "The one-shot execution host refuses a conversational package",
+      "stage": "host",
+      "code": "conversation_not_supported"
+    },
+    {
+      "id": "turn-beyond-cap",
+      "title": "A turn beyond max_turns (the host lowered it to 1)",
+      "stage": "turn",
+      "reason": "conversation_turn_limit",
+      "limits": {
+        "conversation_max_turns": 1
+      },
+      "transcript": [
+        [
+          "order A",
+          {
+            "confirm": true
+          }
+        ],
+        "hello"
+      ],
+      "expect": {
+        "turns": [
+          "completed",
+          "refused"
+        ],
+        "ended": "max_turns"
+      }
+    },
+    {
+      "id": "conversation-tokens-exhausted",
+      "title": "A second turn that cannot be reserved within the conversation's tokens",
+      "stage": "turn",
+      "reason": "conversation_budget_exhausted",
+      "limits": {
+        "conversation_total_tokens": 4000
+      },
+      "transcript": [
+        "hello",
+        "hello"
+      ],
+      "expect": {
+        "turns": [
+          "completed",
+          "refused"
+        ],
+        "ended": "budget"
+      }
+    },
+    {
+      "id": "conversation-remote-exhausted",
+      "title": "A second turn that cannot be reserved within the conversation's remote calls (a remote desk)",
+      "stage": "turn",
+      "reason": "conversation_budget_exhausted",
+      "remote_tool": true,
+      "limits": {
+        "conversation_max_remote_calls": 1
+      },
+      "grants": {
+        "network.desk": "session"
+      },
+      "transcript": [
+        [
+          "order A",
+          {
+            "confirm": true
+          }
+        ],
+        "hello"
+      ],
+      "expect": {
+        "turns": [
+          "completed",
+          "refused"
+        ],
+        "ended": "budget"
+      }
+    },
+    {
+      "id": "consent-text-not-string",
+      "title": "A consent step whose text constructs a number",
+      "stage": "run",
+      "code": "schema_validation",
+      "variant": "consent-text-not-string",
+      "transcript": [
+        [
+          "order A",
+          {
+            "confirm": true
+          }
+        ]
+      ],
+      "expect": {
+        "turns": [
+          "failed"
+        ],
+        "node": "confirm",
+        "tool_called": false
+      }
+    },
+    {
+      "id": "tool-after-denied-consent",
+      "title": "A tool called after its consent step was denied",
+      "stage": "run",
+      "code": "permission_denied",
+      "reason": "consent_denied",
+      "variant": "tool-after-denied-consent",
+      "transcript": [
+        [
+          "order A",
+          {
+            "confirm": false
+          }
+        ]
+      ],
+      "expect": {
+        "turns": [
+          "failed"
+        ],
+        "node": "place",
+        "tool_called": false
+      }
+    },
+    {
+      "id": "tool-after-skipped-consent",
+      "title": "A tool called when its consent step was not asked",
+      "stage": "run",
+      "code": "permission_denied",
+      "reason": "consent_required",
+      "variant": "tool-after-skipped-consent",
+      "transcript": [
+        "hello"
+      ],
+      "expect": {
+        "turns": [
+          "failed"
+        ],
+        "node": "place",
+        "tool_called": false
+      }
+    },
+    {
+      "id": "consent-undecided",
+      "title": "A consent step the transcript does not decide: denied by the host, the tool never runs, the turn completes",
+      "stage": "run",
+      "code": "completed",
+      "transcript": [
+        "order A",
+        "done"
+      ],
+      "expect": {
+        "turns": [
+          "completed",
+          "completed"
+        ],
+        "decided_by": "host",
+        "reason": "no_decision_available",
+        "tool_called": false,
+        "ended": "package"
+      }
+    },
+    {
+      "id": "state-outside-schema",
+      "title": "A turn whose persistent state fails the conversation's state schema: nothing persisted",
+      "stage": "run",
+      "code": "schema_validation",
+      "variant": "state-outside-schema",
+      "transcript": [
+        "hello",
+        "done"
+      ],
+      "expect": {
+        "turns": [
+          "failed",
+          "failed"
+        ],
+        "tool_called": false,
+        "history_after": []
+      }
+    },
+    {
+      "id": "once-across-turns",
+      "title": "A once grant spent in turn 1: turn 2's step is not asked (the plan's denial, permission_consumed), the tool never runs again, the turn completes",
+      "stage": "run",
+      "code": "completed",
+      "grants": {
+        "orders.place": "once"
+      },
+      "transcript": [
+        [
+          "order A",
+          {
+            "confirm": true
+          }
+        ],
+        [
+          "order B",
+          {
+            "confirm": true
+          }
+        ],
+        "done"
+      ],
+      "expect": {
+        "turns": [
+          "completed",
+          "completed",
+          "completed"
+        ],
+        "tool_calls": 1,
+        "decided": [
+          {
+            "step": "confirm",
+            "accepted": true,
+            "decided_by": "transcript",
+            "reason": null
+          },
+          {
+            "step": "confirm",
+            "accepted": false,
+            "decided_by": "plan",
+            "reason": "permission_consumed"
+          }
+        ],
+        "unused_consents": {
+          "2": [
+            "confirm"
+          ]
+        },
+        "ended": "package",
+        "orders_after": 1
+      }
+    },
+    {
+      "id": "once-spent-tool-reached",
+      "title": "A once grant spent in turn 1 and a graph that reaches the tool whatever the step decided: the step is not asked, the tool call is refused as consumed",
+      "stage": "run",
+      "code": "permission_denied",
+      "variant": "tool-after-denied-consent",
+      "grants": {
+        "orders.place": "once"
+      },
+      "transcript": [
+        [
+          "order A",
+          {
+            "confirm": true
+          }
+        ],
+        [
+          "order B",
+          {
+            "confirm": true
+          }
+        ]
+      ],
+      "expect": {
+        "turns": [
+          "completed",
+          "failed"
+        ],
+        "node": "place",
+        "tool_calls": 1,
+        "decided": [
+          {
+            "step": "confirm",
+            "accepted": true,
+            "decided_by": "transcript",
+            "reason": null
+          },
+          {
+            "step": "confirm",
+            "accepted": false,
+            "decided_by": "plan",
+            "reason": "permission_consumed"
+          }
+        ]
+      }
+    },
+    {
+      "id": "tool-cap-across-turns",
+      "title": "A per-conversation tool cap of one order over two ordering turns",
+      "stage": "run",
+      "code": "budget_exhausted",
+      "variant": "tool-cap-one",
+      "transcript": [
+        [
+          "order A",
+          {
+            "confirm": true
+          }
+        ],
+        [
+          "order B",
+          {
+            "confirm": true
+          }
+        ]
+      ],
+      "expect": {
+        "turns": [
+          "completed",
+          "failed"
+        ],
+        "node": "place",
+        "tool_calls": 1
+      }
+    },
+    {
+      "id": "consent-timeout",
+      "title": "A consent step whose decision does not arrive within the node's timeout",
+      "stage": "run",
+      "code": "timeout",
+      "host": "silent",
+      "transcript": [
+        [
+          "order A",
+          {
+            "confirm": true
+          }
+        ]
+      ],
+      "expect": {
+        "turns": [
+          "failed"
+        ],
+        "node": "confirm",
+        "tool_called": false
+      }
+    },
+    {
+      "id": "consent-host-invalid",
+      "title": "A consent host that answers outside the decision contract",
+      "stage": "run",
+      "code": "worker_error",
+      "host": "invalid",
+      "transcript": [
+        [
+          "order A",
+          {
+            "confirm": true
+          }
+        ]
+      ],
+      "expect": {
+        "turns": [
+          "failed"
+        ],
+        "node": "confirm",
+        "tool_called": false
+      }
+    },
+    {
+      "id": "two-turns-one-consent",
+      "title": "Control: an order confirmed, then goodbye",
+      "stage": "run",
+      "code": "completed",
+      "transcript": [
+        [
+          "order A",
+          {
+            "confirm": true
+          }
+        ],
+        "done"
+      ],
+      "expect": {
+        "turns": [
+          "completed",
+          "completed"
+        ],
+        "tool_calls": 1,
+        "ended": "package",
+        "orders_after": 1
+      }
+    },
+    {
+      "id": "consent-denied-path",
+      "title": "Control: an order declined on the card; the graph's own path answers without the tool",
+      "stage": "run",
+      "code": "completed",
+      "transcript": [
+        [
+          "order A",
+          {
+            "confirm": false
+          }
+        ],
+        "done"
+      ],
+      "expect": {
+        "turns": [
+          "completed",
+          "completed"
+        ],
+        "tool_called": false,
+        "ended": "package",
+        "orders_after": 0
+      }
+    },
+    {
+      "id": "two-steps-one-accepted",
+      "title": "A tool linking two gated permissions, each decided by its own step: one accepted, the other undecided (denied by the host); the tool is refused",
+      "stage": "run",
+      "code": "permission_denied",
+      "reason": "consent_denied",
+      "variant": "two-steps",
+      "grants": {
+        "orders.charge": "session"
+      },
+      "transcript": [
+        [
+          "order A",
+          {
+            "confirm": true
+          }
+        ]
+      ],
+      "expect": {
+        "turns": [
+          "failed"
+        ],
+        "node": "place",
+        "tool_called": false,
+        "decided": [
+          {
+            "step": "confirm",
+            "accepted": true,
+            "decided_by": "transcript",
+            "reason": null
+          },
+          {
+            "step": "confirm2",
+            "accepted": false,
+            "decided_by": "host",
+            "reason": "no_decision_available"
+          }
+        ]
+      }
+    },
+    {
+      "id": "two-steps-two-permissions",
+      "title": "Control: a tool linking two gated permissions, each accepted on its own step in the turn, runs once",
+      "stage": "run",
+      "code": "completed",
+      "variant": "two-steps",
+      "grants": {
+        "orders.charge": "session"
+      },
+      "transcript": [
+        [
+          "order A",
+          {
+            "confirm": true,
+            "confirm2": true
+          }
+        ],
+        "done"
+      ],
+      "expect": {
+        "turns": [
+          "completed",
+          "completed"
+        ],
+        "tool_calls": 1,
+        "decided": [
+          {
+            "step": "confirm",
+            "accepted": true,
+            "decided_by": "transcript",
+            "reason": null
+          },
+          {
+            "step": "confirm2",
+            "accepted": true,
+            "decided_by": "transcript",
+            "reason": null
+          }
+        ],
+        "ended": "package",
+        "orders_after": 1
+      }
+    }
+  ]
+}

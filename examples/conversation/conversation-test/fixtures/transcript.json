@@ -1,0 +1,18 @@
+{
+  "schema": "conversation.transcript.v0",
+  "turns": [
+    {
+      "message": {
+        "text": "Two tickets for Friday's show, please."
+      },
+      "consents": {
+        "confirm-order": true
+      }
+    },
+    {
+      "message": {
+        "text": "That's all, thanks."
+      }
+    }
+  ]
+}

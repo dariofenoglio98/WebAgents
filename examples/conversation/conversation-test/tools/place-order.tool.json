@@ -1,0 +1,21 @@
+{
+  "spec_version": "0.1",
+  "id": "place-order",
+  "version": "0.1.0",
+  "description": "Place one ticket order at the fictional desk: the show and the quantity in, the order id and the total out. A simulated purchase: nothing is reserved or charged anywhere.",
+  "execution": "local",
+  "binding": "desk.place_order",
+  "endpoint": null,
+  "method": null,
+  "input_schema": "schemas/order-input.schema.json",
+  "output_schema": "schemas/order.schema.json",
+  "permissions": [
+    "orders.place"
+  ],
+  "domains": [],
+  "timeout_seconds": 10,
+  "retries": 0,
+  "side_effects": "write",
+  "approval_required": true,
+  "extensions": {}
+}
