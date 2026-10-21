@@ -1,8 +1,19 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Interpreted request",
+  "title": "Interpreted message",
   "type": "object",
   "properties": {
+    "intent": {
+      "type": "string",
+      "enum": [
+        "search",
+        "quote",
+        "purchase",
+        "question",
+        "done"
+      ],
+      "description": "What the message asks for: a WebAir search (also any question about flights, fares or rules, which repeats or changes the last search), a quote of one fare, the purchase of the open quote, a question the conversation itself answers, or the end of the conversation."
+    },
     "search": {
       "type": [
         "object",
@@ -85,12 +96,32 @@
     "needs_travel_profile": {
       "type": "boolean",
       "description": "True when the request leaves the departure airport unstated, or refers to the person's usual preferences, so the travel profile they grant should fill what is unstated."
+    },
+    "fare_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^WA[0-9]{3}(-WA[0-9]{3})?-[0-9]{8}-(BASIC|STANDARD|FLEX|BUSINESS)$",
+      "description": "For a quote of a fare an earlier turn offered or quoted: its id, copied exactly from known_fares; null when the quote follows a search in this turn, or for every other intent."
+    },
+    "note": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1,
+      "maxLength": 600,
+      "description": "For a purchase: the one-sentence question the person is asked before the simulated purchase, naming the fare, the route, the date and the total. For a question or the end: what to tell the person. Null for a search or a quote."
     }
   },
   "required": [
+    "intent",
     "search",
     "unsupported_reason",
-    "needs_travel_profile"
+    "needs_travel_profile",
+    "fare_id",
+    "note"
   ],
   "additionalProperties": false
 }

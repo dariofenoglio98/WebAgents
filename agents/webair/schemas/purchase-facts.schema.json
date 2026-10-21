@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Purchase facts",
+  "description": "What the person sees on the card before a simulated purchase: the quote, the fare, the flight, the total, the passenger's name and the payment method's display label. Never the contact e-mail or the payment identifier. Null when the turn is not a purchase.",
+  "anyOf": [
+    {
+      "type": "null"
+    },
+    {
+      "type": "object",
+      "properties": {
+        "quote_id": {
+          "type": "string",
+          "pattern": "^WAQ-[0-9A-F]{16}$"
+        },
+        "fare_id": {
+          "type": "string",
+          "pattern": "^WA[0-9]{3}(-WA[0-9]{3})?-[0-9]{8}-(BASIC|STANDARD|FLEX|BUSINESS)$"
+        },
+        "fare_name": {
+          "type": "string"
+        },
+        "cabin": {
+          "enum": [
+            "economy",
+            "business"
+          ]
+        },
+        "origin": {
+          "type": "string"
+        },
+        "destination": {
+          "type": "string"
+        },
+        "date": {
+          "type": "string"
+        },
+        "flight_numbers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "passenger_count": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 6
+        },
+        "total_usd": {
+          "type": "integer"
+        },
+        "currency": {
+          "const": "USD"
+        },
+        "passenger": {
+          "type": "object",
+          "properties": {
+            "given_name": {
+              "type": "string"
+            },
+            "family_name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "given_name",
+            "family_name"
+          ],
+          "additionalProperties": false
+        },
+        "payment_method": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "simulated": {
+          "const": true
+        }
+      },
+      "required": [
+        "quote_id",
+        "fare_id",
+        "fare_name",
+        "cabin",
+        "origin",
+        "destination",
+        "date",
+        "flight_numbers",
+        "passenger_count",
+        "total_usd",
+        "currency",
+        "passenger",
+        "payment_method",
+        "simulated"
+      ],
+      "additionalProperties": false
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Profile used",
+  "description": "Whether a turn of this conversation read the person's travel profile.",
+  "type": "boolean"
+}

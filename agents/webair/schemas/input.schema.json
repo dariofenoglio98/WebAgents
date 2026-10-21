@@ -1,101 +1,21 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "WebAir travel request",
+  "title": "WebAir message",
+  "description": "One message of the conversation with WebAir, in your own words: a search, a question about the fares found, a quote of one of them, or the purchase of the open quote (the agent asks before it buys).",
   "type": "object",
   "properties": {
-    "request": {
+    "message": {
       "type": "string",
       "minLength": 1,
       "maxLength": 2000,
-      "description": "Your travel request, in your own words.",
+      "description": "What you want to say to WebAir.",
       "examples": [
         "Find me a flight from Boston to Zurich on 9 October under $900"
       ]
-    },
-    "booking": {
-      "type": "boolean",
-      "default": false,
-      "description": "Ask WebAir for a booking quote of the fare the workflow selects, for the passenger identity you grant. Nothing is reserved or charged."
-    },
-    "purchase": {
-      "type": "object",
-      "description": "Leave both empty, or authorize one simulated purchase: the exact quote id and fare id an earlier quote returned. Needs the passenger identity that quote was made for, a payment method and the purchase permission.",
-      "properties": {
-        "quote_id": {
-          "type": "string",
-          "pattern": "^(WAQ-[0-9A-F]{16})?$",
-          "default": ""
-        },
-        "fare_id": {
-          "type": "string",
-          "pattern": "^(WA[0-9]{3}(-WA[0-9]{3})?-[0-9]{8}-(BASIC|STANDARD|FLEX|BUSINESS))?$",
-          "default": ""
-        }
-      },
-      "required": [
-        "quote_id",
-        "fare_id"
-      ],
-      "additionalProperties": false
     }
   },
   "required": [
-    "request",
-    "booking",
-    "purchase"
+    "message"
   ],
-  "additionalProperties": false,
-  "allOf": [
-    {
-      "if": {
-        "properties": {
-          "purchase": {
-            "properties": {
-              "quote_id": {
-                "minLength": 1
-              }
-            }
-          }
-        }
-      },
-      "then": {
-        "properties": {
-          "purchase": {
-            "properties": {
-              "fare_id": {
-                "minLength": 1
-              }
-            }
-          },
-          "booking": {
-            "const": false
-          }
-        }
-      }
-    },
-    {
-      "if": {
-        "properties": {
-          "purchase": {
-            "properties": {
-              "fare_id": {
-                "minLength": 1
-              }
-            }
-          }
-        }
-      },
-      "then": {
-        "properties": {
-          "purchase": {
-            "properties": {
-              "quote_id": {
-                "minLength": 1
-              }
-            }
-          }
-        }
-      }
-    }
-  ]
+  "additionalProperties": false
 }

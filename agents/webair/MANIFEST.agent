@@ -2,21 +2,23 @@
   "spec_version": "0.1",
   "package_id": "org.webagents.webair",
   "name": "WebAir Travel Agent",
-  "version": "0.7.0",
-  "description": "Search WebAir flights, explain fare rules, prepare a booking quote and simulate a purchase through WebAir's own semantic API, using a travel profile from the person's memory, a passenger identity and a payment method that the person's host owns and grants per run, and after a booking propose one travel preference for the person to remember. The person's runtime checks WebAir's fare totals with a WebAssembly module that can only compute. WebAir publishes the behavior; the person's runtime supplies the authority. WebAir is a fictional demo airline: nothing is ever booked or charged.",
+  "version": "0.8.0",
+  "description": "Talk to WebAir: search flights, ask about fares and rules, get a booking quote for one of them and simulate buying it, in one conversation through WebAir's own semantic API. The agent keeps the fares, the open quote and the history between turns, reads a travel profile from the person's memory and a passenger identity and a payment method the person's host owns and grants, and asks the person, with the quote's facts in front of them, before a simulated purchase. After a quote it may propose one travel preference to remember. The person's runtime checks WebAir's fare totals with a WebAssembly module that can only compute. WebAir publishes the behavior; the person's runtime supplies the authority. WebAir is a fictional demo airline: nothing is ever booked or charged.",
   "publisher": {
     "id": "webair-demo",
     "name": "WebAir (fictional demo airline)"
   },
-  "created_at": "2026-10-17T00:00:00Z",
+  "created_at": "2026-10-21T00:00:00Z",
   "runtime": {
     "api": "agentpkg-runtime-v0",
-    "minimum_version": "0.5.0"
+    "minimum_version": "0.6.0"
   },
   "capabilities": [
+    "conversation",
     "flight-search",
     "fare-rules",
     "booking-quote",
+    "just-in-time-consent",
     "simulated-purchase",
     "memory-travel-profile",
     "host-passenger-identity",
@@ -29,12 +31,12 @@
   "skills": [
     {
       "id": "webair-domain",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "path": "skills/webair-domain/SKILL.md"
     },
     {
       "id": "travel-request",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "path": "skills/travel-request/SKILL.md"
     },
     {
@@ -44,7 +46,7 @@
     },
     {
       "id": "answer-writing",
-      "version": "0.3.0",
+      "version": "0.4.0",
       "path": "skills/answer-writing/SKILL.md"
     },
     {
@@ -279,6 +281,30 @@
     {
       "id": "quote-total-input",
       "path": "schemas/quote-total-input.schema.json"
+    },
+    {
+      "id": "consent-decision",
+      "path": "schemas/consent-decision.schema.json"
+    },
+    {
+      "id": "conversation-state",
+      "path": "schemas/conversation-state.schema.json"
+    },
+    {
+      "id": "history",
+      "path": "schemas/history.schema.json"
+    },
+    {
+      "id": "open-quote",
+      "path": "schemas/open-quote.schema.json"
+    },
+    {
+      "id": "profile-used",
+      "path": "schemas/profile-used.schema.json"
+    },
+    {
+      "id": "purchase-facts",
+      "path": "schemas/purchase-facts.schema.json"
     }
   ],
   "model_requirements": {
@@ -339,14 +365,14 @@
       "semantic_api": "webair-semantic-api",
       "semantic_api_version": "v1",
       "note": "Informational only. Tool endpoints are upper bounds; the host chooses and the person approves every binding.",
-      "host_resources": "The travel profile is read from the person's memory (a memory.read permission for the type travel.profile, memory.v0); the passenger identity and payment method are host-owned resource types (personal.read). All three are argument-free local tools; the package holds none of them and the person's host supplies the one the person grants. After a booking the package may propose one travel preference (memory.write); nothing is remembered until the person accepts it."
+      "host_resources": "The travel profile is read from the person's memory (a memory.read permission for the type travel.profile, memory.v0); the passenger identity and payment method are host-owned resource types (personal.read). All three are argument-free local tools; the package holds none of them and the person's host supplies the one the person grants, for the whole conversation. The simulated purchase is behind a consent step (conversation.v0): the person is asked in the turn that buys, with the quote's facts. After a quote the package may propose one travel preference (memory.write); nothing is remembered until the person accepts it."
     },
     "org.webagents:profiles-v0": {
       "profiles": [
         {
           "id": "search",
           "title": "Search flights",
-          "description": "Search WebAir flights and read their fare rules. Nothing personal is read or sent, so say where you fly from in the request.",
+          "description": "Talk to WebAir about flights and read their fare rules. Nothing personal is read or sent, so say where you fly from.",
           "permissions": [
             "network.webair",
             "model.reasoning",
@@ -362,13 +388,13 @@
             "model_calls": 3,
             "tool_calls": 4,
             "tokens": 12000,
-            "notes": "From the publisher's recorded runs of the same graph; tokens vary with the model. Each fare whose rules are read is one more tool call."
+            "notes": "Per turn, from the publisher's recorded conversations of the same graph; tokens vary with the model and grow with the history. Each fare whose rules are read is one more tool call."
           }
         },
         {
           "id": "quote",
           "title": "Search and quote",
-          "description": "Also fills an unstated home airport or cabin from the travel profile you choose in your memory, and sends your passenger identity to WebAir only to quote one fare. Nothing is booked.",
+          "description": "Also fills an unstated home airport or cabin from the travel profile you choose in your memory, and sends your passenger identity to WebAir only to quote one fare you ask for. Nothing is booked.",
           "permissions": [
             "network.webair",
             "memory.travel_profile",
@@ -392,13 +418,13 @@
             "model_calls": 4,
             "tool_calls": 9,
             "tokens": 12000,
-            "notes": "From the publisher's recorded runs of the 0.5.0 graph, plus the one model call 0.6.0 adds after a booking to propose what to remember; tokens vary with the model."
+            "notes": "Per turn, from the publisher's recorded runs of the same graph, plus the one model call after a quote that proposes what to remember; tokens vary with the model and grow with the history."
           }
         },
         {
           "id": "book",
           "title": "Book (simulated)",
-          "description": "Also simulates purchasing one exact quote with the demo payment method you choose, in a separate run. Fictional: nothing is ever charged or booked.",
+          "description": "Also simulates purchasing the open quote with the demo payment method you choose, after asking you in the conversation with the quote's facts. Fictional: nothing is ever charged or booked.",
           "permissions": [
             "network.webair",
             "memory.travel_profile",
@@ -427,7 +453,7 @@
             "model_calls": 4,
             "tool_calls": 9,
             "tokens": 12000,
-            "notes": "From the publisher's recorded runs of the 0.5.0 graph, plus the one model call 0.6.0 adds after a booking to propose what to remember; tokens vary with the model."
+            "notes": "Per turn, from the publisher's recorded runs of the same graph, plus the one model call after a quote that proposes what to remember; tokens vary with the model and grow with the history."
           }
         }
       ]

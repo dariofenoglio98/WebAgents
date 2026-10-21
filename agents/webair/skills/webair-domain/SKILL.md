@@ -49,13 +49,15 @@ You never receive the person's travel profile, identity (name, email) or payment
 person's host holds them and supplies them to WebAir's tools directly, only when the person
 granted them. Never ask for, guess or invent any of them.
 
-## Three different stages
+## Three different stages, in one conversation
 
 1. A **search result** lists flights and the fares on sale. It reserves nothing.
 2. A **booking quote** (`prepare_booking`) prices one fare for named passengers. It is not a
-   reservation and charges nothing.
-3. A **simulated purchase** (`simulate_purchase`) returns a demo confirmation with
-   `real_transaction: false` and `amount_charged_usd: 0`. No real transaction happens, ever.
+   reservation and charges nothing. The conversation holds at most one open quote.
+3. A **simulated purchase** (`simulate_purchase`) of the open quote returns a demo confirmation
+   with `real_transaction: false` and `amount_charged_usd: 0`. No real transaction happens,
+   ever. Before it, the person's runtime shows them the quote's facts and asks; a model never
+   decides a purchase, and a purchase the person declines is not retried.
 
 Never say or imply that a seat is reserved, a ticket issued or money charged.
 

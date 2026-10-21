@@ -3,8 +3,22 @@
   "title": "Workflow state",
   "type": "object",
   "properties": {
-    "request": {
-      "$ref": "input.schema.json"
+    "message": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000
+    },
+    "history": {
+      "$ref": "history.schema.json"
+    },
+    "quote_ref": {
+      "$ref": "booking-summary.schema.json"
+    },
+    "confirmation_ref": {
+      "$ref": "purchase-result.schema.json"
+    },
+    "profile_used": {
+      "$ref": "profile-used.schema.json"
     },
     "plan": {
       "anyOf": [
@@ -134,10 +148,30 @@
     },
     "quote_total_input": {
       "$ref": "quote-total-input.schema.json"
+    },
+    "offered_booking_fare": {
+      "$ref": "booking-fare.schema.json"
+    },
+    "purchase_decision": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "consent-decision.schema.json"
+        }
+      ]
+    },
+    "purchase_facts": {
+      "$ref": "purchase-facts.schema.json"
     }
   },
   "required": [
-    "request",
+    "message",
+    "history",
+    "quote_ref",
+    "confirmation_ref",
+    "profile_used",
     "plan",
     "profile",
     "search_origin",
@@ -166,7 +200,10 @@
     "result",
     "remember",
     "quote_total",
-    "quote_total_input"
+    "quote_total_input",
+    "offered_booking_fare",
+    "purchase_decision",
+    "purchase_facts"
   ],
   "additionalProperties": false
 }

@@ -1,0 +1,23 @@
+{
+  "schema": "conversation.transcript.v0",
+  "turns": [
+    {
+      "message": {
+        "message": "Prepare WA101 Standard for 9 October for me."
+      }
+    },
+    {
+      "message": {
+        "message": "Buy it."
+      },
+      "consents": {
+        "confirm-purchase": true
+      }
+    },
+    {
+      "message": {
+        "message": "That's all, thanks."
+      }
+    }
+  ]
+}

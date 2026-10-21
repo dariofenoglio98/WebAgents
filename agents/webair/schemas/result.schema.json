@@ -1,16 +1,19 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "WebAir result",
+  "title": "WebAir reply",
   "type": "object",
   "properties": {
     "status": {
       "$ref": "status.schema.json"
     },
+    "intent": {
+      "$ref": "plan.schema.json#/properties/intent"
+    },
     "answer": {
       "type": "string",
       "minLength": 1,
       "maxLength": 4000,
-      "description": "Model-written summary from WebAir's answers. No passenger identity or payment detail is ever in its input."
+      "description": "Model-written reply from WebAir's answers and the conversation so far. No passenger identity or payment detail is ever in its input."
     },
     "interpreted_request": {
       "$ref": "plan.schema.json"
@@ -69,6 +72,7 @@
   },
   "required": [
     "status",
+    "intent",
     "answer",
     "interpreted_request",
     "selected_fare_id",

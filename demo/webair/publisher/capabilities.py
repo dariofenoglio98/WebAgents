@@ -27,7 +27,7 @@ from .binding import json_http_handlers
 from .contract import REPO_ROOT
 from .fixture import ScriptedRouter, package_from_files, run_package
 from .host import HOST_RESOURCES, host_resource_handlers
-from .scenarios import Scenario, capability_scenarios
+from .scenarios import Task, capability_scenarios
 
 
 def _failure(exc: BaseException) -> dict:
@@ -47,7 +47,7 @@ def _failure(exc: BaseException) -> dict:
     }
 
 
-def reference_run(package, scenario: Scenario, app) -> dict:
+def reference_run(package, scenario: Task, app) -> dict:
     router = ScriptedRouter(scenario.models)
     calls: list = []
     handlers = {

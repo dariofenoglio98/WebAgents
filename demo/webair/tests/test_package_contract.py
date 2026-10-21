@@ -28,6 +28,7 @@ from publisher.contract import (
     DECLARED_HOST,
     PACKAGE_SOURCE,
     PACKAGE_TOOLS,
+    REPO_ROOT,
     endpoint_operation,
     input_schema_path,
     output_schema_path,
@@ -220,19 +221,36 @@ def test_model_facing_fare_ids_use_the_origin_id_format():
 
 
 def test_task_inputs_carry_choices_and_ids_never_personal_data(package, published):
+    """0.8.0: the message is the whole input; a quote or a purchase is said in it and decided
+    by the graph and the person, never named by an id in the task (D-274, B-231)."""
     task = source_json("schemas/input.schema.json")
-    assert set(task["properties"]) == {"request", "booking", "purchase"}
-    assert task["properties"]["booking"]["type"] == "boolean"
-    purchase = task["properties"]["purchase"]["properties"]
-    assert set(purchase) == {"quote_id", "fare_id"}
-    # The origin's own id formats, or empty for "no purchase in this task".
-    assert purchase["quote_id"]["pattern"] == f"^({QUOTE_ID_PATTERN[1:-1]})?$"
-    assert purchase["fare_id"]["pattern"] == f"^({FARE_ID_PATTERN[1:-1]})?$"
+    assert set(task["properties"]) == {"message"}
+    assert task["properties"]["message"]["type"] == "string"
+    assert task["additionalProperties"] is False
+    plan = source_json("schemas/plan.schema.json")["properties"]
+    assert plan["intent"]["enum"] == ["search", "quote", "purchase", "question", "done"]
+    # The fare a quote names uses the origin's own id format; no quote id is ever a model's.
+    assert plan["fare_id"]["pattern"] == FARE_ID_PATTERN
     request = published["operations"]["simulate_purchase"]["request_schema"]["properties"]
     assert request["quote_id"]["pattern"] == QUOTE_ID_PATTERN
     assert request["payment_method_id"]["enum"] == list(inventory.PAYMENT_METHODS)
     confirmation = published["operations"]["simulate_purchase"]["response_schema"]
     assert confirmation["properties"]["confirmation_id"]["pattern"] == CONFIRMATION_ID_PATTERN
+
+
+def test_the_card_shows_the_quote_and_the_name_never_the_sealed_values(package):
+    """The facts of the consent step before a purchase: the quote, the fare, the flight, the
+    total, the passenger's name and the card's label; never the e-mail or the payment id."""
+    facts = source_json("schemas/purchase-facts.schema.json")["anyOf"][1]
+    assert facts["additionalProperties"] is False
+    assert set(facts["required"]) == set(facts["properties"])
+    assert set(facts["properties"]["passenger"]["properties"]) == {"given_name", "family_name"}
+    assert "contact_email" not in json.dumps(facts) and "payment_method_id" not in json.dumps(facts)
+    assert facts["properties"]["quote_id"]["pattern"] == QUOTE_ID_PATTERN
+    assert facts["properties"]["fare_id"]["pattern"] == FARE_ID_PATTERN
+    # The decision contract is the specification's own document, byte for byte (V-18).
+    spec = json.loads((REPO_ROOT / "spec/conversation-v0/consent-decision.schema.json").read_text())
+    assert source_json("schemas/consent-decision.schema.json") == spec
 
 
 def test_host_resource_schemas_are_the_demo_hosts_own(package):

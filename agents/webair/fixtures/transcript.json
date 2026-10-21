@@ -1,0 +1,20 @@
+{
+  "schema": "conversation.transcript.v0",
+  "turns": [
+    {
+      "message": {
+        "message": "Find me a flight from Boston to Zurich on 9 October under $900."
+      }
+    },
+    {
+      "message": {
+        "message": "Only nonstop, and the cheapest one."
+      }
+    },
+    {
+      "message": {
+        "message": "That's all, thanks."
+      }
+    }
+  ]
+}
