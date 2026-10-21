@@ -575,7 +575,11 @@ export class ConversationPanel {
     if (!conversation || !pending) return;
     const name = this.agentName();
     const deadline = new Date(Date.parse(pending.requested_at) + pending.timeout_seconds * 1000).toISOString();
-    const facts = pending.facts && typeof pending.facts === "object" && !Array.isArray(pending.facts) ? Object.entries(pending.facts as JsonObject).map(([key, value]): [string, string] => [humanize(key), typeof value === "string" ? value : typeof value === "number" || typeof value === "boolean" ? String(value) : JSON.stringify(value)]) : [];
+    // A fact is shown as the package built it: a scalar as is, a flat object as its fields in words
+    // ("Given name Alex, Family name Traveler"), anything deeper as JSON.
+    const words = (value: JsonValue): string =>
+      typeof value === "string" ? value : typeof value === "number" || typeof value === "boolean" ? String(value) : value !== null && typeof value === "object" && !Array.isArray(value) && Object.values(value).every((item) => item === null || typeof item !== "object") ? Object.entries(value).map(([key, item]) => `${humanize(key)} ${item === null ? "—" : String(item)}`).join(", ") : JSON.stringify(value);
+    const facts = pending.facts && typeof pending.facts === "object" && !Array.isArray(pending.facts) ? Object.entries(pending.facts as JsonObject).map(([key, value]): [string, string] => [humanize(key), words(value)]) : [];
     const step = conversation.consentSteps.find((item) => item.id === pending.step) ?? null;
     const grants = pending.permissions.map((id) => `${id}${conversation.grants[id] === "once" ? " (granted once)" : ""}`).join(", ");
     const card = el(

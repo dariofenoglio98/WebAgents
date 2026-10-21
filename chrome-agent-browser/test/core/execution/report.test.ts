@@ -35,6 +35,19 @@ describe("the audit chain", () => {
     expect(verifyAuditChain([]).valid).toBe(true);
   });
 
+  it("verifies a conversation turn's slice as continued: the first link and sequence are the chain's (V-17)", () => {
+    const whole = chain([{ action: "conversation.started" }, { action: "turn.started" }, { action: "runtime.started" }, { action: "workflow.completed" }, { action: "turn.completed" }]);
+    const slice = whole.slice(2, 4);
+    expect(verifyAuditChain(slice).valid).toBe(false);
+    expect(verifyAuditChain(slice, { continued: true })).toMatchObject({ valid: true, events: 2, final_hash: whole[3]!.event_hash, broken: [] });
+    // Continued is no licence for a gap inside the slice, or for a wrong start.
+    expect(verifyAuditChain([whole[2]!, whole[4]!], { continued: true }).valid).toBe(false);
+    const detached = JSON.parse(JSON.stringify(slice)) as JsonObject[];
+    detached[1]!.sequence = 9;
+    expect(verifyAuditChain(detached, { continued: true }).broken[0]!.reason).toBe("event_hash");
+    expect(verifyAuditChain([], { continued: true }).valid).toBe(true);
+  });
+
   it("a summary counts only what the chain contains", () => {
     const audit = chain([
       { action: "worker.spawned", worker: "W:1" },

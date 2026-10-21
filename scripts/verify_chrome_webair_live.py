@@ -22,6 +22,16 @@ portable checks of `scripts/verify_webair_live.py` (the OpenClaw live acceptance
   what the public origin serves (`/health`, the bytes), unless `--no-network`. The version is the
   report's `packageVersion` (T9; 0.4.0 for reports recorded before it, which carry none).
 
+From WebAir 0.8.0 (T24, conversation.v0) the harness's phases are conversations, exported as
+`agentpkg converse` writes them (D-272: `transcript.json`, `state.json`, one `audit.json` across
+the turns, `turn-NNN/` with each turn's run files and `observations.json`). For such a report
+(`conversations` in the harness's record) this script runs the per-run checks above on every
+turn and then the conversation's own: the transcript against the output contract, one chain
+across the turns, every decision hashed in the audit as the person saw it, the card before the
+purchase with the passenger's name and the card's label but never the e-mail or the payment
+identifier, the second "buy it" declined by the plan as consumed (V-13), the denied purchase that
+stopped at the payment read with no card, and each conversation's end reason.
+
 The needle values come from `demo/webair/host-resources.json` (the fictional demo set); only class
 names and counts reach the report. The report is rewritten in place with `checks`, `runs` and
 `verification`; `passed` is false if any check fails. The run directories live under the
@@ -50,17 +60,25 @@ COMMITTED_REPORTS = (
     ROOT / "examples/verification/chrome-webair-040-live-hosted.json",
     ROOT / "examples/verification/chrome-webair-050-live.json",
     ROOT / "examples/verification/chrome-webair-050-live-hosted.json",
+    ROOT / "examples/verification/chrome-webair-080-live.json",
+    ROOT / "examples/verification/chrome-webair-080-local-live.json",
+    ROOT / "examples/verification/chrome-webair-080-live-hosted.json",
 )
 sys.path.insert(0, str(ROOT / "agentpkg" / "src"))
 
-from agentpkg.execution.report import verify_audit_chain  # noqa: E402
-from agentpkg.package import load_package  # noqa: E402
-from agentpkg.signing import verify_package  # noqa: E402
+from agentpkg.errors import AgentPkgError
+from agentpkg.execution.report import verify_audit_chain
+from agentpkg.package import load_package
+from agentpkg.signing import verify_package
 
 SITE = "https://webagents-webair-production.up.railway.app"
 
+ARCHIVE_OVERRIDE: Path | None = None
+
+
 def archive_for(version: str) -> Path:
-    return ROOT / f"dist/webair-{version}.agent.pkg"
+    return ARCHIVE_OVERRIDE or ROOT / f"dist/webair-{version}.agent.pkg"
+
 
 KEY = ROOT / "examples/keys/webair-publisher.pub.pem"
 FINGERPRINT = "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b"
@@ -166,15 +184,48 @@ def model_task(body: str) -> str | None:
     return None
 
 
+def verify_slice(audit: list) -> dict:
+    """A turn's audit is a slice of its conversation's chain (conversation.v0 V-17): every hash
+    recomputes, every link from the second event holds, and the sequences count on from the
+    first; the first event's own link and base are the conversation's, checked on the whole
+    chain by `conversation_phase`."""
+    from agentpkg.runtime import digest
+
+    broken = []
+    previous = None
+    base = int(audit[0]["sequence"]) - 1 if audit else 0
+    for index, event in enumerate(audit):
+        body = {k: v for k, v in event.items() if k != "event_hash"}
+        if event.get("event_hash") != digest(body):
+            broken.append({"sequence": event.get("sequence"), "reason": "event_hash"})
+        elif index > 0 and event.get("previous_hash") != previous:
+            broken.append(
+                {"sequence": event.get("sequence"), "reason": "previous_hash"}
+            )
+        elif event.get("sequence") != base + index + 1:
+            broken.append({"sequence": event.get("sequence"), "reason": "sequence"})
+        previous = event.get("event_hash")
+    return {
+        "events": len(audit),
+        "valid": not broken and bool(audit),
+        "broken": broken[:8],
+    }
+
+
 def run_facts(
-    phase: str, directory: Path, classes: dict[str, list[str]], model: str
+    phase: str,
+    directory: Path,
+    classes: dict[str, list[str]],
+    model: str,
+    *,
+    turn: bool = False,
 ) -> dict:
     record = json.loads((directory / "run.json").read_text())
     audit = json.loads((directory / "audit.json").read_text())
     plan = json.loads((directory / "run-plan.json").read_text())
     observations = json.loads((directory / "observations.json").read_text())
     lines = observations.get("observations", [])
-    chain = verify_audit_chain(audit)
+    chain = verify_slice(audit) if turn else verify_audit_chain(audit)
     models = [line for line in lines if line["kind"] == "model"]
     tools = [line for line in lines if line["kind"] == "tool"]
     dispatched = [e for e in audit if e.get("action") == "tool.dispatched"]
@@ -301,15 +352,26 @@ def run_facts(
         ),
         record.get("model"),
     )
-    check(
-        f"{phase}_every_model_call_observed",
-        len(models) == (record.get("model") or {}).get("calls", 0) == len(called_tasks),
-        {
-            "observed": len(models),
-            "recorded": (record.get("model") or {}).get("calls"),
-            "called": len(called_tasks),
-        },
-    )
+    if record.get("status") == "cancelled":
+        # A turn stopped inside a model call: the call was observed and recorded as called,
+        # never as completed, so the record counts fewer calls than the observer saw.
+        check(
+            f"{phase}_every_model_call_observed",
+            len(models) == len(called_tasks),
+            {"observed": len(models), "called": len(called_tasks)},
+        )
+    else:
+        check(
+            f"{phase}_every_model_call_observed",
+            len(models)
+            == (record.get("model") or {}).get("calls", 0)
+            == len(called_tasks),
+            {
+                "observed": len(models),
+                "recorded": (record.get("model") or {}).get("calls"),
+                "called": len(called_tasks),
+            },
+        )
     check(
         f"{phase}_every_webair_call_observed",
         len(tools) == len(remote),
@@ -586,13 +648,487 @@ def phase_checks(
     return None
 
 
+TRANSCRIPT_SCHEMA = ROOT / "spec/conversation-v0/transcript.schema.json"
+CONVERSATION_PHASES = ("search", "cancel", "quote", "purchase", "denial")
+
+
+def conversation_phase(
+    phase: str, entry: dict, classes: dict[str, list[str]], model: str
+) -> dict:
+    """A conversation's export: the per-run checks on every turn, then the conversation's own."""
+    from agentpkg.runtime import digest
+    from jsonschema import Draft202012Validator
+
+    directory = ROOT / entry["directory"]
+    transcript = json.loads((directory / "transcript.json").read_text())
+    audit = json.loads((directory / "audit.json").read_text())
+    state = json.loads((directory / "state.json").read_text())
+    turns = transcript["turns"]
+    facts: dict = {
+        "directory": entry["directory"],
+        "conversation_id": transcript["conversation_id"],
+        "turns": {},
+        "statuses": [t["status"] for t in turns],
+        "replies": [(t["reply"] or {}).get("status") for t in turns],
+        "intents": [(t["reply"] or {}).get("intent") for t in turns],
+        "ended": transcript["ended"],
+        "spent_permissions": transcript["spent_permissions"],
+        "decisions": [d for t in turns for d in t["decisions"]],
+    }
+    errors = sorted(
+        Draft202012Validator(json.loads(TRANSCRIPT_SCHEMA.read_text())).iter_errors(
+            transcript
+        ),
+        key=lambda e: list(map(str, e.absolute_path)),
+    )
+    check(f"{phase}_transcript_validates", not errors, [e.message for e in errors[:3]])
+    chain = verify_audit_chain(audit)
+    check(f"{phase}_one_chain_across_turns", chain.get("valid") is True, chain)
+    check(
+        f"{phase}_sequence_counts_on",
+        [e["sequence"] for e in audit] == list(range(1, len(audit) + 1)),
+        len(audit),
+    )
+    check(f"{phase}_state_is_the_transcripts", state == transcript["state"])
+    for turn in turns:
+        if not turn.get("run_id"):
+            continue
+        turn_dir = directory / f"turn-{turn['turn']:03d}"
+        if not (turn_dir / "run.json").exists():
+            check(f"{phase}_turn{turn['turn']}_run_recorded", False, str(turn_dir))
+            continue
+        label = f"{phase}_turn{turn['turn']}"
+        turn_facts = run_facts(label, turn_dir, classes, model, turn=True)
+        inside = [
+            e
+            for e in audit
+            if e.get("turn") == turn["turn"]
+            and e.get("run_id") != transcript["conversation_id"]
+        ]
+        slice_ = json.loads((turn_dir / "audit.json").read_text())
+        check(
+            f"{label}_audit_is_its_slice_of_the_chain",
+            [e["event_hash"] for e in slice_] == [e["event_hash"] for e in inside]
+            and inside,
+            {"slice": len(slice_), "in_chain": len(inside)},
+        )
+        facts["turns"][turn["turn"]] = turn_facts
+    decided = [e for e in audit if e.get("action") == "consent.decided"]
+    requested = [e for e in audit if e.get("action") == "consent.requested"]
+    check(
+        f"{phase}_every_decision_is_in_the_chain",
+        len(decided) == len(facts["decisions"])
+        and all(
+            e["step"] == d["step"]
+            and e["accepted"] == d["accepted"]
+            and e["decided_by"] == d["decided_by"]
+            for e, d in zip(decided, facts["decisions"], strict=True)
+        ),
+        {"chain": len(decided), "transcript": len(facts["decisions"])},
+    )
+    for d in facts["decisions"]:
+        req = next(
+            (
+                r
+                for r in requested
+                if r["step"] == d["step"]
+                and r["turn"] == next(t["turn"] for t in turns if d in t["decisions"])
+            ),
+            None,
+        )
+        check(
+            f"{phase}_{d['step']}_hashes_what_the_person_saw",
+            req is not None
+            and req["text_sha256"]
+            == hashlib.sha256(d["text"].encode("utf-8")).hexdigest()
+            and req["facts_hash"] == digest(d["facts"]),
+        )
+    return facts
+
+
+def conversation_checks(phase: str, facts: dict, harness: dict) -> None:
+    """The demo's properties per conversation (WebAir 0.8.0)."""
+    turns = facts["turns"]
+    statuses, replies, intents = facts["statuses"], facts["replies"], facts["intents"]
+    directory = ROOT / facts["directory"]
+    if phase == "search":
+        check(
+            "search_three_turns_search_refine_goodbye",
+            statuses == ["completed"] * 3
+            and replies[:2] == ["options_found", "options_found"]
+            and intents == ["search", "search", "done"],
+            {"statuses": statuses, "replies": replies, "intents": intents},
+        )
+        search1 = json.loads((directory / "turn-001" / "search.json").read_text())
+        fares = [
+            (fare["fare_id"], fare["price_usd"])
+            for flight in search1.get("flights", [])
+            for fare in flight.get("fares", [])
+        ]
+        check("search_turn1_found_the_hero_fares", fares == HERO_FARES, fares)
+        search2 = json.loads((directory / "turn-002" / "search.json").read_text())
+        query = search2.get("query") or {}
+        check(
+            "search_turn2_kept_the_route_and_date_from_the_history",
+            (query.get("origin"), query.get("destination"), query.get("date"))
+            == ("BOS", "ZRH", "2026-10-09"),
+            query,
+        )
+        check(
+            "search_goodbye_called_no_model_but_interpret_and_no_tool",
+            turns[3]["audit"]["model_tasks"] == ["interpret"]
+            and not turns[3]["observed_webair_requests"],
+            turns[3]["audit"]["model_tasks"],
+        )
+        check(
+            "search_used_no_identity_or_payment",
+            all(
+                not t["resource_grants"] and not t["audit"]["resources_resolved"]
+                for t in turns.values()
+            ),
+        )
+        check("search_asked_no_card", facts["decisions"] == [])
+        check(
+            "search_ended_by_the_package",
+            facts["ended"]["reason"] == "package",
+            facts["ended"],
+        )
+        reconnect = (harness.get("steps") or {}).get("reconnect") or {}
+        check(
+            "search_reloaded_page_showed_the_conversation",
+            isinstance(reconnect.get("stateAfterReload"), str),
+            reconnect,
+        )
+    elif phase == "cancel":
+        check("cancel_turn_settled_as_cancelled", statuses == ["cancelled"], statuses)
+        check(
+            "cancel_ended_by_the_person",
+            facts["ended"]["reason"] == "person",
+            facts["ended"],
+        )
+    elif phase == "quote":
+        check(
+            "quote_turn_quoted_the_fare",
+            statuses == ["completed"]
+            and replies == ["quoted"]
+            and intents == ["quote"],
+            {"statuses": statuses, "replies": replies},
+        )
+        booking = json.loads((directory / "turn-001" / "booking.json").read_text())
+        quote_id = (booking.get("booking") or {}).get("quote_id")
+        check(
+            "quote_has_a_quote_id",
+            isinstance(quote_id, str) and QUOTE_ID.match(quote_id) is not None,
+            quote_id,
+        )
+        state = json.loads((directory / "state.json").read_text())
+        check(
+            "quote_stays_open_in_the_state",
+            (state.get("quote_ref") or {}).get("quote_id") == quote_id,
+            state.get("quote_ref"),
+        )
+        turn = turns[1]
+        identity_paths = sorted(
+            {
+                l["path"]
+                for l in turn["observed_webair_requests"]
+                if set(l["classes_in_request"]) & set(IDENTITY)
+            }
+        )
+        check(
+            "quote_identity_reached_only_prepare_booking",
+            identity_paths == ["/api/v1/prepare_booking"],
+            identity_paths,
+        )
+        check(
+            "quote_requests_carry_no_payment",
+            not any(
+                set(l["classes_in_request"]) & set(PAYMENT)
+                for l in turn["observed_webair_requests"]
+            ),
+        )
+        check(
+            "quote_result_is_redacted",
+            "contact_email" not in json.dumps(booking)
+            and "given_name" not in json.dumps(booking),
+        )
+        check(
+            "quote_model_calls_are_interpret_select_answer_remember",
+            turn["audit"]["model_tasks"]
+            == ["interpret", "select", "answer", "remember"],
+            turn["audit"]["model_tasks"],
+        )
+    elif phase == "purchase":
+        # The second "buy it" is read as a purchase (not asked: declined by the plan as consumed,
+        # V-13) or as a question answered from the state (the skill's rule); it buys nothing either way.
+        replayed = (replies[2], intents[2]) in (
+            ("purchase_declined", "purchase"),
+            ("answered", "question"),
+        )
+        check(
+            "purchase_four_turns_quote_buy_replay_goodbye",
+            statuses == ["completed"] * 4
+            and replies[:2] == ["quoted", "purchase_simulated"]
+            and replies[3] == "done"
+            and intents[:2] == ["quote", "purchase"]
+            and intents[3] == "done"
+            and replayed,
+            {"statuses": statuses, "replies": replies, "intents": intents},
+        )
+        decisions = facts["decisions"]
+        check(
+            "purchase_card_accepted_by_the_person_and_never_asked_again",
+            len(decisions) >= 1
+            and (
+                decisions[0]["step"],
+                decisions[0]["accepted"],
+                decisions[0]["decided_by"],
+            )
+            == ("confirm-purchase", True, "person")
+            and all(
+                (d["accepted"], d["decided_by"], d["reason"])
+                == (False, "plan", "permission_consumed")
+                for d in decisions[1:]
+            ),
+            decisions,
+        )
+        card = decisions[0]["facts"] if decisions else {}
+        text = json.dumps(card)
+        check(
+            "purchase_card_shows_the_name_and_the_label_never_the_email_or_payment_id",
+            isinstance(card.get("passenger"), dict)
+            and set(card["passenger"]) == {"given_name", "family_name"}
+            and isinstance(card.get("payment_method"), str)
+            and "@" not in text
+            and "payment_method_id" not in text,
+            card,
+        )
+        harness_card = (harness.get("steps") or {}).get("card") or {}
+        decision_at = ((harness.get("steps") or {}).get("decision") or {}).get(
+            "decided_at", ""
+        )
+        check(
+            "purchase_card_was_pending_before_the_decision",
+            bool(harness_card.get("requested_at"))
+            and harness_card["requested_at"]
+            <= harness_card.get("seen_at", "")
+            <= decision_at,
+            {"card": harness_card.get("requested_at"), "decided": decision_at},
+        )
+        bought = turns[2]
+        booking = json.loads((directory / "turn-002" / "booking.json").read_text())
+        purchase = booking.get("purchase") or {}
+        check(
+            "purchase_is_simulated_with_no_charge",
+            purchase.get("simulated") is True
+            and purchase.get("real_transaction") is False
+            and purchase.get("amount_charged_usd") == 0,
+            purchase,
+        )
+        check(
+            "purchase_authority_was_once",
+            bought["decisions"].get("booking.simulate_purchase") == "once",
+            bought["decisions"],
+        )
+        check(
+            "purchase_once_spent_by_the_conversation",
+            facts["spent_permissions"] == ["booking.simulate_purchase"],
+            facts["spent_permissions"],
+        )
+        payment_paths = sorted(
+            {
+                l["path"]
+                for l in bought["observed_webair_requests"]
+                if "payment_method_id" in l["classes_in_request"]
+            }
+        )
+        check(
+            "purchase_payment_id_reached_only_simulate_purchase",
+            payment_paths == ["/api/v1/simulate_purchase"],
+            payment_paths,
+        )
+        paths = [l["path"] for l in bought["observed_webair_requests"]]
+        check(
+            "purchase_requoted_then_bought",
+            paths == ["/api/v1/prepare_booking", "/api/v1/simulate_purchase"],
+            paths,
+        )
+        again = turns[3]
+        again_paths = [l["path"] for l in again["observed_webair_requests"]]
+        check(
+            "replay_sent_no_purchase",
+            "/api/v1/simulate_purchase" not in again_paths,
+            again_paths,
+        )
+        check(
+            "purchase_ended_by_the_package",
+            facts["ended"]["reason"] == "package",
+            facts["ended"],
+        )
+    elif phase == "denial":
+        check(
+            "denial_quote_then_a_failed_purchase_turn",
+            statuses == ["completed", "failed"]
+            and turns[2]["error_code"] == "permission_denied",
+            {"statuses": statuses, "error": turns.get(2, {}).get("error_code")},
+        )
+        denied = turns[2]
+        check(
+            "denial_stopped_at_the_payment_read",
+            denied["failed_node"] == "payment"
+            and "wallet.payment_method" in denied["audit"]["tools_refused"],
+            {
+                "node": denied["failed_node"],
+                "refused": denied["audit"]["tools_refused"],
+            },
+        )
+        check(
+            "denial_asked_no_card_and_called_no_webair_operation",
+            facts["decisions"] == [] and not denied["observed_webair_requests"],
+            denied["observed_webair_requests"],
+        )
+        check(
+            "denial_made_only_the_interpret_call",
+            denied["audit"]["model_tasks"] == ["interpret"],
+            denied["audit"]["model_tasks"],
+        )
+        check(
+            "denial_plan_denied_the_purchase_tools",
+            {"simulate-purchase", "wallet.payment_method"}
+            <= set(denied["run_plan"]["denied_tools"]),
+            denied["run_plan"]["denied_tools"],
+        )
+        check(
+            "denial_conversation_stayed_open_until_the_person_ended_it",
+            facts["ended"]["reason"] == "person",
+            facts["ended"],
+        )
+
+
+def verify_conversational(args, report_path: Path, harness: dict, model: str) -> int:
+    """A WebAir 0.8.0 report: the phases are conversations."""
+    conversations = harness.get("conversations") or {}
+    missing = [
+        phase
+        for phase in CONVERSATION_PHASES
+        if not (
+            ROOT
+            / (conversations.get(phase) or {}).get("directory", "<none>")
+            / "transcript.json"
+        ).exists()
+    ]
+    if missing and report_path.resolve() in {
+        path.resolve() for path in COMMITTED_REPORTS
+    }:
+        print(
+            json.dumps(
+                {
+                    "report": str(report_path),
+                    "error": "exported conversation directories are missing; nothing was written",
+                    "missing_phases": missing,
+                },
+                indent=2,
+            ),
+            file=sys.stderr,
+        )
+        return 2
+    classes = needles()
+    check("harness_passed", harness.get("passed") is True, harness.get("failures"))
+    check(
+        "harness_recorded_in_test_mode",
+        (harness.get("steps") or {}).get("setup", {}).get("testMode") is True,
+    )
+    facts_by_phase: dict = {}
+    for phase in CONVERSATION_PHASES:
+        entry = conversations.get(phase)
+        if not entry or not (ROOT / entry["directory"] / "transcript.json").exists():
+            check(
+                f"{phase}_conversation_recorded",
+                False,
+                "no conversation exported for this phase",
+            )
+            continue
+        facts = conversation_phase(phase, entry, classes, model)
+        conversation_checks(phase, facts, harness)
+        facts_by_phase[phase] = facts
+    digests = {
+        t["package"]["digest"]
+        for f in facts_by_phase.values()
+        for t in f["turns"].values()
+    }
+    check("every_turn_ran_the_same_package_bytes", len(digests) == 1, sorted(digests))
+    version = harness.get("packageVersion") or "0.8.0"
+    package = package_and_origin(not args.no_network, version)
+    code = generic_code()
+    document = {
+        "profile": f"chrome-webair-{version.replace('.', '')}-live-demo-v0",
+        "milestone": f"T24: WebAir {version} as a conversation in the Chrome Agent Browser (Demo 8)",
+        "recorded": harness["recordedAt"][:10],
+        "commands": {
+            "harness": f"node chrome-agent-browser/scripts/e2e-webair-live.mjs --model {model} --version {version}",
+            "verify": "agentpkg/.venv/bin/python scripts/verify_chrome_webair_live.py",
+        },
+        "statement": f"The built extension, loaded in a real headless Chrome, discovered WebAir {version} on the origin, verified and trusted it, authorized three profiles, and talked to it in the chat surface on the model named here: a search refined over the history and ended by the package, a turn stopped from the surface, a quote whose identity reached only prepare_booking, a simulated purchase confirmed on the card with the quote's facts under a once grant, a second purchase the plan declined as consumed, and a purchase denied without the grant that stopped before any card. Every conversation's audit is one chain re-verified with agentpkg; every decision is hashed in it as the person saw it; no model request carried a sealed or personal value.",
+        "notice": "Fictional data throughout (WebAir does not exist; no payment occurs). The report holds no credential, no host-resource value and no path on the operator's machine; directories are named relative to the repository.",
+        "model": {
+            "selected": model,
+            "provider": model.split("/")[0],
+            "local": next(
+                (
+                    t["model"].get("local")
+                    for f in facts_by_phase.values()
+                    for t in f["turns"].values()
+                ),
+                None,
+            ),
+        },
+        "package": package,
+        "generic_code": code,
+        "harness": harness,
+        "conversations": facts_by_phase,
+        "checks": CHECKS,
+        "passed": all(item["passed"] for item in CHECKS),
+    }
+    report_path.write_text(json.dumps(document, indent=2, ensure_ascii=False) + "\n")
+    print(
+        json.dumps(
+            {
+                "report": str(report_path.relative_to(ROOT))
+                if report_path.is_relative_to(ROOT)
+                else str(report_path),
+                "checks": len(CHECKS),
+                "failed": [c["id"] for c in CHECKS if not c["passed"]],
+                "passed": document["passed"],
+            },
+            indent=2,
+        )
+    )
+    if not document["passed"]:
+        print(
+            "FAILED: " + ", ".join(c["id"] for c in CHECKS if not c["passed"]),
+            file=sys.stderr,
+        )
+        return 1
+    return 0
+
+
 def package_and_origin(network: bool, version: str) -> dict:
     archive = archive_for(version)
     package = load_package(archive)
-    verification = verify_package(archive, KEY)
+    try:
+        verification = verify_package(archive, KEY)
+    except AgentPkgError as error:
+        # A rehearsal build under another key (`--archive`): the check fails and says so.
+        verification = {
+            "valid": False,
+            "key_fingerprint": None,
+            "error": f"{type(error).__name__}: {error}",
+        }
     local = archive.read_bytes()
     facts = {
-        "artifact": str(archive.relative_to(ROOT)),
+        "artifact": str(archive.relative_to(ROOT))
+        if archive.is_relative_to(ROOT)
+        else archive.name,
         "version": package.manifest["version"],
         "archive_sha256": hashlib.sha256(local).hexdigest(),
         "package_digest": package.digest,
@@ -633,7 +1169,13 @@ def generic_code() -> dict:
     pattern = re.compile(
         r"(?i)webair|airline|passenger_demo|payment_demo|profile_demo|alex\.traveler"
     )
-    allowed = {"src/extension/data/demo-host-resources.json", "src/extension/data/demo-documents.json"}
+    # The memory.v0 starter taxonomy (`schemas/memory/`) is the specification's data, copied byte
+    # for byte: it names "airline" as a kind of travel preference (as `verify_webair.py` allows).
+    allowed = {
+        "src/extension/data/demo-host-resources.json",
+        "src/extension/data/demo-documents.json",
+        "src/core/schemas/memory/taxonomy.json",
+    }
     offenders: list[str] = []
     for path in sorted((ROOT / "chrome-agent-browser" / "src").rglob("*")):
         if not path.is_file() or path.suffix not in {".ts", ".json", ".css", ".html"}:
@@ -648,11 +1190,17 @@ def generic_code() -> dict:
             if pattern.search(line):
                 offenders.append(f"{relative}:{number}")
     # The two UI strings that name the demo (a hint and a button title) are presentation, not behaviour.
+    # (T24: also the address bar's example locator and the memory pages' taxonomy words.)
     presentation = [
         o
         for o in offenders
         if o.startswith(
-            ("src/extension/sidepanel/sidepanel.ts", "src/extension/ui/vault-page.ts")
+            (
+                "src/extension/sidepanel/sidepanel.ts",
+                "src/extension/ui/vault-page.ts",
+                "src/extension/browser/browser.ts",
+                "src/extension/ui/memory/",
+            )
         )
     ]
     behaviour = [o for o in offenders if o not in presentation]
@@ -673,7 +1221,15 @@ def main() -> int:
     parser.add_argument(
         "--no-network", action="store_true", help="skip the public-origin checks"
     )
+    parser.add_argument(
+        "--archive",
+        help="the archive to verify instead of dist/webair-<version>.agent.pkg (a rehearsal of a "
+        "build not yet signed, with its own key: the signer check then fails and says so)",
+    )
     args = parser.parse_args()
+    global ARCHIVE_OVERRIDE
+    if args.archive:
+        ARCHIVE_OVERRIDE = Path(args.archive)
     report_path = Path(args.report)
     document = json.loads(report_path.read_text())
     harness = document.get("harness") or {
@@ -682,6 +1238,8 @@ def main() -> int:
         if k not in ("checks", "runs_verified", "verification", "passed_verification")
     }
     model = harness["model"]
+    if harness.get("conversations") is not None:
+        return verify_conversational(args, report_path, harness, model)
     missing = [
         phase
         for phase in PHASES
@@ -691,7 +1249,9 @@ def main() -> int:
             / "run.json"
         ).exists()
     ]
-    if missing and report_path.resolve() in {path.resolve() for path in COMMITTED_REPORTS}:
+    if missing and report_path.resolve() in {
+        path.resolve() for path in COMMITTED_REPORTS
+    }:
         # The committed evidence is rewritten only from a complete attempt (T5 review 1, nit 8).
         # An explicit --report elsewhere may verify a partial or failed attempt: its missing
         # phases become `<phase>_run_recorded` failures below (T5 review 2, nit 7).

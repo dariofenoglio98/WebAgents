@@ -125,6 +125,9 @@ describe("a conversation from the browser", () => {
     expect(first.state).toEqual({ history: [{ text: "order A", intent: "order" }], orders: [{ order_id: "TD-0001", show: "Show A", quantity: 1, total_usd: 40 }] });
     expect(first.spent.tool_calls).toEqual({ place: 1 });
     expect(first.spent.tokens).toBeGreaterThan(0);
+    // The turn's own record verifies its audit as a slice of the conversation's chain (V-17).
+    const turnRun = (await w.h.controller.handle({ type: "run.get", runId: turn.run_id! }, PAGE)) as RunView;
+    expect(turnRun.audit?.chainValid).toBe(true);
     expect(w.deskSeen).toHaveLength(1);
     // The second turn: the package ends the conversation (V-8).
     await send(w, started.conversationId, "done");

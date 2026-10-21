@@ -470,7 +470,9 @@ export class ExecutionSession {
       errorCode = "timeout";
     }
     const audit = (outcome.audit ?? []) as unknown as JsonObject[];
-    const summary = auditSummary(audit);
+    // A turn's audit is a slice of its conversation's chain (V-17): verified as continued; the
+    // whole chain is the conversation record's to verify.
+    const summary = auditSummary(audit, { continued: this.turnStart !== null });
     const files = this.writeArtifacts(outcome);
     const output = outcome.output;
     const planned = this.plan!.model_binding?.host_model_id ?? this.router?.model_id ?? null;

@@ -1,6 +1,6 @@
 {
   "profile": "chrome-conversation-e2e-v0",
-  "recordedAt": "2026-10-21T22:33:36.104Z",
+  "recordedAt": "2026-10-21T22:56:40.962Z",
   "chrome": "Chrome/155.0.8059.86",
   "model": {
     "id": "ollama/desk-script",
@@ -42,15 +42,15 @@
       ]
     }
   },
-  "outputDirectory": "examples/my-chrome-conversation-2026-10-21T22-33-36-104Z",
-  "exportDirectory": "examples/my-chrome-conversation-2026-10-21T22-33-36-104Z/export",
+  "outputDirectory": "examples/my-chrome-conversation-2026-10-21T22-56-40-962Z",
+  "exportDirectory": "examples/my-chrome-conversation-2026-10-21T22-56-40-962Z/export",
   "package": {
     "package_id": "org.example.conversation-probe",
     "version": "0.1.0",
     "digest": "adfe75f00872590329ea46972be5dbf52a8cbc40ee6dcf266d44ab4377582455",
-    "archiveSha256": "085c713da51d5a87c61e6cabb504b3724c838ad264ed82dd924f273bf6990802",
+    "archiveSha256": "6e26fbd9cf41ea739492228c0b2fe16919b60daa287a4c551ceb9ec24f86561f",
     "bytes": 17613,
-    "signer": "sha256:46ee524cdc039b668311070173f8c06c874ab44036e0c1b4836aceccc1c7178c",
+    "signer": "sha256:42d565182707ba3a0293f02c6c435c5a6346d84f1b69318bf22bff0b34084f68",
     "fixtureTranscript": {
       "schema": "conversation.transcript.v0",
       "turns": [
@@ -71,11 +71,11 @@
     }
   },
   "fakes": {
-    "ollama": "http://127.0.0.1:60434",
-    "desk": "https://desk.example.org -> 127.0.0.1:60435"
+    "ollama": "http://127.0.0.1:62210",
+    "desk": "https://desk.example.org -> 127.0.0.1:62211"
   },
   "plan": {
-    "run_plan_id": "rp_aece96a8facd4a4c87e275c9abe83989",
+    "run_plan_id": "rp_aa24889b00e14878b32883a355996d29",
     "conversation": {
       "max_turns": 4,
       "hard_tokens": 16000,
@@ -117,7 +117,7 @@
     ]
   },
   "conversation": {
-    "conversationId": "75da840f-ad58-4e00-8c76-162869c95722",
+    "conversationId": "b43cdeaa-3f66-4fb2-9ecc-dadca8173bcd",
     "status": "ended",
     "limits": {
       "max_turns": 4,
@@ -149,7 +149,7 @@
     },
     "ended": {
       "reason": "package",
-      "at": "2026-10-21T22:33:44.017000+00:00",
+      "at": "2026-10-21T22:57:01.679000+00:00",
       "turns_not_run": 0
     },
     "outcome": "completed",
@@ -177,18 +177,18 @@
       "show": "Show A"
     },
     "timeout_seconds": 30,
-    "requested_at": "2026-10-21T22:33:42.119000+00:00",
+    "requested_at": "2026-10-21T22:56:58.482000+00:00",
     "kinds": [
       "payment"
     ],
-    "seen_at": "2026-10-21T22:33:42.154Z",
+    "seen_at": "2026-10-21T22:56:58.507Z",
     "desk_requests_before": 0,
     "model_requests_before": 1
   },
   "decision": {
     "step": "confirm",
     "accepted": true,
-    "decided_at": "2026-10-21T22:33:43.034Z"
+    "decided_at": "2026-10-21T22:57:00.290Z"
   },
   "turns": [
     {
@@ -204,7 +204,7 @@
           "accepted": true,
           "decided_by": "person",
           "reason": null,
-          "decided_at": "2026-10-21T22:33:43.033000+00:00",
+          "decided_at": "2026-10-21T22:57:00.283000+00:00",
           "text": "Order one ticket to Show A?",
           "facts": {
             "quantity": 1,
@@ -229,7 +229,7 @@
           "place": 1
         }
       },
-      "run_id": "run_8af62896642649f684fa6d35c2d75105"
+      "run_id": "run_fdb5945d22c14f67a18a48c2fd750fa2"
     },
     {
       "turn": 2,
@@ -246,13 +246,13 @@
         "remote_calls": 0,
         "tool_calls": {}
       },
-      "run_id": "run_78f5db64292a4fbdb6d51ac60d3bda54"
+      "run_id": "run_123fdbc4f5874c3e9929664c2a6ddbd2"
     }
   ],
   "requests": {
     "model": [
       {
-        "at": "2026-10-21T22:33:42.117Z",
+        "at": "2026-10-21T22:56:58.474Z",
         "task": "interpret",
         "text": "order A",
         "bytes": 1896,
@@ -260,7 +260,7 @@
         "think": false
       },
       {
-        "at": "2026-10-21T22:33:43.983Z",
+        "at": "2026-10-21T22:57:01.583Z",
         "task": "interpret",
         "text": "done",
         "bytes": 1893,
@@ -270,7 +270,7 @@
     ],
     "desk": [
       {
-        "at": "2026-10-21T22:33:43.038Z",
+        "at": "2026-10-21T22:57:00.300Z",
         "method": "POST",
         "path": "/api/orders",
         "body": "{\"quantity\":1,\"show\":\"Show A\"}"
@@ -282,7 +282,7 @@
       "recording": true,
       "count": 2,
       "kinds": [
-        "model:127.0.0.1:60434",
+        "model:127.0.0.1:62210",
         "tool:desk.example.org"
       ]
     },
@@ -290,7 +290,7 @@
       "recording": true,
       "count": 1,
       "kinds": [
-        "model:127.0.0.1:60434"
+        "model:127.0.0.1:62210"
       ]
     }
   },
@@ -316,7 +316,7 @@
   "failures": [],
   "passed": true,
   "reference": {
-    "directory": "examples/my-chrome-conversation-2026-10-21T22-33-36-104Z/reference",
+    "directory": "examples/my-chrome-conversation-2026-10-21T22-56-40-962Z/reference",
     "transcript": [
       {
         "turn": 1,
@@ -348,17 +348,17 @@
       {
         "name": "conversation.json",
         "bytes": 21258,
-        "sha256": "684ddba283b5f60f361fb028414f62def2d81fede87891c4bd083b3eb7b2789c"
+        "sha256": "41bc711069c6d0498e15bdc425b0df8fa32641f1384f21c6146a198171fe5b43"
       },
       {
         "name": "run-plan.json",
         "bytes": 12486,
-        "sha256": "240696399679c6d8f11737fba6f0ddf224880864bb0cc86b7176ece5b8b8b7bc"
+        "sha256": "02dede7d93fe7681a8b158383f3b6472f3e5a934dc64b9a61e5802fe7073b23f"
       },
       {
         "name": "transcript.json",
         "bytes": 2928,
-        "sha256": "1bfd48d91b07eb6b44acc3f6ed9e02ca2f22900864543dc9b816a4448c6fd512"
+        "sha256": "1462db061180d03521b23cd2cf9f1b329b61abad20ac8728ee2590d13bf8c62c"
       },
       {
         "name": "state.json",
@@ -367,8 +367,8 @@
       },
       {
         "name": "audit.json",
-        "bytes": 74056,
-        "sha256": "f8a1127966e3433213fc47b7c60361659a1d8c24991e70a63c7c05dffc9f1ef5"
+        "bytes": 74058,
+        "sha256": "e5b9d26e9626acf6c42d9667254f1bec18c951fe1d67dbf84ab8623bf6d99634"
       },
       {
         "name": "usage.json",
@@ -378,17 +378,17 @@
       {
         "name": "provenance.json",
         "bytes": 364,
-        "sha256": "ca2ec8a5eb509600f0976d9aec4917ebfd66fa38785f9cfc5993160190e09f86"
+        "sha256": "2016a4202da8849bfc00c4717951f16aa3588db800016fb8a57bb44c97e559ce"
       },
       {
         "name": "turn-001/run.json",
-        "bytes": 8536,
-        "sha256": "7159591d08600e0c48dc5ea0bf6316f4b749aaa2bc3771d4e4e9e41baf1d4e59"
+        "bytes": 8538,
+        "sha256": "67701b0fffa12a0cb1a2f0b2ce24481e859cf6032c3b118f2a41f2fc2b0265f3"
       },
       {
         "name": "turn-001/run-plan.json",
         "bytes": 12486,
-        "sha256": "240696399679c6d8f11737fba6f0ddf224880864bb0cc86b7176ece5b8b8b7bc"
+        "sha256": "02dede7d93fe7681a8b158383f3b6472f3e5a934dc64b9a61e5802fe7073b23f"
       },
       {
         "name": "turn-001/input.json",
@@ -397,13 +397,13 @@
       },
       {
         "name": "turn-001/audit.json",
-        "bytes": 37745,
-        "sha256": "b6eb1f48422eac5d432dd7d1177c9637e6c1112e6cafb9f9d9734416ed3eb720"
+        "bytes": 37747,
+        "sha256": "46b6739fc6d2225f9ee5ed5c62859b7fe060ea3b7d2a3288ebd168496793d623"
       },
       {
         "name": "turn-001/provenance.json",
         "bytes": 352,
-        "sha256": "4cf58a86d7ba008cdf9e95cffe70de9c3cb5fcbf02520e2d6cfb830c09ec3df8"
+        "sha256": "8099c57d8fdd9401cbb66c3fe7b51a646d82f7a71c5975e565f36d2fab11da1c"
       },
       {
         "name": "turn-001/reply.json",
@@ -412,8 +412,8 @@
       },
       {
         "name": "turn-001/result.json",
-        "bytes": 42852,
-        "sha256": "109adc4622d631de909239776761ae752db65ff4fd2080a3a4f5440dd3e8d114"
+        "bytes": 42854,
+        "sha256": "f65305278e388251fa90aef63818250a41e89f4338a9c4f1b63daa304933bd51"
       },
       {
         "name": "turn-001/usage.json",
@@ -423,12 +423,12 @@
       {
         "name": "turn-002/run.json",
         "bytes": 8241,
-        "sha256": "c505547bfe835905ef68139fce704f0ec3e26a15bf15ecfbaf6c6c4c2d960d2f"
+        "sha256": "227ee6e85f2e7a272ab5b3ef2371fbfb830f6c636008e4884fd5a02e05d453be"
       },
       {
         "name": "turn-002/run-plan.json",
         "bytes": 12486,
-        "sha256": "240696399679c6d8f11737fba6f0ddf224880864bb0cc86b7176ece5b8b8b7bc"
+        "sha256": "02dede7d93fe7681a8b158383f3b6472f3e5a934dc64b9a61e5802fe7073b23f"
       },
       {
         "name": "turn-002/input.json",
@@ -438,12 +438,12 @@
       {
         "name": "turn-002/audit.json",
         "bytes": 31073,
-        "sha256": "c8a53b9745170b38e1fd9b7a84d0755e48fcaf56a472f86055ed910ef7bfba85"
+        "sha256": "725b80fcea9ba1117c59ced7fa00db2789ae32a66555581231f1c12367753fd8"
       },
       {
         "name": "turn-002/provenance.json",
         "bytes": 352,
-        "sha256": "41e08b89a7c2c3bf0c9e3baf52efeccdc1aff63227c95cdd8dbff5ac7ef8020d"
+        "sha256": "0f008685392edf4fa62945134c255d2bc5590163c4e17e5259213a566e96b7e3"
       },
       {
         "name": "turn-002/reply.json",
@@ -453,7 +453,7 @@
       {
         "name": "turn-002/result.json",
         "bytes": 35147,
-        "sha256": "f726cdb64eab478e2fcd99fb19c306104dc7507cc8a4fb08100e6b791acd1614"
+        "sha256": "76ede75306eebdd65653205df274782c8cf5033def26d30b6e142a08e2923777"
       },
       {
         "name": "turn-002/usage.json",
@@ -464,11 +464,11 @@
   },
   "conversation_verification": {
     "script": "scripts/verify_chrome_conversation.py",
-    "export": "examples/my-chrome-conversation-2026-10-21T22-33-36-104Z/export",
+    "export": "examples/my-chrome-conversation-2026-10-21T22-56-40-962Z/export",
     "chain": {
       "events": 105,
       "valid": true,
-      "final_hash": "c508e3257a1add4bfe1eb3c97cfcc153210396b49b0f6ce5eba2995c50be6cd0"
+      "final_hash": "9e675cf6a0e23142122bbda21234f6bdf71d27a6a2648fa8accbf54999b9cc71"
     },
     "checks": [
       {
@@ -490,7 +490,7 @@
         "detail": {
           "ended": {
             "reason": "package",
-            "at": "2026-10-21T22:33:44.017000+00:00",
+            "at": "2026-10-21T22:57:01.679000+00:00",
             "turns_not_run": 0
           },
           "record": {
@@ -506,7 +506,7 @@
           "events": 105,
           "valid": true,
           "broken": [],
-          "final_hash": "c508e3257a1add4bfe1eb3c97cfcc153210396b49b0f6ce5eba2995c50be6cd0",
+          "final_hash": "9e675cf6a0e23142122bbda21234f6bdf71d27a6a2648fa8accbf54999b9cc71",
           "note": "A local hash chain. It binds these events to each other; it is not an external tamper-proof audit service."
         }
       },
@@ -541,7 +541,7 @@
         "check": "turn 1: result.json is the reply and names the conversation",
         "passed": true,
         "detail": {
-          "conversation_id": "75da840f-ad58-4e00-8c76-162869c95722",
+          "conversation_id": "b43cdeaa-3f66-4fb2-9ecc-dadca8173bcd",
           "turn": 1
         }
       },
@@ -557,7 +557,7 @@
         "check": "turn 2: result.json is the reply and names the conversation",
         "passed": true,
         "detail": {
-          "conversation_id": "75da840f-ad58-4e00-8c76-162869c95722",
+          "conversation_id": "b43cdeaa-3f66-4fb2-9ecc-dadca8173bcd",
           "turn": 2
         }
       },
@@ -591,11 +591,11 @@
         "check": "the card was pending before the person decided; the desk was called after",
         "passed": true,
         "detail": {
-          "card": "2026-10-21T22:33:42.119000+00:00",
-          "seen": "2026-10-21T22:33:42.154Z",
-          "decided": "2026-10-21T22:33:43.034Z",
+          "card": "2026-10-21T22:56:58.482000+00:00",
+          "seen": "2026-10-21T22:56:58.507Z",
+          "decided": "2026-10-21T22:57:00.290Z",
           "desk": [
-            "2026-10-21T22:33:43.038Z"
+            "2026-10-21T22:57:00.300Z"
           ]
         }
       },
@@ -612,7 +612,7 @@
             "tool"
           ],
           "hosts": [
-            "127.0.0.1:60434",
+            "127.0.0.1:62210",
             "desk.example.org"
           ]
         }
@@ -633,7 +633,7 @@
             "model"
           ],
           "hosts": [
-            "127.0.0.1:60434"
+            "127.0.0.1:62210"
           ]
         }
       },

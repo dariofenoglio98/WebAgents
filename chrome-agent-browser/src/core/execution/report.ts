@@ -25,9 +25,14 @@ export interface ChainVerification {
 /**
  * Recompute every event hash and every previous-hash link. An integrity check on a local record,
  * not an externally anchored log: it proves the report was not assembled from unrelated events.
+ * A conversation turn's audit is a slice of one chain across the turns (conversation.v0 V-17):
+ * with `continued`, its first event's link and sequence are the chain's (accepted as given; the
+ * whole chain is verified by the conversation's record) and the rest must count on from it.
  */
-export function verifyAuditChain(audit: readonly JsonObject[]): ChainVerification {
-  let previous: string | null = null;
+export function verifyAuditChain(audit: readonly JsonObject[], options: { continued?: boolean } = {}): ChainVerification {
+  const continued = options.continued === true && audit.length > 0;
+  let previous: string | null = continued ? ((audit[0]!.previous_hash as string | null) ?? null) : null;
+  const base = continued && typeof audit[0]!.sequence === "number" ? audit[0]!.sequence - 1 : 0;
   const broken: ChainVerification["broken"] = [];
   audit.forEach((event, index) => {
     const body: Record<string, JsonValue> = {};
@@ -36,7 +41,7 @@ export function verifyAuditChain(audit: readonly JsonObject[]): ChainVerificatio
     const sequence = event.sequence ?? index;
     if (event.event_hash !== expected) broken.push({ sequence, reason: "event_hash" });
     else if ((event.previous_hash ?? null) !== previous) broken.push({ sequence, reason: "previous_hash" });
-    else if (event.sequence !== index + 1) broken.push({ sequence, reason: "sequence" });
+    else if (event.sequence !== base + index + 1) broken.push({ sequence, reason: "sequence" });
     previous = typeof event.event_hash === "string" ? event.event_hash : null;
   });
   return {
@@ -63,12 +68,12 @@ function sortedSlice(counts: Record<string, number>, limit: number): Record<stri
 const text = (value: JsonValue | undefined): string | null => (typeof value === "string" && value.length > 0 ? value : null);
 
 /** Counts, identities and model evidence, read out of the chain itself. */
-export function auditSummary(audit: readonly JsonObject[]): JsonObject {
+export function auditSummary(audit: readonly JsonObject[], options: { continued?: boolean } = {}): JsonObject {
   const actions = counter(audit.map((event) => String(event.action)));
   const workers = [...new Set(audit.map((event) => text(event.worker)).filter((item): item is string => item !== null))].sort();
   const completions = audit.filter((event) => event.action === "model.completed");
   return {
-    chain: verifyAuditChain(audit) as unknown as JsonObject,
+    chain: verifyAuditChain(audit, options) as unknown as JsonObject,
     actions: sortedSlice(actions, MAX_ACTION_KINDS),
     workers: workers.slice(0, MAX_REPORT_WORKERS),
     worker_count: workers.length,
