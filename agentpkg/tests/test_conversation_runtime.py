@@ -169,6 +169,8 @@ def test_host_inputs_are_checked_before_the_chain_starts(tmp_path):
         ({"limits": {"conversation_max_turn": 1}}, "Unsupported host limit"),
         ({"limits": {"hard_tokens": -1}}, "nonnegative"),
         ({"limits": {"conversation_total_tokens": "many"}}, "nonnegative"),
+        # The worker slot check sits with the other host-input checks (T23 review 2, nit 1).
+        ({"limits": {"max_parallel_workers": 0}}, "worker slot"),
     ):
         with pytest.raises(PolicyError, match=expected):
             build(**bad)
@@ -291,9 +293,21 @@ def test_a_denied_step_is_never_asked_and_a_host_answer_is_checked(tmp_path):
         {"accepted": True, "decided_by": "nobody"},
         {"accepted": True, "decided_by": "person", "reason": "not a code"},
         {"accepted": True, "decided_by": "person", "extra": 1},
+        # Only the runtime writes `plan`, for a step it did not ask (T23 review 2, nit 4).
+        {"accepted": False, "decided_by": "plan", "reason": "permission_denied"},
+        # The reason is a code by the transcript schema's pattern: lowercase, a letter first.
+        {"accepted": True, "decided_by": "person", "reason": "Not_A_Code"},
+        {"accepted": True, "decided_by": "person", "reason": "1st"},
+        {"accepted": True, "decided_by": "person", "reason": "x" * 65},
     ):
         with pytest.raises(Exception, match="consent_decision_invalid"):
             check_decision(bad)
+    assert (
+        check_decision(
+            {"accepted": False, "decided_by": "host", "reason": "no_decision_available"}
+        )["reason"]
+        == "no_decision_available"
+    )
 
 
 def test_a_plain_run_refuses_a_conversational_package_and_a_turn_needs_one(tmp_path):
@@ -492,9 +506,18 @@ def test_the_cli_converse_reports_a_refused_agent_document_per_turn(tmp_path, ca
 
     real = memory_host.cli_memory
 
+    def refuse(body, run_id):
+        raise FileExistsError("a file where the folder should be")
+
     def refusing(package, **options):
+        # A staged agent body whose write the store refuses: `commit_error` is then set by the
+        # real commit path (`MemoryRun.agent_outcome`, M-50), not by hand (T23 review 2, nit 5).
         memory_run, folder, handlers = real(package, **options)
-        memory_run.commit_error = "FileExistsError: a file where the folder should be"
+        memory_run.agent = {
+            "package_id": package.manifest["package_id"],
+            "staged": {"body": "notes", "bytes": 5},
+        }
+        memory_run.commit_agent = refuse
         return memory_run, folder, handlers
 
     monkeypatch.setattr(memory_host, "cli_memory", refusing)

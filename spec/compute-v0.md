@@ -293,7 +293,7 @@ names onto it: `unreachable`, `memory_out_of_bounds`, `stack_overflow`,
 `indirect_call_to_null`, `bad_signature`, `table_out_of_bounds`, `null_reference`, `other`.
 An engine that reports a `call_indirect` through a null table slot and one whose type differs from
 the slot's function as one failure reports `bad_signature` for both. Whether one does depends on its
-version: the V8 in Node 26.9 (14.6) names both "function signature mismatch"; the V8 in Chrome 155
+version: the V8s in Node 24 (13.6) and 26 (14.6) name both "function signature mismatch"; the V8 in Chrome 155
 (15.5) names the first "null function" and the second "function signature mismatch", and wasmtime
 tells them apart too, so the extension and the reference report the same code for each (D-254).
 
@@ -331,7 +331,7 @@ module's growth, which the format makes deterministic; after `fuel_exhausted` or
 the engine's and is not compared, and the two reasons compare as one (a bound was reached), since
 which one a runaway module meets depends on whether the engine meters fuel (D-244, D-250). The trap
 codes `indirect_call_to_null` and `bad_signature` also compare as one (an indirect call failed),
-since an engine may not tell them apart (the V8 in Node 26.9 does not, and the suite runs the Chrome
+since an engine may not tell them apart (the V8s in Node 24 and 26 do not, and the suite runs the Chrome
 core under Node; C-42, D-254).
 
 ## 8. Determinism

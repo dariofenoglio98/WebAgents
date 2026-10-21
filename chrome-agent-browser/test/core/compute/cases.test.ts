@@ -3,7 +3,7 @@
  * the stage with the code the list expects, on this runtime, as `test_compute_cases.py` asserts it
  * on the reference. The two engine differences the list states: a metering engine reports
  * `fuel_exhausted` where this one reports `deadline` (`non_metering_reason`), and an engine that
- * does not tell a null table slot from a wrong type, as the V8 in Node 26.9 does not (Chrome 155's
+ * does not tell a null table slot from a wrong type, as the V8s in Node 24 and 26 do not (Chrome 155's
  * does, `scripts/e2e-compute.mjs`), reports `bad_signature` for both (`non_distinguishing_trap_code`,
  * D-254).
  */

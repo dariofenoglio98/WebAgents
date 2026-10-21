@@ -9,6 +9,7 @@ of a yes is a no.
 from __future__ import annotations
 
 import asyncio
+import re
 from dataclasses import dataclass
 from typing import Any, Protocol
 
@@ -35,24 +36,28 @@ class ConsentHost(Protocol):
     async def decide(self, request: ConsentRequest) -> dict: ...
 
 
+REASON_CODE = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
+
+
 def check_decision(value) -> dict:
     """A host's answer against the decision contract: `accepted` a boolean, `decided_by` one of
-    the provenance words, an optional `reason` code. Anything else is the host's failure."""
+    the provenance words a host may claim (never `plan`, which only the runtime writes for a step
+    it did not ask), an optional `reason` code by the transcript's pattern. Anything else is the
+    host's failure."""
     if (
         not isinstance(value, dict)
         or not isinstance(value.get("accepted"), bool)
         or value.get("decided_by") not in DECIDED_BY
+        or value.get("decided_by") == "plan"
         or set(value) - {"accepted", "decided_by", "reason"}
     ):
         raise ConsentError(
             "consent_decision_invalid",
             "the consent host answered outside the decision contract "
-            "({accepted: bool, decided_by, reason?})",
+            "({accepted: bool, decided_by (not plan), reason?})",
         )
     reason = value.get("reason")
-    if reason is not None and not (
-        isinstance(reason, str) and 1 <= len(reason) <= 64 and reason.replace("_", "a").isalnum()
-    ):
+    if reason is not None and not (isinstance(reason, str) and REASON_CODE.match(reason)):
         raise ConsentError("consent_decision_invalid", "the consent host's reason is not a code")
     return {"accepted": value["accepted"], "decided_by": value["decided_by"], "reason": reason}
 

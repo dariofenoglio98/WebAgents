@@ -22,7 +22,7 @@ const MEMORY_FACTS = ["count", "types", "proposals_sha256", "offered", "reason",
 // `fuel_exhausted` on a metering engine and `deadline` on one that only has a wall bound (D-244); a
 // call that was stopped from outside reports the memory size the engine could still read, which
 // a terminated Worker cannot (T22, D-250), so after either reason `memory_pages` is the engine's;
-// and the V8 in Node 26.9, under which the Chrome core runs here, reports a `call_indirect` through
+// and the V8s in Node 24 and 26, under which the Chrome core runs here, reports a `call_indirect` through
 // a null slot as a signature mismatch (Chrome 155's does not), so `indirect_call_to_null` and
 // `bad_signature` compare as one (`indirect_call_failed`, D-254).
 // conversation.v0 (T24, D-263): the conversation-level events are backbone entries with the facts

@@ -39,7 +39,7 @@ describe("the call body", () => {
     await expectFailure("stack-overflow", "trap", { trap_code: "stack_overflow" });
     await expectFailure("grow-until-refused", "trap", { trap_code: "unreachable", memory_pages: 64 });
     // The reference tells these two apart (`indirect_call_to_null`, `bad_signature`), and so does the V8
-    // in Chrome 155 (`scripts/e2e-compute.mjs`); the V8 in Node 26.9, which runs this suite, does not.
+    // in Chrome 155 (`scripts/e2e-compute.mjs`); the V8s in Node 24 and 26, which run this suite, do not.
     await expectFailure("indirect-call-null", "trap", { trap_code: "bad_signature" });
     await expectFailure("indirect-call-bad-signature", "trap", { trap_code: "bad_signature" });
     await expectFailure("alloc-returns-zero", "abi_violation", { detail: "alloc" });
@@ -62,7 +62,7 @@ describe("the call body", () => {
     expect(trap("divide by zero")).toEqual({ reason: "trap", trap_code: "integer_division_by_zero" });
     expect(trap("divide result unrepresentable")).toEqual({ reason: "trap", trap_code: "integer_overflow" });
     expect(trap("float unrepresentable in integer range")).toEqual({ reason: "trap", trap_code: "bad_conversion_to_integer" });
-    // The V8 in Node 26.9 names a null slot and a wrong type alike, "function signature mismatch", and
+    // The V8s in Node 24 and 26 name a null slot and a wrong type alike, "function signature mismatch", and
     // older ones "null function or function signature mismatch": `bad_signature`. The V8 in Chrome 155
     // names a null slot "null function" (D-254).
     expect(trap("null function or function signature mismatch")).toEqual({ reason: "trap", trap_code: "bad_signature" });

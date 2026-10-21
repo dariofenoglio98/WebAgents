@@ -21,20 +21,21 @@ import json
 import re
 import subprocess
 import sys
-import tomllib
 import zipfile
 from pathlib import Path
 
+import tomllib
 from agentpkg.package import load_package
 from agentpkg.signing import verify_package
 
 ROOT = Path(__file__).resolve().parents[1]
 DIST = ROOT / "dist"
 # The current wheel, which CI rebuilds from agentpkg/ and compares file by file. The 0.2.2 wheel of
-# the v0.2.0 release stays in dist/ for the paper line, and the 0.3.0, 0.4.0 and 0.5.0 wheels for
-# their lines; those are checked by the SHA-256 list only.
-WHEEL = DIST / "agentpkg-0.6.0-py3-none-any.whl"
-WHEEL_DIST_INFO = "agentpkg-0.6.0.dist-info"
+# the v0.2.0 release stays in dist/ for the paper line, and the 0.3.0, 0.4.0, 0.5.0 and 0.6.0 wheels
+# for their lines (0.6.1 is 0.6.0 with T23 review 2's fixes, T24; the 0.6.0 wheel stays as its
+# record, the user's decision); those are checked by the SHA-256 list only.
+WHEEL = DIST / "agentpkg-0.6.1-py3-none-any.whl"
+WHEEL_DIST_INFO = "agentpkg-0.6.1.dist-info"
 # SHA-256 of https://www.apache.org/licenses/LICENSE-2.0.txt
 APACHE_2_0_SHA256 = "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
 
@@ -234,7 +235,12 @@ CURRENT_PACKAGES = {
         "archive_sha256": "73872c3177a9ec281a8875ae154023a72ff10f9fe96c5a82ed1639a34ecb470c",
         "key": "examples/keys/webair-publisher.pub.pem",
         "fingerprint": "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b",
-        "tools": ["get-fare-rules", "prepare-booking", "search-flights", "simulate-purchase"],
+        "tools": [
+            "get-fare-rules",
+            "prepare-booking",
+            "search-flights",
+            "simulate-purchase",
+        ],
     },
 }
 # Present in the working copy, never in the published tree.
@@ -254,8 +260,12 @@ def sha256_file(path: Path) -> str:
 def check_packages() -> dict:
     report = {}
     for name, expected in CURRENT_PACKAGES.items():
-        versioned = DIST / f"{expected.get('stem', name)}-{expected['version']}.agent.pkg"
-        archive = DIST / f"{name}.agent.pkg" if expected.get("alias", True) else versioned
+        versioned = (
+            DIST / f"{expected.get('stem', name)}-{expected['version']}.agent.pkg"
+        )
+        archive = (
+            DIST / f"{name}.agent.pkg" if expected.get("alias", True) else versioned
+        )
         package = load_package(archive)
         signature = verify_package(archive, ROOT / expected["key"])
         observed = {
@@ -270,7 +280,8 @@ def check_packages() -> dict:
             **observed,
             "signature_valid": signature["valid"] is True,
             "profile": package.graph["profile"],
-            "identical_to_versioned_copy": versioned.read_bytes() == archive.read_bytes(),
+            "identical_to_versioned_copy": versioned.read_bytes()
+            == archive.read_bytes(),
             "matches_expected": all(observed[k] == expected[k] for k in observed),
         }
         report[name]["passed"] = (
@@ -288,19 +299,23 @@ def check_packages() -> dict:
     # served.
     current = ROOT / "package-origin/packages/literature-review-0.2.9.agent.pkg"
     report["package_origin_current_copy_identical"] = (
-        current.read_bytes() == (DIST / "literature-review-0.2.9.agent.pkg").read_bytes()
+        current.read_bytes()
+        == (DIST / "literature-review-0.2.9.agent.pkg").read_bytes()
     )
     previous_028 = ROOT / "package-origin/packages/literature-review-0.2.8.agent.pkg"
     report["package_origin_0_2_8_copy_identical"] = (
-        previous_028.read_bytes() == (DIST / "literature-review-0.2.8.agent.pkg").read_bytes()
+        previous_028.read_bytes()
+        == (DIST / "literature-review-0.2.8.agent.pkg").read_bytes()
     )
     previous_027 = ROOT / "package-origin/packages/literature-review-0.2.7.agent.pkg"
     report["package_origin_0_2_7_copy_identical"] = (
-        previous_027.read_bytes() == (DIST / "literature-review-0.2.7.agent.pkg").read_bytes()
+        previous_027.read_bytes()
+        == (DIST / "literature-review-0.2.7.agent.pkg").read_bytes()
     )
     previous = ROOT / "package-origin/packages/literature-review-0.2.6.agent.pkg"
     report["package_origin_0_2_6_copy_identical"] = (
-        previous.read_bytes() == (DIST / "literature-review-0.2.6.agent.pkg").read_bytes()
+        previous.read_bytes()
+        == (DIST / "literature-review-0.2.6.agent.pkg").read_bytes()
     )
     # T8: the signed demo index and policy package-origin serves are the ones in examples/.
     documents = {
@@ -308,12 +323,15 @@ def check_packages() -> dict:
         "policies/webagents-research.json": "examples/policies/webagents-research.json",
     }
     report["package_origin_documents_identical"] = all(
-        (ROOT / "package-origin/documents" / name).read_bytes() == (ROOT / source).read_bytes()
+        (ROOT / "package-origin/documents" / name).read_bytes()
+        == (ROOT / source).read_bytes()
         for name, source in documents.items()
     )
     # T9 (T8 review 1, nit 4): the SHA-256 pins server.py refuses to start without are the
     # documents' own, so a re-signed document fails here rather than at container start.
-    pins = document_pins((ROOT / "package-origin/server.py").read_text(encoding="utf-8"))
+    pins = document_pins(
+        (ROOT / "package-origin/server.py").read_text(encoding="utf-8")
+    )
     report["package_origin_document_pins"] = pin_mismatches(pins, documents)
     return report
 
@@ -321,15 +339,26 @@ def check_packages() -> dict:
 def document_pins(source: str) -> dict[str, str]:
     """The `DOCUMENTS` pins of package-origin/server.py, read without importing it: path → SHA-256."""
     for node in ast.parse(source).body:
-        if isinstance(node, ast.Assign) and any(isinstance(t, ast.Name) and t.id == "DOCUMENTS" for t in node.targets):
+        if isinstance(node, ast.Assign) and any(
+            isinstance(t, ast.Name) and t.id == "DOCUMENTS" for t in node.targets
+        ):
             if not isinstance(node.value, ast.Dict):
                 raise ValueError("server.py DOCUMENTS must be a dict literal")
             pins = {}
             for key, value in zip(node.value.keys, node.value.values):
-                if not (isinstance(key, ast.Constant) and isinstance(value, ast.Tuple) and len(value.elts) == 2):
-                    raise ValueError("server.py DOCUMENTS entries must be 'path': (source, sha256)")
+                if not (
+                    isinstance(key, ast.Constant)
+                    and isinstance(value, ast.Tuple)
+                    and len(value.elts) == 2
+                ):
+                    raise ValueError(
+                        "server.py DOCUMENTS entries must be 'path': (source, sha256)"
+                    )
                 digest = value.elts[1]
-                if not (isinstance(digest, ast.Constant) and isinstance(digest.value, str)):
+                literal = isinstance(digest, ast.Constant) and isinstance(
+                    digest.value, str
+                )
+                if not literal:
                     raise ValueError("server.py DOCUMENTS pins must be string literals")
                 pins[key.value] = digest.value
             return pins
@@ -343,14 +372,19 @@ def pin_mismatches(pins: dict[str, str], documents: dict[str, str]) -> dict:
         for name, source in documents.items()
     }
     mismatched = sorted(
-        path for path in set(pins) | set(expected) if pins.get(path) != expected.get(path)
+        path
+        for path in set(pins) | set(expected)
+        if pins.get(path) != expected.get(path)
     )
     return {"pins": pins, "mismatched": mismatched, "passed": not mismatched}
 
 
 def check_dist_manifest() -> dict:
     text = (DIST / "README.md").read_text(encoding="utf-8")
-    listed = {name: digest for digest, name in re.findall(r"^([0-9a-f]{64})  (\S+)$", text, re.M)}
+    listed = {
+        name: digest
+        for digest, name in re.findall(r"^([0-9a-f]{64})  (\S+)$", text, re.MULTILINE)
+    }
     present = {p.name for p in DIST.iterdir() if p.is_file() and p.name != "README.md"}
     mismatched = sorted(
         name
@@ -368,7 +402,9 @@ def check_dist_manifest() -> dict:
 
 def check_license() -> dict:
     agentpkg = tomllib.loads((ROOT / "agentpkg/pyproject.toml").read_text())["project"]
-    resolver = tomllib.loads((ROOT / "citation-resolver/pyproject.toml").read_text())["project"]
+    resolver = tomllib.loads((ROOT / "citation-resolver/pyproject.toml").read_text())[
+        "project"
+    ]
     plugin = json.loads((ROOT / "openclaw-agent-browser/package.json").read_text())
     with zipfile.ZipFile(WHEEL) as wheel:
         names = wheel.namelist()
@@ -379,14 +415,16 @@ def check_license() -> dict:
             else b""
         )
     report = {
-        "root_license_is_apache_2_0": sha256_file(ROOT / "LICENSE") == APACHE_2_0_SHA256,
+        "root_license_is_apache_2_0": sha256_file(ROOT / "LICENSE")
+        == APACHE_2_0_SHA256,
         "agentpkg_license_copy_identical": (ROOT / "agentpkg/LICENSE").read_bytes()
         == (ROOT / "LICENSE").read_bytes(),
         "agentpkg_metadata": agentpkg.get("license") == "Apache-2.0"
         and agentpkg.get("license-files") == ["LICENSE"],
         "citation_resolver_metadata": resolver.get("license") == "Apache-2.0",
         "plugin_metadata": plugin.get("license") == "Apache-2.0",
-        "wheel_license_expression": "License-Expression: Apache-2.0" in metadata.splitlines(),
+        "wheel_license_expression": "License-Expression: Apache-2.0"
+        in metadata.splitlines(),
         "wheel_carries_license_file": hashlib.sha256(wheel_license).hexdigest()
         == APACHE_2_0_SHA256,
         "third_party_notices_present": (ROOT / "THIRD_PARTY_NOTICES.md").is_file(),
@@ -396,23 +434,26 @@ def check_license() -> dict:
 
 
 def _git_paths(*args: str) -> set[str]:
-    completed = subprocess.run(["git", *args, "-z"], cwd=ROOT, capture_output=True, check=True)
+    completed = subprocess.run(
+        ["git", *args, "-z"], cwd=ROOT, capture_output=True, check=True
+    )
     return {path for path in completed.stdout.decode().split("\0") if path}
 
 
 def check_tracked_tree() -> dict:
     """What `git add -A && git commit` would publish: tracked, minus deleted, plus unignored."""
     try:
-        published = (_git_paths("ls-files") - _git_paths("ls-files", "--deleted")) | _git_paths(
-            "ls-files", "--others", "--exclude-standard"
-        )
+        published = (
+            _git_paths("ls-files") - _git_paths("ls-files", "--deleted")
+        ) | _git_paths("ls-files", "--others", "--exclude-standard")
     except (OSError, subprocess.CalledProcessError):
         return {"skipped": "not a git checkout", "passed": True}
     offending = sorted(
         path
         for path in published
         if any(
-            path == item or (item.endswith("/") and path.startswith(item)) for item in LOCAL_ONLY
+            path == item or (item.endswith("/") and path.startswith(item))
+            for item in LOCAL_ONLY
         )
     )
     return {"local_only_paths_published": offending, "passed": not offending}
@@ -421,18 +462,26 @@ def check_tracked_tree() -> dict:
 def wheel_contents(path: Path) -> dict[str, bytes]:
     """Every file except RECORD, whose entries only restate the others' hashes."""
     with zipfile.ZipFile(path) as wheel:
-        return {n: wheel.read(n) for n in wheel.namelist() if not n.endswith(".dist-info/RECORD")}
+        return {
+            n: wheel.read(n)
+            for n in wheel.namelist()
+            if not n.endswith(".dist-info/RECORD")
+        }
 
 
 def check_built_wheel(built: Path) -> dict:
     shipped, fresh = wheel_contents(WHEEL), wheel_contents(built)
-    differing = sorted(n for n in set(shipped) | set(fresh) if shipped.get(n) != fresh.get(n))
+    differing = sorted(
+        n for n in set(shipped) | set(fresh) if shipped.get(n) != fresh.get(n)
+    )
     return {"built": built.name, "differing_files": differing, "passed": not differing}
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--built-wheel", type=Path, help="a wheel freshly built from agentpkg/")
+    parser.add_argument(
+        "--built-wheel", type=Path, help="a wheel freshly built from agentpkg/"
+    )
     args = parser.parse_args()
     report = {
         "packages": check_packages(),
@@ -450,7 +499,9 @@ def main() -> int:
         and packages["package_origin_0_2_6_copy_identical"]
         and packages["package_origin_documents_identical"]
         and packages["package_origin_document_pins"]["passed"]
-        and all(section["passed"] for key, section in report.items() if key != "packages")
+        and all(
+            section["passed"] for key, section in report.items() if key != "packages"
+        )
     )
     print(json.dumps(report, indent=2))
     return 0 if report["passed"] else 1

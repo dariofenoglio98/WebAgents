@@ -174,6 +174,10 @@ def check_host_limits(limits):
             raise PolicyError(f"Unsupported host limit: {key}")
         if isinstance(value, bool) or not isinstance(value, int) or value < 0:
             raise PolicyError(f"Host limit {key} must be a nonnegative integer")
+        if key == "max_parallel_workers" and value < 1:
+            # Refused where a host's input is checked, so a conversation refuses it before its
+            # chain starts and before `--out` exists (T23 review 2, nit 1).
+            raise PolicyError("At least one worker slot is required")
     return compute_limits
 
 
@@ -731,7 +735,8 @@ class Runtime:
         consent step naming that permission must have completed accepted in this turn (two
         permissions may be decided by two steps, or by one step naming both). Refused as a
         denied permission check naming the reason: `consent_required` (no step decided it yet,
-        or the step was not asked) or `consent_denied` (the person said no)."""
+        or the step was not asked) or `consent_denied` (the person said no, or the step
+        resolved denied by the plan: a denied or an already spent permission, V-12)."""
         for permission_id in permission_ids:
             steps = self._gated.get(permission_id)
             if not steps or self._consents.get(permission_id) is True:
@@ -756,9 +761,10 @@ class Runtime:
         """One consent step (conversation.v0 §3): show the facts and the sentence, wait for the
         decision within the node's timeout, record it with its provenance, and remember it for
         the tools this turn calls. The step consumes no grant; a tool call does. A step whose
-        permission the plan denies, or whose `once` grant an earlier turn of this conversation
-        spent, is never asked: it resolves denied with provenance `plan` (V-12, V-13), so no
-        card asks for what the tool call would be refused anyway. The audit carries hashes; the
+        permission the plan denies, or whose `once` grant this conversation already spent (in
+        an earlier turn, or earlier in this turn), is never asked: it resolves denied with
+        provenance `plan` (V-12, V-13), so no card asks for what the tool call would be refused
+        anyway. The audit carries hashes; the
         transcript carries the text and the facts."""
         from .conversation.declarations import MAX_TEXT_CHARS
         from .conversation.host import ConsentRequest, check_decision

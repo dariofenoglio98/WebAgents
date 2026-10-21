@@ -587,10 +587,8 @@ def _converse(args, package):
             "fixture serves when it declares one)"
         )
     grants = _json_file(args.grants)
+    # An approval of an undeclared tool is refused by the conversation's own check (T23 review 2).
     approved = sorted(set(args.approve_tool or ()))
-    unknown = sorted(set(approved) - set(package.tools))
-    if unknown:
-        raise AgentPkgError(f"--approve-tool names tools this package does not declare: {unknown}")
     check_transcript(transcript, package, grants)
     if mode == "fixture":
         router, handlers, _ = fixture_adapters(package)
@@ -609,15 +607,23 @@ def _converse(args, package):
 
     memory_runs = {}
 
-    def adapters(turn):
+    def memory_for_turn():
         # A fresh memory run per turn over the same folder (M-50 per turn, V-26).
-        memory_run, _folder, memory_handlers = cli_memory(
+        return cli_memory(
             package,
             mode=mode,
             decisions=grants,
             memory_dir=args.memory_dir,
             memory_grants=args.memory_grant or (),
         )
+
+    # The memory inputs (the folder, `--memory-grant`) are resolved for the first turn before
+    # `--out` exists, so a refused folder or grant leaves no half-made directory behind (T23
+    # review 2, nit 1); later turns resolve their own run over the same folder.
+    first_memory = memory_for_turn()
+
+    def adapters(turn):
+        memory_run, _folder, memory_handlers = first_memory if turn == 1 else memory_for_turn()
         memory_runs[turn] = memory_run
         return {
             "router": router,
@@ -632,7 +638,7 @@ def _converse(args, package):
     def on_turn(index, report, status):
         records = artifact_records(report, package if status == "completed" else None)
         write_artifacts(out / f"turn-{index:03d}", records)
-        memory_run = memory_runs.get(index)
+        memory_run = memory_runs.pop(index, None)
         if memory_run is not None and memory_run.commit_error:
             # M-50 per turn: the folder refused the agent document; the turn's Run Record says
             # `store_failed`, as `run` reports it for a run.
