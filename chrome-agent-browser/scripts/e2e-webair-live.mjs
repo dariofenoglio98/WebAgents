@@ -477,6 +477,16 @@ async function main() {
       return { directory: relative(ROOT, directory), files: bundle.entries.map((entry) => ({ name: entry.name, bytes: entry.bytes, sha256: entry.sha256 })), conversation: { conversationId, status: view.status, ended: view.ended, outcome: view.outcome, spent: view.spent, state: view.state, limits: view.limits }, turns };
     };
     if (chat) report.conversations = {};
+    /** The conversation a phase is on, exported in `finally` below when the phase aborts (its files are the diagnosis). */
+    let current = null;
+    const exportCurrent = async () => {
+      if (!chat || !current || report.conversations[current.phase]) return;
+      try {
+        report.conversations[current.phase] = await exportConversation(current.phase, current.conversationId);
+      } catch (error) {
+        report.conversations[current.phase] = { error: error.message };
+      }
+    };
     const CHAT_SEARCH = "Find me a nonstop flight from Boston to Zurich on 9 October under $900.";
     const CHAT_REFINE = "Only the cheapest one, and tell me whether it includes a checked bag.";
     const CHAT_QUOTE = "Prepare WA101 Standard for 9 October for me.";
@@ -490,6 +500,7 @@ async function main() {
       report.steps.searchAuthorization = auth;
       check("search", "the search plan is ready and declares the conversation", auth.ready === true, auth.banner);
       const conversationId = await startConversation("search");
+      current = { phase: "search", conversationId };
       await say(conversationId, CHAT_SEARCH, "search turn 1");
       const first = await settledTurn(conversationId, "search turn 1");
       check("search", "turn 1 completed with the hero fares found", first.turn?.status === "completed" && first.turn.reply?.status === "options_found", { status: first.turn?.status, error: first.turn?.error_code, reply: first.turn?.reply?.status });
@@ -515,6 +526,7 @@ async function main() {
       const auth = await authorize("search", {});
       check("cancel", "a new search plan is ready", auth.ready === true, auth.banner);
       const conversationId = await startConversation("cancel");
+      current = { phase: "cancel", conversationId };
       await say(conversationId, CHAT_SEARCH, "cancel turn");
       await cdp.waitFor(page, `__ab.click("Stop this turn")`, "the Stop button", 30_000);
       report.steps.cancel = { pressedAtS: Math.round((Date.now() - startedAt.getTime()) / 1000) };
@@ -533,6 +545,7 @@ async function main() {
       report.steps.quoteAuthorization = auth;
       check("quote", "the quote plan is ready with two records", auth.ready === true && auth.grants.length === 2, auth);
       const conversationId = await startConversation("quote");
+      current = { phase: "quote", conversationId };
       await say(conversationId, CHAT_QUOTE, "quote turn");
       const { view, turn } = await settledTurn(conversationId, "quote turn");
       quoteId = turn?.reply?.booking?.quote_id ?? null;
@@ -568,6 +581,7 @@ async function main() {
       await shot("4-book-authorized");
       check("purchase", "the book plan is ready with the purchase granted once", auth.ready === true && auth.decisions?.["booking.simulate_purchase"] === "once", auth);
       const conversationId = await startConversation("purchase");
+      current = { phase: "purchase", conversationId };
       await say(conversationId, CHAT_QUOTE, "purchase: the quote turn");
       const quoted = await settledTurn(conversationId, "purchase: the quote turn");
       check("purchase", "the quote turn completed", quoted.turn?.status === "completed" && quoted.turn.reply?.status === "quoted", { status: quoted.turn?.status, error: quoted.turn?.error_code });
@@ -605,6 +619,7 @@ async function main() {
       const auth = await authorize("quote", { [PROFILE_PERMISSION]: PICKS[PROFILE_PERMISSION], "identity.passenger": PICKS["identity.passenger"] });
       check("denial", "the quote plan is ready again", auth.ready === true, auth.banner);
       const conversationId = await startConversation("denial");
+      current = { phase: "denial", conversationId };
       await say(conversationId, CHAT_QUOTE, "denial: the quote turn");
       const quoted = await settledTurn(conversationId, "denial: the quote turn");
       check("denial", "the quote turn completed", quoted.turn?.status === "completed", { status: quoted.turn?.status, error: quoted.turn?.error_code });
@@ -772,6 +787,7 @@ async function main() {
     }
   } catch (error) {
     report.failures.push(`harness: ${error.message}`);
+    await exportCurrent().catch(() => undefined);
   } finally {
     const exited = chrome.exitCode !== null || chrome.signalCode !== null ? Promise.resolve() : new Promise((resolveExit) => chrome.once("exit", resolveExit));
     chrome.kill();
