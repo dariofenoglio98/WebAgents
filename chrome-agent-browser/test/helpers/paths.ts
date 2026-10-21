@@ -146,6 +146,18 @@ export const COMPUTE_TEST = {
   archiveSha256: "8bbbd42a9c50c27b339e00653990449781fac5d58694216c890585561a800ff4",
 };
 
+/** conversation.v0's test package (T23): the ticket desk, signed with its development key. */
+export const CONVERSATION_TEST = {
+  archive: resolve(ROOT, "examples/conversation/conversation-test.agent.pkg"),
+  key: resolve(ROOT, "examples/keys/conversation-test-publisher.pub.pem"),
+  grants: resolve(ROOT, "examples/conversation/conversation-test-grants.json"),
+  packageId: "org.webagents.conversation-test",
+  version: "0.1.0",
+  digest: "cd9cfc7f5f819110cf8b39cd8c15b2133283f834c1f4c9ef6d183e481e9582ab",
+  archiveSha256: "4b7c8eba80d62afcf0ad3d303f15ae9a736540230255ee4debaa083e60cbb230",
+  fingerprint: "sha256:8fd73c6495de3610c6bc41f9950abec90cee118e6932df8d9beef81176988e10",
+};
+
 export const ORIGINAL_KEY = resolve(ROOT, "examples/keys/workflow-publisher.pub.pem");
 export const ORIGINAL_FINGERPRINT = "sha256:c7549e614dac7070e6b5b5355e7c2407e1185f831d7fff15670981229dd85a70";
 

@@ -25,6 +25,8 @@ export const GRANT_UNSUPPORTED = "execution_grant_unsupported";
 export const MODEL_INCOMPATIBLE = "execution_model_incompatible";
 // Host capability limits of this host, not limits of the package format
 export const TOOLS_NOT_SUPPORTED = "tools_not_supported";
+/** conversation.v0 (V-28): the one-shot session cannot run a conversational package. */
+export const CONVERSATION_NOT_SUPPORTED = "conversation_not_supported";
 export const OUTPUT_CAP_TOO_LARGE = "execution_output_cap_too_large";
 export const EXPORT_PATH_RESERVED = "execution_export_path_reserved";
 // Tool authority, shared with the tool layer

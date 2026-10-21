@@ -25,6 +25,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 
 import { documentCommand } from "./cli-document.js";
+import { converseCommand } from "./cli-converse.js";
 import { runCommand } from "./cli-run.js";
 import { PdfRefusal } from "./core/tools/adapters/selected-file.js";
 import { ArgumentError, parseArguments, type ArgumentSpec } from "./cli-arguments.js";
@@ -58,6 +59,9 @@ export const USAGE = [
   "      [--out <new-directory>] [live: --model <provider/model> [--ollama-url <url>]",
   "      [--context-tokens <n>] [--think] [--reasoning-effort low|medium|high] [--tool-bindings <bindings.json>]",
   "      [--host-resources <resources.json>] [--resource-grant <permission>=<resource-id>]...]",
+  "  converse <package.agent.pkg> --mode fixture|live --grants <grants.json> [--transcript <transcript.json>]",
+  "      [--approve-tool <tool-id>]... [--trust-key <publisher.pub.pem>] [--limits <limits.json>] --out <new-directory>",
+  "      [live: the same model, binding and resource options as run]",
   "  pdf-text <document.pdf>",
   "  document sign --type agent-index|policy-bundle --key <private.pem> <content.json> --out <signed.json>",
   "  document verify --type agent-index|policy-bundle --key <public.pem> <signed.json>",
@@ -190,6 +194,8 @@ async function main(argv: string[]): Promise<number> {
         return await evaluate(args);
       case "run":
         return await runCommand(args);
+      case "converse":
+        return await converseCommand(args);
       case "pdf-text":
         return await pdfText(args);
       case "document":

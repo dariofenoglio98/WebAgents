@@ -11,11 +11,12 @@ describe("the two runtimes accept the same packages (D-031)", () => {
     const init = readFileSync(join(ROOT, "agentpkg", "src", "agentpkg", "__init__.py"), "utf8");
     const match = /__version__\s*=\s*"([^"]+)"/u.exec(init);
     expect(match, "agentpkg/__init__.py must declare __version__").not.toBeNull();
-    // T23 opened agentpkg 0.6.0 (conversation.v0, D-260) while this core's gate stays at 0.5.0
-    // (compute.v0, D-240) until T24 ports conversations: the pair is accepted until then, as it was
-    // for (0.5.0, 0.4.0) between T21 and T22; any other mismatch fails.
-    const accepted = new Set([match![1], ...(match![1] === "0.6.0" ? ["0.5.0"] : [])]);
-    expect(accepted.has(SUPPORTED_RUNTIME_VERSION), `${SUPPORTED_RUNTIME_VERSION} vs agentpkg ${match![1]}`).toBe(true);
+    // The two gates move together (D-031): a reference bump opens a pair exception here until the
+    // Chrome port lands (as (0.6.0, 0.5.0) did between T23 and T24), never the other way round. The
+    // reference's patch releases (0.6.1, the T23 nits) leave the gate at the format's minor version.
+    const expected = match![1].split(".").slice(0, 2).join(".");
+    expect(SUPPORTED_RUNTIME_VERSION.startsWith(`${expected}.`), `${SUPPORTED_RUNTIME_VERSION} vs agentpkg ${match![1]}`).toBe(true);
+    expect(SUPPORTED_RUNTIME_VERSION).toBe("0.6.0");
     expect(RUNTIME_API).toBe("agentpkg-runtime-v0");
   });
 

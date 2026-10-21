@@ -7,7 +7,7 @@ import { readFileSync } from "node:fs";
 
 import { ExecutionError } from "../../chrome-agent-browser/src/core/execution/errors.js";
 import { normalizeHostLimits } from "../../chrome-agent-browser/src/core/execution/limits.js";
-import { checkCompute, normalizeGrants } from "../../chrome-agent-browser/src/core/execution/policy.js";
+import { checkCapabilities, checkCompute, normalizeGrants } from "../../chrome-agent-browser/src/core/execution/policy.js";
 import { loadPackageBytes } from "../../chrome-agent-browser/src/core/package.js";
 
 async function main(): Promise<void> {
@@ -16,6 +16,8 @@ async function main(): Promise<void> {
   let outcome: Record<string, unknown>;
   try {
     const accepted = normalizeGrants(pkg, grants);
+    // conversation.v0 (T24, V-28): the one-shot layer refuses a conversational package before anything else about it is checked.
+    if (pkg.graph.conversation !== undefined && pkg.graph.conversation !== null) checkCapabilities(pkg, normalizeHostLimits(null), { fixture: true });
     // compute.v0 (T22): the layer's compute preflight under the default host ceilings, as the Python driver asks it.
     const compute = checkCompute(pkg, normalizeHostLimits(null), true);
     outcome = { outcome: "accepted", grants: accepted, ...(compute !== null ? { compute } : {}) };

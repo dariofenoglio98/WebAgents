@@ -21,6 +21,7 @@ sys.path.insert(0, str(ROOT / "agentpkg" / "src"))
 from agentpkg.execution.errors import ExecutionError  # noqa: E402
 from agentpkg.execution.policy import (  # noqa: E402
     HostExecutionLimits,
+    check_capabilities,
     check_compute,
     normalize_grants,
 )
@@ -31,6 +32,10 @@ if __name__ == "__main__":
     grants = json.loads(Path(sys.argv[2]).read_text())
     try:
         accepted = normalize_grants(package, grants)
+        # conversation.v0 (T24, V-28): the one-shot layer refuses a conversational package before
+        # anything else about it is checked.
+        if package.graph.get("conversation") is not None:
+            check_capabilities(package, HostExecutionLimits.normalize(None))
         # compute.v0 (T22): the layer's compute preflight under the default host ceilings.
         compute = check_compute(package, HostExecutionLimits.normalize(None))
         outcome = {"outcome": "accepted", "grants": accepted}

@@ -12,6 +12,7 @@ import type { EvaluationLayers, PublisherReport } from "./evaluation.js";
 import { sha256Hex } from "./hash.js";
 import { isJsonObject, type JsonObject, type JsonValue } from "./json.js";
 import { packageJson, permissionsSummary, type Package } from "./package.js";
+import { conversationRecords } from "./conversation/declarations.js";
 import { EXTENSION_KEY, inputForm, presentationHints, type InputForm, type PresentationHints } from "./presentation.js";
 import { urlsplit } from "./urls.js";
 
@@ -121,8 +122,9 @@ function nodeFacts(node: JsonObject): JsonObject {
     writes: Object.keys(isJsonObject(node.writes) ? node.writes : {}).sort(),
     conditional: "when" in node,
   };
-  // compute.v0: which module and function a node runs, and what it lowers.
-  for (const optional of ["task", "tool", "max_output_tokens", "max_items", "max_parallel", "limit", "module", "function", "input_schema", "limits"]) {
+  // compute.v0: which module and function a node runs, and what it lowers; conversation.v0: the
+  // permissions a consent step decides.
+  for (const optional of ["task", "tool", "max_output_tokens", "max_items", "max_parallel", "limit", "module", "function", "input_schema", "limits", "permissions"]) {
     if (optional in node) facts[optional] = node[optional]!;
   }
   if (node.type === "map") {
@@ -181,6 +183,9 @@ async function workflow(pkg: Package): Promise<WorkflowSummary> {
     nodes: nodes.map(nodeFacts),
     exports: ((Array.isArray(graph.exports) ? graph.exports : []) as JsonObject[]).map((entry) => ({ path: entry.path!, format: entry.format! })),
     fixture_declared: "fixture" in graph,
+    // conversation.v0 (V-20): the turns, the persistent keys, the consent steps and the
+    // permissions they decide, for the agent page; null for a one-shot package.
+    conversation: conversationRecords(pkg),
     // The task a person fills in, and the package's cosmetic hints for it.
     input: await inputForm(pkg),
     presentation: hints,
@@ -310,6 +315,13 @@ export function warnings(pkg: Package, evaluation: EvaluationLayers, publisher: 
       const named = resources.map((moduleId) => `${moduleId} (${(hashes.get(moduleId) ?? "undeclared").slice(0, 16)}…)`).join(", ");
       warn("runs_code_that_can_only_compute", "info", `The package runs code that can only compute (${permission.id}): WebAssembly module(s) ${named || "none"}, with no imports, run under this host's memory and time bounds on the data the graph gives them.`);
     }
+  }
+  const conversation = conversationRecords(pkg);
+  if (conversation !== null) {
+    // conversation.v0 (V-20): what a person agrees to when they start a conversation, in words:
+    // how many turns at most, what is kept between turns, and which steps will ask.
+    const steps = conversation.consent_steps.map((step) => `${step.id} (before ${step.permissions.join(", ")})`).join(", ");
+    warn("conversational_package", "info", `The package is a conversation of at most ${conversation.budget.max_turns} turns, within ${conversation.budget.hard_tokens} tokens and ${conversation.budget.max_remote_calls} remote calls in all; it keeps ${conversation.persistent_keys.join(", ") || "nothing"} between turns, and asks you before: ${steps || "nothing"}.`);
   }
   const remote = toolList.filter((tool) => tool.execution === "remote");
   if (remote.length > 0) {

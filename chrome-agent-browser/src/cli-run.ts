@@ -51,9 +51,8 @@ import { MemoryResourceStore } from "./core/tools/resources.js";
 import type { ResourceGrant } from "./core/types.js";
 import { CORE_VERSION } from "./core/version.js";
 
-const RUN: ArgumentSpec = {
-  positional: ["package"],
-  options: {
+/** The options `run` and `converse` share (the operator's host: grants, approvals, limits, the live binding). */
+export const RUN_OPTIONS: ArgumentSpec["options"] = {
     "--input": { kind: "value" },
     "--mode": { kind: "value", choices: ["fixture", "live"], default: "fixture" },
     "--grants": { kind: "value", required: true },
@@ -69,8 +68,8 @@ const RUN: ArgumentSpec = {
     "--tool-bindings": { kind: "value" },
     "--host-resources": { kind: "value" },
     "--resource-grant": { kind: "list" },
-  },
 };
+const RUN: ArgumentSpec = { positional: ["package"], options: RUN_OPTIONS };
 
 export const HOST_RUNTIME = "chrome-agent-browser";
 const PROVIDERS: readonly ProviderId[] = ["ollama", "openai", "anthropic"];
@@ -79,7 +78,7 @@ function print(value: unknown): void {
   process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
 }
 
-function jsonFile(path: string, expected: "object" | "any"): JsonValue {
+export function jsonFile(path: string, expected: "object" | "any"): JsonValue {
   let text: string;
   try {
     text = readFileSync(path, "utf8");
@@ -97,7 +96,7 @@ function jsonFile(path: string, expected: "object" | "any"): JsonValue {
 }
 
 /** `agentpkg run --out`: a new private directory under an existing parent, files created exclusively. */
-function prepareOutput(out: string): string {
+export function prepareOutput(out: string): string {
   const target = resolve(out);
   let exists = false;
   try {
@@ -133,7 +132,7 @@ function modelBindingFromDescriptor(descriptor: ModelDescriptor, compatibility: 
   });
 }
 
-interface LiveBinding {
+export interface LiveBinding {
   binding: ModelBindingDescriptor;
   definitions: ToolImplementationDefinition[];
   toolBindings: ReturnType<typeof normalizeToolBindings>;
@@ -142,7 +141,7 @@ interface LiveBinding {
   deps: SessionDeps;
 }
 
-async function bindLive(pkg: Package, parsed: ReturnType<typeof parseArguments>, bytes: Uint8Array, grants: Record<string, string>, approved: string[], modelCallTimeout: number): Promise<LiveBinding> {
+export async function bindLive(pkg: Package, parsed: ReturnType<typeof parseArguments>, bytes: Uint8Array, grants: Record<string, string>, approved: string[], modelCallTimeout: number): Promise<LiveBinding> {
   const model = parsed.value("--model");
   if (!model || !model.includes("/")) throw new AgentPkgError("Live workflow execution requires --input and --model provider/model");
   const slash = model.indexOf("/");
@@ -240,6 +239,10 @@ export async function runCommand(args: string[]): Promise<number> {
   const bytes = new Uint8Array(readFileSync(parsed.positional.package!));
   const pkg = await loadPackageBytes(bytes);
   if (pkg.manifest.entrypoint !== "workflow.v0") throw new AgentPkgError("Generic execution requires workflow.v0; use agentpkg-legacy for the archived development profile");
+  if (pkg.graph.conversation !== undefined && pkg.graph.conversation !== null) {
+    // conversation.v0 (V-28): a turn starts from a persisted state a single run does not have.
+    throw new AgentPkgError("conversation_profile: this package declares a conversation and runs turn by turn; use agentpkg converse");
+  }
   const trustKey = parsed.value("--trust-key");
   if (mode === "live" && !trustKey) throw new AgentPkgError("Live run requires a signed artifact and --trust-key PUBLIC_KEY");
   if (trustKey) await verifyWithTrustedKey(pkg, publicKeyFromPem(readFileSync(trustKey, "utf8")));

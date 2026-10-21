@@ -38,6 +38,9 @@ import { CancelToken, withDeadline } from "./cancel.js";
 import { AdapterError, BudgetError, CancelledError, errorName, failedCheck, PolicyError, TimeoutError } from "./errors.js";
 import { disclosedScalars, feedbackLine, type Refusal } from "./feedback.js";
 import { Semaphore } from "./sync.js";
+import type { AuditChain } from "../conversation/chain.js";
+import { MAX_TEXT_CHARS, gatedPermissions } from "../conversation/declarations.js";
+import { checkDecision, type ConsentDecision, type ConsentHost, type ConsentRequest } from "../conversation/host.js";
 
 export type GrantDecision = "once" | "session" | "always" | "deny";
 export type Grants = Record<string, GrantDecision>;
@@ -116,6 +119,33 @@ export async function prepareCompute(pkg: Package, engine: ComputeEngine | null,
 
 export type Observer = (event: AuditEvent) => void;
 
+/**
+ * The host's inputs, checked as `Runtime`'s constructor checks them (`runtime.py::check_grants`,
+ * `check_approved_tools`, `check_host_limits`), exported so that a conversation refuses a grant
+ * value or a limit key before its chain starts (D-265).
+ */
+export function checkGrants(permissions: Readonly<Record<string, unknown>> | ReadonlySet<string>, grants: Readonly<Record<string, string>>): void {
+  const declared = permissions instanceof Set ? permissions : new Set(Object.keys(permissions));
+  if (Object.keys(grants).some((pid) => !declared.has(pid))) throw new PolicyError("Grant refers to an undeclared permission");
+  if (Object.values(grants).some((value) => !["once", "session", "always", "deny"].includes(value))) throw new PolicyError("Grant must be once, session, always, or deny");
+}
+
+export function checkApprovedTools(tools: Readonly<Record<string, unknown>>, approved: Iterable<string>): void {
+  // An approval for something the signed package never declared is a host mistake, not a
+  // broader permission: refused rather than ignored.
+  if ([...approved].some((toolId) => !Object.hasOwn(tools, toolId))) throw new PolicyError("Tool approval refers to a tool this package does not declare");
+}
+
+/** The turn's host limit keys and values; the compute ceilings are checked by `computeHostLimits`. */
+export function checkHostLimits(limits: HostLimits | null | undefined): void {
+  computeHostLimits(limits);
+  for (const [key, value] of Object.entries(limits ?? {})) {
+    if (COMPUTE_HOST_KEYS.includes(key)) continue;
+    if (!LIMIT_KEYS.has(key)) throw new PolicyError(`Unsupported host limit: ${key}`);
+    if (typeof value !== "number" || !Number.isInteger(value) || value < 0) throw new PolicyError(`Host limit ${key} must be a nonnegative integer`);
+  }
+}
+
 /** At most this many re-asks of one model call, whatever a router declares (D-151; one under D-115). */
 export const MAX_REASKS = 2;
 
@@ -128,8 +158,38 @@ export interface ModelCallOptions {
   check?: (answer: JsonValue) => void;
 }
 
+/**
+ * conversation.v0 (§3, §5, §6): what one turn holds about its conversation, read by `Workflow`
+ * and `Runtime` (`runner.py::TurnContext`): the persisted state the turn starts from, the chain
+ * to continue, the consent host, the `once` grants earlier turns spent, and the per-tool calls
+ * the conversation has left.
+ */
+export interface TurnContext {
+  conversation_id: string;
+  turn: number;
+  state: JsonObject;
+  chain: AuditChain;
+  consent: ConsentHost;
+  spent?: ReadonlySet<string>;
+  tool_caps?: Readonly<Record<string, number>>;
+}
+
+/** One consent decision as the transcript records it (V-16): the step's text and facts are the person's, kept here and never in the chain. */
+export interface ConsentRecord extends JsonObject {
+  step: string;
+  permissions: string[];
+  accepted: boolean;
+  decided_by: string;
+  reason: string | null;
+  decided_at: string;
+  text: string;
+  facts: JsonValue;
+}
+
 export interface RuntimeOptions {
   grants?: Grants | null;
+  /** conversation.v0: the turn this run is, when it is one; null for an ordinary run. */
+  turn?: TurnContext | null;
   /**
    * What the run holds about memory (memory.v0 §7): the scan set for the egress guards M-36 and
    * M-37, the grants, the proposals check and the agent document. Null: no memory at all, an
@@ -230,6 +290,11 @@ export class Context implements ToolContext {
     this.runtime.record(action, { context: this, ...metadata });
   }
 
+  /** conversation.v0: one consent step, decided by the host within the node's timeout. */
+  consent(node: JsonObject, facts: JsonValue, text: JsonValue, token: CancelToken): Promise<JsonValue> {
+    return this.runtime.callConsent(this, node, facts, text, token);
+  }
+
   remoteCall(charge: boolean): RemoteCallBound | null {
     return this.runtime.extraRemoteCall(this, charge);
   }
@@ -276,8 +341,14 @@ export class Runtime {
   private readonly roleSlots: Record<string, Semaphore> = {};
   private active = 0;
   private peak = 0;
-  private readonly onceUsed = new Set<string>();
+  private readonly onceUsed: Set<string>;
   private halted: string | null = null;
+  /** conversation.v0: the turn this run is (null for an ordinary run), the gated permissions and this turn's decisions. */
+  readonly turn: TurnContext | null;
+  private readonly gated: Record<string, string[]>;
+  private readonly consents: Record<string, boolean> = {};
+  readonly consentDecisions: ConsentRecord[] = [];
+  private readonly chain: AuditChain | null;
   private readonly root: Context;
   /** compute.v0: the host's engine and the modules the preflight prepared (empty for a package without compute nodes). */
   readonly compute: ComputeEngine | null;
@@ -297,28 +368,16 @@ export class Runtime {
     this.handlers = { ...(options.handlers ?? {}) };
     this.router = options.router ?? null;
     this.approvedTools = new Set(options.approvedTools ?? []);
-    if ([...this.approvedTools].some((toolId) => !Object.hasOwn(pkg.tools, toolId))) {
-      // An approval for something the signed package never declared is a host mistake, not a
-      // broader permission: refused rather than ignored.
-      throw new PolicyError("Tool approval refers to a tool this package does not declare");
-    }
+    checkApprovedTools(pkg.tools, this.approvedTools);
     this.permissions = {};
     for (const permission of this.policy.permissions as JsonObject[]) this.permissions[String(permission.id)] = permission;
-    if (Object.keys(this.grants).some((pid) => !Object.hasOwn(this.permissions, pid))) {
-      throw new PolicyError("Grant refers to an undeclared permission");
-    }
-    if (Object.values(this.grants).some((value) => !["once", "session", "always", "deny"].includes(value))) {
-      throw new PolicyError("Grant must be once, session, always, or deny");
-    }
+    checkGrants(this.permissions, this.grants);
     this.budget = deepCopy(this.policy.budget as JsonObject);
     // compute.v0: the host's ceilings for one compute call; a node may only lower them.
     this.computeLimits = options.computeLimits ?? computeHostLimits(options.limits);
+    checkHostLimits(options.limits);
     for (const [key, value] of Object.entries(options.limits ?? {})) {
       if (COMPUTE_HOST_KEYS.includes(key)) continue;
-      if (!LIMIT_KEYS.has(key)) throw new PolicyError(`Unsupported host limit: ${key}`);
-      if (typeof value !== "number" || !Number.isInteger(value) || value < 0) {
-        throw new PolicyError(`Host limit ${key} must be a nonnegative integer`);
-      }
       if (key === "max_calls_per_tool") {
         // One host ceiling applied to every declared tool; like every other host limit it can
         // only lower a package's own cap.
@@ -354,6 +413,21 @@ export class Runtime {
       if (this.compute === null) throw refusal(ENGINE_UNAVAILABLE, "this host has no WebAssembly engine for the package's modules");
       throw new PolicyError("compute modules were not prepared before the runtime was constructed");
     }
+    // conversation.v0 (§4): the turn this run is, when it is one: the conversation's audit chain
+    // to continue, the `once` grants earlier turns spent (V-13), the consent host, and the per-tool
+    // calls the conversation has left; the gate (V-9) reads this turn's decisions.
+    const turn = options.turn ?? null;
+    this.turn = turn;
+    this.onceUsed = new Set(turn?.spent ?? []);
+    this.gated = pkg.graph.conversation !== undefined && pkg.graph.conversation !== null ? gatedPermissions(pkg.graph) : {};
+    if (turn !== null) {
+      const caps = this.budget.max_calls_per_tool as JsonObject;
+      for (const [toolId, remaining] of Object.entries(turn.tool_caps ?? {})) {
+        if (Object.hasOwn(caps, toolId)) caps[toolId] = Math.min(caps[toolId] as number, remaining);
+      }
+    }
+    this.chain = turn?.chain ?? null;
+    if (this.chain !== null) this.sequence = this.chain.sequence;
     this.run_id = crypto.randomUUID();
     this.parallel = new Semaphore(this.budget.max_parallel_workers as number);
     for (const [role, worker] of Object.entries(this.roles)) this.roleSlots[role] = new Semaphore(worker.max_instances as number);
@@ -365,6 +439,7 @@ export class Runtime {
       package_digest: pkg.digest,
       grant_scopes: { ...this.grants },
       note: "always grants apply only to this Runtime; no persistent grant store",
+      ...(turn !== null ? { spent_permissions: [...this.onceUsed].sort() } : {}),
     });
   }
 
@@ -402,12 +477,16 @@ export class Runtime {
       parent: ctx ? ctx.parent : null,
       depth: ctx ? ctx.depth : 0,
       node_id: ctx ? (ctx.operation_id ?? ctx.node_id ?? null) : null,
-      previous_hash: this.audit.length > 0 ? this.audit[this.audit.length - 1]!.event_hash : null,
+      // A turn continues its conversation's chain: the sequence and the previous hash are the
+      // chain's, and every event names the conversation and the turn (V-17).
+      previous_hash: this.chain !== null ? this.chain.previousHash : this.audit.length > 0 ? this.audit[this.audit.length - 1]!.event_hash : null,
+      ...(this.chain !== null ? this.chain.fields() : {}),
     };
     for (const [key, value] of Object.entries(rest)) if (value !== undefined) event[key] = value as JsonValue;
     event.event_hash = digest(event);
     const finished = event as unknown as AuditEvent;
     this.audit.push(finished);
+    if (this.chain !== null) this.chain.advance(finished);
     if (this.observer !== null) {
       try {
         this.observer(deepCopy(finished as unknown as JsonValue) as unknown as AuditEvent);
@@ -648,6 +727,7 @@ export class Runtime {
         throw error;
       }
       this.authorize(permissionIds, { context: ctx });
+      this.checkConsent(ctx, toolId, permissionIds);
       this.scanToolArguments(ctx, toolId, String(tool.binding), permissionIds, payload);
       const caps = this.budget.max_calls_per_tool as JsonObject;
       const cap = Object.hasOwn(caps, toolId) ? (caps[toolId] as number) : 0;
@@ -764,6 +844,71 @@ export class Runtime {
   /** Which engine ran the call and what it measured; the figures are the engine's own (C-45: dropped when two runtimes' audits are compared). */
   private engineFacts(outcome: ComputeOutcome): JsonObject {
     return { id: this.compute!.id, elapsed_ms: outcome.elapsed_ms, fuel_consumed: outcome.fuel_consumed };
+  }
+
+  /**
+   * conversation.v0 V-9, per permission: for each gated permission the tool links, a consent step
+   * naming that permission must have completed accepted in this turn (two permissions may be
+   * decided by two steps, or by one step naming both). Refused as a denied permission check
+   * naming the reason: `consent_required` (no step decided it yet, or the step was not asked) or
+   * `consent_denied` (the person said no, or the step resolved denied).
+   */
+  private checkConsent(ctx: Context, toolId: string, permissionIds: readonly string[]): void {
+    for (const permissionId of permissionIds) {
+      const steps = this.gated[permissionId];
+      if (!steps || steps.length === 0 || this.consents[permissionId] === true) continue;
+      const reason = Object.hasOwn(this.consents, permissionId) ? "consent_denied" : "consent_required";
+      this.record("permission.checked", { context: ctx, permission: permissionId, grant: this.grants[permissionId] ?? "deny", allowed: false, reason, tool: toolId, consent_steps: [...steps] });
+      throw new PolicyError(`Tool ${toolId}: permission ${permissionId} needs consent step(s) ${pyRepr(steps)} accepted in this turn (${reason})`);
+    }
+  }
+
+  /**
+   * One consent step (conversation.v0 §3, `runtime.py::call_consent`): show the facts and the
+   * sentence, wait for the decision within the node's timeout, record it with its provenance, and
+   * remember it for the tools this turn calls. The step consumes no grant; a tool call does. A
+   * step whose permission the plan denies, or whose `once` grant was already spent in this
+   * conversation, is never asked: it resolves denied with provenance `plan` (V-12, V-13), so no
+   * card asks for what the tool call would be refused anyway. The audit carries hashes; the
+   * transcript carries the text and the facts.
+   */
+  async callConsent(ctx: Context, node: JsonObject, facts: JsonValue, text: JsonValue, token: CancelToken): Promise<JsonValue> {
+    this.checkContext(ctx);
+    const step = String(node.id);
+    const permissions = (node.permissions as JsonValue[]).map(String);
+    if (this.turn === null) throw new PolicyError(`consent_outside_conversation: step ${step} needs a conversation turn to ask in`);
+    if (typeof text !== "string" || text.trim().length === 0 || text.length > MAX_TEXT_CHARS) {
+      throw new ValidationError(`consent step ${step}: the text shown must be a non-empty string of at most ${MAX_TEXT_CHARS} characters`);
+    }
+    const factsHash = digest(facts); // finite JSON only
+    this.record("consent.requested", { context: ctx, node_id: step, step, permissions, text_sha256: sha256HexSync(new TextEncoder().encode(text)), facts_hash: factsHash, timeout_seconds: node.timeout_seconds as number });
+    const started = Date.now();
+    const denied = permissions.filter((pid) => (this.grants[pid] ?? "deny") === "deny");
+    const consumed = permissions.filter((pid) => this.grants[pid] === "once" && this.onceUsed.has(pid));
+    let decision: ConsentDecision;
+    try {
+      if (denied.length > 0) decision = { accepted: false, decided_by: "plan", reason: "permission_denied" };
+      else if (consumed.length > 0) decision = { accepted: false, decided_by: "plan", reason: "permission_consumed" };
+      else {
+        const request: ConsentRequest = { conversation_id: this.turn.conversation_id, turn: this.turn.turn, step, permissions: [...permissions], text, facts: deepCopy(facts), timeout_seconds: node.timeout_seconds as number };
+        if (token.signal.aborted) throw token.signal.reason;
+        decision = checkDecision(await this.turn.consent.decide(request, token.signal));
+        this.checkContext(ctx);
+      }
+    } catch (error) {
+      this.record("consent.failed", { context: ctx, node_id: step, step, error: errorName(error), ...failureReason(error) });
+      throw error;
+    }
+    const decidedAt = pyIsoTimestamp();
+    for (const permissionId of permissions) this.consents[permissionId] = decision.accepted;
+    this.record("consent.decided", { context: ctx, node_id: step, step, permissions, accepted: decision.accepted, decided_by: decision.decided_by, reason: decision.reason, elapsed_ms: Math.max(0, Math.floor(Date.now() - started)) });
+    this.consentDecisions.push({ step, permissions: [...permissions], accepted: decision.accepted, decided_by: decision.decided_by, reason: decision.reason, decided_at: decidedAt, text, facts: deepCopy(facts) });
+    return { accepted: decision.accepted };
+  }
+
+  /** The `once` grants this run consumed (earlier turns' included), for the next turn. */
+  get spentPermissions(): Set<string> {
+    return new Set(this.onceUsed);
   }
 
   /**

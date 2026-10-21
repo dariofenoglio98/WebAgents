@@ -1,571 +1,572 @@
 {
- "attestations": [],
- "capabilities": [
-  "agenda-planning"
- ],
- "evals": [],
- "model_requirements": {
-  "cost_sensitivity": null,
-  "fallback_policy": "deny",
-  "latency_preference": null,
-  "privacy": null,
-  "routing": "host",
-  "tasks": [
-   {
-    "capabilities": [
-     "structured_output",
-     "reasoning"
-    ],
-    "context_window": 16000,
-    "id": "plan",
-    "preferred_tier": "reasoning"
-   },
-   {
-    "capabilities": [
-     "structured_output",
-     "reasoning"
-    ],
-    "context_window": 16000,
-    "id": "perspective",
-    "preferred_tier": "reasoning"
-   },
-   {
-    "capabilities": [
-     "structured_output",
-     "reasoning"
-    ],
-    "context_window": 16000,
-    "id": "write",
-    "preferred_tier": "reasoning"
-   }
-  ]
- },
- "package": {
-  "created_at": "2026-09-29T00:00:00Z",
-  "dependencies": [],
-  "description": "Plan a bounded meeting with participant perspectives and explicit time allocation.",
-  "digest": "dbd2eb816bb8687d4a5b3448f5b82bc0716c3884f9fee8a2c578af0c5e894679",
-  "entrypoint": "workflow.v0",
-  "execution_profile": "workflow.v0",
-  "extension_keys": [],
-  "name": "Meeting Agenda Agent",
-  "package_id": "org.webagents.meeting-agenda",
-  "runtime": {
-   "api": "agentpkg-runtime-v0",
-   "minimum_version": "0.2.2"
-  },
-  "spec_version": "0.1",
-  "update": {
-   "channel": "local",
-   "locator": null
-  },
-  "version": "0.2.2"
- },
- "payload": {
-  "file_count": 17,
-  "files": [
-   {
-    "bytes": 1797,
-    "path": "MANIFEST.agent",
-    "sha256": "6d5c1ae18a8fb7ceea10e3764a14268b73880f4a5727e3fa889253408463a0c1"
-   },
-   {
-    "bytes": 2400,
-    "path": "README.md",
-    "sha256": "8d9044a31a1d10820fad47d6700ec07ff8585038d8c3f2eeddc6b4b34105f270"
-   },
-   {
-    "bytes": 3560,
-    "path": "fixtures/workflow.json",
-    "sha256": "a090d6a95d3a3aa22bbccfa1902d50b5335d05906c88a052c4b4b6d8c13b3271"
-   },
-   {
-    "bytes": 4322,
-    "path": "graph.json",
-    "sha256": "fe1b7b357fbfa07bd4029385095666cef77cb582457b7170219c818f01b06e53"
-   },
-   {
-    "bytes": 810,
-    "path": "policy/policy.json",
-    "sha256": "478c00007935568e94b1daafdb2c8eb4092f2ef3e83c899c7db6d235fc131c66"
-   },
-   {
-    "bytes": 641,
-    "path": "schemas/agenda.schema.json",
-    "sha256": "625b2033ee1d99ff78b27589e6d51dc97aed8234065573c54098c6e75bc094fd"
-   },
-   {
-    "bytes": 84,
-    "path": "schemas/batches.schema.json",
-    "sha256": "992e5dba6a401e5f0156c1128e5dc7178d1b620ef68cee59b67eedc3c67240dc"
-   },
-   {
-    "bytes": 555,
-    "path": "schemas/draft.schema.json",
-    "sha256": "2d5b40b06b3f1d621a967288fe90646aaca7230c5e83e44708fa3cdb1d9b7885"
-   },
-   {
-    "bytes": 434,
-    "path": "schemas/input.schema.json",
-    "sha256": "20882b29417ed30839f117eecae048272ea067205ba5779f08c882fea6ba787c"
-   },
-   {
-    "bytes": 138,
-    "path": "schemas/participant.schema.json",
-    "sha256": "dcee316aaa7869a0b70e5deeaf6995cd2263ec1be55323a0f07936ff30310bd5"
-   },
-   {
-    "bytes": 242,
-    "path": "schemas/perspective.schema.json",
-    "sha256": "f84b968970a86869ca67e12680937c9e3af1dbe0577512b8406170b4cd23a39c"
-   },
-   {
-    "bytes": 59,
-    "path": "schemas/perspectives.schema.json",
-    "sha256": "8dccb761ff74050b35a4ad5cdad621df52ec0d8f0b3543c96948fcdac6cfa214"
-   },
-   {
-    "bytes": 133,
-    "path": "schemas/plan.schema.json",
-    "sha256": "18690ce56cda081a4f0f157bb6e5dd1729613d9a868de0bbbc7c4c22ef2aad68"
-   },
-   {
-    "bytes": 642,
-    "path": "schemas/state.schema.json",
-    "sha256": "817d3190f80475989dcff127b6e6aa2e5e94665a3d6b69e43fc9800786cfe6b8"
-   },
-   {
-    "bytes": 332,
-    "path": "skills/perspective/SKILL.md",
-    "sha256": "0f6e689ffa13d56e869bfee7d073b6db098d5d759b40a3b2cdd8427506eeb759"
-   },
-   {
-    "bytes": 276,
-    "path": "skills/planning/SKILL.md",
-    "sha256": "497616886788418a95691ff6bfddd8ec2eccbb9ba2d1b88d8c2e443700352af1"
-   },
-   {
-    "bytes": 805,
-    "path": "skills/writing/SKILL.md",
-    "sha256": "b4f327d597b6ecbe5cc43d7e7e327a55954093a288f013caaf84aa219d327ad6"
-   }
-  ],
-  "total_bytes": 17230
- },
- "policy": {
-  "budget": {
-   "approval_threshold_tokens": null,
-   "estimated_cost_usd": null,
-   "estimated_tokens": 12000,
-   "hard_tokens": 180000,
-   "max_calls_per_tool": {},
-   "max_parallel_workers": 3,
-   "max_remote_calls": 32
-  },
-  "delegation": {
-   "allow_remote": false,
-   "approved_roles": [
-    "Planner",
-    "Perspective",
-    "Writer"
-   ],
-   "max_depth": 1
-  },
-  "memory": {
-   "raw_documents": false,
-   "retention": "session",
-   "scope": "session",
-   "sharing": "explicit_views",
-   "state_schema": "schemas/state.schema.json"
-  },
-  "network": {
-   "allow_redirects": false,
-   "allowed_domains": [],
-   "https_only": true
-  },
-  "permissions": [
-   {
-    "description": "Use the host model router",
-    "id": "model.reasoning",
-    "kind": "model",
-    "required": true,
-    "resources": [
-     "host-router"
-    ]
-   },
-   {
-    "description": "Use isolated session state",
-    "id": "memory.session",
-    "kind": "memory",
-    "required": true,
-    "resources": [
-     "session"
-    ]
-   }
-  ]
- },
- "publisher": {
-  "claimed_id": "webagents-research",
-  "claimed_name": "WebAgents Research Prototype",
-  "signature_reason": "self_consistent_ed25519_signature",
-  "signature_status": "valid",
-  "signed_digest_matches": true,
-  "signer_fingerprint": "sha256:2bcc374a7fe18e50622042b7d0375fcb24eb3607879a236f9f3c3ede1922c5c4",
-  "trust_entry": null,
-  "trust_reason": "signer_key_not_pinned",
-  "trust_status": "unknown"
- },
- "schema": "agentpkg-browser-summary-v0",
- "skills": [
-  {
-   "bytes": 276,
-   "id": "planning",
-   "path": "skills/planning/SKILL.md",
-   "sha256": "497616886788418a95691ff6bfddd8ec2eccbb9ba2d1b88d8c2e443700352af1",
-   "version": "0.1.0"
-  },
-  {
-   "bytes": 332,
-   "id": "perspective",
-   "path": "skills/perspective/SKILL.md",
-   "sha256": "0f6e689ffa13d56e869bfee7d073b6db098d5d759b40a3b2cdd8427506eeb759",
-   "version": "0.1.0"
-  },
-  {
-   "bytes": 805,
-   "id": "writing",
-   "path": "skills/writing/SKILL.md",
-   "sha256": "b4f327d597b6ecbe5cc43d7e7e327a55954093a288f013caaf84aa219d327ad6",
-   "version": "0.1.0"
-  }
- ],
- "tools": [],
- "validation": {
-  "container_status": "valid",
-  "errors": [],
-  "integrity_status": "valid",
-  "runtime_status": "compatible",
-  "schema_status": "valid",
-  "supported_execution_profiles": [
-   "workflow.v0"
-  ]
- },
- "warnings": [
-  {
-   "code": "publisher_unknown",
-   "message": "The signing key is not pinned in this host's trust store, so the publisher is unverified even when the signature is self-consistent.",
-   "severity": "warning"
-  },
-  {
-   "code": "no_evals_declared",
-   "message": "The package declares no evaluations.",
-   "severity": "info"
-  },
-  {
-   "code": "no_attestations_declared",
-   "message": "The package declares no attestations.",
-   "severity": "info"
-  }
- ],
- "workers": [
-  {
-   "budget": {
-    "remote_calls": 4,
-    "tokens": 30000
-   },
-   "id": "Coordinator",
-   "is_coordinator": true,
-   "kind": "packaged",
-   "max_instances": 1,
-   "skills": [],
-   "state_read": [
-    "request",
-    "plan",
-    "batches",
-    "perspectives",
-    "agenda",
-    "draft"
-   ],
-   "state_write": [
-    "perspectives",
-    "agenda"
-   ],
-   "tools": []
-  },
-  {
-   "budget": {
-    "remote_calls": 4,
-    "tokens": 30000
-   },
-   "id": "Planner",
-   "is_coordinator": false,
-   "kind": "packaged",
-   "max_instances": 1,
-   "skills": [
-    "planning"
-   ],
-   "state_read": [
-    "request"
-   ],
-   "state_write": [
-    "plan"
-   ],
-   "tools": []
-  },
-  {
-   "budget": {
-    "remote_calls": 4,
-    "tokens": 30000
-   },
-   "id": "Perspective",
-   "is_coordinator": false,
-   "kind": "packaged",
-   "max_instances": 3,
-   "skills": [
-    "perspective"
-   ],
-   "state_read": [
-    "request",
-    "plan"
-   ],
-   "state_write": [
-    "batches"
-   ],
-   "tools": []
-  },
-  {
-   "budget": {
-    "remote_calls": 4,
-    "tokens": 30000
-   },
-   "id": "Writer",
-   "is_coordinator": false,
-   "kind": "packaged",
-   "max_instances": 1,
-   "skills": [
-    "writing"
-   ],
-   "state_read": [
-    "request",
-    "plan",
-    "perspectives"
-   ],
-   "state_write": [
-    "draft"
-   ],
-   "tools": []
-  }
- ],
- "workflow": {
-  "coordinator": "Coordinator",
-  "deadline_seconds": 600,
-  "edges": [
-   {
-    "from": "plan",
-    "to": "perspectives"
-   },
-   {
-    "from": "perspectives",
-    "to": "join"
-   },
-   {
-    "from": "join",
-    "to": "write"
-   },
-   {
-    "from": "write",
-    "to": "assemble"
-   },
-   {
-    "from": "assemble",
-    "to": "validate"
-   },
-   {
-    "from": "validate",
-    "to": "output"
-   }
-  ],
-  "entry_nodes": [
-   "plan"
-  ],
-  "exports": [
-   {
-    "format": "json",
-    "path": "agenda.json"
-   }
-  ],
-  "fixture_declared": true,
-  "input": {
-   "bytes": 434,
-   "document": {
-    "additionalProperties": false,
-    "properties": {
-     "context": {
-      "type": "string"
-     },
-     "duration": {
-      "maximum": 240,
-      "minimum": 10,
-      "type": "integer"
-     },
-     "goal": {
-      "minLength": 1,
-      "type": "string"
-     },
-     "participants": {
-      "items": {
-       "additionalProperties": false,
-       "properties": {
-        "name": {
-         "type": "string"
-        },
-        "role": {
-         "type": "string"
-        }
-       },
-       "required": [
-        "name",
-        "role"
-       ],
-       "type": "object"
-      },
-      "maxItems": 12,
-      "type": "array"
-     }
+  "schema": "agentpkg-browser-summary-v0",
+  "package": {
+    "spec_version": "0.1",
+    "package_id": "org.webagents.meeting-agenda",
+    "name": "Meeting Agenda Agent",
+    "version": "0.2.2",
+    "description": "Plan a bounded meeting with participant perspectives and explicit time allocation.",
+    "created_at": "2026-09-29T00:00:00Z",
+    "digest": "dbd2eb816bb8687d4a5b3448f5b82bc0716c3884f9fee8a2c578af0c5e894679",
+    "entrypoint": "workflow.v0",
+    "execution_profile": "workflow.v0",
+    "runtime": {
+      "api": "agentpkg-runtime-v0",
+      "minimum_version": "0.2.2"
     },
-    "required": [
-     "goal",
-     "participants",
-     "context",
-     "duration"
-    ],
-    "type": "object"
-   },
-   "note": "The package's own declared input schema. The runner validates every run against it again before any instruction reaches a model.",
-   "schema": "agentpkg-task-input-v0",
-   "schema_path": "schemas/input.schema.json",
-   "schema_sha256": "20882b29417ed30839f117eecae048272ea067205ba5779f08c882fea6ba787c"
+    "update": {
+      "channel": "local",
+      "locator": null
+    },
+    "dependencies": [],
+    "extension_keys": []
   },
-  "input_schema": "schemas/input.schema.json",
-  "map_item_caps": {
-   "perspectives": 12
+  "validation": {
+    "container_status": "valid",
+    "integrity_status": "valid",
+    "schema_status": "valid",
+    "runtime_status": "compatible",
+    "supported_execution_profiles": [
+      "workflow.v0"
+    ],
+    "errors": []
   },
-  "max_declared_parallel": 3,
-  "node_count": 7,
-  "node_types": {
-   "join": 1,
-   "llm": 2,
-   "map": 1,
-   "output": 1,
-   "validate": 2
+  "publisher": {
+    "claimed_id": "webagents-research",
+    "claimed_name": "WebAgents Research Prototype",
+    "signature_status": "valid",
+    "signature_reason": "self_consistent_ed25519_signature",
+    "signer_fingerprint": "sha256:2bcc374a7fe18e50622042b7d0375fcb24eb3607879a236f9f3c3ede1922c5c4",
+    "signed_digest_matches": true,
+    "trust_status": "unknown",
+    "trust_reason": "signer_key_not_pinned",
+    "trust_entry": null
   },
-  "nodes": [
-   {
-    "conditional": false,
-    "depends_on": [],
-    "id": "plan",
-    "max_output_tokens": 12000,
-    "task": "plan",
-    "timeout_seconds": 120,
-    "type": "llm",
-    "worker": "Planner",
-    "writes": [
-     "/plan"
-    ]
-   },
-   {
-    "conditional": false,
-    "depends_on": [
-     "plan"
-    ],
-    "id": "perspectives",
-    "item_schema": "schemas/participant.schema.json",
-    "max_items": 12,
-    "max_parallel": 3,
-    "step_count": 1,
-    "steps": [
-     {
-      "id": "one-perspective",
-      "task": "perspective",
-      "type": "llm"
-     }
-    ],
-    "timeout_seconds": 360,
-    "type": "map",
-    "worker": "Perspective",
-    "writes": [
-     "/batches"
-    ]
-   },
-   {
-    "conditional": false,
-    "depends_on": [
-     "perspectives"
-    ],
-    "id": "join",
-    "timeout_seconds": 120,
-    "type": "join",
-    "worker": "Coordinator",
-    "writes": [
-     "/perspectives"
-    ]
-   },
-   {
-    "conditional": false,
-    "depends_on": [
-     "join"
-    ],
-    "id": "write",
-    "max_output_tokens": 12000,
-    "task": "write",
-    "timeout_seconds": 300,
-    "type": "llm",
-    "worker": "Writer",
-    "writes": [
-     "/draft"
-    ]
-   },
-   {
-    "conditional": false,
-    "depends_on": [
-     "write"
-    ],
-    "id": "assemble",
-    "timeout_seconds": 120,
-    "type": "validate",
-    "worker": "Coordinator",
-    "writes": [
-     "/agenda"
-    ]
-   },
-   {
-    "conditional": false,
-    "depends_on": [
-     "assemble"
-    ],
-    "id": "validate",
-    "timeout_seconds": 120,
-    "type": "validate",
-    "worker": "Coordinator",
-    "writes": []
-   },
-   {
-    "conditional": false,
-    "depends_on": [
-     "validate"
-    ],
-    "id": "output",
-    "timeout_seconds": 120,
-    "type": "output",
-    "worker": "Coordinator",
-    "writes": []
-   }
+  "capabilities": [
+    "agenda-planning"
   ],
-  "output_nodes": [
-   "output"
+  "skills": [
+    {
+      "id": "planning",
+      "version": "0.1.0",
+      "path": "skills/planning/SKILL.md",
+      "bytes": 276,
+      "sha256": "497616886788418a95691ff6bfddd8ec2eccbb9ba2d1b88d8c2e443700352af1"
+    },
+    {
+      "id": "perspective",
+      "version": "0.1.0",
+      "path": "skills/perspective/SKILL.md",
+      "bytes": 332,
+      "sha256": "0f6e689ffa13d56e869bfee7d073b6db098d5d759b40a3b2cdd8427506eeb759"
+    },
+    {
+      "id": "writing",
+      "version": "0.1.0",
+      "path": "skills/writing/SKILL.md",
+      "bytes": 805,
+      "sha256": "b4f327d597b6ecbe5cc43d7e7e327a55954093a288f013caaf84aa219d327ad6"
+    }
   ],
-  "output_schema": "schemas/agenda.schema.json",
-  "presentation": null,
-  "profile": "workflow.v0"
- }
+  "tools": [],
+  "workers": [
+    {
+      "id": "Coordinator",
+      "kind": "packaged",
+      "is_coordinator": true,
+      "skills": [],
+      "tools": [],
+      "max_instances": 1,
+      "state_read": [
+        "request",
+        "plan",
+        "batches",
+        "perspectives",
+        "agenda",
+        "draft"
+      ],
+      "state_write": [
+        "perspectives",
+        "agenda"
+      ],
+      "budget": {
+        "remote_calls": 4,
+        "tokens": 30000
+      }
+    },
+    {
+      "id": "Planner",
+      "kind": "packaged",
+      "is_coordinator": false,
+      "skills": [
+        "planning"
+      ],
+      "tools": [],
+      "max_instances": 1,
+      "state_read": [
+        "request"
+      ],
+      "state_write": [
+        "plan"
+      ],
+      "budget": {
+        "remote_calls": 4,
+        "tokens": 30000
+      }
+    },
+    {
+      "id": "Perspective",
+      "kind": "packaged",
+      "is_coordinator": false,
+      "skills": [
+        "perspective"
+      ],
+      "tools": [],
+      "max_instances": 3,
+      "state_read": [
+        "request",
+        "plan"
+      ],
+      "state_write": [
+        "batches"
+      ],
+      "budget": {
+        "remote_calls": 4,
+        "tokens": 30000
+      }
+    },
+    {
+      "id": "Writer",
+      "kind": "packaged",
+      "is_coordinator": false,
+      "skills": [
+        "writing"
+      ],
+      "tools": [],
+      "max_instances": 1,
+      "state_read": [
+        "request",
+        "plan",
+        "perspectives"
+      ],
+      "state_write": [
+        "draft"
+      ],
+      "budget": {
+        "remote_calls": 4,
+        "tokens": 30000
+      }
+    }
+  ],
+  "workflow": {
+    "profile": "workflow.v0",
+    "coordinator": "Coordinator",
+    "deadline_seconds": 600,
+    "input_schema": "schemas/input.schema.json",
+    "output_schema": "schemas/agenda.schema.json",
+    "node_count": 7,
+    "node_types": {
+      "join": 1,
+      "llm": 2,
+      "map": 1,
+      "output": 1,
+      "validate": 2
+    },
+    "entry_nodes": [
+      "plan"
+    ],
+    "output_nodes": [
+      "output"
+    ],
+    "max_declared_parallel": 3,
+    "map_item_caps": {
+      "perspectives": 12
+    },
+    "edges": [
+      {
+        "from": "plan",
+        "to": "perspectives"
+      },
+      {
+        "from": "perspectives",
+        "to": "join"
+      },
+      {
+        "from": "join",
+        "to": "write"
+      },
+      {
+        "from": "write",
+        "to": "assemble"
+      },
+      {
+        "from": "assemble",
+        "to": "validate"
+      },
+      {
+        "from": "validate",
+        "to": "output"
+      }
+    ],
+    "nodes": [
+      {
+        "id": "plan",
+        "type": "llm",
+        "worker": "Planner",
+        "depends_on": [],
+        "timeout_seconds": 120,
+        "writes": [
+          "/plan"
+        ],
+        "conditional": false,
+        "task": "plan",
+        "max_output_tokens": 12000
+      },
+      {
+        "id": "perspectives",
+        "type": "map",
+        "worker": "Perspective",
+        "depends_on": [
+          "plan"
+        ],
+        "timeout_seconds": 360,
+        "writes": [
+          "/batches"
+        ],
+        "conditional": false,
+        "max_items": 12,
+        "max_parallel": 3,
+        "item_schema": "schemas/participant.schema.json",
+        "steps": [
+          {
+            "id": "one-perspective",
+            "type": "llm",
+            "task": "perspective"
+          }
+        ],
+        "step_count": 1
+      },
+      {
+        "id": "join",
+        "type": "join",
+        "worker": "Coordinator",
+        "depends_on": [
+          "perspectives"
+        ],
+        "timeout_seconds": 120,
+        "writes": [
+          "/perspectives"
+        ],
+        "conditional": false
+      },
+      {
+        "id": "write",
+        "type": "llm",
+        "worker": "Writer",
+        "depends_on": [
+          "join"
+        ],
+        "timeout_seconds": 300,
+        "writes": [
+          "/draft"
+        ],
+        "conditional": false,
+        "task": "write",
+        "max_output_tokens": 12000
+      },
+      {
+        "id": "assemble",
+        "type": "validate",
+        "worker": "Coordinator",
+        "depends_on": [
+          "write"
+        ],
+        "timeout_seconds": 120,
+        "writes": [
+          "/agenda"
+        ],
+        "conditional": false
+      },
+      {
+        "id": "validate",
+        "type": "validate",
+        "worker": "Coordinator",
+        "depends_on": [
+          "assemble"
+        ],
+        "timeout_seconds": 120,
+        "writes": [],
+        "conditional": false
+      },
+      {
+        "id": "output",
+        "type": "output",
+        "worker": "Coordinator",
+        "depends_on": [
+          "validate"
+        ],
+        "timeout_seconds": 120,
+        "writes": [],
+        "conditional": false
+      }
+    ],
+    "exports": [
+      {
+        "path": "agenda.json",
+        "format": "json"
+      }
+    ],
+    "fixture_declared": true,
+    "conversation": null,
+    "input": {
+      "schema": "agentpkg-task-input-v0",
+      "schema_path": "schemas/input.schema.json",
+      "schema_sha256": "20882b29417ed30839f117eecae048272ea067205ba5779f08c882fea6ba787c",
+      "document": {
+        "additionalProperties": false,
+        "properties": {
+          "context": {
+            "type": "string"
+          },
+          "duration": {
+            "maximum": 240,
+            "minimum": 10,
+            "type": "integer"
+          },
+          "goal": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "participants": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "role": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name",
+                "role"
+              ],
+              "type": "object"
+            },
+            "maxItems": 12,
+            "type": "array"
+          }
+        },
+        "required": [
+          "goal",
+          "participants",
+          "context",
+          "duration"
+        ],
+        "type": "object"
+      },
+      "bytes": 434,
+      "note": "The package's own declared input schema. The runner validates every run against it again before any instruction reaches a model."
+    },
+    "presentation": null
+  },
+  "model_requirements": {
+    "routing": "host",
+    "fallback_policy": "deny",
+    "privacy": null,
+    "latency_preference": null,
+    "cost_sensitivity": null,
+    "tasks": [
+      {
+        "id": "plan",
+        "capabilities": [
+          "structured_output",
+          "reasoning"
+        ],
+        "context_window": 16000,
+        "preferred_tier": "reasoning"
+      },
+      {
+        "id": "perspective",
+        "capabilities": [
+          "structured_output",
+          "reasoning"
+        ],
+        "context_window": 16000,
+        "preferred_tier": "reasoning"
+      },
+      {
+        "id": "write",
+        "capabilities": [
+          "structured_output",
+          "reasoning"
+        ],
+        "context_window": 16000,
+        "preferred_tier": "reasoning"
+      }
+    ]
+  },
+  "evals": [],
+  "attestations": [],
+  "policy": {
+    "permissions": [
+      {
+        "description": "Use the host model router",
+        "id": "model.reasoning",
+        "kind": "model",
+        "required": true,
+        "resources": [
+          "host-router"
+        ]
+      },
+      {
+        "description": "Use isolated session state",
+        "id": "memory.session",
+        "kind": "memory",
+        "required": true,
+        "resources": [
+          "session"
+        ]
+      }
+    ],
+    "network": {
+      "allow_redirects": false,
+      "allowed_domains": [],
+      "https_only": true
+    },
+    "memory": {
+      "raw_documents": false,
+      "retention": "session",
+      "scope": "session",
+      "sharing": "explicit_views",
+      "state_schema": "schemas/state.schema.json"
+    },
+    "budget": {
+      "approval_threshold_tokens": null,
+      "estimated_cost_usd": null,
+      "estimated_tokens": 12000,
+      "hard_tokens": 180000,
+      "max_calls_per_tool": {},
+      "max_parallel_workers": 3,
+      "max_remote_calls": 32
+    },
+    "delegation": {
+      "allow_remote": false,
+      "approved_roles": [
+        "Planner",
+        "Perspective",
+        "Writer"
+      ],
+      "max_depth": 1
+    }
+  },
+  "payload": {
+    "file_count": 17,
+    "total_bytes": 17230,
+    "files": [
+      {
+        "path": "MANIFEST.agent",
+        "bytes": 1797,
+        "sha256": "6d5c1ae18a8fb7ceea10e3764a14268b73880f4a5727e3fa889253408463a0c1"
+      },
+      {
+        "path": "README.md",
+        "bytes": 2400,
+        "sha256": "8d9044a31a1d10820fad47d6700ec07ff8585038d8c3f2eeddc6b4b34105f270"
+      },
+      {
+        "path": "fixtures/workflow.json",
+        "bytes": 3560,
+        "sha256": "a090d6a95d3a3aa22bbccfa1902d50b5335d05906c88a052c4b4b6d8c13b3271"
+      },
+      {
+        "path": "graph.json",
+        "bytes": 4322,
+        "sha256": "fe1b7b357fbfa07bd4029385095666cef77cb582457b7170219c818f01b06e53"
+      },
+      {
+        "path": "policy/policy.json",
+        "bytes": 810,
+        "sha256": "478c00007935568e94b1daafdb2c8eb4092f2ef3e83c899c7db6d235fc131c66"
+      },
+      {
+        "path": "schemas/agenda.schema.json",
+        "bytes": 641,
+        "sha256": "625b2033ee1d99ff78b27589e6d51dc97aed8234065573c54098c6e75bc094fd"
+      },
+      {
+        "path": "schemas/batches.schema.json",
+        "bytes": 84,
+        "sha256": "992e5dba6a401e5f0156c1128e5dc7178d1b620ef68cee59b67eedc3c67240dc"
+      },
+      {
+        "path": "schemas/draft.schema.json",
+        "bytes": 555,
+        "sha256": "2d5b40b06b3f1d621a967288fe90646aaca7230c5e83e44708fa3cdb1d9b7885"
+      },
+      {
+        "path": "schemas/input.schema.json",
+        "bytes": 434,
+        "sha256": "20882b29417ed30839f117eecae048272ea067205ba5779f08c882fea6ba787c"
+      },
+      {
+        "path": "schemas/participant.schema.json",
+        "bytes": 138,
+        "sha256": "dcee316aaa7869a0b70e5deeaf6995cd2263ec1be55323a0f07936ff30310bd5"
+      },
+      {
+        "path": "schemas/perspective.schema.json",
+        "bytes": 242,
+        "sha256": "f84b968970a86869ca67e12680937c9e3af1dbe0577512b8406170b4cd23a39c"
+      },
+      {
+        "path": "schemas/perspectives.schema.json",
+        "bytes": 59,
+        "sha256": "8dccb761ff74050b35a4ad5cdad621df52ec0d8f0b3543c96948fcdac6cfa214"
+      },
+      {
+        "path": "schemas/plan.schema.json",
+        "bytes": 133,
+        "sha256": "18690ce56cda081a4f0f157bb6e5dd1729613d9a868de0bbbc7c4c22ef2aad68"
+      },
+      {
+        "path": "schemas/state.schema.json",
+        "bytes": 642,
+        "sha256": "817d3190f80475989dcff127b6e6aa2e5e94665a3d6b69e43fc9800786cfe6b8"
+      },
+      {
+        "path": "skills/perspective/SKILL.md",
+        "bytes": 332,
+        "sha256": "0f6e689ffa13d56e869bfee7d073b6db098d5d759b40a3b2cdd8427506eeb759"
+      },
+      {
+        "path": "skills/planning/SKILL.md",
+        "bytes": 276,
+        "sha256": "497616886788418a95691ff6bfddd8ec2eccbb9ba2d1b88d8c2e443700352af1"
+      },
+      {
+        "path": "skills/writing/SKILL.md",
+        "bytes": 805,
+        "sha256": "b4f327d597b6ecbe5cc43d7e7e327a55954093a288f013caaf84aa219d327ad6"
+      }
+    ]
+  },
+  "warnings": [
+    {
+      "code": "publisher_unknown",
+      "severity": "warning",
+      "message": "The signing key is not pinned in this host's trust store, so the publisher is unverified even when the signature is self-consistent."
+    },
+    {
+      "code": "no_evals_declared",
+      "severity": "info",
+      "message": "The package declares no evaluations."
+    },
+    {
+      "code": "no_attestations_declared",
+      "severity": "info",
+      "message": "The package declares no attestations."
+    }
+  ]
 }
