@@ -419,7 +419,14 @@ Design rationale: [docs/architecture.md](docs/architecture.md). Threat model:
   yes or no, with a `once` grant spent once per conversation and one audit chain across turns. The
   Python reference runs conversations from a transcript (`agentpkg converse`); the test package
   and the 43 enforcement cases are under [`examples/conversation/`](examples/conversation/). The
-  chat surface in the Chrome Agent Browser and a conversational WebAir are the next task (T24).
+  Chrome Agent Browser (core 0.4.0, T24) holds conversations in a chat surface: each turn is a run
+  on its execution host, the consent card appears in the chat when the turn reaches it (a payment
+  or a personal record is always asked; a preset may pre-decide the other kinds), the record
+  survives a restart and exports as `agentpkg converse` writes it; both runtimes agree on the 42
+  conversation conformance cases, and a headless Chrome held the two-turn demo conversation
+  ([`chrome-conversation-e2e-t24.json`](examples/verification/chrome-conversation-e2e-t24.json)).
+  WebAir 0.8.0 is a conversational travel agent: search, refine, quote, "buy it" with the card
+  before the simulated purchase, goodbye ([`agents/webair/`](agents/webair/README.md)).
 
 - The plugin depends on OpenClaw's experimental plugin and Control UI APIs. It has been run live
   only on macOS, with one OpenClaw release. On Linux, CI builds, validates and packs it and runs its

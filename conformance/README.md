@@ -187,7 +187,8 @@ from where the chain stood (V-17). Expected in both:
 | N-30…N-43 | a turn that fails with the node's code (exit 1 in both) or a control that completes (exit 0), identical transcripts, states and chains |
 
 Every conversation case carries `requires: 0.6.0`, so against an older `CONFORMANCE_CHROME` core it
-is pending rather than failed.
+is pending rather than failed; the Chrome core 0.4.0 (T24) runs them, and both runtimes have agreed
+on all 42 since `conformance/results/` of 2026-10-21.
 
 ## Recorded differences
 

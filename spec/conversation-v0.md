@@ -336,8 +336,9 @@ host (N-25, N-26). A `Workflow` constructed without a turn for such a package is
 
 Conformance (T24): the conformance suite runs the test package's fixture transcript and the cases
 of §10 on both CLIs over a `converse` driver and compares transcripts (without timestamps and
-ids), states, replies, turn artifacts and audits under D-063; until the Chrome core reaches 0.6.0,
-such cases are pending by the runner's `requires` rule.
+ids), states, replies, turn artifacts and audits under D-063 (42 cases, both runtimes identical
+since the Chrome core 0.4.0; against an older core they are pending by the runner's `requires`
+rule).
 
 ## 9. Refusal codes
 
@@ -427,10 +428,13 @@ most, within what, what is kept between turns, and which steps will ask before w
 ## 12. Versions, deliberate limits, prior art
 
 **Versions.** agentpkg 0.6.0 implements this document; packages that use it declare
-`runtime.minimum_version: "0.6.0"`. The Chrome core implements it at 0.4.0 (T24) with
-`SUPPORTED_RUNTIME_VERSION` 0.6.0; until then its gate stays 0.5.0 and the runtimes' version test
-accepts the pair. The OpenClaw plugin stays frozen (D-029) and its execution host refuses
-conversational packages (V-28). The paper line is untouched.
+`runtime.minimum_version: "0.6.0"`. The Chrome core implements it at 0.4.0 (T24, D-270…D-274) with
+`SUPPORTED_RUNTIME_VERSION` 0.6.0: the CLI `converse`, and in the extension a conversation as a
+record between turns, each turn a run on the execution host, the consent card in the chat surface
+(a `payment` or `personal.read` step is always asked; a preset or a signed policy may pre-decide
+the other kinds, D-271), one chain across turns and the export of D-272. WebAir 0.8.0 is the first
+shipped conversational package. The OpenClaw plugin stays frozen (D-029) and its execution host
+refuses conversational packages (V-28). The paper line is untouched.
 
 **Deliberate limits of v0.** No suspend and resume of a turn; no decision schema beyond yes or
 no; no consent step inside a map or on a worker; no model-chosen next step; no in-conversation
