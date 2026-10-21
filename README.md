@@ -412,6 +412,14 @@ Design rationale: [docs/architecture.md](docs/architecture.md). Threat model:
   (AssemblyScript, Rust) and the enforcement cases are under [`examples/compute/`](examples/compute/);
   Literature Review 0.2.9 and WebAir 0.7.0 ship them. Both runtimes agree on the 41 compute
   conformance cases.
+- **Conversations with just-in-time consent** ([`spec/conversation-v0.md`](spec/conversation-v0.md),
+  agentpkg 0.6.0): a package may declare a conversation over its graph: a persistent state the
+  publisher declares, one turn per message under one Run Plan with per-turn and per-conversation
+  budgets, and `consent` steps that pause a turn before a consequential action for the person's
+  yes or no, with a `once` grant spent once per conversation and one audit chain across turns. The
+  Python reference runs conversations from a transcript (`agentpkg converse`); the test package
+  and the 40 enforcement cases are under [`examples/conversation/`](examples/conversation/). The
+  chat surface in the Chrome Agent Browser and a conversational WebAir are the next task (T24).
 
 - The plugin depends on OpenClaw's experimental plugin and Control UI APIs. It has been run live
   only on macOS, with one OpenClaw release. On Linux, CI builds, validates and packs it and runs its

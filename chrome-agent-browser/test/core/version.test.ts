@@ -11,8 +11,11 @@ describe("the two runtimes accept the same packages (D-031)", () => {
     const init = readFileSync(join(ROOT, "agentpkg", "src", "agentpkg", "__init__.py"), "utf8");
     const match = /__version__\s*=\s*"([^"]+)"/u.exec(init);
     expect(match, "agentpkg/__init__.py must declare __version__").not.toBeNull();
-    // T22 moved this core's gate to 0.5.0 (compute.v0, D-240): the two runtimes accept the same packages again.
-    expect(SUPPORTED_RUNTIME_VERSION).toBe(match![1]);
+    // T23 opened agentpkg 0.6.0 (conversation.v0, D-260) while this core's gate stays at 0.5.0
+    // (compute.v0, D-240) until T24 ports conversations: the pair is accepted until then, as it was
+    // for (0.5.0, 0.4.0) between T21 and T22; any other mismatch fails.
+    const accepted = new Set([match![1], ...(match![1] === "0.6.0" ? ["0.5.0"] : [])]);
+    expect(accepted.has(SUPPORTED_RUNTIME_VERSION), `${SUPPORTED_RUNTIME_VERSION} vs agentpkg ${match![1]}`).toBe(true);
     expect(RUNTIME_API).toBe("agentpkg-runtime-v0");
   });
 
