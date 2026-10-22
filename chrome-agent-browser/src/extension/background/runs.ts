@@ -337,8 +337,9 @@ export class RunManager {
     await this.releaseLease(run.run_id);
     if (updated === null || updated.record.status !== "interrupted") return false;
     this.deps.broadcast({ type: "event.run", runId: run.run_id, sessionId: run.session_id, status: "interrupted" });
-    await this.deps.hooks.runSettled?.(run.invocation.archive_sha256);
+    // The conversation first: its end rule may read the snapshot that runSettled can drop.
     if (updated.invocation.turn) await this.onTurnSettled?.(updated).catch(() => undefined);
+    await this.deps.hooks.runSettled?.(run.invocation.archive_sha256);
     return true;
   }
 
@@ -438,15 +439,16 @@ export class RunManager {
   /**
    * conversation.v0 (D-270): one turn of a conversation as a run, with the turn's context handed to
    * the host; the conversation manager validated the message and reserved the turn (V-10). A
-   * receipt the conversation's first turn spent still leases its later turns (V-13).
+   * receipt the conversation's first turn spent still leases its later turns (V-13). A turn runs
+   * under the run limits the conversation froze at its start, which its reservation counted (V-10).
    */
-  async startTurn(sessionId: string, input: { plan: RunPlan; message: JsonValue; turn: TurnStart; spentByConversation: boolean; runId: string }): Promise<RunView> {
+  async startTurn(sessionId: string, input: { plan: RunPlan; message: JsonValue; turn: TurnStart; spentByConversation: boolean; runId: string; limits: HostExecutionLimits }): Promise<RunView> {
     await this.restore();
     const facts = await this.deps.hooks.session(sessionId);
     if (facts.plan === null || facts.plan.run_plan_id !== input.plan.run_plan_id || facts.plan.run_plan_sha256 !== input.plan.run_plan_sha256) {
       throw reject("run_plan_mismatch", "The conversation's plan is no longer this session's current plan.", 409);
     }
-    return this.launch(sessionId, facts, input.plan, input.message, { turn: input.turn, spentByConversation: input.spentByConversation, runId: input.runId });
+    return this.launch(sessionId, facts, input.plan, input.message, { turn: input.turn, spentByConversation: input.spentByConversation, runId: input.runId, limits: input.limits });
   }
 
   /** A new run id, for a caller that records the run it is about to start before starting it (a conversation's turn). */
@@ -463,7 +465,7 @@ export class RunManager {
     return authorizationFromRunPlan(plan);
   }
 
-  private async launch(sessionId: string, facts: RunSessionFacts, plan: RunPlan, inputValue: unknown, options: { turn: TurnStart | null; spentByConversation: boolean; runId?: string }): Promise<RunView> {
+  private async launch(sessionId: string, facts: RunSessionFacts, plan: RunPlan, inputValue: unknown, options: { turn: TurnStart | null; spentByConversation: boolean; runId?: string; limits?: HostExecutionLimits }): Promise<RunView> {
     const readiness = await this.readiness(sessionId, { ignoreOnceSpent: options.spentByConversation });
     if (!readiness.ready || readiness.preflight === null) {
       const blocker = readiness.blocker!;
@@ -475,7 +477,7 @@ export class RunManager {
     if (this.starting.has(sessionId)) throw reject("execution_active", "A run is already being started for this package.", 409);
     this.starting.add(sessionId);
     try {
-      const limits = await this.hostLimits();
+      const limits = options.limits ?? (await this.hostLimits());
       const archive = await this.deps.hooks.snapshotBytes(facts.stored.archive_sha256);
       if (archive === null) throw reject("execution_artifact_mismatch", "The session snapshot is no longer stored", 500);
       const registry = await this.deps.hooks.toolRegistry(sessionId);
@@ -539,8 +541,9 @@ export class RunManager {
         leases.release(lease.lease_id);
         this.leases.delete(runId);
         this.deps.broadcast({ type: "event.run", runId, sessionId, status: failed?.record.status ?? "failed" });
-        await this.deps.hooks.runSettled?.(stored.invocation.archive_sha256);
+        // The conversation first: its end rule may read the snapshot that runSettled can drop.
         if (failed) await this.onTurnSettled?.(failed).catch(() => undefined);
+        await this.deps.hooks.runSettled?.(stored.invocation.archive_sha256);
         throw reject("execution_unavailable", detail, 503);
       }
       return this.view(stored);
@@ -672,12 +675,13 @@ export class RunManager {
       run = (await this.deps.runs.getRun(runId)) ?? run;
     }
     this.deps.broadcast({ type: "event.run", runId, sessionId: run.session_id, status: run.record.status });
-    await this.deps.hooks.runSettled?.(run.invocation.archive_sha256);
     // memory.v0 M-29, M-50: the run's usage entries and its staged agent document reach the memory
     // now, or wait for the next unlock when the store locked meanwhile; never a run failure.
     await this.applyRunMemory(runId).catch(() => undefined);
-    // conversation.v0 (D-270): a turn's run settled; the conversation charges it.
+    // conversation.v0 (D-270): a turn's run settled; the conversation charges it, before the
+    // snapshot may be dropped (its end rule may read it when the session has closed).
     if (run.invocation.turn) await this.onTurnSettled?.(run).catch(() => undefined);
+    await this.deps.hooks.runSettled?.(run.invocation.archive_sha256);
     return { received: true };
   }
 

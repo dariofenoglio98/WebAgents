@@ -37,7 +37,7 @@ import { loadPackageBytes } from "./core/package.js";
 import { pyJsonDumps } from "./core/pyjson.js";
 import { verifyWithTrustedKey } from "./core/signature.js";
 import { toolHandlers } from "./core/tools/broker.js";
-import type { Grants, HostLimits } from "./core/workflow/runtime.js";
+import { checkApprovedTools, checkGrants, type Grants, type HostLimits } from "./core/workflow/runtime.js";
 
 const CONVERSE: ArgumentSpec = { positional: ["package"], options: { ...RUN_OPTIONS, "--transcript": { kind: "value" } } };
 
@@ -89,6 +89,10 @@ export async function converseCommand(args: string[]): Promise<number> {
     adapters = () => ({ router: fixture.router, handlers: fixture.handlers });
   } else {
     const hostLimits = normalizeHostLimits(limits === null ? { ...PERMISSIVE_HOST_LIMITS } : Object.fromEntries(Object.entries(limits).filter(([key]) => !key.startsWith("conversation_"))));
+    // The conversation's own checks, in its order, before binding contacts a model provider
+    // (as the reference, which refuses before any network; T24 review 2 nit 5).
+    checkGrants(new Set((pkg.policy.permissions as JsonObject[]).map((permission) => String(permission.id))), grants);
+    checkApprovedTools(pkg.tools, approved);
     const live = await bindLive(pkg, parsed, bytes, grants, approved, hostLimits.model_call_timeout_seconds);
     const tools = live.deps.tools!;
     adapters = () => {

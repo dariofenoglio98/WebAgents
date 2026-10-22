@@ -258,7 +258,8 @@ export class ConversationManager {
     if (!won) throw raced(reserved);
     this.starting.add(runId);
     try {
-      await this.deps.runner.startTurn(stored.session_id, { plan: facts.plan, message: message as JsonValue, turn, spentByConversation: stored.spent_receipt, runId });
+      // Under the run limits the reservation counted, not the ones Settings holds now (V-10).
+      await this.deps.runner.startTurn(stored.session_id, { plan: facts.plan, message: message as JsonValue, turn, spentByConversation: stored.spent_receipt, runId, limits: stored.turn_limits });
     } catch (error) {
       // The turn never ran (the lease, the host). A stored run means the lease spent the receipt
       // (nit 7): the conversation's later turns are leased under it.
@@ -364,18 +365,19 @@ export class ConversationManager {
 
   /** V-8: whether the package's end rule holds after a completed turn, over the reply and the new state (the core's rule, on the session's package or the snapshot). */
   private async endsByPackage(stored: StoredConversation, reply: JsonValue, state: JsonObject): Promise<boolean> {
-    let pkg: Package | null = null;
-    if (this.deps.hooks.isSessionOpen(stored.session_id)) {
-      const facts = await this.deps.hooks.session(stored.session_id).catch(() => null);
-      if (facts !== null && facts.pkg.digest === stored.package.digest) pkg = facts.pkg;
-    }
-    if (pkg === null) {
-      const bytes = await this.deps.hooks.snapshotBytes(stored.archive_sha256);
-      // The package is gone from this browser: the rule cannot be read, and the turn bound still ends the conversation.
-      if (bytes === null) return false;
-      pkg = await loadPackageBytes(bytes);
-    }
+    // Never a reason not to charge the turn: a rule that cannot be read leaves the conversation open.
     try {
+      let pkg: Package | null = null;
+      if (this.deps.hooks.isSessionOpen(stored.session_id)) {
+        const facts = await this.deps.hooks.session(stored.session_id).catch(() => null);
+        if (facts !== null && facts.pkg.digest === stored.package.digest) pkg = facts.pkg;
+      }
+      if (pkg === null) {
+        const bytes = await this.deps.hooks.snapshotBytes(stored.archive_sha256);
+        // The package is gone from this browser: the rule cannot be read, and the turn bound still ends the conversation.
+        if (bytes === null) return false;
+        pkg = await loadPackageBytes(bytes);
+      }
       return endsByPackage(pkg, reply, state);
     } catch {
       return false;
@@ -385,15 +387,25 @@ export class ConversationManager {
   /**
    * Charge every open conversation whose turn settled while this worker was away (a `host.finished`
    * it never saw). One at a time; a read reuses a reconcile younger than RECONCILE_INTERVAL_MS, a
-   * write (`force`) always runs one (nit 10).
+   * write (`force`) always runs one that starts after it was asked (nit 10; T24 review 2 nit 6).
+   * The throttle reads the wall clock, not the injected one: it bounds work, it records nothing.
    */
   private reconcile(force = false): Promise<void> {
-    if (this.reconciling !== null) return this.reconciling;
+    if (this.reconciling !== null) {
+      if (!force) return this.reconciling;
+      // The one in flight may have listed the conversations before this write's turn settled.
+      const again = () => this.reconcile(true);
+      return this.reconciling.then(again, again);
+    }
     if (!force && Date.now() - this.reconciledAt < RECONCILE_INTERVAL_MS) return Promise.resolve();
-    this.reconciling = this.reconcileNow().finally(() => {
-      this.reconciledAt = Date.now();
-      this.reconciling = null;
-    });
+    this.reconciling = this.reconcileNow()
+      .then(() => {
+        // Only a reconcile that finished counts for the reads that follow.
+        this.reconciledAt = Date.now();
+      })
+      .finally(() => {
+        this.reconciling = null;
+      });
     return this.reconciling;
   }
 

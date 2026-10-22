@@ -77,6 +77,17 @@ describe("converse", () => {
     expect(existsSync(out)).toBe(false);
   });
 
+  it("in live mode the approval is refused before binding contacts a model provider (T24 review 2 nit 5)", () => {
+    const transcript = join(scratch, "live-ghost.json");
+    writeFileSync(transcript, JSON.stringify({ schema: "conversation.transcript.v0", turns: [{ message: { text: "hello" } }] }));
+    const out = join(scratch, "live-ghost");
+    // An Ollama nobody answers on: binding would fail on it, with another message, before the fix.
+    const result = cli.run(["converse", CONVERSATION_TEST.archive, "--mode", "live", "--grants", CONVERSATION_TEST.grants, "--transcript", transcript, "--approve-tool", "ghost", "--trust-key", CONVERSATION_TEST.key, "--model", "ollama/qwen3:30b", "--ollama-url", "http://127.0.0.1:1", "--out", out]);
+    expect(result.status).toBe(2);
+    expect(result.stderr.trim()).toBe("agent-browser: Tool approval refers to a tool this package does not declare");
+    expect(existsSync(out)).toBe(false);
+  });
+
   it("WebAir 0.8.0's signed fixture conversation gives the reference's transcript, state and usage (T24, fixture parity)", () => {
     const argv = (out: string) => ["converse", SHIPPED.webair080.archive, "--mode", "fixture", "--grants", join(ROOT, "examples", "webair-0.8.0-grants.json"), "--approve-tool", "search-flights", "--approve-tool", "get-fare-rules", "--trust-key", SHIPPED.webair080.key, "--out", out];
     const pyOut = join(scratch, "webair-080-python");

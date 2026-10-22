@@ -393,7 +393,9 @@ conversation per plan, spec §12) and the readiness a run needs, then stores the
 (`conversations`, §4) and records `conversation.started` on its audit chain. Each
 `conversation.send` validates the message against the package's `input_schema` and reserves the
 whole turn against what the conversation has left (V-10): the turn's own token and remote-call
-budgets, each lowered to the browser's run limits (Settings → Run limits), must fit, else the turn
+budgets, each lowered to the browser's run limits as they stood when the conversation started
+(Settings → Run limits, and the policy's caps; every turn runs under those, so raising a limit
+mid-conversation never lets a turn spend more than it reserved), must fit, else the turn
 is `turn.refused` and the conversation ends (`max_turns` or `budget`) in the same write. A reserved
 turn records `turn.started` and the turn's run id on the conversation in one conditional write, so
 two sends from two views, or a send racing End, start at most one turn and the chain never forks

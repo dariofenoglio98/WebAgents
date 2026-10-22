@@ -47,9 +47,23 @@ interface World {
   deskSeen: SeenRequest[];
 }
 
-async function world(options: { mutate?: ((m: Members) => void) | null; runs?: MemoryRunStore; conversations?: MemoryConversationStore; preset?: "privacy-first" | "balanced" | "convenience"; decideLost?: boolean; limits?: Record<string, number>; deskGate?: Promise<void> } = {}): Promise<World> {
+async function world(options: { mutate?: ((m: Members) => void) | null; runs?: MemoryRunStore; conversations?: MemoryConversationStore; preset?: "privacy-first" | "balanced" | "convenience"; decideLost?: boolean; limits?: Record<string, number>; deskGate?: Promise<void>; modelGate?: Promise<void> } = {}): Promise<World> {
   const { bytes, key } = await probeBytes({ remoteTool: true, mutate: options.mutate ?? null });
-  const model = scriptedOllama({ interpret: (user) => MESSAGES[String((user as { text: string }).text)]! });
+  const scripted = scriptedOllama({ interpret: (user) => MESSAGES[String((user as { text: string }).text)]! });
+  // A model that has the request and has not answered yet (the turn is in flight).
+  const gate = options.modelGate ?? null;
+  const asked: SeenRequest[] = [];
+  const model =
+    gate === null
+      ? scripted
+      : {
+          seen: asked,
+          transport: (async (request: HttpRequest) => {
+            asked.push({ url: request.url, method: request.method, body: request.body, headers: { ...request.headers } });
+            await gate;
+            return scripted.transport(request);
+          }) as HttpTransport,
+        };
   const deskSeen: SeenRequest[] = [];
   const routes = { ...webairRoutes(), [DESK_URL]: { headers: { "content-type": PACKAGE_MEDIA_TYPE, "content-length": String(bytes.length) }, body: bytes } };
   const h = makeHarness({ routes, transports: { model: model.transport, tool: scriptedDesk(deskSeen, options.deskGate ?? null) }, runs: options.runs, conversations: options.conversations });
@@ -399,5 +413,66 @@ describe("a conversation from the browser", () => {
     const bundle = (await w.h.controller.handle({ type: "conversation.export", conversationId: started.conversationId }, PAGE)) as ConversationExportBundle;
     const audit = JSON.parse(Buffer.from(bundle.entries.find((entry) => entry.name === "audit.json")!.base64, "base64").toString("utf8")) as JsonObject[];
     expect(verifyAuditChain(audit).valid).toBe(true);
+  });
+
+  it("a turn runs under the run limits the conversation froze at its start, which its reservation counted (T24 review 2 finding 1, V-10)", async () => {
+    const tight = (m: Members) => {
+      ((m["graph.json"] as JsonObject).conversation as { budget: JsonObject }).budget.hard_tokens = 4100;
+    };
+    const runs = new MemoryRunStore();
+    const w = await world({ mutate: tight, limits: { total_tokens: 3500 }, runs });
+    const started = await start(w, await authorize(w));
+    // The person raises Settings → Run limits after the conversation started.
+    const current = (await w.h.controller.handle({ type: "settings.get" }, PAGE)) as SettingsView;
+    await w.h.controller.handle({ type: "settings.set", settings: { ...current.settings, limits: { ...(current.settings.limits ?? {}), total_tokens: 100_000 } as typeof current.settings.limits } }, PAGE);
+    for (const _turn of [1, 2]) {
+      await send(w, started.conversationId, "hello");
+      await settled(w, started.conversationId);
+    }
+    const stored = await runs.listRuns();
+    expect(stored).toHaveLength(2);
+    for (const run of stored) {
+      expect(run.invocation.limits.total_tokens).toBe(3500);
+      expect(((run.result as JsonObject).limits as { budget: { effective: JsonObject } }).budget.effective.hard_tokens).toBe(3500);
+    }
+  });
+
+  it("a turn that settles after its package session closed still ends the conversation by the package's rule (T24 review 2 nit 2, V-8)", async () => {
+    let release!: () => void;
+    const w = await world({ modelGate: new Promise<void>((resolve) => (release = resolve)) });
+    const started = await start(w, await authorize(w));
+    await send(w, started.conversationId, "done");
+    // The turn is in flight: the model has its request and holds the answer.
+    const asked = () => w.modelSeen.some((request) => (request.body ?? "").includes('\\"done\\"'));
+    const deadline = Date.now() + 10_000;
+    while (!asked() && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(asked()).toBe(true);
+    await w.h.controller.handle({ type: "package.close", sessionId: w.session.session.id }, PAGE);
+    release();
+    const after = await waitFor(w, started.conversationId, (view) => view.status === "ended", "the conversation ended");
+    expect(after).toMatchObject({ status: "ended", ended: { reason: "package" } });
+    // The snapshot goes once the conversation has read its rule: nothing else refers to it.
+    expect(await w.h.snapshots.listSnapshots()).toEqual([]);
+  });
+
+  it("a turn whose end rule cannot be read is still charged, and the conversation stays open (T24 review 2 nit 3)", async () => {
+    let release!: () => void;
+    const w = await world({ modelGate: new Promise<void>((resolve) => (release = resolve)) });
+    const started = await start(w, await authorize(w));
+    await send(w, started.conversationId, "hello");
+    const asked = () => w.modelSeen.some((request) => (request.body ?? "").includes('\\"hello\\"'));
+    const deadline = Date.now() + 10_000;
+    while (!asked() && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(asked()).toBe(true);
+    await w.h.controller.handle({ type: "package.close", sessionId: w.session.session.id }, PAGE);
+    // The stored package cannot be read when the turn settles.
+    w.h.snapshots.getSnapshot = async () => {
+      throw new Error("IndexedDB read failed");
+    };
+    release();
+    const after = await waitFor(w, started.conversationId, (view) => view.activeRunId === null, "the turn charged");
+    expect(after.status).toBe("open");
+    expect(after.transcript.map((turn) => turn.status)).toEqual(["completed"]);
+    expect(after.spent.tokens).toBeGreaterThan(0);
   });
 });
