@@ -82,7 +82,7 @@ describe("signed documents", () => {
     const index = readAgentIndex(verified.content);
     expect(index.notes).toEqual([]);
     const byId = Object.fromEntries(index.entries.map((entry) => [entry.package_id, entry]));
-    for (const shipped of [SHIPPED.literatureReview029, SHIPPED.webair070]) {
+    for (const shipped of [SHIPPED.literatureReview029, SHIPPED.webair080]) {
       const entry = byId[shipped.packageId]!;
       expect(entry.version).toBe(shipped.version);
       expect(entry.digest).toBe(shipped.digest);

@@ -432,6 +432,15 @@ function conversationCases() {
       argv: converse(EXAMPLES("conversation/conversation-test.agent.pkg"), EXAMPLES("conversation/conversation-test-grants.json"), ["--approve-tool", "place-order", "--trust-key", EXAMPLES("keys/conversation-test-publisher.pub.pem")]),
       exit: 0,
     },
+    // WebAir 0.8.0 (T24, D-274): its signed conversation fixture (search, refine, goodbye), then each
+    // conversation of the publisher's fixture family as a transcript (searches only; the quote and
+    // purchase conversations need the demo host's data and are the demo's tests).
+    ...webair080Conversations().map(({ id, transcript }) => ({
+      id: `webair-0.8.0/${id === "fixture" ? "fixture" : `conversation-${id}`}`,
+      title: `WebAir 0.8.0 (conversation.v0, T24), ${id === "fixture" ? "its fixture transcript" : `the fixture conversation ${id}`}, the search tools approved`,
+      argv: converse(DIST("webair-0.8.0.agent.pkg"), EXAMPLES("webair-0.8.0-grants.json"), ["--approve-tool", "search-flights", "--approve-tool", "get-fare-rules", "--trust-key", EXAMPLES("keys/webair-publisher.pub.pem"), ...(id === "fixture" ? [] : ["--transcript", transcript])]),
+      exit: 0,
+    })),
   ];
   for (const testCase of CONVERSATION_CASES) {
     if (testCase.host) continue;
@@ -444,6 +453,15 @@ function conversationCases() {
     }
   }
   return cases.map((testCase) => ({ ...testCase, kind: "conversation parity", requires: "0.6.0", run: () => runConverse(testCase) }));
+}
+
+/** WebAir 0.8.0's fixture family (`examples/webair-0.8.0-conversations.json`), each written as an input transcript. */
+function webair080Conversations() {
+  const family = JSON.parse(readFileSync(EXAMPLES("webair-0.8.0-conversations.json"), "utf8")).fixture;
+  return family.map((conversation) => ({
+    id: conversation.id,
+    transcript: writeInput(`webair-080-${conversation.id}.transcript.json`, JSON.stringify({ schema: "conversation.transcript.v0", turns: conversation.turns.map((turn) => ({ message: turn.message, consents: turn.consents ?? {} })) })),
+  }));
 }
 
 function runConverse(testCase) {

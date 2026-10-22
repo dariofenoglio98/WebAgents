@@ -398,8 +398,10 @@ Design rationale: [docs/architecture.md](docs/architecture.md). Threat model:
   over demo index 1.2.0, which lists Literature Review 0.2.7:
   [`chrome-search-policy-e2e-index-120.json`](examples/verification/chrome-search-policy-e2e-index-120.json);
   demo index 1.3.0 listed Literature Review 0.2.8 and WebAir 0.6.0, the first packages that use the
-  person's memory, [`spec/memory-v0.md`](spec/memory-v0.md); demo index 1.4.0 lists Literature Review
-  0.2.9 and WebAir 0.7.0, the first that ship WebAssembly modules, [`spec/compute-v0.md`](spec/compute-v0.md)).
+  person's memory, [`spec/memory-v0.md`](spec/memory-v0.md); demo index 1.4.0 listed Literature Review
+  0.2.9 and WebAir 0.7.0, the first that ship WebAssembly modules, [`spec/compute-v0.md`](spec/compute-v0.md);
+  demo index 1.5.0 lists Literature Review 0.2.9 and WebAir 0.8.0, the first conversational package,
+  [`spec/conversation-v0.md`](spec/conversation-v0.md)).
   NANDA resolution is a stub with the mapping defined.
 
 **Experimental** (works on the development host, but limited or lightly exercised):

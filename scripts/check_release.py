@@ -125,14 +125,34 @@ CURRENT_PACKAGES = {
     },
     # The fictional WebAir origin's packages (demo/webair), new in v0.2.0. The current one has no
     # unversioned alias: `webair.agent.pkg` stays 0.1.0, which the recorded evidence pins.
-    # 0.7.0 is the current one (0.6.0 with its fare totals verified by the fares module, T22).
-    # 0.6.0 (0.5.0 with the person's memory, T20), which the public origin serves until 0.7.0 is
-    # deployed, stays pinned; 0.5.0 (0.4.0 plus the
+    # 0.8.0 is the current one (0.7.0 as a conversation: one message per turn, a consent step
+    # before the simulated purchase, T24). 0.7.0 (0.6.0 with its fare totals verified by the fares
+    # module, T22), which the public origin serves until 0.8.0 is deployed, stays pinned.
+    # 0.6.0 (0.5.0 with the person's memory, T20) stays pinned; 0.5.0 (0.4.0 plus the
     # departure-airport answer, T9), which the public deployment serves until 0.6.0 is deployed,
     # stays pinned. 0.4.0, which the
     # Chrome live acceptance, the conformance reports and the demo index describe, and 0.3.0,
     # which the recorded live and Table I evidence and the contract overhead benchmark
     # describe, stay pinned.
+    "webair-0.8.0": {
+        "stem": "webair",
+        "alias": False,
+        "package_id": "org.webagents.webair",
+        "version": "0.8.0",
+        "digest": "b346a4740b3b1052bb77f781ec4c2cbb4d29644a71f9a3c29e1cd8921d9572c2",
+        "archive_sha256": "9c81a9362754fc3c48c923b4968e75daa9e0260ae422be7e77b30f1df1a7eae0",
+        "key": "examples/keys/webair-publisher.pub.pem",
+        "fingerprint": "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b",
+        "tools": [
+            "get-fare-rules",
+            "personal.passenger_identity",
+            "prepare-booking",
+            "search-flights",
+            "simulate-purchase",
+            "travel.profile",
+            "wallet.payment_method",
+        ],
+    },
     "webair-0.7.0": {
         "stem": "webair",
         "alias": False,

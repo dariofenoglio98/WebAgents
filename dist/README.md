@@ -23,6 +23,7 @@ against the exact bytes it describes.
 | `literature-review-0.2.6.agent.pkg` | Literature Review 0.2.6: 0.2.5 with screening jobs built by the graph from the candidates (the model writes one `{paper_id, file_id}` reference per candidate, checked both ways) and an explicit empty source hash for abstract evidence, asserted by `check-abstract` (T10: on hosted models 0.2.5 silently thinned or emptied the review) | agentpkg ≥ 0.2.1 | [`examples/keys/literature-review-publisher.pub.pem`](../examples/keys/literature-review-publisher.pub.pem) (`sha256:c5ca9763…5232`) |
 | `literature-review.agent.pkg` | Literature Review 0.2.5, identical to `literature-review-0.2.5.agent.pkg` | agentpkg ≥ 0.2.1 | [`examples/keys/literature-review-publisher.pub.pem`](../examples/keys/literature-review-publisher.pub.pem) (`sha256:c5ca9763…5232`) |
 | `meeting-agenda.agent.pkg` | Meeting Agenda 0.2.2, identical to `meeting-agenda-0.2.2.agent.pkg` | agentpkg ≥ 0.2.2 | [`examples/keys/meeting-agenda-publisher.pub.pem`](../examples/keys/meeting-agenda-publisher.pub.pem) (`sha256:2bcc374a…c5c4`) |
+| `webair-0.8.0.agent.pkg` | WebAir Travel Agent 0.8.0, the package of the fictional WebAir origin: 0.7.0 as a conversation (conversation.v0, T24, D-274). The input is one message per turn; the interpreter reads it with the conversation's persistent state (the history, the fares already found, the open quote, the last confirmation's summary, the profile used: ids, totals and labels, never a sealed value) and answers an intent (search, quote, purchase, question, done). A purchase waits on the consent step `confirm-purchase`, which shows the person the quote's facts (fare, route, date, cabin, total, the passenger's name, the card's display label) before `booking.simulate_purchase` is called; one purchase per conversation (`max_calls_per_tool`), at most 8 turns, 240,000 tokens and 60 remote calls; "that's all" ends the conversation without a model call. Its conversation fixture is three turns of searches, so the signed bytes carry no personal data. It declares the public deployment `webagents-webair-production.up.railway.app`. No real booking or payment | agentpkg ≥ 0.6.0 with the `compute` extra; the Chrome Agent Browser's core ≥ 0.4.0 | [`examples/keys/webair-publisher.pub.pem`](../examples/keys/webair-publisher.pub.pem) (`sha256:2e53acce…a20b`) |
 | `webair-0.7.0.agent.pkg` | WebAir Travel Agent 0.7.0, the package of the fictional WebAir origin: 0.6.0 with WebAir's fare totals verified by code that can only compute (compute.v0, T22, D-252). The AssemblyScript fares module `modules/fares.wasm` (SHA-256 `ef7e813b…23c0`, declared in the graph) recomputes each selected fare's total in the fare-rules map and the quote's total, and the graph's checks refuse a total WebAir misstates; one required `compute` permission, in every profile. Its `remember` step has room for a thinking model (10,000 output tokens, B-220). Nothing a model sees changed; its fixture is 0.6.0's. It declares the public deployment `webagents-webair-production.up.railway.app`. No real booking or payment | agentpkg ≥ 0.5.0 with the `compute` extra; the Chrome Agent Browser's core ≥ 0.3.0 | [`examples/keys/webair-publisher.pub.pem`](../examples/keys/webair-publisher.pub.pem) (`sha256:2e53acce…a20b`) |
 | `webair-0.6.0.agent.pkg` | WebAir Travel Agent 0.6.0, the package of the fictional WebAir origin: 0.5.0 with the person's memory (memory.v0, T20, D-233). The travel profile is read through `memory.read` of `travel.profile` as a record view; after a quote a `remember` step may propose one `travel.preference` (`memory.write`), written to `proposals.json` and never applied by the run. The passenger identity and payment method stay `personal.read`, the simulated purchase a separate once-grantable authority; the profiles gain `memory.remember`. It declares the public deployment `webagents-webair-production.up.railway.app`. No real booking or payment | agentpkg ≥ 0.4.0 (memory.v0) | [`examples/keys/webair-publisher.pub.pem`](../examples/keys/webair-publisher.pub.pem) (`sha256:2e53acce…a20b`) |
 
@@ -43,6 +44,8 @@ python3 -m venv .venv && .venv/bin/python -m pip install dist/agentpkg-0.6.1-py3
   --trust-key examples/keys/literature-review-publisher.pub.pem
 .venv/bin/agentpkg verify dist/meeting-agenda.agent.pkg \
   --trust-key examples/keys/meeting-agenda-publisher.pub.pem
+.venv/bin/agentpkg verify dist/webair-0.8.0.agent.pkg \
+  --trust-key examples/keys/webair-publisher.pub.pem
 .venv/bin/agentpkg verify dist/webair-0.7.0.agent.pkg \
   --trust-key examples/keys/webair-publisher.pub.pem
 .venv/bin/agentpkg verify dist/webair-0.6.0.agent.pkg \
@@ -158,10 +161,14 @@ Chrome conformance reports, the signed demo agent index and the search harness d
 ## WebAir
 
 The demo origin in [`demo/webair/`](../demo/webair/README.md) and its packages are new in v0.2.0.
-The current package is `webair-0.7.0.agent.pkg` (above; digest `abab1e37…409b`, archive `c0265a28…d808`,
-199,210 bytes); 0.6.0 (digest `e1ef5ad0…022f`, archive `3055dd93…8862`), which the public origin serves
-until 0.7.0 is deployed, and the earlier versions stay for the milestone evidence that describes them.
-0.7.0 differs from 0.6.0 in the graph (a `total` compute step in the fare-rules map, `quote-total-input`
+The current package is `webair-0.8.0.agent.pkg` (above; digest `b346a474…72c2`, archive `9c81a936…eae0`,
+270,099 bytes); 0.7.0 (digest `abab1e37…409b`, archive `c0265a28…d808`, 199,210 bytes), which the public
+origin serves until 0.8.0 is deployed, and the earlier versions stay for the milestone evidence that
+describes them. 0.8.0 differs from 0.7.0 in the graph (the `conversation` object, the intent-driven
+`when` conditions, `check-quote-fare`, `check-open-quote`, `purchase-facts`, the `confirm-purchase`
+consent step, the state carried between turns), the input (`{message}`), the policy, the workflow fixture and
+the new conversation fixture, six new schemas and five changed ones, three skills, the runtime minimum
+(0.6.0), the manifest and the package README. 0.7.0 differs from 0.6.0 in the graph (a `total` compute step in the fare-rules map, `quote-total-input`
 and `quote-total` before `check-quote`, two more assertions, the `remember` step's cap, timeout and the
 Rememberer's budget), the module member and its declaration, the `compute.fares` permission (in every
 profile), four new schemas and the state schema, the runtime minimum (0.5.0), the manifest and the
@@ -176,12 +183,12 @@ package README; the fixture is unchanged.
 | `webair.agent.pkg` | WebAir Travel Agent 0.1.0, identical to `webair-0.1.0.agent.pkg`: the same four WebAir tools, without host-owned personal resources; it also declares `webair.example`. The website discovery milestone's evidence uses it | agentpkg ≥ 0.2.1 | [`examples/keys/webair-publisher.pub.pem`](../examples/keys/webair-publisher.pub.pem) (`sha256:2e53acce…a20b`) |
 
 Built and signed with the same generic commands as every package (`agentpkg build agents/webair
--o dist/webair-0.7.0.agent.pkg`, then `agentpkg sign`); rebuilding and re-signing with the same
-key reproduces the bytes (0.2.0 to 0.6.0 were built the same way from the source as it was then). The
+-o dist/webair-0.8.0.agent.pkg`, then `agentpkg sign`); rebuilding and re-signing with the same
+key reproduces the bytes (0.2.0 to 0.7.0 were built the same way from the source as it was then). The
 unversioned `webair.agent.pkg` stays 0.1.0, unlike the other two aliases: the recorded discovery,
 serving and live-demo evidence pins it to 0.1.0's bytes, and the contract overhead benchmark,
 whose results record its source hash, documents it as 0.1.0. Use the versioned
-`webair-0.7.0.agent.pkg` for the current package.
+`webair-0.8.0.agent.pkg` for the current package.
 
 ## Historical
 
@@ -235,5 +242,6 @@ c12f9db3bd7b3b4b6721c67e1d0b8143ebd94381df0e5e57c196357b7ca77f63  webair-0.4.0.a
 4b087557cbd2b0ff186391dfd00f9068739f9a727ab2fd916a6512da1fde101b  webair-0.5.0.agent.pkg
 3055dd93a9f4e5f81f3ccddac77ccc9ce2c10b1e10dec35d9864fddf6fb58862  webair-0.6.0.agent.pkg
 c0265a283d0b2edd5c919e1bb7cb3a95e6ccfc449d76590d62b1a47ff3fbd808  webair-0.7.0.agent.pkg
+9c81a9362754fc3c48c923b4968e75daa9e0260ae422be7e77b30f1df1a7eae0  webair-0.8.0.agent.pkg
 73872c3177a9ec281a8875ae154023a72ff10f9fe96c5a82ed1639a34ecb470c  webair.agent.pkg
 ```

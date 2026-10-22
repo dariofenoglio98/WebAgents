@@ -2,7 +2,8 @@
  * `converse` on the built CLI (conversation.v0, D-263): the same flags, directory and report as
  * `agentpkg converse`; `run` refuses a conversational package by the profile (V-28).
  */
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -11,13 +12,16 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { verifyAuditChain } from "../src/core/execution/report.js";
 import type { JsonObject } from "../src/core/json.js";
 import { BuiltCli } from "./helpers/cli.js";
-import { CONVERSATION_TEST } from "./helpers/paths.js";
+import { CONVERSATION_TEST, ROOT, SHIPPED } from "./helpers/paths.js";
+
+const PYTHON_CLI = process.env.AGENTPKG_CLI ?? join(ROOT, "agentpkg", ".venv", "bin", "agentpkg");
 
 let cli: BuiltCli;
 let scratch: string;
 beforeAll(async () => {
   cli = await BuiltCli.build();
-  scratch = mkdtempSync(join(tmpdir(), "agent-browser-converse-"));
+  // agentpkg refuses an output path with a symlink component (macOS: /var → /private/var).
+  scratch = mkdtempSync(join(realpathSync(tmpdir()), "agent-browser-converse-"));
 }, 120_000);
 afterAll(() => {
   cli.dispose();
@@ -72,6 +76,24 @@ describe("converse", () => {
     expect(result.stderr.trim()).toBe("agent-browser: Tool approval refers to a tool this package does not declare");
     expect(existsSync(out)).toBe(false);
   });
+
+  it("WebAir 0.8.0's signed fixture conversation gives the reference's transcript, state and usage (T24, fixture parity)", () => {
+    const argv = (out: string) => ["converse", SHIPPED.webair080.archive, "--mode", "fixture", "--grants", join(ROOT, "examples", "webair-0.8.0-grants.json"), "--approve-tool", "search-flights", "--approve-tool", "get-fare-rules", "--trust-key", SHIPPED.webair080.key, "--out", out];
+    const pyOut = join(scratch, "webair-080-python");
+    const nodeOut = join(scratch, "webair-080-node");
+    const python = spawnSync(PYTHON_CLI, argv(pyOut), { encoding: "utf8", timeout: 300_000, maxBuffer: 64 * 1024 * 1024 });
+    const node = cli.run(argv(nodeOut), { timeoutMs: 300_000 });
+    expect([python.status, node.status]).toEqual([0, 0]);
+    const read = (directory: string, name: string) => JSON.parse(readFileSync(join(directory, name), "utf8")) as JsonObject;
+    // The transcript without its ids and instants.
+    const turns = (directory: string) => (read(directory, "transcript.json").turns as JsonObject[]).map(({ run_id: _r, started_at: _s, ended_at: _e, ...turn }) => turn);
+    expect(turns(nodeOut)).toEqual(turns(pyOut));
+    expect(turns(nodeOut).map((turn) => turn.status)).toEqual(["completed", "completed", "completed"]);
+    expect((read(nodeOut, "transcript.json").ended as JsonObject).reason).toBe("package");
+    expect(read(nodeOut, "state.json")).toEqual(read(pyOut, "state.json"));
+    expect(read(nodeOut, "usage.json")).toEqual(read(pyOut, "usage.json"));
+    expect(verifyAuditChain(JSON.parse(readFileSync(join(nodeOut, "audit.json"), "utf8")) as JsonObject[]).valid).toBe(true);
+  }, 600_000);
 
   it("run refuses a conversational package by its profile (V-28)", () => {
     const result = cli.run(["run", CONVERSATION_TEST.archive, "--mode", "fixture", "--grants", CONVERSATION_TEST.grants, "--approve-tool", "place-order", "--trust-key", CONVERSATION_TEST.key, "--out", join(scratch, "run")]);

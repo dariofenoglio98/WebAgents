@@ -47,7 +47,18 @@ export const SHIPPED = {
     archiveSha256: "4b087557cbd2b0ff186391dfd00f9068739f9a727ab2fd916a6512da1fde101b",
     fingerprint: "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b",
   },
-  /** T22: the current WebAir (compute.v0, runtime minimum 0.5.0), which the demo index 1.4.0 names. */
+  /** T24: the current WebAir (conversation.v0, runtime minimum 0.6.0), which the demo index 1.5.0 names. */
+  webair080: {
+    archive: resolve(ROOT, "dist/webair-0.8.0.agent.pkg"),
+    key: resolve(ROOT, "examples/keys/webair-publisher.pub.pem"),
+    packageId: "org.webagents.webair",
+    version: "0.8.0",
+    publisherId: "webair-demo",
+    digest: "b346a4740b3b1052bb77f781ec4c2cbb4d29644a71f9a3c29e1cd8921d9572c2",
+    archiveSha256: "9c81a9362754fc3c48c923b4968e75daa9e0260ae422be7e77b30f1df1a7eae0",
+    fingerprint: "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b",
+  },
+  /** T22: WebAir 0.7.0 (compute.v0, runtime minimum 0.5.0), which the demo index 1.4.0 named. */
   webair070: {
     archive: resolve(ROOT, "dist/webair-0.7.0.agent.pkg"),
     key: resolve(ROOT, "examples/keys/webair-publisher.pub.pem"),

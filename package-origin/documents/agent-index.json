@@ -3,13 +3,13 @@
   "content_type": "org.webagents:agent-index-v0",
   "content": {
     "index_id": "org.webagents.demo-index",
-    "version": "1.4.0",
+    "version": "1.5.0",
     "title": "WebAgents demo index",
     "description": "The agents of the WebAgents research prototype: a literature-review agent and a fictional airline's agent. Signed with a development key, for demonstrations only; every entry is metadata, and each package is verified when you open it.",
     "publisher": {
       "name": "WebAgents research prototype (development key)"
     },
-    "issued_at": "2026-10-17T00:00:00Z",
+    "issued_at": "2026-10-21T00:00:00Z",
     "expires_at": "2027-12-31T23:59:59Z",
     "entries": [
       {
@@ -38,15 +38,15 @@
       {
         "package_id": "org.webagents.webair",
         "name": "WebAir Travel Agent",
-        "version": "0.7.0",
-        "description": "Search WebAir flights, explain fare rules, prepare a booking quote and simulate a purchase through WebAir's own semantic API, using the travel profile you choose from your memory; after a booking it may propose one travel preference to remember. Your browser checks WebAir's fare totals with a WebAssembly module that can only compute. WebAir is a fictional demo airline: nothing is ever booked or charged.",
+        "version": "0.8.0",
+        "description": "Talk to WebAir: search flights, ask about fares and rules, get a booking quote and simulate buying it, in one conversation through WebAir's own semantic API, using the travel profile you choose from your memory. Before a simulated purchase your browser asks you, with the quote's facts in front of you. Your browser checks WebAir's fare totals with a WebAssembly module that can only compute. WebAir is a fictional demo airline: nothing is ever booked or charged.",
         "publisher": {
           "id": "webair-demo",
           "name": "WebAir (fictional demo airline)"
         },
         "package_url": "https://webagents-webair-production.up.railway.app/agent.pkg",
-        "digest": "abab1e37fcf85b04d51b65ce60febc7fd823af77b56ec6d0634ed7287355409b",
-        "archive_sha256": "c0265a283d0b2edd5c919e1bb7cb3a95e6ccfc449d76590d62b1a47ff3fbd808",
+        "digest": "b346a4740b3b1052bb77f781ec4c2cbb4d29644a71f9a3c29e1cd8921d9572c2",
+        "archive_sha256": "9c81a9362754fc3c48c923b4968e75daa9e0260ae422be7e77b30f1df1a7eae0",
         "signer_fingerprint": "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b",
         "locators": [
           "flights@webair.example"
@@ -64,6 +64,6 @@
   "signature": {
     "algorithm": "ed25519",
     "key_fingerprint": "sha256:e0e7022b5836da157d7d55a9d7b00cb58e236d5270ab103162e63706b49f5103",
-    "value": "zZB0W9mC5/UD/TzSg+v7MYFFOujNQO65+ht4Ix9mewDtQTmVZwTCeBEwZyG8ASat0VdSAJMjQTI+i76ETIbzAg=="
+    "value": "zF1xJU8kl4HJzLVAfKV0HzUmnp2ksD5j9U/V1utMv5ap561J9qqbNbCU0xfLU4kZ5Zdhg98sU9t9WPv3JA2vBw=="
   }
 }

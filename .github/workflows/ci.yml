@@ -165,6 +165,8 @@ jobs:
             --trust-key examples/keys/webair-publisher.pub.pem > "$RUNNER_TEMP/verify-webair-060.json"
           "$agentpkg" verify dist/webair-0.7.0.agent.pkg \
             --trust-key examples/keys/webair-publisher.pub.pem > "$RUNNER_TEMP/verify-webair-070.json"
+          "$agentpkg" verify dist/webair-0.8.0.agent.pkg \
+            --trust-key examples/keys/webair-publisher.pub.pem > "$RUNNER_TEMP/verify-webair-080.json"
           python - "$RUNNER_TEMP" <<'PY'
           import json, sys
           from pathlib import Path
@@ -192,6 +194,8 @@ jobs:
               "verify-webair-060.json": ("org.webagents.webair", "0.6.0",
                   "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b"),
               "verify-webair-070.json": ("org.webagents.webair", "0.7.0",
+                  "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b"),
+              "verify-webair-080.json": ("org.webagents.webair", "0.8.0",
                   "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b"),
           }
           for name, (package_id, version, fingerprint) in expected.items():
@@ -305,6 +309,35 @@ jobs:
               for file in ["result.json", "audit.json", "usage.json", "provenance.json", *declared]:
                   assert (temp / f"my-{name}" / file).is_file(), file
           PY
+          # WebAir 0.8.0 is a conversation (conversation.v0): `converse` replays its three-turn
+          # fixture (searches only) and the package's end rule ends it; `run` refuses it.
+          "$agentpkg" converse dist/webair-0.8.0.agent.pkg --mode fixture \
+            --grants examples/webair-0.8.0-grants.json \
+            --approve-tool search-flights --approve-tool get-fare-rules \
+            --trust-key examples/keys/webair-publisher.pub.pem \
+            --out "$RUNNER_TEMP/my-webair-080" > "$RUNNER_TEMP/converse-webair-080.json"
+          python - "$RUNNER_TEMP" <<'PY'
+          import json, sys
+          from pathlib import Path
+          temp = Path(sys.argv[1])
+          report = json.loads((temp / "converse-webair-080.json").read_text())
+          print("webair-080", report["status"], "passed:", report["passed"], "ended:", report["ended"]["reason"])
+          assert report["status"] == "completed" and report["passed"] is True
+          assert report["ended"]["reason"] == "package" and len(report["turns"]) == 3
+          out = temp / "my-webair-080"
+          for file in ["transcript.json", "state.json", "audit.json", "usage.json", "provenance.json"]:
+              assert (out / file).is_file(), file
+          for turn in ["turn-001", "turn-002", "turn-003"]:
+              for file in ["result.json", "audit.json", "usage.json", "provenance.json", "answer.md",
+                           "search.json", "fare-rules.json", "booking.json", "proposals.json"]:
+                  assert (out / turn / file).is_file(), f"{turn}/{file}"
+          PY
+          if "$agentpkg" run dist/webair-0.8.0.agent.pkg --mode fixture \
+               --grants examples/webair-0.8.0-grants.json \
+               --out "$RUNNER_TEMP/webair-080-run" > /dev/null 2>&1; then
+            echo "run accepted a conversational package" >&2
+            exit 1
+          fi
           # Each declared tool needs its own approval; a permission grant is not one.
           if "$agentpkg" run dist/literature-review.agent.pkg --mode fixture \
                --grants examples/literature-review-grants.json \
