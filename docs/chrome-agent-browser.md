@@ -52,6 +52,8 @@ same packages and reports where they agree and where they differ.
   resumes.
 - **The content script** reports `link[rel="agent-package"]` elements of the visited tab and
   nothing else. Pages cannot message the extension.
+- **A conversation** (T24, `conversation.v0`) is a record the service worker keeps between turns;
+  each turn is one run on the execution host, and a consent card waits in that run's record (§13).
 
 ## 2. The two shells
 
@@ -90,7 +92,7 @@ runtimes accept the same packages and gate on the same minimum version.
 |---|---|---|
 | `chrome.storage.local` | `trustStore` (the `agentpkg-trust-store-v0` format), `settings` (presets, model connections and limits, run limits, services, the idle lock), `secretStore` (the encrypted envelope, T16: `provider_key:<provider>`; T19: `memory_key`, the HMAC digest key, and `memory_data_key`, the key the sealed values are sealed under; `vault` and `vault_key` only until the migration report is dismissed), `memoryMigration` (the vault migration report until Done, D-221), `memoryUiState` (the graph's node positions and the chosen view, UI state only), `originGrants` (why each origin was granted), `instanceId`, `spentReceipts` (receipts whose `once` a run used), `indexes` (agent indexes with their pinned keys and the signed text last fetched), `policySubscription` (the one followed policy, its pinned key and signed text), `library` (pinned and recently opened agents) | never `storage.sync`; keys are typed once and never shown again; signed documents are re-verified when read; 0.1.0's clear `providerKeys`, `vault` and `vaultKey` are read once by the migration that runs when the first passphrase is set, and removed then |
 | `chrome.storage.session` | per-tab candidates, which views hold which session, `secretKey` (the unlocked store's master key with the times it was unlocked and last used) | in memory, cleared when the browser closes; access level trusted contexts |
-| IndexedDB `agent-browser` | `snapshots` (package bytes, by archive SHA-256), `sessions` (with their receipt and Run Plan), `runs` (Run Record, progress, audit, usage, checkpoints, and what a settled run left for the memory: its usage entries and staged agent document until applied, its proposals review outcome, the custom types its package declared), `artifacts` (bytes and SHA-256; `proposals.json` among them), `files` (picked PDFs, copied), `observations` (outbound request bodies, test mode only); **since schema version 5 (T19, D-221)** `memory_records` (one row per `memory.v0` record with every sealed value replaced by `sealed:omitted` and sealed beside it under the memory data key, associated data `chrome-agent-browser-memory-row-v0|<record id>|<pointer>`) and `memory_meta` (the types, the usage log, the custom-type approvals) | `unlimitedStorage`; caps refuse, never evict silently; with the store locked the Memory page still reads every title, field and body (M-10), and no sealed value is readable |
+| IndexedDB `agent-browser` | `snapshots` (package bytes, by archive SHA-256), `sessions` (with their receipt and Run Plan), `runs` (Run Record, progress, audit, usage, checkpoints, and what a settled run left for the memory: its usage entries and staged agent document until applied, its proposals review outcome, the custom types its package declared), `artifacts` (bytes and SHA-256; `proposals.json` among them), `files` (picked PDFs, copied), `observations` (outbound request bodies, test mode only); **since schema version 5 (T19, D-221)** `memory_records` (one row per `memory.v0` record with every sealed value replaced by `sealed:omitted` and sealed beside it under the memory data key, associated data `chrome-agent-browser-memory-row-v0|<record id>|<pointer>`) and `memory_meta` (the types, the usage log, the custom-type approvals); **since schema version 6 (T24, D-270)** `conversations` (one row per conversation: the frozen Run Plan, the effective limits, the persisted state, the audit chain's tail and the conversation-level events, the spent budget and `once` permissions, the transcript, the active turn's run id, `open` or `ended` with the reason), and on a turn's row in `runs` its `turn` context, the pending card (`consent_pending`), the person's answers (`consent_decisions`) and, until the conversation charges it, the turn's outcome | `unlimitedStorage`; caps refuse, never evict silently; with the store locked the Memory page still reads every title, field and body (M-10), and no sealed value is readable |
 
 **The secret store (T16, D-191, D-192; T19, D-221).** Provider keys and the memory's two keys (the
 HMAC digest key and the data key the sealed values are sealed under) live in one envelope, `chrome-agent-browser-secret-store-v1`: each entry AES-256-GCM under a
@@ -379,3 +381,72 @@ installer, [`installer/macos/`](../installer/README.md), adds two things:
 The helper answers one extension id: the one the manifest's `key` gives every unpacked build
 (D-200; the Web Store's id joins it at U7). `npm run pack` removes `key` from the store zip.
 The boundary is in the [threat model](threat-model.md#native-helper-and-macos-installer-t17).
+
+## 13. Conversations and consent cards (T24)
+
+A package that declares a conversation ([`conversation.v0`](../spec/conversation-v0.md)) is talked
+to rather than run: the agent page shows the chat surface in place of the run form, in the side
+panel and in the full page (D-270). `run.start` refuses such a plan (`conversation_profile`, V-28).
+
+**How a conversation runs.** `conversation.start` checks the session's current Run Plan (one
+conversation per plan, spec §12) and the readiness a run needs, then stores the conversation
+(`conversations`, §4) and records `conversation.started` on its audit chain. Each
+`conversation.send` validates the message against the package's `input_schema` and reserves the
+whole turn against what the conversation has left (V-10): the turn's own token and remote-call
+budgets, each lowered to the browser's run limits (Settings → Run limits), must fit, else the turn
+is `turn.refused` and the conversation ends (`max_turns` or `budget`) in the same write. A reserved
+turn records `turn.started` and the turn's run id on the conversation in one conditional write, so
+two sends from two views, or a send racing End, start at most one turn and the chain never forks
+(V-17). The run manager then leases and starts the turn as a run: the start message carries the
+state, the chain's tail, the `once` permissions already spent, the per-tool calls left and the
+steps the plan pre-decided; the Worker's runtime continues the chain from that tail. When the run
+settles, the service worker charges its usage, takes its new state (a completed turn only), records
+`turn.completed` or `turn.failed`, and evaluates the package's end rule (V-8) and the turn bound,
+writing `conversation.ended` in the same step when either holds. A turn interrupted by a restart
+(D-071) keeps its checkpointed slice and is a failed turn; the conversation stays open (V-25), and
+the `once` permissions it may have used are counted spent (an allowed `once` check in its slice, or
+a step accepted in it), so the next turn is not asked again. `once` is spent once per conversation:
+the first turn's lease spends the receipt, the later turns of the same conversation are leased under
+it, and a second conversation under that receipt needs a new authorization.
+
+**The consent card.** A turn that reaches a `consent` node writes the pending card into its stored
+run (`consent_pending`: the step, the permissions, the sentence, the facts, the timeout, the
+instant) and notifies the views, so a panel closed and reopened shows the card again.
+`conversation.decide` stores the person's answer on the run (`consent_decisions`) and posts
+`host.decide` to the Worker; the Worker's consent host resolves on that message and also re-reads
+the record every second, so a lost message never hangs the step, and the node's `timeout_seconds`
+ends the wait (V-29). The card shows the sentence (the model's, D-274), the facts beside it (the
+graph's constructed input, unsealed fields only), the permissions it uses and the step that asked,
+and Yes / No. After each decision the transcript keeps one provenance line: decided by the person,
+not asked because the plan denies the permission or it was spent (V-12), answered by the
+Convenience preset, or forbidden by the policy. Only extension pages can send `conversation.*`
+messages, so a web page cannot answer a card.
+
+**Pre-decided steps (D-271).** A consent step naming a permission of kind `payment` or
+`personal.read` is never pre-decided. `privacy-first` and `balanced` ask every step; `convenience`
+pre-accepts a step whose permissions are all of other kinds. A followed policy may add a `consent`
+section ([`policy-bundle-v0`](../spec/conversation-v0/policy-bundle-v0.schema.patch.json)):
+`pre_decide: "never"` makes every step ask whatever the preset, and `forbid_kinds` makes a step
+naming such a kind resolve denied (`decided_by: policy`, `reason: policy_forbids`) without a card.
+The pre-decisions are recorded in the Run Plan (`execution.conversation.consent_steps`) and shown on
+the authorization summary; nothing at run time adds one.
+
+**What the views offer.** Send (the message box is the package's input rendered by the task form),
+Stop this turn while a turn runs (the turn is `cancelled`, V-30), End conversation between turns
+(reason `person`), Details (the turn's run record), Download. The Runs page lists each
+conversation once, with its turns inside, and Download saves the zip of D-272:
+`conversation.json`, `run-plan.json`, `transcript.json`, `state.json`, `audit.json` (the whole
+chain), `usage.json`, `provenance.json` and `turn-NNN/` per turn. A turn's own record verifies its
+audit as a slice that continues the conversation's chain. Messages: `conversation.start`, `send`,
+`decide`, `end`, `cancelTurn`, `get`, `list`, `export`, `clear`; the event `event.conversation`;
+the host command `host.decide`.
+
+**An input switch that needs a memory read (D-273).** On a task's run form, an input switch that
+turns on a step reading a memory record (Literature Review's `use_profile`) shows the recall card
+under the switch when the plan does not grant that read; choosing a record authorizes again with
+it, so the plan is frozen again before Run.
+
+Evidence: `scripts/e2e-conversation.mjs` drives a two-turn conversation with a card through the
+extension's messages in headless Chrome, and `scripts/verify_chrome_conversation.py` recomputes
+its export ([`chrome-conversation-e2e-t24.json`](../examples/verification/chrome-conversation-e2e-t24.json)).
+The boundary is in the [threat model](threat-model.md#conversations-in-chrome-t24).

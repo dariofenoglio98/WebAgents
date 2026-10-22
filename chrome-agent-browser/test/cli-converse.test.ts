@@ -65,6 +65,14 @@ describe("converse", () => {
     expect(existsSync(join(scratch, "refused-grant"))).toBe(false);
   });
 
+  it("an approval of an undeclared tool is refused by the conversation's own check, with the reference's message (T24 review 1 nit 11)", () => {
+    const out = join(scratch, "ghost");
+    const result = cli.run(["converse", CONVERSATION_TEST.archive, "--mode", "fixture", "--grants", CONVERSATION_TEST.grants, "--approve-tool", "ghost", "--trust-key", CONVERSATION_TEST.key, "--out", out]);
+    expect(result.status).toBe(2);
+    expect(result.stderr.trim()).toBe("agent-browser: Tool approval refers to a tool this package does not declare");
+    expect(existsSync(out)).toBe(false);
+  });
+
   it("run refuses a conversational package by its profile (V-28)", () => {
     const result = cli.run(["run", CONVERSATION_TEST.archive, "--mode", "fixture", "--grants", CONVERSATION_TEST.grants, "--approve-tool", "place-order", "--trust-key", CONVERSATION_TEST.key, "--out", join(scratch, "run")]);
     expect(result.status).toBe(2);

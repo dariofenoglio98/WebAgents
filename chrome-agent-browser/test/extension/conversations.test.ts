@@ -26,9 +26,11 @@ const QWEN = "ollama/qwen3:30b";
 const GRANTS = { "model.reasoning": "session", "memory.session": "session", "orders.place": "session", "network.desk": "session" };
 
 /** The desk's origin: one POST answers an order from the probe's table. */
-function scriptedDesk(seen: SeenRequest[] = []): HttpTransport {
+function scriptedDesk(seen: SeenRequest[] = [], gate: Promise<void> | null = null): HttpTransport {
   return async (request: HttpRequest) => {
     seen.push({ url: request.url, method: request.method, body: request.body, headers: { ...request.headers } });
+    // A desk that has taken the order and not answered yet (the turn is cut off mid-call).
+    if (gate !== null) await gate;
     const url = new URL(request.url);
     if (url.pathname !== "/api/orders") return { status: 404, headers: { "content-type": "application/json" }, body: JSON.stringify({ error: { code: "not_found", message: "no", details: [] } }) };
     const args = JSON.parse(request.body ?? "{}") as { show: string; quantity: number };
@@ -45,12 +47,12 @@ interface World {
   deskSeen: SeenRequest[];
 }
 
-async function world(options: { mutate?: ((m: Members) => void) | null; runs?: MemoryRunStore; conversations?: MemoryConversationStore; preset?: "privacy-first" | "balanced" | "convenience"; decideLost?: boolean } = {}): Promise<World> {
+async function world(options: { mutate?: ((m: Members) => void) | null; runs?: MemoryRunStore; conversations?: MemoryConversationStore; preset?: "privacy-first" | "balanced" | "convenience"; decideLost?: boolean; limits?: Record<string, number>; deskGate?: Promise<void> } = {}): Promise<World> {
   const { bytes, key } = await probeBytes({ remoteTool: true, mutate: options.mutate ?? null });
   const model = scriptedOllama({ interpret: (user) => MESSAGES[String((user as { text: string }).text)]! });
   const deskSeen: SeenRequest[] = [];
   const routes = { ...webairRoutes(), [DESK_URL]: { headers: { "content-type": PACKAGE_MEDIA_TYPE, "content-length": String(bytes.length) }, body: bytes } };
-  const h = makeHarness({ routes, transports: { model: model.transport, tool: scriptedDesk(deskSeen) }, runs: options.runs, conversations: options.conversations });
+  const h = makeHarness({ routes, transports: { model: model.transport, tool: scriptedDesk(deskSeen, options.deskGate ?? null) }, runs: options.runs, conversations: options.conversations });
   h.host.decideLost = options.decideLost === true;
   const view = (await h.controller.handle({ type: "package.open", url: DESK_URL, advertisedOn: "https://desk.example.org/", viewId: "test" }, PAGE)) as SessionView;
   await h.controller.handle({ type: "trust.pinKey", publicKeyPem: publicKeyToPem(key.publicKey), displayName: "Example desk", publisherId: "example" }, PAGE);
@@ -58,6 +60,8 @@ async function world(options: { mutate?: ((m: Members) => void) | null; runs?: M
   const settings = current.settings;
   settings.models.default_model = QWEN;
   if (options.preset) settings.preset = options.preset;
+  // Settings → Run limits: the browser's per-run bounds.
+  if (options.limits) settings.limits = { ...(settings.limits ?? {}), ...options.limits } as typeof settings.limits;
   await h.controller.handle({ type: "settings.set", settings }, PAGE);
   const session = (await h.controller.handle({ type: "package.get", sessionId: view.session.id }, PAGE)) as SessionView;
   return { h, session, modelSeen: model.seen, deskSeen };
@@ -309,5 +313,91 @@ describe("a conversation from the browser", () => {
     expect(waiting.pendingConsent!.step).toBe("confirm");
     await payment.h.controller.handle({ type: "conversation.cancelTurn", conversationId: conversation.conversationId }, PAGE);
     await settled(payment, conversation.conversationId);
+  });
+
+  it("an interrupted turn that was past an accepted card spends its `once`: the next turn is not asked again (T24 review 1 finding 2, V-13)", async () => {
+    const runs = new MemoryRunStore();
+    const conversations = new MemoryConversationStore();
+    // The desk takes the order and never answers: the turn is cut off after the gated call left.
+    const w = await world({ runs, conversations, deskGate: new Promise<void>(() => undefined) });
+    const started = await start(w, await authorize(w, { ...GRANTS, "orders.place": "once" }));
+    await send(w, started.conversationId, "order A");
+    await card(w, started.conversationId);
+    await w.h.controller.handle({ type: "conversation.decide", conversationId: started.conversationId, step: "confirm", accepted: true }, PAGE);
+    const deadline = Date.now() + 10_000;
+    while (w.deskSeen.length === 0 && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(w.deskSeen).toHaveLength(1);
+    const stored = (await runs.listRuns())[0]!;
+    expect(stored.record.status).toBe("running");
+    // The extension restarts: the turn is interrupted with no outcome, and its `once` is read from what it left.
+    const model = scriptedOllama({ interpret: (user) => MESSAGES[String((user as { text: string }).text)]! });
+    const second = makeHarness({ runs, conversations, transports: { model: model.transport, tool: scriptedDesk() }, stores: { snapshots: w.h.snapshots, trustStorage: w.h.trustStorage, tabs: w.h.tabs, settingsArea: w.h.settingsArea } });
+    const w2: World = { ...w, h: second };
+    const view = await get(w2, started.conversationId);
+    expect(view.transcript[0]).toMatchObject({ turn: 1, status: "failed", error_code: "host_unloaded" });
+    expect(view.spent.permissions).toEqual(["orders.place"]);
+    // The next order is decided by the plan as consumed: no card, no second call to the desk.
+    await send(w2, started.conversationId, "order B");
+    const after = await settled(w2, started.conversationId);
+    expect(after.transcript[1]).toMatchObject({ status: "completed", decisions: [expect.objectContaining({ step: "confirm", accepted: false, decided_by: "plan", reason: "permission_consumed" })] });
+    expect(w.deskSeen).toHaveLength(1);
+    await w.h.host.cancel(stored.run_id);
+  });
+
+  it("a turn reserves the host's per-run token cap, not the package's whole turn budget (T24 review 1 finding 3, V-10)", async () => {
+    // A conversation budget just above one package turn: reserving the package's 4,000 tokens per turn, only one
+    // turn fits; reserving the browser's 3,500-token run limit, which the runtime applies to each turn, two do.
+    const tight = (m: Members) => {
+      ((m["graph.json"] as JsonObject).conversation as { budget: JsonObject }).budget.hard_tokens = 4100;
+    };
+    const w = await world({ mutate: tight, limits: { total_tokens: 3500 } });
+    const started = await start(w, await authorize(w));
+    await send(w, started.conversationId, "hello");
+    await settled(w, started.conversationId);
+    await send(w, started.conversationId, "hello");
+    const after = await settled(w, started.conversationId);
+    expect(after.transcript.map((turn) => turn.status)).toEqual(["completed", "completed"]);
+    expect(after.status).toBe("open");
+  });
+
+  it("two sends that read the same record start one turn; the other is refused and the chain stays one (T24 review 1 finding 4, V-17)", async () => {
+    const w = await world();
+    const started = await start(w, await authorize(w));
+    const results = await Promise.allSettled([send(w, started.conversationId, "hello"), send(w, started.conversationId, "hello")]);
+    expect(results.map((result) => result.status).sort()).toEqual(["fulfilled", "rejected"]);
+    expect((results.find((result) => result.status === "rejected") as PromiseRejectedResult).reason).toMatchObject({ code: "turn_active" });
+    const after = await settled(w, started.conversationId);
+    expect(after.transcript.map((turn) => [turn.turn, turn.status])).toEqual([[1, "completed"]]);
+    // An end racing a send: one of them wins, and the chain still verifies.
+    const raced = await Promise.allSettled([send(w, started.conversationId, "hello"), w.h.controller.handle({ type: "conversation.end", conversationId: started.conversationId }, PAGE)]);
+    expect(raced.filter((result) => result.status === "fulfilled").length).toBeGreaterThanOrEqual(1);
+    await w.h.host.drain();
+    const final = await waitFor(w, started.conversationId, (view) => view.activeRunId === null, "the turn settled");
+    if (final.status === "open") await w.h.controller.handle({ type: "conversation.end", conversationId: started.conversationId }, PAGE);
+    const bundle = (await w.h.controller.handle({ type: "conversation.export", conversationId: started.conversationId }, PAGE)) as ConversationExportBundle;
+    const audit = JSON.parse(Buffer.from(bundle.entries.find((entry) => entry.name === "audit.json")!.base64, "base64").toString("utf8")) as JsonObject[];
+    expect(verifyAuditChain(audit).valid).toBe(true);
+    expect(audit.filter((event) => event.action === "conversation.ended")).toHaveLength(1);
+  });
+
+  it("a first turn whose host did not start still counts the receipt it spent: the next turn is leased under it (T24 review 1 nit 7)", async () => {
+    const w = await world();
+    const started = await start(w, await authorize(w, { ...GRANTS, "orders.place": "once" }));
+    const options = (w.h.host as unknown as { options: { failStart?: boolean } }).options;
+    options.failStart = true;
+    await expect(send(w, started.conversationId, "hello")).rejects.toMatchObject({ code: "execution_unavailable" });
+    options.failStart = false;
+    const failed = await get(w, started.conversationId);
+    expect(failed.transcript.map((turn) => [turn.turn, turn.status])).toEqual([[1, "failed"]]);
+    await send(w, started.conversationId, "hello");
+    const after = await settled(w, started.conversationId);
+    expect(after.transcript.map((turn) => [turn.turn, turn.status])).toEqual([
+      [1, "failed"],
+      [2, "completed"],
+    ]);
+    await w.h.controller.handle({ type: "conversation.end", conversationId: started.conversationId }, PAGE);
+    const bundle = (await w.h.controller.handle({ type: "conversation.export", conversationId: started.conversationId }, PAGE)) as ConversationExportBundle;
+    const audit = JSON.parse(Buffer.from(bundle.entries.find((entry) => entry.name === "audit.json")!.base64, "base64").toString("utf8")) as JsonObject[];
+    expect(verifyAuditChain(audit).valid).toBe(true);
   });
 });

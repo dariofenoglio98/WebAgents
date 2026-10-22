@@ -72,9 +72,8 @@ export async function converseCommand(args: string[]): Promise<number> {
     transcript = declared;
   }
   const grants = jsonFile(parsed.value("--grants")!, "object") as Grants;
+  // An approval of an undeclared tool is refused by the conversation's own check, as `agentpkg converse` (T24 review 1 nit 11).
   const approved = [...new Set(parsed.list("--approve-tool"))].sort();
-  const unknown = approved.filter((toolId) => !Object.hasOwn(pkg.tools, toolId));
-  if (unknown.length > 0) throw new AgentPkgError(`--approve-tool names tools this package does not declare: [${unknown.map((item) => `'${item}'`).join(", ")}]`);
   await checkTranscript(transcript, pkg, grants);
   // As `agentpkg converse`: `--limits` is the host's document, the conversation's keys beside the
   // turn's; without it the host lowers nothing.

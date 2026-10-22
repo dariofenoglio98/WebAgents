@@ -440,13 +440,18 @@ export class RunManager {
    * the host; the conversation manager validated the message and reserved the turn (V-10). A
    * receipt the conversation's first turn spent still leases its later turns (V-13).
    */
-  async startTurn(sessionId: string, input: { plan: RunPlan; message: JsonValue; turn: TurnStart; spentByConversation: boolean }): Promise<RunView> {
+  async startTurn(sessionId: string, input: { plan: RunPlan; message: JsonValue; turn: TurnStart; spentByConversation: boolean; runId: string }): Promise<RunView> {
     await this.restore();
     const facts = await this.deps.hooks.session(sessionId);
     if (facts.plan === null || facts.plan.run_plan_id !== input.plan.run_plan_id || facts.plan.run_plan_sha256 !== input.plan.run_plan_sha256) {
       throw reject("run_plan_mismatch", "The conversation's plan is no longer this session's current plan.", 409);
     }
-    return this.launch(sessionId, facts, input.plan, input.message, { turn: input.turn, spentByConversation: input.spentByConversation });
+    return this.launch(sessionId, facts, input.plan, input.message, { turn: input.turn, spentByConversation: input.spentByConversation, runId: input.runId });
+  }
+
+  /** A new run id, for a caller that records the run it is about to start before starting it (a conversation's turn). */
+  newRunId(): string {
+    return this.randomId();
   }
 
   /** The plan and the receipt as the execution host sees them, for the conversation's record. */
@@ -458,7 +463,7 @@ export class RunManager {
     return authorizationFromRunPlan(plan);
   }
 
-  private async launch(sessionId: string, facts: RunSessionFacts, plan: RunPlan, inputValue: unknown, options: { turn: TurnStart | null; spentByConversation: boolean }): Promise<RunView> {
+  private async launch(sessionId: string, facts: RunSessionFacts, plan: RunPlan, inputValue: unknown, options: { turn: TurnStart | null; spentByConversation: boolean; runId?: string }): Promise<RunView> {
     const readiness = await this.readiness(sessionId, { ignoreOnceSpent: options.spentByConversation });
     if (!readiness.ready || readiness.preflight === null) {
       const blocker = readiness.blocker!;
@@ -499,7 +504,7 @@ export class RunManager {
       // Handing the bytes to a runner starts a run, and a run is what a one-time grant was for.
       await this.deps.settings.saveSpentReceipts(leases.spentReceipts());
       if (!options.spentByConversation) await this.deps.hooks.markOnceSpent(sessionId);
-      const runId = this.randomId();
+      const runId = options.runId ?? this.randomId();
       const created = this.clock();
       const executionPlan = executionPlanFromRunPlan(plan);
       const authorization = authorizationFromRunPlan(plan);

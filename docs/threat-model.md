@@ -551,3 +551,17 @@ it does not protect a person from a package whose every action is read-only and 
 what it says; and it is not a durable grant store (`always` stays refused, B-61; a decision lives
 for its turn). The consent family of the enforcement catalog v2 (D-189) starts from the negative
 cases of the spec's §10, listed in `examples/conversation/cases/cases.json`.
+
+### Conversations in Chrome (T24)
+
+The Chrome Agent Browser keeps a conversation as a record between turns and runs each turn as a
+run ([guide §13](chrome-agent-browser.md#13-conversations-and-consent-cards-t24)). What the host
+adds to the boundaries above:
+
+| Threat | Control and remaining limit |
+|---|---|
+| A web page answers a card, or sends a message in the person's name | Only the extension's own pages may send requests (`conversation.decide` and `send` included); the content script reports links and nothing else. Limit: an extension page is trusted as the person's own surface. |
+| A preset or a policy pays: a purchase confirmed with no card | D-271's floor: no preset or policy pre-decides a step naming a `payment` or `personal.read` permission; a policy can only lower (`pre_decide: never`, `forbid_kinds`); every pre-decision is in the hash-bound Run Plan, made before the conversation starts. Limit: a `convenience` preset pre-accepts steps of the other kinds, which the person chose. |
+| Two views (the side panel and the full page) send or end at once, forking the chain | Every conversation-level write is conditional on the record being where the writer read it (no turn in flight, the same turn count and chain tail); the loser is refused `turn_active` or `conversation_ended`. |
+| A restart cuts a turn after a `once` action was called, and the next turn calls it again | A turn without an outcome counts as spent every `once` permission its checkpointed slice shows allowed or a step accepted in it gates (V-13); the per-tool caps still bound the calls. Limit: a `once` permission used without a consent step after the last checkpoint is not seen; the publisher gates consequential tools (V-19). |
+| A lost answer hangs the turn | The answer is in the run's record; the Worker re-reads it every second and the step's timeout ends the wait (V-29). |

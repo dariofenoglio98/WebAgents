@@ -11,8 +11,9 @@
  * stores and the turn's own report.
  */
 import { AuditChain, type ChainTail } from "../../core/conversation/chain.js";
-import { conversationStatus, effectiveLimits, limitsJson, remainingToolCaps, reserveTurn, type ConversationLimits, type Ended, type EndReason, type TranscriptTurn, type TurnUsage } from "../../core/conversation/runner.js";
+import { conversationStatus, endsByPackage, limitsJson, remainingToolCaps, reserveTurn, type ConversationLimits, type Ended, type EndReason, type TranscriptTurn, type TurnUsage } from "../../core/conversation/runner.js";
 import { CoreError } from "../../core/errors.js";
+import { runtimeLimits } from "../../core/execution/limits.js";
 import { isTerminalStatus, type RunRecord } from "../../core/execution/record.js";
 import type { TurnStart } from "../../core/execution/runner.js";
 import { sha256HexSync } from "../../core/hash.js";
@@ -21,8 +22,8 @@ import { loadPackageBytes, type Package } from "../../core/package.js";
 import { validateTaskInput } from "../../core/presentation.js";
 import { pyIsoTimestamp } from "../../core/pyjson.js";
 import { deepCopy } from "../../core/references.js";
-import type { AuditEvent, RunPlan } from "../../core/types.js";
-import { evaluate, pyEqual } from "../../core/workflow/values.js";
+import type { AuditEvent, ConversationPlan, RunPlan } from "../../core/types.js";
+import { evaluate } from "../../core/workflow/values.js";
 import { digest, type ConsentRecord } from "../../core/workflow/runtime.js";
 import type { ConversationExportBundle, ConversationListView, ConversationSummary, ConversationView, Event, RunView } from "../messages.js";
 import type { ConversationStore, StoredConversation } from "../storage/conversations.js";
@@ -73,11 +74,54 @@ function limitsOf(plan: RunPlan): ConversationLimits {
   return { max_turns: conversation.max_turns, hard_tokens: conversation.hard_tokens, max_remote_calls: conversation.max_remote_calls, max_calls_per_tool: { ...conversation.max_calls_per_tool } };
 }
 
+/** How long a read (`get`, `list`) reuses the last reconcile: the chat polls about once a second. */
+const RECONCILE_INTERVAL_MS = 5_000;
+
+/**
+ * Whether the record still stands where `read` left it: open, no turn in flight, the same turn
+ * count and the same chain tail. Every conversation-level write is conditional on it, so two
+ * writers that read the same tail never both extend it (V-17).
+ */
+function unchanged(current: StoredConversation, read: StoredConversation): boolean {
+  return current.status === "open" && current.active_run_id === null && current.turns_started === read.turns_started && current.chain_tail.sequence === read.chain_tail.sequence && current.chain_tail.previous_hash === read.chain_tail.previous_hash;
+}
+
+/** The refusal for a write that lost to another writer: the conversation ended, or a turn started meanwhile. */
+function raced(current: StoredConversation | null): CoreError {
+  if (current === null) return reject("conversation_unknown", "This browser holds no conversation with that id.", 404);
+  if (current.status !== "open") return reject("conversation_ended", "This conversation has ended; start a new one.", 409);
+  return reject("turn_active", `Turn ${current.turns_started} is already running; wait for the reply, or stop the turn.`, 409, { run_id: current.active_run_id });
+}
+
+/**
+ * The `once` permissions a turn without an outcome (interrupted, its Worker gone) may have spent,
+ * read conservatively from what it left (V-13): every `once` check its checkpointed slice shows
+ * allowed, and every `once` permission of a step accepted in it (by the person on the record, or
+ * in the slice). A gated call made after the last checkpoint is covered by the accepted step.
+ */
+export function onceSpentWithoutOutcome(run: Pick<StoredRun, "audit" | "consent_decisions">, section: ConversationPlan, grants: Readonly<Record<string, string>>): string[] {
+  const once = (pid: unknown): pid is string => typeof pid === "string" && grants[pid] === "once";
+  const spent = new Set<string>();
+  for (const event of run.audit) {
+    if (event.action === "permission.checked" && event.allowed === true && once(event.permission)) spent.add(event.permission);
+    if (event.action === "consent.decided" && event.accepted === true && Array.isArray(event.permissions)) for (const pid of event.permissions) if (once(pid)) spent.add(pid);
+  }
+  for (const [step, answer] of Object.entries(run.consent_decisions ?? {})) {
+    if (!answer.accepted) continue;
+    for (const pid of section.consent_steps.find((item) => item.id === step)?.permissions ?? []) if (once(pid)) spent.add(pid);
+  }
+  return [...spent].sort();
+}
+
 export class ConversationManager {
   private readonly clock: () => Date;
   private readonly randomId: () => string;
   /** One charge per settled turn, serialized: `host.finished` and a reconcile never charge a turn twice. */
   private charging: Promise<unknown> = Promise.resolve();
+  /** The turns this worker is starting: recorded on the conversation, not yet stored as runs; a reconcile leaves them alone. */
+  private readonly starting = new Set<string>();
+  private reconciling: Promise<void> | null = null;
+  private reconciledAt = Number.NEGATIVE_INFINITY;
 
   constructor(private readonly deps: ConversationManagerDeps) {
     this.clock = deps.clock ?? (() => new Date());
@@ -152,7 +196,7 @@ export class ConversationManager {
 
   // -- a turn --------------------------------------------------------------------------------
   async send(conversationId: string, message: unknown): Promise<ConversationView> {
-    await this.reconcile();
+    await this.reconcile(true);
     const stored = await this.require(conversationId);
     if (stored.status !== "open") throw reject("conversation_ended", "This conversation has ended; start a new one.", 409);
     if (stored.active_run_id !== null) throw reject("turn_active", `Turn ${stored.turns_started} is still running; wait for the reply, or stop the turn.`, 409, { run_id: stored.active_run_id });
@@ -169,16 +213,24 @@ export class ConversationManager {
     const index = stored.turns_started + 1;
     const chain = this.chainOf(stored);
     chain.turn = index;
-    const refusal = reserveTurn(facts.pkg, stored.limits, stored.turn_limits, stored.spent, stored.turns.filter((turn) => turn.status !== "refused").length);
+    // The turn's hard budgets under the host's per-run limits, as the runtime will apply them (V-10).
+    const refusal = reserveTurn(facts.pkg, stored.limits, runtimeLimits(stored.turn_limits), stored.spent, stored.turns.filter((turn) => turn.status !== "refused").length);
     if (refusal !== null) {
-      // V-10: refused before any node runs, and the conversation ends at its bound (V-25).
+      // V-10: refused before any node runs, and the conversation ends at its bound (V-25), in one write.
       const now = pyIsoTimestamp(this.clock());
       chain.record("turn.refused", { reason: refusal, message_hash: digest(message as JsonValue), spent_tokens: stored.spent.tokens, spent_remote_calls: stored.spent.remote_calls, limits: limitsJson(stored.limits) });
       const entry: TranscriptTurn = { turn: index, status: "refused", error_code: "budget_exhausted", refusal, message: deepCopy(message as JsonValue), consents: {}, decisions: [], unused_consents: [], reply: null, usage: { tokens: 0, remote_calls: 0, tool_calls: {} }, started_at: now, ended_at: now };
-      const ended: Ended = { reason: refusal === "conversation_turn_limit" ? "max_turns" : "budget", at: now, turns_not_run: 1 };
-      const updated = await this.deps.conversations.updateConversation(conversationId, (current) => ({ ...current, turns: [...current.turns, entry], turns_started: index, events: [...current.events, ...chain.events], chain_tail: chain.tail(), updated_at: this.clock().toISOString() }));
-      await this.end(conversationId, ended.reason, updated ?? stored);
-      return this.get(conversationId) as Promise<ConversationView>;
+      const after: StoredConversation = { ...stored, turns: [...stored.turns, entry], turns_started: index };
+      const ended = this.recordEnd(chain, after, refusal === "conversation_turn_limit" ? "max_turns" : "budget");
+      let won = false;
+      const updated = await this.deps.conversations.updateConversation(conversationId, (current) => {
+        if (!unchanged(current, stored)) return null;
+        won = true;
+        return { ...current, turns: [...current.turns, entry], turns_started: index, status: "ended", ended, events: [...current.events, ...chain.events], chain_tail: chain.tail(), updated_at: this.clock().toISOString() };
+      });
+      if (!won) throw raced(updated);
+      this.deps.broadcast({ type: "event.conversation", conversationId, sessionId: stored.session_id, status: "ended" });
+      return this.view(updated!);
     }
     chain.record("turn.started", { message_hash: digest(message as JsonValue), consents_supplied: [], state_hash: digest(stored.state), spent_tokens: stored.spent.tokens, spent_remote_calls: stored.spent.remote_calls });
     const section = stored.run_plan.execution.conversation!;
@@ -193,26 +245,44 @@ export class ConversationManager {
       tool_caps: remainingToolCaps(stored.limits, stored.spent.tool_calls),
       pre_decided: preDecided,
     };
-    // The record first, so a turn the host starts finds its conversation waiting for it.
-    const reserved = await this.deps.conversations.updateConversation(conversationId, (current) => ({ ...current, turns_started: index, events: [...current.events, ...chain.events], chain_tail: chain.tail(), title: current.title ?? taskText(message), updated_at: this.clock().toISOString() }));
-    if (reserved === null) throw reject("conversation_unknown", "This browser holds no conversation with that id.", 404);
-    let run: RunView;
+    // The record first, with the turn's run id, so a turn the host starts (and settles) finds its
+    // conversation waiting for it; conditional, so a second send or an end that read the same
+    // record is refused instead of forking the chain (V-17).
+    const runId = this.deps.runner.newRunId();
+    let won = false;
+    const reserved = await this.deps.conversations.updateConversation(conversationId, (current) => {
+      if (!unchanged(current, stored)) return null;
+      won = true;
+      return { ...current, turns_started: index, active_run_id: runId, events: [...current.events, ...chain.events], chain_tail: chain.tail(), title: current.title ?? taskText(message), updated_at: this.clock().toISOString() };
+    });
+    if (!won) throw raced(reserved);
+    this.starting.add(runId);
     try {
-      run = await this.deps.runner.startTurn(stored.session_id, { plan: facts.plan, message: message as JsonValue, turn, spentByConversation: stored.spent_receipt });
+      await this.deps.runner.startTurn(stored.session_id, { plan: facts.plan, message: message as JsonValue, turn, spentByConversation: stored.spent_receipt, runId });
     } catch (error) {
-      // The turn never started (the lease, the host): a failed turn in the record, the conversation open (V-25).
+      // The turn never ran (the lease, the host). A stored run means the lease spent the receipt
+      // (nit 7): the conversation's later turns are leased under it.
+      const leased = (await this.deps.runs.getRun(runId).catch(() => null)) !== null;
       const code = error instanceof CoreError ? error.code : "execution_unavailable";
       const detail = error instanceof Error ? error.message : "The turn could not be started";
       const now = pyIsoTimestamp(this.clock());
       chain.record("turn.failed", { turn_run_id: null, status: "failed", error_code: code, tokens: 0, remote_calls: 0, spent_tokens: stored.spent.tokens, spent_remote_calls: stored.spent.remote_calls, state_hash: digest(stored.state), consents_decided: [] });
       const entry: TranscriptTurn = { turn: index, status: "failed", error_code: code, refusal: null, message: deepCopy(message as JsonValue), consents: {}, decisions: [], unused_consents: [], reply: null, usage: { tokens: 0, remote_calls: 0, tool_calls: {} }, started_at: now, ended_at: now };
-      await this.deps.conversations.updateConversation(conversationId, (current) => ({ ...current, turns: [...current.turns, entry], events: [...current.events, chain.events[chain.events.length - 1]!], chain_tail: chain.tail(), updated_at: this.clock().toISOString() }));
+      // A failed turn in the record, the conversation open (V-25), unless the run manager already
+      // settled the stored run (a host that did not start), which charged it with its own `turn.failed`.
+      await this.deps.conversations.updateConversation(conversationId, (current) => {
+        const spentReceipt = current.spent_receipt || leased;
+        if (current.active_run_id !== runId) return spentReceipt === current.spent_receipt ? null : { ...current, spent_receipt: spentReceipt };
+        return { ...current, active_run_id: null, spent_receipt: spentReceipt, turns: [...current.turns, entry], events: [...current.events, chain.events[chain.events.length - 1]!], chain_tail: chain.tail(), updated_at: this.clock().toISOString() };
+      });
       this.deps.broadcast({ type: "event.conversation", conversationId, sessionId: stored.session_id, status: "open" });
       throw reject(code, detail, error instanceof CoreError ? error.status : 503, { conversation_id: conversationId });
+    } finally {
+      this.starting.delete(runId);
     }
-    await this.deps.conversations.updateConversation(conversationId, (current) => ({ ...current, active_run_id: run.runId, spent_receipt: true, updated_at: this.clock().toISOString() }));
+    const updated = await this.deps.conversations.updateConversation(conversationId, (current) => (current.spent_receipt ? null : { ...current, spent_receipt: true, updated_at: this.clock().toISOString() }));
     this.deps.broadcast({ type: "event.conversation", conversationId, sessionId: stored.session_id, status: "open" });
-    return this.get(conversationId) as Promise<ConversationView>;
+    return this.view(updated ?? (await this.require(conversationId)));
   }
 
   /** The chain as it stands for this conversation, to record the next conversation-level event. */
@@ -243,7 +313,9 @@ export class ConversationManager {
       spent.tokens += turnUsage.tokens;
       spent.remote_calls += turnUsage.remote_calls;
       for (const [toolId, count] of Object.entries(turnUsage.tool_calls)) spent.tool_calls[toolId] = (spent.tool_calls[toolId] ?? 0) + count;
-      spent.permissions = [...new Set([...spent.permissions, ...(outcome?.spent_permissions ?? [])])].sort();
+      // A turn without an outcome (interrupted) left no report of its `once` grants: read them from what it left (V-13).
+      const turnSpent = outcome !== null ? outcome.spent_permissions : onceSpentWithoutOutcome(run, stored.run_plan.execution.conversation!, stored.run_plan.authorization.decisions);
+      spent.permissions = [...new Set([...spent.permissions, ...turnSpent])].sort();
       const state = status === "completed" && outcome?.conversation_state ? deepCopy(outcome.conversation_state) : stored.state;
       // The chain continues from the run's slice: its last event is where the turn left it (V-17).
       const slice = run.audit;
@@ -267,43 +339,69 @@ export class ConversationManager {
         started_at: run.record.startedAt ?? run.created_at,
         ended_at: run.record.endedAt ?? pyIsoTimestamp(this.clock()),
       };
-      const updated = await this.deps.conversations.updateConversation(stored.conversation_id, (current) => (current.active_run_id === run.run_id ? { ...current, active_run_id: null, spent, state, turns: [...current.turns, entry], events: [...current.events, ...chain.events], chain_tail: chain.tail(), updated_at: this.clock().toISOString() } : null));
-      if (updated === null || updated.active_run_id === run.run_id) return;
+      // The end rule (V-8) and the turn bound are evaluated before the write, so the turn's event and
+      // `conversation.ended` land in one write: no send can start a turn between them.
+      const after: StoredConversation = { ...stored, spent, state, turns: [...stored.turns, entry] };
+      let reason: EndReason | null = null;
+      if (status === "completed" && entry.reply !== null && (await this.endsByPackage(stored, entry.reply, state))) reason = "package";
+      else if (after.turns.filter((item) => item.status !== "refused").length >= after.limits.max_turns) reason = "max_turns";
+      const ended = reason === null ? null : this.recordEnd(chain, after, reason);
+      let won = false;
+      const updated = await this.deps.conversations.updateConversation(stored.conversation_id, (current) => {
+        if (current.active_run_id !== run.run_id || current.chain_tail.sequence !== stored.chain_tail.sequence) return null;
+        won = true;
+        return { ...current, active_run_id: null, spent, state, turns: [...current.turns, entry], events: [...current.events, ...chain.events], chain_tail: chain.tail(), ...(ended !== null ? { status: "ended" as const, ended } : {}), updated_at: this.clock().toISOString() };
+      });
+      if (!won || updated === null) return;
       // Clear the turn's leftovers from the run: the conversation holds them now.
       await this.deps.runs.updateRun(run.run_id, (current) => ({ ...current, turn_outcome: null }));
-      let reason: EndReason | null = null;
-      if (status === "completed" && entry.reply !== null && (await this.endsByPackage(updated, entry.reply))) reason = "package";
-      else if (updated.turns.filter((item) => item.status !== "refused").length >= updated.limits.max_turns) reason = "max_turns";
-      if (reason !== null) await this.end(stored.conversation_id, reason, updated);
-      else this.deps.broadcast({ type: "event.conversation", conversationId: stored.conversation_id, sessionId: stored.session_id, status: "open" });
+      this.deps.broadcast({ type: "event.conversation", conversationId: stored.conversation_id, sessionId: stored.session_id, status: ended !== null ? "ended" : "open" });
     };
     const next = this.charging.then(work, work);
     this.charging = next.catch(() => undefined);
     return next;
   }
 
-  /** V-8: whether the package's end rule holds after a completed turn, evaluated over the reply and the new state. */
-  private async endsByPackage(stored: StoredConversation, reply: JsonValue): Promise<boolean> {
-    const bytes = await this.deps.hooks.snapshotBytes(stored.archive_sha256);
-    if (bytes === null) return false;
-    const pkg = await loadPackageBytes(bytes);
-    const end = (pkg.graph.conversation as JsonObject).end;
-    if (!isJsonObject(end)) return false;
-    const when = end.when as JsonObject;
-    const env = { result: reply, state: stored.state };
+  /** V-8: whether the package's end rule holds after a completed turn, over the reply and the new state (the core's rule, on the session's package or the snapshot). */
+  private async endsByPackage(stored: StoredConversation, reply: JsonValue, state: JsonObject): Promise<boolean> {
+    let pkg: Package | null = null;
+    if (this.deps.hooks.isSessionOpen(stored.session_id)) {
+      const facts = await this.deps.hooks.session(stored.session_id).catch(() => null);
+      if (facts !== null && facts.pkg.digest === stored.package.digest) pkg = facts.pkg;
+    }
+    if (pkg === null) {
+      const bytes = await this.deps.hooks.snapshotBytes(stored.archive_sha256);
+      // The package is gone from this browser: the rule cannot be read, and the turn bound still ends the conversation.
+      if (bytes === null) return false;
+      pkg = await loadPackageBytes(bytes);
+    }
     try {
-      return pyEqual(evaluate(when.left!, env), evaluate(when.right!, env)) === (when.op === "eq");
+      return endsByPackage(pkg, reply, state);
     } catch {
       return false;
     }
   }
 
-  /** Charge every open conversation whose turn settled while this worker was away (a `host.finished` it never saw). */
-  private async reconcile(): Promise<void> {
+  /**
+   * Charge every open conversation whose turn settled while this worker was away (a `host.finished`
+   * it never saw). One at a time; a read reuses a reconcile younger than RECONCILE_INTERVAL_MS, a
+   * write (`force`) always runs one (nit 10).
+   */
+  private reconcile(force = false): Promise<void> {
+    if (this.reconciling !== null) return this.reconciling;
+    if (!force && Date.now() - this.reconciledAt < RECONCILE_INTERVAL_MS) return Promise.resolve();
+    this.reconciling = this.reconcileNow().finally(() => {
+      this.reconciledAt = Date.now();
+      this.reconciling = null;
+    });
+    return this.reconciling;
+  }
+
+  private async reconcileNow(): Promise<void> {
     // A run the host no longer reports is interrupted first (D-071), which charges its turn here.
     await this.deps.runner.restore();
     for (const stored of await this.deps.conversations.listConversations()) {
-      if (stored.status !== "open" || stored.active_run_id === null) continue;
+      if (stored.status !== "open" || stored.active_run_id === null || this.starting.has(stored.active_run_id)) continue;
       const run = await this.deps.runs.getRun(stored.active_run_id);
       if (run === null) {
         // The run is gone (cleared): the turn is lost; the conversation goes on without it.
@@ -327,33 +425,46 @@ export class ConversationManager {
     // The record carries the answer; the message reaches the Worker that waits on it (or it reads the record).
     await this.deps.host.decide(runId, step, accepted).catch(() => false);
     this.deps.broadcast({ type: "event.conversation", conversationId, sessionId: stored.session_id, status: "open" });
-    return this.get(conversationId) as Promise<ConversationView>;
+    return this.view(await this.require(conversationId));
   }
 
   async cancelTurn(conversationId: string): Promise<ConversationView> {
     const stored = await this.require(conversationId);
     if (stored.active_run_id === null) throw reject("no_turn_active", "No turn is running.", 409);
     await this.deps.runner.cancel(stored.active_run_id);
-    return this.get(conversationId) as Promise<ConversationView>;
+    return this.view(await this.require(conversationId));
   }
 
   /** The person ends the conversation between turns (V-25, reason `person`); a running turn is stopped first. */
   async endByPerson(conversationId: string): Promise<ConversationView> {
-    await this.reconcile();
+    await this.reconcile(true);
     const stored = await this.require(conversationId);
     if (stored.status === "ended") return this.view(stored);
     if (stored.active_run_id !== null) throw reject("turn_active", "A turn is still running; stop it before ending the conversation.", 409, { run_id: stored.active_run_id });
-    await this.end(conversationId, "person", stored);
-    return this.get(conversationId) as Promise<ConversationView>;
+    const chain = this.chainOf(stored);
+    const ended = this.recordEnd(chain, stored, "person");
+    let won = false;
+    const updated = await this.deps.conversations.updateConversation(conversationId, (current) => {
+      if (!unchanged(current, stored)) return null;
+      won = true;
+      return { ...current, status: "ended", ended, events: [...current.events, ...chain.events], chain_tail: chain.tail(), updated_at: this.clock().toISOString() };
+    });
+    if (!won) {
+      // Ended by another writer meanwhile: the person's wish holds already.
+      if (updated !== null && updated.status === "ended") return this.view(updated);
+      throw raced(updated);
+    }
+    this.deps.broadcast({ type: "event.conversation", conversationId, sessionId: stored.session_id, status: "ended" });
+    return this.view(updated!);
   }
 
-  private async end(conversationId: string, reason: EndReason, stored: StoredConversation): Promise<void> {
-    const chain = this.chainOf(stored);
-    chain.turn = stored.turns_started;
-    const ended: Ended = { reason, at: pyIsoTimestamp(this.clock()), turns_not_run: reason === "max_turns" || reason === "budget" ? (stored.turns.length > 0 && stored.turns[stored.turns.length - 1]!.status === "refused" ? 1 : 0) : 0 };
-    chain.record("conversation.ended", { reason, turns: stored.turns.filter((turn) => turn.status !== "refused").length, tokens: stored.spent.tokens, remote_calls: stored.spent.remote_calls, spent_permissions: [...stored.spent.permissions].sort(), state_hash: digest(stored.state) });
-    await this.deps.conversations.updateConversation(conversationId, (current) => ({ ...current, status: "ended", ended, events: [...current.events, ...chain.events], chain_tail: chain.tail(), updated_at: this.clock().toISOString() }));
-    this.deps.broadcast({ type: "event.conversation", conversationId, sessionId: stored.session_id, status: "ended" });
+  /** Record `conversation.ended` on the chain for the record as it stands after its last turn; the caller writes both in one step. */
+  private recordEnd(chain: AuditChain, after: StoredConversation, reason: EndReason): Ended {
+    chain.turn = after.turns_started;
+    const last = after.turns.length > 0 ? after.turns[after.turns.length - 1]! : null;
+    const ended: Ended = { reason, at: pyIsoTimestamp(this.clock()), turns_not_run: (reason === "max_turns" || reason === "budget") && last !== null && last.status === "refused" ? 1 : 0 };
+    chain.record("conversation.ended", { reason, turns: after.turns.filter((turn) => turn.status !== "refused").length, tokens: after.spent.tokens, remote_calls: after.spent.remote_calls, spent_permissions: [...after.spent.permissions].sort(), state_hash: digest(after.state) });
+    return ended;
   }
 
   // -- reads ----------------------------------------------------------------------------------
@@ -444,7 +555,7 @@ export class ConversationManager {
   }
 
   async exportBundle(conversationId: string): Promise<ConversationExportBundle> {
-    await this.reconcile();
+    await this.reconcile(true);
     const stored = await this.require(conversationId);
     const entries: ConversationExportBundle["entries"] = [];
     const push = (name: string, bytes: Uint8Array) => entries.push({ name, bytes: bytes.length, sha256: sha256HexSync(bytes), base64: encodeBase64(bytes) });

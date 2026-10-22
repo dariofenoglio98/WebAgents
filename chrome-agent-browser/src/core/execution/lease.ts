@@ -189,15 +189,17 @@ export class LeaseRegistry {
     const revalidated: string[] = [];
     const spentByConversation = input.spentByConversation === true;
     if (!preflight.ready || preflight.stale) {
-      const reasons = (preflight.stale_reasons.length > 0 ? preflight.stale_reasons : preflight.blocking_reasons).filter((reason) => !(spentByConversation && reason.code === "authorization_once_spent"));
-      if (reasons.length === 0) {
-        // The only reason was the receipt this conversation spent itself: the lease goes on.
-      } else {
+      // The receipt this conversation spent itself is not a reason to refuse its later turns.
+      const relevant = (list: typeof preflight.stale_reasons) => list.filter((reason) => !(spentByConversation && reason.code === "authorization_once_spent"));
+      let reasons = relevant(preflight.stale_reasons);
+      // A plan that is not ready for another reason is still refused for it.
+      if (reasons.length === 0 && !preflight.ready) reasons = relevant(preflight.blocking_reasons);
       if (reasons.some((reason) => reason.code === "authorization_once_spent")) {
         throw new ExecutionError(AUTHORIZATION_ONCE_SPENT, "This authorization granted something once, and a run has already used it. Authorize again to run again.", { detail: { receipt_id: plan.authorization.receipt_id } });
       }
-      throw stale(reasons, "This run plan is not ready", { preflight: preflight as unknown as JsonObject });
-      }
+      if (reasons.length > 0) throw stale(reasons, "This run plan is not ready", { preflight: preflight as unknown as JsonObject });
+      // Not ready and no reason given at all: refused, never assumed ready.
+      if (!preflight.ready && preflight.blocking_reasons.length === 0 && preflight.stale_reasons.length === 0) throw stale([{ code: "run_plan_not_ready", message: "The run plan is not ready.", subject: null }], "This run plan is not ready", { preflight: preflight as unknown as JsonObject });
     }
     revalidated.push("preflight_ready");
     if (this.onceSpent(plan) && !spentByConversation) {

@@ -250,15 +250,21 @@ export function executeRun(deps: ExecuteDeps): ExecutionHandle {
           run.consent_pending = pending;
         });
         timer = setInterval(() => {
-          void deps.runs.getRun(runId).then((current) => {
-            if (current === null) {
-              // The record is gone: the service worker cleared the run; nobody can answer.
-              finish({ accepted: false, decided_by: "host", reason: NO_DECISION });
-              return;
-            }
-            const answer: ConsentAnswer | undefined = current.consent_decisions?.[request.step];
-            if (answer !== undefined && waiting.has(request.step)) finish({ accepted: answer.accepted, decided_by: "person", reason: null });
-          });
+          void deps.runs.getRun(runId).then(
+            (current) => {
+              // The step was settled meanwhile (an answer by message, an abort): nothing to do.
+              if (!waiting.has(request.step)) return;
+              if (current === null) {
+                // The record is gone: the service worker cleared the run; nobody can answer.
+                finish({ accepted: false, decided_by: "host", reason: NO_DECISION });
+                return;
+              }
+              const answer: ConsentAnswer | undefined = current.consent_decisions?.[request.step];
+              if (answer !== undefined) finish({ accepted: answer.accepted, decided_by: "person", reason: null });
+            },
+            // A failed read is retried at the next tick; the node's timeout still bounds the wait (V-29).
+            () => undefined,
+          );
         }, CONSENT_POLL_MS);
       }),
   };
