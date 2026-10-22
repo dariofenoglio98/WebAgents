@@ -8,21 +8,28 @@
  * Convenience preset answering a step the floor does not protect; `run.start` refusing a
  * conversation.
  */
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import { verifyAuditChain } from "../../src/core/execution/report.js";
 import type { JsonObject } from "../../src/core/json.js";
 import { publicKeyToPem } from "../../src/core/keys.js";
 import { TransportError, type HttpRequest, type HttpTransport } from "../../src/core/models/transport.js";
+import { POLICY_BUNDLE_TYPE } from "../../src/core/signed-document.js";
 import type { AuthorizeResult, ConversationExportBundle, ConversationListView, ConversationView, RunListView, RunView, SessionView, SettingsView } from "../../src/extension/messages.js";
 import { MemoryConversationStore } from "../../src/extension/storage/conversations.js";
 import { MemoryRunStore } from "../../src/extension/storage/runs.js";
 import { MESSAGES, node, ORDERS, probeBytes, type Members } from "../helpers/conversation-package.js";
 import { scriptedOllama, type SeenRequest } from "../helpers/host.js";
-import { makeHarness, PACKAGE_MEDIA_TYPE, PAGE, webairRoutes, type Harness } from "../helpers/shell.js";
+import { ROOT } from "../helpers/paths.js";
+import { makeHarness, PACKAGE_MEDIA_TYPE, PAGE, webairRoutes, type Harness, type Route } from "../helpers/shell.js";
+import { newSigner, signedBytes } from "../helpers/signing.js";
 
 const DESK_URL = "https://desk.example.org/agent.pkg";
 const QWEN = "ollama/qwen3:30b";
+const POLICY_CONTENT = JSON.parse(readFileSync(resolve(ROOT, "examples/policies/webagents-research.content.json"), "utf8")) as JsonObject;
 const GRANTS = { "model.reasoning": "session", "memory.session": "session", "orders.place": "session", "network.desk": "session" };
 
 /** The desk's origin: one POST answers an order from the probe's table. */
@@ -47,7 +54,7 @@ interface World {
   deskSeen: SeenRequest[];
 }
 
-async function world(options: { mutate?: ((m: Members) => void) | null; runs?: MemoryRunStore; conversations?: MemoryConversationStore; preset?: "privacy-first" | "balanced" | "convenience"; decideLost?: boolean; limits?: Record<string, number>; deskGate?: Promise<void>; modelGate?: Promise<void> } = {}): Promise<World> {
+async function world(options: { mutate?: ((m: Members) => void) | null; runs?: MemoryRunStore; conversations?: MemoryConversationStore; preset?: "privacy-first" | "balanced" | "convenience"; decideLost?: boolean; limits?: Record<string, number>; deskGate?: Promise<void>; modelGate?: Promise<void>; routes?: Record<string, Route> } = {}): Promise<World> {
   const { bytes, key } = await probeBytes({ remoteTool: true, mutate: options.mutate ?? null });
   const scripted = scriptedOllama({ interpret: (user) => MESSAGES[String((user as { text: string }).text)]! });
   // A model that has the request and has not answered yet (the turn is in flight).
@@ -65,7 +72,7 @@ async function world(options: { mutate?: ((m: Members) => void) | null; runs?: M
           }) as HttpTransport,
         };
   const deskSeen: SeenRequest[] = [];
-  const routes = { ...webairRoutes(), [DESK_URL]: { headers: { "content-type": PACKAGE_MEDIA_TYPE, "content-length": String(bytes.length) }, body: bytes } };
+  const routes = { ...webairRoutes(), ...(options.routes ?? {}), [DESK_URL]: { headers: { "content-type": PACKAGE_MEDIA_TYPE, "content-length": String(bytes.length) }, body: bytes } };
   const h = makeHarness({ routes, transports: { model: model.transport, tool: scriptedDesk(deskSeen, options.deskGate ?? null) }, runs: options.runs, conversations: options.conversations });
   h.host.decideLost = options.decideLost === true;
   const view = (await h.controller.handle({ type: "package.open", url: DESK_URL, advertisedOn: "https://desk.example.org/", viewId: "test" }, PAGE)) as SessionView;
@@ -437,6 +444,45 @@ describe("a conversation from the browser", () => {
     }
   });
 
+  it("a run limit lowered after the conversation started binds its later turns; one raised never does (T24 review 3 finding 1, D-102, V-10)", async () => {
+    const runs = new MemoryRunStore();
+    const w = await world({ limits: { total_tokens: 100_000, max_remote_calls: 30 }, runs });
+    const started = await start(w, await authorize(w));
+    const setLimits = async (limits: Record<string, number>) => {
+      const current = (await w.h.controller.handle({ type: "settings.get" }, PAGE)) as SettingsView;
+      await w.h.controller.handle({ type: "settings.set", settings: { ...current.settings, limits: { ...(current.settings.limits ?? {}), ...limits } as typeof current.settings.limits } }, PAGE);
+    };
+    await send(w, started.conversationId, "hello");
+    await settled(w, started.conversationId);
+    // The person lowers the tokens and raises the remote calls between turns.
+    await setLimits({ total_tokens: 50_000, max_remote_calls: 60 });
+    await send(w, started.conversationId, "hello");
+    await settled(w, started.conversationId);
+    const limits = (await runs.listRuns()).sort((a, b) => a.invocation.turn!.turn - b.invocation.turn!.turn).map((run) => [run.invocation.limits.total_tokens, run.invocation.limits.max_remote_calls]);
+    expect(limits).toEqual([
+      [100_000, 30],
+      [50_000, 30],
+    ]);
+  });
+
+  it("a policy cap subscribed after the conversation started reaches its later turns (T24 review 3 finding 1, D-102)", async () => {
+    const signer = newSigner();
+    const url = "https://policy.example/tight.json";
+    const content = { ...POLICY_CONTENT, issued_at: "2026-10-01T00:00:00Z", budget_caps: { total_tokens: 40_000 }, bindings: { allow: [{ kind: "json_http", origins: ["https://desk.example.org"] }] } };
+    const runs = new MemoryRunStore();
+    const w = await world({ runs, routes: { [url]: { headers: { "content-type": "application/json" }, body: await signedBytes(POLICY_BUNDLE_TYPE, content, signer) } } });
+    const started = await start(w, await authorize(w));
+    await send(w, started.conversationId, "hello");
+    await settled(w, started.conversationId);
+    await w.h.controller.handle({ type: "policy.subscribe", url, publicKeyPem: signer.pem, replace: false }, PAGE);
+    await send(w, started.conversationId, "hello");
+    const after = await settled(w, started.conversationId);
+    expect(after.transcript.map((turn) => turn.status)).toEqual(["completed", "completed"]);
+    const totals = (await runs.listRuns()).sort((a, b) => a.invocation.turn!.turn - b.invocation.turn!.turn).map((run) => run.invocation.limits.total_tokens);
+    expect(totals[0]).toBeGreaterThan(40_000);
+    expect(totals[1]).toBe(40_000);
+  });
+
   it("a turn that settles after its package session closed still ends the conversation by the package's rule (T24 review 2 nit 2, V-8)", async () => {
     let release!: () => void;
     const w = await world({ modelGate: new Promise<void>((resolve) => (release = resolve)) });
@@ -453,6 +499,52 @@ describe("a conversation from the browser", () => {
     expect(after).toMatchObject({ status: "ended", ended: { reason: "package" } });
     // The snapshot goes once the conversation has read its rule: nothing else refers to it.
     expect(await w.h.snapshots.listSnapshots()).toEqual([]);
+  });
+
+  it("an open conversation's uncharged turn keeps its snapshot: a turn charged later by reconcile still ends by the package's rule (T24 review 3 nit 2, V-8)", async () => {
+    let release!: () => void;
+    const runs = new MemoryRunStore();
+    const w = await world({ runs, modelGate: new Promise<void>((resolve) => (release = resolve)) });
+    const started = await start(w, await authorize(w));
+    await send(w, started.conversationId, "done");
+    const asked = () => w.modelSeen.some((request) => (request.body ?? "").includes('\\"done\\"'));
+    const deadline = Date.now() + 10_000;
+    while (!asked() && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(asked()).toBe(true);
+    // The worker misses the turn's `host.finished` (it restarted): the run settles, its snapshot hook runs, nothing charges.
+    const onTurnSettled = w.h.controller.runs.onTurnSettled;
+    w.h.controller.runs.onTurnSettled = null;
+    await w.h.controller.handle({ type: "package.close", sessionId: w.session.session.id }, PAGE);
+    release();
+    await w.h.host.drain();
+    const until = Date.now() + 10_000;
+    while (!(await runs.listRuns()).every((run) => run.record.status === "completed") && Date.now() < until) await new Promise((resolve) => setTimeout(resolve, 20));
+    expect((await runs.listRuns()).map((run) => run.record.status)).toEqual(["completed"]);
+    expect(await w.h.snapshots.listSnapshots()).toHaveLength(1);
+    // The next reconcile charges the turn, reads the rule from the snapshot, and only then lets it go.
+    w.h.controller.runs.onTurnSettled = onTurnSettled;
+    await (w.h.controller.conversations as unknown as { reconcile(force: boolean): Promise<void> }).reconcile(true);
+    expect(await get(w, started.conversationId)).toMatchObject({ status: "ended", ended: { reason: "package" } });
+    expect(await w.h.snapshots.listSnapshots()).toEqual([]);
+  });
+
+  it("a reconcile that failed is throttled for reads: they return the stored record instead of retrying it at every poll (T24 review 3 nit 4)", async () => {
+    const conversations = new MemoryConversationStore();
+    const w = await world({ conversations });
+    const started = await start(w, await authorize(w));
+    let listed = 0;
+    conversations.listConversations = async () => {
+      listed += 1;
+      throw new Error("IndexedDB read failed");
+    };
+    const manager = w.h.controller.conversations as unknown as { reconcile(force: boolean): Promise<void> };
+    await expect(manager.reconcile(true)).rejects.toThrow("IndexedDB read failed");
+    expect(listed).toBe(1);
+    for (const _poll of [1, 2, 3]) expect(await get(w, started.conversationId)).toMatchObject({ conversationId: started.conversationId, status: "open" });
+    expect(listed).toBe(1);
+    // A write still forces one, and reports the failure.
+    await expect(manager.reconcile(true)).rejects.toThrow("IndexedDB read failed");
+    expect(listed).toBe(2);
   });
 
   it("a turn whose end rule cannot be read is still charged, and the conversation stays open (T24 review 2 nit 3)", async () => {

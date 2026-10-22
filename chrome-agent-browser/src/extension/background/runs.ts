@@ -15,7 +15,7 @@ import { stillAvailable, type HostCatalog } from "../../core/compatibility.js";
 import { CoreError } from "../../core/errors.js";
 import { ExecutionError } from "../../core/execution/errors.js";
 import { LeaseRegistry, type ExecutionLease } from "../../core/execution/lease.js";
-import { DEFAULT_HOST_LIMITS, normalizeHostLimits, type HostExecutionLimits } from "../../core/execution/limits.js";
+import { DEFAULT_HOST_LIMITS, lowerLimits, normalizeHostLimits, type HostExecutionLimits } from "../../core/execution/limits.js";
 import { cappedLimits } from "../../core/policies/apply.js";
 import { authorizationFromRunPlan, executionPlanFromRunPlan, type ExecutionPlan } from "../../core/execution/plan.js";
 import { failRunRecord, HOST_RUNTIME, isTerminalStatus, RUN_RECORD_SCHEMA, type RunRecord } from "../../core/execution/record.js";
@@ -440,7 +440,8 @@ export class RunManager {
    * conversation.v0 (D-270): one turn of a conversation as a run, with the turn's context handed to
    * the host; the conversation manager validated the message and reserved the turn (V-10). A
    * receipt the conversation's first turn spent still leases its later turns (V-13). A turn runs
-   * under the run limits the conversation froze at its start, which its reservation counted (V-10).
+   * under the lower of the run limits the conversation froze at its start, which its reservation
+   * counted (V-10), and the current ones (D-102: a limit lowered since still binds).
    */
   async startTurn(sessionId: string, input: { plan: RunPlan; message: JsonValue; turn: TurnStart; spentByConversation: boolean; runId: string; limits: HostExecutionLimits }): Promise<RunView> {
     await this.restore();
@@ -477,7 +478,10 @@ export class RunManager {
     if (this.starting.has(sessionId)) throw reject("execution_active", "A run is already being started for this package.", 409);
     this.starting.add(sessionId);
     try {
-      const limits = options.limits ?? (await this.hostLimits());
+      // A turn: the lower of the limits its reservation counted and the current ones, so it never
+      // spends past the reservation (V-10) and a limit lowered mid-conversation still binds (D-102).
+      const current = await this.hostLimits();
+      const limits = options.limits ? lowerLimits(options.limits, current) : current;
       const archive = await this.deps.hooks.snapshotBytes(facts.stored.archive_sha256);
       if (archive === null) throw reject("execution_artifact_mismatch", "The session snapshot is no longer stored", 500);
       const registry = await this.deps.hooks.toolRegistry(sessionId);

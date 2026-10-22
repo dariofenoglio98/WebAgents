@@ -321,6 +321,7 @@ export class Controller {
   readonly runs: RunManager;
   /** conversation.v0 (T24): conversations between turns (D-270). */
   readonly conversations: ConversationManager;
+  private readonly conversationStore: ConversationStore;
 
   constructor(private readonly deps: ControllerDeps) {
     this.limits = { ...DEFAULT_CONTROLLER_LIMITS, ...(deps.limits ?? {}) };
@@ -382,8 +383,9 @@ export class Controller {
     };
     this.runs = new RunManager({ runs: deps.runs, host: deps.host, settings: deps.settings, hooks, broadcast: deps.broadcast, clock: this.clock, randomId: deps.runId, runtimeVersion: this.version });
     // conversation.v0 (T24, D-270): conversations over the same runs, the same host and the same hooks.
+    this.conversationStore = deps.conversations ?? new MemoryConversationStore();
     this.conversations = new ConversationManager({
-      conversations: deps.conversations ?? new MemoryConversationStore(),
+      conversations: this.conversationStore,
       runs: deps.runs,
       runner: this.runs,
       host: deps.host,
@@ -394,6 +396,7 @@ export class Controller {
         },
         isSessionOpen: (sessionId) => this.sessions.has(sessionId),
         snapshotBytes: async (archiveSha256) => (await this.deps.snapshots.getSnapshot(archiveSha256))?.bytes ?? null,
+        turnCharged: (archiveSha256) => this.dropUnreferencedSnapshot(archiveSha256),
       },
       broadcast: deps.broadcast,
       clock: this.clock,
@@ -1408,14 +1411,17 @@ export class Controller {
   }
 
   /**
-   * Whether anything still needs these bytes: a stored session, or a run in flight that was
-   * planned on them. The execution host reads a run's snapshot only after `host.start`, so Run
-   * followed at once by Close must not take the bytes away from the run (T5 review 1, nit 7);
-   * the snapshot goes when that run settles (`RunHooks.runSettled`).
+   * Whether anything still needs these bytes: a stored session, a run in flight that was planned
+   * on them, or an open conversation whose turn is not charged yet. The execution host reads a
+   * run's snapshot only after `host.start`, so Run followed at once by Close must not take the
+   * bytes away from the run (T5 review 1, nit 7); the snapshot goes when that run settles
+   * (`RunHooks.runSettled`), or, for a turn, when the conversation has charged it: its end rule
+   * reads the package (V-8; T24 review 3, nit 2).
    */
   private async snapshotReferenced(archiveSha256: string): Promise<boolean> {
     if ((await this.deps.snapshots.listSessions()).some((session) => session.archive_sha256 === archiveSha256)) return true;
-    return (await this.deps.runs.listRuns()).some((run) => !isTerminal(run.record.status) && run.invocation.archive_sha256 === archiveSha256);
+    if ((await this.deps.runs.listRuns()).some((run) => !isTerminal(run.record.status) && run.invocation.archive_sha256 === archiveSha256)) return true;
+    return (await this.conversationStore.listConversations()).some((item) => item.status === "open" && item.active_run_id !== null && item.archive_sha256 === archiveSha256);
   }
 
   /** Delete a snapshot no stored session refers to, unless another open of the same bytes is in flight (called by an open that failed). */

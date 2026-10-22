@@ -41,6 +41,8 @@ export interface ConversationHooks {
   session(sessionId: string): Promise<{ pkg: Package; plan: RunPlan | null; archiveSha256: string }>;
   isSessionOpen(sessionId: string): boolean;
   snapshotBytes(archiveSha256: string): Promise<Uint8Array | null>;
+  /** A turn was charged (or lost): an open conversation's turn no longer holds the package's snapshot. */
+  turnCharged?(archiveSha256: string): Promise<void>;
 }
 
 export interface ConversationManagerDeps {
@@ -122,6 +124,7 @@ export class ConversationManager {
   private readonly starting = new Set<string>();
   private reconciling: Promise<void> | null = null;
   private reconciledAt = Number.NEGATIVE_INFINITY;
+  private reconcileFailedAt = Number.NEGATIVE_INFINITY;
 
   constructor(private readonly deps: ConversationManagerDeps) {
     this.clock = deps.clock ?? (() => new Date());
@@ -356,6 +359,7 @@ export class ConversationManager {
       if (!won || updated === null) return;
       // Clear the turn's leftovers from the run: the conversation holds them now.
       await this.deps.runs.updateRun(run.run_id, (current) => ({ ...current, turn_outcome: null }));
+      await this.deps.hooks.turnCharged?.(stored.archive_sha256).catch(() => undefined);
       this.deps.broadcast({ type: "event.conversation", conversationId: stored.conversation_id, sessionId: stored.session_id, status: ended !== null ? "ended" : "open" });
     };
     const next = this.charging.then(work, work);
@@ -386,8 +390,9 @@ export class ConversationManager {
 
   /**
    * Charge every open conversation whose turn settled while this worker was away (a `host.finished`
-   * it never saw). One at a time; a read reuses a reconcile younger than RECONCILE_INTERVAL_MS, a
-   * write (`force`) always runs one that starts after it was asked (nit 10; T24 review 2 nit 6).
+   * it never saw). One at a time; a read reuses a reconcile younger than RECONCILE_INTERVAL_MS (or
+   * skips one when the last failed within it), a write (`force`) always runs one that starts after
+   * it was asked (nit 10; T24 review 2 nit 6).
    * The throttle reads the wall clock, not the injected one: it bounds work, it records nothing.
    */
   private reconcile(force = false): Promise<void> {
@@ -397,12 +402,20 @@ export class ConversationManager {
       const again = () => this.reconcile(true);
       return this.reconciling.then(again, again);
     }
-    if (!force && Date.now() - this.reconciledAt < RECONCILE_INTERVAL_MS) return Promise.resolve();
+    // A failed one is throttled too: reads then return the stored records rather than retrying
+    // (and rethrowing) a failing store read at every poll (T24 review 3, nit 4).
+    if (!force && Date.now() - Math.max(this.reconciledAt, this.reconcileFailedAt) < RECONCILE_INTERVAL_MS) return Promise.resolve();
     this.reconciling = this.reconcileNow()
-      .then(() => {
-        // Only a reconcile that finished counts for the reads that follow.
-        this.reconciledAt = Date.now();
-      })
+      .then(
+        () => {
+          // Only a reconcile that finished counts as one for the reads that follow.
+          this.reconciledAt = Date.now();
+        },
+        (error: unknown) => {
+          this.reconcileFailedAt = Date.now();
+          throw error;
+        },
+      )
       .finally(() => {
         this.reconciling = null;
       });
@@ -417,7 +430,13 @@ export class ConversationManager {
       const run = await this.deps.runs.getRun(stored.active_run_id);
       if (run === null) {
         // The run is gone (cleared): the turn is lost; the conversation goes on without it.
-        await this.deps.conversations.updateConversation(stored.conversation_id, (current) => (current.active_run_id === stored.active_run_id ? { ...current, active_run_id: null, updated_at: this.clock().toISOString() } : null));
+        let cleared = false;
+        await this.deps.conversations.updateConversation(stored.conversation_id, (current) => {
+          if (current.active_run_id !== stored.active_run_id) return null;
+          cleared = true;
+          return { ...current, active_run_id: null, updated_at: this.clock().toISOString() };
+        });
+        if (cleared) await this.deps.hooks.turnCharged?.(stored.archive_sha256).catch(() => undefined);
       } else if (isTerminalStatus(run.record.status)) await this.turnSettled(run);
     }
   }

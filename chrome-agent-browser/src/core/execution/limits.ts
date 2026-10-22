@@ -109,6 +109,17 @@ export function normalizeHostLimits(raw: unknown): HostExecutionLimits {
   return limits;
 }
 
+/**
+ * The field-wise minimum of two sets of host limits. Every field is a ceiling, so the result is
+ * never looser than either: a conversation's turn runs under the limits its reservation counted
+ * and under any limit lowered since (T24 review 3, D-275).
+ */
+export function lowerLimits(a: HostExecutionLimits, b: HostExecutionLimits): HostExecutionLimits {
+  const out = { ...a };
+  for (const key of Object.keys(MAXIMA) as Array<keyof HostExecutionLimits>) out[key] = Math.min(a[key], b[key]);
+  return out;
+}
+
 /** Exactly the keys the runtime accepts; it applies min() to each budget, and holds the compute bounds as this host's ceilings. */
 export function runtimeLimits(limits: HostExecutionLimits): HostLimits {
   return {

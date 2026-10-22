@@ -37,7 +37,7 @@ import { loadPackageBytes } from "./core/package.js";
 import { pyJsonDumps } from "./core/pyjson.js";
 import { verifyWithTrustedKey } from "./core/signature.js";
 import { toolHandlers } from "./core/tools/broker.js";
-import { checkApprovedTools, checkGrants, type Grants, type HostLimits } from "./core/workflow/runtime.js";
+import type { Grants, HostLimits } from "./core/workflow/runtime.js";
 
 const CONVERSE: ArgumentSpec = { positional: ["package"], options: { ...RUN_OPTIONS, "--transcript": { kind: "value" } } };
 
@@ -79,33 +79,14 @@ export async function converseCommand(args: string[]): Promise<number> {
   // turn's; without it the host lowers nothing.
   const limits = parsed.value("--limits") ? (jsonFile(parsed.value("--limits")!, "object") as JsonObject) : null;
   checkMemoryBindings(pkg);
-  let adapters: (turn: number) => TurnAdapters;
-  if (mode === "fixture") {
-    for (const flag of ["--model", "--ollama-url", "--context-tokens", "--reasoning-effort", "--tool-bindings", "--host-resources"]) {
-      if (parsed.value(flag) !== null) throw new AgentPkgError(`${flag} applies to --mode live only`);
-    }
-    if (parsed.flag("--think") || parsed.list("--resource-grant").length > 0) throw new AgentPkgError("--think and --resource-grant apply to --mode live only");
-    const fixture = fixtureAdapters(pkg);
-    adapters = () => ({ router: fixture.router, handlers: fixture.handlers });
-  } else {
-    const hostLimits = normalizeHostLimits(limits === null ? { ...PERMISSIVE_HOST_LIMITS } : Object.fromEntries(Object.entries(limits).filter(([key]) => !key.startsWith("conversation_"))));
-    // The conversation's own checks, in its order, before binding contacts a model provider
-    // (as the reference, which refuses before any network; T24 review 2 nit 5).
-    checkGrants(new Set((pkg.policy.permissions as JsonObject[]).map((permission) => String(permission.id))), grants);
-    checkApprovedTools(pkg.tools, approved);
-    const live = await bindLive(pkg, parsed, bytes, grants, approved, hostLimits.model_call_timeout_seconds);
-    const tools = live.deps.tools!;
-    adapters = () => {
-      // The same generic handlers the execution session installs for a run, over the bindings the
-      // approvals froze, built afresh per turn (a handler's dispatch log is a turn's).
-      const { handlers } = toolHandlers(live.toolBindings, { ...tools, resources: live.store ? { grants: live.resourceGrants, resolver: live.store } : null });
-      return { router: live.deps.router ?? null, handlers };
-    };
-  }
+  let adapters: (turn: number) => TurnAdapters = () => {
+    throw new AgentPkgError("The conversation's adapters are bound before its first turn");
+  };
   const engine = nodeComputeEngine();
-  // The output directory is checked before anything runs and created only once the conversation
-  // refused nothing about its host inputs (D-265): a refused grant or limit leaves no --out behind.
-  const out = prepareOutput(parsed.value("--out")!);
+  // The conversation checks the host's inputs (grants, approvals, then the turn's and the
+  // conversation's limits, in the reference's order) when it is built, before binding contacts a
+  // model provider, as `agentpkg converse` refuses before any network (T24 review 3 nit 3). Its
+  // adapters are asked per turn, so they may be bound after it.
   const conversation = new Conversation(pkg, {
     grants,
     approvedTools: approved,
@@ -116,6 +97,27 @@ export async function converseCommand(args: string[]): Promise<number> {
       writeFiles(join(out, `turn-${String(index).padStart(3, "0")}`), records);
     },
   });
+  if (mode === "fixture") {
+    for (const flag of ["--model", "--ollama-url", "--context-tokens", "--reasoning-effort", "--tool-bindings", "--host-resources"]) {
+      if (parsed.value(flag) !== null) throw new AgentPkgError(`${flag} applies to --mode live only`);
+    }
+    if (parsed.flag("--think") || parsed.list("--resource-grant").length > 0) throw new AgentPkgError("--think and --resource-grant apply to --mode live only");
+    const fixture = fixtureAdapters(pkg);
+    adapters = () => ({ router: fixture.router, handlers: fixture.handlers });
+  } else {
+    const hostLimits = normalizeHostLimits(limits === null ? { ...PERMISSIVE_HOST_LIMITS } : Object.fromEntries(Object.entries(limits).filter(([key]) => !key.startsWith("conversation_"))));
+    const live = await bindLive(pkg, parsed, bytes, grants, approved, hostLimits.model_call_timeout_seconds);
+    const tools = live.deps.tools!;
+    adapters = () => {
+      // The same generic handlers the execution session installs for a run, over the bindings the
+      // approvals froze, built afresh per turn (a handler's dispatch log is a turn's).
+      const { handlers } = toolHandlers(live.toolBindings, { ...tools, resources: live.store ? { grants: live.resourceGrants, resolver: live.store } : null });
+      return { router: live.deps.router ?? null, handlers };
+    };
+  }
+  // The output directory is checked before anything runs and created only once the conversation
+  // refused nothing about its host inputs (D-265): a refused grant or limit leaves no --out behind.
+  const out = prepareOutput(parsed.value("--out")!);
   mkdirSync(out, { mode: 0o700 });
   const onSignal = () => {
     process.stderr.write("agent-browser: cancelling the conversation\n");
