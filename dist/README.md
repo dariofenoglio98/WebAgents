@@ -220,7 +220,7 @@ c1b1c4b260dbca874dc9e343397e6fad1311f498c3a6df27c1a1deeeb0b18f71  agentpkg-0.1.0
 c5d4496f867c725a6fb7c4a1793999dab1edfb55ce8490718df4baa5ac009ecb  agentpkg-0.5.0-py3-none-any.whl
 e9d450b1176b13d6ec48b00cca5a3410023f235ce48e59b39f53248d96db5b72  agentpkg-0.6.0-py3-none-any.whl
 9079f53a2995d6135b6ced50415a24dde7b0242238d2758eaa4723342a7271b4  agentpkg-0.6.1-py3-none-any.whl
-6345ea1aa439b804cb6a8eb7131fb298b08d352501ddcc623130ef3e0aeb0075  agentpkg-0.7.0-py3-none-any.whl
+bc0de183c0e406b96a87f539c0f19ca7b78869ad6f7ece0d88d1500c92e344eb  agentpkg-0.7.0-py3-none-any.whl
 5fdde862352598fc68e4fe5a2f5c2dee19bf952112446b3fc13bc77763533b0b  literature-review-0.2.0.agent.pkg
 0fb8b65bbff4578d4815ee70b29a0cb789b2cc95ce181d011d467b4be22c8e42  literature-review-0.2.1.agent.pkg
 4804ea8f4c2ad40439641f8348c2d65b798f4d52802f6ad751b71114e4f27c04  literature-review-0.2.2.agent.pkg
