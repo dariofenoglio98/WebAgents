@@ -44,7 +44,10 @@ def module_members(files) -> list[str]:
 
 
 def compute_operations(graph) -> list[tuple[str, dict]]:
-    """Every compute node and every compute map step, with its qualified identity."""
+    """Every compute node, every compute map step and every compute step of a network role
+    (network.v0), with its qualified identity."""
+    from ..delegation.analysis import role_steps
+
     found = []
     for node in graph.get("nodes", []):
         if node["type"] == "compute":
@@ -52,6 +55,9 @@ def compute_operations(graph) -> list[tuple[str, dict]]:
         for step in node.get("steps", []):
             if step["type"] == "compute":
                 found.append((f"{node['id']}/{step['id']}", step))
+    for name, step in role_steps(graph):
+        if step["type"] == "compute":
+            found.append((name, step))
     return found
 
 

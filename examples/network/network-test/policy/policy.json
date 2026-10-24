@@ -1,0 +1,65 @@
+{
+  "spec_version": "0.1",
+  "permissions": [
+    {
+      "id": "model.reasoning",
+      "kind": "model",
+      "description": "Read messages, decide the next role, draft the answer.",
+      "required": true,
+      "resources": [
+        "host-router"
+      ]
+    },
+    {
+      "id": "memory.session",
+      "kind": "memory",
+      "description": "The run's state and the network's shared state, for this run only.",
+      "required": true,
+      "resources": [
+        "session"
+      ]
+    },
+    {
+      "id": "desk.index",
+      "kind": "files.read",
+      "description": "Read the desk's own index (local, fictional).",
+      "required": true,
+      "resources": [
+        "desk-index"
+      ]
+    }
+  ],
+  "network": {
+    "allowed_domains": [],
+    "https_only": true,
+    "allow_redirects": false
+  },
+  "memory": {
+    "scope": "session",
+    "retention": "session",
+    "raw_documents": false,
+    "state_schema": "schemas/state.schema.json",
+    "sharing": "explicit_views"
+  },
+  "budget": {
+    "estimated_tokens": 4000,
+    "hard_tokens": 24000,
+    "max_remote_calls": 20,
+    "max_calls_per_tool": {
+      "lookup": 2
+    },
+    "max_parallel_workers": 2,
+    "estimated_cost_usd": null,
+    "approval_threshold_tokens": null
+  },
+  "delegation": {
+    "max_depth": 1,
+    "approved_roles": [
+      "Desk",
+      "Lookup",
+      "Writer"
+    ],
+    "allow_remote": false
+  },
+  "extensions": {}
+}

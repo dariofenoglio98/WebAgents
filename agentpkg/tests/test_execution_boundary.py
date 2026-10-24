@@ -35,6 +35,9 @@ ALLOWED = {
     # compute.v0: the limits of one compute call and the preflight of the modules a graph
     # declares (no engine is imported at module level; `check_compute` asks whether one exists).
     "compute",
+    # network.v0: the worst case of a delegation network is arithmetic over the declaration
+    # (`delegation.analysis`); the execution host records it before the first activation.
+    "delegation",
     "errors",
     "hostbridge",
     "interfaces",

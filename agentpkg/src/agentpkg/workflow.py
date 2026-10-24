@@ -237,6 +237,14 @@ class Workflow:
                 raise
             except ConsentError as exc:
                 raise WorkflowError("worker_error", node["id"]) from exc
+        elif kind == "network":
+            # network.v0: the graph's delegation network, run by the coordinator's one node:
+            # activations as worker instances, the model's route decisions checked against the
+            # declared edges and caps, the worst case reserved before the first activation. A
+            # failure inside propagates as a map step's does; the output schema is checked below.
+            from .delegation.runner import run_network
+
+            result = await run_network(self, node, value, ctx)
         elif kind == "join":
             if not isinstance(value, list):
                 raise ValidationError(f"node {node['id']}: join input must be an array")

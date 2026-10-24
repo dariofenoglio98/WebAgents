@@ -253,12 +253,21 @@ def effective_deadline_seconds(package, limits: HostExecutionLimits) -> int:
 
 
 def _operations(graph):
-    """Every top-level node and every map step, with a qualified identity."""
+    """Every top-level node, every map step and, for a network (network.v0), every role step
+    and every chosen route (as the one model call it is), with a qualified identity."""
+    from ..delegation.analysis import role_steps, route_calls
+
     for node in graph["nodes"]:
         yield node["id"], node
         if node["type"] == "map":
             for step in node["steps"]:
                 yield f"{node['id']}/{step['id']}", step
+    yield from role_steps(graph)
+    for name, route in route_calls(graph):
+        yield (
+            name,
+            {"type": "llm", "task": route["task"], "max_output_tokens": route["max_output_tokens"]},
+        )
 
 
 def check_capabilities(
@@ -357,6 +366,7 @@ def check_capabilities(
                 detail={"reserved": sorted(reserved)},
             )
     compute = check_compute(package, limits)
+    network = check_network(package, limits)
     return {
         "tools_declared": len(declared_tools),
         "tool_nodes": len(tool_nodes),
@@ -366,6 +376,32 @@ def check_capabilities(
         "max_requested_output_tokens": max((c["max_output_tokens"] for c in caps), default=0),
         "host_max_output_tokens_per_call": limits.max_output_tokens_per_call,
         **({"compute": compute} if compute else {}),
+        **({"network": network} if network else {}),
+    }
+
+
+def check_network(package, limits: HostExecutionLimits) -> dict | None:
+    """network.v0 (R-24): the network's worst case under this host's effective budget, recorded
+    with the run so that "at most" is on the record before the first activation; the runtime
+    reserves it again when the node starts (R-17). A package without a network returns None."""
+    from ..delegation.analysis import network_nodes, worst_case
+
+    graph = package.graph
+    if graph.get("network") is None:
+        return None
+    effective = effective_budget(package, limits)["effective"]
+    node = network_nodes(graph)[0]
+    bound = worst_case(
+        graph,
+        package.policy,
+        budget=effective,
+        node_timeout=min(node["timeout_seconds"], effective_deadline_seconds(package, limits)),
+    )
+    return {
+        "node": node["id"],
+        "entry": graph["network"]["entry"],
+        "roles": list(graph["network"]["roles"]),
+        "worst_case": bound,
     }
 
 
@@ -635,6 +671,22 @@ def _consumption_counts(package) -> dict[str, int]:
                     counts["compute"] = counts.get("compute", 0) + children
         elif node["worker"] != coordinator:
             counts["memory"] += 1
+    network = graph.get("network")
+    if network is not None:
+        # network.v0: each activation of a role is a worker instance (the memory permission once
+        # per activation) that may make its program's calls; the bound on activations is the
+        # declaration's (R-20), so the count stays a bound.
+        from ..delegation.analysis import activation_bound, activation_costs
+
+        for role_id in network["roles"]:
+            activations = activation_bound(network, role_id)
+            costs = activation_costs(graph, role_id)
+            counts["memory"] += activations
+            counts["model"] += activations * costs["model_calls"]
+            for tool_id, per_activation in costs["tool_calls"].items():
+                tool_use(tool_id, activations * per_activation)
+            if costs["compute_calls"]:
+                counts["compute"] = counts.get("compute", 0) + activations * costs["compute_calls"]
     return counts
 
 

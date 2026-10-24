@@ -1,0 +1,456 @@
+{
+  "spec_version": "0.1",
+  "profile": "workflow.v0",
+  "coordinator": "Coordinator",
+  "workers": [
+    {
+      "id": "Coordinator",
+      "kind": "packaged",
+      "skills": [],
+      "tools": [],
+      "max_instances": 1,
+      "budget": {
+        "tokens": 0,
+        "remote_calls": 0
+      },
+      "state_read": [
+        "request",
+        "result"
+      ],
+      "state_write": [
+        "result"
+      ]
+    },
+    {
+      "id": "FrontMan",
+      "kind": "packaged",
+      "skills": [
+        "front-man"
+      ],
+      "tools": [],
+      "max_instances": 1,
+      "budget": {
+        "tokens": 8000,
+        "remote_calls": 4
+      },
+      "state_read": [
+        "trip",
+        "flights",
+        "hotels",
+        "calendar"
+      ],
+      "state_write": [
+        "trip"
+      ]
+    },
+    {
+      "id": "Flights",
+      "kind": "packaged",
+      "skills": [],
+      "tools": [
+        "search-flights"
+      ],
+      "max_instances": 1,
+      "budget": {
+        "tokens": 0,
+        "remote_calls": 0
+      },
+      "state_read": [
+        "trip"
+      ],
+      "state_write": [
+        "flights"
+      ]
+    },
+    {
+      "id": "Hotel",
+      "kind": "packaged",
+      "skills": [],
+      "tools": [
+        "search-hotels"
+      ],
+      "max_instances": 1,
+      "budget": {
+        "tokens": 0,
+        "remote_calls": 0
+      },
+      "state_read": [
+        "trip"
+      ],
+      "state_write": [
+        "hotels"
+      ]
+    },
+    {
+      "id": "Calendar",
+      "kind": "packaged",
+      "skills": [],
+      "tools": [
+        "check-calendar"
+      ],
+      "max_instances": 1,
+      "budget": {
+        "tokens": 0,
+        "remote_calls": 0
+      },
+      "state_read": [
+        "trip"
+      ],
+      "state_write": [
+        "calendar"
+      ]
+    }
+  ],
+  "input_schema": "schemas/message.schema.json",
+  "output_schema": "schemas/result.schema.json",
+  "initial_state": {
+    "object": {
+      "request": {
+        "from": "input",
+        "path": ""
+      },
+      "result": {
+        "literal": null
+      }
+    }
+  },
+  "deadline_seconds": 900,
+  "network": {
+    "entry": "FrontMan",
+    "max_hops": 6,
+    "state_schema": "schemas/network-state.schema.json",
+    "initial": {
+      "literal": {
+        "trip": null,
+        "flights": [],
+        "hotels": [],
+        "calendar": []
+      }
+    },
+    "message_schema": "schemas/message.schema.json",
+    "result": {
+      "object": {
+        "plan": {
+          "from": "message",
+          "path": "/text"
+        },
+        "trip": {
+          "from": "state",
+          "path": "/trip"
+        },
+        "flights": {
+          "from": "state",
+          "path": "/flights"
+        },
+        "hotels": {
+          "from": "state",
+          "path": "/hotels"
+        },
+        "calendar": {
+          "from": "state",
+          "path": "/calendar"
+        }
+      }
+    },
+    "roles": {
+      "FrontMan": {
+        "description": "Understands the traveller's request, keeps the trip facts, and decides which specialist to consult next or ends with the plan.",
+        "steps": [
+          {
+            "id": "understand",
+            "type": "llm",
+            "task": "understand",
+            "max_output_tokens": 600,
+            "input": {
+              "object": {
+                "text": {
+                  "from": "message",
+                  "path": "/text"
+                },
+                "trip": {
+                  "from": "state",
+                  "path": "/trip"
+                },
+                "flights": {
+                  "from": "state",
+                  "path": "/flights"
+                },
+                "hotels": {
+                  "from": "state",
+                  "path": "/hotels"
+                },
+                "calendar": {
+                  "from": "state",
+                  "path": "/calendar"
+                }
+              }
+            },
+            "output_schema": "schemas/understanding.schema.json",
+            "timeout_seconds": 90
+          }
+        ],
+        "writes": {
+          "/trip": {
+            "from": "steps",
+            "path": "/understand/trip"
+          }
+        },
+        "route": {
+          "task": "route",
+          "max_output_tokens": 600,
+          "input": {
+            "object": {
+              "summary": {
+                "from": "steps",
+                "path": "/understand/summary"
+              },
+              "trip": {
+                "from": "steps",
+                "path": "/understand/trip"
+              },
+              "flights": {
+                "from": "state",
+                "path": "/flights"
+              },
+              "hotels": {
+                "from": "state",
+                "path": "/hotels"
+              },
+              "calendar": {
+                "from": "state",
+                "path": "/calendar"
+              }
+            }
+          }
+        },
+        "timeout_seconds": 200,
+        "edges": [
+          {
+            "to": "Flights",
+            "max_uses": 1
+          },
+          {
+            "to": "Hotel",
+            "max_uses": 1
+          },
+          {
+            "to": "Calendar",
+            "max_uses": 1
+          }
+        ],
+        "may_end": true
+      },
+      "Flights": {
+        "description": "Searches flights for the trip in the shared state (fictional airline data).",
+        "steps": [
+          {
+            "id": "search",
+            "type": "tool",
+            "tool": "search-flights",
+            "input": {
+              "object": {
+                "origin": {
+                  "from": "state",
+                  "path": "/trip/origin"
+                },
+                "destination": {
+                  "from": "state",
+                  "path": "/trip/destination"
+                },
+                "date": {
+                  "from": "state",
+                  "path": "/trip/date_out"
+                },
+                "travellers": {
+                  "from": "state",
+                  "path": "/trip/travellers"
+                }
+              }
+            },
+            "output_schema": "schemas/flight-options.schema.json",
+            "timeout_seconds": 20
+          }
+        ],
+        "writes": {
+          "/flights": {
+            "from": "steps",
+            "path": "/search/options"
+          }
+        },
+        "route": {
+          "next": "FrontMan",
+          "message": {
+            "object": {
+              "text": {
+                "literal": "Results are in the shared state."
+              }
+            }
+          }
+        },
+        "timeout_seconds": 30,
+        "edges": [
+          {
+            "to": "FrontMan",
+            "max_uses": 1
+          }
+        ],
+        "may_end": false
+      },
+      "Hotel": {
+        "description": "Searches hotels at the destination for the trip's nights (fictional data).",
+        "steps": [
+          {
+            "id": "search",
+            "type": "tool",
+            "tool": "search-hotels",
+            "input": {
+              "object": {
+                "city": {
+                  "from": "state",
+                  "path": "/trip/destination"
+                },
+                "check_in": {
+                  "from": "state",
+                  "path": "/trip/date_out"
+                },
+                "check_out": {
+                  "from": "state",
+                  "path": "/trip/date_back"
+                }
+              }
+            },
+            "output_schema": "schemas/hotel-options.schema.json",
+            "timeout_seconds": 20
+          }
+        ],
+        "writes": {
+          "/hotels": {
+            "from": "steps",
+            "path": "/search/options"
+          }
+        },
+        "route": {
+          "next": "FrontMan",
+          "message": {
+            "object": {
+              "text": {
+                "literal": "Results are in the shared state."
+              }
+            }
+          }
+        },
+        "timeout_seconds": 30,
+        "edges": [
+          {
+            "to": "FrontMan",
+            "max_uses": 1
+          }
+        ],
+        "may_end": false
+      },
+      "Calendar": {
+        "description": "Lists the traveller's calendar entries over the trip's dates (fictional data).",
+        "steps": [
+          {
+            "id": "check",
+            "type": "tool",
+            "tool": "check-calendar",
+            "input": {
+              "object": {
+                "from": {
+                  "from": "state",
+                  "path": "/trip/date_out"
+                },
+                "to": {
+                  "from": "state",
+                  "path": "/trip/date_back"
+                }
+              }
+            },
+            "output_schema": "schemas/calendar-entries.schema.json",
+            "timeout_seconds": 20
+          }
+        ],
+        "writes": {
+          "/calendar": {
+            "from": "steps",
+            "path": "/check/entries"
+          }
+        },
+        "route": {
+          "next": "FrontMan",
+          "message": {
+            "object": {
+              "text": {
+                "literal": "Results are in the shared state."
+              }
+            }
+          }
+        },
+        "timeout_seconds": 30,
+        "edges": [
+          {
+            "to": "FrontMan",
+            "max_uses": 1
+          }
+        ],
+        "may_end": false
+      }
+    }
+  },
+  "fixture": "fixtures/workflow.json",
+  "exports": [
+    {
+      "path": "plan.json",
+      "format": "json",
+      "value": {
+        "from": "result",
+        "path": ""
+      }
+    },
+    {
+      "path": "plan.txt",
+      "format": "text",
+      "value": {
+        "from": "result",
+        "path": "/plan"
+      }
+    }
+  ],
+  "nodes": [
+    {
+      "id": "plan-trip",
+      "type": "network",
+      "worker": "Coordinator",
+      "depends_on": [],
+      "input": {
+        "from": "state",
+        "path": "/request"
+      },
+      "output_schema": "schemas/result.schema.json",
+      "timeout_seconds": 800,
+      "writes": {
+        "/result": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "id": "output",
+      "type": "output",
+      "worker": "Coordinator",
+      "depends_on": [
+        "plan-trip"
+      ],
+      "input": {
+        "from": "state",
+        "path": "/result"
+      },
+      "output_schema": "schemas/result.schema.json",
+      "timeout_seconds": 10,
+      "writes": {}
+    }
+  ],
+  "extensions": {}
+}

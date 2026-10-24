@@ -551,6 +551,18 @@ def build_run_plan(
             "blocking_reasons": blocking_reasons,
         },
     }
+    if package.graph.get("network") is not None:
+        # network.v0 (R-24): the plan records the envelope the person agreed to, computed from
+        # the signed declaration; only a plan of a delegation package carries it.
+        from ..delegation.declarations import network_records
+
+        records = network_records(package)
+        plan["execution"]["network"] = {
+            "node": records["node"],
+            "entry": records["entry"],
+            "roles": [role["id"] for role in records["roles"]],
+            "worst_case": records["worst_case"],
+        }
     if receipt.get("profile") is not None:
         # Only a plan made through a profile carries these, so every other
         # plan keeps exactly its earlier shape and hash.

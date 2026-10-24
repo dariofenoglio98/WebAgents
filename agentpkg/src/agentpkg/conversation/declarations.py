@@ -233,6 +233,8 @@ def check_conversation_declarations(
                 '{"literal": {"accepted": false}} and nothing else',
             )
     gated = gated_permissions(graph)
+    from ..delegation.analysis import role_steps
+
     for nid, node in nodes.items():
         operations = (
             [(node["id"], node)]
@@ -243,6 +245,12 @@ def check_conversation_declarations(
                 if step["type"] == "tool"
             ]
         )
+        if node["type"] == "network":
+            # network.v0: a role's tool step runs inside the network node, so the node holding
+            # the network must depend on the consent step that gates the permission.
+            operations = [
+                (name, step) for name, step in role_steps(graph) if step["type"] == "tool"
+            ]
         for name, operation in operations:
             for permission_id in tools[operation["tool"]]["permissions"]:
                 steps = gated.get(permission_id)

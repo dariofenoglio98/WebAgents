@@ -322,6 +322,13 @@ def validate_payload(files: dict[str, bytes]):
         raise ValidationError(
             "delegation approved_roles must exactly match non-coordinator graph workers"
         )
+    # network.v0: a network role's state view is over the network's own state schema, checked
+    # by the workflow validation (`network_state_key_undeclared`), not over the graph's state.
+    network_roles = (
+        set(graph["network"]["roles"])
+        if workflow and isinstance(graph.get("network"), dict)
+        else set()
+    )
     for role, worker in workers.items():
         for field, declared in [("skills", skills), ("tools", tools)]:
             if set(worker[field]) - set(declared):
@@ -335,7 +342,10 @@ def validate_payload(files: dict[str, bytes]):
             raise ValidationError(f"worker {role}: worker budgets cannot exceed package budgets")
         if worker["max_instances"] > budget["max_parallel_workers"]:
             raise ValidationError(f"worker {role}: max_instances exceeds max_parallel_workers")
-        if (set(worker["state_read"]) | set(worker["state_write"])) - state_keys:
+        if (
+            role not in network_roles
+            and (set(worker["state_read"]) | set(worker["state_write"])) - state_keys
+        ):
             raise ValidationError(
                 f"worker {role}: state view refers to keys absent from state schema"
             )

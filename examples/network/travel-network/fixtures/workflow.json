@@ -1,0 +1,483 @@
+{
+  "profile": "workflow.fixture.v0",
+  "input": {
+    "text": "Plan a trip from Boston to Zurich: out on 9 March 2027, back on the 14th, one traveller; check my calendar too."
+  },
+  "models": {
+    "understand": [
+      {
+        "input": {
+          "text": "Plan a trip from Boston to Zurich: out on 9 March 2027, back on the 14th, one traveller; check my calendar too.",
+          "trip": null,
+          "flights": [],
+          "hotels": [],
+          "calendar": []
+        },
+        "output": {
+          "trip": {
+            "origin": "BOS",
+            "destination": "ZRH",
+            "date_out": "2027-03-09",
+            "date_back": "2027-03-14",
+            "travellers": 1
+          },
+          "summary": "A Boston to Zurich trip, 9 to 14 March 2027, one traveller; the calendar is to be checked."
+        }
+      },
+      {
+        "input": {
+          "text": "Results are in the shared state.",
+          "trip": {
+            "origin": "BOS",
+            "destination": "ZRH",
+            "date_out": "2027-03-09",
+            "date_back": "2027-03-14",
+            "travellers": 1
+          },
+          "flights": [
+            {
+              "id": "WA201",
+              "carrier": "WebAir",
+              "depart": "2027-03-09T18:30",
+              "price_usd": 640
+            },
+            {
+              "id": "WA203",
+              "carrier": "WebAir",
+              "depart": "2027-03-09T21:10",
+              "price_usd": 585
+            }
+          ],
+          "hotels": [],
+          "calendar": []
+        },
+        "output": {
+          "trip": {
+            "origin": "BOS",
+            "destination": "ZRH",
+            "date_out": "2027-03-09",
+            "date_back": "2027-03-14",
+            "travellers": 1
+          },
+          "summary": "Flights found; hotels and the calendar still to do."
+        }
+      },
+      {
+        "input": {
+          "text": "Results are in the shared state.",
+          "trip": {
+            "origin": "BOS",
+            "destination": "ZRH",
+            "date_out": "2027-03-09",
+            "date_back": "2027-03-14",
+            "travellers": 1
+          },
+          "flights": [
+            {
+              "id": "WA201",
+              "carrier": "WebAir",
+              "depart": "2027-03-09T18:30",
+              "price_usd": 640
+            },
+            {
+              "id": "WA203",
+              "carrier": "WebAir",
+              "depart": "2027-03-09T21:10",
+              "price_usd": 585
+            }
+          ],
+          "hotels": [
+            {
+              "id": "H-ALT",
+              "name": "Hotel Altstadt (fictional)",
+              "nights": 5,
+              "price_usd": 950
+            },
+            {
+              "id": "H-SEE",
+              "name": "Seeblick Inn (fictional)",
+              "nights": 5,
+              "price_usd": 1120
+            }
+          ],
+          "calendar": []
+        },
+        "output": {
+          "trip": {
+            "origin": "BOS",
+            "destination": "ZRH",
+            "date_out": "2027-03-09",
+            "date_back": "2027-03-14",
+            "travellers": 1
+          },
+          "summary": "Flights and hotels found; the calendar still to do."
+        }
+      },
+      {
+        "input": {
+          "text": "Results are in the shared state.",
+          "trip": {
+            "origin": "BOS",
+            "destination": "ZRH",
+            "date_out": "2027-03-09",
+            "date_back": "2027-03-14",
+            "travellers": 1
+          },
+          "flights": [
+            {
+              "id": "WA201",
+              "carrier": "WebAir",
+              "depart": "2027-03-09T18:30",
+              "price_usd": 640
+            },
+            {
+              "id": "WA203",
+              "carrier": "WebAir",
+              "depart": "2027-03-09T21:10",
+              "price_usd": 585
+            }
+          ],
+          "hotels": [
+            {
+              "id": "H-ALT",
+              "name": "Hotel Altstadt (fictional)",
+              "nights": 5,
+              "price_usd": 950
+            },
+            {
+              "id": "H-SEE",
+              "name": "Seeblick Inn (fictional)",
+              "nights": 5,
+              "price_usd": 1120
+            }
+          ],
+          "calendar": [
+            {
+              "date": "2027-03-11",
+              "title": "Group meeting (movable)"
+            }
+          ]
+        },
+        "output": {
+          "trip": {
+            "origin": "BOS",
+            "destination": "ZRH",
+            "date_out": "2027-03-09",
+            "date_back": "2027-03-14",
+            "travellers": 1
+          },
+          "summary": "Flights, hotels and the calendar are in; ready to answer."
+        }
+      }
+    ],
+    "route": [
+      {
+        "input": {
+          "input": {
+            "summary": "A Boston to Zurich trip, 9 to 14 March 2027, one traveller; the calendar is to be checked.",
+            "trip": {
+              "origin": "BOS",
+              "destination": "ZRH",
+              "date_out": "2027-03-09",
+              "date_back": "2027-03-14",
+              "travellers": 1
+            },
+            "flights": [],
+            "hotels": [],
+            "calendar": []
+          },
+          "targets": [
+            {
+              "role": "Flights",
+              "description": "Searches flights for the trip in the shared state (fictional airline data).",
+              "uses_left": 1
+            },
+            {
+              "role": "Hotel",
+              "description": "Searches hotels at the destination for the trip's nights (fictional data).",
+              "uses_left": 1
+            },
+            {
+              "role": "Calendar",
+              "description": "Lists the traveller's calendar entries over the trip's dates (fictional data).",
+              "uses_left": 1
+            }
+          ],
+          "hops_left": 6,
+          "may_end": true
+        },
+        "output": {
+          "next": "Flights",
+          "message": {
+            "text": "Find flights BOS to ZRH, out 2027-03-09, back 2027-03-14, one traveller."
+          }
+        }
+      },
+      {
+        "input": {
+          "input": {
+            "summary": "Flights found; hotels and the calendar still to do.",
+            "trip": {
+              "origin": "BOS",
+              "destination": "ZRH",
+              "date_out": "2027-03-09",
+              "date_back": "2027-03-14",
+              "travellers": 1
+            },
+            "flights": [
+              {
+                "id": "WA201",
+                "carrier": "WebAir",
+                "depart": "2027-03-09T18:30",
+                "price_usd": 640
+              },
+              {
+                "id": "WA203",
+                "carrier": "WebAir",
+                "depart": "2027-03-09T21:10",
+                "price_usd": 585
+              }
+            ],
+            "hotels": [],
+            "calendar": []
+          },
+          "targets": [
+            {
+              "role": "Flights",
+              "description": "Searches flights for the trip in the shared state (fictional airline data).",
+              "uses_left": 0
+            },
+            {
+              "role": "Hotel",
+              "description": "Searches hotels at the destination for the trip's nights (fictional data).",
+              "uses_left": 1
+            },
+            {
+              "role": "Calendar",
+              "description": "Lists the traveller's calendar entries over the trip's dates (fictional data).",
+              "uses_left": 1
+            }
+          ],
+          "hops_left": 4,
+          "may_end": true
+        },
+        "output": {
+          "next": "Hotel",
+          "message": {
+            "text": "Find a hotel in Zurich from 2027-03-09 to 2027-03-14."
+          }
+        }
+      },
+      {
+        "input": {
+          "input": {
+            "summary": "Flights and hotels found; the calendar still to do.",
+            "trip": {
+              "origin": "BOS",
+              "destination": "ZRH",
+              "date_out": "2027-03-09",
+              "date_back": "2027-03-14",
+              "travellers": 1
+            },
+            "flights": [
+              {
+                "id": "WA201",
+                "carrier": "WebAir",
+                "depart": "2027-03-09T18:30",
+                "price_usd": 640
+              },
+              {
+                "id": "WA203",
+                "carrier": "WebAir",
+                "depart": "2027-03-09T21:10",
+                "price_usd": 585
+              }
+            ],
+            "hotels": [
+              {
+                "id": "H-ALT",
+                "name": "Hotel Altstadt (fictional)",
+                "nights": 5,
+                "price_usd": 950
+              },
+              {
+                "id": "H-SEE",
+                "name": "Seeblick Inn (fictional)",
+                "nights": 5,
+                "price_usd": 1120
+              }
+            ],
+            "calendar": []
+          },
+          "targets": [
+            {
+              "role": "Flights",
+              "description": "Searches flights for the trip in the shared state (fictional airline data).",
+              "uses_left": 0
+            },
+            {
+              "role": "Hotel",
+              "description": "Searches hotels at the destination for the trip's nights (fictional data).",
+              "uses_left": 0
+            },
+            {
+              "role": "Calendar",
+              "description": "Lists the traveller's calendar entries over the trip's dates (fictional data).",
+              "uses_left": 1
+            }
+          ],
+          "hops_left": 2,
+          "may_end": true
+        },
+        "output": {
+          "next": "Calendar",
+          "message": {
+            "text": "Check the calendar from 2027-03-09 to 2027-03-14."
+          }
+        }
+      },
+      {
+        "input": {
+          "input": {
+            "summary": "Flights, hotels and the calendar are in; ready to answer.",
+            "trip": {
+              "origin": "BOS",
+              "destination": "ZRH",
+              "date_out": "2027-03-09",
+              "date_back": "2027-03-14",
+              "travellers": 1
+            },
+            "flights": [
+              {
+                "id": "WA201",
+                "carrier": "WebAir",
+                "depart": "2027-03-09T18:30",
+                "price_usd": 640
+              },
+              {
+                "id": "WA203",
+                "carrier": "WebAir",
+                "depart": "2027-03-09T21:10",
+                "price_usd": 585
+              }
+            ],
+            "hotels": [
+              {
+                "id": "H-ALT",
+                "name": "Hotel Altstadt (fictional)",
+                "nights": 5,
+                "price_usd": 950
+              },
+              {
+                "id": "H-SEE",
+                "name": "Seeblick Inn (fictional)",
+                "nights": 5,
+                "price_usd": 1120
+              }
+            ],
+            "calendar": [
+              {
+                "date": "2027-03-11",
+                "title": "Group meeting (movable)"
+              }
+            ]
+          },
+          "targets": [
+            {
+              "role": "Flights",
+              "description": "Searches flights for the trip in the shared state (fictional airline data).",
+              "uses_left": 0
+            },
+            {
+              "role": "Hotel",
+              "description": "Searches hotels at the destination for the trip's nights (fictional data).",
+              "uses_left": 0
+            },
+            {
+              "role": "Calendar",
+              "description": "Lists the traveller's calendar entries over the trip's dates (fictional data).",
+              "uses_left": 0
+            }
+          ],
+          "hops_left": 0,
+          "may_end": true
+        },
+        "output": {
+          "next": "done",
+          "message": {
+            "text": "Boston to Zurich, 9 to 14 March 2027: WebAir WA203 at 21:10 ($585) and Hotel Altstadt for five nights ($950); one movable meeting on 11 March. Nothing is booked."
+          }
+        }
+      }
+    ]
+  },
+  "tools": {
+    "search-flights": [
+      {
+        "input": {
+          "origin": "BOS",
+          "destination": "ZRH",
+          "date": "2027-03-09",
+          "travellers": 1
+        },
+        "output": {
+          "options": [
+            {
+              "id": "WA201",
+              "carrier": "WebAir",
+              "depart": "2027-03-09T18:30",
+              "price_usd": 640
+            },
+            {
+              "id": "WA203",
+              "carrier": "WebAir",
+              "depart": "2027-03-09T21:10",
+              "price_usd": 585
+            }
+          ]
+        }
+      }
+    ],
+    "search-hotels": [
+      {
+        "input": {
+          "city": "ZRH",
+          "check_in": "2027-03-09",
+          "check_out": "2027-03-14"
+        },
+        "output": {
+          "options": [
+            {
+              "id": "H-ALT",
+              "name": "Hotel Altstadt (fictional)",
+              "nights": 5,
+              "price_usd": 950
+            },
+            {
+              "id": "H-SEE",
+              "name": "Seeblick Inn (fictional)",
+              "nights": 5,
+              "price_usd": 1120
+            }
+          ]
+        }
+      }
+    ],
+    "check-calendar": [
+      {
+        "input": {
+          "from": "2027-03-09",
+          "to": "2027-03-14"
+        },
+        "output": {
+          "entries": [
+            {
+              "date": "2027-03-11",
+              "title": "Group meeting (movable)"
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

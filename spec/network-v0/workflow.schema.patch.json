@@ -1,0 +1,312 @@
+[
+  {
+    "op": "add",
+    "path": "/properties/network",
+    "value": {
+      "type": "object",
+      "properties": {
+        "entry": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+        },
+        "max_hops": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 64
+        },
+        "state_schema": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-][A-Za-z0-9_.-]*(?:/[A-Za-z0-9_-][A-Za-z0-9_.-]*)*$",
+          "maxLength": 240
+        },
+        "initial": {
+          "$ref": "#/$defs/value"
+        },
+        "message_schema": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-][A-Za-z0-9_.-]*(?:/[A-Za-z0-9_-][A-Za-z0-9_.-]*)*$",
+          "maxLength": 240
+        },
+        "result": {
+          "$ref": "#/$defs/value"
+        },
+        "roles": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/role"
+          },
+          "minProperties": 1,
+          "maxProperties": 16
+        }
+      },
+      "required": [
+        "entry",
+        "max_hops",
+        "state_schema",
+        "initial",
+        "message_schema",
+        "result",
+        "roles"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "op": "add",
+    "path": "/$defs/role",
+    "value": {
+      "type": "object",
+      "properties": {
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "steps": {
+          "type": "array",
+          "maxItems": 128,
+          "items": {
+            "$ref": "#/$defs/step"
+          }
+        },
+        "writes": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "pattern": "^(?:/(?:[^~/]|~[01])*)*$",
+            "maxLength": 1024
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/value"
+          },
+          "maxProperties": 512
+        },
+        "route": {
+          "$ref": "#/$defs/route"
+        },
+        "timeout_seconds": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 3600
+        },
+        "edges": {
+          "type": "array",
+          "maxItems": 16,
+          "items": {
+            "type": "object",
+            "properties": {
+              "to": {
+                "type": "string",
+                "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+              },
+              "max_uses": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 16
+              }
+            },
+            "required": [
+              "to",
+              "max_uses"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "may_end": {
+          "type": "boolean"
+        },
+        "max_activations": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65
+        }
+      },
+      "required": [
+        "description",
+        "steps",
+        "writes",
+        "route",
+        "timeout_seconds",
+        "edges",
+        "may_end"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "op": "add",
+    "path": "/$defs/route",
+    "value": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "next": {
+              "type": "string",
+              "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+            },
+            "message": {
+              "$ref": "#/$defs/value"
+            }
+          },
+          "required": [
+            "next",
+            "message"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "task": {
+              "type": "string",
+              "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+            },
+            "max_output_tokens": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000000
+            },
+            "input": {
+              "$ref": "#/$defs/value"
+            }
+          },
+          "required": [
+            "task",
+            "max_output_tokens",
+            "input"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    }
+  },
+  {
+    "op": "add",
+    "path": "/$defs/value/oneOf/1/properties/from/enum/-",
+    "value": "message"
+  },
+  {
+    "op": "add",
+    "path": "/$defs/node/properties/type/enum/-",
+    "value": "network"
+  },
+  {
+    "op": "add",
+    "path": "/$defs/node/allOf/-",
+    "value": {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "network"
+          }
+        }
+      },
+      "then": {
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "task"
+              ]
+            },
+            {
+              "required": [
+                "max_output_tokens"
+              ]
+            },
+            {
+              "required": [
+                "tool"
+              ]
+            },
+            {
+              "required": [
+                "item_schema"
+              ]
+            },
+            {
+              "required": [
+                "max_items"
+              ]
+            },
+            {
+              "required": [
+                "max_parallel"
+              ]
+            },
+            {
+              "required": [
+                "steps"
+              ]
+            },
+            {
+              "required": [
+                "yield"
+              ]
+            },
+            {
+              "required": [
+                "select"
+              ]
+            },
+            {
+              "required": [
+                "unique_by"
+              ]
+            },
+            {
+              "required": [
+                "limit"
+              ]
+            },
+            {
+              "required": [
+                "assertions"
+              ]
+            },
+            {
+              "required": [
+                "checks"
+              ]
+            },
+            {
+              "required": [
+                "module"
+              ]
+            },
+            {
+              "required": [
+                "function"
+              ]
+            },
+            {
+              "required": [
+                "input_schema"
+              ]
+            },
+            {
+              "required": [
+                "limits"
+              ]
+            },
+            {
+              "required": [
+                "permissions"
+              ]
+            },
+            {
+              "required": [
+                "text"
+              ]
+            }
+          ]
+        }
+      }
+    }
+  }
+]
