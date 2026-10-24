@@ -41,9 +41,9 @@ at run time; a transition along an edge the role does not declare; a role that c
 (no edge and `may_end` false); a `network` node inside a map, on a worker, or more than one per
 graph; a consent step inside a role (the step vocabulary admits none); a `once` grant on a
 permission the network consumes more than once (the host rule, unchanged); a network whose worst
-case the package's own budget could not hold; a role's program that reads outside its view. A
-runtime that implements this specification refuses each of these before the boundary it
-protects, with the codes of §6.
+case the package's own budget could not hold; a role's program that reads outside its view, or a
+view key that `initial` does not set. A runtime that implements this specification refuses each
+of these before the boundary it protects, with the codes of §6.
 
 ## 2. Declarations
 
