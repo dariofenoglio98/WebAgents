@@ -215,11 +215,15 @@ def route_data(network, role_id: str, input_value, uses: Counter, activations: C
     }
 
 
-def enumerate_walks(network, *, effort: int = DEFAULT_EFFORT) -> list[tuple[str, ...]]:
+def enumerate_walks(
+    network, *, effort: int = DEFAULT_EFFORT, complete: bool = True
+) -> list[tuple[str, ...]]:
     """Every complete walk the network admits (R-23): from the entry, along declared edges within
     their `max_uses`, the targets' `max_activations` and `max_hops`, ending at a role that may
     end. Depth first in declaration order, so two runtimes list the same walks in the same
-    order. Raises `EffortExceeded` past `effort` visited prefixes."""
+    order. Raises `EffortExceeded` past `effort` visited prefixes. With `complete` false, every
+    reachable prefix instead (the walks of failed runs too: what a run can have spent when it
+    stops anywhere), for the soundness checks."""
     roles = network["roles"]
     entry = network["entry"]
     walks: list[tuple[str, ...]] = []
@@ -230,7 +234,7 @@ def enumerate_walks(network, *, effort: int = DEFAULT_EFFORT) -> list[tuple[str,
         visited += 1
         if visited > effort:
             raise EffortExceeded(f"more than {effort} walk prefixes")
-        if roles[current]["may_end"]:
+        if not complete or roles[current]["may_end"]:
             walks.append(tuple(path))
         if hop >= network["max_hops"]:
             return

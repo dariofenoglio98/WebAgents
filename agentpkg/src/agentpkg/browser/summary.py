@@ -219,8 +219,12 @@ def network_sentence(network: dict) -> str:
         for role in network["roles"]
     )
     tools = ", ".join(f"{tool} {count}" for tool, count in sorted(bound["tool_calls"].items()))
+    chosen = any(role["route"]["kind"] == "chosen" for role in network["roles"])
+    # Who picks the next role is the declaration's: the model at a chosen route, the package
+    # alone when every route is fixed (a valid network whose walk is one declared sequence).
+    choice = "chosen by the model while it runs" if chosen else "along handoffs the package fixed"
     return (
-        f"The package delegates between {len(names)} roles chosen by the model while it runs "
+        f"The package delegates between {len(names)} roles {choice} "
         f"({', '.join(names)}), within a declared envelope: at most {bound['max_hops']} "
         f"handoffs; {activations}; at most {bound['model_calls']} model calls, "
         f"{sum(bound['tool_calls'].values())} tool calls"

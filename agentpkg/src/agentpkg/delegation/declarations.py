@@ -27,6 +27,9 @@ MAX_STATE_KEYS = 64
 #: The sources a role's program may read: its view of the shared state, the message it was
 #: handed, and the results of its earlier steps.
 ROLE_SOURCES = ("state", "message", "steps")
+#: An answer check of an `llm` step reads the answer as `result` (workflow.v0 §5), the one
+#: source beyond the three, and only there.
+CHECK_SOURCES = ROLE_SOURCES + ("result",)
 
 
 def _refuse(code: str, message: str) -> ValidationError:
@@ -35,29 +38,30 @@ def _refuse(code: str, message: str) -> ValidationError:
     return error
 
 
-def _constructors(role) -> list[tuple[str, dict]]:
-    """Every value constructor of a role's program, with a label: step inputs, conditions,
-    assertions and checks, the writes, and the route's input or message."""
+def _constructors(role) -> list[tuple[str, dict, tuple]]:
+    """Every value constructor of a role's program, with a label and the sources it may read:
+    step inputs, conditions, assertions and checks, the writes, and the route's input or
+    message."""
     found = []
     for step in role["steps"]:
         label = f"step {step['id']}"
-        found.append((label + "/input", step["input"]))
+        found.append((label + "/input", step["input"], ROLE_SOURCES))
         if "when" in step:
-            found.append((label + "/when/left", step["when"]["left"]))
-            found.append((label + "/when/right", step["when"]["right"]))
-            found.append((label + "/otherwise", step["otherwise"]))
-        for key in ("assertions", "checks"):
+            found.append((label + "/when/left", step["when"]["left"], ROLE_SOURCES))
+            found.append((label + "/when/right", step["when"]["right"], ROLE_SOURCES))
+            found.append((label + "/otherwise", step["otherwise"], ROLE_SOURCES))
+        for key, sources in (("assertions", ROLE_SOURCES), ("checks", CHECK_SOURCES)):
             for index, rule in enumerate(step.get(key, [])):
                 for field in ("left", "right", "rows", "targets", "equals"):
                     if field in rule:
-                        found.append((f"{label}/{key}/{index}/{field}", rule[field]))
+                        found.append((f"{label}/{key}/{index}/{field}", rule[field], sources))
     for pointer, value in role["writes"].items():
-        found.append((f"writes/{pointer}", value))
+        found.append((f"writes/{pointer}", value, ROLE_SOURCES))
     route = role["route"]
     if "task" in route:
-        found.append(("route/input", route["input"]))
+        found.append(("route/input", route["input"], ROLE_SOURCES))
     else:
-        found.append(("route/message", route["message"]))
+        found.append(("route/message", route["message"], ROLE_SOURCES))
     return found
 
 
@@ -189,6 +193,20 @@ def check_network_declarations(
         validate_instance(files, state_path, initial["literal"], "network.initial")
     except ValidationError as exc:
         raise _refuse("network_initial_invalid", str(exc)) from exc
+    # Read before initialization (R-6): a patch sets keys and never removes one, so a key that
+    # `initial` sets is present in every later state, and a key it does not set may be absent
+    # when a role reads it (the order of writes is the model's). Every key of a role's view is
+    # set by `initial`; the top-level graph is refused for the same read statically.
+    initialized = set(initial["literal"])
+    for role_id in roles:
+        missing = sorted(set(workers[role_id]["state_read"]) - initialized)
+        if missing:
+            raise _refuse(
+                "network_state_read_uninitialized",
+                f"role {role_id}: state view reads {missing[0]!r}, which network.initial does "
+                "not set (a key read by a role is set by initial, since the order of the "
+                "roles' writes is chosen at run time)",
+            )
     message_path = network["message_schema"]
     if message_path not in schema_paths:
         raise _refuse(
@@ -202,13 +220,13 @@ def check_network_declarations(
         # The view first (R-8): a program reads its own view of the shared state, the message
         # and its earlier steps; a read outside the view is refused by name before the generic
         # scope check would word it differently.
-        for name, value in _constructors(role):
+        for name, value, sources in _constructors(role):
             for source, pointer in references(value):
-                if source not in ROLE_SOURCES:
+                if source not in sources:
                     raise _refuse(
                         "network_source_scope",
                         f"{label}/{name}: source {source!r} is not available inside a role "
-                        f"(the sources are {', '.join(ROLE_SOURCES)})",
+                        f"(the sources are {', '.join(sources)})",
                     )
                 parts = tokens(pointer)
                 if source == "state" and (not parts or parts[0] not in worker["state_read"]):
@@ -259,6 +277,13 @@ def check_network_declarations(
                     "declared",
                 )
             expression(route["message"], env, f"{label}/route/message", role_id, None)
+    for source, pointer in references(network["result"]):
+        parts = tokens(pointer)
+        if source == "state" and parts and parts[0] not in initialized:
+            raise _refuse(
+                "network_state_read_uninitialized",
+                f"network.result: reads {parts[0]!r}, which network.initial does not set",
+            )
     expression(
         network["result"],
         {"state": (state_schema, state_path), "message": (documents[message_path], message_path)},
@@ -332,6 +357,7 @@ def network_records(package) -> dict | None:
 
 
 __all__ = [
+    "CHECK_SOURCES",
     "MAX_HOPS",
     "MAX_ROLES",
     "MAX_STATE_KEYS",

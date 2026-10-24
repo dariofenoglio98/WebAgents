@@ -58,19 +58,44 @@ async def run_network(workflow, node, message, ctx):
     except ValidationError as exc:
         exc.failed_check = {"check": "message_schema", "schema": network["message_schema"]}
         raise
+    # The run's "at most" (R-21): the bound under the effective budget, the node's timeout and
+    # the deadline as the host lowered it, the same figures the execution host recorded.
     bound = worst_case(
-        graph, package.policy, budget=rt.budget, node_timeout=node["timeout_seconds"]
+        graph,
+        package.policy,
+        budget=rt.budget,
+        node_timeout=min(node["timeout_seconds"], workflow.deadline_seconds),
     )
     await rt.reserve_network(ctx, node_id, bound, entry=network["entry"])
     state = copy.deepcopy(evaluate(network["initial"], {}))
     walk = Walk()
     current = network["entry"]
     walk.activations[current] = 1
+
+    def patched(role_id, patch):
+        """The shared state after a role's patch (R-9): only keys of its `state_write`, and the
+        whole validated against `state_schema`, before the activation routes anything; a
+        failure fails the activation and nothing is committed or routed."""
+        if set(patch) - set(rt.roles[role_id]["state_write"]):
+            raise PolicyError(f"role {role_id} state write exceeds its state_write view")
+        next_state = copy.deepcopy(state)
+        next_state.update(patch)
+        try:
+            validate_instance(
+                files, network["state_schema"], next_state, f"node {node_id} network state"
+            )
+        except ValidationError as exc:
+            exc.failed_check = {"check": "network_state", "schema": network["state_schema"]}
+            raise
+        return next_state
+
     try:
         while True:
             role = network["roles"][current]
             worker = rt.roles[current]
-            view = {k: copy.deepcopy(state[k]) for k in worker["state_read"] if k in state}
+            # Every key of the view is set by `initial` (R-6, checked at validation), so a
+            # missing one is a runtime fault, never a silent narrower view.
+            view = {k: copy.deepcopy(state[k]) for k in worker["state_read"]}
             rt.record(
                 "network.activated",
                 context=ctx,
@@ -83,24 +108,13 @@ async def run_network(workflow, node, message, ctx):
             outcome = await rt.run_worker(
                 current,
                 view,
-                _activation(workflow, node_id, network, current, role, message, walk),
+                _activation(workflow, node_id, network, current, role, message, walk, patched),
                 return_value=True,
                 node_id=node_id,
             )
             patch = outcome["patch"]
             decision = outcome["decision"]
-            if set(patch) - set(worker["state_write"]):
-                raise PolicyError(f"role {current} state write exceeds its state_write view")
-            next_state = copy.deepcopy(state)
-            next_state.update(patch)
-            try:
-                validate_instance(
-                    files, network["state_schema"], next_state, f"node {node_id} network state"
-                )
-            except ValidationError as exc:
-                exc.failed_check = {"check": "network_state", "schema": network["state_schema"]}
-                raise
-            state = next_state
+            state = outcome["state"]
             rt.record(
                 "network.state.committed",
                 context=ctx,
@@ -130,21 +144,24 @@ async def run_network(workflow, node, message, ctx):
     except BaseException as exc:
         from ..workflow import failure_code
 
-        rt.record(
-            "network.failed",
-            context=ctx,
-            node_id=node_id,
-            error_code=failure_code(exc),
-            hop=walk.hop,
-            role=current,
-        )
+        facts = dict(node_id=node_id, hop=walk.hop, role=current)
+        if isinstance(exc, asyncio.CancelledError):
+            # Cancelled from outside: by the node's own timeout (`timeout`), the graph's
+            # deadline or the host (`cancelled`). The network cannot tell which from inside;
+            # the node can, once the cancellation has passed its timeout, and records
+            # `network.failed` with its own code before `node.failed`, so the two events name
+            # one cause (R-15, R-18).
+            exc.deferred_failure = ("network.failed", facts)
+            raise
+        rt.record("network.failed", context=ctx, error_code=failure_code(exc), **facts)
         raise
 
 
-def _activation(workflow, node_id, network, role_id, role, message, walk):
+def _activation(workflow, node_id, network, role_id, role, message, walk, patched):
     """One activation (R-15): the role's steps in order over its view, the message and its
-    earlier steps; then the patch it writes; then its route. All inside the role's timeout, in
-    the worker instance the runtime gave it."""
+    earlier steps; then the patch it writes, validated over the shared state before anything
+    is routed; then its route. All inside the role's timeout, in the worker instance the
+    runtime gave it."""
 
     async def work(ctx, view):
         ctx.node_id = f"{node_id}/{role_id}"
@@ -154,8 +171,9 @@ def _activation(workflow, node_id, network, role_id, role, message, walk):
                 await asyncio.sleep(0)
                 local["steps"][step["id"]] = await workflow._step(step, local, ctx)
             patch = {tokens(p)[0]: evaluate(v, local) for p, v in role["writes"].items()}
+            state = patched(role_id, patch)
             decision = await _route(workflow, node_id, network, role_id, role, local, walk, ctx)
-        return {"patch": patch, "decision": decision}
+        return {"patch": patch, "state": state, "decision": decision}
 
     return work
 

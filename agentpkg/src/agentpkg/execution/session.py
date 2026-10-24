@@ -558,6 +558,9 @@ class ExecutionSession:
                     limits=self._limits.runtime_limits(),
                     approved_tools=self._approved_tools,
                     observer=tracker.observe,
+                    # The deadline the watchdog below enforces, so that what the run computes
+                    # from it (network.v0's "at most" in seconds) is this host's figure.
+                    deadline_seconds=effective_deadline_seconds(self.package, self._limits),
                 )
             except AgentPkgError as exc:
                 raise ExecutionError(

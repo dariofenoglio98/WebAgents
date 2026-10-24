@@ -25,6 +25,7 @@ ROOT = Path(__file__).resolve().parents[1]
 CONTRACTS = ROOT / "spec" / "network-v0"
 SCHEMAS = ROOT / "agentpkg" / "src" / "agentpkg" / "schemas"
 EXAMPLES = ROOT / "examples" / "network"
+KEY = ROOT / "examples" / "keys" / "network-test-publisher.pub.pem"
 TESTS = ROOT / "agentpkg" / "tests"
 
 
@@ -101,6 +102,7 @@ def main() -> int:
     from agentpkg.execution.report import verify_audit_chain
     from agentpkg.fixtures import fixture_adapters
     from agentpkg.package import build_package, load_package
+    from agentpkg.signing import verify_package
     from agentpkg.workflow import run_workflow
 
     report = {"schema": "webagents-verify-network-v0", "checks": [], "passed": True}
@@ -130,17 +132,25 @@ def main() -> int:
         and records["worst_case"]["max_hops"] == 6,
         records["worst_case"] if records else None,
     )
+    # The signed archive is required: it is what the suites and the conformance runner run, and
+    # its signature must verify under the committed development key, not merely be present.
     archive = EXAMPLES / "network-test.agent.pkg"
+    _check(report, "network-test archive is committed", archive.exists(), str(archive))
     if archive.exists():
         with tempfile.TemporaryDirectory() as scratch:
             target = Path(scratch).resolve() / "rebuilt.agent.pkg"
             rebuilt = load_package(build_package(source, target))
+        verified = verify_package(archive, trusted_key=KEY)
         built = load_package(archive)
         _check(
             report,
-            "network-test archive is its signed source",
-            rebuilt.digest == built.digest and built.signature is not None,
-            {"digest": built.digest, "signed": built.signature is not None},
+            "network-test archive is its source, signed under the committed key",
+            rebuilt.digest == built.digest and verified["valid"] is True,
+            {
+                "digest": built.digest,
+                "valid": verified["valid"],
+                "key_fingerprint": verified.get("key_fingerprint"),
+            },
         )
     grants = load_json(EXAMPLES / "network-test-grants.json")
     router, handlers, input_value = fixture_adapters(package)

@@ -728,7 +728,11 @@ declared.
   `route.decided` event with its reason.
 - **The shared state and the patch** (R-6, R-9). The network's state is its own (the graph's
   state sees only the node's result); each activation's patch is validated against the network's
-  state schema and committed (`network.state.committed`) before the transition.
+  state schema inside the activation, before its route (a bad patch costs no route call and
+  records no handoff), and committed (`network.state.committed`) before the transition. Every key
+  a role's view or the result reads is set by `initial` (`network_state_read_uninitialized`), so
+  no activation ever sees a narrower view than its declaration. A role's `llm` step may declare
+  answer checks, which read the answer as `result` as a map step's do.
 - **The worst case before the first activation** (R-17, R-21). `check_capabilities` records the
   bound under this host's limits in the run record (`network`), and `Runtime.reserve_network`
   refuses the node (`network.refused`, `budget_exhausted`) when the run's remaining tokens or

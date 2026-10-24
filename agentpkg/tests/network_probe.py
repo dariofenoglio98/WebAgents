@@ -799,6 +799,33 @@ def _fixed_route_exhausted(m):
     m["_walk"] = [("Lookup", "look up hello"), ("Lookup", "look up again"), ("done", "all done")]
 
 
+def _read_uninitialized(m):
+    # The state schema no longer requires `draft` and `initial` no longer sets it, while Desk's
+    # view still reads it: an activation of Desk before the Writer's would see no `draft`.
+    m["schemas/network-state.schema.json"]["required"] = ["notes", "answers"]
+    del m["graph.json"]["network"]["initial"]["literal"]["draft"]
+
+
+def _patch_outside_schema_chosen(m):
+    # Desk's patch (its notes) leaves the shared state outside its schema, and Desk routes by
+    # the model: the patch is refused before any route is asked or paid for.
+    m["schemas/network-state.schema.json"]["properties"]["notes"]["maxItems"] = 0
+
+
+def _answer_check(expected):
+    def mutate(m):
+        # The Writer's draft step checks its answer, reading it as `result` (workflow.v0 §5).
+        role(m, "Writer")["steps"][0]["checks"] = [
+            {
+                "kind": "equal",
+                "left": {"from": "result", "path": "/draft"},
+                "right": {"literal": expected},
+            }
+        ]
+
+    return mutate
+
+
 VARIANTS = {
     "no-node": _no_node,
     "two-nodes": _two_nodes,
@@ -839,4 +866,8 @@ VARIANTS = {
     "patch-outside-schema": _patch_outside_schema,
     "fixed-route-exhausted": _fixed_route_exhausted,
     "route-cap-too-large": _route_cap_too_large,
+    "read-uninitialized": _read_uninitialized,
+    "patch-outside-schema-chosen": _patch_outside_schema_chosen,
+    "answer-check-refused-in-role": _answer_check("something else"),
+    "answer-check-in-role": _answer_check("draft:write it up"),
 }

@@ -226,22 +226,23 @@ def _random_graph(rng):
 
 def test_the_relaxation_dominates_every_walk_on_random_networks():
     """Soundness by brute force: on random small networks, no allowed walk costs more than the
-    bound in any component. Seeds whose networks admit no complete walk (a role that may not
-    end leading only to such roles: valid to declare, failed by the runtime at the last
-    transition) or too many walks for the effort cap are passed over, and at least sixty must
-    be checked."""
-    checked = 0
+    bound in any component. The theorem is about failed runs too, so every reachable prefix is
+    checked (`complete=False`: what a run can have spent when it stops anywhere, a role that
+    may not end leading only to such roles included). Seeds with too many prefixes for the
+    effort cap are passed over, and at least a hundred must be checked, sixty of them with a
+    complete walk."""
+    checked = complete = 0
     for seed in range(160):
         rng = random.Random(seed)
         graph = _random_graph(rng)
         bound = worst_case(graph, POLICY)
         try:
-            walks = enumerate_walks(graph["network"], effort=20000)
+            walks = enumerate_walks(graph["network"], effort=20000, complete=False)
         except EffortExceeded:
             continue
-        if not walks:
-            continue
+        assert walks and walks[0] == (graph["network"]["entry"],)
         checked += 1
+        complete += bool(enumerate_walks(graph["network"], effort=20000))
         for walk in walks:
             costs = walk_costs(graph, walk)
             assert costs["hops"] <= bound["max_hops"]
@@ -252,7 +253,7 @@ def test_the_relaxation_dominates_every_walk_on_random_networks():
                 assert costs[name] <= bound["relaxation"][name], (name, walk, seed)
             for tool, count in costs["tool_calls"].items():
                 assert count <= bound["relaxation"]["tool_calls"][tool]
-    assert checked >= 60
+    assert checked >= 100 and complete >= 60
 
 
 def test_the_enumerator_lists_walks_depth_first_in_declaration_order_and_caps_its_effort():

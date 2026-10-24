@@ -10,7 +10,7 @@ from collections import Counter
 from pathlib import Path
 
 import pytest
-from network_probe import grants, node, role, worker, write_probe
+from network_probe import grants, message, node, role, worker, write_probe
 from shipped_keys import DIST  # noqa: F401 - the key fixtures module also sets sys.path
 
 from agentpkg.cli import main
@@ -32,7 +32,7 @@ def _probe(tmp_path, **options):
     return load_package(write_probe(tmp_path / "probe", **options))
 
 
-def _run(package, *, router=None, handlers=None, limits=None, decisions=None):
+def _run(package, *, router=None, handlers=None, limits=None, decisions=None, **options):
     fixture_router, fixture_handlers, input_value = fixture_adapters(package)
     try:
         return asyncio.run(
@@ -44,6 +44,7 @@ def _run(package, *, router=None, handlers=None, limits=None, decisions=None):
                 router=router or fixture_router,
                 approved_tools=["lookup"],
                 limits=limits,
+                **options,
             )
         )
     except Exception as exc:  # noqa: BLE001 - a classified failure carries its report
@@ -193,6 +194,156 @@ def test_an_activation_runs_under_the_role_timeout(tmp_path):
     failed = _events(report["audit"], "node.failed")
     assert failed[-1]["node_id"] == "delegate" and failed[-1]["error_code"] == "timeout"
     assert _events(report["audit"], "network.failed")[0]["role"] == "Lookup"
+
+
+def test_the_node_timeout_is_named_timeout_by_the_node_and_the_network(tmp_path):
+    """Review 1, nit 6: the node's own `timeout_seconds` cancels the network from outside; the
+    node records `timeout` once the cancellation reaches it, and `network.failed` names the
+    same cause, not `cancelled`."""
+
+    def slow_node(m):
+        node(m, "delegate")["timeout_seconds"] = 0.05
+
+    package = _probe(tmp_path, mutate=slow_node)
+    _, handlers, _ = fixture_adapters(package)
+
+    async def sleepy(ctx, payload):
+        await asyncio.sleep(1)
+        return {"query": payload["query"], "answer": "late"}
+
+    report = _run(package, handlers={**handlers, "desk.lookup": sleepy})
+    assert report["status"] == "failed" and report["error_code"] == "timeout"
+    failed = [e for e in _events(report["audit"], "node.failed") if e["node_id"] == "delegate"]
+    assert failed and failed[0]["error_code"] == "timeout"
+    network_failed = _events(report["audit"], "network.failed")
+    assert network_failed[0]["error_code"] == "timeout" and network_failed[0]["role"] == "Lookup"
+
+
+def test_a_role_answer_check_reads_the_answer_as_result(tmp_path):
+    """Review 1, finding 1 (R-8): a role's `llm` step may declare answer checks, which read the
+    answer as `result` as a map step's do; a refused check is a non-conforming answer at
+    `<node>/<role>/<step>`, charged and audited as everywhere."""
+    from network_probe import VARIANTS
+
+    passing = _probe(tmp_path / "ok", mutate=VARIANTS["answer-check-in-role"])
+    assert passing.graph["network"]["roles"]["Writer"]["steps"][0]["checks"]
+    report = _run(passing)
+    assert report["status"] == "completed"
+    assert report["output"]["draft"] == "draft:write it up"
+
+    refused = _probe(tmp_path / "refused", mutate=VARIANTS["answer-check-refused-in-role"])
+    report = _run(refused)
+    assert report["status"] == "failed" and report["error_code"] == "model_error"
+    failed_calls = _events(report["audit"], "model.failed")
+    assert failed_calls[-1]["reason"] == "model_output_not_conforming"
+    assert failed_calls[-1]["failed_check"]["check"] == "answer_check"
+    assert failed_calls[-1]["failed_check"]["failure"] == "values_differ"
+    step = [e for e in _events(report["audit"], "node.failed") if "Writer" in e["node_id"]]
+    assert step[0]["node_id"] == "delegate/Writer/draft"
+    assert step[0]["error_code"] == "model_error"
+    assert step[0]["failed_check"]["check"] == "answer_check"
+    # The answer was paid for, nothing after it ran: no route of the Writer, no commit of it.
+    assert len(_events(report["audit"], "route.decided")) == 3
+    assert len(_events(report["audit"], "network.state.committed")) == 3
+
+    # A check may read only the answer beyond the role's three sources.
+    def input_in_check(m):
+        role(m, "Writer")["steps"][0]["checks"] = [
+            {
+                "kind": "equal",
+                "left": {"from": "result", "path": "/draft"},
+                "right": {"from": "input", "path": "/text"},
+            }
+        ]
+
+    with pytest.raises(ValidationError, match="^network_source_scope: .*checks/0/right"):
+        _probe(tmp_path / "scope", mutate=input_in_check)
+
+
+def test_an_invalid_patch_is_refused_before_the_route_is_asked(tmp_path):
+    """Review 1, finding 2 (R-9, R-15): the patch is validated over the shared state inside the
+    activation, before its route, so that a failed patch costs no route call and records no
+    handoff that never happens."""
+    from network_probe import VARIANTS
+
+    package = _probe(tmp_path, mutate=VARIANTS["patch-outside-schema-chosen"])
+    report = _run(package)
+    assert report["status"] == "failed" and report["error_code"] == "schema_validation"
+    audit = report["audit"]
+    assert _events(audit, "route.decided") == []
+    assert len(_events(audit, "model.completed")) == 1  # the read step; no route call
+    assert _events(audit, "network.state.committed") == []
+    failed = [e for e in _events(audit, "node.failed") if e["node_id"] == "delegate"]
+    assert failed[0]["failed_check"]["check"] == "network_state"
+    assert _events(audit, "network.failed")[0]["error_code"] == "schema_validation"
+
+
+def test_a_view_key_that_initial_does_not_set_is_refused_statically(tmp_path):
+    """Review 1, finding 3 (R-6): a patch sets keys and never removes one, so a key `initial`
+    sets is present in every state and a key it does not set may be absent when a role or the
+    result reads it; the view and the result are refused at validation, not after the
+    reservation and the earlier steps' calls."""
+    from network_probe import VARIANTS
+
+    with pytest.raises(ValidationError, match="^network_state_read_uninitialized: role Desk"):
+        _probe(tmp_path / "role", mutate=VARIANTS["read-uninitialized"])
+
+    def result_reads_it(m):
+        VARIANTS["read-uninitialized"](m)
+        for role_id in ("Desk", "Writer"):
+            worker(m, role_id)["state_read"] = [
+                k for k in worker(m, role_id)["state_read"] if k != "draft"
+            ]
+        role(m, "Desk")["steps"][0]["input"] = {"object": {"text": message("/text")}}
+
+    with pytest.raises(ValidationError, match="^network_state_read_uninitialized: network.result"):
+        _probe(tmp_path / "result", mutate=result_reads_it)
+
+    def written_only(m):
+        # A key no view reads may be left to its writer: Writer sets `draft`, the result reads
+        # the message instead.
+        result_reads_it(m)
+        m["graph.json"]["network"]["result"]["object"]["draft"] = {"literal": None}
+
+    package = _probe(tmp_path / "ok", mutate=written_only)
+    assert _run(package)["status"] == "completed"
+
+
+def test_the_run_s_at_most_in_seconds_is_the_effective_deadline(tmp_path):
+    """Review 1, nit 4 (R-21): `network.started` reports the bound under the deadline the host
+    enforces, the figure the execution host recorded, not the graph's declared one."""
+    package = _probe(tmp_path)
+    started = _events(_run(package)["audit"], "network.started")[0]
+    assert started["bound"]["seconds"] == 120  # the node's timeout under the graph's 300
+    started = _events(_run(package, deadline_seconds=50)["audit"], "network.started")[0]
+    assert started["bound"]["seconds"] == 50
+    facts = check_capabilities(
+        package,
+        HostExecutionLimits(run_timeout_seconds=50),
+        tool_bindings=[{"tool_id": "lookup"}],
+    )
+    assert facts["network"]["worst_case"]["seconds"] == started["bound"]["seconds"]
+
+
+def test_the_sentence_says_who_chooses(tmp_path):
+    """Review 1, nit 7: a network whose routes are all fixed is valid, and the agent page does
+    not say the model chooses in it."""
+    from agentpkg.browser.summary import network_sentence
+    from agentpkg.delegation.declarations import network_records
+
+    chosen = network_records(_probe(tmp_path / "chosen"))
+    assert "chosen by the model while it runs" in network_sentence(chosen)
+
+    def all_fixed(m):
+        reply = {"object": {"text": message("/text")}}
+        role(m, "Desk")["route"] = {"next": "done", "message": reply}
+        m["_walk"] = []
+
+    fixed = network_records(_probe(tmp_path / "fixed", mutate=all_fixed))
+    assert all(r["route"]["kind"] == "fixed" for r in fixed["roles"])
+    sentence = network_sentence(fixed)
+    assert "along handoffs the package fixed" in sentence
+    assert "chosen by the model" not in sentence
 
 
 def test_the_per_tool_cap_counts_across_activations(tmp_path):

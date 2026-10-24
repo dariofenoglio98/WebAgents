@@ -103,8 +103,13 @@ against it (`network_initial_invalid`). A role's `state_read` and `state_write` 
 schema (`network_state_key_undeclared`), never of the graph's state: the shared state is the
 network's own, and the network node's result is the only thing that reaches the graph's state.
 An activation sees a **view**: a copy of the keys in its `state_read`; its patch may write only
-the keys in its `state_write` (R-9); the patch is validated against `state_schema` and committed
-before the transition, so the next activation sees it.
+the keys in its `state_write` (R-9); the patch is validated against `state_schema` before the
+role routes (R-9) and committed before the transition, so the next activation sees it. A patch
+sets keys and never removes one, so a key `initial` sets is present in every later state and a
+key it does not set may be absent when a role reads it, the order of the roles' writes being
+chosen at run time: every key of a role's `state_read`, and every state key `result` reads, is
+set by `initial` (`network_state_read_uninitialized`); a key no view reads may be left to its
+writer.
 
 ### 2.4 Messages
 
@@ -118,15 +123,19 @@ R-8. **Steps and scope.** `roles[r].steps` is a sequence of 0…128 steps of the
 (`llm`, `tool`, `compute`, `join`, `validate`), unique by id (`network_step_duplicate`), checked
 by the rules of workflow.v0 §3–§5 for a map step, over three sources and no other
 (`network_source_scope`): `state` (the role's view, `network_state_read_outside_view` beyond
-it), `message` (the message handed to the activation) and `steps` (its earlier steps). A `tool`
-step names a tool of the role's worker; an `llm` step a declared task, with the worker's skills
-as its instructions; a `compute` step a declared module. Steps run in order, each at most once,
-under the role's `timeout_seconds` (the whole activation) and the worker's budgets.
+it), `message` (the message handed to the activation) and `steps` (its earlier steps). An `llm`
+step's answer `checks` (workflow.v0 §5) read the answer as `result` beside the three, there and
+nowhere else; a refused check is a non-conforming answer at `<node>/<role>/<step>` (N-45). A
+`tool` step names a tool of the role's worker; an `llm` step a declared task, with the worker's
+skills as its instructions; a `compute` step a declared module. Steps run in order, each at most
+once, under the role's `timeout_seconds` (the whole activation) and the worker's budgets.
 
 R-9. **The patch.** `writes` maps top-level pointers of the shared state, each a key of the
 role's `state_write` (`network_state_write_outside_view`), to constructors over the same three
-sources, evaluated after the last step. A patch that leaves the shared state outside
-`state_schema` fails the activation `schema_validation` and nothing is committed.
+sources, evaluated after the last step and validated over the shared state **before the route**:
+a patch that leaves the shared state outside `state_schema` fails the activation
+`schema_validation` at once, so that no route is asked, paid for or recorded for it, and nothing
+is committed (N-38, N-44).
 
 R-10. **The route.** Either **fixed**, `{"next": "<role>" | "done", "message": <constructor>}`:
 the target is one of the role's edges or `done` where `may_end` (`network_edge_undeclared`,
@@ -175,7 +184,8 @@ node's `timeout_seconds` and the graph's deadline, each as the host lowered it. 
 computes it in `agentpkg.delegation.analysis.worst_case`, with the uncapped figures kept as
 `relaxation`; `agentpkg inspect` and the control plane's summary report it from the package's
 own budgets, the execution host's record and the run's `network.started` from the effective
-ones.
+ones (the host's budget and the deadline it enforces, so that the two records agree on every
+figure, seconds included).
 
 R-22. **Within the package's budget.** The relaxation's tokens and remote calls must not exceed
 the package's own `hard_tokens` and `max_remote_calls` (`network_bound_exceeds_budget`), so that
@@ -230,11 +240,13 @@ R-15. **An activation.** The runtime activates a role by running its program as 
 instance of the role's worker (`run_worker`: the role must be approved, the memory permission is
 consumed once per activation, the instance's budgets are the worker's), under the role's
 `timeout_seconds`: the steps in order over `{state: view, message, steps}`, each step named
-`<node>/<role>/<step>`; the patch; the route. The activation returns the patch and the decision;
-the network commits the patch (R-9), records it, and takes the transition: `uses[edge] += 1`,
-`hop += 1`, the target's activations `+= 1`, the decision's message becomes the next message.
-A step that fails fails the activation and the network with the step's code; nothing of the
-activation is committed.
+`<node>/<role>/<step>`; the patch, validated over the shared state (R-9); then the route. The
+activation returns the patch and the decision; the network commits the patch, records it, and
+takes the transition: `uses[edge] += 1`, `hop += 1`, the target's activations `+= 1`, the
+decision's message becomes the next message. A step that fails fails the activation and the
+network with the step's code; nothing of the activation is committed and nothing is routed. The
+node's own `timeout_seconds` ends the whole network as `timeout`, named so by the node and by
+`network.failed`.
 
 R-16. **The end and the result.** `done` ends the network after the last patch is committed;
 `result` is evaluated over the final state and the final message and validated against the
@@ -295,10 +307,10 @@ error_code, hop, role}`. A role's steps carry `node_id` `<node>/<role>/<step>` a
 
 | Where | Codes |
 |---|---|
-| validation | `network_without_declaration`, `network_minimum_version`, `network_node_required`, `network_node_once`, `network_node_role`, `network_roles`, `network_role_reserved`, `network_role_unknown`, `network_role_coordinator`, `network_worker_shared`, `network_entry_unknown`, `network_edge_unknown`, `network_edge_duplicate`, `network_role_dead_end`, `network_state_schema_undeclared`, `network_state_schema_open`, `network_state_key_undeclared`, `network_initial_literal`, `network_initial_invalid`, `network_message_schema_undeclared`, `network_source_scope`, `network_state_read_outside_view`, `network_step_duplicate`, `network_state_write_outside_view`, `network_route_task_unknown`, `network_edge_undeclared`, `network_end_not_allowed`, `network_bound_exceeds_budget`; with a conversation, `consent_missing_before_tool` at `<node>/<role>/<step>` |
+| validation | `network_without_declaration`, `network_minimum_version`, `network_node_required`, `network_node_once`, `network_node_role`, `network_roles`, `network_role_reserved`, `network_role_unknown`, `network_role_coordinator`, `network_worker_shared`, `network_entry_unknown`, `network_edge_unknown`, `network_edge_duplicate`, `network_role_dead_end`, `network_state_schema_undeclared`, `network_state_schema_open`, `network_state_key_undeclared`, `network_initial_literal`, `network_initial_invalid`, `network_message_schema_undeclared`, `network_source_scope`, `network_state_read_outside_view`, `network_step_duplicate`, `network_state_write_outside_view`, `network_route_task_unknown`, `network_edge_undeclared`, `network_end_not_allowed`, `network_bound_exceeds_budget`, `network_state_read_uninitialized`; with a conversation, `consent_missing_before_tool` at `<node>/<role>/<step>` |
 | the execution host | `execution_grant_unsupported` (a `once` grant the network would consume more than once), `execution_output_cap_too_large` naming `<node>/<role>/route` or `<node>/<role>/<step>` |
 | the node refused | `network.refused` with `tokens` or `remote_calls`; the node `budget_exhausted` |
-| inside the network | workflow.v0's codes at a step; a chosen route: `schema_validation` (the enum or the message), `model_error` with `failed_check.check = "route"` and `failure` ∈ `edge_exhausted`, `hops_exhausted`, `role_exhausted`, `edge_undeclared`, `end_not_allowed`; a fixed route: `budget_exhausted` (a cap), `permission_denied` (undeclared); the patch: `schema_validation` with `failed_check.check = "network_state"`; the input: `schema_validation` with `failed_check.check = "message_schema"`; an activation past its time: `timeout` |
+| inside the network | workflow.v0's codes at a step; a chosen route: `schema_validation` (the enum or the message), `model_error` with `failed_check.check = "route"` and `failure` ∈ `edge_exhausted`, `hops_exhausted`, `role_exhausted`, `edge_undeclared`, `end_not_allowed`; a fixed route: `budget_exhausted` (a cap), `permission_denied` (undeclared); a step's answer check: `model_error` with `failed_check.check = "answer_check"` at `<node>/<role>/<step>`; the patch: `schema_validation` with `failed_check.check = "network_state"`, before the route; the input: `schema_validation` with `failed_check.check = "message_schema"`; an activation past its time, or the node past its own: `timeout` |
 
 ## 7. Negative cases
 
@@ -349,11 +361,15 @@ the control completes).
 | N-35 | `message-invalid` | run | `schema_validation` at the route; no decision recorded |
 | N-36 | `budget-overrun-in-role` | run | `budget_exhausted` at `delegate/Writer/draft` (`worker_token_budget`) |
 | N-37 | `reservation-refused` | run | `budget_exhausted`: `network.refused` (`tokens`), no activation |
-| N-38 | `patch-outside-schema` | run | `schema_validation` at the network state, after three commits |
+| N-38 | `patch-outside-schema` | run | `schema_validation` at the network state, after three commits; the Writer's fixed route is never decided (three `route.decided`) |
 | N-39 | `fixed-route-exhausted` | run | `budget_exhausted` (`edge_exhausted`, chosen by the package) |
 | N-40 | `fixture-walk` | run | control: completed; Desk 3, Lookup 1, Writer 1; 4 hops; 7 model calls |
 | N-41 | `two-lookups` | run | control: completed; two lookups within the caps |
 | N-42 | `end-only` | run | control: completed; the entry ends at once, no handoff |
+| N-43 | `read-uninitialized` | validation | `network_state_read_uninitialized` (a view key `initial` does not set) |
+| N-44 | `patch-outside-schema-chosen` | run | `schema_validation` at the network state in the entry's first activation, before its chosen route: no `route.decided`, one model call (the step), nothing committed |
+| N-45 | `answer-check-refused-in-role` | run | `model_error` at `delegate/Writer/draft` (`failed_check.check = "answer_check"`), after three commits; the Writer's route is never decided |
+| N-46 | `answer-check-in-role` | run | control: completed; the Writer's answer check passes; Desk 3, Lookup 1, Writer 1; 4 hops; 7 model calls |
 
 The reference asserts every row (`test_network_cases.py`) and, in `test_network_runtime.py`,
 the activation timeout, the per-tool cap across activations, the input against the message

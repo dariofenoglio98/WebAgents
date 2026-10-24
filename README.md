@@ -437,7 +437,7 @@ Design rationale: [docs/architecture.md](docs/architecture.md). Threat model:
   tokens) is computed from the signed declaration and reserved before the first activation, so
   the person is told "at most" before the run. The Python reference runs such networks
   (`agentpkg run`); the test package, the travel network (a front man consulting flight, hotel
-  and calendar roles, whose bound is exact and attained) and the 42 enforcement cases are under
+  and calendar roles, whose bound is exact and attained) and the 46 enforcement cases are under
   [`examples/network/`](examples/network/). The Chrome port, the agent page's "at most" and a
   shipped network package are T26.
 
