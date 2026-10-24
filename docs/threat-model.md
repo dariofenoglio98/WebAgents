@@ -566,3 +566,38 @@ adds to the boundaries above:
 | A restart cuts a turn after a `once` action was called, and the next turn calls it again | A turn without an outcome counts as spent every `once` permission its checkpointed slice shows allowed or a step accepted in it gates (V-13); the per-tool caps still bound the calls. Limit: a `once` permission used without a consent step after the last checkpoint is not seen; the publisher gates consequential tools (V-19). |
 | A lost answer hangs the turn | The answer is in the run's record; the Worker re-reads it every second and the step's timeout ends the wait (V-29). |
 | A conversation outspends its budget, or outlives a limit lowered to stop it | A turn runs under the lower of the run limits frozen at the conversation's start, which its reservation counted (V-10), and the current ones, Settings → Run limits with the policy's caps (D-102, D-275): raising a limit never lets a turn spend past its reservation, and lowering one binds every later turn. Limit: a turn already running keeps the limits it started with. |
+
+## Delegation networks (T25, `network.v0`)
+
+[`spec/network-v0.md`](../spec/network-v0.md) lets a model choose, at run time, which role runs
+next. Until now the model filled in answers inside a graph fixed before signing; a network gives
+it control flow, and the boundary moves from "the graph is fixed" to "the envelope is fixed": the
+roles, the edges a role may hand off along, each edge's use cap, the hop cap, each role's budget
+and view, and the worst case over every allowed walk, all declared in the signed package and
+enforced by the runtime. The T25 note (`network-analysis`) carries the model and the proof
+sketch; this section states what the envelope gives and what it does not.
+
+**What the envelope is.** Every run is a walk in a finite set: the runtime admits a transition
+only along a declared edge with uses left, under the hop cap and the target's activation cap,
+and refuses the rest before the target runs (R-14). Each activation is one worker instance under
+the role's own budget and timeout (R-15), and a program is straight-line, so one activation
+costs at most what the declaration says (R-19). The bound (R-21) therefore dominates every run,
+the run's own caps hold on top, and the person is told the bound before the run (R-24). The
+model's choice is recorded with the reason it was allowed or refused (`route.decided`), and a
+refused choice is a visible failure, never a silent extra call.
+
+| Threat | Control and remaining limit |
+|---|---|
+| A runaway delegation: the model keeps handing off, or two roles pass the task back and forth | `max_hops`, per-edge `max_uses` and per-role `max_activations` are the package's own, checked before each target runs (R-14, N-31…N-33); a program has no loop, so the network loop is the only one and it is bounded (R-15). Limit: the caps are the publisher's; a person who wants fewer handoffs lowers the run's budgets, which cap the bound (R-21). |
+| A role that reaches beyond its part: reading another role's data, writing another role's keys, calling a tool it was not given | A role's view is its worker's `state_read`/`state_write` over the network's own state, checked statically (`network_state_read_outside_view`, `network_state_write_outside_view`, N-20, N-22) and at run time (the activation sees a copy of its view; a patch outside it is refused); a role's tools are its worker's, as for any worker. Limit: the message is a free channel within its schema; what a role says to the next is the model's, and the receiving role reads it as data. |
+| A bound that lies: the page says "at most N" and the run spends more | The bound is a theorem about the declaration (R-19…R-21): every component the runtime admits is below it, by the transition check and the per-instance budgets; validation refuses a package whose bound its own budget could not hold (R-22, N-27), and the node refuses to start when the run has less left than the bound (R-17, N-37). Limit: the bound is a relaxation, loose on some shapes (the note's example); a dishonest router that reports usage above its reservation is the same limit as workflow.v0 §7. |
+| A model that chooses outside the declared edges | The route's output schema is the enum of the declared targets (R-13): a target outside it is a schema refusal (N-34); the transition check verifies the edge again in depth; a fixed route is validated against the edges before the run (N-25, N-26). Limit: none for the choice; the quality of the choice is the model's. |
+| Injection carried between roles: a specialist's answer that steers the front man | The receiving role's model reads the message as data under its own signed skills, and can only do what its program and its edges allow: the envelope bounds what a steered role can reach, not what it believes. memory.v0's scans hold: a sealed value copied into a message reaches no model and no unlinked tool (M-36, M-37). Limit: persuasion within the envelope, as for any model text. |
+| A delegation that starts and cannot finish: a role with no way out, or a walk that exhausts every cap | A dead-end role is refused at validation (N-13); a walk whose every target is exhausted fails at that route (R-16), audited, before any further spend. Limit: the result of a failed network is nothing; the publisher's caps must admit the walks the task needs (the travel network's are a tour). |
+| A `once` grant spent twice by two activations | The host's rule counts activations: a `once` grant on a permission the network could consume more than once is refused before the run (R-26, N-28, N-29). Limit: as everywhere, a `once` tool permission is refused at its second call, mid-walk. |
+
+What the envelope does not claim: it does not make the walk sensible or short; it does not make
+the composed result correct; it does not bound what a role believes from a message; and the
+exact maximum over walks is not what the page shows (the relaxation is, R-23). The delegation
+family of the enforcement catalog v2 (D-189) starts from the negative cases of the spec's §7,
+listed in `examples/network/cases/cases.json`.

@@ -705,6 +705,44 @@ a schema, a consent step from its node, a gated permission from the steps that n
   state, no consent host and no chain of earlier turns; the plugin is frozen (D-029). The Chrome
   Agent Browser ports the runner and adds the chat surface in T24.
 
+## 14d. Delegation networks: roles, handoffs and the worst case (network.v0)
+
+agentpkg 0.7.0 implements [network.v0](../spec/network-v0.md) in the same interpreter: a package
+may declare a `network` of roles over its workflow.v0 graph and run it in one `network` node on
+the coordinator. Nothing about it is package-specific (D-009): the runtime knows a role from its
+worker and its program, an edge from the declaration, and the model chooses only among what is
+declared.
+
+- **An activation is a worker instance** (R-15). The network node activates one role at a time
+  through `run_worker`: the role must be approved, the memory permission is consumed once per
+  activation, and the instance runs its steps in order over its view of the shared state, the
+  message it was handed and its earlier steps, then its patch, then its route, all under the
+  role's `timeout_seconds` and the worker's own token and remote-call budgets. Its steps are named
+  `<node>/<role>/<step>` in the audit, its route `<node>/<role>/route`.
+- **The route is a model call the runtime shapes** (R-13, R-14). A chosen route goes through
+  `call_model` with an output schema the runtime builds (the enum of the declared targets plus
+  `done` where allowed, the message under the message schema) and the availability in the
+  request data; the transition check runs as the call's answer check, so a handoff past a cap is
+  a non-conforming answer: `model.failed` with `failed_check.check = "route"`, the node
+  `model_error`. A fixed route costs no model call and meets the same check. Every decision is a
+  `route.decided` event with its reason.
+- **The shared state and the patch** (R-6, R-9). The network's state is its own (the graph's
+  state sees only the node's result); each activation's patch is validated against the network's
+  state schema and committed (`network.state.committed`) before the transition.
+- **The worst case before the first activation** (R-17, R-21). `check_capabilities` records the
+  bound under this host's limits in the run record (`network`), and `Runtime.reserve_network`
+  refuses the node (`network.refused`, `budget_exhausted`) when the run's remaining tokens or
+  remote calls do not admit it, before anything is spent; nothing is held.
+- **The `once` rule** (R-26). `normalize_grants` counts each role's activation bound times its
+  per-activation uses, so a `once` grant the network would consume more than once is refused
+  before the run (`execution_grant_unsupported`).
+- **Conversations** (R-25). A turn graph may hold the network node; the consent gate reaches a
+  role's tool step, and validation requires the network node to depend on the gating consent
+  step.
+- **This host runs networks**: a network package runs under the ordinary one-shot invocation. The
+  Chrome Agent Browser ports the runner and the bound, and puts "at most" on the agent page, in
+  T26.
+
 ## 15. Why Meeting Agenda was the first package
 
 It declares `tools: []`. When this runner was written it had no generic
