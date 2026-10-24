@@ -4,7 +4,7 @@
 runs. The test drives it in-process, for each signed version: the advertised link resolves
 to `/agent.pkg`, which serves the artifact's exact bytes, and those bytes verify against
 WebAir's pinned key. Choosing another version needs no origin change, only a different path;
-the next deployment's bundle carries 0.7.0 (see `test_deploy_bundle.py`).
+the next deployment's bundle carries 0.8.0 (see `test_deploy_bundle.py`).
 """
 
 import hashlib
@@ -22,7 +22,7 @@ from publisher.contract import REPO_ROOT
 
 ARTIFACTS = {
     version: REPO_ROOT / "dist" / f"webair-{version}.agent.pkg"
-    for version in ("0.1.0", "0.2.0", "0.3.0", "0.4.0", "0.5.0", "0.6.0", "0.7.0")
+    for version in ("0.1.0", "0.2.0", "0.3.0", "0.4.0", "0.5.0", "0.6.0", "0.7.0", "0.8.0")
 }
 PUBLIC_KEY = REPO_ROOT / "examples" / "keys" / "webair-publisher.pub.pem"
 FINGERPRINT = "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b"

@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Conversation history",
+  "description": "What was said so far: per turn the person's message, what the agent understood, how the turn ended, the search it sent WebAir (if any) and the answer. Ids, criteria and prose only; never a name, an e-mail or a payment detail.",
+  "type": "array",
+  "maxItems": 8,
+  "items": {
+    "type": "object",
+    "properties": {
+      "message": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 2000
+      },
+      "intent": {
+        "$ref": "plan.schema.json#/properties/intent"
+      },
+      "status": {
+        "$ref": "status.schema.json"
+      },
+      "search": {
+        "$ref": "search-request.schema.json"
+      },
+      "answer": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 4000
+      }
+    },
+    "required": [
+      "message",
+      "intent",
+      "status",
+      "search",
+      "answer"
+    ],
+    "additionalProperties": false
+  }
+}

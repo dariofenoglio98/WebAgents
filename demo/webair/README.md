@@ -107,7 +107,7 @@ it):
 ```sh
 python3 -m venv demo/webair/.venv
 demo/webair/.venv/bin/python -m pip install -r demo/webair/requirements-dev.txt
-cd demo/webair && .venv/bin/python -m origin --agent-package ../../dist/webair-0.7.0.agent.pkg
+cd demo/webair && .venv/bin/python -m origin --agent-package ../../dist/webair-0.8.0.agent.pkg
 ```
 
 Then open **<http://127.0.0.1:8040/>**; the signed package is at
@@ -151,50 +151,60 @@ The origin writes nothing to disk and keeps nothing in memory between requests.
 
 | | |
 |---|---|
-| Package | `org.webagents.webair` **0.7.0**, "WebAir Travel Agent" |
+| Package | `org.webagents.webair` **0.8.0**, "WebAir Travel Agent" |
 | Publisher | `webair-demo`, "WebAir (fictional demo airline)": a dedicated demo key, `sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b` ([public key](../../examples/keys/webair-publisher.pub.pem)) |
-| Artifact | `dist/webair-0.7.0.agent.pkg`, 199,210 bytes, archive SHA-256 `c0265a283d0b2edd5c919e1bb7cb3a95e6ccfc449d76590d62b1a47ff3fbd808` |
-| Package digest | `abab1e37fcf85b04d51b65ce60febc7fd823af77b56ec6d0634ed7287355409b` |
-| Execution profile | `workflow.v0`, minimum runtime **0.5.0** (it ships a WebAssembly module, compute.v0, and declares `memory.read` and `memory.write`, memory.v0); 38 nodes, canonical operators only |
-| What changed from 0.6.0 | WebAir's fare totals are checked on the person's device by the fares module (`modules/fares.wasm`, AssemblyScript, SHA-256 `ef7e813b…23c0`; permission `compute.fares`, in every profile): a `total` compute step in the fare-rules map and `quote-total-input`, `quote-total` before `check-quote` recompute price × passengers, and the checks refuse a total WebAir misstates (`tests/test_package_workflow.py`); the `remember` step has 10,000 output tokens, 600 s and a 40,000-token budget (B-220). Nothing a model sees changed; the fixture is 0.6.0's (T22, D-252) |
+| Artifact | `dist/webair-0.8.0.agent.pkg` (signed after T24's review; `dist/README.md` lists its archive SHA-256 and digest) |
+| Execution profile | `workflow.v0` with a **conversation** (conversation.v0), minimum runtime **0.6.0** (it also ships a WebAssembly module, compute.v0, and declares `memory.read` and `memory.write`, memory.v0); 48 nodes, canonical operators only |
+| What changed from 0.7.0 | the package is a conversation (T24, D-274): the task's `request`, `booking` and `purchase` fields are one `message` per turn; the interpreter says what the message asks for (`intent`: `search`, `quote`, `purchase`, `question`, `done`) and the turn graph follows that; the history, the known fares, the open quote and the confirmation (summaries only) outlive the turn in a declared persistent state; the simulated purchase is behind the consent step `confirm-purchase`, whose card shows the quote's facts and the passenger's name (never the e-mail or the payment identifier); `once` on the purchase authority is one purchase per conversation; the budget per conversation is 8 turns, 240,000 tokens, 60 remote calls, 1 purchase; the fixture is recorded anew as conversations (searches only) and `fixtures/transcript.json` is the three-turn fixture conversation; the skills `travel-request` (0.3.0), `answer-writing` (0.4.0) and `webair-domain` (0.3.0). Tools, permissions, the module and the per-turn budgets are 0.7.0's (`agentpkg/tests/test_webair_package.py`) |
+| What 0.7.0 changed from 0.6.0 | WebAir's fare totals are checked on the person's device by the fares module (`modules/fares.wasm`, AssemblyScript, SHA-256 `ef7e813b…23c0`; permission `compute.fares`, in every profile): a `total` compute step in the fare-rules map and `quote-total-input`, `quote-total` before `check-quote` recompute price × passengers, and the checks refuse a total WebAir misstates (`tests/test_package_workflow.py`); the `remember` step has 10,000 output tokens, 600 s and a 40,000-token budget (B-220). Nothing a model sees changed; the fixture is 0.6.0's (T22, D-252) |
 | What 0.6.0 changed from 0.5.0 | the travel profile is read from the person's memory (`memory.read` of `travel.profile`, permission `memory.travel_profile`, tool `travel.profile`, the record view), and after a quote or a purchase a `remember` model step (after `answer`) may propose one `travel.preference` (`memory.write`, permission `memory.remember`), written to `proposals.json` and reviewed by the person after the run; the profiles `quote` and `book` gain `memory.remember`; the fixture is unchanged (searches only, so its `proposals.json` is the empty document); the publisher's capability document stays on the signed 0.5.0, which the OpenClaw host runs (D-233) |
 | What 0.5.0 changed from 0.4.0 | a request that names no departure airport, with no travel profile that supplies one, is answered ("say where you depart from") instead of failing the package's own search-request check: the `search-origin` node resolves the airport first and the search runs only when there is one (B-124); the request field's description is one sentence and its example *"Find me a flight from Boston to Zurich on 9 October under $900"* (F-11); the answer-writing skill (0.3.0), one fixture scenario (`no-departure`), the manifest and the package README. Tools, permissions, budgets, policy and profiles are unchanged (`agentpkg/tests/test_webair_package.py`). Under "Search flights" a model that asks for the travel profile still stops the run as `permission_denied`: the graph cannot see the person's grants |
-| Earlier | `dist/webair-0.6.0.agent.pkg` (the public origin's package since 2026-10-16, until 0.7.0 is deployed), archive `3055dd93…8862`, digest `e1ef5ad0…022f`; `dist/webair-0.5.0.agent.pkg` (the public origin's package from 2026-10-09 to 2026-10-16), archive `4b087557…101b`, digest `6192614e…bb48`; `dist/webair-0.4.0.agent.pkg` (0.3.0 plus the profiles; the public origin's package from 2026-10-06 to 2026-10-09), archive `c12f9db3…7f63`, digest `0e8317f1…4fbb`; `dist/webair-0.3.0.agent.pkg` (the live demo's version, the first to declare the public host), archive `b537cf5c…2887`, digest `ffe8f5b3…5e94`; `dist/webair-0.2.0.agent.pkg` (declares the reserved `webair.example`), archive `3f135be8…a616`, digest `74f05a8d…b9e1`; `dist/webair-0.1.0.agent.pkg` (= `dist/webair.agent.pkg`, which stays 0.1.0 because the recorded evidence pins it), archive `73872c31…470c`, digest `3b7c61a7…2fb6`; all unchanged |
+| Current | `dist/webair-0.8.0.agent.pkg` (signed 2026-10-21 with the user's approval; deployed by the next bundle), archive `9c81a936…eae0`, digest `b346a474…72c2`, 270,099 bytes |
+| Earlier | `dist/webair-0.7.0.agent.pkg` (the public origin's package since 2026-10-19, until 0.8.0 is deployed), archive `c0265a28…d808`, digest `abab1e37…409b`; `dist/webair-0.6.0.agent.pkg` (the public origin's package from 2026-10-16 to 2026-10-19), archive `3055dd93…8862`, digest `e1ef5ad0…022f`; `dist/webair-0.5.0.agent.pkg` (the public origin's package from 2026-10-09 to 2026-10-16), archive `4b087557…101b`, digest `6192614e…bb48`; `dist/webair-0.4.0.agent.pkg` (0.3.0 plus the profiles; the public origin's package from 2026-10-06 to 2026-10-09), archive `c12f9db3…7f63`, digest `0e8317f1…4fbb`; `dist/webair-0.3.0.agent.pkg` (the live demo's version, the first to declare the public host), archive `b537cf5c…2887`, digest `ffe8f5b3…5e94`; `dist/webair-0.2.0.agent.pkg` (declares the reserved `webair.example`), archive `3f135be8…a616`, digest `74f05a8d…b9e1`; `dist/webair-0.1.0.agent.pkg` (= `dist/webair.agent.pkg`, which stays 0.1.0 because the recorded evidence pins it), archive `73872c31…470c`, digest `3b7c61a7…2fb6`; all unchanged |
 
-### The task
+### The conversation
 
-One travel request in plain language, for example *"Find me a flight from Boston to Zurich on 9
-October under $900"*, *"Prepare WA101 Standard for 9 October for me."* or *"What are the change and
-refund rules for the Standard fare on the nonstop flights from Boston to Zurich on 9 October?"*.
-Task input:
+One message per turn, in plain language: *"Find me a flight from Boston to Zurich on 9 October
+under $900."*, *"Only nonstop, and the cheapest one."*, *"Quote WA101 Standard for me."*, *"Buy
+it."*, *"That's all, thanks."* Turn input:
 
 ```json
-{"request": "Find me a flight from Boston to Zurich on 9 October under $900",
- "booking": false, "purchase": {"quote_id": "", "fare_id": ""}}
+{"message": "Find me a flight from Boston to Zurich on 9 October under $900."}
 ```
 
-`booking: true` asks for a quote of the fare the workflow selects, for the passenger identity the
-person grants. `purchase` names an exact `quote_id` and `fare_id` from an earlier quote and asks,
-in a separate run, to simulate purchasing it with the payment method the person grants. A model
-never decides to book or buy: both are explicit in the task, and a purchase must name the exact
-quote. No name, email or payment method is ever part of a task.
+The interpreter reads the message with the conversation so far and says what it asks for
+(`intent`): a **search** (also any question about fares or rules, which repeats or changes the
+last search), a **quote** of one fare (named from the fares the conversation found, or the one
+this turn's search selects), the **purchase** of the open quote, a **question** the conversation
+itself answers, or **done**. A model never decides to book or buy: a quote needs the person's
+identity grant, and a purchase needs the person's yes on a card the runtime shows in the turn
+that buys, with the quote's facts (quote id, flight, fare, route, date, total, the passenger's
+name, the payment method's display label) and the interpreter's one-sentence question. No name,
+email or payment method is ever part of a message, a persisted state or a card beyond the name
+and the label.
 
 ```text
-interpret (model: the request only)
-  └─► travel profile (host, only when the request leaves the origin unstated)
-        └─► fill unstated criteria ─► search_flights ─► select (model) ─► verify ─► get_fare_rules × ≤6
-booking:  passenger identity (host) ─► prepare_booking ─► check ─► quote summary (no identity)
-purchase: payment method (host) ─► passenger identity (host) ─► prepare_booking (today's quote)
-          ─► it must be the authorized quote ─► simulate_purchase ─► check ─► summary
-answer (model: summaries only) ─► assemble + validate ─► clear personal state ─► output
+interpret (model: the message, the history, the known fares, the open quote)
+  ├─ search:   travel profile (host, only when the departure airport is unstated) ─► fill unstated
+  │            criteria ─► search_flights ─► select (model) ─► verify ─► get_fare_rules × ≤6
+  ├─ quote:    the fare named (checked against the known fares) or the one the search selects
+  │            ─► passenger identity (host) ─► prepare_booking ─► check ─► quote summary (no identity)
+  ├─ purchase: payment method (host) ─► passenger identity (host) ─► prepare_booking (today's quote)
+  │            ─► it must be the open quote ─► card (consent) ─► if yes: simulate_purchase ─► check
+  ├─ question: nothing is called
+  └─ done:     the interpreter's goodbye is the reply; the conversation ends
+answer (model: summaries and the history) ─► assemble + validate ─► history ─► clear personal state ─► output
 ```
 
-The result separates WebAir's evidence (search and fare rules, copied verbatim; a quote and a
-confirmation, summarized without the passenger or the payment method) from what a model wrote.
-Every fare id a model names is checked against the search, every fare-rule price against the
-search, a quote against the selected fare, price, party size and the request that was sent, a
-purchase against the authorized quote before it is sent, and a confirmation against the request;
-a mismatch stops the run.
+What outlives a turn is declared (`schemas/conversation-state.schema.json`): the `history` (≤ 8
+turns: message, intent, outcome, the search sent, the answer), the `known_fares` (ids), the
+`quote_ref` and `confirmation_ref` summaries and `profile_used`. The reply separates WebAir's
+evidence (search and fare rules, copied verbatim; a quote and a confirmation, summarized without
+the passenger or the payment method) from what a model wrote. Every fare id a model names is
+checked against the fares the conversation knows, every fare-rule price against the search, a
+quote against the selected fare, price, party size and the request that was sent, a purchase
+against the open quote before the card is shown, and a confirmation against the request; a
+mismatch stops the turn, and a failed turn never ends the conversation.
 
 ### Tools, permissions, models
 
@@ -203,20 +213,21 @@ a mismatch stops the run.
 | `search-flights` | `webair.search_flights` | `POST https://webagents-webair-production.up.railway.app/api/v1/search_flights` | `network.webair` | read |
 | `get-fare-rules` | `webair.get_fare_rules` | `POST https://webagents-webair-production.up.railway.app/api/v1/get_fare_rules` | `network.webair` | read |
 | `prepare-booking` | `webair.prepare_booking` | `POST https://webagents-webair-production.up.railway.app/api/v1/prepare_booking` | `network.webair`, `identity.passenger` | read, approval required |
-| `simulate-purchase` | `webair.simulate_purchase` | `POST https://webagents-webair-production.up.railway.app/api/v1/simulate_purchase` | `network.webair`, `booking.simulate_purchase`, `identity.passenger`, `wallet.payment` | write, approval required |
-| `personal.travel_profile` | `host.resource.personal.travel_profile` | none: local, the person's host | `profile.travel` | read, approval required |
+| `simulate-purchase` | `webair.simulate_purchase` | `POST https://webagents-webair-production.up.railway.app/api/v1/simulate_purchase` | `network.webair`, `booking.simulate_purchase` (gated by the consent step `confirm-purchase`), `identity.passenger`, `wallet.payment` | write, approval required |
+| `travel.profile` | `host.memory.travel.profile` | none: local, the person's memory | `memory.travel_profile` | read, approval required |
 | `personal.passenger_identity` | `host.resource.personal.passenger_identity` | none: local, the person's host | `identity.passenger` | read, approval required |
 | `wallet.payment_method` | `host.resource.wallet.payment_method` | none: local, the person's host | `wallet.payment` | read, approval required |
 
-Permissions: `network.webair`, `model.reasoning` and `memory.session` are required;
-`profile.travel`, `identity.passenger` and `wallet.payment` (kind `personal.read`) and
+Permissions: `network.webair`, `model.reasoning`, `memory.session` and `compute.fares` are
+required; `memory.travel_profile` (kind `memory.read`), `identity.passenger` and
+`wallet.payment` (kind `personal.read`), `memory.remember` (kind `memory.write`) and
 `booking.simulate_purchase` (kind `payment`, the package's only one, so it can be granted
-*once*) are optional. The declared host is this origin's public deployment (0.2.0 and earlier
+*once*: one purchase per conversation, confirmed on the card) are optional. The declared host is this origin's public deployment (0.2.0 and earlier
 declared the reserved, never-resolving `webair.example`, RFC 2606). A declared endpoint is an
 upper bound that a host binding must land inside; it is not authority, and nothing in the package
 selects a URL, header, credential, path, command or host resource. Model tasks
-`interpret`, `select` and `answer` need structured output and reasoning with a 16,000-token
-context window, routed by the host with no fallback; the package names no provider, model or
+`interpret`, `select`, `answer` and `remember` need structured output and reasoning with a
+16,000-token context window, routed by the host with no fallback; the package names no provider, model or
 credential. `get_flight` stays an origin-only operation.
 
 ### Profiles
@@ -266,22 +277,23 @@ The built package contains no Python and never imports this directory.
 # refresh the generated files after an origin or host-resource change (then review the diff)
 (cd demo/webair && .venv/bin/python -m publisher sync)
 
-agentpkg/.venv/bin/agentpkg build agents/webair -o /tmp/webair-0.7.0.unsigned.agent.pkg
-agentpkg/.venv/bin/agentpkg sign /tmp/webair-0.7.0.unsigned.agent.pkg \
-  --private-key ~/.config/agentpkg/keys/webagents-webair.private.pem -o dist/webair-0.7.0.agent.pkg
-agentpkg/.venv/bin/agentpkg verify dist/webair-0.7.0.agent.pkg \
+agentpkg/.venv/bin/agentpkg build agents/webair -o /tmp/webair-0.8.0.unsigned.agent.pkg
+agentpkg/.venv/bin/agentpkg sign /tmp/webair-0.8.0.unsigned.agent.pkg \
+  --private-key ~/.config/agentpkg/keys/webagents-webair.private.pem -o dist/webair-0.8.0.agent.pkg
+agentpkg/.venv/bin/agentpkg verify dist/webair-0.8.0.agent.pkg \
   --trust-key examples/keys/webair-publisher.pub.pem
 
-# fixture run of the hero request: generic CLI, interpreter, model router and tool handlers,
-# with every personal permission denied (a search needs none). 0.6.0 renamed the travel profile's
-# permission to memory.travel_profile and added memory.remember; 0.7.0 adds the required
-# compute.fares, so it has its own grants file. Running the module needs agentpkg[compute].
-agentpkg/.venv/bin/agentpkg run dist/webair-0.7.0.agent.pkg --mode fixture \
-  --grants examples/webair-0.7.0-grants.json \
+# the fixture conversation (three turns of searches): generic CLI, conversation runner,
+# interpreter, model router and tool handlers, with every personal permission denied (a search
+# needs none). `agentpkg run` refuses a conversational package. Running the module needs
+# agentpkg[compute]. A transcript with a quote and a purchase (examples/webair-0.8.0-book-
+# transcript.json) is for live runs: the fixture holds no quote and the CLI holds no identity.
+agentpkg/.venv/bin/agentpkg converse dist/webair-0.8.0.agent.pkg --mode fixture \
+  --grants examples/webair-0.8.0-grants.json \
   --approve-tool search-flights --approve-tool get-fare-rules \
   --out examples/my-webair
 
-agentpkg/.venv/bin/python scripts/verify_webair.py               # search scenarios, offline
+agentpkg/.venv/bin/python scripts/verify_webair.py               # the fixture conversations, offline
 agentpkg/.venv/bin/python scripts/verify_webair_capabilities.py  # host capabilities on 0.4.0, offline (needs Node; its source-rebuild check describes 0.4.0's source)
 ```
 
@@ -291,33 +303,37 @@ package version (and a regenerated `host-bindings.json`: `DECLARED_HOST` in
 
 The private key lives outside the repository (`0600`, in a `0700` directory), as the other
 publishers' keys do; only the public key is in the tree. Building and signing again with the
-same key reproduces the artifact byte for byte. The package fixture replays seven search
-scenarios ([`examples/webair-scenarios.json`](../../examples/webair-scenarios.json)): the hero
-search, the checked-bag question, Standard-fare rules, JFK→GVA in business, a route WebAir does
-not fly (no results), a date outside the schedule (WebAir refuses) and a city WebAir does not
-serve (nothing searched). None involves a host resource, so the signed fixture holds no personal
-data. Its model answers are scripted; its tool answers were recorded from this origin by
-`python -m publisher sync`, which runs the package's own graph in the generic interpreter against
-the in-process API.
+same key reproduces the artifact byte for byte. The package fixture replays the fixture
+conversation and eight single-turn search scenarios
+([`examples/webair-0.8.0-conversations.json`](../../examples/webair-0.8.0-conversations.json),
+`fixture`): a broad Boston–Zurich search with stops allowed, then "only nonstop, and the
+cheapest one", then goodbye; the hero search, the checked-bag question, Standard-fare rules,
+JFK→GVA in business, a route WebAir does not fly (no results), a date outside the schedule
+(WebAir refuses), a city WebAir does not serve (nothing searched) and a request without a
+departure airport. None involves a host resource, so the signed fixture holds no personal data.
+Its model answers are scripted; its tool answers were recorded from this origin by `python -m
+publisher sync`, which runs the package's own turn graph through the generic conversation runner
+against the in-process API. The one-shot scenarios of 0.3.0 to 0.7.0 stay in
+[`examples/webair-scenarios.json`](../../examples/webair-scenarios.json) for those archives.
 
 The hero result: **WA101 Economy Basic $704, WA101 Economy Standard $858, WA105 Economy Basic
 $749**, all nonstop; only WA101 Standard includes a checked bag (one, 23 kg).
 
 ### Limitations
 
-- **One task per package.** workflow.v0 has one graph and no session memory, so each request
-  must be self-contained ("the Standard fare" needs the route and date in the same request);
-  a host could carry conversation context into the request text later.
+- **One quote at a time.** The conversation holds one open quote; quoting another fare replaces
+  it, and a purchase is of the open quote only. "Those fares" and "the first one" resolve
+  through the history the interpreter reads, not through a model's memory.
 - **The search outcome is classified by a model and verified by the graph.** workflow.v0 can
   test only `eq`/`ne` and cannot ask whether a field exists, and WebAir's answer and refusal
   share no field; a wrong classification stops the run instead of producing an answer.
-- **The declared host is one deployment.** 0.3.0 and 0.4.0 name `webagents-webair-production.up.railway.app`;
+- **The declared host is one deployment.** 0.3.0 and later name `webagents-webair-production.up.railway.app`;
   another deployment needs another package version and bindings (the host never redirects a
   declared endpoint).
 - **No optional tools in agent.pkg 0.1.** A host must bind and approve all seven tools to run
   the package at all, even for a search-only task — including the three host-resource tools,
-  so a host that holds no resources cannot run 0.3.0 or 0.4.0 through agentpkg (the personal
-  permissions themselves are optional, and a search never reads one). 0.4.0's "Search flights"
+  so a host that holds no resources cannot run the package through agentpkg (the personal
+  permissions themselves are optional, and a search never reads one). The "Search flights"
   profile names the two tools a search needs; a runtime that honours profiles may leave the
   rest out.
 - **One passenger per booking.** A quote is for the one identity the person grants; a request
@@ -394,9 +410,9 @@ can name a path. There is no static directory mount and no directory listing, an
 invalid configured file stops the origin from starting. Without a configured package,
 `/agent.pkg` answers `404` with `{"error": {"code": "agent_package_unavailable", …}}`.
 
-Started with `--agent-package ../../dist/webair-0.7.0.agent.pkg` — as the next deployment's
+Started with `--agent-package ../../dist/webair-0.8.0.agent.pkg` — as the next deployment's
 bundle is — the link resolves to the exact signed bytes: `X-Agent-Package-SHA256` and the ETag carry
-`c0265a283d0b2edd5c919e1bb7cb3a95e6ccfc449d76590d62b1a47ff3fbd808`, and `agentpkg verify` on the
+`9c81a9362754fc3c48c923b4968e75daa9e0260ae422be7e77b30f1df1a7eae0`, and `agentpkg verify` on the
 downloaded file succeeds against WebAir's pinned key
 ([`tests/test_package_serving.py`](tests/test_package_serving.py) checks every signed version; the
 public origin's bytes, headers and signature are in
@@ -481,11 +497,14 @@ capability* over a *demo wallet*.
 In the Agent Browser's Permissions card, each `personal.read` permission shows the host's labels
 in a chooser under its decision (Deny / Allow once / Allow for session); nothing is chosen by
 default, and allowing one without choosing is refused. The purchase authority is an ordinary
-permission, `booking.simulate_purchase` (*Allow once* is the natural choice: it covers one run).
-The receipt and the run plan freeze each pick by opaque id and keyed digest; the run plan's
-preflight compares them with the host's store before anything runs, and the broker resolves only
-those grants, for the tools that link their permissions. A run with a `once` grant spends the
-authorization: a second purchase needs a new decision.
+permission, `booking.simulate_purchase` (*Allow once* is the natural choice: since 0.8.0 it
+covers one purchase of the conversation, and the consent step `confirm-purchase` asks the
+person on a card, with the quote's facts, in the turn that buys). The receipt and the run plan
+freeze each pick by opaque id and keyed digest; the run plan's preflight compares them with the
+host's store before anything runs, and the broker resolves only those grants, for the tools
+that link their permissions. A `once` grant is spent by the first purchase: a second "buy it" in
+the same conversation is not even asked (the step resolves denied by the plan), and a new
+conversation needs a new decision.
 
 ### Who sees what
 
@@ -505,10 +524,26 @@ host writes to `result.json` keeps none.
 
 ### Scenarios, offline
 
+Since 0.8.0 the capability demo is a set of conversations,
+[`examples/webair-0.8.0-conversations.json`](../../examples/webair-0.8.0-conversations.json)
+(`capability`, generated by `python -m publisher sync`): a profile-assisted search (A), an
+explicit search with the profile denied (B), a quote searched and quoted in one turn (C), the
+hero search then a quote of a fare it offered by its id (C'), "buy it" with the payment method
+denied, which stops at the payment read before any card (D), "buy it" declined on the card (E')
+and "buy it" accepted on the card, then goodbye (E). [`tests/test_package_workflow.py`](tests/test_package_workflow.py)
+runs each through the generic conversation runner against the in-process origin, the demo
+host's stand-in answering the picked resources and the transcript answering the card, and checks
+what each turn sends, reads, asks and keeps: the identity reaches only `prepare_booking` and
+`simulate_purchase`, the payment identifier only `simulate_purchase`, the card's facts carry the
+passenger's name and the card's label and never the e-mail or the identifier, a declined card
+buys nothing and keeps the quote open, a spent `once` grant is not asked again, and nothing
+personal is in a reply, a persisted state or a transcript.
+
+The same demo as one-shot tasks of the 0.5.0 package,
 [`examples/webair-capability-scenarios.json`](../../examples/webair-capability-scenarios.json)
-(generated by `python -m publisher sync`) holds each scenario's task, grants and picks, scripted
-model answers, and every request WebAir received with its answer in a reference run. The Agent
-Browser's acceptance suite
+(also generated), holds each task, grants and picks, scripted model answers, and every request
+WebAir received with its answer in a reference run; the OpenClaw Agent Browser's acceptance
+suite
 ([`webair-capabilities.test.ts`](../../openclaw-agent-browser/test/webair-capabilities.test.ts))
 runs them through the real control plane, runner and broker, serving those answers at the
 broker's transport:
@@ -557,15 +592,15 @@ email or label from `host-resources.json` appears, and is reproducible byte for 
 
 ```sh
 # from the repository root, with the Railway CLI signed in (railway login)
-python3 demo/webair/deploy/bundle.py --package dist/webair-0.7.0.agent.pkg \
-  --expect-sha256 c0265a283d0b2edd5c919e1bb7cb3a95e6ccfc449d76590d62b1a47ff3fbd808 \
+python3 demo/webair/deploy/bundle.py --package dist/webair-0.8.0.agent.pkg \
+  --expect-sha256 9c81a9362754fc3c48c923b4968e75daa9e0260ae422be7e77b30f1df1a7eae0 \
   --out /tmp/webair-bundle
 railway up /tmp/webair-bundle --path-as-root --service webagents-webair --environment production
 
 # then: the page, the health check, and the exact bytes
 curl -sS https://webagents-webair-production.up.railway.app/health
 curl -sS https://webagents-webair-production.up.railway.app/agent.pkg -o /tmp/public.agent.pkg
-cmp /tmp/public.agent.pkg dist/webair-0.7.0.agent.pkg && \
+cmp /tmp/public.agent.pkg dist/webair-0.8.0.agent.pkg && \
   agentpkg/.venv/bin/agentpkg verify /tmp/public.agent.pkg --trust-key examples/keys/webair-publisher.pub.pem
 ```
 
@@ -575,11 +610,11 @@ Review package the index lists. They do not belong to the airline; they are serv
 is the demo deployment that exists. `origin/demo_documents.py` reads exactly seven files from the
 directory named by `--demo-documents` (`$WEBAIR_DEMO_DOCUMENTS`) once at startup and serves each at
 one fixed path: `/agent-index.json`, `/policies/webagents-research.json`,
-`/packages/literature-review-0.2.9.agent.pkg` (the package index 1.4.0 lists, T22), and 0.2.8, 0.2.7,
+`/packages/literature-review-0.2.9.agent.pkg` (the package indexes 1.4.0 and 1.5.0 list, T22, T24), and 0.2.8, 0.2.7,
 0.2.6 and 0.2.5 at their paths (the ones indexes 1.3.0, 1.2.0, 1.1.0 and 1.0.0 listed, kept so their URLs
 still resolve). The bundle carries them under `demo/`, byte for byte from `examples/` and `dist/`; without
-the option the paths answer 404. Index 1.4.0 names WebAir 0.7.0, so it is deployed in the same bundle
-as `dist/webair-0.7.0.agent.pkg`. After a redeploy:
+the option the paths answer 404. Index 1.5.0 names WebAir 0.8.0, so it is deployed in the same bundle
+as `dist/webair-0.8.0.agent.pkg`. After a redeploy:
 
 ```sh
 for doc in agent-index.json policies/webagents-research.json; do

@@ -23,7 +23,8 @@ import { validatePayload } from "../validation.js";
 import { checkAnswer, checkAssertions } from "./assertions.js";
 import { CancelToken, withDeadline, yieldPoint } from "./cancel.js";
 import { BudgetError, CancelledError, failedCheck, failureCode, PolicyError, TimeoutError, WorkflowError } from "./errors.js";
-import { computeHostLimits, Context, digest, prepareCompute, Runtime, type RuntimeOptions } from "./runtime.js";
+import { computeHostLimits, Context, digest, prepareCompute, Runtime, type ConsentRecord, type RuntimeOptions } from "./runtime.js";
+import { ConsentError } from "../conversation/errors.js";
 import { evaluate, pyEqual, type Environment } from "./values.js";
 
 export const PROFILE = "workflow.v0";
@@ -43,12 +44,16 @@ export interface ExecutionReport {
   status: "completed" | "failed" | "cancelled";
   audit: AuditEvent[];
   usage: JsonObject;
-  provenance: { profile: string; interpreter: string; package_id: string; package_digest: string; synthetic: boolean };
+  provenance: { profile: string; interpreter: string; package_id: string; package_digest: string; synthetic: boolean; conversation?: { conversation_id: string; turn: number } };
   error_code?: string;
   output?: JsonValue;
   state?: JsonObject;
   /** What the run did with memory (memory.v0 §7, §9): the proposals it offers and the agent document's fate. */
   memory?: MemoryRunReport | null;
+  /** conversation.v0 (V-27): the decisions of the turn, as the transcript records them; present on a turn only. */
+  consents?: ConsentRecord[];
+  /** conversation.v0 (V-5): the persistent keys of the final state, validated; present on a completed turn only. */
+  conversation_state?: JsonObject;
 }
 
 export interface WorkflowResult extends ExecutionReport {
@@ -69,6 +74,8 @@ export class Workflow {
   private cancelRequested = false;
   private readonly root: CancelToken;
   private output: JsonValue = null;
+  /** conversation.v0 (V-5): the persistent keys of the final state, once validated. */
+  private persisted: JsonObject | null = null;
   /** Bundled model schemas by path: the package is immutable for the run, so one bundle per schema (review 1, nit 13). */
   private readonly modelSchemas = new Map<string, JsonValue>();
 
@@ -78,6 +85,12 @@ export class Workflow {
     this.schemas = schemas;
     const { deadlineAt, ...runtimeOptions } = options;
     this.root = new CancelToken(null, deadlineAt ?? Number.POSITIVE_INFINITY);
+    // conversation.v0 (§4): a conversational graph runs turn by turn, each turn given its
+    // conversation's context; a plain run of it has no persisted state to start from.
+    const conversation = pkg.graph.conversation;
+    const turn = options.turn ?? null;
+    if (conversation !== undefined && conversation !== null && turn === null) throw new PolicyError("conversation_turn_required: this package declares a conversation and runs turn by turn (agentpkg converse)");
+    if ((conversation === undefined || conversation === null) && turn !== null) throw new PolicyError("conversation_turn_unexpected: this package declares no conversation");
     this.runtime = new Runtime(pkg, schemas, runtimeOptions);
   }
 
@@ -182,6 +195,18 @@ export class Workflow {
         if (error instanceof BudgetError || error instanceof ValidationError || error instanceof TimeoutError || error instanceof CancelledError || error instanceof PolicyError) throw error;
         if (error instanceof ComputeError) throw Object.assign(new WorkflowError("compute_error", String(node.id), { cause: error }), { compute: error.facts() });
         throw new WorkflowError("worker_error", String(node.id), { cause: error });
+      }
+    } else if (kind === "consent") {
+      // conversation.v0: the person's decision on one bounded action, asked by the host within
+      // the node's timeout; its answer is the step's result. A host that answers outside the
+      // contract is the host's failure (`worker_error`), never the person's.
+      const text = evaluate(node.text!, env);
+      try {
+        result = await ctx.consent(node, value, text, token);
+      } catch (error) {
+        if (error instanceof PolicyError || error instanceof ValidationError || error instanceof TimeoutError || error instanceof CancelledError) throw error;
+        if (error instanceof ConsentError) throw new WorkflowError("worker_error", String(node.id), { cause: error });
+        throw error;
       }
     } else if (kind === "join") {
       if (!Array.isArray(value)) throw new ValidationError(`node ${node.id}: join input must be an array`);
@@ -422,7 +447,10 @@ export class Workflow {
     try {
       if (this.cancelRequested) throw new CancelledError();
       await this.validate(String(this.graph.input_schema), input, "workflow input");
-      let state = evaluate(this.graph.initial_state!, { input }) as JsonObject;
+      const sources: Environment = { input };
+      // The turn starts from the persisted state (conversation.v0 V-4).
+      if (rt.turn !== null) sources.conversation = deepCopy(rt.turn.state);
+      let state = evaluate(this.graph.initial_state!, sources) as JsonObject;
       const statePath = String((this.package.policy.memory as JsonObject).state_schema);
       await this.validate(statePath, state, "initial state");
       // State access, including coordinator-only graphs, requires host authority.
@@ -456,6 +484,16 @@ export class Workflow {
         }
       });
       await this.validate(String(this.graph.output_schema), this.output, "workflow output");
+      if (rt.turn !== null) {
+        // What outlives the turn (V-5): the persistent keys of the final state, checked against
+        // the conversation's state schema before the turn may complete.
+        const conversation = this.graph.conversation as JsonObject;
+        const schema = parseJson(this.package.files.get(String(conversation.state_schema))!, String(conversation.state_schema)) as JsonObject;
+        const persisted: JsonObject = {};
+        for (const key of Object.keys(isJsonObject(schema.properties) ? schema.properties : {})) if (Object.hasOwn(state, key)) persisted[key] = deepCopy(state[key]!);
+        await this.validate(String(conversation.state_schema), persisted, "conversation state");
+        this.persisted = persisted;
+      }
       for (const entry of (this.graph.exports as JsonValue[] | undefined) ?? []) {
         const record = entry as JsonObject;
         const value = evaluate(record.value!, { result: this.output });
@@ -477,7 +515,7 @@ export class Workflow {
       }
       rt.record("workflow.completed", { profile: PROFILE, output_hash: digest(this.output) });
       this.recordAgentOutcome("completed");
-      const result: WorkflowResult = { ...this.report("completed"), status: "completed", output: deepCopy(this.output), state: deepCopy(state) };
+      const result: WorkflowResult = { ...this.report("completed"), status: "completed", output: deepCopy(this.output), state: deepCopy(state), ...(rt.turn !== null ? { conversation_state: deepCopy(this.persisted!) } : {}) };
       rt.clear();
       return result;
     } catch (error) {
@@ -520,9 +558,11 @@ export class Workflow {
   }
 
   private report(status: ExecutionReport["status"]): ExecutionReport {
+    const turn = this.runtime.turn;
     return {
       status,
       ...(this.memoryReport !== null ? { memory: this.memoryReport } : {}),
+      ...(turn !== null ? { consents: deepCopy(this.runtime.consentDecisions as unknown as JsonValue) as unknown as ConsentRecord[] } : {}),
       audit: this.runtime.audit,
       usage: this.runtime.usage,
       provenance: {
@@ -531,6 +571,7 @@ export class Workflow {
         package_id: String(this.package.manifest.package_id),
         package_digest: this.package.digest,
         synthetic: Boolean(this.runtime.router?.synthetic),
+        ...(turn !== null ? { conversation: { conversation_id: turn.conversation_id, turn: turn.turn } } : {}),
       },
     };
   }

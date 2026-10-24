@@ -25,7 +25,7 @@ const routes: Record<string, Route> = {
   [`${ORIGIN}/agent-index.json`]: { body: readBytes(resolve(ROOT, "examples/agent-index.json")) },
   [`${ORIGIN}/policies/webagents-research.json`]: { body: readBytes(resolve(ROOT, "examples/policies/webagents-research.json")) },
   [`${ORIGIN}/packages/literature-review-0.2.9.agent.pkg`]: { body: readBytes(SHIPPED.literatureReview029.archive) },
-  [`${ORIGIN}/agent.pkg`]: { body: readBytes(SHIPPED.webair070.archive) },
+  [`${ORIGIN}/agent.pkg`]: { body: readBytes(SHIPPED.webair080.archive) },
 };
 
 type Listener = (message: unknown) => void;
@@ -36,7 +36,7 @@ const h = makeHarness({
     for (const listener of listeners) listener(event);
   },
 });
-h.clock.now = new Date("2026-10-18T12:00:00Z");
+h.clock.now = new Date("2026-10-22T12:00:00Z");
 
 document.body.innerHTML = `<nav class="ab-nav"><a href="#open" data-view="open">Open</a><a href="#library" data-view="library">Library</a><a href="#settings" data-view="settings">Settings</a></nav><main id="app"></main>`;
 vi.stubGlobal("chrome", {
@@ -116,7 +116,7 @@ describe("search, Library and policy on the full page (T8)", () => {
     expect(app().querySelector<HTMLInputElement>("input[name=indexUrl]")!.value).toBe(demoDocuments.index.url);
     await press("Add and verify", () => app().querySelector(".ab-index-row"));
     const indexRow = await element(".ab-index-row");
-    expect(indexRow.textContent).toContain("WebAgents demo index 1.4.0");
+    expect(indexRow.textContent).toContain("WebAgents demo index 1.5.0");
     expect(indexRow.textContent).toContain("verified, current");
 
     // The address bar searches words.
@@ -127,7 +127,7 @@ describe("search, Library and policy on the full page (T8)", () => {
     const results = app().querySelectorAll<HTMLElement>(".ab-result");
     expect(results).toHaveLength(1);
     expect(results[0]!.dataset.packageId).toBe(SHIPPED.literatureReview029.packageId);
-    expect(results[0]!.textContent).toContain("Found in WebAgents demo index 1.4.0");
+    expect(results[0]!.textContent).toContain("Found in WebAgents demo index 1.5.0");
     // The chip judges the signer the index claims (T8 review 1, finding 2).
     expect(results[0]!.textContent).toContain("claims a key you have not trusted");
 

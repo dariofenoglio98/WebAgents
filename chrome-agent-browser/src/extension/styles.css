@@ -372,3 +372,32 @@ a { color: var(--ab-accent); }
 .ab-permission-row code { word-break: break-all; }
 .ab-permission-why { flex: 1 1 240px; margin: 0; }
 .ab-legacy { margin: 8px 0; }
+/* The chat surface (T24, conversation.v0, D-270). */
+.ab-chat { border-width: 2px; }
+.ab-chat[data-state="running"], .ab-chat[data-state="waiting"] { border-color: var(--ab-accent); }
+.ab-chat[data-state="ended"] { border-color: var(--ab-good-text); }
+.ab-chat-budget { margin: 2px 0 0; font-size: 0.86rem; }
+.ab-chat-transcript { display: grid; gap: 10px; margin: 10px 0; }
+.ab-chat-bubble { border: 1px solid var(--ab-border); border-radius: 12px; padding: 8px 12px; max-width: 92%; }
+.ab-chat-you { justify-self: end; background: var(--ab-neutral-bg); border-bottom-right-radius: 4px; }
+.ab-chat-agent { justify-self: start; background: var(--ab-surface); border-bottom-left-radius: 4px; }
+.ab-chat-working { border-style: dashed; border-color: var(--ab-accent); }
+.ab-chat-failed, .ab-chat-interrupted { border-color: var(--ab-bad-text); }
+.ab-chat-cancelled, .ab-chat-refused { border-color: var(--ab-warn-text); }
+.ab-chat-meta { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; font-size: 0.82rem; margin-bottom: 4px; }
+.ab-chat-text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.ab-chat-reply { margin-top: 6px; font-size: 0.85rem; }
+.ab-chat-decision { display: flex; gap: 6px; align-items: baseline; font-size: 0.86rem; padding: 2px 12px; }
+.ab-chat-decision-yes .ab-check-icon { color: var(--ab-good-text); }
+.ab-chat-decision-no .ab-check-icon { color: var(--ab-warn-text); }
+.ab-consent-card { border: 2px solid var(--ab-accent); border-radius: 12px; padding: 12px 14px; display: grid; gap: 8px; margin: 8px 0; background: var(--ab-surface); }
+.ab-consent-title { margin: 0; font-size: 1.05rem; }
+.ab-consent-text { margin: 0; font-size: 1.05rem; font-weight: 600; }
+.ab-consent-countdown { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.ab-chat-composer { display: grid; gap: 8px; margin: 8px 0; }
+.ab-chat-send { align-items: center; }
+.ab-chat-footer { display: grid; gap: 6px; }
+.ab-chat-actions { align-items: center; }
+.ab-chat-compact .ab-chat-bubble { max-width: 100%; }
+/* An input switch that needs a host read (D-273, B-219): the recall card under the switch. */
+.ab-gated-read { border: 1px solid var(--ab-accent); border-radius: 10px; padding: 10px 12px; display: grid; gap: 6px; margin: 4px 0 8px; }

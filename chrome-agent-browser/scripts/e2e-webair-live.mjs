@@ -21,7 +21,11 @@
  *
  *   node scripts/e2e-webair-live.mjs --model ollama/qwen3:30b [--site URL] [--out report.json]
  *        [--version 0.5.0]   (the WebAir version the origin must serve; the default report is
- *                             examples/verification/chrome-webair-<050>-live.json, T9)
+ *                             examples/verification/chrome-webair-<050>-live.json, T9. From 0.8.0
+ *                             (T24, conversation.v0) the phases are conversations in the chat
+ *                             surface: see `conversationPhases` below)
+ *        [--package PATH]    (with --local-origin: the archive the local origin publishes instead of
+ *                             dist/webair-<version>.agent.pkg, for a rehearsal of a build not yet signed)
  *        [--out-dir examples/my-chrome-live-<ts>] [--chrome path] [--keep] [--phases all|search,cancel,quote,purchase,denial]
  *        [--local-origin]    (T22: before a version is deployed, run this repository's WebAir origin on
  *                             127.0.0.1 over TLS, publishing dist/webair-<version>.agent.pkg, and map the
@@ -52,7 +56,9 @@ const DEFAULT_CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Ch
 const DEFAULT_SITE = "https://webagents-webair-production.up.railway.app/";
 const RUN_TIMEOUT_MS = 20 * 60 * 1000;
 
-const args = { chrome: process.env.CHROME_PATH || DEFAULT_CHROME, site: DEFAULT_SITE, model: null, version: "0.5.0", out: null, outDir: null, keep: false, localOrigin: false, phases: ["search", "cancel", "quote", "purchase", "denial"] };
+const args = { chrome: process.env.CHROME_PATH || DEFAULT_CHROME, site: DEFAULT_SITE, model: null, version: "0.5.0", out: null, outDir: null, keep: false, localOrigin: false, package: null, phases: ["search", "cancel", "quote", "purchase", "denial"] };
+/** WebAir 0.8.0 (T24, conversation.v0) is talked to: one message per turn, the card before the purchase. */
+const conversational = (version) => Number(version.split(".")[1] ?? "0") >= 8;
 /** The memory phase (T19, Demo 6) needs WebAir 0.6.0 (memory.v0): it is on by default from that version. */
 const memoryCapable = (version) => Number(version.split(".")[1] ?? "0") >= 6;
 for (let index = 2; index < process.argv.length; index += 1) {
@@ -65,6 +71,7 @@ for (let index = 2; index < process.argv.length; index += 1) {
   else if (argument === "--out-dir") args.outDir = resolve(process.argv[(index += 1)]);
   else if (argument === "--keep") args.keep = true;
   else if (argument === "--local-origin") args.localOrigin = true;
+  else if (argument === "--package") args.package = resolve(process.argv[(index += 1)]);
   else if (argument === "--phases") args.phases = process.argv[(index += 1)] === "all" ? [...args.phases, "memory"] : process.argv[index].split(",");
   else {
     console.error(`unknown argument ${argument}`);
@@ -206,7 +213,7 @@ async function startLocalOrigin(directory) {
   const host = new URL(args.site).hostname;
   const tls = certificate(directory, host);
   const port = await freePort();
-  const pkg = join(ROOT, "dist", `webair-${args.version}.agent.pkg`);
+  const pkg = args.package ?? join(ROOT, "dist", `webair-${args.version}.agent.pkg`);
   if (!existsSync(pkg)) throw new Error(`${relative(ROOT, pkg)} is missing`);
   const script = "import sys, uvicorn\nfrom origin.app import create_app\nuvicorn.run(create_app(sys.argv[1], None), host='127.0.0.1', port=int(sys.argv[2]), ssl_keyfile=sys.argv[3], ssl_certfile=sys.argv[4], log_level='warning', server_header=False)";
   const child = spawn(join(ROOT, "demo", "webair", ".venv", "bin", "python"), ["-c", script, pkg, String(port), join(directory, "key.pem"), join(directory, "cert.pem")], { cwd: join(ROOT, "demo", "webair"), stdio: ["ignore", "ignore", "pipe"] });
@@ -243,6 +250,9 @@ async function main() {
   const mapping = origin ? [`--host-resolver-rules=MAP ${origin.host} 127.0.0.1:${origin.port}`, `--ignore-certificate-errors-spki-list=${origin.spkiHash}`] : [];
   const chrome = spawn(args.chrome, ["--headless=new", "--remote-debugging-pipe", "--enable-unsafe-extension-debugging", `--user-data-dir=${profile}`, "--no-first-run", "--no-default-browser-check", "--window-size=1280,2200", ...mapping, "about:blank"], { stdio: ["ignore", "ignore", "ignore", "pipe", "pipe"] });
   const cdp = new Cdp(chrome);
+  /** The conversation a chat phase is on, and its export, reachable from the abort path below. */
+  let current = null;
+  let exportCurrent = async () => undefined;
   try {
     report.chrome = (await cdp.send("Browser.getVersion")).product;
     // A pre-granted copy of the build (D-196): the origins this harness drives, as the person would have allowed them.
@@ -407,8 +417,224 @@ async function main() {
       if (await cdp.evaluate(page, `__ab.click("New run")`)) await sleep(200);
     };
 
+    // -- WebAir 0.8.0 and later: the chat surface (T24, conversation.v0) ---------------------------
+    // The phases are conversations: the page's chat panel is driven as a person drives it ("Start a
+    // conversation", the message box, "Send", the card's Yes / No), the record is read through the
+    // extension's messages, and each conversation is exported (D-272) with every turn's recorded
+    // requests beside its files, under <out-dir>/<phase>/.
+    const chat = conversational(args.version);
+    let quoteId = null;
+    const conversationOf = async (conversationId) => send({ type: "conversation.get", conversationId });
+    const newestConversation = async () => (await send({ type: "conversation.list", sessionId })).conversations[0] ?? null;
+    const waitConversation = async (conversationId, predicate, label, timeoutMs = RUN_TIMEOUT_MS) => {
+      const deadline = Date.now() + timeoutMs;
+      for (;;) {
+        const view = await conversationOf(conversationId);
+        if (predicate(view)) return view;
+        if (Date.now() > deadline) throw new Error(`timed out waiting for ${label}`);
+        await sleep(500);
+      }
+    };
+    const startConversation = async (phase) => {
+      const before = await newestConversation();
+      // The surface keeps the current conversation: an open one is ended by the person, an ended
+      // one stays until "New conversation" clears it; then the composer offers a start.
+      if (before && before.status === "open") {
+        if (await cdp.evaluate(page, `__ab.click("End conversation")`)) await waitConversation(before.conversationId, (view) => view.status === "ended", `the previous conversation to end (${phase})`, 60_000);
+      }
+      if (await cdp.evaluate(page, `__ab.click("New conversation")`)) await sleep(300);
+      await cdp.waitFor(page, `__ab.click("Start a conversation")`, `Start a conversation (${phase})`, 60_000);
+      const summary = await cdp.waitFor(page, `__ab.send({ type: "conversation.list", sessionId: ${JSON.stringify(sessionId)} }).then((r) => r.ok && r.result.conversations[0] && r.result.conversations[0].conversationId !== ${JSON.stringify(before?.conversationId ?? null)} ? r.result.conversations[0] : null)`, `the new conversation (${phase})`, 30_000);
+      return summary.conversationId;
+    };
+    const say = async (conversationId, text, label) => {
+      await cdp.waitFor(page, `document.querySelector("textarea#ab-field-message") !== null`, `the message box (${label})`, 30_000);
+      await cdp.evaluate(page, `__ab.setInput("textarea#ab-field-message", ${JSON.stringify(text)})`);
+      const turnsBefore = (await conversationOf(conversationId)).transcript.length;
+      await cdp.waitFor(page, `__ab.click("Send")`, `Send (${label})`, 30_000);
+      return waitConversation(conversationId, (view) => view.activeRunId !== null || view.transcript.length > turnsBefore, `the turn to start (${label})`, 60_000);
+    };
+    const settledTurn = async (conversationId, label) => {
+      const view = await waitConversation(conversationId, (current) => current.activeRunId === null, `the turn to settle (${label})`);
+      return { view, turn: view.transcript[view.transcript.length - 1] ?? null };
+    };
+    const exportConversation = async (phase, conversationId) => {
+      const directory = join(outDir, phase);
+      mkdirSync(directory, { recursive: true });
+      const bundle = await send({ type: "conversation.export", conversationId });
+      for (const entry of bundle.entries) {
+        const path = join(directory, entry.name);
+        mkdirSync(dirname(path), { recursive: true });
+        writeFileSync(path, Buffer.from(entry.base64, "base64"));
+      }
+      const view = await conversationOf(conversationId);
+      const turns = [];
+      for (const turn of view.transcript) {
+        if (!turn.run_id) continue;
+        const prefix = `turn-${String(turn.turn).padStart(3, "0")}`;
+        const observations = await send({ type: "run.observations", runId: turn.run_id });
+        writeFileSync(join(directory, prefix, "observations.json"), `${JSON.stringify(observations, null, 2)}\n`);
+        const record = await send({ type: "run.get", runId: turn.run_id });
+        turns.push({ turn: turn.turn, status: turn.status, error_code: turn.error_code, run_id: turn.run_id, decisions: turn.decisions, reply_status: turn.reply?.status ?? null, intent: turn.reply?.intent ?? null, observations: observations.observations.length, model: record.model, usage: record.usage ? { tokens: record.usage.tokens, remoteCalls: record.usage.remoteCalls, toolCalls: record.usage.toolCalls } : null, audit: record.audit ? { events: record.audit.events, chainValid: record.audit.chainValid } : null, durationMs: record.durationMs, failure: record.failure });
+      }
+      return { directory: relative(ROOT, directory), files: bundle.entries.map((entry) => ({ name: entry.name, bytes: entry.bytes, sha256: entry.sha256 })), conversation: { conversationId, status: view.status, ended: view.ended, outcome: view.outcome, spent: view.spent, state: view.state, limits: view.limits }, turns };
+    };
+    if (chat) report.conversations = {};
+    // A phase that aborts leaves its conversation exported (its files are the diagnosis).
+    exportCurrent = async () => {
+      if (!chat || !current || report.conversations[current.phase]) return;
+      try {
+        report.conversations[current.phase] = await exportConversation(current.phase, current.conversationId);
+      } catch (error) {
+        report.conversations[current.phase] = { error: error.message };
+      }
+    };
+    const CHAT_SEARCH = "Find me a nonstop flight from Boston to Zurich on 9 October under $900.";
+    const CHAT_REFINE = "Only the cheapest one, and tell me whether it includes a checked bag.";
+    const CHAT_QUOTE = "Prepare WA101 Standard for 9 October for me.";
+    const CHAT_BUY = "Buy it.";
+    const CHAT_BYE = "That's all, thanks.";
+
+    // S. Search flights as a conversation: a search, a refinement over the history (the page reloaded
+    //    while the second turn runs: the chat surface adopts the turn in flight), then goodbye.
+    if (chat && args.phases.includes("search")) {
+      const auth = await authorize("search", {});
+      report.steps.searchAuthorization = auth;
+      check("search", "the search plan is ready and declares the conversation", auth.ready === true, auth.banner);
+      const conversationId = await startConversation("search");
+      current = { phase: "search", conversationId };
+      await say(conversationId, CHAT_SEARCH, "search turn 1");
+      const first = await settledTurn(conversationId, "search turn 1");
+      check("search", "turn 1 completed with the hero fares found", first.turn?.status === "completed" && first.turn.reply?.status === "options_found", { status: first.turn?.status, error: first.turn?.error_code, reply: first.turn?.reply?.status });
+      await shot("2-chat-search");
+      await say(conversationId, CHAT_REFINE, "search turn 2");
+      // Close and reopen: the page is reloaded while the turn is in flight; the chat surface must adopt it.
+      await cdp.send("Page.reload", {}, page);
+      await ready();
+      const adopted = await cdp.waitFor(page, `(() => { const n = document.querySelector(".ab-chat"); return n ? n.dataset.state : null; })()`, "the reloaded chat surface", 60_000);
+      report.steps.reconnect = { stateAfterReload: adopted, conversationId };
+      check("reconnect", "the reloaded page shows the conversation", typeof adopted === "string", adopted);
+      const second = await settledTurn(conversationId, "search turn 2");
+      check("search", "turn 2 refined the search over the history (the same route and date, the cheapest fare)", second.turn?.status === "completed" && second.turn.reply?.intent === "search" && second.turn.reply?.status === "options_found", { status: second.turn?.status, error: second.turn?.error_code, reply: second.turn?.reply?.status });
+      await say(conversationId, CHAT_BYE, "search goodbye");
+      const ended = await waitConversation(conversationId, (view) => view.status === "ended", "the search conversation to end");
+      check("search", "goodbye ended the conversation by the package's rule", ended.ended?.reason === "package", ended.ended);
+      report.conversations.search = await exportConversation("search", conversationId);
+      await shot("2-chat-search-ended");
+    }
+
+    // C. Cancel: a turn stopped from the chat surface; the conversation stays open and is ended by the person.
+    if (chat && args.phases.includes("cancel")) {
+      const auth = await authorize("search", {});
+      check("cancel", "a new search plan is ready", auth.ready === true, auth.banner);
+      const conversationId = await startConversation("cancel");
+      current = { phase: "cancel", conversationId };
+      await say(conversationId, CHAT_SEARCH, "cancel turn");
+      await cdp.waitFor(page, `__ab.click("Stop this turn")`, "the Stop button", 30_000);
+      report.steps.cancel = { pressedAtS: Math.round((Date.now() - startedAt.getTime()) / 1000) };
+      const stopped = await settledTurn(conversationId, "the cancelled turn");
+      check("cancel", "the turn settled as cancelled and the conversation stayed open", stopped.turn?.status === "cancelled" && stopped.view.status === "open", { status: stopped.turn?.status, conversation: stopped.view.status });
+      await cdp.waitFor(page, `__ab.click("End conversation")`, "the End button", 30_000);
+      const ended = await waitConversation(conversationId, (view) => view.status === "ended", "the cancelled conversation to end");
+      check("cancel", "the person ended it", ended.ended?.reason === "person", ended.ended);
+      report.conversations.cancel = await exportConversation("cancel", conversationId);
+    }
+
+    // Q. Search and quote: the quote in one turn; the identity reaches WebAir only in prepare_booking;
+    //    the quote stays open in the conversation's state.
+    if (chat && args.phases.includes("quote")) {
+      const auth = await authorize("quote", { [PROFILE_PERMISSION]: PICKS[PROFILE_PERMISSION], "identity.passenger": PICKS["identity.passenger"] });
+      report.steps.quoteAuthorization = auth;
+      check("quote", "the quote plan is ready with two records", auth.ready === true && auth.grants.length === 2, auth);
+      const conversationId = await startConversation("quote");
+      current = { phase: "quote", conversationId };
+      await say(conversationId, CHAT_QUOTE, "quote turn");
+      const { view, turn } = await settledTurn(conversationId, "quote turn");
+      quoteId = turn?.reply?.booking?.quote_id ?? null;
+      report.steps.quote = { quoteId, fareId: turn?.reply?.booking?.fare_id ?? null, totalUsd: turn?.reply?.booking?.total_usd ?? null, conversationId };
+      check("quote", "the turn quoted the fare", turn?.status === "completed" && turn.reply?.status === "quoted" && typeof quoteId === "string" && /^WAQ-[0-9A-F]{16}$/u.test(quoteId), { status: turn?.status, error: turn?.error_code, reply: turn?.reply?.status, quoteId });
+      check("quote", "the open quote outlives the turn", view.state?.quote_ref?.quote_id === quoteId, view.state?.quote_ref ?? null);
+      await shot("3-chat-quote");
+      report.conversations.quote = await exportConversation("quote", conversationId);
+      // The memory phase (Demo 6) is this conversation's review sheet: the quote proposes a preference.
+      if (args.phases.includes("memory")) {
+        const runRecord = await send({ type: "run.get", runId: turn.run_id });
+        report.steps.memoryRun = { runId: turn.run_id, memory: runRecord.memory ?? null };
+        check("memory", "the quote turn proposed something to remember (memory.proposed)", (runRecord.memory?.proposals?.offered ?? 0) > 0, runRecord.memory);
+        if ((runRecord.memory?.proposals?.offered ?? 0) > 0) {
+          const sheet = await cdp.waitFor(page, `__ab.review()`, "the review sheet", 30_000);
+          check("memory", "the review sheet lists every offered proposal", sheet.cards === runRecord.memory.proposals.offered, sheet);
+          await shot("6-review");
+          await cdp.evaluate(page, `__ab.click("Accept all", document.querySelector(".ab-review"))`);
+          await sleep(200);
+          await cdp.evaluate(page, `__ab.click("Save decisions", document.querySelector(".ab-review"))`);
+          const done = await cdp.waitFor(page, `(() => { const r = __ab.review(); return r && r.done ? r : null; })()`, "the decisions applied", 30_000);
+          report.steps.memoryReview = { done, review: await send({ type: "memory.review", runId: turn.run_id }) };
+          check("memory", "the decisions were applied once and the sheet collapsed", done.done === true && report.steps.memoryReview.review.decided !== null, report.steps.memoryReview);
+        }
+      }
+    }
+
+    // P. Book (simulated): a quote, then "Buy it." reaches the card with the quote's facts; Yes places the
+    //    simulated purchase under once; a second "Buy it." is not asked (the once grant spent); goodbye.
+    if (chat && args.phases.includes("purchase")) {
+      const auth = await authorize("book", PICKS);
+      report.steps.purchaseAuthorization = auth;
+      await shot("4-book-authorized");
+      check("purchase", "the book plan is ready with the purchase granted once", auth.ready === true && auth.decisions?.["booking.simulate_purchase"] === "once", auth);
+      const conversationId = await startConversation("purchase");
+      current = { phase: "purchase", conversationId };
+      await say(conversationId, CHAT_QUOTE, "purchase: the quote turn");
+      const quoted = await settledTurn(conversationId, "purchase: the quote turn");
+      check("purchase", "the quote turn completed", quoted.turn?.status === "completed" && quoted.turn.reply?.status === "quoted", { status: quoted.turn?.status, error: quoted.turn?.error_code });
+      await say(conversationId, CHAT_BUY, "purchase: buy it");
+      const waiting = await waitConversation(conversationId, (view) => view.pendingConsent !== null || view.activeRunId === null, "the card");
+      const card = waiting.pendingConsent;
+      report.steps.card = card ? { step: card.step, permissions: card.permissions, kinds: card.kinds, text: card.text, facts: card.facts, requested_at: card.requested_at, seen_at: new Date().toISOString() } : null;
+      check("purchase", "the turn waits on the card: confirm-purchase, the purchase authority, the quote's facts with the passenger's name and the card's label, no e-mail or payment id", card?.step === "confirm-purchase" && card.kinds?.includes("payment") && card.facts?.quote_id === quoted.turn.reply.booking.quote_id && typeof card.facts?.passenger?.given_name === "string" && typeof card.facts?.payment_method === "string" && !JSON.stringify(card.facts).includes("@") && !("payment_method_id" in (card.facts ?? {})), card);
+      await shot("5-chat-card");
+      await cdp.waitFor(page, `(() => { const b = document.querySelector('[data-decide="accept"]'); if (!b || b.disabled) return false; b.click(); return true; })()`, "the card's Yes", 30_000);
+      report.steps.decision = { accepted: true, decided_at: new Date().toISOString() };
+      const bought = await settledTurn(conversationId, "purchase: the card accepted");
+      check("purchase", "the simulated purchase completed with the person's decision", bought.turn?.status === "completed" && bought.turn.reply?.status === "purchase_simulated" && bought.turn.decisions?.[0]?.decided_by === "person" && bought.turn.decisions[0].accepted === true, { status: bought.turn?.status, error: bought.turn?.error_code, reply: bought.turn?.reply?.status, decisions: bought.turn?.decisions });
+      check("purchase", "it is simulated with no charge, and once was spent", bought.turn?.reply?.purchase?.real_transaction === false && bought.turn.reply.purchase.amount_charged_usd === 0 && bought.view.spent.permissions.includes("booking.simulate_purchase"), { purchase: bought.turn?.reply?.purchase, spent: bought.view.spent });
+      await shot("5-chat-bought");
+      // The replay: a second "buy it" buys nothing. Either the interpreter reads it as a purchase and
+      // the card is not asked (V-13: the step resolves denied by the plan as consumed), or it sees the
+      // confirmation in the state and answers the question (the skill's rule); in both no card, no call.
+      await say(conversationId, CHAT_BUY, "purchase: buy it again");
+      const again = await settledTurn(conversationId, "purchase: the second buy");
+      const replay = { turn: again.turn?.status, intent: again.turn?.reply?.intent, reply: again.turn?.reply?.status, decisions: again.turn?.decisions };
+      report.steps.replay = { ...replay };
+      const consumed = replay.reply === "purchase_declined" && replay.decisions?.[0]?.decided_by === "plan" && replay.decisions[0].reason === "permission_consumed";
+      const answered = replay.intent === "question" && replay.reply === "answered" && (replay.decisions ?? []).length === 0;
+      check("replay", "the second purchase bought nothing: not asked (declined by the plan as consumed) or answered from the state", replay.turn === "completed" && (consumed || answered) && again.view.spent.tool_calls?.["simulate-purchase"] === 1, replay);
+      await say(conversationId, CHAT_BYE, "purchase goodbye");
+      const ended = await waitConversation(conversationId, (view) => view.status === "ended", "the purchase conversation to end");
+      check("purchase", "goodbye ended the conversation", ended.ended?.reason === "package", ended.ended);
+      report.conversations.purchase = await exportConversation("purchase", conversationId);
+      await shot("5-chat-ended");
+    }
+
+    // D. Denial: under the quote profile, "Buy it." stops at the payment read; no card, nothing sent; the conversation stays open.
+    if (chat && args.phases.includes("denial")) {
+      const auth = await authorize("quote", { [PROFILE_PERMISSION]: PICKS[PROFILE_PERMISSION], "identity.passenger": PICKS["identity.passenger"] });
+      check("denial", "the quote plan is ready again", auth.ready === true, auth.banner);
+      const conversationId = await startConversation("denial");
+      current = { phase: "denial", conversationId };
+      await say(conversationId, CHAT_QUOTE, "denial: the quote turn");
+      const quoted = await settledTurn(conversationId, "denial: the quote turn");
+      check("denial", "the quote turn completed", quoted.turn?.status === "completed", { status: quoted.turn?.status, error: quoted.turn?.error_code });
+      await say(conversationId, CHAT_BUY, "denial: buy it");
+      const denied = await settledTurn(conversationId, "denial: buy it");
+      check("denial", "the purchase turn failed with permission_denied, no card shown, the conversation open", denied.turn?.status === "failed" && denied.turn.error_code === "permission_denied" && (denied.turn.decisions ?? []).length === 0 && denied.view.status === "open", { status: denied.turn?.status, error: denied.turn?.error_code, decisions: denied.turn?.decisions });
+      await cdp.waitFor(page, `__ab.click("End conversation")`, "the End button (denial)", 30_000);
+      await waitConversation(conversationId, (view) => view.status === "ended", "the denial conversation to end");
+      report.conversations.denial = await exportConversation("denial", conversationId);
+    }
+
     // 2. Search flights: a run, with the page reloaded in the middle (reconnect).
-    if (args.phases.includes("search")) {
+    if (!chat && args.phases.includes("search")) {
       const auth = await authorize("search", {});
       report.steps.searchAuthorization = auth;
       check("search", "the search plan is ready", auth.ready === true, auth.banner);
@@ -430,7 +656,7 @@ async function main() {
     }
 
     // 3. Cancel: a second search stopped as soon as it runs.
-    if (args.phases.includes("cancel")) {
+    if (!chat && args.phases.includes("cancel")) {
       const auth = await authorize("search", {});
       check("cancel", "a new search plan is ready", auth.ready === true, auth.banner);
       const cancelled = await runTask("cancel", { request: SEARCH_REQUEST, booking: false, purchase: { quote_id: "", fare_id: "" } }, {
@@ -445,8 +671,7 @@ async function main() {
     }
 
     // 4. Search and quote: the passenger identity reaches WebAir only in prepare_booking.
-    let quoteId = null;
-    if (args.phases.includes("quote")) {
+    if (!chat && args.phases.includes("quote")) {
       const auth = await authorize("quote", { [PROFILE_PERMISSION]: PICKS[PROFILE_PERMISSION], "identity.passenger": PICKS["identity.passenger"] });
       report.steps.quoteAuthorization = auth;
       check("quote", "the quote plan is ready with two records", auth.ready === true && auth.grants.length === 2, auth);
@@ -460,7 +685,7 @@ async function main() {
     }
 
     // 5. Book (simulated): purchase under once; then the same authorization is refused.
-    if (args.phases.includes("purchase") && quoteId) {
+    if (!chat && args.phases.includes("purchase") && quoteId) {
       const auth = await authorize("book", PICKS);
       report.steps.purchaseAuthorization = auth;
       await shot("4-book-authorized");
@@ -491,7 +716,7 @@ async function main() {
 
     // 7. Memory (T19, Demo 6; WebAir 0.6.0): a booking proposes things to remember; the person accepts them;
     //    the memory folder is exported; a second authorization recalls the accepted record.
-    if (args.phases.includes("memory")) {
+    if (!chat && args.phases.includes("memory")) {
       const bookPicks = Object.fromEntries(Object.entries(PICKS).filter(([permission]) => permission !== PROFILE_PERMISSION));
       const auth = await authorize("book", bookPicks);
       report.steps.memoryAuthorization = auth;
@@ -555,7 +780,7 @@ async function main() {
     }
 
     // 6. Denial: the quote profile cannot purchase.
-    if (args.phases.includes("denial") && quoteId) {
+    if (!chat && args.phases.includes("denial") && quoteId) {
       const auth = await authorize("quote", { [PROFILE_PERMISSION]: PICKS[PROFILE_PERMISSION], "identity.passenger": PICKS["identity.passenger"] });
       check("denial", "the quote plan is ready again", auth.ready === true, auth.banner);
       const denial = await runTask("denial", { request: `Simulate purchase of quote ${quoteId}.`, booking: false, purchase: { quote_id: quoteId, fare_id: report.steps.quote.fareId } });
@@ -564,6 +789,7 @@ async function main() {
     }
   } catch (error) {
     report.failures.push(`harness: ${error.message}`);
+    await exportCurrent().catch(() => undefined);
   } finally {
     const exited = chrome.exitCode !== null || chrome.signalCode !== null ? Promise.resolve() : new Promise((resolveExit) => chrome.once("exit", resolveExit));
     chrome.kill();

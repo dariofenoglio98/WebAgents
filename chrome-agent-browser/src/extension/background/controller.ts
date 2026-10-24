@@ -106,6 +106,9 @@ import { MAX_INDEXES, MAX_PINNED, SubscriptionStorage, type LibraryEntry, type S
 import type { TabStateStore } from "../storage/tab-state.js";
 import type { ViewHolder, ViewHolderStore } from "../storage/view-holders.js";
 import type { RunStore } from "../storage/runs.js";
+import { MemoryConversationStore, type ConversationStore } from "../storage/conversations.js";
+import { ConversationManager } from "./conversations.js";
+import { inputGatedReads } from "../../core/inputs.js";
 import { isTerminal, RunManager, type ExecutionHostBridge, type RunHooks } from "./runs.js";
 
 export interface Limits {
@@ -158,6 +161,8 @@ export interface ControllerDeps {
   version?: string;
   /** Runs, their checkpoints and artifacts (IndexedDB, D-071). */
   runs: RunStore;
+  /** conversation.v0 (T24): the conversations between turns; in memory when absent (tests, Node). */
+  conversations?: ConversationStore;
   /** The PDFs the person picked in Settings → Files (IndexedDB, T6 D-083); memory when absent (tests). */
   files?: FileStore;
   /** Indexes, the policy subscription and the Library (`chrome.storage.local`, T8); memory when absent (tests). */
@@ -314,6 +319,9 @@ export class Controller {
 
   /** Runs from the browser (T5): decides whether a run starts; the host executes. */
   readonly runs: RunManager;
+  /** conversation.v0 (T24): conversations between turns (D-270). */
+  readonly conversations: ConversationManager;
+  private readonly conversationStore: ConversationStore;
 
   constructor(private readonly deps: ControllerDeps) {
     this.limits = { ...DEFAULT_CONTROLLER_LIMITS, ...(deps.limits ?? {}) };
@@ -346,7 +354,7 @@ export class Controller {
         return { stored: live.stored, pkg: live.pkg, plan: live.plan, onceSpent: live.onceSpent };
       },
       isSessionOpen: (sessionId) => this.sessions.has(sessionId),
-      preflight: async (sessionId) => (await this.runPlanState(await this.session(sessionId))).preflight,
+      preflight: async (sessionId, options) => (await this.runPlanState(await this.session(sessionId), options)).preflight,
       toolRegistry: async (sessionId) => this.toolRegistry(await this.session(sessionId)),
       memory: () => this.memory,
       catalog: async () => (await this.currentCatalog()).catalog,
@@ -374,6 +382,26 @@ export class Controller {
       secretsState: async () => (await this.deps.settings.store.status()).state,
     };
     this.runs = new RunManager({ runs: deps.runs, host: deps.host, settings: deps.settings, hooks, broadcast: deps.broadcast, clock: this.clock, randomId: deps.runId, runtimeVersion: this.version });
+    // conversation.v0 (T24, D-270): conversations over the same runs, the same host and the same hooks.
+    this.conversationStore = deps.conversations ?? new MemoryConversationStore();
+    this.conversations = new ConversationManager({
+      conversations: this.conversationStore,
+      runs: deps.runs,
+      runner: this.runs,
+      host: deps.host,
+      hooks: {
+        session: async (sessionId) => {
+          const live = await this.session(sessionId);
+          return { pkg: live.pkg, plan: live.plan, archiveSha256: live.stored.archive_sha256 };
+        },
+        isSessionOpen: (sessionId) => this.sessions.has(sessionId),
+        snapshotBytes: async (archiveSha256) => (await this.deps.snapshots.getSnapshot(archiveSha256))?.bytes ?? null,
+        turnCharged: (archiveSha256) => this.dropUnreferencedSnapshot(archiveSha256),
+      },
+      broadcast: deps.broadcast,
+      clock: this.clock,
+    });
+    this.runs.onTurnSettled = (run) => this.conversations.turnSettled(run);
   }
 
   // -- requests from extension pages ----------------------------------------------
@@ -502,6 +530,24 @@ export class Controller {
         return this.runs.clear(request.runId);
       case "run.observations":
         return this.runs.observations(request.runId);
+      case "conversation.start":
+        return this.conversations.start(request.sessionId, { runPlanId: request.runPlanId, runPlanSha256: request.runPlanSha256 });
+      case "conversation.send":
+        return this.conversations.send(request.conversationId, request.message);
+      case "conversation.decide":
+        return this.conversations.decide(request.conversationId, request.step, request.accepted);
+      case "conversation.end":
+        return this.conversations.endByPerson(request.conversationId);
+      case "conversation.cancelTurn":
+        return this.conversations.cancelTurn(request.conversationId);
+      case "conversation.get":
+        return this.conversations.get(request.conversationId);
+      case "conversation.list":
+        return this.conversations.list(request.sessionId ?? null);
+      case "conversation.export":
+        return this.conversations.exportBundle(request.conversationId);
+      case "conversation.clear":
+        return this.conversations.clear(request.conversationId);
       case "host.progress":
       case "host.finished":
         // Only the execution host reports on runs; a view cannot forge a host report.
@@ -1365,14 +1411,17 @@ export class Controller {
   }
 
   /**
-   * Whether anything still needs these bytes: a stored session, or a run in flight that was
-   * planned on them. The execution host reads a run's snapshot only after `host.start`, so Run
-   * followed at once by Close must not take the bytes away from the run (T5 review 1, nit 7);
-   * the snapshot goes when that run settles (`RunHooks.runSettled`).
+   * Whether anything still needs these bytes: a stored session, a run in flight that was planned
+   * on them, or an open conversation whose turn is not charged yet. The execution host reads a
+   * run's snapshot only after `host.start`, so Run followed at once by Close must not take the
+   * bytes away from the run (T5 review 1, nit 7); the snapshot goes when that run settles
+   * (`RunHooks.runSettled`), or, for a turn, when the conversation has charged it: its end rule
+   * reads the package (V-8; T24 review 3, nit 2).
    */
   private async snapshotReferenced(archiveSha256: string): Promise<boolean> {
     if ((await this.deps.snapshots.listSessions()).some((session) => session.archive_sha256 === archiveSha256)) return true;
-    return (await this.deps.runs.listRuns()).some((run) => !isTerminal(run.record.status) && run.invocation.archive_sha256 === archiveSha256);
+    if ((await this.deps.runs.listRuns()).some((run) => !isTerminal(run.record.status) && run.invocation.archive_sha256 === archiveSha256)) return true;
+    return (await this.conversationStore.listConversations()).some((item) => item.status === "open" && item.active_run_id !== null && item.archive_sha256 === archiveSha256);
   }
 
   /** Delete a snapshot no stored session refers to, unless another open of the same bytes is in flight (called by an open that failed). */
@@ -1890,6 +1939,7 @@ export class Controller {
       resources: evaluateResources(live.pkg, registry, { decisions: live.receipt?.decisions ?? {}, grants: live.receipt?.resource_grants ?? [] }),
       missing_resource_types: [...new Set(requestedTypes.filter((type) => !known.has(type)))].sort(),
       recall: await this.recallViews(live, settings.preset, subscription),
+      input_gated_reads: inputGatedReads(live.pkg),
       tools: evaluation.tools.map(
         (tool): ToolOffer => ({
           tool_id: tool.tool_id,
@@ -2140,6 +2190,9 @@ export class Controller {
       toolEvaluation,
       toolRegistry,
       resourceRegistry,
+      // conversation.v0 (D-271): the subscribed policy's consent section pre-decides or forbids steps.
+      consentPolicy: (await this.activePolicy())?.bundle.consent ?? null,
+      consentPreset: settings.preset,
       now: this.clock(),
     });
     live.plan = plan;
@@ -2151,8 +2204,8 @@ export class Controller {
     return this.runPlanState(live);
   }
 
-  /** The plan plus a preflight recomputed against the vault, the host registry and the last catalog. */
-  async runPlanState(live: LiveSession): Promise<RunPlanState> {
+  /** The plan plus a preflight recomputed against the vault, the host registry and the last catalog; `ignoreOnceSpent` for a conversation's later turn (V-13, D-270). */
+  async runPlanState(live: LiveSession, options: { ignoreOnceSpent?: boolean } = {}): Promise<RunPlanState> {
     if (live.plan === null) throw reject("run_plan_absent", "This session has no run plan", 404);
     // A plan that grants a record, or binds a host-resource tool, needs the vault's types, which a
     // locked store cannot give (T16, review 1 finding 1): the bindings and the grants are then "not
@@ -2171,7 +2224,7 @@ export class Controller {
       toolEvaluation,
       resourceRegistry: await this.resourceRegistryOrNull(live),
       catalog: read.catalog,
-      onceSpent: live.onceSpent && live.receipt !== null && grantsOnce(live.receipt),
+      onceSpent: options.ignoreOnceSpent !== true && live.onceSpent && live.receipt !== null && grantsOnce(live.receipt),
       localModelsOnly: PRESETS[settings.preset].local_models_only,
       subscription: await this.activePolicy(),
       now: this.clock(),

@@ -5,6 +5,7 @@
 import type { Candidate } from "../../core/discovery.js";
 import type { AuthorizationView, CandidateState, ModelsView, PermissionsView, RunView, SecretsView, SessionView } from "../messages.js";
 import { renderAgentPage } from "../ui/agent-page.js";
+import { ConversationPanel } from "../ui/conversation.js";
 import { bindAuthorization, type AuthorizationController } from "../ui/authorization-flow.js";
 import { describeError, originOfUrl, refusedOrigins, requestOrigins, send, subscribe } from "../ui/client.js";
 import { needsUnlock, newUnlockState, renderLockChip, renderUnlockSheet, type UnlockState } from "../ui/unlock.js";
@@ -146,14 +147,38 @@ const runs = new RunPanel({
   changed: () => render(),
 });
 
+/** The chat surface (T24, D-270) for a conversational package, compact in the panel; a turn's Details open the full page on the run. */
+const chat = new ConversationPanel({
+  send,
+  loaded: () => (state.open ? { session: state.open, authorization: state.authorization } : null),
+  compact: true,
+  reveal: (section) => {
+    if (section === "trust" || section === "authorization" || section === "plan") document.querySelector(".ab-authorize")?.scrollIntoView({ block: "start" });
+    else openFullPage(undefined, "settings?section=models");
+  },
+  openFiles: () => openFullPage(undefined, "settings?section=files"),
+  openRun: (runId) => openFullPage(undefined, `run=${encodeURIComponent(runId)}`),
+  unlock: (retry) => openUnlock(null, retry),
+  requestOrigins,
+  changed: () => render(),
+});
+
+/** Whether the open session's package is a conversation (conversation.v0): the chat surface replaces the run form. */
+function conversational(session: SessionView | null): boolean {
+  const conversation = (session?.summary.workflow as { conversation?: unknown } | undefined)?.conversation;
+  return conversation !== undefined && conversation !== null;
+}
+
 /** Show a session this view now holds: its authorization flow and its run surface, from the start. */
 async function showSession(view: SessionView): Promise<void> {
   state.open = view;
   flow.reset();
   runs.detach();
+  chat.detach();
   await flow.load();
-  // Adopts the session's run in flight, or its latest run (`loadHistory(true)`).
-  await runs.attachSession(view.session.id);
+  // Adopts the session's run in flight, or its latest run (`loadHistory(true)`); a conversation likewise.
+  if (conversational(view)) await chat.attachSession(view.session.id);
+  else await runs.attachSession(view.session.id);
 }
 
 async function inspect(candidate: Candidate): Promise<void> {
@@ -233,9 +258,11 @@ function render(): void {
     // The run surface sits above the agent page once the agent is authorized, so a running or
     // finished run is the first thing a reopened panel shows; before that, the authorize flow leads.
     const showRun = state.authorization?.receipt !== null && state.authorization !== null;
-    if (!runs.hasSession()) void runs.attachSession(open.session.id);
+    const isConversation = conversational(open);
+    if (isConversation && !chat.hasSession()) void chat.attachSession(open.session.id);
+    if (!isConversation && !runs.hasSession()) void runs.attachSession(open.session.id);
     children.push(
-      showRun ? runs.root : null,
+      showRun ? (isConversation ? chat.root : runs.root) : null,
       renderAgentPage(open, {
         compact: true,
         onTrust: (scope) => void trust(scope),
@@ -247,6 +274,7 @@ function render(): void {
           state.open = null;
           flow.reset();
           runs.detach();
+          chat.detach();
           render();
         },
         onOpenFullPage: () => openFullPage(open.session.id),
@@ -331,10 +359,18 @@ subscribe((event) => {
     void flow.load().then(() => {
       render();
       runs.sync();
+      chat.sync();
     });
   }
-  if (event.type === "event.run") runs.onRunEvent(event);
-  if (event.type === "event.files") runs.onFilesEvent();
+  if (event.type === "event.run") {
+    runs.onRunEvent(event);
+    chat.onRunEvent(event);
+  }
+  if (event.type === "event.conversation") chat.onConversationEvent(event);
+  if (event.type === "event.files") {
+    runs.onFilesEvent();
+    chat.onFilesEvent();
+  }
 });
 chrome.tabs.onActivated.addListener(() => void refresh());
 chrome.tabs.onUpdated.addListener((tabId, change) => {

@@ -1,0 +1,69 @@
+{
+  "format": "org.webagents:signed-document-v0",
+  "content_type": "org.webagents:agent-index-v0",
+  "content": {
+    "index_id": "org.webagents.demo-index",
+    "version": "1.4.0",
+    "title": "WebAgents demo index",
+    "description": "The agents of the WebAgents research prototype: a literature-review agent and a fictional airline's agent. Signed with a development key, for demonstrations only; every entry is metadata, and each package is verified when you open it.",
+    "publisher": {
+      "name": "WebAgents research prototype (development key)"
+    },
+    "issued_at": "2026-10-17T00:00:00Z",
+    "expires_at": "2027-12-31T23:59:59Z",
+    "entries": [
+      {
+        "package_id": "org.webagents.literature-review",
+        "name": "Literature Review Agent",
+        "version": "0.2.9",
+        "description": "A constrained coordinator-worker literature review: searches Crossref, screens and reads candidate papers (and PDFs you pick), resolves citations and writes a related-work draft with verified quotes, and lists every paper it found with its screening verdict. With your leave it reads your research profile, keeps its own notes and proposes to remember the review. Its candidate deduplication runs as a WebAssembly module that can only compute.",
+        "publisher": {
+          "id": "webagents-research",
+          "name": "WebAgents Research Prototype"
+        },
+        "package_url": "https://webagents-webair-production.up.railway.app/packages/literature-review-0.2.9.agent.pkg",
+        "digest": "87732ea9b587df4ffe84c779f3b553d25a95f64911b374134d30e293c573cdfc",
+        "archive_sha256": "00f33aea8504669080031b22c4a2903fb01812ba9f93f6deaf68fcde13891f3f",
+        "signer_fingerprint": "sha256:c5ca9763f9fc71253298ca381ec14c4d7432009c74dacc69df6344b71de05232",
+        "locators": [
+          "literature-review@webagents.example"
+        ],
+        "tags": [
+          "research",
+          "literature",
+          "papers",
+          "citations"
+        ]
+      },
+      {
+        "package_id": "org.webagents.webair",
+        "name": "WebAir Travel Agent",
+        "version": "0.7.0",
+        "description": "Search WebAir flights, explain fare rules, prepare a booking quote and simulate a purchase through WebAir's own semantic API, using the travel profile you choose from your memory; after a booking it may propose one travel preference to remember. Your browser checks WebAir's fare totals with a WebAssembly module that can only compute. WebAir is a fictional demo airline: nothing is ever booked or charged.",
+        "publisher": {
+          "id": "webair-demo",
+          "name": "WebAir (fictional demo airline)"
+        },
+        "package_url": "https://webagents-webair-production.up.railway.app/agent.pkg",
+        "digest": "abab1e37fcf85b04d51b65ce60febc7fd823af77b56ec6d0634ed7287355409b",
+        "archive_sha256": "c0265a283d0b2edd5c919e1bb7cb3a95e6ccfc449d76590d62b1a47ff3fbd808",
+        "signer_fingerprint": "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b",
+        "locators": [
+          "flights@webair.example"
+        ],
+        "tags": [
+          "travel",
+          "flights",
+          "booking",
+          "demo"
+        ],
+        "homepage": "https://webagents-webair-production.up.railway.app/"
+      }
+    ]
+  },
+  "signature": {
+    "algorithm": "ed25519",
+    "key_fingerprint": "sha256:e0e7022b5836da157d7d55a9d7b00cb58e236d5270ab103162e63706b49f5103",
+    "value": "zZB0W9mC5/UD/TzSg+v7MYFFOujNQO65+ht4Ix9mewDtQTmVZwTCeBEwZyG8ASat0VdSAJMjQTI+i76ETIbzAg=="
+  }
+}

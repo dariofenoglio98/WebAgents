@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "WebAgents Agent Browser",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Discover, verify, authorize and run signed agent.pkg packages that websites advertise, with your own models, permissions and data.",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmcQowNp/ZYTKELV/8y/NKOeEzUe0qeNE3FsCGIjGLHCz86wQ2GFtm8UhMtWo7/6SH8ZBdIBw5X6c29ONkVb8bMczUc9Oidr5XUvcjyun3HeBiSDQNe4w3eQfhZEqlNFNSMCVSttItC5DqibYFvsD6U6MD26U5HVBmRLIUylc1VjQ288DZQp6L5oONaBgxTQxOM8d0Jg7JPyzky/OtksbWrXirXapJ8gmHM6MlWXFoUyu7Yw10pNIEgslm9e5pQxH6OxQ9+xaqzjfeqt1MUdUvNwZS5VFdjyZdqniGionegHwImBnfJHJoyragleaGR1qvPeWMn/Q8dGDjNolEtZK6QIDAQAB",
   "minimum_chrome_version": "137",

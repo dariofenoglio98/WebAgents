@@ -68,4 +68,11 @@ export class OffscreenHostBridge implements ExecutionHostBridge {
     if (!(await chrome.offscreen.hasDocument())) return null;
     return this.send<HostStatusReply>({ type: "host.status" });
   }
+
+  /** conversation.v0: the person's answer to a card, to the Worker that waits on it (the record carries it too). */
+  async decide(runId: string, step: string, accepted: boolean): Promise<boolean> {
+    if (!(await chrome.offscreen.hasDocument())) return false;
+    const reply = await this.send<{ delivered: boolean }>({ type: "host.decide", runId, step, accepted });
+    return reply.delivered;
+  }
 }

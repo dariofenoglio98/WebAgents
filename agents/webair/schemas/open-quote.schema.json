@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "The open quote",
+  "description": "A purchase needs the quote an earlier turn of this conversation made: the quote summary, not null. A turn that is not a purchase yields the marker instead of a quote.",
+  "anyOf": [
+    {
+      "const": "not_a_purchase"
+    },
+    {
+      "allOf": [
+        {
+          "type": "object"
+        },
+        {
+          "$ref": "booking-summary.schema.json"
+        }
+      ]
+    }
+  ]
+}

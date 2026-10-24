@@ -17,9 +17,9 @@
 
 export const DATABASE = "agent-browser";
 /** Version 2 added the `sizes` store; version 3 the run, artifact and observation stores; version 4 the `files` store; version 5 the memory stores (T19). */
-export const VERSION = 5;
+export const VERSION = 6;
 
-export type StoreName = "snapshots" | "sessions" | "sizes" | "runs" | "artifacts" | "observations" | "files" | "memory_records" | "memory_meta";
+export type StoreName = "snapshots" | "sessions" | "sizes" | "runs" | "artifacts" | "observations" | "files" | "memory_records" | "memory_meta" | "conversations";
 
 export function request<T>(value: IDBRequest<T>): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -71,6 +71,11 @@ function upgrade(opening: IDBOpenDBRequest, event: IDBVersionChangeEvent): void 
   // Version 5 (T19, memory.v0): one row per record, sealed values sealed at rest; the meta document.
   if (!db.objectStoreNames.contains("memory_records")) db.createObjectStore("memory_records", { keyPath: "id" });
   if (!db.objectStoreNames.contains("memory_meta")) db.createObjectStore("memory_meta", { keyPath: "key" });
+  // Version 6 (T24, conversation.v0): one row per conversation; its turns are runs.
+  if (!db.objectStoreNames.contains("conversations")) {
+    const conversations = db.createObjectStore("conversations", { keyPath: "conversation_id" });
+    conversations.createIndex("session_id", "session_id", { unique: false });
+  }
 }
 
 /** A lazily opened connection; a failed open is retried on the next call, never cached. */

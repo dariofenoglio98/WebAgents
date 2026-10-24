@@ -1,0 +1,2679 @@
+{
+  "passed": true,
+  "checks": {
+    "signature_valid": true,
+    "earlier_release_unchanged": true,
+    "release_0_2_0_unchanged": true,
+    "release_0_3_0_unchanged": true,
+    "release_0_4_0_unchanged": true,
+    "release_0_5_0_unchanged": true,
+    "release_0_6_0_unchanged": true,
+    "release_0_7_0_unchanged": true,
+    "alias_is_newest_release_runtime_compatible": true,
+    "source_rebuilds_to_signed_payload": true,
+    "no_personal_data_in_signed_bytes": true,
+    "profile_workflow_v0": true,
+    "canonical_operators_only": true,
+    "conversation_declared": true,
+    "purchase_gated": true,
+    "no_webair_code_in_generic_runtime_or_browser": true,
+    "every_conversation_passed": true
+  },
+  "package": {
+    "package_id": "org.webagents.webair",
+    "version": "0.8.0",
+    "publisher": {
+      "id": "webair-demo",
+      "name": "WebAir (fictional demo airline)"
+    },
+    "package_digest": "b346a4740b3b1052bb77f781ec4c2cbb4d29644a71f9a3c29e1cd8921d9572c2",
+    "archive": "dist/webair-0.8.0.agent.pkg",
+    "archive_sha256": "9c81a9362754fc3c48c923b4968e75daa9e0260ae422be7e77b30f1df1a7eae0",
+    "archive_bytes": 270099,
+    "payload_files": 74,
+    "signer_fingerprint": "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b",
+    "verification": {
+      "valid": true,
+      "digest": "b346a4740b3b1052bb77f781ec4c2cbb4d29644a71f9a3c29e1cd8921d9572c2",
+      "package_id": "org.webagents.webair",
+      "version": "0.8.0",
+      "publisher": {
+        "id": "webair-demo",
+        "name": "WebAir (fictional demo airline)"
+      },
+      "key_fingerprint": "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b",
+      "trust_scope": "exact externally supplied publisher key"
+    },
+    "runtime_minimum_version": "0.6.0",
+    "workflow_nodes": 48,
+    "node_types": {
+      "compute": 1,
+      "consent": 1,
+      "join": 3,
+      "llm": 4,
+      "map": 1,
+      "output": 1,
+      "tool": 6,
+      "validate": 31
+    },
+    "conversation": {
+      "state_schema": "schemas/conversation-state.schema.json",
+      "persistent_keys": [
+        "confirmation_ref",
+        "history",
+        "known_fares",
+        "profile_used",
+        "quote_ref"
+      ],
+      "budget": {
+        "hard_tokens": 240000,
+        "max_calls_per_tool": {
+          "simulate-purchase": 1
+        },
+        "max_remote_calls": 60,
+        "max_turns": 8
+      },
+      "end": {
+        "when": {
+          "left": {
+            "from": "result",
+            "path": "/intent"
+          },
+          "op": "eq",
+          "right": {
+            "literal": "done"
+          }
+        }
+      },
+      "consent_steps": [
+        {
+          "id": "confirm-purchase",
+          "permissions": [
+            "booking.simulate_purchase"
+          ],
+          "timeout_seconds": 600
+        }
+      ]
+    },
+    "tools": {
+      "get-fare-rules": {
+        "binding": "webair.get_fare_rules",
+        "execution": "remote",
+        "method": "POST",
+        "endpoint": "https://webagents-webair-production.up.railway.app/api/v1/get_fare_rules",
+        "permissions": [
+          "network.webair"
+        ],
+        "side_effects": "read",
+        "approval_required": false
+      },
+      "personal.passenger_identity": {
+        "binding": "host.resource.personal.passenger_identity",
+        "execution": "local",
+        "method": null,
+        "endpoint": null,
+        "permissions": [
+          "identity.passenger"
+        ],
+        "side_effects": "read",
+        "approval_required": true
+      },
+      "prepare-booking": {
+        "binding": "webair.prepare_booking",
+        "execution": "remote",
+        "method": "POST",
+        "endpoint": "https://webagents-webair-production.up.railway.app/api/v1/prepare_booking",
+        "permissions": [
+          "network.webair",
+          "identity.passenger"
+        ],
+        "side_effects": "read",
+        "approval_required": true
+      },
+      "search-flights": {
+        "binding": "webair.search_flights",
+        "execution": "remote",
+        "method": "POST",
+        "endpoint": "https://webagents-webair-production.up.railway.app/api/v1/search_flights",
+        "permissions": [
+          "network.webair"
+        ],
+        "side_effects": "read",
+        "approval_required": false
+      },
+      "simulate-purchase": {
+        "binding": "webair.simulate_purchase",
+        "execution": "remote",
+        "method": "POST",
+        "endpoint": "https://webagents-webair-production.up.railway.app/api/v1/simulate_purchase",
+        "permissions": [
+          "network.webair",
+          "booking.simulate_purchase",
+          "identity.passenger",
+          "wallet.payment"
+        ],
+        "side_effects": "write",
+        "approval_required": true
+      },
+      "travel.profile": {
+        "binding": "host.memory.travel.profile",
+        "execution": "local",
+        "method": null,
+        "endpoint": null,
+        "permissions": [
+          "memory.travel_profile"
+        ],
+        "side_effects": "read",
+        "approval_required": true
+      },
+      "wallet.payment_method": {
+        "binding": "host.resource.wallet.payment_method",
+        "execution": "local",
+        "method": null,
+        "endpoint": null,
+        "permissions": [
+          "wallet.payment"
+        ],
+        "side_effects": "read",
+        "approval_required": true
+      }
+    },
+    "permissions": {
+      "network.webair": {
+        "kind": "network",
+        "required": true,
+        "resources": [
+          "webagents-webair-production.up.railway.app"
+        ]
+      },
+      "memory.travel_profile": {
+        "kind": "memory.read",
+        "required": false,
+        "resources": [
+          "travel.profile"
+        ]
+      },
+      "identity.passenger": {
+        "kind": "personal.read",
+        "required": false,
+        "resources": [
+          "personal.passenger_identity"
+        ]
+      },
+      "wallet.payment": {
+        "kind": "personal.read",
+        "required": false,
+        "resources": [
+          "wallet.payment_method"
+        ]
+      },
+      "booking.simulate_purchase": {
+        "kind": "payment",
+        "required": false,
+        "resources": [
+          "webagents-webair-production.up.railway.app"
+        ]
+      },
+      "model.reasoning": {
+        "kind": "model",
+        "required": true,
+        "resources": [
+          "host-router"
+        ]
+      },
+      "memory.session": {
+        "kind": "memory",
+        "required": true,
+        "resources": [
+          "session"
+        ]
+      },
+      "memory.remember": {
+        "kind": "memory.write",
+        "required": false,
+        "resources": [
+          "travel.preference"
+        ]
+      },
+      "compute.fares": {
+        "kind": "compute",
+        "required": true,
+        "resources": [
+          "fares"
+        ]
+      }
+    },
+    "model_requirements": {
+      "extensions": {},
+      "fallback_policy": "deny",
+      "routing": "host",
+      "tasks": [
+        {
+          "capabilities": [
+            "structured_output",
+            "reasoning"
+          ],
+          "context_window": 16000,
+          "id": "interpret",
+          "preferred_tier": "reasoning"
+        },
+        {
+          "capabilities": [
+            "structured_output",
+            "reasoning"
+          ],
+          "context_window": 16000,
+          "id": "select",
+          "preferred_tier": "reasoning"
+        },
+        {
+          "capabilities": [
+            "structured_output",
+            "reasoning"
+          ],
+          "context_window": 16000,
+          "id": "answer",
+          "preferred_tier": "reasoning"
+        },
+        {
+          "capabilities": [
+            "structured_output",
+            "reasoning"
+          ],
+          "context_window": 16000,
+          "id": "remember",
+          "preferred_tier": "reasoning"
+        }
+      ]
+    },
+    "host_resource_requests": {
+      "identity.passenger": {
+        "kind": "personal.read",
+        "resource_types": [
+          "personal.passenger_identity"
+        ]
+      },
+      "wallet.payment": {
+        "kind": "personal.read",
+        "resource_types": [
+          "wallet.payment_method"
+        ]
+      }
+    },
+    "action_authorities": [
+      "booking.simulate_purchase"
+    ]
+  },
+  "earlier_release": {
+    "archive": "dist/webair-0.1.0.agent.pkg",
+    "archive_sha256": "73872c3177a9ec281a8875ae154023a72ff10f9fe96c5a82ed1639a34ecb470c",
+    "signer_fingerprint": "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b"
+  },
+  "personal_data": {
+    "host_values_checked": 20,
+    "modules_scanned": 1,
+    "module_string_runs": 63,
+    "host_values_found": [],
+    "email_addresses_found": [],
+    "card_like_digit_runs": false,
+    "clean": true
+  },
+  "genericity": {
+    "files_scanned": 148,
+    "files_mentioning_webair": [],
+    "clean": true
+  },
+  "conversations": [
+    {
+      "id": "fixture",
+      "summary": "the conversation fixture: BOS -> ZRH, 9 Oct 2026, under $900 with stops allowed; then nonstop and the cheapest; then goodbye",
+      "passed": true,
+      "checks": {
+        "completed": true,
+        "every_turn_as_expected": true,
+        "ids_from_tool_evidence": true,
+        "audit_chain_valid": true,
+        "one_chain_across_turns": true,
+        "no_booking_or_purchase": true,
+        "no_host_resource_read": true,
+        "no_consent_asked": true,
+        "ended_as_declared": true,
+        "replay_router": true
+      },
+      "turns": [
+        {
+          "turn": 1,
+          "status": "completed",
+          "message": {
+            "message": "Find me a flight from Boston to Zurich on 9 October under $900."
+          },
+          "observed": {
+            "status": "options_found",
+            "intent": "search",
+            "selected_fare_id": "WA205-WA731-20261009-BASIC"
+          },
+          "expected": {
+            "status": "options_found",
+            "intent": "search",
+            "selected_fare_id": "WA205-WA731-20261009-BASIC"
+          },
+          "no_booking_or_purchase": true,
+          "node_types_completed": {
+            "compute": 1,
+            "consent": 1,
+            "join": 3,
+            "llm": 4,
+            "map": 1,
+            "output": 1,
+            "tool": 6,
+            "validate": 31
+          },
+          "nodes_skipped": [
+            "check-confirmation",
+            "check-no-flights",
+            "check-not-searched",
+            "check-open-quote",
+            "check-quote",
+            "check-quote-authorized",
+            "check-quote-fare",
+            "check-quote-offer",
+            "confirm-purchase",
+            "confirmation-ref",
+            "offered-booking-fare",
+            "offered-flights",
+            "passenger",
+            "payment",
+            "prepare",
+            "profile",
+            "profile-used",
+            "purchase",
+            "quote-ref",
+            "quote-total",
+            "remember",
+            "search-origin",
+            "search-request"
+          ],
+          "tool_calls": [
+            {
+              "tool": "search-flights",
+              "binding": "webair.search_flights"
+            },
+            {
+              "tool": "get-fare-rules",
+              "binding": "webair.get_fare_rules"
+            },
+            {
+              "tool": "get-fare-rules",
+              "binding": "webair.get_fare_rules"
+            },
+            {
+              "tool": "get-fare-rules",
+              "binding": "webair.get_fare_rules"
+            },
+            {
+              "tool": "get-fare-rules",
+              "binding": "webair.get_fare_rules"
+            },
+            {
+              "tool": "get-fare-rules",
+              "binding": "webair.get_fare_rules"
+            },
+            {
+              "tool": "get-fare-rules",
+              "binding": "webair.get_fare_rules"
+            }
+          ],
+          "model_tasks": [
+            "interpret",
+            "select",
+            "answer"
+          ],
+          "consents": [],
+          "usage": {
+            "tokens": 11726,
+            "remote_calls": 7,
+            "tool_calls": {
+              "search-flights": 1,
+              "get-fare-rules": 6
+            }
+          }
+        },
+        {
+          "turn": 2,
+          "status": "completed",
+          "message": {
+            "message": "Only nonstop, and the cheapest one."
+          },
+          "observed": {
+            "status": "options_found",
+            "intent": "search",
+            "selected_fare_id": "WA101-20261009-BASIC"
+          },
+          "expected": {
+            "status": "options_found",
+            "intent": "search",
+            "selected_fare_id": "WA101-20261009-BASIC"
+          },
+          "no_booking_or_purchase": true,
+          "node_types_completed": {
+            "compute": 1,
+            "consent": 1,
+            "join": 3,
+            "llm": 4,
+            "map": 1,
+            "output": 1,
+            "tool": 6,
+            "validate": 31
+          },
+          "nodes_skipped": [
+            "check-confirmation",
+            "check-no-flights",
+            "check-not-searched",
+            "check-open-quote",
+            "check-quote",
+            "check-quote-authorized",
+            "check-quote-fare",
+            "check-quote-offer",
+            "confirm-purchase",
+            "confirmation-ref",
+            "offered-booking-fare",
+            "offered-flights",
+            "passenger",
+            "payment",
+            "prepare",
+            "profile",
+            "profile-used",
+            "purchase",
+            "quote-ref",
+            "quote-total",
+            "remember",
+            "search-origin",
+            "search-request"
+          ],
+          "tool_calls": [
+            {
+              "tool": "search-flights",
+              "binding": "webair.search_flights"
+            },
+            {
+              "tool": "get-fare-rules",
+              "binding": "webair.get_fare_rules"
+            },
+            {
+              "tool": "get-fare-rules",
+              "binding": "webair.get_fare_rules"
+            },
+            {
+              "tool": "get-fare-rules",
+              "binding": "webair.get_fare_rules"
+            }
+          ],
+          "model_tasks": [
+            "interpret",
+            "select",
+            "answer"
+          ],
+          "consents": [],
+          "usage": {
+            "tokens": 10150,
+            "remote_calls": 4,
+            "tool_calls": {
+              "search-flights": 1,
+              "get-fare-rules": 3
+            }
+          }
+        },
+        {
+          "turn": 3,
+          "status": "completed",
+          "message": {
+            "message": "That's all, thanks."
+          },
+          "observed": {
+            "status": "done",
+            "intent": "done",
+            "selected_fare_id": null
+          },
+          "expected": {
+            "status": "done",
+            "intent": "done",
+            "selected_fare_id": null
+          },
+          "no_booking_or_purchase": true,
+          "node_types_completed": {
+            "compute": 1,
+            "consent": 1,
+            "join": 3,
+            "llm": 4,
+            "map": 1,
+            "output": 1,
+            "tool": 6,
+            "validate": 31
+          },
+          "nodes_skipped": [
+            "answer",
+            "check-confirmation",
+            "check-no-flights",
+            "check-open-quote",
+            "check-options",
+            "check-quote",
+            "check-quote-authorized",
+            "check-quote-fare",
+            "check-quote-offer",
+            "confirm-purchase",
+            "confirmation-ref",
+            "passenger",
+            "payment",
+            "prepare",
+            "profile",
+            "profile-used",
+            "purchase",
+            "quote-ref",
+            "quote-total",
+            "remember",
+            "search",
+            "select",
+            "status"
+          ],
+          "tool_calls": [],
+          "model_tasks": [
+            "interpret"
+          ],
+          "consents": [],
+          "usage": {
+            "tokens": 4044,
+            "remote_calls": 0,
+            "tool_calls": {}
+          }
+        }
+      ],
+      "ended": {
+        "reason": "package",
+        "at": "2026-10-22T01:51:28.730051+00:00",
+        "turns_not_run": 0
+      },
+      "state": {
+        "confirmation_ref": null,
+        "history": [
+          {
+            "answer": "WebAir has six fares from Boston to Zurich on Friday 9 October 2026 under $900 per passenger, two of them nonstop:\n\n- WA205 + WA731 via Reykjavik, departs 20:30, arrives 13:15 the next day: Economy Basic $505 or Economy Standard $616.\n- WA213 + WA741 via London Heathrow, departs 19:10, arrives 11:25 the next day: Economy Basic $586 or Economy Standard $715.\n- WA101 nonstop, departs 18:05, arrives 07:40 the next day: Economy Basic $704.\n- WA105 nonstop, departs 21:40, arrives 11:20 the next day: Economy Basic $749.\n\nThe cheapest is WA205 + WA731 Economy Basic at $505 (USD per passenger, taxes included), with one stop in Reykjavik. Every Basic fare includes no checked bag and can be neither changed nor refunded; the Standard fares add one 23 kg checked bag and allow changes for $150 per passenger plus any fare difference. Nothing has been booked.",
+            "intent": "search",
+            "message": "Find me a flight from Boston to Zurich on 9 October under $900.",
+            "search": {
+              "cabin": null,
+              "date": "2026-10-09",
+              "destination": "ZRH",
+              "max_price_usd": 900,
+              "nonstop_only": false,
+              "origin": "BOS",
+              "passengers": 1
+            },
+            "status": "options_found"
+          },
+          {
+            "answer": "Nonstop, the cheapest is WA101 Economy Basic at $704 per passenger: departs Boston 18:05 on Friday 9 October 2026, arrives Zurich 07:40 the next day. It includes a personal item and an 8 kg cabin bag but no checked bag, and can be neither changed nor refunded. The other nonstop options under $900 are WA101 Economy Standard at $858 (one 23 kg checked bag, changes for $150 per passenger plus any fare difference) and WA105 Economy Basic at $749 (departs 21:40, arrives 11:20 the next day). Nothing has been booked.",
+            "intent": "search",
+            "message": "Only nonstop, and the cheapest one.",
+            "search": {
+              "cabin": null,
+              "date": "2026-10-09",
+              "destination": "ZRH",
+              "max_price_usd": 900,
+              "nonstop_only": true,
+              "origin": "BOS",
+              "passengers": 1
+            },
+            "status": "options_found"
+          },
+          {
+            "answer": "Glad to help. Nothing has been booked or charged; come back when you want to quote or book one of these fares.",
+            "intent": "done",
+            "message": "That's all, thanks.",
+            "search": null,
+            "status": "done"
+          }
+        ],
+        "known_fares": [
+          {
+            "available": true,
+            "booking_class": "V",
+            "cabin": "economy",
+            "changeable": false,
+            "checked_bags": 0,
+            "fare_family": "BASIC",
+            "fare_id": "WA101-20261009-BASIC",
+            "fare_name": "Economy Basic",
+            "price_usd": 704,
+            "refundable": false,
+            "seats_left": 9
+          },
+          {
+            "available": true,
+            "booking_class": "M",
+            "cabin": "economy",
+            "changeable": true,
+            "checked_bags": 1,
+            "fare_family": "STANDARD",
+            "fare_id": "WA101-20261009-STANDARD",
+            "fare_name": "Economy Standard",
+            "price_usd": 858,
+            "refundable": false,
+            "seats_left": 24
+          },
+          {
+            "available": true,
+            "booking_class": "V",
+            "cabin": "economy",
+            "changeable": false,
+            "checked_bags": 0,
+            "fare_family": "BASIC",
+            "fare_id": "WA213-WA741-20261009-BASIC",
+            "fare_name": "Economy Basic",
+            "price_usd": 586,
+            "refundable": false,
+            "seats_left": 6
+          },
+          {
+            "available": true,
+            "booking_class": "M",
+            "cabin": "economy",
+            "changeable": true,
+            "checked_bags": 1,
+            "fare_family": "STANDARD",
+            "fare_id": "WA213-WA741-20261009-STANDARD",
+            "fare_name": "Economy Standard",
+            "price_usd": 715,
+            "refundable": false,
+            "seats_left": 18
+          },
+          {
+            "available": true,
+            "booking_class": "V",
+            "cabin": "economy",
+            "changeable": false,
+            "checked_bags": 0,
+            "fare_family": "BASIC",
+            "fare_id": "WA205-WA731-20261009-BASIC",
+            "fare_name": "Economy Basic",
+            "price_usd": 505,
+            "refundable": false,
+            "seats_left": 6
+          },
+          {
+            "available": true,
+            "booking_class": "M",
+            "cabin": "economy",
+            "changeable": true,
+            "checked_bags": 1,
+            "fare_family": "STANDARD",
+            "fare_id": "WA205-WA731-20261009-STANDARD",
+            "fare_name": "Economy Standard",
+            "price_usd": 616,
+            "refundable": false,
+            "seats_left": 18
+          },
+          {
+            "available": true,
+            "booking_class": "Y",
+            "cabin": "economy",
+            "changeable": true,
+            "checked_bags": 2,
+            "fare_family": "FLEX",
+            "fare_id": "WA205-WA731-20261009-FLEX",
+            "fare_name": "Economy Flex",
+            "price_usd": 862,
+            "refundable": true,
+            "seats_left": 8
+          },
+          {
+            "available": true,
+            "booking_class": "V",
+            "cabin": "economy",
+            "changeable": false,
+            "checked_bags": 0,
+            "fare_family": "BASIC",
+            "fare_id": "WA105-20261009-BASIC",
+            "fare_name": "Economy Basic",
+            "price_usd": 749,
+            "refundable": false,
+            "seats_left": 4
+          }
+        ],
+        "profile_used": false,
+        "quote_ref": null
+      },
+      "audit": {
+        "events": 877,
+        "chain_valid": true,
+        "final_hash": "61ac9e25f9eb95f2df0be873578b51f497e9efd031bbb4a1782953681d657615",
+        "workers_spawned": 39
+      },
+      "usage": {
+        "turns": 3,
+        "tokens": 25920,
+        "remote_calls": 11,
+        "tool_calls": {
+          "search-flights": 2,
+          "get-fare-rules": 9
+        },
+        "limits": {
+          "max_turns": 8,
+          "hard_tokens": 240000,
+          "max_remote_calls": 60,
+          "max_calls_per_tool": {
+            "simulate-purchase": 1
+          }
+        },
+        "per_turn": [
+          {
+            "turn": 1,
+            "status": "completed",
+            "tokens": 11726,
+            "remote_calls": 7,
+            "tool_calls": {
+              "search-flights": 1,
+              "get-fare-rules": 6
+            }
+          },
+          {
+            "turn": 2,
+            "status": "completed",
+            "tokens": 10150,
+            "remote_calls": 4,
+            "tool_calls": {
+              "search-flights": 1,
+              "get-fare-rules": 3
+            }
+          },
+          {
+            "turn": 3,
+            "status": "completed",
+            "tokens": 4044,
+            "remote_calls": 0,
+            "tool_calls": {}
+          }
+        ]
+      },
+      "provenance": {
+        "profile": "conversation.v0",
+        "interpreter": "agentpkg.conversation.Conversation",
+        "package_id": "org.webagents.webair",
+        "package_digest": "b346a4740b3b1052bb77f781ec4c2cbb4d29644a71f9a3c29e1cd8921d9572c2",
+        "conversation_id": "1794c54b-6960-4a55-bd3e-fb63268f10be",
+        "persistent_keys": [
+          "confirmation_ref",
+          "history",
+          "known_fares",
+          "profile_used",
+          "quote_ref"
+        ]
+      },
+      "result": null
+    },
+    {
+      "id": "hero",
+      "summary": "BOS -> ZRH, 9 Oct 2026, nonstop, under $900",
+      "passed": true,
+      "checks": {
+        "completed": true,
+        "every_turn_as_expected": true,
+        "ids_from_tool_evidence": true,
+        "audit_chain_valid": true,
+        "one_chain_across_turns": true,
+        "no_booking_or_purchase": true,
+        "no_host_resource_read": true,
+        "no_consent_asked": true,
+        "ended_as_declared": true,
+        "replay_router": true
+      },
+      "turns": [
+        {
+          "turn": 1,
+          "status": "completed",
+          "message": {
+            "message": "Find me a nonstop flight from Boston to Zurich on 9 October under $900."
+          },
+          "observed": {
+            "status": "options_found",
+            "intent": "search",
+            "selected_fare_id": "WA101-20261009-BASIC"
+          },
+          "expected": {
+            "status": "options_found",
+            "intent": "search",
+            "selected_fare_id": "WA101-20261009-BASIC"
+          },
+          "no_booking_or_purchase": true,
+          "node_types_completed": {
+            "compute": 1,
+            "consent": 1,
+            "join": 3,
+            "llm": 4,
+            "map": 1,
+            "output": 1,
+            "tool": 6,
+            "validate": 31
+          },
+          "nodes_skipped": [
+            "check-confirmation",
+            "check-no-flights",
+            "check-not-searched",
+            "check-open-quote",
+            "check-quote",
+            "check-quote-authorized",
+            "check-quote-fare",
+            "check-quote-offer",
+            "confirm-purchase",
+            "confirmation-ref",
+            "offered-booking-fare",
+            "offered-flights",
+            "passenger",
+            "payment",
+            "prepare",
+            "profile",
+            "profile-used",
+            "purchase",
+            "quote-ref",
+            "quote-total",
+            "remember",
+            "search-origin",
+            "search-request"
+          ],
+          "tool_calls": [
+            {
+              "tool": "search-flights",
+              "binding": "webair.search_flights"
+            },
+            {
+              "tool": "get-fare-rules",
+              "binding": "webair.get_fare_rules"
+            },
+            {
+              "tool": "get-fare-rules",
+              "binding": "webair.get_fare_rules"
+            },
+            {
+              "tool": "get-fare-rules",
+              "binding": "webair.get_fare_rules"
+            }
+          ],
+          "model_tasks": [
+            "interpret",
+            "select",
+            "answer"
+          ],
+          "consents": [],
+          "usage": {
+            "tokens": 9117,
+            "remote_calls": 4,
+            "tool_calls": {
+              "search-flights": 1,
+              "get-fare-rules": 3
+            }
+          }
+        }
+      ],
+      "ended": {
+        "reason": "host",
+        "at": "2026-10-22T01:51:29.535524+00:00",
+        "turns_not_run": 0
+      },
+      "state": {
+        "confirmation_ref": null,
+        "history": [
+          {
+            "answer": "I found three nonstop WebAir fares from Boston to Zurich on Friday 9 October 2026 under $900 per passenger:\n\n- WA101, departs 18:05, arrives 07:40 the next day: Economy Basic $704 or Economy Standard $858.\n- WA105, departs 21:40, arrives 11:20 the next day: Economy Basic $749.\n\nThe cheapest is WA101 Economy Basic at $704 (USD per passenger, taxes included). Both Basic fares include no checked bag and can be neither changed nor refunded. WA101 Economy Standard adds one 23 kg checked bag and allows changes for $150 per passenger plus any fare difference; it is also non-refundable. Nothing has been booked.",
+            "intent": "search",
+            "message": "Find me a nonstop flight from Boston to Zurich on 9 October under $900.",
+            "search": {
+              "cabin": null,
+              "date": "2026-10-09",
+              "destination": "ZRH",
+              "max_price_usd": 900,
+              "nonstop_only": true,
+              "origin": "BOS",
+              "passengers": 1
+            },
+            "status": "options_found"
+          }
+        ],
+        "known_fares": [
+          {
+            "available": true,
+            "booking_class": "V",
+            "cabin": "economy",
+            "changeable": false,
+            "checked_bags": 0,
+            "fare_family": "BASIC",
+            "fare_id": "WA101-20261009-BASIC",
+            "fare_name": "Economy Basic",
+            "price_usd": 704,
+            "refundable": false,
+            "seats_left": 9
+          },
+          {
+            "available": true,
+            "booking_class": "M",
+            "cabin": "economy",
+            "changeable": true,
+            "checked_bags": 1,
+            "fare_family": "STANDARD",
+            "fare_id": "WA101-20261009-STANDARD",
+            "fare_name": "Economy Standard",
+            "price_usd": 858,
+            "refundable": false,
+            "seats_left": 24
+          },
+          {
+            "available": true,
+            "booking_class": "V",
+            "cabin": "economy",
+            "changeable": false,
+            "checked_bags": 0,
+            "fare_family": "BASIC",
+            "fare_id": "WA105-20261009-BASIC",
+            "fare_name": "Economy Basic",
+            "price_usd": 749,
+            "refundable": false,
+            "seats_left": 4
+          }
+        ],
+        "profile_used": false,
+        "quote_ref": null
+      },
+      "audit": {
+        "events": 300,
+        "chain_valid": true,
+        "final_hash": "a960733fa1a43ddd5b057d68bc2d22ed280e023cd29ab83687b9e2b98f621601",
+        "workers_spawned": 13
+      },
+      "usage": {
+        "turns": 1,
+        "tokens": 9117,
+        "remote_calls": 4,
+        "tool_calls": {
+          "search-flights": 1,
+          "get-fare-rules": 3
+        },
+        "limits": {
+          "max_turns": 8,
+          "hard_tokens": 240000,
+          "max_remote_calls": 60,
+          "max_calls_per_tool": {
+            "simulate-purchase": 1
+          }
+        },
+        "per_turn": [
+          {
+            "turn": 1,
+            "status": "completed",
+            "tokens": 9117,
+            "remote_calls": 4,
+            "tool_calls": {
+              "search-flights": 1,
+              "get-fare-rules": 3
+            }
+          }
+        ]
+      },
+      "provenance": {
+        "profile": "conversation.v0",
+        "interpreter": "agentpkg.conversation.Conversation",
+        "package_id": "org.webagents.webair",
+        "package_digest": "b346a4740b3b1052bb77f781ec4c2cbb4d29644a71f9a3c29e1cd8921d9572c2",
+        "conversation_id": "89647512-70d6-4d52-a3b0-1802b38fb317",
+        "persistent_keys": [
+          "confirmation_ref",
+          "history",
+          "known_fares",
+          "profile_used",
+          "quote_ref"
+        ]
+      },
+      "result": {
+        "answer": "I found three nonstop WebAir fares from Boston to Zurich on Friday 9 October 2026 under $900 per passenger:\n\n- WA101, departs 18:05, arrives 07:40 the next day: Economy Basic $704 or Economy Standard $858.\n- WA105, departs 21:40, arrives 11:20 the next day: Economy Basic $749.\n\nThe cheapest is WA101 Economy Basic at $704 (USD per passenger, taxes included). Both Basic fares include no checked bag and can be neither changed nor refunded. WA101 Economy Standard adds one 23 kg checked bag and allows changes for $150 per passenger plus any fare difference; it is also non-refundable. Nothing has been booked.",
+        "booking": null,
+        "evidence": {
+          "fare_rules": [
+            {
+              "available": true,
+              "baggage": {
+                "cabin_bag_kg": 8,
+                "checked_bag_kg": null,
+                "checked_bags": 0,
+                "personal_item": true
+              },
+              "booking_class": "V",
+              "cabin": "economy",
+              "changes": {
+                "allowed": false,
+                "fee_usd": null,
+                "summary": "Changes not permitted"
+              },
+              "currency": "USD",
+              "fare_family": "BASIC",
+              "fare_id": "WA101-20261009-BASIC",
+              "fare_name": "Economy Basic",
+              "flight": {
+                "arrival_day_offset": 1,
+                "arrival_local": "2026-10-10T07:40",
+                "date": "2026-10-09",
+                "departure_local": "2026-10-09T18:05",
+                "destination": "ZRH",
+                "duration_minutes": 455,
+                "flight_id": "WA101-20261009",
+                "flight_numbers": [
+                  "WA101"
+                ],
+                "layover_minutes": [],
+                "origin": "BOS",
+                "segments": [
+                  {
+                    "aircraft": "Airbus A330-300",
+                    "arrival_local": "2026-10-10T07:40",
+                    "departure_local": "2026-10-09T18:05",
+                    "destination": "ZRH",
+                    "duration_minutes": 455,
+                    "flight_number": "WA101",
+                    "origin": "BOS"
+                  }
+                ],
+                "stops": 0,
+                "via": []
+              },
+              "passengers": 1,
+              "price_per_passenger_usd": 704,
+              "refunds": {
+                "fee_usd": null,
+                "refundable": false,
+                "summary": "Non-refundable"
+              },
+              "seat_selection": "Seat assigned at check-in",
+              "seats_left": 9,
+              "total_usd": 704
+            },
+            {
+              "available": true,
+              "baggage": {
+                "cabin_bag_kg": 8,
+                "checked_bag_kg": 23,
+                "checked_bags": 1,
+                "personal_item": true
+              },
+              "booking_class": "M",
+              "cabin": "economy",
+              "changes": {
+                "allowed": true,
+                "fee_usd": 150,
+                "summary": "Changes for $150 per passenger plus fare difference"
+              },
+              "currency": "USD",
+              "fare_family": "STANDARD",
+              "fare_id": "WA101-20261009-STANDARD",
+              "fare_name": "Economy Standard",
+              "flight": {
+                "arrival_day_offset": 1,
+                "arrival_local": "2026-10-10T07:40",
+                "date": "2026-10-09",
+                "departure_local": "2026-10-09T18:05",
+                "destination": "ZRH",
+                "duration_minutes": 455,
+                "flight_id": "WA101-20261009",
+                "flight_numbers": [
+                  "WA101"
+                ],
+                "layover_minutes": [],
+                "origin": "BOS",
+                "segments": [
+                  {
+                    "aircraft": "Airbus A330-300",
+                    "arrival_local": "2026-10-10T07:40",
+                    "departure_local": "2026-10-09T18:05",
+                    "destination": "ZRH",
+                    "duration_minutes": 455,
+                    "flight_number": "WA101",
+                    "origin": "BOS"
+                  }
+                ],
+                "stops": 0,
+                "via": []
+              },
+              "passengers": 1,
+              "price_per_passenger_usd": 858,
+              "refunds": {
+                "fee_usd": null,
+                "refundable": false,
+                "summary": "Non-refundable"
+              },
+              "seat_selection": "Standard seat selection included",
+              "seats_left": 24,
+              "total_usd": 858
+            },
+            {
+              "available": true,
+              "baggage": {
+                "cabin_bag_kg": 8,
+                "checked_bag_kg": null,
+                "checked_bags": 0,
+                "personal_item": true
+              },
+              "booking_class": "V",
+              "cabin": "economy",
+              "changes": {
+                "allowed": false,
+                "fee_usd": null,
+                "summary": "Changes not permitted"
+              },
+              "currency": "USD",
+              "fare_family": "BASIC",
+              "fare_id": "WA105-20261009-BASIC",
+              "fare_name": "Economy Basic",
+              "flight": {
+                "arrival_day_offset": 1,
+                "arrival_local": "2026-10-10T11:20",
+                "date": "2026-10-09",
+                "departure_local": "2026-10-09T21:40",
+                "destination": "ZRH",
+                "duration_minutes": 460,
+                "flight_id": "WA105-20261009",
+                "flight_numbers": [
+                  "WA105"
+                ],
+                "layover_minutes": [],
+                "origin": "BOS",
+                "segments": [
+                  {
+                    "aircraft": "Boeing 787-9",
+                    "arrival_local": "2026-10-10T11:20",
+                    "departure_local": "2026-10-09T21:40",
+                    "destination": "ZRH",
+                    "duration_minutes": 460,
+                    "flight_number": "WA105",
+                    "origin": "BOS"
+                  }
+                ],
+                "stops": 0,
+                "via": []
+              },
+              "passengers": 1,
+              "price_per_passenger_usd": 749,
+              "refunds": {
+                "fee_usd": null,
+                "refundable": false,
+                "summary": "Non-refundable"
+              },
+              "seat_selection": "Seat assigned at check-in",
+              "seats_left": 4,
+              "total_usd": 749
+            }
+          ],
+          "search": {
+            "currency": "USD",
+            "flights": [
+              {
+                "arrival_day_offset": 1,
+                "arrival_local": "2026-10-10T07:40",
+                "currency": "USD",
+                "date": "2026-10-09",
+                "departure_local": "2026-10-09T18:05",
+                "destination": "ZRH",
+                "duration_minutes": 455,
+                "fares": [
+                  {
+                    "available": true,
+                    "booking_class": "V",
+                    "cabin": "economy",
+                    "changeable": false,
+                    "checked_bags": 0,
+                    "fare_family": "BASIC",
+                    "fare_id": "WA101-20261009-BASIC",
+                    "fare_name": "Economy Basic",
+                    "price_usd": 704,
+                    "refundable": false,
+                    "seats_left": 9
+                  },
+                  {
+                    "available": true,
+                    "booking_class": "M",
+                    "cabin": "economy",
+                    "changeable": true,
+                    "checked_bags": 1,
+                    "fare_family": "STANDARD",
+                    "fare_id": "WA101-20261009-STANDARD",
+                    "fare_name": "Economy Standard",
+                    "price_usd": 858,
+                    "refundable": false,
+                    "seats_left": 24
+                  }
+                ],
+                "flight_id": "WA101-20261009",
+                "flight_numbers": [
+                  "WA101"
+                ],
+                "layover_minutes": [],
+                "lowest_price_usd": 704,
+                "origin": "BOS",
+                "segments": [
+                  {
+                    "aircraft": "Airbus A330-300",
+                    "arrival_local": "2026-10-10T07:40",
+                    "departure_local": "2026-10-09T18:05",
+                    "destination": "ZRH",
+                    "duration_minutes": 455,
+                    "flight_number": "WA101",
+                    "origin": "BOS"
+                  }
+                ],
+                "stops": 0,
+                "via": []
+              },
+              {
+                "arrival_day_offset": 1,
+                "arrival_local": "2026-10-10T11:20",
+                "currency": "USD",
+                "date": "2026-10-09",
+                "departure_local": "2026-10-09T21:40",
+                "destination": "ZRH",
+                "duration_minutes": 460,
+                "fares": [
+                  {
+                    "available": true,
+                    "booking_class": "V",
+                    "cabin": "economy",
+                    "changeable": false,
+                    "checked_bags": 0,
+                    "fare_family": "BASIC",
+                    "fare_id": "WA105-20261009-BASIC",
+                    "fare_name": "Economy Basic",
+                    "price_usd": 749,
+                    "refundable": false,
+                    "seats_left": 4
+                  }
+                ],
+                "flight_id": "WA105-20261009",
+                "flight_numbers": [
+                  "WA105"
+                ],
+                "layover_minutes": [],
+                "lowest_price_usd": 749,
+                "origin": "BOS",
+                "segments": [
+                  {
+                    "aircraft": "Boeing 787-9",
+                    "arrival_local": "2026-10-10T11:20",
+                    "departure_local": "2026-10-09T21:40",
+                    "destination": "ZRH",
+                    "duration_minutes": 460,
+                    "flight_number": "WA105",
+                    "origin": "BOS"
+                  }
+                ],
+                "stops": 0,
+                "via": []
+              }
+            ],
+            "query": {
+              "cabin": null,
+              "date": "2026-10-09",
+              "destination": "ZRH",
+              "max_price_usd": 900,
+              "nonstop_only": true,
+              "origin": "BOS",
+              "passengers": 1
+            }
+          }
+        },
+        "intent": "search",
+        "interpreted_request": {
+          "fare_id": null,
+          "intent": "search",
+          "needs_travel_profile": false,
+          "note": null,
+          "search": {
+            "cabin": null,
+            "date": "2026-10-09",
+            "destination": "ZRH",
+            "max_price_usd": 900,
+            "nonstop_only": true,
+            "origin": "BOS",
+            "passengers": 1
+          },
+          "unsupported_reason": null
+        },
+        "memory_proposals": {
+          "proposals": [],
+          "schema": "memory.v0 proposals"
+        },
+        "mentioned_fare_ids": [
+          "WA101-20261009-BASIC",
+          "WA101-20261009-STANDARD",
+          "WA105-20261009-BASIC"
+        ],
+        "notice": "Fictional WebAir demo: no real booking, payment or ticket.",
+        "purchase": null,
+        "refusal": null,
+        "selected_fare_id": "WA101-20261009-BASIC",
+        "status": "options_found"
+      }
+    },
+    {
+      "id": "checked-bag",
+      "summary": "the hero search, asking which fare includes a checked bag",
+      "passed": true,
+      "checks": {
+        "completed": true,
+        "every_turn_as_expected": true,
+        "ids_from_tool_evidence": true,
+        "audit_chain_valid": true,
+        "one_chain_across_turns": true,
+        "no_booking_or_purchase": true,
+        "no_host_resource_read": true,
+        "no_consent_asked": true,
+        "ended_as_declared": true,
+        "replay_router": true
+      },
+      "turns": [
+        {
+          "turn": 1,
+          "status": "completed",
+          "message": {
+            "message": "Find me a nonstop flight from Boston to Zurich on 9 October under $900. Which of those fares includes a checked bag?"
+          },
+          "observed": {
+            "status": "options_found",
+            "intent": "search",
+            "selected_fare_id": "WA101-20261009-STANDARD"
+          },
+          "expected": {
+            "status": "options_found",
+            "intent": "search",
+            "selected_fare_id": "WA101-20261009-STANDARD"
+          },
+          "no_booking_or_purchase": true,
+          "node_types_completed": {
+            "compute": 1,
+            "consent": 1,
+            "join": 3,
+            "llm": 4,
+            "map": 1,
+            "output": 1,
+            "tool": 6,
+            "validate": 31
+          },
+          "nodes_skipped": [
+            "check-confirmation",
+            "check-no-flights",
+            "check-not-searched",
+            "check-open-quote",
+            "check-quote",
+            "check-quote-authorized",
+            "check-quote-fare",
+            "check-quote-offer",
+            "confirm-purchase",
+            "confirmation-ref",
+            "offered-booking-fare",
+            "offered-flights",
+            "passenger",
+            "payment",
+            "prepare",
+            "profile",
+            "profile-used",
+            "purchase",
+            "quote-ref",
+            "quote-total",
+            "remember",
+            "search-origin",
+            "search-request"
+          ],
+          "tool_calls": [
+            {
+              "tool": "search-flights",
+              "binding": "webair.search_flights"
+            },
+            {
+              "tool": "get-fare-rules",
+              "binding": "webair.get_fare_rules"
+            },
+            {
+              "tool": "get-fare-rules",
+              "binding": "webair.get_fare_rules"
+            },
+            {
+              "tool": "get-fare-rules",
+              "binding": "webair.get_fare_rules"
+            }
+          ],
+          "model_tasks": [
+            "interpret",
+            "select",
+            "answer"
+          ],
+          "consents": [],
+          "usage": {
+            "tokens": 9127,
+            "remote_calls": 4,
+            "tool_calls": {
+              "search-flights": 1,
+              "get-fare-rules": 3
+            }
+          }
+        }
+      ],
+      "ended": {
+        "reason": "host",
+        "at": "2026-10-22T01:51:30.342695+00:00",
+        "turns_not_run": 0
+      },
+      "state": {
+        "confirmation_ref": null,
+        "history": [
+          {
+            "answer": "Of the three nonstop WebAir fares from Boston to Zurich on Friday 9 October 2026 under $900, only WA101 Economy Standard ($858 per passenger) includes a checked bag: one bag of up to 23 kg. WA101 Economy Basic ($704) and WA105 Economy Basic ($749) include a personal item and an 8 kg cabin bag but no checked bag. WA101 departs Boston at 18:05 and arrives in Zurich at 07:40 the next day. The Standard fare can be changed for $150 per passenger plus any fare difference and is non-refundable. Nothing has been booked.",
+            "intent": "search",
+            "message": "Find me a nonstop flight from Boston to Zurich on 9 October under $900. Which of those fares includes a checked bag?",
+            "search": {
+              "cabin": null,
+              "date": "2026-10-09",
+              "destination": "ZRH",
+              "max_price_usd": 900,
+              "nonstop_only": true,
+              "origin": "BOS",
+              "passengers": 1
+            },
+            "status": "options_found"
+          }
+        ],
+        "known_fares": [
+          {
+            "available": true,
+            "booking_class": "V",
+            "cabin": "economy",
+            "changeable": false,
+            "checked_bags": 0,
+            "fare_family": "BASIC",
+            "fare_id": "WA101-20261009-BASIC",
+            "fare_name": "Economy Basic",
+            "price_usd": 704,
+            "refundable": false,
+            "seats_left": 9
+          },
+          {
+            "available": true,
+            "booking_class": "M",
+            "cabin": "economy",
+            "changeable": true,
+            "checked_bags": 1,
+            "fare_family": "STANDARD",
+            "fare_id": "WA101-20261009-STANDARD",
+            "fare_name": "Economy Standard",
+            "price_usd": 858,
+            "refundable": false,
+            "seats_left": 24
+          },
+          {
+            "available": true,
+            "booking_class": "V",
+            "cabin": "economy",
+            "changeable": false,
+            "checked_bags": 0,
+            "fare_family": "BASIC",
+            "fare_id": "WA105-20261009-BASIC",
+            "fare_name": "Economy Basic",
+            "price_usd": 749,
+            "refundable": false,
+            "seats_left": 4
+          }
+        ],
+        "profile_used": false,
+        "quote_ref": null
+      },
+      "audit": {
+        "events": 300,
+        "chain_valid": true,
+        "final_hash": "c514d7da0ee7f528cfd5a2e1059612d328e6d49cc9017d7d4701080645c33c6c",
+        "workers_spawned": 13
+      },
+      "usage": {
+        "turns": 1,
+        "tokens": 9127,
+        "remote_calls": 4,
+        "tool_calls": {
+          "search-flights": 1,
+          "get-fare-rules": 3
+        },
+        "limits": {
+          "max_turns": 8,
+          "hard_tokens": 240000,
+          "max_remote_calls": 60,
+          "max_calls_per_tool": {
+            "simulate-purchase": 1
+          }
+        },
+        "per_turn": [
+          {
+            "turn": 1,
+            "status": "completed",
+            "tokens": 9127,
+            "remote_calls": 4,
+            "tool_calls": {
+              "search-flights": 1,
+              "get-fare-rules": 3
+            }
+          }
+        ]
+      },
+      "provenance": {
+        "profile": "conversation.v0",
+        "interpreter": "agentpkg.conversation.Conversation",
+        "package_id": "org.webagents.webair",
+        "package_digest": "b346a4740b3b1052bb77f781ec4c2cbb4d29644a71f9a3c29e1cd8921d9572c2",
+        "conversation_id": "4a0dd6a8-1550-4265-883f-b2fc8e92ca22",
+        "persistent_keys": [
+          "confirmation_ref",
+          "history",
+          "known_fares",
+          "profile_used",
+          "quote_ref"
+        ]
+      },
+      "result": null
+    },
+    {
+      "id": "fare-rules",
+      "summary": "change and refund rules of the Standard fare, BOS -> ZRH nonstop",
+      "passed": true,
+      "checks": {
+        "completed": true,
+        "every_turn_as_expected": true,
+        "ids_from_tool_evidence": true,
+        "audit_chain_valid": true,
+        "one_chain_across_turns": true,
+        "no_booking_or_purchase": true,
+        "no_host_resource_read": true,
+        "no_consent_asked": true,
+        "ended_as_declared": true,
+        "replay_router": true
+      },
+      "turns": [
+        {
+          "turn": 1,
+          "status": "completed",
+          "message": {
+            "message": "What are the change and refund rules for the Standard fare on the nonstop flights from Boston to Zurich on 9 October?"
+          },
+          "observed": {
+            "status": "options_found",
+            "intent": "search",
+            "selected_fare_id": "WA101-20261009-STANDARD"
+          },
+          "expected": {
+            "status": "options_found",
+            "intent": "search",
+            "selected_fare_id": "WA101-20261009-STANDARD"
+          },
+          "no_booking_or_purchase": true,
+          "node_types_completed": {
+            "compute": 1,
+            "consent": 1,
+            "join": 3,
+            "llm": 4,
+            "map": 1,
+            "output": 1,
+            "tool": 6,
+            "validate": 31
+          },
+          "nodes_skipped": [
+            "check-confirmation",
+            "check-no-flights",
+            "check-not-searched",
+            "check-open-quote",
+            "check-quote",
+            "check-quote-authorized",
+            "check-quote-fare",
+            "check-quote-offer",
+            "confirm-purchase",
+            "confirmation-ref",
+            "offered-booking-fare",
+            "offered-flights",
+            "passenger",
+            "payment",
+            "prepare",
+            "profile",
+            "profile-used",
+            "purchase",
+            "quote-ref",
+            "quote-total",
+            "remember",
+            "search-origin",
+            "search-request"
+          ],
+          "tool_calls": [
+            {
+              "tool": "search-flights",
+              "binding": "webair.search_flights"
+            },
+            {
+              "tool": "get-fare-rules",
+              "binding": "webair.get_fare_rules"
+            },
+            {
+              "tool": "get-fare-rules",
+              "binding": "webair.get_fare_rules"
+            }
+          ],
+          "model_tasks": [
+            "interpret",
+            "select",
+            "answer"
+          ],
+          "consents": [],
+          "usage": {
+            "tokens": 9460,
+            "remote_calls": 3,
+            "tool_calls": {
+              "search-flights": 1,
+              "get-fare-rules": 2
+            }
+          }
+        }
+      ],
+      "ended": {
+        "reason": "host",
+        "at": "2026-10-22T01:51:31.158000+00:00",
+        "turns_not_run": 0
+      },
+      "state": {
+        "confirmation_ref": null,
+        "history": [
+          {
+            "answer": "Two nonstop WebAir flights from Boston to Zurich on Friday 9 October 2026 sell Economy Standard: WA101 (departs 18:05, arrives 07:40 the next day) at $858 per passenger and WA105 (departs 21:40, arrives 11:20 the next day) at $913. On both, Economy Standard can be changed for $150 per passenger plus any fare difference, and it is non-refundable. It includes one 23 kg checked bag and standard seat selection. The cheaper of the two is WA101 at $858.",
+            "intent": "search",
+            "message": "What are the change and refund rules for the Standard fare on the nonstop flights from Boston to Zurich on 9 October?",
+            "search": {
+              "cabin": null,
+              "date": "2026-10-09",
+              "destination": "ZRH",
+              "max_price_usd": null,
+              "nonstop_only": true,
+              "origin": "BOS",
+              "passengers": 1
+            },
+            "status": "options_found"
+          }
+        ],
+        "known_fares": [
+          {
+            "available": true,
+            "booking_class": "V",
+            "cabin": "economy",
+            "changeable": false,
+            "checked_bags": 0,
+            "fare_family": "BASIC",
+            "fare_id": "WA101-20261009-BASIC",
+            "fare_name": "Economy Basic",
+            "price_usd": 704,
+            "refundable": false,
+            "seats_left": 9
+          },
+          {
+            "available": true,
+            "booking_class": "M",
+            "cabin": "economy",
+            "changeable": true,
+            "checked_bags": 1,
+            "fare_family": "STANDARD",
+            "fare_id": "WA101-20261009-STANDARD",
+            "fare_name": "Economy Standard",
+            "price_usd": 858,
+            "refundable": false,
+            "seats_left": 24
+          },
+          {
+            "available": true,
+            "booking_class": "Y",
+            "cabin": "economy",
+            "changeable": true,
+            "checked_bags": 2,
+            "fare_family": "FLEX",
+            "fare_id": "WA101-20261009-FLEX",
+            "fare_name": "Economy Flex",
+            "price_usd": 1201,
+            "refundable": true,
+            "seats_left": 12
+          },
+          {
+            "available": true,
+            "booking_class": "J",
+            "cabin": "business",
+            "changeable": true,
+            "checked_bags": 2,
+            "fare_family": "BUSINESS",
+            "fare_id": "WA101-20261009-BUSINESS",
+            "fare_name": "Business",
+            "price_usd": 3432,
+            "refundable": true,
+            "seats_left": 6
+          },
+          {
+            "available": true,
+            "booking_class": "V",
+            "cabin": "economy",
+            "changeable": false,
+            "checked_bags": 0,
+            "fare_family": "BASIC",
+            "fare_id": "WA105-20261009-BASIC",
+            "fare_name": "Economy Basic",
+            "price_usd": 749,
+            "refundable": false,
+            "seats_left": 4
+          },
+          {
+            "available": true,
+            "booking_class": "M",
+            "cabin": "economy",
+            "changeable": true,
+            "checked_bags": 1,
+            "fare_family": "STANDARD",
+            "fare_id": "WA105-20261009-STANDARD",
+            "fare_name": "Economy Standard",
+            "price_usd": 913,
+            "refundable": false,
+            "seats_left": 20
+          },
+          {
+            "available": true,
+            "booking_class": "Y",
+            "cabin": "economy",
+            "changeable": true,
+            "checked_bags": 2,
+            "fare_family": "FLEX",
+            "fare_id": "WA105-20261009-FLEX",
+            "fare_name": "Economy Flex",
+            "price_usd": 1278,
+            "refundable": true,
+            "seats_left": 10
+          },
+          {
+            "available": true,
+            "booking_class": "J",
+            "cabin": "business",
+            "changeable": true,
+            "checked_bags": 2,
+            "fare_family": "BUSINESS",
+            "fare_id": "WA105-20261009-BUSINESS",
+            "fare_name": "Business",
+            "price_usd": 3652,
+            "refundable": true,
+            "seats_left": 2
+          }
+        ],
+        "profile_used": false,
+        "quote_ref": null
+      },
+      "audit": {
+        "events": 279,
+        "chain_valid": true,
+        "final_hash": "e0e0379108b235f9615a084ea853cfa3608821fd42c4a0982c410800a2354e8b",
+        "workers_spawned": 12
+      },
+      "usage": {
+        "turns": 1,
+        "tokens": 9460,
+        "remote_calls": 3,
+        "tool_calls": {
+          "search-flights": 1,
+          "get-fare-rules": 2
+        },
+        "limits": {
+          "max_turns": 8,
+          "hard_tokens": 240000,
+          "max_remote_calls": 60,
+          "max_calls_per_tool": {
+            "simulate-purchase": 1
+          }
+        },
+        "per_turn": [
+          {
+            "turn": 1,
+            "status": "completed",
+            "tokens": 9460,
+            "remote_calls": 3,
+            "tool_calls": {
+              "search-flights": 1,
+              "get-fare-rules": 2
+            }
+          }
+        ]
+      },
+      "provenance": {
+        "profile": "conversation.v0",
+        "interpreter": "agentpkg.conversation.Conversation",
+        "package_id": "org.webagents.webair",
+        "package_digest": "b346a4740b3b1052bb77f781ec4c2cbb4d29644a71f9a3c29e1cd8921d9572c2",
+        "conversation_id": "337d7e83-dda3-4000-849d-4cf6a85650bf",
+        "persistent_keys": [
+          "confirmation_ref",
+          "history",
+          "known_fares",
+          "profile_used",
+          "quote_ref"
+        ]
+      },
+      "result": null
+    },
+    {
+      "id": "other-route",
+      "summary": "JFK -> GVA, Saturday 10 Oct 2026, business class",
+      "passed": true,
+      "checks": {
+        "completed": true,
+        "every_turn_as_expected": true,
+        "ids_from_tool_evidence": true,
+        "audit_chain_valid": true,
+        "one_chain_across_turns": true,
+        "no_booking_or_purchase": true,
+        "no_host_resource_read": true,
+        "no_consent_asked": true,
+        "ended_as_declared": true,
+        "replay_router": true
+      },
+      "turns": [
+        {
+          "turn": 1,
+          "status": "completed",
+          "message": {
+            "message": "One traveler from New York JFK to Geneva on Saturday 10 October 2026, business class."
+          },
+          "observed": {
+            "status": "options_found",
+            "intent": "search",
+            "selected_fare_id": "WA121-20261010-BUSINESS"
+          },
+          "expected": {
+            "status": "options_found",
+            "intent": "search",
+            "selected_fare_id": "WA121-20261010-BUSINESS"
+          },
+          "no_booking_or_purchase": true,
+          "node_types_completed": {
+            "compute": 1,
+            "consent": 1,
+            "join": 3,
+            "llm": 4,
+            "map": 1,
+            "output": 1,
+            "tool": 6,
+            "validate": 31
+          },
+          "nodes_skipped": [
+            "check-confirmation",
+            "check-no-flights",
+            "check-not-searched",
+            "check-open-quote",
+            "check-quote",
+            "check-quote-authorized",
+            "check-quote-fare",
+            "check-quote-offer",
+            "confirm-purchase",
+            "confirmation-ref",
+            "offered-booking-fare",
+            "offered-flights",
+            "passenger",
+            "payment",
+            "prepare",
+            "profile",
+            "profile-used",
+            "purchase",
+            "quote-ref",
+            "quote-total",
+            "remember",
+            "search-origin",
+            "search-request"
+          ],
+          "tool_calls": [
+            {
+              "tool": "search-flights",
+              "binding": "webair.search_flights"
+            },
+            {
+              "tool": "get-fare-rules",
+              "binding": "webair.get_fare_rules"
+            }
+          ],
+          "model_tasks": [
+            "interpret",
+            "select",
+            "answer"
+          ],
+          "consents": [],
+          "usage": {
+            "tokens": 7975,
+            "remote_calls": 2,
+            "tool_calls": {
+              "search-flights": 1,
+              "get-fare-rules": 1
+            }
+          }
+        }
+      ],
+      "ended": {
+        "reason": "host",
+        "at": "2026-10-22T01:51:31.852498+00:00",
+        "turns_not_run": 0
+      },
+      "state": {
+        "confirmation_ref": null,
+        "history": [
+          {
+            "answer": "WebAir has one business-class option from New York JFK to Geneva on Saturday 10 October 2026: WA121, nonstop, departing 18:45 and arriving 08:40 the next day, in Business at $3,034 per passenger (USD, taxes included). It includes two checked bags of up to 32 kg each, free changes (a fare difference may apply), and it is fully refundable before departure. Nothing has been booked.",
+            "intent": "search",
+            "message": "One traveler from New York JFK to Geneva on Saturday 10 October 2026, business class.",
+            "search": {
+              "cabin": "business",
+              "date": "2026-10-10",
+              "destination": "GVA",
+              "max_price_usd": null,
+              "nonstop_only": false,
+              "origin": "JFK",
+              "passengers": 1
+            },
+            "status": "options_found"
+          }
+        ],
+        "known_fares": [
+          {
+            "available": true,
+            "booking_class": "J",
+            "cabin": "business",
+            "changeable": true,
+            "checked_bags": 2,
+            "fare_family": "BUSINESS",
+            "fare_id": "WA121-20261010-BUSINESS",
+            "fare_name": "Business",
+            "price_usd": 3034,
+            "refundable": true,
+            "seats_left": 6
+          }
+        ],
+        "profile_used": false,
+        "quote_ref": null
+      },
+      "audit": {
+        "events": 258,
+        "chain_valid": true,
+        "final_hash": "3879dddd513832db048065b5421782185499a2407347b586395e16abeb8d5522",
+        "workers_spawned": 11
+      },
+      "usage": {
+        "turns": 1,
+        "tokens": 7975,
+        "remote_calls": 2,
+        "tool_calls": {
+          "search-flights": 1,
+          "get-fare-rules": 1
+        },
+        "limits": {
+          "max_turns": 8,
+          "hard_tokens": 240000,
+          "max_remote_calls": 60,
+          "max_calls_per_tool": {
+            "simulate-purchase": 1
+          }
+        },
+        "per_turn": [
+          {
+            "turn": 1,
+            "status": "completed",
+            "tokens": 7975,
+            "remote_calls": 2,
+            "tool_calls": {
+              "search-flights": 1,
+              "get-fare-rules": 1
+            }
+          }
+        ]
+      },
+      "provenance": {
+        "profile": "conversation.v0",
+        "interpreter": "agentpkg.conversation.Conversation",
+        "package_id": "org.webagents.webair",
+        "package_digest": "b346a4740b3b1052bb77f781ec4c2cbb4d29644a71f9a3c29e1cd8921d9572c2",
+        "conversation_id": "1bc09dcb-9feb-49d8-8426-a337aadc0f8f",
+        "persistent_keys": [
+          "confirmation_ref",
+          "history",
+          "known_fares",
+          "profile_used",
+          "quote_ref"
+        ]
+      },
+      "result": null
+    },
+    {
+      "id": "no-results",
+      "summary": "BOS -> GVA: two WebAir airports, but no WebAir route",
+      "passed": true,
+      "checks": {
+        "completed": true,
+        "every_turn_as_expected": true,
+        "ids_from_tool_evidence": true,
+        "audit_chain_valid": true,
+        "one_chain_across_turns": true,
+        "no_booking_or_purchase": true,
+        "no_host_resource_read": true,
+        "no_consent_asked": true,
+        "ended_as_declared": true,
+        "replay_router": true
+      },
+      "turns": [
+        {
+          "turn": 1,
+          "status": "completed",
+          "message": {
+            "message": "I need a flight from Boston to Geneva on 9 October."
+          },
+          "observed": {
+            "status": "no_matching_flights",
+            "intent": "search",
+            "selected_fare_id": null
+          },
+          "expected": {
+            "status": "no_matching_flights",
+            "intent": "search",
+            "selected_fare_id": null
+          },
+          "no_booking_or_purchase": true,
+          "node_types_completed": {
+            "compute": 1,
+            "consent": 1,
+            "join": 3,
+            "llm": 4,
+            "map": 1,
+            "output": 1,
+            "tool": 6,
+            "validate": 31
+          },
+          "nodes_skipped": [
+            "check-confirmation",
+            "check-not-searched",
+            "check-open-quote",
+            "check-options",
+            "check-quote",
+            "check-quote-authorized",
+            "check-quote-fare",
+            "check-quote-offer",
+            "confirm-purchase",
+            "confirmation-ref",
+            "offered-booking-fare",
+            "passenger",
+            "payment",
+            "prepare",
+            "profile",
+            "profile-used",
+            "purchase",
+            "quote-ref",
+            "quote-total",
+            "remember",
+            "search-origin",
+            "search-request"
+          ],
+          "tool_calls": [
+            {
+              "tool": "search-flights",
+              "binding": "webair.search_flights"
+            }
+          ],
+          "model_tasks": [
+            "interpret",
+            "select",
+            "answer"
+          ],
+          "consents": [],
+          "usage": {
+            "tokens": 7165,
+            "remote_calls": 1,
+            "tool_calls": {
+              "search-flights": 1
+            }
+          }
+        }
+      ],
+      "ended": {
+        "reason": "host",
+        "at": "2026-10-22T01:51:32.478885+00:00",
+        "turns_not_run": 0
+      },
+      "state": {
+        "confirmation_ref": null,
+        "history": [
+          {
+            "answer": "WebAir returned no flights from Boston (BOS) to Geneva (GVA) on Friday 9 October 2026, so there is nothing to book for this search.",
+            "intent": "search",
+            "message": "I need a flight from Boston to Geneva on 9 October.",
+            "search": {
+              "cabin": null,
+              "date": "2026-10-09",
+              "destination": "GVA",
+              "max_price_usd": null,
+              "nonstop_only": false,
+              "origin": "BOS",
+              "passengers": 1
+            },
+            "status": "no_matching_flights"
+          }
+        ],
+        "known_fares": [],
+        "profile_used": false,
+        "quote_ref": null
+      },
+      "audit": {
+        "events": 236,
+        "chain_valid": true,
+        "final_hash": "2b13dd8feb2ae465f2445b0b75414b839079d893857b1bb935d2e39313e5ae5d",
+        "workers_spawned": 10
+      },
+      "usage": {
+        "turns": 1,
+        "tokens": 7165,
+        "remote_calls": 1,
+        "tool_calls": {
+          "search-flights": 1
+        },
+        "limits": {
+          "max_turns": 8,
+          "hard_tokens": 240000,
+          "max_remote_calls": 60,
+          "max_calls_per_tool": {
+            "simulate-purchase": 1
+          }
+        },
+        "per_turn": [
+          {
+            "turn": 1,
+            "status": "completed",
+            "tokens": 7165,
+            "remote_calls": 1,
+            "tool_calls": {
+              "search-flights": 1
+            }
+          }
+        ]
+      },
+      "provenance": {
+        "profile": "conversation.v0",
+        "interpreter": "agentpkg.conversation.Conversation",
+        "package_id": "org.webagents.webair",
+        "package_digest": "b346a4740b3b1052bb77f781ec4c2cbb4d29644a71f9a3c29e1cd8921d9572c2",
+        "conversation_id": "7515ed2b-655f-4f45-abcc-2c2321460db2",
+        "persistent_keys": [
+          "confirmation_ref",
+          "history",
+          "known_fares",
+          "profile_used",
+          "quote_ref"
+        ]
+      },
+      "result": null
+    },
+    {
+      "id": "refused",
+      "summary": "a date outside WebAir's schedule; WebAir refuses the search",
+      "passed": true,
+      "checks": {
+        "completed": true,
+        "every_turn_as_expected": true,
+        "ids_from_tool_evidence": true,
+        "audit_chain_valid": true,
+        "one_chain_across_turns": true,
+        "no_booking_or_purchase": true,
+        "no_host_resource_read": true,
+        "no_consent_asked": true,
+        "ended_as_declared": true,
+        "replay_router": true
+      },
+      "turns": [
+        {
+          "turn": 1,
+          "status": "completed",
+          "message": {
+            "message": "Find me a nonstop flight from Boston to Zurich on 9 October 2028 under $900."
+          },
+          "observed": {
+            "status": "request_refused",
+            "intent": "search",
+            "selected_fare_id": null
+          },
+          "expected": {
+            "status": "request_refused",
+            "intent": "search",
+            "selected_fare_id": null
+          },
+          "no_booking_or_purchase": true,
+          "node_types_completed": {
+            "compute": 1,
+            "consent": 1,
+            "join": 3,
+            "llm": 4,
+            "map": 1,
+            "output": 1,
+            "tool": 6,
+            "validate": 31
+          },
+          "nodes_skipped": [
+            "check-confirmation",
+            "check-no-flights",
+            "check-not-searched",
+            "check-open-quote",
+            "check-options",
+            "check-quote",
+            "check-quote-authorized",
+            "check-quote-fare",
+            "check-quote-offer",
+            "confirm-purchase",
+            "confirmation-ref",
+            "offered-booking-fare",
+            "passenger",
+            "payment",
+            "prepare",
+            "profile",
+            "profile-used",
+            "purchase",
+            "quote-ref",
+            "quote-total",
+            "refusal",
+            "remember",
+            "search-origin",
+            "search-request"
+          ],
+          "tool_calls": [
+            {
+              "tool": "search-flights",
+              "binding": "webair.search_flights"
+            }
+          ],
+          "model_tasks": [
+            "interpret",
+            "select",
+            "answer"
+          ],
+          "consents": [],
+          "usage": {
+            "tokens": 7204,
+            "remote_calls": 1,
+            "tool_calls": {
+              "search-flights": 1
+            }
+          }
+        }
+      ],
+      "ended": {
+        "reason": "host",
+        "at": "2026-10-22T01:51:33.110122+00:00",
+        "turns_not_run": 0
+      },
+      "state": {
+        "confirmation_ref": null,
+        "history": [
+          {
+            "answer": "WebAir refused this search: its demo schedule covers 2026-10-01 to 2027-12-31, so it cannot search Boston to Zurich on 9 October 2028. Nothing was found and nothing was booked.",
+            "intent": "search",
+            "message": "Find me a nonstop flight from Boston to Zurich on 9 October 2028 under $900.",
+            "search": {
+              "cabin": null,
+              "date": "2028-10-09",
+              "destination": "ZRH",
+              "max_price_usd": 900,
+              "nonstop_only": true,
+              "origin": "BOS",
+              "passengers": 1
+            },
+            "status": "request_refused"
+          }
+        ],
+        "known_fares": [],
+        "profile_used": false,
+        "quote_ref": null
+      },
+      "audit": {
+        "events": 238,
+        "chain_valid": true,
+        "final_hash": "745fdddba3e77f23436c022b49b54cc85aef9903598b3c2a0eea4a5d6926594b",
+        "workers_spawned": 10
+      },
+      "usage": {
+        "turns": 1,
+        "tokens": 7204,
+        "remote_calls": 1,
+        "tool_calls": {
+          "search-flights": 1
+        },
+        "limits": {
+          "max_turns": 8,
+          "hard_tokens": 240000,
+          "max_remote_calls": 60,
+          "max_calls_per_tool": {
+            "simulate-purchase": 1
+          }
+        },
+        "per_turn": [
+          {
+            "turn": 1,
+            "status": "completed",
+            "tokens": 7204,
+            "remote_calls": 1,
+            "tool_calls": {
+              "search-flights": 1
+            }
+          }
+        ]
+      },
+      "provenance": {
+        "profile": "conversation.v0",
+        "interpreter": "agentpkg.conversation.Conversation",
+        "package_id": "org.webagents.webair",
+        "package_digest": "b346a4740b3b1052bb77f781ec4c2cbb4d29644a71f9a3c29e1cd8921d9572c2",
+        "conversation_id": "04eac2d6-a973-46ef-afca-867a6a444ae4",
+        "persistent_keys": [
+          "confirmation_ref",
+          "history",
+          "known_fares",
+          "profile_used",
+          "quote_ref"
+        ]
+      },
+      "result": null
+    },
+    {
+      "id": "unsupported",
+      "summary": "a destination WebAir does not serve; nothing is searched",
+      "passed": true,
+      "checks": {
+        "completed": true,
+        "every_turn_as_expected": true,
+        "ids_from_tool_evidence": true,
+        "audit_chain_valid": true,
+        "one_chain_across_turns": true,
+        "no_booking_or_purchase": true,
+        "no_host_resource_read": true,
+        "no_consent_asked": true,
+        "ended_as_declared": true,
+        "replay_router": true
+      },
+      "turns": [
+        {
+          "turn": 1,
+          "status": "completed",
+          "message": {
+            "message": "Book me a flight from Boston to Paris next Friday."
+          },
+          "observed": {
+            "status": "request_not_supported",
+            "intent": "search",
+            "selected_fare_id": null
+          },
+          "expected": {
+            "status": "request_not_supported",
+            "intent": "search",
+            "selected_fare_id": null
+          },
+          "no_booking_or_purchase": true,
+          "node_types_completed": {
+            "compute": 1,
+            "consent": 1,
+            "join": 3,
+            "llm": 4,
+            "map": 1,
+            "output": 1,
+            "tool": 6,
+            "validate": 31
+          },
+          "nodes_skipped": [
+            "check-confirmation",
+            "check-no-flights",
+            "check-open-quote",
+            "check-options",
+            "check-quote",
+            "check-quote-authorized",
+            "check-quote-fare",
+            "check-quote-offer",
+            "confirm-purchase",
+            "confirmation-ref",
+            "passenger",
+            "payment",
+            "prepare",
+            "profile",
+            "profile-used",
+            "purchase",
+            "quote-ref",
+            "quote-total",
+            "remember",
+            "search",
+            "select"
+          ],
+          "tool_calls": [],
+          "model_tasks": [
+            "interpret",
+            "answer"
+          ],
+          "consents": [],
+          "usage": {
+            "tokens": 5432,
+            "remote_calls": 0,
+            "tool_calls": {}
+          }
+        }
+      ],
+      "ended": {
+        "reason": "host",
+        "at": "2026-10-22T01:51:33.718487+00:00",
+        "turns_not_run": 0
+      },
+      "state": {
+        "confirmation_ref": null,
+        "history": [
+          {
+            "answer": "I did not search: WebAir does not serve Paris. Its network is Boston, New York JFK, Zurich, Geneva, London Heathrow and Reykjavik. Nothing was booked.",
+            "intent": "search",
+            "message": "Book me a flight from Boston to Paris next Friday.",
+            "search": null,
+            "status": "request_not_supported"
+          }
+        ],
+        "known_fares": [],
+        "profile_used": false,
+        "quote_ref": null
+      },
+      "audit": {
+        "events": 222,
+        "chain_valid": true,
+        "final_hash": "4706f22996cf990e3bfc72792f587ba485df14b0983c08fffeb11bf4eb768af8",
+        "workers_spawned": 10
+      },
+      "usage": {
+        "turns": 1,
+        "tokens": 5432,
+        "remote_calls": 0,
+        "tool_calls": {},
+        "limits": {
+          "max_turns": 8,
+          "hard_tokens": 240000,
+          "max_remote_calls": 60,
+          "max_calls_per_tool": {
+            "simulate-purchase": 1
+          }
+        },
+        "per_turn": [
+          {
+            "turn": 1,
+            "status": "completed",
+            "tokens": 5432,
+            "remote_calls": 0,
+            "tool_calls": {}
+          }
+        ]
+      },
+      "provenance": {
+        "profile": "conversation.v0",
+        "interpreter": "agentpkg.conversation.Conversation",
+        "package_id": "org.webagents.webair",
+        "package_digest": "b346a4740b3b1052bb77f781ec4c2cbb4d29644a71f9a3c29e1cd8921d9572c2",
+        "conversation_id": "7e77f083-75f0-407d-80c8-94a157ad0fb4",
+        "persistent_keys": [
+          "confirmation_ref",
+          "history",
+          "known_fares",
+          "profile_used",
+          "quote_ref"
+        ]
+      },
+      "result": null
+    },
+    {
+      "id": "no-departure",
+      "summary": "the request names no departure airport and no travel profile supplies one (0.5.0, B-124): nothing is searched and the answer asks where the trip starts",
+      "passed": true,
+      "checks": {
+        "completed": true,
+        "every_turn_as_expected": true,
+        "ids_from_tool_evidence": true,
+        "audit_chain_valid": true,
+        "one_chain_across_turns": true,
+        "no_booking_or_purchase": true,
+        "no_host_resource_read": true,
+        "no_consent_asked": true,
+        "ended_as_declared": true,
+        "replay_router": true
+      },
+      "turns": [
+        {
+          "turn": 1,
+          "status": "completed",
+          "message": {
+            "message": "Find me a flight to Zurich on 9 October under $900."
+          },
+          "observed": {
+            "status": "request_not_supported",
+            "intent": "search",
+            "selected_fare_id": null
+          },
+          "expected": {
+            "status": "request_not_supported",
+            "intent": "search",
+            "selected_fare_id": null
+          },
+          "no_booking_or_purchase": true,
+          "node_types_completed": {
+            "compute": 1,
+            "consent": 1,
+            "join": 3,
+            "llm": 4,
+            "map": 1,
+            "output": 1,
+            "tool": 6,
+            "validate": 31
+          },
+          "nodes_skipped": [
+            "check-confirmation",
+            "check-no-flights",
+            "check-open-quote",
+            "check-options",
+            "check-quote",
+            "check-quote-authorized",
+            "check-quote-fare",
+            "check-quote-offer",
+            "confirm-purchase",
+            "confirmation-ref",
+            "passenger",
+            "payment",
+            "prepare",
+            "profile",
+            "profile-used",
+            "purchase",
+            "quote-ref",
+            "quote-total",
+            "remember",
+            "search",
+            "search-origin",
+            "select"
+          ],
+          "tool_calls": [],
+          "model_tasks": [
+            "interpret",
+            "answer"
+          ],
+          "consents": [],
+          "usage": {
+            "tokens": 5465,
+            "remote_calls": 0,
+            "tool_calls": {}
+          }
+        }
+      ],
+      "ended": {
+        "reason": "host",
+        "at": "2026-10-22T01:51:34.322582+00:00",
+        "turns_not_run": 0
+      },
+      "state": {
+        "confirmation_ref": null,
+        "history": [
+          {
+            "answer": "I did not search: your request does not say where you depart from. Tell me your departure airport (Boston, New York JFK, Zurich, Geneva, London Heathrow or Reykjavik), or use the agent in a way that lets it read your travel profile. Nothing was booked.",
+            "intent": "search",
+            "message": "Find me a flight to Zurich on 9 October under $900.",
+            "search": null,
+            "status": "request_not_supported"
+          }
+        ],
+        "known_fares": [],
+        "profile_used": false,
+        "quote_ref": null
+      },
+      "audit": {
+        "events": 223,
+        "chain_valid": true,
+        "final_hash": "debc8e6f282ed83301cb6ae69156c67e900734780176833c08cd929f1257801c",
+        "workers_spawned": 10
+      },
+      "usage": {
+        "turns": 1,
+        "tokens": 5465,
+        "remote_calls": 0,
+        "tool_calls": {},
+        "limits": {
+          "max_turns": 8,
+          "hard_tokens": 240000,
+          "max_remote_calls": 60,
+          "max_calls_per_tool": {
+            "simulate-purchase": 1
+          }
+        },
+        "per_turn": [
+          {
+            "turn": 1,
+            "status": "completed",
+            "tokens": 5465,
+            "remote_calls": 0,
+            "tool_calls": {}
+          }
+        ]
+      },
+      "provenance": {
+        "profile": "conversation.v0",
+        "interpreter": "agentpkg.conversation.Conversation",
+        "package_id": "org.webagents.webair",
+        "package_digest": "b346a4740b3b1052bb77f781ec4c2cbb4d29644a71f9a3c29e1cd8921d9572c2",
+        "conversation_id": "ac56d0a7-70dd-4bd9-864b-9c8b018028d4",
+        "persistent_keys": [
+          "confirmation_ref",
+          "history",
+          "known_fares",
+          "profile_used",
+          "quote_ref"
+        ]
+      },
+      "result": null
+    }
+  ],
+  "scope": "offline fixture replay of the fixture conversations through the generic conversation runner and interpreter, every personal permission denied; synthetic token accounting; no live model, network, origin server or Agent Browser"
+}

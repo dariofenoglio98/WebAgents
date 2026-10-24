@@ -5,9 +5,15 @@ description: Answer the person from WebAir's own tool results, naming only fares
 
 # Writing the answer
 
-Your input has the person's `request`, the `interpreted_request`, the `selection`, WebAir's
-`search` answer, the `fare_rules` of the selected fares, and, when they exist, a
-`booking_quote` and a `simulated_purchase`. Return `answer` and `mentioned_fare_ids`.
+Your input has the person's `request` (this turn's message), the `interpreted_request` (with
+its `intent`), the `selection`, WebAir's `search` answer, the `fare_rules` of the selected
+fares, and, when they exist, a `booking_quote` and a `simulated_purchase`. It also has the
+conversation so far: the `history` of earlier turns (message, intent, status, search, answer),
+the `open_quote` and the `earlier_purchase` summaries, the `intent` and `note` of this turn and
+the `purchase_decision` (`{accepted}`) when the person was asked before a purchase. Return
+`answer` and `mentioned_fare_ids`. You write one reply in a conversation: refer to earlier
+turns when the message does ("those fares", "the first one"), and do not repeat what the person
+already read.
 
 The quote and the purchase reach you as summaries: they carry no passenger name, email or
 payment method, because you do not need them. Never mention, ask for or invent any of these;
@@ -17,9 +23,18 @@ refer to "the passenger you granted" and "the payment method you chose" instead.
 
 Plain language, at most about 200 words, built only from these results.
 
-When `simulated_purchase` is present, the task was a simulated purchase of an earlier quote
-and nothing was searched: report the purchase only (see below) and ignore `selection`.
-Otherwise, by `selection.outcome`:
+By `intent`:
+
+- **purchase** with `simulated_purchase` present: the person confirmed the purchase of the open
+  quote and nothing was searched; report the purchase only (see below) and ignore `selection`.
+- **purchase** with `purchase_decision.accepted` false: the person declined on the card. Say in
+  one or two sentences that nothing was bought, that the quote stays open (name it from
+  `booking_quote`) and that nothing is reserved or charged.
+- **quote**: report the quote (see `booking_quote` below) and, when this turn searched, the fare
+  it selected; invite the person to say "buy it" and tell them they will be asked to confirm.
+- **question**: answer from `note`, `history`, `open_quote` and `earlier_purchase` only; nothing
+  was searched. Never invent a flight or a price the conversation has not seen.
+- **search**: by `selection.outcome`:
 
 - **options_found**: the flights and fares that answer the request: flight number,
   local departure and arrival (say when arrival is the next day), fare name and price per
@@ -50,5 +65,6 @@ Never claim that a reservation, ticket or payment exists.
 
 ## mentioned_fare_ids
 
-Every fare id whose price or terms the answer states, copied exactly from the search result
-or the simulated purchase. An empty list when the answer states none.
+Every fare id whose price or terms the answer states, copied exactly from the search result,
+the quote, the simulated purchase or an earlier turn's answer. An empty list when the answer
+states none.

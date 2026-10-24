@@ -18,7 +18,8 @@ import { decisiveCallFailure } from "../../core/execution/report.js";
 import { checkLocation } from "../../core/workflow/feedback.js";
 import type { JsonObject } from "../../core/json.js";
 import type { PresentationHints } from "../../core/presentation.js";
-import type { ArtifactChunk, ArtifactContent, AuthorizationView, InputValidationView, Request, RunListView, RunReadiness, RunSummary, RunView, SessionView } from "../messages.js";
+import type { InputGatedRead } from "../../core/inputs.js";
+import type { ArtifactChunk, ArtifactContent, AuthorizationView, AuthorizeResult, InputValidationView, Request, RunListView, RunReadiness, RunSummary, RunView, SessionView } from "../messages.js";
 import { button, bytes, chip, clear, definition, el, shortHash, whenText } from "./dom.js";
 import { buildFormModel, hintsFrom, humanize, TaskForm, type FormFile } from "./form.js";
 import { renderMarkdown } from "./markdown.js";
@@ -230,12 +231,12 @@ export function isTerminal(record: RunView | null): boolean {
 type Stage = { label: string; nodes: string[] };
 type GraphNode = { id: string; type: string };
 
-function graphNodes(session: SessionView | null): GraphNode[] {
+export function graphNodes(session: SessionView | null): GraphNode[] {
   const nodes = session?.summary.workflow.nodes;
   return Array.isArray(nodes) ? (nodes as Array<{ id?: unknown; type?: unknown }>).map((node) => ({ id: String(node.id), type: String(node.type) })) : [];
 }
 
-function presentationOf(session: SessionView | null): PresentationHints | null {
+export function presentationOf(session: SessionView | null): PresentationHints | null {
   return session?.summary.workflow.presentation ?? null;
 }
 
@@ -263,7 +264,7 @@ export function stagesFor(nodes: GraphNode[], presentation: PresentationHints | 
 type NodeState = "completed" | "active" | "pending" | "failed" | "skipped";
 type Progress = NonNullable<RunView["progress"]>;
 
-function nodeState(progress: Progress | null, node: string): NodeState {
+export function nodeState(progress: Progress | null, node: string): NodeState {
   if (!progress) return "pending";
   if (progress.failed_nodes.includes(node)) return "failed";
   if (progress.skipped_nodes.includes(node)) return "skipped";
@@ -370,6 +371,11 @@ export class RunPanel {
   private readonly headEl = el("div", { className: "ab-run-head" });
   private readonly checklistEl = el("div", { className: "ab-run-checklist" });
   private readonly formHost = el("div", { className: "ab-run-form" });
+  /** D-273 (B-219): the recall cards under the input switches that need a host read the plan does not grant. */
+  private readonly gatedHost = el("div", { className: "ab-run-gated" });
+  private gatedPicks: Record<string, string> = {};
+  private granting: string | null = null;
+  private gatedError: ErrorBox | null = null;
   private readonly summaryEl = el("div", { className: "ab-run-summary" });
   private readonly actionsEl = el("div", { className: "ab-run-actions" });
   private readonly runEl = el("div", { className: "ab-run-view", attrs: { "aria-live": "polite" } });
@@ -412,7 +418,7 @@ export class RunPanel {
   private named = false;
 
   constructor(private readonly host: RunPanelHost) {
-    this.root = el("section", { className: `ab-card ab-run${host.compact ? " ab-run-compact" : ""}`, attrs: { "aria-label": "Run" } }, this.headEl, this.checklistEl, this.formHost, this.summaryEl, this.actionsEl, this.runEl, this.historyEl);
+    this.root = el("section", { className: `ab-card ab-run${host.compact ? " ab-run-compact" : ""}`, attrs: { "aria-label": "Run" } }, this.headEl, this.checklistEl, this.formHost, this.gatedHost, this.summaryEl, this.actionsEl, this.runEl, this.historyEl);
     this.root.dataset.state = "idle";
   }
 
@@ -960,6 +966,11 @@ export class RunPanel {
     if (readiness?.blocker?.code === "origins_not_granted") items.push({ id: "origins", label: "Origins allowed in Chrome", ok: false, reason: readiness.blocker.message, action: "allow" });
     if (readiness?.blocker?.code === "execution_active") items.push({ id: "active", label: "No other run in progress", ok: false, reason: readiness.blocker.message });
     if (readiness?.blocker?.code === "execution_unavailable") items.push({ id: "host", label: "Execution host available", ok: false, reason: readiness.blocker.message });
+    // D-273 (B-219): a switch that needs a host read the plan does not grant holds Run until the read is granted in place.
+    const ungated = this.ungatedReads(loaded);
+    if ((authorization?.input_gated_reads ?? []).length > 0 && receipt) {
+      items.push({ id: "gated_reads", label: ungated.length === 0 ? "Reads the task switches on are granted" : `A switch needs a read the plan does not grant (${ungated.map((read) => read.input_key).join(", ")})`, ok: ungated.length === 0, reason: "Choose the record below, or turn the switch off." });
+    }
     const key = JSON.stringify(this.taskValue ?? null);
     const local = [...this.localErrors.values()][0];
     items.push({
@@ -985,6 +996,7 @@ export class RunPanel {
     this.renderHead();
     this.renderChecklist();
     this.renderForm();
+    this.renderGated();
     this.renderSummary();
     this.renderActions();
     this.renderRun();
@@ -1091,6 +1103,7 @@ export class RunPanel {
       this.localErrors = new Map(errors);
       this.scheduleValidation();
       this.renderChecklist();
+      this.renderGated();
     });
     this.formKey = key;
     this.taskValue = this.form.current();
@@ -1102,6 +1115,89 @@ export class RunPanel {
 
   private promptHeading(presentation: PresentationHints | null): HTMLElement {
     return el("h3", { className: "ab-run-prompt", text: presentation?.task.prompt ?? "Task" });
+  }
+
+  /**
+   * D-273 (B-219): the input switches that are on and need a host read the plan does not grant: the
+   * permission denied, or no record chosen for it. Each gets a recall card under the form, and
+   * choosing a record re-authorizes (the plan is frozen again before Run).
+   */
+  private ungatedReads(loaded: RunPanelLoaded): InputGatedRead[] {
+    const view = loaded.authorization;
+    const value = this.taskValue;
+    if (!view || !value || typeof value !== "object" || Array.isArray(value)) return [];
+    const receipt = view.receipt;
+    const plan = view.run_plan?.run_plan ?? null;
+    const granted = new Set(plan?.resource_grants.map((grant) => grant.permission_id) ?? receipt?.resource_grants.map((grant) => grant.permission_id) ?? []);
+    return (view.input_gated_reads ?? []).filter((read) => (value as Record<string, unknown>)[read.input_key] === true && read.permission_ids.some((id) => (receipt?.decisions[id] ?? "deny") === "deny" || !granted.has(id)));
+  }
+
+  private renderGated(): void {
+    clear(this.gatedHost);
+    const loaded = this.host.loaded();
+    if (!loaded || !this.showingForm() || !loaded.authorization) return;
+    const view = loaded.authorization;
+    for (const read of this.ungatedReads(loaded)) {
+      const permissionId = read.permission_ids.find((id) => (view.receipt?.decisions[id] ?? "deny") === "deny" || !(view.run_plan?.run_plan.resource_grants ?? []).some((grant) => grant.permission_id === id)) ?? read.permission_ids[0]!;
+      const recall = view.recall.find((item) => item.permission_id === permissionId) ?? null;
+      const request = view.resources.requests.find((item) => item.permission_id === permissionId) ?? null;
+      const kind = (recall?.display_name ?? request?.type_display_name ?? read.resource_types.join(", ") ?? "record").toLowerCase();
+      const label = this.form?.labelFor(`/${read.input_key}`) ?? humanize(read.input_key);
+      const card = el("div", { className: "ab-gated-read", attrs: { "data-gated-read": read.input_key, role: "group", "aria-label": `Grant ${kind}` } });
+      card.append(el("p", {}, el("strong", { text: `“${label}” needs your ${kind}.` }), el("span", { className: "ab-muted", text: ` Choose which one ${read.tool_id} may read; the plan is prepared again with that grant before Run.` })));
+      const candidates = recall?.candidates.map((candidate) => ({ id: candidate.id, title: candidate.title })) ?? request?.options.map((option) => ({ id: option.resource_id, label: option.label })).map((option) => ({ id: option.id, title: option.label })) ?? [];
+      if (view.secrets !== "unlocked") {
+        card.append(el("p", { className: "ab-hint", text: "Unlock your keys and records to choose one." }));
+        if (this.host.unlock) card.append(button("Unlock", () => this.host.unlock?.(() => this.host.changed?.())));
+      } else if (candidates.length === 0) {
+        card.append(el("p", { className: "ab-hint", text: `You have no ${kind} yet. Create one on the Memory page, or turn the switch off.` }));
+      } else {
+        const picked = this.gatedPicks[permissionId] ?? (candidates.length === 1 ? candidates[0]!.id : null);
+        for (const candidate of candidates) {
+          const input = el("input", { attrs: { type: "radio", name: `gated-${permissionId}`, value: candidate.id } });
+          input.checked = picked === candidate.id;
+          input.addEventListener("change", () => {
+            this.gatedPicks[permissionId] = candidate.id;
+            this.renderGated();
+          });
+          card.append(el("label", { className: "ab-recall-option", attrs: { "data-record": candidate.id } }, input, el("span", {}, el("strong", { text: candidate.title }))));
+        }
+        const grant = button(this.granting === permissionId ? "Granting…" : "Grant and use", () => void this.grantRead(read, permissionId, picked), { variant: "primary", disabled: picked === null || this.granting !== null });
+        grant.dataset.gatedGrant = permissionId;
+        card.append(el("div", { className: "ab-inline" }, grant));
+      }
+      if (this.gatedError) card.append(this.errorBanner(this.gatedError));
+      this.gatedHost.append(card);
+    }
+  }
+
+  /** Re-authorize with this read granted for the session and the chosen record, and a new plan (D-273). */
+  private async grantRead(read: InputGatedRead, permissionId: string, resourceId: string | null): Promise<void> {
+    const loaded = this.host.loaded();
+    const view = loaded?.authorization ?? null;
+    const receipt = view?.receipt ?? null;
+    const sessionId = this.sessionId;
+    if (!loaded || !view || !receipt || !sessionId || resourceId === null) return;
+    this.granting = permissionId;
+    this.gatedError = null;
+    this.renderGated();
+    const decisions = { ...receipt.decisions };
+    for (const id of read.permission_ids) if ((decisions[id] ?? "deny") === "deny") decisions[id] = "session";
+    const toolApprovals = { ...receipt.tool_approvals, [read.tool_id]: true };
+    const resourceSelections: Record<string, string> = {};
+    for (const grant of receipt.resource_grants) resourceSelections[grant.permission_id] = grant.resource_id;
+    resourceSelections[permissionId] = resourceId;
+    try {
+      await this.host.send<AuthorizeResult>({ type: "authorization.authorize", sessionId, packageDigest: view.package_digest, decisions, toolApprovals, resourceSelections, provenance: receipt.provenance ?? null, prepare: true, modelId: view.run_plan?.run_plan.model_binding?.host_model_id ?? null });
+      this.host.changed?.();
+    } catch (error) {
+      this.gatedError = describe(error);
+    }
+    this.granting = null;
+    if (!this.disposed) {
+      this.renderGated();
+      void this.refreshReadiness();
+    }
   }
 
   private renderSummary(): void {

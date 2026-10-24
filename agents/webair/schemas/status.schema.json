@@ -6,6 +6,10 @@
     "no_matching_flights",
     "request_refused",
     "request_not_supported",
-    "purchase_simulated"
+    "quoted",
+    "purchase_simulated",
+    "purchase_declined",
+    "answered",
+    "done"
   ]
 }

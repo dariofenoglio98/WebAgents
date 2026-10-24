@@ -8,6 +8,7 @@
  */
 import { safeName } from "./archive.js";
 import { checkComputeDeclarations } from "./compute/declarations.js";
+import { checkConversationDeclarations, conversationInitialEnv } from "./conversation/declarations.js";
 import { canonicalString } from "./canonical.js";
 import { ValidationError } from "./errors.js";
 import { isJsonObject, parseJson, type JsonObject, type JsonValue } from "./json.js";
@@ -191,7 +192,9 @@ export async function validateWorkflow(
     }
   };
 
-  expression(graph.initial_state!, { input: schema(graph.input_schema, "input") }, "initial_state");
+  // conversation.v0 (Chrome core 0.4.0): a conversational graph's initial state also reads the
+  // persisted state, typed by the conversation's state schema; nowhere else (V-4).
+  expression(graph.initial_state!, { input: schema(graph.input_schema, "input"), ...conversationInitialEnv(graph, documents, schemaPaths) }, "initial_state");
 
   const operation = (node: JsonObject, role: string, env: Env, label: string, nodeId: string): void => {
     schema(node.output_schema, label);
@@ -333,4 +336,8 @@ export async function validateWorkflow(
       schemas.close();
     }
   }
+  // conversation.v0: the conversation object, the consent steps, the gate before every tool that
+  // links a consented permission, and the fixture transcript; a graph without a conversation
+  // passes (and may hold no consent step).
+  await checkConversationDeclarations(manifest, graph, policy, tools, { documents, schema, expression: (value, env, label) => expression(value, env, label), ancestors, nodes, files, schemaPaths });
 }

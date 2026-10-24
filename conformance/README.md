@@ -151,11 +151,52 @@ pages, effective page and time bounds, reason, trap code and detail (C-46); `eng
 `limits.fuel` are the engines' own and are dropped. Three engine differences are folded by the
 normalizer: a runaway module is `fuel_exhausted` under wasmtime's fuel and `deadline` under V8's
 wall bound (both compare as `bound_reached`, D-244); after either the memory size is the engine's
-(a terminated Worker reports none, D-250); and the V8 in Node 26.9, which runs the Chrome core here,
+(a terminated Worker reports none, D-250); and the V8s in Node 24 and 26, which run the Chrome core here,
 reports a `call_indirect` through a null slot as a signature mismatch (Chrome 155's V8 does not), so
 the trap codes `indirect_call_to_null` and `bad_signature` compare as `indirect_call_failed` (C-42,
 D-254). Every compute case carries `requires: 0.5.0`, so against an older `CONFORMANCE_CHROME`
 core it is pending rather than failed.
+
+**conversation.v0** (42 cases, T24, B-232; [`spec/conversation-v0.md`](../spec/conversation-v0.md)
+§10): the test package `org.webagents.conversation-test` 0.1.0 on its fixture transcript (an order
+confirmed, then goodbye), and every case of
+[`examples/conversation/cases/cases.json`](../examples/conversation/cases/cases.json) but the two
+consent-host cases (`consent-timeout`, `consent-host-invalid`: a host that never answers or answers
+outside the contract has no CLI form; each unit suite covers them). Each case is agentpkg's own
+test package ([`agentpkg/tests/conversation_probe.py`](../agentpkg/tests/conversation_probe.py))
+with one change, written by [`drivers/conversation_probe.py`](drivers/conversation_probe.py)
+exactly as `test_conversation_cases.py` builds it, beside the case's grants, its input transcript
+and its host limits, and signed with the run's throwaway key (a case `agentpkg build` refuses is
+signed by the driver without validating). `agentpkg converse` and `node chrome-agent-browser/dist/cli.js converse`
+are compared by the exit status (0 for a completed conversation, a turn refused at the bound
+included, V-30; 1 for a conversation with a failed turn), the success report without the output
+directory, the conversation id and the end instant, and the written directory: the file set, the
+transcript without ids and times (V-16), the state, the usage, the provenance with the interpreter
+masked, one audit chain across the turns (the conversation-level events as backbone entries with
+their facts; `consent.*` events in a wave's multiset with the step, the permissions, the decision
+and its provenance), and each `turn-NNN/` directory as a run's files, whose audit slice counts on
+from where the chain stood (V-17). Expected in both:
+
+| Case | Expected |
+|---|---|
+| N-1…N-21 (the conversation object, the consent steps, the gate, the fixture transcript) | `converse` refuses at validation with the spec's code, identical message |
+| N-22…N-24 (the transcript against the package and the plan's grants) | `converse` refuses before the conversation starts, identical message, nothing written |
+| N-25 | `run` on a conversational package: `conversation_profile`, identical message |
+| N-26 | a recorded difference of the CLIs (D-091) in form only: both CLIs' `run` refuse by the profile; both execution layers refuse `conversation_not_supported` with an identical message |
+| N-27…N-29 | the turn refused at the conversation's bound, the conversation completed, identical transcripts |
+| N-30…N-43 | a turn that fails with the node's code (exit 1 in both) or a control that completes (exit 0), identical transcripts, states and chains |
+
+The shipped conversational package is compared the same way (9 cases, `webair-0.8.0/…`, T24): WebAir
+0.8.0's signed conversation fixture (search, refine, goodbye; ended by the package) and each other
+conversation of the publisher's fixture family in
+[`examples/webair-0.8.0-conversations.json`](../examples/webair-0.8.0-conversations.json), written as
+an input transcript (searches only; the quote and purchase conversations need the demo host's data and
+are the demo's tests), the search tools approved, WebAir's pinned key; every one completes in both.
+
+Every conversation case carries `requires: 0.6.0`, so against an older `CONFORMANCE_CHROME` core it
+is pending rather than failed; the Chrome core 0.4.0 (T24) runs them, and both runtimes have agreed
+on all 42 since `conformance/results/` of 2026-10-21, and on the 9 WebAir 0.8.0 cases since
+[`results/2026-10-22T02-02-36-009Z/`](results/2026-10-22T02-02-36-009Z/report.md).
 
 ## Recorded differences
 

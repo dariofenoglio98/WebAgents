@@ -10,6 +10,10 @@
  */
 import type { AgentPageModel } from "../core/agent-page.js";
 import type { AuthorizationRequest, Decided } from "../core/authorization.js";
+import type { TranscriptTurn } from "../core/conversation/runner.js";
+import type { ConsentStepPlan } from "../core/types.js";
+import type { InputGatedRead } from "../core/inputs.js";
+import type { ConsentPending } from "./storage/runs.js";
 import type { RunRecord } from "../core/execution/record.js";
 import type { CatalogEvaluation } from "../core/compatibility.js";
 import type { Candidate, DiscoveryResult, DiscoveryStatus } from "../core/discovery.js";
@@ -24,7 +28,7 @@ import { PROVIDER_IDS } from "../core/models/catalog.js";
 import type { Profile } from "../core/profiles.js";
 import type { BrowserSummary } from "../core/summary.js";
 import type { PinScope, TrustEntry, TrustState } from "../core/trust.js";
-import type { JsonValue } from "../core/json.js";
+import type { JsonObject, JsonValue } from "../core/json.js";
 import type { AuthorizationReceipt, BrowserPolicy, PolicyReference, PresetId, Reason, RunPlan, RunPlanPreflight } from "../core/types.js";
 import type { AgentNoteView, ExportRequest, ImportPlanView, MemoryView, ReviewOutcome, ReviewView } from "./background/memory-controller.js";
 import type { ImportFile } from "../core/memory/export.js";
@@ -140,6 +144,21 @@ export type Request =
   | { type: "run.clear"; runId: string }
   /** The request bodies recorded in test mode for one run (D-028); empty unless recording was on. */
   | { type: "run.observations"; runId: string }
+  // -- conversations (T24, conversation.v0, D-270) -----------------------------------------
+  /** Start a conversation under the session's current plan (one per plan at a time). */
+  | { type: "conversation.start"; sessionId: string; runPlanId: string; runPlanSha256: string }
+  /** One turn: the message is the package's input-schema instance (V-22). */
+  | { type: "conversation.send"; conversationId: string; message: unknown }
+  /** The person's answer to the card the turn waits on. */
+  | { type: "conversation.decide"; conversationId: string; step: string; accepted: boolean }
+  /** End the conversation between turns (reason `person`). */
+  | { type: "conversation.end"; conversationId: string }
+  /** Stop the turn in flight (the turn is cancelled; the conversation stays open). */
+  | { type: "conversation.cancelTurn"; conversationId: string }
+  | { type: "conversation.get"; conversationId: string }
+  | { type: "conversation.list"; sessionId?: string | null }
+  | { type: "conversation.export"; conversationId: string }
+  | { type: "conversation.clear"; conversationId: string }
   /** From the execution host only: a run's stored record changed; the worker re-reads and rebroadcasts. */
   | { type: "host.progress"; runId: string }
   | { type: "host.finished"; runId: string }
@@ -210,6 +229,8 @@ export type Event =
   | { type: "event.files" }
   /** A run's record changed (started, progressed, settled, cleared); views re-read `run.get`. */
   | { type: "event.run"; runId: string; sessionId: string; status: string }
+  /** A conversation changed (started, a turn started or settled, a card answered, ended, cleared); views re-read `conversation.get`. */
+  | { type: "event.conversation"; conversationId: string; sessionId: string; status: string }
   | { type: "event.indexes" }
   | { type: "event.policy" }
   | { type: "event.library" }
@@ -418,6 +439,8 @@ export interface AuthorizationView {
   missing_resource_types: string[];
   /** The recall card per `memory.read` (or alias) request (M-34, M-52): the candidates with their signals and the preset's mode. Empty while locked. */
   recall: RecallView[];
+  /** D-273 (B-219): the input switches that need a host read, so the run form can grant the read in place. */
+  input_gated_reads: InputGatedRead[];
   tools: ToolOffer[];
   receipt: AuthorizationReceipt | null;
   run_plan: RunPlanState | null;
@@ -571,6 +594,8 @@ export interface RunView extends RunRecord {
   sessionOpen: boolean;
   /** Which profile the authorization came from, when one was used (D-053 provenance). */
   profileId: string | null;
+  /** conversation.v0 (D-270): the card this turn waits on, or null. */
+  consentPending?: ConsentPending | null;
 }
 
 export interface RunSummary {
@@ -586,6 +611,8 @@ export interface RunSummary {
   cancelRequested: boolean;
   errorCode: string | null;
   taskText: string | null;
+  /** conversation.v0: the conversation this run is a turn of; null for a one-shot run. The Runs page lists turns under their conversation. */
+  conversation?: { conversationId: string; turn: number } | null;
 }
 
 export interface RunListView {
@@ -613,6 +640,62 @@ export interface RunReadiness {
 }
 
 export type InputValidationView = TaskValidation;
+
+// -- conversations (T24, conversation.v0, D-270) ---------------------------------------------
+export interface ConversationSummary {
+  conversationId: string;
+  sessionId: string;
+  runPlanId: string;
+  status: "open" | "ended";
+  createdAt: string;
+  endedAt: string | null;
+  endedReason: string | null;
+  package: { packageId: string; name: string | null; version: string };
+  selectedModel: string | null;
+  /** Turns run (refused ones excluded). */
+  turns: number;
+  activeRunId: string | null;
+  /** The first message, clipped. */
+  title: string | null;
+}
+
+export interface ConsentPendingView extends ConsentPending {
+  /** The permission kinds the step decides, for the card's words. */
+  kinds: string[];
+}
+
+export interface ConversationView extends ConversationSummary {
+  startedAt: string;
+  ended: { reason: string; at: string; turns_not_run: number } | null;
+  limits: { max_turns: number; hard_tokens: number; max_remote_calls: number; max_calls_per_tool: Record<string, number> };
+  spent: { turns: number; tokens: number; remote_calls: number; tool_calls: Record<string, number>; permissions: string[] };
+  /** The transcript so far, in the output form (V-16): the messages, the decisions as taken, the replies. */
+  transcript: TranscriptTurn[];
+  /** The persisted state after the last completed turn (V-5): the package's own data, for the technical details. */
+  state: JsonObject;
+  persistentKeys: string[];
+  consentSteps: ConsentStepPlan[];
+  /** The turn in flight, with its progress, or null between turns. */
+  activeRun: RunView | null;
+  /** The card the turn waits on, or null. */
+  pendingConsent: ConsentPendingView | null;
+  /** V-30, once ended: `completed` or `failed`. */
+  outcome: "completed" | "failed" | null;
+  sessionOpen: boolean;
+  profileId: string | null;
+  grants: Record<string, string>;
+  resources: Array<{ permissionId: string; resourceType: string; resourceId: string }>;
+}
+
+export interface ConversationListView {
+  conversations: ConversationSummary[];
+}
+
+/** The export (D-272): the conversation's files, each turn's under `turn-NNN/`. */
+export interface ConversationExportBundle {
+  conversation_id: string;
+  entries: Array<{ name: string; bytes: number; sha256: string; base64: string }>;
+}
 
 export interface ArtifactContent {
   run_id: string;
@@ -988,6 +1071,26 @@ export function parseRequest(value: unknown): Request {
       if (typeof fields.offset !== "number" || !Number.isInteger(fields.offset) || fields.offset < 0) throw invalid("offset must be a non-negative integer");
       return { type, runId: text(fields.runId, "runId", MAX_ID), name: artifactName(fields.name), offset: fields.offset };
     }
+    case "conversation.start":
+      only(fields, ["type", "sessionId", "runPlanId", "runPlanSha256"]);
+      return { type, sessionId: text(fields.sessionId, "sessionId", MAX_ID), runPlanId: text(fields.runPlanId, "runPlanId", MAX_ID), runPlanSha256: text(fields.runPlanSha256, "runPlanSha256", MAX_ID) };
+    case "conversation.send":
+      only(fields, ["type", "conversationId", "message"]);
+      return { type, conversationId: text(fields.conversationId, "conversationId", MAX_ID), message: boundedInput(fields.message) };
+    case "conversation.decide":
+      only(fields, ["type", "conversationId", "step", "accepted"]);
+      if (typeof fields.accepted !== "boolean") throw invalid("accepted must be true or false");
+      return { type, conversationId: text(fields.conversationId, "conversationId", MAX_ID), step: text(fields.step, "step", MAX_ID), accepted: fields.accepted };
+    case "conversation.end":
+    case "conversation.cancelTurn":
+    case "conversation.get":
+    case "conversation.export":
+    case "conversation.clear":
+      only(fields, ["type", "conversationId"]);
+      return { type, conversationId: text(fields.conversationId, "conversationId", MAX_ID) };
+    case "conversation.list":
+      only(fields, ["type", "sessionId"]);
+      return { type, sessionId: optionalText(fields.sessionId, "sessionId", MAX_ID) };
     case "search.query":
       only(fields, ["type", "text"]);
       return { type, text: text(fields.text, "text", MAX_QUERY_TEXT) };

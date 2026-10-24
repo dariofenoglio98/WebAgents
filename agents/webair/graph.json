@@ -14,7 +14,7 @@
         "remote_calls": 0
       },
       "state_read": [
-        "request",
+        "message",
         "plan",
         "profile",
         "search_origin",
@@ -43,7 +43,14 @@
         "result",
         "remember",
         "quote_total",
-        "quote_total_input"
+        "quote_total_input",
+        "history",
+        "quote_ref",
+        "confirmation_ref",
+        "profile_used",
+        "offered_booking_fare",
+        "purchase_decision",
+        "purchase_facts"
       ],
       "state_write": [
         "search_origin",
@@ -68,7 +75,14 @@
         "quote",
         "confirmation",
         "quote_total",
-        "quote_total_input"
+        "quote_total_input",
+        "history",
+        "quote_ref",
+        "confirmation_ref",
+        "profile_used",
+        "offered_booking_fare",
+        "purchase_decision",
+        "purchase_facts"
       ]
     },
     {
@@ -85,7 +99,12 @@
         "remote_calls": 2
       },
       "state_read": [
-        "request"
+        "message",
+        "history",
+        "known_fares",
+        "quote_ref",
+        "confirmation_ref",
+        "profile_used"
       ],
       "state_write": [
         "plan"
@@ -106,7 +125,6 @@
         "remote_calls": 0
       },
       "state_read": [
-        "request",
         "plan",
         "booking_fare"
       ],
@@ -153,7 +171,7 @@
         "remote_calls": 2
       },
       "state_read": [
-        "request",
+        "message",
         "plan",
         "search"
       ],
@@ -198,13 +216,17 @@
         "remote_calls": 2
       },
       "state_read": [
-        "request",
+        "message",
         "plan",
         "selection",
         "search",
         "fare_rules",
         "booking_summary",
-        "purchase_summary"
+        "purchase_summary",
+        "history",
+        "quote_ref",
+        "confirmation_ref",
+        "purchase_decision"
       ],
       "state_write": [
         "answer"
@@ -224,7 +246,7 @@
         "remote_calls": 2
       },
       "state_read": [
-        "request",
+        "message",
         "plan",
         "booking_summary"
       ],
@@ -237,9 +259,25 @@
   "output_schema": "schemas/result.schema.json",
   "initial_state": {
     "object": {
-      "request": {
+      "message": {
         "from": "input",
-        "path": ""
+        "path": "/message"
+      },
+      "history": {
+        "from": "conversation",
+        "path": "/history"
+      },
+      "quote_ref": {
+        "from": "conversation",
+        "path": "/quote_ref"
+      },
+      "confirmation_ref": {
+        "from": "conversation",
+        "path": "/confirmation_ref"
+      },
+      "profile_used": {
+        "from": "conversation",
+        "path": "/profile_used"
       },
       "plan": {
         "literal": null
@@ -307,9 +345,6 @@
       "purchase_fares": {
         "literal": []
       },
-      "known_fares": {
-        "literal": []
-      },
       "status": {
         "literal": null
       },
@@ -329,6 +364,19 @@
       },
       "quote_total_input": {
         "literal": null
+      },
+      "known_fares": {
+        "from": "conversation",
+        "path": "/known_fares"
+      },
+      "offered_booking_fare": {
+        "literal": null
+      },
+      "purchase_decision": {
+        "literal": null
+      },
+      "purchase_facts": {
+        "literal": null
       }
     }
   },
@@ -341,27 +389,30 @@
       "task": "interpret",
       "input": {
         "object": {
-          "request": {
+          "message": {
             "from": "state",
-            "path": "/request/request"
+            "path": "/message"
+          },
+          "history": {
+            "from": "state",
+            "path": "/history"
+          },
+          "known_fares": {
+            "from": "state",
+            "path": "/known_fares"
+          },
+          "open_quote": {
+            "from": "state",
+            "path": "/quote_ref"
+          },
+          "purchase": {
+            "from": "state",
+            "path": "/confirmation_ref"
+          },
+          "profile_used": {
+            "from": "state",
+            "path": "/profile_used"
           }
-        }
-      },
-      "when": {
-        "left": {
-          "from": "state",
-          "path": "/request/purchase/quote_id"
-        },
-        "op": "eq",
-        "right": {
-          "literal": ""
-        }
-      },
-      "otherwise": {
-        "literal": {
-          "search": null,
-          "unsupported_reason": null,
-          "needs_travel_profile": false
         }
       },
       "output_schema": "schemas/plan.schema.json",
@@ -374,6 +425,82 @@
           "path": ""
         }
       }
+    },
+    {
+      "id": "check-quote-fare",
+      "type": "validate",
+      "worker": "Coordinator",
+      "depends_on": [
+        "interpret"
+      ],
+      "input": {
+        "from": "state",
+        "path": "/plan"
+      },
+      "when": {
+        "left": {
+          "from": "state",
+          "path": "/plan/fare_id"
+        },
+        "op": "ne",
+        "right": {
+          "literal": null
+        }
+      },
+      "otherwise": {
+        "from": "state",
+        "path": "/plan"
+      },
+      "assertions": [
+        {
+          "kind": "relation",
+          "rows": {
+            "array": [
+              {
+                "from": "state",
+                "path": "/plan/fare_id"
+              }
+            ]
+          },
+          "row_key": "",
+          "targets": {
+            "from": "state",
+            "path": "/known_fares"
+          },
+          "target_key": "/fare_id"
+        }
+      ],
+      "output_schema": "schemas/plan.schema.json",
+      "timeout_seconds": 10,
+      "writes": {}
+    },
+    {
+      "id": "check-open-quote",
+      "type": "validate",
+      "worker": "Coordinator",
+      "depends_on": [
+        "interpret"
+      ],
+      "input": {
+        "from": "state",
+        "path": "/quote_ref"
+      },
+      "when": {
+        "left": {
+          "from": "state",
+          "path": "/plan/intent"
+        },
+        "op": "eq",
+        "right": {
+          "literal": "purchase"
+        }
+      },
+      "otherwise": {
+        "literal": "not_a_purchase"
+      },
+      "output_schema": "schemas/open-quote.schema.json",
+      "timeout_seconds": 10,
+      "writes": {}
     },
     {
       "id": "profile",
@@ -412,6 +539,39 @@
         "/profile": {
           "from": "result",
           "path": "/fields"
+        }
+      }
+    },
+    {
+      "id": "profile-used",
+      "type": "validate",
+      "worker": "Coordinator",
+      "depends_on": [
+        "profile"
+      ],
+      "input": {
+        "literal": true
+      },
+      "when": {
+        "left": {
+          "from": "state",
+          "path": "/plan/needs_travel_profile"
+        },
+        "op": "eq",
+        "right": {
+          "literal": true
+        }
+      },
+      "otherwise": {
+        "from": "state",
+        "path": "/profile_used"
+      },
+      "output_schema": "schemas/profile-used.schema.json",
+      "timeout_seconds": 10,
+      "writes": {
+        "/profile_used": {
+          "from": "result",
+          "path": ""
         }
       }
     },
@@ -579,7 +739,7 @@
         "object": {
           "request": {
             "from": "state",
-            "path": "/request/request"
+            "path": "/message"
           },
           "interpreted_request": {
             "from": "state",
@@ -1037,16 +1197,24 @@
       "when": {
         "left": {
           "from": "state",
-          "path": "/request/booking"
+          "path": "/plan/intent"
         },
-        "op": "eq",
+        "op": "ne",
         "right": {
-          "literal": false
+          "literal": "quote"
         }
       },
       "otherwise": {
-        "from": "state",
-        "path": "/selection/selected_fare_id"
+        "coalesce": [
+          {
+            "from": "state",
+            "path": "/plan/fare_id"
+          },
+          {
+            "from": "state",
+            "path": "/selection/selected_fare_id"
+          }
+        ]
       },
       "output_schema": "schemas/booking-fare.schema.json",
       "timeout_seconds": 10,
@@ -1071,24 +1239,59 @@
       "when": {
         "left": {
           "from": "state",
-          "path": "/request/purchase/quote_id"
+          "path": "/plan/intent"
         },
-        "op": "eq",
+        "op": "ne",
         "right": {
-          "literal": ""
+          "literal": "purchase"
         }
       },
       "otherwise": {
         "from": "state",
-        "path": "/request/purchase/fare_id"
+        "path": "/quote_ref/fare_id"
       },
       "output_schema": "schemas/booking-fare.schema.json",
       "timeout_seconds": 10,
       "depends_on": [
-        "selected-booking-fare"
+        "selected-booking-fare",
+        "check-quote-fare",
+        "check-open-quote"
       ],
       "writes": {
         "/booking_fare": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "id": "offered-booking-fare",
+      "type": "validate",
+      "worker": "Coordinator",
+      "depends_on": [
+        "booking-fare"
+      ],
+      "input": {
+        "literal": null
+      },
+      "when": {
+        "left": {
+          "from": "state",
+          "path": "/search"
+        },
+        "op": "eq",
+        "right": {
+          "literal": null
+        }
+      },
+      "otherwise": {
+        "from": "state",
+        "path": "/selected_booking_fare"
+      },
+      "output_schema": "schemas/booking-fare.schema.json",
+      "timeout_seconds": 10,
+      "writes": {
+        "/offered_booking_fare": {
           "from": "result",
           "path": ""
         }
@@ -1105,11 +1308,11 @@
       "when": {
         "left": {
           "from": "state",
-          "path": "/request/purchase/quote_id"
+          "path": "/plan/intent"
         },
-        "op": "ne",
+        "op": "eq",
         "right": {
-          "literal": ""
+          "literal": "purchase"
         }
       },
       "otherwise": {
@@ -1443,7 +1646,7 @@
       "when": {
         "left": {
           "from": "state",
-          "path": "/selected_booking_fare"
+          "path": "/offered_booking_fare"
         },
         "op": "ne",
         "right": {
@@ -1490,7 +1693,8 @@
       "output_schema": "schemas/booking-quote.schema.json",
       "timeout_seconds": 10,
       "depends_on": [
-        "check-quote"
+        "check-quote",
+        "offered-booking-fare"
       ],
       "writes": {}
     },
@@ -1505,11 +1709,11 @@
       "when": {
         "left": {
           "from": "state",
-          "path": "/request/purchase/quote_id"
+          "path": "/plan/intent"
         },
-        "op": "ne",
+        "op": "eq",
         "right": {
-          "literal": ""
+          "literal": "purchase"
         }
       },
       "otherwise": {
@@ -1524,7 +1728,29 @@
           },
           "right": {
             "from": "state",
-            "path": "/request/purchase/quote_id"
+            "path": "/quote_ref/quote_id"
+          }
+        },
+        {
+          "kind": "equal",
+          "left": {
+            "from": "state",
+            "path": "/quote/fare/fare_id"
+          },
+          "right": {
+            "from": "state",
+            "path": "/quote_ref/fare_id"
+          }
+        },
+        {
+          "kind": "equal",
+          "left": {
+            "from": "state",
+            "path": "/quote/total_usd"
+          },
+          "right": {
+            "from": "state",
+            "path": "/quote_ref/total_usd"
           }
         }
       ],
@@ -1536,6 +1762,145 @@
       "writes": {}
     },
     {
+      "id": "purchase-facts",
+      "type": "validate",
+      "worker": "Coordinator",
+      "depends_on": [
+        "check-quote-authorized"
+      ],
+      "input": {
+        "literal": null
+      },
+      "when": {
+        "left": {
+          "from": "state",
+          "path": "/plan/intent"
+        },
+        "op": "ne",
+        "right": {
+          "literal": "purchase"
+        }
+      },
+      "otherwise": {
+        "object": {
+          "quote_id": {
+            "from": "state",
+            "path": "/quote/quote_id"
+          },
+          "fare_id": {
+            "from": "state",
+            "path": "/quote/fare/fare_id"
+          },
+          "fare_name": {
+            "from": "state",
+            "path": "/quote/fare/fare_name"
+          },
+          "cabin": {
+            "from": "state",
+            "path": "/quote/fare/cabin"
+          },
+          "origin": {
+            "from": "state",
+            "path": "/quote/fare/flight/origin"
+          },
+          "destination": {
+            "from": "state",
+            "path": "/quote/fare/flight/destination"
+          },
+          "date": {
+            "from": "state",
+            "path": "/quote/fare/flight/date"
+          },
+          "flight_numbers": {
+            "from": "state",
+            "path": "/quote/fare/flight/flight_numbers"
+          },
+          "passenger_count": {
+            "from": "state",
+            "path": "/quote/fare/passengers"
+          },
+          "total_usd": {
+            "from": "state",
+            "path": "/quote/total_usd"
+          },
+          "currency": {
+            "from": "state",
+            "path": "/quote/currency"
+          },
+          "passenger": {
+            "object": {
+              "given_name": {
+                "from": "state",
+                "path": "/passenger/given_name"
+              },
+              "family_name": {
+                "from": "state",
+                "path": "/passenger/family_name"
+              }
+            }
+          },
+          "payment_method": {
+            "from": "state",
+            "path": "/payment/display"
+          },
+          "simulated": {
+            "from": "state",
+            "path": "/quote/simulated"
+          }
+        }
+      },
+      "output_schema": "schemas/purchase-facts.schema.json",
+      "timeout_seconds": 10,
+      "writes": {
+        "/purchase_facts": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "id": "confirm-purchase",
+      "type": "consent",
+      "worker": "Coordinator",
+      "depends_on": [
+        "purchase-facts"
+      ],
+      "when": {
+        "left": {
+          "from": "state",
+          "path": "/plan/intent"
+        },
+        "op": "eq",
+        "right": {
+          "literal": "purchase"
+        }
+      },
+      "otherwise": {
+        "literal": {
+          "accepted": false
+        }
+      },
+      "permissions": [
+        "booking.simulate_purchase"
+      ],
+      "text": {
+        "from": "state",
+        "path": "/plan/note"
+      },
+      "input": {
+        "from": "state",
+        "path": "/purchase_facts"
+      },
+      "output_schema": "schemas/consent-decision.schema.json",
+      "timeout_seconds": 600,
+      "writes": {
+        "/purchase_decision": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
       "id": "purchase-request",
       "type": "validate",
       "worker": "Coordinator",
@@ -1545,11 +1910,11 @@
       "when": {
         "left": {
           "from": "state",
-          "path": "/request/purchase/quote_id"
+          "path": "/purchase_decision/accepted"
         },
-        "op": "eq",
+        "op": "ne",
         "right": {
-          "literal": ""
+          "literal": true
         }
       },
       "otherwise": {
@@ -1560,7 +1925,7 @@
           },
           "quote_id": {
             "from": "state",
-            "path": "/request/purchase/quote_id"
+            "path": "/quote/quote_id"
           },
           "payment_method_id": {
             "from": "state",
@@ -1571,7 +1936,7 @@
       "output_schema": "schemas/purchase-request.schema.json",
       "timeout_seconds": 10,
       "depends_on": [
-        "check-quote-authorized"
+        "confirm-purchase"
       ],
       "writes": {
         "/purchase_request": {
@@ -1787,6 +2152,40 @@
       }
     },
     {
+      "id": "quote-ref",
+      "type": "validate",
+      "worker": "Coordinator",
+      "depends_on": [
+        "booking-summary"
+      ],
+      "input": {
+        "from": "state",
+        "path": "/booking_summary"
+      },
+      "when": {
+        "left": {
+          "from": "state",
+          "path": "/booking_summary"
+        },
+        "op": "ne",
+        "right": {
+          "literal": null
+        }
+      },
+      "otherwise": {
+        "from": "state",
+        "path": "/quote_ref"
+      },
+      "output_schema": "schemas/booking-summary.schema.json",
+      "timeout_seconds": 10,
+      "writes": {
+        "/quote_ref": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
       "id": "purchase-summary",
       "type": "validate",
       "worker": "Coordinator",
@@ -1952,6 +2351,40 @@
       }
     },
     {
+      "id": "confirmation-ref",
+      "type": "validate",
+      "worker": "Coordinator",
+      "depends_on": [
+        "purchase-summary"
+      ],
+      "input": {
+        "from": "state",
+        "path": "/purchase_summary"
+      },
+      "when": {
+        "left": {
+          "from": "state",
+          "path": "/purchase_summary"
+        },
+        "op": "ne",
+        "right": {
+          "literal": null
+        }
+      },
+      "otherwise": {
+        "from": "state",
+        "path": "/confirmation_ref"
+      },
+      "output_schema": "schemas/purchase-summary.schema.json",
+      "timeout_seconds": 10,
+      "writes": {
+        "/confirmation_ref": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
       "id": "purchase-fares",
       "type": "validate",
       "worker": "Coordinator",
@@ -2000,6 +2433,10 @@
         "array": [
           {
             "from": "state",
+            "path": "/known_fares"
+          },
+          {
+            "from": "state",
             "path": "/offered_fares"
           },
           {
@@ -2019,7 +2456,11 @@
           "from": "result",
           "path": ""
         }
-      }
+      },
+      "unique_by": [
+        "/fare_id"
+      ],
+      "limit": 64
     },
     {
       "id": "status",
@@ -2032,11 +2473,75 @@
       "when": {
         "left": {
           "from": "state",
-          "path": "/request/purchase/quote_id"
+          "path": "/plan/intent"
         },
         "op": "eq",
         "right": {
-          "literal": ""
+          "literal": "search"
+        }
+      },
+      "otherwise": {
+        "lookup": {
+          "in": {
+            "literal": [
+              {
+                "intent": "quote",
+                "status": "quoted"
+              },
+              {
+                "intent": "purchase",
+                "status": "purchase_declined"
+              },
+              {
+                "intent": "question",
+                "status": "answered"
+              },
+              {
+                "intent": "done",
+                "status": "done"
+              }
+            ]
+          },
+          "key": "/intent",
+          "equals": {
+            "from": "state",
+            "path": "/plan/intent"
+          },
+          "path": "/status"
+        }
+      },
+      "output_schema": "schemas/status.schema.json",
+      "timeout_seconds": 10,
+      "depends_on": [
+        "select"
+      ],
+      "writes": {
+        "/status": {
+          "from": "result",
+          "path": ""
+        }
+      }
+    },
+    {
+      "id": "status-final",
+      "type": "validate",
+      "worker": "Coordinator",
+      "depends_on": [
+        "status",
+        "check-confirmation"
+      ],
+      "input": {
+        "from": "state",
+        "path": "/status"
+      },
+      "when": {
+        "left": {
+          "from": "state",
+          "path": "/confirmation"
+        },
+        "op": "eq",
+        "right": {
+          "literal": null
         }
       },
       "otherwise": {
@@ -2044,9 +2549,6 @@
       },
       "output_schema": "schemas/status.schema.json",
       "timeout_seconds": 10,
-      "depends_on": [
-        "select"
-      ],
       "writes": {
         "/status": {
           "from": "result",
@@ -2063,7 +2565,7 @@
         "object": {
           "request": {
             "from": "state",
-            "path": "/request/request"
+            "path": "/message"
           },
           "interpreted_request": {
             "from": "state",
@@ -2088,6 +2590,30 @@
           "simulated_purchase": {
             "from": "state",
             "path": "/purchase_summary"
+          },
+          "intent": {
+            "from": "state",
+            "path": "/plan/intent"
+          },
+          "note": {
+            "from": "state",
+            "path": "/plan/note"
+          },
+          "history": {
+            "from": "state",
+            "path": "/history"
+          },
+          "open_quote": {
+            "from": "state",
+            "path": "/quote_ref"
+          },
+          "earlier_purchase": {
+            "from": "state",
+            "path": "/confirmation_ref"
+          },
+          "purchase_decision": {
+            "from": "state",
+            "path": "/purchase_decision"
           }
         }
       },
@@ -2095,15 +2621,92 @@
       "max_output_tokens": 8000,
       "timeout_seconds": 300,
       "depends_on": [
-        "fare-rules",
+        "booking-summary",
         "check-no-flights",
         "check-not-searched",
-        "refusal",
-        "booking-summary",
-        "purchase-summary"
+        "confirm-purchase",
+        "confirmation-ref",
+        "fare-rules",
+        "purchase-summary",
+        "quote-ref",
+        "refusal"
       ],
       "writes": {
         "/answer": {
+          "from": "result",
+          "path": ""
+        }
+      },
+      "when": {
+        "left": {
+          "from": "state",
+          "path": "/plan/intent"
+        },
+        "op": "ne",
+        "right": {
+          "literal": "done"
+        }
+      },
+      "otherwise": {
+        "object": {
+          "answer": {
+            "from": "state",
+            "path": "/plan/note"
+          },
+          "mentioned_fare_ids": {
+            "literal": []
+          }
+        }
+      }
+    },
+    {
+      "id": "history",
+      "type": "join",
+      "worker": "Coordinator",
+      "depends_on": [
+        "answer",
+        "status-final"
+      ],
+      "input": {
+        "array": [
+          {
+            "from": "state",
+            "path": "/history"
+          },
+          {
+            "array": [
+              {
+                "object": {
+                  "message": {
+                    "from": "state",
+                    "path": "/message"
+                  },
+                  "intent": {
+                    "from": "state",
+                    "path": "/plan/intent"
+                  },
+                  "status": {
+                    "from": "state",
+                    "path": "/status"
+                  },
+                  "search": {
+                    "from": "state",
+                    "path": "/search_request"
+                  },
+                  "answer": {
+                    "from": "state",
+                    "path": "/answer/answer"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "output_schema": "schemas/history.schema.json",
+      "timeout_seconds": 10,
+      "writes": {
+        "/history": {
           "from": "result",
           "path": ""
         }
@@ -2118,7 +2721,7 @@
         "object": {
           "request": {
             "from": "state",
-            "path": "/request/request"
+            "path": "/message"
           },
           "interpreted_request": {
             "from": "state",
@@ -2168,6 +2771,10 @@
           "status": {
             "from": "state",
             "path": "/status"
+          },
+          "intent": {
+            "from": "state",
+            "path": "/plan/intent"
           },
           "answer": {
             "from": "state",
@@ -2244,7 +2851,7 @@
       "timeout_seconds": 10,
       "depends_on": [
         "answer",
-        "status",
+        "status-final",
         "known-fares",
         "purchase-result",
         "remember"
@@ -2274,7 +2881,11 @@
       "output_schema": "schemas/scrub.schema.json",
       "timeout_seconds": 10,
       "depends_on": [
-        "assemble"
+        "assemble",
+        "history",
+        "quote-ref",
+        "confirmation-ref",
+        "profile-used"
       ],
       "writes": {
         "/profile": {
@@ -2379,23 +2990,15 @@
       "schema": "agentpkg-presentation-v0",
       "task": {
         "prompt": "Where would you like to fly with WebAir?",
-        "run_label": "Run WebAir",
+        "run_label": "Send",
         "running_label": "Asking WebAir…",
         "completed_label": "WebAir answered"
       },
       "input": {
-        "request": {
+        "message": {
           "widget": "multiline",
           "rows": 3,
           "placeholder": "Find me a flight from Boston to Zurich on 9 October under $900"
-        },
-        "booking": {
-          "label": "Prepare a booking quote for the passenger I grant",
-          "group": "optional"
-        },
-        "purchase": {
-          "label": "Simulate purchase of a quote",
-          "group": "advanced"
         }
       },
       "nodes": {
@@ -2433,14 +3036,27 @@
         "answer": "Write the answer",
         "assemble": "Assemble result",
         "scrub": "Clear personal data",
-        "output": "Output"
+        "output": "Output",
+        "check-quote-fare": "Check the fare to quote",
+        "check-open-quote": "Check the open quote",
+        "profile-used": "Remember the profile was used",
+        "offered-booking-fare": "Booking: fare from this search",
+        "confirm-purchase": "Confirm the purchase",
+        "quote-ref": "Keep the quote",
+        "confirmation-ref": "Keep the confirmation",
+        "status-final": "Outcome",
+        "history": "Keep the conversation",
+        "purchase-facts": "Purchase: the card's facts"
       },
       "stages": [
         {
           "label": "Understanding",
           "nodes": [
             "interpret",
+            "check-quote-fare",
+            "check-open-quote",
             "profile",
+            "profile-used",
             "search-request"
           ]
         },
@@ -2468,24 +3084,29 @@
           "nodes": [
             "selected-booking-fare",
             "booking-fare",
+            "offered-booking-fare",
             "passenger",
             "booking-request",
             "prepare",
             "check-quote",
             "check-quote-offer",
             "check-quote-authorized",
-            "booking-summary"
+            "booking-summary",
+            "quote-ref"
           ]
         },
         {
           "label": "Simulated purchase",
           "nodes": [
             "payment",
+            "purchase-facts",
+            "confirm-purchase",
             "purchase-request",
             "purchase",
             "check-confirmation",
             "purchase-summary",
             "purchase-result",
+            "confirmation-ref",
             "purchase-fares"
           ]
         },
@@ -2493,8 +3114,10 @@
           "label": "Answer",
           "nodes": [
             "status",
+            "status-final",
             "known-fares",
             "answer",
+            "history",
             "assemble",
             "scrub",
             "output"
@@ -2522,5 +3145,38 @@
       "path": "modules/fares.wasm",
       "sha256": "ef7e813b9ac330575c89c75d96aa63bfe25d77da8d3a699cf4718879a8f123c0"
     }
-  ]
+  ],
+  "conversation": {
+    "state_schema": "schemas/conversation-state.schema.json",
+    "initial": {
+      "literal": {
+        "history": [],
+        "known_fares": [],
+        "quote_ref": null,
+        "confirmation_ref": null,
+        "profile_used": false
+      }
+    },
+    "budget": {
+      "max_turns": 8,
+      "hard_tokens": 240000,
+      "max_remote_calls": 60,
+      "max_calls_per_tool": {
+        "simulate-purchase": 1
+      }
+    },
+    "end": {
+      "when": {
+        "left": {
+          "from": "result",
+          "path": "/intent"
+        },
+        "op": "eq",
+        "right": {
+          "literal": "done"
+        }
+      }
+    },
+    "fixture": "fixtures/transcript.json"
+  }
 }

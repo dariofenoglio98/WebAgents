@@ -22,7 +22,7 @@
     {
       "id": "identity.passenger",
       "kind": "personal.read",
-      "description": "Read the passenger identity you choose (name and contact email) and send it to WebAir for a booking quote or a simulated purchase, and nowhere else. No model sees it.",
+      "description": "Read the passenger identity you choose (name and contact email) and send it to WebAir for a booking quote or a simulated purchase, and nowhere else. No model sees it; the card before a purchase shows the name only.",
       "required": false,
       "resources": [
         "personal.passenger_identity"
@@ -31,7 +31,7 @@
     {
       "id": "wallet.payment",
       "kind": "personal.read",
-      "description": "Read which payment method you choose (an opaque demo identifier and a display label, never a card number) and send the identifier to WebAir with a simulated purchase, and nowhere else. No model sees it.",
+      "description": "Read which payment method you choose (an opaque demo identifier and a display label, never a card number) and send the identifier to WebAir with a simulated purchase, and nowhere else. No model sees it; the card before a purchase shows the label only.",
       "required": false,
       "resources": [
         "wallet.payment_method"
@@ -40,7 +40,7 @@
     {
       "id": "booking.simulate_purchase",
       "kind": "payment",
-      "description": "Simulate purchasing the one exact quote a task names, with the payment method you choose. Fictional: WebAir performs no real transaction and charges nothing. Consequential by design: grant it once, for one run.",
+      "description": "Simulate purchasing the one quote this conversation made, with the payment method you choose, after the agent asks you with the quote's facts. Fictional: WebAir performs no real transaction and charges nothing. Consequential by design: grant it once, for one purchase.",
       "required": false,
       "resources": [
         "webagents-webair-production.up.railway.app"
@@ -58,7 +58,7 @@
     {
       "id": "memory.session",
       "kind": "memory",
-      "description": "Read and write explicit worker state views for this run only.",
+      "description": "Read and write explicit worker state views for this turn only; the history, the known fares, the open quote and the confirmation outlive the turn as summaries.",
       "required": true,
       "resources": [
         "session"

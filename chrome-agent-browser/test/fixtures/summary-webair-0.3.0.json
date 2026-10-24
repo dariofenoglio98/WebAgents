@@ -1,1872 +1,1873 @@
 {
- "attestations": [],
- "capabilities": [
-  "flight-search",
-  "fare-rules",
-  "booking-quote",
-  "simulated-purchase",
-  "host-travel-profile",
-  "host-passenger-identity",
-  "host-payment-method"
- ],
- "evals": [],
- "model_requirements": {
-  "cost_sensitivity": null,
-  "fallback_policy": "deny",
-  "latency_preference": null,
-  "privacy": null,
-  "routing": "host",
-  "tasks": [
-   {
-    "capabilities": [
-     "structured_output",
-     "reasoning"
+  "schema": "agentpkg-browser-summary-v0",
+  "package": {
+    "spec_version": "0.1",
+    "package_id": "org.webagents.webair",
+    "name": "WebAir Travel Agent",
+    "version": "0.3.0",
+    "description": "Search WebAir flights, explain fare rules, prepare a booking quote and simulate a purchase through WebAir's own semantic API, using a travel profile, a passenger identity and a payment method that the person's host owns and grants per run. WebAir publishes the behavior; the person's runtime supplies the authority. WebAir is a fictional demo airline: nothing is ever booked or charged.",
+    "created_at": "2026-10-03T00:00:00Z",
+    "digest": "ffe8f5b344f97c631498bb6da3e17217ae7e5730721935b0e66c5d595b335e94",
+    "entrypoint": "workflow.v0",
+    "execution_profile": "workflow.v0",
+    "runtime": {
+      "api": "agentpkg-runtime-v0",
+      "minimum_version": "0.2.2"
+    },
+    "update": {
+      "channel": "local",
+      "locator": null
+    },
+    "dependencies": [],
+    "extension_keys": [
+      "org.webagents.webair:origin"
+    ]
+  },
+  "validation": {
+    "container_status": "valid",
+    "integrity_status": "valid",
+    "schema_status": "valid",
+    "runtime_status": "compatible",
+    "supported_execution_profiles": [
+      "workflow.v0"
     ],
-    "context_window": 16000,
-    "id": "interpret",
-    "preferred_tier": "reasoning"
-   },
-   {
-    "capabilities": [
-     "structured_output",
-     "reasoning"
+    "errors": []
+  },
+  "publisher": {
+    "claimed_id": "webair-demo",
+    "claimed_name": "WebAir (fictional demo airline)",
+    "signature_status": "valid",
+    "signature_reason": "self_consistent_ed25519_signature",
+    "signer_fingerprint": "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b",
+    "signed_digest_matches": true,
+    "trust_status": "unknown",
+    "trust_reason": "signer_key_not_pinned",
+    "trust_entry": null
+  },
+  "capabilities": [
+    "flight-search",
+    "fare-rules",
+    "booking-quote",
+    "simulated-purchase",
+    "host-travel-profile",
+    "host-passenger-identity",
+    "host-payment-method"
+  ],
+  "skills": [
+    {
+      "id": "webair-domain",
+      "version": "0.2.0",
+      "path": "skills/webair-domain/SKILL.md",
+      "bytes": 3197,
+      "sha256": "35e3f81835147cd4efa12dc31da33ae8b67c46b23b8a21baeebc04d8b4c74656"
+    },
+    {
+      "id": "travel-request",
+      "version": "0.2.0",
+      "path": "skills/travel-request/SKILL.md",
+      "bytes": 2956,
+      "sha256": "f817863722591a88dbf74e26aa4029afc007d6c62235c4f6caa3a2f7404caac4"
+    },
+    {
+      "id": "fare-selection",
+      "version": "0.2.0",
+      "path": "skills/fare-selection/SKILL.md",
+      "bytes": 1547,
+      "sha256": "11f123d06c3bc7b8368366db8960513c680294461b6cc32649ef9ee64126c0f2"
+    },
+    {
+      "id": "answer-writing",
+      "version": "0.2.0",
+      "path": "skills/answer-writing/SKILL.md",
+      "bytes": 2643,
+      "sha256": "f3ef6fed732c1ca4a9daed7f3e3f01b95e8a9cdef659e6669ea7a2eb9e05b6d8"
+    }
+  ],
+  "tools": [
+    {
+      "id": "get-fare-rules",
+      "version": "0.1.0",
+      "description": "WebAir semantic API: price, baggage allowance, change and refund policy of one fare returned by a search.",
+      "execution": "remote",
+      "binding": "webair.get_fare_rules",
+      "endpoint": "https://webagents-webair-production.up.railway.app/api/v1/get_fare_rules",
+      "endpoint_origin": "https://webagents-webair-production.up.railway.app",
+      "method": "POST",
+      "domains": [
+        "webagents-webair-production.up.railway.app"
+      ],
+      "permissions": [
+        "network.webair"
+      ],
+      "side_effects": "read",
+      "approval_required": false,
+      "timeout_seconds": 20,
+      "retries": 0,
+      "input_schema": "schemas/api/get_fare_rules.input.schema.json",
+      "output_schema": "schemas/api/get_fare_rules.output.schema.json"
+    },
+    {
+      "id": "personal.passenger_identity",
+      "version": "0.1.0",
+      "description": "Host-owned resource: the one passenger identity the person granted for this run. It takes no arguments, so the package cannot name or enumerate the host's resources; the host returns the granted one or refuses.",
+      "execution": "local",
+      "binding": "host.resource.personal.passenger_identity",
+      "endpoint": null,
+      "endpoint_origin": null,
+      "method": null,
+      "domains": [],
+      "permissions": [
+        "identity.passenger"
+      ],
+      "side_effects": "read",
+      "approval_required": true,
+      "timeout_seconds": 10,
+      "retries": 0,
+      "input_schema": "schemas/host/empty-input.schema.json",
+      "output_schema": "schemas/host/personal.passenger_identity.schema.json"
+    },
+    {
+      "id": "personal.travel_profile",
+      "version": "0.1.0",
+      "description": "Host-owned resource: the one travel profile the person granted for this run. It takes no arguments, so the package cannot name or enumerate the host's resources; the host returns the granted one or refuses.",
+      "execution": "local",
+      "binding": "host.resource.personal.travel_profile",
+      "endpoint": null,
+      "endpoint_origin": null,
+      "method": null,
+      "domains": [],
+      "permissions": [
+        "profile.travel"
+      ],
+      "side_effects": "read",
+      "approval_required": true,
+      "timeout_seconds": 10,
+      "retries": 0,
+      "input_schema": "schemas/host/empty-input.schema.json",
+      "output_schema": "schemas/host/personal.travel_profile.schema.json"
+    },
+    {
+      "id": "prepare-booking",
+      "version": "0.2.0",
+      "description": "WebAir semantic API: quote one fare for the passenger identity the person granted for this run, supplied by the host and sent to WebAir only in this call. Reserves nothing, stores nothing, charges nothing.",
+      "execution": "remote",
+      "binding": "webair.prepare_booking",
+      "endpoint": "https://webagents-webair-production.up.railway.app/api/v1/prepare_booking",
+      "endpoint_origin": "https://webagents-webair-production.up.railway.app",
+      "method": "POST",
+      "domains": [
+        "webagents-webair-production.up.railway.app"
+      ],
+      "permissions": [
+        "network.webair",
+        "identity.passenger"
+      ],
+      "side_effects": "read",
+      "approval_required": true,
+      "timeout_seconds": 20,
+      "retries": 0,
+      "input_schema": "schemas/api/prepare_booking.input.schema.json",
+      "output_schema": "schemas/api/prepare_booking.output.schema.json"
+    },
+    {
+      "id": "search-flights",
+      "version": "0.1.0",
+      "description": "WebAir semantic API: search fictional WebAir flights for one route and date, optionally nonstop, by cabin or under a per-passenger price. A refusal (invalid route, date outside the schedule) is returned as data.",
+      "execution": "remote",
+      "binding": "webair.search_flights",
+      "endpoint": "https://webagents-webair-production.up.railway.app/api/v1/search_flights",
+      "endpoint_origin": "https://webagents-webair-production.up.railway.app",
+      "method": "POST",
+      "domains": [
+        "webagents-webair-production.up.railway.app"
+      ],
+      "permissions": [
+        "network.webair"
+      ],
+      "side_effects": "read",
+      "approval_required": false,
+      "timeout_seconds": 20,
+      "retries": 0,
+      "input_schema": "schemas/api/search_flights.input.schema.json",
+      "output_schema": "schemas/api/search_flights.output.schema.json"
+    },
+    {
+      "id": "simulate-purchase",
+      "version": "0.2.0",
+      "description": "WebAir semantic API: simulate paying one exact quote for the granted passenger, with the payment method the person granted (an opaque demo identifier supplied by the host). Fictional: no real transaction ever occurs and nothing is charged. Requires the separate purchase permission, so search or quote authority can never become purchase authority.",
+      "execution": "remote",
+      "binding": "webair.simulate_purchase",
+      "endpoint": "https://webagents-webair-production.up.railway.app/api/v1/simulate_purchase",
+      "endpoint_origin": "https://webagents-webair-production.up.railway.app",
+      "method": "POST",
+      "domains": [
+        "webagents-webair-production.up.railway.app"
+      ],
+      "permissions": [
+        "network.webair",
+        "booking.simulate_purchase",
+        "identity.passenger",
+        "wallet.payment"
+      ],
+      "side_effects": "write",
+      "approval_required": true,
+      "timeout_seconds": 20,
+      "retries": 0,
+      "input_schema": "schemas/api/simulate_purchase.input.schema.json",
+      "output_schema": "schemas/api/simulate_purchase.output.schema.json"
+    },
+    {
+      "id": "wallet.payment_method",
+      "version": "0.1.0",
+      "description": "Host-owned resource: the one payment method the person granted for this run. It takes no arguments, so the package cannot name or enumerate the host's resources; the host returns the granted one or refuses.",
+      "execution": "local",
+      "binding": "host.resource.wallet.payment_method",
+      "endpoint": null,
+      "endpoint_origin": null,
+      "method": null,
+      "domains": [],
+      "permissions": [
+        "wallet.payment"
+      ],
+      "side_effects": "read",
+      "approval_required": true,
+      "timeout_seconds": 10,
+      "retries": 0,
+      "input_schema": "schemas/host/empty-input.schema.json",
+      "output_schema": "schemas/host/wallet.payment_method.schema.json"
+    }
+  ],
+  "workers": [
+    {
+      "id": "Coordinator",
+      "kind": "packaged",
+      "is_coordinator": true,
+      "skills": [],
+      "tools": [],
+      "max_instances": 1,
+      "state_read": [
+        "request",
+        "plan",
+        "profile",
+        "search_request",
+        "search",
+        "selection",
+        "offered_flights",
+        "offered_fares",
+        "refusal",
+        "fare_rules",
+        "selected_booking_fare",
+        "booking_fare",
+        "payment",
+        "passenger",
+        "booking_request",
+        "quote",
+        "purchase_request",
+        "confirmation",
+        "booking_summary",
+        "purchase_summary",
+        "purchase_result",
+        "purchase_fares",
+        "known_fares",
+        "status",
+        "answer",
+        "result"
+      ],
+      "state_write": [
+        "search_request",
+        "offered_flights",
+        "offered_fares",
+        "refusal",
+        "selected_booking_fare",
+        "booking_fare",
+        "booking_request",
+        "purchase_request",
+        "booking_summary",
+        "purchase_summary",
+        "purchase_result",
+        "purchase_fares",
+        "known_fares",
+        "status",
+        "result",
+        "profile",
+        "passenger",
+        "payment",
+        "quote",
+        "confirmation"
+      ],
+      "budget": {
+        "remote_calls": 0,
+        "tokens": 0
+      }
+    },
+    {
+      "id": "Interpreter",
+      "kind": "packaged",
+      "is_coordinator": false,
+      "skills": [
+        "webair-domain",
+        "travel-request"
+      ],
+      "tools": [],
+      "max_instances": 1,
+      "state_read": [
+        "request"
+      ],
+      "state_write": [
+        "plan"
+      ],
+      "budget": {
+        "remote_calls": 2,
+        "tokens": 40000
+      }
+    },
+    {
+      "id": "Personal",
+      "kind": "packaged",
+      "is_coordinator": false,
+      "skills": [],
+      "tools": [
+        "personal.travel_profile",
+        "personal.passenger_identity",
+        "wallet.payment_method"
+      ],
+      "max_instances": 1,
+      "state_read": [
+        "request",
+        "plan",
+        "booking_fare"
+      ],
+      "state_write": [
+        "profile",
+        "passenger",
+        "payment"
+      ],
+      "budget": {
+        "remote_calls": 0,
+        "tokens": 0
+      }
+    },
+    {
+      "id": "Searcher",
+      "kind": "packaged",
+      "is_coordinator": false,
+      "skills": [],
+      "tools": [
+        "search-flights",
+        "get-fare-rules"
+      ],
+      "max_instances": 3,
+      "state_read": [
+        "search_request",
+        "selection",
+        "offered_fares"
+      ],
+      "state_write": [
+        "search",
+        "fare_rules"
+      ],
+      "budget": {
+        "remote_calls": 1,
+        "tokens": 0
+      }
+    },
+    {
+      "id": "Selector",
+      "kind": "packaged",
+      "is_coordinator": false,
+      "skills": [
+        "webair-domain",
+        "fare-selection"
+      ],
+      "tools": [],
+      "max_instances": 1,
+      "state_read": [
+        "request",
+        "plan",
+        "search"
+      ],
+      "state_write": [
+        "selection"
+      ],
+      "budget": {
+        "remote_calls": 2,
+        "tokens": 40000
+      }
+    },
+    {
+      "id": "Booker",
+      "kind": "packaged",
+      "is_coordinator": false,
+      "skills": [],
+      "tools": [
+        "prepare-booking",
+        "simulate-purchase"
+      ],
+      "max_instances": 1,
+      "state_read": [
+        "booking_fare",
+        "booking_request",
+        "purchase_request"
+      ],
+      "state_write": [
+        "quote",
+        "confirmation"
+      ],
+      "budget": {
+        "remote_calls": 1,
+        "tokens": 0
+      }
+    },
+    {
+      "id": "Writer",
+      "kind": "packaged",
+      "is_coordinator": false,
+      "skills": [
+        "webair-domain",
+        "answer-writing"
+      ],
+      "tools": [],
+      "max_instances": 1,
+      "state_read": [
+        "request",
+        "plan",
+        "selection",
+        "search",
+        "fare_rules",
+        "booking_summary",
+        "purchase_summary"
+      ],
+      "state_write": [
+        "answer"
+      ],
+      "budget": {
+        "remote_calls": 2,
+        "tokens": 40000
+      }
+    }
+  ],
+  "workflow": {
+    "profile": "workflow.v0",
+    "coordinator": "Coordinator",
+    "deadline_seconds": 1200,
+    "input_schema": "schemas/input.schema.json",
+    "output_schema": "schemas/result.schema.json",
+    "node_count": 34,
+    "node_types": {
+      "join": 2,
+      "llm": 3,
+      "map": 1,
+      "output": 1,
+      "tool": 6,
+      "validate": 21
+    },
+    "entry_nodes": [
+      "interpret"
     ],
-    "context_window": 16000,
-    "id": "select",
-    "preferred_tier": "reasoning"
-   },
-   {
-    "capabilities": [
-     "structured_output",
-     "reasoning"
+    "output_nodes": [
+      "output"
     ],
-    "context_window": 16000,
-    "id": "answer",
-    "preferred_tier": "reasoning"
-   }
-  ]
- },
- "package": {
-  "created_at": "2026-10-03T00:00:00Z",
-  "dependencies": [],
-  "description": "Search WebAir flights, explain fare rules, prepare a booking quote and simulate a purchase through WebAir's own semantic API, using a travel profile, a passenger identity and a payment method that the person's host owns and grants per run. WebAir publishes the behavior; the person's runtime supplies the authority. WebAir is a fictional demo airline: nothing is ever booked or charged.",
-  "digest": "ffe8f5b344f97c631498bb6da3e17217ae7e5730721935b0e66c5d595b335e94",
-  "entrypoint": "workflow.v0",
-  "execution_profile": "workflow.v0",
-  "extension_keys": [
-   "org.webagents.webair:origin"
-  ],
-  "name": "WebAir Travel Agent",
-  "package_id": "org.webagents.webair",
-  "runtime": {
-   "api": "agentpkg-runtime-v0",
-   "minimum_version": "0.2.2"
-  },
-  "spec_version": "0.1",
-  "update": {
-   "channel": "local",
-   "locator": null
-  },
-  "version": "0.3.0"
- },
- "payload": {
-  "file_count": 58,
-  "files": [
-   {
-    "bytes": 5834,
-    "path": "MANIFEST.agent",
-    "sha256": "4362c2d8dec72488f992ef8f13305d0ed21611a79836bcffd0dcdb918c247275"
-   },
-   {
-    "bytes": 8912,
-    "path": "README.md",
-    "sha256": "bda835afa53aa3d8565a1006e712282bfe0e1020092371f8b04cceeb129cd805"
-   },
-   {
-    "bytes": 49498,
-    "path": "fixtures/workflow.json",
-    "sha256": "23dcd42549e2ef6be6b55c4d2e9ba25f4df75c2e3882b334a7b842a9b7830052"
-   },
-   {
-    "bytes": 27704,
-    "path": "graph.json",
-    "sha256": "0874dd41bead0dfabb98ea6d346c9225d06a2c8953d4ea872a73729ea7dc47a5"
-   },
-   {
-    "bytes": 2781,
-    "path": "policy/policy.json",
-    "sha256": "1fd5a32fe5bc5824ba545bb80d37caf17951d7eba0d527da354da435e2ec6e9e"
-   },
-   {
-    "bytes": 412,
-    "path": "schemas/answer.schema.json",
-    "sha256": "83589f4f5e1301ba69074f4d9ea691586e083401c2b28ac8307ed6e24fbcc6a8"
-   },
-   {
-    "bytes": 460,
-    "path": "schemas/api/get_fare_rules.input.schema.json",
-    "sha256": "ad5ad98ed1b482225a8d623cf7004270e4042d825fd7cf166651a37a0492e1c8"
-   },
-   {
-    "bytes": 5237,
-    "path": "schemas/api/get_fare_rules.output.schema.json",
-    "sha256": "70c5dbb27a550e396ae211b5fe484bc395a67a793fba8c2cafa142840dd50b11"
-   },
-   {
-    "bytes": 1084,
-    "path": "schemas/api/prepare_booking.input.schema.json",
-    "sha256": "b7d0f573905ae0c23987b305de00816118a5d52ffe29f4ea410dc89f5c586173"
-   },
-   {
-    "bytes": 6908,
-    "path": "schemas/api/prepare_booking.output.schema.json",
-    "sha256": "c632b8935b6c059abee0a609e8d88f1c33dee69d6bf99cc3576d85652fe4a842"
-   },
-   {
-    "bytes": 1013,
-    "path": "schemas/api/search_flights.input.schema.json",
-    "sha256": "66cb6246e48442ed5101adf8b40d8ca29027a499a5acea7c8db5c7ef0f799ba8"
-   },
-   {
-    "bytes": 5671,
-    "path": "schemas/api/search_flights.output.schema.json",
-    "sha256": "824d0e39f171a09d424a7a7e40c38632db9747a3a4d1846b0f7a95e26893e4a7"
-   },
-   {
-    "bytes": 1499,
-    "path": "schemas/api/simulate_purchase.input.schema.json",
-    "sha256": "01ebc6ec5fd4ff9be71d4a308650bad902366eee94d494db8a7d46469172fa71"
-   },
-   {
-    "bytes": 5175,
-    "path": "schemas/api/simulate_purchase.output.schema.json",
-    "sha256": "debe54138360dd92e5bb98e33865bbf4da3bb64b2d0bd2c5a897f5051cf1f347"
-   },
-   {
-    "bytes": 115,
-    "path": "schemas/booking-fare.schema.json",
-    "sha256": "a2e8232ea35edab7e9d855c8f51fe1dc2d0e07cff94dcefd616d20cae20aad3a"
-   },
-   {
-    "bytes": 154,
-    "path": "schemas/booking-quote.schema.json",
-    "sha256": "78044236ea3d58efc04384bad93fdcdda478c8eb499e5c0dcdc6482a075f6736"
-   },
-   {
-    "bytes": 133,
-    "path": "schemas/booking-request.schema.json",
-    "sha256": "4be455e6d7e9effdd09e4d103c8a21cec75ad2d8a2ec8acc950e416df03b0ea2"
-   },
-   {
-    "bytes": 949,
-    "path": "schemas/booking-summary.schema.json",
-    "sha256": "f45548382cda29269ca22ac0101ef431b59498a2b1d4776ba6db3a128b314d56"
-   },
-   {
-    "bytes": 136,
-    "path": "schemas/confirmation.schema.json",
-    "sha256": "9bab0aa400109ea4296f1da2b6d006f733eeff4fedb918c85126c3eb23844195"
-   },
-   {
-    "bytes": 124,
-    "path": "schemas/fare-id.schema.json",
-    "sha256": "e74a37000590e5602425f54ac53742b2969c2b6baa4fb4faa08d6a4e1995cf4c"
-   },
-   {
-    "bytes": 258,
-    "path": "schemas/fare-refs.schema.json",
-    "sha256": "5f8731cf114cc6c4bcc025237471d9763ec92004fafce01dabca002082c050df"
-   },
-   {
-    "bytes": 122,
-    "path": "schemas/fare-rule.schema.json",
-    "sha256": "981dc5daa2b0ea1e07fbbd20a2025a3495a66304450d9396a38875a6667644bd"
-   },
-   {
-    "bytes": 127,
-    "path": "schemas/fare-rules.schema.json",
-    "sha256": "44ddba71698010bd546728c4e79bef180ea7ff7b5ff9aa203b7b8096cfbc3964"
-   },
-   {
-    "bytes": 119,
-    "path": "schemas/host/empty-input.schema.json",
-    "sha256": "71fc596a20f27da3dec80050e5d1f553eba34aea24c2853b853488a811e6b892"
-   },
-   {
-    "bytes": 388,
-    "path": "schemas/host/personal.passenger_identity.schema.json",
-    "sha256": "ed3aa07a101767b46697661c503b135707f6d61a10080ab5e7c0f4fd4e06d539"
-   },
-   {
-    "bytes": 431,
-    "path": "schemas/host/personal.travel_profile.schema.json",
-    "sha256": "fae6c1bbbed8ec3e8cd1abaa212baeca82b3cb4d34020cd21dfb7f15987c535b"
-   },
-   {
-    "bytes": 319,
-    "path": "schemas/host/wallet.payment_method.schema.json",
-    "sha256": "3bd36ad1899ff7f97655f00d3f4a5b6e785e4ab6ee77d05e3057e4d1b80338d0"
-   },
-   {
-    "bytes": 1463,
-    "path": "schemas/input.schema.json",
-    "sha256": "02b45840e6a10bacc8a7ab906b8e64c4fde82dcbb3a97a18ed37b363b5cc0138"
-   },
-   {
-    "bytes": 149,
-    "path": "schemas/offered-fares.schema.json",
-    "sha256": "c5a0227bab053705d925f2f3b94d04458b1d9d999759846e1acf83369ebd15bc"
-   },
-   {
-    "bytes": 149,
-    "path": "schemas/offered-flights.schema.json",
-    "sha256": "6903739b01fc0f08cc116920e9f833c7a9ed5ae70e192b187a486f98649eb008"
-   },
-   {
-    "bytes": 140,
-    "path": "schemas/passenger.schema.json",
-    "sha256": "e0cfce56cd191d62a8b64afe4f7f671ac430ec2e6bee86d0bd96032616cc9263"
-   },
-   {
-    "bytes": 134,
-    "path": "schemas/payment.schema.json",
-    "sha256": "f115cf2926777385cd039079a56c8a1f875d249959f582cb7892da010c1bb293"
-   },
-   {
-    "bytes": 1290,
-    "path": "schemas/plan.schema.json",
-    "sha256": "33648ed569b812affb175d5aabdf1affb5598304b1c102e5dffbac1d1788f400"
-   },
-   {
-    "bytes": 135,
-    "path": "schemas/purchase-request.schema.json",
-    "sha256": "fca8f81fca7b13910551b3caddb4d3705a2ab1bce98650da338547b574ec54d0"
-   },
-   {
-    "bytes": 1018,
-    "path": "schemas/purchase-result.schema.json",
-    "sha256": "5cee89c9bed7d69a4cf48587a1ff15cee9e6ac3c624de9700590c5294fd873cc"
-   },
-   {
-    "bytes": 1050,
-    "path": "schemas/purchase-summary.schema.json",
-    "sha256": "d67eda27b51b656255d29b7feb493f444b14f851dfff4e6a89b3c88f5b61b65e"
-   },
-   {
-    "bytes": 134,
-    "path": "schemas/quote.schema.json",
-    "sha256": "d61e77ee7d2a913f05dddc4d46027e17588275ed1ca57ed711669295caa14c3c"
-   },
-   {
-    "bytes": 150,
-    "path": "schemas/refusal.schema.json",
-    "sha256": "12af9286420666017d195406ec819d63fd2b596e4ef0d4ddf70dd91e3066d56c"
-   },
-   {
-    "bytes": 1141,
-    "path": "schemas/result.schema.json",
-    "sha256": "8107a03a167e05d2360c5cf1dd9bfb546c21f06574244261c5e6ad1d8ba6999e"
-   },
-   {
-    "bytes": 594,
-    "path": "schemas/scrub.schema.json",
-    "sha256": "31c59f6df6c97555e14f7e8eed86366d2e4a2010e3432976754e28b799c346b8"
-   },
-   {
-    "bytes": 219,
-    "path": "schemas/search-outcome.schema.json",
-    "sha256": "d77068ca89194c39d9e4360a74fe73858f46e5c527a1435587cc5655d3253011"
-   },
-   {
-    "bytes": 132,
-    "path": "schemas/search-request.schema.json",
-    "sha256": "6f472655fecb9a92a3a9645f80edfa65e678e86b7ea8c8112ce98aa1f3232566"
-   },
-   {
-    "bytes": 603,
-    "path": "schemas/selection.schema.json",
-    "sha256": "6e1355e4bfd1fbe128c614208693804e4488405751414bbffe3cadf8dfa8d7fc"
-   },
-   {
-    "bytes": 165,
-    "path": "schemas/simulated-confirmation.schema.json",
-    "sha256": "1732cd21237648e7cd5f6e116b670c64f8b7412cdd32803f2ba1428a67c017d7"
-   },
-   {
-    "bytes": 1939,
-    "path": "schemas/state.schema.json",
-    "sha256": "9d508a659b2f97e221e9ce49cbef98f064bec13a8590c46bdff9542af923d3d4"
-   },
-   {
-    "bytes": 184,
-    "path": "schemas/status.schema.json",
-    "sha256": "9ed03d7781ff74cd24d0470f509fa0cbf1db25fb7fc01cdf9a513acba11500f1"
-   },
-   {
-    "bytes": 515,
-    "path": "schemas/travel-preferences.schema.json",
-    "sha256": "94cd68a971350d1f7d42a16a22f47c5d717b76962df9b1405930a88803310471"
-   },
-   {
-    "bytes": 2643,
-    "path": "skills/answer-writing/SKILL.md",
-    "sha256": "f3ef6fed732c1ca4a9daed7f3e3f01b95e8a9cdef659e6669ea7a2eb9e05b6d8"
-   },
-   {
-    "bytes": 1547,
-    "path": "skills/fare-selection/SKILL.md",
-    "sha256": "11f123d06c3bc7b8368366db8960513c680294461b6cc32649ef9ee64126c0f2"
-   },
-   {
-    "bytes": 2956,
-    "path": "skills/travel-request/SKILL.md",
-    "sha256": "f817863722591a88dbf74e26aa4029afc007d6c62235c4f6caa3a2f7404caac4"
-   },
-   {
-    "bytes": 3197,
-    "path": "skills/webair-domain/SKILL.md",
-    "sha256": "35e3f81835147cd4efa12dc31da33ae8b67c46b23b8a21baeebc04d8b4c74656"
-   },
-   {
-    "bytes": 654,
-    "path": "tools/get-fare-rules.tool.json",
-    "sha256": "06802d5df3fb4476d1bf170e165c666e703e4db7998f5f55cffe3ba9142074f9"
-   },
-   {
-    "bytes": 677,
-    "path": "tools/host-passenger-identity.tool.json",
-    "sha256": "25357a94d9e32e171ea9bfdc03cc804b180e8abcc08ede90ff49c3b3ab50bee5"
-   },
-   {
-    "bytes": 651,
-    "path": "tools/host-payment-method.tool.json",
-    "sha256": "ca55e018283c1a56d5e2725cd18330ce43787949361d5bad0115baf95e05db8a"
-   },
-   {
-    "bytes": 657,
-    "path": "tools/host-travel-profile.tool.json",
-    "sha256": "3b6f6fe4a3ccff05d0d33e795bb34457965f4eebf802b56ed5c9b25e969be872"
-   },
-   {
-    "bytes": 779,
-    "path": "tools/prepare-booking.tool.json",
-    "sha256": "9f17d5c634347ac6e0c056c7c6fe9291e5aef96b1d349507ffc88145ea3cf442"
-   },
-   {
-    "bytes": 760,
-    "path": "tools/search-flights.tool.json",
-    "sha256": "8e31c1e30d2ff45e51e3d86fc4cbc901948d86e65403e542d70e28c775691151"
-   },
-   {
-    "bytes": 978,
-    "path": "tools/simulate-purchase.tool.json",
-    "sha256": "93db84e3f4d982ebf3481e7f80736bbdbcea79ef8d0eeb8a01253a05d44f0cc8"
-   }
-  ],
-  "total_bytes": 152366
- },
- "policy": {
-  "budget": {
-   "approval_threshold_tokens": null,
-   "estimated_cost_usd": null,
-   "estimated_tokens": 24000,
-   "hard_tokens": 120000,
-   "max_calls_per_tool": {
-    "get-fare-rules": 6,
-    "personal.passenger_identity": 1,
-    "personal.travel_profile": 1,
-    "prepare-booking": 1,
-    "search-flights": 1,
-    "simulate-purchase": 1,
-    "wallet.payment_method": 1
-   },
-   "max_parallel_workers": 3,
-   "max_remote_calls": 20
-  },
-  "delegation": {
-   "allow_remote": false,
-   "approved_roles": [
-    "Interpreter",
-    "Personal",
-    "Searcher",
-    "Selector",
-    "Booker",
-    "Writer"
-   ],
-   "max_depth": 1
-  },
-  "memory": {
-   "raw_documents": false,
-   "retention": "session",
-   "scope": "session",
-   "sharing": "explicit_views",
-   "state_schema": "schemas/state.schema.json"
-  },
-  "network": {
-   "allow_redirects": false,
-   "allowed_domains": [
-    "webagents-webair-production.up.railway.app"
-   ],
-   "https_only": true
-  },
-  "permissions": [
-   {
-    "description": "Call WebAir's semantic API (a fictional demo airline): search flights, read fare rules, request a booking quote and, only with the separate purchase permission, simulate a purchase.",
-    "id": "network.webair",
-    "kind": "network",
-    "required": true,
-    "resources": [
-     "webagents-webair-production.up.railway.app"
-    ]
-   },
-   {
-    "description": "Read the travel profile you choose (home airport, preferred cabin, nonstop preference) when a request leaves those unstated. The profile becomes search criteria sent to WebAir; it is never shown to a model as a profile.",
-    "id": "profile.travel",
-    "kind": "personal.read",
-    "required": false,
-    "resources": [
-     "personal.travel_profile"
-    ]
-   },
-   {
-    "description": "Read the passenger identity you choose (name and contact email) and send it to WebAir for a booking quote or a simulated purchase, and nowhere else. No model sees it.",
-    "id": "identity.passenger",
-    "kind": "personal.read",
-    "required": false,
-    "resources": [
-     "personal.passenger_identity"
-    ]
-   },
-   {
-    "description": "Read which payment method you choose (an opaque demo identifier and a display label, never a card number) and send the identifier to WebAir with a simulated purchase, and nowhere else. No model sees it.",
-    "id": "wallet.payment",
-    "kind": "personal.read",
-    "required": false,
-    "resources": [
-     "wallet.payment_method"
-    ]
-   },
-   {
-    "description": "Simulate purchasing the one exact quote a task names, with the payment method you choose. Fictional: WebAir performs no real transaction and charges nothing. Consequential by design: grant it once, for one run.",
-    "id": "booking.simulate_purchase",
-    "kind": "payment",
-    "required": false,
-    "resources": [
-     "webagents-webair-production.up.railway.app"
-    ]
-   },
-   {
-    "description": "Use the host-selected model router to interpret the request, choose fares and write the answer.",
-    "id": "model.reasoning",
-    "kind": "model",
-    "required": true,
-    "resources": [
-     "host-router"
-    ]
-   },
-   {
-    "description": "Read and write explicit worker state views for this run only.",
-    "id": "memory.session",
-    "kind": "memory",
-    "required": true,
-    "resources": [
-     "session"
-    ]
-   }
-  ]
- },
- "publisher": {
-  "claimed_id": "webair-demo",
-  "claimed_name": "WebAir (fictional demo airline)",
-  "signature_reason": "self_consistent_ed25519_signature",
-  "signature_status": "valid",
-  "signed_digest_matches": true,
-  "signer_fingerprint": "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b",
-  "trust_entry": null,
-  "trust_reason": "signer_key_not_pinned",
-  "trust_status": "unknown"
- },
- "schema": "agentpkg-browser-summary-v0",
- "skills": [
-  {
-   "bytes": 3197,
-   "id": "webair-domain",
-   "path": "skills/webair-domain/SKILL.md",
-   "sha256": "35e3f81835147cd4efa12dc31da33ae8b67c46b23b8a21baeebc04d8b4c74656",
-   "version": "0.2.0"
-  },
-  {
-   "bytes": 2956,
-   "id": "travel-request",
-   "path": "skills/travel-request/SKILL.md",
-   "sha256": "f817863722591a88dbf74e26aa4029afc007d6c62235c4f6caa3a2f7404caac4",
-   "version": "0.2.0"
-  },
-  {
-   "bytes": 1547,
-   "id": "fare-selection",
-   "path": "skills/fare-selection/SKILL.md",
-   "sha256": "11f123d06c3bc7b8368366db8960513c680294461b6cc32649ef9ee64126c0f2",
-   "version": "0.2.0"
-  },
-  {
-   "bytes": 2643,
-   "id": "answer-writing",
-   "path": "skills/answer-writing/SKILL.md",
-   "sha256": "f3ef6fed732c1ca4a9daed7f3e3f01b95e8a9cdef659e6669ea7a2eb9e05b6d8",
-   "version": "0.2.0"
-  }
- ],
- "tools": [
-  {
-   "approval_required": false,
-   "binding": "webair.get_fare_rules",
-   "description": "WebAir semantic API: price, baggage allowance, change and refund policy of one fare returned by a search.",
-   "domains": [
-    "webagents-webair-production.up.railway.app"
-   ],
-   "endpoint": "https://webagents-webair-production.up.railway.app/api/v1/get_fare_rules",
-   "endpoint_origin": "https://webagents-webair-production.up.railway.app",
-   "execution": "remote",
-   "id": "get-fare-rules",
-   "input_schema": "schemas/api/get_fare_rules.input.schema.json",
-   "method": "POST",
-   "output_schema": "schemas/api/get_fare_rules.output.schema.json",
-   "permissions": [
-    "network.webair"
-   ],
-   "retries": 0,
-   "side_effects": "read",
-   "timeout_seconds": 20,
-   "version": "0.1.0"
-  },
-  {
-   "approval_required": true,
-   "binding": "host.resource.personal.passenger_identity",
-   "description": "Host-owned resource: the one passenger identity the person granted for this run. It takes no arguments, so the package cannot name or enumerate the host's resources; the host returns the granted one or refuses.",
-   "domains": [],
-   "endpoint": null,
-   "endpoint_origin": null,
-   "execution": "local",
-   "id": "personal.passenger_identity",
-   "input_schema": "schemas/host/empty-input.schema.json",
-   "method": null,
-   "output_schema": "schemas/host/personal.passenger_identity.schema.json",
-   "permissions": [
-    "identity.passenger"
-   ],
-   "retries": 0,
-   "side_effects": "read",
-   "timeout_seconds": 10,
-   "version": "0.1.0"
-  },
-  {
-   "approval_required": true,
-   "binding": "host.resource.personal.travel_profile",
-   "description": "Host-owned resource: the one travel profile the person granted for this run. It takes no arguments, so the package cannot name or enumerate the host's resources; the host returns the granted one or refuses.",
-   "domains": [],
-   "endpoint": null,
-   "endpoint_origin": null,
-   "execution": "local",
-   "id": "personal.travel_profile",
-   "input_schema": "schemas/host/empty-input.schema.json",
-   "method": null,
-   "output_schema": "schemas/host/personal.travel_profile.schema.json",
-   "permissions": [
-    "profile.travel"
-   ],
-   "retries": 0,
-   "side_effects": "read",
-   "timeout_seconds": 10,
-   "version": "0.1.0"
-  },
-  {
-   "approval_required": true,
-   "binding": "webair.prepare_booking",
-   "description": "WebAir semantic API: quote one fare for the passenger identity the person granted for this run, supplied by the host and sent to WebAir only in this call. Reserves nothing, stores nothing, charges nothing.",
-   "domains": [
-    "webagents-webair-production.up.railway.app"
-   ],
-   "endpoint": "https://webagents-webair-production.up.railway.app/api/v1/prepare_booking",
-   "endpoint_origin": "https://webagents-webair-production.up.railway.app",
-   "execution": "remote",
-   "id": "prepare-booking",
-   "input_schema": "schemas/api/prepare_booking.input.schema.json",
-   "method": "POST",
-   "output_schema": "schemas/api/prepare_booking.output.schema.json",
-   "permissions": [
-    "network.webair",
-    "identity.passenger"
-   ],
-   "retries": 0,
-   "side_effects": "read",
-   "timeout_seconds": 20,
-   "version": "0.2.0"
-  },
-  {
-   "approval_required": false,
-   "binding": "webair.search_flights",
-   "description": "WebAir semantic API: search fictional WebAir flights for one route and date, optionally nonstop, by cabin or under a per-passenger price. A refusal (invalid route, date outside the schedule) is returned as data.",
-   "domains": [
-    "webagents-webair-production.up.railway.app"
-   ],
-   "endpoint": "https://webagents-webair-production.up.railway.app/api/v1/search_flights",
-   "endpoint_origin": "https://webagents-webair-production.up.railway.app",
-   "execution": "remote",
-   "id": "search-flights",
-   "input_schema": "schemas/api/search_flights.input.schema.json",
-   "method": "POST",
-   "output_schema": "schemas/api/search_flights.output.schema.json",
-   "permissions": [
-    "network.webair"
-   ],
-   "retries": 0,
-   "side_effects": "read",
-   "timeout_seconds": 20,
-   "version": "0.1.0"
-  },
-  {
-   "approval_required": true,
-   "binding": "webair.simulate_purchase",
-   "description": "WebAir semantic API: simulate paying one exact quote for the granted passenger, with the payment method the person granted (an opaque demo identifier supplied by the host). Fictional: no real transaction ever occurs and nothing is charged. Requires the separate purchase permission, so search or quote authority can never become purchase authority.",
-   "domains": [
-    "webagents-webair-production.up.railway.app"
-   ],
-   "endpoint": "https://webagents-webair-production.up.railway.app/api/v1/simulate_purchase",
-   "endpoint_origin": "https://webagents-webair-production.up.railway.app",
-   "execution": "remote",
-   "id": "simulate-purchase",
-   "input_schema": "schemas/api/simulate_purchase.input.schema.json",
-   "method": "POST",
-   "output_schema": "schemas/api/simulate_purchase.output.schema.json",
-   "permissions": [
-    "network.webair",
-    "booking.simulate_purchase",
-    "identity.passenger",
-    "wallet.payment"
-   ],
-   "retries": 0,
-   "side_effects": "write",
-   "timeout_seconds": 20,
-   "version": "0.2.0"
-  },
-  {
-   "approval_required": true,
-   "binding": "host.resource.wallet.payment_method",
-   "description": "Host-owned resource: the one payment method the person granted for this run. It takes no arguments, so the package cannot name or enumerate the host's resources; the host returns the granted one or refuses.",
-   "domains": [],
-   "endpoint": null,
-   "endpoint_origin": null,
-   "execution": "local",
-   "id": "wallet.payment_method",
-   "input_schema": "schemas/host/empty-input.schema.json",
-   "method": null,
-   "output_schema": "schemas/host/wallet.payment_method.schema.json",
-   "permissions": [
-    "wallet.payment"
-   ],
-   "retries": 0,
-   "side_effects": "read",
-   "timeout_seconds": 10,
-   "version": "0.1.0"
-  }
- ],
- "validation": {
-  "container_status": "valid",
-  "errors": [],
-  "integrity_status": "valid",
-  "runtime_status": "compatible",
-  "schema_status": "valid",
-  "supported_execution_profiles": [
-   "workflow.v0"
-  ]
- },
- "warnings": [
-  {
-   "code": "publisher_unknown",
-   "message": "The signing key is not pinned in this host's trust store, so the publisher is unverified even when the signature is self-consistent.",
-   "severity": "warning"
-  },
-  {
-   "code": "requests_personal_data",
-   "message": "The package requests host-owned personal data (profile.travel: personal.travel_profile). You choose whether to grant it and which of your resources is shared.",
-   "severity": "warning"
-  },
-  {
-   "code": "requests_personal_data",
-   "message": "The package requests host-owned personal data (identity.passenger: personal.passenger_identity). You choose whether to grant it and which of your resources is shared.",
-   "severity": "warning"
-  },
-  {
-   "code": "requests_personal_data",
-   "message": "The package requests host-owned personal data (wallet.payment: wallet.payment_method). You choose whether to grant it and which of your resources is shared.",
-   "severity": "warning"
-  },
-  {
-   "code": "requests_payment_permission",
-   "message": "The package requests payment authority (booking.simulate_purchase) for simulate-purchase. This host charges nothing itself: the permission only decides whether those tools may be called.",
-   "severity": "warning"
-  },
-  {
-   "code": "remote_tools_declared",
-   "message": "4 remote tool(s) may contact: webagents-webair-production.up.railway.app.",
-   "severity": "info"
-  },
-  {
-   "code": "side_effecting_tools_declared",
-   "message": "Tools requiring explicit approval before dispatch: personal.passenger_identity, personal.travel_profile, prepare-booking, simulate-purchase, wallet.payment_method.",
-   "severity": "warning"
-  },
-  {
-   "code": "no_evals_declared",
-   "message": "The package declares no evaluations.",
-   "severity": "info"
-  },
-  {
-   "code": "no_attestations_declared",
-   "message": "The package declares no attestations.",
-   "severity": "info"
-  }
- ],
- "workers": [
-  {
-   "budget": {
-    "remote_calls": 0,
-    "tokens": 0
-   },
-   "id": "Coordinator",
-   "is_coordinator": true,
-   "kind": "packaged",
-   "max_instances": 1,
-   "skills": [],
-   "state_read": [
-    "request",
-    "plan",
-    "profile",
-    "search_request",
-    "search",
-    "selection",
-    "offered_flights",
-    "offered_fares",
-    "refusal",
-    "fare_rules",
-    "selected_booking_fare",
-    "booking_fare",
-    "payment",
-    "passenger",
-    "booking_request",
-    "quote",
-    "purchase_request",
-    "confirmation",
-    "booking_summary",
-    "purchase_summary",
-    "purchase_result",
-    "purchase_fares",
-    "known_fares",
-    "status",
-    "answer",
-    "result"
-   ],
-   "state_write": [
-    "search_request",
-    "offered_flights",
-    "offered_fares",
-    "refusal",
-    "selected_booking_fare",
-    "booking_fare",
-    "booking_request",
-    "purchase_request",
-    "booking_summary",
-    "purchase_summary",
-    "purchase_result",
-    "purchase_fares",
-    "known_fares",
-    "status",
-    "result",
-    "profile",
-    "passenger",
-    "payment",
-    "quote",
-    "confirmation"
-   ],
-   "tools": []
-  },
-  {
-   "budget": {
-    "remote_calls": 2,
-    "tokens": 40000
-   },
-   "id": "Interpreter",
-   "is_coordinator": false,
-   "kind": "packaged",
-   "max_instances": 1,
-   "skills": [
-    "webair-domain",
-    "travel-request"
-   ],
-   "state_read": [
-    "request"
-   ],
-   "state_write": [
-    "plan"
-   ],
-   "tools": []
-  },
-  {
-   "budget": {
-    "remote_calls": 0,
-    "tokens": 0
-   },
-   "id": "Personal",
-   "is_coordinator": false,
-   "kind": "packaged",
-   "max_instances": 1,
-   "skills": [],
-   "state_read": [
-    "request",
-    "plan",
-    "booking_fare"
-   ],
-   "state_write": [
-    "profile",
-    "passenger",
-    "payment"
-   ],
-   "tools": [
-    "personal.travel_profile",
-    "personal.passenger_identity",
-    "wallet.payment_method"
-   ]
-  },
-  {
-   "budget": {
-    "remote_calls": 1,
-    "tokens": 0
-   },
-   "id": "Searcher",
-   "is_coordinator": false,
-   "kind": "packaged",
-   "max_instances": 3,
-   "skills": [],
-   "state_read": [
-    "search_request",
-    "selection",
-    "offered_fares"
-   ],
-   "state_write": [
-    "search",
-    "fare_rules"
-   ],
-   "tools": [
-    "search-flights",
-    "get-fare-rules"
-   ]
-  },
-  {
-   "budget": {
-    "remote_calls": 2,
-    "tokens": 40000
-   },
-   "id": "Selector",
-   "is_coordinator": false,
-   "kind": "packaged",
-   "max_instances": 1,
-   "skills": [
-    "webair-domain",
-    "fare-selection"
-   ],
-   "state_read": [
-    "request",
-    "plan",
-    "search"
-   ],
-   "state_write": [
-    "selection"
-   ],
-   "tools": []
-  },
-  {
-   "budget": {
-    "remote_calls": 1,
-    "tokens": 0
-   },
-   "id": "Booker",
-   "is_coordinator": false,
-   "kind": "packaged",
-   "max_instances": 1,
-   "skills": [],
-   "state_read": [
-    "booking_fare",
-    "booking_request",
-    "purchase_request"
-   ],
-   "state_write": [
-    "quote",
-    "confirmation"
-   ],
-   "tools": [
-    "prepare-booking",
-    "simulate-purchase"
-   ]
-  },
-  {
-   "budget": {
-    "remote_calls": 2,
-    "tokens": 40000
-   },
-   "id": "Writer",
-   "is_coordinator": false,
-   "kind": "packaged",
-   "max_instances": 1,
-   "skills": [
-    "webair-domain",
-    "answer-writing"
-   ],
-   "state_read": [
-    "request",
-    "plan",
-    "selection",
-    "search",
-    "fare_rules",
-    "booking_summary",
-    "purchase_summary"
-   ],
-   "state_write": [
-    "answer"
-   ],
-   "tools": []
-  }
- ],
- "workflow": {
-  "coordinator": "Coordinator",
-  "deadline_seconds": 1200,
-  "edges": [
-   {
-    "from": "interpret",
-    "to": "profile"
-   },
-   {
-    "from": "profile",
-    "to": "search-request"
-   },
-   {
-    "from": "search-request",
-    "to": "search"
-   },
-   {
-    "from": "search",
-    "to": "select"
-   },
-   {
-    "from": "select",
-    "to": "offered-flights"
-   },
-   {
-    "from": "offered-flights",
-    "to": "offered-fares"
-   },
-   {
-    "from": "offered-fares",
-    "to": "check-options"
-   },
-   {
-    "from": "select",
-    "to": "check-no-flights"
-   },
-   {
-    "from": "select",
-    "to": "check-not-searched"
-   },
-   {
-    "from": "select",
-    "to": "refusal"
-   },
-   {
-    "from": "check-options",
-    "to": "fare-rules"
-   },
-   {
-    "from": "check-options",
-    "to": "selected-booking-fare"
-   },
-   {
-    "from": "selected-booking-fare",
-    "to": "booking-fare"
-   },
-   {
-    "from": "booking-fare",
-    "to": "payment"
-   },
-   {
-    "from": "payment",
-    "to": "passenger"
-   },
-   {
-    "from": "passenger",
-    "to": "booking-request"
-   },
-   {
-    "from": "booking-request",
-    "to": "prepare"
-   },
-   {
-    "from": "prepare",
-    "to": "check-quote"
-   },
-   {
-    "from": "check-quote",
-    "to": "check-quote-offer"
-   },
-   {
-    "from": "check-quote",
-    "to": "check-quote-authorized"
-   },
-   {
-    "from": "check-quote-authorized",
-    "to": "purchase-request"
-   },
-   {
-    "from": "purchase-request",
-    "to": "purchase"
-   },
-   {
-    "from": "purchase",
-    "to": "check-confirmation"
-   },
-   {
-    "from": "check-quote-offer",
-    "to": "booking-summary"
-   },
-   {
-    "from": "check-quote-authorized",
-    "to": "booking-summary"
-   },
-   {
-    "from": "check-confirmation",
-    "to": "purchase-summary"
-   },
-   {
-    "from": "purchase-summary",
-    "to": "purchase-result"
-   },
-   {
-    "from": "check-confirmation",
-    "to": "purchase-fares"
-   },
-   {
-    "from": "offered-fares",
-    "to": "known-fares"
-   },
-   {
-    "from": "purchase-fares",
-    "to": "known-fares"
-   },
-   {
-    "from": "select",
-    "to": "status"
-   },
-   {
-    "from": "fare-rules",
-    "to": "answer"
-   },
-   {
-    "from": "check-no-flights",
-    "to": "answer"
-   },
-   {
-    "from": "check-not-searched",
-    "to": "answer"
-   },
-   {
-    "from": "refusal",
-    "to": "answer"
-   },
-   {
-    "from": "booking-summary",
-    "to": "answer"
-   },
-   {
-    "from": "purchase-summary",
-    "to": "answer"
-   },
-   {
-    "from": "answer",
-    "to": "assemble"
-   },
-   {
-    "from": "status",
-    "to": "assemble"
-   },
-   {
-    "from": "known-fares",
-    "to": "assemble"
-   },
-   {
-    "from": "purchase-result",
-    "to": "assemble"
-   },
-   {
-    "from": "assemble",
-    "to": "scrub"
-   },
-   {
-    "from": "scrub",
-    "to": "output"
-   }
-  ],
-  "entry_nodes": [
-   "interpret"
-  ],
-  "exports": [
-   {
-    "format": "text",
-    "path": "answer.md"
-   },
-   {
-    "format": "json",
-    "path": "search.json"
-   },
-   {
-    "format": "json",
-    "path": "fare-rules.json"
-   },
-   {
-    "format": "json",
-    "path": "booking.json"
-   }
-  ],
-  "fixture_declared": true,
-  "input": {
-   "bytes": 1406,
-   "document": {
-    "additionalProperties": false,
-    "allOf": [
-     {
-      "if": {
-       "properties": {
-        "purchase": {
-         "properties": {
-          "quote_id": {
-           "minLength": 1
-          }
-         }
-        }
-       }
+    "max_declared_parallel": 3,
+    "map_item_caps": {
+      "fare-rules": 6
+    },
+    "edges": [
+      {
+        "from": "interpret",
+        "to": "profile"
       },
-      "then": {
-       "properties": {
+      {
+        "from": "profile",
+        "to": "search-request"
+      },
+      {
+        "from": "search-request",
+        "to": "search"
+      },
+      {
+        "from": "search",
+        "to": "select"
+      },
+      {
+        "from": "select",
+        "to": "offered-flights"
+      },
+      {
+        "from": "offered-flights",
+        "to": "offered-fares"
+      },
+      {
+        "from": "offered-fares",
+        "to": "check-options"
+      },
+      {
+        "from": "select",
+        "to": "check-no-flights"
+      },
+      {
+        "from": "select",
+        "to": "check-not-searched"
+      },
+      {
+        "from": "select",
+        "to": "refusal"
+      },
+      {
+        "from": "check-options",
+        "to": "fare-rules"
+      },
+      {
+        "from": "check-options",
+        "to": "selected-booking-fare"
+      },
+      {
+        "from": "selected-booking-fare",
+        "to": "booking-fare"
+      },
+      {
+        "from": "booking-fare",
+        "to": "payment"
+      },
+      {
+        "from": "payment",
+        "to": "passenger"
+      },
+      {
+        "from": "passenger",
+        "to": "booking-request"
+      },
+      {
+        "from": "booking-request",
+        "to": "prepare"
+      },
+      {
+        "from": "prepare",
+        "to": "check-quote"
+      },
+      {
+        "from": "check-quote",
+        "to": "check-quote-offer"
+      },
+      {
+        "from": "check-quote",
+        "to": "check-quote-authorized"
+      },
+      {
+        "from": "check-quote-authorized",
+        "to": "purchase-request"
+      },
+      {
+        "from": "purchase-request",
+        "to": "purchase"
+      },
+      {
+        "from": "purchase",
+        "to": "check-confirmation"
+      },
+      {
+        "from": "check-quote-offer",
+        "to": "booking-summary"
+      },
+      {
+        "from": "check-quote-authorized",
+        "to": "booking-summary"
+      },
+      {
+        "from": "check-confirmation",
+        "to": "purchase-summary"
+      },
+      {
+        "from": "purchase-summary",
+        "to": "purchase-result"
+      },
+      {
+        "from": "check-confirmation",
+        "to": "purchase-fares"
+      },
+      {
+        "from": "offered-fares",
+        "to": "known-fares"
+      },
+      {
+        "from": "purchase-fares",
+        "to": "known-fares"
+      },
+      {
+        "from": "select",
+        "to": "status"
+      },
+      {
+        "from": "fare-rules",
+        "to": "answer"
+      },
+      {
+        "from": "check-no-flights",
+        "to": "answer"
+      },
+      {
+        "from": "check-not-searched",
+        "to": "answer"
+      },
+      {
+        "from": "refusal",
+        "to": "answer"
+      },
+      {
+        "from": "booking-summary",
+        "to": "answer"
+      },
+      {
+        "from": "purchase-summary",
+        "to": "answer"
+      },
+      {
+        "from": "answer",
+        "to": "assemble"
+      },
+      {
+        "from": "status",
+        "to": "assemble"
+      },
+      {
+        "from": "known-fares",
+        "to": "assemble"
+      },
+      {
+        "from": "purchase-result",
+        "to": "assemble"
+      },
+      {
+        "from": "assemble",
+        "to": "scrub"
+      },
+      {
+        "from": "scrub",
+        "to": "output"
+      }
+    ],
+    "nodes": [
+      {
+        "id": "interpret",
+        "type": "llm",
+        "worker": "Interpreter",
+        "depends_on": [],
+        "timeout_seconds": 300,
+        "writes": [
+          "/plan"
+        ],
+        "conditional": true,
+        "task": "interpret",
+        "max_output_tokens": 6000
+      },
+      {
+        "id": "profile",
+        "type": "tool",
+        "worker": "Personal",
+        "depends_on": [
+          "interpret"
+        ],
+        "timeout_seconds": 30,
+        "writes": [
+          "/profile"
+        ],
+        "conditional": true,
+        "tool": "personal.travel_profile"
+      },
+      {
+        "id": "search-request",
+        "type": "validate",
+        "worker": "Coordinator",
+        "depends_on": [
+          "profile"
+        ],
+        "timeout_seconds": 10,
+        "writes": [
+          "/search_request"
+        ],
+        "conditional": true
+      },
+      {
+        "id": "search",
+        "type": "tool",
+        "worker": "Searcher",
+        "depends_on": [
+          "search-request"
+        ],
+        "timeout_seconds": 60,
+        "writes": [
+          "/search"
+        ],
+        "conditional": true,
+        "tool": "search-flights"
+      },
+      {
+        "id": "select",
+        "type": "llm",
+        "worker": "Selector",
+        "depends_on": [
+          "search"
+        ],
+        "timeout_seconds": 300,
+        "writes": [
+          "/selection"
+        ],
+        "conditional": true,
+        "task": "select",
+        "max_output_tokens": 6000
+      },
+      {
+        "id": "offered-flights",
+        "type": "validate",
+        "worker": "Coordinator",
+        "depends_on": [
+          "select"
+        ],
+        "timeout_seconds": 10,
+        "writes": [
+          "/offered_flights"
+        ],
+        "conditional": true
+      },
+      {
+        "id": "offered-fares",
+        "type": "join",
+        "worker": "Coordinator",
+        "depends_on": [
+          "offered-flights"
+        ],
+        "timeout_seconds": 10,
+        "writes": [
+          "/offered_fares"
+        ],
+        "conditional": false
+      },
+      {
+        "id": "check-options",
+        "type": "validate",
+        "worker": "Coordinator",
+        "depends_on": [
+          "offered-fares"
+        ],
+        "timeout_seconds": 10,
+        "writes": [],
+        "conditional": true
+      },
+      {
+        "id": "check-no-flights",
+        "type": "validate",
+        "worker": "Coordinator",
+        "depends_on": [
+          "select"
+        ],
+        "timeout_seconds": 10,
+        "writes": [],
+        "conditional": true
+      },
+      {
+        "id": "check-not-searched",
+        "type": "validate",
+        "worker": "Coordinator",
+        "depends_on": [
+          "select"
+        ],
+        "timeout_seconds": 10,
+        "writes": [],
+        "conditional": true
+      },
+      {
+        "id": "refusal",
+        "type": "validate",
+        "worker": "Coordinator",
+        "depends_on": [
+          "select"
+        ],
+        "timeout_seconds": 10,
+        "writes": [
+          "/refusal"
+        ],
+        "conditional": true
+      },
+      {
+        "id": "fare-rules",
+        "type": "map",
+        "worker": "Searcher",
+        "depends_on": [
+          "check-options"
+        ],
+        "timeout_seconds": 120,
+        "writes": [
+          "/fare_rules"
+        ],
+        "conditional": false,
+        "max_items": 6,
+        "max_parallel": 3,
+        "item_schema": "schemas/fare-id.schema.json",
+        "steps": [
+          {
+            "id": "rules",
+            "type": "tool",
+            "tool": "get-fare-rules"
+          },
+          {
+            "id": "check",
+            "type": "validate"
+          }
+        ],
+        "step_count": 2
+      },
+      {
+        "id": "selected-booking-fare",
+        "type": "validate",
+        "worker": "Coordinator",
+        "depends_on": [
+          "check-options"
+        ],
+        "timeout_seconds": 10,
+        "writes": [
+          "/selected_booking_fare"
+        ],
+        "conditional": true
+      },
+      {
+        "id": "booking-fare",
+        "type": "validate",
+        "worker": "Coordinator",
+        "depends_on": [
+          "selected-booking-fare"
+        ],
+        "timeout_seconds": 10,
+        "writes": [
+          "/booking_fare"
+        ],
+        "conditional": true
+      },
+      {
+        "id": "payment",
+        "type": "tool",
+        "worker": "Personal",
+        "depends_on": [
+          "booking-fare"
+        ],
+        "timeout_seconds": 30,
+        "writes": [
+          "/payment"
+        ],
+        "conditional": true,
+        "tool": "wallet.payment_method"
+      },
+      {
+        "id": "passenger",
+        "type": "tool",
+        "worker": "Personal",
+        "depends_on": [
+          "payment"
+        ],
+        "timeout_seconds": 30,
+        "writes": [
+          "/passenger"
+        ],
+        "conditional": true,
+        "tool": "personal.passenger_identity"
+      },
+      {
+        "id": "booking-request",
+        "type": "validate",
+        "worker": "Coordinator",
+        "depends_on": [
+          "passenger"
+        ],
+        "timeout_seconds": 10,
+        "writes": [
+          "/booking_request"
+        ],
+        "conditional": true
+      },
+      {
+        "id": "prepare",
+        "type": "tool",
+        "worker": "Booker",
+        "depends_on": [
+          "booking-request"
+        ],
+        "timeout_seconds": 60,
+        "writes": [
+          "/quote"
+        ],
+        "conditional": true,
+        "tool": "prepare-booking"
+      },
+      {
+        "id": "check-quote",
+        "type": "validate",
+        "worker": "Coordinator",
+        "depends_on": [
+          "prepare"
+        ],
+        "timeout_seconds": 10,
+        "writes": [],
+        "conditional": true
+      },
+      {
+        "id": "check-quote-offer",
+        "type": "validate",
+        "worker": "Coordinator",
+        "depends_on": [
+          "check-quote"
+        ],
+        "timeout_seconds": 10,
+        "writes": [],
+        "conditional": true
+      },
+      {
+        "id": "check-quote-authorized",
+        "type": "validate",
+        "worker": "Coordinator",
+        "depends_on": [
+          "check-quote"
+        ],
+        "timeout_seconds": 10,
+        "writes": [],
+        "conditional": true
+      },
+      {
+        "id": "purchase-request",
+        "type": "validate",
+        "worker": "Coordinator",
+        "depends_on": [
+          "check-quote-authorized"
+        ],
+        "timeout_seconds": 10,
+        "writes": [
+          "/purchase_request"
+        ],
+        "conditional": true
+      },
+      {
+        "id": "purchase",
+        "type": "tool",
+        "worker": "Booker",
+        "depends_on": [
+          "purchase-request"
+        ],
+        "timeout_seconds": 60,
+        "writes": [
+          "/confirmation"
+        ],
+        "conditional": true,
+        "tool": "simulate-purchase"
+      },
+      {
+        "id": "check-confirmation",
+        "type": "validate",
+        "worker": "Coordinator",
+        "depends_on": [
+          "purchase"
+        ],
+        "timeout_seconds": 10,
+        "writes": [],
+        "conditional": true
+      },
+      {
+        "id": "booking-summary",
+        "type": "validate",
+        "worker": "Coordinator",
+        "depends_on": [
+          "check-quote-offer",
+          "check-quote-authorized"
+        ],
+        "timeout_seconds": 10,
+        "writes": [
+          "/booking_summary"
+        ],
+        "conditional": true
+      },
+      {
+        "id": "purchase-summary",
+        "type": "validate",
+        "worker": "Coordinator",
+        "depends_on": [
+          "check-confirmation"
+        ],
+        "timeout_seconds": 10,
+        "writes": [
+          "/purchase_summary"
+        ],
+        "conditional": true
+      },
+      {
+        "id": "purchase-result",
+        "type": "validate",
+        "worker": "Coordinator",
+        "depends_on": [
+          "purchase-summary"
+        ],
+        "timeout_seconds": 10,
+        "writes": [
+          "/purchase_result"
+        ],
+        "conditional": true
+      },
+      {
+        "id": "purchase-fares",
+        "type": "validate",
+        "worker": "Coordinator",
+        "depends_on": [
+          "check-confirmation"
+        ],
+        "timeout_seconds": 10,
+        "writes": [
+          "/purchase_fares"
+        ],
+        "conditional": true
+      },
+      {
+        "id": "known-fares",
+        "type": "join",
+        "worker": "Coordinator",
+        "depends_on": [
+          "offered-fares",
+          "purchase-fares"
+        ],
+        "timeout_seconds": 10,
+        "writes": [
+          "/known_fares"
+        ],
+        "conditional": false
+      },
+      {
+        "id": "status",
+        "type": "validate",
+        "worker": "Coordinator",
+        "depends_on": [
+          "select"
+        ],
+        "timeout_seconds": 10,
+        "writes": [
+          "/status"
+        ],
+        "conditional": true
+      },
+      {
+        "id": "answer",
+        "type": "llm",
+        "worker": "Writer",
+        "depends_on": [
+          "fare-rules",
+          "check-no-flights",
+          "check-not-searched",
+          "refusal",
+          "booking-summary",
+          "purchase-summary"
+        ],
+        "timeout_seconds": 300,
+        "writes": [
+          "/answer"
+        ],
+        "conditional": false,
+        "task": "answer",
+        "max_output_tokens": 8000
+      },
+      {
+        "id": "assemble",
+        "type": "validate",
+        "worker": "Coordinator",
+        "depends_on": [
+          "answer",
+          "status",
+          "known-fares",
+          "purchase-result"
+        ],
+        "timeout_seconds": 10,
+        "writes": [
+          "/result"
+        ],
+        "conditional": false
+      },
+      {
+        "id": "scrub",
+        "type": "validate",
+        "worker": "Coordinator",
+        "depends_on": [
+          "assemble"
+        ],
+        "timeout_seconds": 10,
+        "writes": [
+          "/booking_request",
+          "/confirmation",
+          "/passenger",
+          "/payment",
+          "/profile",
+          "/purchase_request",
+          "/quote"
+        ],
+        "conditional": false
+      },
+      {
+        "id": "output",
+        "type": "output",
+        "worker": "Coordinator",
+        "depends_on": [
+          "scrub"
+        ],
+        "timeout_seconds": 10,
+        "writes": [],
+        "conditional": false
+      }
+    ],
+    "exports": [
+      {
+        "path": "answer.md",
+        "format": "text"
+      },
+      {
+        "path": "search.json",
+        "format": "json"
+      },
+      {
+        "path": "fare-rules.json",
+        "format": "json"
+      },
+      {
+        "path": "booking.json",
+        "format": "json"
+      }
+    ],
+    "fixture_declared": true,
+    "conversation": null,
+    "input": {
+      "schema": "agentpkg-task-input-v0",
+      "schema_path": "schemas/input.schema.json",
+      "schema_sha256": "02b45840e6a10bacc8a7ab906b8e64c4fde82dcbb3a97a18ed37b363b5cc0138",
+      "document": {
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "purchase": {
+                  "properties": {
+                    "quote_id": {
+                      "minLength": 1
+                    }
+                  }
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "booking": {
+                  "const": false
+                },
+                "purchase": {
+                  "properties": {
+                    "fare_id": {
+                      "minLength": 1
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "purchase": {
+                  "properties": {
+                    "fare_id": {
+                      "minLength": 1
+                    }
+                  }
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "purchase": {
+                  "properties": {
+                    "quote_id": {
+                      "minLength": 1
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "properties": {
+          "booking": {
+            "default": false,
+            "description": "Ask WebAir for a booking quote of the fare the workflow selects, for the passenger identity you grant. Nothing is reserved or charged.",
+            "type": "boolean"
+          },
+          "purchase": {
+            "additionalProperties": false,
+            "description": "Leave both empty, or authorize one simulated purchase: the exact quote id and fare id an earlier quote returned. Needs the passenger identity that quote was made for, a payment method and the purchase permission.",
+            "properties": {
+              "fare_id": {
+                "default": "",
+                "pattern": "^(WA[0-9]{3}(-WA[0-9]{3})?-[0-9]{8}-(BASIC|STANDARD|FLEX|BUSINESS))?$",
+                "type": "string"
+              },
+              "quote_id": {
+                "default": "",
+                "pattern": "^(WAQ-[0-9A-F]{16})?$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "quote_id",
+              "fare_id"
+            ],
+            "type": "object"
+          },
+          "request": {
+            "description": "The person's travel request in their own words, for example: Find me a flight to Zurich on 9 October under $900.",
+            "maxLength": 2000,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "request",
+          "booking",
+          "purchase"
+        ],
+        "title": "WebAir travel request",
+        "type": "object"
+      },
+      "bytes": 1406,
+      "note": "The package's own declared input schema. The runner validates every run against it again before any instruction reaches a model."
+    },
+    "presentation": {
+      "schema": "agentpkg-presentation-v0",
+      "task": {
+        "prompt": "Where would you like to fly with WebAir?",
+        "running_label": "Asking WebAir…",
+        "completed_label": "WebAir answered",
+        "run_label": "Run WebAir"
+      },
+      "input": {
         "booking": {
-         "const": false
+          "group": "optional",
+          "label": "Prepare a booking quote for the passenger I grant"
         },
         "purchase": {
-         "properties": {
-          "fare_id": {
-           "minLength": 1
-          }
-         }
+          "group": "advanced",
+          "label": "Simulate purchase of a quote"
+        },
+        "request": {
+          "widget": "multiline",
+          "rows": 3,
+          "placeholder": "Find me a flight to Zurich on 9 October under $900."
         }
-       }
-      }
-     },
-     {
-      "if": {
-       "properties": {
-        "purchase": {
-         "properties": {
-          "fare_id": {
-           "minLength": 1
-          }
-         }
-        }
-       }
       },
-      "then": {
-       "properties": {
-        "purchase": {
-         "properties": {
-          "quote_id": {
-           "minLength": 1
-          }
-         }
-        }
-       }
-      }
-     }
-    ],
-    "properties": {
-     "booking": {
-      "default": false,
-      "description": "Ask WebAir for a booking quote of the fare the workflow selects, for the passenger identity you grant. Nothing is reserved or charged.",
-      "type": "boolean"
-     },
-     "purchase": {
-      "additionalProperties": false,
-      "description": "Leave both empty, or authorize one simulated purchase: the exact quote id and fare id an earlier quote returned. Needs the passenger identity that quote was made for, a payment method and the purchase permission.",
-      "properties": {
-       "fare_id": {
-        "default": "",
-        "pattern": "^(WA[0-9]{3}(-WA[0-9]{3})?-[0-9]{8}-(BASIC|STANDARD|FLEX|BUSINESS))?$",
-        "type": "string"
-       },
-       "quote_id": {
-        "default": "",
-        "pattern": "^(WAQ-[0-9A-F]{16})?$",
-        "type": "string"
-       }
+      "nodes": {
+        "answer": "Write the answer",
+        "assemble": "Assemble result",
+        "booking-fare": "Booking: fare to quote",
+        "booking-request": "Booking: build request",
+        "booking-summary": "Quote summary (no identity)",
+        "check-confirmation": "Check the confirmation",
+        "check-no-flights": "Check empty result",
+        "check-not-searched": "Check unsupported request",
+        "check-options": "Check chosen fares",
+        "check-quote": "Check the quote",
+        "check-quote-authorized": "Check the authorized quote",
+        "check-quote-offer": "Check the quote against the search",
+        "fare-rules": "Fare rules",
+        "interpret": "Understand the request",
+        "known-fares": "Known fares",
+        "offered-fares": "Collect offered fares",
+        "offered-flights": "Check the search reading",
+        "output": "Output",
+        "passenger": "Passenger identity (host)",
+        "payment": "Payment method (host)",
+        "prepare": "Booking quote",
+        "profile": "Travel profile (host)",
+        "purchase": "Simulated purchase",
+        "purchase-fares": "Purchased fare",
+        "purchase-request": "Purchase: build request",
+        "purchase-result": "Purchase result",
+        "purchase-summary": "Purchase summary (no identity)",
+        "refusal": "Copy WebAir's refusal",
+        "scrub": "Clear personal data",
+        "search": "Search WebAir",
+        "search-request": "Fill unstated criteria",
+        "select": "Choose fares",
+        "selected-booking-fare": "Booking: choose fare",
+        "status": "Outcome"
       },
-      "required": [
-       "quote_id",
-       "fare_id"
+      "stages": [
+        {
+          "label": "Understanding",
+          "nodes": [
+            "interpret",
+            "profile",
+            "search-request"
+          ]
+        },
+        {
+          "label": "WebAir search",
+          "nodes": [
+            "search",
+            "select",
+            "offered-flights",
+            "offered-fares",
+            "check-options",
+            "check-no-flights",
+            "check-not-searched",
+            "refusal"
+          ]
+        },
+        {
+          "label": "Fare rules",
+          "nodes": [
+            "fare-rules"
+          ]
+        },
+        {
+          "label": "Booking quote",
+          "nodes": [
+            "selected-booking-fare",
+            "booking-fare",
+            "passenger",
+            "booking-request",
+            "prepare",
+            "check-quote",
+            "check-quote-offer",
+            "check-quote-authorized",
+            "booking-summary"
+          ]
+        },
+        {
+          "label": "Simulated purchase",
+          "nodes": [
+            "payment",
+            "purchase-request",
+            "purchase",
+            "check-confirmation",
+            "purchase-summary",
+            "purchase-result",
+            "purchase-fares"
+          ]
+        },
+        {
+          "label": "Answer",
+          "nodes": [
+            "status",
+            "known-fares",
+            "answer",
+            "assemble",
+            "scrub",
+            "output"
+          ]
+        }
       ],
-      "type": "object"
-     },
-     "request": {
-      "description": "The person's travel request in their own words, for example: Find me a flight to Zurich on 9 October under $900.",
-      "maxLength": 2000,
-      "minLength": 1,
-      "type": "string"
-     }
-    },
-    "required": [
-     "request",
-     "booking",
-     "purchase"
-    ],
-    "title": "WebAir travel request",
-    "type": "object"
-   },
-   "note": "The package's own declared input schema. The runner validates every run against it again before any instruction reaches a model.",
-   "schema": "agentpkg-task-input-v0",
-   "schema_path": "schemas/input.schema.json",
-   "schema_sha256": "02b45840e6a10bacc8a7ab906b8e64c4fde82dcbb3a97a18ed37b363b5cc0138"
-  },
-  "input_schema": "schemas/input.schema.json",
-  "map_item_caps": {
-   "fare-rules": 6
-  },
-  "max_declared_parallel": 3,
-  "node_count": 34,
-  "node_types": {
-   "join": 2,
-   "llm": 3,
-   "map": 1,
-   "output": 1,
-   "tool": 6,
-   "validate": 21
-  },
-  "nodes": [
-   {
-    "conditional": true,
-    "depends_on": [],
-    "id": "interpret",
-    "max_output_tokens": 6000,
-    "task": "interpret",
-    "timeout_seconds": 300,
-    "type": "llm",
-    "worker": "Interpreter",
-    "writes": [
-     "/plan"
-    ]
-   },
-   {
-    "conditional": true,
-    "depends_on": [
-     "interpret"
-    ],
-    "id": "profile",
-    "timeout_seconds": 30,
-    "tool": "personal.travel_profile",
-    "type": "tool",
-    "worker": "Personal",
-    "writes": [
-     "/profile"
-    ]
-   },
-   {
-    "conditional": true,
-    "depends_on": [
-     "profile"
-    ],
-    "id": "search-request",
-    "timeout_seconds": 10,
-    "type": "validate",
-    "worker": "Coordinator",
-    "writes": [
-     "/search_request"
-    ]
-   },
-   {
-    "conditional": true,
-    "depends_on": [
-     "search-request"
-    ],
-    "id": "search",
-    "timeout_seconds": 60,
-    "tool": "search-flights",
-    "type": "tool",
-    "worker": "Searcher",
-    "writes": [
-     "/search"
-    ]
-   },
-   {
-    "conditional": true,
-    "depends_on": [
-     "search"
-    ],
-    "id": "select",
-    "max_output_tokens": 6000,
-    "task": "select",
-    "timeout_seconds": 300,
-    "type": "llm",
-    "worker": "Selector",
-    "writes": [
-     "/selection"
-    ]
-   },
-   {
-    "conditional": true,
-    "depends_on": [
-     "select"
-    ],
-    "id": "offered-flights",
-    "timeout_seconds": 10,
-    "type": "validate",
-    "worker": "Coordinator",
-    "writes": [
-     "/offered_flights"
-    ]
-   },
-   {
-    "conditional": false,
-    "depends_on": [
-     "offered-flights"
-    ],
-    "id": "offered-fares",
-    "timeout_seconds": 10,
-    "type": "join",
-    "worker": "Coordinator",
-    "writes": [
-     "/offered_fares"
-    ]
-   },
-   {
-    "conditional": true,
-    "depends_on": [
-     "offered-fares"
-    ],
-    "id": "check-options",
-    "timeout_seconds": 10,
-    "type": "validate",
-    "worker": "Coordinator",
-    "writes": []
-   },
-   {
-    "conditional": true,
-    "depends_on": [
-     "select"
-    ],
-    "id": "check-no-flights",
-    "timeout_seconds": 10,
-    "type": "validate",
-    "worker": "Coordinator",
-    "writes": []
-   },
-   {
-    "conditional": true,
-    "depends_on": [
-     "select"
-    ],
-    "id": "check-not-searched",
-    "timeout_seconds": 10,
-    "type": "validate",
-    "worker": "Coordinator",
-    "writes": []
-   },
-   {
-    "conditional": true,
-    "depends_on": [
-     "select"
-    ],
-    "id": "refusal",
-    "timeout_seconds": 10,
-    "type": "validate",
-    "worker": "Coordinator",
-    "writes": [
-     "/refusal"
-    ]
-   },
-   {
-    "conditional": false,
-    "depends_on": [
-     "check-options"
-    ],
-    "id": "fare-rules",
-    "item_schema": "schemas/fare-id.schema.json",
-    "max_items": 6,
-    "max_parallel": 3,
-    "step_count": 2,
-    "steps": [
-     {
-      "id": "rules",
-      "tool": "get-fare-rules",
-      "type": "tool"
-     },
-     {
-      "id": "check",
-      "type": "validate"
-     }
-    ],
-    "timeout_seconds": 120,
-    "type": "map",
-    "worker": "Searcher",
-    "writes": [
-     "/fare_rules"
-    ]
-   },
-   {
-    "conditional": true,
-    "depends_on": [
-     "check-options"
-    ],
-    "id": "selected-booking-fare",
-    "timeout_seconds": 10,
-    "type": "validate",
-    "worker": "Coordinator",
-    "writes": [
-     "/selected_booking_fare"
-    ]
-   },
-   {
-    "conditional": true,
-    "depends_on": [
-     "selected-booking-fare"
-    ],
-    "id": "booking-fare",
-    "timeout_seconds": 10,
-    "type": "validate",
-    "worker": "Coordinator",
-    "writes": [
-     "/booking_fare"
-    ]
-   },
-   {
-    "conditional": true,
-    "depends_on": [
-     "booking-fare"
-    ],
-    "id": "payment",
-    "timeout_seconds": 30,
-    "tool": "wallet.payment_method",
-    "type": "tool",
-    "worker": "Personal",
-    "writes": [
-     "/payment"
-    ]
-   },
-   {
-    "conditional": true,
-    "depends_on": [
-     "payment"
-    ],
-    "id": "passenger",
-    "timeout_seconds": 30,
-    "tool": "personal.passenger_identity",
-    "type": "tool",
-    "worker": "Personal",
-    "writes": [
-     "/passenger"
-    ]
-   },
-   {
-    "conditional": true,
-    "depends_on": [
-     "passenger"
-    ],
-    "id": "booking-request",
-    "timeout_seconds": 10,
-    "type": "validate",
-    "worker": "Coordinator",
-    "writes": [
-     "/booking_request"
-    ]
-   },
-   {
-    "conditional": true,
-    "depends_on": [
-     "booking-request"
-    ],
-    "id": "prepare",
-    "timeout_seconds": 60,
-    "tool": "prepare-booking",
-    "type": "tool",
-    "worker": "Booker",
-    "writes": [
-     "/quote"
-    ]
-   },
-   {
-    "conditional": true,
-    "depends_on": [
-     "prepare"
-    ],
-    "id": "check-quote",
-    "timeout_seconds": 10,
-    "type": "validate",
-    "worker": "Coordinator",
-    "writes": []
-   },
-   {
-    "conditional": true,
-    "depends_on": [
-     "check-quote"
-    ],
-    "id": "check-quote-offer",
-    "timeout_seconds": 10,
-    "type": "validate",
-    "worker": "Coordinator",
-    "writes": []
-   },
-   {
-    "conditional": true,
-    "depends_on": [
-     "check-quote"
-    ],
-    "id": "check-quote-authorized",
-    "timeout_seconds": 10,
-    "type": "validate",
-    "worker": "Coordinator",
-    "writes": []
-   },
-   {
-    "conditional": true,
-    "depends_on": [
-     "check-quote-authorized"
-    ],
-    "id": "purchase-request",
-    "timeout_seconds": 10,
-    "type": "validate",
-    "worker": "Coordinator",
-    "writes": [
-     "/purchase_request"
-    ]
-   },
-   {
-    "conditional": true,
-    "depends_on": [
-     "purchase-request"
-    ],
-    "id": "purchase",
-    "timeout_seconds": 60,
-    "tool": "simulate-purchase",
-    "type": "tool",
-    "worker": "Booker",
-    "writes": [
-     "/confirmation"
-    ]
-   },
-   {
-    "conditional": true,
-    "depends_on": [
-     "purchase"
-    ],
-    "id": "check-confirmation",
-    "timeout_seconds": 10,
-    "type": "validate",
-    "worker": "Coordinator",
-    "writes": []
-   },
-   {
-    "conditional": true,
-    "depends_on": [
-     "check-quote-offer",
-     "check-quote-authorized"
-    ],
-    "id": "booking-summary",
-    "timeout_seconds": 10,
-    "type": "validate",
-    "worker": "Coordinator",
-    "writes": [
-     "/booking_summary"
-    ]
-   },
-   {
-    "conditional": true,
-    "depends_on": [
-     "check-confirmation"
-    ],
-    "id": "purchase-summary",
-    "timeout_seconds": 10,
-    "type": "validate",
-    "worker": "Coordinator",
-    "writes": [
-     "/purchase_summary"
-    ]
-   },
-   {
-    "conditional": true,
-    "depends_on": [
-     "purchase-summary"
-    ],
-    "id": "purchase-result",
-    "timeout_seconds": 10,
-    "type": "validate",
-    "worker": "Coordinator",
-    "writes": [
-     "/purchase_result"
-    ]
-   },
-   {
-    "conditional": true,
-    "depends_on": [
-     "check-confirmation"
-    ],
-    "id": "purchase-fares",
-    "timeout_seconds": 10,
-    "type": "validate",
-    "worker": "Coordinator",
-    "writes": [
-     "/purchase_fares"
-    ]
-   },
-   {
-    "conditional": false,
-    "depends_on": [
-     "offered-fares",
-     "purchase-fares"
-    ],
-    "id": "known-fares",
-    "timeout_seconds": 10,
-    "type": "join",
-    "worker": "Coordinator",
-    "writes": [
-     "/known_fares"
-    ]
-   },
-   {
-    "conditional": true,
-    "depends_on": [
-     "select"
-    ],
-    "id": "status",
-    "timeout_seconds": 10,
-    "type": "validate",
-    "worker": "Coordinator",
-    "writes": [
-     "/status"
-    ]
-   },
-   {
-    "conditional": false,
-    "depends_on": [
-     "fare-rules",
-     "check-no-flights",
-     "check-not-searched",
-     "refusal",
-     "booking-summary",
-     "purchase-summary"
-    ],
-    "id": "answer",
-    "max_output_tokens": 8000,
-    "task": "answer",
-    "timeout_seconds": 300,
-    "type": "llm",
-    "worker": "Writer",
-    "writes": [
-     "/answer"
-    ]
-   },
-   {
-    "conditional": false,
-    "depends_on": [
-     "answer",
-     "status",
-     "known-fares",
-     "purchase-result"
-    ],
-    "id": "assemble",
-    "timeout_seconds": 10,
-    "type": "validate",
-    "worker": "Coordinator",
-    "writes": [
-     "/result"
-    ]
-   },
-   {
-    "conditional": false,
-    "depends_on": [
-     "assemble"
-    ],
-    "id": "scrub",
-    "timeout_seconds": 10,
-    "type": "validate",
-    "worker": "Coordinator",
-    "writes": [
-     "/booking_request",
-     "/confirmation",
-     "/passenger",
-     "/payment",
-     "/profile",
-     "/purchase_request",
-     "/quote"
-    ]
-   },
-   {
-    "conditional": false,
-    "depends_on": [
-     "scrub"
-    ],
-    "id": "output",
-    "timeout_seconds": 10,
-    "type": "output",
-    "worker": "Coordinator",
-    "writes": []
-   }
-  ],
-  "output_nodes": [
-   "output"
-  ],
-  "output_schema": "schemas/result.schema.json",
-  "presentation": {
-   "input": {
-    "booking": {
-     "group": "optional",
-     "label": "Prepare a booking quote for the passenger I grant"
-    },
-    "purchase": {
-     "group": "advanced",
-     "label": "Simulate purchase of a quote"
-    },
-    "request": {
-     "placeholder": "Find me a flight to Zurich on 9 October under $900.",
-     "rows": 3,
-     "widget": "multiline"
+      "result": {
+        "primary_export": "answer.md",
+        "summary": [
+          {
+            "label": "Fare rules",
+            "export": "fare-rules.json"
+          },
+          {
+            "label": "Quote and simulated purchase",
+            "export": "booking.json"
+          }
+        ]
+      },
+      "noncritical": true
     }
-   },
-   "nodes": {
-    "answer": "Write the answer",
-    "assemble": "Assemble result",
-    "booking-fare": "Booking: fare to quote",
-    "booking-request": "Booking: build request",
-    "booking-summary": "Quote summary (no identity)",
-    "check-confirmation": "Check the confirmation",
-    "check-no-flights": "Check empty result",
-    "check-not-searched": "Check unsupported request",
-    "check-options": "Check chosen fares",
-    "check-quote": "Check the quote",
-    "check-quote-authorized": "Check the authorized quote",
-    "check-quote-offer": "Check the quote against the search",
-    "fare-rules": "Fare rules",
-    "interpret": "Understand the request",
-    "known-fares": "Known fares",
-    "offered-fares": "Collect offered fares",
-    "offered-flights": "Check the search reading",
-    "output": "Output",
-    "passenger": "Passenger identity (host)",
-    "payment": "Payment method (host)",
-    "prepare": "Booking quote",
-    "profile": "Travel profile (host)",
-    "purchase": "Simulated purchase",
-    "purchase-fares": "Purchased fare",
-    "purchase-request": "Purchase: build request",
-    "purchase-result": "Purchase result",
-    "purchase-summary": "Purchase summary (no identity)",
-    "refusal": "Copy WebAir's refusal",
-    "scrub": "Clear personal data",
-    "search": "Search WebAir",
-    "search-request": "Fill unstated criteria",
-    "select": "Choose fares",
-    "selected-booking-fare": "Booking: choose fare",
-    "status": "Outcome"
-   },
-   "noncritical": true,
-   "result": {
-    "primary_export": "answer.md",
-    "summary": [
-     {
-      "export": "fare-rules.json",
-      "label": "Fare rules"
-     },
-     {
-      "export": "booking.json",
-      "label": "Quote and simulated purchase"
-     }
-    ]
-   },
-   "schema": "agentpkg-presentation-v0",
-   "stages": [
-    {
-     "label": "Understanding",
-     "nodes": [
-      "interpret",
-      "profile",
-      "search-request"
-     ]
-    },
-    {
-     "label": "WebAir search",
-     "nodes": [
-      "search",
-      "select",
-      "offered-flights",
-      "offered-fares",
-      "check-options",
-      "check-no-flights",
-      "check-not-searched",
-      "refusal"
-     ]
-    },
-    {
-     "label": "Fare rules",
-     "nodes": [
-      "fare-rules"
-     ]
-    },
-    {
-     "label": "Booking quote",
-     "nodes": [
-      "selected-booking-fare",
-      "booking-fare",
-      "passenger",
-      "booking-request",
-      "prepare",
-      "check-quote",
-      "check-quote-offer",
-      "check-quote-authorized",
-      "booking-summary"
-     ]
-    },
-    {
-     "label": "Simulated purchase",
-     "nodes": [
-      "payment",
-      "purchase-request",
-      "purchase",
-      "check-confirmation",
-      "purchase-summary",
-      "purchase-result",
-      "purchase-fares"
-     ]
-    },
-    {
-     "label": "Answer",
-     "nodes": [
-      "status",
-      "known-fares",
-      "answer",
-      "assemble",
-      "scrub",
-      "output"
-     ]
-    }
-   ],
-   "task": {
-    "completed_label": "WebAir answered",
-    "prompt": "Where would you like to fly with WebAir?",
-    "run_label": "Run WebAir",
-    "running_label": "Asking WebAir…"
-   }
   },
-  "profile": "workflow.v0"
- }
+  "model_requirements": {
+    "routing": "host",
+    "fallback_policy": "deny",
+    "privacy": null,
+    "latency_preference": null,
+    "cost_sensitivity": null,
+    "tasks": [
+      {
+        "id": "interpret",
+        "capabilities": [
+          "structured_output",
+          "reasoning"
+        ],
+        "context_window": 16000,
+        "preferred_tier": "reasoning"
+      },
+      {
+        "id": "select",
+        "capabilities": [
+          "structured_output",
+          "reasoning"
+        ],
+        "context_window": 16000,
+        "preferred_tier": "reasoning"
+      },
+      {
+        "id": "answer",
+        "capabilities": [
+          "structured_output",
+          "reasoning"
+        ],
+        "context_window": 16000,
+        "preferred_tier": "reasoning"
+      }
+    ]
+  },
+  "evals": [],
+  "attestations": [],
+  "policy": {
+    "permissions": [
+      {
+        "description": "Call WebAir's semantic API (a fictional demo airline): search flights, read fare rules, request a booking quote and, only with the separate purchase permission, simulate a purchase.",
+        "id": "network.webair",
+        "kind": "network",
+        "required": true,
+        "resources": [
+          "webagents-webair-production.up.railway.app"
+        ]
+      },
+      {
+        "description": "Read the travel profile you choose (home airport, preferred cabin, nonstop preference) when a request leaves those unstated. The profile becomes search criteria sent to WebAir; it is never shown to a model as a profile.",
+        "id": "profile.travel",
+        "kind": "personal.read",
+        "required": false,
+        "resources": [
+          "personal.travel_profile"
+        ]
+      },
+      {
+        "description": "Read the passenger identity you choose (name and contact email) and send it to WebAir for a booking quote or a simulated purchase, and nowhere else. No model sees it.",
+        "id": "identity.passenger",
+        "kind": "personal.read",
+        "required": false,
+        "resources": [
+          "personal.passenger_identity"
+        ]
+      },
+      {
+        "description": "Read which payment method you choose (an opaque demo identifier and a display label, never a card number) and send the identifier to WebAir with a simulated purchase, and nowhere else. No model sees it.",
+        "id": "wallet.payment",
+        "kind": "personal.read",
+        "required": false,
+        "resources": [
+          "wallet.payment_method"
+        ]
+      },
+      {
+        "description": "Simulate purchasing the one exact quote a task names, with the payment method you choose. Fictional: WebAir performs no real transaction and charges nothing. Consequential by design: grant it once, for one run.",
+        "id": "booking.simulate_purchase",
+        "kind": "payment",
+        "required": false,
+        "resources": [
+          "webagents-webair-production.up.railway.app"
+        ]
+      },
+      {
+        "description": "Use the host-selected model router to interpret the request, choose fares and write the answer.",
+        "id": "model.reasoning",
+        "kind": "model",
+        "required": true,
+        "resources": [
+          "host-router"
+        ]
+      },
+      {
+        "description": "Read and write explicit worker state views for this run only.",
+        "id": "memory.session",
+        "kind": "memory",
+        "required": true,
+        "resources": [
+          "session"
+        ]
+      }
+    ],
+    "network": {
+      "allow_redirects": false,
+      "allowed_domains": [
+        "webagents-webair-production.up.railway.app"
+      ],
+      "https_only": true
+    },
+    "memory": {
+      "raw_documents": false,
+      "retention": "session",
+      "scope": "session",
+      "sharing": "explicit_views",
+      "state_schema": "schemas/state.schema.json"
+    },
+    "budget": {
+      "approval_threshold_tokens": null,
+      "estimated_cost_usd": null,
+      "estimated_tokens": 24000,
+      "hard_tokens": 120000,
+      "max_calls_per_tool": {
+        "get-fare-rules": 6,
+        "personal.passenger_identity": 1,
+        "personal.travel_profile": 1,
+        "prepare-booking": 1,
+        "search-flights": 1,
+        "simulate-purchase": 1,
+        "wallet.payment_method": 1
+      },
+      "max_parallel_workers": 3,
+      "max_remote_calls": 20
+    },
+    "delegation": {
+      "allow_remote": false,
+      "approved_roles": [
+        "Interpreter",
+        "Personal",
+        "Searcher",
+        "Selector",
+        "Booker",
+        "Writer"
+      ],
+      "max_depth": 1
+    }
+  },
+  "payload": {
+    "file_count": 58,
+    "total_bytes": 152366,
+    "files": [
+      {
+        "path": "MANIFEST.agent",
+        "bytes": 5834,
+        "sha256": "4362c2d8dec72488f992ef8f13305d0ed21611a79836bcffd0dcdb918c247275"
+      },
+      {
+        "path": "README.md",
+        "bytes": 8912,
+        "sha256": "bda835afa53aa3d8565a1006e712282bfe0e1020092371f8b04cceeb129cd805"
+      },
+      {
+        "path": "fixtures/workflow.json",
+        "bytes": 49498,
+        "sha256": "23dcd42549e2ef6be6b55c4d2e9ba25f4df75c2e3882b334a7b842a9b7830052"
+      },
+      {
+        "path": "graph.json",
+        "bytes": 27704,
+        "sha256": "0874dd41bead0dfabb98ea6d346c9225d06a2c8953d4ea872a73729ea7dc47a5"
+      },
+      {
+        "path": "policy/policy.json",
+        "bytes": 2781,
+        "sha256": "1fd5a32fe5bc5824ba545bb80d37caf17951d7eba0d527da354da435e2ec6e9e"
+      },
+      {
+        "path": "schemas/answer.schema.json",
+        "bytes": 412,
+        "sha256": "83589f4f5e1301ba69074f4d9ea691586e083401c2b28ac8307ed6e24fbcc6a8"
+      },
+      {
+        "path": "schemas/api/get_fare_rules.input.schema.json",
+        "bytes": 460,
+        "sha256": "ad5ad98ed1b482225a8d623cf7004270e4042d825fd7cf166651a37a0492e1c8"
+      },
+      {
+        "path": "schemas/api/get_fare_rules.output.schema.json",
+        "bytes": 5237,
+        "sha256": "70c5dbb27a550e396ae211b5fe484bc395a67a793fba8c2cafa142840dd50b11"
+      },
+      {
+        "path": "schemas/api/prepare_booking.input.schema.json",
+        "bytes": 1084,
+        "sha256": "b7d0f573905ae0c23987b305de00816118a5d52ffe29f4ea410dc89f5c586173"
+      },
+      {
+        "path": "schemas/api/prepare_booking.output.schema.json",
+        "bytes": 6908,
+        "sha256": "c632b8935b6c059abee0a609e8d88f1c33dee69d6bf99cc3576d85652fe4a842"
+      },
+      {
+        "path": "schemas/api/search_flights.input.schema.json",
+        "bytes": 1013,
+        "sha256": "66cb6246e48442ed5101adf8b40d8ca29027a499a5acea7c8db5c7ef0f799ba8"
+      },
+      {
+        "path": "schemas/api/search_flights.output.schema.json",
+        "bytes": 5671,
+        "sha256": "824d0e39f171a09d424a7a7e40c38632db9747a3a4d1846b0f7a95e26893e4a7"
+      },
+      {
+        "path": "schemas/api/simulate_purchase.input.schema.json",
+        "bytes": 1499,
+        "sha256": "01ebc6ec5fd4ff9be71d4a308650bad902366eee94d494db8a7d46469172fa71"
+      },
+      {
+        "path": "schemas/api/simulate_purchase.output.schema.json",
+        "bytes": 5175,
+        "sha256": "debe54138360dd92e5bb98e33865bbf4da3bb64b2d0bd2c5a897f5051cf1f347"
+      },
+      {
+        "path": "schemas/booking-fare.schema.json",
+        "bytes": 115,
+        "sha256": "a2e8232ea35edab7e9d855c8f51fe1dc2d0e07cff94dcefd616d20cae20aad3a"
+      },
+      {
+        "path": "schemas/booking-quote.schema.json",
+        "bytes": 154,
+        "sha256": "78044236ea3d58efc04384bad93fdcdda478c8eb499e5c0dcdc6482a075f6736"
+      },
+      {
+        "path": "schemas/booking-request.schema.json",
+        "bytes": 133,
+        "sha256": "4be455e6d7e9effdd09e4d103c8a21cec75ad2d8a2ec8acc950e416df03b0ea2"
+      },
+      {
+        "path": "schemas/booking-summary.schema.json",
+        "bytes": 949,
+        "sha256": "f45548382cda29269ca22ac0101ef431b59498a2b1d4776ba6db3a128b314d56"
+      },
+      {
+        "path": "schemas/confirmation.schema.json",
+        "bytes": 136,
+        "sha256": "9bab0aa400109ea4296f1da2b6d006f733eeff4fedb918c85126c3eb23844195"
+      },
+      {
+        "path": "schemas/fare-id.schema.json",
+        "bytes": 124,
+        "sha256": "e74a37000590e5602425f54ac53742b2969c2b6baa4fb4faa08d6a4e1995cf4c"
+      },
+      {
+        "path": "schemas/fare-refs.schema.json",
+        "bytes": 258,
+        "sha256": "5f8731cf114cc6c4bcc025237471d9763ec92004fafce01dabca002082c050df"
+      },
+      {
+        "path": "schemas/fare-rule.schema.json",
+        "bytes": 122,
+        "sha256": "981dc5daa2b0ea1e07fbbd20a2025a3495a66304450d9396a38875a6667644bd"
+      },
+      {
+        "path": "schemas/fare-rules.schema.json",
+        "bytes": 127,
+        "sha256": "44ddba71698010bd546728c4e79bef180ea7ff7b5ff9aa203b7b8096cfbc3964"
+      },
+      {
+        "path": "schemas/host/empty-input.schema.json",
+        "bytes": 119,
+        "sha256": "71fc596a20f27da3dec80050e5d1f553eba34aea24c2853b853488a811e6b892"
+      },
+      {
+        "path": "schemas/host/personal.passenger_identity.schema.json",
+        "bytes": 388,
+        "sha256": "ed3aa07a101767b46697661c503b135707f6d61a10080ab5e7c0f4fd4e06d539"
+      },
+      {
+        "path": "schemas/host/personal.travel_profile.schema.json",
+        "bytes": 431,
+        "sha256": "fae6c1bbbed8ec3e8cd1abaa212baeca82b3cb4d34020cd21dfb7f15987c535b"
+      },
+      {
+        "path": "schemas/host/wallet.payment_method.schema.json",
+        "bytes": 319,
+        "sha256": "3bd36ad1899ff7f97655f00d3f4a5b6e785e4ab6ee77d05e3057e4d1b80338d0"
+      },
+      {
+        "path": "schemas/input.schema.json",
+        "bytes": 1463,
+        "sha256": "02b45840e6a10bacc8a7ab906b8e64c4fde82dcbb3a97a18ed37b363b5cc0138"
+      },
+      {
+        "path": "schemas/offered-fares.schema.json",
+        "bytes": 149,
+        "sha256": "c5a0227bab053705d925f2f3b94d04458b1d9d999759846e1acf83369ebd15bc"
+      },
+      {
+        "path": "schemas/offered-flights.schema.json",
+        "bytes": 149,
+        "sha256": "6903739b01fc0f08cc116920e9f833c7a9ed5ae70e192b187a486f98649eb008"
+      },
+      {
+        "path": "schemas/passenger.schema.json",
+        "bytes": 140,
+        "sha256": "e0cfce56cd191d62a8b64afe4f7f671ac430ec2e6bee86d0bd96032616cc9263"
+      },
+      {
+        "path": "schemas/payment.schema.json",
+        "bytes": 134,
+        "sha256": "f115cf2926777385cd039079a56c8a1f875d249959f582cb7892da010c1bb293"
+      },
+      {
+        "path": "schemas/plan.schema.json",
+        "bytes": 1290,
+        "sha256": "33648ed569b812affb175d5aabdf1affb5598304b1c102e5dffbac1d1788f400"
+      },
+      {
+        "path": "schemas/purchase-request.schema.json",
+        "bytes": 135,
+        "sha256": "fca8f81fca7b13910551b3caddb4d3705a2ab1bce98650da338547b574ec54d0"
+      },
+      {
+        "path": "schemas/purchase-result.schema.json",
+        "bytes": 1018,
+        "sha256": "5cee89c9bed7d69a4cf48587a1ff15cee9e6ac3c624de9700590c5294fd873cc"
+      },
+      {
+        "path": "schemas/purchase-summary.schema.json",
+        "bytes": 1050,
+        "sha256": "d67eda27b51b656255d29b7feb493f444b14f851dfff4e6a89b3c88f5b61b65e"
+      },
+      {
+        "path": "schemas/quote.schema.json",
+        "bytes": 134,
+        "sha256": "d61e77ee7d2a913f05dddc4d46027e17588275ed1ca57ed711669295caa14c3c"
+      },
+      {
+        "path": "schemas/refusal.schema.json",
+        "bytes": 150,
+        "sha256": "12af9286420666017d195406ec819d63fd2b596e4ef0d4ddf70dd91e3066d56c"
+      },
+      {
+        "path": "schemas/result.schema.json",
+        "bytes": 1141,
+        "sha256": "8107a03a167e05d2360c5cf1dd9bfb546c21f06574244261c5e6ad1d8ba6999e"
+      },
+      {
+        "path": "schemas/scrub.schema.json",
+        "bytes": 594,
+        "sha256": "31c59f6df6c97555e14f7e8eed86366d2e4a2010e3432976754e28b799c346b8"
+      },
+      {
+        "path": "schemas/search-outcome.schema.json",
+        "bytes": 219,
+        "sha256": "d77068ca89194c39d9e4360a74fe73858f46e5c527a1435587cc5655d3253011"
+      },
+      {
+        "path": "schemas/search-request.schema.json",
+        "bytes": 132,
+        "sha256": "6f472655fecb9a92a3a9645f80edfa65e678e86b7ea8c8112ce98aa1f3232566"
+      },
+      {
+        "path": "schemas/selection.schema.json",
+        "bytes": 603,
+        "sha256": "6e1355e4bfd1fbe128c614208693804e4488405751414bbffe3cadf8dfa8d7fc"
+      },
+      {
+        "path": "schemas/simulated-confirmation.schema.json",
+        "bytes": 165,
+        "sha256": "1732cd21237648e7cd5f6e116b670c64f8b7412cdd32803f2ba1428a67c017d7"
+      },
+      {
+        "path": "schemas/state.schema.json",
+        "bytes": 1939,
+        "sha256": "9d508a659b2f97e221e9ce49cbef98f064bec13a8590c46bdff9542af923d3d4"
+      },
+      {
+        "path": "schemas/status.schema.json",
+        "bytes": 184,
+        "sha256": "9ed03d7781ff74cd24d0470f509fa0cbf1db25fb7fc01cdf9a513acba11500f1"
+      },
+      {
+        "path": "schemas/travel-preferences.schema.json",
+        "bytes": 515,
+        "sha256": "94cd68a971350d1f7d42a16a22f47c5d717b76962df9b1405930a88803310471"
+      },
+      {
+        "path": "skills/answer-writing/SKILL.md",
+        "bytes": 2643,
+        "sha256": "f3ef6fed732c1ca4a9daed7f3e3f01b95e8a9cdef659e6669ea7a2eb9e05b6d8"
+      },
+      {
+        "path": "skills/fare-selection/SKILL.md",
+        "bytes": 1547,
+        "sha256": "11f123d06c3bc7b8368366db8960513c680294461b6cc32649ef9ee64126c0f2"
+      },
+      {
+        "path": "skills/travel-request/SKILL.md",
+        "bytes": 2956,
+        "sha256": "f817863722591a88dbf74e26aa4029afc007d6c62235c4f6caa3a2f7404caac4"
+      },
+      {
+        "path": "skills/webair-domain/SKILL.md",
+        "bytes": 3197,
+        "sha256": "35e3f81835147cd4efa12dc31da33ae8b67c46b23b8a21baeebc04d8b4c74656"
+      },
+      {
+        "path": "tools/get-fare-rules.tool.json",
+        "bytes": 654,
+        "sha256": "06802d5df3fb4476d1bf170e165c666e703e4db7998f5f55cffe3ba9142074f9"
+      },
+      {
+        "path": "tools/host-passenger-identity.tool.json",
+        "bytes": 677,
+        "sha256": "25357a94d9e32e171ea9bfdc03cc804b180e8abcc08ede90ff49c3b3ab50bee5"
+      },
+      {
+        "path": "tools/host-payment-method.tool.json",
+        "bytes": 651,
+        "sha256": "ca55e018283c1a56d5e2725cd18330ce43787949361d5bad0115baf95e05db8a"
+      },
+      {
+        "path": "tools/host-travel-profile.tool.json",
+        "bytes": 657,
+        "sha256": "3b6f6fe4a3ccff05d0d33e795bb34457965f4eebf802b56ed5c9b25e969be872"
+      },
+      {
+        "path": "tools/prepare-booking.tool.json",
+        "bytes": 779,
+        "sha256": "9f17d5c634347ac6e0c056c7c6fe9291e5aef96b1d349507ffc88145ea3cf442"
+      },
+      {
+        "path": "tools/search-flights.tool.json",
+        "bytes": 760,
+        "sha256": "8e31c1e30d2ff45e51e3d86fc4cbc901948d86e65403e542d70e28c775691151"
+      },
+      {
+        "path": "tools/simulate-purchase.tool.json",
+        "bytes": 978,
+        "sha256": "93db84e3f4d982ebf3481e7f80736bbdbcea79ef8d0eeb8a01253a05d44f0cc8"
+      }
+    ]
+  },
+  "warnings": [
+    {
+      "code": "publisher_unknown",
+      "severity": "warning",
+      "message": "The signing key is not pinned in this host's trust store, so the publisher is unverified even when the signature is self-consistent."
+    },
+    {
+      "code": "requests_personal_data",
+      "severity": "warning",
+      "message": "The package requests host-owned personal data (profile.travel: personal.travel_profile). You choose whether to grant it and which of your resources is shared."
+    },
+    {
+      "code": "requests_personal_data",
+      "severity": "warning",
+      "message": "The package requests host-owned personal data (identity.passenger: personal.passenger_identity). You choose whether to grant it and which of your resources is shared."
+    },
+    {
+      "code": "requests_personal_data",
+      "severity": "warning",
+      "message": "The package requests host-owned personal data (wallet.payment: wallet.payment_method). You choose whether to grant it and which of your resources is shared."
+    },
+    {
+      "code": "requests_payment_permission",
+      "severity": "warning",
+      "message": "The package requests payment authority (booking.simulate_purchase) for simulate-purchase. This host charges nothing itself: the permission only decides whether those tools may be called."
+    },
+    {
+      "code": "remote_tools_declared",
+      "severity": "info",
+      "message": "4 remote tool(s) may contact: webagents-webair-production.up.railway.app."
+    },
+    {
+      "code": "side_effecting_tools_declared",
+      "severity": "warning",
+      "message": "Tools requiring explicit approval before dispatch: personal.passenger_identity, personal.travel_profile, prepare-booking, simulate-purchase, wallet.payment_method."
+    },
+    {
+      "code": "no_evals_declared",
+      "severity": "info",
+      "message": "The package declares no evaluations."
+    },
+    {
+      "code": "no_attestations_declared",
+      "severity": "info",
+      "message": "The package declares no attestations."
+    }
+  ]
 }

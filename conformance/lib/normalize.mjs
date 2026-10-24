@@ -22,9 +22,17 @@ const MEMORY_FACTS = ["count", "types", "proposals_sha256", "offered", "reason",
 // `fuel_exhausted` on a metering engine and `deadline` on one that only has a wall bound (D-244); a
 // call that was stopped from outside reports the memory size the engine could still read, which
 // a terminated Worker cannot (T22, D-250), so after either reason `memory_pages` is the engine's;
-// and the V8 in Node 26.9, under which the Chrome core runs here, reports a `call_indirect` through
+// and the V8s in Node 24 and 26, under which the Chrome core runs here, reports a `call_indirect` through
 // a null slot as a signature mismatch (Chrome 155's does not), so `indirect_call_to_null` and
 // `bad_signature` compare as one (`indirect_call_failed`, D-254).
+// conversation.v0 (T24, D-263): the conversation-level events are backbone entries with the facts
+// the format determines (a reason, a status, a turn's counts, the hashes of the message and the
+// state); `consent.*` events join a wave's multiset with the step, the permissions, the decision and
+// its provenance; `elapsed_ms` is the host's and is dropped, as every id and timestamp is.
+const CONVERSATION_BACKBONE = new Set(["conversation.started", "turn.started", "turn.refused", "turn.completed", "turn.failed", "conversation.ended"]);
+const CONVERSATION_FACTS = ["reason", "status", "error_code", "tokens", "remote_calls", "spent_tokens", "spent_remote_calls", "spent_permissions", "turns", "turns_supplied", "limits", "grant_scopes", "state_hash", "message_hash", "consents_supplied", "consents_decided", "package_id", "package_version", "package_digest"];
+const CONSENT_EVENTS = new Set(["consent.requested", "consent.decided", "consent.failed"]);
+const CONSENT_FACTS = ["step", "permissions", "accepted", "decided_by", "reason", "timeout_seconds", "text_sha256", "facts_hash", "error"];
 const COMPUTE_EVENTS = new Set(["compute.called", "compute.completed", "compute.failed"]);
 const COMPUTE_FACTS = ["module", "module_sha256", "function", "input_bytes", "output_bytes", "detail", "error"];
 const BOUND_REASONS = new Set(["fuel_exhausted", "deadline"]);
@@ -58,7 +66,7 @@ export function normalizeAudit(audit, allowTokens = false) {
   };
   for (const event of audit) {
     const action = String(event.action);
-    if (BACKBONE.test(action) || action === "state.committed" || action === "memory.cleared" || MEMORY_BACKBONE.has(action)) {
+    if (BACKBONE.test(action) || action === "state.committed" || action === "memory.cleared" || MEMORY_BACKBONE.has(action) || CONVERSATION_BACKBONE.has(action)) {
       flush();
       const entry = { action, node_id: event.node_id ?? null };
       if (action === "state.committed") entry.nodes = [...(event.nodes ?? [])].sort();
@@ -66,6 +74,10 @@ export function normalizeAudit(audit, allowTokens = false) {
       // memory.v0 (M-61): what a run proposed and what became of the agent document, never a value.
       for (const key of MEMORY_FACTS) if (MEMORY_BACKBONE.has(action) && key in event) entry[key] = event[key];
       if (action === "workflow.failed") for (const key of ["reason", "proposal_index"]) if (key in event) entry[key] = event[key];
+      // conversation.v0: the conversation-level facts, and the `once` grants a turn starts with (V-13).
+      for (const key of CONVERSATION_FACTS) if (CONVERSATION_BACKBONE.has(action) && key in event) entry[key] = allowTokens && /tokens/u.test(key) ? 0 : event[key];
+      if (action === "runtime.started" && "spent_permissions" in event) entry.spent_permissions = event.spent_permissions;
+      if (CONVERSATION_BACKBONE.has(action) || "conversation_id" in event) entry.turn = event.turn ?? null;
       view.push(entry);
       continue;
     }
@@ -76,6 +88,9 @@ export function normalizeAudit(audit, allowTokens = false) {
       for (const key of ["reason", "record_id", "pointer", "permission_id"]) if (key in event) facts.push(`${key}=${event[key]}`);
     }
     if (action === "model.completed" && !allowTokens) facts.push(event.tokens ?? null);
+    // conversation.v0: the gate's refusal names the steps (V-9); a consent step's events carry the decision.
+    if (action === "permission.checked" && "consent_steps" in event) facts.push(`consent_steps=${JSON.stringify(event.consent_steps)}`);
+    if (CONSENT_EVENTS.has(action)) for (const key of CONSENT_FACTS) if (key in event) facts.push(`${key}=${JSON.stringify(event[key])}`);
     if (COMPUTE_EVENTS.has(action)) {
       for (const key of COMPUTE_FACTS) if (key in event) facts.push(`${key}=${event[key]}`);
       if ("trap_code" in event) facts.push(`trap_code=${INDIRECT_CALL_TRAPS.has(event.trap_code) ? "indirect_call_failed" : event.trap_code}`);
@@ -91,9 +106,13 @@ export function normalizeAudit(audit, allowTokens = false) {
 }
 
 /** Whether every event of one audit is hash-linked to its predecessor; the first broken index otherwise. */
-export function chainBreak(events) {
+export function chainBreak(events, { continued = false } = {}) {
+  // A turn's `audit.json` is its slice of the conversation's chain (conversation.v0 V-17): its
+  // sequence counts on from where the chain stood and its first event links to the hash before it.
+  const start = continued && events.length > 0 ? events[0].sequence - 1 : 0;
   for (const [at, event] of events.entries()) {
-    if (event.sequence !== at + 1) return at;
+    if (event.sequence !== start + at + 1) return at;
+    if (at === 0 && continued) continue;
     if ((event.previous_hash ?? null) !== (at === 0 ? null : events[at - 1].event_hash)) return at;
   }
   return null;
@@ -137,7 +156,7 @@ const decode = (bytes) => JSON.parse(new TextDecoder().decode(bytes));
  * `{checks: [{name, passed, detail}]}`; `allowTokens` is Literature Review's integral-float
  * allowlist, whose two numbers the caller prints.
  */
-export function compareArtifacts(python, node, { allowTokens = false } = {}) {
+export function compareArtifacts(python, node, { allowTokens = false, continued = false } = {}) {
   const checks = [];
   const check = (name, differences) => checks.push({ name, passed: differences.length === 0, detail: differences });
   check("file set", diff(Object.keys(python).sort(), Object.keys(node).sort()));
@@ -158,7 +177,9 @@ export function compareArtifacts(python, node, { allowTokens = false } = {}) {
   check("usage (workers folded by role)", diff(normalizeUsage(pyResult.usage, allowTokens), normalizeUsage(nodeResult.usage, allowTokens)));
   const strip = (result) => {
     const { audit: _audit, ...rest } = result;
-    return { ...rest, provenance: rest.provenance ? { ...rest.provenance, interpreter: "<interpreter>" } : rest.provenance, usage: normalizeUsage(rest.usage, allowTokens) };
+    // conversation.v0: a turn's decisions carry the instant they were taken (V-16), the host's.
+    const consents = Array.isArray(rest.consents) ? rest.consents.map(({ decided_at: _d, ...decision }) => decision) : rest.consents;
+    return { ...rest, ...(consents !== undefined ? { consents } : {}), provenance: rest.provenance ? { ...rest.provenance, interpreter: "<interpreter>" } : rest.provenance, usage: normalizeUsage(rest.usage, allowTokens) };
   };
   check("result.json without the audit", diff(strip(pyResult), strip(nodeResult)));
   for (const name of Object.keys(python).sort()) {
@@ -171,8 +192,8 @@ export function compareArtifacts(python, node, { allowTokens = false } = {}) {
   check("audit.json equals the result's audit", [...diff(decode(python["audit.json"]), pyAudit, "$python"), ...diff(decode(node["audit.json"]), nodeAudit, "$node")]);
   check("audit length", pyAudit.length === nodeAudit.length ? [] : [`${pyAudit.length} != ${nodeAudit.length}`]);
   check("audit backbone and per-wave multisets", diff(normalizeAudit(pyAudit, allowTokens), normalizeAudit(nodeAudit, allowTokens)));
-  const breaks = [["python", chainBreak(pyAudit)], ["node", chainBreak(nodeAudit)]].filter(([, at]) => at !== null);
-  check("each audit chain is linked", breaks.map(([runtime, at]) => `${runtime} breaks at event ${at + 1}`));
+  const breaks = [["python", chainBreak(pyAudit, { continued })], ["node", chainBreak(nodeAudit, { continued })]].filter(([, at]) => at !== null);
+  check(continued ? "each audit slice is linked and counts on" : "each audit chain is linked", breaks.map(([runtime, at]) => `${runtime} breaks at event ${at + 1}`));
   return { checks, tokens: { python: pyResult.usage?.tokens ?? null, node: nodeResult.usage?.tokens ?? null } };
 }
 
@@ -202,4 +223,90 @@ export function compareFailureRace(python, node) {
   const breaks = [["python", chainBreak(pyResult.audit ?? [])], ["node", chainBreak(nodeResult.audit ?? [])]].filter(([, at]) => at !== null);
   check("each audit chain is linked", breaks.map(([runtime, at]) => `${runtime} breaks at event ${at + 1}`));
   return { checks, tokens: { python: pyResult.usage?.tokens ?? null, node: nodeResult.usage?.tokens ?? null } };
+}
+
+// -- conversation.v0 (T24, D-263) -------------------------------------------------------------
+const CONVERSATION_FILES = ["transcript.json", "state.json", "audit.json", "usage.json", "provenance.json"];
+
+/** D-063's view of an output transcript: ids and timestamps dropped, the rest as written. */
+export function normalizeTranscript(transcript, allowTokens = false) {
+  const turns = (transcript.turns ?? []).map((turn) => {
+    const { run_id: _r, started_at: _s, ended_at: _e, ...rest } = turn;
+    return { ...rest, decisions: (rest.decisions ?? []).map(({ decided_at: _d, ...decision }) => decision), usage: rest.usage ? { ...rest.usage, tokens: allowTokens ? 0 : rest.usage.tokens } : rest.usage };
+  });
+  const { conversation_id: _c, started_at: _t, ...rest } = transcript;
+  return { ...rest, turns, budget: rest.budget ? { ...rest.budget, spent: rest.budget.spent ? { ...rest.budget.spent, tokens: allowTokens ? 0 : rest.budget.spent.tokens } : rest.budget.spent } : rest.budget, ended: rest.ended ? { ...rest.ended, at: "<at>" } : rest.ended };
+}
+
+/** The conversation's own usage document without the token figures when allowlisted. */
+function normalizeConversationUsage(usage, allowTokens) {
+  if (!allowTokens) return usage;
+  return { ...usage, tokens: 0, per_turn: (usage.per_turn ?? []).map((turn) => ({ ...turn, tokens: 0 })) };
+}
+
+/**
+ * Compare two conversations' written directories (`{name: Uint8Array}`, a turn's files under
+ * `turn-NNN/`) under D-063's normalization: the file set, the transcript without ids and times,
+ * the state, the usage, the provenance with the interpreter masked, one audit chain across every
+ * turn (backbone and per-wave multisets, each chain linked), and each turn's files as a run's are
+ * compared (`compareArtifacts`, with the turn's conversation id masked).
+ */
+export function compareConversation(python, node, { allowTokens = false } = {}) {
+  const checks = [];
+  const check = (name, differences) => checks.push({ name, passed: differences.length === 0, detail: differences });
+  check("file set", diff(Object.keys(python).sort(), Object.keys(node).sort()));
+  if (!python["transcript.json"] || !node["transcript.json"]) {
+    check("transcript.json written", [`python ${Boolean(python["transcript.json"])}, node ${Boolean(node["transcript.json"])}`]);
+    return { checks, tokens: { python: null, node: null } };
+  }
+  const pyTranscript = decode(python["transcript.json"]);
+  const nodeTranscript = decode(node["transcript.json"]);
+  check("transcript (ids and times dropped)", diff(normalizeTranscript(pyTranscript, allowTokens), normalizeTranscript(nodeTranscript, allowTokens)));
+  for (const name of ["state.json", "usage.json", "provenance.json"]) {
+    if (!python[name] || !node[name]) {
+      check(`${name} written in both`, [`python ${Boolean(python[name])}, node ${Boolean(node[name])}`]);
+      continue;
+    }
+    let left = decode(python[name]);
+    let right = decode(node[name]);
+    if (name === "provenance.json") {
+      const masked = (value) => ({ ...value, interpreter: "<interpreter>", conversation_id: "<conversation_id>" });
+      [left, right] = [masked(left), masked(right)];
+      check("interpreter names its runtime", [
+        ...(decode(python[name]).interpreter === "agentpkg.conversation.Conversation" ? [] : [`python interpreter ${decode(python[name]).interpreter}`]),
+        ...(decode(node[name]).interpreter === "chrome-agent-browser.conversation.Conversation" ? [] : [`node interpreter ${decode(node[name]).interpreter}`]),
+      ]);
+    }
+    if (name === "usage.json") [left, right] = [normalizeConversationUsage(left, allowTokens), normalizeConversationUsage(right, allowTokens)];
+    check(name, diff(left, right));
+  }
+  const pyAudit = python["audit.json"] ? decode(python["audit.json"]) : [];
+  const nodeAudit = node["audit.json"] ? decode(node["audit.json"]) : [];
+  check("audit length", pyAudit.length === nodeAudit.length ? [] : [`${pyAudit.length} != ${nodeAudit.length}`]);
+  check("audit backbone and per-wave multisets (one chain across the turns)", diff(normalizeAudit(pyAudit, allowTokens), normalizeAudit(nodeAudit, allowTokens)));
+  const breaks = [["python", chainBreak(pyAudit)], ["node", chainBreak(nodeAudit)]].filter(([, at]) => at !== null);
+  check("each conversation chain is linked", breaks.map(([runtime, at]) => `${runtime} breaks at event ${at + 1}`));
+  // Every turn's directory as a run's files, the conversation id masked in its provenance.
+  const turnsOf = (files) => [...new Set(Object.keys(files).filter((name) => /^turn-\d{3}\//u.test(name)).map((name) => name.slice(0, 9)))].sort();
+  const turnFiles = (files, prefix) => Object.fromEntries(Object.entries(files).filter(([name]) => name.startsWith(prefix)).map(([name, data]) => [name.slice(prefix.length), data]));
+  const mask = (files) => {
+    const out = { ...files };
+    for (const name of ["result.json", "provenance.json"]) {
+      if (!out[name]) continue;
+      const value = decode(out[name]);
+      if (value.provenance?.conversation) value.provenance = { ...value.provenance, conversation: { ...value.provenance.conversation, conversation_id: "<conversation_id>" } };
+      if (value.conversation) value.conversation = { ...value.conversation, conversation_id: "<conversation_id>" };
+      out[name] = new TextEncoder().encode(JSON.stringify(value));
+    }
+    return out;
+  };
+  const pyTurns = turnsOf(python);
+  check("turn directories", diff(pyTurns, turnsOf(node)));
+  for (const prefix of pyTurns) {
+    if (!turnsOf(node).includes(prefix)) continue;
+    const compared = compareArtifacts(mask(turnFiles(python, prefix)), mask(turnFiles(node, prefix)), { allowTokens, continued: true });
+    checks.push(...compared.checks.map((item) => ({ ...item, name: `${prefix} ${item.name}` })));
+  }
+  void CONVERSATION_FILES;
+  return { checks, tokens: { python: pyTranscript.budget?.spent?.tokens ?? null, node: nodeTranscript.budget?.spent?.tokens ?? null } };
 }

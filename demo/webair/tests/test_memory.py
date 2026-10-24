@@ -1,4 +1,5 @@
-"""WebAir 0.6.0 and the person's memory (memory.v0, T20), run by the generic runtime.
+"""WebAir and the person's memory (memory.v0, T20; a turn of the 0.8.0 conversation), run by the
+generic runtime.
 
 The travel profile is read through `memory.read` from a memory folder with agentpkg's own memory
 host (`agentpkg.memory.host`, the `--memory-dir` reference); after a quote the `remember` step
@@ -22,9 +23,9 @@ from agentpkg.workflow import WorkflowError
 from origin.app import create_app
 from publisher.binding import json_http_handlers
 from publisher.contract import PACKAGE_SOURCE, REPO_ROOT
-from publisher.fixture import ScriptedRouter
+from publisher.fixture import ScriptedRouter, converse_package, turn_failure
 from publisher.host import host_resource_handlers, resource_value
-from publisher.scenarios import WA101_STANDARD, capability_scenario, source_scenario
+from publisher.scenarios import WA101_STANDARD, conversation_scenario
 
 MEMORY_EXAMPLE = REPO_ROOT / "spec/memory-v0/examples/webair-0.6.0/memory"
 HEAD_PROFILE = "mem_9b8a7c6d5e4f30211203a4b5c6d7e8f9"
@@ -65,8 +66,16 @@ def demo_scan():
     ]
 
 
+def quote_case(remember=None):
+    """The quote turn of the capability demo, with the `remember` step's answer scripted."""
+    case = conversation_scenario("quote")
+    turn = case.turns[0]
+    models = {**turn.models, "remember": [remember or {"proposals": []}]}
+    return case, turn, models
+
+
 def booking(package, origin_app, remember, *, grants=None):
-    case = source_scenario(capability_scenario("booking"), [remember])
+    case, turn, models = quote_case(remember)
     grants = case.decisions if grants is None else grants
     grant_list = [
         {
@@ -80,23 +89,24 @@ def booking(package, origin_app, remember, *, grants=None):
         **json_http_handlers(package, origin_app),
         **host_resource_handlers(package, case.selections),
     }
-    return asyncio.run(
-        _run(package, case.input, ScriptedRouter(case.models), handlers, grants, memory)
-    )
+    return asyncio.run(_run(package, turn.input, ScriptedRouter(models), handlers, grants, memory))
 
 
 async def _run(package, input_value, router, handlers, grants, memory):
-    from agentpkg.workflow import run_workflow
-
-    return await run_workflow(
+    """One turn of the conversation with its own memory run (V-26); raises what it raised."""
+    _, reports = await converse_package(
         package,
-        input_value,
-        grants=grants,
+        [{"message": input_value}],
+        routers=router,
         handlers=handlers,
-        router=router,
+        grants=grants,
         approved_tools=sorted(package.tools),
         memory=memory,
     )
+    report = reports[0]
+    if report["status"] != "completed":
+        raise turn_failure(report)
+    return report
 
 
 def test_a_quote_proposes_one_preference_and_writes_nothing(package, origin_app):
@@ -139,7 +149,7 @@ def test_a_proposal_carrying_the_passenger_e_mail_never_leaves_the_run(package, 
 
 
 def test_a_denied_memory_write_offers_nothing(package, origin_app):
-    case = source_scenario(capability_scenario("booking"))
+    case, _, _ = quote_case()
     grants = {**case.decisions, "memory.remember": "deny"}
     report = booking(package, origin_app, {"proposals": [CABIN]}, grants=grants)
     proposed = [e for e in report["audit"] if e["action"] == "memory.proposed"][0]
@@ -149,7 +159,7 @@ def test_a_denied_memory_write_offers_nothing(package, origin_app):
 def test_the_profile_is_read_from_a_memory_folder(package, origin_app, tmp_path):
     memory_dir = tmp_path / "memory"
     shutil.copytree(MEMORY_EXAMPLE, memory_dir)
-    case = source_scenario(capability_scenario("profile-search"))
+    case = conversation_scenario("profile-search")
     memory, folder, handlers = cli_memory(
         package,
         mode="live",
@@ -163,7 +173,7 @@ def test_the_profile_is_read_from_a_memory_folder(package, origin_app, tmp_path)
         _run(
             package,
             case.input,
-            ScriptedRouter(case.models),
+            ScriptedRouter(case.turns[0].models),
             {**json_http_handlers(package, origin_app, record=calls), **handlers},
             case.decisions,
             memory,

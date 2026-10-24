@@ -99,6 +99,23 @@ describe("issuing a lease", () => {
     expect(plain.onceSpent(sessionOnly.plan)).toBe(false);
   });
 
+  it("a conversation's later turn is leased under the receipt it spent itself, and still refused for any other reason (T24 review 1 nit 8)", async () => {
+    const w = await world();
+    const registry = new LeaseRegistry();
+    registry.release((await registry.issue({ plan: w.plan, preflight: await ready(w, registry), archive: ARCHIVE, now: NOW })).lease_id);
+    const spent = await ready(w, registry);
+    const lease = await registry.issue({ plan: w.plan, preflight: spent, archive: ARCHIVE, now: NOW, spentByConversation: true });
+    expect(lease.revalidated).toContain("once_spent_by_this_conversation");
+    registry.release(lease.lease_id);
+    // Not ready for another reason as well, with the stale list holding only the spent receipt: the blocking reasons refuse.
+    const blocked: RunPlanPreflight = { ...spent, ready: false, blocking_reasons: [...spent.blocking_reasons, { code: "secret_missing", message: "The provider key is missing.", subject: null }] };
+    const refused = await refusal(registry.issue({ plan: w.plan, preflight: blocked, archive: ARCHIVE, now: NOW, spentByConversation: true }));
+    expect(refused.code).toBe("run_plan_stale");
+    expect(refused.message).toBe("The provider key is missing.");
+    // Not ready with no reason at all: refused, never assumed ready.
+    expect((await refusal(registry.issue({ plan: w.plan, preflight: { ...spent, ready: false, stale_reasons: [], blocking_reasons: [] }, archive: ARCHIVE, now: NOW, spentByConversation: true }))).code).toBe("run_plan_stale");
+  });
+
   it("refuses bytes that are not the planned archive, and a receipt that would lapse during the run", async () => {
     const w = await world();
     const registry = new LeaseRegistry();

@@ -21,6 +21,7 @@ import { HOST_RESULT_NAMES, RUN_RECORD_NAME } from "./artifacts.js";
 import {
   COMPUTE_LIMIT_EXCEEDED,
   COMPUTE_NOT_SUPPORTED,
+  CONVERSATION_NOT_SUPPORTED,
   EXPORT_PATH_RESERVED,
   ExecutionError,
   GRANT_UNSUPPORTED,
@@ -71,6 +72,8 @@ export interface CapabilityOptions {
   fixture?: boolean;
   /** compute.v0: whether this host has an engine for the package's modules (`compute_not_supported` otherwise). */
   computeAvailable?: boolean;
+  /** conversation.v0: the session runs one turn of a conversation, with the persisted state, a consent host and the chain (V-28 does not apply). */
+  turn?: boolean;
 }
 
 /**
@@ -80,6 +83,15 @@ export interface CapabilityOptions {
  */
 export function checkCapabilities(pkg: Package, limits: HostExecutionLimits, options: CapabilityOptions = {}): JsonObject {
   const graph = pkg.graph;
+  if (graph.conversation !== undefined && graph.conversation !== null && options.turn !== true) {
+    // conversation.v0 (V-28): a turn needs the persisted state, a consent host and the chain of the
+    // turns before it; this one-shot session runs one invocation and holds none of them.
+    throw new ExecutionError(
+      CONVERSATION_NOT_SUPPORTED,
+      "This package is a conversation (conversation.v0) and this execution host runs a package once per invocation, with no consent host and no state between turns. This is a limit of the host, not of the package format.",
+      { detail: { consent_steps: (graph.nodes as JsonObject[]).filter((node) => node.type === "consent").map((node) => String(node.id)).slice(0, 32) } },
+    );
+  }
   const declaredTools = (pkg.manifest.tools as JsonObject[]).map((tool) => String(tool.id));
   const toolNodes = [...operations(graph)].filter(([, op]) => op.type === "tool").map(([name]) => name);
   const bound = new Set(options.fixture ? declaredTools : (options.toolBindings ?? []).map((binding) => binding.tool_id));

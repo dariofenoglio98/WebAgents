@@ -51,6 +51,8 @@ export interface RunRecord {
   tools: Array<{ toolId: string; bindingId: string; bindingSha256: string; remote: boolean; calls: number; displayName: string | null; retries: number; fallbackAnswers: number }>;
   failure: { nodeId: string | null; stepId: string | null; errorCode: string | null; failedCheck: JsonValue | null; call: { kind: string; action: string; tool: string | null; task: string | null; reason: string | null } | null } | null;
   origin: "live" | "fixture";
+  /** conversation.v0 (D-270): the conversation this run is a turn of; absent or null for a one-shot run. */
+  conversation?: { conversationId: string; turn: number } | null;
   /** memory.v0 §9 (T19): the proposals the run offered (counts and a hash, never a value) and the agent document's fate; null for a run without memory. */
   memory?: { proposals: { count: number; types: string[]; proposals_sha256: string; offered: number; reason: string | null } | null; refused: { code: string; reason: string | null; index: number | null } | null; agent: { committed: { package_id: string; bytes: number; body_sha256: string } | null; discarded: string | null } | null } | null;
 }
@@ -74,6 +76,7 @@ export interface RecordInputs {
   host: { runtimeVersion: string | null; verifiedVersion: string | null };
   revalidated?: readonly string[];
   origin: "live" | "fixture";
+  conversation?: { conversationId: string; turn: number } | null;
 }
 
 /** The record for a run that was bound and may have started: `preparing` until `complete` fills it. */
@@ -144,6 +147,7 @@ export function initialRunRecord(input: RecordInputs): RunRecord {
     tools: plan.tool_bindings.map((binding) => ({ toolId: binding.tool_id, bindingId: binding.binding_id, bindingSha256: binding.binding_sha256, remote: binding.remote, calls: 0, displayName: binding.display_name ? clip(binding.display_name, 512) : null, retries: 0, fallbackAnswers: 0 })),
     failure: null,
     origin: input.origin,
+    ...(input.conversation ? { conversation: input.conversation } : {}),
   };
 }
 

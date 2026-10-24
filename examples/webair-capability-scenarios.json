@@ -107,13 +107,13 @@
           "path": "/api/v1/search_flights",
           "status": 200,
           "request": {
-            "origin": "BOS",
-            "destination": "ZRH",
+            "cabin": "economy",
             "date": "2026-10-09",
-            "passengers": 1,
-            "nonstop_only": true,
+            "destination": "ZRH",
             "max_price_usd": 900,
-            "cabin": "economy"
+            "nonstop_only": true,
+            "origin": "BOS",
+            "passengers": 1
           },
           "response": {
             "query": {
@@ -534,13 +534,13 @@
           "path": "/api/v1/search_flights",
           "status": 200,
           "request": {
-            "origin": "BOS",
-            "destination": "ZRH",
+            "cabin": null,
             "date": "2026-10-09",
-            "passengers": 1,
-            "nonstop_only": true,
+            "destination": "ZRH",
             "max_price_usd": 900,
-            "cabin": null
+            "nonstop_only": true,
+            "origin": "BOS",
+            "passengers": 1
           },
           "response": {
             "query": {
@@ -947,13 +947,13 @@
           "path": "/api/v1/search_flights",
           "status": 200,
           "request": {
-            "origin": "BOS",
-            "destination": "ZRH",
+            "cabin": null,
             "date": "2026-10-09",
-            "passengers": 1,
-            "nonstop_only": false,
+            "destination": "ZRH",
             "max_price_usd": null,
-            "cabin": null
+            "nonstop_only": false,
+            "origin": "BOS",
+            "passengers": 1
           },
           "response": {
             "query": {
@@ -1377,14 +1377,14 @@
           "path": "/api/v1/prepare_booking",
           "status": 200,
           "request": {
+            "contact_email": "alex.traveler@example.com",
             "fare_id": "WA101-20261009-STANDARD",
             "passengers": [
               {
-                "given_name": "Alex",
-                "family_name": "Traveler"
+                "family_name": "Traveler",
+                "given_name": "Alex"
               }
-            ],
-            "contact_email": "alex.traveler@example.com"
+            ]
           },
           "response": {
             "quote_id": "WAQ-C82CB5B08515FAE6",
@@ -1573,14 +1573,14 @@
           "path": "/api/v1/prepare_booking",
           "status": 200,
           "request": {
+            "contact_email": "alex.traveler@example.com",
             "fare_id": "WA101-20261009-STANDARD",
             "passengers": [
               {
-                "given_name": "Alex",
-                "family_name": "Traveler"
+                "family_name": "Traveler",
+                "given_name": "Alex"
               }
-            ],
-            "contact_email": "alex.traveler@example.com"
+            ]
           },
           "response": {
             "quote_id": "WAQ-C82CB5B08515FAE6",
@@ -1673,17 +1673,17 @@
           "status": 200,
           "request": {
             "booking": {
+              "contact_email": "alex.traveler@example.com",
               "fare_id": "WA101-20261009-STANDARD",
               "passengers": [
                 {
-                  "given_name": "Alex",
-                  "family_name": "Traveler"
+                  "family_name": "Traveler",
+                  "given_name": "Alex"
                 }
-              ],
-              "contact_email": "alex.traveler@example.com"
+              ]
             },
-            "quote_id": "WAQ-C82CB5B08515FAE6",
-            "payment_method_id": "demo-visa-4242"
+            "payment_method_id": "demo-visa-4242",
+            "quote_id": "WAQ-C82CB5B08515FAE6"
           },
           "response": {
             "confirmation_id": "WA-DEMO-TYD4M",

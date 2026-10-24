@@ -47,7 +47,18 @@ export const SHIPPED = {
     archiveSha256: "4b087557cbd2b0ff186391dfd00f9068739f9a727ab2fd916a6512da1fde101b",
     fingerprint: "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b",
   },
-  /** T22: the current WebAir (compute.v0, runtime minimum 0.5.0), which the demo index 1.4.0 names. */
+  /** T24: the current WebAir (conversation.v0, runtime minimum 0.6.0), which the demo index 1.5.0 names. */
+  webair080: {
+    archive: resolve(ROOT, "dist/webair-0.8.0.agent.pkg"),
+    key: resolve(ROOT, "examples/keys/webair-publisher.pub.pem"),
+    packageId: "org.webagents.webair",
+    version: "0.8.0",
+    publisherId: "webair-demo",
+    digest: "b346a4740b3b1052bb77f781ec4c2cbb4d29644a71f9a3c29e1cd8921d9572c2",
+    archiveSha256: "9c81a9362754fc3c48c923b4968e75daa9e0260ae422be7e77b30f1df1a7eae0",
+    fingerprint: "sha256:2e53accec575b37bf16c189e03cd3a6b2f2cfae2339ff05361bf585dc3d4a20b",
+  },
+  /** T22: WebAir 0.7.0 (compute.v0, runtime minimum 0.5.0), which the demo index 1.4.0 named. */
   webair070: {
     archive: resolve(ROOT, "dist/webair-0.7.0.agent.pkg"),
     key: resolve(ROOT, "examples/keys/webair-publisher.pub.pem"),
@@ -144,6 +155,18 @@ export const COMPUTE_TEST = {
   version: "0.1.0",
   digest: "3d174d573a8f7d36be2e4700e5319de280788bec101613816a301e6b2387decd",
   archiveSha256: "8bbbd42a9c50c27b339e00653990449781fac5d58694216c890585561a800ff4",
+};
+
+/** conversation.v0's test package (T23): the ticket desk, signed with its development key. */
+export const CONVERSATION_TEST = {
+  archive: resolve(ROOT, "examples/conversation/conversation-test.agent.pkg"),
+  key: resolve(ROOT, "examples/keys/conversation-test-publisher.pub.pem"),
+  grants: resolve(ROOT, "examples/conversation/conversation-test-grants.json"),
+  packageId: "org.webagents.conversation-test",
+  version: "0.1.0",
+  digest: "cd9cfc7f5f819110cf8b39cd8c15b2133283f834c1f4c9ef6d183e481e9582ab",
+  archiveSha256: "4b7c8eba80d62afcf0ad3d303f15ae9a736540230255ee4debaa083e60cbb230",
+  fingerprint: "sha256:8fd73c6495de3610c6bc41f9950abec90cee118e6932df8d9beef81176988e10",
 };
 
 export const ORIGINAL_KEY = resolve(ROOT, "examples/keys/workflow-publisher.pub.pem");

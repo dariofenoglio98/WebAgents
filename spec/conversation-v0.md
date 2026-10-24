@@ -1,6 +1,6 @@
 # conversation.v0: turns, persistent state and just-in-time consent inside workflow.v0
 
-Status: experimental, normative for agentpkg **0.6.0** and the Chrome core **0.4.0** (D-186,
+Status: experimental, normative for agentpkg **0.6.0** (0.6.1 with T23 review 2's wording and host-input fixes, T24) and the Chrome core **0.4.0** (D-186,
 D-260…D-264; the Chrome port and the chat surface are T24, D-270…D-279). The enclosing agent.pkg
 format stays 0.1 and `workflow.v0` stays the execution profile: this document adds one top-level
 graph object, one node type, one value source, one CLI command and six audit events. Machine
@@ -219,9 +219,9 @@ one of kind `payment` or `personal.read`).
 V-12. **A step never widens the plan, and the absence of a yes is a no.** If the plan denies any
 permission the step names, the step is not asked: it resolves `{"accepted": false}` with
 provenance `plan` and `consent.decided` carries `reason: permission_denied`. The same holds when
-a permission the step names is a `once` grant that an earlier turn of the conversation spent
-(V-13): the step is not asked and resolves denied by the plan with `reason:
-permission_consumed`, so a card never asks for an action the plan could no longer allow, and the
+a permission the step names is a `once` grant the conversation already spent (V-13; in an
+earlier turn, or earlier in the same turn): the step is not asked and resolves denied by the
+plan with `reason: permission_consumed`, so a card never asks for an action the plan could no longer allow, and the
 person's record never shows a yes for one (N-34). Such a step is never put to a host, so no host
 answer can accept it; a transcript that carries an `accepted` for a step whose permission the
 plan denies is refused before the conversation starts (`consent_not_authorized`, V-15, N-23),
@@ -272,8 +272,9 @@ beside the turn's keys; each is `min` with the package's. The effective limits a
 
 V-13. **`once` is one use per conversation.** A `once` grant is spent by its first use in the
 conversation; the next turn starts with it spent (`runtime.started` lists `spent_permissions`),
-a consent step naming it is not asked in a later turn (V-12, N-34), and a tool call that reaches
-it anyway is refused as a consumed permission (N-41). The host's rule that `once`
+a consent step naming it is not asked once it is spent, in a later turn or later in the same
+turn (V-12, N-34), and a tool call that reaches it anyway is refused as a consumed permission
+(N-41). The host's rule that `once`
 is refused when the turn graph itself would consume it more than once is unchanged, per turn
 (`execution_grant_unsupported`). The control plane's "a receipt that grants anything `once` is
 spent at its first execution lease" applies to the conversation, not to each turn (T24).
@@ -336,8 +337,9 @@ host (N-25, N-26). A `Workflow` constructed without a turn for such a package is
 
 Conformance (T24): the conformance suite runs the test package's fixture transcript and the cases
 of §10 on both CLIs over a `converse` driver and compares transcripts (without timestamps and
-ids), states, replies, turn artifacts and audits under D-063; until the Chrome core reaches 0.6.0,
-such cases are pending by the runner's `requires` rule.
+ids), states, replies, turn artifacts and audits under D-063 (42 cases, both runtimes identical
+since the Chrome core 0.4.0; against an older core they are pending by the runner's `requires`
+rule).
 
 ## 9. Refusal codes
 
@@ -427,10 +429,13 @@ most, within what, what is kept between turns, and which steps will ask before w
 ## 12. Versions, deliberate limits, prior art
 
 **Versions.** agentpkg 0.6.0 implements this document; packages that use it declare
-`runtime.minimum_version: "0.6.0"`. The Chrome core implements it at 0.4.0 (T24) with
-`SUPPORTED_RUNTIME_VERSION` 0.6.0; until then its gate stays 0.5.0 and the runtimes' version test
-accepts the pair. The OpenClaw plugin stays frozen (D-029) and its execution host refuses
-conversational packages (V-28). The paper line is untouched.
+`runtime.minimum_version: "0.6.0"`. The Chrome core implements it at 0.4.0 (T24, D-270…D-274) with
+`SUPPORTED_RUNTIME_VERSION` 0.6.0: the CLI `converse`, and in the extension a conversation as a
+record between turns, each turn a run on the execution host, the consent card in the chat surface
+(a `payment` or `personal.read` step is always asked; a preset or a signed policy may pre-decide
+the other kinds, D-271), one chain across turns and the export of D-272. WebAir 0.8.0 is the first
+shipped conversational package. The OpenClaw plugin stays frozen (D-029) and its execution host
+refuses conversational packages (V-28). The paper line is untouched.
 
 **Deliberate limits of v0.** No suspend and resume of a turn; no decision schema beyond yes or
 no; no consent step inside a map or on a worker; no model-chosen next step; no in-conversation

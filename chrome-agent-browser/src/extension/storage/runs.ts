@@ -7,6 +7,8 @@
  * is identifiers, hashes, counts and codes (`record.ts`); the artifacts are the run's own files.
  */
 import type { ExecutionAuthorization, ExecutionPlan } from "../../core/execution/plan.js";
+import type { TurnStart } from "../../core/execution/runner.js";
+import type { ConsentRecord } from "../../core/workflow/runtime.js";
 import type { MemoryType } from "../../core/memory/types.js";
 import type { ProgressSnapshot } from "../../core/execution/progress.js";
 import type { RunRecord } from "../../core/execution/record.js";
@@ -29,6 +31,32 @@ export interface RunInvocation {
   archive_sha256: string;
   /** The receipt's model, tool and resource facts a view shows beside the run. */
   profile_id: string | null;
+  /** conversation.v0 (D-270): the turn this run is, as the service worker started it; absent for a one-shot run. */
+  turn?: TurnStart | null;
+}
+
+/** conversation.v0: a consent card the turn is waiting on (V-29), written by the host, shown by the chat surface. */
+export interface ConsentPending {
+  step: string;
+  permissions: string[];
+  text: string;
+  facts: JsonValue;
+  timeout_seconds: number;
+  requested_at: string;
+}
+
+/** The person's answer to a card, written by the service worker before the host is told (D-270). */
+export interface ConsentAnswer {
+  accepted: boolean;
+  decided_at: string;
+}
+
+/** What a settled turn leaves for the conversation (D-270): charged by the service worker once. */
+export interface TurnOutcome {
+  spent_permissions: string[];
+  conversation_state: JsonObject | null;
+  consents: ConsentRecord[];
+  output: JsonValue | null;
 }
 
 export interface StoredRun {
@@ -58,6 +86,10 @@ export interface StoredRun {
   memory_review?: { at: string; accepted: number; rejected: number } | null;
   /** The custom types the package declared (M-18), kept with the run so its proposals of such a type can be reviewed and approved after the snapshot is gone. */
   memory_types?: MemoryType[] | null;
+  /** conversation.v0 (D-270): the card the turn waits on, or null; the person's answers by step; what the settled turn left for the conversation. */
+  consent_pending?: ConsentPending | null;
+  consent_decisions?: Record<string, ConsentAnswer> | null;
+  turn_outcome?: TurnOutcome | null;
 }
 
 export interface StoredArtifact {

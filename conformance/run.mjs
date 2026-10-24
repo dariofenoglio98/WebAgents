@@ -18,7 +18,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { compareArtifacts, compareFailureRace, diff } from "./lib/normalize.mjs";
+import { compareArtifacts, compareConversation, compareFailureRace, diff } from "./lib/normalize.mjs";
 import { readStored, rebuild } from "./lib/zip.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -62,13 +62,16 @@ function spawn(command, argv, { cwd = ROOT, env = {} } = {}) {
   return { status: result.status ?? -1, stdout: result.stdout, stderr: result.stderr };
 }
 
-function collect(directory) {
+function collect(directory, prefix = "") {
   const files = {};
   if (!existsSync(directory)) return files;
   for (const entry of readdirSync(directory, { withFileTypes: true }).sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))) {
     // A subdirectory is reported as an entry of its own, so a runtime that writes one shows up as
-    // a file-set difference rather than a crashed case (T7 review 1, nit 6).
-    files[entry.isDirectory() ? `${entry.name}/` : entry.name] = entry.isDirectory() ? new Uint8Array() : new Uint8Array(readFileSync(join(directory, entry.name)));
+    // a file-set difference rather than a crashed case (T7 review 1, nit 6); a conversation's
+    // `turn-NNN/` directories (conversation.v0, D-263) are the one kind whose files are collected,
+    // one level down, under their prefix.
+    if (entry.isDirectory() && /^turn-\d{3}$/u.test(entry.name) && prefix === "") Object.assign(files, collect(join(directory, entry.name), `${entry.name}/`));
+    else files[`${prefix}${entry.isDirectory() ? `${entry.name}/` : entry.name}`] = entry.isDirectory() ? new Uint8Array() : new Uint8Array(readFileSync(join(directory, entry.name)));
   }
   return files;
 }
@@ -180,6 +183,11 @@ function buildInputs() {
     "compute-tampered.agent.pkg",
     rebuild(new Uint8Array(readFileSync(inputs.compute.echo.archive)), (members) => members.map((m) => (m.name === "modules/echo.wasm" ? { ...m, data: flip(m.data) } : m))),
   );
+  // conversation.v0 (T24, B-232): one probe per enforcement case of examples/conversation/cases/cases.json,
+  // written by the Python driver from agentpkg's own test package and signed with the throwaway key.
+  // The two consent-host cases (`silent`, `invalid`) have no CLI form; each unit suite covers them.
+  inputs.conversation = {};
+  for (const testCase of CONVERSATION_CASES) if (!testCase.host) inputs.conversation[testCase.id] = conversationCase(testCase);
   // Grants files for the permission cases.
   const webairGrants = readJson(EXAMPLES("webair-0.2.0-grants.json"));
   inputs.webairNetworkDenied = writeInput("webair-network-denied.json", JSON.stringify({ ...webairGrants, "network.webair": "deny" }));
@@ -286,6 +294,32 @@ function computeCase(testCase) {
   return { archive: signed, source, grants, case: testCase, refusedAtBuild: build.stderr.trim() };
 }
 
+const CONVERSATION_CASES = JSON.parse(spawn(PYTHON, [join(ROOT, "conformance/drivers/conversation_probe.py"), "--cases"]).stdout);
+
+/**
+ * One conversation probe case: its source, grants, input transcript and host limits written by
+ * `drivers/conversation_probe.py`, built and signed with the throwaway key when it builds (a
+ * validation case agentpkg refuses to build is signed by the driver without validating, so that
+ * both CLIs meet the same refusal when they load the archive).
+ */
+function conversationCase(testCase) {
+  const name = testCase.id;
+  const source = join(SCRATCH, "conversation", name);
+  const written = spawn(PYTHON, [join(ROOT, "conformance/drivers/conversation_probe.py"), source, name]);
+  if (written.status !== 0) throw new Error(`conversation probe ${name}: ${written.stderr}`);
+  const { grants, transcript, limits } = JSON.parse(written.stdout);
+  const built = join(SCRATCH, "conversation", `${name}.unsigned.agent.pkg`);
+  const signed = join(SCRATCH, "conversation", `${name}.agent.pkg`);
+  const build = spawn(PYTHON_CLI, ["build", source, "-o", built]);
+  if (build.status === 0) {
+    agentpkg(["sign", built, "--private-key", join(SCRATCH, "keys", "throwaway.pem"), "-o", signed]);
+    return { archive: signed, source, grants, transcript, limits, case: testCase };
+  }
+  const forged = spawn(PYTHON, [join(ROOT, "conformance/drivers/conversation_probe.py"), "--signed-archive", source, signed, join(SCRATCH, "keys", "throwaway.pem")]);
+  if (forged.status !== 0) throw new Error(`conversation probe ${name}: ${forged.stderr}`);
+  return { archive: signed, source, grants, transcript, limits, case: testCase, refusedAtBuild: build.stderr.trim() };
+}
+
 const escapeRegExp = (text) => text.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
 
 function variant(name, change) {
@@ -371,7 +405,80 @@ function positiveCases() {
     { id: "compute/echo", title: "Control: the smallest conforming module answers its input (throwaway key)", argv: fixtureRun(inputs.compute.echo.archive, inputs.compute.echo.grants, [], ["--trust-key", inputs.throwawayKey]), requires: "0.5.0" },
     { id: "compute/with-start", title: "Control: a start function is allowed and runs inside the call (C-17; throwaway key)", argv: fixtureRun(inputs.compute["with-start"].archive, inputs.compute["with-start"].grants, [], ["--trust-key", inputs.throwawayKey]), requires: "0.5.0" },
   ];
-  return cases.map((testCase) => ({ ...testCase, kind: "fixture parity", run: () => runPositive(testCase) }));
+  return [...cases.map((testCase) => ({ ...testCase, kind: "fixture parity", run: () => runPositive(testCase) })), ...conversationCases()];
+}
+
+/**
+ * conversation.v0 (T24, B-232; D-263): a conversation replayed from a transcript on both CLIs
+ * (`converse`), compared by the transcript without ids and times, the state, the usage, the
+ * provenance, one audit chain across the turns and every turn's files. The test package's own
+ * fixture transcript, then every case of spec/conversation-v0.md §10 that runs: a case that
+ * completes (the controls, a refused turn at the bound, V-30) exits 0 in both, a case whose turn
+ * fails exits 1 in both with the same transcript; the validation and start cases are refusals of
+ * `converse` (and `run`, for `run-refused`) with identical messages; `host-refused` compares the
+ * two execution layers. Every case carries `requires: 0.6.0`.
+ */
+function conversationCases() {
+  const converse = (archive, grants, extra = []) => ["converse", archive, "--mode", "fixture", "--grants", grants, "--out", "{out}", ...extra];
+  const probe = (name) => inputs.conversation[name];
+  const probeArgs = (name) => {
+    const item = probe(name);
+    return converse(item.archive, item.grants, ["--approve-tool", "place", "--trust-key", inputs.throwawayKey, ...(item.transcript ? ["--transcript", item.transcript] : []), ...(item.limits ? ["--limits", item.limits] : [])]);
+  };
+  const cases = [
+    {
+      id: "conversation-test/fixture",
+      title: "Conversation Test 0.1.0 (conversation.v0, T23): the ticket desk's fixture transcript, an order confirmed then goodbye; one chain across two turns",
+      argv: converse(EXAMPLES("conversation/conversation-test.agent.pkg"), EXAMPLES("conversation/conversation-test-grants.json"), ["--approve-tool", "place-order", "--trust-key", EXAMPLES("keys/conversation-test-publisher.pub.pem")]),
+      exit: 0,
+    },
+    // WebAir 0.8.0 (T24, D-274): its signed conversation fixture (search, refine, goodbye), then each
+    // conversation of the publisher's fixture family as a transcript (searches only; the quote and
+    // purchase conversations need the demo host's data and are the demo's tests).
+    ...webair080Conversations().map(({ id, transcript }) => ({
+      id: `webair-0.8.0/${id === "fixture" ? "fixture" : `conversation-${id}`}`,
+      title: `WebAir 0.8.0 (conversation.v0, T24), ${id === "fixture" ? "its fixture transcript" : `the fixture conversation ${id}`}, the search tools approved`,
+      argv: converse(DIST("webair-0.8.0.agent.pkg"), EXAMPLES("webair-0.8.0-grants.json"), ["--approve-tool", "search-flights", "--approve-tool", "get-fare-rules", "--trust-key", EXAMPLES("keys/webair-publisher.pub.pem"), ...(id === "fixture" ? [] : ["--transcript", transcript])]),
+      exit: 0,
+    })),
+  ];
+  for (const testCase of CONVERSATION_CASES) {
+    if (testCase.host) continue;
+    const name = testCase.id;
+    const title = `${testCase.title} (conversation.v0 §10, ${testCase.stage})`;
+    if (testCase.stage === "turn" || testCase.stage === "run") {
+      // A turn refused at the bound is the bound at work (V-30): the conversation completes; a turn
+      // that fails makes it `failed`, and `converse` exits 1 with the transcript written.
+      cases.push({ id: `conversation/${name}`, title, argv: probeArgs(name), exit: testCase.stage === "turn" || testCase.code === "completed" ? 0 : 1 });
+    }
+  }
+  return cases.map((testCase) => ({ ...testCase, kind: "conversation parity", requires: "0.6.0", run: () => runConverse(testCase) }));
+}
+
+/** WebAir 0.8.0's fixture family (`examples/webair-0.8.0-conversations.json`), each written as an input transcript. */
+function webair080Conversations() {
+  const family = JSON.parse(readFileSync(EXAMPLES("webair-0.8.0-conversations.json"), "utf8")).fixture;
+  return family.map((conversation) => ({
+    id: conversation.id,
+    transcript: writeInput(`webair-080-${conversation.id}.transcript.json`, JSON.stringify({ schema: "conversation.transcript.v0", turns: conversation.turns.map((turn) => ({ message: turn.message, consents: turn.consents ?? {} })) })),
+  }));
+}
+
+function runConverse(testCase) {
+  const label = testCase.id.replace(/\W+/gu, "_");
+  const python = invoke("python", testCase.argv, label);
+  const node = invoke("node", testCase.argv, label);
+  const checks = [];
+  const check = (name, differences) => checks.push({ name, passed: differences.length === 0, detail: differences });
+  check(`exit status ${testCase.exit} in both`, [python.status, node.status].every((status) => status === testCase.exit) ? [] : [`python ${python.status}: ${python.message ?? ""}`, `node ${node.status}: ${node.message ?? ""}`]);
+  if (python.report && node.report) {
+    const strip = ({ output_directory: _o, conversation_id: _c, ended, ...rest }) => ({ ...rest, ended: ended ? { ...ended, at: "<at>" } : ended });
+    check("report (minus the directory, the id and the instant)", diff(strip(python.report), strip(node.report)));
+  } else check("report printed in both", [`python ${python.report !== null}`, `node ${node.report !== null}`]);
+  const compared = compareConversation(python.files, node.files);
+  checks.push(...compared.checks);
+  const halves = { python: python.status === testCase.exit && python.report !== null && "transcript.json" in python.files, chromeVersionRefused: versionRefused(node) };
+  return { checks, notes: [], halves, observed: { python: summary(python), node: summary(node) } };
 }
 
 function runPositive(testCase) {
@@ -436,6 +543,7 @@ function negativeCases() {
     cli("answer-check-refused", "A recorded model answer that its node's answer check refuses (D-150): a non-conforming answer, never re-asked by a replay router (rebuilt Meeting Agenda, throwaway key)", [run(inputs.answerCheckRefused, EXAMPLES("meeting-agenda-grants.json"), ["--trust-key", inputs.throwawayKey])], { code: "model_error", node: "write", artifacts: true }),
     ...memoryNegativeCases(cli, run),
     ...computeNegativeCases(cli, run, documented),
+    ...conversationNegativeCases(cli, run, documented),
     documented(
       "once-overused",
       "The model permission granted once, to a graph that calls the model more than once",
@@ -528,6 +636,40 @@ function computeNegativeCases(cli, run, documented) {
       });
     } else {
       cases.push({ ...cli(`compute/${name}`, title, [runProbe(name)], { code: testCase.code, node: "compute", artifacts: true }), requires: "0.5.0" });
+    }
+  }
+  return cases;
+}
+
+/**
+ * The refusals of spec/conversation-v0.md §10 both CLIs make before a conversation starts: the
+ * validation cases (`converse` refuses to load the package, identical message), the start cases
+ * (the transcript against the package and the plan's grants, identical message; `run-refused` is
+ * `run` on a conversational package), and `host-refused`, which compares the execution layers.
+ */
+function conversationNegativeCases(cli, run, documented) {
+  const probe = (name) => inputs.conversation[name];
+  const converse = (name) => {
+    const item = probe(name);
+    return ["converse", item.archive, "--mode", "fixture", "--grants", item.grants, "--out", "{out}", "--approve-tool", "place", "--trust-key", inputs.throwawayKey, ...(item.transcript ? ["--transcript", item.transcript] : [])];
+  };
+  const cases = [];
+  for (const testCase of CONVERSATION_CASES) {
+    const name = testCase.id;
+    const title = `${testCase.title} (conversation.v0 §10, ${testCase.stage})`;
+    if (testCase.stage === "validation" || (testCase.stage === "start" && testCase.path !== "run")) {
+      cases.push({ ...cli(`conversation/${name}`, title, [converse(name)], { code: testCase.code, message: new RegExp(`^${testCase.code}: `, "u") }), requires: "0.6.0" });
+    } else if (testCase.stage === "start" && testCase.path === "run") {
+      const item = probe(name);
+      cases.push({ ...cli(`conversation/${name}`, title, [run(item.archive, item.grants, ["--approve-tool", "place", "--trust-key", inputs.throwawayKey])], { code: testCase.code, message: new RegExp(`^${testCase.code}: `, "u") }), requires: "0.6.0" });
+    } else if (testCase.stage === "host") {
+      const item = probe(name);
+      // The one-shot execution host refuses a conversational package before anything runs (V-28);
+      // `agentpkg run` and the Chrome CLI's `run` refuse it earlier, by the profile.
+      cases.push({
+        ...documented(`conversation/${name}`, title, run(item.archive, item.grants, ["--approve-tool", "place", "--trust-key", inputs.throwawayKey]), { python: { message: /^conversation_profile: /u }, node: { message: /^conversation_profile: /u } }, { archive: item.archive, grants: item.grants, code: "conversation_not_supported" }),
+        requires: "0.6.0",
+      });
     }
   }
   return cases;

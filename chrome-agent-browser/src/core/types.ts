@@ -198,6 +198,25 @@ export interface ModelBinding {
   catalog: JsonObject;
 }
 
+/** conversation.v0 (D-270, D-271): one consent step as the plan records it, with the decision a preset or a policy took for it, or null (the card). */
+export interface ConsentStepPlan {
+  id: string;
+  permissions: string[];
+  kinds: string[];
+  pre_decided: { accepted: boolean; decided_by: "preset" | "policy"; reason: string | null } | null;
+}
+
+/** conversation.v0 (D-270): what the plan records about a conversational package; null for a one-shot package. */
+export interface ConversationPlan {
+  max_turns: number;
+  hard_tokens: number;
+  max_remote_calls: number;
+  max_calls_per_tool: Record<string, number>;
+  persistent_keys: string[];
+  consent_steps: ConsentStepPlan[];
+  gated_permissions: Record<string, string[]>;
+}
+
 export interface RunPlan {
   schema: typeof RUN_PLAN_SCHEMA;
   run_plan_version: typeof RUN_PLAN_VERSION;
@@ -236,6 +255,8 @@ export interface RunPlan {
     tool_binding_count: number;
     performed: false;
     note: string;
+    /** conversation.v0 (D-270): the conversation's budget, persistent keys and consent steps with their pre-decisions; null for a one-shot package. */
+    conversation: ConversationPlan | null;
   };
   tool_bindings: ToolBinding[];
   tool_registry: {

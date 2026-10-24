@@ -263,7 +263,7 @@ The full cross-runtime suite, with the negative cases and the control-plane scen
 | `src/core/schemas/` | Byte-for-byte copies of `agentpkg/src/agentpkg/schemas/*.json` and, under `extensions/`, of `spec/extensions/*.schema.json`, written by `npm run sync-schemas`; tests assert equality. |
 | `src/extension/` | The Manifest V3 shell: `manifest.json`, the service worker (`background/`, the only place that holds state: sessions with their receipts and plans, the trust store, settings, keys, the vault, the model catalog), the content script (`content/`), the side panel, the full page (`browser/`), storage adapters (`storage/`), the message contract (`messages.ts`), the views (`ui/`: agent page, authorize view, settings, your data) and `data/demo-host-resources.json`, a copy of the demo host's resource definitions. |
 | `src/cli.ts`, `src/cli-run.ts` | The Node CLI over the core; `run` (D-064) with the Node HTTP transport. |
-| `scripts/` | `build.mjs` (esbuild), `pack.mjs`, `sync-schemas.mjs`, `make-icons.mjs`, `e2e-discovery.mjs`, `e2e-webair-live.mjs`, `e2e-paper-reader.mjs`, `e2e-literature-live.mjs`, `summarize-run.mjs` (one run directory as a summary JSON), `make-crossref-reference.mjs` and `make-pdf-text-vectors.py` (the reference answers the Crossref adapter and the PDF reader are held to), and `make-authorization-fixtures.py`, which writes the Python control plane's reference records for `test/fixtures/authorization/` (run with `agentpkg/.venv/bin/python`). |
+| `scripts/` | `build.mjs` (esbuild), `pack.mjs`, `sync-schemas.mjs`, `make-icons.mjs`, `e2e-discovery.mjs`, `e2e-webair-live.mjs`, `e2e-paper-reader.mjs`, `e2e-literature-live.mjs`, `e2e-compute.mjs`, `e2e-conversation.mjs` (T24: a two-turn conversation with the ticket-desk probe in headless Chrome, the card answered through the extension's messages, a scripted Ollama on a loopback port), `summarize-run.mjs` (one run directory as a summary JSON), `make-crossref-reference.mjs` and `make-pdf-text-vectors.py` (the reference answers the Crossref adapter and the PDF reader are held to), and `make-authorization-fixtures.py`, which writes the Python control plane's reference records for `test/fixtures/authorization/` (run with `agentpkg/.venv/bin/python`). |
 | `test/` | vitest: `core/` mirrors the Python suite's negative cases and asserts parity with the shipped packages (`core/workflow`, `core/models`, `core/tools`, `core/execution` port `test_workflow.py`, `test_runtime*.py`, the host-bridge, tool-bridge and execution suites); `conformance/` drives both CLIs; `extension/` covers the message contract, the controller, storage, the service worker over a fake `chrome`, the content script and the views. |
 
 ## The boundary rule
@@ -291,6 +291,8 @@ node scripts/e2e-discovery.mjs         # headless Chrome against a local mock of
 node scripts/e2e-webair-live.mjs --model ollama/qwen3:30b   # the live acceptance: real Chrome, the public origin, real runs
 agentpkg/.venv/bin/python ../scripts/verify_chrome_webair_live.py   # recompute its checks over the exported runs
 node scripts/e2e-paper-reader.mjs      # a picked PDF read by a run in headless Chrome (no model call)
+node scripts/e2e-conversation.mjs      # a two-turn conversation with a consent card in headless Chrome (no network: a scripted Ollama, a local desk origin)
+agentpkg/.venv/bin/python ../scripts/verify_chrome_conversation.py   # recompute its checks over the exported conversation
 node scripts/e2e-literature-live.mjs --model openai/gpt-5.6-luna   # Literature Review live: real Chrome, Crossref, the resolver
 agentpkg/.venv/bin/python ../scripts/verify_chrome_literature_live.py  # recompute its checks, grounding included
 node scripts/measure-execution-host.mjs --minutes 30        # the D-027 host measurement (headed Chrome)
@@ -319,6 +321,20 @@ and `scripts/verify_chrome_webair_live.py` recomputes the checks: audit chains, 
 privacy (no sealed value in any model request; the identity only in `prepare_booking`, the payment
 identifier only in `simulate_purchase`), once spent, denial. The recorded evidence is
 `examples/verification/chrome-webair-040-live.json`. A failed harness attempt never replaces a report that passed (it is written beside its run directories), and the verifier refuses to write when the exported run directories are missing, so the committed evidence is never overwritten by a run that did not happen here.
+
+The conversation check (`scripts/e2e-conversation.mjs`, T24) builds the ticket-desk probe with its
+order tool remote (`agentpkg/tests/conversation_probe.py`), signs it under a throwaway key, serves
+it from a local HTTPS origin that also answers the desk's `POST /api/orders`, points the extension's
+Ollama connection at a scripted server on a loopback port, and holds a conversation through the
+extension's own messages, as the chat panel does: `conversation.start`, "order A", the turn waits
+on the consent card (`confirm`, a `payment` kind, never pre-decided), the harness answers Yes with
+`conversation.decide`, the order is placed, "done" ends the conversation by the package's rule, and
+the export (D-272) is written with each turn's recorded requests. `scripts/verify_chrome_conversation.py`
+recomputes 28 checks over the export: the transcript against the contract, one chain across the
+turns and each turn's slice, every decision hashed in the audit as the person saw it, the card
+before the decision, the observer's requests to the two fakes only, the spent `once` grant, and the
+reference's fixture replay equal turn for turn. The evidence is
+`examples/verification/chrome-conversation-e2e-t24.json`.
 
 The paper-reader check (`scripts/e2e-paper-reader.mjs`, T6) builds the reader test package
 (`test/fixtures/reader-package/`, one `paper.read` call and no model call) with agentpkg, signs

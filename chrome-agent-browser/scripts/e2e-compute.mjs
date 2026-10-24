@@ -17,7 +17,7 @@
  *   - the two indirect-call cases (N-27): a `call_indirect` through a null table slot and one whose
  *     type is not the slot function's. Chrome's V8 names these two traps apart, so the runs fail
  *     `compute_error` with the reference's codes, `indirect_call_to_null` and `bad_signature`
- *     (Node 26.9's V8 names both a signature mismatch, which is why conformance folds them: C-42,
+ *     (Node's V8, in Node 24 and 26, names both a signature mismatch, which is why conformance folds them: C-42,
  *     D-254). V8's own words for both are recorded from a dedicated Worker on the local origin.
  *
  * A browser run is always model-backed (`execution_mode_permission_undeclared` refuses a package
@@ -161,7 +161,8 @@ async function main() {
       writeFileSync(path, `${JSON.stringify(graph, null, 2)}\n`);
       renamed("org.webagents.conformance.compute-long")(source);
     });
-    const indirect = Object.fromEntries(Object.keys(INDIRECT_CALL_CASES).map((caseId) => [caseId, probe(scratch, caseId, caseId, renamed(`org.webagents.conformance.compute-${caseId}`))]));
+    // The driver already names each case's probe `org.webagents.conformance.compute-<case>` (T22 review 3, nit 1).
+    const indirect = Object.fromEntries(Object.keys(INDIRECT_CALL_CASES).map((caseId) => [caseId, probe(scratch, caseId, caseId)]));
     for (const [name, pkg] of Object.entries({ computeTest, runaway, long, ...indirect })) report.packages[name] = { digest: pkg.digest, archiveSha256: sha256(pkg.bytes), bytes: pkg.bytes.length, signer: pkg.fingerprint };
     // The reference's output for compute-test, to compare with Chrome's.
     const referenceOut = join(scratch, "reference");

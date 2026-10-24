@@ -15,6 +15,7 @@
  */
 import type { OpenAIReasoningEffort } from "../../core/models/adapters/openai.js";
 import type { MemorySnapshot } from "../../core/memory/store.js";
+import type { TurnStart } from "../../core/execution/runner.js";
 
 export interface HostCredentials {
   openai: string | null;
@@ -60,6 +61,8 @@ export interface HostStartMessage {
    * (D-193). The model transport may also reach Ollama on the loopback names; nothing else.
    */
   allowedOrigins: string[];
+  /** conversation.v0 (D-270): the turn this run is, or null for a one-shot run. */
+  turn?: TurnStart | null;
 }
 
 export interface HostCancelMessage {
@@ -67,17 +70,25 @@ export interface HostCancelMessage {
   runId: string;
 }
 
+/** conversation.v0 (D-270): the person's answer to the card a turn waits on; the record carries it too, so a lost message never hangs the step. */
+export interface HostDecideMessage {
+  type: "host.decide";
+  runId: string;
+  step: string;
+  accepted: boolean;
+}
+
 export interface HostStatusMessage {
   type: "host.status";
 }
 
-export type HostCommand = HostStartMessage | HostCancelMessage | HostStatusMessage;
+export type HostCommand = HostStartMessage | HostCancelMessage | HostStatusMessage | HostDecideMessage;
 
 export interface HostStatusReply {
   runs: Array<{ run_id: string; status: "preparing" | "running" | "settling" }>;
 }
 
-export const HOST_COMMAND_TYPES: readonly HostCommand["type"][] = ["host.start", "host.cancel", "host.status"];
+export const HOST_COMMAND_TYPES: readonly HostCommand["type"][] = ["host.start", "host.cancel", "host.status", "host.decide"];
 
 /**
  * The service worker's script, as the manifest names it (`background.service_worker`; a test
@@ -94,5 +105,5 @@ export function isHostCommand(value: unknown): value is HostCommand {
 }
 
 /** Messages the offscreen page and its Worker exchange (never seen outside the host). */
-export type WorkerCommand = { kind: "start"; message: HostStartMessage } | { kind: "cancel" };
+export type WorkerCommand = { kind: "start"; message: HostStartMessage } | { kind: "cancel" } | { kind: "decide"; step: string; accepted: boolean };
 export type WorkerEvent = { kind: "progress"; runId: string } | { kind: "finished"; runId: string; status: string } | { kind: "failed"; runId: string; code: string; message: string };

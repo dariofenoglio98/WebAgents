@@ -1,0 +1,790 @@
+{
+  "profile": "chrome-conversation-e2e-v0",
+  "recordedAt": "2026-10-21T22:56:40.962Z",
+  "chrome": "Chrome/155.0.8059.86",
+  "model": {
+    "id": "ollama/desk-script",
+    "provider_id": "ollama",
+    "model_id": "desk-script",
+    "display_name": "desk-script",
+    "available": true,
+    "availability_reason": null,
+    "selectable": true,
+    "capabilities": {
+      "structured_output": {
+        "value": true,
+        "basis": "derived",
+        "detail": "The adapter requests a constrained response and validates every answer against the schema, failing closed. This is the adapter's guarantee, not a provider declaration."
+      },
+      "reasoning": {
+        "value": false,
+        "basis": "declared",
+        "detail": "Ollama /api/show capabilities: completion."
+      },
+      "tool_use": {
+        "value": false,
+        "basis": "declared",
+        "detail": "Ollama /api/show capabilities: completion."
+      }
+    },
+    "limits": {
+      "context_tokens": 8192,
+      "native_context_window": 8192,
+      "max_output_tokens": null
+    },
+    "properties": {
+      "local": true,
+      "privacy_class": "local",
+      "cost_class": "free",
+      "status": null,
+      "tags": [
+        "local"
+      ]
+    }
+  },
+  "outputDirectory": "examples/my-chrome-conversation-2026-10-21T22-56-40-962Z",
+  "exportDirectory": "examples/my-chrome-conversation-2026-10-21T22-56-40-962Z/export",
+  "package": {
+    "package_id": "org.example.conversation-probe",
+    "version": "0.1.0",
+    "digest": "adfe75f00872590329ea46972be5dbf52a8cbc40ee6dcf266d44ab4377582455",
+    "archiveSha256": "6e26fbd9cf41ea739492228c0b2fe16919b60daa287a4c551ceb9ec24f86561f",
+    "bytes": 17613,
+    "signer": "sha256:42d565182707ba3a0293f02c6c435c5a6346d84f1b69318bf22bff0b34084f68",
+    "fixtureTranscript": {
+      "schema": "conversation.transcript.v0",
+      "turns": [
+        {
+          "message": {
+            "text": "order A"
+          },
+          "consents": {
+            "confirm": true
+          }
+        },
+        {
+          "message": {
+            "text": "done"
+          }
+        }
+      ]
+    }
+  },
+  "fakes": {
+    "ollama": "http://127.0.0.1:62210",
+    "desk": "https://desk.example.org -> 127.0.0.1:62211"
+  },
+  "plan": {
+    "run_plan_id": "rp_aa24889b00e14878b32883a355996d29",
+    "conversation": {
+      "max_turns": 4,
+      "hard_tokens": 16000,
+      "max_remote_calls": 4,
+      "max_calls_per_tool": {
+        "place": 2
+      },
+      "persistent_keys": [
+        "history",
+        "orders"
+      ],
+      "consent_steps": [
+        {
+          "id": "confirm",
+          "permissions": [
+            "orders.place"
+          ],
+          "kinds": [
+            "payment"
+          ],
+          "pre_decided": null
+        }
+      ],
+      "gated_permissions": {
+        "orders.place": [
+          "confirm"
+        ]
+      }
+    },
+    "grants": {},
+    "warnings": [
+      "publisher_unknown",
+      "requests_payment_permission",
+      "conversational_package",
+      "remote_tools_declared",
+      "side_effecting_tools_declared",
+      "no_evals_declared",
+      "no_attestations_declared"
+    ]
+  },
+  "conversation": {
+    "conversationId": "b43cdeaa-3f66-4fb2-9ecc-dadca8173bcd",
+    "status": "ended",
+    "limits": {
+      "max_turns": 4,
+      "hard_tokens": 16000,
+      "max_remote_calls": 4,
+      "max_calls_per_tool": {
+        "place": 2
+      }
+    },
+    "state": {
+      "history": [
+        {
+          "intent": "order",
+          "text": "order A"
+        },
+        {
+          "intent": "done",
+          "text": "done"
+        }
+      ],
+      "orders": [
+        {
+          "order_id": "TD-0001",
+          "show": "Show A",
+          "quantity": 1,
+          "total_usd": 40
+        }
+      ]
+    },
+    "ended": {
+      "reason": "package",
+      "at": "2026-10-21T22:57:01.679000+00:00",
+      "turns_not_run": 0
+    },
+    "outcome": "completed",
+    "spent": {
+      "turns": 2,
+      "tokens": 534,
+      "remote_calls": 1,
+      "tool_calls": {
+        "place": 1
+      },
+      "permissions": [
+        "orders.place"
+      ]
+    },
+    "turns": 2
+  },
+  "card": {
+    "step": "confirm",
+    "permissions": [
+      "orders.place"
+    ],
+    "text": "Order one ticket to Show A?",
+    "facts": {
+      "quantity": 1,
+      "show": "Show A"
+    },
+    "timeout_seconds": 30,
+    "requested_at": "2026-10-21T22:56:58.482000+00:00",
+    "kinds": [
+      "payment"
+    ],
+    "seen_at": "2026-10-21T22:56:58.507Z",
+    "desk_requests_before": 0,
+    "model_requests_before": 1
+  },
+  "decision": {
+    "step": "confirm",
+    "accepted": true,
+    "decided_at": "2026-10-21T22:57:00.290Z"
+  },
+  "turns": [
+    {
+      "turn": 1,
+      "status": "completed",
+      "error_code": null,
+      "decisions": [
+        {
+          "step": "confirm",
+          "permissions": [
+            "orders.place"
+          ],
+          "accepted": true,
+          "decided_by": "person",
+          "reason": null,
+          "decided_at": "2026-10-21T22:57:00.283000+00:00",
+          "text": "Order one ticket to Show A?",
+          "facts": {
+            "quantity": 1,
+            "show": "Show A"
+          }
+        }
+      ],
+      "reply": {
+        "intent": "order",
+        "order": {
+          "order_id": "TD-0001",
+          "show": "Show A",
+          "quantity": 1,
+          "total_usd": 40
+        },
+        "reply": "Order one ticket to Show A?"
+      },
+      "usage": {
+        "tokens": 270,
+        "remote_calls": 1,
+        "tool_calls": {
+          "place": 1
+        }
+      },
+      "run_id": "run_fdb5945d22c14f67a18a48c2fd750fa2"
+    },
+    {
+      "turn": 2,
+      "status": "completed",
+      "error_code": null,
+      "decisions": [],
+      "reply": {
+        "intent": "done",
+        "order": null,
+        "reply": "Goodbye."
+      },
+      "usage": {
+        "tokens": 264,
+        "remote_calls": 0,
+        "tool_calls": {}
+      },
+      "run_id": "run_123fdbc4f5874c3e9929664c2a6ddbd2"
+    }
+  ],
+  "requests": {
+    "model": [
+      {
+        "at": "2026-10-21T22:56:58.474Z",
+        "task": "interpret",
+        "text": "order A",
+        "bytes": 1896,
+        "format": "schema",
+        "think": false
+      },
+      {
+        "at": "2026-10-21T22:57:01.583Z",
+        "task": "interpret",
+        "text": "done",
+        "bytes": 1893,
+        "format": "schema",
+        "think": false
+      }
+    ],
+    "desk": [
+      {
+        "at": "2026-10-21T22:57:00.300Z",
+        "method": "POST",
+        "path": "/api/orders",
+        "body": "{\"quantity\":1,\"show\":\"Show A\"}"
+      }
+    ]
+  },
+  "observations": {
+    "turn-001": {
+      "recording": true,
+      "count": 2,
+      "kinds": [
+        "model:127.0.0.1:62210",
+        "tool:desk.example.org"
+      ]
+    },
+    "turn-002": {
+      "recording": true,
+      "count": 1,
+      "kinds": [
+        "model:127.0.0.1:62210"
+      ]
+    }
+  },
+  "checks": {
+    "the scripted Ollama is offered as a local model": "ok",
+    "the plan declares the conversation: 4 turns, the persistent keys, the consent step on orders.place (payment), not pre-decided": "ok",
+    "the agent page says the package converses": "ok",
+    "run.start refuses the conversational plan (conversation_profile)": "ok",
+    "the conversation starts open, with the initial state": "ok",
+    "the first turn starts as a run of the conversation": "ok",
+    "the turn waits on the card: confirm / orders.place / payment, the clerk's sentence and the order's facts": "ok",
+    "before the answer the desk was not called and the model was called once": "ok",
+    "turn 1 completes: the decision by the person, the order in the reply, the state carries it": "ok",
+    "the desk was called exactly once, after the decision": "ok",
+    "the once grant was spent by the order": "ok",
+    "turn 2 completes and the package ends the conversation": "ok",
+    "the second turn asked no card and placed no order": "ok",
+    "the export carries the conversation's records and each turn's files": "ok",
+    "the privacy observer, recording, saw turn 1's model and desk requests and turn 2's model request, nowhere else": "ok",
+    "the conversation is listed for the session with two turns": "ok",
+    "the turns are runs of the conversation": "ok"
+  },
+  "failures": [],
+  "passed": true,
+  "reference": {
+    "directory": "examples/my-chrome-conversation-2026-10-21T22-56-40-962Z/reference",
+    "transcript": [
+      {
+        "turn": 1,
+        "status": "completed",
+        "reply": {
+          "intent": "order",
+          "order": {
+            "order_id": "TD-0001",
+            "quantity": 1,
+            "show": "Show A",
+            "total_usd": 40
+          },
+          "reply": "Order one ticket to Show A?"
+        }
+      },
+      {
+        "turn": 2,
+        "status": "completed",
+        "reply": {
+          "intent": "done",
+          "order": null,
+          "reply": "Goodbye."
+        }
+      }
+    ]
+  },
+  "export": {
+    "entries": [
+      {
+        "name": "conversation.json",
+        "bytes": 21258,
+        "sha256": "41bc711069c6d0498e15bdc425b0df8fa32641f1384f21c6146a198171fe5b43"
+      },
+      {
+        "name": "run-plan.json",
+        "bytes": 12486,
+        "sha256": "02dede7d93fe7681a8b158383f3b6472f3e5a934dc64b9a61e5802fe7073b23f"
+      },
+      {
+        "name": "transcript.json",
+        "bytes": 2928,
+        "sha256": "1462db061180d03521b23cd2cf9f1b329b61abad20ac8728ee2590d13bf8c62c"
+      },
+      {
+        "name": "state.json",
+        "bytes": 269,
+        "sha256": "1f3538cfc54aae80e0ba83c4ff6b966e902f0bc4b8caef50d7566ddc9ca3e774"
+      },
+      {
+        "name": "audit.json",
+        "bytes": 74058,
+        "sha256": "e5b9d26e9626acf6c42d9667254f1bec18c951fe1d67dbf84ab8623bf6d99634"
+      },
+      {
+        "name": "usage.json",
+        "bytes": 538,
+        "sha256": "2ecddbe245e0227e3f3b75c7d2527723e9b0b3c43604b77ea8fcef38e159f022"
+      },
+      {
+        "name": "provenance.json",
+        "bytes": 364,
+        "sha256": "2016a4202da8849bfc00c4717951f16aa3588db800016fb8a57bb44c97e559ce"
+      },
+      {
+        "name": "turn-001/run.json",
+        "bytes": 8538,
+        "sha256": "67701b0fffa12a0cb1a2f0b2ce24481e859cf6032c3b118f2a41f2fc2b0265f3"
+      },
+      {
+        "name": "turn-001/run-plan.json",
+        "bytes": 12486,
+        "sha256": "02dede7d93fe7681a8b158383f3b6472f3e5a934dc64b9a61e5802fe7073b23f"
+      },
+      {
+        "name": "turn-001/input.json",
+        "bytes": 24,
+        "sha256": "360ba84e046d95334eb635913b8979401f82bfa34b2a695ccc2f4843ca08e691"
+      },
+      {
+        "name": "turn-001/audit.json",
+        "bytes": 37747,
+        "sha256": "46b6739fc6d2225f9ee5ed5c62859b7fe060ea3b7d2a3288ebd168496793d623"
+      },
+      {
+        "name": "turn-001/provenance.json",
+        "bytes": 352,
+        "sha256": "8099c57d8fdd9401cbb66c3fe7b51a646d82f7a71c5975e565f36d2fab11da1c"
+      },
+      {
+        "name": "turn-001/reply.json",
+        "bytes": 172,
+        "sha256": "da20f351c8501c9cbd51cfec4a921f79f152143ce678aad49b3841ef856f367f"
+      },
+      {
+        "name": "turn-001/result.json",
+        "bytes": 42854,
+        "sha256": "f65305278e388251fa90aef63818250a41e89f4338a9c4f1b63daa304933bd51"
+      },
+      {
+        "name": "turn-001/usage.json",
+        "bytes": 709,
+        "sha256": "4103d0d23da99f8d68cfea712cffedf710d277b17dcbbe7cf22e2800c20556ae"
+      },
+      {
+        "name": "turn-002/run.json",
+        "bytes": 8241,
+        "sha256": "227ee6e85f2e7a272ab5b3ef2371fbfb830f6c636008e4884fd5a02e05d453be"
+      },
+      {
+        "name": "turn-002/run-plan.json",
+        "bytes": 12486,
+        "sha256": "02dede7d93fe7681a8b158383f3b6472f3e5a934dc64b9a61e5802fe7073b23f"
+      },
+      {
+        "name": "turn-002/input.json",
+        "bytes": 21,
+        "sha256": "5f7042b546b62feb57909f4b3776af26654f4951ff742212697b565d1ef3da99"
+      },
+      {
+        "name": "turn-002/audit.json",
+        "bytes": 31073,
+        "sha256": "725b80fcea9ba1117c59ced7fa00db2789ae32a66555581231f1c12367753fd8"
+      },
+      {
+        "name": "turn-002/provenance.json",
+        "bytes": 352,
+        "sha256": "0f008685392edf4fa62945134c255d2bc5590163c4e17e5259213a566e96b7e3"
+      },
+      {
+        "name": "turn-002/reply.json",
+        "bytes": 63,
+        "sha256": "571e0ed26cae9f059a4d73050373f3ef00a27219266e06d533063c355ffe9af1"
+      },
+      {
+        "name": "turn-002/result.json",
+        "bytes": 35147,
+        "sha256": "76ede75306eebdd65653205df274782c8cf5033def26d30b6e142a08e2923777"
+      },
+      {
+        "name": "turn-002/usage.json",
+        "bytes": 665,
+        "sha256": "fe19cc192c6a9f8e1192e48b51ef0be94032d50f1427575a7b31f6ce3e4bdbbe"
+      }
+    ]
+  },
+  "conversation_verification": {
+    "script": "scripts/verify_chrome_conversation.py",
+    "export": "examples/my-chrome-conversation-2026-10-21T22-56-40-962Z/export",
+    "chain": {
+      "events": 105,
+      "valid": true,
+      "final_hash": "9e675cf6a0e23142122bbda21234f6bdf71d27a6a2648fa8accbf54999b9cc71"
+    },
+    "checks": [
+      {
+        "check": "transcript validates against the output contract (V-16)",
+        "passed": true,
+        "detail": []
+      },
+      {
+        "check": "two completed turns, as the harness recorded them",
+        "passed": true,
+        "detail": [
+          "completed",
+          "completed"
+        ]
+      },
+      {
+        "check": "the conversation ended by the package's rule and completed (V-8, V-30)",
+        "passed": true,
+        "detail": {
+          "ended": {
+            "reason": "package",
+            "at": "2026-10-21T22:57:01.679000+00:00",
+            "turns_not_run": 0
+          },
+          "record": {
+            "status": "ended",
+            "outcome": "completed"
+          }
+        }
+      },
+      {
+        "check": "audit.json is one valid hash chain across the turns (V-17)",
+        "passed": true,
+        "detail": {
+          "events": 105,
+          "valid": true,
+          "broken": [],
+          "final_hash": "9e675cf6a0e23142122bbda21234f6bdf71d27a6a2648fa8accbf54999b9cc71",
+          "note": "A local hash chain. It binds these events to each other; it is not an external tamper-proof audit service."
+        }
+      },
+      {
+        "check": "sequence counts on from 1 and every event names the conversation",
+        "passed": true,
+        "detail": {
+          "events": 105
+        }
+      },
+      {
+        "check": "the conversation-level events frame the turns (run_id = the conversation id)",
+        "passed": true,
+        "detail": [
+          "conversation.started",
+          "turn.started",
+          "turn.completed",
+          "turn.started",
+          "turn.completed",
+          "conversation.ended"
+        ]
+      },
+      {
+        "check": "turn 1: its audit.json is its slice of the chain",
+        "passed": true,
+        "detail": {
+          "slice": 54,
+          "in_chain": 54
+        }
+      },
+      {
+        "check": "turn 1: result.json is the reply and names the conversation",
+        "passed": true,
+        "detail": {
+          "conversation_id": "b43cdeaa-3f66-4fb2-9ecc-dadca8173bcd",
+          "turn": 1
+        }
+      },
+      {
+        "check": "turn 2: its audit.json is its slice of the chain",
+        "passed": true,
+        "detail": {
+          "slice": 45,
+          "in_chain": 45
+        }
+      },
+      {
+        "check": "turn 2: result.json is the reply and names the conversation",
+        "passed": true,
+        "detail": {
+          "conversation_id": "b43cdeaa-3f66-4fb2-9ecc-dadca8173bcd",
+          "turn": 2
+        }
+      },
+      {
+        "check": "every consent.decided is matched by a transcript decision (step, permissions, accepted, decided_by)",
+        "passed": true,
+        "detail": {
+          "decided": 1,
+          "decisions": 1
+        }
+      },
+      {
+        "check": "turn 1: consent.requested precedes consent.decided and hashes what the person saw",
+        "passed": true,
+        "detail": {
+          "requested": 22,
+          "decided": 25
+        }
+      },
+      {
+        "check": "turn 1: the gated tool was called once, after the decision",
+        "passed": true,
+        "detail": [
+          [
+            "place",
+            39
+          ]
+        ]
+      },
+      {
+        "check": "the card was pending before the person decided; the desk was called after",
+        "passed": true,
+        "detail": {
+          "card": "2026-10-21T22:56:58.482000+00:00",
+          "seen": "2026-10-21T22:56:58.507Z",
+          "decided": "2026-10-21T22:57:00.290Z",
+          "desk": [
+            "2026-10-21T22:57:00.300Z"
+          ]
+        }
+      },
+      {
+        "check": "the second turn asked nothing and bought nothing",
+        "passed": true
+      },
+      {
+        "check": "turn 1: the observer, recording, saw the model request and the order and nothing else",
+        "passed": true,
+        "detail": {
+          "kinds": [
+            "model",
+            "tool"
+          ],
+          "hosts": [
+            "127.0.0.1:62210",
+            "desk.example.org"
+          ]
+        }
+      },
+      {
+        "check": "turn 1: no recorded request body carries a credential",
+        "passed": true
+      },
+      {
+        "check": "turn 1: the model saw the message under the interpret task with a schema constraint",
+        "passed": true
+      },
+      {
+        "check": "turn 2: the observer, recording, saw the model request and nothing else",
+        "passed": true,
+        "detail": {
+          "kinds": [
+            "model"
+          ],
+          "hosts": [
+            "127.0.0.1:62210"
+          ]
+        }
+      },
+      {
+        "check": "turn 2: no recorded request body carries a credential",
+        "passed": true
+      },
+      {
+        "check": "turn 2: the model saw the message under the interpret task with a schema constraint",
+        "passed": true
+      },
+      {
+        "check": "state.json is the transcript's persisted state (V-5)",
+        "passed": true,
+        "detail": {
+          "history": [
+            {
+              "intent": "order",
+              "text": "order A"
+            },
+            {
+              "intent": "done",
+              "text": "done"
+            }
+          ],
+          "orders": [
+            {
+              "order_id": "TD-0001",
+              "show": "Show A",
+              "quantity": 1,
+              "total_usd": 40
+            }
+          ]
+        }
+      },
+      {
+        "check": "the persisted state holds the order and the history of both turns",
+        "passed": true,
+        "detail": {
+          "history": [
+            {
+              "intent": "order",
+              "text": "order A"
+            },
+            {
+              "intent": "done",
+              "text": "done"
+            }
+          ],
+          "orders": [
+            {
+              "order_id": "TD-0001",
+              "show": "Show A",
+              "quantity": 1,
+              "total_usd": 40
+            }
+          ]
+        }
+      },
+      {
+        "check": "the once grant was spent by the order (V-13)",
+        "passed": true,
+        "detail": {
+          "spent": [
+            "orders.place"
+          ],
+          "tool_calls": {
+            "place": 1
+          }
+        }
+      },
+      {
+        "check": "the usage sums the turns",
+        "passed": true,
+        "detail": {
+          "turns": 2,
+          "tokens": 534,
+          "remote_calls": 1,
+          "tool_calls": {
+            "place": 1
+          },
+          "limits": {
+            "max_turns": 4,
+            "hard_tokens": 16000,
+            "max_remote_calls": 4,
+            "max_calls_per_tool": {
+              "place": 2
+            }
+          },
+          "per_turn": [
+            {
+              "turn": 1,
+              "status": "completed",
+              "tokens": 270,
+              "remote_calls": 1,
+              "tool_calls": {
+                "place": 1
+              }
+            },
+            {
+              "turn": 2,
+              "status": "completed",
+              "tokens": 264,
+              "remote_calls": 0,
+              "tool_calls": {}
+            }
+          ]
+        }
+      },
+      {
+        "check": "the reference's replies equal Chrome's, turn for turn",
+        "passed": true,
+        "detail": {
+          "reference": [
+            "completed",
+            "completed"
+          ]
+        }
+      },
+      {
+        "check": "the reference's final state and end equal Chrome's",
+        "passed": true,
+        "detail": {
+          "reference_state": {
+            "history": [
+              {
+                "intent": "order",
+                "text": "order A"
+              },
+              {
+                "intent": "done",
+                "text": "done"
+              }
+            ],
+            "orders": [
+              {
+                "order_id": "TD-0001",
+                "quantity": 1,
+                "show": "Show A",
+                "total_usd": 40
+              }
+            ]
+          }
+        }
+      },
+      {
+        "check": "the reference's decision was the transcript's; Chrome's was the person's",
+        "passed": true
+      }
+    ],
+    "passed": true
+  },
+  "passed_conversation": true
+}

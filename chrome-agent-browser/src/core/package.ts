@@ -8,6 +8,7 @@
  */
 import { readArchiveBytes } from "./archive.js";
 import { canonicalJson } from "./canonical.js";
+import { conversationRecords } from "./conversation/declarations.js";
 import { ValidationError } from "./errors.js";
 import { sha256Hex } from "./hash.js";
 import { parseJson, type JsonObject, type JsonValue } from "./json.js";
@@ -66,5 +67,8 @@ export function inspectPackage(pkg: Package): JsonObject {
   };
   if ("nodes" in graph) result.nodes = graph.nodes!;
   else result.stages = graph.stages ?? [];
+  // conversation.v0: the turns, the persistent keys and the consent steps, where declared (V-20).
+  const conversation = conversationRecords(pkg);
+  if (conversation !== null) result.conversation = conversation;
   return result;
 }
